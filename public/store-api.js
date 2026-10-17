@@ -2732,6 +2732,20 @@ window.HelmUrl = HelmUrl;
       : (typeof window !== "undefined" && window.HELM_IS_PROD_HOST === true)
         ? Promise.reject(new Error("Online payment isn't available — your planner will share payment details."))
         : rpc("create_payment", { p_token: token }),
+    // ---- 0151: WhatsApp / e-mail approval code (always to the phone / e-mail ON THE QUOTE) ----
+    // live (liveChannels.whatsapp) -> send-otp edge function (itself simulated until the Meta /
+    // Resend secrets exist); otherwise the simulated RPC (code shown on screen off production).
+    requestChannelOtp: (token, channel) => LIVE.whatsapp ? callFn("send-otp", { token, channel })
+      : rpc("wa_request_otp", { p_token: token, p_channel: channel, p_user_agent: (typeof navigator !== "undefined" ? navigator.userAgent : "").slice(0, 400) }),
+    verifyChannel: (token, channel, code, agreed, termsVersion, consentText, clientName, ua) =>
+      rpc("wa_verify_and_consent", { p_token: token, p_channel: channel, p_code: code, p_agreed: agreed,
+        p_terms_version: termsVersion, p_consent_text: consentText, p_client_name: clientName, p_user_agent: ua }),
+    // ---- 0151: studio "Send on WhatsApp" (Simulated / Sent / Delivered / Read / Failed) ----
+    waSend: (quoteId, kind, phone, optIn, consentText) => LIVE.whatsapp
+      ? callFn("wa-proposal", { quote_id: quoteId, kind, phone, opt_in: !!optIn, consent_text: consentText || "" })
+      : rpc("wa_proposal_prepare", { p_quote: quoteId, p_kind: kind, p_phone: phone, p_opt_in: !!optIn,
+          p_consent_text: optIn ? (consentText || "") : null, p_simulate: true }).then((r) => ({ simulated: true, status: (r && r.status) || "simulated" })),
+    waState: (quoteId) => mode === "supabase" ? rpc("wa_proposal_state", { p_quote: quoteId }).catch(() => null) : Promise.resolve(null),
     // ---- manager (authenticated) ----
     // 0128 trial test mode (server-gated: active trial studios only; no SMS / email sent)
     trialTestMode: (token) => mode === "supabase" ? rpc("trial_test_mode_for_token", { p_token: token }).catch(() => false) : Promise.resolve(false),

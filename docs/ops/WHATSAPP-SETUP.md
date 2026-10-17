@@ -188,3 +188,49 @@ curl -s -X POST "https://xizehqgeyjcfpzrdymly.supabase.co/functions/v1/send-what
   or member not opted in.
 - To switch everything off instantly: set `liveChannels.whatsapp` back to `false` and
   `supabase secrets unset HELM_COMMS_ENABLED HELM_PKG_NOTIFY_ENABLED --project-ref <ref>`. No data is touched.
+
+## Send proposal on WhatsApp + WhatsApp approval code (0151)
+
+Model 1: everything goes out from ONE Helm Events number. Until `WHATSAPP_TOKEN` and
+`WHATSAPP_PHONE_ID` are set, everything runs **simulated**: the studio's "Send on WhatsApp"
+button records the opt-in and an audit row marked *Simulated*, and the approval page shows
+the code on screen (staging only) instead of sending it.
+
+### Owner steps
+1. Run `supabase/APPLY-0151.sql` (staging first, then prod). Every VERIFY row must say `t`.
+2. Deploy: `supabase functions deploy wa-proposal` and `supabase functions deploy send-otp`.
+3. Submit the 5 templates below in Meta WhatsApp Manager and wait for "Approved".
+4. Set secrets: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` (and `WHATSAPP_TPL_LANG` if the templates
+   are not language `en`); for the e-mail fallback `RESEND_API_KEY` + `RESEND_FROM`.
+5. Set `liveChannels.whatsapp: true` in `public/config.js` (the page then calls the edge functions).
+6. Point the wa-webhook at Meta (above) so Delivered / Read show on the studio's share panel.
+
+### The 5 templates (submit exactly)
+The URL button base is `https://www.helm.events/portal.html?token=` with a **dynamic suffix**
+`{{1}}` (Helm fills in the client's approval token). Sample suffix for review:
+`00000000-0000-4000-8000-000000000000`.
+
+| # | Name | Category | Language | Body | Buttons |
+|---|------|----------|----------|------|---------|
+| 1 | `proposal_sent` | UTILITY | English (`en`) | `Hi {{1}}, {{2}} has shared your proposal for your {{3}} on {{4}}. Total: {{5}}. Tap below to review and approve it. Reply STOP to opt out.` | URL button "Review proposal" -> `https://www.helm.events/portal.html?token={{1}}` |
+| 2 | `proposal_approval_otp` | AUTHENTICATION | English (`en`) | Meta's fixed body: `{{1}} is your verification code.` with "Add security recommendation" ON and "Add expiry time" = 10 minutes (footer: `This code expires in 10 minutes.`) | Copy code button ("Copy code") |
+| 3 | `proposal_approved_pay` | UTILITY | English (`en`) | `Thank you {{1}}, your {{2}} on {{3}} is approved. Amount: {{4}}. Tap below to view your booking and pay securely.` | URL button "Pay now" -> `https://www.helm.events/portal.html?token={{1}}` |
+| 4 | `payment_received` | UTILITY | English (`en`) | `Hi {{1}}, {{2}} has received your payment for your {{3}}. Thank you! Tap below to see your receipt and booking.` | URL button "View booking" -> `https://www.helm.events/portal.html?token={{1}}` |
+| 5 | `proposal_reminder` | UTILITY | English (`en`) | `Hi {{1}}, a reminder from {{2}}: your proposal for your {{3}} on {{4}} (total {{5}}) is waiting for your approval. Reply STOP to opt out.` | URL button "Review proposal" -> `https://www.helm.events/portal.html?token={{1}}` |
+
+Variables Helm sends: client name, studio name, event type, event date (`DD Mon YYYY`), total
+(`INR 2,36,000` style, e.g. `INR 236,000`). Which one goes out is picked from the quote: not
+approved -> `proposal_sent` (then `proposal_reminder` on the next press), approved ->
+`proposal_approved_pay`, paid -> `payment_received`.
+
+### Rules the code enforces
+- The number is ALWAYS the client mobile on the quote, E.164-checked (the studio cannot type
+  another one; the client approval page never asks for one for WhatsApp / e-mail codes).
+- "Client agreed to receive WhatsApp updates" must be ticked once per number; stored with who
+  and when (`wa_proposal_optins`, append-only). A STOP reply blocks further sends.
+- Approval code: 6 digits, stored only as a bcrypt hash, 10-minute expiry, 5 attempts,
+  30 s cooldown and 3 resends per channel per 30 minutes. After 60 s (or a WhatsApp failure)
+  the page offers "Send code by email instead" (to the e-mail on the quote). SMS is unchanged.
+- Audit (`wa_proposal_audit`, append-only, studio read-only): quote id + version + SHA-256 of
+  the quote snapshot, studio, phone, channel, template, wamid, sent / delivered / read (from
+  wa-webhook), code sent / checked + attempts, IP (Cloudflare header) + user agent, approval time.

@@ -1,0 +1,13 @@
+/* 0151 "Send on WhatsApp" share panel */
+.wap-box{margin-top:10px;padding:10px 12px;border:1px solid var(--line,#e3e3e3);border-radius:10px;display:flex;flex-direction:column;gap:6px}
+.wap-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.wap-chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--bg-2,#f1f1f1);color:var(--ink-2,#444)}
+.wap-chip.wap-sent,.wap-chip.wap-queued{background:#e7f0ff;color:#1d4ed8}
+.wap-chip.wap-delivered{background:#e6f6ec;color:#15803d}
+.wap-chip.wap-read{background:#d1fae5;color:#065f46}
+.wap-chip.wap-failed{background:#fde8e8;color:#b91c1c}
+.wap-chip.wap-simulated{background:#fff4d6;color:#8a5a00}
+.wap-to,.wap-note{font-size:12px}
+.wap-opt{display:flex;align-items:flex-start;gap:6px;font-size:13px}
+.wap-msg{font-size:12px;color:var(--ink-2,#444)}
+.wap-msg:empty{display:none}
