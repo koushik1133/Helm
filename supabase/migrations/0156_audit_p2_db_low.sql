@@ -442,15 +442,30 @@ do $$ declare f text; begin
     execute 'grant execute on function public.mark_paid(uuid, text) to service_role';
   end if;
 end $$;
-select public._a156_patch('public.razorpay_settle(uuid,text,text,bigint,text)'::regprocedure,
-  $o$provider = 'razorpay' and provider_ref = v_link order by$o$,
-  $n$provider = 'razorpay' and provider_ref = v_link and link_url is not null /* a156 */ order by$n$);
-select public._a156_patch('public.razorpay_settle_for_org(uuid,uuid,text,text,bigint,text)'::regprocedure,
-  $o$provider = 'razorpay' and provider_ref = v_link order by$o$,
-  $n$provider = 'razorpay' and provider_ref = v_link and link_url is not null /* a156 */ order by$n$);
-select public._a156_patch('public.razorpay_record_event(text,uuid,text,text,text,text,bigint,text,uuid)'::regprocedure,
-  $o$provider = 'razorpay' and provider_ref = v_link order by$o$,
-  $n$provider = 'razorpay' and provider_ref = v_link and link_url is not null /* a156 */ order by$n$);
+-- only when this function exists here (0117 Razorpay functions are not installed on every DB)
+do $a156rz$ begin
+  if to_regprocedure('public.razorpay_settle(uuid,text,text,bigint,text)') is not null then
+    perform public._a156_patch('public.razorpay_settle(uuid,text,text,bigint,text)'::regprocedure,
+      $o$provider = 'razorpay' and provider_ref = v_link order by$o$,
+      $n$provider = 'razorpay' and provider_ref = v_link and link_url is not null /* a156 */ order by$n$);
+  end if;
+end $a156rz$;
+-- only when this function exists here (0117 Razorpay functions are not installed on every DB)
+do $a156rz$ begin
+  if to_regprocedure('public.razorpay_settle_for_org(uuid,uuid,text,text,bigint,text)') is not null then
+    perform public._a156_patch('public.razorpay_settle_for_org(uuid,uuid,text,text,bigint,text)'::regprocedure,
+      $o$provider = 'razorpay' and provider_ref = v_link order by$o$,
+      $n$provider = 'razorpay' and provider_ref = v_link and link_url is not null /* a156 */ order by$n$);
+  end if;
+end $a156rz$;
+-- only when this function exists here (0117 Razorpay functions are not installed on every DB)
+do $a156rz$ begin
+  if to_regprocedure('public.razorpay_record_event(text,uuid,text,text,text,text,bigint,text,uuid)') is not null then
+    perform public._a156_patch('public.razorpay_record_event(text,uuid,text,text,text,text,bigint,text,uuid)'::regprocedure,
+      $o$provider = 'razorpay' and provider_ref = v_link order by$o$,
+      $n$provider = 'razorpay' and provider_ref = v_link and link_url is not null /* a156 */ order by$n$);
+  end if;
+end $a156rz$;
 -- one row per Razorpay link id (only when no duplicates exist today; nothing is changed if they do)
 do $$ begin
   if to_regclass('public.quote_payments_a156_plink_uq') is null then
@@ -812,9 +827,9 @@ select item, ok from (values
                     or has_table_privilege('authenticated', 'public.lead_archive', 'delete')))),
   ('11 razorpay link ids', to_regprocedure('public.mark_paid__pre0156(uuid,text)') is not null
        and to_regprocedure('public.record_payment__pre0156(uuid,numeric,text,text,uuid,text,text)') is not null
-       and position('a156' in (select p.prosrc from pg_proc p where p.oid = to_regprocedure('public.razorpay_settle(uuid,text,text,bigint,text)'))) > 0
-       and position('a156' in (select p.prosrc from pg_proc p where p.oid = to_regprocedure('public.razorpay_settle_for_org(uuid,uuid,text,text,bigint,text)'))) > 0
-       and position('a156' in (select p.prosrc from pg_proc p where p.oid = to_regprocedure('public.razorpay_record_event(text,uuid,text,text,text,text,bigint,text,uuid)'))) > 0),
+       and (to_regprocedure('public.razorpay_settle(uuid,text,text,bigint,text)') is null or position('a156' in (select p.prosrc from pg_proc p where p.oid = to_regprocedure('public.razorpay_settle(uuid,text,text,bigint,text)'))) > 0)
+       and (to_regprocedure('public.razorpay_settle_for_org(uuid,uuid,text,text,bigint,text)') is null or position('a156' in (select p.prosrc from pg_proc p where p.oid = to_regprocedure('public.razorpay_settle_for_org(uuid,uuid,text,text,bigint,text)'))) > 0)
+       and (to_regprocedure('public.razorpay_record_event(text,uuid,text,text,text,text,bigint,text,uuid)') is null or position('a156' in (select p.prosrc from pg_proc p where p.oid = to_regprocedure('public.razorpay_record_event(text,uuid,text,text,text,text,bigint,text,uuid)'))) > 0)),
   ('12 notify_default closed', not exists (select 1 from pg_roles where rolname = 'anon')
        or (not has_function_privilege('anon', 'public.notify_default(uuid, text, text, text)', 'execute')
            and not has_function_privilege('authenticated', 'public.notify_default(uuid, text, text, text)', 'execute')
