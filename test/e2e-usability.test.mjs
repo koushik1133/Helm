@@ -163,7 +163,7 @@ t('E13 closure P&L / budget / insights on ex-tax revenue; tax shown as payable',
   assert.match(store, /const revenueExTax = Math\.round\(\(revenue - tax\) \* 100\) \/ 100;/);
   assert.match(store, /const estMargin = revenueExTax - estCost/);
   assert.match(store, /const rev = s\.revenueExTax != null \? s\.revenueExTax : s\.revenue/);
-  assert.match(store, /balance = revenue - received;   \/\/ the client's balance includes tax/);
+  assert.match(store, /balance = Math.round\(\(revenue - gross\) \* 100\) \/ 100;   \/\/ the client's balance includes tax/);
   assert.match(closure, /Revenue \(ex-\$\{esc\(taxLabel\(\)\)\}\)/); assert.match(closure, /collected \(payable\)/);
   assert.doesNotMatch(closure, /Revenue \(client\)/);
   assert.match(insights, /o\.revenue_ex_tax!=null\?Number\(o\.revenue_ex_tax\)/); assert.match(insights, /"Revenue \(ex-tax\)"/);
@@ -193,7 +193,7 @@ t('APPLY-0101.sql: ASCII, one transaction, verify rows', () => {
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0101_e2e_usability\.sql/);
 });
 t('versions bumped', () => {
-  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=219/); assert.match(f, /event-name\.js\?v=6/); assert.match(f, /country-profile\.js\?v=4/); }
+  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=220/); assert.match(f, /event-name\.js\?v=6/); assert.match(f, /country-profile\.js\?v=4/); }
   assert.match(read('public/booklet.html'), /booklet\.js\?v=18/); assert.match(flow, /booklet\.js\?v=18/);
 });
 

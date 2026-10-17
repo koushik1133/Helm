@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=6"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=7"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -6515,7 +6515,10 @@ window.HelmUrl = HelmUrl;
       // (so Balance due goes back up). Pending / approved refunds are only "Refunds due".
       const refundedOut = (refs || []).filter((r) => r.kind === "refund" && r.status === "processed").reduce((a, r) => a + Number(r.amount || 0), 0);
       const received = Math.round((gross - refundedOut) * 100) / 100;
-      const revenue = b.revenue, balance = revenue - received;   // the client's balance includes tax
+      // retest-1018: what the CLIENT owes is total - everything they paid (gross). A processed
+      // refund is money we gave back, it never creates a new debt - same rule as the server
+      // close gate (closure.blockers: paid = ledger receipts). Received above stays net.
+      const revenue = b.revenue, balance = Math.round((revenue - gross) * 100) / 100;   // the client's balance includes tax
       const vend = bk.filter((x) => x.status !== "cancelled");
       const vendorCost = vend.reduce((a, x) => a + Number(x.cost || 0), 0);
       const vendorAdvance = vend.reduce((a, x) => a + Number(x.advance || 0), 0);
@@ -6630,8 +6633,16 @@ window.HelmUrl = HelmUrl;
       // retest2-1017: a PROCESSED refund is money given back, so it reduces profit (matches
       // settlement net profit, closure P&L, event_pnl and the Business page)
       const refunds = Number(s.refundedOut || 0);
-      const profit = rev - cost - s.expPaid - refunds;
-      return { revenue: rev, gross: s.revenue, tax, cost, expenses: s.expPaid, refunds, profit,
+      let profit = rev - cost - s.expPaid - refunds, costOut = cost;
+      // retest-1018: the server event_pnl (vendor bills + payouts) is the one profit every other page
+      // shows - use it when installed so this P&L never disagrees with Settlement / Business
+      try {
+        const v = await vendorBills.pnl(quoteId);
+        if (v && v.source === "server" && Number.isFinite(Number(v.net_profit))) {
+          profit = Number(v.net_profit); costOut = Number(v.vendors || 0) + Number(v.other || 0);
+        }
+      } catch (_) { /* fall back to the settlement maths */ }
+      return { revenue: rev, gross: s.revenue, tax, cost: costOut, expenses: s.expPaid, refunds, profit,
         marginPct: rev ? Math.round(profit / rev * 100) : null, estCost: s.estCost, actCost: s.actCost, finalCost: s.finalCost };
     },
   };

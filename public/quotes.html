@@ -282,7 +282,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=219"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=220"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=14"></script>
 <script>
@@ -444,7 +444,9 @@
     const taxP=Promise.resolve().then(()=>BPStore.config.getPricing()).then(c=>{ studioCfg=c||{}; studioTax=curTax=BPStore.tax.resolve(studioCfg); paintTaxCopy(studioTax); }).catch(()=>{});
     Promise.resolve().then(()=>BPStore.org.current()).then(o=>{ studioOrg=o||null; const bl=o&&o.brand&&o.brand.billing; studioState=(bl&&typeof bl.state==="string")?bl.state:""; }).catch(()=>{});
     // independent capability reads — in parallel (render() reads them)
-    [canEdit, canDelete, canCreate, canMarkPaid] = await Promise.all([BPStore.auth.canEditArea("quotes"), BPStore.auth.can("delete"), BPStore.auth.canEditArea("quotes"),
+    [canEdit, canDelete, canCreate, canMarkPaid] = await Promise.all([BPStore.auth.canEditArea("quotes"), BPStore.auth.can("delete"),
+      // create needs can_create() server-side (0147 quote_create switch) AND quotes edit - same as dashboard
+      Promise.all([BPStore.auth.can("create"), BPStore.auth.canEditArea("quotes")]).then(([c,e])=>!!(c&&e)),
       // mark_paid is admin/manager only server-side (SEC-05 F11); offline mode has no roles — server: mark_paid needs has_area(finance,edit)
       BPStore.auth.enabled() ? BPStore.auth.canEditArea("finance") : true]);
     $("#newBtn").hidden = !canCreate;

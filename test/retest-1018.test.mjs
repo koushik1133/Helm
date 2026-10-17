@@ -1,0 +1,14 @@
+import { readFileSync } from 'node:fs';
+const r = (p) => readFileSync(new URL('../public/' + p, import.meta.url), 'utf8');
+let n = 0; const ok = (c, m) => { if (!c) { console.error('FAIL: ' + m); process.exit(1); } n++; };
+const api = r('store-api.js'), q = r('quotes.html'), l = r('leads.html'), c = r('closure.html'), s = r('settlement.html');
+ok(/balance = Math\.round\(\(revenue - gross\) \* 100\) \/ 100/.test(api), 'refund does not create client debt');
+ok(/v\.source === "server" && Number\.isFinite\(Number\(v\.net_profit\)\)/.test(api), 'closure.pl uses server event_pnl');
+ok(/Promise\.all\(\[BPStore\.auth\.can\("create"\), BPStore\.auth\.canEditArea\("quotes"\)\]\)/.test(q), 'quotes New quote needs can(create) + quotes edit');
+ok(/canCreate=!!\(c1&&e1\)/.test(l), 'leads New lead needs create + leads edit');
+ok(/BPStore\.vendorBills\.pnl\(id\)/.test(c) && /bills_due/.test(c), 'close dialog counts vendor bills owed');
+ok(/pl\.refunds>0/.test(c), 'closure P&L shows refunds');
+ok(!/<td class="num">\+ \$\{inr\(s\.refundedOut\)\}/.test(s), 'settlement refund row not added to balance');
+console.log('retest-1018 ' + n + '/' + n + ' ok');
+ok(/shell-proto\.js\?v=7/.test(api), 'shell-proto pin bumped so cached browsers pick up SHELL_V 106');
+console.log('retest-1018 shell pin ok');

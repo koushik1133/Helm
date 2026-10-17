@@ -170,7 +170,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=219"></script><script src="vendor-bills-ui.js?v=7"></script><script src="trial-test-note.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=220"></script><script src="vendor-bills-ui.js?v=7"></script><script src="trial-test-note.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -224,7 +224,7 @@
     $("#invBody").innerHTML = `
       <tr><td>Invoice total (quote + approved changes)</td><td class="num">${inr(s.revenue)}</td></tr>
       <tr><td>Payments received</td><td class="num" style="color:var(--safe-text,#0f7a43)">− ${inr(s.refundedOut>0?s.receivedGross:s.received)}</td></tr>
-      ${s.refundedOut>0?`<tr><td>Refunded to client</td><td class="num">+ ${inr(s.refundedOut)}</td></tr>`:""}
+      ${s.refundedOut>0?`<tr><td>Refunded to client <span class="muted">(paid back - not owed again)</span></td><td class="num">${inr(s.refundedOut)}</td></tr>`:""}
       ${s.balance<0
         ? `<tr><td><b>Overpaid — credit due to client</b></td><td class="num"><b data-money style="color:var(--warn-text,#946200)">${inr(-s.balance)}</b></td></tr>`
         : `<tr><td><b>Balance due from client</b></td><td class="num"><b data-money style="color:${s.balance>0?'var(--neg)':'var(--safe-text,#0f7a43)'}">${inr(s.balance)}</b></td></tr>`}`;
