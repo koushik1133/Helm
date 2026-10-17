@@ -118,6 +118,9 @@
   /* ---------- dates ---------- */
   /* DP:start - KPI period filter (pure; tested in test/dashboard-period.test.mjs) */
   var DP_OPTS = [["7d", 7, "7 days"], ["1m", 30, "1 month"], ["6m", 182, "6 months"], ["1y", 365, "1 year"]];
+  var DP_SHORT = { "7d": "7D", "1m": "1M", "6m": "6M", "1y": "1Y" };
+  // phones (<=480px) show 7D / 1M / 6M / 1Y; desktop shows full text; the select keeps a full aria-label
+  function dpLabel(k, fwd, narrow) { for (var i = 0; i < DP_OPTS.length; i++) if (DP_OPTS[i][0] === k) return narrow ? DP_SHORT[k] : (fwd ? "Next " : "Last ") + DP_OPTS[i][2]; return ""; }
   function dpDays(k) { for (var i = 0; i < DP_OPTS.length; i++) if (DP_OPTS[i][0] === k) return DP_OPTS[i][1]; return 0; }
   function dpName(k) { return k === "1m" ? "month" : k === "1y" ? "year" : k === "6m" ? "6 months" : k === "7d" ? "7 days" : ""; }
   function dpVs(k) { return k === "7d" ? "vs previous 7 days" : k === "1m" ? "vs previous month" : k === "6m" ? "vs previous 6 months" : "vs previous year"; }
@@ -1028,7 +1031,8 @@
             render(dpSel[key]);
             var top = t.querySelector(".hd-kpi-top"); if (!top) return;
             var sel = el("select", "hd-kpi-per"); sel.setAttribute("aria-label", "Period for " + (t.querySelector(".hd-kpi-l") || {}).textContent);
-            DP_OPTS.forEach(function (o) { var op = el("option", null, (fwd ? "Next " : "Last ") + o[2]); op.value = o[0]; if (o[0] === dpSel[key]) op.selected = true; sel.appendChild(op); });
+            var dpNarrow = false; try { dpNarrow = !!(window.matchMedia && window.matchMedia("(max-width: 480px)").matches); } catch (e) {}
+            DP_OPTS.forEach(function (o) { var op = el("option", null, dpLabel(o[0], fwd, dpNarrow)); op.value = o[0]; op.setAttribute("aria-label", dpLabel(o[0], fwd, false)); if (o[0] === dpSel[key]) op.selected = true; sel.appendChild(op); });
             sel.addEventListener("change", function () { if (!dpDays(sel.value)) return; dpSel[key] = sel.value; dpSave(dpUid, dpSel); draw(); var n = t.querySelector(".hd-kpi-per"); if (n) n.focus(); });
             var ic = top.querySelector(".hd-kpi-ic"); top.insertBefore(sel, ic || null);
           };

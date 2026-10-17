@@ -8,7 +8,7 @@ let n = 0; const ok = (c, m) => { assert.ok(c, m); n++; console.log("ok - " + m)
 const blk = js.slice(js.indexOf("/* DP:start"), js.indexOf("/* DP:end */"));
 ok(blk.length > 200, "pure helper block present");
 const store = {}; const localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
-const H = new Function("localStorage", blk + "; return { DP_OPTS, dpDays, dpName, dpVs, dpBack, dpFwd, dpLoad, dpSave };")(localStorage);
+const H = new Function("localStorage", blk + "; return { DP_OPTS, dpDays, dpName, dpVs, dpBack, dpFwd, dpLoad, dpSave, dpLabel };")(localStorage);
 ok(H.DP_OPTS.map((o) => o[0]).join() === "7d,1m,6m,1y" && H.dpDays("1y") === 365 && H.dpDays("x") === 0, "four periods, unknown rejected");
 const DAY = 864e5, now = Date.UTC(2026, 9, 17, 12);
 const at = (d) => ({ t: now - d * DAY });
@@ -33,4 +33,6 @@ ok(/dpTile\(tiles\[0\], "up", true/.test(js) && /dpTile\(tiles\[1\], "conf"/.tes
 const kp = js.slice(js.indexOf("var dpUid"), js.indexOf("// task-centric roles"));
 ok(!/HelmMoney|data-money|\.total\b/.test(kp), "period tiles show counts only (no amounts to hide)");
 ok(/\.hd-kpi-per \{ position: relative; z-index: 2/.test(css) && /max-width: 640px\) \{[^\n]*\.hd-kpi-per \{ min-height: 32px/.test(css), "select sits above tile link; touch-size on mobile");
+ok(H.dpLabel("7d", false, true) === "7D" && H.dpLabel("1y", true, true) === "1Y" && H.dpLabel("6m", false, false) === "Last 6 months" && H.dpLabel("1m", true, false) === "Next 1 month", "phones show 7D/1M/6M/1Y, desktop full text");
+ok(/max-width: 480px/.test(js) && /op\.setAttribute\("aria-label", dpLabel\(o\[0\], fwd, false\)\)/.test(js) && /sel\.setAttribute\("aria-label", "Period for "/.test(js), "short labels only <=480px; aria-labels stay full");
 console.log("dashboard-period: " + n + " checks passed");
