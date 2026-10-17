@@ -611,7 +611,7 @@
     const out=Number(c.qty_out||0);
     const ciV=BPStore.validate.count($("#ci_in").value,{allowZero:true,field:"Units returned"}); if(!ciV.ok){ $("#ci_err").textContent=ciV.error; $("#ci_err").hidden=false; return; }
     let qtyIn=ciV.value;
-    if(qtyIn>out) qtyIn=out;
+    if(qtyIn>out){ $("#ci_err").textContent=`Only ${num(out)} went out - you can check in at most ${num(out)}.`; $("#ci_err").hidden=false; return; }
     const by=($("#ci_by").value||"").trim();
     // any shortfall is written off as loss
     const writeoff=(out-qtyIn)>0;

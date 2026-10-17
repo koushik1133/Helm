@@ -6150,7 +6150,10 @@ window.HelmUrl = HelmUrl;
       const a = readLs(MILE_LS); const row = { id: uid(), quote_id: quoteId, status: "due", amount: 0, ...m, created_at: now() }; a.push(row); localStorage.setItem(MILE_LS, JSON.stringify(a)); return row;
     },
     async update(id, patch) {
-      if (mode === "supabase") { const { error } = await supa.from("payment_milestones").update(patch).eq("id", id); if (error) throw error; return true; }
+      if (mode === "supabase") { const { data, error } = await supa.from("payment_milestones").update(patch).eq("id", id).select("id"); if (error) throw error;
+        // retest2-1017: RLS/locks can silently match 0 rows (e.g. a paid milestone) - report it, never fake success
+        if (!data || !data.length) { const e = new Error("This milestone could not be changed (it may already be paid and locked)."); e.code = "HELM_NOCHANGE"; throw e; }
+        return true; }
       const a = readLs(MILE_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(MILE_LS, JSON.stringify(a)); } return true;
     },
     // Audit Phase 8: "paid" is a money event — in Supabase mode it goes through
@@ -6585,8 +6588,11 @@ window.HelmUrl = HelmUrl;
       const cost = s.finalCost;                      // best-known total cost: actuals where entered, else the estimate — per line, plus vendor spend & approved change cost
       // E13: revenue is EX-TAX; the tax collected is shown separately (payable), margin on ex-tax revenue
       const rev = s.revenueExTax != null ? s.revenueExTax : s.revenue, tax = s.tax || 0;
-      const profit = rev - cost - s.expPaid;
-      return { revenue: rev, gross: s.revenue, tax, cost, expenses: s.expPaid, profit,
+      // retest2-1017: a PROCESSED refund is money given back, so it reduces profit (matches
+      // settlement net profit, closure P&L, event_pnl and the Business page)
+      const refunds = Number(s.refundedOut || 0);
+      const profit = rev - cost - s.expPaid - refunds;
+      return { revenue: rev, gross: s.revenue, tax, cost, expenses: s.expPaid, refunds, profit,
         marginPct: rev ? Math.round(profit / rev * 100) : null, estCost: s.estCost, actCost: s.actCost, finalCost: s.finalCost };
     },
   };

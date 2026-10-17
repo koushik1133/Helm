@@ -186,8 +186,8 @@
     const withTime=items.filter(i=>i.start_time);
     if(withTime.length){ const first=hhmm(withTime[0].start_time); const last=withTime[withTime.length-1];
       const end=addMin(last.start_time,last.duration_min)||hhmm(last.start_time);
-      $("#win").hidden=false; $("#win").textContent="🕒 "+first+" – "+end+" · "+items.length+" items"; }
-    else { $("#win").hidden=false; $("#win").textContent=items.length+" items"; }
+      $("#win").hidden=false; $("#win").textContent="🕒 "+first+" – "+end+" · "+items.length+(items.length===1?" item":" items"); }
+    else { $("#win").hidden=false; $("#win").textContent=items.length+(items.length===1?" item":" items"); }
     $("#rows").innerHTML=items.map(i=>{
       const start=hhmm(i.start_time)||"—"; const end=addMin(i.start_time,i.duration_min);
       return `<div class="row">
@@ -222,6 +222,8 @@
   function closeEdit(){ $("#editModal").hidden=true; editingId=null; editDirty.clean(); }
   async function requestCloseEdit(){ if($("#editModal").hidden) return; if(!(await BPUI.confirmDiscard(editDirty))) return; closeEdit(); }
   async function saveEdit(){ const V=BPStore.validate; const fail=(m)=>{ $("#e_err").textContent=m; $("#e_err").hidden=false; };
+    if(!$("#e_title").value.trim()){ fail("Activity is required."); return; }
+    if($("#e_dur").value.trim()!==""&&Number($("#e_dur").value)<1){ fail("Duration must be 1–1440 minutes"); return; }
     let dr=$("#e_dur").value.trim()===""?{ok:true,value:null}:V.count($("#e_dur").value,{field:"Duration (min)"}); if(dr.ok&&dr.value!=null&&(dr.value<1||dr.value>1440)) dr={ok:false,error:"Duration must be 1–1440 minutes"}; if(!dr.ok){ fail(dr.error); return; }
     await BPUI.guard($("#e_save"),async()=>{
       try{ await BPStore.runsheet.update(editingId,{ start_time:$("#e_time").value||null, duration_min:dr.value,

@@ -203,7 +203,7 @@
     $("#pane").innerHTML = `<h2>Guests</h2><p class="sub">Track expected headcount by group (family, company, VIPs…). Totals help you match seating.</p>
       ${canEdit?`<div class="addrow guest">
         <div class="fld"><label for="g_name">Group *</label><input id="g_name" maxlength="120" required placeholder="e.g. Bride's family"></div>
-        <div class="fld"><label for="g_qty">Headcount</label><input id="g_qty" type="number" min="0" value="0"></div>
+        <div class="fld"><label for="g_qty">Headcount</label><input id="g_qty" type="number" min="0" max="100000" value="0"></div>
         <div class="fld">${SPACER}<button type="button" class="btn primary" id="g_add">＋ Add guest</button></div></div>`:""}
       <div class="table-scroll"><table><thead><tr><th scope="col">Group</th><th scope="col" class="num">Headcount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>${items.length?items.map(rowGuest).join(""):'<tr><td colspan="4" class="empty">No guest groups yet.</td></tr>'}</tbody></table></div>
@@ -218,6 +218,7 @@
   function addGuest(){ const t=$("#g_name").value.trim(); if(!t){ BPUI.toast("Enter the group name first.",{type:"err"}); $("#g_name").focus(); return; }
     const V=BPStore.validate;
     const gr=V.count($("#g_qty").value,{field:"Headcount"}); if(!gr.ok){ BPUI.toast(gr.error,{type:"err"}); return; }
+    if(gr.value>100000){ BPUI.toast("Headcount looks too large - enter at most 1,00,000.",{type:"err"}); $("#g_qty").focus(); return; }
     return act($("#g_add"),async()=>{ await BPStore.checklist.add(id,{ section:"guests", title:t, qty:gr.value }); await renderPane(); },"add the group"); }
 
   async function renderPayments(){
