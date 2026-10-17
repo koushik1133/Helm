@@ -15,3 +15,6 @@ table{font-variant-numeric:tabular-nums}
 .num{font-variant-numeric:tabular-nums}
 @media (max-width:640px){.card{padding:var(--sp-4,16px)}}
 @media (prefers-reduced-motion:reduce){.btn{transition:none}}
+
+/* dev pass 3: long words in run-sheet / teardown / logistics rows wrap instead of scrolling the page sideways */
+td, #rows .what { overflow-wrap: anywhere; min-width: 0; }

@@ -143,7 +143,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
 <script src="range-bar.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -212,10 +212,10 @@
       const rows=await Promise.all(evs.map(async e=>{ try{ const s=await BPStore.settlement.summary(e.id);
         if(BPStore.settlement.applyBills) await BPStore.settlement.applyBills(s,e.id);   // same vendor rule as Settlement: bills replace booked cost, payouts count as paid
         const r={ _cur:BPStore.quoteCurrency(e), code:e.code, event_date:e.eventDate||"" }; if(byPay) r.received_in_period=inPer[e.id]||0;
-        return Object.assign(r,{ revenue:Math.round(s.revenue||0), revenue_ex_tax:Math.round(s.revenueExTax!=null?s.revenueExTax:(s.revenue||0)), gst:Math.round(s.tax||0), received:Math.round(s.received||0),
+        return Object.assign(r,{ revenue:Math.round(s.revenue||0), revenue_ex_tax:Math.round(s.revenueExTax!=null?s.revenueExTax:(s.revenue||0)), gst:Math.round(s.tax||0), received:Math.round(s.received||0), refunded:Math.round(s.refundedOut||0),
           balance:Math.round(s.balance||0), vendor_outstanding:Math.round(s.vendorOutstanding||0), expenses_paid:Math.round(s.expPaid||0) });
       }catch{ builders.skipped++; return null; } })); const ok=rows.filter(Boolean), curs=ok.map(r=>r._cur); ok.forEach(r=>{ delete r._cur; });
-      return perCurrency(ok, curs, ["revenue","revenue_ex_tax","gst","received","balance","vendor_outstanding","expenses_paid"].concat(byPay?["received_in_period"]:[]), "code"); },
+      return perCurrency(ok, curs, ["revenue","revenue_ex_tax","gst","received","refunded","balance","vendor_outstanding","expenses_paid"].concat(byPay?["received_in_period"]:[]), "code"); },
   };
 
   async function doCSV(kind){ setMsg(); const btns=[...document.querySelectorAll("[data-csv]")]; btns.forEach(b=>b.disabled=true);

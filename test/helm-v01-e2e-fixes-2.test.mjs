@@ -49,7 +49,7 @@ t('confirm dialog: effective rates, "—" when invalid, total-change warning, aw
   const q = r('public/quotes.html');
   assert.match(q, /function paintRateNote\(p\)/); assert.match(q, /\$\{valid\?inr\(t\.total\):"—"\}/);
   assert.match(q, /Total changes from \$\{esc\(inr\(saved\)\)\} to/); assert.match(q, /Total changes from \$\{inr\(sv\)\} to/);
-  assert.match(q, /Confirmed · awaiting client approval/); assert.match(r('public/event.html'), /Confirmed · awaiting client approval/);
+  assert.match(q, /Confirmed · awaiting client approval/); assert.match(r('public/event.html'), /Client link not approved/);
   assert.match(q, /<option>V\$\{esc\(x\.currentVersion\)\}<\/option>/); assert.match(q, /\/v\(\\d\+\)\/i\.exec/);
 });
 t('workspace: one Next-step CTA, vendors not double counted, event group stays on page', () => {

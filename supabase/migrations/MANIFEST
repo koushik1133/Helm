@@ -219,3 +219,5 @@ forward  supabase/migrations/0139_crm_restore_lead.sql
 forward  supabase/migrations/0140_lead_dates_to_nurture.sql
 # 0141 (empty draft clean-up: SOFT-moves drafts older than 24h with no content and no related rows in ANY quote-linked table to the Deleted shelf (deleted_reason 'auto_empty_draft', auto_discarded_at); checked twice, row-locked; restorable; never deletes) goes after 0040 + 0075.
 forward  supabase/migrations/0141_empty_draft_cleanup.sql
+# 0142 (dev pass 3: dashboard_money reports in the studio's dominant quote currency when organizations.currency has no live quote; _vb_event_pnl splits the tax share of approved change orders at the quote's rate; run_sheet_items / event_checklist refuse a NEW or CHANGED title over 500 chars (existing rows untouched); same signatures + grants; no row changed) goes after 0108 + 0124 + 0136.
+forward  supabase/migrations/0142_money_currency_cotax_lengths.sql

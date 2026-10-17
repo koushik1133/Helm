@@ -108,7 +108,7 @@
 <link rel="stylesheet" href="share-checklist.css?v=2">
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="venues.css?v=3">
-<link rel="stylesheet" href="pages-polish-ops.css?v=1">
+<link rel="stylesheet" href="pages-polish-ops.css?v=2">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -159,7 +159,7 @@
             <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date" data-min-today></div>
             <div class="fld"><label for="c_city">City</label><input id="c_city" maxlength="60" autocomplete="address-level2" placeholder="e.g. Hyderabad"></div>
             <div class="fld"><label for="c_state" id="c_stateLbl">Client state</label><select id="c_state" autocomplete="address-level1"><option value="">Not set</option></select></div>
-            <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0"></div>
+            <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0" max="100000"></div>
             <div class="fld full budget-range"><span class="lbl" id="budgetRangeLbl">Budget range (min – max, ₹)</span><div class="range2" role="group" aria-labelledby="budgetRangeLbl"><input id="d_bmin" type="number" min="0" placeholder="Min" aria-label="Budget minimum (₹)"><span class="range-sep" aria-hidden="true">–</span><input id="d_bmax" type="number" min="0" placeholder="Max" aria-label="Budget maximum (₹)" aria-describedby="d_bmaxErr"></div><div id="d_bmaxErr" class="err" role="alert" hidden>Max should be at least the min</div></div>
           </div>
           <p class="hint next-step" data-next-step><b>Next step:</b> fill in Discovery (step 2) — what the client wants (the budget range is above).</p>
@@ -367,7 +367,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=18"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -569,6 +569,23 @@
   }
 
   /* ---------- save helpers (reuse the same BPStore calls the pages use) ---------- */
+  // Re-read updated_at after a write THIS tab made to the quote row (version save, approval token),
+  // so the optimistic lock only fires for edits made elsewhere.
+  async function relock(){ try{ const f=await BPStore.quotes.get(id); if(f&&f.updatedAt&&ev) ev.updatedAt=f.updatedAt; }catch(_){} }
+  // Explicit "Save quotation": the required client fields (name + phone) must be filled and valid,
+  // and every problem is marked at once instead of one per click.
+  function clientReady(){
+    const V=BPStore.validate, errs=[]; const mark=(f,m)=>{ $(f).setAttribute("aria-invalid","true"); errs.push([f,m]); };
+    ["#c_name","#c_phone","#c_email","#c_guests"].forEach(f=>$(f).removeAttribute("aria-invalid"));
+    const nm=$("#c_name").value.trim(), ph=$("#c_phone").value.trim(), em=$("#c_email").value.trim();
+    if(!nm) mark("#c_name","Client name is required.");
+    if(!ph) mark("#c_phone","Phone is required."); else { const r=V.phone(ph); if(!r.ok) mark("#c_phone",r.error); }
+    if(em){ const r=V.email(em); if(!r.ok) mark("#c_email",r.error); }
+    if($("#c_guests").value!==""){ const r=V.count($("#c_guests").value,{field:"Guests",max:GUESTS_MAX}); if(!r.ok) mark("#c_guests",r.error); }
+    if(!errs.length) return true;
+    $(errs[0][0]).focus(); BPUI.toast("Fix step 1 before saving: "+errs.map(e=>e[1]).join(" "),{type:"err"}); return false;
+  }
+  const GUESTS_MAX=100000;
   async function saveClient(quiet){
     const V=BPStore.validate;
     // quiet (autosave): mark the field + say why in the badge — no toast per keystroke
@@ -578,7 +595,7 @@
     if(emailRaw){ const r=V.email(emailRaw); if(!r.ok) return bad(r,"#c_email"); }
     if(phoneRaw){ const r=V.phone(phoneRaw); if(!r.ok) return bad(r,"#c_phone"); }
     let guestsN=null, budgetN=null;
-    if($("#c_guests").value!==""){ const r=V.count($("#c_guests").value,{field:"Guests"}); if(!r.ok) return bad(r,"#c_guests"); guestsN=r.value; }
+    if($("#c_guests").value!==""){ const r=V.count($("#c_guests").value,{field:"Guests",max:GUESTS_MAX}); if(!r.ok) return bad(r,"#c_guests"); guestsN=r.value; }
     budgetN=(ev.client||{}).budget!=null?(ev.client||{}).budget:null;   // untouched range: keep the stored budget as-is
     if(budgetTouched){ const bv=budgetFromRange(); budgetN=null;
       if(bv.el){ const r=V.money(bv.el.value,{field:"Budget"}); if(!r.ok) return bad(r,"#"+bv.el.id); budgetN=r.value; } }
@@ -758,6 +775,7 @@
     pricing=BPStore.tax.preserveSnapshot(ev.pricing||{}, pricing, { switch: taxSwitched });
     try{
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
+      await relock();   // our own write bumped quotes.updated_at - refresh the lock base so the next client save isn't a false conflict
       ev.pricing=pricing; taxSwitched=false; lastSavedSig=sig; saved("quote"); updateProgress(); await renderQuoteVersions(); renderActivity(); renderReprice();
       $("#q_msg") && ($("#q_msg").textContent="Saved "+(r&&r.label||""));
     }catch(e){
@@ -1058,7 +1076,9 @@
     if(!ev || !(ev.pricing&&ev.pricing.total)){ if(!(await BPUI.confirm("No quotation total saved yet. Send anyway?",{title:"Send for approval?",okLabel:"Send anyway"}))) return; }
     await BPUI.guard($("#sendApproval"), async()=>{
     try{
+      if(AS) await AS.flush();   // land the pending client autosave BEFORE the token write bumps updated_at
       const r=await BPStore.approval.generateToken(id);
+      await relock();
       const token=(r&&(r.token||r.approval_token))||r;
       const link=await BPStore.links.build("portal", token, location.origin+"/portal.html?token="+encodeURIComponent(token));
       const phone=BPStore.waNumber(ev.client&&ev.client.phone);   // 0092: full E.164 (+91 / +971 / +1)
@@ -1360,7 +1380,7 @@
       const retry=()=>{ if(b.dataset.state==="error") AS.now(s); };
       b.addEventListener("click",retry); b.addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); retry(); } }); });
     loadCoupons();                                           // populate coupon suggestions
-    $("#q_save").addEventListener("click",()=>{ BPUI.guard($("#q_save"),saveQuotation,{busyLabel:"Saving…"}).catch(()=>{}); });
+    $("#q_save").addEventListener("click",()=>{ if(!clientReady()) return; BPUI.guard($("#q_save"),saveQuotation,{busyLabel:"Saving…"}).catch(()=>{}); });
     $("#q_pdf").addEventListener("click",downloadQuotePDF);
     $("#q_taxExempt").addEventListener("change",()=>{ dirty=true; renderPrice(); });
     $("#q_curSwitch").addEventListener("click",()=>{ quoteKeep=false; taxSwitched=true; $("#q_curBanner").hidden=true; $("#q_chairPrice").value=rates.chairPrice; dirty=true; renderPrice();

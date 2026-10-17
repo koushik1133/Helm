@@ -95,7 +95,7 @@
 <link rel="stylesheet" href="share-checklist.css?v=2">
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="event-reminders.css?v=1">
-<link rel="stylesheet" href="pages-polish-ops.css?v=1">
+<link rel="stylesheet" href="pages-polish-ops.css?v=2">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -181,7 +181,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=18"></script>
@@ -220,6 +220,11 @@
   const isConfirmed=()=> !!ev && (ev.status==="confirmed" || stageIndex(effStage())>=stageIndex("confirmed"));
   const stageLabel=(s)=> (s.k==="confirmed" && advanceIn()) ? "Booked" : s.label;
 
+  // tool card -> the access-matrix area its page is gated on (requireView) and its tables use (RLS)
+  const CARD_AREA={discovery:"discovery",plandetails:"plan",proposal:"proposal",layout:"layouts",quote:"quotes",tasks:"staff",staff:"staff",
+    vendors:"vendors",runsheet:"runsheet",command:"command",issues:"issues",readycheck:"ready",logistics:"logistics",closure:"closure",
+    media:"media",settle:"settlement",teardown:"inventory",budget:"finance",resourceplan:"resources",inventory:"inventory"};
+  let cardDenied=new Set();
   let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
@@ -237,10 +242,14 @@
     await BPStore.init(); id=await HelmUrl.get("id", id); await renderAccount(); try{await BPStore.bell.mount(document.querySelector("#bell"));}catch{}
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
-    if(!(await BPStore.auth.requireView("workspace"))) return;   // crew/client don't see the workspace
+    if(!(await BPStore.auth.requireView("quotes"))) return;   // crew/client don't see the workspace
     canEdit = await BPStore.auth.can("edit");
     canFin  = await BPStore.auth.canView("finance");             // gates the Total + money cards
     canPipe = await BPStore.auth.canView("pipeline");            // gates the discovery/proposal cards
+    // 0143 role audit: each tool card shows only when the role can VIEW that tool's own area
+    // (its page gate + RLS use the same key), so no card opens onto a "No access" page.
+    { const keys=Object.keys(CARD_AREA); const ok=await Promise.all(keys.map(k=>BPStore.auth.canView(CARD_AREA[k]).catch(()=>false)));
+      cardDenied=new Set(keys.filter((k,i)=>!ok[i])); }
     // "not found" only when the event truly doesn't exist; any other failure → error card with Retry
     $("#loadErr").innerHTML=""; $("#notfound").hidden=true;
     try{ ev=await BPStore.quotes.get(id); }
@@ -293,7 +302,7 @@
     render();   // re-paint with the loaded summaries
   }
 
-  const statBadge=(s,a)=> s==="confirmed"?(a==="approved"||a==="paid"?'<span class="stat ok">Confirmed</span>':'<span class="stat ok">Confirmed · awaiting client approval</span>'):s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
+  const statBadge=(s,a)=> s==="confirmed"?(a==="approved"||a==="paid"?'<span class="stat ok">Confirmed</span>':'<span class="stat ok">Confirmed</span>'):s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
   const apprBadge=(a)=> a==="paid"?'<span class="stat ok" title="The client paid the advance; check Payments for the balance">Advance paid</span>':a==="approved"?'<span class="stat ok">Approved</span>':a==="sent"?'<span class="stat st">Sent for approval</span>':"";
 
   let staleInfo=null;   // 0052: client approval went stale after a price change
@@ -318,14 +327,17 @@
     renderReapproval();
     $("#code").textContent=ev.code;
     $("#statusBadge").innerHTML=statBadge(ev.status,ev.approvalStatus);
-    $("#apprBadge").innerHTML=apprBadge(ev.approvalStatus);
+    // confirmed by the studio but the client never opened/approved the link: one clear note, not "Confirmed" + "Sent for approval"
+    $("#apprBadge").innerHTML=(ev.status==="confirmed"&&ev.approvalStatus==="sent")?'<span class="stat st" title="The studio confirmed this event; the client has not approved the online link">Client link not approved</span>':apprBadge(ev.approvalStatus);
     $("#title").textContent=(window.HelmEventName&&HelmEventName.displayName)?HelmEventName.displayName(ev):(ev.title||ev.code);
     try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[ev.code,ev.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(" "),kind:"event",href:"event.html?id="+encodeURIComponent(id)}); }catch(e){}
     const cl=ev.client||{};
     // the date has its own editable row (#dateRow) and the client name is on the meta line — each shown once
     $("#meta").textContent=[ev.eventType, cl.name?("for "+cl.name):""].filter(Boolean).join(" · ")||"No client details yet";
     { const cLink=$("#clientLink"); if(cLink){ cLink.href="client.html?id="+encodeURIComponent(ev.id||id); cLink.textContent="Client page →"; cLink.hidden=false; } }
-    $("#total").textContent = canFin ? (evTotal()? inr(evTotal()):"—") : "—";
+    // the invoice total (quote + approved change orders) once settlement has loaded - same number as Payments & invoice
+    { const inv=(typeof settleSummary!=="undefined"&&settleSummary&&settleSummary.revenue>0)?settleSummary.revenue:evTotal();
+      $("#total").textContent = canFin ? (inv? inr(inv):"—") : "—"; }
     const totWrap=$("#total").closest(".tot"); if(totWrap) totWrap.hidden=!canFin;
     renderDateRow();
 
@@ -551,7 +563,7 @@
     const GROUPS=[{t:"Plan",keys:["discovery","plandetails","proposal","layout","quote","tasks","staff","vendors","resourceplan","inventory","runsheet","readycheck","logistics"]},
       {t:"Event day",keys:["command","issues","teardown","media"]},
       {t:"Money",keys:["budget","settle","closure"]}];
-    const hide=new Set([...(canFin?[]:["budget","settle","closure"]), ...(canPipe?[]:["discovery","proposal"])]);
+    const hide=new Set([...(canFin?[]:["budget","settle","closure"]), ...(canPipe?[]:["discovery","proposal"]), ...cardDenied]);
     const visible=cards.filter(c=>!hide.has(c.key));
     const cardHtml=(c)=>{
       const reco=recommended.includes(c.key)?"reco":"";

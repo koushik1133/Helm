@@ -69,7 +69,7 @@
 </style>
 <link rel="stylesheet" href="logistics-polish.css?v=2">
 <link rel="stylesheet" href="theme.css?v=80">
-<link rel="stylesheet" href="pages-polish-ops.css?v=1">
+<link rel="stylesheet" href="pages-polish-ops.css?v=2">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -98,7 +98,7 @@
       <button type="button" data-t="guests" aria-pressed="false">👥 Guests</button>
     </div>
 
-    <div id="pane" class="card"></div>
+    <div id="pane" class="card"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
   </div>
   </main>
   <footer>Helm Events — the moving parts and the money, event by event.</footer>
@@ -118,7 +118,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -159,7 +159,7 @@
     const done = items.filter(i=>i.status==="done").length;
     $("#pane").innerHTML = `<h2>${tab[0].toUpperCase()+tab.slice(1)}</h2><p class="sub">${CHK_HELP[tab]}</p>
       ${canEdit?`<div class="addrow chk">
-        <div class="fld"><label for="a_title">Item</label><input id="a_title" placeholder="what needs doing"></div>
+        <div class="fld"><label for="a_title">Item *</label><input id="a_title" maxlength="200" required placeholder="what needs doing"></div>
         <div class="fld"><label for="a_owner">Owner</label>${peopleSelectHTML("a_owner","")}</div>
         <div class="fld"><label for="a_due">Due</label><input id="a_due" type="date" data-date-window="recent"></div>
         <div class="fld">${SPACER}<button type="button" class="btn primary" id="a_add">＋ Add item</button></div></div>`:""}
@@ -192,7 +192,9 @@
       if(!(await BPUI.confirm(`Remove the ${noun} “${b.dataset.name||""}”?`,{title:`Remove ${noun}?`,danger:true}))) return;
       await act(b,async()=>{ await BPStore.checklist.remove(b.dataset.del); await renderPane(); },"remove the "+noun); }));
   }
-  function addChk(section){ const t=$("#a_title").value.trim(); if(!t){ $("#a_title").focus(); return; }
+  function addChk(section){ const t=$("#a_title").value.trim(); if(!t){ BPUI.toast("Enter the item first.",{type:"err"}); $("#a_title").focus(); return; }
+    // dev pass 3: the date picker's min/max is only a hint in the browser - enforce it
+    const dIn=$("#a_due"), dv=dIn.value; if(dv && ((dIn.min && dv<dIn.min) || (dIn.max && dv>dIn.max))){ BPUI.toast("Pick a due date between "+dIn.min+" and "+dIn.max+".",{type:"err"}); dIn.focus(); return; }
     return act($("#a_add"),async()=>{ await BPStore.checklist.add(id,{ section, title:t, owner:$("#a_owner").value.trim()||null, due_date:$("#a_due").value||null }); await renderPane(); },"add the item"); }
 
   async function renderGuests(){
@@ -200,7 +202,7 @@
     const total = items.reduce((a,g)=>a+Number(g.qty||0),0);
     $("#pane").innerHTML = `<h2>Guests</h2><p class="sub">Track expected headcount by group (family, company, VIPs…). Totals help you match seating.</p>
       ${canEdit?`<div class="addrow guest">
-        <div class="fld"><label for="g_name">Group</label><input id="g_name" placeholder="e.g. Bride's family"></div>
+        <div class="fld"><label for="g_name">Group *</label><input id="g_name" maxlength="120" required placeholder="e.g. Bride's family"></div>
         <div class="fld"><label for="g_qty">Headcount</label><input id="g_qty" type="number" min="0" value="0"></div>
         <div class="fld">${SPACER}<button type="button" class="btn primary" id="g_add">＋ Add guest</button></div></div>`:""}
       <div class="table-scroll"><table><thead><tr><th scope="col">Group</th><th scope="col" class="num">Headcount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
@@ -213,20 +215,21 @@
     return `<tr><td><b>${esc(g.title)}</b></td><td class="num">${esc(g.qty!=null?g.qty:0)}</td>
       <td>${canEdit?`<select class="ssel" data-st="${esc(g.id)}" aria-label="Status for ${esc(g.title)}">${opts}</select>`:esc(g.status)}</td>
       <td>${canDelete?`<button type="button" class="rm" data-del="${esc(g.id)}" data-name="${esc(g.title)}" aria-label="Remove group ${esc(g.title)}">✕</button>`:""}</td></tr>`; }
-  function addGuest(){ const t=$("#g_name").value.trim(); if(!t){ $("#g_name").focus(); return; }
+  function addGuest(){ const t=$("#g_name").value.trim(); if(!t){ BPUI.toast("Enter the group name first.",{type:"err"}); $("#g_name").focus(); return; }
     const V=BPStore.validate;
     const gr=V.count($("#g_qty").value,{field:"Headcount"}); if(!gr.ok){ BPUI.toast(gr.error,{type:"err"}); return; }
     return act($("#g_add"),async()=>{ await BPStore.checklist.add(id,{ section:"guests", title:t, qty:gr.value }); await renderPane(); },"add the group"); }
 
   async function renderPayments(){
-    const [ms,pays] = await Promise.all([BPStore.milestones.list(id), BPStore.milestones.payments(id).catch(()=>[])]);
+    const [ms,pays,chg] = await Promise.all([BPStore.milestones.list(id), BPStore.milestones.payments(id).catch(()=>[]), BPStore.budget.listChanges(id).catch(()=>[])]);
     const total=ms.reduce((a,m)=>a+Number(m.amount||0),0); msScheduled=total;
-    const qTotal=Number((ev&&ev.pricing&&ev.pricing.total)||(ev&&ev.total)||0);
+    // dev pass 3: compare against the INVOICE total (quote + approved change orders), same as Settlement
+    const qTotal=invoiceTotal(chg); invTotal=qTotal;
     // Paid = the quote_payments LEDGER (same source as Settlement "Received"); milestone status only as a fallback.
     const fromLedger=(pays||[]).filter(p=>p.status==="paid").reduce((a,p)=>a+Number(p.amount||0),0);
     const paid=(pays&&pays.length)?fromLedger:ms.filter(m=>m.status==="paid").reduce((a,m)=>a+Number(m.amount||0),0);
     const owed=ms.filter(m=>m.status!=="waived").reduce((a,m)=>a+Number(m.amount||0),0);
-    const due=Math.max(0,owed-paid);
+    const due=Math.max(0,(qTotal>0?Math.max(owed,qTotal):owed)-paid);
     // Display only: a milestone counts as covered when cumulative ledger payments reach it (in due-date order).
     covered=new Set(); let cum=0;
     ms.filter(m=>m.status!=="waived").slice().sort((a,b)=>String(a.due_date||"9999").localeCompare(String(b.due_date||"9999")))
@@ -234,13 +237,13 @@
     const phone=(ev.client&&(ev.client.phone))||"";
     $("#pane").innerHTML = `<h2>Payment schedule</h2><p class="sub">Milestones the client pays across the event. Reminders go through the notification outbox.</p>
       ${canEdit?`<div class="addrow pay">
-        <div class="fld"><label for="m_label">Milestone</label><input id="m_label" placeholder="e.g. 50% advance"></div>
+        <div class="fld"><label for="m_label">Milestone *</label><input id="m_label" maxlength="120" required placeholder="e.g. 50% advance"></div>
         <div class="fld"><label for="m_due">Due date</label><input id="m_due" type="date" data-date-window="recent"></div>
         <div class="fld"><label for="m_amt">Amount ₹</label><input id="m_amt" type="number" min="0" value="0"></div>
         <div class="fld">${SPACER}<button type="button" class="btn primary" id="m_add">＋ Add milestone</button></div></div>`:""}
       <div class="table-scroll"><table><thead><tr><th scope="col">Milestone</th><th scope="col">Due</th><th scope="col" class="num">Amount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>${ms.length?ms.map(rowPay).join(""):'<tr><td colspan="5" class="empty">No milestones yet.</td></tr>'}</tbody></table></div>
-      <div class="totbar"><span>Scheduled: <b>${inr(total)}</b></span><span class="tb-paid">Paid: <b>${inr(paid)}</b></span><span class="tb-due">Outstanding: <b>${inr(due)}</b></span>${qTotal>0&&total>qTotal?`<span>⚠ Scheduled is <b>${inr(total-qTotal)}</b> more than the quote total (${inr(qTotal)})</span>`:""}</div>`;
+      <div class="totbar"><span>Scheduled: <b>${inr(total)}</b></span><span class="tb-paid">Paid: <b>${inr(paid)}</b></span><span class="tb-due">Outstanding: <b>${inr(due)}</b></span>${qTotal>0&&total>qTotal?`<span>⚠ Scheduled is <b>${inr(total-qTotal)}</b> more than the invoice total (${inr(qTotal)})</span>`:""}</div>`;
     if(canEdit) $("#m_add").addEventListener("click",addMile);
     document.querySelectorAll("#pane [data-mst]").forEach(s=>s.addEventListener("change",async()=>{
       const m=ms.find(x=>x.id===s.dataset.mst);
@@ -266,13 +269,15 @@
     return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date||"")}</td><td class="num">${inr(m.amount)}</td>
       <td>${canEdit&&m.status!=="paid"?`<select class="ssel" data-mst="${esc(m.id)}" aria-label="Status for ${esc(m.label)}">${opts}</select>`:`<span class="st ${esc(m.status)}">${esc(PAY_ST[m.status]||m.status)}</span>`}</td>
       <td>${canEdit&&m.status!=="paid"?`<button type="button" class="rm" data-remind="${esc(m.id)}" aria-label="Send reminder now for ${esc(m.label)}">Send reminder now</button> `:""}${canDelete&&m.status!=="paid"?`<button type="button" class="rm" data-mdel="${esc(m.id)}" aria-label="Remove milestone ${esc(m.label)}">✕</button>`:""}</td></tr>`; }
-  let msScheduled=0;
-  async function addMile(){ const l=$("#m_label").value.trim(); if(!l){ $("#m_label").focus(); return; }
+  let msScheduled=0, invTotal=0;
+  function invoiceTotal(chg){ const base=Number((ev&&ev.pricing&&ev.pricing.total)||(ev&&ev.total)||0);
+    return base+(chg||[]).filter(c=>c.status==="approved").reduce((a,c)=>a+Number(c.price_delta||0),0); }
+  async function addMile(){ const l=$("#m_label").value.trim(); if(!l){ BPUI.toast("Enter a milestone name (e.g. 50% advance).",{type:"err"}); $("#m_label").focus(); return; }
     const V=BPStore.validate;
     const ar=V.money($("#m_amt").value,{field:"Amount"}); if(!ar.ok){ BPUI.toast(ar.error,{type:"err"}); return; }
     if(!(ar.value>0)){ BPUI.toast("Amount must be greater than 0 to add a milestone.",{type:"err"}); return; }
-    const qTotal=Number((ev&&ev.pricing&&ev.pricing.total)||(ev&&ev.total)||0);
-    if(qTotal>0 && msScheduled+ar.value>qTotal+0.5 && !(await BPUI.confirm(`This makes the schedule ${inr(msScheduled+ar.value)}, more than the quote total of ${inr(qTotal)}. Add it anyway?`,{title:"Schedule exceeds quote",okLabel:"Add anyway"}))) return;
+    const qTotal=invTotal||invoiceTotal([]);
+    if(qTotal>0 && msScheduled+ar.value>qTotal+0.5 && !(await BPUI.confirm(`This makes the schedule ${inr(msScheduled+ar.value)}, more than the invoice total of ${inr(qTotal)}. Add it anyway?`,{title:"Schedule exceeds invoice",okLabel:"Add anyway"}))) return;
     return act($("#m_add"),async()=>{ await BPStore.milestones.add(id,{ label:l, due_date:$("#m_due").value||null, amount:ar.value }); await renderPane(); },"add the milestone"); }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }

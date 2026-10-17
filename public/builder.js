@@ -710,11 +710,20 @@ async function offerDraftRestore(){
   let go=false; try{ go=await BPUI.confirm('An unsaved draft of this quote from '+BPStore.fmtDateTime(d.savedAt)+' was found in this browser (it was never saved to the server). Restore it? Your saved versions are not changed until you press Save.',{title:'Restore unsaved draft?',okLabel:'Restore draft',cancelLabel:'Discard draft'}); }catch{}
   if(!go){ clearDraft(); return; }
   applyLayout(d.data); if(d.name) $('#projName').value=d.name;
-  markDirty(); toast('Draft restored — press Save to keep it');
+  // dev pass 3: a restored draft lives only in this browser - it must read "Unsaved changes" until Save,
+  // even if a late load step re-baselines the page.
+  draftRestored=true; markDirty(); dirty.mark(); renderSaveState('dirty'); toast('Draft restored — press Save to keep it');
 }
 // the document now matches what's stored (just opened or saved). Pass the signature captured when the
 // save STARTED so edits made while it was in flight keep the page dirty.
-function setSavedBaseline(sig){ savedSig = sig==null ? docSig() : sig; if(docSig()===savedSig) dirty.clean(); else dirty.mark(); }
+let draftRestored=false;
+function setSavedBaseline(sig){
+  const dr = typeof draftRestored!=='undefined' && draftRestored;
+  if(dr && sig==null){ dirty.mark(); renderSaveState('dirty'); return; }   // keep a restored draft "unsaved"
+  if(dr && sig!=null) draftRestored=false;
+  savedSig = sig==null ? docSig() : sig; if(docSig()===savedSig) dirty.clean(); else dirty.mark(); }
+// dev pass 3: leaving while a Save is still going to the server loses it - warn first
+window.addEventListener('beforeunload', e=>{ let busy=false; try{ busy=!!saving; }catch{} if(busy){ e.preventDefault(); e.returnValue=''; return ''; } });
 const nid = () => 'obj_' + (uid++).toString(36) + Date.now().toString(36).slice(-3);
 
 /* ---- selection model (single "primary" + multi set kept in sync) ---- */
@@ -3914,6 +3923,12 @@ async function saveLayout(silent, opts){
       const fromNo = currentVersionNo, fromOlder = isViewingOlder();
       const label = (opts && opts.label) || (fromOlder ? 'Based on V'+fromNo : null);
       if(currentQuoteGuard.closed){ if(!silent) await BPUI.alert('This event is closed, so its layout can’t be changed.',{title:'Event closed'}); return false; }
+      if(currentQuoteGuard.sent && !currentQuoteGuard.approved && !_staleAck){
+        if(silent) return false;
+        const go = await BPUI.confirm('This quote was sent to the client for approval. Saving a new layout re-prices it, so send the client the updated quote afterwards. Save anyway?',{title:'Quote already sent',okLabel:'Save and re-price'});
+        if(!go) return false;
+        _staleAck=true;
+      }
       if(currentQuoteGuard.approved && !_staleAck){
         if(silent) return false;
         const go = await BPUI.confirm('This quote is already confirmed/approved. Saving a new layout re-prices it, so the client’s approval will go stale and they will need to approve again (payments pause until then). Save anyway?',{title:'Client approval will go stale',okLabel:'Save and re-price'});
@@ -4601,7 +4616,7 @@ async function init(){
       currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{}; currentPricing=q.pricing||{};
       if(currentPricing.priceDisplay && typeof currentPricing.priceDisplay==='object') store.priceDisplay=priceDisp(currentPricing.priceDisplay);
       { const bb=$('#backToFlowBtn'); if(bb && params.get('from')==='flow') bb.hidden=false; }
-      currentQuoteGuard = { approved: q.status==='confirmed' || (q.approvalStatus && q.approvalStatus!=='none'), closed: q.lifecycleStage==='closed', frozen: q.lifecycleStage==='closed' || q.status==='cancelled' || !!q.archivedAt || !!q.deletedAt };
+      currentQuoteGuard = { approved: q.status==='confirmed' || q.approvalStatus==='approved' || q.approvalStatus==='paid', sent: q.approvalStatus==='sent', closed: q.lifecycleStage==='closed', frozen: q.lifecycleStage==='closed' || q.status==='cancelled' || !!q.archivedAt || !!q.deletedAt };
       const pn=$('#projName'); if(pn) pn.value=quoteDisplayName(q);
       currentQuoteRow=q; renderNameHint();
       try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[q.code,q.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' '),kind:'builder',href:'builder.html?quote='+encodeURIComponent(q.id),recordHref:'event.html?id='+encodeURIComponent(q.id)}); }catch(e){}

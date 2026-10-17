@@ -178,15 +178,16 @@
       <div class="fld" id="f_stageWrap" hidden><label for="f_stage">Stage</label><select id="f_stage"></select></div>
       <div class="fld"><label for="f_source">Source</label>
         <select id="f_source">
-          <option value="">—</option><option>referral</option><option>website</option>
-          <option>walk-in</option><option>social</option><option>ad</option><option>other</option>
+          <option value="">—</option><option value="referral">Referral</option><option value="website">Website</option>
+          <option value="google">Google</option><option value="instagram">Instagram</option><option value="walk-in">Walk-in</option>
+          <option value="social">Other social</option><option value="ad">Ad</option><option value="other">Other</option>
         </select></div>
       <div class="fld"><label for="f_type">Event type</label><input id="f_type" placeholder="e.g. Wedding, Corporate"></div>
       <div class="fld"><label for="f_date">Event date</label><input id="f_date" type="date" data-min-today></div>
       <div class="fld"><label for="f_budget">Budget (₹)</label><input id="f_budget" type="number" data-allow-negative placeholder="e.g. 500000"></div>
       <div class="fld"><label for="f_guests">Guest count</label><input id="f_guests" type="number" data-allow-negative placeholder="e.g. 300"></div>
-      <div class="fld"><label for="f_bday">Birthday <span class="muted">(optional)</span></label><input id="f_bday" type="date"></div>
-      <div class="fld"><label for="f_anniv">Anniversary <span class="muted">(optional)</span></label><input id="f_anniv" type="date"></div>
+      <div class="fld"><label for="f_bday">Birthday <span class="muted">(optional)</span></label><input id="f_bday" type="date" min="1900-01-01"></div>
+      <div class="fld"><label for="f_anniv">Anniversary <span class="muted">(optional)</span></label><input id="f_anniv" type="date" min="1900-01-01"></div>
       <div class="fld full"><label for="f_notes">Notes</label><textarea id="f_notes" placeholder="Anything the planner should know…"></textarea></div>
     </div>
     <div id="lm_err" class="err" role="alert" aria-live="assertive" hidden></div>
@@ -215,7 +216,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -444,6 +445,11 @@
       + rows.map(r=>`<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join("");
   }
   function syncDetail(){ if($("#detailModal").hidden||!detailId) return; const l=leadById(detailId); if(l) fillDetail(l); }
+  // keep a stored source the list doesn't offer (e.g. "Quote", "Google" from imports) instead of blanking it on save
+  function setSource(v){ const sel=$("#f_source"); sel.querySelectorAll("option[data-extra]").forEach(o=>o.remove()); v=String(v||"");
+    const hit=[...sel.options].find(o=>o.value.toLowerCase()===v.toLowerCase());
+    if(hit || !v){ sel.value=hit?hit.value:""; if(hit && hit.value!==v){ const o=document.createElement("option"); o.value=v; o.textContent=v; o.setAttribute("data-extra","1"); sel.appendChild(o); sel.value=v; } return; }
+    const o=document.createElement("option"); o.value=v; o.textContent=v; o.setAttribute("data-extra","1"); sel.appendChild(o); sel.value=v; }
   function openDetail(id){
     const l=leadById(id); if(!l) return; editingId=id; detailId=id;
     try{ if(window.HelmTrail&&l.name) HelmTrail.setCurrent({title:l.name,kind:"lead",href:"leads.html?hs="+encodeURIComponent(String(l.name).slice(0,80))}); }catch(e){}
@@ -486,7 +492,7 @@
     editingId = lead ? lead.id : null;
     $("#lm_title").textContent = lead ? "Edit lead" : "＋ New lead";
     $("#f_name").value=lead?lead.name||"":""; $("#f_phone").value=lead?lead.phone||"":"";
-    $("#f_email").value=lead?lead.email||"":""; $("#f_source").value=lead?lead.source||"":"";
+    $("#f_email").value=lead?lead.email||"":""; setSource(lead?lead.source||"":"");
     $("#f_type").value=lead?lead.event_type||"":""; $("#f_date").value=lead?lead.event_date||"":""; $("#f_date").removeAttribute("data-date-rejected");
     $("#f_budget").value=lead&&lead.budget!=null?lead.budget:""; $("#f_guests").value=lead&&lead.guest_count!=null?lead.guest_count:"";
     $("#f_notes").value=lead?lead.notes||"":"";
@@ -635,7 +641,7 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     try{ performance.mark("leads:load-start"); }catch(_){}
     // the view gate + capability reads are independent — one parallel round (render() reads them after)
-    const [okView, e1, c1, d1]=await Promise.all([BPStore.auth.requireView("pipeline"), BPStore.auth.canEditArea("leads"), BPStore.auth.can("create"), BPStore.auth.can("delete")]);
+    const [okView, e1, c1, d1]=await Promise.all([BPStore.auth.requireView("leads"), BPStore.auth.canEditArea("leads"), BPStore.auth.can("create"), BPStore.auth.can("delete")]);
     if(!okView) return;
     canEdit=e1; canCreate=c1; canDelete=d1;
     $("#newBtn").hidden=!canCreate;

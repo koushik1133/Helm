@@ -65,7 +65,7 @@
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
 <link rel="stylesheet" href="theme.css?v=80">
-<link rel="stylesheet" href="pages-polish-ops.css?v=1">
+<link rel="stylesheet" href="pages-polish-ops.css?v=2">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -102,7 +102,7 @@
       <div class="card">
         <h2>👥 Arrivals &amp; attendance <span class="prog" id="arrProg"></span></h2>
         <p class="sub">Staff &amp; vendors checking in on the day.</p>
-        <div id="arrRows"></div>
+        <div id="arrRows"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         <div class="s-d2c171b" id="arrTools" hidden>
           <button type="button" class="btn" id="pullBtn">↧ Pull team &amp; vendors</button>
           <div class="addline"><input id="arr_name" placeholder="Add a name…" aria-label="Name to add"><button type="button" class="btn primary" id="arr_add" aria-label="Add name">＋</button></div>
@@ -112,14 +112,14 @@
       <div class="card">
         <h2>🔧 Setup &amp; technical checks <span class="prog" id="chkProg"></span></h2>
         <p class="sub">Go-live checks — stage, sound, lighting, safety…</p>
-        <div id="chkRows"></div>
+        <div id="chkRows"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         <div class="addline" id="chkAdd" hidden><input id="chk_title" placeholder="e.g. Sound check done" aria-label="Check description"><button type="button" class="btn primary" id="chk_addb" aria-label="Add check">＋</button></div>
       </div>
 
       <div class="card">
         <h2>👥 Guest reception <span class="prog" id="gstProg"></span></h2>
         <p class="sub">Welcome desk — check guests in as they arrive.</p>
-        <div id="gstRows"></div>
+        <div id="gstRows"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         <div class="s-d2c171b" id="gstTools" hidden>
           <button type="button" class="btn" id="gstPull">↧ Pull from guest list</button>
           <div class="addline"><input id="gst_label" placeholder="Group name…" aria-label="Guest group name"><input class="s-151dcb2" id="gst_exp" type="number" min="0" placeholder="Exp." aria-label="Expected headcount"><button type="button" class="btn primary" id="gst_add" aria-label="Add guest group">＋</button></div>
@@ -129,7 +129,7 @@
       <div class="card">
         <h2>📦 Live stock requests <span class="prog" id="stkProg"></span></h2>
         <p class="sub">Raise, issue or replace stock during the event.</p>
-        <div id="stkRows"></div>
+        <div id="stkRows"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         <div class="s-d2c171b" id="stkTools" hidden>
           <div class="addline"><select class="s-6b751c2" id="stk_item" aria-label="Stock item"></select></div>
           <div class="addline"><input id="stk_label" placeholder="or type an item…" aria-label="Item name"><input class="s-460bb70" id="stk_qty" type="number" min="1" value="1" aria-label="Quantity"><button type="button" class="btn primary" id="stk_add" aria-label="Add stock request">＋</button></div>
@@ -155,7 +155,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -216,13 +216,16 @@
     const arr=items.reduce((a,g)=>a+Number(g.arrived||0),0), exp=items.reduce((a,g)=>a+Number(g.expected||0),0);
     $("#gstProg").textContent = items.length? `${arr}/${exp||"?"} in` : "";
     $("#gstRows").innerHTML = items.length ? items.map(g=>`<div class="row">
-      <div><div class="nm">${esc(g.label)}</div><div class="rl">${Number(g.arrived||0)} of ${Number(g.expected||0)} arrived</div></div>
+      <div><div class="nm">${esc(g.label)}</div><div class="rl">${Number(g.arrived||0)} of ${Number(g.expected||0)} arrived${Number(g.expected||0)>0&&Number(g.arrived||0)>Number(g.expected||0)?` · ⚠ ${esc(Number(g.arrived||0)-Number(g.expected||0))} over expected (walk-ins)`:""}</div></div>
       ${canEdit?`<div class="acts">
         <button type="button" class="mini" data-gin="${esc(g.id)}" data-d="-1" aria-label="Check out one guest from ${esc(g.label)}">–</button>
-        <button type="button" class="mini go" data-gin="${esc(g.id)}" data-d="1" aria-label="Check in one guest to ${esc(g.label)}">＋ In</button>
+        <button type="button" class="mini go" data-gin="${esc(g.id)}" data-d="1" data-full="${Number(g.expected||0)>0&&Number(g.arrived||0)>=Number(g.expected||0)?1:0}" data-exp="${Number(g.expected||0)}" aria-label="Check in one guest to ${esc(g.label)}">＋ In</button>
         <button type="button" class="mini del" data-gdel="${esc(g.id)}" data-name="${esc(g.label)}" aria-label="Remove group ${esc(g.label)}">✕</button></div>`:`<span class="pill arrived">${Number(g.arrived||0)}/${Number(g.expected||0)}</span>`}
     </div>`).join("") : '<div class="empty">No guest groups yet. Pull from the guest list or add one.</div>';
-    $("#gstRows").querySelectorAll("[data-gin]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{ await BPStore.guests.checkIn(b.dataset.gin, Number(b.dataset.d)); await section(renderGuests,$("#gstRows"),"guest groups"); },"update check-in")));
+    $("#gstRows").querySelectorAll("[data-gin]").forEach(b=>b.addEventListener("click",async()=>{
+      // dev pass 3: checking in past the expected count is allowed (walk-ins) but asked first
+      if(b.dataset.full==="1" && !(await BPUI.confirm(`All ${b.dataset.exp} expected guests in this group are already in. Check in one more as a walk-in?`,{title:"Over the expected count",okLabel:"Check in walk-in"}))) return;
+      return act(b,async()=>{ await BPStore.guests.checkIn(b.dataset.gin, Number(b.dataset.d)); await section(renderGuests,$("#gstRows"),"guest groups"); },"update check-in"); }));
     $("#gstRows").querySelectorAll("[data-gdel]").forEach(b=>b.addEventListener("click",async()=>{ if(!(await confirmRemove("the group “"+(b.dataset.name||"")+"”")))return;
       await act(b,async()=>{ await BPStore.guests.remove(b.dataset.gdel); await section(renderGuests,$("#gstRows"),"guest groups"); },"remove the group"); }));
   }

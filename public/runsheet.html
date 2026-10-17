@@ -68,7 +68,7 @@
 </style>
 <link rel="stylesheet" href="runsheet-polish.css?v=2">
 <link rel="stylesheet" href="theme.css?v=80">
-<link rel="stylesheet" href="pages-polish-ops.css?v=1">
+<link rel="stylesheet" href="pages-polish-ops.css?v=2">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -99,9 +99,9 @@
       <div class="addrow">
         <div class="fld"><label for="r_time">Start time</label><input type="time" id="r_time"></div>
         <div class="fld"><label for="r_dur">Mins</label><input type="number" min="1" id="r_dur" aria-describedby="addErr" placeholder="e.g. 30"></div>
-        <div class="fld"><label for="r_title">Activity *</label><input id="r_title" placeholder="e.g. Guests arrive / Cake cutting"></div>
+        <div class="fld"><label for="r_title">Activity *</label><input id="r_title" maxlength="200" required placeholder="e.g. Guests arrive / Cake cutting"></div>
         <div class="fld"><label for="r_owner">Owner</label><select id="r_owner"><option value="">Select person…</option></select></div>
-        <div class="fld"><label for="r_loc">Location</label><input id="r_loc" placeholder="e.g. Main hall"></div>
+        <div class="fld"><label for="r_loc">Location</label><input id="r_loc" maxlength="120" placeholder="e.g. Main hall"></div>
         <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Add item</button></div>
       </div>
       <label class="grpopt" id="r_grpWrap" hidden><input type="checkbox" id="r_grp"> Also post in the event group</label>
@@ -122,9 +122,9 @@
     <h3 id="editTitle">Edit item</h3>
     <div class="fld s-fdf33f2"><label for="e_time">Start time</label><input type="time" id="e_time"></div>
     <div class="fld s-fdf33f2"><label for="e_dur">Duration (mins)</label><input type="number" min="1" id="e_dur" aria-describedby="e_err"></div>
-    <div class="fld s-fdf33f2"><label for="e_title">Activity</label><input id="e_title"></div>
+    <div class="fld s-fdf33f2"><label for="e_title">Activity</label><input id="e_title" maxlength="200"></div>
     <div class="fld s-fdf33f2"><label for="e_owner">Owner</label><select id="e_owner"><option value="">Select person…</option></select></div>
-    <div class="fld s-fdf33f2"><label for="e_loc">Location</label><input id="e_loc"></div>
+    <div class="fld s-fdf33f2"><label for="e_loc">Location</label><input id="e_loc" maxlength="120"></div>
     <div class="fld s-fdf33f2"><label for="e_note">Note</label><input id="e_note"></div>
     <label class="grpopt" id="e_grpWrap" hidden><input type="checkbox" id="e_grp"> Also post in the event group</label>
     <div id="e_err" class="err s-fdf33f2" hidden role="alert" aria-live="assertive"></div>
@@ -146,7 +146,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);

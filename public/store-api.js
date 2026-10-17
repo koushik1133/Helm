@@ -5993,10 +5993,17 @@ window.HelmUrl = HelmUrl;
       const revenue = Number(baseRevenue) + changeRevenue;   // what the client pays (incl. tax) - balances use this
       // E13: GST / VAT / sales tax collected is payable to the government, not studio income -
       // margins are on the ex-tax revenue (same rule as insights_range *_ex_tax, 0101)
-      const tax = BPStore.quoteTaxAmount(ev && ev.pricing, baseRevenue);
+      const baseTax = BPStore.quoteTaxAmount(ev && ev.pricing, baseRevenue);
+      // dev pass 3: a change order's price_delta is what the CLIENT pays (incl. tax, same rule as
+      // the server overpay cap / booklet / insights). Its tax share is split out at the quote's
+      // own rate so GST on change orders is never understated.
+      const taxRate = (baseTax > 0 && Number(baseRevenue) - baseTax > 0) ? baseTax / (Number(baseRevenue) - baseTax) : 0;
+      const changeTax = Math.round(changeRevenue * taxRate / (1 + taxRate) * 100) / 100;
+      const tax = Math.round((baseTax + changeTax) * 100) / 100;
+      const changeRevenueExTax = Math.round((changeRevenue - changeTax) * 100) / 100;
       const revenueExTax = Math.round((revenue - tax) * 100) / 100;
       const estMargin = revenueExTax - estCost, actMargin = revenueExTax - actCost, finalMargin = revenueExTax - finalCost;
-      return { revenue, revenueExTax, tax, baseRevenue, changeRevenue, estCost, actCost, finalCost, changeCost, vendorExtra,
+      return { revenue, revenueExTax, tax, taxRate, changeTax, changeRevenueExTax, baseRevenue, changeRevenue, estCost, actCost, finalCost, changeCost, vendorExtra,
         estMargin, actMargin, finalMargin,
         estMarginPct: revenueExTax ? Math.round(estMargin / revenueExTax * 100) : null,
         finalMarginPct: revenueExTax ? Math.round(finalMargin / revenueExTax * 100) : null,
@@ -6366,6 +6373,13 @@ window.HelmUrl = HelmUrl;
     },
   };
 
+  // Status gate shared by refunds + expense claims: only an APPROVED row may be paid / processed.
+  async function needApproved(table, lsKey, id, msg) {
+    let st = null;
+    if (mode === "supabase") { const { data, error } = await supa.from(table).select("status").eq("id", id).maybeSingle(); if (error) throw error; st = data && data.status; }
+    else { const r = readLs(lsKey).find((x) => x.id === id); st = r && r.status; }
+    if (st !== "approved") { const e = new Error(msg); e.userMessage = msg; e.code = "HL409"; throw e; }
+  }
   /* ---------------- refunds / recovery (Phase 24, spec step 80) ---------------- */
   const REFUND_LS = "bp_refunds";
   const refunds = {
@@ -6381,6 +6395,8 @@ window.HelmUrl = HelmUrl;
       const a = readLs(REFUND_LS); const row = { id: uid(), quote_id: quoteId, kind: "refund", amount: 0, status: "pending", ...r, created_at: now() }; a.push(row); localStorage.setItem(REFUND_LS, JSON.stringify(a)); return row;
     },
     async setStatus(id, status) {
+      // dev pass 3: approve, then process - a pending entry can't jump straight to processed
+      if (status === "processed") await needApproved("event_refunds", REFUND_LS, id, "Approve this entry before marking it done.");
       if (mode === "supabase") { const { error } = await supa.from("event_refunds").update({ status }).eq("id", id); if (error) throw error; return true; }
       const a = readLs(REFUND_LS); const r = a.find((x) => x.id === id); if (r) { r.status = status; localStorage.setItem(REFUND_LS, JSON.stringify(a)); } return true;
     },
@@ -6402,6 +6418,7 @@ window.HelmUrl = HelmUrl;
       const a = readLs(EXP_LS); const row = { id: uid(), quote_id: quoteId, status: "pending", amount: 0, ...e, created_at: now() }; a.push(row); localStorage.setItem(EXP_LS, JSON.stringify(a)); return row;
     },
     async setStatus(id, status) {
+      if (status === "paid") await needApproved("expense_claims", EXP_LS, id, "Approve this claim before marking it paid.");
       if (mode === "supabase") { const { error } = await supa.from("expense_claims").update({ status }).eq("id", id); if (error) throw error; return true; }
       const a = readLs(EXP_LS); const r = a.find((x) => x.id === id); if (r) { r.status = status; localStorage.setItem(EXP_LS, JSON.stringify(a)); } return true;
     },
@@ -6412,9 +6429,9 @@ window.HelmUrl = HelmUrl;
   };
   const settlement = {
     async summary(quoteId) {
-      const [b, ms, bk, exp, pays] = await Promise.all([
+      const [b, ms, bk, exp, pays, refs] = await Promise.all([
         budget.summary(quoteId), milestones.list(quoteId), bookings.list(quoteId), expenses.list(quoteId),
-        milestones.payments(quoteId).catch(() => []),
+        milestones.payments(quoteId).catch(() => []), refunds.list(quoteId).catch(() => []),
       ]);
       // "Received" = money actually collected, summed from the quote_payments LEDGER —
       // the single source of truth that holds EVERY receipt (both the advance and any
@@ -6424,7 +6441,11 @@ window.HelmUrl = HelmUrl;
       // is unavailable.
       const fromLedger = (pays || []).filter((p) => p.status === "paid").reduce((a, p) => a + Number(p.amount || 0), 0);
       const fromMilestones = ms.filter((m) => m.status === "paid").reduce((a, m) => a + Number(m.amount || 0), 0);
-      const received = (pays && pays.length) ? fromLedger : fromMilestones;
+      const gross = (pays && pays.length) ? fromLedger : fromMilestones;
+      // dev pass 3: a PROCESSED refund to the client is money given back - net it off Received
+      // (so Balance due goes back up). Pending / approved refunds are only "Refunds due".
+      const refundedOut = (refs || []).filter((r) => r.kind === "refund" && r.status === "processed").reduce((a, r) => a + Number(r.amount || 0), 0);
+      const received = Math.round((gross - refundedOut) * 100) / 100;
       const revenue = b.revenue, balance = revenue - received;   // the client's balance includes tax
       const vend = bk.filter((x) => x.status !== "cancelled");
       const vendorCost = vend.reduce((a, x) => a + Number(x.cost || 0), 0);
@@ -6434,7 +6455,7 @@ window.HelmUrl = HelmUrl;
       const expPaid = exp.filter((e) => e.status === "paid").reduce((a, e) => a + Number(e.amount || 0), 0);
       return { revenue, revenueExTax: b.revenueExTax != null ? b.revenueExTax : revenue, tax: b.tax || 0, received, balance, pricingMissing: !!b.pricingMissing, estCost: b.estCost, actCost: b.actCost, finalCost: b.finalCost,
         estMargin: b.estMargin, actMargin: b.actMargin, finalMargin: b.finalMargin,
-        milestones: ms, bookings: vend, expenses: exp, vendorCost, vendorAdvance, vendorOutstanding, expTotal, expPaid };
+        milestones: ms, bookings: vend, expenses: exp, vendorCost, vendorAdvance, vendorOutstanding, expTotal, expPaid, receivedGross: gross, refundedOut };
     },
     // Vendor bills overlay (one rule, shared by Settlement + the event workspace): per booking
     // cost = bills total if bills else booked cost; paid = advance + payouts; owed = max(cost - paid, 0).
