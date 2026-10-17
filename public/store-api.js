@@ -3580,7 +3580,7 @@ window.HelmUrl = HelmUrl;
       if (mode === "supabase") return rpc("publish_proposal", { p_quote_id: quoteId, p_published: !!published });
       const a = readLs(PROP_LS); let row = a.find((x) => x.quote_id === quoteId);
       if (!row) { row = { quote_id: quoteId, palette: [], images: [], scope: [] }; a.push(row); }
-      if (!row.share_token && published) row.share_token = uid();
+      if (!row.share_token && published) row.share_token = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : uid();  // AUD-1017: never a guessable token
       row.published = !!published; localStorage.setItem(PROP_LS, JSON.stringify(a));
       return row.share_token || null;
     },
@@ -6612,13 +6612,20 @@ window.HelmUrl = HelmUrl;
       vendors += bb.length ? bb.reduce((a, x) => a + vbNum(x.amount), 0)
         : lines.length ? lines.reduce((a, c) => a + vbLineVal(c), 0) : vbNum(b.cost);
     }
-    vendors += bills.filter((x) => !active.has(x.booking_id)).reduce((a, x) => a + vbNum(x.amount), 0);
-    vendors += costs.filter((c) => c.kind === "vendor" && !active.has(c.booking_id)).reduce((a, c) => a + vbLineVal(c), 0);
+    // AUD-1017: spend not tied to an active booking has ONE source too. Unlinked bills and
+    // unlinked "Vendor" cost lines usually record the same spend twice (a cost line typed in on
+    // Budget + the vendor's bill), so the larger of the two counts - never both. Mirrors 0146.
+    const looseBills = bills.filter((x) => !active.has(x.booking_id)).reduce((a, x) => a + vbNum(x.amount), 0);
+    const looseLines = costs.filter((c) => c.kind === "vendor" && !active.has(c.booking_id)).reduce((a, c) => a + vbLineVal(c), 0);
+    vendors += Math.max(looseBills, looseLines);
     const other = costs.filter((c) => c.kind !== "vendor" && !active.has(c.booking_id)).reduce((a, c) => a + vbLineVal(c), 0) + vbNum(o.changeCost);
     const staff = vbNum(o.staff), revenue = vbNum(o.revenue);
+    // AUD-1017: money handed back to the client (processed refunds) comes off profit
+    const refunds = (o.refunds || []).filter((r) => r && (r.kind || "refund") === "refund" && r.status === "processed")
+      .reduce((a, r) => a + vbNum(r.amount), 0);
     const r2 = (n) => Math.round(n * 100) / 100;
-    const net = r2(revenue - vendors - other - staff);
-    return { revenue: r2(revenue), vendors: r2(vendors), other: r2(other), staff: r2(staff), net_profit: net,
+    const net = r2(revenue - vendors - other - staff - refunds);
+    return { revenue: r2(revenue), vendors: r2(vendors), other: r2(other), staff: r2(staff), refunds: r2(refunds), net_profit: net,
       margin_pct: revenue ? Math.round(net / revenue * 100) : null };
   }
   // paid / part / unpaid / overdue / void for one bill (today = "YYYY-MM-DD")
@@ -6708,11 +6715,11 @@ window.HelmUrl = HelmUrl;
         try { const r = await rpc("event_pnl", { p_quote: quoteId }); if (r) return Object.assign({ source: "server" }, r); }
         catch (e) { if (!rpcMissing(e)) throw e; }
       }
-      const [b, bk, costs, exp] = await Promise.all([budget.summary(quoteId), bookings.list(quoteId).catch(() => []),
-        budget.listCosts(quoteId).catch(() => []), expenses.list(quoteId).catch(() => [])]);
+      const [b, bk, costs, exp, refs] = await Promise.all([budget.summary(quoteId), bookings.list(quoteId).catch(() => []),
+        budget.listCosts(quoteId).catch(() => []), expenses.list(quoteId).catch(() => []), refunds.list(quoteId).catch(() => [])]);
       const staff = (exp || []).filter((e) => e.status === "paid").reduce((a, e) => a + vbNum(e.amount), 0);
       return Object.assign({ source: "client", missing0124: mode === "supabase" }, vendorPnlCalc({
-        revenue: b.revenueExTax != null ? b.revenueExTax : b.revenue, bookings: bk, costs, bills: [], changeCost: b.changeCost, staff }));
+        revenue: b.revenueExTax != null ? b.revenueExTax : b.revenue, bookings: bk, costs, bills: [], changeCost: b.changeCost, staff, refunds: refs }));
     },
     async payables() {
       if (mode !== "supabase") return null;
