@@ -1,3 +1,4 @@
+/* verify-166: re-bumped with SHELL_V (114 was shipped twice with different content in PR #166). */
 /* Shell B — home dashboard. Read-only: never writes data. DOM APIs only (no innerHTML with
    data, no inline style attributes). Every store call is try/caught and fired in parallel;
    skeletons paint first and each section fills as soon as its data is in.

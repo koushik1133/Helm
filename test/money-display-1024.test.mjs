@@ -64,4 +64,10 @@ t('5 flow: own writes (advance recorded / failed quote save) refresh the lock ba
   assert.match(FH, /if\(!rpcMissing\)\{\n        await relock\(\);/);
   assert.match(FH, /\$\("#pay_record"\)\.removeAttribute\("aria-busy"\); relock\(\);/);
 });
+t('verify-166: Record advance deep link retries the scroll until #sec-pay is at the top, stops on user input', () => {
+  assert.match(FH, /location\.hash==="#sec-pay" && \$\("#sec-pay"\)\)\{ let n=0, stop=false;/);
+  assert.match(FH, /\["wheel","touchstart","keydown","mousedown"\]\.forEach/);
+  assert.match(FH, /\+\+n<20\) setTimeout\(go,150\)/);
+  assert.match(FH, /const laidOut=s\.getClientRects\(\)\.length>0 && s\.offsetHeight>0;/);
+});
 console.log(`money-display-1024: ${n} passed`);

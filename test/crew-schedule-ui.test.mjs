@@ -42,7 +42,7 @@ t('0161: returns schedule fields only - no money, no client contact', () => {
 t('store: BPStore.ops.crew.schedule calls crew_schedule; store-api bumped to 232 everywhere', () => {
   const s = r('public/store-api.js');
   assert.match(s, /schedule: \(from, to, staffId\) => \(supa \? rpc\("crew_schedule", \{ p_from: from, p_to: to, p_staff: staffId \|\| null \}\)/);
-  for (const p of ['calendar.html', 'staff.html', 'dashboard.html']) assert.match(r('public/' + p), /store-api\.js\?v=232/, p);
+  for (const p of ['calendar.html', 'staff.html', 'dashboard.html']) assert.match(r('public/' + p), /store-api\.js\?v=233/, p);
 });
 
 t('calendar: schedule section, assets, crew vs team mode, deep link from staff', () => {
@@ -80,5 +80,10 @@ t('grouping: one block per person+event+day, start-end time, start only, event t
   ]);
   assert.equal(g.length, 2); assert.equal(g[0].shifts.length, 2); assert.equal(g[0].time, '18:00–23:30');
   assert.equal(g[1].time, '17:00');
+});
+t('verify-166: staff Schedule link only for roles that can open the calendar', () => {
+  const SH = r('public/staff.html');
+  assert.match(SH, /canCal=await BPStore\.auth\.canView\("calendar"\)/);
+  assert.match(SH, /\$\{canCal\?`<a class="ic" href="calendar\.html\?staff=/);
 });
 console.log(n + ' passed');
