@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=11"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=12"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -7509,6 +7509,14 @@ window.HelmUrl = HelmUrl;
     async money(months) {
       if (mode !== "supabase" || !supa) return null;
       const n = Math.min(24, Math.max(1, Math.round(Number(months) || 12)));
+      // final-1022 (0154): ask in the studio's own currency (studio tax setting), so a stale
+      // organizations.currency (e.g. USD on an INR studio) no longer blanks Business; older DBs fall back
+      let cur = ""; try { cur = String(BPStore.studioCurrency() || "").toUpperCase(); } catch (e) {}
+      if (/^[A-Z]{3}$/.test(cur)) {
+        try { const d = await rpc("dashboard_money_for", { p_months: n, p_currency: cur }); return d && typeof d === "object" ? d : null; }
+        catch (e) { const st = Number(e && e.status) || 0; if (e && e.code === "42501") return null;
+          if (!(rpcMissing(e) || st === 404)) throw e; }
+      }
       try { const d = await rpc("dashboard_money", { p_months: n }); return d && typeof d === "object" ? d : null; }
       catch (e) { const st = Number(e && e.status) || 0;
         if (rpcMissing(e) || st === 404 || (e && e.code === "42501")) return null; throw e; }

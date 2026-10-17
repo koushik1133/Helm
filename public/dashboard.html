@@ -324,7 +324,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=225"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=226"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=15"></script>
 <script src="getting-started.js?v=6"></script>
@@ -459,7 +459,8 @@
     renderMyTasks();                                        // Build 3 — bucketed personal tasks (best-effort)
   }
   const inr = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
-  const statBadge = (s) => s === "confirmed" ? '<span class="stat ok">Confirmed</span>'
+  // final-1022: a closed event says Closed, not Confirmed
+  const statBadge = (s, lc) => s === "confirmed" ? (lc === "closed" ? '<span class="stat ok">Closed</span>' : '<span class="stat ok">Confirmed</span>')
     : s === "cancelled" ? '<span class="stat no">Cancelled</span>' : '<span class="stat q">Quote</span>';
   function qName(q) { const H = window.HelmEventName; return H && H.displayName ? H.displayName(q) : (q.title || q.code || ""); }
   function renderList() {
@@ -470,7 +471,7 @@
     // card is a mouse convenience that follows the same link.
     host.innerHTML = sorted.map((s) =>
       `<div class="ecard" data-id="${esc(s.id)}">${canDelete ? `<button type="button" class="del" data-id="${esc(s.id)}" title="Delete" aria-label="Delete quote ${esc(s.code)}">✕</button>` : ""}
-        <a class="elink" href="event.html?id=${encodeURIComponent(s.id)}"><b>${esc(qName(s))}</b></a> <span class="refchip" title="Reference code">${esc(s.code)}</span> ${statBadge(s.status)}
+        <a class="elink" href="event.html?id=${encodeURIComponent(s.id)}"><b>${esc(qName(s))}</b></a> <span class="refchip" title="Reference code">${esc(s.code)}</span> ${statBadge(s.status, s.lifecycleStage)}
         <small>v${esc(s.currentVersion)}${s.total ? " · " + esc(BPStore.quoteMoney(s.total, s)) : ""} · ${esc(fmtDate(s.updatedAt))}</small></div>`).join("");
     host.querySelectorAll(".ecard").forEach((c) => c.addEventListener("click", (e) => {
       if (e.target.closest(".del, a")) return;
