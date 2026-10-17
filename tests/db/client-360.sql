@@ -105,7 +105,7 @@ do $$ declare j jsonb; j2 jsonb; begin
   perform pg_temp.res('15 every kind present', pg_temp.kinds(j) = 'events,files,leads,messages,payments,tasks', pg_temp.kinds(j));
   perform pg_temp.res('16 quoted = 150000', (j -> 'totals' ->> 'quoted')::numeric = 150000, j ->> 'totals');
   perform pg_temp.res('17 paid counts paid only = 30000', (j -> 'totals' ->> 'paid')::numeric = 30000, j ->> 'totals');
-  perform pg_temp.res('18 due = 120000', (j -> 'totals' ->> 'due')::numeric = 120000, j ->> 'totals');
+  perform pg_temp.res('18 due = 70000 (0160: confirmed events only)', (j -> 'totals' ->> 'due')::numeric = 70000, j ->> 'totals');
   perform pg_temp.res('19 no studio B rows', j::text !~ '(B-C601|RCPT-B-TWIN|b0000000|Twin in B)', j::text);
   perform pg_temp.res('20 other clients excluded', j::text !~ '(A-C603|RCPT-OTHER|other\.pdf|Somebody Else)', j::text);
   perform pg_temp.res('21 newest first', (select bool_and(a >= b) from (select (e ->> 'at')::timestamptz a, lead((e ->> 'at')::timestamptz) over (order by o) b
@@ -149,7 +149,7 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000
       and (j -> 'totals' ? 'quoted') and not (j -> 'totals' ? 'paid') and not (j -> 'totals' ? 'due'), j::text);
   perform pg_temp.grant_area(a, 'sales', 'finance', true);
   j := pg_temp.t('a_staff@a.test', q1);
-  perform pg_temp.res('37 + finance: payments, paid and due', pg_temp.kinds(j) ~ 'payments' and (j -> 'totals' ->> 'due')::numeric = 120000, j ->> 'totals');
+  perform pg_temp.res('37 + finance: payments, paid and due', pg_temp.kinds(j) ~ 'payments' and (j -> 'totals' ->> 'due')::numeric = 70000, j ->> 'totals');
   perform pg_temp.grant_area(a, 'sales', 'staff', true);
   j := pg_temp.t('a_staff@a.test', q1);
   perform pg_temp.res('38 + staff: tasks', pg_temp.nk(j, 'tasks') = 1, pg_temp.kinds(j));
@@ -194,7 +194,7 @@ do $$ declare j jsonb; begin
   j := pg_temp.t('a_admin@a.test', 'a0000000-0000-4000-8000-00000000c681');
   perform pg_temp.res('45 0068 quoted falls back to legacy total = 100000', (j -> 'totals' ->> 'quoted')::numeric = 100000, j ->> 'totals');
   perform pg_temp.res('46 0068 paid = milestones when no ledger, ledger when present = 20000', (j -> 'totals' ->> 'paid')::numeric = 20000, j ->> 'totals');
-  perform pg_temp.res('47 0068 due = 80000', (j -> 'totals' ->> 'due')::numeric = 80000, j ->> 'totals');
+  perform pg_temp.res('47 0068 due = 60000 (0160: only the confirmed event owes)', (j -> 'totals' ->> 'due')::numeric = 60000, j ->> 'totals');
   j := pg_temp.t('a_admin@a.test', 'a0000000-0000-4000-8000-00000000c601');
   perform pg_temp.res('48 0068 Asha totals unchanged (150000 / 30000)', (j -> 'totals' ->> 'quoted')::numeric = 150000 and (j -> 'totals' ->> 'paid')::numeric = 30000, j ->> 'totals');
 end $$;

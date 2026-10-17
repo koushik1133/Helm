@@ -255,3 +255,5 @@ forward  supabase/migrations/0157_privacy_pin.sql
 forward  supabase/migrations/0158_mfa_verify_hook.sql
 # 0159 (direct "Create studio" must pick a plan and pay first: create_studio writes a private studio_payment_gate marker for NEW studios only (no backfill), _studio_payment_pending, read-only guard refuses studio writes while unpaid (hint payment_pending), my_checkout_status/options + pending_payment, my_pending_start_trial switches to the 8-day trial while payment is off, Starter/Studio plans added only when there is no active plan; trial + existing studios unaffected; no rows changed) goes after 0045 + 0056 + 0058 + 0119 + 0122.
 forward  supabase/migrations/0159_direct_studio_plan_gate.sql
+# 0160 (client page money: client_timeline Due counts only CONFIRMED events, each max(quote total + approved change orders - paid, 0) - the settlement balance; unconfirmed quotes no longer inflate Due; "Status now" / client status read confirmed for a confirmed event left on stage quote; one read-only function re-issued, no rows changed) goes after 0094.
+forward  supabase/migrations/0160_client_due_confirmed_only.sql

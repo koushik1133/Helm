@@ -377,7 +377,7 @@
     const bar=$("#nextStepBar"), b=$("#nextStepBtn"), why=$("#nextStepWhy"); if(!bar||!b) return;
     const q=encodeURIComponent(id); let t="", href="", w="";
     if(!isConfirmed()){ t="Send quote"; href="quotes.html?focus="+encodeURIComponent(ev.code||id); w="Price it, then send the quote to the client for approval."; }
-    else if(!advanceIn()){ t="Record advance"; href="logistics.html?quote="+q; w="Record the client's advance to book the date."; }
+    else if(!advanceIn()){ t="Record advance"; href="flow.html?quote="+q+"#sec-pay"; /* money-1024: advances are recorded in the quote workspace payment step */ w="Record the client's advance to book the date."; }
     else if(cur<stageIndex("event_day")){ t="Plan the day"; href="runsheet.html?quote="+q; w="Build the minute-by-minute plan for the day."; }
     else if(cur<stageIndex("closed")){ t="Close the event"; href="closure.html?quote="+q; w="Settle up, collect feedback and close the books."; }
     if(!t || !canEdit){ bar.hidden=true; return false; }
