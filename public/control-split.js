@@ -312,7 +312,8 @@
     if(e.key==="Tab"){ closeRes(); }
   });
   document.addEventListener("click",function(e){ if(!aside.contains(e.target)) closeRes(); });
-  document.addEventListener("keydown",function(e){ if((e.metaKey||e.ctrlKey) && (e.key==="k"||e.key==="K") && !app.hidden){ e.preventDefault(); q.focus(); q.select(); } });
+  /* capture phase + stopImmediatePropagation: the global studio search (studio-search.js) also binds Cmd/Ctrl+K on document and would open over the settings search */
+  window.addEventListener("keydown",function(e){ if((e.metaKey||e.ctrlKey) && !e.altKey && !e.shiftKey && (e.key==="k"||e.key==="K") && !app.hidden && !document.querySelector(".hss-ov:not([hidden])")){ e.preventDefault(); e.stopImmediatePropagation(); q.focus(); q.select(); } },true);
   document.addEventListener("keydown",function(e){ if(e.key==="/" && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||"") && !(document.activeElement&&document.activeElement.isContentEditable) && !app.hidden){ e.preventDefault(); q.focus(); } });
   window.HelmControlSearch={ entries:entries, open:function(v){ q.value=v||""; q.focus(); search(); } };
 

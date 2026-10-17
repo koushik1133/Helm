@@ -6,13 +6,14 @@
 
 /* ---- left settings nav ---- */
 .cs-aside{position:sticky;top:var(--sp-4,16px);display:flex;flex-direction:column;gap:var(--sp-4,16px);max-height:calc(100vh - 32px);overflow:auto;padding-bottom:var(--sp-4,16px)}
-/* smart search: soft, rounded, iPad-style field (light mode) */
+/* smart search: soft, rounded, iPad-style field (light mode). Input rules are #app-scoped so the
+   shell-b-style.css generic input rule (html[data-shell="b"] :is(input...), 8px radius, white fill) cannot win. */
 .cs-search{position:relative;--cs-acc:var(--accent,#059669);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Segoe UI",system-ui,sans-serif}
-.cs-search input{-webkit-appearance:none;appearance:none;width:100%;box-sizing:border-box;height:40px;padding:0 58px 0 36px;border:1px solid rgba(60,60,67,.12);border-radius:12px;background:rgba(118,118,128,.08);color:#1c1c1e;font:inherit;font-size:14px;letter-spacing:-.01em;box-shadow:inset 0 1px 1px rgba(0,0,0,.03);transition:background-color .2s ease,border-color .2s ease,box-shadow .2s ease}
+#app.cs-on .cs-search input{-webkit-appearance:none;appearance:none;width:100%;box-sizing:border-box;height:40px;padding:0 58px 0 36px;border:1px solid rgba(60,60,67,.12);border-radius:12px;background:rgba(118,118,128,.08);color:#1c1c1e;font:inherit;font-size:14px;letter-spacing:-.01em;box-shadow:inset 0 1px 1px rgba(0,0,0,.03);transition:background-color .2s ease,border-color .2s ease,box-shadow .2s ease}
 .cs-search input::-webkit-search-cancel-button{-webkit-appearance:none}
-.cs-search input::placeholder{color:rgba(60,60,67,.55)}
-.cs-search input:hover{background:rgba(118,118,128,.11)}
-.cs-search input:focus{outline:none;background:#fff;border-color:color-mix(in srgb,var(--cs-acc) 55%,transparent);box-shadow:0 0 0 4px color-mix(in srgb,var(--cs-acc) 18%,transparent),0 2px 8px rgba(0,0,0,.06)}
+#app.cs-on .cs-search input::placeholder{color:rgba(60,60,67,.55)}
+#app.cs-on .cs-search input:hover{background:rgba(118,118,128,.11)}
+#app.cs-on .cs-search input:focus{outline:none;background:#fff;border-color:color-mix(in srgb,var(--cs-acc) 55%,transparent);box-shadow:0 0 0 4px color-mix(in srgb,var(--cs-acc) 18%,transparent),0 2px 8px rgba(0,0,0,.06)}
 .cs-search-ico{position:absolute;left:13px;top:50%;width:13px;height:13px;margin-top:-7.5px;border:1.75px solid rgba(60,60,67,.5);border-radius:50%;box-sizing:border-box;pointer-events:none;transition:border-color .2s}
 .cs-search-ico::after{content:"";position:absolute;width:1.75px;height:5px;background:rgba(60,60,67,.5);right:-3px;bottom:-4.5px;transform:rotate(-45deg);border-radius:1px}
 .cs-search:focus-within .cs-search-ico{border-color:var(--cs-acc)}
