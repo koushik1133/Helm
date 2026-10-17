@@ -34,7 +34,9 @@ window.SUPABASE_CONFIG = {
   // helm_billing_settings.allow_trial_bypass is the real gate — set BOTH to false
   // for launch. Online payment there needs liveChannels.pay AND HQ's
   // online_payments_live, plus the create-subscription-checkout edge function.
-  onboarding: { allowPaymentBypass: true },
+  // Launch (owner 2026-10-17): OFF on the production hosts (helm.events, www.helm.events);
+  // still ON on staging (helm-v01.vercel.app), previews and localhost so testing keeps working.
+  onboarding: { allowPaymentBypass: !/^(www\.)?helm\.events$/.test(((typeof location !== 'undefined' && location.hostname) || '').toLowerCase()) },
   auth: {
     // ── THE two-step switch (one place) ─────────────────────────────────────────
     // false (now, owner decision: two-step OPTIONAL while testing) — admins may use

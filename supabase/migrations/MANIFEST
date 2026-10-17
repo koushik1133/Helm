@@ -259,3 +259,5 @@ forward  supabase/migrations/0159_direct_studio_plan_gate.sql
 forward  supabase/migrations/0160_client_due_confirmed_only.sql
 # 0161 (crew schedule calendar: read-only SECURITY DEFINER crew_schedule(p_from, p_to, p_staff) returns schedule fields only - event, date, start/end, venue name, role, shift - never money or client contact; crew see only their own assignments, staff/calendar viewers (not crew) see any crew in their org; org-scoped by current_org_id(); max 62 days; no tables, no rows changed) goes after 0153.
 forward  supabase/migrations/0161_crew_schedule.sql
+# 0162 (launch: helm_billing_settings.allow_trial_bypass = false - switches off the "Skip payment (testing only)" checkout bypass on the server; PRODUCTION ONLY, staging keeps it on for testing; one flag on the single settings row, no table/column/function/other row changed) goes after 0056.
+forward  supabase/migrations/0162_launch_bypass_off.sql
