@@ -2855,6 +2855,8 @@ window.HelmUrl = HelmUrl;
     crew: {
       eventBrief: (quoteId) => rpc("crew_event_brief", { p_quote: quoteId }),
       respond: (taskId, action) => rpc("crew_task_respond", { p_task: taskId, p_action: action }),
+      // crew schedule calendar (0161): schedule fields only; own rows for crew, any org crew for staff/calendar viewers
+      schedule: (from, to, staffId) => (supa ? rpc("crew_schedule", { p_from: from, p_to: to, p_staff: staffId || null }).then((r) => r || []) : Promise.resolve([])),
     },
     // ---- worker (no login; token-scoped) ----
     worker: {
