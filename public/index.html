@@ -24,7 +24,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@500;700&display=swap">
 <script src="/marketing-theme.js?v=3"></script>
-<link rel="stylesheet" href="/home.css?v=13">
+<link rel="stylesheet" href="/home.css?v=14">
 <link rel="stylesheet" href="/home-guide.css?v=2">
 </head>
 <body>
@@ -149,7 +149,7 @@
  <div class="hero-copy wrap c">
   <p class="eyebrow up"><span class="dotlive" aria-hidden="true"></span>For event studios, planners and decorators — worldwide</p>
   <h1 id="h1" class="hl"><span class="ln"><span>Run every event</span></span><span class="ln"><span>like <em>clockwork.</em></span></span></h1>
-  <p class="lede up">Leads, venue layouts drawn to real measurements, 3D views, quotes clients approve online, crew, stock and payments — in one workspace instead of a dozen apps, chats and spreadsheets.</p>
+  <p class="lede up">Leads, venue layouts drawn to real measurements, 3D views, photo renders, quotes clients approve online, crew, stock and payments — in one workspace instead of a dozen apps, chats and spreadsheets.</p>
   <div class="cta-row c up"><a class="btn btn-dark" href="/login?trial=1#signup">Start your 8-day free trial <span class="bi"><svg><use href="#i-arrow"/></svg></span></a><a class="btn btn-line" href="/try">Try the planner</a></div>
   <p class="hero-alt up"><a class="link-d" href="#film">Watch an event come together <svg><use href="#i-arrow"/></svg></a></p>
   <p class="fine up">No card needed · Any currency · Works in the browser on laptop and phone</p>
@@ -191,7 +191,7 @@
   <div class="head-split"><div><p class="eyebrow rv">The way it's done today</p>
   <h2 id="p-h" class="h2 rv">Your studio runs on <em>scraps.</em></h2></div>
   <p class="lead rv">Bookings in a diary. Quotes on a calculator. Layouts measured by guess. Payments in a chat thread. And nobody is quite sure who was supposed to do what — every handoff is a chance to lose a lead, misprice a quote or miss a delivery.</p></div>
-  <div class="board scraps" role="list" aria-label="How event work gets lost today">
+  <div class="board scraps snap" role="list" aria-label="How event work gets lost today">
    <div class="note y n1 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Priya — wedding — Dec??<br>call back re: stage</p><small>Paper diary</small></div>
    <div class="note w n2 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Decor 12,000<br>Catering 300 × 85<br>+ tax?? ____<br>Total ≈ 41k</p><small>Calculator quote</small></div>
    <div class="wa rv" role="listitem"><span class="pin" aria-hidden="true"></span><small>Crew group · 412 unread</small><p class="b in">Who's bringing the generator??</p><p class="b out">I thought Ravi had it</p><p class="b in">Ravi thought Sita had it 🙃</p></div>
@@ -204,7 +204,7 @@
    <div class="note b n8 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">80 chairs promised,<br>62 in the store</p><small>Stock nobody checked</small></div>
    <div class="note p n9 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Client changed the<br>menu — kitchen knows?</p><small>Change not passed on</small></div>
   </div>
-  <div class="ways scraps-ways">
+  <div class="ways scraps-ways snap" aria-label="Four ways event work gets lost">
    <article class="way rv" data-way="paper">
     <div class="way-top"><svg><use href="#i-book"/></svg><b>Paper &amp; diary</b><span>01</span></div>
     <div class="vig vig-paper" aria-hidden="true">
@@ -417,7 +417,7 @@
    <button type="button" aria-pressed="false" data-f="ops">Ops &amp; team <span></span></button>
    <button type="button" aria-pressed="false" data-f="client">Client <span></span></button>
   </div>
-  <div class="flips" id="flips" aria-live="polite"></div>
+  <div class="flips snap" id="flips" aria-live="polite" aria-label="Tools Helm replaces"></div>
   <noscript><p class="lead">Turn on JavaScript to see the tool-by-tool cards.</p></noscript>
   <p class="map-cta rv">Tool names describe common workflows only; Helm is not affiliated with them. <a class="link-d" href="/login?trial=1#signup">Retire the stack — try Helm free for 8 days <svg><use href="#i-arrow"/></svg></a></p>
  </div>
@@ -428,7 +428,7 @@
  <div class="morph-pin">
   <div class="wrap morph-grid">
    <div class="morph-copy">
-    <p class="eyebrow">Plan → 3D → measure</p>
+    <p class="eyebrow">2D plan → 3D → photo render → measure</p>
     <h2 id="mo3-h" class="h2">Draw it once.<br><em>See it every way.</em></h2>
     <div class="ly-tabs" role="tablist" aria-label="Sample layouts" id="lyTabs">
      <button type="button" role="tab" aria-selected="true" data-ly="corporate">Corporate gala</button>
@@ -437,6 +437,7 @@
     <ol class="mstages" id="mstages">
      <li class="on"><b>2D plan, to measurement</b><span>Stage, tables, walkways and entries placed at real dimensions — metres or feet.</span></li>
      <li><b>The same plan in 3D</b><span>Flip the layout to 3D so the client walks the venue before the day.</span></li>
+     <li><b>A photo render of the same room</b><span>Turn the plan into a photoreal picture the client can share before they sign.</span></li>
      <li><b>Measured to the centimetre</b><span>Every gap, aisle and wall clearance — read it in metres or feet.</span></li>
     </ol>
     <a class="btn btn-dark" href="/login?trial=1#signup">Design your first layout free <span class="bi"><svg><use href="#i-arrow"/></svg></span></a>
@@ -445,6 +446,7 @@
     <div class="mframe" role="tabpanel" aria-label="Layout views">
      <img class="mimg mx0" src="/mk/media/hero-2d.webp" alt="Helm 2D venue plan: stage, aisle, seating blocks and buffet lines on a measured grid" width="1534" height="1025" decoding="async">
      <img class="mimg mx1" src="/mk/media/hero-3d.webp" alt="The same venue plan shown in 3D" width="1559" height="1009" loading="lazy" decoding="async">
+     <img class="mimg mx2" src="/mk/media/hero-render.webp" alt="The same venue plan as a photoreal render" width="1559" height="998" loading="lazy" decoding="async">
      <img class="mimg mx3" src="/mk/media/hero-measure.webp" alt="The same plan with measured gaps and clearances in feet" width="1559" height="1009" loading="lazy" decoding="async">
      <span class="mtag" id="mtag">2D plan</span>
      <div class="mlegend" id="mlegend" aria-live="polite">
@@ -452,11 +454,7 @@
       <ul class="mmeas" id="mmeas"></ul>
      </div>
     </div>
-    <div class="mseg" role="group" aria-label="Choose a view" id="mseg"><button type="button" data-v="0" aria-pressed="true">2D</button><button type="button" data-v="1" aria-pressed="false">3D</button><button type="button" data-v="2" aria-pressed="false">Measure</button></div>
-    <figure class="render-slot" aria-label="Photo render, coming soon">
-     <div class="render-slot-media"><img class="render-slot-img" src="/mk/media/hero-render.webp" alt="Preview of a photoreal render of the venue plan" width="640" height="410" loading="lazy" decoding="async"></div>
-     <figcaption><b>Photo render</b><span class="render-slot-tag">Coming soon</span></figcaption>
-    </figure>
+    <div class="mseg" role="group" aria-label="Choose a view" id="mseg"><button type="button" data-v="0" aria-pressed="true">2D</button><button type="button" data-v="1" aria-pressed="false">3D</button><button type="button" data-v="2" aria-pressed="false">Render</button><button type="button" data-v="3" aria-pressed="false">Measure</button></div>
     <div class="mprog" aria-hidden="true"><i id="mbar"></i></div>
    </div>
   </div>
@@ -589,7 +587,7 @@
 <section class="sec modules" id="modules" aria-labelledby="mo-h">
  <div class="wrap">
   <div class="head-split"><div><p class="eyebrow rv">What you get</p><h2 id="mo-h" class="h2 rv">Every part of your business,<br><em>one connected platform.</em></h2></div><p class="lead rv">Each area works on its own — and gets more useful because it shares data with the others. From the first enquiry to the final profit figure.</p></div>
-  <div class="mods">
+  <div class="mods snap" aria-label="Helm modules">
    <article class="mod m-wide rv"><div class="mod-t"><span class="ic"><svg><use href="#i-layout"/></svg></span><h3>Layout design</h3><p>Plan the venue to the centimetre, then show the client exactly how it will look.</p><ul><li>2D builder with exact measurements</li><li>3D view and photoreal render</li><li>Layout wizard for a quick first draft</li><li>A wide décor library: arches, stages, canopies</li><li>Client booklet from the design</li></ul></div></article>
    <article class="mod rv"><div class="mod-t"><span class="ic"><svg><use href="#i-lead"/></svg></span><h3>CRM &amp; leads</h3><p>Every enquiry captured and followed through, with the full client history.</p><ul><li>Leads pipeline from enquiry to booking</li><li>Nurture messages and discovery calls</li><li>Follow-up reminders</li><li>Client history and archive</li><li>Resource calendar across events</li></ul></div></article>
    <article class="mod rv"><div class="mod-t"><span class="ic"><svg><use href="#i-quote"/></svg></span><h3>Quotes &amp; approvals</h3><p>The price updates as you design, and the client approves online.</p><ul><li>Live pricing while you build</li><li>Quote versions you can compare</li><li>Clean, shareable proposals</li><li>Client e-approval</li></ul></div></article>
@@ -639,7 +637,7 @@
 <section class="sec why" id="why" aria-labelledby="w-h">
  <div class="wrap">
   <div class="head-split"><div><p class="eyebrow rv">Why Helm</p><h2 id="w-h" class="h2 rv">No more guessed distances,<br><em>chat-thread bills</em> or profit on paper.</h2></div><p class="lead rv">One place where the plan, the work and the money stay in step — wherever your studio is.</p></div>
-  <div class="why-grid">
+  <div class="why-grid snap" aria-label="Reasons to choose Helm">
    <article class="wy rv"><span class="ic"><svg><use href="#i-ruler"/></svg></span><h3>Precision, not guesswork</h3><p>Exact distances on a measured plan, so the stage, tables and walkways fit on event day.</p></article>
    <article class="wy rv"><span class="ic"><svg><use href="#i-layout"/></svg></span><h3>One source of truth</h3><p>Leads, layouts, quotes, tasks, stock and payments live together — everyone works from the same numbers.</p></article>
    <article class="wy rv"><span class="ic"><svg><use href="#i-star"/></svg></span><h3>Client wow</h3><p>A 3D view, a photoreal render and a polished booklet help clients say yes faster.</p></article>
@@ -700,7 +698,7 @@
  <div class="wrap">
   <div class="sec-box curtain">
    <div class="sec-intro"><p class="eyebrow light rv">Why you can trust Helm</p><h2 id="se-h" class="h2 rv">Your events, your data,<br><em>your business.</em></h2><p class="lead rv">We'd rather show you how Helm works than show logos. Here is what is true today.</p></div>
-   <div class="sec-grid">
+   <div class="sec-grid snap" aria-label="How Helm protects your data">
     <div class="sg rv"><svg><use href="#i-lock"/></svg><h3>Separate and private</h3><p>Each business gets its own workspace. Database rules keep one studio's data out of every other studio's view.</p></div>
     <div class="sg rv"><svg><use href="#i-users"/></svg><h3>You decide who sees what</h3><p>Built-in roles and an access matrix you can edit — crew, accounts and managers each see only their part.</p></div>
     <div class="sg rv"><svg><use href="#i-shield"/></svg><h3>Your data stays yours</h3><p>We do not sell your information. Our <a href="/privacy">Privacy Policy</a> says exactly what we store and why.</p></div>
@@ -735,13 +733,13 @@
 
 <!-- VOICES placeholder -->
 <section class="sec voices" aria-labelledby="v-h"><div class="wrap c"><p class="eyebrow rv">Client stories</p><h2 id="v-h" class="h2 rv">What studios say — <em>soon.</em></h2><p class="lead rv">We're collecting stories from our first studios. These slots are placeholders until real quotes are approved.</p>
- <div class="vgrid"><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div></div>
+ <div class="vgrid snap" aria-label="Client stories"><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div></div>
  <a class="btn btn-dark rv" href="/login?trial=1#signup">Be one of our first studios, free <span class="bi"><svg><use href="#i-arrow"/></svg></span></a></div></section>
 
 <!-- PRICING -->
 <section class="sec pricing" id="pricing" data-tone="cream" aria-labelledby="pr-h">
  <div class="wrap c"><p class="eyebrow rv">Pricing</p><h2 id="pr-h" class="h2 rv">Plans from <em>$24 a month.</em></h2><p class="lead rv">Final pricing coming soon. The figures below are proposed starting prices in US dollars, before tax — every plan starts with an 8-day free trial, no card needed.</p></div>
- <div class="wrap pgrid">
+ <div class="wrap pgrid snap" aria-label="Plans">
   <div class="plan rv"><h3>Starter</h3><p class="who">Solo planners and decorators</p><p class="price"><span class="from">from</span><span>$24</span><small>/month · proposed</small></p><ul><li>Up to 3 team members</li><li>CRM, 2D layout and 3D view</li><li>Quotes, tasks and payments</li></ul><a class="btn btn-line" href="/login?trial=1#signup">Start free</a></div>
   <div class="plan hot rv"><span class="tagp">Most studios</span><h3>Studio</h3><p class="who">Growing event companies</p><p class="price"><span class="from">from</span><span>$59</span><small>/month · proposed</small></p><ul><li>Up to 15 team members</li><li>Inventory, crew app and team chat</li><li>Client portal, booklet and invite site</li></ul><a class="btn btn-dark" href="/login?trial=1#signup">Try Studio free for 8 days <span class="bi"><svg><use href="#i-arrow"/></svg></span></a></div>
   <div class="plan rv"><h3>Enterprise</h3><p class="who">Multi-city and multi-country teams</p><p class="price">Custom</p><ul><li>Unlimited team members</li><li>Multiple branches and countries, local tax rules</li><li>Photoreal renders, priority onboarding</li></ul><a class="btn btn-line" href="#contact">Talk to sales</a></div>
@@ -751,7 +749,7 @@
 
 <!-- FAQ -->
 <section class="sec faq" id="faq" aria-labelledby="fq-h"><div class="wrap narrow"><p class="eyebrow rv">FAQ</p><h2 id="fq-h" class="h2 rv">Questions, <em>answered.</em></h2>
- <details class="rv"><summary>What exactly is Helm?<svg><use href="#i-plus"/></svg></summary><p>A workspace for event studios, planners and decorators. It holds your leads, venue layouts (2D to exact measurements, plus 3D), quotes, tasks, crew, stock, vendors, payments and profit — in one place.</p></details>
+ <details class="rv"><summary>What exactly is Helm?<svg><use href="#i-plus"/></svg></summary><p>A workspace for event studios, planners and decorators. It holds your leads, venue layouts (2D to exact measurements, plus 3D views and photo renders), quotes, tasks, crew, stock, vendors, payments and profit — in one place.</p></details>
  <details class="rv"><summary>How long is the free trial?<svg><use href="#i-plus"/></svg></summary><p>8 days. Start without a card, set up a real event and invite your team.</p></details>
  <details class="rv"><summary>Who is Helm for?<svg><use href="#i-plus"/></svg></summary><p>Event businesses anywhere: wedding planners, decorators, corporate and conference teams, festival organisers and studios running private, cultural and public events — from one person to multi-city teams.</p></details>
  <details class="rv"><summary>Does it work in my country and currency?<svg><use href="#i-plus"/></svg></summary><p>Helm lets each studio set its currency, tax lines and time zone, and layouts work in metres or feet. Talk to us about local requirements for Enterprise.</p></details>
@@ -790,6 +788,7 @@
  <div class="fin rv"><h2 id="cta-h" class="h2">Your next event could be the first one<br><em>without the chaos.</em></h2><p>Swap the notebook, the spreadsheets and the chat threads for one workspace.</p><div class="cta-row c"><a class="btn btn-light" href="/login?trial=1#signup">Run your next event on Helm — 8 days free <span class="bi"><svg><use href="#i-arrow"/></svg></span></a><a class="link-w" href="/try">Try the planner <svg><use href="#i-arrow"/></svg></a></div></div>
 </div></section>
 </main>
+<div class="mcta" id="mcta" role="region" aria-label="Start with Helm"><a class="btn btn-line" href="/try">Try the planner</a><a class="btn btn-dark" href="/login?trial=1#signup">Start free trial <span class="bi"><svg><use href="#i-arrow"/></svg></span></a></div>
 
 <footer class="foot"><div class="wrap fgr">
  <div class="fb"><a class="brand" href="#top"><span class="mark" aria-hidden="true"><i></i><i></i></span>Helm</a><p>One workspace for event studios everywhere: leads, layouts, quotes, crew, payments and profit.</p></div>
@@ -801,7 +800,7 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="/telemetry.js?v=4" defer></script>
 <script src="/home-assets/manifest.js?v=3" defer></script>
-<script src="/home.js?v=14" defer></script>
+<script src="/home.js?v=15" defer></script>
 <script src="/home-guide.js?v=1" defer></script>
   <script>
     // If a signed-in user lands here, take them straight into their workspace.

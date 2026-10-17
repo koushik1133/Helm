@@ -62,6 +62,35 @@
     });
   }
 
+  /* ---------- mobile carousels: grids become swipe rows under 768px (CSS); give them a tab stop
+     and a region role only while they scroll, so desktop grids add no extra stops ---------- */
+  var snapMq = window.matchMedia('(max-width: 767px)');
+  function snapA11y() {
+    $$('.snap').forEach(function (el) {
+      if (snapMq.matches) {
+        el.setAttribute('tabindex', '0');
+        if (!el.getAttribute('role')) { el.setAttribute('role', 'region'); el.dataset.snapRole = '1'; }
+        if (el.getAttribute('aria-label') && !/swipe/.test(el.getAttribute('aria-label'))) el.setAttribute('aria-label', el.getAttribute('aria-label') + ' (swipe or use arrow keys)');
+        $$('.rv', el).forEach(function (c) { c.classList.add('in'); });
+      } else {
+        el.removeAttribute('tabindex');
+        if (el.dataset.snapRole) { el.removeAttribute('role'); delete el.dataset.snapRole; }
+        if (el.getAttribute('aria-label')) el.setAttribute('aria-label', el.getAttribute('aria-label').replace(' (swipe or use arrow keys)', ''));
+      }
+    });
+  }
+  snapA11y();
+  if (snapMq.addEventListener) snapMq.addEventListener('change', snapA11y);
+
+  /* ---------- mobile sticky CTA: shows once the hero is gone, hides over the final CTA ---------- */
+  var mcta = $('#mcta'), heroEl = $('.hero'), finEl = $('.final');
+  if (mcta && heroEl && 'IntersectionObserver' in window) {
+    var heroIn = true, finIn = false;
+    var paintCta = function () { var on = !heroIn && !finIn; mcta.classList.toggle('on', on); document.body.classList.toggle('has-mcta', on); };
+    new IntersectionObserver(function (es) { heroIn = es[0].isIntersecting; paintCta(); }).observe(heroEl);
+    if (finEl) new IntersectionObserver(function (es) { finIn = es[0].isIntersecting; paintCta(); }).observe(finEl);
+  }
+
   /* ---------- lazy, offscreen-paused videos ---------- */
   var userPaused = reduce;
   function loadV(v) {
@@ -279,8 +308,8 @@
   layoutTiles();
 
   /* ---------- one rAF loop: nav state, converge, morph, lerped parallax ---------- */
-  var apps = $('#converge'), morph = $('#morph'), mimgs = [$('.mx0'), $('.mx1'), $('.mx3')], mstages = $$('#mstages li'), mframe = $('#morph .mframe');
-  var mbar = $('#mbar'), mtag = $('#mtag'), mNames = ['2D plan', '3D view', 'Measure'];
+  var apps = $('#converge'), morph = $('#morph'), mimgs = [$('.mx0'), $('.mx1'), $('.mx2'), $('.mx3')], mstages = $$('#mstages li'), mframe = $('#morph .mframe');
+  var mbar = $('#mbar'), mtag = $('#mtag'), mNames = ['2D plan', '3D view', 'Photo render', 'Measure'];
   var heroLayers = [];
   var lerpEls = reduce ? [] : $$('[data-lerp]').map(function (el) { return { el: el, k: parseFloat(el.dataset.lerp), cur: 0 }; });
   var phStage = $('#phStage');
@@ -296,14 +325,14 @@
     mstages.forEach(function (li, k) { li.classList.toggle('on', k === i); });
     $$('#mseg button').forEach(function (b, k) { b.setAttribute('aria-pressed', String(k === i)); });
     if (mtag) mtag.textContent = mNames[i];
-    if (mframe) mframe.classList.toggle('is-measure', i === 2);
+    if (mframe) mframe.classList.toggle('is-measure', i === 3);
   }
   function showView(k) { mimgs.forEach(function (im, j) { if (j && im) im.style.setProperty('opacity', j <= k ? '1' : '0'); }); var v = $('.mx1v'); if (v) v.style.setProperty('opacity', k >= 1 ? '1' : '0'); setStage(k); }
   $$('#mseg button').forEach(function (b, k) {
     b.addEventListener('click', function () {
       if (reduce || !morph) { showView(k); return; }
       var top = morph.getBoundingClientRect().top + window.scrollY, span = morph.offsetHeight - vh;
-      var q = [0.05, 0.5, 0.95][k];
+      var q = [0.04, 0.38, 0.66, 0.96][k];
       window.scrollTo({ top: top + span * q, behavior: 'smooth' });
     });
   });
@@ -342,20 +371,21 @@
           core.style.setProperty('opacity', vw < 640 ? clamp(e * 2.2, 0, 1).toFixed(3) : '1');
         }
       }
-      /* morph 2D -> 3D -> measure (photo render is a static 'coming soon' slot) */
+      /* morph 2D -> 3D -> photo render -> measure */
       if (morph && (moved || morphP < 0)) {
         var q = progress(morph);
         if (Math.abs(q - morphP) > 0.0005) {
           morphP = q;
-          var a = ease(clamp((q - 0.14) / 0.24, 0, 1)), b = ease(clamp((q - 0.56) / 0.24, 0, 1));
+          var a = ease(clamp((q - 0.1) / 0.18, 0, 1)), b = ease(clamp((q - 0.42) / 0.16, 0, 1)), c = ease(clamp((q - 0.7) / 0.16, 0, 1));
           // every view settles at scale(1) exactly, so the visible image is never resampled (no blur)
           mimgs[0].style.setProperty('transform', 'scale(' + (1 + a * 0.04).toFixed(4) + ')');
           mimgs[1].style.setProperty('opacity', a.toFixed(3));
           mimgs[1].style.setProperty('transform', a >= 1 && b <= 0 ? 'none' : 'scale(' + (1.06 - a * 0.06 + b * 0.03).toFixed(4) + ')');
           var mv = $('.mx1v'); if (mv) { mv.style.setProperty('opacity', a.toFixed(3)); mv.style.setProperty('transform', mimgs[1].style.getPropertyValue('transform')); }
           if (mimgs[2]) { mimgs[2].style.setProperty('opacity', b.toFixed(3)); mimgs[2].style.setProperty('transform', b >= 1 ? 'none' : 'scale(' + (1.06 - b * 0.06).toFixed(4) + ')'); }
+          if (mimgs[3]) { mimgs[3].style.setProperty('opacity', c.toFixed(3)); mimgs[3].style.setProperty('transform', c >= 1 ? 'none' : 'scale(' + (1.06 - c * 0.06).toFixed(4) + ')'); }
           if (mbar) mbar.style.setProperty('transform', 'scaleX(' + q.toFixed(4) + ')');
-          setStage(q < 0.42 ? 0 : q < 0.8 ? 1 : 2);
+          setStage(q < 0.3 ? 0 : q < 0.56 ? 1 : q < 0.82 ? 2 : 3);
         }
       }
       /* hero pointer depth (lerped) */
@@ -846,8 +876,8 @@
   /* ---------- layout gallery: manifest-driven, never requests missing files ---------- */
   var VIEWS = ['2d', '3d', 'render', 'measure'];
   var SAMPLE = {
-    wedding: ['/mk/media/hero-2d.webp', '/mk/media/hero-3d.webp', '/mk/media/hero-3d.webp', '/mk/media/hero-measure.webp'],
-    corporate: ['/mk/media/hero-2d.webp', '/mk/media/hero-3d.webp', '/mk/media/hero-3d.webp', '/mk/media/hero-measure.webp']
+    wedding: ['/mk/media/hero-2d.webp', '/mk/media/hero-3d.webp', '/mk/media/hero-render.webp', '/mk/media/hero-measure.webp'],
+    corporate: ['/mk/media/hero-2d.webp', '/mk/media/hero-3d.webp', '/mk/media/hero-render.webp', '/mk/media/hero-measure.webp']
   };
   var SAMPLE_MEAS = [{ label: 'Stage to first table', m: 4.5 }, { label: 'Centre aisle', m: 1.8 }, { label: 'Table to table', m: 1.5 }, { label: 'Hall', w: 24, h: 16 }];
   var ready = {}, names = { wedding: 'Garden wedding', corporate: 'Corporate gala' }, exts = {}, hasMeasure = {}, hasVideo = {}, meas = {};
@@ -895,7 +925,7 @@
       var s = srcFor(curLy, k);
       if (im.getAttribute('src') !== s) im.setAttribute('src', s);
       im.classList.remove('fallback');   // SAMPLE images are real product screenshots now
-      im.alt = names[curLy] + ' — ' + ['2D venue plan on a measured grid', 'the same plan in 3D', 'render', 'plan with measured gaps and clearances'][k];
+      im.alt = names[curLy] + ' — ' + ['2D venue plan on a measured grid', 'the same plan in 3D', 'the same plan as a photoreal render', 'plan with measured gaps and clearances'][k];
     });
     if (mnote) mnote.hidden = !!ready[curLy];
     paintLegend(); paintVideo();
