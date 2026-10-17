@@ -87,9 +87,10 @@ snapshot stale and unsafe. If a consolidated installer is ever needed, it must b
 **regenerated** from the numbered phase files (idempotently, in order) and then
 **verified on staging** before use — never edited by hand as the source of truth.
 
-## The 6 seeded users (password `helm`)
+## The 6 seeded users (random, unknown passwords)
 
 `admin@helm.com` · `planner@helm.com` · `sales@helm.com` ·
 `operations@helm.com` · `crew@helm.com` · `client@helm.com`
 
-> Change these passwords before any real use.
+> The snapshot gives each account a random password and never resets an existing account.
+> Set each password from the Supabase dashboard before any use.

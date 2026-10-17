@@ -62,6 +62,14 @@ do $$ begin
     execute 'revoke all on table public.privacy_pin from authenticated';
     execute 'revoke all on table public.privacy_pin_attempts from authenticated'; end if;
 end $$;
+-- suspended / ended-trial studios are read-only like every studio table (0045 / 0116 guard): the PIN
+-- itself is guarded; the wrong-try counter is NOT (unlocking must keep working for a read-only studio)
+do $$ begin
+  if to_regprocedure('public.tg_studio_read_only()') is not null
+     and not exists (select 1 from pg_trigger where tgname = 'zzz_studio_read_only' and tgrelid = 'public.privacy_pin'::regclass) then
+    execute 'create trigger zzz_studio_read_only before insert or update or delete on public.privacy_pin for each row execute function public.tg_studio_read_only(''org_id'')';
+  end if;
+end $$;
 
 -- ---- helpers (not callable by app roles) -----------------------------------------------------
 -- the caller's studio, or an error: signed in, in a studio, not a client account
@@ -233,6 +241,8 @@ end $$;
 
 -- VERIFY (read-only): every row must say ok = true
 select item, ok from (values
+  ('00 PIN row read-only for suspended studios', to_regprocedure('public.tg_studio_read_only()') is null
+       or exists (select 1 from pg_trigger t where t.tgname = 'zzz_studio_read_only' and t.tgrelid = 'public.privacy_pin'::regclass)),
   ('01 privacy_pin table, RLS on', (select c.relrowsecurity from pg_class c where c.oid = 'public.privacy_pin'::regclass)),
   ('02 attempts table, RLS on', (select c.relrowsecurity from pg_class c where c.oid = 'public.privacy_pin_attempts'::regclass)),
   ('03 tables closed to app roles', not exists (select 1 from pg_roles where rolname = 'authenticated')

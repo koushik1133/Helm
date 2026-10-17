@@ -178,6 +178,22 @@ apex is served by the project instead of by the domain-level redirect:
 
 ---
 
+## 11. Audit run-3 follow-ups (edge, CI, auth hook)
+- **GitHub Environment gate:** Settings -> Environments -> `staging-tests` -> add yourself as
+  a Required reviewer. The db-tests and e2e jobs (which receive staging/test secrets) are bound
+  to it; until a reviewer is set GitHub runs them without a gate, as before.
+- **MFA lockout hook (0158):** after `supabase/APPLY-0158.sql` is applied (staging first), enable
+  Dashboard -> Authentication -> Hooks -> MFA Verification Attempt -> Postgres -> `public` /
+  `hook_mfa_verification_attempt`. Test a wrong code 5 times on a staging account first.
+- **Meta spend alert:** set a daily spend alert for the WhatsApp Business account (the edge
+  caps in send-phone-code / send-whatsapp limit volume, the alert catches anything else).
+- **Sentry (only when you turn telemetry on):** add the DSN's exact ingest host (for example
+  `https://o123456.ingest.us.sentry.io`) to `connect-src` in server.js, vercel.json and
+  public/_headers - the wildcard was removed on purpose.
+- **Trusted Types:** the staging site now sends a report-only Trusted Types header. Click
+  through every page signed in on helm-v01 with the browser console open and send the
+  `[helm-trusted-types] report-only:` lines; enforcement is a later, separate change.
+
 ## Notes (no owner action needed)
 
 - **CORS on the static site.** Vercel adds `Access-Control-Allow-Origin: *` to

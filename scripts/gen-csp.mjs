@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { computeHashes, computeStyleHashes, withHashes, htmlFiles, scriptSrcProblem, frameAncestorsProblem } = require('./csp-hashes.cjs');   // R8b: frame-ancestors route allowlist lives there
+const { computeHashes, computeStyleHashes, withHashes, htmlFiles, scriptSrcProblem, frameAncestorsProblem, TRUSTED_TYPES_ENFORCE, TT_DIRECTIVES } = require('./csp-hashes.cjs');   // R8b: frame-ancestors route allowlist lives there
 
 // Production hosts (must match PROD_HOSTS in public/config.js) and the staging
 // Supabase project ref (from public/config.staging.js) that they must never allow.
@@ -40,7 +40,7 @@ export const STAGING_CSP_HOSTS = ['helm-v01.vercel.app'];
 export function isStagingCspRule(r) {
   return Array.isArray(r.has) && r.has.length === 1 && r.has[0].type === 'host' && STAGING_CSP_HOSTS.includes(r.has[0].value) &&
     r.source === '/(.*)' && (r.headers || []).length >= 1 && (r.headers || []).length <= 2 && r.headers[0].key.toLowerCase() === 'content-security-policy' &&
-    (r.headers.length === 1 || r.headers[1].key.toLowerCase() === 'x-frame-options');
+    (r.headers.length === 1 || ['x-frame-options', 'content-security-policy-report-only'].includes(r.headers[1].key.toLowerCase()));
 }
 function unionPolicy(values) {
   const m = new Map();
@@ -49,7 +49,12 @@ function unionPolicy(values) {
     if (!m.has(k)) m.set(k, new Set());
     toks.forEach((t) => { if (!PROD_REF || !t.includes(PROD_REF)) m.get(k).add(t); });   // staging site never allows production
   }
-  if (m.has('frame-ancestors') && m.get('frame-ancestors').size > 1) m.get('frame-ancestors').delete("'none'");
+  // audit run-3 deploy/vercel/helm-v01-union-csp-overrides-per-page: a union cannot
+  // express per-page framing, and merging 'none' + 'self' widened every staging page to
+  // 'self'. So the union carries NO frame-ancestors and the host rule sets no
+  // X-Frame-Options: each page's own X-Frame-Options (catch-all DENY; SAMEORIGIN only on
+  // /invite, /i/*, the branded invite link and /capture) keeps governing framing there.
+  m.delete('frame-ancestors');
   if (STAGING_REF) {
     const add = (k, list) => { if (m.has(k)) list.forEach((x) => m.get(k).add(x)); };
     add('connect-src', ['https://' + STAGING_REF + '.supabase.co', 'wss://' + STAGING_REF + '.supabase.co']);
@@ -116,9 +121,11 @@ if (!cspCount) { console.error('  ✗ vercel.json has no Content-Security-Policy
   const staged = unionPolicy(pols);
   for (const host of STAGING_CSP_HOSTS)
     vercel.headers.push({ source: '/(.*)', has: [{ type: 'host', value: host }], headers: [{ key: 'Content-Security-Policy', value: staged },
-      // keep the legacy X-Frame-Options header consistent with the union frame-ancestors (otherwise the
-      // catch-all DENY contradicts frame-ancestors 'self' on the staging site)
-      ...(/frame-ancestors 'self'/.test(staged) ? [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }] : [])] });
+      // Trusted Types rollout, stage 1 (audit run-3 client/csp): REPORT-ONLY on the staging
+      // site only, so the logged-in pass can collect violations before enforcement.
+      // public/trusted-types.js runs in observe mode (logs, never rewrites markup) while
+      // TRUSTED_TYPES_ENFORCE is false. Production hosts get no Trusted Types header yet.
+      ...(!TRUSTED_TYPES_ENFORCE ? [{ key: 'Content-Security-Policy-Report-Only', value: TT_DIRECTIVES.join('; ') }] : [])] });
 }
 const stagingFree = (v) => JSON.stringify({ ...v, headers: (v.headers || []).filter((r) => !isStagingCspRule(r)) });
 const vNext = JSON.stringify(vercel, null, 2) + '\n';
@@ -158,6 +165,9 @@ if (check) {
   if (hNext !== hRaw) { console.error('  ✗ public/_headers CSP script hashes are stale — run: node scripts/gen-csp.mjs'); problems++; }
   if (/script-src[^;]*'unsafe-inline'/.test(vRaw)) { console.error("  ✗ vercel.json script-src still allows 'unsafe-inline'"); problems++; }
   if (/style-src(-elem)? [^;\n]*'unsafe-inline'/.test(vRaw + hRaw)) { console.error("  ✗ style-src / style-src-elem still allows 'unsafe-inline'"); problems++; }
+  // audit run-3 client/csp: no wildcard host in connect-src (e.g. https://*.ingest.sentry.io
+  // lets any Sentry org receive exfiltrated data). Pin exact hosts when a DSN exists.
+  if (/connect-src[^;\n"]*https:\/\/\*\./.test(vRaw + hRaw)) { console.error('  ✗ connect-src allows a wildcard https://*. host - pin the exact host'); problems++; }
   if (!problems) console.log(`  ✓ CSP script hashes current (${hashes.length} inline scripts, ${cspCount} policies)`);
 } else {
   writeFileSync(vPath, vNext);

@@ -58,9 +58,17 @@ jobs:
     needs: gate
     if: needs.gate.outputs.enabled == 'true'
     runs-on: ubuntu-latest
+    # audit run-3 ci/workflows/pull_request-jobs-expose-test-secrets-without-environment:
+    # this job hands staging/test secrets to code from the PR checkout, so it is
+    # bound to the 'staging-tests' GitHub Environment. OWNER ACTION: Settings ->
+    # Environments -> staging-tests -> add yourself as a Required reviewer (and,
+    # optionally, move the HELM_TEST_* / HELM_E2E_* secrets into that environment).
+    # Until a reviewer rule exists GitHub creates the environment with no gate, so
+    # behaviour is unchanged; once it exists, every run waits for approval.
+    environment: staging-tests
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 20
       - name: Install PostgreSQL client (psql)

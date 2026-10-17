@@ -22,6 +22,10 @@ regexes = [
   '''^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xbHR6Z2l3em5waHVnY2ZobWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTg5NDYsImV4cCI6MjEwNDk3NDk0Nn0\.UWainTYBaCr8dNaugqWkCuLVh2H0TkiG6ZIFH6ZPKIQ$''',
   # xizehqgeyjcfpzrdymly (role=anon)
   '''^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpemVocWdleWpjZnB6cmR5bWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxOTAyNTMsImV4cCI6MjEwNTc2NjI1M30\.KvL6N\-N7iIY7GzsxglWJRmP3JVZuXrHDeqQX1GWaZFo$''',
+  # audit run-3 ci/secret-scanning: the dummy booklet-token UUID fixture in
+  # test/client-booklet-ui.test.mjs (generic-api-key false positive that made
+  # `gitleaks dir` and full-history scans exit 1). Exact literal only.
+  '''^0b8c2f1e-1111-4222-8333-944445555666$''',
 ]
 
 # audit run 2 (NV-11): a password written next to "password" in docs / HTML
@@ -30,3 +34,42 @@ id = "helm-published-password"
 description = "Password published in documentation"
 regex = '''(?i)password[^<\n]{0,40}<code>[^<\s]{4,64}</code>'''
 keywords = ["password"]
+
+# audit run-3 ci/secret-scanning/gitleaks-and-jwt-check-gaps --------------------
+# New-format Supabase keys. The default ruleset only sees env-style assignments.
+[[rules]]
+id = "helm-supabase-secret-key"
+description = "Supabase secret API key (sb_secret_...) - server-only, never commit"
+regex = '''\bsb_secret_[A-Za-z0-9_-]{20,}'''
+keywords = ["sb_secret_"]
+
+[[rules]]
+id = "helm-supabase-personal-access-token"
+description = "Supabase personal access token (sbp_...) - Management API, never commit"
+regex = '''\bsbp_(?:v0_)?[A-Fa-f0-9]{40}\b'''
+keywords = ["sbp_"]
+
+# The <code> rule above missed the same password written in markdown/plain text
+# (inline code after "share", "staging", "password", ...). This catches a
+# credential-shaped value (letters AND digits, 8-64 chars) in backticks, bold or
+# quotes within 40 characters after password / credential / share / default /
+# staging / login / sign-in wording, in docs-type files. Verified 2026-10-17: 0
+# hits at HEAD, and it flags the two markdown commits the run-3 audit listed.
+[[rules]]
+id = "helm-doc-password-plain"
+description = "Password written in documentation or plain text"
+regex = '''(?i)\b(?:pass(?:word|wd|phrase)s?|credentials?|shares?|shared|default|staging|log ?in|sign[- ]?in)\b[^`*"]{0,40}(?:`|\*\*|")([A-Za-z0-9!#$%&+?^_~-]{8,64})(?:`|\*\*|")'''
+secretGroup = 1
+keywords = ["pass", "credential", "share", "default", "staging", "login", "log in", "sign"]
+path = '''(?i)\.(?:md|markdown|txt|html?|csv)$'''
+[[rules.allowlists]]
+description = "Not credential-shaped: no digit, no letter, hex ids, snake/kebab identifiers, ENV_NAMES, placeholders"
+regexTarget = "secret"
+regexes = [
+  '''^[^0-9]+$''',
+  '''^[^A-Za-z]+$''',
+  '''^[0-9a-fA-F]{7,64}$''',
+  '''^[a-z0-9]+(?:[_-][a-z0-9]+)+$''',
+  '''^[A-Z0-9]+(?:_[A-Z0-9]+)+$''',
+  '''(?i)example|placeholder|changeme|your|xxxx|redacted''',
+]

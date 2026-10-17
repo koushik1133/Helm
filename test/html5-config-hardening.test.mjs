@@ -103,7 +103,7 @@ t('CSP-01: CDN script paths only on the builder; the builder loads exactly what 
     'https://cdn.jsdelivr.net/npm/angular@1.0.8/angular.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js']) assert.ok(!scriptAllowed(builder, g), g);
   // Sentry bundle (dormant) allowed by the pinned directory only
-  const sentry = /sc\.src = '([^']+)'/.exec(read('public/telemetry.js'))[1];
+  const sentry = /(?:sc\.src|var SENTRY_SRC) = '([^']+)'/.exec(read('public/telemetry.js'))[1];
   assert.ok(scriptAllowed(dash, sentry), 'pinned Sentry bundle must stay loadable when a DSN is set');
   assert.ok(!scriptAllowed(dash, 'https://browser.sentry-cdn.com/7.0.0/bundle.min.js'));
   assert.deepEqual(SCRIPT_SRC_BUILDER.slice(0, SCRIPT_SRC_BASE.length), SCRIPT_SRC_BASE);

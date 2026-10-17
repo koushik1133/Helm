@@ -1,3 +1,18 @@
+-- ==== SUPERSEDED - DO NOT RUN on a current database (audit run 3, 0156 a156guard) ====
+-- This bundle is NOT in supabase/migrations/MANIFEST. Re-running it on a database that already has
+-- the canonical migrations would put back older, weaker function bodies or policies (for example
+-- the NULL-OTP consent bypass). It refuses to run once 0039+ is applied.
+-- Use scripts/db-migrate.sh or the APPLY-0xxx files in MANIFEST order instead.
+begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null
+     or to_regprocedure('public.verify_and_consent__pre0042(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- a156guard txn: the refusal above runs INSIDE a transaction, so under psql -f without ON_ERROR_STOP
+-- every later statement fails too ("current transaction is aborted") and nothing is applied.
+-- ==========================================================================================
 -- =========================================================================
 -- PHASE 8 — Resource requirement mapping + capability check
 -- Idempotent. Safe to re-run. Depends on: setup-complete.sql, phase6-staff.sql,
@@ -32,3 +47,6 @@ create policy "read needs"   on public.event_resource_needs for select to authen
 create policy "insert needs" on public.event_resource_needs for insert to authenticated with check ( public.can_edit() );
 create policy "update needs" on public.event_resource_needs for update to authenticated using ( public.can_edit() ) with check ( public.can_edit() );
 create policy "delete needs" on public.event_resource_needs for delete to authenticated using ( public.can_delete() );
+
+-- a156guard txn: end of the one transaction opened above the refusal guard
+commit;

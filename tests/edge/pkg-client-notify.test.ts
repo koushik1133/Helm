@@ -100,3 +100,32 @@ Deno.test("pkg-client-notify templates: approval link allowlist + escaping", () 
   assert(d.html.includes("&lt;b&gt;full&lt;/b&gt;"));
   assertEquals(render("unknown", {}), null);
 });
+
+// ---- 0155: last STOP check right before each WhatsApp send ----
+Deno.test("pkg-client-notify: number replied STOP -> skipped, Meta never called; e-mail unaffected", async () => {
+  resetSupaMock();
+  g.__supaRpc = (name: string) => name === "pkg_outbox_claim" ? { data: [accepted, otp], error: null }
+    : name === "wa_recipient_opted_out" ? { data: true, error: null } : { data: "ok", error: null };
+  const r = setEnv(ON);
+  const f = installFetch((url) => {
+    if (url === "https://api.resend.com/emails") return jsonResponse({ id: "x" });
+    throw new Error("unexpected " + url);
+  });
+  try {
+    const out = await (await (await loadHandler(FN))(req(SECRET))).json();
+    assertEquals(out.sent, 1); assertEquals(out.skipped, 1);
+    assertEquals(marks().find((m: any) => m.args.p_id === ID2)?.args.p_status, "skipped");
+    assert(supaLog().some((l) => l.rpc === "wa_recipient_opted_out"));
+  } finally { f(); r(); }
+});
+
+Deno.test("pkg-client-notify: STOP check fails -> WhatsApp row retried later, not sent", async () => {
+  resetSupaMock();
+  g.__supaRpc = (name: string) => name === "pkg_outbox_claim" ? { data: [otp], error: null }
+    : name === "wa_recipient_opted_out" ? { data: null, error: { code: "PGRST202", message: "missing" } } : { data: "ok", error: null };
+  const r = setEnv(ON); const f = noFetch();
+  try {
+    await captureConsoleError(async () => await (await loadHandler(FN))(req(SECRET)));
+    assertEquals(marks()[0]?.args.p_status, "retry");
+  } finally { f(); r(); }
+});

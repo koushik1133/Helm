@@ -2,11 +2,14 @@
 -- This legacy file predates the canonical migrations (supabase/migrations + MANIFEST).
 -- Re-running it on a database that already has them would put back old, weaker function
 -- bodies, so it refuses to run there. Use scripts/db-migrate.sh / the APPLY-00xx files.
+begin;
 do $a42guard$ begin
   if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null then
     raise exception 'superseded by 0039+ (canonical migrations) — do not re-run this legacy file';
   end if;
 end $a42guard$;
+-- a156guard txn: the refusal above runs INSIDE a transaction, so under psql -f without ON_ERROR_STOP
+-- every later statement fails too ("current transaction is aborted") and nothing is applied.
 -- ═════════════════════════════════════════════════════════════════════════════
 -- =========================================================================
 -- Phase 1 — Event Workspace: a lifecycle stage on each event. Idempotent.
@@ -51,3 +54,6 @@ grant execute on function public.set_lifecycle_stage(uuid,text) to authenticated
 
 -- verify
 select lifecycle_stage, count(*) from public.quotes group by lifecycle_stage order by 1;
+
+-- a156guard txn: end of the one transaction opened above the refusal guard
+commit;
