@@ -846,8 +846,8 @@
   /* ---------- layout gallery: manifest-driven, never requests missing files ---------- */
   var VIEWS = ['2d', '3d', 'render', 'measure'];
   var SAMPLE = {
-    wedding: ['/mk/media/wedding-2d.webp', '/mk/media/wedding-3d-still.webp', '/mk/media/wedding-3d-still.webp', '/mk/media/wedding-2d.webp'],
-    corporate: ['/mk/media/builder-2d.webp', '/mk/media/builder-3d.webp', '/mk/media/builder-3d.webp', '/mk/media/builder-2d.webp']
+    wedding: ['/mk/media/hero-2d.webp', '/mk/media/hero-3d.webp', '/mk/media/hero-3d.webp', '/mk/media/hero-measure.webp'],
+    corporate: ['/mk/media/hero-2d.webp', '/mk/media/hero-3d.webp', '/mk/media/hero-3d.webp', '/mk/media/hero-measure.webp']
   };
   var SAMPLE_MEAS = [{ label: 'Stage to first table', m: 4.5 }, { label: 'Centre aisle', m: 1.8 }, { label: 'Table to table', m: 1.5 }, { label: 'Hall', w: 24, h: 16 }];
   var ready = {}, names = { wedding: 'Garden wedding', corporate: 'Corporate gala' }, exts = {}, hasMeasure = {}, hasVideo = {}, meas = {};
@@ -894,8 +894,8 @@
       if (!im) return;
       var s = srcFor(curLy, k);
       if (im.getAttribute('src') !== s) im.setAttribute('src', s);
-      im.classList.toggle('fallback', (k === 2 && !ready[curLy]) || (k === 3 && !(ready[curLy] && hasMeasure[curLy])));
-      im.alt = names[curLy] + ' — ' + ['2D plan', '3D view', 'render', 'plan with measurements'][k];
+      im.classList.remove('fallback');   // SAMPLE images are real product screenshots now
+      im.alt = names[curLy] + ' — ' + ['2D venue plan on a measured grid', 'the same plan in 3D', 'render', 'plan with measured gaps and clearances'][k];
     });
     if (mnote) mnote.hidden = !!ready[curLy];
     paintLegend(); paintVideo();

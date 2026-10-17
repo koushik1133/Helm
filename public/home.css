@@ -202,7 +202,7 @@ em{font-family:var(--serif);font-style:italic;font-weight:400}
 .mstages li.on{opacity:1;border-color:var(--acc-l)}
 .mstages b{display:block;font-size:18px}.mstages span{color:rgba(255,255,255,.7);font-size:15px}
 .morph .btn-dark{background:#fff;color:var(--ink)}.morph .btn-dark .bi{background:var(--ink);color:#fff}
-.mframe{position:relative;aspect-ratio:648/404;max-width:680px;margin-left:auto;border-radius:20px;overflow:hidden;background:#1a231e;box-shadow:0 50px 100px -40px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.12)}
+.mframe{position:relative;aspect-ratio:1559/1009;max-width:680px;margin-left:auto;border-radius:20px;overflow:hidden;background:#1a231e;box-shadow:0 50px 100px -40px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.12)}
 .mimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;will-change:opacity,transform}
 .mx1,.mx2,.mx3,.mx1v{opacity:0}
 .mimg.fallback{filter:saturate(1.3) contrast(1.08) brightness(1.04) sepia(.12)}
@@ -1181,7 +1181,7 @@ video.mimg{background:#1a231e}
 .cel-bg.has-media>.cel-gr{display:none}
 /* photo render: static "coming soon" slot — owner drops an <img class="render-slot-img"> into .render-slot-media */
 .render-slot{max-width:680px;margin:14px 0 0 auto;display:flex;align-items:center;gap:14px;padding:10px;border-radius:16px;border:1px dashed rgba(255,255,255,.28);background:rgba(255,255,255,.04)}
-.render-slot-media{flex:0 0 120px;aspect-ratio:648/404;border-radius:10px;overflow:hidden;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 8px,rgba(255,255,255,.09) 8px 16px)}
+.render-slot-media{flex:0 0 120px;aspect-ratio:640/410;border-radius:10px;overflow:hidden;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 8px,rgba(255,255,255,.09) 8px 16px)}
 .render-slot-img{display:block;width:100%;height:100%;object-fit:cover}
 .render-slot figcaption{display:flex;flex-wrap:wrap;align-items:center;gap:8px;color:#fff;font-size:15px}
 .render-slot-tag{padding:3px 10px;border-radius:99px;background:rgba(184,240,211,.14);color:var(--acc-l);font-size:12px;font-weight:700}
