@@ -1091,14 +1091,14 @@ window.HelmUrl = HelmUrl;
   // capability matrix per role (10 roles)
   // capability matrix per role. IMPORTANT: `create` and `delete` here gate
   // buttons (dashboard/quotes/leads/builder create, delete controls) that map to
-  // the server functions can_create() = {admin,planner,sales} and can_delete() =
+  // the server functions can_create() = {admin, manager/planner/sales per quote_create} and can_delete() =
   // {admin,planner}. They are kept IN SYNC with those SQL functions so no button
   // is shown that the server will reject with "not authorized" (Wave 16 fix —
   // manager/coordinator previously saw a create button that always errored).
   // `edit` is NOT used for edit buttons — pages gate editing via canEditArea()
   // (the has_area matrix) — so it stays broad here for any legacy checks.
-  // Whether a manager SHOULD be able to create/delete quotes is a PRODUCT
-  // DECISION (would require adding manager to can_create/can_delete server-side).
+  // 0147 (owner decision): manager may create by default; can_create() = admin, or
+  // manager/planner/sales per their "quote_create" matrix switch (default ON). can() checks it too.
   const ROLE_CAPS = {
     admin:       ["view", "create", "edit", "delete", "manage"],
     manager:     ["view", "create", "edit", "manage"],
@@ -1135,6 +1135,9 @@ window.HelmUrl = HelmUrl;
     { key: "discovery",  label: "Discovery",         icon: "🔎", page: null,             group: "Pipeline" },
     { key: "proposal",   label: "Proposal",          icon: "🎨", page: null,             group: "Pipeline" },
     { key: "quotes",     label: "Quotes & workspace",icon: "📋", page: "quotes.html",    group: "Workspace" },
+    // 0147: "Create new quotes" switch. edit = this role may create quotes. Default ON (no row yet)
+    // for manager / planner / sales; the server can_create() reads the same row.
+    { key: "quote_create", label: "Create new quotes", icon: "\u2795", page: null,      group: "Workspace", defaultOn: ["manager", "planner", "sales"] },
     { key: "layouts",    label: "Floor layouts",     icon: "📐", page: null,             group: "Workspace" },
     { key: "design",     label: "Design studio",     icon: "🎨", page: null,             group: "Workspace" },   // HIDDEN for now (owner, 2026-10-11) - restore page: "design.html" to bring it back
     // 0095: photo-realistic renders (builder ✦ Render). edit = may make photos (also needs quotes edit)
@@ -1594,7 +1597,19 @@ window.HelmUrl = HelmUrl;
     handleAuthError: (e) => (looksLikeAuthError(e) ? onAuthFailure() : Promise.resolve(false)),
     // In non-Supabase (server/local) mode there is no auth ⇒ single-user, full access.
     // Unknown role (profiles unreachable) fails CLOSED for every capability.
-    async can(cap) { if (mode !== "supabase") return true; if (!currentUser) return false; const r = await getRole(); if (!r) return false; return (ROLE_CAPS[r] || ["view"]).includes(cap); },
+    async can(cap) {
+      if (mode !== "supabase") return true; if (!currentUser) return false;
+      const r = await getRole(); if (!r) return false;
+      if (!(ROLE_CAPS[r] || ["view"]).includes(cap)) return false;
+      // 0147: create also follows the "Create new quotes" switch (no row = default ON), mirroring can_create()
+      if (cap === "create" && r !== "admin") {
+        const acc = await loadAccess();
+        if (acc.unknown) return false;
+        const cell = acc.map && acc.map.quote_create;
+        if (cell) return !!cell.edit;
+      }
+      return true;
+    },
     canEdit: async () => { if (mode !== "supabase") return true; if (!currentUser) return false; const r = await getRole(); return EDIT_ROLES.includes(r); },
     // ---- role-based VIEW scope (must mirror the RLS read policies in phase21-hardening.sql) ----
     // finance = money pages/tables; pipeline = leads/CRM/discovery/proposal; ops = resources/planning/day-of; workspace = the event hub.

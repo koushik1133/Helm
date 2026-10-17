@@ -229,3 +229,5 @@ forward  supabase/migrations/0144_role_gate_fixes.sql
 forward  supabase/migrations/0145_dashboard_money_currency_fix.sql
 # 0146 (audit 2026-10-17: _vb_event_pnl counts loose vendor spend once (greater of unlinked bills and unlinked vendor cost lines) and subtracts processed client refunds; trial_test_approve / trial_test_mode_for_token need a signed-in member of the studio; new private _aud1017_is_member; no rows changed) goes after 0128 + 0142.
 forward  supabase/migrations/0146_audit_1017_pnl_trial.sql
+# 0147 (owner decision: managers create quotes by default; new access area 'quote_create' (edit = may create); can_create() = admin, or manager/planner/sales per their quote_create row with default ON when no row; ON rows added only where none exist, never overwrites; can_delete unchanged; no rows deleted) goes after 0143 + 0144.
+forward  supabase/migrations/0147_manager_quote_create.sql
