@@ -15,7 +15,7 @@ function stripComments(s) { let prev; do { prev = s; s = s.replace(/<!--[\s\S]*?
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'public', 'builder.html');
 const OUT = join(ROOT, 'public', 'try.html');
-const TRY_JS_V = 8, TRY_CSS_V = 7;
+const TRY_JS_V = 9, TRY_CSS_V = 7;
 
 export function buildTry(src) {
   let h = src;

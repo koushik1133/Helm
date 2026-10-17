@@ -10,13 +10,13 @@
 <meta name="helm-capture" content="1">
 <meta name="robots" content="noindex, nofollow">
 <meta name="bp-theme-toggle" content="off"><!-- the builder has its own ◑ theme button -->
-<script src="/public-theme.js?v=2"></script>
+<script src="/public-theme.js?v=3"></script>
 <script src="/trusted-types.js?v=3"></script>
 <script>
   /* Pin the builder to a light background by default (user preference persisted). */
   (function(){
     try{
-      var t = localStorage.getItem('bps.theme');
+      var t = window.HELM_DARK_MODE === true ? localStorage.getItem('bps.theme') : 'light';   // dark mode off for now: always light
       document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');   // allowlisted: storage is not trusted
     }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
   })();
@@ -28,7 +28,7 @@
 <link rel="stylesheet" href="builder.css?v=22">
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="studio-templates.css?v=1">
-<link rel="stylesheet" href="/builder-v2.css?v=2">
+<link rel="stylesheet" href="/builder-v2.css?v=3">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -509,11 +509,11 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=228"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=229"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="builder-tools.js?v=3"></script>
-<script src="builder.js?v=65"></script>
+<script src="builder.js?v=66"></script>
 <script src="builder-back.js?v=1" defer></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>

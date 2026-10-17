@@ -1,10 +1,12 @@
-/* shell-b.css - LOCAL PROTOTYPE: the new app layout. Six themes via html[data-hb-theme]: cobalt (default = unscoped base tokens), midnight, emerald, graphite, studio (shell-b-theme-studio.css), luxe (shell-b-theme-luxe.css); each with a dark mode. Unscoped tokens below are the fallback base. */
+/* shell-b.css - LOCAL PROTOTYPE: the new app layout. Six themes via html[data-hb-theme]: cobalt (unscoped base tokens; the DEFAULT theme attribute is emerald since Oct 2026), midnight, emerald, graphite, studio (shell-b-theme-studio.css), luxe (shell-b-theme-luxe.css); each with a dark mode. Unscoped tokens below are the fallback base. */
 html[data-shell="b"] { --hb-w: 68px; --hb-wx: 240px; --hb-top: 60px; --hb-ease: cubic-bezier(.22,1,.36,1); }
 /* ---- THEME TOKENS: base = cobalt + midnight | emerald | graphite. Light rules first, dark after. ---- */
 html[data-shell="b"] { --hb-bg: #ffffff; --hb-bg2: #f5f7fc; --hb-line: #e3e8f2; --hb-ink: #0b1b3f; --hb-ink2: #34405c; --hb-ink3: #5f6b88; --hb-acc: #2450f0; --hb-acc2: #4a72ff; --hb-acc-ink: #ffffff; --hb-acc-soft: #eaeffe; --hb-acc-text: #1d44d8; }
 html[data-shell="b"][data-hb-theme="emerald"] { --hb-bg: #ffffff; --hb-bg2: #f4f8f6; --hb-line: #e0eae5; --hb-ink: #0b2a22; --hb-ink2: #2f4a42; --hb-ink3: #5a7068; --hb-acc: #047857; --hb-acc2: #10a37a; --hb-acc-ink: #ffffff; --hb-acc-soft: #e3f4ed; --hb-acc-text: #036b4d; }
 html[data-shell="b"][data-hb-theme="midnight"] { --hb-bg: #ffffff; --hb-bg2: #f5f5fb; --hb-line: #e4e4f0; --hb-ink: #12133a; --hb-ink2: #3a3c5e; --hb-ink3: #62658a; --hb-acc: #4338ca; --hb-acc2: #6157e8; --hb-acc-ink: #ffffff; --hb-acc-soft: #eeedfc; --hb-acc-text: #3f34c2; }
-html[data-shell="b"][data-hb-theme="graphite"] { --hb-bg: #ffffff; --hb-bg2: #f6f6f5; --hb-line: #e6e6e3; --hb-ink: #111111; --hb-ink2: #3a3a3a; --hb-ink3: #6e6e6a; --hb-acc: #111111; --hb-acc2: #3a3a3a; --hb-acc-ink: #ffffff; --hb-acc-soft: #ececea; --hb-acc-text: #111111; }
+/* graphite = pure black & white (Oct 2026): black accent/buttons, white surfaces, neutral greys only (no blue or warm tint) */
+html[data-shell="b"][data-hb-theme="graphite"] { --hb-bg: #ffffff; --hb-bg2: #f5f5f5; --hb-line: #e5e5e5; --hb-ink: #000000; --hb-ink2: #333333; --hb-ink3: #666666; --hb-acc: #000000; --hb-acc2: #333333; --hb-acc-ink: #ffffff; --hb-acc-soft: #f0f0f0; --hb-acc-text: #000000;
+  --sp-sent-bg: #ededed; --sp-sent-fg: #000000; --sp-draft-bg: #f2f2f2; --sp-draft-fg: #555555; --bpb-chat-bg: #efefef; --bpb-chat: #000000; }
 html[data-shell="b"][data-theme="dark"] { --hb-bg: #111833; --hb-bg2: #0a0f1e; --hb-line: #243056; --hb-ink: #e8edfb; --hb-ink2: #b9c3de; --hb-ink3: #8e9aba; --hb-acc: #3d63f5; --hb-acc2: #6d8cff; --hb-acc-ink: #ffffff; --hb-acc-soft: #1a2550; --hb-acc-text: #93acff; }
 html[data-shell="b"][data-theme="dark"][data-hb-theme="emerald"] { --hb-bg: #0f1f1c; --hb-bg2: #081311; --hb-line: #1f3a33; --hb-ink: #e6f4ef; --hb-ink2: #b5d0c7; --hb-ink3: #86a59b; --hb-acc: #08795a; --hb-acc2: #34d399; --hb-acc-ink: #ffffff; --hb-acc-soft: #123329; --hb-acc-text: #5fe0b0; }
 html[data-shell="b"][data-theme="dark"][data-hb-theme="midnight"] { --hb-bg: #14152f; --hb-bg2: #0b0b1c; --hb-line: #272a52; --hb-ink: #ebebfa; --hb-ink2: #c0c1e0; --hb-ink3: #9294bb; --hb-acc: #5b52e6; --hb-acc2: #8a83ff; --hb-acc-ink: #ffffff; --hb-acc-soft: #221f52; --hb-acc-text: #a9a4ff; }
@@ -333,7 +335,7 @@ html[data-shell="b"] .hb-swbtn { flex: 0 0 32px; width: 32px; height: 32px; bord
 html[data-shell="b"] .hb-rail:hover .hb-swbtn, html[data-shell="b"] .hb-rail:focus-within .hb-swbtn, html[data-shell="b"].hb-pinned .hb-swbtn, html[data-shell="b"].hb-sw-open .hb-swbtn { display: inline-flex; }
 html[data-shell="b"] .hb-swbtn:hover { border-color: var(--hb-acc); transform: rotate(-8deg); }
 html[data-shell="b"] .hb-swbtn:focus-visible { outline: 2px solid var(--hb-acc); outline-offset: 2px; }
-html[data-shell="b"] .hb-swdot { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(#2450f0 0 25%, #4338ca 0 50%, #047857 0 75%, #3a3a3a 0); box-shadow: 0 0 0 2px var(--hb-bg), 0 0 0 3px var(--hb-acc); }
+html[data-shell="b"] .hb-swdot { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(#047857 0 25%, #2450f0 0 50%, #4338ca 0 75%, #000000 0); box-shadow: 0 0 0 2px var(--hb-bg), 0 0 0 3px var(--hb-acc); }
 html[data-shell="b"] .hb-swpop { position: fixed; z-index: 1300; left: calc(var(--hb-wx) + 10px); bottom: 70px; width: 196px; padding: 8px; border-radius: 14px; background: var(--hb-bg); border: 1px solid var(--hb-line);
   color: var(--hb-ink); font: 500 13px 'IBM Plex Sans', system-ui, sans-serif; display: flex; flex-direction: column; gap: 2px; }
 html[data-shell="b"] .hb-swpop[hidden] { display: none; }
@@ -412,5 +414,11 @@ html[data-shell="b"] .hb-rail .hb-group[hidden] { display: none; }
 html[data-shell="b"] .hb-slot:empty, html[data-shell="b"] .hb-slot:not(:has(> :not([hidden]))) { display: none !important; }
 html[data-shell="b"] .hb-ftools:not(:has(.hb-slot > :not([hidden]))) { display: none !important; }
 html[data-shell="b"].hb-no-recent #account .htr-w { display: none !important; }
-html[data-shell="b"] .hb-theme:not(:has(#bpThemeToggle)) { display: none !important; }   /* page without the app theme toggle (e.g. chat): no empty 34px row */
-html[data-shell="b"] .hb-bottom:not(:has(#bpThemeToggle, .hau-mw, .hb-tourbtn, .htr-btn)) { display: none !important; }   /* footer with nothing in it (e.g. design studio on a short window) */
+html[data-shell="b"] .hb-theme:not(:has(#bpThemeToggle, .hb-switem)) { display: none !important; }   /* page without the app theme toggle (e.g. chat): no empty 34px row */
+html[data-shell="b"] .hb-bottom:not(:has(#bpThemeToggle, .hb-switem, .hau-mw, .hb-tourbtn, .htr-btn)) { display: none !important; }   /* footer with nothing in it (e.g. design studio on a short window) */
+/* dark mode off (Oct 2026): the colour-theme picker is a full rail item (.hb-switem) instead of a swatch beside the toggle */
+html[data-shell="b"] .hb-theme > .hb-switem { flex: 1; min-width: 0; }
+html[data-shell="b"] .hb-switem .hb-ic { display: inline-flex; align-items: center; justify-content: center; }
+html[data-shell="b"] .hb-switem .hb-swdot { width: 15px; height: 15px; box-shadow: 0 0 0 2px var(--hb-bg), 0 0 0 3px var(--hb-line); transition: transform .3s var(--hb-ease); }
+html[data-shell="b"] .hb-switem:hover .hb-swdot, html[data-shell="b"].hb-sw-open .hb-switem .hb-swdot { transform: rotate(-30deg); box-shadow: 0 0 0 2px var(--hb-bg), 0 0 0 3px var(--hb-acc); }
+@media (prefers-reduced-motion: reduce) { html[data-shell="b"] .hb-switem .hb-swdot { transition: none; transform: none !important; } }

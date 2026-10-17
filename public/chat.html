@@ -367,7 +367,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=228"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=229"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
 (function(){
@@ -393,6 +393,7 @@
 
   /* header theme toggle (floating one is disabled via meta on this page) */
   (function(){ const b=$("#themeBtn"); if(!b) return;
+    if(window.HELM_DARK_MODE!==true){ b.hidden=true; b.style.display="none"; return; }   /* dark mode off for now */
     const sync=()=>{ b.textContent=(document.documentElement.getAttribute("data-theme")==="dark")?"☀":"☾"; };
     sync();
     b.addEventListener("click",()=>{ const d=(document.documentElement.getAttribute("data-theme")==="dark")?"light":"dark";
