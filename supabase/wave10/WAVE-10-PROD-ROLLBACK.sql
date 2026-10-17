@@ -1,6 +1,29 @@
+-- ==== SUPERSEDED - DO NOT RUN on a current database (audit run 3, 0156 a156guard) ====
+-- This bundle is NOT in supabase/migrations/MANIFEST. Re-running it on a database that already has
+-- the canonical migrations would put back older, weaker function bodies or policies (for example
+-- the NULL-OTP consent bypass). It refuses to run once 0039+ is applied.
+-- Use scripts/db-migrate.sh or the APPLY-0xxx files in MANIFEST order instead.
+-- a156guard top: the transaction opened here stays open until the bundle's own first COMMIT, so a refusal
+-- aborts everything up to it (psql too); the copy inside each later transaction stops the rest
+begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null
+     or to_regprocedure('public.verify_and_consent__pre0042(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- ==========================================================================================
 -- WAVE-10-ROLLBACK.sql  (STAGING ONLY — reverts W10-D2 fix to prior behaviour)
 -- Restores public_get_portal WITHOUT the expiry predicate (matches pre-Wave10 prod).
 begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null
+     or to_regprocedure('public.verify_and_consent__pre0042(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- a156guard txn: the refusal above runs INSIDE a transaction, so under psql -f without ON_ERROR_STOP
+-- every later statement fails too ("current transaction is aborted") and nothing is applied.
 CREATE OR REPLACE FUNCTION public.public_get_portal(p_token uuid)
  RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
 AS $function$
@@ -26,6 +49,14 @@ commit;
 
 -- ---- W10-D1 rollback: restore original verify_and_consent (raise on failure) --
 begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null
+     or to_regprocedure('public.verify_and_consent__pre0042(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- a156guard txn: the refusal above runs INSIDE a transaction, so under psql -f without ON_ERROR_STOP
+-- every later statement fails too ("current transaction is aborted") and nothing is applied.
 CREATE OR REPLACE FUNCTION public.verify_and_consent(p_token uuid, p_phone text, p_code text, p_agreed boolean, p_terms_version text, p_consent_text text, p_client_name text, p_user_agent text)
  RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public', 'extensions'
 AS $function$

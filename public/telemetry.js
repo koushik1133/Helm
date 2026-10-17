@@ -106,18 +106,28 @@
 
   // When a DSN is configured but no reporter SDK is present yet, lazy-load the Sentry
   // browser SDK and init it (redaction-aware via beforeSend). Completely NO-OP when no
-  // DSN is set. Requires the CSP to allow https://browser.sentry-cdn.com/8.35.0/ +
-  // *.ingest.sentry.io (already in vercel.json; the script-src entry is pinned to this
-  // version's directory — change both together, see scripts/csp-hashes.cjs). To enable in production: set window.HELM_TELEMETRY
-  // = { dsn, env, release } in config.js — nothing else.
+  // DSN is set. The CSP already allows the script (https://browser.sentry-cdn.com/8.35.0/,
+  // pinned to this version's directory - change both together, see scripts/csp-hashes.cjs).
+  // connect-src deliberately has NO Sentry ingest host while telemetry is dormant (audit
+  // run-3 client/csp: a *.ingest.sentry.io wildcard lets any Sentry org receive data).
+  // To enable: set window.HELM_TELEMETRY = { dsn, env, release } in config.js AND add the
+  // DSN's EXACT ingest host (e.g. https://o123456.ingest.us.sentry.io) to connect-src in
+  // server.js CSP_BASE, vercel.json and public/_headers (no wildcard).
+  var SENTRY_SRC = 'https://browser.sentry-cdn.com/8.35.0/bundle.min.js';
+  var SENTRY_SRI = 'sha384-j1K2/oFJn/QPiNs/Fk58NwXcaEbWzaUEF04vKMBnEprfbZ2hIQrAO0yc0XEfai1E';
   function loadSentry() {
     if (!ENABLED || (typeof window === 'undefined') || window.Sentry || CFG.loadSentry === false) return;
     try {
       var sc = document.createElement('script');
-      // Pinned CDN bundle. NOT self-hosted / no SRI yet: @sentry/browser@8.35.0 on npm
-      // does not ship build/bundles/, so no byte-identical file could be verified.
-      // See public/vendor/README.md for how to vendor it with an integrity hash.
-      sc.src = 'https://browser.sentry-cdn.com/8.35.0/bundle.min.js';
+      // Pinned CDN bundle WITH Subresource Integrity (audit run-3
+      // supply-chain/telemetry/sentry-cdn-script-no-sri): the browser refuses to run
+      // the file unless its bytes hash to this value. The sha384 is Sentry's own
+      // published checksum for 8.35.0 bundle.min.js (release-registry.services.sentry.io
+      // sdks/sentry.javascript.browser/8.35.0) and was re-computed from the CDN bytes
+      // on 2026-10-17 - both match. Changing the version means changing src, this
+      // hash and the CSP script-src directory (scripts/csp-hashes.cjs) together.
+      sc.src = SENTRY_SRC;
+      sc.integrity = SENTRY_SRI;
       sc.crossOrigin = 'anonymous';
       sc.onload = function () {
         try {

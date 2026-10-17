@@ -1,7 +1,8 @@
 // pkg-client-notify - delivers the messages queued by migration 0069 (pkg_outbox):
 // client e-mail (Resend) / WhatsApp (Meta Cloud API) for an accepted or declined package
 // choice and the booklet confirmation code, and staff WhatsApp for "client picked a
-// package" / "package payment received".
+// package" / "package payment received". Numbers that replied STOP are skipped (0155: by the
+// claim, and once more right before each WhatsApp send).
 // DORMANT BY DEFAULT: unless HELM_PKG_NOTIFY_ENABLED === "true" every request is a no-op 200.
 // Invoked ONLY by a cron / service caller presenting a shared secret.
 //
@@ -89,6 +90,17 @@ async function sendWhatsApp(to: string, text: string): Promise<Res> {
   } catch (e) { console.error("pkg-client-notify: whatsapp error", errTag(e)); return "failed"; }
 }
 
+// 0155: last STOP check right before a WhatsApp send (the claim already skipped STOP numbers).
+// "skipped" = replied STOP, "failed" = could not check (retried later), null = OK to send.
+// deno-lint-ignore no-explicit-any
+async function waStopped(admin: any, to: string): Promise<Res | null> {
+  try {
+    const { data, error } = await admin.rpc("wa_recipient_opted_out", { p_phone: to });
+    if (error) { console.error("pkg-client-notify: stop check failed", errTag(error)); return "failed"; }
+    return data === true ? "skipped" : null;
+  } catch (e) { console.error("pkg-client-notify: stop check error", errTag(e)); return "failed"; }
+}
+
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 Deno.serve(async (req) => {
@@ -114,7 +126,7 @@ Deno.serve(async (req) => {
       const msg = render(kind, (r?.payload && typeof r.payload === "object") ? r.payload : {});
       let res: Res = "skipped";
       if (msg && channel === "email" && r?.audience === "client") res = await sendEmail(id, to, msg.subject, msg.html, msg.text);
-      else if (msg && channel === "whatsapp") res = await sendWhatsApp(to, msg.text);
+      else if (msg && channel === "whatsapp") res = (await waStopped(admin, to)) ?? await sendWhatsApp(to, msg.text);
       const { error: mErr } = await admin.rpc("pkg_outbox_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("pkg-client-notify: mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;

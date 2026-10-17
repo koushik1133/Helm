@@ -1,3 +1,18 @@
+-- ==== SUPERSEDED - DO NOT RUN on a current database (audit run 3, 0156 a156guard) ====
+-- This bundle is NOT in supabase/migrations/MANIFEST. Re-running it on a database that already has
+-- the canonical migrations would put back older, weaker function bodies or policies (for example
+-- the NULL-OTP consent bypass). It refuses to run once 0039+ is applied.
+-- Use scripts/db-migrate.sh or the APPLY-0xxx files in MANIFEST order instead.
+-- a156guard top: the transaction opened here stays open until the bundle's own first COMMIT, so a refusal
+-- aborts everything up to it (psql too); the copy inside each later transaction stops the rest
+begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null
+     or to_regprocedure('public.verify_and_consent__pre0042(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- ==========================================================================================
 -- ============================================================================
 -- WAVE-10-PROD-UPGRADE.sql   (PRODUCTION — run ONLY after: explicit authorization
 -- + WAVE-10-PROD-PREFLIGHT.sql PASS + a fresh DB backup/snapshot.)
@@ -11,6 +26,14 @@
 -- Idempotent (CREATE OR REPLACE). Run WAVE-10-PROD-VERIFY.sql afterwards.
 -- ============================================================================
 begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null
+     or to_regprocedure('public.verify_and_consent__pre0042(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- a156guard txn: the refusal above runs INSIDE a transaction, so under psql -f without ON_ERROR_STOP
+-- every later statement fails too ("current transaction is aborted") and nothing is applied.
 
 -- ---- W10-D1: OTP attempt-limit now enforced (soft-return, no rollback) -------
 CREATE OR REPLACE FUNCTION public.verify_and_consent(p_token uuid, p_phone text, p_code text, p_agreed boolean, p_terms_version text, p_consent_text text, p_client_name text, p_user_agent text)

@@ -1,3 +1,17 @@
+-- ==== SUPERSEDED - DO NOT RUN on a current database (audit run 3, 0156 a156guard) ====
+-- This bundle is NOT in supabase/migrations/MANIFEST. Re-running it on a database that already has
+-- the canonical migrations would put back older, weaker function bodies or policies (for example
+-- the NULL-OTP consent bypass). It refuses to run once 0156 or a later layer is applied.
+-- Use scripts/db-migrate.sh or the APPLY-0xxx files in MANIFEST order instead.
+-- a156guard top: the transaction opened here stays open until the bundle's own first COMMIT, so a refusal
+-- aborts everything up to it (psql too); the copy inside each later transaction stops the rest
+begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0156(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- ==========================================================================================
 -- APPLY-0092-0093.sql - paste into the Supabase SQL editor (prod or staging). ASCII only, idempotent,
 -- safe to paste twice. Contains, in order:
 --   0092 country-aware client reminders/follow-ups (create or replace only; needs 0078, 0082, 0089)
@@ -6,6 +20,13 @@
 
 -- ===================== 0092 =====================
 begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0156(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- a156guard txn: the refusal above runs INSIDE a transaction, so under psql -f without ON_ERROR_STOP
+-- every later statement fails too ("current transaction is aborted") and nothing is applied.
 
 do $$ begin
   if to_regprocedure('public._comms_queue_pay(uuid, text, text, boolean, uuid)') is null then
@@ -278,6 +299,13 @@ commit;
 
 -- ===================== 0093 =====================
 begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0156(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- a156guard txn: the refusal above runs INSIDE a transaction, so under psql -f without ON_ERROR_STOP
+-- every later statement fails too ("current transaction is aborted") and nothing is applied.
 do $$ begin
   if to_regprocedure('public.helm_norm_phone_cc(text, text)') is null or to_regprocedure('public._comms_country(uuid)') is null then
     raise exception '0093: apply 0092_country_templates.sql first';

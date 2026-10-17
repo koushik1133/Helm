@@ -320,11 +320,11 @@
 
 <!-- Team members + access control now live in the Control Center (control.html#users). -->
 
-<script src="/trusted-types.js?v=2"></script>
-<script src="telemetry.js?v=3"></script>
+<script src="/trusted-types.js?v=3"></script>
+<script src="telemetry.js?v=4"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=227"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=228"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=15"></script>
 <script src="getting-started.js?v=7"></script>
@@ -334,7 +334,7 @@
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return BPStore.fmtDateTime(iso) || "—"; } catch { return "—"; } };
-  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;","'":"&#39;" }[c]));
   // Structured internal diagnostic: console + telemetry only, never rendered to the DOM.
   const DIAG = { DASH_FALLBACK: "HELM-DASH-FALLBACK" };
   function diag(code, err) { try { console.error("[Helm] " + code, err); } catch (_) {}

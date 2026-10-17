@@ -9,22 +9,32 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0            # full history so the secret scan can inspect all commits
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 20
       - name: Secret scan (gitleaks) — fail on any committed credential
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: JWT roles — no service_role / non-anon JWT in any tracked file
         run: node scripts/check-jwt-roles.mjs
       - name: Dependency audit (high/critical)
         run: npm audit --audit-level=high
+      - name: GitHub Actions pinned to full commit SHAs
+        run: node scripts/check-actions-pinned.mjs
       - name: Run zero-dependency checks
         run: node scripts/ci-check.mjs
+      - name: HTML-sink guard (no unescaped innerHTML / insertAdjacentHTML / document.write)
+        run: node scripts/check-html-sinks.mjs
+      - name: No new inline styles (CSP style-src stays hash/class based)
+        run: node scripts/extract-inline-styles.mjs --check
+      - name: Base functions immutable (rename-and-wrap only)
+        run: node scripts/check-base-immutable.mjs
+      - name: Capture-host config current
+        run: node scripts/gen-capture-host.mjs --check
       - name: Deployment containment (static-only) assertions
         run: node scripts/check-deploy-static.mjs
       - name: Migration-canon consistency guard (repo-only, no DB)

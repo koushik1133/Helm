@@ -14,17 +14,18 @@ npm tarball integrity for 2.117.2:
 Loaded by `public/store-api.js` → `loadSupabaseLib()`. The version, file name
 and integrity are in the `SUPABASE_JS` constant there.
 
-## Sentry (not vendored)
+## Sentry (CDN, SRI-pinned, not vendored)
 
-`public/telemetry.js` still loads `https://browser.sentry-cdn.com/8.35.0/bundle.min.js`,
-and only when a DSN is configured. The npm package `@sentry/browser@8.35.0` does not
-include the CDN bundles: it has only `build/npm/{cjs,esm,types}`, with no
-`build/bundles/`. So there is no npm file that is byte-identical to the CDN bundle,
-and no SRI hash could be checked for it. To self-host it, download
-`bundle.min.js` from the Sentry CDN on a machine that can reach it. Check it against
-the SRI hash Sentry publishes for 8.35.0, commit it here as
-`sentry-browser-8.35.0.bundle.min.js`, and point `loadSentry()` at it with
-`sc.integrity`.
+`public/telemetry.js` loads `https://browser.sentry-cdn.com/8.35.0/bundle.min.js`
+only when a DSN is configured, and sets `sc.integrity` to
+`sha384-j1K2/oFJn/QPiNs/Fk58NwXcaEbWzaUEF04vKMBnEprfbZ2hIQrAO0yc0XEfai1E`
+(audit run-3 supply-chain/telemetry/sentry-cdn-script-no-sri). That value is the
+checksum Sentry publishes in its release registry
+(`release-registry.services.sentry.io/sdks/sentry.javascript.browser/8.35.0`, file
+`bundle.min.js`, `sha384-base64`) and it matched a hash of the CDN bytes on
+2026-10-17. A tampered file is refused by the browser. To change version, update
+`SENTRY_SRC`, `SENTRY_SRI` and the CSP `script-src` directory in
+`scripts/csp-hashes.cjs` together.
 
 ## Updating supabase-js
 

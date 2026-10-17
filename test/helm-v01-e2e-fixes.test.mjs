@@ -39,6 +39,9 @@ t('staging-site rule pairs frame-ancestors self with X-Frame-Options SAMEORIGIN'
   const rule = v.headers.find((x) => x.has && x.has.some((c) => c.value === 'helm-v01.vercel.app') && x.headers[0].key === 'Content-Security-Policy');
   assert.ok(rule); const csp = rule.headers[0].value;
   if (/frame-ancestors 'self'/.test(csp)) assert.deepEqual(rule.headers[1], { key: 'X-Frame-Options', value: 'SAMEORIGIN' });
+  // audit run-3: the union no longer widens framing; per-page X-Frame-Options governs
+  assert.doesNotMatch(csp, /frame-ancestors/);
+  assert.ok(!rule.headers.some((h) => h.key.toLowerCase() === 'x-frame-options'));
 });
 t('0137 + APPLY-0136-0137: ASCII, chr(183), MANIFEST, verify rows', () => {
   const m = r('supabase/migrations/0137_event_group_title_dot.sql'), a = r('supabase/APPLY-0136-0138.sql');

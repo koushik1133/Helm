@@ -58,16 +58,18 @@
     return SAFE_URL.test(s) && !/^(?:javascript|vbscript):/i.test(s);
   }
 
-  function clean(node) {
+  // `seen` (optional) collects what was removed - used by the report-only mode below.
+  function clean(node, seen) {
     var kids = node.childNodes;
     for (var i = kids.length - 1; i >= 0; i--) {
       var el = kids[i];
       if (el.nodeType === 8) { node.removeChild(el); continue; }      // comments
       if (el.nodeType !== 1) continue;
       var tag = el.localName.toLowerCase();
-      if (DROP_WITH_CONTENT[tag]) { node.removeChild(el); continue; }
-      clean(el);
+      if (DROP_WITH_CONTENT[tag]) { if (seen) seen.push('<' + tag + '>'); node.removeChild(el); continue; }
+      clean(el, seen);
       if (!TAG_OK[tag]) {                                            // unknown element → keep its children only
+        if (seen) seen.push('<' + tag + '>');
         while (el.firstChild) node.insertBefore(el.firstChild, el);
         node.removeChild(el); continue;
       }
@@ -75,7 +77,7 @@
         var a = el.attributes[j], n = a.name.toLowerCase();
         var keep = (ATTR_OK[n] || /^data-[\w.\-]+$/.test(n) || /^aria-[a-z]+$/.test(n)) && n.slice(0, 2) !== 'on';
         if (keep && URL_ATTR[n]) keep = urlOk(n, a.value);
-        if (!keep) el.removeAttribute(a.name);
+        if (!keep) { if (seen) seen.push(tag + '[' + n + ']'); el.removeAttribute(a.name); }
       }
     }
   }
@@ -83,11 +85,26 @@
   // Private identity policy: only ever fed into an inert <template> below.
   var raw = TT.createPolicy('helm', { createHTML: function (s) { return s; } });
 
-  function sanitize(html) {
+  function sanitize(html, seen) {
     var t = document.createElement('template');
     t.innerHTML = raw.createHTML(String(html));
-    clean(t.content);
+    clean(t.content, seen);
     return t.innerHTML;
+  }
+
+  // Rollout stage (audit run-3 client/csp/exfil-channels-and-trusted-types-off).
+  // The browser runs the `default` policy even when Trusted Types is only REPORT-ONLY
+  // (Content-Security-Policy-Report-Only, sent on the staging site), so in 'report' mode
+  // the policy OBSERVES: it logs what the sanitizer would remove and hands back the
+  // original markup unchanged - no page behaves differently. Flip to 'enforce' in the
+  // same change that sets TRUSTED_TYPES_ENFORCE = true in scripts/csp-hashes.cjs
+  // (test/audit-run3-edge-client.test.mjs keeps the two in step).
+  var MODE = 'report';
+  var reported = 0;
+  function note(kind, detail) {
+    if (reported >= 50) return;                                       // bounded console noise
+    reported++;
+    try { console.warn('[helm-trusted-types] report-only: ' + kind + ' ' + String(detail).slice(0, 160)); } catch (e) {}
   }
 
   var SCRIPT_PREFIXES = [
@@ -102,17 +119,29 @@
 
   try {
     TT.createPolicy('default', {
-      createHTML: function (s) { s = String(s); return CONFIG_WRITE.test(s) ? s : sanitize(s); },
+      createHTML: function (s) {
+        s = String(s);
+        if (CONFIG_WRITE.test(s)) return s;
+        if (MODE !== 'enforce') {
+          var seen = [];
+          try { sanitize(s, seen); } catch (e) {}
+          if (seen.length) note('would remove', seen.slice(0, 8).join(' '));
+          return s;
+        }
+        return sanitize(s);
+      },
       createScriptURL: function (s) {
         var u; try { u = new URL(String(s), location.href); } catch (e) { return null; }
         if (u.origin === location.origin) return u.href;
         for (var i = 0; i < SCRIPT_PREFIXES.length; i++) if (u.href.indexOf(SCRIPT_PREFIXES[i]) === 0) return u.href;
-        return null;                                                  // → blocked + reported
+        if (MODE !== 'enforce') note('script URL not allowlisted', u.origin + u.pathname);
+        return null;                                                  // → blocked (enforce) / reported (report-only)
       },
       createScript: function () { return null; }                     // no string → code
     });
   } catch (e) { /* a default policy already exists (should not happen) */ }
 
   // Exposed for tests / tooling only: the sanitizer itself (returns a plain string).
-  window.HelmSanitize = sanitize;
+  window.HelmSanitize = function (html) { return sanitize(html); };
+  window.HelmTrustedTypesMode = MODE;
 })();

@@ -1,0 +1,9 @@
+{
+  "name": "helm-lhci-runner",
+  "private": true,
+  "description": "Pinned Lighthouse CI runner for .github/workflows/lighthouse.yml (audit run-3 ci/lighthouse/npx-unpinned-lhci-range). Kept out of the root lockfile so the app's npm audit stays app-only.",
+  "license": "MIT",
+  "devDependencies": {
+    "@lhci/cli": "0.14.0"
+  }
+}

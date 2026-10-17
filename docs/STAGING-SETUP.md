@@ -80,19 +80,14 @@ Notes:
   Supabase and already exist in the new project. Only `public` is ours.
 - After loading, jump to **Step 3**.
 
-### Option B (fallback) — replay migrations
+### Option B (fallback) — replay the canonical migrations
 
-Only if you cannot use `pg_dump`. In the staging project's SQL Editor:
-
-1. Run `supabase/full-schema/complete-setup.sql` — the frozen bootstrap
-   (~phase 55–58). This is acceptable **only on a brand-new empty DB** as a base.
-2. Run every numbered `supabase/phaseNN-name.sql` **in ascending order from 59
-   through 98** (do not skip; phase73/76/77/85+ are mandatory for isolation &
-   money integrity). See `docs/full-schema/README.md` and `TECHNICAL-HANDOFF.md`.
-3. Run `supabase/wave5/HELM-CUMULATIVE-UPGRADE-WAVES-1-5.sql` to land the final
-   hardened definitions (idempotent).
-4. Run `supabase/phase97-fix-app_config-multitenant.sql` and
-   `supabase/phase98-revoke-anon-set-pricing.sql`.
+Only if you cannot use `pg_dump`. Against a **brand-new empty** staging database run
+`scripts/db-migrate.sh --plan`, then `scripts/db-migrate.sh --apply` (it applies
+`supabase/migrations/MANIFEST` in order: the canonical base, then every forward
+migration). Do **not** use `supabase/full-schema/complete-setup.sql`, the `phaseNN`
+files, `wave*/` or `harden-*/` bundles for this: they are historical, and since 0156 they
+refuse to run on a database that already has the canonical migrations.
 
 Option B is error-prone; prefer A.
 

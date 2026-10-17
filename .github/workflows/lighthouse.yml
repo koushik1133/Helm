@@ -1,7 +1,11 @@
 name: Lighthouse CI
 # Runs Lighthouse against the local static front-end (node server.js on :4173)
-# for / (landing), /login and /builder. Uses npx @lhci/cli so NO dependency is
-# committed. BLOCKING: the key budgets in lighthouserc.json (performance,
+# for / (landing), /login and /builder. @lhci/cli is pinned to an exact version
+# with integrity hashes in tools/lhci/package-lock.json (its own lockfile, so the
+# app's root npm audit stays app-only) and installed with npm ci --ignore-scripts:
+# nothing is fetched from a semver range at run time (audit run-3
+# ci/lighthouse/npx-unpinned-lhci-range). No secrets in this job.
+# BLOCKING: the key budgets in lighthouserc.json (performance,
 # accessibility, FCP, LCP, TBT, CLS) are "error" assertions, set ~15% below the
 # scores measured on 2026-09-30. best-practices / SEO / TTI stay advisory (warn).
 on:
@@ -16,11 +20,13 @@ jobs:
   lighthouse:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 20
+      - name: Install pinned Lighthouse CI (lockfile, no install scripts)
+        run: npm ci --prefix tools/lhci --ignore-scripts --no-audit --no-fund
       - name: Run Lighthouse CI (starts server.js, budgets from lighthouserc.json)
-        run: npx --yes @lhci/cli@0.14.x autorun --config=./lighthouserc.json
+        run: tools/lhci/node_modules/.bin/lhci autorun --config=./lighthouserc.json
         env:
           PORT: '4173'

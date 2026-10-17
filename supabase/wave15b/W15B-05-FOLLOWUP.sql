@@ -1,3 +1,18 @@
+-- ==== SUPERSEDED - DO NOT RUN on a current database (audit run 3, 0156 a156guard) ====
+-- This bundle is NOT in supabase/migrations/MANIFEST. Re-running it on a database that already has
+-- the canonical migrations would put back older, weaker function bodies or policies (for example
+-- the NULL-OTP consent bypass). It refuses to run once 0039+ is applied.
+-- Use scripts/db-migrate.sh or the APPLY-0xxx files in MANIFEST order instead.
+-- a156guard top: the transaction opened here stays open until the bundle's own first COMMIT, so a refusal
+-- aborts everything up to it (psql too); the copy inside each later transaction stops the rest
+begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null
+     or to_regprocedure('public.verify_and_consent__pre0042(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- ==========================================================================================
 -- ============================================================================
 -- W15B-05-FOLLOWUP.sql — closes the remaining audit items after W15B-01/04.
 -- STATUS: APPLIED TO STAGING + VERIFIED ON STAGING (2026-09-28). NOT FOR PRODUCTION.
@@ -10,6 +25,14 @@
 -- (work_tokens.expires_at/revoked_at) applied first.
 -- ============================================================================
 begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null
+     or to_regprocedure('public.verify_and_consent__pre0042(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- a156guard txn: the refusal above runs INSIDE a transaction, so under psql -f without ON_ERROR_STOP
+-- every later statement fails too ("current transaction is aborted") and nothing is applied.
 
 -- 1) OTP CSPRNG (STRIX-001): replace random() with pgcrypto gen_random_bytes -----
 create or replace function public.request_otp(p_token uuid, p_phone text)

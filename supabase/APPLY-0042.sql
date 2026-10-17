@@ -1,3 +1,18 @@
+-- ==== SUPERSEDED - DO NOT RUN on a current database (audit run 3, 0156 a156guard) ====
+-- This bundle is NOT in supabase/migrations/MANIFEST. Re-running it on a database that already has
+-- the canonical migrations would put back older, weaker function bodies or policies (for example
+-- the NULL-OTP consent bypass). It refuses to run once 0093 or a later layer is applied.
+-- Use scripts/db-migrate.sh or the APPLY-0xxx files in MANIFEST order instead.
+begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0093(uuid, text, text, boolean, text, text, text, text)') is not null
+     or to_regprocedure('public.verify_and_consent__pre0156(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- a156guard txn: the refusal above runs INSIDE a transaction, so under psql -f without ON_ERROR_STOP
+-- every later statement fails too ("current transaction is aborted") and nothing is applied.
+-- ==========================================================================================
 -- ════════════════════════════════════════════════════════════════════════════
 -- HELM — 0042 security audit run 2 fixes (one paste)                       (2026-10-07)
 --   Client links: a missing / malformed OTP code is a wrong code; OTP codes are never
@@ -1135,3 +1150,6 @@ select item, ok from (values
 ) v(item, ok);
 -- informational (read-only): approval links still without an expiry (should be 0)
 select count(*) as approval_links_without_expiry from public.quotes where approval_token is not null and approval_token_expires_at is null;
+
+-- a156guard txn: end of the one transaction opened above the refusal guard
+commit;

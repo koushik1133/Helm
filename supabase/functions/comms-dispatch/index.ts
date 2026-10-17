@@ -10,7 +10,9 @@
 // Kill switch: HELM_COMMS_ENABLED="false" -> every request is a no-op 200 and nothing is
 // claimed (rows stay queued). Invoked ONLY by a cron / service caller presenting a
 // shared secret. The database decides WHAT is due (comms_tick, pg_cron) and re-checks every row
-// at claim time (paid / approved / opted out -> skipped).
+// at claim time (paid / approved / member opt-in withdrawn -> skipped). WhatsApp STOP replies
+// (whatsapp_opt_outs, recorded by wa-webhook) are skipped by the claim since 0155, and checked
+// once more right before each WhatsApp send (wa_recipient_opted_out; a failed check -> retry later).
 //
 // Secrets / env:
 //   HELM_COMMS_ENABLED="false"        kill switch (unset / anything else -> on)
@@ -137,6 +139,17 @@ async function sendWhatsApp(to: string, text: string, kind: WaKind = "general"):
   } catch (e) { console.error("comms-dispatch: whatsapp error", errTag(e)); return "failed"; }
 }
 
+// 0155: last STOP check right before a WhatsApp send. "skipped" = the number replied STOP,
+// "failed" = could not check (the row is retried later), null = OK to send.
+// deno-lint-ignore no-explicit-any
+async function waStopped(admin: any, to: string): Promise<Res | null> {
+  try {
+    const { data, error } = await admin.rpc("wa_recipient_opted_out", { p_phone: to });
+    if (error) { console.error("comms-dispatch: stop check failed", errTag(error)); return "failed"; }
+    return data === true ? "skipped" : null;
+  } catch (e) { console.error("comms-dispatch: stop check error", errTag(e)); return "failed"; }
+}
+
 // 0132: assignment text from the database + the person's own task link (path is validated
 // against the one shape the database writes; the host is always APP_URL, never the database)
 const ASSIGN_LINK = /^work\.html\?token=[0-9a-f-]{36}$/;
@@ -188,7 +201,7 @@ Deno.serve(async (req) => {
         try { const { data } = await admin.rpc("comms_outbox_email_identity", { p_id: id }); if (data && typeof data === "object") ident = data as Identity; } catch (_) { /* defaults */ }
         res = await sendEmail(id, to, msg.subject, msg.text, String(payload.studio ?? ""), ident);
       }
-      else if (channel === "whatsapp") res = await sendWhatsApp(to, msg.text, purpose === "wa_forward" && String(payload.type ?? "") === "event_reminder" ? "event_reminder" : "general");
+      else if (channel === "whatsapp") res = (await waStopped(admin, to)) ?? await sendWhatsApp(to, msg.text, purpose === "wa_forward" && String(payload.type ?? "") === "event_reminder" ? "event_reminder" : "general");
       const { error: mErr } = await admin.rpc("comms_outbox_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("comms-dispatch: mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;
@@ -212,7 +225,7 @@ Deno.serve(async (req) => {
       const id = String(r?.id ?? ""), to = String(r?.to ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
       const text = assignMessage(String(r?.text ?? ""), String(r?.link_path ?? ""), origin);
-      const res: Res = text ? await sendWhatsApp(to, text, "task_assigned") : "skipped";
+      const res: Res = text ? ((await waStopped(admin, to)) ?? await sendWhatsApp(to, text, "task_assigned")) : "skipped";
       const { error: mErr } = await admin.rpc("assign_notify_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("comms-dispatch: assign mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;

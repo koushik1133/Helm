@@ -17,10 +17,42 @@
 //     never call it, so a code never reaches a page or this function's response);
 //   * the DB enforces 60 s between sends, 5 per user per hour, 10 per number per day;
 //     this function adds IP / user burst limits;
-//   * the code is never logged and never returned; errors are generic.
+//   * the code is never logged and never returned; errors are generic;
+//   * aggregate spend caps (audit run-3 edge/send-phone-code/uncapped-paid-auth-messages),
+//     durable across isolates (public.rate_hit), checked before a code is minted:
+//       - a confirmed e-mail (or phone) on the account is required (farmed sign-ups that
+//         never confirmed cannot send),
+//       - Helm-wide per day           PHONE_CODE_GLOBAL_PER_DAY        (default 2000)
+//       - per studio per day          PHONE_CODE_ORG_PER_DAY           (default 50)
+//       - per destination country/day PHONE_CODE_COUNTRY_PER_DAY       (default 100) for
+//         countries outside PHONE_CODE_HOME_CC (default "91,971": India, UAE), which get
+//         PHONE_CODE_HOME_COUNTRY_PER_DAY (default 1500),
+//       - optional allowlist          PHONE_CODE_ALLOWED_CC="91,971"   (others refused).
+//     Also set a spend alert in Meta Business Manager (owner action).
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
+
+const DAY_MS = 86_400_000;
+// ITU-T E.164 country calling codes: 1 and 7 are one digit; this set is every two-digit
+// code; every other code is three digits. Enough to bucket spend by destination country.
+const CC2 = new Set(["20", "27", "30", "31", "32", "33", "34", "36", "39", "40", "41", "43", "44", "45", "46", "47", "48", "49",
+  "51", "52", "53", "54", "55", "56", "57", "58", "60", "61", "62", "63", "64", "65", "66", "81", "82", "84", "86",
+  "90", "91", "92", "93", "94", "95", "98"]);
+export function callingCode(e164: string): string {
+  const d = String(e164 || "").replace(/^\+/, "");
+  if (!/^[1-9][0-9]{6,14}$/.test(d)) return "";
+  if (d[0] === "1" || d[0] === "7") return d[0];
+  if (CC2.has(d.slice(0, 2))) return d.slice(0, 2);
+  return d.slice(0, 3);
+}
+function envInt(k: string, dflt: number): number {
+  const n = Number(Deno.env.get(k) || "");
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : dflt;
+}
+function ccList(k: string, dflt: string): string[] {
+  return (Deno.env.get(k) ?? dflt).split(",").map((x) => x.trim().replace(/^\+/, "")).filter((x) => /^[0-9]{1,3}$/.test(x));
+}
 
 const TOKEN = Deno.env.get("WHATSAPP_TOKEN") || "";
 const PHONE_ID = Deno.env.get("WHATSAPP_PHONE_ID") || "";
@@ -63,7 +95,31 @@ Deno.serve(async (req) => {
     const phone = String((body && body.phone) || "").slice(0, 32);
     if (!/^\+[1-9][0-9]{6,14}$/.test(phone)) return json({ error: "enter a valid mobile number" }, 400);
 
+    // ---- aggregate spend caps (audit run-3) ----
+    if (!(user as any).email_confirmed_at && !(user as any).phone_confirmed_at) {
+      return json({ error: "confirm your e-mail address first" }, 403);
+    }
+    const cc = callingCode(phone);
+    const allowed = ccList("PHONE_CODE_ALLOWED_CC", "");
+    if (!cc || (allowed.length && !allowed.includes(cc))) {
+      return json({ error: "WhatsApp verification isn't available for numbers in that country yet" }, 400);
+    }
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+    const { data: prof, error: pErr } = await admin.from("profiles").select("org_id").eq("id", user.id).maybeSingle();
+    if (pErr) { console.error("profile lookup failed", errTag(pErr)); return json({ error: "could not send a code — please try again later" }, 500); }
+    const orgKey = String((prof as any)?.org_id || "none:" + user.id);
+    const home = ccList("PHONE_CODE_HOME_CC", "91,971").includes(cc);
+    const capWait = await checkLimits([
+      ["pv:global:all", envInt("PHONE_CODE_GLOBAL_PER_DAY", 2000), DAY_MS],
+      ["pv:cc:" + cc, home ? envInt("PHONE_CODE_HOME_COUNTRY_PER_DAY", 1500) : envInt("PHONE_CODE_COUNTRY_PER_DAY", 100), DAY_MS],
+      ["pv:org:" + orgKey, envInt("PHONE_CODE_ORG_PER_DAY", 50), DAY_MS],
+    ]);
+    if (capWait) {
+      const r = json({ error: "too many codes requested — try again later", retry_after: capWait }, 429);
+      r.headers.set("Retry-After", String(capWait));
+      return r;
+    }
+
     const { data: issued, error: iErr } = await admin.rpc("phone_verify_request", { p_user: user.id, p_phone: phone });
     if (iErr || !issued || !issued.code) {
       const [status, msg, retry] = requestFailure(String(iErr?.code || ""), String(iErr?.message || ""));

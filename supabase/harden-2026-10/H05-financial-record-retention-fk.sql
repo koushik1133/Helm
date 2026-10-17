@@ -1,3 +1,18 @@
+-- ==== SUPERSEDED - DO NOT RUN on a current database (audit run 3, 0156 a156guard) ====
+-- This bundle is NOT in supabase/migrations/MANIFEST. Re-running it on a database that already has
+-- the canonical migrations would put back older, weaker function bodies or policies (for example
+-- the NULL-OTP consent bypass). It refuses to run once 0039+ is applied.
+-- Use scripts/db-migrate.sh or the APPLY-0xxx files in MANIFEST order instead.
+begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null
+     or to_regprocedure('public.verify_and_consent__pre0042(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- a156guard txn: the refusal above runs INSIDE a transaction, so under psql -f without ON_ERROR_STOP
+-- every later statement fails too ("current transaction is aborted") and nothing is applied.
+-- ==========================================================================================
 -- ============================================================================
 -- H05 — retention-safe FKs: never silently cascade-delete financial / consent
 --        / refund records when a quote is deleted (brief section E)
@@ -77,3 +92,6 @@ order by child_table;
 -- — soft-delete a quote (status='archived') and define reversal RPCs for payments /
 -- refunds with immutable audit — so operators can retire an event without ever
 -- hard-deleting financial history. Recommend before enabling any quote-delete UI.
+
+-- a156guard txn: end of the one transaction opened above the refusal guard
+commit;
