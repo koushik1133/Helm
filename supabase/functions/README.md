@@ -72,6 +72,25 @@ Vercel previews any more (audit Phase 8): anyone can create a Vercel project who
 
 `MANAGER_PHONE` is no longer used.
 
+### Settings added in audit run-3 (all optional; defaults shown)
+| Variable | Function | Meaning |
+|---|---|---|
+| `PHONE_CODE_GLOBAL_PER_DAY` | send-phone-code | Helm-wide WhatsApp verification codes per day (2000) |
+| `PHONE_CODE_ORG_PER_DAY` | send-phone-code | codes per studio per day (50) |
+| `PHONE_CODE_HOME_CC` | send-phone-code | "home" calling codes with the larger bucket (`91,971`) |
+| `PHONE_CODE_HOME_COUNTRY_PER_DAY` | send-phone-code | per home country per day (1500) |
+| `PHONE_CODE_COUNTRY_PER_DAY` | send-phone-code | per other country per day (100) |
+| `PHONE_CODE_ALLOWED_CC` | send-phone-code | if set (e.g. `91,971`), every other country is refused |
+| `WHATSAPP_REQUIRE_OPTIN=1` | send-whatsapp | paid studios also need a recorded opt-in (unpaid / trial studios always do) |
+| `WHATSAPP_DISTINCT_PER_DAY_PAID` | send-whatsapp | distinct recipients per paid studio per day (200) |
+| `WHATSAPP_DISTINCT_PER_DAY_UNPAID` | send-whatsapp | distinct recipients per unpaid studio per day (20) |
+| `WHATSAPP_UNPAID_PER_DAY` | send-whatsapp | total sends per unpaid studio per day (60) |
+
+send-phone-code also needs a confirmed e-mail (or phone) on the account. send-whatsapp refuses
+numbers that sent STOP (`whatsapp_opt_outs`) and template parameters with links, line breaks or
+more than 200 characters. All caps are durable across isolates (`public.rate_hit`). Also set a
+spend alert in Meta Business Manager.
+
 ### Server-side limits (migration 0027)
 | What | Limit |
 |---|---|

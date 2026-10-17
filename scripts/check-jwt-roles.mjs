@@ -8,6 +8,10 @@
  *   - has a `role` other than "anon" (e.g. service_role, authenticated, missing), or
  *   - carries a `service_role` claim/value anywhere in its payload.
  *
+ * Also FAILS on new-format Supabase server credentials (audit run-3
+ * ci/secret-scanning): `sb_secret_...` secret API keys and `sbp_...` personal
+ * access tokens. Placeholders such as `sbp_xxx` / `sbp_...` are too short to match.
+ *
  * Only `file:line` and the offending role are printed — never the token itself.
  * The committed Supabase anon keys (public/config.js) are role=anon and pass.
  * Complements gitleaks (.gitleaks.toml allowlists those exact anon literals).
@@ -21,6 +25,12 @@ import { fileURLToPath } from 'node:url';
 
 // header.payload.signature — both header and payload are base64url JSON ("eyJ" = '{"').
 export const JWT_RE = /eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*/g;
+
+// New-format Supabase server credentials (not JWTs, so JWT_RE never sees them).
+export const SB_KEY_RES = [
+  { re: /\bsb_secret_[A-Za-z0-9_-]{20,}/g, reason: 'Supabase secret API key (sb_secret_)' },
+  { re: /\bsbp_(?:v0_)?[A-Fa-f0-9]{40}\b/g, reason: 'Supabase personal access token (sbp_)' },
+];
 
 export function decodePayload(token) {
   try {
@@ -48,6 +58,10 @@ export function scanText(text, file = '<text>') {
     for (const m of lines[i].matchAll(JWT_RE)) {
       const reason = problemWith(m[0]);
       if (reason) out.push({ file, line: i + 1, reason });
+    }
+    for (const { re, reason } of SB_KEY_RES) {
+      re.lastIndex = 0;
+      if (re.test(lines[i])) out.push({ file, line: i + 1, reason });
     }
   }
   return out;
@@ -85,8 +99,11 @@ if (isMain) {
   console.log('JWT roles (tracked files):');
   const { findings, scanned, tokens } = scanRepo(ROOT);
   if (findings.length) {
-    for (const f of findings) console.error(`  ✗ ${f.file}:${f.line} — JWT with ${f.reason} (must be role=anon; never commit service_role)`);
-    console.error(`\nFAILED — ${findings.length} privileged/non-anon JWT(s) in tracked files.`);
+    for (const f of findings) {
+      if (/^Supabase /.test(f.reason)) console.error(`  ✗ ${f.file}:${f.line} — ${f.reason} (server-only credential; never commit)`);
+      else console.error(`  ✗ ${f.file}:${f.line} — JWT with ${f.reason} (must be role=anon; never commit service_role)`);
+    }
+    console.error(`\nFAILED — ${findings.length} privileged credential(s) in tracked files.`);
     process.exit(1);
   }
   console.log(`  ✓ ${tokens} JWT(s) across ${scanned} tracked text files — all role=anon`);

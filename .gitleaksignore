@@ -1,0 +1,13 @@
+# gitleaks ignore list (fingerprints only - no secret values are stored here).
+# Format: <commit>:<file>:<rule-id>:<line>  (history)  or  <file>:<rule-id>:<line>  (dir).
+#
+# audit run-3 ci/secret-scanning/gitleaks-and-jwt-check-gaps: the weekly full-history
+# job (.github/workflows/secret-scan-history.yml) must be green on known, already
+# reported history so that a NEW leak turns it red. These three commits carry the
+# shared STAGING synthetic-user password that the run-3 audit reported
+# (secrets:docs/tester-guide/index.html:staging-shared-password-published). It is
+# removed at HEAD; the fix is OWNER ACTION rotation (docs/OWNER-ACTIONS-SECURITY.md),
+# not hiding it - do NOT add any new entry here without a matching rotation note.
+24b861b39dda2d703bdc2816a3eb8391807ce2a7:security/REPORT.md:helm-doc-password-plain:44
+0a62c543ba2064fe98a80061342c61fa977faba4:docs/OWNER-ACTIONS-SECURITY.md:helm-doc-password-plain:17
+2e5a0f0f5ed60235bdd0a46a2554eee575ebfb06:docs/tester-guide/index.html:helm-published-password:48

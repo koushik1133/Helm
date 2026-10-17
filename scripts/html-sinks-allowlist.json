@@ -1,5 +1,5 @@
 {
- "_doc": "Reviewed exceptions for scripts/check-html-sinks.mjs. safeHelpers: functions read and confirmed to return escaped/fixed markup. sites: a specific interpolated value at a sink (file :: expression) with the reason it cannot carry attacker HTML.",
+ "_doc": "Reviewed exceptions for scripts/check-html-sinks.mjs. safeHelpers: functions read and confirmed to return escaped/fixed markup. sites: a specific interpolated value at a sink (file :: expression) with the reason it cannot carry attacker HTML. max: how many sites with that exact file + expression the entry approves (default 1); a new site reusing a reviewed name fails until reviewed and max is raised (audit run-3 ci/check-html-sinks).",
  "safeHelpers": [
   {
    "name": "gsMarkup",
@@ -183,7 +183,8 @@
   {
    "file": "public/builder.js",
    "expr": "c",
-   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data",
+   "max": 4
   },
   {
    "file": "public/builder.js",
@@ -203,12 +204,14 @@
   {
    "file": "public/builder.js",
    "expr": "html",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
+   "max": 2
   },
   {
    "file": "public/builder.js",
    "expr": "idx",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 3
   },
   {
    "file": "public/builder.js",
@@ -223,27 +226,32 @@
   {
    "file": "public/builder.js",
    "expr": "n",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 3
   },
   {
    "file": "public/builder.js",
    "expr": "note",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
+   "max": 2
   },
   {
    "file": "public/builder.js",
    "expr": "o.cols",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 3
   },
   {
    "file": "public/builder.js",
    "expr": "o.rows",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 3
   },
   {
    "file": "public/builder.js",
    "expr": "o.total",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 2
   },
   {
    "file": "public/builder.js",
@@ -268,7 +276,8 @@
   {
    "file": "public/builder.js",
    "expr": "rows",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
+   "max": 2
   },
   {
    "file": "public/builder.js",
@@ -298,7 +307,8 @@
   {
    "file": "public/builder.js",
    "expr": "u",
-   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data",
+   "max": 5
   },
   {
    "file": "public/builder.js",
@@ -328,7 +338,8 @@
   {
    "file": "public/chat.html",
    "expr": "html",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
+   "max": 4
   },
   {
    "file": "public/chat.html",
@@ -358,7 +369,8 @@
   {
    "file": "public/closure.html",
    "expr": "n",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 3
   },
   {
    "file": "public/command.html",
@@ -378,12 +390,14 @@
   {
    "file": "public/control.html",
    "expr": "et",
-   "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))"
+   "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))",
+   "max": 5
   },
   {
    "file": "public/control.html",
    "expr": "html",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
+   "max": 2
   },
   {
    "file": "public/control.html",
@@ -398,7 +412,8 @@
   {
    "file": "public/control.html",
    "expr": "k",
-   "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
+   "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function",
+   "max": 14
   },
   {
    "file": "public/control.html",
@@ -413,7 +428,8 @@
   {
    "file": "public/control.html",
    "expr": "nm",
-   "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))"
+   "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))",
+   "max": 3
   },
   {
    "file": "public/control.html",
@@ -468,7 +484,8 @@
   {
    "file": "public/event.html",
    "expr": "inp",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
+   "max": 2
   },
   {
    "file": "public/event.html",
@@ -538,7 +555,8 @@
   {
    "file": "public/inventory.html",
    "expr": "html",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
+   "max": 2
   },
   {
    "file": "public/inventory.html",
@@ -563,7 +581,8 @@
   {
    "file": "public/invite-studio.html",
    "expr": "i+1",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 2
   },
   {
    "file": "public/invite-studio.html",
@@ -573,12 +592,14 @@
   {
    "file": "public/invite-studio.html",
    "expr": "n",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 3
   },
   {
    "file": "public/invite-studio.html",
    "expr": "t.k",
-   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data",
+   "max": 2
   },
   {
    "file": "public/invite.html",
@@ -598,7 +619,8 @@
   {
    "file": "public/leads.html",
    "expr": "n",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 2
   },
   {
    "file": "public/leads.html",
@@ -608,7 +630,8 @@
   {
    "file": "public/leads.html",
    "expr": "s.k",
-   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data",
+   "max": 2
   },
   {
    "file": "public/leads.html",
@@ -633,7 +656,8 @@
   {
    "file": "public/media.html",
    "expr": "media",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
+   "max": 2
   },
   {
    "file": "public/media.html",
@@ -663,7 +687,8 @@
   {
    "file": "public/ops.html",
    "expr": "done",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 2
   },
   {
    "file": "public/ops.html",
@@ -743,7 +768,8 @@
   {
    "file": "public/proposal-view.html",
    "expr": "cell",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
+   "max": 2
   },
   {
    "file": "public/proposal-view.html",
@@ -758,12 +784,14 @@
   {
    "file": "public/proposal.html",
    "expr": "i",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 3
   },
   {
    "file": "public/proposal.html",
    "expr": "i+1",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 3
   },
   {
    "file": "public/proposal.html",
@@ -828,7 +856,8 @@
   {
    "file": "public/resources.html",
    "expr": "label",
-   "why": "literal status label chosen by a ternary in this function"
+   "why": "literal status label chosen by a ternary in this function",
+   "max": 5
   },
   {
    "file": "public/resources.html",
@@ -883,7 +912,8 @@
   {
    "file": "public/work.html",
    "expr": "i+1",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 2
   },
   {
    "file": "public/trusted-types.js",
@@ -899,6 +929,11 @@
    "file": "public/onboarding.js",
    "expr": "body",
    "why": "Onboarding wizard body: output of renderInput/Map/Preview/Result/Finish, which escape every CSV/user value with esc() or Number() (reviewed after PR #50)."
+  },
+  {
+   "file": "public/manual.js",
+   "expr": "res.html",
+   "why": "DOMParser.parseFromString builds an INERT document (scripts never run, no network); the result goes through sanitize(doc) (script/iframe/object/embed/link/meta/base/form/template removed, every on* / srcset / formaction attribute and javascript:/data:/vbscript: URLs stripped) before any node is adopted into the page. The manual HTML itself is the studio's own published copy."
   }
  ]
 }

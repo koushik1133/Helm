@@ -177,8 +177,8 @@
   </form>
 </div>
 
-<script src="/trusted-types.js?v=2"></script>
-<script src="telemetry.js?v=3"></script>
+<script src="/trusted-types.js?v=3"></script>
+<script src="telemetry.js?v=4"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=226"></script>
@@ -191,7 +191,7 @@
 <script src="event-group-picker.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
-  const esc=(s)=>String(s==null?"":s).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   // B11: this event's OWN currency (India/INR without a snapshot), never the studio's current country
   let evTax=null;
   const inr=(n)=>evTax?BPStore.quoteMoney(n,evTax):BPStore.studioMoney(n);

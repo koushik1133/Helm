@@ -36,12 +36,14 @@ const LIST = process.argv.includes('--list');
 // Helpers reviewed to return escaped HTML / fixed markup. Each was read and
 // confirmed to esc() every caller-controlled value it emits.
 export const SAFE_HELPERS = new Set(JSON.parse(readFileSync(ALLOW_PATH, 'utf8')).safeHelpers.map((h) => h.name));
-const ESCAPERS = /^(?:esc|escapeHtml|escHtml|escAttr|encodeURIComponent|encodeURI|Number|parseInt|parseFloat|Math\.[a-z]+|Boolean|JSON\.stringify|String\(Number|safeLink|safeQr)$/;
+const ESCAPERS = /^(?:esc|escapeHtml|escHtml|escAttr|encodeURIComponent|encodeURI|Number|parseInt|parseFloat|Math\.[a-z]+|Boolean|String\(Number|safeLink|safeQr)$/;
 
+// Exact directory names only (a substring test also skipped e.g. public/vendors-*/).
+const SKIP_DIRS = new Set(['vendor', 'node_modules', 'docs']);
 function walk(dir, out = []) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);
-    if (e.isDirectory()) { if (!/vendor|node_modules|docs/.test(e.name)) walk(p, out); }
+    if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(p, out); }
     else if (/\.(js|html)$/.test(e.name)) out.push(p);
   }
   return out;
@@ -119,7 +121,7 @@ function safeExpr(e) {
   // constant tables / constants: ALL_CAPS, ALL_CAPS[k], ALL_CAPS.k, ALL_CAPS[k].name
   if (/^[A-Z][A-Z0-9_]*(?:\[[^\]]*\]|\.[\w$]+)*$/.test(e)) return true;
   if (/^(?:"[^"]*"|'[^']*')\.repeat\([^()]*\)$/.test(e)) return true;
-  if (/(?:\.length|\.size|\.toFixed\(\d*\)|\.toLocaleString\([^()]*\)|\.getTime\(\)|\.getFullYear\(\)|\.getDate\(\))$/.test(e)) return true;
+  if (/(?:\.length|\.size|\.toFixed\(\d*\)|\.getTime\(\)|\.getFullYear\(\)|\.getDate\(\))$/.test(e)) return true;
   // whole-expression call: name(args)
   const call = e.match(/^([\w$.]+)\s*\(/);
   if (call && skipBalanced(e, call[0].length, ')') === e.length - 1) {
@@ -149,7 +151,9 @@ function valuesOf(rhs) {
   return vals;
 }
 
-const SINK = /(?:\.(innerHTML|outerHTML)\s*(\+?=)(?!=)|\.insertAdjacentHTML\s*\(|\bdocument\.write(?:ln)?\s*\()/g;
+// audit run-3 ci/check-html-sinks: also srcdoc (iframe HTML), DOMParser.parseFromString
+// and Range.createContextualFragment (both build live DOM from a markup string).
+const SINK = /(?:\.(innerHTML|outerHTML|srcdoc)\s*(\+?=)(?!=)|\.insertAdjacentHTML\s*\(|\bdocument\.write(?:ln)?\s*\(|\.parseFromString\s*\(|\.createContextualFragment\s*\()/g;
 function scan(code, file, baseLine) {
   const hits = [];
   let m;
@@ -157,7 +161,8 @@ function scan(code, file, baseLine) {
   while ((m = SINK.exec(code))) {
     let start = m.index + m[0].length, rhs;
     if (m[0].includes('insertAdjacentHTML')) { const comma = skipBalanced(code, start, null); start = comma + 1; rhs = code.slice(start, skipBalanced(code, start, ')')); }
-    else if (m[0].includes('write')) rhs = code.slice(start, skipBalanced(code, start, ')'));
+    else if (m[0].includes('write') || m[0].includes('createContextualFragment')) rhs = code.slice(start, skipBalanced(code, start, ')'));
+    else if (m[0].includes('parseFromString')) rhs = code.slice(start, skipBalanced(code, start, null));   // first argument only
     else rhs = code.slice(start, skipBalanced(code, start, null));
     const line = baseLine + code.slice(0, m.index).split('\n').length - 1;
     for (const v of valuesOf(rhs)) {
@@ -188,11 +193,22 @@ for (const f of walk(PUB)) {
   }
 }
 
+// Count-anchored allowlist (audit run-3): an entry approves at most `max` sites
+// (default 1) with that file + expression, so a NEW sink that happens to reuse an
+// already-reviewed bare identifier in the same file is not silently approved.
 const used = new Set();
+const seen = new Map();
 const bad = [];
-for (const h of found) { const k = h.file + ' :: ' + h.expr; if (allowMap.has(k)) used.add(k); else bad.push(h); }
+for (const h of found) {
+  const k = h.file + ' :: ' + h.expr;
+  if (!allowMap.has(k)) { bad.push(h); continue; }
+  used.add(k);
+  const n = (seen.get(k) || 0) + 1; seen.set(k, n);
+  const max = Number(allowMap.get(k).max || 1);
+  if (n > max) bad.push({ ...h, extra: ` (allowlisted for ${max} site(s); this is site #${n} - review it, then raise "max")` });
+}
 if (LIST) { for (const h of bad) console.log(`${h.file}:${h.line}\t${h.expr}`); console.log(bad.length + ' unaccepted'); process.exit(0); }
-for (const h of bad) console.error(`  ✗ ${h.file}:${h.line} unescaped value into HTML sink: \${${h.expr}}  → wrap in esc(), or allowlist with a reason`);
+for (const h of bad) console.error(`  ✗ ${h.file}:${h.line} unescaped value into HTML sink: \${${h.expr}}${h.extra || ''}  → wrap in esc(), or allowlist with a reason`);
 const stale = [...allowMap.keys()].filter((k) => !used.has(k));
 for (const k of stale) console.error('  ✗ stale allowlist entry (site no longer exists — remove it): ' + k);
 if (bad.length || stale.length || process.exitCode) { console.error(`check-html-sinks: ${bad.length} unescaped, ${stale.length} stale`); process.exit(1); }

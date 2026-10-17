@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/trusted-types.js?v=2"></script>
+<script src="/trusted-types.js?v=3"></script>
 <title>Sign in · Helm</title>
 <meta name="description" content="Sign in to Helm, or create your studio's private workspace to run every event from first enquiry to final bill.">
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -320,7 +320,7 @@
     </form>
   </main>
 
-<script src="telemetry.js?v=3"></script>
+<script src="telemetry.js?v=4"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=226"></script>
@@ -656,16 +656,27 @@
     const tok=pendingInvite(); if(!tok) return;
     // Keep the token on transient / unconfirmed-email failures so the invitee can retry;
     // clear it on success or a terminal answer (invalid / expired / revoked / used / wrong email).
-    try{ await BPStore.invitations.accept(tok); clearInvite(); try{ sessionStorage.removeItem("bp_invite_link_session"); }catch(_){} }
+    // A session that came ONLY from an e-mail link (store-api adopts the #access_token of a
+    // login?invite= link when nobody is signed in) must be the invitee joining a PENDING
+    // invitation. Audit run-3 client/login/invite-fragment-session-fixation: a crafted link
+    // can carry someone else's (an attacker's) tokens, so that session is dropped on ANY
+    // refusal and when the invitation was already accepted (already:true) - only a
+    // successful first acceptance keeps it (and only then may the set-password step run).
+    let fromLink=false; try{ fromLink=sessionStorage.getItem("bp_invite_link_session")==="1"; sessionStorage.removeItem("bp_invite_link_session"); }catch(_){}
+    const dropLinkSession=async()=>{ try{ sessionStorage.removeItem("bp_invite_set_pw"); }catch(_){} try{ await BPStore.auth.signOut(); }catch(_){} };
+    let res;
+    try{ res=await BPStore.invitations.accept(tok); }
     catch(e){
       const msg=String((e&&e.message)||e||"").toLowerCase();
       const terminal=/invalid invitation|invitation is |has expired|different email|already|no longer/.test(msg) && !/confirm your e-?mail/.test(msg);
       if(terminal) clearInvite();
-      // A session that came only from an e-mail link must belong to this invite: if the invite
-      // refuses it (e.g. someone else's crafted link), drop that session instead of keeping it.
-      let fromLink=false; try{ fromLink=sessionStorage.getItem("bp_invite_link_session")==="1"; sessionStorage.removeItem("bp_invite_link_session"); }catch(_){}
-      if(fromLink && /different email|invalid invitation/.test(msg)){ try{ await BPStore.auth.signOut(); }catch(_){} }
+      if(fromLink) await dropLinkSession();
       throw e;
+    }
+    clearInvite();
+    if(fromLink && res && res.already===true){
+      await dropLinkSession();
+      throw new Error("This invitation was already accepted. Sign in with your own e-mail and password.");
     }
   }
   // The invite belongs to someone else's e-mail (the browser is signed in as another account,

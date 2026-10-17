@@ -36,4 +36,24 @@ t('JWT with no role fails', () => assert.match(problemWith(noRole), /role=\(none
 t('anon role with a service_role claim still fails', () => assert.match(problemWith(sneaky), /service_role/));
 t('non-JSON JWT-shaped text is ignored', () => assert.deepEqual(scanText('eyJhbGciOiJIUzI1.eyJub3RqcA.abc'), []));
 
+// audit run-3 ci/secret-scanning: new-format Supabase server keys (built at runtime).
+const rnd = (n, abc) => Array.from({ length: n }, () => abc[Math.floor(Math.random() * abc.length)]).join('');
+const sbSecret = 'sb_' + 'secret_' + rnd(32, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789');
+const sbPat = 'sb' + 'p_' + rnd(40, '0123456789abcdef');
+t('sb_secret_ key fails (reported without the value)', () => {
+  const f = scanText(`SUPABASE_KEY: ${sbSecret}\n`, 'doc.md');
+  assert.equal(f.length, 1);
+  assert.match(f[0].reason, /sb_secret_/);
+  assert.ok(!JSON.stringify(f).includes(sbSecret));
+});
+t('sbp_ personal access token fails', () => {
+  const f = scanText(`x\nexport SUPABASE_ACCESS_TOKEN=${sbPat}`, 'run.sh');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].line, 2);
+  assert.match(f[0].reason, /sbp_/);
+});
+t('sbp_/sb_secret_ placeholders pass', () => {
+  assert.deepEqual(scanText('SUPABASE_ACCESS_TOKEN=sbp_xxx scripts/x.sh  (an `sbp_...` PAT); sb_secret_...'), []);
+});
+
 console.log(`\njwt-roles: ${n} test(s) passed.`);

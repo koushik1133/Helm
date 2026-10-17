@@ -109,7 +109,7 @@ const MIME = {
    script-src host sources come from SCRIPT_SRC_BASE / SCRIPT_SRC_BUILDER in
    scripts/csp-hashes.cjs (path-scoped; CDNs are builder-only). */
 // Inline-script hashes, recomputed only when a page under public/ changes.
-const { computeHashes, computeStyleHashes, htmlFiles, withHashes, SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER } = require('./scripts/csp-hashes.cjs');
+const { computeHashes, computeStyleHashes, htmlFiles, withHashes, SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, TT_DIRECTIVES } = require('./scripts/csp-hashes.cjs');
 let hashCache = { sig: null, hashes: [], styles: [] };
 function inlineScriptHashes() {
   let sig = '';
@@ -133,7 +133,7 @@ const CSP_BASE = [
   ['style-src', "'self' https://fonts.googleapis.com"],
   // 'self' + the pinned Sentry bundle directory only (no whole-CDN hosts)
   ['script-src', SCRIPT_SRC_BASE.join(' ')],
-  ['connect-src', "'self' https://nqltzgiwznphugcfhmbm.supabase.co https://xizehqgeyjcfpzrdymly.supabase.co wss://nqltzgiwznphugcfhmbm.supabase.co wss://xizehqgeyjcfpzrdymly.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io"],
+  ['connect-src', "'self' https://nqltzgiwznphugcfhmbm.supabase.co https://xizehqgeyjcfpzrdymly.supabase.co wss://nqltzgiwznphugcfhmbm.supabase.co wss://xizehqgeyjcfpzrdymly.supabase.co"],
   ['upgrade-insecure-requests', ''],
 ];
 const buildCsp = (over = {}) => CSP_BASE
@@ -248,6 +248,9 @@ function securityHeadersFor(req, filePath) {
   h['Content-Security-Policy'] = withHashes(h['Content-Security-Policy'], inlineScriptHashes(), inlineStyleHashes());
   if (isLocalHost(req)) h['Content-Security-Policy'] = h['Content-Security-Policy'].replace(/;\s*upgrade-insecure-requests/, '');
   if (isProdHost(req)) h['Content-Security-Policy'] = stripStagingCsp(h['Content-Security-Policy']);
+  // Trusted Types report-only pass on a local run (same header the staging site sends):
+  //   HELM_TRUSTED_TYPES=report node server.js
+  if (process.env.HELM_TRUSTED_TYPES === 'report') h['Content-Security-Policy-Report-Only'] = TT_DIRECTIVES.join('; ');
   return h;
 }
 
@@ -442,9 +445,36 @@ function isLoopbackClient(req) {
   const a = (req.socket && req.socket.remoteAddress) || '';
   return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
 }
+// DNS-rebinding / cross-site guard (audit run-3 local/server.js/layout-api-dns-rebinding):
+// a loopback socket alone is not proof of a local caller - a rebinding page in the
+// developer's own browser also connects from 127.0.0.1, but it carries the attacker's
+// host name in Host (and its own origin in Origin). So a loopback caller must also name
+// a loopback Host, and any Origin it sends must be a loopback origin.
+const LOCAL_HOST_RE = /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?$/i;
+function isLocalHostHeader(h) {
+  const v = String(h || '');
+  return v.length <= 300 && LOCAL_HOST_RE.test(v);
+}
+function originAllowed(req) {
+  const o = req.headers && req.headers['origin'];
+  if (o == null || o === '') return true;              // same-origin GET/HEAD, curl, server-side tools
+  const v = String(o);
+  if (v.length > 300) return false;
+  const m = /^https?:\/\/([^/]+)$/i.exec(v);
+  return !!m && isLocalHostHeader(m[1]);
+}
 function layoutApiAllowed(req) {
-  if (isLoopbackClient(req)) return true;
+  if (isLoopbackClient(req)) {
+    const headers = req.headers || {};
+    return isLocalHostHeader(headers['host']) && originAllowed(req);
+  }
   if (!LAYOUTS_API_TOKEN) return false;
+  // A token caller sending a browser Origin must be same-host (no cross-site use of a token).
+  const o = req.headers && req.headers['origin'];
+  if (o != null && o !== '') {
+    const m = /^https?:\/\/([^/]+)$/i.exec(String(o));
+    if (!m || String(m[1]).toLowerCase() !== String(req.headers['host'] || '').toLowerCase()) return false;
+  }
   const auth = String(req.headers['authorization'] || '');
   if (auth.length > 4096 || !/^bearer[ \t]/i.test(auth)) return false;   // linear check, no backtracking
   const tok = auth.slice(7).trim();
@@ -452,6 +482,10 @@ function layoutApiAllowed(req) {
   const got = Buffer.from(tok);
   const want = Buffer.from(LAYOUTS_API_TOKEN);
   return got.length === want.length && crypto.timingSafeEqual(got, want);
+}
+
+function isJsonContentType(ct) {
+  return /^application\/json\s*(?:;|$)/i.test(String(ct || ''));
 }
 
 /* ----------------------------------------------------------- api */
@@ -469,6 +503,11 @@ async function handleApi(req, res, url) {
   // read-modify-write, which keeps concurrent mutations from clobbering each other.
   let body = {};
   if (req.method === 'POST' || req.method === 'PUT') {
+    // Writes must be JSON: a text/plain "simple" cross-site POST is refused (415) before
+    // the body is parsed, so no form/beacon can create or overwrite a layout.
+    if (!isJsonContentType(req.headers && req.headers['content-type'])) {
+      return sendJson(res, 415, { error: 'Content-Type must be application/json' });
+    }
     try { body = await readBody(req); }
     catch (e) {
       const tooBig = /too large/i.test(e.message);
@@ -542,11 +581,15 @@ const server = http.createServer(async (req, res) => {
 });
 
 // Exported for test/headers-parity.test.mjs (requiring this file does not listen).
-module.exports = { prettyPage, CSP, CSP_BY_PAGE, SECURITY_HEADERS, INDEXABLE_PAGES, NOINDEX, TOKEN_PAGES, securityHeadersFor, cacheControlFor, layoutApiAllowed, isLoopbackClient, isInternalFile };
+module.exports = { prettyPage, CSP, CSP_BY_PAGE, SECURITY_HEADERS, INDEXABLE_PAGES, NOINDEX, TOKEN_PAGES, securityHeadersFor, cacheControlFor, layoutApiAllowed, isLoopbackClient, isInternalFile, isLocalHostHeader, isJsonContentType };
 
 if (require.main === module) {
-  server.listen(PORT, () => {
+  // Bind to loopback by default (audit run-3 infra/server.js/listen-all-interfaces) so LAN
+  // peers cannot read files from a developer machine. Set HOST=0.0.0.0 to opt in to LAN
+  // access deliberately (the layouts API then still needs LAYOUTS_API_TOKEN).
+  const HOST = process.env.HOST || '127.0.0.1';
+  server.listen(PORT, HOST, () => {
     ensureDb();
-    console.log(`Blueprint Stage running →  http://localhost:${PORT}`);
+    console.log(`Blueprint Stage running →  http://${HOST === '127.0.0.1' ? 'localhost' : HOST}:${PORT}`);
   });
 }

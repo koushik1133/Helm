@@ -20,10 +20,19 @@ const CONFIGURED = {
   WHATSAPP_API_VERSION: "v21.0",
 };
 
-// signed-in user; quote visible under RLS; whatsapp_authorize says yes
-function allowAll(to = "919800000001") {
+const ORG = "b0000000-0000-4000-8000-00000000da02";
+// signed-in user; quote visible under RLS; whatsapp_authorize says yes; PAID studio,
+// number not opted out (audit run-3 recipient binding - see the dedicated tests below)
+function allowAll(to = "919800000001", opts: { paid?: boolean; optIn?: boolean; optedOut?: boolean } = {}) {
+  const { paid = true, optIn = false, optedOut = false } = opts;
   g.__supaGetUser = (jwt: string) => jwt === "user-jwt" ? ({ data: { user: { id: "u1" } } }) : ({ data: { user: null } });
-  g.__supaResolver = (table: string) => table === "quotes" ? ({ data: { id: QUOTE }, error: null }) : ({ data: null, error: null });
+  g.__supaResolver = (table: string) => {
+    if (table === "quotes") return { data: { id: QUOTE, org_id: ORG }, error: null };
+    if (table === "studio_subscriptions") return { data: paid ? { status: "active" } : { status: "trial" }, error: null };
+    if (table === "whatsapp_opt_outs") return { data: optedOut ? { id: 1 } : null, error: null };
+    if (table === "wa_proposal_optins") return { data: optIn ? { id: 7 } : null, error: null };
+    return { data: null, error: null };
+  };
   g.__supaRpc = (name: string) => name === "whatsapp_authorize" ? ({ data: { ok: true, to }, error: null }) : ({ data: null, error: null });
 }
 const metaOk = () => installFetch((url) => {
@@ -173,5 +182,111 @@ Deno.test("send-whatsapp: token never echoed or logged; Meta failure -> 502 gene
     assertEquals(res.status, 502);
     const txt = JSON.stringify(await res.json()) + logs.join(" ");
     assert(!txt.includes("meta-secret-token") && !txt.includes("919800000001"));
+  } finally { rF(); rEnv(); }
+});
+
+// ---- audit run-3 edge/send-whatsapp/staff-editable-recipient-binding-relay ----------
+Deno.test("send-whatsapp: a number that sent STOP is refused (403), Meta never called", async () => {
+  resetSupaMock();
+  allowAll("919800000001", { optedOut: true });
+  const rEnv = setEnv(CONFIGURED);
+  let fetched = false;
+  const rF = installFetch(() => { fetched = true; return jsonResponse({}); });
+  try {
+    const h = await loadHandler(FN);
+    const res = await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update" }, AUTH));
+    assertEquals(res.status, 403);
+    assert(!fetched);
+    const oo = supaLog().find((e) => e.table === "whatsapp_opt_outs");
+    assertEquals(oo.key, "service-role-secret");
+    assert(oo.calls.some((c: any) => c[0] === "eq" && c[1][0] === "phone" && c[1][1] === "919800000001"));
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("send-whatsapp: UNPAID (trial) studio needs a recorded opt-in for this event", async () => {
+  resetSupaMock();
+  allowAll("919800000001", { paid: false, optIn: false });
+  const rEnv = setEnv(CONFIGURED);
+  let fetched = 0;
+  const rF = installFetch(() => { fetched++; return jsonResponse({ messages: [{ id: "wamid.x" }] }); });
+  try {
+    const h = await loadHandler(FN);
+    assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update" }, AUTH))).status, 403);
+    assertEquals(fetched, 0);
+    allowAll("919800000001", { paid: false, optIn: true });
+    assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update" }, AUTH))).status, 200);
+    assertEquals(fetched, 1);
+    const oi = supaLog().find((e) => e.table === "wa_proposal_optins");
+    assert(oi.calls.some((c: any) => c[0] === "eq" && c[1][0] === "phone_e164" && c[1][1] === "+919800000001"));
+    assert(oi.calls.some((c: any) => c[0] === "eq" && c[1][0] === "quote_id" && c[1][1] === QUOTE));
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("send-whatsapp: WHATSAPP_REQUIRE_OPTIN=1 applies the opt-in rule to paid studios too", async () => {
+  resetSupaMock();
+  allowAll("919800000001", { paid: true, optIn: false });
+  const rEnv = setEnv({ ...CONFIGURED, WHATSAPP_REQUIRE_OPTIN: "1" });
+  const rF = installFetch(() => { throw new Error("no fetch expected"); });
+  try {
+    const h = await loadHandler(FN);
+    assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update" }, AUTH))).status, 403);
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("send-whatsapp: template params - links, line breaks, over-long, >10 and objects refused (400)", async () => {
+  resetSupaMock();
+  allowAll();
+  const rEnv = setEnv(CONFIGURED);
+  const rF = installFetch(() => { throw new Error("no fetch expected"); });
+  try {
+    const h = await loadHandler(FN);
+    for (const params of [["pay at https://evil.example/x"], ["visit www.evil.example"], ["wa.me/919800000001"], ["login at helm-pay.com now"],
+      ["line one\nline two"], ["tab\there"], ["x".repeat(201)], Array(11).fill("a"), [{ a: 1 }], ["too     many spaces"]]) {
+      const res = await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update", params }, AUTH));
+      assertEquals(res.status, 400, JSON.stringify(params));
+    }
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("send-whatsapp: ordinary params (names, dates, amounts) still send", async () => {
+  resetSupaMock();
+  allowAll();
+  const rEnv = setEnv(CONFIGURED);
+  let sentParams: any = null;
+  const rF = installFetch((_u, init) => { sentParams = JSON.parse(String(init?.body)).template.components[0].parameters; return jsonResponse({ messages: [{ id: "w" }] }); });
+  try {
+    const h = await loadHandler(FN);
+    const res = await h(post({ quote_id: QUOTE, number: "919800000001", template: "payment_reminder", params: ["Priya & Rahul", "12 Dec 2026, 7:30 PM", "Rs. 1,25,000.50", 3] }, AUTH));
+    assertEquals(res.status, 200);
+    assertEquals(sentParams.map((p: any) => p.text), ["Priya & Rahul", "12 Dec 2026, 7:30 PM", "Rs. 1,25,000.50", "3"]);
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("send-whatsapp: distinct recipients per studio per day are capped (429)", async () => {
+  resetSupaMock();
+  const rEnv = setEnv({ ...CONFIGURED, WHATSAPP_DISTINCT_PER_DAY_PAID: "2" });
+  let fetched = 0;
+  const rF = installFetch(() => { fetched++; return jsonResponse({ messages: [{ id: "w" }] }); });
+  try {
+    const h = await loadHandler(FN);
+    const send = (to: string) => { allowAll(to); return h(post({ quote_id: QUOTE, number: to, template: "event_update" }, AUTH)); };
+    assertEquals((await send("919800000001")).status, 200);
+    assertEquals((await send("919800000002")).status, 200);
+    const third = await send("919800000003");
+    assertEquals(third.status, 429);
+    assert(Number(third.headers.get("Retry-After")) > 0);
+    assertEquals(fetched, 2);
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("send-whatsapp: unpaid studios have a low daily total", async () => {
+  resetSupaMock();
+  const rEnv = setEnv({ ...CONFIGURED, WHATSAPP_UNPAID_PER_DAY: "1" });
+  const rF = installFetch(() => jsonResponse({ messages: [{ id: "w" }] }));
+  try {
+    const h = await loadHandler(FN);
+    allowAll("919800000001", { paid: false, optIn: true });
+    assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update" }, AUTH))).status, 200);
+    assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update" }, AUTH))).status, 429);
   } finally { rF(); rEnv(); }
 });
