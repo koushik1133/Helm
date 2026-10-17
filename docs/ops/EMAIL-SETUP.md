@@ -50,6 +50,17 @@ from one Helm address and names the studio + admin inside the e-mail.
 6. Test: invite your own second address from Control Center → User control. Then
    `select status, count(*) from public.invite_email_outbox group by 1;` → one `sent` row.
 
+## Studio sender name + reply-to + Send test (0150)
+1. SQL editor: paste `supabase/APPLY-0150.sql` (every VERIFY row `true`). It adds two optional columns to
+   `comms_settings` (`email_from_name`, `email_reply_to`; NULL = unchanged behaviour) - no row is changed.
+2. Deploy: `supabase functions deploy comms-dispatch --no-verify-jwt --project-ref <ref>` (reads the two settings)
+   and `supabase functions deploy integrations-test --project-ref <ref>` (status + Send test).
+3. Integrations page → Email card: set **Sender name** and **Reply-to e-mail**, Save, **Send test e-mail to me**.
+   - **Simulated**: `RESEND_API_KEY` is not set; the result shows the From / Reply-to it would use. Nothing is sent.
+   - **Live**: sent through Resend to the signed-in admin's OWN login address (never an address from the page).
+   Client e-mails then go out as `"<Sender name>" <address in RESEND_FROM>` with `Reply-To: <reply-to>`.
+   The sending ADDRESS is always Helm's verified domain (RESEND_FROM); only the display name and reply-to are per studio.
+
 ## Resend (when you want branded e-mail)
 1. resend.com → sign up → **Domains → Add domain** `helm.events`.
 2. Add the DNS records it shows (SPF `TXT`, DKIM `CNAME`/`TXT`, optional DMARC) at your DNS provider; wait for
@@ -58,7 +69,7 @@ from one Helm address and names the studio + admin inside the e-mail.
 4. `RESEND_FROM="Helm <hello@helm.events>"`.
 
 ## If something is wrong
-- Status card says **Waiting for Helm** → rows were marked `skipped`: function not deployed, or SMTP/Resend not set.
+- Status card says **Simulated** → rows were marked `skipped`: function not deployed, or SMTP/Resend not set.
 - Nothing in the outbox → 0131 not applied (or the invite was created before 0131: press Resend email).
 - Emergency stop: `supabase secrets set HELM_INVITE_EMAILS_ENABLED=false --project-ref <ref>`. No data is touched.
 - Logs never contain addresses or tokens.

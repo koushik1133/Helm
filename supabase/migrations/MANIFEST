@@ -235,3 +235,5 @@ forward  supabase/migrations/0147_manager_quote_create.sql
 forward  supabase/migrations/0148_close_gate_text.sql
 # 0149 (sales-role test 2026-10-17: leads.guest_count CHECK 0..100000 or null, NOT VALID - existing rows are not checked or changed) goes after any.
 forward  supabase/migrations/0149_lead_guest_count_range.sql
+# 0150 (studio WhatsApp + e-mail setup: comms_settings.email_from_name / email_reply_to (optional, NULL = unchanged), NOT VALID checks, studio_email_settings_get/_set, integrations_test_target, service-role identity helpers; no rows changed) goes after 0078 + 0134.
+forward  supabase/migrations/0150_studio_channel_settings.sql

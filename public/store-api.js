@@ -8196,6 +8196,13 @@ window.HelmUrl = HelmUrl;
     saveRazorpay: (args) => (supa ? rpc("save_org_payment_account", args || {}) : Promise.reject(new Error("Needs a signed-in studio."))),
     saveWhatsapp: (args) => (supa ? rpc("save_org_whatsapp_account", args || {}) : Promise.reject(new Error("Needs a signed-in studio."))),
     setStatus: (args) => (supa ? rpc("set_org_integration_status", args || {}) : Promise.reject(new Error("Needs a signed-in studio."))),
+    // 0150 studio e-mail sender name + reply-to (null before 0150)
+    emailSettings: () => (supa ? rpc("studio_email_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    saveEmailSettings: (fromName, replyTo) => (supa ? rpc("studio_email_settings_set", { p_from_name: fromName || null, p_reply_to: replyTo || null }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    // 0150 integrations-test edge function: { email:{live}, whatsapp:{live,...} } or null when it is not deployed
+    channelStatus: () => (supa && fnUrl("integrations-test") ? callFn("integrations-test", { action: "status" }).catch(() => null) : Promise.resolve(null)),
+    // { mode: "live" | "simulated", sent, to, from?, reply_to?, reason?, error? }; throws when not deployed / refused
+    sendTest: (channel) => (supa && fnUrl("integrations-test") ? callFn("integrations-test", { action: "test", channel: channel }) : Promise.reject(new Error("Needs a signed-in studio."))),
   };
 
   const BPStore = {

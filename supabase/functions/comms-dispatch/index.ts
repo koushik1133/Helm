@@ -16,7 +16,8 @@
 //   HELM_COMMS_ENABLED="false"        kill switch (unset / anything else -> on)
 //   HELM_COMMS_SECRET                 shared secret in the `x-helm-cron-secret` header; unset -> 401
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (injected)
-//   RESEND_API_KEY, RESEND_FROM       unset key -> e-mail rows are marked "skipped"
+//   RESEND_API_KEY, RESEND_FROM       unset key -> e-mail rows are marked "skipped". The display
+//                                     name / Reply-To come from the studio's Integrations page (0150).
 //   WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, WHATSAPP_API_VERSION (default v21.0)
 //   WHATSAPP_TPL_TASK_ASSIGNED        approved template for "you've been assigned" (e.g. helm_task_assigned)
 //   WHATSAPP_TPL_EVENT_REMINDER       approved template for event reminders  (e.g. helm_event_reminder)
@@ -37,6 +38,7 @@ import { errTag, escHtml } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { absoluteLink } from "./deeplink.js";
 import { trialReminderEmail } from "./trial-reminders.mjs";
+import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com", "graph.facebook.com"]);
@@ -66,19 +68,19 @@ function appOrigin(): string {
   return /^https:\/\/[A-Za-z0-9.-]{1,190}(:[0-9]{1,5})?\/?$/.test(v) ? v.replace(/\/+$/, "") : "https://www.helm.events";
 }
 
-async function sendEmail(id: string, to: string, subject: string, text: string, studio: string): Promise<Res> {
+// 0150: the studio's own sender name / reply-to (Integrations page), when set
+export type Identity = { from_name?: string | null; reply_to?: string | null };
+async function sendEmail(id: string, to: string, subject: string, text: string, studio: string, ident: Identity = {}): Promise<Res> {
   const key = Deno.env.get("RESEND_API_KEY") || "";
   if (!key || !EMAIL.test(to) || !text) return "skipped";
-  const conf = Deno.env.get("RESEND_FROM") || "onboarding@resend.dev";
-  const m = conf.match(/<([^>]+)>/);
-  const name = (studio || "Helm").replace(/["<>\r\n]/g, "").slice(0, 60) || "Helm";
-  const from = `"${name}" <${(m ? m[1] : conf).trim()}>`;
+  const from = fromHeader(Deno.env.get("RESEND_FROM"), ident.from_name, studio);
+  const replyTo = replyToOf(ident.reply_to);
   const html = `<p>${escHtml(text).replace(/\n/g, "<br>")}</p>`;
   try {
     const r = await safeFetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json", "Idempotency-Key": "comms-" + id },
-      body: JSON.stringify({ from, to: [to], subject: subject.slice(0, 150), html, text }),
+      body: JSON.stringify({ from, to: [to], subject: subject.slice(0, 150), html, text, ...(replyTo ? { reply_to: replyTo } : {}) }),
     });
     await r.text();
     if (!r.ok) console.error("comms-dispatch: email status", r.status);
@@ -180,7 +182,12 @@ Deno.serve(async (req) => {
       const payload = (r?.payload && typeof r.payload === "object") ? r.payload : {};
       const msg = messageFor(purpose, payload, origin);
       let res: Res = "skipped";
-      if (channel === "email" && purpose !== "wa_forward") res = await sendEmail(id, to, msg.subject, msg.text, String(payload.studio ?? ""));
+      if (channel === "email" && purpose !== "wa_forward") {
+        // 0150: sender name / reply-to of the row's studio (a database without 0150 -> defaults)
+        let ident: Identity = {};
+        try { const { data } = await admin.rpc("comms_outbox_email_identity", { p_id: id }); if (data && typeof data === "object") ident = data as Identity; } catch (_) { /* defaults */ }
+        res = await sendEmail(id, to, msg.subject, msg.text, String(payload.studio ?? ""), ident);
+      }
       else if (channel === "whatsapp") res = await sendWhatsApp(to, msg.text, purpose === "wa_forward" && String(payload.type ?? "") === "event_reminder" ? "event_reminder" : "general");
       const { error: mErr } = await admin.rpc("comms_outbox_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("comms-dispatch: mark failed", errTag(mErr)); counts.failed++; continue; }

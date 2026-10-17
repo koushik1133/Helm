@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<link rel="stylesheet" href="integrations.css?v=1">
+<link rel="stylesheet" href="integrations.css?v=2">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -27,7 +27,7 @@
 
   <div id="app" hidden>
     <h2>Integrations</h2>
-    <p class="sub">Email, WhatsApp and online payments. Each card shows whether it is on for your studio and, step by step, how to switch it on.</p>
+    <p class="sub">Email, WhatsApp and online payments. Each card shows its status &ndash; <b>Not connected</b>, <b>Simulated</b> (saved, but nothing is really sent yet) or <b>Live</b> &ndash; your settings, a <b>Send test</b> button and, step by step, how to switch it on.</p>
     <div id="itgMsg" role="status" aria-live="polite"></div>
 
     <!-- ========================= EMAIL ========================= -->
@@ -35,22 +35,43 @@
       <div class="itg-head">
         <span class="itg-ic" aria-hidden="true">✉️</span>
         <div class="itg-t"><h3 id="itgEmailH">Email invites</h3>
-          <p class="itg-d">When you invite a teammate, Helm e-mails them a Join link. You do not need to copy and share the link any more (the Copy link button stays as a backup).</p></div>
+          <p class="itg-d">Helm e-mails teammate invites (with a Join link) and, when you switch them on, client payment reminders and follow-ups. Set the name clients see and where their replies go.</p></div>
         <span class="itg-badge" id="itgEmailBadge" data-state="wait">Checking…</span>
       </div>
       <p class="itg-meta" id="itgEmailMeta"></p>
+      <form class="itg-form" id="itgEmailForm" novalidate hidden>
+        <div class="itg-f">
+          <label for="itgFromName">Sender name</label>
+          <input id="itgFromName" name="from_name" maxlength="60" autocomplete="organization" placeholder="e.g. Rao Events">
+          <small class="itg-hint">Shown as the "From" name. Empty = your studio name.</small>
+          <div class="itg-err" id="itgFromNameErr" role="alert"></div>
+        </div>
+        <div class="itg-f">
+          <label for="itgReplyTo">Reply-to e-mail</label>
+          <input id="itgReplyTo" name="reply_to" type="email" maxlength="254" autocomplete="email" inputmode="email" placeholder="e.g. bookings@raoevents.in">
+          <small class="itg-hint">When a client presses Reply, it goes here. Empty = replies are not read.</small>
+          <div class="itg-err" id="itgReplyToErr" role="alert"></div>
+        </div>
+        <p class="itg-note" id="itgEmailFromLine"></p>
+        <div class="itg-row">
+          <button type="submit" class="btn btn-pri" id="itgEmailSave">Save e-mail settings</button>
+          <button type="button" class="btn" id="itgEmailTest">Send test e-mail to me</button>
+        </div>
+        <p class="itg-result" id="itgEmailResult" role="status" aria-live="polite"></p>
+      </form>
+      <p class="itg-note" id="itgEmailRo" hidden>Only people who can edit Control Center can change these settings.</p>
       <details class="itg-guide">
         <summary>How email works and how to set it up</summary>
         <h4>For your studio (nothing to set up)</h4>
         <ol>
           <li>Open <a href="control.html#users">Control Center → User control</a> (or the Staff page) and invite someone by e-mail.</li>
           <li>Helm e-mails the invite within about 2 minutes. If it does not arrive, ask them to check spam, then press <b>Resend email</b> (once every 10 minutes).</li>
-          <li>The e-mail comes from Helm and says which studio and role it is for. Replies are not read yet.</li>
+          <li>The e-mail says which studio and role it is for. Client e-mails show your <b>Sender name</b>; replies go to your <b>Reply-to e-mail</b> (set both above, then press <b>Send test e-mail to me</b>).</li>
         </ol>
         <h4>For the Helm owner (one-time, platform-wide)</h4>
         <ol>
           <li>Apply <code>supabase/APPLY-0131.sql</code> on staging, then production. Every check row must say <code>true</code>.</li>
-          <li>Deploy the mailer: <code>supabase functions deploy invite-mailer --no-verify-jwt --project-ref &lt;ref&gt;</code>.</li>
+          <li>Apply <code>supabase/APPLY-0150.sql</code> (sender name + reply-to). Deploy: <code>supabase functions deploy invite-mailer --no-verify-jwt --project-ref &lt;ref&gt;</code>, then <code>comms-dispatch</code> (also <code>--no-verify-jwt</code>) and <code>integrations-test</code>.</li>
           <li><b>Today (no Resend account):</b> leave <code>RESEND_API_KEY</code> unset. Invites go out through Supabase's own sign-in e-mail. In Supabase → Authentication → URL Configuration, add <code>https://www.helm.events/login*</code> to Redirect URLs. Supabase's built-in mailer only sends a few e-mails an hour, so add custom SMTP (Authentication → SMTP, e.g. a Google Workspace app password) for real use.</li>
           <li><b>Later (branded e-mail):</b> create a Resend account, verify the domain <code>helm.events</code> (add the SPF and DKIM DNS records Resend shows), create an API key, then set the secrets <code>RESEND_API_KEY</code>, <code>RESEND_FROM="Helm &lt;hello@helm.events&gt;"</code> and <code>APP_URL</code>. Nothing else changes.</li>
           <li>Set <code>HELM_INVITE_EMAIL_SECRET</code> and schedule the 2-minute safety-net job (exact SQL in <code>docs/ops/EMAIL-SETUP.md</code>).</li>
@@ -68,7 +89,21 @@
         <span class="itg-badge" id="itgWaBadge" data-state="wait">Checking…</span>
       </div>
       <p class="itg-meta" id="itgWaMeta"></p>
-      <div class="itg-row"><a class="btn" href="control.html#notify">Add your studio WhatsApp number</a></div>
+      <form class="itg-form" id="itgWaForm" novalidate hidden>
+        <div class="itg-f">
+          <label for="itgWaNum">Studio WhatsApp number</label>
+          <input id="itgWaNum" name="studio_whatsapp" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="+91 98765 43210">
+          <small class="itg-hint">Pick the country, then type the number (saved in international format, e.g. +91 98765 43210). Test messages go to this number.</small>
+          <div class="itg-err" id="itgWaNumErr" role="alert"></div>
+        </div>
+        <div class="itg-row">
+          <button type="submit" class="btn btn-pri" id="itgWaSave">Save number</button>
+          <button type="button" class="btn" id="itgWaTest">Send test WhatsApp</button>
+          <a class="btn" href="control.html#notify">Choose which messages go out</a>
+        </div>
+        <p class="itg-result" id="itgWaResult" role="status" aria-live="polite"></p>
+      </form>
+      <p class="itg-note" id="itgWaRo" hidden>Only people who can edit Control Center can change the number. <a href="control.html#notify">Control Center &rarr; Notifications</a></p>
       <details class="itg-guide">
         <summary>Step-by-step: connect WhatsApp</summary>
         <h4>A. Meta (about 1–3 days, mostly waiting for verification)</h4>
@@ -95,12 +130,12 @@
         <h4>C. Give the details to Helm</h4>
         <ol>
           <li>Send these to Helm support (never by e-mail in plain text – use a password-manager share): the <b>Phone number ID</b>, the <b>permanent token</b>, the <b>App secret</b> (App → Settings → Basic) and the WhatsApp Business Account ID.</li>
-          <li>Helm (the owner) stores them as Supabase secrets – the full commands are in <code>docs/ops/WHATSAPP-SETUP.md</code>: <code>WHATSAPP_TOKEN</code>, <code>WHATSAPP_PHONE_ID</code>, <code>WHATSAPP_APP_SECRET</code>, <code>WHATSAPP_WEBHOOK_VERIFY_TOKEN</code>, <code>WHATSAPP_TPL_TASK_ASSIGNED=helm_task_assigned</code>, <code>WHATSAPP_TPL_EVENT_REMINDER=helm_event_reminder</code>, <code>COMMS_WHATSAPP_TEMPLATE=helm_notice</code>. Then it deploys the WhatsApp functions and sets the webhook in Meta.</li>
+          <li>Helm (the owner) stores them as Supabase secrets – the full commands are in <code>docs/ops/WHATSAPP-SETUP.md</code>: <code>WHATSAPP_TOKEN</code>, <code>WHATSAPP_PHONE_ID</code>, <code>WHATSAPP_APP_SECRET</code>, <code>WHATSAPP_WEBHOOK_VERIFY_TOKEN</code>, <code>WHATSAPP_TPL_TASK_ASSIGNED=helm_task_assigned</code>, <code>WHATSAPP_TPL_EVENT_REMINDER=helm_event_reminder</code>, <code>COMMS_WHATSAPP_TEMPLATE=helm_notice</code>. Then it deploys the WhatsApp functions (<code>send-whatsapp</code>, <code>comms-dispatch</code>, <code>wa-webhook</code>, <code>send-phone-code</code>, <code>integrations-test</code>) and sets the webhook in Meta.</li>
         </ol>
         <h4>D. In Helm</h4>
         <ol>
-          <li>Open <a href="control.html#notify">Control Center → Notifications → Automatic client messages &amp; WhatsApp</a> and enter your <b>studio WhatsApp number</b> with country code (e.g. +91 98765 43210). Save.</li>
-          <li>Switch on the messages you want there (payment reminders, follow-ups, WhatsApp copies of notifications).</li>
+          <li>Enter your <b>studio WhatsApp number</b> with country code in the form above (e.g. +91 98765 43210) and press <b>Save number</b>, then <b>Send test WhatsApp</b>. It says <b>Simulated</b> until Helm has switched WhatsApp on, and <b>Live</b> after.</li>
+          <li>In <a href="control.html#notify">Control Center → Notifications → Automatic client messages &amp; WhatsApp</a>, switch on the messages you want (payment reminders, follow-ups, WhatsApp copies of notifications).</li>
           <li>Each crew member opens their profile and ticks <b>Also send my Helm notifications to my WhatsApp</b>.</li>
           <li>Test with one number first. Anyone who replies <b>STOP</b> is never messaged again until they reply START.</li>
         </ol>
@@ -134,7 +169,7 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=100"></script>
+<script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=218"></script>
 <script src="integrations.js?v=1"></script>

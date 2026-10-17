@@ -24,7 +24,7 @@
     quote:      { icon: "📨", title: "Send your first quote", why: "Send the client an approval link they can approve and pay from.", href: "quotes.html?new=1" },
     team:       { icon: "👥", title: "Invite your team", why: "Add your staff and choose what each role can see and edit. Helm e-mails each invite for you.", href: "control.html#users" },
     // 0134 (client-side, optional, admins): WhatsApp for task assignments + event reminders
-    whatsapp:   { icon: "💬", title: "Connect WhatsApp", why: "Send task assignments and event reminders to your crew on WhatsApp. Email invites are already on via Helm.", href: "integrations.html#whatsapp" },
+    whatsapp:   { icon: "💬", title: "Connect WhatsApp", why: "Save your studio WhatsApp number and send a test. Then task assignments and event reminders reach your crew on WhatsApp.", href: "integrations.html#whatsapp" },
     // 0096 (client-side, optional): the studio has saved at least one layout template of its own
     my_templates: { icon: "🧩", title: "Customize your own templates", why: "Save your own floor layouts so every new event starts from your studio's style.", href: "builder.html?new=1&tplEdit=new" },
     mfa:        { icon: "🔐", title: "Turn on two-step sign-in", why: "A code at sign-in protects your studio even if a password leaks.", href: "", act: "mfa" },
@@ -161,14 +161,15 @@
     if (i >= 0) data.steps.splice(i + 1, 0, step); else data.steps.push(step);
   }
   // 0134: optional "Connect WhatsApp" step for admins (no server change to my_getting_started);
-  // done = studio WhatsApp number saved AND the WhatsApp channel is live. Skipped when unavailable.
+  // done = studio WhatsApp number saved (0150). Skipped when unavailable.
   async function addWhatsappStep(data, store) {
     // hidden while HELM_FEATURES.integrationsPage is off (MVP/trial: Helm's own e-mail + WhatsApp are used)
     if (!(global.HELM_FEATURES && global.HELM_FEATURES.integrationsPage === true)) return;
     if (!data || !Array.isArray(data.steps) || data.admin !== true || !store.integrations || data.steps.some((s) => s && s.key === "whatsapp")) return;
     let ov = null; try { ov = await store.integrations.overview(); } catch (e) { ov = null; }
-    const lc = global.SUPABASE_CONFIG && global.SUPABASE_CONFIG.liveChannels;
-    const done = !!(ov && /^[0-9]{8,15}$/.test(String(ov.studio_whatsapp || "")) && lc && lc.whatsapp);
+    // 0150: done once the studio has saved its WhatsApp number (the studio's part). Switching the
+    // channel Live is Helm's job, and liveChannels.whatsapp stays false by CI rule, so it never gates this.
+    const done = !!(ov && /^[0-9]{8,15}$/.test(String(ov.studio_whatsapp || "")));
     const i = data.steps.findIndex((s) => s && s.key === "team");
     const step = { key: "whatsapp", done, optional: true };
     if (i >= 0) data.steps.splice(i + 1, 0, step); else data.steps.push(step);
