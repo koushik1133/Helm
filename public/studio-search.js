@@ -36,8 +36,10 @@
   // quick actions: `need` = [kind, area] checked through BPStore.auth
   const ACTIONS = [
     { id: "new-lead",   label: "New lead",           icon: "➕", href: "leads.html?hs_act=new",     need: [["edit", "leads"]],  kw: "add create enquiry" },
-    { id: "new-quote",  label: "New quote",          icon: "✨", href: "dashboard.html",            need: [["cap", "create"], ["edit", "quotes"]], kw: "create event estimate" },
+    { id: "new-quote",  label: "New quote",          icon: "✨", href: "quotes.html?hs_act=new",    need: [["cap", "create"], ["edit", "quotes"]], kw: "create event estimate booking" },
     { id: "new-staff",  label: "Add staff",          icon: "➕", href: "staff.html?hs_act=new",     need: [["edit", "staff"]],  kw: "crew create" },
+    { id: "invite-user", label: "Invite user",       icon: "✉", href: "control.html?cs=Invite%20by%20email%20link#users", need: [["role", "admin"]], kw: "invite teammate team member join link user login" },
+    { id: "add-user",   label: "Add user (team login)", icon: "👥", href: "control.html?cs=Add%20user#users", need: [["role", "admin"]], kw: "add user team member staff login account create" },
     { id: "new-item",   label: "Add stock item",     icon: "➕", href: "inventory.html?hs_act=new", need: [["edit", "inventory"]], kw: "inventory create" },
     { id: "new-vendor", label: "Add vendor",         icon: "➕", href: "vendors.html?hs_act=new",   need: [["edit", "vendors"]], kw: "partner supplier create" },
     { id: "go-dash",    label: "Go to dashboard",    icon: "🏠", href: "dashboard.html",            need: [],                   kw: "home" },
@@ -48,10 +50,14 @@
     { id: "go-inv",     label: "Go to inventory",    icon: "📦", href: "inventory.html",            need: [["view", "inventory"]], kw: "stock" },
     { id: "go-vendors", label: "Go to vendors",      icon: "🤝", href: "vendors.html",              need: [["view", "vendors"]], kw: "partners" },
     { id: "go-chat",    label: "Open team chat",     icon: "💬", href: "chat.html",                 need: [],                   kw: "messages" },
-    { id: "go-control", label: "Open Control Center", icon: "⚙", href: "control.html",              need: [["view", "controls"]], kw: "settings access" },
+    { id: "go-control", label: "Open Control Center", icon: "⚙", href: "control.html",              need: [["ctl"]], kw: "settings access control center" },
   ];
 
   const doc = global.document;
+  // search-catalog.js (pages, Control Center sections + settings, account items) and the smart matcher
+  // settings-search-core.js load next to this file on first open (loader constants: bumped with the files)
+  const CATALOG_V = "1", SSC_V = "1";
+  const SELF = (() => { try { return doc && doc.currentScript && doc.currentScript.src || ""; } catch (e) { return ""; } })();
   const isMac = (() => { try { return /Mac|iPhone|iPad/.test(global.navigator.platform || global.navigator.userAgent || ""); } catch (e) { return false; } })();
 
   /* ---- pure helpers (exported for tests) ------------------------------- */
@@ -224,6 +230,8 @@
           if (kind === "view") ok = await a.canView(what);
           else if (kind === "edit") ok = await a.canEditArea(what);
           else if (kind === "cap") ok = await a.can(what);
+          else if (kind === "role") ok = String((await a.role()) || "") === what;
+          else if (kind === "ctl") ok = String((await a.role()) || "") === "admin" || await a.canView("controls");
         } catch (e) { ok = false; }
         if (!ok) break;
       }
@@ -233,7 +241,43 @@
   }
 
   /* ---- palette ------------------------------------------------------------- */
-  const S = { open: false, ov: null, input: null, list: null, status: null, spin: null, opts: [], active: -1,
+  function loadScript(rel, test) {
+    return new Promise((resolve) => {
+      try {
+        if (test()) return resolve(true);
+        const s = doc.createElement("script");
+        let src = rel; try { if (SELF) src = new URL(rel, SELF).href; } catch (e) {}
+        s.src = src; s.onload = () => resolve(test()); s.onerror = () => resolve(false);
+        doc.head.appendChild(s);
+      } catch (e) { resolve(false); }
+    });
+  }
+  let localP = null;
+  // pages / sections / settings / account items this person may open (same gates as the sidebar)
+  function localEntries() {
+    if (localP) return localP;
+    localP = Promise.all([
+      loadScript("search-catalog.js?v=" + CATALOG_V, () => !!global.HelmSearchCatalog),
+      loadScript("settings-search-core.js?v=" + SSC_V, () => !!global.HelmSettingsSearch),
+    ]).then(() => {
+      const cat = global.HelmSearchCatalog, st = global.BPStore;
+      if (!cat || !st || !st.auth) return [];
+      return cat.entriesFor(st.auth, global.HELM_FEATURES || {});
+    }).then((l) => (Array.isArray(l) ? l : []), () => []).then((l) => { if (!l.length) localP = null; return l; });
+    return localP;
+  }
+  const LOCAL_ICON = { page: "📄", section: "⚙", setting: "🔧", account: "👤" };
+  const LOCAL_SUB = { page: "Page", section: "Control Center", account: "Your account" };
+  function localHits(q, list) {
+    const cat = global.HelmSearchCatalog;
+    if (!cat || !list || !list.length || cleanQuery(q).length < MIN) return [];
+    return cat.rank(q, list, global.HelmSettingsSearch, 8).map((e) => ({
+      kind: e.kind === "account" ? "account" : "nav", label: e.text, icon: LOCAL_ICON[e.kind] || "📄",
+      sub: e.kind === "setting" ? "Setting · " + e.context : LOCAL_SUB[e.kind] || "", href: e.href || "", open: e.open || null,
+    }));
+  }
+
+  const S = { open: false, local: [], ov: null, input: null, list: null, status: null, spin: null, opts: [], active: -1,
     q: "", groups: [], err: false, loading: false, ctrl: null, timer: null, seq: 0, actions: null, returnFocus: null };
 
   function build() {
@@ -244,7 +288,7 @@
     row.appendChild(searchIcon());
     const input = el("input", { class: "hss-in", id: "hssInput", type: "search", role: "combobox", "aria-expanded": "true", "aria-controls": "hssList",
       "aria-autocomplete": "list", "aria-haspopup": "listbox", autocomplete: "off", autocorrect: "off", autocapitalize: "off", spellcheck: "false",
-      maxlength: String(MAX), placeholder: "Search leads, events, staff, vendors, stock…", "aria-label": "Search your studio", enterkeyhint: "go" });
+      maxlength: String(MAX), placeholder: "Search pages, settings, leads, events, staff…", "aria-label": "Search your studio", enterkeyhint: "go" });
     const spin = el("span", { class: "hss-spin", "aria-hidden": "true" }); spin.hidden = true;
     const x = el("button", { type: "button", class: "hss-x", "aria-label": "Close search" }, "Esc");
     row.appendChild(input); row.appendChild(spin); row.appendChild(x);
@@ -278,6 +322,7 @@
     S.q = cleanQuery(S.input.value);
     S.input.focus();
     if (!S.actions) { try { S.actions = await allowedActions(); } catch (e) { S.actions = []; } }
+    localEntries().then((l) => { S.local = l; if (S.open && S.q.length >= MIN) render(); });
     if (S.q.length >= MIN) run(S.q); else render();
   }
   function close() {
@@ -349,6 +394,8 @@
       if (rec.length) out.push({ key: "recent", label: "Recent searches", clear: true,
         rows: rec.map((r) => ({ kind: "recent", label: r, sub: "", icon: "🕘", q: r })) });
     } else {
+      const loc = localHits(q, S.local);
+      if (loc.length) out.push({ key: "goto", label: "Pages & settings", rows: loc });
       S.groups.forEach((g) => out.push({ key: g.type, label: g.label,
         rows: g.items.map((it) => ({ kind: "result", label: it.title, sub: it.subtitle, icon: g.icon, href: it.href })) }));
     }
@@ -379,7 +426,7 @@
         const o = el("div", { class: "hss-opt", role: "option", id, "aria-selected": "false", "data-g": String(gi) });
         o.appendChild(el("span", { class: "hss-oi", "aria-hidden": "true" }, r.icon));
         const t = el("span", { class: "hss-ot" });
-        t.appendChild(r.kind === "result" ? hl(el("span", { class: "hss-t" }), r.label, q) : el("span", { class: "hss-t" }, r.label));
+        t.appendChild(r.kind === "result" || r.kind === "nav" || r.kind === "account" ? hl(el("span", { class: "hss-t" }), r.label, q) : el("span", { class: "hss-t" }, r.label));
         if (r.sub) t.appendChild(hl(el("span", { class: "hss-s" }), r.sub, q));
         o.appendChild(t);
         o.appendChild(el("span", { class: "hss-go", "aria-hidden": "true" }, "↵"));
@@ -401,7 +448,7 @@
       b.addEventListener("click", () => { S.err = false; run(S.q); S.input.focus(); });
       m.appendChild(b); list.insertBefore(m, list.firstChild);
       msg = "Search failed.";
-    } else if (q.length >= MIN && !S.loading && !S.groups.length) {
+    } else if (q.length >= MIN && !S.loading && !S.groups.length && !S.opts.length) {
       const m = el("div", { class: "hss-msg", role: "presentation" });
       m.appendChild(el("b", null, "No matches for “" + q + "”"));
       m.appendChild(doc.createTextNode("Try a name, event code or receipt number. Only areas you have access to are searched."));
@@ -443,7 +490,12 @@
     const o = S.opts[i]; if (!o) return;
     const r = o.row;
     if (r.kind === "recent") { S.input.value = r.q; onInput(); S.input.focus(); return; }
-    if (r.kind === "result") recentAdd(S.q);
+    if (r.kind === "result" || r.kind === "nav" || r.kind === "account") recentAdd(S.q);
+    if (r.kind === "account") {
+      close();
+      try { if (global.HelmAuthUI && global.HelmAuthUI.openAccount) global.HelmAuthUI.openAccount(r.open || {}); } catch (e) {}
+      return;
+    }
     if (!r.href) return;
     if (newTab) { try { global.open(r.href, "_blank", "noopener"); } catch (e) {} return; }
     close();
@@ -551,7 +603,7 @@
   }
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", auto); else auto(); }
 
-  const api = { open, close, boot, placeTrigger, normalize, highlight, cleanQuery, safeLink, matchAction, sections, recentRecords, recentGet, recentAdd, recentClear,
+  const api = { open, close, localEntries, localHits, boot, placeTrigger, normalize, highlight, cleanQuery, safeLink, matchAction, sections, recentRecords, recentGet, recentAdd, recentClear,
     TYPES, ACTIONS, MIN, MAX, DEBOUNCE, _css: CSS, _state: S };
   global.HelmStudioSearch = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

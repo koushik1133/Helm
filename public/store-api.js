@@ -1053,7 +1053,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
-  const STUDIO_SEARCH_VERSION = "3";
+  const STUDIO_SEARCH_VERSION = "4";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "4";
