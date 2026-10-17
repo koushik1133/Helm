@@ -368,7 +368,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=221"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=222"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=18"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -562,7 +562,7 @@
     rows+=`<div class="prow"><span>${esc(fTax().name)}${t.taxExempt?" (exempt)":t.taxInclusive?" (included)":""}</span><span class="amt">${inr(t.totalGst)}</span></div>`;
     if(fTax().country==="IN" && !t.taxExempt && t.totalGst>0) rows+=`<div class="prow posHint" style="color:var(--ink-3);font-size:11px"><span>${p.placeOfSupply==="inter"?"IGST (inter-state)":"CGST+SGST (intra-state)"}</span><span></span></div>`;
     rows+=`<div class="prow total"><span>Total</span><span class="amt">${inr(t.total)}</span></div>`;
-    rows+=`<div class="prow" style="font-style:italic;color:var(--ink-3);font-size:11px;justify-content:flex-end">${fTax().country!=="IN"?"":esc(BPStore.amountInWords(t.total))}</div>`;
+    rows+=`<div class="prow" data-money style="font-style:italic;color:var(--ink-3);font-size:11px;justify-content:flex-end">${fTax().country!=="IN"?"":esc(BPStore.amountInWords(t.total))}</div>`;
     $("#priceRows").innerHTML=rows;
     const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     $("#layoutSummary").textContent = oi.chairs+" chairs · "+(layoutItems.length)+" objects";

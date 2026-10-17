@@ -42,7 +42,8 @@
     "(?:" + CUR + "\\s?[-−]?\\s?" + NUMS + ")" +                         // ₹1,20,000 · Rs 500 · AED 1.2K
     "|(?:[-−]?\\d[\\d,]*(?:\\.\\d+)?\\s?(?:INR|AED|د\\.إ|USD|EUR|GBP)\\b)" + // 1,200 AED
     "|(?:\\b\\d{1,2}(?:,\\d{2})+,\\d{3}(?:\\.\\d+)?\\b)" +               // 1,23,456 (Indian grouping)
-    "|(?:\\b\\d+(?:\\.\\d+)?\\s?(?:L|Cr|lakh|lakhs|crore|crores)\\b)",   // 12.3 L · 1.2 Cr
+    "|(?:\\b\\d+(?:\\.\\d+)?\\s?(?:L|Cr|lakh|lakhs|crore|crores)\\b)" +  // 12.3 L · 1.2 Cr
+    "|(?:\\b(?:Rupees|Dirhams?)\\s[A-Za-z ,-]*?\\bonly\\b)",          // manager-1019: amount in words ("Rupees One Lakh ... only")
     "g");
   function hasMoney(s) { RE.lastIndex = 0; return !!s && RE.test(s); }
   var SKIP_TAG = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEXTAREA: 1, INPUT: 1, SELECT: 1, OPTION: 1, TEMPLATE: 1, CODE: 1, PRE: 1 };
@@ -58,7 +59,7 @@
   function markText(t) {
     var p = t.parentNode; if (!p || p.nodeType !== 1) return;
     if (p.classList && (p.classList.contains("hbp-w") || p.classList.contains("hbp-m"))) { if (!hasMoney(p.textContent)) p.classList.remove("hbp-m"); return; }
-    var s = t.nodeValue; if (!s || s.length > 2000 || !/\d/.test(s) || !hasMoney(s)) return;
+    var s = t.nodeValue; if (!s || s.length > 2000 || (!/\d/.test(s) && !/\bonly\b/.test(s)) || !hasMoney(s)) return;
     if (skipEl(p)) return;
     if (p.namespaceURI === "http://www.w3.org/2000/svg") {
       if (p.tagName.toLowerCase() === "title") { stashSvgTitle(p); return; }
@@ -97,7 +98,7 @@
     if (node.hasAttribute && node.hasAttribute("title")) stashTitle(node);
     var w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null), list = [], n;
     while ((n = w.nextNode())) {
-      if (n.nodeType === 3) { if (/\d/.test(n.nodeValue)) list.push(n); }
+      if (n.nodeType === 3) { if (/\d|\bonly\b/.test(n.nodeValue)) list.push(n); }
       else if (n.tagName === "INPUT") markInput(n);
       else if (n.hasAttribute("title")) stashTitle(n);
     }

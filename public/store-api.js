@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=7"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=8"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -1101,7 +1101,7 @@ window.HelmUrl = HelmUrl;
   // manager/planner/sales per their "quote_create" matrix switch (default ON). can() checks it too.
   const ROLE_CAPS = {
     admin:       ["view", "create", "edit", "delete", "manage"],
-    manager:     ["view", "create", "edit", "manage"],
+    manager:     ["view", "create", "edit"],   // manager-1019: "manage" was never checked; Control Center access comes from role_access "controls"
     planner:     ["view", "create", "edit", "delete"],
     sales:       ["view", "create", "edit"],
     coordinator: ["view", "edit"],
@@ -6647,16 +6647,17 @@ window.HelmUrl = HelmUrl;
       // retest2-1017: a PROCESSED refund is money given back, so it reduces profit (matches
       // settlement net profit, closure P&L, event_pnl and the Business page)
       const refunds = Number(s.refundedOut || 0);
-      let profit = rev - cost - s.expPaid - refunds, costOut = cost;
+      let profit = rev - cost - s.expPaid - refunds, costOut = cost, billsIncluded = false;
       // retest-1018: the server event_pnl (vendor bills + payouts) is the one profit every other page
       // shows - use it when installed so this P&L never disagrees with Settlement / Business
       try {
         const v = await vendorBills.pnl(quoteId);
         if (v && v.source === "server" && Number.isFinite(Number(v.net_profit))) {
           profit = Number(v.net_profit); costOut = Number(v.vendors || 0) + Number(v.other || 0);
+          billsIncluded = true;   // manager-1019: vendor bills are already in this profit - callers must not add the bills delta again
         }
       } catch (_) { /* fall back to the settlement maths */ }
-      return { revenue: rev, gross: s.revenue, tax, cost: costOut, expenses: s.expPaid, refunds, profit,
+      return { revenue: rev, gross: s.revenue, tax, cost: costOut, expenses: s.expPaid, refunds, profit, billsIncluded,
         marginPct: rev ? Math.round(profit / rev * 100) : null, estCost: s.estCost, actCost: s.actCost, finalCost: s.finalCost };
     },
   };
@@ -8225,7 +8226,10 @@ window.HelmUrl = HelmUrl;
     emailSettings: () => (supa ? rpc("studio_email_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
     saveEmailSettings: (fromName, replyTo) => (supa ? rpc("studio_email_settings_set", { p_from_name: fromName || null, p_reply_to: replyTo || null }) : Promise.reject(new Error("Needs a signed-in studio."))),
     // 0150 integrations-test edge function: { email:{live}, whatsapp:{live,...} } or null when it is not deployed
-    channelStatus: () => (supa && fnUrl("integrations-test") ? callFn("integrations-test", { action: "status" }).catch(() => null) : Promise.resolve(null)),
+    // manager-1019: capped at 5s - when the function is not deployed (CORS / preflight error) the page must not hang on it
+    channelStatus: () => (supa && fnUrl("integrations-test")
+      ? Promise.race([callFn("integrations-test", { action: "status" }).catch(() => null), new Promise((r) => setTimeout(() => r(null), 5000))])
+      : Promise.resolve(null)),
     // { mode: "live" | "simulated", sent, to, from?, reply_to?, reason?, error? }; throws when not deployed / refused
     sendTest: (channel) => (supa && fnUrl("integrations-test") ? callFn("integrations-test", { action: "test", channel: channel }) : Promise.reject(new Error("Needs a signed-in studio."))),
   };

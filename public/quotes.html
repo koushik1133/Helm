@@ -282,7 +282,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=221"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=222"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=14"></script>
 <script>
@@ -738,7 +738,7 @@
       taxRows+
       (t.discount?`<div class="r"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`:"")+
       `<div class="r grand"><span>Grand total</span><span class="amt">${valid?inr(t.total):"—"}</span></div>`+
-      `<div class="r" style="font-style:italic;color:var(--ink-3);font-size:12px;justify-content:flex-end"><span>${!valid||(curTax&&curTax.country!=="IN")?"":esc(BPStore.amountInWords(t.total))}</span></div>`+
+      `<div class="r" style="font-style:italic;color:var(--ink-3);font-size:12px;justify-content:flex-end"><span data-money>${!valid||(curTax&&curTax.country!=="IN")?"":esc(BPStore.amountInWords(t.total))}</span></div>`+
       (changes?`<div class="msg warn cm-total-change" role="status">Total changes from ${esc(inr(saved))} to ${esc(inr(t.total))}.</div>`:"");
   }
   async function savePricing(confirmIt){

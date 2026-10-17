@@ -239,3 +239,5 @@ forward  supabase/migrations/0149_lead_guest_count_range.sql
 forward  supabase/migrations/0150_studio_channel_settings.sql
 # 0151 (send proposal on WhatsApp + WhatsApp / e-mail approval OTP: wa_proposal_optins + wa_proposal_audit append-only tables with RLS, prepare/mark/state + OTP begin/request/verify functions, webhook status trigger; no rows changed) goes after 0042 + 0092 + 0117.
 forward  supabase/migrations/0151_wa_proposal.sql
+# 0152 (manager QA 1019: close gate also blocks a never-confirmed / unpriced quote (admin override unchanged); new BEFORE INSERT checks on event_refunds (not over what was paid, not on a closed event) and vendor_bills (not on a closed or unconfirmed event); tg_pay_needs_total ASCII message; no rows changed) goes after 0003 + 0033 + 0110 + 0124 + 0148.
+forward  supabase/migrations/0152_manager_role_fixes.sql

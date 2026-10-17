@@ -181,7 +181,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=221"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=222"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=18"></script>
@@ -292,12 +292,13 @@
       S(async()=>{ billsDelta=0; const sm=await BPStore.settlement.summary(id); billsDelta=BPStore.settlement.applyBills?await BPStore.settlement.applyBills(sm,id):0; settleSummary=sm; }),
       S(async()=>{ const st=await BPStore.quotes.staleApprovals([id]); staleInfo = st.has(id) ? ((st.detail||{})[id]||{}) : null; }),
       S(async()=>{ const [pl,c]=await Promise.all([BPStore.closure.pl(id), BPStore.closure.get(id)]);
-        closureSummary={ profit:pl.profit, rev:pl.revenue, pct:pl.marginPct, closed:!!(c&&c.closed_at) }; }),
+        closureSummary={ profit:pl.profit, rev:pl.revenue, pct:pl.marginPct, closed:!!(c&&c.closed_at), billsIncluded:!!pl.billsIncluded }; }),
       S(async()=>{ const md=await BPStore.media.list(id); mediaSummary={ photos:md.filter(m=>m.kind==='photo').length, videos:md.filter(m=>m.kind==='video').length, gallery:md.filter(m=>m.in_gallery).length, total:md.length }; }),
       S(async()=>{ conflictSummary=await BPStore.calendar.conflictsForEvent(id); }),
     ]);
     if(budgetSummary && billsDelta && BPStore.settlement.applyBillsToBudget) BPStore.settlement.applyBillsToBudget(budgetSummary,billsDelta);
-    if(closureSummary && billsDelta){ closureSummary.profit=Math.round((closureSummary.profit+billsDelta)*100)/100;
+    if(closureSummary && billsDelta && !closureSummary.billsIncluded){   // manager-1019: server P&L already counts bills
+      closureSummary.profit=Math.round((closureSummary.profit+billsDelta)*100)/100;
       closureSummary.pct=closureSummary.rev?Math.round(closureSummary.profit/closureSummary.rev*100):null; }
     render();   // re-paint with the loaded summaries
   }

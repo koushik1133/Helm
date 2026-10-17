@@ -449,7 +449,9 @@
       else if (document.readyState === "complete") setTimeout(idle, 1500); else window.addEventListener("load", function () { setTimeout(idle, 1500); }, { once: true });
     });
     setInterval(poll, 45000);
-    document.addEventListener("visibilitychange", function () { if (!document.hidden) poll(); });
+    // manager-1019: a quick hide/show (tab switch) re-polled every time - at most once per 30s now
+    var lastVis = 0;
+    document.addEventListener("visibilitychange", function () { if (!document.hidden && Date.now() - lastVis > 30000) { lastVis = Date.now(); poll(); } });
   }
 
   /* ---- mobile bottom tab bar (replaces mobile-nav.js's bar under shell B) ---- */
@@ -708,7 +710,8 @@
     }
     waitAuth(function () { setTimeout(run, 1500); });
     setInterval(run, 60000);
-    document.addEventListener("visibilitychange", function () { if (!document.hidden) run(); });
+    var lastVisRun = 0;   // manager-1019: same 30s cap for the rail counts on tab show
+    document.addEventListener("visibilitychange", function () { if (!document.hidden && Date.now() - lastVisRun > 30000) { lastVisRun = Date.now(); run(); } });
   }
 
   /* ---- favourites: "Pinned" group at the top of the rail ---- */
