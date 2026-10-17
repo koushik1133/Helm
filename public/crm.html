@@ -117,7 +117,7 @@
   // Perf (Oct 2026): the archive is server-paged newest-first without the snapshot JSON;
   // filters + search run on the server (debounced). "Latest per lead" keeps only each
   // lead's newest snapshot (checked server-side), exactly as before. recs = rows loaded so far.
-  let recs=[], filter="", fSource="", fStage="", fAll=false, pager=null, canRestore=false;
+  let recs=[], filter="", fSource="", fStage="", fAll=false, pager=null, canRestore=false, canQuotes=false;
   async function fillFilters(){
     let fx={sources:[],stages:[]}; try{ fx=await BPStore.leads.archiveFacets(); }catch(e){}
     // QA M-09: fold casing/whitespace variants (website/Website, referral/Referral) into one
@@ -152,7 +152,7 @@
       return; }
     $("#rows").innerHTML = shown.map(r=>{
       const qid = r.quote_id ? esc(r.quote_id) : "";
-      const openable = !!qid;
+      const openable = !!qid && canQuotes;   // QA1017: a role without the quotes area gets the lead link instead
       const href = openable ? "event.html?id="+encodeURIComponent(r.quote_id) : "";
       return `<tr${openable?` class="openable" data-qid="${esc(r.quote_id)}" style="cursor:pointer"`:""}>
       <td class="when">${esc(when(r.archived_at))}</td>
@@ -212,6 +212,7 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("crm"))) return;
     try{ canRestore = await BPStore.auth.canEditArea("leads"); }catch(e){ canRestore=false; }
+    try{ canQuotes = !!(await BPStore.auth.canView("quotes")); }catch(e){ canQuotes=false; }
     await Promise.all([loadRecs(), fillFilters()]);
   });
 </script>

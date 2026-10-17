@@ -681,8 +681,14 @@
     var isMoney = !authOn() || MONEY.indexOf(role) >= 0, isTask = TASK.indexOf(role) >= 0;
     var isCrew = role === "crew" || role === "worker";
     var perms = await Promise.all([canView("quotes"), canView("leads"), canEdit("leads"), canEdit("quotes"),
-      (role === "admin" || role === "manager" || !authOn()) ? canView("audit") : Promise.resolve(false)]);
+      (role === "admin" || role === "manager" || !authOn()) ? canView("audit") : Promise.resolve(false), canView("calendar")]);
     var vQuotes = perms[0] && !signedOut, vLeads = perms[1] && !signedOut, eLeads = perms[2] && !signedOut, eQuotes = perms[3], vAudit = perms[4] && !signedOut && authOn();
+    // QA1017 (sales role): no "View all" links into pages this role cannot open, and no empty
+    // "All quotes" list for a role without the quotes area (it only ever showed an empty state).
+    var vCal = perms[5] && !signedOut;
+    function dropMore(c) { var m = c && c.querySelector(".hd-more-link"); if (m) m.remove(); }
+    if (!signedOut && !vCal) { dropMore(cCal); dropMore(cUp); }
+    if (!signedOut && !vQuotes) { dropMore(cPipe); slotQuotes.classList.add("hd-off"); }
     nl.hidden = !eLeads;
     if (createBtn && !eQuotes) createBtn.hidden = true;                       // page JS also hides it for !can("create")
     if (chip) { chip.__allowed = !authOn() || role === "admin" || role === "manager"; chip.__sync(); }
@@ -903,7 +909,7 @@
         var upSeries = []; for (var wk = 0; wk < 7; wk++) { var a0 = iso(new Date(todayD.getTime() + wk * 7 * DAY)), a1 = iso(new Date(todayD.getTime() + (wk * 7 + 6) * DAY)); upSeries.push(future.filter(function (e) { return e.date >= a0 && e.date <= a1; }).length); }
         var dots7 = []; for (var dd = 0; dd < 7; dd++) { var dIso = iso(new Date(todayD.getTime() + dd * DAY)); dots7.push(future.some(function (e) { return e.date === dIso; })); }
         var nx0 = up30[0];
-        tile(tiles[0], { label: "Upcoming · 30d", tip: "Events dated in the next 30 days. Dots show the next 7 days.", ic: IC.cal, value: up30.length, sub: nx0 ? "Next: " + nx0.name + ", " + (nx0.date === today ? "today" : fmtDay(nx0.date)) : "Nothing booked yet", dots: dots7, href: "calendar.html" });
+        tile(tiles[0], { label: "Upcoming · 30d", tip: "Events dated in the next 30 days. Dots show the next 7 days.", ic: IC.cal, value: up30.length, sub: nx0 ? "Next: " + nx0.name + ", " + (nx0.date === today ? "today" : fmtDay(nx0.date)) : "Nothing booked yet", dots: dots7, href: vCal ? "calendar.html" : null });
         var pc0 = mStage("confirmed"), confN = pc0 ? pc0.n : counts && typeof counts.confirmed === "number" ? counts.confirmed : curRows.filter(function (q) { return q.status === "confirmed" && q.lifecycleStage !== "closed"; }).length;
         var confSeries = monthSeries(rows.filter(function (q) { return q.status === "confirmed"; }), function (q) { return q.confirmedAt || q.eventDate || q.updatedAt; }, function () { return 1; }, 7);
         tile(tiles[1], { label: "Confirmed events", tip: "Confirmed events not yet closed. The arrow compares confirmations this month with last month.", ic: IC.check, value: vQuotes ? confN : null, delta: vQuotes ? delta(confSeries[6], confSeries[5]) : null,

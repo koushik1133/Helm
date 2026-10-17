@@ -242,7 +242,7 @@
     {k:"won",label:"Won",c:"#18a558"},
     {k:"lost",label:"Lost",c:"#e5484d"},
   ];
-  let leads=[], canEdit=false, canCreate=false, canDelete=false, filter="", editingId=null;
+  let leads=[], canEdit=false, canCreate=false, canDelete=false, canQuotes=false, filter="", editingId=null;   // QA1017: canQuotes = may open the quote workspace
   // Perf (Oct 2026): each stage column loads its newest COL_PAGE leads (server-side search,
   // column total from the same request); "Load more" / scrolling to a column's end fetches
   // the next page. `leads` = every lead loaded so far; each remembers the stage the server
@@ -275,7 +275,7 @@
       </button>
       <div class="acts">
         <button type="button" class="ic go" data-act="client" aria-label="Open the client page for ${esc(l.name||"lead")}">Client →</button>
-        ${l.quote_id?`<button type="button" class="ic go" data-act="workspace" aria-label="Open workspace for ${esc(l.name||"lead")}">Workspace →</button>`:""}
+        ${(l.quote_id&&canQuotes)?`<button type="button" class="ic go" data-act="workspace" aria-label="Open workspace for ${esc(l.name||"lead")}">Workspace →</button>`:""}
         ${canConvert?`<button type="button" class="ic go" data-act="convert" aria-label="Convert ${esc(l.name||"lead")} to a quote">Convert →</button>`:""}
       </div>
     </div>`;
@@ -342,7 +342,11 @@
       await BPUI.guard(btn, async()=>{
         // QA1017: same GUESTS_MAX as flow - an over-cap lead must not price a quote around the flow cap
         { const cl=(typeof leads!=="undefined"&&Array.isArray(leads))?leads.find(x=>String(x.id)===String(id)):null; if(cl&&Number(cl.guest_count)>100000){ BPUI.toast("This lead has more than 100,000 guests. Edit the guest count first, then convert.",{type:"err"}); return; } }
-        try{ const q=await BPStore.leads.convert(id); location.href="flow.html?quote="+encodeURIComponent(q.id); }
+        // QA1017 (sales role): convert_lead_to_quote() accepts leads EDIT, but a role without the quotes
+        // area cannot open the new quote - stay on Leads instead of landing on "Quote not found".
+        try{ const q=await BPStore.leads.convert(id);
+          if(!canQuotes){ BPUI.toast(`${l.name||"Lead"} converted to quote ${q&&q.code?q.code:""}. A planner can take it from Quotes.`,{type:"ok",timeout:8000}); await load(); return; }
+          location.href="flow.html?quote="+encodeURIComponent(q.id); }
         catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"convert the lead"}),{type:"err"}); }
       },{busyLabel:"Converting…"});
     }
@@ -470,7 +474,7 @@
     fillDetail(l);
     $("#dt_del").hidden=!canDelete;
     $("#dt_edit").hidden=!canEdit;
-    $("#dt_edit").textContent = l.quote_id ? "Open workspace →" : "Edit";
+    $("#dt_edit").textContent = (l.quote_id&&canQuotes) ? "Open workspace →" : "Edit";
     $("#detailModal").hidden=false;
   }
   function closeDetail(){ $("#detailModal").hidden=true; detailId=null; }
@@ -488,7 +492,7 @@
     });
   });
   $("#dt_edit").addEventListener("click",()=>{ const l=leadById(editingId);
-    if(l&&l.quote_id){ location.href="event.html?id="+encodeURIComponent(l.quote_id); return; }
+    if(l&&l.quote_id&&canQuotes){ location.href="event.html?id="+encodeURIComponent(l.quote_id); return; }
     closeDetail(); openForm(l); });
   $("#dt_del").addEventListener("click",async()=>{
     const id=editingId, l=leadById(id);
@@ -696,11 +700,12 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     try{ performance.mark("leads:load-start"); }catch(_){}
     // the view gate + capability reads are independent — one parallel round (render() reads them after)
-    const [okView, e1, c1, d1]=await Promise.all([BPStore.auth.requireView("leads"), BPStore.auth.canEditArea("leads"), BPStore.auth.can("create"), BPStore.auth.can("delete")]);
+    const [okView, e1, c1, d1, q1, cc1]=await Promise.all([BPStore.auth.requireView("leads"), BPStore.auth.canEditArea("leads"), BPStore.auth.can("create"), BPStore.auth.can("delete"),
+      BPStore.auth.canView("quotes").catch(()=>false), BPStore.auth.canView("controls").catch(()=>false)]);
     if(!okView) return;
-    canEdit=e1; canCreate=c1; canDelete=d1;
+    canEdit=e1; canCreate=c1; canDelete=d1; canQuotes=!!q1;
     $("#newBtn").hidden=!canCreate;
-    if(canEdit) $("#ccLink").hidden=false;
+    if(cc1) $("#ccLink").hidden=false;   // QA1017: only roles that can open the Control Center (was: any leads editor)
     await load();
     startRealtime();
   });
