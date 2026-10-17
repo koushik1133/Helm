@@ -1115,11 +1115,13 @@ window.HelmUrl = HelmUrl;
   };
   const EDIT_ROLES = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "quality", "operations", "designer"];
   const ALL_ROLES  = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "quality", "operations", "designer", "crew", "worker", "client"];
+  // 0143: "worker" is merged into "crew" - still a valid stored value (legacy rows) but never offered
+  const PICK_ROLES = ALL_ROLES.filter((r) => r !== "worker");
   // friendly labels for the UI (keys stay stable in the DB)
   const ROLE_LABELS = {
     admin: "Admin", manager: "Event manager", planner: "Planner", sales: "Sales",
     coordinator: "Event coordinator", supervisor: "Supervisor", quality: "Quality engineer",
-    operations: "Operations", designer: "Designer", crew: "Crew", worker: "Worker", client: "Client",
+    operations: "Operations", designer: "Designer", crew: "Crew", worker: "Crew", client: "Client",
   };
   const roleLabel = (r) => ROLE_LABELS[r] || r;
 
@@ -2030,7 +2032,7 @@ window.HelmUrl = HelmUrl;
       if (mode === "supabase") authRequired = !currentUser; if (cb) cb(currentUser); }); },
     // ---- admin user management (RPC guarded by is_admin() at the DB) ----
     admin: {
-      roles: () => ALL_ROLES.slice(),
+      roles: () => PICK_ROLES.slice(),
       roleLabel,
       areas: () => AREAS.slice(),
       // the whole access matrix (admin only) → [{role,area,can_view,can_edit}]
@@ -3638,11 +3640,11 @@ window.HelmUrl = HelmUrl;
   const STAFF_ROLE_WORDS = [["admin", /\b(admin|administrator|owner|director)\b/], ["manager", /\b(event manager|manager)\b/],
     ["coordinator", /\bco-?ordinator\b/], ["planner", /\bplanner\b/], ["sales", /\bsales\b/], ["supervisor", /\bsupervisor\b/],
     ["quality", /\bquality\b|\bqa\b/], ["operations", /\boperations?\b|\bops\b/], ["designer", /\bdesigner\b/],
-    ["crew", /\bcrew\b/], ["worker", /\bworker\b/]];
+    ["crew", /\bcrew\b|\bworkers?\b/]];
   function staffMatchRole(text) {
     const t = String(text == null ? "" : text).trim().toLowerCase().replace(/\s+/g, " ");
     if (!t) return null;
-    for (const r of ALL_ROLES) if (r !== "client" && (t === r || t === roleLabel(r).toLowerCase())) return r;
+    for (const r of PICK_ROLES) if (r !== "client" && (t === r || t === roleLabel(r).toLowerCase())) return r;
     const hits = STAFF_ROLE_WORDS.filter(([, re]) => re.test(t)).map(([r]) => r);
     return hits.length === 1 ? hits[0] : null;   // ambiguous ("sales manager") → keep as custom
   }
@@ -3735,7 +3737,7 @@ window.HelmUrl = HelmUrl;
     // Roles = the studio's access-matrix roles (never "client" for staff). Stored on the staff
     // row as the friendly label ("Event manager"); free text that isn't an obvious match stays
     // as-is and is shown as "Custom: …" until an admin picks a role (zero data loss).
-    staffRoles: () => ALL_ROLES.filter((r) => r !== "client").map((r) => ({ key: r, label: roleLabel(r) })),
+    staffRoles: () => PICK_ROLES.filter((r) => r !== "client").map((r) => ({ key: r, label: roleLabel(r) })),
     matchRole: staffMatchRole,
     roleLabel,
     DEFAULT_DEPARTMENTS: ["Management", "Planning", "Sales", "Operations", "Production", "Design", "Quality", "Crew"],

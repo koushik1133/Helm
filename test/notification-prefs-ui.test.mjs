@@ -52,6 +52,7 @@ await t('bell hides chat when my prefs hide chat_message; prefs failure hides no
 const src = ctl.slice(ctl.indexOf('/* ---------------- NOTIFICATIONS (0036)'), ctl.indexOf('$("#loginForm").addEventListener'));
 assert.ok(src.length > 1000, 'matrix script not found');
 const ROLES = ['admin', 'manager', 'planner', 'sales', 'coordinator', 'supervisor', 'quality', 'operations', 'designer', 'crew', 'worker'];
+const SHOWN = ROLES.filter((r) => r !== 'worker');   // 0142: worker merged into crew, never shown
 const CAT = [
   { type: 'otp', group: 'Sales', label: 'Approval code (OTP) sent', description: 'code', channels: ['in_app', 'sms'], required: ['sms'], gated: [], money: false },
   { type: 'task_reminder', group: 'Operations', label: 'Task reminder', description: 'nudge', channels: ['in_app', 'sms'], required: [], gated: ['sms'], money: false },
@@ -97,11 +98,11 @@ async function run() {
 await t('matrix renders one column per staff role, groups, required = locked label, gated = button', async () => {
   const { dom } = await run();
   const head = dom.els.nf_head.innerHTML;
-  assert.equal((head.match(/<th scope="col"/g) || []).length, ROLES.length + 2, 'label + 11 roles + channels');
+  assert.equal((head.match(/<th scope="col"/g) || []).length, SHOWN.length + 2, 'label + 10 roles + channels');
   assert.doesNotMatch(head, /Client/);
   const rows = dom.els.nf_rows.innerHTML;
-  assert.deepEqual([...rows.matchAll(/<th colspan="13" scope="colgroup"><span>([^<]+)</g)].map((m) => m[1]), ['Sales', 'Operations', 'Finance']);
-  assert.equal((rows.match(/class="ncell/g) || []).length, CAT.length * ROLES.length);
+  assert.deepEqual([...rows.matchAll(/<th colspan="12" scope="colgroup"><span>([^<]+)</g)].map((m) => m[1]), ['Sales', 'Operations', 'Finance']);
+  assert.equal((rows.match(/class="ncell/g) || []).length, CAT.length * SHOWN.length);
   assert.match(rows, /<span class="nch req"[^>]*>SMS · required<\/span>/);
   assert.match(rows, /<span class="nch req"[^>]*>E-mail · required<\/span>/);
   assert.match(rows, /<button type="button" class="nch on" data-type="task_reminder" data-ch="sms" aria-pressed="true"/);

@@ -34,7 +34,7 @@
   function rolesTable() {
     var t = $("cm_roles"); if (!t || !S) return;
     Array.prototype.slice.call(t.querySelectorAll("thead,tbody")).forEach(function (n) { t.removeChild(n); });
-    var roles = (S.roles || []).filter(function (r) { return r !== "client"; });
+    var roles = (S.roles || []).filter(function (r) { return r !== "client" && r !== "worker"; });
     var map = (S.wa_forward_roles && typeof S.wa_forward_roles === "object") ? S.wa_forward_roles : {};
     var lbl = (global.BPStore.auth && global.BPStore.auth.admin && global.BPStore.auth.admin.roleLabel) || function (r) { return r; };
     var thead = document.createElement("thead"), hr = document.createElement("tr");
