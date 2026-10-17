@@ -116,6 +116,31 @@
   async function canEdit(a) { try { if (!authOn()) return true; var A = S().auth; return A.canEditArea ? !!(await A.canEditArea(a)) : !!(await A.can("create")); } catch (e) { return false; } }
 
   /* ---------- dates ---------- */
+  /* DP:start - KPI period filter (pure; tested in test/dashboard-period.test.mjs) */
+  var DP_OPTS = [["7d", 7, "7 days"], ["1m", 30, "1 month"], ["6m", 182, "6 months"], ["1y", 365, "1 year"]];
+  function dpDays(k) { for (var i = 0; i < DP_OPTS.length; i++) if (DP_OPTS[i][0] === k) return DP_OPTS[i][1]; return 0; }
+  function dpName(k) { return k === "1m" ? "month" : k === "1y" ? "year" : k === "6m" ? "6 months" : k === "7d" ? "7 days" : ""; }
+  function dpVs(k) { return k === "7d" ? "vs previous 7 days" : k === "1m" ? "vs previous month" : k === "6m" ? "vs previous 6 months" : "vs previous year"; }
+  /* back windows: [nowT - days, nowT) and the equal window before it; t(x) -> ms or NaN */
+  function dpBack(list, t, nowT, days) {
+    var W = days * 864e5, cur = 0, prev = 0, hit = [];
+    (list || []).forEach(function (x) { var v = t(x); if (!isFinite(v)) return; var a = nowT - v; if (a >= 0 && a < W) { cur++; hit.push(x); } else if (a >= W && a < 2 * W) prev++; });
+    return { cur: cur, prev: prev, items: hit };
+  }
+  /* forward window: ISO dates in [today, today+days) vs the same length just before today */
+  function dpFwd(list, dateOf, todayMs, days) {
+    var cur = 0, prev = 0, hit = [];
+    (list || []).forEach(function (x) { var d = dateOf(x); if (!d) return; var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d)); if (!m) return;
+      var off = Math.round((new Date(+m[1], +m[2] - 1, +m[3]).getTime() - todayMs) / 864e5);
+      if (off >= 0 && off < days) { cur++; hit.push(x); } else if (off < 0 && off >= -days) prev++; });
+    return { cur: cur, prev: prev, items: hit };
+  }
+  function dpLoad(uid, defs) {
+    var o = {}; try { var r = JSON.parse(localStorage.getItem("helm.dash.kpiPeriod." + uid) || "null"); if (r && typeof r === "object") o = r; } catch (e) {}
+    var out = {}; Object.keys(defs).forEach(function (k) { out[k] = dpDays(o[k]) ? o[k] : defs[k]; }); return out;
+  }
+  function dpSave(uid, sel) { try { localStorage.setItem("helm.dash.kpiPeriod." + uid, JSON.stringify(sel)); } catch (e) {} }
+  /* DP:end */
   function iso(d) { var m = d.getMonth() + 1, x = d.getDate(); return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (x < 10 ? "0" : "") + x; }
   function dOf(s) { var d = new Date(String(s || "").slice(0, 10) + "T00:00:00"); return isNaN(d) ? null : d; }
   /* whole calendar days from `now`'s day to date string ds (shared by the countdown + "In N days") */
@@ -986,31 +1011,60 @@
       if (!prevV) { var n0 = el("span", "hd-delta hd-delta-na hd-delta-new", curV ? "new" : "no data " + vsTxt.replace(/^vs /, "")); n0.title = "Nothing to compare with " + vsTxt.replace(/^vs /, ""); return n0; }
       var p = Math.round(((curV - prevV) / Math.abs(prevV)) * 100), up = p >= 0;
       var good = goodUp === false ? !up : up;
-      var d = el("span", "hd-delta " + (p === 0 ? "hd-delta-na" : good ? "hd-delta-up" : "hd-delta-dn"), (up ? "▲ " : "▼ ") + Math.abs(p) + "% " + vsTxt);
+      if (p === 0) { var z = el("span", "hd-delta hd-delta-na hd-delta-same", "– no change " + vsTxt); z.title = "Same as " + vsTxt.replace(/^vs /, ""); return z; }
+      var d = el("span", "hd-delta " + (good ? "hd-delta-up" : "hd-delta-dn"), (up ? "▲ " : "▼ ") + Math.abs(p) + "% " + vsTxt);
       d.title = (up ? "Up " : "Down ") + Math.abs(p) + "% " + vsTxt; return d;
     }
     if (!kpis.hidden) {
       if (isMoney) {
-        // client-safe: counts only (money is on the Business page)
-        var up30 = future.filter(function (e) { return e.date <= in30; });
-        var upSeries = []; for (var wk = 0; wk < 7; wk++) { var a0 = iso(new Date(todayD.getTime() + wk * 7 * DAY)), a1 = iso(new Date(todayD.getTime() + (wk * 7 + 6) * DAY)); upSeries.push(future.filter(function (e) { return e.date >= a0 && e.date <= a1; }).length); }
+        // client-safe: counts only (money is on the Business page). Each tile has its own period (7d/1m/6m/1y),
+        // remembered per user on this device; changing one re-renders just that tile.
+        var dpUid = (user && (user.id || user.email)) || "local";
+        var dpSel = dpLoad(dpUid, { up: "1m", conf: "1m", quotes: "1m", leads: "7d" });
+        var tsOf = function (v) { if (!v) return NaN; var t = new Date(v).getTime(); return isFinite(t) ? t : NaN; };
+        var nowT = Date.now();
+        var dpTile = function (t, key, fwd, render) {
+          var draw = function () {
+            render(dpSel[key]);
+            var top = t.querySelector(".hd-kpi-top"); if (!top) return;
+            var sel = el("select", "hd-kpi-per"); sel.setAttribute("aria-label", "Period for " + (t.querySelector(".hd-kpi-l") || {}).textContent);
+            DP_OPTS.forEach(function (o) { var op = el("option", null, (fwd ? "Next " : "Last ") + o[2]); op.value = o[0]; if (o[0] === dpSel[key]) op.selected = true; sel.appendChild(op); });
+            sel.addEventListener("change", function () { if (!dpDays(sel.value)) return; dpSel[key] = sel.value; dpSave(dpUid, dpSel); draw(); var n = t.querySelector(".hd-kpi-per"); if (n) n.focus(); });
+            var ic = top.querySelector(".hd-kpi-ic"); top.insertBefore(sel, ic || null);
+          };
+          draw();
+        };
         var dots7 = []; for (var dd = 0; dd < 7; dd++) { var dIso = iso(new Date(todayD.getTime() + dd * DAY)); dots7.push(future.some(function (e) { return e.date === dIso; })); }
-        var nx0 = up30[0];
-        tile(tiles[0], { label: "Upcoming · 30d", tip: "Events dated in the next 30 days. Dots show the next 7 days.", ic: IC.cal, value: up30.length, sub: nx0 ? "Next: " + nx0.name + ", " + (nx0.date === today ? "today" : fmtDay(nx0.date)) : "Nothing booked yet", dots: dots7, href: vCal ? "calendar.html" : null });
+        dpTile(tiles[0], "up", true, function (k) {
+          var w = dpFwd(events, function (e) { return e.date; }, todayD.getTime(), dpDays(k)), nx0 = w.items[0];
+          tile(tiles[0], { label: "Upcoming", tip: "Events dated in the chosen period from today, compared with the same length of time just before today. Dots show the next 7 days.", ic: IC.cal, value: w.cur,
+            delta: delta(w.cur, w.prev, true, dpVs(k)), sub: nx0 ? "Next: " + nx0.name + ", " + (nx0.date === today ? "today" : fmtDay(nx0.date)) : "Nothing booked in the next " + dpName(k), dots: dots7, href: vCal ? "calendar.html" : null });
+        });
         var pc0 = mStage("confirmed"), confN = pc0 ? pc0.n : counts && typeof counts.confirmed === "number" ? counts.confirmed : curRows.filter(function (q) { return q.status === "confirmed" && q.lifecycleStage !== "closed"; }).length;
-        var confSeries = monthSeries(rows.filter(function (q) { return q.status === "confirmed"; }), function (q) { return q.confirmedAt || q.eventDate || q.updatedAt; }, function () { return 1; }, 7);
-        tile(tiles[1], { label: "Confirmed events", tip: "Confirmed events not yet closed. The arrow compares confirmations this month with last month.", ic: IC.check, value: vQuotes ? confN : null, delta: vQuotes ? delta(confSeries[6], confSeries[5], true, "vs last month") : null,
-          sub: vQuotes ? confSeries[6] + " confirmed this month" : "No access to quotes", spark: vQuotes ? confSeries : null, href: vQuotes ? "quotes.html" : null });
+        var confRows = rows.filter(function (q) { return q.status === "confirmed"; });
+        if (vQuotes) dpTile(tiles[1], "conf", false, function (k) {
+          var w = dpBack(confRows, function (q) { return tsOf(q.confirmedAt || q.eventDate || q.updatedAt); }, nowT, dpDays(k));
+          tile(tiles[1], { label: "Confirmed events", tip: "Confirmed events not yet closed. The arrow compares confirmations in the chosen period with the period before it.", ic: IC.check, value: confN,
+            delta: delta(w.cur, w.prev, true, dpVs(k)), sub: w.cur + " confirmed in the last " + dpName(k), href: "quotes.html" });
+        });
+        else tile(tiles[1], { label: "Confirmed events", ic: IC.check, value: null, sub: "No access to quotes" });
         var mo = mStage("open"), ms = mStage("sent");
         var openN = mo && ms ? mo.n + ms.n : counts && typeof counts.quote === "number" ? counts.quote : rows.filter(function (q) { return q.status === "quote"; }).length;
         var waitN = rows.filter(function (q) { return q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed"); }).length;
-        tile(tiles[2], { label: "Open quotes", tip: "Quotes still in progress, including ones sent to clients.", ic: IC.doc, value: vQuotes ? openN : null, sub: vQuotes ? (waitN ? waitN + " sent, waiting for client reply" : "None waiting on a client") : "No access to quotes", subKind: waitN ? "wait" : null,
-          spark: vQuotes ? monthSeries(rows, function (q) { return q.createdAt; }, function () { return 1; }, 7) : null, href: vQuotes ? "quotes.html" : null });
+        if (vQuotes) dpTile(tiles[2], "quotes", false, function (k) {
+          var w = dpBack(rows, function (q) { return tsOf(q.createdAt); }, nowT, dpDays(k));
+          tile(tiles[2], { label: "Open quotes", tip: "Quotes still in progress, including ones sent to clients. The arrow compares quotes created in the chosen period with the period before it.", ic: IC.doc, value: openN,
+            delta: delta(w.cur, w.prev, true, dpVs(k)), sub: w.cur + " new in the last " + dpName(k) + " · " + (waitN ? waitN + " sent, waiting for client reply" : "None waiting on a client"), subKind: waitN ? "wait" : null, href: "quotes.html" });
+        });
+        else tile(tiles[2], { label: "Open quotes", ic: IC.doc, value: null, sub: "No access to quotes" });
         if (vLeads) {
-          var nowT = Date.now(), l7 = 0, lp7 = 0;
-          leads.forEach(function (l) { var t = l.created_at ? new Date(l.created_at).getTime() : NaN; if (!isFinite(t)) return; var a = nowT - t; if (a >= 0 && a < 7 * DAY) l7++; else if (a >= 7 * DAY && a < 14 * DAY) lp7++; });
-          tile(tiles[3], { label: "New leads · last 7 days", tip: "Enquiries received in the last 7 days, how many of them became quotes, and how many nobody has contacted for over a day.", ic: IC.user, value: l7, delta: delta(l7, lp7, true, "vs previous 7 days"), sub: (function () { var conv7 = leads.filter(function (l) { var t = l.created_at ? new Date(l.created_at).getTime() : NaN; return isFinite(t) && nowT - t >= 0 && nowT - t < 7 * DAY && (l.quote_id || ["won", "converted"].indexOf(String(l.status || "")) >= 0); }).length; return conv7 + " of " + l7 + " became quotes" + (staleLeads.length ? " · " + staleLeads.length + " not contacted yet" : ""); })(),
-            subKind: staleLeads.length ? "wait" : null, href: "leads.html" });
+          dpTile(tiles[3], "leads", false, function (k) {
+            var w = dpBack(leads, function (l) { return tsOf(l.created_at); }, nowT, dpDays(k));
+            var conv = w.items.filter(function (l) { return l.quote_id || ["won", "converted"].indexOf(String(l.status || "")) >= 0; }).length;
+            tile(tiles[3], { label: "New leads", tip: "Enquiries received in the chosen period, how many of them became quotes, and how many nobody has contacted for over a day.", ic: IC.user, value: w.cur,
+              delta: delta(w.cur, w.prev, true, dpVs(k)), sub: conv + " of " + w.cur + " became quotes" + (staleLeads.length ? " · " + staleLeads.length + " not contacted yet" : ""),
+              subKind: staleLeads.length ? "wait" : null, href: "leads.html" });
+          });
         } else {
           tile(tiles[3], { label: "Tasks overdue", tip: "Your tasks past their due date.", ic: IC.task, value: tasks ? (tc.overdue || 0) : null, sub: tasks ? (tc.today || 0) + " due today" : "Tasks unavailable", subKind: tc.overdue ? "bad" : null, href: "#mytasksSection" });
         }
