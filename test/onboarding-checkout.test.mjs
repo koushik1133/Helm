@@ -249,7 +249,19 @@ t('payLive needs config.js liveChannels.pay AND HQ online_payments_live; bypass 
   assert.equal(on.S.checkout.payLive({ online_payments_live: false }), false);
   assert.equal(on.S.checkout.payLive({ online_payments_live: true }), true);
   assert.equal(on.S.checkout.bypassEnabled(), true);
-  assert.match(read('public/config.js'), /onboarding:\s*\{\s*allowPaymentBypass:\s*true\s*\}/);
+  // Launch pin: bypass is host-based - OFF on helm.events / www.helm.events, ON elsewhere.
+  {
+    const src = read('public/config.js');
+    const m = src.match(/onboarding:\s*\{\s*allowPaymentBypass:\s*(.+?)\s*\},\n/);
+    assert.ok(m, 'onboarding.allowPaymentBypass present');
+    const bypassFor = (h) => new Function('location', 'return (' + m[1] + ');')({ hostname: h });
+    assert.equal(bypassFor('helm.events'), false);
+    assert.equal(bypassFor('www.helm.events'), false);
+    assert.equal(bypassFor('WWW.Helm.Events'), false);
+    assert.equal(bypassFor('helm-v01.vercel.app'), true);
+    assert.equal(bypassFor('localhost'), true);
+    assert.equal(bypassFor('evilhelm.events'), true);
+  }
 });
 t('trial: payment_pending / bypass sources only; marks the gate done', async () => {
   const e = makeEnv({ path: '/login', gated: false, rpc: { my_start_trial: { data: { result: 'started' }, error: null } } });
