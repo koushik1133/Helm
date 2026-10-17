@@ -105,7 +105,7 @@
   <header>
     <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Operations</h1><small>Helm Events</small></div>
-    <nav class="nav"><a href="dashboard.html">Home</a><a href="quotes.html">Quotes</a><a href="builder.html">Builder</a><a href="control.html">Control Center</a></nav>
+    <nav class="nav"><a href="dashboard.html">Home</a><a href="quotes.html">Quotes</a><a href="/builder">Builder</a><a href="control.html">Control Center</a></nav>
     <span class="spacer"></span>
     <span id="bell"></span>
     <span id="account" class="account" hidden></span>
@@ -243,6 +243,8 @@
     await BPStore.init(); quoteId=await HelmUrl.get("quote", quoteId); await renderAccount(); try{await BPStore.bell.mount(document.querySelector("#bell"));}catch{}
     if(!quoteId){ $("#noquote").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
+    // 0143 role audit: tasks (event_tasks) are RLS-gated on the staff area
+    if(!(await BPStore.auth.requireView("staff"))) return;
     const canEdit=await BPStore.auth.canEditArea("staff");
     canVerify=['admin','manager','planner','quality'].includes(await BPStore.auth.role());
     canEditOps=await BPStore.auth.canEditArea("staff");

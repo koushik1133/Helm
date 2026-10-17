@@ -130,8 +130,8 @@
       <div class="table-scroll"><table><thead><tr><th scope="col">Who</th><th scope="col">For</th><th scope="col" class="num">Amount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="expBody"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
       <div class="addgrid" id="expAdd" hidden>
-        <div class="fld"><label for="e_who">Who</label><input id="e_who" placeholder="name"></div>
-        <div class="fld"><label for="e_desc">For</label><input id="e_desc" placeholder="e.g. Fuel, materials"></div>
+        <div class="fld"><label for="e_who">Who</label><input id="e_who" placeholder="name" maxlength="120"></div>
+        <div class="fld"><label for="e_desc">For</label><input id="e_desc" placeholder="e.g. Fuel, materials" maxlength="500"></div>
         <div class="fld"><label for="e_amt">Amount ₹</label><input id="e_amt" type="number" min="0" value="0"></div>
         <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="e_add">＋ Add</button></div>
       </div>
@@ -145,7 +145,7 @@
         <tbody id="refBody"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
       <div class="addgrid" id="refAdd" hidden>
         <div class="fld"><label for="r_kind">Type</label><select class="s-23199e2" id="r_kind"><option value="refund">Refund to client</option><option value="recovery">Recover from client</option><option value="deduction">Deduction from deposit</option></select></div>
-        <div class="fld"><label for="r_reason">Reason</label><input id="r_reason" placeholder="e.g. Damaged linens"></div>
+        <div class="fld"><label for="r_reason">Reason</label><input id="r_reason" placeholder="e.g. Damaged linens" maxlength="500"></div>
         <div class="fld"><label for="r_amt">Amount ₹</label><input id="r_amt" type="number" min="0" value="0"></div>
         <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Add</button></div>
       </div>
@@ -385,7 +385,7 @@
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
-    if(!(await BPStore.auth.requireView("finance"))) return;
+    if(!(await BPStore.auth.requireView("settlement"))) return;
     canEdit=await BPStore.auth.canEditArea("settlement"); canDelete=await BPStore.auth.can("delete");
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     try{ evTax=BPStore.quoteTax(ev); }catch(_){ evTax=null; }

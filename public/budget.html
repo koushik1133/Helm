@@ -108,7 +108,7 @@
         <tbody id="costRows"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
       </table></div>
       <div class="addgrid" id="addCost" hidden>
-        <div class="fld"><label for="c_desc">Description</label><input id="c_desc" placeholder="e.g. Décor materials"></div>
+        <div class="fld"><label for="c_desc">Description</label><input id="c_desc" placeholder="e.g. Décor materials" maxlength="200"></div>
         <div class="fld"><label for="c_kind">Type</label><select id="c_kind"><option value="internal">Internal</option><option value="vendor">Vendor</option><option value="other">Other</option></select></div>
         <div class="fld"><label for="c_est">Estimated ₹</label><input id="c_est" type="number" min="0" value="0"></div>
         <div class="fld"><label for="c_act">Actual ₹</label><input id="c_act" type="number" min="0" placeholder="—"></div>
@@ -218,7 +218,8 @@
   }
 
   async function addCost(){
-    const desc=$("#c_desc").value.trim(); if(!desc){ $("#c_desc").focus(); return; }
+    $("#c_desc").removeAttribute("aria-invalid");
+    const desc=$("#c_desc").value.trim(); if(!desc){ $("#c_desc").setAttribute("aria-invalid","true"); $("#c_desc").focus(); BPUI.toast("Add a description for the cost line.",{type:"err"}); return; }
     const V=BPStore.validate; const fail=(m)=>{ BPUI.toast(m,{type:"err"}); };
     let estimated=0; if($("#c_est").value!==""){ const r=V.money($("#c_est").value,{field:"Estimated cost"}); if(!r.ok){ fail(r.error); return; } estimated=r.value; }
     let actual=null; if($("#c_act").value!==""){ const r=V.money($("#c_act").value,{field:"Actual cost"}); if(!r.ok){ fail(r.error); return; } actual=r.value; }

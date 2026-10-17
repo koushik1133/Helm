@@ -131,7 +131,7 @@
   <header>
     <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Quotes &amp; Confirmations</h1><small>Helm Events</small></div>
-    <nav class="nav"><a href="dashboard.html">Home</a><a href="chat.html">Chat</a><a href="builder.html">Builder</a><a href="control.html">Control Center</a></nav>
+    <nav class="nav"><a href="dashboard.html">Home</a><a href="chat.html">Chat</a><a href="/builder">Builder</a><a href="control.html">Control Center</a></nav>
     <span class="spacer"></span>
     <span id="bell"></span>
     <span id="account" class="account" hidden></span>
@@ -438,11 +438,13 @@
     // perf (Oct 2026): the account chip and the bell are independent of the list — never block the rows on them
     renderAccount().catch(()=>{}); try{ Promise.resolve(BPStore.bell.mount(document.querySelector("#bell"))).catch(()=>{}); }catch{}
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
+    // 0143 role audit: the list is RLS-gated on quotes VIEW - without it the page was an empty list
+    if(!(await BPStore.auth.requireView("quotes"))) return;
     // studio tax (money format in the rows) runs in parallel with the list; the org (supplier block) is only needed by modals
     const taxP=Promise.resolve().then(()=>BPStore.config.getPricing()).then(c=>{ studioCfg=c||{}; studioTax=curTax=BPStore.tax.resolve(studioCfg); paintTaxCopy(studioTax); }).catch(()=>{});
     Promise.resolve().then(()=>BPStore.org.current()).then(o=>{ studioOrg=o||null; const bl=o&&o.brand&&o.brand.billing; studioState=(bl&&typeof bl.state==="string")?bl.state:""; }).catch(()=>{});
     // independent capability reads — in parallel (render() reads them)
-    [canEdit, canDelete, canCreate, canMarkPaid] = await Promise.all([BPStore.auth.canEditArea("quotes"), BPStore.auth.can("delete"), BPStore.auth.can("create"),
+    [canEdit, canDelete, canCreate, canMarkPaid] = await Promise.all([BPStore.auth.canEditArea("quotes"), BPStore.auth.can("delete"), BPStore.auth.canEditArea("quotes"),
       // mark_paid is admin/manager only server-side (SEC-05 F11); offline mode has no roles — server: mark_paid needs has_area(finance,edit)
       BPStore.auth.enabled() ? BPStore.auth.canEditArea("finance") : true]);
     $("#newBtn").hidden = !canCreate;

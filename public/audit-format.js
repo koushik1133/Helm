@@ -46,6 +46,13 @@
       case 'current_version': return 'Saved version '+trunc(n,10);
       case 'event_date': return n ? (o?'Event date changed from '+fmtDate(o)+' to '+fmtDate(n):'Event date set to '+fmtDate(n)) : 'Event date cleared';
       case 'event_type': return 'Event type: '+trunc(n,60);
+      // secrets: never show a share/approval token in the log, only that it changed
+      case 'approval_token': case 'share_token': case 'token': case 'portal_token':
+        return n ? (o ? 'Approval link renewed' : 'Approval link created') : 'Approval link removed';
+      case 'tax_snapshot': { const a=obj(o), b=obj(n);
+        const r=x=>x&&x.rate!=null?x.rate+'%':null;
+        if(b&&r(b)) return a&&r(a)&&r(a)!==r(b) ? 'Tax rate '+r(a)+' → '+r(b) : 'Tax rate locked at '+r(b);
+        return 'Tax details updated'; }
       default: return humanize(k)+': '+trunc(o)+' → '+trunc(n);
     }
   }

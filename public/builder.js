@@ -3923,6 +3923,12 @@ async function saveLayout(silent, opts){
       const fromNo = currentVersionNo, fromOlder = isViewingOlder();
       const label = (opts && opts.label) || (fromOlder ? 'Based on V'+fromNo : null);
       if(currentQuoteGuard.closed){ if(!silent) await BPUI.alert('This event is closed, so its layout can’t be changed.',{title:'Event closed'}); return false; }
+      if(currentQuoteGuard.sent && !currentQuoteGuard.approved && !_staleAck){
+        if(silent) return false;
+        const go = await BPUI.confirm('This quote was sent to the client for approval. Saving a new layout re-prices it, so send the client the updated quote afterwards. Save anyway?',{title:'Quote already sent',okLabel:'Save and re-price'});
+        if(!go) return false;
+        _staleAck=true;
+      }
       if(currentQuoteGuard.approved && !_staleAck){
         if(silent) return false;
         const go = await BPUI.confirm('This quote is already confirmed/approved. Saving a new layout re-prices it, so the client’s approval will go stale and they will need to approve again (payments pause until then). Save anyway?',{title:'Client approval will go stale',okLabel:'Save and re-price'});
@@ -4610,7 +4616,7 @@ async function init(){
       currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{}; currentPricing=q.pricing||{};
       if(currentPricing.priceDisplay && typeof currentPricing.priceDisplay==='object') store.priceDisplay=priceDisp(currentPricing.priceDisplay);
       { const bb=$('#backToFlowBtn'); if(bb && params.get('from')==='flow') bb.hidden=false; }
-      currentQuoteGuard = { approved: q.status==='confirmed' || (q.approvalStatus && q.approvalStatus!=='none'), closed: q.lifecycleStage==='closed', frozen: q.lifecycleStage==='closed' || q.status==='cancelled' || !!q.archivedAt || !!q.deletedAt };
+      currentQuoteGuard = { approved: q.status==='confirmed' || q.approvalStatus==='approved' || q.approvalStatus==='paid', sent: q.approvalStatus==='sent', closed: q.lifecycleStage==='closed', frozen: q.lifecycleStage==='closed' || q.status==='cancelled' || !!q.archivedAt || !!q.deletedAt };
       const pn=$('#projName'); if(pn) pn.value=quoteDisplayName(q);
       currentQuoteRow=q; renderNameHint();
       try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[q.code,q.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' '),kind:'builder',href:'builder.html?quote='+encodeURIComponent(q.id),recordHref:'event.html?id='+encodeURIComponent(q.id)}); }catch(e){}
