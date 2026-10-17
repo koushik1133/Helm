@@ -102,7 +102,8 @@ do $$ declare r jsonb; e text; begin
   perform public.hq_upsert_plan('pro', 'Pro', 2999, 'INR', true);
   perform public.hq_upsert_plan('pro', 'Pro plan', 2999, 'INR', true);      -- upsert by code
   r := public.hq_plans();
-  perform pg_temp.res('06 plans upsert by code + list', jsonb_array_length(r) = 2
+  -- 0159 may add a 'studio' plan on a database that had none: count only the plans made here
+  perform pg_temp.res('06 plans upsert by code + list', (select count(*) from jsonb_array_elements(r) x where x->>'code' in ('starter', 'pro')) = 2
     and exists (select 1 from jsonb_array_elements(r) x where x->>'code' = 'pro' and x->>'name' = 'Pro plan'), r::text);
   r := public.hq_set_subscription('a0000000-0000-4000-8000-000000000001', 'pro', 'active', null, current_date - 10, current_date + 20, 'note');
   perform pg_temp.res('07 set subscription (A: pro, active)', r->>'status' = 'active', r::text);

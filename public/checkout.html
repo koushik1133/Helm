@@ -118,6 +118,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="/public-pages-v2.css?v=4">
+<link rel="stylesheet" href="/checkout-v2.css?v=1">
 <script src="/marketing-theme.js?v=3"></script>
 </head>
 <body>
@@ -133,7 +134,7 @@
   <main id="main">
     <div class="head">
       <h1 id="coTitle" tabindex="-1">Choose your Helm plan</h1>
-      <p>Pick the plan that fits your studio. You'll see exactly what you pay — tax included — before anything is charged. You can change plans later.</p>
+      <p id="coLead">Pick the plan that fits your studio. You'll see exactly what you pay — tax included — before anything is charged. You can change plans later.</p>
     </div>
     <div class="alert err" id="coErr" role="alert" hidden></div>
     <form id="coForm" novalidate>
@@ -183,6 +184,18 @@
           <div id="coSummary" aria-live="polite"><div class="skel"></div></div>
           <div class="alert info" id="coUpgrade" role="status" hidden></div>
           <div class="alert info" id="coDormant" role="status" hidden>Online payment is being enabled — your studio starts on a free trial. We'll remind you before it ends.</div>
+          <div class="setup" id="coSetup" role="status" hidden>
+            <span class="setup-ic" aria-hidden="true"></span>
+            <h3 class="setup-h">Payments are being set up</h3>
+            <p class="setup-p">Online payment for Helm isn't switched on yet. Contact us and we'll activate your plan for you — nothing is charged on this page.</p>
+            <a class="ghost setup-mail" id="coContact" href="mailto:sales@helm.events?subject=Activate%20my%20Helm%20plan">Contact us · sales@helm.events</a>
+            <div id="coSwitchWrap" hidden>
+              <p class="setup-or"><span>or</span></p>
+              <button type="button" class="btn alt" id="coSwitch">Start 8-day free trial instead</button>
+              <p class="setup-note">Use every feature free for 8 days with your own data, then pick a plan.</p>
+              <p class="setup-msg" id="coSwitchMsg" role="alert" aria-live="polite"></p>
+            </div>
+          </div>
           <button type="submit" class="btn" id="coPay" disabled>Continue</button>
           <p class="secure" id="coSecure"><span aria-hidden="true">🔒</span><span>Payments are processed securely by Razorpay. Helm never sees or stores your card details.</span></p>
         </aside>
@@ -210,7 +223,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=229"></script>
-<script src="checkout.js?v=3"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=230"></script>
+<script src="checkout.js?v=4"></script>
 </body>
 </html>

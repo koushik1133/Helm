@@ -1,0 +1,137 @@
+/* checkout-v2.css - LOOK ONLY polish of /checkout (0159): a calm, iPad-like plan sheet.
+   System font, frosted header, soft rounded cards, iOS segmented control, pill buttons,
+   emerald accent from public-pages-v2.css (html[data-pt="emerald"]). Light only.
+   Loaded after public-pages-v2.css, so these rules win over the page's inline <style>. */
+html[data-pt] {
+  --co-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Plus Jakarta Sans", "Helvetica Neue", system-ui, sans-serif;
+  --co-radius: 22px;
+  --co-soft: 0 1px 1px rgba(16, 24, 20, .03), 0 8px 30px -12px rgba(16, 24, 20, .14);
+  --co-lift: 0 2px 4px rgba(16, 24, 20, .04), 0 18px 44px -18px rgba(4, 120, 87, .35);
+  --co-fill: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+html[data-pt] body {
+  font-family: var(--co-font);
+  letter-spacing: -.01em;
+  background:
+    radial-gradient(900px 480px at 85% -10%, color-mix(in srgb, var(--accent) 9%, transparent) 0%, transparent 62%),
+    radial-gradient(700px 420px at -10% 110%, color-mix(in srgb, var(--accent) 6%, transparent) 0%, transparent 60%),
+    var(--bg);
+}
+
+/* ---- header: frosted bar ---- */
+html[data-pt] .top {
+  position: sticky; top: 0; z-index: 5; max-width: none; margin: 0; padding: 14px max(16px, calc((100% - 1120px) / 2 + 16px));
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+html[data-pt] .mark { border-radius: 10px; }
+html[data-pt] .brand { font-weight: 650; letter-spacing: -.02em; }
+html[data-pt] .steps .dot { border-color: var(--line); }
+html[data-pt] .steps .now .dot { background: var(--accent); }
+html[data-pt] .steps .done .dot { background: var(--accent-soft); color: var(--acc-text); }
+
+/* ---- heading ---- */
+html[data-pt] main { padding-top: 34px; }
+html[data-pt] .head { text-align: center; margin: 0 auto 26px; max-width: 720px; }
+html[data-pt] .head h1 { font-size: clamp(28px, 4.2vw, 40px); font-weight: 700; letter-spacing: -.035em; line-height: 1.08; margin-bottom: 10px; }
+html[data-pt] .head p { margin: 0 auto; font-size: 16px; line-height: 1.5; color: var(--ink-3); }
+
+/* ---- cards ---- */
+html[data-pt] .card {
+  border-radius: var(--co-radius); border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  box-shadow: var(--co-soft); padding: 26px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+}
+@media (max-width: 560px) { html[data-pt] .card { padding: 20px 16px; border-radius: 18px; } }
+html[data-pt] .card h2 { font-size: 19px; font-weight: 650; letter-spacing: -.02em; }
+html[data-pt] .card .hint { color: var(--ink-3); }
+
+/* ---- iOS segmented control ---- */
+html[data-pt] .seg { background: var(--co-fill); border: 0; border-radius: 11px; padding: 3px; }
+html[data-pt] .seg label { min-height: 34px; border-radius: 9px; font-weight: 600; font-size: 14px; color: var(--ink-2); transition: background .2s, box-shadow .2s, color .2s; }
+html[data-pt] .seg label.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 3px 8px rgba(0, 0, 0, .06); }
+html[data-pt] .save { background: var(--accent-soft); color: var(--acc-text); }
+
+/* ---- plan cards ---- */
+html[data-pt] .plans { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+html[data-pt] .plan {
+  border: 1.5px solid var(--line); border-radius: 18px; padding: 20px 20px 18px; background: var(--panel);
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+html[data-pt] .plan:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); transform: translateY(-1px); }
+html[data-pt] .plan.on { border-color: var(--accent); box-shadow: var(--co-lift), 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+html[data-pt] .plan.off:hover { transform: none; }
+html[data-pt] .plan .pn { font-size: 17px; font-weight: 650; letter-spacing: -.02em; }
+html[data-pt] .plan .badge {
+  font-size: 11px; font-weight: 650; letter-spacing: 0; color: var(--acc-text); background: var(--accent-soft);
+  padding: 3px 9px; border-radius: 999px;
+}
+html[data-pt] .plan .tick { border-color: var(--line-strong); transition: border-width .15s, border-color .15s; }
+html[data-pt] .plan.on .tick { border-color: var(--accent); }
+html[data-pt] .plan .pp { font-size: 32px; font-weight: 700; letter-spacing: -.04em; margin-top: 2px; }
+html[data-pt] .plan .pp small { font-size: 14px; font-weight: 500; letter-spacing: -.01em; }
+html[data-pt] .plan h3 { color: var(--ink-3); font-weight: 600; letter-spacing: .06em; }
+html[data-pt] .plan li { color: var(--ink-2); }
+html[data-pt] .plan li::before { border-color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { html[data-pt] .plan, html[data-pt] .plan:hover { transition: none; transform: none; } }
+
+/* ---- fields ---- */
+html[data-pt] .fld label { font-weight: 600; color: var(--ink-2); font-size: 13px; }
+html[data-pt] .fld input, html[data-pt] .fld select, html[data-pt] .fld textarea {
+  border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); min-height: 46px; font-family: var(--co-font);
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+html[data-pt] .fld input:focus, html[data-pt] .fld select:focus, html[data-pt] .fld textarea:focus { background: var(--panel); }
+html[data-pt] .terms { border-radius: 14px; background: var(--panel-2); border-color: var(--line); }
+html[data-pt] .terms input { accent-color: var(--accent); }
+html[data-pt] .terms a, html[data-pt] .linkbtn { color: var(--acc-text); }
+
+/* ---- summary + buttons ---- */
+html[data-pt] .sum { top: 86px; }
+html[data-pt] .row.tot b { font-size: 26px; letter-spacing: -.03em; }
+html[data-pt] .btn {
+  border-radius: 999px; min-height: 50px; background: var(--accent); background-image: none; color: var(--acc-ink);
+  font-family: var(--co-font); font-weight: 650; letter-spacing: -.01em; box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--accent) 70%, transparent);
+  transition: background .15s, transform .1s, box-shadow .15s;
+}
+html[data-pt] .btn:hover:not(:disabled) { background: var(--accent-2); }
+html[data-pt] .btn:active:not(:disabled) { transform: scale(.985); }
+html[data-pt] .btn:disabled { opacity: 1; background: var(--co-fill); color: var(--ink-3); box-shadow: none; cursor: not-allowed; }
+html[data-pt] .btn[aria-busy="true"] { background: var(--accent); color: var(--acc-ink); cursor: progress; }
+html[data-pt] .ghost {
+  display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-family: var(--co-font); font-weight: 600;
+}
+html[data-pt] .ghost:hover { background: var(--panel-2); }
+html[data-pt] .alert { border-radius: 14px; }
+html[data-pt] .test { border-radius: 18px; }
+
+/* ---- "Payments are being set up" ---- */
+html[data-pt] .setup {
+  margin-top: 16px; padding: 20px 18px 18px; border-radius: 18px; text-align: center;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, color-mix(in srgb, var(--accent-soft) 30%, var(--panel)) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+}
+html[data-pt] .setup-ic {
+  display: inline-block; width: 44px; height: 44px; border-radius: 14px; background: var(--accent); position: relative;
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+html[data-pt] .setup-ic::before {   /* a small clock: ring + hands */
+  content: ""; position: absolute; inset: 11px; border: 2px solid #fff; border-radius: 50%;
+}
+html[data-pt] .setup-ic::after {
+  content: ""; position: absolute; left: 21px; top: 15px; width: 7px; height: 8px;
+  border-left: 2px solid #fff; border-bottom: 2px solid #fff;
+}
+html[data-pt] .setup-h { margin: 12px 0 6px; font-size: 17px; font-weight: 650; letter-spacing: -.02em; color: var(--ink); }
+html[data-pt] .setup-p { margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+html[data-pt] .setup-mail { width: 100%; min-height: 44px; font-size: 14px; }
+html[data-pt] .setup-or { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; font-size: 12px; color: var(--ink-3); }
+html[data-pt] .setup-or::before, html[data-pt] .setup-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+html[data-pt] .btn.alt { margin-top: 12px; }
+html[data-pt] .setup-note { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-3); line-height: 1.45; }
+html[data-pt] .setup-msg { margin: 8px 0 0; font-size: 13px; color: var(--bad); }
+html[data-pt] .setup-msg:empty { display: none; }
+
+html[data-pt] .foot { color: var(--ink-3); }

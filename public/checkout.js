@@ -15,7 +15,16 @@
     ["SA", "Saudi Arabia"], ["SG", "Singapore"], ["LK", "Sri Lanka"], ["US", "United States"], ["ZA", "South Africa"]];
   var FIELDS = { legal_business_name: "f_legal", gstin: "f_gstin", billing_address: "f_addr", city: "f_city", state: "f_state", country: "f_country" };
   var ERRS = { legal_business_name: "e_legal", gstin: "e_gstin", billing_address: "e_addr", city: "e_city", state: "e_state", country: "e_country" };
-  var st = { upgrade: false, opts: null, plan: null, interval: "monthly", preview: null, seq: 0, busy: false, live: false, next: "dashboard.html", touched: {} };
+  var st = { upgrade: false, opts: null, plan: null, interval: "monthly", preview: null, seq: 0, busy: false, live: false, next: "dashboard.html", touched: {},
+    pending: false, catalog: false };
+  /* 0159: shown only when the server has no plan yet (display only - never payable; the server
+     list replaces it as soon as HQ / 0159 adds plans). Same plans as the public pricing page. */
+  var CATALOG = [
+    { code: "starter", name: "Starter", description: "Solo planners and decorators", monthly: 1999, yearly: 19990,
+      features: ["Up to 3 team members", "Leads, clients and follow-ups (CRM)", "2D layout builder and 3D view", "Quotes with tax and client approval links", "Tasks and event calendar"] },
+    { code: "studio", name: "Studio", description: "Growing event companies", monthly: 4999, yearly: 49990,
+      features: ["Everything in Starter", "Up to 15 team members", "Roles and access matrix", "Inventory, stock check-out and shortages", "Client portal, booklet and invitation site"] }
+  ];
 
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = String(text); return n; }
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
@@ -29,8 +38,14 @@
     b.textContent = msg || ""; b.hidden = !msg;
     if (msg) try { b.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (e) {}
   }
-  function plansList() { return (st.opts && Array.isArray(st.opts.plans)) ? st.opts.plans : []; }
+  function plansList() {
+    var l = (st.opts && Array.isArray(st.opts.plans)) ? st.opts.plans : [];
+    return l.length ? l : (st.catalog ? CATALOG : l);
+  }
+  function curOf() { return st.catalog ? "INR" : (st.opts && st.opts.currency) || "INR"; }
   function planBy(code) { return plansList().filter(function (p) { return p.code === code; })[0] || null; }
+  // the middle-of-range plan gets the "Most studios" badge (only when there are 2+ plans)
+  function recommended() { var l = plansList(); return l.length > 1 ? l[Math.min(1, l.length - 1)].code : ""; }
 
   /* ---------------- plans ---------------- */
   function renderPlans() {
@@ -47,15 +62,18 @@
       var inp = el("input"); inp.type = "radio"; inp.name = "plan"; inp.value = p.code; inp.checked = st.plan === p.code; inp.disabled = off;
       inp.setAttribute("aria-describedby", "pd_" + p.code.replace(/[^a-z0-9_-]/g, ""));
       inp.addEventListener("change", function () { if (inp.checked) { st.plan = p.code; renderPlans(); refreshPreview(); } });
+      if (p.code === recommended()) lab.classList.add("rec");
       lab.appendChild(inp);
-      var pn = el("div", "pn"); pn.appendChild(el("span", null, p.name)); pn.appendChild(el("span", "tick")); lab.appendChild(pn);
+      var pn = el("div", "pn"); pn.appendChild(el("span", null, p.name));
+      if (p.code === recommended()) pn.appendChild(el("span", "badge", "Most studios"));
+      pn.appendChild(el("span", "tick")); lab.appendChild(pn);
       var pd = el("div", "pd", p.description || ""); pd.id = "pd_" + p.code.replace(/[^a-z0-9_-]/g, ""); lab.appendChild(pd);
       var pp = el("div", "pp");
       if (off) { pp.textContent = "—"; pp.appendChild(el("small", null, "monthly only")); }
-      else { pp.textContent = money(price, st.opts.currency); pp.appendChild(el("small", null, st.interval === "yearly" ? "/year" : "/month")); }
+      else { pp.textContent = money(price, curOf()); pp.appendChild(el("small", null, st.interval === "yearly" ? "/year" : "/month")); }
       lab.appendChild(pp);
       lab.appendChild(el("div", "px", off ? "Yearly billing isn't offered for this plan" :
-        st.interval === "yearly" ? "≈ " + money(Number(price) / 12, st.opts.currency) + " a month, plus tax" : "plus applicable tax"));
+        st.interval === "yearly" ? "≈ " + money(Number(price) / 12, curOf()) + " a month, plus tax" : "plus applicable tax"));
       var feats = Array.isArray(p.features) ? p.features : [];
       if (feats.length) {
         lab.appendChild(el("h3", null, "What's included"));
@@ -81,6 +99,15 @@
   function renderSummary() {
     var box = $("#coSummary"); clear(box);
     var q = st.preview;
+    if (!q && st.catalog) {
+      var cp = planBy(st.plan);
+      if (cp) {
+        box.appendChild(row("Plan", cp.name + " · " + (st.interval === "yearly" ? "Yearly" : "Monthly")));
+        box.appendChild(row("Price before tax", money(st.interval === "yearly" ? cp.yearly : cp.monthly, "INR"), "tot"));
+        box.appendChild(el("p", "note", "Proposed price. Tax is worked out from your billing country and state and shown before you pay."));
+      }
+      updateButton(); return;
+    }
     if (!q) { box.appendChild(el("div", "skel")); return; }
     var cur = q.currency;
     box.appendChild(row("Plan", q.plan_name + " · " + (q.interval === "yearly" ? "Yearly" : "Monthly")));
@@ -101,6 +128,7 @@
   var pvTimer = null;
   function refreshPreview() {
     if (!st.plan) return;
+    if (st.catalog) { renderSummary(); return; }   // display-only plans: nothing to price on the server
     st.preview = null; renderSummary(); updateButton();
     clearTimeout(pvTimer);
     pvTimer = setTimeout(function () {
@@ -154,6 +182,7 @@
   function updateButton() {
     var b = $("#coPay");
     if (st.busy) return;
+    if (st.catalog || (st.pending && !st.live)) { b.disabled = true; b.textContent = "Online payment coming soon"; return; }
     b.disabled = !st.preview || (st.upgrade && !st.live);
     b.textContent = !st.preview ? "Continue" : st.upgrade && !st.live ? "Online payment coming soon" : st.live ? "Pay " + money(st.preview.total, st.preview.currency) + " securely" : "Start 8-day free trial";
   }
@@ -190,7 +219,7 @@
 
   async function submit(ev) {
     if (ev) ev.preventDefault();
-    if (st.busy || !st.preview) return;
+    if (st.busy || !st.preview || st.catalog || (st.pending && !st.live)) return;
     showErr("");
     if (!validateAll()) { showErr("Please fix the highlighted fields."); return; }
     setBusy(true, st.live ? "Processing payment…" : "Starting your trial…");
@@ -235,6 +264,25 @@
     keep.addEventListener("click", function () { pick("keep"); });
     return true;
   }
+  /* 0159: "Payments are being set up" - a directly created studio switches to the normal free
+     trial (own data). Server-side: only while online payment is off; nothing is charged. */
+  async function switchToTrial() {
+    if (st.busy) return;
+    showErr("");
+    var b = $("#coSwitch"), m = $("#coSwitchMsg");
+    st.busy = true; b.disabled = true; b.setAttribute("aria-busy", "true");
+    clear(b); b.appendChild(el("span", "spin")); b.appendChild(el("span", null, "Starting your trial…"));
+    try {
+      await S.checkout.switchToTrial();
+      m.textContent = "";
+      finish("Your " + trialDays() + "-day free trial has started. Taking you to your studio…");
+    } catch (e) {
+      st.busy = false; b.disabled = false; b.removeAttribute("aria-busy");
+      b.textContent = "Start " + trialDays() + "-day free trial instead";
+      m.textContent = S.checkout.classify(e).message;
+    }
+  }
+  function trialDays() { var d = st.opts && Number(st.opts.trial_days); return d > 0 && d < 61 ? d : 8; }
   async function skip() {
     if (st.busy) return;
     showErr("");
@@ -271,6 +319,7 @@
     $("#f_state").addEventListener("change", onLocationChange);
     $("#coTerms").addEventListener("change", function () { termsOk(true); });
     $("#coSkip").addEventListener("click", skip);
+    $("#coSwitch").addEventListener("click", switchToTrial);
     $("#coSignOut").addEventListener("click", async function () { try { await S.auth.signOut(); } catch (e) {} location.replace("login.html"); });
   }
 
@@ -287,7 +336,9 @@
       st.opts = both[0] || {}; acct = both[1] || {};
     } catch (e) { showErr(S.checkout.classify(e).message); $("#coPlans").textContent = ""; return; }
     st.opts.prefill = { email: u.email || "", contact: acct.primary_contact_phone || "" };
-    $("#coCur").textContent = st.opts.currency || "INR";
+    st.pending = st.opts.pending_payment === true;
+    st.catalog = !(Array.isArray(st.opts.plans) && st.opts.plans.length);
+    $("#coCur").textContent = curOf();
     // prefill billing details from the studio account (trimmed server values)
     $("#f_legal").value = acct.legal_business_name || "";
     $("#f_gstin").value = acct.gstin || "";
@@ -296,8 +347,19 @@
     $("#f_state").value = acct.state || "";
     fillCountries($("#f_country"), acct.country || "IN");
     st.live = S.checkout.payLive(st.opts);
-    $("#coDormant").hidden = st.live;
+    $("#coDormant").hidden = st.live || st.pending;
     $("#coSecure").hidden = !st.live;
+    if (st.pending) {
+      // 0159: a studio created directly (not a trial) opens after its plan is paid
+      $("#coTitle").textContent = "Choose a plan to open your studio";
+      $("#coLead").textContent = "Your studio is ready. Pick the plan that fits, add your billing details and complete payment to start using Helm. You'll see exactly what you pay, tax included, before anything is charged.";
+    }
+    var setupOn = (st.pending && !st.live) || st.catalog;
+    $("#coSetup").hidden = !setupOn;
+    $("#coPay").hidden = setupOn;            // nothing to pay here yet: the panel says what to do instead
+    $("#coSwitchWrap").hidden = !(st.pending && !st.live);
+    $("#coSwitch").textContent = "Start " + trialDays() + "-day free trial instead";
+    if (setupOn) $("#coDormant").hidden = true;
     // 0058: a studio already on (or just past) its free trial is upgrading — pay only, no new trial
     st.upgrade = st.opts.status === "trial" || st.opts.status === "past_due";
     $("#coTest").hidden = st.upgrade || !(S.checkout.bypassEnabled() && st.opts.bypass_allowed === true);
@@ -310,6 +372,7 @@
     }
     var list = plansList();
     st.plan = list.length ? list[Math.min(1, list.length - 1)].code : null;   // middle-of-range default
+    if (st.catalog && !st.upgrade) $("#coTest").hidden = true;
     renderPlans();
     if (st.plan) refreshPreview(); else renderSummary();
     try { $("#coTitle").focus({ preventScroll: true }); } catch (e) {}
