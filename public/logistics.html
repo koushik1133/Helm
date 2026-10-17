@@ -118,7 +118,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=211"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -296,7 +296,7 @@
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
-    if(!(await BPStore.auth.requireView("ops"))) return;
+    if(!(await BPStore.auth.requireView("logistics"))) return;
     canEdit=await BPStore.auth.canEditArea("logistics"); canDelete=await BPStore.auth.can("delete");
     try{ PEOPLE_OPTS=await BPStore.people.options(); }catch{ PEOPLE_OPTS=[]; }
     // Payments are finance-only — hide that tab (and fall back off it) for roles without finance access

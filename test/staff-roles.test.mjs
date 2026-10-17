@@ -12,7 +12,7 @@ const labels = api.match(/const ROLE_LABELS = (\{[\s\S]*?\});/)[1];
 const words = api.match(/const STAFF_ROLE_WORDS = (\[[\s\S]*?\]\]);/)[1];
 const fnSrc = api.match(/function staffMatchRole\(text\) \{[\s\S]*?\n  \}/)[0];
 const mergeSrc = api.match(/function staffMergeDepts\(list, defaults\) \{[\s\S]*?\n  \}/)[0];
-const lib = new Function(`const ALL_ROLES=${roles}; const ROLE_LABELS=${labels}; const roleLabel=(r)=>ROLE_LABELS[r]||r; const STAFF_ROLE_WORDS=${words}; ${fnSrc}; ${mergeSrc}; return {staffMatchRole, staffMergeDepts};`)();
+const lib = new Function(`const ALL_ROLES=${roles}; const PICK_ROLES=ALL_ROLES.filter((r)=>r!=="worker"); const ROLE_LABELS=${labels}; const roleLabel=(r)=>ROLE_LABELS[r]||r; const STAFF_ROLE_WORDS=${words}; ${fnSrc}; ${mergeSrc}; return {staffMatchRole, staffMergeDepts};`)();
 
 t('role select replaces free text; department select with inline "Add new department"', () => {
   assert.match(html, /<select id="s_role">/); assert.match(html, /<select id="s_dept">/);
@@ -31,7 +31,7 @@ t('department list: studio list + used, deduped case-insensitively, defaults onl
   assert.deepEqual(lib.staffMergeDepts([], ['B', 'A']), ['A', 'B']);
 });
 t('roles come from the access-matrix roles (no Client for staff)', () => {
-  assert.match(api, /staffRoles: \(\) => ALL_ROLES\.filter\(\(r\) => r !== "client"\)/);
+  assert.match(api, /staffRoles: \(\) => PICK_ROLES\.filter\(\(r\) => r !== "client"\)/);
 });
 t('invite to log in: admin only, needs e-mail + a defined role, uses invitations.create, never sends', () => {
   assert.match(html, /isAdminUser&&!linked&&s\.email&&s\.active!==false\?`<button class="ic" data-act="invite"/);

@@ -729,7 +729,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=211"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -738,7 +738,7 @@
 <script src="tour.js?v=14"></script>
 <script src="pkg-review.js?v=4"></script>
 <script src="onboarding-core.js?v=5"></script>
-<script src="comms-settings.js?v=2"></script>
+<script src="comms-settings.js?v=3"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venues-admin.js?v=4"></script>
@@ -1436,7 +1436,7 @@
   // → { head, body, shown, total } (pure: everything it shows goes through esc())
   function ucTable(list, o){
     const meId=o.meId, roles=o.roles||[], rl=o.roleLabel||((r)=>r);
-    const roleSel=(u,self)=>`<select class="roleSel" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${roles.map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
+    const roleSel=(u,self)=>`<select class="roleSel" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${(u.role&&!roles.includes(u.role)?roles.concat([u.role]):roles).map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
     const rm=(u,self)=>self?"":`<button type="button" class="rm" title="Remove user" aria-label="Remove user ${esc(u.email||u.full_name||"")}">🗑</button>`;
     if(!o.profiles){
       const head=`<tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr>`;
@@ -1778,8 +1778,7 @@
   // clicks the button (owner decision D2: no automatic grants); every chip stays editable.
   var ROLE_SUGGEST = {
     designer: [["design",true],["layouts",true],["proposal",true],["quotes",false],["calendar",false],["templates",false],["media",true]],
-    crew:     [["runsheet",false],["briefing",false],["calendar",false]],
-    worker:   [["runsheet",false],["briefing",false]]
+    crew:     [["runsheet",false],["calendar",false]]
   };
   async function applySuggested(role, btn){
     const list=(ROLE_SUGGEST[role]||[]).filter(([a])=>AREAS.some(x=>x.key===a));
@@ -1842,7 +1841,7 @@
   function renderNotify(){
     if(npErr||!NP){ $("#nf_table").hidden=true; if(npErr) BPUI.loadError($("#nf_err"), npErr, reloadNotify, {what:"notification settings"}); return; }
     $("#nf_err").innerHTML=""; $("#nf_table").hidden=false;
-    const roles=NP.roles||[], cat=NP.catalog||[], cols=roles.length+2;
+    const roles=(NP.roles||[]).filter(r=>r!=="worker"), cat=NP.catalog||[], cols=roles.length+2;
     const gsel=$("#nf_grp"); if(gsel.options.length<2){ const gs=[]; cat.forEach(c=>{ if(!gs.includes(c.group)) gs.push(c.group); }); gsel.innerHTML='<option value="">All groups</option>'+gs.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join(""); }
     $("#nf_head").innerHTML=`<tr><th scope="col" class="nlbl">Notification</th>${roles.map(r=>`<th scope="col">${esc(roleLbl(r))}</th>`).join("")}<th scope="col" class="nchs">Texts &amp; e-mails</th></tr>`;
     let html="", last=null;
