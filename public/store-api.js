@@ -3375,6 +3375,31 @@ window.HelmUrl = HelmUrl;
       pushArchiveLs("created", row);
       return { result: "restored", lead_id: rec.lead_id };
     },
+    // Archived leads view: "deleted" archive rows of THIS studio that were not restored yet,
+    // newest first, one row per lead (no snapshot JSON). Needs migration 0139 (restored_at).
+    async archivedList() {
+      if (mode === "supabase") {
+        const org = await orgIdStrict(); if (!org) return [];
+        const rows = await sbAll(() => supa.from("lead_archive")
+          .select("id,lead_id,name,phone,email,source,event_type,event_date,status,archived_at")
+          .eq("org_id", org).eq("action", "deleted").is("restored_at", null)
+          .order("archived_at", { ascending: false }).order("id", { ascending: false }));
+        const seen = {}; return (rows || []).filter((r) => r.lead_id && !seen[r.lead_id] && (seen[r.lead_id] = true));
+      }
+      let a = []; try { a = JSON.parse(localStorage.getItem(ARCH_LS) || "[]"); } catch {}
+      const live = new Set(readLeadsLs().map((x) => x.id)); const seen = {};
+      return a.filter((x) => x.action === "deleted" && !x.restored_at && x.lead_id && !live.has(x.lead_id))
+        .sort((x, y) => String(y.archived_at || "").localeCompare(String(x.archived_at || "")))
+        .filter((x) => !seen[x.lead_id] && (seen[x.lead_id] = true))
+        .map((x) => { const c = Object.assign({}, x); delete c.snapshot; return c; });
+    },
+    // Archive a lead: same data path as before (lead row removed, the "deleted" archive row kept),
+    // then returns that archive row's id so the caller can offer Undo via restoreArchived().
+    async archiveLead(id) {
+      await leads.remove(id);
+      try { const r = (await leads.archivedList()).find((x) => x.lead_id === id); return r ? r.id : null; }
+      catch (e) { return null; }
+    },
     // values for the CRM filter dropdowns (two short columns, capped)
     async archiveFacets() {
       let rows;
