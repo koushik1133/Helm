@@ -100,6 +100,10 @@
   .firstrun{background:var(--panel);border:1px dashed var(--line);border-radius:14px;padding:28px 20px;text-align:center;margin:0 0 16px}
   .firstrun h3{margin:0 0 6px;font-size:16px} .firstrun p{margin:0 0 14px;color:var(--ink-3);font-size:13px}
   .firstrun .btn{margin:0 auto}
+  .archived{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:0 0 16px}
+  .archived h3{margin:0 0 4px;font-size:15px} .archived .sub{margin:0 0 12px;color:var(--ink-3);font-size:13px}
+  .archived ul{list-style:none;margin:0;padding:0} .archived li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+  .archived li .nm{font-weight:600} .archived li .meta{color:var(--ink-3);font-size:12px} .archived li .btn{margin-left:auto}
   .pill{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:20px;padding:2px 9px;background:var(--accent-soft);color:var(--accent)}
 </style>
 <link rel="stylesheet" href="leads-polish.css?v=3">
@@ -132,9 +136,17 @@
     <span class="spacer"></span>
     <button id="undoBtn" type="button" class="btn icon" title="Undo (⌘/Ctrl+Z)" aria-label="Undo last stage move" disabled>↶ Undo</button>
     <button id="redoBtn" type="button" class="btn icon" title="Redo (⌘/Ctrl+Shift+Z)" aria-label="Redo stage move" disabled>Redo ↷</button>
+    <button id="archBtn" type="button" class="btn" aria-pressed="false" aria-controls="archivedView">Archived</button>
     <button id="newBtn" type="button" class="btn primary" hidden>＋ New lead</button>
   </div>
-  <div class="hintbar">Drag a card between columns to change its stage (on touch, press and hold a card first) · open a card to view, edit, change its stage or delete.</div>
+  <div class="hintbar">Drag a card between columns to change its stage (on touch, press and hold a card first) · open a card to view, edit, change its stage or archive it.</div>
+
+  <section id="archivedView" class="archived" hidden aria-labelledby="archTitle">
+    <h3 id="archTitle">Archived leads</h3>
+    <p class="sub">Leads you archived. Restore one to put it back on the board with its saved details.</p>
+    <p class="sub" id="archEmpty" hidden>No archived leads.</p>
+    <ul id="archList"></ul>
+  </section>
 
   <div id="firstRun" class="firstrun" hidden>
     <h3>No leads yet</h3>
@@ -145,7 +157,7 @@
   <div id="boot" aria-busy="true"></div>
   <div id="board" class="board" role="region" aria-label="Lead pipeline" tabindex="0" aria-busy="true"><span class="sr-only">Loading leads…</span><div class="col l-skel" aria-hidden="true"><h3><i></i></h3><b></b><b></b><b></b></div><div class="col l-skel" aria-hidden="true"><h3><i></i></h3><b></b><b></b><b></b></div><div class="col l-skel" aria-hidden="true"><h3><i></i></h3><b></b><b></b><b></b></div><div class="col l-skel" aria-hidden="true"><h3><i></i></h3><b></b><b></b><b></b></div><div class="col l-skel" aria-hidden="true"><h3><i></i></h3><b></b><b></b><b></b></div><div class="col l-skel" aria-hidden="true"><h3><i></i></h3><b></b><b></b><b></b></div></div>
   </main>
-  <footer>Helm Events — every lead is snapshotted to the CRM archive on create, edit, convert &amp; delete.</footer>
+  <footer>Helm Events — every lead is snapshotted to the CRM archive on create, edit, convert &amp; archive.</footer>
 </div>
 
 <!-- detail view -->
@@ -159,7 +171,7 @@
     </div>
     <dl class="dl" id="dt_body"></dl>
     <div class="foot">
-      <button type="button" class="btn danger left" id="dt_del">Delete</button>
+      <button type="button" class="btn danger left" id="dt_del">Archive</button>
       <button type="button" class="btn" id="dt_close2">Close</button>
       <button type="button" class="btn primary" id="dt_edit">Edit</button>
     </div>
@@ -216,7 +228,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=211"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=212"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -478,12 +490,53 @@
     closeDetail(); openForm(l); });
   $("#dt_del").addEventListener("click",async()=>{
     const id=editingId, l=leadById(id);
-    if(!(await BPUI.confirm(`Delete ${l&&l.name?"“"+l.name+"”":"this lead"}? It stays in the CRM archive.`,{title:"Delete lead?",danger:true}))) return;
+    if(!(await BPUI.confirm("Archive this lead? You can restore it from Archived anytime.",{title:"Archive lead?",okLabel:"Archive"}))) return;
     await BPUI.guard($("#dt_del"), async()=>{
       lastLocalWrite=Date.now();
-      try{ await BPStore.leads.remove(id); closeDetail(); try{ if(window.HelmTrail&&HelmTrail.clearCurrent) HelmTrail.clearCurrent({forget:true}); }catch(_){} BPUI.toast("Lead deleted.",{type:"ok"}); await load(); }
-      catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"delete the lead"}),{type:"err"}); }
+      try{
+        const arcId=await BPStore.leads.archiveLead(id); closeDetail();
+        try{ if(window.HelmTrail&&HelmTrail.clearCurrent) HelmTrail.clearCurrent({forget:true}); }catch(_){}
+        const nm=l&&l.name?"“"+l.name+"”":"Lead";
+        BPUI.toast(`${nm} archived.`,{type:"ok",timeout:8000,action:(arcId&&canEdit)?{label:"Undo",onClick:()=>restoreLead(arcId)}:undefined});
+        await load(); if(!$("#archivedView").hidden) loadArchived();
+      }
+      catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"archive the lead"}),{type:"err"}); }
     });
+  });
+
+  /* ---------- archived view (CRM archive "deleted" rows not yet restored, own studio) ---------- */
+  async function restoreLead(arcId, btn){
+    if(btn) btn.disabled=true;
+    lastLocalWrite=Date.now();
+    try{ await BPStore.leads.restoreArchived(arcId); BPUI.toast("Lead restored.",{type:"ok"}); await load(); if(!$("#archivedView").hidden) await loadArchived(); }
+    catch(err){ if(btn) btn.disabled=false; BPUI.toast(BPUI.friendlyError(err,{action:"restore the lead"}),{type:"err"}); }
+  }
+  async function loadArchived(){
+    const ul=$("#archList"); let rows=[];
+    try{ rows=await BPStore.leads.archivedList(); }
+    catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"load archived leads"}),{type:"err"}); }
+    ul.replaceChildren();
+    $("#archEmpty").hidden=rows.length>0;
+    rows.forEach(r=>{
+      const li=document.createElement("li");
+      const txt=document.createElement("div");
+      const nm=document.createElement("div"); nm.className="nm"; nm.textContent=r.name||"Unnamed lead";
+      const meta=document.createElement("div"); meta.className="meta";
+      meta.textContent=[r.event_type,r.phone,r.archived_at?("Archived "+new Date(r.archived_at).toLocaleDateString()):""].filter(Boolean).join(" · ");
+      txt.append(nm,meta); li.appendChild(txt);
+      if(canEdit){
+        const b=document.createElement("button"); b.type="button"; b.className="btn"; b.textContent="Restore";
+        b.setAttribute("aria-label","Restore "+(r.name||"lead"));
+        b.addEventListener("click",()=>restoreLead(r.id,b));
+        li.appendChild(b);
+      }
+      ul.appendChild(li);
+    });
+  }
+  $("#archBtn").addEventListener("click",()=>{
+    const v=$("#archivedView"), open=v.hidden;
+    v.hidden=!open; $("#archBtn").setAttribute("aria-pressed",open?"true":"false");
+    if(open) loadArchived();
   });
 
   /* ---------- new / edit form ---------- */
