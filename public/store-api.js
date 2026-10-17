@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=14"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=15"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -1053,7 +1053,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
-  const STUDIO_SEARCH_VERSION = "3";
+  const STUDIO_SEARCH_VERSION = "4";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "4";
@@ -2462,7 +2462,14 @@ window.HelmUrl = HelmUrl;
       // without one it means the write didn't land (lost access / row gone / RLS).
       if (!data || data.length === 0) {
         if (expectedUpdatedAt) {
-          const e = new Error("This event was changed by someone else since you opened it. Reload to get the latest, then reapply your change."); e.code = "CONFLICT"; throw e;
+          // money-1024: 0 rows is ALSO what a refused write looks like (RLS / no edit right / locked
+          // event) - only call it a conflict when the row really moved on since we read it.
+          let cur = null;
+          try { const r = await supa.from("quotes").select("updated_at").eq("id", quoteId).maybeSingle(); cur = r && !r.error && r.data ? r.data.updated_at : null; } catch (_) { cur = null; }
+          if (cur && !sameStamp(cur, expectedUpdatedAt)) {
+            const e = new Error("This event was changed by someone else since you opened it. Reload to get the latest, then reapply your change."); e.code = "CONFLICT"; throw e;
+          }
+          const e = new Error("Couldn't save — you may not have permission to change this event, or it is locked. Nothing was changed."); e.code = "NOT_SAVED"; throw e;
         }
         const e = new Error("Couldn't save — the change didn't reach the server. Reload the page and try again."); e.code = "NOT_SAVED"; throw e;
       }
@@ -2472,6 +2479,8 @@ window.HelmUrl = HelmUrl;
     // server refuses a hard delete of a quote that is not on that shelf
     async remove(quoteId) { await rpc("move_quote_to_shelf", { p_quote_id: quoteId, p_shelf: "delete" }); return true; },
   };
+  // money-1024: compare two timestamptz strings by instant (formats can differ: "+00:00" vs "Z", precision)
+  function sameStamp(a, b) { if (a === b) return true; const x = Date.parse(a), y = Date.parse(b); return Number.isFinite(x) && x === y; }
   // localStorage fallback tier
   const LSQ = "bps.quotes";
   const lsq = {
@@ -2855,6 +2864,8 @@ window.HelmUrl = HelmUrl;
     crew: {
       eventBrief: (quoteId) => rpc("crew_event_brief", { p_quote: quoteId }),
       respond: (taskId, action) => rpc("crew_task_respond", { p_task: taskId, p_action: action }),
+      // crew schedule calendar (0161): schedule fields only; own rows for crew, any org crew for staff/calendar viewers
+      schedule: (from, to, staffId) => (supa ? rpc("crew_schedule", { p_from: from, p_to: to, p_staff: staffId || null }).then((r) => r || []) : Promise.resolve([])),
     },
     // ---- worker (no login; token-scoped) ----
     worker: {
@@ -6096,6 +6107,19 @@ window.HelmUrl = HelmUrl;
     async listChanges(quoteId) {
       if (mode === "supabase") { const { data, error } = await supa.from("change_requests").select("*").eq("quote_id", quoteId).order("created_at"); if (error) throw error; return data; }
       return readLs(CHG_LS).filter((c) => c.quote_id === quoteId);
+    },
+    // money-1024: { quoteId: sum of APPROVED change-order price deltas } for many events in one
+    // read - lets list views show the same invoice total as the workspace / settlement (summary()).
+    async approvedChangeTotals(quoteIds) {
+      const ids = Array.from(new Set((quoteIds || []).filter(Boolean).map(String))).slice(0, 500);
+      const out = {}; if (!ids.length) return out;
+      let rows;
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("change_requests").select("quote_id,price_delta").in("quote_id", ids).eq("status", "approved");
+        if (error) throw error; rows = data || [];
+      } else rows = readLs(CHG_LS).filter((c) => c.status === "approved" && ids.indexOf(String(c.quote_id)) >= 0);
+      rows.forEach((c) => { const d = Number(c.price_delta || 0); if (Number.isFinite(d) && d) out[c.quote_id] = (out[c.quote_id] || 0) + d; });
+      return out;
     },
     async addChange(quoteId, c) {
       if (mode === "supabase") { const { data, error } = await supa.from("change_requests").insert({ quote_id: quoteId, ...c }).select().single(); if (error) throw error; return data; }

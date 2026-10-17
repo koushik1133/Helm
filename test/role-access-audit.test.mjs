@@ -40,7 +40,18 @@ test("event workspace hides each tool card the role cannot view", () => {
 
 test("quotes page: New button follows quotes EDIT + can(create) (server create_quote needs both, 0147)", () => {
   const q = read("public/quotes.html");
-  assert.match(q, /BPStore\.auth\.can\("delete"\),\n\s+\/\/ create needs can_create\(\)[^\n]*\n\s+Promise\.all\(\[BPStore\.auth\.can\("create"\), BPStore\.auth\.canEditArea\("quotes"\)\]\)/);
+  assert.match(q, /Promise\.all\(\[BPStore\.auth\.can\("delete"\), BPStore\.auth\.canEditArea\("quotes"\)\]\)\.then\(\(\[d,e\]\)=>!!\(d&&e\)\),\n\s+\/\/ create needs can_create\(\)[^\n]*\n\s+Promise\.all\(\[BPStore\.auth\.can\("create"\), BPStore\.auth\.canEditArea\("quotes"\)\]\)/);
+});
+
+// planner-1023: the delete ✕ also needs quotes EDIT (move_quote_to_shelf denies a view-only role); the ops
+// buttons the server refuses without staff edit are hidden; flow save/approval disabled without quotes edit
+test("planner-1023: role gates match the server", () => {
+  const ops = read("public/ops.html"), flow = read("public/flow.html"), shell = read("public/shell-b.js"), iss = read("public/issues.html");
+  assert.match(ops, /\["remindDue","fireDue"\]\.forEach\(id=>\{const e=\$\("#"\+id\); if\(e\)e\.hidden=true;\}\)/);
+  assert.match(ops, /\$\{canEditOps&&\['rejected','assigned'\]\.includes\(t\.status\)/);
+  assert.match(flow, /if\(!canEdit\) \["#q_save","#sendApproval"\]\.forEach/);
+  assert.match(shell, /while \(ref && ref\.parentNode !== admin\) ref = ref\.parentNode;/);
+  assert.match(iss, /<base href="\/">/);
 });
 
 const sql = read("supabase/migrations/0144_role_gate_fixes.sql");

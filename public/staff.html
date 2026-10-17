@@ -68,7 +68,7 @@
   .deptnew{display:flex;gap:6px;margin-top:6px}.deptnew input{flex:1 1 auto;min-width:0}
   .invlink{display:flex;gap:8px;margin:10px 0}.invlink input{flex:1 1 auto;min-width:0;height:38px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font-family:var(--mono,monospace);font-size:12px;background:var(--panel-2);color:var(--ink)}
   .meta{font-size:12px;color:var(--ink-3);line-height:1.5}
-  .person .acts{display:flex;gap:6px;margin-top:auto;padding-top:6px}
+  .person .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:6px} a.ic{display:inline-flex;align-items:center;text-decoration:none}
   .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 11px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .ic:hover{border-color:var(--accent);color:var(--accent)}
   .empty{text-align:center;color:var(--ink-3);padding:48px 16px;font-size:14px;grid-column:1/-1}
   .empty .btn{margin-top:12px}
@@ -184,7 +184,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=231"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=232"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
@@ -290,11 +290,12 @@
       ${skills.length?`<div class="tags">${skills.map(k=>`<span class="tag">${esc(k)}</span>`).join("")}</div>`:""}
       ${(()=>{ const al=typeof HelmImportCore!=="undefined"?HelmImportCore.attrList("staff",s.attributes,attrDefs):[]; return al.length?`<div class="tags attrs">${al.slice(0,6).map(a=>`<span class="tag" title="${esc(a.label)}: ${esc(a.value)}"><b>${esc(a.label)}:</b> ${esc(a.value.slice(0,40))}</span>`).join("")}${al.length>6?`<span class="tag">+${al.length-6} more</span>`:""}</div>`:""; })()}
       <div class="meta">${[s.phone,s.email].filter(Boolean).map(esc).join(" · ")}${s.day_rate?`<br>${BPStore.studioMoney(s.day_rate)}/day`:""}</div>
-      ${canEdit?`<div class="acts">
-        <button class="ic" data-act="edit">Edit</button>
+      <div class="acts">
+        <a class="ic" href="calendar.html?staff=${encodeURIComponent(s.id)}#schedule" title="See ${esc(s.name||"this person")}'s event schedule (week / month)">Schedule</a>
+        ${canEdit?`<button class="ic" data-act="edit">Edit</button>
         <button class="ic" data-act="toggle">${s.active===false?"Reactivate":"Deactivate"}</button>
-        ${isAdminUser&&!linked&&s.email&&s.active!==false?`<button class="ic" data-act="invite" title="Create a sign-up link for ${esc(s.email)} with their role">${BPStore.staff.loginStatus(s,invites)==="invited"?"Copy invite link":"Invite to log in"}</button>${BPStore.staff.loginStatus(s,invites)==="invited"?`<button class="ic" data-act="resend" title="E-mail the invite link to ${esc(s.email)} again">Resend email</button>`:""}`:""}
-      </div>`:""}
+        ${isAdminUser&&!linked&&s.email&&s.active!==false?`<button class="ic" data-act="invite" title="Create a sign-up link for ${esc(s.email)} with their role">${BPStore.staff.loginStatus(s,invites)==="invited"?"Copy invite link":"Invite to log in"}</button>${BPStore.staff.loginStatus(s,invites)==="invited"?`<button class="ic" data-act="resend" title="E-mail the invite link to ${esc(s.email)} again">Resend email</button>`:""}`:""}`:""}
+      </div>
     </div>`;
   }
 

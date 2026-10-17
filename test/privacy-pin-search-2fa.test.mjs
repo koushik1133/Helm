@@ -99,7 +99,9 @@ const S = require('../public/settings-search-core.js');
 const CS = r('public/control-split.js');
 const grab = (name) => vm.runInNewContext('(' + CS.match(new RegExp('var ' + name + '=(\\[[\\s\\S]*?\\n  \\]);'))[1] + ')',
   { openAcc() {}, window: {} });
-const SECTIONS = grab('SECTIONS'), PAGES = grab('PAGES'), ACCOUNT = grab('ACCOUNT');
+// pages + account items moved to search-catalog.js (shared with the global palette; pages are role-gated there)
+const CAT = require('../public/search-catalog.js');
+const SECTIONS = grab('SECTIONS'), PAGES = CAT.PAGES.filter((p) => !/^control/.test(p.href)).map((p) => ({ text: p.label, href: p.href, kw: p.kw })), ACCOUNT = CAT.ACCOUNT;
 const ENTRIES = [
   ...SECTIONS.map((s) => ({ id: 'sec:' + s.key, text: s.label, context: s.group, keywords: s.desc + ' ' + s.kw, boost: 0.05 })),
   ...ACCOUNT.map((a) => ({ id: 'acc:' + a.text, text: a.text, context: 'Your account', keywords: a.kw })),
@@ -152,7 +154,7 @@ t('search UI: ARIA combobox, keyboard, roles + pages + account items, CSP-safe',
   assert.match(CS, /if\(e\.key==="Escape"\)/);
   assert.match(CS, /live\.setAttribute\("aria-live","polite"\)/, 'result count announced');
   assert.match(CS, /querySelectorAll\("#roleTabs \.rtab"\)/, 'roles are searchable');
-  assert.match(CS, /var ranked=SSC\?SSC\.rank\(v,list,60\):plainRank\(v,list\);/, 'falls back if the core did not load');
+  assert.match(CS, /var ranked=CAT\?CAT\.rank\(v,list,SSC,60\):SSC\?SSC\.rank\(v,list,60\):plainRank\(v,list\);/, 'falls back if the core did not load');
   assert.doesNotMatch(CS, /innerHTML|\.style\./, 'DOM API only, no inline styles');
   const h = r('public/control.html');
   assert.ok(h.indexOf('settings-search-core.js') < h.indexOf('control-split.js'), 'core loads before the page search');
@@ -167,7 +169,8 @@ t('two-step: only admins are reminded / forced; everyone can turn it on in Accou
   assert.ok(fn.indexOf('role !== "admin"') < fn.indexOf('forceEnroll()'), 'role check comes before forced enrolment');
   assert.match(AUI, /var mf = el\("div", \{ class: "hau-sec", id: "hauMfaSec" \}\);/);
   assert.match(AUI, /var jumpTo = \{ mfa: mf, password: pw, devices: dv \}\[opts && opts\.focus\];/);
-  assert.match(CS, /\{text:"Two-step sign-in \(2FA\)",kw:"[^"]*",run:function\(\)\{ openAcc\(\{section:"settings",focus:"mfa"\}\); \}\}/);
+  assert.match(CS, /\(CAT\?CAT\.ACCOUNT:\[\]\)\.map\(function\(a\)\{ return \{text:a\.text,kw:a\.kw,run:function\(\)\{ openAcc\(a\.open\); \}\}; \}\)/);
+  assert.deepEqual(CAT.ACCOUNT.find((a) => a.id === 'mfa').open, { section: 'settings', focus: 'mfa' });
   const gs = r('public/getting-started.js');
   assert.match(gs, /\.filter\(\(s\) => s\.key !== "mfa" \|\| data\.admin === true\)/, 'no checklist nudge for non-admins');
 });

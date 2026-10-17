@@ -77,6 +77,7 @@
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
 </style>
 <link rel="stylesheet" href="calendar-polish.css?v=2">
+<link rel="stylesheet" href="crew-schedule.css?v=1">
 <link rel="stylesheet" href="theme.css?v=80">
 </head>
 <body>
@@ -95,6 +96,7 @@
 
   <div id="boot" aria-busy="true"></div>
   <div id="app" hidden>
+    <section id="schedule" class="csched" hidden aria-labelledby="schedTitle"></section>
     <h2>Conflicts</h2>
     <div id="conflicts"><p class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></p></div>
 
@@ -126,8 +128,9 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=231"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=232"></script>
 <script src="tour.js?v=14"></script>
+<script src="crew-schedule.js?v=1"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
   const $=(s)=>document.querySelector(s);
@@ -249,11 +252,23 @@
         <div class="sub">${(t.planned_start||t.event_date)?esc(fmtDate(String(t.planned_start||t.event_date).slice(0,10))):""}</div></div>
       <div class="chips"><a class="open" href="runsheet.html?id=${encodeURIComponent(t.quote_id)}" aria-label="Open ${esc(t.event_code||"event")}">Open</a></div></div>`).join("");
   }
+  // crew schedule (0161): crew get "My schedule"; staff / calendar viewers (not crew) get "Team schedule"
+  async function mountSchedule(){
+    const el=$("#schedule"); if(!el||!window.HelmCrewSchedule||!BPStore.ops||!BPStore.ops.crew||!BPStore.ops.crew.schedule) return;
+    const role=String((await BPStore.auth.role().catch(()=>""))||"").toLowerCase(), crewOnly=role==="crew"||role==="worker";
+    const canStaff=crewOnly?false:await BPStore.auth.canView("staff").catch(()=>false);
+    const sp=new URLSearchParams(location.search), team=!crewOnly;
+    const ui=HelmCrewSchedule.mount(el,{ team, staff:team?(sp.get("staff")||""):"", view:sp.get("view")||"week",
+      linkFor:(b)=>(crewOnly?"runsheet.html?id=":"event.html?id=")+encodeURIComponent(b.quote_id) });
+    if(team&&canStaff){ try{ const ppl=await BPStore.staff.list(); ui.setPeople((ppl||[]).map(p=>({id:p.id,name:p.name}))); }catch(e){} }
+    if(sp.get("staff")&&location.hash==="#schedule") el.scrollIntoView({block:"start"});
+  }
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("calendar"))) return;
     [canEdit, canLeads, canQuotes]=await Promise.all([BPStore.auth.canEditArea("calendar"), BPStore.auth.canView("leads").catch(()=>false), BPStore.auth.canView("quotes").catch(()=>false)]); $("#app").hidden=false;
+    mountSchedule();
     await load();
   });
 </script>

@@ -368,7 +368,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=231"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=232"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=18"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -793,6 +793,7 @@
       const rpcMissing = code==='PGRST202' || code==='42883'
         || /could not find the function|function[^]*does not exist|schema cache/i.test(msg);
       if(!rpcMissing){
+        await relock();   // money-1024: a refused / partial save must not leave a stale lock base (false "changed elsewhere" next save)
         updateProgress();
         if($("#q_msg")) $("#q_msg").textContent="Couldn't save — not saved: "+BPUI.friendlyError(e,{action:"save the quotation"});
         BPUI.toast("Save failed — nothing was saved.",{type:"err"});
@@ -1039,6 +1040,7 @@
     const idem=(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID():("k"+Date.now()+Math.random().toString(36).slice(2));
     try{
       const r=await BPStore.milestones.record(id, amount, method, $("#pay_receipt").value.trim()||null, null, null, idem);
+      await relock();   // money-1024: recording the advance confirms the booking server-side (bumps quotes.updated_at)
       $("#bookingBadge").hidden=false; payNextConfirmed(); $("#statusBadge").textContent="confirmed";
       $("#pay_receipt").value=""; $("#pay_amount").value="";
       if(method==='online' && BPStore.approval.onlinePayAvailable()){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
@@ -1048,7 +1050,7 @@
       BPUI.toast("Payment recorded — receipt "+(r&&r.receipt_no||"")+". Booking confirmed.",{type:"ok",timeout:8000});
       // Leave the button disabled after a successful record so the same advance
       // cannot be submitted twice; re-enable only on failure below.
-    }catch(e){ $("#pay_record").disabled=false; $("#pay_record").removeAttribute("aria-busy");
+    }catch(e){ $("#pay_record").disabled=false; $("#pay_record").removeAttribute("aria-busy"); relock();
       if(e&&(e.code==="23514"||/exceeds the outstanding balance/i.test(String(e.message||"")))){ BPUI.toast("This payment is more than the balance the server allows for this event, so it was not recorded. Check the amount (and that any change orders are approved).",{type:"err",timeout:8000}); return; }
       BPUI.toast(BPUI.friendlyError(e,{action:"record the payment"}),{type:"err"}); }
   }
@@ -1290,6 +1292,8 @@
     const fromBuilder = HelmFlowLayout.consume(sessionStorage, id) || new URLSearchParams(location.search).get("from")==="builder";
     if(fromBuilder){ try{ const u=new URL(location.href); u.searchParams.delete("from"); history.replaceState(history.state,"",u.pathname+u.search+u.hash); }catch{} }
     if(fromBuilder){ await syncFromLayout(true); $("#sec-quote").scrollIntoView({behavior:"auto",block:"start"}); }
+    // money-1024: event page "Record advance" deep-links to the payment step (#sec-pay) - re-scroll once the content has loaded
+    else if(location.hash==="#sec-pay" && $("#sec-pay")){ try{ $("#sec-pay").scrollIntoView({behavior:"auto",block:"start"}); }catch{} }
   }
   // The floor layout drives chairs + décor/setup ("other"). After the builder saves a new
   // layout version, bring the quotation in line with it (same rules as the builder's own
@@ -1528,6 +1532,8 @@
     }
     if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-2)">No quote selected. Start one from <a href="dashboard.html" style="color:var(--accent);text-decoration:underline">Home</a> or <a href="leads.html" style="color:var(--accent);text-decoration:underline">Leads</a>.</p>'; return; }
     try{ canEdit=await BPStore.auth.canEditArea("quotes"); }catch{ canEdit=true; }
+    // planner-1023: save_quotation_version / generate_approval_token need quotes EDIT server-side - a view-only role sees why instead of a 403 toast
+    if(!canEdit) ["#q_save","#sendApproval"].forEach(sel=>{ const b=$(sel); if(b){ b.disabled=true; b.title="Your role can view quotes but not edit them — ask an admin."; } });
     await openQuote();
   });
 </script>

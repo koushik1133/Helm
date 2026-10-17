@@ -43,12 +43,14 @@ run "audit-medium-0155"  "AUDIT-MEDIUM-0155: ALL PASS \(37/37\)" psql -q -f test
 run "mfa-verify-hook-0158" "MFA-VERIFY-HOOK-0158: ALL PASS \(15/15\)" psql -q -f tests/db/mfa-verify-hook-0158.sql
 run "privacy-pin-0157"   "PRIVACY-PIN-0157: ALL PASS \(30/30\)" psql -q -f tests/db/privacy-pin-0157.sql
 run "direct-studio-0159" "DIRECT-STUDIO-0159: ALL PASS \(30/30\)" psql -q -f tests/db/direct-studio-0159.sql
+run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql
 run "comms-automation"   "COMMS-AUTOMATION: ALL PASS \(54/54\)" psql -q -f tests/db/comms-automation.sql
 run "country-templates-0092" "COUNTRY-TEMPLATES-0092: ALL PASS \(12/12\)" psql -q -f tests/db/country-templates-0092.sql
 run "country-terms-0093"  "COUNTRY-TERMS-0093: ALL PASS \(6/6\)" psql -q -f tests/db/country-terms-0093.sql
 run "per-currency-0094" "PER-CURRENCY-0094: ALL PASS \(12/12\)" psql -q -f tests/db/per-currency-0094.sql
+run "client-due-0160"  "CLIENT-DUE-0160: ALL PASS \(9/9\)" psql -q -f tests/db/client-due-0160.sql
 run "photo-render-0095" "PHOTO-RENDER-0095: ALL PASS \(20/20\)" psql -q -f tests/db/photo-render-0095.sql
 # early: later suites re-apply 0027 / 0052 / 0093 over the 0097 demo gate wrappers
 run "trial-demo-0097"   "TRIAL-DEMO-0097: ALL PASS \(51/51\)" psql -q -f tests/db/trial-demo-0097.sql

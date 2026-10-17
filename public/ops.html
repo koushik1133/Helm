@@ -222,7 +222,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=231"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=232"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -275,7 +275,7 @@
     $("#catTabs").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ activeCat=b.dataset.c;
       $("#catTabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); $("#selAll").checked=false; renderTasks(); renderSuggestions(); }));
     $("#tpl_cat").value=activeCat||"";
-    if(!canEdit){ ["cr_add","assignBtn","tpl_add"].forEach(id=>{const e=$("#"+id); if(e)e.disabled=true;}); setMsg("err","Your role is view-only for operations."); }
+    if(!canEdit){ ["cr_add","assignBtn","tpl_add"].forEach(id=>{const e=$("#"+id); if(e)e.disabled=true;}); ["remindDue","fireDue"].forEach(id=>{const e=$("#"+id); if(e)e.hidden=true;});  /* planner-1023: server needs staff edit */ setMsg("err","Your role is view-only for operations."); }
     try{ await refresh(pOps); }
     catch(e){ BPUI.loadError($("#dashboard"), e, async()=>{ await refresh(); }, {what:"staff and tasks"}); }
     renderTasks();
@@ -402,7 +402,7 @@
       ${evidenceBtn(t)}
       ${canEditOps?`<button type="button" class="btn sm sched" title="Set start time & prerequisite" aria-label="Schedule ${tn}">⏱</button>`:""}
       ${canEditOps?`<button type="button" class="btn sm spc" title="Toggle recurring reminder" aria-label="${t.is_special?"Turn off recurring reminder for":"Turn on recurring reminder for"} ${tn}">${t.is_special?'🔕':'🔔'}</button>`:""}
-      ${['rejected','assigned'].includes(t.status)?`<button type="button" class="btn sm reassign" aria-label="Reassign ${tn}">Reassign</button>`:""}
+      ${canEditOps&&['rejected','assigned'].includes(t.status)?`<button type="button" class="btn sm reassign" aria-label="Reassign ${tn}">Reassign</button>`:""}
       ${canVerify && (t.verify_status==='pending' || (t.status==='completed' && t.verify_status==='rejected')) ? `<button type="button" class="btn sm vpass" aria-label="Pass QC for ${tn}">✓ Pass</button><button type="button" class="btn sm vrej" aria-label="Reject QC for ${tn}">✗ Reject</button>`:""}</div>`;
   }
   function workerLinkFor(phone){ const w=tokens.find(x=>x.phone===phone); return w? BPStore.links.url("work", w.token, location.origin+"/work.html?token="+w.token) : null; }
