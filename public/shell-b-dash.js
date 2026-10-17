@@ -1065,7 +1065,7 @@
       if (nextT) m.appendChild(el("p", "hd-shift-task", "Next task: " + (nextT.title || "Task") + (nextT.status ? " (" + nextT.status + ")" : "")));
       tk.appendChild(m);
       var id = nextEv ? nextEv.id : nextT.quote_id;
-      if (id) { var go = link(evHref(id), "hd-btn hd-primary hd-sm", "Open"); go.appendChild(icon(IC.arrow)); tk.appendChild(go); }
+      if (id) { var go = link("runsheet.html?id=" + encodeURIComponent(id), "hd-btn hd-primary hd-sm", "Open");   /* crew-1020: crew can't open event.html */ go.appendChild(icon(IC.arrow)); tk.appendChild(go); }
       b.appendChild(tk);
       var stats = el("div", "hd-mini");
       [["Today", tc.today], ["Overdue", tc.overdue], ["Blocked", tc.blocked], ["Done", tc.completed]].forEach(function (x) {

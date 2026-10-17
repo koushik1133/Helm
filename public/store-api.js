@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=10"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=11"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -2646,6 +2646,15 @@ window.HelmUrl = HelmUrl;
     if (error) { if (looksLikeAuthError(error)) onAuthFailure(); throw error; }
     return data;
   };
+  // crew-1020: worker link RPCs take a uuid token; a malformed one gets the same clean
+  // "invalid link" as an unknown one instead of the raw Postgres cast error (22P02).
+  const WTOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const wrpc = async (fn, args) => {
+    const t = args && args.p_token;
+    if (typeof t !== "string" || !WTOKEN_RE.test(t.trim())) { const e = new Error("invalid link"); e.code = "P0001"; throw e; }
+    try { return await rpc(fn, Object.assign({}, args, { p_token: t.trim() })); }
+    catch (e) { if (e && e.code === "22P02") { const x = new Error("invalid link"); x.code = "P0001"; throw x; } throw e; }
+  };
   // true only when the RPC itself is not deployed yet (PostgREST PGRST202 / Postgres 42883),
   // so callers can fall back to an older path; every other error must still surface.
   const rpcMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
@@ -2826,15 +2835,20 @@ window.HelmUrl = HelmUrl;
       const { data, error } = await supa.storage.from("task-proof").createSignedUrls(ok, seconds || 300);
       if (error) throw error;
       const out = {}; (data || []).forEach((r, k) => { if (r && r.signedUrl && !r.error) out[ok[k]] = r.signedUrl; }); return out; },
+    // ---- crew (signed in): my own event header + act on my own tasks (0153) ----
+    crew: {
+      eventBrief: (quoteId) => rpc("crew_event_brief", { p_quote: quoteId }),
+      respond: (taskId, action) => rpc("crew_task_respond", { p_task: taskId, p_action: action }),
+    },
     // ---- worker (no login; token-scoped) ----
     worker: {
-      getTasks: (token) => rpc("worker_get_tasks", { p_token: token }),
+      getTasks: (token) => wrpc("worker_get_tasks", { p_token: token }),
       // 0132 — what changed for me ("Updated" badges) + my run-sheet lines
-      updates: (token) => rpc("worker_assignment_updates", { p_token: token }),
-      respond: (token, taskId, action) => rpc("worker_respond", { p_token: token, p_task_id: taskId, p_action: action }),
+      updates: (token) => wrpc("worker_assignment_updates", { p_token: token }),
+      respond: (token, taskId, action) => wrpc("worker_respond", { p_token: token, p_task_id: taskId, p_action: action }),
       // Phase 52 — crew equipment (kit out to them for this event) + check-in
-      getEquipment: (token) => rpc("worker_get_equipment", { p_token: token }),
-      checkinEquipment: (token, id, qtyIn) => rpc("worker_checkin_equipment", { p_token: token, p_id: id, p_qty_in: qtyIn }),
+      getEquipment: (token) => wrpc("worker_get_equipment", { p_token: token }),
+      checkinEquipment: (token, id, qtyIn) => wrpc("worker_checkin_equipment", { p_token: token, p_id: id, p_qty_in: qtyIn }),
       // 0038 — upload one evidence file: the link asks the server for a one-time
       // 15-minute grant (checks link + task + status + type, 30/hour), then writes
       // the file to that exact key in the private 'task-proof' bucket. Type comes

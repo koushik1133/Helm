@@ -113,7 +113,7 @@
   <div id="gate" class="card" hidden><p class="muted">Sign in to open this event.</p></div>
   <div id="boot" aria-busy="true"></div>
   <div id="loadErr"></div>
-  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a class="s-dea29d3" href="quotes.html">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p class="muted">Event not found, or your role can't open it. Go to <a class="s-dea29d3" href="dashboard.html">your dashboard</a>.</p></div>
 
   <div id="app" hidden>
     <div class="card">
@@ -181,7 +181,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=224"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=225"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=15"></script>
 <script src="booklet.js?v=18"></script>
@@ -242,6 +242,8 @@
     await BPStore.init(); id=await HelmUrl.get("id", id); await renderAccount(); try{await BPStore.bell.mount(document.querySelector("#bell"));}catch{}
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
+    // crew-1020: crew assigned to this event open their own view (run-sheet + my tasks) instead of a dead end
+    if(!(await BPStore.auth.canView("quotes")) && BPStore.ops.crew){ try{ if(await BPStore.ops.crew.eventBrief(id)){ location.replace("runsheet.html?id="+encodeURIComponent(id)); return; } }catch(e){} }
     if(!(await BPStore.auth.requireView("quotes"))) return;   // crew/client don't see the workspace
     canEdit = await BPStore.auth.can("edit");
     canFin  = await BPStore.auth.canView("finance");             // gates the Total + money cards

@@ -108,7 +108,7 @@
   <div id="boot" aria-busy="true"></div>
   <div id="loadErrTop" hidden></div>
   <div id="gate" class="card gatebox" hidden><p class="muted">Sign in to open the Invitation Studio.</p></div>
-  <div id="notfound" class="card gatebox" hidden><p class="muted">Event not found. Go to <a class="s-dea29d3" href="quotes.html">Quotes</a>.</p></div>
+  <div id="notfound" class="card gatebox" hidden><p class="muted">Event not found, or your role can't open it. Go to <a class="s-dea29d3" href="dashboard.html">your dashboard</a>.</p></div>
   <div id="notconfirmed" class="card gatebox" hidden>
     <h2>Not ready yet</h2>
     <p class="muted">You can build a digital invitation once this event is <b>confirmed</b>.<br>
@@ -236,7 +236,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=224"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=225"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

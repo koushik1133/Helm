@@ -73,6 +73,7 @@
     return a;
   }
   var REG = {};   /* rail items by key, for the Pinned group */
+  var ALWAYS_NAV = { dashboard: 1, chat: 1 };   /* crew-1020: team chat is open to every signed-in member (no area gate) */
   var SC_HINT = { dashboard: "G D", quotes: "G Q", leads: "G L", calendar: "G C", chat: "G M", business: "G B" };
   var COUNT_KEYS = { leads: 1, quotes: 1, chat: 1 };
   function group(title) {
@@ -164,7 +165,7 @@
     var scroll = el("div", "hb-scroll");
     var work = group("Workspace");
     [["dashboard", "Dashboard", "dashboard.html", "dashboard"], ["quotes", "Quotes", "quotes.html", "quotes"], ["leads", "Leads", "leads.html", "leads"],
-     ["calendar", "Calendar", "calendar.html", "calendar"], ["chat", "Chat", "chat.html", "chat"]].forEach(function (x) { work.appendChild(item(x[0], x[1], x[2], x[3])); });
+     ["calendar", "Calendar", "calendar.html", "calendar"], ["chat", "Chat", "chat.html", "chat"]].forEach(function (x) { var it = item(x[0], x[1], x[2], x[3]); if (!ALWAYS_NAV[x[0]]) it.hidden = true; work.appendChild(it); });   /* crew-1020: gated items start hidden (no Quotes/Leads flash) */
     var manage = group("Manage"); manage.hidden = true;
     var admin = group("Admin"); admin.hidden = true;
     var favs = group("Pinned"); favs.classList.add("hb-fav"); favs.hidden = true; favs.id = "hbFavs";
@@ -460,7 +461,7 @@
     var bar = el("nav", "hb-tabs"); bar.id = "hbTabs"; bar.setAttribute("aria-label", "Quick navigation"); bar.setAttribute("data-tour", "tabs");
     [["dashboard", "Home", "dashboard.html"], ["quotes", "Quotes", "quotes.html"], ["leads", "Leads", "leads.html"], ["chat", "Chat", "chat.html"]].forEach(function (x) {
       var a = el("a", "hb-tab"); a.href = abs(x[2]); a.setAttribute("data-key", x[0]);
-      if (x[0] !== "dashboard") { a.hidden = true; can(x[0]).then(function (ok) { a.hidden = !ok; }); }
+      if (!ALWAYS_NAV[x[0]]) { a.hidden = true; can(x[0]).then(function (ok) { a.hidden = !ok; }); }
       a.appendChild(icon(x[0])); a.appendChild(el("span", null, x[1]));
       if (x[2] === page) { a.classList.add("on"); a.setAttribute("aria-current", "page"); }
       bar.appendChild(a);
@@ -536,10 +537,10 @@
   /* ---- Workspace items: dashboard always; the rest only when the role can view that area ---- */
   function gateWork(work) {
     Array.prototype.forEach.call(work.querySelectorAll("a.hb-item[data-key]"), function (a) {
-      var k = a.getAttribute("data-key"); if (k === "dashboard") return;
+      var k = a.getAttribute("data-key"); if (ALWAYS_NAV[k]) return;
       var row = a.parentNode && a.parentNode.classList.contains("hb-row") ? a.parentNode : a;
       row.hidden = true;
-      waitAuth(function () { can(k).then(function (ok) { var r = a.parentNode && a.parentNode.classList.contains("hb-row") ? a.parentNode : a; r.hidden = !ok; if (!ok) favDrop(k); }); });
+      waitAuth(function () { can(k).then(function (ok) { var r = a.parentNode && a.parentNode.classList.contains("hb-row") ? a.parentNode : a; r.hidden = !ok; if (ok) a.hidden = false; if (!ok) favDrop(k); }); });
     });
   }
   function favDrop(k) { try { var f = document.querySelector('#hbFavs [data-fkey="' + k + '"]'); if (f) f.hidden = true; } catch (e) {} }
