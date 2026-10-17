@@ -163,7 +163,7 @@ t('E13 closure P&L / budget / insights on ex-tax revenue; tax shown as payable',
   assert.match(store, /const revenueExTax = Math\.round\(\(revenue - tax\) \* 100\) \/ 100;/);
   assert.match(store, /const estMargin = revenueExTax - estCost/);
   assert.match(store, /const rev = s\.revenueExTax != null \? s\.revenueExTax : s\.revenue/);
-  assert.match(store, /balance = revenue - received;   \/\/ the client's balance includes tax/);
+  assert.match(store, /balance = Math.round\(\(revenue - gross\) \* 100\) \/ 100;   \/\/ the client's balance includes tax/);
   assert.match(closure, /Revenue \(ex-\$\{esc\(taxLabel\(\)\)\}\)/); assert.match(closure, /collected \(payable\)/);
   assert.doesNotMatch(closure, /Revenue \(client\)/);
   assert.match(insights, /o\.revenue_ex_tax!=null\?Number\(o\.revenue_ex_tax\)/); assert.match(insights, /"Revenue \(ex-tax\)"/);

@@ -224,7 +224,7 @@
     $("#invBody").innerHTML = `
       <tr><td>Invoice total (quote + approved changes)</td><td class="num">${inr(s.revenue)}</td></tr>
       <tr><td>Payments received</td><td class="num" style="color:var(--safe-text,#0f7a43)">− ${inr(s.refundedOut>0?s.receivedGross:s.received)}</td></tr>
-      ${s.refundedOut>0?`<tr><td>Refunded to client</td><td class="num">+ ${inr(s.refundedOut)}</td></tr>`:""}
+      ${s.refundedOut>0?`<tr><td>Refunded to client <span class="muted">(paid back - not owed again)</span></td><td class="num">${inr(s.refundedOut)}</td></tr>`:""}
       ${s.balance<0
         ? `<tr><td><b>Overpaid — credit due to client</b></td><td class="num"><b data-money style="color:var(--warn-text,#946200)">${inr(-s.balance)}</b></td></tr>`
         : `<tr><td><b>Balance due from client</b></td><td class="num"><b data-money style="color:${s.balance>0?'var(--neg)':'var(--safe-text,#0f7a43)'}">${inr(s.balance)}</b></td></tr>`}`;

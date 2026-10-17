@@ -38,9 +38,9 @@ test("event workspace hides each tool card the role cannot view", () => {
   for (const k of ["settle:\"settlement\"", "budget:\"finance\"", "tasks:\"staff\"", "layout:\"layouts\""]) assert.ok(ev.includes(k), k);
 });
 
-test("quotes page: New button follows quotes EDIT (server create_quote needs has_area(quotes, edit))", () => {
+test("quotes page: New button follows quotes EDIT + can(create) (server create_quote needs both, 0147)", () => {
   const q = read("public/quotes.html");
-  assert.match(q, /\[canEdit, canDelete, canCreate, canMarkPaid\] = await Promise\.all\(\[BPStore\.auth\.canEditArea\("quotes"\), BPStore\.auth\.can\("delete"\), BPStore\.auth\.canEditArea\("quotes"\),/);
+  assert.match(q, /BPStore\.auth\.can\("delete"\),\n\s+\/\/ create needs can_create\(\)[^\n]*\n\s+Promise\.all\(\[BPStore\.auth\.can\("create"\), BPStore\.auth\.canEditArea\("quotes"\)\]\)/);
 });
 
 const sql = read("supabase/migrations/0144_role_gate_fixes.sql");

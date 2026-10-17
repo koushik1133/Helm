@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 const r = (p) => readFileSync(new URL('../public/' + p, import.meta.url), 'utf8');
 let n = 0; const ok = (c, m) => { if (!c) { console.error('FAIL: ' + m); process.exit(1); } n++; };
 const api = r('store-api.js');
-ok(/const profit = rev - cost - s\.expPaid - refunds;/.test(api), 'closure.pl subtracts processed refunds');
+ok(/let profit = rev - cost - s\.expPaid - refunds,/.test(api), 'closure.pl subtracts processed refunds');
 ok(/HELM_NOCHANGE/.test(api), 'milestones.update reports 0-row updates');
 ok(/Only \$\{num\(out\)\} went out/.test(r('inventory.html')), 'check-in over-return is an error');
 const rs = r('runsheet.html');
