@@ -396,7 +396,7 @@ function serveStatic(req, res) {
 
 // /<studio>/<section>… → page name (or null). Mirrors vercel.json "rewrites".
 function prettyPage(rel) {
-  const m = /^\/[a-z0-9-]{3,40}\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready)(?:\/([^/]+)(?:\/(floor-plan|tasks))?)?\/?$/.exec(rel || '');
+  const m = /^\/[a-z0-9-]{3,40}\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready|ops|issues)(?:\/([^/]+)(?:\/(floor-plan|tasks))?)?\/?$/.exec(rel || '');
   if (!m) return null;
   const sec = m[1], ref = m[2], sub = m[3];
   if (sec === 'events') return ref ? (sub === 'floor-plan' ? 'builder' : sub === 'tasks' ? 'ops' : 'event') : 'quotes';  // /<studio>/events → events list

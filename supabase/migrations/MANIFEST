@@ -241,3 +241,5 @@ forward  supabase/migrations/0150_studio_channel_settings.sql
 forward  supabase/migrations/0151_wa_proposal.sql
 # 0152 (manager QA 1019: close gate also blocks a never-confirmed / unpriced quote (admin override unchanged); new BEFORE INSERT checks on event_refunds (not over what was paid, not on a closed event) and vendor_bills (not on a closed or unconfirmed event); tg_pay_needs_total ASCII message; no rows changed) goes after 0003 + 0033 + 0110 + 0124 + 0148.
 forward  supabase/migrations/0152_manager_role_fixes.sql
+# 0153 (crew QA 1020: bell feed hides money items/fields from non-quote viewers + cleans garbled dash; my_tasks links crew by profile_id and buckets by start time; new crew_event_brief + crew_task_respond so crew can open their event and act on their own tasks; no rows changed) goes after 0009 + 0041 + 0077.
+forward  supabase/migrations/0153_crew_fixes.sql

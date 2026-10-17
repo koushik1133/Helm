@@ -139,7 +139,7 @@
   const weekday=(d)=>{ if(!validDate(d)) return ""; return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long"}); };
   /* HelmUI empty state (guarded: falls back to the plain message if the kit isn't loaded) */
   const hEmpty=(host,o,cols)=>{ const H=window.HelmUI; if(!(H&&H.emptyState)||!host) return false; const n=H.emptyState(o); if(cols){ const tr=document.createElement("tr"),td=document.createElement("td"); td.colSpan=cols; td.className="hs-empty-cell"; td.appendChild(n); tr.appendChild(td); host.replaceChildren(tr); } else host.replaceChildren(n); return true; };
-  let canEdit=false, data=null, leadDates=[], canLeads=false;
+  let canEdit=false, data=null, leadDates=[], canLeads=false, canQuotes=true;
   const isConfirmed=(e)=>String(e&&e.status||"").toLowerCase()==="confirmed";
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
@@ -234,12 +234,24 @@
     catch(e){ $("#conflicts").innerHTML=""; $("#nodateWrap").hidden=true; BPUI.loadError($("#agenda"), e, load, {what:"the calendar"}); return; }
     leadDates=await pLeads; $("#lgLead").hidden=!canLeads;
     render();
+    if(!(data.agenda||[]).length && !canQuotes) await renderCrewEvents();
+  }
+  // crew-1020: crew can't read quotes, so the agenda is empty - list the events they are assigned to instead
+  async function renderCrewEvents(){
+    let r=null; try{ r=await BPStore.myTasks(); }catch(e){ r=null; }
+    const seen={}, evs=[];
+    ["overdue","today","blocked","upcoming","completed"].forEach(k=>((r&&r[k])||[]).forEach(t=>{ if(t&&t.quote_id&&!seen[t.quote_id]){ seen[t.quote_id]=1; evs.push(t); } }));
+    if(!evs.length){ $("#agenda").innerHTML='<div class="empty">No events assigned to you yet. New shifts will show here and on your dashboard.</div>'; return; }
+    $("#agenda").innerHTML='<div class="empty">Events you are assigned to:</div>'+evs.map(t=>`<div class="ev confirmed">
+      <div><span class="code">${esc(t.event_code||"")}</span> <span class="ttl">${esc(t.event_title||"")}</span>
+        <div class="sub">${t.planned_start?esc(fmtDate(String(t.planned_start).slice(0,10))):""}</div></div>
+      <div class="chips"><a class="open" href="runsheet.html?id=${encodeURIComponent(t.quote_id)}" aria-label="Open ${esc(t.event_code||"event")}">Open</a></div></div>`).join("");
   }
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("calendar"))) return;
-    [canEdit, canLeads]=await Promise.all([BPStore.auth.canEditArea("calendar"), BPStore.auth.canView("leads").catch(()=>false)]); $("#app").hidden=false;
+    [canEdit, canLeads, canQuotes]=await Promise.all([BPStore.auth.canEditArea("calendar"), BPStore.auth.canView("leads").catch(()=>false), BPStore.auth.canView("quotes").catch(()=>false)]); $("#app").hidden=false;
     await load();
   });
 </script>

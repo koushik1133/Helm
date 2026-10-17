@@ -244,6 +244,8 @@
     if(!quoteId){ $("#noquote").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     // 0143 role audit: tasks (event_tasks) are RLS-gated on the staff area
+    // crew-1020: crew assigned to this event open their own view (run-sheet + my tasks) instead of a dead end
+    if(!(await BPStore.auth.canView("staff")) && BPStore.ops.crew){ try{ if(await BPStore.ops.crew.eventBrief(quoteId)){ location.replace("runsheet.html?id="+encodeURIComponent(quoteId)); return; } }catch(e){} }
     if(!(await BPStore.auth.requireView("staff"))) return;
     // perf 1017: start the event, its section catalog and the crew/task reads together (they used to run
     // one after another behind the loading overlay); the role checks below come from the cached session.

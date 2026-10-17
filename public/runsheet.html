@@ -84,7 +84,7 @@
   <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p class="s-1a1aca0">Sign in to open the run-sheet.</p></div>
-  <div id="notfound" class="card" hidden><p class="s-1a1aca0">Event not found. Go to <a class="s-dea29d3" href="quotes.html">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p class="s-1a1aca0">Event not found, or it isn't assigned to you. Go to <a class="s-dea29d3" href="dashboard.html">your dashboard</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
@@ -106,6 +106,11 @@
       </div>
       <label class="grpopt" id="r_grpWrap" hidden><input type="checkbox" id="r_grp"> Also post in the event group</label>
       <div id="addErr" class="err s-8a77e5a" hidden role="alert" aria-live="assertive"></div>
+    </div>
+
+    <div class="card" id="myTasksCard" hidden>
+      <h3 id="myTasksTitle">My tasks for this event</h3>
+      <div id="myTasks"></div>
     </div>
 
     <div class="card rs">
@@ -181,7 +186,7 @@
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); } }
 
   function render(){
-    if(!items.length){ $("#rows").innerHTML='<div class="empty">No run-sheet items yet. Add the first one above.</div>'; hEmpty($("#rows"),{icon:"🕒",title:"No run-sheet items yet",text:"Plan the day minute by minute — arrivals, speeches, cake cutting.",actionLabel:canEdit?"Add the first item":"",onAction:()=>{ const i=$("#r_title"); if(i){ i.scrollIntoView({block:"center"}); i.focus(); } }}); $("#win").hidden=true; return; }
+    if(!items.length){ $("#rows").innerHTML='<div class="empty">No run-sheet items yet.'+(canEdit?' Add the first one above.':'')+'</div>'; hEmpty($("#rows"),{icon:"🕒",title:"No run-sheet items yet",text:"Plan the day minute by minute — arrivals, speeches, cake cutting.",actionLabel:canEdit?"Add the first item":"",onAction:()=>{ const i=$("#r_title"); if(i){ i.scrollIntoView({block:"center"}); i.focus(); } }}); $("#win").hidden=true; return; }
     // day window
     const withTime=items.filter(i=>i.start_time);
     if(withTime.length){ const first=hhmm(withTime[0].start_time); const last=withTime[withTime.length-1];
@@ -246,6 +251,19 @@
   $("#editModal").addEventListener("click",e=>{ if(e.target.id==="editModal") requestCloseEdit(); });
   $("#printBtn").addEventListener("click",()=>window.print());
 
+  let BRIEF=null;
+  const TASK_ACTS={ assigned:[["accept","Accept"],["reject","Can't do it"]], accepted:[["start","Start"]], rejected:[["accept","Accept"]], in_progress:[["complete","Mark done"]] };
+  function renderMyTasks(){
+    const host=$("#myTasks"), card=$("#myTasksCard"); if(!host||!card||!BRIEF) return;
+    const ts=Array.isArray(BRIEF.tasks)?BRIEF.tasks:[]; card.hidden=false;
+    if(!ts.length){ host.innerHTML='<div class="empty">No tasks assigned to you on this event.</div>'; return; }
+    host.innerHTML=ts.map(t=>`<div class="row"><div class="what"><b>${esc(t.title||"Task")}</b>
+        <div class="sub"><span class="tag">${esc(String(t.status||"").replace("_"," "))}</span>${t.category?`<span class="tag">${esc(t.category)}</span>`:""}${t.note?esc(t.note):""}</div></div>
+        <div class="rowacts">${(TASK_ACTS[t.status]||[]).map(a=>`<button type="button" class="btn sm${a[0]==="reject"?"":" primary"}" data-tact="${esc(a[0])}" data-tid="${esc(t.id)}">${esc(a[1])}</button>`).join("")}</div></div>`).join("");
+    host.querySelectorAll("[data-tact]").forEach(b=>b.addEventListener("click",()=>{
+      BPUI.guard(b, async()=>{ await BPStore.ops.crew.respond(b.dataset.tid, b.dataset.tact); BRIEF=await BPStore.ops.crew.eventBrief(id); renderMyTasks(); BPUI.toast("Task updated.",{type:"ok"}); })
+        .catch(e=>BPUI.toast(BPUI.friendlyError(e,{action:"update the task"}),{type:"err"})); }));
+  }
   async function load(){
     try{ items=await BPStore.runsheet.list(id); }
     catch(e){ BPUI.loadError($("#rows"),e,load,{what:"the run-sheet"}); $("#win").hidden=true; return; }
@@ -258,8 +276,12 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("runsheet"))) return;
     canEdit=await BPStore.auth.canEditArea("runsheet"); canDelete=await BPStore.auth.can("delete");
-    let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
-    if(!ev){ $("#notfound").hidden=false; return; }
+    let ev=null; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(!BPUI.isNotFound(e)) throw e; }
+    // crew-1020: crew can't read quotes; their own assigned event comes from crew_event_brief (no client / money fields)
+    if(!ev){ try{ BRIEF=await BPStore.ops.crew.eventBrief(id); }catch(e){ BRIEF=null; }
+      if(!BRIEF){ $("#notfound").hidden=false; return; }
+      ev={ code:BRIEF.code, title:BRIEF.title, eventDate:BRIEF.event_date };
+      canEdit=false; canDelete=false; $("#backLink").href="dashboard.html"; $("#backLink").textContent="← Back to dashboard"; renderMyTasks(); }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"")+(ev.eventDate?(" · "+ev.eventDate):"");
     $("#app").hidden=false; $("#addCard").hidden=!canEdit;
     try{ PEOPLE_OPTS=await BPStore.people.options(); }catch{ PEOPLE_OPTS=[]; }
