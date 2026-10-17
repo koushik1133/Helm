@@ -751,7 +751,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=230"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=231"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -1614,6 +1614,23 @@
       mpFieldErr(k, BPStore.auth.admin.memberProblems(one)[k]||null); });
     el.addEventListener("input",()=>{ if(el.getAttribute("aria-invalid")) mpFieldErr(k,null); });
   });
+  // "Add user" (admin_create_user_temp → 0155/0042/0030 chain): the database answers in
+  // lower-case sentences ("could not create this user — send them an invitation instead")
+  // that the shared friendlyError() can't tell from technical text, so it said only
+  // "Something went wrong". Name the real reason instead.
+  function addUserErr(err){
+    const m=String((err&&err.message)||""), c=String((err&&err.code)||""), h=String((err&&err.hint)||"");
+    if(h==="use_invitation"||/during the free trial/i.test(m)) return "Couldn’t add the user. During the free trial, people join by invitation — use “Invite by email link” below.";
+    if(c==="23505"||/already a user in your studio/i.test(m)) return "Couldn’t add the user. This person is already a user in your studio.";
+    if(/send them an invitation instead/i.test(m)) return "Couldn’t add the user. This e-mail already has a Helm account (or can’t be used) — send them an invitation with “Invite by email link” instead.";
+    if(/invalid role/i.test(m)) return "Couldn’t add the user. That role isn’t valid — pick another role.";
+    if(/invalid email/i.test(m)) return "Couldn’t add the user. Enter a valid e-mail address.";
+    if(c==="54000"||/too many new accounts/i.test(m)) return "Couldn’t add the user. Too many new accounts today — try again tomorrow, or send invitations instead.";
+    if(/password must be/i.test(m)) return "Couldn’t add the user. The generated password didn’t meet the password rule — try again.";
+    const f=errMsg(err,"add the user");
+    if(/Something went wrong/.test(f) && m && m.length<200 && !/column|relation|violates|PGRST|syntax|function|null|undefined/i.test(m)) return "Couldn’t add the user. "+m.replace(/^./,ch=>ch.toUpperCase()).replace(/([^.!?])$/,"$1.");
+    return f;
+  }
   $("#um_add").addEventListener("submit", async (e)=>{
     e.preventDefault();
     const email=$("#um_email").value.trim(), role=$("#um_role").value;
@@ -1633,7 +1650,7 @@
         try{ await navigator.clipboard.writeText(tp); cp.textContent="Copied"; }catch(_){ }
       });
     }
-    catch(err){ setUMsg("err",errMsg(err,"add the user")); }
+    catch(err){ setUMsg("err",addUserErr(err)); }
     }, {busyLabel:"Adding…"});
   });
 
