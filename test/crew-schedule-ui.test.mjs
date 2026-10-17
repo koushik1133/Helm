@@ -39,7 +39,7 @@ t('0161: returns schedule fields only - no money, no client contact', () => {
   assert.doesNotMatch(body, /q\.client|q\.pricing|venue_contact|cm\.phone|cm\.email|day_rate/);
 });
 
-t('store: BPStore.ops.crew.schedule calls crew_schedule; store-api bumped to 232 everywhere', () => {
+t('store: BPStore.ops.crew.schedule calls crew_schedule; store-api bumped everywhere', () => {
   const s = r('public/store-api.js');
   assert.match(s, /schedule: \(from, to, staffId\) => \(supa \? rpc\("crew_schedule", \{ p_from: from, p_to: to, p_staff: staffId \|\| null \}\)/);
   for (const p of ['calendar.html', 'staff.html', 'dashboard.html']) assert.match(r('public/' + p), /store-api\.js\?v=234/, p);
@@ -48,7 +48,7 @@ t('store: BPStore.ops.crew.schedule calls crew_schedule; store-api bumped to 232
 t('calendar: schedule section, assets, crew vs team mode, deep link from staff', () => {
   const h = r('public/calendar.html');
   assert.match(h, /<section id="schedule" class="csched" hidden aria-labelledby="schedTitle"><\/section>/);
-  assert.match(h, /crew-schedule\.css\?v=1/); assert.match(h, /<script src="crew-schedule\.js\?v=1"><\/script>/);
+  assert.match(h, /crew-schedule\.css\?v=2/); assert.match(h, /<script src="crew-schedule\.js\?v=2"><\/script>/);
   assert.match(h, /crewOnly=role==="crew"\|\|role==="worker"/);
   assert.match(h, /HelmCrewSchedule\.mount\(el,\{ team, staff:team\?\(sp\.get\("staff"\)\|\|""\):""/);
   assert.match(h, /crewOnly\?"runsheet\.html\?id=":"event\.html\?id="/);
@@ -56,11 +56,25 @@ t('calendar: schedule section, assets, crew vs team mode, deep link from staff',
   assert.match(r('public/shell-b.js'), /\["calendar", "Calendar", "calendar\.html", "calendar"\]/);   // crew nav: Calendar (crew have calendar view, 0143)
 });
 
-t('crew-schedule.js: week / month / team grid views, mobile css', () => {
+t('crew-schedule.js: Apple-style Day / Week / Month, time grid, now line, popover, team grid, mobile css', () => {
   const js = r('public/crew-schedule.js'), css = r('public/crew-schedule.css');
-  for (const k of ['Team schedule', 'My schedule', 'All crew', 'data-v="week"', 'data-v="month"', 'cs-grid', 'cs-month', 'cs-week']) assert.ok(js.includes(k), k);
-  assert.match(css, /@media\(min-width:900px\)\{\.cs-week\{grid-template-columns:repeat\(7/);
+  for (const k of ['Team schedule', 'My schedule', 'All crew', 'data-v="day"', 'data-v="week"', 'data-v="month"', 'cs-grid', 'cs-month', 'cs-tg', 'cs-now', 'cs-pop', 'all-day', 'Open event', 'Today']) assert.ok(js.includes(k), k);
+  assert.match(js, /narrow\(\) && !allCrew\(\) \? 3 : 7/);                     // week -> 3-day on phones
+  assert.match(js, /cs-s-' \+ k/); assert.match(js, /statusFor\(b\.quote_id\)/); // chip colour by status
+  assert.doesNotMatch(js, / style="/);                                            // CSP: positions via data-st + CSSOM
+  assert.match(css, /\.cs-s-confirmed\{--cs-c:/); assert.match(css, /\.cs-s-lead\{--cs-c:/);
+  assert.match(css, /\.cs-pop\.cs-sheet\{position:fixed/);
   assert.match(css, /\.cs-gridwrap\{overflow-x:auto/);
+  const h = r('public/calendar.html');
+  assert.match(h, /statusFor:\(qid\)=>/); assert.match(h, /extra:\(\)=>leadDates\.map/); assert.match(h, /schedUI\.refresh\(\)/);
+});
+
+t('work status words + overlap lanes', () => {
+  const ctx = { window: {}, console }; vm.createContext(ctx); vm.runInContext(r('public/crew-schedule.js'), ctx);
+  const C = ctx.window.HelmCrewSchedule;
+  assert.equal(C._workOf('open').l, 'Not started'); assert.equal(C._workOf('in_progress').l, 'In progress'); assert.equal(C._workOf('done').l, 'Done');
+  const L = C._lanes([{ start: 0, end: 10 }, { start: 5, end: 15 }, { start: 20, end: 30 }]);
+  assert.equal(L[0]._cols, 2); assert.equal(L[1]._col, 1); assert.equal(L[2]._cols, 1);
 });
 
 t('grouping: one block per person+event+day, start-end time, start only, event time fallback', () => {
