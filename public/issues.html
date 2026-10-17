@@ -99,7 +99,7 @@
 
     <div class="card" id="addCard" hidden>
       <div class="add">
-        <div class="fld"><label id="titleLbl" for="i_title">Issue</label><input id="i_title" placeholder="what's happening"></div>
+        <div class="fld"><label id="titleLbl" for="i_title">Issue</label><input id="i_title" maxlength="500" placeholder="what's happening"></div>
         <div class="fld"><label for="i_sev">Severity</label><select id="i_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
         <div class="fld"><label for="i_owner">Owner</label><input id="i_owner" placeholder="who's on it"></div>
         <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="i_add">＋ Log</button></div>
@@ -168,7 +168,8 @@
       await BPUI.guard(b,async()=>{ try{ await BPStore.issues.remove(b.dataset.del); await safeRender(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"delete the "+tab}),{type:"err"}); } }); }));
   }
   async function safeRender(){ try{ await render(); }catch(e){ $("#openBadge").textContent=""; BPUI.loadError($("#list"),e,safeRender,{what:tab==="incident"?"incidents":"issues"}); } }
-  function add(){ const t=$("#i_title").value.trim(); if(!t){ $("#i_title").focus(); return; }
+  function add(){ const t=$("#i_title").value.trim(); if(!t){ BPUI.toast((tab==="incident"?"Incident":"Issue")+" description is required.",{type:"err"}); $("#i_title").focus(); return; }
+    if(t.length>500){ BPUI.toast("Keep it under 500 characters.",{type:"err"}); $("#i_title").focus(); return; }
     return BPUI.guard($("#i_add"),async()=>{
       try{ await BPStore.issues.add(id,{ kind:tab, title:t, severity:$("#i_sev").value, owner:$("#i_owner").value.trim()||null });
         $("#i_title").value=""; $("#i_owner").value=""; await safeRender(); $("#i_title").focus(); }

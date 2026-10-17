@@ -1,0 +1,13 @@
+import { readFileSync } from 'node:fs';
+const r = (p) => readFileSync(new URL('../public/' + p, import.meta.url), 'utf8');
+let n = 0; const ok = (c, m) => { if (!c) { console.error('FAIL: ' + m); process.exit(1); } n++; };
+const api = r('store-api.js');
+ok(/const profit = rev - cost - s\.expPaid - refunds;/.test(api), 'closure.pl subtracts processed refunds');
+ok(/HELM_NOCHANGE/.test(api), 'milestones.update reports 0-row updates');
+ok(/Only \$\{num\(out\)\} went out/.test(r('inventory.html')), 'check-in over-return is an error');
+const rs = r('runsheet.html');
+ok(/saveEdit\(\)[\s\S]{0,200}Activity is required\./.test(rs), 'run-sheet edit requires activity');
+ok(/" item":" items"/.test(rs), 'singular item wording');
+ok(/id="i_title" maxlength="500"/.test(r('issues.html')), 'issue title maxlength');
+ok(/max="100000"/.test(r('logistics.html')), 'guest headcount max');
+console.log('retest2-1017: ' + n + ' checks passed');
