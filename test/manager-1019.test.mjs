@@ -104,4 +104,32 @@ t('ROLE_CAPS: manager has no unused "manage" capability, admin keeps it', () => 
 
 t('MANIFEST lists 0152', () => assert.match(r('supabase/migrations/MANIFEST'), /\nforward  supabase\/migrations\/0152_manager_role_fixes\.sql/));
 
+// round 2 (UI QA 1019)
+t('issues: long unbroken titles wrap inside the card (css v2)', () => {
+  assert.match(r('public/issues-polish.css'), /\.issue \.t\{overflow-wrap:anywhere/);
+  assert.match(r('public/issues-polish.css'), /\.issue > div\{min-width:0\}/);
+  assert.match(r('public/issues.html'), /issues-polish\.css\?v=2"/);
+});
+t('payments: past due date needs a confirm, dates shown dd/mm/yyyy', () => {
+  const h = r('public/logistics.html');
+  assert.match(h, /mDue && mDue<BPStore\.todayLocal\(\) && !\(await BPUI\.confirm\(/);
+  assert.equal((h.match(/m\.due_date\?BPStore\.fmtDateIN\(m\.due_date\):""/g) || []).length, 2);
+});
+t('task schedule: earlier today is blocked (time-level check)', () => {
+  assert.match(r('public/ops.html'), /new Date\(when\)\.getTime\(\) < Date\.now\(\)-5\*60000/);
+});
+t('dashboard: no "Good evening" before 5 AM', () => {
+  const j = r('public/shell-b-dash.js');
+  assert.match(j, /var greet = hr < 5 \? "Hello"/); assert.match(r('public/shell-proto.js'), /SHELL_V = "108"/);
+});
+t('flow step 9: next-step says confirmed only after an advance', () => {
+  const h = r('public/flow.html');
+  assert.match(h, /id="pay_next" data-next-step><b>Next step:<\/b> record the advance above/);
+  assert.equal((h.match(/payNextConfirmed\(\)/g) || []).length, 3);
+});
+t('demo notice: once per session off the dashboard (auth-ui v32)', () => {
+  assert.match(r('public/auth-ui.js'), /pageName\(\) !== "dashboard" && sessionStorage\.getItem\("helm_demo_seen"\) === "1"/);
+  assert.match(r('public/store-api.js'), /AUTH_UI_VERSION = "32"/);
+});
+
 console.log('manager-1019: ' + n + ' checks passed');

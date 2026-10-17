@@ -14,3 +14,7 @@
   @media (prefers-reduced-motion:reduce){ html:not([data-shell]) *{transition:none!important;animation:none!important} }
   html:not([data-shell]) .toolbar{gap:8px;flex-wrap:wrap}
   html:not([data-shell]) .issue{border-radius:12px}
+/* QA1019: a long unbroken title must wrap inside the card, not push Start/Resolve off screen */
+.issue{min-width:0;max-width:100%}
+.issue > div{min-width:0}
+.issue .t{overflow-wrap:anywhere;word-break:break-word}

@@ -682,7 +682,7 @@
       document.addEventListener("visibilitychange", function () { if (document.hidden) clearTimeout(tmr); else arm(); });
       arm();
     })();
-    var greet = hr < 5 ? "Good evening" : hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
+    var greet = hr < 5 ? "Hello" : hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
     var h1 = el("h2", "hd-greet"), h1t = el("span", "hd-greet-t", greet); h1.appendChild(h1t); hl.appendChild(h1);
     var sum = el("p", "hd-sum"); sum.appendChild(el("span", "hd-skel hd-skel-line")); hl.appendChild(sum);
     var acts = el("div", "hd-acts");

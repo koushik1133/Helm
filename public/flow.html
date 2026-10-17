@@ -299,7 +299,7 @@
           <div class="fld" id="pay_receiptWrap"><label for="pay_receipt">Receipt no. (offline — blank to auto‑generate)</label><input id="pay_receipt" placeholder="e.g. RCP‑001 / cash memo no."></div>
           <div class="s-4856645" id="pay_online" hidden></div>
           <div class="s-56f4356" id="pay_receipts"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
-          <p class="hint next-step" data-next-step><b>Next step:</b> the booking is confirmed — move on to Resources and Logistics from the event page.</p>
+          <p class="hint next-step" id="pay_next" data-next-step><b>Next step:</b> record the advance above — that confirms the booking. Then move on to Resources and Logistics from the event page.</p>
         </section>
 
         <!-- SHARE WITH CLIENT (0069) — share-checklist.js fills it -->
@@ -368,7 +368,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=222"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=223"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=18"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -381,6 +381,8 @@
 <script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="trial-test-note.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
+  // QA1019: the step-9 "Next step" only says the booking is confirmed once an advance is recorded
+  function payNextConfirmed(){ const p=$("#pay_next"); if(!p) return; const b=document.createElement("b"); b.textContent="Next step:"; p.replaceChildren(b, " the booking is confirmed \u2014 move on to Resources and Logistics from the event page."); }
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   // ---- Cluster C: "pick or add custom" vocab for the event-type & requirement
   // dropdowns. Defaults + any custom entries the user adds (persisted, so they
@@ -1037,7 +1039,7 @@
     const idem=(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID():("k"+Date.now()+Math.random().toString(36).slice(2));
     try{
       const r=await BPStore.milestones.record(id, amount, method, $("#pay_receipt").value.trim()||null, null, null, idem);
-      $("#bookingBadge").hidden=false; $("#statusBadge").textContent="confirmed";
+      $("#bookingBadge").hidden=false; payNextConfirmed(); $("#statusBadge").textContent="confirmed";
       $("#pay_receipt").value=""; $("#pay_amount").value="";
       if(method==='online' && BPStore.approval.onlinePayAvailable()){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
         $("#pay_online").hidden=false; $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
@@ -1271,7 +1273,7 @@
     stampNewQuoteTax();
     // advance payment + activity
     updateAdvance();
-    if(ev.status==='confirmed' || ((ev.approvalStatus||ev.approval_status)==='paid')) $("#bookingBadge").hidden=false;
+    if(ev.status==='confirmed' || ((ev.approvalStatus||ev.approval_status)==='paid')){ $("#bookingBadge").hidden=false; payNextConfirmed(); }
     // QA-FR2: after a reload the approval card said "Not sent yet." even when a link exists / the booking is confirmed
     { const ap=ev.approvalStatus||ev.approval_status||"", hasTok=!!(ev.approvalToken||ev.approval_token);
       if(ap==='paid'||ev.status==='confirmed') $("#apprState").textContent="Booking confirmed.";

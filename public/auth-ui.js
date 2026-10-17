@@ -1657,6 +1657,9 @@
     if (!spec || demoShown || !doc.body || pageName() === "checkout") return;
     var key = "helm_demo_dismissed_" + (spec.converted ? "c" : "d");
     try { if (sessionStorage.getItem(key) === "1") return; } catch (e) {}
+    // QA1019: once per session off the dashboard - the trial ribbon already says "sample data" on every
+    // page, and on phones the card re-covered content above the bottom nav on every navigation.
+    try { if (pageName() !== "dashboard" && sessionStorage.getItem("helm_demo_seen") === "1") return; sessionStorage.setItem("helm_demo_seen", "1"); } catch (e) {}
     demoShown = true;
     showNote({ id: spec.id, priority: 3, icon: "info", tone: spec.tone, role: "status", compact: true, title: spec.title, body: spec.body,
       primary: spec.action ? { label: spec.action, onClick: goDemoSwitch } : null,

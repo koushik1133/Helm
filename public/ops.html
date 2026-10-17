@@ -222,7 +222,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=222"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=223"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -576,7 +576,7 @@
     if(when && isNaN(Date.parse(when))){ $("#sc_err").textContent="Couldn't read that date/time."; $("#sc_err").hidden=false; return; }
     // 1017: no start in the past (any time today is fine) - it accepted 2020
     const scOrig=(()=>{ const t0=tasks.find(x=>x.id===scTaskId); return t0&&t0.planned_start?toLocalInput(t0.planned_start):""; })();
-    if(when && when!==scOrig && when.slice(0,10) < BPStore.todayLocal()){ $("#sc_err").textContent="Pick today or a later date - a task can't be scheduled to start in the past."; $("#sc_err").hidden=false; $("#sc_when").focus(); return; }
+    if(when && when!==scOrig && (when.slice(0,10) < BPStore.todayLocal() || new Date(when).getTime() < Date.now()-5*60000)){ $("#sc_err").textContent="Pick a time from now on - a task can't be scheduled to start in the past."; $("#sc_err").hidden=false; $("#sc_when").focus(); return; }
     const startISO = when ? new Date(when).toISOString() : null;
     const depId=$("#sc_dep").value||null;
     if(depId){
