@@ -531,7 +531,9 @@
           });
           /* Business: the studio's money, moved off the client-facing dashboard (finance VIEW, same gate as dashboard_money) */
           Promise.resolve(BPStore.auth.canView("finance")).catch(function () { return false; }).then(function (fin) {
-            if (fin && !document.querySelector('#hbRail .hb-group:not(.hb-fav) [data-key="business"]')) admin.insertBefore(item("business", "Business", "business.html", "business"), admin.querySelector(".hb-item"));
+            if (fin && !document.querySelector('#hbRail .hb-group:not(.hb-fav) [data-key="business"]')) { /* planner-1023: the first item may sit inside an .hb-row wrapper — insert before the admin group's own child, never a grandchild (that threw and left Manage hidden) */
+              var ref = admin.querySelector(".hb-item"); while (ref && ref.parentNode !== admin) ref = ref.parentNode;
+              admin.insertBefore(item("business", "Business", "business.html", "business"), ref || null); }
             manage.hidden = !manage.querySelector(".hb-item");
             admin.hidden = !admin.querySelector(".hb-item");
             if (done) done();
