@@ -59,6 +59,8 @@ html[data-shell="b"] table tbody tr:hover > td { background: color-mix(in srgb, 
 html[data-shell="b"] :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"], [type="submit"], [type="button"]), select):not(.viewport *) {
   min-height: 38px; border-radius: 8px; background-color: var(--hb-bg); color: var(--hb-ink);
 }
+/* phone wrapper (HelmPhone .hp) is measured before this sheet loads; keep it the same 38px floor as its sibling inputs */
+html[data-shell="b"] .hp { min-height: max(38px, var(--hp-h, 38px)); }
 html[data-shell="b"] textarea { border-radius: 8px; background-color: var(--hb-bg); color: var(--hb-ink); }
 html[data-shell="b"] :is(input, select, textarea, button, .btn, a):focus-visible {
   outline: 2px solid var(--hb-acc); outline-offset: 2px; box-shadow: none;
