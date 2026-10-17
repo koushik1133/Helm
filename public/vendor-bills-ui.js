@@ -223,7 +223,7 @@
       var p; try { p = await B.vendorBills.pnl(id); } catch (e) { if (my !== seq) return; clear(body); body.appendChild(el("p", "vb-err", "Couldn't work out the profit: " + errText(e))); return; }
       if (my !== seq) return;                                     // a newer refresh is on its way
       clear(body);
-      [["Revenue", p.revenue, "", ""], ["Vendors", p.vendors, "− ", "neg"], ["Logistics & other", p.other, "− ", "neg"], ["Staff expenses", p.staff, "− ", "neg"]].forEach(function (r) {
+      [["Revenue", p.revenue, "", ""], ["Vendors", p.vendors, "− ", "neg"], ["Logistics & other", p.other, "− ", "neg"], ["Staff expenses", p.staff, "− ", "neg"]].concat(Number(p.refunds || 0) > 0 ? [["Refunds to client", p.refunds, "− ", "neg"]] : []).forEach(function (r) {
         var row = el("div", "vb-pl-row"); row.appendChild(el("span", null, r[0])); row.appendChild(money(el("b", r[3], r[2] + fmt(r[1])))); body.appendChild(row);
       });
       var net = Number(p.net_profit || 0), tot = el("div", "vb-pl-row vb-pl-net");

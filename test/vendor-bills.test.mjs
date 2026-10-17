@@ -87,7 +87,8 @@ assert.equal(r.vendors, 55000); assert.equal(r.other, 10000); assert.equal(r.sta
 r = calc({ revenue: 80000, bookings: [{ id: "b1", cost: 50000, status: "booked" }, { id: "b2", cost: 9000, status: "cancelled" }],
   costs: [{ kind: "vendor", booking_id: "b1", estimated: 50000, actual: 48000 }, { kind: "vendor", estimated: 1000 }],
   bills: [{ amount: 500 }], changeCost: 1500 });
-assert.equal(r.vendors, 48000 + 1000 + 500); assert.equal(r.other, 1500); assert.equal(r.net_profit, 80000 - 49500 - 1500);
+// 0146 (audit 2026-10-17): loose bills + loose vendor lines -> the larger one, never both
+assert.equal(r.vendors, 48000 + Math.max(1000, 500)); assert.equal(r.other, 1500); assert.equal(r.net_profit, 80000 - 49000 - 1500);
 assert.equal(calc({ revenue: 0 }).margin_pct, null);
 // bill states
 const t = "2026-10-15";
@@ -110,7 +111,7 @@ assert.ok(!/\.delete\(|vendorBills\.remove/.test(ui), "UI never deletes bills");
 for (const [p, m] of [["settlement", "bills"], ["closure", "pnl"], ["budget", "pnl"], ["business", "business"]]) {
   const h = readFileSync("public/" + p + ".html", "utf8");
   assert.ok(h.includes('data-vb-mount="' + m + '"'), p + " mounts " + m);
-  assert.match(h, /vendor-bills-ui\.js\?v=5"/); assert.match(h, /vendor-bills\.css\?v=1"/);
+  assert.match(h, /vendor-bills-ui\.js\?v=6"/); assert.match(h, /vendor-bills\.css\?v=1"/);
   assert.ok(h.indexOf("store-api.js") < h.indexOf("vendor-bills-ui.js"), p + ": store before UI");
 }
 // QA fixes (2026-10-15): one profit card on Closure, live refresh on Budget, upcoming events on Business,
