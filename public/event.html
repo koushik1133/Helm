@@ -355,6 +355,8 @@
     if(canEdit) $("#steps").querySelectorAll(".step").forEach(b=>b.addEventListener("click",(e)=>{ if(e.detail>1) return; setStage(b.dataset.k,b); }));
     $("#nextHint").innerHTML=`<b>Now:</b> ${esc((STAGES[cur].k==="confirmed"&&advanceIn())?"Booked — the advance is in. Plan the day next.":STAGES[cur].hint)}`;
     const hasNext=renderNextStep(cur);
+    // dedupe: when the "Next step" bar shows its own one-line reason, the stage "Now:" hint repeats it
+    $("#nextHint").hidden=!!hasNext;
     const adv=$("#advBtn");
     // one call-to-action: when the "Next step" bar shows, the stage stepper above still moves stages
     if(canEdit && !hasNext && cur<STAGES.length-1){ adv.hidden=false; adv.textContent="Advance to "+stageLabel(STAGES[cur+1])+" →"; adv.dataset.k=STAGES[cur+1].k; }
@@ -571,10 +573,12 @@
       {t:"Money",keys:["budget","settle","closure"]}];
     const hide=new Set([...(canFin?[]:["budget","settle","closure"]), ...(canPipe?[]:["discovery","proposal"]), ...cardDenied]);
     const visible=cards.filter(c=>!hide.has(c.key));
+    // dedupe: the card title is already shown in bold, so drop the repeated "Title — " lead-in
+    const descLine=(k)=>{ const d=String(DESC[k]||""); const i=d.indexOf(" — "); const r=i>=0?d.slice(i+3):d; return r.charAt(0).toUpperCase()+r.slice(1); };
     const cardHtml=(c)=>{
       const reco=recommended.includes(c.key)?"reco":"";
       return `<div class="mod ${reco}"><div class="h"><span class="ic">${c.ic}</span><b>${c.title}</b>${reco?'<span class="stat q" style="margin-left:auto">Next</span>':""}</div>
-        ${DESC[c.key]?`<div class="desc">${esc(DESC[c.key])}</div>`:""}
+        ${DESC[c.key]?`<div class="desc">${esc(descLine(c.key))}</div>`:""}
         <div class="sum">${c.sum}</div>
         <div class="act">${c.acts.map(a=>`<a class="btn ${a.primary?'primary':''}" href="${a.href}">${a.t}</a>`).join("")}</div></div>`;
     };
