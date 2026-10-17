@@ -90,7 +90,7 @@
     try { versions = (await st.quotationVersions.list(quoteId)) || []; } catch (e) { versions = []; }
     clear(vbox);
     const prev = cur && Array.isArray(cur.shared_versions) ? cur.shared_versions : null;
-    if (!versions.length) vbox.appendChild(el("p", "bk-meta", "No saved quote versions yet — the current quotation is always shown."));
+    if (!versions.length) vbox.appendChild(el("p", "bk-meta", "Only the current quotation (Version 1) so far — it is always shown. Earlier versions appear here once you save a revised quote."));
     versions.forEach((v, i) => {
       const lab = el("label", "bk-check"); const cb = el("input"); cb.type = "checkbox"; cb.value = v.id; cb.name = "bkv";
       cb.checked = prev ? prev.indexOf(v.id) >= 0 : true;

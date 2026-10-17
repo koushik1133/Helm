@@ -282,7 +282,7 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=233"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=234"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=15"></script>
 <script>
@@ -832,6 +832,9 @@
              if(!confirmIt) await BPStore.quotes.rebrandCode(cmId); }catch(e){ dateSyncFailed=true; BPUI.toast(BPUI.friendlyError(e,{action:"update the event date on the calendar"}),{type:"err"}); }
       }
       delete detailCache[cmId];
+      // QA1026 #12: a stale validation error ("Client phone is required ...") must not outlive a successful save
+      { const ce=$("#cm_err"); if(ce){ ce.hidden=true; ce.textContent=""; }
+        try{ document.querySelectorAll(".bpui-toast").forEach(t=>{ if(/is required|confirm & lock/i.test(t.textContent||"") && t.__bpuiClose) t.__bpuiClose(); }); }catch(_){ } }
       closeConfirm(); BPUI.toast((confirmIt?"Quote confirmed and locked.":"Pricing saved.")+(dateSyncFailed?" The event date could not be synced - re-check it in the event workspace.":""),{type:dateSyncFailed?"info":"ok"}); await load();
       if(confirmedId) showEventGroupPrompt(confirmedId);   // set only after the lock succeeded
     }catch(e){ const el=$("#cm_err");

@@ -104,7 +104,8 @@
     clear(t); t.classList.remove("bz-loading");
     var top = el("div", "bz-kpi-top"); top.appendChild(el("span", "bz-kpi-l", o.label)); if (o.delta) top.appendChild(o.delta); t.appendChild(top);
     var v = money(el("div", "bz-kpi-v")); t.appendChild(v);
-    if (o.value == null) { v.textContent = "—"; v.removeAttribute("data-money"); } else countUp(v, o.value, compact);
+    // QA1026 #11: an empty money tile stays data-money, so with amounts hidden it shows •••• like the rest
+    if (o.value == null) { v.textContent = "—"; } else countUp(v, o.value, compact);
     var sub = el("div", "bz-kpi-sub" + (o.subKind ? " bz-t-" + o.subKind : ""), o.sub || ""); if (o.subMoney) money(sub); t.appendChild(sub);
     if (o.spark) t.appendChild(sparkline(o.spark));
     if (o.href) { var a = link(o.href, "bz-kpi-a"); a.setAttribute("aria-label", o.label + ": open"); t.appendChild(a); }

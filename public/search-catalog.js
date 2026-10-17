@@ -174,8 +174,22 @@
     { id: "mfa",      text: "Two-step sign-in (2FA)", kw: "twostep 2fa mfa otp authenticator verification code security turn on off enable disable", open: { section: "settings", focus: "mfa" } },
     { id: "password", text: "Change password",        kw: "password signin security reset", open: { section: "settings", focus: "password" } },
     { id: "profile",  text: "Your profile (name, mobile, photo)", kw: "profile name phone mobile avatar photo my details", open: { section: "profile" } },
-    { id: "devices",  text: "Sign out other devices", kw: "devices sessions security signout logout", open: { section: "settings", focus: "devices" } }
+    { id: "devices",  text: "Sign out other devices", kw: "devices sessions security signout logout", open: { section: "settings", focus: "devices" } },
+    // QA1026 #4: the rail's colour theme picker (shell-b.js), per device - not a Control Center field
+    { id: "theme",    text: "Colour theme",           kw: "theme colour color accent appearance look emerald cobalt midnight graphite studio", open: { theme: true } }
   ];
+
+  /* run an ACCOUNT item: the theme picker opens the rail swatch; everything else is HelmAuthUI.openAccount */
+  function openAccountItem(open, win) {
+    win = win || (typeof window !== "undefined" ? window : null); if (!win) return false;
+    if (open && open.theme) {
+      var d = win.document, b = d && (d.getElementById("hbThemePick") || d.querySelector(".hb-swbtn"));
+      if (b) { setTimeout(function () { try { b.click(); } catch (e) {} }, 0); return true; }
+      return false;
+    }
+    try { if (win.HelmAuthUI && win.HelmAuthUI.openAccount) { win.HelmAuthUI.openAccount(open || {}); return true; } } catch (e) {}
+    return false;
+  }
 
   var SECBY = {}; SECTIONS.forEach(function (s) { SECBY[s.key] = s; });
 
@@ -228,7 +242,7 @@
         if (!okSec[x[0]]) return;
         out.push({ kind: "setting", sec: x[0], text: x[1], context: "Control Center " + SECBY[x[0]].label, keywords: x[2] + " " + SECBY[x[0]].kw, href: settingHref(x[0], x[1]) });
       });
-      ACCOUNT.forEach(function (a) { out.push({ kind: "account", id: a.id, text: a.text, context: "Your account", keywords: a.kw, open: a.open }); });
+      ACCOUNT.forEach(function (a) { out.push({ kind: "account", id: a.id, text: a.text, context: "Your account", keywords: a.kw, open: a.open, boost: 0.2 }); });
       return out;
     });
   }
@@ -251,5 +265,5 @@
     return inText.concat(all.filter(function (e) { return inText.indexOf(e) < 0; })).slice(0, limit || 12);
   }
 
-  return { PAGES: PAGES, SECTIONS: SECTIONS, SETTINGS: SETTINGS, ACCOUNT: ACCOUNT, settingHref: settingHref, canSee: canSee, entriesFor: entriesFor, rank: rank };
+  return { PAGES: PAGES, SECTIONS: SECTIONS, SETTINGS: SETTINGS, ACCOUNT: ACCOUNT, openAccountItem: openAccountItem, settingHref: settingHref, canSee: canSee, entriesFor: entriesFor, rank: rank };
 });

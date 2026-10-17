@@ -215,8 +215,10 @@
     function sync() { inp.value = inp.value.replace(/\D/g, "").slice(0, 4); Array.prototype.forEach.call(dots.children, function (d, j) { d.classList.toggle("on", j < inp.value.length); }); }
     function shake(msg) { err.textContent = msg; dlg.classList.remove("hbp-shake"); void dlg.offsetWidth; dlg.classList.add("hbp-shake"); inp.value = ""; sync(); inp.focus(); }
     function unlockDesc() {
-      var hint = !pinStatusErr && (!pinStatus || pinStatus.is_default)
-        ? " (Default PIN 0000" + (canChangePin() ? " — change it in Control Center.)" : " — your studio admin can change it.)") : "";
+      // QA1026 #3: the default-PIN hint is for admins (who can change it) and only while the server
+      // says the PIN is still the default; other roles never see it.
+      var hint = !pinStatusErr && pinStatus && pinStatus.is_default === true && canChangePin()
+        ? " (Default PIN 0000 — change it in Control Center.)" : "";
       return "Amounts are hidden while you present. Enter your studio's privacy PIN to show them." + hint;
     }
     function paint() {

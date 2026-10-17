@@ -647,7 +647,7 @@
         Promise.resolve(Q.startBlank(code)).then(function (q) {
           if (!q || !q.id) throw new Error("no quote");
           var meta = (q.code && q.code !== q.title && typeof Q.updateMeta === "function") ? Promise.resolve(Q.updateMeta(q.id, { title: q.code })).catch(function () {}) : null;
-          return Promise.resolve(meta).then(function () { location.href = "/flow.html?quote=" + encodeURIComponent(q.id); });
+          return Promise.resolve(meta).then(function () { var h = "flow.html?quote=" + encodeURIComponent(q.id); try { if (window.HelmUrl && HelmUrl.upgrade) h = HelmUrl.upgrade(h); } catch (e) {} location.href = h.charAt(0) === "/" ? h : "/" + h; });
         }).catch(function () { creating = false; try { if (window.BPUI && BPUI.toast) BPUI.toast("Could not start a quote. Try again.", { type: "err" }); } catch (e) {} });
       });
     })();
