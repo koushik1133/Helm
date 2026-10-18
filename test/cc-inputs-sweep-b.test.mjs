@@ -126,4 +126,37 @@ t("number hardener: a pasted decimal in a whole-number field keeps the whole par
   assert.match(api, /if \(integer\) \{ var ip = cleaned\.indexOf\("\."\); if \(ip !== -1\) cleaned = cleaned\.slice\(0, ip\); \}/);
   assert.doesNotMatch(api, /if \(integer\) cleaned = cleaned\.replace\(\/\\\.\/g, ""\);/);
 });
+t("text: (c) (R) TM are plain text, not emoji (emoji selector still rejected)", () => {
+  for (const ok of ["Coca-Cola®", "Paneer™ bites", "Pepsi©"]) assert.equal(F.text(ok, { label: "Dish name", noEmoji: true, needLetter: true }).ok, true, ok);
+  for (const bad of ["Cola®️", "Tea‍x", "Dal ‼"]) assert.match(F.text(bad, { label: "Dish name", noEmoji: true }).error, /Emoji/, bad);
+});
+t("fieldError: a second error whose anchor is the previous message (rename row) does not throw", () => {
+  // minimal DOM: enough for fieldError's insert / remove / aria wiring
+  class El {
+    constructor(tag) { this.tagName = tag; this.children = []; this.parentNode = null; this.attrs = {}; this.textContent = "";
+      const cls = new Set(); this.classList = { add: (c) => cls.add(c), remove: (c) => cls.delete(c), contains: (c) => cls.has(c) }; this._l = {}; }
+    get nextSibling() { const p = this.parentNode; if (!p) return null; return p.children[p.children.indexOf(this) + 1] || null; }
+    get lastChild() { return this.children[this.children.length - 1] || null; }
+    set className(v) { v.split(/\s+/).forEach((c) => c && this.classList.add(c)); }
+    setAttribute(k, v) { this.attrs[k] = String(v); if (k === "id") this.id = String(v); } getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+    hasAttribute(k) { return k in this.attrs; } removeAttribute(k) { delete this.attrs[k]; }
+    appendChild(c) { return this.insertBefore(c, null); }
+    insertBefore(c, ref) { if (c.parentNode) c.parentNode.removeChild(c); const i = ref ? this.children.indexOf(ref) : -1; if (i < 0) this.children.push(c); else this.children.splice(i, 0, c); c.parentNode = this; return c; }
+    removeChild(c) { this.children.splice(this.children.indexOf(c), 1); c.parentNode = null; return c; }
+    addEventListener(ev, fn) { (this._l[ev] = this._l[ev] || []).push(fn); } dispatch(ev) { (this._l[ev] || []).forEach((f) => f()); }
+  }
+  const ctx = { document: { createElement: (t) => new El(t) } };
+  ctx.window = ctx;
+  vm.runInNewContext(read("public/cc-field-rules.js"), ctx);
+  const FD = ctx.HelmCCFields, row = new El("div"), inp = new El("input"), save = new El("button"), cancel = new El("button");
+  [inp, save, cancel].forEach((x) => row.appendChild(x));
+  FD.fieldError(inp, "Enter a template name.", row.lastChild);
+  assert.equal(row.children.length, 4); assert.equal(row.lastChild.textContent, "Enter a template name.");
+  // Save clicked again with the same bad name: the caller reads lastChild (= the old message) as the anchor
+  assert.doesNotThrow(() => FD.fieldError(inp, "Couldn't save - try again.", row.lastChild));
+  assert.equal(row.children.length, 4, "old message replaced, not duplicated"); assert.equal(row.lastChild.textContent, "Couldn't save - try again.");
+  assert.equal(inp.getAttribute("aria-invalid"), "true"); assert.equal(inp.getAttribute("aria-describedby"), row.lastChild.id);
+  inp.dispatch("input");
+  assert.equal(row.children.length, 3, "typing clears it"); assert.equal(inp.getAttribute("aria-invalid"), null);
+});
 console.log(`\ncc-inputs-sweep-b: ${n} passed`);

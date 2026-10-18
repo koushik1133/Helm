@@ -18,7 +18,9 @@
 (function (G) {
   "use strict";
   var CTRL = /[\u0000-\u001f\u007f]/g;
-  var EMOJI = /\p{Extended_Pictographic}|‍|[︎️]|[\u{1f1e6}-\u{1f1ff}]/u;
+  // (c) (R) TM are Extended_Pictographic too, but they are ordinary text in dish names ("Coca-Cola(R)") and
+  // render in the PDF fonts, so they are allowed on their own; with the emoji selector (U+FE0F) they still fail
+  var EMOJI = /(?![\u00a9\u00ae\u2122])\p{Extended_Pictographic}|\u200d|[\ufe0e\ufe0f]|[\u{1f1e6}-\u{1f1ff}]/u;
   var LETTER = /\p{L}/u;
   function str(v) { return String(v == null ? "" : v); }
   function clean(v) { return str(v).replace(CTRL, " ").replace(/\s+/g, " ").trim(); }
@@ -123,8 +125,8 @@
     var boxOf = function (input) { return (input && input.helmPhone && input.helmPhone.wrap) || input; };
     API.fieldError = function (input, msg, anchor) {
       if (!input) return null;
-      var box = boxOf(input), old = input.__ccErr;
-      if (old && old.parentNode) old.parentNode.removeChild(old);
+      var box = boxOf(input), old = input.__ccErr, oldAt = null, oldNext = null;
+      if (old && old.parentNode) { oldAt = old.parentNode; oldNext = old.nextSibling; old.parentNode.removeChild(old); }
       input.__ccErr = null;
       var ids = (input.getAttribute("aria-describedby") || "").split(/\s+/).filter(function (x) { return x && x.indexOf("ccerr_") !== 0; });
       if (!msg) {
@@ -135,7 +137,10 @@
       var p = document.createElement("p"); p.className = "fv-msg cc-ferr"; p.id = "ccerr_" + (++n); p.setAttribute("role", "alert");
       p.textContent = String(msg);
       var at = anchor || box;
-      if (at.hasAttribute && at.hasAttribute("data-cc-errs")) at.appendChild(p);   // a list box under an add-row: messages in field order
+      // the anchor was the previous message itself (e.g. "last child of the row" read before it was removed):
+      // put the new message back in the same place instead of failing on a detached node
+      if (at === old || !at.parentNode) { if (oldAt) oldAt.insertBefore(p, oldNext); else box.parentNode.insertBefore(p, box.nextSibling); }
+      else if (at.hasAttribute && at.hasAttribute("data-cc-errs")) at.appendChild(p);   // a list box under an add-row: messages in field order
       else at.parentNode.insertBefore(p, at.nextSibling);
       input.__ccErr = p; box.classList.add("fv-error"); input.setAttribute("aria-invalid", "true");
       ids.push(p.id); input.setAttribute("aria-describedby", ids.join(" "));
