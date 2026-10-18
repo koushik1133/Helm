@@ -109,6 +109,20 @@ do $$ declare a uuid; b uuid; c uuid; r jsonb; mv int; begin
   perform pg_temp.su();
   -- paid studio: untouched (old seed path)
   perform pg_temp.res('10 non-trial studio still uses old path', position('_demo_seed_ae' in (select prosrc from pg_proc where oid = 'public._demo_seed_for(uuid)'::regprocedure)) > 0);
+  -- I-12: trial = studio_subscriptions.status 'trial' (_is_trial_org), never organizations.trial_ends_at
+  update public.studio_subscriptions set status = 'active' where org_id = c;
+  update public.organizations set trial_ends_at = coalesce(trial_ends_at, now() + interval '5 days') where id = c;
+  perform pg_temp.login('ts174_ae@t.test');
+  perform public.clear_sample_data();
+  r := public.seed_demo_data();
+  perform pg_temp.su();
+  perform pg_temp.res('11 paid studio with a stale trial_ends_at: not cloned from the manifest',
+    not coalesce((r ->> 'cloned')::boolean, false) and not public._is_trial_org(c), coalesce(r::text, 'null'));
+  update public.organizations set trial_ends_at = null where id = a;
+  perform public._demo_clear(a);
+  r := public._demo_seed(a);
+  perform pg_temp.res('12 trial (status trial) with trial_ends_at null still gets the manifest',
+    coalesce((r ->> 'cloned')::boolean, false) and (select sample_version from public.organizations where id = a) = mv, coalesce(r::text, 'null'));
 exception when others then perform pg_temp.su(); insert into _uf values ('zz exception', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 select name, result from _uf order by name;

@@ -55,7 +55,7 @@ run "country-templates-0092" "COUNTRY-TEMPLATES-0092: ALL PASS \(12/12\)" psql -
 run "country-terms-0093"  "COUNTRY-TERMS-0093: ALL PASS \(6/6\)" psql -q -f tests/db/country-terms-0093.sql
 run "per-currency-0094" "PER-CURRENCY-0094: ALL PASS \(12/12\)" psql -q -f tests/db/per-currency-0094.sql
 run "client-due-0160"  "CLIENT-DUE-0160: ALL PASS \(9/9\)" psql -q -f tests/db/client-due-0160.sql
-run "photo-render-0095" "PHOTO-RENDER-0095: ALL PASS \(20/20\)" psql -q -f tests/db/photo-render-0095.sql
+run "photo-render-0095" "PHOTO-RENDER-0095: ALL PASS \(21/21\)" psql -q -f tests/db/photo-render-0095.sql
 # early: later suites re-apply 0027 / 0052 / 0093 over the 0097 demo gate wrappers
 run "trial-demo-0097"   "TRIAL-DEMO-0097: ALL PASS \(51/51\)" psql -q -f tests/db/trial-demo-0097.sql
 run "demo-seed-0100"   "DEMO-SEED-0100: ALL PASS \(18/18\)" psql -q -f tests/db/demo-seed-0100.sql
@@ -150,7 +150,8 @@ run "trial-data-0169" "TRIAL-DATA-0169: ALL PASS \(24/24\)" psql -q -f tests/db/
 run "trial-data-0170" "TRIAL-DATA-0170: ALL PASS \(16/16\)" psql -q -f tests/db/trial-data-0170.sql
 run "trial-data-0171" "TRIAL-DATA-0171: ALL PASS \(16/16\)" psql -q -f tests/db/trial-data-0171.sql
 run "trial-lockdown-0173" "TRIAL-LOCKDOWN-0173: ALL PASS \(34/34\)" psql -q -f tests/db/trial-lockdown-0173.sql
-run "trial-seed-0174" "TRIAL-SEED-0174: ALL PASS \(10/10\)" psql -q -f tests/db/trial-seed-0174.sql
+run "trial-seed-0174" "TRIAL-SEED-0174: ALL PASS \(12/12\)" psql -q -f tests/db/trial-seed-0174.sql
+run "trial-layout-0175" "TRIAL-LAYOUT-0175: ALL PASS \(6/6\)" psql -q -f tests/db/trial-layout-0175.sql
 run "trial-client-flow-0176" "TRIAL-CLIENT-FLOW-0176: ALL PASS \(16/16\)" psql -q -f tests/db/trial-client-flow-0176.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh

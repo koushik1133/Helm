@@ -17,7 +17,7 @@
 --      which clones the current manifest (old venues are switched off by the clear, never deleted).
 --   4  With the switch OFF everything behaves exactly as before (0100 / 0102 seeds).
 -- Zero data loss: functions only (CREATE OR REPLACE), no table / column / row change, nothing
--- deleted. Trial studios only. Idempotent.
+-- deleted. Trial studios only (public._is_trial_org: studio_subscriptions.status = 'trial', never trial_ends_at). Idempotent.
 -- ============================================================================
 do $$ begin
   if to_regprocedure('public._sample_clone_into(uuid)') is null or to_regprocedure('public._demo_seed__pre0166(uuid)') is null
@@ -32,7 +32,8 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare r jsonb;
 begin
   if p_org is not null and public._sample_template_ready()
-     and exists (select 1 from public.organizations o where o.id = p_org and o.trial_ends_at is not null and not o.is_sample_master) then
+     and public._is_trial_org(p_org)
+     and exists (select 1 from public.organizations o where o.id = p_org and not coalesce(o.is_sample_master, false)) then
     -- a studio holding OLD built-in sample rows (never cloned) is not cloned on top of them
     if exists (select 1 from public.organizations o where o.id = p_org and o.sample_cloned_at is null)
        and (exists (select 1 from public.quotes x where x.org_id = p_org and x.is_demo)
@@ -67,7 +68,8 @@ returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_cc text;
 begin
   if p_org is not null and public._sample_template_ready()
-     and exists (select 1 from public.organizations o where o.id = p_org and o.trial_ends_at is not null and not o.is_sample_master) then
+     and public._is_trial_org(p_org)
+     and exists (select 1 from public.organizations o where o.id = p_org and not coalesce(o.is_sample_master, false)) then
     return public._demo_seed(p_org);
   end if;
   select upper(btrim(coalesce(o.country, ''))) into v_cc from public.organizations o where o.id = p_org;

@@ -1,13 +1,13 @@
 -- APPLY-0178-refresh-trials.sql -- paste into the Supabase SQL editor (runs as postgres; no auth.uid()).
 -- Refreshes EVERY existing trial studio (studio_subscriptions.status = 'trial', never the sample master)
--- to the CURRENT published sample manifest (v5):
+-- to the CURRENT published sample manifest (v5 or later; e.g. v6 after 0175):
 --   1 _demo_clear(org)       removes ONLY that studio's is_demo rows (studio-created rows are never touched)
 --   2 sample_cloned_at/batch/version reset, then _demo_seed(org) re-clones via the 0166-0171 path
 --   3 trial studios set to INR / Asia/Kolkata / IN / tax_region 'IN' (GST)
 -- Idempotent: a studio already on the current manifest is skipped (set v_force := true to redo it).
 -- Venues are never deleted (0085 rule): _demo_clear DEACTIVATES old sample venues, so a forced redo
 -- leaves one more inactive copy per sample venue; the skip keeps a plain re-run from piling them up.
--- Sample venues are named 'Demo · ...' (0167 master); VERIFY counts the 4 ACTIVE ones. Outbound stays quiet (helm.maintenance on + trial outbox skip).
+-- Sample venues are named 'Demo \u00b7 ...' (E-string in VERIFY) (0167 master); VERIFY counts the 4 ACTIVE ones. Outbound stays quiet (helm.maintenance on + trial outbox skip).
 -- The sample switch is turned on for the clone only and restored to its previous value afterwards.
 
 -- ---- 1) BEFORE: diagnostics --------------------------------------------------------------------
@@ -27,7 +27,7 @@ declare
 begin
   perform set_config('helm.maintenance', 'on', true);
   select m.version into v_cur from public.helm_trial_seed_manifest m where m.is_current;
-  if v_cur is distinct from 5 then raise exception 'current sample manifest is %, expected 5 - stopping', v_cur; end if;
+  if v_cur is null or v_cur < 5 then raise exception 'current sample manifest is %, expected 5 or later - stopping', v_cur; end if;
   select t.active into v_was from public.helm_sample_template t where t.id;
   update public.helm_sample_template set active = true where id and not active;
 
@@ -60,7 +60,7 @@ select o.id, o.name, o.sample_version, o.currency, o.timezone, o.country, o.tax_
        (select count(*) from public.venues v where v.org_id = o.id and v.is_demo and v.active and v.name like E'Demo \u00b7 %') as active_sample_venues,
        (select count(*) - count(distinct v.name) from public.venues v where v.org_id = o.id and v.is_demo and v.active) as dup_venues,
        (select count(*) from public.comms_outbox c where c.org_id = o.id and c.status = 'pending') as pending_outbox,
-       ( o.sample_version = 5 and o.currency = 'INR' and o.timezone = 'Asia/Kolkata' and o.country = 'IN'
+       ( o.sample_version = (select m.version from public.helm_trial_seed_manifest m where m.is_current) and o.currency = 'INR' and o.timezone = 'Asia/Kolkata' and o.country = 'IN'
          and (select count(*) from public.venues v where v.org_id = o.id and v.is_demo and v.active and v.name like E'Demo \u00b7 %') = 4
          and (select count(*) - count(distinct v.name) from public.venues v where v.org_id = o.id and v.is_demo and v.active) = 0
          and not exists (select 1 from public.comms_outbox c where c.org_id = o.id and c.status = 'pending') ) as ok

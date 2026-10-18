@@ -39,7 +39,8 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare r jsonb;
 begin
   if p_org is not null and public._sample_template_ready()
-     and exists (select 1 from public.organizations o where o.id = p_org and o.trial_ends_at is not null and not o.is_sample_master) then
+     and public._is_trial_org(p_org)
+     and exists (select 1 from public.organizations o where o.id = p_org and not coalesce(o.is_sample_master, false)) then
     -- a studio holding OLD built-in sample rows (never cloned) is not cloned on top of them
     if exists (select 1 from public.organizations o where o.id = p_org and o.sample_cloned_at is null)
        and (exists (select 1 from public.quotes x where x.org_id = p_org and x.is_demo)
@@ -74,7 +75,8 @@ returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_cc text;
 begin
   if p_org is not null and public._sample_template_ready()
-     and exists (select 1 from public.organizations o where o.id = p_org and o.trial_ends_at is not null and not o.is_sample_master) then
+     and public._is_trial_org(p_org)
+     and exists (select 1 from public.organizations o where o.id = p_org and not coalesce(o.is_sample_master, false)) then
     return public._demo_seed(p_org);
   end if;
   select upper(btrim(coalesce(o.country, ''))) into v_cc from public.organizations o where o.id = p_org;
@@ -100,5 +102,9 @@ select item, ok from (values
   ('02 _demo_seed_for is the 0174 version', position('trial-seed-0174' in (select prosrc from pg_proc where oid = 'public._demo_seed_for(uuid)'::regprocedure)) > 0),
   ('03 app roles cannot call the seeders', not has_function_privilege('authenticated', 'public._demo_seed(uuid)', 'execute')
        and not has_function_privilege('authenticated', 'public._demo_seed_for(uuid)', 'execute')),
+  ('05 trial check uses _is_trial_org, not trial_ends_at', position('_is_trial_org' in (select prosrc from pg_proc where oid = 'public._demo_seed(uuid)'::regprocedure)) > 0
+       and position('trial_ends_at' in (select prosrc from pg_proc where oid = 'public._demo_seed(uuid)'::regprocedure)) = 0
+       and position('_is_trial_org' in (select prosrc from pg_proc where oid = 'public._demo_seed_for(uuid)'::regprocedure)) > 0
+       and position('trial_ends_at' in (select prosrc from pg_proc where oid = 'public._demo_seed_for(uuid)'::regprocedure)) = 0),
   ('04 switch on + manifest current (false = sample switch still off)', public._sample_template_ready())
 ) v(item, ok) order by item;
