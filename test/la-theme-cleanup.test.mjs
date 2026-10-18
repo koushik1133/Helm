@@ -206,12 +206,16 @@ let br = null; if (pw) { try { br = await pw.chromium.launch(); } catch (e) { br
 if (!br) console.log('  - headless privacy check skipped (no playwright browser)');
 else await t('privacy (headless): hidden amounts are not in the page text; a re-render while hidden is kept; show restores', async () => {
   const pg = await br.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(String(e)));
-  await pg.setContent('<html><body><div id="a">Total ₹1,20,000</div><p id="b">The quote is worth ₹50,000 and due soon</p><span id="c" data-money><b>AED 4,000</b></span><div><input id="amt" type="number" value="500"></div><div id="e">Guests 120</div></body></html>');
+  await pg.setContent('<html><body><div id="a">Total ₹1,20,000</div><p id="b">The quote is worth ₹50,000 and due soon</p><span id="c" data-money><b>AED 4,000</b></span><div><input id="amt" type="number" value="500"></div><div id="e">Guests 120</div><div id="f">₹9,000</div></body></html>');
   await pg.addScriptTag({ content: P }); await pg.waitForTimeout(60);
   const h = await pg.evaluate(() => ({ txt: document.body.innerText, inp: document.getElementById('amt').value, real: HelmPrivacy.realText(document.getElementById('b')) }));
   assert.doesNotMatch(h.txt, /1,20,000|50,000|4,000/); assert.match(h.txt, /Guests 120/); assert.equal(h.inp, '500'); assert.equal(h.real, 'The quote is worth ₹50,000 and due soon');
   await pg.evaluate(() => { document.getElementById('a').textContent = 'Total ₹2,00,000'; }); await pg.waitForTimeout(200);
   assert.equal(await pg.evaluate(() => document.getElementById('a').textContent), '••••');
+  // a masked amount the page replaces with plain words ("No payments") shows again, as before LA-26
+  await pg.evaluate(() => { document.getElementById('f').textContent = 'No payments'; }); await pg.waitForTimeout(200);
+  assert.equal(await pg.evaluate(() => document.getElementById('f').textContent), 'No payments');
+  assert.equal(await pg.evaluate(() => document.getElementById('f').classList.contains('hbp-m')), false);
   await pg.evaluate(() => HelmPrivacy.show()); await pg.waitForTimeout(80); await pg.keyboard.type('0000'); await pg.waitForTimeout(300);
   const s = await pg.evaluate(() => ({ a: document.getElementById('a').textContent, b: document.getElementById('b').textContent, c: document.getElementById('c').textContent }));
   assert.deepEqual(s, { a: 'Total ₹2,00,000', b: 'The quote is worth ₹50,000 and due soon', c: 'AED 4,000' });

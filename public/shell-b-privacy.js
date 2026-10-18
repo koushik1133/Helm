@@ -132,6 +132,8 @@
       stash.delete(e);
     });
   }
+  /* forget a masked element whose new content is not money (its old stashed value is stale and dropped) */
+  function release(e) { masked.delete(e); stash.delete(e); if (e.classList) e.classList.remove("hbp-m"); }
   /* the text a page would see if amounts were shown (for code that must read an amount while hidden) */
   function realText(n) {
     if (!n) return "";
@@ -208,7 +210,12 @@
         var v = mk.nodeType === 3 ? mk.nodeValue : mk.textContent, f = document.createDocumentFragment(); f.appendChild(document.createTextNode(v));
         quiet(function () { if (mk.nodeType === 3) mk.nodeValue = MASK; else mk.textContent = MASK; }); stash.set(e, f); return;
       }
-      if (hidden()) { if (hasMoney(e.textContent) || e.hasAttribute("data-money") || stash.has(e)) maskEl(e); }
+      if (hidden()) {
+        /* the page REPLACED a masked amount with text that is no longer money ("Loading…" -> "No payments"):
+           show it again, as before LA-26 (a [data-money] element always stays masked) */
+        if (!(mk && mk.parentNode === e) && !e.hasAttribute("data-money") && !hasMoney(e.textContent)) { release(e); return; }
+        if (hasMoney(e.textContent) || e.hasAttribute("data-money") || stash.has(e)) maskEl(e);
+      }
     });
     if (queue.length && !queued) { queued = true; if (window.requestAnimationFrame) requestAnimationFrame(flush); setTimeout(function () { if (queued) flush(); }, 120); }   /* rAF batch; timer backup for background tabs (no rAF) */
   }
