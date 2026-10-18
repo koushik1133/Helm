@@ -275,13 +275,22 @@ window.HelmUrl = HelmUrl;
     }
     return fetcher().then(store);
   }
+  // anon-42501 (prod logs: "permission denied for function my_trial_status / my_trial_org"): both RPCs are granted to
+  // authenticated only (0180 / 0183 / 0204), so a signed-out page (login, public pages) never calls them - it gets
+  // the "not a trial" answer (null) instead. The session is read locally (no network call).
+  async function trialSignedIn() {
+    if (!supa) return false;
+    if (currentUser) return true;
+    try { const { data } = await supa.auth.getSession(); return !!(data && data.session && data.session.access_token); } catch (e) { return false; }
+  }
   // 0116 / 0183: my_trial_org() — one in-flight call shared by the trial strip and the read-only check
   function trialOrgStatus() {
     if (!supa) return Promise.resolve(null);
     if (trialOrgInflight) return trialOrgInflight;
     // la-fetch (audit 25): + a per-page memo, so the trial strip, trial-lock and trial-demo share ONE answer even
     // before the per-tab swr entry can be written (it needs the studio id cached first)
-    const p = memoRead("trialorg", 15000, () => swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })));
+    // anon-42501: signed out = "not a trial" without asking (my_trial_org is granted to authenticated only)
+    const p = trialSignedIn().then((ok) => (ok ? memoRead("trialorg", 15000, () => swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : null));
     trialOrgInflight = p;
     const done = () => { if (trialOrgInflight === p) trialOrgInflight = null; };
     p.then(done, done);
@@ -9044,7 +9053,8 @@ window.HelmUrl = HelmUrl;
       // 0058: {state:'trial'|'ended'|'none', days_left, ends_at, is_admin, can_pay}; null before 0058
       // 0173: {trial, cap: 2, used: {leads, quotes, inventory_items, vendors, crew_members, venues}}; null before 0173
       limits: () => (supa ? rpc("my_trial_limits").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
-      trial: () => (supa ? memoRead("trial", 15000, () => swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : Promise.resolve(null)),
+      // anon-42501: signed out = null ("not a trial") without asking the server
+      trial: () => (supa ? trialSignedIn().then((ok) => (ok ? memoRead("trial", 15000, () => swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : null)) : Promise.resolve(null)),
     },
     // 0157 — "Hide amounts" privacy PIN, ONE per studio. The server keeps only a bcrypt hash
     // (default 0000 until an admin changes it) and counts wrong tries per person.
