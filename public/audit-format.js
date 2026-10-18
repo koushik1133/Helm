@@ -13,8 +13,11 @@
   function title(v){ return String(v==null?'':v).replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
   // dev pass 3: an ISO timestamp (2026-10-16T23:29:08.25+00:00) reads like the When column (local time)
   const ISO_TS=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/;
+  // B18: in the STUDIO's timezone + locale (BPStore.fmtStudioDate, Asia/Kolkata / en-IN for an Indian studio), not the device's
   function fmtTs(v){ const d=new Date(String(v)); if(isNaN(d.getTime())) return String(v);
-    try{ return d.toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch{ return d.toISOString(); } }
+    const F={month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'};
+    try{ const B=root&&root.BPStore; if(B&&typeof B.fmtStudioDate==='function'){ const o=B.fmtStudioDate(String(v),{fmt:F}); if(o) return o; } }catch{}
+    try{ return d.toLocaleString('en-IN',Object.assign({timeZone:'Asia/Kolkata'},F)); }catch{ return d.toISOString(); } }
   function trunc(v,n){ n=n||60; let s; if(v==null||v==='') return '∅';
     if(typeof v==='string' && ISO_TS.test(v)) return fmtTs(v);
     if(typeof v==='object'){ try{ s=JSON.stringify(v); }catch{ s='…'; } } else s=String(v);

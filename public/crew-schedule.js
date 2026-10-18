@@ -24,13 +24,22 @@
   var monday = function (d) { var w = (d.getDay() + 6) % 7; return addDays(d, -w); };
   /* LA-27: labels in the STUDIO's locale (en-IN for an Indian studio, en-US for a US one), not a hard-coded en-IN */
   var LOC = function () { try { var B = window.BPStore; return B && B.studioLocale ? B.studioLocale() : "en-IN"; } catch (e) { return "en-IN"; } };
-  var hm = function (ts) { var d = new Date(ts); return isNaN(d.getTime()) ? "" : d.toLocaleTimeString(LOC(), { hour: "2-digit", minute: "2-digit", hour12: false }); };
+  /* B18: shift times are drawn in the STUDIO's timezone (Asia/Kolkata for an Indian studio), not the device's.
+     wall(ts) turns an instant into a "wall clock" value: the device-local time that reads the same date + hour
+     as the studio's clock, so the day / hour grid arithmetic below (local midnight, getHours) lines up with the
+     studio's day. Without BPStore.studioClock it is the instant itself (old behaviour). */
+  var SC = function (v) { try { var B = window.BPStore; return B && B.studioClock ? B.studioClock(v) : null; } catch (e) { return null; } };
+  var wall = function (ts) { var t = typeof ts === "number" ? ts : new Date(ts).getTime(); if (!isFinite(t)) return NaN;
+    var c = SC(new Date(t)); return c ? new Date(c.y, c.mo - 1, c.d, c.h, c.mi, c.s).getTime() : t; };
+  var nowW = function () { return new Date(wall(Date.now())); };
+  var hmW = function (w) { var d = new Date(w); return isNaN(d.getTime()) ? "" : pad(d.getHours()) + ":" + pad(d.getMinutes()); };
+  var hm = function (ts) { return hmW(wall(ts)); };
   var DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   var HOUR = 48;                                                      // px per hour in the time grid
   var VIEWS = ["day", "week", "month"];
 
   // the day a row belongs to: its shift start (local time), else the event date
-  function dayOf(r) { if (r.planned_start) { var d = new Date(r.planned_start); if (!isNaN(d.getTime())) return iso(d); } return r.event_date ? String(r.event_date).slice(0, 10) : null; }
+  function dayOf(r) { if (r.planned_start) { var w = wall(r.planned_start); if (isFinite(w)) return iso(new Date(w)); } return r.event_date ? String(r.event_date).slice(0, 10) : null; }
   // "18:00-23:00", "18:00" (no end), or the event's own time, or "" (all day)
   function timeOf(r) {
     if (r.planned_start) { var s = hm(r.planned_start), e = r.planned_end ? hm(r.planned_end) : ""; return e && e !== s ? s + "–" + e : s; }
@@ -55,12 +64,12 @@
         code: r.event_code || "", title: r.event_title || "", venue: r.venue_name || "", event_time: r.event_time || "", shifts: [], crew: [], start: null, end: null }; out.push(by[k]); }
       var b = by[k]; b.shifts.push({ title: r.task_title || "", category: r.category || "", status: r.status || "", time: timeOf(r), crew: r.crew_name || "" });
       if (r.crew_name && b.crew.indexOf(r.crew_name) < 0) b.crew.push(r.crew_name);
-      var st = r.planned_start ? new Date(r.planned_start).getTime() : null, en = r.planned_end ? new Date(r.planned_end).getTime() : null;
+      var st = r.planned_start ? wall(r.planned_start) : null, en = r.planned_end ? wall(r.planned_end) : null;   // B18: studio wall clock
       if (st != null && isFinite(st)) { if (b.start == null || st < b.start) b.start = st; var e2 = en != null && isFinite(en) && en > st ? en : st + 36e5; if (b.end == null || e2 > b.end) b.end = e2; }
     });
     out.forEach(function (b) {
       var t = b.shifts.map(function (s) { return s.time; }).filter(Boolean);
-      b.time = b.start != null ? hm(b.start) + (b.end ? "–" + hm(b.end) : "") : t.length ? t[0] : "";
+      b.time = b.start != null ? hmW(b.start) + (b.end ? "–" + hmW(b.end) : "") : t.length ? t[0] : "";
     });
     out.sort(function (a, b) { return a.day < b.day ? -1 : a.day > b.day ? 1 : ((a.start == null ? Infinity : a.start) - (b.start == null ? Infinity : b.start) || 0) || a.crew_name.localeCompare(b.crew_name); });
     return out;
@@ -89,7 +98,7 @@
     var statusFor = opts.statusFor || function () { return ""; };
     var extra = opts.extra || function () { return []; };
     var events = opts.events || function () { return []; };              // cal-1018: [{quote_id, day, title, code, venue, time}]
-    var st = { view: VIEWS.indexOf(opts.view) >= 0 ? opts.view : "week", staff: opts.staff || "", anchor: new Date(), rows: [] };
+    var st = { view: VIEWS.indexOf(opts.view) >= 0 ? opts.view : "week", staff: opts.staff || "", anchor: nowW(), rows: [] };
     var seq = 0, pop = null, lastFocus = null;
     var narrow = function () { try { return !!(window.matchMedia && window.matchMedia("(max-width: 600px)").matches); } catch (e) { return false; } };
     var allCrew = function () { return team && !st.staff; };
@@ -151,7 +160,7 @@
     function chip(b, cls) {
       idx[b.key] = b; var k = sKind(b);
       return '<button type="button" class="cs-ev cs-s-' + k + (cls ? " " + cls : "") + '" data-ev="' + esc(b.key) + '" aria-haspopup="dialog" aria-label="' + esc((b.title || b.code || "Event") + ", " + (b.time || "all day") + ", " + sLabel(k)) + '">' +
-        (b.time && cls !== "cs-allday" ? '<span class="cs-time">' + esc(cls === "cs-mchip" && b.start != null ? hm(b.start) : b.time) + "</span>" : "") +
+        (b.time && cls !== "cs-allday" ? '<span class="cs-time">' + esc(cls === "cs-mchip" && b.start != null ? hmW(b.start) : b.time) + "</span>" : "") +
         '<span class="cs-ttl">' + esc(b.title || b.code || "Event") + "</span>" +
         (cls === "cs-blk" && b.venue ? '<span class="cs-venue">' + esc(b.venue) + "</span>" : "") + "</button>";
     }
@@ -228,7 +237,7 @@
         var l = (byDay[iso(d)] || []).filter(function (b) { return b.start == null; });
         return "<div>" + l.map(function (b) { return chip(b, "cs-allday"); }).join("") + "</div>"; }).join("") + "</div>";
       var hours = ""; for (var h = 0; h < 24; h++) hours += '<span class="cs-hr" data-st="top:' + h * HOUR + 'px">' + (h ? pad(h) + ":00" : "") + "</span>";
-      var now = new Date(), nowTop = (now.getHours() + now.getMinutes() / 60) * HOUR;
+      var now = nowW(), nowTop = (now.getHours() + now.getMinutes() / 60) * HOUR;
       var colsHtml = ds.map(function (d) {
         var k = iso(d), d0 = d.getTime(), d1 = addDays(d, 1).getTime();
         var timed = lanes((byDay[k] || []).filter(function (b) { return b.start != null; }));
@@ -261,7 +270,7 @@
     }
     function render() {
       closePop(); idx = {};
-      var rg = range(), today = iso(new Date()), body = $("#csBody"), all = blocks();
+      var rg = range(), today = iso(nowW()), body = $("#csBody"), all = blocks();
       $("#csRange").textContent = label(rg);
       root.querySelectorAll("[data-v]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.v === st.view)); });
       root.setAttribute("data-view", st.view);
@@ -289,11 +298,11 @@
     }
     root.querySelectorAll("[data-v]").forEach(function (b) { b.addEventListener("click", function () {
       var to = b.dataset.v; if (to === st.view) return;
-      st.anchor = switchAnchor(st.view, to, st.anchor, new Date());
+      st.anchor = switchAnchor(st.view, to, st.anchor, nowW());
       st.view = to; st.sel = null; load(); }); });
     root.querySelectorAll("[data-n]").forEach(function (b) { b.addEventListener("click", function () {
       var n = +b.dataset.n; st.sel = null;
-      if (!n) st.anchor = new Date();
+      if (!n) st.anchor = nowW();
       else if (st.view === "month") st.anchor = new Date(st.anchor.getFullYear(), st.anchor.getMonth() + n, 1);
       else st.anchor = addDays(st.anchor, span() * n);
       load(); }); });

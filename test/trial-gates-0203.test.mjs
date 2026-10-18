@@ -91,7 +91,7 @@ assert.match(read("public/shell-b.js"), /\[\(ctl \|\| rl === "admin"\) && !inTri
   assert.match(n, /<p id="autoTrial" class="tl-note" hidden>Greetings are sent once you choose a plan\./);
   assert.match(n, /\$\("#autoToggle"\)\.disabled=trial; \$\("#runNow"\)\.hidden=trial; \$\("#autoTrial"\)\.hidden=!trial;/);
   assert.match(n, /\$\("#autoToggle"\)\.checked=!trial&&!!a\.enabled;/, "automation shown off in the trial");
-  assert.match(n, /\$\{trial\?"":`<button type="button" class="lnk" data-greet=/, "no Send greeting button in the trial");
+  assert.match(n, /\$\{trial\?'<span class="occ paused" title="Free trial test mode[^`]*`<button type="button" class="lnk" data-greet=/, "no Send greeting button in the trial (test-mode label instead)");
   assert.match(n, /d\.auto_on&&!trial\?"checked":""\}\$\{trial\?" disabled":""\}/, "per-contact auto-greet off + locked in the trial");
   assert.match(n, /if\(want&&\(await inTrial\(\)\)\)/, "switching automation on is refused in the page too"); }
 

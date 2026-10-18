@@ -328,7 +328,7 @@
 <script src="event-name.js?v=9"></script>
 <script src="new-quote-dialog.js?v=2"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script><script src="flow-resume.js?v=2" data-mount></script>
 <script src="event-reminders.js?v=3"></script>
-<script src="tour.js?v=18"></script>
+<script src="tour.js?v=19"></script>
 <script src="getting-started.js?v=10"></script>
 <script src="onboarding-wizard.js?v=10"></script>
 <script src="trial-demo.js?v=11"></script>
@@ -350,7 +350,10 @@
     // LA-21: the storage tag is developer detail - shown only on a local dev host, never on production
     const fd = $("#footDev"); if (fd) fd.hidden = !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   }
-  function eg() { const d = new Date(); const mm = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
+  // B18: the next-code guess uses the STUDIO's day (the server stamps codes with the studio's local date)
+  function eg() { let t = ""; try { t = BPStore.todayLocal(); } catch (_) {}
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t); if (m) return m[2] + m[3] + m[1];
+    const d = new Date(); const mm = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
     return mm + dd + d.getFullYear(); }
 
   let summaries = [];          // the quotes loaded so far (pages of "Your quotes")
@@ -767,10 +770,21 @@
   // trial:false = not part of a free-trial studio (studio set-up lives behind the checklist chip).
   const RAIL='#hbRail .hb-group:not(.hb-fav) ';
   const TOUR_TRIAL=()=>{ try{ return document.documentElement.classList.contains("helm-trial"); }catch{ return false; } };
+  // B30: the trial welcome reads the trial length from the server (days left) and names the label the
+  // screens actually show on sample rows ("Sample" badge, trial-upgrade.js) - not a hard-coded "8-day" / "Demo ·"
+  let TOUR_DAYS=null;
+  const TOUR_SAMPLE=()=>{ try{ const U=window.HelmTrialUpgrade; return (U&&U.SAMPLE_LABEL)||"Sample"; }catch{ return "Sample"; } };
   const TOUR_WELCOME={
-    trial:"Helm runs your events business in one place: quotes, leads, the calendar, staff, stock and payments. Your 8-day trial is loaded with sample data marked “Demo ·” so you can click around freely. This quick tour walks the screen from the menu on the left, across the top bar, then down the dashboard.",
+    get trial(){ const n=TOUR_DAYS, d=n==null?"Your free trial":("Your free trial ("+n+(n===1?" day":" days")+" left)");
+      return "Helm runs your events business in one place: quotes, leads, the calendar, staff, stock and payments. "+d+" is loaded with sample data tagged “"+TOUR_SAMPLE()+"” so you can click around freely. This quick tour walks the screen from the menu on the left, across the top bar, then down the dashboard."; },
     paid:"Welcome to Helm — here's a quick look around your studio. Helm runs your events business in one place: quotes, leads, the calendar, staff, stock and payments. This quick tour walks the screen from the menu on the left, across the top bar, then down the dashboard.",
   };
+  // B30: the "Create something new" step lists the options the New menu really has for this person (shell-b-dash.js)
+  const TOUR_NEW=()=>{ const l=(window.__helmNewMenu||[]).map(t=>String(t).toLowerCase());
+    if(!l.length) return "“New quote” starts pricing an event.";
+    const last=l.length>1?l.slice(0,-1).join(", ")+" or "+l[l.length-1]:l[0];
+    return "“New quote” starts pricing an event. The little arrow next to it opens more: a "+last+"."; };
+
   const TOUR=[
     // the welcome text is read when the step shows: a free-trial studio (html.helm-trial, set by
     // trial-lock.js before the tour auto-starts) hears about its sample data; a paid studio does not
@@ -791,7 +805,7 @@
     {sel:'[data-tour="privacy"]', title:"Hide the money", desc:"Showing your screen to a client? Tap the eye to hide every amount. Showing them again asks for your PIN, so nobody else can peek."},
     {sel:'[data-tour="chat"]', title:"Team chat, one click away", desc:"The same chat from any page. A small badge shows when there are messages you haven't read."},
     {sel:['[data-tour="bell"]','[data-tour="m-bell"]'], title:"Notifications", desc:"The bell collects reminders, approvals waiting on you and trial reminders. Open it to act on one, or use “Mark all read” to clear the list."},
-    {sel:['[data-tour="new"]','[data-tour="m-add"]'], title:"Create something new", desc:"“New quote” starts pricing an event. The little arrow next to it opens more: a new lead, client, inventory item, vendor or staff member."},
+    {sel:['[data-tour="new"]','[data-tour="m-add"]'], title:"Create something new", get desc(){ return TOUR_NEW(); }},
     // 3 · dashboard, top to bottom
     {sel:'[data-tour="today"]', title:"Today", desc:"One calm line for today: events on, tasks due and payments overdue."},
     {sel:['[data-tour="hero"]','#hdDash'], title:"Your day at a glance", desc:"A greeting with a summary of your day and, on the right, a countdown to your next event."},
@@ -804,12 +818,15 @@
   // The spotlight engine lives in tour.js (shared with every page): it re-glues the
   // ring on scroll/resize/orientation/layout changes, flips + clamps the tip inside
   // the viewport, and skips a step whose element is missing or hidden.
-  function startTour(){ if(window.HelmTour) window.HelmTour.start(TOUR, "bp_seen_tour"); }
+  function startTour(){ if(!window.HelmTour) return; if(TOUR_TRIAL()&&TOUR_DAYS==null) tourTrialDays().finally(()=>window.HelmTour.start(TOUR, "bp_seen_tour")); else window.HelmTour.start(TOUR, "bp_seen_tour"); }
   // auto-start: wait until the shell + dashboard have rendered (dashboard cards ready, the
   // sidebar's role-gated Manage / Admin items in) and the free-trial answer is known
   // (trial-lock hides trial-only items), so no step is skipped early or shown for a hidden page
+  // B30: days left in the free trial for the welcome step (best-effort; null = not shown)
+  async function tourTrialDays(){ try{ const T=BPStore.trialOrg&&BPStore.trialOrg.status?await BPStore.trialOrg.status():null;
+      const n=T&&T.is_trial_org===true&&T.days_left!=null?Number(T.days_left):NaN; TOUR_DAYS=isFinite(n)&&n>=0?Math.round(n):null; }catch(_){ TOUR_DAYS=null; } }
   function startTourWhenReady(){
-    const t0=Date.now();
+    const t0=Date.now(); tourTrialDays();
     const trialKnown = Promise.race([ Promise.resolve(window.HelmTrialLock && HelmTrialLock.whenKnown ? HelmTrialLock.whenKnown() : null).catch(()=>null),
                                       new Promise(r => setTimeout(r, 5000)) ]);
     trialKnown.then(function wait(){ const d=document.getElementById("hdDash"), td=document.querySelector('[data-tour="today"]'), rail=document.getElementById("hbRail");

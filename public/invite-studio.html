@@ -376,7 +376,10 @@
     if(!ev) return; const c=ev.client&&typeof ev.client==="object"?ev.client:{};
     const k=String(ev.eventType||"").trim().toLowerCase(); const st=SITE_TYPES[k]||SITE_TYPES[k.split(/[^a-z]+/)[0]]||"general";
     const d=TYPE_DEFAULTS[st]||TYPE_DEFAULTS.general; $("#f_type").value=st; tpl=d.tpl; $("#f_headline").value=d.headline;
-    const set=(id,v)=>{ if(v!=null && String(v).trim() && !$("#"+id).value) $("#"+id).value=String(v).trim(); };
+    // B30: a free-trial sample event is stored as "Demo · Kapoor Family Sangeet": the guest-facing invitation
+    // never starts with the "Demo ·" prefix (names, host, venue). Only the prefill is changed, never the event.
+    const noDemo=(v)=>{ const t=String(v==null?"":v).trim(), o=t.replace(/^Demo\s*[\u00b7\u2022]\s*/,"").trim(); return o||t; };
+    const set=(id,v)=>{ if(v!=null && String(v).trim() && !$("#"+id).value) $("#"+id).value=noDemo(v); };
     const date=String(ev.eventDate||c.eventDate||"").slice(0,10); if(/^\d{4}-\d{2}-\d{2}$/.test(date)) set("f_date",date);
     const tm=ev.eventTime||c.eventTime||c.time; if(tm){ const HC=window.HelmCountry; set("f_time",(HC&&HC.formatTime(tm))||tm); }
     set("f_venue",c.venueName||c.venue); set("f_address",c.address);

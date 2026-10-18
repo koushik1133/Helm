@@ -122,8 +122,8 @@
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script>
-<script src="tour.js?v=18"></script>
-<script src="crew-schedule.js?v=4"></script>
+<script src="tour.js?v=19"></script>
+<script src="crew-schedule.js?v=5"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
   const $=(s)=>document.querySelector(s);
@@ -139,7 +139,11 @@
   /* HelmUI empty state (guarded: falls back to the plain message if the kit isn't loaded) */
   const hEmpty=(host,o,cols)=>{ const H=window.HelmUI; if(!(H&&H.emptyState)||!host) return false; const n=H.emptyState(o); if(cols){ const tr=document.createElement("tr"),td=document.createElement("td"); td.colSpan=cols; td.className="hs-empty-cell"; td.appendChild(n); tr.appendChild(td); host.replaceChildren(tr); } else host.replaceChildren(n); return true; };
   let schedUI=null, canEdit=false, data=null, leadDates=[], canLeads=false, canQuotes=true;
-  const isConfirmed=(e)=>String(e&&e.status||"").toLowerCase()==="confirmed";
+  // B30: ONE status word with the dashboard / Quotes list (BPStore.quoteStatus): a settled event reads Closed, a
+  // locked quote the client has not approved yet is still Tentative (it used to read Confirmed here)
+  const qStat=(e)=>{ try{ return BPStore.quoteStatus?BPStore.quoteStatus(e||{}):null; }catch(_){ return null; } };
+  const isConfirmed=(e)=>{ const q=qStat(e); return q?!!q.confirmed:String(e&&e.status||"").toLowerCase()==="confirmed"; };
+  const stLabel=(e)=>{ const q=qStat(e); return q&&q.key==="closed"?"Closed":isConfirmed(e)?"Confirmed":"Tentative"; };
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -172,7 +176,7 @@
     const chip=(n,l)=>`<span class="chip ${n?'':'zero'}"><b>${Number(n)||0}</b> ${l}</span>`;
     const conf=isConfirmed(e);
     return `<div class="ev ${clash?'clash':''} ${conf?'confirmed':'tentative'}">
-      <div><span class="code">${esc(e.code)}</span> <span class="ttl">${esc(evName(e))}</span><span class="stb ${conf?'confirmed':'tentative'}">${conf?'Confirmed':'Tentative'}</span>
+      <div><span class="code">${esc(e.code)}</span> <span class="ttl">${esc(evName(e))}</span><span class="stb ${conf?'confirmed':'tentative'}">${esc(stLabel(e))}</span>
         <div data-st="font-size:12px;color:var(--ink-3)">${esc((e.eventType||""))}</div></div>
       <div class="chips">
         ${chip(a.staffCount,"staff")}${chip(a.invCount,"stock")}${chip(a.vendCount,"partners")}${(a.shortages||[]).length?`<span class="chip short" title="${esc((a.shortages||[]).map(x=>x.text).join(" · "))}"><b>${Number((a.shortages||[]).length)}</b> short</span>`:""}
@@ -192,7 +196,7 @@
       <div class="chips"><a class="open" href="leads.html" aria-label="Open leads for ${esc(l.name||"this lead")}">Leads</a></div></div>`;
     // Nearest upcoming event first: upcoming days (today onward) ascending, then
     // past days most-recent-first below a divider.
-    const todayISO=new Date().toLocaleDateString("en-CA"); // local YYYY-MM-DD
+    const todayISO=BPStore.todayLocal(); // B18: the studio's day (Asia/Kolkata), not the device's
     const allDays=Object.keys(byDate);
     const upcoming=allDays.filter(d=>d>=todayISO).sort();
     const past=allDays.filter(d=>d<todayISO).sort().reverse();
@@ -275,7 +279,7 @@
     const ui=HelmCrewSchedule.mount(el,{ team, staff:team?(sp.get("staff")||""):"", view:sp.get("view")||"week",
       linkFor:(b)=>(crewOnly?"runsheet.html?id=":"event.html?id=")+encodeURIComponent(b.quote_id),
       // chip colour: quote status from the agenda (confirmed / tentative); open leads with a date as "Lead" chips
-      statusFor:(qid)=>{ const a=data&&(data.agenda||[]).find(x=>x.event&&x.event.id===qid); return a?a.event.status:""; },
+      statusFor:(qid)=>{ const a=data&&(data.agenda||[]).find(x=>x.event&&x.event.id===qid); return a?(isConfirmed(a.event)?"confirmed":"tentative"):""; },
       extra:()=>leadDates.map(l=>({day:l.event_date,title:l.name||"Lead",href:"leads.html"})),
       // cal-1018: every dated, not-cancelled event is on the team schedule, crew or not
       events:()=>((data&&data.agenda)||[]).filter(a=>a&&a.event&&validDate(a.event.eventDate)&&String(a.event.status||"").toLowerCase()!=="cancelled")

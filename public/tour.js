@@ -2,7 +2,7 @@
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
    One engine, many pages. Each page's steps live in STEPS keyed by filename.
-   A page opts in simply by including  <script src="tour.js?v=18"></script>.
+   A page opts in simply by including  <script src="tour.js?v=19"></script>.
 
    • Injects its own spotlight CSS (pages need no markup).
    • Renders a floating "? Tour" button, or wires an existing #helpBtn.
@@ -156,7 +156,10 @@
     border:1px solid var(--hb-line,var(--line,#e8e3db));background:var(--hb-bg,var(--panel,#fff));color:var(--hb-acc-text,var(--accent,#047857));font-family:inherit;
     font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 14px rgba(20,18,40,.14);display:inline-flex;align-items:center;gap:5px}
   .htour-fab:hover{border-color:var(--hb-acc-text,var(--accent,#047857));background:var(--hb-acc-soft,var(--accent-soft,#e3f4ed))}
-  @media (max-width:767.98px){body.hmn-on:not(.hmn-kb) .htour-fab{bottom:calc(72px + env(safe-area-inset-bottom,0px))}}`;
+  @media (max-width:767.98px){body.hmn-on:not(.hmn-kb) .htour-fab{bottom:calc(72px + env(safe-area-inset-bottom,0px))}}
+  @media (min-width:820px){html.htour-tuck:not(.hb-pinned) .hb-rail{width:var(--hb-w)!important;box-shadow:none!important}
+    html.htour-tuck:not(.hb-pinned) .hb-rail :is(.hb-lb,.hb-head,.hb-pin){opacity:0!important}}
+  @media (max-width:819.98px){html.htour-tuck .hb-rail{transform:translateX(-100%)!important;box-shadow:none!important}}`;
   __helmAdoptCss(document, css);
 
   /* ---- engine -------------------------------------------------------- */
@@ -325,8 +328,17 @@
   }
 
   let ro = null, rafPending = false, opener = null, placeSeq = 0;
+  // B30: a step that is NOT in the sidebar tucks the hover / focus-expanded sidebar (or the phone drawer) away, so
+  // it no longer covers the dashboard cards the later steps point at. A pinned sidebar is left alone (it does not
+  // cover the page). Undone on a sidebar step and when the tour ends.
+  function tuckRail(on) {
+    const h = document.documentElement; if (!h || !h.classList) return;
+    try { h.classList.toggle("htour-tuck", !!on); } catch (_) { return; }
+    if (on) { try { const a = document.activeElement, rail = document.getElementById("hbRail"); if (a && rail && rail.contains(a) && a.blur) a.blur(); } catch (_) {} }
+  }
   function end() {
     const had = !!root;
+    tuckRail(false);
     if (root) { root.remove(); root = null; }
     visCache = null;
     document.removeEventListener("keydown", onKey, true);
@@ -459,6 +471,7 @@
     if (i >= list.length) { end(); return; }
     const tgt = pick(list[i]), seq = ++placeSeq;
     visCache = null;
+    tuckRail(!(tgt && tgt.closest && tgt.closest("#hbRail")));
     observe(tgt);
     let moving = false;
     if (tgt) {

@@ -48,7 +48,7 @@ t('store: BPStore.ops.crew.schedule calls crew_schedule; store-api bumped everyw
 t('calendar: schedule section, assets, crew vs team mode, deep link from staff', () => {
   const h = r('public/calendar.html');
   assert.match(h, /<section id="schedule" class="csched" hidden aria-labelledby="schedTitle"><\/section>/);
-  assert.match(h, /crew-schedule\.css\?v=4/); assert.match(h, /<script src="crew-schedule\.js\?v=4"><\/script>/);
+  assert.match(h, /crew-schedule\.css\?v=4/); assert.match(h, /<script src="crew-schedule\.js\?v=5"><\/script>/);
   assert.match(h, /crewOnly=role==="crew"\|\|role==="worker"/);
   assert.match(h, /HelmCrewSchedule\.mount\(el,\{ team, staff:team\?\(sp\.get\("staff"\)\|\|""\):""/);
   assert.match(h, /crewOnly\?"runsheet\.html\?id=":"event\.html\?id="/);

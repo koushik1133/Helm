@@ -80,7 +80,7 @@ await (async () => {
     assert.equal(iso(C._switchAnchor('month', 'week', new Date(2026, 9, 1), now)), '2026-10-18');
     assert.equal(iso(C._switchAnchor('month', 'day', new Date(2026, 11, 1), now)), '2026-12-01');   // another month: keep its 1st
     assert.equal(iso(C._switchAnchor('week', 'day', new Date(2026, 9, 12), now)), '2026-10-12');    // only from Month
-    assert.match(CS, /st\.anchor = switchAnchor\(st\.view, to, st\.anchor, new Date\(\)\);/);
+    assert.match(CS, /st\.anchor = switchAnchor\(st\.view, to, st\.anchor, nowW\(\)\);/);   // B18: the studio's "now"
   });
 })();
 
@@ -122,7 +122,9 @@ t('38: focus returns to the opener; dialogs are labelled', () => {
 
 t('38: New group needs a name (max 80) and at least one teammate', () => {
   assert.match(CHAT, /maxlength="\$\{GROUP_NAME_MAX\}"/); assert.match(CHAT, /const GROUP_NAME_MAX=80;/);
-  assert.match(CHAT, /<button class="btn primary" id="gCreate" disabled>Create<\/button>/);
+  // B30: Create is never a dead (disabled) button - it is aria-disabled and pressing it says what is missing
+  assert.match(CHAT, /<button class="btn primary" id="gCreate" aria-disabled="true">Create<\/button>/);
+  assert.match(CHAT, /if\(!v\.ok\)\{ const er=\$\("#gErr",ov\); er\.textContent=v\.msg; er\.hidden=false;/);
   const src = CHAT.slice(CHAT.indexOf('function groupCheck('), CHAT.indexOf('function others('));
   const groupCheck = vm.runInNewContext('const GROUP_NAME_MAX=80;' + src + ';groupCheck');
   assert.equal(groupCheck('   ', ['a']).field, 'name');

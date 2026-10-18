@@ -218,6 +218,7 @@
      the same 1100 layer as the shared .lmodal rule (staffui-1018); BPUI confirm / toasts and the tour stay above */
   .ov{position:fixed;inset:0;background:rgba(20,15,35,.5);display:flex;align-items:center;justify-content:center;z-index:1100;padding:20px}
   .modal .gerr{margin:0 12px 6px;color:var(--danger);font-size:12.5px}
+  .modal .btn[aria-disabled="true"]{opacity:.55}
   .modal .gcount{margin:0 12px 6px;color:var(--ink-3);font-size:12.5px}
   .modal .btn:disabled{opacity:.5;cursor:not-allowed}
   .modal .invite{padding:16px;color:var(--ink-3);font-size:14px;line-height:1.5}
@@ -413,23 +414,32 @@
   })();
 
   function colorFor(id){ let h=0; const s=String(id||""); for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return NAME_COLORS[h%NAME_COLORS.length]; }
-  function initials(name){ const p=String(name||"?").trim().split(/\s+/); return ((p[0]||"")[0]||"?").toUpperCase()+((p[1]||"")[0]||"").toUpperCase(); }
+  /* B30: sample (free-trial) people are stored as "Demo · Name": the chat shows the name ("Kapoor", avatar "K"),
+     never "Demo, Demo" or a "D·" avatar. Only the display is changed - the saved name is untouched. */
+  const DEMO_PFX=/^\s*Demo\s*[\u00b7\u2022]\s*/;   // only the sample bullet prefix - a real "Demo - Q3" name is left alone
+  function stripDemo(s){ const t=String(s==null?"":s); const o=t.replace(DEMO_PFX,""); return o.trim()?o:t; }
+  function initials(name){ const p=stripDemo(String(name||"?")).trim().split(/\s+/).filter(w=>/[\p{L}\p{N}]/u.test(w)); return ((p[0]||"")[0]||"?").toUpperCase()+((p[1]||"")[0]||"").toUpperCase(); }
   /* names: display name → e-mail before "@" → role (BPStore.chat.displayName); always esc() before HTML */
-  function pname(p){ return BPStore.chat.displayName?BPStore.chat.displayName(p):((p&&(p.full_name||p.email))||"Member"); }
+  function pname(p){ return stripDemo(BPStore.chat.displayName?BPStore.chat.displayName(p):((p&&(p.full_name||p.email))||"Member")); }
   function roleLbl(r){ try{ return r?BPStore.auth.admin.roleLabel(r):""; }catch(e){ return r||""; } }
   function personName(id){ const p=roster[id]; return p?pname(p):(id===ME.id?ME.name:"Member"); }
-  function fmtTime(ts){ try{ return new Date(ts).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } }
-  function fmtListTime(ts){ try{ const d=new Date(ts),t=new Date(),y=new Date(t); y.setDate(t.getDate()-1);
-    if(d.toDateString()===t.toDateString()) return fmtTime(ts); if(d.toDateString()===y.toDateString()) return "Yesterday";
-    const diff=(t-d)/864e5; if(diff<7) return d.toLocaleDateString([], {weekday:"long"}); return d.toLocaleDateString([], {day:"numeric",month:"numeric",year:"2-digit"}); }catch(e){ return ""; } }
-  function fmtDay(ts){ try{ const d=new Date(ts),t=new Date(),y=new Date(t); y.setDate(t.getDate()-1);
-    if(d.toDateString()===t.toDateString()) return "Today"; if(d.toDateString()===y.toDateString()) return "Yesterday";
-    return d.toLocaleDateString([], {weekday:"long",day:"numeric",month:"long"}); }catch(e){ return ""; } }
+  /* B18: chat times + day separators in the STUDIO's timezone / locale (Asia/Kolkata, en-IN), not the device's */
+  const SF=(ts,f)=>{ try{ const o=BPStore.fmtStudioDate(new Date(ts),{fmt:f}); if(o) return o; }catch(e){} try{ return new Date(ts).toLocaleString("en-IN",Object.assign({timeZone:"Asia/Kolkata"},f)); }catch(e){ return ""; } };
+  const SDAY=(t)=>{ try{ return BPStore.todayLocal(t); }catch(e){ return ""; } };
+  const ageDays=(ts)=>{ const a=SDAY(new Date(ts)), b=SDAY(new Date()); const pa=/^(\d{4})-(\d{2})-(\d{2})$/.exec(a), pb=/^(\d{4})-(\d{2})-(\d{2})$/.exec(b);
+    if(!pa||!pb) return NaN; return Math.round((Date.UTC(+pb[1],pb[2]-1,+pb[3])-Date.UTC(+pa[1],pa[2]-1,+pa[3]))/864e5); };
+  function fmtTime(ts){ try{ if(isNaN(new Date(ts).getTime())) return ""; return SF(ts,{hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } }
+  function fmtListTime(ts){ try{ if(isNaN(new Date(ts).getTime())) return ""; const n=ageDays(ts);
+    if(n===0) return fmtTime(ts); if(n===1) return "Yesterday";
+    if(n>1&&n<7) return SF(ts,{weekday:"long"}); return SF(ts,{day:"numeric",month:"numeric",year:"2-digit"}); }catch(e){ return ""; } }
+  function fmtDay(ts){ try{ if(isNaN(new Date(ts).getTime())) return ""; const n=ageDays(ts);
+    if(n===0) return "Today"; if(n===1) return "Yesterday";
+    return SF(ts,{weekday:"long",day:"numeric",month:"long"}); }catch(e){ return ""; } }
 
   function convOther(c){ if(c.kind!=="dm") return null;
     if(c.dm_key){ const ids=c.dm_key.split(":"); return ids[0]===ME.id?ids[1]:ids[0]; }
     const m=(c._members||[]).map(x=>x.user_id).find(x=>x!==ME.id); return m||null; }
-  function convTitle(c){ if(c.kind==="broadcast") return c.title||"Everyone"; if(c.kind==="group") return c.title||"Group"; return personName(convOther(c)); }
+  function convTitle(c){ if(c.kind==="broadcast") return c.title||"Everyone"; if(c.kind==="group") return stripDemo(c.title||"Group"); return personName(convOther(c)); }
   /* event groups: an emoji for the event type (wedding 💍, birthday 🎂 … default 📅) — BPStore.chat.eventEmoji */
   function evEmoji(type,title){ try{ return (typeof BPStore!=="undefined"&&BPStore.chat&&BPStore.chat.eventEmoji)?BPStore.chat.eventEmoji(type,title):"📅"; }catch(e){ return "📅"; } }
   const evTypeCache={};  /* quote id → {event_type,title}: one quotes read per refresh, only for groups not seen yet */
@@ -478,7 +488,7 @@
   function cardLabel(m){ const mt=(m&&m.meta)||{}; if(mt.kind==="event") return "📋 Event details"+(mt.code?": "+mt.code:""); if(mt.kind==="layout") return "📐 Layout"+(mt.name?": "+mt.name:""); return "📄 Quote"+(mt.code?": "+mt.code:(mt.title?": "+mt.title:"")); }
   /* event group card (0035): built by the server from a whitelist (no money); every value escaped here */
   function isEventCard(m){ return !!(m&&m.kind==="card"&&m.sender_id==null&&m.meta&&m.meta.kind==="event"); }
-  function fmtEvDate(d){ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(d||""))) return ""; try{ return new Date(d+"T00:00:00").toLocaleDateString([], {weekday:"short",day:"numeric",month:"short",year:"numeric"}); }catch(e){ return String(d); } }
+  function fmtEvDate(d){ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(d||""))) return ""; try{ const o=BPStore.fmtStudioDate(String(d),{fmt:{weekday:"short",day:"numeric",month:"short",year:"numeric"}}); if(o) return o; }catch(e){} try{ return new Date(d+"T00:00:00").toLocaleDateString("en-IN", {weekday:"short",day:"numeric",month:"short",year:"numeric"}); }catch(e){ return String(d); } }
   function eventCardHtml(mt){ mt=mt||{}; const cl=(mt.client&&typeof mt.client==="object")?mt.client:{}; const menu=(mt.menu&&typeof mt.menu==="object")?mt.menu:{};
     const qid=String(mt.quote_id||""); const rows=[];
     const row=(k,vHtml)=>{ if(vHtml) rows.push(`<div class="ev-r"><span class="ev-k">${esc(k)}</span><span class="ev-v">${vHtml}</span></div>`); };
@@ -518,7 +528,9 @@
   function lastPreview(c){ const m=c._last; if(!m) return c.kind==="broadcast"?"Broadcast to your whole team":"No messages yet";
     const youTick=(m.sender_id===ME.id)?(ticksHtml(m,c._members,false)+" "):"";
     const who=(m.sender_id&&m.sender_id!==ME.id&&c.kind!=="dm")?(esc(personName(m.sender_id).split(" ")[0])+": "):"";
-    const body=m.kind==="image"?"📷 Photo":m.kind==="voice"?"🎤 Voice message":m.kind==="card"?esc(cardLabel(m)):esc(m.body||"");
+    // B30: a deleted (or empty) last message says so - the preview used to show only the ticks
+    if(m.deleted) return who+'<i>🚫 Message deleted</i>';
+    const body=m.kind==="image"?"📷 Photo":m.kind==="voice"?"🎤 Voice message":m.kind==="card"?esc(cardLabel(m)):esc(m.body||"")||(m.media_path?"📎 Attachment":"Message");
     return youTick+who+body; }
   function unreadCount(c){ if(!c._last) return 0; return (c._msgs||[]).filter(x=>x.sender_id!==ME.id && (!c._lastRead || x.created_at> c._lastRead)).length; }
 
@@ -719,7 +731,11 @@
     try{ await BPStore.chat.editMessage(mid,nv); await loadThread(); await refresh(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"edit the message"}),{type:"err"}); } }
   async function doDelete(mid){ let ok=false; try{ ok=await BPUI.confirm("Delete this message? Everyone in the chat will see it was removed.",{title:"Delete message",okLabel:"Delete",danger:true}); }catch(e){ return; }
     if(!ok) return;
-    try{ await BPStore.chat.deleteMessage(mid); await loadThread(); await refresh(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"delete the message"}),{type:"err"}); } }
+    // B30: shown as removed at once (it used to wait 2-3 s for the re-read); a refused delete puts it back
+    const msg=thread.messages.find(x=>x.id===mid), was=msg?{deleted:msg.deleted,body:msg.body,media_path:msg.media_path,meta:msg.meta}:null;
+    if(msg){ Object.assign(msg,{deleted:true,body:null,media_path:null,meta:null}); try{ renderMessages({keepFromBottom:(()=>{ const h=$("#msgs"); return h?h.scrollHeight-h.scrollTop:0; })()}); }catch(_){} const c=convs.find(x=>x.id===activeId); if(c&&c._last&&c._last.id===mid){ c._last=Object.assign({},c._last,{deleted:true,body:null}); renderConvs(); } }
+    try{ await BPStore.chat.deleteMessage(mid); loadThread().then(()=>refresh()).catch(()=>{}); }
+    catch(e){ if(msg&&was){ Object.assign(msg,was); try{ renderMessages({keepFromBottom:(()=>{ const h=$("#msgs"); return h?h.scrollHeight-h.scrollTop:0; })()}); }catch(_){} } BPUI.toast(BPUI.friendlyError(e,{action:"delete the message"}),{type:"err"}); } }
   async function forwardMsg(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m||m.deleted) return;
     const targets=convs.filter(c=>c.id!==activeId).map(c=>({id:c.id,icon:convAvatar(c).txt,title:convTitle(c),sub:c.kind==="dm"?"Direct message":c.kind==="broadcast"?"Everyone":"Group"}));
     pickerModal("Forward to…","↪",targets.map(t=>({icon:typeof t.icon==="string"&&Array.from(t.icon).length<=2?t.icon:"💬",title:t.title,sub:t.sub,meta:{__to:t.id}})),"No other chats to forward to.",async(meta)=>{
@@ -953,12 +969,22 @@
       {k:"mute",label:mutes.has(c.id)?"🔔  Unmute":"🔕  Mute notifications",on:()=>{ const on=!mutes.has(c.id); if(on)mutes.add(c.id); else mutes.delete(c.id); saveMutes(); savePref(c.id,"muted",on); renderConvs(); }}
     ];
     if(c.kind==="group") items.push({k:"add",label:c.quote_id?"➕  Add people":"➕  Add members",on:addMembersModal});
+    if(c.kind==="group"&&BPStore.chat.leaveGroup) items.push({k:"leave",label:"🚪  Leave group",on:leaveGroup});
     if(c.kind==="group"&&c.quote_id) items.push({k:"ppl",label:"👥  People in this group",on:peopleModal});
     if(c.kind==="group"&&c.quote_id){
       items.push({k:"evref",label:"🔄  Refresh event details",on:refreshEventDetails});
       items.push({k:"evws",label:"⧉  Open event workspace",on:()=>{ location.href="event.html?id="+encodeURIComponent(c.quote_id); }}); }
     openMenu($("#headMenuBtn"),items); });
 
+  // B30: leave a group - only YOUR membership goes; the group and its messages stay for everyone else
+  async function leaveGroup(){ const c=convs.find(x=>x.id===activeId); if(!c||c.kind!=="group") return;
+    let ok=false; try{ ok=await BPUI.confirm("Leave “"+convTitle(c)+"”? You stop getting its messages. The group and its messages stay for everyone else; a member can add you back.",{title:"Leave group?",okLabel:"Leave group",danger:true}); }catch(e){ return; }
+    if(!ok) return;
+    try{ await BPStore.chat.leaveGroup(c.id); activeId=null; thread={messages:[],reactions:[],members:[]}; await refresh();
+      try{ history.replaceState(null,"",location.pathname); }catch(_){}
+      const b=convs.find(x=>x.kind==="broadcast"); if(b&&window.innerWidth>760) await openConv(b.id); else renderConvs();
+      BPUI.toast("You left “"+convTitle(c)+"”.",{type:"ok"}); }
+    catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"leave the group"}),{type:"err"}); } }
   async function refreshEventDetails(){ const c=convs.find(x=>x.id===activeId); if(!c||!c.quote_id) return;
     try{ const id=await BPStore.chat.eventGroups.refresh(c.id);
       if(id){ await loadThread(); await refresh(); BPUI.toast("Event details updated.",{type:"ok"}); }
@@ -994,10 +1020,11 @@
     ov.querySelectorAll(".prow").forEach(r=>r.addEventListener("click",async()=>{ closeModal(); try{ const id=await BPStore.chat.startDm(r.dataset.id); await refresh(); await openConv(id); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"start the chat"}),{type:"err"}); } })); }
   function newGroupModal(){ const people=others(); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
     /* chatfix-1018: a group needs a name (max 80) and at least one teammate - Create stays off until both are there */
-    ov.innerHTML=`<div class="modal"><h3>New group</h3><input class="gname" id="gName" placeholder="Group name" aria-label="Group name" maxlength="${GROUP_NAME_MAX}" aria-required="true" aria-describedby="gErr gCount" autocomplete="off"><p class="gerr" id="gErr" role="alert" hidden></p><p class="gcount" id="gCount" aria-live="polite"></p><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}" aria-label="${esc("Add "+pname(p))}"></label>`).join("")||'<div class="invite"><b>No teammates to add yet.</b><br>'+inviteHint()+'</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="gCreate" disabled>Create</button></div></div>`;
+    ov.innerHTML=`<div class="modal"><h3>New group</h3><input class="gname" id="gName" placeholder="Group name" aria-label="Group name" maxlength="${GROUP_NAME_MAX}" aria-required="true" aria-describedby="gErr gCount" autocomplete="off"><p class="gerr" id="gErr" role="alert" hidden></p><p class="gcount" id="gCount" aria-live="polite"></p><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}" aria-label="${esc("Add "+pname(p))}"></label>`).join("")||'<div class="invite"><b>No teammates to add yet.</b><br>'+inviteHint()+'</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="gCreate" aria-disabled="true">Create</button></div></div>`;
     showModal(ov); paintAv(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     const picked=()=>[...ov.querySelectorAll("input[type=checkbox]:checked")].map(c=>c.value);
-    const sync=()=>{ const v=groupCheck($("#gName",ov).value,picked()); $("#gCreate",ov).disabled=!v.ok;
+    // B30: Create is never a dead button - pressing it with no name / no teammate says what is missing
+    const sync=()=>{ const v=groupCheck($("#gName",ov).value,picked()); $("#gCreate",ov).setAttribute("aria-disabled",v.ok?"false":"true");
       $("#gCount",ov).textContent=v.count?v.count+" teammate"+(v.count===1?"":"s")+" selected":"Pick at least one teammate";
       if(v.ok) $("#gErr",ov).hidden=true; };
     $("#gName",ov).addEventListener("input",sync); ov.querySelectorAll("input[type=checkbox]").forEach(c=>c.addEventListener("change",sync)); sync();
@@ -1038,9 +1065,10 @@
     if(c.quote_id && window.HelmEventGroupPicker){ addEventPeople(c); return; }
     const inIds=(thread.members||[]).map(m=>m.user_id);
     const people=others().filter(p=>inIds.indexOf(p.id)<0); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
-    ov.innerHTML=`<div class="modal"><h3>Add members</h3><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div data-st="padding:16px;color:var(--ink-3)">Everyone is already in this group.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="aAdd">Add</button></div></div>`;
+    ov.innerHTML=`<div class="modal"><h3>Add members</h3><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||(others().length?'<div data-st="padding:16px;color:var(--ink-3)">Everyone is already in this group.</div>':'<div class="invite"><b>No teammates to add yet.</b><br>'+inviteHint()+'</div>')}</div><div class="foot"><button class="btn" data-close>Cancel</button>${people.length?'<button class="btn primary" id="aAdd">Add</button>':''}</div></div>`;
     showModal(ov); paintAv(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
-    $("#aAdd").addEventListener("click",async()=>{ const ids=[...ov.querySelectorAll("input[type=checkbox]:checked")].map(c=>c.value); closeModal(); if(!ids.length) return;
+    const aAdd=$("#aAdd"); if(aAdd) aAdd.addEventListener("click",async()=>{ const ids=[...ov.querySelectorAll("input[type=checkbox]:checked")].map(c=>c.value);
+      if(!ids.length){ BPUI.toast("Pick at least one teammate to add.",{type:"info"}); return; } closeModal();
       try{ await BPStore.chat.addMembers(activeId,ids); await loadThread(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add members"}),{type:"err"}); } }); }
 
   /* ---------- realtime ---------- */

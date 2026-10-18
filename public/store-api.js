@@ -3684,16 +3684,29 @@ window.HelmUrl = HelmUrl;
           if (leadArchiveHasRestored !== false && /restored_at/.test(String((err && err.message) || ""))) { leadArchiveHasRestored = false; return leads.archivePage(o); }
           throw err;
         }
+        // B17: the live lead's stage (read-only, best-effort). Converting a lead writes TWO archive rows in one
+        // transaction - the quote-sync trigger's "converted" row (stage discovery, from the new quote's
+        // lifecycle) and convert_lead_to_quote's own "quoted" update - and both carry the same archived_at.
+        // "Latest per lead" breaks that tie on the live stage instead of the random uuid, and every row
+        // carries live_status so the CRM shows the lead's CURRENT stage on its latest row.
+        const live = {};
+        try {
+          const lids0 = [...new Set(r.rows.map((x) => x.lead_id).filter(Boolean))];
+          if (lids0.length) {
+            const { data: lv, error: le } = await supa.from("leads").select("id,status").in("id", lids0);
+            if (!le && lv) lv.forEach((x) => { live[x.id] = x.status; });
+          }
+        } catch (e) {}
         if (o.latest) {
           const ids = [...new Set(r.rows.map((x) => x.lead_id).filter(Boolean))];
           if (ids.length) {
-            const { data, error } = await supa.from("lead_archive").select("id,lead_id,archived_at").in("lead_id", ids)
+            const { data, error } = await supa.from("lead_archive").select("id,lead_id,archived_at,status").in("lead_id", ids)
               .order("archived_at", { ascending: false }).order("id", { ascending: false });
             if (error) throw error;
-            const newest = {}; (data || []).forEach((x) => { if (!newest[x.lead_id]) newest[x.lead_id] = x.id; });
-            r.rows = r.rows.filter((x) => !x.lead_id || newest[x.lead_id] === x.id);
+            r.rows = r.rows.filter((x) => !x.lead_id || leads._newestArchive(data || [], live)[x.lead_id] === x.id);
           }
         }
+        r.rows.forEach((x) => { if (x.lead_id && live[x.lead_id] != null) x.live_status = live[x.lead_id]; });
         // LA-34: flag rows of SAMPLE leads (leads.is_demo, 0097) so the CRM never labels seeded rows "RESTORED".
         // Read-only and best-effort: a failure just leaves the flag off.
         try {
@@ -3707,14 +3720,26 @@ window.HelmUrl = HelmUrl;
       }
       let a = []; try { a = JSON.parse(localStorage.getItem(ARCH_LS) || "[]"); } catch {}
       a = a.slice().sort((x, y) => String(y.archived_at || "").localeCompare(String(x.archived_at || "")) || String(y.id).localeCompare(String(x.id)));
-      const newest = {}; a.forEach((x) => { if (x.lead_id && !newest[x.lead_id]) newest[x.lead_id] = x.id; });
+      const liveLs = {}; readLeadsLs().forEach((l) => { liveLs[l.id] = l.status; });
+      const newest = leads._newestArchive(a, liveLs);
       const src = String(o.source || "").trim().toLowerCase();
       const rows = a.filter((r) => (!o.stage || r.status === o.stage) && (!src || String(r.source || "").trim().toLowerCase() === src) &&
         textHit(o.search, [r.name, r.phone, r.event_type, r.source, r.action]));
       const pg = arrPage(rows, o);
       if (o.latest) pg.rows = pg.rows.filter((x) => !x.lead_id || newest[x.lead_id] === x.id);
-      pg.rows = pg.rows.map((x) => { const c = Object.assign({}, x); delete c.snapshot; return c; });
+      pg.rows = pg.rows.map((x) => { const c = Object.assign({}, x); delete c.snapshot; if (c.lead_id && liveLs[c.lead_id] != null) c.live_status = liveLs[c.lead_id]; return c; });
       return pg;
+    },
+    // B17: lead_id -> id of its newest archive row. Rows come newest first (archived_at desc, id desc); rows written in
+    // the same transaction share archived_at, so among those the one whose stage matches the live lead wins.
+    _newestArchive(rows, live) {
+      const out = {}, at = {}, hit = {};
+      (rows || []).forEach((x) => {
+        const k = x.lead_id; if (!k) return;
+        if (!(k in out)) { out[k] = x.id; at[k] = String(x.archived_at || ""); hit[k] = live && live[k] != null && x.status === live[k]; return; }
+        if (!hit[k] && String(x.archived_at || "") === at[k] && live && live[k] != null && x.status === live[k]) { out[k] = x.id; hit[k] = true; }
+      });
+      return out;
     },
     // CRM archive: re-create a DELETED lead from its saved snapshot (migration 0139). Server-side
     // checks: same studio, leads edit access, no live lead with that id, not already restored.
@@ -5898,6 +5923,24 @@ window.HelmUrl = HelmUrl;
     async addMembers(convId, memberIds) {
       if (mode !== "supabase") { const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); if (c) { c.members = c.members || []; (memberIds || []).forEach((id) => { if (!c.members.some((m) => m.user_id === id)) c.members.push({ user_id: id }); }); chatWriteLs(CHAT_LS_C, convs); chatPing(); } return; }
       return rpc("chat_add_members", { p_conversation: convId, p_members: memberIds || [] });
+    },
+    // B30: leave a group = remove MY membership row only (RLS chat_mem_del: user_id = auth.uid(), same studio).
+    // The conversation, its messages and every other member stay. Groups only - never a DM or the broadcast.
+    async leaveGroup(convId) {
+      if (!convId) throw new Error("No group selected.");
+      if (mode !== "supabase") {
+        const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); const me = chatLocalUid();
+        if (!c || c.kind !== "group") throw new Error("Only a group can be left.");
+        c.members = (c.members || []).filter((m) => m.user_id !== me); chatWriteLs(CHAT_LS_C, convs); chatPing(); return true;
+      }
+      const uidMe = currentUser && currentUser.id; if (!uidMe) throw new Error("Sign in again to leave the group.");
+      const { data: cv, error: ce } = await supa.from("chat_conversations").select("id,kind").eq("id", convId).maybeSingle();
+      if (ce) throw ce;
+      if (!cv || cv.kind !== "group") throw new Error("Only a group can be left.");
+      const { data, error } = await supa.from("chat_members").delete().eq("conversation_id", convId).eq("user_id", uidMe).select("conversation_id");
+      if (error) throw error;
+      if (!data || !data.length) throw new Error("You are not in this group any more.");
+      return true;
     },
     prefs: chatPrefs,
     // A6: forward a photo / voice note = COPY the object into the target conversation's folder.
@@ -10950,10 +10993,37 @@ window.HelmUrl = HelmUrl;
   };
   // the user's LOCAL calendar day (IST for an Indian studio) as YYYY-MM-DD - toISOString() is UTC
   // and reads as "yesterday" from 00:00 to 05:30 IST
+  // B18: the calendar day in the STUDIO's timezone (Asia/Kolkata for an Indian studio), not the device's -
+  // a browser set to America/Chicago no longer gets yesterday's date for "today" / date-picker minimums.
+  // Falls back to the device day only when the studio zone is unknown.
   BPStore.todayLocal = function (d) {
     d = (d && typeof d.getFullYear === "function") ? d : new Date();   // also a Date from another realm (iframe / test vm)
     var p = function (n) { return (n < 10 ? "0" : "") + n; };
+    var tz; try { tz = BPStore.studioTimezone ? BPStore.studioTimezone() : undefined; } catch (e) { tz = undefined; }
+    if (tz && !isNaN(d.getTime())) {
+      try {
+        var parts = {}; new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" })
+          .formatToParts(d).forEach(function (x) { parts[x.type] = x.value; });
+        if (/^\d{4}$/.test(parts.year) && /^\d{2}$/.test(parts.month) && /^\d{2}$/.test(parts.day)) return parts.year + "-" + parts.month + "-" + parts.day;
+      } catch (e) {}
+    }
     return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  };
+  // B18: wall-clock parts of an instant in the studio's timezone -> { y, mo, d, h, mi, s, date:"YYYY-MM-DD", min: minutes since midnight }
+  BPStore.studioClock = function (v) {
+    var d = v == null ? new Date() : ((v && typeof v.getTime === "function") ? v : new Date(v));
+    if (isNaN(d.getTime())) return null;
+    var tz; try { tz = BPStore.studioTimezone ? BPStore.studioTimezone() : undefined; } catch (e) { tz = undefined; }
+    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    var y = d.getFullYear(), mo = d.getMonth() + 1, dd = d.getDate(), h = d.getHours(), mi = d.getMinutes(), s = d.getSeconds();
+    if (tz) {
+      try {
+        var pt = {}; new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })
+          .formatToParts(d).forEach(function (x) { pt[x.type] = x.value; });
+        y = +pt.year; mo = +pt.month; dd = +pt.day; h = (+pt.hour) % 24; mi = +pt.minute; s = +pt.second;
+      } catch (e) {}
+    }
+    return { y: y, mo: mo, d: dd, h: h, mi: mi, s: s, date: y + "-" + pad(mo) + "-" + pad(dd), min: h * 60 + mi };
   };
   // date + time for display: dd/mm/yyyy, hh:mm (US studio: its own order) - never the browser's locale default
   BPStore.fmtDay = function (iso) {
@@ -11305,8 +11375,11 @@ window.HelmUrl = HelmUrl;
   // sets its own min=/max=.
   var DATE_MIN = "2000-01-01", DATE_MAX = "2100-12-31";
   function isoDay(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
-  function addYears(n) { var d = new Date(); d.setFullYear(d.getFullYear() + n); return isoDay(d); }
-  function prettyDay(v) { try { var p = String(v).split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return v; } }
+  // B18: "today" for a date window is the STUDIO's day (BPStore.todayLocal = studio timezone), not the device's
+  function todayIso() { try { var t = BPStore.todayLocal(); if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; } catch (e) {} return isoDay(new Date()); }
+  function addYears(n) { var t = todayIso().split("-"), md = t[1] + "-" + t[2]; if (md === "02-29") md = "02-28"; return (+t[0] + n) + "-" + md; }
+  function prettyDay(v) { try { if (BPStore.fmtStudioDate) { var o = BPStore.fmtStudioDate(String(v), { style: "long" }); if (o) return o; } } catch (e) {}
+    try { var p = String(v).split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return v; } }
   function hardenDate(el) {
     if (el.getAttribute("data-date-hardened") === "1") return;
     el.setAttribute("data-date-hardened", "1");
@@ -11315,7 +11388,7 @@ window.HelmUrl = HelmUrl;
     //   data-date-window="recent" meetings, follow-ups:   today - 2 years .. today + 1 year
     //   (none)                    other dates (birthdays, invoices, history): 2000 .. 2100
     var win = el.getAttribute("data-date-window") || (el.hasAttribute("data-min-today") ? "future" : "");
-    if (!el.getAttribute("min")) el.setAttribute("min", win === "future" ? isoDay(new Date()) : win === "recent" ? addYears(-2) : DATE_MIN);
+    if (!el.getAttribute("min")) el.setAttribute("min", win === "future" ? todayIso() : win === "recent" ? addYears(-2) : DATE_MIN);
     if (!el.getAttribute("max")) el.setAttribute("max", win === "future" ? addYears(5) : win === "recent" ? addYears(1) : DATE_MAX);
     var lo = el.getAttribute("min"), hi = el.getAttribute("max");
     // A value that was already saved (editing an old event) is kept even if it is now in the past;
