@@ -106,7 +106,7 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000
 
   perform pg_temp.su();
   e := pg_temp.try('delete from public.studio_layout_templates');
-  perform pg_temp.res('26 hard delete blocked for everyone', e like '42501%' and (select count(*) from public.studio_layout_templates) = 4, e);
+  perform pg_temp.res('26 hard delete blocked for everyone', e like '42501%' and (select count(*) from public.studio_layout_templates where org_id <> 'a5a5a5a5-0166-4000-8000-000000000001') = 4, e);   -- 0169: + the sample master's template
 exception when others then perform pg_temp.su(); insert into _t96 values ('xx setup', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 select name, result from _t96 order by name;

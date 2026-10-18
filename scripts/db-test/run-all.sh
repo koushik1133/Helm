@@ -145,6 +145,9 @@ run "system-quiet-0164"  "SYSTEM-QUIET-0164: ALL PASS \(18/18\)" psql -q -f test
 run "trial-sandbox-0166" "TRIAL-SANDBOX-0166: ALL PASS \(50/50\)" psql -q -f tests/db/trial-sandbox-0166.sql
 run "trial-manifest-0167" "TRIAL-MANIFEST-0167: ALL PASS \(50/50\)" psql -q -f tests/db/trial-manifest-0167.sql
 run "trial-data-0168" "TRIAL-DATA-0168: ALL PASS \(17/17\)" psql -q -f tests/db/trial-data-0168.sql
+run "trial-data-0169" "TRIAL-DATA-0169: ALL PASS \(24/24\)" psql -q -f tests/db/trial-data-0169.sql
+run "trial-data-0170" "TRIAL-DATA-0170: ALL PASS \(16/16\)" psql -q -f tests/db/trial-data-0170.sql
+run "trial-data-0171" "TRIAL-DATA-0171: ALL PASS \(16/16\)" psql -q -f tests/db/trial-data-0171.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

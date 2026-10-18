@@ -46,7 +46,9 @@ end $$;
 do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_trial_seed_manifest; begin
   perform pg_temp.su();
   select * into mf from public.helm_trial_seed_manifest where is_current;
-  perform pg_temp.res('01 manifest v2 current with owner notes', mf.version = 2 and mf.notes = 'v2: owner venues + payment terms');
+  -- 0169 publishes v3 on top; v2 stays as published
+  select * into mf from public.helm_trial_seed_manifest where version = 2;
+  perform pg_temp.res('01 manifest v2 kept with owner notes (v3 current after 0169)', mf.version = 2 and mf.notes = 'v2: owner venues + payment terms');
   perform pg_temp.res('02 v2 carries studio settings', mf.payload #>> '{studio,currency}' = 'INR' and mf.payload #>> '{studio,timezone}' = 'Asia/Kolkata'
     and (mf.payload #>> '{studio,pricing,advancePct}')::numeric = 30 and (mf.payload #>> '{studio,pricing,balanceDueDays}')::int = 3, (mf.payload -> 'studio')::text);
   perform pg_temp.res('03 master has exactly the 4 owner venues', (select count(*) from public.venues where org_id = M) = 4
@@ -78,7 +80,7 @@ do $$ declare a uuid; b uuid; o public.organizations; r jsonb; begin
   update public.helm_sample_template set active = true where id;
   a := pg_temp.trial('td_a@t.test', 'UTC', 'USD');
   select * into o from public.organizations where id = a;
-  perform pg_temp.res('20 trial cloned from v2', o.sample_version = 2, coalesce(o.sample_version::text, 'null'));
+  perform pg_temp.res('20 trial cloned from v4 (0169 + 0170 on top of v2)', o.sample_version = 4, coalesce(o.sample_version::text, 'null'));
   perform pg_temp.res('21 trial studio INR + Asia/Kolkata + IN (browser said USD / UTC)', o.currency = 'INR' and o.timezone = 'Asia/Kolkata' and o.country = 'IN',
     o.currency || ' ' || o.timezone || ' ' || coalesce(o.country, ''));
   perform pg_temp.res('22 trial payment terms', exists (select 1 from public.app_config where org_id = a and key = 'pricing'
