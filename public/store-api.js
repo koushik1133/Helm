@@ -921,7 +921,7 @@ window.HelmUrl = HelmUrl;
   // la-fetch (audit 25): the list below also names the STABLE (read-only) RPCs every page asks while it
   // boots (trial / upgrade status, seat use, prefs, shelf list, mentions, PIN status). Before, each one was
   // treated as a write and dropped every shared read of the page, so the page's own reads ran again.
-  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_terms_status|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|privacy_pin_status)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_terms_status|my_unfinished_quotes|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|privacy_pin_status)(\?|$)/;
   const readCache = new Map();
   function hdrOf(init, input, name) {
     try {
@@ -2962,6 +2962,39 @@ window.HelmUrl = HelmUrl;
   // 0069 booklet share checklist keys (server validates the same list)
   const BOOKLET_SECTIONS = ["studio", "client", "venue", "menu", "layout2d", "layout3d", "quotation", "payments", "terms", "note"];
   const UUID_RE_PKG = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  /* 0206: "Continue where you left off" - where each person last was in a quote's flow, kept on the server
+     (one row per quote per person; quote_flow_progress). mark(): flow.html, debounced, only on a step change
+     (mark_ RPC: keeps the cached reads). dismiss(): hide the dashboard button for ME until I work on it again.
+     list({scope:'mine'|'studio', limit, offset, quote, maxDays}) -> {total, rows, can_edit, read_only} or null
+     when this database has no 0206 / local mode / signed out (flow-resume.js then uses its per-quote
+     browser copy). Never throws for a missing function; other errors surface to the caller. */
+  const FLOW_STEP_KEYS = ["client", "discovery", "reqs", "venue", "menu", "proposal", "layout", "quote", "pay"];
+  const flowProgress = {
+    STEPS: FLOW_STEP_KEYS,
+    available() { return mode === "supabase" && !!supa && !!currentUser; },
+    async mark(quoteId, step) {
+      if (!UUID_RE_PKG.test(String(quoteId || "")) || FLOW_STEP_KEYS.indexOf(step) < 0) return { ok: false, invalid: true };
+      if (!flowProgress.available()) return { ok: false, local: true };
+      try { const r = await rpc("mark_flow_step", { p_quote: String(quoteId), p_step: step }); return r && typeof r === "object" ? r : { ok: true }; }
+      catch (e) { if (rpcMissing(e)) return { ok: false, missing: true }; throw e; }
+    },
+    async dismiss(quoteId) {
+      if (!UUID_RE_PKG.test(String(quoteId || ""))) return { ok: false, invalid: true };
+      if (!flowProgress.available()) return { ok: false, local: true };
+      try { const r = await rpc("mark_flow_resume_dismissed", { p_quote: String(quoteId) }); return r && typeof r === "object" ? r : { ok: true }; }
+      catch (e) { if (rpcMissing(e)) return { ok: false, missing: true }; throw e; }
+    },
+    async list(opts) {
+      if (!flowProgress.available()) return null;
+      const o = opts || {}, n = (v, lo, hi, d) => { v = Math.floor(Number(v)); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
+      const q = o.quote && UUID_RE_PKG.test(String(o.quote)) ? String(o.quote) : null;
+      if (o.quote && !q) return { total: 0, rows: [], can_edit: false };
+      const args = { p_scope: o.scope === "studio" ? "studio" : "mine", p_limit: n(o.limit, 1, 100, 20), p_offset: n(o.offset, 0, 100000, 0),
+        p_quote: q, p_max_days: o.maxDays == null ? null : n(o.maxDays, 1, 3650, 60) };
+      try { const d = await rpc("my_unfinished_quotes", args); return d && typeof d === "object" && Array.isArray(d.rows) ? d : null; }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+  };
   // 0083: booklet pictures kept in the database
   const BOOKLET_IMG_KINDS = ["2d", "3d"], BOOKLET_IMG_VARIANTS = ["labels", "plain"], BOOKLET_IMG_MAX = 1536 * 1024;
   const BOOKLET_IMG_MIME = /^image\/(jpeg|png|webp)$/;
@@ -9012,7 +9045,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, capacityStatus, shortageText, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.

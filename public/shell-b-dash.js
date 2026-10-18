@@ -492,7 +492,7 @@
      touched, so a saved layout can't reveal a gated block. Saved on Done (server RPC when 0109 is
      applied, else this device). Mouse = native drag and drop; touch = pointer events on the grip;
      keyboard = grip button (Space/Enter pick up, arrows move, Space drop, Esc cancel). */
-  var CZ_NAMES = { mywork: "My work", mytasks: "My tasks", quotes: "All quotes", roleboard: "Team board" };
+  var CZ_NAMES = { resume: "Continue where you left off", mywork: "My work", mytasks: "My tasks", quotes: "All quotes", roleboard: "Team board" };
   var CZ_CACHE = "helm.dash.layout.last";
   function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
   function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
@@ -814,6 +814,9 @@
     /* sections: one parent, DOM order = reading order (grid/cols are display:contents) */
     var grid = el("div", "hd-grid"); root.appendChild(grid);
     delayN = 2;
+    /* resume v3 (0206): "Continue where you left off" - my most recent unfinished quote, filled by flow-resume.js
+       (hidden until it has one; a real block, so it is never pushed below the whole dashboard) */
+    var cResume = card("hdResume", "Continue where you left off", IC.doc, { skel: 1, span: "hd-s-full", block: "resume" }); cResume.hidden = true;
     var cShift = card("hdShift", "My next shift", IC.pin, { skel: 2, span: "hd-s-full", block: "shift" }); cShift.hidden = true;
     var cCal = card("hdCal", "Your month", IC.cal, { skel: 4, more: ["calendar.html", "Calendar"], span: "hd-s-wide", block: "calendar" });
     var cAtt = card("hdAtt", "Needs attention", IC.alert, { span: "hd-s-side", block: "attention" });
@@ -826,7 +829,7 @@
     slotWork.setAttribute("data-block", "mywork"); slotTasks.setAttribute("data-block", "mytasks"); slotQuotes.setAttribute("data-block", "quotes"); slotRole.setAttribute("data-block", "roleboard");
     var cNotes = card("hdNotes", "Desk notes", IC.doc, { skel: 1, span: "hd-s-side", block: "notes" });
     var cAct = card("hdAct", "Recent activity", IC.pulse, { more: ["audit.html", "Audit log"], span: "hd-s-side hd-act-card", block: "activity" }); cAct.hidden = true;
-    [cShift, cCal, cAtt, cUp, cFol, cRev, cPipe, slotWork, slotTasks, slotQuotes, cNotes, slotRole, cAct, cWeek].forEach(function (n) { grid.appendChild(n); });
+    [cResume, cShift, cCal, cAtt, cUp, cFol, cRev, cPipe, slotWork, slotTasks, slotQuotes, cNotes, slotRole, cAct, cWeek].forEach(function (n) { grid.appendChild(n); });
     var DEF_ORDER = czBlocks(grid).map(function (n) { return n.getAttribute("data-block"); });
     if (L()) { var czLast = parseJ(ssGet(CZ_CACHE)); if (czLast) czApply(grid, czLast); }   // last layout this tab saw: no flicker
 
@@ -878,11 +881,11 @@
     if (!isMoney) { cRev.hidden = true; if (!vQuotes && !vLeads) cPipe.hidden = true; }
     if (isMoney) slotRole.classList.add("hd-off");                           // KPI tiles cover the money roles' board
     if (isCrew) { cShift.hidden = false; root.classList.add("hd-crew"); cWeek.classList.remove("hd-off");   // crew home: shift ticket, tasks, their week; nothing else
-      [cAtt, cUp, cCal, cFol, cPipe, cRev, slotWork, slotQuotes, slotRole].forEach(function (n) { n.classList.add("hd-off"); }); }
+      [cResume, cAtt, cUp, cCal, cFol, cPipe, cRev, slotWork, slotQuotes, slotRole].forEach(function (n) { n.classList.add("hd-off"); }); }
     if (vAudit) cAct.hidden = false;
     if ((vLeads || vQuotes) && !isCrew) cFol.hidden = false;
     if (signedOut) {                                                         // one shared empty instead of a wall of empty cards
-      [cAtt, cCal, cFol, cNotes, cPipe, cRev, cAct, slotWork, slotQuotes, slotRole, slotTasks].forEach(function (n) { n.classList.add("hd-off"); });
+      [cResume, cAtt, cCal, cFol, cNotes, cPipe, cRev, cAct, slotWork, slotQuotes, slotRole, slotTasks].forEach(function (n) { n.classList.add("hd-off"); });
       cUp.classList.remove("hd-s-wide"); cUp.classList.add("hd-s-full"); kpis.hidden = true;
     }
 

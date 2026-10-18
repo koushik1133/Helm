@@ -200,6 +200,7 @@
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script>
+<script src="flow-resume.js?v=3"></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=19"></script>
 <script src="booklet.js?v=24"></script>
@@ -299,6 +300,14 @@
     if(!ev){ $("#notfound").hidden=false; return; }
     hdrChange=null;
     $("#app").hidden=false; render();   // paint the workspace shell instantly; summaries fill in below
+    // 0206: a quote still being prepared says where it stopped: "This quote is at step 4 of 8 (Venue). Continue where you
+    // left off" (+ "Last worked on by Priya, 10 min ago" when a teammate was last). Never blocks the page; no banner on error.
+    if(window.HelmFlowResume && BPStore.flowProgress && HelmFlowResume.unfinished(ev))
+      Promise.resolve(BPStore.flowProgress.list({ scope:"studio", quote:ev.id||id, limit:1 })).then(d=>{
+        const r=d&&Array.isArray(d.rows)?d.rows[0]:null, host=$("#app"); if(!host) return;
+        HelmFlowResume.renderBanner(host, r?HelmFlowResume.fromServer(r,true):null, { canEdit:canEdit && !!d && d.can_edit!==false, before:$("#evHead") });
+      }).catch(()=>{});
+    else if(window.HelmFlowResume) HelmFlowResume.renderBanner($("#app"), null);
     // qts-1018: the header total's change orders - its own small read (same call as the Quotes list)
     if(canFin && BPStore.budget && BPStore.budget.approvedChangeTotals)
       BPStore.budget.approvedChangeTotals([ev.id||id]).then(m=>{ hdrChange=Number((m||{})[ev.id||id])||0; render(); }).catch(()=>{});

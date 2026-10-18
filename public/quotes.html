@@ -147,6 +147,7 @@
   <div class="toolbar">
     <div class="tabs" id="tabs" role="group" aria-label="Show quotes">
       <button type="button" data-f="all" class="on" aria-pressed="true">Active</button>
+      <button type="button" data-f="inprogress" aria-pressed="false" id="tab_inprogress" hidden title="Quotes still being prepared - no quotation saved in step 8 yet. The whole studio, with who worked on each last.">In progress<span class="tcount" id="cnt_inprogress"></span></button>
       <button type="button" data-f="quote" aria-pressed="false">Quotes</button>
       <button type="button" data-f="confirmed" aria-pressed="false" title="Priced and locked quotes: sent to the client (awaiting approval) and client-confirmed events">Sent &amp; confirmed</button>
       <button type="button" data-f="attention" aria-pressed="false">⚠ Attention</button>
@@ -169,6 +170,7 @@
       <tbody id="rows" aria-busy="true"><tr class="q-skel-label"><td colspan="8" class="sr-only">Loading quotes…</td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr></tbody>
     </table>
   </div>
+  <div id="ipWrap" class="ip-wrap" hidden aria-live="polite"></div>
   </main>
 
   <footer id="taxFoot">Every save is a version · confirm to price &amp; lock</footer>
@@ -276,7 +278,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=2"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script><script src="flow-resume.js?v=2" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
+<script src="new-quote-dialog.js?v=3"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script><script src="flow-resume.js?v=3" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
 <script src="tour.js?v=19"></script>
 <script>
@@ -341,10 +343,42 @@
     }catch(e){ shelf.ready=false; shelf.rows=[]; shelf.byId={}; }   // 0040 not installed / no access → classic tabs
     paintShelfTabs();
   }
+  /* ---------- In progress (0206): every unfinished quote of the studio ---------- */
+  // Unfinished = not sent, no quotation saved in step 8 yet, not shelved, not trial sample data (server rule).
+  // Rows: name, client, progress bar "3 of 8", "Stopped at", who worked on it last, Continue. The tab shows
+  // only when this database has 0206 (BPStore.flowProgress.list answers); otherwise it stays hidden.
+  const ip={ready:false, total:0, data:null};
+  const ipUid=()=>{ try{ const u=BPStore.auth.user&&BPStore.auth.user(); return (u&&u.id)||"anon"; }catch(_){ return "anon"; } };
+  function paintIpTab(){ const t=$("#tab_inprogress"); if(!t) return; t.hidden=!ip.ready && filter!=="inprogress"; $("#cnt_inprogress").textContent=ip.ready?String(ip.total):""; }
+  async function loadInProgressCount(){
+    if(!BPStore.flowProgress || !window.HelmFlowResume){ ip.ready=false; paintIpTab(); return; }
+    try{ const d=await BPStore.flowProgress.list({ scope:"studio", limit:1 }); ip.ready=!!d; ip.total=d?Number(d.total)||0:0; }
+    catch(_){ ip.ready=false; }
+    paintIpTab();
+  }
+  function paintIpVisibility(){ const on=filter==="inprogress", r=$("#rows"), card=r&&r.closest?r.closest(".card"):null, w=$("#ipWrap");
+    if(w) w.hidden=!on; if(card) card.hidden=on; }
+  async function renderInProgress(){
+    paintIpVisibility(); if(filter!=="inprogress") return;
+    const host=$("#ipWrap"); host.setAttribute("aria-busy","true");
+    if(!host.firstChild){ const p=document.createElement("p"); p.className="muted"; p.textContent="Loading quotes in progress…"; host.appendChild(p); }
+    let d=null; try{ d=await HelmFlowResume.load(BPStore, ipUid(), { scope:"studio", limit:100 }); }catch(_){ d=null; }
+    host.removeAttribute("aria-busy");
+    if(filter!=="inprogress") return;
+    if(!d || d.source==="none" || d.source==="error"){ HelmFlowResume.renderList(host, { rows:[] }, { empty: d&&d.source==="error" ? "Couldn't load the quotes in progress. Check your connection and press Refresh." : "The In progress list needs the latest database update (0206)." }); return; }
+    const term=($("#search").value||"").trim().toLowerCase(), type=(typeFilter||"").toLowerCase();
+    const rows=d.rows.filter(v=>(!type || String(v.eventType||"").toLowerCase()===type)
+      && (!term || [v.name,v.code,v.client].some(x=>String(x||"").toLowerCase().includes(term))));
+    ip.ready=true; ip.total=Number(d.total)||0; paintIpTab();
+    HelmFlowResume.renderList(host, { rows, total:rows.length, canEdit:d.canEdit }, (term||type) ? { empty:"No quotes in progress match this search or filter." } : {});
+  }
+  /* ---------- end In progress ---------- */
   // one page of the current tab (wraps BPStore.quotes.page): the first page also refreshes the
   // shelf, in parallel, so a tab switch costs no extra wait
   async function shelfPage(offset, base){
     const view=filter, term=($("#search").value||"").trim().toLowerCase(), type=(typeFilter||"").toLowerCase();
+    paintIpVisibility();
+    if(view==="inprogress"){ if(!offset) await renderInProgress(); return { rows:[], hasMore:false, offset:0 }; }
     const mine=()=>shelf.rows.filter(r=>r.shelf===(view==="deleted"?"deleted":"archived") && (!isDiscarded(r) || showDiscarded())).map(shelfItem)
       .filter(x=>(!type || (x.eventType||"").toLowerCase()===type)
                && (!term || [x.code,x.title,x.client.name].some(v=>String(v||"").toLowerCase().includes(term))));
@@ -448,6 +482,7 @@
       BPStore.auth.enabled() ? BPStore.auth.canEditArea("finance") : true]);
     $("#newBtn").hidden = !canCreate;
     runShelfTick();   // 0040: client link expired → Archive / Deleted (rate-limited server-side; never awaited)
+    loadInProgressCount();   // 0206: "In progress (N)" tab (never awaited)
     // opened from an event workspace? focus that quote by pre-filling the search
     const focus=focusPending ? new URLSearchParams(location.search).get("focus") : null;
     focusPending=false;   // apply the ?focus= prefill once, never overwrite what the user typed on later load()s
@@ -1185,6 +1220,9 @@
   // Audit 8: ?new=1 only OPENS the dialog (never creates), and only when one of Helm's own
   // pages armed it (one-time sessionStorage nonce, HelmNewQuote.arm). A link from anywhere
   // else just shows the list. The parameters are always dropped from the address bar.
+  // 0206: the dashboard's "N more in progress" link opens the In progress tab (?view=inprogress)
+  if(new URLSearchParams(location.search).get("view")==="inprogress"){ filter="inprogress";
+    $("#tabs").querySelectorAll("button").forEach(x=>{ const on=x.dataset.f==="inprogress"; x.classList.toggle("on",on); x.setAttribute("aria-pressed",String(on)); if(on) x.hidden=false; }); }
   const newQs = new URLSearchParams(location.search);
   if(newQs.has("new") || newQs.has("nq")){
     const armed = !!(window.HelmNewQuote && HelmNewQuote.consume(location.search));

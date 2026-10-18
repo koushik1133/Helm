@@ -185,23 +185,30 @@ t('live price rail sticks below the app header; phones get a bottom summary bar'
   assert.match(css, /html\[data-shell="b"\] \.mbar\{bottom:calc\(58px \+ env\(safe-area-inset-bottom,0px\)\)/);
   assert.match(flow, /<div class="mbar" id="mPriceBar" role="region" aria-label="Live price summary" hidden>/);
 });
-t('resume: per user, unfinished quotes only, deep link to the last section', () => {
+t('resume v3: one browser entry PER QUOTE (fallback), unfinished quotes only, deep link to the last section', () => {
   const store = {}; globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
-  const now = Date.now();
-  assert.equal(R.read('u1'), null);
-  R.record('u1', { quoteId: 'q9', name: 'WED_HYD_300', step: 'venue' }, now);
-  assert.equal(R.lastStep('u1', 'q9'), 'venue'); assert.equal(R.lastStep('u2', 'q9'), null); assert.equal(R.lastStep('u1', 'qX'), null);
-  assert.equal(R.label(R.read('u1')), 'Continue where you left off → WED_HYD_300, step 4 · Venue');
-  assert.equal(R.href(R.read('u1')), 'flow.html?quote=q9#sec-venue');
-  assert.equal(R.record('u1', { quoteId: 'q9', step: 'bogus' }), null);
-  assert.equal(R.read('u1', now + 31 * 864e5), null, 'older than 30 days is ignored');
+  const now = Date.now(), q9 = '00000000-0000-4000-8000-000000000009', q8 = '00000000-0000-4000-8000-000000000008';
+  assert.equal(R.read('u1', q9), null);
+  R.record('u1', { quoteId: q9, name: 'WED_HYD_300', step: 'venue' }, now);
+  R.record('u1', { quoteId: q8, name: 'BDAY_PUNE_50', step: 'menu' }, now + 1000);
+  assert.equal(R.lastStep('u1', q9), 'venue', 'opening another quote never replaces this one'); assert.equal(R.lastStep('u1', q8), 'menu');
+  assert.equal(R.lastStep('u2', q9), null); assert.equal(R.lastStep('u1', 'qX'), null);
+  const v = R.fromLocal(R.read('u1', q9));
+  assert.equal(R.label(v, now + 2 * 3600e3), 'WED_HYD_300 · step 4 of 8 · Venue · edited 2 h ago');
+  assert.equal(R.href(v), 'flow.html?quote=' + q9 + '#sec-venue');
+  assert.equal(R.record('u1', { quoteId: q9, step: 'bogus' }), null);
+  assert.equal(R.read('u1', q9, now + 61 * 864e5), null, 'older than 60 days is ignored');
   assert.equal(R.unfinished({ status: 'quote' }), true);
-  for (const q of [{ status: 'confirmed' }, { status: 'cancelled' }, { lifecycleStage: 'closed' }, { status: 'quote', archivedAt: 'x' }, { status: 'quote', deletedAt: 'x' }, null]) assert.equal(R.unfinished(q), false);
-  R.clear('u1', 'q9'); assert.equal(R.read('u1'), null);
-  assert.match(read('public/quotes.html'), /<script src="flow-resume\.js\?v=2" data-mount><\/script>/);
-  assert.match(read('public/dashboard.html'), /<script src="flow-resume\.js\?v=2" data-mount><\/script>/);
-  assert.match(flow, /HelmFlowResume\.record\(userId,\{ quoteId:id,/);
-  assert.match(flow, /HelmFlowResume\.lastStep\(userId,id\)/);
+  for (const q of [{ status: 'confirmed' }, { status: 'cancelled' }, { lifecycleStage: 'closed' }, { status: 'quote', archivedAt: 'x' }, { status: 'quote', deletedAt: 'x' },
+    { status: 'quote', approvalStatus: 'sent' }, { status: 'quote', approvalToken: 'x' }, null]) assert.equal(R.unfinished(q), false);
+  assert.equal(R.clear('u1'), false, 'clear needs a quote id: nothing is wiped because another quote was opened');
+  R.clear('u1', q9); assert.equal(R.read('u1', q9), null); assert.equal(R.lastStep('u1', q8), 'menu', 'the other quote is untouched');
+  assert.match(read('public/quotes.html'), /<script src="flow-resume\.js\?v=3" data-mount><\/script>/);
+  assert.match(read('public/dashboard.html'), /<script src="flow-resume\.js\?v=3" data-mount><\/script>/);
+  assert.match(flow, /flowTrack=HelmFlowResume\.track\(\{ quoteId:id, uid:userId, canEdit, store:BPStore,/);
+  assert.match(flow, /resumeP=HelmFlowResume\.resumeStep\(BPStore, userId, id\)/);
+  assert.match(flow, /resumeP\.then\(info=>\{ if\(!moved && info && info\.step\) jump\("sec-"\+info\.step, info\); landOnce\(info\); \}\)/, 'the resume answer never holds the page back');
+  assert.doesNotMatch(flow, /await resumeP/);
 });
 t('unsaved typing survives leaving (same tab), never over a newer server copy', () => {
   assert.match(flow, /sessionStorage\.setItem\(DRAFT_KEY, JSON\.stringify\(\{ at:Date\.now\(\), v:o \}\)\)/);
@@ -215,7 +222,7 @@ t('new quotes elsewhere: lead Convert + quote modal refuse a past event date (st
   assert.match(Q, /if\(\(dv && dv<today && dv!==sv\) \|\| \(!dv && de\.getAttribute\("data-date-rejected"\)==="past"\)\)\{ errEl\.textContent="Event date can't be in the past\.";/);
 });
 t('pins', () => {
-  assert.match(flow, /flow-validate\.js\?v=2/); assert.match(flow, /flow-resume\.js\?v=2/);
+  assert.match(flow, /flow-validate\.js\?v=2/); assert.match(flow, /flow-resume\.js\?v=3/);
   assert.match(flow, /flow-autosave\.js\?v=4/); assert.match(flow, /flow-polish\.css\?v=5/);
 });
 console.log(`flow-validation: ${n} passed`);
