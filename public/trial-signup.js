@@ -19,7 +19,9 @@
   var KEY = "bp_trial_intent";
   var DKEY = "bp_direct_intent";   // 0159: "Create studio" directly (plan + payment, no trial)
   var TTL = 2 * 24 * 3600 * 1000;
-  var DAYS = 8;
+  // 0207: the shared trial facts (public/trial-facts.js, loaded before this file; require() under node tests)
+  var F = (typeof module !== "undefined" && module.exports && typeof require === "function") ? require("./trial-facts.js") : (global && global.HelmTrialFacts);
+  var DAYS = F ? F.DAYS : 8;   // the fallback only keeps sign-up working if trial-facts.js failed to load
 
   // Pure (unit-tested): was the visitor sent here by a "Start free trial" link?
   //   search: location.search; stored: the localStorage value; now: Date.now()
@@ -47,29 +49,12 @@
 
   var TRIAL_TZ = "Asia/Kolkata", TRIAL_CUR = "INR";
   // Trial terms: "What's in your free trial" - shown on the trial sign-up screen BEFORE the account is made.
-  // Plain words for docs/trial/POST-TRIAL-POLICY.md + docs/trial/TRIAL-END-TO-END.md (same rules as
-  // terms.html #trial). KEY = the 4 lines always visible; ALL = the "See all trial rules" list.
-  var KEEP_DAYS = 60, TEAM_EXTRA = 2, CREATE_CAP = 2;
-  var TRIAL_KEY = [
-    { t: DAYS + " days free, no card", s: "An India studio: prices in ₹, times in IST." },
-    { t: "Ready-made sample data", s: "Sample events, leads, inventory, vendors, staff, venues, menus and layouts, all marked “Demo”." },
-    { t: "You + up to " + TEAM_EXTRA + " teammates", s: "No real messages go to clients during the trial (test mode)." },
-    { t: "After " + DAYS + " days: read-only", s: "Your data is kept " + KEEP_DAYS + " days, then deleted (we remind you first). Choose a plan anytime to keep everything." }
-  ];
-  var TRIAL_ALL = [
-    DAYS + " days free. No card needed to start.",
-    "Your trial studio is set up for India: prices in ₹ (INR), times in IST (Asia/Kolkata).",
-    "It starts with ready-made sample data: sample events, leads, inventory, vendors, staff, venues, menus and layouts. Every sample record is marked “Demo”.",
-    "You plus up to " + TEAM_EXTRA + " teammates can use the trial studio.",
-    "You can add up to " + CREATE_CAP + " new records of each kind (leads, events, inventory items, vendors, staff and venues). Sample records do not count, and deleting a record does not free a slot.",
-    "Menu prices are editable. New dishes, menu packages, chair or plate types cannot be added during the trial.",
-    "Test mode: no real e-mails, WhatsApp or SMS messages are sent to clients during the trial.",
-    "Downloads (PDF, CSV, prints), imports and photo renders unlock on a paid plan.",
-    "After " + DAYS + " days the studio becomes read-only: you and your teammates can still look, but nobody can add or change anything until you choose a plan.",
-    "Your trial data is kept for " + KEEP_DAYS + " days after the trial ends, then permanently deleted. We e-mail you reminders before that (30, 7 and 1 day before).",
-    "One free trial per e-mail address.",
-    "Choose a plan anytime to keep everything and carry on where you left off."
-  ];
+  // 0207: every number and rule comes from ONE shared module, public/trial-facts.js (HelmTrialFacts), the same
+  // source as the welcome step "Your 8-day free trial" and terms.html #trial, so they never drift apart.
+  // KEY = the 4 lines always visible; ALL = the "See all trial rules" list.
+  var KEEP_DAYS = F ? F.KEEP_DAYS : 60;
+  var TRIAL_KEY = F ? F.SIGNUP_KEY : [];
+  var TRIAL_ALL = F ? F.SIGNUP_ALL : [];
   var api = { TRIAL_TZ: TRIAL_TZ, TRIAL_CUR: TRIAL_CUR, intentFrom: intentFrom, directFrom: directFrom, localeFor: localeFor, KEY: KEY, DKEY: DKEY, DAYS: DAYS,
     KEEP_DAYS: KEEP_DAYS, TRIAL_KEY: TRIAL_KEY, TRIAL_ALL: TRIAL_ALL };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
@@ -131,7 +116,7 @@
     a.textContent = on ? AGREE_TRIAL : a.getAttribute("data-default");
   }
   function trialTerms(mode, joining) {
-    var show = mode === "signup" && !joining && !direct;
+    var show = mode === "signup" && !joining && !direct && TRIAL_KEY.length > 0;
     var box = doc.getElementById("trialTerms");
     if (!box && show) {
       var after = doc.getElementById("pathLink") || $("#formSub");
@@ -233,7 +218,7 @@
     var obn = $("#ob_name"); if (obn) { obn.required = false; obn.placeholder = "e.g. Aurora Events — or leave empty"; }
     // Trial terms: a Google sign-up lands here before the studio is made: the same trial rules + consent line
     var obForm = doc.getElementById("onboardForm"), obBtn = $("#ob_submit");
-    if (obForm && obBtn && !doc.getElementById("obTrialTerms")) {
+    if (obForm && obBtn && TRIAL_KEY.length && !doc.getElementById("obTrialTerms")) {
       obForm.insertBefore(termsPanel("obTrialTerms"), obBtn);
       var ag = el("p", "tt-agree"); ag.id = "obAgree";
       ag.appendChild(doc.createTextNode(AGREE_TRIAL + " "));

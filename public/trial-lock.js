@@ -74,10 +74,34 @@
       try { location.replace(home()); } catch (e) {}
     }
     if (document.body) page(); else document.addEventListener("DOMContentLoaded", page);
+    termsGuard();
     try { localStorage.setItem("helm.trial", "1"); } catch (e) {}
     markVisit();
     try { window.dispatchEvent(new CustomEvent("helm:trial", { detail: { trial: true } })); } catch (e) {}
     known = true; waiters.splice(0).forEach(function (f) { try { f(true); } catch (e) {} });
+  }
+  // 0207: the trial owner has not agreed to the free-trial terms yet -> only the dashboard (where the welcome step
+  // "Your 8-day free trial" / the one-time terms window asks for "I agree") is open; any other studio page
+  // (app shell pages + the layout builder) covers itself and goes there. Teammates, paid studios: never.
+  var TERMS_HOME = /(^|\/)dashboard(\.html)?\/?$/;
+  function dashHome() {
+    var m = /^\/([a-z0-9-]{3,40})\/[a-z0-9-]+\/?$/.exec(location.pathname || "");
+    return m ? "/" + m[1] + "/dashboard" : "/dashboard.html";
+  }
+  function termsGuard() {
+    var path = location.pathname || "";
+    if (TERMS_HOME.test(path) || BLOCKED_PAGES.test(path)) return;
+    var de = document.documentElement, shellPage = false;
+    try { shellPage = !!(de && de.hasAttribute && de.hasAttribute("data-shell")); } catch (e) {}
+    if (!(shellPage || /(^|\/)builder(\.html)?\/?$/.test(path))) return;
+    var S = window.BPStore;
+    if (!S || !S.trialOrg || typeof S.trialOrg.terms !== "function") return;
+    S.trialOrg.terms().then(function (r) {
+      if (!r || r.must_agree !== true) return;
+      cover("Please read the free-trial terms first",
+        "Before you use your trial studio, read how the free trial works and tick \u201cI agree\u201d on the dashboard. It only takes a minute.");
+      try { location.replace(dashHome()); } catch (e) {}
+    }, function () {});
   }
   // 0181: html.helm-trial was added early from the cached flag (so export / render buttons never flash usable);
   // the server said "not a trial" (paid, upgraded or signed out): take the early class back off

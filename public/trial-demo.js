@@ -316,16 +316,25 @@
     } catch (e) {}
   }
 
-  /* ---- 0167: 2-step trial welcome (dashboard, right after a trial sign-up) ------------------------
-     Step 1 "Name your trial studio": name + city (default Hyderabad) + optional phone ->
+  /* ---- 0167: trial welcome (dashboard, right after a trial sign-up) ---------------------------------
+     0207 Step 1 "Your 8-day free trial": the full trial terms (HelmTrialFacts, public/trial-facts.js -
+     the same source as the sign-up box) + the required tick "I have read and agree to the free-trial
+     terms, the Terms of Service and the Privacy Policy"; Continue stays disabled until it is ticked.
+     accept_trial_terms records it (server-side, so on another device the welcome starts here again
+     until it is agreed). Already agreed (e.g. on another device): the welcome starts at "Name".
+     Step "Name your trial studio": name + city (default Hyderabad) + optional phone ->
      trial_welcome_setup (own trial studio only). The sample data is already there (seeded at sign-up).
-     Step 2 (optional) "Invite your team (up to 2)": email + role rows -> create_invitation (the
+     Step "Invite your team (up to 2)" (optional): email + role rows -> create_invitation (the
      server enforces the seat limit) + Skip. Then the guided tour. Paid "Create studio" never sees this.
      0180: whether it shows is decided by the SERVER (organizations.trial_welcome_pending, set when
      the trial starts, cleared when the welcome is finished), so it also shows when the e-mail confirm
      link is opened on another device, and never twice. Before 0180 is installed the browser flag
-     set at sign-up (bp_trial_welcome) is used instead. The dashboard tour waits for this decision. */
+     set at sign-up (bp_trial_welcome) is used instead. The dashboard tour waits for this decision.
+     0207: a trial owner who finished the welcome before the terms step existed gets the same terms once
+     as a window ("Agree and continue"); an invited teammate gets a short read-only notice ("Got it", no
+     agreement). Paid studios and ended (read-only) trials never see either. */
   const WKEY = "bp_trial_welcome";
+  const TF = () => global.HelmTrialFacts || null;
   function lsGet(k) { try { return global.localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v == null) global.localStorage.removeItem(k); else global.localStorage.setItem(k, v); } catch (e) {} }
   // Pure (unit-tested): is the welcome due? a browser flag ("<time>" at sign-up, "again:<time>"), at most 2 days old
@@ -339,6 +348,22 @@
     if (server === false) return /^again:/.test(String(flag == null ? "" : flag)) && welcomeDue(flag, now);
     return welcomeDue(flag, now);
   }
+  // 0207 (pure, unit-tested): which trial-terms window does this person get?
+  //   t = my_trial_org(), terms = my_trial_terms_status() (null = 0207 not installed / unknown), welcome = welcomeShow(..)
+  //   "welcome+terms" the welcome starts with "Your 8-day free trial" (not agreed yet; unknown -> still asked)
+  //   "welcome"       the welcome without the terms step (already agreed, e.g. on another device)
+  //   "terms"         no welcome, the owner has not agreed yet: the one-time "agree" window
+  //   "notice"        an invited teammate: the short read-only notice, once
+  //   null            nothing (paid studio, ended / read-only trial, client, already agreed / seen)
+  function termsPlan(t, terms, welcome) {
+    const known = !!(terms && typeof terms === "object");
+    if (welcome === true) return known && terms.must_agree !== true ? "welcome" : "welcome+terms";
+    if (!t || typeof t !== "object" || t.is_trial_org !== true || t.ended === true || t.locked === true) return null;
+    if (!known || terms.trial !== true) return null;
+    if (terms.must_agree === true) return "terms";
+    if (terms.notice === true) return "notice";
+    return null;
+  }
   // Pure (unit-tested): the invite rows worth sending (valid-looking emails, max 2, no duplicates)
   function inviteRows(rows) {
     const out = [], seen = {};
@@ -351,27 +376,36 @@
   }
   // hold the tour back until the welcome is done (dashboard awaits welcomeDecision() before its tour)
   const onDash = /(^|\/)dashboard(\.html)?$/.test((global.location && global.location.pathname) || "");
-  let welcomeOn = false, welcomeT = null, decided = null;
+  let welcomeOn = false, welcomeT = null, decided = null, plan = null;
+  // 0207: the one-time terms window / teammate notice: the tour waits for it to close (termsGate())
+  let gateOpen = null; const gate = new Promise((r) => { gateOpen = r; });
   // the one decision per page load (dashboard only): trial admin? then ask the server
   function welcomeDecision() {
     if (decided) return decided;
     decided = (async () => {
       if (!onDash) return false;
       const st = S(); if (!st || !st.trialOrg) return false;
-      let t = null, server = null;
+      let t = null, server = null, terms = null;
       try { if (st.init) await st.init(); } catch (e) {}
       try { t = await st.trialOrg.status(); } catch (e) { t = null; }
+      const asks = [];
       if (t && t.is_trial_org === true && t.is_admin === true && st.trialOrg.welcomePending) {
-        try { server = await st.trialOrg.welcomePending(); } catch (e) { server = null; }   // network: fall back to the browser flag
+        asks.push(st.trialOrg.welcomePending().then((v) => { server = v; }, () => { server = null; }));   // network: fall back to the browser flag
       }
+      // 0207: owner agreed? teammate saw the notice? (null = not installed / offline)
+      if (t && t.is_trial_org === true && st.trialOrg.terms) asks.push(st.trialOrg.terms().then((v) => { terms = v; }, () => { terms = null; }));
+      await Promise.all(asks);
       const on = welcomeShow(t, server, lsGet(WKEY), Date.now());
+      plan = termsPlan(t, terms, on);
       // finished elsewhere (or not a trial admin): drop this browser's old sign-up flag; the tour flag stays
       if (!on) lsSet(WKEY, null); else lsSet("bp_tour_autorun", "1");
       welcomeOn = on; welcomeT = t;
       return on;
-    })().catch(() => false);
+    })().then((on) => { if (plan !== "terms" && plan !== "notice") gateOpen(); return on; }, () => { gateOpen(); return false; });
     return decided;
   }
+  // 0207: resolves once no trial-terms window is open any more (the dashboard tour waits for it)
+  function termsGate() { return welcomeDecision().then(() => gate, () => undefined); }
   if (onDash) welcomeDecision();
   function field(id, label, type, value, hint) {
     const f = el("div", "td-fld"), l = el("label", null, label); l.htmlFor = id; f.appendChild(l);
@@ -383,42 +417,194 @@
     // 0180: finished on this device = finished everywhere (a failure only means it may show once more)
     try { const st = S(); if (st && st.trialOrg && st.trialOrg.welcomeDone) await st.trialOrg.welcomeDone(); } catch (e) {}
     lsSet(WKEY, null); lsSet("bp_tour_autorun", null); lsSet("bp_force_tour", "1");
-    try { dlg.close(); } catch (e) {} dlg.remove();
+    finishDlg(dlg);
     global.location.replace("dashboard.html");
   }
+
+  /* ---- 0207: the trial terms inside a dialog ------------------------------------------------------- */
+  // dialog skeleton shared by the welcome, the one-time terms window and the teammate notice
+  function shell(cls, titleId) {
+    const dlg = el("dialog", "td-dlg " + cls); dlg.setAttribute("aria-labelledby", titleId);
+    const head = el("div", "tdw-head"), tag = el("span", "td-tag"), h = el("h3"); h.id = titleId;
+    const extra = el("div", "tdw-extra");
+    head.appendChild(tag); head.appendChild(h); head.appendChild(extra);
+    const body = el("div", "tdw-body"), foot = el("div", "tdw-foot");
+    const err = el("p", "td-err"); err.setAttribute("role", "alert"); err.hidden = true;
+    const row = el("div", "td-row");
+    foot.appendChild(err); foot.appendChild(row);
+    dlg.appendChild(head); dlg.appendChild(body); dlg.appendChild(foot);
+    const empty = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
+    return { dlg, tag, h, extra, body, foot, err, row, empty,
+      showErr: (m) => { err.textContent = m || ""; err.hidden = !m; } };
+  }
+  // fills a shell with the full terms + the required tick; onTick(checked) enables the caller's button
+  function termsInto(s, intro, onTick) {
+    const F = TF();
+    s.dlg.classList.add("tw-dlg");
+    s.empty(s.extra); s.empty(s.body);
+    s.h.textContent = "Your " + (F ? F.DAYS : 8) + "-day free trial";
+    s.extra.appendChild(el("p", "tw-intro", intro));
+    if (F) {
+      const chips = el("ul", "tw-chips");
+      [F.DAYS + " days free", "No card needed", "India · " + F.REGION.symbol + " · " + F.REGION.tz, "You + " + F.TEAM_EXTRA + " teammates"]
+        .forEach((c) => chips.appendChild(el("li", null, c)));
+      s.extra.appendChild(chips);
+    }
+    const scroll = el("div", "tw-scroll"); scroll.setAttribute("tabindex", "0"); scroll.setAttribute("role", "region");
+    scroll.setAttribute("aria-label", "Free-trial terms");
+    if (F && F.panel) scroll.appendChild(F.panel(doc, s.h.id + "S"));
+    else {   // trial-facts.js did not load: still ask, with the full terms one click away
+      const p = el("p", "tw-lead", "Please read the free-trial terms before you continue: ");
+      const a = el("a", null, "Terms of Service, section 4 (free trial)"); a.href = "/terms#trial"; a.target = "_blank"; a.rel = "noopener";
+      p.appendChild(a); scroll.appendChild(p);
+    }
+    s.body.appendChild(scroll);
+    let box, input;
+    if (F && F.agreeBox) { const ab = F.agreeBox(doc, s.h.id + "Ok", onTick); box = ab.box; input = ab.input; }
+    else {
+      box = el("div", "tw-agree"); input = el("input"); input.type = "checkbox"; input.id = s.h.id + "Ok";
+      const l = el("label", null, "I have read and agree to the free-trial terms, the Terms of Service and the Privacy Policy."); l.htmlFor = input.id;
+      box.appendChild(input); box.appendChild(l);
+      input.addEventListener("change", () => onTick(!!input.checked));
+    }
+    s.foot.insertBefore(box, s.err);
+    return { scroll, box, input };
+  }
+  // the primary button that stays disabled until the tick (a polite live hint says why)
+  function agreeButton(label, onClick) {
+    const b = btn(label, "btn primary", onClick); b.disabled = true; b.setAttribute("aria-describedby", "twNeedTick");
+    return b;
+  }
+  function needTick(on) {
+    const n = el("span", "tw-need", on ? "" : "Tick the box above to continue."); n.id = "twNeedTick"; n.setAttribute("aria-live", "polite");
+    return n;
+  }
+  async function recordTerms() {
+    const st = S(), F = TF();
+    if (!st || !st.trialOrg || !st.trialOrg.acceptTerms) return null;
+    return st.trialOrg.acceptTerms(F ? F.VERSION : "");
+  }
+  function openDlg(dlg, focusEl) {
+    doc.body.appendChild(dlg);
+    try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
+    try { if (focusEl) focusEl.focus(); } catch (e) {}
+  }
+  // a required window: Esc is refused (cancel), and if the browser closes it anyway (Chrome lets Esc through
+  // when the page has had no click yet) it opens again until finishDlg(dlg) marked it finished
+  function keepOpen(dlg) {
+    dlg.addEventListener("cancel", (ev) => { ev.preventDefault(); });
+    dlg.addEventListener("close", () => {
+      if (dlg.getAttribute("data-done") === "1" || !dlg.parentNode) return;
+      try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
+    });
+  }
+  function finishDlg(dlg) { dlg.setAttribute("data-done", "1"); try { dlg.close(); } catch (e) {} dlg.remove(); }
+
+  // the one-time "agree" window: a trial that finished the welcome before the terms step existed
+  function mountTermsOnly() {
+    css();
+    const s = shell("td-welcome", "tdTT");
+    s.tag.textContent = "Free-trial terms";
+    let ok = null;
+    const hint = needTick(false);
+    const go = agreeButton("Agree and continue", async () => {
+      if (!ok || !ok.input.checked) { s.showErr("Tick the box to agree to the free-trial terms."); return; }
+      s.showErr(""); const done = busy(go, "Saving…");
+      try { await recordTerms(); }
+      catch (e) { done(); go.disabled = !ok.input.checked; s.showErr(errMsg(e, "save your agreement")); return; }
+      finishDlg(s.dlg);
+      toast("Thanks — enjoy your free trial.");
+      gateOpen();
+    });
+    ok = termsInto(s, "Before you continue, please read exactly how the free trial works and tick “I agree”. You only need to do this once.",
+      (on) => { go.disabled = !on; hint.textContent = on ? "" : "Tick the box above to continue."; });
+    s.row.appendChild(hint); s.row.appendChild(go);
+    keepOpen(s.dlg);   // agreeing is required: Esc does not close it
+    openDlg(s.dlg, ok.scroll);
+  }
+  // the teammate notice: read-only, no agreement; "Got it" (or Esc) records that it was seen
+  function mountNotice(t) {
+    css();
+    const F = TF(), s = shell("td-welcome tw-note", "tdTN");
+    s.tag.textContent = "Free trial";
+    s.h.textContent = "You’re in a free-trial studio";
+    let end = "";
+    try { if (t && t.ends_at) end = new Date(t.ends_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: (t && t.timezone) || "Asia/Kolkata" }); } catch (e) { end = ""; }
+    s.extra.appendChild(el("p", "tw-intro", ((t && t.name) ? "“" + t.name + "”" : "This studio") + " is trying Helm" + (end ? " until " + end : "") + ". A few things work differently during the trial:"));
+    if (F && F.notice) s.body.appendChild(F.notice(doc));
+    let closed = false;
+    const close = async () => {
+      if (closed) return; closed = true;
+      try { await recordTerms(); } catch (e) {}   // only means the notice may show once more
+      finishDlg(s.dlg);
+      gateOpen();
+    };
+    const b = btn("Got it", "btn primary", close); s.row.appendChild(b);
+    s.dlg.addEventListener("cancel", (ev) => { ev.preventDefault(); close(); });
+    s.dlg.addEventListener("close", () => { close(); });   // closed by the browser itself: same as "Got it"
+    openDlg(s.dlg, b);
+  }
+
   let welcomeMounted = false;
   async function mountWelcome() {
-    if (welcomeMounted || !(await welcomeDecision())) return;   // not shown: the dashboard tour runs as usual
+    if (welcomeMounted) return;
+    const on = await welcomeDecision();
+    if (welcomeMounted) return;
+    if (!on) {   // 0207: no welcome; maybe the one-time terms window / the teammate notice
+      if (plan === "terms") { welcomeMounted = true; mountTermsOnly(); }
+      else if (plan === "notice") { welcomeMounted = true; mountNotice(welcomeT); }
+      return;   // otherwise: the dashboard tour runs as usual
+    }
     welcomeMounted = true;
     const st = S(), t = welcomeT;
+    const withTerms = plan !== "welcome";   // "welcome+terms": Step 1 is "Your 8-day free trial"
+    const total = withTerms ? 3 : 2;
     css();
-    const dlg = el("dialog", "td-dlg td-welcome"); dlg.setAttribute("aria-labelledby", "tdWT");
-    const step = el("span", "td-tag", "Step 1 of 2"); dlg.appendChild(step);
-    const h = el("h3", null, "Name your trial studio"); h.id = "tdWT"; dlg.appendChild(h);
-    const body = el("div"); dlg.appendChild(body);
-    const err = el("p", "td-err"); err.setAttribute("role", "alert"); err.hidden = true; dlg.appendChild(err);
-    const row = el("div", "td-row"); dlg.appendChild(row);
-    const showErr = (m) => { err.textContent = m; err.hidden = !m; };
-    // step 1
-    body.appendChild(el("p", null, t.trial_mode === "own" ? "Give your trial studio your name — you can change it later." : "Your sample studio is loading with events, leads, menus, staff and inventory. Give it your name — you can change it later."));
-    const fn = field("tdw_name", "Studio name", "text", /^Demo [0-9]+$/.test(t.name || "") ? "" : (t.name || ""));
-    fn.input.required = true; fn.input.maxLength = 120; fn.input.autocomplete = "organization";
-    const fc = field("tdw_city", "City", "text", "Hyderabad"); fc.input.maxLength = 120;
-    const fp = field("tdw_phone", "Phone (optional)", "tel", "", "Shown on your quotes. Leave empty if you like."); fp.input.maxLength = 40;
-    [fn, fc, fp].forEach((x) => body.appendChild(x.box));
-    const next = btn("Continue", "btn primary", async () => {
-      const name = fn.input.value.trim();
-      if (name.length < 2) { showErr("Enter your studio name (at least 2 characters)."); fn.input.focus(); return; }
-      showErr(""); const done = busy(next, "Saving…");
-      try { await st.trialOrg.welcome(name, fc.input.value, fp.input.value); }
-      catch (e) { done(); showErr(errMsg(e, "save the studio name")); return; }
-      step2();
-    });
-    row.appendChild(next);
+    const s = shell("td-welcome", "tdWT"), dlg = s.dlg, body = s.body, row = s.row, h = s.h, step = s.tag, showErr = s.showErr;
+    // step: the free-trial terms + "I agree" (0207)
+    function stepTerms() {
+      step.textContent = "Step 1 of " + total;
+      let ok = null;
+      const hint = needTick(false);
+      const next = agreeButton("Agree and continue", async () => {
+        if (!ok || !ok.input.checked) { showErr("Tick the box to agree to the free-trial terms."); return; }
+        showErr(""); const done = busy(next, "Saving…");
+        try { await recordTerms(); }
+        catch (e) { done(); next.disabled = !ok.input.checked; showErr(errMsg(e, "save your agreement")); return; }
+        if (ok.box && ok.box.remove) ok.box.remove();
+        stepName();
+      });
+      ok = termsInto(s, "Here is exactly how your free trial works. Please read it and tick “I agree” to enter your studio.",
+        (v) => { next.disabled = !v; hint.textContent = v ? "" : "Tick the box above to continue."; });
+      row.appendChild(hint); row.appendChild(next);
+      return ok.scroll;
+    }
+    // step: name the studio
+    function stepName() {
+      dlg.classList.remove("tw-dlg");
+      s.empty(s.extra); s.empty(body); s.empty(row); showErr("");
+      step.textContent = "Step " + (withTerms ? 2 : 1) + " of " + total; h.textContent = "Name your trial studio";
+      body.appendChild(el("p", null, t.trial_mode === "own" ? "Give your trial studio your name — you can change it later." : "Your sample studio is loading with events, leads, menus, staff and inventory. Give it your name — you can change it later."));
+      const fn = field("tdw_name", "Studio name", "text", /^Demo [0-9]+$/.test(t.name || "") ? "" : (t.name || ""));
+      fn.input.required = true; fn.input.maxLength = 120; fn.input.autocomplete = "organization";
+      const fc = field("tdw_city", "City", "text", "Hyderabad"); fc.input.maxLength = 120;
+      const fp = field("tdw_phone", "Phone (optional)", "tel", "", "Shown on your quotes. Leave empty if you like."); fp.input.maxLength = 40;
+      [fn, fc, fp].forEach((x) => body.appendChild(x.box));
+      const next = btn("Continue", "btn primary", async () => {
+        const name = fn.input.value.trim();
+        if (name.length < 2) { showErr("Enter your studio name (at least 2 characters)."); fn.input.focus(); return; }
+        showErr(""); const done = busy(next, "Saving…");
+        try { await st.trialOrg.welcome(name, fc.input.value, fp.input.value); }
+        catch (e) { done(); showErr(errMsg(e, "save the studio name")); return; }
+        step2();
+      });
+      row.appendChild(next);
+      try { fn.input.focus(); } catch (e) {}
+      return fn.input;
+    }
     function step2() {
-      step.textContent = "Step 2 of 2 (optional)"; h.textContent = "Invite your team (up to 2)";
-      while (body.firstChild) body.removeChild(body.firstChild);
-      while (row.firstChild) row.removeChild(row.firstChild);
+      step.textContent = "Step " + total + " of " + total + " (optional)"; h.textContent = "Invite your team (up to 2)";
+      s.empty(body); s.empty(row);
       showErr("");
       body.appendChild(el("p", null, "Your free trial includes you + 2 people. They get an email with a join link. You can also do this later in Control Center → Users & invites."));
       const roles = (st.auth && st.auth.admin && st.auth.admin.roles) ? st.auth.admin.roles().filter((r) => r !== "client") : ["manager", "coordinator", "sales"];
@@ -448,13 +634,13 @@
       row.appendChild(send);
       lines[0].e.focus();
     }
-    dlg.addEventListener("cancel", (ev) => { ev.preventDefault(); });   // finish or skip, never lost by Esc
-    doc.body.appendChild(dlg);
-    try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
-    fn.input.focus();
+    keepOpen(dlg);   // finish or skip, never lost by Esc
+    const first = withTerms ? stepTerms() : null;
+    openDlg(dlg, first);
+    if (!withTerms) stepName();
   }
 
-  global.HelmTrialDemo = { welcomeDue: welcomeDue, welcomeShow: welcomeShow, welcomeDecision: welcomeDecision, inviteRows: inviteRows, view: view, trialOn: trialOn, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount,
+  global.HelmTrialDemo = { welcomeDue: welcomeDue, welcomeShow: welcomeShow, welcomeDecision: welcomeDecision, termsPlan: termsPlan, termsGate: termsGate, inviteRows: inviteRows, view: view, trialOn: trialOn, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount,
     get welcomeOn() { return welcomeOn; } };
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", mount); else mount(); }
 })(typeof window !== "undefined" ? window : globalThis);

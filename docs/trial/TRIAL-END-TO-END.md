@@ -7,6 +7,12 @@ This is a plain-words brief of the free trial. It covers what a new studio gets,
 - The welcome step (`trial_welcome_setup`) asks for a name, city and phone. Helm then writes the studio details itself. The trial user never has to do studio set-up.
 - When the sample template is switched on, the studio gets a copy of the sample studio (migrations 0166-0171). Every copied row is marked as demo data.
 
+## 1a. Trial terms and "I agree" (migration 0207)
+- The welcome's first step is **"Your 8-day free trial"**: what is included (the sample counts below), what the studio can do, what is locked and what happens after the trial, with links to Terms (`/terms#trial`) and Privacy (`/privacy`). The owner must tick **"I have read and agree to the free-trial terms, the Terms of Service and the Privacy Policy"**; Continue stays disabled until then.
+- `accept_trial_terms(version)` records it in `trial_terms_acceptances` (studio, person, version, time, short user agent). `my_trial_terms_status()` tells the app whether to ask, so another device asks again until it is agreed. Other studio pages send an owner who has not agreed back to the dashboard (`trial-lock.js`).
+- A trial that finished the welcome before 0207 gets the same terms once as a window. Invited teammates get a short read-only notice instead ("Got it", no agreement). Paid studios and ended trials are never asked.
+- Every number and rule shown comes from `public/trial-facts.js` (also used by the sign-up box). The version there must match `_trial_terms_version()`; a new wording needs a new version.
+
 ## 2. Sample data the trial starts with
 | List | Count |
 |---|---|
@@ -20,6 +26,7 @@ This is a plain-words brief of the free trial. It covers what a new studio gets,
 | Menu packages | 6: Standard, Gold and Premium, each in Veg and Non-veg |
 | Coupons | 3 |
 | Layout templates | 3 |
+| Client requirements | 41 (on the 7 sample events, 0202) |
 
 GST is set to 18% (intra-state). Event dates are relative to the sign-up day, so the calendar always looks current.
 

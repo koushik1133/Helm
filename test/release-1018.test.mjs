@@ -26,7 +26,7 @@ t('0201: ASCII, additive, re-issues the 0186 wrapper over the 0180 body, patches
 t('0201: right after 0200 in the MANIFEST, then 0202-0205 (each number once); suite registered, paste file has begin / commit / VERIFY', () => {
   const man = read('supabase/migrations/MANIFEST');
   assert.match(man, /forward  supabase\/migrations\/0200_booklet_send\.sql\n#[^\n]*\nforward  supabase\/migrations\/0201_release_integration\.sql\n#[^\n]*\nforward  supabase\/migrations\/0202_trial_sample_requirements\.sql\n#[^\n]*\nforward  supabase\/migrations\/0203_trial_gates\.sql\n#[^\n]*\nforward  supabase\/migrations\/0204_anon_grant_tidy\.sql\n#[^\n]*\nforward  supabase\/migrations\/0205_invite_account_state\.sql\n/);
-  // QA fixes of the release build follow (0230 + index, parallel fixers)
+  // later migrations follow: 0206 / 0207 (feature branches), then the QA fixes of the release build (0230 + index, parallel fixers)
   assert.match(man, /forward  supabase\/migrations\/0205_invite_account_state\.sql\n[\s\S]*forward  supabase\/migrations\/0236_trial_definition_unify\.sql\n#[^\n]*\nforward  supabase\/migrations\/0237_trial_seed_completeness\.sql\n/);
   // every migration number is used once
   const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);

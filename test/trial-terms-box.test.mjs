@@ -18,7 +18,7 @@ t('panel copy: every trial rule in plain words', () => {
   assert.equal(m.TRIAL_KEY.length, 4, 'four always-visible lines');
   const all = m.TRIAL_ALL.join('\n'), key = m.TRIAL_KEY.map((k) => k.t + ' ' + k.s).join('\n');
   for (const re of [/8 days free/, /₹/, /IST/, /sample data/, /Demo/, /up to 2 teammates/, /read-only/, /60 days/]) assert.match(key, re, String(re));
-  for (const re of [/8 days free\. No card/, /₹ \(INR\)/, /IST \(Asia\/Kolkata\)/, /sample events, leads, inventory, vendors, staff, venues, menus and layouts/,
+  for (const re of [/8 days free\. No card/, /₹ \(INR\)/, /IST \(Asia\/Kolkata\)/, /16 leads \(clients\), 7 events with quotes, 41 client requirements, 165 inventory items, 16 vendors, 12 staff, 4 venues, 6 menu packages, 145 dishes, 3 layout templates and 3 coupons/,
     /marked “Demo”/, /up to 2 teammates/, /up to 2 new records of each kind/, /deleting a record does not free a slot/, /Menu prices are editable/,
     /no real e-mails, WhatsApp or SMS/, /Downloads.*imports and photo renders unlock on a paid plan/, /After 8 days the studio becomes read-only/,
     /kept for 60 days .*permanently deleted/, /30, 7 and 1 day before/, /One free trial per e-mail/, /Choose a plan anytime to keep everything/]) assert.match(all, re, String(re));
@@ -31,7 +31,7 @@ t('panel: DOM only (CSP), collapsible "See all trial rules", links to /terms#tri
   assert.match(TS, /What’s in your free trial/);
 });
 t('panel: only on the trial sign-up; hidden on sign-in, the paid path and for invitees', () => {
-  assert.match(TS, /var show = mode === "signup" && !joining && !direct;/);
+  assert.match(TS, /var show = mode === "signup" && !joining && !direct && TRIAL_KEY\.length > 0;/);   // 0207: facts from trial-facts.js
   assert.match(TS, /if \(box\) box\.hidden = !show;/);
   assert.match(TS, /if \(joining\) \{ trialTerms\(mode, joining\); return; \}/);
   assert.ok(TS.indexOf('pathLink(mode);\n    trialTerms(mode, joining);') > 0, 'placed under the path link');
