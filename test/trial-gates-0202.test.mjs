@@ -75,7 +75,7 @@ for (const path of ["/abcd/audit", "/abcd/templates", "/audit.html"]) {
 { const p = page("trial", "/abcd/dashboard"); await tick(); await tick(); assert.deepEqual(p.replaced, [], "trial: the dashboard itself never redirects"); }
 const tl = read("public/trial-lock.js"), css = read("public/trial-lock.css");
 assert.match(tl, /#seedBtn, #firstSeed, #btn-export-gdpr/, "starter items + studio archive clicks blocked");
-for (const sel of ["#seedBtn", "#firstSeed", "#btn-export-gdpr", "#runNow", "#occBody [data-greet]", ".hd-act-card", "a[href$=\"/templates\"]", "a[href$=\"/audit\"]", "a[href*=\"tplEdit=\"]"]) assert.ok(css.includes(sel), "css hides " + sel);
+for (const sel of ["#seedBtn", "#firstSeed", "#btn-export-gdpr", "#runNow", "#occBody [data-greet]", ".hd-act-card", "a[href$=\"/templates\"]", "a[href$=\"/audit\"]", "a[href*=\"tplEdit=\"]", "#tplAddRow"]) assert.ok(css.includes(sel), "css hides " + sel);
 assert.match(read("public/shell-b.js"), /\[\(ctl \|\| rl === "admin"\) && !inTrial, "audit"/, "no Audit log nav item in the trial");
 
 // ---- Control Center deep link to a trial-hidden section -------------------------------------------------
