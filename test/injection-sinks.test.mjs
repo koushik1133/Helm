@@ -89,7 +89,7 @@ t('flow packages: dish count is a real number even for non-list jsonb', () => {
 t('flow Email button: a stored address cannot add Cc/Bcc headers', () => {
   const m = flow.match(/const mailHref=([^;]+);/);
   assert.ok(m, 'mailHref builder must exist');
-  assert.match(flow, /href="\$\{esc\(mailHref\)\}">Email<\/a>/, 'Email href must be the encoded mailHref');
+  assert.match(flow, /href="\$\{esc\(mailHref\)\}">Email \(manual\)<\/a>/, 'Email href must be the encoded mailHref');
   assert.ok(!/href="mailto:\$\{/.test(flow), 'no raw mailto:${…} interpolation left');
   const build = (ev, waText) => eval(m[1]);
   const waText = encodeURIComponent('Hi, link: https://www.helm.events/x/portal/tok');
