@@ -21,6 +21,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
+import { postalAddress, txFooter, withFooter } from "../_shared/email-compliance.mjs";
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com"]);
@@ -57,11 +58,12 @@ async function sendEmail(to: string[], subject: string, html: string): Promise<S
   const conf = Deno.env.get("RESEND_FROM") || "onboarding@resend.dev";
   const m = conf.match(/<([^>]+)>/);
   const from = `"Helm Security" <${(m ? m[1] : conf).trim()}>`;
-  try {
+  const _f = withFooter({ text: "", html }, txFooter("security", { noLinks: true, app: Deno.env.get("APP_URL"), address: postalAddress((k: string) => Deno.env.get(k)) }));
+    try {
     const r = await safeFetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: list, subject, html }),
+      body: JSON.stringify({ from, to: list, subject, html: _f.html }),
     });
     await r.text();
     if (!r.ok) console.error("security-alert-mailer: provider status", r.status);

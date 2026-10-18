@@ -28,6 +28,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
+import { postalAddress, txFooter, withFooter } from "../_shared/email-compliance.mjs";
 import { channelStatus, fromHeader, maskEmail, maskPhone, PHONE_RE, EMAIL_RE, replyToOf, testEmail, waTestContent } from "./logic.mjs";
 
 const ALLOWED_HOSTS = new Set(["api.resend.com", "graph.facebook.com"]);
@@ -90,7 +91,7 @@ Deno.serve(async (req) => {
       const r = await safeFetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": "Bearer " + (env("RESEND_API_KEY") || ""), "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to: [to], subject: msg.subject, text: msg.text, ...(reply ? { reply_to: reply } : {}) }),
+        body: JSON.stringify({ from, to: [to], subject: msg.subject, text: withFooter({ text: msg.text }, txFooter("test", { app: Deno.env.get("APP_URL"), address: postalAddress((k: string) => Deno.env.get(k)) })).text, ...(reply ? { reply_to: reply } : {}) }),
       });
       await r.text();
       if (!r.ok) { console.error("integrations-test: email status", r.status); return json({ mode: "live", sent: false, error: "the e-mail provider refused it (status " + r.status + ") - check the sending domain is verified", ...shown }); }

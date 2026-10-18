@@ -595,6 +595,16 @@
   ! Cache-Control
   Cache-Control: no-store
 
+/unsubscribe
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/unsubscribe.html
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
 /vendors
   X-Robots-Tag: noindex, nofollow, noarchive
   ! Cache-Control

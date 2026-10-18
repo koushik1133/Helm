@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     const { data: org } = await admin.from("organizations").select("name, business_email").eq("id", q.org_id).maybeSingle();
     const studio = (org && org.name) || "";
     const m = linkEmail(kind, { client: (q.client && q.client.name) || "", studio, link });
-    const res = await sendMail({ to, subject: m.subject, text: m.text, html: m.html, studio, replyTo: org && org.business_email });
+    const res = await sendMail({ to, subject: m.subject, text: m.text, html: m.html, studio, replyTo: org && org.business_email, txReason: "client_link" });
 
     const { error: logErr } = await admin.from("notifications").insert({
       quote_id: quoteId, channel: "email", recipient: to, kind: kind === "approval" ? "approval_link" : "booklet_link",

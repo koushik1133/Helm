@@ -9,13 +9,18 @@
 // Display name: "<Studio> via Helm" (the address is the configured sender, so SPF/DKIM pass);
 // Reply-To: the studio's business e-mail when it is a valid address.
 // Logs carry only the provider + status code, never the recipient, body or any code.
+// Compliance: every message gets the transactional footer ("You received this because ... ·
+// Privacy · Helm Events, <postal address>", reason = msg.txReason, default client_link). A
+// non-transactional caller passes its own `footer` (with Unsubscribe) + List-Unsubscribe `headers`.
+import { postalAddress, txFooter, withFooter } from "./email-compliance.mjs";
 
 export type MailMsg = {
   to: string; subject: string; text: string; html?: string;
   studio?: string | null; replyTo?: string | null;
+  txReason?: string; footer?: { text: string; html: string }; headers?: Record<string, string>;
 };
 export type MailResult = { status: "sent" | "not_configured" | "failed"; provider?: "resend" | "smtp"; reason?: string };
-export type SmtpSend = (cfg: SmtpCfg, mail: { from: string; to: string; subject: string; text: string; html?: string; replyTo?: string }) => Promise<void>;
+export type SmtpSend = (cfg: SmtpCfg, mail: { from: string; to: string; subject: string; text: string; html?: string; replyTo?: string; headers?: Record<string, string> }) => Promise<void>;
 export type SmtpCfg = { host: string; port: number; user: string; pass: string; tls: boolean };
 
 export const EMAIL_RE = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
@@ -57,7 +62,7 @@ const denoSmtp: SmtpSend = async (cfg, mail) => {
     connection: { hostname: cfg.host, port: cfg.port, tls: cfg.tls, auth: { username: cfg.user, password: cfg.pass } },
   });
   try {
-    await client.send({ from: mail.from, to: mail.to, subject: mail.subject, content: mail.text, html: mail.html, replyTo: mail.replyTo });
+    await client.send({ from: mail.from, to: mail.to, subject: mail.subject, content: mail.text, html: mail.html, replyTo: mail.replyTo, ...(mail.headers ? { headers: mail.headers } : {}) });
   } finally { try { await client.close(); } catch (_) { /* ignore */ } }
 };
 
@@ -69,13 +74,17 @@ export async function sendMail(msg: MailMsg, opts: { env?: EnvGet; smtp?: SmtpSe
   const replyTo = msg.replyTo && EMAIL_RE.test(String(msg.replyTo).trim()) ? String(msg.replyTo).trim() : undefined;
   const subject = String(msg.subject || "").replace(/[\r\n]+/g, " ").slice(0, 200);
   const from = senderHeader(cfg.from!, msg.studio);
+  const envGet = opts.env || envOf();
+  const footer = msg.footer || txFooter(msg.txReason || "client_link", { app: envGet("APP_URL") || envGet("APP_ORIGIN"), address: postalAddress(envGet) });
+  const body = withFooter({ text: msg.text, html: msg.html }, footer);
+  const headers = msg.headers && Object.keys(msg.headers).length ? msg.headers : undefined;
   if (cfg.provider === "resend") {
     try {
       const env = opts.env || envOf();
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": "Bearer " + env("RESEND_API_KEY"), "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to: [to], subject, text: msg.text, ...(msg.html ? { html: msg.html } : {}), ...(replyTo ? { reply_to: replyTo } : {}) }),
+        body: JSON.stringify({ from, to: [to], subject, text: body.text, ...(body.html ? { html: body.html } : {}), ...(headers ? { headers } : {}), ...(replyTo ? { reply_to: replyTo } : {}) }),
       });
       await r.text();
       if (!r.ok) { console.error("mailer: resend status", r.status); return { status: "failed", provider: "resend", reason: "the e-mail provider refused the message" }; }
@@ -83,7 +92,7 @@ export async function sendMail(msg: MailMsg, opts: { env?: EnvGet; smtp?: SmtpSe
     } catch (_) { console.error("mailer: resend unreachable"); return { status: "failed", provider: "resend", reason: "the e-mail provider could not be reached" }; }
   }
   try {
-    await (opts.smtp || denoSmtp)(cfg.smtp!, { from, to, subject, text: msg.text, html: msg.html, replyTo });
+    await (opts.smtp || denoSmtp)(cfg.smtp!, { from, to, subject, text: body.text, html: body.html, replyTo, ...(headers ? { headers } : {}) });
     return { status: "sent", provider: "smtp" };
   } catch (_) {
     console.error("mailer: smtp send failed");

@@ -17,6 +17,7 @@ supabase functions deploy create-payment-link
 supabase functions deploy razorpay-webhook
 supabase functions deploy send-whatsapp
 supabase functions deploy render-photo        # 0095 photo renders - dormant until OPENAI_API_KEY is set
+supabase functions deploy email-unsubscribe --no-verify-jwt   # 0165 one-click unsubscribe (docs/ops/EMAIL-COMPLIANCE.md)
 ```
 `render-photo` needs migration 0095 (see `docs/PHOTO-RENDER-SETUP.md`); without the secret
 `OPENAI_API_KEY` it answers 503 `render_not_configured` and does nothing.

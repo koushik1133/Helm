@@ -41,6 +41,7 @@ import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/
 import { absoluteLink } from "./deeplink.js";
 import { trialReminderEmail } from "./trial-reminders.mjs";
 import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
+import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com", "graph.facebook.com"]);
@@ -72,22 +73,39 @@ function appOrigin(): string {
 
 // 0150: the studio's own sender name / reply-to (Integrations page), when set
 export type Identity = { from_name?: string | null; reply_to?: string | null };
-async function sendEmail(id: string, to: string, subject: string, text: string, studio: string, ident: Identity = {}): Promise<Res> {
+// Compliance (docs/ops/EMAIL-COMPLIANCE.md): every e-mail carries a footer; non-transactional
+// mail (follow-ups, trial nudges) also carries a visible Unsubscribe link + RFC 8058 headers.
+export type Extra = { footer: { text: string; html: string }; headers?: Record<string, string> };
+async function sendEmail(id: string, to: string, subject: string, text: string, studio: string, ident: Identity = {}, extra?: Extra): Promise<Res> {
   const key = Deno.env.get("RESEND_API_KEY") || "";
-  if (!key || !EMAIL.test(to) || !text) return "skipped";
+  if (!key || !EMAIL.test(to) || !text || !extra) return "skipped";
   const from = fromHeader(Deno.env.get("RESEND_FROM"), ident.from_name, studio);
   const replyTo = replyToOf(ident.reply_to);
-  const html = `<p>${escHtml(text).replace(/\n/g, "<br>")}</p>`;
+  const body = withFooter({ text, html: `<p>${escHtml(text).replace(/\n/g, "<br>")}</p>` }, extra.footer);
+  const headers = extra.headers && Object.keys(extra.headers).length ? { headers: extra.headers } : {};
   try {
     const r = await safeFetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json", "Idempotency-Key": "comms-" + id },
-      body: JSON.stringify({ from, to: [to], subject: subject.slice(0, 150), html, text, ...(replyTo ? { reply_to: replyTo } : {}) }),
+      body: JSON.stringify({ from, to: [to], subject: subject.slice(0, 150), html: body.html, text: body.text, ...headers, ...(replyTo ? { reply_to: replyTo } : {}) }),
     });
     await r.text();
     if (!r.ok) console.error("comms-dispatch: email status", r.status);
     return r.ok ? "sent" : "failed";
   } catch (e) { console.error("comms-dispatch: email error", errTag(e)); return "failed"; }
+}
+
+// purposes that are NOT transactional (need consent + unsubscribe); pay_reminder is transactional
+export const NON_TRANSACTIONAL = new Set(["follow_up"]);
+const env = (k: string) => Deno.env.get(k);
+// footer + headers for a non-transactional e-mail, or null (= do not send: opted out, or no token
+// because 0165 is not applied yet - fail closed, never send marketing mail without an unsubscribe)
+export function marketingExtra(u: any, sender: string, reason: string, app: string, e: (k: string) => string | undefined = env): Extra | null {
+  if (!u || u.ok !== true || u.opted_out === true) return null;
+  const links = unsubLinks(String(u.token ?? ""), { app, functionsUrl: String(e("SUPABASE_URL") || "").replace(/\/+$/, "") + "/functions/v1" });
+  if (!links) return null;
+  return { footer: mktFooter(links.page, { app, address: postalAddress(e), sender, reason }),
+           headers: listUnsubHeaders(links.oneClick, e("UNSUB_MAILTO")) };
 }
 
 // kill switch only: anything but an explicit "false" keeps the dispatcher on
@@ -199,7 +217,13 @@ Deno.serve(async (req) => {
         // 0150: sender name / reply-to of the row's studio (a database without 0150 -> defaults)
         let ident: Identity = {};
         try { const { data } = await admin.rpc("comms_outbox_email_identity", { p_id: id }); if (data && typeof data === "object") ident = data as Identity; } catch (_) { /* defaults */ }
-        res = await sendEmail(id, to, msg.subject, msg.text, String(payload.studio ?? ""), ident);
+        let extra: Extra | null = { footer: txFooter("pay_reminder", { app: origin, address: postalAddress(env) }) };
+        if (NON_TRANSACTIONAL.has(purpose)) {
+          let u: any = null;
+          try { const { data } = await admin.rpc("comms_outbox_unsub", { p_id: id }); u = data; } catch (_) { u = null; }
+          extra = marketingExtra(u, String(payload.studio ?? "") || "your event planner", "you asked " + (String(payload.studio ?? "") || "this planner") + " about an event", origin);
+        }
+        res = extra ? await sendEmail(id, to, msg.subject, msg.text, String(payload.studio ?? ""), ident, extra) : "skipped";
       }
       else if (channel === "whatsapp") res = (await waStopped(admin, to)) ?? await sendWhatsApp(to, msg.text, purpose === "wa_forward" && String(payload.type ?? "") === "event_reminder" ? "event_reminder" : "general");
       const { error: mErr } = await admin.rpc("comms_outbox_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
@@ -213,7 +237,16 @@ Deno.serve(async (req) => {
       const id = String(r?.id ?? ""), to = String(r?.to ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
       const msg = trialReminderEmail(String(r?.milestone ?? ""), String(r?.studio ?? ""), String(r?.ends_at ?? ""), String(r?.timezone ?? ""), origin);
-      const res: Res = msg ? await sendEmail(id, to, msg.subject, msg.text, "Helm") : "skipped";
+      // trial nudges are Helm's own non-transactional mail: unsubscribe is per address for Helm (org null)
+      let u: any = null;
+      if (msg) {
+        try {
+          const [o, t] = await Promise.all([admin.rpc("email_is_opted_out", { p_org: null, p_email: to }), admin.rpc("email_unsub_token", { p_org: null, p_email: to })]);
+          if (!o.error && !t.error) u = { ok: true, opted_out: o.data === true, token: t.data };
+        } catch (_) { u = null; }
+      }
+      const extra = msg ? marketingExtra(u, "Helm", "you started a free trial of Helm", origin) : null;
+      const res: Res = msg && extra ? await sendEmail(id, to, msg.subject, msg.text, "Helm", {}, extra) : "skipped";
       const { error: mErr } = await admin.rpc("trial_reminder_email_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("comms-dispatch: trial mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;

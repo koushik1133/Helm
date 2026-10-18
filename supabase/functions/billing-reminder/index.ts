@@ -28,6 +28,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { isTrialKind, trialMessage } from "./trial-email.ts";
+import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com"]);
@@ -56,18 +57,22 @@ async function safeFetch(url: string, init: RequestInit): Promise<Response> {
 type SendResult = "sent" | "skipped" | "failed";
 
 // Provider abstraction: today Resend or nothing.
-async function sendEmail(to: string, subject: string, html: string): Promise<SendResult> {
+type Extra = { footer: { text: string; html: string }; headers?: Record<string, string> };
+async function sendEmail(to: string, subject: string, html: string, extra?: Extra): Promise<SendResult> {
   const key = Deno.env.get("RESEND_API_KEY") || "";
   if (!key) return "skipped";
   if (!EMAIL.test(to)) return "skipped";
   const conf = Deno.env.get("RESEND_FROM") || "onboarding@resend.dev";
   const m = conf.match(/<([^>]+)>/);
   const from = `"Helm Billing" <${(m ? m[1] : conf).trim()}>`;
+  // compliance: subscription notices are transactional (footer only); trial nudges carry
+  // Unsubscribe + RFC 8058 headers (extra, built by the caller)
+  const _f = withFooter({ text: "", html }, extra?.footer || txFooter("billing", { app: Deno.env.get("APP_URL"), address: postalAddress((k: string) => Deno.env.get(k)) }));
   try {
     const r = await safeFetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to, subject, html }),
+      body: JSON.stringify({ from, to, subject, html: _f.html, ...(extra?.headers && Object.keys(extra.headers).length ? { headers: extra.headers } : {}) }),
     });
     await r.text();
     if (!r.ok) console.error("billing-reminder: provider status", r.status);
@@ -121,7 +126,22 @@ Deno.serve(async (req) => {
       const { data: org, error: oErr } = await admin.from("organizations").select("name, business_email").eq("id", r.org_id).maybeSingle();
       if (oErr) { console.error("billing-reminder: studio load failed", errTag(oErr)); counts.failed++; continue; }
       const msg = message(kind, String(org?.name || "there"), String(r.period_end ?? ""));
-      const res = await sendEmail(String(org?.business_email || ""), msg.subject, msg.html);
+      const to = String(org?.business_email || "");
+      let res: SendResult;
+      if (isTrialKind(kind)) {
+        // Helm's own trial nudge = non-transactional: skip an opted-out address; no token (0165 not
+        // applied) -> skipped, never sent without an unsubscribe link
+        let extra: Extra | null = null;
+        try {
+          const [o, t] = await Promise.all([admin.rpc("email_is_opted_out", { p_org: null, p_email: to }), admin.rpc("email_unsub_token", { p_org: null, p_email: to })]);
+          const app = String(Deno.env.get("APP_URL") || "");
+          const links = !o.error && !t.error && o.data !== true
+            ? unsubLinks(String(t.data ?? ""), { app, functionsUrl: String(Deno.env.get("SUPABASE_URL") || "").replace(/\/+$/, "") + "/functions/v1" }) : null;
+          if (links) extra = { footer: mktFooter(links.page, { app, address: postalAddress((k: string) => Deno.env.get(k)), sender: "Helm", reason: "you started a free trial of Helm" }),
+                               headers: listUnsubHeaders(links.oneClick, Deno.env.get("UNSUB_MAILTO")) };
+        } catch (_) { extra = null; }
+        res = extra ? await sendEmail(to, msg.subject, msg.html, extra) : "skipped";
+      } else res = await sendEmail(to, msg.subject, msg.html);
       if (res === "failed") { counts.failed++; continue; }               // left unsent → retried next run
       const { error: uErr } = await admin.from("billing_reminders")
         .update({ sent_at: new Date().toISOString(), channel: res === "sent" ? "email" : "skipped" })
