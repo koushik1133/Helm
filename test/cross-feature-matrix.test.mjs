@@ -163,7 +163,7 @@ assert.ok(!code(needGen, { eventType: 'conference', items: [chairs] }).includes(
 assert.ok(code(noGen, { seats: 350, guests: 350 }).includes('warn:seats'), 'seats over seated capacity');
 assert.ok(!code(noGen, { seats: 300 }).includes('warn:seats'));
 assert.ok(code(noGen, { eventType: 'Concert' }).includes('warn:event_type'));
-assert.ok(code(noGen, { guests: 600 }).includes('warn:capacity'));
+assert.ok(code(noGen, { guests: 900 }).includes('warn:capacity'));   // 300 seated + 500 floating = 800
 // picker: layout fed from the builder; a linked venue that was deactivated is flagged even if no venue is active
 const vp = rd('public/venue-picker.js');
 assert.match(vp, /items: lay \? lay\.items : null, seats: lay \? lay\.seats : null/);

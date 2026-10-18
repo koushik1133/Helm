@@ -96,7 +96,7 @@
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=24" id="shellProto"></script>
+<script src="/shell-proto.js?v=25" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -140,6 +140,7 @@
       </div>
     </div>
 
+    <div id="capIssues" aria-live="polite"></div>
     <div id="conflictBanner"></div>
     <div class="grid" id="mods"></div>
 
@@ -182,7 +183,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=246"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=15"></script>
 <script src="booklet.js?v=23"></script>
@@ -190,6 +191,7 @@
 <script src="booklet-share.js?v=9"></script>
 <script src="pkg-review.js?v=4"></script>
 <script src="event-group-picker.js?v=2"></script>
+<script src="capacity-shortage.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -304,6 +306,8 @@
       closureSummary.profit=Math.round((closureSummary.profit+billsDelta)*100)/100;
       closureSummary.pct=closureSummary.rev?Math.round(closureSummary.profit/closureSummary.rev*100):null; }
     render();   // re-paint with the loaded summaries
+    // 0197: guests over the venue (until resolved) + open stock shortages, shown as issues on the workspace
+    if(window.HelmCapacity) HelmCapacity.mountIssues($("#capIssues"), { quote:ev, quoteId:id, canEdit }).catch(()=>{});
   }
 
   // final-1022: a closed event (lifecycle stage closed / closed_at set) says Closed, not Confirmed

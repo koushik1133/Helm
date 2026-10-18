@@ -5,6 +5,7 @@
 html.helm-trial .trial-hide,
 html.helm-trial #exportBtn, html.helm-trial #jsonBtn,
 html.helm-trial #importFile, html.helm-trial:not(.tl-budget) #importBtn,
+html.helm-trial #seedBtn, html.helm-trial #firstSeed,
 html.helm-trial #printBtn, html.helm-trial #printPL, html.helm-trial #q_pdf,
 html.helm-trial [data-csv], html.helm-trial [data-act="download"], html.helm-trial [data-act="dl"],
 html.helm-trial a[download],
