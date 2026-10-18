@@ -4,42 +4,43 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
-<title>You're invited to Helm</title>
+<title>You&#39;re invited to Helm</title>
 <style>
-  @media (max-width:600px){ .container{width:100%!important} .px{padding-left:22px!important;padding-right:22px!important} .btn{display:block!important} }
+  :root{color-scheme:light dark;supported-color-schemes:light dark;}
+  @media (max-width:620px){ .container{width:100%!important} .px{padding-left:22px!important;padding-right:22px!important} .btn{display:block!important;text-align:center!important} }
   @media (prefers-color-scheme:dark){
-    .bg{background:#121019!important} .card{background:#1c1927!important;border-color:#353047!important}
-    .ink{color:#f3f1fa!important} .muted{color:#c6c2d6!important} .rule{border-color:#353047!important}
+    .bg{background:#0f1411!important} .card{background:#18201b!important;border-color:#2a352e!important;border-top-color:#0d8a5c!important}
+    .ink{color:#f1f5f2!important} .body{color:#cdd6d0!important} .muted{color:#a9b5ad!important}
+    .rule{border-color:#2a352e!important} .lnk{color:#4ade9a!important} .codebox{background:#1f3a2b!important;color:#f1f5f2!important}
   }
-  [data-ogsc] .ink{color:#f3f1fa!important} [data-ogsc] .muted{color:#c6c2d6!important}
+  [data-ogsc] .ink{color:#f1f5f2!important} [data-ogsc] .body{color:#cdd6d0!important} [data-ogsc] .muted{color:#a9b5ad!important} [data-ogsc] .lnk{color:#4ade9a!important}
 </style>
 </head>
-<body style="margin:0;padding:0;background:#f6f4f1;" class="bg">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">{{ if .Data.studio }}Join {{ .Data.studio }} on Helm{{ else }}You've been invited to a studio on Helm{{ end }}&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6f4f1;" class="bg">
-<tr><td align="center" style="padding:32px 12px;">
-<table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" class="container" style="width:560px;max-width:560px;">
-<tr><td style="padding:0 0 20px;" align="left">
+<body class="bg" style="margin:0;padding:0;background:#f4f6f3;-webkit-text-size-adjust:100%;">
+<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:#f4f6f3;">Accept your invitation and set your password.&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" style="background:#f4f6f3;">
+<tr><td align="center" style="padding:36px 12px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
+<tr><td style="padding:0 4px 22px;" align="left">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-    <td width="34" height="34" style="width:34px;height:34px;background:#6d28d9;border-radius:9px;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;line-height:34px;" align="center" valign="middle">H</td>
-    <td style="padding-left:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:-.01em;color:#1b1930;" class="ink">Helm<span style="color:#6d28d9;">.</span> <span style="font-weight:600;color:#6b6577;" class="muted">Events</span></td>
+    <td width="40" height="40" valign="middle" style="width:40px;height:40px;"><a href="{{ .SiteURL }}" style="text-decoration:none;"><img src="https://www.helm.events/email/helm-logo.png" width="40" height="40" alt="Helm" style="display:block;width:40px;height:40px;border:0;outline:none;border-radius:10px;"></a></td>
+    <td class="ink" valign="middle" style="padding-left:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:20px;line-height:24px;font-weight:700;letter-spacing:-.02em;color:#101511;">Helm <span class="muted" style="font-weight:500;color:#66706a;">Events</span></td>
   </tr></table>
 </td></tr>
-<tr><td class="card px" style="background:#ffffff;border:1px solid #e8e3db;border-radius:16px;padding:36px 40px;">
+<tr><td class="card px" style="background:#ffffff;border:1px solid #e3e8e4;border-top:4px solid #0d8a5c;border-radius:18px;padding:40px 44px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-<tr><td style="padding:0 0 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:24px;line-height:30px;font-weight:800;color:#1b1930;" class="ink">{{ if .Data.studio }}Join {{ .Data.studio }} on Helm{{ else }}You're invited to Helm{{ end }}</td></tr>
-<tr><td style="padding:0 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:24px;color:#4b475f;" class="muted">{{ if .Data.invited_by }}<strong style="color:#1b1930;" class="ink">{{ .Data.invited_by }}</strong> invited you{{ else }}You've been invited{{ end }} to join {{ if .Data.studio }}<strong style="color:#1b1930;" class="ink">{{ .Data.studio }}</strong>{{ else }}a studio{{ end }} on Helm{{ if .Data.role }} as <strong style="color:#1b1930;" class="ink">{{ .Data.role }}</strong>{{ end }}. Click below to accept &mdash; you'll then choose a password for <strong style="color:#1b1930;" class="ink">{{ .Email }}</strong> and land straight in the studio.<br><br><span style="font-size:13px;color:#6b6577;" class="muted">This button works once and expires in 24 hours. If it has expired, ask your studio to resend the invite.</span></td></tr>
-<tr><td align="center" style="padding:4px 0 24px;">
-<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{ .ConfirmationURL }}" style="height:50px;v-text-anchor:middle;width:280px;" arcsize="20%" fillcolor="#6d28d9" stroke="f"><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">Accept invitation</center></v:roundrect><![endif]-->
-<!--[if !mso]><!--><a href="{{ .ConfirmationURL }}" class="btn" style="display:inline-block;background:#6d28d9;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;font-weight:700;line-height:50px;height:50px;padding:0 36px;border-radius:10px;text-decoration:none;">Accept invitation</a><!--<![endif]-->
-</td></tr>
-<tr><td style="padding:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6b6577;" class="muted">Button not working? Copy and paste this link into your browser:<br><a href="{{ .ConfirmationURL }}" style="color:#6d28d9;word-break:break-all;">{{ .ConfirmationURL }}</a></td></tr>
-<tr><td class="rule" style="border-top:1px solid #e8e3db;padding:18px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6b6577;"><span class="muted"><strong>Not expecting this?</strong> You can ignore this email &mdash; no account is used until you accept. Helm will never ask for your password by email.</span></td></tr>
+<tr><td class="ink" style="padding:0 0 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:24px;line-height:31px;font-weight:700;letter-spacing:-.01em;color:#101511;">{{ if .Data.studio }}Join {{ .Data.studio }} on Helm{{ else }}You're invited to Helm{{ end }}</td></tr><tr><td class="body" style="padding:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:24px;color:#3d4540;">{{ if .Data.invited_by }}<strong class="ink" style="color:#101511;font-weight:600;">{{ .Data.invited_by }}</strong> invited you{{ else }}You've been invited{{ end }} to join {{ if .Data.studio }}<strong class="ink" style="color:#101511;font-weight:600;">{{ .Data.studio }}</strong>{{ else }}a studio{{ end }} on Helm{{ if .Data.role }} as <strong class="ink" style="color:#101511;font-weight:600;">{{ .Data.role }}</strong>{{ end }}. Accept below, then choose a password for <strong class="ink" style="color:#101511;font-weight:600;">{{ .Email }}</strong> and you land straight in the studio.</td></tr><tr><td align="left" style="padding:4px 0 24px;">
+<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{ .ConfirmationURL }}" style="height:48px;v-text-anchor:middle;width:260px;" arcsize="22%" fillcolor="#0d8a5c" stroke="f"><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">Accept invitation</center></v:roundrect><![endif]-->
+<!--[if !mso]><!--><a href="{{ .ConfirmationURL }}" class="btn" style="display:inline-block;background:#0d8a5c;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;font-weight:600;line-height:48px;height:48px;padding:0 30px;border-radius:10px;text-decoration:none;">Accept invitation</a><!--<![endif]-->
+</td></tr><tr><td class="body" style="padding:0 0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:24px;color:#3d4540;">This button works once and expires in 24 hours. If it has expired, ask your studio to resend the invite.</td></tr><tr><td class="muted" style="padding:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#66706a;word-break:break-all;">Button not working? Copy and paste this link into your browser:<br><a href="{{ .ConfirmationURL }}" class="lnk" style="color:#0d8a5c;">{{ .ConfirmationURL }}</a></td></tr><tr><td class="rule muted" style="border-top:1px solid #e3e8e4;padding:18px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#66706a;">Not expecting this? If you didn't request this, ignore this email &mdash; nothing happens unless you accept. Helm will never ask for your password by email.<br><br>Sent to {{ .Email }}.</td></tr>
 </table>
 </td></tr>
-<tr><td align="center" style="padding:20px 8px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#8a8499;" class="muted">Helm Events &middot; the operating system for event studios &middot; <a href="{{ .SiteURL }}" style="color:#8a8499;">helm.events</a><br>Sent to {{ .Email }}</td></tr>
+<tr><td align="center" class="muted" style="padding:22px 8px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#8a948d;">
+Helm Events &middot; <a href="{{ .SiteURL }}" class="muted" style="color:#8a948d;text-decoration:underline;">helm.events</a>
+</td></tr>
 </table>
 </td></tr>
 </table>

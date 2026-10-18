@@ -193,8 +193,8 @@ t('APPLY-0101.sql: ASCII, one transaction, verify rows', () => {
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0101_e2e_usability\.sql/);
 });
 t('versions bumped', () => {
-  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=239/); assert.match(f, /event-name\.js\?v=7/); assert.match(f, /country-profile\.js\?v=4/); }
-  assert.match(read('public/booklet.html'), /booklet\.js\?v=21/); assert.match(flow, /booklet\.js\?v=21/);
+  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=240/); assert.match(f, /event-name\.js\?v=7/); assert.match(f, /country-profile\.js\?v=4/); }
+  assert.match(read('public/booklet.html'), /booklet\.js\?v=23/); assert.match(flow, /booklet\.js\?v=23/);
 });
 
 let pass = 0;

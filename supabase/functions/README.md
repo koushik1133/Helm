@@ -333,3 +333,10 @@ supabase secrets set --project-ref <project-ref> \
   WHATSAPP_TPL_TASK_ASSIGNED=helm_task_assigned WHATSAPP_TPL_EVENT_REMINDER=helm_event_reminder
 ```
 Unset → falls back to `COMMS_WHATSAPP_TEMPLATE`, then session text if `WHATSAPP_ALLOW_TEXT=1`.
+
+## client-mailer (client "Send by email")
+E-mails the approval link / client booklet link to the client e-mail saved on the quote
+(staff JWT verified in code; deploy with `--no-verify-jwt`). Delivery via `_shared/mailer.ts`:
+Resend (`RESEND_API_KEY` + `RESEND_FROM`) else SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
+`SMTP_PASS`, `SMTP_FROM`), else `not_configured`. send-otp's e-mail code uses the same mailer.
+Switch off with `liveChannels.email: false` in public/config.js.
