@@ -196,7 +196,7 @@ t('APPLY-0101.sql: ASCII, one transaction, verify rows', () => {
 });
 t('versions bumped', () => {
   for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=249/); assert.match(f, /event-name\.js\?v=9/); assert.match(f, /country-profile\.js\?v=4/); }
-  assert.match(read('public/booklet.html'), /booklet\.js\?v=23/); assert.match(flow, /booklet\.js\?v=23/);
+  assert.match(read('public/booklet.html'), /booklet\.js\?v=24/); assert.match(flow, /booklet\.js\?v=24/);
 });
 
 let pass = 0;

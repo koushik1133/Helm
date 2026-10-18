@@ -10658,6 +10658,9 @@ window.HelmUrl = HelmUrl;
       var a = n(studioState), b = n(otherState); if (!a || !b) return null;
       return a === b ? "intra" : "inter";
     }
+    // qa-quote-flow B28: GST is rounded ONCE to whole rupees and split from that, so CGST + SGST always
+    // add up to the GST line and every screen shows the same two numbers (39,722 + 39,721, never 39,721.5)
+    function halves(gst) { var g = Math.round(Number(gst) || 0), a = Math.round(g / 2); return [a, g - a]; }
     // display rows for the tax part of a breakdown: [{label, pct, amount}]
     function rows(t, pricing, res) {
       res = res || resolve(pricing); t = t || {}; pricing = pricing || {};
@@ -10666,7 +10669,8 @@ window.HelmUrl = HelmUrl;
       if (res.exempt || String(pricing.taxExempt).toLowerCase() === "true") return [{ label: res.name + " (exempt)", pct: 0, amount: 0 }];
       if (res.split) {
         if (pricing.placeOfSupply === "inter") return [{ label: "IGST" + inc, pct: pct, amount: gst }];
-        return [{ label: "CGST" + inc, pct: pct / 2, amount: gst / 2 }, { label: "SGST" + inc, pct: pct / 2, amount: gst / 2 }];
+        var hv = halves(gst);
+        return [{ label: "CGST" + inc, pct: pct / 2, amount: hv[0] }, { label: "SGST" + inc, pct: pct / 2, amount: hv[1] }];
       }
       var st = ""; if (res.country === "US" && res.region) { var HC = (typeof window !== "undefined" && window.HelmCountry) || null, f = HC && HC.findRegion("US", res.region); st = " (" + (f ? f.code : res.region) + ")"; }
       return [{ label: res.name + st + inc, pct: pct, amount: gst }];
@@ -10710,7 +10714,7 @@ window.HelmUrl = HelmUrl;
       return same ? null : out;
     }
     function countries() { return Object.keys(C).map(function (k) { return { iso: k, name: C[k].name }; }); }
-    return { COUNTRIES: C, profile: profile, resolve: resolve, money: money, validateId: validateId, placeOfSupply: placeOfSupply, rows: rows, snapshot: snapshot, preserveSnapshot: preserveSnapshot, isPricedQuote: isPricedQuote, restampUnpriced: restampUnpriced, SNAPSHOT_KEYS: IDENT.concat(SOFT), countries: countries, code: code };
+    return { COUNTRIES: C, profile: profile, resolve: resolve, money: money, validateId: validateId, placeOfSupply: placeOfSupply, halves: halves, rows: rows, snapshot: snapshot, preserveSnapshot: preserveSnapshot, isPricedQuote: isPricedQuote, restampUnpriced: restampUnpriced, SNAPSHOT_KEYS: IDENT.concat(SOFT), countries: countries, code: code };
   })();
 
   // ---- studio money (0089) -------------------------------------------------------

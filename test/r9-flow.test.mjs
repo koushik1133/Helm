@@ -82,7 +82,7 @@ t('badge paint: hidden by default, text + clickable only on error', () => {
 t('flow.html wiring: badges start empty, autosave sections, beforeunload uses unsaved(), quotation stays explicit', () => {
   const h = read('public/flow.html');
   assert.doesNotMatch(h, /id="sv-\w+"[^>]*>Saved ✓</);
-  assert.match(h, /flow-autosave\.js\?v=3/);
+  assert.match(h, /flow-autosave\.js\?v=4/);
   assert.match(h, /client:\(\)=>saveClient\(true\), discovery:saveDiscovery, venue:saveVenue, menu:saveMenuNotes, proposal:saveProposal/);
   assert.match(h, /beforeunload",\(e\)=>\{ if\(unsaved\(\) && !leaving\)/);
   assert.match(h, /if\(AS\) await AS\.flush\(\)/);
