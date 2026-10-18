@@ -210,6 +210,7 @@
 <link rel="stylesheet" href="comms-settings.css?v=2">
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="studio-templates.css?v=1">
+<link rel="stylesheet" href="asset-price-grid.css?v=1">
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
@@ -399,7 +400,7 @@
     <div class="card">
       <h3>Object &amp; item prices (layout builder)</h3>
       <p class="mnote s-020d693">Per-unit price for each object placed on the floor plan. These drive the live price breakdown in the builder. Chairs are priced with the “Price / chair” rate above. Leave blank to use the built-in default.</p>
-      <div id="itemPriceList" class="grid"></div>
+      <div id="itemPriceList"></div>
       <div class="actions"><button type="button" class="btn primary" id="saveItemPrices">Save item prices</button></div>
     </div>
 
@@ -770,6 +771,7 @@
 <script src="studio-templates-core.js?v=1"></script>
 <script src="studio-templates.js?v=3"></script>
 <script src="item-pricing.js?v=1"></script>
+<script src="asset-price-grid.js?v=1"></script>
 <script src="trial-demo.js?v=7"></script>
 <script src="settings-search-core.js?v=1"></script>
 <script src="search-catalog.js?v=2"></script>
@@ -952,10 +954,11 @@
       pricingLoaded=true; setPricingEnabled(true);
     }catch(e){
       BPUI.loadError($("#pricingErr"), e, loadPricing, {what:"pricing"});
-      $("#itemPriceList").innerHTML='<p class="mnote">Item prices will appear once pricing loads.</p>';
+      itemGrid=null; $("#itemPriceList").innerHTML='<p class="mnote">Item prices will appear once pricing loads.</p>';
     }
   }
   // catalogue of priceable builder objects (label + built-in default ₹), mirrors builder.html
+  let itemGrid=null;
   const ITEM_CATALOG = [
     ['stage','Main Stage',45000],['mandap','Decor Mandap',75000],['tent','Tent',35000],['canopy','Canopy',25000],
     ['dancefloor','Dance Floor',20000],['videowall','LED Video Wall',120000],['ledscreen','LED Screen',60000],
@@ -1000,11 +1003,8 @@
     ['watchtower','Watch Tower / CCTV',8000],['extinguisher','Fire Point',300],['ambulance','Ambulance Bay',6000],
   ];
   function renderItemPrices(){
-    const ap = pricingCfg.assetPrices || (pricingCfg.assetPrices={});
-    $("#itemPriceList").innerHTML = ITEM_CATALOG.map(([type,label,def])=>
-      `<div class="fld"><label for="ip_${esc(type)}">${esc(label)} <span style="color:var(--ink-3);font-weight:400">(default ${esc(BPStore.studioMoney(def))})</span></label>`+
-      `<input id="ip_${esc(type)}" type="number" min="0" step="1" data-type="${esc(type)}" placeholder="${def}" value="${ap[type]!=null&&Number.isFinite(Number(ap[type]))?Number(ap[type]):''}"></div>`
-    ).join("");
+    // asset-price-grid.js: grouped, searchable, aligned grid (default shown under each input, Reset per item)
+    itemGrid = window.HelmAssetPriceGrid ? HelmAssetPriceGrid.render($("#itemPriceList"), { catalog: ITEM_CATALOG, prices: pricingCfg.assetPrices || {} }) : null;
   }
   $("#p_country").addEventListener("change",()=>{ if($("#p_region")) $("#p_region").value=""; onPricingCountry(false); });
   $("#p_region").addEventListener("change",()=>onPricingCountry(true));
@@ -1056,17 +1056,14 @@
   }));
   $("#saveItemPrices").addEventListener("click",()=>BPUI.guard($("#saveItemPrices"),async()=>{
     if(!pricingLoaded){ setMsg("err","Pricing didn't load, so item prices can't be saved yet — use Retry first."); return; }
-    const ap={}; const V=BPStore.validate;
-    for(const inp of $("#itemPriceList").querySelectorAll("input[data-type]")){
-      const v=inp.value.trim(); if(v==="") continue;
-      const lbl=(ITEM_CATALOG.find(c=>c[0]===inp.dataset.type)||[])[1]||inp.dataset.type;
-      const r=V.money(v,{field:lbl+" price"});
-      if(!r.ok){ setMsg("err",r.error); inp.focus(); return; }
-      ap[inp.dataset.type]=r.value;
-    }
-    pricingCfg.assetPrices=ap;
-    if(pricingCfg.chairPrice==null) pricingCfg.chairPrice=+$("#p_chair").value||200;
-    try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Item prices saved — the builder breakdown uses these."); }
+    if(!itemGrid){ setMsg("err","Item prices didn't load — reload the page and try again."); return; }
+    // empty = default; bad / negative / unreadable values block the save; prices for unlisted types are kept
+    const res=itemGrid.read();
+    if(!res.ok){ setMsg("err",res.error); try{ res.input.focus(); res.input.scrollIntoView({block:"center"}); }catch(e){} return; }
+    // build a copy: a failed save must not leave the in-memory config ahead of the server
+    const nextCfg=Object.assign({}, pricingCfg, { assetPrices: res.prices });
+    if(nextCfg.chairPrice==null) nextCfg.chairPrice=+$("#p_chair").value||200;
+    try{ await BPStore.config.setPricing(nextCfg); pricingCfg=nextCfg; itemGrid.markSaved(res.prices); setMsg("ok","Item prices saved — the builder breakdown uses these."); }
     catch(e){ setMsg("err",errMsg(e,"save item prices")); }
   }));
 
