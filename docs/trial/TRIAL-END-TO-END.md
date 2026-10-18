@@ -45,10 +45,10 @@ GST is set to 18% (intra-state). Event dates are relative to the sign-up day, so
 | Notifications | Section hidden | `admin_set_notification_pref` and `admin_reset_notification_prefs` refused |
 | Reminders & client messages, privacy PIN | Section hidden | Outgoing messages from a trial are already queued as "skipped" and never sent (0166) |
 
-## 5. Creation cap: 20 per list
-- A trial studio can add at most **20 of its own rows** to each of these lists: leads (clients), events/quotes, inventory items, vendors, staff and venues.
+## 5. Creation cap: 2 per list
+- A trial studio can add at most **2 of its own rows** to each of these lists: leads (clients), events/quotes, inventory items, vendors, staff and venues.
 - Sample (demo) rows do not count. A sample row that the studio renames out of the "Demo ·" prefix becomes the studio's own row and does count.
-- The 21st add is refused with **"Free trial limit reached (20). Upgrade to add more."** `my_trial_limits()` returns the counts so the app can show the limit before the server refuses.
+- The 3rd add is refused with **"Free trial limit reached (2). Upgrade to add more."** `my_trial_limits()` returns the counts so the app can show the limit before the server refuses.
 
 ## 6. Messages
 Nothing leaves Helm during a trial. E-mail, WhatsApp and SMS rows are queued as "skipped", and sample contacts are dummy addresses and numbers.

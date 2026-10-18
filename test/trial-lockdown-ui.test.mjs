@@ -17,7 +17,7 @@ for (const fn of ["_tl173_tg_create_cap", "_tl173_tg_no_add", "_tl173_tg_org_loc
   const body = mig.slice(mig.indexOf("function public." + fn + "("), mig.indexOf("end $$;", mig.indexOf("function public." + fn + "(")));
   assert.match(body, /_tl173_trial_locked/, fn + " checks the trial");
 }
-assert.match(mig, /Free trial limit reached \(20\)\. Upgrade to add more\./);
+assert.match(mig, /Free trial limit reached \(2\)\. Upgrade to add more\./);
 for (const t of ["leads", "quotes", "inventory_items", "vendors", "crew_members", "venues"]) assert.ok(mig.includes("'" + t + "'"), "cap on " + t);
 // client wiring
 const store = r("public/store-api.js");

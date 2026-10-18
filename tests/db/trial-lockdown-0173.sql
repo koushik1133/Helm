@@ -1,4 +1,4 @@
--- trial-lockdown-0173.sql -- 0173: free-trial lockdown. Trial studio: 20-row cap, no new catalog rows (prices editable),
+-- trial-lockdown-0173.sql -- 0173: free-trial lockdown. Trial studio: 2-row cap, no new catalog rows (prices editable),
 -- studio settings / export / import / render refused, 3rd invite refused. Paid studio: unchanged.
 -- Rolled back. Local disposable PG only.
 \set ON_ERROR_STOP 0
@@ -52,19 +52,19 @@ do $$ declare o uuid; e text; A uuid := 'a0000000-0000-4000-8000-000000000001'; 
   -- creation cap
   perform pg_temp.login('tl_trial@t.test');
   e := '';
-  for i in 1..20 loop
+  for i in 1..2 loop
     e := e || pg_temp.try(format('insert into public.vendors(name) values (%L)', 'TL vendor ' || i));
   end loop;
-  perform pg_temp.res('10 trial: 20 own vendors OK', e = '', e);
-  e := pg_temp.try('insert into public.vendors(name) values (''TL vendor 21'')');
-  perform pg_temp.res('11 trial: 21st vendor refused (trial_cap)', e like '42501%Free trial limit reached (20)%', e);
+  perform pg_temp.res('10 trial: 2 own vendors OK', e = '', e);
+  e := pg_temp.try('insert into public.vendors(name) values (''TL vendor 3'')');
+  perform pg_temp.res('11 trial: 3rd vendor refused (trial_cap)', e like '42501%Free trial limit reached (2)%', e);
   e := '';
-  for i in 1..20 loop e := e || pg_temp.try(format('insert into public.leads(name) values (%L)', 'TL lead ' || i)); end loop;
-  perform pg_temp.res('12 trial: 20 own leads OK', e = '', e);
-  e := pg_temp.try('insert into public.leads(name) values (''TL lead 21'')');
-  perform pg_temp.res('13 trial: 21st lead refused', e like '42501%Free trial limit%', e);
-  perform pg_temp.res('14 my_trial_limits reports the cap', (public.my_trial_limits() -> 'used' ->> 'vendors')::int = 20
-    and (public.my_trial_limits() ->> 'cap')::int = 20);
+  for i in 1..2 loop e := e || pg_temp.try(format('insert into public.leads(name) values (%L)', 'TL lead ' || i)); end loop;
+  perform pg_temp.res('12 trial: 2 own leads OK', e = '', e);
+  e := pg_temp.try('insert into public.leads(name) values (''TL lead 3'')');
+  perform pg_temp.res('13 trial: 3rd lead refused', e like '42501%Free trial limit%', e);
+  perform pg_temp.res('14 my_trial_limits reports the cap', (public.my_trial_limits() -> 'used' ->> 'vendors')::int = 2
+    and (public.my_trial_limits() ->> 'cap')::int = 2);
   -- catalog: no new rows, prices editable
   e := pg_temp.try('insert into public.dish_catalog(category, name) values (''Starters'', ''TL dish'')');
   perform pg_temp.res('20 trial: new dish refused', e like '42501%not add new menu%', e);

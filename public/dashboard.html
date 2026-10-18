@@ -330,7 +330,7 @@
 <script src="tour.js?v=15"></script>
 <script src="getting-started.js?v=8"></script>
 <script src="onboarding-wizard.js?v=6"></script>
-<script src="trial-demo.js?v=6"></script>
+<script src="trial-demo.js?v=7"></script>
 <script src="dash-prompts.js?v=1"></script>
 <script>
   const $ = (s) => document.querySelector(s);
@@ -738,13 +738,15 @@
       const A = BPStore.auth;
       if(!(A && A.enabled && A.enabled())){ if(!localStorage.getItem("bp_seen_tour")) startTourWhenReady(); return; }   // local/demo mode: per-device
       const u = A.user && A.user(); if(!u) return;
+      // the trial welcome (trial-demo.js) is showing: leave bp_force_tour for after it (finishWelcome reloads)
+      if(window.HelmTrialDemo && HelmTrialDemo.welcomeOn) return;
       let forced=false; try{ forced=!!localStorage.getItem("bp_force_tour"); localStorage.removeItem("bp_force_tour"); }catch{}
       const seen = A.tourSeen ? A.tourSeen() : true;
       const eligible = A.tourEligible ? A.tourEligible() : false;
       // R8: a device that already ran/finished the tour never auto-runs it again, even if the
       // account flag write failed (that is what re-ran it on the next Home visit).
       let localSeen=false; try{ localSeen=!!localStorage.getItem("bp_seen_tour") || !!localStorage.getItem("bp_tour_autorun"); }catch{}
-      if(seen || localSeen || (!forced && !eligible)) return;
+      if(seen || (!forced && (localSeen || !eligible))) return;   // a forced (brand-new studio) tour ignores device-local flags
       try{ localStorage.setItem("bp_tour_autorun","1"); }catch{}
       // marked seen BEFORE starting (leaving mid-tour must not re-trigger it); one retry
       const mark = (async () => { if(!A.markTourSeen) return; let done=false; try{ done = await A.markTourSeen(); }catch{} if(!done){ try{ await A.markTourSeen(); }catch{} } })();

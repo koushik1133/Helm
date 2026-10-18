@@ -6,9 +6,9 @@ begin;
 -- 0173_trial_lockdown.sql - CANONICAL forward-only. REQUIRES 0166 (_is_trial_org), 0097 (is_demo), 0164 (_is_system_change).
 --
 -- In plain words (FREE TRIAL studios only; a paid studio never reaches any new check):
---   1  Creation cap: a trial studio may add at most 20 of its OWN rows (is_demo = false) per main
+--   1  Creation cap: a trial studio may add at most 2 of its OWN rows (is_demo = false) per main
 --      list: leads (clients), events / quotes, inventory items, vendors, staff, venues. Sample rows
---      (is_demo) do not count. The 21st is refused: "Free trial limit reached (20). Upgrade to add more."
+--      (is_demo) do not count. The 3rd is refused: "Free trial limit reached (2). Upgrade to add more."
 --   2  Menu & catalog: a trial studio can edit prices of existing dishes / packages / chair and plate
 --      types, but cannot ADD new ones (dish_catalog, menu_templates, chair_types, plate_types).
 --   3  Studio settings: a trial studio cannot change its studio / branding / billing details
@@ -43,7 +43,7 @@ begin
   end if;
 end $$;
 
--- ---- 1) creation cap (20 own rows per main list) ------------------------------------------------
+-- ---- 1) creation cap (2 own rows per main list) ------------------------------------------------
 create or replace function public._tl173_tg_create_cap()
 returns trigger language plpgsql security definer set search_path = '' as $$
 -- trial-lockdown-0173
@@ -54,8 +54,8 @@ begin
   if not public._tl173_trial_locked(new.org_id) then return new; end if;
   perform pg_advisory_xact_lock(hashtextextended('helm:cap:' || tg_table_name || ':' || new.org_id::text, 0));
   execute format('select count(*) from public.%I x where x.org_id = $1 and not x.is_demo', tg_table_name) into v_n using new.org_id;
-  if v_n >= 20 then
-    raise exception 'Free trial limit reached (20). Upgrade to add more.' using errcode = '42501', hint = 'trial_cap';
+  if v_n >= 2 then
+    raise exception 'Free trial limit reached (2). Upgrade to add more.' using errcode = '42501', hint = 'trial_cap';
   end if;
   return new;
 end $$;
@@ -174,7 +174,7 @@ begin
     execute format('select count(*) from public.%I x where x.org_id = $1 and not x.is_demo', t) into n using v_org;
     v_used := v_used || jsonb_build_object(t, n);
   end loop;
-  return jsonb_build_object('trial', true, 'cap', 20, 'used', v_used);
+  return jsonb_build_object('trial', true, 'cap', 2, 'used', v_used);
 end $$;
 
 -- ---- privileges --------------------------------------------------------------------------------------

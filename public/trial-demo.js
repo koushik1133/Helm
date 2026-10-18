@@ -313,7 +313,7 @@
     if (!welcomeOn) return;
     const st = S(); let t = null;
     try { if (st.init) await st.init(); t = st.trialOrg ? await st.trialOrg.status() : null; } catch (e) {}
-    if (!t || t.is_trial_org !== true || t.is_admin !== true) { lsSet(WKEY, null); lsSet("bp_tour_autorun", null); return; }
+    if (!t || t.is_trial_org !== true || t.is_admin !== true) { lsSet(WKEY, null); lsSet("bp_tour_autorun", null); lsSet("bp_force_tour", "1"); return; }   // keep the tour for the next load
     css();
     const dlg = el("dialog", "td-dlg td-welcome"); dlg.setAttribute("aria-labelledby", "tdWT");
     const step = el("span", "td-tag", "Step 1 of 2"); dlg.appendChild(step);
@@ -377,6 +377,6 @@
     fn.input.focus();
   }
 
-  global.HelmTrialDemo = { welcomeDue: welcomeDue, inviteRows: inviteRows, view: view, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount };
+  global.HelmTrialDemo = { welcomeDue: welcomeDue, inviteRows: inviteRows, view: view, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount, welcomeOn: welcomeOn };
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", mount); else mount(); }
 })(typeof window !== "undefined" ? window : globalThis);
