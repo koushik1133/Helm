@@ -19,6 +19,10 @@ if [ -z "${PGHOST:-}" ]; then
   fi
 fi
 export PGDATABASE=helm_runall
+# 0164: fixture/setup statements run as a superuser with no API claims, which the DB treats as a
+# direct (system) change and keeps quiet. Suites expect normal sends, so pin the override off;
+# system-quiet-0164.sql clears it to test the real detection.
+export PGOPTIONS="${PGOPTIONS:-} -c helm.maintenance=off"
 dropdb --if-exists helm_runall >/dev/null 2>&1; createdb helm_runall
 psql -q -v ON_ERROR_STOP=1 -f supabase/test-harness/00-supabase-shim.sql >/dev/null 2>&1
 
@@ -137,6 +141,7 @@ run "welcome-email"      "WELCOME-EMAIL: ALL PASS \(31/31\)" psql -q -f tests/db
 run "studio-search"      "STUDIO-SEARCH: ALL PASS \(52/52\)" psql -q -f tests/db/studio-search.sql
 run "client-360"         "CLIENT-360: ALL PASS \(48/48\)"  psql -q -f tests/db/client-360.sql
 run "saved-views"        "SAVED-VIEWS: ALL PASS \(28/28\)" psql -q -f tests/db/saved-views.sql
+run "system-quiet-0164"  "SYSTEM-QUIET-0164: ALL PASS \(18/18\)" psql -q -f tests/db/system-quiet-0164.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

@@ -1491,7 +1491,7 @@
         var ul = el("ul", "hd-feed");
         rowsA.slice(0, 12).forEach(function (r) {
           var li = el("li", "hd-act");
-          var who = String(r.actor_name || r.actor_email || "System"), ini = who.replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(function (x) { return x.charAt(0).toUpperCase(); }).join("") || "\u2022";
+          var who = String(r.actor_name || (r.actor_email === "helm:maintenance" ? "System maintenance" : r.actor_email) || "System"), ini = who.replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(function (x) { return x.charAt(0).toUpperCase(); }).join("") || "\u2022";
           li.appendChild(el("span", "hd-av", ini));
           var m = el("p", "hd-act-t"), ch = r.changed && typeof r.changed === "object" ? r.changed : {};
           var lbl = ""; try { lbl = S().audit.actionLabel ? S().audit.actionLabel(r.action) : r.action; } catch (e) { lbl = r.action; }

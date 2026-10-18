@@ -263,3 +263,5 @@ forward  supabase/migrations/0161_crew_schedule.sql
 forward  supabase/migrations/0162_launch_bypass_off.sql
 # 0163 (crew_schedule hardening: role lookup pinned to the caller's org (pr.org_id = v_org) and soft-deleted events (quotes.deleted_at) excluded; create or replace function only, same signature + grants; no tables, no rows changed) goes after 0161.
 forward  supabase/migrations/0163_crew_schedule_hardening.sql
+# 0164 (audit privacy + system quiet: _is_system_change() = direct-DB change (no user, no API claims, not pg_cron; helm.maintenance on/off overrides); bell rows dropped and outbox rows stored as 'skipped' for system changes only; tg_audit replaced over the known 0148 body: tokens/hashes stored as '[redacted]', system rows tagged actor_email 'helm:maintenance'; new functions + triggers only, no existing rows changed) goes after 0148 + all outbox migrations (0054/0057/0069/0078/0131/0132).
+forward  supabase/migrations/0164_audit_privacy_system_quiet.sql
