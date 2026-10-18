@@ -78,8 +78,8 @@
 </style>
 <link rel="stylesheet" href="calendar-polish.css?v=2">
 <link rel="stylesheet" href="crew-schedule.css?v=2">
-<link rel="stylesheet" href="theme.css?v=81">
-<script src="/shell-proto.js?v=24" id="shellProto"></script>
+<link rel="stylesheet" href="capacity-shortage.css?v=1"><link rel="stylesheet" href="theme.css?v=81">
+<script src="/shell-proto.js?v=25" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -129,7 +129,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=246"></script>
 <script src="tour.js?v=16"></script>
 <script src="crew-schedule.js?v=2"></script>
 <script>
@@ -154,13 +154,19 @@
 
   function renderConflicts(){
     const cs=data.conflicts.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||""));
-    if(!cs.length){ $("#conflicts").innerHTML='<div class="allclear">✓ No conflicts — every commitment fits.</div>'; return; }
+    // 0197: open stock shortages ("Short: 10 × Air Cooler — sourcing from Cool Rentals" / "— unsourced")
+    const sh=(data.shortages||[]).slice().sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+    if(!cs.length && !sh.length){ $("#conflicts").innerHTML='<div class="allclear">✓ No conflicts — every commitment fits.</div>'; return; }
     const ico={inventory:"📦",vendor:"🤝",staff:"👷",venue:"📍"};
     $("#conflicts").innerHTML=cs.map(c=>`<div class="conflict">
       <span class="ico" aria-hidden="true">${ico[c.type]||"⚠"}</span>
       <div><div class="t">${esc(c.label)}<span class="ctype ${esc(c.type)}">${esc(c.type)}</span></div>
         <div class="d">${esc(c.detail)} — ${(c.events||[]).filter(Boolean).map(e=>esc(e.code)).join(", ")}</div></div>
-      <span class="when">${esc(fmtDate(c.date))}</span></div>`).join("");
+      <span class="when">${esc(fmtDate(c.date))}</span></div>`).join("")+sh.map(x=>`<div class="conflict${x.source==="vendor"||x.source==="buy"?" short-src":""}">
+      <span class="ico" aria-hidden="true">📦</span>
+      <div><div class="t">${esc(x.text)}<span class="ctype inventory">${x.source==="vendor"||x.source==="buy"?"sourcing":"unsourced"}</span></div>
+        <div class="d">${esc((x.event&&x.event.code)||"")}${x.event&&x.event.title?" · "+esc(x.event.title):""} — <a href="inventory.html?quote=${encodeURIComponent((x.event&&x.event.id)||"")}">open stock for this event</a></div></div>
+      <span class="when">${esc(x.date?fmtDate(x.date):"no date")}</span></div>`).join("");
   }
 
   function eventRow(a, clashDates){
@@ -171,7 +177,7 @@
       <div><span class="code">${esc(e.code)}</span> <span class="ttl">${esc(e.title||"")}</span><span class="stb ${conf?'confirmed':'tentative'}">${conf?'Confirmed':'Tentative'}</span>
         <div data-st="font-size:12px;color:var(--ink-3)">${esc((e.eventType||""))}</div></div>
       <div class="chips">
-        ${chip(a.staffCount,"staff")}${chip(a.invCount,"stock")}${chip(a.vendCount,"partners")}
+        ${chip(a.staffCount,"staff")}${chip(a.invCount,"stock")}${chip(a.vendCount,"partners")}${(a.shortages||[]).length?`<span class="chip short" title="${esc((a.shortages||[]).map(x=>x.text).join(" · "))}"><b>${Number((a.shortages||[]).length)}</b> short</span>`:""}
         <a class="open" href="event.html?id=${encodeURIComponent(e.id)}" aria-label="Open ${esc(e.code)}">Open</a>
       </div></div>`;
   }

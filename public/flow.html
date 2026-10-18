@@ -124,7 +124,7 @@
 <link rel="stylesheet" href="venues.css?v=5">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=1">
-<script src="/shell-proto.js?v=24" id="shellProto"></script>
+<script src="/shell-proto.js?v=25" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -398,7 +398,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=4"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=246"></script>
 <script src="tour.js?v=16"></script>
 <script src="booklet.js?v=23"></script>
 <script src="share-checklist.js?v=11"></script>
@@ -409,7 +409,7 @@
 <script src="flow-resume.js?v=1"></script>
 <script src="quote-state.js?v=3"></script>
 <script src="flow-dish-editor.js?v=2"></script>
-<script src="venues-core.js?v=5"></script>
+<script src="venues-core.js?v=6"></script>
 <script src="venue-picker.js?v=4"></script>
 <script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="email-send.js?v=2"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=3"></script><script src="approval-watch.js?v=1"></script>
 <script>
@@ -1098,7 +1098,9 @@
       (differs?`<div class="rowline"><span class="g"><b>Current (unsaved changes)</b> <span class="pill">current</span></span><span>${inr(live)}</span><span class="meta">Save the quotation to make this a new version</span></div>`:'')+
       vs.map((v,i)=>`<div class="rowline"><span class="g"><b>${esc(v.label)}</b>${i===0&&!differs?' <span class="pill">current</span>':''}</span><span>${inr(v.total)}</span><span class="meta">${differs&&i===0?'saved '+esc(sd(v)):esc(BPStore.fmtDateTime(v.created_at)||'')}</span></div>`).join("");
   }
-  function downloadQuotePDF(){
+  async function downloadQuotePDF(){
+    // 0197: guests over the linked venue (seated + floating) need a decision first (capacity-shortage.js)
+    if(window.HelmCapacity && !(await HelmCapacity.gate({ quoteId:id, quote:ev, why:"pdf" }))) return;
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p), cl=ev.client||{};
     const reason=quoteEmptyReason(p,t);
     if(reason){ BPUI.toast("This quote is empty (₹0). Add seating, catering, or décor before downloading a PDF.",{type:"info"}); return; }
@@ -1220,6 +1222,7 @@
       if(!nm){ BPUI.toast("Add the client's name (section 1 · Client) before confirming the booking.",{type:"err"}); if($("#c_name")){ $("#c_name").scrollIntoView({block:"center"}); $("#c_name").focus(); } return; }
       if(!ph){ BPUI.toast("Add the client's phone (section 1 · Client) before confirming the booking.",{type:"err"}); if($("#c_phone")){ $("#c_phone").scrollIntoView({block:"center"}); $("#c_phone").focus(); } return; }
       const pv=BPStore.validate.phone(ph); if(!pv.ok){ BPUI.toast(pv.error,{type:"err"}); if($("#c_phone")){ $("#c_phone").focus(); } return; } }
+    if(window.HelmCapacity && !(await HelmCapacity.gate({ quoteId:id, quote:ev, why:"confirm" }))) return;   // 0197 over-capacity decision
     const method=$("#pay_method").value;
     const vr=BPStore.validate.money($("#pay_amount").value,{field:"Advance amount"});
     if(!vr.ok || !(vr.value>0)){ BPUI.toast(vr.ok?"Enter the advance amount.":vr.error,{type:"err"}); $("#pay_amount").focus(); return; }
@@ -1309,6 +1312,7 @@
       if(pr && !pr.ok){ flag("#c_phone", "Fix the client phone in step 1 before sending: "+pr.error); return; }
       if(!er && !pr){ flag("#c_phone", "Add the client's email or phone in step 1 before sending for approval."); return; }
     }
+    if(window.HelmCapacity && !(await HelmCapacity.gate({ quoteId:id, quote:ev, why:"send" }))) return;   // 0197 over-capacity decision
     if(!ev || !(ev.pricing&&ev.pricing.total)){ if(!(await BPUI.confirm("No quotation total saved yet. Send anyway?",{title:"Send for approval?",okLabel:"Send anyway"}))) return; }
     await BPUI.guard($("#sendApproval"), async()=>{
     try{
@@ -1846,5 +1850,6 @@
     await openQuote();
   });
 </script>
+<script src="capacity-shortage.js?v=1"></script>
 </body>
 </html>

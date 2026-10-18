@@ -1,15 +1,15 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=24"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=25"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
    (shell-proto.js, trial-early.js); this is the fallback for every other page. */
 (function () { try { if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
-  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=2"; document.head.appendChild(l); } } } catch (e) {} })();
+  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=3"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
-  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=2"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=3"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -2459,6 +2459,7 @@ window.HelmUrl = HelmUrl;
         approvalStatus: q.approval_status || "none", approvalToken: q.approval_token, client: q.client || {},
         pricing: q.pricing || {}, currentVersion: q.current_version, createdAt: q.created_at, updatedAt: q.updated_at,
         eventDate: q.event_date || null, eventTime: q.event_time || null, tax_snapshot: q.tax_snapshot || null, currency: q.currency || null,
+        capacityDecision: q.capacity_decision || null,   // 0197: over-capacity decision (set_quote_capacity_decision)
         confirmedAt: q.confirmed_at, versions: vs.map((v) => ({ id: v.id, versionNo: v.version_no, label: v.label,
           objectCount: v.object_count, createdAt: v.created_at })) };
     },
@@ -2769,6 +2770,13 @@ window.HelmUrl = HelmUrl;
     // Display title follows TYPE_LOC_GUESTS_DDMMMYY (event-name.js) and refreshes when type /
     // city / guests / date change — unless the user renamed it. The code is never touched.
     updateMeta: async (id, patch, expectedUpdatedAt) => qt().updateMeta(id, await autoTitlePatch(id, patch), expectedUpdatedAt),
+    // 0197: record how an over-capacity quote was resolved (venue / reduce / extend / proceed + note);
+    // null clears it. Returns the stored decision. The server checks the shape and the studio.
+    async setCapacityDecision(id, decision) {
+      if (mode === "supabase") return rpc("set_quote_capacity_decision", { p_quote: id, p_decision: decision == null ? null : decision });
+      const a = lsq.read(); const q = a.find((x) => x.id === id); if (!q) throw new Error("not found");
+      q.capacityDecision = decision == null ? null : Object.assign({}, decision, { decided_at: now() }); lsq.write(a); return q.capacityDecision;
+    },
     remove: (id) => qt().remove(id),
     // next MMDDYYYY-NN given a list of quote summaries (uses .code)
     nextCode(list, date) {
@@ -4174,6 +4182,54 @@ window.HelmUrl = HelmUrl;
     async removeRes(id) {
       if (mode === "supabase") { const { error } = await supa.from("inventory_reservations").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(RES_LS, JSON.stringify(readLs(RES_LS).filter((r) => r.id !== id))); return true;
+    },
+    // 0197: asked for more than is free -> reserve ONLY what is free and record the rest as a
+    // shortage (o.source "vendor" = rent from o.vendorId at o.rate per unit -> also a vendor booking
+    // on the event; "buy" = outsource / buy; "none" = unsourced). One transaction server-side, so
+    // available stock never goes below 0. -> { reserved, short, available, reservation_id, request_id, booking_id }
+    async reserveWithSourcing(itemId, quoteId, qty, note, o) {
+      o = o || {};
+      const source = ["vendor", "buy", "none"].indexOf(o.source) >= 0 ? o.source : "none";
+      const rate = o.rate === "" || o.rate == null ? null : Number(o.rate);
+      if (mode === "supabase") {
+        try {
+          return await rpc("reserve_inventory_with_sourcing", { p_item: itemId, p_quote: quoteId, p_qty: Number(qty), p_note: note || null,
+            p_source: source, p_vendor: source === "vendor" ? (o.vendorId || null) : null, p_rate: rate, p_source_note: o.sourceNote || null });
+        } catch (e) { if (!rpcMissing(e)) throw e; }
+      }
+      // database without 0197 (or local mode): same steps one by one - reserve what is free, then record the rest
+      const av = await this.availability(quoteId); const a = av[itemId] || {};
+      const free = Math.max(0, Math.floor(Number(a.availableOnEvent != null ? a.availableOnEvent : (a.available != null ? a.available : 0)) || 0));
+      const take = Math.min(Number(qty), free), short = Number(qty) - take;
+      const out = { reserved: take, short, available: free };
+      if (take > 0) { const r = await this.reserve(itemId, quoteId, take, note || null); out.reservation_id = r && r.id; }
+      if (short > 0) {
+        const nm = a.name || "item";
+        if (source === "vendor" && o.vendorId) {
+          const bk = await bookings.add(quoteId, { vendor_id: o.vendorId, label: (nm + " - rent " + short + " (stock shortfall)").slice(0, 500), qty: short,
+            cost: rate == null ? null : Math.round(short * rate * 100) / 100, status: "enquiry", note: ("Rent " + short + " " + nm + " (stock shortfall)" + (o.sourceNote ? ". " + o.sourceNote : "")).slice(0, 2000) });
+          out.booking_id = bk && bk.id;
+        }
+        const lead = source === "vendor" ? "Sourcing from " + (o.vendorName || "vendor") : source === "buy" ? "Outsource / buy" : "Unsourced";
+        const rq = await stockreq.add(quoteId, { item_id: itemId, label: ("Short: " + short + " x " + nm).slice(0, 200), qty: short,
+          note: (lead + (o.sourceNote ? " - " + o.sourceNote : "")).slice(0, 1000),
+          ...(mode !== "supabase" ? { source, vendor_id: source === "vendor" ? (o.vendorId || null) : null, booking_id: out.booking_id || null } : {}) });
+        out.request_id = rq && rq.id; out.source = source;
+      }
+      return out;
+    },
+    // 0197: open shortages (stock requests raised by "Reserve for this event") for one event, or all
+    // events when no quoteId. [] on a database without 0197.
+    async shortages(quoteId) {
+      if (mode === "supabase") {
+        let q = supa.from("event_stock_requests").select("id,quote_id,item_id,label,qty,status,note,source,vendor_id,booking_id,created_at")
+          .not("source", "is", null).eq("status", "requested").order("created_at");
+        if (quoteId) q = q.eq("quote_id", quoteId);
+        const { data, error } = await q;
+        if (error) { if (isMissingColumn(error)) return []; throw error; }
+        return data || [];
+      }
+      return readLs(STOCKREQ_LS).filter((r) => r.source && r.status === "requested" && (!quoteId || r.quote_id === quoteId));
     },
     // teardown "Return": mark returned + write off damaged stock in ONE transaction
     // (SEC-06 return_reservation). Falls back to the old two-call path until it's deployed.
@@ -6068,7 +6124,7 @@ window.HelmUrl = HelmUrl;
   const calendar = {
     // Pull every commitment across all events and detect date clashes.
     async load() {
-      let [events, invRes, vendorBk, items, team, vends, tasks, plans, pricingCfg] = await Promise.all([
+      let [events, invRes, vendorBk, items, team, vends, tasks, plans, pricingCfg, shortRows] = await Promise.all([
         quotes.list(),
         inventory.reservations().catch(() => []),
         bookings.listAll().catch(() => []),
@@ -6087,6 +6143,7 @@ window.HelmUrl = HelmUrl;
           if (error) throw error; return data;
         })().catch(() => []),
         config.getPricing().catch(() => ({})),   // for the venue-clash buffer (parallel, no extra round-trip)
+        inventory.shortages().catch(() => []),   // 0197: open stock shortages ("Short: 10 x Air Cooler - sourcing from ...")
       ]);
       // Cancelled / closed events and finished tasks don't hold anything: leave them out of clash checks.
       const evLive = (e) => !!e && e.status !== "cancelled" && !(e.lifecycleStage === "closed" && e.status === "confirmed");
@@ -6199,7 +6256,14 @@ window.HelmUrl = HelmUrl;
           vendorsList: vend.map((b) => (vendById[b.vendor_id] || {}).name || b.label),
           staffList: crew.map((c) => (staffById[c] || {}).name || "crew") };
       });
-      return { agenda, conflicts, counts: { events: events.length, dated: events.filter((e) => e.eventDate).length } };
+      // 0197: open stock shortages on live events (reserved only what was free; the rest is being sourced)
+      const shortages = (shortRows || []).filter((r) => evById[r.quote_id]).map((r) => {
+        const b = vendorBk.find((x) => x.id === r.booking_id), v = vendById[r.vendor_id];
+        return { id: r.id, date: dateOf(r.quote_id), event: evById[r.quote_id], source: r.source || "none", qty: Number(r.qty) || 0,
+          text: shortageText(r, { itemName: (itemById[r.item_id] || {}).name, vendorName: v && v.name, bookingStatus: b && b.status }) };
+      });
+      agenda.forEach((a) => { a.shortages = shortages.filter((x) => x.event && x.event.id === a.event.id); });
+      return { agenda, conflicts, shortages, counts: { events: events.length, dated: events.filter((e) => e.eventDate).length } };
     },
     // Phase 49 — the conflicts that involve one specific event (for the workspace card)
     async conflictsForEvent(quoteId) {
@@ -6560,6 +6624,32 @@ window.HelmUrl = HelmUrl;
   };
 
   /* ---------------- readiness gate: Event Ready checkpoint (Phase 15) ---------------- */
+  // 0197 over-capacity: a venue holds seated + floating guests (40,000 + 10,000 = 50,000). Over it, the
+  // quote needs a decision; "proceed" covers up to the guests it was recorded for, "extend" up to
+  // capacity + the extra space, both only for the venue they were recorded for.
+  function capacityStatus(q, venue, guestsOverride) {
+    const c = (q && q.client) || {};
+    const g = Math.round(Number(guestsOverride != null && guestsOverride !== "" ? guestsOverride : c.guests) || 0);
+    if (!venue || !(g > 0)) return { over: false, guests: g };
+    const seat = Math.max(0, Math.round(Number(venue.seated_capacity) || 0)), flt = Math.max(0, Math.round(Number(venue.floating_capacity) || 0));
+    const total = seat + flt;
+    if (!(total > 0) || g <= total) return { over: false, guests: g, seated: seat, floating: flt, total, venue };
+    const d = (q && q.capacityDecision) || null;
+    const same = !!d && String(d.venue_id || "") === String(venue.id || "");
+    const resolved = same && (d.choice === "proceed" ? g <= Number(d.guests || 0)
+      : d.choice === "extend" ? g <= total + Number(d.extra_capacity || 0) : false);
+    return { over: true, guests: g, seated: seat, floating: flt, total, short: g - total, venue, decision: d, resolved };
+  }
+  // 0197 "Short: 10 x Air Cooler / Fan - sourcing from Cool Rentals (enquiry)" / "- outsource / buy" / "- unsourced"
+  function shortageText(r, o) {
+    o = o || {};
+    const qty = Number(r && r.qty) || 0;
+    const name = o.itemName || String((r && r.label) || "").replace(/^Short:\s*\d+(\.\d+)?\s*[x\u00d7]\s*/i, "") || "item";
+    const head = "Short: " + qty.toLocaleString("en-IN") + " \u00d7 " + name;
+    if (r && r.source === "vendor") return head + " \u2014 sourcing from " + (o.vendorName || "a vendor") + (o.bookingStatus ? " (" + o.bookingStatus + ")" : "");
+    if (r && r.source === "buy") return head + " \u2014 outsource / buy";
+    return head + " \u2014 unsourced";
+  }
   const readiness = {
     async check(quoteId) {
       const [ev, planRow, resCheck, bk, tasks, ms, rs] = await Promise.all([
@@ -6573,6 +6663,18 @@ window.HelmUrl = HelmUrl;
         milestones.list(quoteId).catch(() => []),
         runsheet.list(quoteId).catch(() => []),
       ]);
+      // 0197: stock shortages + guests vs the linked venue
+      const [shorts, items, vlist] = await Promise.all([
+        inventory.shortages(quoteId).catch(() => []),
+        inventory.items(true).catch(() => []),
+        (ev && ev.client && ev.client.venueId) ? venues.list({ all: true }).catch(() => []) : Promise.resolve([]),
+      ]);
+      const cap = capacityStatus(ev, (vlist || []).find((v) => v.id === (ev.client || {}).venueId) || null);
+      const itemName = (id) => ((items || []).find((i) => i.id === id) || {}).name;
+      const vend = (shorts || []).some((r) => r.vendor_id) ? await vendors.listAll(true).catch(() => []) : [];
+      const shortLines = (shorts || []).map((r) => { const b = bk.find((x) => x.id === r.booking_id), v = (vend || []).find((x) => x.id === r.vendor_id);
+        return shortageText(r, { itemName: itemName(r.item_id), bookingStatus: b && b.status, vendorName: v && v.name }); });
+      const unsourced = (shorts || []).filter((r) => r.source !== "vendor" && r.source !== "buy").length;
       const gaps = resCheck.filter((c) => !c.covered).length;
       const enquiry = bk.filter((b) => b.status === "enquiry").length;
       const crew = new Set(tasks.map((t) => t.crew_id)).size;
@@ -6585,6 +6687,12 @@ window.HelmUrl = HelmUrl;
         { key: "vendors", label: "Vendors confirmed", critical: true, ok: enquiry === 0 && (bk.length > 0 || resCheck.length > 0), detail: enquiry ? (enquiry + " still enquiry") : (bk.length ? "all confirmed" : (resCheck.length ? "in-house — none needed" : "nothing planned")) },
         { key: "staff", label: "Staff assigned", critical: true, ok: crew > 0, detail: crew ? (crew + " assigned") : "none" },
         { key: "runsheet", label: "Run-sheet built", critical: true, ok: rs.length > 0, detail: rs.length ? (rs.length + " items") : "empty" },
+        { key: "capacity", label: "Guests fit the venue", critical: true, ok: !cap.over || cap.resolved,
+          detail: !cap.over ? (cap.total ? cap.guests.toLocaleString("en-IN") + " of " + cap.total.toLocaleString("en-IN") : "no saved venue linked")
+            : cap.resolved ? (cap.decision.choice === "extend" ? "extended: +" + Number(cap.decision.extra_capacity || 0).toLocaleString("en-IN") + " space" : "proceeding anyway (noted)")
+            : cap.short.toLocaleString("en-IN") + " guests won't fit - decide in the quote" },
+        { key: "stock", label: "Stock sourced (no shortages left open)", critical: true, ok: unsourced === 0,
+          detail: shortLines.length ? shortLines.join("; ") : "no shortages" },
         { key: "payments", label: "Advance received", critical: false, ok: paid, detail: paid ? "yes" : "not yet" },
         { key: "dry_run", label: "Dry run done", critical: true, ok: !!(planRow && planRow.dry_run_at), detail: (planRow && planRow.dry_run_at) ? "done" : "pending", signoff: "dry_run" },
         { key: "briefing", label: "Team briefed", critical: true, ok: !!(planRow && planRow.briefing_at), detail: (planRow && planRow.briefing_at) ? "done" : "pending", signoff: "briefing" },
@@ -8578,7 +8686,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.

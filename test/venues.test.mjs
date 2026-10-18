@@ -39,7 +39,8 @@ t('warnings: guests over capacity', () => {
   assert.ok(V.warnings(lawn, { guests: 2500 }).some((w) => w.code === 'capacity' && w.level === 'warn'));
   assert.ok(!V.warnings(lawn, { guests: 1500 }).some((w) => w.code === 'capacity'));
   assert.ok(V.warnings(hall, { guests: 500 }).some((w) => w.code === 'capacity_seated'));
-  assert.ok(V.warnings(hall, { guests: 800 }).some((w) => w.code === 'capacity'));
+  assert.ok(V.warnings(hall, { guests: 800 }).some((w) => w.code === 'capacity_seated'));   // 450 seated + 700 floating = 1150 (owner 2026-10)
+  assert.ok(V.warnings(hall, { guests: 1200 }).some((w) => w.code === 'capacity'));
 });
 t('warnings: event type not allowed', () => {
   assert.ok(V.warnings(hall, { eventType: 'Concert / live music' }).some((w) => w.code === 'event_type'));
@@ -65,12 +66,12 @@ t('cost text in lakh', () => {
 t('pages wire the venue scripts (no inline), store-api v=157', () => {
   const cc = read('public/control.html');
   assert.match(cc, /id="tab-venues"[^>]*hidden/); assert.match(cc, /id="pane-venues" hidden/);
-  assert.match(cc, /<script src="venues-core\.js\?v=5"><\/script>\s*<script src="venues-admin\.js\?v=6"><\/script>/);
+  assert.match(cc, /<script src="venues-core\.js\?v=6"><\/script>\s*<script src="venues-admin\.js\?v=6"><\/script>/);
   for (const p of ['flow.html', 'builder.html']) {
     const h = read('public/' + p);
-    assert.match(h, /<script src="venues-core\.js\?v=5"><\/script>\s*<script src="venue-picker\.js\?v=4"><\/script>/, p);
+    assert.match(h, /<script src="venues-core\.js\?v=6"><\/script>\s*<script src="venue-picker\.js\?v=4"><\/script>/, p);
     assert.match(h, /venues\.css\?v=5/, p);
-    assert.match(h, /store-api\.js\?v=245/, p);
+    assert.match(h, /store-api\.js\?v=246/, p);
   }
   for (const f of ['venues-core.js', 'venue-picker.js', 'venues-admin.js']) {
     const js = read('public/' + f);

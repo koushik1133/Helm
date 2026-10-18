@@ -100,7 +100,7 @@
 <link rel="stylesheet" href="inventory-polish.css?v=1">
 <link rel="stylesheet" href="theme.css?v=81">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=24" id="shellProto"></script>
+<script src="/shell-proto.js?v=25" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -128,10 +128,12 @@
         <div class="fld"><label for="rv_note">Note</label><input id="rv_note" placeholder="optional"></div>
         <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="rv_add">Reserve</button></div>
       </div>
+      <div id="rvShort" class="rvs" role="region" aria-label="Not enough stock free" hidden></div>
       <div class="table-scroll"><table class="s-d6f2af6">
         <thead><tr><th scope="col">Item</th><th scope="col" class="num">Qty</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="resRows"><tr><td colspan="4" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
       </table></div>
+      <div id="rvShortList" class="rvs-short-list" hidden></div>
     </div>
 
     <div class="tabs" role="group" aria-label="Inventory views">
@@ -149,7 +151,7 @@
       <label class="s-af1acab" title="Also show items you've deactivated, so you can bring them back. Nothing changes if you haven't deactivated any."><input type="checkbox" id="showInactive"> Show inactive</label>
       <span class="spacer"></span>
       <span class="s-bbce15d" id="seedStatus" role="status"></span>
-      <button type="button" id="seedBtn" class="btn" hidden>Load starter items</button>
+      <button type="button" id="seedBtn" class="btn" hidden title="Adds a ready-made list of common event items (chairs, tables, linen, lighting, sound, staging…) with sample quantities you can edit. Items you already have are skipped." aria-describedby="seedHelp">Add common event items (starter list)</button><span id="seedHelp" class="sr-only">Adds a ready-made list of common event items with sample quantities. You see the list and confirm first.</span>
       <button type="button" id="importBtn" class="btn" hidden>Import from Excel / CSV</button>
       <button type="button" id="newBtn" class="btn primary" hidden>＋ Add item</button>
     </div>
@@ -261,12 +263,13 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=246"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
 <script src="tour.js?v=16"></script>
 <script src="checkout-shortage.js?v=2"></script>
+<script src="capacity-shortage.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -274,6 +277,7 @@
   const fmtDate=(d)=>{ if(!d) return ""; const s=String(d); const dt=new Date(s.length===10?s+"T00:00:00":s); if(isNaN(dt)) return esc(s); return dt.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}); };
   const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const ST={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
+  let evDateText="";   // 0197: the event's date for "Only 20 free on 28 Nov 2026"
   let attrDefs=[], attrEd=null, editingItem=null, canEdit=false, canDelete=false, avail={}, items=[], reservations=[], checkouts=[], quotesById={}, editingId=null, filter="", catF="", priF="", showInactive=false, showCancelled=false;
   const PRI={A:"A",B:"B",C:"C"};
   const INV_CATEGORIES=["Seating","Tables","Linens","Lighting","Sound & AV","Staging & Structures","Decor & Florals","Catering Equipment","Tableware","Power & Cabling","Tents & Canopies","Signage","Office & Misc"];
@@ -317,8 +321,9 @@
     $("#catFilter").innerHTML='<option value="">All categories</option>'+presentCats.map(c=>`<option ${c===catF?"selected":""}>${esc(c)}</option>`).join("");
     const datalistCats=[...new Set([...INV_CATEGORIES,...presentCats])];
     $("#catList").innerHTML=datalistCats.map(c=>`<option value="${esc(c)}">`).join("");
-    // show/hide the starter-items button (idempotent, so always available when editable)
-    $("#seedBtn").hidden=!canEdit; $("#importBtn").hidden=!canEdit||!window.HelmImport;
+    // show/hide the starter-items button (idempotent, so always available when editable). Free trial
+    // (2-record cap + sample data): no starter list and no Excel / CSV import (trial-lock.css hides both too)
+    $("#seedBtn").hidden=!canEdit||inTrial(); $("#importBtn").hidden=!canEdit||!window.HelmImport||inTrial();
 
     const q=filter.trim().toLowerCase();
     const shown=items.filter(i=>(!catF||i.category===catF)&&(!priF||(i.priority||"C")===priF)&&(!q||[i.name,i.category].join(" ").toLowerCase().includes(q))&&(!window.HelmSavedFilters||HelmSavedFilters.match("inventory",{item:i,avail:avail[i.id]})));
@@ -333,7 +338,7 @@
         <td>${i.category?`<span class="cat">${esc(i.category)}</span>`:""}</td>
         <td class="num">${num(i.total_qty)}</td>
         <td class="num">${num(a.committed)}</td>
-        <td class="num avail ${availClass(a.available,Number(i.total_qty))}">${num(Math.max(Number(a.available)||0,0))}${Number(a.available)<0?`<span class="overc" title="More is committed than you own">Over-committed by ${num(-Number(a.available))}</span>`:""}</td>
+        <td class="num avail ${availClass(a.available,Number(i.total_qty))}">${num(Math.max(Number(a.available)||0,0))}${Number(a.available)<0?`<span class="overc" title="More is reserved than you own - source the rest from the event's Reserve panel">Short by ${num(-Number(a.available))}</span>`:""}</td>
         <td>${esc(i.unit||"")}</td>
         <td class="num">${Number(i.unit_cost||0)?BPStore.studioMoney(i.unit_cost):'<span style="color:var(--ink-3)">—</span>'}</td>
         <td>${canEdit?(inactive
@@ -345,7 +350,7 @@
     if(!shown.length){
       // first run (nothing in stock at all) vs. "nothing matches these filters"
       if(!items.length){
-        $("#stockRows").innerHTML=`<tr><td colspan="9" class="empty"><b>No stock items yet.</b><br>${canEdit?'Add your first item, or load a starter set to get going.<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" id="firstAdd">＋ Add your first item</button><button type="button" class="btn" id="firstSeed">Load starter items</button></div>':"Nothing has been added to inventory yet."}</td></tr>`;
+        $("#stockRows").innerHTML=`<tr><td colspan="9" class="empty"><b>No stock items yet.</b><br>${canEdit?(inTrial()?'Add your first item to get going.<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" id="firstAdd">＋ Add your first item</button></div>':'Add your first item, or add a ready-made list of common event items (you see the list first).<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" id="firstAdd">＋ Add your first item</button><button type="button" class="btn" id="firstSeed">Add common event items (starter list)</button></div>'):"Nothing has been added to inventory yet."}</td></tr>`;
         const fa=$("#firstAdd"), fs=$("#firstSeed");
         if(fa) fa.addEventListener("click",()=>openItem(null));
         if(fs) fs.addEventListener("click",()=>loadStarterItems(fs));
@@ -376,17 +381,31 @@
     }));
   }
 
+  // free-trial studio (trial-lock.js): no starter list / Excel import
+  function inTrial(){ try{ return !!(window.HelmTrialLock && HelmTrialLock.isTrial()); }catch(_){ return false; } }
+  let stockLoaded=false;   // re-render on the trial answer only once the stock list is on screen
+  window.addEventListener("helm:trial",()=>{ if(stockLoaded) try{ renderStock(); }catch(_){ } });
+  // the confirm text: what the starter list adds, grouped by category ("Seating: Chiavari chair x200, ...")
+  function starterSummary(list){
+    const by={}; list.forEach(s=>{ (by[s.category]=by[s.category]||[]).push(s.name+" \u00d7"+num(s.total_qty)); });
+    return Object.keys(by).map(c=>"\u2022 "+c+": "+by[c].join(", ")).join("\n");
+  }
   async function loadStarterItems(srcBtn){
     if(!canEdit) return;
+    if(inTrial()){ if(window.HelmTrialLock) HelmTrialLock.note(); return; }
     const st=$("#seedStatus"); const btn=(srcBtn&&srcBtn.nodeType===1)?srcBtn:$("#seedBtn");
     return BPUI.guard(btn,async()=>{
     st.textContent="Loading…";
     try{
       const existing=await BPStore.inventory.items(true);
       const have=new Set(existing.map(i=>String(i.name||"").trim().toLowerCase()));
-      const toAdd=STARTER_ITEMS
-        .filter(s=>!have.has(s.name.trim().toLowerCase()))
-        .map(s=>({ name:s.name, category:s.category, total_qty:s.total_qty, unit:s.unit, priority:"C", unit_cost:0, notes:null }));
+      const pick=STARTER_ITEMS.filter(s=>!have.has(s.name.trim().toLowerCase()));
+      st.textContent="";
+      if(!pick.length){ st.textContent="All starter items already present"; return; }
+      const skipped=STARTER_ITEMS.length-pick.length;
+      if(!(await BPUI.confirm(`This adds ${pick.length} common event item${pick.length===1?"":"s"} to your inventory with sample quantities (edit them after). Nothing is deleted or changed${skipped?`; ${skipped} you already have are skipped`:""}.\n\n${starterSummary(pick)}`,{title:"Add common event items?",okLabel:`Add ${pick.length} item${pick.length===1?"":"s"}`}))) return;
+      st.textContent="Adding…";
+      const toAdd=pick.map(s=>({ name:s.name, category:s.category, total_qty:s.total_qty, unit:s.unit, priority:"C", unit_cost:0, notes:null }));
       let made=[]; if(toAdd.length){ made=await BPStore.inventory.addItems(toAdd,{skipDuplicates:true}); }   // single bulk insert (fast); a name clash skips only that row
       const sk=(made&&made.skipped)||[], nAdd=toAdd.length-sk.length;
       st.textContent=toAdd.length?`Added ${nAdd} item${nAdd===1?"":"s"}`+(sk.length?` · skipped ${sk.length} already present: ${sk.map(x=>x.name).join(", ")}`:""):"All starter items already present";
@@ -399,7 +418,7 @@
     if(!quoteId) return;
     // item dropdown with available qty
     $("#rv_item").innerHTML=items.map(i=>{ const a=avail[i.id]||{available:i.total_qty};
-      return `<option value="${esc(i.id)}">${esc(i.name)} — ${esc((()=>{ const f=Number(a.availableOnEvent!=null?a.availableOnEvent:a.available)||0; const u=i.unit||""; return f<0?"0 "+u+" free (over-committed by "+num(-f)+")":num(f)+" "+u+" free"; })())}</option>`; }).join("");
+      return `<option value="${esc(i.id)}">${esc(i.name)} — ${esc((()=>{ const f=Number(a.availableOnEvent!=null?a.availableOnEvent:a.available)||0; const u=i.unit||""; return f<0?"0 "+u+" free (short by "+num(-f)+")":num(f)+" "+u+" free"; })())}</option>`; }).join("");
     const rows=reservations;
     const byId=Object.fromEntries(items.map(i=>[i.id,i]));
     $("#resRows").innerHTML = rows.length ? rows.map(r=>{
@@ -412,6 +431,8 @@
         <td>${canDelete?`<button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(it.name)}" aria-label="Remove reservation for ${esc(it.name)}">Remove</button>`:""}</td>
       </tr>`;
     }).join("") : '<tr><td colspan="4" class="empty">No reservations yet.</td></tr>';
+    // 0197: open shortages of this event (rent / buy / unsourced) with a status per row
+    if(window.HelmShortage) HelmShortage.renderList($("#rvShortList"), { quoteId, items, canEdit }).catch(()=>{});
     // status change: guarded (select locked while saving) and reverted to the previous value if the save fails
     $("#resRows").querySelectorAll("select[data-res]").forEach(s=>s.addEventListener("change",()=>{
       const prev=s.dataset.prev, next=s.value; if(next===prev) return;
@@ -709,22 +730,22 @@
     });
   });
   ["#co_item","#co_qty"].forEach(sel=>$(sel).addEventListener("change",()=>{ if(!$("#coShort").hidden) hideShort(); }));
+  ["#rv_item","#rv_qty"].forEach(sel=>$(sel).addEventListener("change",()=>{ const p=$("#rvShort"); if(p&&!p.hidden){ p.hidden=true; p.textContent=""; } }));
   $("#rv_add").addEventListener("click",async()=>{
     if($("#rv_add").disabled) return;
     const itemId=$("#rv_item").value;
     if(!itemId){ BPUI.toast("Add a stock item first.",{type:"info"}); return; }
     const rvV=BPStore.validate.count($("#rv_qty").value,{allowZero:false,field:"Quantity"}); if(!rvV.ok){ BPUI.toast(rvV.error,{type:"err"}); $("#rv_qty").focus(); return; } const qty=rvV.value;
-    // over-commit guard: warn if this reservation exceeds what's free
-    const a=avail[itemId]||{}; const free=Number(a.availableOnEvent!=null?a.availableOnEvent:(a.available!=null?a.available:(a.total_qty||0)));
-    let overOk=false;   // user explicitly accepted an over-commit → the store must not hard-block it
-    if(qty>free){ const it=items.find(x=>x.id===itemId)||{};
-      // dev pass 3: one dialog at a time - Reserve stays disabled while the over-commit question is open
-      $("#rv_add").disabled=true; let yes=false;
-      try{ yes=await BPUI.confirm(`Only ${Math.max(free,0)} ${it.unit||""} of ${it.name||"this item"} free — reserving ${qty} will over-commit by ${qty-free}. It'll show as a calendar conflict. Reserve anyway?`,{title:"Over-commit stock?",okLabel:"Reserve anyway",danger:true}); }
-      finally{ $("#rv_add").disabled=false; }
-      if(!yes) return; overOk=true; }
+    // 0197: more than is free never over-commits (that showed a minus on inventory + the calendar):
+    // "Only 20 free - short by 10" -> reserve the 20 and source the 10 (rent from a vendor / buy / unsourced)
+    const a=avail[itemId]||{}; const free=Math.floor(Number(a.availableOnEvent!=null?a.availableOnEvent:(a.available!=null?a.available:(a.total_qty||0)))||0);
+    if(qty>free && window.HelmShortage){ const it=items.find(x=>x.id===itemId)||{};
+      HelmShortage.showPanel($("#rvShort"), { item:it, qty, free:Math.max(free,0), quoteId, dateText:evDateText, note:$("#rv_note").value.trim()||null,
+        onDone:async()=>{ $("#rv_qty").value=1; $("#rv_note").value=""; await load(); } });
+      return; }
+    $("#rvShort").hidden=true;
     await BPUI.guard($("#rv_add"),async()=>{
-      try{ await BPStore.inventory.reserve(itemId, quoteId, qty, $("#rv_note").value.trim()||null, {allowOver:overOk}); $("#rv_qty").value=1; $("#rv_note").value=""; BPUI.toast("Reserved.",{type:"ok"}); await load(); }
+      try{ await BPStore.inventory.reserve(itemId, quoteId, qty, $("#rv_note").value.trim()||null); $("#rv_qty").value=1; $("#rv_note").value=""; BPUI.toast("Reserved.",{type:"ok"}); await load(); }
       catch(e){
         // someone else took the stock first (atomic check refused it): say so plainly and refresh the numbers
         if(e && e.code==="INVENTORY_CONFLICT"){ BPUI.toast(e.message||"Not enough stock free. Someone else may have just reserved it.",{type:"err"}); try{ await load(); }catch(_){} }
@@ -753,7 +774,7 @@
       return;
     }
     if(canEdit) ["#rv_add","#co_add"].forEach(s=>{ $(s).disabled=false; });
-    items=itemsR.value; avail=availR.value;
+    items=itemsR.value; avail=availR.value; stockLoaded=true;
     renderStock();
     if(coR.status==="fulfilled"){ checkouts=coR.value; quotesById = qlR.status==="fulfilled" ? Object.fromEntries((qlR.value||[]).map(q=>[q.id,q])) : {}; renderCheckouts(); }
     else { checkouts=[]; renderCheckouts(); BPUI.loadError($("#loanRows"), coR.reason, load, {what:"check-outs"}); $("#lossRows").innerHTML='<tr><td colspan="8" class="empty">—</td></tr>'; $("#lossTotal").innerHTML=""; $("#co_add").disabled=true; }
@@ -782,7 +803,7 @@
     if(!canEdit) $("#coCard").querySelectorAll("input,select,button").forEach(el=>el.disabled=true);
     if(quoteId){
       $("#eventPanel").hidden=false; $("#eventBar").hidden=false;
-      try{ const ev=await BPStore.quotes.get(quoteId); $("#eventBar").innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}">← Back to workspace</a> · ${esc(ev.code||"")}${ev.title&&ev.title!==ev.code?(" · "+esc(ev.title)):""}`; }catch{}
+      try{ const ev=await BPStore.quotes.get(quoteId); evDateText=ev.eventDate?fmtDate(ev.eventDate):""; $("#eventBar").innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}">← Back to workspace</a> · ${esc(ev.code||"")}${ev.title&&ev.title!==ev.code?(" · "+esc(ev.title)):""}`; }catch{}
       if(!canEdit) $("#eventPanel").querySelectorAll("input,select,button").forEach(el=>el.disabled=true);
     }
     await fillPeople();

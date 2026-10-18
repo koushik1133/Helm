@@ -129,7 +129,7 @@
 </style>
 <link rel="stylesheet" href="quotes-polish.css?v=7"><link rel="stylesheet" href="event-group-picker.css?v=1">
 <link rel="stylesheet" href="theme.css?v=81">
-<script src="/shell-proto.js?v=24" id="shellProto"></script>
+<script src="/shell-proto.js?v=25" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -289,7 +289,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=4"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script><script src="flow-resume.js?v=1" data-mount></script><script src="quote-state.js?v=3"></script><script src="quote-rates.js?v=2"></script><script src="venue-suggest.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=246"></script><script src="flow-resume.js?v=1" data-mount></script><script src="quote-state.js?v=3"></script><script src="quote-rates.js?v=2"></script><script src="venue-suggest.js?v=1"></script>
 <script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=1"></script><script src="event-group-picker.js?v=3"></script>
 <script src="tour.js?v=16"></script>
 <script>
@@ -882,6 +882,8 @@
       const sv=cmSavedTotal(), chg=sv!=null && Math.abs(Math.round(sv)-Math.round(tt.total))>=1 ? `Total changes from ${inr(sv)} to ${inr(tt.total)}. ` : "";
       let ok=false; try{ ok=await BPUI.confirm(`${chg}Confirm ${code} at ${inr(tt.total)}? This locks a priced snapshot for the client.`,{title:"Confirm & lock quote?",okLabel:"Confirm & lock"}); }catch(_){ ok=false; }
       if(!ok){ unlock(); return; } }
+    // 0197: guests over the linked venue (seated + floating) need a decision before confirming
+    if(confirmIt && window.HelmCapacity && !(await HelmCapacity.gate({ quoteId:cmId, quote:detailCache[cmId], why:"confirm", flow:false }))){ unlock(); return; }
     btn.setAttribute("aria-busy","true");
     const p=gatherPricing(), t=calcPricing(p);
     // merge into the stored client JSON - never replace it (keeps guests/budget carried over from the lead)
@@ -1204,5 +1206,6 @@
   window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&pager) reloadQuiet(); });
 </script>
 <script src="saved-filters.js?v=2"></script>
+<script src="capacity-shortage.js?v=1"></script>
 </body>
 </html>

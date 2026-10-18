@@ -115,11 +115,23 @@
   // ctx: { guests, eventType (free text or key), loud (bool, e.g. DJ chosen),
   //        items (the layout's items, optional: generator / DJ in the plan), seats (seats in the layout, optional) }
   // -> [{ level: "warn"|"info", code, msg }]
+  // owner 2026-10: a venue holds its seated PLUS its floating (standing) guests,
+  // e.g. 40,000 seated + 10,000 floating = 50,000. Same rule as the over-capacity decision.
+  function capacity(v) {
+    var seat = v ? num(v.seated_capacity) : null, flt = v ? num(v.floating_capacity) : null;
+    seat = seat > 0 ? Math.round(seat) : 0; flt = flt > 0 ? Math.round(flt) : 0;
+    return { seated: seat, floating: flt, total: seat + flt };
+  }
+  function capText(c) {
+    var f = function (n) { return Number(n).toLocaleString("en-IN"); };
+    if (c.seated && c.floating) return f(c.seated) + " seated + " + f(c.floating) + " floating = " + f(c.total);
+    return f(c.total) + (c.seated ? " seated" : " floating");
+  }
   function warnings(v, ctx) {
     var out = []; if (!v) return out; ctx = ctx || {};
-    var g = num(ctx.guests), seat = num(v.seated_capacity), flt = num(v.floating_capacity);
-    var cap = Math.max(seat || 0, flt || 0);
-    if (g && cap && g > cap) out.push({ level: "warn", code: "capacity", msg: g + " guests is more than this venue holds (" + cap + (flt && flt >= (seat || 0) ? " floating" : " seated") + ")." });
+    var g = num(ctx.guests), seat = num(v.seated_capacity);
+    var c = capacity(v);
+    if (g && c.total && g > c.total) out.push({ level: "warn", code: "capacity", msg: Number(g).toLocaleString("en-IN") + " guests is more than this venue holds (" + capText(c) + ") - " + Number(g - c.total).toLocaleString("en-IN") + " won't fit." });
     else if (g && seat && g > seat) out.push({ level: "info", code: "capacity_seated", msg: g + " guests is more than the " + seat + " seated capacity - plan part standing." });
     var key = keys(EVENT_TYPES).indexOf(ctx.eventType) >= 0 ? ctx.eventType : eventKey(ctx.eventType);
     var allowed = Array.isArray(v.event_types) ? v.event_types : [];
@@ -174,5 +186,5 @@
   global.HelmVenues = { FT_PER_M: FT_PER_M, VENUE_TYPES: VENUE_TYPES, AC_TYPES: AC_TYPES, SETTINGS: SETTINGS,
     EVENT_TYPES: EVENT_TYPES, RESTRICTIONS: RESTRICTIONS, COST_BASIS: COST_BASIS, label: label,
     toMeters: toMeters, fromMeters: fromMeters, mToFt: mToFt, inrShort: inrShort, costText: costText,
-    validate: validate, eventKey: eventKey, warnings: warnings, fillFor: fillFor, summary: summary };
+    validate: validate, eventKey: eventKey, warnings: warnings, capacity: capacity, capText: capText, fillFor: fillFor, summary: summary };
 })(typeof window !== "undefined" ? window : globalThis);
