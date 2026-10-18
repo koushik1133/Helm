@@ -120,7 +120,7 @@
 </style>
 <link rel="stylesheet" href="flow-polish.css?v=4">
 <link rel="stylesheet" href="share-checklist.css?v=2">
-<link rel="stylesheet" href="theme.css?v=81">
+<link rel="stylesheet" href="event-group-picker.css?v=1"><link rel="stylesheet" href="theme.css?v=81">
 <link rel="stylesheet" href="venues.css?v=5">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=1">
@@ -407,11 +407,11 @@
 <script src="flow-autosave.js?v=2"></script>
 <script src="flow-validate.js?v=1"></script>
 <script src="flow-resume.js?v=1"></script>
-<script src="quote-state.js?v=2"></script>
+<script src="quote-state.js?v=3"></script>
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
-<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="email-send.js?v=1"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=2"></script>
+<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="email-send.js?v=1"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=3"></script><script src="approval-watch.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   // owner 2026-10 (flow validation): every field rule lives in flow-validate.js. Event dates follow the
@@ -685,7 +685,10 @@
     // PL1027 #1: a % discount from the Quotes list is kept on save - show it (and its ₹ value) beside the ₹ field
     { const h=$("#q_discountPctHint"); if(h){ const dp=+p.discountPct||0; h.hidden=!(dp>0);
       h.textContent=dp>0?(dp+"% discount (− "+inr(t.subtotal*dp/100)+") — stays a % when the quote is re-priced."):""; } }
-    if(t.discount>0) rows+=`<div class="prow"><span>Discount${(+p.discountPct||0)>0?' <span class="q">'+esc(String(+p.discountPct))+'%'+((+p.discount||0)>0?' + '+esc(inr(+p.discount)):'')+'</span>':''}</span><span class="amt">− ${inr(t.discount)}</span></div>`;
+    // confirm-1018 #1: the coupon and the discount each get their own line (same rule + numbers as Confirm & lock)
+    if(t.discount>0){ (window.HelmPriceLines?HelmPriceLines.discountLines(p,t):[{key:"discount",label:"Discount",amount:t.discount}]).forEach(l=>{
+        rows+=`<div class="prow" data-line="${esc(l.key)}"><span>${esc(l.label)}</span><span class="amt">− ${inr(l.amount)}</span></div>`; });
+      rows+=`<div class="prow"><span>Taxable value <span class="q">after discounts</span></span><span class="amt">${inr(Math.max(0,t.subtotal-t.discount))}</span></div>`; }
     rows+=`<div class="prow"><span>${esc(fTax().name)}${t.taxExempt?" (exempt)":t.taxInclusive?" (included)":""}</span><span class="amt">${inr(t.totalGst)}</span></div>`;
     if(fTax().country==="IN" && !t.taxExempt && t.totalGst>0) rows+=`<div class="prow posHint" style="color:var(--ink-3);font-size:11px"><span>${p.placeOfSupply==="inter"?"IGST (inter-state)":"CGST+SGST (intra-state)"}</span><span></span></div>`;
     rows+=`<div class="prow total"><span>Total</span><span class="amt">${inr(t.total)}</span></div>`;
@@ -1805,6 +1808,25 @@
     await loadAll();
     $("#app").hidden=false; { const mb=$("#mPriceBar"); if(mb) mb.hidden=false; }
     if(!wired){ wired=true; wire(); }
+    startApprovalWatch();
+  }
+  // confirm-1018 #3: the client approving on their link shows here without a reload (~15 s poll while visible).
+  // No unsaved edits -> the page re-reads the quote; with unsaved edits only the approval state is repainted
+  // (the edits stay; the next save meets the normal "changed elsewhere" check).
+  let apprWatch=null;
+  function startApprovalWatch(){
+    if(apprWatch || !window.HelmApprovalWatch || !ev) return;
+    apprWatch=HelmApprovalWatch.start({
+      ids:()=>ev?HelmApprovalWatch.pending([ev]):[],
+      known:()=>ev?{status:ev.status, approvalStatus:ev.approvalStatus||ev.approval_status}:null,
+      onChange:async(d)=>{ const r=d.changed[0]; if(!r||!ev) return;
+        if(!unsaved() && !loading){ try{ const fresh=await BPStore.quotes.get(id); if(fresh){ ev=fresh; loading=true; await loadAll(); } }catch(_){} return; }
+        ev.approvalStatus=r.approvalStatus; ev.status=r.status;
+        $("#statusBadge").textContent=ev.status||ev.lifecycleStage||"draft";
+        $("#apprState").textContent=apprStateText(r.approvalStatus==="paid");
+        paintBookingBadge(r.approvalStatus==="paid"?1:0);
+        renderEgPrompt().catch(()=>{}); }
+    });
   }
   function showNotFound(){ $("#gate").hidden=false; $("#gate").innerHTML='<h2 style="margin:0 0 6px;font-size:16px">Quote not found</h2><p style="color:var(--ink-2);margin:0">This quote doesn\'t exist or was deleted. Go back to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p>'; }
   BPUI.boot(async ()=>{

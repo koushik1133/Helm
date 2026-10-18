@@ -147,7 +147,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=7"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script><script src="save-back.js?v=1"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=7"></script>
 <script src="tour.js?v=16"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -378,6 +378,8 @@
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    // confirm-1018 #4: "Save & back to event" beside Save (only leaves when the save worked)
+    if(window.HelmSaveBack) HelmSaveBack.add({ button:"#c_save", msg:"#c_msg", run:()=>save() });
     if(!id){ if(window.HelmPickEvent) HelmPickEvent.show($("#notfound"),"closure","closure checklist"); else $("#notfound").hidden=false; return; }   // QA1026 #10
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("closure"))) return;

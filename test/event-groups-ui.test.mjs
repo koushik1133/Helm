@@ -93,7 +93,7 @@ t('chat: event group menu has Refresh event details + workspace; pinned card bar
   assert.match(chat, /if\(c\.kind==="group"&&c\.quote_id\)\{/);
   assert.match(chat, /BPStore\.chat\.eventGroups\.refresh\(c\.id\)/);
   assert.match(chat, /id="pinBar"/); assert.match(chat, /renderPinBar\(c\);/);
-  assert.match(chat, /if\(c\.kind==="group"\) items\.push\(\{k:"add",label:"➕  Add members"/);   // add members works for event groups
+  assert.match(chat, /if\(c\.kind==="group"\) items\.push\(\{k:"add",label:c\.quote_id\?"➕  Add people":"➕  Add members"/);   // add members works for event groups (confirm-1018: "Add people" = team, staff, vendors, client)
 });
 t('quotes: Event group button on confirmed quotes; "Open event group" when it exists; hidden without 0035', () => {
   assert.match(quotes, /egReady&&\(egIndex\[x\.id\]\|\|\(canEdit&&x\.status==="confirmed"\)\)/);

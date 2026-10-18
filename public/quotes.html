@@ -127,7 +127,7 @@
   .eglist .rl{margin-left:auto;color:var(--ink-3);font-size:12px;text-transform:capitalize}
   .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
-<link rel="stylesheet" href="quotes-polish.css?v=7">
+<link rel="stylesheet" href="quotes-polish.css?v=7"><link rel="stylesheet" href="event-group-picker.css?v=1">
 <link rel="stylesheet" href="theme.css?v=81">
 <script src="/shell-proto.js?v=24" id="shellProto"></script>
 </head>
@@ -211,16 +211,17 @@
         </select>
       </div>
       <div class="fld"><label for="p_vendor">Vendor</label><select id="p_vendor"></select></div>
-      <div class="fld"><label for="p_camount">Catering charge ₹ (extra)</label><input id="p_camount" type="number" min="0" step="1" value="0" title="Any vendor bill on top of per-plate"></div>
+      <div class="fld"><label for="p_camount">Extra catering charge ₹ (on top of the plates)</label><input id="p_camount" type="number" min="0" step="1" value="0" title="A one-off catering amount added on top of plates × per-plate price (e.g. a vendor's live-counter or transport bill). Leave 0 if none." aria-describedby="p_camount_err"><small class="cm-ferr" id="p_camount_err" role="alert" hidden></small></div>
     </div>
     <div class="grid three s-d2c171b">
-      <div class="fld"><label for="p_coupon">Coupon</label><select id="p_coupon"><option value="">— none —</option></select></div>
+      <div class="fld"><label for="p_coupon">Coupon</label><select id="p_coupon" aria-describedby="p_coupon_err"><option value="">— none —</option></select><small class="cm-ferr" id="p_coupon_err" role="alert" hidden></small></div>
       <div class="fld"><label for="p_discount">Discount ₹</label><input id="p_discount" type="number" min="0" step="1" value="0" aria-describedby="p_discount_err"><small class="cm-ferr" id="p_discount_err" role="alert" hidden></small></div>
       <div class="fld"><label for="p_discountPct">Discount %</label><input id="p_discountPct" type="number" min="0" max="100" step="0.5" value="0" aria-describedby="p_discountPct_err"><small class="cm-ferr" id="p_discountPct_err" role="alert" hidden></small></div>
     </div>
     <!-- rates come from the Control Center; kept as hidden inputs so the calculator stays unchanged -->
     <input type="hidden" id="p_chairPrice"><input type="hidden" id="p_platePrice"><input type="hidden" id="p_gst">
     <input type="hidden" id="p_cgst"><input type="hidden" id="p_svc"><input type="hidden" id="p_other" value="0">
+    <div class="taxnote" id="discRule">How discounts work: the coupon and the discount both come off the subtotal (a % is worked out on the subtotal). Use a ₹ discount or a % discount, not both. GST is added after the discounts.</div>
     <div class="taxnote" id="taxNote">Rates (₹/chair, ₹/plate, GST) are set once in the <a class="s-a805525" href="control.html">Control Center</a>. Enter a coupon or discount here. Only GST applies as a tax in India; confirm with a CA.</div>
 
     <div class="totals" id="totals"></div>
@@ -288,8 +289,8 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=4"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script><script src="flow-resume.js?v=1" data-mount></script><script src="quote-state.js?v=2"></script><script src="quote-rates.js?v=2"></script><script src="venue-suggest.js?v=1"></script>
-<script src="event-sizing.js?v=5"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script><script src="flow-resume.js?v=1" data-mount></script><script src="quote-state.js?v=3"></script><script src="quote-rates.js?v=2"></script><script src="venue-suggest.js?v=1"></script>
+<script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=1"></script><script src="event-group-picker.js?v=3"></script>
 <script src="tour.js?v=16"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -474,6 +475,22 @@
     if(listR.status==="rejected"){ BPUI.loadError($("#rows"), listR.reason, load, {what:"quotes"}); return; }
     render();
     try{ performance.mark("quotes:first-rows"); performance.measure("quotes:time-to-first-rows","quotes:load-start","quotes:first-rows"); }catch(_){}
+    startApprovalWatch();
+  }
+  // confirm-1018 #3: a client approving on their link (OTP or the free-trial "Test mode - confirm") shows here
+  // without a reload - poll the quotes on screen that still wait for the client (~15 s, only while visible)
+  let apprWatch=null;
+  function startApprovalWatch(){
+    if(apprWatch || !window.HelmApprovalWatch) return;
+    apprWatch=HelmApprovalWatch.start({
+      ids:()=>HelmApprovalWatch.pending(quotes),
+      known:(id)=>{ const q=quotes.find(x=>x.id===id); return q?{status:q.status, approvalStatus:q.approvalStatus}:null; },
+      // patch the rows in place (keeps the page / "load more" position), drop their cached details, repaint
+      onChange:(d)=>{ d.changed.forEach(r=>{ const q=quotes.find(x=>x.id===r.id);
+          if(q){ q.status=r.status; q.approvalStatus=r.approvalStatus; if(r.updatedAt) q.updatedAt=r.updatedAt; }
+          if(!(cmId===r.id && !$("#confirmModal").hidden)) delete detailCache[r.id]; });
+        render(); }
+    });
   }
   // first page of the current tab / type / search (resolves after it painted)
   function reloadList(){
@@ -676,8 +693,12 @@
     $("#p_vendor").innerHTML = `<option value="">— none —</option>`+cmVendors.map(v=>`<option>${esc(v.name)}</option>`).join("")+`<option value="__new">＋ Add new vendor…</option>`;
     $("#p_vendor").value = (pr.catering&&pr.catering.vendor)||"";
     // coupon dropdown
-    $("#p_coupon").innerHTML = `<option value="">— none —</option>`+cmCoupons.map(c=>`<option value="${esc(c.code)}">${esc(c.code)} (${c.kind==='percent'?(Number(c.value)||0)+'%':inr(Number(c.value)||0)})</option>`).join("");
-    $("#p_coupon").value = pr.couponCode||"";
+    // confirm-1018 #1: a coupon saved on the quote that is no longer active stays visible (flagged) - it is never dropped silently
+    { const savedCode=String(pr.couponCode||""), known=cmCoupons.some(c=>String(c.code).toLowerCase()===savedCode.toLowerCase());
+      $("#p_coupon").innerHTML = `<option value="">— none —</option>`+cmCoupons.map(c=>`<option value="${esc(c.code)}">${esc(c.code)} (${c.kind==='percent'?(Number(c.value)||0)+'%':inr(Number(c.value)||0)} off)</option>`).join("")
+        +(savedCode&&!known?`<option value="${esc(savedCode)}" data-inactive="1">${esc(savedCode)} (no longer active)</option>`:"");
+      const hit=cmCoupons.find(c=>String(c.code).toLowerCase()===savedCode.toLowerCase());
+      $("#p_coupon").value = hit?hit.code:savedCode; }
     $("#p_cmode").value = (pr.catering&&pr.catering.mode)||"inhouse";
     $("#p_camount").value = (pr.catering&&pr.catering.amount)||0;
     { const dv=HelmDiscount.pick(pr.discount, pr.discountPct); $("#p_discount").value = dv.discount||0; $("#p_discountPct").value = dv.discountPct||0; }   // PP1028 #5
@@ -747,7 +768,7 @@
   // While any is invalid "Confirm & lock" stays disabled (Save pricing re-checks on click).
   $("#c_trn").addEventListener("input",()=>{ const el=$("#c_trn"), v=el.value.replace(/\D+/g,"").slice(0,15); if(v!==el.value) el.value=v; });
   let cmSaving=false;   // one save / confirm in flight (incl. while its confirm prompt is open)
-  const CM_CHECKS=[["p_chairs","Chairs","count"],["p_guests","Guests / plates","count"],["p_discount","Discount","money"],["p_discountPct","Discount %","pct"]];
+  const CM_CHECKS=[["p_chairs","Chairs","count"],["p_guests","Guests / plates","count"],["p_camount","Extra catering charge","money"],["p_discount","Discount","money"],["p_discountPct","Discount %","pct"]];
   function cmFieldError(raw, label, kind){
     const v=String(raw==null?"":raw).trim(); if(v==="") return "";
     const n=Number(v); if(!Number.isFinite(n)) return label+" must be a number.";
@@ -766,25 +787,48 @@
     const b=$("#cm_confirm"); if(b && !cmSaving) b.disabled=!ok;
     return ok;
   }
+  // confirm-1018 #1: the coupon + discount rule (HelmPriceLines) - a saved coupon that is no longer active, a ₹ discount
+  // over the subtotal, or coupon + discount together over the subtotal block the save with a message on the field
+  function cmDiscountProblem(p, t){
+    const sel=$("#p_coupon"), opt=sel&&sel.selectedOptions&&sel.selectedOptions[0];
+    const gone=opt&&opt.getAttribute("data-inactive")==="1" ? sel.value : "";
+    const pp=gone ? Object.assign({}, p, { couponCode:gone }) : p;
+    return HelmPriceLines.discountProblem(pp, t, cmCoupons.map(c=>c.code));
+  }
+  function cmPaintDiscountProblem(pb, t){
+    const ce=$("#p_coupon_err"), ci=$("#p_coupon"); if(ce){ ce.hidden=true; ce.textContent=""; } if(ci) ci.removeAttribute("aria-invalid");
+    if(!pb) return true;
+    const isCoupon=pb.field==="coupon", er=isCoupon?ce:$("#p_discount_err"), inp=isCoupon?ci:$("#p_discount");
+    const msg=pb.message+(pb.field==="amount"&&t?" (subtotal "+inr(t.subtotal)+")":"");
+    if(er){ er.textContent=msg; er.hidden=false; } if(inp) inp.setAttribute("aria-invalid","true");
+    const cb=$("#cm_confirm"); if(cb && !cmSaving) cb.disabled=true;
+    return false;
+  }
   function recalc(){
     let valid=cmValidate();
     const p=gatherPricing(), t=calcPricing(p);
     // dev pass 3: a flat discount bigger than the subtotal silently made the quote free - say so and block it
-    if(valid && Number(p.discount)>0 && Number(p.discount)>Number(t.subtotal||0)+0.5){
-      const de=$("#p_discount_err"), di=$("#p_discount");
-      if(de){ de.textContent="Discount is more than the subtotal ("+inr(t.subtotal)+")."; de.hidden=false; } if(di) di.setAttribute("aria-invalid","true");
-      valid=false; const cb=$("#cm_confirm"); if(cb && !cmSaving) cb.disabled=true; }
+    // (confirm-1018: + coupon no longer active / coupon + discount over the subtotal)
+    if(valid && !cmPaintDiscountProblem(cmDiscountProblem(p, t), t)) valid=false;
+    else if(!valid) cmPaintDiscountProblem(null);
     paintRateNote(p);
     // an invalid count / discount → no total is shown (never a number the quote can't be saved at)
     const saved=cmSavedTotal(), changes=valid && saved!=null && Math.abs(Math.round(saved)-Math.round(t.total))>=1;
     const taxRows = BPStore.tax.rows(t, p, BPStore.tax.resolve(p)).map(r=>`<div class="r"><span>${esc(r.label)}</span><span class="amt">${inr(r.amount)}</span></div>`).join("");
+    // confirm-1018 #1: every part on its own line, in the order it is worked out - subtotal, then the coupon and the
+    // discount (each its own line), the taxable value, THEN the tax on it (the server stamps the same total)
+    const nf=(v)=>Number(v||0).toLocaleString("en-IN");
+    const dLines=HelmPriceLines.discountLines(p, t).map(l=>`<div class="r cm-disc" data-line="${esc(l.key)}"><span>${esc(l.label)}</span><span class="amt">− ${inr(l.amount)}</span></div>`).join("");
     $("#totals").innerHTML =
-      `<div class="r"><span>Chairs (${p.chairs} × ${inr(p.chairPrice)})${p.other?` + other ${inr(p.other)}`:""}</span><span class="amt">${inr(t.rental)}</span></div>`+
-      `<div class="r"><span>Catering${p.catering.mode==="client"?" (client-provided)":` (${p.guests} plates × ${inr(p.platePrice)}${p.catering.amount?` + ${inr(p.catering.amount)}`:""})`}</span><span class="amt">${inr(t.cateringBucket)}</span></div>`+
+      `<div class="r"><span>Chairs (${nf(p.chairs)} × ${inr(p.chairPrice)})</span><span class="amt">${inr((+p.chairs||0)*(+p.chairPrice||0))}</span></div>`+
+      (p.other?`<div class="r"><span title="Décor and equipment placed on the floor layout, plus the studio's layout setup fee">Décor, equipment &amp; setup fee (from the layout)</span><span class="amt">${inr(p.other)}</span></div>`:"")+
+      `<div class="r"><span>Catering${p.catering.mode==="client"?" (client-provided)":` (${nf(p.guests)} plates × ${inr(p.platePrice)})`}</span><span class="amt">${inr(t.plateSub)}</span></div>`+
+      (t.cateringAmt?`<div class="r"><span>Extra catering charge</span><span class="amt">${inr(t.cateringAmt)}</span></div>`:"")+
       (t.serviceCharge?`<div class="r"><span>Service charge (${p.serviceChargePct}%)</span><span class="amt">${inr(t.serviceCharge)}</span></div>`:"")+
       `<div class="r"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`+
+      dLines+
+      (t.discount?`<div class="r"><span>Taxable value (after discounts)</span><span class="amt">${inr(Math.max(0,(+t.subtotal||0)-(+t.discount||0)))}</span></div>`:"")+
       taxRows+
-      (t.discount?`<div class="r"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`:"")+
       `<div class="r grand"><span>Grand total</span><span class="amt">${valid?inr(t.total):"—"}</span></div>`+
       `<div class="r" style="font-style:italic;color:var(--ink-3);font-size:12px;justify-content:flex-end"><span data-money>${!valid||(curTax&&curTax.country!=="IN")?"":esc(BPStore.amountInWords(t.total))}</span></div>`+
       (changes?`<div class="msg warn cm-total-change" role="status">Total changes from ${esc(inr(saved))} to ${esc(inr(t.total))}.</div>`:"");
@@ -794,7 +838,7 @@
     const other = confirmIt?$("#cm_savePricing"):$("#cm_confirm");
     if(cmSaving) return;   // a save / confirm is already in flight
     if(!cmValidate()){ const bad=document.querySelector('#confirmModal [aria-invalid="true"]'); if(bad) bad.focus(); return; }
-    { const p0=gatherPricing(), t0=calcPricing(p0); if(Number(p0.discount)>0 && Number(p0.discount)>Number(t0.subtotal||0)+0.5){ recalc(); $("#p_discount").focus(); return; } }
+    { const p0=gatherPricing(), t0=calcPricing(p0), pb=cmDiscountProblem(p0, t0); if(pb){ recalc(); (pb.field==="coupon"?$("#p_coupon"):$("#p_discount")).focus(); return; } }
     // validate the raw inputs (no negative money, fractional counts, bad %, bad email) before saving
     const V=BPStore.validate, errEl=$("#cm_err");
     const checks=[["#p_chairs",v=>V.count(v,{field:"Chairs"})],["#p_guests",v=>V.count(v,{field:"Guests / plates"})],
@@ -937,11 +981,11 @@
       ${cl.venue?`<tr><td class=muted>Venue</td><td>${esc(cl.venue)}${cl.address?", "+esc(cl.address):""}</td></tr>`:""}</table>
     <table><tr><th>Item</th><th style="text-align:right">Amount</th></tr>
       ${t?`${line(`Chairs (${num(p.chairs)} × ${inr(num(p.chairPrice))})`, num(p.chairs)*num(p.chairPrice))}
-      ${p.other?line("Other charges", num(p.other)):""}
+      ${p.other?line("Décor, equipment &amp; setup", num(p.other)):""}
       ${p.catering&&p.catering.mode==="client"?`<tr><td>Catering</td><td style="text-align:right">Client-provided</td></tr>`:line(`Catering (${num(p.guests)} plates × ${inr(num(p.platePrice))}${p.catering&&p.catering.amount?" + "+inr(num(p.catering.amount)):""})`, (t.cateringBucket||0))}
       ${t.serviceCharge?line(`Service charge (${num(p.serviceChargePct)}%)`, t.serviceCharge):""}
       <tr class=tot><td>Subtotal</td><td style="text-align:right">${inr(t.subtotal||0)}</td></tr>
-      ${t.discount?`<tr class=tot><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:""}
+      ${t.discount?HelmPriceLines.discountLines(p, t).map(l=>`<tr class=tot><td>${esc(l.label)}</td><td style="text-align:right">− ${inr(l.amount)}</td></tr>`).join("")+line("Taxable value (after discounts)", Math.max(0,(t.subtotal||0)-(t.discount||0))):""}
       ${tax}`:""}
       <tr class=grand><td>Grand total</td><td style="text-align:right">${inr(grand)}</td></tr>
       <tr><td colspan=2 style="padding-top:6px;font-style:italic;color:#555;font-size:12px;border:0">${qTax.country!=="IN"?"":BPStore.amountInWords(grand)}</td></tr></table>
@@ -1005,6 +1049,8 @@
            return; }
     if(q.status!=="confirmed"){ BPUI.toast("Confirm this quote before creating its event group.",{type:"info"}); return; }
     if(!canEdit){ BPUI.toast("Ask an admin or manager to create this event's group.",{type:"info"}); return; }
+    // confirm-1018 #2: the shared picker lists team, staff, vendors and the client and really adds them (0194)
+    if(window.HelmEventGroupPicker){ await HelmEventGroupPicker.open(q,{canEdit, onDone:()=>{ loadEventGroups().then(()=>render()); }}); return; }
     let me=null; try{ me=(BPStore.auth.user()||{}).id||(await BPStore.chat.me()).id; }catch(_){}
     try{ egPeople=(await BPStore.chat.roster()).filter(p=>p.id&&p.id!==me); }catch(_){ egPeople=[]; }
     // pre-tick the admins/owners + the staff already assigned to this event (matched by name)

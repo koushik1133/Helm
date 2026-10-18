@@ -94,7 +94,7 @@
 <link rel="stylesheet" href="booklet-share.css?v=2">
 <link rel="stylesheet" href="pkg-review.css?v=1">
 <link rel="stylesheet" href="share-checklist.css?v=2">
-<link rel="stylesheet" href="theme.css?v=81">
+<link rel="stylesheet" href="event-group-picker.css?v=1"><link rel="stylesheet" href="theme.css?v=81">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <script src="/shell-proto.js?v=24" id="shellProto"></script>
@@ -190,7 +190,7 @@
 <script src="email-send.js?v=1"></script><script src="share-checklist.js?v=11"></script>
 <script src="booklet-share.js?v=9"></script>
 <script src="pkg-review.js?v=5"></script>
-<script src="event-group-picker.js?v=2"></script>
+<script src="event-group-picker.js?v=3"></script><script src="approval-watch.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -315,6 +315,19 @@
       closureSummary.profit=Math.round((closureSummary.profit+billsDelta)*100)/100;
       closureSummary.pct=closureSummary.rev?Math.round(closureSummary.profit/closureSummary.rev*100):null; }
     render();   // re-paint with the loaded summaries
+    startApprovalWatch();
+  }
+  // confirm-1018 #3: the client approving on their link shows here without a reload (~15 s poll while visible)
+  let apprWatch=null;
+  function startApprovalWatch(){
+    if(apprWatch || !window.HelmApprovalWatch || !ev) return;
+    apprWatch=HelmApprovalWatch.start({
+      ids:()=>ev?HelmApprovalWatch.pending([ev]):[],
+      known:()=>ev?{status:ev.status, approvalStatus:ev.approvalStatus}:null,
+      onChange:async()=>{ try{ const fresh=await BPStore.quotes.get(id); if(fresh) ev=fresh; }catch(_){ return; }
+        egInfo=undefined; render();
+        try{ readySummary=await BPStore.readiness.check(id); render(); }catch(_){} }
+    });
   }
 
   // qts-1018: ONE status label (BPStore.quoteStatus - the same words as the Quotes list): status +
