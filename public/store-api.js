@@ -285,6 +285,21 @@ window.HelmUrl = HelmUrl;
     p.then(done, done);
     return p;
   }
+  // 0202: areas a studio on its FREE TRIAL never gets (photo renders, checklist templates, activity log), whatever
+  // the saved role matrix says - admins included. Status-based (my_trial_status().status = 'trial', the same as the
+  // server's _is_trial_org); one shared call per page. The server refuses the same things (0173 / 0181 / 0202).
+  const TRIAL_OFF_AREAS = { photo_render: 1, templates: 1, audit: 1 };
+  let trialSubInflight = null;
+  function inFreeTrial() {
+    if (mode !== "supabase" || !supa || !currentUser) return Promise.resolve(false);
+    if (!trialSubInflight) {
+      const p = Promise.resolve(swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; })))
+        .then((t) => !!(t && t.status === "trial"), () => false);
+      trialSubInflight = p;
+      p.then(() => { setTimeout(() => { if (trialSubInflight === p) trialSubInflight = null; }, 30000); });
+    }
+    return trialSubInflight;
+  }
   // 0183 (post-trial policy 1 / 6 / 10): true when this studio's free trial ended unpaid — the studio is then
   // READ-ONLY for everyone (owner + invited members) until it upgrades. The database refuses every change
   // (hint 'trial_ended'); this only lets the edit helpers below answer "no" so pages show view-only screens.
@@ -1742,6 +1757,7 @@ window.HelmUrl = HelmUrl;
     async canView(area) {
       if (mode !== "supabase") return true;          // single-user offline/server mode
       if (!currentUser) return false;
+      if (TRIAL_OFF_AREAS[area] && (await inFreeTrial())) return false;   // 0202: not part of the free trial
       const r = await getRole();
       if (r === "admin") return true;                // admin: full floor
       const acc = await loadAccess();
@@ -1761,6 +1777,7 @@ window.HelmUrl = HelmUrl;
       if (!currentUser) return false;
       const [r, ro] = await Promise.all([getRole(), studioReadOnly()]);
       if (ro) return false;                          // 0183: read-only after the free trial (admins too)
+      if (TRIAL_OFF_AREAS[area] && (await inFreeTrial())) return false;   // 0202: not part of the free trial
       if (r === "admin") return true;
       const acc = await loadAccess();
       if (acc.unknown) return false;

@@ -1183,7 +1183,7 @@
     if (!doc.body || notes.some(function (n) { return n.id === o.id; })) return null;
     css();
     if (!noteHost || !noteHost.isConnected) { noteHost = el("div", { class: "hau-notes", "aria-label": "Notices" }); doc.body.appendChild(noteHost); }
-    var card = el("div", { class: "hau-note" + (o.tone ? " " + o.tone : "") + (o.compact ? " compact dock-left" : ""), id: o.id, role: o.role || "status", "aria-labelledby": o.id + "T" });
+    var card = el("div", { class: "hau-note" + (o.tone ? " " + o.tone : "") + (o.compact ? " compact" + (o.dock === false ? "" : " dock-left") : ""), id: o.id, role: o.role || "status", "aria-labelledby": o.id + "T" });
     var ic = el("div", { class: "hau-note-ic" }); ic.appendChild(svgIcon(o.icon)); card.appendChild(ic);
     var mid = el("div", null);
     mid.appendChild(el("p", { class: "hau-note-t", id: o.id + "T" }, o.title));
@@ -1205,6 +1205,16 @@
     notes.push({ id: o.id, priority: o.priority || 9, node: card });
     layoutNotes();
     watchModals(); syncNotesForModal();
+    // non-blocking notices fold away by themselves (not while the pointer / focus is on them)
+    if (o.autoHideMs > 0) (function tick() {
+      setTimeout(function () {
+        if (!card.isConnected) return;
+        var busy = false; try { busy = card.matches(":hover") || card.contains(doc.activeElement); } catch (e) {}
+        if (busy) { tick(); return; }
+        if (o.onAutoHide) { try { o.onAutoHide(); } catch (e) {} }
+        hideNote(o.id);
+      }, o.autoHideMs);
+    })();
     return card;
   }
   function hideNote(id) {
@@ -1282,6 +1292,8 @@
         if (st.auth.mfa.requiredForAdmins()) return forceEnroll();
         var dismissed = noteSnoozed("mfa");
         if (dismissed || banner) return;
+        // 0202: never in the free trial (the trial studio is sample data; the strip is the only notice)
+        if (doc.documentElement.classList.contains("helm-trial")) return;
         // at most once per browser session, and never on top of a tour step
         var SK = "hau_mfa_nudge_session";
         try { if (global.sessionStorage && sessionStorage.getItem(SK)) return; } catch (e) {}
@@ -1290,15 +1302,31 @@
           if (banner) return;
           if (tourActive() && tries++ < 200) { setTimeout(waitTour, 3000); return; }
           if (tourActive()) return;
-          try { if (global.sessionStorage) sessionStorage.setItem(SK, "1"); } catch (e) {}
-          showMfaNudge();
+          inTrialStudio().then(function (t) {
+            if (t || banner) return;
+            try { if (global.sessionStorage) sessionStorage.setItem(SK, "1"); } catch (e) {}
+            showMfaNudge();
+          });
         }
         setTimeout(waitTour, 2500);
       });
     }).catch(function () {});
   }
+  // 0202: is the signed-in studio on its free trial? (the server's answer via trial-lock.js; false when unknown)
+  function inTrialStudio() {
+    try {
+      if (global.HelmTrialLock && typeof global.HelmTrialLock.whenKnown === "function") return global.HelmTrialLock.whenKnown().then(function (v) { return v === true; }, function () { return false; });
+      var st = S();
+      if (st && st.subscription && typeof st.subscription.trial === "function")
+        return Promise.resolve(st.subscription.trial()).then(function (t) { return !!(t && t.status === "trial"); }, function () { return false; });
+    } catch (e) {}
+    return Promise.resolve(false);
+  }
   function showMfaNudge() {
-        banner = showNote({ id: "hauMfaNudge", priority: 2, icon: "shield", title: "Turn on two-step verification",
+        // 0202: compact and non-blocking - it stays in the notice stack (never over the page's own docked notices),
+        // shows once per browser session and folds away by itself after 20 s
+        banner = showNote({ id: "hauMfaNudge", priority: 2, icon: "shield", compact: true, dock: false, autoHideMs: 20000,
+          onAutoHide: function () { banner = null; }, title: "Turn on two-step verification",
           body: "Admins control every user and setting — protect your studio with a code from your phone.",
           primary: { label: "Set up now", onClick: function () { openAccount(); } },
           secondary: { label: "Later", onClick: function () { snoozeNote("mfa", 3); banner = null; } },

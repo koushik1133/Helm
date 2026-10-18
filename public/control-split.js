@@ -151,6 +151,13 @@
   function show(key, opts){
     var s=BYKEY[key]; if(!s) return;
     if(locked(key)){   // direct link to a section the free trial does not include
+      // 0202: go to the first section the trial does include (once the tabs are known) and say why
+      var to=firstOpen();
+      if(to && to!==key && !locked(to) && available(BYKEY[to])){
+        wanted=to; setHash(SECHASH[to]);
+        try{ if(window.HelmTrialLock && HelmTrialLock.note) HelmTrialLock.note(s.label+" is not part of the free trial."); }catch(e){}
+        show(to,opts); return;
+      }
       current=key; cards.forEach(function(c){ c.classList.add("cs-off"); });
       hT.textContent=s.label; hD.textContent="Not available in the free trial.";
       main.setAttribute("data-cs-cur",key); clearTimeout(emptyTimer); emptyTimer=null;
