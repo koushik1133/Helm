@@ -192,6 +192,21 @@
     return parts.join(" ");
   }
 
+  // r19 L7: the reserved sample / placeholder number of the free-trial sample data ("+91 00000 00211"; the
+  // server's "never deliverable" marker is the last 10 digits starting 00000, 0166 / 0167 _sample_safe_phone).
+  // Its national part starts with zeros, so the trunk-zero rule read it as "211" (shown "+91 211", refused as
+  // "too short") and an untouched sample vendor / staff row could not be saved. Typing can't produce it (the
+  // field drops leading zeros as you type), so it only ever arrives as a value that is already stored: it is
+  // shown as stored and accepted unchanged. → {iso, code, national, e164} or null
+  function samplePlaceholder(raw) {
+    var s = String(raw == null ? "" : raw).trim();
+    if (s.charAt(0) !== "+") return null;
+    var d = digits(s);
+    if (d.length < 11 || d.length > 15 || d.slice(-10).indexOf("00000") !== 0) return null;
+    var m = matchDial(d, "IN");
+    if (!m || m.national !== d.slice(-10)) return null;
+    return { iso: m.country.iso, code: m.code, national: m.national, e164: "+" + d };
+  }
   function stripTrunk(d, iso) { return (d.charAt(0) === "0" && !KEEP_ZERO[iso]) ? d.replace(/^0+/, "") : d; }
   function toE164(iso, national) {
     var c = country(iso); var d = digits(national);
@@ -202,6 +217,8 @@
   // "+919876543210" → "+91 98765 43210"
   function display(e164, fallbackIso) {
     if (!e164) return "";
+    var sp = samplePlaceholder(e164);
+    if (sp) return "+" + sp.code + " " + format(sp.national, sp.iso);
     var p = parse(e164, fallbackIso);
     return "+" + p.code + " " + format(p.national, p.iso);
   }
@@ -209,6 +226,8 @@
   // validate(value, {mobile, required, country}) → {ok, e164, error, empty}
   function validate(value, opts) {
     var o = opts || {};
+    var sp = (value && typeof value === "object") ? null : samplePlaceholder(value);
+    if (sp) return { ok: true, e164: sp.e164, sample: true };
     var p = (value && typeof value === "object") ? value : parse(value, o.country);
     var c = country(p.iso) || BY_ISO.IN, nat = digits(p.national);
     if (!nat) return o.required ? { ok: false, empty: true, error: o.requiredMsg || "Please enter a phone number." } : { ok: true, empty: true, e164: "" };
@@ -265,7 +284,7 @@
 
   var API = {
     COUNTRIES: COUNTRIES, FORMATS: FORMATS, flag: flag, country: country, parse: parse, format: format,
-    toE164: toE164, display: display, validate: validate, setDefaultCountry: setDefaultCountry,
+    toE164: toE164, display: display, validate: validate, setDefaultCountry: setDefaultCountry, samplePlaceholder: samplePlaceholder,
     defaultCountry: function () { return defaultIso; }, example: example, mask: mask, maxNational: maxNational,
     placePopup: placePopup,
   };
@@ -404,8 +423,12 @@
     // blanked just by being displayed — zero-data-loss); typing or picking a country
     // switches the field to E.164.
     var pristine = "", dirty = false;
+    // r19 L7: the untouched stored sample placeholder ("+91 00000 00211") - shown as stored, valid as it is
+    function keptSample() { return !dirty && pristine ? samplePlaceholder(pristine) : null; }
     function setFrom(raw, byUser) {
       if (!byUser) { pristine = String(raw == null ? "" : raw).trim(); dirty = false; } else dirty = true;
+      var sp = byUser ? null : samplePlaceholder(raw);
+      if (sp) { iso = sp.iso; paint(); show(sp.national); return; }
       var p = parse(raw, iso);
       if (String(raw || "").trim()) iso = p.iso;
       paint(); show(p.national);
@@ -422,9 +445,12 @@
 
     // live typing: allow digits, spaces, - ( ) and a leading +; re-format; keep the caret
     input.addEventListener("input", function () {
+      var fromSample = !!keptSample();
       dirty = true;
       var raw = NATIVE.get.call(input);
       var caret = input.selectionStart == null ? raw.length : input.selectionStart;
+      // first edit of a shown sample placeholder ("00000 00211"): its zeros are not a "00" country prefix
+      if (fromSample && /^[\s0]*0/.test(raw)) { var cut = raw.match(/^[\s0]*/)[0].length; raw = raw.slice(cut); caret = Math.max(0, caret - cut); NATIVE.set.call(input, raw); }
       var before = digits(raw.slice(0, caret)).length;
       if (/^\s*(\+|00)/.test(raw)) {
         var dd = digits(raw.replace(/^\s*00/, "+"));
@@ -518,6 +544,7 @@
     }
     function choose(newIso) {
       var d = nat();
+      if (keptSample()) d = stripTrunk(d, newIso);   // leaving the stored placeholder: same rule as typing
       iso = newIso; userPicked = true; dirty = true; paint(); show(d);
       close(false);
       try { input.focus(); } catch (e) {}
@@ -545,8 +572,8 @@
       setCountry: function (c) { if (country(c)) { iso = country(c).iso; dirty = true; paint(); show(nat()); } },
       setDefault: function (c) { if (!userPicked && !nat() && country(c)) { iso = country(c).iso; paint(); } },
       national: nat,
-      e164: function () { var d = nat(); return d ? toE164(iso, d) : ""; },
-      validate: function (extra) { var x = extra || {}; return validate({ iso: iso, national: nat() }, { mobile: x.mobile != null ? x.mobile : mobile, required: x.required != null ? x.required : (input.required || input.getAttribute("aria-required") === "true") }); },
+      e164: function () { var ks = keptSample(); if (ks) return ks.e164; var d = nat(); return d ? toE164(iso, d) : ""; },
+      validate: function (extra) { var x = extra || {}; if (keptSample()) return validate(pristine); return validate({ iso: iso, national: nat() }, { mobile: x.mobile != null ? x.mobile : mobile, required: x.required != null ? x.required : (input.required || input.getAttribute("aria-required") === "true") }); },
       display: function () { var d = nat(); return d ? "+" + country(iso).code + " " + format(d, iso) : ""; },
     };
     input.helmPhone = inst;
