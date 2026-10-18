@@ -3,8 +3,12 @@
 .vn-tools input[type=search]{flex:1 1 200px;min-width:0}
 .vn-tools select{max-width:100%}
 .vn-chk{display:inline-flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap}
-.vn-unit{display:inline-flex;gap:0}
-.vn-unit .btn.on{background:var(--ink,#111);color:var(--panel,#fff)}
+/* Metres / Feet: one segmented control. Two separate bordered, rounded buttons with no gap overlapped each
+   other and could squeeze "Feet" in a wrapping toolbar; :not(#_) out-ranks the app-wide .btn look. */
+.vn-unit{display:inline-flex;flex:none;align-items:center;gap:2px;padding:2px;border:1px solid var(--line,#ddd);border-radius:10px;background:var(--panel-2,#f4f4f5);white-space:nowrap}
+.vn-unit:not(#_) .btn{flex:none;min-width:max-content;height:30px;min-height:0;padding:0 12px;margin:0;border:0;border-radius:8px;background:transparent;color:var(--ink-2,#333);box-shadow:none;white-space:nowrap;line-height:30px}
+.vn-unit:not(#_) .btn:hover{color:var(--ink,#111);background:var(--panel,#fff)}
+.vn-unit:not(#_) .btn.on,.vn-unit:not(#_) .btn.on:hover{background:var(--ink,#111);color:var(--panel,#fff)}
 .vn-list{display:grid;gap:10px}
 .vn-card{border:1px solid var(--line,#ddd);border-radius:10px;padding:10px 12px;background:var(--panel,#fff)}
 .vn-card.off{opacity:.65}

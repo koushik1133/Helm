@@ -94,7 +94,8 @@
   var qi=el("input"); qi.id="csSearch"; qi.type="search"; qi.autocomplete="off";
   qi.setAttribute("aria-controls","csResults"); qi.setAttribute("aria-keyshortcuts","Control+K Meta+K /");
   qi.setAttribute("role","combobox"); qi.setAttribute("aria-autocomplete","list"); qi.setAttribute("aria-expanded","false"); qi.spellcheck=false;
-  qi.placeholder="Search settings, roles, pages\u2026";
+  // short placeholder: the 232px side column cut the longer "Search settings, roles, pages..." mid-word
+  qi.placeholder="Search settings\u2026"; qi.title="Search settings, roles and pages"; qi.setAttribute("aria-description","Finds settings, roles and pages");
   var mac=/Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent||"");
   var rl=el("div","cs-results"); rl.id="csResults"; rl.setAttribute("role","listbox"); rl.setAttribute("aria-label","Matching settings"); rl.hidden=true;
   var live=el("div","sr-only"); live.setAttribute("role","status"); live.setAttribute("aria-live","polite"); live.id="csLive";
@@ -143,6 +144,7 @@
       g.appendChild(a);
       var o=el("option",null,s.label); o.value=s.key; if(s.key===current) o.selected=true; og.appendChild(o);
     });
+    paintDirty();   // keep the "unsaved" dots after a redraw
   }
   msel.addEventListener("change",function(){ var k=msel.value; wanted=k; setHash(SECHASH[k]); show(k); });
   function show(key, opts){
@@ -152,7 +154,7 @@
       hT.textContent=s.label; hD.textContent="Not available in the free trial.";
       main.setAttribute("data-cs-cur",key); clearTimeout(emptyTimer); emptyTimer=null;
       empty.textContent="Not available in the free trial. Your trial comes set up with sample data, so this setting is fixed. Upgrade to change it."; empty.hidden=false;
-      drawNav(); return;
+      drawNav(); afterShow(); return;
     }
     if(!available(s)){ key=available(BYKEY.general)?"general":firstOpen(); s=BYKEY[key]; }
     if(current!==key){ clearTimeout(emptyTimer); emptyTimer=null; }
@@ -160,7 +162,7 @@
     var t=tabFor(s.pane); if(t && !t.classList.contains("active")) t.click();
     cards.forEach(function(c){ c.classList.toggle("cs-off", c.getAttribute("data-cs-sec")!==key); });
     hT.textContent=s.label; hD.textContent=s.desc; main.setAttribute("data-cs-cur",key); refreshEmpty();
-    drawNav(); clearHL();
+    drawNav(); clearHL(); afterShow();
     try{ localStorage.setItem("helm.cs.sec",key); }catch(e){}
     if(!(opts&&opts.noScroll)){ try{ main.scrollIntoView({block:"start"}); }catch(e){} }
   }
@@ -347,22 +349,106 @@
   })();
   window.HelmControlSearch={ entries:entries, open:function(v){ q.value=v||""; q.focus(); search(); } };
 
-  // ---- unsaved-changes bar: shows only after the user edits a field in a card ----
-  var dirty=null;
+  // ---- unsaved-changes bar, per section ----
+  // A field is "changed" only when the user really changed it: its value is compared with the value it had
+  // when the user first touched it (focus / pointer), so the page's own form filling after a load, browser
+  // autofill and synthetic events never count, and typing a value back to what it was clears it again.
+  // The bar shows only for the section on screen; other sections with unsaved edits get a dot in the nav.
+  // Saving (a Save button in that card) takes the current values as the new baseline.
+  var base=new WeakMap(), dirtyCards=new Set(), lastField=new WeakMap();
+  var unload=(window.BPUI&&BPUI.trackDirty)?BPUI.trackDirty():null;   // shared beforeunload warning while anything is unsaved
   function cardOf(t){ var c=t&&t.closest&&t.closest("[data-cs-sec]"); return c&&cards.indexOf(c)>=0?c:null; }
-  function saveBtn(c){ var bs=c.querySelectorAll("button"); for(var i=0;i<bs.length;i++){ if(/^\s*save\b/i.test(bs[i].textContent)&&!bs[i].hidden) return bs[i]; } return null; }
+  function isSave(b){ return !!b && !b.hidden && /^\s*save\b/i.test(b.textContent||""); }
+  function saveBtn(c,near){
+    var n=near&&near.parentElement;
+    while(n && c.contains(n)){ var bs=n.querySelectorAll("button"); for(var i=0;i<bs.length;i++){ if(isSave(bs[i])) return bs[i]; } if(n===c) break; n=n.parentElement; }
+    var all=c.querySelectorAll("button"); for(var j=0;j<all.length;j++){ if(isSave(all[j])) return all[j]; } return null;
+  }
+  function isField(t){ return !!t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) && t!==q && t!==msel && !/^(button|submit|reset|hidden|file|image)$/i.test(t.type||""); }
+  function fval(f){
+    if(f.type==="checkbox"||f.type==="radio") return f.checked?"1":"0";
+    if(f.tagName==="SELECT"&&f.multiple) return Array.prototype.filter.call(f.options,function(o){ return o.selected; }).map(function(o){ return o.value; }).join("\u0001");
+    return String(f.value);
+  }
+  function group(f){   // a radio is compared with its whole group, so picking A, then B, then A again is clean
+    if(f.type!=="radio"||!f.name) return [f];
+    var c=cardOf(f)||document; return Array.prototype.filter.call(c.querySelectorAll("input[type=radio]"),function(r){ return r.name===f.name; });
+  }
+  function touch(f){ if(!isField(f)||!cardOf(f)) return; group(f).forEach(function(g){ if(!base.has(g)) base.set(g,fval(g)); }); }
+  function fieldsOf(n){ return Array.prototype.filter.call(n.querySelectorAll("input,select,textarea"),isField); }
+  function changed(f){ return base.has(f) && base.get(f)!==fval(f); }
+  function recheck(c){
+    var d=!!saveBtn(c) && fieldsOf(c).some(changed);
+    if(d) dirtyCards.add(c); else dirtyCards.delete(c);
+  }
+  function rebase(n){ fieldsOf(n).forEach(function(f){ base.set(f,fval(f)); }); }
+  function dirtyIn(key){ var out=[]; dirtyCards.forEach(function(c){ if(!document.contains(c)){ dirtyCards.delete(c); return; } if(c.getAttribute("data-cs-sec")===key) out.push(c); }); return out; }
+  function paintDirty(){
+    if(!dirtyCards) return;   // a deep link can open a section before this part of the file has run
+    var mine=current?dirtyIn(current):[];
+    if(mine.length){ barTxt.textContent="Unsaved changes in "+(mine.length===1?(h3(mine[0])||"this section"):mine.length+" cards on this page"); bar.hidden=false; }
+    else bar.hidden=true;
+    var secs={}; dirtyCards.forEach(function(c){ secs[c.getAttribute("data-cs-sec")]=1; });
+    Array.prototype.forEach.call(nav.querySelectorAll("a[data-sec]"),function(a){
+      var on=!!secs[a.dataset.sec]&&a.dataset.sec!==current;
+      a.classList.toggle("cs-unsaved",on); if(on) a.title="Unsaved changes in this section"; else a.removeAttribute("title");
+    });
+    if(unload){ if(dirtyCards.size) unload.mark(); else unload.clean(); }
+  }
+  function onTouch(e){
+    var t=e.target; if(!t||!t.closest) return;
+    if(t.tagName==="LABEL"&&t.control) t=t.control; else if(!isField(t)){ var l=t.closest("label"); if(l&&l.control) t=l.control; }
+    touch(t);
+  }
+  main.addEventListener("focusin",onTouch,true); main.addEventListener("pointerdown",onTouch,true);
   function onEdit(e){
-    if(!e.isTrusted) return; var t=e.target; if(!t||!/INPUT|SELECT|TEXTAREA/.test(t.tagName)||t===q||t===msel) return;
-    var c=cardOf(t); if(!c||!saveBtn(c)) return;
-    dirty=c; barTxt.textContent="Unsaved changes in "+(h3(c)||"this section"); bar.hidden=false;
+    if(!e.isTrusted) return; var t=e.target; if(!isField(t)) return;
+    var c=cardOf(t); if(!c) return;
+    if(changed(t)) lastField.set(c,t);
+    recheck(c); paintDirty();
   }
   main.addEventListener("input",onEdit); main.addEventListener("change",onEdit);
-  main.addEventListener("click",function(e){ var b=e.target.closest&&e.target.closest("button"); if(b&&dirty&&dirty.contains(b)&&/^\s*save\b/i.test(b.textContent)){ dirty=null; bar.hidden=true; } });
-  bDis.addEventListener("click",function(){ dirty=null; bar.hidden=true; });
-  bGo.addEventListener("click",function(){ if(!dirty) return; var b=saveBtn(dirty); if(!b) return;
-    if(dirty.classList.contains("cs-off")) show(dirty.getAttribute("data-cs-sec"),{noScroll:true});
+  // a failed save (an error appears right after the click) puts the edits back to "unsaved"
+  function errNodes(c){ var out=Array.prototype.slice.call(c.querySelectorAll(".msg.err,[role=alert]")); MSGS.forEach(function(m){ out=out.concat(Array.prototype.slice.call(m.querySelectorAll(".err,[role=alert]"))); }); return out; }
+  main.addEventListener("click",function(e){
+    var b=e.target.closest&&e.target.closest("button"); if(!b||!isSave(b)) return; var c=cardOf(b); if(!c) return;
+    var n=b.parentElement; while(n && n!==c && !fieldsOf(n).length) n=n.parentElement;   // the part of the card this Save belongs to
+    var scope=n&&c.contains(n)?n:c, before=errNodes(c), snap=fieldsOf(scope).map(function(f){ return [f,base.has(f)?base.get(f):undefined]; });
+    rebase(scope); recheck(c); paintDirty();
+    [700,1800,4000].forEach(function(ms){ setTimeout(function(){
+      if(!snap) return; var fresh=errNodes(c).filter(function(x){ return before.indexOf(x)<0; }); if(!fresh.length) return;
+      snap.forEach(function(p){ if(p[1]===undefined) base.delete(p[0]); else base.set(p[0],p[1]); }); snap=null; recheck(c); paintDirty();
+    },ms); });
+  });
+  bDis.addEventListener("click",function(){ if(!current) return; dirtyIn(current).forEach(function(c){ rebase(c); dirtyCards.delete(c); }); paintDirty(); });
+  bGo.addEventListener("click",function(){ var d=current?dirtyIn(current)[0]:null; if(!d) return; var b=saveBtn(d,lastField.get(d)); if(!b) return;
     try{ b.scrollIntoView({block:"center",behavior:"smooth"}); }catch(x){} try{ b.focus({preventScroll:true}); }catch(x){}
-    dirty.classList.add("cs-flash"); var d=dirty; setTimeout(function(){ d.classList.remove("cs-flash"); },1600); });
+    d.classList.add("cs-flash"); setTimeout(function(){ d.classList.remove("cs-flash"); },1600); });
+
+  // ---- status messages belong to the section that caused them ----
+  // #msg / #umsg / #nmsg sit above the cards and are shared by every section of their pane, so "Package saved."
+  // (Menus) used to stay on screen on Layout rules. Each message is tagged with the section whose button was
+  // used last; it only shows on that section, and leaving the section drops a success note (errors wait there).
+  var actionSec=null, MSGS=["msg","umsg","nmsg"].map(function(id){ return document.getElementById(id); }).filter(Boolean);
+  main.addEventListener("click",function(e){ var c=cardOf(e.target); if(c) actionSec=c.getAttribute("data-cs-sec"); },true);
+  function paintMsgs(leaving){
+    if(!MSGS) return;
+    MSGS.forEach(function(m){
+      var tag=m.getAttribute("data-cs-msg"); if(!m.firstChild){ m.removeAttribute("data-cs-msg"); m.classList.remove("cs-off"); return; }
+      if(!tag) return;
+      if(tag===current){ m.classList.remove("cs-off"); return; }
+      if(leaving && !m.querySelector(".err,[role=alert]")){ m.textContent=""; m.removeAttribute("data-cs-msg"); m.classList.remove("cs-off"); return; }
+      m.classList.add("cs-off");
+    });
+  }
+  MSGS.forEach(function(m){
+    new MutationObserver(function(){
+      if(m.firstChild) m.setAttribute("data-cs-msg",actionSec||current||"");
+      paintMsgs(false);
+    }).observe(m,{childList:true,subtree:true,characterData:true});
+  });
+  var shownSec=null;
+  function afterShow(){ if(!MSGS) return; var leaving=shownSec!=null&&shownSec!==current; shownSec=current; paintMsgs(leaving); paintDirty(); }
 
   // tabs are revealed asynchronously by role checks: redraw the nav when that happens
   if(tabs) new MutationObserver(function(){ drawNav(); if(current && !available(BYKEY[current]) && !locked(current)) show("general",{noScroll:true}); else if(!fromHash() && wanted && wanted!==current && available(BYKEY[wanted])) show(wanted,{noScroll:true}); })

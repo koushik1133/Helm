@@ -208,12 +208,12 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=1">
 <link rel="stylesheet" href="comms-settings.css?v=2">
-<link rel="stylesheet" href="venues.css?v=3">
+<link rel="stylesheet" href="venues.css?v=4">
 <link rel="stylesheet" href="studio-templates.css?v=1">
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<link rel="stylesheet" href="control-split.css?v=7">
+<link rel="stylesheet" href="control-split.css?v=8">
 <script src="/shell-proto.js?v=23" id="shellProto"></script>
 </head>
 <body>
@@ -365,7 +365,10 @@
         <div class="fld"><label for="p_svc">Service charge % (optional)</label><input id="p_svc" type="number" min="0" step="0.5"></div>
         <div class="fld"><label for="p_layout" id="p_layout_lbl">Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="1" placeholder="0"></div>
         <div class="fld"><label for="p_buffer">Venue booking gap (hours)</label><input id="p_buffer" type="number" min="0" step="0.5" placeholder="3" title="Two events at the same venue on the same day that start closer together than this many hours are flagged as a clash on the calendar. A bigger gap (e.g. one ends 3pm, next starts 6pm) is fine."></div>
-        <div class="fld"><label for="p_country">Country (tax, currency &amp; phone codes)</label><select id="p_country" title="Same setting as Country in Studio details: sets the tax name, default rate, currency and phone country code for NEW quotes."></select><p class="mnote" id="p_countryNote" role="status" aria-live="polite"></p></div>
+        <div class="fld" id="p_country_fld"><span class="p-clbl" id="p_country_lbl" title="Sets the tax name, default rate, currency and phone country code for new quotes">Country (tax &amp; currency)</span>
+          <!-- one source of truth: the country is set in General (Studio details); Pricing only shows it -->
+          <p class="p-cro" id="p_countryRO" aria-labelledby="p_country_lbl"><b id="p_countryName">India</b> <button type="button" class="p-cgo" id="p_countryGo">Change in General</button><span class="p-ctrial">Set for the free trial</span></p>
+          <select id="p_country" hidden aria-hidden="true" tabindex="-1" title="Same setting as Country in Studio details: sets the tax name, default rate, currency and phone country code for NEW quotes."></select><p class="mnote" id="p_countryNote" role="status" aria-live="polite"></p></div>
         <div class="fld" id="p_region_fld" hidden><label for="p_region" id="p_region_lbl">State</label><input id="p_region" maxlength="60" list="p_region_list" autocomplete="off"><datalist id="p_region_list"></datalist></div>
       </div>
       <div class="actions"><button type="button" class="btn primary" id="savePricing">Save pricing</button></div>
@@ -773,7 +776,7 @@
 <script src="trial-demo.js?v=7"></script>
 <script src="settings-search-core.js?v=1"></script>
 <script src="search-catalog.js?v=2"></script>
-<script src="control-split.js?v=12"></script>
+<script src="control-split.js?v=13"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -902,6 +905,7 @@
     const HC=window.HelmCountry, rf=$("#p_region_fld"), showRegion=!!HC && (r.country==="AE"||r.country==="US");
     if(rf){ rf.hidden=!showRegion; if(showRegion){ const m=HC.formMeta(r.country); $("#p_region_lbl").textContent=m.regionLabel+(r.country==="US"?" (sets the default sales-tax rate)":"");
       const dl=$("#p_region_list"); if(dl.dataset.cc!==r.country){ dl.dataset.cc=r.country; dl.textContent=""; m.regions.forEach(x=>{ const o=document.createElement("option"); o.value=x.name; if(x.rate!=null) o.label=x.name+" - "+x.rate+"%"; dl.appendChild(o); }); } } }
+    { const nm=$("#p_countryName"); if(nm) nm.textContent=r.countryName||T.profile(r.country).name||r.country; }
     $("#p_taxNote").textContent=(r.split?"India: CGST + SGST within your state, IGST for other states. Common rates 18% / 5%.":p.rate==null?"Set the "+r.name.toLowerCase()+" rate that applies to you (no default).":"Default "+r.name+" rate "+p.rate+"%.")+" Prices in "+r.currency+".";
   }
   // B3: the country / region currently picked in the pricing form (falls back to the saved config)
@@ -1006,6 +1010,9 @@
       `<input id="ip_${esc(type)}" type="number" min="0" step="1" data-type="${esc(type)}" placeholder="${def}" value="${ap[type]!=null&&Number.isFinite(Number(ap[type]))?Number(ap[type]):''}"></div>`
     ).join("");
   }
+  // the country lives in General: this jumps there (control-split.js shows the section on #general)
+  $("#p_countryGo").addEventListener("click",()=>{ try{ if(location.hash==="#general") window.dispatchEvent(new HashChangeEvent("hashchange")); else location.hash="#general"; }catch(e){}
+    setTimeout(()=>{ const c=$("#o_country"); if(c && c.offsetParent){ try{ c.scrollIntoView({block:"center"}); c.focus({preventScroll:true}); }catch(e){} } },80); });
   $("#p_country").addEventListener("change",()=>{ if($("#p_region")) $("#p_region").value=""; onPricingCountry(false); });
   $("#p_region").addEventListener("change",()=>onPricingCountry(true));
   $("#savePricing").addEventListener("click",()=>BPUI.guard($("#savePricing"),async()=>{
@@ -1340,7 +1347,7 @@
     const on=$("#lx_on").checked, n=lxDays(), ex=$("#lx_example"), st=$("#lx_state");
     // explicit Enabled / Disabled state next to the switch (+ a hint while it isn't saved yet)
     st.className="lxstate"+(on?" on":"");
-    st.innerHTML=(on?"Enabled":"Disabled")+(lxLoaded&&on!==lxSavedOn?' <small>— not saved yet</small>':"");
+    st.innerHTML=(on?"Enabled":"Disabled")+(lxLoaded&&on!==lxSavedOn?' <small>Not saved yet</small>':"");
     $("#lx_on").setAttribute("aria-checked", on?"true":"false");
     $("#lx_days").disabled=!on;
     $("#lx_days").setAttribute("aria-invalid", on && n==null ? "true" : "false");
