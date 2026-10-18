@@ -322,7 +322,9 @@ do $$ declare missing text; begin perform pg_temp.su();
                            'welcome_email_outbox',  -- 0057: system welcome outbox (triggers + service role only)
                            'a155_admin_created',  -- 0155: system record of admin-created accounts (release must work for a suspended creator)
                            'privacy_pin_attempts',  -- 0157: wrong-PIN counter (unlocking must work for a read-only studio)
-                           'studio_payment_gate')  -- 0159: system marker written by create_studio; no API grants (paying must lift it)
+                           'studio_payment_gate',  -- 0159: system marker written by create_studio; no API grants (paying must lift it)
+                           'wa_proposal_optins', 'wa_proposal_audit',  -- 0151: append-only consent/audit log, definer + service role only (must record refused attempts too)
+                           'helm_sample_template', 'trial_sample_runs')  -- 0166: HQ sample-master config + system seeding log; no client grants
      and not exists (select 1 from pg_trigger t where t.tgrelid = c.oid and t.tgname = 'zzz_studio_read_only');
   perform pg_temp.res('54 every studio table has the read-only guard', missing is null, missing);
 end $$;
