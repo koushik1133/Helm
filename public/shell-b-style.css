@@ -37,9 +37,12 @@ html[data-shell="b"][data-theme="dark"] .btn.danger, html[data-shell="b"][data-t
 html[data-shell="b"] .btn:disabled, html[data-shell="b"] .btn[disabled] { opacity: .45; }
 
 /* 3. Links */
-html[data-shell="b"] main a:not(.btn):not([class*="nav"]):not([class*="tab"]):not([class*="chip"]),
-html[data-shell="b"] .card a:not(.btn) { color: var(--hb-acc-text); text-decoration: none; }
-html[data-shell="b"] main a:not(.btn):hover, html[data-shell="b"] .card a:not(.btn):hover { text-decoration: underline; text-underline-offset: 2px; }
+html[data-shell="b"] main a:not(.btn):not(.ob-cta):not([class*="nav"]):not([class*="tab"]):not([class*="chip"]),
+html[data-shell="b"] .card a:not(.btn):not(.ob-cta) { color: var(--hb-acc-text); text-decoration: none; }
+html[data-shell="b"] main a:not(.btn):not(.ob-cta):hover, html[data-shell="b"] .card a:not(.btn):not(.ob-cta):hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* on-accent link CTAs (dashboard "Resume setup"): accent fill + on-accent ink in every theme */
+html[data-shell="b"] a.ob-cta { background: var(--hb-acc); color: var(--hb-acc-ink); }
 
 /* 4. Cards / panels / modals */
 html[data-shell="b"] .card, html[data-shell="b"] .panel, html[data-shell="b"] .modal,

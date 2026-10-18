@@ -149,7 +149,28 @@
     const when = shortDate(q.eventDate || q.event_date || c.eventDate);
     return (who ? lbl + " for " + who : lbl) + (when ? " · " + when : "");
   }
-  const api = { TYPES, LEGACY_CODES, NAME_MAX, HINT, displayName, validateName, CITIES, LABELS, typeCode, cityCode, cityFromText, dateCode, guestsCode, format, fromQuote, isAuto, unique, label, shortDate, friendlyTitle };
+  /* one shared event-type dropdown list (flow "Event type", leads, quotes filter). Custom studio
+     entries live in localStorage helm_vocab_event_types (added when a new type is saved). */
+  const EVENT_TYPE_LIST = ["Wedding","Reception","Engagement","Sangeet","Birthday","Anniversary","Corporate","Conference","Concert","Festival","Exhibition","Product launch","Political","Gala dinner","Seminar","Workshop","Religious / Puja","House warming","Baby shower","Get-together"];
+  const EVENT_TYPE_LIST_AE = ["Wedding","Engagement","Henna night","Gala dinner","Corporate","Conference","Exhibition","Product launch","Iftar","Suhoor","Eid celebration","National Day celebration","Birthday","Anniversary","Concert","Festival","Award ceremony","Seminar","Workshop","Baby shower","Get-together"];
+  function vocabExtra() { try { const a = JSON.parse((root && root.localStorage && root.localStorage.getItem("helm_vocab_event_types")) || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string") : []; } catch (e) { return []; } }
+  function eventTypeOptions(country, current, extra) {
+    const out = [], seen = {};
+    const push = (v) => { v = String(v == null ? "" : v).trim(); const k = v.toLowerCase(); if (v && !seen[k]) { seen[k] = 1; out.push(v); } };
+    (country === "AE" ? EVENT_TYPE_LIST_AE : EVENT_TYPE_LIST).forEach(push);
+    (extra || vocabExtra()).forEach(push);
+    if (current) push(canonEventType(current, country, extra));   // a saved custom value is never dropped
+    return out;
+  }
+  /* case/space-insensitive match to a list entry ("wedding " -> "Wedding"); otherwise the trimmed custom text */
+  function canonEventType(v, country, extra) {
+    const raw = String(v == null ? "" : v).trim().replace(/\s+/g, " "); if (!raw) return "";
+    const k = raw.toLowerCase();
+    const all = EVENT_TYPE_LIST.concat(EVENT_TYPE_LIST_AE, extra || vocabExtra());
+    for (const t of all) if (String(t).trim().toLowerCase() === k) return String(t).trim();
+    return raw;
+  }
+  const api = { EVENT_TYPE_LIST, EVENT_TYPE_LIST_AE, eventTypeOptions, canonEventType, TYPES, LEGACY_CODES, NAME_MAX, HINT, displayName, validateName, CITIES, LABELS, typeCode, cityCode, cityFromText, dateCode, guestsCode, format, fromQuote, isAuto, unique, label, shortDate, friendlyTitle };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (root) root.HelmEventName = api;
 })(typeof window !== "undefined" ? window : null);

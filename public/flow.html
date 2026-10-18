@@ -369,8 +369,8 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
-<script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=237"></script>
+<script src="event-name.js?v=7"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=238"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=21"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -390,14 +390,15 @@
   // ---- Cluster C: "pick or add custom" vocab for the event-type & requirement
   // dropdowns. Defaults + any custom entries the user adds (persisted, so they
   // show in the dropdown next time). ----
-  const EVENT_TYPE_DEFAULTS=["Wedding","Reception","Engagement","Sangeet","Birthday","Anniversary","Corporate","Conference","Concert","Festival","Exhibition","Product launch","Political","Gala dinner","Seminar","Workshop","Religious / Puja","House warming","Baby shower","Get-together"];
+  const EVENT_TYPE_DEFAULTS=(window.HelmEventName&&HelmEventName.EVENT_TYPE_LIST)||["Wedding"];   // ONE shared list (event-name.js)
   const REQ_DEFAULTS=["Stage & lighting","Sound / PA","Catering","Décor & flowers","Photography","Videography","Seating & tables","Power / generator","Security","Valet parking","Entertainment / DJ","Transport","Accommodation","LED wall / screens","Invitations","Makeup & styling","Fireworks"];
   const CONCEPT_DEFAULTS=["Royal Mughal","Beach / Destination","Garden / Outdoor","Minimalist Modern","Traditional South Indian","Bollywood Glam","Vintage / Rustic","Fairytale / Floral","Corporate Elegant","Boho Chic"];
   const THEME_DEFAULTS=["Gold & maroon","Pastel florals","Royal blue & silver","Rustic greenery","Black & gold","Blush & rose gold","Tropical","Candlelight & drapes","Monochrome white"];
   // UAE audit (0102): a UAE studio gets Gulf event types / concepts; no political rally, no puja / sangeet defaults
-  const EVENT_TYPE_AE=["Wedding","Engagement","Henna night","Gala dinner","Corporate","Conference","Exhibition","Product launch","Iftar","Suhoor","Eid celebration","National Day celebration","Birthday","Anniversary","Concert","Festival","Award ceremony","Seminar","Workshop","Baby shower","Get-together"];
+  const EVENT_TYPE_AE=(window.HelmEventName&&HelmEventName.EVENT_TYPE_LIST_AE)||EVENT_TYPE_DEFAULTS;
   const CONCEPT_AE=["Arabian Nights","Modern Arabic majlis","Desert / Bedouin camp","Beach / Destination","Garden / Outdoor","Minimalist Modern","Corporate Elegant","Fairytale / Floral","Ramadan lanterns","UAE National Day (flag colours)"];
   const flowCountry=()=>{ try{ return (window.BPStore&&BPStore.studioTax&&BPStore.studioTax().country)||"IN"; }catch(_){ return "IN"; } };
+  const canonType=(v)=>window.HelmEventName&&HelmEventName.canonEventType ? HelmEventName.canonEventType(v, flowCountry(), vocabExtra("event_types")) : String(v||"").trim();
   const vocabDefaults=(k)=> k==="event_types"?(flowCountry()==="AE"?EVENT_TYPE_AE:EVENT_TYPE_DEFAULTS) : k==="reqs"?REQ_DEFAULTS : k==="concepts"?(flowCountry()==="AE"?CONCEPT_AE:CONCEPT_DEFAULTS) : k==="themes"?THEME_DEFAULTS : [];
   function vocabExtra(k){ try{ return JSON.parse(localStorage.getItem("helm_vocab_"+k)||"[]"); }catch(e){ return []; } }
   function vocabAll(k){ return [...new Set([...vocabDefaults(k), ...vocabExtra(k)])]; }
@@ -405,7 +406,9 @@
     if(vocabAll(k).map(x=>x.toLowerCase()).includes(val.toLowerCase())) return;
     const e=vocabExtra(k); e.push(val); try{ localStorage.setItem("helm_vocab_"+k,JSON.stringify(e)); }catch(_){}}
   function fillVocab(){
-    const et=document.getElementById("eventTypeList"); if(et) et.innerHTML=vocabAll("event_types").map(v=>`<option value="${esc(v)}"></option>`).join("");
+    const ctEl=document.getElementById("c_type");
+    const etOpts=window.HelmEventName&&HelmEventName.eventTypeOptions ? HelmEventName.eventTypeOptions(flowCountry(), ctEl&&ctEl.value, vocabExtra("event_types")) : vocabAll("event_types");
+    const et=document.getElementById("eventTypeList"); if(et) et.innerHTML=etOpts.map(v=>`<option value="${esc(v)}"></option>`).join("");
     const rq=document.getElementById("reqTypeList");    if(rq) rq.innerHTML=vocabAll("reqs").map(v=>`<option value="${esc(v)}"></option>`).join("");
     const cn=document.getElementById("conceptList");    if(cn) cn.innerHTML=vocabAll("concepts").map(v=>`<option value="${esc(v)}"></option>`).join("");
     const th=document.getElementById("themeList");      if(th) th.innerHTML=vocabAll("themes").map(v=>`<option value="${esc(v)}"></option>`).join("");
@@ -619,6 +622,7 @@
       state:$("#c_state").value||null,
       eventDate:$("#c_date").value||null });
     try{
+      $("#c_type").value=canonType($("#c_type").value);   // save the canonical list spelling ("wedding" -> "Wedding")
       const row=await BPStore.quotes.updateMeta(id,{ client, eventType:$("#c_type").value.trim()||null, eventDate:$("#c_date").value||null }, ev.updatedAt);
       ev.client=client; if(row&&row.updated_at) ev.updatedAt=row.updated_at;   // refresh optimistic-lock base
       ev.eventType=$("#c_type").value.trim()||null; if(row&&row.title!=null) ev.title=row.title; renderName();
@@ -1293,7 +1297,7 @@
     $("#openBuilder").href="builder.html?quote="+encodeURIComponent(id)+"&from=flow";
     const cl=ev.client||{};
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
-    $("#c_phone").value=cl.phone||""; $("#c_type").value=ev.eventType||""; $("#c_date").value=cl.eventDate||ev.eventDate||"";
+    $("#c_phone").value=cl.phone||""; $("#c_type").value=canonType(ev.eventType||""); fillVocab(); $("#c_date").value=cl.eventDate||ev.eventDate||"";
     $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_city").value=typeof cl.city==="string"?cl.city:"";
     fillClientStates(cl);
     $("#g_guests").value=cl.guests!=null?cl.guests:""; $("#q_guestsRo").value=cl.guests!=null?cl.guests:"";

@@ -281,8 +281,8 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
-<script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=237"></script><script src="quote-state.js?v=2"></script>
+<script src="event-name.js?v=7"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=238"></script><script src="quote-state.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=15"></script>
 <script>
@@ -1024,7 +1024,8 @@
     const byLower={};
     let all=[]; try{ all=await BPStore.quotes.eventTypes(); }catch(e){ all=quotes.map(x=>x.eventType); }
     all.filter(Boolean).forEach(t=>{
-      const k=t.toLowerCase();
+      t=String(t).trim(); if(window.HelmEventName&&HelmEventName.canonEventType) t=HelmEventName.canonEventType(t)||t;   // same spelling as the shared dropdown list
+      const k=t.toLowerCase(); if(!k) return;
       if(!byLower[k] || (t[0]===t[0].toUpperCase() && byLower[k][0]!==byLower[k][0].toUpperCase())) byLower[k]=t;
     });
     const types=Object.values(byLower).sort((a,b)=>a.localeCompare(b));

@@ -73,7 +73,7 @@ assert.match(js, /store\.items = fam \? buildEventDefault\(fam, N\) : TEMPLATES\
 const bh = rd('public/builder.html');
 assert.match(bh, /<option value="product_launch">Corporate \/ product launch<\/option>/);
 assert.match(bh, /<option value="political">Political \/ rally<\/option>/);
-assert.match(rd('public/flow.html'), /"Product launch","Political"/);
+assert.match(rd('public/event-name.js'), /"Product launch","Political"/);
 for (const f of ['public/builder.html', 'public/capture.html']) { const h = rd(f);
   assert.match(h, /builder\.js\?v=67/, f); assert.match(h, /builder-3d\.js\?v=24/, f); assert.match(h, /capture-frame\.js\?v=12/, f); }
 
