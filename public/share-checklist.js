@@ -79,7 +79,17 @@
   function when(t) { const d = new Date(t); if (!t || isNaN(d.getTime())) return ""; try { return d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return d.toISOString().slice(0, 10); } }
 
   async function hasSelectedPackage(quoteId) {
-    try { const p = global.BPStore.plan && await global.BPStore.plan.get(quoteId); return !!(p && (p.menu_template || p.package)); } catch (e) { return false; }
+    // only a package actually APPLIED to this quote (event_plan.menu_template naming a real package) counts -
+    // the free-text "Package" note is not a selection, and the server (booklet menu.mode) uses the same rule
+    try {
+      const p = global.BPStore.plan && await global.BPStore.plan.get(quoteId);
+      const name = p && typeof p.menu_template === "string" ? p.menu_template.trim() : "";
+      if (!name) return false;
+      const M = global.BPStore.menuTemplates;
+      if (!M || typeof M.list !== "function") return true;
+      const list = await M.list();
+      return Array.isArray(list) ? list.some((t) => t && t.name === name) : true;
+    } catch (e) { return false; }
   }
   // 0083: the pictures come from the builder ("Update client images" / auto-capture), stored in the
   // database in two styles. kind '2d' | '3d', variant 'labels' | 'plain'.
