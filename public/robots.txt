@@ -45,6 +45,9 @@ Allow: /trusted-types.js
 Allow: /legal.css
 Allow: /legal.js
 Allow: /og.png
+Allow: /og/
+Allow: /icon-
+Allow: /site.webmanifest
 Allow: /favicon
 Allow: /apple-touch-icon.png
 Allow: /llms.txt
