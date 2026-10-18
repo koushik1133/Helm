@@ -288,7 +288,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script><script src="quote-state.js?v=2"></script><script src="quote-rates.js?v=2"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script><script src="quote-state.js?v=2"></script><script src="quote-rates.js?v=2"></script><script src="venue-suggest.js?v=1"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=15"></script>
 <script>
@@ -609,6 +609,9 @@
 
   /* ---------- confirm / pricing modal ---------- */
   let cmChairsSeed="", cmId=null, cmConfig=null, cmVendors=[], cmCoupons=[], platesEdited=false;
+  // the studio's saved venues as a dropdown on the Venue field (free text still works); a pick fills an empty address
+  const cmVenueSug=(window.HelmVenueSuggest&&HelmVenueSuggest.attach($("#c_venue"),{address:$("#c_address")}))||null;
+  let cmVenueAtOpen="";
   async function openConfirm(id){
     $("#cm_err").hidden=true;
     // qmodal-1018: always read the quote fresh - a copy cached earlier in this page's life (version list, an
@@ -648,7 +651,7 @@
     // client: the quote's client record, else the copy inside its pricing / the list row (qmodal-1018)
     const row=(Array.isArray(quotes)?quotes:[]).find(x=>x&&x.id===id)||null, mc=HelmQuoteRates.clientFor(full,row,planRow);
     $("#c_name").value=mc.name; $("#c_company").value=mc.company; $("#c_email").value=mc.email;
-    $("#c_phone").value=mc.phone; $("#c_date").value=mc.eventDate; $("#c_venue").value=mc.venue;
+    $("#c_phone").value=mc.phone; $("#c_date").value=mc.eventDate; $("#c_venue").value=mc.venue; cmVenueAtOpen=$("#c_venue").value.trim();
     $("#c_address").value=mc.address; $("#c_notes").value=mc.notes; $("#c_state").value=mc.state; $("#c_trn").value=mc.trn;
     const cl=full.client||{};
     // effective rates (qmodal-1018): the applied package's CURRENT price wins for the plate (the plan only keeps the price
@@ -730,7 +733,15 @@
     return { name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
       phone:$("#c_phone").value.trim(), eventDate:$("#c_date").value, venue:$("#c_venue").value.trim(),
       address:$("#c_address").value.trim(), notes:$("#c_notes").value.trim(), state:$("#c_state").value.trim().slice(0,60),
-      ...($("#trnFld").hidden ? {} : { trn:String($("#c_trn").value||"").replace(/\s+/g,"").slice(0,20) }) };
+      ...($("#trnFld").hidden ? {} : { trn:String($("#c_trn").value||"").replace(/\s+/g,"").slice(0,20) }), ...venueLink() };
+  }
+  // venue changed in this dialog: link the saved venue it names (same keys as the flow's venue picker),
+  // or drop an old link when a different, hand-typed venue was entered. Unchanged venue -> link untouched.
+  function venueLink(){
+    const txt=$("#c_venue").value.trim();
+    if(txt===cmVenueAtOpen) return {};
+    const v=cmVenueSug&&cmVenueSug.match();
+    return v ? { venueId:v.id, venueName:v.name } : { venueId:null, venueName:null };
   }
   // inline checks on the counts + discount %: whole numbers 0–100,000 / a percent 0–100.
   // While any is invalid "Confirm & lock" stays disabled (Save pricing re-checks on click).

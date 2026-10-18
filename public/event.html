@@ -59,6 +59,7 @@
   .mod .h{display:flex;align-items:center;gap:10px} .mod .h .ic{font-size:22px;flex:0 0 auto} .mod .h b{font-size:15px}
   .mod .sum{color:var(--ink-2);font-size:13px;flex:1} .mod .sum .big{font-family:var(--mono);font-weight:700;color:var(--ink)}
   .mod .act{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+  .mod .sum .lockwhy{margin-top:6px;font-size:12px}
   .mod.reco{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   /* more-tools toggle */
   .moretog{display:flex;justify-content:center;margin:4px 0 16px}
@@ -228,6 +229,7 @@
     vendors:"vendors",runsheet:"runsheet",command:"command",issues:"issues",readycheck:"ready",logistics:"logistics",closure:"closure",
     media:"media",settle:"settlement",teardown:"inventory",budget:"finance",resourceplan:"resources",inventory:"inventory"};
   let cardDenied=new Set();
+  let canEditPlan=false, menuCount=0;   // workspace menu lock: plan edit right + selected dish count
   let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   let hdrChange=null;   // qts-1018: this event's approved change-order sum (null = not read yet)
@@ -252,6 +254,7 @@
     canEdit = await BPStore.auth.canEditArea("quotes");   // rbac-1030: follow the access matrix (was the role cap list)
     canFin  = await BPStore.auth.canView("finance");             // gates the Total + money cards
     canPipe = await BPStore.auth.canView("pipeline");            // gates the discovery/proposal cards
+    canEditPlan = await BPStore.auth.canEditArea("plan").catch(()=>false);   // "Lock menu" on the Venue & menu card (server: set_plan_lock needs plan edit)
     // 0143 role audit: each tool card shows only when the role can VIEW that tool's own area
     // (its page gate + RLS use the same key), so no card opens onto a "No access" page.
     { const keys=Object.keys(CARD_AREA); const ok=await Promise.all(keys.map(k=>BPStore.auth.canView(CARD_AREA[k]).catch(()=>false)));
@@ -288,6 +291,7 @@
         runSummary={ total:rs.length, first: wt.length?wt[0].start_time.slice(0,5):null }; }),
       S(async()=>{ budgetSummary=await BPStore.budget.summary(id); }),
       S(async()=>{ planSummary=await BPStore.plan.get(id); }),
+      S(async()=>{ const m=await BPStore.eventMenu.list(id); menuCount=(m||[]).length; }),
       S(async()=>{ const g=await BPStore.checklist.list(id,"guests");
         const guests=g.reduce((a,x)=>a+Number(x.qty||0),0);
         logiSummary={ guests }; }),   // money due lives once, on the Payments & invoice card
@@ -508,6 +512,15 @@
     const menuLocked = !!(planSummary && planSummary.menu_locked);
     const menuGate = (preConfirm && !menuLocked && ev.status!=='confirmed')
       ? `<div class="stat q" style="display:block;background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn-text);margin:6px 0 0;padding:5px 8px;border-radius:7px">⚠️ Lock the menu first — pricing depends on the menu mix.</div>` : "";
+    // Make the next step obvious: a direct "Lock menu" on the card (plan editors, something chosen to lock,
+    // not while the client must re-approve a changed price - the server refuses that lock). Nothing chosen yet
+    // -> "Open details" jumps straight to the menu section (#menu) instead.
+    const menuChosen = !!(planSummary && (planSummary.package || planSummary.menu)) || menuCount>0;
+    const canLockMenu = canEditPlan && !menuLocked && menuChosen && !staleInfo && ev.status!=="cancelled";
+    const planHref = "plan.html?quote="+encodeURIComponent(id)+(menuLocked?"":"#menu");
+    const menuNext = menuLocked ? ""
+      : canLockMenu ? `<div class="muted lockwhy">Locking fixes the package and dishes the price is based on. You can unlock it later in details.</div>`
+      : (canEditPlan && !menuChosen) ? `<div class="muted lockwhy">Pick a package or add dishes in details, then lock the menu.</div>` : "";
     const discSum = discSummary && (discSummary.total || (discSummary.disc))
       ? `${discSummary.total} requirement${discSummary.total===1?"":"s"}${discSummary.must?` · <b>${discSummary.must} must-have${discSummary.must===1?"":"s"}</b>`:""}${budgetRange()?` · budget ${budgetRange()}`:""}`
       : "Meet the client and capture requirements &amp; budget.";
@@ -517,8 +530,10 @@
       { key:"discovery", ic:"🔎", title:"Discovery & requirements", sum:discSum,
         acts:[{t: canEdit?"Open discovery":"View discovery", href:"discovery.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"plandetails", ic:"🏛", title:"Venue & menu",
-        sum: planSummary && (planSummary.venue_name||planSummary.package||planSummary.menu) ? `${planSummary.venue_name?esc(planSummary.venue_name):"Venue set"}${planSummary.package?` · ${esc(planSummary.package)}`:""} ${planSummary.menu_locked?'<span class="stat ok">Menu locked</span>':'<span class="stat q">Draft</span>'}${menuGate}` : `${menuGate}Set the venue, access and lock the menu/package — decided before pricing.`,
-        acts:[{t: canEdit?"Open details":"View details", href:"plan.html?quote="+encodeURIComponent(id), primary:true}] },
+        sum: planSummary && (planSummary.venue_name||planSummary.package||planSummary.menu) ? `${planSummary.venue_name?esc(planSummary.venue_name):"Venue set"}${planSummary.package?` · ${esc(planSummary.package)}`:""} ${menuLocked?'<span class="stat ok">🔒 Locked</span>':'<span class="stat q">Draft</span>'}${menuGate}${menuNext}` : `${menuGate}Set the venue, access and lock the menu/package — decided before pricing.${menuNext}`,
+        acts: canLockMenu
+          ? [{t:"🔒 Lock menu", act:"lockmenu", primary:true}, {t:"Open details", href:planHref}]
+          : [{t: canEdit?"Open details":"View details", href:planHref, primary:true}] },
       { key:"proposal", ic:"🎨", title:"Proposal & mood-board",
         sum: propSummary ? `${propSummary.published?'<span class="stat ok">Published</span>':'<span class="stat q">Draft</span>'} · ${(propSummary.scope&&propSummary.scope.length)||0} scope item${(propSummary.scope&&propSummary.scope.length)===1?"":"s"}${(propSummary.images&&propSummary.images.length)?` · ${propSummary.images.length} image${propSummary.images.length===1?"":"s"}`:""}` : "Compose a shareable concept &amp; mood-board.",
         acts:[{t: canEdit?"Open proposal":"View proposal", href:"proposal.html?quote="+encodeURIComponent(id), primary:true}] },
@@ -594,7 +609,7 @@
       return `<div class="mod ${reco}"><div class="h"><span class="ic">${c.ic}</span><b>${c.title}</b>${reco?'<span class="stat q" style="margin-left:auto">Next</span>':""}</div>
         ${DESC[c.key]?`<div class="desc">${esc(descLine(c.key))}</div>`:""}
         <div class="sum">${c.sum}</div>
-        <div class="act">${c.acts.map(a=>`<a class="btn ${a.primary?'primary':''}" href="${a.href}">${a.t}</a>`).join("")}</div></div>`;
+        <div class="act">${c.acts.map(a=>a.act?`<button type="button" class="btn ${a.primary?'primary':''}" data-act="${esc(a.act)}">${esc(a.t)}</button>`:`<a class="btn ${a.primary?'primary':''}" href="${a.href}">${a.t}</a>`).join("")}</div></div>`;
     };
     // Stage-focused view: show the modules recommended for the current stage first, and tuck the
     // rest under a collapsible "More tools" section. Falls back to showing everything when the
@@ -621,6 +636,27 @@
     $("#mods").innerHTML=html;
     setMoreToggle(rest.length?{showAll, count:rest.length}:null);
   }
+  // Venue & menu card: lock the menu right here (same server call as the details page: set_plan_lock).
+  // Only the event's own menu is locked - the studio's package / dish catalog is untouched (so this
+  // works the same in a free-trial studio, whose catalog is fixed but whose event menus stay editable).
+  async function lockMenuFromCard(btn){
+    if(!canEditPlan || (planSummary && planSummary.menu_locked)) return;
+    const ok=await BPUI.confirm("Locking fixes this event's package and dishes, so the quote is priced on them. You can unlock it later in Venue & menu details.",{title:"Lock the menu?",okLabel:"Lock menu"});
+    if(!ok) return;
+    await BPUI.guard(btn, async()=>{
+      try{
+        const row=await BPStore.plan.setLock(id, true);
+        try{ planSummary=await BPStore.plan.get(id); }catch(_){ planSummary=Object.assign({}, planSummary||{}, row&&typeof row==="object"?row:{}, {menu_locked:true}); }
+        BPUI.toast("Menu locked.",{type:"ok"});
+        render();
+        try{ readySummary=await BPStore.readiness.check(id); render(); }catch(_){}
+      }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"lock the menu"}),{type:"err"}); }
+    },{busyLabel:"Locking…"});
+  }
+  $("#mods").addEventListener("click",(e)=>{
+    const b=e.target && e.target.closest ? e.target.closest('[data-act="lockmenu"]') : null;
+    if(!b) return; e.preventDefault(); lockMenuFromCard(b);
+  });
   // Manage the "Show all tools / Show less" toggle that sits just under the module grid.
   function setMoreToggle(state){
     const grid=$("#mods"); let bar=$("#moreToggle");
