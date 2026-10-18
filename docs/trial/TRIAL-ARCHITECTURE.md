@@ -247,3 +247,13 @@ Roll back: `select public.set_current_sample_manifest(1);`.
 update public.helm_sample_template set active = true where id;
 ```
 OFF again: `... set active = false where id;` (new trials then get the old built-in demo seed).
+
+### Sample dataset v2 (0168, `supabase/APPLY-0168.sql`, run after APPLY-0166-0167)
+Owner venues replace the 4 v1 venues in the master (same rows, updated by old name; INR per day, dummy contacts):
+Grand Convention Centre, Hitec City (convention centre) · Green Meadows Lawn · Royal Banquet Hall · Square Garden Pavilion, Gachibowli.
+Events now use them (SMP-1000/1001 Royal Banquet Hall, SMP-1002 Square Garden, SMP-1003 Grand Convention Centre).
+Studio payment terms (app_config `pricing`): advance 30 %, balance due 3 days before the event, payment note.
+Sample milestones: 30 % advance + 70 % balance due event date - 3.
+The manifest now also stores `studio` (currency, timezone, country, payment terms); `_sample_clone_into` (wrapper over
+`*__pre0168`) gives every cloned trial INR + Asia/Kolkata + IN + those terms + the master's 11 item rate cards
+(the builder's 2D/3D palette itself is shipped in code, so every studio has all products). Published as manifest v2.

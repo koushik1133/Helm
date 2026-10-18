@@ -63,7 +63,7 @@ $$;
 do $$ declare m public.helm_trial_seed_manifest; begin
   perform pg_temp.su();
   select * into m from public.helm_trial_seed_manifest where is_current;
-  perform pg_temp.res('01 manifest v1 published + current', m.version = 1 and m.source_org = 'a5a5a5a5-0166-4000-8000-000000000001');
+  perform pg_temp.res('01 manifest v2 (0168) published + current, v1 kept', m.version = 2 and exists (select 1 from public.helm_trial_seed_manifest v where v.version = 1 and not v.is_current) and m.source_org = 'a5a5a5a5-0166-4000-8000-000000000001');
   perform pg_temp.res('02 switch still OFF', not (select active from public.helm_sample_template where id));
   perform pg_temp.res('03 dataset size (40 items, 10 staff, 8 vendors, 4 venues, 6 packages, 30 dishes, 8 leads, 4 events)',
     (m.counts ->> 'inventory_items')::int = 40 and (m.counts ->> 'crew_members')::int = 10 and (m.counts ->> 'vendors')::int = 8
@@ -178,12 +178,12 @@ do $$ declare c uuid; d uuid; e uuid; r jsonb; begin
     not exists (select 1 from public.inventory_items where org_id = c and name like '%HALF EDIT%')
     and exists (select 1 from public.inventory_items where org_id = c and name = E'Demo \u00b7 Napkins (cloth)'));
   r := public.publish_sample_manifest('test v2');
-  perform pg_temp.res('41 publish makes v2 current', (r ->> 'version')::int = 2
-    and (select version from public.helm_trial_seed_manifest where is_current) = 2
+  perform pg_temp.res('41 publish makes v3 current', (r ->> 'version')::int = 3
+    and (select version from public.helm_trial_seed_manifest where is_current) = 3
     and (select count(*) from public.helm_trial_seed_manifest where is_current) = 1, r::text);
   d := pg_temp.trial('mf_d@t.test');
   perform pg_temp.res('42 after publish the edit reaches NEW trials', exists (select 1 from public.inventory_items where org_id = d and name like '%HALF EDIT%')
-    and (select sample_version from public.organizations where id = d) = 2);
+    and (select sample_version from public.organizations where id = d) = 3);
   perform pg_temp.res('43 existing trials are never re-seeded', not exists (select 1 from public.inventory_items where org_id = c and name like '%HALF EDIT%'));
   perform public.set_current_sample_manifest(1);
   -- and the dates of a version follow ITS anchor: move v1's anchor 2 days back
