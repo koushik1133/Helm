@@ -126,3 +126,7 @@ html.try-swap .viewport{animation:tryFade .42s var(--try-ease)}
   .try-pill,.try-cta,.try-cta-i,.try-btn,.try-modes button,.try-units button{transition:none}
   .try-tray,html.try-swap .viewport{animation:none}
 }
+
+/* SEO: the header wordmark is a <p>, not a second <h1> (one h1 per page) */
+.brand .brand-h{font-size:14px;font-weight:700;margin:0;letter-spacing:-.01em;white-space:nowrap;line-height:1.1}
+@media (max-width:1280px){.brand .brand-h{font-size:13px}}

@@ -200,7 +200,7 @@ t('TEL-01: Sentry beforeSend + beforeBreadcrumb scrub request URL, Referer, tran
 });
 
 /* ------------------------------------------------------------------ FILE-01 */
-const ALLOWED_EXT = new Set(['.html', '.js', '.css', '.png', '.webp', '.ico', '.svg', '.woff2', '.txt', '.xml', '.jpg', '.jpeg', '.gif', '.mp4', '.webm']);
+const ALLOWED_EXT = new Set(['.html', '.js', '.css', '.png', '.webp', '.ico', '.svg', '.woff2', '.txt', '.xml', '.jpg', '.jpeg', '.gif', '.mp4', '.webm', '.webmanifest']);
 const ALLOWED_EXTRA = new Set(['_headers', 'vendor/README.md', '.well-known/security.txt']);   // must be .vercelignored if not servable
 const FORBIDDEN = /(\.(md|map|sql|bak|env|log|orig|swp|zip|tgz|gz|pem|key|sqlite|db)$)|(^|\/)\.env|(^|\/)\.DS_Store$|~$/i;
 function walk(dir) {

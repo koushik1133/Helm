@@ -15,16 +15,17 @@ function stripComments(s) { let prev; do { prev = s; s = s.replace(/<!--[\s\S]*?
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'public', 'builder.html');
 const OUT = join(ROOT, 'public', 'try.html');
-const TRY_JS_V = 9, TRY_CSS_V = 7;
+const TRY_JS_V = 9, TRY_CSS_V = 8;
+
+// SEO head for /try (title, description, canonical, icons, Open Graph, JSON-LD)
+const TRY_HEAD = "<title>Try the Event Layout Planner — Helm Events</title>\n<meta name=\"description\" content=\"Try the Helm Events layout planner free: move tables, stages and decor on a ready-made wedding plan, measure in metres or feet, then view it in 3D. No sign-up.\">\n<link rel=\"canonical\" href=\"https://www.helm.events/try\">\n<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"48x48\">\n<link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">\n<link rel=\"apple-touch-icon\" href=\"/apple-touch-icon.png\">\n<link rel=\"manifest\" href=\"/site.webmanifest\">\n<meta name=\"theme-color\" content=\"#0d8a5c\">\n<meta property=\"og:type\" content=\"website\">\n<meta property=\"og:site_name\" content=\"Helm Events\">\n<meta property=\"og:locale\" content=\"en_IN\">\n<meta property=\"og:title\" content=\"Try the Event Layout Planner — Helm Events\">\n<meta property=\"og:description\" content=\"Try the Helm Events layout planner free: move tables, stages and decor on a ready-made wedding plan, measure in metres or feet, then view it in 3D. No sign-up.\">\n<meta property=\"og:url\" content=\"https://www.helm.events/try\">\n<meta property=\"og:image\" content=\"https://www.helm.events/og/helm-og.png\">\n<meta property=\"og:image:width\" content=\"1200\">\n<meta property=\"og:image:height\" content=\"630\">\n<meta property=\"og:image:alt\" content=\"Helm Events — event management software\">\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n<meta name=\"twitter:title\" content=\"Try the Event Layout Planner — Helm Events\">\n<meta name=\"twitter:description\" content=\"Try the Helm Events layout planner free: move tables, stages and decor on a ready-made wedding plan, measure in metres or feet, then view it in 3D. No sign-up.\">\n<meta name=\"twitter:image\" content=\"https://www.helm.events/og/helm-og.png\">\n<script type=\"application/ld+json\">{\"@context\": \"https://schema.org\", \"@graph\": [{\"@type\": \"Organization\", \"@id\": \"https://www.helm.events/#org\", \"name\": \"Helm Events\", \"alternateName\": [\"Helm\", \"HELM\", \"helm.events\"], \"url\": \"https://www.helm.events/\", \"logo\": {\"@type\": \"ImageObject\", \"url\": \"https://www.helm.events/icon-512.png\", \"width\": 512, \"height\": 512}, \"image\": \"https://www.helm.events/og/helm-og.png\", \"email\": \"info@helm.events\", \"sameAs\": [], \"contactPoint\": [{\"@type\": \"ContactPoint\", \"contactType\": \"sales\", \"email\": \"sales@helm.events\"}, {\"@type\": \"ContactPoint\", \"contactType\": \"customer support\", \"email\": \"support@helm.events\"}]}, {\"@type\": \"WebSite\", \"@id\": \"https://www.helm.events/#website\", \"name\": \"Helm Events\", \"alternateName\": \"Helm\", \"url\": \"https://www.helm.events/\", \"publisher\": {\"@id\": \"https://www.helm.events/#org\"}, \"inLanguage\": \"en\"}, {\"@type\": \"BreadcrumbList\", \"itemListElement\": [{\"@type\": \"ListItem\", \"position\": 1, \"name\": \"Home\", \"item\": \"https://www.helm.events/\"}, {\"@type\": \"ListItem\", \"position\": 2, \"name\": \"Try the planner\", \"item\": \"https://www.helm.events/try\"}]}]}</script>";
 
 export function buildTry(src) {
   let h = src;
   const must = (re, to, what) => { if (!re.test(h)) throw new Error('gen-try: builder.html changed — cannot find ' + what); h = h.replace(re, to); };
   must(/<html lang="en" data-theme="light" class="auth-pending">/, '<html lang="en" data-theme="light" class="helm-sandbox">', '<html class="auth-pending">');
   must(/<style id="bp-auth-gate">[^<]*<\/style>\n/, '', 'the auth-gate style');
-  must(/<title>[^<]*<\/title>/, '<title>Try the planner · Helm Events</title>\n'
-    + '<meta name="description" content="Move tables, stages and decor on a ready-made wedding plan, measure it in metres or feet, then orbit it in 3D. No sign-up.">\n'
-    + '<link rel="canonical" href="https://www.helm.events/try">', '<title>');
+  must(/<title>[^<]*<\/title>/, () => TRY_HEAD, '<title>');
   // the builder's inline theme script → try.js (head, runs before store-api.js)
   must(/<script>\s*\/\* Pin the builder[\s\S]*?<\/script>\n/, '<script src="/try.js?v=' + TRY_JS_V + '"></script>\n', 'the inline theme script');
   h = h.replace(/<link rel="(?:preconnect|dns-prefetch)" href="https:\/\/[a-z0-9]+\.supabase\.co"[^>]*>\n/g, '');
@@ -32,6 +33,8 @@ export function buildTry(src) {
   must(/(<link rel="stylesheet" href="\/builder-v2\.css\?v=\d+">)/, '$1\n<link rel="stylesheet" href="/try.css?v=' + TRY_CSS_V + '">', 'builder-v2.css');
   must(/<a class="brand" href="dashboard\.html" title="Back to your events">/, '<a class="brand" href="/" title="Back to helm.events">', 'the brand link');
   must(/<small>← All events<\/small>/, '<small>← helm.events</small>', 'the brand subtitle');
+  // one <h1> per page (SEO): the sandbox's h1 is the banner title, so the wordmark becomes a <p> (styled in try.css)
+  must(/<div class="brand-txt"><h1>Helm Events<\/h1>/, '<div class="brand-txt"><p class="brand-h">Helm Events</p>', 'the brand wordmark');
   must(/(<a class="skip-link" href="#main">Skip to content<\/a>\n)/, '$1' + BANNER, 'the skip link');
   // no telemetry, no Supabase config, no photo render in the sandbox
   must(/<script src="telemetry\.js\?v=\d+"><\/script>\n/, '', 'telemetry.js');
