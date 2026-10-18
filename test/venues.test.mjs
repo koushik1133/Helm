@@ -39,7 +39,8 @@ t('warnings: guests over capacity', () => {
   assert.ok(V.warnings(lawn, { guests: 2500 }).some((w) => w.code === 'capacity' && w.level === 'warn'));
   assert.ok(!V.warnings(lawn, { guests: 1500 }).some((w) => w.code === 'capacity'));
   assert.ok(V.warnings(hall, { guests: 500 }).some((w) => w.code === 'capacity_seated'));
-  assert.ok(V.warnings(hall, { guests: 800 }).some((w) => w.code === 'capacity'));
+  assert.ok(V.warnings(hall, { guests: 800 }).some((w) => w.code === 'capacity_seated'));   // 450 seated + 700 floating = 1150 (owner 2026-10)
+  assert.ok(V.warnings(hall, { guests: 1200 }).some((w) => w.code === 'capacity'));
 });
 t('warnings: event type not allowed', () => {
   assert.ok(V.warnings(hall, { eventType: 'Concert / live music' }).some((w) => w.code === 'event_type'));
@@ -65,12 +66,12 @@ t('cost text in lakh', () => {
 t('pages wire the venue scripts (no inline), store-api v=157', () => {
   const cc = read('public/control.html');
   assert.match(cc, /id="tab-venues"[^>]*hidden/); assert.match(cc, /id="pane-venues" hidden/);
-  assert.match(cc, /<script src="venues-core\.js\?v=5"><\/script>\s*<script src="venues-admin\.js\?v=4"><\/script>/);
+  assert.match(cc, /<script src="venues-core\.js\?v=7"><\/script>\s*<script src="venues-admin\.js\?v=7"><\/script>/);
   for (const p of ['flow.html', 'builder.html']) {
     const h = read('public/' + p);
-    assert.match(h, /<script src="venues-core\.js\?v=5"><\/script>\s*<script src="venue-picker\.js\?v=4"><\/script>/, p);
-    assert.match(h, /venues\.css\?v=3/, p);
-    assert.match(h, /store-api\.js\?v=244/, p);
+    assert.match(h, /<script src="venues-core\.js\?v=7"><\/script>\s*<script src="venue-picker\.js\?v=4"><\/script>/, p);
+    assert.match(h, /venues\.css\?v=6/, p);
+    assert.match(h, /store-api\.js\?v=247/, p);
   }
   for (const f of ['venues-core.js', 'venue-picker.js', 'venues-admin.js']) {
     const js = read('public/' + f);
@@ -100,7 +101,7 @@ t('linked venue on the client JSON: flow + builder', () => {
   assert.match(f, /venueId:vid, venueName:vnm, setting:vs/, 'saveVenue persists the link + setting');
   assert.match(f, /cl\.venueId[\s\S]{0,400}HelmVenuePicker\.sync\(\)/, 'load restores the link and re-shows warnings');
   assert.match(b, /HelmBuilderVenue[\s\S]{0,400}venueId: v\.id, venueName: v\.name/);
-  assert.match(read('public/builder.html'), /builder\.js\?v=67/);
+  assert.match(read('public/builder.html'), /builder\.js\?v=70/);
   assert.match(pk, /Linked to saved venue: /); assert.match(pk, /text: "change"/); assert.match(pk, /text: "unlink"/);
 });
 console.log('venues: ok (' + n + ')');

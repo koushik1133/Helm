@@ -61,10 +61,10 @@
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
   :root{--neg:#b42318} html[data-theme="dark"]{--neg:#f87171}
 </style>
-<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="theme.css?v=82">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="vendor-bills.css?v=1">
-<script src="/shell-proto.js?v=22" id="shellProto"></script>
+<script src="/shell-proto.js?v=26" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -147,8 +147,8 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=7"></script>
-<script src="tour.js?v=14"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="save-back.js?v=2"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=7"></script>
+<script src="tour.js?v=17"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -181,10 +181,19 @@
     if(focusN){ const f=$(`#stars .star[data-n="${focusN}"]`); if(f) f.focus(); } }
 
   function taxLabel(){ try{ return (evTax&&evTax.name)||"tax"; }catch(_){ return "tax"; } }
-  // E14: the event's date (YYYY-MM-DD) when it is still in the future (studio's local day), else ""
+  // E14 / 0198: the event's date (YYYY-MM-DD) while its event day is not over yet (today or later, the
+  // studio's local day), else "". A cancelled event is closed whenever it is settled.
   function futureEventDate(){
+    if(ev && ev.status==="cancelled") return "";
     const d=String((ev&&(ev.eventDate||(ev.client&&ev.client.eventDate)))||"").slice(0,10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(d) && d>BPStore.todayLocal() ? d : "";
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) && d>=BPStore.todayLocal() ? d : "";
+  }
+  const niceDay=(d)=>{ const HEN=window.HelmEventName; return (HEN&&HEN.shortDate&&HEN.shortDate(d))||d; };
+  // 0198: the one sentence for "too early" (same words as the server's HL425)
+  function tooEarlyText(b){
+    const fd=(b&&b.too_early&&(b.close_after||b.event_date))||futureEventDate();
+    if(!fd) return "";
+    return "You can close this event after "+((b&&b.close_after)||niceDay(fd))+" (event day).";
   }
   async function renderPL(){
     const pl=await BPStore.closure.pl(id);
@@ -231,18 +240,24 @@
     const lines=[], owed=b&&b.blocked?Number(b.balance_owed)||0:0, co=b&&b.blocked?Number(b.open_checkouts)||0:0;
     // manager-1019 (0152): a never-confirmed or unpriced quote can't be closed
     const nb=b&&b.blocked?(b.not_booked||null):null;
+    // 0198: no closing before the event day is over (no override) / an event with no date
+    const early=!!(b&&b.too_early), nodate=!!(b&&b.blocked&&b.no_event_date);
+    if(early) lines.push("• "+tooEarlyText(b));
+    if(nodate) lines.push("• The event has no date yet - set it on the event page (or an admin can close with a reason)");
     if(nb==="unconfirmed") lines.push("• This is still a quote - the client has not confirmed the booking");
     else if(nb==="unpriced") lines.push("• The quote has no price yet - price it first");
     if(owed>0) lines.push("• Balance due from client: "+money(owed)+" (collect it in Settlement)");
     if(co>0) lines.push("• "+co+" equipment checkout"+(co>1?"s":"")+" still out: "+(b.checkouts||[]).slice(0,8).map(c=>(c.item||"item")+" ×"+c.qty).join(", "));
     if(outstanding&&outstanding.length) lines.push("• "+outstanding.length+" equipment reservation"+(outstanding.length>1?"s":"")+" not marked returned: "
       +outstanding.slice(0,8).join(", ")+(outstanding.length>8?", …":"")+" (return them in Inventory)");
-    return { lines, owed, checkouts:co, server:owed>0||co>0||!!nb };
+    return { lines, owed, checkouts:co, early, server:owed>0||co>0||!!nb||nodate };
   }
   async function renderCloseSummary(){
     const box=$("#closeBlockers"); if(!box || closedAt) { if(box) box.hidden=true; return; }
     try{
       const b=await BPStore.closure.blockers(id), bl=closeBlockerLines(b, []);
+      // 0198: an older database has no too_early flag - say it from the event date
+      if(!bl.early && futureEventDate()){ bl.lines.unshift("• "+tooEarlyText(null)); bl.early=true; }
       box.replaceChildren();
       if(!bl.lines.length){ box.hidden=true; return; }
       const h=document.createElement("strong"); h.textContent="Before this event can close:"; box.appendChild(h);
@@ -272,6 +287,10 @@
     // An admin may still override the SERVER gate with a written reason (audited), as before.
     let overrideReason=null, b=null;
     try{ b=await BPStore.closure.blockers(id); }catch(e){ b=null; /* unreadable → the server still enforces the gate on close */ }
+    // 0198: the event day must be over first - nobody can override that. An event that will not happen
+    // is cancelled from the event page instead.
+    { const te=tooEarlyText(b);
+      if(te){ await BPUI.alert(te+"\n\nIf this event will not happen, cancel it from the event page instead (Cancel event).",{title:"Not yet - the event hasn't happened"}); return; } }
     const bl=closeBlockerLines(b, outstanding);
     if(bl.lines.length){
       const role=await BPStore.auth.role().catch(()=>"");
@@ -313,9 +332,6 @@
           {title:"Outstanding balance — close anyway?",okLabel:"Close anyway",danger:true}))) return;
       }
     }catch(e){ /* settlement unreadable → fall through to the manual sign-off */ }
-    // E14: closing an event that has not happened yet needs an explicit yes
-    { const fd=futureEventDate(); if(fd){ const HEN=window.HelmEventName, nice=(HEN&&HEN.shortDate(fd))||fd;
-      if(!(await BPUI.confirm("This event hasn't happened yet ("+nice+"). Close it anyway?",{title:"Event is in the future",okLabel:"Close anyway",danger:true}))) return; } }
     // Gate 2 — explicit manager sign-off that the event is genuinely over
     if(!(await BPUI.confirm("Confirm the event has ENDED and ALL equipment has been returned."
       +(invUnverified?"\n\nNote: equipment returns couldn't be checked automatically right now — verify them yourself.":"")
@@ -378,6 +394,8 @@
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    // confirm-1018 #4: "Save & back to event" beside Save (only leaves when the save worked)
+    if(window.HelmSaveBack) HelmSaveBack.add({ button:"#c_save", msg:"#c_msg", run:()=>save() });
     if(!id){ if(window.HelmPickEvent) HelmPickEvent.show($("#notfound"),"closure","closure checklist"); else $("#notfound").hidden=false; return; }   // QA1026 #10
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("closure"))) return;

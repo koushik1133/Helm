@@ -4,11 +4,10 @@
    Every new studio (Create-studio tab, ?trial=1 links, Google sign-up) gets the
    same 8-day free trial, no card:
      1. account created (studio name OPTIONAL — empty → the database names it "Demo N")
-     2. FIRST, right after the account exists: "How would you like to start?"
-          Try with demo data  → the sample studio is seeded (every row "Demo ·")
-          Start with my own data → nothing is seeded
-     3. start_self_serve_trial(name, visitor time zone, currency, mode) creates the
-        studio + the trial; then the usual profile step and the dashboard.
+     2. 0180: no "demo or own data" question any more - every trial starts WITH the sample
+        studio (every row "Demo ·"); the server ignores any other mode.
+     3. start_self_serve_trial(name, Asia/Kolkata, INR, "demo") creates the studio + the
+        trial; then the dashboard (welcome + tour; the profile step is not forced on a trial).
    An invitee (JOINING) never sees any of this. CSP: no inline styles / handlers;
    DOM via createElement/textContent.
    0159: the OTHER way in - "Create studio" directly (?direct=1, remembered like the trial
@@ -42,20 +41,12 @@
     return isFinite(t) && t > 0 && now - t >= 0 && now - t < TTL;
   }
 
-  // Visitor's own time zone + a currency guessed from it (0118). Unknown -> USD.
-  function localeFor(tz) {
-    tz = String(tz || "");
-    if (/^Asia\/(Kolkata|Calcutta)$/.test(tz)) return "INR";
-    if (/^Asia\/(Dubai|Muscat)$/.test(tz)) return "AED";
-    if (/^Europe\/(London|Belfast)$/.test(tz)) return "GBP";
-    if (/^Asia\/Singapore$/.test(tz)) return "SGD";
-    if (/^Australia\//.test(tz)) return "AUD";
-    if (/^America\/(Toronto|Vancouver|Edmonton|Winnipeg|Halifax|St_Johns|Regina)$/.test(tz)) return "CAD";
-    if (/^Europe\//.test(tz)) return "EUR";
-    return "USD";
-  }
+  // 0180 (pure, unit-tested): the free trial is India only, so the currency is INR whatever the
+  // browser time zone (no USD / AED / GBP guess any more); the server enforces the same.
+  function localeFor() { return "INR"; }
 
-  var api = { intentFrom: intentFrom, directFrom: directFrom, localeFor: localeFor, KEY: KEY, DKEY: DKEY, DAYS: DAYS };
+  var TRIAL_TZ = "Asia/Kolkata", TRIAL_CUR = "INR";
+  var api = { TRIAL_TZ: TRIAL_TZ, TRIAL_CUR: TRIAL_CUR, intentFrom: intentFrom, directFrom: directFrom, localeFor: localeFor, KEY: KEY, DKEY: DKEY, DAYS: DAYS };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   if (!global || !global.document) return;
 
@@ -125,69 +116,24 @@
     p.hidden = mode !== "signup";
   }
 
-  function visitorLocale() {
-    var tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
-    return { timezone: tz || "UTC", currency: localeFor(tz) };
-  }
+  // 0177: the free trial is India only (INR, Asia/Kolkata, GST) whatever the visitor's browser says;
+  // the server (start_self_serve_trial) enforces the same, this only keeps the request honest
+  function visitorLocale() { return { timezone: TRIAL_TZ, currency: TRIAL_CUR }; }
 
-  /* ---- step 1 after the account exists: demo data or own data ---------------- */
-  var chosen = null;
-  function chooseStart() {
-    if (chosen) return Promise.resolve(chosen);
-    return new Promise(function (resolve) {
-      var main = $("main") || doc.body;
-      var shown = Array.prototype.filter.call(main.querySelectorAll(":scope > .card"), function (c) { return !c.hidden; });
-      shown.forEach(function (c) { c.hidden = true; c.setAttribute("data-tc-hid", ""); });
-      var card = el("section", "card tc-card"); card.id = "trialChoice";
-      card.setAttribute("aria-labelledby", "tcTitle");
-      card.appendChild(el("div", "mmk"));
-      card.appendChild(el("span", "tc-tag", "Free trial · " + DAYS + " days"));
-      var h = el("h1", null, "How would you like to start?"); h.id = "tcTitle"; h.tabIndex = -1; card.appendChild(h);
-      card.appendChild(el("p", "sub", "Your account is ready. You can switch at any time during your " + DAYS + "-day free trial."));
-      var err = el("div", "err"); err.setAttribute("role", "alert"); err.hidden = true; err.id = "tcErr"; card.appendChild(err);
-      function opt(mode, title, body) {
-        var b = el("button", "tc-opt"); b.type = "button"; b.setAttribute("data-mode", mode);
-        b.appendChild(el("b", null, title)); b.appendChild(el("span", null, body));
-        b.addEventListener("click", function () {
-          if (card.getAttribute("aria-busy") === "true") return;
-          card.setAttribute("aria-busy", "true");
-          Array.prototype.forEach.call(card.querySelectorAll(".tc-opt"), function (x) { x.disabled = true; });
-          b.classList.add("on");
-          var t = b.querySelector("b"); if (t) t.textContent = "Setting up your studio…";
-          chosen = mode; resolve(mode);
-        });
-        return b;
-      }
-      card.appendChild(opt("demo", "Try with demo data",
-        "Explore a ready sample studio: leads, quotes in every stage, a confirmed wedding, venues, menu packages, stock, staff and vendors. Everything is marked “Demo ·” and nothing is sent to anyone."));
-      card.appendChild(opt("own", "Start with my own data",
-        "An empty studio with Helm's default templates and catalogs — add your own events, clients and team."));
-      main.appendChild(card);
-      try { h.focus(); } catch (e) {}
-    });
-  }
-  // after a failure: put the page back the way it was (the caller shows the error)
-  function undoChoice() {
-    chosen = null;
-    var card = doc.getElementById("trialChoice"); if (card) card.remove();
-    Array.prototype.forEach.call(doc.querySelectorAll("[data-tc-hid]"), function (c) { c.hidden = false; c.removeAttribute("data-tc-hid"); });
-  }
-
-  // makeStudio() in login.html: choose first, then ONE call creates studio + trial (+ sample)
-  async function start(name, opts) {
-    opts = opts || {};
-    var mode = await chooseStart();
+  // makeStudio() in login.html: ONE call creates studio + trial + sample data (0180: there is no
+  // "demo or own data" choice any more - every free trial starts with the sample studio)
+  async function start(name) {
     var loc = visitorLocale();
-    try {
-      var r = await global.BPStore.trialOrg.startSelfServe({
-        name: String(name || "").trim(), mode: mode,
-        timezone: opts.timezone || loc.timezone, currency: opts.currency || loc.currency });
-      lsDel();
-      try { global.localStorage.setItem("bp_force_tour", "1"); } catch (e) {}
-      // 0167: the dashboard first shows the short 2-step welcome (name the studio, invite up to 2), then the tour
-      try { if (mode === "demo") global.localStorage.setItem("bp_trial_welcome", String(Date.now())); } catch (e) {}
-      return r;
-    } catch (e) { undoChoice(); throw e; }
+    var r = await global.BPStore.trialOrg.startSelfServe({
+      name: String(name || "").trim(), mode: "demo",
+      timezone: loc.timezone, currency: loc.currency });
+    lsDel();
+    try { global.localStorage.setItem("bp_force_tour", "1"); } catch (e) {}
+    // 0167: the dashboard first shows the short 2-step welcome (name the studio, invite up to 2), then the tour.
+    // 0180: the server flags it too (organizations.trial_welcome_pending), so it also shows when the
+    // e-mail confirm link is opened on another device; this browser flag is only the fallback.
+    try { global.localStorage.setItem("bp_trial_welcome", String(Date.now())); } catch (e) {}
+    return r;
   }
 
   function mountLinks() {
@@ -213,5 +159,5 @@
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", mountLinks); else mountLinks();
 
   global.BPTrialSignup = { wanted: function () { return !direct; }, direct: function () { return direct; }, linked: function () { return linked; },
-    apply: apply, start: start, chooseStart: chooseStart, clear: lsDel, clearDirect: dDel, intentFrom: intentFrom, directFrom: directFrom, localeFor: localeFor };
+    apply: apply, start: start, clear: lsDel, clearDirect: dDel, intentFrom: intentFrom, directFrom: directFrom, localeFor: localeFor };
 })(typeof window !== "undefined" ? window : globalThis);

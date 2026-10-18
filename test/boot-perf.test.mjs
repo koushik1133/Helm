@@ -103,7 +103,7 @@ function makeEnv(o = {}) {
   const heads = [];
   const el = (tag) => ({ tag, style: {}, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, appendChild() {}, addEventListener() {}, querySelector: () => null, remove() {} });
   const doc = {
-    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=1' },
+    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=247' },
     createElement: el, head: { appendChild(n) { heads.push(n); } }, body: { children: [], appendChild(c) { this.children.push(c); }, removeChild() {}, get firstChild() { return null; } },
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; },
       classList: { contains: (c) => cls.has(c), add: (c) => { cls.add(c); calls.push(['hide']); }, remove: (c) => { cls.delete(c); calls.push(['reveal']); } } },

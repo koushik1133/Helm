@@ -36,7 +36,7 @@ resolveList(venues); await listP; await new Promise((r) => setImmediate(r));
 const sel = byId.vp_pick, warn = byId.vp_warn;
 assert.equal(sel.value, 'v1', 'saved link re-selected on load');
 assert.equal(byId.vp_linked.hidden, false); assert.match(byId.vp_linked.textContent, /Linked to saved venue: SAMPLE - Green Meadows Lawn \(change \/ unlink\)/);
-assert.match(warn.textContent, /2500 guests is more than/); assert.match(warn.textContent, /Sound curfew at 22:00/);
+assert.match(warn.textContent, /2,500 guests is more than this venue holds \(2,000 floating\) - 500 won.t fit/); assert.match(warn.textContent, /Sound curfew at 22:00/);
 // unlink
 byId.vp_unlink.dispatchEvent({ type: 'click' });
 assert.equal(byId.v_venue_id.value, ''); assert.equal(byId.v_venue_name.value, ''); assert.equal(byId.vp_linked.hidden, true); assert.equal(warn.textContent, '');

@@ -31,10 +31,18 @@
 // fails / 0117 is not applied) the link is created exactly as before with the global
 // RAZORPAY_KEY_ID/SECRET. Set RAZORPAY_REQUIRE_STUDIO_ACCOUNT=1 to refuse the global
 // fallback (recommended once studios collect their own money).
+//
+// 0187: a studio on its free trial (or whose trial ended unpaid) gets NO real payment link - Razorpay
+// would text / e-mail the client and take real money. Checked here with the service role
+// (trial_send_blocked) before anything is reserved -> 409 { code: "trial", trial: true }; the database
+// refuses it too (payment_link_begin 42501 / hint trial_no_send).
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, normPhone, responders } from "../_shared/cors.ts";
 import { dialFor, quoteCur, razorpaySupports } from "../_shared/money.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
+import { isTrialNoSend, trialSendBlocked } from "../_shared/trial-guard.ts";
+
+const TRIAL_PAY_MSG = "Online payment isn't available while your planner's studio is on its free trial - your planner will share payment details.";
 
 const PLINK = /^plink_[A-Za-z0-9]+$/;
 const RZP_URL = /^https:\/\/rzp\.io\/[A-Za-z0-9/_-]+$/;
@@ -78,6 +86,10 @@ Deno.serve(async (req) => {
     const { data: qc, error: qcErr } = await admin.from("quotes").select("currency, tax_snapshot, pricing, org_id")
       .eq("approval_token", token.toLowerCase()).maybeSingle();
     if (qcErr) { console.error("quote currency load failed", errTag(qcErr)); return json({ error: "could not prepare the payment, please try again" }, 500); }
+    // 0187: never a real link (Razorpay SMS / e-mail to the client, real money) from a free-trial studio
+    if (await trialSendBlocked(admin, { org: qc?.org_id ? String(qc.org_id) : null, token: token.toLowerCase() })) {
+      return json({ error: TRIAL_PAY_MSG, code: "trial", trial: true }, 409);
+    }
     if (qc && !razorpaySupports(quoteCur(qc))) {
       return json({ error: "online card payment is not available for this quote - please pay by bank transfer and your planner will record it", code: "currency_unsupported" }, 409);
     }
@@ -93,6 +105,7 @@ Deno.serve(async (req) => {
 
     const ttl = Math.min(43200, Math.max(20, Number(Deno.env.get("PAYMENT_LINK_TTL_MINUTES")) || 4320));
     const { data: b, error: bErr } = await admin.rpc("payment_link_begin", { p_token: token, p_ttl_minutes: ttl });
+    if (isTrialNoSend(bErr)) return json({ error: TRIAL_PAY_MSG, code: "trial", trial: true }, 409);   // 0187
     if (bErr || !b) { console.error("payment_link_begin failed", errTag(bErr)); return json({ error: "could not prepare the payment, please try again" }, 500); }
     switch (b.action) {
       case "invalid": return json({ error: "invalid link" }, 404);

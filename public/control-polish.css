@@ -15,3 +15,24 @@
 
 /* dev pass 3: empty-role note in the access matrix */
 .mtx-empty{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
+
+/* Pricing & coupons (cc-pricing-validation): a message under the field that is wrong, and inputs that line up */
+#pricingCard .pf-err,#app .co-err{margin:3px 0 0;font-size:12.5px;line-height:1.35;font-weight:500;color:var(--danger,#b42318)}
+#pricingCard .pf-err[hidden],#app .co-err[hidden]{display:none}
+#pricingCard input.pf-bad,#app .addrow input.pf-bad{border-color:var(--danger,#b42318)!important;box-shadow:0 0 0 1px var(--danger,#b42318)}
+#pricingCard .actions{align-items:center;flex-wrap:wrap;gap:8px 12px}
+#pricingCard .pf-status:empty,#app #co_status:empty{display:none}
+#pricingCard .pf-status .msg,#app #co_status .msg{display:inline-block;margin:0}
+#app #co_status{margin:8px 0 0}
+/* the "prices include tax" tick is a whole row under the rates, not a cell in the middle of the grid */
+#pricingCard .grid>.fld:has(#p_taxIncl){grid-column:1/-1;order:20}
+#pricingCard label.mpchk{display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13.5px;font-weight:500;color:var(--ink,#1c1a1f)}
+#pricingCard label.mpchk input{margin:0}
+/* two-column and wider: every label gets the same two-line slot, so a label that wraps
+   ("Country (tax, currency & phone codes)") no longer pushes its box below the others in the row */
+@media (min-width:561px){
+  #pricingCard .grid>.fld>label:not(.mpchk),#pricingCard .grid>.fld>.p-clbl{display:flex;align-items:flex-end;min-height:2.7em;line-height:1.35}
+}
+/* builder item prices + capacity limits: the "(default ₹…)" note sits on its own line and the boxes line up at the bottom */
+#itemPriceList.grid,#app .card .grid:has(#cap_guests){align-items:end}
+#itemPriceList .fld>label>span{display:block;margin-top:2px}

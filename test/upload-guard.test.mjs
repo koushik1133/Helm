@@ -86,7 +86,7 @@ function makeEnv(o = {}) {
       cb(new Blob([pad(head, Math.max(16, size))], { type }));
     } }); return c; };
   const doc = {
-    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=1' },
+    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=247' },
     createElement: (tag) => (String(tag).toLowerCase() === 'canvas' ? canvas() : Object.assign(el(), { tagName: String(tag).toUpperCase() })),
     head: { appendChild() {} }, body: { appendChild() {}, removeChild() {}, children: [] },
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; }, classList: { contains: () => false, add() {}, remove() {} } },

@@ -1,18 +1,27 @@
 /* studio-templates.css (0096) - studio's own layout templates: manager grid, save form, template-edit bar */
 .st-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 12px}
+.st-tools>.btn{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;text-decoration:none;white-space:nowrap;line-height:1.15}
 .st-chk{display:inline-flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap}
-.st-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-.st-card{border:1px solid var(--line,#ddd);border-radius:10px;padding:10px;background:var(--panel,#fff);display:flex;flex-direction:column;gap:6px;min-width:0}
+.st-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;align-items:stretch}
+.st-card{border:1px solid var(--line,#ddd);border-radius:10px;padding:10px;background:var(--panel,#fff);display:flex;flex-direction:column;gap:6px;min-width:0;height:100%;box-sizing:border-box}
 .st-card.st-archived{opacity:.65}
 .st-thumb{width:100%;aspect-ratio:10/7;object-fit:contain;border-radius:6px;background:var(--line-2,#f2f2f2);border:1px solid var(--line,#ddd)}
 .st-nothumb{display:flex;align-items:center;justify-content:center;font-size:28px}
-.st-name{overflow-wrap:anywhere}
+.st-thumb.st-gen{display:block;height:auto;box-sizing:border-box;padding:4px;background:var(--line-2,#f2f2f2)}
+.st-nothumb.st-loading{opacity:.55}
+.st-trial{font-size:12.5px;margin:0 0 10px;padding:8px 10px;border-radius:8px;background:var(--accent-soft,#eef6f0);color:var(--ink-2,#333)}
+.st-name{overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;line-height:1.35}
 .st-badges{display:flex;flex-wrap:wrap;gap:4px}
 .st-badge{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--line-2,#eee)}
 .st-badge.st-def{background:#fff4cc;color:#6b4b00}
 .st-badge.st-arc{background:#fde2e2;color:#8a1c1c}
-.st-desc{font-size:12.5px;color:var(--ink-2,#444);margin:0;overflow-wrap:anywhere}
-.st-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}
+.st-desc{font-size:12.5px;line-height:1.4;color:var(--ink-2,#444);margin:0;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden}
+/* card actions: an even 2-column grid of same-height buttons (links and buttons alike), pinned to the card bottom;
+   an odd last button spans the row. Edit layout / Use is the one primary action. */
+.st-acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:auto;padding-top:4px}
+.st-acts>.btn{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-width:0;height:32px;min-height:32px;margin:0;padding:0 8px;
+  line-height:1.15;font-size:12.5px;text-align:center;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.st-acts>.btn:last-child:nth-child(odd){grid-column:1/-1}
 .st-renbox{display:flex;flex-wrap:wrap;gap:6px}
 .st-renbox input,.st-renbox select{min-width:0;flex:1 1 140px}
 .st-form{display:grid;gap:4px 0;margin:8px 0}
@@ -22,8 +31,23 @@
 .st-err{color:#a11;font-size:13px;margin:6px 0}
 .st-ok{color:#176b2c;font-size:13px;margin:6px 0}
 .st-modal .sheet{max-width:min(860px,calc(100vw - 32px))}
-.st-editbar{position:sticky;top:0;z-index:60;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 16px;background:var(--panel,#fff);border-bottom:2px solid var(--accent,#2b6cb0)}
-.st-editbar .st-form{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0;flex:1 1 420px}
-.st-editbar .st-form label{margin:0}
-.st-editbar .st-form input,.st-editbar .st-form select{width:auto;flex:1 1 140px}
-.st-editbar .st-form textarea{flex:1 1 200px;width:auto;min-height:32px}
+.st-editbar{position:sticky;top:0;z-index:60;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 16px;box-sizing:border-box;width:100%;
+  background:var(--panel,#fff);color:var(--ink,#1b1930);border-bottom:2px solid var(--accent,#047857);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.st-eb-head{display:flex;flex-direction:column;min-width:0;flex:0 1 220px}
+.st-eb-head b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-eb-head .mnote{font-size:11.5px;color:var(--ink-3,#666);margin:0;line-height:1.3}
+.st-editbar .st-form{display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px 10px;margin:0;flex:1 1 520px;min-width:0}
+.st-editbar .st-fld{display:flex;flex-direction:column;gap:2px;min-width:0}
+.st-editbar .st-fld label{margin:0;font-size:11px;font-weight:600;color:var(--ink-3,#666);letter-spacing:.02em}
+.st-editbar .st-fld-name{flex:2 1 240px}
+.st-editbar .st-fld-type{flex:0 1 170px}
+.st-editbar .st-fld-desc{flex:3 1 260px}
+.st-editbar .st-form :is(input,select){width:100%;height:34px;box-sizing:border-box;min-width:0;margin:0;padding:0 10px;font:inherit;font-size:13px;
+  border:1px solid var(--line,#d9d9d9);border-radius:9px;background:var(--panel,#fff);color:var(--ink,#1b1930)}
+.st-editbar .st-form :is(input,select):focus-visible{outline:2px solid color-mix(in srgb,var(--accent,#047857) 55%,transparent);outline-offset:1px;border-color:var(--accent,#047857)}
+.st-editbar .st-form :is(input,select):disabled{opacity:.6}
+.st-editbar .st-eb-acts{display:flex;gap:8px;align-items:center;flex:0 0 auto;margin-left:auto}
+.st-editbar .st-eb-acts .tbtn{height:34px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;white-space:nowrap;text-decoration:none;padding:0 14px}
+.st-editbar .st-err{flex:1 1 100%;margin:0}
+.st-editbar .st-err[hidden]{display:none}
+@media (max-width:720px){.st-editbar{padding:8px 12px;gap:6px 10px}.st-eb-head{flex:1 1 100%}.st-editbar .st-eb-acts{margin-left:0;flex:1 1 100%}.st-editbar .st-eb-acts .tbtn{flex:1 1 0}}

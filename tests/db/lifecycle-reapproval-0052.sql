@@ -32,9 +32,15 @@ do $$ begin
             '{"subtotal":200000,"discount":0,"gstPct":18,"total":236000}'::jsonb, 1, 'sent',
             'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-0000000052aa', 'quote',
             current_date + 10, now(), now())
-    on conflict (id) do update set pricing = excluded.pricing, approval_status = 'sent', lifecycle_stage = 'quote',
+    on conflict (id) do update set pricing = excluded.pricing, status = 'quote', approval_status = 'sent', lifecycle_stage = 'quote',
       approval_token = excluded.approval_token, consent_stale = false, event_date = excluded.event_date,
       approval_token_revoked_at = null, approval_token_expires_at = null;
+  -- 0198: Planning needs a locked menu + a saved floor layout (layout v1); give this event both
+  insert into public.event_plan(quote_id, menu_locked, org_id) values ('a0000000-0000-4000-8000-0000000052a1', true, 'a0000000-0000-4000-8000-000000000001')
+    on conflict (quote_id) do update set menu_locked = true;
+  insert into public.quote_versions(quote_id, version_no, label, data, object_count, org_id)
+    select 'a0000000-0000-4000-8000-0000000052a1', 1, 'v1', '{}'::jsonb, 8, 'a0000000-0000-4000-8000-000000000001'
+     where not exists (select 1 from public.quote_versions where quote_id = 'a0000000-0000-4000-8000-0000000052a1' and object_count > 0);
   -- 0144 made the access matrix the authority for set_plan_lock (needs plan edit). The default
   -- matrix gives sales no plan edit, so grant it here: this suite tests the HL428 stale gate.
   insert into public.role_access(role, area, can_view, can_edit, org_id, updated_at)

@@ -45,7 +45,9 @@ end $$;
 do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_trial_seed_manifest; begin
   perform pg_temp.su();
   select * into mf from public.helm_trial_seed_manifest where is_current;
-  perform pg_temp.res('01 manifest v5 current, v4 kept', mf.version = 5 and mf.notes = 'v5: owner price list, leads, events'
+  -- v5 published by 0171; later migrations (0175: v6) may publish a newer current manifest
+  perform pg_temp.res('01 manifest v5 published (current is v5 or later), v4 kept', mf.version >= 5
+    and exists (select 1 from public.helm_trial_seed_manifest where version = 5 and notes = 'v5: owner price list, leads, events')
     and exists (select 1 from public.helm_trial_seed_manifest where version = 4 and not is_current));
   perform pg_temp.res('02 165 inventory items, unique names, all is_demo', (select count(*) from public.inventory_items where org_id = M) = 165
     and (select count(distinct lower(name)) from public.inventory_items where org_id = M) = 165
@@ -72,7 +74,9 @@ do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_t
     and (select count(distinct status) from public.leads where org_id = M) = 6
     and not exists (select 1 from public.leads where org_id = M and (email not like '%@example.com' or right(regexp_replace(phone, '\D', '', 'g'), 10) not like '00000%')));
   perform pg_temp.res('07 3 new events on packages, GST 18, D8 priced', (select string_agg(code || '=' || (pricing ->> 'platePrice') || '/' || (pricing ->> 'total'), ',' order by code)
-      from public.quotes where org_id = M and code in ('SMP-1004','SMP-1005','SMP-1006')) = 'SMP-1004=700/452530,SMP-1005=650/407100,SMP-1006=450/137175',
+      from public.quotes where org_id = M and code in ('SMP-1004','SMP-1005','SMP-1006'))
+      -- 0182 moves the Kapoor sangeet chair price 45 -> 100 (452530 -> 472000)
+      in ('SMP-1004=700/452530,SMP-1005=650/407100,SMP-1006=450/137175', 'SMP-1004=700/472000,SMP-1005=650/407100,SMP-1006=450/137175'),
     (select string_agg(code || '=' || (pricing ->> 'total'), ',') from public.quotes where org_id = M));
   perform pg_temp.res('08 confirmed events: 30 % advance paid (simulated) + balance = total', not exists (select 1 from public.quotes q where q.org_id = M and q.code in ('SMP-1004','SMP-1005')
       and ((select sum(amount) from public.payment_milestones pm where pm.quote_id = q.id) <> (q.pricing ->> 'total')::numeric
@@ -90,7 +94,7 @@ do $$ declare a uuid; o public.organizations; M uuid := 'a5a5a5a5-0166-4000-8000
   update public.helm_sample_template set active = true where id;
   a := pg_temp.trial('td5_a@t.test');
   select * into o from public.organizations where id = a;
-  perform pg_temp.res('20 trial cloned from v5', o.sample_version = 5, coalesce(o.sample_version::text, 'null'));
+  perform pg_temp.res('20 trial cloned from the current manifest (v5 or later)', o.sample_version = (select m.version from public.helm_trial_seed_manifest m where m.is_current) and o.sample_version >= 5, coalesce(o.sample_version::text, 'null'));
   perform pg_temp.res('21 trial inventory / leads / events', (select count(*) from public.inventory_items where org_id = a) = 165
     and (select count(*) from public.leads where org_id = a) = 16 and (select count(*) from public.quotes where org_id = a) = 7
     and (select count(*) from public.inventory_reservations where org_id = a) = 21 and (select count(*) from public.payment_milestones where org_id = a) = 8,

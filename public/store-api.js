@@ -1,9 +1,15 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=22"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=26"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
+/* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
+   flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
+   (shell-proto.js, trial-early.js); this is the fallback for every other page. */
+(function () { try { if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
+  if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
+  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=4"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
-  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=1"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=4"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -214,6 +220,8 @@ window.HelmUrl = HelmUrl;
   let photoProbe = null;        // in-flight / cached render-photo deploy probe (0095)
   let rolePromise = null;       // in-flight getRole() (dedupes the parallel canView fan-out)
   let accessPromise = null;     // in-flight loadAccess()
+  let trialOrgInflight = null;  // in-flight my_trial_org() (trial strip + read-only check share one call)
+  let readOnlyMemo = null;      // { uid, p } — 0183: is this studio read-only after its free trial? (once per page)
   // Per-tab session cache (Wave 16 perf): a static multipage app re-fetches
   // profiles + role_access on EVERY page navigation, which makes tabs feel slow.
   // Cache them in sessionStorage for a short TTL, keyed to the user id, so
@@ -247,13 +255,16 @@ window.HelmUrl = HelmUrl;
      could change them (coalescedFetch). It is a display cache: RLS and the server still decide every read and write. */
   const SWR_PREFIX = "bp_swr:", SWR_MAX = 5 * 60000, SWR_REVAL = 20000;
   const swrBusy = {};
-  function swrClear() { try { const del = []; for (let i = 0; i < sessionStorage.length; i++) { const k = sessionStorage.key(i); if (k && k.indexOf(SWR_PREFIX) === 0) del.push(k); } del.forEach((k) => sessionStorage.removeItem(k)); } catch (e) {} }
+  // cc-general-billing: a read that STARTED before a write must not refill the cache after it
+  // (it would bring back the pre-save row - e.g. billing details "empty again" after a reload)
+  let swrGen = 0;
+  function swrClear() { swrGen++; try { const del = []; for (let i = 0; i < sessionStorage.length; i++) { const k = sessionStorage.key(i); if (k && k.indexOf(SWR_PREFIX) === 0) del.push(k); } del.forEach((k) => sessionStorage.removeItem(k)); } catch (e) {} }
   function swrOrg(uid) { const h = sessEntry("bp_sess_org", uid); return (h && h.val) || null; }
   function swr(name, fetcher) {
     if (!supa || !currentUser || mode !== "supabase") return fetcher();
-    const uid = currentUser.id, oid = swrOrg(uid), key = SWR_PREFIX + name;
+    const uid = currentUser.id, oid = swrOrg(uid), key = SWR_PREFIX + name, gen = swrGen;
     const store = (v) => { const o2 = swrOrg(uid);
-      if (o2 && currentUser && currentUser.id === uid) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid, oid: o2, val: v === undefined ? null : v })); } catch (e) {} }
+      if (o2 && gen === swrGen && currentUser && currentUser.id === uid) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid, oid: o2, val: v === undefined ? null : v })); } catch (e) {} }
       return v; };
     let hit = null;
     try { const o = JSON.parse(sessionStorage.getItem(key) || "null");
@@ -264,6 +275,30 @@ window.HelmUrl = HelmUrl;
     }
     return fetcher().then(store);
   }
+  // 0116 / 0183: my_trial_org() — one in-flight call shared by the trial strip and the read-only check
+  function trialOrgStatus() {
+    if (!supa) return Promise.resolve(null);
+    if (trialOrgInflight) return trialOrgInflight;
+    const p = swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }));
+    trialOrgInflight = p;
+    const done = () => { if (trialOrgInflight === p) trialOrgInflight = null; };
+    p.then(done, done);
+    return p;
+  }
+  // 0183 (post-trial policy 1 / 6 / 10): true when this studio's free trial ended unpaid — the studio is then
+  // READ-ONLY for everyone (owner + invited members) until it upgrades. The database refuses every change
+  // (hint 'trial_ended'); this only lets the edit helpers below answer "no" so pages show view-only screens.
+  // Any error / older database / paid studio = false (the server still decides).
+  function studioReadOnly() {
+    if (mode !== "supabase" || !supa || !currentUser) return Promise.resolve(false);
+    const uid = currentUser.id;
+    if (readOnlyMemo && readOnlyMemo.uid === uid) return readOnlyMemo.p;
+    let p;
+    try { p = Promise.resolve(trialOrgStatus()).then((t) => !!(t && (t.read_only === true || t.locked === true)), () => false); }
+    catch (e) { p = Promise.resolve(false); }
+    readOnlyMemo = { uid: uid, p: p };
+    return p;
+  }
   // writes that cannot touch the cached reads above (everything else drops the cache)
   const SWR_KEEP_RPCS = /\/rest\/v1\/rpc\/(my_(?!start_trial|studio_account_update)|get_|is_|current_org_id|recent_|chat_|bell|my_notification|mfa_|resolve_|list_|pkg_selection_list|password_change_required|audit_actor_names|dashboard_|insights_|studio_search|studio_avatars|mark_|telemetry|privacy_pin_(?:check|status))/;
   const CHECKOUT_SESS_KEY = "bp_sess_checkout"; // per tab: my_checkout_status() answer (never a "must check out" one)
@@ -272,7 +307,7 @@ window.HelmUrl = HelmUrl;
   const PW_OK_KEY = "bp_pw_ok";                 // per tab: "<uid>" once password_change_required() said no
   // Per-USER browser state that must not carry over to the next person who signs in
   // on a shared computer (audit Phase 4). Device prefs (theme, tours) are kept.
-  const USER_LOCAL_KEYS = ["bps.clip", "wa_pin", "wa_mute", "wa_fav", "bp_chat_ping", "helm_org_country", "helm_ev_showall", "helm.studioTax"];
+  const USER_LOCAL_KEYS = ["bps.clip", "wa_pin", "wa_mute", "wa_fav", "bp_chat_ping", "helm_org_country", "helm_ev_showall", "helm.trial", "helm.studioTax"];   // 0181: helm.trial = the cached free-trial flag
   function userLocalClear() { USER_LOCAL_KEYS.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} }); }
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
 
@@ -855,7 +890,7 @@ window.HelmUrl = HelmUrl;
      never sees its own write as stale. Keyed by the Authorization header → never
      shared across users. Storage / auth / functions URLs are never touched. */
   const READ_TTL_MS = 1500;
-  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending)(\?|$)/;
   const readCache = new Map();
   function hdrOf(init, input, name) {
     try {
@@ -1091,7 +1126,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "34";
+  const AUTH_UI_VERSION = "36";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1129,10 +1164,22 @@ window.HelmUrl = HelmUrl;
     document.head.appendChild(t);
     loadMobileNav();
     loadTrialBanner();
+    loadTrialUpgrade();
+  }
+  // 0185 — the "Sample" badge on sample rows (every studio page) + the upgrade data choice cards.
+  // trial-upgrade.js asks my_demo_status() / my_upgrade_status() itself and does nothing without sample data.
+  const TRIAL_UPGRADE_VERSION = "2";
+  let trialUpgradeLoading = false;
+  function loadTrialUpgrade() {
+    if (trialUpgradeLoading || typeof document === "undefined" || global.HelmTrialUpgrade) return;
+    trialUpgradeLoading = true;
+    const s = document.createElement("script");
+    s.src = vendorUrl("trial-upgrade.js?v=" + TRIAL_UPGRADE_VERSION);
+    document.head.appendChild(s);
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "8";
+  const TRIAL_BANNER_VERSION = "11";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -1629,6 +1676,23 @@ window.HelmUrl = HelmUrl;
       if ((u.user_metadata || {}).helm_gs_hint_seen === true) return true;
       try { const { data, error } = await supa.auth.updateUser({ data: { helm_gs_hint_seen: true } }); if (error) return false; if (data && data.user && currentUser && data.user.id === currentUser.id) currentUser = data.user; return true; } catch (e) { return false; }
     },
+    // Free-trial checklist, per account (auth user_metadata.helm_trial_gs, same pattern as the tour flag):
+    // {event, builder} = the person opened a sample event / the layout builder, dismissed = hid the list.
+    // UI-only flags (no studio data). null when nobody is signed in.
+    trialSteps: () => {
+      const u = pendingStep ? null : currentUser; if (!u) return null;
+      const v = (u.user_metadata || {}).helm_trial_gs; const o = {};
+      if (v && typeof v === "object") ["event", "builder", "dismissed"].forEach((k) => { if (v[k] === true) o[k] = true; });
+      return o;
+    },
+    markTrialStep: async (key, on) => {
+      if (["event", "builder", "dismissed"].indexOf(key) < 0) return false;
+      const u = pendingStep ? null : currentUser; if (!u || !supa) return false;
+      const cur = auth.trialSteps() || {}; const want = on !== false;
+      if ((cur[key] === true) === want) return true;
+      const next = Object.assign({}, cur); if (want) next[key] = true; else delete next[key];
+      try { const { data, error } = await supa.auth.updateUser({ data: { helm_trial_gs: next } }); if (error) return false; if (data && data.user && currentUser && data.user.id === currentUser.id) currentUser = data.user; return true; } catch (e) { return false; }
+    },
     // the signed-in account even while a step is pending (login / reset pages only)
     pendingUser: () => currentUser,
     // "" | the error from an auth link return: "pkce_exchange_failed" = the ?code=
@@ -1652,10 +1716,13 @@ window.HelmUrl = HelmUrl;
     handleAuthError: (e) => (looksLikeAuthError(e) ? onAuthFailure() : Promise.resolve(false)),
     // In non-Supabase (server/local) mode there is no auth ⇒ single-user, full access.
     // Unknown role (profiles unreachable) fails CLOSED for every capability.
+    // 0183: in a studio that is read-only after its free trial every capability except "view" is
+    // false (owner and invited members alike) — the server refuses those writes anyway.
     async can(cap) {
       if (mode !== "supabase") return true; if (!currentUser) return false;
-      const r = await getRole(); if (!r) return false;
+      const [r, ro] = await Promise.all([getRole(), cap === "view" ? false : studioReadOnly()]); if (!r) return false;
       if (!(ROLE_CAPS[r] || ["view"]).includes(cap)) return false;
+      if (ro) return false;
       // 0147: create also follows the "Create new quotes" switch (no row = default ON), mirroring can_create()
       if (cap === "create" && r !== "admin") {
         const acc = await loadAccess();
@@ -1665,7 +1732,8 @@ window.HelmUrl = HelmUrl;
       }
       return true;
     },
-    canEdit: async () => { if (mode !== "supabase") return true; if (!currentUser) return false; const r = await getRole(); return EDIT_ROLES.includes(r); },
+    canEdit: async () => { if (mode !== "supabase") return true; if (!currentUser) return false;
+      const [r, ro] = await Promise.all([getRole(), studioReadOnly()]); return EDIT_ROLES.includes(r) && !ro; },
     // ---- role-based VIEW scope (must mirror the RLS read policies in phase21-hardening.sql) ----
     // finance = money pages/tables; pipeline = leads/CRM/discovery/proposal; ops = resources/planning/day-of; workspace = the event hub.
     // Area may be a fine key (e.g. "leads") or a legacy coarse key ("finance",
@@ -1691,7 +1759,8 @@ window.HelmUrl = HelmUrl;
     async canEditArea(area) {
       if (mode !== "supabase") return true;
       if (!currentUser) return false;
-      const r = await getRole();
+      const [r, ro] = await Promise.all([getRole(), studioReadOnly()]);
+      if (ro) return false;                          // 0183: read-only after the free trial (admins too)
       if (r === "admin") return true;
       const acc = await loadAccess();
       if (acc.unknown) return false;
@@ -2390,6 +2459,7 @@ window.HelmUrl = HelmUrl;
         approvalStatus: q.approval_status || "none", approvalToken: q.approval_token, client: q.client || {},
         pricing: q.pricing || {}, currentVersion: q.current_version, createdAt: q.created_at, updatedAt: q.updated_at,
         eventDate: q.event_date || null, eventTime: q.event_time || null, tax_snapshot: q.tax_snapshot || null, currency: q.currency || null,
+        capacityDecision: q.capacity_decision || null,   // 0197: over-capacity decision (set_quote_capacity_decision)
         confirmedAt: q.confirmed_at, versions: vs.map((v) => ({ id: v.id, versionNo: v.version_no, label: v.label,
           objectCount: v.object_count, createdAt: v.created_at })) };
     },
@@ -2640,6 +2710,15 @@ window.HelmUrl = HelmUrl;
       if (r.error && isMissingColumn(r.error)) r = await supa.from("quotes").select("*").in("id", a);
       if (r.error) throw r.error; return (r.data || []).map(mapQuoteSummary);
     },
+    // confirm-1018 #3: the approval state of a few quotes (lean columns only) — the studio pages poll this while a
+    // client approval is pending, so "Client approved" shows without a reload. → [{id, code, status, approvalStatus, updatedAt}]
+    async approvalStates(ids) {
+      const a = [...new Set((ids || []).filter((x) => typeof x === "string" && x))].slice(0, 100); if (!a.length) return [];
+      if (mode !== "supabase") { const set = new Set(a); return (await lsq.list()).filter((q) => set.has(q.id)).map((q) => ({ id: q.id, code: q.code, status: q.status, approvalStatus: q.approvalStatus || "none", updatedAt: q.updatedAt || null })); }
+      const { data, error } = await supa.from("quotes").select("id,code,status,approval_status,updated_at").in("id", a);
+      if (error) throw error;
+      return (data || []).map((q) => ({ id: q.id, code: q.code, status: q.status, approvalStatus: q.approval_status || "none", updatedAt: q.updated_at || null }));
+    },
     get: (id) => qt().get(id),
     getVersion: (id, no) => qt().getVersion(id, no),
     versions: (id) => qt().versions(id),
@@ -2663,6 +2742,29 @@ window.HelmUrl = HelmUrl;
     addVersion: (id, label, data, objectCount) => qt().addVersion(id, label, data, objectCount),
     confirm: (id, client, pricing) => qt().confirm(id, client, pricing),
     setStage: (id, stage, overrideReason) => qt().setStage(id, stage, overrideReason),
+    // 0198: what blocks moving this event to `stage`, in plain words: [] = free; {hard:true} entries can
+    // never be passed (confirmed floor, closed, cancelled); other entries are HL409 gates an admin may
+    // override with a reason. null = this database has no 0198 yet (the page then just tries the move).
+    async stageBlockers(id, stage) {
+      if (mode !== "supabase" || !supa) return [];
+      const { data, error } = await supa.rpc("lifecycle_stage_blockers", { p_quote_id: id, p_stage: stage });
+      if (error) { const c = error.code || "", m = String(error.message || "");
+        if (c === "PGRST202" || c === "42883" || /could not find the function/i.test(m)) return null; throw error; }
+      return Array.isArray(data) ? data : [];
+    },
+    // 0198: an event that will not happen - status 'cancelled' (admin / manager, reason 5-1000 characters,
+    // recorded + audited). Payments, reservations and the stage are kept; the client link is revoked.
+    async cancelEvent(id, reason) {
+      const r = String(reason == null ? "" : reason).trim();
+      if (r.length < 5 || r.length > 1000) throw new Error("Give a reason of 5 to 1000 characters for cancelling.");
+      if (mode !== "supabase" || !supa) {
+        const a = lsq.read(); const q = a.find((x) => x.id === id); if (!q) throw new Error("This event no longer exists.");
+        if (q.status !== "cancelled") { q.status = "cancelled"; q.cancelReason = r; q.updatedAt = now(); lsq.write(a); }
+        return { status: "cancelled" };
+      }
+      const { data, error } = await supa.rpc("cancel_event", { p_quote_id: id, p_reason: r });
+      if (error) throw error; return data;
+    },
     staleApprovals: (ids) => (qt().staleApprovals ? qt().staleApprovals(ids) : Promise.resolve(new Set())),
     reissueApprovalLink: (id) => qt().reissueApprovalLink(id),
     // stage change that explains a refused move and, for an admin, offers an audited override.
@@ -2691,6 +2793,13 @@ window.HelmUrl = HelmUrl;
     // Display title follows TYPE_LOC_GUESTS_DDMMMYY (event-name.js) and refreshes when type /
     // city / guests / date change — unless the user renamed it. The code is never touched.
     updateMeta: async (id, patch, expectedUpdatedAt) => qt().updateMeta(id, await autoTitlePatch(id, patch), expectedUpdatedAt),
+    // 0197: record how an over-capacity quote was resolved (venue / reduce / extend / proceed + note);
+    // null clears it. Returns the stored decision. The server checks the shape and the studio.
+    async setCapacityDecision(id, decision) {
+      if (mode === "supabase") return rpc("set_quote_capacity_decision", { p_quote: id, p_decision: decision == null ? null : decision });
+      const a = lsq.read(); const q = a.find((x) => x.id === id); if (!q) throw new Error("not found");
+      q.capacityDecision = decision == null ? null : Object.assign({}, decision, { decided_at: now() }); lsq.write(a); return q.capacityDecision;
+    },
     remove: (id) => qt().remove(id),
     // next MMDDYYYY-NN given a list of quote summaries (uses .code)
     nextCode(list, date) {
@@ -4097,6 +4206,54 @@ window.HelmUrl = HelmUrl;
       if (mode === "supabase") { const { error } = await supa.from("inventory_reservations").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(RES_LS, JSON.stringify(readLs(RES_LS).filter((r) => r.id !== id))); return true;
     },
+    // 0197: asked for more than is free -> reserve ONLY what is free and record the rest as a
+    // shortage (o.source "vendor" = rent from o.vendorId at o.rate per unit -> also a vendor booking
+    // on the event; "buy" = outsource / buy; "none" = unsourced). One transaction server-side, so
+    // available stock never goes below 0. -> { reserved, short, available, reservation_id, request_id, booking_id }
+    async reserveWithSourcing(itemId, quoteId, qty, note, o) {
+      o = o || {};
+      const source = ["vendor", "buy", "none"].indexOf(o.source) >= 0 ? o.source : "none";
+      const rate = o.rate === "" || o.rate == null ? null : Number(o.rate);
+      if (mode === "supabase") {
+        try {
+          return await rpc("reserve_inventory_with_sourcing", { p_item: itemId, p_quote: quoteId, p_qty: Number(qty), p_note: note || null,
+            p_source: source, p_vendor: source === "vendor" ? (o.vendorId || null) : null, p_rate: rate, p_source_note: o.sourceNote || null });
+        } catch (e) { if (!rpcMissing(e)) throw e; }
+      }
+      // database without 0197 (or local mode): same steps one by one - reserve what is free, then record the rest
+      const av = await this.availability(quoteId); const a = av[itemId] || {};
+      const free = Math.max(0, Math.floor(Number(a.availableOnEvent != null ? a.availableOnEvent : (a.available != null ? a.available : 0)) || 0));
+      const take = Math.min(Number(qty), free), short = Number(qty) - take;
+      const out = { reserved: take, short, available: free };
+      if (take > 0) { const r = await this.reserve(itemId, quoteId, take, note || null); out.reservation_id = r && r.id; }
+      if (short > 0) {
+        const nm = a.name || "item";
+        if (source === "vendor" && o.vendorId) {
+          const bk = await bookings.add(quoteId, { vendor_id: o.vendorId, label: (nm + " - rent " + short + " (stock shortfall)").slice(0, 500), qty: short,
+            cost: rate == null ? null : Math.round(short * rate * 100) / 100, status: "enquiry", note: ("Rent " + short + " " + nm + " (stock shortfall)" + (o.sourceNote ? ". " + o.sourceNote : "")).slice(0, 2000) });
+          out.booking_id = bk && bk.id;
+        }
+        const lead = source === "vendor" ? "Sourcing from " + (o.vendorName || "vendor") : source === "buy" ? "Outsource / buy" : "Unsourced";
+        const rq = await stockreq.add(quoteId, { item_id: itemId, label: ("Short: " + short + " x " + nm).slice(0, 200), qty: short,
+          note: (lead + (o.sourceNote ? " - " + o.sourceNote : "")).slice(0, 1000),
+          ...(mode !== "supabase" ? { source, vendor_id: source === "vendor" ? (o.vendorId || null) : null, booking_id: out.booking_id || null } : {}) });
+        out.request_id = rq && rq.id; out.source = source;
+      }
+      return out;
+    },
+    // 0197: open shortages (stock requests raised by "Reserve for this event") for one event, or all
+    // events when no quoteId. [] on a database without 0197.
+    async shortages(quoteId) {
+      if (mode === "supabase") {
+        let q = supa.from("event_stock_requests").select("id,quote_id,item_id,label,qty,status,note,source,vendor_id,booking_id,created_at")
+          .not("source", "is", null).eq("status", "requested").order("created_at");
+        if (quoteId) q = q.eq("quote_id", quoteId);
+        const { data, error } = await q;
+        if (error) { if (isMissingColumn(error)) return []; throw error; }
+        return data || [];
+      }
+      return readLs(STOCKREQ_LS).filter((r) => r.source && r.status === "requested" && (!quoteId || r.quote_id === quoteId));
+    },
     // teardown "Return": mark returned + write off damaged stock in ONE transaction
     // (SEC-06 return_reservation). Falls back to the old two-call path until it's deployed.
     async returnReservation(resId, itemId, damaged) {
@@ -4321,8 +4478,12 @@ window.HelmUrl = HelmUrl;
       const { data, error } = await q; if (error) throw error; return data;
     },
     async update(id, patch) {
-      if (mode !== "supabase") { const a = readLs("bp_menu_templates"); const r = a.find((x) => x.id === id); if (r) Object.assign(r, patch); localStorage.setItem("bp_menu_templates", JSON.stringify(a)); return true; }
-      const { error } = await supa.from("menu_templates").update(patch).eq("id", id); if (error) throw error; return true;
+      if (mode !== "supabase") { const a = readLs("bp_menu_templates"); const r = a.find((x) => x.id === id); if (r) Object.assign(r, patch); localStorage.setItem("bp_menu_templates", JSON.stringify(a)); return r || true; }
+      // 0192: return the stored row (the card then shows exactly what was saved). No row back = nothing
+      // was saved (removed, or no access under RLS) - never report that as "saved".
+      const { data, error } = await supa.from("menu_templates").update(patch).eq("id", id).select("*"); if (error) throw error;
+      if (!data || !data.length) throw new Error("This package was not saved. It may have been removed, or you may not have access to edit it. Reload the page and try again.");
+      return data[0];
     },
     // apply a package to an event's menu in one shot (replaces current dishes)
     async apply(quoteId, templateId) {
@@ -4342,19 +4503,30 @@ window.HelmUrl = HelmUrl;
     // Like id() but THROWS when the lookup fails, so callers can tell "no studio"
     // (null) from "couldn't check" (error) — onboarding must only follow a real null.
     resolveId: () => orgIdStrict(),
-    async current() { if (!supa) return null;
+    // opts.fresh: read the saved row from the server (an edit form must never start from the tab cache)
+    async current(opts) { if (!supa) return null;
       const oid = await this.id();
-      return swr("org:" + oid, async () => { const { data, error } = await supa.from("organizations").select("*").eq("id", oid).maybeSingle();
-        if (error) throw error; return data; }); },
+      const read = async () => { const { data, error } = await supa.from("organizations").select("*").eq("id", oid).maybeSingle();
+        if (error) throw error; return data; };
+      if (opts && opts.fresh) { try { sessionStorage.removeItem(SWR_PREFIX + "org:" + oid); } catch (e) {} }
+      return swr("org:" + oid, read); },
     async save(patch) { if (!supa) throw new Error("Supabase not configured");
       const oid = await this.id();
-      let { error } = await supa.from("organizations").update(patch).eq("id", oid);
+      if (!oid) throw new Error("Studio settings aren't available for this workspace yet.");
+      // cc-general-billing: ask for the updated row back - an update the database row rules do not
+      // allow changes NOTHING and returns no error, so "saved" must only be said when a row changed
+      let { data, error } = await supa.from("organizations").update(patch).eq("id", oid).select("id");
       // #16: business_email_confirmed arrives with 0075; on an older database save the rest
       if (error && patch && "business_email_confirmed" in patch && (error.code === "PGRST204" || /business_email_confirmed/.test(error.message || ""))) {
         const rest = Object.assign({}, patch); delete rest.business_email_confirmed;
-        ({ error } = await supa.from("organizations").update(rest).eq("id", oid));
+        ({ data, error } = await supa.from("organizations").update(rest).eq("id", oid).select("id"));
       }
-      if (error) throw error; return true; },
+      if (error) throw error;
+      if (Array.isArray(data) && data.length === 0) {
+        const e = new Error("Nothing was changed: only a studio admin (or someone allowed to edit Control Center) can change the studio settings.");
+        e.code = "42501"; e.hint = "org_not_updated"; throw e;
+      }
+      return true; },
     createStudio: (name, opts) => rpc("create_studio", { p_name: name, p_email: (opts && opts.email) || null,
       p_currency: (opts && opts.currency) || "INR", p_timezone: (opts && opts.timezone) || "Asia/Kolkata" }),
     // GDPR / DPDP: admin downloads THIS org's data only (server re-scopes to current_org_id)
@@ -4728,6 +4900,11 @@ window.HelmUrl = HelmUrl;
       const { error } = await supa.from("event_sites").update(patch).eq("id", id);        // .eq() key enforced; org forced by trigger+RLS
       if (error) throw error; return true; },
     publish:   (id) => rpc("publish_event_site", { p_id: id, p_publish: true }),          // stamps published_at + name-based slug server-side
+    // 0195 "Send to client": queues the PUBLISHED invitation link (fixed text) by e-mail / WhatsApp.
+    // The server checks consent / STOP / caps; a FREE TRIAL studio gets {status:"skipped", reason:"free_trial"} - nothing is sent.
+    send: (siteId, channel, to, optIn, consentText) => rpc("event_site_send", { p_site: siteId, p_channel: channel === "whatsapp" ? "whatsapp" : "email",
+      p_to: String(to || "").slice(0, 200), p_opt_in: !!optIn, p_consent_text: optIn ? String(consentText || "").slice(0, 500) : null }),
+    sendLog: (siteId) => (supa ? rpc("event_site_send_log", { p_site: siteId }).catch(() => []) : Promise.resolve([])),
     unpublish: (id) => rpc("publish_event_site", { p_id: id, p_publish: false }),
     // Upload an invitation photo to Supabase Storage (public bucket 'invite-media').
     // Path is prefixed with the org id so storage RLS keeps tenants isolated.
@@ -5781,6 +5958,48 @@ window.HelmUrl = HelmUrl;
         }
         return rpc("create_event_group", { p_quote: quoteId, p_members: memberIds || [] });
       },
+      // 0194: "Add people" — people = [{kind:"user"|"staff"|"vendor"|"client", id}]. Teammates (and staff who sign
+      // in) become chat members; other staff, vendors and the client are kept as the group's contacts (name only).
+      // Nothing is sent to anyone (no WhatsApp / SMS / e-mail). → { users, contacts, skipped, trial, messages_sent:0 }
+      async addPeople(convId, people) {
+        const list = (Array.isArray(people) ? people : []).filter((x) => x && typeof x === "object" && /^(user|staff|vendor|client)$/.test(String(x.kind)))
+          .map((x) => (x.kind === "client" ? { kind: "client" } : { kind: x.kind, id: String(x.id || "") })).slice(0, 200);
+        if (!list.length) return { users: 0, contacts: 0, skipped: 0, trial: false, messages_sent: 0 };
+        if (mode !== "supabase") {
+          const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId);
+          if (!c || !c.quote_id) throw new Error("People can be added this way only to an event group.");
+          c.members = c.members || []; c.contacts = c.contacts || []; let users = 0, contacts = 0;
+          const crew = list.some((x) => x.kind === "staff") ? await staff.list(true).catch(() => []) : [];
+          const vend = list.some((x) => x.kind === "vendor") ? await vendors.listAll(true).catch(() => []) : [];
+          let q = null; if (list.some((x) => x.kind === "client")) { try { q = await quotes.get(c.quote_id); } catch (e) { q = null; } }
+          list.forEach((x) => {
+            if (x.kind === "user") { if (!c.members.some((m) => m.user_id === x.id)) { c.members.push({ user_id: x.id }); users++; } return; }
+            let name = "", ref = x.kind === "client" ? null : x.id;
+            if (x.kind === "staff") { const r = crew.find((s) => s.id === x.id && s.active !== false); name = r ? r.name : ""; }
+            else if (x.kind === "vendor") { const r = vend.find((v) => v.id === x.id && v.active !== false); name = r ? r.name : ""; }
+            else name = (q && q.client && String(q.client.name || "").trim()) || "Client";
+            if (!name) return;
+            const key = ref || x.kind, cur = c.contacts.find((k) => k.kind === x.kind && k.ref_key === key);
+            if (cur) { if (cur.removed_at) { cur.removed_at = null; contacts++; } return; }
+            c.contacts.push({ id: uid(), conversation_id: convId, kind: x.kind, ref_id: ref, ref_key: key, name: String(name).slice(0, 120), created_at: now(), removed_at: null }); contacts++;
+          });
+          chatWriteLs(CHAT_LS_C, convs); chatPing(); return { users, contacts, skipped: 0, trial: false, messages_sent: 0 };
+        }
+        return rpc("event_group_add_people", { p_conversation: convId, p_people: list });
+      },
+      // 0194: the group's contacts still in it (staff / vendors / client who don't sign in), oldest first.
+      // Fail-soft: 0194 not installed yet → [] (the group shows its chat members only).
+      async contacts(convId) {
+        if (mode !== "supabase") { const c = chatReadLs(CHAT_LS_C).find((x) => x.id === convId); return ((c && c.contacts) || []).filter((k) => !k.removed_at); }
+        const { data, error } = await supa.from("chat_group_contacts").select("id,kind,ref_id,name,created_at")
+          .eq("conversation_id", convId).is("removed_at", null).order("created_at").limit(500);
+        if (error) { const U = global.BPUI; if (U && U.isMissingTable && U.isMissingTable(error)) return []; throw error; }
+        return data || [];
+      },
+      async removeContact(convId, contactId) {
+        if (mode !== "supabase") { const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); const k = c && (c.contacts || []).find((x) => x.id === contactId); if (k) { k.removed_at = now(); chatWriteLs(CHAT_LS_C, convs); chatPing(); } return !!k; }
+        return rpc("event_group_remove_contact", { p_conversation: convId, p_contact: contactId });
+      },
       // post an updated event card when the details changed → new message id, or null if unchanged
       async refresh(convId) {
         if (mode !== "supabase") {
@@ -5925,10 +6144,15 @@ window.HelmUrl = HelmUrl;
   };
 
   /* ---------------- unified resource calendar + conflicts (Phase 10) ---------------- */
+  // 0198: the one rule for "this event still holds its date / venue / crew / vendors / stock"
+  const calEvLive = (e) => !!e && e.status !== "cancelled" && e.lifecycleStage !== "closed" && !e.closedAt && !e.archivedAt && !e.deletedAt;
+  const ackLs = () => { try { const v = JSON.parse(localStorage.getItem("bp_conflict_acks") || "{}"); return v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch { return {}; } };
+  const conflictKey = (c) => [c.type, c.date || "", String(c.rid || c.label || "").toLowerCase().slice(0, 120),
+    (c.events || []).map((e) => e && e.id).filter(Boolean).sort().join(",")].join("|");
   const calendar = {
     // Pull every commitment across all events and detect date clashes.
     async load() {
-      let [events, invRes, vendorBk, items, team, vends, tasks, plans, pricingCfg] = await Promise.all([
+      let [events, invRes, vendorBk, items, team, vends, tasks, plans, pricingCfg, shortRows] = await Promise.all([
         quotes.list(),
         inventory.reservations().catch(() => []),
         bookings.listAll().catch(() => []),
@@ -5947,9 +6171,11 @@ window.HelmUrl = HelmUrl;
           if (error) throw error; return data;
         })().catch(() => []),
         config.getPricing().catch(() => ({})),   // for the venue-clash buffer (parallel, no extra round-trip)
+        inventory.shortages().catch(() => []),   // 0197: open stock shortages ("Short: 10 x Air Cooler - sourcing from ...")
       ]);
       // Cancelled / closed events and finished tasks don't hold anything: leave them out of clash checks.
-      const evLive = (e) => !!e && e.status !== "cancelled" && !(e.lifecycleStage === "closed" && e.status === "confirmed");
+      // 0198: a closed event never clashes, whatever its status (and neither does an archived / deleted one).
+      const evLive = calEvLive;
       const liveEvents = events.filter(evLive);
       const evById = {}; liveEvents.forEach((e) => { evById[e.id] = e; });
       tasks = (tasks || []).filter((t) => !["done", "completed", "cancelled"].includes(String(t.status || "").toLowerCase()));
@@ -5979,7 +6205,7 @@ window.HelmUrl = HelmUrl;
       Object.entries(invByItemDate).forEach(([k, list]) => {
         const [itemId, d] = k.split("|"); const item = itemById[itemId]; if (!item) return;
         const sum = list.reduce((a, r) => a + Number(r.qty || 0), 0);
-        if (sum > Number(item.total_qty || 0)) conflicts.push({ type: "inventory", date: d,
+        if (sum > Number(item.total_qty || 0)) conflicts.push({ type: "inventory", date: d, rid: itemId,
           label: item.name, detail: `${sum} committed of ${item.total_qty} ${item.unit || ""} across ${new Set(list.map((r) => r.quote_id)).size} events`,
           events: [...new Set(list.map((r) => r.quote_id))].map((q) => evById[q]) });
       });
@@ -5992,7 +6218,7 @@ window.HelmUrl = HelmUrl;
       });
       Object.entries(vByVendorDate).forEach(([k, qset]) => {
         const [vid, d] = k.split("|"); if (qset.size > 1) { const v = vendById[vid];
-          conflicts.push({ type: "vendor", date: d, label: v ? v.name : "Partner",
+          conflicts.push({ type: "vendor", date: d, rid: vid, label: v ? v.name : "Partner",
             detail: `booked for ${qset.size} events on this date`, events: [...qset].map((q) => evById[q]) }); }
       });
       // 3) staff double-booked on a date
@@ -6003,7 +6229,7 @@ window.HelmUrl = HelmUrl;
       });
       Object.entries(sByStaffDate).forEach(([k, qset]) => {
         const [sid, d] = k.split("|"); if (qset.size > 1) { const p = staffById[sid];
-          conflicts.push({ type: "staff", date: d, label: p ? p.name : "Staff",
+          conflicts.push({ type: "staff", date: d, rid: sid, label: p ? p.name : "Staff",
             detail: `assigned to ${qset.size} events on this date`, events: [...qset].map((q) => evById[q]) }); }
       });
       // 4) venue double-booking: two DIFFERENT events sharing the SAME date + time + venue name + venue address.
@@ -6042,11 +6268,18 @@ window.HelmUrl = HelmUrl;
         if (clashing.size < 2) return;
         const ev = uniq.filter((e) => clashing.has(e.id));
         const v = venueOf(ev[0]); const vname = v.name || v.address || "Venue";
-        conflicts.push({ type: "venue", date: ev[0].eventDate, label: vname,
+        conflicts.push({ type: "venue", date: ev[0].eventDate, rid: vnorm(v.name) || vnorm(v.address), label: vname,
           detail: hasTimeClash
             ? `${ev.length} events at ${vname} on ${ev[0].eventDate} within ${bufferHours}h of each other`
             : `${ev.length} events at ${vname} on ${ev[0].eventDate} — set start times to check the ${bufferHours}h gap`,
           events: ev });
+      });
+
+      // 0198: every clash names only live events, and gets a stable key (type | date | what | which events)
+      // so it can be acknowledged; the key changes - and the clash shows again - when another event joins.
+      conflicts.forEach((c) => {
+        c.events = (c.events || []).filter(Boolean);
+        c.key = conflictKey(c);
       });
 
       // ---- per-event commitment rollup (for the agenda) ----
@@ -6059,19 +6292,51 @@ window.HelmUrl = HelmUrl;
           vendorsList: vend.map((b) => (vendById[b.vendor_id] || {}).name || b.label),
           staffList: crew.map((c) => (staffById[c] || {}).name || "crew") };
       });
-      return { agenda, conflicts, counts: { events: events.length, dated: events.filter((e) => e.eventDate).length } };
+      // 0197: open stock shortages on live events (reserved only what was free; the rest is being sourced)
+      const shortages = (shortRows || []).filter((r) => evById[r.quote_id]).map((r) => {
+        const b = vendorBk.find((x) => x.id === r.booking_id), v = vendById[r.vendor_id];
+        return { id: r.id, date: dateOf(r.quote_id), event: evById[r.quote_id], source: r.source || "none", qty: Number(r.qty) || 0,
+          text: shortageText(r, { itemName: (itemById[r.item_id] || {}).name, vendorName: v && v.name, bookingStatus: b && b.status }) };
+      });
+      agenda.forEach((a) => { a.shortages = shortages.filter((x) => x.event && x.event.id === a.event.id); });
+      return { agenda, conflicts, shortages, counts: { events: events.length, dated: events.filter((e) => e.eventDate).length } };
     },
     // Phase 49 — the conflicts that involve one specific event (for the workspace card)
     async conflictsForEvent(quoteId) {
       const { conflicts } = await this.load();
       return conflicts.filter((c) => (c.events || []).some((e) => e && e.id === quoteId));
     },
+    // 0198: open "acknowledged" marks for these conflict keys -> { key: {by, at, note} }.
+    // null = this database has no 0198 yet (the page hides "Mark acknowledged").
+    async acks(keys) {
+      const list = [...new Set((keys || []).filter(Boolean))].slice(0, 200);
+      if (mode !== "supabase" || !supa) { const all = ackLs(); const out = {}; list.forEach((k) => { if (all[k]) out[k] = all[k]; }); return out; }
+      if (!list.length) return {};
+      const { data, error } = await supa.from("calendar_conflict_acks").select("conflict_key,acked_email,acked_at,note")
+        .in("conflict_key", list).is("revoked_at", null);
+      if (error) { const c = error.code || ""; if (c === "42P01" || c === "PGRST205" || /calendar_conflict_acks/i.test(String(error.message || ""))) return null; throw error; }
+      const out = {}; (data || []).forEach((r) => { out[r.conflict_key] = { by: r.acked_email || "", at: r.acked_at, note: r.note || "" }; });
+      return out;
+    },
+    async ack(quoteId, key, note) {
+      if (mode !== "supabase" || !supa) { const all = ackLs(); all[key] = { by: "", at: now(), note: note || "" };
+        localStorage.setItem("bp_conflict_acks", JSON.stringify(all)); return { acknowledged: true }; }
+      const { data, error } = await supa.rpc("ack_calendar_conflict", { p_quote_id: quoteId, p_key: key, p_note: note || null });
+      if (error) throw error; return data;
+    },
+    async unack(quoteId, key) {
+      if (mode !== "supabase" || !supa) { const all = ackLs(); delete all[key];
+        localStorage.setItem("bp_conflict_acks", JSON.stringify(all)); return { acknowledged: false }; }
+      const { data, error } = await supa.rpc("unack_calendar_conflict", { p_quote_id: quoteId, p_key: key });
+      if (error) throw error; return data;
+    },
     // Phase 49 — predictive pre-commit check: would assigning this crew / vendor on this
     // event's date collide with another event on the same day? (light, targeted queries)
     async wouldClash({ date, crewId, vendorId, excludeQuote } = {}) {
       if (!date || mode !== "supabase" || !supa) return { clash: false };
       const events = await quotes.list();
-      const sameDay = events.filter((e) => e.eventDate === date && e.id !== excludeQuote);
+      // 0198: a cancelled / closed / archived event on that day holds nobody - never a clash
+      const sameDay = events.filter((e) => calEvLive(e) && e.eventDate === date && e.id !== excludeQuote);
       if (!sameDay.length) return { clash: false };
       const ids = sameDay.map((e) => e.id); const byId = {}; sameDay.forEach((e) => (byId[e.id] = e));
       if (crewId) {
@@ -6145,6 +6410,28 @@ window.HelmUrl = HelmUrl;
       if (mode === "supabase") { const { error } = await supa.from("event_costs").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(COST_LS, JSON.stringify(readLs(COST_LS).filter((c) => c.id !== id))); return true;
     },
+    // 0196: are the budget-planning columns (requirement_key / priority / quoted / vendor_id) installed?
+    // A 0-row read of those columns, cached once it says yes. Local mode always has them.
+    async planReady() {
+      if (mode !== "supabase") return true;
+      if (this._planReady) return true;
+      const { error } = await supa.from("event_costs").select("id,requirement_key,priority,quoted,vendor_id").limit(0);
+      if (error) return false;
+      this._planReady = true; return true;
+    },
+    // 0196: add budget lines made from requirements / standard lines. Lines are only ever ADDED:
+    // a row whose requirement_key the event already has is skipped (unique index 23505 / local check),
+    // so a reload, a second click or two open tabs never duplicate a line. Returns how many were added.
+    async addPlanLines(quoteId, rows) {
+      let added = 0;
+      for (const r of rows || []) {
+        if (!r || !r.requirement_key) continue;   // keyed rows only - never an un-deduplicable insert
+        if (mode !== "supabase" && readLs(COST_LS).some((c) => c.quote_id === quoteId && c.requirement_key === r.requirement_key)) continue;
+        try { await this.addCost(quoteId, r); added++; }
+        catch (e) { if (e && e.code === "23505") continue; throw e; }
+      }
+      return added;
+    },
     // pull vendor bookings (event_resources) in as vendor cost lines (skips ones already imported)
     async importVendorCosts(quoteId) {
       const [bk, costs] = await Promise.all([bookings.list(quoteId), this.listCosts(quoteId)]);
@@ -6172,6 +6459,15 @@ window.HelmUrl = HelmUrl;
         if (error) throw error; rows = data || [];
       } else rows = readLs(CHG_LS).filter((c) => c.status === "approved" && ids.indexOf(String(c.quote_id)) >= 0);
       rows.forEach((c) => { const d = Number(c.price_delta || 0); if (Number.isFinite(d) && d) out[c.quote_id] = (out[c.quote_id] || 0) + d; });
+      return out;
+    },
+    // qts-1018: { quoteId: invoice total } for list rows (each row carries its server-stamped
+    // total) - BPStore.invoiceTotal over the same approved change orders summary() counts.
+    // Fail-soft: an unreadable change-order table gives the base totals (same on every screen).
+    async invoiceTotals(rows) {
+      const list = (rows || []).filter((r) => r && r.id); const out = {}; if (!list.length) return out;
+      let ch = {}; try { ch = (await this.approvedChangeTotals(list.map((r) => r.id))) || {}; } catch (_) { ch = {}; }
+      list.forEach((r) => { out[r.id] = BPStore.invoiceTotal(r, ch[r.id]); });
       return out;
     },
     async addChange(quoteId, c) {
@@ -6389,6 +6685,32 @@ window.HelmUrl = HelmUrl;
   };
 
   /* ---------------- readiness gate: Event Ready checkpoint (Phase 15) ---------------- */
+  // 0197 over-capacity: a venue holds seated + floating guests (40,000 + 10,000 = 50,000). Over it, the
+  // quote needs a decision; "proceed" covers up to the guests it was recorded for, "extend" up to
+  // capacity + the extra space, both only for the venue they were recorded for.
+  function capacityStatus(q, venue, guestsOverride) {
+    const c = (q && q.client) || {};
+    const g = Math.round(Number(guestsOverride != null && guestsOverride !== "" ? guestsOverride : c.guests) || 0);
+    if (!venue || !(g > 0)) return { over: false, guests: g };
+    const seat = Math.max(0, Math.round(Number(venue.seated_capacity) || 0)), flt = Math.max(0, Math.round(Number(venue.floating_capacity) || 0));
+    const total = seat + flt;
+    if (!(total > 0) || g <= total) return { over: false, guests: g, seated: seat, floating: flt, total, venue };
+    const d = (q && q.capacityDecision) || null;
+    const same = !!d && String(d.venue_id || "") === String(venue.id || "");
+    const resolved = same && (d.choice === "proceed" ? g <= Number(d.guests || 0)
+      : d.choice === "extend" ? g <= total + Number(d.extra_capacity || 0) : false);
+    return { over: true, guests: g, seated: seat, floating: flt, total, short: g - total, venue, decision: d, resolved };
+  }
+  // 0197 "Short: 10 x Air Cooler / Fan - sourcing from Cool Rentals (enquiry)" / "- outsource / buy" / "- unsourced"
+  function shortageText(r, o) {
+    o = o || {};
+    const qty = Number(r && r.qty) || 0;
+    const name = o.itemName || String((r && r.label) || "").replace(/^Short:\s*\d+(\.\d+)?\s*[x\u00d7]\s*/i, "") || "item";
+    const head = "Short: " + qty.toLocaleString("en-IN") + " \u00d7 " + name;
+    if (r && r.source === "vendor") return head + " \u2014 sourcing from " + (o.vendorName || "a vendor") + (o.bookingStatus ? " (" + o.bookingStatus + ")" : "");
+    if (r && r.source === "buy") return head + " \u2014 outsource / buy";
+    return head + " \u2014 unsourced";
+  }
   const readiness = {
     async check(quoteId) {
       const [ev, planRow, resCheck, bk, tasks, ms, rs] = await Promise.all([
@@ -6402,6 +6724,18 @@ window.HelmUrl = HelmUrl;
         milestones.list(quoteId).catch(() => []),
         runsheet.list(quoteId).catch(() => []),
       ]);
+      // 0197: stock shortages + guests vs the linked venue
+      const [shorts, items, vlist] = await Promise.all([
+        inventory.shortages(quoteId).catch(() => []),
+        inventory.items(true).catch(() => []),
+        (ev && ev.client && ev.client.venueId) ? venues.list({ all: true }).catch(() => []) : Promise.resolve([]),
+      ]);
+      const cap = capacityStatus(ev, (vlist || []).find((v) => v.id === (ev.client || {}).venueId) || null);
+      const itemName = (id) => ((items || []).find((i) => i.id === id) || {}).name;
+      const vend = (shorts || []).some((r) => r.vendor_id) ? await vendors.listAll(true).catch(() => []) : [];
+      const shortLines = (shorts || []).map((r) => { const b = bk.find((x) => x.id === r.booking_id), v = (vend || []).find((x) => x.id === r.vendor_id);
+        return shortageText(r, { itemName: itemName(r.item_id), bookingStatus: b && b.status, vendorName: v && v.name }); });
+      const unsourced = (shorts || []).filter((r) => r.source !== "vendor" && r.source !== "buy").length;
       const gaps = resCheck.filter((c) => !c.covered).length;
       const enquiry = bk.filter((b) => b.status === "enquiry").length;
       const crew = new Set(tasks.map((t) => t.crew_id)).size;
@@ -6414,6 +6748,12 @@ window.HelmUrl = HelmUrl;
         { key: "vendors", label: "Vendors confirmed", critical: true, ok: enquiry === 0 && (bk.length > 0 || resCheck.length > 0), detail: enquiry ? (enquiry + " still enquiry") : (bk.length ? "all confirmed" : (resCheck.length ? "in-house — none needed" : "nothing planned")) },
         { key: "staff", label: "Staff assigned", critical: true, ok: crew > 0, detail: crew ? (crew + " assigned") : "none" },
         { key: "runsheet", label: "Run-sheet built", critical: true, ok: rs.length > 0, detail: rs.length ? (rs.length + " items") : "empty" },
+        { key: "capacity", label: "Guests fit the venue", critical: true, ok: !cap.over || cap.resolved,
+          detail: !cap.over ? (cap.total ? cap.guests.toLocaleString("en-IN") + " of " + cap.total.toLocaleString("en-IN") : "no saved venue linked")
+            : cap.resolved ? (cap.decision.choice === "extend" ? "extended: +" + Number(cap.decision.extra_capacity || 0).toLocaleString("en-IN") + " space" : "proceeding anyway (noted)")
+            : cap.short.toLocaleString("en-IN") + " guests won't fit - decide in the quote" },
+        { key: "stock", label: "Stock sourced (no shortages left open)", critical: true, ok: unsourced === 0,
+          detail: shortLines.length ? shortLines.join("; ") : "no shortages" },
         { key: "payments", label: "Advance received", critical: false, ok: paid, detail: paid ? "yes" : "not yet" },
         { key: "dry_run", label: "Dry run done", critical: true, ok: !!(planRow && planRow.dry_run_at), detail: (planRow && planRow.dry_run_at) ? "done" : "pending", signoff: "dry_run" },
         { key: "briefing", label: "Team briefed", critical: true, ok: !!(planRow && planRow.briefing_at), detail: (planRow && planRow.briefing_at) ? "done" : "pending", signoff: "briefing" },
@@ -6980,6 +7320,8 @@ window.HelmUrl = HelmUrl;
     if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order|client_follow_up)$/.test(k))
       return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
     if (k === "price_change") return "flow.html?id=" + enc(q) + "#sec-quote";
+    if (k === "invite_site_link") return "invite-studio.html?quote=" + enc(q);
+    if (k === "booklet_link") return "event.html?id=" + enc(q);
     if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
     if (/^pkg_(selected|accepted|declined)$/.test(k)) return "event.html?id=" + enc(q) + "#pkg-selections";
     if (k === "pkg_payment") return "settlement.html?quote=" + enc(q) + "#payments";
@@ -7291,7 +7633,16 @@ window.HelmUrl = HelmUrl;
       inventory_low_stock: ["📦", "Low stock: " + String(d.item || "an item") + (d.date ? " on " + d.date : "")
         + (Number(d.short) > 0 ? " — short by " + Number(d.short) : "")],
       client_follow_up: ["💬", "Follow-up sent to the client" + (d.auto === false ? "" : " (automatic)")],
+      // 0195: "Send to client" on the Invitation Studio
+      invite_site_link: ["💌", n.status === "suppressed"
+        ? "Invitation link not sent" + (d.skipped === "free_trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : "")
+        : n.status === "failed" ? "Invitation link could not be sent" : "Invitation link sent to the client"],
+      // 0200: "Send to client" in the Share booklet dialog (and the older client-mailer e-mail)
+      booklet_link: ["📖", n.status === "suppressed"
+        ? "Booklet link not sent" + (d.skipped === "free_trial" || d.suppressed_by === "trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : "")
+        : n.status === "failed" ? "Booklet link could not be sent" : n.status === "simulated" ? "Booklet link not sent (sending not set up)" : "Booklet link sent to the client"],
     };
+    if (k === "invite_site_link" || k === "booklet_link") return { icon: m[k][0], text: m[k][1] };
     const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
                       : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
     // 0036: an automatic staff text/e-mail the studio switched off is logged, not sent
@@ -8002,6 +8353,8 @@ window.HelmUrl = HelmUrl;
       case "booklet.view": case "booklet.read": return "Client viewed the booklet" + ev;
       case "booklet.share": return "Booklet shared with the client" + ev + (c.expires_at ? " (link valid until " + String(c.expires_at).slice(0, 10) + ")" : "");
       case "booklet.revoke": return "Booklet link revoked" + ev;
+      case "booklet.link_sent": return "Booklet link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
+        + (c.channel === "whatsapp" ? " on WhatsApp" : c.channel === "email" ? " by email" : "") + (c.to ? " to " + String(c.to).slice(0, 80) : "") + ev;
       case "booklet.snapshot": case "booklet.snap": return auditHuman(kindLabel(c.kind)) + (c.set === false ? " removed" : " updated") + " in the booklet" + ev;
       case "booklet.log": return "Booklet activity" + ev;
       case "pkg.view": case "pkg.read": return "Client viewed the package options" + ev;
@@ -8018,6 +8371,8 @@ window.HelmUrl = HelmUrl;
       case "upload.rejected": return "Uploaded file rejected" + (c.reason ? " — " + String(c.reason).slice(0, 80) : "");
       case "work_links.revoked": return "Work links revoked" + ev;
       case "event_site.reslugged": return "Invitation site address changed" + ev;
+      case "event_site.link_sent": return "Invitation website link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
+        + (c.channel === "whatsapp" ? " on WhatsApp" : c.channel === "email" ? " by email" : "") + (c.to ? " to " + String(c.to).slice(0, 80) : "") + ev;
       case "chat.event_group.create": return "Event chat group created" + ev;
       case "notification_pref.set": return "Notification setting changed";
       case "notification_pref.reset": return "Notification settings reset to default";
@@ -8392,7 +8747,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -8580,6 +8935,11 @@ window.HelmUrl = HelmUrl;
           p_version_ids: vers, p_terms: o.terms ? String(o.terms).slice(0, 8000) : null, p_note: o.note ? String(o.note).slice(0, 1000) : null,
           ...(sec ? { p_sections: sec } : {}) }); },
       revoke: (quoteId) => rpc("booklet_revoke", { p_quote_id: quoteId }),
+      // 0200 "Send to client": queues the LIVE booklet link (fixed text) by e-mail / WhatsApp (comms_outbox -> comms-dispatch).
+      // The server checks consent / STOP / caps; a FREE TRIAL studio gets {status:"skipped", reason:"free_trial"} - nothing is sent.
+      send: (quoteId, channel, to, optIn, consentText) => rpc("booklet_send", { p_quote: quoteId, p_channel: channel === "whatsapp" ? "whatsapp" : "email",
+        p_to: String(to || "").slice(0, 200), p_opt_in: !!optIn, p_consent_text: optIn ? String(consentText || "").slice(0, 500) : null }),
+      sendLog: (quoteId) => (supa ? rpc("booklet_send_log", { p_quote: quoteId }).catch(() => []) : Promise.resolve([])),
       url: (token) => (HelmUrl.studio() ? links.base() + "/" + HelmUrl.studio() + "/booklet/" + encodeURIComponent(String(token || "")) : links.base() + "/booklet?t=" + encodeURIComponent(String(token || ""))),
       sections: () => BOOKLET_SECTIONS.slice(),
       // 0069: 2D / 3D snapshot -> private bucket booklet-snapshots at <org>/<quote>/<kind>.<png|jpg|webp> (<= 3 MB),
@@ -8761,28 +9121,62 @@ window.HelmUrl = HelmUrl;
       // 0127 — after subscribing: "fresh" removes ONLY this studio's is_demo rows, "keep" keeps them.
       choose: (choice) => rpc("trial_demo_choice", { p_choice: choice === "fresh" ? "fresh" : "keep" }),
     },
+    // 0185 — after a free trial upgrades the admin chooses once: "keep" (default) keeps the sample data
+    // (tagged Sample), "remove_sample" removes ONLY is_demo rows, "clean" also ARCHIVES every own record
+    // (never deletes; needs the typed phrase START CLEAN). status(): my_upgrade_status(); null before 0185.
+    upgrade: {
+      status: () => (supa ? rpc("my_upgrade_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      choose: (choice, confirm) => rpc("upgrade_data_choice", {
+        p_choice: choice === "clean" || choice === "remove_sample" ? choice : "keep",
+        p_confirm: confirm == null ? null : String(confirm).slice(0, 40) }),
+      // Control Center "Delete all sample data": is_demo rows only (own records never touched)
+      deleteSample: () => rpc("delete_all_sample_data"),
+      // undo of "Start completely clean": every archived record back in the lists
+      restore: () => rpc("restore_clean_start"),
+    },
     // 0116 — "Start free trial": start() creates the caller's "Demo N" studio (sample data,
     // 8 days) through create_studio; a caller who already has a studio gets it back untouched.
     // status(): {is_trial_org, name, ends_at, days_left, ended, locked, is_admin}; null before 0116.
+    // 0183: + read_only (ended unpaid trial: read-only for everyone); is_trial_org false once paid / converted.
     trialOrg: {
       start: (loc) => (loc && (loc.timezone || loc.currency) ? rpc("start_trial", { p_timezone: loc.timezone || null, p_currency: loc.currency || null }) : rpc("start_trial", {})),
       // 0167 — 2-step trial welcome, step 1: rename the caller's own trial studio (name, link slug, city, optional phone)
       welcome: (name, city, phone) => rpc("trial_welcome_setup", { p_name: String(name || "").trim(), p_city: String(city || "").trim() || "Hyderabad", p_phone: String(phone || "").trim() || null }),
-      status: () => (supa ? swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })) : Promise.resolve(null)),
+      // 0180 — server-side welcome flag (works across devices): true while the free-trial owner's
+      // 2-step welcome is not finished, false otherwise; null = 0180 not installed (the page then
+      // falls back to this browser's sign-up flag)
+      welcomePending: () => (supa ? rpc("my_trial_welcome_pending", {}).then((v) => v === true, (e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // finished (Skip / Send invites) -> false; "start my own studio" names the studio again -> true
+      welcomeDone: () => (supa ? rpc("trial_welcome_set", { p_pending: false }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      welcomeAgain: () => (supa ? rpc("trial_welcome_set", { p_pending: true }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      status: () => trialOrgStatus(),
+      // 0183 — true while this studio is READ-ONLY after its free trial ended unpaid (everyone in it); false otherwise
+      readOnly: () => studioReadOnly(),
+      // 0177 — true while this is a self-serve free-trial studio still ON its trial (not yet paid):
+      // such a studio uses the short 2-step welcome, never the full studio setup (/onboarding).
+      async inTrial() {
+        if (!supa) return false;
+        try {
+          const r = await Promise.all([BPStore.trialOrg.status(), BPStore.subscription.trial()]);
+          return !!(r[0] && r[0].is_trial_org === true && r[1] && r[1].state === "trial");
+        } catch (e) { return false; }
+      },
       // 0126 — {is_trial_org, ends_at, ended, locked, is_owner, blocked}; works for a member blocked after an unpaid trial ends.
       access: () => (supa ? rpc("my_trial_access", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
-      // 0119 — the ONE self-serve trial: {name (blank -> "Demo N"), timezone, currency, mode: "demo"|"own"}.
+      // 0119 — the ONE self-serve trial: {name (blank -> "Demo N")}. 0180: always the sample data on
+      // INR / Asia/Kolkata (any mode / time zone / currency passed in is ignored; the server does the same).
       // Before 0119 is applied: own studio name -> create_studio (old path); no name -> start_trial (Demo N).
       async startSelfServe(o) {
         o = o || {};
-        const name = String(o.name || "").trim() || null, mode = o.mode === "own" ? "own" : "demo";
+        // 0180: every free trial is sample data + India (INR / Asia/Kolkata); the server enforces the same
+        const name = String(o.name || "").trim() || null, mode = "demo";
         try {
-          return await rpc("start_self_serve_trial", { p_name: name, p_timezone: o.timezone || null, p_currency: o.currency || null, p_mode: mode });
+          return await rpc("start_self_serve_trial", { p_name: name, p_timezone: "Asia/Kolkata", p_currency: "INR", p_mode: mode });
         } catch (e) {
           if (!rpcMissing(e)) throw e;
-          if (!name) return BPStore.trialOrg.start({ timezone: o.timezone, currency: o.currency });
-          const id = await BPStore.org.createStudio(name, { currency: o.currency, timezone: o.timezone });
-          try { if (mode === "demo") await BPStore.demo.seed(); else await BPStore.demo.setMode("own"); } catch (x) {}
+          if (!name) return BPStore.trialOrg.start({ timezone: "Asia/Kolkata", currency: "INR" });
+          const id = await BPStore.org.createStudio(name, { currency: "INR", timezone: "Asia/Kolkata" });
+          try { await BPStore.demo.seed(); } catch (x) {}
           return { result: "started", org_id: id, name: name, mode: mode, legacy: true };
         }
       },
@@ -8790,6 +9184,63 @@ window.HelmUrl = HelmUrl;
     gettingStarted: {
       get: () => (supa ? rpc("my_getting_started").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       dismiss: (on) => rpc("my_getting_started_dismiss", { p_dismissed: on !== false }),
+      // free-trial checklist facts (read-only, RLS = the caller's own studio): a sample event to open
+      // (prefers one whose floor plan has objects, so the builder link shows a real layout) and whether
+      // the studio has sent one of its OWN quotes (is_demo = false; sample quotes never count).
+      async trialFacts() {
+        const out = { eventId: null, layoutQuoteId: null, ownQuoteSent: false };
+        if (!supa) return out;
+        try {
+          let r = await supa.from("quotes").select("id,lifecycle_stage,event_date,deleted_at").eq("is_demo", true).is("deleted_at", null).order("event_date", { ascending: true }).limit(40);
+          if (r.error && isMissingColumn(r.error)) r = await supa.from("quotes").select("id,lifecycle_stage,event_date").eq("is_demo", true).order("event_date", { ascending: true }).limit(40);
+          const demo = (!r.error && Array.isArray(r.data)) ? r.data : [];
+          if (demo.length) {
+            const BOOKED = ["confirmed", "planning", "resources", "ready", "event_day"];
+            let withLayout = [];
+            try {
+              const v = await supa.from("quote_versions").select("quote_id,object_count").in("quote_id", demo.map((q) => q.id)).gt("object_count", 0).limit(40);
+              if (!v.error && Array.isArray(v.data)) withLayout = v.data.map((x) => x.quote_id);
+            } catch (e) { withLayout = []; }
+            const has = (q) => withLayout.indexOf(q.id) >= 0, booked = (q) => BOOKED.indexOf(q.lifecycle_stage) >= 0;
+            const ev = demo.find((q) => booked(q) && has(q)) || demo.find(booked) || demo[0];
+            const lay = demo.find((q) => has(q) && booked(q)) || demo.find(has) || null;
+            out.eventId = ev ? ev.id : null; out.layoutQuoteId = lay ? lay.id : null;
+          }
+        } catch (e) { /* links fall back to the lists */ }
+        try {
+          const s = await supa.from("quotes").select("id").eq("is_demo", false).in("approval_status", ["sent", "approved", "paid"]).limit(1);
+          out.ownQuoteSent = !s.error && Array.isArray(s.data) && s.data.length > 0;
+        } catch (e) { out.ownQuoteSent = false; }
+        return out;
+      },
+      // the studio's OWN work for the paid checklist (read-only, RLS = own studio). Sample rows (is_demo,
+      // a trial kept after paying) never tick a step, and a quote's floor plan counts: the builder saves
+      // it as a quote version (quote_versions), not in the standalone layouts table my_getting_started reads.
+      // -> {lead, floorPlan, quoteSent} booleans, or null when it can't be read (callers keep the server flags).
+      async ownFacts() {
+        if (!supa) return null;
+        const own = async (build) => {
+          let r = await build(true);
+          if (r.error && isMissingColumn(r.error)) r = await build(false);   // a database without is_demo: every row is the studio's own
+          if (r.error) throw r.error;
+          return Array.isArray(r.data) ? r.data : [];
+        };
+        try {
+          const lead = (await own((d) => { const q = supa.from("leads").select("id").limit(1); return d ? q.eq("is_demo", false) : q; })).length > 0;
+          const quoteSent = (await own((d) => { const q = supa.from("quotes").select("id").in("approval_status", ["sent", "approved", "paid"]).limit(1); return d ? q.eq("is_demo", false) : q; })).length > 0;
+          let floorPlan = false;
+          // newest first: a studio kept after its trial has many sample versions, and its own (newer) floor plans
+          // must not fall outside the 200-row window
+          let v = await supa.from("quote_versions").select("quote_id").gt("object_count", 0).order("created_at", { ascending: false }).limit(200);
+          if (v.error && isMissingColumn(v.error)) v = await supa.from("quote_versions").select("quote_id").gt("object_count", 0).limit(200);
+          const ids = (!v.error && Array.isArray(v.data)) ? Array.from(new Set(v.data.map((x) => x.quote_id).filter(Boolean))) : [];
+          if (ids.length) floorPlan = (await own((d) => { const q = supa.from("quotes").select("id").in("id", ids).limit(1); return d ? q.eq("is_demo", false) : q; })).length > 0;
+          if (!floorPlan) {
+            try { floorPlan = (await own((d) => { const q = supa.from(TABLE).select("id").limit(1); return d ? q.eq("is_demo", false) : q; })).length > 0; } catch (e) { /* standalone layouts unreadable: quote plans decide */ }
+          }
+          return { lead, floorPlan, quoteSent };
+        } catch (e) { return null; }
+      },
     },
     myTasks: () => (supa ? rpc("my_tasks") : Promise.resolve({ today: [], overdue: [], blocked: [], upcoming: [], completed: [], counts: {} })),
     // Build 1 — Designer 2D->3D design-approval state machine.
@@ -9196,11 +9647,15 @@ window.HelmUrl = HelmUrl;
     // 0166 — free-trial seat limit (you + 2 people; open invitations count)
     // 0173 — free-trial lock / 2-row creation cap: the DB message is written for people
     if (e && (e.hint === "trial_cap" || e.hint === "trial_locked") && e.message) return pre + endDot(clip(String(e.message), 240));
+    // 0192 - menu package checks (price per plate / dish list): the DB message is written for people
+    if (e && e.hint === "menu_pkg_invalid" && e.message) return pre + endDot(clip(String(e.message), 240));
     if (e && e.hint === "seat_limit") return pre + "Your free trial includes you + 2 people, and both seats are in use. Revoke an invitation or remove someone to add another person — or upgrade for more seats.";
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
+    // 0183 — the free trial ended unpaid: the whole studio is read-only for everyone until it is upgraded
+    if (e && e.hint === "trial_ended") return pre + "Your trial has ended. Your data is preserved and available in read-only mode. Upgrade now to continue creating and editing records.";
     if (e && (e.hint === "studio_suspended" || errCode(e) === "25006")) return pre + "This studio is read-only because its Helm subscription is suspended or the trial has ended — contact Helm (or an admin can renew in Billing).";
     // 0052 lifecycle gates / re-approval: the DB message is written for people
-    if (e && (e.code === "HL409" || e.code === "HL428") && e.message) return endDot(clip(String(e.message), 300));
+    if (e && (e.code === "HL409" || e.code === "HL428" || e.code === "HL425") && e.message) return endDot(clip(String(e.message), 300));   // 0198 HL425: event day not over
     // r9: a server-raised 22023 / 42501 written as a sentence for people ("Only an admin can
     // re-open a closed event.", "This event is not closed.") is shown as-is instead of a generic line
     var hc = errCode(e), hm = errMsg(e);
@@ -10105,6 +10560,42 @@ window.HelmUrl = HelmUrl;
     if (r.country === "IN") return "\u20b9" + x.toLocaleString("en-IN");
     return BPStore.tax.money(x, r);
   };
+  // ---- qts-1018: ONE status label + ONE invoice total for every screen ----------------------
+  // A quote has three state columns: status (quote / confirmed = the studio priced + LOCKED it /
+  // cancelled), approval_status (none / sent / approved / paid) and lifecycle_stage. Screens used
+  // to print them side by side ("Confirmed · awaiting client approval" + "Sent"), so a locked quote
+  // read as confirmed before the client approved it. quoteStatus() folds them into ONE label:
+  // "Confirmed" only once the client approved (or paid, or the event already moved past the
+  // Confirmed stage); a locked quote the client has not approved is "Sent · awaiting client approval".
+  var QS_STAGES = ["lead", "discovery", "proposal", "quote", "confirmed", "planning", "resources", "ready", "event_day", "settlement", "closed"];
+  BPStore.quoteStatus = function (q, opts) {
+    q = q && typeof q === "object" ? q : {}; opts = opts || {};
+    var st = String(q.status || "quote"), ap = String(q.approvalStatus || q.approval_status || "none");
+    var lc = String(q.lifecycleStage || q.lifecycle_stage || "quote"), si = QS_STAGES.indexOf(lc);
+    var closed = lc === "closed" || !!(q.closedAt || q.closed_at);
+    var mk = function (key, label, tone, title, confirmed) { return { key: key, label: label, tone: tone, title: title || "", confirmed: !!confirmed }; };
+    if (st === "cancelled") return mk("cancelled", "Cancelled", "cancelled", "This event was cancelled.");
+    if (closed) return mk("closed", "Closed", "closed", "The event is settled and closed.", true);
+    if (ap === "paid" || opts.advance) return mk("booked", "Confirmed · advance paid", "paid", "The client's advance is in - the date is booked.", true);
+    if (ap === "approved") return mk("approved", "Confirmed · client approved", "confirmed", "The client approved this quote.", true);
+    // lifecycle at/after Confirmed: the client's consent moved it there (0052), or an admin override
+    if (si >= QS_STAGES.indexOf("confirmed"))
+      return mk("confirmed", "Confirmed", "confirmed", "Moved to Confirmed by the studio - no online client approval on record.", true);
+    if (ap === "sent") return mk("sent", "Sent · awaiting client approval", "sent", "The approval link is with the client - it becomes Confirmed when they approve.");
+    if (st === "confirmed") return mk("locked", "Locked · not sent yet", "locked", "Priced and locked - send the client the approval link.");
+    return mk("quote", "Quote", "draft", "Draft quote - price it, then send it for approval.");
+  };
+  // The invoice total = the SERVER-priced quote total (pricing.total is stamped by the D8 trigger
+  // zz_enforce_pricing_total on every write - never a client-side recompute) + APPROVED change orders.
+  // Same rule as budget.summary().revenue (workspace, settlement, closure), so list, dashboard and
+  // workspace header can never disagree. changeTotal: that quote's approved change-order sum.
+  BPStore.invoiceTotal = function (q, changeTotal) {
+    q = q && typeof q === "object" ? q : {};
+    var b = Number(q.total != null ? q.total : (q.pricing && q.pricing.total));
+    if (!isFinite(b) || !(b > 0)) return 0;
+    var c = Number(changeTotal || 0); if (!isFinite(c)) c = 0;
+    return Math.round((b + c) * 100) / 100;
+  };
   BPStore.studioMoney = function (n, opts) {
     var r = BPStore.studioTax(), x = Number(n || 0); if (opts && opts.round) x = Math.round(x);
     if (r.country === "IN") return "\u20b9" + x.toLocaleString("en-IN");
@@ -10392,7 +10883,8 @@ window.HelmUrl = HelmUrl;
       if (!allowNeg && v.indexOf("-") !== -1) negHint(el);
       if (v.trim() !== "") el.removeAttribute("data-rejected");
       var cleaned = v.replace(allowNeg ? /[^\d.\-]/g : /[^\d.]/g, "");
-      if (integer) cleaned = cleaned.replace(/\./g, "");
+      // whole-number field: a pasted "2.5" keeps the whole part (2) - stripping only the dot made it 25
+      if (integer) { var ip = cleaned.indexOf("."); if (ip !== -1) cleaned = cleaned.slice(0, ip); }
       if (allowNeg) { var neg = cleaned.charAt(0) === "-"; cleaned = (neg ? "-" : "") + cleaned.replace(/-/g, ""); }
       // keep only the first decimal point
       var dot = cleaned.indexOf(".");
@@ -10450,7 +10942,7 @@ window.HelmUrl = HelmUrl;
   // Every phone field becomes the HelmPhone component (phone-input.js: flag + searchable
   // country list + as-you-type format; .value stays E.164). Pages that don't include the
   // script get it loaded on demand; if it can't load, the legacy hardener below is used.
-  var PHONE_LIB_V = "3", phoneLib = null;
+  var PHONE_LIB_V = "5", phoneLib = null;
   function loadPhoneLib() {
     if (window.HelmPhone && window.HelmPhone.attach) return Promise.resolve(true);
     if (phoneLib) return phoneLib;

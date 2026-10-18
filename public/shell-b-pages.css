@@ -99,3 +99,17 @@ html[data-shell="b"][data-theme="dark"] .avail.mid { color: #fdb022; }
 html[data-shell="b"][data-theme="dark"] .avail.ok { color: #47cd89; }
 /* 5g. insights: negative-margin red was light-mode only (2.7:1 on dark panels) */
 html[data-shell="b"][data-theme="dark"] td.neg { color: #f97066; }
+
+/* 9. Dialog layer for EVERY app page (staffui-1018; same approach as qmodal-1018 on quotes). Page dialogs (.lmodal, chat's .ov /
+      .lightbox / .imgedit) used z-index 60-90, so the sticky top bar (800), side rail (900), trial / notice cards (900) and the
+      mobile tab bar (950) painted over them and hid the dialog's title. The layer now sits above all app chrome - the dimmed
+      backdrop covers the banner too - but below the tour (9000), BPUI confirm / toasts (2147483000+) and the phone-code list (1200
+      inside the sheet). The sheet is centred when it fits (margin:auto), otherwise pinned 24px from the top, never taller than the
+      viewport, and scrolls inside itself. Theme skins that paint every [role=dialog] as a card must not paint the backdrop. */
+html[data-shell="b"] .lmodal { z-index: 1100; align-items: flex-start; justify-content: center; padding: 24px 16px; overflow: hidden; overscroll-behavior: contain;
+  background: rgba(20,27,46,.5) !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+html[data-shell="b"] .lmodal > :is(.sheet, .lsheet) { margin: auto; max-width: 100%; max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); overflow: auto; overscroll-behavior: contain; }
+html[data-shell="b"] body:has(#imgEdit) .ov { z-index: 1100; align-items: flex-start; overflow: hidden; }
+html[data-shell="b"] body:has(#imgEdit) .ov > .modal { margin: auto; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); }
+html[data-shell="b"] body:has(#imgEdit) :is(.lightbox, .imgedit) { z-index: 1150; }
+@media (max-width: 600px) { html[data-shell="b"] .lmodal { padding: 12px; } html[data-shell="b"] .lmodal > :is(.sheet, .lsheet) { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); } }

@@ -194,6 +194,13 @@
     });
     wrap.appendChild(el("div", { cls: "actions" }, [sus]));
 
+    // 0186: free trial — one extension per studio (1–7 days, reason required)
+    wrap.appendChild(el("h3", { text: "Free trial" }));
+    var trialBox = el("div", { id: "trialExt" }); wrap.appendChild(trialBox);
+    loadTrialInfo(org, d.name, trialBox).catch(function () {
+      clear(trialBox).appendChild(el("div", { cls: "muted", text: "Trial details appear after migration 0186 is applied." }));
+    });
+
     // account profile (business account data only)
     var acc = d.account || {};
     wrap.appendChild(el("h3", { text: "Account" }));
@@ -233,6 +240,47 @@
     var cl = el("button", { cls: "btn", type: "button", text: "Close" }); cl.addEventListener("click", function () { openOrg = null; clear(box); });
     wrap.appendChild(el("div", { cls: "actions" }, [rec, cl]));
     box.appendChild(wrap); try { wrap.scrollIntoView({ block: "nearest" }); } catch (e) {}
+  }
+
+  /* ---------------- 0186 free-trial extension ---------------- */
+  // pure: validated args for hq_extend_trial (exported for tests). The database checks the same.
+  function trialExtendArgs(org, days, reason) {
+    var d = Number(days), r = String(reason == null ? "" : reason).replace(/\s+/g, " ").trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(org || ""))) throw new Error("Open a studio first");
+    if (!(d >= 1 && d <= 7) || Math.floor(d) !== d) throw new Error("An extension is 1 to 7 days");
+    if (r.length < 5) throw new Error("Write the reason for the extension (at least 5 characters)");
+    if (r.length > 500) throw new Error("The reason can be up to 500 characters");
+    return { p_org: org, p_days: d, p_reason: r };
+  }
+  async function loadTrialInfo(org, name, box) {
+    var t = await call("hq_trial_info", { p_org: org }); t = t && !Array.isArray(t) ? t : {};
+    clear(box);
+    var x = t.extension || null, ended = t.trial_ends_at && new Date(t.trial_ends_at).getTime() <= Date.now();
+    box.appendChild(el("div", null, [statusPill(t.status || "none"), " ",
+      t.trial_ends_at ? (ended ? "trial ended " : "trial ends ") + date(t.trial_ends_at) : "no trial end date",
+      t.locked ? " · read-only" : "", t.trial_mode ? " · " + (t.trial_mode === "demo" ? "sample data" : "own data") : ""]));
+    if (x) {
+      box.appendChild(el("div", { cls: "muted", text: "Extended once by " + int(x.days) + " day" + (num(x.days) === 1 ? "" : "s") +
+        " on " + date(x.granted_at) + (x.granted_by_email ? " by " + x.granted_by_email : "") + " (" + date(x.previous_ends_at) + " → " + date(x.new_ends_at) + ")." }));
+      box.appendChild(el("div", { cls: "muted", text: "Reason: " + (x.reason || "—") }));
+      box.appendChild(el("div", { cls: "muted", text: "Only one extension is allowed per studio." }));
+      return;
+    }
+    if (!t.can_extend) { box.appendChild(el("div", { cls: "muted", text: t.why_not || "This studio cannot get a trial extension." })); return; }
+    var sel = el("select", { "aria-label": "Extra days" });
+    for (var i = 1; i <= 7; i++) { var o = el("option", { value: String(i), text: i + " day" + (i === 1 ? "" : "s") }); if (i === 7) o.selected = true; sel.appendChild(o); }
+    var why = el("input", { type: "text", maxlength: "500", placeholder: "Why? e.g. customer asked for more time to evaluate", "aria-label": "Reason for the extension" });
+    var go = el("button", { cls: "btn primary", type: "button", text: "Extend trial…" });
+    go.addEventListener("click", function () {
+      var a; try { a = trialExtendArgs(org, sel.value, why.value); } catch (e) { showErr(e); return; }
+      if (!window.confirm("Extend the free trial of " + (name || "this studio") + " by " + a.p_days + " day" + (a.p_days === 1 ? "" : "s") +
+        "? This can be done only ONCE for this studio, and the reason is kept in the HQ log.")) return;
+      go.disabled = true;
+      call("hq_extend_trial", a).then(function (r) { okMsg("Trial extended" + (r && r.new_ends_at ? " to " + date(r.new_ends_at) : "") + "."); refreshAfterWrite(org); })
+        .catch(showErr).then(function () { go.disabled = false; });
+    });
+    box.appendChild(el("div", { cls: "muted", text: "One-time extension (up to 7 days). It starts from the current trial end, or from today if the trial has already ended." }));
+    box.appendChild(el("div", { cls: "form" }, [field("Extra days", sel), field("Reason (required)", why), go]));
   }
 
   /* ---------------- people ---------------- */

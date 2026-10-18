@@ -62,7 +62,7 @@ async function makeEnv(o = {}) {
     return (o.respond || (() => ({ data: [], error: null })))(q);
   });
   const doc = {
-    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=1' },
+    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=247' },
     createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, addEventListener() {}, querySelector: () => null, remove() {} }),
     head: { appendChild() {} }, body: { appendChild() {}, removeChild() {}, children: [] },
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; }, classList: { contains: () => false, add() {}, remove() {} } },
@@ -154,12 +154,15 @@ t('source: local-date floor, prefilled past date kept, max logout global, Broadc
   assert.match(SRC, /supa\.rpc\("reserve_inventory"/);
   assert.match(SRC, /PGRST202/);
   assert.match(SRC, /_reserveRpc = false/);
-});t('a confirmed "Reserve anyway" over-commit is not hard-blocked (page passes allowOver, store skips RPC + precheck)', () => {
-  assert.match(SRC, /allowOver = !!\(opts && opts\.allowOver\)/);
+});t('0197: asking for more than is free never over-commits - the page opens the shortage panel (reserve what is free + source the rest)', () => {
+  assert.match(SRC, /allowOver = !!\(opts && opts\.allowOver\)/);   // store option kept for older callers
   assert.match(SRC, /_reserveRpc !== false && !allowOver/);
   const page = read('public/inventory.html');
-  assert.match(page, /overOk=true/);
-  assert.match(page, /\{allowOver:overOk\}/);
+  assert.doesNotMatch(page, /allowOver:overOk/);
+  assert.doesNotMatch(page, /Reserve anyway/);
+  assert.match(page, /if\(qty>free && window\.HelmShortage\)\{/);
+  assert.match(page, /HelmShortage\.showPanel\(\$\("#rvShort"\)/);
+  assert.match(SRC, /rpc\("reserve_inventory_with_sourcing"/);
 });t('store-api: staff.facets is defined once (a stale duplicate returned no total -> "2 of undefined")', () => {
   assert.equal((SRC.match(/async facets\(/g) || []).length, 1);
   assert.match(SRC, /async facets\(includeInactive\)/);

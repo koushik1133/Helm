@@ -109,8 +109,10 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000
 
   -- maintenance role cannot hard-delete either
   perform pg_temp.su();
+  -- 0180: compare with the count just before (earlier suites may leave sample trial studios with their own venues)
+  n := (select count(*) from public.venues);
   e := pg_temp.try('delete from public.venues');
-  perform pg_temp.res('26 hard delete blocked for everyone', e like '42501%' and (select count(*) from public.venues where org_id is distinct from 'a5a5a5a5-0166-4000-8000-000000000001') = 9, e);   -- 0167: the sample master's 4 venues are not fixture rows
+  perform pg_temp.res('26 hard delete blocked for everyone', e like '42501%' and (select count(*) from public.venues) = n and n >= 9, e);
   perform pg_temp.res('27 audit rows written', exists (select 1 from public.audit_log where entity = 'venues'));
 exception when others then perform pg_temp.su(); insert into _v85 values ('xx setup', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 

@@ -59,7 +59,7 @@
   tbody td{padding:12px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle}
   tbody tr:hover{background:var(--panel-2)}
   .code{font-family:var(--mono);font-weight:600}
-  .refchip{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink-3);background:var(--accent-soft);border-radius:20px;padding:2px 8px}
+  .refchip{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink-3);background:var(--accent-soft);border-radius:20px;padding:2px 8px;white-space:nowrap}
   .muted{color:var(--ink-3);font-size:12px}
   .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px}
   .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
@@ -84,9 +84,14 @@
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 
   /* modal */
-  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  /* qmodal-1018: the dialog layer sits ABOVE the app chrome (sticky top bar 800, side rail 900, trial / notice cards 900),
+     so the dimmed backdrop covers all of it and the sheet's title is never tucked under the top bar. The sheet is
+     centred when it fits (margin:auto), otherwise pinned to the top gutter and it scrolls inside itself. */
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:1100;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:hidden;overscroll-behavior:contain}
   .lmodal[hidden]{display:none!important}
-  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(760px,96vw);max-height:90vh;overflow:auto;padding:24px}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(760px,96vw);margin:auto;max-height:calc(100vh - 48px);max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;padding:24px}
+  /* the layer itself is not a card: theme skins that style every [role=dialog] must not paint the backdrop */
+  html[data-shell] .lmodal{background:rgba(20,27,46,.5)!important;border:0!important;border-radius:0!important;box-shadow:none!important}
   .sheet h3{margin:0 0 2px;font-size:18px;display:flex;align-items:center;gap:8px}
   .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:32px;height:32px;font-size:15px;cursor:pointer;color:var(--ink-2)}
   .sheet p.sub{margin:0 0 16px;font-size:12px;color:var(--ink-3)}
@@ -122,9 +127,9 @@
   .eglist .rl{margin-left:auto;color:var(--ink-3);font-size:12px;text-transform:capitalize}
   .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
-<link rel="stylesheet" href="quotes-polish.css?v=6">
-<link rel="stylesheet" href="theme.css?v=80">
-<script src="/shell-proto.js?v=22" id="shellProto"></script>
+<link rel="stylesheet" href="quotes-polish.css?v=8"><link rel="stylesheet" href="event-group-picker.css?v=2">
+<link rel="stylesheet" href="theme.css?v=82">
+<script src="/shell-proto.js?v=26" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -143,7 +148,7 @@
     <div class="tabs" id="tabs" role="group" aria-label="Show quotes">
       <button type="button" data-f="all" class="on" aria-pressed="true">Active</button>
       <button type="button" data-f="quote" aria-pressed="false">Quotes</button>
-      <button type="button" data-f="confirmed" aria-pressed="false">Confirmed</button>
+      <button type="button" data-f="confirmed" aria-pressed="false" title="Priced and locked quotes: sent to the client (awaiting approval) and client-confirmed events">Sent &amp; confirmed</button>
       <button type="button" data-f="attention" aria-pressed="false">⚠ Attention</button>
       <button type="button" data-f="archived" aria-pressed="false">Archive<span class="tcount" id="cnt_archived" hidden></span></button>
       <button type="button" data-f="deleted" aria-pressed="false" id="tab_deleted" hidden>Deleted<span class="tcount" id="cnt_deleted"></span></button>
@@ -206,16 +211,17 @@
         </select>
       </div>
       <div class="fld"><label for="p_vendor">Vendor</label><select id="p_vendor"></select></div>
-      <div class="fld"><label for="p_camount">Catering charge ₹ (extra)</label><input id="p_camount" type="number" min="0" step="1" value="0" title="Any vendor bill on top of per-plate"></div>
+      <div class="fld"><label for="p_camount">Extra catering charge ₹ (on top of the plates)</label><input id="p_camount" type="number" min="0" step="1" value="0" title="A one-off catering amount added on top of plates × per-plate price (e.g. a vendor's live-counter or transport bill). Leave 0 if none." aria-describedby="p_camount_err"><small class="cm-ferr" id="p_camount_err" role="alert" hidden></small></div>
     </div>
     <div class="grid three s-d2c171b">
-      <div class="fld"><label for="p_coupon">Coupon</label><select id="p_coupon"><option value="">— none —</option></select></div>
+      <div class="fld"><label for="p_coupon">Coupon</label><select id="p_coupon" aria-describedby="p_coupon_err"><option value="">— none —</option></select><small class="cm-ferr" id="p_coupon_err" role="alert" hidden></small></div>
       <div class="fld"><label for="p_discount">Discount ₹</label><input id="p_discount" type="number" min="0" step="1" value="0" aria-describedby="p_discount_err"><small class="cm-ferr" id="p_discount_err" role="alert" hidden></small></div>
       <div class="fld"><label for="p_discountPct">Discount %</label><input id="p_discountPct" type="number" min="0" max="100" step="0.5" value="0" aria-describedby="p_discountPct_err"><small class="cm-ferr" id="p_discountPct_err" role="alert" hidden></small></div>
     </div>
     <!-- rates come from the Control Center; kept as hidden inputs so the calculator stays unchanged -->
     <input type="hidden" id="p_chairPrice"><input type="hidden" id="p_platePrice"><input type="hidden" id="p_gst">
     <input type="hidden" id="p_cgst"><input type="hidden" id="p_svc"><input type="hidden" id="p_other" value="0">
+    <div class="taxnote" id="discRule">How discounts work: the coupon and the discount both come off the subtotal (a % is worked out on the subtotal). Use a ₹ discount or a % discount, not both. GST is added after the discounts.</div>
     <div class="taxnote" id="taxNote">Rates (₹/chair, ₹/plate, GST) are set once in the <a class="s-a805525" href="control.html">Control Center</a>. Enter a coupon or discount here. Only GST applies as a tax in India; confirm with a CA.</div>
 
     <div class="totals" id="totals"></div>
@@ -281,11 +287,11 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="phone-input.js?v=3"></script>
+<script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script><script src="quote-state.js?v=2"></script>
-<script src="event-sizing.js?v=5"></script>
-<script src="tour.js?v=15"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="flow-resume.js?v=2" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
+<script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
+<script src="tour.js?v=17"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -294,9 +300,10 @@
   const inr = (n)=> (curTax && curTax.country!=="IN") ? BPStore.tax.money(Number(n||0), curTax) : "₹"+Number(n||0).toLocaleString("en-IN");
   const fmtDate=(iso)=>{try{return BPStore.fmtDay(iso)||"—";}catch{return "—";}};
   // shared status pills (ui-kit .hs-pill); the old .stat class stays as the fallback if ui-kit.css doesn't load
-  // confirmed by the studio but not yet approved/paid by the client → say so (not a bare "Confirmed")
-  const statBadge=(s,a)=> s==="confirmed"?(a==="approved"||a==="paid"?'<span class="stat hs-pill hs-confirmed">Confirmed</span>':'<span class="stat hs-pill hs-confirmed">Confirmed · awaiting client approval</span>'):s==="cancelled"?'<span class="stat hs-pill hs-overdue">Cancelled</span>':'<span class="stat hs-pill hs-draft">Quote</span>';
-  const apprBadge=(a)=> a==="paid"?'<span class="stat hs-pill hs-paid">Paid</span>':a==="approved"?'<span class="stat hs-pill hs-confirmed">Approved</span>':a==="sent"?'<span class="stat hs-pill hs-sent">Sent</span>':"";
+  // qts-1018: ONE label from status + approval + stage (BPStore.quoteStatus) - "Confirmed" only after the
+  // client approved; a locked quote with the link out reads "Sent · awaiting client approval" (never both)
+  const PILL={draft:"hs-draft",sent:"hs-sent",locked:"hs-draft",confirmed:"hs-confirmed",paid:"hs-paid",closed:"hs-archived",cancelled:"hs-overdue"};
+  const statusPill=(x)=>{ const st=BPStore.quoteStatus(x); return `<span class="stat hs-pill ${PILL[st.tone]||"hs-draft"}" data-status="${esc(st.key)}" title="${esc(st.title)}">${esc(st.label)}</span>`; };
 
   let focusPending=true;
   let quotes=[], filter="all", typeFilter="", canEdit=false, canDelete=false, canCreate=false, canMarkPaid=false;
@@ -468,13 +475,29 @@
     if(listR.status==="rejected"){ BPUI.loadError($("#rows"), listR.reason, load, {what:"quotes"}); return; }
     render();
     try{ performance.mark("quotes:first-rows"); performance.measure("quotes:time-to-first-rows","quotes:load-start","quotes:first-rows"); }catch(_){}
+    startApprovalWatch();
+  }
+  // confirm-1018 #3: a client approving on their link (OTP or the free-trial "Test mode - confirm") shows here
+  // without a reload - poll the quotes on screen that still wait for the client (~15 s, only while visible)
+  let apprWatch=null;
+  function startApprovalWatch(){
+    if(apprWatch || !window.HelmApprovalWatch) return;
+    apprWatch=HelmApprovalWatch.start({
+      ids:()=>HelmApprovalWatch.pending(quotes),
+      known:(id)=>{ const q=quotes.find(x=>x.id===id); return q?{status:q.status, approvalStatus:q.approvalStatus}:null; },
+      // patch the rows in place (keeps the page / "load more" position), drop their cached details, repaint
+      onChange:(d)=>{ d.changed.forEach(r=>{ const q=quotes.find(x=>x.id===r.id);
+          if(q){ q.status=r.status; q.approvalStatus=r.approvalStatus; if(r.updatedAt) q.updatedAt=r.updatedAt; }
+          if(!(cmId===r.id && !$("#confirmModal").hidden)) delete detailCache[r.id]; });
+        render(); }
+    });
   }
   // first page of the current tab / type / search (resolves after it painted)
   function reloadList(){
     if(!pager) pager=BPUI.pager({ after: $("#rows").closest(".card"), what:"quotes",
       fetch:(offset)=>shelfPage(offset, ()=>BPStore.quotes.page({ offset, view:viewOf(filter), eventType:typeFilter, search:($("#search").value||"").trim(), sort:"confirmedFirst" })),
       render:(rows,info)=>{ quotes=info.all; render(); refreshStale(); refreshChanges(); } });
-    anyQuotes=null;
+    anyQuotes=null; chgKey=""; staleKey="";   // qts-1018: a reload re-reads change orders + stale approvals too
     return pager.reset();
   }
   // 0052: quotes whose client approval went stale after a price change (fail-soft)
@@ -491,7 +514,8 @@
     try{ if(!(BPStore.budget&&BPStore.budget.approvedChangeTotals)) return; const m=await BPStore.budget.approvedChangeTotals(ids)||{};
       const changed=Object.keys(m).length||Object.keys(chgTotals).length; chgTotals=m; if(changed) render(); }catch(_){}
   }
-  const listTotal=(x)=>{ const b=Number(x.total)||0; return b ? Math.round((b+(Number(chgTotals[x.id])||0))*100)/100 : 0; };
+  // qts-1018: the ONE invoice-total rule (server-stamped total + approved change orders) the workspace header uses
+  const listTotal=(x)=>BPStore.invoiceTotal(x, chgTotals[x.id]);
   const reloadQuiet=()=>reloadList().catch(e=>{ BPUI.loadError($("#rows"), e, reloadQuiet, {what:"quotes"}); });
   function render(){
     $("#rows").removeAttribute("aria-busy");
@@ -534,7 +558,7 @@
         <td><a class="qname" href="event.html?id=${esc(encodeURIComponent(x.id))}" title="Open the event workspace"><b>${esc(qName(x))}</b></a><div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
         <td><select class="vsel" data-role="vsel" aria-label="Floor-plan (layout) version of ${esc(x.code)}" title="Floor-plan layout versions — quotation versions (Q1, Q2…) are in the quote's history"><option>Layout v${esc(x.currentVersion)}</option></select></td>
-        <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat hs-pill hs-overdue">Deleted</span> ':'<span class="stat hs-pill hs-archived">Archived</span> '):''}${needsAttention(x)?'<span class="stat hs-pill hs-overdue" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat hs-pill hs-archived">Closed · Archived</span>':statBadge(x.status,x.approvalStatus)} ${apprBadge(x.approvalStatus)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
+        <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat hs-pill hs-overdue">Deleted</span> ':'<span class="stat hs-pill hs-archived">Archived</span> '):''}${needsAttention(x)?'<span class="stat hs-pill hs-overdue" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat hs-pill hs-archived">Closed · Archived</span>':statusPill(x)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
         <td style="text-align:right" class="amt">${listTotal(x)?esc(BPStore.quoteMoney(listTotal(x),x)):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
@@ -602,67 +626,84 @@
 
   /* ---------- confirm / pricing modal ---------- */
   let cmChairsSeed="", cmId=null, cmConfig=null, cmVendors=[], cmCoupons=[], platesEdited=false;
+  // the studio's saved venues as a dropdown on the Venue field (free text still works); a pick fills an empty address
+  const cmVenueSug=(window.HelmVenueSuggest&&HelmVenueSuggest.attach($("#c_venue"),{address:$("#c_address")}))||null;
+  let cmVenueAtOpen="";
   async function openConfirm(id){
     $("#cm_err").hidden=true;
-    let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"open this quote"}),{type:"err"}); return; }
+    // qmodal-1018: always read the quote fresh - a copy cached earlier in this page's life (version list, an
+    // earlier open, a back/forward restore) can predate the client details typed in the event workspace
+    let full; try{ full=await BPStore.quotes.get(id); if(full) detailCache[id]=full; }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"open this quote"}),{type:"err"}); return; }
     if(!full){ BPUI.toast("This quote no longer exists.",{type:"err"}); return; }
     cmId=id;
-    // prefill from stored pricing/client, and counts from the current version
-    const pr=full.pricing||{}, cl=full.client||{};
+    const pr=full.pricing||{};
     $("#cm_titleText").textContent = (full.status==="confirmed"?"Re-price ":"Confirm ")+full.code;
-    $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
-    $("#c_phone").value=cl.phone||""; $("#c_date").value=cl.eventDate||""; $("#c_venue").value=cl.venue||"";
-    $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||""; $("#c_state").value=cl.state||""; $("#c_trn").value=cl.trn||"";
     // central rates + vendors + coupons from the Control Center
     // Each lookup is optional: run them together and give each a time limit, so one slow or
     // failing read (vendors, coupons, the plan, the layout version) can never leave the row's
     // Confirm button spinning with no dialog — the dialog opens with sensible fallbacks instead.
     const soft=(fn,fb)=>Promise.race([Promise.resolve().then(fn), new Promise(r=>setTimeout(()=>r(fb),8000))]).then(v=>v==null?fb:v,()=>fb);
-    const [cfgR, vendR, coupR, verR, planR]=await Promise.all([
+    const [cfgR, vendR, coupR, verR, planR, pkgR, selR]=await Promise.all([
       soft(()=>BPStore.config.getPricing(),null), soft(()=>BPStore.vendors.list(),[]), soft(()=>BPStore.coupons.list(),[]),
-      soft(()=>BPStore.quotes.getVersion(id, full.currentVersion),null), soft(()=>BPStore.plan.get(id),null)]);
-    cmConfig=cfgR||{chairPrice:200,platePrice:500,gstPct:18,cateringGstPct:18,serviceChargePct:0};
+      soft(()=>BPStore.quotes.getVersion(id, full.currentVersion),null), soft(()=>BPStore.plan.get(id),null),
+      soft(()=>BPStore.menuTemplates.list(true),[]),
+      // a plate price agreed with the client in the package flow must never be replaced by the list price
+      soft(()=>(BPStore.pkgflow&&BPStore.pkgflow.list)?BPStore.pkgflow.list(id):[],[])]);
+    // qmodal-1018: a pricing config may lack the rate keys (a free-trial studio's carries only tax + terms):
+    // fall back to the defaults Control Center shows for it, never to an empty / ₹0 rate
+    { const sr=HelmQuoteRates.studioRates(cfgR);
+      cmConfig=cfgR ? Object.assign({}, cfgR, { chairPrice:sr.chairPrice, platePrice:sr.platePrice }) : {chairPrice:200,platePrice:500,gstPct:18,cateringGstPct:18,serviceChargePct:0}; }
     cmVendors=Array.isArray(vendR)?vendR:[]; cmCoupons=Array.isArray(coupR)?coupR:[];
     const cfg=cmConfig; const sT=BPStore.tax.resolve(cfg), qT=BPStore.quoteTax(full);
     // B11: an already-priced quote stays in ITS currency/tax; switching to the studio's country is an explicit choice
     const priced=("gstPct" in pr)||("total" in pr); cmKeep = priced && qT.country!==sT.country;
     cmTaxSwitched=false; curTax = cmKeep ? qT : sT; paintCurBanner(cmKeep, qT, sT, pr, cfg);
-    $("#rateNote").textContent = `· ${inr(cfg.chairPrice)}/chair · ${inr(cfg.platePrice)}/plate · ${curTax.name} ${curTax.rate}%${curTax.inclusive?" (included in prices)":""}  (edit in Control Center)`;
+    $("#rateNote").textContent = "";   // painted with the effective rates by recalc() → paintRateNote()
     // seat counts + object cost from current version (same engine as the builder)
     let seats=0, objectsCost=0; try{ const v=verR;
       const items=v&&v.data&&v.data.items; seats=countSeats(items);
       const oi=BPStore.pricing.fromItems(items, cfg.assetPrices); objectsCost=oi.objectsCost;
     }catch{}
-    // menu package (set on the plan by the builder / plan screen) → its per-plate price drives catering
     const planRow=planR||null;
-    const menuPlate = planRow && planRow.menu_plate_price!=null ? +planRow.menu_plate_price : null;
+    // client: the quote's client record, else the copy inside its pricing / the list row (qmodal-1018)
+    const row=(Array.isArray(quotes)?quotes:[]).find(x=>x&&x.id===id)||null, mc=HelmQuoteRates.clientFor(full,row,planRow);
+    $("#c_name").value=mc.name; $("#c_company").value=mc.company; $("#c_email").value=mc.email;
+    $("#c_phone").value=mc.phone; $("#c_date").value=mc.eventDate; $("#c_venue").value=mc.venue; cmVenueAtOpen=$("#c_venue").value.trim();
+    $("#c_address").value=mc.address; $("#c_notes").value=mc.notes; $("#c_state").value=mc.state; $("#c_trn").value=mc.trn;
+    const cl=full.client||{};
+    // effective rates (qmodal-1018): the applied package's CURRENT price wins for the plate (the plan only keeps the price
+    // the package had when it was applied); the chair is the studio rate, or the quote's own when it keeps its currency
+    cmRatesIn={ cfg:cmConfig, pricing:pr, plan:planRow, packages:Array.isArray(pkgR)?pkgR:[], selections:Array.isArray(selR)?selR:[] };
+    cmRates=HelmQuoteRates.effective(Object.assign({ keep:cmKeep }, cmRatesIn));
     // R9: the quote's ONE chairs value (typed, else 70% of guests) — the layout count only when nothing else exists
     $("#p_chairs").value = pr.chairs!=null?HelmSizing.quoteChairs(cl,pr,pr.chairs):(HelmSizing.quoteChairs(cl,pr,seats)??seats);
     cmChairsSeed = String($("#p_chairs").value);
     // guests: last-priced value → layout seats → the count carried over from the lead
     $("#p_guests").value = pr.guests!=null?pr.guests:(pr.chairs!=null?pr.chairs:(seats||(cl.guests!=null?cl.guests:"")));
     // rates from the Control Center, but plate price follows the applied menu package when there is one
-    $("#p_chairPrice").value = cfg.chairPrice;
-    $("#p_platePrice").value = menuPlate!=null ? menuPlate : cfg.platePrice;
-    $("#p_gst").value = cmKeep && pr.gstPct!=null ? pr.gstPct : cfg.gstPct;
+    $("#p_chairPrice").value = cmRates.chairPrice;
+    $("#p_platePrice").value = cmRates.platePrice;
+    $("#p_gst").value = cmKeep && pr.gstPct!=null ? pr.gstPct : (cfg.gstPct!=null && cfg.gstPct!=="" ? cfg.gstPct : sT.rate);
     $("#p_cgst").value = cmKeep && pr.catering && pr.catering.gstPct!=null ? pr.catering.gstPct : (cfg.cateringGstPct!=null ? cfg.cateringGstPct : "");
-    if(cmKeep && pr.chairPrice!=null) $("#p_chairPrice").value = pr.chairPrice;
-    if(cmKeep && pr.platePrice!=null && menuPlate==null) $("#p_platePrice").value = pr.platePrice;
     $("#p_svc").value = cfg.serviceChargePct||0;
     // fold the layout's décor/equipment + setup fee into "other" (first time only, so manual edits stick)
     $("#p_other").value = (pr.other!=null && pr.other!=="") ? pr.other : (objectsCost + (+cfg.layoutBase||0));
-    cmPkgName = (menuPlate!=null && planRow.menu_template) ? String(planRow.menu_template) : "";
+    cmPkgName = (cmRates.plateSrc==="package"||cmRates.plateSrc==="agreed") ? cmRates.pkgName : "";
     // vendor dropdown (+ add new)
     $("#p_vendor").innerHTML = `<option value="">— none —</option>`+cmVendors.map(v=>`<option>${esc(v.name)}</option>`).join("")+`<option value="__new">＋ Add new vendor…</option>`;
     $("#p_vendor").value = (pr.catering&&pr.catering.vendor)||"";
     // coupon dropdown
-    $("#p_coupon").innerHTML = `<option value="">— none —</option>`+cmCoupons.map(c=>`<option value="${esc(c.code)}">${esc(c.code)} (${c.kind==='percent'?(Number(c.value)||0)+'%':inr(Number(c.value)||0)})</option>`).join("");
-    $("#p_coupon").value = pr.couponCode||"";
+    // confirm-1018 #1: a coupon saved on the quote that is no longer active stays visible (flagged) - it is never dropped silently
+    { const savedCode=String(pr.couponCode||""), known=cmCoupons.some(c=>String(c.code).toLowerCase()===savedCode.toLowerCase());
+      $("#p_coupon").innerHTML = `<option value="">— none —</option>`+cmCoupons.map(c=>`<option value="${esc(c.code)}">${esc(c.code)} (${c.kind==='percent'?(Number(c.value)||0)+'%':inr(Number(c.value)||0)} off)</option>`).join("")
+        +(savedCode&&!known?`<option value="${esc(savedCode)}" data-inactive="1">${esc(savedCode)} (no longer active)</option>`:"");
+      const hit=cmCoupons.find(c=>String(c.code).toLowerCase()===savedCode.toLowerCase());
+      $("#p_coupon").value = hit?hit.code:savedCode; }
     $("#p_cmode").value = (pr.catering&&pr.catering.mode)||"inhouse";
     $("#p_camount").value = (pr.catering&&pr.catering.amount)||0;
     { const dv=HelmDiscount.pick(pr.discount, pr.discountPct); $("#p_discount").value = dv.discount||0; $("#p_discountPct").value = dv.discountPct||0; }   // PP1028 #5
     $("#p_taxExempt").checked = String(pr.taxExempt)==="true";
-    $("#p_pos").value = pr.placeOfSupply||BPStore.tax.placeOfSupply(studioState, cl.state)||"intra";
+    $("#p_pos").value = pr.placeOfSupply||BPStore.tax.placeOfSupply(studioState, mc.state)||"intra";
     platesEdited = pr.guests!=null && pr.chairs!=null && pr.guests!==pr.chairs;
     recalc();
     cmDirty.clean();
@@ -673,10 +714,17 @@
   async function requestCloseConfirm(){ if($("#confirmModal").hidden) return; if(!(await BPUI.confirmDiscard(cmDirty))) return; closeConfirm(); }
   let cmKeep=false;
   let cmPkgName="";   // applied menu package (its per-plate price overrides the studio default)
-  // the header shows the EFFECTIVE rates this quote is priced at (package plate price, kept chair price), not the studio defaults
+  let cmRates=null, cmRatesIn=null;   // qmodal-1018: HelmQuoteRates.effective() for the open quote (rate + where it comes from)
+  // the header shows the EFFECTIVE rates this quote is priced at (package plate price, kept chair price), not the studio defaults,
+  // each with its source, plus the rates the quote was last saved at when a save would change them
   function paintRateNote(p){
     const rn=$("#rateNote"); if(!rn || !curTax) return;
-    rn.textContent = `· ${inr(p.chairPrice)}/chair · ${inr(p.platePrice)}/plate${cmPkgName?` (package: ${cmPkgName})`:""} · ${curTax.name} ${curTax.rate}%${curTax.inclusive?" (included in prices)":""}  (edit in Control Center)`;
+    const r=Object.assign({}, cmRates||{chairSrc:"studio",plateSrc:cmPkgName?"package":"studio",pkgName:cmPkgName}, { chairPrice:p.chairPrice, platePrice:p.platePrice });
+    rn.textContent = HelmQuoteRates.note(r, inr, curTax);
+    let sv=document.getElementById("cmSavedRates");
+    if(!sv){ sv=document.createElement("div"); sv.id="cmSavedRates"; sv.className="taxnote"; sv.setAttribute("role","note"); const sec=rn.closest(".seclabel"); if(sec&&sec.parentNode) sec.parentNode.insertBefore(sv, sec.nextSibling); }
+    const txt=HelmQuoteRates.savedNote(cmRates&&cmRates.saved?Object.assign({},cmRates,{chairPrice:p.chairPrice,platePrice:p.platePrice}):null, inr);
+    sv.textContent=txt; sv.hidden=!txt;
   }
   // the total last saved on this quote (0 / unknown → no "changes from" line)
   function cmSavedTotal(){ const d=detailCache[cmId]||{}; const v=Number(d.pricing&&d.pricing.total!=null?d.pricing.total:d.total); return Number.isFinite(v)&&v>0?v:null; }
@@ -686,7 +734,8 @@
     b.textContent=""; b.hidden=!show; if(!show) return;
     b.append(document.createTextNode(`This quote is in ${qT.currency} (${qT.name}). Your studio now prices in ${sT.currency} (${sT.name} ${sT.rate}%). `));
     const btn=document.createElement("button"); btn.type="button"; btn.className="btn"; btn.textContent=`Switch to ${sT.currency}`;
-    btn.addEventListener("click",()=>{ cmKeep=false; cmTaxSwitched=true; curTax=sT; $("#p_gst").value=cfg.gstPct; $("#p_cgst").value=cfg.cateringGstPct; $("#p_chairPrice").value=cfg.chairPrice;
+    btn.addEventListener("click",()=>{ cmKeep=false; cmTaxSwitched=true; curTax=sT; $("#p_gst").value=(cfg.gstPct!=null&&cfg.gstPct!=="")?cfg.gstPct:sT.rate; $("#p_cgst").value=cfg.cateringGstPct; $("#p_chairPrice").value=cfg.chairPrice;
+      if(cmRatesIn){ cmRates=HelmQuoteRates.effective(Object.assign({ keep:false }, cmRatesIn)); $("#p_platePrice").value=cmRates.platePrice; }
       b.hidden=true; recalc(); BPUI.toast(`Re-priced in ${sT.currency} - check the rates, then save.`,{type:"info"}); });
     b.append(btn);
   }
@@ -705,13 +754,21 @@
     return { name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
       phone:$("#c_phone").value.trim(), eventDate:$("#c_date").value, venue:$("#c_venue").value.trim(),
       address:$("#c_address").value.trim(), notes:$("#c_notes").value.trim(), state:$("#c_state").value.trim().slice(0,60),
-      ...($("#trnFld").hidden ? {} : { trn:String($("#c_trn").value||"").replace(/\s+/g,"").slice(0,20) }) };
+      ...($("#trnFld").hidden ? {} : { trn:String($("#c_trn").value||"").replace(/\s+/g,"").slice(0,20) }), ...venueLink() };
+  }
+  // venue changed in this dialog: link the saved venue it names (same keys as the flow's venue picker),
+  // or drop an old link when a different, hand-typed venue was entered. Unchanged venue -> link untouched.
+  function venueLink(){
+    const txt=$("#c_venue").value.trim();
+    if(txt===cmVenueAtOpen) return {};
+    const v=cmVenueSug&&cmVenueSug.match();
+    return v ? { venueId:v.id, venueName:v.name } : { venueId:null, venueName:null };
   }
   // inline checks on the counts + discount %: whole numbers 0–100,000 / a percent 0–100.
   // While any is invalid "Confirm & lock" stays disabled (Save pricing re-checks on click).
   $("#c_trn").addEventListener("input",()=>{ const el=$("#c_trn"), v=el.value.replace(/\D+/g,"").slice(0,15); if(v!==el.value) el.value=v; });
   let cmSaving=false;   // one save / confirm in flight (incl. while its confirm prompt is open)
-  const CM_CHECKS=[["p_chairs","Chairs","count"],["p_guests","Guests / plates","count"],["p_discount","Discount","money"],["p_discountPct","Discount %","pct"]];
+  const CM_CHECKS=[["p_chairs","Chairs","count"],["p_guests","Guests / plates","count"],["p_camount","Extra catering charge","money"],["p_discount","Discount","money"],["p_discountPct","Discount %","pct"]];
   function cmFieldError(raw, label, kind){
     const v=String(raw==null?"":raw).trim(); if(v==="") return "";
     const n=Number(v); if(!Number.isFinite(n)) return label+" must be a number.";
@@ -730,25 +787,48 @@
     const b=$("#cm_confirm"); if(b && !cmSaving) b.disabled=!ok;
     return ok;
   }
+  // confirm-1018 #1: the coupon + discount rule (HelmPriceLines) - a saved coupon that is no longer active, a ₹ discount
+  // over the subtotal, or coupon + discount together over the subtotal block the save with a message on the field
+  function cmDiscountProblem(p, t){
+    const sel=$("#p_coupon"), opt=sel&&sel.selectedOptions&&sel.selectedOptions[0];
+    const gone=opt&&opt.getAttribute("data-inactive")==="1" ? sel.value : "";
+    const pp=gone ? Object.assign({}, p, { couponCode:gone }) : p;
+    return HelmPriceLines.discountProblem(pp, t, cmCoupons.map(c=>c.code));
+  }
+  function cmPaintDiscountProblem(pb, t){
+    const ce=$("#p_coupon_err"), ci=$("#p_coupon"); if(ce){ ce.hidden=true; ce.textContent=""; } if(ci) ci.removeAttribute("aria-invalid");
+    if(!pb) return true;
+    const isCoupon=pb.field==="coupon", er=isCoupon?ce:$("#p_discount_err"), inp=isCoupon?ci:$("#p_discount");
+    const msg=pb.message+(pb.field==="amount"&&t?" (subtotal "+inr(t.subtotal)+")":"");
+    if(er){ er.textContent=msg; er.hidden=false; } if(inp) inp.setAttribute("aria-invalid","true");
+    const cb=$("#cm_confirm"); if(cb && !cmSaving) cb.disabled=true;
+    return false;
+  }
   function recalc(){
     let valid=cmValidate();
     const p=gatherPricing(), t=calcPricing(p);
     // dev pass 3: a flat discount bigger than the subtotal silently made the quote free - say so and block it
-    if(valid && Number(p.discount)>0 && Number(p.discount)>Number(t.subtotal||0)+0.5){
-      const de=$("#p_discount_err"), di=$("#p_discount");
-      if(de){ de.textContent="Discount is more than the subtotal ("+inr(t.subtotal)+")."; de.hidden=false; } if(di) di.setAttribute("aria-invalid","true");
-      valid=false; const cb=$("#cm_confirm"); if(cb && !cmSaving) cb.disabled=true; }
+    // (confirm-1018: + coupon no longer active / coupon + discount over the subtotal)
+    if(valid && !cmPaintDiscountProblem(cmDiscountProblem(p, t), t)) valid=false;
+    else if(!valid) cmPaintDiscountProblem(null);
     paintRateNote(p);
     // an invalid count / discount → no total is shown (never a number the quote can't be saved at)
     const saved=cmSavedTotal(), changes=valid && saved!=null && Math.abs(Math.round(saved)-Math.round(t.total))>=1;
     const taxRows = BPStore.tax.rows(t, p, BPStore.tax.resolve(p)).map(r=>`<div class="r"><span>${esc(r.label)}</span><span class="amt">${inr(r.amount)}</span></div>`).join("");
+    // confirm-1018 #1: every part on its own line, in the order it is worked out - subtotal, then the coupon and the
+    // discount (each its own line), the taxable value, THEN the tax on it (the server stamps the same total)
+    const nf=(v)=>Number(v||0).toLocaleString("en-IN");
+    const dLines=HelmPriceLines.discountLines(p, t).map(l=>`<div class="r cm-disc" data-line="${esc(l.key)}"><span>${esc(l.label)}</span><span class="amt">− ${inr(l.amount)}</span></div>`).join("");
     $("#totals").innerHTML =
-      `<div class="r"><span>Chairs (${p.chairs} × ${inr(p.chairPrice)})${p.other?` + other ${inr(p.other)}`:""}</span><span class="amt">${inr(t.rental)}</span></div>`+
-      `<div class="r"><span>Catering${p.catering.mode==="client"?" (client-provided)":` (${p.guests} plates × ${inr(p.platePrice)}${p.catering.amount?` + ${inr(p.catering.amount)}`:""})`}</span><span class="amt">${inr(t.cateringBucket)}</span></div>`+
+      `<div class="r"><span>Chairs (${nf(p.chairs)} × ${inr(p.chairPrice)})</span><span class="amt">${inr((+p.chairs||0)*(+p.chairPrice||0))}</span></div>`+
+      (p.other?`<div class="r"><span title="Décor and equipment placed on the floor layout, plus the studio's layout setup fee">Décor, equipment &amp; setup fee (from the layout)</span><span class="amt">${inr(p.other)}</span></div>`:"")+
+      `<div class="r"><span>Catering${p.catering.mode==="client"?" (client-provided)":` (${nf(p.guests)} plates × ${inr(p.platePrice)})`}</span><span class="amt">${inr(t.plateSub)}</span></div>`+
+      (t.cateringAmt?`<div class="r"><span>Extra catering charge</span><span class="amt">${inr(t.cateringAmt)}</span></div>`:"")+
       (t.serviceCharge?`<div class="r"><span>Service charge (${p.serviceChargePct}%)</span><span class="amt">${inr(t.serviceCharge)}</span></div>`:"")+
       `<div class="r"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`+
+      dLines+
+      (t.discount?`<div class="r"><span>Taxable value (after discounts)</span><span class="amt">${inr(Math.max(0,(+t.subtotal||0)-(+t.discount||0)))}</span></div>`:"")+
       taxRows+
-      (t.discount?`<div class="r"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`:"")+
       `<div class="r grand"><span>Grand total</span><span class="amt">${valid?inr(t.total):"—"}</span></div>`+
       `<div class="r" style="font-style:italic;color:var(--ink-3);font-size:12px;justify-content:flex-end"><span data-money>${!valid||(curTax&&curTax.country!=="IN")?"":esc(BPStore.amountInWords(t.total))}</span></div>`+
       (changes?`<div class="msg warn cm-total-change" role="status">Total changes from ${esc(inr(saved))} to ${esc(inr(t.total))}.</div>`:"");
@@ -758,13 +838,18 @@
     const other = confirmIt?$("#cm_savePricing"):$("#cm_confirm");
     if(cmSaving) return;   // a save / confirm is already in flight
     if(!cmValidate()){ const bad=document.querySelector('#confirmModal [aria-invalid="true"]'); if(bad) bad.focus(); return; }
-    { const p0=gatherPricing(), t0=calcPricing(p0); if(Number(p0.discount)>0 && Number(p0.discount)>Number(t0.subtotal||0)+0.5){ recalc(); $("#p_discount").focus(); return; } }
+    { const p0=gatherPricing(), t0=calcPricing(p0), pb=cmDiscountProblem(p0, t0); if(pb){ recalc(); (pb.field==="coupon"?$("#p_coupon"):$("#p_discount")).focus(); return; } }
     // validate the raw inputs (no negative money, fractional counts, bad %, bad email) before saving
     const V=BPStore.validate, errEl=$("#cm_err");
     const checks=[["#p_chairs",v=>V.count(v,{field:"Chairs"})],["#p_guests",v=>V.count(v,{field:"Guests / plates"})],
       ["#p_camount",v=>V.money(v,{field:"Catering charge"})],["#p_discount",v=>V.money(v,{field:"Discount"})],["#p_discountPct",v=>V.pct(v,{field:"Discount %"})]];
     for(const [sel,fn] of checks){ const raw=$(sel).value; if(raw==="") continue; const r=fn(raw); if(!r.ok){ errEl.textContent=r.error; errEl.hidden=false; $(sel).focus(); return; } }
     if($("#c_email").value.trim()){ const r=V.email($("#c_email").value); if(!r.ok){ errEl.textContent=r.error; errEl.hidden=false; $("#c_email").focus(); return; } }
+    // flow-validation (owner): event date can't be in the past (studio day) unless it is the date already saved
+    { const de=$("#c_date"), dv=de.value, sv=String((((detailCache[cmId]||{}).client)||{}).eventDate||((detailCache[cmId]||{}).eventDate)||"").slice(0,10);
+      const today=new Intl.DateTimeFormat("en-CA",{timeZone:(((window.BPStore&&BPStore.studioTax&&BPStore.studioTax())||{}).country==="AE"?"Asia/Dubai":"Asia/Kolkata"),year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+      if((dv && dv<today && dv!==sv) || (!dv && de.getAttribute("data-date-rejected")==="past")){ errEl.textContent="Event date can't be in the past."; errEl.hidden=false; de.setAttribute("aria-invalid","true"); de.focus(); return; }
+      de.removeAttribute("aria-invalid"); }
     // Don't save a blank quote (QA): a deliberate save needs at least the client name.
     if(!$("#c_name").value.trim()){ errEl.textContent="Enter the client name before saving the quote."; errEl.hidden=false; $("#c_name").focus(); return; }
     // Confirming LOCKS a priced snapshot for the client — require client name + a valid
@@ -797,6 +882,8 @@
       const sv=cmSavedTotal(), chg=sv!=null && Math.abs(Math.round(sv)-Math.round(tt.total))>=1 ? `Total changes from ${inr(sv)} to ${inr(tt.total)}. ` : "";
       let ok=false; try{ ok=await BPUI.confirm(`${chg}Confirm ${code} at ${inr(tt.total)}? This locks a priced snapshot for the client.`,{title:"Confirm & lock quote?",okLabel:"Confirm & lock"}); }catch(_){ ok=false; }
       if(!ok){ unlock(); return; } }
+    // 0197: guests over the linked venue (seated + floating) need a decision before confirming
+    if(confirmIt && window.HelmCapacity && !(await HelmCapacity.gate({ quoteId:cmId, quote:detailCache[cmId], why:"confirm", flow:false }))){ unlock(); return; }
     btn.setAttribute("aria-busy","true");
     const p=gatherPricing(), t=calcPricing(p);
     // merge into the stored client JSON - never replace it (keeps guests/budget carried over from the lead)
@@ -896,11 +983,11 @@
       ${cl.venue?`<tr><td class=muted>Venue</td><td>${esc(cl.venue)}${cl.address?", "+esc(cl.address):""}</td></tr>`:""}</table>
     <table><tr><th>Item</th><th style="text-align:right">Amount</th></tr>
       ${t?`${line(`Chairs (${num(p.chairs)} × ${inr(num(p.chairPrice))})`, num(p.chairs)*num(p.chairPrice))}
-      ${p.other?line("Other charges", num(p.other)):""}
+      ${p.other?line("Décor, equipment &amp; setup", num(p.other)):""}
       ${p.catering&&p.catering.mode==="client"?`<tr><td>Catering</td><td style="text-align:right">Client-provided</td></tr>`:line(`Catering (${num(p.guests)} plates × ${inr(num(p.platePrice))}${p.catering&&p.catering.amount?" + "+inr(num(p.catering.amount)):""})`, (t.cateringBucket||0))}
       ${t.serviceCharge?line(`Service charge (${num(p.serviceChargePct)}%)`, t.serviceCharge):""}
       <tr class=tot><td>Subtotal</td><td style="text-align:right">${inr(t.subtotal||0)}</td></tr>
-      ${t.discount?`<tr class=tot><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:""}
+      ${t.discount?HelmPriceLines.discountLines(p, t).map(l=>`<tr class=tot><td>${esc(l.label)}</td><td style="text-align:right">− ${inr(l.amount)}</td></tr>`).join("")+line("Taxable value (after discounts)", Math.max(0,(t.subtotal||0)-(t.discount||0))):""}
       ${tax}`:""}
       <tr class=grand><td>Grand total</td><td style="text-align:right">${inr(grand)}</td></tr>
       <tr><td colspan=2 style="padding-top:6px;font-style:italic;color:#555;font-size:12px;border:0">${qTax.country!=="IN"?"":BPStore.amountInWords(grand)}</td></tr></table>
@@ -964,6 +1051,8 @@
            return; }
     if(q.status!=="confirmed"){ BPUI.toast("Confirm this quote before creating its event group.",{type:"info"}); return; }
     if(!canEdit){ BPUI.toast("Ask an admin or manager to create this event's group.",{type:"info"}); return; }
+    // confirm-1018 #2: the shared picker lists team, staff, vendors and the client and really adds them (0194)
+    if(window.HelmEventGroupPicker){ await HelmEventGroupPicker.open(q,{canEdit, onDone:()=>{ loadEventGroups().then(()=>render()); }}); return; }
     let me=null; try{ me=(BPStore.auth.user()||{}).id||(await BPStore.chat.me()).id; }catch(_){}
     try{ egPeople=(await BPStore.chat.roster()).filter(p=>p.id&&p.id!==me); }catch(_){ egPeople=[]; }
     // pre-tick the admins/owners + the staff already assigned to this event (matched by name)
@@ -1050,6 +1139,8 @@
   // Escape → BPUI clicks [data-close] (the × below), so every close path runs the unsaved-changes check
   $("#cm_close").addEventListener("click",requestCloseConfirm);
   $("#confirmModal").addEventListener("click",e=>{ if(e.target.id==="confirmModal") requestCloseConfirm(); });
+  // qmodal-1018: a page restored by Back / Forward keeps its old in-memory quotes - drop the cached details and re-read the list
+  window.addEventListener("pageshow",e=>{ if(!e.persisted) return; Object.keys(detailCache).forEach(k=>{ delete detailCache[k]; }); try{ Promise.resolve(load()).catch(()=>{}); }catch(_){ } });
   HelmDiscount.wireExclusive($("#p_discount"), $("#p_discountPct"));   // PP1028 #5: ₹ and % never add up
   $("#confirmModal").addEventListener("input",e=>{ if(e.target.closest(".grid,.totals")||/^p_/.test(e.target.id)) recalc(); });
   // plates auto-follow chairs until the user edits plates
@@ -1110,7 +1201,11 @@
     try{ history.replaceState(null, "", location.pathname); }catch(e){}
     BPUI.boot(async () => { await load(); if(canCreate) startNewQuote($("#newBtn"), openTo); });
   } else BPUI.boot(load);
+  // qts-1018: Back/Forward restores this page from the bfcache with the totals + statuses it had
+  // when you left (e.g. before a re-price or approval in the workspace) - re-read the list
+  window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&pager) reloadQuiet(); });
 </script>
 <script src="saved-filters.js?v=2"></script>
+<script src="capacity-shortage.js?v=2"></script>
 </body>
 </html>

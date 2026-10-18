@@ -3,10 +3,22 @@
 //   * follow_up     polite client follow-ups after the booklet / quote was opened e-mail / WhatsApp
 //   * trial reminders (0120) the studio's own 8-day free-trial reminders (day 5 / 7 / 8), e-mail only,
 //                   claimed from trial_reminders via trial_reminder_email_claim (re-checked there)
+//   * post-trial (0184) the studio owner's "trial ended 7 days ago" reminder + the deletion warnings
+//                   30 / 7 / 1 day before the trial data is deleted, claimed via trial_retention_email_claim
+//                   (re-checked there; warnings only while the owner switch helm_trial_retention.delete_enabled is on)
 //   * wa_forward    WhatsApp copies of a member's bell notifications (+ studio announcements),
 //                   each with a short deep link that opens the exact page in Helm.
+//   * invite_site   (0195) "Send to client" on the Invitation Studio: the published invitation
+//                   website link, e-mail / WhatsApp (invite-site.mjs; host = APP_URL, path from the row)
+//   * booklet_link  (0200) "Send to client" in the Share booklet dialog: the live client booklet
+//                   link (booklet-link.mjs; host = APP_URL, path added by the claim - no token in the row)
 // AUTO-ON: runs whenever it is called with the shared secret; each channel switches itself on
-// when its secrets exist (e-mail: RESEND_API_KEY; WhatsApp: WHATSAPP_TOKEN + WHATSAPP_PHONE_ID).
+// when its secrets exist (e-mail: SMTP_HOST + SMTP_USER + SMTP_PASS, or RESEND_API_KEY;
+// WhatsApp: WHATSAPP_TOKEN + WHATSAPP_PHONE_ID).
+// E-MAIL TRANSPORT (release 1018): SMTP first - the same shared mailer (_shared/mailer.ts + smtp.ts)
+// as client-mailer / invite-mailer / welcome-mailer, e.g. Gmail smtp.gmail.com:465 + an App Password.
+// Resend only when SMTP is NOT set and RESEND_API_KEY is. Neither -> e-mail rows are "skipped".
+// Both transports get the identical body + compliance footer + List-Unsubscribe headers (0165).
 // Kill switch: HELM_COMMS_ENABLED="false" -> every request is a no-op 200 and nothing is
 // claimed (rows stay queued). Invoked ONLY by a cron / service caller presenting a
 // shared secret. The database decides WHAT is due (comms_tick, pg_cron) and re-checks every row
@@ -18,8 +30,13 @@
 //   HELM_COMMS_ENABLED="false"        kill switch (unset / anything else -> on)
 //   HELM_COMMS_SECRET                 shared secret in the `x-helm-cron-secret` header; unset -> 401
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (injected)
-//   RESEND_API_KEY, RESEND_FROM       unset key -> e-mail rows are marked "skipped". The display
-//                                     name / Reply-To come from the studio's Integrations page (0150).
+//   SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_PORT (default 465), SMTP_FROM (default SMTP_USER)
+//                                     preferred e-mail transport (shared mailer). Display name:
+//                                     EMAIL_BRAND_MODE "helm" (default) -> "Helm Events"; "studio" ->
+//                                     the studio's sender name (0150) or "<Studio> via Helm".
+//   RESEND_API_KEY, RESEND_FROM       fallback transport, used only when SMTP is not set; the display
+//                                     name comes from the studio's Integrations page (0150).
+//   Neither set -> e-mail rows are marked "skipped". Reply-To = the studio's reply-to (0150), both.
 //   WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, WHATSAPP_API_VERSION (default v21.0)
 //   WHATSAPP_TPL_TASK_ASSIGNED        approved template for "you've been assigned" (e.g. helm_task_assigned)
 //   WHATSAPP_TPL_EVENT_REMINDER       approved template for event reminders  (e.g. helm_event_reminder)
@@ -39,9 +56,12 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { absoluteLink } from "./deeplink.js";
-import { trialReminderEmail } from "./trial-reminders.mjs";
+import { trialReminderEmail, trialRetentionEmail, RETENTION_NOTICE_KINDS, RETENTION_TX_REASON } from "./trial-reminders.mjs";
+import { inviteSiteMessage } from "./invite-site.mjs";
+import { bookletMessage } from "./booklet-link.mjs";
 import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
+import { brandMode, sendMail, type SmtpSend } from "../_shared/mailer.ts";
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com", "graph.facebook.com"]);
@@ -76,9 +96,34 @@ export type Identity = { from_name?: string | null; reply_to?: string | null };
 // Compliance (docs/ops/EMAIL-COMPLIANCE.md): every e-mail carries a footer; non-transactional
 // mail (follow-ups, trial nudges) also carries a visible Unsubscribe link + RFC 8058 headers.
 export type Extra = { footer: { text: string; html: string }; headers?: Record<string, string> };
+// which e-mail transport this run uses: SMTP when its three secrets are set, else Resend when
+// RESEND_API_KEY is set, else none (rows skipped)
+export function emailTransport(e: (k: string) => string | undefined = (k) => Deno.env.get(k)): "smtp" | "resend" | null {
+  if (e("SMTP_HOST") && e("SMTP_USER") && e("SMTP_PASS")) return "smtp";
+  return e("RESEND_API_KEY") ? "resend" : null;
+}
+// SMTP path through the shared mailer. `extra.footer` is the footer (transactional or marketing
+// with Unsubscribe); `extra.headers` the RFC 8058 List-Unsubscribe headers - passed through as is.
+// Helm's own mails (trial / retention, studio "Helm") always go out as "Helm Events".
+export async function sendEmailSmtp(to: string, subject: string, text: string, studio: string, ident: Identity, extra: Extra,
+  opts: { env?: (k: string) => string | undefined; smtp?: SmtpSend } = {}): Promise<Res> {
+  const e = opts.env || ((k: string) => Deno.env.get(k));
+  const own = studio === "Helm";
+  const fromName = !own && brandMode(e) === "studio" ? (String(ident.from_name ?? "").trim() || null) : null;
+  const r = await sendMail({ to, subject: subject.slice(0, 150), text, html: `<p>${escHtml(text).replace(/\n/g, "<br>")}</p>`,
+    studio: own ? null : studio, fromName, replyTo: replyToOf(ident.reply_to) || null, footer: extra.footer,
+    ...(extra.headers && Object.keys(extra.headers).length ? { headers: extra.headers } : {}) },
+    { env: e, prefer: "smtp", ...(opts.smtp ? { smtp: opts.smtp } : {}) });
+  if (r.status === "sent") return "sent";
+  if (r.status === "not_configured") return "skipped";
+  console.error("comms-dispatch: email smtp failed");
+  return "failed";
+}
 async function sendEmail(id: string, to: string, subject: string, text: string, studio: string, ident: Identity = {}, extra?: Extra): Promise<Res> {
+  const via = emailTransport();
+  if (!via || !EMAIL.test(to) || !text || !extra) return "skipped";
+  if (via === "smtp") return await sendEmailSmtp(to, subject, text, studio, ident, extra);
   const key = Deno.env.get("RESEND_API_KEY") || "";
-  if (!key || !EMAIL.test(to) || !text || !extra) return "skipped";
   const from = fromHeader(Deno.env.get("RESEND_FROM"), ident.from_name, studio);
   const replyTo = replyToOf(ident.reply_to);
   const body = withFooter({ text, html: `<p>${escHtml(text).replace(/\n/g, "<br>")}</p>` }, extra.footer);
@@ -179,6 +224,8 @@ export function assignMessage(text: string, linkPath: string, origin: string): s
 
 // the message for one claimed row (text from the database + the deep link for forwards)
 export function messageFor(purpose: string, payload: Record<string, unknown>, origin: string): { subject: string; text: string } {
+  if (purpose === "invite_site") return inviteSiteMessage(payload, origin);   // 0195: no link / bad row -> "" -> skipped
+  if (purpose === "booklet_link") return bookletMessage(payload, origin);     // 0200: same rule
   const text = String(payload?.text ?? "").slice(0, 900);
   if (purpose === "wa_forward") {
     const link = absoluteLink(origin, payload);
@@ -217,7 +264,7 @@ Deno.serve(async (req) => {
         // 0150: sender name / reply-to of the row's studio (a database without 0150 -> defaults)
         let ident: Identity = {};
         try { const { data } = await admin.rpc("comms_outbox_email_identity", { p_id: id }); if (data && typeof data === "object") ident = data as Identity; } catch (_) { /* defaults */ }
-        let extra: Extra | null = { footer: txFooter("pay_reminder", { app: origin, address: postalAddress(env) }) };
+        let extra: Extra | null = { footer: txFooter(purpose === "invite_site" || purpose === "booklet_link" ? "client_link" : "pay_reminder", { app: origin, address: postalAddress(env) }) };
         if (NON_TRANSACTIONAL.has(purpose)) {
           let u: any = null;
           try { const { data } = await admin.rpc("comms_outbox_unsub", { p_id: id }); u = data; } catch (_) { u = null; }
@@ -230,13 +277,17 @@ Deno.serve(async (req) => {
       if (mErr) { console.error("comms-dispatch: mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;
     }
+    // 0184: retention settings once per run, so the day 5 / 7 / 8 copy can say how long data is kept
+    // (a database without 0184, or the switch off -> null / off -> the original "nothing is deleted" copy)
+    let retention: { delete_enabled?: boolean; retention_days?: number } | null = null;
+    try { const { data, error } = await admin.rpc("trial_retention_mail_settings"); if (!error && data && typeof data === "object") retention = data; } catch (_) { retention = null; }
     // 0120: free-trial reminder e-mails (a database without 0120 just has nothing to claim)
     const { data: trows, error: tErr } = await admin.rpc("trial_reminder_email_claim", { p_limit: batch });
     if (tErr) console.error("comms-dispatch: trial claim skipped", errTag(tErr));
     for (const r of (Array.isArray(trows) ? trows : [])) {
       const id = String(r?.id ?? ""), to = String(r?.to ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
-      const msg = trialReminderEmail(String(r?.milestone ?? ""), String(r?.studio ?? ""), String(r?.ends_at ?? ""), String(r?.timezone ?? ""), origin);
+      const msg = trialReminderEmail(String(r?.milestone ?? ""), String(r?.studio ?? ""), String(r?.ends_at ?? ""), String(r?.timezone ?? ""), origin, retention);
       // trial nudges are Helm's own non-transactional mail: unsubscribe is per address for Helm (org null)
       let u: any = null;
       if (msg) {
@@ -249,6 +300,30 @@ Deno.serve(async (req) => {
       const res: Res = msg && extra ? await sendEmail(id, to, msg.subject, msg.text, "Helm", {}, extra) : "skipped";
       const { error: mErr } = await admin.rpc("trial_reminder_email_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("comms-dispatch: trial mark failed", errTag(mErr)); counts.failed++; continue; }
+      counts[res]++;
+    }
+    // 0184: post-trial mails to the studio owner (a database without 0184 just has nothing to claim).
+    // Deletion warnings are service notices (transactional footer); the +7 reminder is a nudge (Helm unsubscribe).
+    const { data: rrows, error: rErr } = await admin.rpc("trial_retention_email_claim", { p_limit: batch });
+    if (rErr) console.error("comms-dispatch: retention claim skipped", errTag(rErr));
+    for (const r of (Array.isArray(rrows) ? rrows : [])) {
+      const id = String(r?.id ?? ""), to = String(r?.to ?? ""), kind = String(r?.kind ?? "");
+      if (!UUIDISH.test(id)) { counts.invalid++; continue; }
+      const msg = trialRetentionEmail(kind, String(r?.studio ?? ""), { deleteOn: String(r?.delete_on ?? ""), expiredAt: String(r?.expired_at ?? ""),
+        timeZone: String(r?.timezone ?? ""), retentionDays: Number(r?.retention_days) }, origin);
+      let extra: Extra | null = null;
+      if (msg && RETENTION_NOTICE_KINDS.includes(kind)) extra = { footer: txFooter(RETENTION_TX_REASON, { app: origin, address: postalAddress(env) }) };
+      else if (msg) {
+        let u: any = null;
+        try {
+          const [o, t] = await Promise.all([admin.rpc("email_is_opted_out", { p_org: null, p_email: to }), admin.rpc("email_unsub_token", { p_org: null, p_email: to })]);
+          if (!o.error && !t.error) u = { ok: true, opted_out: o.data === true, token: t.data };
+        } catch (_) { u = null; }
+        extra = marketingExtra(u, "Helm", "you started a free trial of Helm", origin);
+      }
+      const res: Res = msg && extra ? await sendEmail(id, to, msg.subject, msg.text, "Helm", {}, extra) : "skipped";
+      const { error: mErr } = await admin.rpc("trial_retention_email_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
+      if (mErr) { console.error("comms-dispatch: retention mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;
     }
     // 0132: "you've been assigned ..." WhatsApp to staff (a database without 0132 has nothing to claim)

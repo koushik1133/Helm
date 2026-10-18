@@ -28,3 +28,30 @@ textarea.bk-in{resize:vertical}
 .bk-check{display:flex;align-items:center;gap:6px;font-size:14px;min-height:32px}
 html[data-theme=dark] .bk-dlg{background:#1c1c22;color:#f3f1fa;border-color:#3a3644}
 html[data-theme=dark] .bk-in,html[data-theme=dark] .bk-url{background:#26222f;border-color:#3a3644}
+/* 0200 "Send to client" in the dialog - the shared box from invite-site-share.js (same look as the Invitation Studio) */
+.bk-send{border-top:1px solid var(--line,#e8e3db);margin-top:16px;padding-top:12px}
+.bk-send-h{margin:0 0 10px;font-size:15px}
+.bk-send .fld{margin:0 0 10px}
+.bk-send .fld label{display:block;font-size:12px;font-weight:600;color:var(--ink-2,#4b475f);margin:0 0 4px}
+.bk-send,.bk-send *{box-sizing:border-box}
+.bk-send .fld input{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--line,#e8e3db);border-radius:10px;background:var(--panel-2,#faf8f5);color:inherit;font:14px/1.4 inherit}
+.bk-send .mnote{font-size:12px;color:var(--ink-3,#6b6577)}
+.bk-send .ish-gate{font-size:13px;color:var(--ink-2,#4b475f);background:var(--panel-2,#faf8f5);border:1px dashed var(--line,#e8e3db);border-radius:8px;padding:9px 11px;margin:0 0 10px}
+.bk-send .ish-ch{border:0;padding:0;margin:0 0 10px;display:flex;gap:16px;flex-wrap:wrap}
+.bk-send .ish-ch legend{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3,#6b6577);padding:0;margin:0 0 6px;width:100%}
+.bk-send .ish-radio,.bk-send .ish-opt{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--ink,#1b1930);cursor:pointer;margin:0;min-height:32px}
+.bk-send .ish-radio input,.bk-send .ish-opt input{width:18px;height:18px;margin:0;flex:0 0 auto;accent-color:var(--accent,#6d28d9)}
+.bk-send .ish-opt{display:flex;margin:0 0 10px}
+.bk-send .ish-opt[hidden]{display:none}
+.bk-send .ish-hint{margin:6px 0 0}
+.bk-send .ish-pv-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3,#6b6577);margin:0 0 4px}
+.bk-send .ish-pv{background:var(--panel-2,#faf8f5);border:1px solid var(--line,#e8e3db);border-radius:8px;padding:9px 11px;font-size:13px;line-height:1.5;overflow-wrap:anywhere;margin:0 0 10px}
+.bk-send .ish-trial{background:#fff7e6;color:#8a5300;border:1px solid #f4d8a4;border-radius:8px;padding:8px 11px;font-size:13px;margin:0 0 10px}
+.bk-send .ish-row{display:flex;gap:8px;flex-wrap:wrap}
+.bk-send .ish-msg{font-size:13px;color:var(--ink-2,#4b475f);margin:8px 0 0;min-height:1em}
+.bk-send .ish-log-h{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3,#6b6577);margin:14px 0 6px}
+.bk-send .ish-log{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.bk-send .ish-li{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:12.5px;color:var(--ink-2,#4b475f);border:1px solid var(--line,#e8e3db);border-radius:8px;padding:6px 9px}
+.bk-send .ish-when{color:var(--ink-3,#6b6577)}
+.bk-send .ish-st{margin-left:auto;font-weight:600;font-size:12px;padding:2px 8px;border-radius:999px;background:#f4f4f5;color:#52525b}
+.bk-send .ish-st.ish-sent{background:#ecfdf5;color:#047857}.bk-send .ish-st.ish-queued{background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9)}.bk-send .ish-st.ish-failed{background:#fdecec;color:#b42318}

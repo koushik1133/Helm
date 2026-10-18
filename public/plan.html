@@ -43,6 +43,10 @@
   .ok{color:var(--safe-text,#0f7a43);font-size:12px;font-weight:600} .muted{color:var(--ink-3);font-size:12px}
   .lockbadge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:20px}
   .lockbadge.on{background:#e7f6ee;color:#0f7a43} .lockbadge.off{background:#fff7e6;color:#946200}
+  .lockhint{margin:10px 0 0;text-align:right}
+  .btn.nextstep{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  @media (prefers-reduced-motion:no-preference){ .btn.nextstep{animation:lockpulse 1.2s ease-in-out 3} }
+  @keyframes lockpulse{50%{box-shadow:0 0 0 7px var(--accent-soft)}}
   .appr{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:20px}
   .stat.none{background:#f1f3f7;color:#5b5670} .stat.sent{background:#fff7e6;color:#946200} .stat.approved{background:#e7f6ee;color:#0f7a43} .stat.paid{background:#e7f6ee;color:#0f7a43}
@@ -57,9 +61,9 @@
   .sheet h3{margin:0 0 12px}.foot2{display:flex;gap:10px;justify-content:flex-end}
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="theme.css?v=82">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=22" id="shellProto"></script>
+<script src="/shell-proto.js?v=26" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -93,7 +97,7 @@
       <div class="foot"><span id="v_msg" role="status" aria-live="polite"></span><button type="button" class="btn primary" id="v_save" hidden>Save venue</button></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="menuCard">
       <h2>🍽 Menu &amp; package <span id="lockBadge" class="lockbadge off" hidden>Draft</span></h2>
       <p class="sub">Once agreed with the client, lock it — later changes should go through a change order.</p>
 
@@ -114,6 +118,7 @@
         <div class="s-8a77e5a" id="selDishes"></div>
       </div>
 
+      <p class="muted lockhint" id="lockHint" hidden>Locking fixes the package and dishes the price is based on. You can unlock it later.</p>
       <div class="foot"><span id="p_msg" role="status" aria-live="polite"></span>
         <button type="button" class="btn" id="lockBtn" hidden>🔒 Lock menu</button>
         <button type="button" class="btn primary" id="p_save" hidden>Save menu</button>
@@ -135,7 +140,7 @@
 <div id="lockModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <div class="sheet">
     <h3 id="lockTitle">Lock the menu &amp; package?</h3>
-    <p class="muted" id="lockMsg">Once locked, the fields become read-only. You can unlock later, but the intent is that changes go through a change order.</p>
+    <p class="muted" id="lockMsg">Locking fixes this event's package and dishes, so the quote is priced on them, and makes them read-only. You can unlock later; changes after the client agrees should go through a change order.</p>
     <div class="foot2 s-d6f2af6"><button type="button" class="btn" id="lock_cancel" data-close>Cancel</button><button type="button" class="btn primary" id="lock_ok">Lock</button></div>
   </div>
 </div>
@@ -154,8 +159,8 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
-<script src="tour.js?v=14"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="save-back.js?v=2"></script><script src="venue-suggest.js?v=2"></script>
+<script src="tour.js?v=17"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -182,6 +187,7 @@
     ["#v_name","#v_contact","#v_addr","#v_access"].forEach(s=>$(s).disabled = planFailed || !canEdit);
     $("#lockBadge").hidden=false; $("#lockBadge").className="lockbadge "+(locked?"on":"off"); $("#lockBadge").textContent=planFailed?"Unknown":(locked?"🔒 Locked":"Draft");
     if(canEdit){ $("#lockBtn").hidden=planFailed; $("#lockBtn").textContent = locked?"🔓 Unlock":"🔒 Lock menu"; $("#p_save").hidden=lk; $("#v_save").hidden=false; $("#v_save").disabled=planFailed; $("#p_save").disabled=planFailed; }
+    $("#lockHint").hidden = !canEdit || locked || planFailed;
     const editable = canEdit && !locked;
     $("#dishAdd").style.display = editable ? "" : "none";
     if(!editable) hideResults();
@@ -294,7 +300,19 @@
 
   function openLockModal(){ if(blockedSave()) return; if(locked){ // unlock immediately
       doLock(false,$("#lockBtn")); return; }
+    // nothing to lock yet: say what to do instead of locking an empty menu
+    if(!$("#p_pkg").value.trim() && !$("#p_menu").value.trim() && !(menuItems && menuItems.length)){
+      const m=$("#p_msg"); m.className="err"; m.textContent="Pick a package or add at least one dish, then lock the menu."; return; }
     $("#lockModal").hidden=false; }
+  // Event workspace "Open details" deep-links here with #menu: bring the menu section into view and
+  // point at the Lock button (the next step) without changing anything.
+  function focusMenuFromHash(){
+    if(String(location.hash||"").toLowerCase()!=="#menu") return;
+    const card=$("#menuCard"), b=$("#lockBtn"), show=(b && !b.hidden && !locked);
+    // the Lock button sits at the foot of the menu card: centre it when it is shown, else the card's top
+    const target=show?b:card; if(target && target.scrollIntoView) target.scrollIntoView({block:show?"center":"start"});
+    if(show){ b.classList.add("nextstep"); setTimeout(()=>b.classList.remove("nextstep"),6000); try{ b.focus({preventScroll:true}); }catch(_){ } }
+  }
   function doLock(v,btn){
     if(blockedSave()) return;
     return BPUI.guard(btn,async()=>{
@@ -320,6 +338,8 @@
       catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } },{busyLabel:"Signing in…"});
   });
   ["#v_name","#v_contact","#v_addr","#v_access","#p_pkg","#p_menu"].forEach(s=>$(s).addEventListener("input",()=>dirty.mark()));
+  // the studio's saved venues as a dropdown on Venue name (free text still works); a pick fills an empty address
+  if(window.HelmVenueSuggest) HelmVenueSuggest.attach($("#v_name"),{address:$("#v_addr")});
   $("#planRetry").addEventListener("click",()=>BPUI.guard($("#planRetry"),load));
   $("#v_save").addEventListener("click",saveVenue);
   $("#p_save").addEventListener("click",saveMenu);
@@ -352,6 +372,9 @@
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    // confirm-1018 #4: "Save & back to event" beside Save (only leaves when the save worked)
+    if(window.HelmSaveBack) HelmSaveBack.add({ button:"#v_save", msg:"#v_msg", run:()=>saveVenue() });
+    if(window.HelmSaveBack) HelmSaveBack.add({ button:"#p_save", msg:"#p_msg", run:()=>saveMenu() });
     // Don't silently drop unsaved venue/menu edits on "← Back": offer Save first, then Discard/Keep editing.
     $("#backLink").addEventListener("click", async (e)=>{
       if(!dirty.isDirty()) return;
@@ -371,6 +394,7 @@
     $("#app").hidden=false; $("#v_save").hidden=!canEdit;
     await load(); await renderApproval();
     if(!canEdit){ document.querySelectorAll("#app input,#app textarea").forEach(el=>el.disabled=true); }
+    focusMenuFromHash();
   });
 </script>
 </body>

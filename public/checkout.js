@@ -237,32 +237,19 @@
       }
     } catch (e) { fail(e); }
   }
-  /* 0127 — after a trial studio pays: "Start fresh" (remove only sample rows) or keep them.
-     Resolves false when there is nothing to choose, so the normal redirect runs. */
+  /* 0185 — after a trial studio pays, its admin chooses once: keep the sample data (default), remove
+     only the sample data, or start completely clean (own records archived, never deleted; asked twice).
+     trial-upgrade.js renders the choice; resolves false when there is nothing to choose (or the plan
+     is not active yet - the dashboard asks then), so the normal redirect runs. */
   async function offerDemoChoice() {
-    var d = null;
-    try { d = S.demo && S.demo.status ? await S.demo.status() : null; } catch (e) { d = null; }
-    if (!d || !d.choice_pending || !d.is_admin || !S.demo.choose) return false;
-    showErr("Payment received — welcome to Helm!", "ok");
-    var box = $("#coDemoChoice"), msg = $("#dcMsg"), fresh = $("#dcFresh"), keep = $("#dcKeep");
-    box.hidden = false; box.scrollIntoView({ block: "center" }); fresh.focus();
-    function pick(choice) {
-      fresh.disabled = keep.disabled = true;
-      msg.textContent = choice === "fresh" ? "Removing the sample data…" : "Keeping the sample data…";
-      S.demo.choose(choice).then(function () {
-        msg.textContent = choice === "fresh" ? "Done — your studio is empty and ready for your own data." : "Sample data kept. You can remove it later from the dashboard.";
-        setTimeout(function () { location.replace(st.next); }, 900);
-      }, function (e) {
-        fresh.disabled = keep.disabled = false;
-        msg.textContent = (S.checkout.classify(e).message) || "Something went wrong — please try again.";
+    var U = window.HelmTrialUpgrade;
+    if (!U || typeof U.offer !== "function") return false;
+    try {
+      return await U.offer($("#coDemoChoice"), {
+        before: function () { showErr("Payment received — welcome to Helm!", "ok"); },
+        onDone: function () { setTimeout(function () { location.replace(st.next); }, 900); }
       });
-    }
-    fresh.addEventListener("click", function () {
-      if (!window.confirm("Remove all sample records marked \"Demo\" from this studio? Your own records are not touched.")) return;
-      pick("fresh");
-    });
-    keep.addEventListener("click", function () { pick("keep"); });
-    return true;
+    } catch (e) { return false; }
   }
   /* 0159: "Payments are being set up" - a directly created studio switches to the normal free
      trial (own data). Server-side: only while online payment is off; nothing is charged. */
@@ -368,6 +355,8 @@
       var up = $("#coUpgrade"); up.hidden = false;
       up.textContent = st.opts.status === "trial" ? "You're on the free trial. Choose a plan now — your trial days are not lost."
         : "Your free trial has ended. Choose a plan to keep using Helm — your data is safe.";
+      // 0185: what happens to the trial data is decided right after the plan is active
+      up.textContent += " After upgrading you choose what happens to the sample data: keep it (default), remove it, or start completely clean.";
       if (!st.live) up.textContent += " Online payment isn't switched on yet — contact Helm to activate your plan.";
     }
     var list = plansList();

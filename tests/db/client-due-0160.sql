@@ -1,5 +1,5 @@
 -- client-due-0160.sql -- 0160: client_timeline Due = confirmed events only (incl. approved change orders);
--- "Status now" reads confirmed for a confirmed event left on stage quote. Rolled back.
+-- "Status now" for a confirmed event left on stage quote: 0160 said confirmed; 0189 folds in the client approval (locked - not sent yet). Rolled back.
 -- Local disposable PG only. Fake data only.
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
@@ -46,6 +46,12 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; begin
   insert into public.quote_payments(quote_id, amount, status, paid_at, org_id) values
     ('a0000000-0000-4000-8000-0000000160e1', 87600, 'paid', '2026-06-01 10:00+05:30', a),
     ('a0000000-0000-4000-8000-0000000160e3', 20000, 'paid', '2026-06-02 10:00+05:30', a);
+  -- review-1018: every fixture write shares one now(), so DU-1 and DU-2 tied on updated_at and
+  -- "the latest event" (case 07) depended on row order. Make DU-2 the latest, deterministically
+  -- (the updated_at trigger is skipped for this one test-only write).
+  perform set_config('session_replication_role', 'replica', true);
+  update public.quotes set updated_at = now() + interval '1 minute' where id = 'a0000000-0000-4000-8000-0000000160e1';
+  perform set_config('session_replication_role', 'origin', true);
 exception when others then perform pg_temp.su(); insert into _uf values ('00 fixture', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 do $$ declare r jsonb; tb jsonb; inr jsonb; begin
@@ -56,10 +62,11 @@ do $$ declare r jsonb; tb jsonb; inr jsonb; begin
   perform pg_temp.res('03 quoted unchanged (both quotes, base totals)', (tb ->> 'quoted')::numeric = 160200, tb::text);
   select x into inr from jsonb_array_elements(tb -> 'by_currency') x where x ->> 'currency' = 'INR';
   perform pg_temp.res('04 by_currency due follows the same rule', (inr ->> 'due')::numeric = 0 and (inr ->> 'quoted')::numeric = 160200, inr::text);
-  perform pg_temp.res('05 Status now reads confirmed, not quote', exists (select 1 from jsonb_array_elements(r -> 'items') x where x ->> 'title' = 'Status now: confirmed' and x ->> 'subtitle' like 'DU-2%')
+  -- 0189: DU-2 is locked by the studio but the client never got / approved the link -> one clear label
+  perform pg_temp.res('05 Status now reads locked (0189), not quote', exists (select 1 from jsonb_array_elements(r -> 'items') x where x ->> 'title' = 'Status now: locked - not sent yet' and x ->> 'subtitle' like 'DU-2%')
     and not exists (select 1 from jsonb_array_elements(r -> 'items') x where x ->> 'title' = 'Status now: quote' and x ->> 'subtitle' like 'DU-2%'), r ->> 'items');
   perform pg_temp.res('06 unconfirmed quote still says quote', exists (select 1 from jsonb_array_elements(r -> 'items') x where x ->> 'title' = 'Status now: quote' and x ->> 'subtitle' like 'DU-1%'), r ->> 'items');
-  perform pg_temp.res('07 client status = confirmed (latest event)', r #>> '{client,status}' = 'confirmed', r ->> 'client');
+  perform pg_temp.res('07 client status = the latest event''s label (0189)', r #>> '{client,status}' = 'locked - not sent yet', r ->> 'client');
   tb := public.client_timeline('a0000000-0000-4000-8000-0000000160e3', 300) -> 'totals';
   perform pg_temp.res('08 partial: due = 50000 + 5000 - 20000', (tb ->> 'due')::numeric = 35000, tb::text);
   perform pg_temp.login('b_admin@b.test');

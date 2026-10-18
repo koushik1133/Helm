@@ -126,10 +126,10 @@ await t('card loads Disabled + Keep; the choice is shown but greyed out while of
   assert.match(s.el('lx_moveWait').textContent, /Turn auto-expire on/);
 });
 
-await t('switching on shows "Enabled — not saved yet" and unlocks the choice', async () => {
+await t('switching on shows "Enabled" + a "Not saved yet" chip and unlocks the choice', async () => {
   const s = card(); await s.ctx.initLinkExpiry();
   s.el('lx_on').checked = true; await s.fire('lx_on', 'change');
-  assert.match(s.el('lx_state').innerHTML, /^Enabled <small>— not saved yet<\/small>$/);
+  assert.match(s.el('lx_state').innerHTML, /^Enabled <small>Not saved yet<\/small>$/);
   assert.equal(s.el('lx_state').className, 'lxstate on'); assert.equal(s.el('lx_on').attrs['aria-checked'], 'true');
   assert.equal(s.el('lx_moveSet').disabled, false);
   s.pick('archive'); await s.fire('lx_move_archive', 'change');

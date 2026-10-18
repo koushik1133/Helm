@@ -78,7 +78,7 @@ function makeEnv(o = {}) {
   const canvas = o.canvas || null;
   const el = (tag) => (tag === 'canvas' && canvas) ? canvas() : ({ tag, style: {}, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, appendChild() {}, addEventListener() {}, querySelector: () => null, remove() {}, set src(v) {}, get src() { return ''; } });
   const doc = {
-    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=1' },
+    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=247' },
     createElement: el, head: { appendChild() {} }, body,
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; },
       classList: { contains: (c) => cls.has(c), add: (c) => { cls.add(c); calls.push(['hide']); }, remove: (c) => { cls.delete(c); calls.push(['reveal']); } } },

@@ -170,9 +170,11 @@ t('E13 closure P&L / budget / insights on ex-tax revenue; tax shown as payable',
 });
 
 // ---- E14 future close
-t('E14 closing a future event asks first; double-click opens one close flow', () => {
-  assert.match(closure, /This event hasn't happened yet \("\+nice\+"\)\. Close it anyway\?/);
-  assert.match(closure, /d>BPStore\.todayLocal\(\)/);
+// 0198: no longer "close anyway?" - an event closes only after its event day (the server refuses too)
+t('E14 / 0198 closing before the event day is over is refused; double-click opens one close flow', () => {
+  assert.doesNotMatch(closure, /Close it anyway\?/);
+  assert.match(closure, /d>=BPStore\.todayLocal\(\)/);
+  assert.match(closure, /"You can close this event after "/);
   assert.match(closure, /if\(closing\) return; closing=true;/);
 });
 
@@ -193,7 +195,7 @@ t('APPLY-0101.sql: ASCII, one transaction, verify rows', () => {
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0101_e2e_usability\.sql/);
 });
 t('versions bumped', () => {
-  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=244/); assert.match(f, /event-name\.js\?v=7/); assert.match(f, /country-profile\.js\?v=4/); }
+  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=247/); assert.match(f, /event-name\.js\?v=7/); assert.match(f, /country-profile\.js\?v=4/); }
   assert.match(read('public/booklet.html'), /booklet\.js\?v=23/); assert.match(flow, /booklet\.js\?v=23/);
 });
 

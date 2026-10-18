@@ -104,14 +104,27 @@
   .namehint{font-size:12px;color:var(--ink-3);margin-top:4px}
   .namehint button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0 0 0 6px;text-decoration:underline}
   .nameerr{font-size:12px;color:var(--warn-text,#8f5f00)}
+  /* 0176: "Create event group?" bar at the bottom once the event is confirmed (event-group-picker.js) */
+  .egbar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:70;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;width:min(620px,calc(100vw - 32px));font-size:13.5px}
+  .egbar[hidden]{display:none!important} .egbar .egtxt{flex:1;min-width:200px} .egbar .egtxt b{display:block} .egbar .egtxt span{color:var(--ink-3);font-size:12px}
+  .egp-sheet{width:min(460px,94vw);text-align:left} .egp-h{display:flex;align-items:center;gap:8px}
+  .egp-x{margin-left:auto;border:0;background:none;font-size:16px;cursor:pointer;color:var(--ink-3)}
+  .egp-sub{margin:0 0 12px;font-size:13px}
+  .egp-list{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
+  .egp-list .egp-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line-2);margin:0;text-transform:none;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer}
+  .egp-list .egp-row:first-child{border-top:0}
+  .egp-list input[type=checkbox]{width:auto;height:auto;margin:0}
+  .egp-list .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
+  .egp-rl{margin-left:auto;color:var(--ink-3);font-size:12px} .egp-empty{padding:14px}
+  .egp-btns{display:flex;justify-content:flex-end;gap:8px}
 </style>
-<link rel="stylesheet" href="flow-polish.css?v=3">
+<link rel="stylesheet" href="flow-polish.css?v=5">
 <link rel="stylesheet" href="share-checklist.css?v=2">
-<link rel="stylesheet" href="theme.css?v=80">
-<link rel="stylesheet" href="venues.css?v=3">
+<link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=82">
+<link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=1">
-<script src="/shell-proto.js?v=22" id="shellProto"></script>
+<script src="/shell-proto.js?v=26" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -158,12 +171,12 @@
             <div class="fld"><label for="c_company">Company (optional)</label><input id="c_company"></div>
             <div class="fld"><label for="c_email">Email</label><input id="c_email" type="email"></div>
             <div class="fld"><label for="c_phone">Phone</label><input id="c_phone" type="tel" inputmode="tel" required></div>
-            <div class="fld"><label for="c_type">Event type</label><input id="c_type" list="eventTypeList" placeholder="Pick or type a new one…"><datalist id="eventTypeList"></datalist></div>
-            <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date" data-min-today></div>
+            <div class="fld"><label for="c_type">Event type</label><input id="c_type" required list="eventTypeList" placeholder="Pick or type a new one…"><datalist id="eventTypeList"></datalist></div>
+            <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date" data-min-today required></div>
             <div class="fld"><label for="c_city">City</label><input id="c_city" maxlength="60" autocomplete="address-level2" placeholder="e.g. Hyderabad"></div>
             <div class="fld"><label for="c_state" id="c_stateLbl">Client state</label><select id="c_state" autocomplete="address-level1"><option value="">Not set</option></select></div>
-            <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0" max="100000"></div>
-            <div class="fld"><label for="d_bmax">Budget (₹)</label><input id="d_bmax" type="number" min="0" placeholder="e.g. 500000"><input id="d_bmin" type="hidden"></div>
+            <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="1" max="100000" step="1"></div>
+            <div class="fld"><label for="d_bmax">Budget (₹)</label><input id="d_bmax" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 5,00,000 or 2 crore"><span class="hint" id="d_bmax_words" aria-live="polite"></span><input id="d_bmin" type="hidden"></div>
           </div>
           <p class="hint next-step" data-next-step><b>Next step:</b> fill in Discovery (step 2) — what the client wants (the budget is above).</p>
         </section>
@@ -184,13 +197,14 @@
 
         <!-- 3 REQUIREMENTS -->
         <section class="card" id="sec-reqs">
-          <h2><span class="step-n">3</span> Requirements</h2>
+          <h2><span class="step-n">3</span> Requirements <span class="saved" id="sv-reqs" aria-live="polite"></span></h2>
           <p class="sub">The services the client wants.</p>
           <div id="reqList"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
           <div class="row3 s-d2c171b">
             <input id="rq_title" list="reqTypeList" aria-label="Requirement" class="fld s-f8eca89" placeholder="Pick or type a new one…"><datalist id="reqTypeList"></datalist>
             <select class="s-28098e6" id="rq_pri" aria-label="Requirement priority"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select>
             <button type="button" class="btn" id="rq_add">＋ Add requirement</button>
+            <input id="rq_note" class="rq-note" maxlength="240" aria-label="Requirement note (optional)" placeholder="Short note (optional) — e.g. 2 photographers, drone">
           </div>
           <p class="hint next-step" data-next-step><b>Next step:</b> record the venue and access details (step 4).</p>
         </section>
@@ -235,13 +249,13 @@
 
         <!-- 7 FLOOR LAYOUT -->
         <section class="card" id="sec-layout">
-          <h2><span class="step-n">7</span> Floor layout</h2>
+          <h2><span class="step-n">7</span> Floor layout <span class="saved" id="sv-layout" aria-live="polite"></span></h2>
           <p class="sub">Enter the hall size &amp; headcount and generate a default layout for this event type — then tweak it freely. Chairs &amp; objects feed the price automatically.</p>
           <div class="secerr" id="err-layout"></div>
           <div class="row4 s-da12f28">
             <div class="fld s-1169661"><label for="g_guests">Guests <a href="#sec-client" class="edit-step1">edit in step 1</a></label><input class="s-10bfcec" id="g_guests" type="number" min="0" readonly title="Guests are set once in step 1"></div>
-            <div class="fld s-1169661"><label for="g_len">Hall length (ft)</label><input id="g_len" type="number" min="20" placeholder="200"></div>
-            <div class="fld s-1169661"><label for="g_wid">Hall breadth (ft)</label><input id="g_wid" type="number" min="20" placeholder="140"></div>
+            <div class="fld s-1169661"><label for="g_len">Hall length (ft)</label><input id="g_len" type="number" min="20" max="2000" placeholder="200"></div>
+            <div class="fld s-1169661"><label for="g_wid">Hall breadth (ft)</label><input id="g_wid" type="number" min="20" max="2000" placeholder="140"></div>
             <button type="button" class="btn primary" id="genLayout">✨ Generate default layout</button>
           </div>
           <div class="s-593718e">
@@ -266,9 +280,9 @@
           </div>
           <div class="secerr" id="err-rates"></div>
           <div class="grid">
-            <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests — drives chairs pricing)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="1"><p class="hint" id="q_chairsLayout" hidden><span id="q_chairsLayoutTxt"></span> <button type="button" class="btn ghost" id="q_chairsUseLayout">Use layout count</button></p><p class="hint qty-diff" id="q_chairsDiff" hidden></p></div>
+            <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests — drives chairs pricing)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="1" max="100000" step="1"><p class="hint" id="q_chairsLayout" hidden><span id="q_chairsLayoutTxt"></span> <button type="button" class="btn ghost" id="q_chairsUseLayout">Use layout count</button></p><p class="hint qty-diff" id="q_chairsDiff" hidden></p></div>
             <div class="fld"><label for="q_guestsRo">Guests <a href="#sec-client" class="edit-step1">edit in step 1</a></label><input class="s-10bfcec" id="q_guestsRo" type="number" readonly title="Guests are set once in step 1"></div>
-            <div class="fld"><label for="q_guests">Plates <small>(catering quantity — drives plate pricing)</small></label><input id="q_guests" type="number" min="0"><p class="hint qty-diff" id="q_platesDiff" hidden></p></div>
+            <div class="fld"><label for="q_guests">Plates <small>(catering quantity — drives plate pricing)</small></label><input id="q_guests" type="number" min="0" max="100000" step="1"><p class="hint qty-diff" id="q_platesDiff" hidden></p></div>
             <div class="fld"><label for="q_chairPrice">Chair rate (₹) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
             <div class="fld"><label for="q_platePrice">Plate price (₹) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
             <div class="fld"><label for="q_other">Décor / equipment &amp; setup (₹)</label><input id="q_other" type="number" min="0"></div>
@@ -324,7 +338,7 @@
 
       <!-- RIGHT RAIL -->
       <aside class="rail">
-        <div class="card price">
+        <div class="card price" id="priceCard">
           <h2 class="s-d5d221b">Live price</h2>
           <div id="priceRows"></div>
         </div>
@@ -357,6 +371,18 @@
   </div>
 </div>
 
+<div class="mbar" id="mPriceBar" role="region" aria-label="Live price summary" hidden>
+  <span class="mbar-l">Total <b id="mPriceTotal">—</b></span>
+  <span class="mbar-s" id="mPriceStep"></span>
+  <a class="btn sm" href="#priceCard" id="mPriceOpen">Price &amp; steps</a>
+</div>
+
+<div class="egbar" id="egBar" role="status" aria-live="polite" hidden>
+  <div class="egtxt"><b id="egBarTitle">Create event group?</b><span>Brief your team in one chat - event details are posted for you (no prices).</span></div>
+  <button class="btn primary" id="egBarGo" type="button">Create event group</button>
+  <button class="btn" id="egBarNo" type="button">Not now</button>
+</div>
+
 <div id="loginModal" class="lmodal" hidden data-dismissible="false" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="lsheet">
     <h3 id="loginModalTitle">Sign in</h3>
@@ -370,22 +396,31 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="phone-input.js?v=3"></script>
+<script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
-<script src="tour.js?v=14"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
+<script src="tour.js?v=17"></script>
 <script src="booklet.js?v=23"></script>
 <script src="share-checklist.js?v=11"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
-<script src="flow-autosave.js?v=1"></script>
-<script src="quote-state.js?v=2"></script>
+<script src="flow-autosave.js?v=3"></script>
+<script src="flow-validate.js?v=2"></script>
+<script src="flow-resume.js?v=2"></script>
+<script src="quote-state.js?v=4"></script>
 <script src="flow-dish-editor.js?v=2"></script>
-<script src="venues-core.js?v=5"></script>
+<script src="venues-core.js?v=7"></script>
 <script src="venue-picker.js?v=4"></script>
-<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="email-send.js?v=1"></script><script src="trial-test-note.js?v=1"></script>
+<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="email-send.js?v=3"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=4"></script><script src="approval-watch.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
+  // owner 2026-10 (flow validation): every field rule lives in flow-validate.js. Event dates follow the
+  // STUDIO's day (India -> Asia/Kolkata): the picker's min is today there, typed past dates are refused.
+  const FV=window.HelmFlowValidate;
+  const studioCC=()=>{ try{ return (window.BPStore&&BPStore.studioTax&&BPStore.studioTax().country)||localStorage.getItem("helm_org_country")||"IN"; }catch(_){ return "IN"; } };
+  const studioToday=()=>FV.todayIn(FV.tzFor(studioCC()));
+  function setDateWindow(){ const d=document.getElementById("c_date"); if(!d) return; const t=studioToday(); d.setAttribute("min",t); d.setAttribute("max",FV.addYears(t,5)); }
+  setDateWindow();   // before store-api's date hardener runs (DOMContentLoaded), so it uses the studio day too
   // QA1019: the step-9 "Next step" only says the booking is confirmed once an advance is recorded
   function payNextConfirmed(){ const p=$("#pay_next"); if(!p) return; const b=document.createElement("b"); b.textContent="Next step:"; p.replaceChildren(b, " the booking is confirmed \u2014 move on to Resources and Logistics from the event page."); }
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -437,15 +472,85 @@
   let dirty=false, loading=true, leaving=false, pendingLeave=null;
   // r9 P0: client / discovery / venue / menu / proposal autosave (debounced, serialized, honest badge);
   // `dirty` now only tracks edits that are NOT autosaved (quotation numbers etc.)
-  const AUTO_IDS={ g_len:"client", g_wid:"client", g_guests:"client", q_chairs:"client", d_bmin:"discovery", d_bmax:"discovery" };   // guest-budget: the range sits in step 1 but saves to Discovery
+  const AUTO_IDS={ g_len:"client", g_wid:"client", g_guests:"client", q_chairs:"client", d_bmin:"client", d_bmax:"client" };   // flow-validation: the budget sits in step 1 and saves WITH step 1 (stored on the discovery row) - typing it never marks Discovery "Saved"
   let AS=null;
+  // flow-validation: per-section state. `shown` = fields whose error may show (left once / save tried);
+  // `edited` = sections changed since their own last successful save; `persisted` = what the server holds
+  // (drives the STEPS ticks + "Next step" hints, never the half-typed form).
+  const shown=new Set(), edited=new Set(), badgeSt={};
+  const persisted={ client:null, discovery:false, venue:false, menu:false, proposal:false };
+  let origDate="", discRow=null, planRow=null, reqRows=[], userId="anon";
+  const IDS={ client:["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests","d_bmax"],
+    discovery:["d_date","d_mode","d_att","d_notes"], venue:["v_name","v_contact","v_addr","v_access","v_setting"],
+    menu:["p_menu"], proposal:["pr_concept","pr_theme","pr_scope"], layout:["g_len","g_wid"],
+    quote:["q_chairs","q_guests","q_other","q_coupon","q_platePrice"], reqs:["rq_title","rq_note"] };
+  function secOfField(fid){ for(const k in IDS) if(IDS[k].indexOf(fid)>=0) return k; return null; }
+  const vals=(ids)=>{ const o={}; ids.forEach(k=>{ const el=$("#"+k); o[k]=el?el.value:""; }); return o; };
+  function phoneCheck(){ const el=$("#c_phone");
+    try{ if(el&&el.helmPhone) return el.helmPhone.validate({required:true}); if(window.HelmPhone) return HelmPhone.validate(el.value,{required:true}); }catch(_){ }
+    return BPStore.validate.phone(el.value); }
+  const pkgNoPrice=()=>(appliedPkg && !(+appliedPkg.price_per_plate>0)) ? String(appliedPkg.name||"This package") : "";
+  // validate one section; `all` = show every error now (a save was tried), else only fields already left
+  function check(sec, all){
+    let r;
+    if(sec==="client") r=FV.client(vals(IDS.client),{ today:studioToday(), originalDate:origDate, rejectedDate:$("#c_date").getAttribute("data-date-rejected"), phone:phoneCheck });
+    else if(sec==="discovery") r=FV.discovery(vals(IDS.discovery),{ today:studioToday(), originalMeet:discRow&&discRow.meet_date, eventDate:$("#c_date").value });
+    else if(sec==="venue") r=FV.venue(vals(IDS.venue));
+    else if(sec==="menu") r=FV.menu(vals(IDS.menu));
+    else if(sec==="proposal") r=FV.proposal(vals(IDS.proposal));
+    else if(sec==="layout") r=FV.layout(vals(IDS.layout));
+    else if(sec==="quote") r=FV.quote(vals(IDS.quote),{ pkgNoPrice: (+$("#q_guests").value>0 || $("#q_guests").value==="") ? pkgNoPrice() : "" });
+    else return { ok:true, errors:{}, warnings:{} };
+    if(all) IDS[sec].forEach(k=>shown.add(k));
+    FV.paint(document, r, IDS[sec], shown);
+    return r;
+  }
+  const firstErr=(r,sec)=>FV.first(r, IDS[sec]);
+  function contentOf(s){
+    if(s==="reqs") return reqRows.length>0; if(s==="layout") return layoutItems.length>0;
+    if(s==="quote") return !!(ev&&ev.pricing&&+ev.pricing.total>0);
+    if(s==="menu" && appliedPkg) return true;
+    return FV.hasContent(s, vals(IDS[s]||[]));
+  }
+  // honest badge: "Saved" only after this section's own save WITH content; empty -> "Not started"
+  function paintBadge(s,state,msg){
+    if(state==="saved"){ edited.delete(s); if(!contentOf(s)) state="empty"; draftSave(); }
+    badgeSt[s]=state; HelmAutosave.paint($("#sv-"+s),state,msg);
+    try{ updateProgress(); }catch(_){ }
+  }
+  // ---- unsaved typing survives leaving the page (same tab): sessionStorage, cleared when saved / discarded ----
+  const DRAFT_KEY="helm_flow_draft_"+(new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id")||"");
+  function draftSave(){
+    if(loading) return;
+    try{ const o={};
+      edited.forEach(s=>{ (IDS[s]||[]).forEach(k=>{ const el=$("#"+k); if(el) o[k]=el.value; }); if(s==="client") ["g_len","g_wid","q_chairs"].forEach(k=>{ const el=$("#"+k); if(el) o[k]=el.value; }); });
+      if(Object.keys(o).length) sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ at:Date.now(), v:o })); else sessionStorage.removeItem(DRAFT_KEY);
+    }catch(_){ }
+  }
+  function draftClear(){ try{ sessionStorage.removeItem(DRAFT_KEY); }catch(_){ } }
+  function draftRestore(){
+    let d=null; try{ d=JSON.parse(sessionStorage.getItem(DRAFT_KEY)||"null"); }catch(_){ d=null; }
+    if(!d || !d.v || typeof d.v!=="object") return;
+    // never put an older draft over a newer server copy (someone else saved since)
+    const srv=Date.parse(ev&&ev.updatedAt||""); if(isFinite(srv) && +d.at && srv>+d.at+1000){ draftClear(); return; }
+    let n=0; const secs=new Set();
+    Object.keys(d.v).forEach(k=>{ const el=$("#"+k), v=String(d.v[k]==null?"":d.v[k]);
+      if(!el || el.disabled || el.readOnly || el.value===v) return;
+      el.value=v; n++; const s=(k==="g_len"||k==="g_wid"||k==="q_chairs")?"client":secOfField(k); if(s) secs.add(s); shown.add(k);
+      if(k==="d_bmax") budgetTouched=true; if(k==="q_chairs") chairsManual=true; });
+    if(!n){ draftClear(); return; }
+    secs.forEach(s=>{ edited.add(s); if(s==="client") syncClientMem(); if(s==="venue") syncVenueMem(); check(s); if(AS&&AS.has(s)) AS.schedule(s); });
+    renderPrice(); renderName();
+    BPUI.toast("Restored "+n+" unsaved change"+(n>1?"s":"")+" from earlier — they save as soon as the highlighted fields are fixed.",{type:"info",timeout:8000});
+  }
   function sectionOf(t){
     if(!t||!t.closest) return null; if(t.id && AUTO_IDS[t.id]) return AUTO_IDS[t.id];
     const card=t.closest("section.card"); const b=card&&card.querySelector('.saved[id^="sv-"]');
     const s=b?b.id.slice(3):null; return s&&AS&&AS.has(s)?s:null;
   }
   function unsaved(){ return dirty || !!(AS && (AS.pending() || AS.hasFailed())); }
-  function markDirty(e){ if(loading) return; const s=sectionOf(e&&e.target); if(s){ AS.schedule(s); return; } dirty=true; }
+  function markDirty(e){ if(loading) return; const s=sectionOf(e&&e.target); if(s){ edited.add(s); AS.schedule(s); draftSoon(); return; } dirty=true; }
+  const draftSoon=debounce(draftSave,400);
   // ---- per-section load failures ----
   // If a section's data didn't load, its form shows placeholders/fallbacks
   // (default rates, empty layout, blank venue/proposal). Saving that would
@@ -475,7 +580,7 @@
     }
   }
 
-  function saved(which){ HelmAutosave.paint($("#sv-"+which),"saved"); }
+  function saved(which){ paintBadge(which,"saved"); }
   function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms||600); }; }
 
   /* ---------- pricing (shared engine) ---------- */
@@ -539,7 +644,8 @@
     const oi = BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     const chairs = nn($("#q_chairs").value!==""?(+$("#q_chairs").value||0):(autoChairs()||0));   // R8b: the quote's chairs, never the layout's
     const guests = nn($("#q_guests").value!==""?(+$("#q_guests").value||0):chairs);
-    const platePrice = nn($("#q_platePrice").value!==""?(+$("#q_platePrice").value||0):(appliedPkg?appliedPkg.price_per_plate:rates.platePrice));
+    // owner: a chosen package with NO price set is shown as a warning and priced at 0 - never at a fallback rate
+    const platePrice = pkgNoPrice() ? 0 : nn($("#q_platePrice").value!==""?(+$("#q_platePrice").value||0):(appliedPkg?appliedPkg.price_per_plate:rates.platePrice));
     const other = nn($("#q_other").value!==""?(+$("#q_other").value||0):(oi.objectsCost+(+rates.layoutBase||0)));
     // a configured 0% GST must stay 0 (same as quotes.html / builder breakdown); default 18 only when unset/invalid
     const kp=quoteKeep&&ev&&ev.pricing?ev.pricing:null, rg=kp&&kp.gstPct!=null?kp.gstPct:rates.gstPct;
@@ -567,20 +673,29 @@
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
     showDiscountError(p);
     let rows="";
-    if(p.chairs>0) rows+=`<div class="prow"><span>Chairs <span class="q">${p.chairs} × ${inr(p.chairPrice)}</span></span><span class="amt">${inr(p.chairs*p.chairPrice)}</span></div>`;
-    if(p.guests>0) rows+=`<div class="prow"><span>Catering${p._packageName?' <span class="q">'+esc(p._packageName)+'</span>':''} <span class="q">${p.guests} × ${inr(p.platePrice)}</span></span><span class="amt">${inr(p.guests*p.platePrice)}</span></div>`;
+    const cnt=(n)=>FV.fmt(n);
+    // owner: chairs default to 70% of guests - say which rule priced them (the count stays editable in step 8)
+    const chairRule=chairsManual?"(set by hand)":($("#c_guests").value!==""?"(70% of guests)":"");
+    if(p.chairs>0) rows+=`<div class="prow"><span>Chairs${chairRule?' <span class="q">'+chairRule+'</span>':''} <span class="q">${cnt(p.chairs)} × ${inr(p.chairPrice)}</span></span><span class="amt">${inr(p.chairs*p.chairPrice)}</span></div>`;
+    const np=pkgNoPrice();
+    if(np && p.guests>0) rows+=`<div class="prow warnrow" role="status"><span>⚠ ${esc(np)} has no price set — set it in Control Center › Menus. Catering is not priced until then.</span></div>`;
+    else if(p.guests>0) rows+=`<div class="prow"><span>Catering${p._packageName?' <span class="q">'+esc(p._packageName)+'</span>':''} <span class="q">${cnt(p.guests)} × ${inr(p.platePrice)}</span></span><span class="amt">${inr(p.guests*p.platePrice)}</span></div>`;
     if(p.other>0) rows+=`<div class="prow"><span>Décor / setup</span><span class="amt">${inr(p.other)}</span></div>`;
     rows+=`<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`;
     // PL1027 #1: a % discount from the Quotes list is kept on save - show it (and its ₹ value) beside the ₹ field
     { const h=$("#q_discountPctHint"); if(h){ const dp=+p.discountPct||0; h.hidden=!(dp>0);
       h.textContent=dp>0?(dp+"% discount (− "+inr(t.subtotal*dp/100)+") — stays a % when the quote is re-priced."):""; } }
-    if(t.discount>0) rows+=`<div class="prow"><span>Discount${(+p.discountPct||0)>0?' <span class="q">'+esc(String(+p.discountPct))+'%'+((+p.discount||0)>0?' + '+esc(inr(+p.discount)):'')+'</span>':''}</span><span class="amt">− ${inr(t.discount)}</span></div>`;
+    // confirm-1018 #1: the coupon and the discount each get their own line (same rule + numbers as Confirm & lock)
+    if(t.discount>0){ (window.HelmPriceLines?HelmPriceLines.discountLines(p,t):[{key:"discount",label:"Discount",amount:t.discount}]).forEach(l=>{
+        rows+=`<div class="prow" data-line="${esc(l.key)}"><span>${esc(l.label)}</span><span class="amt">− ${inr(l.amount)}</span></div>`; });
+      rows+=`<div class="prow"><span>Taxable value <span class="q">after discounts</span></span><span class="amt">${inr(Math.max(0,t.subtotal-t.discount))}</span></div>`; }
     rows+=`<div class="prow"><span>${esc(fTax().name)}${t.taxExempt?" (exempt)":t.taxInclusive?" (included)":""}</span><span class="amt">${inr(t.totalGst)}</span></div>`;
     if(fTax().country==="IN" && !t.taxExempt && t.totalGst>0) rows+=`<div class="prow posHint" style="color:var(--ink-3);font-size:11px"><span>${p.placeOfSupply==="inter"?"IGST (inter-state)":"CGST+SGST (intra-state)"}</span><span></span></div>`;
     rows+=`<div class="prow total"><span>Total</span><span class="amt">${inr(t.total)}</span></div>`;
     rows+=`<div class="prow" data-money style="font-style:italic;color:var(--ink-3);font-size:11px;justify-content:flex-end">${fTax().country!=="IN"?"":esc(BPStore.amountInWords(t.total))}</div>`;
     $("#priceRows").innerHTML=rows;
     try{ updateAdvance(); }catch(_){ }   // QA1026 #1: coupon / discount changes re-derive the advance from the final total
+    { const mt=$("#mPriceTotal"); if(mt) mt.textContent=inr(t.total); }   // narrow screens: bottom summary bar
     const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     $("#layoutSummary").textContent = oi.chairs+" chairs · "+(layoutItems.length)+" objects";
     return t;
@@ -592,35 +707,43 @@
   async function relock(){ try{ const f=await BPStore.quotes.get(id); if(f&&f.updatedAt&&ev) ev.updatedAt=f.updatedAt; }catch(_){} }
   // Explicit "Save quotation": the required client fields (name + phone) must be filled and valid,
   // and every problem is marked at once instead of one per click.
+  // flow-validation (owner): step 1 is checked as a whole - name (2-80, letters), phone (shared validator),
+  // email format, event type + date required (date never in the past unless it is the saved one), guests
+  // 1-100,000, budget >= 0 (Indian format ok) - plus the hall size (7) and chairs (8) that ride on the same record.
+  function step1Problems(all){
+    const r=check("client",all), lr=check("layout",all);
+    const cr=FV.count($("#q_chairs").value,{label:"Chairs",min:1});
+    if(all || shown.has("q_chairs")) FV.setMsg(document,"q_chairs",cr.ok?"":cr.error);
+    const out=[]; const add=(res,sec)=>{ (IDS[sec]||[]).forEach(k=>{ if(res.errors[k]) out.push({id:k,msg:res.errors[k]}); }); };
+    add(r,"client"); add(lr,"layout"); if(!cr.ok) out.push({id:"q_chairs",msg:cr.error});
+    return out;
+  }
+  // Explicit "Save quotation": step 1 must be valid; every problem is marked at once (inline) instead of one per click.
   function clientReady(){
-    const V=BPStore.validate, errs=[]; const mark=(f,m)=>{ $(f).setAttribute("aria-invalid","true"); errs.push([f,m]); };
-    ["#c_name","#c_phone","#c_email","#c_guests"].forEach(f=>$(f).removeAttribute("aria-invalid"));
-    const nm=$("#c_name").value.trim(), ph=$("#c_phone").value.trim(), em=$("#c_email").value.trim();
-    if(!nm) mark("#c_name","Client name is required.");
-    if(!ph) mark("#c_phone","Phone is required."); else { const r=V.phone(ph); if(!r.ok) mark("#c_phone",r.error); }
-    if(em){ const r=V.email(em); if(!r.ok) mark("#c_email",r.error); }
-    if($("#c_guests").value!==""){ const r=V.count($("#c_guests").value,{field:"Guests",max:GUESTS_MAX}); if(!r.ok) mark("#c_guests",r.error); }
+    const errs=step1Problems(true);
     if(!errs.length) return true;
-    $(errs[0][0]).focus(); BPUI.toast("Fix step 1 before saving: "+errs.map(e=>e[1]).join(" "),{type:"err"}); return false;
+    const el=$("#"+errs[0].id); if(el){ el.scrollIntoView({block:"center"}); el.focus(); }
+    BPUI.toast("Fix step 1 before saving: "+errs.map(e=>e.msg).join(" "),{type:"err"}); return false;
   }
   const GUESTS_MAX=100000;
+  // fields of the persisted discovery row (location is edited on the Discovery page - always carried over)
+  function discFields(d){ d=d||{}; return { meet_date:d.meet_date||null, mode:d.mode||null, location:d.location||null, attendees:d.attendees||null,
+    notes:d.notes||null, budget_min:d.budget_min!=null?d.budget_min:null, budget_max:d.budget_max!=null?d.budget_max:null }; }
   async function saveClient(quiet){
-    const V=BPStore.validate;
-    // quiet (autosave): mark the field + say why in the badge — no toast per keystroke
-    const bad=(r,f)=>{ $(f).setAttribute("aria-invalid","true"); if(quiet) return { invalid:r.error }; BPUI.toast(r.error,{type:"err"}); $(f).focus(); return false; };
-    ["#c_email","#c_phone","#c_guests"].forEach(f=>$(f).removeAttribute("aria-invalid"));
+    // quiet (autosave): mark the fields already left + say why in the badge - no toast per keystroke
+    const errs=step1Problems(!quiet);
+    if(errs.length){
+      if(quiet) return { invalid:errs[0].msg };
+      const el=$("#"+errs[0].id); if(el) el.focus(); BPUI.toast("Step 1 not saved: "+errs[0].msg,{type:"err"}); return false;
+    }
     const emailRaw=$("#c_email").value.trim(), phoneRaw=$("#c_phone").value.trim();
-    if(emailRaw){ const r=V.email(emailRaw); if(!r.ok) return bad(r,"#c_email"); }
-    if(phoneRaw){ const r=V.phone(phoneRaw); if(!r.ok) return bad(r,"#c_phone"); }
-    let guestsN=null, budgetN=null;
-    if($("#c_guests").value!==""){ const r=V.count($("#c_guests").value,{field:"Guests",max:GUESTS_MAX}); if(!r.ok) return bad(r,"#c_guests"); guestsN=r.value; }
-    budgetN=(ev.client||{}).budget!=null?(ev.client||{}).budget:null;   // untouched range: keep the stored budget as-is
-    if(budgetTouched){ const bv=budgetFromRange(); budgetN=null;
-      if(bv.el){ const r=V.money(bv.el.value,{field:"Budget"}); if(!r.ok) return bad(r,"#"+bv.el.id); budgetN=r.value; } }
+    const guestsN=FV.guests($("#c_guests").value).value;
+    let budgetN=(ev.client||{}).budget!=null?(ev.client||{}).budget:null;   // untouched range: keep the stored budget as-is
+    if(budgetTouched){ const bv=budgetFromRange(); budgetN=bv.v; }
     const client=Object.assign({}, ev.client||{}, {
-      name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:emailRaw,
+      name:FV.clean($("#c_name").value), company:FV.clean($("#c_company").value), email:emailRaw,
       phone:phoneRaw,
-      guests:guestsN, budget:budgetN, city:$("#c_city").value.trim().slice(0,60)||null,
+      guests:guestsN, budget:budgetN, city:FV.clean($("#c_city").value).slice(0,60)||null,
       state:$("#c_state").value||null,
       eventDate:$("#c_date").value||null });
     try{
@@ -629,9 +752,17 @@
       ev.client=client; if(row&&row.updated_at) ev.updatedAt=row.updated_at;   // refresh optimistic-lock base
       ev.eventType=$("#c_type").value.trim()||null; if(row&&row.title!=null) ev.title=row.title; renderName();
     }catch(e){
-      if(e&&e.code==="CONFLICT"){ await BPUI.alert(e.message,{title:"This quote was changed elsewhere"}); leaving=true; location.reload(); return false; }
+      if(e&&e.code==="CONFLICT"){ draftSave(); await BPUI.alert(e.message+" Your unsaved typing is kept and comes back after the reload.",{title:"This quote was changed elsewhere"}); leaving=true; location.reload(); return false; }
       throw e;
     }
+    // the budget is stored on the discovery row: write ONLY the budget there (the persisted meeting fields ride along unchanged)
+    if(budgetTouched && !failed.discovery){
+      const bmax=FV.budget($("#d_bmax").value).value, bmin=discRow&&discRow.budget_min!=null?discRow.budget_min:null;
+      const row=Object.assign(discFields(discRow), { budget_min:bmin, budget_max:bmax });
+      await BPStore.discovery.save(id, row); discRow=row; budgetTouched=false;
+    }
+    origDate=client.eventDate||"";
+    persisted.client={ name:client.name, phone:client.phone, eventType:ev.eventType, eventDate:client.eventDate };
     vocabAdd("event_types",$("#c_type").value); fillVocab();   // remember a custom event type
     // guests is entered once here and mirrored into the fields that read it (quotation/pricing)
     if($("#q_guests").value==="" && client.guests!=null){ $("#q_guests").value=client.guests; }
@@ -641,23 +772,30 @@
   // client record's single "budget" mirrors max (or min if only min is set) — both old storage places
   // stay filled. client.budget only changes once the user actually edits the range (no silent rewrite).
   let budgetTouched=false;
+  function paintBudgetWords(){ const b=$("#d_bmax"), w=$("#d_bmax_words"); if(!b||!w) return; const r=FV.budget(b.value);
+    w.textContent=(r.ok && r.value>0) ? ("₹"+FV.fmt(r.value)+(FV.words(r.value)?" ("+FV.words(r.value)+")":"")) : ""; }
   function budgetFromRange(){ const a=$("#d_bmin"), b=$("#d_bmax");
-    if(b && b.value!=="") return { el:b, v:+b.value }; if(a && a.value!=="") return { el:a, v:+a.value }; return { el:null, v:null }; }
+    const amt=(el)=>{ const r=(typeof HelmFlowValidate!=="undefined")?HelmFlowValidate.budget(el.value):{ok:true,value:+el.value}; return r.ok?r.value:null; };
+    if(b && b.value!=="") return { el:b, v:amt(b) }; if(a && a.value!=="") return { el:a, v:amt(a) }; return { el:null, v:null }; }
   ["#d_bmin","#d_bmax"].forEach(s=>{ const el=$(s); if(el) el.addEventListener("input",()=>{ if(loading || failed.discovery) return; budgetTouched=true; syncClientMem(); if(AS) AS.schedule("client"); }); });
   // india-clickthrough D2: an inverted budget range (min > max) is flagged inline and never saved
   // single budget field: one value saves to budget_max; an old budget_min is kept as-is (hidden), never dropped
   function budgetRangeOk(){ return true; }
   ["#d_bmin","#d_bmax"].forEach(s=>{ const el=$(s); if(el){ el.addEventListener("input",budgetRangeOk); el.addEventListener("change",budgetRangeOk); } });
-  async function saveDiscovery(){
+  async function saveDiscovery(quiet){
     if(failed.discovery) throw blockedError("discovery");
-    await BPStore.discovery.save(id, { meet_date:$("#d_date").value||null, mode:$("#d_mode").value||null,
-      attendees:$("#d_att").value.trim()||null, notes:$("#d_notes").value.trim()||null,
-      budget_min:$("#d_bmin").value!==""?+$("#d_bmin").value:null, budget_max:$("#d_bmax").value!==""?+$("#d_bmax").value:null });
+    const r=check("discovery", quiet===false), p=firstErr(r,"discovery"); if(p) return { invalid:p.msg };
+    // ONLY this section's fields; the budget (step 1) and location (Discovery page) keep their stored values
+    const row=Object.assign(discFields(discRow), { meet_date:$("#d_date").value||null, mode:$("#d_mode").value||null,
+      attendees:FV.clean($("#d_att").value)||null, notes:$("#d_notes").value.trim()||null });
+    await BPStore.discovery.save(id, row);
+    discRow=row; persisted.discovery=!!(row.meet_date||row.mode||row.attendees||row.notes);
     saved("discovery");
   }
-  async function saveVenue(){
+  async function saveVenue(quiet){
     if(failed.plan) throw blockedError("venue & menu");
-    await BPStore.plan.save(id, gatherPlan());
+    const r=check("venue", quiet===false), p=firstErr(r,"venue"); if(p) return { invalid:p.msg };
+    const pl=gatherPlan("venue"); await BPStore.plan.save(id, pl); planRow=Object.assign({}, planRow||{}, pl);
     // Venue is entered ONCE here; mirror it back onto the client record so the
     // quote header, lists and lead stay in sync (no separate re-entry elsewhere).
     const vn=$("#v_name").value.trim(), va=$("#v_addr").value.trim();
@@ -668,19 +806,30 @@
     const cur=ev&&ev.client||{};
     if((cur.venue||"")!==vn || (cur.address||"")!==va || (cur.venueId||null)!==vid || (cur.venueName||null)!==vnm || (cur.setting||null)!==vs || (cur.venueLen||null)!==vfl || (cur.venueWid||null)!==vfw){
       const client=Object.assign({}, cur, { venue:vn||null, address:va||null, venueId:vid, venueName:vnm, setting:vs, venueLen:vfl, venueWid:vfw });
-      ev.client=client;
-      try{ await BPStore.quotes.updateMeta(id,{ client }); }catch{}
+      // venue-save fix: this write moved quotes.updated_at, and the next step-1 save then hit a false
+      // "changed elsewhere" (reload, typing lost). Refresh the lock base; a failure is shown, never swallowed.
+      const row=await BPStore.quotes.updateMeta(id,{ client });
+      ev.client=client; if(row&&row.updated_at) ev.updatedAt=row.updated_at;
     }
+    persisted.venue=!!(pl.venue_name||pl.venue_address||pl.venue_contact||pl.access_notes||vs);
     saved("venue");
   }
-  async function saveMenuNotes(){ if(failed.plan) throw blockedError("venue & menu"); await BPStore.plan.save(id, gatherPlan()); saved("menu"); }
-  function gatherPlan(){ return { venue_name:$("#v_name").value.trim()||null, venue_address:$("#v_addr").value.trim()||null,
-    venue_contact:$("#v_contact").value.trim()||null, access_notes:$("#v_access").value.trim()||null,
-    package:appliedPkg?appliedPkg.name:( $("#p_menu").dataset.pkg||null), menu:$("#p_menu").value.trim()||null }; }
-  async function saveProposal(){
+  async function saveMenuNotes(quiet){ if(failed.plan) throw blockedError("venue & menu");
+    const r=check("menu", quiet===false), p=firstErr(r,"menu"); if(p) return { invalid:p.msg };
+    const pl=gatherPlan("menu"); await BPStore.plan.save(id, pl); planRow=Object.assign({}, planRow||{}, pl); persisted.menu=!!pl.menu; saved("menu"); }
+  // the plan row holds venue (4) AND menu notes (5): a section writes its own fields from the form and the
+  // other section's fields as last saved, so one section's half-typed / invalid text is never saved by the other
+  function gatherPlan(which){ const P=planRow||{}, ven=which==null||which==="venue", men=which==null||which==="menu";
+    return { venue_name:ven?(FV.clean($("#v_name").value)||null):(P.venue_name||null), venue_address:ven?(FV.clean($("#v_addr").value)||null):(P.venue_address||null),
+    venue_contact:ven?(FV.clean($("#v_contact").value)||null):(P.venue_contact||null), access_notes:ven?($("#v_access").value.trim()||null):(P.access_notes||null),
+    package:appliedPkg?appliedPkg.name:( $("#p_menu").dataset.pkg||null), menu:men?($("#p_menu").value.trim()||null):(P.menu||null) }; }
+  async function saveProposal(quiet){
     if(failed.proposal) throw blockedError("proposal");
-    const scope=$("#pr_scope").value.split("\n").map(s=>s.trim()).filter(Boolean);
-    await BPStore.proposal.save(id,{ concept:$("#pr_concept").value.trim()||null, theme:$("#pr_theme").value.trim()||null, scope });
+    const r=check("proposal", quiet===false), p=firstErr(r,"proposal"); if(p) return { invalid:p.msg };
+    const scope=FV.scopeLines($("#pr_scope").value);
+    const concept=FV.clean($("#pr_concept").value)||null, theme=FV.clean($("#pr_theme").value)||null;
+    await BPStore.proposal.save(id,{ concept, theme, scope });
+    persisted.proposal=!!(concept||theme||scope.length);
     vocabAdd("concepts",$("#pr_concept").value); vocabAdd("themes",$("#pr_theme").value); fillVocab();  // remember custom concept/theme
     saved("proposal");
   }
@@ -732,11 +881,14 @@
   async function saveAll(){
     if(AS) await AS.flush();   // let in-flight / queued autosaves land first (no overlapping writes)
     let ok=true;
-    try{ if(await saveClient()===false) ok=false; }catch(_){ ok=false; }
-    try{ await saveDiscovery(); }catch(_){ ok=false; }
-    try{ await saveVenue(); }catch(_){ ok=false; }
-    try{ await saveProposal(); }catch(_){ ok=false; }
-    if(ok){ dirty=false; if(AS) AS.clearFailed(); }
+    // flow-validation: only sections EDITED since their own last save are written - an untouched section is
+    // never re-saved (and never painted "Saved") because another one was
+    const one=async(s,fn)=>{ if(!edited.has(s)) return;
+      try{ const r=await fn(); if(r===false){ ok=false; return; } if(r&&r.invalid){ ok=false; paintBadge(s,"invalid",r.invalid); return; } edited.delete(s); }
+      catch(e){ ok=false; paintBadge(s,"error"); } };
+    await one("client",()=>saveClient()); await one("discovery",()=>saveDiscovery(false)); await one("venue",()=>saveVenue(false));
+    await one("menu",()=>saveMenuNotes(false)); await one("proposal",()=>saveProposal(false));
+    if(ok){ dirty=false; if(AS) AS.clearFailed(); draftSave(); }
     return ok;
   }
   const confirmLeaveAnyway=()=>BPUI.confirm(SAVE_FAIL_MSG,{title:"Some changes weren't saved",okLabel:"Leave anyway",cancelLabel:"Stay",danger:true});
@@ -775,6 +927,11 @@
     if(quoteBlocked()){ BPUI.toast("Pricing data didn't load, so the quotation can't be saved yet — use Retry in the quotation section.",{type:"err"}); return; }
     // 1029 #1: apply the default chairs (70% of guests) to the field BEFORE pricing, exactly as the live rail shows it
     if(!chairsManual){ const a=autoChairs(); if(a!=null && $("#q_chairs") && String($("#q_chairs").value)!==String(a)){ $("#q_chairs").value=a; renderPrice(); } }
+    // flow-validation: quantities / amounts / package price checked inline first (nothing saved while invalid)
+    { const r=check("quote",true), pe=firstErr(r,"quote");
+      if(pe){ if($("#q_msg")){ $("#q_msg").style.color="var(--danger-text,#b42318)"; $("#q_msg").textContent="Not saved — "+pe.msg; }
+        BPUI.toast("Quotation not saved: "+pe.msg,{type:"err"}); const el=$("#"+pe.id); if(el && !el.readOnly) el.focus();
+        const er=new Error(pe.msg); er.code="INVALID"; throw er; } }   // callers (layout sync, re-price) keep the numbers as unsaved edits
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
     const dErr=showDiscountError(p);
     if(dErr){ if($("#q_msg")) $("#q_msg").textContent=dErr; BPUI.toast(dErr,{type:"err"}); $("#q_discount").focus(); return; }
@@ -793,7 +950,9 @@
     pricing=BPStore.tax.preserveSnapshot(ev.pricing||{}, pricing, { switch: taxSwitched });
     // 1029 #1: the stored total is re-derived from the stored object itself (same engine as the rail),
     // so merged / preserved fields can never leave an out-of-date total behind
-    pricing=HelmQuoteTotal.withTotal(pricing, BPStore.pricing.quoteTotal);
+    // flow-validation: quoteTotal uses this._canon - passing the bare method threw "this._canon is not a
+    // function" on every Save quotation (silently: the click handler swallowed it). Bind it.
+    pricing=HelmQuoteTotal.withTotal(pricing, BPStore.pricing.quoteTotal.bind(BPStore.pricing));
     try{
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
       await relock();   // our own write bumped quotes.updated_at - refresh the lock base so the next client save isn't a false conflict
@@ -815,10 +974,11 @@
         updateProgress();
         if($("#q_msg")) $("#q_msg").textContent="Couldn't save — not saved: "+BPUI.friendlyError(e,{action:"save the quotation"});
         BPUI.toast("Save failed — nothing was saved.",{type:"err"});
+        try{ e.__shown=true; }catch(_){ }
         throw e;   // do NOT swallow; do NOT claim success
       }
       // legacy / pre-phase77 environment: persist current pricing only.
-      await BPStore.quotes.updateMeta(id,{ pricing }); ev.pricing=pricing; taxSwitched=false; saved("quote"); updateProgress();
+      { const row=await BPStore.quotes.updateMeta(id,{ pricing }); if(row&&row.updated_at) ev.updatedAt=row.updated_at; } ev.pricing=pricing; taxSwitched=false; saved("quote"); updateProgress();
       if($("#q_msg")) $("#q_msg").textContent="Saved (legacy mode — versioning not enabled)";
     }
   }
@@ -869,7 +1029,7 @@
     if(chairs>0 && oc!=null && nc!=null && oc!==nc && moved("chairPrice",nc)){ lines.push({ label:"Chair rate · "+chairs+" chairs", from:oc, to:nc, a:chairs*oc, b:chairs*nc }); next.chairPrice=nc; }
     const op=nOrNull(pr.platePrice), np=appliedPkg ? nOrNull(appliedPkg.price_per_plate) : nOrNull(rates.platePrice);
     const pkgMoved=!snap ? true : appliedPkg ? (snap.pkg!==appliedPkg.name || nOrNull(snap.pkgPrice)!==np) : (snap.pkg ? true : nOrNull(snap.platePrice)!==np);
-    if(guests>0 && op!=null && np!=null && op!==np && pkgMoved){ lines.push({ label:"Plate price"+(appliedPkg?" ("+appliedPkg.name+")":"")+" · "+guests+" plates", from:op, to:np, a:guests*op, b:guests*np }); next.platePrice=np; }
+    if(guests>0 && op!=null && np!=null && op!==np && pkgMoved && !(appliedPkg && !(+appliedPkg.price_per_plate>0))){ lines.push({ label:"Plate price"+(appliedPkg?" ("+appliedPkg.name+")":"")+" · "+guests+" plates", from:op, to:np, a:guests*op, b:guests*np }); next.platePrice=np; }
     // décor / setup: only when the quote still follows the layout (not hand-edited) and the object
     // prices / layout base themselves changed since it was priced (a layout change is synced elsewhere)
     const oo=nOrNull(pr.other);
@@ -938,7 +1098,9 @@
       (differs?`<div class="rowline"><span class="g"><b>Current (unsaved changes)</b> <span class="pill">current</span></span><span>${inr(live)}</span><span class="meta">Save the quotation to make this a new version</span></div>`:'')+
       vs.map((v,i)=>`<div class="rowline"><span class="g"><b>${esc(v.label)}</b>${i===0&&!differs?' <span class="pill">current</span>':''}</span><span>${inr(v.total)}</span><span class="meta">${differs&&i===0?'saved '+esc(sd(v)):esc(BPStore.fmtDateTime(v.created_at)||'')}</span></div>`).join("");
   }
-  function downloadQuotePDF(){
+  async function downloadQuotePDF(){
+    // 0197: guests over the linked venue (seated + floating) need a decision first (capacity-shortage.js)
+    if(window.HelmCapacity && !(await HelmCapacity.gate({ quoteId:id, quote:ev, why:"pdf" }))) return;
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p), cl=ev.client||{};
     const reason=quoteEmptyReason(p,t);
     if(reason){ BPUI.toast("This quote is empty (₹0). Add seating, catering, or décor before downloading a PDF.",{type:"info"}); return; }
@@ -973,9 +1135,9 @@
   /* ---------- requirements ---------- */
   async function renderReqs(){
     let reqs=[]; try{ reqs=(await BPStore.discovery.listReqs(id))||[]; }catch(e){ BPUI.loadError($("#reqList"), e, renderReqs, {what:"requirements"}); return; }
-    $("#reqList").dataset.count = reqs.length;
+    reqRows=reqs; $("#reqList").dataset.count = reqs.length;
     try{ updateProgress(); }catch(_){ }
-    $("#reqList").innerHTML = reqs.length? reqs.map(r=>{ const svc=r.service||r.title||""; return `<div class="rowline"><span class="g">${esc(svc)}</span><span class="pill">${esc(r.priority||"")}</span><button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(svc)}" aria-label="Remove requirement ${esc(svc)}">×</button></div>`; }).join("")
+    $("#reqList").innerHTML = reqs.length? reqs.map(r=>{ const svc=r.service||r.title||""; return `<div class="rowline"><span class="g">${esc(svc)}${r.note?' <span class="meta">— '+esc(r.note)+'</span>':''}</span><span class="pill">${esc(r.priority||"")}</span><button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(svc)}" aria-label="Remove requirement ${esc(svc)}">×</button></div>`; }).join("")
       : '<div style="font-size:12px;color:var(--ink-3)">No requirements yet.</div>';
     $("#reqList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
       if(!(await BPUI.confirm(`Remove the requirement "${b.dataset.name}"?`,{title:"Remove requirement?",okLabel:"Remove",danger:true}))) return;
@@ -1011,19 +1173,30 @@
       $("#q_platePrice").value=t.price_per_plate; $("#p_menu").dataset.pkg=t.name;
       // Persist the chosen package name to the plan immediately so the workspace (event.html)
       // and the Venue & menu page (plan.html) reflect it without waiting for save-on-leave.
-      try{ await BPStore.plan.save(id, gatherPlan()); }catch(_){ }
+      try{ const pl=gatherPlan("pkg"); await BPStore.plan.save(id, pl); planRow=Object.assign({}, planRow||{}, pl); }catch(_){ }
       renderPackages(); renderPrice(); updateAdvance(); saved("menu"); updateProgress(); });
     }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"apply the package"}),{type:"err"}); }
   }
 
   /* ---------- progress ---------- */
   const STEPS=[["client","1 · Client"],["discovery","2 · Discovery"],["reqs","3 · Requirements"],["venue","4 · Venue"],["menu","5 · Menu"],["proposal","6 · Proposal"],["layout","7 · Layout"],["quote","8 · Quotation"]];
+  // flow-validation: a tick = that section's OWN data is saved (and valid) - never the half-typed form, never
+  // because another section saved. The "Next step" hint shows only once the section is complete.
+  function stepDone(){
+    const bad=(k)=>badgeSt[k]==="invalid"||badgeSt[k]==="error", pc=persisted.client||{};
+    return { client:!!(pc.name && pc.phone && pc.eventType && pc.eventDate) && !bad("client"),
+      discovery:!!persisted.discovery && !bad("discovery"), reqs:reqRows.length>0, venue:!!persisted.venue && !bad("venue"),
+      menu:(!!appliedPkg || !!persisted.menu) && !bad("menu"), proposal:!!persisted.proposal && !bad("proposal"),
+      layout:layoutItems.length>0, quote:!!(ev&&ev.pricing&&+ev.pricing.total>0) };
+  }
   function updateProgress(){
-    const done={ client:!!(ev&&ev.client&&ev.client.name), menu:!!appliedPkg, layout:layoutItems.length>0,
-      quote:!!(ev&&ev.pricing&&ev.pricing.total), venue:$("#v_name").value.trim()!=="",
-      discovery:$("#d_notes").value.trim()!==""||$("#d_date").value!=="", proposal:$("#pr_concept").value.trim()!=="",
-      reqs:(+($("#reqList")&&$("#reqList").dataset.count||0))>0 };
-    $("#progList").innerHTML=STEPS.map(([k,label])=>`<a href="#sec-${k==='reqs'?'reqs':k}" class="${done[k]?'done':''}"><span class="dot"></span>${label}</a>`).join("");
+    const done=stepDone();
+    $("#progList").innerHTML=STEPS.map(([k,label])=>`<a href="#sec-${esc(k)}" class="${done[k]?'done':''}" aria-label="${esc(label)} — ${done[k]?'done':'not done yet'}"><span class="dot"></span>${label}</a>`).join("");
+    STEPS.forEach(([k])=>{ const sec=$("#sec-"+k), h=sec&&sec.querySelector("[data-next-step]"); if(h) h.hidden=!done[k]; });
+    // steps without autosave: "Not started" until they have something
+    ["reqs","layout","quote"].forEach(k=>{ const b=$("#sv-"+k); if(!b) return; if(!contentOf(k)){ if(badgeSt[k]!=="empty"){ badgeSt[k]="empty"; HelmAutosave.paint(b,"empty"); } }
+      else if(badgeSt[k]==="empty"){ badgeSt[k]="idle"; HelmAutosave.paint(b,"idle"); } });
+    const ms=$("#mPriceStep"); if(ms){ const n=STEPS.filter(([k])=>done[k]).length; ms.textContent=n+" of "+STEPS.length+" steps done"; }
   }
   // Light the progress steps live as the user fills fields (not only on reload/save).
   try{ document.addEventListener("input", ()=>{ try{ updateProgress(); }catch(_){ } }); }catch(_){ }
@@ -1049,6 +1222,7 @@
       if(!nm){ BPUI.toast("Add the client's name (section 1 · Client) before confirming the booking.",{type:"err"}); if($("#c_name")){ $("#c_name").scrollIntoView({block:"center"}); $("#c_name").focus(); } return; }
       if(!ph){ BPUI.toast("Add the client's phone (section 1 · Client) before confirming the booking.",{type:"err"}); if($("#c_phone")){ $("#c_phone").scrollIntoView({block:"center"}); $("#c_phone").focus(); } return; }
       const pv=BPStore.validate.phone(ph); if(!pv.ok){ BPUI.toast(pv.error,{type:"err"}); if($("#c_phone")){ $("#c_phone").focus(); } return; } }
+    if(window.HelmCapacity && !(await HelmCapacity.gate({ quoteId:id, quote:ev, why:"confirm" }))) return;   // 0197 over-capacity decision
     const method=$("#pay_method").value;
     const vr=BPStore.validate.money($("#pay_amount").value,{field:"Advance amount"});
     if(!vr.ok || !(vr.value>0)){ BPUI.toast(vr.ok?"Enter the advance amount.":vr.error,{type:"err"}); $("#pay_amount").focus(); return; }
@@ -1078,7 +1252,7 @@
       if(method==='online' && BPStore.approval.onlinePayAvailable()){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
         $("#pay_online").hidden=false; $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
       $("#pay_record").removeAttribute("aria-busy");
-      await renderReceipts(); await renderActivity();
+      await renderReceipts(); await renderActivity(); renderEgPrompt().catch(()=>{});
       BPUI.toast("Payment recorded — receipt "+(r&&r.receipt_no||"")+". Booking confirmed.",{type:"ok",timeout:8000});
       // Leave the button disabled after a successful record so the same advance
       // cannot be submitted twice; re-enable only on failure below.
@@ -1096,6 +1270,22 @@
     if(paidCount>0){ b.textContent="Confirmed"; b.hidden=false; payNextConfirmed(); return; }
     if(ev&&ev.status==='confirmed'){ b.textContent="Advance pending"; b.hidden=false; return; }
     b.hidden=true; }
+  // 0176: once the event is confirmed (client approval / advance), ask at the bottom to create the
+  // event's team group - same picker as the event page. Nothing is created until they click.
+  let egAsked=false;
+  async function renderEgPrompt(){
+    const bar=$("#egBar"); if(!bar||egAsked||!ev||!canEdit||!window.HelmEventGroupPicker) return;
+    let st=ev.status;
+    if(st!=="confirmed"){ try{ const f=await BPStore.quotes.get(id); if(f&&f.status) st=f.status; }catch(_){ } }
+    if(st!=="confirmed") return;
+    let ix=null; try{ ix=await BPStore.chat.eventGroups.index(); }catch(_){ return; }   // chat off -> no prompt
+    if(!ix||ix[ev.id||id]) return;
+    egAsked=true;
+    $("#egBarTitle").textContent="Create an event group for "+(ev.code||"this event")+"?";
+    bar.hidden=false;
+    $("#egBarGo").onclick=()=>{ bar.hidden=true; HelmEventGroupPicker.open({id:ev.id||id, code:ev.code, status:"confirmed"},{canEdit}); };
+    $("#egBarNo").onclick=()=>{ bar.hidden=true; };
+  }
   async function renderReceipts(){
     let pays=[]; try{ pays=(await BPStore.milestones.payments(id))||[]; }catch(e){ BPUI.loadError($("#pay_receipts"), e, renderReceipts, {what:"receipts"}); return; }
     const paid=pays.filter(p=>p.status==='paid');
@@ -1122,6 +1312,7 @@
       if(pr && !pr.ok){ flag("#c_phone", "Fix the client phone in step 1 before sending: "+pr.error); return; }
       if(!er && !pr){ flag("#c_phone", "Add the client's email or phone in step 1 before sending for approval."); return; }
     }
+    if(window.HelmCapacity && !(await HelmCapacity.gate({ quoteId:id, quote:ev, why:"send" }))) return;   // 0197 over-capacity decision
     if(!ev || !(ev.pricing&&ev.pricing.total)){ if(!(await BPUI.confirm("No quotation total saved yet. Send anyway?",{title:"Send for approval?",okLabel:"Send anyway"}))) return; }
     await BPUI.guard($("#sendApproval"), async()=>{
     try{
@@ -1177,10 +1368,11 @@
   }
   async function loadDiscovery(){ const cl=ev.client||{};
     const d=await BPStore.discovery.get(id);
+    discRow=d||null; persisted.discovery=!!(d&&(d.meet_date||d.mode||d.attendees||d.notes));
     if(d){ $("#d_date").value=d.meet_date||""; $("#d_mode").value=d.mode||"";
       $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||""; $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:(d.budget_min!=null?d.budget_min:""); }
-    // guest-budget: legacy quotes kept only client.budget — show it as the max so nothing looks lost
-    if((!d || (d.budget_min==null && d.budget_max==null)) && cl.budget!=null){ $("#d_bmax").value=cl.budget; } }
+    // budget-single-source (0199): the quote's own budget (also the CRM lead's) wins; Discovery's copy is only a fallback
+    if(cl.budget!=null && cl.budget!==""){ $("#d_bmax").value=cl.budget; } }
   async function loadPlan(){ const cl=ev.client||{};
     // 0085: linked saved venue + indoor/outdoor (client JSON); the picker re-shows its warnings
     $("#v_venue_id").value=typeof cl.venueId==="string"?cl.venueId:""; $("#v_venue_name").value=typeof cl.venueName==="string"?cl.venueName:"";
@@ -1188,6 +1380,10 @@
     $("#v_vlen").value=+cl.venueLen>0?String(+cl.venueLen):""; $("#v_vwid").value=+cl.venueWid>0?String(+cl.venueWid):"";
     if(window.HelmVenuePicker) HelmVenuePicker.sync();
     plan=await BPStore.plan.get(id);
+    planRow=plan?{ venue_name:plan.venue_name||cl.venue||null, venue_address:plan.venue_address||cl.address||null, venue_contact:plan.venue_contact||null,
+      access_notes:plan.access_notes||null, package:plan.package||null, menu:plan.menu||null }:null;
+    persisted.venue=!!((planRow&&(planRow.venue_name||planRow.venue_address||planRow.venue_contact||planRow.access_notes))||cl.venue||cl.setting);
+    persisted.menu=!!(planRow&&planRow.menu);
     if(plan){ $("#v_name").value=plan.venue_name||cl.venue||""; $("#v_addr").value=plan.venue_address||cl.address||"";
       $("#v_contact").value=plan.venue_contact||""; $("#v_access").value=plan.access_notes||""; $("#p_menu").value=plan.menu||""; if(plan.package) $("#p_menu").dataset.pkg=plan.package; } }
   async function loadPackages(){
@@ -1195,7 +1391,7 @@
     const sel=plan&&(plan.menu_template||plan.package);
     if(sel) appliedPkg=packages.find(p=>p.name===sel)||null;
     renderPackages(); }
-  async function loadProposal(){ const pr=await BPStore.proposal.get(id); if(pr){ $("#pr_concept").value=pr.concept||""; $("#pr_theme").value=pr.theme||""; $("#pr_scope").value=(pr.scope||[]).join("\n"); } }
+  async function loadProposal(){ const pr=await BPStore.proposal.get(id); persisted.proposal=!!(pr&&(pr.concept||pr.theme||(pr.scope||[]).length)); if(pr){ $("#pr_concept").value=pr.concept||""; $("#pr_theme").value=pr.theme||""; $("#pr_scope").value=(pr.scope||[]).join("\n"); } }
   async function loadLayout(){ const v=await BPStore.quotes.getVersion(id, ev.currentVersion); layoutItems=(v&&v.data&&v.data.items)||[]; layoutRoom=(v&&v.data&&v.data.venue&&v.data.venue.room)||null; }
   const SECTIONS={
     rates:    ["#err-rates","pricing rates",loadRates],
@@ -1233,7 +1429,8 @@
     try{
       if(!canEdit || quoteBlocked() || !ev) return;
       const next=BPStore.tax.restampUnpriced(ev, BPStore.tax.resolve(rates||{})); if(!next) return;
-      await BPStore.quotes.updateMeta(id,{ pricing: next }); ev.pricing=next; paintCurBanner();
+      const row=await BPStore.quotes.updateMeta(id,{ pricing: next }); if(row&&row.updated_at) ev.updatedAt=row.updated_at;   // keep the lock base (no false conflict on the first step-1 save)
+      ev.pricing=next; paintCurBanner();
     }catch(_){ /* best effort: saveQuotation re-stamps an unpriced quote anyway */ }
   }
   // B11: "This quote is in INR - switch to AED?" instead of silently re-labelling an existing quote
@@ -1305,9 +1502,13 @@
     $("#c_phone").value=cl.phone||""; $("#c_type").value=canonType(ev.eventType||""); fillVocab(); $("#c_date").value=cl.eventDate||ev.eventDate||"";
     $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_city").value=typeof cl.city==="string"?cl.city:"";
     fillClientStates(cl);
+    origDate=String(cl.eventDate||ev.eventDate||"").slice(0,10);
+    persisted.client={ name:cl.name||"", phone:cl.phone||"", eventType:ev.eventType||"", eventDate:origDate };
+    setDateWindow();
     $("#g_guests").value=cl.guests!=null?cl.guests:""; $("#q_guestsRo").value=cl.guests!=null?cl.guests:"";
     await runSection("rates");
     await runSection("discovery");
+    { const b=$("#d_bmax"); if(b && b.value!==""){ const r=FV.budget(b.value); if(r.ok && r.value!=null){ b.value=FV.fmt(r.value); paintBudgetWords(); } } }   // Indian grouping: 2,00,00,000
     await renderReqs();
     await runSection("plan");
     await runSection("packages");
@@ -1329,13 +1530,17 @@
       // PL1027 #2: "Booking confirmed" only once an advance exists (paid); approved/confirmed without one = advance pending
       // PP1028 #1: an internal Confirm & lock is NOT a client approval - follow the real approval state
       if(ap==='paid'||ap==='approved'||ap==='sent'||hasTok) $("#apprState").textContent=apprStateText(ap==='paid'); }
-    await renderReceipts(); await renderActivity(); await renderQuoteVersions();
+    await renderReceipts(); await renderActivity(); await renderQuoteVersions(); renderEgPrompt().catch(()=>{});
     renderReprice(); watchHistory();
     // reminder banner
     try{ if(localStorage.getItem(REMIND_KEY)==="1"){ $("#reminder").hidden=false; localStorage.removeItem(REMIND_KEY); $("#sec-quote").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); } }catch{}
     $("#remindAfter").checked = false;
     // prefill complete — genuine user edits from here on may mark the quote dirty
     loading=false; dirty=false;
+    // flow-validation: honest start state - empty sections say "Not started", none says "Saved"
+    ["client","discovery","venue","menu","proposal"].forEach(s=>{ if(!contentOf(s)) paintBadge(s,"empty"); });
+    updateProgress();
+    if(canEdit) draftRestore();
     // back from the floor builder (Save & back, or a fresh load after it): re-price from the latest layout
     const fromBuilder = HelmFlowLayout.consume(sessionStorage, id) || new URLSearchParams(location.search).get("from")==="builder";
     if(fromBuilder){ try{ const u=new URL(location.href); u.searchParams.delete("from"); history.replaceState(history.state,"",u.pathname+u.search+u.hash); }catch{} }
@@ -1349,6 +1554,14 @@
         const laidOut=s.getClientRects().length>0 && s.offsetHeight>0;   // still hidden while the page reveals - a 0 top means nothing then
         if((!laidOut || Math.abs(s.getBoundingClientRect().top)>24) && ++n<20) setTimeout(go,150); };
       go(); }
+    else { const want=(location.hash||"").replace(/^#/,"") || (window.HelmFlowResume ? (HelmFlowResume.lastStep(userId,id) ? "sec-"+HelmFlowResume.lastStep(userId,id) : "") : "");
+      const s=want && want!=="sec-client" && /^sec-[a-z]+$/.test(want) ? document.getElementById(want) : null;
+      if(s){ let n=0, stop=false; const halt=()=>{ stop=true; };
+        ["wheel","touchstart","keydown","mousedown"].forEach(t=>addEventListener(t,halt,{once:true,passive:true}));
+        const go=()=>{ if(stop) return; try{ s.scrollIntoView({behavior:"auto",block:"start"}); }catch{}
+          const laidOut=s.getClientRects().length>0 && s.offsetHeight>0;
+          if((!laidOut || Math.abs(s.getBoundingClientRect().top)>24) && ++n<20) setTimeout(go,150); };
+        go(); } }
   }
   // The floor layout drives chairs + décor/setup ("other"). After the builder saves a new
   // layout version, bring the quotation in line with it (same rules as the builder's own
@@ -1411,7 +1624,7 @@
     let clientEdited=false;
     const clientAuto=(e)=>{ if(loading||!AS||!AS.has("client")) return;
       if(e&&e.type==="blur"){ if(clientEdited){ clientEdited=false; AS.now("client"); } return; }
-      clientEdited=true; renderName(); AS.schedule("client"); };
+      clientEdited=true; edited.add("client"); renderName(); AS.schedule("client"); };
     ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_state","c_guests"].forEach(f=>{ const el=$("#"+f); if(!el) return;
       el.addEventListener("input",clientAuto); el.addEventListener("change",clientAuto); el.addEventListener("blur",clientAuto); });
     wireNameEdit();
@@ -1435,7 +1648,7 @@
     // flips `dirty` (guarded by `loading` so prefills don't count).
     AS=HelmAutosave.create({ delay:800,
       save:{ client:()=>saveClient(true), discovery:saveDiscovery, venue:saveVenue, menu:saveMenuNotes, proposal:saveProposal },
-      badge:(s,state)=>HelmAutosave.paint($("#sv-"+s),state) });
+      badge:(s,state,msg)=>paintBadge(s,state,typeof msg==="string"?msg:"") });
     AS.has=(s)=>canEdit && ["client","discovery","venue","menu","proposal"].indexOf(s)>=0;
     $("#app").addEventListener("input",markDirty);
     $("#app").addEventListener("change",markDirty);
@@ -1446,20 +1659,44 @@
       const retry=()=>{ if(b.dataset.state==="error") AS.now(s); };
       b.addEventListener("click",retry); b.addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); retry(); } }); });
     loadCoupons();                                           // populate coupon suggestions
-    $("#q_save").addEventListener("click",()=>{ if(!clientReady()) return; BPUI.guard($("#q_save"),saveQuotation,{busyLabel:"Saving…"}).catch(()=>{}); });
+    // every Save attempt ends in a visible status: saved, an inline reason, or this error line (never silent)
+    $("#q_save").addEventListener("click",()=>{ if(!clientReady()) return; BPUI.guard($("#q_save"),saveQuotation,{busyLabel:"Saving…"}).catch((e)=>{
+      if(e && (e.code==="INVALID" || e.__shown)) return;
+      if($("#q_msg")) $("#q_msg").textContent="Couldn't save — not saved: "+BPUI.friendlyError(e,{action:"save the quotation"});
+      BPUI.toast("Save failed — nothing was saved.",{type:"err"}); }); });
     $("#q_pdf").addEventListener("click",downloadQuotePDF);
     $("#q_taxExempt").addEventListener("change",()=>{ dirty=true; renderPrice(); });
     $("#q_curSwitch").addEventListener("click",()=>{ quoteKeep=false; taxSwitched=true; $("#q_curBanner").hidden=true; $("#q_chairPrice").value=rates.chairPrice; dirty=true; renderPrice();
       // C3: an explicit switch is persisted right away (a new Q-version in the studio's currency) so a later
       // builder / layout sync can't silently put the quote back to its old currency
       const cur=BPStore.tax.resolve(rates||{}).currency;
-      BPUI.guard($("#q_curSwitch"), async()=>{ await saveQuotation(); if(taxSwitched) BPUI.toast("Re-priced in "+cur+" - save the quotation to keep it.",{type:"info"}); else BPUI.toast("Quote switched to "+cur+".",{type:"ok"}); }); });
-    const addReq=()=>{ const t=$("#rq_title").value.trim(); if(!t){ $("#rq_title").focus(); return; }
+      BPUI.guard($("#q_curSwitch"), async()=>{ await saveQuotation(); if(taxSwitched) BPUI.toast("Re-priced in "+cur+" - save the quotation to keep it.",{type:"info"}); else BPUI.toast("Quote switched to "+cur+".",{type:"ok"}); }).catch(()=>{ dirty=true; }); });
+    // flow-validation: a requirement is 2-80 characters with letters, never a repeat of one already listed
+    // (case / spacing / "&" vs "and" insensitive); an optional short note rides along (event_requirements.note)
+    const addReq=()=>{ const r=FV.requirement($("#rq_title").value, reqRows, $("#rq_note").value);
+      shown.add("rq_title"); shown.add("rq_note"); FV.paint(document, r, IDS.reqs, shown);
+      if(!r.ok){ const f=FV.first(r, IDS.reqs); if(f) $("#"+f.id).focus(); return; }
       BPUI.guard($("#rq_add"), async()=>{
-        try{ await BPStore.discovery.addReq(id,{ service:t, priority:$("#rq_pri").value }); vocabAdd("reqs",t); fillVocab(); $("#rq_title").value=""; await renderReqs(); }
+        try{ await BPStore.discovery.addReq(id,{ service:r.value, priority:$("#rq_pri").value, note:r.note||null }); vocabAdd("reqs",r.value); fillVocab();
+          $("#rq_title").value=""; $("#rq_note").value=""; shown.delete("rq_title"); shown.delete("rq_note"); await renderReqs(); }
         catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add the requirement"}),{type:"err"}); } }); };
     $("#rq_add").addEventListener("click",addReq);
     $("#rq_title").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); addReq(); } });
+    $("#rq_note").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); addReq(); } });
+    // live field checks: a field shows its error once left (or after a save try) and clears as soon as it is fixed
+    const liveCheck=(e)=>{ const t=e.target; if(!t||!t.id) return; const sec=secOfField(t.id); if(!sec) return;
+      if(e.type==="focusout"||e.type==="change") shown.add(t.id);
+      if(!shown.has(t.id) && e.type==="input") return;
+      if(sec==="reqs"){ const r=FV.requirement($("#rq_title").value, reqRows, $("#rq_note").value); if(!$("#rq_title").value.trim()) delete r.errors.rq_title; FV.paint(document, r, IDS.reqs, shown); return; }
+      check(sec); if(sec==="client"||sec==="layout") step1Problems(false); };
+    ["input","change","focusout"].forEach(ev_=>$("#app").addEventListener(ev_, liveCheck));
+    // budget: Indian grouping on blur (2 crore -> 2,00,00,000) + the amount in words while typing
+    $("#d_bmax").addEventListener("input",paintBudgetWords);
+    $("#d_bmax").addEventListener("blur",()=>{ const b=$("#d_bmax"), r=FV.budget(b.value); if(r.ok && r.value!=null){ const f=FV.fmt(r.value); if(b.value!==f) b.value=f; } paintBudgetWords(); });
+    // resume: remember the section the user is working in (Quotes / Home offer "Continue where you left off")
+    const rememberStep=(e)=>{ if(!canEdit||!window.HelmFlowResume) return; const sec=e.target&&e.target.closest&&e.target.closest('section.card[id^="sec-"]'); if(!sec) return;
+      const step=sec.id.slice(4); if(!HelmFlowResume.STEPS[step]) return; HelmFlowResume.record(userId,{ quoteId:id, name:($("#qName").textContent||ev.code||"").trim(), step }); };
+    $("#app").addEventListener("focusin",rememberStep); $("#app").addEventListener("click",rememberStep);
     $("#sendApproval").addEventListener("click",()=>{ sendApproval().catch(()=>{}); });
     $("#pay_pct").addEventListener("input",()=>{ $("#pay_pct").dataset.touched="1"; updateAdvance(); });
     $("#c_date").addEventListener("change",applyPayTerms);
@@ -1478,7 +1715,7 @@
       const t=btn.textContent; btn.dataset.lbl=t; btn.textContent="Saving…"; btn.setAttribute("aria-busy","true");
       // Only persist if the user actually changed something — no phantom save when
       // the builder is opened on an untouched quote.
-      if(dirty){ let ok=false; try{ ok=await saveAll(); }catch(_){}
+      if(unsaved()){ let ok=false; try{ ok=await saveAll(); }catch(_){}
         if(!ok && !(await confirmLeaveAnyway())){ btn.textContent=t; btn.removeAttribute("aria-busy"); return; } }
       leaving=true;   // intentional navigation — don't trip beforeunload
       HelmFlowLayout.mark(sessionStorage, id);   // re-price once when we come back
@@ -1542,7 +1779,7 @@
       leaving=true; const go=pendingLeave; pendingLeave=null; if(go) go();
     });
     $("#lv_discard").addEventListener("click",()=>{
-      dirty=false; $("#leaveModal").hidden=true;
+      dirty=false; draftClear(); $("#leaveModal").hidden=true;
       leaving=true; const go=pendingLeave; pendingLeave=null; if(go) go();
     });
 
@@ -1573,8 +1810,27 @@
     try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[ev.code,ev.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(" "),kind:"quote",href:"flow.html?quote="+encodeURIComponent(id),recordHref:"event.html?id="+encodeURIComponent(id)}); }catch(e){}
     loading=true;
     await loadAll();
-    $("#app").hidden=false;
+    $("#app").hidden=false; { const mb=$("#mPriceBar"); if(mb) mb.hidden=false; }
     if(!wired){ wired=true; wire(); }
+    startApprovalWatch();
+  }
+  // confirm-1018 #3: the client approving on their link shows here without a reload (~15 s poll while visible).
+  // No unsaved edits -> the page re-reads the quote; with unsaved edits only the approval state is repainted
+  // (the edits stay; the next save meets the normal "changed elsewhere" check).
+  let apprWatch=null;
+  function startApprovalWatch(){
+    if(apprWatch || !window.HelmApprovalWatch || !ev) return;
+    apprWatch=HelmApprovalWatch.start({
+      ids:()=>ev?HelmApprovalWatch.pending([ev]):[],
+      known:()=>ev?{status:ev.status, approvalStatus:ev.approvalStatus||ev.approval_status}:null,
+      onChange:async(d)=>{ const r=d.changed[0]; if(!r||!ev) return;
+        if(!unsaved() && !loading){ try{ const fresh=await BPStore.quotes.get(id); if(fresh){ ev=fresh; loading=true; await loadAll(); } }catch(_){} return; }
+        ev.approvalStatus=r.approvalStatus; ev.status=r.status;
+        $("#statusBadge").textContent=ev.status||ev.lifecycleStage||"draft";
+        $("#apprState").textContent=apprStateText(r.approvalStatus==="paid");
+        paintBookingBadge(r.approvalStatus==="paid"?1:0);
+        renderEgPrompt().catch(()=>{}); }
+    });
   }
   function showNotFound(){ $("#gate").hidden=false; $("#gate").innerHTML='<h2 style="margin:0 0 6px;font-size:16px">Quote not found</h2><p style="color:var(--ink-2);margin:0">This quote doesn\'t exist or was deleted. Go back to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p>'; }
   BPUI.boot(async ()=>{
@@ -1588,10 +1844,12 @@
     }
     if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-2)">No quote selected. Start one from <a href="dashboard.html" style="color:var(--accent);text-decoration:underline">Home</a> or <a href="leads.html" style="color:var(--accent);text-decoration:underline">Leads</a>.</p>'; return; }
     try{ canEdit=await BPStore.auth.canEditArea("quotes"); }catch{ canEdit=true; }
+    try{ const u=BPStore.auth.user&&BPStore.auth.user(); if(u&&u.id) userId=u.id; }catch(_){ }
     // planner-1023: save_quotation_version / generate_approval_token need quotes EDIT server-side - a view-only role sees why instead of a 403 toast
     if(!canEdit) ["#q_save","#sendApproval"].forEach(sel=>{ const b=$(sel); if(b){ b.disabled=true; b.title="Your role can view quotes but not edit them — ask an admin."; } });
     await openQuote();
   });
 </script>
+<script src="capacity-shortage.js?v=2"></script>
 </body>
 </html>

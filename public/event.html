@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/event-polish.css?v=1">
+<link rel="stylesheet" href="/event-polish.css?v=3">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -59,6 +59,7 @@
   .mod .h{display:flex;align-items:center;gap:10px} .mod .h .ic{font-size:22px;flex:0 0 auto} .mod .h b{font-size:15px}
   .mod .sum{color:var(--ink-2);font-size:13px;flex:1} .mod .sum .big{font-family:var(--mono);font-weight:700;color:var(--ink)}
   .mod .act{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+  .mod .sum .lockwhy{margin-top:6px;font-size:12px}
   .mod.reco{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   /* more-tools toggle */
   .moretog{display:flex;justify-content:center;margin:4px 0 16px}
@@ -90,13 +91,13 @@
   .egp-btns{display:flex;justify-content:flex-end;gap:8px}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="booklet-share.css?v=2">
+<link rel="stylesheet" href="booklet-share.css?v=4">
 <link rel="stylesheet" href="pkg-review.css?v=1">
 <link rel="stylesheet" href="share-checklist.css?v=2">
-<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=82">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=22" id="shellProto"></script>
+<script src="/shell-proto.js?v=26" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -131,15 +132,18 @@
       </div>
       <div class="s-766d7d2" id="reapprBanner" role="status" hidden></div>
       <div class="nextbar" id="nextStepBar" hidden><a class="btn primary nextstep" id="nextStepBtn" href="#">Next step →</a><span class="hint" id="nextStepWhy"></span></div>
-      <div class="steps" id="steps"></div>
+      <div class="steps" id="steps" role="group" aria-label="Event stages - pick one to open it"></div>
+      <section class="stagepanel" id="stagePanel" aria-live="polite" hidden></section>
       <div class="nextbar">
         <div class="hint" id="nextHint"></div>
         <span class="spacer"></span>
         <a class="btn" id="inviteBtn" hidden>✨ Invitation site</a>
+        <button type="button" class="btn" id="cancelEvBtn" hidden>Cancel event</button>
         <button type="button" class="btn" id="advBtn" hidden>Advance to next stage →</button>
       </div>
     </div>
 
+    <div id="capIssues" aria-live="polite"></div>
     <div id="conflictBanner"></div>
     <div class="grid" id="mods"></div>
 
@@ -182,14 +186,14 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
-<script src="event-reminders.js?v=1"></script>
-<script src="tour.js?v=15"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
+<script src="event-reminders.js?v=3"></script>
+<script src="tour.js?v=17"></script>
 <script src="booklet.js?v=23"></script>
-<script src="email-send.js?v=1"></script><script src="share-checklist.js?v=11"></script>
-<script src="booklet-share.js?v=9"></script>
-<script src="pkg-review.js?v=4"></script>
-<script src="event-group-picker.js?v=2"></script>
+<script src="email-send.js?v=3"></script><script src="share-checklist.js?v=11"></script>
+<script src="invite-site-share.js?v=3"></script><script src="booklet-share.js?v=11"></script>
+<script src="pkg-review.js?v=6"></script>
+<script src="event-group-picker.js?v=4"></script><script src="capacity-shortage.js?v=2"></script><script src="approval-watch.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -213,11 +217,13 @@
     {k:"closed",label:"Closed",hint:"Feedback, P&L and archive.",mods:["closure"]},
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
-  // The stored lifecycle stage can lag behind the quote: a confirmed quote is at least "Confirmed",
-  // and once the client's advance is recorded the event is "Booked". Display only — nothing is written.
+  // The stored lifecycle stage can lag behind the quote: a CLIENT-approved (or paid) quote is at least
+  // "Confirmed", and once the client's advance is recorded the event is "Booked". Display only — nothing
+  // is written. qts-1018: a quote the studio only LOCKED (status confirmed, link sent, client not yet
+  // approved) stays on "Quote" - the same "Sent · awaiting client approval" the header + Quotes list say.
   const advanceIn=()=> !!ev && (ev.approvalStatus==="paid" || !!(settleSummary && Number(settleSummary.received)>0));
   const effStage=()=>{ const k=(ev&&ev.lifecycleStage)||"quote";
-    return (ev && ev.status==="confirmed" && stageIndex(k)<stageIndex("confirmed")) ? "confirmed" : k; };
+    return (ev && stageIndex(k)<stageIndex("confirmed") && BPStore.quoteStatus(ev,{advance:advanceIn()}).confirmed) ? "confirmed" : k; };
   const isConfirmed=()=> !!ev && (ev.status==="confirmed" || stageIndex(effStage())>=stageIndex("confirmed"));
   const stageLabel=(s)=> (s.k==="confirmed" && advanceIn()) ? "Booked" : s.label;
 
@@ -226,9 +232,15 @@
     vendors:"vendors",runsheet:"runsheet",command:"command",issues:"issues",readycheck:"ready",logistics:"logistics",closure:"closure",
     media:"media",settle:"settlement",teardown:"inventory",budget:"finance",resourceplan:"resources",inventory:"inventory"};
   let cardDenied=new Set();
+  let canEditPlan=false, menuCount=0;   // workspace menu lock: plan edit right + selected dish count
+  // 0198 stage strip: clicking a stage OPENS it (view only); moving the event is a separate, gated action
+  let viewK=null, myRole="", conflictAcks=undefined;
+  const stageInfo={};   // "<stage>|<stored stage>|<status>" -> blockers list (null = old database)
   let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
-  const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
+  let hdrChange=null;   // qts-1018: this event's approved change-order sum (null = not read yet)
+  const budgetRange=()=>{ const cb=ev&&ev.client&&ev.client.budget; if(cb!=null&&cb!==""&&isFinite(+cb)) return inr(+cb);   // budget-single-source: the quote's budget first
+    const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     const v=b!=null?b:a; return v!=null?inr(v):""; };   // single budget: max, else an old min
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
@@ -249,6 +261,8 @@
     canEdit = await BPStore.auth.canEditArea("quotes");   // rbac-1030: follow the access matrix (was the role cap list)
     canFin  = await BPStore.auth.canView("finance");             // gates the Total + money cards
     canPipe = await BPStore.auth.canView("pipeline");            // gates the discovery/proposal cards
+    canEditPlan = await BPStore.auth.canEditArea("plan").catch(()=>false);   // "Lock menu" on the Venue & menu card (server: set_plan_lock needs plan edit)
+    try{ myRole=String((await BPStore.auth.role())||""); }catch(_){ myRole=""; }
     // 0143 role audit: each tool card shows only when the role can VIEW that tool's own area
     // (its page gate + RLS use the same key), so no card opens onto a "No access" page.
     { const keys=Object.keys(CARD_AREA); const ok=await Promise.all(keys.map(k=>BPStore.auth.canView(CARD_AREA[k]).catch(()=>false)));
@@ -262,7 +276,11 @@
     // Share booklet button (it could not open, so links could not be revoked from here).
     { const bk=document.getElementById("bkShare"); if(bk && ev && ev.id){ bk.setAttribute("data-quote", ev.id); if(window.HelmBookletShare) HelmBookletShare.reveal(bk); } }
     if(!ev){ $("#notfound").hidden=false; return; }
+    hdrChange=null;
     $("#app").hidden=false; render();   // paint the workspace shell instantly; summaries fill in below
+    // qts-1018: the header total's change orders - its own small read (same call as the Quotes list)
+    if(canFin && BPStore.budget && BPStore.budget.approvedChangeTotals)
+      BPStore.budget.approvedChangeTotals([ev.id||id]).then(m=>{ hdrChange=Number((m||{})[ev.id||id])||0; render(); }).catch(()=>{});
     // All module summaries fire CONCURRENTLY (one burst of requests instead of ~22 serial
     // round-trips) so the workspace opens fast. Each guards itself and never blocks the others.
     const S = (fn) => fn().catch(() => {});
@@ -281,6 +299,7 @@
         runSummary={ total:rs.length, first: wt.length?wt[0].start_time.slice(0,5):null }; }),
       S(async()=>{ budgetSummary=await BPStore.budget.summary(id); }),
       S(async()=>{ planSummary=await BPStore.plan.get(id); }),
+      S(async()=>{ const m=await BPStore.eventMenu.list(id); menuCount=(m||[]).length; }),
       S(async()=>{ const g=await BPStore.checklist.list(id,"guests");
         const guests=g.reduce((a,x)=>a+Number(x.qty||0),0);
         logiSummary={ guests }; }),   // money due lives once, on the Payments & invoice card
@@ -297,18 +316,37 @@
       S(async()=>{ const [pl,c]=await Promise.all([BPStore.closure.pl(id), BPStore.closure.get(id)]);
         closureSummary={ profit:pl.profit, rev:pl.revenue, pct:pl.marginPct, closed:!!(c&&c.closed_at), billsIncluded:!!pl.billsIncluded }; }),
       S(async()=>{ const md=await BPStore.media.list(id); mediaSummary={ photos:md.filter(m=>m.kind==='photo').length, videos:md.filter(m=>m.kind==='video').length, gallery:md.filter(m=>m.in_gallery).length, total:md.length }; }),
-      S(async()=>{ conflictSummary=await BPStore.calendar.conflictsForEvent(id); }),
+      S(async()=>{ conflictSummary=await BPStore.calendar.conflictsForEvent(id);
+        try{ conflictAcks=await BPStore.calendar.acks(conflictSummary.map(c=>c.key)); }catch(_){ conflictAcks=null; } }),
     ]);
     if(budgetSummary && billsDelta && BPStore.settlement.applyBillsToBudget) BPStore.settlement.applyBillsToBudget(budgetSummary,billsDelta);
     if(closureSummary && billsDelta && !closureSummary.billsIncluded){   // manager-1019: server P&L already counts bills
       closureSummary.profit=Math.round((closureSummary.profit+billsDelta)*100)/100;
       closureSummary.pct=closureSummary.rev?Math.round(closureSummary.profit/closureSummary.rev*100):null; }
     render();   // re-paint with the loaded summaries
+    // 0197: guests over the venue (until resolved) + open stock shortages, shown as issues on the workspace
+    if(window.HelmCapacity) HelmCapacity.mountIssues($("#capIssues"), { quote:ev, quoteId:id, canEdit }).catch(()=>{});
+    startApprovalWatch();
+  }
+  // confirm-1018 #3: the client approving on their link shows here without a reload (~15 s poll while visible)
+  let apprWatch=null;
+  function startApprovalWatch(){
+    if(apprWatch || !window.HelmApprovalWatch || !ev) return;
+    apprWatch=HelmApprovalWatch.start({
+      ids:()=>ev?HelmApprovalWatch.pending([ev]):[],
+      known:()=>ev?{status:ev.status, approvalStatus:ev.approvalStatus}:null,
+      onChange:async()=>{ try{ const fresh=await BPStore.quotes.get(id); if(fresh) ev=fresh; }catch(_){ return; }
+        egInfo=undefined; render();
+        try{ readySummary=await BPStore.readiness.check(id); render(); }catch(_){} }
+    });
   }
 
-  // final-1022: a closed event (lifecycle stage closed / closed_at set) says Closed, not Confirmed
-  const statBadge=(s,a,lc)=> (s==="confirmed"&&lc==="closed")?'<span class="stat ok">Closed</span>':s==="confirmed"?(a==="approved"||a==="paid"?'<span class="stat ok">Confirmed</span>':'<span class="stat ok">Confirmed</span>'):s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
-  const apprBadge=(a)=> a==="paid"?'<span class="stat ok" title="The client paid the advance; check Payments for the balance">Advance paid</span>':a==="approved"?'<span class="stat ok">Approved</span>':a==="sent"?'<span class="stat st">Sent for approval</span>':"";
+  // qts-1018: ONE status label (BPStore.quoteStatus - the same words as the Quotes list): status +
+  // client approval + stage folded together; "Confirmed" only once the client approved (or paid).
+  // final-1022 kept: a closed event says Closed.
+  const STAT_CLS={draft:"q",locked:"q",sent:"st",confirmed:"ok",paid:"ok",closed:"ok",cancelled:"no"};
+  const statusBadge=()=>{ const st=BPStore.quoteStatus(ev,{advance:advanceIn()});
+    return `<span class="stat ${STAT_CLS[st.tone]||"q"}" data-status="${esc(st.key)}" title="${esc(st.title)}">${esc(st.label)}</span>`; };
 
   let staleInfo=null;   // 0052: client approval went stale after a price change
   function renderReapproval(){
@@ -332,42 +370,51 @@
     renderReapproval();
     $("#code").textContent=ev.code;
     const evClosed=ev.lifecycleStage==="closed"||!!ev.closedAt;
-    $("#statusBadge").innerHTML=statBadge(ev.status,ev.approvalStatus,evClosed?"closed":ev.lifecycleStage);
-    // confirmed by the studio but the client never opened/approved the link: one clear note, not "Confirmed" + "Sent for approval"
-    $("#apprBadge").innerHTML=(ev.status==="confirmed"&&ev.approvalStatus==="sent")?'<span class="stat st" title="The studio confirmed this event; the client has not approved the online link">Client link not approved</span>':apprBadge(ev.approvalStatus);
-    if(evClosed) $("#apprBadge").textContent="";   // final-1022: a closed event drops the payment/approval badge
+    $("#statusBadge").innerHTML=statusBadge();
+    $("#apprBadge").textContent="";   // qts-1018: the approval state is part of the one label above (never a 2nd pill)
     $("#title").textContent=(window.HelmEventName&&HelmEventName.displayName)?HelmEventName.displayName(ev):(ev.title||ev.code);
     try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[ev.code,ev.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(" "),kind:"event",href:"event.html?id="+encodeURIComponent(id)}); }catch(e){}
     const cl=ev.client||{};
     // the date has its own editable row (#dateRow) and the client name is on the meta line — each shown once
     $("#meta").textContent=[ev.eventType, cl.name?("for "+cl.name):""].filter(Boolean).join(" · ")||"No client details yet";
     { const cLink=$("#clientLink"); if(cLink){ cLink.href="client.html?id="+encodeURIComponent(ev.id||id); cLink.textContent="Client page →"; cLink.hidden=false; } }
-    // the invoice total (quote + approved change orders) once settlement has loaded - same number as Payments & invoice
-    { const inv=(typeof settleSummary!=="undefined"&&settleSummary&&settleSummary.revenue>0)?settleSummary.revenue:evTotal();
-      $("#total").textContent = canFin ? (inv? inr(inv):"—") : "—"; }
+    // qts-1018: the invoice total by the ONE rule the Quotes list uses (BPStore.invoiceTotal: the
+    // server-stamped quote total + approved change orders). It no longer waits for - or silently falls
+    // back when - the settlement summary (one of ~20 parallel reads) fails or is slow.
+    { const chg = hdrChange!=null ? hdrChange : (budgetSummary&&budgetSummary.changeRevenue!=null ? budgetSummary.changeRevenue : null);
+      const inv = BPStore.invoiceTotal(ev, chg);
+      $("#total").textContent = canFin ? (inv? inr(inv):"—") : "—";
+      $("#total").title = canFin && chg==null && inv ? "Quote total - approved change orders are still loading" : ""; }
     const totWrap=$("#total").closest(".tot"); if(totWrap) totWrap.hidden=!canFin;
     renderDateRow();
 
-    const cur=stageIndex(effStage());
+    const cur=stageIndex(effStage()), vis=viewIdx();
+    // 0198: every stage is a button that OPENS that stage (never disabled, never a write); the
+    // highlighted one is the event's real, stored stage; the outlined one is the stage being viewed
     $("#steps").innerHTML=STAGES.map((s,i)=>{
-      const cls=i<cur?"done":i===cur?"active":"";
-      return `<button type="button" class="step ${cls}" data-k="${s.k}" ${i===cur?'aria-current="step"':""} ${canEdit&&!stageBusy?"":"disabled"}><span class="n">${i<cur?"✓":i+1}</span>${esc(stageLabel(s))}</button>`;
+      const cls=(i<cur?"done":i===cur?"active":"")+(i===vis&&i!==cur?" viewing":"");
+      return `<button type="button" class="step ${cls}" data-k="${esc(s.k)}" ${i===cur?'aria-current="step"':""} aria-pressed="${i===vis?"true":"false"}" title="${esc(i===cur?"Current stage - "+s.label:"Open "+s.label)}"><span class="n">${i<cur?"✓":i+1}</span>${esc(stageLabel(s))}</button>`;
     }).join("");
-    if(canEdit) $("#steps").querySelectorAll(".step").forEach(b=>b.addEventListener("click",(e)=>{ if(e.detail>1) return; setStage(b.dataset.k,b); }));
+    $("#steps").querySelectorAll(".step").forEach(b=>b.addEventListener("click",(e)=>{ if(e.detail>1) return; viewStage(b.dataset.k); }));
+    { const st=$("#steps"), on=st.querySelector('.step[aria-pressed="true"]');   // keep the viewed stage in sight on a phone
+      if(on && st.scrollWidth>st.clientWidth){ const r=on.getBoundingClientRect(), c=st.getBoundingClientRect(); if(r.left<c.left||r.right>c.right) st.scrollLeft+=r.left-c.left-24; } }
     $("#nextHint").innerHTML=`<b>Now:</b> ${esc((STAGES[cur].k==="confirmed"&&advanceIn())?"Booked — the advance is in. Plan the day next.":STAGES[cur].hint)}`;
     const hasNext=renderNextStep(cur);
     // dedupe: when the "Next step" bar shows its own one-line reason, the stage "Now:" hint repeats it
     $("#nextHint").hidden=!!hasNext;
     const adv=$("#advBtn");
     // one call-to-action: when the "Next step" bar shows, the stage stepper above still moves stages
-    if(canEdit && !hasNext && cur<STAGES.length-1){ adv.hidden=false; adv.textContent="Advance to "+stageLabel(STAGES[cur+1])+" →"; adv.dataset.k=STAGES[cur+1].k; }
+    if(canEdit && !hasNext && !evLocked() && cur<STAGES.length-1){ adv.hidden=false; adv.textContent="Advance to "+stageLabel(STAGES[cur+1])+" →"; adv.dataset.k=STAGES[cur+1].k; }
     else adv.hidden=true;
+    // 0198: an event that will not happen is cancelled (admin / manager, with a reason) - never "closed early"
+    $("#cancelEvBtn").hidden=!(canEdit && (myRole==="admin"||myRole==="manager") && !evLocked());
     // Digital invitation website — unlocks once the event is confirmed (or beyond).
     const inv=$("#inviteBtn");
     if(canEdit && cur>=stageIndex("confirmed")){ inv.hidden=false; inv.href="invite-studio.html?quote="+encodeURIComponent(id); }
     else inv.hidden=true;
 
-    renderMods(STAGES[cur].mods);
+    renderMods(STAGES[vis].mods);
+    renderStagePanel();
     renderConflicts();
     renderFiles();
     renderEventGroup();
@@ -377,6 +424,7 @@
   function renderNextStep(cur){
     const bar=$("#nextStepBar"), b=$("#nextStepBtn"), why=$("#nextStepWhy"); if(!bar||!b) return;
     const q=encodeURIComponent(id); let t="", href="", w="";
+    if(evLocked()){ bar.hidden=true; return false; }   // 0198: cancelled / closed - nothing left to push
     if(!isConfirmed()){ t="Send quote"; href="quotes.html?focus="+encodeURIComponent(ev.code||id); w="Price it, then send the quote to the client for approval."; }
     else if(!advanceIn()){ t="Record advance"; href="flow.html?quote="+q+"#sec-pay"; /* money-1024: advances are recorded in the quote workspace payment step */ w="Record the client's advance to book the date."; }
     else if(cur<stageIndex("event_day")){ t="Plan the day"; href="runsheet.html?quote="+q; w="Build the minute-by-minute plan for the day."; }
@@ -458,16 +506,65 @@
         finally{ fi.value=""; }
       },{busyLabel:"Uploading…"});
     }); }
+  // tiny DOM builder (no HTML strings): el("a",{href,class,text,onclick},[children])
+  function el(tag, props, kids){ const n=document.createElement(tag);
+    Object.entries(props||{}).forEach(([k,v])=>{ if(v==null||v===false) return;
+      if(k==="text") n.textContent=String(v); else if(k==="class") n.className=v; else if(typeof v==="function") n.addEventListener(k.replace(/^on/,""),v);
+      else n.setAttribute(k, v===true?"":String(v)); });
+    (kids||[]).forEach(c=>{ if(c!=null&&c!==false) n.appendChild(typeof c==="string"?document.createTextNode(c):c); });
+    return n; }
+  const niceDay=(d)=>{ const v=String(d||"").slice(0,10); try{ return (window.HelmEventName&&HelmEventName.shortDate&&HelmEventName.shortDate(v))||v; }catch(_){ return v; } };
+  const focusDate=()=>{ const di=$("#evDate"); if(di){ di.scrollIntoView({block:"center",behavior:"smooth"}); setTimeout(()=>{ try{ di.focus(); if(di.showPicker) di.showPicker(); }catch(_){} },250); } };
+  // 0198: every clash on this event's date, in plain words - what clashes, with which event, and what to
+  // do about it (change date / venue / crew / vendor / stock, or mark it acknowledged). Cancelled and
+  // closed events never clash, so closing THIS event is not how a clash is fixed.
   function renderConflicts(){
-    const el=$("#conflictBanner"); if(!el) return;
-    const cs=conflictSummary||[];
-    if(!cs.length){ el.innerHTML=""; return; }
-    const ico={inventory:"📦",vendor:"🤝",staff:"👷",venue:"📍"};
-    el.innerHTML=`<div class="card" style="border-color:color-mix(in srgb,#b42318 35%,transparent);background:color-mix(in srgb,#b42318 8%,transparent)">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <b class="t-bad">⚠️ ${cs.length} scheduling conflict${cs.length===1?"":"s"} on this event's date</b>
-        <a class="btn" href="calendar.html" style="margin-left:auto;height:30px">Open calendar →</a></div>
-      ${cs.map(c=>`<div style="font-size:13px;color:var(--ink-2);padding:4px 0">${ico[c.type]||"⚠️"} <b>${esc(c.label||"")}</b> — ${esc(c.detail||"")}</div>`).join("")}</div>`;
+    const box=$("#conflictBanner"); if(!box) return;
+    const cs=(conflictSummary||[]).filter(c=>c&&c.key);
+    box.replaceChildren(); if(!cs.length) return;
+    const acks=conflictAcks||{}, canAck=canEdit && conflictAcks!==null && !evLocked();
+    const open=cs.filter(c=>!acks[c.key]), done=cs.filter(c=>acks[c.key]);
+    const TYPE={inventory:["📦","Stock over-committed"],vendor:["🤝","Vendor double-booked"],staff:["👷","Crew double-booked"],venue:["📍","Venue double-booked"]};
+    const q=encodeURIComponent(id);
+    const FIX={venue:[["Change venue","plan.html?quote="+q]],staff:[["Change crew","ops.html?quote="+q]],
+      vendor:[["Change vendor","vendors.html?quote="+q]],inventory:[["Adjust stock","inventory.html?quote="+q]]};
+    const me=ev.id||id;
+    const row=(c,ack)=>{
+      const t=TYPE[c.type]||["⚠️","Clash"], others=(c.events||[]).filter(e=>e&&e.id!==me);
+      const withKids=others.length?others.map((e,i)=>[i?", ":"", el("a",{href:"event.html?id="+encodeURIComponent(e.id), text:[e.code,(e.title&&e.title!==e.code)?e.title:""].filter(Boolean).join(" · ")+(e.eventTime?" ("+String(e.eventTime).slice(0,5)+")":"")})]).flat()
+        : ["another booking on the same day"];
+      const acts=el("div",{class:"cf-act"});
+      if(canEdit && !evLocked()){
+        (FIX[c.type]||[]).forEach(([lbl,href])=>acts.appendChild(el("a",{class:"btn sm",href,text:lbl})));
+        acts.appendChild(el("button",{type:"button",class:"btn sm",text:"Change date",onclick:focusDate}));
+      }
+      if(canAck) acts.appendChild(ack
+        ? el("button",{type:"button",class:"btn sm",text:"Undo acknowledge",onclick:(e)=>BPUI.guard(e.currentTarget,async()=>{
+            try{ await BPStore.calendar.unack(me,c.key); delete conflictAcks[c.key]; renderConflicts(); BPUI.toast("Marked as a conflict again.",{type:"ok"}); }
+            catch(x){ BPUI.toast(BPUI.friendlyError(x,{action:"undo the acknowledgement"}),{type:"err"}); } })})
+        : el("button",{type:"button",class:"btn sm",text:"Mark acknowledged",onclick:async(e)=>{ const b=e.currentTarget;
+            const note=await BPUI.prompt("Both bookings can go ahead as they are? Add a short note for the team (optional).",{title:"Acknowledge this clash",label:"Note (optional)",okLabel:"Mark acknowledged"});
+            if(note===null) return;
+            await BPUI.guard(b,async()=>{ try{ await BPStore.calendar.ack(me,c.key,String(note||"").trim().slice(0,500));
+                conflictAcks=Object.assign({},conflictAcks||{}); conflictAcks[c.key]={by:(BPStore.auth.user()&&BPStore.auth.user().email)||"",at:new Date().toISOString(),note:String(note||"").trim()};
+                renderConflicts(); BPUI.toast("Clash acknowledged.",{type:"ok"}); }
+              catch(x){ BPUI.toast(BPUI.friendlyError(x,{action:"acknowledge the clash"}),{type:"err"}); } }); }}));
+      return el("div",{class:"cf-row"+(ack?" acked":""),"data-key":c.key},[
+        el("div",{class:"cf-what"},[t[0]+" ", el("b",{text:t[1]+": "+(c.label||"")}), " ", el("span",{class:"muted",text:niceDay(c.date)})]),
+        el("div",{class:"cf-detail",text:c.detail||""}),
+        el("div",{class:"cf-with"},["Clashes with: "].concat(withKids)),
+        ack?el("div",{class:"muted",text:"Acknowledged"+(ack.by?" by "+ack.by:"")+(ack.at?" on "+niceDay(ack.at):"")+(ack.note?" - "+ack.note:"")}):null,
+        acts.childNodes.length?acts:null]);
+    };
+    const card=el("div",{class:"card cf-card"+(open.length?" bad":" calm")},[
+      el("div",{class:"cf-head"},[
+        el("b",{class:open.length?"t-bad":"",text:open.length?("⚠️ "+open.length+" scheduling conflict"+(open.length===1?"":"s")+" on this event's date"):("✓ "+done.length+" clash"+(done.length===1?"":"es")+" acknowledged")}),
+        el("a",{class:"btn sm",href:"calendar.html",text:"Open calendar →"})]),
+      open.length?el("div",{class:"muted cf-tip",text:"Fix a clash by changing the date, venue, crew, vendor or stock - or mark it acknowledged if both bookings can go ahead. Cancelled and closed events never clash."}):null]);
+    open.forEach(c=>card.appendChild(row(c,null)));
+    if(done.length){ const d=el("details",{class:"cf-done",open:!open.length},[el("summary",{text:done.length+" acknowledged"})]);
+      done.forEach(c=>d.appendChild(row(c,acks[c.key]))); card.appendChild(d); }
+    box.appendChild(card);
   }
 
   // Client approval card, in plain words, following the quote (not just the approval link state)
@@ -478,7 +575,7 @@
     if(ev.status==="confirmed") return a==="approved"
       ? 'Client approved — record the advance to book the date.'
       : a==="sent" ? 'Approval link sent — waiting for the client. Record the advance once it arrives.'
-      : 'Quote confirmed — record the client\'s advance to book the date.';
+      : 'Quote priced and locked — send the client the approval link (or record their advance).';
     if(a==="none") return "Not sent yet — confirm the quote, then send the approval link.";
     return `Approval: <b>${esc(a)}</b>`;
   }
@@ -496,6 +593,15 @@
     const menuLocked = !!(planSummary && planSummary.menu_locked);
     const menuGate = (preConfirm && !menuLocked && ev.status!=='confirmed')
       ? `<div class="stat q" style="display:block;background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn-text);margin:6px 0 0;padding:5px 8px;border-radius:7px">⚠️ Lock the menu first — pricing depends on the menu mix.</div>` : "";
+    // Make the next step obvious: a direct "Lock menu" on the card (plan editors, something chosen to lock,
+    // not while the client must re-approve a changed price - the server refuses that lock). Nothing chosen yet
+    // -> "Open details" jumps straight to the menu section (#menu) instead.
+    const menuChosen = !!(planSummary && (planSummary.package || planSummary.menu)) || menuCount>0;
+    const canLockMenu = canEditPlan && !menuLocked && menuChosen && !staleInfo && ev.status!=="cancelled";
+    const planHref = "plan.html?quote="+encodeURIComponent(id)+(menuLocked?"":"#menu");
+    const menuNext = menuLocked ? ""
+      : canLockMenu ? `<div class="muted lockwhy">Locking fixes the package and dishes the price is based on. You can unlock it later in details.</div>`
+      : (canEditPlan && !menuChosen) ? `<div class="muted lockwhy">Pick a package or add dishes in details, then lock the menu.</div>` : "";
     const discSum = discSummary && (discSummary.total || (discSummary.disc))
       ? `${discSummary.total} requirement${discSummary.total===1?"":"s"}${discSummary.must?` · <b>${discSummary.must} must-have${discSummary.must===1?"":"s"}</b>`:""}${budgetRange()?` · budget ${budgetRange()}`:""}`
       : "Meet the client and capture requirements &amp; budget.";
@@ -505,8 +611,10 @@
       { key:"discovery", ic:"🔎", title:"Discovery & requirements", sum:discSum,
         acts:[{t: canEdit?"Open discovery":"View discovery", href:"discovery.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"plandetails", ic:"🏛", title:"Venue & menu",
-        sum: planSummary && (planSummary.venue_name||planSummary.package||planSummary.menu) ? `${planSummary.venue_name?esc(planSummary.venue_name):"Venue set"}${planSummary.package?` · ${esc(planSummary.package)}`:""} ${planSummary.menu_locked?'<span class="stat ok">Menu locked</span>':'<span class="stat q">Draft</span>'}${menuGate}` : `${menuGate}Set the venue, access and lock the menu/package — decided before pricing.`,
-        acts:[{t: canEdit?"Open details":"View details", href:"plan.html?quote="+encodeURIComponent(id), primary:true}] },
+        sum: planSummary && (planSummary.venue_name||planSummary.package||planSummary.menu) ? `${planSummary.venue_name?esc(planSummary.venue_name):"Venue set"}${planSummary.package?` · ${esc(planSummary.package)}`:""} ${menuLocked?'<span class="stat ok">🔒 Locked</span>':'<span class="stat q">Draft</span>'}${menuGate}${menuNext}` : `${menuGate}Set the venue, access and lock the menu/package — decided before pricing.${menuNext}`,
+        acts: canLockMenu
+          ? [{t:"🔒 Lock menu", act:"lockmenu", primary:true}, {t:"Open details", href:planHref}]
+          : [{t: canEdit?"Open details":"View details", href:planHref, primary:true}] },
       { key:"proposal", ic:"🎨", title:"Proposal & mood-board",
         sum: propSummary ? `${propSummary.published?'<span class="stat ok">Published</span>':'<span class="stat q">Draft</span>'} · ${(propSummary.scope&&propSummary.scope.length)||0} scope item${(propSummary.scope&&propSummary.scope.length)===1?"":"s"}${(propSummary.images&&propSummary.images.length)?` · ${propSummary.images.length} image${propSummary.images.length===1?"":"s"}`:""}` : "Compose a shareable concept &amp; mood-board.",
         acts:[{t: canEdit?"Open proposal":"View proposal", href:"proposal.html?quote="+encodeURIComponent(id), primary:true}] },
@@ -582,7 +690,7 @@
       return `<div class="mod ${reco}"><div class="h"><span class="ic">${c.ic}</span><b>${c.title}</b>${reco?'<span class="stat q" style="margin-left:auto">Next</span>':""}</div>
         ${DESC[c.key]?`<div class="desc">${esc(descLine(c.key))}</div>`:""}
         <div class="sum">${c.sum}</div>
-        <div class="act">${c.acts.map(a=>`<a class="btn ${a.primary?'primary':''}" href="${a.href}">${a.t}</a>`).join("")}</div></div>`;
+        <div class="act">${c.acts.map(a=>a.act?`<button type="button" class="btn ${a.primary?'primary':''}" data-act="${esc(a.act)}">${esc(a.t)}</button>`:`<a class="btn ${a.primary?'primary':''}" href="${a.href}">${a.t}</a>`).join("")}</div></div>`;
     };
     // Stage-focused view: show the modules recommended for the current stage first, and tuck the
     // rest under a collapsible "More tools" section. Falls back to showing everything when the
@@ -609,6 +717,27 @@
     $("#mods").innerHTML=html;
     setMoreToggle(rest.length?{showAll, count:rest.length}:null);
   }
+  // Venue & menu card: lock the menu right here (same server call as the details page: set_plan_lock).
+  // Only the event's own menu is locked - the studio's package / dish catalog is untouched (so this
+  // works the same in a free-trial studio, whose catalog is fixed but whose event menus stay editable).
+  async function lockMenuFromCard(btn){
+    if(!canEditPlan || (planSummary && planSummary.menu_locked)) return;
+    const ok=await BPUI.confirm("Locking fixes this event's package and dishes, so the quote is priced on them. You can unlock it later in Venue & menu details.",{title:"Lock the menu?",okLabel:"Lock menu"});
+    if(!ok) return;
+    await BPUI.guard(btn, async()=>{
+      try{
+        const row=await BPStore.plan.setLock(id, true);
+        try{ planSummary=await BPStore.plan.get(id); }catch(_){ planSummary=Object.assign({}, planSummary||{}, row&&typeof row==="object"?row:{}, {menu_locked:true}); }
+        BPUI.toast("Menu locked.",{type:"ok"});
+        render();
+        try{ readySummary=await BPStore.readiness.check(id); render(); }catch(_){}
+      }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"lock the menu"}),{type:"err"}); }
+    },{busyLabel:"Locking…"});
+  }
+  $("#mods").addEventListener("click",(e)=>{
+    const b=e.target && e.target.closest ? e.target.closest('[data-act="lockmenu"]') : null;
+    if(!b) return; e.preventDefault(); lockMenuFromCard(b);
+  });
   // Manage the "Show all tools / Show less" toggle that sits just under the module grid.
   function setMoreToggle(state){
     const grid=$("#mods"); let bar=$("#moreToggle");
@@ -618,7 +747,7 @@
     bar.innerHTML=`<button type="button">${state.showAll?"Show less ▴":`Show all tools (${state.count} more) ▾`}</button>`;
     bar.querySelector("button").onclick=()=>{
       const next=!state.showAll; try{ localStorage.setItem("helm_ev_showall", next?"1":"0"); }catch{}
-      renderMods(STAGES[stageIndex(effStage())].mods);
+      renderMods(STAGES[viewIdx()].mods);
     };
   }
 
@@ -654,24 +783,123 @@
         catch(e){ ti.value=ev.eventTime||""; BPUI.toast(BPUI.friendlyError(e,{action:"save the event time"}),{type:"err"}); } }));
     } else { el.innerHTML = (d||tm) ? ("📅 "+esc(d)+(tm?(" · 🕒 "+esc(tm)):"")) : ""; }
   }
-  // guarded: one stage change at a time (no double-advance on a double-click); all stage buttons lock while saving
+  // ---- 0198 stage strip: VIEW a stage (always allowed), MOVE the event (gated, explained) ----
+  const viewIdx=()=> viewK!=null ? stageIndex(viewK) : stageIndex(effStage());
+  const evClosedNow=()=> !!ev && (ev.lifecycleStage==="closed" || !!ev.closedAt || !!(closureSummary&&closureSummary.closed));
+  const evLocked=()=> !!ev && (ev.status==="cancelled" || evClosedNow());
+  // where each stage's work happens (the panel's "Open" links)
+  function stagePages(k){ const q=encodeURIComponent(id), fq=encodeURIComponent(ev.code||id);
+    return ({ lead:[["Open discovery","discovery.html?quote="+q]], discovery:[["Open discovery","discovery.html?quote="+q]],
+      proposal:[["Open proposal","proposal.html?quote="+q],["Open floor layout","builder.html?quote="+q]],
+      quote:[["Open this quote","quotes.html?focus="+fq],["Venue & menu","plan.html?quote="+q]],
+      confirmed:[["Quote & approval","quotes.html?focus="+fq],["Record advance","flow.html?quote="+q+"#sec-pay"]],
+      planning:[["Open run-sheet","runsheet.html?quote="+q],["Open operations","ops.html?quote="+q],["Venue & menu","plan.html?quote="+q]],
+      resources:[["Open resource plan","resources.html?quote="+q],["Reserve stock","inventory.html?quote="+q]],
+      ready:[["Open readiness","ready.html?quote="+q],["Open logistics","logistics.html?quote="+q]],
+      event_day:[["Open event-day command","command.html?quote="+q],["Open issues","issues.html?quote="+q]],
+      settlement:[["Open settlement",settleHref()],["Open teardown","teardown.html?quote="+q]],
+      closed:[["Open closure","closure.html?quote="+q]] })[k]||[]; }
+  function viewStage(k){
+    if(!ev) return;
+    viewK = (k===effStage()) ? null : k;
+    render();
+    const p=$("#stagePanel"); if(p && !p.hidden){ const r=p.getBoundingClientRect(); if(r.bottom>innerHeight||r.top<0) p.scrollIntoView({block:"nearest",behavior:"smooth"}); }
+  }
+  const infoKey=(k)=> k+"|"+(ev.lifecycleStage||"quote")+"|"+ev.status;
+  async function loadStageInfo(k){
+    const key=infoKey(k); if(key in stageInfo) return;
+    stageInfo[key]="loading";
+    try{
+      if(k==="closed"){ const b=BPStore.closure&&BPStore.closure.blockers?await BPStore.closure.blockers(id):null; stageInfo[key]={close:b}; }
+      else stageInfo[key]={list:await BPStore.quotes.stageBlockers(id,k)};
+    }catch(_){ stageInfo[key]={list:null}; }
+    if(ev && viewK===k) renderStagePanel();
+  }
+  function renderStagePanel(){
+    const p=$("#stagePanel"); if(!p) return;
+    const cur=stageIndex(effStage()), vis=viewIdx(), s=STAGES[vis];
+    if(viewK==null){ p.hidden=true; p.replaceChildren(); return; }   // viewing the current stage: the hint line says it all
+    const rel=vis<cur?"Done":vis===cur+1?"Up next":"Later";
+    const info=stageInfo[infoKey(s.k)];
+    if(info===undefined) loadStageInfo(s.k);
+    const why=el("div",{class:"sp-why"}), acts=el("div",{class:"sp-act"});
+    stagePages(s.k).forEach(([t,href],i)=>acts.appendChild(el("a",{class:"btn sm"+(i?"":" primary"),href:(window.HelmUrl&&HelmUrl.upgrade)?HelmUrl.upgrade(href):href,text:t})));
+    if(ev.status==="cancelled") why.textContent="This event is cancelled - its stages are view-only.";
+    else if(evClosedNow()) why.textContent="This event is closed - its stages are view-only. An admin can re-open it from Closure.";
+    else if(s.k==="closed"){
+      const b=info&&info.close, d=String(ev.eventDate||(ev.client&&ev.client.eventDate)||"").slice(0,10);
+      const early=b ? !!b.too_early : (/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=BPStore.todayLocal());   // older database: same rule from the date
+      if(info==="loading"||info===undefined) why.textContent="Checking what closing needs…";
+      else if(early && !b) why.textContent="You can close this event after "+niceDay(d)+" (event day).";
+      else if(b&&b.too_early) why.textContent="You can close this event after "+(b.close_after||niceDay(b.event_date))+" (event day).";
+      else if(b&&b.blocked){ const l=[]; if(b.no_event_date) l.push("set the event date"); if(b.not_booked==="unconfirmed") l.push("the client must confirm the booking");
+        if(b.not_booked==="unpriced") l.push("price the quote"); if(Number(b.balance_owed)>0) l.push("collect the balance ("+inr(Number(b.balance_owed))+")");
+        if(Number(b.open_checkouts)>0) l.push("return "+b.open_checkouts+" equipment checkout"+(b.open_checkouts>1?"s":""));
+        why.textContent="Closing needs: "+(l.join(", ")||"a few things first")+"."; }
+      else why.textContent=b?"Ready to close - settle up and close it on the Closure page.":"Close the event on its Closure page once the event day is over.";
+    } else if(canEdit && vis!==cur && ev.status==="confirmed" && vis<stageIndex("confirmed")){
+      // same rule as the server (0198): a confirmed event never goes back before Confirmed
+      why.textContent="This event is confirmed, so it can't go back to "+s.label+". Use Cancel event if it will not happen.";
+    } else if(canEdit && vis!==cur){
+      const list=info&&info.list;
+      if(info==="loading"||info===undefined){ why.textContent="Checking what "+s.label+" needs…"; }
+      else{
+        const hard=(list||[]).filter(x=>x&&x.hard), soft=(list||[]).filter(x=>x&&!x.hard);
+        const msg=(arr)=>arr.map(x=>{ const m=String(x.message||""); return /^[A-Z]/.test(m)?m.replace(/\.$/,""):(s.label+" can't start yet - "+m); }).join(". ");
+        if(hard.length){ why.textContent=msg(hard)+"."+(hard.some(x=>x.gate==="confirmed_floor")?" Use Cancel event if it will not happen.":""); }
+        else{
+          if(soft.length){ why.textContent=msg(soft)+"."; why.classList.add("t-warn"); }
+          const admin=myRole==="admin", blocked=soft.length>0;
+          const label=(blocked?(admin?"Move anyway (admin)… ":"Move event to "):(vis<cur?"Move event back to ":"Move event to "))+(blocked&&admin?"":s.label);
+          const mv=el("button",{type:"button",class:"btn sm"+(blocked?"":" go"),text:label.trim(),disabled:(blocked&&!admin)||stageBusy,
+            onclick:(e)=>{ if(e.detail>1) return; setStage(s.k,e.currentTarget); }});
+          acts.appendChild(mv);
+          if(blocked&&!admin) acts.appendChild(el("span",{class:"muted",text:"Finish the items above, or ask an admin to move it anyway."}));
+        }
+      }
+    }
+    acts.appendChild(el("button",{type:"button",class:"btn sm ghost",text:"Back to the current stage",onclick:()=>viewStage(effStage())}));
+    p.replaceChildren(
+      el("div",{class:"sp-h"},[el("b",{text:"Stage: "+stageLabel(s)}), " ", el("span",{class:"stat "+(rel==="Done"?"ok":"q"),text:rel})]),
+      el("div",{class:"sp-hint",text:s.hint}), why, acts);
+    p.hidden=false;
+  }
+  // guarded: one stage change at a time (no double-advance on a double-click); the strip re-reads the
+  // STORED stage from the server afterwards, so it can never show one stage while the database holds another
   let stageBusy=false;
   async function setStage(k, btn){
-    if(stageBusy || !ev || k===ev.lifecycleStage) return;
+    if(stageBusy || !ev) return;
     if(k==="closed"){ location.href="closure.html?quote="+encodeURIComponent(id); return; }  // 0042: closing happens on the Closure page
+    if(k===ev.lifecycleStage){ viewK=null; render(); return; }
     stageBusy=true;
-    const lock=(on)=>{ $("#steps").querySelectorAll(".step").forEach(b=>{ b.disabled=on||!canEdit; }); };
     try{
       await BPUI.guard(btn||$("#advBtn"), async()=>{
-        lock(true);
-        try{ const r=await BPStore.quotes.setStageGuided(id, k); if(!r) return; ev.lifecycleStage=k; BPUI.toast("Stage set to "+STAGES[stageIndex(k)].label+".",{type:"ok"}); }
+        try{ const r=await BPStore.quotes.setStageGuided(id, k); if(!r) return;
+          try{ const fresh=await BPStore.quotes.get(id); if(fresh) ev=fresh; }catch(_){ ev.lifecycleStage=(r&&r.stage)||k; }
+          viewK=null;
+          BPUI.toast((r&&r.unchanged)?("Already at "+STAGES[stageIndex(ev.lifecycleStage)].label+"."):("Moved to "+STAGES[stageIndex(ev.lifecycleStage)].label+"."),{type:"ok"}); }
         catch(e){ if(await BPStore.auth.handleAuthError(e)) return;  // stale token → refresh silently instead of a scary popup
-          BPUI.toast(BPUI.friendlyError(e,{action:"update the stage"}),{type:"err"}); }
+          BPUI.toast(BPUI.friendlyError(e,{action:"move the event to "+STAGES[stageIndex(k)].label}),{type:"err"}); }
       });
-    } finally { stageBusy=false; render(); }
+    } finally { stageBusy=false; Object.keys(stageInfo).forEach(x=>delete stageInfo[x]); render(); }
   }
   // e.detail>1 = the 2nd click of a double-click: ignore it so a fast save can't advance two stages
   $("#advBtn").addEventListener("click",(e)=>{ if(e.detail>1) return; const k=$("#advBtn").dataset.k; if(k) setStage(k,$("#advBtn")); });
+  // 0198: Cancel event - for an event that will not happen (admin / manager, reason recorded + audited)
+  $("#cancelEvBtn").addEventListener("click",async()=>{
+    if(!ev || evLocked()) return;
+    const reason=await BPUI.prompt("Cancel "+(ev.code||"this event")+"? It moves to the archive, stops holding its date, venue, crew and stock, and the client's approval link stops working. Payments already received stay recorded - add any refund in Settlement. The reason is saved in the audit log.",
+      { title:"Cancel this event?", label:"Reason (5-1000 characters)", required:true, multiline:true, okLabel:"Cancel event",
+        validate:(v)=>{ const t=String(v||"").trim(); return t.length<5?"Give a reason of at least 5 characters.":t.length>1000?"Keep the reason under 1000 characters.":""; } });
+    if(!reason) return;
+    await BPUI.guard($("#cancelEvBtn"),async()=>{
+      try{ const r=await BPStore.quotes.cancelEvent(id, reason.trim());
+        try{ const fresh=await BPStore.quotes.get(id); if(fresh) ev=fresh; }catch(_){ ev.status="cancelled"; }
+        viewK=null; render();
+        BPUI.toast("Event cancelled."+(r&&r.refund_to_review?" Payments were received - review any refund in Settlement.":""),{type:"ok",timeout:8000}); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"cancel the event"}),{type:"err"}); }
+    },{busyLabel:"Cancelling…"});
+  });
 
   $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
     const btn=$("#li_submit"); if(btn.disabled) return;
@@ -683,6 +911,9 @@
     finally{ btn.disabled=false; btn.textContent="Sign in"; } });
   $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal"&&BPStore.auth.user()) closeLogin(); });
   BPUI.boot(load);
+  // qts-1018: Back/Forward restores this page from the bfcache with the total + status it had when you
+  // left (before a re-price, change order or client approval elsewhere) - load it fresh instead
+  window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&ev) location.reload(); });
 </script>
 </body>
 </html>

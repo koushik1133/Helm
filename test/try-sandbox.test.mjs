@@ -64,7 +64,7 @@ t('try.js blanks the Supabase config (store-api falls back to localStorage) and 
 t('network guard: only same-origin static GETs and the three.js CDN', () => {
   const { win } = runTry();
   const ok = win.__trySandboxOk;
-  assert.equal(ok('/builder.js?v=1', 'GET'), true);
+  assert.equal(ok('/builder.js?v=70', 'GET'), true);
   assert.equal(ok('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', 'GET'), true);
   for (const [u, m] of [['/api/health', 'GET'], ['/api/layouts', 'POST'], ['/builder.js', 'POST'],
     ['https://nqltzgiwznphugcfhmbm.supabase.co/rest/v1/quotes', 'GET'], ['https://evil.test/x', 'GET'], ['/functions/v1/render-photo', 'GET']])

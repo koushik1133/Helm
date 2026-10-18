@@ -107,8 +107,8 @@
   .pill{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:20px;padding:2px 9px;background:var(--accent-soft);color:var(--accent)}
 </style>
 <link rel="stylesheet" href="leads-polish.css?v=3">
-<link rel="stylesheet" href="theme.css?v=80">
-<script src="/shell-proto.js?v=22" id="shellProto"></script>
+<link rel="stylesheet" href="theme.css?v=82">
+<script src="/shell-proto.js?v=26" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -227,10 +227,10 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="phone-input.js?v=3"></script>
+<script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
-<script src="tour.js?v=14"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
+<script src="tour.js?v=17"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   // shared event-type list (event-name.js): same options as the quote flow; saved spelling is canonical
@@ -349,6 +349,9 @@
       await BPUI.guard(btn, async()=>{
         // QA1017: same GUESTS_MAX as flow - an over-cap lead must not price a quote around the flow cap
         { const cl=(typeof leads!=="undefined"&&Array.isArray(leads))?leads.find(x=>String(x.id)===String(id)):null; if(cl&&Number(cl.guest_count)>100000){ BPUI.toast("This lead has more than 100,000 guests. Edit the guest count first, then convert.",{type:"err"}); return; } }
+        // flow-validation (owner): a new quote never starts with a past event date (studio day, India = Asia/Kolkata)
+        { const cl=(typeof leads!=="undefined"&&Array.isArray(leads))?leads.find(x=>String(x.id)===String(id)):null; const dd=cl&&String(cl.event_date||"").slice(0,10);
+          if(dd && /^\d{4}-\d{2}-\d{2}$/.test(dd) && dd<new Intl.DateTimeFormat("en-CA",{timeZone:(((window.BPStore&&BPStore.studioTax&&BPStore.studioTax())||{}).country==="AE"?"Asia/Dubai":"Asia/Kolkata"),year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())){ BPUI.toast("Event date can't be in the past — this lead's date ("+dd+") has passed. Edit the lead's event date first, then convert.",{type:"err",timeout:8000}); return; } }
         // QA1017 (sales role): convert_lead_to_quote() accepts leads EDIT, but a role without the quotes
         // area cannot open the new quote - stay on Leads instead of landing on "Quote not found".
         try{ const q=await BPStore.leads.convert(id);

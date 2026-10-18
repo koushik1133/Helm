@@ -83,8 +83,8 @@
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
 <link rel="stylesheet" href="proposal-polish.css?v=2">
-<link rel="stylesheet" href="theme.css?v=80">
-<script src="/shell-proto.js?v=22" id="shellProto"></script>
+<link rel="stylesheet" href="theme.css?v=82">
+<script src="/shell-proto.js?v=26" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -178,7 +178,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="save-back.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -292,6 +292,8 @@
   async function load(){
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    // confirm-1018 #4: "Save & back to event" beside Save (only leaves when the save worked)
+    if(window.HelmSaveBack) HelmSaveBack.add({ button:"#p_save", msg:"#p_msg", run:()=>saveProposal() });
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("proposal"))) return;

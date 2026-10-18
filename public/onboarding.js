@@ -173,9 +173,9 @@
     const req = (k) => (W.REQUIRED[k] ? ' <span class="ob-req">required</span>' : "");
     const pos = S.step === BILL ? 1 : Math.min(KEYS.length + 2, S.step + 2), total = KEYS.length + 2, pct = W.percent(doneKeys(), skippedKeys());
     const prog = `<div class="ob-prog"><span class="ob-note">Step ${Number(pos)} of ${Number(total)} · ${Number(pct)}% done</span><progress max="100" value="${Number(pct)}" aria-label="Setup progress">${Number(pct)}%</progress></div>`;
-    const stepsNav = prog + `<ol class="ob-steps" aria-label="Setup steps"><li class="${billingOk() ? "done" : ""}"><button type="button" data-act="goto" data-i="${BILL}"${S.step === BILL ? ' aria-current="step"' : ""}><span class="n">${billingOk() ? "✓" : "0"}</span>Business details${req("billing")}</button></li>` + KEYS.map((k, i) => {
+    const stepsNav = prog + `<ol class="ob-steps" aria-label="Setup steps"><li class="${billingOk() ? "done" : ""}"><button type="button" data-act="goto" data-i="${BILL}"${S.step === BILL ? ' aria-current="step"' : ""}><span class="n">${billingOk() ? "✓" : "1"}</span>Business details${req("billing")}</button></li>` + KEYS.map((k, i) => {
       const st = S.steps[k]; const cls = st.done || st.skipped ? "done" : "";
-      return `<li class="${esc(cls)}"><button type="button" data-act="goto" data-i="${Number(i)}"${S.step === i ? ' aria-current="step"' : ""}><span class="n">${st.done ? "✓" : Number(i) + 1}</span>${esc(lbl(k))}${req(k)}</button></li>`;
+      return `<li class="${esc(cls)}"><button type="button" data-act="goto" data-i="${Number(i)}"${S.step === i ? ' aria-current="step"' : ""}><span class="n">${st.done ? "✓" : Number(i) + 2}</span>${esc(lbl(k))}${req(k)}</button></li>`;
     }).join("") + `<li class="${S.step === KEYS.length ? "" : ""}"><button type="button" data-act="goto" data-i="${KEYS.length}"${S.step === KEYS.length ? ' aria-current="step"' : ""}><span class="n">★</span>Finish</button></li></ol>`;
     let body = "";
     if (S.step === BILL) body = renderBilling();
@@ -230,10 +230,12 @@
         + `<datalist id="obTzList">${TZS.map((z) => `<option value="${esc(z)}"></option>`).join("")}</datalist></div>`);
     }
     if (kind === "brand") {
-      const d = Object.assign(W.brandFromOrg(org), v);
+      // #setup-accent: a studio that never picked a colour starts on Helm's green (the theme default),
+      // not the old violet; a colour the studio already saved is shown and kept exactly as it is.
+      const d = Object.assign(W.brandFromOrg(org), v); if (v.accent === undefined && !d.accent) d.accent = W.DEFAULT_ACCENT;
       return form(`<div class="ob-bf">${sfld(kind, "logo", "Logo link (https)", d.logo, { type: "url", max: 500, full: 1, hint: "A public https:// link to your logo image (PNG, JPG or SVG)." })}`
-        + sfld(kind, "accent", "Accent colour", d.accent, { max: 7, hint: "Hex colour, e.g. #6d28d9" })
-        + `<div><label for="ob_s_accent_pick">Pick a colour</label><input type="color" id="ob_s_accent_pick" data-pick="accent" value="${esc(/^#[0-9a-f]{6}$/i.test(d.accent) ? d.accent : "#6d28d9")}"></div></div>`);
+        + sfld(kind, "accent", "Accent colour", d.accent, { max: 7, hint: "Hex colour, e.g. " + W.DEFAULT_ACCENT + " (Helm green)" })
+        + `<div><label for="ob_s_accent_pick">Pick a colour</label><input type="color" id="ob_s_accent_pick" data-pick="accent" value="${esc(/^#[0-9a-f]{6}$/i.test(d.accent) ? d.accent : W.DEFAULT_ACCENT)}"></div></div>`);
     }
     if (kind === "payment") {
       const d = Object.assign(W.paymentFromCfg(pricingCfg), v);
@@ -285,12 +287,22 @@
     const k = Object.keys(r.errors)[0]; const el = k && $("#ob_s_" + k); if (el) el.focus();
     const live = $("#obLive"); if (live) live.textContent = "Please fix " + Object.keys(r.errors).length + " field(s).";
   }
+  // cc-general-billing: every org write merges into the SAVED row (fresh read), never a tab-cached copy that
+  // could pre-date a Control Center save in another tab - that would write the old brand (no billing) back
   async function saveSetting(kind) {
     const vals = readSet(); const st = S.steps[kind];
+    if (kind === "team") {
+      // Enter in the e-mail box (or Continue) with an address typed used to move on and silently drop it:
+      // create that invite first and stay here so the join link can be copied
+      const typed = String(vals.email || "").trim().toLowerCase();
+      if (typed && !invites.some((x) => x.email === typed)) { await createInvite(); return; }
+      // nothing sent in THIS visit: skipped - unless invites were already sent earlier (a resumed setup keeps "done")
+      if (!invites.length) { setVals.team = {}; setErr.team = {}; if (!st.done) st.skipped = true; go(S.step + 1); return; }
+    }
     try {
       if (kind === "studio" || kind === "brand") {
         const r = kind === "studio" ? W.validateStudio(vals) : W.validateBrand(vals); if (!r.ok) return setFail(kind, r);
-        const fresh = await BPStore.org.current(); if (!fresh) throw new Error("Studio settings aren't available.");
+        const fresh = await BPStore.org.current({ fresh: true }); if (!fresh) throw new Error("Studio settings aren't available.");
         await BPStore.org.save(kind === "studio" ? W.studioPatch(fresh, r.data) : W.brandPatch(fresh, r.data));
         org = await BPStore.org.current();
       } else if (kind === "payment") {
@@ -318,7 +330,7 @@
     if (!canBill || !org || BPStore.mode() !== "supabase") return;
     clearTimeout(progT);
     progT = setTimeout(async () => {
-      try { const fresh = await BPStore.org.current(); if (!fresh) return;
+      try { const fresh = await BPStore.org.current({ fresh: true }); if (!fresh) return;
         const prev = W.progressFromOrg(fresh);
         await BPStore.org.save(W.progressPatch(fresh, { step: keyOf(S.step), done: doneKeys(), skipped: skippedKeys(), completed_at: complete ? new Date().toISOString() : prev.completed_at }));
         org = (await BPStore.org.current()) || org;
@@ -351,7 +363,7 @@
     if (orgErr) return `<div class="ob-card"><h2>Business details</h2><div class="ob-warn">Could not load your studio details. Reload the page to try again.</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn" data-act="goto" data-i="0">Continue</button></div></div>`;
     if (!org) return `<div class="ob-card"><h2>Business details</h2><p class="ob-note">Studio details aren't available for this workspace.</p><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
     const v = Object.assign(O.billingFromOrg(org), bill.values); const e = bill.errors || {};
-    if (!canBill) return `<div class="ob-card"><h2>Business details</h2><div class="ob-lock">Only an admin can enter the studio's billing details${billingOk() ? " (already complete)." : ". Ask your admin to complete them in Control Center → Studio details."}</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
+    if (!canBill) return `<div class="ob-card"><h2>Business details</h2><div class="ob-lock">Only an admin can enter the studio's billing details${billingOk() ? " (already complete)." : ". Ask your admin to complete them in Control Center → General."}</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
     const full = { legal_name: 1, line1: 1, line2: 1 };
     const ac = { legal_name: "organization", line1: "address-line1", line2: "address-line2", city: "address-level2", state: "address-level1", pin: "postal-code", phone: "tel", location: "off", gstin: "off" };
     const cc = O.countryCode(v.country), india = cc === "IN", tid = O.taxIdOf(cc), meta = billMeta(cc);
@@ -362,7 +374,7 @@
       const id = "ob_b_" + f.key, eid = id + "_err", bad = !!e[f.key];
       if (f.type === "country") {
         const opt = (c) => `<option value="${esc(c.iso)}"${c.iso === cc ? " selected" : ""}>${esc(c.name)}</option>`;
-        return `<div><label for="${esc(id)}">Country * <span class="ob-note">(sets tax, tax ID and currency)</span></label><select id="${esc(id)}" data-bill="country" data-billcountry="1" aria-describedby="${esc(eid)}">`
+        return `<div><label for="${esc(id)}">Country * <span class="ob-note">(sets tax, tax ID and currency)</span></label><select id="${esc(id)}" data-bill="country" data-billcountry="1" data-picker="search" aria-describedby="${esc(eid)}">`
           + ctry.map(opt).join("") + (others.length ? `<optgroup label="Other countries (custom tax)">${others.map(opt).join("")}</optgroup>` : "")
           + `</select><div class="ob-err" id="${esc(eid)}">${esc(e[f.key] || "")}</div></div>`;
       }
@@ -375,7 +387,7 @@
         + (f.key === "state" ? `<datalist id="ob_b_state_list">${meta.regions.map((r) => `<option value="${esc(r.name)}"></option>`).join("")}</datalist>` : "")
         + `<div class="ob-err" id="${esc(eid)}">${esc(e[f.key] || "")}</div></div>`;
     }).join("");
-    return `<div class="ob-card"><h2>Business details</h2><p class="sub">Used on your quotations and invoices. Fields marked * are required to finish setup; <span data-taxid="1">${esc(tid.label)}</span> is optional. You can edit these later in Control Center → Studio details.</p>`
+    return `<div class="ob-card"><h2>Business details</h2><p class="sub">Used on your quotations and invoices. Fields marked * are required to finish setup; <span data-taxid="1">${esc(tid.label)}</span> is optional. You can edit these later in Control Center → General.</p>`
       + `<form id="obBill" novalidate><div class="ob-bf">${fields}</div><div id="obErr" class="ob-err" role="alert"></div>`
       + `<div class="ob-row"><span class="ob-grow"></span><button type="submit" class="btn primary" data-act="billsave">Save &amp; continue</button></div></form></div>`;
   }
@@ -389,7 +401,7 @@
       return;
     }
     try {
-      const fresh = await BPStore.org.current(); if (!fresh) throw new Error("Studio settings aren't available.");
+      const fresh = await BPStore.org.current({ fresh: true }); if (!fresh) throw new Error("Studio settings aren't available.");
       await BPStore.org.save(O.billingPatch(fresh, r.data));
       await syncTaxCountry(r.data.country);
       org = await BPStore.org.current(); bill = { values: {}, errors: {} };
@@ -683,6 +695,8 @@
     CSS && typeof window.__helmAdoptCss === "function" && window.__helmAdoptCss(document, CSS);
     await BPStore.init();
     if (BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()) { location.replace("login.html?next=" + encodeURIComponent("onboarding.html")); return; }
+    // 0177: a free-trial studio never uses the full studio setup - its 2-step welcome is on the dashboard
+    if (BPStore.trialOrg && BPStore.trialOrg.inTrial && (await BPStore.trialOrg.inTrial())) { location.replace("dashboard.html"); return; }
     const u = BPStore.auth.user(); uid = (u && u.id) ? String(u.id).replace(/[^\w-]/g, "").slice(0, 40) : "anon";
     await computePerms();
     try { org = await BPStore.org.current(); } catch (e) { org = null; orgErr = e; }

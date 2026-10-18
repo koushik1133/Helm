@@ -2443,6 +2443,8 @@ function lfNote(before, opts){ if(window.HelmLoadFit) window.HelmLoadFit.note(be
 async function loadTemplate(key){
   if(!key){ return; }
   // 0096: the studio's own templates ("st:<id>") are fitted to this hall + exact seats by studio-templates.js
+  // trial "From past events" entries reuse the Past events reference loader
+  if(String(key).indexOf('ref:')===0){ const r=$('#refEvents'); if(r){ r.value=String(key).slice(4); window.__refSkipConfirm=true; try{ r.dispatchEvent(new Event('change')); }finally{ window.__refSkipConfirm=false; } } return; }
   if(String(key).indexOf('st:')===0){ if(window.HelmStudioTemplates) window.HelmStudioTemplates.apply(String(key).slice(3)); return; }
   const lbl=document.querySelector('#preset option[value="'+key+'"]').textContent;
   // R8b: an open quote's seats value is the exact seating total for preset templates too
@@ -3652,7 +3654,7 @@ $('#refEvents').addEventListener('change', async (e)=>{
   const qid=e.target.value; if(!qid) return;
   if(RO){ e.target.value=''; toast('Read-only — cannot load a layout here'); return; }
   const label=e.target.options[e.target.selectedIndex].textContent;
-  if(store.items.length && !(await BPUI.confirm('Load the layout from "'+label+'" onto the canvas? This replaces the current objects (you can Undo).',{title:'Replace the floor?',okLabel:'Load layout'}))){ e.target.value=''; return; }
+  if(store.items.length && !window.__refSkipConfirm && !(await BPUI.confirm('Load the layout from "'+label+'" onto the canvas? This replaces the current objects (you can Undo).',{title:'Replace the floor?',okLabel:'Load layout'}))){ e.target.value=''; return; }
   try{
     const q=await BPStore.quotes.get(qid);
     const ver=await BPStore.quotes.getVersion(qid, q.currentVersion);
@@ -3785,8 +3787,10 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
 function updateEmptyState(){
   const es=$('#emptyState'); if(!es) return;
   const threeD = $('#stage3d') && !$('#stage3d').hidden;
-  es.hidden = layoutLoading || RO || threeD || (store.items && store.items.length>0);
-  const ld=$('#layoutLoading'); if(ld) ld.hidden = !layoutLoading;
+  // studio-templates.js template edit (?tplEdit=<id>): "loading" shows the loading state, "edit"/"error" never the blank-floor prompt
+  const tpl=window.__helmTplEdit, tplMode=tpl&&tpl.mode, tplLoading=tplMode==='loading';
+  es.hidden = layoutLoading || tplLoading || tplMode==='edit' || tplMode==='error' || RO || threeD || (store.items && store.items.length>0);
+  const ld=$('#layoutLoading'); if(ld) ld.hidden = !(layoutLoading || (tplLoading && !threeD));
 }
 /* R4: while an existing event's quote/layout is being fetched, show a neutral loading state —
    never the blank-floor prompt or "Untitled event" (they flashed for 1-2s before the layout arrived). */
@@ -4637,6 +4641,12 @@ async function init(){
           if(plan.menu_template) PRICING.menuPackageName = plan.menu_template;
           const match=(PRICING.packages||[]).find(p=>p.name===plan.menu_template);
           if(match) PRICING.appliedPkgId = match.id;
+          // qmodal-1018: the builder re-writes the quote's pricing on its own (every layout save), so it must never
+          // silently move the plate rate to the package's list price (that would undo a price agreed with the client).
+          // It keeps the plan's applied-at price, except when the quote was already re-priced at the package's
+          // CURRENT price (the Confirm / Re-price dialog) - then that saved price stays and the two screens agree.
+          if(match && currentPricing && currentPricing.platePrice!=null && currentPricing.platePrice!=="" && match.price_per_plate!=null
+             && +currentPricing.platePrice === +match.price_per_plate) PRICING.menuPlatePrice = +match.price_per_plate;
         }
       }catch{}
       buildMenuControls();

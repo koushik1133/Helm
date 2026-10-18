@@ -35,9 +35,12 @@ t('worker link rate limit wraps the previous token check', () => {
   assert.match(mig, /enable row level security/);
 });
 t('closed events say Closed', () => {
-  assert.match(ev, /\(s==="confirmed"&&lc==="closed"\)\?'<span class="stat ok">Closed<\/span>'/);
+  // qts-1018: the one shared label (BPStore.quoteStatus) says Closed for a closed event
+  assert.match(ev, /\$\("#statusBadge"\)\.innerHTML=statusBadge\(\);/);
   assert.match(ev, /evClosed=ev\.lifecycleStage==="closed"\|\|!!ev\.closedAt/);
-  assert.match(dash, /statBadge\(s\.status, s\.lifecycleStage\)/);
+  assert.match(dash, /statBadge\(s\)/); assert.match(dash, /BPStore\.quoteStatus\(q\)/);
+  const store = readFileSync(new URL('../public/store-api.js', import.meta.url), 'utf8');
+  assert.match(store, /if \(closed\) return mk\("closed", "Closed", "closed"/);
 });
 t('crew calendar falls back to the event date', () => {
   assert.match(cal, /t\.planned_start\|\|t\.event_date/);

@@ -53,7 +53,8 @@
     return { schedule, now, flush, pending, hasFailed, clearFailed };
   }
 
-  const LABEL = { saving: "Saving…", saved: "Saved ✓", error: "Not saved — retry" };
+  // "empty": the section has nothing of its own yet (owner: never "Saved" for an untouched section)
+  const LABEL = { saving: "Saving…", saved: "Saved ✓", error: "Not saved — retry", empty: "Not started" };
   // badge adapter for a `.saved` span: hidden initially; err/invalid get a red tone
   function paint(el, state, msg) {
     if (!el) return;
@@ -61,6 +62,7 @@
     el.textContent = state === "invalid" ? ("Not saved — " + String(msg || "check the highlighted field")) : (LABEL[state] || "");
     el.classList.toggle("on", !!state && state !== "idle");
     el.classList.toggle("bad", state === "error" || state === "invalid");
+    el.classList.toggle("muted", state === "empty");
     if (state === "error") { el.setAttribute("role", "button"); el.tabIndex = 0; el.title = "Click to retry saving"; }
     else { el.removeAttribute("role"); el.removeAttribute("tabindex"); el.removeAttribute("title"); }
   }

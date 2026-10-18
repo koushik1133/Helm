@@ -10,13 +10,21 @@
 // business e-mail and to write the notifications log row (no message body, no token).
 //
 // Delivery: _shared/mailer.ts (Resend, else SMTP_* e.g. Gmail, else not_configured).
-// Answer: { status: "sent" | "not_configured" | "failed", masked, reason? }.
+// Answer: { status: "sent" | "not_configured" | "failed" | "test_mode", masked, reason? }.
+// Free trial (0166 rule, _shared/trial-outbound.ts, first gate): a trial / sample studio sends NOTHING -
+// the row is logged 'suppressed' (suppressed_by trial) and the answer is status "test_mode"; when the
+// plan cannot be read: 503 failed, nothing sent.
+// 0179 (second gate): trial_send_blocked asked with the service role right before the send (fails
+// closed) -> { status: "not_configured", trial: true }; nothing is sent, the log row says "simulated".
+// (The "Share booklet" dialog's Send to client goes through booklet_send / comms_outbox, 0200.)
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, isAllowedOrigin, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { brandMode, EMAIL_RE, sendMail } from "../_shared/mailer.ts";
 import { postalAddress } from "../_shared/email-compliance.mjs";
+import { outboundBlocked, TEST_MODE_TEXT } from "../_shared/trial-outbound.ts";
 import { linkEmail, maskEmail } from "./logic.mjs";
+import { trialSendBlocked } from "../_shared/trial-guard.ts";
 
 export const KINDS = ["approval", "booklet"];
 
@@ -80,16 +88,39 @@ Deno.serve(async (req) => {
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
     const { data: org } = await admin.from("organizations").select("name, business_email").eq("id", q.org_id).maybeSingle();
     const studio = (org && org.name) || "";
+    const logKind = kind === "approval" ? "approval_link" : "booklet_link";
+    const masked = maskEmail(to);
+
+    // free trial / sample studio: nothing real is sent (same rule as the 0166 outbox triggers)
+    const gate = await outboundBlocked(admin, String(q.org_id || ""), to);
+    if (gate.blocked) {
+      const { error: sErr } = await admin.from("notifications").insert({
+        quote_id: quoteId, channel: "email", recipient: to, kind: logKind, status: "suppressed",
+        detail: { suppressed_by: gate.unknown ? "plan_unknown" : "trial" },
+      });
+      if (sErr) console.error("client-mailer: log insert failed", errTag(sErr));
+      if (gate.unknown) return json({ status: "failed", masked, error: "could not check the studio plan - nothing was sent, try again", reason: "could not check the studio plan - nothing was sent, try again" }, 503);
+      return json({ status: "test_mode", masked, reason: TEST_MODE_TEXT });
+    }
+
+    // 0179 (second gate): no e-mail to a client from a free-trial studio (trial_send_blocked, fails closed)
+    if (await trialSendBlocked(admin, { org: String(q.org_id || "") || null, quote: quoteId })) {
+      const { error: tErr } = await admin.from("notifications").insert({
+        quote_id: quoteId, channel: "email", recipient: to, kind: kind === "approval" ? "approval_link" : "booklet_link", status: "simulated",
+      });
+      if (tErr) console.error("client-mailer: log insert failed", errTag(tErr));
+      return json({ status: "not_configured", trial: true, masked: maskEmail(to), reason: "e-mails to clients are not sent during the free trial" });
+    }
+
     const envGet = (k: string) => Deno.env.get(k);
     const m = linkEmail(kind, { client: (q.client && q.client.name) || "", studio, link, brand: brandMode(envGet), address: postalAddress(envGet) });
     const res = await sendMail({ to, subject: m.subject, text: m.text, html: m.html, studio, replyTo: org && org.business_email, txReason: "client_link" });
 
     const { error: logErr } = await admin.from("notifications").insert({
-      quote_id: quoteId, channel: "email", recipient: to, kind: kind === "approval" ? "approval_link" : "booklet_link",
+      quote_id: quoteId, channel: "email", recipient: to, kind: logKind,
       status: res.status === "sent" ? "sent" : res.status === "not_configured" ? "simulated" : "failed",
     });
     if (logErr) console.error("client-mailer: log insert failed", errTag(logErr));
-    const masked = maskEmail(to);
     if (res.status === "sent") return json({ status: "sent", masked, provider: res.provider });
     return json({ status: res.status, masked, reason: res.reason, ...(res.status === "failed" ? { error: res.reason } : {}) }, res.status === "failed" ? 502 : 200);
   } catch (e) {

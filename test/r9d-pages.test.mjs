@@ -55,6 +55,7 @@ assert.doesNotMatch(ih, /label:e\.code\+/); assert.doesNotMatch(ih, /esc\(e\.cod
 assert.match(ih, /d=Object\.assign\(\{vendors:\[\],taskSlips:\[\]\},d\)/);
 // control.html pricing: blank tax rate refused; failed save doesn't mutate the loaded config
 const ch = readFileSync(new URL('../public/control.html', import.meta.url), 'utf8');
-assert.match(ch, /a blank rate would drop tax from new quotes/);
+// cc-pricing-validation: the blank-rate rule now lives in pricing-form-core.js (message under the field)
+assert.match(readFileSync(new URL('../public/pricing-form-core.js', import.meta.url), 'utf8'), /gstPct: +\{ id: "p_gst", +kind: "pct", required: true/);
 assert.match(ch, /setPricing\(nextCfg\); pricingCfg=nextCfg;/);
 console.log('r9d-pages static: ok');

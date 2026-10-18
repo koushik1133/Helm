@@ -55,7 +55,8 @@ run "country-templates-0092" "COUNTRY-TEMPLATES-0092: ALL PASS \(12/12\)" psql -
 run "country-terms-0093"  "COUNTRY-TERMS-0093: ALL PASS \(6/6\)" psql -q -f tests/db/country-terms-0093.sql
 run "per-currency-0094" "PER-CURRENCY-0094: ALL PASS \(12/12\)" psql -q -f tests/db/per-currency-0094.sql
 run "client-due-0160"  "CLIENT-DUE-0160: ALL PASS \(9/9\)" psql -q -f tests/db/client-due-0160.sql
-run "photo-render-0095" "PHOTO-RENDER-0095: ALL PASS \(20/20\)" psql -q -f tests/db/photo-render-0095.sql
+run "quote-status-0189" "QUOTE-STATUS-0189: ALL PASS \(19/19\)" psql -q -f tests/db/quote-status-0189.sql
+run "photo-render-0095" "PHOTO-RENDER-0095: ALL PASS \(21/21\)" psql -q -f tests/db/photo-render-0095.sql
 # early: later suites re-apply 0027 / 0052 / 0093 over the 0097 demo gate wrappers
 run "trial-demo-0097"   "TRIAL-DEMO-0097: ALL PASS \(51/51\)" psql -q -f tests/db/trial-demo-0097.sql
 run "demo-seed-0100"   "DEMO-SEED-0100: ALL PASS \(18/18\)" psql -q -f tests/db/demo-seed-0100.sql
@@ -68,7 +69,7 @@ run "d6-money-freeze"    "D6-MONEY-FREEZE: ALL PASS \(49/49\)" bash -c "cd tests
 run "matrix-seed-revert" "MATRIX-SEED-REVERT: ALL PASS \(13/13\)" psql -q -f tests/db/matrix-seed-revert.sql
 run "mfa-enforce"        "MFA-ENFORCE: ALL PASS"           bash -c "cd tests/db && psql -q -f mfa-enforce.sql"
 run "contract-coverage"  "CONTRACT-COVERAGE: 100%"         node tests/db/contract-coverage.mjs
-run "pricing-parity"     "13 parity case\(s\) passed, 0 failed" node tests/db/pricing-parity.mjs
+run "pricing-parity"     "14 parity case\(s\) passed, 0 failed" node tests/db/pricing-parity.mjs
 run "auth-matrix"        "AUTH-MATRIX: ALL PASS"           psql -q -f tests/db/auth-matrix.sql
 run "rpc-authz-matrix"   "RPC-AUTHZ-MATRIX: ALL PASS"      psql -q -f tests/db/rpc-authz-matrix.sql
 run "tenant-attack"      "TENANT-ATTACK: ALL PASS"         psql -q -f tests/db/tenant-attack.sql
@@ -101,6 +102,7 @@ run "storage-policy"     "STORAGE-POLICY: ALL PASS"        psql -q -f tests/db/s
 run "upload-hardening"   "UPLOAD-HARDENING: ALL PASS \(20/20\)" psql -q -f tests/db/upload-hardening.sql
 run "db-gates-0049"     "DB-GATES-0049: ALL PASS \(52/52\)" psql -q -f tests/db/db-gates-0049.sql
 run "lifecycle-reapproval-0052" "LIFECYCLE-REAPPROVAL-0052: ALL PASS \(49/49\)" psql -q -f tests/db/lifecycle-reapproval-0052.sql
+run "event-stages-0198" "EVENT-STAGES-0198: ALL PASS \(63/63\)" psql -q -f tests/db/event-stages-0198.sql
 run "password-lockout"   "PASSWORD-LOCKOUT: ALL PASS \(34/34\)" psql -q -f tests/db/password-lockout.sql
 run "notification-mutes" "NOTIFICATION-MUTES: ALL PASS \(17/17\)" psql -q -f tests/db/notification-mutes.sql
 run "notification-task-ref" "NOTIFICATION-TASK-REF: ALL PASS \(12/12\)" psql -q -f tests/db/notification-task-ref.sql
@@ -131,6 +133,7 @@ run "rescore3-fixes"     "RESCORE3-FIXES: ALL PASS \(26/26\)" psql -q -f tests/d
 run "display-names"      "DISPLAY-NAMES: ALL PASS \(38/38\)" psql -q -f tests/db/display-names.sql
 run "event-groups"       "EVENT-GROUPS: ALL PASS \(36/36\)" psql -q -f tests/db/event-groups.sql
 run "event-groups-race"  "EVENT-GROUP-RACE: PASS"          bash tests/db/event-groups-race.sh
+run "event-group-people-0194" "EVENT-GROUP-PEOPLE-0194: ALL PASS \(23/23\)" psql -q -f tests/db/event-group-people-0194.sql
 run "notification-prefs" "NOTIFICATION-PREFS: ALL PASS \(47/47\)" psql -q -f tests/db/notification-prefs.sql
 run "member-profile"     "MEMBER-PROFILE: ALL PASS \(81/81\)" psql -q -f tests/db/member-profile.sql
 run "phone-verify"       "PHONE-VERIFY: ALL PASS \(40/40\)" psql -q -f tests/db/phone-verify.sql
@@ -144,11 +147,34 @@ run "saved-views"        "SAVED-VIEWS: ALL PASS \(28/28\)" psql -q -f tests/db/s
 run "system-quiet-0164"  "SYSTEM-QUIET-0164: ALL PASS \(18/18\)" psql -q -f tests/db/system-quiet-0164.sql
 run "trial-sandbox-0166" "TRIAL-SANDBOX-0166: ALL PASS \(50/50\)" psql -q -f tests/db/trial-sandbox-0166.sql
 run "trial-manifest-0167" "TRIAL-MANIFEST-0167: ALL PASS \(50/50\)" psql -q -f tests/db/trial-manifest-0167.sql
+run "trial-india-0177"   "TRIAL-INDIA-0177: ALL PASS \(17/17\)" psql -q -f tests/db/trial-india-0177.sql
 run "trial-data-0168" "TRIAL-DATA-0168: ALL PASS \(17/17\)" psql -q -f tests/db/trial-data-0168.sql
 run "trial-data-0169" "TRIAL-DATA-0169: ALL PASS \(24/24\)" psql -q -f tests/db/trial-data-0169.sql
 run "trial-data-0170" "TRIAL-DATA-0170: ALL PASS \(16/16\)" psql -q -f tests/db/trial-data-0170.sql
 run "trial-data-0171" "TRIAL-DATA-0171: ALL PASS \(16/16\)" psql -q -f tests/db/trial-data-0171.sql
 run "trial-lockdown-0173" "TRIAL-LOCKDOWN-0173: ALL PASS \(34/34\)" psql -q -f tests/db/trial-lockdown-0173.sql
+run "trial-seed-0174" "TRIAL-SEED-0174: ALL PASS \(12/12\)" psql -q -f tests/db/trial-seed-0174.sql
+run "trial-layout-0175" "TRIAL-LAYOUT-0175: ALL PASS \(6/6\)" psql -q -f tests/db/trial-layout-0175.sql
+run "trial-client-flow-0176" "TRIAL-CLIENT-FLOW-0176: ALL PASS \(16/16\)" psql -q -f tests/db/trial-client-flow-0176.sql
+run "trial-no-send-0179" "TRIAL-NO-SEND-0179: ALL PASS \(41/41\)" psql -q -f tests/db/trial-no-send-0179.sql
+run "trial-signup-0180" "TRIAL-SIGNUP-0180: ALL PASS \(33/33\)" psql -q -f tests/db/trial-signup-0180.sql
+run "trial-guards-0181" "TRIAL-GUARDS-0181: ALL PASS \(59/59\)" psql -q -f tests/db/trial-guards-0181.sql
+run "trial-prices-0182" "TRIAL-PRICES-0182: ALL PASS \(21/21\)" psql -q -f tests/db/trial-prices-0182.sql
+run "trial-expiry-0183" "TRIAL-EXPIRY-0183: ALL PASS \(61/61\)" psql -q -f tests/db/trial-expiry-0183.sql
+run "trial-retention-0184" "TRIAL-RETENTION-0184: ALL PASS \(50/50\)" psql -q -f tests/db/trial-retention-0184.sql
+run "trial-upgrade-0185" "TRIAL-UPGRADE-0185: ALL PASS \(45/45\)" psql -q -f tests/db/trial-upgrade-0185.sql
+run "trial-extension-0186" "TRIAL-EXTENSION-0186: ALL PASS \(55/55\)" psql -q -f tests/db/trial-extension-0186.sql
+run "trial-outbound-0187" "TRIAL-OUTBOUND-0187: ALL PASS \(17/17\)" psql -q -f tests/db/trial-outbound-0187.sql
+run "trial-clone-0190" "TRIAL-CLONE-0190: ALL PASS \(24/24\)" psql -q -f tests/db/trial-clone-0190.sql
+run "release-integration-0201" "RELEASE-INTEGRATION-0201: ALL PASS \(11/11\)" psql -q -f tests/db/release-integration-0201.sql
+run "trial-requirements-0202" "TRIAL-REQUIREMENTS-0202: ALL PASS \(17/17\)" psql -q -f tests/db/trial-requirements-0202.sql
+run "menu-pkg-0192"    "MENU-PKG-0192: ALL PASS \(41/41\)" psql -q -f tests/db/menu-pkg-0192.sql
+run "menu-lock-trial" "MENU-LOCK-TRIAL: ALL PASS \(17/17\)" psql -q -f tests/db/menu-lock-trial.sql
+run "invite-share-0195" "INVITE-SHARE-0195: ALL PASS \(40/40\)" psql -q -f tests/db/invite-share-0195.sql
+run "booklet-send-0200" "BOOKLET-SEND-0200: ALL PASS \(40/40\)" psql -q -f tests/db/booklet-send-0200.sql
+run "budget-plan-0196" "BUDGET-PLAN-0196: ALL PASS \(14/14\)" psql -q -f tests/db/budget-plan-0196.sql
+run "budget-single-source-0199" "BUDGET-SINGLE-SOURCE-0199: ALL PASS \(32/32\)" psql -q -f tests/db/budget-single-source-0199.sql
+run "capacity-shortage-0197" "CAPACITY-SHORTAGE-0197: ALL PASS \(39/39\)" psql -q -f tests/db/capacity-shortage-0197.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

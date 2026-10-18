@@ -116,7 +116,7 @@
   .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
   .sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
-<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="theme.css?v=82">
 <link rel="stylesheet" href="/public-pages-v2.css?v=5">
 <link rel="stylesheet" href="/checkout-v2.css?v=2">
 <script src="/marketing-theme.js?v=3"></script>
@@ -209,13 +209,8 @@
       <button type="button" class="ghost" id="coSkip">Skip payment (testing only)</button>
     </section>
 
-    <section class="card" id="coDemoChoice" aria-labelledby="dcH" hidden>
-      <h2 id="dcH">Your plan is active — what about the sample data?</h2>
-      <p>Your trial studio has sample records marked "Demo" (events, leads, staff, vendors, inventory, menu packages). Start fresh removes only those sample records. Anything you added yourself stays.</p>
-      <p id="dcMsg" role="status" aria-live="polite"></p>
-      <button type="button" class="btn" id="dcFresh">Start fresh (remove sample data)</button>
-      <button type="button" class="ghost" id="dcKeep">Keep the sample data</button>
-    </section>
+    <!-- 0185: after a verified payment trial-upgrade.js asks keep (default) / remove sample data / start completely clean -->
+    <section class="card" id="coDemoChoice" data-tu-checkout aria-label="Your trial data after upgrading" hidden></section>
 
     <p class="foot">Signed in as <b id="coEmail"></b> · <button type="button" class="linkbtn" id="coSignOut">Sign out</button></p>
   </main>
@@ -223,7 +218,8 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
-<script src="checkout.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
+<script src="trial-upgrade.js?v=2"></script>
+<script src="checkout.js?v=6"></script>
 </body>
 </html>

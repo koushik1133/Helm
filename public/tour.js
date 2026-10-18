@@ -2,7 +2,7 @@
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
    One engine, many pages. Each page's steps live in STEPS keyed by filename.
-   A page opts in simply by including  <script src="tour.js?v=15"></script>.
+   A page opts in simply by including  <script src="tour.js?v=17"></script>.
 
    • Injects its own spotlight CSS (pages need no markup).
    • Renders a floating "? Tour" button, or wires an existing #helpBtn.
@@ -15,18 +15,20 @@
 
   /* ---- per-page steps: { selector, title, desc } --------------------- */
   const STEPS = {
+    // Steps follow the on-screen reading order: the top bar left to right, then the
+    // panels below it (the old order jumped between the bar and the toolbox).
     "builder.html": [
-      { sel: "#customBtn", title: "Build your floor", desc: "Click ✨ Custom Event, type your hall length × breadth and guest count, and Helm sizes the canvas to your hall and auto-arranges the seating." },
-      { sel: "#preset", title: "…or start from a template", desc: "Prefer a head start? Pick a ready-made event layout (wedding, conference, concert…) and tweak it." },
-      { sel: "#toolbox", title: "Drag any asset", desc: "Drag stages, chairs, tables, bars, exits — anything — onto the floor. Every object is movable, resizable and rotatable." },
+      { sel: "#preset", title: "Start from a template", desc: "Want a head start? Pick a ready-made event layout (wedding, conference, concert…) and tweak it." },
+      { sel: "#customBtn", title: "…or build your own floor", desc: "Click ✨ Create layout, type your hall length × breadth and guest count, and Helm sizes the canvas to your hall and arranges the seating." },
       { sel: "#measureBtn", title: "Measure everything", desc: "Turn on 📏 Measure, then select an object to see its distance from all four walls AND its nearest neighbour on every side." },
-      { sel: "#capMeter", title: "Capacity & congestion", desc: "Seats placed vs the venue's capacity. It flags any block packed tighter than a walkable aisle." },
       { sel: "#saveBtn", title: "Save to the quote", desc: "Save ties this layout to the event — and the chair count flows straight into the price breakdown on the right." },
+      { sel: "#capMeter", title: "Capacity & congestion", desc: "Seats placed vs the venue's capacity. It flags any block packed tighter than a walkable aisle." },
+      { sel: "#toolbox", side: "right", title: "Drag any asset", desc: "Drag stages, chairs, tables, bars, exits — anything — onto the floor. Every object is movable, resizable and rotatable." },
     ],
     "quotes.html": [
-      { sel: "#newBtn", title: "Start a new quote", desc: "Price a fresh event here. It becomes the event everything else hangs off." },
       { sel: "#tabs", title: "Find confirmed fast", desc: "Active · Quotes · Confirmed · Archive · Deleted. Confirmed events rise to the top and are highlighted so you never scroll to find them." },
       { sel: "#search", title: "Search", desc: "Jump to any quote by client name or quote code." },
+      { sel: "#newBtn", title: "Start a new quote", desc: "Price a fresh event here. It becomes the event everything else hangs off." },
       { sel: "#rows", title: "Your quotes", desc: "Click a row to open it, confirm it, re-price it, or take client approval by OTP / consent / payment link." },
     ],
     "flow.html": [
@@ -40,24 +42,24 @@
     ],
     "logistics.html": [
       { sel: "#tabs", title: "Event logistics", desc: "Everything that has to happen for this event, organised by section (stage, lighting, catering…)." },
-      { sel: "#tplBar", title: "Apply a template", desc: "Drop a saved checklist into this event in one click — no retyping the same tasks every time. (You build templates in Control Center.)" },
+      { sel: "#tplBar", trial: false, title: "Apply a template", desc: "Drop a saved checklist into this event in one click — no retyping the same tasks every time. (You build templates in Control Center.)" },
       { sel: "#a_title", title: "Add a one-off task", desc: "Need something the template didn't cover? Add your own task right here." },
       { sel: "#pane", title: "Assign & track", desc: "Assign staff to each task and tick off progress as the event comes together." },
     ],
     "leads.html": [
+      { sel: "#search", title: "Find anyone fast", desc: "Search by name, phone or event type across every column." },
       { sel: "#newBtn", title: "Capture a lead", desc: "Every enquiry starts here. Click + New lead to open the form and record who got in touch." },
       { sel: "#board", title: "The pipeline board", desc: "Leads sit in columns by stage — New, Qualified, Discovery, Quoted, Won, Lost. Drag a card between columns to move it along." },
-      { sel: "#search", title: "Find anyone fast", desc: "Search by name, phone or event type across every column." },
     ],
     "staff.html": [
+      { sel: "#search", title: "Find a person", desc: "Search by name or role to quickly pull someone up." },
       { sel: "#newBtn", title: "Add your team", desc: "Add an in-house team member with their name, phone and department (stage, lighting, catering…)." },
       { sel: "#grid", title: "Your people", desc: "Everyone on the team, by department. You assign them to event tasks from an event's Logistics page." },
-      { sel: "#search", title: "Find a person", desc: "Search by name or role to quickly pull someone up." },
     ],
     "inventory.html": [
-      { sel: "#newBtn", title: "Add stock", desc: "Add equipment to your inventory, graded A / B / C by value so losses are easy to price." },
       { sel: "#eventPanel", title: "Reserve for an event", desc: "Book items to a specific event — this is what the close-out later checks is returned." },
-      { sel: "#pane-loans", title: "Check out & back in", desc: "Issue stock to a person and record how much comes back. Anything short is flagged with its rupee value." },
+      { sel: ["#pane-loans", '[aria-controls="pane-loans"]'], title: "Check out & back in", desc: "Issue stock to a person and record how much comes back. Anything short is flagged with its rupee value." },
+      { sel: "#newBtn", title: "Add stock", desc: "Add equipment to your inventory, graded A / B / C by value so losses are easy to price." },
     ],
     "vendors.html": [
       { sel: "#kindTabs", title: "Vendor categories", desc: "Outside partners grouped by what they provide — catering, sound, décor, transport and more." },
@@ -86,7 +88,7 @@
     ],
     "runsheet.html": [
       { sel: "#r_add", title: "Add a run-sheet item", desc: "Build a timed schedule of the day — each moment, who owns it and when." },
-      { sel: "#printBtn", title: "Print / share", desc: "Print the run-sheet or share it so everyone runs to the same timeline." },
+      { sel: "#printBtn", trial: false, title: "Print / share", desc: "Print the run-sheet or share it so everyone runs to the same timeline." },
     ],
     "command.html": [
       { sel: "#pullBtn", title: "Pull the roster", desc: "Load the assigned staff for the day so you can check them in as they arrive." },
@@ -140,8 +142,10 @@
     padding:16px 18px;pointer-events:auto}
   .htour .tip .tstep{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hb-acc-text,var(--accent,#6d28d9))}
   .htour .tip h4{margin:4px 0 6px;font-size:16px}
-  .htour .tip p{margin:0 0 13px;font-size:13px;color:var(--hb-ink2,var(--ink-2,#4b475f));line-height:1.55}
-  .htour .tip .trow{display:flex;gap:8px;align-items:center}
+  .htour .tip p{margin:0 0 7px;font-size:13px;color:var(--hb-ink2,var(--ink-2,#4b475f));line-height:1.55}
+  .htour .tip{transition:opacity .14s ease}
+  .htour.htour-moving .tip,.htour.htour-moving .arrow{opacity:0;pointer-events:none}
+  .htour .tip .trow{display:flex;gap:8px;align-items:center;position:sticky;bottom:-16px;margin:0 -18px -16px;padding:6px 18px 16px;background:var(--hb-bg,var(--panel,#fff))}
   .htour .tip .trow .sp{flex:1}
   .htour .tip button{height:32px;padding:0 13px;border-radius:8px;border:1px solid var(--hb-line,var(--line,#e8e3db));
     background:var(--hb-bg,var(--panel,#fff));font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;color:var(--hb-ink2,var(--ink-2,#4b475f))}
@@ -193,13 +197,60 @@
   }
   function usable(step) { return !step.sel || !!pick(step); }
 
+  // trial:false marks a step about something a FREE-TRIAL studio does not have
+  // (studio set-up, branding, import, exports, photo renders, notification
+  // settings, templates). html.helm-trial is set by trial-lock.js once the server
+  // says the studio is on its free trial; such steps are never shown there.
+  function inTrial() { try { return document.documentElement.classList.contains("helm-trial"); } catch (_) { return false; } }
+  function allowed(step) { return !!step && !(step.trial === false && inTrial()); }
+
+  // The steps that would show RIGHT NOW, as indexes into list, in order: allowed,
+  // target rendered + visible, and not the very same element as the step before
+  // (on a phone two steps can fall back to one "More" button — show it once).
+  // Re-evaluated as the tour moves, so an item hidden by trial-lock / the role, or
+  // removed from the sidebar, is skipped instead of highlighting nothing, and the
+  // "Step 3 of 9" counter only counts what is really on screen.
+  function shown() {
+    const out = []; let prev = null;
+    for (let k = 0; k < list.length; k++) {
+      const st = list[k];
+      if (!allowed(st)) continue;
+      const t = st.sel ? pick(st) : null;
+      if (st.sel && !t) continue;
+      if (t && t === prev) continue;
+      out.push(k); prev = t;
+    }
+    return out;
+  }
+  let visCache = null, visAt = 0;
+  function shownNow() {
+    const now = Date.now();
+    if (!visCache || now - visAt > 250) { visCache = shown(); visAt = now; }
+    return visCache;
+  }
+  // next / previous shown step from index `from` (d = +1 / -1); -1 when none
+  function nextShown(from, d) {
+    const vis = shown(); visCache = vis; visAt = Date.now();
+    if (d > 0) { for (const k of vis) if (k > from) return k; return -1; }
+    for (let n = vis.length - 1; n >= 0; n--) if (vis[n] < from) return vis[n];
+    return -1;
+  }
+  // "Step n of total" for index i, counting only shown steps
+  function counter(idx) {
+    const vis = shownNow(); let n = vis.indexOf(idx), total = vis.length;
+    if (n < 0) { n = vis.filter(k => k < idx).length; total += 1; }   // current target just vanished: still count it
+    return { n: n + 1, total, first: !vis.some(k => k < idx), last: !vis.some(k => k > idx) };
+  }
+
   // ---- pure geometry (exported for tests via HelmTour._layout) -------------
   // r: target rect in VIEWPORT coords (getBoundingClientRect — matches the
   // position:fixed overlay, no scrollX/scrollY mixing); vw/vh: viewport size;
   // tw/th: tip size. Returns ring/tip/arrow boxes, all clamped into the viewport,
   // with the tip flipped to whichever side (below/above/right/left) has room.
   // r === null means "target not visible at this breakpoint" -> centered step.
-  function layout(r, vw, vh, tw, th) {
+  // prefer: a side to use when it has room (e.g. "right" for sidebar items, so the
+  // card sits beside the rail instead of covering the next menu items).
+  function layout(r, vw, vh, tw, th, prefer) {
     const M = 12, GAP = 18, pad = 6;
     tw = Math.min(tw || 320, vw - M * 2); th = th || 170;
     if (!r) return { centered: true, side: "center", ring: null, arrow: null,
@@ -217,12 +268,21 @@
     const rr = Math.min(vw - 2, r.right + pad), rb = Math.min(vh - 2, r.bottom + pad);
     const ring = { left: rl, top: rt, width: Math.max(0, rr - rl), height: Math.max(0, rb - rt) };
     const room = { below: vh - rb, above: rt, right: vw - rr, left: rl };
-    let side;
-    if (room.below >= th + GAP) side = "below";
-    else if (room.above >= th + GAP) side = "above";
-    else if (room.right >= tw + GAP) side = "right";
-    else if (room.left >= tw + GAP) side = "left";
-    else side = room.below >= room.above ? "below" : "above";   // nothing fits: larger gap, then clamp
+    const fits = { below: room.below >= th + GAP, above: room.above >= th + GAP, right: room.right >= tw + GAP, left: room.left >= tw + GAP };
+    let side, maxH = 0;
+    if (prefer && fits[prefer]) side = prefer;
+    else if (fits.below) side = "below";
+    else if (fits.above) side = "above";
+    else if (fits.right) side = "right";
+    else if (fits.left) side = "left";
+    else {
+      // nothing fits whole (tall target on a short phone screen): take the larger
+      // gap and shrink the card to it (it scrolls; its buttons stay pinned) so the
+      // card never covers its target. Only when even a short card cannot fit does it clamp over it.
+      side = room.below >= room.above ? "below" : "above";
+      const fitH = room[side] - GAP - M;
+      if (fitH >= 96) { maxH = fitH; th = fitH; }
+    }
     const cx = (rl + rr) / 2, cy = (rt + rb) / 2;
     let tx, ty;
     if (side === "below" || side === "above") {
@@ -241,7 +301,9 @@
       : { left: rl - 26, top: cy - A, glyph: "▶" };
     arrow.left = Math.min(Math.max(2, arrow.left), vw - 28);
     arrow.top = Math.min(Math.max(2, arrow.top), vh - 30);
-    return { centered: false, side, ring, arrow, tip: { left: tx, top: ty, width: tw } };
+    const tip = { left: tx, top: ty, width: tw };
+    if (maxH) tip.maxHeight = maxH;
+    return { centered: false, side, ring, arrow, tip };
   }
 
   // The part of the target actually visible: its rect intersected with every
@@ -262,10 +324,11 @@
     return { left: l, top: tp, right: rt, bottom: b, width: rt - l, height: b - tp };
   }
 
-  let ro = null, rafPending = false, opener = null;
+  let ro = null, rafPending = false, opener = null, placeSeq = 0;
   function end() {
     const had = !!root;
     if (root) { root.remove(); root = null; }
+    visCache = null;
     document.removeEventListener("keydown", onKey, true);
     window.removeEventListener("resize", onView);
     window.removeEventListener("scroll", onView, true);
@@ -277,11 +340,10 @@
     opener = null;
   }
   function go(d) {
-    // move d steps, skipping any step whose target vanished since the tour began
-    let j = i + d;
-    while (j >= 0 && j < list.length && !usable(list[j])) j += d;
-    if (j < 0) return;
-    if (j >= list.length) { end(); return; }
+    // move to the next / previous step that is really on screen now, skipping any
+    // whose target is missing, hidden or not part of this studio's plan
+    const j = nextShown(i, d);
+    if (j < 0) { if (d > 0) end(); return; }
     i = j; place();
     try { root.querySelector(".next").focus({ preventScroll: true }); } catch (_) {}
   }
@@ -292,7 +354,7 @@
     const tip = root.querySelector(".tip");
     const inTip = tip.contains(document.activeElement);
     if (e.key === "ArrowRight" && !e.altKey) { e.preventDefault(); go(1); }
-    else if (e.key === "ArrowLeft" && !e.altKey) { e.preventDefault(); if (i > 0) go(-1); }
+    else if (e.key === "ArrowLeft" && !e.altKey) { e.preventDefault(); go(-1); }
     else if (e.key === "Tab") {
       const btns = Array.prototype.filter.call(tip.querySelectorAll("button"), b => b.offsetParent && getComputedStyle(b).visibility !== "hidden");
       if (!btns.length) return;
@@ -322,13 +384,15 @@
   function start(customSteps, key) {
     end();
     endKey = key || seenKey;
-    // Keep every step whose target EXISTS. Visibility is decided per render: a
-    // target hidden at the current breakpoint gets a centered card instead of
-    // being dropped, and a later resize brings the spotlight back.
-    list = (customSteps || steps).filter(usable);
-    if (!list.length) return;
+    // Keep every step this studio's plan allows; whether its target is on screen
+    // is decided step by step as the tour moves (shown()), so an element that
+    // renders a moment later is still visited and a hidden one is skipped.
+    list = (customSteps || steps).filter(allowed);
+    visCache = null;
+    const first = nextShown(-1, 1);
+    if (first < 0) { list = []; return; }
     opener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
-    i = 0;
+    i = first;
     root = document.createElement("div");
     root.className = "htour";
     root.innerHTML = `<div class="ring"></div><div class="arrow">▼</div>
@@ -337,7 +401,7 @@
         <button type="button" class="back">Back</button><button type="button" class="pri next">Next →</button></div></div>`;
     document.body.appendChild(root);
     root.querySelector(".skip").onclick = end;
-    root.querySelector(".back").onclick = () => { if (i > 0) go(-1); };
+    root.querySelector(".back").onclick = () => go(-1);
     root.querySelector(".next").onclick = () => go(1);
     document.addEventListener("keydown", onKey, true);
     window.addEventListener("resize", onView);
@@ -359,15 +423,18 @@
     const vw = de.clientWidth || window.innerWidth, vh = window.innerHeight || de.clientHeight;
     const ring = root.querySelector(".ring");
     const tip = root.querySelector(".tip"), arrow = root.querySelector(".arrow");
-    const stepTxt = `Step ${i + 1} of ${list.length}`, tsEl = root.querySelector(".tstep");
+    const C = counter(i);
+    const stepTxt = `Step ${C.n} of ${C.total}`, tsEl = root.querySelector(".tstep");
     if (tsEl.textContent !== stepTxt) tsEl.textContent = stepTxt;
     root.querySelector("h4").textContent = step.title;
     root.querySelector("p").textContent = (tgt || !step.sel) ? step.desc
       : step.desc + " (This part isn't shown at the current screen size — widen the window or open the menu to see it.)";
-    root.querySelector(".back").style.visibility = i ? "visible" : "hidden";
-    root.querySelector(".next").textContent = i < list.length - 1 ? "Next →" : "Done";
+    root.querySelector(".back").style.visibility = C.first ? "hidden" : "visible";
+    root.querySelector(".next").textContent = C.last ? "Done" : "Next →";
     tip.style.width = Math.min(320, vw - 24) + "px";
-    const L = layout(vr, vw, vh, tip.offsetWidth, tip.offsetHeight);
+    tip.style.maxHeight = "";   // measure the card's natural height, then let layout() shrink it if needed
+    const L = layout(vr, vw, vh, tip.offsetWidth, tip.offsetHeight, step.side);
+    tip.style.maxHeight = L.tip.maxHeight ? L.tip.maxHeight + "px" : "";
     if (!L.ring) {
       // no visible target (hidden at this size, or scrolled out of view): dim the
       // page and collapse the ring instead of outlining the wrong spot
@@ -390,8 +457,10 @@
   function place() {
     if (!root) return;
     if (i >= list.length) { end(); return; }
-    const tgt = pick(list[i]);
+    const tgt = pick(list[i]), seq = ++placeSeq;
+    visCache = null;
     observe(tgt);
+    let moving = false;
     if (tgt) {
       // Scroll the target into view BEFORE measuring (only when not already fully on screen).
       const r = tgt.getBoundingClientRect();
@@ -399,9 +468,17 @@
       if (!vr || vr.width < r.width - 1 || vr.height < r.height - 1 ||
           r.top < 0 || r.bottom > window.innerHeight || r.left < 0 || r.right > window.innerWidth) {
         const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-        tgt.scrollIntoView({ block: "center", inline: "center", behavior: (reduce || document.hidden) ? "auto" : "smooth" });
+        const smooth = !(reduce || document.hidden);
+        tgt.scrollIntoView({ block: "center", inline: "center", behavior: smooth ? "smooth" : "auto" });
+        moving = smooth;
       }
     }
+    // While the page scrolls the target into view the card + arrow stay hidden
+    // (the ring stays glued to the target), so the card never flies across the
+    // screen; it appears once the target has stopped moving.
+    root.classList.toggle("htour-moving", moving);
+    const reveal = () => { if (!root || seq !== placeSeq) return; position(); root.classList.remove("htour-moving"); };
+    if (moving) setTimeout(reveal, 1200);   // safety net: rAF is throttled in background tabs
     // Position IMMEDIATELY so the ring is never left stranded, even where rAF is
     // throttled (a backgrounded tab) or the scroll jumps instantly. Then REFINE as
     // the smooth scroll progresses: the 'scroll' listener re-glues on every scroll
@@ -411,12 +488,12 @@
     if (!tgt) return;
     let lastTop = NaN, stable = 0, frames = 0;
     (function settle() {
-      if (!root) return;
+      if (!root || seq !== placeSeq) return;
       const top = tgt.getBoundingClientRect().top;
-      if (Math.abs(top - lastTop) < 0.5) { if (++stable >= 3) return position(); }
+      if (Math.abs(top - lastTop) < 0.5) { if (++stable >= 3) { position(); return reveal(); } }
       else { stable = 0; }
       lastTop = top;
-      if (++frames > 60) return position();   // ~1s hard cap (60 frames)
+      if (++frames > 60) { position(); return reveal(); }   // ~1s hard cap (60 frames)
       requestAnimationFrame(settle);
     })();
   }
@@ -469,7 +546,9 @@
     // for the form-coaching hints above, which remain click-triggered.)
   }
 
-  window.HelmTour = { start, end, hasSteps: steps.length > 0, _layout: layout, _present: present, _pick: pick };
+  window.HelmTour = { start, end, hasSteps: steps.length > 0, _layout: layout, _present: present, _pick: pick, _steps: STEPS,
+    _shown: (stepsList) => { const keep = list; list = stepsList || []; try { return shown(); } finally { list = keep; } },
+    _state: () => ({ i, list }) };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
   else mount();
 })();

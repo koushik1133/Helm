@@ -219,15 +219,26 @@
     body.appendChild(radios("pk_overpay", OVERPAY, s.overpay_mode, "If a client pays more than the updated quote"));
     const f = el("div", "fld"); const ll = el("label", "", "Lock package choices this many days before the event (0–90)"); ll.setAttribute("for", "pk_lock");
     const li = el("input"); li.id = "pk_lock"; li.type = "number"; li.min = "0"; li.max = "90"; li.step = "1"; li.inputMode = "numeric"; li.value = String(s.pkg_lock_days);
-    f.appendChild(ll); f.appendChild(li); body.appendChild(f);
+    // input sweep A: own whole-number check (the global hardener would read a pasted "2.5" as 25 and
+    // clamp 120 to 90 without a word) - the reason is shown under the box and nothing typed is lost
+    li.setAttribute("data-hardened", "1");
+    const lerr = el("p", "fv-msg"); lerr.id = "pk_lock_fv"; lerr.hidden = true; lerr.setAttribute("aria-live", "polite"); li.setAttribute("aria-describedby", "pk_lock_fv");
+    const lockCheck = () => { const CI = global.HelmCCInputs; if (CI && CI.days) return CI.days(li.value, { min: 0, max: 90, badInput: !!(li.validity && li.validity.badInput) });
+      const n = Number(li.value); return String(li.value).trim() !== "" && Number.isInteger(n) && n >= 0 && n <= 90 ? { ok: true, value: n } : { ok: false, error: "Lock days must be a whole number from 0 to 90." }; };
+    const showLock = (r) => { lerr.textContent = r.ok ? "" : r.error; lerr.hidden = r.ok; li.classList.toggle("fv-error", !r.ok); if (r.ok) li.removeAttribute("aria-invalid"); else li.setAttribute("aria-invalid", "true"); };
+    li.addEventListener("blur", () => { const r = lockCheck(); showLock(r); if (r.ok && String(r.value) !== li.value) li.value = String(r.value); });
+    li.addEventListener("input", () => { if (!lerr.hidden) showLock(lockCheck()); });
+    f.appendChild(ll); f.appendChild(li); f.appendChild(lerr); body.appendChild(f);
     const msg = el("p", "pkr-err"); msg.setAttribute("role", "status"); msg.setAttribute("aria-live", "polite");
     const acts = el("div", "actions"); const save = btn("btn primary", "Save package flow"); acts.appendChild(save);
     body.appendChild(acts); body.appendChild(msg);
     if (!can) { Array.from(body.querySelectorAll("input,button")).forEach((x) => { x.disabled = true; }); msg.textContent = "View only — editing needs Control Center edit access."; }
     save.addEventListener("click", async () => {
       const pick = (n) => { const r = body.querySelector('input[name="' + n + '"]:checked'); return r ? r.value : null; };
-      const d = Number(li.value);
-      if (!Number.isInteger(d) || d < 0 || d > 90) { msg.textContent = "Lock days must be a whole number from 0 to 90."; li.focus(); return; }
+      if (save.disabled) return;   // already saving
+      const lr = lockCheck(); showLock(lr);
+      if (!lr.ok) { msg.textContent = ""; li.focus(); return; }
+      const d = lr.value;
       const v = settingsView({ pkg_require_otp: cb.checked, pkg_client_channel: pick("pk_channel"), overpay_mode: pick("pk_overpay"), pkg_lock_days: d });
       save.disabled = true; msg.textContent = "";
       try { await global.BPStore.pkgflow.settingsSet(v); msg.textContent = "Saved ✓"; toast("Package flow settings saved"); }

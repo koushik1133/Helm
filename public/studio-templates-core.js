@@ -4,7 +4,11 @@
  *   payload(meta, items, room, thumb)  the jsonb sent to studio_template_save (size-limited)
  *   fitToHall(data, hall, cap) template objects scaled / clamped to the CURRENT hall (ft)
  *   order(rows, eventType)    picker order: live only; default for this event type, same type, rest
- *   thumbOk(dataUrl)          a preview the DB will accept (png / jpeg / webp data URL, <= 400 KB) */
+ *   thumbOk(dataUrl)          a preview the DB will accept (png / jpeg / webp data URL, <= 400 KB)
+ *   roomOf(data)              the template's own hall {w,h} ft: data.room (saved here), else the builder's
+ *                             scale.worldFt / venue.room (sample templates seeded by SQL carry only those)
+ *   previewShapes(data, max)  plain shapes for a card preview drawn from the layout itself, used when
+ *                             a template has no stored picture: {w, h, rects[{x,y,w,h,rot,fill,round}], more} */
 (function (G) {
   "use strict";
   var EVENT_TYPES = [["wedding", "Wedding"], ["reception", "Reception"], ["engagement", "Engagement"], ["birthday", "Birthday"],
@@ -31,6 +35,41 @@
     return typeof t === "string" && t.length <= LIMITS.thumbChars && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(t);
   }
 
+  function roomOf(d) {
+    if (!d || typeof d !== "object" || Array.isArray(d)) return null;
+    var c = [d.room, d.scale && d.scale.worldFt, d.venue && d.venue.room];
+    for (var i = 0; i < c.length; i++) {
+      var r = c[i];
+      if (r && typeof r === "object" && num(r.w) > 0 && num(r.h) > 0) return { w: num(r.w), h: num(r.h) };
+    }
+    return null;
+  }
+
+  // card preview straight from the layout JSON (no stored picture). Colours are only ever a plain
+  // #hex from the item or the category default; numbers are finite; at most `max` shapes.
+  var CAT_COLORS = { seating: "#0d9488", structure: "#2f6fed", av: "#7c5cff", logistics: "#e8912d", decor: "#d6549a",
+    security: "#e5484d", safety: "#18a558", catering: "#e8912d", lighting: "#c79a00" };
+  var ROUND = { table: 1, cocktail: 1, planter: 1, ottoman: 1, floral: 1, pillar: 1, heater: 1, uplight: 1, fountain: 1, chandelier: 1 };
+  function hexColor(c) { return typeof c === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c.trim()) ? c.trim().toLowerCase() : null; }
+  function previewShapes(data, max) {
+    var lim = num(max) > 0 ? Math.floor(num(max)) : 1500;
+    var items = (data && Array.isArray(data.items) ? data.items : []).filter(function (it) {
+      return it && typeof it === "object" && isFinite(+it.x) && isFinite(+it.y) && num(it.width) > 0 && num(it.height) > 0; });
+    var room = roomOf(data), ew = 0, eh = 0;
+    items.forEach(function (it) { ew = Math.max(ew, +it.x + +it.width); eh = Math.max(eh, +it.y + +it.height); });
+    var W = Math.max(room ? room.w : 0, ew) || 200, H = Math.max(room ? room.h : 0, eh) || 140;
+    var rects = items.slice(0, lim).map(function (it) {
+      var rot = num(it.rotation); rot = isFinite(rot) ? ((rot % 360) + 360) % 360 : 0;
+      var shape = it.properties && typeof it.properties === "object" ? it.properties.shape : null;
+      return { x: +it.x, y: +it.y, w: Math.max(0.3, +it.width), h: Math.max(0.3, +it.height), rot: rot,
+        fill: hexColor(it.color) || CAT_COLORS[it.category] || "#8a8f98",
+        round: !!ROUND[it.type] && shape !== "square" };
+    });
+    // big pieces first, so chairs / decor stay visible on top of stages and seat blocks
+    rects.sort(function (a, b) { return b.w * b.h - a.w * a.h; });
+    return { w: Math.round(W * 100) / 100, h: Math.round(H * 100) / 100, rects: rects, more: Math.max(0, items.length - rects.length) };
+  }
+
   // items: the builder's floor objects; room: {w,h} in ft. Throws a plain-words Error when too big.
   function payload(meta, items, room, thumb) {
     var v = validate(meta); if (!v.ok) { var e = new Error(v.errors[0].msg); e.field = v.errors[0].field; throw e; }
@@ -50,8 +89,8 @@
     var cap = num(capFt) > 0 ? num(capFt) : 1000;
     var items = (data && Array.isArray(data.items) ? data.items : []).filter(function (it) { return it && typeof it === "object"; });
     var W = clamp(num(hall && hall.w) || 200, 20, cap), H = clamp(num(hall && hall.h) || 140, 20, cap);
-    var src = data && data.room ? { w: num(data.room.w), h: num(data.room.h) } : null;
-    if (!src || !(src.w > 0) || !(src.h > 0)) {   // older data: use the objects' extent
+    var src = roomOf(data);   // data.room, else the builder's scale.worldFt / venue.room (SQL-seeded samples)
+    if (!src) {   // older data: use the objects' extent
       src = { w: 0, h: 0 };
       items.forEach(function (it) { src.w = Math.max(src.w, (num(it.x) || 0) + (num(it.width) || 0)); src.h = Math.max(src.h, (num(it.y) || 0) + (num(it.height) || 0)); });
       src.w = src.w || W; src.h = src.h || H;
@@ -78,7 +117,8 @@
     });
   }
 
-  var API = { EVENT_TYPES: EVENT_TYPES, LIMITS: LIMITS, label: label, validate: validate, thumbOk: thumbOk, payload: payload, fitToHall: fitToHall, order: order };
+  var API = { EVENT_TYPES: EVENT_TYPES, LIMITS: LIMITS, label: label, validate: validate, thumbOk: thumbOk, payload: payload, fitToHall: fitToHall, order: order,
+    roomOf: roomOf, previewShapes: previewShapes };
   G.HelmStudioTemplatesCore = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof window !== "undefined" ? window : globalThis);

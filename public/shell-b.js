@@ -113,15 +113,16 @@
   }
 
   /* ---- guided tour: page steps when tour.js has them, else a generic tour of the shell ---- */
+  /* on-screen reading order: the sidebar top to bottom, then the top bar left to right */
   var SHELL_TOUR = [
-    { sel: "#hbRail .hb-group:not(.hb-fav)", title: "Your workspace", desc: "Every area of Helm lives in this sidebar: Workspace for daily work, Manage and Admin below it. Scroll the list if it is taller than your screen." },
-    { sel: "[data-tour='pin']", title: "Keep it open", desc: "Pin the sidebar to keep the labels visible, or leave it slim and hover to expand." },
+    { sel: "[data-tour='pin']", side: "right", title: "Keep it open", desc: "Pin the sidebar to keep the labels visible, or leave it slim and hover to expand." },
+    { sel: "#hbRail .hb-group:not(.hb-fav)", side: "right", title: "Your workspace", desc: "Every area of Helm lives in this sidebar: Workspace for daily work, Manage and Admin below it. Scroll the list if it is taller than your screen." },
+    { sel: ".hb-recent .htr-btn", side: "right", title: "Recently viewed", desc: "Jump back to the pages and events you opened last." },
+    { sel: "[data-tour='theme']", side: "right", title: "Look and feel", desc: window.HELM_DARK_MODE === true ? "Switch dark mode and pick a colour theme." : "Pick a colour theme: Emerald, Cobalt, Midnight, Graphite or Studio." },
+    { sel: "[data-tour='account']", side: "right", title: "Your account", desc: "Profile, studio settings and sign out." },
     { sel: "[data-tour='search']", title: "Search anything", desc: "Find quotes, leads, clients and pages from one box. Press / or Ctrl+K." },
-    { sel: "[data-tour='new']", title: "Create", desc: "Start a new quote, lead or event from any page." },
     { sel: "[data-tour='bell']", title: "Notifications", desc: "Approvals, payments and mentions arrive here." },
-    { sel: ".hb-recent .htr-btn", title: "Recently viewed", desc: "Jump back to the pages and events you opened last." },
-    { sel: "[data-tour='theme']", title: "Look and feel", desc: window.HELM_DARK_MODE === true ? "Switch dark mode and pick a colour theme." : "Pick a colour theme: Emerald, Cobalt, Midnight, Graphite or Studio." },
-    { sel: "[data-tour='account']", title: "Your account", desc: "Profile, studio settings and sign out." }
+    { sel: "[data-tour='new']", title: "Create", desc: "Start a new quote, lead or event from any page." }
   ];
   function startTour() {
     var hb = document.getElementById("helpBtn");
@@ -180,8 +181,8 @@
     var work = group("Workspace");
     [["dashboard", "Dashboard", "dashboard.html", "dashboard"], ["quotes", "Quotes", "quotes.html", "quotes"], ["leads", "Leads", "leads.html", "leads"],
      ["calendar", "Calendar", "calendar.html", "calendar"], ["chat", "Chat", "chat.html", "chat"]].forEach(function (x) { var it = item(x[0], x[1], x[2], x[3]); if (!ALWAYS_NAV[x[0]]) it.hidden = true; work.appendChild(it); });   /* crew-1020: gated items start hidden (no Quotes/Leads flash) */
-    var manage = group("Manage"); manage.hidden = true;
-    var admin = group("Admin"); admin.hidden = true;
+    var manage = group("Manage"); manage.hidden = true; manage.setAttribute("data-tour", "nav-manage");
+    var admin = group("Admin"); admin.hidden = true; admin.setAttribute("data-tour", "nav-admin");
     var favs = group("Pinned"); favs.classList.add("hb-fav"); favs.hidden = true; favs.id = "hbFavs";
     scroll.appendChild(favs);
     scroll.appendChild(work); scroll.appendChild(manage); scroll.appendChild(admin);
@@ -348,7 +349,8 @@
     safe(function () { bottomBar(root, body); });
     safe(function () { watchPopovers(root); });
     safe(function () { favsInit(favs, [work]); });
-    fillMore(manage, admin, function () { safe(function () { favsInit(favs, [manage, admin]); }); });
+    /* data-nav-ready: the role-gated Manage / Admin items are in (the dashboard's first-run tour waits for it) */
+    fillMore(manage, admin, function () { safe(function () { favsInit(favs, [manage, admin]); }); rail.setAttribute("data-nav-ready", "1"); });
     safe(railCounts);
     safe(shortcuts);
     if (location.hash === "#hb-new") {
@@ -399,7 +401,9 @@
   function quickCreate(split, nq) {
     waitAuth(function () {
       Promise.all(CREATE.map(function (c) { return can(c.area, c.edit); })).then(function (ok) {
-        var items = CREATE.filter(function (c, i) { return ok[i]; });
+        // free trial (0181): no "Checklist template" (Templates is not part of the trial)
+        var trial = document.documentElement.classList.contains("helm-trial");
+        var items = CREATE.filter(function (c, i) { return ok[i] && !(trial && c.area === "templates"); });
         if (!items.length) return;
         split.hidden = false;
         if (!ok[0]) { nq.hidden = true; }
@@ -412,7 +416,7 @@
         var menu = el("div", "hb-menu"); menu.setAttribute("role", "menu"); menu.hidden = true; menu.id = "hbCreateMenu";
         chev.setAttribute("aria-controls", menu.id);
         items.forEach(function (c) {
-          var b = el("button", "hb-mi"); b.type = "button"; b.setAttribute("role", "menuitem"); b.tabIndex = -1;
+          var b = el("button", "hb-mi"); b.type = "button"; b.setAttribute("role", "menuitem"); b.tabIndex = -1; b.setAttribute("data-area", c.area);
           b.appendChild(icon(c.icon)); b.appendChild(el("span", null, c.label));
           b.addEventListener("click", function () { close(false); if (c.run) c.run(); else go(c.href); });
           menu.appendChild(b);
@@ -577,13 +581,15 @@
     waitAuth(function () {
       var A = BPStore.auth;
       var role = Promise.resolve().then(function () { return typeof A.role === "function" ? A.role() : null; }).catch(function () { return null; });
-      Promise.all([role, can("controls"), can("insights")]).then(function (r) {
-        var rl = String(r[0] || ""), ctl = r[1], ins = r[2];
+      // 0177: no "Studio setup" for a free-trial studio (it uses the 2-step welcome)
+      var trial = Promise.resolve().then(function () { return BPStore.trialOrg && BPStore.trialOrg.inTrial ? BPStore.trialOrg.inTrial() : false; }).catch(function () { return false; });
+      Promise.all([role, can("controls"), can("insights"), trial]).then(function (r) {
+        var rl = String(r[0] || ""), ctl = r[1], ins = r[2], inTrial = r[3] === true;
         var add = [
           [ins, "insights", "Insights", "insights.html", "insights"],
           [ctl || /^(admin|manager|planner)$/.test(rl), "reports", "Reports", "reports.html", "reports"],
           [ctl || rl === "admin", "audit", "Audit log", "audit.html", "audit"],
-          [ctl, "setup", "Studio setup", "onboarding.html", "setup"],
+          [ctl && !inTrial, "setup", "Studio setup", "onboarding.html", "setup"],
           [ctl && !!(window.HELM_FEATURES && window.HELM_FEATURES.integrationsPage === true), "integrations", "Integrations", "integrations.html", "integrations"]
         ];
         add.forEach(function (x) {

@@ -19,7 +19,8 @@ test('@coverage control center loads authenticated, clean console, coupon add va
     // Item 4 — adding a coupon with an empty/too-short code is rejected with an inline message.
     await page.locator('#co_code').fill('');
     await addCoupon.click();
-    const msg = page.locator('#msg');
+    // the message sits right under the coupon row (cc-pricing-validation), not in the page banner
+    const msg = page.locator('#co_err');
     await expect(msg, 'empty coupon code must surface a validation message').toContainText(/coupon code/i);
   } finally { await context.close(); }
 });

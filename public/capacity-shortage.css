@@ -1,0 +1,68 @@
+/* capacity-shortage.css (0197) - over-capacity decision dialog, workspace issues, inventory shortage panel */
+.capd-ov{position:fixed;inset:0;z-index:90;background:rgba(20,27,46,.5);display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;overflow:auto}
+.capd-sheet{background:var(--panel,#fff);color:var(--ink,#141b2e);border:1px solid var(--line,#e5e7e3);border-radius:16px;box-shadow:0 20px 60px rgba(20,27,46,.25);width:min(640px,100%);padding:20px 22px}
+.capd-hd{display:flex;align-items:center;gap:10px}
+.capd-hd h3{margin:0;font-size:19px;line-height:1.3;color:#b42318}
+.capd-x{margin-left:auto;border:1px solid var(--line,#e5e7e3);background:var(--panel,#fff);border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;color:var(--ink-2,#4a5673)}
+.capd-sub{margin:8px 0 14px;font-size:14px;color:var(--ink-2,#4a5673);line-height:1.5}
+.capd-opts{display:flex;flex-direction:column;gap:8px}
+.capd-row{border:1px solid var(--line,#e5e7e3);border-radius:12px;padding:10px 12px}
+.capd-row:has(input[type=radio]:checked){border-color:var(--accent,#1f7a4d);box-shadow:0 0 0 1px var(--accent,#1f7a4d) inset}
+.capd-opt{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.capd-opt input{margin-top:3px}
+.capd-ot{display:flex;flex-direction:column;gap:2px}
+.capd-ot b{font-size:14px}
+.capd-os{font-size:12px;color:var(--ink-3,#6b7280)}
+.capd-more{margin:10px 0 2px 26px;display:flex;flex-direction:column;gap:6px}
+.capd-more[hidden]{display:none}
+.capd-more select,.capd-more input,.capd-more textarea{width:100%;box-sizing:border-box;min-height:36px;border:1px solid var(--line,#d6d9d4);border-radius:8px;padding:6px 10px;font:inherit;background:var(--panel,#fff);color:inherit}
+.capd-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:560px){.capd-grid{grid-template-columns:1fr}.capd-more{margin-left:0}}
+.capd-f{display:flex;flex-direction:column;gap:4px}
+.capd-f select+select{margin-top:4px}
+.capd-lbl{font-size:12px;font-weight:600;color:var(--ink-2,#4a5673)}
+.capd-hint{margin:2px 0 0;font-size:12px;color:var(--ink-3,#6b7280)}
+.capd-link{font-size:13px;font-weight:600;color:var(--accent,#1f7a4d)}
+.capd-err{margin:10px 0 0;padding:8px 12px;border-radius:8px;background:#fdecec;color:#b42318;font-size:13px}
+.capd-err[hidden]{display:none}
+.capd-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+
+.capi{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:12px 14px;border-radius:12px;margin:0 0 10px;border:1px solid;font-size:13px;line-height:1.45}
+.capi b{font-size:14px}
+.capi-d{flex:1 1 320px;color:var(--ink-2,#4a5673)}
+.capi-a{margin-left:auto}
+.capi-bad{border-color:#f5c6c6;background:#fdf2f2}
+.capi-bad b{color:#b42318}
+.capi-warn{border-color:#f0d9a8;background:#fff7e6}
+.capi-ok{border-color:#b6e3ca;background:#eefaf2}
+.capi-l{flex:1 1 100%;margin:2px 0 0;padding-left:18px}
+.capi-l li{margin:2px 0}
+.capi-uns{color:#b42318;font-weight:600}
+
+.rvs{margin:12px 0 4px;padding:14px 16px;border:1px solid #f0d9a8;background:#fff7e6;border-radius:12px}
+.rvs[hidden]{display:none}
+.rvs h3{margin:0 0 4px;font-size:15px;color:#946200}
+.rvs-sub{margin:0 0 8px;font-size:13px;color:var(--ink-2,#4a5673)}
+.rvs-opts{display:flex;flex-direction:column;gap:6px}
+.rvs-opt{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;cursor:pointer}
+.rvs-more{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,.8fr) minmax(0,1.4fr);gap:8px;margin:0 0 6px 24px}
+.rvs-more[hidden]{display:none}
+.rvs-more[data-for="buy"]{grid-template-columns:minmax(0,1fr)}
+.rvs-more select,.rvs-more input{min-height:34px;border:1px solid var(--line,#d6d9d4);border-radius:8px;padding:4px 8px;font:inherit;background:var(--panel,#fff);color:inherit;min-width:0}
+.rvs-hint{grid-column:1/-1;margin:0;font-size:12px;color:var(--ink-3,#6b7280)}
+@media(max-width:620px){.rvs-more{grid-template-columns:minmax(0,1fr);margin-left:0}}
+.rvs-err{margin:8px 0 0;padding:8px 12px;border-radius:8px;background:#fdecec;color:#b42318;font-size:13px}
+.rvs-err[hidden]{display:none}
+.rvs-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.rvs-list{margin:6px 0 0;padding-left:18px;font-size:13px}
+.rvs-list li{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:4px 0}
+.rvs-list select{min-height:30px;border:1px solid var(--line,#d6d9d4);border-radius:8px;padding:2px 6px;font:inherit;background:var(--panel,#fff)}
+.rvs-uns{color:#b42318;font-weight:600}
+.rvs-short-list{margin-top:12px}
+.rvs-short-list[hidden]{display:none}
+.rvs-short-list h3{margin:0 0 4px;font-size:14px}
+/* calendar: shortages being sourced read amber, unsourced keep the red conflict style */
+.conflict.short-src{border-color:#f0d9a8;background:#fff7e6}
+.conflict.short-src .when{color:#946200}
+.chip.short{background:#fff7e6;border-color:#f0d9a8;color:#946200}
+.chip.short b{color:#946200}

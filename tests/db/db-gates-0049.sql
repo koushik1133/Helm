@@ -29,6 +29,8 @@ do $$ begin
   delete from public.quote_payments where quote_id = 'a0000000-0000-4000-8000-00000000da01' and provider_ref like 'g49-%';
   update public.event_closure set closed_at = null where quote_id = 'a0000000-0000-4000-8000-00000000da01';
   update public.quotes set lifecycle_stage = 'settlement' where id = 'a0000000-0000-4000-8000-00000000da01';
+  -- 0198: an event closes only after its event day (studio time zone); give it yesterday's date
+  update public.quotes set event_date = current_date - 1 where id = 'a0000000-0000-4000-8000-00000000da01';
   insert into public.inventory_items(id, name, total_qty, org_id) values
     ('a0000000-0000-4000-8000-0000000049e1', 'G49 Chiavari chair', 100, 'a0000000-0000-4000-8000-000000000001')
     on conflict (id) do nothing;

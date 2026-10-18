@@ -172,6 +172,14 @@
   {
    "name": "workerLinksBlock",
    "why": "ops.html (1017): returns '' or fixed markup; every data value (assignee name, worker link) goes through esc()"
+  },
+  {
+   "name": "statusBadge",
+   "why": "event.html (qts-1018): <span class=stat ...> with STAT_CLS constant class and esc()'d key / title / label from BPStore.quoteStatus"
+  },
+  {
+   "name": "statusPill",
+   "why": "quotes.html (qts-1018): <span class=stat hs-pill ...> with PILL constant class and esc()'d key / title / label from BPStore.quoteStatus"
   }
  ],
  "sites": [
@@ -384,11 +392,6 @@
   },
   {
    "file": "public/control.html",
-   "expr": "def",
-   "why": "ITEM_CATALOG default price — numeric literal from the constant table"
-  },
-  {
-   "file": "public/control.html",
    "expr": "et",
    "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))",
    "max": 5
@@ -424,12 +427,6 @@
    "file": "public/control.html",
    "expr": "msg.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))",
    "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow"
-  },
-  {
-   "file": "public/control.html",
-   "expr": "nm",
-   "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))",
-   "max": 3
   },
   {
    "file": "public/control.html",
@@ -478,19 +475,9 @@
   },
   {
    "file": "public/event.html",
-   "expr": "ico[c.type]||\"⚠️\"",
-   "why": "lookup in a local literal map (icon/pill table) with literal fallback"
-  },
-  {
-   "file": "public/event.html",
    "expr": "inp",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
    "max": 2
-  },
-  {
-   "file": "public/event.html",
-   "expr": "s.k",
-   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
   },
   {
    "file": "public/event.html",
@@ -516,11 +503,6 @@
    "file": "public/flow.html",
    "expr": "ic[a.kind]||'•'",
    "why": "lookup in a local literal map (icon/pill table) with literal fallback"
-  },
-  {
-   "file": "public/flow.html",
-   "expr": "k==='reqs'?'reqs':k",
-   "why": "k is a literal tab key from the fixed tab list"
   },
   {
    "file": "public/flow.html",
@@ -805,16 +787,6 @@
   },
   {
    "file": "public/quotes.html",
-   "expr": "p.chairs",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-  },
-  {
-   "file": "public/quotes.html",
-   "expr": "p.guests",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-  },
-  {
-   "file": "public/quotes.html",
    "expr": "p.serviceChargePct",
    "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
   },
@@ -954,6 +926,26 @@
    "file": "public/crew-schedule.js",
    "expr": "timeGrid(rg, all, today)",
    "why": "crew schedule: timeGrid returns markup of numeric positions (toFixed) + fixed class names; chips via chip() which esc()'s all RPC text"
+  },
+  {
+   "file": "public/quotes.html",
+   "expr": "dLines",
+   "why": "confirm-1018 discount rows: HelmPriceLines.discountLines -> <div> rows with esc()'d key / label and inr() amounts only"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "off(x,v)",
+   "why": "coupon list (cc-pricing-validation): off() returns esc(v)+'% off' or esc(studioMoney(v))+' off' - every value esc()'d, fixed suffix text"
+  },
+  {
+   "file": "public/quotes.html",
+   "expr": "nf(p.chairs)",
+   "why": "confirm-1018 totals: nf = Number(v||0).toLocaleString('en-IN') - digits and separators only"
+  },
+  {
+   "file": "public/quotes.html",
+   "expr": "nf(p.guests)",
+   "why": "confirm-1018 totals: nf = Number(v||0).toLocaleString('en-IN') - digits and separators only"
   }
  ]
 }

@@ -31,21 +31,37 @@
       card.appendChild(el("p", "mnote", "Helm reminds your whole team in the bell (and in the event's chat group, when it has one) before every confirmed event, and again the day before. Nothing is sent to clients."));
       var row = el("div", "evr-row");
       var lab = el("label", null, "Remind the team before each event: "); lab.setAttribute("for", "evr_days");
-      var inp = el("input"); inp.type = "number"; inp.id = "evr_days"; inp.min = "1"; inp.max = "30"; inp.step = "1"; inp.value = String(r.days || 7);
+      // no max/step: the global number hardener would silently clamp 45 -> 30 or turn a pasted "2.5" into 25;
+      // the range is checked on Save with a message under the field instead
+      var inp = el("input"); inp.type = "number"; inp.id = "evr_days"; inp.min = "0"; inp.setAttribute("inputmode", "numeric");
+      inp.setAttribute("aria-required", "true"); inp.setAttribute("aria-describedby", "evr_hint"); inp.value = String(r.days || 7);
       lab.appendChild(inp); lab.appendChild(document.createTextNode(" days")); row.appendChild(lab);
       var btn = el("button", "btn", "Save reminder"); btn.type = "button"; row.appendChild(btn);
       card.appendChild(row);
+      var hint = el("p", "mnote", "A whole number of days from 1 to 30."); hint.id = "evr_hint"; card.appendChild(hint);
       var msg = el("p", "mnote evr-msg"); msg.setAttribute("role", "status"); card.appendChild(msg);
+      var FR = function () { return global.HelmCCFields; };
+      var showErr = function (t) {
+        if (FR() && FR().fieldError) { FR().fieldError(inp, t || "", row); msg.dataset.kind = ""; if (t) msg.textContent = ""; }
+        else { msg.dataset.kind = t ? "err" : ""; msg.textContent = t || ""; }
+        if (t) { try { inp.focus(); } catch (_) {} }
+      };
       if (!r.can_edit) { inp.disabled = true; btn.hidden = true; msg.textContent = "Only a studio admin can change this."; }
       btn.addEventListener("click", function () {
-        var v = clampDays(String(inp.value).trim());
-        if (!v) { msg.dataset.kind = "err"; msg.textContent = "Choose a whole number between 1 and 30."; return; }
+        if (btn.disabled) return;                       // no double submit
+        var raw = String(inp.value).trim(), v = null, bad = "";
+        if (FR() && FR().number) { var rr = FR().number(raw, { label: "Days before each event", required: true, integer: true, min: 1, max: 30 }); if (rr.ok) v = rr.value; else bad = rr.error; }
+        else { v = /^\d+$/.test(raw) ? clampDays(raw) : null; if (!v) bad = "Choose a whole number between 1 and 30."; }
+        if (!v) { showErr(bad || "Choose a whole number between 1 and 30."); return; }   // the typed value stays
+        showErr(""); inp.value = String(v);
         btn.disabled = true; msg.dataset.kind = ""; msg.textContent = "Saving...";
         S.reminderSet(v).then(function (o) {
           cacheDays((o && o.days) || v); msg.textContent = "Saved. The team will be reminded " + v + " day" + (v === 1 ? "" : "s") + " before each event.";
-        }).catch(function (e) { msg.dataset.kind = "err"; msg.textContent = (e && e.message) || "Could not save."; })
+        }).catch(function (e) { msg.textContent = ""; showErr((e && e.message) || "Could not save - try again."); })
           .then(function () { btn.disabled = false; });
       });
+      inp.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); btn.click(); } });
+      inp.addEventListener("input", function () { if (msg.dataset.kind !== "err" && /^Saved/.test(msg.textContent)) msg.textContent = ""; });
       anchor.parentNode.insertBefore(card, anchor);
     }).catch(function () {});
   }

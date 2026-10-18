@@ -11,10 +11,14 @@ t("step 1 has the single budget range; step 2 has none; old c_budget input gone"
   assert.match(s1, /<label for="d_bmax">Budget/); assert.match(s1, /id="d_bmin"/); assert.match(s1, /id="d_bmax"/);
   assert.doesNotMatch(s2, /d_bmin|d_bmax/); assert.doesNotMatch(f, /id="c_budget"/); assert.doesNotMatch(f, /#c_budget/);
 });
-t("range saves to Discovery storage and is autosaved as discovery", () => {
-  assert.match(f, /d_bmin:"discovery", d_bmax:"discovery"/);
+// flow-validation (Oct 2026): the budget sits in step 1 and autosaves WITH step 1 (still stored on the
+// discovery row), so typing it never paints Discovery "Saved"; saveDiscovery carries the stored budget.
+t("budget saves to Discovery storage but autosaves with step 1", () => {
+  assert.match(f, /d_bmin:"client", d_bmax:"client"/);
+  const sc = f.slice(f.indexOf("async function saveClient"), f.indexOf("async function saveDiscovery"));
+  assert.match(sc, /BPStore\.discovery\.save\(id, row\)/); assert.match(sc, /budget_max:bmax/);
   const sd = f.slice(f.indexOf("async function saveDiscovery"), f.indexOf("async function saveVenue"));
-  assert.match(sd, /budget_min:\$\("#d_bmin"\)/); assert.match(sd, /budget_max:\$\("#d_bmax"\)/);
+  assert.match(sd, /discFields\(discRow\)/); assert.doesNotMatch(sd, /#d_bmax/);
 });
 t("legacy client.budget is read into the range when Discovery has no budget", () => {
   const ld = f.slice(f.indexOf("async function loadDiscovery"), f.indexOf("async function loadPlan"));
@@ -39,7 +43,7 @@ t("steps 7 and 8 show guests read-only with an edit-in-step-1 link", () => {
 });
 t("chairs and plates stay editable with a differs-from-guests hint", () => {
   const q = sec("sec-quote");
-  assert.match(q, /<input id="q_chairs" type="number" min="1">/); assert.match(q, /<input id="q_guests" type="number" min="0">/);
+  assert.match(q, /<input id="q_chairs" type="number" min="1"[ >]/); assert.match(q, /<input id="q_guests" type="number" min="0"[ >]/);
   assert.match(q, /id="q_chairsDiff"[^>]*hidden/); assert.match(q, /id="q_platesDiff"[^>]*hidden/);
   const fn = f.slice(f.indexOf("function syncQtyHints(){"), f.indexOf("  function renderPrice(){"));
   const mk = (v) => ({ value: v, hidden: true, textContent: "" });

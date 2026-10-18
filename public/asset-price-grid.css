@@ -1,0 +1,65 @@
+/* asset-price-grid.css — Control Center "Object & item prices (layout builder)" grid (asset-price-grid.js).
+   Every item is name / input / helper on a subgrid, so inputs in a row line up even when a name wraps.
+   Rules are #itemPriceList-scoped so the shell's generic input rule cannot win. Theme tokens only. */
+#itemPriceList{--apg-acc:var(--hb-acc,var(--accent,#059669));--apg-line:var(--hb-line,var(--line,#e3e0da));--apg-bg:var(--hb-bg,var(--panel,#fff));--apg-ink:var(--hb-ink,var(--ink,#1b1930));--apg-ink2:var(--ink-2,#4b475f);--apg-ink3:var(--ink-3,#6b6577);--apg-bad:var(--danger,#b42318)}
+
+/* ---- toolbar ---- */
+#itemPriceList .apg-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:2px 0 6px}
+#itemPriceList .apg-search{flex:1 1 260px;max-width:420px;min-width:0}
+#itemPriceList .apg-search input{width:100%;box-sizing:border-box;height:38px;min-height:38px;margin:0;padding:0 12px;border:1px solid var(--apg-line);border-radius:10px;background:var(--apg-bg);color:var(--apg-ink);font:inherit;font-size:14px}
+#itemPriceList .apg-search input:focus{outline:none;border-color:var(--apg-acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--apg-acc) 18%,transparent)}
+#itemPriceList .apg-count{margin:0;font-size:12px;color:var(--apg-ink3);font-variant-numeric:tabular-nums}
+#itemPriceList .apg-count.has-changed{color:var(--apg-ink2);font-weight:600}
+#itemPriceList .apg-none{margin:14px 0 4px;font-size:13px;color:var(--apg-ink3)}
+
+/* ---- category groups ---- */
+#itemPriceList .apg-group{margin-top:18px}
+#itemPriceList .apg-gh{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--apg-line);font-size:12px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--apg-ink2)}
+#itemPriceList .apg-gc{font-size:11px;font-weight:600;letter-spacing:0;color:var(--apg-ink3);background:color-mix(in srgb,var(--apg-ink) 6%,transparent);border-radius:999px;padding:1px 7px;font-variant-numeric:tabular-nums}
+
+/* ---- grid: equal columns; each item spans 3 subgrid rows (name / input / helper) ---- */
+#itemPriceList .apg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,180px),1fr));column-gap:14px;row-gap:14px}
+#itemPriceList .apg-item{display:grid;grid-row:span 3;grid-template-rows:subgrid;row-gap:5px;min-width:0}
+@supports not (grid-template-rows:subgrid){
+  #itemPriceList .apg-item{grid-row:auto;grid-template-rows:auto auto auto}
+  #itemPriceList .apg-name{min-height:2.7em}
+}
+#itemPriceList .apg-item[hidden]{display:none}
+#itemPriceList .apg-name{align-self:end;font-size:12.5px;font-weight:600;line-height:1.35;color:var(--apg-ink2);text-transform:none;letter-spacing:0;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;cursor:pointer}
+
+/* the box: currency inside, number right-aligned */
+#itemPriceList .apg-field{display:flex;align-items:center;gap:6px;height:38px;box-sizing:border-box;padding:0 10px;border:1px solid var(--apg-line);border-radius:8px;background:var(--apg-bg);transition:border-color .12s,box-shadow .12s}
+#itemPriceList .apg-field:focus-within{border-color:var(--apg-acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--apg-acc) 18%,transparent)}
+#itemPriceList .apg-cur{flex:0 0 auto;font-size:13px;font-weight:600;color:var(--apg-ink3);white-space:nowrap}
+#itemPriceList .apg-field input{flex:1 1 auto;min-width:0;width:100%;height:36px;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;outline:none;
+  color:var(--apg-ink);font:inherit;font-size:14px;text-align:right;font-variant-numeric:tabular-nums;-moz-appearance:textfield;appearance:textfield}
+/* the focus ring is drawn on the whole box (theme.css forces one on every input:focus-visible with !important) */
+#itemPriceList .apg-field input:focus,#itemPriceList .apg-field input:focus-visible{border:0;box-shadow:none;outline:none!important}
+#itemPriceList .apg-field:has(input:focus-visible){outline:2px solid var(--apg-acc);outline-offset:2px}
+#itemPriceList .apg-field input::-webkit-outer-spin-button,#itemPriceList .apg-field input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+#itemPriceList .apg-field input::placeholder{color:var(--apg-ink3);opacity:.75;text-align:right}
+/* the number hardener's inline hint would sit inside the box: the helper line says it instead */
+#itemPriceList .apg-field .neg-hint{display:none!important}
+#itemPriceList .apg-item.is-custom .apg-field{border-color:color-mix(in srgb,var(--apg-acc) 45%,var(--apg-line))}
+#itemPriceList .apg-item.is-changed .apg-field{background:color-mix(in srgb,var(--apg-acc) 5%,var(--apg-bg))}
+#itemPriceList .apg-item.is-bad .apg-field{border-color:var(--apg-bad);box-shadow:0 0 0 3px color-mix(in srgb,var(--apg-bad) 14%,transparent)}
+
+/* helper line: default (or the error) + Reset — always one line, so every row keeps the same height */
+#itemPriceList .apg-help{display:flex;align-items:center;gap:6px;min-height:22px;min-width:0;font-size:12px;line-height:1.3;color:var(--apg-ink3)}
+#itemPriceList .apg-def,#itemPriceList .apg-err{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#itemPriceList .apg-def[hidden],#itemPriceList .apg-err[hidden]{display:none}
+#itemPriceList .apg-amt{font-variant-numeric:tabular-nums}
+#itemPriceList .apg-err{color:var(--apg-bad);font-weight:600}
+#itemPriceList .apg-reset{flex:0 0 auto;margin:0 -6px 0 auto;padding:3px 6px;min-height:22px;border:0;border-radius:6px;background:none;color:var(--apg-acc);font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+#itemPriceList .apg-reset:hover{background:color-mix(in srgb,var(--apg-acc) 10%,transparent)}
+#itemPriceList .apg-reset:focus-visible{outline:2px solid var(--apg-acc);outline-offset:1px}
+#itemPriceList .apg-reset.is-off{visibility:hidden}
+
+@media (max-width:560px){
+  #itemPriceList .apg-search{max-width:none;flex-basis:100%}
+  #itemPriceList .apg-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,140px),1fr));column-gap:10px}
+  #itemPriceList .apg-reset{min-height:32px}
+}
+@media (prefers-reduced-motion:reduce){#itemPriceList .apg-field{transition:none}}
+@media (forced-colors:active){#itemPriceList .apg-field{border:1px solid CanvasText}}

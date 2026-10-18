@@ -75,7 +75,8 @@ t('a ResizeObserver watches the document AND the current target (layout shifts),
 t('the ring has no CSS transition (it must not trail the target during scroll/resize)', () =>
   assert.ok(!/\.ring\{[^}]*transition/.test(SRC)));
 t('a step whose target is missing/hidden/off-canvas is skipped; sel may list fallbacks (desktop, then phone)', () => {
-  assert.ok(/\.filter\(usable\)/.test(SRC));
+  assert.ok(/\.filter\(allowed\)/.test(SRC), 'start() keeps the steps this plan allows');
+  assert.ok(/function shown\(\)[\s\S]{0,400}if \(st\.sel && !t\) continue;/.test(SRC), 'shown() skips a step whose target is not on screen');
   assert.ok(/function pick\(step\)[\s\S]{0,200}Array\.isArray\(step\.sel\)/.test(SRC));
   assert.ok(/r\.right <= 0 \|\| r\.left >= vw/.test(SRC), 'off-canvas drawer is not a target');
   assert.ok(/function usable\(step\) \{ return !step\.sel \|\| !!pick\(step\); \}/.test(SRC), 'no-sel step = centered card');

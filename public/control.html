@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/control-polish.css?v=2">
+<link rel="stylesheet" href="/control-polish.css?v=4">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -91,6 +91,10 @@
   .mpgrid .mpchk input{width:17px;height:17px;margin:0;accent-color:var(--accent);flex:0 0 auto}
   .mpgrid .mplbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
   .ferr{margin:2px 0 0;font-size:12px;color:#b42318}
+  .fld input[aria-invalid="true"],.fld select[aria-invalid="true"],.fld .hp.is-invalid{border-color:#d92d20!important;box-shadow:0 0 0 3px rgba(217,45,32,.14)}
+  .fld .hp.is-invalid > input{box-shadow:none}
+  #orgSaveMsg .msg{margin:10px 0 0}
+  #o_phone::placeholder,#o_pin::placeholder{color:var(--ink-3);opacity:.75;font-style:italic}
   .mpgrid [aria-invalid="true"]{border-color:#e5484d}
   .mpchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
   .mpchips:empty{display:none}
@@ -146,7 +150,7 @@
   .lxmove:disabled{opacity:.55} .lxmove:disabled label{cursor:not-allowed}
   @media (prefers-reduced-motion:reduce){.lxtoggle input,.lxtoggle input::after{transition:none}}
   .lxwhich{margin-top:8px;font-size:13px;color:var(--ink-2)} .lxwhich summary{cursor:pointer;font-weight:600;color:var(--ink)}
-  .lxwhich ul{margin:8px 0 0;padding-left:20px;line-height:1.55} #lx_days:disabled{opacity:.55}
+  .lxwhich ul{margin:8px 0 0;padding-left:20px;line-height:1.55} #lx_days:disabled{opacity:.55} #lx_example.lx-bad{color:var(--bad,#b42318);font-weight:500}
   @media (prefers-reduced-motion:reduce){.chip{transition:none}}
   /* login modal */
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -208,13 +212,14 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=1">
 <link rel="stylesheet" href="comms-settings.css?v=2">
-<link rel="stylesheet" href="venues.css?v=3">
-<link rel="stylesheet" href="studio-templates.css?v=1">
-<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="venues.css?v=6">
+<link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
+<link rel="stylesheet" href="menu-pkg-editor.css?v=2">
+<link rel="stylesheet" href="theme.css?v=82">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<link rel="stylesheet" href="control-split.css?v=7">
-<script src="/shell-proto.js?v=22" id="shellProto"></script>
+<link rel="stylesheet" href="control-split.css?v=9">
+<script src="/shell-proto.js?v=26" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -250,6 +255,7 @@
       <div id="accBody"></div>
     </div>
     <div class="card" id="tdControl" data-td-control hidden aria-label="Demo data"></div>
+    <div class="card" id="tuControl" data-tu-control hidden aria-label="Sample data"></div>
     <div class="card" id="subCard" hidden>
       <h3>Subscription</h3>
       <div id="subBody"></div>
@@ -260,16 +266,16 @@
       <div id="orgMsg" role="status" aria-live="polite"></div>
       <div id="orgErr"></div>
       <div class="grid">
-        <div class="fld"><label for="o_country">Country (sets tax &amp; currency)</label><select id="o_country"></select></div>
-        <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" placeholder="e.g. Aurora Events"></div>
-        <div class="fld"><label for="o_email">Business email</label><input id="o_email" type="email" placeholder="hello@studio.com"></div>
-        <div class="fld"><label for="o_phone">Business phone</label><input id="o_phone" type="tel" autocomplete="tel" maxlength="24" placeholder="+91 98765 43210"></div>
-        <div class="fld"><label for="o_location">Location (city, country)</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
-        <div class="fld"><label for="o_logo">Logo URL</label><input id="o_logo" type="url" placeholder="https://…/logo.png"></div>
-        <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" placeholder="#6d28d9"></div>
-        <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" placeholder="INR"></div>
-        <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" placeholder="Asia/Kolkata"></div>
-        <div class="fld"><label for="o_gst" id="o_gst_lbl">GSTIN (optional)</label><input id="o_gst" maxlength="30" placeholder="22AAAAA0000A1Z5"></div>
+        <div class="fld"><label for="o_country">Country (sets tax &amp; currency)</label><select id="o_country" data-picker="search"></select></div>
+        <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" maxlength="120" autocomplete="organization" placeholder="e.g. Aurora Events"></div>
+        <div class="fld"><label for="o_email">Business email</label><input id="o_email" type="email" maxlength="254" autocomplete="email" spellcheck="false" placeholder="hello@studio.com"></div>
+        <div class="fld"><label for="o_phone">Business phone *</label><input id="o_phone" type="tel" autocomplete="tel" maxlength="24" placeholder="Enter business phone" data-ph-own="1"></div>
+        <div class="fld"><label for="o_location">Location (city, country) *</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
+        <div class="fld"><label for="o_logo">Logo URL</label><input id="o_logo" type="url" maxlength="600" spellcheck="false" placeholder="https://…/logo.png"></div>
+        <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" maxlength="12" spellcheck="false" placeholder="#047857"></div>
+        <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" maxlength="8" autocapitalize="characters" spellcheck="false" placeholder="INR"></div>
+        <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" maxlength="60" spellcheck="false" autocomplete="off" placeholder="Asia/Kolkata"></div>
+        <div class="fld"><label for="o_gst" id="o_gst_lbl">GSTIN (optional)</label><input id="o_gst" maxlength="40" autocapitalize="characters" spellcheck="false" placeholder="22AAAAA0000A1Z5"></div>
       </div>
       <h3>Billing details</h3>
       <p class="mnote">Shown on quotations and invoices. Required: legal name, address, city, state, PIN, business phone and location.</p>
@@ -278,16 +284,17 @@
         <div class="fld"><label for="o_line1">Billing address *</label><input id="o_line1" maxlength="160" autocomplete="address-line1"></div>
         <div class="fld"><label for="o_line2">Address line 2</label><input id="o_line2" maxlength="160" autocomplete="address-line2"></div>
         <div class="fld"><label for="o_city">City *</label><input id="o_city" maxlength="60" autocomplete="address-level2"></div>
-        <div class="fld"><label for="o_state" id="o_state_lbl">State *</label><input id="o_state" maxlength="60" autocomplete="address-level1" list="o_state_list"><datalist id="o_state_list"></datalist></div>
-        <div class="fld"><label for="o_pin" id="o_pin_lbl">PIN code *</label><input id="o_pin" maxlength="10" inputmode="numeric" autocomplete="postal-code"></div>
+        <div class="fld"><label for="o_state" id="o_state_lbl">State *</label><select id="o_state_sel" autocomplete="address-level1" hidden></select><input id="o_state" maxlength="60" autocomplete="address-level1" list="o_state_list"><datalist id="o_state_list"></datalist></div>
+        <div class="fld"><label for="o_pin" id="o_pin_lbl">PIN code *</label><input id="o_pin" maxlength="6" inputmode="numeric" pattern="[1-9][0-9]{5}" autocomplete="postal-code" placeholder="6-digit PIN"></div>
       </div>
       <div class="actions"><button type="button" class="btn primary" id="o_save">Save studio settings</button></div>
+      <div id="orgSaveMsg" role="status" aria-live="polite"></div>
       <div class="s-e3ae377" id="slugBox" hidden>
         <h3 class="s-58d955e">Client link name</h3>
         <p class="mnote s-759e41d">Every link you send clients and crew starts with this name, e.g. <code id="slugPreview">www.helm.events/your-studio/quote/…</code>. 3–40 lowercase letters, numbers or dashes. Links you already sent keep working after a change.</p>
         <div id="slugMsg" role="status" aria-live="polite"></div>
         <div class="grid">
-          <div class="fld"><label for="o_slug">Link name</label><input id="o_slug" autocomplete="off" spellcheck="false" maxlength="40" placeholder="aurora-events"></div>
+          <div class="fld"><label for="o_slug">Link name</label><input id="o_slug" autocomplete="off" spellcheck="false" maxlength="80" placeholder="aurora-events"></div>
         </div>
         <div class="actions"><button type="button" class="btn" id="o_slug_save">Save link name</button></div>
       </div>
@@ -304,7 +311,7 @@
         <span class="lxstate" id="lx_state" aria-live="polite">Disabled</span>
       </div>
       <div class="grid s-56f4356">
-        <div class="fld"><label for="lx_days">Days after the link is sent (1–365)</label><input id="lx_days" type="number" min="1" max="365" step="1" inputmode="numeric" value="10" aria-describedby="lx_example"></div>
+        <div class="fld"><label for="lx_days">Days after the link is sent (1–365)</label><input id="lx_days" type="number" min="1" max="365" step="1" inputmode="numeric" value="10" aria-describedby="lx_example" data-hardened="1"></div>
       </div>
       <p class="mnote s-d2c171b" id="lx_example" aria-live="polite">Off — links follow only the usual limits after the event.</p>
       <details class="lxwhich">
@@ -356,16 +363,19 @@
       <h3>Default pricing (applies to every new quote)</h3>
       <div id="pricingErr"></div>
       <div class="grid">
-        <div class="fld"><label for="p_chair" id="p_chair_lbl">Price / chair (₹)</label><input id="p_chair" type="number" min="0" step="1"></div>
-        <div class="fld"><label for="p_plate" id="p_plate_lbl">Price / plate (₹)</label><input id="p_plate" type="number" min="0" step="1"></div>
+        <div class="fld"><label for="p_chair" id="p_chair_lbl">Price / chair (₹)</label><input id="p_chair" type="number" min="0" step="0.01" inputmode="decimal"></div>
+        <div class="fld"><label for="p_plate" id="p_plate_lbl">Price / plate (₹)</label><input id="p_plate" type="number" min="0" step="0.01" inputmode="decimal"></div>
         <div class="fld"><label for="p_gst" id="p_gst_lbl">Chair/rental GST %</label><input id="p_gst" type="number" min="0" step="0.01" list="p_gst_rates"><datalist id="p_gst_rates"></datalist></div>
         <div class="fld"><label for="p_cgst" id="p_cgst_lbl">Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5"></div>
         <div class="fld" id="p_taxName_fld" hidden><label for="p_taxName">Tax name</label><input id="p_taxName" maxlength="24" placeholder="e.g. VAT"></div>
         <div class="fld"><label class="mpchk" for="p_taxIncl"><input type="checkbox" id="p_taxIncl"> My prices already include tax</label><p class="mnote" id="p_taxNote"></p></div>
         <div class="fld"><label for="p_svc">Service charge % (optional)</label><input id="p_svc" type="number" min="0" step="0.5"></div>
-        <div class="fld"><label for="p_layout" id="p_layout_lbl">Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="fld"><label for="p_layout" id="p_layout_lbl">Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0"></div>
         <div class="fld"><label for="p_buffer">Venue booking gap (hours)</label><input id="p_buffer" type="number" min="0" step="0.5" placeholder="3" title="Two events at the same venue on the same day that start closer together than this many hours are flagged as a clash on the calendar. A bigger gap (e.g. one ends 3pm, next starts 6pm) is fine."></div>
-        <div class="fld"><label for="p_country">Country (tax, currency &amp; phone codes)</label><select id="p_country" title="Same setting as Country in Studio details: sets the tax name, default rate, currency and phone country code for NEW quotes."></select><p class="mnote" id="p_countryNote" role="status" aria-live="polite"></p></div>
+        <div class="fld" id="p_country_fld"><span class="p-clbl" id="p_country_lbl" title="Sets the tax name, default rate, currency and phone country code for new quotes">Country (tax &amp; currency)</span>
+          <!-- one source of truth: the country is set in General (Studio details); Pricing only shows it -->
+          <p class="p-cro" id="p_countryRO" aria-labelledby="p_country_lbl"><b id="p_countryName">India</b> <button type="button" class="p-cgo" id="p_countryGo">Change in General</button><span class="p-ctrial">Set for the free trial</span></p>
+          <select id="p_country" hidden aria-hidden="true" tabindex="-1" title="Same setting as Country in Studio details: sets the tax name, default rate, currency and phone country code for NEW quotes."></select><p class="mnote" id="p_countryNote" role="status" aria-live="polite"></p></div>
         <div class="fld" id="p_region_fld" hidden><label for="p_region" id="p_region_lbl">State</label><input id="p_region" maxlength="60" list="p_region_list" autocomplete="off"><datalist id="p_region_list"></datalist></div>
       </div>
       <div class="actions"><button type="button" class="btn primary" id="savePricing">Save pricing</button></div>
@@ -399,7 +409,7 @@
     <div class="card">
       <h3>Object &amp; item prices (layout builder)</h3>
       <p class="mnote s-020d693">Per-unit price for each object placed on the floor plan. These drive the live price breakdown in the builder. Chairs are priced with the “Price / chair” rate above. Leave blank to use the built-in default.</p>
-      <div id="itemPriceList" class="grid"></div>
+      <div id="itemPriceList"></div>
       <div class="actions"><button type="button" class="btn primary" id="saveItemPrices">Save item prices</button></div>
     </div>
 
@@ -410,9 +420,9 @@
       <h3>Coupons</h3>
       <div id="couponList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
       <div class="addrow">
-        <input id="co_code" placeholder="Code e.g. DIWALI10" aria-label="Coupon code">
+        <input id="co_code" placeholder="Code e.g. DIWALI10" aria-label="Coupon code" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false">
         <select id="co_kind" aria-label="Coupon type"><option value="percent">% off</option><option value="flat">₹ off</option></select>
-        <input id="co_val" type="number" min="0" step="1" placeholder="Value" aria-label="Coupon value">
+        <input id="co_val" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Value" aria-label="Coupon value">
         <button type="button" class="btn" id="co_add">+ Add coupon</button>
       </div>
     </div>
@@ -458,19 +468,21 @@
     <div class="card">
       <h3>Dishes catalog (menu)</h3>
       <p class="mnote s-020d693">The dishes staff can search &amp; add to an event's menu. Add your studio's specialities here.</p>
-      <input class="s-31b5119" id="dishFilter" placeholder="Filter dishes…" aria-label="Filter dishes">
+      <input class="s-31b5119" id="dishFilter" type="search" maxlength="100" autocomplete="off" placeholder="Filter dishes…" aria-label="Filter dishes">
       <div class="s-5f8400a" id="dishList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
       <div class="addrow s-07db89a">
-        <input id="dc_cat" placeholder="Category e.g. Starters (veg)" aria-label="Dish category">
-        <input id="dc_name" placeholder="Dish name" aria-label="Dish name">
+        <input id="dc_cat" maxlength="200" autocomplete="off" list="dc_cat_list" placeholder="Category e.g. Starters (veg)" aria-label="Dish category" aria-required="true"><datalist id="dc_cat_list"></datalist>
+        <input id="dc_name" maxlength="200" autocomplete="off" placeholder="Dish name" aria-label="Dish name" aria-required="true">
         <select id="dc_kind" aria-label="Dish type"><option value="veg">Veg</option><option value="nonveg">Non-veg</option><option value="special">Special</option></select>
         <button type="button" class="btn" id="dc_add">+ Add dish</button>
       </div>
+      <div class="cc-row-errs" id="dc_errs" data-cc-errs></div>
+      <p class="mnote cc-row-ok" id="dc_ok" role="status" aria-live="polite"></p>
     </div>
 
     <div class="card" id="menuCard">
       <h3>Menu packages (Standard / Gold / Premium)</h3>
-      <p class="mnote s-020d693">The 6 fixed menu packages. Set each one's per-plate price and edit its dish list (one dish per line as <code>Category | Dish name | veg|nonveg|special</code>). Staff pick a package on the event's Menu screen to pre-fill the dishes in one click.</p>
+      <p class="mnote s-020d693">The 6 fixed menu packages. Set each one's price per plate and pick its dishes: choose a category, then a dish from your Dishes catalog (veg / non-veg is filled in for you). Remove a dish with its &times;, drag to reorder, or use &ldquo;Paste as text&rdquo; for bulk edits. Staff pick a package on the event's Menu screen to pre-fill the dishes in one click.</p>
       <div id="menuTplList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
     </div>
 
@@ -490,15 +502,15 @@
         <p class="mnote">Add teammates, set the name chat shows for each person, change each person's role, or remove access. Changes apply immediately.</p>
         <p class="mnote" id="seat_meter" role="status" aria-live="polite" hidden></p>
         <div class="uctools" id="uc_tools" hidden>
-          <input id="uc_q" type="search" placeholder="Search name, email, phone, title…" autocomplete="off" aria-label="Search team members">
+          <input id="uc_q" type="search" maxlength="100" placeholder="Search name, email, phone, title…" autocomplete="off" aria-label="Search team members">
           <select id="uc_f" aria-label="Show"><option value="">Everyone</option><option value="incomplete">Incomplete profiles</option><option value="complete">Complete profiles</option></select>
           <span class="uccount" id="uc_count" role="status" aria-live="polite"></span>
         </div>
         <div class="table-scroll"><table class="utable"><thead id="um_head"><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="um_rows"><tr><td class="s-1a1aca0" colspan="4"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
         </table></div>
-        <form id="um_add" class="addrow s-0dff578">
-          <input id="um_email" type="email" placeholder="name@studio.com" required autocomplete="off" aria-label="New user email">
+        <form id="um_add" class="addrow s-0dff578" novalidate>
+          <input id="um_email" type="email" maxlength="254" spellcheck="false" placeholder="name@studio.com" required autocomplete="off" aria-label="New user email">
           <select id="um_role" aria-label="New user role"></select>
           <button class="btn primary" type="submit" id="um_submit">Add user</button>
         </form>
@@ -508,8 +520,8 @@
       <div class="card">
         <h3>Invite by email link</h3>
         <p class="mnote">Create a join link for a teammate. They sign up with it and are added to <b>your studio</b> with the role you pick. The link expires in 7 days; nothing is charged.</p>
-        <form id="inv_add" class="addrow s-0dff578">
-          <input id="inv_email" type="email" placeholder="name@studio.com" required autocomplete="off" aria-label="Invite email">
+        <form id="inv_add" class="addrow s-0dff578" novalidate>
+          <input id="inv_email" type="email" maxlength="254" spellcheck="false" placeholder="name@studio.com" required autocomplete="off" aria-label="Invite email">
           <select id="inv_role" aria-label="Invite role"></select>
           <button class="btn primary" type="submit" id="inv_submit">Create invite link</button>
         </form>
@@ -666,9 +678,9 @@
             <label class="cmchk" for="cm_pay_email"><input type="checkbox" id="cm_pay_email"> E-mail</label>
             <label class="cmchk" for="cm_pay_wa"><input type="checkbox" id="cm_pay_wa"> WhatsApp</label></div>
           <div class="cmgrid">
-            <div class="fld"><label for="cm_pay_before">Days before the due date</label><input id="cm_pay_before" type="number" min="0" max="30" step="1" inputmode="numeric"></div>
-            <div class="fld"><label for="cm_pay_every">Then every N days overdue</label><input id="cm_pay_every" type="number" min="1" max="30" step="1" inputmode="numeric"></div>
-            <div class="fld"><label for="cm_pay_max">Max overdue reminders</label><input id="cm_pay_max" type="number" min="0" max="10" step="1" inputmode="numeric"></div>
+            <div class="fld"><label for="cm_pay_before">Days before the due date (0–30)</label><input id="cm_pay_before" type="number" min="0" inputmode="numeric" aria-required="true"></div>
+            <div class="fld"><label for="cm_pay_every">Then every N days overdue (1–30)</label><input id="cm_pay_every" type="number" min="0" inputmode="numeric" aria-required="true"></div>
+            <div class="fld"><label for="cm_pay_max">Max overdue reminders (0–10)</label><input id="cm_pay_max" type="number" min="0" inputmode="numeric" aria-required="true"></div>
             <div class="fld"><span class="cmlbl">On the due date</span><label class="cmchk" for="cm_pay_due"><input type="checkbox" id="cm_pay_due"> Remind on the day</label></div>
           </div>
           <div class="fld"><label for="cm_pay_tpl">Message</label><textarea id="cm_pay_tpl" rows="3" maxlength="1000"></textarea></div>
@@ -682,8 +694,8 @@
             <label class="cmchk" for="cm_fu_email"><input type="checkbox" id="cm_fu_email"> E-mail</label>
             <label class="cmchk" for="cm_fu_wa"><input type="checkbox" id="cm_fu_wa"> WhatsApp</label></div>
           <div class="cmgrid">
-            <div class="fld"><label for="cm_fu_delay">Days after opening</label><input id="cm_fu_delay" type="number" min="1" max="30" step="1" inputmode="numeric"></div>
-            <div class="fld"><label for="cm_fu_max">Max follow-ups</label><input id="cm_fu_max" type="number" min="1" max="5" step="1" inputmode="numeric"></div>
+            <div class="fld"><label for="cm_fu_delay">Days after opening (1–30)</label><input id="cm_fu_delay" type="number" min="0" inputmode="numeric" aria-required="true"></div>
+            <div class="fld"><label for="cm_fu_max">Max follow-ups (1–5)</label><input id="cm_fu_max" type="number" min="0" inputmode="numeric" aria-required="true"></div>
           </div>
           <div class="fld"><label for="cm_fu_tpl">Message</label><textarea id="cm_fu_tpl" rows="3" maxlength="1000"></textarea></div>
           <p class="mnote">Placeholders: {client} {studio} {event}. Follow-ups stop once the client approves, picks a package, or the event is cancelled.</p>
@@ -751,29 +763,34 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="phone-input.js?v=3"></script>
+<script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
-<script src="event-reminders.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
+<script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="tour.js?v=15"></script>
-<script src="pkg-review.js?v=4"></script>
-<script src="onboarding-core.js?v=5"></script>
-<script src="comms-settings.js?v=3"></script>
+<script src="tour.js?v=17"></script>
+<script src="pkg-review.js?v=6"></script>
+<script src="onboarding-core.js?v=7"></script>
+<script src="studio-billing-form.js?v=2"></script>
+<script src="comms-settings.js?v=5"></script>
 <script src="photo-render-settings.js?v=2"></script>
-<script src="privacy-pin-settings.js?v=1"></script>
-<script src="venues-core.js?v=5"></script>
-<script src="venues-admin.js?v=4"></script>
-<script src="studio-templates-core.js?v=1"></script>
-<script src="studio-templates.js?v=2"></script>
+<script src="form-validate.js?v=1"></script>
+<script src="cc-inputs.js?v=3"></script>
+<script src="privacy-pin-settings.js?v=4"></script>
+<script src="venues-core.js?v=7"></script>
+<script src="venues-admin.js?v=7"></script>
+<script src="studio-templates-core.js?v=3"></script>
+<script src="studio-templates.js?v=6"></script>
 <script src="item-pricing.js?v=1"></script>
-<script src="trial-demo.js?v=7"></script>
+<script src="asset-price-grid.js?v=2"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=2"></script>
+<script src="trial-demo.js?v=9"></script>
+<script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
 <script src="search-catalog.js?v=2"></script>
-<script src="control-split.js?v=12"></script>
+<script src="control-split.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -902,6 +919,7 @@
     const HC=window.HelmCountry, rf=$("#p_region_fld"), showRegion=!!HC && (r.country==="AE"||r.country==="US");
     if(rf){ rf.hidden=!showRegion; if(showRegion){ const m=HC.formMeta(r.country); $("#p_region_lbl").textContent=m.regionLabel+(r.country==="US"?" (sets the default sales-tax rate)":"");
       const dl=$("#p_region_list"); if(dl.dataset.cc!==r.country){ dl.dataset.cc=r.country; dl.textContent=""; m.regions.forEach(x=>{ const o=document.createElement("option"); o.value=x.name; if(x.rate!=null) o.label=x.name+" - "+x.rate+"%"; dl.appendChild(o); }); } } }
+    { const nm=$("#p_countryName"); if(nm) nm.textContent=r.countryName||T.profile(r.country).name||r.country; }
     $("#p_taxNote").textContent=(r.split?"India: CGST + SGST within your state, IGST for other states. Common rates 18% / 5%.":p.rate==null?"Set the "+r.name.toLowerCase()+" rate that applies to you (no default).":"Default "+r.name+" rate "+p.rate+"%.")+" Prices in "+r.currency+".";
   }
   // B3: the country / region currently picked in the pricing form (falls back to the saved config)
@@ -929,7 +947,7 @@
   // If the pricing config didn't load, the form holds placeholders — saving it would
   // overwrite the studio's real rates. Block both pricing saves until a retry succeeds.
   let pricingLoaded = false;
-  function setPricingEnabled(on){ ["#savePricing","#saveItemPrices"].forEach(s=>{ const b=$(s); b.disabled=!on; b.title=on?"":"Pricing didn't load — retry above before saving."; }); }
+  function setPricingEnabled(on){ const b=$("#saveItemPrices"); b.disabled=!on; b.title=on?"":"Pricing didn't load — retry above before saving."; pfValidate(); }
   async function loadPricing(){
     pricingLoaded=false; setPricingEnabled(false);
     try{
@@ -948,14 +966,15 @@
       $("#cap_tables").value=p.maxRoundTables??2000; $("#cap_bars").value=p.maxBars??200; $("#cap_trucks").value=p.maxFoodTrucks??200;
       $("#cap_booths").value=p.maxExpoBooths??1000; $("#cap_rest").value=p.maxRestrooms??200; $("#cap_exits").value=p.maxExits??200; $("#cap_hall").value=p.maxHallFt??1000;
       renderItemPrices();
-      $("#pricingErr").innerHTML="";
+      $("#pricingErr").innerHTML=""; pfStatus("");
       pricingLoaded=true; setPricingEnabled(true);
     }catch(e){
       BPUI.loadError($("#pricingErr"), e, loadPricing, {what:"pricing"});
-      $("#itemPriceList").innerHTML='<p class="mnote">Item prices will appear once pricing loads.</p>';
+      itemGrid=null; $("#itemPriceList").innerHTML='<p class="mnote">Item prices will appear once pricing loads.</p>';
     }
   }
   // catalogue of priceable builder objects (label + built-in default ₹), mirrors builder.html
+  let itemGrid=null;
   const ITEM_CATALOG = [
     ['stage','Main Stage',45000],['mandap','Decor Mandap',75000],['tent','Tent',35000],['canopy','Canopy',25000],
     ['dancefloor','Dance Floor',20000],['videowall','LED Video Wall',120000],['ledscreen','LED Screen',60000],
@@ -1000,32 +1019,66 @@
     ['watchtower','Watch Tower / CCTV',8000],['extinguisher','Fire Point',300],['ambulance','Ambulance Bay',6000],
   ];
   function renderItemPrices(){
-    const ap = pricingCfg.assetPrices || (pricingCfg.assetPrices={});
-    $("#itemPriceList").innerHTML = ITEM_CATALOG.map(([type,label,def])=>
-      `<div class="fld"><label for="ip_${esc(type)}">${esc(label)} <span style="color:var(--ink-3);font-weight:400">(default ${esc(BPStore.studioMoney(def))})</span></label>`+
-      `<input id="ip_${esc(type)}" type="number" min="0" step="1" data-type="${esc(type)}" placeholder="${def}" value="${ap[type]!=null&&Number.isFinite(Number(ap[type]))?Number(ap[type]):''}"></div>`
-    ).join("");
+    // asset-price-grid.js: grouped, searchable, aligned grid (default shown under each input, Reset per item)
+    itemGrid = window.HelmAssetPriceGrid ? HelmAssetPriceGrid.render($("#itemPriceList"), { catalog: ITEM_CATALOG, prices: pricingCfg.assetPrices || {} }) : null;
   }
+  // the country lives in General: this jumps there (control-split.js shows the section on #general)
+  $("#p_countryGo").addEventListener("click",()=>{ try{ if(location.hash==="#general") window.dispatchEvent(new HashChangeEvent("hashchange")); else location.hash="#general"; }catch(e){}
+    setTimeout(()=>{ const c=$("#o_country"); if(c && c.offsetParent){ try{ c.scrollIntoView({block:"center"}); c.focus({preventScroll:true}); }catch(e){} } },80); });
   $("#p_country").addEventListener("change",()=>{ if($("#p_region")) $("#p_region").value=""; onPricingCountry(false); });
   $("#p_region").addEventListener("change",()=>onPricingCountry(true));
-  $("#savePricing").addEventListener("click",()=>BPUI.guard($("#savePricing"),async()=>{
-    if(!pricingLoaded){ setMsg("err","Pricing didn't load, so it can't be saved yet — use Retry first."); return; }
-    const V=BPStore.validate; const fail=(m)=>{ setMsg("err",m); };
-    if($("#p_chair").value===""||$("#p_plate").value===""){ fail("Enter a price for both chair and plate (0 is allowed)."); return; }
-    let chairPrice=0; if($("#p_chair").value!==""){ const r=V.money($("#p_chair").value,{field:"Price / chair"}); if(!r.ok){ fail(r.error); return; } chairPrice=r.value; }
-    let platePrice=0; if($("#p_plate").value!==""){ const r=V.money($("#p_plate").value,{field:"Price / plate"}); if(!r.ok){ fail(r.error); return; } platePrice=r.value; }
-    if(String($("#p_gst").value).trim()===""){ fail("Enter the tax rate (0 is allowed) — a blank rate would drop tax from new quotes."); $("#p_gst").focus(); return; }
-    let gstPct=0; if($("#p_gst").value!==""){ const r=V.pct($("#p_gst").value,{field:"Chair/rental GST %"}); if(!r.ok){ fail(r.error); return; } gstPct=r.value; }
-    let cateringGstPct=0; if($("#p_cgst").value!==""){ const r=V.pct($("#p_cgst").value,{field:"Catering GST %"}); if(!r.ok){ fail(r.error); return; } cateringGstPct=r.value; }
-    let serviceChargePct=0; if($("#p_svc").value!==""){ const r=V.pct($("#p_svc").value,{field:"Service charge %"}); if(!r.ok){ fail(r.error); return; } serviceChargePct=r.value; }
-    let layoutBase=0; if($("#p_layout").value!==""){ const r=V.money($("#p_layout").value,{field:"Layout & setup fee"}); if(!r.ok){ fail(r.error); return; } layoutBase=r.value; }
-    let conflictBufferHours=3; if($("#p_buffer").value!==""){ const r=V.num($("#p_buffer").value,{field:"Venue booking gap",min:0,max:48}); if(!r.ok){ fail(r.error); return; } conflictBufferHours=r.value; }
+  // ---- Default pricing: one rule per field, the message under that field (pricing-form-core.js) ----
+  // Empty chair price -> "Enter a price per chair (₹0 or more)" under Price / chair only; nothing about plates.
+  // Save stays off while a field is wrong; changing a price TO ₹0 asks "Chairs free?" before saving.
+  const PF=window.HelmPricingForm;
+  const PF_KEYS=["chairPrice","platePrice","gstPct","cateringGstPct","serviceChargePct","layoutBase","conflictBufferHours"];
+  let pricingInvalid=false;
+  function pfCtx(){ try{ const r=BPStore.tax.resolve(Object.assign({},pricingDraftTax(),{taxName:$("#p_taxName").value||pricingCfg.taxName})); return {symbol:r.symbol,taxName:r.name,split:!!r.split}; }catch(e){ return {symbol:"₹",taxName:"GST",split:true}; } }
+  function pfErrEl(inp){ let e=document.getElementById(inp.id+"_err"); if(!e){ e=document.createElement("p"); e.id=inp.id+"_err"; e.className="pf-err hbp-skip"; e.setAttribute("role","alert"); e.hidden=true; inp.insertAdjacentElement("afterend",e);
+      inp.setAttribute("aria-describedby",[inp.getAttribute("aria-describedby"),e.id].filter(Boolean).join(" ")); } return e; }
+  function pfShow(inp,msg){ const e=pfErrEl(inp); if(e.textContent!==(msg||"")) e.textContent=msg||""; e.hidden=!msg; inp.setAttribute("aria-invalid",msg?"true":"false"); inp.classList.toggle("pf-bad",!!msg); }
+  function pfFlags(inp){ return {badInput:!!(inp&&inp.validity&&inp.validity.badInput), rejected:(inp&&inp.getAttribute("data-rejected"))||""}; }
+  function pfSaveState(){ const b=$("#savePricing"); if(!b||b.getAttribute("aria-busy")==="true") return;
+    b.disabled=!pricingLoaded||pricingInvalid; b.title=!pricingLoaded?"Pricing didn't load — retry above before saving.":pricingInvalid?"Fix the field marked in red to save.":""; }
+  // the card's own status line beside Save (a fresh node each time, so a failed save is seen as new)
+  function pfStatus(kind,text){ const act=$("#savePricing").parentElement; let st=$("#pricingStatus");
+    if(!st){ st=document.createElement("span"); st.id="pricingStatus"; st.className="pf-status"; act.insertBefore(st,act.firstChild); }
+    st.textContent=""; if(!text) return; const m=document.createElement("span"); m.className="msg "+(kind==="err"?"err":"ok"); m.setAttribute("role",kind==="err"?"alert":"status"); m.textContent=text; st.appendChild(m); }
+  function pfValidate(){
+    const ctx=pfCtx(), F=PF.fields(ctx), raws={}, flags={};
+    PF_KEYS.forEach(k=>{ const i=$("#"+F[k].id); raws[k]=i?i.value:""; flags[k]=pfFlags(i); });
+    const r=PF.validatePricing(raws,ctx,flags);
+    PF_KEYS.forEach(k=>{ const i=$("#"+F[k].id); if(i) pfShow(i,pricingLoaded?(r.errors[k]||""):""); });
+    pricingInvalid=pricingLoaded&&!r.ok; pfSaveState(); return r;
+  }
+  // after a save the boxes show exactly what was stored (e.g. "0200" -> 200, "199.5" stays 199.5)
+  // sent = the box texts that were saved: a box the user changed while the save was in flight keeps the new edit
+  function pfFill(c,sent){ const F=PF.fields({});
+    PF_KEYS.forEach(k=>{ const i=$("#"+F[k].id); if(!i||c[k]==null) return; if(sent && i.value!==sent[k]) return; i.value=c[k]; }); }
+  { const F=PF.fields({}); let t=null; const re=()=>{ clearTimeout(t); t=setTimeout(()=>{ pfValidate(); },0); };
+    PF_KEYS.forEach(k=>{ const i=$("#"+F[k].id); if(!i) return; pfErrEl(i);
+      // run after the shared number hardener has cleaned the value (it listens on the same events)
+      ["input","change","blur"].forEach(ev=>i.addEventListener(ev,()=>{ if(ev==="input") pfStatus(""); re(); })); });
+    ["#p_country","#p_region","#p_taxName"].forEach(sel=>{ const x=$(sel); if(x){ x.addEventListener("change",re); x.addEventListener("input",re); } }); }
+  $("#savePricing").addEventListener("click",async()=>{ await BPUI.guard($("#savePricing"),async()=>{
+    if(!pricingLoaded){ pfStatus("err","Pricing didn't load, so it can't be saved yet — use Retry first."); return; }
+    const ctx=pfCtx(), v=pfValidate();
+    if(!v.ok){ const i=$("#"+PF.fields(ctx)[v.first].id); try{ i.focus(); }catch(e){} return; }
+    const sent={}; PF_KEYS.forEach(k=>{ const i=$("#"+PF.fields(ctx)[k].id); sent[k]=i?i.value:""; });
+    const { chairPrice, platePrice, gstPct, serviceChargePct, layoutBase, conflictBufferHours }=v.values;
+    // one rate outside India: an empty catering box just follows the main rate
+    const cateringGstPct=v.values.cateringGstPct==null?gstPct:v.values.cateringGstPct;
+    // a price changed TO 0 is asked about (only the one that changed — never "both are zero")
+    const z=PF.zeroConfirm(PF.newlyZero(v.values,pricingCfg),ctx);
+    // "No": nothing is saved and the edit stays in the box - said as an error so it is not read as a save
+    // (and the card's unsaved-changes state stays on)
+    if(z && !(await BPUI.confirm(z.text,{title:z.title,okLabel:z.okLabel}))){ pfStatus("err","Not saved. The price is still 0 in the box: change it, or press Save pricing again and confirm."); return; }
     // B3: the pricing country IS the studio's tax country (kept in sync with Studio details)
     const draft=pricingDraftTax(), country=draft.taxCountry, prevCountry=BPStore.tax.code(pricingCfg.taxCountry||"IN");
     const region=country==="AE"||country==="US"?draft.taxRegion:"";
     const taxRes=BPStore.tax.resolve(draft), taxIncl=$("#p_taxIncl").checked;
     if(country!==prevCountry){ const tp=BPStore.tax.profile(country);
-      if(!(await BPUI.confirm(`Switch your studio to ${tp.name}? New quotes will use ${tp.tax} ${gstPct}% and ${tp.known?tp.currency:"your currency"}. Quotes you already saved, sent or got paid keep their price, tax and currency exactly as they are.`,{title:"Change country",okLabel:"Switch country"}))) return; }
+      if(!(await BPUI.confirm(`Switch your studio to ${tp.name}? New quotes will use ${tp.tax} ${gstPct}% and ${tp.known?tp.currency:"your currency"}. Quotes you already saved, sent or got paid keep their price, tax and currency exactly as they are.`,{title:"Change country",okLabel:"Switch country"}))){ pfStatus("err","Not saved. The country was not changed."); return; } }
     const taxName=String($("#p_taxName").value||"").replace(/[<>"'`]/g,"").trim().slice(0,24);
     // build a copy: a failed save must not leave the in-memory config ahead of the server
     const nextCfg=Object.assign({}, pricingCfg, { chairPrice, platePrice, gstPct, cateringGstPct, serviceChargePct, layoutBase, currency:taxRes.currency, conflictBufferHours, country, taxCountry:country });
@@ -1035,11 +1088,12 @@
     if(taxName && !BPStore.tax.profile(taxRes.country).known) nextCfg.taxName=taxName; else delete nextCfg.taxName;
     try{ localStorage.setItem("helm_org_country", country); }catch(e){}
     try{ await BPStore.config.setPricing(nextCfg); pricingCfg=nextCfg; try{ BPStore.rememberStudioTax && BPStore.rememberStudioTax(nextCfg); }catch(e){}
+      pfFill(nextCfg,sent);
       if(country!==prevCountry) await syncOrgCountry(country, region);
       $("#p_countryNote").textContent=""; pLastDefault=defaultRateFor(country,region); paintTaxFields();
-      setMsg("ok","Pricing saved — new quotes use these rates."); }
-    catch(e){ setMsg("err",errMsg(e,"save pricing")); }
-  }));
+      pfStatus("ok","Pricing saved — new quotes use these rates."); }
+    catch(e){ pfStatus("err",errMsg(e,"save pricing")); }
+  }).catch(()=>{}); pfValidate(); });
   $("#saveCaps").addEventListener("click",()=>BPUI.guard($("#saveCaps"),async()=>{
     if(!pricingLoaded){ setMsg("err","Pricing didn't load, so limits can't be saved yet — use Retry first."); return; }
     const V=BPStore.validate; const fail=(m)=>setMsg("err",m);
@@ -1050,23 +1104,23 @@
     const patch={};
     for(const [sel,key,label,min] of caps){ const raw=$("#"+sel).value; if(raw===""){ fail(label+" is required."); return; }
       const r=V.count(raw,{field:label,min}); if(!r.ok){ fail(r.error); return; } patch[key]=r.value; }
-    Object.assign(pricingCfg,patch);
-    try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Capacity limits saved — the layout builder uses these now."); }
+    // a copy: a failed save must not leave the in-memory config ahead of the server
+    const nextCfg=Object.assign({},pricingCfg,patch);
+    try{ await BPStore.config.setPricing(nextCfg); pricingCfg=nextCfg; setMsg("ok","Capacity limits saved — the layout builder uses these now."); }
     catch(e){ setMsg("err",errMsg(e,"save capacity limits")); }
   }));
   $("#saveItemPrices").addEventListener("click",()=>BPUI.guard($("#saveItemPrices"),async()=>{
     if(!pricingLoaded){ setMsg("err","Pricing didn't load, so item prices can't be saved yet — use Retry first."); return; }
-    const ap={}; const V=BPStore.validate;
-    for(const inp of $("#itemPriceList").querySelectorAll("input[data-type]")){
-      const v=inp.value.trim(); if(v==="") continue;
-      const lbl=(ITEM_CATALOG.find(c=>c[0]===inp.dataset.type)||[])[1]||inp.dataset.type;
-      const r=V.money(v,{field:lbl+" price"});
-      if(!r.ok){ setMsg("err",r.error); inp.focus(); return; }
-      ap[inp.dataset.type]=r.value;
-    }
-    pricingCfg.assetPrices=ap;
-    if(pricingCfg.chairPrice==null) pricingCfg.chairPrice=+$("#p_chair").value||200;
-    try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Item prices saved — the builder breakdown uses these."); }
+    if(!itemGrid){ setMsg("err","Item prices didn't load — reload the page and try again."); return; }
+    // empty = default; bad / negative / unreadable values block the save; prices for unlisted types are kept
+    const res=itemGrid.read();
+    if(!res.ok){ setMsg("err",res.error); try{ res.input.focus(); res.input.scrollIntoView({block:"center"}); }catch(e){} return; }
+    // a copy (a failed save must not leave memory ahead of the server). The chair price is NOT read from the
+    // Default pricing box: an unsaved edit there (or a cleared box / ₹0, which "||200" turned into 200) must
+    // not be saved by this button. A studio that never saved one keeps the shown default, 200.
+    const nextCfg=Object.assign({}, pricingCfg, { assetPrices: res.prices });
+    if(nextCfg.chairPrice==null) nextCfg.chairPrice=200;
+    try{ await BPStore.config.setPricing(nextCfg); pricingCfg=nextCfg; itemGrid.markSaved(res.prices); setMsg("ok","Item prices saved — the builder breakdown uses these."); }
     catch(e){ setMsg("err",errMsg(e,"save item prices")); }
   }));
 
@@ -1080,9 +1134,9 @@
       <div class="lr" data-id="${esc(r.id)}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
         <strong style="text-transform:capitalize">${et}</strong>
         <div class="grid" style="margin-top:8px">
-          <div class="fld"><label for="${k}_spg">Seats per guest</label><input id="${k}_spg" class="lr_spg" type="number" min="0" step="0.1" value="${num(r,'seatsPerGuest',1)}" aria-label="Seats per guest for ${et}"></div>
-          <div class="fld"><label for="${k}_buf">Buffet table per N guests</label><input id="${k}_buf" class="lr_buf" type="number" min="1" step="1" value="${num(r,'buffetPer',100)}" aria-label="Buffet table per N guests for ${et}"></div>
-          <div class="fld"><label for="${k}_bars">Bars</label><input id="${k}_bars" class="lr_bars" type="number" min="0" step="1" value="${num(r,'bars',0)}" aria-label="Bars for ${et}"></div>
+          <div class="fld"><label for="${k}_spg">Seats per guest <span class="lr_rng">(more than 0, up to 10)</span></label><input id="${k}_spg" class="lr_spg" type="number" min="0" step="0.1" inputmode="decimal" aria-required="true" value="${num(r,'seatsPerGuest',1)}" aria-label="Seats per guest for ${et}"></div>
+          <div class="fld"><label for="${k}_buf">Buffet table per N guests <span class="lr_rng">(10 to 500)</span></label><input id="${k}_buf" class="lr_buf" type="number" min="0" inputmode="numeric" aria-required="true" value="${num(r,'buffetPer',100)}" aria-label="Buffet table per N guests for ${et}"></div>
+          <div class="fld"><label for="${k}_bars">Bars <span class="lr_rng">(0 to 20)</span></label><input id="${k}_bars" class="lr_bars" type="number" min="0" inputmode="numeric" aria-required="true" value="${num(r,'bars',0)}" aria-label="Bars for ${et}"></div>
         </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:13px;color:var(--ink-2)">
           <label><input type="checkbox" class="lr_stage" ${on(r,'stage')?'checked':''}> Stage</label>
@@ -1090,55 +1144,55 @@
           <label><input type="checkbox" class="lr_walk" ${on(r,'walkway')?'checked':''}> Walkway</label>
           <label><input type="checkbox" class="lr_dj" ${on(r,'dj')?'checked':''}> DJ</label>
         </div>
-        <div class="actions" style="margin-top:8px"><button type="button" class="btn primary lr_save" aria-label="Save ${et} layout rule">Save</button></div>
+        <div class="actions" style="margin-top:8px"><span class="lr_msg mnote" role="status" aria-live="polite"></span><button type="button" class="btn primary lr_save" aria-label="Save ${et} layout rule">Save</button></div>
       </div>`; }).join("");
     $("#layoutRuleList").querySelectorAll(".lr").forEach(box=>{
       const sv=box.querySelector(".lr_save");
+      // inline errors under each field (blank / 0 / negative / decimals where whole numbers / out of range);
+      // a blank no longer saves a silent default, and the rule's other keys are kept (merged, never dropped)
+      const lm=box.querySelector(".lr_msg"), say=(k,t)=>{ lm.textContent=t||""; lm.dataset.kind=k||""; };
       sv.addEventListener("click",()=>BPUI.guard(sv,async()=>{
-        const V=BPStore.validate; const fail=(m)=>{ setMsg("err",m); };
-        let seatsPerGuest=1; { const raw=box.querySelector(".lr_spg").value; if(raw!==""){ const r=V.num(raw,{min:0.0001,field:"Seats per guest"}); if(!r.ok){ fail(r.error); return; } seatsPerGuest=r.value; } }
-        let buffetPer=100; { const raw=box.querySelector(".lr_buf").value; if(raw!==""){ const r=V.money(raw,{field:"Buffet table per N guests"}); if(!r.ok){ fail(r.error); return; } buffetPer=r.value; } }
-        let bars=0; { const raw=box.querySelector(".lr_bars").value; if(raw!==""){ const r=V.count(raw,{field:"Bars"}); if(!r.ok){ fail(r.error); return; } bars=r.value; } }
-        const rules={ seatsPerGuest, buffetPer, bars, stage:box.querySelector(".lr_stage").checked,
-          dancefloor:box.querySelector(".lr_dance").checked, walkway:box.querySelector(".lr_walk").checked, dj:box.querySelector(".lr_dj").checked };
-        try{ await BPStore.layoutRules.update(box.dataset.id,{rules}); setMsg("ok","Layout rule saved."); }
-        catch(e){ setMsg("err",errMsg(e,"save the layout rule")); }
+        const FR=window.HelmCCFields, ins={spg:box.querySelector(".lr_spg"),buf:box.querySelector(".lr_buf"),bars:box.querySelector(".lr_bars")};
+        Object.values(ins).forEach(x=>FR.fieldError(x,"")); say("","");
+        const v=FR.layoutRule({spg:ins.spg.value,buf:ins.buf.value,bars:ins.bars.value});
+        if(!v.ok){ FR.showErrors([[ins.spg,v.errors.spg],[ins.buf,v.errors.buf],[ins.bars,v.errors.bars]]); return; }
+        const row=rules.find(x=>String(x.id)===String(box.dataset.id))||{};
+        const next=Object.assign({}, (row.rules&&typeof row.rules==="object")?row.rules:{}, v.value, { stage:box.querySelector(".lr_stage").checked,
+          dancefloor:box.querySelector(".lr_dance").checked, walkway:box.querySelector(".lr_walk").checked, dj:box.querySelector(".lr_dj").checked });
+        say("","Saving…");
+        try{ await BPStore.layoutRules.update(box.dataset.id,{rules:next}); row.rules=next;
+          ins.spg.value=String(v.value.seatsPerGuest); ins.buf.value=String(v.value.buffetPer); ins.bars.value=String(v.value.bars);
+          say("ok","Saved."); }
+        catch(e){ say("",""); const p=document.createElement("p"); p.className="msg err lr_err"; p.setAttribute("role","alert"); p.textContent=errMsg(e,"save the layout rule");
+          const old=box.querySelector(".lr_err"); if(old) old.remove(); box.querySelector(".actions").before(p); }
       }));
+      box.addEventListener("input",()=>{ if(lm.dataset.kind==="ok") say("",""); const o=box.querySelector(".lr_err"); if(o) o.remove(); });
     });
   }
 
+  // Menu packages: dishes grouped by category as chips + category / dish dropdowns from the dish catalog
+  // (menu-pkg-editor.js). Free trial (0173): price + dishes editable (catalog dishes only), the Active switch is fixed.
+  let mpkUI=null;
+  const mpkTrial=()=>document.documentElement.classList.contains("helm-trial");
   async function renderMenuTemplates(){
-    let tpls=[];
-    try{ tpls=(await BPStore.menuTemplates.list(true))||[]; }catch(e){ BPUI.loadError($("#menuTplList"), e, renderMenuTemplates, {what:"menu packages"}); return; }
-    if(!tpls.length){ $("#menuTplList").innerHTML='<div class="row" style="color:var(--ink-3)">No menu packages yet.</div>'; return; }
-    const dishesToText=(arr)=>(arr||[]).map(d=>`${d.c} | ${d.n} | ${d.k||'veg'}`).join("\n");
-    $("#menuTplList").innerHTML = tpls.map(t=>{ const nm=esc(t.name); const k="mt_"+esc(t.id); return `
-      <div class="tpl" data-id="${esc(t.id)}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <strong style="flex:1;min-width:160px">${nm}</strong>
-          <label for="${k}_price" style="font-size:12px;color:var(--ink-3)">₹/plate</label>
-          <input id="${k}_price" class="tpl_price" type="number" min="0" step="1" value="${numAttr(t.price_per_plate,0)}" style="width:120px" aria-label="Price per plate for ${nm}">
-          <label style="font-size:12px;color:var(--ink-3)"><input class="tpl_active" type="checkbox" ${t.active?"checked":""}> active</label>
-        </div>
-        <textarea class="tpl_dishes" aria-label="Dishes in ${nm}, one per line" style="width:100%;min-height:140px;margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px">${esc(dishesToText(t.dishes))}</textarea>
-        <div class="actions" style="margin-top:6px"><button type="button" class="btn primary tpl_save">Save package</button></div>
-      </div>`; }).join("");
-    $("#menuTplList").querySelectorAll(".tpl").forEach(box=>{
-      const sv=box.querySelector(".tpl_save");
-      sv.addEventListener("click",()=>BPUI.guard(sv,async()=>{
-        const dishes=box.querySelector(".tpl_dishes").value.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{
-          const [c,n,k]=l.split("|").map(s=>(s||"").trim());
-          return { c:c||"Other", n:n||c||"", k:(k||"veg").toLowerCase() };
-        }).filter(d=>d.n);
-        const V=BPStore.validate; const fail=(m)=>{ setMsg("err",m); };
-        let pricePerPlate=0; { const raw=box.querySelector(".tpl_price").value; if(raw!==""){ const r=V.money(raw,{field:"Price / plate"}); if(!r.ok){ fail(r.error); return; } pricePerPlate=r.value; } }
-        const patch={ price_per_plate:pricePerPlate,
-          active:box.querySelector(".tpl_active").checked, dishes };
-        try{ await BPStore.menuTemplates.update(box.dataset.id, patch); setMsg("ok","Package saved."); }
-        catch(e){ setMsg("err",errMsg(e,"save the package")); }
-      }));
-    });
+    let tpls=[], cat=[];
+    try{ [tpls,cat]=await Promise.all([BPStore.menuTemplates.list(true), BPStore.dishCatalog.list().catch(()=>[])]); tpls=tpls||[]; }
+    catch(e){ BPUI.loadError($("#menuTplList"), e, renderMenuTemplates, {what:"menu packages"}); return; }
+    if(!tpls.length){ mpkUI=null; $("#menuTplList").textContent=""; const r=document.createElement("div"); r.className="row"; r.style.color="var(--ink-3)"; r.textContent="No menu packages yet."; $("#menuTplList").appendChild(r); return; }
+    const kindText=MENU_AE?{veg:"Vegetarian",nonveg:"Meat / fish (halal)",special:"Special"}:{veg:"Veg",nonveg:"Non-veg",special:"Special"};
+    let sym="\u20b9"; try{ const m=BPStore.studioMoney(0); const k=String(m||"").replace(/[\d.,\s]/g,""); if(k) sym=k; }catch(_){}
+    mpkUI=HelmMenuPkg.render($("#menuTplList"),{ packages:tpls, catalog:cat||[], trial:mpkTrial, kindText, symbol:sym,
+      error:(m)=>setMsg("err",m),
+      // returns the stored row, so the card shows exactly what was saved (same as after a reload)
+      save:async(t,patch)=>{ try{ const row=await BPStore.menuTemplates.update(t.id, patch); setMsg("ok",`${t.name||"Package"} saved.`); return row||true; }
+        catch(e){ setMsg("err",errMsg(e,"save the package")); return false; } },
+      // dishes typed into a package that are not in the Dishes catalog yet (refused in the free trial)
+      addToCatalog:async(list)=>{ if(mpkTrial()){ setMsg("err","You can't add new dishes in the free trial."); return false; }
+        try{ for(const d of list) await BPStore.dishCatalog.add(d.c, d.n, d.k); await renderDishes(); setMsg("ok",list.length===1?"Dish added to the catalog.":`${list.length} dishes added to the catalog.`); return true; }
+        catch(e){ setMsg("err",errMsg(e,"add the dish to the catalog")); try{ await renderDishes(); }catch(_){} return false; } } });
   }
+  // the free-trial answer can arrive after the first draw: redraw in trial mode unless there are unsaved edits or a save is running
+  window.addEventListener("helm:trial",()=>{ if(mpkUI && !mpkUI.dirty() && !mpkUI.saving()) renderMenuTemplates(); });
 
   // Vendors moved to the dedicated Vendors & Partners page (duplicate removed).
 
@@ -1149,17 +1203,57 @@
     catch(e){ setMsg("err",errMsg(e,"remove "+what)); }
   }
 
+  // active coupon codes, so a twin code is caught at the field before it reaches the server
+  let couponCodes=[];
   async function renderCoupons(){
     let c=[]; try{ c=(await BPStore.coupons.list())||[]; }catch(e){ BPUI.loadError($("#couponList"), e, renderCoupons, {what:"coupons"}); return; }
-    $("#couponList").innerHTML = c.length? c.map(x=>{ const v=numAttr(x.value,0); return `<div class="row"><span class="g mono">${esc(x.code)}</span><span>${x.kind==='percent'?esc(v)+'% off':'₹'+esc(v.toLocaleString("en-IN"))+' off'}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.code)}" aria-label="Remove coupon ${esc(x.code)}">Remove</button></div>`; }).join("") : '<div class="row" style="color:var(--ink-3)">No coupons yet.</div>';
+    couponCodes=c.map(x=>String(x.code||""));
+    const off=(x,v)=>x.kind==='percent'?esc(v)+'% off':esc(BPStore.studioMoney?BPStore.studioMoney(v):'₹'+v.toLocaleString("en-IN"))+' off';
+    $("#couponList").innerHTML = c.length? c.map(x=>{ const v=numAttr(x.value,0); return `<div class="row"><span class="g mono">${esc(x.code)}</span><span>${off(x,v)}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.code)}" aria-label="Remove coupon ${esc(x.code)}">Remove</button></div>`; }).join("") : '<div class="row" style="color:var(--ink-3)">No coupons yet.</div>';
     $("#couponList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`coupon ${b.dataset.name}`,()=>BPStore.coupons.remove(b.dataset.id),renderCoupons)));
+    coValidate();
   }
+  // ---- coupon rules (pricing-form-core.js): message right under the add row, at the field that is wrong ----
+  const coTouched={code:false,value:false};
+  let coTaken=null;   // {code,msg}: the server said this code is taken; shown until the code is changed
+  function coErrEl(){ let e=$("#co_err"); if(!e){ e=document.createElement("p"); e.id="co_err"; e.className="pf-err co-err hbp-skip"; e.setAttribute("role","alert"); e.hidden=true; $("#co_add").closest(".addrow").insertAdjacentElement("afterend",e);
+      ["#co_code","#co_val"].forEach(s=>$(s).setAttribute("aria-describedby","co_err")); } return e; }
+  function coStatus(kind,text){ const e=coErrEl(); let st=$("#co_status"); if(!st){ st=document.createElement("p"); st.id="co_status"; st.className="pf-status"; e.insertAdjacentElement("afterend",st); }
+    st.textContent=""; if(!text) return; const m=document.createElement("span"); m.className="msg "+(kind==="err"?"err":"ok"); m.setAttribute("role",kind==="err"?"alert":"status"); m.textContent=text; st.appendChild(m); }
+  function coValidate(){
+    const kind=$("#co_kind").value, sym=pfCtx().symbol;
+    const r=PF.validateCoupon({code:$("#co_code").value,kind,value:$("#co_val").value},couponCodes,{symbol:sym},{value:pfFlags($("#co_val"))});
+    const taken=coTaken&&coTaken.code===PF.normCode($("#co_code").value)?coTaken.msg:"";
+    if(taken){ r.ok=false; r.errors.code=taken; }
+    const codeMsg=taken||(coTouched.code?r.errors.code:""), valMsg=coTouched.value?r.errors.value:"";
+    [["#co_code",codeMsg],["#co_val",valMsg]].forEach(([s,m])=>{ const i=$(s); i.setAttribute("aria-invalid",m?"true":"false"); i.classList.toggle("pf-bad",!!m); });
+    const e=coErrEl(), t=[codeMsg,valMsg].filter(Boolean).join(" ");
+    if(e.textContent!==t) e.textContent=t; e.hidden=!t;
+    $("#co_val").placeholder=kind==="percent"?"% off, e.g. 10":"Amount off, e.g. 500";
+    // the flat option names the studio's currency (an AED studio reads "AED off", not "₹ off")
+    { const o=$("#co_kind").querySelector('option[value="flat"]'), l=String(sym==null?"₹":sym).trim()+" off"; if(o&&o.textContent!==l) o.textContent=l; }
+    return r;
+  }
+  { let t=null; const re=(f)=>()=>{ if(f) coTouched[f]=true; coStatus(""); clearTimeout(t); t=setTimeout(()=>coValidate(),0); };
+    $("#co_code").addEventListener("input",re("code")); $("#co_code").addEventListener("blur",re("code"));
+    ["input","change","blur"].forEach(ev=>$("#co_val").addEventListener(ev,re("value")));
+    $("#co_kind").addEventListener("change",re(null));
+    ["#co_code","#co_val"].forEach(s=>$(s).addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.isComposing){ e.preventDefault(); $("#co_add").click(); } })); }
   $("#co_add").addEventListener("click",()=>BPUI.guard($("#co_add"),async()=>{
-    const code=$("#co_code").value.trim().toUpperCase(); if(code.length<2){ setMsg("err","Enter a coupon code."); return; }
-    const V=BPStore.validate, kind=$("#co_kind").value;
-    let coVal=0; if($("#co_val").value!==""){ const r=kind==="percent"?V.pct($("#co_val").value,{field:"Coupon value"}):V.money($("#co_val").value,{field:"Coupon value"}); if(!r.ok){ setMsg("err",r.error); return; } coVal=r.value; }
-    try{ await BPStore.coupons.add(code,kind,coVal,null); $("#co_code").value="";$("#co_val").value=""; await renderCoupons(); setMsg("ok","Coupon added."); }
-    catch(e){ setMsg("err",errMsg(e,"add the coupon")); }
+    coTouched.code=coTouched.value=true; coStatus("");
+    const r=coValidate();
+    if(!r.ok){ try{ $(r.errors.code?"#co_code":"#co_val").focus(); }catch(e){} return; }
+    const {code,kind,value}=r.value, z=PF.couponConfirm(kind,value);
+    if(z && !(await BPUI.confirm(z.text,{title:z.title,okLabel:z.okLabel}))) return;
+    try{ await BPStore.coupons.add(code,kind,value,null);
+      $("#co_code").value=""; $("#co_val").value=""; coTouched.code=coTouched.value=false;
+      await renderCoupons(); coStatus("ok","Coupon "+code+" added."); }
+    catch(e){
+      // the code is taken: by a coupon added elsewhere just now, or by one that was removed (removed codes stay reserved)
+      if(e && e.code==="23505"){ await renderCoupons();
+        coTaken={code,msg:code+" is already taken"+(couponCodes.some(x=>PF.normCode(x)===code)?"":" by a coupon that was removed")+". Pick a different code, like "+code.slice(0,19)+"2."};
+        coValidate(); try{ $("#co_code").focus(); }catch(_){} return; }
+      coStatus("err",errMsg(e,"add the coupon")); }
   }));
 
   async function renderChairs(){
@@ -1195,7 +1289,8 @@
   async function renderOrg(){
     orgLoaded=false; $("#o_save").disabled=true; $("#orgErr").innerHTML="";
     let o=null;
-    try{ o=await BPStore.org.current(); }
+    // cc-general-billing: the form is the edit source - read the saved row, never a possibly stale tab cache
+    try{ o=await BPStore.org.current({ fresh:true }); }
     catch(e){ BPUI.loadError($("#orgErr"), e, renderOrg, {what:"studio settings"}); return; }
     if(!o){ $("#orgMsg").innerHTML='<div class="msg" style="color:var(--ink-3)">Studio settings aren\'t available for this workspace yet.</div>'; return; }
     const b=o.brand||{}; orgBrand=(b&&typeof b==="object"&&!Array.isArray(b))?b:{};
@@ -1207,8 +1302,13 @@
     paintBilling(o);
     orgMsg("",""); orgLoaded=true; $("#o_save").disabled=false;
     // branded client links (migration 0020) — only shown once the column exists
-    if(Object.prototype.hasOwnProperty.call(o,"public_slug")){ $("#slugBox").hidden=false; $("#o_slug").value=o.public_slug||""; paintSlugPreview(); }
+    if(Object.prototype.hasOwnProperty.call(o,"public_slug")){ $("#slugBox").hidden=false; $("#o_slug").value=o.public_slug||""; savedSlug=o.public_slug||""; paintSlugPreview(); }
+    { const G=ccGen(); if(G) Object.keys(G).forEach(k=>{ if(G[k]) G[k].reset(); }); }   // fresh values: no stale field errors
   }
+  // input sweep A (cc-inputs.js): each General field is checked where it is typed - message under the field,
+  // shown on leaving it and on Save; a failed save keeps everything that was typed
+  let savedSlug="";
+  function ccGen(){ const CI=window.HelmCCInputs; return CI&&CI.bindGeneral?CI.bindGeneral({country:()=>BPStore.tax.code($("#o_country").value)}):null; }
   // billing details live in brand.billing (+ location, brand.phone, gst_number) — see onboarding-core.js
   const OB=window.HelmOnboarding;
   const BILL_IDS={country:"o_country",legal_name:"o_legal",line1:"o_line1",line2:"o_line2",city:"o_city",state:"o_state",pin:"o_pin",phone:"o_phone",location:"o_location",gstin:"o_gst"};
@@ -1226,16 +1326,28 @@
     // 0089: suggest the country's states / emirates (US options show the state base sales-tax rate)
     const dl=$("#o_state_list"); if(dl){ dl.textContent=""; const hc=window.HelmCountry;
       if(hc && ["IN","AE","US"].includes(cc)) hc.get(cc).regions.forEach(r=>{ const o=document.createElement("option"); o.value=r.name; if(r.rate!=null) o.label=r.name+" - "+r.rate+"% state sales tax"; dl.appendChild(o); }); }
+    // cc-general-billing: PIN = digits only (6) in India; state = dropdown of Indian states / UTs
+    if(BF){ BF.paintPostal($("#o_pin"), cc); syncStateSelect(); }
+  }
+  const BF=window.HelmBillingForm;
+  function syncStateSelect(){
+    if(!BF) return; const cc=BPStore.tax.code($("#o_country").value), hc=window.HelmCountry;
+    BF.paintState($("#o_state"), $("#o_state_sel"), $("#o_state_lbl"), (hc && cc==="IN") ? hc.get("IN").regions : [], cc==="IN" && !!hc);
+  }
+  if(BF){
+    BF.bindPostal($("#o_pin"), ()=>$("#o_country").value);
+    $("#o_state_sel").addEventListener("change",()=>{ const i=$("#o_state"); i.value=$("#o_state_sel").value; i.dispatchEvent(new Event("change",{bubbles:true})); billPromptLive(); });
   }
   // B2: timezone follows the country / state unless the studio typed its own
   function followTz(){ const HC=window.HelmCountry, tz=$("#o_tz"); if(!HC||!tz) return; const s=HC.timezone(BPStore.tax.code($("#o_country").value), $("#o_state").value);
     if(s && HC.isAutoTimezone(tz.value) && tz.value!==s){ tz.value=s; } }
   $("#o_country").addEventListener("change",()=>{ paintCountryLabels(); const p=BPStore.tax.profile($("#o_country").value); if(p.known) $("#o_currency").value=p.currency; followTz();
+    { const G=ccGen(); if(G&&G.tax) G.tax.check(); }
     const ph=$("#o_phone"); if(ph && ph.helmPhone && !ph.helmPhone.national()) ph.helmPhone.setCountry(BPStore.tax.code($("#o_country").value)); });
   $("#o_state").addEventListener("change",followTz);
   // B3: a country switched from the PRICING card is written to Studio details too (one setting, two places)
   async function syncOrgCountry(cc, region){
-    try{ const o=await BPStore.org.current(); if(!o) return; const b=(o.brand&&typeof o.brand==="object"&&!Array.isArray(o.brand))?o.brand:{};
+    try{ const o=await BPStore.org.current({ fresh:true }); if(!o) return; const b=(o.brand&&typeof o.brand==="object"&&!Array.isArray(o.brand))?o.brand:{};
       const bl=(b.billing&&typeof b.billing==="object"&&!Array.isArray(b.billing))?b.billing:{}; const tp=BPStore.tax.profile(cc);
       const nb=Object.assign({}, bl, { country:cc }); if(region && !bl.state) nb.state=region;
       const patch={ brand:Object.assign({}, b, { billing:nb }) }; if(tp.known) patch.currency=tp.currency;
@@ -1247,56 +1359,101 @@
   function paintBilling(o){
     if(!OB) return; const v=OB.billingFromOrg(o);
     ["legal_name","line1","line2","city","state","pin"].forEach(k=>{ $("#"+BILL_IDS[k]).value=v[k]||""; });
-    const miss=OB.billingMissing(o), bp=$("#billPrompt");
-    bp.hidden=!miss.length; bp.textContent=miss.length?("Please complete your studio's billing details so they appear on quotations and invoices. Missing: "+miss.join(", ")+"."):"";
+    syncStateSelect();
+    showBillPrompt(OB.billingMissing(o));
   }
+  function showBillPrompt(miss){
+    const bp=$("#billPrompt"); bp.hidden=!miss.length;
+    bp.textContent=BF?BF.promptText(miss):(miss.length?("Please complete your studio's billing details so they appear on quotations and invoices. Missing: "+miss.join(", ")+"."):"");
+  }
+  function billVals(){ const vals={}; Object.keys(BILL_IDS).forEach(k=>{ vals[k]=$("#"+BILL_IDS[k]).value; }); return vals; }
+  // the visible control for a billing key (India: the state dropdown)
+  function billEl(k){ if(k==="state"){ const s=$("#o_state_sel"); if(s && !s.hidden) return s; } return $("#"+BILL_IDS[k]); }
+  // the "Missing: ..." list follows what is on screen (only while it is showing)
+  let bpT=0;
+  function billPromptLive(){ if(!OB||!BF) return;
+    // after a "saved, still fill in ..." message: once the studio types again, that message would go
+    // stale - swap it back for the live prompt (still exactly one message on screen)
+    const sm=$("#orgSaveMsg"), warnShown=!!(sm && sm.querySelector(".msg.warn"));
+    if(warnShown){ saveMsg("",""); showBillPrompt(BF.missingFromValues(OB, billVals())); return; }
+    else if($("#billPrompt").hidden) return;
+    clearTimeout(bpT); bpT=setTimeout(()=>{ const m=BF.missingFromValues(OB, billVals()); showBillPrompt(m); },250); }
+  Object.keys(BILL_IDS).forEach(k=>{ const el=$("#"+BILL_IDS[k]); if(el) el.addEventListener("input",billPromptLive); });
+  function saveMsg(k,t){ const el=$("#orgSaveMsg"); if(el) el.innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
   const SLUG_RE=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
   function slugMsg(k,t){ $("#slugMsg").innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
   function paintSlugPreview(){ const v=$("#o_slug").value.trim().toLowerCase()||"your-studio";
     $("#slugPreview").textContent=BPStore.links.base().replace(/^https?:\/\//,"")+"/"+v+"/quote/…"; }
-  $("#o_slug").addEventListener("input",()=>{ const el=$("#o_slug"), c=el.value.toLowerCase().replace(/[^a-z0-9-]+/g,"-");
+  $("#o_slug").addEventListener("input",()=>{ const el=$("#o_slug"), CI=window.HelmCCInputs, c=CI?CI.slugLive(el.value):el.value.toLowerCase().replace(/[^a-z0-9-]+/g,"-");
     if(c!==el.value) el.value=c; paintSlugPreview(); });
+  // a trailing dash left while typing ("aurora-") is dropped when the box is left
+  $("#o_slug").addEventListener("blur",()=>{ const el=$("#o_slug"), c=el.value.replace(/-+$/,""); if(c!==el.value){ el.value=c; paintSlugPreview(); } });
   $("#o_slug_save").addEventListener("click",()=>BPUI.guard($("#o_slug_save"),async()=>{
-    const v=$("#o_slug").value.trim().toLowerCase();
+    const G=ccGen(); slugMsg("","");
+    if(G&&G.slug&&window.HelmCCInputs.first([G.slug])) return;
+    const v=$("#o_slug").value.trim().toLowerCase().replace(/-+$/,"");
     if(!SLUG_RE.test(v)||v.includes("--")){ slugMsg("err","Use 3–40 lowercase letters, numbers or single dashes (no dash at the start or end)."); $("#o_slug").focus(); return; }
+    if(savedSlug && v===savedSlug){ slugMsg("ok","That is already your link name — nothing to change."); setTimeout(()=>slugMsg("",""),2500); return; }
     if(!(await BPUI.confirm(`Change your client link name to “${v}”? New links will use it; links you already sent keep working.`,{title:"Change link name",okLabel:"Change"}))) return;
-    try{ const r=await BPStore.links.rename(v); $("#o_slug").value=r||v; paintSlugPreview(); slugMsg("ok","Link name saved."); setTimeout(()=>slugMsg("",""),2500); }
-    catch(e){ const m=(e&&e.message)||""; slugMsg("err", /taken/i.test(m)?"That name is already used by another studio — try another.":/reserved|3-40|letters/i.test(m)?"That name isn't allowed (reserved word or wrong format) — try another.":errMsg(e,"save the link name")); }
+    try{ const r=await BPStore.links.rename(v); $("#o_slug").value=r||v; savedSlug=r||v; if(G&&G.slug) G.slug.reset(); paintSlugPreview(); slugMsg("ok","Link name saved."); setTimeout(()=>slugMsg("",""),2500); }
+    catch(e){ const m=(e&&e.message)||"", why=/taken/i.test(m)?"That name is already used by another studio — try another.":/reserved|3-40|letters/i.test(m)?"That name isn't allowed (reserved word or wrong format) — try another.":"";
+      if(why&&G&&G.slug){ G.slug.setError(why); G.slug.focus(); } else slugMsg("err", why||errMsg(e,"save the link name")); }
   }));
   $("#o_save").addEventListener("click",()=>BPUI.guard($("#o_save"),async()=>{
-    if(!orgLoaded){ orgMsg("err","Studio settings didn't load, so they can't be saved yet."); return; }
-    const V=BPStore.validate;
-    const email=$("#o_email").value.trim(), logo=$("#o_logo").value.trim(), accent=$("#o_accent").value.trim();
-    if(email){ const r=V.email(email); if(!r.ok){ orgMsg("err",r.error); $("#o_email").focus(); return; } }
-    if(logo){ const r=V.url(logo); if(!r.ok){ orgMsg("err","Logo URL: "+r.error); $("#o_logo").focus(); return; } }
-    if(accent && !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)){ orgMsg("err","Accent colour must be a hex colour like #6d28d9."); $("#o_accent").focus(); return; }
+    if(!orgLoaded){ saveMsg("err","Studio settings didn't load, so they can't be saved yet."); return; }
+    const V=BPStore.validate, card=$("#o_save").closest(".card"), G=ccGen();
+    saveMsg("",""); if(BF) BF.clearAll(card);
+    // cc-inputs-sweep-a: the bound General inputs show their own message under the field (first one focused)
+    if(G && window.HelmCCInputs.first([G.name,G.email,G.phone,G.logo,G.accent,G.currency,G.tz,G.tax])){ saveMsg("",""); return; }
+    const ccv=(b,id)=>{ const v=b?b.value():null; return v!=null?v:$("#"+id).value.trim(); };   // trimmed + normalised (e-mail lower-case, #rrggbb, https)
+    // cc-general-billing: every problem is shown UNDER its own field (red border), the first one is focused
+    const errs=[]; const bad=(el,msg)=>{ if(el && !errs.some(x=>x.el===el)) errs.push({ el, msg }); };
+    const email=ccv(G&&G.email,"o_email"), logo=ccv(G&&G.logo,"o_logo"), accent=ccv(G&&G.accent,"o_accent");
+    if(email){ const r=V.email(email); if(!r.ok) bad($("#o_email"), r.error); }
+    if(logo){ const r=V.url(logo); if(!r.ok) bad($("#o_logo"), "Logo URL: "+r.error); }
+    if(accent && !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)) bad($("#o_accent"), "Accent colour must be a hex colour like #6d28d9.");
     const phone=$("#o_phone")?$("#o_phone").value.trim():"";
-    if(phone){ const r=V.phone(phone); if(!r.ok){ orgMsg("err",r.error); $("#o_phone").focus(); return; } }
-    const gstRaw=$("#o_gst").value.trim().toUpperCase().replace(/\s+/g,"");
+    if(phone){ const r=V.phone(phone); if(!r.ok) bad($("#o_phone"), r.error); }
+    const gstRaw=ccv(G&&G.tax,"o_gst").toUpperCase().replace(/\s+/g,"");
     // billing: required fields only enforced once the studio has started filling them (or the prompt is shown)
     let billing=null;
-    if(OB){ const vals={}; Object.keys(BILL_IDS).forEach(k=>{ vals[k]=$("#"+BILL_IDS[k]).value; });
+    if(OB){ const vals=billVals();
       const r=OB.validateBilling(vals);
       const anyBill=["legal_name","line1","line2","city","state","pin"].some(k=>String(vals[k]||"").trim());
-      if(anyBill && !r.ok){ const k=OB.BILLING_FIELDS.find(f=>r.errors[f.key]).key; orgMsg("err",r.errors[k]); $("#"+BILL_IDS[k]).focus(); return; }
-      if(anyBill) billing=r.data; }
+      if(anyBill && !r.ok) OB.BILLING_FIELDS.forEach(f=>{ if(r.errors[f.key]) bad(billEl(f.key), r.errors[f.key]); });
+      if(anyBill && r.ok) billing=r.data; }
     const newCountry=BPStore.tax.code($("#o_country").value);
-    { const r=BPStore.tax.validateId(newCountry, gstRaw); if(!r.ok){ orgMsg("err", newCountry==="IN"?"Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank).":r.error); $("#o_gst").focus(); return; } }
+    { const r=BPStore.tax.validateId(newCountry, gstRaw); if(!r.ok) bad($("#o_gst"), newCountry==="IN"?"Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank).":r.error); }
+    if(errs.length){
+      if(BF) BF.showErrors(errs); else { errs[0].el.focus(); }
+      saveMsg("err", errs.length===1?(BF?"Please fix the highlighted field.":errs[0].msg):"Please fix the "+errs.length+" highlighted fields.");
+      return; }
     // 0089: switching country re-labels tax/currency for NEW quotes only - ask first
     const prevTaxCountry=BPStore.tax.code(pricingCfg.taxCountry||"IN");
     if(newCountry!==prevTaxCountry && pricingLoaded){ const tp=BPStore.tax.profile(newCountry);
       if(!(await BPUI.confirm(`Switch your studio to ${tp.name}? New quotes will use ${tp.tax} and ${tp.known?tp.currency:"your currency"}. Quotes you already saved, sent or got paid keep their price, tax and currency exactly as they are.`,{title:"Change country",okLabel:"Switch country"}))) return; }
+    // cc-general-billing: merge into the SAVED row, never into a copy read minutes ago (another tab,
+    // the welcome wizard or a cached read may have written brand keys since) - zero data loss
+    try{ const fresh=await BPStore.org.current({ fresh:true }); const fb=fresh&&fresh.brand;
+      if(fb && typeof fb==="object" && !Array.isArray(fb)) orgBrand=fb; }
+    catch(e){ saveMsg("err",errMsg(e,"check the latest studio settings before saving")); return; }
     // #16: an email saved HERE is the studio's public contact (business_email_confirmed); the booklet
     // never shows an unconfirmed (e.g. signup) email. Brand keys we don't edit here are kept.
-    const patch={ name:$("#o_name").value.trim()||null, business_email:email?email.toLowerCase():null, business_email_confirmed:!!email,
-      currency:$("#o_currency").value.trim()||"INR", timezone:$("#o_tz").value.trim()||"Asia/Kolkata",
+    const ctp=BPStore.tax.profile(newCountry);   // an emptied currency box falls back to the country's currency, not always INR
+    const patch={ name:ccv(G&&G.name,"o_name")||null, business_email:email?email.toLowerCase():null, business_email_confirmed:!!email,
+      currency:ccv(G&&G.currency,"o_currency").toUpperCase()||(ctp&&ctp.known?ctp.currency:"INR"), timezone:ccv(G&&G.tz,"o_tz")||"Asia/Kolkata",
       location:($("#o_location")?$("#o_location").value.trim():"")||null,
       gst_number:gstRaw||null,
       brand:Object.assign({}, orgBrand, { logo:logo||null, accent:accent||null, phone:phone?phone.slice(0,40):null }) };
     if(billing){ const bp=OB.billingPatch({ name:patch.name, brand:patch.brand }, billing);
       patch.brand=bp.brand; patch.location=bp.location; patch.gst_number=bp.gst_number; if(!patch.name) patch.name=bp.name||null; }
     if(!billing && newCountry!==orgCountry){ patch.brand=Object.assign({}, patch.brand, { billing:Object.assign({}, (orgBrand&&orgBrand.billing)||{}, { country:newCountry }) }); }
-    try{ await BPStore.org.save(patch); orgBrand=patch.brand; paintBilling(Object.assign({}, patch));
+    try{ await BPStore.org.save(patch); orgBrand=patch.brand;
+      // read back what the database now holds: the form and the "missing" list show the saved truth
+      let saved=null; try{ saved=await BPStore.org.current({ fresh:true }); }catch(e){}
+      const shown=saved||Object.assign({}, patch);
+      if(saved && saved.brand && typeof saved.brand==="object" && !Array.isArray(saved.brand)) orgBrand=saved.brand;
+      paintBilling(shown);
       if(newCountry!==BPStore.tax.code(pricingCfg.taxCountry||"IN") && pricingLoaded){
         // 0079: a new country re-labels the tax and suggests its default rate for NEW quotes (saved quotes keep their price)
         const tp=BPStore.tax.profile(newCountry);
@@ -1305,18 +1462,21 @@
         if(region && newCountry!=="IN") next.taxRegion=region; else delete next.taxRegion;
         if(window.HelmCountry && ["IN","AE","US"].includes(newCountry)) next.gstPct=window.HelmCountry.defaultRate(newCountry, region);
         else if(tp.rate!=null) next.gstPct=tp.rate;
-        try{ await BPStore.config.setPricing(next); pricingCfg=next; $("#p_gst").value=next.gstPct??""; $("#p_country").value=newCountry; $("#p_region").value=next.taxRegion||""; pLastDefault=next.gstPct; paintTaxFields(); }catch(e){ orgMsg("err",errMsg(e,"update the tax for the new country")); return; }
+        try{ await BPStore.config.setPricing(next); pricingCfg=next; $("#p_gst").value=next.gstPct??""; $("#p_country").value=newCountry; $("#p_region").value=next.taxRegion||""; pLastDefault=next.gstPct; paintTaxFields(); }catch(e){ saveMsg("err",errMsg(e,"update the tax for the new country")); return; }
       }
       else if(pricingLoaded && newCountry!=="IN" && ($("#o_state").value.trim().slice(0,60))!==(pricingCfg.taxRegion||"")){
         // 0089: same country, new state/emirate -> store the region; a US studio still on the old
         // state's default rate moves to the new state's base rate (a custom rate is kept)
         const region=$("#o_state").value.trim().slice(0,60), next=Object.assign({}, pricingCfg, { taxRegion:region });
         if(window.HelmCountry && newCountry==="US" && Number(pricingCfg.gstPct)===window.HelmCountry.defaultRate("US", pricingCfg.taxRegion||"")) next.gstPct=window.HelmCountry.defaultRate("US", region);
-        try{ await BPStore.config.setPricing(next); pricingCfg=next; $("#p_gst").value=next.gstPct??""; $("#p_region").value=region; paintTaxFields(); }catch(e){ orgMsg("err",errMsg(e,"update the tax region")); return; }
+        try{ await BPStore.config.setPricing(next); pricingCfg=next; $("#p_gst").value=next.gstPct??""; $("#p_region").value=region; paintTaxFields(); }catch(e){ saveMsg("err",errMsg(e,"update the tax region")); return; }
       }
       orgCountry=newCountry;
-      orgMsg("ok","Studio settings saved."); setTimeout(()=>orgMsg("",""),2500); }
-    catch(e){ orgMsg("err",errMsg(e,"save studio settings")); }
+      // one message only: "saved" - or "saved, but still fill in ..." (the yellow prompt is folded into it)
+      const miss=OB?OB.billingMissing(shown):[], m=BF?BF.afterSaveMessage(miss):{ kind:"ok", text:"Studio settings saved." };
+      clearTimeout(bpT); if(miss.length) $("#billPrompt").hidden=true;
+      saveMsg(m.kind, m.text); if(m.kind==="ok") setTimeout(()=>saveMsg("",""),4000); }
+    catch(e){ saveMsg("err",errMsg(e,"save studio settings")); }
   }));
 
   /* ---------------- CLIENT LINK AUTO-EXPIRE (0039, admin only) ---------------- */
@@ -1325,8 +1485,13 @@
   const LX_MIN=1, LX_MAX=365, LX_DAY_MS=86400000;
   let lxLoaded=false, lxTz="Asia/Kolkata";
   function lxMsg(k,t){ $("#lxMsg").innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
-  function lxDays(){ const v=String($("#lx_days").value||"").trim(); if(!/^\d{1,3}$/.test(v)) return null;
-    const n=Number(v); return n>=LX_MIN && n<=LX_MAX ? n : null; }
+  // input sweep A: the box opts out of the global number hardener (data-hardened="1") so "2.5" is not
+  // silently read as 25 or 500 clamped to 365 - the exact reason is shown under the box instead
+  function lxCheck(){ const el=$("#lx_days"), CI=typeof HelmCCInputs!=="undefined"?HelmCCInputs:null;
+    if(CI) return CI.days(el.value,{min:LX_MIN,max:LX_MAX,badInput:!!(el.validity&&el.validity.badInput)});
+    const v=String(el.value||"").trim(), n=Number(v);
+    return /^\d{1,3}$/.test(v) && n>=LX_MIN && n<=LX_MAX ? {ok:true,value:n} : {ok:false,error:`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`}; }
+  function lxDays(){ const r=lxCheck(); return r.ok ? r.value : null; }
   const lxPlural=(n)=>n+" day"+(n===1?"":"s");
   function lxFmt(d){ const o={day:"numeric",month:"short",year:"numeric"};
     try{ return d.toLocaleDateString("en-GB",Object.assign({timeZone:lxTz},o)); }catch(e){ return d.toLocaleDateString("en-GB",o); } }
@@ -1340,10 +1505,11 @@
     const on=$("#lx_on").checked, n=lxDays(), ex=$("#lx_example"), st=$("#lx_state");
     // explicit Enabled / Disabled state next to the switch (+ a hint while it isn't saved yet)
     st.className="lxstate"+(on?" on":"");
-    st.innerHTML=(on?"Enabled":"Disabled")+(lxLoaded&&on!==lxSavedOn?' <small>— not saved yet</small>':"");
+    st.innerHTML=(on?"Enabled":"Disabled")+(lxLoaded&&on!==lxSavedOn?' <small>Not saved yet</small>':"");
     $("#lx_on").setAttribute("aria-checked", on?"true":"false");
     $("#lx_days").disabled=!on;
     $("#lx_days").setAttribute("aria-invalid", on && n==null ? "true" : "false");
+    if($("#lx_days").classList){ $("#lx_days").classList.toggle("fv-error", on && n==null); ex.classList.toggle("lx-bad", on && n==null); }
     $("#lx_moveSet").hidden=!lxMoveReady;
     $("#lx_moveSet").disabled=!on;
     const mv=lxMove(), w=$("#lx_moveWait");
@@ -1352,7 +1518,7 @@
       : (lxWaiting!=null&&mv!==lxSavedMove ? `${lxWaiting} quote${lxWaiting===1?"":"s"} would move right now. ` : "")+
         `Quotes move to ${LX_MOVE_LBL[mv]} the next time someone opens Quotes or the Dashboard (checked at most every 10 minutes).`;
     if(!on){ ex.textContent="Off — links follow only the usual limits after the event."; return; }
-    if(n==null){ ex.textContent=`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`; return; }
+    if(n==null){ ex.textContent=lxCheck().error; return; }
     ex.textContent=`A link sent today would stop working on ${lxFmt(new Date(Date.now()+n*LX_DAY_MS))}.`;
   }
   async function initLinkExpiry(){
@@ -1376,11 +1542,12 @@
   }
   $("#lx_on").addEventListener("change",paintLx);
   $("#lx_days").addEventListener("input",paintLx);
+  $("#lx_days").addEventListener("blur",()=>{ const r=lxCheck(); if(r.ok && String(r.value)!==String($("#lx_days").value)){ $("#lx_days").value=String(r.value); paintLx(); } });   // "010" -> "10"
   LX_MOVES.forEach(v=>$("#lx_move_"+v).addEventListener("change",paintLx));
   $("#lx_save").addEventListener("click",()=>BPUI.guard($("#lx_save"),async()=>{
     if(!lxLoaded){ lxMsg("err","Link expiry didn't load, so it can't be saved yet."); return; }
     const on=$("#lx_on").checked, n=lxDays(), mv=lxMoveReady?lxMove():lxSavedMove;
-    if(on && n==null){ lxMsg("err",`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`); $("#lx_days").focus(); return; }
+    if(on && n==null){ lxMsg("err",lxCheck().error||`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`); $("#lx_days").focus(); return; }
     const moving = on && mv!=="keep" && mv!==lxSavedMove;
     if(on && !(await BPUI.confirm(`Every client, crew and guest link will stop working ${lxPlural(n)} after it was sent — including links already sent more than ${lxPlural(n)} ago, from the moment you save.`+
         (moving?` Quotes whose link has expired and that were never confirmed, approved or paid will move to ${LX_MOVE_LBL[mv]}${lxWaiting!=null?` (${lxWaiting} right now)`:""} — you can restore them from the Quotes page.`:""),
@@ -1413,21 +1580,32 @@
     try{ dishDefs=await BPStore.smartImport.fieldDefs("menu"); }catch(e){ dishDefs=[]; }
     try{ dishCache=(await BPStore.dishCatalog.list())||[]; }catch(e){ dishCache=[]; BPUI.loadError($("#dishList"), e, renderDishes, {what:"dishes"}); return; }
     drawDishes();
+    if(mpkUI) mpkUI.setCatalog(dishCache);
   }
   function drawDishes(){
-    const term=($("#dishFilter").value||"").trim().toLowerCase();
-    const list=dishCache.filter(d=>!term || (d.name+" "+d.category).toLowerCase().includes(term));
-    $("#dishList").innerHTML = list.length ? list.map(x=>`<div class="row"><span class="g">${esc(x.name)} <span style="font-size:12px">· ${KINDLBL[x.kind]||""}</span><span class="cfline">${esc(dishAttrText(x))}</span></span><span class="mono" style="font-size:12px">${esc(x.category)}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.name)}" aria-label="Remove dish ${esc(x.name)}">Remove</button></div>`).join("")
+    if(fillDishCats.src!==dishCache){ fillDishCats.src=dishCache; fillDishCats(); }
+    const FR=window.HelmCCFields, toks=FR?FR.tokens($("#dishFilter").value):[];   // every word must match (name, category or type), spaces / case ignored
+    const list=dishCache.filter(d=>!toks.length || FR.matches(d.name+" "+d.category+" "+(d.kind||"")+" "+String(KINDLBL[d.kind]||"").replace(/<[^>]*>/g,""),toks));
+    $("#dishList").innerHTML = list.length ? list.map(x=>`<div class="row"><span class="g">${esc(x.name)}${x.is_demo?'<span class="hs-tag hs-solo">Sample</span>':''} <span style="font-size:12px">· ${KINDLBL[x.kind]||""}</span><span class="cfline">${esc(dishAttrText(x))}</span></span><span class="mono" style="font-size:12px">${esc(x.category)}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.name)}" aria-label="Remove dish ${esc(x.name)}">Remove</button></div>`).join("")
       : `<div class="row" style="color:var(--ink-3)">${dishCache.length?"No dishes match this filter.":"No dishes yet — add your first below."}</div>`;
     $("#dishList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`dish ${b.dataset.name}`,()=>BPStore.dishCatalog.remove(b.dataset.id),renderDishes)));
   }
   $("#dishFilter").addEventListener("input",drawDishes);
+  // categories already in use, so "Starters" is picked instead of a near-duplicate "Starter"
+  function fillDishCats(){ const dl=$("#dc_cat_list"); if(!dl) return; const seen=new Map(); dishCache.forEach(d=>{ const c=String(d.category||"").replace(/\s+/g," ").trim(); if(c&&!seen.has(c.toLowerCase())) seen.set(c.toLowerCase(),c); });
+    dl.replaceChildren(...[...seen.values()].sort((a,b)=>a.localeCompare(b)).map(c=>Object.assign(document.createElement("option"),{value:c}))); }
+  // Add dish: inline errors under the row (empty / too short / too long / emoji / < > / no letters /
+  // already in this category), values cleaned (spaces collapsed) and kept when the save fails.
   $("#dc_add").addEventListener("click",()=>BPUI.guard($("#dc_add"),async()=>{
-    const cat=$("#dc_cat").value.trim(), name=$("#dc_name").value.trim();
-    if(cat.length<2||name.length<2){ setMsg("err","Enter a category and dish name."); return; }
-    try{ await BPStore.dishCatalog.add(cat,name,$("#dc_kind").value); $("#dc_name").value=""; await renderDishes(); setMsg("ok","Dish added."); }
-    catch(e){ setMsg("err",errMsg(e,"add the dish")); }
+    const FR=window.HelmCCFields, ci=$("#dc_cat"), ni=$("#dc_name"), ki=$("#dc_kind"), errs=$("#dc_errs"), ok=$("#dc_ok");
+    [ci,ni,ki].forEach(x=>FR.fieldError(x,"")); ok.textContent="";
+    const r=FR.dish({category:ci.value,name:ni.value,kind:ki.value}, dishCache);
+    if(!r.ok){ FR.showErrors([[ci,r.errors.category,errs],[ni,r.errors.name,errs],[ki,r.errors.kind,errs]]); return; }
+    ci.value=r.value.category; ni.value=r.value.name;
+    try{ await BPStore.dishCatalog.add(r.value.category,r.value.name,r.value.kind); ni.value=""; await renderDishes(); ok.textContent=`Added \u201c${r.value.name}\u201d to ${r.value.category}.`; try{ ni.focus(); }catch(_){} }
+    catch(e){ FR.showErrors([[ni,errMsg(e,"add the dish"),errs]]); }
   }));
+  [$("#dc_cat"),$("#dc_name")].forEach(x=>x.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.isComposing){ e.preventDefault(); $("#dc_add").click(); } }));
 
   /* ---------------- USER CONTROL: team members ---------------- */
   function setUMsg(k,t){ const m=$("#umsg"); m.innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; if(t) setTimeout(()=>{ if(m.firstChild) m.innerHTML=""; },4000); }
@@ -1635,15 +1813,26 @@
     if(/Something went wrong/.test(f) && m && m.length<200 && !/column|relation|violates|PGRST|syntax|function|null|undefined/i.test(m)) return "Couldn’t add the user. "+m.replace(/^./,ch=>ch.toUpperCase()).replace(/([^.!?])$/,"$1.");
     return f;
   }
+  // input sweep A (cc-inputs.js): the e-mail is checked under the box - format, spaces, your own address,
+  // someone already in the team, an invite already pending; the role must be one from the list
+  let invPending=[];
+  function ccTeam(){ const CI=window.HelmCCInputs; return CI&&CI.bindTeam?CI.bindTeam({
+    self:()=>{ const u=BPStore.auth.user(); return (u&&u.email)||""; }, members:()=>ucRows.map(u=>u.email).filter(Boolean), pending:()=>invPending }):null; }
+  function ccRoleOk(sel){ const CI=window.HelmCCInputs, r=CI?CI.role($(sel).value, ROLES):{ok:!!$(sel).value,error:"Choose a role."};
+    if(!r.ok){ setUMsg("err",r.error); $(sel).focus(); } return r.ok; }
+  ccTeam();
   $("#um_add").addEventListener("submit", async (e)=>{
     e.preventDefault();
-    const email=$("#um_email").value.trim(), role=$("#um_role").value;
+    if($("#um_submit").disabled) return;   // already adding (Enter pressed twice) or all seats in use
+    const T=ccTeam(); if(T&&T.member&&window.HelmCCInputs.first([T.member])) return;
+    if(!ccRoleOk("#um_role")) return;
+    const email=((T&&T.member&&T.member.value())||$("#um_email").value.trim()).toLowerCase(), role=$("#um_role").value;
     { const r=BPStore.validate.email(email); if(!r.ok){ setUMsg("err",r.error); $("#um_email").focus(); return; } }
     await BPUI.guard($("#um_submit"), async()=>{
     try{
       const r = await BPStore.auth.admin.createUserTemp(email, role);   // { user_id, temp_password }
       const tp = (r && r.temp_password) || "";
-      $("#um_email").value=""; await renderUsers();
+      $("#um_email").value=""; if(T&&T.member) T.member.reset(); await renderUsers();
       // Show the one-time temp password prominently with a copy button.
       const m=$("#umsg");
       m.innerHTML = `<div class="msg ok" style="line-height:1.6">Added <b>${esc(email)}</b> as ${esc(role)}.<br>`+
@@ -1673,7 +1862,10 @@
   }
   $("#inv_add").addEventListener("submit", async (e)=>{
     e.preventDefault();
-    const email=$("#inv_email").value.trim(), role=$("#inv_role").value;
+    if($("#inv_submit").disabled) return;   // already creating, or all seats in use
+    const T=ccTeam(); if(T&&T.invite&&window.HelmCCInputs.first([T.invite])) return;
+    if(!ccRoleOk("#inv_role")) return;
+    const email=((T&&T.invite&&T.invite.value())||$("#inv_email").value.trim()).toLowerCase(), role=$("#inv_role").value;
     { const r=BPStore.validate.email(email); if(!r.ok){ setUMsg("err",r.error); $("#inv_email").focus(); return; } }
     await BPUI.guard($("#inv_submit"), async()=>{
     try{
@@ -1681,7 +1873,7 @@
       const link=location.origin+"/login?invite="+encodeURIComponent(r.token);
       $("#inv_link").value=link; $("#inv_out").hidden=false;
       setUMsg("ok",(r.reused?"Existing invite link ready for ":"Invite link created for ")+email+".");
-      $("#inv_email").value=""; renderInvites();
+      $("#inv_email").value=""; if(T&&T.invite) T.invite.reset(); renderInvites();
       // 0131: a NEW invite row queues its e-mail by trigger; a reused one does not, so re-queue it first.
       if(r.reused){ try{ const rows=await BPStore.invitations.list();
         const inv=(rows||[]).find(i=>i.status==="pending"&&String(i.email||"").toLowerCase()===email.toLowerCase());
@@ -1711,6 +1903,7 @@
     catch(e){ BPUI.loadError(tb, e, renderInvites, {what:"pending invites"}); return; }
     const now=Date.now();
     const pend=(rows||[]).filter(i=>i.status==="pending" && (!i.expires_at || new Date(i.expires_at).getTime()>now));
+    invPending=pend.map(i=>({email:String(i.email||"").toLowerCase(), role:i.role}));
     tb.innerHTML=pend.map(i=>`<tr data-id="${esc(i.id)}" data-email="${esc(i.email)}" data-role="${esc(i.role)}"><td>${esc(i.email)}</td><td>${esc(BPStore.auth.admin.roleLabel(i.role))}</td><td>${esc(ucDate(i.created_at))}</td><td>${esc(ucDate(i.expires_at))}</td><td><button type="button" class="btn invCopy">Copy link</button> <button type="button" class="btn invResend">Resend email</button> <button type="button" class="btn invRevoke">Revoke</button></td></tr>`).join("")
       || `<tr><td colspan="5" style="color:var(--ink-3)">No pending invites.</td></tr>`;
     tb.querySelectorAll(".invRevoke").forEach(btn=>btn.addEventListener("click", async ()=>{
@@ -1853,11 +2046,22 @@
   async function applySuggested(role, btn){
     const list=(ROLE_SUGGEST[role]||[]).filter(([a])=>AREAS.some(x=>x.key===a));
     if(!list.length) return;
-    if(!(await BPUI.confirm("Switch on "+list.map(([a,e])=>a+(e?" (edit)":" (view)")).join(", ")+" for "+role+"? You can change each one afterwards.",{title:"Apply suggested access?",okLabel:"Apply"}))) return;
+    const lbl=(k)=>(AREAS.find(x=>x.key===k)||{}).label||k, rl=BPStore.auth.admin.roleLabel(role);
+    if(btn.disabled) return;   // a second click while the first is still asking / saving
     btn.disabled=true;
-    try{ for(const [a,e] of list) await BPStore.auth.admin.setAccess(role, a, true, e); BPUI.toast(role+": suggested access applied",{type:"ok"}); }
-    catch(err){ BPUI.toast(errMsg(err,"change access"),{type:"err"}); }
-    await loadMatrix(); renderMatrix();
+    if(!(await BPUI.confirm("Switch on "+list.map(([a,e])=>lbl(a)+(e?" (view + edit)":" (view)")).join(", ")+" for "+rl+"? You can change each one afterwards.",{title:"Apply suggested access?",okLabel:"Apply"}))){ btn.disabled=false; return; }
+    // same queue as single toggles, so a click made meanwhile is never overwritten by a stale grid
+    cellPending++; $("#matrix").setAttribute("aria-busy","true");
+    cellQueue = cellQueue.then(async()=>{
+      // "switch on" only adds: an area this role can already EDIT keeps edit (never downgraded to view), one already as suggested is skipped
+      try{ for(const [a,e] of list){ const cur=(MTX[role]&&MTX[role][a])||cellDefault(role,a), ed=!!(e||cur.edit);
+          if(cur.view && !!cur.edit===ed) continue;
+          await BPStore.auth.admin.setAccess(role, a, true, ed); }
+        BPUI.toast(rl+": suggested access applied",{type:"ok"}); }
+      catch(err){ BPUI.toast(errMsg(err,"change access"),{type:"err"}); }
+      await loadMatrix();
+    }).catch(()=>{}).finally(()=>{ cellPending--; if(!cellPending) $("#matrix").removeAttribute("aria-busy"); renderMatrix(); });
+    return cellQueue;
   }
   // saveCell is SERIALIZED: quick clicks queue up and each one computes its toggle
   // from the matrix as re-read from the server after the previous save, so two fast

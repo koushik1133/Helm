@@ -26,7 +26,7 @@ async function setup(title) {
       eventType: D.c_type.value.trim() || null, eventDate: D.c_date.value || null };
     if (HEN.isAuto(store.title, ev.code)) { const t = HEN.fromQuote(patch); if (t) patch.title = t; }
     writes.push(patch); Object.assign(store, patch); ev.eventType = patch.eventType; ev.client = patch.client; if (patch.title) ev.title = patch.title; return true; }
-  const ctx = { ev, window: { HelmEventName: HEN }, $: (s) => D[s.slice(1)], loading: false, HelmAutosave, saveClient, store, writes, D };
+  const ctx = { ev, window: { HelmEventName: HEN }, $: (s) => D[s.slice(1)], loading: false, HelmAutosave, saveClient, store, writes, D, edited: new Set() };   // flow-validation: per-section "edited" set
   vm.createContext(ctx);
   vm.runInContext(`${nameSrc}; var AS=HelmAutosave.create({delay:20,save:{client:()=>saveClient()}}); AS.has=()=>true; (function(){ ${wireSrc} })();`, ctx);
   return ctx;

@@ -8,13 +8,6 @@
   var $ = function (id) { return document.getElementById(id); };
   var started = false, S = null;
 
-  function num(id, lo, hi, dflt) {
-    var raw = String($(id).value == null ? "" : $(id).value).trim();
-    if (raw === "") return { ok: false, v: dflt };   // blank must not silently save as 0
-    var v = Number(raw);
-    if (!Number.isInteger(v) || v < lo || v > hi) return { ok: false, v: dflt };
-    return { ok: true, v: v };
-  }
   function chans(emailId, waId) {
     var a = []; if ($(emailId).checked) a.push("email"); if ($(waId).checked) a.push("whatsapp"); return a;
   }
@@ -75,48 +68,82 @@
     setMsg(S.pending ? S.pending + " message" + (S.pending === 1 ? "" : "s") + " waiting to be sent." : "");
   }
 
+  // [input id, label, min, max, saved key]. Ranges are checked here with a message under the field
+  // (the HTML carries no min/max/step, so the global number hardener never silently clamps 45 -> 30
+  // or turns a pasted "2.5" into 25).
+  var NUMS = [["cm_pay_before", "Days before the due date", 0, 30, "pay_before_days"],
+    ["cm_pay_every", "Every N days overdue", 1, 30, "pay_every_days"],
+    ["cm_pay_max", "Max overdue reminders", 0, 10, "pay_max_overdue"],
+    ["cm_fu_delay", "Days after opening", 1, 30, "fu_delay_days"],
+    ["cm_fu_max", "Max follow-ups", 1, 5, "fu_max"]];
+  var PH = { cm_pay_tpl: ["client", "studio", "event", "label", "amount", "due", "status"], cm_fu_tpl: ["client", "studio", "event"] };
+  function F() { return global.HelmCCFields; }
+  function grp(id) { var x = $(id); return x && x.closest ? x.closest(".cmchans") : null; }
+  // whole number lo..hi; "" / decimals / negative / out of range -> {ok:false, msg}. Leading zeros are fine.
+  function whole(raw, lo, hi, label) {
+    if (F()) { var r = F().number(raw, { label: label, required: true, integer: true, min: lo, max: hi }); return r.ok ? { ok: true, v: r.value } : { ok: false, msg: r.error }; }
+    var x = String(raw == null ? "" : raw).trim(), v = Number(x);
+    return x !== "" && /^\d+$/.test(x) && v >= lo && v <= hi ? { ok: true, v: v } : { ok: false, msg: label + " must be a whole number from " + lo + " to " + hi + "." };
+  }
+  // -> {patch, errs:[[elementId, message, anchorEl?]]}. Every problem is listed (not just the first).
   function collect() {
-    var bad = null, n = function (id, lo, hi, d, name) { var r = num(id, lo, hi, d); if (!r.ok && !bad) bad = name + " must be a whole number from " + lo + " to " + hi + "."; return r.v; };
+    var errs = [], patch = {};
+    NUMS.forEach(function (d) {
+      var r = whole($(d[0]).value, d[2], d[3], d[1]);
+      if (r.ok) patch[d[4]] = r.v; else errs.push([d[0], r.msg]);
+    });
     var roles = {};
     Array.prototype.slice.call(document.querySelectorAll("#cm_roles input[type=checkbox]")).forEach(function (cb) {
       if (!roles[cb.dataset.role]) roles[cb.dataset.role] = [];
       if (cb.checked) roles[cb.dataset.role].push(cb.dataset.type);
     });
-    var patch = {
-      pay_enabled: $("cm_pay_on").checked, pay_channels: chans("cm_pay_email", "cm_pay_wa"),
-      pay_before_days: n("cm_pay_before", 0, 30, 3, "Days before the due date"), pay_on_due: $("cm_pay_due").checked,
-      pay_every_days: n("cm_pay_every", 1, 30, 3, "Every N days overdue"), pay_max_overdue: n("cm_pay_max", 0, 10, 3, "Max overdue reminders"),
+    Object.assign(patch, {
+      pay_enabled: $("cm_pay_on").checked, pay_channels: chans("cm_pay_email", "cm_pay_wa"), pay_on_due: $("cm_pay_due").checked,
       pay_template: $("cm_pay_tpl").value.trim() || null,
       fu_enabled: $("cm_fu_on").checked, fu_channels: chans("cm_fu_email", "cm_fu_wa"),
-      fu_delay_days: n("cm_fu_delay", 1, 30, 3, "Days after opening"), fu_max: n("cm_fu_max", 1, 5, 2, "Max follow-ups"),
       fu_template: $("cm_fu_tpl").value.trim() || null,
       low_stock_enabled: $("cm_low_on").checked,
       wa_forward_enabled: $("cm_wa_on").checked, wa_forward_roles: roles,
       studio_whatsapp: $("cm_wa_num").value.trim() || null,
-    };
-    [["pay_template", "Payment reminder message"], ["fu_template", "Follow-up message"]].forEach(function (p) {
-      if (!bad && patch[p[0]] && /[<>]/.test(patch[p[0]])) bad = p[1] + " can't contain < or >.";
     });
-    if (!bad && patch.pay_enabled && !patch.pay_channels.length) bad = "Pick at least one channel for payment reminders.";
-    if (!bad && patch.fu_enabled && !patch.fu_channels.length) bad = "Pick at least one channel for follow-ups.";
-    if (!bad && patch.studio_whatsapp) {
+    [["pay_template", "cm_pay_tpl", "The payment reminder message"], ["fu_template", "cm_fu_tpl", "The follow-up message"]].forEach(function (p) {
+      var t = patch[p[0]]; if (!t) return;
+      if (/[<>]/.test(t)) { errs.push([p[1], p[2] + " can't contain < or >."]); return; }
+      var bad = F() ? F().templatePlaceholders(t, PH[p[1]]) : [];
+      if (bad.length) errs.push([p[1], "Helm won't fill in " + bad.join(" ") + " - the client would see it as typed. Use " + PH[p[1]].map(function (k) { return "{" + k + "}"; }).join(" ") + " (lower case, no spaces)."]);
+    });
+    if (patch.pay_enabled && !patch.pay_channels.length) errs.push(["cm_pay_email", "Pick at least one channel (E-mail or WhatsApp) for payment reminders.", grp("cm_pay_email")]);
+    if (patch.fu_enabled && !patch.fu_channels.length) errs.push(["cm_fu_email", "Pick at least one channel (E-mail or WhatsApp) for follow-ups.", grp("cm_fu_email")]);
+    if (patch.studio_whatsapp) {
       var wd = patch.studio_whatsapp.replace(/\D/g, "");
-      if (!/^\+?[0-9\s().-]+$/.test(patch.studio_whatsapp) || wd.length < 8 || wd.length > 15) bad = "Enter the studio WhatsApp number with country code, e.g. +91 98765 43210.";
-    }
-    if (!bad && patch.wa_forward_enabled && !patch.studio_whatsapp) bad = "Add the studio WhatsApp number before switching forwarding on.";
-    return { patch: patch, bad: bad };
+      if (!/^\+?[0-9\s().-]+$/.test(patch.studio_whatsapp) || wd.length < 8 || wd.length > 15) errs.push(["cm_wa_num", "Enter the studio WhatsApp number with country code, e.g. +91 98765 43210."]);
+    } else if (patch.wa_forward_enabled) errs.push(["cm_wa_num", "Add the studio WhatsApp number before switching forwarding on."]);
+    return { patch: patch, errs: errs };
   }
 
+  function fieldErrs(list) {
+    var card = $("commsCard");
+    if (F()) { F().clearErrors(card); Array.prototype.forEach.call(card.querySelectorAll(".cm-ferr-grp"), function (g) { g.classList.remove("cm-ferr-grp"); }); }
+    if (!list.length) return true;
+    if (!F()) { setErr(list.map(function (x) { return x[1]; }).join(" ")); var f0 = $(list[0][0]); if (f0 && f0.focus) f0.focus(); return false; }
+    list.forEach(function (x) { if (x[2]) x[2].classList.add("cm-ferr-grp"); });
+    F().showErrors(list.map(function (x) { return [$(x[0]), x[1], x[2]]; }));
+    setErr(list.length > 1 ? "Please fix the " + list.length + " highlighted fields." : "");
+    return false;
+  }
+
+  var saving = false;
   async function save() {
+    if (saving) return;                              // no double submit (Enter + click, or a slow network)
     var c = collect(); setErr("");
-    if (c.bad) { setErr(c.bad); return; }
-    var btn = $("cm_save"); btn.disabled = true; setMsg("Saving…");
+    if (!fieldErrs(c.errs)) { setMsg(""); return; }  // values stay as typed
+    var btn = $("cm_save"); saving = true; btn.disabled = true; setMsg("Saving…");
     try {
       var r = await global.BPStore.comms.set(c.patch);
       S = Object.assign({}, S, r || {}); paint(); setMsg("Saved.", "ok");
     } catch (e) {
       setMsg(""); setErr((e && e.message) ? "Couldn't save: " + e.message : "Couldn't save — try again.");
-    } finally { btn.disabled = false; }
+    } finally { saving = false; btn.disabled = false; }
   }
 
   async function init() {
@@ -127,6 +154,9 @@
     card.hidden = false; paint();
     ["cm_pay_tpl", "cm_fu_tpl"].forEach(function (id) { $(id).addEventListener("input", preview); });
     $("cm_save").addEventListener("click", save);
+    ["cm_pay_email", "cm_pay_wa", "cm_fu_email", "cm_fu_wa"].forEach(function (id) { $(id).addEventListener("change", function () {
+      var g = $(id).closest(".cmchans"); if (g) g.classList.remove("cm-ferr-grp");
+      var first = $(id.indexOf("pay") > 0 ? "cm_pay_email" : "cm_fu_email"); if (F() && first) F().fieldError(first, ""); }); });
   }
 
   global.HelmCommsSettings = { init: init };

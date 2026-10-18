@@ -3,8 +3,12 @@
    -------------------------------------------------------------------------
    Loaded by store-api.js on studio pages. Asks my_trial_org(); shows nothing
    unless this studio was made by start_trial().
-     • in trial  → "Free trial · N days left" + "Choose a plan" (admins)
-     • ended     → "Trial ended — read-only. Your data is safe." + "Choose a plan"
+     • in trial  → "Free trial · N days left" + "Choose a plan" (admins) — 0180: nothing else
+                   (no sample-data text / badge / "Start my own studio"); the plan link goes
+                   straight to /checkout
+     • ended     → 0183: "Your trial has ended. Your data is preserved and available in read-only
+                   mode. Upgrade now to continue creating and editing records." + "Upgrade" (admins);
+                   the same strip for invited members (read-only too), who are told an admin upgrades
      • 0120: admins see a reminder card once per day on day 5 / 7 / 8 (3 days left /
        ends tomorrow / ends today, in the studio's zone) — "Choose a plan" / "Remind me later"
        (the database refuses edits; nothing is hidden or deleted)
@@ -17,32 +21,34 @@
   function bannerSpec(t) {
     if (!t || typeof t !== "object" || t.is_trial_org !== true) return null;
     var admin = t.is_admin === true;
-    if (t.ended === true || t.locked === true) {
-      return { tone: "ended", locked: t.locked !== false,
-        title: "Your free trial has ended — this studio is read-only.",
-        body: admin ? "Your data is safe. Choose a plan to keep editing." : "Your data is safe. Ask your studio admin to choose a plan.",
-        cta: admin ? "Choose a plan" : null };
+    // 0183 (post-trial policy 1 / 6 / 10): the trial ended unpaid -> the studio is READ-ONLY for everyone
+    // (owner + invited members). Same words for all; only an admin gets the Upgrade button.
+    if (t.read_only === true || t.locked === true) {
+      return { tone: "ended", locked: true,
+        title: "Your trial has ended.",
+        body: "Your data is preserved and available in read-only mode. Upgrade now to continue creating and editing records.",
+        cta: admin ? "Upgrade" : null,
+        note: admin ? null : "Only a studio admin can upgrade." };
     }
+    // trial date passed but the studio is not read-only (paid / extended on an older server answer): no strip
+    if (t.ended === true) return null;
     // calendar days to the last trial day in the studio's zone — the same count the reminder card uses
     var cal = null;
     try { var e0 = Date.parse(t.ends_at); if (isFinite(e0) && e0 > Date.now()) cal = dayNo(ymdIn(e0 - 1, t.timezone)) - dayNo(ymdIn(Date.now(), t.timezone)); } catch (e) { cal = null; }
     var n = Math.max(0, cal != null && isFinite(cal) ? cal : Math.floor(Number(t.days_left)));
     if (!isFinite(n)) return null;
     var left = n === 0 ? "ends today" : n === 1 ? "1 day left" : n + " days left";
+    // 0180: the strip is only "Free trial · N days left" + "Choose a plan" (admins): no body text,
+    // no "Sample data" badge and no "Start my own studio" link any more
     return { tone: n <= 2 ? "soon" : "", locked: false,
       title: "Free trial · " + left,
-      body: t.trial_mode === "own" ? "Everything in Helm is open to you — no card needed." : "You're exploring sample data. Everything marked “Demo ·” is fictional.",
-      cta: admin ? "Choose a plan" : null,
-      // 0123: exploring samples -> one clear "start my own studio" action; "Choose a plan" offers it first
-      fresh: admin && t.trial_mode === "demo" ? "Start my own studio" : null,
-      // 0167: a visible "Sample data" badge while the studio still shows the sample dataset
-      badge: t.trial_mode === "demo" ? "Sample data" : null };
+      body: null,
+      cta: admin ? "Choose a plan" : null };
   }
 
-  // Pure (unit-tested): where "Choose a plan" goes. In demo mode it first offers to remove the samples.
+  // Pure (unit-tested): where "Choose a plan" goes - 0180: always straight to the plan / checkout page
+  // (it no longer offers to remove the samples first; t is kept for callers)
   function planHref(t, pageName) {
-    if (t && t.is_admin === true && t.trial_mode === "demo" && t.ended !== true && t.locked !== true)
-      return "dashboard.html?demo=fresh&then=checkout";
     return "checkout.html?next=" + encodeURIComponent((pageName || "dashboard") + ".html");
   }
 
@@ -108,17 +114,19 @@
       key: "helm_trial_reminder:" + m + ":" + ymdIn(nowMs, tz) };
   }
 
-  // ---- 0126: trial staff + after-trial access ----
+  // ---- 0126 / 0183: trial staff + after-trial access ----
   // my_trial_access() answer -> Staff-page note spec, or null (active trial only)
   function staffNoteSpec(a) {
     if (!a || typeof a !== "object" || a.is_trial_org !== true) return null;
-    if (a.ended === true || a.locked === true) return { tone: "ended",
-      text: "Trial ended: staff can't sign in to this studio until it's on a plan. Their accounts are kept and come back the moment you subscribe." };
+    if (a.read_only === true || a.locked === true) return { tone: "ended",
+      text: "Trial ended: everyone in this studio, including invited staff, can still sign in and view everything in read-only mode. Upgrade to continue creating and editing records." };
+    if (a.ended === true) return null;
     var when = endsLabel(a.ends_at, a.timezone || null);
-    return { tone: "", text: "Trial: staff access ends when the trial ends" + (when ? " on " + when : "") +
-      ". Invite your real team now; if you choose a plan, they keep working without being re-invited." };
+    return { tone: "", text: "Trial: when the trial ends" + (when ? " on " + when : "") +
+      ", your staff keep read-only access until you upgrade. Invite your real team now; if you choose a plan, they keep working without being re-invited." };
   }
-  // my_trial_access() answer -> full-page "trial ended" screen for a blocked (non-owner) member, or null
+  // my_trial_access() answer -> full-page "trial ended" screen for a blocked (non-owner) member, or null.
+  // 0183: the server no longer blocks anyone (blocked is always false); kept for a database without 0183.
   function blockedSpec(a) {
     if (!a || typeof a !== "object" || a.is_trial_org !== true || a.blocked !== true || a.is_owner === true) return null;
     return { title: "This studio's trial has ended",
@@ -136,11 +144,10 @@
   var CSS = [
     ".htr{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:center;padding:8px 16px;font-size:13.5px;line-height:1.4;background:var(--accent-soft,#efe9ff);color:var(--ink,#1b1930);border-bottom:1px solid var(--line,#e8e3db)}",
     ".htr.soon{background:#fff4e0}.htr.ended{background:#fde8e8}",
-    ".htr b{font-weight:700}.htr span{color:var(--ink-2,#4b475f)}",
-    ".htr span.htr-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff);border-radius:999px;padding:2px 8px}",
+    ".htr b{font-weight:700}.htr span{color:var(--ink-2,#4b475f)}.htr span.htr-note{font-weight:600}",
+    // 0183 read-only studio: create / compose controls that are not gated by the page's own edit check
+    "html.helm-read-only #composer,html.helm-read-only #sendBtn,html.helm-read-only #newBtn,html.helm-read-only #createBtn,html.helm-read-only [data-requires-edit]{display:none!important}",
     ".htr a{display:inline-block;padding:4px 12px;border-radius:999px;background:var(--accent,#6d28d9);color:#fff;font-weight:600;text-decoration:none}",
-    ".htr a.htr-fresh{background:transparent;color:var(--accent,#6d28d9);border:1px solid var(--accent,#6d28d9)}",
-    "html[data-theme=dark] .htr a.htr-fresh{color:#d9ccff;border-color:#8b7bd8}",
     ".htr a:focus-visible{outline:2px solid var(--ink,#1b1930);outline-offset:2px}",
     ".htrm{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(20,16,40,.45)}",
     ".htrm-c{max-width:440px;width:100%;background:var(--card,#fff);color:var(--ink,#1b1930);border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);font-size:14.5px;line-height:1.5}",
@@ -172,23 +179,18 @@
     bar.id = "helmTrialStrip";
     bar.className = "htr" + (spec.tone ? " " + spec.tone : "");
     bar.setAttribute("role", spec.locked ? "alert" : "status");
-    if (spec.badge) { var g = doc.createElement("span"); g.className = "htr-badge"; g.textContent = spec.badge; bar.appendChild(g); }
     var b = doc.createElement("b"); b.textContent = spec.title; bar.appendChild(b);
-    var s = doc.createElement("span"); s.textContent = spec.body; bar.appendChild(s);
+    if (spec.body) { var s = doc.createElement("span"); s.textContent = spec.body; bar.appendChild(s); }
     if (spec.cta) {
       var a = doc.createElement("a");
       a.href = planHref(lastT, page());
       a.textContent = spec.cta;
       bar.appendChild(a);
     }
-    if (spec.fresh) {
-      var f = doc.createElement("a");
-      f.href = "dashboard.html?demo=fresh"; f.className = "htr-fresh";
-      f.textContent = spec.fresh;
-      bar.appendChild(f);
-    }
+    if (spec.note) { var nt = doc.createElement("span"); nt.className = "htr-note"; nt.textContent = spec.note; bar.appendChild(nt); }
     doc.body.insertBefore(bar, doc.body.firstChild);
-    if (spec.locked) doc.documentElement.classList.add("helm-trial-locked");
+    // 0183: read-only studio -> html.helm-read-only hides the few create / compose controls a page does not gate itself
+    if (spec.locked) { doc.documentElement.classList.add("helm-trial-locked"); doc.documentElement.classList.add("helm-read-only"); }
   }
 
   function seen(key) { try { return global.localStorage.getItem(key) === "1"; } catch (e) { return false; } }
