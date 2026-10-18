@@ -160,10 +160,11 @@
   }
 
   // ---- add / edit form ---------------------------------------------------------------
-  // inline message under one field (msg "" clears it); the input is the direct child of its .fld box
+  // inline message under one field (msg "" clears it); it goes in the field's .fld box (the input may sit in a ₹ wrapper)
+  function fldOf(input) { for (var n = input.parentNode; n; n = n.parentNode) if (/(^|\s)fld(\s|$)/.test(n.className || "")) return n; return input.parentNode; }
   function fieldErr(input, msg) {
     if (!input) return;
-    var box = input.parentNode, id = input.id + "_err", e = document.getElementById(id);
+    var box = fldOf(input), id = input.id + "_err", e = document.getElementById(id);
     if (!e && msg && box) { e = h("div", { id: id, cls: "vn-ferr" }); box.appendChild(e); }
     if (e) { e.textContent = msg || ""; e.hidden = !msg; }
     if (msg) { input.setAttribute("aria-invalid", "true"); input.setAttribute("aria-describedby", id); }
@@ -183,12 +184,25 @@
       tog.querySelectorAll(".btn").forEach(function (b) { var on = (b.textContent === "Feet") === (u === "ft"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
     }
     var tog = unitToggle(setUnit);
-    var multi = function (name, list, cur, refs, onchg) {
-      return h("div", { cls: "vn-multi", role: "group", "aria-label": name }, list.map(function (x) {
+    // 1018b (owner: "form looks congested"): section cards + even grids. Ids / names / behaviour unchanged.
+    var multi = function (name, list, cur, refs, onchg, cls, after) {
+      return h("div", { cls: "vn-multi " + (cls || "vn-pills"), role: "group", "aria-label": name }, list.map(function (x) {
         var cb = h("input", { type: "checkbox", name: name, value: x[0], checked: (cur || []).indexOf(x[0]) >= 0, onchange: onchg ? function () { onchg(x[0]); } : null });
         if (refs) refs[x[0]] = cb;
-        return h("label", { cls: "vn-chk" }, [cb, " " + x[1]]);
+        var lbl = h("label", { cls: "vn-chk" }, [cb, h("span", { text: x[1] })]);
+        // a restriction with its own detail field (curfew time / setup window) shows that field right under its tick
+        return after ? h("div", { cls: "vn-opt" + (after[x[0]] ? " has-dep" : "") }, [lbl, after[x[0]] || null]) : lbl;
       }));
+    };
+    var grid = function (cols, kids) { return h("div", { cls: "vn-g c" + cols }, kids); };
+    var sec = function (key, title, kids, head) {
+      return h("section", { cls: "vn-sec", "aria-labelledby": "vn_sec_" + key }, [
+        h("div", { cls: "vn-sec-head" }, [h("h5", { cls: "vn-sec-h", id: "vn_sec_" + key, text: title }), head || null])].concat(kids));
+    };
+    var group = function (title, kids) { return h("fieldset", { cls: "vn-sec" }, [h("legend", { cls: "vn-sec-h", text: title })].concat(kids)); };
+    var money = function (id, label, val) {
+      return h("div", { cls: "fld" }, [h("label", { "for": id, text: label }),
+        h("div", { cls: "vn-pre" }, [h("span", { cls: "vn-pre-sym", "aria-hidden": "true", text: "₹" }), inp(id, val, "number", { min: "0", step: "1" })])]);
     };
     // 1018: "Sound curfew time" / "Setup time window" only show while their restriction is ticked; unticking clears
     // the value (it is not saved). A venue saved earlier with a value but no tick keeps showing it, so nothing is lost.
@@ -196,6 +210,7 @@
     var curfewIn = inp("vf_curfew", v.sound_curfew ? String(v.sound_curfew).slice(0, 5) : "", "time");
     var setupIn = inp("vf_setup", v.setup_window, "text", { maxlength: "200", placeholder: "e.g. 06:00-11:00 on event day" });
     var curfewFld = f("vf_curfew", "Sound curfew time", curfewIn), setupFld = f("vf_setup", "Setup time window", setupIn);
+    curfewFld.className += " vn-dep"; setupFld.className += " vn-dep";
     var deps = { sound_curfew: [curfewFld, curfewIn], setup_window: [setupFld, setupIn] };
     function syncDeps(changed) {
       Object.keys(deps).forEach(function (k) {
@@ -205,48 +220,48 @@
         if (changed === k && on && d[1].focus) d[1].focus();
       });
     }
-    var rsBox = multi("vf_rs", V.RESTRICTIONS, v.restrictions, rsRefs, syncDeps);
-    var errBox = h("div", { id: "vf_err", cls: "msg err", role: "alert", hidden: true });
+    var rsBox = multi("vf_rs", V.RESTRICTIONS, v.restrictions, rsRefs, syncDeps, "vn-rs", { sound_curfew: curfewFld, setup_window: setupFld });
+    var errBox = h("div", { id: "vf_err", cls: "msg err vn-sum", role: "alert", hidden: true });
     var el = h("form", { id: "vn_form", cls: "vn-form", novalidate: true }, [
-      h("h4", { text: v.id ? "Edit venue" : "Add venue" }),
-      h("div", { cls: "grid" }, [
+      h("div", { cls: "vn-fhead" }, [h("h4", { text: v.id ? "Edit venue" : "Add venue" }), h("p", { cls: "vn-hint", text: "Fields marked * are required." })]),
+      sec("basics", "Basics", [grid(3, [
         f("vf_name", "Venue name *", inp("vf_name", v.name, "text", { maxlength: "200", required: true }), true),
         f("vf_type", "Venue type", h("select", { id: "vf_type" }, opts(V.VENUE_TYPES, v.venue_type || "banquet_hall"))),
         f("vf_ac", "AC", h("select", { id: "vf_ac" }, opts(V.AC_TYPES, v.ac_type || "ac"))),
-        f("vf_setting", "Indoor / outdoor", h("select", { id: "vf_setting" }, opts(V.SETTINGS, v.setting || "indoor"))),
-        f("vf_seat", "Seated capacity", inp("vf_seat", v.seated_capacity, "number", { min: "1", step: "1" })),
-        f("vf_float", "Floating / standing capacity", inp("vf_float", v.floating_capacity, "number", { min: "1", step: "1" })),
-        h("div", { cls: "fld full" }, [h("span", { cls: "vn-lbl", text: "Hall size unit" }), tog]),
-        h("div", { cls: "fld" }, [lenLbl, lenIn]), h("div", { cls: "fld" }, [widLbl, widIn])
-      ]),
-      h("fieldset", { cls: "vn-fs" }, [h("legend", { text: "Event types available" }), multi("vf_ev", V.EVENT_TYPES, v.event_types)]),
-      h("fieldset", { cls: "vn-fs" }, [h("legend", { text: "Restrictions" }), rsBox,
-        h("div", { cls: "grid" }, [
-          curfewFld,
-          setupFld,
-          f("vf_rnote", "Other restrictions", h("textarea", { id: "vf_rnote", maxlength: "2000" }, [v.restrictions_note || ""]), true)])]),
-      h("fieldset", { cls: "vn-fs" }, [h("legend", { text: "Approximate cost (₹)" }), h("div", { cls: "grid" }, [
-        f("vf_cmin", "Min ₹", inp("vf_cmin", v.cost_min, "number", { min: "0", step: "1" })),
-        f("vf_cmax", "Max ₹", inp("vf_cmax", v.cost_max, "number", { min: "0", step: "1" })),
+        f("vf_setting", "Indoor / outdoor", h("select", { id: "vf_setting" }, opts(V.SETTINGS, v.setting || "indoor")))])]),
+      sec("size", "Size & capacity", [
+        grid(2, [
+          f("vf_seat", "Seated capacity", inp("vf_seat", v.seated_capacity, "number", { min: "1", step: "1" })),
+          f("vf_float", "Floating / standing capacity", inp("vf_float", v.floating_capacity, "number", { min: "1", step: "1" }))]),
+        grid(2, [h("div", { cls: "fld" }, [lenLbl, lenIn]), h("div", { cls: "fld" }, [widLbl, widIn])])
+      ], h("div", { cls: "vn-unit-row" }, [h("span", { cls: "vn-lbl", text: "Hall size unit" }), tog])),
+      group("Event types available", [multi("vf_ev", V.EVENT_TYPES, v.event_types)]),
+      group("Restrictions", [rsBox,
+        h("div", { cls: "vn-g c1 vn-gap-top" }, [f("vf_rnote", "Other restrictions", h("textarea", { id: "vf_rnote", maxlength: "2000", rows: "3" }, [v.restrictions_note || ""]), true)])]),
+      group("Approximate cost", [grid(3, [
+        money("vf_cmin", "Minimum", v.cost_min),
+        money("vf_cmax", "Maximum", v.cost_max),
         f("vf_basis", "Basis", h("select", { id: "vf_basis" }, opts(V.COST_BASIS, v.cost_basis || "per_day")))])]),
-      h("fieldset", { cls: "vn-fs" }, [h("legend", { text: "Amenities" }), h("div", { cls: "grid" }, [
+      group("Amenities", [grid(3, [
         f("vf_park", "Parking spaces", inp("vf_park", v.parking_spaces, "number", { min: "0", step: "1" })),
         f("vf_rooms", "Rooms", inp("vf_rooms", v.rooms, "number", { min: "0", step: "1" })),
         f("vf_kw", "Power backup (kW)", inp("vf_kw", v.power_backup_kw, "number", { min: "0", step: "any" })),
         f("vf_green", "Green rooms", inp("vf_green", v.green_rooms, "number", { min: "0", step: "1" })),
         f("vf_wash", "Washrooms", inp("vf_wash", v.washrooms, "number", { min: "0", step: "1" }))])]),
-      h("div", { cls: "grid" }, [
+      sec("contact", "Address & contact", [grid(3, [
         f("vf_addr", "Address", inp("vf_addr", v.address, "text", { maxlength: "1000" }), true),
         f("vf_city", "City", inp("vf_city", v.city, "text", { maxlength: "120" })),
-        f("vf_map", "Map link (https://)", inp("vf_map", v.map_url, "url", { maxlength: "1000", placeholder: "https://maps.google.com/..." })),
+        h("div", { cls: "fld span2" }, [h("label", { "for": "vf_map", text: "Map link (https://)" }), inp("vf_map", v.map_url, "url", { maxlength: "1000", placeholder: "https://maps.google.com/..." })]),
         f("vf_cname", "Contact name", inp("vf_cname", v.contact_name, "text", { maxlength: "200" })),
         f("vf_cphone", "Contact phone", inp("vf_cphone", v.contact_phone, "tel", { maxlength: "40" })),
-        f("vf_cemail", "Contact email", inp("vf_cemail", v.contact_email, "email", { maxlength: "254" })),
-        f("vf_notes", "Notes", h("textarea", { id: "vf_notes", maxlength: "4000" }, [v.notes || ""]), true)]),
-      errBox,
-      h("div", { cls: "vn-acts" }, [
-        h("button", { type: "submit", cls: "btn primary", id: "vf_save", text: "Save venue" }),
-        h("button", { type: "button", cls: "btn", text: "Cancel", onclick: function () { state.editing = null; render(); } })])
+        f("vf_cemail", "Contact email", inp("vf_cemail", v.contact_email, "email", { maxlength: "254" }))])]),
+      sec("notes", "Notes", [grid(1, [
+        h("div", { cls: "fld full" }, [h("label", { "for": "vf_notes", cls: "vn-sr", text: "Notes" }), h("textarea", { id: "vf_notes", maxlength: "4000", rows: "4", placeholder: "Anything the team should know about this venue" }, [v.notes || ""])])])]),
+      // sticky footer: the summary (if any) sits 12px above the buttons, never flush against the last field
+      h("div", { cls: "vn-foot" }, [errBox,
+        h("div", { cls: "vn-foot-btns" }, [
+          h("button", { type: "button", cls: "btn", text: "Cancel", onclick: function () { state.editing = null; render(); } }),
+          h("button", { type: "submit", cls: "btn primary", id: "vf_save", text: "Save venue" })])])
     ]);
     syncDeps(null);
     // typing in a flagged field clears its inline message
