@@ -209,13 +209,8 @@
       <button type="button" class="ghost" id="coSkip">Skip payment (testing only)</button>
     </section>
 
-    <section class="card" id="coDemoChoice" aria-labelledby="dcH" hidden>
-      <h2 id="dcH">Your plan is active — what about the sample data?</h2>
-      <p>Your trial studio has sample records marked "Demo" (events, leads, staff, vendors, inventory, menu packages). Start fresh removes only those sample records. Anything you added yourself stays.</p>
-      <p id="dcMsg" role="status" aria-live="polite"></p>
-      <button type="button" class="btn" id="dcFresh">Start fresh (remove sample data)</button>
-      <button type="button" class="ghost" id="dcKeep">Keep the sample data</button>
-    </section>
+    <!-- 0185: after a verified payment trial-upgrade.js asks keep (default) / remove sample data / start completely clean -->
+    <section class="card" id="coDemoChoice" data-tu-checkout aria-label="Your trial data after upgrading" hidden></section>
 
     <p class="foot">Signed in as <b id="coEmail"></b> · <button type="button" class="linkbtn" id="coSignOut">Sign out</button></p>
   </main>
@@ -224,6 +219,7 @@
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
-<script src="checkout.js?v=4"></script>
+<script src="trial-upgrade.js?v=1"></script>
+<script src="checkout.js?v=5"></script>
 </body>
 </html>

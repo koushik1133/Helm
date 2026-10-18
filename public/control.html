@@ -250,6 +250,7 @@
       <div id="accBody"></div>
     </div>
     <div class="card" id="tdControl" data-td-control hidden aria-label="Demo data"></div>
+    <div class="card" id="tuControl" data-tu-control hidden aria-label="Sample data"></div>
     <div class="card" id="subCard" hidden>
       <h3>Subscription</h3>
       <div id="subBody"></div>
@@ -771,6 +772,7 @@
 <script src="studio-templates.js?v=3"></script>
 <script src="item-pricing.js?v=1"></script>
 <script src="trial-demo.js?v=7"></script>
+<script src="trial-upgrade.js?v=1"></script>
 <script src="settings-search-core.js?v=1"></script>
 <script src="search-catalog.js?v=2"></script>
 <script src="control-split.js?v=12"></script>
@@ -1115,7 +1117,7 @@
     $("#menuTplList").innerHTML = tpls.map(t=>{ const nm=esc(t.name); const k="mt_"+esc(t.id); return `
       <div class="tpl" data-id="${esc(t.id)}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <strong style="flex:1;min-width:160px">${nm}</strong>
+          <strong style="flex:1;min-width:160px">${nm}${t.is_demo?'<span class="hs-tag hs-solo">Sample</span>':''}</strong>
           <label for="${k}_price" style="font-size:12px;color:var(--ink-3)">₹/plate</label>
           <input id="${k}_price" class="tpl_price" type="number" min="0" step="1" value="${numAttr(t.price_per_plate,0)}" style="width:120px" aria-label="Price per plate for ${nm}">
           <label style="font-size:12px;color:var(--ink-3)"><input class="tpl_active" type="checkbox" ${t.active?"checked":""}> active</label>
@@ -1417,7 +1419,7 @@
   function drawDishes(){
     const term=($("#dishFilter").value||"").trim().toLowerCase();
     const list=dishCache.filter(d=>!term || (d.name+" "+d.category).toLowerCase().includes(term));
-    $("#dishList").innerHTML = list.length ? list.map(x=>`<div class="row"><span class="g">${esc(x.name)} <span style="font-size:12px">· ${KINDLBL[x.kind]||""}</span><span class="cfline">${esc(dishAttrText(x))}</span></span><span class="mono" style="font-size:12px">${esc(x.category)}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.name)}" aria-label="Remove dish ${esc(x.name)}">Remove</button></div>`).join("")
+    $("#dishList").innerHTML = list.length ? list.map(x=>`<div class="row"><span class="g">${esc(x.name)}${x.is_demo?'<span class="hs-tag hs-solo">Sample</span>':''} <span style="font-size:12px">· ${KINDLBL[x.kind]||""}</span><span class="cfline">${esc(dishAttrText(x))}</span></span><span class="mono" style="font-size:12px">${esc(x.category)}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.name)}" aria-label="Remove dish ${esc(x.name)}">Remove</button></div>`).join("")
       : `<div class="row" style="color:var(--ink-3)">${dishCache.length?"No dishes match this filter.":"No dishes yet — add your first below."}</div>`;
     $("#dishList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`dish ${b.dataset.name}`,()=>BPStore.dishCatalog.remove(b.dataset.id),renderDishes)));
   }

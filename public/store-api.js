@@ -1091,7 +1091,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "34";
+  const AUTH_UI_VERSION = "35";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1129,6 +1129,18 @@ window.HelmUrl = HelmUrl;
     document.head.appendChild(t);
     loadMobileNav();
     loadTrialBanner();
+    loadTrialUpgrade();
+  }
+  // 0185 — the "Sample" badge on sample rows (every studio page) + the upgrade data choice cards.
+  // trial-upgrade.js asks my_demo_status() / my_upgrade_status() itself and does nothing without sample data.
+  const TRIAL_UPGRADE_VERSION = "1";
+  let trialUpgradeLoading = false;
+  function loadTrialUpgrade() {
+    if (trialUpgradeLoading || typeof document === "undefined" || global.HelmTrialUpgrade) return;
+    trialUpgradeLoading = true;
+    const s = document.createElement("script");
+    s.src = vendorUrl("trial-upgrade.js?v=" + TRIAL_UPGRADE_VERSION);
+    document.head.appendChild(s);
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
@@ -8760,6 +8772,19 @@ window.HelmUrl = HelmUrl;
       reset: () => rpc("reset_demo_data"),
       // 0127 — after subscribing: "fresh" removes ONLY this studio's is_demo rows, "keep" keeps them.
       choose: (choice) => rpc("trial_demo_choice", { p_choice: choice === "fresh" ? "fresh" : "keep" }),
+    },
+    // 0185 — after a free trial upgrades the admin chooses once: "keep" (default) keeps the sample data
+    // (tagged Sample), "remove_sample" removes ONLY is_demo rows, "clean" also ARCHIVES every own record
+    // (never deletes; needs the typed phrase START CLEAN). status(): my_upgrade_status(); null before 0185.
+    upgrade: {
+      status: () => (supa ? rpc("my_upgrade_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      choose: (choice, confirm) => rpc("upgrade_data_choice", {
+        p_choice: choice === "clean" || choice === "remove_sample" ? choice : "keep",
+        p_confirm: confirm == null ? null : String(confirm).slice(0, 40) }),
+      // Control Center "Delete all sample data": is_demo rows only (own records never touched)
+      deleteSample: () => rpc("delete_all_sample_data"),
+      // undo of "Start completely clean": every archived record back in the lists
+      restore: () => rpc("restore_clean_start"),
     },
     // 0116 — "Start free trial": start() creates the caller's "Demo N" studio (sample data,
     // 8 days) through create_studio; a caller who already has a studio gets it back untouched.

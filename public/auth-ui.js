@@ -1654,6 +1654,8 @@
   function demoNotice(d, t) {
     if (!d || typeof d !== "object" || d.trial_mode !== "demo" || d.has_demo !== true) return null;
     var converted = !!(t && typeof t === "object" && t.state === "none");
+    // 0185: after upgrading the admin chose to keep the sample data (tagged Sample): no reminder banner
+    if (converted && d.demo_choice === "keep") return null;
     return { id: "hauDemoNote", tone: "", converted: converted,
       title: converted ? "Your plan is active — your studio still shows demo data" : "You're exploring demo data",
       body: converted ? "Set up your studio with your own clients, menu and team." : "Everything marked \u201cDemo \u00b7\u201d is sample data. No messages or payments go out for it.",
