@@ -8,7 +8,12 @@
  * or "All crew" (week = people x days grid; month / day = events with their crew).
  * Data: BPStore.ops.crew.schedule(from, to, staffId) -> crew_schedule RPC (schedule fields only,
  * never money or client contact). Event status (confirmed / tentative) and lead dates come from the
- * page via opts.statusFor / opts.extra. All markup goes through esc(). */
+ * page via opts.statusFor / opts.extra. All markup goes through esc().
+ * cal-1018: under "All crew" every dated event from the page (opts.events, from data.agenda) is on the
+ * schedule too - an event with no crew yet still shows (Month / Day, and the "Events" row of the
+ * Week grid), so the Confirmed / Tentative / Lead legend matches what is drawn. The Week grid opts
+ * out of the phone table-to-cards conversion (data-tm="off") and shows 3 days per person on phones.
+ * Switching from Month to Day / Week lands on today when today is in the month on screen. */
 (function () {
   "use strict";
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
@@ -70,12 +75,18 @@
     flush(); return ord;
   }
 
+  // cal-1018: leaving Month for Day / Week: today when today is in the month on screen, else the 1st of that month
+  function switchAnchor(from, to, anchor, now) {
+    if (from !== "month" || to === "month") return anchor;
+    return anchor.getFullYear() === now.getFullYear() && anchor.getMonth() === now.getMonth() ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : anchor;
+  }
   function mount(root, opts) {
     opts = opts || {};
     var team = !!opts.team, people = (opts.people || []).slice();
     var linkFor = opts.linkFor || function (b) { return "runsheet.html?id=" + encodeURIComponent(b.quote_id); };
     var statusFor = opts.statusFor || function () { return ""; };
     var extra = opts.extra || function () { return []; };
+    var events = opts.events || function () { return []; };              // cal-1018: [{quote_id, day, title, code, venue, time}]
     var st = { view: VIEWS.indexOf(opts.view) >= 0 ? opts.view : "week", staff: opts.staff || "", anchor: new Date(), rows: [] };
     var seq = 0, pop = null, lastFocus = null;
     var narrow = function () { try { return !!(window.matchMedia && window.matchMedia("(max-width: 600px)").matches); } catch (e) { return false; } };
@@ -88,7 +99,7 @@
       (team ? '<label class="cs-pick"><span class="cs-sr">Crew member</span><select id="csStaff" aria-label="Crew member"><option value="">All crew</option></select></label>' : "") +
       '<div class="cs-seg" role="group" aria-label="View"><button type="button" data-v="day">Day</button><button type="button" data-v="week">Week</button><button type="button" data-v="month">Month</button></div>' +
       '<div class="cs-nav"><button type="button" class="cs-arrow" data-n="-1" aria-label="Previous">‹</button><button type="button" class="cs-todaybtn" data-n="0">Today</button><button type="button" class="cs-arrow" data-n="1" aria-label="Next">›</button></div>' +
-      '</div></div><div class="cs-legend" aria-hidden="true"><span class="cs-lg cs-s-confirmed">Confirmed</span><span class="cs-lg cs-s-tentative">Tentative</span>' + (team ? '<span class="cs-lg cs-s-lead">Lead</span>' : "") + '</div>' +
+      '</div></div><div class="cs-legend" aria-hidden="true"><span class="cs-lg cs-s-confirmed">Confirmed</span><span class="cs-lg cs-s-tentative">Tentative</span>' + (team && opts.leadLegend !== false ? '<span class="cs-lg cs-s-lead">Lead</span>' : "") + '</div>' +
       '<div class="cs-body" id="csBody"></div>';
     var $ = function (s) { return root.querySelector(s); };
 
@@ -100,7 +111,7 @@
       sel.value = st.staff && seen[st.staff] ? st.staff : "";
       if (st.staff && !seen[st.staff]) { sel.insertAdjacentHTML("beforeend", '<option value="' + esc(st.staff) + '">Selected person</option>'); sel.value = st.staff; }
     }
-    function span() { return st.view === "day" ? 1 : st.view === "week" ? (narrow() && !allCrew() ? 3 : 7) : 0; }
+    function span() { return st.view === "day" ? 1 : st.view === "week" ? (narrow() ? 3 : 7) : 0; }   // cal-1018: 3 days on phones, team grid too
     function range() {
       var a = st.anchor, n = span();
       if (st.view === "day") { var d = addDays(a, 0); return { from: d, to: d }; }
@@ -118,7 +129,20 @@
     function sLabel(k) { return k === "confirmed" ? "Confirmed" : k === "lead" ? "Lead" : "Tentative"; }
     function blocks() {
       var out = group(st.rows, allCrew(), !allCrew() && st.view !== "month");
+      if (allCrew()) evBlocks(out).forEach(function (b) { out.push(b); });
       if (allCrew()) (extra() || []).forEach(function (l, i) { if (l && l.day) out.push({ key: "lead|" + i, day: l.day, lead: true, title: l.title || "Lead", code: "", venue: l.venue || "", shifts: [], crew: [], start: null, end: null, time: "", href: l.href || "leads.html" }); });
+      return out;
+    }
+    // cal-1018: dated events with no crew block yet (same event + day already drawn from crew rows is skipped)
+    function evBlocks(have) {
+      var seen = {}; (have || []).forEach(function (b) { if (b.quote_id) seen[b.quote_id + "|" + b.day] = 1; });
+      var out = [];
+      (events() || []).forEach(function (e) {
+        var day = e && e.day && parse(e.day) ? String(e.day).slice(0, 10) : null; if (!day || !e.quote_id) return;
+        var k = e.quote_id + "|" + day; if (seen[k]) return; seen[k] = 1;
+        out.push({ key: "ev|" + k, day: day, quote_id: e.quote_id, title: e.title || "", code: e.code || "", venue: e.venue || "",
+          event_time: e.time || "", shifts: [], crew: [], start: null, end: null, time: e.time || "", nocrew: true });
+      });
       return out;
     }
     var idx = {};
@@ -140,6 +164,7 @@
       rows.push(["Status", sLabel(k)]);
       if (!allCrew() && b.crew_role) rows.push(["Role", b.crew_role]);
       if (allCrew() && b.crew.length) rows.push(["Crew", b.crew.join(", ")]);
+      else if (allCrew() && b.nocrew) rows.push(["Crew", "No crew assigned yet"]);
       var sh = b.shifts.map(function (s) { var w = workOf(s.status);
         return '<li><span class="cs-wk cs-w-' + w.k + '">' + esc(w.l) + "</span> " + esc(s.title || s.category || "Shift") + (s.time ? ' <span class="cs-t">' + esc(s.time) + "</span>" : "") + (allCrew() && s.crew ? ' <span class="cs-t">· ' + esc(s.crew) + "</span>" : "") + "</li>"; }).join("");
       pop = document.createElement("div"); pop.className = "cs-pop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", b.title || "Event");
@@ -170,20 +195,26 @@
 
     /* ---- views ---- */
     function teamGrid(rg, all, today) {
-      var ds = days(rg), ppl = people.slice(), have = {}, byDay = {};
+      var ds = days(rg), ppl = people.slice(), have = {}, byDay = {}, evDay = {};
       var list = group(st.rows, false); list.forEach(function (b) { idx[b.key] = b; (byDay[b.day] = byDay[b.day] || []).push(b); });
+      (all || []).forEach(function (b) { (evDay[b.day] = evDay[b.day] || []).push(b); });       // cal-1018: every event + lead, crew or not
       ppl.forEach(function (p) { have[p.id] = 1; });
       list.forEach(function (b) { if (!have[b.crew_id]) { have[b.crew_id] = 1; ppl.push({ id: b.crew_id, name: b.crew_name }); } });
-      if (!ppl.length) return '<p class="cs-empty">No crew yet. Add people on the Staff page and assign them to event tasks.</p>';
+      var anyEv = ds.some(function (d) { return (evDay[iso(d)] || []).length; });
+      if (!ppl.length && !anyEv) return '<p class="cs-empty">No crew yet. Add people on the Staff page and assign them to event tasks.</p>';
       var busy = {}, inWk = {}; ds.forEach(function (d) { inWk[iso(d)] = 1; }); list.forEach(function (b) { if (inWk[b.day]) busy[b.crew_id] = 1; });
       ppl.sort(function (a, b) { return (busy[b.id] ? 1 : 0) - (busy[a.id] ? 1 : 0) || String(a.name || "").localeCompare(String(b.name || "")); });
-      return '<div class="cs-gridwrap"><table class="cs-grid"><thead><tr><th scope="col" class="cs-who">Crew</th>' +
+      var evRow = '<tr class="cs-evrow"><th scope="row" class="cs-who">Events</th>' + ds.map(function (d) { var k = iso(d);
+        return '<td class="' + (k === today ? "cs-today" : "") + '">' + (evDay[k] || []).map(function (b) { return chip(b, ""); }).join("") + "</td>"; }).join("") + "</tr>";
+      // data-tm="off": tables-mobile.js must not turn this grid into phone cards (it hid every day cell)
+      return '<div class="cs-gridwrap"><table class="cs-grid cs-grid-' + ds.length + '" data-tm="off"><thead><tr><th scope="col" class="cs-who">Crew</th>' +
         ds.map(function (d) { return '<th scope="col" class="' + (iso(d) === today ? "cs-today" : "") + '">' + DOW[(d.getDay() + 6) % 7] + " <b>" + d.getDate() + "</b></th>"; }).join("") +
-        "</tr></thead><tbody>" + ppl.map(function (p) {
+        "</tr></thead><tbody>" + evRow + ppl.map(function (p) {
           return '<tr><th scope="row" class="cs-who"><a href="calendar.html?staff=' + encodeURIComponent(p.id) + '#schedule" data-pick="' + esc(p.id) + '">' + esc(p.name || "Unnamed") + "</a></th>" +
             ds.map(function (d) { var k = iso(d), here = (byDay[k] || []).filter(function (b) { return b.crew_id === p.id; });
               return '<td class="' + (k === today ? "cs-today" : "") + '">' + here.map(function (b) { return chip(b, ""); }).join("") + "</td>"; }).join("") + "</tr>";
-        }).join("") + "</tbody></table></div>";
+        }).join("") + "</tbody></table></div>" +
+        (ppl.length ? "" : '<p class="cs-empty">No crew yet. Add people on the Staff page and assign them to event tasks.</p>');
     }
     function timeGrid(rg, all, today) {
       var ds = days(rg), byDay = {}, minH = 24;
@@ -254,7 +285,10 @@
         else $("#csBody").innerHTML = '<p class="cs-empty">Could not load the schedule.</p>';
       });
     }
-    root.querySelectorAll("[data-v]").forEach(function (b) { b.addEventListener("click", function () { st.view = b.dataset.v; st.sel = null; load(); }); });
+    root.querySelectorAll("[data-v]").forEach(function (b) { b.addEventListener("click", function () {
+      var to = b.dataset.v; if (to === st.view) return;
+      st.anchor = switchAnchor(st.view, to, st.anchor, new Date());
+      st.view = to; st.sel = null; load(); }); });
     root.querySelectorAll("[data-n]").forEach(function (b) { b.addEventListener("click", function () {
       var n = +b.dataset.n; st.sel = null;
       if (!n) st.anchor = new Date();
@@ -265,5 +299,5 @@
     fillPeople();
     return { reload: load, refresh: function () { if (st.loaded) render(); }, setPeople: function (p) { people = (p || []).slice(); fillPeople(); render(); }, state: st, ready: load() };
   }
-  window.HelmCrewSchedule = { mount: mount, _group: group, _timeOf: timeOf, _dayOf: dayOf, _workOf: workOf, _lanes: lanes };
+  window.HelmCrewSchedule = { mount: mount, _switchAnchor: switchAnchor, _group: group, _timeOf: timeOf, _dayOf: dayOf, _workOf: workOf, _lanes: lanes };
 })();

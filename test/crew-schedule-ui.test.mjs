@@ -48,7 +48,7 @@ t('store: BPStore.ops.crew.schedule calls crew_schedule; store-api bumped everyw
 t('calendar: schedule section, assets, crew vs team mode, deep link from staff', () => {
   const h = r('public/calendar.html');
   assert.match(h, /<section id="schedule" class="csched" hidden aria-labelledby="schedTitle"><\/section>/);
-  assert.match(h, /crew-schedule\.css\?v=2/); assert.match(h, /<script src="crew-schedule\.js\?v=2"><\/script>/);
+  assert.match(h, /crew-schedule\.css\?v=3/); assert.match(h, /<script src="crew-schedule\.js\?v=3"><\/script>/);
   assert.match(h, /crewOnly=role==="crew"\|\|role==="worker"/);
   assert.match(h, /HelmCrewSchedule\.mount\(el,\{ team, staff:team\?\(sp\.get\("staff"\)\|\|""\):""/);
   assert.match(h, /crewOnly\?"runsheet\.html\?id=":"event\.html\?id="/);
@@ -59,7 +59,7 @@ t('calendar: schedule section, assets, crew vs team mode, deep link from staff',
 t('crew-schedule.js: Apple-style Day / Week / Month, time grid, now line, popover, team grid, mobile css', () => {
   const js = r('public/crew-schedule.js'), css = r('public/crew-schedule.css');
   for (const k of ['Team schedule', 'My schedule', 'All crew', 'data-v="day"', 'data-v="week"', 'data-v="month"', 'cs-grid', 'cs-month', 'cs-tg', 'cs-now', 'cs-pop', 'all-day', 'Open event', 'Today']) assert.ok(js.includes(k), k);
-  assert.match(js, /narrow\(\) && !allCrew\(\) \? 3 : 7/);                     // week -> 3-day on phones
+  assert.match(js, /narrow\(\) \? 3 : 7/);   // week -> 3-day on phones, team grid too (cal-1018)
   assert.match(js, /cs-s-' \+ k/); assert.match(js, /statusFor\(b\.quote_id\)/); // chip colour by status
   assert.doesNotMatch(js, / style="/);                                            // CSP: positions via data-st + CSSOM
   assert.match(css, /\.cs-s-confirmed\{--cs-c:/); assert.match(css, /\.cs-s-lead\{--cs-c:/);
