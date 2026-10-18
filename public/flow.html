@@ -124,7 +124,7 @@
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=1">
-<script src="/shell-proto.js?v=27" id="shellProto"></script>
+<script src="/shell-proto.js?v=28" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -398,7 +398,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script>
 <script src="tour.js?v=18"></script>
 <script src="booklet.js?v=23"></script>
 <script src="share-checklist.js?v=11"></script>
@@ -406,7 +406,7 @@
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=3"></script>
 <script src="flow-validate.js?v=2"></script>
-<script src="flow-resume.js?v=2"></script>
+<script src="flow-resume.js?v=3"></script>
 <script src="quote-state.js?v=4"></script>
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=7"></script>
@@ -480,6 +480,8 @@
   const shown=new Set(), edited=new Set(), badgeSt={};
   const persisted={ client:null, discovery:false, venue:false, menu:false, proposal:false };
   let origDate="", discRow=null, planRow=null, reqRows=[], userId="anon";
+  // resume v3 (0206): where to land (server, per person) + the step tracker (saves on open + on a step change)
+  let resumeP=Promise.resolve(null), flowTrack=null, resumeLanded=false;
   const IDS={ client:["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests","d_bmax"],
     discovery:["d_date","d_mode","d_att","d_notes"], venue:["v_name","v_contact","v_addr","v_access","v_setting"],
     menu:["p_menu"], proposal:["pr_concept","pr_theme","pr_scope"], layout:["g_len","g_wid"],
@@ -1557,14 +1559,31 @@
         const laidOut=s.getClientRects().length>0 && s.offsetHeight>0;   // still hidden while the page reveals - a 0 top means nothing then
         if((!laidOut || Math.abs(s.getBoundingClientRect().top)>24) && ++n<20) setTimeout(go,150); };
       go(); }
-    else { const want=(location.hash||"").replace(/^#/,"") || (window.HelmFlowResume ? (HelmFlowResume.lastStep(userId,id) ? "sec-"+HelmFlowResume.lastStep(userId,id) : "") : "");
-      const s=want && want!=="sec-client" && /^sec-[a-z]+$/.test(want) ? document.getElementById(want) : null;
-      if(s){ let n=0, stop=false; const halt=()=>{ stop=true; };
-        ["wheel","touchstart","keydown","mousedown"].forEach(t=>addEventListener(t,halt,{once:true,passive:true}));
-        const go=()=>{ if(stop) return; try{ s.scrollIntoView({behavior:"auto",block:"start"}); }catch{}
-          const laidOut=s.getClientRects().length>0 && s.offsetHeight>0;
-          if((!laidOut || Math.abs(s.getBoundingClientRect().top)>24) && ++n<20) setTimeout(go,150); };
-        go(); } }
+    else { const first=!resumeLanded, hashWant=(location.hash||"").replace(/^#/,"");
+      const jump=(want, info)=>{
+        const s=want && want!=="sec-client" && /^sec-[a-z]+$/.test(want) ? document.getElementById(want) : null;
+        if(s && info && window.HelmFlowResume) HelmFlowResume.renderNotice(s, info, ()=>{ try{ window.scrollTo({top:0,behavior:"auto"}); }catch(_){ window.scrollTo(0,0); } });
+        if(s){ let n=0, stop=false; const halt=()=>{ stop=true; };
+          ["wheel","touchstart","keydown","mousedown"].forEach(t=>addEventListener(t,halt,{once:true,passive:true}));
+          const go=()=>{ if(stop) return; try{ s.scrollIntoView({behavior:"auto",block:"start"}); }catch{}
+            const laidOut=s.getClientRects().length>0 && s.offsetHeight>0;
+            if((!laidOut || Math.abs(s.getBoundingClientRect().top)>24) && ++n<20) setTimeout(go,150); };
+          go(); } };
+      // resume v3: opened without a #step -> land on MY last step (server), else where a teammate stopped (first open
+      // only). The answer was asked for while the quote loaded; it never holds the page back (a late answer still jumps
+      // unless the user already scrolled / tapped / typed).
+      if(hashWant) jump(hashWant, null);
+      else if(first){ let moved=false; const mark=()=>{ moved=true; };
+        ["wheel","touchstart","keydown","mousedown"].forEach(t=>addEventListener(t,mark,{once:true,passive:true}));
+        resumeP.then(info=>{ if(!moved && info && info.step) jump("sec-"+info.step, info); landOnce(info); }).catch(()=>landOnce(null)); } }
+    // resume v3: save the step once when the flow opens - where the page landed, else the first step not done
+    const landOnce=(info)=>{ if(resumeLanded) return; resumeLanded=true;
+      if(!flowTrack || !window.HelmFlowResume || !HelmFlowResume.unfinished(ev)) return;
+      const h=(location.hash||"").replace(/^#sec-/,""), done=stepDone();
+      const st=fromBuilder ? "quote" : HelmFlowResume.STEPS[h] ? h : (info && HelmFlowResume.STEPS[info.step]) ? info.step
+        : HelmFlowResume.firstNotDone(Object.keys(done).filter(k=>done[k]));
+      flowTrack.land(st).catch(()=>{}); };
+    if(fromBuilder || location.hash || resumeLanded) landOnce(null);
   }
   // The floor layout drives chairs + décor/setup ("other"). After the builder saves a new
   // layout version, bring the quotation in line with it (same rules as the builder's own
@@ -1697,9 +1716,14 @@
     $("#d_bmax").addEventListener("input",paintBudgetWords);
     $("#d_bmax").addEventListener("blur",()=>{ const b=$("#d_bmax"), r=FV.budget(b.value); if(r.ok && r.value!=null){ const f=FV.fmt(r.value); if(b.value!==f) b.value=f; } paintBudgetWords(); });
     // resume: remember the section the user is working in (Quotes / Home offer "Continue where you left off")
-    const rememberStep=(e)=>{ if(!canEdit||!window.HelmFlowResume) return; const sec=e.target&&e.target.closest&&e.target.closest('section.card[id^="sec-"]'); if(!sec) return;
-      const step=sec.id.slice(4); if(!HelmFlowResume.STEPS[step]) return; HelmFlowResume.record(userId,{ quoteId:id, name:($("#qName").textContent||ev.code||"").trim(), step }); };
+    // resume v3: the section the user works in is saved on the server (debounced, only when it changes)
+    const rememberStep=(e)=>{ if(!flowTrack||!window.HelmFlowResume) return; const sec=e.target&&e.target.closest&&e.target.closest('section.card[id^="sec-"]'); if(!sec) return;
+      const step=sec.id.slice(4); if(!HelmFlowResume.STEPS[step]) return; flowTrack.step(step); };
     $("#app").addEventListener("focusin",rememberStep); $("#app").addEventListener("click",rememberStep);
+    window.addEventListener("hashchange",()=>{ const h=(location.hash||"").replace(/^#sec-/,""); if(flowTrack&&window.HelmFlowResume&&HelmFlowResume.STEPS[h]) flowTrack.step(h); });
+    // leaving the page: send a pending step change now instead of losing it
+    window.addEventListener("pagehide",()=>{ if(flowTrack) flowTrack.flush().catch(()=>{}); });
+    document.addEventListener("visibilitychange",()=>{ if(document.hidden&&flowTrack) flowTrack.flush().catch(()=>{}); });
     $("#sendApproval").addEventListener("click",()=>{ sendApproval().catch(()=>{}); });
     $("#pay_pct").addEventListener("input",()=>{ $("#pay_pct").dataset.touched="1"; updateAdvance(); });
     $("#c_date").addEventListener("change",applyPayTerms);
@@ -1848,6 +1872,9 @@
     if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-2)">No quote selected. Start one from <a href="dashboard.html" style="color:var(--accent);text-decoration:underline">Home</a> or <a href="leads.html" style="color:var(--accent);text-decoration:underline">Leads</a>.</p>'; return; }
     try{ canEdit=await BPStore.auth.canEditArea("quotes"); }catch{ canEdit=true; }
     try{ const u=BPStore.auth.user&&BPStore.auth.user(); if(u&&u.id) userId=u.id; }catch(_){ }
+    if(window.HelmFlowResume){   // resume v3: ask the server where I left off while the quote loads (never blocks it)
+      resumeP=HelmFlowResume.resumeStep(BPStore, userId, id).catch(()=>null);
+      flowTrack=HelmFlowResume.track({ quoteId:id, uid:userId, canEdit, store:BPStore, name:()=>($("#qName").textContent||(ev&&ev.code)||"").trim() }); }
     // planner-1023: save_quotation_version / generate_approval_token need quotes EDIT server-side - a view-only role sees why instead of a 403 toast
     if(!canEdit) ["#q_save","#sendApproval"].forEach(sel=>{ const b=$(sel); if(b){ b.disabled=true; b.title="Your role can view quotes but not edit them — ask an admin."; } });
     await openQuote();
