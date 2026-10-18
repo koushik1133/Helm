@@ -435,3 +435,37 @@ html[data-shell="b"] .hb-switem .hb-ic { display: inline-flex; align-items: cent
 html[data-shell="b"] .hb-switem .hb-swdot { width: 15px; height: 15px; box-shadow: 0 0 0 2px var(--hb-bg), 0 0 0 3px var(--hb-line); transition: transform .3s var(--hb-ease); }
 html[data-shell="b"] .hb-switem:hover .hb-swdot, html[data-shell="b"].hb-sw-open .hb-switem .hb-swdot { transform: rotate(-30deg); box-shadow: 0 0 0 2px var(--hb-bg), 0 0 0 3px var(--hb-acc); }
 @media (prefers-reduced-motion: reduce) { html[data-shell="b"] .hb-switem .hb-swdot { transition: none; transform: none !important; } }
+
+/* ===== la-1018 sidebar ===== */
+/* labels fade in only once the rail has (nearly) finished sliding open, so they are never shown cut off
+   mid-slide ("Cont…"); collapsing still hides them at once. Pinned rails don't animate, so no delay there. */
+html[data-shell="b"]:not(.hb-pinned) .hb-rail:hover .hb-lb, html[data-shell="b"]:not(.hb-pinned) .hb-rail:focus-within .hb-lb,
+html[data-shell="b"]:not(.hb-pinned).hb-rail-hold .hb-lb, html[data-shell="b"]:not(.hb-pinned).hb-sw-open .hb-lb,
+html[data-shell="b"]:not(.hb-pinned) .hb-rail:hover .hb-head, html[data-shell="b"]:not(.hb-pinned) .hb-rail:focus-within .hb-head,
+html[data-shell="b"]:not(.hb-pinned).hb-rail-hold .hb-head { transition: opacity .16s var(--hb-ease) .16s; }
+html[data-shell="b"] .hb-rail .hb-lb, html[data-shell="b"] .hb-rail .hb-head { transition: opacity .08s ease; }
+html[data-shell="b"] .hb-rail .hb-lb { text-overflow: clip; }
+html[data-shell="b"].hb-pinned .hb-rail .hb-lb { text-overflow: ellipsis; }
+/* the nav list shows a soft shadow at the edge that has more items, so a short window makes it obvious the list scrolls */
+html[data-shell="b"]:not([data-hb-theme="luxe"]):not([data-hb-theme="studio"]) .hb-scroll {   /* luxe / studio paint their own rail colour */
+  background:
+    linear-gradient(var(--hb-bg) 30%, transparent) center top / 100% 24px no-repeat local,
+    linear-gradient(transparent, var(--hb-bg) 70%) center bottom / 100% 24px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--hb-ink) 14%, transparent), transparent) center top / 100% 10px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--hb-ink) 14%, transparent), transparent) center bottom / 100% 10px no-repeat scroll;
+  background-color: var(--hb-bg); }
+/* short windows (a 13" laptop with the browser bar, ~680px): tighter rows so Business, Control Center and Insights fit with less scrolling */
+@media (max-height: 760px) and (min-width: 820px) {
+  html[data-shell="b"] .hb-scroll .hb-item { height: 34px; }
+  html[data-shell="b"] .hb-scroll { padding-top: 4px; padding-bottom: 4px; }
+  html[data-shell="b"] .hb-group { gap: 1px; padding: 3px 0 4px; }
+  html[data-shell="b"] .hb-head { height: 18px; padding: 3px 10px 1px; }
+  html[data-shell="b"] .hb-bottom .hb-item { min-height: 32px; height: 32px; }
+}
+@media (prefers-reduced-motion: reduce) { html[data-shell="b"] .hb-rail .hb-lb, html[data-shell="b"] .hb-rail .hb-head { transition: none !important; } }
+/* page names with a short phone form (data-short on the header <small>) */
+html[data-shell="b"] header.hb-header h1 .hb-ts { display: none; }
+@media (max-width: 480px) {
+  html[data-shell="b"] header.hb-header h1 .hb-tl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  html[data-shell="b"] header.hb-header h1 .hb-ts { display: inline; }
+}

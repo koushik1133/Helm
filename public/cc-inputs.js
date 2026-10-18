@@ -79,10 +79,10 @@
     var s = trim(v).replace(/\s+/g, "").toLowerCase();
     if (!s) return ok("");
     if (s.charAt(0) !== "#" && /^[0-9a-f]{3}([0-9a-f]{3})?$/.test(s)) s = "#" + s;
-    if (/^#[0-9a-f]{8}$/.test(s) || /^#[0-9a-f]{4}$/.test(s)) return bad("Transparent colours aren't supported — use 6 digits, like #6d28d9.");
+    if (/^#[0-9a-f]{8}$/.test(s) || /^#[0-9a-f]{4}$/.test(s)) return bad("Transparent colours aren't supported — use 6 digits, like #047857.");
     if (!/^#[0-9a-f]{3}([0-9a-f]{3})?$/.test(s)) {
-      if (/^[a-z]+$/.test(s)) return bad("Use a hex colour code like #6d28d9 — colour names aren't supported.");
-      return bad("Accent colour must be a hex code: # and 6 characters 0-9 / a-f, like #6d28d9.");
+      if (/^[a-z]+$/.test(s)) return bad("Use a hex colour code like #047857 — colour names aren't supported.");
+      return bad("Accent colour must be a hex code: # and 6 characters 0-9 / a-f, like #047857.");
     }
     if (s.length === 4) s = "#" + s.charAt(1) + s.charAt(1) + s.charAt(2) + s.charAt(2) + s.charAt(3) + s.charAt(3);
     return ok(s);

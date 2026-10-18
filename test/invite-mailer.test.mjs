@@ -45,11 +45,14 @@ ok(/forward  supabase\/migrations\/0131_invite_mailer\.sql/.test(manifest), 'MAN
 // ---- edge function: dormant, fail-closed, no PII/token logs ----
 ok(/if \(!inviteEmailsOn\(Deno\.env\.get\("HELM_INVITE_EMAILS_ENABLED"\)\)\) return json\(\{ status: "dormant" \}\)/.test(fn) && /!== "false"/.test(fn), 'on by default, explicit kill switch');
 ok(/admin\.auth\.admin\.inviteUserByEmail\(to, \{ redirectTo: link/.test(fn) && /signInWithOtp\(\{ email: to, options: \{ shouldCreateUser: false, emailRedirectTo: link/.test(fn), 'no Resend key -> Supabase Auth invite / magic link');
-ok(/if \(mail && Deno\.env\.get\("RESEND_API_KEY"\)\) res = await sendEmail/.test(fn), 'Resend path kept when key present');
-ok(/if \(!key\) return "skipped"/.test(fn), 'no RESEND key -> skipped');
+// 0205: ONE branded invitation for every invitee whenever a provider (Resend, else SMTP) is set
+ok(/const branded = !!mailConfig\(\)\.provider/.test(fn) && /if \(mail && branded\) res = await sendBranded/.test(fn), 'branded path for every row when a provider is set');
+ok(/r\.status === "sent" \? "sent" : r\.status === "failed" \? "failed" : "skipped"/.test(fn), 'not configured -> skipped');
+ok(/rpc\("invite_auth_user_id", \{ p_token: token \}\)/.test(fn) && /updateUserById\(uid, \{ user_metadata: meta \}\)/.test(fn), 'existing account: same invitation keys before the magic link');
+ok(/role: roleLabel\(r\?\.role\)/.test(fn), 'human role label in the Supabase e-mail');
 ok(/secretMatches\(cronHeader, Deno\.env\.get\("HELM_INVITE_EMAIL_SECRET"\)/.test(fn), 'cron secret');
 ok(/asCaller\.rpc\("invite_email_kick_org"\)/.test(fn) && /p_org: org/.test(fn), 'admin kick limited to own studio by DB');
-ok(/ALLOWED_HOSTS = new Set\(\["api\.resend\.com"\]\)/.test(fn) && /redirect: "error"/.test(fn), 'fixed host allowlist');
+ok(/from "\.\.\/_shared\/mailer\.ts"/.test(fn) && !/fetch\(/.test(fn), 'provider only through the shared mailer (fixed Resend URL / SMTP)');
 ok(/rpc\("invite_email_outbox_claim"/.test(fn) && /rpc\("invite_email_outbox_mark"/.test(fn), 'claim + mark');
 for (const line of (fn + tpl).split('\n').filter((l) => /console\.(log|error|warn)/.test(l))) {
   ok(!/token|\.to\b|email|inviter|studio|r\?\./i.test(line.replace(/invite-mailer/g, '')), 'log line has no PII/token: ' + line.trim());
@@ -59,7 +62,7 @@ ok(/TOKEN_RE = \/\^\[0-9a-f\]\{16,128\}\$\/i/.test(tpl), 'token shape validated'
 ok(/esc\(inviter\)/.test(tpl) && /esc\(studio\)/.test(tpl) && /esc\(role\)/.test(tpl) && /button\(esc\(link\)/.test(tpl) && /fallback\(esc\(link\)\)/.test(tpl), 'all values escaped');
 ok(!/\$\{(inviter|studio|role|link)\}/.test(tpl.split('const text =')[0].split('const html =')[1]), 'no raw values in html');
 ok(/expires/.test(tpl) && /text: /.test(tpl.slice(-300)) || /html, text/.test(tpl), 'plain-text fallback');
-ok(/invited you to join \$\{studio\} on Helm as \$\{role\}/.test(tpl), 'headline wording');
+ok(/const headline = `Join \$\{studio\} on Helm`/.test(tpl) && /`\$\{inviter\} invited you as \$\{role\}`/.test(tpl) && /"Accept invitation"/.test(tpl), 'headline wording (0205)');
 ok(/replace\(\/\[\\r\\n<>\]\/g/.test(tpl), 'subject has no header injection');
 
 // ---- README ----

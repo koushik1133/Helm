@@ -13,7 +13,7 @@
 <style>
   :root{
     --bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;--safe:#18a558;--warn:#e8912d;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   }
@@ -38,7 +38,7 @@
   .toolbar{display:flex;align-items:center;gap:10px;margin:8px 0 14px;flex-wrap:wrap}
   .tabs{display:flex;flex-wrap:wrap;max-width:100%;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
   .tabs button{border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-2);padding:7px 14px;border-radius:7px;cursor:pointer}
-  .tabs button.on{background:var(--accent);color:#fff} html[data-theme="dark"] .tabs button.on{background:#7c3aed}
+  .tabs button.on{background:var(--accent);color:#fff} html[data-theme="dark"] .tabs button.on{background:#047857}
   /* confirmed quotes stand out and sort to the top */
   tbody tr.is-confirmed{background:#f0faf4}
   tbody tr.is-confirmed td:first-child{box-shadow:inset 3px 0 0 #12a150}
@@ -62,7 +62,7 @@
   .refchip{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink-3);background:var(--accent-soft);border-radius:20px;padding:2px 8px;white-space:nowrap}
   .muted{color:var(--ink-3);font-size:12px}
   .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px}
-  .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
+  .stat.q{background:#eef1f0;color:#2f4a42} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
   .stat.ap{background:#e7f6ee;color:#0f7a43} .stat.st{background:#fff7e6;color:#946200}
   .stat.done{background:#f1f3f7;color:#5b5670}
   .stat.warn{background:#fdecec;color:#b42318}
@@ -128,8 +128,8 @@
   .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
 <link rel="stylesheet" href="quotes-polish.css?v=8"><link rel="stylesheet" href="event-group-picker.css?v=2">
-<link rel="stylesheet" href="theme.css?v=82">
-<script src="/shell-proto.js?v=26" id="shellProto"></script>
+<link rel="stylesheet" href="theme.css?v=83">
+<script src="/shell-proto.js?v=27" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -171,7 +171,7 @@
   </div>
   </main>
 
-  <footer id="taxFoot">Every save is a version · confirm to price &amp; lock · GST per India (SAC 998596, 18%)</footer>
+  <footer id="taxFoot">Every save is a version · confirm to price &amp; lock</footer>
 </div>
 
 <!-- Confirm / pricing modal -->
@@ -271,27 +271,14 @@
   <button class="btn" id="egBarNo" type="button">Not now</button>
 </div>
 
-<!-- Login modal (reused) -->
-<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle" data-dismissible="false">
-  <form class="sheet s-99ef7a5" id="loginForm">
-    <div class="mark s-95baf7c" aria-hidden="true"></div>
-    <h3 class="s-03c4bb6" id="loginModalTitle">Sign in</h3>
-    <p class="sub">Use the account your studio admin created for you.</p>
-    <div class="fld s-67539bc"><label for="li_email">Email</label><input type="email" id="li_email" autocomplete="email" required></div>
-    <div class="fld s-67539bc"><label for="li_pw">Password</label><input type="password" id="li_pw" autocomplete="current-password" required></div>
-    <div class="lerr" id="li_err" role="alert" aria-live="assertive" hidden></div>
-    <button class="btn primary s-9b4b3be" id="li_submit" type="submit">Sign in</button>
-  </form>
-</div>
-
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
-<script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="flow-resume.js?v=2" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
+<script src="event-name.js?v=9"></script>
+<script src="new-quote-dialog.js?v=2"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script><script src="flow-resume.js?v=2" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
-<script src="tour.js?v=17"></script>
+<script src="tour.js?v=18"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -415,7 +402,9 @@
   function countSeats(items){ let seats=0; (items||[]).forEach(i=>{ const p=i.properties||{};
     if(p.rows&&p.cols) seats+=p.rows*p.cols; else if(p.seats) seats+=p.seats; }); return seats; }
 
-  function paintTaxCopy(r){ if(!r || r.country==="IN") return;
+  // LA-11: the India GST / SAC line only for an India studio (set once the studio's tax country is known - no flash for others)
+  function paintTaxCopy(r){ if(!r) return;
+    if(r.country==="IN"){ $("#taxFoot").textContent="Every save is a version · confirm to price & lock · GST per India (SAC 998596, 18%)"; return; }
     $("#taxFoot").textContent="Every save is a version · confirm to price & lock · "+r.name+" ("+r.countryName+")";
     $("#pricingHead").textContent="Pricing ("+r.currency+")"; $("#posFld").hidden=true;
     $("#taxNote").textContent="Rates and "+r.name+" are set once in the Control Center. Enter a coupon or discount here.";
@@ -428,8 +417,6 @@
   const calcPricing = (p)=>BPStore.pricing.quoteTotal(p);
 
   /* ---------- auth chip ---------- */
-  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
-  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
   async function renderAccount(){
     const el=$("#account"); if(!BPStore.auth.enabled()){ el.hidden=true; return; } el.hidden=false;
     const u=BPStore.auth.user();
@@ -968,7 +955,7 @@
     h1{font-size:20px;margin:0} .muted{color:#5b6475;font-size:12px} table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
     td,th{padding:8px;border-bottom:1px solid #e6ebf3;text-align:left} .tot td{border:0} .grand td{font-weight:700;font-size:16px;border-top:2px solid #141b2e}
     .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #141b2e;padding-bottom:14px}
-    .badge{background:#eef2ff;color:#4457c8;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}</style>
+    .badge{background:#eef1f0;color:#2f4a42;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}</style>
     <div class=head><div><h1>${esc(sup.name||"Helm Events")}</h1>${sup.tradeName&&sup.tradeName!==sup.name?`<div class=muted>${esc(sup.tradeName)}</div>`:""}${sup.address?`<div class=muted>${esc(sup.address)}</div>`:""}${sup.taxId?`<div class=muted>${esc(sup.taxIdLabel)}: ${esc(sup.taxId)}</div>`:""}<div class=muted style="font-weight:700;margin-top:4px">${isInv?invTitle(qTax,sup):"Event Quotation"}</div></div>
       <div style="text-align:right"><div style="font-family:monospace;font-weight:700;font-size:16px">${esc(full.code)}</div>
       <div class=muted>${[isInv?(BPStore.quoteDate(full.confirmedAt,qTax)?"Confirmed "+BPStore.quoteDate(full.confirmedAt,qTax):"Confirmed"):"Quote V"+full.currentVersion, ver&&String(ver)!==String(full.currentVersion)?"layout v"+esc(String(ver)):"", BPStore.quoteDate(full.updatedAt,qTax)].filter(Boolean).join(" · ")}</div>
@@ -1163,30 +1150,30 @@
   });
   $("#cm_savePricing").addEventListener("click",()=>savePricing(false));
   $("#cm_confirm").addEventListener("click",()=>savePricing(true));
-  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
-    const btn=$("#li_submit"); if(btn.disabled) return;
-    const em=$("#li_email").value.trim(), pw=$("#li_pw").value;
-    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; (em?$("#li_pw"):$("#li_email")).focus(); return; }
-    btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
-    try{ await BPStore.auth.signIn(em, pw); closeLogin(); await load(); }
-    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
-    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
-  $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal"&&BPStore.auth.user()) closeLogin(); });
   // R8: "New quote" creates the quote right here and opens its flow — it used to link to
   // the home page, which never created anything (and could surface the dashboard tour).
   // open="builder": reuse my latest open quote (if any) and land in the floor-plan builder.
+  // Audit 7 (Oct 2026): nothing is created until the user confirms in a small dialog
+  // (event name + type, Cancel / Create) - one stray click used to spend a free trial's quote.
   async function startNewQuote(btn, open){
+    if(btn && btn.disabled) return;
+    if(open==="builder"){
+      const cur = (quotes||[]).find(x => x && x.id && x.status==="quote" && !x.archivedAt && !x.deletedAt);
+      if(cur){ location.href = "builder.html?quote=" + encodeURIComponent(cur.id) + "&from=flow"; return; }
+    }
+    if(!(window.HelmNewQuote && HelmNewQuote.ask)){ BPUI.toast("Couldn't open the new quote dialog. Reload the page and try again.", { type: "err" }); return; }
+    const pick = await HelmNewQuote.ask({ okLabel: open==="builder" ? "Create and open builder" : "Create quote" });
+    if(!pick) return;   // Cancel / Escape: nothing created
     try{
       await BPUI.guard(btn, async () => {
-        if(open==="builder"){
-          const cur = (quotes||[]).find(x => x && x.id && x.status==="quote" && !x.archivedAt && !x.deletedAt);
-          if(cur){ location.href = "builder.html?quote=" + encodeURIComponent(cur.id) + "&from=flow"; return; }
-        }
         let code=""; try{ code = await BPStore.quotes.nextCodeFor(); }catch(e){}
         if(!code) code = BPStore.quotes.nextCode(quotes);   // a guess — the server assigns the real code (M-04)
         const q = await BPStore.quotes.startBlank(code);
         if(!q || !q.id) throw new Error("The quote could not be created. Please try again.");
-        if(q.code && q.code !== q.title){ try{ await BPStore.quotes.updateMeta(q.id, { title: q.code }); }catch(e){} }
+        const meta = {};
+        if(pick.title) meta.title = pick.title; else if(q.code && q.code !== q.title) meta.title = q.code;
+        if(pick.eventType) meta.eventType = pick.eventType;
+        if(Object.keys(meta).length){ try{ await BPStore.quotes.updateMeta(q.id, meta); }catch(e){} }
         location.href = open==="builder" ? "builder.html?quote=" + encodeURIComponent(q.id) + "&from=flow" : "flow.html?quote=" + encodeURIComponent(q.id);
       }, { busyLabel: "Creating…" });
     }catch(err){ BPUI.toast(BPUI.friendlyError(err, { action: "create the quote" }), { type: "err", duration: 8000 }); }
@@ -1195,17 +1182,21 @@
     const b = e.target.closest && e.target.closest("[data-newquote]"); if(!b) return;
     e.preventDefault(); startNewQuote(b);
   });
+  // Audit 8: ?new=1 only OPENS the dialog (never creates), and only when one of Helm's own
+  // pages armed it (one-time sessionStorage nonce, HelmNewQuote.arm). A link from anywhere
+  // else just shows the list. The parameters are always dropped from the address bar.
   const newQs = new URLSearchParams(location.search);
-  if(newQs.get("new")==="1"){
+  if(newQs.has("new") || newQs.has("nq")){
+    const armed = !!(window.HelmNewQuote && HelmNewQuote.consume(location.search));
     const openTo = newQs.get("open")==="builder" ? "builder" : "";
     try{ history.replaceState(null, "", location.pathname); }catch(e){}
-    BPUI.boot(async () => { await load(); if(canCreate) startNewQuote($("#newBtn"), openTo); });
+    BPUI.boot(async () => { await load(); if(armed && canCreate) startNewQuote($("#newBtn"), openTo); });
   } else BPUI.boot(load);
   // qts-1018: Back/Forward restores this page from the bfcache with the totals + statuses it had
   // when you left (e.g. before a re-price or approval in the workspace) - re-read the list
   window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&pager) reloadQuiet(); });
 </script>
-<script src="saved-filters.js?v=2"></script>
+<script src="saved-filters.js?v=4"></script>
 <script src="capacity-shortage.js?v=2"></script>
 </body>
 </html>

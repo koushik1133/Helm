@@ -3,10 +3,18 @@
 // <APP_URL>/login?invite=<token> and the expiry date.
 // ON BY DEFAULT: kill switch HELM_INVITE_EMAILS_ENABLED="false" → every request is a
 // no-op 200 {status:"dormant"}.
-// Delivery: RESEND_API_KEY set → Resend (branded e-mail). Unset → Supabase's own Auth
-// e-mail (no extra account needed): a brand-new address gets the "Invite user" e-mail,
-// an existing account gets the "Magic Link" e-mail; both land on <APP_URL>/login?invite=…
-// signed in, and login.html accepts the invitation automatically.
+// Delivery (0205: ONE invitation for every invitee - brand-new address, existing account,
+// re-invite / resend, bulk invite, Staff "Invite to log in", Control Center "Users & invites"):
+//   * an e-mail provider is set for the edge functions (RESEND_API_KEY + RESEND_FROM, else
+//     SMTP_HOST / SMTP_USER / SMTP_PASS [/ SMTP_PORT / SMTP_FROM] - _shared/mailer.ts, the same
+//     secrets client-mailer uses) → the branded templates.ts invitation "Join <Studio> on Helm -
+//     <Inviter> invited you as <Role>" [Accept invitation] → <APP_URL>/login?invite=<token>.
+//     Supabase creates NO login up front; the join page makes it (invite-signup) or signs in.
+//   * neither set → Supabase Auth's own e-mail: a brand-new address gets the "Invite user" e-mail,
+//     an existing account the "Magic Link" e-mail - after its login's studio / role / inviter
+//     metadata is refreshed (invite_auth_user_id, 0205), so both templates
+//     (docs/ops/email-templates) read as the same "Join <Studio>" invitation and land on
+//     <APP_URL>/login?invite=… signed in; login.html accepts the invitation automatically.
 //
 // Two ways to call it:
 //   * cron / service caller: header `x-helm-cron-secret: <HELM_INVITE_EMAIL_SECRET>` → flushes
@@ -19,7 +27,8 @@
 //   HELM_INVITE_EMAILS_ENABLED="false"  kill switch (unset / anything else → on)
 //   HELM_INVITE_EMAIL_SECRET            cron shared secret. Unset → cron calls 401.
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY (injected)
-//   RESEND_API_KEY, RESEND_FROM          unset key → Supabase Auth e-mail fallback
+//   RESEND_API_KEY + RESEND_FROM, or SMTP_HOST / SMTP_USER / SMTP_PASS (+ SMTP_PORT, SMTP_FROM)
+//                                        neither → Supabase Auth e-mail fallback
 //   APP_URL                              base of the Join link (default https://www.helm.events)
 //   INVITE_EMAIL_BATCH                   rows per run, 1..100 (default 25)
 //
@@ -28,11 +37,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped, tooMany } from "../_shared/limits.ts";
-import { inviteEmail, joinLink } from "./templates.ts";
-import { postalAddress, txFooter, withFooter } from "../_shared/email-compliance.mjs";
+import { inviteEmail, joinLink, roleLabel } from "./templates.ts";
+import { mailConfig, sendMail } from "../_shared/mailer.ts";
 
 const enc = new TextEncoder();
-const ALLOWED_HOSTS = new Set(["api.resend.com"]);
 const EMAIL = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
 const UUIDISH = /^[0-9a-f-]{36}$/i;
 
@@ -48,12 +56,6 @@ export async function secretMatches(given: string, expected: string): Promise<bo
   return diff === 0;
 }
 
-async function safeFetch(url: string, init: RequestInit): Promise<Response> {
-  const u = new URL(url);
-  if (u.protocol !== "https:" || !ALLOWED_HOSTS.has(u.hostname)) throw new Error("host not allowed");
-  return await fetch(u.toString(), { ...init, redirect: "error" });
-}
-
 type SendResult = "sent" | "skipped" | "failed";
 
 // kill switch only: anything but an explicit "false" keeps invite e-mails on
@@ -61,9 +63,10 @@ export function inviteEmailsOn(v: string | undefined): boolean {
   return String(v ?? "").trim().toLowerCase() !== "false";
 }
 
-// No Resend key: send through Supabase Auth's own mailer (project SMTP / built-in).
+// No e-mail provider: send through Supabase Auth's own mailer (project SMTP / built-in).
 // New address → inviteUserByEmail ("Invite user" template); already has an account →
-// signInWithOtp magic link ("Magic Link" template, never creates a user).
+// its studio / role / inviter metadata is refreshed first (same keys as the invite e-mail, so the
+// "Magic Link" template reads as the same invitation), then signInWithOtp (never creates a user).
 // deno-lint-ignore no-explicit-any
 async function sendViaSupabaseAuth(admin: any, to: string, token: string, meta: Record<string, string>): Promise<SendResult> {
   const link = joinLink(token);
@@ -73,6 +76,14 @@ async function sendViaSupabaseAuth(admin: any, to: string, token: string, meta: 
     if (!error) return "sent";
     const already = /already|registered|exists/i.test(String(error.message || "") + " " + String(error.code || "")) || error.status === 422;
     if (!already) { console.error("invite-mailer: auth invite status", error.status ?? "?"); return "failed"; }
+    // best effort: only the invitation keys of THIS invitation's own login (0205); never blocks the send
+    try {
+      const { data: uid } = await admin.rpc("invite_auth_user_id", { p_token: token });
+      if (typeof uid === "string" && UUIDISH.test(uid)) {
+        const { error: uErr } = await admin.auth.admin.updateUserById(uid, { user_metadata: meta });
+        if (uErr) console.error("invite-mailer: invite details not refreshed", uErr.status ?? "?");
+      }
+    } catch (_) { /* 0205 not applied yet: the magic link shows the plain sign-in text */ }
     const { error: oErr } = await admin.auth.signInWithOtp({ email: to, options: { shouldCreateUser: false, emailRedirectTo: link } });
     if (oErr) { console.error("invite-mailer: auth magic-link status", oErr.status ?? "?"); return "failed"; }
     return "sent";
@@ -82,27 +93,11 @@ async function sendViaSupabaseAuth(admin: any, to: string, token: string, meta: 
   }
 }
 
-async function sendEmail(to: string, subject: string, html: string, text: string): Promise<SendResult> {
-  const key = Deno.env.get("RESEND_API_KEY") || "";
-  if (!key) return "skipped";   // caller falls back to Supabase Auth e-mail
+// branded invitation through the shared provider (Resend, else SMTP) - transactional footer added there
+async function sendBranded(to: string, mail: { subject: string; html: string; text: string }, studio: string): Promise<SendResult> {
   if (!EMAIL.test(to)) return "skipped";
-  const conf = Deno.env.get("RESEND_FROM") || "onboarding@resend.dev";
-  const m = conf.match(/<([^>]+)>/);
-  const from = `"Helm" <${(m ? m[1] : conf).trim()}>`;
-  const _f = withFooter({ text: text, html }, txFooter("invite", { app: Deno.env.get("APP_URL"), address: postalAddress((k: string) => Deno.env.get(k)) }));
-    try {
-    const r = await safeFetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [to], subject, html: _f.html, text: _f.text }),
-    });
-    await r.text();
-    if (!r.ok) console.error("invite-mailer: provider status", r.status);
-    return r.ok ? "sent" : "failed";
-  } catch (e) {
-    console.error("invite-mailer: provider error", errTag(e));
-    return "failed";
-  }
+  const r = await sendMail({ to, subject: mail.subject, html: mail.html, text: mail.text, studio, txReason: "invite" });
+  return r.status === "sent" ? "sent" : r.status === "failed" ? "failed" : "skipped";
 }
 
 Deno.serve(async (req) => {
@@ -147,15 +142,16 @@ Deno.serve(async (req) => {
     if (error) { console.error("invite-mailer: claim failed", errTag(error)); return json({ error: "internal error" }, 500); }
 
     const counts = { sent: 0, skipped: 0, failed: 0, invalid: 0 };
+    const branded = !!mailConfig().provider;   // one provider decision per run (same e-mail for every row)
     for (const r of (Array.isArray(rows) ? rows : [])) {
       const id = String(r?.id ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
       const mail = inviteEmail({ token: r?.token, inviter: r?.inviter, studio: r?.studio, role: r?.role, expires_at: r?.expires_at });
       const to = String(r?.to ?? "");
       let res: SendResult = "skipped";
-      if (mail && Deno.env.get("RESEND_API_KEY")) res = await sendEmail(to, mail.subject, mail.html, mail.text);
+      if (mail && branded) res = await sendBranded(to, mail, String(r?.studio ?? "").slice(0, 120));
       else if (mail) res = await sendViaSupabaseAuth(admin, to, String(r?.token ?? ""), {
-        studio: String(r?.studio ?? "").slice(0, 120), role: String(r?.role ?? "").slice(0, 60), invited_by: String(r?.inviter ?? "").slice(0, 120),
+        studio: String(r?.studio ?? "").slice(0, 120), role: roleLabel(r?.role).slice(0, 60), invited_by: String(r?.inviter ?? "").slice(0, 120),
       });
       const { error: mErr } = await admin.rpc("invite_email_outbox_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("invite-mailer: mark failed", errTag(mErr)); counts.failed++; continue; }

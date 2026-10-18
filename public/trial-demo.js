@@ -1,11 +1,10 @@
 /* =========================================================================
    HELM — free-trial demo data (0097)
    -------------------------------------------------------------------------
-   • Dashboard (#tdCard[data-td-auto]): right after the trial starts the studio
-     admin chooses "Try with demo data" (seed_demo_data → a sample Hyderabad
-     studio, every row marked "Demo ·") or "Start with my own data" (→ the
-     onboarding wizard). In demo mode the card offers "Start onboarding with my
-     data" and "Reset demo data".
+   • Dashboard (#tdCard[data-td-auto]): a trial studio without its sample data yet
+     gets ONE action, "Load the sample data" (seed_demo_data → a sample Hyderabad
+     studio, every row marked "Demo ·"). Trial terms: the old "own data" start
+     choice is gone (0180: every free trial runs on the sample data).
    • Switching to own data (openSwitch): keep the demo data, or clear it. Clearing
      asks twice and calls clear_demo_data(), which removes ONLY this studio's rows
      flagged is_demo inside one database transaction — real rows are never touched.
@@ -22,10 +21,10 @@
     ".td h3{margin:0 0 4px;font-size:17px}.td p{margin:0 0 10px;color:var(--ink-2,#4b475f);font-size:14px}",
     ".td-pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:10px}",
     ".td-opt{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:16px;border-radius:12px;border:1px solid var(--line,#e8e3db);background:var(--panel-2,#faf8f5);color:inherit;font:inherit;cursor:pointer}",
-    ".td-opt:hover,.td-opt:focus-visible{border-color:var(--accent,#6d28d9)}",
+    ".td-opt:hover,.td-opt:focus-visible{border-color:var(--accent,#047857)}",
     ".td-opt b{font-size:15px}.td-opt span{font-size:13px;color:var(--ink-2,#4b475f)}",
     ".td-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}",
-    ".td-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff);border-radius:999px;padding:2px 8px;margin-bottom:6px}",
+    ".td-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent,#047857);background:var(--accent-soft,#e3f4ed);border-radius:999px;padding:2px 8px;margin-bottom:6px}",
     ".td-dlg{border:1px solid var(--line,#e8e3db);border-radius:14px;padding:20px;max-width:440px;width:calc(100vw - 32px);background:var(--panel,#fff);color:var(--ink,#1b1930)}",
     ".td-dlg::backdrop{background:rgba(20,27,46,.45)}.td-dlg h3{margin:0 0 6px;font-size:17px}.td-dlg p{margin:0 0 14px;font-size:14px;color:var(--ink-2,#4b475f)}",
     ".td-dlg .td-row{justify-content:flex-end}",
@@ -93,12 +92,6 @@
     const done = busy(b, "Loading demo data…");
     try { await S().demo.seed(); toast("Demo studio ready — look around! Everything marked “Demo ·” is sample data."); global.location.reload(); }
     catch (e) { done(); toast(errMsg(e, "load the demo data"), "err", b); }
-  }
-  async function own(b) {
-    if (b && b.disabled) return;
-    const done = busy(b, "Opening setup…");
-    try { await S().demo.setMode("own"); toWelcome(); }
-    catch (e) { done(); toast(errMsg(e, "start with your own data"), "err", b); }
   }
   async function clearDemo(then) {
     const ok = await confirmDlg("This removes only the sample rows marked “Demo ·” (events, leads, staff, vendors, items, packages, layout). Your own data is never touched. Demo venues are switched off, and a demo item one of your real events uses is kept.",
@@ -219,20 +212,18 @@
     if (!v) { host.hidden = true; return; }
     css(); host.hidden = false; host.classList.add("td");
     const admin = d && d.is_admin === true;
+    // Trial terms: no "demo data or own data?" choice any more (every free trial runs on the sample data, 0180).
+    // A trial studio whose sample data did not load yet only gets the one "Load the sample data" action.
     if (v === "choose") {
       host.appendChild(el("span", "td-tag", "Free trial"));
-      host.appendChild(el("h3", null, "How would you like to start?"));
-      host.appendChild(el("p", null, "You can switch at any time during your 8-day free trial."));
+      host.appendChild(el("h3", null, "Load your sample studio"));
+      host.appendChild(el("p", null, "Your free trial runs on ready-made sample data: leads, quotes in every stage, a confirmed wedding with an advance paid, venues, menu packages, inventory, staff, vendors, a finished floor layout and a checklist. Every sample record is marked “Demo ·”, and nothing is sent to anyone."));
       const pick = el("div", "td-pick");
       const a = el("button", "td-opt"); a.type = "button";
-      a.appendChild(el("b", null, "Try with demo data"));
-      a.appendChild(el("span", null, "Explore a ready sample studio from Hyderabad: leads, quotes in every stage, a confirmed wedding with an advance paid, venues, menu packages, inventory, staff, vendors, a finished floor layout and a checklist. Nothing is sent to anyone."));
+      a.appendChild(el("b", null, "Load the sample data"));
+      a.appendChild(el("span", null, "Takes a few seconds. You can add up to 2 records of your own in each list."));
       a.addEventListener("click", () => seed(a));
-      const b = el("button", "td-opt"); b.type = "button";
-      b.appendChild(el("b", null, "Start with my own data"));
-      b.appendChild(el("span", null, "An empty studio: name it, invite up to 2 people, then add your own events, clients and menus."));
-      b.addEventListener("click", () => own(b));
-      pick.appendChild(a); pick.appendChild(b); host.appendChild(pick);
+      pick.appendChild(a); host.appendChild(pick);
       return;
     }
     if (v === "demo") {

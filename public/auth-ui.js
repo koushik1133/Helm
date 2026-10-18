@@ -63,7 +63,7 @@
     var s = el("style");
     s.textContent = [
       ".hau-btn{min-height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--bpui-line,#c9c3d3);background:var(--bpui-bg,#fff);color:var(--bpui-ink,#141b2e);font:inherit;font-weight:600;cursor:pointer}",
-      ".hau-btn.primary{background:var(--bpui-accent,#6d28d9);border-color:var(--bpui-accent,#6d28d9);color:#fff}",
+      ".hau-btn.primary{background:var(--bpui-accent,#047857);border-color:var(--bpui-accent,#047857);color:#fff}",
       ".hau-btn.danger{color:var(--bpui-danger,#b91c1c)}",
       ".hau-btn:disabled{opacity:.6;cursor:default}",
       ".hau-sec{border-top:1px solid var(--bpui-line,#e5e0ea);padding:12px 0 4px;margin-top:8px}",
@@ -83,7 +83,7 @@
       ".hau-note{pointer-events:auto;display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:start;padding:14px 12px 14px 14px;background:var(--panel,#fff);color:var(--ink,#141b2e);border:1px solid var(--line,#e5e0ea);border-radius:14px;box-shadow:0 1px 2px rgba(20,27,46,.06),0 12px 32px rgba(20,27,46,.14);font-size:14px;line-height:1.45;animation:hauIn .22s ease-out}",
       "html[data-theme=dark] .hau-note{box-shadow:0 1px 2px rgba(0,0,0,.5),0 16px 40px rgba(0,0,0,.6)}",
       ".hau-note[hidden]{display:none}",
-      ".hau-note-ic{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent-soft,#f1ebfd);color:var(--accent,#6d28d9)}",
+      ".hau-note-ic{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent-soft,#e3f4ed);color:var(--accent,#047857)}",
       ".hau-note.warn .hau-note-ic{background:rgba(232,145,45,.14);color:var(--warn-text,#8f5f00)}",
       /* 0058 free-trial notice: urgent at <= 3 days left and once the trial has ended */
       /* compact trial notice: docked bottom-LEFT on desktop so it never covers the bottom-right page actions; stays in the (above-nav) stack on phones */
@@ -102,13 +102,13 @@
       ".hau-note .hau-btn.ghost:hover{background:var(--accent-soft,#f4f2fb)}",
       ".hau-note-x{width:28px;height:28px;min-height:0;min-width:0;border:0;background:transparent;color:var(--ink-3,#7a7590);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}",
       ".hau-note-x:hover{background:var(--accent-soft,#f4f2fb);color:var(--ink,#141b2e)}",
-      ".hau-note button:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:2px}",
+      ".hau-note button:focus-visible{outline:2px solid var(--accent,#047857);outline-offset:2px}",
       "@keyframes hauIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}",
       "@media (prefers-reduced-motion:reduce){.hau-note{animation:none}}",
       "@media (max-width:600px){.hau-notes{left:16px;right:16px;bottom:72px;width:auto}}",
       ".hau-notes[hidden]{display:none}",
       /* profile form (Account panel + /profile-setup) — page tokens first, BPUI tokens as fallback */
-      ".hpf{--hpf-ink:var(--ink,var(--bpui-ink,#141b2e));--hpf-ink2:var(--ink-2,var(--bpui-ink-2,#4a5673));--hpf-ink3:var(--ink-3,#6b6577);--hpf-line:var(--line-strong,var(--bpui-line,#86808f));--hpf-line2:var(--line,#e8e3db);--hpf-bg:var(--panel,var(--bpui-bg,#fff));--hpf-bg2:var(--panel-2,#faf8f5);--hpf-acc:var(--accent,var(--bpui-accent,#6d28d9));--hpf-soft:var(--accent-soft,var(--bpui-soft,#f4f2fb));--hpf-bad:var(--bad,var(--bpui-danger,#b91c1c));--hpf-ok:var(--safe-text,#0f7a43);color:var(--hpf-ink);font-size:15px}",
+      ".hpf{--hpf-ink:var(--ink,var(--bpui-ink,#141b2e));--hpf-ink2:var(--ink-2,var(--bpui-ink-2,#4a5673));--hpf-ink3:var(--ink-3,#6b6577);--hpf-line:var(--line-strong,var(--bpui-line,#86808f));--hpf-line2:var(--line,#e8e3db);--hpf-bg:var(--panel,var(--bpui-bg,#fff));--hpf-bg2:var(--panel-2,#faf8f5);--hpf-acc:var(--accent,var(--bpui-accent,#047857));--hpf-soft:var(--accent-soft,var(--bpui-soft,#f4f2fb));--hpf-bad:var(--bad,var(--bpui-danger,#b91c1c));--hpf-ok:var(--safe-text,#0f7a43);color:var(--hpf-ink);font-size:15px}",
       ".hpf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}",
       "@media (max-width:620px){.hpf-grid{grid-template-columns:minmax(0,1fr)}}",
       ".hpf-grid>.hpf-wide{grid-column:1/-1}",
@@ -158,7 +158,7 @@
       ".hpf-photo{display:flex;align-items:center;gap:18px;margin:0 0 18px;padding:16px;border:1.5px dashed var(--hpf-line2);border-radius:16px;background:var(--hpf-bg2);transition:border-color .15s,background .15s}",
       ".hpf-photo.is-drag{border-color:var(--hpf-acc);background:var(--hpf-soft)}",
       ".hpf-photo.is-busy .hpf-av{opacity:.6}",
-      ".hpf-av{position:relative;width:84px;height:84px;border-radius:50%;overflow:hidden;flex:0 0 auto;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:28px;cursor:pointer;box-shadow:0 0 0 4px var(--hpf-bg),0 0 0 5px var(--hpf-line2)}",
+      ".hpf-av{position:relative;width:84px;height:84px;border-radius:50%;overflow:hidden;flex:0 0 auto;background:linear-gradient(135deg,#047857,#036b4d);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:28px;cursor:pointer;box-shadow:0 0 0 4px var(--hpf-bg),0 0 0 5px var(--hpf-line2)}",
       ".hpf-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}",
       ".hpf-avcam{position:absolute;right:0;bottom:0;width:28px;height:28px;border-radius:50%;background:var(--hpf-bg);color:var(--hpf-ink);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.25)}",
       ".hpf-avcam svg{width:15px;height:15px}",
@@ -182,7 +182,7 @@
       /* progress */
       ".hpf-prog{margin:0 0 18px}.hpf-progtxt{margin:0 0 8px;font-size:13px;color:var(--hpf-ink2)}.hpf-progtxt b{color:var(--hpf-ink)}",
       ".hpf-bar{height:6px;border-radius:99px;background:var(--hpf-line2);overflow:hidden}",
-      ".hpf-bar>span{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--hpf-acc),var(--accent-2,#4f46e5));transition:width .3s}",
+      ".hpf-bar>span{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--hpf-acc),var(--accent-2,#036b4d));transition:width .3s}",
       ".hpf-prog.is-ready .hpf-bar>span{background:linear-gradient(90deg,#16a34a,#0f7a43)}",
       "@media (prefers-reduced-motion:reduce){.hpf-bar>span,.hpf-sum::after{transition:none}}",
       /* phone verify */
@@ -226,13 +226,13 @@
       ".hau-tb-slot:empty{display:none}",
       ".hau-mw{position:relative;display:flex}",
       ".hau-avbtn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;min-width:36px;min-height:36px;padding:0;margin:0;border:1px solid var(--line,#e8e3db);border-radius:50%;background:var(--panel,#fff);cursor:pointer;transition:box-shadow .15s,border-color .15s}",
-      ".hau-avbtn:hover{border-color:var(--accent,#6d28d9)}",
-      ".hau-avbtn[aria-expanded=true],.hau-avbtn:focus-visible{outline:none;border-color:var(--accent,#6d28d9);box-shadow:0 0 0 3px var(--accent-soft,#efe9ff)}",
+      ".hau-avbtn:hover{border-color:var(--accent,#047857)}",
+      ".hau-avbtn[aria-expanded=true],.hau-avbtn:focus-visible{outline:none;border-color:var(--accent,#047857);box-shadow:0 0 0 3px var(--accent-soft,#e3f4ed)}",
       ".hau-av{position:relative;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;overflow:hidden;color:#fff;font:700 12px/1 var(--font,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif);letter-spacing:.02em;flex:0 0 auto;user-select:none}",
       ".hau-av-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}",
       ".hau-av-img[hidden]{display:none}",
       ".hau-av-lg{width:44px;height:44px;font-size:16px}",
-      ".hau-c0{background:#6d28d9}.hau-c1{background:#2563eb}.hau-c2{background:#0f766e}.hau-c3{background:#b45309}.hau-c4{background:#be185d}.hau-c5{background:#4d7c0f}.hau-c6{background:#7c3aed}.hau-c7{background:#0369a1}",
+      ".hau-c0{background:#047857}.hau-c1{background:#2563eb}.hau-c2{background:#0f766e}.hau-c3{background:#b45309}.hau-c4{background:#be185d}.hau-c5{background:#4d7c0f}.hau-c6{background:#374151}.hau-c7{background:#0369a1}",
       ".hau-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:2147481000;width:272px;max-width:calc(100vw - 24px);box-sizing:border-box;padding:6px;background:var(--panel,#fff);color:var(--ink,#1b1930);border:1px solid var(--line,#e8e3db);border-radius:14px;box-shadow:0 24px 60px rgba(20,27,46,.22),0 2px 8px rgba(20,27,46,.08);text-align:left;font:14px/1.4 var(--font,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif);animation:hauIn .16s ease-out}",
       "html[data-theme=dark] .hau-menu{box-shadow:0 24px 60px rgba(0,0,0,.7)}",
       ".hau-menu[hidden]{display:none}",
@@ -240,13 +240,13 @@
       ".hau-mh-t{min-width:0;flex:1}",
       ".hau-mh-n{margin:0;font-weight:700;font-size:14.5px;color:var(--ink,#1b1930);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
       ".hau-mh-e{margin:1px 0 6px;font-size:12.5px;color:var(--ink-2,#4b475f);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-      ".hau-chip{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9);font-size:11px;font-weight:700;letter-spacing:.02em}",
-      "html[data-theme=dark] .hau-chip{background:#1d1730;color:#c4b5fd}",
+      ".hau-chip{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--accent-soft,#e3f4ed);color:var(--accent,#047857);font-size:11px;font-weight:700;letter-spacing:.02em}",
+      "html[data-theme=dark] .hau-chip{background:#123329;color:#6ee7b7}",
       ".hau-msep{height:1px;margin:4px 6px;background:var(--line,#e8e3db)}",
       ".hau-mi{display:flex;align-items:center;gap:10px;width:100%;min-height:36px;box-sizing:border-box;padding:7px 10px;margin:0;border:0;border-radius:9px;background:transparent;color:var(--ink,#1b1930);font:inherit;font-size:14px;font-weight:500;text-align:left;text-decoration:none;cursor:pointer}",
       ".hau-mi:hover,.hau-mi:focus{outline:none;background:var(--accent-soft,#f4f2fb);color:var(--ink,#1b1930)}",
-      ".hau-mi:focus-visible{box-shadow:inset 0 0 0 2px var(--accent,#6d28d9)}",
-      "html[data-theme=dark] .hau-mi:hover,html[data-theme=dark] .hau-mi:focus{background:#1d1730}",
+      ".hau-mi:focus-visible{box-shadow:inset 0 0 0 2px var(--accent,#047857)}",
+      "html[data-theme=dark] .hau-mi:hover,html[data-theme=dark] .hau-mi:focus{background:#123329}",
       ".hau-mi.is-out{color:var(--bad,#b91c1c)}",
       "html[data-theme=dark] .hau-mi.is-out{color:#fca5a5}",
       ".hau-mi-ic{width:16px;height:16px;flex:0 0 auto;color:var(--ink-3,#6b6577)}",
@@ -1183,7 +1183,7 @@
     if (!doc.body || notes.some(function (n) { return n.id === o.id; })) return null;
     css();
     if (!noteHost || !noteHost.isConnected) { noteHost = el("div", { class: "hau-notes", "aria-label": "Notices" }); doc.body.appendChild(noteHost); }
-    var card = el("div", { class: "hau-note" + (o.tone ? " " + o.tone : "") + (o.compact ? " compact dock-left" : ""), id: o.id, role: o.role || "status", "aria-labelledby": o.id + "T" });
+    var card = el("div", { class: "hau-note" + (o.tone ? " " + o.tone : "") + (o.compact ? " compact" + (o.dock === false ? "" : " dock-left") : ""), id: o.id, role: o.role || "status", "aria-labelledby": o.id + "T" });
     var ic = el("div", { class: "hau-note-ic" }); ic.appendChild(svgIcon(o.icon)); card.appendChild(ic);
     var mid = el("div", null);
     mid.appendChild(el("p", { class: "hau-note-t", id: o.id + "T" }, o.title));
@@ -1205,6 +1205,16 @@
     notes.push({ id: o.id, priority: o.priority || 9, node: card });
     layoutNotes();
     watchModals(); syncNotesForModal();
+    // non-blocking notices fold away by themselves (not while the pointer / focus is on them)
+    if (o.autoHideMs > 0) (function tick() {
+      setTimeout(function () {
+        if (!card.isConnected) return;
+        var busy = false; try { busy = card.matches(":hover") || card.contains(doc.activeElement); } catch (e) {}
+        if (busy) { tick(); return; }
+        if (o.onAutoHide) { try { o.onAutoHide(); } catch (e) {} }
+        hideNote(o.id);
+      }, o.autoHideMs);
+    })();
     return card;
   }
   function hideNote(id) {
@@ -1282,6 +1292,8 @@
         if (st.auth.mfa.requiredForAdmins()) return forceEnroll();
         var dismissed = noteSnoozed("mfa");
         if (dismissed || banner) return;
+        // 0203: never in the free trial (the trial studio is sample data; the strip is the only notice)
+        if (doc.documentElement.classList.contains("helm-trial")) return;
         // at most once per browser session, and never on top of a tour step
         var SK = "hau_mfa_nudge_session";
         try { if (global.sessionStorage && sessionStorage.getItem(SK)) return; } catch (e) {}
@@ -1290,15 +1302,31 @@
           if (banner) return;
           if (tourActive() && tries++ < 200) { setTimeout(waitTour, 3000); return; }
           if (tourActive()) return;
-          try { if (global.sessionStorage) sessionStorage.setItem(SK, "1"); } catch (e) {}
-          showMfaNudge();
+          inTrialStudio().then(function (t) {
+            if (t || banner) return;
+            try { if (global.sessionStorage) sessionStorage.setItem(SK, "1"); } catch (e) {}
+            showMfaNudge();
+          });
         }
         setTimeout(waitTour, 2500);
       });
     }).catch(function () {});
   }
+  // 0203: is the signed-in studio on its free trial? (the server's answer via trial-lock.js; false when unknown)
+  function inTrialStudio() {
+    try {
+      if (global.HelmTrialLock && typeof global.HelmTrialLock.whenKnown === "function") return global.HelmTrialLock.whenKnown().then(function (v) { return v === true; }, function () { return false; });
+      var st = S();
+      if (st && st.subscription && typeof st.subscription.trial === "function")
+        return Promise.resolve(st.subscription.trial()).then(function (t) { return !!(t && t.status === "trial"); }, function () { return false; });
+    } catch (e) {}
+    return Promise.resolve(false);
+  }
   function showMfaNudge() {
-        banner = showNote({ id: "hauMfaNudge", priority: 2, icon: "shield", title: "Turn on two-step verification",
+        // 0203: compact and non-blocking - it stays in the notice stack (never over the page's own docked notices),
+        // shows once per browser session and folds away by itself after 20 s
+        banner = showNote({ id: "hauMfaNudge", priority: 2, icon: "shield", compact: true, dock: false, autoHideMs: 20000,
+          onAutoHide: function () { banner = null; }, title: "Turn on two-step verification",
           body: "Admins control every user and setting — protect your studio with a code from your phone.",
           primary: { label: "Set up now", onClick: function () { openAccount(); } },
           secondary: { label: "Later", onClick: function () { snoozeNote("mfa", 3); banner = null; } },

@@ -2,9 +2,9 @@
 // editor with every database change of release/trial-and-fixes-1018, in the canonical MANIFEST order:
 //   1. the trial bundle: APPLY-0173 .. APPLY-0187 (each file that exists, as in APPLY-TRIAL-BUNDLE.sql),
 //      then FIX-0177-existing-trials.sql,
-//   2. APPLY-0189 .. APPLY-0202 (each file that exists, verbatim, each in its own begin / commit),
+//   2. APPLY-0189 .. APPLY-0205 (each file that exists, verbatim, each in its own begin / commit),
 //   3. APPLY-0178-refresh-trials.sql LAST, so the existing trial studios move to the NEWEST sample
-//      (the one 0202 publishes, with the sample event requirements),
+//      (the one 0202 publishes, with the sample event requirements) with every release rule already installed,
 //   4. ONE combined VERIFY grid (the last result the editor shows; every row must say ok = true).
 // Every section is the reviewed paste file unchanged under a plain-words header, so the bundle is exactly
 // "paste them one by one". No temp tables, no session settings; safe to paste twice (every section is
@@ -15,7 +15,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 const ROOT = new URL('..', import.meta.url).pathname;
 const r = (p) => readFileSync(ROOT + p, 'utf8');
 const OUT = 'supabase/APPLY-RELEASE-1018.sql';
-export const LAST_MIGRATION = 202;
+export const LAST_MIGRATION = 205;
 
 // plain-words header for each section (what it does for the owner, in one or two lines)
 const WHAT = {
@@ -46,6 +46,9 @@ const WHAT = {
   '0200': 'Client booklet "Send to client" (queued e-mail / WhatsApp; free trial = skipped).',
   '0201': 'Release integration fix: sign-up keeps the one-trial-per-e-mail guard; retention list knows group contacts.',
   '0202': 'Trial sample events get the client\'s requirements (Must-have / Nice-to-have / Optional); new sample version.',
+  '0203': 'Free-trial server gates: no client greeting, fixed sample menu dishes, no activity log, no template edits, checkout says "trial".',
+  '0204': 'Signed-out (anon) API tidy: no table grants / "to public" studio policies on 6 tables (link pages use their own functions).',
+  '0205': 'Team invitations: a brand-new invitee can always join (service-role helpers for the invite edge functions).',
   '0178': 'LAST: every existing FREE-TRIAL studio is refreshed to the newest sample (its sample rows re-cloned, its own rows kept).',
 };
 
@@ -62,7 +65,7 @@ for (let n = 188; n <= LAST_MIGRATION; n++) {
 sections.push({ n: '0178', p: 'supabase/APPLY-0178-refresh-trials.sql' });
 
 const VSTART = 'select item, ok from (values\n';
-const VEND = /\n\) v\(item, ok\) order by item;\s*$/;
+const VEND_AT = '\n) v(item, ok) order by item;';
 const verify = [];
 let body = '';
 sections.forEach((s, i) => {
@@ -76,9 +79,11 @@ sections.forEach((s, i) => {
         + `-- In plain words: ${WHAT[s.n]}\n`
         + `-- ##########################################################################################\n` + src;
   if (/^0\d{3}$/.test(s.n) && s.n !== '0178') {
-    const at = src.lastIndexOf(VSTART);
-    if (at < 0 || !VEND.test(src)) throw new Error(s.p + ': VERIFY block missing or not in the expected shape');
-    const rows = src.slice(at + VSTART.length).replace(VEND, '');
+    // the VERIFY grid is the last "select item, ok from (values ... ) v(item, ok) order by item;" of the file
+    // (a read-only INFO query may follow it, e.g. 0204)
+    const at = src.lastIndexOf(VSTART), end = at < 0 ? -1 : src.indexOf(VEND_AT, at);
+    if (at < 0 || end < 0) throw new Error(s.p + ': VERIFY block missing or not in the expected shape');
+    const rows = src.slice(at + VSTART.length, end);
     verify.push(`select '${s.n} ' || item as item, ok from (values\n${rows}\n) v(item, ok)`);
   } else if (s.n === 'FIX-0177') {
     const m = src.match(/-- 3\) VERIFY[^\n]*\n(select [\s\S]*?);\s*$/);
@@ -105,7 +110,7 @@ ${list}
 -- 0182 / 0202 (the sample master studio only: builder rates, sample event requirements, one new sample version)
 -- and, LAST, REFRESH-0178 (each existing FREE-TRIAL studio's SAMPLE rows are cleared and cloned again from the
 -- newest sample; the studio's own rows are kept). Paid studios are not changed. Everything else is functions,
--- triggers, new tables and nullable columns.
+-- triggers, policies, grants, new tables and nullable columns.
 -- Nothing is deleted outside the trial sample refresh: the trial retention deletion (0184) is installed
 -- SWITCHED OFF.
 -- Safe to paste twice: every section is idempotent (the second paste changes nothing).

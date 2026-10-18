@@ -158,7 +158,7 @@ run "trial-layout-0175" "TRIAL-LAYOUT-0175: ALL PASS \(6/6\)" psql -q -f tests/d
 run "trial-client-flow-0176" "TRIAL-CLIENT-FLOW-0176: ALL PASS \(16/16\)" psql -q -f tests/db/trial-client-flow-0176.sql
 run "trial-no-send-0179" "TRIAL-NO-SEND-0179: ALL PASS \(41/41\)" psql -q -f tests/db/trial-no-send-0179.sql
 run "trial-signup-0180" "TRIAL-SIGNUP-0180: ALL PASS \(33/33\)" psql -q -f tests/db/trial-signup-0180.sql
-run "trial-guards-0181" "TRIAL-GUARDS-0181: ALL PASS \(59/59\)" psql -q -f tests/db/trial-guards-0181.sql
+run "trial-guards-0181" "TRIAL-GUARDS-0181: ALL PASS \(60/60\)" psql -q -f tests/db/trial-guards-0181.sql
 run "trial-prices-0182" "TRIAL-PRICES-0182: ALL PASS \(21/21\)" psql -q -f tests/db/trial-prices-0182.sql
 run "trial-expiry-0183" "TRIAL-EXPIRY-0183: ALL PASS \(61/61\)" psql -q -f tests/db/trial-expiry-0183.sql
 run "trial-retention-0184" "TRIAL-RETENTION-0184: ALL PASS \(50/50\)" psql -q -f tests/db/trial-retention-0184.sql
@@ -175,6 +175,9 @@ run "booklet-send-0200" "BOOKLET-SEND-0200: ALL PASS \(40/40\)" psql -q -f tests
 run "budget-plan-0196" "BUDGET-PLAN-0196: ALL PASS \(14/14\)" psql -q -f tests/db/budget-plan-0196.sql
 run "budget-single-source-0199" "BUDGET-SINGLE-SOURCE-0199: ALL PASS \(32/32\)" psql -q -f tests/db/budget-single-source-0199.sql
 run "capacity-shortage-0197" "CAPACITY-SHORTAGE-0197: ALL PASS \(39/39\)" psql -q -f tests/db/capacity-shortage-0197.sql
+run "trial-gates-0203" "TRIAL-GATES-0203: ALL PASS \(46/46\)" psql -q -f tests/db/trial-gates-0203.sql
+run "anon-grant-tidy-0204" "ANON-GRANT-TIDY-0204: ALL PASS \(28/28\)" psql -q -f tests/db/anon-grant-tidy-0204.sql
+run "invite-accept-0205" "INVITE-ACCEPT-0205: ALL PASS \(40/40\)" psql -q -f tests/db/invite-accept-0205.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

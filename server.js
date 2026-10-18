@@ -350,6 +350,9 @@ function serveStatic(req, res) {
   // vendor notes) are never served. Production: .vercelignore + vercel.json redirects.
   if (isInternalFile(rel)) return sendNotFound(res, req);
 
+  // Parity with the vercel.json rewrite (0205): /auth/confirm = every auth e-mail link on our own domain.
+  if (rel === '/auth/confirm') return serveFile(res, req, path.join(PUBLIC_DIR, 'auth-confirm.html'));
+
   // Parity with the vercel.json redirect: /signup opens the sign-up form on the login page.
   if (rel === '/signup') { res.writeHead(302, { Location: '/login#signup' }); return res.end(); }
 
@@ -398,8 +401,10 @@ function serveStatic(req, res) {
 }
 
 // /<studio>/<section>… → page name (or null). Mirrors vercel.json "rewrites".
+// la-1018: /<studio>/event?id=… and /<studio>/builder?quote=… (a relative event.html / builder.html link opened
+// under a studio path) serve the same page as /event and /builder.
 function prettyPage(rel) {
-  const m = /^\/[a-z0-9-]{3,40}\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready|ops|issues|flow)(?:\/([^/]+)(?:\/(floor-plan|tasks))?)?\/?$/.exec(rel || '');
+  const m = /^\/[a-z0-9-]{3,40}\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready|ops|issues|flow|event|builder)(?:\/([^/]+)(?:\/(floor-plan|tasks))?)?\/?$/.exec(rel || '');
   if (!m) return null;
   const sec = m[1], ref = m[2], sub = m[3];
   if (sec === 'events') return ref ? (sub === 'floor-plan' ? 'builder' : sub === 'tasks' ? 'ops' : 'event') : 'quotes';  // /<studio>/events → events list

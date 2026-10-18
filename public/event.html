@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/event-polish.css?v=3">
+<link rel="stylesheet" href="/event-polish.css?v=4">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;--safe:#18a558;--warn:#e8912d;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
   *{box-sizing:border-box} [hidden]{display:none!important}
@@ -40,7 +40,7 @@
   .ev .client-link{display:inline-block;margin-top:4px;font-size:12px;font-weight:600;color:var(--accent);text-decoration:underline;min-height:24px}
   .ev .tot{margin-left:auto;text-align:right} .ev .tot .amt{font-family:var(--mono);font-weight:700;font-size:20px}
   .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:20px;vertical-align:middle}
-  .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318} .stat.st{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn-text)}
+  .stat.q{background:#eef1f0;color:#2f4a42} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318} .stat.st{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn-text)}
   /* lifecycle stepper */
   .steps{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-top:6px;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
   .step{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-3);cursor:pointer;white-space:nowrap;flex:0 0 auto}
@@ -91,13 +91,13 @@
   .egp-btns{display:flex;justify-content:flex-end;gap:8px}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="booklet-share.css?v=4">
-<link rel="stylesheet" href="pkg-review.css?v=1">
-<link rel="stylesheet" href="share-checklist.css?v=2">
-<link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=82">
+<link rel="stylesheet" href="booklet-share.css?v=5">
+<link rel="stylesheet" href="pkg-review.css?v=3">
+<link rel="stylesheet" href="share-checklist.css?v=4">
+<link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=26" id="shellProto"></script>
+<script src="/shell-proto.js?v=27" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -118,7 +118,16 @@
   <div id="notfound" class="card" hidden><p class="muted">Event not found, or your role can't open it. Go to <a class="s-dea29d3" href="dashboard.html">your dashboard</a>.</p></div>
 
   <div id="app" hidden>
-    <div class="card">
+    <!-- desktop: a compact event header + stage strip that stays under the app top bar while the workspace scrolls -->
+    <div class="evstick" id="evStick"><div class="evstick-in" id="evStickIn" hidden>
+      <div class="es-h"><span class="es-code" id="esCode"></span><span class="es-ttl" id="esTitle"></span><span class="es-now" id="esNow"></span></div>
+      <div class="stepwrap sm" data-strip>
+        <button type="button" class="stp-arr l" aria-label="Show earlier stages" hidden>‹</button>
+        <div class="steps" id="stepsMini" role="group" aria-label="Event stages (compact) - pick one to open it"></div>
+        <button type="button" class="stp-arr r" aria-label="Show later stages" hidden>›</button>
+      </div>
+    </div></div>
+    <div class="card" id="evHead">
       <div class="ev">
         <div>
           <span class="code" id="code"></span> <span id="statusBadge"></span> <span id="apprBadge"></span>
@@ -131,8 +140,12 @@
         <div class="tot"><div class="muted">Total</div><div class="amt" id="total">—</div></div>
       </div>
       <div class="s-766d7d2" id="reapprBanner" role="status" hidden></div>
-      <div class="nextbar" id="nextStepBar" hidden><a class="btn primary nextstep" id="nextStepBtn" href="#">Next step →</a><span class="hint" id="nextStepWhy"></span></div>
-      <div class="steps" id="steps" role="group" aria-label="Event stages - pick one to open it"></div>
+      <div class="nextbar" id="nextStepBar" hidden><a class="btn primary nextstep" id="nextStepBtn" href="#">Next step →</a><span class="hint" id="nextStepWhy"></span><a class="btn sm paydone" id="nextPayBtn" href="#" hidden></a></div>
+      <div class="stepwrap" id="stepWrap" data-strip>
+        <button type="button" class="stp-arr l" aria-label="Show earlier stages" hidden>‹</button>
+        <div class="steps" id="steps" role="group" aria-label="Event stages - pick one to open it"></div>
+        <button type="button" class="stp-arr r" aria-label="Show later stages" hidden>›</button>
+      </div>
       <section class="stagepanel" id="stagePanel" aria-live="polite" hidden></section>
       <div class="nextbar">
         <div class="hint" id="nextHint"></div>
@@ -185,10 +198,10 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
+<script src="event-name.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
 <script src="event-reminders.js?v=3"></script>
-<script src="tour.js?v=17"></script>
+<script src="tour.js?v=18"></script>
 <script src="booklet.js?v=23"></script>
 <script src="email-send.js?v=3"></script><script src="share-checklist.js?v=11"></script>
 <script src="invite-site-share.js?v=3"></script><script src="booklet-share.js?v=11"></script>
@@ -221,7 +234,13 @@
   // "Confirmed", and once the client's advance is recorded the event is "Booked". Display only — nothing
   // is written. qts-1018: a quote the studio only LOCKED (status confirmed, link sent, client not yet
   // approved) stays on "Quote" - the same "Sent · awaiting client approval" the header + Quotes list say.
-  const advanceIn=()=> !!ev && (ev.approvalStatus==="paid" || !!(settleSummary && Number(settleSummary.received)>0));
+  // money already received from the client (quote_payments ledger, status paid) - read on its own so the
+  // "Record advance" call-to-action knows an advance is in even when the settlement summary could not load
+  let paidSoFar=null, sumsLoaded=false;
+  const advanceIn=()=> !!ev && (ev.approvalStatus==="paid" || Number(paidSoFar)>0 || !!(settleSummary && Number(settleSummary.received)>0));
+  const paidAmount=()=>{ const a=Number(paidSoFar)||0, b=settleSummary?(Number(settleSummary.receivedGross!=null?settleSummary.receivedGross:settleSummary.received)||0):0; return Math.max(a,b); };
+  // "Advance recorded ₹X — record another payment" (the amount only for roles that can see money)
+  const advanceDoneLabel=()=>{ const amt=paidAmount(); return "Advance recorded"+(canFin&&amt>0?" "+inr(amt):"")+" — record another payment"; };
   const effStage=()=>{ const k=(ev&&ev.lifecycleStage)||"quote";
     return (ev && stageIndex(k)<stageIndex("confirmed") && BPStore.quoteStatus(ev,{advance:advanceIn()}).confirmed) ? "confirmed" : k; };
   const isConfirmed=()=> !!ev && (ev.status==="confirmed" || stageIndex(effStage())>=stageIndex("confirmed"));
@@ -311,6 +330,8 @@
       S(async()=>{ const [rs,td]=await Promise.all([BPStore.inventory.reservations(id), BPStore.checklist.list(id,"teardown")]);
         teardownSummary={ retDone:rs.filter(r=>r.status==='returned').length, retTotal:rs.length, tdDone:td.filter(t=>t.status==='done').length, tdTotal:td.length }; }),
       // vendor figures + profit use the same bills rule as Settlement (bills replace booked cost)
+      S(async()=>{ const pays=await BPStore.milestones.payments(id);
+        paidSoFar=Math.round((pays||[]).filter(p=>p&&p.status==="paid").reduce((a,p)=>a+Number(p.amount||0),0)*100)/100; }),
       S(async()=>{ billsDelta=0; const sm=await BPStore.settlement.summary(id); billsDelta=BPStore.settlement.applyBills?await BPStore.settlement.applyBills(sm,id):0; settleSummary=sm; }),
       S(async()=>{ const st=await BPStore.quotes.staleApprovals([id]); staleInfo = st.has(id) ? ((st.detail||{})[id]||{}) : null; }),
       S(async()=>{ const [pl,c]=await Promise.all([BPStore.closure.pl(id), BPStore.closure.get(id)]);
@@ -323,6 +344,7 @@
     if(closureSummary && billsDelta && !closureSummary.billsIncluded){   // manager-1019: server P&L already counts bills
       closureSummary.profit=Math.round((closureSummary.profit+billsDelta)*100)/100;
       closureSummary.pct=closureSummary.rev?Math.round(closureSummary.profit/closureSummary.rev*100):null; }
+    sumsLoaded=true;
     render();   // re-paint with the loaded summaries
     // 0197: guests over the venue (until resolved) + open stock shortages, shown as issues on the workspace
     if(window.HelmCapacity) HelmCapacity.mountIssues($("#capIssues"), { quote:ev, quoteId:id, canEdit }).catch(()=>{});
@@ -390,14 +412,9 @@
 
     const cur=stageIndex(effStage()), vis=viewIdx();
     // 0198: every stage is a button that OPENS that stage (never disabled, never a write); the
-    // highlighted one is the event's real, stored stage; the outlined one is the stage being viewed
-    $("#steps").innerHTML=STAGES.map((s,i)=>{
-      const cls=(i<cur?"done":i===cur?"active":"")+(i===vis&&i!==cur?" viewing":"");
-      return `<button type="button" class="step ${cls}" data-k="${esc(s.k)}" ${i===cur?'aria-current="step"':""} aria-pressed="${i===vis?"true":"false"}" title="${esc(i===cur?"Current stage - "+s.label:"Open "+s.label)}"><span class="n">${i<cur?"✓":i+1}</span>${esc(stageLabel(s))}</button>`;
-    }).join("");
-    $("#steps").querySelectorAll(".step").forEach(b=>b.addEventListener("click",(e)=>{ if(e.detail>1) return; viewStage(b.dataset.k); }));
-    { const st=$("#steps"), on=st.querySelector('.step[aria-pressed="true"]');   // keep the viewed stage in sight on a phone
-      if(on && st.scrollWidth>st.clientWidth){ const r=on.getBoundingClientRect(), c=st.getBoundingClientRect(); if(r.left<c.left||r.right>c.right) st.scrollLeft+=r.left-c.left-24; } }
+    // filled one is the event's real, stored stage; the outlined one is the stage being viewed
+    paintStrip($("#steps"),cur,vis); paintStrip($("#stepsMini"),cur,vis);
+    renderStick(cur,vis);
     $("#nextHint").innerHTML=`<b>Now:</b> ${esc((STAGES[cur].k==="confirmed"&&advanceIn())?"Booked — the advance is in. Plan the day next.":STAGES[cur].hint)}`;
     const hasNext=renderNextStep(cur);
     // dedupe: when the "Next step" bar shows its own one-line reason, the stage "Now:" hint repeats it
@@ -426,12 +443,21 @@
     const q=encodeURIComponent(id); let t="", href="", w="";
     if(evLocked()){ bar.hidden=true; return false; }   // 0198: cancelled / closed - nothing left to push
     if(!isConfirmed()){ t="Send quote"; href="quotes.html?focus="+encodeURIComponent(ev.code||id); w="Price it, then send the quote to the client for approval."; }
-    else if(!advanceIn()){ t="Record advance"; href="flow.html?quote="+q+"#sec-pay"; /* money-1024: advances are recorded in the quote workspace payment step */ w="Record the client's advance to book the date."; }
+    else if(!advanceIn()){
+      if(!sumsLoaded){ bar.hidden=true; return false; }   // payments still loading: never flash "Record advance" for an event that has one
+      t="Record advance"; href="flow.html?quote="+q+"#sec-pay"; /* money-1024: advances are recorded in the quote workspace payment step */ w="Record the client's advance to book the date."; }
     else if(cur<stageIndex("event_day")){ t="Plan the day"; href="runsheet.html?quote="+q; w="Build the minute-by-minute plan for the day."; }
     else if(cur<stageIndex("closed")){ t="Close the event"; href="closure.html?quote="+q; w="Settle up, collect feedback and close the books."; }
     if(!t || !canEdit){ bar.hidden=true; return false; }
     if(window.HelmUrl&&HelmUrl.upgrade) href=HelmUrl.upgrade(href);   // PL1027 #3: studio-prefixed route (/<studio>/flow?quote=…), like Convert
-    b.textContent=t+" →"; b.setAttribute("href",href); why.textContent=w; bar.hidden=false; return true;
+    b.textContent=t+" →"; b.setAttribute("href",href); why.textContent=w; bar.hidden=false;
+    // an advance is already in: say so (with the amount) and offer the next payment, instead of "Record advance" again
+    const pb=$("#nextPayBtn");
+    if(pb){ const owed=settleSummary&&settleSummary.balance!=null?Number(settleSummary.balance):null;
+      const show=isConfirmed() && advanceIn() && cur<stageIndex("closed") && (owed==null || owed>0.5);
+      pb.hidden=!show;
+      if(show){ pb.textContent=advanceDoneLabel(); let ph="flow.html?quote="+q+"#sec-pay"; if(window.HelmUrl&&HelmUrl.upgrade) ph=HelmUrl.upgrade(ph); pb.setAttribute("href",ph); } }
+    return true;
   }
   // Event group (0035): after confirmation, a clear button at the bottom — "Create event group"
   // (managers only; opens the team picker on Quotes) or, once it exists, "Open event group".
@@ -792,7 +818,7 @@
     return ({ lead:[["Open discovery","discovery.html?quote="+q]], discovery:[["Open discovery","discovery.html?quote="+q]],
       proposal:[["Open proposal","proposal.html?quote="+q],["Open floor layout","builder.html?quote="+q]],
       quote:[["Open this quote","quotes.html?focus="+fq],["Venue & menu","plan.html?quote="+q]],
-      confirmed:[["Quote & approval","quotes.html?focus="+fq],["Record advance","flow.html?quote="+q+"#sec-pay"]],
+      confirmed:[["Quote & approval","quotes.html?focus="+fq],[advanceIn()?advanceDoneLabel():"Record advance","flow.html?quote="+q+"#sec-pay"]],
       planning:[["Open run-sheet","runsheet.html?quote="+q],["Open operations","ops.html?quote="+q],["Venue & menu","plan.html?quote="+q]],
       resources:[["Open resource plan","resources.html?quote="+q],["Reserve stock","inventory.html?quote="+q]],
       ready:[["Open readiness","ready.html?quote="+q],["Open logistics","logistics.html?quote="+q]],
@@ -804,6 +830,90 @@
     viewK = (k===effStage()) ? null : k;
     render();
     const p=$("#stagePanel"); if(p && !p.hidden){ const r=p.getBoundingClientRect(); if(r.bottom>innerHeight||r.top<0) p.scrollIntoView({block:"nearest",behavior:"smooth"}); }
+  }
+  // ---- stage strip scrolling (the card's strip + the compact sticky one): the current / viewed stage is
+  // always brought into view after a render, fades + arrow buttons show there is more to either side ----
+  const reduceMotion=()=>{ try{ return matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(_){ return false; } };
+  function paintStrip(st, cur, vis){
+    if(!st) return;
+    const keep=st.scrollLeft, tk=cur+"|"+vis, first=!st.dataset.tk;
+    st.replaceChildren(...STAGES.map((s,i)=>{
+      const viewing=i===vis && i!==cur;
+      const tip=i===cur?("Current stage - "+s.label+(vis!==cur?" (open it)":"")):viewing?("Viewing "+s.label+" - the event is at "+STAGES[cur].label):("Open "+s.label);
+      return el("button",{type:"button",class:"step"+(i<cur?" done":i===cur?" active":"")+(viewing?" viewing":""),"data-k":s.k,
+          "aria-current":i===cur?"step":null,"aria-pressed":i===vis?"true":"false",title:tip,
+          onclick:(e)=>{ if(e.detail>1) return; viewStage(s.k); }},
+        [el("span",{class:"n",text:i<cur?"✓":String(i+1)}), stageLabel(s), viewing?el("span",{class:"vtag",text:"Viewing"}):null]);
+    }));
+    st.scrollLeft=keep;   // re-painting resets the scroll: restore it, then glide to the stage that matters
+    if(first || st.dataset.tk!==tk){ st.dataset.tk=tk; centerStrip(st, !first); } else stripEdges(st);
+  }
+  function centerStrip(st, smooth){
+    if(!st) return;
+    const on=st.querySelector('.step[aria-pressed="true"]')||st.querySelector('.step[aria-current="step"]');
+    const max=st.scrollWidth-st.clientWidth;
+    if(on && max>0 && st.clientWidth>0){
+      const left=Math.max(0,Math.min(max,Math.round(on.offsetLeft-(st.clientWidth-on.offsetWidth)/2)));
+      if(Math.abs(left-st.scrollLeft)>1){ try{ st.scrollTo({left,behavior:(smooth&&!reduceMotion())?"smooth":"auto"}); }catch(_){ st.scrollLeft=left; } }
+    }
+    stripEdges(st);
+  }
+  function stripEdges(st){
+    const w=st&&st.closest("[data-strip]"); if(!w) return;
+    const max=st.scrollWidth-st.clientWidth, x=st.scrollLeft, l=max>1&&x>1, r=max>1&&x<max-1;
+    w.classList.toggle("ov-l",l); w.classList.toggle("ov-r",r);
+    const al=w.querySelector(".stp-arr.l"), ar=w.querySelector(".stp-arr.r");
+    [[al,l],[ar,r]].forEach(([b,on])=>{ if(!b || b.hidden===!on) return;
+      if(!on && document.activeElement===b){ const ps=st.querySelectorAll(".step"), t=b===al?ps[0]:ps[ps.length-1]; if(t) t.focus({preventScroll:true}); }
+      b.hidden=!on; });
+  }
+  function wireStrip(w){
+    const st=w.querySelector(".steps"); if(!st) return;
+    let raf=0; const upd=()=>{ if(raf) return; raf=requestAnimationFrame(()=>{ raf=0; stripEdges(st); }); };
+    st.addEventListener("scroll",upd,{passive:true});
+    try{ new ResizeObserver(upd).observe(st); }catch(_){ addEventListener("resize",upd); }
+    w.querySelectorAll(".stp-arr").forEach(b=>b.addEventListener("click",()=>{
+      const d=(b.classList.contains("l")?-1:1)*Math.max(120,Math.round(st.clientWidth*.7));
+      try{ st.scrollBy({left:d,behavior:reduceMotion()?"auto":"smooth"}); }catch(_){ st.scrollLeft+=d; } }));
+    // arrow keys move between stages (Home / End jump to the ends); Tab works as usual
+    st.addEventListener("keydown",(e)=>{
+      const ps=[...st.querySelectorAll(".step")], i=ps.indexOf(document.activeElement); if(i<0) return;
+      const j=e.key==="ArrowRight"?i+1:e.key==="ArrowLeft"?i-1:e.key==="Home"?0:e.key==="End"?ps.length-1:-1;
+      if(j<0||j>=ps.length) return; e.preventDefault(); ps[j].focus(); try{ ps[j].scrollIntoView({block:"nearest",inline:"nearest"}); }catch(_){}
+    });
+  }
+  document.querySelectorAll("[data-strip]").forEach(wireStrip);
+  // desktop: a compact event header + strip stays under the app top bar once the event card scrolls away
+  // (phones keep the normal page - the bar would eat too much of a small screen)
+  function renderStick(cur,vis){
+    const c=$("#esCode"), t=$("#esTitle"), n=$("#esNow"); if(!c||!ev) return;
+    c.textContent=ev.code||""; t.textContent=$("#title").textContent||"";
+    n.textContent="Now: "+stageLabel(STAGES[cur])+(vis!==cur?" · viewing "+stageLabel(STAGES[vis]):"");
+  }
+  (function stick(){
+    const box=$("#evStickIn"), head=$("#stepWrap"); if(!box||!head||!("IntersectionObserver" in window)) return;
+    const wide=matchMedia("(min-width: 900px)");
+    const topPx=()=>{ const v=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hb-top")); return isFinite(v)?v:0; };
+    let past=false;
+    const apply=()=>{ const on=past && wide.matches && !!ev && !$("#app").hidden; if(box.hidden===!on) return;
+      box.hidden=!on; if(on) centerStrip($("#stepsMini"),false); };
+    const io=new IntersectionObserver(([e])=>{ const r=e.boundingClientRect;
+      past=!e.isIntersecting && r.height>0 && r.bottom<=topPx()+1; apply(); },{rootMargin:"-"+Math.round(topPx())+"px 0px 0px 0px"});
+    io.observe(head);
+    try{ wide.addEventListener("change",apply); }catch(_){ try{ wide.addListener(apply); }catch(__){} }
+  })();
+  // a database without 0198 (lifecycle_stage_blockers missing): the same date / menu gates worked out here, so the
+  // move button is still disabled with the reason instead of failing on click (the server re-checks every move)
+  function localStageGates(k){
+    const from=stageIndex(ev.lifecycleStage||"quote"), to=stageIndex(k), out=[], P=stageIndex("planning"), D=stageIndex("event_day"), S=stageIndex("settlement");
+    if(to<=from) return out;
+    const d=String(ev.eventDate||(ev.client&&ev.client.eventDate)||"").slice(0,10), hasD=/^\d{4}-\d{2}-\d{2}$/.test(d);
+    let today=""; try{ today=BPStore.todayLocal(); }catch(_){}
+    if(from<P && to>=P && planSummary && !planSummary.menu_locked) out.push({gate:"planning",message:"Planning needs: menu locked"});
+    const notYet=!hasD || (!!today && d>today);
+    if(from<S && to>=S && notYet) out.push({gate:"settlement",message:hasD?"the event date ("+niceDay(d)+") has not arrived":"the event has no date yet"});
+    else if(from<D && to>=D && notYet) out.push({gate:"event_day",message:hasD?"Event Day opens on "+niceDay(d)+" (the event date)":"the event has no date yet"});
+    return out;
   }
   const infoKey=(k)=> k+"|"+(ev.lifecycleStage||"quote")+"|"+ev.status;
   async function loadStageInfo(k){
@@ -837,30 +947,36 @@
         if(Number(b.open_checkouts)>0) l.push("return "+b.open_checkouts+" equipment checkout"+(b.open_checkouts>1?"s":""));
         why.textContent="Closing needs: "+(l.join(", ")||"a few things first")+"."; }
       else why.textContent=b?"Ready to close - settle up and close it on the Closure page.":"Close the event on its Closure page once the event day is over.";
-    } else if(canEdit && vis!==cur && ev.status==="confirmed" && vis<stageIndex("confirmed")){
-      // same rule as the server (0198): a confirmed event never goes back before Confirmed
-      why.textContent="This event is confirmed, so it can't go back to "+s.label+". Use Cancel event if it will not happen.";
     } else if(canEdit && vis!==cur){
-      const list=info&&info.list;
-      if(info==="loading"||info===undefined){ why.textContent="Checking what "+s.label+" needs…"; }
-      else{
-        const hard=(list||[]).filter(x=>x&&x.hard), soft=(list||[]).filter(x=>x&&!x.hard);
-        const msg=(arr)=>arr.map(x=>{ const m=String(x.message||""); return /^[A-Z]/.test(m)?m.replace(/\.$/,""):(s.label+" can't start yet - "+m); }).join(". ");
-        if(hard.length){ why.textContent=msg(hard)+"."+(hard.some(x=>x.gate==="confirmed_floor")?" Use Cancel event if it will not happen.":""); }
-        else{
-          if(soft.length){ why.textContent=msg(soft)+"."; why.classList.add("t-warn"); }
-          const admin=myRole==="admin", blocked=soft.length>0;
-          const label=(blocked?(admin?"Move anyway (admin)… ":"Move event to "):(vis<cur?"Move event back to ":"Move event to "))+(blocked&&admin?"":s.label);
-          const mv=el("button",{type:"button",class:"btn sm"+(blocked?"":" go"),text:label.trim(),disabled:(blocked&&!admin)||stageBusy,
-            onclick:(e)=>{ if(e.detail>1) return; setStage(s.k,e.currentTarget); }});
-          acts.appendChild(mv);
-          if(blocked&&!admin) acts.appendChild(el("span",{class:"muted",text:"Finish the items above, or ask an admin to move it anyway."}));
-        }
+      // the move button is always there, and DISABLED with the reason whenever a gate blocks the move
+      // (lifecycle_stage_blockers, 0198) - nobody is left to click it and find out from an error
+      const list=info&&info.list, loading=info==="loading"||info===undefined;
+      const floor=ev.status==="confirmed" && vis<stageIndex("confirmed");   // same rule as the server: never back before Confirmed
+      const gates=floor?[{gate:"confirmed_floor",hard:true,message:"This event is confirmed, so it can't go back to "+s.label}]
+        : loading?[] : (list==null ? localStageGates(s.k) : list);
+      const hard=gates.filter(x=>x&&x.hard), soft=gates.filter(x=>x&&!x.hard), blocked=hard.length+soft.length>0;
+      const msg=(arr)=>arr.map(x=>{ const m=String(x.message||""); return /^[A-Z]/.test(m)?m.replace(/\.$/,""):(s.label+" can't start yet - "+m); }).join(". ");
+      const whyId="spWhy";
+      why.id=whyId;
+      if(loading && !floor) why.textContent="Checking what "+s.label+" needs…";
+      else if(blocked){ why.textContent=msg(hard.length?hard:soft)+"."+(hard.some(x=>x.gate==="confirmed_floor")?" Use Cancel event if it will not happen.":"");
+        why.classList.add(hard.length?"t-bad":"t-warn"); }
+      const admin=myRole==="admin";
+      acts.appendChild(el("button",{type:"button",class:"btn sm"+(blocked||loading?"":" go"),text:(vis<cur?"Move event back to ":"Move event to ")+s.label,
+        disabled:blocked||loading||stageBusy, "aria-describedby":(blocked||loading)?whyId:null,
+        title:blocked?why.textContent:null, onclick:(e)=>{ if(e.detail>1) return; setStage(s.k,e.currentTarget); }}));
+      if(blocked && !hard.length){
+        // admins can still override the HL409 gates on the server (reason recorded in the audit log)
+        if(admin) acts.appendChild(el("button",{type:"button",class:"btn sm ghost",text:"Override as admin…",disabled:stageBusy,
+          title:"Move the event anyway - you will be asked for a reason, saved in the audit log",
+          onclick:(e)=>{ if(e.detail>1) return; setStage(s.k,e.currentTarget); }}));
+        else acts.appendChild(el("span",{class:"muted",text:"Finish the items above, or ask an admin to move it anyway."}));
       }
     }
     acts.appendChild(el("button",{type:"button",class:"btn sm ghost",text:"Back to the current stage",onclick:()=>viewStage(effStage())}));
     p.replaceChildren(
-      el("div",{class:"sp-h"},[el("b",{text:"Stage: "+stageLabel(s)}), " ", el("span",{class:"stat "+(rel==="Done"?"ok":"q"),text:rel})]),
+      el("div",{class:"sp-h"},[el("span",{class:"sp-eye",text:"Viewing"}), el("b",{text:"Stage: "+stageLabel(s)}), " ", el("span",{class:"stat "+(rel==="Done"?"ok":"q"),text:rel}),
+        el("span",{class:"muted sp-cur",text:"The event is at "+stageLabel(STAGES[cur])})]),
       el("div",{class:"sp-hint",text:s.hint}), why, acts);
     p.hidden=false;
   }

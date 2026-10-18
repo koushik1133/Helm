@@ -13,7 +13,7 @@
 <style>
   :root{
     --bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;--safe:#18a558;--warn:#e8912d;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   }
@@ -46,19 +46,20 @@
   tbody tr:hover{background:var(--panel-2)}
   .when{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
   .act{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
-  .act.created{background:#eef2ff;color:#4457c8}.act.updated{background:#fff7e6;color:#946200}
+  .act.created{background:#eef1f0;color:#2f4a42}.act.updated{background:#fff7e6;color:#946200}
   .act.converted{background:#e7f6ee;color:#0f7a43}.act.deleted{background:#fdecec;color:#b42318}
   .muted{color:var(--ink-3)} .amt{font-family:var(--mono)}
   a.open{color:var(--accent);font-weight:600}
   .restore-btn{border:1px solid var(--line,#d0d5dd);background:transparent;color:var(--accent);font-weight:600;border-radius:8px;padding:3px 10px;cursor:pointer;font-size:12px;white-space:nowrap}
   .restore-btn:disabled{opacity:.5;cursor:default}
   .restored-tag{font-size:12px;color:var(--ink-3);white-space:nowrap}
+  .dup-n{font-size:11px;font-weight:700;color:var(--ink-3);white-space:nowrap}
   .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 </style>
 <link rel="stylesheet" href="crm-polish.css?v=2">
-<link rel="stylesheet" href="theme.css?v=82">
-<script src="/shell-proto.js?v=26" id="shellProto"></script>
+<link rel="stylesheet" href="theme.css?v=83">
+<script src="/shell-proto.js?v=27" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -86,7 +87,7 @@
     <select id="fStage" class="search s-c6cca58" aria-label="Filter by stage"><option value="">All stages</option></select>
     <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, phone, type…" aria-label="Search CRM records">
     <label class="sub s-1f7fa59">
-      <input type="checkbox" id="fAll"> Full history</label>
+      <input type="checkbox" id="fAll" aria-label="Full history: show every saved record, not only the latest per lead"> Full history</label>
   </div>
 
   <div class="card">
@@ -107,14 +108,17 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
-<script src="tour.js?v=17"></script>
+<script src="event-name.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
+<script src="tour.js?v=18"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const fmt=(n)=> n==null||n===""?"":BPStore.studioMoney(n);
-  const when=(t)=>{ if(!t) return ""; const d=new Date(t); return d.toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); };
+  // LA-27: the studio's locale + timezone (one formatter for every page), not the viewer's browser
+  const when=(t)=>{ if(!t) return ""; return BPStore.fmtStudioDate(t,{fmt:{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}}); };
+  const srcLbl=(v)=>BPStore.sourceLabel?BPStore.sourceLabel(v):String(v||"");
+  const stgLbl=(v)=>BPStore.stageLabel?BPStore.stageLabel(v):String(v||"");
   // Perf (Oct 2026): the archive is server-paged newest-first without the snapshot JSON;
   // filters + search run on the server (debounced). "Latest per lead" keeps only each
   // lead's newest snapshot (checked server-side), exactly as before. recs = rows loaded so far.
@@ -123,11 +127,12 @@
     let fx={sources:[],stages:[]}; try{ fx=await BPStore.leads.archiveFacets(); }catch(e){}
     // QA M-09: fold casing/whitespace variants (website/Website, referral/Referral) into one
     // canonical label so the source filter + reporting aren't fragmented.
-    const srcMap={}; fx.sources.forEach(v=>{ const c=String(v||"").trim().replace(/\s+/g,' '); if(c){ const k=c.toLowerCase(); if(!srcMap[k]) srcMap[k]=c.replace(/\b\w/g,m=>m.toUpperCase()); } });
+    // LA-28: one label per source ("walk-in" -> "Walk-in", the same word the rows show - never "Walk-In")
+    const srcMap={}; fx.sources.forEach(v=>{ const c=String(v||"").trim().replace(/\s+/g,' '); if(c){ const k=c.toLowerCase(); if(!srcMap[k]) srcMap[k]=srcLbl(c); } });
     const srcs=Object.values(srcMap).sort();
     const stages=[...new Set(fx.stages.filter(Boolean))].sort();
     $("#fSource").innerHTML='<option value="">All sources</option>'+srcs.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
-    $("#fStage").innerHTML='<option value="">All stages</option>'+stages.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+    $("#fStage").innerHTML='<option value="">All stages</option>'+stages.map(s=>`<option value="${esc(s)}">${esc(stgLbl(s))}</option>`).join("");
   }
 
   async function renderAccount(){
@@ -155,21 +160,22 @@
     // show the words the user actually did (ARCHIVED / RESTORED). A "created" row is a restore when the
     // same lead has an older row on screen or a deleted row restored at (about) that moment.
     const actLabel=crmActionLabels(shown);
-    $("#rows").innerHTML = shown.map(r=>{
+    const groups=crmGroupDuplicates(shown, actLabel);   // LA-34: identical rows written within a minute show once (xN)
+    $("#rows").innerHTML = groups.map(g=>{ const r=g.row;
       const qid = r.quote_id ? esc(r.quote_id) : "";
       const openable = !!qid && canQuotes;   // QA1017: a role without the quotes area gets the lead link instead
       const href = openable ? "event.html?id="+encodeURIComponent(r.quote_id) : "";
       return `<tr${openable?` class="openable" data-qid="${esc(r.quote_id)}" style="cursor:pointer"`:""}>
       <td class="when">${esc(when(r.archived_at))}</td>
-      <td><span class="act ${esc(r.action)}">${esc(actLabel.get(r)||r.action)}</span></td>
+      <td><span class="act ${esc(r.action)}">${esc(actLabel.get(r)||r.action)}</span>${g.n>1?` <span class="dup-n" title="${esc(g.n+" identical records saved within a minute")}" aria-label="${esc(g.n+" identical records")}">×${esc(g.n)}</span>`:""}</td>
       <td>${esc(r.name||"—")}</td>
       <td class="muted">${esc(r.phone||"")}</td>
-      <td class="muted">${esc(r.source||"")}</td>
+      <td class="muted">${esc(srcLbl(r.source))}</td>
       <td>${esc(r.event_type||"")}</td>
-      <td class="muted">${esc(r.event_date||"")}</td>
+      <td class="muted">${esc(r.event_date?BPStore.fmtDateIN(r.event_date):"")}</td>
       <td class="amt">${r.budget?fmt(r.budget):""}</td>
       <td class="muted">${r.guest_count!=null?esc(r.guest_count):""}</td>
-      <td class="muted">${esc(r.status||"")}</td>
+      <td class="muted">${esc(stgLbl(r.status))}</td>
       <td>${openable?`<a class="open" href="${esc(href)}" aria-label="Open ${esc(r.name||"record")} workspace">Open&nbsp;→</a>`:(r.lead_id&&r.action!=="deleted"&&r.name?`<a class="open" href="${esc("leads.html?hs="+encodeURIComponent(String(r.name).slice(0,80)))}" aria-label="Open lead ${esc(r.name)}">Open&nbsp;→</a>`:"")}${restoreCell(r)}</td>
     </tr>`;}).join("");
     // click a row (or the Open link) → the event workspace hub (details + 2D/3D)
@@ -180,6 +186,19 @@
     }));
   }
 
+  // LA-34: collapse identical rows (same lead, same action word, same details) written within 60 s of each other
+  // into one row with a count. Display only - every archive record is still kept on the server.
+  function crmGroupDuplicates(rows, labels){
+    const out=[], F=["lead_id","name","phone","email","source","event_type","event_date","budget","guest_count","status","quote_id"];
+    const key=(r)=>F.map(k=>String(r[k]==null?"":r[k])).join("\u0001")+"\u0001"+((labels&&labels.get(r))||r.action);
+    const t=(x)=>{ const n=Date.parse(x||""); return isFinite(n)?n:NaN; };
+    rows.forEach(r=>{
+      const last=out[out.length-1], k=key(r), at=t(r.archived_at);
+      if(last && last.k===k && r.lead_id && isFinite(at) && isFinite(last.at) && Math.abs(last.at-at)<=60000 && !r.restored_at && !last.row.restored_at){ last.n++; last.at=at; return; }
+      out.push({ row:r, n:1, k, at });
+    });
+    return out;
+  }
   // PL1027 #4: pair each archive ("deleted") with ONE later "created" row - a second "created" row for the
   // same restore (duplicate trigger write) no longer shows a second RESTORED; it keeps its own label.
   function crmActionLabels(rows){
@@ -187,16 +206,21 @@
     const by=new Map();
     rows.forEach(r=>{ m.set(r, r.action==="deleted"?"archived":r.action);
       if(r.lead_id){ if(!by.has(r.lead_id)) by.set(r.lead_id,[]); by.get(r.lead_id).push(r); } });
+    // LA-34: rows written in the SAME moment (a sample-data seed writes created + updated together) sort
+    // "created" first, and the "archive row not on screen" fallback only counts a re-creation that came
+    // clearly LATER than the lead's first record - so seeded / demo rows are never labelled RESTORED.
+    const RANK={created:0,updated:1,deleted:2};
     by.forEach(list=>{
-      const asc=list.slice().sort((a,b)=>(t(a.archived_at)||0)-(t(b.archived_at)||0));
-      const hasDel=asc.some(o=>o.action==="deleted");
+      const asc=list.slice().sort((a,b)=>((t(a.archived_at)||0)-(t(b.archived_at)||0)) || ((RANK[a.action]??1)-(RANK[b.action]??1)));
+      const hasDel=asc.some(o=>o.action==="deleted"), firstAt=t((asc[0]||{}).archived_at);
       let pending=0, seen=false, fallbackUsed=false, lastRestoreAt=NaN;
       asc.forEach(r=>{
+        if(r.is_demo){ seen=true; return; }   // a sample row keeps its own action word
         if(r.action==="deleted"){ pending++; seen=true; return; }
         if(r.action==="created"){
           const at=t(r.archived_at);
           if(pending>0){ m.set(r,"restored"); pending--; lastRestoreAt=at; }
-          else if(!hasDel && seen && !fallbackUsed){ m.set(r,"restored"); fallbackUsed=true; lastRestoreAt=at; }   // archive row not on screen
+          else if(!hasDel && seen && !fallbackUsed && isFinite(at) && isFinite(firstAt) && at-firstAt>60000){ m.set(r,"restored"); fallbackUsed=true; lastRestoreAt=at; }   // archive row not on screen
           else if(isFinite(lastRestoreAt) && Math.abs(at-lastRestoreAt)<=120000) m.set(r,"updated");   // duplicate write of the same restore
         }
         seen=true;

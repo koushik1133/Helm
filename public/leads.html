@@ -13,7 +13,7 @@
 <style>
   :root{
     --bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;--safe:#18a558;--warn:#e8912d;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   }
@@ -107,15 +107,15 @@
   .pill{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:20px;padding:2px 9px;background:var(--accent-soft);color:var(--accent)}
 </style>
 <link rel="stylesheet" href="leads-polish.css?v=3">
-<link rel="stylesheet" href="theme.css?v=82">
-<script src="/shell-proto.js?v=26" id="shellProto"></script>
+<link rel="stylesheet" href="theme.css?v=83">
+<script src="/shell-proto.js?v=27" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <div class="mark"></div>
-    <div><h1>Helm Events</h1><small>Leads &amp; Pipeline</small></div>
+    <div><h1>Helm Events</h1><small data-short="Leads">Leads &amp; Pipeline</small></div>
     <nav class="nav">
       <a href="dashboard.html">Dashboard</a>
       <a href="chat.html">Chat</a>
@@ -185,7 +185,7 @@
     <h3><span id="lm_title">＋ New lead</span><button type="button" class="close" id="lm_close" aria-label="Close" data-close>×</button></h3>
     <p class="sub">Capture the enquiry. You can convert it to a quote once it's qualified.</p>
     <div class="grid">
-      <div class="fld"><label for="f_name">Contact name *</label><input id="f_name" required placeholder="e.g. Priya Sharma"></div>
+      <div class="fld"><label for="f_name">Contact name *</label><input id="f_name" required maxlength="80" placeholder="e.g. Priya Sharma"></div>
       <div class="fld"><label for="f_phone">Phone</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
       <div class="fld"><label for="f_email">Email</label><input id="f_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
       <div class="fld" id="f_stageWrap" hidden><label for="f_stage">Stage</label><select id="f_stage"></select></div>
@@ -198,10 +198,10 @@
       <div class="fld"><label for="f_type">Event type</label><input id="f_type" list="leadTypeList" placeholder="Pick or type a new one…"><datalist id="leadTypeList"></datalist></div>
       <div class="fld"><label for="f_date">Event date</label><input id="f_date" type="date" data-min-today></div>
       <div class="fld"><label for="f_guests">Guest count</label><input id="f_guests" type="number" min="0" max="100000" placeholder="e.g. 300"></div>
-      <div class="fld"><label for="f_budget">Budget (₹)</label><input id="f_budget" type="number" min="0" placeholder="e.g. 500000"></div>
+      <div class="fld"><label for="f_budget">Budget (₹)</label><input id="f_budget" type="number" min="0" max="10000000000" step="any" placeholder="e.g. 500000"></div>
       <div class="fld"><label for="f_bday">Birthday <span class="muted">(optional)</span></label><input id="f_bday" type="date" min="1900-01-01"></div>
       <div class="fld"><label for="f_anniv">Anniversary <span class="muted">(optional)</span></label><input id="f_anniv" type="date" min="1900-01-01"></div>
-      <div class="fld full"><label for="f_notes">Notes</label><textarea id="f_notes" placeholder="Anything the planner should know…"></textarea></div>
+      <div class="fld full"><label for="f_notes">Notes</label><textarea id="f_notes" maxlength="2000" placeholder="Anything the planner should know…"></textarea></div>
     </div>
     <div id="lm_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot">
@@ -227,10 +227,10 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="phone-input.js?v=5"></script>
-<script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
-<script src="tour.js?v=17"></script>
+<script src="phone-input.js?v=5"></script><script src="form-validate.js?v=1"></script>
+<script src="event-name.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
+<script src="tour.js?v=18"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   // shared event-type list (event-name.js): same options as the quote flow; saved spelling is canonical
@@ -278,7 +278,7 @@
         <span class="nm">${esc(l.name||"—")}</span>
         <span class="meta">${bits.join(" · ")||"&nbsp;"}${l.phone?"<br>"+esc(l.phone):""}</span>
         ${l.budget?`<span class="amt">${fmt(l.budget)}</span>`:""}
-        ${l.source?`<span class="src">${esc(l.source)}</span>`:""}
+        ${l.source?`<span class="src">${esc(BPStore.sourceLabel?BPStore.sourceLabel(l.source):l.source)}</span>`:""}
       </button>
       <div class="acts">
         <button type="button" class="ic go" data-act="client" aria-label="Open the client page for ${esc(l.name||"lead")}">Client →</button>
@@ -454,7 +454,7 @@
   $("#redoBtn").addEventListener("click",redo);
 
   /* ---------- detail view ---------- */
-  function stageLabel(k){ const s=STAGES.find(x=>x.k===k); return s?s.label:k; }
+  function stageLabel(k){ const s=STAGES.find(x=>x.k===k); return s?s.label:(BPStore.stageLabel?BPStore.stageLabel(k):k); }   // LA-28: never a raw key
   const stageOptions=()=>STAGES.map(s=>`<option value="${s.k}">${esc(s.label)}</option>`).join("");
   $("#dt_stage").innerHTML=stageOptions();
   $("#f_stage").innerHTML=stageOptions();
@@ -463,8 +463,8 @@
     $("#dt_name").textContent=l.name||"Lead";
     $("#dt_sub").textContent = "Stage: "+stageLabel(l.status)+(l.quote_id?" · linked to a quote":"");
     const rows=[
-      ["Phone", l.phone], ["Email", l.email], ["Source", l.source],
-      ["Event", l.event_type], ["Date", l.event_date],
+      ["Phone", l.phone], ["Email", l.email], ["Source", BPStore.sourceLabel?BPStore.sourceLabel(l.source):l.source],
+      ["Event", l.event_type], ["Date", l.event_date?BPStore.fmtDateIN(l.event_date):""],   // LA-27/28: same date + labels as the cards
       ["Budget", l.budget?fmt(l.budget):""], ["Guests", l.guest_count],
       ["Notes", l.notes],
     ].filter(r=>r[1]!=null && r[1]!=="");
@@ -488,7 +488,8 @@
     $("#dt_edit").textContent = (l.quote_id&&canQuotes) ? "Open workspace →" : "Edit";
     $("#detailModal").hidden=false;
   }
-  function closeDetail(){ $("#detailModal").hidden=true; detailId=null; }
+  // la-1018: closing the lead also clears it from the breadcrumb (it stays in "Recently viewed")
+  function closeDetail(){ $("#detailModal").hidden=true; detailId=null; try{ if(window.HelmTrail&&HelmTrail.clearCurrent) HelmTrail.clearCurrent(); }catch(_){} }
   $("#dt_close").addEventListener("click",closeDetail);
   $("#dt_close2").addEventListener("click",closeDetail);
   $("#detailModal").addEventListener("click",(e)=>{ if(e.target.id==="detailModal") closeDetail(); });
@@ -568,6 +569,17 @@
 
   /* ---------- new / edit form ---------- */
   const formDirty=BPUI.trackDirty($("#leadModal"));
+  // la-1018: e-mail / phone / name / budget are checked when you leave the field (message under it), not only on Save
+  // bound on the first open, so the phone field is already the HelmPhone component (its wrapper gets the red border)
+  let leadFv=null;
+  const leadFvBind=()=>{ const HV=window.HelmValidate; if(!HV||!HV.bind) return [];
+    // budget: the same check Save uses (BPStore.validate.money, 0 to 10,000,000,000)
+    if(!HV.rules.leadBudget) HV.rules.leadBudget=(v)=>{ const s=String(v==null?"":v).trim(); if(!s) return {ok:true,value:""};
+      const r=BPStore.validate.money(s,{field:"Budget",max:10000000000}); return r.ok?{ok:true,value:s}:{ok:false,error:r.error}; };
+    return [ HV.bind($("#f_name"),{rule:"text",label:"Contact name",max:80}),
+             HV.bind($("#f_email"),{rule:"email"}),
+             HV.bind($("#f_phone"),{rule:"phone",label:"Phone"}),
+             HV.bind($("#f_budget"),{rule:"leadBudget"}) ]; };
   function openForm(lead){
     editingId = lead ? lead.id : null;
     $("#lm_title").textContent = lead ? "Edit lead" : "＋ New lead";
@@ -579,7 +591,7 @@
     $("#f_bday").value=lead&&lead.birthday?String(lead.birthday).slice(0,10):""; $("#f_anniv").value=lead&&lead.anniversary?String(lead.anniversary).slice(0,10):"";
     $("#f_stageWrap").hidden=!lead;                       // new leads always start in "New"
     if(lead) $("#f_stage").value=lead.status||"new";
-    formDirty.clean();
+    formDirty.clean(); if(!leadFv) leadFv=leadFvBind(); leadFv.forEach(b=>{ if(b) b.reset(); });
     $("#lm_err").hidden=true; $("#leadModal").hidden=false; setTimeout(()=>$("#f_name").focus(),50);
   }
   function closeForm(){ $("#leadModal").hidden=true; editingId=null; formDirty.clean(); }
@@ -595,7 +607,7 @@
     let email=null;
     if($("#f_email").value.trim()){ const ev=V.email($("#f_email").value); if(!ev.ok){ fail(ev.error); return; } email=ev.value; }
     let budget=null;
-    if($("#f_budget").value!==""){ const bv=V.money($("#f_budget").value,{field:"Budget"}); if(!bv.ok){ fail(bv.error); return; } budget=bv.value; }
+    if($("#f_budget").value!==""){ const bv=V.money($("#f_budget").value,{field:"Budget",max:10000000000}); if(!bv.ok){ fail(bv.error); return; } budget=bv.value; }
     let guest_count=null;
     if($("#f_guests").value!==""){ const gv=V.count($("#f_guests").value,{field:"Guest count",max:100000}); if(!gv.ok){ fail(gv.error); return; } guest_count=gv.value; }
     { const de=$("#f_date"), dv=de.value, dmin=de.getAttribute("min")||"", saved=(editingId&&leadById(editingId)||{}).event_date||"";
@@ -732,6 +744,6 @@
     startRealtime();
   });
 </script>
-<script src="saved-filters.js?v=2"></script>
+<script src="saved-filters.js?v=4"></script>
 </body>
 </html>

@@ -310,7 +310,15 @@
       safe(function () {
         var h = header.querySelector("h1"), sm = header.querySelector("h1 + small");
         if (h && page === "dashboard.html") { h.textContent = "Dashboard"; return; }
-        if (h && sm && /^\s*helm(\s+events)?\s*$/i.test(h.textContent) && sm.textContent.trim()) h.textContent = sm.textContent.trim();
+        if (h && sm && /^\s*helm(\s+events)?\s*$/i.test(h.textContent) && sm.textContent.trim()) {
+          var full = sm.textContent.trim(), short = String(sm.getAttribute("data-short") || "").trim();
+          if (!short || short === full) h.textContent = full;
+          else {   /* la-1018: a short name for phones ("Leads" instead of a clipped "Leads & …"); the full one stays for screen readers */
+            h.textContent = ""; h.title = full;
+            var lf = el("span", "hb-tl", full), ls = el("span", "hb-ts", short); ls.setAttribute("aria-hidden", "true");
+            h.appendChild(lf); h.appendChild(ls);
+          }
+        }
       });
       safe(function () { navTrim(header); });
       if (header.parentNode !== body) body.insertBefore(header, rail.nextSibling);
@@ -581,14 +589,14 @@
     waitAuth(function () {
       var A = BPStore.auth;
       var role = Promise.resolve().then(function () { return typeof A.role === "function" ? A.role() : null; }).catch(function () { return null; });
-      // 0177: no "Studio setup" for a free-trial studio (it uses the 2-step welcome)
+      // 0177: no "Studio setup" for a free-trial studio (it uses the 2-step welcome); 0203: no Audit log either
       var trial = Promise.resolve().then(function () { return BPStore.trialOrg && BPStore.trialOrg.inTrial ? BPStore.trialOrg.inTrial() : false; }).catch(function () { return false; });
       Promise.all([role, can("controls"), can("insights"), trial]).then(function (r) {
         var rl = String(r[0] || ""), ctl = r[1], ins = r[2], inTrial = r[3] === true;
         var add = [
           [ins, "insights", "Insights", "insights.html", "insights"],
           [ctl || /^(admin|manager|planner)$/.test(rl), "reports", "Reports", "reports.html", "reports"],
-          [ctl || rl === "admin", "audit", "Audit log", "audit.html", "audit"],
+          [(ctl || rl === "admin") && !inTrial, "audit", "Audit log", "audit.html", "audit"],   // 0203: no activity log in the free trial
           [ctl && !inTrial, "setup", "Studio setup", "onboarding.html", "setup"],
           [ctl && !!(window.HELM_FEATURES && window.HELM_FEATURES.integrationsPage === true), "integrations", "Integrations", "integrations.html", "integrations"]
         ];
@@ -665,14 +673,20 @@
         if (!ok) { creating = false; location.href = "/quotes.html"; return; }
         var b = document.getElementById("createBtn");
         if (b) { setTimeout(function () { creating = false; try { if (!b.hidden) b.click(); else location.href = "/quotes.html"; } catch (e) {} }, 400); return; }
-        var Q = B.quotes;
-        if (!Q || typeof Q.startBlank !== "function") { creating = false; location.href = "/quotes.html"; return; }
-        var code = null; try { code = typeof Q.nextCode === "function" ? Q.nextCode([]) : null; } catch (e) { code = null; }
-        Promise.resolve(Q.startBlank(code)).then(function (q) {
-          if (!q || !q.id) throw new Error("no quote");
-          var meta = (q.code && q.code !== q.title && typeof Q.updateMeta === "function") ? Promise.resolve(Q.updateMeta(q.id, { title: q.code })).catch(function () {}) : null;
-          return Promise.resolve(meta).then(function () { var h = "flow.html?quote=" + encodeURIComponent(q.id); try { if (window.HelmUrl && HelmUrl.upgrade) h = HelmUrl.upgrade(h); } catch (e) {} location.href = h.charAt(0) === "/" ? h : "/" + h; });
-        }).catch(function () { creating = false; try { if (window.BPUI && BPUI.toast) BPUI.toast("Could not start a quote. Try again.", { type: "err" }); } catch (e) {} });
+        var Q = B.quotes, NQ = window.HelmNewQuote;
+        /* audit 7: never create without the confirm dialog (no dialog on this page -> the Quotes list) */
+        if (!Q || typeof Q.startBlank !== "function" || !NQ || typeof NQ.ask !== "function") { creating = false; location.href = "/quotes.html"; return; }
+        Promise.resolve(NQ.ask({})).then(function (pick) {
+          if (!pick) { creating = false; return; }
+          var code = null; try { code = typeof Q.nextCode === "function" ? Q.nextCode([]) : null; } catch (e) { code = null; }
+          Promise.resolve(Q.startBlank(code)).then(function (q) {
+            if (!q || !q.id) throw new Error("no quote");
+            var patch = {}; if (pick.title) patch.title = pick.title; else if (q.code && q.code !== q.title) patch.title = q.code;
+            if (pick.eventType) patch.eventType = pick.eventType;
+            var meta = (Object.keys(patch).length && typeof Q.updateMeta === "function") ? Promise.resolve(Q.updateMeta(q.id, patch)).catch(function () {}) : null;
+            return Promise.resolve(meta).then(function () { var h = "flow.html?quote=" + encodeURIComponent(q.id); try { if (window.HelmUrl && HelmUrl.upgrade) h = HelmUrl.upgrade(h); } catch (e) {} location.href = h.charAt(0) === "/" ? h : "/" + h; });
+          }).catch(function () { creating = false; try { if (window.BPUI && BPUI.toast) BPUI.toast("Could not start a quote. Try again.", { type: "err" }); } catch (e) {} });
+        });
       });
     })();
   }
@@ -698,6 +712,10 @@
     if (S && typeof S.open === "function") { S.open(); return; }
     var t = document.getElementById("hssTrigger") || document.querySelector(".hss-trig"); if (t) t.click();
   }
+
+  /* la-1018: ONE "not contacted yet" rule, shared with the dashboard (Follow-ups, Needs attention, New leads tile):
+     the lead is still in "New" and has not been turned into a quote. */
+  window.HelmLeadRules = window.HelmLeadRules || { uncontacted: function (l) { return !!l && String(l.status || "new") === "new" && !l.quote_id; } };
 
   /* ---- sidebar count badges (dot when collapsed, pill when expanded) ---- */
   var CNT_KEY = "helm.shellb.counts";
@@ -730,12 +748,15 @@
       var jobs = [];
       if (B.leads && typeof B.leads.list === "function") jobs.push(can("leads").then(function (ok) {
         if (!ok) return railCount("leads", 0);
+        // la-fetch (audit 25): a HEAD count when the store has one - no lead rows downloaded for a badge
+        if (typeof B.leads.countNew === "function") return Promise.resolve(B.leads.countNew()).then(function (n) { railCount("leads", n); });
         return Promise.resolve(B.leads.list()).then(function (rows) {
-          railCount("leads", (Array.isArray(rows) ? rows : []).filter(function (l) { return l && String(l.status || "new") === "new"; }).length);
+          railCount("leads", (Array.isArray(rows) ? rows : []).filter(window.HelmLeadRules.uncontacted).length);
         });
       }).catch(function () {}));
       if (B.quotes && typeof B.quotes.list === "function") jobs.push(can("quotes").then(function (ok) {
         if (!ok) return railCount("quotes", 0);
+        if (typeof B.quotes.countAwaiting === "function") return Promise.resolve(B.quotes.countAwaiting()).then(function (n) { railCount("quotes", n); });
         return Promise.resolve(B.quotes.list()).then(function (rows) {
           railCount("quotes", (Array.isArray(rows) ? rows : []).filter(function (q) { return q && q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed"); }).length);
         });

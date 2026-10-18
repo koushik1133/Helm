@@ -4,7 +4,7 @@
    =========================================================================== */
 :root{
   --bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-  --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+  --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;
   --gold:#f59e0b;--safe:#12a150;
   --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
   --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
@@ -44,7 +44,7 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:saturate(1.4) blur(8px);
 .pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--accent);
   background:var(--accent-soft);border-radius:20px;padding:7px 15px;margin-bottom:24px}
 .hero h1,.hero h2{font-size:clamp(34px,5.4vw,56px);line-height:1.05;letter-spacing:-.025em;margin:0 auto 20px;max-width:18ch;font-weight:700}
-.hero h1 .g,.hero h2 .g{background:linear-gradient(120deg,var(--accent),var(--accent-2) 60%,#9333ea);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero h1 .g,.hero h2 .g{background:linear-gradient(120deg,var(--accent),var(--accent-2) 60%,#10a37a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .hero p.lead{font-size:clamp(16px,2.2vw,20px);color:var(--ink-2);max-width:60ch;margin:0 auto 34px}
 .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 .hero .fine{margin-top:16px;font-size:12.5px;color:var(--ink-3)}

@@ -50,6 +50,6 @@ t('list / header display: name first, code as Ref chip', () => {
   const d = read('public/dashboard.html'); assert.match(d, /<b>\$\{esc\(qName\(s\)\)\}<\/b><\/a> <span class="refchip"/);
   assert.match(read('public/event.html'), /HelmEventName\.displayName\(ev\)/);
   const f = read('public/flow.html'); assert.match(f, /\$\("#code"\)\.textContent="Ref "\+/); assert.match(f, /<h2 id="qName"/);
-  for (const p of ['flow', 'quotes', 'dashboard', 'event', 'builder']) assert.match(read('public/' + p + '.html'), /event-name\.js\?v=7/, p);
+  for (const p of ['flow', 'quotes', 'dashboard', 'event', 'builder']) assert.match(read('public/' + p + '.html'), /event-name\.js\?v=9/, p);
 });
 console.log('quote-naming: ' + n + ' passed');

@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;--safe:#18a558;--warn:#e8912d;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
   @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f1420;--panel:#151b2b;--panel-2:#1a2232;--ink:#eef1f8;--ink-2:#b8c0d4;--ink-3:#7a8296;--line:#26314a;--line-2:#1c2438;}}
@@ -119,12 +119,12 @@
   .egp-btns{display:flex;justify-content:flex-end;gap:8px}
 </style>
 <link rel="stylesheet" href="flow-polish.css?v=5">
-<link rel="stylesheet" href="share-checklist.css?v=2">
-<link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=82">
+<link rel="stylesheet" href="share-checklist.css?v=4">
+<link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=1">
-<script src="/shell-proto.js?v=26" id="shellProto"></script>
+<script src="/shell-proto.js?v=27" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -176,7 +176,7 @@
             <div class="fld"><label for="c_city">City</label><input id="c_city" maxlength="60" autocomplete="address-level2" placeholder="e.g. Hyderabad"></div>
             <div class="fld"><label for="c_state" id="c_stateLbl">Client state</label><select id="c_state" autocomplete="address-level1"><option value="">Not set</option></select></div>
             <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="1" max="100000" step="1"></div>
-            <div class="fld"><label for="d_bmax">Budget (₹)</label><input id="d_bmax" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 5,00,000 or 2 crore"><span class="hint" id="d_bmax_words" aria-live="polite"></span><input id="d_bmin" type="hidden"></div>
+            <div class="fld"><label for="d_bmax">Budget (<span class="cur-sym">₹</span>)</label><input id="d_bmax" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 5,00,000 or 2 crore"><span class="hint" id="d_bmax_words" aria-live="polite"></span><input id="d_bmin" type="hidden"></div>
           </div>
           <p class="hint next-step" data-next-step><b>Next step:</b> fill in Discovery (step 2) — what the client wants (the budget is above).</p>
         </section>
@@ -283,10 +283,10 @@
             <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests — drives chairs pricing)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="1" max="100000" step="1"><p class="hint" id="q_chairsLayout" hidden><span id="q_chairsLayoutTxt"></span> <button type="button" class="btn ghost" id="q_chairsUseLayout">Use layout count</button></p><p class="hint qty-diff" id="q_chairsDiff" hidden></p></div>
             <div class="fld"><label for="q_guestsRo">Guests <a href="#sec-client" class="edit-step1">edit in step 1</a></label><input class="s-10bfcec" id="q_guestsRo" type="number" readonly title="Guests are set once in step 1"></div>
             <div class="fld"><label for="q_guests">Plates <small>(catering quantity — drives plate pricing)</small></label><input id="q_guests" type="number" min="0" max="100000" step="1"><p class="hint qty-diff" id="q_platesDiff" hidden></p></div>
-            <div class="fld"><label for="q_chairPrice">Chair rate (₹) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
-            <div class="fld"><label for="q_platePrice">Plate price (₹) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
-            <div class="fld"><label for="q_other">Décor / equipment &amp; setup (₹)</label><input id="q_other" type="number" min="0"></div>
-            <div class="fld"><label for="q_discount">Discount (₹)</label><input id="q_discount" type="number" min="0" aria-describedby="q_discount_err"><span class="hint" id="q_discount_err" role="alert" hidden></span><span class="hint" id="q_discountPctHint" hidden></span></div>
+            <div class="fld"><label for="q_chairPrice">Chair rate (<span class="cur-sym">₹</span>) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
+            <div class="fld"><label for="q_platePrice">Plate price (<span class="cur-sym">₹</span>) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
+            <div class="fld"><label for="q_other">Décor / equipment &amp; setup (<span class="cur-sym">₹</span>)</label><input id="q_other" type="number" min="0"></div>
+            <div class="fld"><label for="q_discount">Discount (<span class="cur-sym">₹</span>)</label><input id="q_discount" type="number" min="0" aria-describedby="q_discount_err"><span class="hint" id="q_discount_err" role="alert" hidden></span><span class="hint" id="q_discountPctHint" hidden></span></div>
             <div class="fld"><label for="q_discountPct">Discount (%)</label><input id="q_discountPct" type="number" min="0" max="100" step="0.5" aria-describedby="q_discount_err"></div>
             <div class="fld"><label for="q_coupon">Coupon code</label><input id="q_coupon" list="couponList" placeholder="optional"><datalist id="couponList"></datalist>
               <div class="s-40d0688" id="q_couponMsg" role="status" aria-live="polite"></div></div>
@@ -308,7 +308,7 @@
           <p class="sub">Accepting the quote isn't a confirmed booking — recording the advance is. Send an online link or record cash. A receipt is issued and both sides are notified.</p>
           <div class="row4 s-761d3ad">
             <div class="fld s-1169661"><label for="pay_pct">Advance %</label><input id="pay_pct" type="number" min="0" max="100" value="10"></div>
-            <div class="fld s-1169661"><label for="pay_amount">Advance amount (₹)</label><input id="pay_amount" type="number" min="0"></div>
+            <div class="fld s-1169661"><label for="pay_amount">Advance amount (<span class="cur-sym">₹</span>)</label><input id="pay_amount" type="number" min="0"></div>
             <div class="fld s-1169661"><label for="pay_method">Method</label><select id="pay_method"><option value="cash">Cash / offline</option><option value="online">Online link</option></select></div>
             <button type="button" class="btn primary" id="pay_record">Record advance payment</button>
           </div>
@@ -397,9 +397,9 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
-<script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
-<script src="tour.js?v=17"></script>
+<script src="event-name.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
+<script src="tour.js?v=18"></script>
 <script src="booklet.js?v=23"></script>
 <script src="share-checklist.js?v=11"></script>
 <script src="flow-layout-sync.js?v=4"></script>
@@ -669,7 +669,10 @@
     const one=(inp,box,what)=>{ const b=$(box), i=$(inp); if(!b||!i) return; const v=i.value===""?null:+i.value;
       const diff=g!=null && v!=null && v!==g; b.hidden=!diff; b.textContent=diff?(what+" ("+v+") differ from guests ("+g+") — that's fine, only "+what.toLowerCase()+" are priced."):""; };
     one("#q_chairs","#q_chairsDiff","Chairs"); one("#q_guests","#q_platesDiff","Plates"); }
-  function renderPrice(){ syncQtyHints(); try{ if(_qVers&&_qVers.length) paintQuoteVersions(); }catch(_){}
+  // LA-9/11: money labels show THIS quote's currency (₹ for an India quote, AED / $ for others) - never a hard-coded ₹
+  function syncCurLabels(){ let sym="₹"; try{ const r=fTax(); sym=r.country==="IN"?"₹":(String(r.symbol||r.currency||"").trim()||"₹"); }catch(_){}
+    document.querySelectorAll(".cur-sym").forEach(n=>{ if(n.textContent!==sym) n.textContent=sym; }); }
+  function renderPrice(){ syncQtyHints(); syncCurLabels(); try{ if(_qVers&&_qVers.length) paintQuoteVersions(); }catch(_){}
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
     showDiscountError(p);
     let rows="";
@@ -1093,7 +1096,7 @@
     if(!vs.length){ box.innerHTML=""; return; }
     let live=null; try{ live=BPStore.pricing.quoteTotal(currentInputs()).total; }catch(_){}
     const differs=HelmVersionLabel.differs(live, vs[0]&&vs[0].total);
-    const sd=v=>{ try{ return new Date(v.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short"}); }catch(_){ return ""; } };
+    const sd=v=>{ try{ return BPStore.fmtStudioDate(v.created_at,{fmt:{day:"numeric",month:"short"}}); }catch(_){ return ""; } };   // LA-27: studio locale + timezone
     box.innerHTML='<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Quotation versions</div>'+
       (differs?`<div class="rowline"><span class="g"><b>Current (unsaved changes)</b> <span class="pill">current</span></span><span>${inr(live)}</span><span class="meta">Save the quotation to make this a new version</span></div>`:'')+
       vs.map((v,i)=>`<div class="rowline"><span class="g"><b>${esc(v.label)}</b>${i===0&&!differs?' <span class="pill">current</span>':''}</span><span>${inr(v.total)}</span><span class="meta">${differs&&i===0?'saved '+esc(sd(v)):esc(BPStore.fmtDateTime(v.created_at)||'')}</span></div>`).join("");
@@ -1103,7 +1106,7 @@
     if(window.HelmCapacity && !(await HelmCapacity.gate({ quoteId:id, quote:ev, why:"pdf" }))) return;
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p), cl=ev.client||{};
     const reason=quoteEmptyReason(p,t);
-    if(reason){ BPUI.toast("This quote is empty (₹0). Add seating, catering, or décor before downloading a PDF.",{type:"info"}); return; }
+    if(reason){ BPUI.toast("This quote is empty ("+inr(0)+"). Add seating, catering, or décor before downloading a PDF.",{type:"info"}); return; }   // LA-11: the quote's own currency
     const line=(l,a)=>`<tr><td>${l}</td><td style="text-align:right">${inr(a)}</td></tr>`;
     const rows=[];
     if(p.chairs>0) rows.push(line(`Seating — ${p.chairs} chairs × ${inr(p.chairPrice)}`, p.chairs*p.chairPrice));
@@ -1117,7 +1120,7 @@
       td{padding:8px 0;border-bottom:1px solid #eee} .tot td{font-weight:800;font-size:16px;border-top:2px solid #333;border-bottom:none}
       .hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}</style></head>
       <body>
-      <div class="hd"><div><h1>Quotation</h1><div style="font-weight:600;margin-top:4px">${esc(fTitle)}</div><div class="muted">Ref ${esc(ev.code||'')} · ${new Date().toLocaleDateString('en-IN')}</div></div>
+      <div class="hd"><div><h1>Quotation</h1><div style="font-weight:600;margin-top:4px">${esc(fTitle)}</div><div class="muted">Ref ${esc(ev.code||'')} · ${esc(BPStore.quoteDate(Date.now(), fTax()))}</div></div>
         <div style="text-align:right"><div style="font-weight:700">${esc(cl.name||'')}</div><div class="muted">${esc(cl.phone||'')} ${esc(cl.email||'')}</div><div class="muted">${esc(cl.venue||'')}</div></div></div>
       <table>${rows.join('')}
         <tr><td>Subtotal</td><td style="text-align:right">${inr(t.subtotal)}</td></tr>

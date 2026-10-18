@@ -1,15 +1,15 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=26"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=27"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
    (shell-proto.js, trial-early.js); this is the fallback for every other page. */
 (function () { try { if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
-  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=4"; document.head.appendChild(l); } } } catch (e) {} })();
+  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=5"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
-  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=4"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=5"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -246,7 +246,7 @@ window.HelmUrl = HelmUrl;
   }
   function sessGet(key, uid) { const e = sessEntry(key, uid); return e && e.fresh ? e.val : null; }
   function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid || null, val: val })); } catch (e) {} }
-  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PROFILE_SESS_KEY); sessionStorage.removeItem(CHECKOUT_SESS_KEY); sessionStorage.removeItem(PW_OK_KEY); sessionStorage.removeItem("bp_studio_slug"); } catch (e) {} swrClear(); }
+  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PROFILE_SESS_KEY); sessionStorage.removeItem(CHECKOUT_SESS_KEY); sessionStorage.removeItem(PW_OK_KEY); sessionStorage.removeItem("bp_studio_slug"); } catch (e) {} swrClear(); memoClear(); }
   /* ---- per-tab stale-while-revalidate cache (perf pass 2, Oct 2026) ----
      Studio-wide, rarely-changing reads (pricing config, item rate cards, organization row, demo / trial status) are
      answered from sessionStorage for this tab and refreshed in the background. An entry is used ONLY when the user id
@@ -279,11 +279,28 @@ window.HelmUrl = HelmUrl;
   function trialOrgStatus() {
     if (!supa) return Promise.resolve(null);
     if (trialOrgInflight) return trialOrgInflight;
-    const p = swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }));
+    // la-fetch (audit 25): + a per-page memo, so the trial strip, trial-lock and trial-demo share ONE answer even
+    // before the per-tab swr entry can be written (it needs the studio id cached first)
+    const p = memoRead("trialorg", 15000, () => swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })));
     trialOrgInflight = p;
     const done = () => { if (trialOrgInflight === p) trialOrgInflight = null; };
     p.then(done, done);
     return p;
+  }
+  // 0203: areas a studio on its FREE TRIAL never gets (photo renders, checklist templates, activity log), whatever
+  // the saved role matrix says - admins included. Status-based (my_trial_status().status = 'trial', the same as the
+  // server's _is_trial_org); one shared call per page. The server refuses the same things (0173 / 0181 / 0203).
+  const TRIAL_OFF_AREAS = { photo_render: 1, templates: 1, audit: 1 };
+  let trialSubInflight = null;
+  function inFreeTrial() {
+    if (mode !== "supabase" || !supa || !currentUser) return Promise.resolve(false);
+    if (!trialSubInflight) {
+      const p = Promise.resolve(swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; })))
+        .then((t) => !!(t && t.status === "trial"), () => false);
+      trialSubInflight = p;
+      p.then(() => { setTimeout(() => { if (trialSubInflight === p) trialSubInflight = null; }, 30000); });
+    }
+    return trialSubInflight;
   }
   // 0183 (post-trial policy 1 / 6 / 10): true when this studio's free trial ended unpaid — the studio is then
   // READ-ONLY for everyone (owner + invited members) until it upgrades. The database refuses every change
@@ -300,14 +317,14 @@ window.HelmUrl = HelmUrl;
     return p;
   }
   // writes that cannot touch the cached reads above (everything else drops the cache)
-  const SWR_KEEP_RPCS = /\/rest\/v1\/rpc\/(my_(?!start_trial|studio_account_update)|get_|is_|current_org_id|recent_|chat_|bell|my_notification|mfa_|resolve_|list_|pkg_selection_list|password_change_required|audit_actor_names|dashboard_|insights_|studio_search|studio_avatars|mark_|telemetry|privacy_pin_(?:check|status))/;
+  const SWR_KEEP_RPCS = /\/rest\/v1\/rpc\/(my_(?!start_trial|studio_account_update)|get_|is_|current_org_id|recent_|chat_|bell|my_notification|mfa_|resolve_|list_|pkg_selection_list|password_change_required|audit_actor_names|dashboard_|insights_|studio_search|studio_avatars|mark_|telemetry|privacy_pin_(?:check|status)|link_expiry_shelf_tick)/;
   const CHECKOUT_SESS_KEY = "bp_sess_checkout"; // per tab: my_checkout_status() answer (never a "must check out" one)
   const PROFILE_SESS_KEY = "bp_sess_profile";   // per tab: my_profile_status() answer (never a "must complete" one)
   const NUDGE_KEY = "helm_profile_nudge";       // localStorage {uid, until}: "complete your profile" banner snoozed
   const PW_OK_KEY = "bp_pw_ok";                 // per tab: "<uid>" once password_change_required() said no
   // Per-USER browser state that must not carry over to the next person who signs in
   // on a shared computer (audit Phase 4). Device prefs (theme, tours) are kept.
-  const USER_LOCAL_KEYS = ["bps.clip", "wa_pin", "wa_mute", "wa_fav", "bp_chat_ping", "helm_org_country", "helm_ev_showall", "helm.trial", "helm.studioTax"];   // 0181: helm.trial = the cached free-trial flag
+  const USER_LOCAL_KEYS = ["bps.clip", "wa_pin", "wa_mute", "wa_fav", "bp_chat_ping", "helm_org_country", "helm_ev_showall", "helm.trial", "helm.studioTax", "helm.studioTz"];   // 0181: helm.trial = the cached free-trial flag
   function userLocalClear() { USER_LOCAL_KEYS.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} }); }
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
 
@@ -473,7 +490,7 @@ window.HelmUrl = HelmUrl;
      expired" when expired=1.
      Only pages that GATE on auth (called auth.required() or auth.requireView())
      redirect, and never the public token pages below. */
-  const PUBLIC_PAGES = { approve: 1, portal: 1, booklet: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1,
+  const PUBLIC_PAGES = { approve: 1, portal: 1, booklet: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1, confirm: 1, "auth-confirm": 1,
     index: 1, login: 1, about: 1, services: 1, privacy: 1, terms: 1, "refund-policy": 1, "reset-password": 1 };
   let authGateUsed = false;     // page called auth.required()/requireView()
   let hadSession = false;       // a user was signed in at some point on this page
@@ -545,7 +562,7 @@ window.HelmUrl = HelmUrl;
       const h = document.createElement("h2"); h.textContent = "Couldn’t reach Helm"; h.style.cssText = "color:#141b2e;margin:0 0 6px";
       const p = document.createElement("p"); p.textContent = "We couldn’t confirm your sign-in. Check your connection and try again."; p.style.margin = "0 0 16px";
       const r = document.createElement("button"); r.type = "button"; r.textContent = "Retry";
-      r.style.cssText = "min-height:40px;padding:0 18px;border:0;border-radius:10px;background:#6d28d9;color:#fff;font:inherit;font-weight:600;cursor:pointer";
+      r.style.cssText = "min-height:40px;padding:0 18px;border:0;border-radius:10px;background:#047857;color:#fff;font:inherit;font-weight:600;cursor:pointer";
       r.addEventListener("click", () => { try { location.reload(); } catch (e) {} });
       box.appendChild(h); box.appendChild(p); box.appendChild(r); b.appendChild(box);
       revealPage();
@@ -890,7 +907,10 @@ window.HelmUrl = HelmUrl;
      never sees its own write as stale. Keyed by the Authorization header → never
      shared across users. Storage / auth / functions URLs are never touched. */
   const READ_TTL_MS = 1500;
-  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending)(\?|$)/;
+  // la-fetch (audit 25): the list below also names the STABLE (read-only) RPCs every page asks while it
+  // boots (trial / upgrade status, seat use, prefs, shelf list, mentions, PIN status). Before, each one was
+  // treated as a write and dropped every shared read of the page, so the page's own reads ran again.
+  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|privacy_pin_status)(\?|$)/;
   const readCache = new Map();
   function hdrOf(init, input, name) {
     try {
@@ -911,7 +931,12 @@ window.HelmUrl = HelmUrl;
     if (!(init && init.cache)) init = Object.assign({}, init || {}, { cache: "no-store" });
     if (init.signal) return global.fetch(input, init);
     const isRead = method === "GET" || method === "HEAD" || (method === "POST" && READ_RPCS.test(u) && typeof (init && init.body || "") === "string");
-    if (!isRead) { readCache.clear(); if (!SWR_KEEP_RPCS.test(u)) swrClear(); return global.fetch(input, init); }
+    if (!isRead) {
+      readCache.clear(); memoClear(); if (!SWR_KEEP_RPCS.test(u)) swrClear();
+      // a list read that started while this write was running must not be kept as the fresh answer
+      const wp = global.fetch(input, init); const after = () => { readCache.clear(); memoClear(); };
+      wp.then(after, after); return wp;
+    }
     const key = [method, u, (init && init.body) || "", hdrOf(init, input, "Authorization"), hdrOf(init, input, "Accept"),
       hdrOf(init, input, "Prefer"), hdrOf(init, input, "Range"), hdrOf(init, input, "Accept-Profile"), hdrOf(init, input, "Content-Profile")].join("\u0001");
     const now = Date.now();
@@ -1056,7 +1081,7 @@ window.HelmUrl = HelmUrl;
       const h = document.createElement("h2"); h.id = "bpIdleTitle"; h.textContent = "Still there?"; h.style.cssText = "margin:0 0 8px;font-size:18px";
       const p = document.createElement("p"); p.id = "bpIdleText"; p.style.margin = "0 0 14px";
       const b = document.createElement("button"); b.type = "button"; b.textContent = "Stay signed in";
-      b.style.cssText = "min-height:40px;padding:0 18px;border:0;border-radius:10px;background:var(--bpui-accent,#6d28d9);color:#fff;font:inherit;font-weight:600;cursor:pointer";
+      b.style.cssText = "min-height:40px;padding:0 18px;border:0;border-radius:10px;background:var(--bpui-accent,#047857);color:#fff;font:inherit;font-weight:600;cursor:pointer";
       b.addEventListener("click", () => { touchActivity(true); hideWarn(); });
       card.appendChild(h); card.appendChild(p); card.appendChild(b); warnBox.appendChild(card);
       document.body.appendChild(warnBox);
@@ -1126,7 +1151,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "36";
+  const AUTH_UI_VERSION = "37";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1142,10 +1167,10 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "5";
+  const STUDIO_SEARCH_VERSION = "7";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
-  const NAV_TRAIL_VERSION = "4";
+  const NAV_TRAIL_VERSION = "6";
   if (typeof global.HelmTrail === "undefined") {
     global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
   }
@@ -1179,7 +1204,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "11";
+  const TRIAL_BANNER_VERSION = "12";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -1187,14 +1212,14 @@ window.HelmUrl = HelmUrl;
     // theme-aware banner/reminder colours (follows the app theme, not the OS setting)
     const css = document.createElement("link");
     css.rel = "stylesheet";
-    css.href = vendorUrl("trial-theme.css?v=1");
+    css.href = vendorUrl("trial-theme.css?v=3");
     document.head.appendChild(css);
     const s = document.createElement("script");
     s.src = vendorUrl("trial.js?v=" + TRIAL_BANNER_VERSION);
     document.head.appendChild(s);
   }
   // Mobile bottom bar (< 768px): same pages as the studio search; mobile-nav.js re-checks the role.
-  const MOBILE_NAV_VERSION = "2";
+  const MOBILE_NAV_VERSION = "4";
   let mobileNavLoading = false;
   function loadMobileNav() {
     if (mobileNavLoading || typeof document === "undefined" || global.HelmMobileNav) return;
@@ -1406,7 +1431,8 @@ window.HelmUrl = HelmUrl;
   }
 
   /* ---------------- init: pick the best available backend ---------------- */
-  const INVITE_SET_PW_KEY = "bp_invite_set_pw";   // user id of an invitee who arrived by an "Invite user" link and still needs a password
+  const INVITE_SET_PW_KEY = "bp_invite_set_pw";
+  const SIGNUP_MARK_KEY = "bp_signup_email";   // 0205: e-mail of a sign-up started in this browser   // user id of an invitee who arrived by an "Invite user" link and still needs a password
   let inviteFragment = null;
   function invitePwPending() {
     try { const id = sessionStorage.getItem(INVITE_SET_PW_KEY); return !!(id && currentUser && currentUser.id === id); } catch (e) { return false; }
@@ -1469,8 +1495,14 @@ window.HelmUrl = HelmUrl;
               try { const cur = await supa.auth.getSession(); if (!(cur && cur.data && cur.data.session)) {
                 const isNew = inviteFragment.type === "invite";   // "Invite user" link = brand-new account with no password yet
                 const sr = await supa.auth.setSession({ access_token: inviteFragment.access_token, refresh_token: inviteFragment.refresh_token });
+                // 0205: a NEW link e-mailed from the join page ("Email me a new link") may be a magic link
+                // for a login the invitation made without a password: ask the server (own login only)
+                let needPw = isNew;
+                if (sr && !sr.error && sr.data && sr.data.user) {
+                  try { const np = await supa.rpc("my_needs_password"); if (!np.error && typeof np.data === "boolean") needPw = np.data; } catch (e) {}
+                }
                 try { sessionStorage.setItem("bp_invite_link_session", "1");
-                  if (isNew && sr && !sr.error && sr.data && sr.data.user) sessionStorage.setItem(INVITE_SET_PW_KEY, sr.data.user.id); } catch (e) {} } } catch (e) {}
+                  if (needPw && sr && !sr.error && sr.data && sr.data.user) sessionStorage.setItem(INVITE_SET_PW_KEY, sr.data.user.id); } catch (e) {} } } catch (e) {}
               inviteFragment = null;
             }
             const gs = await supa.auth.getSession();
@@ -1642,10 +1674,10 @@ window.HelmUrl = HelmUrl;
         box.innerHTML = '<div style="font-size:34px" aria-hidden="true">📡</div><h2 style="color:var(--ink,#141b2e);margin:10px 0 6px">Couldn’t reach the server</h2>' +
           '<p style="margin:0 0 16px">We couldn’t load your access for this page. Check your connection and try again.</p>' +
           '<button type="button" class="btn primary" data-retry style="min-height:40px;padding:0 18px;border-radius:10px;font:inherit;font-weight:600;cursor:pointer">Retry</button>' +
-          '<p style="margin:14px 0 0"><a href="dashboard.html" style="color:var(--accent,#6d28d9);font-weight:600">← Back to dashboard</a></p>';
+          '<p style="margin:14px 0 0"><a href="dashboard.html" style="color:var(--accent,#047857);font-weight:600">← Back to dashboard</a></p>';
         box.querySelector("[data-retry]").addEventListener("click", () => location.reload());
       } else {
-        box.innerHTML = '<div style="font-size:34px" aria-hidden="true">🔒</div><h2 style="color:var(--ink,#141b2e);margin:10px 0 6px">No access</h2><p style="margin:0 0 14px">Your role doesn’t have access to this page. Ask an admin if you need it.</p><a href="dashboard.html" style="color:var(--accent,#6d28d9);font-weight:600">← Back to dashboard</a>';
+        box.innerHTML = '<div style="font-size:34px" aria-hidden="true">🔒</div><h2 style="color:var(--ink,#141b2e);margin:10px 0 6px">No access</h2><p style="margin:0 0 14px">Your role doesn’t have access to this page. Ask an admin if you need it.</p><a href="dashboard.html" style="color:var(--accent,#047857);font-weight:600">← Back to dashboard</a>';
       }
       (document.querySelector("main") && !document.querySelector("main").closest("#app") ? document.querySelector("main") : document.body).appendChild(box);
     } catch (e) { /* non-browser context */ }
@@ -1742,6 +1774,7 @@ window.HelmUrl = HelmUrl;
     async canView(area) {
       if (mode !== "supabase") return true;          // single-user offline/server mode
       if (!currentUser) return false;
+      if (TRIAL_OFF_AREAS[area] && (await inFreeTrial())) return false;   // 0203: not part of the free trial
       const r = await getRole();
       if (r === "admin") return true;                // admin: full floor
       const acc = await loadAccess();
@@ -1761,6 +1794,7 @@ window.HelmUrl = HelmUrl;
       if (!currentUser) return false;
       const [r, ro] = await Promise.all([getRole(), studioReadOnly()]);
       if (ro) return false;                          // 0183: read-only after the free trial (admins too)
+      if (TRIAL_OFF_AREAS[area] && (await inFreeTrial())) return false;   // 0203: not part of the free trial
       if (r === "admin") return true;
       const acc = await loadAccess();
       if (acc.unknown) return false;
@@ -1839,6 +1873,9 @@ window.HelmUrl = HelmUrl;
         if (captchaToken) so.captchaToken = captchaToken;
         const fullName = opts && typeof opts.fullName === "string" ? opts.fullName.trim().slice(0, 50) : "";
         if (fullName) so.data = { full_name: fullName };
+        // 0205: this browser started a sign-up for this address - /auth/confirm keeps the confirm link's
+        // session only then (a link someone else made for THEIR account never signs this browser in)
+        try { localStorage.setItem(SIGNUP_MARK_KEY, String(email || "").trim().toLowerCase().slice(0, 254)); } catch (e) {}
         const { data, error } = await supa.auth.signUp({ email, password, options: so });
         if (error) {
           const c = String(error.code || ""), m = String(error.message || ""), st = Number(error.status) || 0;
@@ -1987,6 +2024,34 @@ window.HelmUrl = HelmUrl;
     // password yet) must choose one + give their name before entering the studio.
     // Magic-link invitees (existing accounts) never get this flag.
     inviteSetPasswordPending: () => invitePwPending(),
+    // 0205 - /auth/confirm: e-mail links on Helm's own domain (token_hash + type), verified here.
+    // → { user } | throws the Supabase error (otp_expired / access_denied …). Never called with a session open.
+    async verifyEmailLink(tokenHash, type) {
+      if (!supa) throw new Error("Supabase not configured");
+      if (!/^(invite|magiclink|recovery|signup|email|email_change)$/.test(String(type || ""))) { const e = new Error("bad link type"); e.code = "bad_type"; throw e; }
+      localAuthOp++;
+      try {
+        const { data, error } = await supa.auth.verifyOtp({ token_hash: String(tokenHash || ""), type: type === "signup" ? "email" : type });
+        if (error) throw error;
+        if (data && data.user) { currentUser = data.user; hadSession = true; }
+        return { user: (data && data.user) || null };
+      } finally { localAuthOp--; }
+    },
+    // does MY login still have no password (0205 my_needs_password)? null = unknown (not applied / offline)
+    async needsPassword() {
+      if (!supa || !currentUser) return null;
+      try { const r = await supa.rpc("my_needs_password"); return !r.error && typeof r.data === "boolean" ? r.data : null; } catch (e) { return null; }
+    },
+    // the session came from an invitation e-mail link: same marks as the #fragment path in init()
+    markInviteLinkSession(needPw) {
+      try { sessionStorage.setItem("bp_invite_link_session", "1");
+        if (needPw && currentUser && currentUser.id) sessionStorage.setItem(INVITE_SET_PW_KEY, currentUser.id); } catch (e) {}
+    },
+    // a sign-up for this address was started in THIS browser (and the marker is used up)
+    signupStartedHere(email) {
+      try { const m = localStorage.getItem(SIGNUP_MARK_KEY); const ok = !!m && m === String(email || "").trim().toLowerCase();
+        if (ok) localStorage.removeItem(SIGNUP_MARK_KEY); return ok; } catch (e) { return false; }
+    },
     async setInvitePassword(newPassword, fullName) {
       if (!supa) throw new Error("Supabase not configured");
       if (!invitePwPending()) { const e = new Error("Please sign in again to set your password."); e.code = "reauth_required"; throw e; }
@@ -2320,22 +2385,30 @@ window.HelmUrl = HelmUrl;
   /* ---------------- quotes + versions ---------------- */
   // What a quotes LIST shows — never the full pricing JSON (line items, computed
   // breakdown, catering…), only its total and client; layouts live in quote_versions.
-  const QUOTE_LIST_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,approval_token,current_version," +
-    "event_date,event_time,updated_at,created_at,confirmed_at,client,total:pricing->total,pricing_client:pricing->client," +
+  // la-fetch (audit 23): never the client approval link (approval_token) and never the whole client JSON
+  // (e-mail, notes, ...) - only the client fields a list shows: name + phone, plus venue / address / city for
+  // the calendar's venue-clash check. A page that needs more opens ONE quote with get().
+  const QUOTE_LIST_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,current_version," +
+    "event_date,event_time,updated_at,created_at,confirmed_at,client_name:client->>name,client_phone:client->>phone," +
+    "client_venue:client->>venue,client_address:client->>address,client_city:client->>city,total:pricing->total," +
+    "pricing_client_name:pricing->client->>name,pricing_client_phone:pricing->client->>phone," +
     "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency";   // B11: each quote's OWN currency
   // A list VIEW (page) needs even less: the client's name + phone, not the whole client JSON.
   const QUOTE_PAGE_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,current_version,event_date,event_time," +
     "updated_at,created_at,confirmed_at,client_name:client->>name,client_phone:client->>phone,total:pricing->total," +
     "pricing_client_name:pricing->client->>name,pricing_client_phone:pricing->client->>phone," +
     "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency";
-  const nameOnly = (n, p) => { const o = {}; if (n != null) o.name = n; if (p != null) o.phone = p; return o; };
+  const nameOnly = (n, p, x) => { const o = {}; if (n != null) o.name = n; if (p != null) o.phone = p;
+    if (x) { if (x.client_venue != null) o.venue = x.client_venue; if (x.client_address != null) o.address = x.client_address; if (x.client_city != null) o.city = x.client_city; }
+    return o; };
   function mapQuoteSummary(q) {
     let pricing = q.pricing;
     if (!pricing) { pricing = {}; if (q.total != null) pricing.total = q.total;
       if (q.pricing_client != null) pricing.client = q.pricing_client;
       else if (q.pricing_client_name != null || q.pricing_client_phone != null) pricing.client = nameOnly(q.pricing_client_name, q.pricing_client_phone);
       if (q.tax_country) { pricing.taxCountry = q.tax_country; if (q.tax_region) pricing.taxRegion = q.tax_region; if (q.tax_name) pricing.taxName = q.tax_name; if (q.tax_currency) pricing.currency = q.tax_currency; } }
-    if (!q.client && (q.client_name != null || q.client_phone != null)) q = Object.assign({}, q, { client: nameOnly(q.client_name, q.client_phone) });
+    if (!q.client && (q.client_name != null || q.client_phone != null || q.client_venue != null || q.client_address != null || q.client_city != null))
+      q = Object.assign({}, q, { client: nameOnly(q.client_name, q.client_phone, q) });
     return { id: q.id, code: q.code, title: q.title, eventType: q.event_type, status: q.status,
       lifecycleStage: q.lifecycle_stage || "quote",
       approvalStatus: q.approval_status || "none", approvalToken: q.approval_token,
@@ -2678,23 +2751,54 @@ window.HelmUrl = HelmUrl;
     p.then(done, done);
     return p;
   }
+  // la-fetch (audit 25): the shell (rail counts, search, bell, dashboard widgets) and the page used to
+  // read the same lists a few seconds apart - each one a full network read. A settled answer is now
+  // kept for a few seconds per tab and handed out as a COPY (no caller can change another's rows).
+  // It is dropped by ANY write from this tab (coalescedFetch -> memoClear), by a sign-in change and
+  // when the user id differs. Display cache only: RLS and the server still decide every read.
+  var _memo = new Map();   // var: memoClear() may run (sign-in / write) before this line is reached
+  function memoClear() { if (_memo) _memo.clear(); }
+  function memoCopy(v) {
+    if (v == null || typeof v !== "object") return v;
+    try { if (typeof structuredClone === "function") return structuredClone(v); } catch (e) {}
+    try { return JSON.parse(JSON.stringify(v)); } catch (e) { return v; }
+  }
+  function memoRead(key, ttl, fn) {
+    if (mode !== "supabase" || !currentUser) return Promise.resolve().then(fn);   // local mode writes skip fetch: never cache there
+    if (!_memo) _memo = new Map();
+    const uid = (currentUser && currentUser.id) || "", now = Date.now(), hit = _memo.get(key);
+    if (hit && hit.uid === uid && now - hit.t < ttl) return hit.p.then(memoCopy);
+    const p = Promise.resolve().then(fn);
+    const ent = { t: now, uid: uid, p: p };
+    _memo.set(key, ent);
+    p.catch(() => { if (_memo.get(key) === ent) _memo.delete(key); });
+    return p.then(memoCopy);
+  }
+  const MEMO_LIST_MS = 8000;
   // Any non-read method on the object forgets the shared read first, so a list() asked for after a
   // save never gets an answer that started before it.
   const READ_NAME = /^(list|page|get|counts|eventTypes|nextCode|byIds|isArchived|templates|categories|search|find|count|due|codes|lookup)/;
   function dropInflightOnWrite(obj, prefix) {
     Object.keys(obj).forEach((k) => { const fn = obj[k];
       if (typeof fn !== "function" || READ_NAME.test(k)) return;
-      obj[k] = function () { Object.keys(_inflight).forEach((x) => { if (x.indexOf(prefix) === 0) delete _inflight[x]; }); return fn.apply(this, arguments); };
+      obj[k] = function () { Object.keys(_inflight).forEach((x) => { if (x.indexOf(prefix) === 0) delete _inflight[x]; }); memoClear(); return fn.apply(this, arguments); };
     });
   }
   const quotes = {
-    list: () => shareInflight("quotes.list", () => qt().list()),
+    list: () => memoRead("quotes.list", MEMO_LIST_MS, () => shareInflight("quotes.list", () => qt().list())),
     // paged list view + counters (perf): see sbq.page / sbq.counts
     PAGE_SIZE,
     VIEWS: QUOTE_VIEWS.slice(),
     isArchived: quoteIsArchived,
     page: (o) => qt().page(o),
     counts: () => qt().counts(),
+    // la-fetch (audit 25): the sidebar "sent, waiting for client approval" badge - a HEAD count of open
+    // quotes (status quote, approval sent / viewed, not on the Archive / Deleted shelf) instead of the full list
+    async countAwaiting() {
+      if (mode !== "supabase") return (await lsq.list()).filter((q) => q && q.status === "quote" && !q.archivedAt && !q.deletedAt && (q.approvalStatus === "sent" || q.approvalStatus === "viewed")).length;
+      return withShelf((shelf) => { let q = supa.from("quotes").select("id", { count: "exact", head: true }).eq("status", "quote").in("approval_status", ["sent", "viewed"]);
+        if (shelf) q = q.is("archived_at", null).is("deleted_at", null); return sbCount(q); });
+    },
     eventTypes: () => qt().eventTypes(),
     // the next MMDDYYYY-NN guess for a date, from just that day's codes (not every quote)
     async nextCodeFor(date) {
@@ -3472,9 +3576,15 @@ window.HelmUrl = HelmUrl;
   const leads = {
     async list() {
       if (mode === "supabase") {
-        return shareInflight("leads.list", () => sbAll(() => supa.from("leads").select("*").order("updated_at", { ascending: false }).order("id", { ascending: false })));
+        return memoRead("leads.list", MEMO_LIST_MS, () => shareInflight("leads.list", () => sbAll(() => supa.from("leads").select("*").order("updated_at", { ascending: false }).order("id", { ascending: false }))));
       }
       return readLeadsLs();
+    },
+    // la-fetch (audit 25): the sidebar "new leads not yet contacted" badge - a HEAD count (no rows travel)
+    // instead of downloading every lead on every page; same rule as the badge used: status empty or "new"
+    async countNew() {
+      if (mode === "supabase") return sbCount(supa.from("leads").select("id", { count: "exact", head: true }).or("status.is.null,status.eq.new"));
+      return (await readLeadsLs()).filter((l) => l && String(l.status || "new") === "new").length;
     },
     async add(lead) {
       if (mode === "supabase") {
@@ -3584,6 +3694,15 @@ window.HelmUrl = HelmUrl;
             r.rows = r.rows.filter((x) => !x.lead_id || newest[x.lead_id] === x.id);
           }
         }
+        // LA-34: flag rows of SAMPLE leads (leads.is_demo, 0097) so the CRM never labels seeded rows "RESTORED".
+        // Read-only and best-effort: a failure just leaves the flag off.
+        try {
+          const lids = [...new Set(r.rows.map((x) => x.lead_id).filter(Boolean))];
+          if (lids.length) {
+            const { data: dm, error: de } = await supa.from("leads").select("id").in("id", lids).eq("is_demo", true);
+            if (!de && dm && dm.length) { const demo = new Set(dm.map((x) => x.id)); r.rows.forEach((x) => { if (demo.has(x.lead_id)) x.is_demo = true; }); }
+          }
+        } catch (e) {}
         return r;
       }
       let a = []; try { a = JSON.parse(localStorage.getItem(ARCH_LS) || "[]"); } catch {}
@@ -3711,7 +3830,9 @@ window.HelmUrl = HelmUrl;
         return readLs("bp_nurture_templates");
       },
       async save(type, patch) {
-        if (mode === "supabase") { const { error } = await supa.from("nurture_templates").update({ ...patch, updated_at: now() }).eq("occasion_type", type); if (error) throw error; return true; }
+        // la-fetch (security gap): scoped to THIS studio's row (key is org_id + occasion_type); RLS "ra upd" also checks org + nurture edit
+        if (mode === "supabase") { const org = await orgIdStrict(); if (!org) throw new Error("No studio is linked to this account.");
+          const { error } = await supa.from("nurture_templates").update({ ...patch, updated_at: now() }).eq("org_id", org).eq("occasion_type", type); if (error) throw error; return true; }
         const a = readLs("bp_nurture_templates"); const r = a.find((x) => x.occasion_type === type); if (r) Object.assign(r, patch); else a.push({ occasion_type: type, ...patch }); localStorage.setItem("bp_nurture_templates", JSON.stringify(a)); return true;
       },
     },
@@ -4507,7 +4628,7 @@ window.HelmUrl = HelmUrl;
     async current(opts) { if (!supa) return null;
       const oid = await this.id();
       const read = async () => { const { data, error } = await supa.from("organizations").select("*").eq("id", oid).maybeSingle();
-        if (error) throw error; return data; };
+        if (error) throw error; try { if (data && data.timezone && BPStore.rememberStudioTimezone) BPStore.rememberStudioTimezone(data.timezone); } catch (e) {} return data; };
       if (opts && opts.fresh) { try { sessionStorage.removeItem(SWR_PREFIX + "org:" + oid); } catch (e) {} }
       return swr("org:" + oid, read); },
     async save(patch) { if (!supa) throw new Error("Supabase not configured");
@@ -4608,8 +4729,18 @@ window.HelmUrl = HelmUrl;
     restore: (quoteId) => rpc("restore_quote_from_shelf", { p_quote_id: quoteId }),
     // opening Quotes / Dashboard: moves quotes whose client link expired, per the studio's
     // Control Center choice — the server runs it at most once per 10 minutes per studio
-    tick: () => rpc("link_expiry_shelf_tick", {}),
+    // la-fetch (audit 44): once per 10 minutes per tab (the server's own per-studio limit), not on every
+    // open of Quotes / Dashboard - a write on page open also dropped every shared read of that page
+    // (coalescedFetch), so the page's start-up reads ran twice. pg_cron (0040 helm_link_expiry_shelf,
+    // every 30 min) does the same work where it is installed. Skipped -> { moved: 0, skipped: true }.
+    tick(o) {
+      const k = "bp_shelf_tick:" + ((currentUser && currentUser.id) || "");
+      if (!(o && o.force)) { try { const last = Number(sessionStorage.getItem(k) || 0); if (last && Date.now() - last >= 0 && Date.now() - last < SHELF_TICK_MS) return Promise.resolve({ moved: 0, skipped: true }); } catch (e) {} }
+      try { sessionStorage.setItem(k, String(Date.now())); } catch (e) {}
+      return rpc("link_expiry_shelf_tick", {});
+    },
   };
+  const SHELF_TICK_MS = 10 * 60000;
 
   /* ---------------- invitations: join an existing studio (Phase 83) ---------------- */
   // Onboarding split: create a NEW company = org.createStudio; JOIN an existing
@@ -4641,15 +4772,45 @@ window.HelmUrl = HelmUrl;
     // { fallback:true } (use the normal confirm-by-e-mail sign-up: function not deployed, no
     // bound e-mail, kill switch). A refusal throws an Error with .code (email_mismatch, …).
     // the invited e-mail for a valid invitation (shown locked on the join form) → string | null
-    async invitedEmail(token) {
+    async invitedEmail(token) { const p = await invitations.peek(token); return p && !p.invalid ? p.email : null; },
+    // 0205: { email, account, studio, inviter, role, role_label } of a valid invitation (only its OWN
+    // e-mail; inviter = display name) | { invalid: true, reason: expired|used|revoked|"", studio } for a
+    // token that no longer works | null (function not deployed / offline). account:
+    // "new" (no login yet) | "needs_link" (the invite e-mail made a login without a password -
+    // the old link was used / expired: offer "Email me a new link") | "existing" (sign in) | null (unknown)
+    async peek(token) {
       if (!supa || !fnUrl("invite-signup") || !token) return null;
       try {
         const res = await fetch(fnUrl("invite-signup"), { method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
           body: JSON.stringify({ token, peek: true }) });
         const j = await res.json().catch(() => ({}));
-        return res.ok && j && typeof j.email === "string" && j.email ? j.email : null;
+        const str = (v, n) => String(v == null ? "" : v).slice(0, n);
+        if (res.status === 400 && j && j.code === "invalid_invite")
+          return { invalid: true, reason: /^(expired|used|revoked)$/.test(String(j.reason || "")) ? j.reason : "", studio: str(j.studio, 120) };
+        if (!(res.ok && j && typeof j.email === "string" && j.email)) return null;
+        return { email: j.email, account: /^(new|needs_link|unconfirmed|existing)$/.test(String(j.account || "")) ? j.account : null,
+          studio: str(j.studio, 120), inviter: str(j.inviter, 60), role: str(j.role, 40), role_label: str(j.role_label, 60) };
       } catch (e) { return null; }
+    },
+    // 0205: e-mail the invited address a NEW link (sign in → set password → join). The server sends
+    // only to the invitation's own e-mail and rate-limits it. → { sent: true } | { account: "new" };
+    // a refusal throws an Error with .code (rate_limited, account_exists, invalid_invite, send_failed, unavailable).
+    async resendLink(token) {
+      const fail = (msg, code) => { const e = new Error(msg); e.code = code; return e; };
+      if (!supa || !fnUrl("invite-signup") || !token) throw fail("We couldn't send a new link from here — ask your studio admin to re-send the invitation.", "unavailable");
+      let res;
+      try {
+        res = await fetch(fnUrl("invite-signup"), { method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
+          body: JSON.stringify({ token, resend: true }) });
+      } catch (e) { throw fail("We couldn't reach Helm — check your connection and try again.", "network"); }
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && j && j.sent === true) return { sent: true };
+      if (res.ok && j && j.account === "new") return { account: "new" };
+      if (res.ok && j && j.requested === true) return { requested: true, studio: String(j.studio || "").slice(0, 120) };   // expired: the studio was asked
+      if (j && j.code && (res.status < 500 || j.code === "send_failed")) throw fail(String(j.error || "Couldn't send the e-mail."), String(j.code));
+      throw fail("We couldn't send a new link from here — ask your studio admin to re-send the invitation.", "unavailable");
     },
     async signupDirect(token, email, password, fullName) {
       if (!supa || !fnUrl("invite-signup")) return { fallback: true };
@@ -4662,7 +4823,7 @@ window.HelmUrl = HelmUrl;
       const j = await res.json().catch(() => ({}));
       if (res.ok) return j && j.ok ? { ok: true } : { fallback: true };
       if (res.status === 404 || res.status >= 500 || !j || !j.code) return { fallback: true };
-      const e = new Error(String(j.error || "Couldn't create the account.")); e.code = j.code; e.status = res.status; throw e;
+      const e = new Error(String(j.error || "Couldn't create the account.")); e.code = j.code; e.status = res.status; if (j.reason) e.reason = String(j.reason).slice(0, 20); throw e;
     },
     async preview(token) {                                                                   // anon-safe banner info (SEC-06); falls back until deployed
       try { return await rpc("invitation_preview", { p_token: token }); }
@@ -5379,6 +5540,12 @@ window.HelmUrl = HelmUrl;
     async mine() {
       if (mode !== "supabase") { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === chatLocalUid()) || CHAT_LOCAL_ROSTER[0]; return Object.assign({}, u); }
       if (!supa || !currentUser) return null;
+      // la-fetch (audit 25): the shell menu, the dashboard greeting and the page each asked my_profile()
+      // on open - one answer per 30 s per tab now (any save from this tab drops it, see memoRead)
+      return memoRead("profile.mine", 30000, () => profile._mineFetch());
+    },
+    async _mineFetch() {
+      if (!supa || !currentUser) return null;
       if (!profileRpcMissing) {
         const { data, error } = await supa.rpc("my_profile");
         if (!error) return data && typeof data === "object" ? Object.assign({ id: data.user_id }, data) : null;
@@ -5620,6 +5787,11 @@ window.HelmUrl = HelmUrl;
     // read — RLS then shows colleagues only to users with the users-view capability.
     async roster() {
       if (mode !== "supabase") return CHAT_LOCAL_ROSTER.slice();
+      // la-fetch (audit 25): the studio directory changes rarely - one read per minute per tab is shared by the
+      // bell poll, the chat page and the mention picker (any write from this tab drops it)
+      return memoRead("chat.roster", 60000, () => chat._rosterFetch());
+    },
+    async _rosterFetch() {
       if (!chatDirectoryMissing) {
         const { data, error } = await supa.rpc("chat_directory");
         if (!error) return (data || []).map(chatPerson);   // + avatar_path / job_title / department (0041)
@@ -5636,8 +5808,15 @@ window.HelmUrl = HelmUrl;
         if (!convs.some((c) => c.kind === "broadcast")) { convs.unshift({ id: "bcast", kind: "broadcast", title: "Everyone", created_at: now(), last_message_at: now(), members: [] }); chatWriteLs(CHAT_LS_C, convs); }
         return convs.slice().sort((a, b) => String(b.last_message_at || "").localeCompare(String(a.last_message_at || "")));
       }
-      // ensure the org "Everyone" channel ONCE per page — not on every bell poll
-      if (!chatBcastEnsured) { try { await rpc("chat_ensure_broadcast"); chatBcastEnsured = true; } catch (e) {} }
+      // ensure the org "Everyone" channel - la-fetch (audit 44): only on the Chat page and once per tab
+      // session (it is a write: on every page open it dropped that page's shared reads). The bell on other
+      // pages just lists the conversations that exist; the channel is made the first time someone opens Chat.
+      if (!chatBcastEnsured && pageKey() === "chat") {
+        const bk = "bp_chat_bcast:" + ((currentUser && currentUser.id) || "");
+        let done = false; try { done = sessionStorage.getItem(bk) === "1"; } catch (e) {}
+        if (done) chatBcastEnsured = true;
+        else { try { await rpc("chat_ensure_broadcast"); chatBcastEnsured = true; try { sessionStorage.setItem(bk, "1"); } catch (e) {} } catch (e) {} }
+      }
       const { data, error } = await supa.from("chat_conversations").select("*").order("last_message_at", { ascending: false });
       if (error) throw error;
       // event-group titles made while create_event_group's " \u00b7 " was mis-encoded (UTF-8 read as
@@ -6109,7 +6288,9 @@ window.HelmUrl = HelmUrl;
       return readLs(BOOK_LS).filter((b) => b.quote_id === quoteId);
     },
     async listAll() {
-      if (mode === "supabase") { const { data, error } = await supa.from("event_resources").select("*"); if (error) throw error; return data; }
+      // la-fetch (security gap): explicit studio filter + paged with the shared safety cap (calendar clash check)
+      if (mode === "supabase") { const org = await orgIdStrict(); if (!org) return [];
+        return sbAll(() => supa.from("event_resources").select("*").eq("org_id", org).order("id")); }
       return readLs(BOOK_LS);
     },
     // event history for a page of partners: just vendor / event / status of their bookings
@@ -6161,14 +6342,16 @@ window.HelmUrl = HelmUrl;
         vendors.listAll(true).catch(() => []),
         (async () => {
           if (mode !== "supabase") return readLs("bp_tasks_stub") || [];
-          const { data, error } = await supa.from("event_tasks").select("quote_id,crew_id,title,status").not("crew_id", "is", null);
-          if (error) throw error; return data;
+          // la-fetch (security gap): explicit studio filter (RLS is still the gate) + paged with the shared
+          // safety cap, not one unbounded read that PostgREST silently cut at 1000 rows
+          const org = await orgIdStrict(); if (!org) return [];
+          return sbAll(() => supa.from("event_tasks").select("id,quote_id,crew_id,title,status").eq("org_id", org).not("crew_id", "is", null).order("id"));
         })().catch(() => []),
         (async () => {
           // venue name/address per event (for the venue-double-booking check)
           if (mode !== "supabase") return [];
-          const { data, error } = await supa.from("event_plan").select("quote_id,venue_name,venue_address");
-          if (error) throw error; return data;
+          const org = await orgIdStrict(); if (!org) return [];
+          return sbAll(() => supa.from("event_plan").select("quote_id,venue_name,venue_address").eq("org_id", org).order("quote_id"));
         })().catch(() => []),
         config.getPricing().catch(() => ({})),   // for the venue-clash buffer (parallel, no extra round-trip)
         inventory.shortages().catch(() => []),   // 0197: open stock shortages ("Short: 10 x Air Cooler - sourcing from ...")
@@ -7495,19 +7678,19 @@ window.HelmUrl = HelmUrl;
   // Light/dark follow the page tokens (theme.css re-points them under html[data-theme=dark]).
   const BELL_CSS = [
     ".bpb-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;height:32px;width:36px;padding:0;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);color:var(--ink,#1b1930);border-radius:10px;cursor:pointer;transition:background .15s,border-color .15s}",
-    ".bpb-btn:hover{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff)}",
-    ".bpb-btn[aria-expanded=true]{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9)}",
+    ".bpb-btn:hover{border-color:var(--accent,#047857);background:var(--accent-soft,#e3f4ed)}",
+    ".bpb-btn[aria-expanded=true]{border-color:var(--accent,#047857);background:var(--accent-soft,#e3f4ed);color:var(--accent,#047857)}",
     ".bpb-btn svg{width:17px;height:17px}",
     ".bpb-dot{position:absolute;top:-6px;right:-7px;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:9px;background:#e5484d;color:#fff;font:700 10px/17px system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;box-shadow:0 0 0 2px var(--panel,#fff)}",
     ".bpb-dot[hidden]{display:none}",
     ".bpb-root{--bpb-bg:var(--panel,#fff);--bpb-bg2:var(--panel-2,#faf8f5);--bpb-ink:var(--ink,#1b1930);--bpb-ink2:var(--ink-2,#4b475f);--bpb-ink3:var(--ink-3,#6b6577);",
-    "--bpb-line:var(--line,#e8e3db);--bpb-acc:var(--accent,#6d28d9);--bpb-acc-t:var(--hb-acc-text,var(--accent,#6d28d9));--bpb-unread:#f7f3ff;",
+    "--bpb-line:var(--line,#e8e3db);--bpb-acc:var(--accent,#047857);--bpb-acc-t:var(--hb-acc-text,var(--accent,#047857));--bpb-unread:#f0f9f5;",
     "--bpb-mention-bg:#ffe4ec;--bpb-mention:#be123c;--bpb-chat-bg:#e0ecff;--bpb-chat:#1d4ed8;--bpb-task-bg:#dcf5e7;--bpb-task:#0f7a43;",
-    "--bpb-pay-bg:#fff1d6;--bpb-pay:#8f5f00;--bpb-other-bg:var(--accent-soft,#efe9ff);--bpb-other:var(--accent,#6d28d9);",
+    "--bpb-pay-bg:#fff1d6;--bpb-pay:#8f5f00;--bpb-other-bg:var(--accent-soft,#e3f4ed);--bpb-other:var(--accent,#047857);",
     "--bpb-scrim:rgba(24,20,40,.10);--bpb-scrim-phone:rgba(24,20,40,.38);--bpb-shadow:0 24px 60px rgba(20,27,46,.22),0 2px 8px rgba(20,27,46,.08);",
     "position:fixed;inset:0;z-index:2147482000;font:14px/1.4 var(--font,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif);color:var(--bpb-ink)}",
     "html[data-theme=dark] .bpb-root{--bpb-unread:#19152a;--bpb-mention-bg:#3a1424;--bpb-mention:#fda4af;--bpb-chat-bg:#172a4d;--bpb-chat:#93c5fd;--bpb-task-bg:#12301f;--bpb-task:#6ee7b7;",
-    "--bpb-pay-bg:#3a2a0c;--bpb-pay:#fcd34d;--bpb-other-bg:#1d1730;--bpb-other:#c4b5fd;--bpb-scrim:rgba(0,0,0,.28);--bpb-scrim-phone:rgba(0,0,0,.55);--bpb-shadow:0 24px 60px rgba(0,0,0,.7)}",
+    "--bpb-pay-bg:#3a2a0c;--bpb-pay:#fcd34d;--bpb-other-bg:#123329;--bpb-other:#6ee7b7;--bpb-scrim:rgba(0,0,0,.28);--bpb-scrim-phone:rgba(0,0,0,.55);--bpb-shadow:0 24px 60px rgba(0,0,0,.7)}",
     ".bpb-root[hidden]{display:none}",
     // backdrop: a light dim only (no blur — the page behind stays readable); darker under the phone sheet
     ".bpb-scrim{position:absolute;inset:0;background:var(--bpb-scrim);opacity:0;transition:opacity .2s ease}",
@@ -7622,6 +7805,8 @@ window.HelmUrl = HelmUrl;
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
+      // 0205: an invitee whose invitation expired asked for a new link (re-send it from Staff)
+      invite_link_request: ["✉️", String(d.label || "A teammate asked for a new invitation link")],
       // 0069 client package flow
       pkg_selected: ["📦", "Client chose a package" + (d.package ? ": " + d.package : "") + (d.event_code ? " · " + d.event_code : "")],
       pkg_accepted: ["✅", "Package choice accepted" + (d.event_code ? " · " + d.event_code : "")],
@@ -7688,7 +7873,9 @@ window.HelmUrl = HelmUrl;
 
   const bell = {
     link: notifLink,
-    feed: (limit) => rpc("bell_feed", limit ? { p_limit: limit } : {}),
+    // la-fetch (audit 25): the bell's first load and the realtime-subscribe refresh right after it asked bell_feed
+    // twice - one answer per 5 s per tab (markSeen or any other write drops it)
+    feed: (limit) => memoRead("bell.feed:" + (limit || ""), 5000, () => rpc("bell_feed", limit ? { p_limit: limit } : {})),
     markSeen: () => rpc("bell_mark_seen", {}),
     label: bellLabel,
     // 0036 admin-managed notifications. mine() → { hidden:[type…] } for the signed-in
@@ -7794,7 +7981,8 @@ window.HelmUrl = HelmUrl;
         r.toasts.slice().reverse().forEach((x) => { try { window.BPUI.toast(x.message, { title: x.title, type: x.type, icon: x.icon, href: x.href || null, linkLabel: "View", timeout: 5000,
           onOpen: () => { if (x.rk && readKeys.indexOf(x.rk) === -1) { readKeys.push(x.rk); saveRead(); } } }); } catch (e) {} });
       };
-      const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
+      let lastRf = 0;
+      const refresh = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
         if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
       // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
@@ -7910,7 +8098,13 @@ window.HelmUrl = HelmUrl;
       const kick = () => { if (kicked) return; kicked = true; liveRefresh();
         try { if (chat && chat.subscribe) { csub = chat.subscribe(function () { liveRefresh(); }, function () {}, "chat-rt-bell"); window.addEventListener("beforeunload", function () { try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} }); } } catch (e) {}
       };
-      const timer = setInterval(() => { if (kicked && !document.hidden && !isOpen) refresh(); }, 30000);
+      // la-fetch (audit 25): one poll is ~7 reads (feed + chat bootstrap). On the Chat page realtime already
+      // refreshes on every message, so the safety poll there runs every 90 s, elsewhere every 30 s; never
+      // while the tab is hidden, and a tab coming back after its interval catches up once.
+      const pollMs = () => (pageKey() === "chat" && csub ? 90000 : 30000);
+      const timer = setInterval(() => { if (kicked && !document.hidden && !isOpen && Date.now() - lastRf >= pollMs() - 1000) refresh(); }, 30000);
+      const onVis = () => { if (kicked && !document.hidden && !isOpen && Date.now() - lastRf >= pollMs()) liveRefresh(); };
+      document.addEventListener("visibilitychange", onVis);
       btn.addEventListener("click", kick);
       if (pageKey() === "chat") kick();
       else {
@@ -7919,7 +8113,7 @@ window.HelmUrl = HelmUrl;
       }
       // Let the chat page nudge the bell after it marks a conversation read.
       try { window.__bpBellRefresh = refresh; } catch (e) {}
-      try { window.__bpBellTeardown = () => { kicked = true; clearInterval(timer); window.removeEventListener("resize", onResize); if (isOpen) close(false);
+      try { window.__bpBellTeardown = () => { kicked = true; clearInterval(timer); window.removeEventListener("resize", onResize); document.removeEventListener("visibilitychange", onVis); if (isOpen) close(false);
         try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} try { root.remove(); } catch (e) {} }; } catch (e) {}
     },
   };
@@ -8788,7 +8982,7 @@ window.HelmUrl = HelmUrl;
       // 0058: {state:'trial'|'ended'|'none', days_left, ends_at, is_admin, can_pay}; null before 0058
       // 0173: {trial, cap: 2, used: {leads, quotes, inventory_items, vendors, crew_members, venues}}; null before 0173
       limits: () => (supa ? rpc("my_trial_limits").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
-      trial: () => (supa ? swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; })) : Promise.resolve(null)),
+      trial: () => (supa ? memoRead("trial", 15000, () => swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : Promise.resolve(null)),
     },
     // 0157 — "Hide amounts" privacy PIN, ONE per studio. The server keeps only a bcrypt hash
     // (default 0000 until an admin changes it) and counts wrong tries per person.
@@ -9111,7 +9305,7 @@ window.HelmUrl = HelmUrl;
     // is_admin}; null before 0097 / local mode. seed / clear / reset / setMode are studio-admin
     // only and touch ONLY this studio's rows flagged is_demo (enforced in the database).
     demo: {
-      status: () => (supa ? swr("demo", () => rpc("my_demo_status").catch((e) => { if (rpcMissing(e)) return null; throw e; })) : Promise.resolve(null)),
+      status: () => (supa ? memoRead("demo", 15000, () => swr("demo", () => rpc("my_demo_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : Promise.resolve(null)),
       setMode: (mode) => rpc("set_trial_mode", { p_mode: mode === "demo" ? "demo" : "own" }),
       seed: () => rpc("seed_demo_data"),
       clear: () => rpc("clear_demo_data"),
@@ -9427,12 +9621,12 @@ window.HelmUrl = HelmUrl;
   /* ------------------------------------------------------------------ CSS */
   var CSS = [
     ":root{--bpui-bg:#fff;--bpui-ink:#141b2e;--bpui-ink-2:#4a5673;--bpui-line:#86808f;--bpui-soft:#f4f2fb;",
-    "--bpui-accent:#6d28d9;--bpui-on-accent:#fff;--bpui-danger:#b91c1c;--bpui-on-danger:#fff;",
+    "--bpui-accent:#047857;--bpui-on-accent:#fff;--bpui-danger:#b91c1c;--bpui-on-danger:#fff;",
     "--bpui-scrim:rgba(20,27,46,.5);--bpui-veil:rgba(246,244,241,.72);--bpui-shadow:0 24px 60px rgba(20,27,46,.3);",
-    "--bpui-toast-bg:#1f1b2e;--bpui-toast-ink:#fff;--bpui-toast-act:#d8ccff;--bpui-ok:#34d399;--bpui-err:#f87171;--bpui-info:#a78bfa;",
+    "--bpui-toast-bg:#1f1b2e;--bpui-toast-ink:#fff;--bpui-toast-act:#a7f3d0;--bpui-ok:#34d399;--bpui-err:#f87171;--bpui-info:#34d399;",
     "--bpui-warn-bg:#fff4d6;--bpui-warn-ink:#5c3d00;--bpui-warn-line:#e8c26a}",
     "html[data-theme=dark]{--bpui-bg:#1c1c22;--bpui-ink:#f3f1fa;--bpui-ink-2:#c6c2d6;--bpui-line:#75707f;--bpui-soft:#26222f;",
-    "--bpui-accent:#7c3aed;--bpui-on-accent:#fff;--bpui-danger:#b91c1c;--bpui-on-danger:#fff;",
+    "--bpui-accent:#047857;--bpui-on-accent:#fff;--bpui-danger:#b91c1c;--bpui-on-danger:#fff;",
     "--bpui-scrim:rgba(0,0,0,.66);--bpui-veil:rgba(0,0,0,.6);--bpui-shadow:0 24px 60px rgba(0,0,0,.7);",
     "--bpui-toast-bg:#2a2635;--bpui-toast-ink:#f3f1fa;--bpui-warn-bg:#3a2f14;--bpui-warn-ink:#ffd884;--bpui-warn-line:#5a4a1e}",
     /* utilities usable on pages without theme.css (zero specificity → pages override) */
@@ -9468,9 +9662,9 @@ window.HelmUrl = HelmUrl;
     "html:has([role=dialog][aria-modal=true]:not([hidden])) .bpui-toasts,html:has(dialog[open]) .bpui-toasts{bottom:auto;top:20px}",
     ".bpui-toasts{position:fixed;bottom:20px;right:16px;z-index:2147483600;display:flex;flex-direction:column;gap:10px;",
     "width:min(380px,calc(100vw - 32px));pointer-events:none;--bpui-t-bg:#fff;--bpui-t-ink:#1b1930;--bpui-t-ink2:#5b566b;--bpui-t-line:#e8e3db;",
-    "--bpui-t-info:#6d28d9;--bpui-t-info-bg:#efe9ff;--bpui-t-ok:#0f7a43;--bpui-t-ok-bg:#dcf5e7;--bpui-t-warn:#8f5f00;--bpui-t-warn-bg:#fff1d6;",
+    "--bpui-t-info:#047857;--bpui-t-info-bg:#e3f4ed;--bpui-t-ok:#0f7a43;--bpui-t-ok-bg:#dcf5e7;--bpui-t-warn:#8f5f00;--bpui-t-warn-bg:#fff1d6;",
     "--bpui-t-err:#c0262d;--bpui-t-err-bg:#ffe3e3;--bpui-t-sec:#1d4ed8;--bpui-t-sec-bg:#e0ecff;--bpui-t-shadow:0 12px 32px rgba(20,27,46,.16),0 2px 6px rgba(20,27,46,.06)}",
-    "html[data-theme=dark] .bpui-toasts{--bpui-t-bg:#221e2e;--bpui-t-ink:#f3f1fa;--bpui-t-ink2:#c6c2d6;--bpui-t-line:#3a3548;--bpui-t-info:#c4b5fd;--bpui-t-info-bg:#2c2346;",
+    "html[data-theme=dark] .bpui-toasts{--bpui-t-bg:#221e2e;--bpui-t-ink:#f3f1fa;--bpui-t-ink2:#c6c2d6;--bpui-t-line:#3a3548;--bpui-t-info:#6ee7b7;--bpui-t-info-bg:#123329;",
     "--bpui-t-ok:#6ee7b7;--bpui-t-ok-bg:#12301f;--bpui-t-warn:#fcd34d;--bpui-t-warn-bg:#3a2a0c;--bpui-t-err:#fca5a5;--bpui-t-err-bg:#3d1518;--bpui-t-sec:#93c5fd;--bpui-t-sec-bg:#172a4d;--bpui-t-shadow:0 14px 36px rgba(0,0,0,.6)}",
     ".bpui-lane{display:flex;flex-direction:column;gap:10px}",
     ".bpui-toast{--bpui-t-c:var(--bpui-t-info);--bpui-t-cbg:var(--bpui-t-info-bg);position:relative;overflow:hidden;pointer-events:auto;display:flex;align-items:flex-start;gap:12px;padding:12px 8px 14px 12px;",
@@ -10684,7 +10878,71 @@ window.HelmUrl = HelmUrl;
   // India date format dd/mm/yyyy for a "YYYY-MM-DD" (or ISO) date; anything else is returned as-is
   BPStore.fmtDateIN = function (d) {
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ""));
+    if (m && BPStore.fmtStudioDate) { var o = BPStore.fmtStudioDate(m[0]); if (o) return o; }   // LA-27: the studio's own order (IN/AE/GB: dd/mm/yyyy, US: mm/dd/yyyy)
     return m ? m[3] + "/" + m[2] + "/" + m[1] : String(d || "");
+  };
+  // ---- LA-27: ONE date formatter for the whole app: the STUDIO's locale + the STUDIO's timezone ----
+  // (never the viewer's browser locale / clock). A calendar day "YYYY-MM-DD" is never shifted by a zone.
+  // style: "short" (default) 20/12/2026 · "medium" Sun, 20 Dec · "long" 20 Dec 2026 · "weekday" Sunday ·
+  // "month" December 2026 · "daymonth" 20 December · "time" 07:00 pm; or opts.fmt = explicit Intl fields.
+  // opts.time adds the time to a timestamp; opts.year adds the year to "medium". A local Date that stands for a
+  // calendar DAY must be passed as its "YYYY-MM-DD" string (else the studio zone could move it a day).
+  var STUDIO_TZ_KEY = "helm.studioTz";
+  BPStore.rememberStudioTimezone = function (tz) {
+    tz = typeof tz === "string" ? tz.trim() : "";
+    if (tz) { try { new Intl.DateTimeFormat("en", { timeZone: tz }); } catch (e) { tz = ""; } }
+    try { if (tz) localStorage.setItem(STUDIO_TZ_KEY, tz); } catch (e) {}
+    BPStore._studioTz = tz || null; return tz;
+  };
+  BPStore.studioTimezone = function () {
+    var tz = BPStore._studioTz || "";
+    if (!tz) { try { tz = localStorage.getItem(STUDIO_TZ_KEY) || ""; } catch (e) {} }
+    if (!tz) { try { var H = (typeof window !== "undefined" && window.HelmCountry) || null, cc = (BPStore.studioTax() || {}).country; tz = H && H.timezone ? H.timezone(cc) : ""; } catch (e) {} }
+    if (tz) { try { new Intl.DateTimeFormat("en", { timeZone: tz }); } catch (e) { tz = ""; } }
+    return tz || undefined;
+  };
+  BPStore.studioLocale = function () {
+    var r = null; try { r = BPStore.studioTax(); } catch (e) {}
+    var loc = (r && r.locale) || "en-IN"; try { new Intl.DateTimeFormat(loc); } catch (e) { loc = "en-IN"; } return loc;
+  };
+  BPStore.fmtStudioDate = function (v, opts) {
+    opts = opts || {};
+    if (v == null || v === "") return "";
+    var s = typeof v === "string" ? v.trim() : v, m = typeof s === "string" ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(s) : null, d, tz;
+    if (m) { d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)); tz = "UTC"; }
+    else { d = (v && typeof v.getTime === "function") ? v : new Date(s); tz = BPStore.studioTimezone(); }
+    if (!d || isNaN(d.getTime())) return typeof v === "string" ? v : "";
+    var st = opts.style || "short", f;
+    if (opts.fmt && typeof opts.fmt === "object") f = Object.assign({}, opts.fmt);   // explicit Intl fields (no timeZone: the studio's is added)
+    else if (st === "medium") { f = { weekday: "short", day: "numeric", month: "short" }; if (opts.year) f.year = "numeric"; }
+    else if (st === "long") f = { day: "numeric", month: "short", year: "numeric" };
+    else if (st === "weekday") f = { weekday: opts.narrow ? "short" : "long" };
+    else if (st === "month") f = { month: "long", year: "numeric" };
+    else if (st === "daymonth") f = { day: "numeric", month: "long" };
+    else if (st === "time") f = { hour: "2-digit", minute: "2-digit" };
+    else f = { day: "2-digit", month: "2-digit", year: "numeric" };
+    if (opts.time && !m && st !== "time") { f.hour = "2-digit"; f.minute = "2-digit"; }
+    if (tz) f.timeZone = tz;
+    try { return d.toLocaleString(BPStore.studioLocale(), f); }
+    catch (e) { return m ? m[3] + "/" + m[2] + "/" + m[1] : d.toISOString().slice(0, 16).replace("T", " "); }
+  };
+  // ---- LA-28: one label for every lead stage + event lifecycle stage + lead source (never a raw lowercase key) ----
+  var STAGE_LABELS = { "new": "New", qualified: "Qualified", discovery: "Discovery", quoted: "Quoted", won: "Won", lost: "Lost",
+    lead: "Lead", proposal: "Proposal", quote: "Quote", confirmed: "Confirmed", planning: "Planning", resources: "Resources",
+    ready: "Ready", event_day: "Event Day", settlement: "Settlement", closed: "Closed", cancelled: "Cancelled", archived: "Archived" };
+  BPStore.stageLabel = function (k) {
+    var raw = String(k == null ? "" : k).trim(); if (!raw) return "";
+    var key = raw.toLowerCase().replace(/[\s-]+/g, "_");
+    if (STAGE_LABELS[key]) return STAGE_LABELS[key];
+    var t = raw.replace(/_/g, " "); return t.charAt(0).toUpperCase() + t.slice(1);
+  };
+  var SOURCE_LABELS = { "walk_in": "Walk-in", walkin: "Walk-in", google: "Google", instagram: "Instagram", facebook: "Facebook", whatsapp: "WhatsApp",
+    referral: "Referral", website: "Website", social: "Other social", ad: "Ad", phone: "Phone", email: "Email", other: "Other", justdial: "Justdial", wedmegood: "WedMeGood" };
+  BPStore.sourceLabel = function (v) {
+    var raw = String(v == null ? "" : v).trim().replace(/\s+/g, " "); if (!raw) return "";
+    var key = raw.toLowerCase().replace(/[\s-]+/g, "_");
+    if (SOURCE_LABELS[key]) return SOURCE_LABELS[key];
+    return raw.charAt(0).toUpperCase() + raw.slice(1);   // first letter only: "walk-in" never becomes "Walk-In"
   };
   // the user's LOCAL calendar day (IST for an Indian studio) as YYYY-MM-DD - toISOString() is UTC
   // and reads as "yesterday" from 00:00 to 05:30 IST
@@ -10696,11 +10954,13 @@ window.HelmUrl = HelmUrl;
   // date + time for display: dd/mm/yyyy, hh:mm (US studio: its own order) - never the browser's locale default
   BPStore.fmtDay = function (iso) {
     var d = new Date(iso); if (iso == null || iso === "" || isNaN(d.getTime())) return "";
+    if (BPStore.fmtStudioDate) { var o = BPStore.fmtStudioDate(iso); if (o) return o; }
     var loc = "en-IN"; try { if (BPStore.studioTax && BPStore.studioTax().country === "US") loc = "en-US"; } catch (e) {}
     try { return d.toLocaleDateString(loc, { day: "2-digit", month: "2-digit", year: "numeric" }); } catch (e) { return d.toISOString().slice(0, 10); }
   };
   BPStore.fmtDateTime = function (iso) {
     var d = new Date(iso); if (iso == null || iso === "" || isNaN(d.getTime())) return "";
+    if (BPStore.fmtStudioDate) { var o = BPStore.fmtStudioDate(iso, { time: true }); if (o) return o; }
     var loc = "en-IN"; try { if (BPStore.studioTax && BPStore.studioTax().country === "US") loc = "en-US"; } catch (e) {}
     try { return d.toLocaleString(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return d.toISOString(); }
   };

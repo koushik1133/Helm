@@ -8,10 +8,10 @@ assert.ok(gs.includes('href: "quotes.html?new=1"'), 'checklist quote step opens 
 assert.ok(!/href="dashboard\.html"[^>]*>✨ (New|Create your first) quote/.test(q), 'quotes create buttons no longer link to Home');
 assert.ok((q.match(/data-newquote/g) || []).length >= 3, 'both create buttons wired');
 assert.ok(q.includes('BPStore.quotes.startBlank(code)') && q.includes('"flow.html?quote="'), 'creates and opens the flow');
-assert.ok(q.includes('get("new")==="1"'), '?new=1 auto-creates');
+assert.ok(q.includes('HelmNewQuote.consume(location.search)') && !q.includes('get("new")==="1"'), '?new=1 opens the confirm dialog only with Helm\'s one-time nonce (audit 8)');
 assert.ok(q.includes('action: "create the quote"'), 'create errors surface a toast');
 assert.ok(d.includes('bp_tour_autorun') && /seen \|\| \(!forced && \(localSeen \|\| !eligible\)\)/.test(d), 'tour auto-run guarded per device');
-assert.ok(d.includes('getting-started.js?v=9'), 'cache-bust');
+assert.ok(d.includes('getting-started.js?v=10'), 'cache-bust');
 // behavioural: simulate the dashboard gate
 function gate(ls, seen, forced, eligible) {
   let localSeen = !!ls.bp_seen_tour || !!ls.bp_tour_autorun;

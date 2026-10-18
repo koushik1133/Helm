@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
   *{box-sizing:border-box} [hidden]{display:none!important}
@@ -164,7 +164,7 @@
   /* ---- Compliance / GDPR export card (premium) ---- */
   .compliance{
     --cx-surface:#fafafa; --cx-surface-2:#f4f4f5; --cx-border:#e4e4e7; --cx-ink:#18181b; --cx-ink-2:#52525b; --cx-ink-3:#71717a;
-    --cx-accent:#4338ca; --cx-accent-2:#4f46e5; --cx-emerald:#047857; --cx-emerald-soft:#ecfdf5; --cx-emerald-border:#a7f3d0;
+    --cx-accent:#047857; --cx-accent-2:#036b4d; --cx-emerald:#047857; --cx-emerald-soft:#ecfdf5; --cx-emerald-border:#a7f3d0;
     --cx-crimson:#b91c1c; --cx-crimson-soft:#fef2f2; --cx-crimson-border:#fecaca;
     background:var(--cx-surface); border:1px solid var(--cx-border); border-radius:16px;
     box-shadow:0 1px 2px rgba(24,24,27,.04), 0 12px 28px -14px rgba(24,24,27,.18);
@@ -172,7 +172,7 @@
   }
   .compliance .cx-head{display:flex;align-items:center;gap:11px;margin-bottom:6px}
   .compliance .cx-ic{width:38px;height:38px;flex:0 0 auto;border-radius:10px;display:grid;place-items:center;
-    background:linear-gradient(135deg,var(--cx-accent),var(--cx-accent-2));color:#fff;box-shadow:0 4px 12px -4px rgba(67,56,202,.5)}
+    background:linear-gradient(135deg,var(--cx-accent),var(--cx-accent-2));color:#fff;box-shadow:0 4px 12px -4px rgba(4,120,87,.5)}
   .compliance .cx-ic svg{width:20px;height:20px;display:block}
   .compliance .cx-title{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em;color:var(--cx-ink);text-transform:none}
   .compliance .cx-sub{margin:8px 0 0;font-size:13.5px;line-height:1.55;color:var(--cx-ink-2)}
@@ -210,16 +210,16 @@
   }
   .cfline{display:block;font-size:12px;color:var(--ink-3)}.cfname{flex:1;min-width:0}.cfmeta{font-size:12px;color:var(--ink-3)}.cfoff{opacity:.6}
 </style>
-<link rel="stylesheet" href="pkg-review.css?v=1">
+<link rel="stylesheet" href="pkg-review.css?v=3">
 <link rel="stylesheet" href="comms-settings.css?v=2">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
-<link rel="stylesheet" href="menu-pkg-editor.css?v=2">
-<link rel="stylesheet" href="theme.css?v=82">
+<link rel="stylesheet" href="menu-pkg-editor.css?v=3">
+<link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<link rel="stylesheet" href="control-split.css?v=9">
-<script src="/shell-proto.js?v=26" id="shellProto"></script>
+<link rel="stylesheet" href="control-split.css?v=10">
+<script src="/shell-proto.js?v=27" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -764,21 +764,21 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
-<script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
+<script src="event-name.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
 <script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
-<script src="smart-import.js?v=3"></script>
+<script src="smart-import.js?v=5"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="tour.js?v=17"></script>
+<script src="tour.js?v=18"></script>
 <script src="pkg-review.js?v=6"></script>
 <script src="onboarding-core.js?v=7"></script>
 <script src="studio-billing-form.js?v=2"></script>
 <script src="comms-settings.js?v=5"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=1"></script>
-<script src="cc-inputs.js?v=3"></script>
+<script src="cc-inputs.js?v=4"></script>
 <script src="privacy-pin-settings.js?v=4"></script>
 <script src="venues-core.js?v=7"></script>
 <script src="venues-admin.js?v=7"></script>
@@ -786,11 +786,11 @@
 <script src="studio-templates.js?v=6"></script>
 <script src="item-pricing.js?v=1"></script>
 <script src="asset-price-grid.js?v=2"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=2"></script>
-<script src="trial-demo.js?v=9"></script>
+<script src="trial-demo.js?v=10"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
 <script src="search-catalog.js?v=2"></script>
-<script src="control-split.js?v=14"></script>
+<script src="control-split.js?v=15"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1180,7 +1180,8 @@
     catch(e){ BPUI.loadError($("#menuTplList"), e, renderMenuTemplates, {what:"menu packages"}); return; }
     if(!tpls.length){ mpkUI=null; $("#menuTplList").textContent=""; const r=document.createElement("div"); r.className="row"; r.style.color="var(--ink-3)"; r.textContent="No menu packages yet."; $("#menuTplList").appendChild(r); return; }
     const kindText=MENU_AE?{veg:"Vegetarian",nonveg:"Meat / fish (halal)",special:"Special"}:{veg:"Veg",nonveg:"Non-veg",special:"Special"};
-    let sym="\u20b9"; try{ const m=BPStore.studioMoney(0); const k=String(m||"").replace(/[\d.,\s]/g,""); if(k) sym=k; }catch(_){}
+    // LA-11 (theme clean-up): the "/plate" label follows the studio currency (BPStore.studioSymbol; Rs for India)
+    let sym="\u20b9"; try{ if(BPStore.studioSymbol){ const k=BPStore.studioSymbol(); if(k) sym=k; } else { const m=BPStore.studioMoney(0); const k=String(m||"").replace(/[\d.,\s]/g,""); if(k) sym=k; } }catch(_){}
     mpkUI=HelmMenuPkg.render($("#menuTplList"),{ packages:tpls, catalog:cat||[], trial:mpkTrial, kindText, symbol:sym,
       error:(m)=>setMsg("err",m),
       // returns the stored row, so the card shows exactly what was saved (same as after a reload)
@@ -1411,7 +1412,7 @@
     const email=ccv(G&&G.email,"o_email"), logo=ccv(G&&G.logo,"o_logo"), accent=ccv(G&&G.accent,"o_accent");
     if(email){ const r=V.email(email); if(!r.ok) bad($("#o_email"), r.error); }
     if(logo){ const r=V.url(logo); if(!r.ok) bad($("#o_logo"), "Logo URL: "+r.error); }
-    if(accent && !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)) bad($("#o_accent"), "Accent colour must be a hex colour like #6d28d9.");
+    if(accent && !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)) bad($("#o_accent"), "Accent colour must be a hex colour like #047857.");
     const phone=$("#o_phone")?$("#o_phone").value.trim():"";
     if(phone){ const r=V.phone(phone); if(!r.ok) bad($("#o_phone"), r.error); }
     const gstRaw=ccv(G&&G.tax,"o_gst").toUpperCase().replace(/\s+/g,"");
@@ -1572,8 +1573,8 @@
   const dishAttrText=(x)=>{ const al=typeof HelmImportCore!=="undefined"?HelmImportCore.attrList("menu",x.attributes,dishDefs):[]; return al.slice(0,4).map(a=>a.label+": "+a.value.slice(0,30)).join(" · ")+(al.length>4?" · +"+(al.length-4)+" more":""); };
   // UAE audit: vegetarian / halal wording for a UAE studio (the stored kinds stay veg | nonveg | special)
   const MENU_AE=(()=>{ try{ return BPStore.studioTax().country==="AE"; }catch(_){ return false; } })();
-  const KINDLBL=MENU_AE?{veg:'<span style="color:#0f7a43">vegetarian</span>',nonveg:'<span style="color:#b42318">meat / fish (halal)</span>',special:'<span style="color:#7c3aed">special</span>'}
-    :{veg:'<span style="color:#0f7a43">veg</span>',nonveg:'<span style="color:#b42318">non-veg</span>',special:'<span style="color:#7c3aed">special</span>'};
+  const KINDLBL=MENU_AE?{veg:'<span style="color:#0f7a43">vegetarian</span>',nonveg:'<span style="color:#b42318">meat / fish (halal)</span>',special:'<span style="color:#33403b">special</span>'}
+    :{veg:'<span style="color:#0f7a43">veg</span>',nonveg:'<span style="color:#b42318">non-veg</span>',special:'<span style="color:#33403b">special</span>'};
   if(MENU_AE){ try{ const k=document.getElementById("dc_kind"); if(k){ k.options[0].text="Vegetarian"; k.options[1].text="Meat / fish (halal)"; }
     const pn=document.getElementById("pl_name"); if(pn) pn.placeholder="Package e.g. Arabic buffet / Emirati feast / Vegetarian"; }catch(_){} }
   async function renderDishes(){

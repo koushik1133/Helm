@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opening your link · Helm</title>
+<meta name="description" content="Confirming your Helm e-mail link.">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{--bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
+    --line:#e8e3db;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;
+    --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;font-family:var(--font);color:var(--ink);-webkit-font-smoothing:antialiased;display:flex;align-items:center;justify-content:center;padding:40px 16px;
+    background:radial-gradient(700px 380px at 90% -10%,#ece3ff 0%,transparent 60%),radial-gradient(560px 340px at -10% 110%,#ffe9d6 0%,transparent 55%),var(--bg)}
+  .card{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:34px 32px}
+  .mmk{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;margin-bottom:16px}
+  .mmk::after{content:none}.mmk{background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat !important;border-radius:0 !important}
+  h1{margin:0 0 4px;font-size:23px;letter-spacing:-.01em} .sub{margin:0 0 22px;font-size:13px;color:var(--ink-3)}
+  label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:0 0 6px}
+  input{width:100%;height:44px;border:1px solid var(--line);background:var(--panel-2);border-radius:11px;padding:0 14px;font-family:inherit;font-size:15px;color:var(--ink);margin-bottom:16px}
+  input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .btn{width:100%;height:46px;border:0;border-radius:11px;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;text-decoration:none}
+  .btn:disabled{opacity:.6;cursor:default}
+  .err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:16px}
+  .okmsg{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:16px}
+  .hint{font-size:12px;color:var(--ink-3);margin:-10px 0 16px}
+  .foot{margin-top:18px;font-size:12px;color:var(--ink-3);text-align:center}
+  .foot a{color:var(--accent)}
+  .captcha{margin:0 0 16px;min-height:65px}
+</style>
+<link rel="stylesheet" href="/public-v2.css?v=5">
+<meta name="bp-theme-toggle" content="off">
+</head>
+<body>
+  <!-- 0205: every Helm auth e-mail link opens HERE on www.helm.events (never the Supabase project URL):
+       /auth/confirm?token_hash=…&type=…&next=… → verified in this browser → the right page -->
+  <main class="card" id="main">
+    <div class="mmk" aria-hidden="true"></div>
+    <h1 id="title">Opening your link…</h1>
+    <p class="sub" id="sub">One moment — we're checking your e-mail link.</p>
+    <div class="err" id="err" role="alert" hidden></div>
+    <div class="okmsg" id="ok" role="status" hidden></div>
+    <button type="button" class="btn" id="switchBtn" hidden>Sign out and continue</button>
+    <div class="foot"><a href="/login" id="toLogin">Go to sign in →</a></div>
+  </main>
+<script src="/trusted-types.js?v=3"></script>
+<script src="/telemetry.js?v=4"></script>
+<script src="/config.js?v=103"></script>
+<script src="/event-name.js?v=9"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=248"></script>
+<script src="/auth-confirm-core.js?v=2"></script>
+<script src="/auth-confirm.js?v=2"></script>
+</body>
+</html>

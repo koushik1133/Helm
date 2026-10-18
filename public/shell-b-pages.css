@@ -68,7 +68,9 @@ html[data-shell="b"] #evTime + .stat.q { display: inline-block; white-space: nor
   html[data-shell="b"] #stockRows td.empty[colspan] { position: sticky; left: 0; display: block; width: calc(100vw - 64px); box-sizing: border-box; white-space: normal; }
 }
 /* 5f. theme-tokened pills: Quote status, audit EDIT */
-html[data-shell="b"] :is(.stat.q, .act.update) { background: var(--hb-acc-soft); color: var(--hb-acc-text); }
+html[data-shell="b"] .act.update { background: var(--hb-acc-soft); color: var(--hb-acc-text); }
+/* "Quote" status: neutral graphite chip (green is reserved for confirmed/paid, so a quote no longer reads like a win) */
+html[data-shell="b"] .stat.q { background: var(--hb-bg2); color: var(--hb-ink2); box-shadow: inset 0 0 0 1px var(--hb-line); }
 /* 5g. resources gap KPI: dark risk colour */
 html[data-shell="b"][data-theme="dark"] #s_gap { color: var(--bad-text, #fca5a5); }
 /* 5h. settlement: emoji clear of the heading text in the serif themes */

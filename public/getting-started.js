@@ -137,23 +137,23 @@
     ".gs-head{display:flex;align-items:center;gap:14px}",
     ".gs-hd{flex:1;min-width:0}.gs-hd h3{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em}",
     ".gs-sub{margin:3px 0 0;font-size:13px;color:var(--ink-2,#4b475f)}",
-    ".gs-ring{flex:0 0 auto}.gs-ring-bg{stroke:var(--line,#e8e3db)}.gs-ring-fg{stroke:var(--accent,#6d28d9);transition:stroke-dashoffset .6s ease}",
+    ".gs-ring{flex:0 0 auto}.gs-ring-bg{stroke:var(--line,#e8e3db)}.gs-ring-fg{stroke:var(--accent,#047857);transition:stroke-dashoffset .6s ease}",
     ".gs-win .gs-ring-fg{stroke:var(--safe,#12a150)}.gs-ring-txt{font:700 12px var(--font,system-ui);fill:var(--ink,#1b1930)}",
     ".gs-tog{flex:0 0 auto;width:36px;height:36px;border-radius:10px;border:1px solid var(--line,#e8e3db);background:var(--panel-2,#faf8f5);color:var(--ink-2,#4b475f);cursor:pointer;font-size:16px;line-height:1}",
     ".gs-tog[aria-expanded=false] .gs-chev{display:inline-block;transform:rotate(-90deg)}",
-    ".gs-tog:focus-visible,.gs-go:focus-visible,.gs-dismiss:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:2px}",
+    ".gs-tog:focus-visible,.gs-go:focus-visible,.gs-dismiss:focus-visible{outline:2px solid var(--accent,#047857);outline-offset:2px}",
     ".gs-body{position:relative;margin-top:12px}",
     ".gs-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}",
     ".gs-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--line-2,#f1ede7);border-radius:12px;background:var(--panel-2,#faf8f5);min-width:0}",
-    ".gs-ico{flex:0 0 auto;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px;background:var(--accent-soft,#efe9ff)}",
+    ".gs-ico{flex:0 0 auto;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px;background:var(--accent-soft,#e3f4ed)}",
     ".gs-item.done .gs-ico{background:var(--safe,#12a150);color:#fff;font-weight:700;font-size:15px}",
     "html[data-theme=dark] .gs-item.done .gs-ico{color:#062b1a}",
     ".gs-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}",
     ".gs-t{font-size:13.5px;font-weight:600}.gs-item.done .gs-t{color:var(--ink-3,#6b6577);text-decoration:line-through;text-decoration-thickness:1px}",
     ".gs-why{font-size:12px;color:var(--ink-3,#6b6577);line-height:1.35}",
     ".gs-opt{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3,#6b6577);border:1px solid var(--line,#e8e3db);border-radius:6px;padding:0 5px;margin-left:4px;text-decoration:none;display:inline-block}",
-    ".gs-go{flex:0 0 auto;font:600 12.5px var(--font,system-ui);padding:7px 13px;border-radius:9px;border:0;cursor:pointer;color:#fff;background:linear-gradient(120deg,var(--accent,#6d28d9),var(--accent-2,#4f46e5));text-decoration:none;white-space:nowrap}",
-    "html[data-theme=dark] .gs-go{background:linear-gradient(120deg,#7c3aed,#6d28d9)}",
+    ".gs-go{flex:0 0 auto;font:600 12.5px var(--font,system-ui);padding:7px 13px;border-radius:9px;border:0;cursor:pointer;color:#fff;background:linear-gradient(120deg,var(--accent,#047857),var(--accent-2,#036b4d));text-decoration:none;white-space:nowrap}",
+    "html[data-theme=dark] .gs-go{background:linear-gradient(120deg,#047857,#047857)}",
     ".gs-done{flex:0 0 auto;font-size:12px;font-weight:600;color:var(--safe-text,#0f7a43)}",
     ".gs-foot{display:flex;justify-content:flex-end;margin-top:10px}",
     ".gs-dismiss{background:none;border:0;padding:6px 4px;font:500 12.5px var(--font,system-ui);color:var(--ink-3,#6b6577);text-decoration:underline;text-underline-offset:3px;cursor:pointer}",
@@ -161,10 +161,10 @@
     ".gs-win{position:relative}",
     ".gs-confetti{position:absolute;inset:-12px 0 auto;height:0;pointer-events:none}",
     ".gs-confetti i{position:absolute;top:0;width:7px;height:11px;border-radius:2px;opacity:0;animation:gsFall 1.6s ease-out .1s 2 forwards}",
-    ".gs-confetti i:nth-child(1){left:6%;background:#f59e0b}.gs-confetti i:nth-child(2){left:18%;background:#6d28d9;animation-delay:.25s}",
+    ".gs-confetti i:nth-child(1){left:6%;background:#f59e0b}.gs-confetti i:nth-child(2){left:18%;background:#047857;animation-delay:.25s}",
     ".gs-confetti i:nth-child(3){left:31%;background:#12a150;animation-delay:.05s}.gs-confetti i:nth-child(4){left:44%;background:#ec4899;animation-delay:.35s}",
-    ".gs-confetti i:nth-child(5){left:57%;background:#4f46e5;animation-delay:.15s}.gs-confetti i:nth-child(6){left:69%;background:#f59e0b;animation-delay:.4s}",
-    ".gs-confetti i:nth-child(7){left:82%;background:#12a150;animation-delay:.2s}.gs-confetti i:nth-child(8){left:93%;background:#6d28d9;animation-delay:.3s}",
+    ".gs-confetti i:nth-child(5){left:57%;background:#036b4d;animation-delay:.15s}.gs-confetti i:nth-child(6){left:69%;background:#f59e0b;animation-delay:.4s}",
+    ".gs-confetti i:nth-child(7){left:82%;background:#12a150;animation-delay:.2s}.gs-confetti i:nth-child(8){left:93%;background:#047857;animation-delay:.3s}",
     "@keyframes gsFall{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(90px) rotate(260deg)}}",
     "@media (prefers-reduced-motion:reduce){.gs-confetti{display:none}.gs-ring-fg{transition:none}}",
     "@media (max-width:720px){.gs-list{grid-template-columns:1fr}}",
@@ -296,6 +296,12 @@
     // trial: "Open" on a sample event / the builder also ticks the step (the page itself ticks it too)
     card.querySelectorAll("a.gs-go[data-mark]").forEach((a) => a.addEventListener("click", () => {
       try { if (store.auth && store.auth.markTrialStep) store.auth.markTrialStep(a.dataset.mark).catch(() => {}); } catch (e) {}
+    }));
+    // audit 8: a "quotes?new=1" Start link carries a one-time nonce, so the Quotes page opens its
+    // "Start a new quote?" dialog only for Helm's own link (never creates by itself)
+    card.querySelectorAll("a.gs-go").forEach((a) => a.addEventListener("click", () => {
+      const NQ = global.HelmNewQuote, h = a.getAttribute("href") || "";
+      if (NQ && NQ.isNewQuoteHref && NQ.isNewQuoteHref(h)) a.setAttribute("href", NQ.arm(h));
     }));
     card.querySelector("#gsDismiss").addEventListener("click", async (e) => {
       const btn = e.currentTarget; btn.disabled = true;

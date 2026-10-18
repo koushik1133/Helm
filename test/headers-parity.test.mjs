@@ -97,7 +97,9 @@ paths.push(...BRANDED);
 // 0067 pretty studio URLs: same headers as the page they serve
 const PRETTY = ['/sharma-events/dashboard', '/sharma-events/quotes', '/sharma-events/leads', '/sharma-events/chat', '/sharma-events/settings',
   '/sharma-events/events/EVT-0912', '/sharma-events/events/EVT-0912/floor-plan', '/sharma-events/events/EVT-0912/tasks',
-  '/sharma-events/clients/priya-sharma-cafe1234', '/sharma-events/booklet/tok-123'];
+  '/sharma-events/clients/priya-sharma-cafe1234', '/sharma-events/booklet/tok-123',
+  // la-1018: relative event.html / builder.html links opened under a studio path
+  '/sharma-events/event', '/sharma-events/builder'];
 paths.push(...PRETTY);
 
 for (const p of paths) {

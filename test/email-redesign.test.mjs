@@ -27,7 +27,7 @@ for (const k of names) {
   const h = r('docs/ops/email-templates/' + k + '.html');
   ok(h.includes('{{ .Email }}'), k + ' email var');
   if (k === 'reauthentication') ok(h.includes('{{ .Token }}') && !h.includes('ConfirmationURL'), k + ' token only');
-  else ok((h.match(/\{\{ \.ConfirmationURL \}\}/g) || []).length >= 3, k + ' button + fallback');
+  else ok(!h.includes('ConfirmationURL') && (h.match(/\{\{ \.SiteURL \}\}\/auth\/confirm\?token_hash=\{\{ \.TokenHash \}\}/g) || []).length >= 3, k + ' button + fallback (own domain, 0205)');
   ok(!/6d28d9|6C4CF1|Helm<span/i.test(h), k + ' old purple "Helm." gone');
 }
 ok(r('docs/ops/email-templates/change-email.html').includes('{{ .NewEmail }}'), 'change-email shows new address');

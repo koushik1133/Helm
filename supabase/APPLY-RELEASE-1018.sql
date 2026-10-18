@@ -32,13 +32,16 @@
 --   25  APPLY-0200.sql                   Client booklet "Send to client" (queued e-mail / WhatsApp; free trial = skipped).
 --   26  APPLY-0201.sql                   Release integration fix: sign-up keeps the one-trial-per-e-mail guard; retention list knows group contacts.
 --   27  APPLY-0202.sql                   Trial sample events get the client's requirements (Must-have / Nice-to-have / Optional); new sample version.
---   28  APPLY-0178-refresh-trials.sql    LAST: every existing FREE-TRIAL studio is refreshed to the newest sample (its sample rows re-cloned, its own rows kept).
+--   28  APPLY-0203.sql                   Free-trial server gates: no client greeting, fixed sample menu dishes, no activity log, no template edits, checkout says "trial".
+--   29  APPLY-0204.sql                   Signed-out (anon) API tidy: no table grants / "to public" studio policies on 6 tables (link pages use their own functions).
+--   30  APPLY-0205.sql                   Team invitations: a brand-new invitee can always join (service-role helpers for the invite edge functions).
+--   31  APPLY-0178-refresh-trials.sql    LAST: every existing FREE-TRIAL studio is refreshed to the newest sample (its sample rows re-cloned, its own rows kept).
 -- Rows are only written where a section says so: FIX-0177 (India defaults on existing FREE-TRIAL studios),
 -- 0199 (fills EMPTY event budget / guest values from the other copy - never overwrites a value that is there),
 -- 0182 / 0202 (the sample master studio only: builder rates, sample event requirements, one new sample version)
 -- and, LAST, REFRESH-0178 (each existing FREE-TRIAL studio's SAMPLE rows are cleared and cloned again from the
 -- newest sample; the studio's own rows are kept). Paid studios are not changed. Everything else is functions,
--- triggers, new tables and nullable columns.
+-- triggers, policies, grants, new tables and nullable columns.
 -- Nothing is deleted outside the trial sample refresh: the trial retention deletion (0184) is installed
 -- SWITCHED OFF.
 -- Safe to paste twice: every section is idempotent (the second paste changes nothing).
@@ -50,7 +53,7 @@
 -- docs/release/RELEASE-1018-OWNER-STEPS.md.
 
 -- ##########################################################################################
--- RELEASE SECTION 01/28: APPLY-0173.sql
+-- RELEASE SECTION 01/31: APPLY-0173.sql
 -- In plain words: Free-trial lockdown: 2 own rows per main list, no new catalog items, no studio-settings / export changes; paid studios unchanged.
 -- ##########################################################################################
 -- APPLY-0173.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -270,7 +273,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 02/28: APPLY-0174.sql
+-- RELEASE SECTION 02/31: APPLY-0174.sql
 -- In plain words: Every trial seed ("Load demo data", sign-up) uses the CURRENT published sample, never the old built-in demo.
 -- ##########################################################################################
 -- APPLY-0174.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -385,7 +388,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 03/28: APPLY-0175.sql
+-- RELEASE SECTION 03/31: APPLY-0175.sql
 -- In plain words: Trial sample gets the owner's 3 layout templates (one theatre sample archived, never deleted).
 -- ##########################################################################################
 -- APPLY-0175.sql - paste into the Supabase SQL editor (STAGING first; production only when the owner says go).
@@ -455,7 +458,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 04/28: APPLY-0176.sql
+-- RELEASE SECTION 04/31: APPLY-0176.sql
 -- In plain words: Trial client portal: "Skip OTP" for the test client, and the trial event shows confirmed after it.
 -- ##########################################################################################
 -- APPLY-0176.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -583,7 +586,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 05/28: APPLY-0177.sql
+-- RELEASE SECTION 05/31: APPLY-0177.sql
 -- In plain words: Free trial is India only: new trials land on INR / Asia/Kolkata / GST and stay there.
 -- ##########################################################################################
 -- APPLY-0177.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -674,7 +677,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 06/28: APPLY-0179.sql
+-- RELEASE SECTION 06/31: APPLY-0179.sql
 -- In plain words: No real client message from a free-trial studio (approval code, WhatsApp, e-mail); seat limit admin + 2.
 -- ##########################################################################################
 -- APPLY-0179.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -988,7 +991,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 07/28: APPLY-0180.sql
+-- RELEASE SECTION 07/31: APPLY-0180.sql
 -- In plain words: Trial sign-up: every new trial starts WITH the sample data + India defaults + the welcome tour.
 -- ##########################################################################################
 -- APPLY-0180.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -1199,7 +1202,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 08/28: APPLY-0181.sql
+-- RELEASE SECTION 08/31: APPLY-0181.sql
 -- In plain words: More free-trial server guards: layout templates, reminder days, privacy PIN, custom fields; 2 created in total per list.
 -- ##########################################################################################
 -- APPLY-0181.sql - paste into the Supabase SQL editor (staging first, then production). Needs 0173 applied first.
@@ -1500,7 +1503,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 09/28: APPLY-0182.sql
+-- RELEASE SECTION 09/31: APPLY-0182.sql
 -- In plain words: Trial layout builder prices items at the owner's inventory rates (chair 100).
 -- ##########################################################################################
 -- APPLY-0182.sql - paste into the Supabase SQL editor (STAGING first; production only when the owner says go).
@@ -1719,7 +1722,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 10/28: APPLY-0183.sql
+-- RELEASE SECTION 10/31: APPLY-0183.sql
 -- In plain words: An ended, unpaid free trial is read-only for everyone.
 -- ##########################################################################################
 -- APPLY-0183.sql - paste into the Supabase SQL editor (staging first, then production, when the owner says go).
@@ -2076,7 +2079,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 11/28: APPLY-0184.sql
+-- RELEASE SECTION 11/31: APPLY-0184.sql
 -- In plain words: Trial data retention: upgrade reminder 7 days after the trial ends; deletion stays SWITCHED OFF.
 -- ##########################################################################################
 -- APPLY-0184.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -3039,7 +3042,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 12/28: APPLY-0185.sql
+-- RELEASE SECTION 12/31: APPLY-0185.sql
 -- In plain words: Upgrade data choice: keep / remove sample data, or start clean (archive, never delete).
 -- ##########################################################################################
 -- APPLY-0185.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -3605,7 +3608,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 13/28: APPLY-0186.sql
+-- RELEASE SECTION 13/31: APPLY-0186.sql
 -- In plain words: One free trial per studio / e-mail; one trial extension that only Helm HQ can grant.
 -- ##########################################################################################
 -- APPLY-0186.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -4027,7 +4030,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 14/28: APPLY-0187.sql
+-- RELEASE SECTION 14/31: APPLY-0187.sql
 -- In plain words: Ended trials queue no payment reminders; no real Razorpay link from a trial studio.
 -- ##########################################################################################
 -- APPLY-0187.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -4171,7 +4174,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 15/28: FIX-0177-existing-trials.sql
+-- RELEASE SECTION 15/31: FIX-0177-existing-trials.sql
 -- In plain words: Existing free-trial studios corrected to the India defaults (5 columns of trial studios only).
 -- ##########################################################################################
 -- FIX-0177-existing-trials.sql - OWNER-RUN, after APPLY-0177.sql. Staging first, then production.
@@ -4215,7 +4218,7 @@ select o.id, o.name, o.currency, o.timezone, o.country, o.tax_region
    and (o.currency <> 'INR' or o.timezone <> 'Asia/Kolkata' or o.country is distinct from 'IN' or o.trial_region is distinct from 'IN');
 
 -- ##########################################################################################
--- RELEASE SECTION 16/28: APPLY-0189.sql
+-- RELEASE SECTION 16/31: APPLY-0189.sql
 -- In plain words: One quote status label everywhere ("sent - awaiting client approval" until the client approves).
 -- ##########################################################################################
 -- APPLY-0189.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -4545,7 +4548,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 17/28: APPLY-0190.sql
+-- RELEASE SECTION 17/31: APPLY-0190.sql
 -- In plain words: Faster free-trial sign-up and sample clone (stays far inside the 8 second API limit).
 -- ##########################################################################################
 -- APPLY-0190.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -4925,7 +4928,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 18/28: APPLY-0192.sql
+-- RELEASE SECTION 18/31: APPLY-0192.sql
 -- In plain words: Menu packages: the database refuses a cleared / zero price or an active package with no dishes.
 -- ##########################################################################################
 -- APPLY-0192.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5065,7 +5068,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 19/28: APPLY-0194.sql
+-- RELEASE SECTION 19/31: APPLY-0194.sql
 -- In plain words: Event group "Add people": staff / vendors / client as group contacts (nothing is sent).
 -- ##########################################################################################
 -- APPLY-0194.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5295,7 +5298,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 20/28: APPLY-0195.sql
+-- RELEASE SECTION 20/31: APPLY-0195.sql
 -- In plain words: Invitation website "Send to client" (queued e-mail / WhatsApp; free trial = skipped).
 -- ##########################################################################################
 -- APPLY-0195.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5658,7 +5661,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 21/28: APPLY-0196.sql
+-- RELEASE SECTION 21/31: APPLY-0196.sql
 -- In plain words: Budget & margin from the client's requirements (4 nullable columns on event_costs, no row changed).
 -- ##########################################################################################
 -- APPLY-0196.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5774,7 +5777,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 22/28: APPLY-0197.sql
+-- RELEASE SECTION 22/31: APPLY-0197.sql
 -- In plain words: Over-capacity decision on a quote + stock-shortage sourcing on "Reserve for this event".
 -- ##########################################################################################
 -- APPLY-0197.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -6095,7 +6098,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 23/28: APPLY-0198.sql
+-- RELEASE SECTION 23/31: APPLY-0198.sql
 -- In plain words: Event stages: no closing before the event day, Cancel event, calendar conflict acknowledgements.
 -- ##########################################################################################
 -- APPLY-0198.sql - paste into the Supabase SQL editor (staging first, then production), AFTER the trial bundle (0179-0186).
@@ -6620,7 +6623,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 24/28: APPLY-0199.sql
+-- RELEASE SECTION 24/31: APPLY-0199.sql
 -- In plain words: Budget + guests single source: the quote leads; EMPTY lead / discovery values are filled, never overwritten.
 -- ##########################################################################################
 -- APPLY-0199.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -6866,7 +6869,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 25/28: APPLY-0200.sql
+-- RELEASE SECTION 25/31: APPLY-0200.sql
 -- In plain words: Client booklet "Send to client" (queued e-mail / WhatsApp; free trial = skipped).
 -- ##########################################################################################
 -- APPLY-0200.sql - paste into the Supabase SQL editor (staging first, then production). Apply 0195 first.
@@ -7241,7 +7244,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 26/28: APPLY-0201.sql
+-- RELEASE SECTION 26/31: APPLY-0201.sql
 -- In plain words: Release integration fix: sign-up keeps the one-trial-per-e-mail guard; retention list knows group contacts.
 -- ##########################################################################################
 -- APPLY-0201.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -7436,7 +7439,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 27/28: APPLY-0202.sql
+-- RELEASE SECTION 27/31: APPLY-0202.sql
 -- In plain words: Trial sample events get the client's requirements (Must-have / Nice-to-have / Optional); new sample version.
 -- ##########################################################################################
 -- APPLY-0202.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -7674,7 +7677,650 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 28/28: APPLY-0178-refresh-trials.sql
+-- RELEASE SECTION 28/31: APPLY-0203.sql
+-- In plain words: Free-trial server gates: no client greeting, fixed sample menu dishes, no activity log, no template edits, checkout says "trial".
+-- ##########################################################################################
+-- APPLY-0203.sql - paste into the Supabase SQL editor (staging first, then production).
+-- Free-trial server gates (trial studios only; paid studios unchanged):
+--   * no greeting to a client from a trial studio: "Send greeting" refused ("Greetings are sent once you
+--     choose a plan."), "Run today's greetings" / the automatic run does nothing, automatic greetings cannot
+--     be switched on, the occasions list shows auto-greet as off;
+--   * menu packages: only the price per plate changes in the trial (the dish list is fixed);
+--   * the activity log (audit_log) is not readable by a trial studio (or an ended, unpaid one);
+--   * checklist / task templates cannot be added / changed / removed in the trial;
+--   * my_checkout_status() says "trial" (has_subscription false) instead of "subscribed" for a trial.
+-- Run it AFTER the trial bundle (APPLY-TRIAL-BUNDLE.sql: 0173 .. 0187) is applied.
+-- What it touches: queue_nurture_greeting / run_nurture_auto / nurture_due wrapped (old bodies kept as
+-- <name>__pre0202, no app grants), audit_actor_names + my_checkout_status re-issued (same signature +
+-- grants), 4 triggers, 1 restrictive policy, 2 helpers. No table or column is created, changed or
+-- dropped; no row is written or deleted. Safe to run twice.
+begin;
+-- 0203_trial_gates.sql - CANONICAL forward-only.
+-- REQUIRES 0173 (_tl173_trial_locked), 0166 (_is_trial_org), 0179 (_tb179_no_send), 0183 (_trial_locked,
+--          status-based), 0159 (my_checkout_status + _studio_payment_pending), 0181 (catalog = prices only),
+--          base nurture (nurture_due / queue_nurture_greeting / run_nurture_auto / nurture_automation),
+--          phase26 templates (checklist_templates / task_templates), phase47 audit_log.
+--
+-- In plain words (FREE TRIAL studios only: studio_subscriptions.status 'trial' via _is_trial_org /
+-- _tl173_trial_locked, never organizations.trial_ends_at; a paid studio never reaches any new check):
+--   1  Greetings (Nurture): a trial studio sends no greeting to a client.
+--        * "Send greeting" (queue_nurture_greeting) is refused: "Greetings are sent once you choose a plan."
+--          (42501, hint trial_no_send).
+--        * "Run today's greetings" / the automatic run (run_nurture_auto) does nothing and returns 0.
+--        * Automatic greetings cannot be switched ON from the app (nurture_automation.enabled); switching
+--          them off still works.
+--        * The upcoming-occasions list (nurture_due) still shows the sample contacts, with auto-greet
+--          shown as off.
+--        The same rule as 0179 (_tb179_no_send): free trial, ended unpaid trial and the sample master.
+--   2  Menu packages: in the trial only the price per plate changes. A package's dish list can no
+--      longer be changed from the app (0181 still allowed it; new dishes had a back door through the
+--      package text box). Helm's own functions (trial seed, clone, Clear sample data) are unchanged.
+--   3  Activity log: a trial studio cannot read audit_log (new RESTRICTIVE select policy) and the
+--      audit page's name lookup (audit_actor_names) returns nothing for it. Free trial or ended unpaid
+--      trial; the sample master and paid studios unchanged.
+--   4  Templates are not part of the trial: a trial studio cannot add, change or remove checklist /
+--      task templates from the app (the sample templates stay readable, so the sample events work).
+--   5  Checkout status: my_checkout_status() said has_subscription = true / reason 'subscribed' for a
+--      studio on its free trial (the trial row IS a studio_subscriptions row). It now says
+--      has_subscription = false, trial = true and reason 'trial' (or 'trial_ended' for an ended,
+--      unpaid trial). "required" is unchanged, so nobody is sent to /checkout who was not before.
+--   Already refused on the server before this file (kept, re-tested in tests/db/trial-gates-0203.sql):
+--   data export + studio archive, Excel / CSV smart import (staff / menu / inventory / vendors), photo
+--   render (0173); the inventory "Load starter items" bulk insert is held by the 2-per-list cap (0181).
+--
+-- Changes: 3 functions wrapped (originals kept as <name>__pre0202, no app grants), 2 functions
+-- re-issued with the same signature + grants (audit_actor_names, my_checkout_status), 4 invoker
+-- triggers, 1 restrictive policy, 2 small helpers. No table or column is created, changed or dropped;
+-- no row is written, deleted or rewritten. Additive + idempotent: safe to run twice. ASCII only.
+-- ROLLBACK (manual, only if ever needed; no data involved): for each wrapped f: drop function
+-- public.f(args); alter function public.f__pre0202(args) rename to f; grant execute on it to
+-- authenticated, service_role; drop the zzzz_tl202_* triggers; drop policy tl202_trial_no_read on
+-- public.audit_log; re-run 0159 section 4 (my_checkout_status) and 0041 (audit_actor_names).
+
+do $$ begin
+  if to_regprocedure('public._tl173_trial_locked(uuid)') is null then raise exception 'STOP: 0173 (trial lockdown) is not applied'; end if;
+  if to_regprocedure('public._is_trial_org(uuid)') is null then raise exception 'STOP: 0166 (_is_trial_org) is not applied'; end if;
+  if to_regprocedure('public._tb179_no_send(uuid)') is null then raise exception 'STOP: 0179 (_tb179_no_send) is not applied'; end if;
+  if to_regprocedure('public._trial_locked(uuid)') is null then raise exception 'STOP: 0183 (_trial_locked) is not applied'; end if;
+  if to_regprocedure('public._studio_payment_pending(uuid)') is null then raise exception 'STOP: 0159 (_studio_payment_pending) is not applied'; end if;
+  if to_regprocedure('public.queue_nurture_greeting(uuid)') is null or to_regprocedure('public.run_nurture_auto(integer)') is null
+     or to_regprocedure('public.nurture_due(integer)') is null then raise exception 'STOP: nurture functions are missing'; end if;
+end $$;
+
+-- ---- helpers ----------------------------------------------------------------------------------------
+create or replace function public._tl202_no_send(p_org uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  -- trial-gates-0203: free trial / ended unpaid trial / sample master never greets a client (0179 rule)
+  select coalesce(public._tb179_no_send(p_org), false);
+$$;
+
+create or replace function public._tl202_caller_trial()
+returns boolean language sql stable security definer set search_path = '' as $$
+  -- trial-gates-0203: the caller's studio is on its free trial or an ended, unpaid free trial
+  -- (status-based; the sample master and paid studios -> false). Used by the audit_log policy.
+  select coalesce(public._tl173_trial_locked(public.current_org_id()), false)
+      or coalesce(public._trial_locked(public.current_org_id()), false);
+$$;
+
+-- ---- 1) nurture: keep the originals once, then wrap ---------------------------------------------------
+do $$
+declare f text; v_name text; v_idargs text;
+begin
+  foreach f in array array['public.queue_nurture_greeting(uuid)', 'public.run_nurture_auto(integer)', 'public.nurture_due(integer)'] loop
+    select p.proname, oidvectortypes(p.proargtypes) into v_name, v_idargs from pg_proc p where p.oid = to_regprocedure(f);
+    if to_regprocedure(format('public.%I(%s)', v_name || '__pre0202', v_idargs)) is null then
+      -- first run only: the original moves to __pre0202 (its grants go with it and are removed below)
+      execute format('alter function public.%I(%s) rename to %I', v_name, v_idargs, v_name || '__pre0202');
+    end if;
+  end loop;
+end $$;
+
+create or replace function public.queue_nurture_greeting(p_id uuid)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- trial-gates-0203: no greeting to a client from a free-trial studio, then the original
+begin
+  if public._tl202_no_send(public.current_org_id()) then
+    raise exception 'Greetings are sent once you choose a plan.' using errcode = '42501', hint = 'trial_no_send';
+  end if;
+  return public.queue_nurture_greeting__pre0202(p_id);
+end $$;
+
+create or replace function public.run_nurture_auto(p_within_days integer default null::integer)
+returns integer language plpgsql volatile security definer set search_path = '' as $$
+-- trial-gates-0203: automatic greetings are off in the free trial (nothing queued), then the original
+begin
+  if public._tl202_no_send(public.current_org_id()) then return 0; end if;
+  return public.run_nurture_auto__pre0202(p_within_days);
+end $$;
+
+create or replace function public.nurture_due(p_within_days integer default 30)
+returns table(id uuid, name text, email text, phone text, occasion text, occasion_type text, occasion_date date,
+              next_date date, years integer, auto_on boolean, greeted_this_year boolean, quote_id uuid, last_event text)
+language plpgsql stable security definer set search_path = '' as $$
+-- trial-gates-0203: same list; in the free trial auto-greet shows as off (nothing is sent automatically)
+declare v_off boolean := public._tl202_no_send(public.current_org_id());
+begin
+  return query
+    select d.id, d.name, d.email, d.phone, d.occasion, d.occasion_type, d.occasion_date, d.next_date, d.years,
+           (d.auto_on and not v_off), d.greeted_this_year, d.quote_id, d.last_event
+      from public.nurture_due__pre0202(p_within_days) d;
+end $$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['public.queue_nurture_greeting(uuid)', 'public.run_nurture_auto(integer)', 'public.nurture_due(integer)'] loop
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('grant execute on function %s to authenticated', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'service_role') then execute format('grant execute on function %s to service_role', f); end if;
+  end loop;
+  -- the kept originals: definer only (the wrappers call them)
+  foreach f in array array['public.queue_nurture_greeting__pre0202(uuid)', 'public.run_nurture_auto__pre0202(integer)', 'public.nurture_due__pre0202(integer)'] loop
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f); end if;
+  end loop;
+end $$;
+
+-- automatic greetings cannot be switched ON from the app in the free trial (off stays possible)
+create or replace function public._tl202_tg_nurture_auto()
+returns trigger language plpgsql set search_path = '' as $$
+-- trial-gates-0203: SECURITY INVOKER on purpose (current_user = the app role); Helm's own functions
+-- (trial seed / clone) are not checked
+begin
+  if current_user not in ('anon', 'authenticated') then return new; end if;
+  if coalesce(new.enabled, false) and (tg_op = 'INSERT' or not coalesce(old.enabled, false))
+     and public._tl173_trial_locked(new.org_id) then
+    raise exception 'Automatic greetings start once you choose a plan.' using errcode = '42501', hint = 'trial_no_send';
+  end if;
+  return new;
+end $$;
+
+do $$ begin
+  if to_regclass('public.nurture_automation') is not null
+     and not exists (select 1 from pg_trigger where tgrelid = 'public.nurture_automation'::regclass and tgname = 'zzzz_tl202_nurture_auto') then
+    create trigger zzzz_tl202_nurture_auto before insert or update on public.nurture_automation
+      for each row execute function public._tl202_tg_nurture_auto();
+  end if;
+end $$;
+
+-- ---- 2) menu packages: the dish list is fixed in the free trial (price per plate stays editable) ----------
+create or replace function public._tl202_tg_menu_dishes()
+returns trigger language plpgsql set search_path = '' as $$
+-- trial-gates-0203: SECURITY INVOKER on purpose (current_user = the app role). Only direct app edits are
+-- checked; Helm's own functions (trial seed, clone, Clear sample data) still change the dishes.
+begin
+  if current_user not in ('anon', 'authenticated') then return new; end if;
+  if new.dishes is distinct from old.dishes and public._tl173_trial_locked(old.org_id) then
+    raise exception 'In the free trial you can change the price per plate, but not the dishes in a package. Upgrade to change them.'
+      using errcode = '42501', hint = 'trial_locked';
+  end if;
+  return new;
+end $$;
+
+do $$ begin
+  if to_regclass('public.menu_templates') is not null
+     and not exists (select 1 from pg_trigger where tgrelid = 'public.menu_templates'::regclass and tgname = 'zzzz_tl202_menu_dishes') then
+    create trigger zzzz_tl202_menu_dishes before update on public.menu_templates
+      for each row execute function public._tl202_tg_menu_dishes();
+  end if;
+end $$;
+
+-- ---- 3) activity log: not readable in the free trial --------------------------------------------------
+do $$ begin
+  if not exists (select 1 from pg_policy where polrelid = 'public.audit_log'::regclass and polname = 'tl202_trial_no_read') then
+    create policy tl202_trial_no_read on public.audit_log as restrictive for select to authenticated
+      using (not (select public._tl202_caller_trial()));
+  end if;
+end $$;
+
+-- the audit page's "who is who" lookup: same body as 0041 + nothing for a trial studio
+create or replace function public.audit_actor_names()
+returns table(id uuid, full_name text, email text) language sql stable security definer set search_path = '' as $$
+  -- trial-gates-0203 (body of 0041 + the free-trial check)
+  select p.id, p.full_name, p.email
+    from public.profiles p
+   where auth.uid() is not null
+     and p.org_id = public.current_org_id()
+     and (public.is_admin() or public.has_area('controls', 'view'))
+     and not public._tl202_caller_trial()
+   order by p.id;
+$$;
+
+-- ---- 4) checklist / task templates: not part of the free trial ----------------------------------------
+create or replace function public._tl202_tg_templates()
+returns trigger language plpgsql set search_path = '' as $$
+-- trial-gates-0203: SECURITY INVOKER on purpose (current_user = the app role); Helm's own functions are
+-- not checked, reading is unchanged (the sample events keep their checklists)
+declare v_org uuid;
+begin
+  if tg_op = 'DELETE' then v_org := old.org_id; else v_org := new.org_id; end if;
+  if current_user in ('anon', 'authenticated') and public._tl173_trial_locked(v_org) then
+    raise exception 'Templates are not part of the free trial. Upgrade to make your own templates.'
+      using errcode = '42501', hint = 'trial_locked';
+  end if;
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
+end $$;
+
+do $$ declare t text; begin
+  foreach t in array array['checklist_templates', 'task_templates'] loop
+    if to_regclass('public.' || t) is not null
+       and not exists (select 1 from pg_trigger where tgrelid = format('public.%I', t)::regclass and tgname = 'zzzz_tl202_templates') then
+      execute format('create trigger zzzz_tl202_templates before insert or update or delete on public.%I for each row execute function public._tl202_tg_templates()', t);
+    end if;
+  end loop;
+end $$;
+
+-- ---- 5) checkout status: a free trial is not a subscription -------------------------------------------
+create or replace function public.my_checkout_status()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+-- direct-studio-0159 + trial-gates-0203: has_subscription / reason say "trial" for a studio on its free
+-- trial (or an ended, unpaid one); "required" is exactly as in 0159
+declare v_org uuid := public.current_org_id(); b public.helm_billing_settings; s public.studio_subscriptions;
+  v_admin boolean := coalesce(public.is_admin(), false); v_created timestamptz; v_pending boolean;
+  v_trial boolean; v_ended boolean;
+begin
+  if v_org is null then return jsonb_build_object('required', false, 'reason', 'no_studio'); end if;
+  select * into b from public.helm_billing_settings where id;
+  select * into s from public.studio_subscriptions where org_id = v_org;
+  select o.created_at into v_created from public.organizations o where o.id = v_org;
+  v_pending := public._studio_payment_pending(v_org);
+  v_trial := s.org_id is not null and s.status = 'trial';
+  v_ended := s.org_id is not null and not v_trial and coalesce(public._trial_locked(v_org), false);
+  return jsonb_build_object(
+    'required', v_admin and (v_pending or (s.org_id is null and b.checkout_required_after is not null
+                and coalesce(v_created, '-infinity'::timestamptz) >= b.checkout_required_after)),
+    'is_admin', v_admin, 'has_subscription', s.org_id is not null and not v_trial and not v_ended,
+    'trial', v_trial or v_ended,
+    'status', s.status, 'pending_payment', v_pending,
+    'reason', case when not v_admin then 'member' when v_pending then 'pending_payment'
+                   when v_trial then 'trial'
+                   when v_ended then 'trial_ended'
+                   when s.org_id is not null then 'subscribed'
+                   when b.checkout_required_after is null or coalesce(v_created, '-infinity'::timestamptz) < b.checkout_required_after then 'existing_studio'
+                   else 'needs_checkout' end);
+end $$;
+
+-- ---- privileges --------------------------------------------------------------------------------------
+do $$
+declare f text;
+begin
+  foreach f in array array['public._tl202_no_send(uuid)', 'public._tl202_caller_trial()', 'public._tl202_tg_nurture_auto()',
+                           'public._tl202_tg_menu_dishes()', 'public._tl202_tg_templates()',
+                           'public.audit_actor_names()', 'public.my_checkout_status()'] loop
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f); end if;
+  end loop;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    grant execute on function public._tl202_caller_trial() to authenticated;   -- the audit_log policy asks it
+    grant execute on function public.audit_actor_names() to authenticated;
+    grant execute on function public.my_checkout_status() to authenticated;
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant execute on function public.audit_actor_names() to service_role;
+    grant execute on function public.my_checkout_status() to service_role;
+  end if;
+end $$;
+
+notify pgrst, 'reload schema';
+commit;
+
+-- VERIFY (every row should say ok = true)
+select item, ok from (values
+  ('01 nurture wrappers in place (trial check), old bodies kept',
+     position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.queue_nurture_greeting(uuid)')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.run_nurture_auto(integer)')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.nurture_due(integer)')), '')) > 0
+     and to_regprocedure('public.queue_nurture_greeting__pre0202(uuid)') is not null
+     and to_regprocedure('public.run_nurture_auto__pre0202(integer)') is not null
+     and to_regprocedure('public.nurture_due__pre0202(integer)') is not null),
+  ('02 wrappers: signed-in users only; kept bodies not callable by the app',
+     has_function_privilege('authenticated', 'public.queue_nurture_greeting(uuid)', 'execute')
+     and has_function_privilege('authenticated', 'public.run_nurture_auto(integer)', 'execute')
+     and has_function_privilege('authenticated', 'public.nurture_due(integer)', 'execute')
+     and not has_function_privilege('anon', 'public.queue_nurture_greeting(uuid)', 'execute')
+     and not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like '%\_\_pre0202'
+                      and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')))),
+  ('03 triggers: nurture automation, menu dishes, 2 template tables',
+     exists (select 1 from pg_trigger where tgrelid = 'public.nurture_automation'::regclass and tgname = 'zzzz_tl202_nurture_auto')
+     and exists (select 1 from pg_trigger where tgrelid = 'public.menu_templates'::regclass and tgname = 'zzzz_tl202_menu_dishes')
+     and exists (select 1 from pg_trigger where tgrelid = 'public.checklist_templates'::regclass and tgname = 'zzzz_tl202_templates')
+     and exists (select 1 from pg_trigger where tgrelid = 'public.task_templates'::regclass and tgname = 'zzzz_tl202_templates')),
+  ('04 activity log: restrictive trial policy',
+     exists (select 1 from pg_policy where polrelid = 'public.audit_log'::regclass and polname = 'tl202_trial_no_read' and not polpermissive)),
+  ('05 checkout status + audit names re-issued (trial aware), grants kept',
+     position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_checkout_status()')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.audit_actor_names()')), '')) > 0
+     and has_function_privilege('authenticated', 'public.my_checkout_status()', 'execute')
+     and not has_function_privilege('anon', 'public.my_checkout_status()', 'execute')
+     and has_function_privilege('authenticated', 'public.audit_actor_names()', 'execute')),
+  ('06 helpers internal (policy helper excepted)',
+     not has_function_privilege('authenticated', 'public._tl202_no_send(uuid)', 'execute')
+     and not has_function_privilege('anon', 'public._tl202_caller_trial()', 'execute')),
+  ('07 paid studios: never trial-gated',
+     not exists (select 1 from public.studio_subscriptions s where s.status = 'active' and (public._tl202_no_send(s.org_id) or public._tl173_trial_locked(s.org_id))))
+) v(item, ok) order by item;
+
+-- ##########################################################################################
+-- RELEASE SECTION 29/31: APPLY-0204.sql
+-- In plain words: Signed-out (anon) API tidy: no table grants / "to public" studio policies on 6 tables (link pages use their own functions).
+-- ##########################################################################################
+-- APPLY-0204.sql - paste into the Supabase SQL editor (staging first, then production).
+-- Security tidy from the 2026-10-18 live audit: a signed-out (anon key) API call on profiles, layouts,
+-- venues, client booklets, coupons or invitation sites now gets a plain "permission denied for table"
+-- instead of an error that names the internal function current_org_id. No data was ever exposed (row
+-- level security already showed rows only to signed-in members of the same studio).
+-- What it touches: anon loses its table privileges on those six tables (signed-out pages never read them
+-- directly - they use the public link functions, which are unchanged) and 14 studio-only policies on them
+-- now name "authenticated" instead of "public" (their rules are NOT changed). No table, column, function
+-- or row is created, changed or deleted. Paid and trial studios behave exactly as before. Safe to run twice.
+-- Run order: any time after the trial bundle (it does not depend on 0173-0187).
+begin;
+-- 0204_anon_grant_tidy.sql - CANONICAL forward-only. REQUIRES 0004 (current_org_id), phase57 RLS.
+--
+-- In plain words (live audit 2026-10-18, security gaps "anonymous API errors name internal objects"):
+-- with only the public (anon) key, a direct API read of a few studio tables answered
+--   "permission denied for function current_org_id"   (profiles, layouts, client_booklets, coupons,
+--                                                      event_sites)
+-- and venues answered with a GRANT hint. The data was never exposed: every one of those tables only
+-- shows a row to a signed-in member of the same studio (row level security). But the anon role still
+-- held table privileges on them, so the database evaluated the studio rule for an anonymous caller
+-- and the error named an internal function.
+--
+-- Nobody signed out ever reads those tables directly: the public pages (client quote / approve page,
+-- client booklet, invitation sites /i/<slug>, portal, worker link, invite accept) all go through
+-- SECURITY DEFINER functions (public_get_quote, public_get_booklet, public_event_site, ...), which run
+-- as the table owner and are not affected by anon table privileges. So this migration takes the anon
+-- table privileges away and points the studio-only policies at signed-in callers:
+--   1) REVOKE ALL ... FROM anon on profiles, layouts, venues, client_booklets, coupons, event_sites;
+--   2) the 14 studio-only PERMISSIVE policies on those tables that were created "to public" now say
+--      "to authenticated" (their USING / WITH CHECK rules are unchanged). An anonymous read now gets a
+--      plain "permission denied for table ..." and never runs current_org_id().
+-- The signed-in role (authenticated), service_role and every function keep exactly what they had.
+-- current_org_id() stays NOT executable by anon (unchanged).
+--
+-- Changes: privileges (REVOKE ... FROM anon) + the role list of 14 policies (public -> authenticated).
+-- No table, column, function or row is created, changed or deleted; no policy rule (USING / WITH CHECK)
+-- is changed; restrictive policies are untouched. Additive in effect (it only narrows what anon may do) + idempotent: safe to run
+-- twice. ASCII only.
+
+do $$ begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then
+    raise notice '0204: no anon role on this database - nothing to do';
+  end if;
+end $$;
+
+-- ---- 1) the named tables -------------------------------------------------------------------------
+do $$ declare t text; begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then return; end if;
+  foreach t in array array['profiles', 'layouts', 'venues', 'client_booklets', 'coupons', 'event_sites'] loop
+    if to_regclass('public.' || t) is not null then
+      execute format('revoke all on table public.%I from anon', t);
+    end if;
+  end loop;
+end $$;
+
+-- ---- 2) studio-only policies apply to signed-in callers only ------------------------------------------
+-- Taking the table privilege away is not enough on its own: PostgreSQL adds a table's row level security
+-- policies for every role they name BEFORE it checks the table privilege, and these policies were created
+-- "to public" (which includes anon). So an anonymous read still ran current_org_id() first and failed
+-- with that function's name. Each policy below only ever lets a signed-in member of the row's studio
+-- through (org_id = current_org_id(), or the caller's own profile row) - anon can never pass any of them -
+-- so it is moved from "public" to "authenticated". USING / WITH CHECK are NOT changed; only the role list.
+-- RESTRICTIVE policies are never touched (moving one could loosen a rule). A policy that does not exist
+-- or no longer names "public" is skipped (another migration changed it - left as it is).
+do $$ declare r record; begin
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then return; end if;
+  for r in
+    select p.tablename, p.policyname
+      from pg_policies p
+      join (values
+        ('profiles', 'profiles_select'),
+        ('layouts', 'layouts_select'), ('layouts', 'layouts_ins'), ('layouts', 'layouts_upd'), ('layouts', 'layouts_del'),
+        ('client_booklets', 'client_booklets_read'),
+        ('coupons', 'coupons_select'), ('coupons', 'coupons_ins'), ('coupons', 'coupons_upd'), ('coupons', 'coupons_del'),
+        ('event_sites', 'event_sites_select'), ('event_sites', 'event_sites_insert'), ('event_sites', 'event_sites_update'),
+        ('event_sites', 'event_sites_delete')
+      ) w(t, pol) on w.t = p.tablename and w.pol = p.policyname
+     where p.schemaname = 'public'
+       and p.permissive = 'PERMISSIVE'
+       and p.roles = array['public']::name[]
+       and (coalesce(p.qual, '') || ' ' || coalesce(p.with_check, '')) ~ 'current_org_id\('
+  loop
+    execute format('alter policy %I on public.%I to authenticated', r.policyname, r.tablename);
+    raise notice '0204: policy %.% now applies to signed-in callers only', r.tablename, r.policyname;
+  end loop;
+end $$;
+
+notify pgrst, 'reload schema';
+commit;
+
+-- VERIFY (every row should say ok = true)
+select item, ok from (values
+  ('01 anon holds no privilege on the six tables',
+     not exists (select 1 from unnest(array['profiles','layouts','venues','client_booklets','coupons','event_sites']) t
+                  where to_regclass('public.' || t) is not null
+                    and (has_table_privilege('anon', 'public.' || t, 'select') or has_table_privilege('anon', 'public.' || t, 'insert')
+                         or has_table_privilege('anon', 'public.' || t, 'update') or has_table_privilege('anon', 'public.' || t, 'delete')))),
+  ('02 no studio-only policy on them still names public/anon',
+     not exists (select 1 from pg_policies where schemaname = 'public'
+                  and tablename in ('profiles','layouts','client_booklets','coupons','event_sites')
+                  and permissive = 'PERMISSIVE' and roles && array['public','anon']::name[]
+                  and (coalesce(qual,'') || coalesce(with_check,'')) ~ 'current_org_id\(')),
+  ('03 the studio rules are unchanged (still require the caller''s studio)',
+     (select count(*) from pg_policies where schemaname = 'public' and roles = array['authenticated']::name[]
+        and (tablename, policyname) in (('profiles','profiles_select'), ('layouts','layouts_select'), ('layouts','layouts_ins'),
+          ('layouts','layouts_upd'), ('layouts','layouts_del'), ('client_booklets','client_booklets_read'), ('coupons','coupons_select'),
+          ('coupons','coupons_ins'), ('coupons','coupons_upd'), ('coupons','coupons_del'), ('event_sites','event_sites_select'),
+          ('event_sites','event_sites_insert'), ('event_sites','event_sites_update'), ('event_sites','event_sites_delete'))
+        and (coalesce(qual,'') || coalesce(with_check,'')) ~ 'current_org_id\(') >= 1),
+  ('04 signed-in role keeps its table privileges',
+     has_table_privilege('authenticated', 'public.profiles', 'select') and has_table_privilege('authenticated', 'public.layouts', 'select')
+     and has_table_privilege('authenticated', 'public.venues', 'select')),
+  ('05 current_org_id still not callable by anon',
+     not has_function_privilege('anon', 'public.current_org_id()', 'execute')),
+  ('06 public link functions still callable by anon (booklet, invitation site)',
+     exists (select 1 from pg_proc where proname = 'public_get_booklet' and pronamespace = 'public'::regnamespace and has_function_privilege('anon', oid, 'execute'))
+     and exists (select 1 from pg_proc where proname = 'public_event_site' and pronamespace = 'public'::regnamespace and has_function_privilege('anon', oid, 'execute')))
+) v(item, ok) order by item;
+
+-- INFO (read-only, not part of ok): any OTHER public table where a policy that applies to signed-out callers
+-- still calls current_org_id() while anon holds SELECT - each would still name that function in an error.
+-- Expected: no rows. If rows appear, send the list to the developer (do not change them by hand).
+select p.tablename, p.policyname
+  from pg_policies p join pg_class c on c.relname = p.tablename and c.relnamespace = 'public'::regnamespace
+ where p.schemaname = 'public' and p.roles && array['public','anon']::name[]
+   and (coalesce(p.qual,'') || coalesce(p.with_check,'')) ~ 'current_org_id\('
+   and has_table_privilege('anon', c.oid, 'select')
+ order by 1, 2;
+
+-- ##########################################################################################
+-- RELEASE SECTION 30/31: APPLY-0205.sql
+-- In plain words: Team invitations: a brand-new invitee can always join (service-role helpers for the invite edge functions).
+-- ##########################################################################################
+-- APPLY-0205.sql - paste into the Supabase SQL editor (staging first, then production).
+-- Fixes the invite dead end: a brand-new invitee whose "Accept invitation" e-mail link was used,
+-- expired or opened while another account was signed in was told "This e-mail already has a Helm
+-- account - sign in instead", although Supabase had created that login WITHOUT a password.
+-- It also lets an EXISTING account's invitation e-mail name the same studio / role / inviter, and lets
+-- an invitee whose invitation EXPIRED ask the studio for a new one (one bell note per 24 h).
+-- What it adds: 4 small functions - invite_account_state, invite_auth_user_id, invite_request_new_link
+-- (service role only: the edge functions invite-signup / invite-mailer) and my_needs_password (the
+-- signed-in person's own login). The only row ever written later is that bell note (insert only).
+-- No table, column, policy or existing function is changed. No DROP / DELETE / UPDATE / TRUNCATE.
+-- Safe to run twice. After it: redeploy the edge functions invite-signup and invite-mailer.
+begin;
+-- 0205_invite_account_state.sql - CANONICAL forward-only.
+-- REQUIRES phase83 (public.invitations) + 0131 (invite e-mails through Supabase Auth).
+--
+-- In plain words (prod bug 2026-10-18, "Join ABCD" invite says "already has a Helm account"):
+--   When a studio invites a NEW e-mail and the invitation goes out through Supabase Auth's own mailer
+--   (invite-mailer without a Resend key), Supabase creates the login (auth.users row) right away,
+--   with NO password. The only way in is the one-time "Accept invitation" link (works once, 24 h).
+--   When that link's sign-in is lost (already used, expired, or opened while another account was
+--   signed in), the join form tried to create the account again and was told "already registered"
+--   -> "sign in instead", although the invitee never had a password.
+--   This file adds small helpers so the app can tell those cases apart (the first three are read-only):
+--     * invite_account_state(token)  - SERVICE ROLE ONLY (edge function invite-signup). For a
+--       pending, unexpired invitation: does its OWN invited e-mail have no login yet ('none'), a
+--       login made by the invitation that still has no password and no Google / other sign-in
+--       ('needs_password'), a self sign-up that was never confirmed ('unconfirmed' - signing in
+--       cannot work yet), or a real account ('existing')? Plus whether that e-mail is confirmed.
+--       Nothing about any other address is ever looked at or returned.
+--     * my_needs_password()          - the signed-in person only: does MY OWN login still have no
+--       password (and no Google / other sign-in)? The login page uses it after an e-mail link to
+--       show "Set your password".
+--     * invite_auth_user_id(token)    - SERVICE ROLE ONLY (invite-mailer): the login id of that
+--       invitation's own e-mail, so the e-mail an existing account gets names the same studio / role.
+--     * invite_request_new_link(token) - SERVICE ROLE ONLY (invite-signup): "Email me a new link" on an
+--       EXPIRED invitation adds ONE bell note per invitation per 24 h for that studio ("<e-mail> asked
+--       for a new invitation link"); the invitation itself is never renewed or changed.
+--   The only row ever written: that bell note (public.notifications, insert only).
+--   No table, column, policy or existing function is changed. No DROP / DELETE / UPDATE.
+--   Safe to run twice.
+
+create or replace function public.invite_account_state(p_token text)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+-- invite-accept-0205: the invited e-mail's login state, for ONE valid invitation token (service role only)
+declare v_inv record; v_u auth.users%rowtype; v_pw text; v_other boolean := false; v_state text;
+begin
+  if p_token is null or p_token !~ '^[0-9a-f]{16,128}$' then
+    return jsonb_build_object('valid', false);
+  end if;
+  select i.id, lower(btrim(coalesce(i.email, ''))) as email, i.status, i.expires_at
+    into v_inv from public.invitations i where i.token = p_token;
+  if v_inv.id is null or v_inv.status is distinct from 'pending' or v_inv.expires_at is null
+     or v_inv.expires_at <= now() or v_inv.email = '' then
+    return jsonb_build_object('valid', false);
+  end if;
+  select u.* into v_u from auth.users u where lower(u.email) = v_inv.email order by u.created_at limit 1;
+  if v_u.id is null then
+    return jsonb_build_object('valid', true, 'account', 'none', 'confirmed', false);
+  end if;
+  v_pw := coalesce(v_u.encrypted_password, '');
+  v_other := exists (select 1 from auth.identities d where d.user_id = v_u.id and coalesce(d.provider, '') <> 'email');
+  if v_other or (to_jsonb(v_u) ->> 'deleted_at') is not null then
+    v_state := 'existing';
+  elsif v_pw <> '' and v_u.email_confirmed_at is null then
+    -- signed up on their own first and never confirmed: signing in cannot work yet ("not confirmed"),
+    -- so the invitee needs a link to that mailbox too (the invite link confirms + signs in)
+    v_state := 'unconfirmed';
+  elsif v_pw <> '' then
+    v_state := 'existing';
+  else
+    v_state := 'needs_password';
+  end if;
+  return jsonb_build_object('valid', true, 'account', v_state, 'confirmed', v_u.email_confirmed_at is not null);
+end $$;
+
+create or replace function public.my_needs_password()
+returns boolean language sql stable security definer set search_path = '' as $$
+  -- invite-accept-0205: the caller's OWN login has no password and no Google / other sign-in
+  select coalesce((
+    select coalesce(u.encrypted_password, '') = ''
+       and not exists (select 1 from auth.identities d where d.user_id = u.id and coalesce(d.provider, '') <> 'email')
+      from auth.users u where u.id = auth.uid()), false);
+$$;
+
+-- the login id of ONE pending, unexpired invitation's own e-mail (null when it has none) - service
+-- role only: invite-mailer refreshes that login's invitation details (studio / role / inviter) so the
+-- Supabase sign-in e-mail an EXISTING account gets reads like the same "Join <studio>" invitation.
+create or replace function public.invite_auth_user_id(p_token text)
+returns uuid language sql stable security definer set search_path = '' as $$
+  -- invite-accept-0205
+  select u.id from public.invitations i
+    join auth.users u on lower(u.email) = lower(btrim(i.email))
+   where p_token ~ '^[0-9a-f]{16,128}$' and i.token = p_token and i.status = 'pending' and i.expires_at > now()
+   order by u.created_at limit 1;
+$$;
+
+-- "Email me a new link" on an EXPIRED invitation: the invitee cannot renew it (only the studio can,
+-- and a renewed invitation must count against the seat limit again), so the studio's bell gets ONE
+-- note per invitation per 24 hours: "<e-mail> asked for a new invitation link". Service role only.
+-- Returns { result: requested | already_requested | not_expired | not_found, studio }.
+create or replace function public.invite_request_new_link(p_token text)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- invite-accept-0205: never renews, never changes the invitation; one bell row at most per 24 h
+declare v_inv record; v_studio text;
+begin
+  if p_token is null or p_token !~ '^[0-9a-f]{16,128}$' then return jsonb_build_object('result', 'not_found'); end if;
+  select i.id, i.org_id, lower(btrim(i.email)) as email, i.status, i.expires_at into v_inv
+    from public.invitations i where i.token = p_token;
+  if v_inv.id is null then return jsonb_build_object('result', 'not_found'); end if;
+  select o.name into v_studio from public.organizations o where o.id = v_inv.org_id;
+  if not (v_inv.status = 'expired' or (v_inv.status = 'pending' and v_inv.expires_at <= now())) then
+    return jsonb_build_object('result', 'not_expired', 'studio', v_studio);
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('helm:invrelink:' || v_inv.id::text, 0));
+  if exists (select 1 from public.notifications n where n.org_id = v_inv.org_id and n.kind = 'invite_link_request'
+               and n.detail ->> 'invitation' = v_inv.id::text and n.created_at > now() - interval '24 hours') then
+    return jsonb_build_object('result', 'already_requested', 'studio', v_studio);
+  end if;
+  insert into public.notifications(quote_id, channel, kind, status, detail, org_id)
+    values (null, 'in_app', 'invite_link_request', 'simulated',
+            jsonb_build_object('label', left(v_inv.email, 254) || ' asked for a new invitation link (the old one expired). Re-send it from Staff.',
+                               'invitation', v_inv.id::text, 'source', '0205'),
+            v_inv.org_id);
+  return jsonb_build_object('result', 'requested', 'studio', v_studio);
+end $$;
+
+revoke all on function public.invite_account_state(text) from public;
+revoke all on function public.invite_auth_user_id(text) from public;
+revoke all on function public.invite_request_new_link(text) from public;
+revoke all on function public.my_needs_password() from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke all on function public.invite_account_state(text) from anon';
+    execute 'revoke all on function public.invite_auth_user_id(text) from anon';
+    execute 'revoke all on function public.invite_request_new_link(text) from anon';
+    execute 'revoke all on function public.my_needs_password() from anon';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke all on function public.invite_account_state(text) from authenticated';
+    execute 'revoke all on function public.invite_auth_user_id(text) from authenticated';
+    execute 'revoke all on function public.invite_request_new_link(text) from authenticated';
+    execute 'grant execute on function public.my_needs_password() to authenticated';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    execute 'grant execute on function public.invite_account_state(text) to service_role';
+    execute 'grant execute on function public.invite_auth_user_id(text) to service_role';
+    execute 'grant execute on function public.invite_request_new_link(text) to service_role';
+  end if;
+end $$;
+
+notify pgrst, 'reload schema';
+commit;
+
+-- VERIFY (every row should say ok = true)
+select item, ok from (values
+  ('01 invite_account_state exists, SECURITY DEFINER, empty search_path',
+     coalesce((select prosecdef and 'search_path=""' = any(proconfig) from pg_proc where oid = to_regprocedure('public.invite_account_state(text)')), false)),
+  ('02 invite_account_state: service role only (not the app, not anon)',
+     has_function_privilege('service_role', 'public.invite_account_state(text)', 'execute')
+     and not has_function_privilege('authenticated', 'public.invite_account_state(text)', 'execute')
+     and not has_function_privilege('anon', 'public.invite_account_state(text)', 'execute')),
+  ('03 my_needs_password exists, SECURITY DEFINER, signed-in only',
+     coalesce((select prosecdef and 'search_path=""' = any(proconfig) from pg_proc where oid = to_regprocedure('public.my_needs_password()')), false)
+     and has_function_privilege('authenticated', 'public.my_needs_password()', 'execute')
+     and not has_function_privilege('anon', 'public.my_needs_password()', 'execute')),
+  ('04 a malformed / unknown token tells nothing', public.invite_account_state('x') = '{"valid": false}'::jsonb
+     and public.invite_account_state(repeat('0', 48)) = '{"valid": false}'::jsonb),
+  ('05 nobody signed in here -> my_needs_password is false', public.my_needs_password() = false),
+  ('06 invite_auth_user_id + invite_request_new_link: service role only',
+     has_function_privilege('service_role', 'public.invite_auth_user_id(text)', 'execute')
+     and not has_function_privilege('authenticated', 'public.invite_auth_user_id(text)', 'execute')
+     and not has_function_privilege('anon', 'public.invite_auth_user_id(text)', 'execute')
+     and has_function_privilege('service_role', 'public.invite_request_new_link(text)', 'execute')
+     and not has_function_privilege('authenticated', 'public.invite_request_new_link(text)', 'execute')
+     and not has_function_privilege('anon', 'public.invite_request_new_link(text)', 'execute')),
+  ('07 an unknown token is never renewable', public.invite_request_new_link(repeat('0', 48)) ->> 'result' = 'not_found')
+) v(item, ok) order by item;
+
+-- ##########################################################################################
+-- RELEASE SECTION 31/31: APPLY-0178-refresh-trials.sql
 -- In plain words: LAST: every existing FREE-TRIAL studio is refreshed to the newest sample (its sample rows re-cloned, its own rows kept).
 -- ##########################################################################################
 -- APPLY-0178-refresh-trials.sql -- paste into the Supabase SQL editor (runs as postgres; no auth.uid()).
@@ -8381,6 +9027,93 @@ select '0202 ' || item as item, ok from (values
   ('04 app roles cannot run the 0202 helpers', not has_function_privilege('authenticated', 'public._a202_sample_requirements()', 'execute')
        and not has_function_privilege('anon', 'public._a202_sample_requirements()', 'execute')
        and not has_function_privilege('authenticated', 'public._a202_manifest_note()', 'execute'))
+) v(item, ok)
+union all
+select '0203 ' || item as item, ok from (values
+  ('01 nurture wrappers in place (trial check), old bodies kept',
+     position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.queue_nurture_greeting(uuid)')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.run_nurture_auto(integer)')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.nurture_due(integer)')), '')) > 0
+     and to_regprocedure('public.queue_nurture_greeting__pre0202(uuid)') is not null
+     and to_regprocedure('public.run_nurture_auto__pre0202(integer)') is not null
+     and to_regprocedure('public.nurture_due__pre0202(integer)') is not null),
+  ('02 wrappers: signed-in users only; kept bodies not callable by the app',
+     has_function_privilege('authenticated', 'public.queue_nurture_greeting(uuid)', 'execute')
+     and has_function_privilege('authenticated', 'public.run_nurture_auto(integer)', 'execute')
+     and has_function_privilege('authenticated', 'public.nurture_due(integer)', 'execute')
+     and not has_function_privilege('anon', 'public.queue_nurture_greeting(uuid)', 'execute')
+     and not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like '%\_\_pre0202'
+                      and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')))),
+  ('03 triggers: nurture automation, menu dishes, 2 template tables',
+     exists (select 1 from pg_trigger where tgrelid = 'public.nurture_automation'::regclass and tgname = 'zzzz_tl202_nurture_auto')
+     and exists (select 1 from pg_trigger where tgrelid = 'public.menu_templates'::regclass and tgname = 'zzzz_tl202_menu_dishes')
+     and exists (select 1 from pg_trigger where tgrelid = 'public.checklist_templates'::regclass and tgname = 'zzzz_tl202_templates')
+     and exists (select 1 from pg_trigger where tgrelid = 'public.task_templates'::regclass and tgname = 'zzzz_tl202_templates')),
+  ('04 activity log: restrictive trial policy',
+     exists (select 1 from pg_policy where polrelid = 'public.audit_log'::regclass and polname = 'tl202_trial_no_read' and not polpermissive)),
+  ('05 checkout status + audit names re-issued (trial aware), grants kept',
+     position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_checkout_status()')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.audit_actor_names()')), '')) > 0
+     and has_function_privilege('authenticated', 'public.my_checkout_status()', 'execute')
+     and not has_function_privilege('anon', 'public.my_checkout_status()', 'execute')
+     and has_function_privilege('authenticated', 'public.audit_actor_names()', 'execute')),
+  ('06 helpers internal (policy helper excepted)',
+     not has_function_privilege('authenticated', 'public._tl202_no_send(uuid)', 'execute')
+     and not has_function_privilege('anon', 'public._tl202_caller_trial()', 'execute')),
+  ('07 paid studios: never trial-gated',
+     not exists (select 1 from public.studio_subscriptions s where s.status = 'active' and (public._tl202_no_send(s.org_id) or public._tl173_trial_locked(s.org_id))))
+) v(item, ok)
+union all
+select '0204 ' || item as item, ok from (values
+  ('01 anon holds no privilege on the six tables',
+     not exists (select 1 from unnest(array['profiles','layouts','venues','client_booklets','coupons','event_sites']) t
+                  where to_regclass('public.' || t) is not null
+                    and (has_table_privilege('anon', 'public.' || t, 'select') or has_table_privilege('anon', 'public.' || t, 'insert')
+                         or has_table_privilege('anon', 'public.' || t, 'update') or has_table_privilege('anon', 'public.' || t, 'delete')))),
+  ('02 no studio-only policy on them still names public/anon',
+     not exists (select 1 from pg_policies where schemaname = 'public'
+                  and tablename in ('profiles','layouts','client_booklets','coupons','event_sites')
+                  and permissive = 'PERMISSIVE' and roles && array['public','anon']::name[]
+                  and (coalesce(qual,'') || coalesce(with_check,'')) ~ 'current_org_id\(')),
+  ('03 the studio rules are unchanged (still require the caller''s studio)',
+     (select count(*) from pg_policies where schemaname = 'public' and roles = array['authenticated']::name[]
+        and (tablename, policyname) in (('profiles','profiles_select'), ('layouts','layouts_select'), ('layouts','layouts_ins'),
+          ('layouts','layouts_upd'), ('layouts','layouts_del'), ('client_booklets','client_booklets_read'), ('coupons','coupons_select'),
+          ('coupons','coupons_ins'), ('coupons','coupons_upd'), ('coupons','coupons_del'), ('event_sites','event_sites_select'),
+          ('event_sites','event_sites_insert'), ('event_sites','event_sites_update'), ('event_sites','event_sites_delete'))
+        and (coalesce(qual,'') || coalesce(with_check,'')) ~ 'current_org_id\(') >= 1),
+  ('04 signed-in role keeps its table privileges',
+     has_table_privilege('authenticated', 'public.profiles', 'select') and has_table_privilege('authenticated', 'public.layouts', 'select')
+     and has_table_privilege('authenticated', 'public.venues', 'select')),
+  ('05 current_org_id still not callable by anon',
+     not has_function_privilege('anon', 'public.current_org_id()', 'execute')),
+  ('06 public link functions still callable by anon (booklet, invitation site)',
+     exists (select 1 from pg_proc where proname = 'public_get_booklet' and pronamespace = 'public'::regnamespace and has_function_privilege('anon', oid, 'execute'))
+     and exists (select 1 from pg_proc where proname = 'public_event_site' and pronamespace = 'public'::regnamespace and has_function_privilege('anon', oid, 'execute')))
+) v(item, ok)
+union all
+select '0205 ' || item as item, ok from (values
+  ('01 invite_account_state exists, SECURITY DEFINER, empty search_path',
+     coalesce((select prosecdef and 'search_path=""' = any(proconfig) from pg_proc where oid = to_regprocedure('public.invite_account_state(text)')), false)),
+  ('02 invite_account_state: service role only (not the app, not anon)',
+     has_function_privilege('service_role', 'public.invite_account_state(text)', 'execute')
+     and not has_function_privilege('authenticated', 'public.invite_account_state(text)', 'execute')
+     and not has_function_privilege('anon', 'public.invite_account_state(text)', 'execute')),
+  ('03 my_needs_password exists, SECURITY DEFINER, signed-in only',
+     coalesce((select prosecdef and 'search_path=""' = any(proconfig) from pg_proc where oid = to_regprocedure('public.my_needs_password()')), false)
+     and has_function_privilege('authenticated', 'public.my_needs_password()', 'execute')
+     and not has_function_privilege('anon', 'public.my_needs_password()', 'execute')),
+  ('04 a malformed / unknown token tells nothing', public.invite_account_state('x') = '{"valid": false}'::jsonb
+     and public.invite_account_state(repeat('0', 48)) = '{"valid": false}'::jsonb),
+  ('05 nobody signed in here -> my_needs_password is false', public.my_needs_password() = false),
+  ('06 invite_auth_user_id + invite_request_new_link: service role only',
+     has_function_privilege('service_role', 'public.invite_auth_user_id(text)', 'execute')
+     and not has_function_privilege('authenticated', 'public.invite_auth_user_id(text)', 'execute')
+     and not has_function_privilege('anon', 'public.invite_auth_user_id(text)', 'execute')
+     and has_function_privilege('service_role', 'public.invite_request_new_link(text)', 'execute')
+     and not has_function_privilege('authenticated', 'public.invite_request_new_link(text)', 'execute')
+     and not has_function_privilege('anon', 'public.invite_request_new_link(text)', 'execute')),
+  ('07 an unknown token is never renewable', public.invite_request_new_link(repeat('0', 48)) ->> 'result' = 'not_found')
 ) v(item, ok)
 union all
 select 'REFRESH-0178 every trial studio on the current sample, India, 4 sample venues, no queued send' as item,

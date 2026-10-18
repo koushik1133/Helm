@@ -8,10 +8,10 @@
 .hi-foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--line,#e8e3db)}
 .hi-steps{display:flex;gap:6px;list-style:none;margin:0 0 12px;padding:0;flex-wrap:wrap;font-size:12px}
 .hi-steps li{padding:3px 10px;border-radius:999px;background:var(--panel-2,#faf8f5);color:var(--ink-3,#6b6577)}
-.hi-steps li.on{background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9);font-weight:600}
+.hi-steps li.on{background:var(--accent-soft,#e3f4ed);color:var(--accent,#047857);font-weight:600}
 .hi-steps li.past{color:var(--ink-2,#4b475f)}
 .hi-drop{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;border:2px dashed var(--line,#e8e3db);border-radius:12px;padding:32px 16px;cursor:pointer}
-.hi-drop.over,.hi-drop:focus{border-color:var(--accent,#6d28d9);outline:none;background:var(--accent-soft,#efe9ff)}
+.hi-drop.over,.hi-drop:focus{border-color:var(--accent,#047857);outline:none;background:var(--accent-soft,#e3f4ed)}
 .hi-drop.busy{opacity:.6;pointer-events:none}
 .hi-drop small{color:var(--ink-3,#6b6577);max-width:460px}
 .hi-file-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
@@ -35,7 +35,7 @@
 .hi-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
 .hi-badge.ok{background:#ecfdf3;color:#067647}.hi-badge.good{background:#eff8ff;color:#175cd3}
 .hi-badge.warn{background:#fffaeb;color:#b54708}.hi-badge.bad{background:#fef3f2;color:#b42318}
-.hi-badge.new{background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9)}.hi-badge.mute{background:#f2f4f7;color:#475467}
+.hi-badge.new{background:var(--accent-soft,#e3f4ed);color:var(--accent,#047857)}.hi-badge.mute{background:#f2f4f7;color:#475467}
 .hi-det,.hi-dettxt{color:var(--ink-2,#4b475f);font-size:12px}
 .hi-chk{display:inline-flex;gap:6px;align-items:center;margin:6px 0;font-size:13px}
 .hi-sum{list-style:none;padding:0;margin:8px 0;display:grid;gap:4px}.hi-sum li.bad{color:#b42318}

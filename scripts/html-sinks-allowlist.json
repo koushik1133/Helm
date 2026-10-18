@@ -38,6 +38,10 @@
    "why": "chat: colorFor() palette constant + esc(avatar_path) + esc(initials)"
   },
   {
+   "name": "inviteHint",
+   "why": "chat.html (chatfix-1018): returns one of two fixed sentences; the only interpolation is the constant INVITE_HREF (\"control.html#users\") - no caller or user data"
+  },
+  {
    "name": "statBadge",
    "why": "returns one of three fixed badge strings"
   },
@@ -460,18 +464,8 @@
   },
   {
    "file": "public/event.html",
-   "expr": "cls",
-   "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
-  },
-  {
-   "file": "public/event.html",
    "expr": "html",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-  },
-  {
-   "file": "public/event.html",
-   "expr": "i<cur?\"✓\":i+1",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
   },
   {
    "file": "public/event.html",
@@ -655,6 +649,11 @@
    "file": "public/nurture.html",
    "expr": "waLink(d)",
    "why": "waLink builds the anchor itself: digits-only phone, encodeURIComponent text and the name all go through esc(); '' when the phone is invalid"
+  },
+  {
+   "file": "public/nurture.html",
+   "expr": "tplMoreOpen",
+   "why": "boolean (let tplMoreOpen=false; only ever set to true/false) rendered as aria-expanded=\"true\"/\"false\""
   },
   {
    "file": "public/ops.html",

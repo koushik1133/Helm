@@ -5,7 +5,7 @@
 .pkr-item{padding:12px 14px;border:1px solid var(--line,#e8e3db);border-radius:12px;background:var(--panel-2,#faf8f5)}
 .pkr-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .pkr-name{font-size:15px;overflow-wrap:anywhere}
-.pkr-pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9)}
+.pkr-pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--accent-soft,#e3f4ed);color:var(--accent,#047857)}
 .pkr-pill.accepted{background:rgba(24,165,88,.12);color:#13804a}
 .pkr-pill.declined{background:rgba(232,145,45,.14);color:#9a5a12}
 .pkr-pill.superseded{background:var(--line-2,#f1ede7);color:var(--ink-3,#6b6577)}
@@ -24,4 +24,4 @@
 .pkr-fs legend{font-size:13px;font-weight:600;margin-bottom:6px;width:100%}
 .pkr-radio,.pkr-switch{display:inline-flex;align-items:center;gap:6px;min-height:36px;font-size:14px;cursor:pointer}
 .pkr-sbody .fld{margin-top:12px;max-width:360px}
-.pkr-done{margin:0 0 10px;padding:10px 12px;border-radius:10px;background:var(--accent-soft,#efe9ff);font-size:13px;font-weight:600}
+.pkr-done{margin:0 0 10px;padding:10px 12px;border-radius:10px;background:var(--accent-soft,#e3f4ed);font-size:13px;font-weight:600}

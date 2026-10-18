@@ -153,21 +153,33 @@
   /* whole calendar days from `now`'s day to date string ds (shared by the countdown + "In N days") */
   function dayDiff(ds, now) { var d = dOf(ds), t = dOf(iso(now || new Date())); return d && t ? Math.round((d - t) / DAY) : null; }
   function ym(d) { return d.getFullYear() * 12 + d.getMonth(); }
-  function fmtDay(s) { var d = dOf(s); return d ? d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) : ""; }
+  /* LA-27: every date here goes through the ONE studio formatter (studio locale + timezone), never the browser's.
+     dfmt(localDayDate, fields) formats a calendar day; tfmt(timestamp, fields) an instant in the studio's timezone. */
+  function dfmt(d, f) { try { return S().fmtStudioDate(iso(d), { fmt: f }); } catch (e) { return d.toLocaleDateString(undefined, f); } }
+  function tfmt(t, f) { try { return S().fmtStudioDate(t, { fmt: f }); } catch (e) { return new Date(t).toLocaleString(undefined, f); } }
+  function fmtDay(s) { var d = dOf(s); return d ? dfmt(d, { weekday: "short", day: "numeric", month: "short" }) : ""; }
   function ago(t) {
     var d = new Date(t); if (isNaN(d)) return "";
     var s = (Date.now() - d.getTime()) / 1000;
     if (s < 60) return "just now"; if (s < 3600) return Math.floor(s / 60) + "m ago"; if (s < 86400) return Math.floor(s / 3600) + "h ago";
     if (s < 7 * 86400) return Math.floor(s / 86400) + "d ago";
-    return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    return tfmt(d, { day: "numeric", month: "short" });
   }
 
   /* ---------- numbers (counts only: money lives on the Business page) ---------- */
   var CUR = "INR";
   function num(n) { return Math.round(Number(n) || 0).toLocaleString(CUR === "INR" ? "en-IN" : undefined); }
   function qCur(q) { try { return S().quoteCurrency(q); } catch (e) { return "INR"; } }
-  function qName(q) { try { var H = window.HelmEventName; if (H && H.displayName) { var x = H.displayName(q); if (x) return x; } } catch (e) {} var c = q.client || {}; return q.title || c.name || q.code || "Untitled"; }
+  /* LA-29: listName - an untitled quote reads "Untitled event" instead of repeating its code beside the code chip */
+  function qName(q) { try { var H = window.HelmEventName; if (H && H.listName) return H.listName(q); if (H && H.displayName) { var x = H.displayName(q); if (x) return x; } } catch (e) {} var c = q.client || {}; return q.title || c.name || q.code || "Untitled"; }
   function evHref(id) { return "event.html?id=" + encodeURIComponent(id); }
+  /* la-1018: shared lead rules (the sidebar badge in shell-b.js uses the same HelmLeadRules.uncontacted).
+     uncontacted = still in "New" and not turned into a quote; converted = linked to a quote, or marked won / converted. */
+  function uncontacted(l) { try { var R = window.HelmLeadRules; if (R && typeof R.uncontacted === "function") return R.uncontacted(l); } catch (e) {}
+    return !!l && String(l.status || "new") === "new" && !l.quote_id; }
+  function leadConverted(l) { return !!l && (!!l.quote_id || ["won", "converted"].indexOf(String(l.status || "")) >= 0); }
+  function leadConv(list) { list = Array.isArray(list) ? list : []; var c = 0; list.forEach(function (l) { if (leadConverted(l)) c++; });
+    return { n: list.length, conv: c, pct: list.length ? Math.round(100 * c / list.length) : null }; }
 
   /* ---------- motion ---------- */
   function countUp(node, target, fmt) {
@@ -299,12 +311,31 @@
         var h = n.getBoundingClientRect().height; if (!h) return;
         var c = "hd-rs-" + Math.min(MAS_MAX, Math.ceil((h + gap) / MAS_ROW)); n.classList.add(c); n.__hdRs = c;
       });
+      /* la-1018: when the side lane runs out before "All quotes" starts, that list would sit beside an empty column;
+         it spans the full width instead. Decided from block HEIGHTS only (not positions), so it never flips back and forth. */
+      var qs = dash.querySelector('[data-block="quotes"]');
+      if (qs) {
+        var full = false;
+        if (on && wrap.clientWidth >= 960) {
+          var wideH = 0, sideH = 0, before = true;
+          items.forEach(function (n) {
+            if (n === qs) { before = false; return; }
+            var hh = n.getBoundingClientRect().height; if (!hh) return;
+            if (n.classList.contains("hd-s-side")) sideH += hh + gap;
+            else if (before && n.classList.contains("hd-s-wide")) wideH += hh + gap;
+          });
+          full = sideH <= wideH;
+        }
+        qs.classList.toggle("hd-span-all", full);
+      }
     }
     function queue() { if (!raf) raf = requestAnimationFrame(lay); }
     var ro = new ResizeObserver(queue);
     function watch() { ro.disconnect(); collect(); ro.observe(wrap); items.forEach(function (n) { ro.observe(n); }); queue(); }
     watch();
-    try { new MutationObserver(watch).observe(dash.querySelector(".hd-grid") || dash, { childList: true }); } catch (e) {}
+    /* la-1018: also watch the dashboard's own children - the Customize bar and the adopted setup / sample-data cards
+       arrive later; before, they got no row span, sat in one 8px row and painted over the hero */
+    try { var mo = new MutationObserver(watch), gEl = dash.querySelector(".hd-grid"); mo.observe(dash, { childList: true }); if (gEl) mo.observe(gEl, { childList: true }); } catch (e) {}
   }
   function moreLink(href, text) { var a = link(href, "hd-more-link", text || "View all"); a.appendChild(icon(IC.arrow)); return a; }
   function body(c) { return clear(c.querySelector(".hd-body")); }
@@ -389,7 +420,7 @@
       var smalls = host.querySelectorAll(".ecard small");
       for (var i = 0; i < smalls.length; i++) {
         var s = smalls[i]; if (s.__hdMoney || s.querySelector("[data-money]")) continue;
-        var parts = String(s.textContent || "").split(" · ");
+        var parts = String((window.HelmPrivacy && HelmPrivacy.realText ? HelmPrivacy.realText(s) : s.textContent) || "").split(" · ");   // LA-26: read past a hidden amount
         if (!parts.some(function (p) { return MONEY_RE.test(p); })) { s.__hdMoney = 1; continue; }
         clear(s);
         var kept = [];
@@ -411,35 +442,37 @@
     var nm = link(evHref(ev.id), "hd-next-name", ev.name); panel.appendChild(nm);
     var meta = el("p", "hd-next-meta"); meta.appendChild(icon(IC.cal));
     meta.appendChild(el("span", null, [fmtDay(ev.date), ev.client, ev.type].filter(Boolean).join(" · "))); panel.appendChild(meta);
-    var clock = el("div", "hd-count"); panel.appendChild(clock);
+    /* la-1018: one readable line, "45 days · starts 19:00" (was three stacked boxes "45 / 19:00 / DAYS" that read like a
+       timer; the number also borrowed the month calendar's .hd-cd day-button style). Classes are hd-cn-* now. */
+    var clock = el("div", "hd-count hd-cn"); panel.appendChild(clock);
     function unit(v, l, key) {
-      var u = el("span", "hd-cu"), b = el("b", "hd-cd", v); u.appendChild(b); u.appendChild(el("small", "hd-eyebrow", l));
+      var u = el("span", "hd-cn-u"), b = el("b", "hd-cn-n", v); u.appendChild(b); u.appendChild(el("span", "hd-cn-l", l));
       if (last[key] != null && last[key] !== v && !REDUCED) { b.classList.add("hd-tick"); }
       last[key] = v; return u;
     }
     function pad(n) { return (n < 10 ? "0" : "") + n; }
+    function starts() { return tm ? el("span", "hd-cn-t", "· starts " + pad(+tm[1]) + ":" + tm[2]) : null; }
     function paint() {
-      var now = new Date(), isToday = iso(now) === ev.date;
+      var now = new Date(), isToday = iso(now) === ev.date, st;
       clear(clock); clock.classList.toggle("hd-count-today", isToday);
       if (isToday) {
-        clock.appendChild(el("b", "hd-cd", "Today"));
-        if (tm) clock.appendChild(el("span", "hd-mono", pad(+tm[1]) + ":" + tm[2]));
-        panel.setAttribute("aria-label", label + ": " + ev.name + ", today" + (tm ? " at " + pad(+tm[1]) + ":" + tm[2] : ""));
+        clock.appendChild(el("b", "hd-cn-n", "Today"));
+        if ((st = starts())) clock.appendChild(st);
+        panel.setAttribute("aria-label", label + ": " + ev.name + ", today" + (tm ? ", starts " + pad(+tm[1]) + ":" + tm[2] : ""));
         return;
       }
       // Days = calendar-day difference (same rule as the "In N days" list via dayDiff), so a
-      // 14-day-away event never reads "13 days 11 hrs" here. 1+ days away: days (+ start time).
+      // 14-day-away event never reads "13 days 11 hrs" here. 1+ days away: "N days · starts HH:MM".
       var cd = dayDiff(ev.date, now);
       if (cd != null && cd > 0) {
-        clock.appendChild(unit(pad(cd), cd === 1 ? "Day" : "Days", "d"));
-        if (tm) clock.appendChild(el("span", "hd-mono", pad(+tm[1]) + ":" + tm[2]));
-        panel.setAttribute("aria-label", label + ": " + ev.name + ", in " + cd + (cd === 1 ? " day" : " days") + (tm ? " at " + pad(+tm[1]) + ":" + tm[2] : ""));
+        clock.appendChild(unit(String(cd), cd === 1 ? "day" : "days", "d"));
+        if ((st = starts())) clock.appendChild(st);
+        panel.setAttribute("aria-label", label + ": " + ev.name + ", in " + cd + (cd === 1 ? " day" : " days") + (tm ? ", starts " + pad(+tm[1]) + ":" + tm[2] : ""));
         return;
       }
-      var ms = Math.max(0, target - now), mins = Math.floor(ms / 6e4), d = 0, h = Math.floor((mins % 1440) / 60), m = mins % 60;
-      clock.appendChild(unit(pad(h), "Hrs", "h")); clock.appendChild(el("i", "hd-csep", d > 0 ? "·" : ":"));
-      clock.appendChild(unit(pad(m), "Min", "m"));
-      panel.setAttribute("aria-label", label + ": " + ev.name + ", in " + (d ? d + " days " : "") + h + " hours " + m + " minutes");
+      var ms = Math.max(0, target - now), mins = Math.floor(ms / 6e4), h = Math.floor((mins % 1440) / 60), m = mins % 60;
+      clock.appendChild(unit(String(h), h === 1 ? "hr" : "hrs", "h")); clock.appendChild(unit(pad(m), "min", "m"));
+      panel.setAttribute("aria-label", label + ": " + ev.name + ", in " + h + " hours " + m + " minutes");
     }
     function start() { stop(); paint(); timer = setInterval(paint, 60000); }
     function stop() { if (timer) { clearInterval(timer); timer = null; } }
@@ -725,11 +758,11 @@
     var hr = now.getHours(), tod = hr < 5 || hr >= 20 ? "night" : hr < 12 ? "morning" : hr < 17 ? "afternoon" : "evening";
     hero.classList.add("hd-tod-" + tod);
     var orb = el("span", "hd-orb"); orb.setAttribute("aria-hidden", "true"); orb.appendChild(icon(tod === "night" || tod === "evening" ? IC.moon : IC.sun, "hd-ic hd-orb-ic")); hero.appendChild(orb);
-    var dl = el("p", "hd-date hd-eyebrow"); dl.appendChild(el("span", null, now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })));
+    var dl = el("p", "hd-date hd-eyebrow"); dl.appendChild(el("span", null, tfmt(now, { weekday: "long", day: "numeric", month: "long" })));
     var clk = el("time", "hd-clock hd-mono"); dl.appendChild(clk); hl.appendChild(dl);
     (function () {                                                           // live clock, one tick per minute, paused while hidden
       var tmr = null;
-      function paint() { var d = new Date(); clk.textContent = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); clk.setAttribute("datetime", d.toISOString()); }
+      function paint() { var d = new Date(); clk.textContent = tfmt(d, { hour: "2-digit", minute: "2-digit" }); clk.setAttribute("datetime", d.toISOString()); }
       function arm() { clearTimeout(tmr); paint(); tmr = setTimeout(arm, 60000 - (Date.now() % 60000) + 50); }
       document.addEventListener("visibilitychange", function () { if (document.hidden) clearTimeout(tmr); else arm(); });
       arm();
@@ -768,6 +801,10 @@
     /* S1b "Get set up" strip for a new studio (shown only when there is genuinely no data yet) */
     var getSet = enter(el("section", "hd-getset hd-s-full"), 1); getSet.hidden = true; getSet.id = "hdGetSet"; getSet.setAttribute("aria-label", "Get set up");
     root.appendChild(getSet);
+
+    /* la-1018: the page's setup / sample-data / after-upgrade cards join the dashboard grid as full-width blocks, so they
+       line up with the cards around them (they sat under it, as wide as the whole page) */
+    ["obNudge", "tdCard", "tuCard"].forEach(function (id) { var n = document.getElementById(id); if (n) { n.classList.add("hd-s-full", "hd-prompt"); root.appendChild(n); } });
 
     /* sections: one parent, DOM order = reading order (grid/cols are display:contents) */
     var grid = el("div", "hd-grid"); root.appendChild(grid);
@@ -913,7 +950,19 @@
     var thisWeek = events.filter(function (e) { return e.date >= weekS && e.date <= weekEnd; });
 
     var openLeads = leads.filter(function (l) { var s = String(l.status || "new"); return !l.quote_id && s !== "lost" && s !== "won" && s !== "converted"; });
-    var staleLeads = leads.filter(function (l) { return String(l.status || "new") === "new" && l.created_at && (Date.now() - new Date(l.created_at).getTime()) > DAY; });
+    /* la-1018: ONE "not contacted yet" rule for the sidebar Leads badge, Follow-ups, Needs attention, the summary line
+       and the New leads tile (was: badge = every "new" lead, Follow-ups = only "new" leads older than a day, so the badge
+       said "2 not yet contacted" while Follow-ups said "No one is waiting on you"). Shared with shell-b.js. */
+    var staleLeads = leads.filter(uncontacted);
+    /* la-1018: ONE "next event" rule for the hero countdown AND the Upcoming tile (was: hero = next confirmed, tile = next
+       of any status, so they named two different events). The next BOOKED (confirmed) event from today; when nothing is
+       booked yet, the next event of any status, labelled "not confirmed yet". Crew: their next shift. */
+    var nextEv = null, nextBooked = false;
+    if (isCrew) nextEv = future[0] || null;
+    else {
+      for (var nk = 0; nk < future.length; nk++) { if (future[nk].q && future[nk].q.status === "confirmed") { nextEv = future[nk]; nextBooked = true; break; } }
+      if (!nextEv) nextEv = future[0] || null;
+    }
     var tc = (tasks && tasks.counts) || {};
 
     safe(function () {
@@ -1004,14 +1053,12 @@
       getSet.appendChild(ol); getSet.hidden = false; root.classList.add("hd-new");
     })();
 
-    /* ---- S1 countdown panel: next confirmed event (crew: next shift) ---- */
+    /* ---- S1 countdown panel: the shared next event (nextEv; crew: next shift) ---- */
     (function () {
-      var nx = null;
-      if (isCrew) nx = future[0] || null;
-      else for (var k = 0; k < future.length; k++) { if (future[k].q && future[k].q.status === "confirmed") { nx = future[k]; break; } }
+      var nx = nextEv;
       if (!nx || signedOut) { nextP.hidden = true; hero.classList.add("hd-hero-solo"); return; }
       nextP.hidden = false; hero.classList.remove("hd-hero-solo");
-      countdown(nextP, nx, isCrew ? "Next shift" : "Next event");
+      countdown(nextP, nx, isCrew ? "Next shift" : nextBooked ? "Next event" : "Next event · not confirmed yet");
     })();
 
     /* ---- S2 KPI tiles ---- */
@@ -1064,9 +1111,9 @@
         var dpTile = function (t, key, fwd, render) { dpDraws.push(render); render(dpCur); };
         var dots7 = []; for (var dd = 0; dd < 7; dd++) { var dIso = iso(new Date(todayD.getTime() + dd * DAY)); dots7.push(future.some(function (e) { return e.date === dIso; })); }
         dpTile(tiles[0], "up", true, function (k) {
-          var w = dpFwd(events, function (e) { return e.date; }, todayD.getTime(), dpDays(k)), nx0 = w.items[0];
-          tile(tiles[0], { label: "Upcoming", tip: "Events dated in the chosen period from today, compared with the same length of time just before today. Dots show the next 7 days.", ic: IC.cal, value: w.cur,
-            delta: delta(w.cur, w.prev, true, dpVs(k)), sub: nx0 ? "Next: " + nx0.name + ", " + (nx0.date === today ? "today" : fmtDay(nx0.date)) : "Nothing booked in the next " + dpName(k), dots: dots7, href: vCal ? "calendar.html" : null });
+          var w = dpFwd(events, function (e) { return e.date; }, todayD.getTime(), dpDays(k)), nx0 = nextEv;   /* la-1018: same next event as the hero */
+          tile(tiles[0], { label: "Upcoming", tip: "Events dated in the chosen period from today (booked and quoted), compared with the same length of time just before today. \"Next\" is the same event as the countdown: the next booked one. Dots show the next 7 days.", ic: IC.cal, value: w.cur,
+            delta: delta(w.cur, w.prev, true, dpVs(k)), sub: nx0 ? (nextBooked ? "Next booked: " : "Next (not confirmed): ") + nx0.name + ", " + (nx0.date === today ? "today" : fmtDay(nx0.date)) : "Nothing in the next " + dpName(k), dots: dots7, href: vCal ? "calendar.html" : null });
         });
         var pc0 = mStage("confirmed"), confN = pc0 ? pc0.n : counts && typeof counts.confirmed === "number" ? counts.confirmed : curRows.filter(function (q) { return q.status === "confirmed" && q.lifecycleStage !== "closed"; }).length;
         var confRows = rows.filter(function (q) { return q.status === "confirmed"; });
@@ -1088,9 +1135,9 @@
         if (vLeads) {
           dpTile(tiles[3], "leads", false, function (k) {
             var w = dpBack(leads, function (l) { return tsOf(l.created_at); }, nowT, dpDays(k));
-            var conv = w.items.filter(function (l) { return l.quote_id || ["won", "converted"].indexOf(String(l.status || "")) >= 0; }).length;
-            tile(tiles[3], { label: "New leads", tip: "Enquiries received in the chosen period, how many of them became quotes, and how many nobody has contacted for over a day.", ic: IC.user, value: w.cur,
-              delta: delta(w.cur, w.prev, true, dpVs(k)), sub: conv + " of " + w.cur + " became quotes" + (staleLeads.length ? " · " + staleLeads.length + " not contacted yet" : ""),
+            var lc = leadConv(w.items);   /* la-1018: same conversion rule as the Pipeline card (that one is all time) */
+            tile(tiles[3], { label: "New leads", tip: "Enquiries received in the chosen period and how many of them became quotes (linked to a quote, or marked won). \"Not contacted yet\" counts every lead still in New, the same number as the Leads badge in the sidebar and Follow-ups.", ic: IC.user, value: w.cur,
+              delta: delta(w.cur, w.prev, true, dpVs(k)), sub: lc.conv + " of " + lc.n + " became quotes (last " + dpName(k) + ")" + (staleLeads.length ? " · " + staleLeads.length + " not contacted yet" : ""),
               subKind: staleLeads.length ? "wait" : null, href: "leads.html" });
           });
         } else {
@@ -1109,7 +1156,7 @@
     /* shared: ticket stub (month eyebrow + day) */
     function stub(ds, big) {
       var d = dOf(ds), s = el("div", "hd-stub" + (ds === today ? " hd-stub-today" : "") + (big ? " hd-stub-lg" : ""));
-      s.appendChild(el("small", "hd-eyebrow", ds === today ? "Today" : d ? d.toLocaleDateString(undefined, { month: "short" }) : ""));
+      s.appendChild(el("small", "hd-eyebrow", ds === today ? "Today" : d ? dfmt(d, { month: "short" }) : ""));
       s.appendChild(el("b", "hd-stub-d", d ? d.getDate() : "—"));
       return s;
     }
@@ -1226,7 +1273,7 @@
         var evs = events.filter(function (e) { return e.date === ds; }), wkEnd = d.getDay() === 0 || d.getDay() === 6;
         var li = el("li", "hd-day" + (ds === today ? " hd-today" : "") + (evs.length ? "" : " hd-free") + (wkEnd ? " hd-wkend" : ""));
         li.appendChild(el("i", "hd-node"));
-        var lab = el("div", "hd-dlab"); lab.appendChild(el("small", "hd-wd hd-eyebrow", d.toLocaleDateString(undefined, { weekday: "short" }))); lab.appendChild(el("b", "hd-dn", d.getDate())); li.appendChild(lab);
+        var lab = el("div", "hd-dlab"); lab.appendChild(el("small", "hd-wd hd-eyebrow", dfmt(d, { weekday: "short" }))); lab.appendChild(el("b", "hd-dn", d.getDate())); li.appendChild(lab);
         var box = el("div", "hd-devs");
         if (!evs.length) box.appendChild(el("span", "hd-free-t", "Free"));
         else {
@@ -1316,8 +1363,8 @@
         sel = ds; clear(agenda);
         Array.prototype.forEach.call(gridC.querySelectorAll(".hd-cd"), function (x) { var on = x.getAttribute("data-ds") === ds; x.classList.toggle("hd-sel", on); x.setAttribute("aria-selected", String(on)); });
         var d = dOf(ds), hd = el("div", "hd-ag-head");
-        hd.appendChild(el("small", "hd-eyebrow", ds === today ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" })));
-        hd.appendChild(el("b", null, d.toLocaleDateString(undefined, { day: "numeric", month: "long" })));
+        hd.appendChild(el("small", "hd-eyebrow", ds === today ? "Today" : dfmt(d, { weekday: "long" })));
+        hd.appendChild(el("b", null, dfmt(d, { day: "numeric", month: "long" })));
         agenda.appendChild(hd);
         var evs = byDay[ds] || [];
         if (!evs.length) { var e0 = el("div", "hd-ag-empty"); e0.appendChild(icon(IC.cal)); e0.appendChild(el("span", null, "No events on this day")); agenda.appendChild(e0); return; }
@@ -1331,10 +1378,10 @@
       }
       function render() {
         clear(gridC);
-        title.textContent = view.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+        title.textContent = dfmt(view, { month: "long", year: "numeric" });
         var pre = iso(view).slice(0, 7), nM = events.filter(function (e) { return e.date.slice(0, 7) === pre; }).length;
         chipM.textContent = nM + (nM === 1 ? " event" : " events") + " this month";
-        var mon = new Date(2024, 0, 1); for (var w = 0; w < 7; w++) { var hdc = el("span", "hd-cal-wd", new Date(mon.getTime() + w * DAY).toLocaleDateString(undefined, { weekday: "narrow" })); hdc.setAttribute("aria-hidden", "true"); gridC.appendChild(hdc); }
+        var mon = new Date(2024, 0, 1); for (var w = 0; w < 7; w++) { var hdc = el("span", "hd-cal-wd", dfmt(new Date(mon.getTime() + w * DAY), { weekday: "narrow" })); hdc.setAttribute("aria-hidden", "true"); gridC.appendChild(hdc); }
         var lead = (view.getDay() + 6) % 7, dim = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
         for (var k = 0; k < lead; k++) gridC.appendChild(el("span", "hd-cd-pad"));
         for (var dd = 1; dd <= dim; dd++) {
@@ -1400,7 +1447,7 @@
       var local = lsGet(key) || ""; ta.value = local;
       var st = el("p", "hd-caption", "Private to you."); st.setAttribute("aria-live", "polite");
       var tm = null, server = false, dirty = false, seq = 0;
-      function hhmm() { return new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); }
+      function hhmm() { return tfmt(new Date(), { hour: "2-digit", minute: "2-digit" }); }
       function push(v) {
         var D = S().dashboard, my = ++seq;
         if (!server || !D || !D.saveNotes) { lsSet(key, v.trim() ? v : ""); st.textContent = "Saved on this device · " + hhmm(); return Promise.resolve(); }
@@ -1450,8 +1497,13 @@
       stages.forEach(function (st, i) { var c = link(st.href, "hd-seg-chip"); c.appendChild(el("i", "hd-bs" + Math.min(3, i + (4 - stages.length)))); c.appendChild(el("span", null, st.l)); c.appendChild(el("b", null, num(st.n))); chips.appendChild(c); });
       b.appendChild(chips);
       var list = el("div", "hd-funnel");
+      var allLc = leadConv(leads);
       stages.forEach(function (st, i) {
-        if (i) {
+        if (i && stages[i - 1].l === "Leads") {
+          /* la-1018: Leads -> Quoted uses the SAME lead-conversion rule as the New leads tile (counted on leads, all time),
+             not "quotes vs open leads" (quotes made without a lead used to inflate / shrink it) */
+          list.appendChild(el("div", "hd-conv", allLc.pct == null ? "↓ —" : "↓ " + allLc.conv + " of " + allLc.n + " leads became quotes (" + allLc.pct + "%)"));
+        } else if (i) {
           // share of everything that reached the previous stage that went further; an empty previous
           // stage (e.g. 0 leads) has no base, so it shows a dash instead of a fake 100%
           var nextN = 0; for (var j = i; j < stages.length; j++) nextN += Math.max(0, Number(stages[j].n) || 0);
@@ -1465,7 +1517,7 @@
         list.appendChild(a);
       });
       b.appendChild(list);
-      b.appendChild(el("p", "hd-caption", "Share of each stage that has moved past the previous one" + (!exact && pageRes && pageRes.hasMore ? "; counts from the 500 most recent quotes." : ".")));
+      b.appendChild(el("p", "hd-caption", "All time. " + (stages[0] && stages[0].l === "Leads" ? "Leads: open enquiries; the first arrow is how many of all your leads became quotes. Later arrows: share" : "Share") + " of each stage that has moved past the previous one" + (!exact && pageRes && pageRes.hasMore ? "; counts from the 500 most recent quotes." : ".")));
     })();
 
     /* ---- S7 upcoming events (30 days): ticket cards ---- */
@@ -1509,15 +1561,30 @@
         var b = body(cAct);
         if (!rowsA.length) { empty(b, "No activity yet", null, "pulse", "Changes made by your team will appear here."); return; }
         var ul = el("ul", "hd-feed");
+        /* la-1018: the display name (audit_actor_names, e-mail on hover) instead of the e-mail prefix, and runs of the
+           same person doing the same thing to the same area grouped into one line ("Priya edited leads ×4") */
+        var groups = [];
         rowsA.slice(0, 12).forEach(function (r) {
-          var li = el("li", "hd-act");
-          var who = String(r.actor_name || (r.actor_email === "helm:maintenance" ? "System maintenance" : r.actor_email) || "System"), ini = who.replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(function (x) { return x.charAt(0).toUpperCase(); }).join("") || "\u2022";
+          var ch = r.changed && typeof r.changed === "object" ? r.changed : {};
+          var obj = String(ch.code || ch.title || ch.name || "");
+          var key = [r.actor || r.actor_email || "", r.action || "", r.entity || ""].join("|"), g = groups[groups.length - 1];
+          if (g && g.key === key) { g.n++; if (g.obj !== obj) g.obj = null; return; }
+          groups.push({ key: key, r: r, obj: obj, n: 1 });
+        });
+        groups.forEach(function (g) {
+          var r = g.r, li = el("li", "hd-act");
+          var lab = null; try { lab = S().audit.actorLabel ? S().audit.actorLabel(r, actNames) : null; } catch (e) { lab = null; }
+          var who = r.actor_email === "helm:maintenance" ? "System maintenance"
+            : String(r.actor_name || (lab && lab.text !== "system" && lab.text !== r.actor_email ? lab.text : "") || String(r.actor_email || "").replace(/@.*/, "") || "System");
+          var ini = who.replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(function (x) { return x.charAt(0).toUpperCase(); }).join("") || "\u2022";
           li.appendChild(el("span", "hd-av", ini));
-          var m = el("p", "hd-act-t"), ch = r.changed && typeof r.changed === "object" ? r.changed : {};
+          var m = el("p", "hd-act-t");
           var lbl = ""; try { lbl = S().audit.actionLabel ? S().audit.actionLabel(r.action) : r.action; } catch (e) { lbl = r.action; }
-          var obj = [String(r.entity || "").replace(/_/g, " "), ch.code || ch.title || ch.name || ""].filter(Boolean).join(" ");
-          m.appendChild(el("b", null, who.replace(/@.*/, ""))); m.appendChild(document.createTextNode(" " + String(lbl || "").toLowerCase() + " "));
+          var obj = [String(r.entity || "").replace(/_/g, " "), g.obj || ""].filter(Boolean).join(" ");
+          var wb = el("b", null, who); if (lab && lab.title && lab.title !== who) wb.title = lab.title; m.appendChild(wb);
+          m.appendChild(document.createTextNode(" " + String(lbl || "").toLowerCase() + " "));
           if (obj) m.appendChild(el("em", null, obj));
+          if (g.n > 1) { var x = el("span", "hd-act-x", "×" + g.n); x.setAttribute("aria-label", g.n + " times"); m.appendChild(document.createTextNode(" ")); m.appendChild(x); }
           var t = el("time", "hd-ago", ago(r.at)); try { t.setAttribute("datetime", new Date(r.at).toISOString()); } catch (e) {}
           li.appendChild(m); li.appendChild(t);
           ul.appendChild(li);
@@ -1535,7 +1602,9 @@
         }, function () { busy = false; retick(); });
       }
       function arm() { clearInterval(tmr); tmr = setInterval(refresh, 60000); }
-      P.audit.then(function (rowsA) { lastSig = sigOf(rowsA); paintAct(rowsA); arm(); });
+      var actNames = {};
+      Promise.all([P.audit, safe(function () { return S().audit.actorNames ? S().audit.actorNames() : {}; }, {})]).then(function (rr) {
+        actNames = rr[1] || {}; var rowsA = rr[0]; lastSig = sigOf(rowsA); paintAct(rowsA); arm(); });
       document.addEventListener("visibilitychange", function () { if (document.hidden) clearInterval(tmr); else { refresh(); arm(); } });
       window.addEventListener("pageshow", function (ev) { if (ev.persisted) { refresh(true); arm(); } });   /* Back/Forward restore: always re-read */
       window.addEventListener("focus", function () { refresh(); });

@@ -28,9 +28,13 @@ export const link = (href, label) => `<a href="${href}" class="lnk" style="color
 
 /** big primary button; href/label must already be escaped (or be a Supabase {{ }} variable) */
 export function button(href, label) {
+  // 0205 bulletproof button: Outlook desktop (Word engine) gets the VML roundrect; every other client
+  // (Outlook web / new Outlook, Gmail, Apple Mail) gets a table cell + a real <a href> with inline
+  // styles - no <!--[if !mso]> wrapper that some webmail sanitisers drop. The plain URL line
+  // (fallback()) always follows, so the link works even when buttons are stripped.
   return `<tr><td align="left" style="padding:4px 0 24px;">
-<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${href}" style="height:48px;v-text-anchor:middle;width:260px;" arcsize="22%" fillcolor="${C.brand}" stroke="f"><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">${label}</center></v:roundrect><![endif]-->
-<!--[if !mso]><!--><a href="${href}" class="btn" style="display:inline-block;background:${C.brand};color:#ffffff;font-family:${FONT};font-size:16px;font-weight:600;line-height:48px;height:48px;padding:0 30px;border-radius:10px;text-decoration:none;">${label}</a><!--<![endif]-->
+<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${href}" style="height:48px;v-text-anchor:middle;width:280px;" arcsize="22%" fillcolor="${C.brand}" stroke="f"><w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">${label}</center></v:roundrect><![endif]-->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;mso-hide:all;"><tr><td align="center" bgcolor="${C.brand}" style="background:${C.brand};border-radius:10px;mso-hide:all;"><a href="${href}" target="_blank" rel="noopener" class="btn" style="display:inline-block;background:${C.brand};color:#ffffff;font-family:${FONT};font-size:16px;font-weight:600;line-height:20px;padding:14px 30px;border:1px solid ${C.brand};border-radius:10px;text-decoration:none;mso-hide:all;">${label}</a></td></tr></table>
 </td></tr>`;
 }
 

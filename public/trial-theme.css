@@ -1,21 +1,21 @@
 /* Trial banner + reminder card: follow the app theme (--hb-*) instead of OS prefers-color-scheme. */
-html .htr{background:var(--hb-acc-soft,var(--accent-soft,#efe9ff));color:var(--hb-ink,var(--ink,#1b1930));border-bottom-color:var(--hb-line,var(--line,#e8e3db))}
+html .htr{background:var(--hb-acc-soft,var(--accent-soft,#e3f4ed));color:var(--hb-ink,var(--ink,#1b1930));border-bottom-color:var(--hb-line,var(--line,#e8e3db))}
 html .htr span{color:var(--hb-ink2,var(--ink-2,#4b475f))}
 html .htr.soon{background:color-mix(in srgb,#f5a524 16%,var(--hb-bg,#fff))}
 html .htr.ended{background:color-mix(in srgb,#e5484d 14%,var(--hb-bg,#fff))}
-html .htr a,html .htrm-a a{background:var(--hb-acc,var(--accent,#6d28d9));color:var(--hb-acc-ink,#fff)}
-html .htr a:focus-visible,html .htrm-a :focus-visible{outline-color:var(--hb-acc-text,var(--accent,#6d28d9))}
+html .htr a,html .htrm-a a{background:var(--hb-acc,var(--accent,#047857));color:var(--hb-acc-ink,#fff)}
+html .htr a:focus-visible,html .htrm-a :focus-visible{outline-color:var(--hb-acc-text,var(--accent,#047857))}
 html .htrm{background:rgba(10,12,24,.55)}
 html .htrm-c{background:var(--hb-bg,var(--card,#fff));color:var(--hb-ink,var(--ink,#1b1930));border:1px solid var(--hb-line,transparent)}
-html .htrm-c .k{color:var(--hb-acc-text,var(--accent,#6d28d9))}
+html .htrm-c .k{color:var(--hb-acc-text,var(--accent,#047857))}
 html .htrm-c h2{color:var(--hb-ink,inherit)}
 html .htrm-c p{color:var(--hb-ink2,var(--ink-2,#4b475f))}
 html .htrm-a button{background:transparent;border-color:var(--hb-line,#d9d3c9);color:var(--hb-ink,var(--ink,#1b1930))}
 @media (max-width:420px){html .htrm-c{padding:18px}html .htrm-a>*{flex:1 1 100%;text-align:center}}
 /* "Start my own studio" outline button: trial.js has an OS prefers-color-scheme:dark rule (pale lavender) that leaked into light app themes. */
-html .htr a.htr-fresh{background:transparent;color:var(--hb-acc-text,var(--accent,#6d28d9));border:1px solid var(--hb-acc-text,var(--accent,#6d28d9))}
-html .htr a.htr-fresh:hover{background:color-mix(in srgb,var(--hb-acc-text,#6d28d9) 10%,transparent)}
+html .htr a.htr-fresh{background:transparent;color:var(--hb-acc-text,var(--accent,#047857));border:1px solid var(--hb-acc-text,var(--accent,#047857))}
+html .htr a.htr-fresh:hover{background:color-mix(in srgb,var(--hb-acc-text,#047857) 10%,transparent)}
 /* id-scoped so per-theme link colours (e.g. Studio's "a:not(.btn)...{color:accent}") can't paint the CTA text the same colour as its fill. */
-#helmTrialStrip a:not(.htr-fresh),#helmTrialReminder .htrm-a a{background:var(--hb-acc,var(--accent,#6d28d9));color:var(--hb-acc-ink,#fff)}
-#helmTrialStrip a.htr-fresh{background:transparent;color:var(--hb-acc-text,var(--accent,#6d28d9));border:1px solid var(--hb-acc-text,var(--accent,#6d28d9))}
+#helmTrialStrip a:not(.htr-fresh),#helmTrialReminder .htrm-a a{background:var(--hb-acc,var(--accent,#047857));color:var(--hb-acc-ink,#fff)}
+#helmTrialStrip a.htr-fresh{background:transparent;color:var(--hb-acc-text,var(--accent,#047857));border:1px solid var(--hb-acc-text,var(--accent,#047857))}
 #helmTrialReminder .htrm-a button{color:var(--hb-ink,var(--ink,#1b1930))}

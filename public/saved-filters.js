@@ -119,8 +119,8 @@
     ".hsf-lbl{font-size:12px;font-weight:600;color:var(--ink-3,#667085);margin-right:2px}" +
     ".hsf-chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line,#e4e7ec);background:var(--panel,#fff);color:var(--ink-2,#344054);" +
     "border-radius:999px;font:inherit;font-size:12px;font-weight:600;padding:5px 11px;cursor:pointer;min-height:30px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
-    ".hsf-chip[aria-pressed=true]{background:var(--accent,#6d28d9);border-color:var(--accent,#6d28d9);color:#fff}" +
-    ".hsf-chip:focus-visible,.hsf-more:focus-visible,.hsf-menu button:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:2px}" +
+    ".hsf-chip[aria-pressed=true]{background:var(--accent,#047857);border-color:var(--accent,#047857);color:#fff}" +
+    ".hsf-chip:focus-visible,.hsf-more:focus-visible,.hsf-menu button:focus-visible{outline:2px solid var(--accent,#047857);outline-offset:2px}" +
     ".hsf-grp{display:inline-flex;align-items:center;position:relative}" +
     ".hsf-more{border:0;background:transparent;color:var(--ink-3,#667085);font:inherit;font-size:14px;cursor:pointer;padding:2px 6px;min-height:30px;border-radius:6px}" +
     ".hsf-save{border-style:dashed}" +
@@ -204,24 +204,59 @@
     setViewParam(id);
     this.render();
   };
-  Ctl.prototype.ask = function (msg, def) { var p = this.deps.prompt || global.prompt; var r = p ? p.call(global, msg, def || "") : null; return r == null ? null : String(r).trim().slice(0, 60); };
-  Ctl.prototype.confirm = function (msg) { var c = this.deps.confirm || global.confirm; return c ? !!c.call(global, msg) : false; };
+  // Audit 14 (Oct 2026): the app's own dialogs (BPUI.prompt / BPUI.confirm), never the browser's
+  // prompt() / confirm() - those throw "prompt() is not supported" in some browsers / embeds and
+  // "+ Save view" crashed. Both return Promises; deps.prompt / deps.confirm (tests) may be sync.
+  // No dialog available -> a clear message instead of a crash, and nothing is saved.
+  Ctl.prototype.ask = function (msg, def, o) {
+    var self = this, ui = global.BPUI, p = this.deps.prompt;
+    var run = p ? function () { return p.call(global, msg, def || ""); }
+      : (ui && typeof ui.prompt === "function") ? function () {
+          return ui.prompt(msg, Object.assign({ value: def || "", required: true, maxLength: 60, requiredMessage: "Give the view a name." }, o || {}));
+        } : null;
+    if (!run) { this.toast("Couldn't open the dialog. Reload the page and try again.", true); return Promise.resolve(null); }
+    return Promise.resolve().then(run).then(function (r) { return r == null ? null : String(r).trim().slice(0, 60); },
+      function () { self.toast("Couldn't open the dialog. Reload the page and try again.", true); return null; });
+  };
+  Ctl.prototype.confirm = function (msg, o) {
+    var self = this, ui = global.BPUI, c = this.deps.confirm;
+    var run = c ? function () { return c.call(global, msg); }
+      : (ui && typeof ui.confirm === "function") ? function () { return ui.confirm(msg, o || {}); } : null;
+    if (!run) { this.toast("Couldn't open the dialog. Reload the page and try again.", true); return Promise.resolve(false); }
+    return Promise.resolve().then(run).then(function (r) { return !!r; },
+      function () { self.toast("Couldn't open the dialog. Reload the page and try again.", true); return false; });
+  };
   Ctl.prototype.act = function (p, ok) {
     var self = this;
     return Promise.resolve(p).then(function () { if (ok) self.toast(ok); return self.reload(); })
       .catch(function (e) { self.toast((e && e.code === "25006") ? "Your studio is read-only right now." : "Couldn't save that view. Please try again.", true); });
   };
   Ctl.prototype.saveNew = function () {
-    var name = this.ask("Name this view:"); if (!name) return null;
-    var shared = this.admin ? this.confirm("Share “" + name + "” with everyone in your studio who can see this page?") : false;
     var self = this;
-    return this.act(this.store.save(this.page, name, readState(this.cfg), shared).then(function (v) { if (v && v.id) { current.activeId = v.id; setViewParam(v.id); } }), "View saved");
+    return this.ask("Name this view:", "", { title: "Save view", label: "View name", okLabel: "Save view", placeholder: "e.g. This month's weddings" }).then(function (name) {
+      if (!name) return null;
+      var shareP = self.admin
+        ? self.confirm("Share “" + name + "” with everyone in your studio who can see this page?", { title: "Share this view?", okLabel: "Share with studio", cancelLabel: "Just me" })
+        : Promise.resolve(false);
+      return shareP.then(function (shared) {
+        return self.act(self.store.save(self.page, name, readState(self.cfg), shared).then(function (v) { if (v && v.id) { current.activeId = v.id; setViewParam(v.id); } }), "View saved");
+      });
+    });
   };
-  Ctl.prototype.rename = function (v) { var n = this.ask("Rename view:", v.name); if (!n || n === v.name) return null; return this.act(this.store.update(v.id, { name: n }), "View renamed"); };
+  Ctl.prototype.rename = function (v) {
+    var self = this;
+    return this.ask("Rename view:", v.name, { title: "Rename view", label: "View name", okLabel: "Rename" }).then(function (n) {
+      if (!n || n === v.name) return null;
+      return self.act(self.store.update(v.id, { name: n }), "View renamed");
+    });
+  };
   Ctl.prototype.remove = function (v) {
-    if (!this.confirm("Delete the view “" + v.name + "”? Your data is not affected.")) return null;
-    if (current.activeId === v.id) { current.activeId = ""; setViewParam(""); }
-    return this.act(this.store.remove(v.id), "View deleted");
+    var self = this;
+    return this.confirm("Delete the view “" + v.name + "”? Your data is not affected.", { title: "Delete view?", okLabel: "Delete view", danger: true }).then(function (ok) {
+      if (!ok) return null;
+      if (current.activeId === v.id) { current.activeId = ""; setViewParam(""); }
+      return self.act(self.store.remove(v.id), "View deleted");
+    });
   };
   Ctl.prototype.reload = function () {
     var self = this;
