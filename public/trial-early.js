@@ -11,7 +11,7 @@
     var d = document.documentElement;
     if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
     if (!document.getElementById("trialLockCss")) {
-      var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=6";
+      var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=7";
       if (!document.body) l.setAttribute("blocking", "render");
       (document.head || d).appendChild(l);
     }

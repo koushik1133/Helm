@@ -36,7 +36,7 @@ t('0201: right after 0200 in the MANIFEST, then 0202-0205 (each number once); su
   assert.match(ap, /^begin;$/m); assert.match(ap, /^commit;$/m); assert.match(ap, /-- VERIFY/);
   assert.ok(ap.includes(MIG.trim()), 'the paste file carries the migration unchanged');
 });
-t('APPLY-RELEASE-1018.sql is current: trial bundle, FIX-0177, 0189..0237, REFRESH-0178 LAST, one VERIFY', () => {
+t('APPLY-RELEASE-1018.sql is current (the shipped 1018-b paste; later migrations are in APPLY-RELEASE-1018-C.sql): trial bundle, FIX-0177, 0189..0205, REFRESH-0178 LAST, one VERIFY', () => {
   const r = spawnSync(process.execPath, ['scripts/gen-apply-release-1018.mjs', '--check'], { cwd: new URL('..', import.meta.url).pathname, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr || r.stdout);
   const rel = read('supabase/APPLY-RELEASE-1018.sql');
@@ -44,7 +44,7 @@ t('APPLY-RELEASE-1018.sql is current: trial bundle, FIX-0177, 0189..0237, REFRES
     'APPLY-0181.sql', 'APPLY-0182.sql', 'APPLY-0183.sql', 'APPLY-0184.sql', 'APPLY-0185.sql', 'APPLY-0186.sql', 'APPLY-0187.sql',
     'FIX-0177-existing-trials.sql', 'APPLY-0189.sql', 'APPLY-0190.sql', 'APPLY-0192.sql', 'APPLY-0194.sql', 'APPLY-0195.sql',
     'APPLY-0196.sql', 'APPLY-0197.sql', 'APPLY-0198.sql', 'APPLY-0199.sql', 'APPLY-0200.sql', 'APPLY-0201.sql', 'APPLY-0202.sql',
-    'APPLY-0203.sql', 'APPLY-0204.sql', 'APPLY-0205.sql', 'APPLY-0236.sql', 'APPLY-0237.sql', 'APPLY-0178-refresh-trials.sql'];
+    'APPLY-0203.sql', 'APPLY-0204.sql', 'APPLY-0205.sql', 'APPLY-0178-refresh-trials.sql'];
   const heads = [...rel.matchAll(/^-- RELEASE SECTION (\d+)\/(\d+): (\S+)\n-- In plain words: \S/gm)];
   assert.deepEqual(heads.map((m) => m[3]), order, 'sections in order, each with a plain-words header');
   assert.ok(heads.every((m) => m[2] === String(order.length)));
