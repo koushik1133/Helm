@@ -1631,8 +1631,10 @@
     // 0119: a self-serve trial studio already shows the ONE trial strip (trial.js) — no second notice
     var orgQ = st.trialOrg && st.trialOrg.status ? st.trialOrg.status().catch(function () { return null; }) : Promise.resolve(null);
     Promise.all([st.subscription.trial(), demoQ, orgQ]).then(function (both) {
-      var t = both[0], d = both[1];
-      demoStatus(t, d);
+      var t = both[0], d = both[1], o = both[2];
+      // 0180: during the free trial the trial strip is the only notice ("Free trial · N days left" +
+      // "Choose a plan"): no "You're exploring demo data" card with its own set-up action
+      if (!(o && o.is_trial_org === true && o.ended !== true && o.locked !== true && t && t.state === "trial")) demoStatus(t, d);
       var spec = both[2] && both[2].is_trial_org === true ? null : trialNotice(t);
       if (!spec || trialShown || !doc.body) return;
       var key = "trial_" + String(t.ends_at || "") + (spec.urgent ? "_u" : "");
@@ -1654,6 +1656,8 @@
   function demoNotice(d, t) {
     if (!d || typeof d !== "object" || d.trial_mode !== "demo" || d.has_demo !== true) return null;
     var converted = !!(t && typeof t === "object" && t.state === "none");
+    // 0185: after upgrading the admin chose to keep the sample data (tagged Sample): no reminder banner
+    if (converted && d.demo_choice === "keep") return null;
     return { id: "hauDemoNote", tone: "", converted: converted,
       title: converted ? "Your plan is active — your studio still shows demo data" : "You're exploring demo data",
       body: converted ? "Set up your studio with your own clients, menu and team." : "Everything marked \u201cDemo \u00b7\u201d is sample data. No messages or payments go out for it.",

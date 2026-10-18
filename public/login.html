@@ -131,13 +131,8 @@
   .av-top{fill:var(--accent-2)} .av-left{fill:var(--accent)} .av-right{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1}
   .av-st{opacity:.35;transition:opacity .5s ease} .av-st.on{opacity:1} .av-st.cur .av-card{stroke:var(--accent);stroke-width:1.5}
   @media(prefers-reduced-motion:reduce){.av-st{transition:none}}
-  /* 0119 free trial: "How would you like to start?" (shown right after the account is created) */
-  .tc-card{width:min(460px,100%)} .tc-card h1:focus{outline:none}
-  .tc-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--acc-text,var(--accent));background:var(--accent-soft);border-radius:999px;padding:3px 9px;margin-bottom:10px}
-  .tc-opt{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;text-align:left;padding:16px;margin:0 0 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel-2);color:var(--ink);font:inherit;cursor:pointer}
-  .tc-opt b{font-size:15.5px} .tc-opt span{font-size:13px;line-height:1.5;color:var(--ink-2)}
-  .tc-opt:hover,.tc-opt:focus-visible,.tc-opt.on{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
-  .tc-opt:disabled{cursor:progress} .tc-opt:disabled:not(.on){opacity:.55}
+  /* 0180: fields the free trial does not ask for really disappear (label / input / .s-8aed95a set their own display) */
+  #onboardForm [hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -328,10 +323,10 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
-<script src="auth-ui.js?v=34"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
+<script src="auth-ui.js?v=35"></script>
 <script src="/auth-visual.js?v=1"></script>
-<script src="/trial-signup.js?v=6"></script>
+<script src="/trial-signup.js?v=8"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -363,8 +358,9 @@
   const pendingInvite=()=>{ try{ return inviteTok||sessionStorage.getItem(INVITE_KEY)||null; }catch(e){ return inviteTok||null; } };
   const clearInvite=()=>{ try{ sessionStorage.removeItem(INVITE_KEY); }catch(e){} try{ localStorage.removeItem(INVITE_KEY); }catch(e){} };
   const JOINING=!!pendingInvite();   // an invitee joins a studio; they never create one
-  // 0119 ONE free trial for every self-serve studio: "demo data or own data?" is asked first,
-  // then start_self_serve_trial() creates the studio (own name, or "Demo N" when left empty)
+  // 0119 ONE free trial for every self-serve studio: start_self_serve_trial() creates the studio
+  // (own name, or "Demo N" when left empty). 0180: always with the sample data on INR / Asia/Kolkata
+  // (no "demo data or own data?" question); the 2-step welcome + tour follow on the dashboard.
   const TRIAL=()=>!JOINING && !!(window.BPTrialSignup && BPTrialSignup.wanted());
   const makeStudio=(name,opts)=>TRIAL()? BPTrialSignup.start(name,opts||{}) : BPStore.org.createStudio(name,opts||{}).then((r)=>{ try{ if(window.BPTrialSignup&&BPTrialSignup.clearDirect) BPTrialSignup.clearDirect(); }catch(e){} return r; });
   // ?next= may only name one of the app's own pages (no open redirect): the shared
@@ -796,8 +792,13 @@
     const guess=meta.business_name || meta.full_name || meta.name || (u.email? u.email.split("@")[0] : "");
     if(guess && !$("#ob_name").value) $("#ob_name").value=guess.charAt(0).toUpperCase()+guess.slice(1);
     // default the timezone to the browser's, if it's one of our options
-    try{ const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if(tz && [...$("#ob_tz").options].some(o=>o.value===tz)) $("#ob_tz").value=tz; }catch(e){}
+    // 0177: a free trial is India only (INR / Asia/Kolkata) - no currency / time-zone choice
+    // 0180: and no location here either - the trial welcome asks for the city (studio details are fixed in the trial)
+    const lc=$("#ob_currency").closest(".s-8aed95a"), ll=document.querySelector('label[for="ob_location"]');
+    if(TRIAL()){ $("#ob_currency").value="INR"; $("#ob_tz").value="Asia/Kolkata"; if(lc) lc.hidden=true; $("#ob_location").hidden=true; if(ll) ll.hidden=true; }
+    else { if(lc) lc.hidden=false; $("#ob_location").hidden=false; if(ll) ll.hidden=false;
+      try{ const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if(tz && [...$("#ob_tz").options].some(o=>o.value===tz)) $("#ob_tz").value=tz; }catch(e){} }
     setTimeout(()=>$("#ob_name").focus(),60);
   }
   $("#onboardForm").addEventListener("submit", (e)=>{
@@ -813,7 +814,7 @@
         // a Helm platform operator must never create a studio from here → HQ
         if(await BPStore.auth.operatorToHq()) return;
         await makeStudio(name,{ currency:$("#ob_currency").value, timezone:$("#ob_tz").value });   // #16: no login email as business email
-        const loc=$("#ob_location").value.trim();
+        const loc=TRIAL()? "" : $("#ob_location").value.trim();   // 0180: a trial sets its city in the welcome
         if(loc){ try{ await BPStore.org.save({ location: loc }); }catch(e){} }
         try{ localStorage.setItem("bp_force_tour","1"); }catch(e){}   // brand-new studio → show the tour
         await routeSignedIn();   // profile step (if any) → dashboard

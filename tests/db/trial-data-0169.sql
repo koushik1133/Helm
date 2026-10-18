@@ -117,7 +117,8 @@ do $$ declare a uuid; o public.organizations; r jsonb; M uuid := 'a5a5a5a5-0166-
     and (select count(*) from public.quotes where org_id = a and pricing ->> 'placeOfSupply' = 'intra') >= 3);
   r := public._demo_clear(a);
   perform pg_temp.res('27 clear: coupons off + template archived, rows kept', (select count(*) from public.coupons where org_id = a and code like 'DEMO-%' and not active) = 3
-    and (select count(*) from public.studio_layout_templates where org_id = a and archived) = 3, r::text);
+    and (select count(*) from public.studio_layout_templates where org_id = a and archived) >= 3
+    and not exists (select 1 from public.studio_layout_templates where org_id = a and not archived), r::text);
   perform pg_temp.res('28 master untouched by clone + clear', (select count(*) from public.coupons where org_id = M and active) = 3
     and (select count(*) from public.studio_layout_templates where org_id = M and not archived) = 3);
   perform pg_temp.su();

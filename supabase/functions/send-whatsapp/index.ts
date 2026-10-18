@@ -40,6 +40,10 @@
 //     characters / line breaks / tabs are REJECTED (not cleaned); a link only to the Helm
 //     site (APP_URL host, needed for proposal links); at most 10 of at most 200 characters.
 //
+// 0179: a free-trial studio (studio_subscriptions.status 'trial') sends NO WhatsApp at all (the 0155
+// "opted-in clients only" trial exception is gone): the database refuses (42501 / hint trial_no_send)
+// and this function also asks trial_send_blocked with the service role right before the Meta call.
+//
 // Requests:
 //   { "ping": true }                                     → credential check, no send
 //   { "quote_id": "<uuid>", "number": "<phone>", "template": "<name>",
@@ -48,6 +52,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, durableHit, readJsonCapped, tooMany } from "../_shared/limits.ts";
+import { TRIAL_NO_SEND_HINT, TRIAL_NO_SEND_MSG, trialSendBlocked } from "../_shared/trial-guard.ts";
 
 const TOKEN = Deno.env.get("WHATSAPP_TOKEN") || "";
 const PHONE_ID = Deno.env.get("WHATSAPP_PHONE_ID") || "";
@@ -111,6 +116,7 @@ function authzFailure(code: string, hint = ""): [number, string] {
   if (code === "HL429") return [429, "WhatsApp limit reached for your studio — try again later"];
   if (code === "HL451") return [409, "this person replied STOP to WhatsApp messages — reach them another way"];
   if (code === "22023") return [400, "invalid number"];
+  if (code === "42501" && hint === TRIAL_NO_SEND_HINT) return [403, TRIAL_NO_SEND_MSG];   // 0179
   if (code === "42501" && hint === "trial_optin") return [403, "during the free trial, WhatsApp goes only to clients who opted in on the proposal screen"];
   return [403, "you can't send WhatsApp messages for this event to that number"];
 }
@@ -200,6 +206,8 @@ Deno.serve(async (req) => {
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
     const orgId = String((q as any).org_id || "");
     if (!UUID_RE.test(orgId)) return json({ error: "could not check the event" }, 500);
+    // 0179: no WhatsApp from a free-trial studio (service-role check, independent of the caller's RPC)
+    if (await trialSendBlocked(admin, { org: orgId, quote: quoteId })) return json({ error: TRIAL_NO_SEND_MSG, trial: true }, 403);
     const digits = to.replace(/\D/g, "");
     const { data: optOut, error: ooErr } = await admin.from("whatsapp_opt_outs").select("id")
       .eq("phone", digits).eq("opted_out", true).or("org_id.is.null,org_id.eq." + orgId).limit(1).maybeSingle();

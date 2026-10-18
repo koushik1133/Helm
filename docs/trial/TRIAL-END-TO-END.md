@@ -26,11 +26,13 @@ GST is set to 18% (intra-state). Event dates are relative to the sign-up day, so
 ## 3. What a trial studio can use
 - The dashboard, leads, events and quotes, the layout builder (2D/3D), inventory, vendors, staff, venues, calendar, budget and chat.
 - **Pricing & coupons:** fully editable (default pricing, rate cards, capacity limits, object prices).
-- **Menus & catalog:** existing menu packages can be changed, including their prices and dish lists. New dishes, packages, chair types or plate types **cannot be added**, and existing ones cannot be removed.
-- **Layout rules** and **Layout templates:** editable.
+- **Layout builder prices:** every builder item type starts at the owner's inventory rate (for example LED Wall 5,000, Stage Barrier 1,000, Main Stage 18,000) and the chair rate is 100 (migration 0182). Seats are billed at the chair rate: chairs, chair rows, seating blocks and the seats around round / banquet tables (a round table with 8 seats = 8 x 100). The studio can still change every rate under Pricing.
+- **Menus & catalog:** only prices change: a package's price per plate and its dish list, and the chair and plate prices. New dishes, packages, chair types or plate types **cannot be added**, and existing ones cannot be renamed, switched off or removed (the server refuses it, migration 0181). A price change keeps a sample row a sample row, so "Clear demo data" still removes it.
+- **Layout rules:** editable.
+- **Layout templates:** the builder gallery shows the sample layouts, **Start blank** and **From past events** (never the built-in presets, even when no sample layout is left). Saving, renaming, archiving, duplicating or setting a default template is not part of the trial (0181).
 - **Users & invites:** at most **you + 2 people**. Open invitations count toward that number. The server refuses a 3rd person even if the request is sent straight to the API.
 - **Roles & access:** editable.
-- **Plan & billing:** shown, so the studio can upgrade. The demo-data card (keep or clear the sample data) also sits here.
+- **Plan & billing:** shown, so the studio can upgrade. The demo-data card (keep or clear the sample data) also sits here. Checkout can save the billing details and accept the Terms during the trial (`my_studio_account_update` is open to the trial admin, migration 0185 section 10); the other studio settings stay fixed.
 
 ## 4. What is hidden and blocked
 "Blocked" means the screen hides the feature, a direct link shows **"Not available in the free trial"**, and the server refuses the request (migration 0173).
@@ -43,24 +45,31 @@ GST is set to 18% (intra-state). Event dates are relative to the sign-up day, so
 | Data & compliance, and all downloads (studio archive, CSV and PDF reports, quote PDF, booklet PDF, run sheet print, builder PNG/JSON, event file download) | Section and buttons hidden; print and download links blocked in the page | `export_tenant_organization_package` and `export_org_data` refused |
 | Photo renders | "Render" button and render dialog hidden | `photo_render_begin` and `photo_render_settings_set` refused |
 | Notifications | Section hidden | `admin_set_notification_pref` and `admin_reset_notification_prefs` refused |
-| Reminders & client messages, privacy PIN | Section hidden | Outgoing messages from a trial are already queued as "skipped" and never sent (0166) |
+| Reminders & client messages, privacy PIN | Section hidden; "Send reminder now" hidden | Outgoing messages from a trial are already queued as "skipped" and never sent (0166); `event_reminder_settings_set`, `privacy_pin_set`, `privacy_pin_reset` and `payment_reminder_send_now` refused (0181). Unlocking hidden amounts with the default PIN still works |
+| Custom fields | Section hidden | Adding, changing or removing a custom field definition (`custom_field_defs`) refused (0181) |
+| Layout templates (your own) | "Save as template" and "My templates" hidden in the builder; Control Center section shows "Not available in the free trial" | `studio_template_save`, `_set_archived`, `_set_default`, `_duplicate` refused (0181) |
+| Templates page (checklist templates) | Page covered with "Templates are not part of the free trial"; "Go to templates" (search) and "Checklist template" (quick create) removed | - |
 
-## 5. Creation cap: 2 per list
-- A trial studio can add at most **2 of its own rows** to each of these lists: leads (clients), events/quotes, inventory items, vendors, staff and venues.
-- Sample (demo) rows do not count. A sample row that the studio renames out of the "Demo ·" prefix becomes the studio's own row and does count.
+## 5. Creation cap: 2 created in total per list
+- A trial studio can create at most **2 of its own rows in total** in each of these lists: leads (clients), events/quotes, inventory items, vendors, staff and venues.
+- "In total" (0181): every own row the trial adds is remembered in `trial_create_log`, so deleting it does not free a slot. Rows that still exist also count, including removed (inactive), soft-deleted and shelved ones. Restoring a deleted lead brings the same row back and does not use a new slot.
+- Sample (demo) rows do not count. A sample inventory item stays sample data even when the studio renames or re-prices it (migration 0182), so it never counts. For the other lists, a sample row that the studio renames out of the "Demo ·" prefix becomes the studio's own row and does count.
 - The 3rd add is refused with **"Free trial limit reached (2). Upgrade to add more."** `my_trial_limits()` returns the counts so the app can show the limit before the server refuses.
 
 ## 6. Messages
 Nothing leaves Helm during a trial. E-mail, WhatsApp and SMS rows are queued as "skipped", and sample contacts are dummy addresses and numbers.
+The direct send routes (approval code, "Send on WhatsApp", proposal WhatsApp) are refused too (0179), and they stay refused after an unpaid trial ends and the studio is read-only, until it is on a paid plan.
 
 ## 7. Clearing the demo data
 An admin can clear the sample data from the demo-data card. Only rows marked as demo data in that studio are removed. Rows the studio created or adopted are never touched.
+Sample dishes, menu packages and inventory items stay demo data even after the studio edits them during the trial (migration 0182), so clearing removes them too. Once the studio pays, the 0097 rule applies again: editing a sample row from then on makes it the studio's own row.
 
 ## 8. When the trial ends (day 8)
 The studio becomes read-only until a plan is paid. Everything stays as it was, and paying unlocks the studio again. Once the subscription is no longer `trial`, every limit in this brief stops applying automatically.
 
 ## For engineers
 - **Trial test:** `public._is_trial_org(org)` checks `studio_subscriptions.status = 'trial'`. The sample master studio is exempt.
-- **Client:** `public/trial-lock.js` (loaded by `store-api.js`) asks `my_trial_status` and adds `html.helm-trial`. `public/trial-lock.css` hides the entry points. `control-split.js` hides the locked sections and shows the not-available message for direct links.
-- **SQL:** `supabase/APPLY-0173.sql` is the paste file. Run it on staging first, then production. It is safe to run twice, and its VERIFY rows should all be `true`.
-- **Tests:** `tests/db/trial-lockdown-0173.sql` (DB) and `test/trial-lockdown-ui.test.mjs` (UI).
+- **Client:** `public/trial-lock.js` (loaded by `store-api.js`) asks the server for the subscription status and adds `html.helm-trial`. `public/trial-lock.css` hides the entry points. `control-split.js` hides the locked sections and shows the not-available message for direct links.
+- **Before first paint (0181):** `trial-lock.js` caches `helm.trial = 1` in the browser. On the next page load `shell-proto.js` (app pages), `trial-early.js` (builder, booklet) or `store-api.js` (any other page) adds `html.helm-trial` at once, so export, render and print buttons never flash usable. When the server says the studio is not on a trial (paid, upgraded, signed out), the class comes off again and the flag is cleared. Sign-out clears it too.
+- **SQL:** `supabase/APPLY-0173.sql`, then `supabase/APPLY-0181.sql`, are the paste files. Run them on staging first, then production. They are safe to run twice, and their VERIFY rows should all be `true`.
+- **Tests:** `tests/db/trial-lockdown-0173.sql` and `tests/db/trial-guards-0181.sql` (DB), and `test/trial-lockdown-ui.test.mjs` (UI).

@@ -196,7 +196,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="event-reminders.css?v=1">
-<script src="/shell-proto.js?v=22" id="shellProto"></script>
+<script src="/shell-proto.js?v=24" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -221,6 +221,7 @@
 
   <section id="obNudge" class="ob-nudge" hidden aria-label="Studio setup"></section>
   <section id="tdCard" data-td-auto hidden aria-label="Demo data"></section>
+  <section id="tuCard" data-tu-auto hidden aria-label="Your trial data after upgrading"></section>
   <section id="gsCard" class="gs" data-gs-auto hidden data-tour="checklist" aria-label="Getting started"></section>
 
   <section class="hero">
@@ -325,12 +326,13 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=15"></script>
 <script src="getting-started.js?v=8"></script>
-<script src="onboarding-wizard.js?v=6"></script>
-<script src="trial-demo.js?v=7"></script>
+<script src="onboarding-wizard.js?v=7"></script>
+<script src="trial-demo.js?v=8"></script>
+<script src="trial-upgrade.js?v=1"></script>
 <script src="dash-prompts.js?v=1"></script>
 <script>
   const $ = (s) => document.querySelector(s);
@@ -738,8 +740,13 @@
       const A = BPStore.auth;
       if(!(A && A.enabled && A.enabled())){ if(!localStorage.getItem("bp_seen_tour")) startTourWhenReady(); return; }   // local/demo mode: per-device
       const u = A.user && A.user(); if(!u) return;
-      // the trial welcome (trial-demo.js) is showing: leave bp_force_tour for after it (finishWelcome reloads)
-      if(window.HelmTrialDemo && HelmTrialDemo.welcomeOn) return;
+      // the trial welcome (trial-demo.js) is showing: leave bp_force_tour for after it (finishWelcome reloads).
+      // 0180: the server decides (works across devices), so wait for that answer (max 10 s) first.
+      if(window.HelmTrialDemo && HelmTrialDemo.welcomeDecision){
+        const w = await Promise.race([ HelmTrialDemo.welcomeDecision().then(v=>v===true, ()=>false),
+                                       new Promise(r => setTimeout(() => r(null), 10000)) ]);
+        if(w !== false) return;   // showing (or still unknown): bp_force_tour stays for after it
+      } else if(window.HelmTrialDemo && HelmTrialDemo.welcomeOn) return;
       let forced=false; try{ forced=!!localStorage.getItem("bp_force_tour"); localStorage.removeItem("bp_force_tour"); }catch{}
       const seen = A.tourSeen ? A.tourSeen() : true;
       const eligible = A.tourEligible ? A.tourEligible() : false;

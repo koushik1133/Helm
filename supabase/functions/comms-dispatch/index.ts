@@ -3,6 +3,9 @@
 //   * follow_up     polite client follow-ups after the booklet / quote was opened e-mail / WhatsApp
 //   * trial reminders (0120) the studio's own 8-day free-trial reminders (day 5 / 7 / 8), e-mail only,
 //                   claimed from trial_reminders via trial_reminder_email_claim (re-checked there)
+//   * post-trial (0184) the studio owner's "trial ended 7 days ago" reminder + the deletion warnings
+//                   30 / 7 / 1 day before the trial data is deleted, claimed via trial_retention_email_claim
+//                   (re-checked there; warnings only while the owner switch helm_trial_retention.delete_enabled is on)
 //   * wa_forward    WhatsApp copies of a member's bell notifications (+ studio announcements),
 //                   each with a short deep link that opens the exact page in Helm.
 // AUTO-ON: runs whenever it is called with the shared secret; each channel switches itself on
@@ -39,7 +42,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { absoluteLink } from "./deeplink.js";
-import { trialReminderEmail } from "./trial-reminders.mjs";
+import { trialReminderEmail, trialRetentionEmail, RETENTION_NOTICE_KINDS, RETENTION_TX_REASON } from "./trial-reminders.mjs";
 import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
 
@@ -230,13 +233,17 @@ Deno.serve(async (req) => {
       if (mErr) { console.error("comms-dispatch: mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;
     }
+    // 0184: retention settings once per run, so the day 5 / 7 / 8 copy can say how long data is kept
+    // (a database without 0184, or the switch off -> null / off -> the original "nothing is deleted" copy)
+    let retention: { delete_enabled?: boolean; retention_days?: number } | null = null;
+    try { const { data, error } = await admin.rpc("trial_retention_mail_settings"); if (!error && data && typeof data === "object") retention = data; } catch (_) { retention = null; }
     // 0120: free-trial reminder e-mails (a database without 0120 just has nothing to claim)
     const { data: trows, error: tErr } = await admin.rpc("trial_reminder_email_claim", { p_limit: batch });
     if (tErr) console.error("comms-dispatch: trial claim skipped", errTag(tErr));
     for (const r of (Array.isArray(trows) ? trows : [])) {
       const id = String(r?.id ?? ""), to = String(r?.to ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
-      const msg = trialReminderEmail(String(r?.milestone ?? ""), String(r?.studio ?? ""), String(r?.ends_at ?? ""), String(r?.timezone ?? ""), origin);
+      const msg = trialReminderEmail(String(r?.milestone ?? ""), String(r?.studio ?? ""), String(r?.ends_at ?? ""), String(r?.timezone ?? ""), origin, retention);
       // trial nudges are Helm's own non-transactional mail: unsubscribe is per address for Helm (org null)
       let u: any = null;
       if (msg) {
@@ -249,6 +256,30 @@ Deno.serve(async (req) => {
       const res: Res = msg && extra ? await sendEmail(id, to, msg.subject, msg.text, "Helm", {}, extra) : "skipped";
       const { error: mErr } = await admin.rpc("trial_reminder_email_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("comms-dispatch: trial mark failed", errTag(mErr)); counts.failed++; continue; }
+      counts[res]++;
+    }
+    // 0184: post-trial mails to the studio owner (a database without 0184 just has nothing to claim).
+    // Deletion warnings are service notices (transactional footer); the +7 reminder is a nudge (Helm unsubscribe).
+    const { data: rrows, error: rErr } = await admin.rpc("trial_retention_email_claim", { p_limit: batch });
+    if (rErr) console.error("comms-dispatch: retention claim skipped", errTag(rErr));
+    for (const r of (Array.isArray(rrows) ? rrows : [])) {
+      const id = String(r?.id ?? ""), to = String(r?.to ?? ""), kind = String(r?.kind ?? "");
+      if (!UUIDISH.test(id)) { counts.invalid++; continue; }
+      const msg = trialRetentionEmail(kind, String(r?.studio ?? ""), { deleteOn: String(r?.delete_on ?? ""), expiredAt: String(r?.expired_at ?? ""),
+        timeZone: String(r?.timezone ?? ""), retentionDays: Number(r?.retention_days) }, origin);
+      let extra: Extra | null = null;
+      if (msg && RETENTION_NOTICE_KINDS.includes(kind)) extra = { footer: txFooter(RETENTION_TX_REASON, { app: origin, address: postalAddress(env) }) };
+      else if (msg) {
+        let u: any = null;
+        try {
+          const [o, t] = await Promise.all([admin.rpc("email_is_opted_out", { p_org: null, p_email: to }), admin.rpc("email_unsub_token", { p_org: null, p_email: to })]);
+          if (!o.error && !t.error) u = { ok: true, opted_out: o.data === true, token: t.data };
+        } catch (_) { u = null; }
+        extra = marketingExtra(u, "Helm", "you started a free trial of Helm", origin);
+      }
+      const res: Res = msg && extra ? await sendEmail(id, to, msg.subject, msg.text, "Helm", {}, extra) : "skipped";
+      const { error: mErr } = await admin.rpc("trial_retention_email_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
+      if (mErr) { console.error("comms-dispatch: retention mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;
     }
     // 0132: "you've been assigned ..." WhatsApp to staff (a database without 0132 has nothing to claim)

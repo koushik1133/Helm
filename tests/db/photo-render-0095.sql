@@ -27,6 +27,9 @@ begin
   update public.quotes set deleted_at = null where id = qa::uuid;
   set local session_replication_role = origin;
   select org_id into oa from public.quotes where id = qa::uuid;
+  -- 0173: renders are refused for a FREE-TRIAL studio. This suite tests the paid path, so studio A is
+  -- pinned to a paid subscription for the run (rolled back); #21 below asserts the trial block.
+  update public.studio_subscriptions set status = 'active' where org_id = oa and status = 'trial';
   update public.role_access set can_edit = false where role = 'sales' and area = 'controls' and org_id = oa;
 
   -- sales has quotes EDIT in the fixture but no photo_render area yet
@@ -125,6 +128,19 @@ begin
   perform pg_temp.login('a_staff@a.test');
   r := public.photo_render_settings_get();
   perform pg_temp.res('16 settings_get for staff: can_render, not can_manage', (r ->> 'can_render')::boolean and not (r ->> 'can_manage')::boolean, r::text);
+
+  -- 0173: the same studio in its free trial cannot start a render (paid path above is unchanged)
+  perform pg_temp.su();
+  if exists (select 1 from public.studio_subscriptions where org_id = oa) then
+    update public.studio_subscriptions set status = 'trial' where org_id = oa;
+  else
+    insert into public.studio_subscriptions(org_id, status, trial_ends_at, updated_at) values (oa, 'trial', now() + interval '7 days', now());
+  end if;
+  perform pg_temp.login('a_staff@a.test');
+  e := pg_temp.try(format('select public.photo_render_begin(%L, 1, ''high'', ''1536x1024'', ''gpt-image-2'', 0.2)', qa));
+  perform pg_temp.res('21 trial studio: photo render refused (0173 trial lock)', e like '42501%free trial%', e);
+  perform pg_temp.su();
+  update public.studio_subscriptions set status = 'active' where org_id = oa;
 end $$;
 
 select name, result from _pr order by name;

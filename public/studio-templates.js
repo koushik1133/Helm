@@ -100,6 +100,12 @@
   async function apply(id) {
     if (!isBuilder) return;
     if (B.ro()) { toast("Read-only - cannot load a template here", true); return; }
+    // free trial (0181): the "Start blank" card clears the floor (the picker already asked before replacing it)
+    if (id === "__blank") {
+      var st0 = B.store(), lb = B.fn("loadItems");
+      if (st0 && st0.items && st0.items.length && lb) lb([], null);
+      var eb = $("emptyState"); if (eb) eb.hidden = true; return;
+    }
     var row; try { row = await S().layoutTemplates.get(id); } catch (e) { toast(friendly(e, "load the template"), true); return; }
     if (!row || !row.data) { toast("That template could not be found.", true); return; }
     // load-fit.js: bigger than this hall → Fit to my hall / Use the layout's size / Cancel
@@ -124,16 +130,43 @@
     toast(row.name + " loaded" + (fit.scaled ? " · fitted to your " + fit.hall.w + "×" + fit.hall.h + " ft hall" : ""));
   }
 
+  // 0181: is this a free-trial studio? The server's subscription status decides (trial-lock.js asks
+  // subscription.trial()), never trial_ends_at. Waits a little for trial-lock.js (store-api.js loads it).
+  async function isTrial() {
+    for (var i = 0; i < 30 && !(G.HelmTrialLock && G.HelmTrialLock.whenKnown); i++) await new Promise(function (r) { setTimeout(r, 200); });
+    try { if (G.HelmTrialLock && G.HelmTrialLock.whenKnown) return !!(await G.HelmTrialLock.whenKnown()); } catch (_) {}
+    return doc.documentElement.classList.contains("helm-trial");
+  }
   // "My studio templates" as the FIRST optgroup of #preset (the template picker is built from it)
   async function fillPreset() {
     var sel = $("preset"); if (!sel) return;
-    var old = $("st_optgroup"); if (old) old.remove();
     var pr = B.pricing() || {};
-    var list = C.order(rows, pr.eventType);
-    if (!list.length) return;
-    var og = h("optgroup", { id: "st_optgroup", label: "My studio templates" },
-      list.map(function (r) { return h("option", { value: "st:" + r.id, text: (r.is_default ? "★ " : "") + r.name + (r.event_type ? " · " + C.label(r.event_type) : "") }); }));
+    // free-trial studio: ONLY its sample layouts + "Start blank" + past events, never the built-in presets.
+    // 0181: decided BEFORE the empty-list return, so a trial studio with no layout templates left (e.g. after
+    // Clear sample data) still gets the trial gallery with "Start blank", not the built-in presets
+    var trial = await isTrial();
+    var old = $("st_optgroup"); if (old) old.remove();
+    var list = C.order(rows.filter(function (r) { return !r.archived; }), pr.eventType);
+    if (!trial && !list.length) return;
+    var opts = list.map(function (r) { return h("option", { value: "st:" + r.id, text: (r.is_default ? "\u2605 " : "") + (trial ? trialName(r.name) : r.name) + (r.event_type ? " \u00b7 " + C.label(r.event_type) : "") }); });
+    if (trial) opts.unshift(h("option", { value: "st:__blank", text: "Start blank" }));
+    var og = h("optgroup", { id: "st_optgroup", label: trial ? "Sample layouts" : "My studio templates" }, opts);
+    if (trial) {
+      Array.prototype.slice.call(sel.querySelectorAll("optgroup")).forEach(function (g) { if (g.id !== "st_optgroup" && g.id !== "st_pastgroup") g.remove(); });
+      fillPast(sel);
+    }
     var first = sel.querySelector("optgroup"); sel.insertBefore(og, first || null);
+  }
+  // "Demo · Wedding — Grand Lawn" -> "Wedding — Grand Lawn"
+  function trialName(n) { return String(n || "").replace(/^Demo \u00b7 /, ""); }
+  // trial: "From past events" = the studio's own earlier events (the builder's #refEvents reference picker)
+  function fillPast(sel) {
+    var old = $("st_pastgroup"); if (old) old.remove();
+    var ref = $("refEvents"); if (!ref) return;
+    var opts = Array.prototype.slice.call(ref.querySelectorAll("option")).filter(function (o) { return o.value; });
+    if (!opts.length) { if (fillPast.tries == null) fillPast.tries = 0; if (fillPast.tries++ < 20) setTimeout(function () { fillPast(sel); }, 700); return; }
+    sel.appendChild(h("optgroup", { id: "st_pastgroup", label: "From past events" },
+      opts.map(function (o) { return h("option", { value: "ref:" + o.value, text: o.textContent }); })));
   }
 
   /* ---------------- manager (builder modal + Control Center pane) ---------------- */
@@ -301,13 +334,16 @@
       var st = S();
       if (!st || !st.auth || !st.auth.user || !st.auth.user() || !st.layoutTemplates) { if (tries++ < 40) setTimeout(wait, 500); return; }
       await loadPerm();
-      if (!perm.view) return;
-      bMgr.hidden = false; bSave.hidden = !perm.edit || B.ro();
-      try { await reload(false); } catch (_) { bMgr.hidden = true; bSave.hidden = true; return; }
+      var trial = await isTrial();
+      if (!perm.view) { if (trial) fillPreset(); return; }   // 0181: the trial filter runs even without template access
+      bMgr.hidden = trial; bSave.hidden = trial || !perm.edit || B.ro();   // no own templates in the trial
+      try { await reload(false); } catch (_) { bMgr.hidden = true; bSave.hidden = true; if (trial) fillPreset(); return; }
       fillPreset();
       var tp = null; try { tp = new URLSearchParams(G.location.search).get("tplEdit"); } catch (_) {}
-      if (tp && perm.edit) tplEditMode(/^(new|[0-9a-f-]{36})$/i.test(tp) ? tp : "new");
+      if (tp && perm.edit && !trial) tplEditMode(/^(new|[0-9a-f-]{36})$/i.test(tp) ? tp : "new");   // 0181: no template editing in the trial
     })();
+    // 0181: trial-lock.js confirmed the free trial after the first fill: rebuild the gallery as the trial one
+    G.addEventListener("helm:trial", function () { fillPreset(); });
   }
 
   function mountControl() {

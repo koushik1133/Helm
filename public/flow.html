@@ -104,6 +104,19 @@
   .namehint{font-size:12px;color:var(--ink-3);margin-top:4px}
   .namehint button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0 0 0 6px;text-decoration:underline}
   .nameerr{font-size:12px;color:var(--warn-text,#8f5f00)}
+  /* 0176: "Create event group?" bar at the bottom once the event is confirmed (event-group-picker.js) */
+  .egbar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:70;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;width:min(620px,calc(100vw - 32px));font-size:13.5px}
+  .egbar[hidden]{display:none!important} .egbar .egtxt{flex:1;min-width:200px} .egbar .egtxt b{display:block} .egbar .egtxt span{color:var(--ink-3);font-size:12px}
+  .egp-sheet{width:min(460px,94vw);text-align:left} .egp-h{display:flex;align-items:center;gap:8px}
+  .egp-x{margin-left:auto;border:0;background:none;font-size:16px;cursor:pointer;color:var(--ink-3)}
+  .egp-sub{margin:0 0 12px;font-size:13px}
+  .egp-list{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
+  .egp-list .egp-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line-2);margin:0;text-transform:none;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer}
+  .egp-list .egp-row:first-child{border-top:0}
+  .egp-list input[type=checkbox]{width:auto;height:auto;margin:0}
+  .egp-list .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
+  .egp-rl{margin-left:auto;color:var(--ink-3);font-size:12px} .egp-empty{padding:14px}
+  .egp-btns{display:flex;justify-content:flex-end;gap:8px}
 </style>
 <link rel="stylesheet" href="flow-polish.css?v=3">
 <link rel="stylesheet" href="share-checklist.css?v=2">
@@ -111,7 +124,7 @@
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=1">
-<script src="/shell-proto.js?v=22" id="shellProto"></script>
+<script src="/shell-proto.js?v=24" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -357,6 +370,12 @@
   </div>
 </div>
 
+<div class="egbar" id="egBar" role="status" aria-live="polite" hidden>
+  <div class="egtxt"><b id="egBarTitle">Create event group?</b><span>Brief your team in one chat - event details are posted for you (no prices).</span></div>
+  <button class="btn primary" id="egBarGo" type="button">Create event group</button>
+  <button class="btn" id="egBarNo" type="button">Not now</button>
+</div>
+
 <div id="loginModal" class="lmodal" hidden data-dismissible="false" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="lsheet">
     <h3 id="loginModalTitle">Sign in</h3>
@@ -372,7 +391,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=23"></script>
 <script src="share-checklist.js?v=11"></script>
@@ -383,7 +402,7 @@
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
-<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="email-send.js?v=1"></script><script src="trial-test-note.js?v=1"></script>
+<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="email-send.js?v=1"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   // QA1019: the step-9 "Next step" only says the booking is confirmed once an advance is recorded
@@ -1078,7 +1097,7 @@
       if(method==='online' && BPStore.approval.onlinePayAvailable()){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
         $("#pay_online").hidden=false; $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
       $("#pay_record").removeAttribute("aria-busy");
-      await renderReceipts(); await renderActivity();
+      await renderReceipts(); await renderActivity(); renderEgPrompt().catch(()=>{});
       BPUI.toast("Payment recorded — receipt "+(r&&r.receipt_no||"")+". Booking confirmed.",{type:"ok",timeout:8000});
       // Leave the button disabled after a successful record so the same advance
       // cannot be submitted twice; re-enable only on failure below.
@@ -1096,6 +1115,22 @@
     if(paidCount>0){ b.textContent="Confirmed"; b.hidden=false; payNextConfirmed(); return; }
     if(ev&&ev.status==='confirmed'){ b.textContent="Advance pending"; b.hidden=false; return; }
     b.hidden=true; }
+  // 0176: once the event is confirmed (client approval / advance), ask at the bottom to create the
+  // event's team group - same picker as the event page. Nothing is created until they click.
+  let egAsked=false;
+  async function renderEgPrompt(){
+    const bar=$("#egBar"); if(!bar||egAsked||!ev||!canEdit||!window.HelmEventGroupPicker) return;
+    let st=ev.status;
+    if(st!=="confirmed"){ try{ const f=await BPStore.quotes.get(id); if(f&&f.status) st=f.status; }catch(_){ } }
+    if(st!=="confirmed") return;
+    let ix=null; try{ ix=await BPStore.chat.eventGroups.index(); }catch(_){ return; }   // chat off -> no prompt
+    if(!ix||ix[ev.id||id]) return;
+    egAsked=true;
+    $("#egBarTitle").textContent="Create an event group for "+(ev.code||"this event")+"?";
+    bar.hidden=false;
+    $("#egBarGo").onclick=()=>{ bar.hidden=true; HelmEventGroupPicker.open({id:ev.id||id, code:ev.code, status:"confirmed"},{canEdit}); };
+    $("#egBarNo").onclick=()=>{ bar.hidden=true; };
+  }
   async function renderReceipts(){
     let pays=[]; try{ pays=(await BPStore.milestones.payments(id))||[]; }catch(e){ BPUI.loadError($("#pay_receipts"), e, renderReceipts, {what:"receipts"}); return; }
     const paid=pays.filter(p=>p.status==='paid');
@@ -1329,7 +1364,7 @@
       // PL1027 #2: "Booking confirmed" only once an advance exists (paid); approved/confirmed without one = advance pending
       // PP1028 #1: an internal Confirm & lock is NOT a client approval - follow the real approval state
       if(ap==='paid'||ap==='approved'||ap==='sent'||hasTok) $("#apprState").textContent=apprStateText(ap==='paid'); }
-    await renderReceipts(); await renderActivity(); await renderQuoteVersions();
+    await renderReceipts(); await renderActivity(); await renderQuoteVersions(); renderEgPrompt().catch(()=>{});
     renderReprice(); watchHistory();
     // reminder banner
     try{ if(localStorage.getItem(REMIND_KEY)==="1"){ $("#reminder").hidden=false; localStorage.removeItem(REMIND_KEY); $("#sec-quote").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); } }catch{}

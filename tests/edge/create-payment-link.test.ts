@@ -43,6 +43,30 @@ for (const [action, status] of [["invalid", 404], ["paid", 409], ["not_approved"
   });
 }
 
+// 0187: a free-trial studio (or an ended unpaid trial) never gets a real Razorpay link
+for (const [label, rpc] of [
+  ["trial_send_blocked = true", (name: string) => name === "trial_send_blocked" ? { data: true, error: null }
+    : name === "payment_link_begin" ? { data: CREATE, error: null } : { data: null, error: null }],
+  ["payment_link_begin refuses 42501 trial_no_send", (name: string) => name === "payment_link_begin"
+    ? { data: null, error: { code: "42501", hint: "trial_no_send", message: "Free trial" } } : { data: null, error: null }],
+] as const) {
+  Deno.test(`create-payment-link: free trial (${label}) -> 409 trial, Razorpay never called`, async () => {
+    resetSupaMock();
+    g.__supaRpc = rpc;
+    const rEnv = setEnv(ENV);
+    const rF = installFetch(() => { throw new Error("no fetch expected"); });
+    try {
+      const h = await loadHandler(FN);
+      const res = await h(post({ token: TOKEN }));
+      assertEquals(res.status, 409);
+      const body = await res.json();
+      assertEquals(body.trial, true);
+      assertEquals(body.code, "trial");
+      if (label.startsWith("trial_send_blocked")) assert(!supaLog().some((e: any) => e.rpc === "payment_link_begin"), "nothing reserved");
+    } finally { rF(); rEnv(); }
+  });
+}
+
 Deno.test("create-payment-link: reuse -> same link back, no new Razorpay link (double click)", async () => {
   resetSupaMock();
   begin({ action: "reuse", link_url: "https://rzp.io/i/abc123", amount: 236000 });

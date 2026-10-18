@@ -29,17 +29,28 @@
       doc.head.appendChild(l);
     } catch (e) {}
   }
+  // free trial (0181): Templates and Studio setup are not part of the trial - keep them out of the palette
+  var TRIAL_OUT = /^\/?(templates|onboarding)(\.html)?([?#].*)?$/;
+  function trialOn() { return doc.documentElement.classList.contains("helm-trial"); }
+  function prune() {
+    var api = window.HelmStudioSearch;
+    if (!trialOn() || !api || !Array.isArray(api.ACTIONS)) return;
+    for (var i = api.ACTIONS.length - 1; i >= 0; i--) { var x = api.ACTIONS[i]; if (x && x.href && TRIAL_OUT.test(x.href)) api.ACTIONS.splice(i, 1); }
+  }
+  window.addEventListener("helm:trial", prune);
   function extend() {
     var api = window.HelmStudioSearch;
     if (!api || !Array.isArray(api.ACTIONS)) return false;
     try {
       EXTRA.forEach(function (a) {
+        if (trialOn() && a.href && TRIAL_OUT.test(a.href)) return;   // free trial: no Templates / Studio setup
         if (a.run && !btn(a.run)) return;        // button not on this page
         // pages with <base href="/"> resolve a bare "#hash" to "/#hash" (a full reload to the home page): pin it to this page
         if (a.run) a.href = location.pathname + location.search + "#" + a.href.split("#")[1];
         if (a.href.indexOf("/") === 0 && !a.run && api.ACTIONS.some(function (x) { return x.href && x.href.replace(/^\//, "") === a.href.slice(1); })) return;   // palette already has it
         if (!api.ACTIONS.some(function (x) { return x.id === a.id; })) api.ACTIONS.push(a);
       });
+      prune();
     } catch (e) {}
     return true;
   }

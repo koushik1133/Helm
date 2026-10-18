@@ -399,7 +399,9 @@
   function quickCreate(split, nq) {
     waitAuth(function () {
       Promise.all(CREATE.map(function (c) { return can(c.area, c.edit); })).then(function (ok) {
-        var items = CREATE.filter(function (c, i) { return ok[i]; });
+        // free trial (0181): no "Checklist template" (Templates is not part of the trial)
+        var trial = document.documentElement.classList.contains("helm-trial");
+        var items = CREATE.filter(function (c, i) { return ok[i] && !(trial && c.area === "templates"); });
         if (!items.length) return;
         split.hidden = false;
         if (!ok[0]) { nq.hidden = true; }
@@ -412,7 +414,7 @@
         var menu = el("div", "hb-menu"); menu.setAttribute("role", "menu"); menu.hidden = true; menu.id = "hbCreateMenu";
         chev.setAttribute("aria-controls", menu.id);
         items.forEach(function (c) {
-          var b = el("button", "hb-mi"); b.type = "button"; b.setAttribute("role", "menuitem"); b.tabIndex = -1;
+          var b = el("button", "hb-mi"); b.type = "button"; b.setAttribute("role", "menuitem"); b.tabIndex = -1; b.setAttribute("data-area", c.area);
           b.appendChild(icon(c.icon)); b.appendChild(el("span", null, c.label));
           b.addEventListener("click", function () { close(false); if (c.run) c.run(); else go(c.href); });
           menu.appendChild(b);
@@ -577,13 +579,15 @@
     waitAuth(function () {
       var A = BPStore.auth;
       var role = Promise.resolve().then(function () { return typeof A.role === "function" ? A.role() : null; }).catch(function () { return null; });
-      Promise.all([role, can("controls"), can("insights")]).then(function (r) {
-        var rl = String(r[0] || ""), ctl = r[1], ins = r[2];
+      // 0177: no "Studio setup" for a free-trial studio (it uses the 2-step welcome)
+      var trial = Promise.resolve().then(function () { return BPStore.trialOrg && BPStore.trialOrg.inTrial ? BPStore.trialOrg.inTrial() : false; }).catch(function () { return false; });
+      Promise.all([role, can("controls"), can("insights"), trial]).then(function (r) {
+        var rl = String(r[0] || ""), ctl = r[1], ins = r[2], inTrial = r[3] === true;
         var add = [
           [ins, "insights", "Insights", "insights.html", "insights"],
           [ctl || /^(admin|manager|planner)$/.test(rl), "reports", "Reports", "reports.html", "reports"],
           [ctl || rl === "admin", "audit", "Audit log", "audit.html", "audit"],
-          [ctl, "setup", "Studio setup", "onboarding.html", "setup"],
+          [ctl && !inTrial, "setup", "Studio setup", "onboarding.html", "setup"],
           [ctl && !!(window.HELM_FEATURES && window.HELM_FEATURES.integrationsPage === true), "integrations", "Integrations", "integrations.html", "integrations"]
         ];
         add.forEach(function (x) {

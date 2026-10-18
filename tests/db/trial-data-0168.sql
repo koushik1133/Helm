@@ -96,8 +96,11 @@ do $$ declare a uuid; b uuid; o public.organizations; r jsonb; begin
   perform pg_temp.newuser('td_b@t.test'); perform pg_temp.login('td_b@t.test');
   r := public.start_self_serve_trial('T own', 'UTC', 'USD', 'own');
   perform pg_temp.su(); b := (r ->> 'org_id')::uuid;
-  perform pg_temp.res('27 an own-data trial keeps its own settings (no clone)', (select currency from public.organizations where id = b) = 'USD'
-    and not exists (select 1 from public.venues where org_id = b), r::text);
+  -- 0177: a free trial is India only, so 'USD' sent by the browser still lands on INR
+  -- 0180: 'own' is ignored - every free trial gets the sample data (INR); before 0180 an own trial had no clone
+  perform pg_temp.res('27 an own-data request: no clone before 0180, the sample trial from 0180', (select currency from public.organizations where id = b) = case when to_regprocedure('public.tg_org_trial_india()') is null then 'USD' else 'INR' end
+    and case when coalesce(pg_get_functiondef(coalesce(to_regprocedure('public.start_self_serve_trial__pre0186(text, text, text, text)'), to_regprocedure('public.start_self_serve_trial(text, text, text, text)'))) like '%trial-signup-0180%', false) then exists (select 1 from public.venues where org_id = b) and r ->> 'mode' = 'demo'
+             else not exists (select 1 from public.venues where org_id = b) end, r::text);
   perform pg_temp.su();
 exception when others then perform pg_temp.su(); insert into _uf values ('2x clone', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 

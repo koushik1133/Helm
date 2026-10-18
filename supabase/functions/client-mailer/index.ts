@@ -11,12 +11,16 @@
 //
 // Delivery: _shared/mailer.ts (Resend, else SMTP_* e.g. Gmail, else not_configured).
 // Answer: { status: "sent" | "not_configured" | "failed", masked, reason? }.
+// 0179: a free-trial studio (studio_subscriptions.status 'trial') e-mails NO client: checked with the
+// service role (trial_send_blocked) before the send -> { status: "not_configured", trial: true }
+// (the screen says "Not sent ... Use Copy link"); nothing is sent, the log row says "simulated".
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, isAllowedOrigin, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { brandMode, EMAIL_RE, sendMail } from "../_shared/mailer.ts";
 import { postalAddress } from "../_shared/email-compliance.mjs";
 import { linkEmail, maskEmail } from "./logic.mjs";
+import { trialSendBlocked } from "../_shared/trial-guard.ts";
 
 export const KINDS = ["approval", "booklet"];
 
@@ -78,6 +82,14 @@ Deno.serve(async (req) => {
       : origin + "/booklet?t=" + encodeURIComponent(token);
 
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+    // 0179: no e-mail to a client from a free-trial studio
+    if (await trialSendBlocked(admin, { org: String(q.org_id || "") || null, quote: quoteId })) {
+      const { error: tErr } = await admin.from("notifications").insert({
+        quote_id: quoteId, channel: "email", recipient: to, kind: kind === "approval" ? "approval_link" : "booklet_link", status: "simulated",
+      });
+      if (tErr) console.error("client-mailer: log insert failed", errTag(tErr));
+      return json({ status: "not_configured", trial: true, masked: maskEmail(to), reason: "e-mails to clients are not sent during the free trial" });
+    }
     const { data: org } = await admin.from("organizations").select("name, business_email").eq("id", q.org_id).maybeSingle();
     const studio = (org && org.name) || "";
     const envGet = (k: string) => Deno.env.get(k);

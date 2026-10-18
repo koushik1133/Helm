@@ -84,7 +84,7 @@ t('trial.js: CSP-safe DOM, localStorage guarded, checkout link, version bumped',
   assert.match(TJS, /function seen\(key\) \{ try \{/); assert.match(TJS, /function markSeen\(key\) \{ try \{/);
   assert.match(TJS, /checkout\.html\?next=/);
   assert.match(TJS, /renderReminder\(reminderSpec\(t, Date\.now\(\)\)\)/);
-  assert.match(API, /const TRIAL_BANNER_VERSION = "7";/);
+  assert.match(API, /const TRIAL_BANNER_VERSION = "10";/);
 });
 
 t('SQL milestone mirror + labels match the card', () => {
