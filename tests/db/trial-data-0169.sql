@@ -91,6 +91,10 @@ do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_t
   perform pg_temp.res('13 corporate event floor plan = round tables gala', (select v.data from public.quote_versions v where v.org_id = M
     and v.quote_id = 'a5a5a5a5-0167-4000-8000-0000000000a3' and v.version_no = 1)
     = (select data from public.studio_layout_templates where org_id = M and name = E'Demo \u00b7 Corporate \u2014 Round tables gala (120 guests)'));
+  perform pg_temp.res('14 corporate event 120 guests + chairs, total repriced, lead 120', exists (select 1 from public.quotes where org_id = M
+    and id = 'a5a5a5a5-0167-4000-8000-0000000000a3' and pricing ->> 'guests' = '120' and pricing ->> 'chairs' = '120'
+    and (pricing ->> 'total')::numeric > 0 and (pricing ->> 'total')::numeric < 486750 and client ->> 'guests' = '120')
+    and exists (select 1 from public.leads where org_id = M and email = 'demo.technova@example.com' and guest_count = 120));
 exception when others then perform pg_temp.su(); insert into _uf values ('0x master', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 do $$ declare a uuid; o public.organizations; r jsonb; M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; begin

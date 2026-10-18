@@ -305,7 +305,7 @@ begin
       ('demo.fatima@example.com',  'Sample lead. Went with another planner. Wedding for 450 guests, budget Rs 12 lakh. Reason lost: price. Follow up for future events.'),
       ('demo.ananya@example.com',  'Sample lead. Booked. Wedding for 450 guests at Green Meadows Lawn, budget Rs 15 lakh. Advance received.'),
       ('demo.rohit@example.com',   'Sample lead. Quote sent for approval. Engagement for 220 guests at Square Garden Pavilion, budget Rs 6 lakh. Next: follow up in 2 days.'),
-      ('demo.technova@example.com','Sample lead. Draft quote in progress. Annual day for 300 staff at Grand Convention Centre, budget Rs 8 lakh, needs stage + LED wall + awards. Next: finalise the quote.'),
+      ('demo.technova@example.com','Sample lead. Draft quote in progress. Annual day gala for 120 guests at Grand Convention Centre, budget Rs 8 lakh, needs stage + LED wall + awards. Next: finalise the quote.'),
       ('demo.meera@example.com',   'Sample lead. Event done and settled. Engagement for 250 guests at Royal Banquet Hall. 5-star feedback.')
     ) x(e, n)
    where l.org_id = M and l.email = x.e and l.notes not like '%Next:%' and l.notes not like '%Reason lost%'
@@ -316,10 +316,16 @@ begin
     from (values
       (q1, '{"guests":450,"budget":1500000,"source":"Instagram","address":"Demo \u00b7 Shamshabad Road, Hyderabad","notes":"Sample event. Telugu wedding, muhurtham 19:30. Veg + non-veg buffet."}'::jsonb),
       (q2, '{"guests":220,"budget":600000,"source":"Referral","address":"Demo \u00b7 Gachibowli, Hyderabad","notes":"Sample event. Ring ceremony + dinner. Wants pastel florals."}'::jsonb),
-      (q3, '{"guests":300,"budget":800000,"source":"Website","address":"Demo \u00b7 Hitec City, Hyderabad","notes":"Sample event. Annual day: awards, cultural show, dinner. GST invoice to company."}'::jsonb),
+      (q3, '{"guests":120,"budget":800000,"source":"Website","address":"Demo \u00b7 Hitec City, Hyderabad","notes":"Sample event. Annual day: awards, cultural show, dinner. GST invoice to company."}'::jsonb),
       (q4, '{"guests":250,"budget":700000,"source":"Referral","address":"Demo \u00b7 Banjara Hills, Hyderabad","notes":"Sample event. Done and settled."}'::jsonb)
     ) x(id, c)
    where q.org_id = M and q.id = x.id and not (q.client ? 'source');
+
+  -- 3) the corporate event matches its 120-guest gala floor plan (server reprices the total)
+  update public.quotes set pricing = pricing || '{"guests":120,"chairs":120}'::jsonb,
+         client = case when client ->> 'guests' = '300' then client || '{"guests":120}'::jsonb else client end
+   where org_id = M and id = q3 and pricing ->> 'guests' = '300' and coalesce(pricing ->> 'chairs', '300') = '300';
+  update public.leads set guest_count = 120 where org_id = M and email = 'demo.technova@example.com' and guest_count = 300;
 
   -- 3) discovery meeting records (quote_id is the key; only if none yet)
   insert into public.event_discovery(quote_id, org_id, meet_date, mode, location, attendees, notes, budget_min, budget_max)
@@ -330,7 +336,7 @@ begin
       (q2, -5, 'video', 'Video call', 'Rohit, Meera; Ravi (planner)',
        'Sample discovery. Ring ceremony at 18:30, dinner after. Pastel florals, DJ for 2 hours, photo booth.', 500000, 600000),
       (q3, -3, 'call', 'Phone call', 'TechNova HR lead; Ravi (planner)',
-       'Sample discovery. 300 staff. Stage + LED wall, awards segment, cultural show, buffet dinner. Needs GST invoice.', 700000, 800000)
+       'Sample discovery. 120 guests, round-table gala. Stage + LED wall, awards segment, cultural show, buffet dinner. Needs GST invoice.', 700000, 800000)
     ) x(q, off, mode, loc, att, notes, bmin, bmax)
    where exists (select 1 from public.quotes qq where qq.id = x.q and qq.org_id = M)
   on conflict (quote_id) do nothing;
@@ -478,6 +484,9 @@ select item, ok from (values
        (select count(*) from public.studio_layout_templates where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and not archived and name like E'Demo \u00b7 %') = 3
        and exists (select 1 from public.quote_versions where org_id = 'a5a5a5a5-0166-4000-8000-000000000001'
                    and quote_id = 'a5a5a5a5-0167-4000-8000-0000000000a3' and object_count = 45)),
+  ('12 corporate event 120 guests / 120 chairs, repriced', exists (select 1 from public.quotes where org_id = 'a5a5a5a5-0166-4000-8000-000000000001'
+       and id = 'a5a5a5a5-0167-4000-8000-0000000000a3' and pricing ->> 'guests' = '120' and pricing ->> 'chairs' = '120'
+       and (pricing ->> 'total')::numeric < 486750 and client ->> 'guests' = '120')),
   ('10 clear wrapped (pre kept), not callable by the app', to_regprocedure('public._demo_clear__pre0169(uuid)') is not null
        and not has_function_privilege('authenticated', 'public._demo_clear(uuid)', 'execute')
        and not has_function_privilege('anon', 'public._demo_clear__pre0169(uuid)', 'execute'))
