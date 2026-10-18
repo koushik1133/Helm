@@ -170,6 +170,7 @@ run "menu-lock-trial" "MENU-LOCK-TRIAL: ALL PASS \(17/17\)" psql -q -f tests/db/
 run "invite-share-0195" "INVITE-SHARE-0195: ALL PASS \(40/40\)" psql -q -f tests/db/invite-share-0195.sql
 run "booklet-send-0200" "BOOKLET-SEND-0200: ALL PASS \(40/40\)" psql -q -f tests/db/booklet-send-0200.sql
 run "budget-plan-0196" "BUDGET-PLAN-0196: ALL PASS \(14/14\)" psql -q -f tests/db/budget-plan-0196.sql
+run "budget-single-source-0199" "BUDGET-SINGLE-SOURCE-0199: ALL PASS \(32/32\)" psql -q -f tests/db/budget-single-source-0199.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

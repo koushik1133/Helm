@@ -1367,8 +1367,8 @@
     discRow=d||null; persisted.discovery=!!(d&&(d.meet_date||d.mode||d.attendees||d.notes));
     if(d){ $("#d_date").value=d.meet_date||""; $("#d_mode").value=d.mode||"";
       $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||""; $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:(d.budget_min!=null?d.budget_min:""); }
-    // guest-budget: legacy quotes kept only client.budget — show it as the max so nothing looks lost
-    if((!d || (d.budget_min==null && d.budget_max==null)) && cl.budget!=null){ $("#d_bmax").value=cl.budget; } }
+    // budget-single-source (0199): the quote's own budget (also the CRM lead's) wins; Discovery's copy is only a fallback
+    if(cl.budget!=null && cl.budget!==""){ $("#d_bmax").value=cl.budget; } }
   async function loadPlan(){ const cl=ev.client||{};
     // 0085: linked saved venue + indoor/outdoor (client JSON); the picker re-shows its warnings
     $("#v_venue_id").value=typeof cl.venueId==="string"?cl.venueId:""; $("#v_venue_name").value=typeof cl.venueName==="string"?cl.venueName:"";

@@ -233,7 +233,8 @@
   let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   let hdrChange=null;   // qts-1018: this event's approved change-order sum (null = not read yet)
-  const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
+  const budgetRange=()=>{ const cb=ev&&ev.client&&ev.client.budget; if(cb!=null&&cb!==""&&isFinite(+cb)) return inr(+cb);   // budget-single-source: the quote's budget first
+    const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     const v=b!=null?b:a; return v!=null?inr(v):""; };   // single budget: max, else an old min
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
