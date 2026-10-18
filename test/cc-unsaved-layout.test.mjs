@@ -33,11 +33,26 @@ t('1b. the bar shows only for the section on screen; other sections get a nav do
 t('1c. Save rebaselines just its part of the card; an error right after puts the edit back', () => {
   assert.match(JS, /while\(n && n!==c && !fieldsOf\(n\)\.length\) n=n\.parentElement;/);
   assert.match(JS, /rebase\(scope\); recheck\(c\); paintDirty\(\);/);
-  assert.match(JS, /\[700,1800,4000\]\.forEach/);
+  assert.match(JS, /\[0,700,1800,4000\]\.forEach/);
   assert.match(JS, /var fresh=errNodes\(c\)\.filter\(function\(x\)\{ return before\.indexOf\(x\)<0; \}\)/, 'only errors that appeared after the click');
   assert.match(JS, /BPUI\.trackDirty\(\)/, 'shared beforeunload warning while something is unsaved');
   assert.match(JS, /if\(unload\)\{ if\(dirtyCards\.size\) unload\.mark\(\); else unload\.clean\(\); \}/);
   assert.match(JS, /if\(!dirtyCards\) return;/, 'deep links that open a section early do not crash');
+});
+t('1d. review fixes: sync validation errors, busy saves, page-cleared inputs, page-normalised values', () => {
+  // the Save listener runs in the CAPTURE phase, before the button's own handler: BPUI.guard runs that handler
+  // up to its first await at once, so "Enter a price..." was already on screen when the old bubble listener took
+  // its "errors before" snapshot -> the error never counted and the edit was wrongly marked saved
+  const i = JS.indexOf('var scope=n&&c.contains(n)?n:c, before=errNodes(c)');
+  assert.ok(i > 0);
+  const end = JS.indexOf('},true);', i);
+  assert.ok(end > i && end - i < 1500, 'the save listener is registered with capture=true');
+  assert.match(JS, /if\(b\.disabled\|\|b\.getAttribute\("aria-busy"\)==="true"\) return;/, 'a click on a save already running does not accept newer edits');
+  assert.match(JS, /function settle\(\)\{[^\n]*dirtyCards\.delete\(c\)/, 'cards the page put back (Add clears its inputs) become clean');
+  assert.ok(!/function settle\(\)\{[^\n]*dirtyCards\.add/.test(JS), 'settle only ever clears');
+  assert.match(JS, /if\(!\(editedAt\.get\(f\)>=at\)\) base\.set\(f,fval\(f\)\)/, 'values the page writes back after a good save become the baseline, user typing since does not');
+  assert.match(JS, /paintMsgs\(leaving\); settle\(\); paintDirty\(\);/);
+  assert.match(JS, /if\(!tag\)\{ m\.classList\.remove\("cs-off"\); return; \}/, 'an untagged message is never left hidden');
 });
 t('2. status messages are scoped to the section that caused them', () => {
   assert.match(JS, /\["msg","umsg","nmsg"\]\.map/);

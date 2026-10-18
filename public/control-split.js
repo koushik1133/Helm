@@ -401,25 +401,37 @@
     touch(t);
   }
   main.addEventListener("focusin",onTouch,true); main.addEventListener("pointerdown",onTouch,true);
+  var editedAt=new WeakMap();
   function onEdit(e){
     if(!e.isTrusted) return; var t=e.target; if(!isField(t)) return;
     var c=cardOf(t); if(!c) return;
+    editedAt.set(t,Date.now());
     if(changed(t)) lastField.set(c,t);
     recheck(c); paintDirty();
   }
   main.addEventListener("input",onEdit); main.addEventListener("change",onEdit);
-  // a failed save (an error appears right after the click) puts the edits back to "unsaved"
+  // a card the page itself put back (an "Add" button that empties its inputs, a re-rendered list) is clean
+  // again; this only ever CLEARS the flag - a field the page re-fills after a save never re-raises the bar
+  function settle(){ var any=false; dirtyCards.forEach(function(c){ if(!document.contains(c)||!fieldsOf(c).some(changed)){ dirtyCards.delete(c); any=true; } }); if(any) paintDirty(); }
+  // a failed save (an error appears right after the click) puts the edits back to "unsaved".
+  // Capture phase: this runs BEFORE the button's own handler, so an error that handler writes synchronously
+  // (most validation errors: BPUI.guard runs the handler up to its first await straight away) counts as new.
   function errNodes(c){ var out=Array.prototype.slice.call(c.querySelectorAll(".msg.err,[role=alert]")); MSGS.forEach(function(m){ out=out.concat(Array.prototype.slice.call(m.querySelectorAll(".err,[role=alert]"))); }); return out; }
   main.addEventListener("click",function(e){
-    var b=e.target.closest&&e.target.closest("button"); if(!b||!isSave(b)) return; var c=cardOf(b); if(!c) return;
+    var b=e.target.closest&&e.target.closest("button"); if(!b) return;
+    if(!isSave(b)){ if(dirtyCards.size) [0,700].forEach(function(ms){ setTimeout(settle,ms); }); return; }
+    if(b.disabled||b.getAttribute("aria-busy")==="true") return;   // a save already running ignores this click (BPUI.guard)
+    var c=cardOf(b); if(!c) return;
     var n=b.parentElement; while(n && n!==c && !fieldsOf(n).length) n=n.parentElement;   // the part of the card this Save belongs to
-    var scope=n&&c.contains(n)?n:c, before=errNodes(c), snap=fieldsOf(scope).map(function(f){ return [f,base.has(f)?base.get(f):undefined]; });
+    var scope=n&&c.contains(n)?n:c, before=errNodes(c), at=Date.now(), snap=fieldsOf(scope).map(function(f){ return [f,base.has(f)?base.get(f):undefined]; });
     rebase(scope); recheck(c); paintDirty();
-    [700,1800,4000].forEach(function(ms){ setTimeout(function(){
-      if(!snap) return; var fresh=errNodes(c).filter(function(x){ return before.indexOf(x)<0; }); if(!fresh.length) return;
+    [0,700,1800,4000].forEach(function(ms){ setTimeout(function(){
+      if(!snap) return; var fresh=errNodes(c).filter(function(x){ return before.indexOf(x)<0; });
+      if(!fresh.length){   // still fine: take values the page wrote back after saving (not ones the user typed since)
+        fieldsOf(scope).forEach(function(f){ if(!(editedAt.get(f)>=at)) base.set(f,fval(f)); }); recheck(c); paintDirty(); return; }
       snap.forEach(function(p){ if(p[1]===undefined) base.delete(p[0]); else base.set(p[0],p[1]); }); snap=null; recheck(c); paintDirty();
     },ms); });
-  });
+  },true);
   bDis.addEventListener("click",function(){ if(!current) return; dirtyIn(current).forEach(function(c){ rebase(c); dirtyCards.delete(c); }); paintDirty(); });
   bGo.addEventListener("click",function(){ var d=current?dirtyIn(current)[0]:null; if(!d) return; var b=saveBtn(d,lastField.get(d)); if(!b) return;
     try{ b.scrollIntoView({block:"center",behavior:"smooth"}); }catch(x){} try{ b.focus({preventScroll:true}); }catch(x){}
@@ -435,7 +447,7 @@
     if(!MSGS) return;
     MSGS.forEach(function(m){
       var tag=m.getAttribute("data-cs-msg"); if(!m.firstChild){ m.removeAttribute("data-cs-msg"); m.classList.remove("cs-off"); return; }
-      if(!tag) return;
+      if(!tag){ m.classList.remove("cs-off"); return; }
       if(tag===current){ m.classList.remove("cs-off"); return; }
       if(leaving && !m.querySelector(".err,[role=alert]")){ m.textContent=""; m.removeAttribute("data-cs-msg"); m.classList.remove("cs-off"); return; }
       m.classList.add("cs-off");
@@ -448,7 +460,7 @@
     }).observe(m,{childList:true,subtree:true,characterData:true});
   });
   var shownSec=null;
-  function afterShow(){ if(!MSGS) return; var leaving=shownSec!=null&&shownSec!==current; shownSec=current; paintMsgs(leaving); paintDirty(); }
+  function afterShow(){ if(!MSGS) return; var leaving=shownSec!=null&&shownSec!==current; shownSec=current; paintMsgs(leaving); settle(); paintDirty(); }
 
   // tabs are revealed asynchronously by role checks: redraw the nav when that happens
   if(tabs) new MutationObserver(function(){ drawNav(); if(current && !available(BYKEY[current]) && !locked(current)) show("general",{noScroll:true}); else if(!fromHash() && wanted && wanted!==current && available(BYKEY[wanted])) show(wanted,{noScroll:true}); })
