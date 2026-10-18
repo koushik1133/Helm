@@ -95,10 +95,10 @@
         <p class="muted" id="waNote">We send a one-time code to the e-mail address or WhatsApp number your planner has on file for you.</p>
         <button class="btn" id="sendOtp" type="button">Send OTP to my phone by SMS</button>
         <div id="trialSkip" hidden>
-          <p class="muted" id="trialSkipInfo"><b>Trial test mode</b> &mdash; In a real studio your client verifies with a one-time code sent to their phone, then pays by UPI/card through the payment link. In this trial you can skip that step. No SMS or email is sent; the approval is recorded as a trial test.</p>
+          <p class="muted" id="trialSkipInfo"><b>Trial test mode</b> &mdash; In a real studio your client verifies with a one-time code sent to their phone, then pays by UPI/card through the payment link. In this trial no code is sent, so confirm here instead. No SMS, WhatsApp or email is sent; the approval is recorded as a trial test and the event moves to Confirmed.</p>
           <label class="agree"><input type="checkbox" id="t_agree">
             <span>I have read and agree to the Terms &amp; Conditions above (trial test).</span></label>
-          <button class="btn" id="trialSkipBtn" type="button">Skip OTP &amp; approve (trial test mode)</button>
+          <button class="btn primary" id="trialSkipBtn" type="button">Test mode - confirm</button>
         </div>
       </div>
 
@@ -279,7 +279,7 @@
     $("#terms").innerHTML=TERMS_BY_COUNTRY[termsKey(apTax)].html; $("#tver").textContent="("+shownTerms.v+")";
     if(quote.client_name) $("#c_name").value=quote.client_name;
     // 0128 trial test mode: only shown when the server says this link's studio is an active trial
-    if(BPStore.approval.trialTestMode){ BPStore.approval.trialTestMode(token).then((on)=>{ if(on===true){ $("#trialSkip").hidden=false;
+    if(BPStore.approval.trialTestMode){ BPStore.approval.trialTestMode(token).then((on)=>{ if(on===true){ $("#trialSkip").hidden=false; { const so=$("#sendOtp"); if(so){ so.hidden=true; so.style.display="none"; } const wn=$("#waNote"); if(wn) wn.hidden=true; }   // 0176: trial sends nothing - no OTP to wait for
       $("#payManual").textContent="Trial test mode: in a real studio your client pays by UPI/card through the payment link. In this trial you can skip that step - record this payment from your studio (Payments / Record payment). No payment gateway is needed."; } }).catch(()=>{}); }
     // resume state
     if(quote.reapproval_required===true){ $("#approvedNote").textContent=""; setMsg("dev", "The price changed after your earlier approval — please review the updated total and approve again."); }
@@ -369,7 +369,7 @@
     if(name.length<2){ setMsg("err","Please enter your name."); $("#c_name").focus(); return; }
     if(!$("#t_agree").checked){ setMsg("err","Please tick the box to accept the terms."); $("#t_agree").focus(); return; }
     try{ const r=await BPStore.approval.trialTestApprove(token, $("#c_phone").value.trim(), name, shownTerms.v, consentText(shownTerms.v)+" [trial test - OTP skipped]", navigator.userAgent);
-      if(r && r.approved === true){ showStep('step3'); $("#approvedNote").textContent="Approved in trial test mode (OTP skipped)."; $("#payManual").hidden=false; setMsg(); }
+      if(r && r.approved === true){ showStep('step3'); $("#approvedNote").textContent="Confirmed in trial test mode (no OTP sent). The event is now Confirmed - the studio can create the event group and share the booklet."; $("#payManual").hidden=false; setMsg(); }
       else setMsg("err",(r&&r.message)||"Could not approve in trial test mode.");
     }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"approve in trial test mode"})); }
   }));

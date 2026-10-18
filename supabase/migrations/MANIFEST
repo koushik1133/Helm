@@ -281,3 +281,5 @@ forward  supabase/migrations/0170_trial_data_v4.sql
 forward  supabase/migrations/0171_trial_data_v5.sql
 # 0172 (cross-studio quote guard zz_quote_org_match added to wa_proposal_optins + wa_proposal_audit, which 0151 created after the 0136 catch-up; re-runs the 0136 install loop, only adds missing triggers, no rows changed) goes after 0151 + 0136.
 forward  supabase/migrations/0172_wa_proposal_quote_guard.sql
+# 0176 (trial client flow: Skip OTP on the client approval portal for an ACTIVE trial studio - studio member or the not-signed-in client; a signed-in member of another studio, paid, ended or locked studios still refused; after the skip the trial event moves to status confirmed so event group / booklet link / members work; nothing is sent - 0166 outbound guard; 1 new function + 2 replaced, no table changed) goes after 0166.
+forward  supabase/migrations/0176_trial_client_flow.sql
