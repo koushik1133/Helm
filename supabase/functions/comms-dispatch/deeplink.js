@@ -36,6 +36,7 @@ export function notifLink(n) {
     if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order|client_follow_up)$/.test(k))
       return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
     if (k === "price_change") return "flow.html?id=" + enc(q) + "#sec-quote";
+    if (k === "invite_site_link") return "invite-studio.html?quote=" + enc(q);
     if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
     if (/^pkg_(selected|accepted|declined)$/.test(k)) return "event.html?id=" + enc(q) + "#pkg-selections";
     if (k === "pkg_payment") return "settlement.html?quote=" + enc(q) + "#payments";

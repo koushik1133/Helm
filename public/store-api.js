@@ -4821,6 +4821,11 @@ window.HelmUrl = HelmUrl;
       const { error } = await supa.from("event_sites").update(patch).eq("id", id);        // .eq() key enforced; org forced by trigger+RLS
       if (error) throw error; return true; },
     publish:   (id) => rpc("publish_event_site", { p_id: id, p_publish: true }),          // stamps published_at + name-based slug server-side
+    // 0195 "Send to client": queues the PUBLISHED invitation link (fixed text) by e-mail / WhatsApp.
+    // The server checks consent / STOP / caps; a FREE TRIAL studio gets {status:"skipped", reason:"free_trial"} - nothing is sent.
+    send: (siteId, channel, to, optIn, consentText) => rpc("event_site_send", { p_site: siteId, p_channel: channel === "whatsapp" ? "whatsapp" : "email",
+      p_to: String(to || "").slice(0, 200), p_opt_in: !!optIn, p_consent_text: optIn ? String(consentText || "").slice(0, 500) : null }),
+    sendLog: (siteId) => (supa ? rpc("event_site_send_log", { p_site: siteId }).catch(() => []) : Promise.resolve([])),
     unpublish: (id) => rpc("publish_event_site", { p_id: id, p_publish: false }),
     // Upload an invitation photo to Supabase Storage (public bucket 'invite-media').
     // Path is prefixed with the org id so storage RLS keeps tenants isolated.
@@ -7124,6 +7129,7 @@ window.HelmUrl = HelmUrl;
     if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order|client_follow_up)$/.test(k))
       return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
     if (k === "price_change") return "flow.html?id=" + enc(q) + "#sec-quote";
+    if (k === "invite_site_link") return "invite-studio.html?quote=" + enc(q);
     if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
     if (/^pkg_(selected|accepted|declined)$/.test(k)) return "event.html?id=" + enc(q) + "#pkg-selections";
     if (k === "pkg_payment") return "settlement.html?quote=" + enc(q) + "#payments";
@@ -7435,7 +7441,12 @@ window.HelmUrl = HelmUrl;
       inventory_low_stock: ["📦", "Low stock: " + String(d.item || "an item") + (d.date ? " on " + d.date : "")
         + (Number(d.short) > 0 ? " — short by " + Number(d.short) : "")],
       client_follow_up: ["💬", "Follow-up sent to the client" + (d.auto === false ? "" : " (automatic)")],
+      // 0195: "Send to client" on the Invitation Studio
+      invite_site_link: ["💌", n.status === "suppressed"
+        ? "Invitation link not sent" + (d.skipped === "free_trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : "")
+        : n.status === "failed" ? "Invitation link could not be sent" : "Invitation link sent to the client"],
     };
+    if (k === "invite_site_link") return { icon: m[k][0], text: m[k][1] };
     const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
                       : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
     // 0036: an automatic staff text/e-mail the studio switched off is logged, not sent
@@ -8162,6 +8173,8 @@ window.HelmUrl = HelmUrl;
       case "upload.rejected": return "Uploaded file rejected" + (c.reason ? " — " + String(c.reason).slice(0, 80) : "");
       case "work_links.revoked": return "Work links revoked" + ev;
       case "event_site.reslugged": return "Invitation site address changed" + ev;
+      case "event_site.link_sent": return "Invitation website link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
+        + (c.channel === "whatsapp" ? " on WhatsApp" : c.channel === "email" ? " by email" : "") + (c.to ? " to " + String(c.to).slice(0, 80) : "") + ev;
       case "chat.event_group.create": return "Event chat group created" + ev;
       case "notification_pref.set": return "Notification setting changed";
       case "notification_pref.reset": return "Notification settings reset to default";
