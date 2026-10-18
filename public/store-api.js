@@ -2742,6 +2742,29 @@ window.HelmUrl = HelmUrl;
     addVersion: (id, label, data, objectCount) => qt().addVersion(id, label, data, objectCount),
     confirm: (id, client, pricing) => qt().confirm(id, client, pricing),
     setStage: (id, stage, overrideReason) => qt().setStage(id, stage, overrideReason),
+    // 0198: what blocks moving this event to `stage`, in plain words: [] = free; {hard:true} entries can
+    // never be passed (confirmed floor, closed, cancelled); other entries are HL409 gates an admin may
+    // override with a reason. null = this database has no 0198 yet (the page then just tries the move).
+    async stageBlockers(id, stage) {
+      if (mode !== "supabase" || !supa) return [];
+      const { data, error } = await supa.rpc("lifecycle_stage_blockers", { p_quote_id: id, p_stage: stage });
+      if (error) { const c = error.code || "", m = String(error.message || "");
+        if (c === "PGRST202" || c === "42883" || /could not find the function/i.test(m)) return null; throw error; }
+      return Array.isArray(data) ? data : [];
+    },
+    // 0198: an event that will not happen - status 'cancelled' (admin / manager, reason 5-1000 characters,
+    // recorded + audited). Payments, reservations and the stage are kept; the client link is revoked.
+    async cancelEvent(id, reason) {
+      const r = String(reason == null ? "" : reason).trim();
+      if (r.length < 5 || r.length > 1000) throw new Error("Give a reason of 5 to 1000 characters for cancelling.");
+      if (mode !== "supabase" || !supa) {
+        const a = lsq.read(); const q = a.find((x) => x.id === id); if (!q) throw new Error("This event no longer exists.");
+        if (q.status !== "cancelled") { q.status = "cancelled"; q.cancelReason = r; q.updatedAt = now(); lsq.write(a); }
+        return { status: "cancelled" };
+      }
+      const { data, error } = await supa.rpc("cancel_event", { p_quote_id: id, p_reason: r });
+      if (error) throw error; return data;
+    },
     staleApprovals: (ids) => (qt().staleApprovals ? qt().staleApprovals(ids) : Promise.resolve(new Set())),
     reissueApprovalLink: (id) => qt().reissueApprovalLink(id),
     // stage change that explains a refused move and, for an admin, offers an audited override.
@@ -6121,6 +6144,11 @@ window.HelmUrl = HelmUrl;
   };
 
   /* ---------------- unified resource calendar + conflicts (Phase 10) ---------------- */
+  // 0198: the one rule for "this event still holds its date / venue / crew / vendors / stock"
+  const calEvLive = (e) => !!e && e.status !== "cancelled" && e.lifecycleStage !== "closed" && !e.closedAt && !e.archivedAt && !e.deletedAt;
+  const ackLs = () => { try { const v = JSON.parse(localStorage.getItem("bp_conflict_acks") || "{}"); return v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch { return {}; } };
+  const conflictKey = (c) => [c.type, c.date || "", String(c.rid || c.label || "").toLowerCase().slice(0, 120),
+    (c.events || []).map((e) => e && e.id).filter(Boolean).sort().join(",")].join("|");
   const calendar = {
     // Pull every commitment across all events and detect date clashes.
     async load() {
@@ -6146,7 +6174,8 @@ window.HelmUrl = HelmUrl;
         inventory.shortages().catch(() => []),   // 0197: open stock shortages ("Short: 10 x Air Cooler - sourcing from ...")
       ]);
       // Cancelled / closed events and finished tasks don't hold anything: leave them out of clash checks.
-      const evLive = (e) => !!e && e.status !== "cancelled" && !(e.lifecycleStage === "closed" && e.status === "confirmed");
+      // 0198: a closed event never clashes, whatever its status (and neither does an archived / deleted one).
+      const evLive = calEvLive;
       const liveEvents = events.filter(evLive);
       const evById = {}; liveEvents.forEach((e) => { evById[e.id] = e; });
       tasks = (tasks || []).filter((t) => !["done", "completed", "cancelled"].includes(String(t.status || "").toLowerCase()));
@@ -6176,7 +6205,7 @@ window.HelmUrl = HelmUrl;
       Object.entries(invByItemDate).forEach(([k, list]) => {
         const [itemId, d] = k.split("|"); const item = itemById[itemId]; if (!item) return;
         const sum = list.reduce((a, r) => a + Number(r.qty || 0), 0);
-        if (sum > Number(item.total_qty || 0)) conflicts.push({ type: "inventory", date: d,
+        if (sum > Number(item.total_qty || 0)) conflicts.push({ type: "inventory", date: d, rid: itemId,
           label: item.name, detail: `${sum} committed of ${item.total_qty} ${item.unit || ""} across ${new Set(list.map((r) => r.quote_id)).size} events`,
           events: [...new Set(list.map((r) => r.quote_id))].map((q) => evById[q]) });
       });
@@ -6189,7 +6218,7 @@ window.HelmUrl = HelmUrl;
       });
       Object.entries(vByVendorDate).forEach(([k, qset]) => {
         const [vid, d] = k.split("|"); if (qset.size > 1) { const v = vendById[vid];
-          conflicts.push({ type: "vendor", date: d, label: v ? v.name : "Partner",
+          conflicts.push({ type: "vendor", date: d, rid: vid, label: v ? v.name : "Partner",
             detail: `booked for ${qset.size} events on this date`, events: [...qset].map((q) => evById[q]) }); }
       });
       // 3) staff double-booked on a date
@@ -6200,7 +6229,7 @@ window.HelmUrl = HelmUrl;
       });
       Object.entries(sByStaffDate).forEach(([k, qset]) => {
         const [sid, d] = k.split("|"); if (qset.size > 1) { const p = staffById[sid];
-          conflicts.push({ type: "staff", date: d, label: p ? p.name : "Staff",
+          conflicts.push({ type: "staff", date: d, rid: sid, label: p ? p.name : "Staff",
             detail: `assigned to ${qset.size} events on this date`, events: [...qset].map((q) => evById[q]) }); }
       });
       // 4) venue double-booking: two DIFFERENT events sharing the SAME date + time + venue name + venue address.
@@ -6239,11 +6268,18 @@ window.HelmUrl = HelmUrl;
         if (clashing.size < 2) return;
         const ev = uniq.filter((e) => clashing.has(e.id));
         const v = venueOf(ev[0]); const vname = v.name || v.address || "Venue";
-        conflicts.push({ type: "venue", date: ev[0].eventDate, label: vname,
+        conflicts.push({ type: "venue", date: ev[0].eventDate, rid: vnorm(v.name) || vnorm(v.address), label: vname,
           detail: hasTimeClash
             ? `${ev.length} events at ${vname} on ${ev[0].eventDate} within ${bufferHours}h of each other`
             : `${ev.length} events at ${vname} on ${ev[0].eventDate} — set start times to check the ${bufferHours}h gap`,
           events: ev });
+      });
+
+      // 0198: every clash names only live events, and gets a stable key (type | date | what | which events)
+      // so it can be acknowledged; the key changes - and the clash shows again - when another event joins.
+      conflicts.forEach((c) => {
+        c.events = (c.events || []).filter(Boolean);
+        c.key = conflictKey(c);
       });
 
       // ---- per-event commitment rollup (for the agenda) ----
@@ -6270,12 +6306,37 @@ window.HelmUrl = HelmUrl;
       const { conflicts } = await this.load();
       return conflicts.filter((c) => (c.events || []).some((e) => e && e.id === quoteId));
     },
+    // 0198: open "acknowledged" marks for these conflict keys -> { key: {by, at, note} }.
+    // null = this database has no 0198 yet (the page hides "Mark acknowledged").
+    async acks(keys) {
+      const list = [...new Set((keys || []).filter(Boolean))].slice(0, 200);
+      if (mode !== "supabase" || !supa) { const all = ackLs(); const out = {}; list.forEach((k) => { if (all[k]) out[k] = all[k]; }); return out; }
+      if (!list.length) return {};
+      const { data, error } = await supa.from("calendar_conflict_acks").select("conflict_key,acked_email,acked_at,note")
+        .in("conflict_key", list).is("revoked_at", null);
+      if (error) { const c = error.code || ""; if (c === "42P01" || c === "PGRST205" || /calendar_conflict_acks/i.test(String(error.message || ""))) return null; throw error; }
+      const out = {}; (data || []).forEach((r) => { out[r.conflict_key] = { by: r.acked_email || "", at: r.acked_at, note: r.note || "" }; });
+      return out;
+    },
+    async ack(quoteId, key, note) {
+      if (mode !== "supabase" || !supa) { const all = ackLs(); all[key] = { by: "", at: now(), note: note || "" };
+        localStorage.setItem("bp_conflict_acks", JSON.stringify(all)); return { acknowledged: true }; }
+      const { data, error } = await supa.rpc("ack_calendar_conflict", { p_quote_id: quoteId, p_key: key, p_note: note || null });
+      if (error) throw error; return data;
+    },
+    async unack(quoteId, key) {
+      if (mode !== "supabase" || !supa) { const all = ackLs(); delete all[key];
+        localStorage.setItem("bp_conflict_acks", JSON.stringify(all)); return { acknowledged: false }; }
+      const { data, error } = await supa.rpc("unack_calendar_conflict", { p_quote_id: quoteId, p_key: key });
+      if (error) throw error; return data;
+    },
     // Phase 49 — predictive pre-commit check: would assigning this crew / vendor on this
     // event's date collide with another event on the same day? (light, targeted queries)
     async wouldClash({ date, crewId, vendorId, excludeQuote } = {}) {
       if (!date || mode !== "supabase" || !supa) return { clash: false };
       const events = await quotes.list();
-      const sameDay = events.filter((e) => e.eventDate === date && e.id !== excludeQuote);
+      // 0198: a cancelled / closed / archived event on that day holds nobody - never a clash
+      const sameDay = events.filter((e) => calEvLive(e) && e.eventDate === date && e.id !== excludeQuote);
       if (!sameDay.length) return { clash: false };
       const ids = sameDay.map((e) => e.id); const byId = {}; sameDay.forEach((e) => (byId[e.id] = e));
       if (crewId) {
@@ -9594,7 +9655,7 @@ window.HelmUrl = HelmUrl;
     if (e && e.hint === "trial_ended") return pre + "Your trial has ended. Your data is preserved and available in read-only mode. Upgrade now to continue creating and editing records.";
     if (e && (e.hint === "studio_suspended" || errCode(e) === "25006")) return pre + "This studio is read-only because its Helm subscription is suspended or the trial has ended — contact Helm (or an admin can renew in Billing).";
     // 0052 lifecycle gates / re-approval: the DB message is written for people
-    if (e && (e.code === "HL409" || e.code === "HL428") && e.message) return endDot(clip(String(e.message), 300));
+    if (e && (e.code === "HL409" || e.code === "HL428" || e.code === "HL425") && e.message) return endDot(clip(String(e.message), 300));   // 0198 HL425: event day not over
     // r9: a server-raised 22023 / 42501 written as a sentence for people ("Only an admin can
     // re-open a closed event.", "This event is not closed.") is shown as-is instead of a generic line
     var hc = errCode(e), hm = errMsg(e);

@@ -206,6 +206,7 @@ do $$ declare n int; begin
   perform pg_temp.res('closure: a direct insert into event_closure is refused', n = 0, n||' row(s)');
 end $$;
 do $$ declare n int; begin
+  update public.quotes set event_date = current_date - 1 where id = pg_temp.id('refund');   -- 0198: closes only after the event day
   perform pg_temp.login('a_admin@a.test');
   begin perform public.close_event(pg_temp.id('refund'), true, 'rescore2: balance still open (0049 admin override)');
   exception when others then perform pg_temp.res('closure: close_event still works', false, sqlerrm); return; end;

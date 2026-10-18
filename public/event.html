@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/event-polish.css?v=1">
+<link rel="stylesheet" href="/event-polish.css?v=2">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -132,11 +132,13 @@
       </div>
       <div class="s-766d7d2" id="reapprBanner" role="status" hidden></div>
       <div class="nextbar" id="nextStepBar" hidden><a class="btn primary nextstep" id="nextStepBtn" href="#">Next step →</a><span class="hint" id="nextStepWhy"></span></div>
-      <div class="steps" id="steps"></div>
+      <div class="steps" id="steps" role="group" aria-label="Event stages - pick one to open it"></div>
+      <section class="stagepanel" id="stagePanel" aria-live="polite" hidden></section>
       <div class="nextbar">
         <div class="hint" id="nextHint"></div>
         <span class="spacer"></span>
         <a class="btn" id="inviteBtn" hidden>✨ Invitation site</a>
+        <button type="button" class="btn" id="cancelEvBtn" hidden>Cancel event</button>
         <button type="button" class="btn" id="advBtn" hidden>Advance to next stage →</button>
       </div>
     </div>
@@ -231,6 +233,9 @@
     media:"media",settle:"settlement",teardown:"inventory",budget:"finance",resourceplan:"resources",inventory:"inventory"};
   let cardDenied=new Set();
   let canEditPlan=false, menuCount=0;   // workspace menu lock: plan edit right + selected dish count
+  // 0198 stage strip: clicking a stage OPENS it (view only); moving the event is a separate, gated action
+  let viewK=null, myRole="", conflictAcks=undefined;
+  const stageInfo={};   // "<stage>|<stored stage>|<status>" -> blockers list (null = old database)
   let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   let hdrChange=null;   // qts-1018: this event's approved change-order sum (null = not read yet)
@@ -257,6 +262,7 @@
     canFin  = await BPStore.auth.canView("finance");             // gates the Total + money cards
     canPipe = await BPStore.auth.canView("pipeline");            // gates the discovery/proposal cards
     canEditPlan = await BPStore.auth.canEditArea("plan").catch(()=>false);   // "Lock menu" on the Venue & menu card (server: set_plan_lock needs plan edit)
+    try{ myRole=String((await BPStore.auth.role())||""); }catch(_){ myRole=""; }
     // 0143 role audit: each tool card shows only when the role can VIEW that tool's own area
     // (its page gate + RLS use the same key), so no card opens onto a "No access" page.
     { const keys=Object.keys(CARD_AREA); const ok=await Promise.all(keys.map(k=>BPStore.auth.canView(CARD_AREA[k]).catch(()=>false)));
@@ -310,7 +316,8 @@
       S(async()=>{ const [pl,c]=await Promise.all([BPStore.closure.pl(id), BPStore.closure.get(id)]);
         closureSummary={ profit:pl.profit, rev:pl.revenue, pct:pl.marginPct, closed:!!(c&&c.closed_at), billsIncluded:!!pl.billsIncluded }; }),
       S(async()=>{ const md=await BPStore.media.list(id); mediaSummary={ photos:md.filter(m=>m.kind==='photo').length, videos:md.filter(m=>m.kind==='video').length, gallery:md.filter(m=>m.in_gallery).length, total:md.length }; }),
-      S(async()=>{ conflictSummary=await BPStore.calendar.conflictsForEvent(id); }),
+      S(async()=>{ conflictSummary=await BPStore.calendar.conflictsForEvent(id);
+        try{ conflictAcks=await BPStore.calendar.acks(conflictSummary.map(c=>c.key)); }catch(_){ conflictAcks=null; } }),
     ]);
     if(budgetSummary && billsDelta && BPStore.settlement.applyBillsToBudget) BPStore.settlement.applyBillsToBudget(budgetSummary,billsDelta);
     if(closureSummary && billsDelta && !closureSummary.billsIncluded){   // manager-1019: server P&L already counts bills
@@ -381,26 +388,33 @@
     const totWrap=$("#total").closest(".tot"); if(totWrap) totWrap.hidden=!canFin;
     renderDateRow();
 
-    const cur=stageIndex(effStage());
+    const cur=stageIndex(effStage()), vis=viewIdx();
+    // 0198: every stage is a button that OPENS that stage (never disabled, never a write); the
+    // highlighted one is the event's real, stored stage; the outlined one is the stage being viewed
     $("#steps").innerHTML=STAGES.map((s,i)=>{
-      const cls=i<cur?"done":i===cur?"active":"";
-      return `<button type="button" class="step ${cls}" data-k="${s.k}" ${i===cur?'aria-current="step"':""} ${canEdit&&!stageBusy?"":"disabled"}><span class="n">${i<cur?"✓":i+1}</span>${esc(stageLabel(s))}</button>`;
+      const cls=(i<cur?"done":i===cur?"active":"")+(i===vis&&i!==cur?" viewing":"");
+      return `<button type="button" class="step ${cls}" data-k="${esc(s.k)}" ${i===cur?'aria-current="step"':""} aria-pressed="${i===vis?"true":"false"}" title="${esc(i===cur?"Current stage - "+s.label:"Open "+s.label)}"><span class="n">${i<cur?"✓":i+1}</span>${esc(stageLabel(s))}</button>`;
     }).join("");
-    if(canEdit) $("#steps").querySelectorAll(".step").forEach(b=>b.addEventListener("click",(e)=>{ if(e.detail>1) return; setStage(b.dataset.k,b); }));
+    $("#steps").querySelectorAll(".step").forEach(b=>b.addEventListener("click",(e)=>{ if(e.detail>1) return; viewStage(b.dataset.k); }));
+    { const st=$("#steps"), on=st.querySelector('.step[aria-pressed="true"]');   // keep the viewed stage in sight on a phone
+      if(on && st.scrollWidth>st.clientWidth){ const r=on.getBoundingClientRect(), c=st.getBoundingClientRect(); if(r.left<c.left||r.right>c.right) st.scrollLeft+=r.left-c.left-24; } }
     $("#nextHint").innerHTML=`<b>Now:</b> ${esc((STAGES[cur].k==="confirmed"&&advanceIn())?"Booked — the advance is in. Plan the day next.":STAGES[cur].hint)}`;
     const hasNext=renderNextStep(cur);
     // dedupe: when the "Next step" bar shows its own one-line reason, the stage "Now:" hint repeats it
     $("#nextHint").hidden=!!hasNext;
     const adv=$("#advBtn");
     // one call-to-action: when the "Next step" bar shows, the stage stepper above still moves stages
-    if(canEdit && !hasNext && cur<STAGES.length-1){ adv.hidden=false; adv.textContent="Advance to "+stageLabel(STAGES[cur+1])+" →"; adv.dataset.k=STAGES[cur+1].k; }
+    if(canEdit && !hasNext && !evLocked() && cur<STAGES.length-1){ adv.hidden=false; adv.textContent="Advance to "+stageLabel(STAGES[cur+1])+" →"; adv.dataset.k=STAGES[cur+1].k; }
     else adv.hidden=true;
+    // 0198: an event that will not happen is cancelled (admin / manager, with a reason) - never "closed early"
+    $("#cancelEvBtn").hidden=!(canEdit && (myRole==="admin"||myRole==="manager") && !evLocked());
     // Digital invitation website — unlocks once the event is confirmed (or beyond).
     const inv=$("#inviteBtn");
     if(canEdit && cur>=stageIndex("confirmed")){ inv.hidden=false; inv.href="invite-studio.html?quote="+encodeURIComponent(id); }
     else inv.hidden=true;
 
-    renderMods(STAGES[cur].mods);
+    renderMods(STAGES[vis].mods);
+    renderStagePanel();
     renderConflicts();
     renderFiles();
     renderEventGroup();
@@ -410,6 +424,7 @@
   function renderNextStep(cur){
     const bar=$("#nextStepBar"), b=$("#nextStepBtn"), why=$("#nextStepWhy"); if(!bar||!b) return;
     const q=encodeURIComponent(id); let t="", href="", w="";
+    if(evLocked()){ bar.hidden=true; return false; }   // 0198: cancelled / closed - nothing left to push
     if(!isConfirmed()){ t="Send quote"; href="quotes.html?focus="+encodeURIComponent(ev.code||id); w="Price it, then send the quote to the client for approval."; }
     else if(!advanceIn()){ t="Record advance"; href="flow.html?quote="+q+"#sec-pay"; /* money-1024: advances are recorded in the quote workspace payment step */ w="Record the client's advance to book the date."; }
     else if(cur<stageIndex("event_day")){ t="Plan the day"; href="runsheet.html?quote="+q; w="Build the minute-by-minute plan for the day."; }
@@ -491,16 +506,65 @@
         finally{ fi.value=""; }
       },{busyLabel:"Uploading…"});
     }); }
+  // tiny DOM builder (no HTML strings): el("a",{href,class,text,onclick},[children])
+  function el(tag, props, kids){ const n=document.createElement(tag);
+    Object.entries(props||{}).forEach(([k,v])=>{ if(v==null||v===false) return;
+      if(k==="text") n.textContent=String(v); else if(k==="class") n.className=v; else if(typeof v==="function") n.addEventListener(k.replace(/^on/,""),v);
+      else n.setAttribute(k, v===true?"":String(v)); });
+    (kids||[]).forEach(c=>{ if(c!=null&&c!==false) n.appendChild(typeof c==="string"?document.createTextNode(c):c); });
+    return n; }
+  const niceDay=(d)=>{ const v=String(d||"").slice(0,10); try{ return (window.HelmEventName&&HelmEventName.shortDate&&HelmEventName.shortDate(v))||v; }catch(_){ return v; } };
+  const focusDate=()=>{ const di=$("#evDate"); if(di){ di.scrollIntoView({block:"center",behavior:"smooth"}); setTimeout(()=>{ try{ di.focus(); if(di.showPicker) di.showPicker(); }catch(_){} },250); } };
+  // 0198: every clash on this event's date, in plain words - what clashes, with which event, and what to
+  // do about it (change date / venue / crew / vendor / stock, or mark it acknowledged). Cancelled and
+  // closed events never clash, so closing THIS event is not how a clash is fixed.
   function renderConflicts(){
-    const el=$("#conflictBanner"); if(!el) return;
-    const cs=conflictSummary||[];
-    if(!cs.length){ el.innerHTML=""; return; }
-    const ico={inventory:"📦",vendor:"🤝",staff:"👷",venue:"📍"};
-    el.innerHTML=`<div class="card" style="border-color:color-mix(in srgb,#b42318 35%,transparent);background:color-mix(in srgb,#b42318 8%,transparent)">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <b class="t-bad">⚠️ ${cs.length} scheduling conflict${cs.length===1?"":"s"} on this event's date</b>
-        <a class="btn" href="calendar.html" style="margin-left:auto;height:30px">Open calendar →</a></div>
-      ${cs.map(c=>`<div style="font-size:13px;color:var(--ink-2);padding:4px 0">${ico[c.type]||"⚠️"} <b>${esc(c.label||"")}</b> — ${esc(c.detail||"")}</div>`).join("")}</div>`;
+    const box=$("#conflictBanner"); if(!box) return;
+    const cs=(conflictSummary||[]).filter(c=>c&&c.key);
+    box.replaceChildren(); if(!cs.length) return;
+    const acks=conflictAcks||{}, canAck=canEdit && conflictAcks!==null && !evLocked();
+    const open=cs.filter(c=>!acks[c.key]), done=cs.filter(c=>acks[c.key]);
+    const TYPE={inventory:["📦","Stock over-committed"],vendor:["🤝","Vendor double-booked"],staff:["👷","Crew double-booked"],venue:["📍","Venue double-booked"]};
+    const q=encodeURIComponent(id);
+    const FIX={venue:[["Change venue","plan.html?quote="+q]],staff:[["Change crew","ops.html?quote="+q]],
+      vendor:[["Change vendor","vendors.html?quote="+q]],inventory:[["Adjust stock","inventory.html?quote="+q]]};
+    const me=ev.id||id;
+    const row=(c,ack)=>{
+      const t=TYPE[c.type]||["⚠️","Clash"], others=(c.events||[]).filter(e=>e&&e.id!==me);
+      const withKids=others.length?others.map((e,i)=>[i?", ":"", el("a",{href:"event.html?id="+encodeURIComponent(e.id), text:[e.code,(e.title&&e.title!==e.code)?e.title:""].filter(Boolean).join(" · ")+(e.eventTime?" ("+String(e.eventTime).slice(0,5)+")":"")})]).flat()
+        : ["another booking on the same day"];
+      const acts=el("div",{class:"cf-act"});
+      if(canEdit && !evLocked()){
+        (FIX[c.type]||[]).forEach(([lbl,href])=>acts.appendChild(el("a",{class:"btn sm",href,text:lbl})));
+        acts.appendChild(el("button",{type:"button",class:"btn sm",text:"Change date",onclick:focusDate}));
+      }
+      if(canAck) acts.appendChild(ack
+        ? el("button",{type:"button",class:"btn sm",text:"Undo acknowledge",onclick:(e)=>BPUI.guard(e.currentTarget,async()=>{
+            try{ await BPStore.calendar.unack(me,c.key); delete conflictAcks[c.key]; renderConflicts(); BPUI.toast("Marked as a conflict again.",{type:"ok"}); }
+            catch(x){ BPUI.toast(BPUI.friendlyError(x,{action:"undo the acknowledgement"}),{type:"err"}); } })})
+        : el("button",{type:"button",class:"btn sm",text:"Mark acknowledged",onclick:async(e)=>{ const b=e.currentTarget;
+            const note=await BPUI.prompt("Both bookings can go ahead as they are? Add a short note for the team (optional).",{title:"Acknowledge this clash",label:"Note (optional)",okLabel:"Mark acknowledged"});
+            if(note===null) return;
+            await BPUI.guard(b,async()=>{ try{ await BPStore.calendar.ack(me,c.key,String(note||"").trim().slice(0,500));
+                conflictAcks=Object.assign({},conflictAcks||{}); conflictAcks[c.key]={by:(BPStore.auth.user()&&BPStore.auth.user().email)||"",at:new Date().toISOString(),note:String(note||"").trim()};
+                renderConflicts(); BPUI.toast("Clash acknowledged.",{type:"ok"}); }
+              catch(x){ BPUI.toast(BPUI.friendlyError(x,{action:"acknowledge the clash"}),{type:"err"}); } }); }}));
+      return el("div",{class:"cf-row"+(ack?" acked":""),"data-key":c.key},[
+        el("div",{class:"cf-what"},[t[0]+" ", el("b",{text:t[1]+": "+(c.label||"")}), " ", el("span",{class:"muted",text:niceDay(c.date)})]),
+        el("div",{class:"cf-detail",text:c.detail||""}),
+        el("div",{class:"cf-with"},["Clashes with: "].concat(withKids)),
+        ack?el("div",{class:"muted",text:"Acknowledged"+(ack.by?" by "+ack.by:"")+(ack.at?" on "+niceDay(ack.at):"")+(ack.note?" - "+ack.note:"")}):null,
+        acts.childNodes.length?acts:null]);
+    };
+    const card=el("div",{class:"card cf-card"+(open.length?" bad":" calm")},[
+      el("div",{class:"cf-head"},[
+        el("b",{class:open.length?"t-bad":"",text:open.length?("⚠️ "+open.length+" scheduling conflict"+(open.length===1?"":"s")+" on this event's date"):("✓ "+done.length+" clash"+(done.length===1?"":"es")+" acknowledged")}),
+        el("a",{class:"btn sm",href:"calendar.html",text:"Open calendar →"})]),
+      open.length?el("div",{class:"muted cf-tip",text:"Fix a clash by changing the date, venue, crew, vendor or stock - or mark it acknowledged if both bookings can go ahead. Cancelled and closed events never clash."}):null]);
+    open.forEach(c=>card.appendChild(row(c,null)));
+    if(done.length){ const d=el("details",{class:"cf-done",open:!open.length},[el("summary",{text:done.length+" acknowledged"})]);
+      done.forEach(c=>d.appendChild(row(c,acks[c.key]))); card.appendChild(d); }
+    box.appendChild(card);
   }
 
   // Client approval card, in plain words, following the quote (not just the approval link state)
@@ -683,7 +747,7 @@
     bar.innerHTML=`<button type="button">${state.showAll?"Show less ▴":`Show all tools (${state.count} more) ▾`}</button>`;
     bar.querySelector("button").onclick=()=>{
       const next=!state.showAll; try{ localStorage.setItem("helm_ev_showall", next?"1":"0"); }catch{}
-      renderMods(STAGES[stageIndex(effStage())].mods);
+      renderMods(STAGES[viewIdx()].mods);
     };
   }
 
@@ -719,24 +783,123 @@
         catch(e){ ti.value=ev.eventTime||""; BPUI.toast(BPUI.friendlyError(e,{action:"save the event time"}),{type:"err"}); } }));
     } else { el.innerHTML = (d||tm) ? ("📅 "+esc(d)+(tm?(" · 🕒 "+esc(tm)):"")) : ""; }
   }
-  // guarded: one stage change at a time (no double-advance on a double-click); all stage buttons lock while saving
+  // ---- 0198 stage strip: VIEW a stage (always allowed), MOVE the event (gated, explained) ----
+  const viewIdx=()=> viewK!=null ? stageIndex(viewK) : stageIndex(effStage());
+  const evClosedNow=()=> !!ev && (ev.lifecycleStage==="closed" || !!ev.closedAt || !!(closureSummary&&closureSummary.closed));
+  const evLocked=()=> !!ev && (ev.status==="cancelled" || evClosedNow());
+  // where each stage's work happens (the panel's "Open" links)
+  function stagePages(k){ const q=encodeURIComponent(id), fq=encodeURIComponent(ev.code||id);
+    return ({ lead:[["Open discovery","discovery.html?quote="+q]], discovery:[["Open discovery","discovery.html?quote="+q]],
+      proposal:[["Open proposal","proposal.html?quote="+q],["Open floor layout","builder.html?quote="+q]],
+      quote:[["Open this quote","quotes.html?focus="+fq],["Venue & menu","plan.html?quote="+q]],
+      confirmed:[["Quote & approval","quotes.html?focus="+fq],["Record advance","flow.html?quote="+q+"#sec-pay"]],
+      planning:[["Open run-sheet","runsheet.html?quote="+q],["Open operations","ops.html?quote="+q],["Venue & menu","plan.html?quote="+q]],
+      resources:[["Open resource plan","resources.html?quote="+q],["Reserve stock","inventory.html?quote="+q]],
+      ready:[["Open readiness","ready.html?quote="+q],["Open logistics","logistics.html?quote="+q]],
+      event_day:[["Open event-day command","command.html?quote="+q],["Open issues","issues.html?quote="+q]],
+      settlement:[["Open settlement",settleHref()],["Open teardown","teardown.html?quote="+q]],
+      closed:[["Open closure","closure.html?quote="+q]] })[k]||[]; }
+  function viewStage(k){
+    if(!ev) return;
+    viewK = (k===effStage()) ? null : k;
+    render();
+    const p=$("#stagePanel"); if(p && !p.hidden){ const r=p.getBoundingClientRect(); if(r.bottom>innerHeight||r.top<0) p.scrollIntoView({block:"nearest",behavior:"smooth"}); }
+  }
+  const infoKey=(k)=> k+"|"+(ev.lifecycleStage||"quote")+"|"+ev.status;
+  async function loadStageInfo(k){
+    const key=infoKey(k); if(key in stageInfo) return;
+    stageInfo[key]="loading";
+    try{
+      if(k==="closed"){ const b=BPStore.closure&&BPStore.closure.blockers?await BPStore.closure.blockers(id):null; stageInfo[key]={close:b}; }
+      else stageInfo[key]={list:await BPStore.quotes.stageBlockers(id,k)};
+    }catch(_){ stageInfo[key]={list:null}; }
+    if(ev && viewK===k) renderStagePanel();
+  }
+  function renderStagePanel(){
+    const p=$("#stagePanel"); if(!p) return;
+    const cur=stageIndex(effStage()), vis=viewIdx(), s=STAGES[vis];
+    if(viewK==null){ p.hidden=true; p.replaceChildren(); return; }   // viewing the current stage: the hint line says it all
+    const rel=vis<cur?"Done":vis===cur+1?"Up next":"Later";
+    const info=stageInfo[infoKey(s.k)];
+    if(info===undefined) loadStageInfo(s.k);
+    const why=el("div",{class:"sp-why"}), acts=el("div",{class:"sp-act"});
+    stagePages(s.k).forEach(([t,href],i)=>acts.appendChild(el("a",{class:"btn sm"+(i?"":" primary"),href:(window.HelmUrl&&HelmUrl.upgrade)?HelmUrl.upgrade(href):href,text:t})));
+    if(ev.status==="cancelled") why.textContent="This event is cancelled - its stages are view-only.";
+    else if(evClosedNow()) why.textContent="This event is closed - its stages are view-only. An admin can re-open it from Closure.";
+    else if(s.k==="closed"){
+      const b=info&&info.close, d=String(ev.eventDate||(ev.client&&ev.client.eventDate)||"").slice(0,10);
+      const early=b ? !!b.too_early : (/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=BPStore.todayLocal());   // older database: same rule from the date
+      if(info==="loading"||info===undefined) why.textContent="Checking what closing needs…";
+      else if(early && !b) why.textContent="You can close this event after "+niceDay(d)+" (event day).";
+      else if(b&&b.too_early) why.textContent="You can close this event after "+(b.close_after||niceDay(b.event_date))+" (event day).";
+      else if(b&&b.blocked){ const l=[]; if(b.no_event_date) l.push("set the event date"); if(b.not_booked==="unconfirmed") l.push("the client must confirm the booking");
+        if(b.not_booked==="unpriced") l.push("price the quote"); if(Number(b.balance_owed)>0) l.push("collect the balance ("+inr(Number(b.balance_owed))+")");
+        if(Number(b.open_checkouts)>0) l.push("return "+b.open_checkouts+" equipment checkout"+(b.open_checkouts>1?"s":""));
+        why.textContent="Closing needs: "+(l.join(", ")||"a few things first")+"."; }
+      else why.textContent=b?"Ready to close - settle up and close it on the Closure page.":"Close the event on its Closure page once the event day is over.";
+    } else if(canEdit && vis!==cur && ev.status==="confirmed" && vis<stageIndex("confirmed")){
+      // same rule as the server (0198): a confirmed event never goes back before Confirmed
+      why.textContent="This event is confirmed, so it can't go back to "+s.label+". Use Cancel event if it will not happen.";
+    } else if(canEdit && vis!==cur){
+      const list=info&&info.list;
+      if(info==="loading"||info===undefined){ why.textContent="Checking what "+s.label+" needs…"; }
+      else{
+        const hard=(list||[]).filter(x=>x&&x.hard), soft=(list||[]).filter(x=>x&&!x.hard);
+        const msg=(arr)=>arr.map(x=>{ const m=String(x.message||""); return /^[A-Z]/.test(m)?m.replace(/\.$/,""):(s.label+" can't start yet - "+m); }).join(". ");
+        if(hard.length){ why.textContent=msg(hard)+"."+(hard.some(x=>x.gate==="confirmed_floor")?" Use Cancel event if it will not happen.":""); }
+        else{
+          if(soft.length){ why.textContent=msg(soft)+"."; why.classList.add("t-warn"); }
+          const admin=myRole==="admin", blocked=soft.length>0;
+          const label=(blocked?(admin?"Move anyway (admin)… ":"Move event to "):(vis<cur?"Move event back to ":"Move event to "))+(blocked&&admin?"":s.label);
+          const mv=el("button",{type:"button",class:"btn sm"+(blocked?"":" go"),text:label.trim(),disabled:(blocked&&!admin)||stageBusy,
+            onclick:(e)=>{ if(e.detail>1) return; setStage(s.k,e.currentTarget); }});
+          acts.appendChild(mv);
+          if(blocked&&!admin) acts.appendChild(el("span",{class:"muted",text:"Finish the items above, or ask an admin to move it anyway."}));
+        }
+      }
+    }
+    acts.appendChild(el("button",{type:"button",class:"btn sm ghost",text:"Back to the current stage",onclick:()=>viewStage(effStage())}));
+    p.replaceChildren(
+      el("div",{class:"sp-h"},[el("b",{text:"Stage: "+stageLabel(s)}), " ", el("span",{class:"stat "+(rel==="Done"?"ok":"q"),text:rel})]),
+      el("div",{class:"sp-hint",text:s.hint}), why, acts);
+    p.hidden=false;
+  }
+  // guarded: one stage change at a time (no double-advance on a double-click); the strip re-reads the
+  // STORED stage from the server afterwards, so it can never show one stage while the database holds another
   let stageBusy=false;
   async function setStage(k, btn){
-    if(stageBusy || !ev || k===ev.lifecycleStage) return;
+    if(stageBusy || !ev) return;
     if(k==="closed"){ location.href="closure.html?quote="+encodeURIComponent(id); return; }  // 0042: closing happens on the Closure page
+    if(k===ev.lifecycleStage){ viewK=null; render(); return; }
     stageBusy=true;
-    const lock=(on)=>{ $("#steps").querySelectorAll(".step").forEach(b=>{ b.disabled=on||!canEdit; }); };
     try{
       await BPUI.guard(btn||$("#advBtn"), async()=>{
-        lock(true);
-        try{ const r=await BPStore.quotes.setStageGuided(id, k); if(!r) return; ev.lifecycleStage=k; BPUI.toast("Stage set to "+STAGES[stageIndex(k)].label+".",{type:"ok"}); }
+        try{ const r=await BPStore.quotes.setStageGuided(id, k); if(!r) return;
+          try{ const fresh=await BPStore.quotes.get(id); if(fresh) ev=fresh; }catch(_){ ev.lifecycleStage=(r&&r.stage)||k; }
+          viewK=null;
+          BPUI.toast((r&&r.unchanged)?("Already at "+STAGES[stageIndex(ev.lifecycleStage)].label+"."):("Moved to "+STAGES[stageIndex(ev.lifecycleStage)].label+"."),{type:"ok"}); }
         catch(e){ if(await BPStore.auth.handleAuthError(e)) return;  // stale token → refresh silently instead of a scary popup
-          BPUI.toast(BPUI.friendlyError(e,{action:"update the stage"}),{type:"err"}); }
+          BPUI.toast(BPUI.friendlyError(e,{action:"move the event to "+STAGES[stageIndex(k)].label}),{type:"err"}); }
       });
-    } finally { stageBusy=false; render(); }
+    } finally { stageBusy=false; Object.keys(stageInfo).forEach(x=>delete stageInfo[x]); render(); }
   }
   // e.detail>1 = the 2nd click of a double-click: ignore it so a fast save can't advance two stages
   $("#advBtn").addEventListener("click",(e)=>{ if(e.detail>1) return; const k=$("#advBtn").dataset.k; if(k) setStage(k,$("#advBtn")); });
+  // 0198: Cancel event - for an event that will not happen (admin / manager, reason recorded + audited)
+  $("#cancelEvBtn").addEventListener("click",async()=>{
+    if(!ev || evLocked()) return;
+    const reason=await BPUI.prompt("Cancel "+(ev.code||"this event")+"? It moves to the archive, stops holding its date, venue, crew and stock, and the client's approval link stops working. Payments already received stay recorded - add any refund in Settlement. The reason is saved in the audit log.",
+      { title:"Cancel this event?", label:"Reason (5-1000 characters)", required:true, multiline:true, okLabel:"Cancel event",
+        validate:(v)=>{ const t=String(v||"").trim(); return t.length<5?"Give a reason of at least 5 characters.":t.length>1000?"Keep the reason under 1000 characters.":""; } });
+    if(!reason) return;
+    await BPUI.guard($("#cancelEvBtn"),async()=>{
+      try{ const r=await BPStore.quotes.cancelEvent(id, reason.trim());
+        try{ const fresh=await BPStore.quotes.get(id); if(fresh) ev=fresh; }catch(_){ ev.status="cancelled"; }
+        viewK=null; render();
+        BPUI.toast("Event cancelled."+(r&&r.refund_to_review?" Payments were received - review any refund in Settlement.":""),{type:"ok",timeout:8000}); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"cancel the event"}),{type:"err"}); }
+    },{busyLabel:"Cancelling…"});
+  });
 
   $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
     const btn=$("#li_submit"); if(btn.disabled) return;

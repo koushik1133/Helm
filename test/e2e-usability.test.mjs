@@ -170,9 +170,11 @@ t('E13 closure P&L / budget / insights on ex-tax revenue; tax shown as payable',
 });
 
 // ---- E14 future close
-t('E14 closing a future event asks first; double-click opens one close flow', () => {
-  assert.match(closure, /This event hasn't happened yet \("\+nice\+"\)\. Close it anyway\?/);
-  assert.match(closure, /d>BPStore\.todayLocal\(\)/);
+// 0198: no longer "close anyway?" - an event closes only after its event day (the server refuses too)
+t('E14 / 0198 closing before the event day is over is refused; double-click opens one close flow', () => {
+  assert.doesNotMatch(closure, /Close it anyway\?/);
+  assert.match(closure, /d>=BPStore\.todayLocal\(\)/);
+  assert.match(closure, /"You can close this event after "/);
   assert.match(closure, /if\(closing\) return; closing=true;/);
 });
 

@@ -36,6 +36,8 @@
   .conflict .ico{font-size:16px}
   .conflict .t{font-weight:700;font-size:13px} .conflict .d{font-size:12px;color:var(--ink-2)}
   .conflict .when{margin-left:auto;font-family:var(--mono);font-size:12px;color:#b42318;white-space:nowrap}
+  .conflict.acked{background:var(--panel-2);border-color:var(--line)} .conflict .cfev{text-decoration:underline;font-weight:600}
+  .conflict .ctype.ack{background:#e7f6ee;color:#0f7a43}
   .ctype{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;margin-left:8px}
   .ctype.inventory{background:#e7f6ee;color:#0f7a43} .ctype.vendor{background:var(--accent-soft);color:var(--accent)} .ctype.staff{background:#eef2ff;color:#4457c8} .ctype.venue{background:#fdecec;color:#b42318}
   .allclear{display:flex;align-items:center;gap:10px;padding:14px;border:1px solid #b6e3ca;background:#eefaf2;border-radius:11px;color:#0f7a43;font-weight:600;font-size:13px}
@@ -158,10 +160,13 @@
     const sh=(data.shortages||[]).slice().sort((a,b)=>(a.date||"").localeCompare(b.date||""));
     if(!cs.length && !sh.length){ $("#conflicts").innerHTML='<div class="allclear">✓ No conflicts — every commitment fits.</div>'; return; }
     const ico={inventory:"📦",vendor:"🤝",staff:"👷",venue:"📍"};
-    $("#conflicts").innerHTML=cs.map(c=>`<div class="conflict">
+    // 0198: each clashing event is a link to its workspace (where the clash is listed with its fixes);
+    // a clash the team marked acknowledged says so (cancelled / closed events never clash)
+    const acks=data.acks||{};
+    $("#conflicts").innerHTML=cs.map(c=>`<div class="conflict${acks[c.key]?" acked":""}">
       <span class="ico" aria-hidden="true">${ico[c.type]||"⚠"}</span>
-      <div><div class="t">${esc(c.label)}<span class="ctype ${esc(c.type)}">${esc(c.type)}</span></div>
-        <div class="d">${esc(c.detail)} — ${(c.events||[]).filter(Boolean).map(e=>esc(e.code)).join(", ")}</div></div>
+      <div><div class="t">${esc(c.label)}<span class="ctype ${esc(c.type)}">${esc(c.type)}</span>${acks[c.key]?'<span class="ctype ack">acknowledged</span>':""}</div>
+        <div class="d">${esc(c.detail)} — ${(c.events||[]).filter(Boolean).map(e=>`<a class="cfev" href="event.html?id=${encodeURIComponent(e.id)}">${esc(e.code)}</a>`).join(", ")}</div></div>
       <span class="when">${esc(fmtDate(c.date))}</span></div>`).join("")+sh.map(x=>`<div class="conflict${x.source==="vendor"||x.source==="buy"?" short-src":""}">
       <span class="ico" aria-hidden="true">📦</span>
       <div><div class="t">${esc(x.text)}<span class="ctype inventory">${x.source==="vendor"||x.source==="buy"?"sourcing":"unsourced"}</span></div>
@@ -242,6 +247,7 @@
     const pLeads=loadLeadDates();
     try{ data=await BPStore.calendar.load(); }
     catch(e){ $("#conflicts").innerHTML=""; $("#nodateWrap").hidden=true; BPUI.loadError($("#agenda"), e, load, {what:"the calendar"}); return; }
+    try{ data.acks=await BPStore.calendar.acks((data.conflicts||[]).map(c=>c.key)); }catch(_){ data.acks=null; }   // 0198: advisory
     leadDates=await pLeads; $("#lgLead").hidden=!canLeads;
     render(); if(schedUI&&schedUI.refresh) schedUI.refresh();
     if(!(data.agenda||[]).length && !canQuotes) await renderCrewEvents();

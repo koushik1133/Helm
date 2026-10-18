@@ -467,19 +467,9 @@
   },
   {
    "file": "public/event.html",
-   "expr": "ico[c.type]||\"⚠️\"",
-   "why": "lookup in a local literal map (icon/pill table) with literal fallback"
-  },
-  {
-   "file": "public/event.html",
    "expr": "inp",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
    "max": 2
-  },
-  {
-   "file": "public/event.html",
-   "expr": "s.k",
-   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
   },
   {
    "file": "public/event.html",

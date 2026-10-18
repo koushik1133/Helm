@@ -68,6 +68,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 
 -- earlier suites in run-all re-apply older migrations (0085 / 0096 guards): re-run 0184 (also proves a re-run is safe)
 \ir ../../supabase/migrations/0184_trial_retention.sql
+-- 0198 adds its two event tables (event_cancellations, calendar_conflict_acks) to the purge list on top of 0184
+\ir ../../supabase/migrations/0198_event_stages_closure.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin

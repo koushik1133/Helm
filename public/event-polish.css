@@ -15,3 +15,25 @@
 
 /* QA: profit figure is coloured inline (#0f7a43) — too dark on dark panels */
 html[data-theme="dark"]:not([data-shell]) .sum b[style*="0f7a43"] { color: #34d399 !important; }
+
+/* 0198 stage strip: the stage being VIEWED (outlined) vs the event's real stage (filled) + the stage panel */
+.step.viewing{outline:2px solid var(--accent);outline-offset:1px;color:var(--ink)}
+.stagepanel{margin-top:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel-2)}
+.stagepanel .sp-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
+.stagepanel .sp-hint{font-size:13px;color:var(--ink-2);margin-top:4px}
+.stagepanel .sp-why{font-size:13px;margin-top:6px;color:var(--ink)}
+.stagepanel .sp-why:empty{display:none}
+.stagepanel .sp-act{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn.go{background:var(--safe,#18a558);border-color:transparent;color:#fff}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--ink-3)}
+/* 0198 conflicts on the event: what clashes, with which event, and what to do */
+.cf-card.bad{border-color:color-mix(in srgb,#b42318 35%,transparent);background:color-mix(in srgb,#b42318 6%,var(--panel))}
+.cf-card .cf-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.cf-card .cf-head .btn{margin-left:auto}
+.cf-card .cf-tip{margin-bottom:6px}
+.cf-row{padding:8px 0;border-top:1px solid var(--line);font-size:13px;color:var(--ink-2)}
+.cf-row .cf-what{color:var(--ink)}
+.cf-row .cf-with a{text-decoration:underline;font-weight:600;color:var(--accent)}
+.cf-row .cf-act{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.cf-row.acked{opacity:.85}
+.cf-done summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--ink-3);padding:6px 0}
