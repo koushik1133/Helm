@@ -6,6 +6,8 @@
 //                (built-in client in ./smtp.ts; implicit TLS on 465 - Supabase blocks 25/587)
 //                e.g. Gmail: smtp.gmail.com / 465 / you@gmail.com / an App Password
 //   3. neither -> { status: "not_configured" } (nothing sent, never throws)
+//   A caller may pass opts.prefer = "smtp" (comms-dispatch, release 1018): SMTP first when it is
+//   set up, Resend only when SMTP is not. Callers that pass nothing keep the order above.
 //
 // Display name: EMAIL_BRAND_MODE (single switch). "helm" (default, any unset/unknown value) ->
 // "Helm Events"; "studio" -> "<Studio> via Helm". The address is always the configured sender
@@ -23,6 +25,9 @@ export type MailMsg = {
   to: string; subject: string; text: string; html?: string;
   studio?: string | null; replyTo?: string | null;
   txReason?: string; footer?: { text: string; html: string }; headers?: Record<string, string>;
+  // optional display name (e.g. the studio's own sender name from the Integrations page, 0150);
+  // cleaned like every other name; unset -> EMAIL_BRAND_MODE decides
+  fromName?: string | null;
 };
 export type MailResult = { status: "sent" | "not_configured" | "failed"; provider?: "resend" | "smtp"; reason?: string };
 export type SmtpSend = (cfg: SmtpCfg, mail: { from: string; to: string; subject: string; text: string; html?: string; replyTo?: string; headers?: Record<string, string> }) => Promise<void>;
@@ -48,35 +53,41 @@ export function fromName(studio: unknown, mode: BrandMode = "helm"): string {
   return s ? s + " via Helm" : HELM_BRAND;
 }
 // "Name <addr>" from a configured sender (which may already be "X <a@b>")
-export function senderHeader(configured: string, studio: unknown, mode: BrandMode = "helm"): string {
+export function senderAddr(configured: string): string {
   const m = /<([^<>\s]+@[^<>\s]+)>/.exec(configured);
-  const addr = (m ? m[1] : configured).trim();
-  return `"${fromName(studio, mode)}" <${addr}>`;
+  return (m ? m[1] : configured).trim();
+}
+export function senderHeader(configured: string, studio: unknown, mode: BrandMode = "helm", own?: unknown): string {
+  const name = cleanName(own) || fromName(studio, mode);
+  return `"${name}" <${senderAddr(configured)}>`;
 }
 
-export function mailConfig(env: EnvGet = envOf()): { provider: "resend" | "smtp" | null; smtp?: SmtpCfg; from?: string } {
+export function mailConfig(env: EnvGet = envOf(), prefer?: "smtp"): { provider: "resend" | "smtp" | null; smtp?: SmtpCfg; from?: string } {
   const key = env("RESEND_API_KEY") || "", rfrom = env("RESEND_FROM") || "";
-  if (key && rfrom) return { provider: "resend", from: rfrom };
   const host = env("SMTP_HOST") || "", user = env("SMTP_USER") || "", pass = env("SMTP_PASS") || "";
-  if (host && user && pass) {
+  const smtpOn = !!(host && user && pass);
+  const smtpCfg = () => {
     const port = Number(env("SMTP_PORT") || "465") || 465;
-    return { provider: "smtp", from: env("SMTP_FROM") || user, smtp: { host, port, user, pass, tls: port === 465 } };
-  }
+    return { provider: "smtp" as const, from: env("SMTP_FROM") || user, smtp: { host, port, user, pass, tls: port === 465 } };
+  };
+  if (prefer === "smtp" && smtpOn) return smtpCfg();
+  if (key && rfrom) return { provider: "resend", from: rfrom };
+  if (smtpOn) return smtpCfg();
   return { provider: null };
 }
 
 // default SMTP sender: built-in minimal client (./smtp.ts). denomailer (v1.6.0) was dropped:
 // its encoding of non-ASCII bodies/headers and opaque errors broke Gmail sends on Supabase Edge.
 const builtinSmtp: SmtpSend = (cfg, mail) => smtpSend(cfg, mail);
-export async function sendMail(msg: MailMsg, opts: { env?: EnvGet; smtp?: SmtpSend } = {}): Promise<MailResult> {
+export async function sendMail(msg: MailMsg, opts: { env?: EnvGet; smtp?: SmtpSend; prefer?: "smtp" } = {}): Promise<MailResult> {
   const to = String(msg.to || "").trim();
   if (!EMAIL_RE.test(to)) return { status: "failed", reason: "no valid e-mail address on file" };
-  const cfg = mailConfig(opts.env || envOf());
+  const cfg = mailConfig(opts.env || envOf(), opts.prefer);
   if (!cfg.provider) return { status: "not_configured", reason: "e-mail sending is not set up yet" };
   const replyTo = msg.replyTo && EMAIL_RE.test(String(msg.replyTo).trim()) ? String(msg.replyTo).trim() : undefined;
   const subject = String(msg.subject || "").replace(/[\r\n]+/g, " ").slice(0, 200);
   const envGet = opts.env || envOf();
-  const from = senderHeader(cfg.from!, msg.studio, brandMode(envGet));
+  const from = senderHeader(cfg.from!, msg.studio, brandMode(envGet), msg.fromName);
   const footer = msg.footer || txFooter(msg.txReason || "client_link", { app: envGet("APP_URL") || envGet("APP_ORIGIN"), address: postalAddress(envGet) });
   // designed layout already has the compliance line in its footer -> text footer only
   const designed = !!msg.html && /You received this because/.test(msg.html);

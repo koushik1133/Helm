@@ -167,6 +167,7 @@ run "trial-extension-0186" "TRIAL-EXTENSION-0186: ALL PASS \(55/55\)" psql -q -f
 run "trial-outbound-0187" "TRIAL-OUTBOUND-0187: ALL PASS \(17/17\)" psql -q -f tests/db/trial-outbound-0187.sql
 run "trial-clone-0190" "TRIAL-CLONE-0190: ALL PASS \(24/24\)" psql -q -f tests/db/trial-clone-0190.sql
 run "release-integration-0201" "RELEASE-INTEGRATION-0201: ALL PASS \(11/11\)" psql -q -f tests/db/release-integration-0201.sql
+run "trial-requirements-0202" "TRIAL-REQUIREMENTS-0202: ALL PASS \(17/17\)" psql -q -f tests/db/trial-requirements-0202.sql
 run "menu-pkg-0192"    "MENU-PKG-0192: ALL PASS \(41/41\)" psql -q -f tests/db/menu-pkg-0192.sql
 run "menu-lock-trial" "MENU-LOCK-TRIAL: ALL PASS \(17/17\)" psql -q -f tests/db/menu-lock-trial.sql
 run "invite-share-0195" "INVITE-SHARE-0195: ALL PASS \(40/40\)" psql -q -f tests/db/invite-share-0195.sql

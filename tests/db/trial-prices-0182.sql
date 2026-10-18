@@ -61,12 +61,17 @@ begin
     left join public.inventory_items i on i.org_id = M and i.name = pg_temp.d(x.n)
    where i.unit_cost is null or i.unit_cost <> (AP ->> x.t)::numeric;
   perform pg_temp.res('02 builder rate = sample inventory rate (16 owner items)', bad is null, bad);
-  perform pg_temp.res('03 the 0182 manifest is current (= previous + 1), published once, carries assetPrices + chairPrice',
+  -- release-1018: 0202 publishes a later sample version on top; the 0182 one stays previous + 1 and the
+  -- current one (0182 or later) still carries the rates
+  perform pg_temp.res('03 the 0182 manifest (= previous + 1, published once) carries assetPrices + chairPrice; the current one (0182 or later) too',
     (select count(*) from public.helm_trial_seed_manifest m where m.notes = N) = 1
-    and exists (select 1 from public.helm_trial_seed_manifest m where m.is_current and m.notes = N
-                  and m.version = (select max(x.version) from public.helm_trial_seed_manifest x where x.notes <> N) + 1
+    and exists (select 1 from public.helm_trial_seed_manifest m where m.notes = N
+                  and m.version = (select max(x.version) from public.helm_trial_seed_manifest x where x.version < m.version) + 1
                   and m.payload #> '{studio,pricing,assetPrices}' @> AP and (m.payload #>> '{studio,pricing,chairPrice}')::int = 100
-                  and m.payload #> '{studio,pricing}' ? 'termsText'));
+                  and m.payload #> '{studio,pricing}' ? 'termsText')
+    and exists (select 1 from public.helm_trial_seed_manifest c where c.is_current
+                  and c.version >= (select m.version from public.helm_trial_seed_manifest m where m.notes = N)
+                  and c.payload #> '{studio,pricing,assetPrices}' @> AP and (c.payload #>> '{studio,pricing,chairPrice}')::int = 100));
   t := (select (pricing ->> 'total')::numeric from public.quotes where id = q5);
   perform pg_temp.res('04 Kapoor Sangeet: chairPrice 100, D8 total 472000, 30 % advance 141600 paid (simulated) + 70 % balance 330400',
     (select pricing ->> 'chairPrice' from public.quotes where id = q5) = '100' and t = 472000

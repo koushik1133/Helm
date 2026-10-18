@@ -21,7 +21,7 @@ Every automatic message is a row in `comms_outbox` with a UNIQUE `dedupe_key`, s
 3. **Edge function** - `supabase functions deploy comms-dispatch --no-verify-jwt`.
 4. **Secrets** (`supabase secrets set ...`):
    - `HELM_COMMS_SECRET` = a long random string (e.g. `openssl rand -hex 32`)
-   - `RESEND_API_KEY`, `RESEND_FROM` (already set for other e-mails)
+   - e-mail: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (the shared SMTP mailer, e.g. Gmail; already set for client-mailer). SMTP is used first; `RESEND_API_KEY`, `RESEND_FROM` only when SMTP is not set (release 1018)
    - `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` (already set for `send-whatsapp`)
    - `COMMS_WHATSAPP_TEMPLATE` = an approved Meta template with ONE body variable `{{1}}` (e.g. name `helm_message`, body `{{1}}`). Without it WhatsApp rows are skipped unless `WHATSAPP_ALLOW_TEXT=1` (free text only works inside the 24-hour customer window - not suitable for reminders).
    - `APP_URL` = `https://www.helm.events` (deep links in forwarded messages)
@@ -44,7 +44,7 @@ Every automatic message is a row in `comms_outbox` with a UNIQUE `dedupe_key`, s
 
 - `HELM_COMMS_ENABLED` not `true` -> the function answers `{"status":"dormant"}` and claims nothing (rows wait).
 - Wrong / missing `x-helm-cron-secret` -> 401.
-- No `RESEND_API_KEY` -> e-mail rows marked `skipped`. No WhatsApp token / phone id / template -> WhatsApp rows `skipped`.
+- No SMTP secrets and no `RESEND_API_KEY` -> e-mail rows marked `skipped`. No WhatsApp token / phone id / template -> WhatsApp rows `skipped`.
 - No studio WhatsApp number -> nothing is queued for WhatsApp and queued WhatsApp rows are skipped.
 - Rows older than 3 days are skipped instead of sent late; 5 failed attempts -> `failed`.
 
