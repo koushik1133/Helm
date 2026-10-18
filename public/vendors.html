@@ -254,14 +254,17 @@
   const dupDigits=p=>String(p==null?"":p).replace(/\D+/g,"").slice(-10);
   // returns {block:msg}|{ask:msg}|null — compares against ALL records incl. inactive
   function dupCheck(rows,selfId,name,phone,noun){
-    const n=dupNorm(name); if(!n) return null; const pd=dupDigits(phone); let ask=null;
+    const n=dupNorm(name); if(!n) return null; const pd=dupDigits(phone); let ask=null, sampleAsk=null;
+    // a sample match is asked about only when the name is new or changed (editing your own record never re-asks)
+    const self=selfId?(rows||[]).find(r=>r.id===selfId):null, renamed=!self||dupNorm(self.name)!==n;
     for(const r of rows||[]){
       if(r.id===selfId || dupNorm(r.name)!==n) continue;
-      if(isDemoRow(r)){ ask=ask||`"${r.name}" is a sample ${noun} from the free-trial data. Save yours as a separate ${noun} anyway? (Clear sample data removes the sample later.)`; continue; }
+      if(isDemoRow(r)){ if(renamed) sampleAsk=sampleAsk||`"${r.name}" is a sample ${noun} from the free-trial data. Save yours as a separate ${noun} anyway? (Clear sample data removes the sample later.)`; continue; }
       const rd=dupDigits(r.phone), tag=r.active===false?" (inactive)":"";
       if(!pd||!rd||pd===rd) return {block:`A ${noun} named "${r.name}"${tag} already exists${pd&&rd?" with this phone number":""}. Open the existing record instead of adding a duplicate${r.active===false?" (tick \"Show inactive\" and reactivate it)":""}.`};
       ask=ask||`A ${noun} named "${r.name}"${tag} already exists with a different phone number. Save this one as a separate person/partner anyway?`;
     }
+    ask=ask||sampleAsk;
     return ask?{ask}:null;
   }
   async function save(){

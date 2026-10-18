@@ -493,7 +493,9 @@
       const key=norm(name), same=(await BPStore.inventory.items(true)).filter(x=>x.id!==editingId && norm(x.name)===key);
       const dup=same.find(x=>!isDemo(x)), sample=same.find(isDemo);
       if(dup){ $("#im_err").textContent="You already have \u201c"+dup.name+"\u201d"+(dup.active===false?" (inactive \u2014 tick \u201cShow inactive\u201d and reactivate it)":" \u2014 edit that item's quantity instead of adding it again.")+""; $("#im_err").hidden=false; return; }
-      if(sample && !(await BPUI.confirm("\u201c"+sample.name+"\u201d is a sample item from the free-trial data. Save yours as a separate item anyway? (Clear sample data removes the sample later.)",{title:"Possible duplicate",okLabel:"Save anyway"}))) return;
+      // ...asked only when the name is new or changed: editing your own "PA Speaker" (quantity, cost) never re-asks
+      const sameName=!!(editingItem&&editingItem.id===editingId&&norm(editingItem.name)===key);
+      if(sample && !sameName && !(await BPUI.confirm("\u201c"+sample.name+"\u201d is a sample item from the free-trial data. Save yours as a separate item anyway? (Clear sample data removes the sample later.)",{title:"Possible duplicate",okLabel:"Save anyway"}))) return;
     }catch(e){ /* if the check itself can't run, fall through to the normal save */ }
     try{ if(editingId && attrCh) rec.attributes=await BPStore.mergeAttributes("inventory_items", editingId, Object.assign({ base:editingItem&&editingItem.attributes }, attrCh));
          if(editingId) await BPStore.inventory.updateItem(editingId,rec); else await BPStore.inventory.addItem(rec); }

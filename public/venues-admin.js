@@ -31,6 +31,10 @@
   // a sample venue, or the same name in another city, is asked about ("Possible duplicate").
   function venueDup(rows, selfId, name, city) {
     var n = dupNorm(name); if (!n) return null; var c = ckey(city), ask = null;
+    // an edit that keeps the venue's own name and city is never asked or refused (a studio that already has two
+    // same-named venues can still edit either one)
+    var self = null; for (var k = 0; k < (rows || []).length; k++) { if (rows[k] && selfId && rows[k].id === selfId) { self = rows[k]; break; } }
+    if (self && dupNorm(self.name) === n && ckey(self.city) === c) return null;
     for (var i = 0; i < (rows || []).length; i++) {
       var r = rows[i]; if (!r || r.id === selfId || dupNorm(r.name) !== n) continue;
       var tag = r.active === false ? " (inactive)" : "";

@@ -384,7 +384,13 @@
     if(f.type!=="radio"||!f.name) return [f];
     var c=cardOf(f)||document; return Array.prototype.filter.call(c.querySelectorAll("input[type=radio]"),function(r){ return r.name===f.name; });
   }
-  function touch(f){ if(!isField(f)||!cardOf(f)) return; group(f).forEach(function(g){ if(!base.has(g)) base.set(g,fval(g)); }); }
+  // The saved value of a field is what it held just before the user's first edit in its card. While a card is still
+  // clean, every touch (focus / pointer / key) re-reads ALL its fields, so a value the page loaded late is never
+  // taken for "saved" as a stale placeholder; from the first edit on the card's values are frozen, which also covers a
+  // field the page changes as a side effect (country -> GST rate): "Discard changes" puts that one back too.
+  function touch(f){ if(!isField(f)) return; var c=cardOf(f); if(!c) return;
+    if(!dirtyCards.has(c)){ fieldsOf(c).forEach(function(g){ base.set(g,fval(g)); }); return; }
+    group(f).forEach(function(g){ if(!base.has(g)) base.set(g,fval(g)); }); }
   function fieldsOf(n){ return Array.prototype.filter.call(n.querySelectorAll("input,select,textarea"),isField); }
   function changed(f){ return base.has(f) && base.get(f)!==fval(f); }
   function recheck(c){
@@ -410,7 +416,7 @@
     if(t.tagName==="LABEL"&&t.control) t=t.control; else if(!isField(t)){ var l=t.closest("label"); if(l&&l.control) t=l.control; }
     touch(t);
   }
-  main.addEventListener("focusin",onTouch,true); main.addEventListener("pointerdown",onTouch,true);
+  main.addEventListener("focusin",onTouch,true); main.addEventListener("pointerdown",onTouch,true); main.addEventListener("keydown",onTouch,true);
   var editedAt=new WeakMap();
   function onEdit(e){
     if(!e.isTrusted) return; var t=e.target; if(!isField(t)) return;

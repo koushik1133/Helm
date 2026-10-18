@@ -43,9 +43,20 @@ t('B14 inventory: the normaliser strips "Demo · "; a sample match asks, your ow
   const blk = slice(INV, '      // B14: a trial sample row', '    }catch(e){ /* if the check itself');
   assert.match(blk, /replace\(\/\^\\s\*Demo \\u00b7\\s\*\/,""\)\.normalize\("NFKC"\)/);
   assert.match(blk, /const dup=same\.find\(x=>!isDemo\(x\)\), sample=same\.find\(isDemo\);/);
-  assert.match(blk, /if\(sample && !\(await BPUI\.confirm\([^]*title:"Possible duplicate",okLabel:"Save anyway"\}\)\)\) return;/);
+  assert.match(blk, /const sameName=!!\(editingItem&&editingItem\.id===editingId&&norm\(editingItem\.name\)===key\);\n\s*if\(sample && !sameName && !\(await BPUI\.confirm\([^]*title:"Possible duplicate",okLabel:"Save anyway"\}\)\)\) return;/);
   const norm = new Function('return ' + /const norm=(\(t\)=>[^;]+);/.exec(blk)[1])();
   assert.equal(norm('Demo · PA Speaker'), norm('pa  speaker')); assert.equal(norm('Demo · Sound & Light'), norm('sound and light'));
+});
+t('B14 review: editing your OWN record without renaming it never re-asks about the sample; a real twin is asked first', () => {
+  const rows = [{ id: 'd1', name: 'Demo · AV Solutions', is_demo: true }, { id: 'o1', name: 'AV Solutions', phone: '+919876543210' }];
+  assert.equal(vDup(rows, 'o1', 'AV Solutions', '+919876543210', 'partner'), null, 'vendor edit (phone / notes): no prompt');
+  assert.ok(vDup(rows, 'o1', 'AV Solution', '+919876543210', 'partner') === null, 'a different name is not a match');
+  const st = [{ id: 'd', name: 'Demo · Arjun Naidu', phone: '+91 00000 00103' }, { id: 'me', name: 'Arjun Naidu', phone: '+919876543210' }];
+  assert.equal(sDup(st, 'me', 'Arjun Naidu', '+919876543210', 'staff member'), null, 'staff edit: no prompt');
+  const ren = [{ id: 'd', name: 'Demo · Arjun Naidu', is_demo: true }, { id: 'me', name: 'Arjun N' }];
+  assert.match(sDup(ren, 'me', 'Arjun Naidu', '+919876543210', 'staff member').ask, /sample staff member/, 'renamed onto the sample name: asked');
+  const twin = [{ id: 'd', name: 'Demo · Arjun Naidu', is_demo: true }, { id: 'o', name: 'Arjun Naidu', phone: '+919999999999' }];
+  assert.match(sDup(twin, null, 'Arjun Naidu', '+919876543210', 'staff member').ask, /different phone number/, 'your own same-named record is the message shown');
 });
 // venues: the new check, executed
 const VD = new Function(slice(VA, '  // B14: same name ignoring case', '  function friendly(e)') + slice(VA, '  function ckey(s)', '  function filtered()') + '\nreturn { venueDup, dupNorm };')();
@@ -57,6 +68,9 @@ t('B14 venues: "Royal Banquet Hall" next to its sample is asked; same name + sam
   assert.ok(VD.venueDup(own, null, 'Royal Banquet Hall', '').block, 'no city: treated as the same place');
   assert.ok(VD.venueDup(own, null, 'Royal Banquet Hall', 'Pune').ask, 'another city: asked, not refused');
   assert.equal(VD.venueDup(own, 'o', 'Royal Banquet Hall', 'Hyderabad'), null, 'editing itself');
+  const twins = [{ id: 'a', name: 'Royal Banquet Hall', city: 'Hyderabad' }, { id: 'b', name: 'Royal Banquet Hall', city: 'Hyderabad' }];
+  assert.equal(VD.venueDup(twins, 'a', 'Royal Banquet Hall', 'Hyderabad'), null, 'an existing twin never blocks editing either one (same name + city kept)');
+  assert.ok(VD.venueDup([{ id: 'a', name: 'Lotus Hall', city: 'Hyderabad' }, { id: 'b', name: 'Royal Banquet Hall', city: 'Hyderabad' }], 'a', 'Royal Banquet Hall', 'Hyderabad').block, 'renaming onto another venue is still refused');
   assert.match(VA, /var dc = venueDup\(state\.rows, v\.id \|\| null, r\.value\.name, r\.value\.city\);/);
   assert.ok(VA.indexOf('venueDup(state.rows') < VA.indexOf('await S.venues.save('), 'checked before the save');
 });
@@ -175,5 +189,15 @@ t('B29 pickers + cards: no raw "Demo · " in drop-downs, one phone format, sampl
   assert.match(INV, /BPStore\.fmtStudioDate\(s,\{style:"long"\}\)/, 'check-out dates use the studio time zone');
 });
 
+t('B24 review: the saved value is re-read while the card is clean (late page fill), frozen from the first edit (country -> GST side effect)', () => {
+  const touch = new Function('isField', 'cardOf', 'dirtyCards', 'fieldsOf', 'group', 'base', 'fval', slice(CS, '  function touch(f){', '  function fieldsOf(n){') + '\nreturn touch;');
+  const card = {}, gst = { value: '' }, ctry = { value: 'IN' }, base = new Map(), dirty = new Set();
+  const tf = touch(() => true, () => card, dirty, () => [ctry, gst], (f) => [f], base, (f) => f.value);
+  tf(gst); gst.value = '12'; tf(gst);
+  assert.equal(base.get(gst), '12', 'a value the page filled after the first focus is the baseline, not the empty placeholder');
+  tf(ctry); dirty.add(card); ctry.value = 'AE'; gst.value = '5'; tf(gst);
+  assert.equal(base.get(gst), '12', 'after the first edit the GST the page changed keeps its saved baseline, so Discard puts 12 back');
+  assert.equal(base.get(ctry), 'IN');
+});
 for (const [name, fn] of tests) { await fn(); n++; console.log('  ok ' + name); }
 console.log(`qa-catalog-settings: ${n} passed`);
