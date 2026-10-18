@@ -29,8 +29,9 @@
       doc.head.appendChild(l);
     } catch (e) {}
   }
-  // free trial (0181): Templates and Studio setup are not part of the trial - keep them out of the palette
-  var TRIAL_OUT = /^\/?(templates|onboarding)(\.html)?([?#].*)?$/;
+  // free trial (0181): Templates and Studio setup are not part of the trial - keep them out of the palette;
+  // QA B5: nor the activity log ("Open audit log") or Reports & exports (CSV / PDF only)
+  var TRIAL_OUT = /^\/?(templates|onboarding|audit|reports)(\.html)?([?#].*)?$/;
   function trialOn() { return doc.documentElement.classList.contains("helm-trial"); }
   function prune() {
     var api = window.HelmStudioSearch;

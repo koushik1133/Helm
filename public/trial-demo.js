@@ -82,6 +82,23 @@
     return null;
   }
 
+  // QA B3 (pure, unit-tested): is this studio on its free trial? t = my_trial_status() (status / state 'trial', the
+  // same rule trial-lock.js uses), else html.helm-trial. During the trial the sample data is FIXED: nothing here
+  // offers to remove or clear it (the server refuses too, B12).
+  function trialOn(t) {
+    if (t && typeof t === "object" && ("state" in t || "status" in t)) return t.state === "trial" || t.status === "trial";
+    try { return !!(doc && doc.documentElement && doc.documentElement.classList.contains("helm-trial")); } catch (e) { return false; }
+  }
+  const TRIAL_KEEP = "Your free trial keeps its sample data for the whole trial. Choose a plan to start your own studio.";
+  async function trialNow() {
+    // a CONFIRMED trial class wins; the early (cached, unconfirmed) class asks the server, so a studio that just
+    // paid is not refused while trial-lock.js is still checking (refuses if the server cannot be asked)
+    const early = (() => { try { return !!(doc && doc.documentElement && doc.documentElement.classList.contains("helm-trial-early")); } catch (e) { return false; } })();
+    if (trialOn(null) && !early) return true;
+    try { const st = S(); if (st && st.subscription && st.subscription.trial) return trialOn(await st.subscription.trial()); } catch (e) {}
+    return trialOn(null);
+  }
+
   /* ---- actions ------------------------------------------------------------ */
   async function confirmDlg(msg, o) {
     try { if (global.BPUI && global.BPUI.confirm) return !!(await global.BPUI.confirm(msg, o)); } catch (e) { return false; }
@@ -94,6 +111,7 @@
     catch (e) { done(); toast(errMsg(e, "load the demo data"), "err", b); }
   }
   async function clearDemo(then) {
+    if (await trialNow()) { toast(TRIAL_KEEP, "info"); return false; }   // QA B3
     const ok = await confirmDlg("This removes only the sample rows marked “Demo ·” (events, leads, staff, vendors, items, packages, layout). Your own data is never touched. Demo venues are switched off, and a demo item one of your real events uses is kept.",
       { title: "Remove all demo data?", okLabel: "Remove demo data", danger: true });
     if (!ok) return false;
@@ -105,6 +123,7 @@
   // 0166 — Control Center "Clear sample data" (admin; trial or converted studio; is_demo rows only)
   async function clearSample(b) {
     if (b && b.disabled) return false;
+    if (await trialNow()) { toast(TRIAL_KEEP, "info"); return false; }   // QA B3
     const ok = await confirmDlg("This deletes only the sample rows marked \u201cDemo \u00b7\u201d in this studio (events, leads, staff, vendors, items, packages, layout). Anything you added yourself is never touched. A sample item one of your real events uses is switched off instead of deleted.",
       { title: "Clear sample data?", okLabel: "Clear sample data", danger: true });
     if (!ok) return false;
@@ -151,6 +170,7 @@
   // opts.then: "checkout" when opened from "Choose a plan".
   async function startFresh(opts) {
     opts = opts || {};
+    if (await trialNow()) { toast(TRIAL_KEEP, "info"); return; }   // QA B3: no "Remove samples & set up my studio" in the trial
     let d = null;
     try { d = await S().demo.status(); } catch (e) {}
     if (d && d.has_demo === false) { global.location.assign(nextAfterFresh(opts.then)); return; }
@@ -186,6 +206,7 @@
   }
   // 0185: once the plan is active, trial-upgrade.js (keep / remove sample / start clean) takes over
   async function openSwitch() {
+    if (await trialNow()) { toast(TRIAL_KEEP, "info"); return; }   // QA B3
     try { if (global.HelmTrialUpgrade && typeof global.HelmTrialUpgrade.takeOver === "function" && await global.HelmTrialUpgrade.takeOver()) return; } catch (e) {}
     return startFresh({});
   }
@@ -234,12 +255,14 @@
         const row = el("div", "td-row");
         if (!inTrial) row.appendChild(btn("Start my own studio →", "btn primary", () => startFresh({})));
         const r = btn("Reset demo data", "btn", () => resetDemo(r)); row.appendChild(r);
-        if (place === "control") { const c = btn("Clear sample data", "btn", () => clearSample(c)); row.appendChild(c); }
+        // QA B3: no "Clear sample data" during the trial (the sample data is fixed for the whole trial)
+        if (place === "control" && !inTrial) { const c = btn("Clear sample data", "btn", () => clearSample(c)); row.appendChild(c); }
         host.appendChild(row);
       }
       return;
     }
     if (v === "leftover") {
+      if (inTrial) { host.hidden = true; return; }   // QA B3: no remove / clear entry point during the trial
       host.appendChild(el("span", "td-tag", "Sample data"));
       host.appendChild(el("h3", null, "Demo data is still in your studio"));
       host.appendChild(el("p", null, "Remove the sample rows marked “Demo ·” when you no longer need them. Your own data is never touched."));
@@ -275,14 +298,16 @@
     const v = view(d, t);
     // 0180: during the free trial the trial strip + the 2-step welcome are the whole trial UI: no
     // sample-data card on the dashboard and no "Start my own studio" (Control Center keeps Reset / Clear)
-    const inTrial = !!(t && typeof t === "object" && t.state === "trial");
+    // QA B3: the subscription's answer (status / state 'trial'), the same rule as trial-lock.js / html.helm-trial
+    const inTrial = trialOn(t);
     if (dash) render(dash, inTrial && v === "demo" ? null : v, d, "dashboard", inTrial);
     if (ctl) { if (v === "demo" || v === "leftover") render(ctl, v, d, "control", inTrial); else renderControlEmpty(ctl, d, t); }
     try {
       const q = global.location.search || "";
       // 0180: "Choose a plan" goes straight to the plan page (an old link that still asks to remove the samples first, too)
       if (/[?&]demo=fresh\b/.test(q) && /[?&]then=checkout\b/.test(q)) { global.location.assign("checkout.html?next=dashboard.html"); return; }
-      if (d.is_admin && d.has_demo && /[?&]demo=(switch|fresh)\b/.test(q)) startFresh({});
+      // QA B3: dashboard.html?demo=switch is ignored during the trial (startFresh refuses as well)
+      if (d.is_admin && d.has_demo && !inTrial && /[?&]demo=(switch|fresh)\b/.test(q)) startFresh({});
     } catch (e) {}
   }
 
@@ -424,7 +449,7 @@
     fn.input.focus();
   }
 
-  global.HelmTrialDemo = { welcomeDue: welcomeDue, welcomeShow: welcomeShow, welcomeDecision: welcomeDecision, inviteRows: inviteRows, view: view, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount,
+  global.HelmTrialDemo = { welcomeDue: welcomeDue, welcomeShow: welcomeShow, welcomeDecision: welcomeDecision, inviteRows: inviteRows, view: view, trialOn: trialOn, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount,
     get welcomeOn() { return welcomeOn; } };
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", mount); else mount(); }
 })(typeof window !== "undefined" ? window : globalThis);

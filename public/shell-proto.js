@@ -25,14 +25,14 @@
   try { localStorage.removeItem("helm.dash.v"); } catch (e) {}
   {
     /* SHELL_V: bump this whenever any shell-* file changes, so browsers refetch (was Date.now(), which defeated caching) */
-    var SHELL_V = "127", root = document.documentElement, head = document.head;
+    var SHELL_V = "128", root = document.documentElement, head = document.head;
     window.HELM_SHELL_V = SHELL_V;
     root.setAttribute("data-shell", v);
     /* 0181 free trial: a studio last seen in its trial is locked before first paint (cached flag, same as trial-early.js);
        trial-lock.js asks the server and takes it off again for a paid studio */
     try { if (localStorage.getItem("helm.trial") === "1") {
       if (!root.classList.contains("helm-trial")) { root.classList.add("helm-trial"); root.classList.add("helm-trial-early"); }
-      if (!document.getElementById("trialLockCss")) { var tl = document.createElement("link"); tl.id = "trialLockCss"; tl.rel = "stylesheet"; tl.href = "/trial-lock.css?v=5"; if (!document.body) tl.setAttribute("blocking", "render"); head.appendChild(tl); } } } catch (e) {}
+      if (!document.getElementById("trialLockCss")) { var tl = document.createElement("link"); tl.id = "trialLockCss"; tl.rel = "stylesheet"; tl.href = "/trial-lock.css?v=6"; if (!document.body) tl.setAttribute("blocking", "render"); head.appendChild(tl); } } } catch (e) {}
     var th = null; try {
       th = localStorage.getItem("helm.shellb.theme");
       /* one-time move to the new default (Oct 2026): a device still on the OLD default (cobalt / nothing saved) starts on emerald */

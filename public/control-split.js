@@ -120,7 +120,7 @@
   // 0173 free trial: studio set-up, client links, import, data export, notifications, reminders, photo renders and
   // the privacy PIN are fixed (html.helm-trial is set by trial-lock.js only when the server says "trial");
   // 0181: the studio's own layout templates too (the sample layouts stay usable in the builder)
-  var TRIAL_OFF={general:1,links:1,data:1,compliance:1,notify:1,reminders:1,renders:1,privacy:1,ltemplates:1};
+  var TRIAL_OFF={general:1,links:1,data:1,compliance:1,notify:1,reminders:1,renders:1,privacy:1,ltemplates:1};   // = search-catalog.js TRIAL_OFF_SECTIONS
   function trial(){ return document.documentElement.classList.contains("helm-trial"); }
   function locked(k){ return trial() && !!TRIAL_OFF[k]; }
   function available(s){ if(locked(s.key)) return false; var t=tabFor(s.pane); return !!t && !t.hidden; }
@@ -215,7 +215,7 @@
     if(pagesDone||pagesBusy||!CAT||!window.BPStore||!BPStore.auth||!BPStore.auth.user||!BPStore.auth.user()) return;
     pagesBusy=true;
     CAT.entriesFor(BPStore.auth, window.HELM_FEATURES||{}).then(function(list){
-      PAGES=list.filter(function(e){ return e.kind==="page" && !/^control\.html/.test(e.href); }).map(function(e){ return {text:e.text,href:e.href,kw:e.keywords}; });
+      PAGES=list.filter(function(e){ return e.kind==="page" && !/^control\.html/.test(e.href); }).map(function(e){ return {key:e.key,text:e.text,href:e.href,kw:e.keywords}; });
       pagesDone=true; pagesBusy=false; if(q.value.trim()) search();
     },function(){ pagesBusy=false; });
   }
@@ -244,7 +244,9 @@
     // every section by name, description and keywords (covers rows that load on first open)
     SECTIONS.forEach(function(s){ if(!available(s)) return; out.push({kind:"section",el:null,card:null,text:s.label,sec:s.key,title:s.label,context:s.group,keywords:s.desc+" "+s.kw,alias:CATSEC[s.key]&&CATSEC[s.key].alias,boost:0.05}); });
     ACCOUNT.forEach(function(a){ out.push({kind:"account",text:a.text,context:"Your account",keywords:a.kw,run:a.run,boost:0.2}); });   // QA1026 #5: own-account items (2FA) beat cards that only share a synonym
-    PAGES.forEach(function(p){ out.push({kind:"page",text:p.text,context:"Page",keywords:p.kw,href:p.href}); });
+    // QA B5: never "Studio setup", Templates, Audit log or Reports as a page hit in the free trial (checked per search:
+    // the page list is loaded once, the trial answer can come later)
+    PAGES.forEach(function(p){ if(trial() && CAT && CAT.trialOff && CAT.trialOff({kind:"page",key:p.key,href:p.href})) return; out.push({kind:"page",text:p.text,context:"Page",keywords:p.kw,href:p.href}); });
     return out;
   }
   function norm(s){ return SSC?SSC.normalize(s):String(s||"").toLowerCase().normalize("NFKD").replace(/[^\w\s]/g," ").replace(/\s+/g," ").trim(); }

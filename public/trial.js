@@ -46,6 +46,22 @@
       cta: admin ? "Choose a plan" : null };
   }
 
+  // QA B2 (pure, unit-tested): a studio on its free trial that my_trial_org() does not cover (is_trial_org false:
+  // the trial was not made by start_trial(), e.g. organizations.trial_ends_at is empty) still gets the ONE strip,
+  // from my_trial_status() (s): {state 'trial', ends_at = the LAST trial day "YYYY-MM-DD", days_left, is_admin}.
+  // Days left are counted in the studio's zone (calendar days, never shifted by UTC). Running trial only: an ended
+  // one keeps auth-ui.js's "Your trial has ended" notice. o = the my_trial_org() answer (null / not a trial org).
+  function subscriptionStrip(s, o, nowMs, tz) {
+    if (o && o.is_trial_org === true) return null;
+    if (!s || typeof s !== "object" || s.state !== "trial") return null;
+    var zone = tz || "Asia/Kolkata", left = null;
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s.ends_at || ""));
+    if (m) { try { left = dayNo(m[1] + "-" + m[2] + "-" + m[3]) - dayNo(ymdIn(nowMs == null ? Date.now() : nowMs, zone)); } catch (e) { left = null; } }
+    if (left == null || !isFinite(left)) left = Math.floor(Number(s.days_left));
+    if (!isFinite(left) || left < 0) return null;
+    return { is_trial_org: true, from_subscription: true, is_admin: s.is_admin === true, days_left: left, timezone: zone };
+  }
+
   // Pure (unit-tested): where "Choose a plan" goes - 0180: always straight to the plan / checkout page
   // (it no longer offers to remove the samples first; t is kept for callers)
   function planHref(t, pageName) {
@@ -134,7 +150,7 @@
       cta: "Sign out" };
   }
 
-  var api = { staffNoteSpec: staffNoteSpec, blockedSpec: blockedSpec, bannerSpec: bannerSpec, planHref: planHref, nextDemoNumber: nextDemoNumber, reminderMilestone: reminderMilestone,
+  var api = { subscriptionStrip: subscriptionStrip, staffNoteSpec: staffNoteSpec, blockedSpec: blockedSpec, bannerSpec: bannerSpec, planHref: planHref, nextDemoNumber: nextDemoNumber, reminderMilestone: reminderMilestone,
               reminderSpec: reminderSpec, endsLabel: endsLabel, ymdIn: ymdIn, REMINDER_TITLES: REMINDER_TITLES };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   if (!global || !global.document) return;
@@ -230,7 +246,16 @@
     var st = global.BPStore;
     if (!st || !st.trialOrg || !st.auth || !st.auth.user || !st.auth.user()) return;
     if (page() === "checkout" || page() === "login") return;
-    st.trialOrg.status().then(function (t) { lastT = t; render(bannerSpec(t)); renderReminder(reminderSpec(t, Date.now())); }).catch(function () {});
+    st.trialOrg.status().then(function (t) {
+      lastT = t; render(bannerSpec(t)); renderReminder(reminderSpec(t, Date.now()));
+      // QA B2: a trial studio my_trial_org() does not cover gets the same strip from the subscription's answer
+      if (!(t && t.is_trial_org === true) && st.subscription && typeof st.subscription.trial === "function") {
+        Promise.resolve(st.subscription.trial()).then(function (s) {
+          var tz; try { tz = typeof st.studioTimezone === "function" ? st.studioTimezone() : undefined; } catch (e) { tz = undefined; }
+          render(bannerSpec(subscriptionStrip(s, t, Date.now(), tz)));
+        }).catch(function () {});
+      }
+    }).catch(function () {});
     runAccess(st);
   }
 

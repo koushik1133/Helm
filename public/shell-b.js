@@ -584,18 +584,32 @@
   }
   function favDrop(k) { try { var f = document.querySelector('#hbFavs [data-fkey="' + k + '"]'); if (f) f.hidden = true; } catch (e) {} }
 
+  /* QA B4: is this studio on its free trial? The server's answer through trial-lock.js (my_trial_status status
+     'trial' -> html.helm-trial), else the subscription itself, else start_trial()'s my_trial_org. false when unknown. */
+  function trialKnown() {
+    return Promise.resolve().then(function () {
+      var L = window.HelmTrialLock;
+      if (L && typeof L.whenKnown === "function") return L.whenKnown();
+      var B = window.BPStore;
+      if (B && B.subscription && typeof B.subscription.trial === "function")
+        return Promise.resolve(B.subscription.trial()).then(function (t) { return !!(t && (t.status === "trial" || t.state === "trial")); });
+      return B && B.trialOrg && B.trialOrg.inTrial ? B.trialOrg.inTrial() : document.documentElement.classList.contains("helm-trial");
+    }).then(function (v) { return v === true; }, function () { return false; });
+  }
   /* ---- Admin extras that have no area page: Insights, Reports, Audit log, Studio setup (same gates as their pages) ---- */
   function adminExtras(admin) {
     waitAuth(function () {
       var A = BPStore.auth;
       var role = Promise.resolve().then(function () { return typeof A.role === "function" ? A.role() : null; }).catch(function () { return null; });
-      // 0177: no "Studio setup" for a free-trial studio (it uses the 2-step welcome); 0203: no Audit log either
-      var trial = Promise.resolve().then(function () { return BPStore.trialOrg && BPStore.trialOrg.inTrial ? BPStore.trialOrg.inTrial() : false; }).catch(function () { return false; });
+      // 0177: no "Studio setup" for a free-trial studio (it uses the 2-step welcome); 0203: no Audit log either.
+      // QA B4: "free trial" = the subscription's answer (trial-lock.js / html.helm-trial), not only a start_trial()
+      // studio - a trial studio made another way showed Audit log + Studio setup. QA B23: no Reports (exports) either.
+      var trial = trialKnown();
       Promise.all([role, can("controls"), can("insights"), trial]).then(function (r) {
         var rl = String(r[0] || ""), ctl = r[1], ins = r[2], inTrial = r[3] === true;
         var add = [
           [ins, "insights", "Insights", "insights.html", "insights"],
-          [ctl || /^(admin|manager|planner)$/.test(rl), "reports", "Reports", "reports.html", "reports"],
+          [(ctl || /^(admin|manager|planner)$/.test(rl)) && !inTrial, "reports", "Reports", "reports.html", "reports"],   // QA B23: CSV / PDF exports only
           [(ctl || rl === "admin") && !inTrial, "audit", "Audit log", "audit.html", "audit"],   // 0203: no activity log in the free trial
           [ctl && !inTrial, "setup", "Studio setup", "onboarding.html", "setup"],
           [ctl && !!(window.HELM_FEATURES && window.HELM_FEATURES.integrationsPage === true), "integrations", "Integrations", "integrations.html", "integrations"]

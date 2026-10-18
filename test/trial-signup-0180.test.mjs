@@ -77,7 +77,8 @@ await t('Choose a plan: straight to the plan / checkout page', () => {
 await t('during the trial: no sample-data card / "Start my own studio" on the dashboard, no demo notice', () => {
   assert.match(TD, /if \(dash\) render\(dash, inTrial && v === "demo" \? null : v, d, "dashboard", inTrial\);/);
   assert.match(TD, /if \(!inTrial\) row\.appendChild\(btn\("Start my own studio/);
-  assert.match(AUI, /if \(!\(o && o\.is_trial_org === true && o\.ended !== true && o\.locked !== true && t && t\.state === "trial"\)\) demoStatus\(t, d\);/);
+  // QA B2: "in the trial" is the subscription's answer (any trial studio, not only a start_trial() one)
+  assert.match(AUI, /if \(!onTrial\(t\)\) demoStatus\(t, d\);/);
 });
 
 // ---- welcome: server-driven -------------------------------------------------------------------------
