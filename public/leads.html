@@ -228,7 +228,7 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=235"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=236"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -492,11 +492,14 @@
       if(ok) BPUI.toast(`Moved to ${stageLabel(to)}.`,{type:"ok",action:{label:"Undo",onClick:()=>undo()}});
     });
   });
-  $("#dt_edit").addEventListener("click",()=>{ const l=leadById(editingId);
+  // 1029 #3: the detail actions act on the lead the DETAIL shows (detailId) - never on the shared form state
+  // (editingId), which a New lead form opened + discarded meanwhile resets to null -> DELETE ?id=eq.null -> HTTP 400
+  $("#dt_edit").addEventListener("click",()=>{ const l=leadById(detailId);
     if(l&&l.quote_id&&canQuotes){ location.href="event.html?id="+encodeURIComponent(l.quote_id); return; }
     closeDetail(); openForm(l); });
   $("#dt_del").addEventListener("click",async()=>{
-    const id=editingId, l=leadById(id);
+    const id=detailId, l=leadById(id);
+    if(!id || !l){ BPUI.toast("This lead is no longer open — reopen it and try again.",{type:"err"}); return; }
     if(!(await BPUI.confirm("Archive this lead? You can restore it from Archived anytime.",{title:"Archive lead?",okLabel:"Archive"}))) return;
     await BPUI.guard($("#dt_del"), async()=>{
       lastLocalWrite=Date.now();

@@ -393,8 +393,11 @@
     });
   }
   // PP1028 #9 (display only): prepend an "Advance" row from the studio's advance % when no milestone is the advance
+  // 1029 #2: same default the flow shows (studio advance % from settings, else the flow's 10%) - read side only
+  const DEFAULT_ADVANCE_PCT = 10;
+  function advancePctOf(terms) { const v = terms && terms.advance_pct; return (v == null || String(v).trim() === "" || !isFinite(Number(v))) ? DEFAULT_ADVANCE_PCT : Number(v); }
   function withAdvance(ms, total, terms) {
-    const list = Array.isArray(ms) ? ms.slice() : [], pct = terms && num(terms.advance_pct), t = num(total);
+    const list = Array.isArray(ms) ? ms.slice() : [], pct = advancePctOf(terms), t = num(total);
     if (!(pct > 0) || !(t > 0)) return list;
     if (list.some((m) => m && /advance|booking|token/i.test(String(m.label || "")))) return list;
     return [{ label: "Advance (" + pct + "%)", due_date: null, status: "due", amount: Math.round(t * pct) / 100 }].concat(list);

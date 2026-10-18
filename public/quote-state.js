@@ -31,6 +31,16 @@
     if (n(pct) > 100) return "Discount % can't be more than 100.";
     return "";
   }
+  // 1029 #4: a field the number hardener just REJECTED (e.g. "-500" cleared) blocks the save until re-entered
+  function rejectedError(els) {
+    for (var i = 0; i < (els || []).length; i++) { var e = els[i];
+      if (e && e.getAttribute && e.getAttribute("data-rejected") && String(e.value || "").trim() === "") return "Discount can't be negative — enter a positive amount (or leave it at 0) before saving."; }
+    return "";
+  }
+  // 1029 #1: ONE total for the live rail and the save — computed from the exact object that is stored
+  function withTotal(pricing, quoteTotal) {
+    var t = quoteTotal(pricing); var out = Object.assign({}, pricing, { computed: t, total: t.total }); return out;
+  }
   function wireExclusive(amtEl, pctEl) {
     if (!amtEl || !pctEl || amtEl.__ppx) return; amtEl.__ppx = pctEl.__ppx = true;
     amtEl.addEventListener("input", function () { if (n(amtEl.value) > 0) pctEl.value = "0"; });
@@ -43,7 +53,8 @@
     if (sa === "" || sb === "") return false; const x = Number(sa), y = Number(sb); return isFinite(x) && isFinite(y) && x > y; }
   global.HelmApprovalState = approvalState;
   global.HelmBuilderAutoDefault = builderAutoDefault;
-  global.HelmDiscount = { pick: pick, rawError: rawError, wireExclusive: wireExclusive };
+  global.HelmDiscount = { pick: pick, rawError: rawError, rejectedError: rejectedError, wireExclusive: wireExclusive };
+  global.HelmQuoteTotal = { withTotal: withTotal };
   global.HelmVersionLabel = { differs: differs };
   global.HelmBudgetRange = { bad: budgetBad };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -370,14 +370,14 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=235"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=236"></script>
 <script src="tour.js?v=14"></script>
-<script src="booklet.js?v=20"></script>
+<script src="booklet.js?v=21"></script>
 <script src="share-checklist.js?v=9"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=1"></script>
-<script src="quote-state.js?v=1"></script>
+<script src="quote-state.js?v=2"></script>
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
@@ -640,7 +640,7 @@
   ["#d_bmin","#d_bmax"].forEach(s=>{ const el=$(s); if(el) el.addEventListener("input",()=>{ if(loading || failed.discovery) return; budgetTouched=true; syncClientMem(); if(AS) AS.schedule("client"); }); });
   // india-clickthrough D2: an inverted budget range (min > max) is flagged inline and never saved
   function budgetRangeOk(){
-    const a=$("#d_bmin").value, b=$("#d_bmax").value, bad=(typeof HelmBudgetRange!=="undefined")?HelmBudgetRange.bad(a,b):(a!=="" && b!=="" && +a > +b);   // PP1028 #7: only when BOTH are filled
+    const a=$("#d_bmin").value.trim(), b=$("#d_bmax").value.trim(), bad=!!a && !!b && +a > +b;   // PP1028 #7 / 1029 #7: only when BOTH are filled
     ["#d_bmin","#d_bmax"].forEach(s=>{ if(bad) $(s).setAttribute("aria-invalid","true"); else $(s).removeAttribute("aria-invalid"); });
     const m=$("#d_bmaxErr"); if(m) m.hidden=!bad;
     return !bad;
@@ -755,6 +755,7 @@
     const gross=(p.chairs>0?p.chairs*p.chairPrice:0)+(p.guests>0?p.guests*p.platePrice:0)+(p.other>0?p.other:0);
     const d=Number(p.discount)||0;
     { const raw=HelmDiscount.rawError($("#q_discount")&&$("#q_discount").value, $("#q_discountPct")&&$("#q_discountPct").value); if(raw) return raw; }   // PP1028 #6
+    { const rj=HelmDiscount.rejectedError&&HelmDiscount.rejectedError([$("#q_discount"),$("#q_discountPct")]); if(rj) return rj; }   // 1029 #4
     return (d>0 && gross>0 && d>gross) ? "Discount can't exceed the subtotal ("+inr(gross)+")." : "";
   }
   function showDiscountError(p){
@@ -771,6 +772,8 @@
   }
   async function saveQuotation(){
     if(quoteBlocked()){ BPUI.toast("Pricing data didn't load, so the quotation can't be saved yet — use Retry in the quotation section.",{type:"err"}); return; }
+    // 1029 #1: apply the default chairs (70% of guests) to the field BEFORE pricing, exactly as the live rail shows it
+    if(!chairsManual){ const a=autoChairs(); if(a!=null && $("#q_chairs") && String($("#q_chairs").value)!==String(a)){ $("#q_chairs").value=a; renderPrice(); } }
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
     const dErr=showDiscountError(p);
     if(dErr){ if($("#q_msg")) $("#q_msg").textContent=dErr; BPUI.toast(dErr,{type:"err"}); $("#q_discount").focus(); return; }
@@ -787,6 +790,9 @@
     { const rs=!taxSwitched && BPStore.tax.restampUnpriced(ev, BPStore.tax.resolve(rates||{})); if(rs) ev.pricing=rs; }   // D1: never-priced -> studio's current tax
     let pricing=Object.assign({}, ev.pricing||{}, p, { computed:t, total:t.total, client:ev.client||{}, _ratesAt:ratesSnapshot() });
     pricing=BPStore.tax.preserveSnapshot(ev.pricing||{}, pricing, { switch: taxSwitched });
+    // 1029 #1: the stored total is re-derived from the stored object itself (same engine as the rail),
+    // so merged / preserved fields can never leave an out-of-date total behind
+    pricing=HelmQuoteTotal.withTotal(pricing, BPStore.pricing.quoteTotal);
     try{
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
       await relock();   // our own write bumped quotes.updated_at - refresh the lock base so the next client save isn't a false conflict
@@ -852,6 +858,8 @@
     const pr=ev&&ev.pricing;
     if(!pr || !(+pr.total>0) || quoteBlocked() || !quoteIsFutureOpen()) return null;
     const lines=[], next={}, snap=pr._ratesAt||null;
+    // 1029 #7: priced at exactly today's studio rates (e.g. the first save just now) -> nothing is stale
+    if(snap && !snap.pkg===!appliedPkg){ const live=ratesSnapshot(); if(Object.keys(live).every(k=>String(snap[k])===String(live[k]))) return null; }
     const chairs=nOrNull(pr.chairs)||0, guests=nOrNull(pr.guests)||0;
     // E2: with a _ratesAt snapshot, only a change of the STUDIO rate since pricing counts - a hand-typed
     // quote price, a package price or new catalog defaults never make a freshly saved quote look stale
@@ -1095,7 +1103,7 @@
     let acts=[]; try{ acts=await BPStore.milestones.activity(id); }catch(e){ BPUI.loadError($("#activityList"), e, renderActivity, {what:"activity"}); return; }
     if(!acts||!acts.length){ $("#activityList").innerHTML='<div style="color:var(--ink-3)">No activity yet.</div>'; return; }
     const ic={version:'📐',payment:'💳',milestone:'✅',consent:'✍️',notify:'🔔'};
-    $("#activityList").innerHTML = acts.map(a=>`<div class="rowline"><span>${ic[a.kind]||'•'}</span><span class="g">${esc(BPStore.activityText(a,{clientName:ev&&ev.client&&ev.client.name,quote:ev}))}</span><span class="meta">${esc((a.at||'').slice(0,16).replace('T',' '))}</span></div>`).join('');
+    $("#activityList").innerHTML = acts.map(a=>`<div class="rowline"><span>${ic[a.kind]||'•'}</span><span class="g">${esc(BPStore.activityText(a,{clientName:ev&&ev.client&&ev.client.name,quote:ev}))}</span><span class="meta">${esc((a.at&&BPStore.fmtDateTime(a.at))||'')}</span></div>`).join('');
   }
 
   /* ---------- approval ---------- */

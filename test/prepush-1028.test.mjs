@@ -74,7 +74,8 @@ t('#9 booklet payment schedule includes the advance', () => {
   const r = w([{ label: 'Balance', amount: 70000 }], 100000, { advance_pct: 30 });
   assert.equal(r.length, 2); assert.match(r[0].label, /Advance \(30%\)/); assert.equal(r[0].amount, 30000);
   assert.equal(w([{ label: 'Advance', amount: 1 }], 100000, { advance_pct: 30 }).length, 1);
-  assert.equal(w([], 100000, null).length, 0);
+  assert.equal(w([], 100000, null).length, 1, '1029 #2: no stored terms -> flow default 10%');
+  assert.equal(w([], 100000, { advance_pct: 0 }).length, 0, 'an explicit 0% shows no advance row');
 });
 t('#10 0163 crew_schedule hardening: ASCII, org-pinned role, deleted excluded, MANIFEST', () => {
   for (const f of ['supabase/migrations/0163_crew_schedule_hardening.sql', 'supabase/APPLY-0163.sql']) {
