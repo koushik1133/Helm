@@ -4,6 +4,8 @@
 // + Outlook.com [data-ogsc]), hosted logo PNG (no tracking pixels, no other images), footer
 // "Helm Events · helm.events". Callers must pass ALREADY-ESCAPED HTML into the block helpers.
 
+import { DEFAULT_POSTAL_ADDRESS } from "./email-compliance.mjs";
+
 export const SITE = "https://www.helm.events";
 export const LOGO_URL = "https://www.helm.events/email/helm-logo.png";
 export const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -53,7 +55,7 @@ export function layout(title, preheader, inner, opts = {}) {
   const site = opts.site || SITE;
   const sub = opts.sub == null ? "Run every event, end to end." : String(opts.sub);
   // opts.reason: compliance line (email-compliance.mjs) - "You received this because ..." + Privacy + postal address.
-  const comp = opts.reason ? `<br>You received this because ${escHtml(opts.reason)}. &middot; <a href="${site}/privacy" class="muted" style="color:${C.faint};text-decoration:underline;">Privacy</a> &middot; Helm Events, ${escHtml(opts.address || "[Helm Events postal address - owner to fill]")}` : "";
+  const comp = opts.reason ? `<br>You received this because ${escHtml(opts.reason)}. &middot; <a href="${site}/privacy" class="muted" style="color:${C.faint};text-decoration:underline;">Privacy</a> &middot; Helm Events, ${escHtml(opts.address || DEFAULT_POSTAL_ADDRESS)}` : "";
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
 <head>

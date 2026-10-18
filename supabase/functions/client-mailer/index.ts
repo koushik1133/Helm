@@ -14,7 +14,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, isAllowedOrigin, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
-import { EMAIL_RE, sendMail } from "../_shared/mailer.ts";
+import { brandMode, EMAIL_RE, sendMail } from "../_shared/mailer.ts";
+import { postalAddress } from "../_shared/email-compliance.mjs";
 import { linkEmail, maskEmail } from "./logic.mjs";
 
 export const KINDS = ["approval", "booklet"];
@@ -79,7 +80,8 @@ Deno.serve(async (req) => {
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
     const { data: org } = await admin.from("organizations").select("name, business_email").eq("id", q.org_id).maybeSingle();
     const studio = (org && org.name) || "";
-    const m = linkEmail(kind, { client: (q.client && q.client.name) || "", studio, link });
+    const envGet = (k: string) => Deno.env.get(k);
+    const m = linkEmail(kind, { client: (q.client && q.client.name) || "", studio, link, brand: brandMode(envGet), address: postalAddress(envGet) });
     const res = await sendMail({ to, subject: m.subject, text: m.text, html: m.html, studio, replyTo: org && org.business_email, txReason: "client_link" });
 
     const { error: logErr } = await admin.from("notifications").insert({

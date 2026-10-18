@@ -24,6 +24,7 @@ import { errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { isLive, otpEmail, otpMessage } from "../wa-proposal/logic.mjs";
 import { sendMail } from "../_shared/mailer.ts";
+import { postalAddress } from "../_shared/email-compliance.mjs";
 
 function newCode(): string {
   // CSPRNG (Math.random is predictable); rejection sampling avoids modulo bias
@@ -59,7 +60,7 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
       if (!r.ok) { console.error("whatsapp otp status", r.status); return json({ error: "WhatsApp message could not be sent", fallback: "email" }, 502); }
     }
   } else {
-    // e-mail: shared mailer (Resend, else SMTP_* e.g. Gmail); "<Studio> via Helm", Reply-To studio
+    // e-mail: shared mailer (Resend, else SMTP_* e.g. Gmail); sender per EMAIL_BRAND_MODE (default "Helm Events"), Reply-To studio
     let studio = "", replyTo: string | null = null;
     try {
       const { data: q } = await admin.from("quotes").select("org_id").eq("id", dest.quote_id).maybeSingle();
@@ -68,7 +69,7 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
         studio = (o && o.name) || ""; replyTo = (o && o.business_email) || null;
       }
     } catch (_) { /* studio name is cosmetic */ }
-    const m = otpEmail(code, studio || "your planner");
+    const m = otpEmail(code, studio || "your planner", { address: postalAddress((k: string) => Deno.env.get(k)) });
     const res = await sendMail({ to: String(dest.email), subject: m.subject, html: m.html, text: m.text, studio, replyTo, txReason: "otp" });
     if (res.status === "failed") { console.error("email otp failed", res.provider || ""); return json({ error: "e-mail could not be sent", status: "failed" }, 502); }
     live = res.status === "sent";

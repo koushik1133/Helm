@@ -95,8 +95,8 @@ aligns through DKIM on helm.events). The same `_dmarc` record covers both.
 `HELM_POSTAL_ADDRESS="Helm Events, <street>, <city> <PIN>, India"` (shown in every footer; until set,
 a visible placeholder is used), `UNSUB_MAILTO` (default `unsubscribe@helm.events`), `APP_URL`.
 Deploy `supabase functions deploy email-unsubscribe --no-verify-jwt`. Run `supabase/APPLY-0165.sql`
-on staging then production (VERIFY rows must all be `true`). Also replace the
-`[Helm Events postal address - owner to fill]` placeholder in the Supabase Auth templates when pasting them.
+on staging then production (VERIFY rows must all be `true`). The Supabase Auth templates now carry the postal address
+(Mindspace IT Park, Madhapur, Hyderabad, Telangana 500081; override at runtime with HELM_POSTAL_ADDRESS) - re-paste all six.
 
 ## 5. OWNER: Gmail Postmaster Tools
 1. Go to https://postmaster.google.com, sign in with a Google account, add domain `helm.events`.
