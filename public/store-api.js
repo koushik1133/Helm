@@ -6285,6 +6285,28 @@ window.HelmUrl = HelmUrl;
       if (mode === "supabase") { const { error } = await supa.from("event_costs").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(COST_LS, JSON.stringify(readLs(COST_LS).filter((c) => c.id !== id))); return true;
     },
+    // 0196: are the budget-planning columns (requirement_key / priority / quoted / vendor_id) installed?
+    // A 0-row read of those columns, cached once it says yes. Local mode always has them.
+    async planReady() {
+      if (mode !== "supabase") return true;
+      if (this._planReady) return true;
+      const { error } = await supa.from("event_costs").select("id,requirement_key,priority,quoted,vendor_id").limit(0);
+      if (error) return false;
+      this._planReady = true; return true;
+    },
+    // 0196: add budget lines made from requirements / standard lines. Lines are only ever ADDED:
+    // a row whose requirement_key the event already has is skipped (unique index 23505 / local check),
+    // so a reload, a second click or two open tabs never duplicate a line. Returns how many were added.
+    async addPlanLines(quoteId, rows) {
+      let added = 0;
+      for (const r of rows || []) {
+        if (!r || !r.requirement_key) continue;   // keyed rows only - never an un-deduplicable insert
+        if (mode !== "supabase" && readLs(COST_LS).some((c) => c.quote_id === quoteId && c.requirement_key === r.requirement_key)) continue;
+        try { await this.addCost(quoteId, r); added++; }
+        catch (e) { if (e && e.code === "23505") continue; throw e; }
+      }
+      return added;
+    },
     // pull vendor bookings (event_resources) in as vendor cost lines (skips ones already imported)
     async importVendorCosts(quoteId) {
       const [bk, costs] = await Promise.all([bookings.list(quoteId), this.listCosts(quoteId)]);
