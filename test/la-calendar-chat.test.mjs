@@ -33,7 +33,8 @@ t('17: team grid takes every dated event from the page (opts.events), not only c
   assert.match(CS, /var events = opts\.events \|\| function \(\) \{ return \[\]; \};/);
   assert.match(CS, /if \(allCrew\(\)\) evBlocks\(out\)\.forEach/);
   assert.match(CS, /<tr class="cs-evrow"><th scope="row" class="cs-who">Events<\/th>/);
-  assert.match(CS, /\["Crew", "No crew assigned yet"\]/);
+  assert.match(CS, /\["Crew", b\.crewOther \? "None on this day \(crew is on another day\)" : "No crew on this day yet"\]/);
+  assert.match(CS, /crewOther: !!crewed\[e\.quote_id\]/);
   // calendar passes dated, not-cancelled agenda events + shows the Lead legend only to roles that see leads
   assert.match(CAL, /events:\(\)=>\(\(data&&data\.agenda\)\|\|\[\]\)\.filter\(a=>a&&a\.event&&validDate\(a\.event\.eventDate\)&&String\(a\.event\.status\|\|""\)\.toLowerCase\(\)!=="cancelled"\)/);
   assert.match(CAL, /leadLegend:canLeads/);

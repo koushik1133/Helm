@@ -135,13 +135,13 @@
     }
     // cal-1018: dated events with no crew block yet (same event + day already drawn from crew rows is skipped)
     function evBlocks(have) {
-      var seen = {}; (have || []).forEach(function (b) { if (b.quote_id) seen[b.quote_id + "|" + b.day] = 1; });
+      var seen = {}, crewed = {}; (have || []).forEach(function (b) { if (b.quote_id) { seen[b.quote_id + "|" + b.day] = 1; crewed[b.quote_id] = 1; } });
       var out = [];
       (events() || []).forEach(function (e) {
         var day = e && e.day && parse(e.day) ? String(e.day).slice(0, 10) : null; if (!day || !e.quote_id) return;
         var k = e.quote_id + "|" + day; if (seen[k]) return; seen[k] = 1;
         out.push({ key: "ev|" + k, day: day, quote_id: e.quote_id, title: e.title || "", code: e.code || "", venue: e.venue || "",
-          event_time: e.time || "", shifts: [], crew: [], start: null, end: null, time: e.time || "", nocrew: true });
+          event_time: e.time || "", shifts: [], crew: [], start: null, end: null, time: e.time || "", nocrew: true, crewOther: !!crewed[e.quote_id] });   // crew on a setup / other day is not "no crew"
       });
       return out;
     }
@@ -164,7 +164,7 @@
       rows.push(["Status", sLabel(k)]);
       if (!allCrew() && b.crew_role) rows.push(["Role", b.crew_role]);
       if (allCrew() && b.crew.length) rows.push(["Crew", b.crew.join(", ")]);
-      else if (allCrew() && b.nocrew) rows.push(["Crew", "No crew assigned yet"]);
+      else if (allCrew() && b.nocrew) rows.push(["Crew", b.crewOther ? "None on this day (crew is on another day)" : "No crew on this day yet"]);
       var sh = b.shifts.map(function (s) { var w = workOf(s.status);
         return '<li><span class="cs-wk cs-w-' + w.k + '">' + esc(w.l) + "</span> " + esc(s.title || s.category || "Shift") + (s.time ? ' <span class="cs-t">' + esc(s.time) + "</span>" : "") + (allCrew() && s.crew ? ' <span class="cs-t">· ' + esc(s.crew) + "</span>" : "") + "</li>"; }).join("");
       pop = document.createElement("div"); pop.className = "cs-pop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", b.title || "Event");
