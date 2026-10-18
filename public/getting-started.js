@@ -187,6 +187,8 @@
     try { data = await store.gettingStarted.get(); } catch (e) { card.hidden = true; return null; }
     await addTemplatesStep(data, store);
     await addWhatsappStep(data, store);
+    // 0173: studio details are fixed in the free trial - no "Fill in studio details" step
+    try { if (global.HelmTrialLock && (await global.HelmTrialLock.whenKnown()) && data && Array.isArray(data.steps)) data.steps = data.steps.filter((s) => !(s && s.key === "studio")); } catch (e) {}
     const m = model(data);
     if (!m || m.dismissed) { card.hidden = true; return m; }
     css();
