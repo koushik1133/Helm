@@ -178,6 +178,8 @@ t('store-api: ownFacts / trialFacts read own vs sample rows; account flags for t
   const s = read('public/store-api.js');
   assert.match(s, /async ownFacts\(\)/); assert.match(s, /async trialFacts\(\)/);
   assert.match(s, /from\("quote_versions"\)\.select\("quote_id"\)\.gt\("object_count", 0\)/);
+  // review: newest versions first, so a kept-after-trial studio's own plans are not crowded out by sample ones
+  assert.match(s, /\.gt\("object_count", 0\)\.order\("created_at", \{ ascending: false \}\)\.limit\(200\)/);
   assert.match(s, /\.eq\("is_demo", false\)\.in\("approval_status", \["sent", "approved", "paid"\]\)/);
   assert.match(s, /trialSteps: \(\) =>/); assert.match(s, /updateUser\(\{ data: \{ helm_trial_gs: next \} \}\)/);
   assert.match(s, /\["event", "builder", "dismissed"\]\.indexOf\(key\) < 0\) return false/);
@@ -200,7 +202,9 @@ t('onboarding: step numbers match "Step N of M"; typed teammate e-mail is invite
   assert.match(s, /billingOk\(\) \? "✓" : "1"\}<\/span>Business details/);
   assert.match(s, /st\.done \? "✓" : Number\(i\) \+ 2\}/);
   assert.match(s, /if \(typed && !invites\.some\(\(x\) => x\.email === typed\)\) \{ await createInvite\(\); return; \}/);
-  assert.match(s, /if \(!invites\.length\) \{ setVals\.team = \{\}; setErr\.team = \{\}; st\.done = false; st\.skipped = true; go\(S\.step \+ 1\); return; \}/);
+  assert.match(s, /if \(!invites\.length\) \{ setVals\.team = \{\}; setErr\.team = \{\}; if \(!st\.done\) st\.skipped = true; go\(S\.step \+ 1\); return; \}/);
+  // review: a resumed setup whose team step was already done (invites sent earlier) must not flip to "skipped"
+  assert.doesNotMatch(s, /st\.done = false; st\.skipped = true; go\(S\.step \+ 1\)/);
   assert.doesNotMatch(s, /Control Center → Studio details/);
 });
 

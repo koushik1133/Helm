@@ -292,7 +292,8 @@
       // create that invite first and stay here so the join link can be copied
       const typed = String(vals.email || "").trim().toLowerCase();
       if (typed && !invites.some((x) => x.email === typed)) { await createInvite(); return; }
-      if (!invites.length) { setVals.team = {}; setErr.team = {}; st.done = false; st.skipped = true; go(S.step + 1); return; }
+      // nothing sent in THIS visit: skipped - unless invites were already sent earlier (a resumed setup keeps "done")
+      if (!invites.length) { setVals.team = {}; setErr.team = {}; if (!st.done) st.skipped = true; go(S.step + 1); return; }
     }
     try {
       if (kind === "studio" || kind === "brand") {

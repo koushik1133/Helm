@@ -8861,7 +8861,10 @@ window.HelmUrl = HelmUrl;
           const lead = (await own((d) => { const q = supa.from("leads").select("id").limit(1); return d ? q.eq("is_demo", false) : q; })).length > 0;
           const quoteSent = (await own((d) => { const q = supa.from("quotes").select("id").in("approval_status", ["sent", "approved", "paid"]).limit(1); return d ? q.eq("is_demo", false) : q; })).length > 0;
           let floorPlan = false;
-          const v = await supa.from("quote_versions").select("quote_id").gt("object_count", 0).limit(200);
+          // newest first: a studio kept after its trial has many sample versions, and its own (newer) floor plans
+          // must not fall outside the 200-row window
+          let v = await supa.from("quote_versions").select("quote_id").gt("object_count", 0).order("created_at", { ascending: false }).limit(200);
+          if (v.error && isMissingColumn(v.error)) v = await supa.from("quote_versions").select("quote_id").gt("object_count", 0).limit(200);
           const ids = (!v.error && Array.isArray(v.data)) ? Array.from(new Set(v.data.map((x) => x.quote_id).filter(Boolean))) : [];
           if (ids.length) floorPlan = (await own((d) => { const q = supa.from("quotes").select("id").in("id", ids).limit(1); return d ? q.eq("is_demo", false) : q; })).length > 0;
           if (!floorPlan) {
