@@ -16,7 +16,9 @@
   // fragment). store-api init exchanges it using the code verifier saved in the
   // browser that REQUESTED the reset; read the query BEFORE init cleans it up.
   var qp = new URLSearchParams(location.search || "");
-  var RECOVERY_LINK = !!qp.get("code");
+  // 0201: or ?via=confirm from /auth/confirm (own-domain e-mail link, verified there). Either way only
+  // the signed token's "recovery" method (isRecoverySession) skips the current-password step.
+  var RECOVERY_LINK = !!qp.get("code") || qp.get("via") === "confirm";
   var LINK_ERROR = qp.get("error_code") || qp.get("error") || "";
   var MODE_CHANGE = new URLSearchParams(location.search).get("mode") === "change";
   var recovering = false, cap = null;

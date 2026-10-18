@@ -22,24 +22,55 @@ whole file, then **Save changes**.
 
 | Supabase template | File | Subject |
 |---|---|---|
-| Invite user | `email-templates/invite-user.html` | `{{ if .Data.studio }}You're invited to join {{ .Data.studio }} on Helm{{ else }}You're invited to join a studio on Helm{{ end }}` |
-| Magic link | `email-templates/magic-link.html` | `Your Helm sign-in link` |
-| Reset password | `email-templates/reset-password.html` | `Reset your Helm password` |
 | Confirm signup | `email-templates/confirm-signup.html` | `Confirm your email for Helm` |
+| Invite user | `email-templates/invite-user.html` | `{{ if .Data.studio }}Join {{ .Data.studio }} on Helm{{ else }}Join your studio on Helm{{ end }}` |
+| Magic link | `email-templates/magic-link.html` | `{{ if .Data.studio }}Join {{ .Data.studio }} on Helm{{ else }}Your Helm sign-in link{{ end }}` |
+| Reset password | `email-templates/reset-password.html` | `Reset your Helm password` |
 | Change email address | `email-templates/change-email.html` | `Confirm your new email for Helm` |
 | Reauthentication | `email-templates/reauthentication.html` | `Your Helm verification code` |
+| Security notifications: Password changed | `email-templates/password-changed.html` | `Your Helm password was changed` |
+| Security notifications: Email address changed | `email-templates/email-changed.html` | `Your Helm sign-in email was changed` |
 
-Template variables used: `{{ .ConfirmationURL }}`, `{{ .Email }}`, `{{ .SiteURL }}`, `{{ .NewEmail }}`
+Paste each file into **its own** template only. 2026-10-18 evidence: the "Password changed" security
+notification had the Reset-password body pasted into it - its "Choose a new password" button had no
+link (a notification has no confirmation URL), so it showed as plain text. The two security
+notifications now have their own files, with no one-time link.
+
+**0201 - every link is on Helm's own domain.** The six link templates use
+`{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=<type>&next=<where>` (never
+`{{ .ConfirmationURL }}`, which shows the Supabase project URL). `public/auth-confirm.html`
+(served at `/auth/confirm`) verifies the one-time token in the browser and routes: invite / magic
+link → the Join page signed in (→ "Set your password" when the login has none) · reset → choose a new
+password · sign-up confirm → signed in (only in the browser that started that sign-up; elsewhere
+"E-mail confirmed - sign in") · e-mail change → sign in with the new address. `next` must be a
+same-origin path; anything else falls back to the sign-in page.
+
+Required Supabase settings (Authentication → URL Configuration), staging AND prod:
+* **Site URL** = `https://www.helm.events` (staging: its own site URL) - `{{ .SiteURL }}` is the link host.
+* **Redirect URLs** keep `https://www.helm.events/**` and `https://helm.events/**`, and add
+  `https://www.helm.events/auth/confirm` (staging: `<staging site>/auth/confirm`).
+
+Template variables used: `{{ .SiteURL }}`, `{{ .TokenHash }}`, `{{ .RedirectTo }}`, `{{ .Email }}`, `{{ .NewEmail }}`
 (change e-mail only), `{{ .Token }}` (reauthentication only) and, in the invite only, `{{ .Data.studio }}`, `{{ .Data.role }}`,
 `{{ .Data.invited_by }}`. Those three `Data` names are exactly the metadata keys `invite-mailer` passes
 to `inviteUserByEmail(..., { data: { studio, role, invited_by } })`. Each is wrapped in
 `{{ if … }}`, so an empty value never shows a blank.
 
 If the dashboard rejects a subject with `{{ if }}`, use the plain subject
-`You're invited to join a studio on Helm` instead.
+`Join your studio on Helm` instead.
 
-The magic link is also used for invites to people who **already have** a Helm account. It cannot
-show the studio name, because Supabase only passes that person's own profile data to it.
+The magic link is also used for invites to people who **already have** a Helm account (0201,
+2026-10-18). Before sending it, `invite-mailer` writes the same three keys (`studio`, `role` as the
+human label e.g. "Event coordinator", `invited_by`) into that login's profile data, so the magic link
+reads exactly like the "Invite user" e-mail: "Join <studio> on Helm - <inviter> invited you as <role>"
+with an **Accept invitation** button, landing on the same `/login?invite=<token>` join page. Helm never
+sends magic links for anything else, so without `studio` it falls back to the plain sign-in text.
+
+**Best: no Supabase templates at all for invites.** When the edge functions have an e-mail provider
+(`RESEND_API_KEY` + `RESEND_FROM`, or `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` - the same
+secrets `client-mailer` uses), `invite-mailer` sends its own branded invitation
+(`invite-mailer/templates.ts`) to EVERY invitee - brand-new or existing - and Supabase creates no
+login up front. The two templates above are only the fallback when neither is set.
 
 ## 2. Link expiry (two separate clocks)
 

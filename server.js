@@ -350,6 +350,9 @@ function serveStatic(req, res) {
   // vendor notes) are never served. Production: .vercelignore + vercel.json redirects.
   if (isInternalFile(rel)) return sendNotFound(res, req);
 
+  // Parity with the vercel.json rewrite (0201): /auth/confirm = every auth e-mail link on our own domain.
+  if (rel === '/auth/confirm') return serveFile(res, req, path.join(PUBLIC_DIR, 'auth-confirm.html'));
+
   // Parity with the vercel.json redirect: /signup opens the sign-up form on the login page.
   if (rel === '/signup') { res.writeHead(302, { Location: '/login#signup' }); return res.end(); }
 
