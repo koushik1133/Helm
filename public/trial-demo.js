@@ -312,7 +312,7 @@
       // 0180: "Choose a plan" goes straight to the plan page (an old link that still asks to remove the samples first, too)
       if (/[?&]demo=fresh\b/.test(q) && /[?&]then=checkout\b/.test(q)) { global.location.assign("checkout.html?next=dashboard.html"); return; }
       // QA B3 + 0236: dashboard.html?demo=switch is ignored during the trial (the server refuses it as well)
-      if (d.is_admin && d.has_demo && !inTrial && /[?&]demo=(switch|fresh)\b/.test(q)) startFresh({});
+      if (!inTrial && d.is_admin && d.has_demo && /[?&]demo=(switch|fresh)\b/.test(q)) startFresh({});
     } catch (e) {}
   }
 

@@ -46,7 +46,7 @@ t('flow: full venue size kept on the client JSON; hall fields stay the usable ar
   assert.match(f, /venueLen:vfl, venueWid:vfw/);
   assert.match(f, /hallLen:\$\("#g_len"\)\.value, hallWid:\$\("#g_wid"\)\.value/, 'hallLen/hallWid contract kept');
   assert.match(f, /\$\("#v_vlen"\)\.value=\+cl\.venueLen>0/);
-  assert.match(f, /<script src="venue-picker\.js\?v=5"><\/script>\s*<script src="venue-area\.js\?v=1"><\/script>/);
+  assert.match(f, /<script src="venue-picker\.js\?v=6"><\/script>\s*<script src="venue-area\.js\?v=1"><\/script>/);
   const a = read('public/venue-area.js');
   assert.match(a, /Reset to full venue/); assert.doesNotMatch(a, /innerHTML/);
 });

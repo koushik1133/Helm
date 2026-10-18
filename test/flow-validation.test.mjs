@@ -203,8 +203,8 @@ t('resume v3: one browser entry PER QUOTE (fallback), unfinished quotes only, de
     { status: 'quote', approvalStatus: 'sent' }, { status: 'quote', approvalToken: 'x' }, null]) assert.equal(R.unfinished(q), false);
   assert.equal(R.clear('u1'), false, 'clear needs a quote id: nothing is wiped because another quote was opened');
   R.clear('u1', q9); assert.equal(R.read('u1', q9), null); assert.equal(R.lastStep('u1', q8), 'menu', 'the other quote is untouched');
-  assert.match(read('public/quotes.html'), /<script src="flow-resume\.js\?v=3" data-mount><\/script>/);
-  assert.match(read('public/dashboard.html'), /<script src="flow-resume\.js\?v=3" data-mount><\/script>/);
+  assert.match(read('public/quotes.html'), /<script src="flow-resume\.js\?v=4" data-mount><\/script>/);
+  assert.match(read('public/dashboard.html'), /<script src="flow-resume\.js\?v=4" data-mount><\/script>/);
   assert.match(flow, /flowTrack=HelmFlowResume\.track\(\{ quoteId:id, uid:userId, canEdit, store:BPStore,/);
   assert.match(flow, /resumeP=HelmFlowResume\.resumeStep\(BPStore, userId, id\)/);
   assert.match(flow, /resumeP\.then\(info=>\{ if\(!moved && info && info\.step\) jump\("sec-"\+info\.step, info\); landOnce\(info\); \}\)/, 'the resume answer never holds the page back');
@@ -222,7 +222,7 @@ t('new quotes elsewhere: lead Convert + quote modal refuse a past event date (st
   assert.match(Q, /if\(\(dv && dv<today && dv!==sv\) \|\| \(!dv && de\.getAttribute\("data-date-rejected"\)==="past"\)\)\{ errEl\.textContent="Event date can't be in the past\.";/);
 });
 t('pins', () => {
-  assert.match(flow, /flow-validate\.js\?v=2/); assert.match(flow, /flow-resume\.js\?v=3/);
-  assert.match(flow, /flow-autosave\.js\?v=4/); assert.match(flow, /flow-polish\.css\?v=5/);
+  assert.match(flow, /flow-validate\.js\?v=2/); assert.match(flow, /flow-resume\.js\?v=4/);
+  assert.match(flow, /flow-autosave\.js\?v=5/); assert.match(flow, /flow-polish\.css\?v=5/);
 });
 console.log(`flow-validation: ${n} passed`);

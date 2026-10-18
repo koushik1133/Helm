@@ -61,7 +61,7 @@ t('auth-ui: trial notice wired via the notice-card system, links /checkout, not 
   assert.doesNotMatch(body + fnSrc(AUI, 'trialNotice'), /innerHTML|style:|style=/);
 });
 t('store-api: subscription.trial → my_trial_status, fail-soft before 0058', () => {
-  assert.match(API, /trial: \(\) => \(supa \? (?:memoRead\("trial", 15000, \(\) => )?swr\("trial", \(\) => rpc\("my_trial_status"\)\.catch\(\(e\) => \{ if \(rpcMissing\(e\)\) return null; throw e; \}\)/);
+  assert.match(API, /trial: \(\) => \(supa \? (?:trialSignedIn\(\)\.then\(\(ok\) => \(ok \? )?(?:memoRead\("trial", 15000, \(\) => )?swr\("trial", \(\) => rpc\("my_trial_status"\)\.catch\(\(e\) => \{ if \(rpcMissing\(e\)\) return null; throw e; \}\)/);
 });
 
 const FEED = [{ id: 'n9', kind: 'trial_reminder', detail: { label: 'Your free trial ends in 3 days', trial: 'trial_3d' }, created_at: '2026-10-08T10:00:00Z', unread: true }];
@@ -89,6 +89,6 @@ t('asset versions bumped everywhere', () => {
     const h = read('public/' + f);
     assert.doesNotMatch(h, /store-api\.js\?v=123\b/, f); assert.doesNotMatch(h, /auth-ui\.js\?v=14\b/, f); assert.doesNotMatch(h, /checkout\.js\?v=1"/, f);
   }
-  assert.match(API, /const AUTH_UI_VERSION = "38";/);
+  assert.match(API, /const AUTH_UI_VERSION = "39";/);
 });
 console.log(`trial-reminders-ui: ${n} passed`);

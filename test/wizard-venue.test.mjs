@@ -7,7 +7,7 @@ assert.match(js, /S\.venues\.list\(\)/, "loads the studio's venues");
 assert.match(js, /spec\.hall\.w = clamp\(Math\.round\(f\.lenFt\)/, "length from the venue");
 assert.match(js, /spec\.hall\.h = clamp\(Math\.round\(f\.widFt\)/, "width from the venue");
 assert.match(js, /B\.link\(v \|\| null\)/, "links the venue to the event");
-assert.match(readFileSync("public/builder.html", "utf8"), /layout-wizard\.js\?v=13/, "cache bust");
+assert.match(readFileSync("public/builder.html", "utf8"), /layout-wizard\.js\?v=14/, "cache bust");
 console.log("wizard-venue: ok");
 // the chosen venue stays selected after the step re-renders (no quote linked yet)
 assert.match(js, /venuePicked = sel\.value;/, "remembers the pick");

@@ -61,7 +61,7 @@ t('B12: Control Center sample card: no Reset / Clear during the trial; no ?demo=
   assert.match(td, /if \(inTrial\) \{ host\.appendChild\(el\("p", "td-safe", TRIAL_KEEP\)\); return; \}/);
   assert.match(td, /if \(!inTrial && d\.is_admin && d\.has_demo && \/\[\?&\]demo=\(switch\|fresh\)\\b\/\.test\(q\)\) startFresh\(\{\}\);/);
   for (const p of ['public/control.html', 'public/dashboard.html', 'public/onboarding.html'])
-    assert.match(read(p), /<script src="trial-demo\.js\?v=11"><\/script>/, p + ' pin');
+    assert.match(read(p), /<script src="trial-demo\.js\?v=12"><\/script>/, p + ' pin');
 });
 
 t('B13: staff cap ignores crew rows linked to a login (count, check, log, 0173 trigger)', () => {
@@ -114,9 +114,9 @@ t('MANIFEST: 0236 then 0237 (each once); suites registered; paste files carry th
     assert.ok(ap.includes(m.trim()), a + ' carries the migration unchanged');
     assert.doesNotMatch(ap, /\bcreate\s+(temp|temporary)\s+table\b/i); assert.doesNotMatch(ap, /^\s*\\/m);
   }
-  const rel = read('supabase/APPLY-RELEASE-1018.sql');
-  assert.ok(rel.indexOf('RELEASE SECTION 31/33: APPLY-0236.sql') > 0 && rel.indexOf('RELEASE SECTION 32/33: APPLY-0237.sql') > 0
-    && rel.indexOf('RELEASE SECTION 33/33: APPLY-0178-refresh-trials.sql') > rel.indexOf('APPLY-0237.sql'), 'refresh stays LAST');
+  // release 1018-b (APPLY-RELEASE-1018.sql, ends at 0205) is in production; 0236 + 0237 ship in APPLY-RELEASE-1018-C.sql
+  const rel = read('supabase/APPLY-RELEASE-1018-C.sql');
+  assert.ok(rel.indexOf('RELEASE SECTION 03/4: APPLY-0236.sql') > 0 && rel.indexOf('RELEASE SECTION 04/4: APPLY-0237.sql') > rel.indexOf('APPLY-0236.sql'), '0236 then 0237 in the 1018-c paste');
   // older VERIFY rows follow the change (clone list longer; delete_all_sample_data body behind the wrapper)
   assert.match(read('supabase/APPLY-0202.sql'), /array_length\(public\._sample_clone_tables\(\), 1\) >= 25\)/);
   assert.match(read('supabase/APPLY-0185.sql'), /coalesce\(to_regprocedure\('public\.delete_all_sample_data__pre0236\(\)'\), 'public\.delete_all_sample_data\(\)'::regprocedure\)/);

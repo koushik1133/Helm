@@ -71,7 +71,7 @@ t('B3: trial-demo - no remove / clear entry point during the trial', () => {
   for (const fn of ['startFresh', 'openSwitch', 'clearSample', 'clearDemo']) assert.match(fnSrc(TD, fn), /if \(await trialNow\(\)\) \{ toast\(TRIAL_KEEP, "info"\); return/, fn);
   assert.match(TD, /if \(place === "control" && !inTrial\) \{ const c = btn\("Clear sample data"/);
   assert.match(fnSrc(TD, 'render'), /if \(v === "leftover"\) \{\s*if \(inTrial\) \{ host\.hidden = true; return; \}/);
-  assert.match(TD, /if \(d\.is_admin && d\.has_demo && !inTrial && \/\[\?&\]demo=\(switch\|fresh\)\\b\/\.test\(q\)\) startFresh\(\{\}\);/);
+  assert.match(TD, /if \(!inTrial && d\.is_admin && d\.has_demo && \/\[\?&\]demo=\(switch\|fresh\)\\b\/\.test\(q\)\) startFresh\(\{\}\);/);
   assert.match(TD, /const inTrial = trialOn\(t\);/);
   assert.match(fnSrc(AUI, 'goDemoSwitch'), /if \(onTrial\(null\)\) return;/);
 });
@@ -166,7 +166,7 @@ t('B25: "What\'s in your free trial" box on the trial sign-up (caps, test mode, 
   const all = TS.TRIAL_KEY.map((k) => k.t + ' ' + k.s).join(' ') + ' ' + TS.TRIAL_ALL.join(' ');
   assert.match(all, /8 days free/); assert.match(all, /sample data/i); assert.match(all, /test mode/i); assert.match(all, /up to 2 new records/);
   assert.match(TSU, /What’s in your free trial/);
-  assert.match(fnSrc(TSU, 'trialTerms'), /var show = mode === "signup" && !joining && !direct;/);
+  assert.match(fnSrc(TSU, 'trialTerms'), /var show = mode === "signup" && !joining && !direct(?: && TRIAL_KEY\.length > 0)?;/);   // + 0207 (trial-facts.js)
   assert.match(r('public/login.html'), /trial-terms\.css\?v=\d+/);
 });
 
