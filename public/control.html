@@ -215,7 +215,7 @@
 <link rel="stylesheet" href="venues.css?v=5">
 <link rel="stylesheet" href="studio-templates.css?v=3">
 <link rel="stylesheet" href="menu-pkg-editor.css?v=1">
-<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="theme.css?v=81">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=8">
@@ -266,13 +266,13 @@
       <div id="orgMsg" role="status" aria-live="polite"></div>
       <div id="orgErr"></div>
       <div class="grid">
-        <div class="fld"><label for="o_country">Country (sets tax &amp; currency)</label><select id="o_country"></select></div>
+        <div class="fld"><label for="o_country">Country (sets tax &amp; currency)</label><select id="o_country" data-picker="search"></select></div>
         <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" placeholder="e.g. Aurora Events"></div>
         <div class="fld"><label for="o_email">Business email</label><input id="o_email" type="email" placeholder="hello@studio.com"></div>
         <div class="fld"><label for="o_phone">Business phone *</label><input id="o_phone" type="tel" autocomplete="tel" maxlength="24" placeholder="Enter business phone" data-ph-own="1"></div>
         <div class="fld"><label for="o_location">Location (city, country) *</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
         <div class="fld"><label for="o_logo">Logo URL</label><input id="o_logo" type="url" placeholder="https://…/logo.png"></div>
-        <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" placeholder="#6d28d9"></div>
+        <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" placeholder="#047857"></div>
         <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" placeholder="INR"></div>
         <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" placeholder="Asia/Kolkata"></div>
         <div class="fld"><label for="o_gst" id="o_gst_lbl">GSTIN (optional)</label><input id="o_gst" maxlength="30" placeholder="22AAAAA0000A1Z5"></div>
@@ -761,7 +761,7 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="phone-input.js?v=3"></script>
+<script src="phone-input.js?v=4"></script>
 <script src="event-name.js?v=7"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
 <script src="event-reminders.js?v=1"></script>
@@ -771,7 +771,7 @@
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=16"></script>
 <script src="pkg-review.js?v=4"></script>
-<script src="onboarding-core.js?v=5"></script>
+<script src="onboarding-core.js?v=6"></script>
 <script src="studio-billing-form.js?v=1"></script>
 <script src="comms-settings.js?v=3"></script>
 <script src="photo-render-settings.js?v=2"></script>
@@ -1033,6 +1033,8 @@
     let platePrice=0; if($("#p_plate").value!==""){ const r=V.money($("#p_plate").value,{field:"Price / plate"}); if(!r.ok){ fail(r.error); return; } platePrice=r.value; }
     if(String($("#p_gst").value).trim()===""){ fail("Enter the tax rate (0 is allowed) — a blank rate would drop tax from new quotes."); $("#p_gst").focus(); return; }
     let gstPct=0; if($("#p_gst").value!==""){ const r=V.pct($("#p_gst").value,{field:"Chair/rental GST %"}); if(!r.ok){ fail(r.error); return; } gstPct=r.value; }
+    // #setup-pin: a cleared catering GST must not silently save as 0 % (same rule as the main rate)
+    if(BPStore.tax.resolve(pricingDraftTax()).split && String($("#p_cgst").value).trim()===""){ fail("Enter the catering GST rate (0 is allowed) — a blank rate would drop GST from catering on new quotes."); $("#p_cgst").focus(); return; }
     let cateringGstPct=0; if($("#p_cgst").value!==""){ const r=V.pct($("#p_cgst").value,{field:"Catering GST %"}); if(!r.ok){ fail(r.error); return; } cateringGstPct=r.value; }
     let serviceChargePct=0; if($("#p_svc").value!==""){ const r=V.pct($("#p_svc").value,{field:"Service charge %"}); if(!r.ok){ fail(r.error); return; } serviceChargePct=r.value; }
     let layoutBase=0; if($("#p_layout").value!==""){ const r=V.money($("#p_layout").value,{field:"Layout & setup fee"}); if(!r.ok){ fail(r.error); return; } layoutBase=r.value; }

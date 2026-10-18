@@ -69,8 +69,8 @@ t('other validators share the UAE rule (waNumber / smart import / onboarding)', 
   assert.match(read('public/onboarding-core.js'), /UAE mobile numbers have 9 digits after \+971/);
 });
 t('versions bumped: phone-input v=2 everywhere', () => {
-  for (const f of ['flow', 'quotes', 'leads', 'control', 'approve', 'staff', 'ops', 'hq', 'profile-setup']) assert.match(read('public/' + f + '.html'), /phone-input\.js\?v=3"/, f);
-  assert.match(api, /var PHONE_LIB_V = "3"/); assert.match(read('public/auth-ui.js'), /PHONE_LIB_V = "3"/);
+  for (const f of ['flow', 'quotes', 'leads', 'control', 'approve', 'staff', 'ops', 'hq', 'profile-setup']) assert.match(read('public/' + f + '.html'), /phone-input\.js\?v=4"/, f);
+  assert.match(api, /var PHONE_LIB_V = "4"/); assert.match(read('public/auth-ui.js'), /PHONE_LIB_V = "4"/);
 });
 
 let pass = 0, fail = 0;

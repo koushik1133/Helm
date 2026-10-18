@@ -534,9 +534,16 @@
     { key: "gstin", label: "GSTIN (optional)", required: false, max: 15 },
   ];
   const bstr = (v, max) => stripMarkup(cleanText(v)).slice(0, max);
+  // #setup-pin: PIN / postal code is ALWAYS text (never Number()/parseInt - that turns "" into 0 and
+  // drops leading zeros); all-zero is treated as empty so a stray 0 can never pass as a PIN.
+  function pinText(v) {
+    const t = typeof v === "string" ? v : (typeof v === "number" && Number.isFinite(v) ? String(v) : "");
+    const c = stripMarkup(cleanText(t)).slice(0, 16);
+    return /^[0\s-]*$/.test(c) ? "" : c;
+  }
   function validateBilling(input) {
     const i = input || {}; const data = {}; const errors = {};
-    BILLING_FIELDS.forEach((f) => { data[f.key] = bstr(i[f.key], f.key === "gstin" ? 30 : f.key === "country" ? 4 : f.max); });
+    BILLING_FIELDS.forEach((f) => { data[f.key] = f.key === "pin" ? pinText(i.pin) : bstr(i[f.key], f.key === "gstin" ? 30 : f.key === "country" ? 4 : f.max); });
     data.country = countryCode(data.country); const india = data.country === "IN";
     data.gstin = data.gstin.toUpperCase().replace(/\s+/g, "");
     data.pin = india ? data.pin.replace(/\s+/g, "") : data.pin.trim().toUpperCase();
@@ -556,8 +563,10 @@
   function billingFromOrg(o) {
     o = o || {}; const b = (o.brand && typeof o.brand === "object" && !Array.isArray(o.brand)) ? o.brand : {};
     const bl = (b.billing && typeof b.billing === "object" && !Array.isArray(b.billing)) ? b.billing : {};
-    const s = (v) => (typeof v === "string" ? v : "");
-    return { country: countryCode(bl.country), legal_name: s(bl.legal_name) || "", line1: s(bl.line1), line2: s(bl.line2), city: s(bl.city), state: s(bl.state), pin: s(bl.pin),
+    // #setup-pin: a value saved as a NUMBER (older rows / other tools) is shown as its digits, never
+    // dropped (it used to read back as blank, so the PIN looked lost); a PIN of 0 / "000000" is no PIN.
+    const s = (v) => (typeof v === "string" ? v : (typeof v === "number" && Number.isFinite(v) ? String(v) : ""));
+    return { country: countryCode(bl.country), legal_name: s(bl.legal_name) || "", line1: s(bl.line1), line2: s(bl.line2), city: s(bl.city), state: s(bl.state), pin: pinText(bl.pin),
       phone: s(b.phone), location: s(o.location), gstin: s(o.gst_number) };
   }
   // fields still missing on an existing studio (labels) — [] when complete
@@ -575,7 +584,7 @@
   }
 
   const api = {
-    GSTIN_RE, PIN_RE, TAX_IDS, taxIdOf, countryCode, BILLING_FIELDS, validateBilling, billingFromOrg, billingMissing, billingPatch,
+    GSTIN_RE, PIN_RE, TAX_IDS, pinText, taxIdOf, countryCode, BILLING_FIELDS, validateBilling, billingFromOrg, billingMissing, billingPatch,
     MAX_ROWS, CHUNK, MAX_FILE_BYTES, MAX_PRICE, MAX_QTY, KINDS,
     cleanText, neutralise, safeText, normKey, parseNumber, decodeBytes, parseCSV, detectDelimiter, csvEscapeCell, templateCSV,
     mapHeaders, sanitizeMapping, validateRow, buildPreview, summarise, setAction, tableFromManual,

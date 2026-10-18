@@ -240,10 +240,34 @@
     return f.pat[Math.max.apply(null, f.len)].replace(/x/g, "X");
   }
 
+  // #picker-clamp (pure, unit-tested): where a dropdown list goes so it is ALWAYS inside the
+  // viewport. Opens DOWN by default; flips UP only when there is not enough room below AND more
+  // room above; never starts above the top edge or ends below the bottom edge; the height
+  // shrinks to the room available (the list scrolls inside). anchor = getBoundingClientRect().
+  // → {top, left, width, maxHeight, up}   (viewport px, for position:fixed)
+  function placePopup(anchor, vw, vh, want) {
+    var w = want || {}, M = w.margin != null ? w.margin : 8, G = w.gap != null ? w.gap : 6;
+    var a = anchor || {}, at = +a.top || 0, ab = a.bottom != null ? +a.bottom : at, al = +a.left || 0;
+    vw = Math.max(0, +vw || 0); vh = Math.max(0, +vh || 0);
+    var width = Math.max(0, Math.min(w.width || 340, vw - 2 * M));
+    var natural = Math.max(0, w.height || 330), minUseful = Math.min(natural, w.minHeight || 180);
+    var below = vh - ab - G - M, above = at - G - M;
+    var up = below < minUseful && above > below;
+    var room = Math.max(0, up ? above : below);
+    var h = Math.min(natural, vh - 2 * M);
+    if (room >= Math.min(natural, 120)) h = Math.min(h, room);   // fits beside the field: never cover it
+    h = Math.max(0, h);
+    var top = up ? at - G - h : ab + G;
+    top = Math.max(M, Math.min(top, vh - M - h));                  // clamp: fully on screen
+    var left = Math.max(M, Math.min(al, vw - M - width));
+    return { top: Math.round(top), left: Math.round(left), width: Math.round(width), maxHeight: Math.round(h), up: up };
+  }
+
   var API = {
     COUNTRIES: COUNTRIES, FORMATS: FORMATS, flag: flag, country: country, parse: parse, format: format,
     toE164: toE164, display: display, validate: validate, setDefaultCountry: setDefaultCountry,
     defaultCountry: function () { return defaultIso; }, example: example, mask: mask, maxNational: maxNational,
+    placePopup: placePopup,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (typeof document === "undefined") { global.HelmPhone = API; return; }
@@ -261,6 +285,45 @@
   }
   var openInst = null;
   doc.addEventListener("mousedown", function (e) { if (openInst && !openInst.wrap.contains(e.target)) openInst.close(false); }, true);
+  doc.addEventListener("touchstart", function (e) { if (openInst && !openInst.wrap.contains(e.target)) openInst.close(false); }, { capture: true, passive: true });
+  doc.addEventListener("keydown", function (e) { if (openInst && e.key === "Escape") { e.preventDefault(); e.stopPropagation(); openInst.close(true); } }, true);
+
+  // #picker-clamp: the list is position:fixed at coordinates computed from the field, so it is
+  // never clipped by a modal / scrolled container (overflow) and never drawn off-screen.
+  // A transformed ancestor (modal animation) moves the fixed origin: measure and correct.
+  // measure=true (on open): the offset is measured once with the open animation switched off, then
+  // reused while following scroll, so the animation never restarts and never skews the measurement.
+  function positionPop(pop, anchor, measure) {
+    var r = anchor.getBoundingClientRect();
+    var vw = doc.documentElement.clientWidth || global.innerWidth || 1024, vh = global.innerHeight || doc.documentElement.clientHeight || 768;
+    if (global.visualViewport && global.visualViewport.height) vh = Math.min(vh, global.visualViewport.height);
+    var p = placePopup(r, vw, vh, { width: Math.max(260, Math.min(340, r.width + 2)), height: 330 });
+    var s = pop.style;
+    s.position = "fixed"; s.bottom = "auto"; s.right = "auto"; s.width = p.width + "px"; s.maxHeight = p.maxHeight + "px";
+    if (measure) {
+      pop.classList.add("hp-measuring"); s.top = p.top + "px"; s.left = p.left + "px";
+      try { var got = pop.getBoundingClientRect(); pop.__dx = Math.abs(p.left - got.left) > 0.5 ? p.left - got.left : 0; pop.__dy = Math.abs(p.top - got.top) > 0.5 ? p.top - got.top : 0; }
+      catch (e) { pop.__dx = pop.__dy = 0; }
+      pop.classList.remove("hp-measuring");
+    }
+    s.left = (p.left + (pop.__dx || 0)) + "px"; s.top = (p.top + (pop.__dy || 0)) + "px";
+    pop.classList.toggle("hp-pop-up", p.up);
+    return r;
+  }
+  // keep the open list glued to its field while the page / a container scrolls or resizes;
+  // close it when the field scrolls out of view
+  var rafPending = false;
+  function follow() {
+    if (rafPending || !openInst) return; rafPending = true;
+    (global.requestAnimationFrame || setTimeout)(function () {
+      rafPending = false; if (!openInst) return;
+      var r = openInst.reposition(); var vh = global.innerHeight || 768;
+      if (r && (r.bottom < 0 || r.top > vh)) openInst.close(false);
+    });
+  }
+  global.addEventListener("scroll", follow, { capture: true, passive: true });
+  global.addEventListener("resize", follow, { passive: true });
+  if (global.visualViewport) try { global.visualViewport.addEventListener("resize", follow); } catch (e) {}
 
   // The page's computed metrics for this input → CSS custom properties on the wrapper
   // (theme.css .hp reads --hp-fs / --hp-lh / --hp-h / --hp-py / --hp-px / --hp-r).
@@ -435,17 +498,17 @@
       } else search.removeAttribute("aria-activedescendant");
     }
     function open() {
-      if (input.disabled || input.readOnly) return;
+      if (input.disabled || input.readOnly || !wrap.getClientRects().length) return;
       if (openInst && openInst !== inst) openInst.close(false);
       build();
       items.forEach(function (it) { it.li.setAttribute("aria-selected", it.c.iso === iso ? "true" : "false"); });
       search.value = ""; filter();
       pop.hidden = false; btn.setAttribute("aria-expanded", "true"); wrap.classList.add("is-open");
-      var r = wrap.getBoundingClientRect(), vh = global.innerHeight || 800;
-      wrap.classList.toggle("hp-up", r.bottom + 330 > vh && r.top > 330);
+      positionPop(pop, wrap, true);
       for (var i = 0; i < shownItems.length; i++) if (shownItems[i].c.iso === iso) { setActive(i); break; }
       openInst = inst;
-      setTimeout(function () { try { search.focus(); } catch (e) {} }, 0);
+      try { search.focus({ preventScroll: true }); } catch (e) {}
+      setTimeout(function () { try { if (doc.activeElement !== search && !pop.hidden) search.focus({ preventScroll: true }); } catch (e) {} }, 0);
     }
     function close(refocus) {
       if (pop.hidden) return;
@@ -477,7 +540,7 @@
     });
 
     var inst = {
-      wrap: wrap, input: input, close: close, open: open,
+      wrap: wrap, input: input, close: close, open: open, reposition: function () { return pop.hidden ? null : positionPop(pop, wrap); },
       country: function () { return iso; },
       setCountry: function (c) { if (country(c)) { iso = country(c).iso; dirty = true; paint(); show(nat()); } },
       setDefault: function (c) { if (!userPicked && !nat() && country(c)) { iso = country(c).iso; paint(); } },
@@ -493,6 +556,166 @@
   }
   var insts = [];
   API.attach = attach;
+
+  /* ---- searchable select (#picker-clamp) ---------------------------------------------------
+     <select data-picker="search"> (long lists like Country) gets the same list as the phone
+     picker: opens below the field, flips up only when there is room, stays inside the viewport,
+     scrolls inside, closes on outside click / Escape, works in modals and scrolled containers.
+     The native <select> stays in the DOM (visually hidden) and keeps its id / value / change
+     events, so page code that reads or sets sel.value is unchanged. Touch devices keep the
+     native picker (the OS sheet is always on screen). */
+  var SEL_VALUE = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value");
+  var SEL_INDEX = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "selectedIndex");
+  function coarse() { try { return !!(global.matchMedia && global.matchMedia("(pointer: coarse)").matches && !global.matchMedia("(pointer: fine)").matches); } catch (e) { return false; } }
+  function enhanceSelect(sel) {
+    if (!sel || sel.tagName !== "SELECT" || sel.multiple || !sel.parentNode) return null;
+    if (sel.helmPicker) return sel.helmPicker;
+    if (coarse()) return null;
+    var n = ++uid;
+    var wrap = el("div", "hp-sel");
+    var btn = el("button", "hp-sel-btn"); btn.type = "button";
+    btn.setAttribute("aria-haspopup", "listbox"); btn.setAttribute("aria-expanded", "false");
+    var txt = el("span", "hp-sel-txt"); txt.id = "hps" + n + "_t";
+    btn.appendChild(txt); btn.appendChild(svgChevron());
+    var pop = el("div", "hp-pop hp-pop-sel"); pop.hidden = true;
+    var sid = "hps" + n + "_s", lid = "hps" + n + "_l";
+    var search = el("input", "hp-search"); search.type = "text"; search.id = sid;
+    search.setAttribute("role", "combobox"); search.setAttribute("aria-controls", lid); search.setAttribute("aria-expanded", "true");
+    search.setAttribute("aria-autocomplete", "list"); search.setAttribute("autocomplete", "off"); search.setAttribute("spellcheck", "false");
+    search.setAttribute("placeholder", "Search"); search.setAttribute("aria-label", "Search the list"); search.setAttribute("data-no-validate", "1");
+    var list = el("ul", "hp-list"); list.id = lid; list.setAttribute("role", "listbox");
+    var empty = el("p", "hp-empty", "Nothing matches."); empty.hidden = true;
+    pop.appendChild(search); pop.appendChild(list); pop.appendChild(empty);
+
+    matchSiblingMetrics(wrap, sel);
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.appendChild(btn); wrap.appendChild(sel); wrap.appendChild(pop);
+    sel.classList.add("hp-sel-native"); sel.setAttribute("tabindex", "-1"); sel.setAttribute("aria-hidden", "true");
+    if (sel.title) btn.title = sel.title;
+    // the page's <label for=…> names the button; clicking the label opens the field
+    var lab = null;
+    try { if (sel.id) lab = doc.querySelector('label[for="' + (global.CSS && CSS.escape ? CSS.escape(sel.id) : sel.id) + '"]'); } catch (e) {}
+    if (lab) {
+      if (!lab.id) lab.id = "hps" + n + "_lbl";
+      btn.setAttribute("aria-labelledby", lab.id + " " + txt.id); list.setAttribute("aria-labelledby", lab.id);
+      lab.addEventListener("click", function (e) { e.preventDefault(); try { btn.focus(); } catch (x) {} });
+    } else btn.setAttribute("aria-label", sel.getAttribute("aria-label") || "Choose");
+
+    function paint() {
+      var i = SEL_INDEX.get.call(sel), o = i >= 0 ? sel.options[i] : null;
+      txt.textContent = o ? o.textContent : "";
+      btn.disabled = !!sel.disabled;
+      var inv = sel.getAttribute("aria-invalid"); if (inv) btn.setAttribute("aria-invalid", inv); else btn.removeAttribute("aria-invalid");
+    }
+    Object.defineProperty(sel, "value", { configurable: true,
+      get: function () { return SEL_VALUE.get.call(sel); },
+      set: function (v) { SEL_VALUE.set.call(sel, v); paint(); } });
+    Object.defineProperty(sel, "selectedIndex", { configurable: true,
+      get: function () { return SEL_INDEX.get.call(sel); },
+      set: function (v) { SEL_INDEX.set.call(sel, v); paint(); } });
+    sel.addEventListener("change", paint);
+    try { new MutationObserver(paint).observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled", "aria-invalid", "selected"] }); } catch (e) {}
+
+    var items = [], shown = [], active = -1;
+    function build() {
+      list.textContent = ""; items = [];
+      var cur = SEL_VALUE.get.call(sel), k = 0;
+      Array.prototype.forEach.call(sel.children, function (ch) {
+        var group = ch.tagName === "OPTGROUP" ? ch : null, opts = group ? ch.children : [ch];
+        if (group) { var h = el("li", "hp-grp", group.label || ""); h.setAttribute("role", "presentation"); list.appendChild(h); items.push({ head: h, li: null }); }
+        Array.prototype.forEach.call(opts, function (o) {
+          if (o.tagName !== "OPTION" || o.disabled || o.hidden) return;
+          var li = el("li", "hp-opt"); li.id = "hps" + n + "_o" + (k++); li.setAttribute("role", "option");
+          li.appendChild(el("span", "hp-oname", o.textContent));
+          li.setAttribute("aria-selected", o.value === cur ? "true" : "false");
+          li.addEventListener("mousedown", function (e) { e.preventDefault(); });
+          li.addEventListener("click", function () { choose(o.value); });
+          list.appendChild(li);
+          items.push({ li: li, value: o.value, key: (o.textContent + " " + o.value).toLowerCase() });
+        });
+      });
+    }
+    function filter() {
+      var q = search.value.trim().toLowerCase(); shown = []; var lastHead = null, headHas = false;
+      items.forEach(function (it) {
+        if (it.head) { if (lastHead) lastHead.hidden = !headHas; lastHead = it.head; headHas = false; return; }
+        var ok = !q || it.key.indexOf(q) >= 0; it.li.hidden = !ok; if (ok) { shown.push(it); headHas = true; }
+      });
+      if (lastHead) lastHead.hidden = !headHas;
+      empty.hidden = shown.length > 0; setActive(shown.length ? 0 : -1);
+    }
+    function setActive(i) {
+      if (active >= 0 && shown[active]) shown[active].li.classList.remove("is-active");
+      active = i;
+      if (i >= 0 && shown[i]) {
+        var li = shown[i].li; li.classList.add("is-active"); search.setAttribute("aria-activedescendant", li.id);
+        var top = li.offsetTop, bot = top + li.offsetHeight;
+        if (top < list.scrollTop) list.scrollTop = top; else if (bot > list.scrollTop + list.clientHeight) list.scrollTop = bot - list.clientHeight;
+      } else search.removeAttribute("aria-activedescendant");
+    }
+    function open() {
+      if (sel.disabled || !wrap.getClientRects().length) return;
+      if (openInst && openInst !== inst) openInst.close(false);
+      build(); search.value = ""; filter();
+      pop.hidden = false; btn.setAttribute("aria-expanded", "true"); wrap.classList.add("is-open");
+      positionPop(pop, wrap, true);
+      var cur = SEL_VALUE.get.call(sel);
+      for (var i = 0; i < shown.length; i++) if (shown[i].value === cur) { setActive(i); break; }
+      openInst = inst;
+      try { search.focus({ preventScroll: true }); } catch (e) {}
+      setTimeout(function () { try { if (doc.activeElement !== search && !pop.hidden) search.focus({ preventScroll: true }); } catch (e) {} }, 0);
+    }
+    function close(refocus) {
+      if (pop.hidden) return;
+      pop.hidden = true; btn.setAttribute("aria-expanded", "false"); wrap.classList.remove("is-open");
+      if (openInst === inst) openInst = null;
+      if (refocus) try { btn.focus(); } catch (e) {}
+    }
+    function choose(v) {
+      var changed = SEL_VALUE.get.call(sel) !== v;
+      SEL_VALUE.set.call(sel, v); paint(); close(true);
+      if (changed) { sel.dispatchEvent(new Event("input", { bubbles: true })); sel.dispatchEvent(new Event("change", { bubbles: true })); }
+    }
+    btn.addEventListener("click", function () { if (pop.hidden) open(); else close(true); });
+    btn.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+    });
+    search.addEventListener("input", filter);
+    search.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown") { e.preventDefault(); if (shown.length) setActive(Math.min(shown.length - 1, active + 1)); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); if (shown.length) setActive(Math.max(0, active - 1)); }
+      else if (e.key === "Home") { e.preventDefault(); setActive(shown.length ? 0 : -1); }
+      else if (e.key === "End") { e.preventDefault(); setActive(shown.length - 1); }
+      else if (e.key === "Enter") { e.preventDefault(); if (active >= 0 && shown[active]) choose(shown[active].value); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); }
+      else if (e.key === "Tab") close(false);
+    });
+    var inst = { wrap: wrap, select: sel, button: btn, open: open, close: close, refresh: paint,
+      reposition: function () { return pop.hidden ? null : positionPop(pop, wrap); } };
+    sel.helmPicker = inst;
+    paint();
+    return inst;
+  }
+  function scanSelects(root) {
+    try { (root || doc).querySelectorAll('select[data-picker="search"]').forEach(function (s) { if (!s.helmPicker) enhanceSelect(s); }); } catch (e) {}
+  }
+  API.enhanceSelect = enhanceSelect;
+  API.scanSelects = scanSelects;
+  (function bootSelects() {
+    var go = function () {
+      scanSelects(doc);
+      try {
+        new MutationObserver(function (muts) {
+          for (var i = 0; i < muts.length; i++) for (var j = 0; j < muts[i].addedNodes.length; j++) {
+            var nd = muts[i].addedNodes[j]; if (nd.nodeType !== 1) continue;
+            if (nd.matches && nd.matches('select[data-picker="search"]')) { if (!nd.helmPicker) enhanceSelect(nd); }
+            else if (nd.querySelector && nd.querySelector('select[data-picker="search"]')) scanSelects(nd);
+          }
+        }).observe(doc.documentElement, { childList: true, subtree: true });
+      } catch (e) {}
+    };
+    if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", go); else go();
+  })();
   // studio country arrived (Control Center): untouched empty fields follow it
   API.setDefaultCountry = function (iso) { setDefaultCountry(iso); insts.forEach(function (i) { i.setDefault(defaultIso); }); };
   global.HelmPhone = API;
