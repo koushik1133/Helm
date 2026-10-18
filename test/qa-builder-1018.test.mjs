@@ -159,4 +159,11 @@ t('B27: version times use the studio time zone (BPStore.fmtStudioDate), browser 
   assert.match(real({ versionNo: 1, createdAt: '2026-10-18T09:38:00Z' }, 1), /03:08\s?pm/i);
 });
 
+t('B27 review: the menu package options carry no per-plate rate while Hide amounts is on (options are never masked)', () => {
+  const bm = fn('buildMenuControls');
+  assert.match(bm, /const hideAmt=document\.documentElement\.classList\.contains\('hb-priv-on'\);/);
+  assert.match(bm, /\$\{hideAmt\?'':' · '\+inr\(p\.price_per_plate\)\+'\/plate'\}/);
+  assert.match(js, /new MutationObserver\(\(\)=>\{ const on=document\.documentElement\.classList\.contains\('hb-priv-on'\); if\(on===_privWas\) return;/);
+});
+
 console.log(`qa-builder-1018: ${n} checks ok`);

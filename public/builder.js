@@ -458,8 +458,11 @@ function pkgFromQuoteName(pkgs, name){
 function buildMenuControls(){
   const box=$('#pkgPanel'); if(!box) return;
   const pkgs=PRICING.packages||[];
+  // QA-B27 review: "Hide amounts" never masks <option> text, so the per-plate rate is left out while amounts are hidden
+  // (the selected package is pre-selected now, so its rate would otherwise sit in plain view); rebuilt on toggle below
+  const hideAmt=document.documentElement.classList.contains('hb-priv-on');
   const opts=['<option value="">No package…</option>'].concat(
-    pkgs.map(p=>`<option value="${esc(p.id)}" ${p.id===PRICING.appliedPkgId?'selected':''}>${esc(p.name)} · ${inr(p.price_per_plate)}/plate</option>`)).join('');
+    pkgs.map(p=>`<option value="${esc(p.id)}" ${p.id===PRICING.appliedPkgId?'selected':''}>${esc(p.name)}${hideAmt?'':' · '+inr(p.price_per_plate)+'/plate'}</option>`)).join('');
   box.innerHTML =
     `<label class="pfield">Menu package<select id="bPkg" ${CAN_CREATE?'':'disabled'}>${opts}</select></label>`+
     `<label class="pfield">Guests / plates <input id="bGuests" type="number" min="0" value="${PRICING.guests!=null?PRICING.guests:''}"></label>`+
@@ -476,6 +479,11 @@ function buildMenuControls(){
     g.addEventListener('change', persistGuests);
   }
 }
+// QA-B27 review: re-label the package options when "Hide amounts" is switched (shell-b-privacy.js toggles html.hb-priv-on)
+try{ let _privWas=document.documentElement.classList.contains('hb-priv-on');
+  new MutationObserver(()=>{ const on=document.documentElement.classList.contains('hb-priv-on'); if(on===_privWas) return; _privWas=on;
+    if($('#bPkg')){ try{ buildMenuControls(); }catch(e){} } }).observe(document.documentElement,{attributes:true,attributeFilter:['class']});
+}catch(e){}
 // R8: write a sizing patch (guests / chairs / tables / hall L×B) onto the quote's client record —
 // the same record the quote flow reads, so both screens show one set of numbers.
 async function persistSizing(patch){
