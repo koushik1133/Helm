@@ -6,7 +6,7 @@
 /* 1018: Metres / Feet as one segmented control - was two bordered buttons butted together (inner corners looked cut off),
    could squeeze "Feet" in a wrapping toolbar, and the app theme repainted the "on" button white, so neither looked picked.
    :not(#_) outranks the theme's .btn rules. */
-.vn-unit{display:inline-flex;flex:none;align-items:center;gap:2px;padding:2px;border:1px solid var(--line,#ddd);border-radius:10px;background:var(--panel-2,#f4f4f4);width:max-content;max-width:100%;box-sizing:border-box;overflow:visible;white-space:nowrap}
+.vn-unit{display:inline-flex;flex:none;align-items:center;gap:4px;padding:3px;border:1px solid var(--line,#ddd);border-radius:10px;background:var(--panel-2,#f4f4f4);width:max-content;max-width:100%;box-sizing:border-box;overflow:visible;white-space:nowrap}
 .vn-unit:not(#_) .btn{flex:none;min-width:max-content;height:30px;min-height:0;padding:0 12px;margin:0;border:0;border-radius:8px;background:transparent;color:var(--ink-2,#333);box-shadow:none;white-space:nowrap;line-height:1}
 .vn-unit:not(#_) .btn:hover{color:var(--ink,#111);background:var(--panel,#fff)}
 .vn-unit:not(#_) .btn.on{background:var(--accent,#1f6f54);color:var(--hb-acc-ink,var(--accent-ink,#fff))}
@@ -28,14 +28,76 @@
 .vn-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .vn-chip{font-size:11.5px;padding:2px 8px;border-radius:999px;border:1px solid var(--line,#ddd)}
 .vn-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.vn-form .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px 12px}
-.vn-form .fld{display:flex;flex-direction:column;gap:3px;min-width:0}
+/* 1018b: add / edit venue form - section cards, even grids, 8px label->input, 16px between fields, 16px between cards.
+   ":not(#_)" outranks the page / theme input rules (control.html paints every input 38px tall, checkboxes included). */
+.vn-form{display:flex;flex-direction:column;gap:16px;margin-top:4px}
+.vn-fhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 16px}
+.vn-fhead h4{margin:0;font-size:17px;font-weight:700;color:var(--ink,#111)}
+.vn-hint{margin:0;font-size:12.5px;color:var(--ink-3,#666)}
+.vn-sec{margin:0;min-width:0;border:1px solid var(--line,#ddd);border-radius:12px;padding:18px 20px 20px;background:var(--panel,#fff)}
+fieldset.vn-sec > legend{float:left;width:100%;padding:0}
+fieldset.vn-sec > legend + *{clear:both}
+.vn-sec-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin:0 0 16px}
+.vn-form .vn-sec-h{margin:0 0 16px;font-size:14px;font-weight:650;line-height:1.3;letter-spacing:0;text-transform:none;color:var(--ink,#111)}
+.vn-sec-head .vn-sec-h{margin:0}
+.vn-unit-row{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}
+.vn-form .vn-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3,#666)}
+.vn-g{display:grid;gap:16px;min-width:0}
+.vn-g + .vn-g{margin-top:16px}
+.vn-g.c1{grid-template-columns:minmax(0,1fr)}
+.vn-g.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.vn-g.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.vn-gap-top{margin-top:20px}
+.vn-form .fld{display:flex;flex-direction:column;gap:8px;min-width:0;margin:0}
 .vn-form .fld.full{grid-column:1/-1}
-.vn-form input,.vn-form select,.vn-form textarea{max-width:100%}
-.vn-form [aria-invalid=true]{outline:2px solid #c0392b}
-.vn-fs{border:1px solid var(--line,#ddd);border-radius:8px;margin:10px 0;padding:8px 10px;min-width:0}
-.vn-multi{display:flex;flex-wrap:wrap;gap:6px 12px}
-.vn-lbl{font-size:12px;color:var(--ink-3,#666)}
+.vn-form .fld.span2{grid-column:span 2}
+.vn-form .fld > label{margin:0;line-height:1.25}
+.vn-form:not(#_) .fld input,.vn-form:not(#_) .fld select{width:100%;max-width:100%;height:40px;box-sizing:border-box;margin:0}
+.vn-form:not(#_) .fld textarea{width:100%;max-width:100%;min-height:88px;box-sizing:border-box;margin:0;padding:10px 12px;line-height:1.45;resize:vertical;font:inherit;font-size:14px;color:var(--ink,#111);border:1px solid var(--line,#ddd);border-radius:8px;background:var(--panel-2,#fafafa)}
+.vn-form:not(#_) .fld textarea:focus{outline:none;border-color:var(--accent,#1f6f54);box-shadow:0 0 0 3px var(--accent-soft,rgba(31,111,84,.15))}
+.vn-pre{position:relative;display:block;min-width:0}
+.vn-pre-sym{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;font-weight:600;color:var(--ink-3,#666);pointer-events:none}
+.vn-form:not(#_) .vn-pre input{padding-left:28px}
+.vn-form:not(#_) input[type=checkbox]{width:16px;height:16px;min-width:16px;margin:0;padding:0;flex:0 0 16px;accent-color:var(--accent,#1f6f54);cursor:pointer;box-shadow:none}
+.vn-form .vn-chk{display:flex;align-items:center;gap:10px;font-size:13.5px;line-height:1.3;white-space:normal;cursor:pointer;min-width:0;color:var(--ink-2,#333)}
+.vn-multi{display:grid;min-width:0}
+/* event types: evenly sized pill checkboxes */
+.vn-pills{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.vn-pills .vn-chk{min-height:40px;padding:8px 14px;border:1px solid var(--line,#ddd);border-radius:999px;background:var(--panel,#fff);box-sizing:border-box;transition:background .12s,border-color .12s}
+.vn-pills .vn-chk:hover{border-color:var(--accent,#1f6f54)}
+.vn-pills .vn-chk:has(input:checked){background:var(--accent-soft,#e3f4ed);border-color:var(--accent,#1f6f54);color:var(--ink,#111);font-weight:600}
+.vn-pills .vn-chk:has(input:focus-visible){outline:2px solid var(--accent,#1f6f54);outline-offset:2px}
+/* restrictions: 3 / 2 / 1 columns; a detail field opens indented under its own tick */
+.vn-rs{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px 24px;align-items:start}
+.vn-opt{display:flex;flex-direction:column;min-width:0}
+.vn-opt .vn-chk{min-height:24px}
+.vn-form .fld.vn-dep{margin:10px 0 4px 26px;padding:12px;border-left:2px solid var(--accent,#1f6f54);border-radius:0 8px 8px 0;background:var(--panel-2,#f6f6f6)}
+.vn-form .fld[hidden],.vn-count[hidden],.vn-ferr[hidden]{display:none}
+.vn-ferr{font-size:12px;color:#b42318;line-height:1.35;margin:0}
+.vn-form [aria-invalid=true]{outline:2px solid #c0392b;outline-offset:0}
+.vn-sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+/* sticky Save / Cancel; the error summary sits 12px above the buttons with 16px clear of the card above */
+.vn-foot{position:sticky;bottom:0;z-index:5;margin:8px -20px -20px;padding:16px 20px;background:var(--panel,#fff);border-top:1px solid var(--line,#ddd);border-radius:0 0 12px 12px;box-shadow:0 -6px 16px rgba(15,30,25,.06)}
+.vn-form .vn-foot .vn-sum{margin:0 0 12px}
+.vn-form .vn-foot .vn-sum[hidden]{display:none}
+.vn-foot-btns{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.vn-foot-btns .btn{min-width:110px}
+/* theme.css makes every .card overflow-x:auto under 720px, which turns the card into the sticky footer's scroll box
+   (footer then floats mid-card instead of sticking to the screen). The form has no wide tables: keep it visible. */
+.card:has(#vn_root .vn-form){overflow:visible}
+/* the app's phone tab bar (shell-b .hb-tabs, 58px + safe area, hidden while the keyboard is open) is fixed to the bottom: sit above it */
+@media (max-width:819px){html[data-shell="b"]:not(.hb-kb) .vn-foot{bottom:calc(58px + env(safe-area-inset-bottom, 0px))}}
+@media (max-width:900px){.vn-g.c3{grid-template-columns:repeat(2,minmax(0,1fr))}.vn-form .fld.span2{grid-column:1/-1}}
+@media (max-width:640px){
+  .vn-g.c2,.vn-g.c3{grid-template-columns:minmax(0,1fr)}
+  .vn-form .fld.span2{grid-column:auto}
+  .vn-sec{padding:14px 14px 16px}
+  .vn-pills{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .vn-pills .vn-chk{padding:8px 10px;gap:8px;font-size:13px}
+  .vn-rs{grid-template-columns:minmax(0,1fr)}
+  .vn-foot{margin-left:-14px;margin-right:-14px;padding:12px 14px}
+  .vn-foot-btns .btn{flex:1 1 0;min-width:0}
+}
 .vp-box{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line,#ccc);border-radius:8px;display:flex;flex-direction:column;gap:4px}
 .vp-box[hidden]{display:none}
 .vp-lbl{font-size:12px;font-weight:600}

@@ -156,4 +156,28 @@ await t('unit toggle is a segmented control the app theme cannot flatten; hidden
   const js = read('public/venues-admin.js');
   assert.ok(!/innerHTML|insertAdjacentHTML|outerHTML|\.style\.|style=/.test(js), 'DOM nodes only, no inline style');
 });
+await t('1018b layout: section cards, detail fields under their own tick, summary in the sticky footer', async () => {
+  const cancel = root.querySelectorAll('.btn').find((b) => b.textContent === 'Cancel'); if (cancel) cancel.click();
+  await $('vn_add').click();
+  const form = root.querySelector('form');
+  const heads = form.querySelectorAll('.vn-sec-h').map((x) => x.textContent);
+  assert.deepEqual(heads, ['Basics', 'Size & capacity', 'Event types available', 'Restrictions', 'Approximate cost', 'Amenities', 'Address & contact', 'Notes']);
+  const opt = (k) => root.querySelector('input[name="vf_rs"][value="' + k + '"]').parentNode.parentNode;
+  assert.ok(opt('sound_curfew').classList.contains('vn-opt'));
+  assert.equal($('vf_curfew').parentNode.parentNode, opt('sound_curfew'), 'curfew time sits right under its own tick');
+  assert.equal($('vf_setup').parentNode.parentNode, opt('setup_window'), 'setup window sits right under its own tick');
+  assert.ok(form.querySelector('.vn-pills') && form.querySelector('.vn-rs'), 'event pills + restriction grid');
+  assert.equal($('vf_err').parentNode.className, 'vn-foot', 'summary lives in the footer, above the buttons');
+  assert.equal($('vf_save').parentNode.parentNode.className, 'vn-foot');
+  assert.equal($('vf_cmin').parentNode.className, 'vn-pre', '₹ prefix wrapper');
+  $('vf_cmin').value = '-5'; $('vf_name').value = 'X'; $('vf_seat').value = '10'; $('vf_len').value = '10'; $('vf_wid').value = '10';
+  await form.fire('submit');
+  assert.equal($('vf_cmin_err').parentNode, $('vf_cmin').parentNode.parentNode, 'error goes in the .fld box, not inside the ₹ wrapper');
+  const css = read('public/venues.css');
+  assert.match(css, /\.vn-foot\{position:sticky;bottom:0/);
+  assert.match(css, /\.vn-form \.vn-foot \.vn-sum\{margin:0 0 12px\}/, 'summary 12px above the buttons');
+  assert.match(css, /\.card:has\(#vn_root \.vn-form\)\{overflow:visible\}/, 'phone: card overflow cannot capture the sticky footer');
+  assert.match(css, /html\[data-shell="b"\]:not\(\.hb-kb\) \.vn-foot\{bottom:calc\(58px/, 'phone: footer clears the tab bar');
+  assert.match(css, /@media \(max-width:640px\)\{[^]*\.vn-g\.c2,\.vn-g\.c3\{grid-template-columns:minmax\(0,1fr\)\}/, 'one column on phones');
+});
 console.log(`venues-admin-form: ${n} checks OK`);
