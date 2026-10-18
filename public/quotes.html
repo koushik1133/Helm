@@ -283,7 +283,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script><script src="quote-state.js?v=2"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script><script src="quote-state.js?v=2"></script><script src="venue-suggest.js?v=1"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=15"></script>
 <script>
@@ -602,6 +602,9 @@
 
   /* ---------- confirm / pricing modal ---------- */
   let cmChairsSeed="", cmId=null, cmConfig=null, cmVendors=[], cmCoupons=[], platesEdited=false;
+  // the studio's saved venues as a dropdown on the Venue field (free text still works); a pick fills an empty address
+  const cmVenueSug=(window.HelmVenueSuggest&&HelmVenueSuggest.attach($("#c_venue"),{address:$("#c_address")}))||null;
+  let cmVenueAtOpen="";
   async function openConfirm(id){
     $("#cm_err").hidden=true;
     let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"open this quote"}),{type:"err"}); return; }
@@ -611,7 +614,7 @@
     const pr=full.pricing||{}, cl=full.client||{};
     $("#cm_titleText").textContent = (full.status==="confirmed"?"Re-price ":"Confirm ")+full.code;
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
-    $("#c_phone").value=cl.phone||""; $("#c_date").value=cl.eventDate||""; $("#c_venue").value=cl.venue||"";
+    $("#c_phone").value=cl.phone||""; $("#c_date").value=cl.eventDate||""; $("#c_venue").value=cl.venue||""; cmVenueAtOpen=$("#c_venue").value.trim();
     $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||""; $("#c_state").value=cl.state||""; $("#c_trn").value=cl.trn||"";
     // central rates + vendors + coupons from the Control Center
     // Each lookup is optional: run them together and give each a time limit, so one slow or
@@ -705,7 +708,15 @@
     return { name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
       phone:$("#c_phone").value.trim(), eventDate:$("#c_date").value, venue:$("#c_venue").value.trim(),
       address:$("#c_address").value.trim(), notes:$("#c_notes").value.trim(), state:$("#c_state").value.trim().slice(0,60),
-      ...($("#trnFld").hidden ? {} : { trn:String($("#c_trn").value||"").replace(/\s+/g,"").slice(0,20) }) };
+      ...($("#trnFld").hidden ? {} : { trn:String($("#c_trn").value||"").replace(/\s+/g,"").slice(0,20) }), ...venueLink() };
+  }
+  // venue changed in this dialog: link the saved venue it names (same keys as the flow's venue picker),
+  // or drop an old link when a different, hand-typed venue was entered. Unchanged venue -> link untouched.
+  function venueLink(){
+    const txt=$("#c_venue").value.trim();
+    if(txt===cmVenueAtOpen) return {};
+    const v=cmVenueSug&&cmVenueSug.match();
+    return v ? { venueId:v.id, venueName:v.name } : { venueId:null, venueName:null };
   }
   // inline checks on the counts + discount %: whole numbers 0–100,000 / a percent 0–100.
   // While any is invalid "Confirm & lock" stays disabled (Save pricing re-checks on click).
