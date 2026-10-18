@@ -62,10 +62,16 @@ assert.ok(M.same(std, JSON.parse(JSON.stringify(std))) && !M.same(std, M.removeA
 const src = r("public/menu-pkg-editor.js");
 assert.ok(/^[\x00-\x7F]*$/.test(src), "ASCII only (unicode as \\u escapes)");
 assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(src), "no HTML sinks");
-assert.match(src, /ctx\.trial\(\) \? \{ price_per_plate: pp \} : \{ price_per_plate: pp, active: !!act\.checked, dishes: normDishes\(st\.dishes\) \}/,
-  "free trial (0173): Save sends only the price");
-assert.match(src, /if \(!trial\) \{\s*add = el\("div", "mpk-add"\)/, "no add-dish row in the trial");
+// free trial (0173, docs/trial/TRIAL-END-TO-END.md): price AND dishes editable, catalog dishes only, Active fixed
+assert.ok(!/ctx\.trial\(\) \? \{ price_per_plate: pp \}/.test(src), "trial no longer saves the price only");
+assert.ok(!/if \(!trial\) \{\s*add = el\("div", "mpk-add"\)/.test(src), "the add-dish row is shown in the trial too");
+assert.match(src, /var add = el\("div", "mpk-add"\)/);
+assert.match(src, /if \(trial\) \{ addNote\("In the free trial you can add dishes from your Dishes catalog only/, "trial: no new dish names");
 assert.match(src, /if \(trial\) \{ act\.disabled = true;/, "active switch fixed in the trial");
+assert.match(src, /if \(!ctx\.trial\(\) && act\.checked !== st\.base\.active\) patch\.active = !!act\.checked;/, "trial never sends active");
+assert.match(src, /if \(!same\(st\.dishes, st\.base\.dishes\)\) patch\.dishes = normDishes\(st\.dishes\);/, "price-only save never rewrites the stored dishes");
+assert.match(src, /if \(textPending\(\)\) applyText\(\);/, "pasted text not applied yet is saved, not dropped");
+assert.match(src, /price\.autocomplete = "off";/);
 assert.match(src, /price\.value = priceText\(st\.price\);/, "price set as a property from the tolerant reader");
 assert.match(src, /if \(raw === ""\) \{ ctx\.error\("Enter the price per plate for "/, "an empty price is refused, never saved as 0");
 assert.match(src, /el\("summary", null, "Paste as text \(bulk\)"\)/);

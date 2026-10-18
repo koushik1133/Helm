@@ -1110,7 +1110,7 @@
   }
 
   // Menu packages: dishes grouped by category as chips + category / dish dropdowns from the dish catalog
-  // (menu-pkg-editor.js). Free trial (0173): the price per plate is editable, the dishes are read-only.
+  // (menu-pkg-editor.js). Free trial (0173): price + dishes editable (catalog dishes only), the Active switch is fixed.
   let mpkUI=null;
   const mpkTrial=()=>document.documentElement.classList.contains("helm-trial");
   async function renderMenuTemplates(){
@@ -1125,7 +1125,7 @@
       save:async(t,patch)=>{ try{ await BPStore.menuTemplates.update(t.id, patch); setMsg("ok",`${t.name||"Package"} saved.`); return true; }
         catch(e){ setMsg("err",errMsg(e,"save the package")); return false; } } });
   }
-  // the free-trial answer can arrive after the first draw: redraw read-only (unsaved edits are not possible yet)
+  // the free-trial answer can arrive after the first draw: redraw in trial mode unless there are unsaved edits
   window.addEventListener("helm:trial",()=>{ if(mpkUI && !mpkUI.dirty()) renderMenuTemplates(); });
 
   // Vendors moved to the dedicated Vendors & Partners page (duplicate removed).
