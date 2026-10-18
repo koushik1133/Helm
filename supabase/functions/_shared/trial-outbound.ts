@@ -2,6 +2,8 @@
 // Same rule as public._sample_outbound_blocked (0166), which already turns comms_outbox /
 // pkg_outbox / assign_notify_outbox rows of a trial studio into 'skipped': a studio in its
 // free trial (or the sample master studio) sends nothing real.
+// 0212: client-mailer asks trialEmailGate (_shared/trial-guard.ts) first - an ACTIVE trial may e-mail its
+// clients under caps; this rule is the fallback for a database without 0212 (a trial then sends nothing).
 //
 // Order: ask the database function (service role); if it can't be called (older database,
 // no grant) use the same table rule (studio_subscriptions.status = 'trial'). If neither

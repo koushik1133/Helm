@@ -17,6 +17,8 @@ const CSS = read('public/trial-terms.css');
 const MIG = read('supabase/migrations/0207_trial_terms_acceptance.sql'), APPLY = read('supabase/APPLY-0207.sql');
 // 0211: the terms wording changed (quotes / events not capped) -> the current version lives in 0211
 const M211 = read('supabase/migrations/0211_trial_quotes_uncapped.sql');
+// 0212 (trial client e-mail) re-issued _trial_terms_version() with the new wording's version
+const MIG212 = read('supabase/migrations/0212_trial_client_email.sql');
 const DBT = read('tests/db/trial-terms-0207.sql'), M181 = read('supabase/migrations/0181_trial_guards.sql');
 const F = require('../public/trial-facts.js');
 const S = require('../public/trial-signup.js');
@@ -78,7 +80,8 @@ await t('facts: the real numbers (verified on a trial clone; same literal as the
   assert.deepEqual(want, { leads: 16, events: 7, requirements: 41, inventory: 165, vendors: 16, staff: 12, venues: 4, menus: 6, dishes: 145, layouts: 3, coupons: 3 });
 });
 await t('facts: VERSION = the server version; the capped lists = the server cap list (0181 minus quotes, 0211)', () => {
-  assert.match(M211, new RegExp("select '" + F.VERSION + "'::text;"), 'the latest _trial_terms_version() (0211)');
+  assert.match(M211, new RegExp("select '" + F.VERSION + "'::text;"), '_trial_terms_version() re-issued by 0211');
+  assert.match(MIG212, new RegExp("select '" + F.VERSION + "'::text;"), 'the latest _trial_terms_version() (0212, same version: one release)');
   assert.match(MIG, /select 'trial-2026-10-18'::text;/, '0207 itself is unchanged (forward-only)');
   const arr = M211.match(/foreach t in array array\[([^\]]+)\] loop\s*\n\s*v_used/)[1].match(/'([a-z_]+)'/g).map((x) => x.slice(1, -1));
   assert.deepEqual(arr, ['leads', 'inventory_items', 'vendors', 'crew_members', 'venues']);
@@ -95,7 +98,10 @@ await t('facts: the four sections say exactly what the owner asked for', () => {
     /deleting a record does not free a slot/, /Edit the sample data/, /Change menu prices/, /cannot be added, renamed or removed/,
     /Invite up to 2 teammates/, /Open invitations count/, /2D and 3D/, /3 layout templates/, /past event/, /Pricing & coupons, layout rules, and roles & access/]) assert.match(can, re, String(re));
   for (const re of [/Studio setup and branding/, /Imports/, /Data export and every download or print/, /Photo renders/, /Notification settings/,
-    /client link auto-expire/, /templates and the activity log/, /Real messages to clients/, /OTP/, /WhatsApp/, /payment links run in test mode/]) assert.match(lock, re, String(re));
+    /client link auto-expire/, /templates and the activity log/, /WhatsApp, SMS and online payment links/, /unlock on a paid plan/, /Approval codes go by e-mail only/, /Test mode - confirm/]) assert.match(lock, re, String(re));
+  // 0212: e-mail to clients works in the trial (capped) - said under "What you can do"
+  for (const re of [/E-mail your clients/, /up to 30 e-mails a day, 5 a day to one address/, /Sample \(demo\) events are never e-mailed/]) assert.match(can, re, String(re));
+  assert.doesNotMatch(lock, /Real messages to clients|nothing is sent to anyone/);
   for (const re of [/Read-only after 8 days/, /including invited teammates/, /Data kept 60 days, then permanently deleted/, /30, 7 and 1 day before/,
     /3 days before, 1 day before, on the last day, and 7 days after/, /Choose a plan anytime/, /keep the sample data, remove the sample data and keep your own records, or start completely clean/,
     /One free trial per person and e-mail address/, /one extension of up to 7 days/]) assert.match(aft, re, String(re));
@@ -114,7 +120,8 @@ await t('Terms of Service section 4 states the same facts', () => {
   for (const x of F.SAMPLE) assert.ok(sec.includes(x.n + ' ' + x.many), 'terms.html: ' + x.n + ' ' + x.many);
   for (const re of [/8-day free trial/, /up to 2 teammates/, /Open invitations count/, /as many quotes and events as you like/, /up to 2 new records of each other kind/, /60 days/, /30, 7 and 1 day before deletion/,
     /3 days before the trial ends, 1 day before, on the last day and 7 days after/, /extension of up to 7 days/, /keep the sample data, remove the sample data and keep your own records, or start completely clean/,
-    /tick “I agree”/, /Approval codes \(OTP\) and payment links run in test mode/, /client link auto-expire/]) assert.match(sec, re, String(re));
+    /tick “I agree”/, /E-mail to clients:<\/b> e-mail works during the trial/, /up to 30 e-mails a day per studio and 5 a day to one address/,
+    /WhatsApp messages, SMS approval codes and online payment links are not sent during the trial and unlock on a paid plan/, /client link auto-expire/]) assert.match(sec, re, String(re));
 });
 
 // ---- DOM of the terms --------------------------------------------------------------------------------------

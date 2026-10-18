@@ -95,7 +95,7 @@
         <p class="muted" id="waNote">We send a one-time code to the e-mail address or WhatsApp number your planner has on file for you.</p>
         <button class="btn" id="sendOtp" type="button">Send OTP to my phone by SMS</button>
         <div id="trialSkip" hidden>
-          <p class="muted" id="trialSkipInfo"><b>Trial test mode</b> &mdash; In a real studio your client verifies with a one-time code sent to their phone, then pays by UPI/card through the payment link. In this trial no code is sent, so confirm here instead. No SMS, WhatsApp or email is sent; the approval is recorded as a trial test and the event moves to Confirmed.</p>
+          <p class="muted" id="trialSkipInfo"><b>Trial test mode</b> &mdash; Your planner&rsquo;s studio is on its free trial. You can get your one-time code by e-mail (above), or confirm here instead. In the free trial no SMS or WhatsApp is sent and no online payment link is used; a confirmation here is recorded as a trial test and the event moves to Confirmed.</p>
           <label class="agree"><input type="checkbox" id="t_agree">
             <span>I have read and agree to the Terms &amp; Conditions above (trial test).</span></label>
           <button class="btn primary" id="trialSkipBtn" type="button">Test mode - confirm</button>
@@ -279,7 +279,7 @@
     $("#terms").innerHTML=TERMS_BY_COUNTRY[termsKey(apTax)].html; $("#tver").textContent="("+shownTerms.v+")";
     if(quote.client_name) $("#c_name").value=quote.client_name;
     // 0128 trial test mode: only shown when the server says this link's studio is an active trial
-    if(BPStore.approval.trialTestMode){ BPStore.approval.trialTestMode(token).then((on)=>{ if(on===true){ $("#trialSkip").hidden=false; { const so=$("#sendOtp"); if(so){ so.hidden=true; so.style.display="none"; } const wn=$("#waNote"); if(wn) wn.hidden=true; }   // 0176: trial sends nothing - no OTP to wait for
+    if(BPStore.approval.trialTestMode){ BPStore.approval.trialTestMode(token).then((on)=>{ if(on===true){ $("#trialSkip").hidden=false; { ["#sendOtp","#sendWa"].forEach((sel)=>{ const b=$(sel); if(b){ b.hidden=true; b.style.display="none"; } }); const wn=$("#waNote"); const em=$("#sendEmailOtp"); const emailOn=!(BPStore.approval.emailEnabled && !BPStore.approval.emailEnabled()); if(!emailOn && em){ em.hidden=true; em.style.display="none"; } if(wn){ if(emailOn) wn.textContent="Free trial: we send the one-time code to the e-mail address your planner has on file for you. SMS and WhatsApp codes are not used in the trial."; else wn.hidden=true; } }   // 0176 / 0212: a trial sends no SMS / WhatsApp; the code by e-mail works (capped by the server)
       $("#payManual").textContent="Trial test mode: in a real studio your client pays by UPI/card through the payment link. In this trial you can skip that step - record this payment from your studio (Payments / Record payment). No payment gateway is needed."; } }).catch(()=>{}); }
     // resume state
     if(quote.reapproval_required===true){ $("#approvedNote").textContent=""; setMsg("dev", "The price changed after your earlier approval — please review the updated total and approve again."); }

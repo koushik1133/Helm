@@ -5200,7 +5200,9 @@ window.HelmUrl = HelmUrl;
       if (error) throw error; return true; },
     publish:   (id) => rpc("publish_event_site", { p_id: id, p_publish: true }),          // stamps published_at + name-based slug server-side
     // 0195 "Send to client": queues the PUBLISHED invitation link (fixed text) by e-mail / WhatsApp.
-    // The server checks consent / STOP / caps; a FREE TRIAL studio gets {status:"skipped", reason:"free_trial"} - nothing is sent.
+    // The server checks consent / STOP / caps. FREE TRIAL (0212): an e-mail of an ACTIVE trial is queued
+    // ({status:"queued", trial_email:true}; over the daily cap {status:"skipped", reason:"trial_email_cap"}); WhatsApp,
+    // an ended trial and a demo event get {status:"skipped", reason:"free_trial" | "demo"} - nothing is sent.
     send: (siteId, channel, to, optIn, consentText) => rpc("event_site_send", { p_site: siteId, p_channel: channel === "whatsapp" ? "whatsapp" : "email",
       p_to: String(to || "").slice(0, 200), p_opt_in: !!optIn, p_consent_text: optIn ? String(consentText || "").slice(0, 500) : null }),
     sendLog: (siteId) => (supa ? rpc("event_site_send_log", { p_site: siteId }).catch(() => []) : Promise.resolve([])),
@@ -7985,11 +7987,11 @@ window.HelmUrl = HelmUrl;
       client_follow_up: ["💬", "Follow-up sent to the client" + (d.auto === false ? "" : " (automatic)")],
       // 0195: "Send to client" on the Invitation Studio
       invite_site_link: ["💌", n.status === "suppressed"
-        ? "Invitation link not sent" + (d.skipped === "free_trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : "")
+        ? "Invitation link not sent" + (d.skipped === "free_trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : d.suppressed_by === "trial_cap" ? " (free trial e-mail limit)" : "")
         : n.status === "failed" ? "Invitation link could not be sent" : "Invitation link sent to the client"],
       // 0200: "Send to client" in the Share booklet dialog (and the older client-mailer e-mail)
       booklet_link: ["📖", n.status === "suppressed"
-        ? "Booklet link not sent" + (d.skipped === "free_trial" || d.suppressed_by === "trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : "")
+        ? "Booklet link not sent" + (d.skipped === "free_trial" || d.suppressed_by === "trial" ? " (free trial test mode)" : d.skipped === "demo" || d.suppressed_by === "demo" ? " (demo event)" : d.suppressed_by === "trial_cap" ? " (free trial e-mail limit)" : "")
         : n.status === "failed" ? "Booklet link could not be sent" : n.status === "simulated" ? "Booklet link not sent (sending not set up)" : "Booklet link sent to the client"],
     };
     if (k === "invite_site_link" || k === "booklet_link") return { icon: m[k][0], text: m[k][1] };
@@ -9149,6 +9151,11 @@ window.HelmUrl = HelmUrl;
       limits: () => (supa ? rpc("my_trial_limits").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       // anon-42501: signed out = null ("not a trial") without asking the server
       trial: () => (supa ? trialSignedIn().then((ok) => (ok ? memoRead("trial", 15000, () => swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : null)) : Promise.resolve(null)),
+      // 0212 — what reaches this studio's clients: {trial, active, email, whatsapp, sms, payment_links,
+      // email_per_day, email_per_recipient_day, email_used_today}. Paid studio: everything true. An ACTIVE free
+      // trial: e-mail true (capped), WhatsApp / SMS / payment links false. null before 0212 / signed out / error
+      // (callers then keep the older "free trial = test mode" wording).
+      messaging: () => (supa ? trialSignedIn().then((ok) => (ok ? rpc("my_trial_messaging").catch(() => null) : null)) : Promise.resolve(null)),
     },
     // 0157 — "Hide amounts" privacy PIN, ONE per studio. The server keeps only a bcrypt hash
     // (default 0000 until an admin changes it) and counts wrong tries per person.
@@ -9296,7 +9303,8 @@ window.HelmUrl = HelmUrl;
           ...(sec ? { p_sections: sec } : {}) }); },
       revoke: (quoteId) => rpc("booklet_revoke", { p_quote_id: quoteId }),
       // 0200 "Send to client": queues the LIVE booklet link (fixed text) by e-mail / WhatsApp (comms_outbox -> comms-dispatch).
-      // The server checks consent / STOP / caps; a FREE TRIAL studio gets {status:"skipped", reason:"free_trial"} - nothing is sent.
+      // The server checks consent / STOP / caps. FREE TRIAL (0212): as sites.send - an active trial's e-mail is queued
+      // (capped), WhatsApp / an ended trial / a demo event -> {status:"skipped", reason:"free_trial" | "demo"}.
       send: (quoteId, channel, to, optIn, consentText) => rpc("booklet_send", { p_quote: quoteId, p_channel: channel === "whatsapp" ? "whatsapp" : "email",
         p_to: String(to || "").slice(0, 200), p_opt_in: !!optIn, p_consent_text: optIn ? String(consentText || "").slice(0, 500) : null }),
       sendLog: (quoteId) => (supa ? rpc("booklet_send_log", { p_quote: quoteId }).catch(() => []) : Promise.resolve([])),

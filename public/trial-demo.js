@@ -246,7 +246,7 @@
     if (v === "choose") {
       host.appendChild(el("span", "td-tag", "Free trial"));
       host.appendChild(el("h3", null, "Load your sample studio"));
-      host.appendChild(el("p", null, "Your free trial runs on ready-made sample data: leads, quotes in every stage, a confirmed wedding with an advance paid, venues, menu packages, inventory, staff, vendors, a finished floor layout and a checklist. Every sample record is marked “Demo ·”, and nothing is sent to anyone."));
+      host.appendChild(el("p", null, "Your free trial runs on ready-made sample data: leads, quotes in every stage, a confirmed wedding with an advance paid, venues, menu packages, inventory, staff, vendors, a finished floor layout and a checklist. Every sample record is marked “Demo ·”, and sample contacts are never messaged. E-mail to your own clients works in the trial; WhatsApp and SMS unlock on a paid plan."));
       const pick = el("div", "td-pick");
       const a = el("button", "td-opt"); a.type = "button";
       a.appendChild(el("b", null, "Load the sample data"));

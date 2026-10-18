@@ -3,6 +3,8 @@
  * Simulated (nothing sent) until the owner adds the Meta secrets + flips liveChannels.whatsapp.
  * The number is ALWAYS the client mobile on the quote (E.164-checked here and again in the DB).
  * Needs "Client agreed to receive WhatsApp updates" ticked (stored with who / when).
+ * FREE TRIAL (0212, owner decision): WhatsApp unlocks on a paid plan - in a free-trial studio the whole box is
+ * HIDDEN (the server refuses a real send anyway, 0179); e-mail is the trial's channel (email-send.js).
  * CSP-safe: DOM built with createElement / textContent, no inline styles or handlers. */
 (function () {
   "use strict";
@@ -96,7 +98,8 @@
     });
     cb.addEventListener("change", function () { msg.textContent = ""; });
     refreshTo(); load();
-    trialOf(opts, S).then(function (t) { if (t !== isTrial) { isTrial = t; refreshTo(); } });
+    // 0212: no WhatsApp option in the free trial - hide the box (a paid plan shows it again)
+    trialOf(opts, S).then(function (t) { if (t !== isTrial) { isTrial = t; refreshTo(); } box.hidden = isTrial === true; });
     return { refresh: load };
   }
 

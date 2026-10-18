@@ -5,7 +5,7 @@
    The server re-checks every permission (booklet_share / booklet_revoke / booklet_current).
    0200: a live link also gets "Send to client" (Email / WhatsApp, address pre-filled from the quote and
    editable, message preview, send log) - the shared box from invite-site-share.js (HelmSendToClient),
-   sending through booklet_send -> comms_outbox -> comms-dispatch. Free trial: nothing is sent.
+   sending through booklet_send -> comms_outbox -> comms-dispatch. Free trial (0212): e-mail is sent (capped), the WhatsApp option is hidden.
    DOM built with textContent / setAttribute only. */
 (function (global) {
   "use strict";

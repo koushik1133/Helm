@@ -11,14 +11,15 @@ const tests = []; const t = (n, f) => tests.push([n, f]);
 
 const man = read('supabase/migrations/MANIFEST');
 const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
-// release/1018-c shipped: its set is frozen (later migrations, e.g. 0210, have their own paste files)
+// release 1018-c = these (frozen); migrations written after it (0212 trial client e-mail, ...) have their own paste file
 const RELEASE = ['0206', '0207', '0208', '0236', '0237'];
-const fresh = nums.filter((n) => +n > 205 && RELEASE.includes(n));
+const after = nums.filter((n) => +n > 205);
+const fresh = after.filter((n) => RELEASE.includes(n));
 t('MANIFEST: each migration number once; the new ones are 0206, 0207, 0208, 0236, 0237 in numeric order', () => {
   assert.equal(new Set(nums).size, nums.length, 'duplicate migration number');
-  assert.deepEqual(fresh, ['0206', '0207', '0208', '0236', '0237']);
-  assert.deepEqual(nums.filter((n) => +n > 205), [...nums.filter((n) => +n > 205)].sort(), 'every migration after 0205 in numeric order');
-  assert.deepEqual([...fresh].sort(), fresh);
+  assert.deepEqual(fresh, RELEASE);
+  assert.deepEqual([...after].sort(), after, 'every migration after 0205 in numeric order');
+  for (const n of after.filter((x) => !RELEASE.includes(x))) assert.ok(read(`supabase/APPLY-${n}.sql`).length > 0, n + ': own paste file');
   assert.equal(nums.indexOf('0205'), nums.indexOf('0206') - 1, '0206 right after 0205');
   assert.deepEqual(nums.filter((n) => +n > 205), [...nums.filter((n) => +n > 205)].sort(), 'later migrations in numeric order too');
 });
