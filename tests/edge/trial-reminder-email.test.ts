@@ -13,15 +13,15 @@ const ENV = { SUPABASE_URL: "https://proj.supabase.co", SUPABASE_SERVICE_ROLE_KE
   HELM_BILLING_REMINDERS_ENABLED: "true", HELM_BILLING_CRON_SECRET: CRON, RESEND_API_KEY: "re_test",
   RESEND_FROM: "Helm <billing@helm.events>", APP_URL: "https://app.helm.test/" };
 
-Deno.test("trial templates: one per kind, distinct subjects, branded, light-only", () => {
+Deno.test("trial templates: one per kind, distinct subjects, branded, shared layout", () => {
   const subjects = new Set<string>();
   for (const k of TRIAL_KINDS) {
     const m = trialMessage(k, "Studio A", "2026-10-20", "https://app.helm.test");
     subjects.add(m.subject);
-    assert(m.html.includes("#6C4CF1"), k + " brand colour");
+    assert(m.html.includes("#0d8a5c"), k + " brand colour");
     assert(m.html.includes("Helm Events"), k + " footer");
-    assert(m.html.includes('content="light"'), k + " light only");
-    assert(!m.html.includes("prefers-color-scheme"), k + " no dark mode");
+    assert(m.html.includes("https://www.helm.events/email/helm-logo.png"), k + " hosted logo");
+    assert(m.html.includes("prefers-color-scheme:dark"), k + " dark-mode aware");
     assert(m.html.includes(">Choose a plan<"), k + " CTA");
     assert(m.html.includes('href="https://app.helm.test/checkout"'), k + " checkout link");
     assert(m.html.includes("2026-10-20"), k + " date");

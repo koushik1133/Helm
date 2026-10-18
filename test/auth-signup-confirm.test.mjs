@@ -89,12 +89,13 @@ t('email templates exist with the required Supabase variables + branding', () =>
     if (n === 'reauthentication') assert.ok(h.includes('{{ .Token }}'), n + ' token');
     else assert.ok(h.includes('{{ .ConfirmationURL }}') && (h.match(/\{\{ \.ConfirmationURL \}\}/g).length >= 2), n + ' url + fallback link');
     assert.ok(h.includes('{{ .Email }}'), n + ' email');
-    assert.ok(h.includes('#6C4CF1'), n + ' brand');
+    assert.ok(h.includes('#0d8a5c') && !/6C4CF1|6d28d9/i.test(h), n + ' emerald brand, no old violet');
     assert.ok(/If you didn't request this, ignore this email/.test(h), n + ' security note');
     assert.ok(h.includes('Helm Events') && h.includes('helm.events'), n + ' footer');
     assert.ok(/prefers-color-scheme:dark/.test(h) && /role="presentation"/.test(h), n + ' dark + tables');
-    assert.ok(!/<img\b/i.test(h), n + ' no external images');
-    assert.ok(!/\{\{ \.(?!ConfirmationURL|Email|SiteURL|Token|NewEmail)\w+/.test(h), n + ' only known variables');
+    assert.deepEqual((h.match(/<img\b[^>]*>/gi) || []).map((x) => x.match(/src="([^"]+)"/)[1]), ['https://www.helm.events/email/helm-logo.png'], n + ' only the hosted logo image');
+    assert.ok(h.includes('width="600"') && /display:none;max-height:0/.test(h), n + ' 600px + preheader');
+    assert.ok(!/\{\{ (?:if )?\.(?!ConfirmationURL|Email|SiteURL|Token|NewEmail|Data\.(?:studio|role|invited_by))\w+/.test(h), n + ' only known variables');
   }
   const r = read('docs/email-templates/README.md');
   assert.match(r, /Authentication → Emails → Templates/);

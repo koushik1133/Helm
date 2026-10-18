@@ -47,7 +47,8 @@ const corsTs = read('supabase/functions/_shared/cors.ts');
 const edge = (() => {
   const ctx = {}; vm.createContext(ctx);
   const np = corsTs.slice(corsTs.indexOf('export function normPhone('), corsTs.indexOf('export const UUID_RE'));
-  vm.runInContext(stripTs(moneyTs) + '\n' + stripTs(tplTs) + '\n' + stripTs(np) +
+  const layoutJs = '\nconst L = (function () {' + stripTs(read('supabase/functions/_shared/email-layout.mjs')) + '\nreturn { layout, h1, para, strong, note, link, button, fallback, codeBox, facts, escHtml, TEXT_FOOTER }; })();\n';
+  vm.runInContext(stripTs(moneyTs) + layoutJs + stripTs(tplTs) + '\n' + stripTs(np) +
     '\nthis.E = { codeMoney, symMoney, quoteCur, razorpaySupports, dialFor, render, normPhone };', ctx);
   return ctx.E;
 })();
