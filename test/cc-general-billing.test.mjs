@@ -86,6 +86,20 @@ t('control.html save: inline errors (all fields, first focused), fresh-row merge
   assert.match(CTL, /i\.value=\$\("#o_state_sel"\)\.value; i\.dispatchEvent\(new Event\("change",\{bubbles:true\}\)\)/);
   assert.match(CTL, /\$\("#o_state"\)\.addEventListener\("change",followTz\)/);
 });
+t('review: the "saved, still fill in" note gives way to the live prompt when typing; no late prompt after save', () => {
+  const live = CTL.slice(CTL.indexOf('function billPromptLive(){'), CTL.indexOf('function saveMsg(k,t){'));
+  assert.match(live, /querySelector\("\.msg\.warn"\)/);
+  assert.match(live, /if\(warnShown\)\{ saveMsg\("",""\); showBillPrompt\(BF\.missingFromValues\(OB, billVals\(\)\)\); return; \}/);
+  assert.match(CTL, /clearTimeout\(bpT\); if\(miss\.length\) \$\("#billPrompt"\)\.hidden=true;/, 'a pending live recompute cannot re-show the yellow prompt next to the after-save message');
+});
+t('review: every onboarding org write merges into the SAVED row (never a tab-cached copy that drops billing)', () => {
+  const ob = read('public/onboarding.js');
+  const bases = ob.match(/const fresh = await BPStore\.org\.current\([^)]*\)/g) || [];
+  assert.equal(bases.length, 3, 'studio/brand, progress and billing writes');
+  bases.forEach((b) => assert.match(b, /\{ fresh: true \}/, b));
+  // each fresh base is used for the save right after it
+  ['W.studioPatch(fresh', 'W.progressPatch(fresh', 'O.billingPatch(fresh'].forEach((s) => assert.ok(ob.includes(s), s));
+});
 
 // ---- store-api: org.save refuses to say "saved" when no row changed; fresh read; swr generation guard ----
 function orgSlice() { return API.slice(API.indexOf('  const org = {'), API.indexOf('  /* ---------------- branded client links')); }

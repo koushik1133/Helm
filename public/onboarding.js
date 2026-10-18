@@ -285,12 +285,14 @@
     const k = Object.keys(r.errors)[0]; const el = k && $("#ob_s_" + k); if (el) el.focus();
     const live = $("#obLive"); if (live) live.textContent = "Please fix " + Object.keys(r.errors).length + " field(s).";
   }
+  // cc-general-billing: every org write merges into the SAVED row (fresh read), never a tab-cached copy that
+  // could pre-date a Control Center save in another tab - that would write the old brand (no billing) back
   async function saveSetting(kind) {
     const vals = readSet(); const st = S.steps[kind];
     try {
       if (kind === "studio" || kind === "brand") {
         const r = kind === "studio" ? W.validateStudio(vals) : W.validateBrand(vals); if (!r.ok) return setFail(kind, r);
-        const fresh = await BPStore.org.current(); if (!fresh) throw new Error("Studio settings aren't available.");
+        const fresh = await BPStore.org.current({ fresh: true }); if (!fresh) throw new Error("Studio settings aren't available.");
         await BPStore.org.save(kind === "studio" ? W.studioPatch(fresh, r.data) : W.brandPatch(fresh, r.data));
         org = await BPStore.org.current();
       } else if (kind === "payment") {
@@ -318,7 +320,7 @@
     if (!canBill || !org || BPStore.mode() !== "supabase") return;
     clearTimeout(progT);
     progT = setTimeout(async () => {
-      try { const fresh = await BPStore.org.current(); if (!fresh) return;
+      try { const fresh = await BPStore.org.current({ fresh: true }); if (!fresh) return;
         const prev = W.progressFromOrg(fresh);
         await BPStore.org.save(W.progressPatch(fresh, { step: keyOf(S.step), done: doneKeys(), skipped: skippedKeys(), completed_at: complete ? new Date().toISOString() : prev.completed_at }));
         org = (await BPStore.org.current()) || org;
@@ -389,7 +391,7 @@
       return;
     }
     try {
-      const fresh = await BPStore.org.current(); if (!fresh) throw new Error("Studio settings aren't available.");
+      const fresh = await BPStore.org.current({ fresh: true }); if (!fresh) throw new Error("Studio settings aren't available.");
       await BPStore.org.save(O.billingPatch(fresh, r.data));
       await syncTaxCountry(r.data.country);
       org = await BPStore.org.current(); bill = { values: {}, errors: {} };

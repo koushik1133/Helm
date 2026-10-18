@@ -1277,7 +1277,13 @@
   function billEl(k){ if(k==="state"){ const s=$("#o_state_sel"); if(s && !s.hidden) return s; } return $("#"+BILL_IDS[k]); }
   // the "Missing: ..." list follows what is on screen (only while it is showing)
   let bpT=0;
-  function billPromptLive(){ if(!OB||!BF||$("#billPrompt").hidden) return; clearTimeout(bpT); bpT=setTimeout(()=>{ const m=BF.missingFromValues(OB, billVals()); showBillPrompt(m); },250); }
+  function billPromptLive(){ if(!OB||!BF) return;
+    // after a "saved, still fill in ..." message: once the studio types again, that message would go
+    // stale - swap it back for the live prompt (still exactly one message on screen)
+    const sm=$("#orgSaveMsg"), warnShown=!!(sm && sm.querySelector(".msg.warn"));
+    if(warnShown){ saveMsg("",""); showBillPrompt(BF.missingFromValues(OB, billVals())); return; }
+    else if($("#billPrompt").hidden) return;
+    clearTimeout(bpT); bpT=setTimeout(()=>{ const m=BF.missingFromValues(OB, billVals()); showBillPrompt(m); },250); }
   Object.keys(BILL_IDS).forEach(k=>{ const el=$("#"+BILL_IDS[k]); if(el) el.addEventListener("input",billPromptLive); });
   function saveMsg(k,t){ const el=$("#orgSaveMsg"); if(el) el.innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
   const SLUG_RE=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
@@ -1364,7 +1370,7 @@
       orgCountry=newCountry;
       // one message only: "saved" - or "saved, but still fill in ..." (the yellow prompt is folded into it)
       const miss=OB?OB.billingMissing(shown):[], m=BF?BF.afterSaveMessage(miss):{ kind:"ok", text:"Studio settings saved." };
-      if(miss.length) $("#billPrompt").hidden=true;
+      clearTimeout(bpT); if(miss.length) $("#billPrompt").hidden=true;
       saveMsg(m.kind, m.text); if(m.kind==="ok") setTimeout(()=>saveMsg("",""),4000); }
     catch(e){ saveMsg("err",errMsg(e,"save studio settings")); }
   }));
