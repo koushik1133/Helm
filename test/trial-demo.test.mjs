@@ -91,7 +91,7 @@ t('0097: admin-gated entry points, flag guard, gate wrappers', () => {
 t('MANIFEST + run-all + versions', () => {
   assert.match(read('supabase/migrations/MANIFEST'), /^forward {2}supabase\/migrations\/0097_trial_demo\.sql$/m);
   assert.match(read('scripts/db-test/run-all.sh'), /tests\/db\/trial-demo-0097\.sql/);
-  assert.match(API, /const AUTH_UI_VERSION = "35";/);
+  assert.match(API, /const AUTH_UI_VERSION = "36";/);
 });
 t('0100: seed / reset / load errors are shown (friendlyError toast) with a busy button state', () => {
   assert.match(TD, /BPUI\.friendlyError\(e, \{ action: action \|\| "load the demo data" \}\)/);
@@ -129,7 +129,7 @@ console.log(`trial-demo: ${n} passed`);
   t('0123: start fresh calls the existing clear RPC only; onboarding hook; read-only migration', () => {
     const b = fnSrc(TD, 'startFresh');
     assert.match(b, /S\(\)\.demo\.clear\(\)/); assert.doesNotMatch(b, /rpc\(|delete/);
-    assert.match(read('public/onboarding.html'), /<script src="trial-demo\.js\?v=8"><\/script>/);
+    assert.match(read('public/onboarding.html'), /<script src="trial-demo\.js\?v=9"><\/script>/);
     const M = read('supabase/migrations/0123_trial_start_fresh.sql');
     assert.doesNotMatch(M.replace(/--.*$/gm, ''), /delete from|update public|insert into|drop |truncate/i);
     assert.doesNotMatch(M, /[^\x00-\x7f]/);

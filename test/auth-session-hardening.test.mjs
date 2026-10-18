@@ -63,7 +63,7 @@ function makeEnv(o = {}) {
   const loc = { pathname: o.path || '/dashboard', search: o.search || '', hash: o.hash || '', origin: 'https://www.helm.events', href: '', hostname: 'www.helm.events',
     replace(u) { calls.push(['location.replace', u]); }, reload() { calls.push(['location.reload']); } };
   const doc = {
-    readyState: 'loading', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=1' },
+    readyState: 'loading', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=247' },
     createElement: (tag) => ({ tag, style: {}, setAttribute() {}, appendChild() {}, addEventListener() {}, querySelector: () => null, remove() {}, set src(v) { calls.push(['script', v]); }, get src() { return ''; } }),
     head: { appendChild() {} }, body: { appendChild() {}, insertBefore() {} }, documentElement: { setAttribute() {}, getAttribute() { return 'light'; } },
     querySelector: () => null, querySelectorAll: () => [], getElementById: () => null, hidden: false,

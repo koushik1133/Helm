@@ -115,7 +115,7 @@ t('trial intent: ?trial=1 on, ?trial=0 off, stored for 2 days', () => {
   assert.equal(signup.intentFrom('', 'junk', now), false);
 });
 t('login wiring: trial-signup.js loaded, every studio creation goes through makeStudio', () => {
-  assert.match(LOGIN, /<script src="\/trial-signup\.js\?v=3"><\/script>/);
+  assert.match(LOGIN, /<script src="\/trial-signup\.js\?v=9"><\/script>/);
   assert.ok(!/BPStore\.org\.createStudio\((studio|name),\s*\{/.test(LOGIN), 'no direct createStudio left');
   assert.equal((LOGIN.match(/await makeStudio\(/g) || []).length, 3);
   assert.match(LOGIN, /BPTrialSignup\.apply\(m, JOINING\)/);

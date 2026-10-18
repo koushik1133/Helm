@@ -515,7 +515,8 @@
     function build() {
       var on = trial ? !!st.base.active : !!act.checked;
       var pr = checkPrice(price.value, { active: on, base: st.base.price, badInput: !!(price.validity && price.validity.badInput) });
-      var dr = checkDishes(st.dishes, { active: on });
+      // free trial: an untouched (e.g. empty legacy) dish list never blocks a price change; edited dishes are checked
+      var dr = trial && same(st.dishes, st.base.dishes) ? { ok: true } : checkDishes(st.dishes, { active: on });
       return { pr: pr, dr: dr, on: on };
     }
     function lock(on) {

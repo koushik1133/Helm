@@ -88,8 +88,8 @@ t('6. Pricing shows the country read-only; General is the one place to change it
   assert.match(HTML, /\$\("#p_country"\)\.value=newCountry;/);
 });
 t('version pins bumped', () => {
-  assert.match(HTML, /control-split\.js\?v=13/);
-  assert.match(HTML, /control-split\.css\?v=8/);
-  assert.match(HTML, /venues\.css\?v=4/);
+  assert.match(HTML, /control-split\.js\?v=14/);
+  assert.match(HTML, /control-split\.css\?v=9/);
+  assert.match(HTML, /venues\.css\?v=6/);
 });
 console.log(`cc-unsaved-layout: ${n} passed`);

@@ -197,8 +197,8 @@ t('resume: per user, unfinished quotes only, deep link to the last section', () 
   assert.equal(R.unfinished({ status: 'quote' }), true);
   for (const q of [{ status: 'confirmed' }, { status: 'cancelled' }, { lifecycleStage: 'closed' }, { status: 'quote', archivedAt: 'x' }, { status: 'quote', deletedAt: 'x' }, null]) assert.equal(R.unfinished(q), false);
   R.clear('u1', 'q9'); assert.equal(R.read('u1'), null);
-  assert.match(read('public/quotes.html'), /<script src="flow-resume\.js\?v=1" data-mount><\/script>/);
-  assert.match(read('public/dashboard.html'), /<script src="flow-resume\.js\?v=1" data-mount><\/script>/);
+  assert.match(read('public/quotes.html'), /<script src="flow-resume\.js\?v=2" data-mount><\/script>/);
+  assert.match(read('public/dashboard.html'), /<script src="flow-resume\.js\?v=2" data-mount><\/script>/);
   assert.match(flow, /HelmFlowResume\.record\(userId,\{ quoteId:id,/);
   assert.match(flow, /HelmFlowResume\.lastStep\(userId,id\)/);
 });
@@ -214,7 +214,7 @@ t('new quotes elsewhere: lead Convert + quote modal refuse a past event date (st
   assert.match(Q, /if\(\(dv && dv<today && dv!==sv\) \|\| \(!dv && de\.getAttribute\("data-date-rejected"\)==="past"\)\)\{ errEl\.textContent="Event date can't be in the past\.";/);
 });
 t('pins', () => {
-  assert.match(flow, /flow-validate\.js\?v=1/); assert.match(flow, /flow-resume\.js\?v=1/);
-  assert.match(flow, /flow-autosave\.js\?v=2/); assert.match(flow, /flow-polish\.css\?v=4/);
+  assert.match(flow, /flow-validate\.js\?v=2/); assert.match(flow, /flow-resume\.js\?v=2/);
+  assert.match(flow, /flow-autosave\.js\?v=3/); assert.match(flow, /flow-polish\.css\?v=5/);
 });
 console.log(`flow-validation: ${n} passed`);

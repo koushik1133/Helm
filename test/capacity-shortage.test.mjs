@@ -94,7 +94,7 @@ async function makeEnv(o = {}) {
     if (q.table === 'role_access') return { data: [], error: null };
     return (o.respond || (() => ({ data: [], error: null })))(q);
   }, o.rpcs);
-  const doc = { readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=1' },
+  const doc = { readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=247' },
     createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, addEventListener() {}, querySelector: () => null, remove() {} }),
     head: { appendChild() {} }, body: { appendChild() {}, removeChild() {}, children: [] },
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; }, classList: { contains: () => false, add() {}, remove() {} } },

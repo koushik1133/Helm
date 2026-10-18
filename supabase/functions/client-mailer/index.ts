@@ -11,11 +11,11 @@
 //
 // Delivery: _shared/mailer.ts (Resend, else SMTP_* e.g. Gmail, else not_configured).
 // Answer: { status: "sent" | "not_configured" | "failed" | "test_mode", masked, reason? }.
-// 0179: a free-trial studio (studio_subscriptions.status 'trial') e-mails NO client: checked with the
-// service role (trial_send_blocked) before the send -> { status: "not_configured", trial: true }
-// (the screen says "Not sent ... Use Copy link"); nothing is sent, the log row says "simulated".
-// Then the 0166 rule (_shared/trial-outbound.ts) as a second gate: a trial / sample studio sends NOTHING -
-// the row is logged 'suppressed' (suppressed_by trial) and the answer is status "test_mode".
+// Free trial (0166 rule, _shared/trial-outbound.ts, first gate): a trial / sample studio sends NOTHING -
+// the row is logged 'suppressed' (suppressed_by trial) and the answer is status "test_mode"; when the
+// plan cannot be read: 503 failed, nothing sent.
+// 0179 (second gate): trial_send_blocked asked with the service role right before the send (fails
+// closed) -> { status: "not_configured", trial: true }; nothing is sent, the log row says "simulated".
 // (The "Share booklet" dialog's Send to client goes through booklet_send / comms_outbox, 0200.)
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, isAllowedOrigin, responders, UUID_RE } from "../_shared/cors.ts";
@@ -86,14 +86,6 @@ Deno.serve(async (req) => {
       : origin + "/booklet?t=" + encodeURIComponent(token);
 
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-    // 0179: no e-mail to a client from a free-trial studio
-    if (await trialSendBlocked(admin, { org: String(q.org_id || "") || null, quote: quoteId })) {
-      const { error: tErr } = await admin.from("notifications").insert({
-        quote_id: quoteId, channel: "email", recipient: to, kind: kind === "approval" ? "approval_link" : "booklet_link", status: "simulated",
-      });
-      if (tErr) console.error("client-mailer: log insert failed", errTag(tErr));
-      return json({ status: "not_configured", trial: true, masked: maskEmail(to), reason: "e-mails to clients are not sent during the free trial" });
-    }
     const { data: org } = await admin.from("organizations").select("name, business_email").eq("id", q.org_id).maybeSingle();
     const studio = (org && org.name) || "";
     const logKind = kind === "approval" ? "approval_link" : "booklet_link";
@@ -109,6 +101,15 @@ Deno.serve(async (req) => {
       if (sErr) console.error("client-mailer: log insert failed", errTag(sErr));
       if (gate.unknown) return json({ status: "failed", masked, error: "could not check the studio plan - nothing was sent, try again", reason: "could not check the studio plan - nothing was sent, try again" }, 503);
       return json({ status: "test_mode", masked, reason: TEST_MODE_TEXT });
+    }
+
+    // 0179 (second gate): no e-mail to a client from a free-trial studio (trial_send_blocked, fails closed)
+    if (await trialSendBlocked(admin, { org: String(q.org_id || "") || null, quote: quoteId })) {
+      const { error: tErr } = await admin.from("notifications").insert({
+        quote_id: quoteId, channel: "email", recipient: to, kind: kind === "approval" ? "approval_link" : "booklet_link", status: "simulated",
+      });
+      if (tErr) console.error("client-mailer: log insert failed", errTag(tErr));
+      return json({ status: "not_configured", trial: true, masked: maskEmail(to), reason: "e-mails to clients are not sent during the free trial" });
     }
 
     const envGet = (k: string) => Deno.env.get(k);

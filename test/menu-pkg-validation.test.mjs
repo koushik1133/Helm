@@ -221,15 +221,16 @@ t("failed save stays unsaved and says so", async () => {
   assert.equal(m.calls.length, 1); assert.equal(m.state._t, "Not saved"); assert.ok(m.state.classList.contains("bad"));
   assert.equal(m.price.value, "900", "the typed value is kept"); assert.equal(m.tr.dirty, true, "leave-page warning still on");
 });
-t("paid save sends dishes + active only when they changed; trial sends only the price", async () => {
+t("paid save sends dishes + active only when they changed; trial never sends active, dishes only when changed", async () => {
   let m = mount();
   const x = one(m.box, "mpk-x"); x.click();
   m.save.click(); await tick();
   assert.deepEqual(m.calls[0], { dishes: [{ c: "Desserts", n: "Gulab jamun", k: "veg" }] });
   m = mount({ trial: true, pkg: { dishes: [] } });
-  assert.equal(one(m.box, "mpk-add"), undefined, "no add-dish row in the trial"); assert.equal(m.act.disabled, true);
+  // merged with the picker review: the trial gets the add-dish row (catalog dishes only), the switch stays fixed
+  assert.notEqual(one(m.box, "mpk-add"), undefined, "add-dish row in the trial (catalog only)"); assert.equal(m.act.disabled, true);
   m.setPrice("999"); m.save.click(); await tick();
-  assert.deepEqual(m.calls[0], { price_per_plate: 999 }, "trial: price only, empty legacy list not blocked (dishes are fixed)");
+  assert.deepEqual(m.calls[0], { price_per_plate: 999 }, "trial: price only, an untouched empty legacy list is not blocked");
   m = mount({ trial: true }); m.setPrice(""); m.save.click();
   assert.equal(m.calls.length, 0, "trial: a cleared price is refused too");
 });

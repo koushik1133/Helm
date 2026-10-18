@@ -339,7 +339,9 @@ select item, ok from (values
       exists (select 1 from pg_trigger where tgrelid = 'public.comms_outbox'::regclass and tgname = 'zzzz_ts166_outbox_skip')),
   ('04 claim wrapper: invite rows re-checked, previous claim kept (service role only)',
       to_regprocedure('public.comms_outbox_claim__pre0195(integer)') is not null
-      and position('comms_outbox_claim__pre0195' in pg_get_functiondef('public.comms_outbox_claim(integer)'::regprocedure)) > 0
+      -- (after APPLY-0200 the 0195 wrapper sits one level down, as comms_outbox_claim__pre0200)
+      and (position('comms_outbox_claim__pre0195' in pg_get_functiondef('public.comms_outbox_claim(integer)'::regprocedure)) > 0
+           or position('comms_outbox_claim__pre0195' in coalesce(pg_get_functiondef(to_regprocedure('public.comms_outbox_claim__pre0200(integer)')), '')) > 0)
       and has_function_privilege('service_role', 'public.comms_outbox_claim(integer)', 'execute')
       and not has_function_privilege('authenticated', 'public.comms_outbox_claim(integer)', 'execute')
       and not has_function_privilege('authenticated', 'public.comms_outbox_claim__pre0195(integer)', 'execute')),

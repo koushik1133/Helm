@@ -93,7 +93,7 @@ async function makeEnv(o = {}) {
     },
   };
   const doc = {
-    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=1' },
+    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=247' },
     createElement: (tag) => Object.assign(el(), { tagName: String(tag).toUpperCase(), remove() { this.isConnected = false; } }),
     head: { appendChild() {} }, body: { appendChild() {}, removeChild() {}, children: [] },
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; }, classList: { contains: () => false, add() {}, remove() {} } },

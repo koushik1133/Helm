@@ -134,7 +134,7 @@ function makeEnv(trialOrg, role) {
       then: (res, rej) => Promise.resolve({ data: [{ area: 'leads', can_view: true, can_edit: true }], error: null }).then(res, rej) }; return q; },
   };
   const el = (tag) => ({ tag, style: {}, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, appendChild() {}, addEventListener() {}, querySelector: () => null, remove() {} });
-  const doc = { readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=1' },
+  const doc = { readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=247' },
     createElement: el, head: { appendChild() {} }, body: { children: [], appendChild(c) { this.children.push(c); }, removeChild() {}, get firstChild() { return null; } },
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; }, classList: { contains: () => false, add() {}, remove() {} } },
     querySelector: () => null, querySelectorAll: () => [], getElementById: () => null };

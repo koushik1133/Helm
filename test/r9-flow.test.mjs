@@ -36,7 +36,7 @@ t('closure re-open: server sentence shown, not a generic retry line', () => {
 t('pages bumped', () => {
   for (const p of ['quotes.html', 'dashboard.html', 'closure.html', 'flow.html']) {
     const h = read('public/' + p);
-    assert.match(h, /store-api\.js\?v=246/, p);
+    assert.match(h, /store-api\.js\?v=247/, p);
   }
 });
 console.log(`r9-flow: ${n} passed`);
@@ -82,7 +82,7 @@ t('badge paint: hidden by default, text + clickable only on error', () => {
 t('flow.html wiring: badges start empty, autosave sections, beforeunload uses unsaved(), quotation stays explicit', () => {
   const h = read('public/flow.html');
   assert.doesNotMatch(h, /id="sv-\w+"[^>]*>Saved ✓</);
-  assert.match(h, /flow-autosave\.js\?v=2/);
+  assert.match(h, /flow-autosave\.js\?v=3/);
   assert.match(h, /client:\(\)=>saveClient\(true\), discovery:saveDiscovery, venue:saveVenue, menu:saveMenuNotes, proposal:saveProposal/);
   assert.match(h, /beforeunload",\(e\)=>\{ if\(unsaved\(\) && !leaving\)/);
   assert.match(h, /if\(AS\) await AS\.flush\(\)/);

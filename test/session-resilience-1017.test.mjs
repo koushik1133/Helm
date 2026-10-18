@@ -37,7 +37,7 @@ function env(o = {}) {
     replace(u) { calls.push(['replace', u]); }, reload() { calls.push(['reload']); } };
   const el = () => ({ style: {}, setAttribute() {}, appendChild() {}, addEventListener() {}, querySelector: () => null, remove() {} });
   const body = { children: [], appendChild(c) { this.children.push(c); calls.push(['body.append']); }, removeChild() {}, get firstChild() { return null; }, insertBefore() {} };
-  const doc = { readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=1' }, createElement: el, head: { appendChild() {} }, body,
+  const doc = { readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=247' }, createElement: el, head: { appendChild() {} }, body,
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; }, classList: { contains: (c) => cls.has(c), add: (c) => cls.add(c), remove: (c) => { cls.delete(c); calls.push(['reveal']); } } },
     querySelector: () => null, querySelectorAll: () => [], getElementById: () => null };
   const win = { SUPABASE_CONFIG: { url: 'https://abcdefghijklmnopqrst.supabase.co', anonKey: 'anon' }, supabase: { createClient: () => client },

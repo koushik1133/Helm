@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/control-polish.css?v=3">
+<link rel="stylesheet" href="/control-polish.css?v=4">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -212,14 +212,14 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=1">
 <link rel="stylesheet" href="comms-settings.css?v=2">
-<link rel="stylesheet" href="venues.css?v=5">
-<link rel="stylesheet" href="studio-templates.css?v=3"><link rel="stylesheet" href="asset-price-grid.css?v=1">
-<link rel="stylesheet" href="menu-pkg-editor.css?v=1">
-<link rel="stylesheet" href="theme.css?v=81">
+<link rel="stylesheet" href="venues.css?v=6">
+<link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
+<link rel="stylesheet" href="menu-pkg-editor.css?v=2">
+<link rel="stylesheet" href="theme.css?v=82">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<link rel="stylesheet" href="control-split.css?v=8">
-<script src="/shell-proto.js?v=25" id="shellProto"></script>
+<link rel="stylesheet" href="control-split.css?v=9">
+<script src="/shell-proto.js?v=26" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -763,34 +763,34 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="phone-input.js?v=4"></script>
+<script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=246"></script>
-<script src="event-reminders.js?v=2"></script><script src="cc-field-rules.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
+<script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="tour.js?v=16"></script>
-<script src="pkg-review.js?v=5"></script>
-<script src="onboarding-core.js?v=6"></script>
-<script src="studio-billing-form.js?v=1"></script>
-<script src="comms-settings.js?v=4"></script>
+<script src="tour.js?v=17"></script>
+<script src="pkg-review.js?v=6"></script>
+<script src="onboarding-core.js?v=7"></script>
+<script src="studio-billing-form.js?v=2"></script>
+<script src="comms-settings.js?v=5"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=1"></script>
-<script src="cc-inputs.js?v=2"></script>
-<script src="privacy-pin-settings.js?v=3"></script>
-<script src="venues-core.js?v=6"></script>
-<script src="venues-admin.js?v=6"></script>
-<script src="studio-templates-core.js?v=2"></script>
-<script src="studio-templates.js?v=5"></script>
+<script src="cc-inputs.js?v=3"></script>
+<script src="privacy-pin-settings.js?v=4"></script>
+<script src="venues-core.js?v=7"></script>
+<script src="venues-admin.js?v=7"></script>
+<script src="studio-templates-core.js?v=3"></script>
+<script src="studio-templates.js?v=6"></script>
 <script src="item-pricing.js?v=1"></script>
-<script src="asset-price-grid.js?v=1"></script><script src="pricing-form-core.js?v=1"></script><script src="menu-pkg-editor.js?v=1"></script>
-<script src="trial-demo.js?v=8"></script>
-<script src="trial-upgrade.js?v=1"></script>
+<script src="asset-price-grid.js?v=2"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=2"></script>
+<script src="trial-demo.js?v=9"></script>
+<script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
 <script src="search-catalog.js?v=2"></script>
-<script src="control-split.js?v=13"></script>
+<script src="control-split.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1404,7 +1404,7 @@
     const V=BPStore.validate, card=$("#o_save").closest(".card"), G=ccGen();
     saveMsg("",""); if(BF) BF.clearAll(card);
     // cc-inputs-sweep-a: the bound General inputs show their own message under the field (first one focused)
-    if(G && window.HelmCCInputs.first([G.name,G.email,G.phone,G.logo,G.accent,G.currency,G.tz,G.tax])){ orgMsg("",""); return; }
+    if(G && window.HelmCCInputs.first([G.name,G.email,G.phone,G.logo,G.accent,G.currency,G.tz,G.tax])){ saveMsg("",""); return; }
     const ccv=(b,id)=>{ const v=b?b.value():null; return v!=null?v:$("#"+id).value.trim(); };   // trimmed + normalised (e-mail lower-case, #rrggbb, https)
     // cc-general-billing: every problem is shown UNDER its own field (red border), the first one is focused
     const errs=[]; const bad=(el,msg)=>{ if(el && !errs.some(x=>x.el===el)) errs.push({ el, msg }); };

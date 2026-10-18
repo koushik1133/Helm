@@ -127,7 +127,9 @@ t('pages host the cards and load trial-upgrade.js after trial-demo.js', () => {
   assert.match(d, /id="tuCard" data-tu-auto hidden/); assert.match(c, /id="tuControl" data-tu-control hidden/);
   assert.match(d, /trial-demo\.js\?v=\d+"><\/script>\n<script src="trial-upgrade\.js\?v=\d+"><\/script>/);
   assert.match(c, /trial-demo\.js\?v=\d+"><\/script>\n<script src="trial-upgrade\.js\?v=\d+"><\/script>/);
-  assert.match(c, /\$\{t\.is_demo\?'<span class="hs-tag hs-solo">Sample<\/span>':''\}/, 'sample packages tagged');
+  // menu packages are drawn by menu-pkg-editor.js (feat/menu-package-picker): the Sample tag lives there
+  assert.match(readFileSync(new URL('../public/menu-pkg-editor.js', import.meta.url), 'utf8'),
+    /if \(t\.is_demo\) title\.appendChild\(el\("span", "hs-tag hs-solo", "Sample"\)\);/, 'sample packages tagged');
   assert.match(c, /\$\{x\.is_demo\?'<span class="hs-tag hs-solo">Sample<\/span>':''\}/, 'sample dishes tagged');
 });
 t('checkout: after a verified payment trial-upgrade.js offers the choice', () => {

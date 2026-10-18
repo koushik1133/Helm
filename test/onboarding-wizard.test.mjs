@@ -82,7 +82,7 @@ t('UI wiring: steps, Save & continue / Back / Skip for now, smart import feature
   assert.doesNotMatch(js + w, /\.delete\(|hardDelete/);
   assert.doesNotMatch(w, /style=|innerHTML/);
   assert.match(d, /<section id="obNudge" class="ob-nudge" hidden aria-label="Studio setup"><\/section>/);
-  assert.match(d, /<script src="onboarding-wizard\.js\?v=8"><\/script>/);
+  assert.match(d, /<script src="onboarding-wizard\.js\?v=9"><\/script>/);
   assert.match(w, /global\.HelmCountry/);
 });
 let n = 0;

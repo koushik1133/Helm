@@ -70,6 +70,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0184_trial_retention.sql
 -- 0198 adds its two event tables (event_cancellations, calendar_conflict_acks) to the purge list on top of 0184
 \ir ../../supabase/migrations/0198_event_stages_closure.sql
+-- 0201 (release integration) adds 0194's chat_group_contacts to the purge list on top of 0184
+\ir ../../supabase/migrations/0201_release_integration.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin

@@ -25,7 +25,7 @@
   }
   function css() {
     if (!doc || doc.getElementById("capShortCss")) return;
-    var l = doc.createElement("link"); l.id = "capShortCss"; l.rel = "stylesheet"; l.href = "/capacity-shortage.css?v=1";
+    var l = doc.createElement("link"); l.id = "capShortCss"; l.rel = "stylesheet"; l.href = "/capacity-shortage.css?v=2";
     (doc.head || doc.documentElement).appendChild(l);
   }
   function toast(msg, type) { try { global.BPUI.toast(msg, { type: type || "info", timeout: 7000 }); } catch (e) {} }

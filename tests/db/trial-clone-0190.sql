@@ -88,7 +88,12 @@ set local statement_timeout = '8s';
 do $$ begin
   perform pg_temp.res('01 0190 clone + trial start installed',
     position('trial-clone-0190' in (select prosrc from pg_proc where oid = 'public._sample_clone_into__pre0168(uuid)'::regprocedure)) > 0
-    and position('trial-clone-0190' in (select prosrc from pg_proc where oid = 'public.start_self_serve_trial(text,text,text,text)'::regprocedure)) > 0
+    -- release-0201: after the trial bundle (0180 + 0186) the entry point is the 0186 one-trial wrapper over the
+    -- 0180 body; 0190's cheap path holds when no function in that chain reads pg_timezone_names
+    and (position('trial-clone-0190' in (select prosrc from pg_proc where oid = 'public.start_self_serve_trial(text,text,text,text)'::regprocedure)) > 0
+         or (position('one-trial-0186' in (select prosrc from pg_proc where oid = 'public.start_self_serve_trial(text,text,text,text)'::regprocedure)) > 0
+             and position('trial-signup-0180' in (select prosrc from pg_proc where oid = 'public.start_self_serve_trial__pre0186(text,text,text,text)'::regprocedure)) > 0
+             and position('pg_timezone_names' in (select prosrc from pg_proc where oid = 'public.start_self_serve_trial__pre0186(text,text,text,text)'::regprocedure)) = 0))
     and position('pg_timezone_names' in (select prosrc from pg_proc where oid = 'public.start_self_serve_trial(text,text,text,text)'::regprocedure)) = 0);
   perform pg_temp.res('02 app roles cannot run the clone / tz helper; can start a trial',
     not has_function_privilege('authenticated', 'public._sample_clone_into__pre0168(uuid)', 'execute')
@@ -156,18 +161,20 @@ do $$ declare r jsonb := pg_temp.get('tc90_google@t.test')::jsonb; j jsonb; begi
     and not exists (select 1 from public.inventory_items a join public.inventory_items b on a.id = b.id and a.org_id <> b.org_id));
 exception when others then perform pg_temp.su(); insert into _uf values ('2x google', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
--- ---- 3x: 'own data' stays empty (by design); "Load demo data" later clones the same sample --------
+-- ---- 3x: an 'own data' request (0180, trial bundle: every free trial starts WITH the sample data) gets the
+-- full sample anyway; "Load demo data" afterwards finds it already cloned and duplicates nothing ----------
 do $$ begin perform pg_temp.signup('tc90_own@t.test', 'ABCD', 'own');
 exception when others then perform pg_temp.su(); insert into _uf values ('signup ' || 'tc90_own@t.test', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
-do $$ declare r jsonb := pg_temp.get('tc90_own@t.test')::jsonb; j jsonb; s jsonb; begin
+do $$ declare r jsonb := pg_temp.get('tc90_own@t.test')::jsonb; j jsonb; j2 jsonb; s jsonb; begin
   j := pg_temp.seen('tc90_own@t.test');
-  perform pg_temp.res('30 own: started, nothing seeded', r ->> 'result' = 'started' and r -> 'seed' = 'null'::jsonb
-    and (j ->> 'inventory')::int = 0 and (j ->> 'leads')::int = 0 and (j ->> 'events')::int = 0, r::text || ' ' || j::text);
+  perform pg_temp.res('30 own request: started in demo mode with the full sample (0180)', r ->> 'result' = 'started' and r ->> 'mode' = 'demo'
+    and (r #>> '{seed,cloned}')::boolean and pg_temp.full_v(j), r::text || ' ' || j::text);
   perform pg_temp.login('tc90_own@t.test');
   s := public.seed_demo_data();
   perform pg_temp.su();
-  j := pg_temp.seen('tc90_own@t.test');
-  perform pg_temp.res('31 own -> Load demo data: full sample', (s ->> 'cloned')::boolean and pg_temp.full_v(j), coalesce(s::text, '') || ' ' || j::text);
+  j2 := pg_temp.seen('tc90_own@t.test');
+  perform pg_temp.res('31 Load demo data again: already cloned, nothing duplicated', not coalesce((s ->> 'cloned')::boolean, false)
+    and j2 = j, coalesce(s::text, '') || ' ' || j2::text);
 exception when others then perform pg_temp.su(); insert into _uf values ('3x own', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 -- ---- 4x: prod shape - create_studio() copies the Helm library studio's dishes + packages ---------
