@@ -80,7 +80,7 @@ do $$ declare a uuid; b uuid; o public.organizations; r jsonb; begin
   update public.helm_sample_template set active = true where id;
   a := pg_temp.trial('td_a@t.test', 'UTC', 'USD');
   select * into o from public.organizations where id = a;
-  perform pg_temp.res('20 trial cloned from v3 (0169 on top of v2)', o.sample_version = 3, coalesce(o.sample_version::text, 'null'));
+  perform pg_temp.res('20 trial cloned from v4 (0169 + 0170 on top of v2)', o.sample_version = 4, coalesce(o.sample_version::text, 'null'));
   perform pg_temp.res('21 trial studio INR + Asia/Kolkata + IN (browser said USD / UTC)', o.currency = 'INR' and o.timezone = 'Asia/Kolkata' and o.country = 'IN',
     o.currency || ' ' || o.timezone || ' ' || coalesce(o.country, ''));
   perform pg_temp.res('22 trial payment terms', exists (select 1 from public.app_config where org_id = a and key = 'pricing'

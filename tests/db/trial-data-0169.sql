@@ -45,8 +45,8 @@ end $$;
 
 do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_trial_seed_manifest; L jsonb; s jsonb; dj jsonb; ax numeric; ay numeric; begin
   perform pg_temp.su();
-  select * into mf from public.helm_trial_seed_manifest where is_current;
-  perform pg_temp.res('01 manifest v3 current, v2 kept', mf.version = 3 and mf.notes = 'v3: wedding layout template, coupons, T&C, GST, run sheets'
+  select * into mf from public.helm_trial_seed_manifest where version = 3;
+  perform pg_temp.res('01 manifest v3 kept (v4 current after 0170), v2 kept', mf.version = 3 and mf.notes = 'v3: wedding layout template, coupons, T&C, GST, run sheets'
     and exists (select 1 from public.helm_trial_seed_manifest where version = 2 and not is_current));
   select data into L from public.studio_layout_templates where org_id = M and name = E'Demo \u00b7 Wedding \u2014 Grand Lawn (450+ guests)' and not archived;
   perform pg_temp.res('02 wedding layout template in the master (71 objects, wedding)', jsonb_array_length(L -> 'items') = 71
@@ -102,7 +102,7 @@ do $$ declare a uuid; o public.organizations; r jsonb; M uuid := 'a5a5a5a5-0166-
   update public.helm_sample_template set active = true where id;
   a := pg_temp.trial('td3_a@t.test', 'UTC', 'USD');
   select * into o from public.organizations where id = a;
-  perform pg_temp.res('20 trial cloned from v3', o.sample_version = 3, coalesce(o.sample_version::text, 'null'));
+  perform pg_temp.res('20 trial cloned from v4 (0170 on top of v3)', o.sample_version = 4, coalesce(o.sample_version::text, 'null'));
   perform pg_temp.res('21b trial has all 3 layout templates', (select count(*) from public.studio_layout_templates where org_id = a and not archived) = 3);
   perform pg_temp.res('21 trial has the wedding layout template', exists (select 1 from public.studio_layout_templates where org_id = a and not archived
     and name = E'Demo \u00b7 Wedding \u2014 Grand Lawn (450+ guests)' and jsonb_array_length(data -> 'items') = 71));
