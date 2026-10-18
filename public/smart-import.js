@@ -32,7 +32,7 @@
   const friendly = (e, action) => { try { return root.BPUI.friendlyError(e, { action }); } catch (x) { return (e && e.message) || "Something went wrong."; } };
   function ensureCss() {
     if (document.getElementById("hi-css")) return;
-    document.head.appendChild(h("link", { id: "hi-css", rel: "stylesheet", href: "smart-import.css?v=1" }));
+    document.head.appendChild(h("link", { id: "hi-css", rel: "stylesheet", href: "smart-import.css?v=2" }));
   }
   function download(name, text) {
     const url = URL.createObjectURL(new Blob(["\uFEFF" + text], { type: "text/csv;charset=utf-8" }));

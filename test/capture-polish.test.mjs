@@ -130,7 +130,7 @@ t('recents: one entry per record (builder/flow/event of a quote share a key)', (
 t('flow + client pages record recents with kind and title', () => {
   assert.match(read('public/flow.html'), /HelmTrail\.setCurrent\(\{title:\[ev\.code,ev\.title\][^}]*kind:"quote",href:"flow\.html\?quote="/);
   assert.match(read('public/client.js'), /setCurrent\(\{ title: model\.client\.name, kind: "client", href: "client\.html\?id="/);
-  assert.match(read('public/store-api.js'), /NAV_TRAIL_VERSION = "4"/);
+  assert.match(read('public/store-api.js'), /NAV_TRAIL_VERSION = "5"/);
 });
 t('design.html: code · title heading, builder/quote links, stage hints', () => {
   const h = read('public/design.html');

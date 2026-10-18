@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
   *{box-sizing:border-box} [hidden]{display:none!important}
@@ -160,7 +160,7 @@
   /* ---- Compliance / GDPR export card (premium) ---- */
   .compliance{
     --cx-surface:#fafafa; --cx-surface-2:#f4f4f5; --cx-border:#e4e4e7; --cx-ink:#18181b; --cx-ink-2:#52525b; --cx-ink-3:#71717a;
-    --cx-accent:#4338ca; --cx-accent-2:#4f46e5; --cx-emerald:#047857; --cx-emerald-soft:#ecfdf5; --cx-emerald-border:#a7f3d0;
+    --cx-accent:#047857; --cx-accent-2:#036b4d; --cx-emerald:#047857; --cx-emerald-soft:#ecfdf5; --cx-emerald-border:#a7f3d0;
     --cx-crimson:#b91c1c; --cx-crimson-soft:#fef2f2; --cx-crimson-border:#fecaca;
     background:var(--cx-surface); border:1px solid var(--cx-border); border-radius:16px;
     box-shadow:0 1px 2px rgba(24,24,27,.04), 0 12px 28px -14px rgba(24,24,27,.18);
@@ -168,7 +168,7 @@
   }
   .compliance .cx-head{display:flex;align-items:center;gap:11px;margin-bottom:6px}
   .compliance .cx-ic{width:38px;height:38px;flex:0 0 auto;border-radius:10px;display:grid;place-items:center;
-    background:linear-gradient(135deg,var(--cx-accent),var(--cx-accent-2));color:#fff;box-shadow:0 4px 12px -4px rgba(67,56,202,.5)}
+    background:linear-gradient(135deg,var(--cx-accent),var(--cx-accent-2));color:#fff;box-shadow:0 4px 12px -4px rgba(4,120,87,.5)}
   .compliance .cx-ic svg{width:20px;height:20px;display:block}
   .compliance .cx-title{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em;color:var(--cx-ink);text-transform:none}
   .compliance .cx-sub{margin:8px 0 0;font-size:13.5px;line-height:1.55;color:var(--cx-ink-2)}
@@ -206,15 +206,15 @@
   }
   .cfline{display:block;font-size:12px;color:var(--ink-3)}.cfname{flex:1;min-width:0}.cfmeta{font-size:12px;color:var(--ink-3)}.cfoff{opacity:.6}
 </style>
-<link rel="stylesheet" href="pkg-review.css?v=1">
+<link rel="stylesheet" href="pkg-review.css?v=2">
 <link rel="stylesheet" href="comms-settings.css?v=2">
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="studio-templates.css?v=1">
-<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="theme.css?v=81">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<link rel="stylesheet" href="control-split.css?v=7">
-<script src="/shell-proto.js?v=24" id="shellProto"></script>
+<link rel="stylesheet" href="control-split.css?v=8">
+<script src="/shell-proto.js?v=25" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -267,7 +267,7 @@
         <div class="fld"><label for="o_phone">Business phone</label><input id="o_phone" type="tel" autocomplete="tel" maxlength="24" placeholder="+91 98765 43210"></div>
         <div class="fld"><label for="o_location">Location (city, country)</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
         <div class="fld"><label for="o_logo">Logo URL</label><input id="o_logo" type="url" placeholder="https://…/logo.png"></div>
-        <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" placeholder="#6d28d9"></div>
+        <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" placeholder="#047857"></div>
         <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" placeholder="INR"></div>
         <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" placeholder="Asia/Kolkata"></div>
         <div class="fld"><label for="o_gst" id="o_gst_lbl">GSTIN (optional)</label><input id="o_gst" maxlength="30" placeholder="22AAAAA0000A1Z5"></div>
@@ -753,14 +753,14 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=3"></script>
-<script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
+<script src="event-name.js?v=8"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=246"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
-<script src="smart-import.js?v=3"></script>
+<script src="smart-import.js?v=4"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="tour.js?v=15"></script>
+<script src="tour.js?v=16"></script>
 <script src="pkg-review.js?v=4"></script>
 <script src="onboarding-core.js?v=5"></script>
 <script src="comms-settings.js?v=3"></script>
@@ -771,7 +771,7 @@
 <script src="studio-templates-core.js?v=1"></script>
 <script src="studio-templates.js?v=4"></script>
 <script src="item-pricing.js?v=1"></script>
-<script src="trial-demo.js?v=8"></script>
+<script src="trial-demo.js?v=9"></script>
 <script src="trial-upgrade.js?v=1"></script>
 <script src="settings-search-core.js?v=1"></script>
 <script src="search-catalog.js?v=2"></script>
@@ -1118,7 +1118,7 @@
       <div class="tpl" data-id="${esc(t.id)}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <strong style="flex:1;min-width:160px">${nm}${t.is_demo?'<span class="hs-tag hs-solo">Sample</span>':''}</strong>
-          <label for="${k}_price" style="font-size:12px;color:var(--ink-3)">₹/plate</label>
+          <label for="${k}_price" style="font-size:12px;color:var(--ink-3)">${esc(BPStore.studioSymbol?BPStore.studioSymbol():"₹")}/plate</label>
           <input id="${k}_price" class="tpl_price" type="number" min="0" step="1" value="${numAttr(t.price_per_plate,0)}" style="width:120px" aria-label="Price per plate for ${nm}">
           <label style="font-size:12px;color:var(--ink-3)"><input class="tpl_active" type="checkbox" ${t.active?"checked":""}> active</label>
         </div>
@@ -1153,7 +1153,7 @@
 
   async function renderCoupons(){
     let c=[]; try{ c=(await BPStore.coupons.list())||[]; }catch(e){ BPUI.loadError($("#couponList"), e, renderCoupons, {what:"coupons"}); return; }
-    $("#couponList").innerHTML = c.length? c.map(x=>{ const v=numAttr(x.value,0); return `<div class="row"><span class="g mono">${esc(x.code)}</span><span>${x.kind==='percent'?esc(v)+'% off':'₹'+esc(v.toLocaleString("en-IN"))+' off'}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.code)}" aria-label="Remove coupon ${esc(x.code)}">Remove</button></div>`; }).join("") : '<div class="row" style="color:var(--ink-3)">No coupons yet.</div>';
+    $("#couponList").innerHTML = c.length? c.map(x=>{ const v=numAttr(x.value,0); return `<div class="row"><span class="g mono">${esc(x.code)}</span><span>${x.kind==='percent'?esc(v)+'% off':esc(BPStore.studioMoney(v))+' off'}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.code)}" aria-label="Remove coupon ${esc(x.code)}">Remove</button></div>`; }).join("") : '<div class="row" style="color:var(--ink-3)">No coupons yet.</div>';
     $("#couponList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`coupon ${b.dataset.name}`,()=>BPStore.coupons.remove(b.dataset.id),renderCoupons)));
   }
   $("#co_add").addEventListener("click",()=>BPUI.guard($("#co_add"),async()=>{
@@ -1271,7 +1271,7 @@
     const email=$("#o_email").value.trim(), logo=$("#o_logo").value.trim(), accent=$("#o_accent").value.trim();
     if(email){ const r=V.email(email); if(!r.ok){ orgMsg("err",r.error); $("#o_email").focus(); return; } }
     if(logo){ const r=V.url(logo); if(!r.ok){ orgMsg("err","Logo URL: "+r.error); $("#o_logo").focus(); return; } }
-    if(accent && !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)){ orgMsg("err","Accent colour must be a hex colour like #6d28d9."); $("#o_accent").focus(); return; }
+    if(accent && !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)){ orgMsg("err","Accent colour must be a hex colour like #047857."); $("#o_accent").focus(); return; }
     const phone=$("#o_phone")?$("#o_phone").value.trim():"";
     if(phone){ const r=V.phone(phone); if(!r.ok){ orgMsg("err",r.error); $("#o_phone").focus(); return; } }
     const gstRaw=$("#o_gst").value.trim().toUpperCase().replace(/\s+/g,"");
@@ -1407,8 +1407,8 @@
   const dishAttrText=(x)=>{ const al=typeof HelmImportCore!=="undefined"?HelmImportCore.attrList("menu",x.attributes,dishDefs):[]; return al.slice(0,4).map(a=>a.label+": "+a.value.slice(0,30)).join(" · ")+(al.length>4?" · +"+(al.length-4)+" more":""); };
   // UAE audit: vegetarian / halal wording for a UAE studio (the stored kinds stay veg | nonveg | special)
   const MENU_AE=(()=>{ try{ return BPStore.studioTax().country==="AE"; }catch(_){ return false; } })();
-  const KINDLBL=MENU_AE?{veg:'<span style="color:#0f7a43">vegetarian</span>',nonveg:'<span style="color:#b42318">meat / fish (halal)</span>',special:'<span style="color:#7c3aed">special</span>'}
-    :{veg:'<span style="color:#0f7a43">veg</span>',nonveg:'<span style="color:#b42318">non-veg</span>',special:'<span style="color:#7c3aed">special</span>'};
+  const KINDLBL=MENU_AE?{veg:'<span style="color:#0f7a43">vegetarian</span>',nonveg:'<span style="color:#b42318">meat / fish (halal)</span>',special:'<span style="color:#33403b">special</span>'}
+    :{veg:'<span style="color:#0f7a43">veg</span>',nonveg:'<span style="color:#b42318">non-veg</span>',special:'<span style="color:#33403b">special</span>'};
   if(MENU_AE){ try{ const k=document.getElementById("dc_kind"); if(k){ k.options[0].text="Vegetarian"; k.options[1].text="Meat / fish (halal)"; }
     const pn=document.getElementById("pl_name"); if(pn) pn.placeholder="Package e.g. Arabic buffet / Emirati feast / Vegetarian"; }catch(_){} }
   async function renderDishes(){

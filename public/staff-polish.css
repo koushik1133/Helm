@@ -31,7 +31,7 @@
   html[data-theme="dark"]:not([data-shell]) :is(.kind,.st,.stat,.cov,.onloan,.ctype):is(.supplier,.requested,.open,.due,.reserved,.out),html[data-theme="dark"]:not([data-shell]) .onloan{background:#3a2e10;color:#f5b454}
   html[data-theme="dark"]:not([data-shell]) :is(.kind,.st,.stat,.cov):is(.rejected,.cancelled,.gap){background:#4a1d1d;color:#fca5a5}
   html[data-theme="dark"]:not([data-shell]) :is(.kind,.st,.stat):is(.internal,.staff,.invoiced,.allocated){background:#1c2450;color:#a5b4fc}
-  html[data-theme="dark"]:not([data-shell]) :is(.kind):is(.other,.freelancer){background:#2a1f4a;color:#c4b5fd}
+  html[data-theme="dark"]:not([data-shell]) :is(.kind):is(.other,.freelancer){background:#123329;color:#6ee7b7}
   html[data-theme="dark"]:not([data-shell]) .st:is(.na,.waived){background:var(--panel-2)}
   @media(max-width:640px){
     html:not([data-shell]) .toolbar > .search,html:not([data-shell]) .toolbar > .sel{flex:1 1 100%;max-width:none}

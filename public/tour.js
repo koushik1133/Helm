@@ -2,7 +2,7 @@
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
    One engine, many pages. Each page's steps live in STEPS keyed by filename.
-   A page opts in simply by including  <script src="tour.js?v=15"></script>.
+   A page opts in simply by including  <script src="tour.js?v=16"></script>.
 
    • Injects its own spotlight CSS (pages need no markup).
    • Renders a floating "? Tour" button, or wires an existing #helpBtn.
@@ -138,20 +138,20 @@
   .htour .tip{position:absolute;max-width:calc(100vw - 24px);box-sizing:border-box;max-height:calc(100vh - 24px);overflow:auto;background:var(--hb-bg,var(--panel,#fff));color:var(--hb-ink,var(--ink,#1b1930));
     border:1px solid var(--hb-line,var(--line,#e8e3db));border-radius:14px;box-shadow:0 10px 30px rgba(20,18,40,.22);
     padding:16px 18px;pointer-events:auto}
-  .htour .tip .tstep{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hb-acc-text,var(--accent,#6d28d9))}
+  .htour .tip .tstep{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hb-acc-text,var(--accent,#047857))}
   .htour .tip h4{margin:4px 0 6px;font-size:16px}
   .htour .tip p{margin:0 0 13px;font-size:13px;color:var(--hb-ink2,var(--ink-2,#4b475f));line-height:1.55}
   .htour .tip .trow{display:flex;gap:8px;align-items:center}
   .htour .tip .trow .sp{flex:1}
   .htour .tip button{height:32px;padding:0 13px;border-radius:8px;border:1px solid var(--hb-line,var(--line,#e8e3db));
     background:var(--hb-bg,var(--panel,#fff));font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;color:var(--hb-ink2,var(--ink-2,#4b475f))}
-  .htour .tip button.pri{background:var(--hb-acc,var(--accent,#6d28d9));border-color:transparent;color:var(--hb-acc-ink,#fff)}
-  .htour .tip button:focus-visible{outline:2px solid var(--hb-acc-text,var(--accent,#6d28d9));outline-offset:2px}
+  .htour .tip button.pri{background:var(--hb-acc,var(--accent,#047857));border-color:transparent;color:var(--hb-acc-ink,#fff)}
+  .htour .tip button:focus-visible{outline:2px solid var(--hb-acc-text,var(--accent,#047857));outline-offset:2px}
   .htour .tip button.skip{border:0;background:transparent;color:var(--hb-ink3,var(--ink-3,#6b6577))}
   .htour-fab{position:fixed;left:16px;bottom:16px;z-index:8000;height:34px;padding:0 14px;border-radius:20px;
-    border:1px solid var(--hb-line,var(--line,#e8e3db));background:var(--hb-bg,var(--panel,#fff));color:var(--hb-acc-text,var(--accent,#6d28d9));font-family:inherit;
+    border:1px solid var(--hb-line,var(--line,#e8e3db));background:var(--hb-bg,var(--panel,#fff));color:var(--hb-acc-text,var(--accent,#047857));font-family:inherit;
     font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 14px rgba(20,18,40,.14);display:inline-flex;align-items:center;gap:5px}
-  .htour-fab:hover{border-color:var(--hb-acc-text,var(--accent,#6d28d9));background:var(--hb-acc-soft,var(--accent-soft,#efe9ff))}
+  .htour-fab:hover{border-color:var(--hb-acc-text,var(--accent,#047857));background:var(--hb-acc-soft,var(--accent-soft,#e3f4ed))}
   @media (max-width:767.98px){body.hmn-on:not(.hmn-kb) .htour-fab{bottom:calc(72px + env(safe-area-inset-bottom,0px))}}`;
   __helmAdoptCss(document, css);
 

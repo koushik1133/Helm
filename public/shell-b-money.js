@@ -31,7 +31,9 @@
   function iso(d) { var m = d.getMonth() + 1, x = d.getDate(); return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (x < 10 ? "0" : "") + x; }
   function dOf(s) { var d = new Date(String(s || "").slice(0, 10) + "T00:00:00"); return isNaN(d) ? null : d; }
   function ym(d) { return d.getFullYear() * 12 + d.getMonth(); }
-  function fmtDay(s) { var d = dOf(s); return d ? d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) : ""; }
+  /* LA-27: the ONE studio formatter (studio locale; a calendar day is formatted as its YYYY-MM-DD, never shifted) */
+  function dfmt(d, f) { try { return S().fmtStudioDate(iso(d), { fmt: f }); } catch (e) { return d.toLocaleDateString(undefined, f); } }
+  function fmtDay(s) { var d = dOf(s); return d ? dfmt(d, { weekday: "short", day: "numeric", month: "short" }) : ""; }
 
   /* ---------- money formatting (studio currency; INR uses lakh / crore) ---------- */
   var CUR = "INR";
@@ -135,8 +137,8 @@
         if (collected) { var c2 = collected[i], ch = top ? (H - PADB - 8) * c2 / top : 0;
           sv("rect", { x: x + bwid, y: (H - PADB) - Math.max(c2 ? 2 : 0, ch), width: bwid, height: Math.max(c2 ? 2 : 0, ch), rx: 3, "class": p + "bar-col" }, gEl);
           cTxt = " · collected " + full(c2); }
-        var tt = sv("title", {}, gEl); tt.textContent = d.toLocaleDateString(undefined, { month: "long", year: "numeric" }) + ": booked " + full(v) + cTxt;
-        var lb = sv("text", { x: PADL + i * bw + bw / 2, y: H - 6, "class": p + "axis", "text-anchor": "middle" }, s); lb.textContent = d.toLocaleDateString(undefined, { month: "short" }).slice(0, 3);
+        var tt = sv("title", {}, gEl); tt.textContent = dfmt(d, { month: "long", year: "numeric" }) + ": booked " + full(v) + cTxt;
+        var lb = sv("text", { x: PADL + i * bw + bw / 2, y: H - 6, "class": p + "axis", "text-anchor": "middle" }, s); lb.textContent = dfmt(d, { month: "short" }).slice(0, 3);
       });
     return s;
   }
@@ -275,7 +277,7 @@
       var tbl = el("div", "bz-table");
       list.slice(0, 8).forEach(function (q) {
         var a = link(evHref(q.id), "bz-trow"), d = dOf(q.eventDate);
-        var dc = el("div", "bz-day"); dc.appendChild(el("small", null, d.toLocaleDateString(undefined, { month: "short" }))); dc.appendChild(el("b", null, d.getDate())); a.appendChild(dc);
+        var dc = el("div", "bz-day"); dc.appendChild(el("small", null, dfmt(d, { month: "short" }))); dc.appendChild(el("b", null, d.getDate())); a.appendChild(dc);
         var m = el("div", "bz-main"); m.appendChild(el("b", null, qName(q)));
         m.appendChild(el("small", null, [iso(d) === today ? "Today" : fmtDay(q.eventDate), q.client && q.client.name, q.status === "confirmed" ? "Confirmed" : "Tentative"].filter(Boolean).join(" · "))); a.appendChild(m);
         var val = el("div", "bz-val"); val.appendChild(money(el("span", "bz-num", qMoney(q) || "—")));

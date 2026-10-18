@@ -31,11 +31,11 @@
 .skip-link {
   position: absolute; left: 8px; top: -60px; z-index: 10000;
   padding: 10px 16px; border-radius: 8px;
-  background: var(--accent, #6d28d9); color: #fff; font-weight: 600; text-decoration: none;
+  background: var(--accent, #047857); color: #fff; font-weight: 600; text-decoration: none;
   box-shadow: 0 6px 18px rgba(20,27,46,.25);
 }
 .skip-link:focus, .skip-link:focus-visible { top: 8px; }
-html[data-theme="dark"] .skip-link { background: #7c3aed; color: #fff; }   /* 5.70:1 */
+html[data-theme="dark"] .skip-link { background: #047857; color: #fff; }   /* 5.48:1 */
 
 /* wide tables: wrap in <div class="table-scroll"> to scroll inside the card */
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
@@ -144,12 +144,12 @@ select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible,
    ============================================================================ */
 html[data-theme="dark"] {
   /* Page background is CLEAR / PURE BLACK. Panels & sections sit just above it in
-     neutral (blue-free) charcoals; the accent is the dashboard violet everywhere,
-     so no page falls back to the old generic indigo-blue. */
+     neutral (blue-free) charcoals; the accent is the Helm emerald everywhere
+     (Oct 2026 theme: green/graphite, no violet). */
   --bg: #000000; --panel: #141418; --panel-2: #1c1c22;
   --ink: #f3f1fa; --ink-2: #c6c2d6; --ink-3: #928da6;
   --line: #29292f; --line-2: #202026;
-  --accent: #a78bfa; --accent-2: #8b5cf6; --accent-soft: #1d1730;
+  --accent: #34d399; --accent-2: #10b981; --accent-soft: #123329;
   --safe: #34d399; --warn: #fbbf24; --gold: #fbbf24; --bad: #f87171;
   --shadow: 0 1px 2px rgba(0,0,0,.55), 0 16px 40px rgba(0,0,0,.65);
   /* text-safe variants (already bright in dark: 11.0 / 9.56 on #141418) */
@@ -157,12 +157,12 @@ html[data-theme="dark"] {
   --line-strong: #75707f;   /* 3.54 on #1c1c22 · 3.83 on #141418 */
   color-scheme: dark;
 }
-/* Dark primary buttons: white on the light-violet accent gradient was 2.72:1.
-   Use deeper violet stops so white text is ≥4.5:1 (5.70 on #7c3aed, 7.10 on #6d28d9). */
+/* Dark primary buttons: white on the light dark-mode accent would be too faint.
+   Use deep emerald stops so white text is ≥4.5:1 (5.48 on #047857, 7.4 on #065f46). */
 html[data-theme="dark"] .btn.primary,
 html[data-theme="dark"] button.primary,
 html[data-theme="dark"] a.btn.primary {
-  background: linear-gradient(120deg, #7c3aed, #6d28d9);
+  background: linear-gradient(120deg, #047857, #065f46);
   color: #fff;
 }
 /* Belt-and-suspenders: force the true page background to pure black on every
@@ -231,10 +231,10 @@ html[data-theme="dark"] #conflictBanner .card { background:#241417 !important; b
    measure (heights, paddings, widths) are never changed here.
 
    Token decisions (event-ops tool: calm, premium, one confident accent):
-   · Accent   — the existing Helm violet #6d28d9 (7.1:1 white-on-accent) is the
+   · Accent   — the Helm emerald #047857 (5.48:1 white-on-accent) is the
                 ONLY brand colour. Primary buttons are a flat accent fill (the
-                old violet->indigo gradient read as generic AI chrome); hover
-                deepens to #5b21b6. Dark: flat #7c3aed (5.7:1 white text).
+                old two-colour gradient read as generic AI chrome); hover
+                deepens to #065f46. Dark: flat #047857 (5.48:1 white text).
    · Neutrals — the pages' warm-grey ramp is kept (bg #f6f4f1, panel #fff,
                 ink #1b1930 / #4b475f / #6b6577 = 15.9 / 8.6 / 5.5 on white).
    · Status   — green / amber / red / blue only ever mean safe / warn / bad /
@@ -256,22 +256,22 @@ html[data-theme="dark"] #conflictBanner .card { background:#241417 !important; b
   --fs-lg: 19px; --fs-xl: 23px; --fs-2xl: 28px;
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
   --r-ctl: 9px; --r-card: 14px; --r-pill: 999px;
-  --accent-hover: #5b21b6;
+  --accent-hover: #065f46;
   --info-text: #1d4ed8;          /* 6.70 on #fff */
   --bad-text: #b42318;           /* 6.53 on #fff */
   --elev-sm: 0 1px 2px rgba(27,25,48,.06);
   --elev-md: 0 1px 2px rgba(27,25,48,.06), 0 8px 24px rgba(27,25,48,.10);
   --elev-lg: 0 2px 6px rgba(27,25,48,.08), 0 24px 64px rgba(27,25,48,.18);
   --ease-out: cubic-bezier(.2,.7,.2,1);
-  --focus-halo: 0 0 0 3px var(--accent-soft, #efe9ff);
+  --focus-halo: 0 0 0 3px var(--accent-soft, #e3f4ed);
 }
 html[data-theme="dark"]:not([data-shell]) {
-  --accent-hover: #8b5cf6;
+  --accent-hover: #10b981;
   --info-text: #93b4ff; --bad-text: #fca5a5;
   --elev-sm: 0 1px 2px rgba(0,0,0,.5);
   --elev-md: 0 1px 2px rgba(0,0,0,.5), 0 10px 28px rgba(0,0,0,.6);
   --elev-lg: 0 2px 6px rgba(0,0,0,.6), 0 28px 72px rgba(0,0,0,.75);
-  --focus-halo: 0 0 0 3px rgba(167,139,250,.28);
+  --focus-halo: 0 0 0 3px rgba(52,211,153,.28);
 }
 
 /* ---- typography ---- */
@@ -283,8 +283,8 @@ html[data-theme="dark"]:not([data-shell]) {
 :where(html:not([data-shell])) h1 { letter-spacing: -.018em; }
 :where(html:not([data-shell])) p { text-wrap: pretty; }
 :where(html:not([data-shell])) :is(td, th, .kpi, .money, .amt, .num, .total) { font-variant-numeric: tabular-nums; }
-:where(html:not([data-shell])) ::selection { background: var(--accent-soft, #efe9ff); color: var(--ink, #1b1930); }
-html[data-theme="dark"]:not([data-shell]) ::selection { background: #3b2a6b; color: #fff; }
+:where(html:not([data-shell])) ::selection { background: var(--accent-soft, #e3f4ed); color: var(--ink, #1b1930); }
+html[data-theme="dark"]:not([data-shell]) ::selection { background: #065f46; color: #fff; }
 
 /* ---- buttons: one confident accent, flat ---- */
 :where(html:not([data-shell])) :is(.btn, button.btn, a.btn) { font-weight: 600; letter-spacing: .005em; }
@@ -292,14 +292,14 @@ html[data-theme="dark"]:not([data-shell]) ::selection { background: #3b2a6b; col
   border-color: var(--line-strong, #86808f);
 }
 :where(html:not([data-shell])) :is(.btn.primary, button.primary, a.btn.primary) {
-  background: var(--accent, #6d28d9); border-color: transparent; color: #fff;
+  background: var(--accent, #047857); border-color: transparent; color: #fff;
   box-shadow: var(--elev-sm), inset 0 1px 0 rgba(255,255,255,.12);
 }
 :where(html:not([data-shell])) :is(.btn.primary, button.primary, a.btn.primary):hover:not(:disabled) {
-  background: var(--accent-hover, #5b21b6);
+  background: var(--accent-hover, #065f46);
 }
-html[data-theme="dark"]:not([data-shell]) :is(.btn.primary, button.primary, a.btn.primary) { background: #7c3aed; }
-html[data-theme="dark"]:not([data-shell]) :is(.btn.primary, button.primary, a.btn.primary):hover:not(:disabled) { background: #6d28d9; }
+html[data-theme="dark"]:not([data-shell]) :is(.btn.primary, button.primary, a.btn.primary) { background: #047857; }
+html[data-theme="dark"]:not([data-shell]) :is(.btn.primary, button.primary, a.btn.primary):hover:not(:disabled) { background: #065f46; }
 :where(html:not([data-shell])) :is(button, .btn):disabled,
 :where(html:not([data-shell])) .btn[aria-disabled="true"] { cursor: not-allowed; opacity: .55; transform: none; box-shadow: none; }
 
@@ -308,20 +308,20 @@ html[data-theme="dark"]:not([data-shell]) :is(.btn.primary, button.primary, a.bt
   border-color: var(--ink-3, #6b6577);
 }
 :where(html:not([data-shell])) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="submit"], [type="button"], [type="reset"], [type="image"], [type="hidden"]), select, textarea):focus {
-  border-color: var(--accent, #6d28d9); box-shadow: var(--focus-halo);
+  border-color: var(--accent, #047857); box-shadow: var(--focus-halo);
 }
 :where(html:not([data-shell])) :is(input, select, textarea):disabled { cursor: not-allowed; opacity: .7; }
 :where(html:not([data-shell])) :is(input, textarea)::placeholder { color: var(--ink-3, #6b6577); opacity: 1; }
-:where(html:not([data-shell])) :is(input[type="checkbox"], input[type="radio"], input[type="range"], progress) { accent-color: var(--accent, #6d28d9); }
+:where(html:not([data-shell])) :is(input[type="checkbox"], input[type="radio"], input[type="range"], progress) { accent-color: var(--accent, #047857); }
 
 /* ---- tables ---- */
 :where(html:not([data-shell])) thead th { font-weight: 600; }
 :where(html:not([data-shell])) tbody tr { transition: background-color .12s var(--ease-out); }
-:where(html:not([data-shell]) table:not(.no-hover) tbody tr:hover) > td { background-color: color-mix(in srgb, var(--accent, #6d28d9) 3.5%, transparent); }
+:where(html:not([data-shell]) table:not(.no-hover) tbody tr:hover) > td { background-color: color-mix(in srgb, var(--accent, #047857) 3.5%, transparent); }
 
 /* ---- cards & surfaces ---- */
 html[data-theme="dark"]:not([data-shell]) :is(.card, .mod, .kpi, .modal) { border-color: var(--line); }
-:where(html:not([data-shell])) .mod:hover { box-shadow: var(--elev-md); border-color: color-mix(in srgb, var(--accent, #6d28d9) 28%, var(--line, #e8e3db)); }
+:where(html:not([data-shell])) .mod:hover { box-shadow: var(--elev-md); border-color: color-mix(in srgb, var(--accent, #047857) 28%, var(--line, #e8e3db)); }
 
 /* ---- modals & toasts ---- */
 :where(html:not([data-shell])) .modal { box-shadow: var(--elev-lg); }
@@ -340,11 +340,11 @@ html[data-theme="dark"]:not([data-shell]) :is(.card, .mod, .kpi, .modal) { borde
 :where(html:not([data-shell])) :is(p, .empty, .hint, .muted) a:not(.btn) { text-underline-offset: 2px; text-decoration-thickness: from-font; }
 
 /* ---- QA fixes: dark-mode accent fills + breadcrumb contrast ----
-   In dark the page --accent is light violet (#a78bfa), so white text on an
+   In dark the page --accent is light emerald (#34d399), so white text on an
    accent-filled active chip/tab was 2.7:1. Use the same deep fill as dark
-   primary buttons (#7c3aed, 5.7:1 with white). */
+   primary buttons (#047857, 5.48:1 with white). */
 html[data-theme="dark"]:not([data-shell]) :is(.hsf-chip[aria-pressed="true"], .rb-chip[aria-pressed="true"], .ptab.active, .step.active, .circbtn.plus) {
-  background: #7c3aed; border-color: #7c3aed; color: #fff;
+  background: #047857; border-color: #047857; color: #fff;
 }
 html[data-theme="dark"]:not([data-shell]) .step.active .n { color: #fff; }
 /* breadcrumb trail (nav-trail.js) used --muted #6b7280 = 4.4:1 on the warm bg */
@@ -373,11 +373,11 @@ html[data-theme="dark"]:not([data-shell]) .htr-bc { color: var(--ink-2, #c6c2d6)
   font-size:var(--hp-fs,inherit);line-height:var(--hp-lh,normal);
   border:1px solid var(--line-strong,#86808f);border-radius:var(--hp-r,10px);background:var(--panel,#fff);color:var(--ink,#1b1930);
   transition:border-color .15s,box-shadow .15s}
-.hp:focus-within{border-color:var(--accent,#6d28d9);box-shadow:0 0 0 3px var(--accent-soft,#efe9ff)}
+.hp:focus-within{border-color:var(--accent,#047857);box-shadow:0 0 0 3px var(--accent-soft,#e3f4ed)}
 .hp .hp-cc{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;height:auto;min-height:0;min-width:0;margin:0;padding:0 8px 0 10px;border:0;
   border-right:1px solid var(--line,#e8e3db);border-radius:9px 0 0 9px;background:transparent;color:inherit;font:inherit;font-size:var(--hp-fs,inherit);line-height:inherit;cursor:pointer}
 .hp .hp-cc:hover{background:var(--accent-soft,#f4f2fb)}
-.hp .hp-cc:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:-2px}
+.hp .hp-cc:focus-visible{outline:2px solid var(--accent,#047857);outline-offset:-2px}
 .hp-flag{font-size:1.2em;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
 .hp-chev{width:14px;height:14px;color:var(--ink-3,#6b6577);transition:transform .15s}
 .hp.is-open .hp-chev{transform:rotate(180deg)}
@@ -398,12 +398,12 @@ html[data-theme="dark"]:not([data-shell]) .htr-bc { color: var(--ink-2, #c6c2d6)
 html[data-theme="dark"] .hp-pop{box-shadow:0 1px 2px rgba(0,0,0,.5),0 18px 44px rgba(0,0,0,.7)}
 .hp-pop .hp-search{display:block;width:100%;box-sizing:border-box;min-height:40px;margin:0 0 6px;padding:8px 10px;border:1px solid var(--line-strong,#86808f);
   border-radius:8px;background:var(--panel-2,#faf8f5);color:inherit;font:inherit;font-size:15px}
-.hp-pop .hp-search:focus{outline:none;border-color:var(--accent,#6d28d9);box-shadow:0 0 0 3px var(--accent-soft,#efe9ff)}
+.hp-pop .hp-search:focus{outline:none;border-color:var(--accent,#047857);box-shadow:0 0 0 3px var(--accent-soft,#e3f4ed)}
 .hp-list{list-style:none;margin:0;padding:0;max-height:260px;overflow-y:auto;overscroll-behavior:contain}
 .hp-opt{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:14.5px;line-height:1.3}
-.hp-opt:hover,.hp-opt.is-active{background:var(--accent-soft,#f1ebfd)}
+.hp-opt:hover,.hp-opt.is-active{background:var(--accent-soft,#e3f4ed)}
 .hp-opt[aria-selected="true"]{font-weight:600}
-.hp-opt[aria-selected="true"] .hp-ocode{color:var(--accent,#6d28d9)}
+.hp-opt[aria-selected="true"] .hp-ocode{color:var(--accent,#047857)}
 .hp-oflag{font-size:20px;line-height:1;width:24px;text-align:center;flex:0 0 auto;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
 .hp-oname{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hp-ocode{flex:0 0 auto;color:var(--ink-3,#6b6577);font-variant-numeric:tabular-nums}

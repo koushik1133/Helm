@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
+<meta charset="utf-8">
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <link rel="stylesheet" href="/insights-polish.css?v=1">
-<meta charset="utf-8">
 <base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Insights — Helm Events</title>
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#12a150;--warn:#e8912d;--bad:#e5484d;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;--safe:#12a150;--warn:#e8912d;--bad:#e5484d;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
   *{box-sizing:border-box} [hidden]{display:none!important}
@@ -82,9 +82,9 @@
   .drill{margin:6px 0 2px;padding:0;list-style:none;font-size:12px} .drill li{padding:3px 0;color:var(--ink-2)} .drill a{color:var(--accent);font-weight:600}
   .note{font-size:12px;color:var(--ink-3);margin:-6px 0 14px}
 </style>
-<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="theme.css?v=81">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=24" id="shellProto"></script>
+<script src="/shell-proto.js?v=25" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -183,23 +183,11 @@
   </main>
 </div>
 
-<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-  <form class="lsheet" id="loginForm" novalidate>
-    <button type="button" class="lclose" id="li_close" aria-label="Close" data-close>×</button>
-    <div class="mark s-9690e1d"></div>
-    <h3 id="loginTitle">Sign in</h3>
-    <label for="li_email">Email</label><input type="email" id="li_email" required autocomplete="email">
-    <label for="li_pw">Password</label><input type="password" id="li_pw" required autocomplete="current-password">
-    <div class="lerr" id="li_err" role="alert" hidden></div>
-    <button class="btn s-9bc19ca" type="submit" id="li_submit">Sign in</button>
-  </form>
-</div>
-
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
+<script src="event-name.js?v=8"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=246"></script>
 <script src="range-bar.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -211,8 +199,6 @@
   const joinCur=(list,f)=>list.map(x=>curM(f(x),x.currency)).join(" · ");
   const pct=(n)=>n==null?"—":n+"%";
   let canFin=false, range=null, seq=0;
-  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
-  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
       el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
@@ -387,15 +373,6 @@
     $("#marginCur").addEventListener("change",e=>{ marginCur=e.target.value; renderMarginsMulti(mw,mz,byC); });
     if(mz.length) $("#margins").insertAdjacentHTML("beforeend",`<div class="muted note" id="marginsNoRev">No revenue recorded (not in the margin): ${mz.map(e=>esc((e.code||"Event")+(e.date?" · "+BPStore.fmtDateIN(e.date):""))).join(", ")}</div>`);
   }
-  $("#li_close").addEventListener("click",closeLogin);
-  $("#loginForm").addEventListener("submit",e=>{ e.preventDefault();
-    const em=$("#li_email").value.trim(), pw=$("#li_pw").value;
-    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; return; }
-    $("#li_err").hidden=true;
-    BPUI.guard($("#li_submit"),async()=>{
-      try{ await BPStore.auth.signIn(em,pw); closeLogin(); await BPUI.boot(load); }
-      catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
-    },{busyLabel:"Signing in…"}); });
   BPUI.boot(load);
 </script>
 </body>

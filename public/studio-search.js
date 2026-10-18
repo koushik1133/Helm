@@ -73,6 +73,13 @@
   function normalize(data) {
     const out = [];
     if (!data || typeof data !== "object" || Array.isArray(data)) return out;
+    /* LA-28: a raw stage key inside a server subtitle ("won · Wedding") reads as its label ("Won · Wedding") */
+    const STAGE_KEY = /^(new|qualified|discovery|quoted|won|lost|lead|proposal|quote|confirmed|planning|resources|ready|event_day|settlement|closed|cancelled|draft)$/;
+    const prettySub = (sub) => sub.split(" · ").map((p) => {
+      const k = p.trim(); if (!STAGE_KEY.test(k)) return p;
+      try { const B = (typeof window !== "undefined" && window.BPStore) || null; if (B && B.stageLabel) return B.stageLabel(k); } catch (e) {}
+      return k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, " ");
+    }).join(" · ");
     TYPES.forEach((t) => {
       const rows = Array.isArray(data[t.key]) ? data[t.key] : [];
       const items = [];
@@ -80,7 +87,7 @@
         if (!r || r.id == null || r.title == null) return;
         const href = safeLink(r.link, r.title);
         if (!href) return;
-        items.push({ id: String(r.id), title: String(r.title), subtitle: r.subtitle == null ? "" : String(r.subtitle), href });
+        items.push({ id: String(r.id), title: String(r.title), subtitle: r.subtitle == null ? "" : prettySub(String(r.subtitle)), href });
       });
       if (items.length) out.push({ type: t.key, label: t.label, icon: t.icon, items });
     });
@@ -141,8 +148,8 @@
     "html.hss-lock{overflow:hidden}",
     ".hss-slot{display:inline-flex;align-items:center;margin-right:8px}",
     ".hss-trig{display:inline-flex;align-items:center;gap:8px;height:32px;min-width:200px;padding:0 8px 0 10px;border:1px solid var(--line,#e8e3db);border-radius:9px;background:var(--panel,#fff);color:var(--ink-3,#6b6577);font:500 13px var(--font,system-ui);cursor:pointer;transition:border-color .12s,box-shadow .12s}",
-    ".hss-trig:hover{border-color:var(--accent,#6d28d9)}",
-    ".hss-trig:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:2px}",
+    ".hss-trig:hover{border-color:var(--accent,#047857)}",
+    ".hss-trig:focus-visible{outline:2px solid var(--accent,#047857);outline-offset:2px}",
     ".hss-trig .hss-tl{flex:1;text-align:left}",
     ".hss-kbd{display:inline-flex;align-items:center;gap:2px;font:600 11px var(--mono,ui-monospace,monospace);color:var(--ink-3,#6b6577);border:1px solid var(--line,#e8e3db);border-bottom-width:2px;border-radius:5px;padding:1px 5px;background:var(--panel-2,#faf8f5);white-space:nowrap}",
     ".hss-ico{width:16px;height:16px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}",
@@ -154,25 +161,25 @@
     // the field is the dialog's only focus target: its focus indicator is the accent rule
     // under the row (theme.css's global input ring would draw a box inside the header)
     ".hss-in-row{box-shadow:inset 0 -2px 0 transparent;transition:box-shadow .12s}",
-    ".hss-in-row:focus-within{box-shadow:inset 0 -2px 0 var(--accent,#6d28d9)}",
+    ".hss-in-row:focus-within{box-shadow:inset 0 -2px 0 var(--accent,#047857)}",
     ".hss-dlg .hss-in:focus,.hss-dlg .hss-in:focus-visible{outline:none!important;box-shadow:none}",
     "html[data-theme=dark] .hss-dlg input.hss-in{background-color:transparent}",
     ".hss-in::placeholder{color:var(--ink-3,#6b6577)}",
     ".hss-in::-webkit-search-cancel-button{display:none}",
     ".hss-x{border:0;background:transparent;color:var(--ink-3,#6b6577);font:600 12px var(--font,system-ui);cursor:pointer;padding:6px;border-radius:6px}",
-    ".hss-x:focus-visible{outline:2px solid var(--accent,#6d28d9)}",
-    ".hss-spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line,#e8e3db);border-top-color:var(--accent,#6d28d9);animation:hssSpin .7s linear infinite;flex:0 0 auto}",
+    ".hss-x:focus-visible{outline:2px solid var(--accent,#047857)}",
+    ".hss-spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line,#e8e3db);border-top-color:var(--accent,#047857);animation:hssSpin .7s linear infinite;flex:0 0 auto}",
     ".hss-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:6px 0 8px}",
     ".hss-grp{padding:4px 0}",
     ".hss-gh{display:flex;align-items:center;gap:8px;padding:8px 16px 4px;font:700 11px var(--font,system-ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3,#6b6577)}",
     ".hss-gh button{margin-left:auto;border:0;background:none;color:var(--ink-3,#6b6577);font:500 11.5px var(--font,system-ui);text-transform:none;letter-spacing:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}",
     ".hss-opt{display:flex;align-items:center;gap:11px;margin:0 6px;padding:8px 10px;border-radius:9px;cursor:pointer;min-height:44px}",
-    ".hss-opt[aria-selected=true]{background:var(--accent-soft,#efe9ff)}",
+    ".hss-opt[aria-selected=true]{background:var(--accent-soft,#e3f4ed)}",
     ".hss-oi{flex:0 0 auto;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:var(--panel-2,#faf8f5);border:1px solid var(--line-2,#f1ede7);font-size:14px}",
     ".hss-ot{flex:1;min-width:0;display:flex;flex-direction:column}",
     ".hss-t{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
     ".hss-s{font-size:12px;color:var(--ink-3,#6b6577);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-    ".hss-t mark,.hss-s mark{background:transparent;color:var(--accent,#6d28d9);font-weight:700}",
+    ".hss-t mark,.hss-s mark{background:transparent;color:var(--accent,#047857);font-weight:700}",
     ".hss-go{flex:0 0 auto;font-size:12px;color:var(--ink-3,#6b6577);opacity:0}",
     ".hss-opt[aria-selected=true] .hss-go{opacity:1}",
     ".hss-msg{padding:28px 20px;text-align:center;color:var(--ink-2,#4b475f);font-size:14px}",
@@ -184,7 +191,7 @@
     ".hss-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}",
     "html[data-theme=dark] .hss-ov{background:rgba(0,0,0,.6)}",
     "html[data-theme=dark] .hss-opt[aria-selected=true]{background:rgba(139,92,246,.22)}",
-    "html[data-theme=dark] .hss-t mark,html[data-theme=dark] .hss-s mark{color:#c4b5fd}",
+    "html[data-theme=dark] .hss-t mark,html[data-theme=dark] .hss-s mark{color:#6ee7b7}",
     "@keyframes hssFade{from{opacity:0}to{opacity:1}}",
     "@keyframes hssPop{from{opacity:0;transform:translateY(-6px) scale(.985)}to{opacity:1;transform:none}}",
     "@keyframes hssSpin{to{transform:rotate(360deg)}}",

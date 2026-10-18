@@ -1,7 +1,9 @@
 /* shell-b-privacy.js — "Hide amounts" privacy screen for presenting in front of clients.
  * Eye button in the top bar. Hidden by default each browser session; showing needs a 4-digit PIN.
- * Masking is VISUAL ONLY: it adds classes / data attributes to what is already on screen and never
- * changes a value, an input's value, or any stored data.
+ * Masking never changes a value, an input's value, or any stored data. LA-26: a masked amount's TEXT is
+ * swapped for "••••" (the real text is kept in memory and put back on show), so screen readers, Ctrl+F and
+ * copy/paste cannot read it either - not just a visual blur. Pages that must read an amount while it is
+ * hidden use HelmPrivacy.realText(node).
  *   - [data-money] elements, text that looks like money (₹ / Rs / INR / AED / د.إ / $ …, 1,23,456, 12.3 L, 1.2 Cr)
  *   - title attributes and SVG <title> tooltips containing money (stashed while hidden, restored on show)
  *   - inputs that hold money get a CSS class (the value is untouched; editing one reveals it)
@@ -58,25 +60,86 @@
 
   function markText(t) {
     var p = t.parentNode; if (!p || p.nodeType !== 1) return;
-    if (p.classList && (p.classList.contains("hbp-w") || p.classList.contains("hbp-m"))) { if (!hasMoney(p.textContent)) p.classList.remove("hbp-m"); return; }
+    if (masked.has(p) || spanOwner.has(p)) return;   // our own "••••"
+    if (p.classList && (p.classList.contains("hbp-w") || p.classList.contains("hbp-m"))) { if (!hasMoney(p.textContent)) p.classList.remove("hbp-m"); else maskEl(p); return; }
     var s = t.nodeValue; if (!s || s.length > 2000 || (!/\d/.test(s) && !/\bonly\b/.test(s)) || !hasMoney(s)) return;
     if (skipEl(p)) return;
     if (p.namespaceURI === "http://www.w3.org/2000/svg") {
       if (p.tagName.toLowerCase() === "title") { stashSvgTitle(p); return; }
-      p.classList.add("hbp-m"); return;
+      p.classList.add("hbp-m"); maskEl(p); return;
     }
     RE.lastIndex = 0; var m, covered = 0; while ((m = RE.exec(s))) covered += m[0].length;
     var trimmed = s.replace(/\s+/g, "").length || 1;
-    if (p.childNodes.length === 1 && covered / trimmed >= 0.5) { p.classList.add("hbp-m"); return; }
+    if (p.childNodes.length === 1 && covered / trimmed >= 0.5) { p.classList.add("hbp-m"); maskEl(p); return; }
     /* longer sentence: wrap only the amounts (display-only spans around the same text) */
-    var frag = document.createDocumentFragment(), last = 0; RE.lastIndex = 0;
+    var frag = document.createDocumentFragment(), last = 0, ws = []; RE.lastIndex = 0;
     while ((m = RE.exec(s))) {
       if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index)));
-      var w = document.createElement("span"); w.className = "hbp-w hbp-m"; w.textContent = m[0]; frag.appendChild(w);
+      var w = document.createElement("span"); w.className = "hbp-w hbp-m"; w.textContent = m[0]; frag.appendChild(w); ws.push(w);
       last = m.index + m[0].length;
     }
     if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
-    selfMut = true; p.replaceChild(frag, t); selfMut = false;
+    quiet(function () { p.replaceChild(frag, t); });
+    ws.forEach(maskEl);
+  }
+
+  /* ---------- LA-26: swap the real text for "••••" (kept in memory, restored on show) ---------- */
+  var MASK = "\u2022\u2022\u2022\u2022", SVG_NS = "http://www.w3.org/2000/svg";
+  var stash = new WeakMap(), maskOf = new WeakMap(), maskTxt = new WeakMap(), spanOwner = new WeakMap(), masked = new Set();
+  /* run our own DOM change without our observer reacting to it (records queued before it are still handled) */
+  function quiet(fn) {
+    var pre = mo ? mo.takeRecords() : [];
+    selfMut = true; try { fn(); } finally { selfMut = false; }
+    if (mo) mo.takeRecords();
+    if (pre.length) onMut(pre);
+  }
+  function maskable(e) {
+    if (!e || e.nodeType !== 1 || SKIP_TAG[e.tagName] || e.isContentEditable || e.id === "hbpModal" || e.id === "hbRail") return false;
+    if (e.namespaceURI === SVG_NS) { var tn = e.tagName.toLowerCase(); if (tn === "svg" || tn === "title") return false; for (var c = e.firstChild; c; c = c.nextSibling) if (c.nodeType === 1) return false; }
+    if (e.querySelector && e.querySelector("input,select,textarea,[contenteditable]")) return false;   // never hide a control the user types into
+    return true;
+  }
+  function makeMask(e) {
+    if (e.namespaceURI === SVG_NS) { var tn = document.createTextNode(MASK); maskTxt.set(tn, e); return tn; }
+    var sp = document.createElement("span"); sp.className = "hbp-mask"; sp.setAttribute("role", "img"); sp.setAttribute("aria-label", "Amount hidden");
+    var tx = document.createTextNode(MASK); sp.appendChild(tx); maskTxt.set(tx, e); spanOwner.set(sp, e); return sp;
+  }
+  /* move e's children into memory and leave only the mask; again after the page re-renders e while hidden */
+  function maskEl(e) {
+    if (!maskable(e)) return;
+    var mk = maskOf.get(e);
+    if (mk && mk.parentNode === e && e.childNodes.length === 1 && (mk.textContent === MASK)) return;   // already masked
+    if (!mk) { mk = makeMask(e); maskOf.set(e, mk); }
+    var kids = [], kept = mk.parentNode === e && stash.has(e);   // kept: the page ADDED to a masked amount (the mask is still there)
+    for (var c = e.firstChild; c; c = c.nextSibling) if (c !== mk) kids.push(c);
+    var frag = kept ? stash.get(e) : document.createDocumentFragment(), was = stash.get(e);
+    quiet(function () {
+      kids.forEach(function (k) { frag.appendChild(k); });
+      if (mk.nodeType === 3) mk.nodeValue = MASK; else mk.textContent = MASK;
+      if (mk.parentNode !== e) e.appendChild(mk);
+    });
+    /* the page re-rendered our own "••••" verbatim (e.g. a search re-highlighting the text): keep the real value */
+    if (!kept && was && kids.length && frag.textContent === MASK) frag = was;
+    stash.set(e, frag);
+    masked.add(e);
+  }
+  function unmaskAll() {
+    var list = Array.from(masked); masked.clear();
+    list.forEach(function (e) {
+      var mk = maskOf.get(e), f = stash.get(e);
+      if (mk && mk.parentNode === e) e.removeChild(mk);
+      if (f) e.appendChild(f);
+      stash.delete(e);
+    });
+  }
+  /* the text a page would see if amounts were shown (for code that must read an amount while hidden) */
+  function realText(n) {
+    if (!n) return "";
+    if (n.nodeType === 3) return maskTxt.has(n) ? "" : n.nodeValue;
+    if (n.nodeType !== 1 && n.nodeType !== 11) return "";
+    if (n.nodeType === 1 && masked.has(n) && stash.has(n)) return realText(stash.get(n));
+    var out = ""; for (var c = n.firstChild; c; c = c.nextSibling) out += realText(c);
+    return out;
   }
   function stashTitle(e) {
     var tt = e.getAttribute("title"); if (!tt || !hasMoney(tt)) return;
@@ -95,14 +158,17 @@
     if (node.nodeType !== 1) return;
     if (node.id === "hbpModal" || node.id === "hbRail") return;
     if (node.tagName === "INPUT") { markInput(node); return; }
+    if (masked.has(node)) return;
     if (node.hasAttribute && node.hasAttribute("title")) stashTitle(node);
-    var w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null), list = [], n;
+    if (node.hasAttribute && node.hasAttribute("data-money") && !skipEl(node)) { maskEl(node); if (masked.has(node)) return; }
+    var w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null), list = [], dm = [], n;
     while ((n = w.nextNode())) {
       if (n.nodeType === 3) { if (/\d|\bonly\b/.test(n.nodeValue)) list.push(n); }
       else if (n.tagName === "INPUT") markInput(n);
-      else if (n.hasAttribute("title")) stashTitle(n);
+      else { if (n.hasAttribute("title")) stashTitle(n); if (n.hasAttribute("data-money")) dm.push(n); }
     }
-    list.forEach(markText);
+    dm.forEach(function (x) { if (!skipEl(x)) maskEl(x); });
+    list.forEach(function (x) { if (x.isConnected) markText(x); });
   }
   function fullScan() { if (document.body) scan(document.body); }
   function unstash() {
@@ -117,16 +183,34 @@
   function flush() { if (!queued) return; queued = false; var q = queue; queue = []; if (!hidden()) return; for (var i = 0; i < q.length; i++) if (q[i].isConnected) scan(q[i]); }
   function observe() {
     if (mo || !window.MutationObserver) return;
-    mo = new MutationObserver(function (muts) {
-      if (selfMut) return;
-      for (var i = 0; i < muts.length; i++) {
-        var m = muts[i];
-        if (m.type === "attributes") { if (m.target.nodeType === 1 && m.target.hasAttribute("title")) queue.push(m.target); continue; }
-        for (var j = 0; j < m.addedNodes.length; j++) queue.push(m.addedNodes[j]);
+    mo = new MutationObserver(onMut);
+    mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["title"] });
+  }
+  function onMut(muts) {
+    if (selfMut) return;
+    var re = [];
+    for (var i = 0; i < muts.length; i++) {
+      var m = muts[i], tg = m.target;
+      if (m.type === "attributes") { if (tg.nodeType === 1 && tg.hasAttribute("title")) queue.push(tg); continue; }
+      if (m.type === "characterData") {
+        var own = maskTxt.get(tg);
+        if (own) { if (tg.nodeValue !== MASK && re.indexOf(own) < 0) re.push(own); }   // the page wrote a new value into our mask
+        else queue.push(tg);
+        continue;
       }
-      if (queue.length && !queued) { queued = true; if (window.requestAnimationFrame) requestAnimationFrame(flush); setTimeout(function () { if (queued) flush(); }, 120); }   /* rAF batch; timer backup for background tabs (no rAF) */
+      var ow = tg.nodeType === 1 ? (masked.has(tg) ? tg : spanOwner.get(tg)) : null;
+      if (ow) { if (re.indexOf(ow) < 0) re.push(ow); continue; }   // the page re-rendered a masked amount (or wrote into its mask)
+      for (var j = 0; j < m.addedNodes.length; j++) queue.push(m.addedNodes[j]);
+    }
+    re.forEach(function (e) {
+      var mk = maskOf.get(e);
+      if (mk && mk.parentNode === e && (mk.nodeType === 3 ? mk.nodeValue : mk.textContent) !== MASK) {   // value typed into the mask itself
+        var v = mk.nodeType === 3 ? mk.nodeValue : mk.textContent, f = document.createDocumentFragment(); f.appendChild(document.createTextNode(v));
+        quiet(function () { if (mk.nodeType === 3) mk.nodeValue = MASK; else mk.textContent = MASK; }); stash.set(e, f); return;
+      }
+      if (hidden()) { if (hasMoney(e.textContent) || e.hasAttribute("data-money") || stash.has(e)) maskEl(e); }
     });
-    mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["title"] });
+    if (queue.length && !queued) { queued = true; if (window.requestAnimationFrame) requestAnimationFrame(flush); setTimeout(function () { if (queued) flush(); }, 120); }   /* rAF batch; timer backup for background tabs (no rAF) */
   }
   function unobserve() { if (mo) { mo.disconnect(); mo = null; } queue = []; }
   function inputWatch(e) { var t = e.target; if (hidden() && t && t.tagName === "INPUT" && !t.classList.contains("hbp-in")) markInput(t); }
@@ -135,7 +219,7 @@
   function setHidden(on, why) {
     root.classList.toggle("hb-priv-on", !!on);
     ss(SK, on ? null : "shown");
-    if (on) { fullScan(); observe(); } else { unobserve(); unstash(); touch(); }
+    if (on) { fullScan(); observe(); } else { if (mo) { var pend = mo.takeRecords(); root.classList.add("hb-priv-on"); onMut(pend); root.classList.remove("hb-priv-on"); } unobserve(); unmaskAll(); unstash(); touch(); }
     paintBtn();
     if (why && window.BPUI && BPUI.toast) try { BPUI.toast(why, { type: "info", timeout: 3500 }); } catch (e) {}
   }
@@ -366,5 +450,5 @@
     touch();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
-  window.HelmPrivacy = { hide: function () { setHidden(true); }, show: requestShow, toggle: toggle, changePin: changePin, isHidden: hidden, rescan: fullScan };
+  window.HelmPrivacy = { hide: function () { setHidden(true); }, show: requestShow, toggle: toggle, changePin: changePin, isHidden: hidden, rescan: fullScan, realText: realText };
 })();

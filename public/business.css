@@ -106,7 +106,7 @@
 .bz-page { max-width: 1280px; margin: 0 auto; padding: 0 24px 60px; }
 @media (max-width: 480px) { .bz-page { padding: 0 16px 48px; } }
 .bz-header { display: flex; align-items: center; gap: 11px; padding: 18px 0; flex-wrap: wrap; }
-.bz-header .mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--accent, #6d28d9), var(--accent-2, #4f46e5)); flex: 0 0 auto; }
+.bz-header .mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--accent, #047857), var(--accent-2, #036b4d)); flex: 0 0 auto; }
 .bz-header h1 { font-size: 16px; margin: 0; font-weight: 700; } .bz-header small { display: block; font-size: 11px; color: var(--ink-3, #6b6577); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 .bz-header .nav { display: flex; gap: 14px; margin-left: 18px; font-size: 13px; font-weight: 600; }
 .bz-header .nav a { color: inherit; text-decoration: none; }

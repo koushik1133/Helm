@@ -35,15 +35,15 @@
 .cs-group-h{margin:0 0 4px;padding:0 10px;font-size:var(--fs-xs,11px);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3,#6b6573)}
 #app.cs-on .cs-nav a{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--r-ctl,8px);text-decoration:none;color:var(--ink-2,#3d3842);font-size:var(--fs-sm,13px);line-height:1.35;transition:background .12s,color .12s}
 #app.cs-on .cs-nav a:hover{background:var(--panel-2,#f1eee9);color:var(--ink,#1c1a1f)}
-#app.cs-on .cs-nav a:focus-visible{outline:none;box-shadow:var(--focus-halo,0 0 0 3px rgba(109,40,217,.2))}
-#app.cs-on .cs-nav a[aria-current="page"]{background:color-mix(in srgb,var(--accent,#6d28d9) 10%,transparent);color:var(--accent,#6d28d9);font-weight:600}
+#app.cs-on .cs-nav a:focus-visible{outline:none;box-shadow:var(--focus-halo,0 0 0 3px rgba(4,120,87,.2))}
+#app.cs-on .cs-nav a[aria-current="page"]{background:color-mix(in srgb,var(--accent,#047857) 10%,transparent);color:var(--accent,#047857);font-weight:600}
 .cs-mnav{display:none}
 .cs-ico{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
 #app.cs-on .cs-nav a[aria-current="page"] .cs-ico{opacity:1}
 
 /* ---- consistent controls inside cards ---- */
 #app.cs-on .cs-main .card .cmchk,#app.cs-on .cs-main .card .lxtoggle{display:flex;align-items:center;gap:8px;min-height:32px}
-#app.cs-on .cs-main .card input[type=checkbox]{width:16px;height:16px;margin:0;accent-color:var(--accent,#6d28d9);flex:0 0 auto}
+#app.cs-on .cs-main .card input[type=checkbox]{width:16px;height:16px;margin:0;accent-color:var(--accent,#047857);flex:0 0 auto}
 #app.cs-on .cs-main .card fieldset.cmset{border:1px solid var(--line-2,var(--line,#e8e3db));border-radius:var(--r-ctl,8px);padding:var(--sp-4,16px);margin:0 0 var(--sp-4,16px)}
 #app.cs-on .cs-main .card fieldset.cmset legend{padding:0 6px;font-weight:600;font-size:var(--fs-sm,13px);color:var(--ink,#1c1a1f)}
 #app.cs-on .cs-main .utable th{font-size:var(--fs-xs,11px);text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3,#6b6573);font-weight:600;text-align:left}
@@ -60,8 +60,8 @@
 #app.cs-on .cs-main .card > .mnote,#app.cs-on .cs-main .card > h3 + p{color:var(--ink-3,#6b6573);font-size:var(--fs-sm,13px);margin-top:4px}
 #app.cs-on .cs-main .fld label{font-weight:500;color:var(--ink-2,#3d3842)}
 .cs-off{display:none !important}
-.cs-flash{box-shadow:0 0 0 2px var(--accent,#6d28d9),var(--elev-md,none) !important;transition:box-shadow 1.2s}
-::highlight(cs-hit){background-color:color-mix(in srgb,var(--accent,#6d28d9) 28%,transparent);color:inherit}
+.cs-flash{box-shadow:0 0 0 2px var(--accent,#047857),var(--elev-md,none) !important;transition:box-shadow 1.2s}
+::highlight(cs-hit){background-color:color-mix(in srgb,var(--accent,#047857) 28%,transparent);color:inherit}
 .cs-empty{padding:var(--sp-6,32px);text-align:center;color:var(--ink-3,#6b6573);border:1px dashed var(--line,#e8e3db);border-radius:var(--r-card,12px);font-size:var(--fs-sm,13px)}
 .cs-empty[hidden]{display:none}
 
@@ -71,8 +71,8 @@
 .cs-savebar .cs-dot{width:8px;height:8px;border-radius:50%;background:var(--warn,#d97706);flex:0 0 auto}
 .cs-savebar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cs-savebar button{height:32px;padding:0 12px;border-radius:var(--r-ctl,8px);font:inherit;font-size:var(--fs-sm,13px);font-weight:500;cursor:pointer;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);color:var(--ink,#1c1a1f)}
-.cs-savebar button.cs-primary{background:var(--accent,#6d28d9);border-color:var(--accent,#6d28d9);color:var(--accent-ink,#fff)}
-.cs-savebar button.cs-primary:hover{background:var(--accent-hover,var(--accent,#6d28d9))}
+.cs-savebar button.cs-primary{background:var(--accent,#047857);border-color:var(--accent,#047857);color:var(--accent-ink,#fff)}
+.cs-savebar button.cs-primary:hover{background:var(--accent-hover,var(--accent,#047857))}
 @keyframes cs-up{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.cs-savebar{animation:none}.cs-flash{transition:none}}
 
