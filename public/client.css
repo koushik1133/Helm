@@ -53,4 +53,4 @@ html[data-theme="dark"] .totals dd.due{color:#f87171}
   .totals{grid-template-columns:repeat(3,minmax(0,1fr))} .totals dd{font-size:13px}}
 
 /* brand kit symbol (as-is) replaces the old gradient tile */
-.mark{background:url(/brand/helm-symbol.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}
+.mark{background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}

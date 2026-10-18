@@ -743,4 +743,4 @@ header.hx .tmenu-pop #customBtn{justify-content:center}
 details.state[hidden]{display:none}
 
 /* brand kit symbol (as-is) replaces the old gradient tile */
-.brand .mark{background:url(/brand/helm-symbol.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}
+.brand .mark{background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}

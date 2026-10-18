@@ -122,4 +122,4 @@ html[data-shell="b"] body.bz-body { background: var(--hb-bg2); color: var(--hb-i
 .bz-header .mark::after{content:none}
 
 /* brand kit symbol (as-is) replaces the old gradient tile */
-.bz-header .mark{background:url(/brand/helm-symbol.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}
+.bz-header .mark{background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}

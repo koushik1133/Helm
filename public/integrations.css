@@ -68,4 +68,4 @@ html[data-theme="dark"] .itg-result[data-state="off"]{background:rgba(220,60,50,
 html[data-theme="dark"] .itg-err{color:#f5a39c}
 
 /* brand kit symbol (as-is) replaces the old gradient tile */
-.mark{background:url(/brand/helm-symbol.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}
+.mark{background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}

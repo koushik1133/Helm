@@ -150,12 +150,25 @@
     var top = el("div", "hb-top");
     var brand = el("a", "hb-brand"); brand.href = "/dashboard.html"; brand.setAttribute("aria-label", "Helm home");
     var logo = el("span", "hb-logo"); logo.setAttribute("aria-hidden", "true");
-    /* brand kit logo (docs/HELM_Brand_and_Website_Kit 2, copied as-is to /brand/): compass-H symbol + "ELM" = the HELM lockup.
-       Collapsed rail = symbol only. Variants: primary (light rail), -on-dark (dark), -monochrome (graphite); CSS picks one. */
-    function kimg(cls, src) { var i = document.createElement("img"); i.className = cls; i.src = src; i.alt = ""; i.decoding = "async"; return i; }
-    logo.appendChild(kimg("hb-k hb-k-pri", "/brand/helm-symbol.svg?v=1")); logo.appendChild(kimg("hb-k hb-k-dark", "/brand/helm-symbol-on-dark.svg?v=1")); logo.appendChild(kimg("hb-k hb-k-mono", "/brand/helm-symbol-mono.svg?v=1"));
+    /* Helm logo = brand-kit shape (compass-H + ELM), recoloured per theme: classes hl-ink / hl-acc / hl-ring read
+       --hl-ink / --hl-acc / --hl-ring from shell-b.css, so a theme switch recolours it live. Collapsed rail = symbol only.
+       Geometry copied from docs/HELM_Brand_and_Website_Kit 2 (helm-primary.svg); built with createElementNS (CSP-safe). */
+    var HL = {"arcs": ["M 124.37,175.11 A 235,235 0 0 1 290.61,88.57", "M 323.39,88.57 A 235,235 0 0 1 481.64,165.75", "M 494.68,181.57 A 235,235 0 0 1 489.63,470.89", "M 467.27,494.87 A 235,235 0 0 1 327.48,557.11", "M 286.52,557.11 A 235,235 0 0 1 140.83,489.17", "M 119.32,464.43 A 235,235 0 0 1 121.82,178.32"], "ticks": ["M 132.9 154.9 L 105.6 128.5", "M 481.1 154.9 L 508.4 128.5", "M 481.1 491.1 L 508.4 517.5", "M 132.9 491.1 L 105.6 517.5"], "h": "M148 153 H232 V284 H386 V153 H475 V486 H386 V363 H232 V486 H148 Z", "pts": ["M307 5 L256 272 L286 263 L307 102 L333 265 L356 272 Z", "M6 324 L269 260 L269 280 L114 323 Z", "M6 324 L269 368 L269 387 Z", "M280 365 L307 633 L340 365 Z"], "elm": ["M518 153 H790 V220 H607 V290 H765 V357 H607 V416 H792 V486 H518 Z", "M822 153 H910 V416 H1037 V486 H822 Z", "M1060 486 V153 H1147 L1272 354 L1397 153 H1505 V486 H1419 V296 L1288 447 H1254 L1146 295 V486 Z"], "rw": 17, "tw": 15, "gap": 20};
+    function hlSvg(vb, cls) { var SN = "http://www.w3.org/2000/svg", sv = document.createElementNS(SN, "svg");
+      sv.setAttribute("class", cls); sv.setAttribute("viewBox", vb); sv.setAttribute("focusable", "false"); sv.setAttribute("aria-hidden", "true");
+      sv.mk = function (n, a, p) { var e = document.createElementNS(SN, n); for (var k in a) e.setAttribute(k, a[k]); (p || sv).appendChild(e); return e; }; return sv; }
+    var sym = hlSvg("-14 -10 591 660", "hl-logo hb-sym"), mk = sym.mk;
+    var msk = mk("mask", { id: "hlm-gap-rail", maskUnits: "userSpaceOnUse", x: -10, y: -10, width: 600, height: 660 });
+    mk("rect", { x: -10, y: -10, width: 600, height: 660, fill: "#fff" }, msk);
+    var mg = mk("g", { fill: "#000", stroke: "#000", "stroke-width": HL.gap, "stroke-linejoin": "round" }, msk); HL.pts.forEach(function (d) { mk("path", { d: d }, mg); });
+    var r1 = mk("g", { "class": "hl-ring", fill: "none", stroke: "currentColor", "stroke-width": HL.rw, "stroke-linecap": "round" }); HL.arcs.forEach(function (d) { mk("path", { d: d }, r1); });
+    var r2 = mk("g", { "class": "hl-ring", fill: "none", stroke: "currentColor", "stroke-width": HL.tw, "stroke-linecap": "round" }); HL.ticks.forEach(function (d) { mk("path", { d: d }, r2); });
+    mk("path", { "class": "hl-ink", d: HL.h, fill: "currentColor", mask: "url(#hlm-gap-rail)" });
+    var pg = mk("g", { "class": "hl-acc", fill: "currentColor", stroke: "currentColor", "stroke-width": 5, "stroke-linejoin": "round" }); HL.pts.forEach(function (d) { mk("path", { d: d }, pg); });
+    logo.appendChild(sym);
     var elm = el("span", "hb-lb hb-name"); elm.setAttribute("aria-hidden", "true");
-    elm.appendChild(kimg("hb-k hb-k-pri", "/brand/helm-elm.svg?v=1")); elm.appendChild(kimg("hb-k hb-k-dark", "/brand/helm-elm-on-dark.svg?v=1")); elm.appendChild(kimg("hb-k hb-k-mono", "/brand/helm-elm-monochrome.svg?v=1"));
+    var es = hlSvg("505 -10 1011 660", "hl-logo hb-elm"), eg = es.mk("g", { "class": "hl-ink", fill: "currentColor" }); HL.elm.forEach(function (d) { es.mk("path", { d: d }, eg); });
+    elm.appendChild(es);
     brand.appendChild(logo); brand.appendChild(elm);
     var pin = el("button", "hb-pin"); pin.type = "button"; pin.setAttribute("data-tour", "pin"); pin.appendChild(icon("pin"));
     function syncPin() { var p = root.classList.contains("hb-pinned"); pin.setAttribute("aria-pressed", p ? "true" : "false"); pin.title = p ? "Unpin sidebar" : "Keep sidebar open"; pin.setAttribute("aria-label", pin.title); }
