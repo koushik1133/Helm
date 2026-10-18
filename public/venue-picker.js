@@ -47,6 +47,7 @@
       fill: function (f) { setVal("c_len", f.lenFt); setVal("c_wid", f.widFt); setVal("c_setting", f.setting); setVal("capInput", f.capacity); },
       linked: function () { var B = window.HelmBuilderVenue, c = B ? B.client() : {}; return { id: c.venueId || "", name: c.venueName || "" }; },
       link: function (v) { if (window.HelmBuilderVenue) window.HelmBuilderVenue.link(v); },
+      preselect: function (rows) { var B = window.HelmBuilderVenue; return B && B.linkedId ? B.linkedId(rows) : ""; },
       layout: function () { var B = window.HelmBuilderVenue; return B && B.layout ? B.layout() : null; } };
   }
   if (!ctx || !ctx.anchor) return;
@@ -85,7 +86,11 @@
   function sync() {
     var L = ctx.linked();
     if (L.id && list.some(function (v) { return v.id === L.id; })) sel.value = L.id;
-    else if (!L.id) sel.value = "";
+    else if (!L.id) {
+      // QA-B27 (builder): no link yet - pre-select the saved venue the quote names (display only, nothing is linked)
+      var pre = ctx.preselect ? ctx.preselect(list) : "";
+      sel.value = pre && list.some(function (v) { return v.id === pre; }) ? pre : "";
+    }
     paintLink(); render();
   }
   sel.addEventListener("change", function () {

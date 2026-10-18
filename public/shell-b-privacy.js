@@ -159,6 +159,7 @@
     if (node.nodeType === 3) { markText(node); return; }
     if (node.nodeType !== 1) return;
     if (node.id === "hbpModal" || node.id === "hbRail") return;
+    if (node.closest && node.closest(".hbp-skip")) return;   /* QA-B27: e.g. the builder's floor-plan SVG (no amounts; redrawn on every drag) */
     if (node.tagName === "INPUT") { markInput(node); return; }
     if (masked.has(node)) return;
     if (node.hasAttribute && node.hasAttribute("title")) stashTitle(node);
