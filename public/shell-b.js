@@ -532,6 +532,10 @@
   function fillMore(manage, admin, done) {
     waitAuth(function () {
       var skip = { dashboard: 1, quotes: 1, leads: 1, calendar: 1, chat: 1, users: 1 }, seen = {};
+      /* FLAG (Oct 2026, trial-data-v3): the "Templates" rail item is hidden for now. The page (templates.html) stays
+       * reachable from its own links (Control Center, search, "Checklist template" quick action). Turn the rail item
+       * back on with window.HELM_FLAGS = { navTemplates: true } before shell-b.js. */
+      if (!(window.HELM_FLAGS && window.HELM_FLAGS.navTemplates === true)) skip.templates = 1;
       var areas = BPStore.auth.areas().filter(function (a) {
         if (!a || !a.page || skip[a.key] || seen[a.page]) return false; seen[a.page] = 1; return true;
       });

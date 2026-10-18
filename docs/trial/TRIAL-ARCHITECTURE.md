@@ -257,3 +257,18 @@ Sample milestones: 30 % advance + 70 % balance due event date - 3.
 The manifest now also stores `studio` (currency, timezone, country, payment terms); `_sample_clone_into` (wrapper over
 `*__pre0168`) gives every cloned trial INR + Asia/Kolkata + IN + those terms + the master's 11 item rate cards
 (the builder's 2D/3D palette itself is shipped in code, so every studio has all products). Published as manifest v2.
+
+### Sample dataset v3 (0169, `supabase/APPLY-0169.sql`, run after APPLY-0168)
+- Layout templates: the owner's wedding layout is the master's studio layout template
+  "Demo - Wedding - Grand Lawn (450+ guests)" (`studio_layout_templates`, event type `wedding`, 71 objects) and the
+  sample wedding's layout version 1 (SMP-1001 moves to Green Meadows Lawn). Fixes to the owner JSON: DJ booth centred in
+  front of the LED screen with the same rotation; duplicate fence (x 160) and the carpet piece past the checkpoint dropped;
+  overlapping aisle pieces trimmed. TODO: Corporate + Corporate round-table JSONs from the owner - add each as one row in
+  section 1 of a new migration (same insert shape), then publish a new manifest.
+- GST 18 % intra-state (`placeOfSupply: "intra"` -> CGST 9 % + SGST 9 %) on open sample events; studio `gstPct` 18.
+- Leads have full notes; events have guests / budget / source / address / notes in `client` + an `event_discovery` row.
+- Coupons DEMO-WELCOME10 (10 %), DEMO-FLAT5000 (Rs 5,000), DEMO-WEEKDAY15 (15 %, weekday rule is only in the note).
+- Run sheets on SMP-1001, SMP-1002, SMP-1003. Sample T&C in app_config `pricing.termsText` (pre-fills the booklet Terms box).
+- Snapshot tables + `coupons`, `studio_layout_templates`, `event_discovery`; studio settings + gstPct / placeOfSupply /
+  taxState / termsText. "Clear demo data" turns DEMO- coupons off and archives Demo templates (wrapper over `*__pre0169`).
+- Published as manifest v3. Roll back: `select public.set_current_sample_manifest(2);`.
