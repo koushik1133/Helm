@@ -1,11 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- Helm mark (single source of truth). Two tilted pills. Theme-aware when used via <svg><use href="/brand/mark.svg#helm-mark">:
-       pill 1 = currentColor, pill 2 has no stroke and inherits `stroke` from the host <svg> (page CSS sets .helm-mark stroke to the accent colour). See docs/LOGO-SWAP.md. -->
+  <!-- Helm compass-H mark (single source of truth; from docs/HELM_Brand_and_Website_Kit 2, refined: rounded joins, 48-grid, clear gaps so the H reads at 16px).
+       Theme-aware via <svg><use href="/brand/mark.svg#helm-mark">: H + ring = currentColor (theme ink);
+       compass points have NO fill/stroke attribute and inherit fill + stroke from the host <svg> (page CSS sets them to the theme accent).
+       Single-ink (Graphite): set the host fill/stroke to currentColor. See docs/LOGO-SWAP.md. -->
   <symbol id="helm-mark" viewBox="0 0 48 48">
-    <g>
-      <path d="M14.77 22.04L18.19 31.44" stroke-width="13" stroke-linecap="round" stroke="currentColor"/>
-      <path d="M29.81 16.56L33.23 25.96" stroke-width="13" stroke-linecap="round"/>
-    </g>
+    <g fill="currentColor" stroke="none"><rect x="13" y="12" width="6.5" height="24" rx="1.6"/><rect x="28.5" y="12" width="6.5" height="24" rx="1.6"/><rect x="18.5" y="21.5" width="11" height="5"/></g>
+    <g stroke="currentColor" fill="none"><circle cx="24" cy="24" r="20" fill="none" stroke-width="1.6" stroke-dasharray="25.42 6" stroke-dashoffset="-3" opacity=".42"/></g>
+    <g stroke-width="0.9" stroke-linejoin="round"><path d="M24 1.8L26.5 16.6 24 19.2 21.5 16.6Z"/><path d="M24 46.2L26.5 31.4 24 28.8 21.5 31.4Z"/><path d="M1.8 24L9.6 21.5 11 24 9.6 26.5Z"/></g>
   </symbol>
-  <use href="#helm-mark" color="#101511" stroke="#0d8a5c"/>
+  <use href="#helm-mark" color="#101511" fill="#0d8a5c" stroke="#0d8a5c"/>
 </svg>

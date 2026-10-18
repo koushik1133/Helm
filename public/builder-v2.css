@@ -43,7 +43,7 @@ html[data-hb-theme] body { background:var(--b2-bg); }
 html[data-hb-theme] header { background:var(--panel); border-bottom:1px solid var(--line); box-shadow:none; }
 html[data-hb-theme] header::after { display:none; }
 html[data-hb-theme] .brand .mark { background:var(--accent); border-radius:7px; box-shadow:none; }
-html[data-hb-theme] .brand .mark::after { border-color:var(--acc-ink); }
+html[data-hb-theme] .brand .mark::after { background:var(--acc-ink); }
 html[data-hb-theme] .brand h1 { letter-spacing:-.015em; }
 html[data-hb-theme] .hsep { background:var(--line); }
 

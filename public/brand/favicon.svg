@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <style>.t{fill:#f5f6f1}.a{stroke:#101511}.b{stroke:#0d8a5c}@media (prefers-color-scheme:dark){.t{fill:#101511}.a{stroke:#f5f6f1}.b{stroke:#34d399}}</style>
+  <style>.t{fill:#101511}.h{fill:#fff}.a{fill:#5fe0b0;stroke:#5fe0b0}@media (prefers-color-scheme:dark){.t{fill:#f5f6f1}.h{fill:#101511}.a{fill:#0d8a5c;stroke:#0d8a5c}}</style>
   <rect class="t" width="48" height="48" rx="11"/>
-  <g><path class="a" d="M14.77 22.04L18.19 31.44" stroke-width="13" stroke-linecap="round"/><path class="b" d="M29.81 16.56L33.23 25.96" stroke-width="13" stroke-linecap="round"/></g>
+  <g class="h"><rect x="11" y="11" width="8" height="26" rx="1.8"/><rect x="29" y="11" width="8" height="26" rx="1.8"/><rect x="18" y="21" width="12" height="6"/></g>
+  <g class="a" stroke-width="1" stroke-linejoin="round"><path d="M24 4L26.6 17 24 19 21.4 17Z"/><path d="M24 44L26.6 31 24 29 21.4 31Z"/><path d="M3.5 24L8.6 21.6 9.6 24 8.6 26.4Z"/></g>
 </svg>

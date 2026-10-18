@@ -1,4 +1,12 @@
-# Logo swap checklist (updated 2026-10-16)
+# Logo swap checklist (updated 2026-10-17)
+
+## Current state (2026-10-17): compass-H mark (from docs/HELM_Brand_and_Website_Kit 2)
+- `public/brand/mark.svg` `<symbol id="helm-mark">`: H + ring = `currentColor` (theme ink); 3 compass points carry no fill/stroke and inherit `fill` + `stroke` from the host `<svg>` (theme accent). Graphite sets both to the ink = single-ink mark.
+- `public/brand/mark-mono.svg` single-ink; `mark-ink.svg` + `mark-acc.svg` are CSS-mask layers for marketing `.mark` (`.mark i` = ink layer, `.mark i+i` = accent layer) and the tile glyph `.mark::after`.
+- `public/brand/favicon.svg` (= `public/favicon.svg`): bolder H, no ring (16px-clean). `public/brand/app-icon.svg` = source of apple-touch / icon-192 / 512 / maskable / email logo PNGs (rendered with headless Chromium).
+- Loader outlines (`HB_MARK`, `MARK`, `shell-b-loader-mark.svg`) = H outline + compass points.
+(The two-pill notes below are historical.)
+
 
 ## 0. Current state (2026-10-16): ONE shared mark
 The home-page mark (two tilted pills, ink + accent) is now the logo everywhere:

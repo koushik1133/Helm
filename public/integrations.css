@@ -10,7 +10,7 @@ a{color:inherit}
 header{display:flex;align-items:center;gap:11px;padding:18px 0;flex-wrap:wrap}
 header a{text-decoration:none}
 .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
-.mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+.mark::after{content:"";position:absolute;inset:4px;background:#fff;-webkit-mask:url(/brand/mark-mono.svg) center/contain no-repeat;mask:url(/brand/mark-mono.svg) center/contain no-repeat}
 header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
 .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2);flex-wrap:wrap} .nav a:hover{color:var(--accent)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px}

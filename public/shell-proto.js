@@ -25,7 +25,7 @@
   try { localStorage.removeItem("helm.dash.v"); } catch (e) {}
   {
     /* SHELL_V: bump this whenever any shell-* file changes, so browsers refetch (was Date.now(), which defeated caching) */
-    var SHELL_V = "119", root = document.documentElement, head = document.head;
+    var SHELL_V = "120", root = document.documentElement, head = document.head;
     window.HELM_SHELL_V = SHELL_V;
     root.setAttribute("data-shell", v);
     var th = null; try {
@@ -57,7 +57,7 @@
     setTimeout(function () { root.classList.add("hb-ready"); root.classList.add("hb-loaded"); }, 2500);   /* safety: unhide old header if shell JS failed */
     /* Blueprint loader (#hb-ld, styled in shell-b-loader.css). HB_MARK = the Helm mark paths (viewBox 0 0 48 48, same as
        shell-b-loader-mark.svg) - swap here to change the mark. Built with createElementNS (no innerHTML: CSP/injection-safe). */
-    var HB_MARK = ["M16 12.5a6.5 6.5 0 0 1 6.5 6.5v10a6.5 6.5 0 0 1-13 0v-10a6.5 6.5 0 0 1 6.5-6.5z", "M32 12.5a6.5 6.5 0 0 1 6.5 6.5v10a6.5 6.5 0 0 1-13 0v-10a6.5 6.5 0 0 1 6.5-6.5z"];
+    var HB_MARK = ["M13 12H19.5V21.5H28.5V12H35V36H28.5V26.5H19.5V36H13Z", "M24 1.8L26.5 16.6 24 19.2 21.5 16.6ZM24 46.2L26.5 31.4 24 28.8 21.5 31.4ZM1.8 24L9.6 21.5 11 24 9.6 26.5Z"];
     (function () {
       var NS = "http://www.w3.org/2000/svg", d = document.createElement("div"), st = document.createElement("div");
       function el(n, a, p) { var e = document.createElementNS(NS, n); for (var k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; }
@@ -65,8 +65,8 @@
       var s = el("svg", { viewBox: "-12 -12 72 72", focusable: "false" }, st), g = el("g", { "class": "hbl-grid" }, s);
       for (var i = -12; i <= 60; i += 6) { el("line", { x1: i, y1: -12, x2: i, y2: 60 }, g); el("line", { x1: -12, y1: i, x2: 60, y2: i }, g); }
       el("path", { "class": "hbl-dim", pathLength: 1, d: "M6 52v4M42 52v4M6 54h36M52 3h4M52 45h4M54 3v42" }, s);
-      el("path", { "class": "hbl-mark", pathLength: 1, "stroke-width": 3.2, transform: "rotate(-20 24 24)", d: HB_MARK[0] }, s);
-      el("path", { "class": "hbl-mark", pathLength: 1, "stroke-width": 3.2, transform: "rotate(-20 24 24)", d: HB_MARK[1] }, s);
+      el("path", { "class": "hbl-mark", pathLength: 1, "stroke-width": 2, "stroke-linejoin": "round", d: HB_MARK[0] }, s);
+      el("path", { "class": "hbl-mark", pathLength: 1, "stroke-width": 2, "stroke-linejoin": "round", d: HB_MARK[1] }, s);
       root.appendChild(d);
     })();
     function hbLoaded() { requestAnimationFrame(function () { root.classList.add("hb-loaded"); }); setTimeout(function () { root.classList.add("hb-settled"); }, 900); }   /* v86: entrance plays once; cards revealed later (auth/data) appear without re-animating = no flicker */   /* loader off + entrance as soon as page + shell scripts are in; no artificial wait */

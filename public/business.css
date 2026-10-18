@@ -118,3 +118,5 @@ body.bz-body { margin: 0; background: var(--bg, #f6f4f1); color: var(--ink, #1b1
 html[data-shell="b"] body.bz-body { background: var(--hb-bg2); color: var(--hb-ink); }
 #noaccess { background: var(--hb-bg, var(--panel, #fff)); border: 1px solid var(--hb-line, var(--line, #e8e3db)); border-radius: 14px; padding: 16px; }
 .bz-kpi-v { align-self: flex-start; }
+.bz-header .mark { position: relative; }
+.bz-header .mark::after { content: ""; position: absolute; inset: 4px; background: #fff; -webkit-mask: url(/brand/mark-mono.svg) center/contain no-repeat; mask: url(/brand/mark-mono.svg) center/contain no-repeat; }

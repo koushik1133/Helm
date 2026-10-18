@@ -150,10 +150,10 @@
     var top = el("div", "hb-top");
     var brand = el("a", "hb-brand"); brand.href = "/dashboard.html"; brand.setAttribute("aria-label", "Helm home");
     var logo = el("span", "hb-logo"); logo.setAttribute("aria-hidden", "true");
-    (function () { /* shared Helm mark: /brand/mark.svg?v=2#helm-mark (one-file logo swap, see docs/LOGO-SWAP.md) */
+    (function () { /* shared Helm mark: /brand/mark.svg?v=3#helm-mark (one-file logo swap, see docs/LOGO-SWAP.md) */
       var SN = "http://www.w3.org/2000/svg", sv = document.createElementNS(SN, "svg"), us = document.createElementNS(SN, "use");
       sv.setAttribute("class", "helm-mark"); sv.setAttribute("viewBox", "0 0 48 48"); sv.setAttribute("focusable", "false");
-      us.setAttribute("href", "/brand/mark.svg?v=2#helm-mark"); sv.appendChild(us); logo.appendChild(sv);
+      us.setAttribute("href", "/brand/mark.svg?v=3#helm-mark"); sv.appendChild(us); logo.appendChild(sv);
     })();
     brand.appendChild(logo); brand.appendChild(el("span", "hb-lb hb-name", "Helm Events"));
     var pin = el("button", "hb-pin"); pin.type = "button"; pin.setAttribute("data-tour", "pin"); pin.appendChild(icon("pin"));

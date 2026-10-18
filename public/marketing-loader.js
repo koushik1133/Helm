@@ -7,15 +7,15 @@
     if (sessionStorage.getItem("helm.mk.intro") === "1") return;
     sessionStorage.setItem("helm.mk.intro", "1");
   } catch (e) { return; }
-  var MARK = ["M16 12.5a6.5 6.5 0 0 1 6.5 6.5v10a6.5 6.5 0 0 1-13 0v-10a6.5 6.5 0 0 1 6.5-6.5z", "M32 12.5a6.5 6.5 0 0 1 6.5 6.5v10a6.5 6.5 0 0 1-13 0v-10a6.5 6.5 0 0 1 6.5-6.5z"];
+  var MARK = ["M13 12H19.5V21.5H28.5V12H35V36H28.5V26.5H19.5V36H13Z", "M24 1.8L26.5 16.6 24 19.2 21.5 16.6ZM24 46.2L26.5 31.4 24 28.8 21.5 31.4ZM1.8 24L9.6 21.5 11 24 9.6 26.5Z"];
   var NS = "http://www.w3.org/2000/svg", d = document.createElement("div"), st = document.createElement("div");
   function el(n, a, p) { var e = document.createElementNS(NS, n); for (var k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; }
   d.id = "mk-ld"; d.setAttribute("aria-hidden", "true"); st.className = "mkl-stage"; d.appendChild(st);
   var s = el("svg", { viewBox: "-12 -12 72 72", focusable: "false" }, st), g = el("g", { "class": "mkl-grid" }, s);
   for (var i = -12; i <= 60; i += 6) { el("line", { x1: i, y1: -12, x2: i, y2: 60 }, g); el("line", { x1: -12, y1: i, x2: 60, y2: i }, g); }
   el("path", { "class": "mkl-dim", pathLength: 1, d: "M6 52v4M42 52v4M6 54h36M52 3h4M52 45h4M54 3v42" }, s);
-  el("path", { "class": "mkl-mark", pathLength: 1, "stroke-width": 3.2, transform: "rotate(-20 24 24)", d: MARK[0] }, s);
-  el("path", { "class": "mkl-mark", pathLength: 1, "stroke-width": 3.2, transform: "rotate(-20 24 24)", d: MARK[1] }, s);
+  el("path", { "class": "mkl-mark", pathLength: 1, "stroke-width": 2, "stroke-linejoin": "round", d: MARK[0] }, s);
+  el("path", { "class": "mkl-mark", pathLength: 1, "stroke-width": 2, "stroke-linejoin": "round", d: MARK[1] }, s);
   document.documentElement.appendChild(d);
   setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 820);
 })();
