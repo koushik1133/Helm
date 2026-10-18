@@ -6258,6 +6258,15 @@ window.HelmUrl = HelmUrl;
       rows.forEach((c) => { const d = Number(c.price_delta || 0); if (Number.isFinite(d) && d) out[c.quote_id] = (out[c.quote_id] || 0) + d; });
       return out;
     },
+    // qts-1018: { quoteId: invoice total } for list rows (each row carries its server-stamped
+    // total) - BPStore.invoiceTotal over the same approved change orders summary() counts.
+    // Fail-soft: an unreadable change-order table gives the base totals (same on every screen).
+    async invoiceTotals(rows) {
+      const list = (rows || []).filter((r) => r && r.id); const out = {}; if (!list.length) return out;
+      let ch = {}; try { ch = (await this.approvedChangeTotals(list.map((r) => r.id))) || {}; } catch (_) { ch = {}; }
+      list.forEach((r) => { out[r.id] = BPStore.invoiceTotal(r, ch[r.id]); });
+      return out;
+    },
     async addChange(quoteId, c) {
       if (mode === "supabase") { const { data, error } = await supa.from("change_requests").insert({ quote_id: quoteId, ...c }).select().single(); if (error) throw error; return data; }
       const a = readLs(CHG_LS); const row = { id: uid(), quote_id: quoteId, status: "requested", price_delta: 0, cost_delta: 0, ...c, created_at: now() }; a.push(row); localStorage.setItem(CHG_LS, JSON.stringify(a)); return row;
@@ -10283,6 +10292,42 @@ window.HelmUrl = HelmUrl;
     var r = q && q.country && q.symbol ? q : BPStore.quoteTax(q), x = Number(n || 0); if (opts && opts.round) x = Math.round(x);
     if (r.country === "IN") return "\u20b9" + x.toLocaleString("en-IN");
     return BPStore.tax.money(x, r);
+  };
+  // ---- qts-1018: ONE status label + ONE invoice total for every screen ----------------------
+  // A quote has three state columns: status (quote / confirmed = the studio priced + LOCKED it /
+  // cancelled), approval_status (none / sent / approved / paid) and lifecycle_stage. Screens used
+  // to print them side by side ("Confirmed · awaiting client approval" + "Sent"), so a locked quote
+  // read as confirmed before the client approved it. quoteStatus() folds them into ONE label:
+  // "Confirmed" only once the client approved (or paid, or the event already moved past the
+  // Confirmed stage); a locked quote the client has not approved is "Sent · awaiting client approval".
+  var QS_STAGES = ["lead", "discovery", "proposal", "quote", "confirmed", "planning", "resources", "ready", "event_day", "settlement", "closed"];
+  BPStore.quoteStatus = function (q, opts) {
+    q = q && typeof q === "object" ? q : {}; opts = opts || {};
+    var st = String(q.status || "quote"), ap = String(q.approvalStatus || q.approval_status || "none");
+    var lc = String(q.lifecycleStage || q.lifecycle_stage || "quote"), si = QS_STAGES.indexOf(lc);
+    var closed = lc === "closed" || !!(q.closedAt || q.closed_at);
+    var mk = function (key, label, tone, title, confirmed) { return { key: key, label: label, tone: tone, title: title || "", confirmed: !!confirmed }; };
+    if (st === "cancelled") return mk("cancelled", "Cancelled", "cancelled", "This event was cancelled.");
+    if (closed) return mk("closed", "Closed", "closed", "The event is settled and closed.", true);
+    if (ap === "paid" || opts.advance) return mk("booked", "Confirmed · advance paid", "paid", "The client's advance is in - the date is booked.", true);
+    if (ap === "approved") return mk("approved", "Confirmed · client approved", "confirmed", "The client approved this quote.", true);
+    // lifecycle at/after Confirmed: the client's consent moved it there (0052), or an admin override
+    if (si >= QS_STAGES.indexOf("confirmed"))
+      return mk("confirmed", "Confirmed", "confirmed", "Moved to Confirmed by the studio - no online client approval on record.", true);
+    if (ap === "sent") return mk("sent", "Sent · awaiting client approval", "sent", "The approval link is with the client - it becomes Confirmed when they approve.");
+    if (st === "confirmed") return mk("locked", "Locked · not sent yet", "locked", "Priced and locked - send the client the approval link.");
+    return mk("quote", "Quote", "draft", "Draft quote - price it, then send it for approval.");
+  };
+  // The invoice total = the SERVER-priced quote total (pricing.total is stamped by the D8 trigger
+  // zz_enforce_pricing_total on every write - never a client-side recompute) + APPROVED change orders.
+  // Same rule as budget.summary().revenue (workspace, settlement, closure), so list, dashboard and
+  // workspace header can never disagree. changeTotal: that quote's approved change-order sum.
+  BPStore.invoiceTotal = function (q, changeTotal) {
+    q = q && typeof q === "object" ? q : {};
+    var b = Number(q.total != null ? q.total : (q.pricing && q.pricing.total));
+    if (!isFinite(b) || !(b > 0)) return 0;
+    var c = Number(changeTotal || 0); if (!isFinite(c)) c = 0;
+    return Math.round((b + c) * 100) / 100;
   };
   BPStore.studioMoney = function (n, opts) {
     var r = BPStore.studioTax(), x = Number(n || 0); if (opts && opts.round) x = Math.round(x);

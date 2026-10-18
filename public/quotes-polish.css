@@ -92,3 +92,5 @@ a.qname:hover,a.qname:focus-visible{color:var(--accent);text-decoration:underlin
 .discard-toggle{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);cursor:pointer;white-space:nowrap}
 .discard-toggle[hidden]{display:none}
 .discard-toggle .tcount{display:inline-block;min-width:18px;padding:0 6px;border-radius:20px;background:var(--panel-2,#f1f3f7);font-size:11px;line-height:18px;text-align:center}
+/* qts-1018: the reference code ("10182026-01") never breaks at its hyphen onto two lines */
+#rows td.code,#rows .refchip{white-space:nowrap}
