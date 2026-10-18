@@ -26,7 +26,10 @@ t('templates: repeated lines are kept once and a twin template name asks first',
 t('control: studio GSTIN is format-checked and pricing needs both rates', () => {
   const h = read('public/control.html');
   assert.match(h, /Enter a valid 15-character GSTIN/);
-  assert.match(h, /Enter a price for both chair and plate/);
+  // cc-pricing-validation: each price has its own inline message (no "both chair and plate" banner)
+  assert.doesNotMatch(h, /Enter a price for both chair and plate/);
+  assert.match(read('public/pricing-form-core.js'), /Enter a price per chair \(/);
+  assert.match(read('public/pricing-form-core.js'), /Enter a price per plate \(/);
   // the GSTIN regex matches the one used at checkout (0079: per-country check lives in BPStore.tax)
   const re = /\^\[0-9\]\{2\}\[A-Z\]\{5\}\[0-9\]\{4\}\[A-Z\]\[1-9A-Z\]Z\[0-9A-Z\]\$/;
   assert.match(h, /BPStore\.tax\.validateId\(newCountry, gstRaw\)/);

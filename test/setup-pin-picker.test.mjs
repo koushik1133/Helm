@@ -85,9 +85,16 @@ t('setup and Control Center read/write the SAME billing fields', () => {
   assert.match(cc, /const v=OB\.billingFromOrg\(o\);/, 'Control Center paints billing through the same reader');
 });
 t('pricing: a cleared catering GST is blocked like the main rate (no silent 0 %)', () => {
+  // merged with fix/cc-pricing-validation: the rule now lives in pricing-form-core.js (one message per field)
   const cc = read('public/control.html');
-  assert.match(cc, /if\(\$\("#p_chair"\)\.value===""\|\|\$\("#p_plate"\)\.value===""\)\{ fail\(/);
-  assert.match(cc, /split && String\(\$\("#p_cgst"\)\.value\)\.trim\(\)===""\)\{ fail\("Enter the catering GST rate/);
+  assert.match(cc, /const r=PF\.validatePricing\(raws,ctx,flags\);/);
+  const PF = require('../public/pricing-form-core.js');
+  const ok = { chairPrice: '10', platePrice: '20', gstPct: '18', cateringGstPct: '5', serviceChargePct: '', layoutBase: '', conflictBufferHours: '' };
+  const india = { symbol: '\u20b9', taxName: 'GST', split: true };
+  assert.equal(PF.validatePricing(ok, india, {}).ok, true);
+  const r = PF.validatePricing(Object.assign({}, ok, { cateringGstPct: '' }), india, {});
+  assert.equal(r.ok, false); assert.match(r.errors.cateringGstPct, /Enter the catering GST rate/);
+  assert.equal(PF.validatePricing(Object.assign({}, ok, { chairPrice: '' }), india, {}).ok, false, 'an empty chair price is refused');
 });
 t('step chips count from 1 (Business details no longer shows "0")', () => {
   const s = read('public/onboarding.js');

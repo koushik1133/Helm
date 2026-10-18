@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/control-polish.css?v=2">
+<link rel="stylesheet" href="/control-polish.css?v=3">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -363,14 +363,14 @@
       <h3>Default pricing (applies to every new quote)</h3>
       <div id="pricingErr"></div>
       <div class="grid">
-        <div class="fld"><label for="p_chair" id="p_chair_lbl">Price / chair (₹)</label><input id="p_chair" type="number" min="0" step="1"></div>
-        <div class="fld"><label for="p_plate" id="p_plate_lbl">Price / plate (₹)</label><input id="p_plate" type="number" min="0" step="1"></div>
+        <div class="fld"><label for="p_chair" id="p_chair_lbl">Price / chair (₹)</label><input id="p_chair" type="number" min="0" step="0.01" inputmode="decimal"></div>
+        <div class="fld"><label for="p_plate" id="p_plate_lbl">Price / plate (₹)</label><input id="p_plate" type="number" min="0" step="0.01" inputmode="decimal"></div>
         <div class="fld"><label for="p_gst" id="p_gst_lbl">Chair/rental GST %</label><input id="p_gst" type="number" min="0" step="0.01" list="p_gst_rates"><datalist id="p_gst_rates"></datalist></div>
         <div class="fld"><label for="p_cgst" id="p_cgst_lbl">Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5"></div>
         <div class="fld" id="p_taxName_fld" hidden><label for="p_taxName">Tax name</label><input id="p_taxName" maxlength="24" placeholder="e.g. VAT"></div>
         <div class="fld"><label class="mpchk" for="p_taxIncl"><input type="checkbox" id="p_taxIncl"> My prices already include tax</label><p class="mnote" id="p_taxNote"></p></div>
         <div class="fld"><label for="p_svc">Service charge % (optional)</label><input id="p_svc" type="number" min="0" step="0.5"></div>
-        <div class="fld"><label for="p_layout" id="p_layout_lbl">Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="fld"><label for="p_layout" id="p_layout_lbl">Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0"></div>
         <div class="fld"><label for="p_buffer">Venue booking gap (hours)</label><input id="p_buffer" type="number" min="0" step="0.5" placeholder="3" title="Two events at the same venue on the same day that start closer together than this many hours are flagged as a clash on the calendar. A bigger gap (e.g. one ends 3pm, next starts 6pm) is fine."></div>
         <div class="fld" id="p_country_fld"><span class="p-clbl" id="p_country_lbl" title="Sets the tax name, default rate, currency and phone country code for new quotes">Country (tax &amp; currency)</span>
           <!-- one source of truth: the country is set in General (Studio details); Pricing only shows it -->
@@ -420,9 +420,9 @@
       <h3>Coupons</h3>
       <div id="couponList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
       <div class="addrow">
-        <input id="co_code" placeholder="Code e.g. DIWALI10" aria-label="Coupon code">
+        <input id="co_code" placeholder="Code e.g. DIWALI10" aria-label="Coupon code" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false">
         <select id="co_kind" aria-label="Coupon type"><option value="percent">% off</option><option value="flat">₹ off</option></select>
-        <input id="co_val" type="number" min="0" step="1" placeholder="Value" aria-label="Coupon value">
+        <input id="co_val" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Value" aria-label="Coupon value">
         <button type="button" class="btn" id="co_add">+ Add coupon</button>
       </div>
     </div>
@@ -781,7 +781,7 @@
 <script src="studio-templates-core.js?v=2"></script>
 <script src="studio-templates.js?v=5"></script>
 <script src="item-pricing.js?v=1"></script>
-<script src="menu-pkg-editor.js?v=1"></script>
+<script src="pricing-form-core.js?v=1"></script><script src="menu-pkg-editor.js?v=1"></script>
 <script src="trial-demo.js?v=8"></script>
 <script src="trial-upgrade.js?v=1"></script>
 <script src="settings-search-core.js?v=1"></script>
@@ -943,7 +943,7 @@
   // If the pricing config didn't load, the form holds placeholders — saving it would
   // overwrite the studio's real rates. Block both pricing saves until a retry succeeds.
   let pricingLoaded = false;
-  function setPricingEnabled(on){ ["#savePricing","#saveItemPrices"].forEach(s=>{ const b=$(s); b.disabled=!on; b.title=on?"":"Pricing didn't load — retry above before saving."; }); }
+  function setPricingEnabled(on){ const b=$("#saveItemPrices"); b.disabled=!on; b.title=on?"":"Pricing didn't load — retry above before saving."; pfValidate(); }
   async function loadPricing(){
     pricingLoaded=false; setPricingEnabled(false);
     try{
@@ -962,7 +962,7 @@
       $("#cap_tables").value=p.maxRoundTables??2000; $("#cap_bars").value=p.maxBars??200; $("#cap_trucks").value=p.maxFoodTrucks??200;
       $("#cap_booths").value=p.maxExpoBooths??1000; $("#cap_rest").value=p.maxRestrooms??200; $("#cap_exits").value=p.maxExits??200; $("#cap_hall").value=p.maxHallFt??1000;
       renderItemPrices();
-      $("#pricingErr").innerHTML="";
+      $("#pricingErr").innerHTML=""; pfStatus("");
       pricingLoaded=true; setPricingEnabled(true);
     }catch(e){
       BPUI.loadError($("#pricingErr"), e, loadPricing, {what:"pricing"});
@@ -1025,26 +1025,58 @@
     setTimeout(()=>{ const c=$("#o_country"); if(c && c.offsetParent){ try{ c.scrollIntoView({block:"center"}); c.focus({preventScroll:true}); }catch(e){} } },80); });
   $("#p_country").addEventListener("change",()=>{ if($("#p_region")) $("#p_region").value=""; onPricingCountry(false); });
   $("#p_region").addEventListener("change",()=>onPricingCountry(true));
-  $("#savePricing").addEventListener("click",()=>BPUI.guard($("#savePricing"),async()=>{
-    if(!pricingLoaded){ setMsg("err","Pricing didn't load, so it can't be saved yet — use Retry first."); return; }
-    const V=BPStore.validate; const fail=(m)=>{ setMsg("err",m); };
-    if($("#p_chair").value===""||$("#p_plate").value===""){ fail("Enter a price for both chair and plate (0 is allowed)."); return; }
-    let chairPrice=0; if($("#p_chair").value!==""){ const r=V.money($("#p_chair").value,{field:"Price / chair"}); if(!r.ok){ fail(r.error); return; } chairPrice=r.value; }
-    let platePrice=0; if($("#p_plate").value!==""){ const r=V.money($("#p_plate").value,{field:"Price / plate"}); if(!r.ok){ fail(r.error); return; } platePrice=r.value; }
-    if(String($("#p_gst").value).trim()===""){ fail("Enter the tax rate (0 is allowed) — a blank rate would drop tax from new quotes."); $("#p_gst").focus(); return; }
-    let gstPct=0; if($("#p_gst").value!==""){ const r=V.pct($("#p_gst").value,{field:"Chair/rental GST %"}); if(!r.ok){ fail(r.error); return; } gstPct=r.value; }
-    // #setup-pin: a cleared catering GST must not silently save as 0 % (same rule as the main rate)
-    if(BPStore.tax.resolve(pricingDraftTax()).split && String($("#p_cgst").value).trim()===""){ fail("Enter the catering GST rate (0 is allowed) — a blank rate would drop GST from catering on new quotes."); $("#p_cgst").focus(); return; }
-    let cateringGstPct=0; if($("#p_cgst").value!==""){ const r=V.pct($("#p_cgst").value,{field:"Catering GST %"}); if(!r.ok){ fail(r.error); return; } cateringGstPct=r.value; }
-    let serviceChargePct=0; if($("#p_svc").value!==""){ const r=V.pct($("#p_svc").value,{field:"Service charge %"}); if(!r.ok){ fail(r.error); return; } serviceChargePct=r.value; }
-    let layoutBase=0; if($("#p_layout").value!==""){ const r=V.money($("#p_layout").value,{field:"Layout & setup fee"}); if(!r.ok){ fail(r.error); return; } layoutBase=r.value; }
-    let conflictBufferHours=3; if($("#p_buffer").value!==""){ const r=V.num($("#p_buffer").value,{field:"Venue booking gap",min:0,max:48}); if(!r.ok){ fail(r.error); return; } conflictBufferHours=r.value; }
+  // ---- Default pricing: one rule per field, the message under that field (pricing-form-core.js) ----
+  // Empty chair price -> "Enter a price per chair (₹0 or more)" under Price / chair only; nothing about plates.
+  // Save stays off while a field is wrong; changing a price TO ₹0 asks "Chairs free?" before saving.
+  const PF=window.HelmPricingForm;
+  const PF_KEYS=["chairPrice","platePrice","gstPct","cateringGstPct","serviceChargePct","layoutBase","conflictBufferHours"];
+  let pricingInvalid=false;
+  function pfCtx(){ try{ const r=BPStore.tax.resolve(Object.assign({},pricingDraftTax(),{taxName:$("#p_taxName").value||pricingCfg.taxName})); return {symbol:r.symbol,taxName:r.name,split:!!r.split}; }catch(e){ return {symbol:"₹",taxName:"GST",split:true}; } }
+  function pfErrEl(inp){ let e=document.getElementById(inp.id+"_err"); if(!e){ e=document.createElement("p"); e.id=inp.id+"_err"; e.className="pf-err hbp-skip"; e.setAttribute("role","alert"); e.hidden=true; inp.insertAdjacentElement("afterend",e);
+      inp.setAttribute("aria-describedby",[inp.getAttribute("aria-describedby"),e.id].filter(Boolean).join(" ")); } return e; }
+  function pfShow(inp,msg){ const e=pfErrEl(inp); if(e.textContent!==(msg||"")) e.textContent=msg||""; e.hidden=!msg; inp.setAttribute("aria-invalid",msg?"true":"false"); inp.classList.toggle("pf-bad",!!msg); }
+  function pfFlags(inp){ return {badInput:!!(inp&&inp.validity&&inp.validity.badInput), rejected:(inp&&inp.getAttribute("data-rejected"))||""}; }
+  function pfSaveState(){ const b=$("#savePricing"); if(!b||b.getAttribute("aria-busy")==="true") return;
+    b.disabled=!pricingLoaded||pricingInvalid; b.title=!pricingLoaded?"Pricing didn't load — retry above before saving.":pricingInvalid?"Fix the field marked in red to save.":""; }
+  // the card's own status line beside Save (a fresh node each time, so a failed save is seen as new)
+  function pfStatus(kind,text){ const act=$("#savePricing").parentElement; let st=$("#pricingStatus");
+    if(!st){ st=document.createElement("span"); st.id="pricingStatus"; st.className="pf-status"; act.insertBefore(st,act.firstChild); }
+    st.textContent=""; if(!text) return; const m=document.createElement("span"); m.className="msg "+(kind==="err"?"err":"ok"); m.setAttribute("role",kind==="err"?"alert":"status"); m.textContent=text; st.appendChild(m); }
+  function pfValidate(){
+    const ctx=pfCtx(), F=PF.fields(ctx), raws={}, flags={};
+    PF_KEYS.forEach(k=>{ const i=$("#"+F[k].id); raws[k]=i?i.value:""; flags[k]=pfFlags(i); });
+    const r=PF.validatePricing(raws,ctx,flags);
+    PF_KEYS.forEach(k=>{ const i=$("#"+F[k].id); if(i) pfShow(i,pricingLoaded?(r.errors[k]||""):""); });
+    pricingInvalid=pricingLoaded&&!r.ok; pfSaveState(); return r;
+  }
+  // after a save the boxes show exactly what was stored (e.g. "0200" -> 200, "199.5" stays 199.5)
+  // sent = the box texts that were saved: a box the user changed while the save was in flight keeps the new edit
+  function pfFill(c,sent){ const F=PF.fields({});
+    PF_KEYS.forEach(k=>{ const i=$("#"+F[k].id); if(!i||c[k]==null) return; if(sent && i.value!==sent[k]) return; i.value=c[k]; }); }
+  { const F=PF.fields({}); let t=null; const re=()=>{ clearTimeout(t); t=setTimeout(()=>{ pfValidate(); },0); };
+    PF_KEYS.forEach(k=>{ const i=$("#"+F[k].id); if(!i) return; pfErrEl(i);
+      // run after the shared number hardener has cleaned the value (it listens on the same events)
+      ["input","change","blur"].forEach(ev=>i.addEventListener(ev,()=>{ if(ev==="input") pfStatus(""); re(); })); });
+    ["#p_country","#p_region","#p_taxName"].forEach(sel=>{ const x=$(sel); if(x){ x.addEventListener("change",re); x.addEventListener("input",re); } }); }
+  $("#savePricing").addEventListener("click",async()=>{ await BPUI.guard($("#savePricing"),async()=>{
+    if(!pricingLoaded){ pfStatus("err","Pricing didn't load, so it can't be saved yet — use Retry first."); return; }
+    const ctx=pfCtx(), v=pfValidate();
+    if(!v.ok){ const i=$("#"+PF.fields(ctx)[v.first].id); try{ i.focus(); }catch(e){} return; }
+    const sent={}; PF_KEYS.forEach(k=>{ const i=$("#"+PF.fields(ctx)[k].id); sent[k]=i?i.value:""; });
+    const { chairPrice, platePrice, gstPct, serviceChargePct, layoutBase, conflictBufferHours }=v.values;
+    // one rate outside India: an empty catering box just follows the main rate
+    const cateringGstPct=v.values.cateringGstPct==null?gstPct:v.values.cateringGstPct;
+    // a price changed TO 0 is asked about (only the one that changed — never "both are zero")
+    const z=PF.zeroConfirm(PF.newlyZero(v.values,pricingCfg),ctx);
+    // "No": nothing is saved and the edit stays in the box - said as an error so it is not read as a save
+    // (and the card's unsaved-changes state stays on)
+    if(z && !(await BPUI.confirm(z.text,{title:z.title,okLabel:z.okLabel}))){ pfStatus("err","Not saved. The price is still 0 in the box: change it, or press Save pricing again and confirm."); return; }
     // B3: the pricing country IS the studio's tax country (kept in sync with Studio details)
     const draft=pricingDraftTax(), country=draft.taxCountry, prevCountry=BPStore.tax.code(pricingCfg.taxCountry||"IN");
     const region=country==="AE"||country==="US"?draft.taxRegion:"";
     const taxRes=BPStore.tax.resolve(draft), taxIncl=$("#p_taxIncl").checked;
     if(country!==prevCountry){ const tp=BPStore.tax.profile(country);
-      if(!(await BPUI.confirm(`Switch your studio to ${tp.name}? New quotes will use ${tp.tax} ${gstPct}% and ${tp.known?tp.currency:"your currency"}. Quotes you already saved, sent or got paid keep their price, tax and currency exactly as they are.`,{title:"Change country",okLabel:"Switch country"}))) return; }
+      if(!(await BPUI.confirm(`Switch your studio to ${tp.name}? New quotes will use ${tp.tax} ${gstPct}% and ${tp.known?tp.currency:"your currency"}. Quotes you already saved, sent or got paid keep their price, tax and currency exactly as they are.`,{title:"Change country",okLabel:"Switch country"}))){ pfStatus("err","Not saved. The country was not changed."); return; } }
     const taxName=String($("#p_taxName").value||"").replace(/[<>"'`]/g,"").trim().slice(0,24);
     // build a copy: a failed save must not leave the in-memory config ahead of the server
     const nextCfg=Object.assign({}, pricingCfg, { chairPrice, platePrice, gstPct, cateringGstPct, serviceChargePct, layoutBase, currency:taxRes.currency, conflictBufferHours, country, taxCountry:country });
@@ -1054,11 +1086,12 @@
     if(taxName && !BPStore.tax.profile(taxRes.country).known) nextCfg.taxName=taxName; else delete nextCfg.taxName;
     try{ localStorage.setItem("helm_org_country", country); }catch(e){}
     try{ await BPStore.config.setPricing(nextCfg); pricingCfg=nextCfg; try{ BPStore.rememberStudioTax && BPStore.rememberStudioTax(nextCfg); }catch(e){}
+      pfFill(nextCfg,sent);
       if(country!==prevCountry) await syncOrgCountry(country, region);
       $("#p_countryNote").textContent=""; pLastDefault=defaultRateFor(country,region); paintTaxFields();
-      setMsg("ok","Pricing saved — new quotes use these rates."); }
-    catch(e){ setMsg("err",errMsg(e,"save pricing")); }
-  }));
+      pfStatus("ok","Pricing saved — new quotes use these rates."); }
+    catch(e){ pfStatus("err",errMsg(e,"save pricing")); }
+  }).catch(()=>{}); pfValidate(); });
   $("#saveCaps").addEventListener("click",()=>BPUI.guard($("#saveCaps"),async()=>{
     if(!pricingLoaded){ setMsg("err","Pricing didn't load, so limits can't be saved yet — use Retry first."); return; }
     const V=BPStore.validate; const fail=(m)=>setMsg("err",m);
@@ -1069,8 +1102,9 @@
     const patch={};
     for(const [sel,key,label,min] of caps){ const raw=$("#"+sel).value; if(raw===""){ fail(label+" is required."); return; }
       const r=V.count(raw,{field:label,min}); if(!r.ok){ fail(r.error); return; } patch[key]=r.value; }
-    Object.assign(pricingCfg,patch);
-    try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Capacity limits saved — the layout builder uses these now."); }
+    // a copy: a failed save must not leave the in-memory config ahead of the server
+    const nextCfg=Object.assign({},pricingCfg,patch);
+    try{ await BPStore.config.setPricing(nextCfg); pricingCfg=nextCfg; setMsg("ok","Capacity limits saved — the layout builder uses these now."); }
     catch(e){ setMsg("err",errMsg(e,"save capacity limits")); }
   }));
   $("#saveItemPrices").addEventListener("click",()=>BPUI.guard($("#saveItemPrices"),async()=>{
@@ -1083,9 +1117,12 @@
       if(!r.ok){ setMsg("err",r.error); inp.focus(); return; }
       ap[inp.dataset.type]=r.value;
     }
-    pricingCfg.assetPrices=ap;
-    if(pricingCfg.chairPrice==null) pricingCfg.chairPrice=+$("#p_chair").value||200;
-    try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Item prices saved — the builder breakdown uses these."); }
+    // a copy (a failed save must not leave memory ahead of the server). The chair price is NOT read from the
+    // Default pricing box: an unsaved edit there (or a cleared box / ₹0, which "||200" turned into 200) must
+    // not be saved by this button. A studio that never saved one keeps the shown default, 200.
+    const nextCfg=Object.assign({},pricingCfg,{assetPrices:ap});
+    if(nextCfg.chairPrice==null) nextCfg.chairPrice=200;
+    try{ await BPStore.config.setPricing(nextCfg); pricingCfg=nextCfg; setMsg("ok","Item prices saved — the builder breakdown uses these."); }
     catch(e){ setMsg("err",errMsg(e,"save item prices")); }
   }));
 
@@ -1159,17 +1196,57 @@
     catch(e){ setMsg("err",errMsg(e,"remove "+what)); }
   }
 
+  // active coupon codes, so a twin code is caught at the field before it reaches the server
+  let couponCodes=[];
   async function renderCoupons(){
     let c=[]; try{ c=(await BPStore.coupons.list())||[]; }catch(e){ BPUI.loadError($("#couponList"), e, renderCoupons, {what:"coupons"}); return; }
-    $("#couponList").innerHTML = c.length? c.map(x=>{ const v=numAttr(x.value,0); return `<div class="row"><span class="g mono">${esc(x.code)}</span><span>${x.kind==='percent'?esc(v)+'% off':'₹'+esc(v.toLocaleString("en-IN"))+' off'}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.code)}" aria-label="Remove coupon ${esc(x.code)}">Remove</button></div>`; }).join("") : '<div class="row" style="color:var(--ink-3)">No coupons yet.</div>';
+    couponCodes=c.map(x=>String(x.code||""));
+    const off=(x,v)=>x.kind==='percent'?esc(v)+'% off':esc(BPStore.studioMoney?BPStore.studioMoney(v):'₹'+v.toLocaleString("en-IN"))+' off';
+    $("#couponList").innerHTML = c.length? c.map(x=>{ const v=numAttr(x.value,0); return `<div class="row"><span class="g mono">${esc(x.code)}</span><span>${off(x,v)}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.code)}" aria-label="Remove coupon ${esc(x.code)}">Remove</button></div>`; }).join("") : '<div class="row" style="color:var(--ink-3)">No coupons yet.</div>';
     $("#couponList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`coupon ${b.dataset.name}`,()=>BPStore.coupons.remove(b.dataset.id),renderCoupons)));
+    coValidate();
   }
+  // ---- coupon rules (pricing-form-core.js): message right under the add row, at the field that is wrong ----
+  const coTouched={code:false,value:false};
+  let coTaken=null;   // {code,msg}: the server said this code is taken; shown until the code is changed
+  function coErrEl(){ let e=$("#co_err"); if(!e){ e=document.createElement("p"); e.id="co_err"; e.className="pf-err co-err hbp-skip"; e.setAttribute("role","alert"); e.hidden=true; $("#co_add").closest(".addrow").insertAdjacentElement("afterend",e);
+      ["#co_code","#co_val"].forEach(s=>$(s).setAttribute("aria-describedby","co_err")); } return e; }
+  function coStatus(kind,text){ const e=coErrEl(); let st=$("#co_status"); if(!st){ st=document.createElement("p"); st.id="co_status"; st.className="pf-status"; e.insertAdjacentElement("afterend",st); }
+    st.textContent=""; if(!text) return; const m=document.createElement("span"); m.className="msg "+(kind==="err"?"err":"ok"); m.setAttribute("role",kind==="err"?"alert":"status"); m.textContent=text; st.appendChild(m); }
+  function coValidate(){
+    const kind=$("#co_kind").value, sym=pfCtx().symbol;
+    const r=PF.validateCoupon({code:$("#co_code").value,kind,value:$("#co_val").value},couponCodes,{symbol:sym},{value:pfFlags($("#co_val"))});
+    const taken=coTaken&&coTaken.code===PF.normCode($("#co_code").value)?coTaken.msg:"";
+    if(taken){ r.ok=false; r.errors.code=taken; }
+    const codeMsg=taken||(coTouched.code?r.errors.code:""), valMsg=coTouched.value?r.errors.value:"";
+    [["#co_code",codeMsg],["#co_val",valMsg]].forEach(([s,m])=>{ const i=$(s); i.setAttribute("aria-invalid",m?"true":"false"); i.classList.toggle("pf-bad",!!m); });
+    const e=coErrEl(), t=[codeMsg,valMsg].filter(Boolean).join(" ");
+    if(e.textContent!==t) e.textContent=t; e.hidden=!t;
+    $("#co_val").placeholder=kind==="percent"?"% off, e.g. 10":"Amount off, e.g. 500";
+    // the flat option names the studio's currency (an AED studio reads "AED off", not "₹ off")
+    { const o=$("#co_kind").querySelector('option[value="flat"]'), l=String(sym==null?"₹":sym).trim()+" off"; if(o&&o.textContent!==l) o.textContent=l; }
+    return r;
+  }
+  { let t=null; const re=(f)=>()=>{ if(f) coTouched[f]=true; coStatus(""); clearTimeout(t); t=setTimeout(()=>coValidate(),0); };
+    $("#co_code").addEventListener("input",re("code")); $("#co_code").addEventListener("blur",re("code"));
+    ["input","change","blur"].forEach(ev=>$("#co_val").addEventListener(ev,re("value")));
+    $("#co_kind").addEventListener("change",re(null));
+    ["#co_code","#co_val"].forEach(s=>$(s).addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.isComposing){ e.preventDefault(); $("#co_add").click(); } })); }
   $("#co_add").addEventListener("click",()=>BPUI.guard($("#co_add"),async()=>{
-    const code=$("#co_code").value.trim().toUpperCase(); if(code.length<2){ setMsg("err","Enter a coupon code."); return; }
-    const V=BPStore.validate, kind=$("#co_kind").value;
-    let coVal=0; if($("#co_val").value!==""){ const r=kind==="percent"?V.pct($("#co_val").value,{field:"Coupon value"}):V.money($("#co_val").value,{field:"Coupon value"}); if(!r.ok){ setMsg("err",r.error); return; } coVal=r.value; }
-    try{ await BPStore.coupons.add(code,kind,coVal,null); $("#co_code").value="";$("#co_val").value=""; await renderCoupons(); setMsg("ok","Coupon added."); }
-    catch(e){ setMsg("err",errMsg(e,"add the coupon")); }
+    coTouched.code=coTouched.value=true; coStatus("");
+    const r=coValidate();
+    if(!r.ok){ try{ $(r.errors.code?"#co_code":"#co_val").focus(); }catch(e){} return; }
+    const {code,kind,value}=r.value, z=PF.couponConfirm(kind,value);
+    if(z && !(await BPUI.confirm(z.text,{title:z.title,okLabel:z.okLabel}))) return;
+    try{ await BPStore.coupons.add(code,kind,value,null);
+      $("#co_code").value=""; $("#co_val").value=""; coTouched.code=coTouched.value=false;
+      await renderCoupons(); coStatus("ok","Coupon "+code+" added."); }
+    catch(e){
+      // the code is taken: by a coupon added elsewhere just now, or by one that was removed (removed codes stay reserved)
+      if(e && e.code==="23505"){ await renderCoupons();
+        coTaken={code,msg:code+" is already taken"+(couponCodes.some(x=>PF.normCode(x)===code)?"":" by a coupon that was removed")+". Pick a different code, like "+code.slice(0,19)+"2."};
+        coValidate(); try{ $("#co_code").focus(); }catch(_){} return; }
+      coStatus("err",errMsg(e,"add the coupon")); }
   }));
 
   async function renderChairs(){
