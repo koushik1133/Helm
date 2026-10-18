@@ -66,7 +66,7 @@ do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_t
       select 1 from public.payment_milestones pm join public.quotes q on q.id = pm.quote_id
        where pm.org_id = M and not ((pm.label = 'Advance (30%)' and pm.amount = round((q.pricing ->> 'total')::numeric * 0.3))
                                  or (pm.label = 'Balance (70%)' and pm.due_date = q.event_date - 3)))
-    and (select count(*) from public.payment_milestones where org_id = M) = 4);
+    and (select count(*) from public.payment_milestones where org_id = M) >= 4);
   perform pg_temp.res('08 milestones add up to the event total', not exists (select 1 from public.quotes q where q.org_id = M
     and exists (select 1 from public.payment_milestones pm where pm.quote_id = q.id)
     and (select sum(amount) from public.payment_milestones pm where pm.quote_id = q.id) <> (q.pricing ->> 'total')::numeric));
@@ -80,7 +80,7 @@ do $$ declare a uuid; b uuid; o public.organizations; r jsonb; begin
   update public.helm_sample_template set active = true where id;
   a := pg_temp.trial('td_a@t.test', 'UTC', 'USD');
   select * into o from public.organizations where id = a;
-  perform pg_temp.res('20 trial cloned from v4 (0169 + 0170 on top of v2)', o.sample_version = 4, coalesce(o.sample_version::text, 'null'));
+  perform pg_temp.res('20 trial cloned from current (>= v5, later migrations on top of v2)', o.sample_version = (select version from public.helm_trial_seed_manifest where is_current), coalesce(o.sample_version::text, 'null'));
   perform pg_temp.res('21 trial studio INR + Asia/Kolkata + IN (browser said USD / UTC)', o.currency = 'INR' and o.timezone = 'Asia/Kolkata' and o.country = 'IN',
     o.currency || ' ' || o.timezone || ' ' || coalesce(o.country, ''));
   perform pg_temp.res('22 trial payment terms', exists (select 1 from public.app_config where org_id = a and key = 'pricing'

@@ -54,8 +54,8 @@ do $$ begin
   perform pg_temp.su();
   perform pg_temp.res('01 master studio exists + flagged', exists (select 1 from public.organizations where id = 'a5a5a5a5-0166-4000-8000-000000000001' and is_sample_master));
   perform pg_temp.res('02 switch row exists and is OFF', exists (select 1 from public.helm_sample_template where id and not active and org_id = 'a5a5a5a5-0166-4000-8000-000000000001'));
-  perform pg_temp.res('03 master holds the sample dataset (0170: 47 items, 16 vendors, 6 packages)',
-    (select count(*) from public.inventory_items where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') = 47
+  perform pg_temp.res('03 master holds the sample dataset (>= 0171: 165 items, 16 vendors, 6 packages)',
+    (select count(*) from public.inventory_items where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 165
     and (select count(*) from public.vendors where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') = 16
     and (select count(*) from public.menu_templates where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') = 6);
   perform pg_temp.res('04 seed functions wrapped (pre kept)', to_regprocedure('public._demo_seed__pre0166(uuid)') is not null
@@ -96,9 +96,9 @@ do $$ declare r jsonb; o uuid; o2 uuid; d uuid; k jsonb; v public.vendors; begin
   perform pg_temp.res('20 ON: trial started', r ->> 'result' = 'started', r::text);
   perform pg_temp.res('21 ON: cloned (seed result)', (r -> 'seed' ->> 'cloned')::boolean, r::text);
   perform pg_temp.res('22 ON: same counts as master',
-    (select count(*) from public.inventory_items where org_id = o) = 47 and (select count(*) from public.vendors where org_id = o) = 16
+    (select count(*) from public.inventory_items where org_id = o) >= 165 and (select count(*) from public.vendors where org_id = o) = 16
     and (select count(*) from public.menu_templates where org_id = o) = 6 and (select count(*) from public.dish_catalog where org_id = o) = 146);
-  perform pg_temp.res('23 ON: sample events (not the built-in demo events)', (select count(*) from public.quotes where org_id = o) = 4
+  perform pg_temp.res('23 ON: sample events (not the built-in demo events)', (select count(*) from public.quotes where org_id = o) >= 7
     and not exists (select 1 from public.quotes where org_id = o and code like 'DEMO-%'));
   perform pg_temp.res('24 ON: every row is_demo',
     not exists (select 1 from public.inventory_items where org_id = o and not is_demo)
@@ -118,7 +118,7 @@ do $$ declare r jsonb; o uuid; o2 uuid; d uuid; k jsonb; v public.vendors; begin
   perform pg_temp.res('29 ON: master unchanged by the clone', pg_temp.master_fp() = pg_temp.get('master1'));
 
   r := public._sample_clone_into(o);
-  perform pg_temp.res('30 clone twice: skipped, no duplicates', r ->> 'reason' = 'already_cloned' and (select count(*) from public.inventory_items where org_id = o) = 47, r::text);
+  perform pg_temp.res('30 clone twice: skipped, no duplicates', r ->> 'reason' = 'already_cloned' and (select count(*) from public.inventory_items where org_id = o) >= 165, r::text);
   perform pg_temp.res('31 master is never a clone target', pg_temp.try('select public._sample_clone_into(''a5a5a5a5-0166-4000-8000-000000000001'')') like '42501%');
 
   -- a second trial gets the identical dataset

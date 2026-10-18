@@ -45,8 +45,8 @@ end $$;
 
 do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_trial_seed_manifest; t1 numeric; begin
   perform pg_temp.su();
-  select * into mf from public.helm_trial_seed_manifest where is_current;
-  perform pg_temp.res('01 manifest v4 current, v3 kept', mf.version = 4 and mf.notes = 'v4: owner menus, dishes, vendors, inventory'
+  select * into mf from public.helm_trial_seed_manifest where version = 4;
+  perform pg_temp.res('01 manifest v4 kept (later version current), v3 kept', mf.version = 4 and mf.notes = 'v4: owner menus, dishes, vendors, inventory'
     and exists (select 1 from public.helm_trial_seed_manifest where version = 3 and not is_current));
   perform pg_temp.res('02 145 owner dishes, no Demo prefix, v1 dishes gone, all is_demo',
     (select count(*) from public.dish_catalog where org_id = M) = 145
@@ -74,15 +74,16 @@ do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_t
     and exists (select 1 from public.vendors where org_id = M and name = E'Demo \u00b7 Sky Fireworks & Cold Pyro' and category = 'Fireworks')
     and exists (select 1 from public.vendors where org_id = M and name = E'Demo \u00b7 Gulmohar Florists')
     and not exists (select 1 from public.vendors where org_id = M and (email not like '%@example.com' or right(regexp_replace(phone, '\D', '', 'g'), 10) not like '00000%')));
-  perform pg_temp.res('08 inventory 47: owner 10 present at owner qty/rate, 3 merged, no duplicate names',
-    (select count(*) from public.inventory_items where org_id = M) = 47
-    and (select count(*) from public.inventory_items i join (values ('Conference Chair',400,10),('Round Table',30,500),('Registration Desk',4,1600),
-          ('Lectern / Podium',1,4500),('Wireless Microphone',6,1800),('PA Speaker',8,7000),('LED Par Light',20,950),('LED Screen Panel',120,180),
+  perform pg_temp.res('08 inventory >= 165: owner 10 present (8 at owner qty/rate; 0171 re-rated desk + lectern), 3 merged, no duplicate names',
+    (select count(*) from public.inventory_items where org_id = M) >= 165
+    and (select count(*) from public.inventory_items i join (values ('Conference Chair',400,10),('Round Table',30,500),
+          ('Wireless Microphone',6,1800),('PA Speaker',8,7000),('LED Par Light',20,950),('LED Screen Panel',120,180),
           ('Branded Backdrop Frame',1,8500),('Power Extension Cable',18,400)) x(n,q,r) on i.name = E'Demo \u00b7 ' || x.n and i.total_qty = x.q and i.unit_cost = x.r
-         where i.org_id = M) = 10
+         where i.org_id = M) = 8
+    and (select count(*) from public.inventory_items where org_id = M and name in (E'Demo \u00b7 Registration Desk', E'Demo \u00b7 Lectern / Podium')) = 2
     and not exists (select 1 from public.inventory_items where org_id = M and name in (E'Demo \u00b7 LED par light', E'Demo \u00b7 Cordless microphone', E'Demo \u00b7 Round table 6 ft')));
   perform pg_temp.res('09 wedding reservations within stock', not exists (select 1 from public.inventory_reservations r join public.inventory_items i on i.id = r.item_id
-    where r.org_id = M and r.qty > i.total_qty) and (select count(*) from public.inventory_reservations where org_id = M) = 5);
+    where r.org_id = M and r.qty > i.total_qty) and (select count(*) from public.inventory_reservations where org_id = M) >= 5);
   perform pg_temp.res('10 12 staff incl. registration desk lead + AV technician', (select count(*) from public.crew_members where org_id = M) = 12
     and exists (select 1 from public.crew_members where org_id = M and role = 'Registration desk lead')
     and exists (select 1 from public.crew_members where org_id = M and role = 'AV technician'));
@@ -95,17 +96,17 @@ do $$ declare a uuid; o public.organizations; M uuid := 'a5a5a5a5-0166-4000-8000
   update public.helm_sample_template set active = true where id;
   a := pg_temp.trial('td4_a@t.test');
   select * into o from public.organizations where id = a;
-  perform pg_temp.res('20 trial cloned from v4', o.sample_version = 4, coalesce(o.sample_version::text, 'null'));
+  perform pg_temp.res('20 trial cloned from current (>= v4)', o.sample_version = (select version from public.helm_trial_seed_manifest where is_current) and o.sample_version >= 4, coalesce(o.sample_version::text, 'null'));
   perform pg_temp.res('21 trial has the owner dishes + packages (is_demo)', (select count(*) from public.dish_catalog where org_id = a and is_demo) = 145
     and (select count(*) from public.menu_templates where org_id = a and is_demo and name like E'% \u2014 %') = 6
     and exists (select 1 from public.menu_templates where org_id = a and name = E'Premium \u2014 Non-veg' and price_per_plate = 1400 and jsonb_array_length(dishes) = 24));
   perform pg_temp.res('22 trial vendors / inventory / staff', (select count(*) from public.vendors where org_id = a) = 16
-    and (select count(*) from public.inventory_items where org_id = a) = 47 and (select count(*) from public.crew_members where org_id = a) = 12
+    and (select count(*) from public.inventory_items where org_id = a) >= 165 and (select count(*) from public.crew_members where org_id = a) = 12
     and exists (select 1 from public.vendors where org_id = a and category = 'Fireworks'));
-  perform pg_temp.res('23 trial events keep the package prices', (select string_agg(pricing ->> 'platePrice', ',' order by code) from public.quotes where org_id = a) = '950,950,1000,650',
+  perform pg_temp.res('23 trial events keep the package prices', (select string_agg(pricing ->> 'platePrice', ',' order by code) from public.quotes where org_id = a) like '950,950,1000,650%',
     (select string_agg(pricing ->> 'platePrice', ',' order by code) from public.quotes where org_id = a));
   perform pg_temp.res('24 master untouched by the clone', (select count(*) from public.dish_catalog where org_id = M) = 145
-    and (select count(*) from public.inventory_items where org_id = M) = 47);
+    and (select count(*) from public.inventory_items where org_id = M) >= 165);
   perform pg_temp.su();
 exception when others then perform pg_temp.su(); insert into _uf values ('2x clone', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 

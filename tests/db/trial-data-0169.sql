@@ -46,7 +46,7 @@ end $$;
 do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_trial_seed_manifest; L jsonb; s jsonb; dj jsonb; ax numeric; ay numeric; begin
   perform pg_temp.su();
   select * into mf from public.helm_trial_seed_manifest where version = 3;
-  perform pg_temp.res('01 manifest v3 kept (v4 current after 0170), v2 kept', mf.version = 3 and mf.notes = 'v3: wedding layout template, coupons, T&C, GST, run sheets'
+  perform pg_temp.res('01 manifest v3 kept (later version current), v2 kept', mf.version = 3 and mf.notes = 'v3: wedding layout template, coupons, T&C, GST, run sheets'
     and exists (select 1 from public.helm_trial_seed_manifest where version = 2 and not is_current));
   select data into L from public.studio_layout_templates where org_id = M and name = E'Demo \u00b7 Wedding \u2014 Grand Lawn (450+ guests)' and not archived;
   perform pg_temp.res('02 wedding layout template in the master (71 objects, wedding)', jsonb_array_length(L -> 'items') = 71
@@ -65,7 +65,7 @@ do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_t
     and quote_id = 'a5a5a5a5-0167-4000-8000-0000000000a1' and version_no = 1) = L
     and (select client ->> 'venue' from public.quotes where id = 'a5a5a5a5-0167-4000-8000-0000000000a1') = E'Demo \u00b7 Green Meadows Lawn');
   perform pg_temp.res('06 GST 18 on every sample event, open ones intra-state', not exists (select 1 from public.quotes where org_id = M and pricing ->> 'gstPct' <> '18')
-    and (select count(*) from public.quotes where org_id = M and pricing ->> 'placeOfSupply' = 'intra') = 3);
+    and (select count(*) from public.quotes where org_id = M and pricing ->> 'placeOfSupply' = 'intra') >= 3);
   perform pg_temp.res('07 studio tax 18 % + T&C + payment terms kept', exists (select 1 from public.app_config where org_id = M and key = 'pricing'
     and (value ->> 'gstPct')::numeric = 18 and value ->> 'placeOfSupply' = 'intra' and value ->> 'termsText' like 'SAMPLE TERMS%'
     and value ->> 'termsText' like '%Force majeure%' and value ->> 'termsText' like '%30% advance%' and (value ->> 'advancePct')::numeric = 30));
@@ -102,7 +102,7 @@ do $$ declare a uuid; o public.organizations; r jsonb; M uuid := 'a5a5a5a5-0166-
   update public.helm_sample_template set active = true where id;
   a := pg_temp.trial('td3_a@t.test', 'UTC', 'USD');
   select * into o from public.organizations where id = a;
-  perform pg_temp.res('20 trial cloned from v4 (0170 on top of v3)', o.sample_version = 4, coalesce(o.sample_version::text, 'null'));
+  perform pg_temp.res('20 trial cloned from current (>= v5, later migrations on top of v3)', o.sample_version = (select version from public.helm_trial_seed_manifest where is_current), coalesce(o.sample_version::text, 'null'));
   perform pg_temp.res('21b trial has all 3 layout templates', (select count(*) from public.studio_layout_templates where org_id = a and not archived) = 3);
   perform pg_temp.res('21 trial has the wedding layout template', exists (select 1 from public.studio_layout_templates where org_id = a and not archived
     and name = E'Demo \u00b7 Wedding \u2014 Grand Lawn (450+ guests)' and jsonb_array_length(data -> 'items') = 71));
@@ -113,8 +113,8 @@ do $$ declare a uuid; o public.organizations; r jsonb; M uuid := 'a5a5a5a5-0166-
     and value ->> 'termsText' like 'SAMPLE TERMS%' and (value ->> 'gstPct')::numeric = 18 and value ->> 'placeOfSupply' = 'intra'));
   perform pg_temp.res('25 trial run sheets on 3 events + 3 discovery records', (select count(distinct quote_id) from public.run_sheet_items where org_id = a) = 3
     and (select count(*) from public.event_discovery d join public.quotes q on q.id = d.quote_id where d.org_id = a and q.org_id = a) = 3);
-  perform pg_temp.res('26 trial quotes intra-state 18 %', (select count(*) from public.quotes where org_id = a and pricing ->> 'gstPct' = '18') = 4
-    and (select count(*) from public.quotes where org_id = a and pricing ->> 'placeOfSupply' = 'intra') = 3);
+  perform pg_temp.res('26 trial quotes intra-state 18 %', (select count(*) from public.quotes where org_id = a and pricing ->> 'gstPct' = '18') = (select count(*) from public.quotes where org_id = a)
+    and (select count(*) from public.quotes where org_id = a and pricing ->> 'placeOfSupply' = 'intra') >= 3);
   r := public._demo_clear(a);
   perform pg_temp.res('27 clear: coupons off + template archived, rows kept', (select count(*) from public.coupons where org_id = a and code like 'DEMO-%' and not active) = 3
     and (select count(*) from public.studio_layout_templates where org_id = a and archived) = 3, r::text);

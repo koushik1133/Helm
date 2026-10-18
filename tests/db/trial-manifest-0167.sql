@@ -63,12 +63,12 @@ $$;
 do $$ declare m public.helm_trial_seed_manifest; begin
   perform pg_temp.su();
   select * into m from public.helm_trial_seed_manifest where is_current;
-  perform pg_temp.res('01 manifest v4 (0170) published + current, v1 kept', m.version = 4 and exists (select 1 from public.helm_trial_seed_manifest v where v.version = 1 and not v.is_current) and m.source_org = 'a5a5a5a5-0166-4000-8000-000000000001');
+  perform pg_temp.res('01 manifest >= v5 (0171) published + current, v1 kept', m.version >= 5 and exists (select 1 from public.helm_trial_seed_manifest v where v.version = 1 and not v.is_current) and m.source_org = 'a5a5a5a5-0166-4000-8000-000000000001');
   perform pg_temp.res('02 switch still OFF', not (select active from public.helm_sample_template where id));
-  perform pg_temp.res('03 dataset size (0170: 47 items, 12 staff, 16 vendors, 4 venues, 6 packages, 145 dishes, 8 leads, 4 events)',
-    (m.counts ->> 'inventory_items')::int = 47 and (m.counts ->> 'crew_members')::int = 12 and (m.counts ->> 'vendors')::int = 16
+  perform pg_temp.res('03 dataset size (>= 0171: 165 items, 12 staff, 16 vendors, 4 venues, 6 packages, 145 dishes, 16 leads, 7 events)',
+    (m.counts ->> 'inventory_items')::int >= 165 and (m.counts ->> 'crew_members')::int = 12 and (m.counts ->> 'vendors')::int = 16
     and (m.counts ->> 'venues')::int = 4 and (m.counts ->> 'menu_templates')::int = 6 and (m.counts ->> 'dish_catalog')::int = 145
-    and (m.counts ->> 'leads')::int = 8 and (m.counts ->> 'quotes')::int = 4 and (m.counts ->> 'run_sheet_items')::int = 37 and (m.counts ->> 'studio_layout_templates')::int = 3
+    and (m.counts ->> 'leads')::int >= 16 and (m.counts ->> 'quotes')::int >= 7 and (m.counts ->> 'run_sheet_items')::int = 37 and (m.counts ->> 'studio_layout_templates')::int = 3
     and (m.counts ->> 'event_tasks')::int = 10 and (m.counts ->> 'nurture')::int = 6, m.counts::text);
   perform pg_temp.res('04 master contacts all dummy',
     not exists (select 1 from jsonb_each(m.payload -> 'tables') t(k, rows), jsonb_array_elements(t.rows) r(j)
@@ -123,9 +123,9 @@ do $$ declare a uuid; b uuid; mc jsonb; ca jsonb; q record; e text; begin
     and not exists (select 1 from public.event_tasks t where t.org_id = a and t.vendor_id is not null and not exists (select 1 from public.vendors v where v.id = t.vendor_id and v.org_id = a))
     and not exists (select 1 from public.inventory_reservations r where r.org_id = a and not exists (select 1 from public.inventory_items i where i.id = r.item_id and i.org_id = a))
     and (select count(*) from public.event_tasks where org_id = a and crew_id is not null) = 7);
-  perform pg_temp.res('25 trial A: leads linked to its own 4 events',
-    (select count(*) from public.leads l join public.quotes x on x.id = l.quote_id and x.org_id = a where l.org_id = a) = 4
-    and (select count(*) from public.leads where org_id = a) = 8);
+  perform pg_temp.res('25 trial A: leads linked to its own events (>= 4)',
+    (select count(*) from public.leads l join public.quotes x on x.id = l.quote_id and x.org_id = a where l.org_id = a) >= 4
+    and (select count(*) from public.leads where org_id = a) >= 16);
   select * into q from public.quotes where org_id = a and approval_status = 'sent';
   perform pg_temp.res('26 sent quote: a NEW approval token per trial', q.approval_token is not null
     and q.approval_token <> (select approval_token from public.quotes where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and approval_status = 'sent')
@@ -170,20 +170,21 @@ do $$ declare a uuid; b uuid; mc jsonb; ca jsonb; q record; e text; begin
 exception when others then perform pg_temp.su(); insert into _uf values ('2x clone', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 -- ---- 3) publish snapshot: half-edited master never leaks; roll back --------------------------------
-do $$ declare c uuid; d uuid; e uuid; r jsonb; begin
+do $$ declare c uuid; d uuid; e uuid; r jsonb; nv int; begin
   perform pg_temp.su();
   update public.inventory_items set name = E'Demo \u00b7 HALF EDIT' where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and name = E'Demo \u00b7 Napkins (cloth)';
   c := pg_temp.trial('mf_c@t.test');
   perform pg_temp.res('40 unpublished master edit does NOT reach a new trial',
     not exists (select 1 from public.inventory_items where org_id = c and name like '%HALF EDIT%')
     and exists (select 1 from public.inventory_items where org_id = c and name = E'Demo \u00b7 Napkins (cloth)'));
+  nv := (select max(version) from public.helm_trial_seed_manifest) + 1;
   r := public.publish_sample_manifest('test v2');
-  perform pg_temp.res('41 publish makes v5 current', (r ->> 'version')::int = 5
-    and (select version from public.helm_trial_seed_manifest where is_current) = 5
+  perform pg_temp.res('41 publish makes the next version current', (r ->> 'version')::int = nv
+    and (select version from public.helm_trial_seed_manifest where is_current) = nv
     and (select count(*) from public.helm_trial_seed_manifest where is_current) = 1, r::text);
   d := pg_temp.trial('mf_d@t.test');
   perform pg_temp.res('42 after publish the edit reaches NEW trials', exists (select 1 from public.inventory_items where org_id = d and name like '%HALF EDIT%')
-    and (select sample_version from public.organizations where id = d) = 5);
+    and (select sample_version from public.organizations where id = d) = nv);
   perform pg_temp.res('43 existing trials are never re-seeded', not exists (select 1 from public.inventory_items where org_id = c and name like '%HALF EDIT%'));
   perform public.set_current_sample_manifest(1);
   -- and the dates of a version follow ITS anchor: move v1's anchor 2 days back
@@ -240,7 +241,7 @@ do $$ declare a uuid := pg_temp.get('A')::uuid; r jsonb; e text; begin
   perform pg_temp.su();
   perform pg_temp.res('66 welcome: studio renamed, city defaults to Hyderabad, phone kept',
     (select name = 'Aurora Events' and location = 'Hyderabad' and brand ->> 'phone' = '+91 98480 12345' from public.organizations where id = a)
-    and (select count(*) from public.quotes where org_id = a and is_demo) = 4, r::text);
+    and (select count(*) from public.quotes where org_id = a and is_demo) >= 7, r::text);
   perform pg_temp.res('67 welcome: slug follows the name', (select public_slug like 'aurora-events%' from public.organizations where id = a), r::text);
   perform pg_temp.login('mf_a@t.test');
   e := pg_temp.try('select public.trial_welcome_setup('' '', ''x'', null)');
