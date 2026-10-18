@@ -3,6 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    // If a signed-in user lands here, take them straight into their workspace.
+    // Runs in <head> BEFORE the page paints (session-1017): at the end of <body> the whole
+    // marketing page flashed for a moment before the dashboard opened.
+    // (?preview=1 lets an admin view this intro page without being redirected.)
+    // Cheap check without loading the app bundle: supabase-js keeps the session in
+    // localStorage under "sb-<project-ref>-auth-token" with expires_at in seconds.
+    (function () {
+      try {
+        if (new URLSearchParams(location.search).get("preview") === "1") return;
+        var now = Date.now() / 1000;
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (!/^sb-[a-z0-9]+-auth-token$/.test(k || "")) continue;
+          var v = JSON.parse(localStorage.getItem(k) || "null");
+          var sess = v && (v.currentSession || v);
+          var exp = sess && Number(sess.expires_at);
+          // A valid REFRESH token is enough to resume: supabase-js refreshes the access
+          // token on the next page. Forwarding only on an unexpired access token stranded
+          // returning users (after a few hours/days the access token is always expired).
+          if (sess && (sess.refresh_token || (sess.access_token && exp && exp > now))) { location.replace("/dashboard"); return; }
+        }
+      } catch (e) { /* stay on the intro page */ }
+    })();
+  </script>
 <title>Helm Events — Event Management Software for Planners &amp; Studios</title>
 <meta name="description" content="Helm Events is all-in-one event management software for event studios, wedding planners and decorators: leads, venue layouts, quotes, bookings, crew, inventory and settlement in one place. 8-day free trial.">
 <link rel="canonical" href="https://www.helm.events/">
@@ -809,28 +834,5 @@
 <script src="/home-assets/manifest.js?v=3" defer></script>
 <script src="/home.js?v=16" defer></script>
 <script src="/home-guide.js?v=1" defer></script>
-  <script>
-    // If a signed-in user lands here, take them straight into their workspace.
-    // (?preview=1 lets an admin view this intro page without being redirected.)
-    // Cheap check without loading the app bundle: supabase-js keeps the session in
-    // localStorage under "sb-<project-ref>-auth-token" with expires_at in seconds.
-    (function () {
-      try {
-        if (new URLSearchParams(location.search).get("preview") === "1") return;
-        var now = Date.now() / 1000;
-        for (var i = 0; i < localStorage.length; i++) {
-          var k = localStorage.key(i);
-          if (!/^sb-[a-z0-9]+-auth-token$/.test(k || "")) continue;
-          var v = JSON.parse(localStorage.getItem(k) || "null");
-          var sess = v && (v.currentSession || v);
-          var exp = sess && Number(sess.expires_at);
-          // A valid REFRESH token is enough to resume: supabase-js refreshes the access
-          // token on the next page. Forwarding only on an unexpired access token stranded
-          // returning users (after a few hours/days the access token is always expired).
-          if (sess && (sess.refresh_token || (sess.access_token && exp && exp > now))) { location.replace("dashboard.html"); return; }
-        }
-      } catch (e) { /* stay on the intro page */ }
-    })();
-  </script>
 </body>
 </html>

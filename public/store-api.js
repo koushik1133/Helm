@@ -442,6 +442,11 @@ window.HelmUrl = HelmUrl;
   let explicitSignOut = false;  // the user clicked "sign out" (not an expiry)
   let sessionExpired = false;   // redirect already triggered (run once)
   let authFailPromise = null;   // in-flight verification of a suspected auth failure
+  let sessionUnverified = false; // a stored session exists but could not be checked (network)
+  function hasStoredSession() {
+    try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (/^sb-[a-z0-9]+-auth-token$/.test(k || "") && localStorage.getItem(k)) return true; } } catch (e) {}
+    return false;
+  }
   function pageKey() {
     try { return HelmUrl.page(); }
     catch (e) { return "index"; }
@@ -675,6 +680,10 @@ window.HelmUrl = HelmUrl;
       if (supaConfigured()) { gateUnreachable(); return HANG(); }
       revealPage(); return;                              // no accounts configured (local/offline dev)
     }
+    // session-1017: signed in, but the status check could not reach the server (or the stored
+    // session could not be refreshed because of the network) → "Couldn't reach Helm — Retry",
+    // never the sign-in page (that looked like a random logout on a slow connection)
+    if ((pendingStep === "verify" && currentUser) || (!currentUser && sessionUnverified)) { gateUnreachable(); return HANG(); }
     if (!currentUser || pendingStep) { gotoLogin(); return HANG(); }
     // The studio lookup is also the SERVER's confirmation of the session (a stale or
     // forged local token fails here). Rejected token → sign-in; any other failure →
@@ -775,28 +784,57 @@ window.HelmUrl = HelmUrl;
   // A request failed in a way that looks like a dead session. Confirm by trying a
   // token refresh (it may just have been a stale JWT); redirect only if that fails
   // and we are online. Deduped: many parallel failures → one check, one redirect.
+  // A refresh failure counts as a DEAD session only when the auth server said so
+  // (revoked / already used / not found / 4xx). Network errors, 5xx, 429, timeouts and
+  // lock contention are transient: the user stays signed in (session-1017: no false "session expired").
+  function definiteAuthRefusal(err) {
+    if (!err) return false;
+    const m = String(err.message || ""), st = Number(err.status) || 0;
+    if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(err)) return false;
+    if (err.name === "AuthRetryableFetchError" || st >= 500 || st === 429) return false;
+    if (/timeout|timed out|aborted|lock/i.test(m) && !/refresh token|session/i.test(m)) return false;
+    return true;
+  }
+  const AUTH_RETRY_MS = [0, 400, 900];   // < 1 s each: a rotating tab / slow network gets time to settle
+  // A request failed in a way that looks like a dead session. Confirm first:
+  //   1) another tab may already have rotated the token (shared localStorage) → reuse it;
+  //   2) otherwise refresh (supabase-js serialises refreshes across tabs with navigator.locks),
+  //      retrying a couple of times;
+  // and redirect ONLY when the auth server definitively refused and we are online.
+  // Deduped: many parallel failures → one check, one redirect.
   function onAuthFailure() {
     if (sessionExpired || !supa || !shouldRedirectOnExpiry()) return Promise.resolve(false);
     if (authFailPromise) return authFailPromise;
     authFailPromise = (async () => {
-      try {
-        const { data, error } = await supa.auth.refreshSession();
-        if (!error && data && data.session) {
-          // the browser's session now belongs to a DIFFERENT person (e.g. a new studio was just
-          // created in another tab): never adopt it silently on this page - reload so the gate decides
-          if (currentUser && data.session.user && data.session.user.id !== currentUser.id) {
-            currentUser = data.session.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null;
-            studioSlugCache = null; pendingStep = null; sessClear();
-            try { location.reload(); } catch (e) {}
-            return true;
-          }
-          currentUser = data.session.user; return false;
+      const adopt = (sess) => {
+        // the browser's session now belongs to a DIFFERENT person (e.g. a new studio was just
+        // created in another tab): never adopt it silently on this page - reload so the gate decides
+        if (currentUser && sess.user && sess.user.id !== currentUser.id) {
+          currentUser = sess.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null;
+          studioSlugCache = null; pendingStep = null; sessClear();
+          try { location.reload(); } catch (e) {}
+          return true;
         }
+        currentUser = sess.user; return false;
+      };
+      let lastErr = null;
+      for (let i = 0; i < AUTH_RETRY_MS.length; i++) {
+        if (AUTH_RETRY_MS[i]) await new Promise((r) => setTimeout(r, AUTH_RETRY_MS[i]));
+        try {
+          // a still-valid session (possibly just refreshed by another tab) → nothing expired
+          if (i > 0) {
+            const g = await supa.auth.getSession();
+            const gs = g && g.data && g.data.session;
+            if (gs && gs.user && Number(gs.expires_at || 0) * 1000 > Date.now() + 30000) return adopt(gs);
+          }
+          const { data, error } = await supa.auth.refreshSession();
+          if (!error && data && data.session) return adopt(data.session);
+          lastErr = error || null;
+        } catch (e) { lastErr = e; }
         if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
-        if (error && global.BPUI && global.BPUI.isNetworkError(error)) return false;
-      } catch (e) {
-        if (global.BPUI && global.BPUI.isNetworkError(e)) return false;
       }
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+      if (lastErr && !definiteAuthRefusal(lastErr)) return false;   // transient: stay signed in
       return expireSession();
     })();
     authFailPromise.then(() => { authFailPromise = null; }, () => { authFailPromise = null; });
@@ -868,22 +906,34 @@ window.HelmUrl = HelmUrl;
     if (!supa || !currentUser) return null;
     // 1) two-step verification: a verified factor exists but this session is aal1.
     //    (local check — reads the session; no network)
-    try {
-      const { data, error } = await supa.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (error) throw error;
-      if (data && data.nextLevel === "aal2" && data.currentLevel !== "aal2") { pendingStep = "mfa"; return pendingStep; }
-    } catch (e) { pendingStep = "verify"; return pendingStep; }
+    // session-1017: one quick retry first - a transient lock/refresh race must not send a
+    // signed-in person to the sign-in page (still fails CLOSED if it keeps failing)
+    let aalOk = false;
+    for (let i = 0; i < 2 && !aalOk; i++) {
+      try {
+        if (i) await new Promise((r) => setTimeout(r, 300));
+        const { data, error } = await supa.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (error) throw error;
+        aalOk = true;
+        if (data && data.nextLevel === "aal2" && data.currentLevel !== "aal2") { pendingStep = "mfa"; return pendingStep; }
+      } catch (e) { /* retried below */ }
+    }
+    if (!aalOk) { pendingStep = "verify"; return pendingStep; }
     // 2) a password-reset link was used in this browser and the new password isn't set yet
     if (lsGet(RECOVERY_KEY) === currentUser.id) { pendingStep = "recovery"; return pendingStep; }
     // 3) one-time temp password — checked once per tab, FAILS CLOSED on error
     let ok = null; try { ok = sessionStorage.getItem(PW_OK_KEY); } catch (e) {}
     if (ok === currentUser.id) return null;
-    try {
-      const { data, error } = await supa.rpc("password_change_required");
-      if (error && !isMissingFn(error)) throw error;
-      if (!error && data === true) { pendingStep = "password"; return pendingStep; }
-      try { sessionStorage.setItem(PW_OK_KEY, currentUser.id); } catch (e) {}
-    } catch (e) { pendingStep = "verify"; }
+    for (let i = 0; i < 3; i++) {
+      try {
+        if (i) await new Promise((r) => setTimeout(r, 250 * i));   // transient network: retry before failing closed
+        const { data, error } = await supa.rpc("password_change_required");
+        if (error && !isMissingFn(error)) throw error;
+        if (!error && data === true) { pendingStep = "password"; return pendingStep; }
+        try { sessionStorage.setItem(PW_OK_KEY, currentUser.id); } catch (e) {}
+        pendingStep = null; return pendingStep;
+      } catch (e) { pendingStep = "verify"; if (looksLikeAuthError(e)) break; }
+    }
     return pendingStep;
   }
   /* ---- two-step code lockout — SERVER side (0050 mfa_record_failure / mfa_lock_status) ----
@@ -1375,6 +1425,8 @@ window.HelmUrl = HelmUrl;
             }
             const gs = await supa.auth.getSession();
             const session = gs && gs.data ? gs.data.session : null;
+            // a stored session whose refresh hit a NETWORK error is unknown, not signed out
+            try { sessionUnverified = !session && !!(gs && gs.error) && !definiteAuthRefusal(gs.error) && hasStoredSession(); } catch (e) { sessionUnverified = false; }
             currentUser = session ? session.user : null;
             if (urlAuthCode) {
               // the code was exchanged (or failed): drop ?code= from the address bar
@@ -1411,7 +1463,7 @@ window.HelmUrl = HelmUrl;
                   // spurious SIGNED_OUT during a flaky refresh; route through onAuthFailure,
                   // which tries refreshSession() first and only redirects on a hard failure
                   // while genuinely online. (defer: supabase-js holds its auth lock here.)
-                  setTimeout(function () { onAuthFailure(); }, 0);
+                  setTimeout(function () { onAuthFailure(); }, 600);   // let a cross-tab token rotation land first
                 }
               });
             } catch (e) { /* older client — best effort */ }
