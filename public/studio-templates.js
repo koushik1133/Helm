@@ -241,11 +241,39 @@
   }
   function renderManager(root, opts) {
     opts = opts || {};
-    var state = { showArchived: false, renaming: null, err: "", msg: "" };
+    var state = { showArchived: false, renaming: null, draft: null, err: "", msg: "" };
     async function refresh() { try { await reload(true); state.err = ""; } catch (e) { state.err = friendly(e, "load templates"); } paint(); if (isBuilder) fillPreset(); }
     async function act(p, msg) { try { await p; state.msg = msg; state.err = ""; } catch (e) { state.err = friendly(e); state.msg = ""; } await refresh(); }
     // the manager's own permission + trial answer arrives before the first paint
     var ready = loadPerm();
+    // Rename: name trimmed + inner spaces / control characters collapsed, 1-120 characters, no < >.
+    // A bad name or a failed save shows the message under the box and KEEPS what was typed; the Save
+    // button is disabled while the save runs (no double submit); an unchanged name just closes the box.
+    // -> true when shown inline (Control Center); elsewhere the message goes to the manager's error line
+    function renameErr(inp, msg) {
+      var F = G.HelmCCFields;
+      if (F && F.fieldError && inp.parentNode) { F.fieldError(inp, msg || "", inp.parentNode.lastChild); return true; }
+      if (msg) { state.err = msg; paint(); }
+      return false;
+    }
+    async function renameSave(r, inp, tsel, btn) {
+      if (btn.disabled) return;
+      var nm = String(inp.value == null ? "" : inp.value).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+      var v = C.validate({ name: nm, event_type: tsel.value, description: r.description });
+      var bad = !v.ok ? v.errors[0].msg : /[<>]/.test(nm) ? "The name can't contain < or >." : "";
+      if (bad) { state.draft = { id: r.id, name: inp.value, event_type: tsel.value }; renameErr(inp, bad); try { inp.focus(); } catch (_) {} return; }
+      if (v.value.name === r.name && (v.value.event_type || "") === (r.event_type || "")) { state.renaming = null; state.draft = null; paint(); return; }
+      inp.value = v.value.name; btn.disabled = true; inp.readOnly = true;
+      try {
+        await S().layoutTemplates.save(r.id, v.value);
+        state.renaming = null; state.draft = null; state.msg = "Template renamed."; state.err = "";
+        await refresh();
+      } catch (e) {
+        btn.disabled = false; inp.readOnly = false; state.msg = "";
+        state.draft = { id: r.id, name: inp.value, event_type: tsel.value };
+        renameErr(inp, friendly(e)); try { inp.focus(); } catch (_) {}
+      }
+    }
     function paint() {
       root.textContent = "";
       var M = perm.manage, trial = perm.trial;
@@ -263,13 +291,16 @@
       list.forEach(function (r) {
         var nameNode;
         if (state.renaming === r.id) {
-          var inp = h("input", { type: "text", value: r.name, maxlength: String(C.LIMITS.name), "aria-label": "New template name", cls: "st-rename" });
-          var tsel = h("select", { "aria-label": "Event type" }, typeOpts(r.event_type || ""));
-          nameNode = h("div", { cls: "st-renbox" }, [inp, tsel,
-            h("button", { type: "button", cls: "btn sm primary", text: "Save", onclick: function () {
-              var v = C.validate({ name: inp.value, event_type: tsel.value, description: r.description }); if (!v.ok) { state.err = v.errors[0].msg; paint(); return; }
-              state.renaming = null; act(S().layoutTemplates.save(r.id, v.value), "Template renamed."); } }),
-            h("button", { type: "button", cls: "btn sm", text: "Cancel", onclick: function () { state.renaming = null; paint(); } })]);
+          var dr = state.draft && state.draft.id === r.id ? state.draft : null;   // what was typed survives a repaint
+          var inp = h("input", { type: "text", value: dr ? dr.name : r.name, maxlength: String(C.LIMITS.name + 40), "aria-label": "New template name", "aria-required": "true", autocomplete: "off", cls: "st-rename" });
+          var tsel = h("select", { "aria-label": "Event type" }, typeOpts(dr ? dr.event_type : (r.event_type || "")));
+          var svb = h("button", { type: "button", cls: "btn sm primary", text: "Save", onclick: function () { renameSave(r, inp, tsel, svb); } });
+          var cnl = function () { state.renaming = null; state.draft = null; paint(); };
+          inp.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); svb.click(); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cnl(); } });
+          inp.addEventListener("input", function () { state.draft = { id: r.id, name: inp.value, event_type: tsel.value }; if (G.HelmCCFields) renameErr(inp, ""); });
+          tsel.addEventListener("change", function () { state.draft = { id: r.id, name: inp.value, event_type: tsel.value }; });
+          nameNode = h("div", { cls: "st-renbox" }, [inp, tsel, svb,
+            h("button", { type: "button", cls: "btn sm", text: "Cancel", onclick: cnl })]);
           setTimeout(function () { try { inp.focus(); } catch (_) {} }, 0);
         } else nameNode = h("b", { cls: "st-name", text: trial ? trialName(r.name) : r.name, title: trial ? trialName(r.name) : r.name });
         var badges = h("div", { cls: "st-badges" }, [h("span", { cls: "st-badge", text: C.label(r.event_type) }),

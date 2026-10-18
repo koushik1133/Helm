@@ -51,21 +51,31 @@
     render();
   }
 
+  // Filters (sweep B): spaces / case never matter ("  Hyderabad " = "hyderabad"); a search of several words
+  // finds venues that contain EVERY word, in any field and any order; a city that no longer exists (venue
+  // edited or deactivated) stops filtering instead of silently hiding every venue. Search capped at 100 chars.
+  function ckey(s) { return String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().toLowerCase(); }
   function filtered() {
-    var q = state.q.trim().toLowerCase();
+    var toks = ckey(state.q).slice(0, 100).split(" ").filter(Boolean);
+    var ck = ckey(state.city);
+    if (ck && !state.rows.some(function (v) { return ckey(v.city) === ck; })) { state.city = ""; ck = ""; }
     return state.rows.filter(function (v) {
       if (!state.inactive && !v.active) return false;
       if (state.type && v.venue_type !== state.type) return false;
       if (state.ac && v.ac_type !== state.ac) return false;
-      if (state.city && String(v.city || "").toLowerCase() !== state.city.toLowerCase()) return false;
+      if (ck && ckey(v.city) !== ck) return false;
       if (state.ev && (v.event_types || []).indexOf(state.ev) < 0) return false;
-      if (q && [v.name, v.city, v.address, v.notes].join(" ").toLowerCase().indexOf(q) < 0) return false;
+      if (toks.length) {
+        var hay = ckey([v.name, v.city, v.address, v.notes].join(" "));
+        for (var i = 0; i < toks.length; i++) if (hay.indexOf(toks[i]) < 0) return false;
+      }
       return true;
     });
   }
+  // one entry per city whatever its spacing / case (first spelling seen wins), sorted A-Z
   function cities() {
-    var seen = {}; state.rows.forEach(function (v) { if (v.city) seen[v.city] = 1; });
-    return Object.keys(seen).sort().map(function (c) { return [c, c]; });
+    var seen = {}; state.rows.forEach(function (v) { var k = ckey(v.city); if (k && !seen[k]) seen[k] = String(v.city).replace(/\s+/g, " ").trim(); });
+    return Object.keys(seen).map(function (k) { return seen[k]; }).sort(function (a, b) { return a.localeCompare(b); }).map(function (c) { return [c, c]; });
   }
 
   function render() {

@@ -10616,7 +10616,8 @@ window.HelmUrl = HelmUrl;
       if (!allowNeg && v.indexOf("-") !== -1) negHint(el);
       if (v.trim() !== "") el.removeAttribute("data-rejected");
       var cleaned = v.replace(allowNeg ? /[^\d.\-]/g : /[^\d.]/g, "");
-      if (integer) cleaned = cleaned.replace(/\./g, "");
+      // whole-number field: a pasted "2.5" keeps the whole part (2) - stripping only the dot made it 25
+      if (integer) { var ip = cleaned.indexOf("."); if (ip !== -1) cleaned = cleaned.slice(0, ip); }
       if (allowNeg) { var neg = cleaned.charAt(0) === "-"; cleaned = (neg ? "-" : "") + cleaned.replace(/-/g, ""); }
       // keep only the first decimal point
       var dot = cleaned.indexOf(".");
