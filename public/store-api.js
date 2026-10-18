@@ -1,15 +1,15 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=24"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=25"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
    (shell-proto.js, trial-early.js); this is the fallback for every other page. */
 (function () { try { if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
-  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=2"; document.head.appendChild(l); } } } catch (e) {} })();
+  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=3"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
-  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=2"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=3"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -281,6 +281,21 @@ window.HelmUrl = HelmUrl;
     const done = () => { if (trialOrgInflight === p) trialOrgInflight = null; };
     p.then(done, done);
     return p;
+  }
+  // 0202: areas a studio on its FREE TRIAL never gets (photo renders, checklist templates, activity log), whatever
+  // the saved role matrix says - admins included. Status-based (my_trial_status().status = 'trial', the same as the
+  // server's _is_trial_org); one shared call per page. The server refuses the same things (0173 / 0181 / 0202).
+  const TRIAL_OFF_AREAS = { photo_render: 1, templates: 1, audit: 1 };
+  let trialSubInflight = null;
+  function inFreeTrial() {
+    if (mode !== "supabase" || !supa || !currentUser) return Promise.resolve(false);
+    if (!trialSubInflight) {
+      const p = Promise.resolve(swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; })))
+        .then((t) => !!(t && t.status === "trial"), () => false);
+      trialSubInflight = p;
+      p.then(() => { setTimeout(() => { if (trialSubInflight === p) trialSubInflight = null; }, 30000); });
+    }
+    return trialSubInflight;
   }
   // 0183 (post-trial policy 1 / 6 / 10): true when this studio's free trial ended unpaid — the studio is then
   // READ-ONLY for everyone (owner + invited members) until it upgrades. The database refuses every change
@@ -1123,7 +1138,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "35";
+  const AUTH_UI_VERSION = "36";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1722,6 +1737,7 @@ window.HelmUrl = HelmUrl;
     async canView(area) {
       if (mode !== "supabase") return true;          // single-user offline/server mode
       if (!currentUser) return false;
+      if (TRIAL_OFF_AREAS[area] && (await inFreeTrial())) return false;   // 0202: not part of the free trial
       const r = await getRole();
       if (r === "admin") return true;                // admin: full floor
       const acc = await loadAccess();
@@ -1741,6 +1757,7 @@ window.HelmUrl = HelmUrl;
       if (!currentUser) return false;
       const [r, ro] = await Promise.all([getRole(), studioReadOnly()]);
       if (ro) return false;                          // 0183: read-only after the free trial (admins too)
+      if (TRIAL_OFF_AREAS[area] && (await inFreeTrial())) return false;   // 0202: not part of the free trial
       if (r === "admin") return true;
       const acc = await loadAccess();
       if (acc.unknown) return false;

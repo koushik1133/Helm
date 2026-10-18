@@ -89,7 +89,7 @@
 </style>
 <link rel="stylesheet" href="nurture-polish.css?v=2">
 <link rel="stylesheet" href="theme.css?v=80">
-<script src="/shell-proto.js?v=24" id="shellProto"></script>
+<script src="/shell-proto.js?v=25" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -139,6 +139,7 @@
         <label class="desc">Days ahead <input class="s-1a2a924" id="autoDays" type="number" min="0" max="30"></label>
         <button class="btn" id="runNow" type="button">▶ Run today's greetings</button>
       </div>
+      <p id="autoTrial" class="tl-note" hidden>Greetings are sent once you choose a plan. In the free trial automatic greetings stay off and nothing is sent to your clients.</p>
       <div id="autoMsg" role="status" aria-live="polite"></div>
       <div class="table-scroll"><table class="s-56f4356">
         <thead><tr><th scope="col">Client</th><th scope="col">Occasion</th><th scope="col">Next date</th><th scope="col">Auto</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
@@ -213,7 +214,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=246"></script>
 <script src="tour.js?v=14"></script>
 <script src="nurture-templates.js?v=1"></script>
 <script>
@@ -302,13 +303,21 @@
   /* ---------------- occasions & automation ---------------- */
   function autoMsg(k,t){ const m=$("#autoMsg"); m.innerHTML=t?`<div class="msg ${k}">${esc(t)}</div>`:""; if(t) setTimeout(()=>{ m.innerHTML=""; },4000); }
   function setAutoState(on){ const s=$("#autoState"); if(!s) return; s.textContent=on?"Active":"Paused"; s.classList.toggle("greeted",on); s.classList.toggle("paused",!on); }
+  // 0202 free trial: no greeting is sent to a client (the server refuses too) - automation off, no Run / Send
+  let trialP=null;
+  function inTrial(){ if(!trialP) trialP=(async()=>{ try{
+      if(window.HelmTrialLock&&HelmTrialLock.whenKnown) return !!(await HelmTrialLock.whenKnown());
+      const t=BPStore.subscription&&BPStore.subscription.trial?await BPStore.subscription.trial():null; return !!(t&&t.status==="trial");
+    }catch(e){ return false; } })(); return trialP; }
   async function renderAuto(){
     if(!canEdit) return;
+    const trial=await inTrial();
     // global switch
     try{ const a=await BPStore.nurture.automation.get();
-      $("#autoToggle").checked=!!a.enabled; $("#autoDays").value=a.within_days??0;
-      setAutoState(!!a.enabled);
+      $("#autoToggle").checked=!trial&&!!a.enabled; $("#autoDays").value=a.within_days??0;
+      setAutoState(!trial&&!!a.enabled);
     }catch(e){}
+    $("#autoToggle").disabled=trial; $("#runNow").hidden=trial; $("#autoTrial").hidden=!trial;
     // upcoming occasions
     let due=[];
     try{ due=await BPStore.nurture.due(Math.max(30,+$("#autoDays").value||0)); }
@@ -317,8 +326,8 @@
       <td><b>${esc(d.name)}</b><div class="muted" style="font-size:12px">${[d.email||"no email",d.phone].filter(Boolean).map(esc).join(" · ")}</div></td>
       <td><span class="occ">${esc(d.occasion_type)}</span> ${esc(d.occasion||"")}</td>
       <td>${d.next_date?esc(BPStore.fmtDateIN(d.next_date)):"—"}${d.greeted_this_year?' <span class="occ greeted">greeted</span>':""}</td>
-      <td><label class="switch" style="width:40px;height:23px"><input type="checkbox" data-auto="${esc(d.id)}" aria-label="Auto-greet ${esc(d.name)}" ${d.auto_on?"checked":""}><span class="slider"></span></label> <span class="autolab"></span></td>
-      <td><button type="button" class="lnk" data-greet="${esc(d.id)}" aria-label="Send greeting to ${esc(d.name)}" ${d.email?"":"disabled title='no email on file'"}>Send greeting</button>${waLink(d)}</td>
+      <td><label class="switch" style="width:40px;height:23px"><input type="checkbox" data-auto="${esc(d.id)}" aria-label="Auto-greet ${esc(d.name)}" ${d.auto_on&&!trial?"checked":""}${trial?" disabled":""}><span class="slider"></span></label> <span class="autolab"></span></td>
+      <td>${trial?"":`<button type="button" class="lnk" data-greet="${esc(d.id)}" aria-label="Send greeting to ${esc(d.name)}" ${d.email?"":"disabled title='no email on file'"}>Send greeting</button>`}${waLink(d)}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No occasions coming up. Add an occasion date above.</td></tr>';
     $("#occBody").querySelectorAll("[data-auto]").forEach(c=>c.addEventListener("change",async()=>{
       try{ await BPStore.nurture.update(c.dataset.auto,{auto_on:c.checked}); autoMsg("ok","Auto-greet "+(c.checked?"on":"off")+" for this contact."); }
@@ -330,6 +339,7 @@
       catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"send the greeting"})); } },{busyLabel:"Sending…"})));
   }
   async function toggleAuto(){ const V=BPStore.validate; const want=$("#autoToggle").checked;
+    if(want&&(await inTrial())){ $("#autoToggle").checked=false; setAutoState(false); autoMsg("err","Greetings are sent once you choose a plan."); return; }
     // Revert the switch (and its label) to match the PERSISTED state whenever the save is
     // rejected — otherwise the toggle shows "on" while nothing was saved. Mirrors the
     // per-contact toggle's revert-on-error.

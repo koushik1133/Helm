@@ -122,7 +122,7 @@ const tick = () => new Promise((res) => setImmediate(res));
 
 // ---- 0181: Templates is not part of the trial; builder gallery ------------------------------------------
 { const tl = r("public/trial-lock.js"), sb = r("public/shell-b.js"), ss = r("public/shell-b-search.js"), st = r("public/studio-templates.js");
-  assert.match(tl, /BLOCKED_PAGES = \/\(\^\|\\\/\)\(onboarding\|templates\)/);
+  assert.match(tl, /BLOCKED_PAGES = \/\(\^\|\\\/\)\(onboarding\|templates(\|audit)?\)/);   // 0202: + audit
   assert.match(sb, /!\(trial && c\.area === "templates"\)/); assert.match(sb, /setAttribute\("data-area", c\.area\)/);
   assert.match(ss, /TRIAL_OUT = /); assert.match(ss, /addEventListener\("helm:trial", prune\)/);
   const fp = st.slice(st.indexOf("async function fillPreset()"), st.indexOf("function trialName"));

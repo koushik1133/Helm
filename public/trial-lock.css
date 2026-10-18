@@ -1,6 +1,7 @@
 /* trial-lock.css (0173): free-trial studios only (html.helm-trial is set by trial-lock.js after the server says
    the studio is in its free trial; 0181: already before first paint from the cached flag, see trial-early.js).
-   Hides downloads, imports, photo renders and studio set-up entry points. Every rule is scoped to html.helm-trial,
+   Hides downloads, imports, photo renders and studio set-up entry points. 0202: also the inventory "Load starter
+   items" buttons, the studio data archive, the greeting send / run buttons and the activity log (dashboard card + links). Every rule is scoped to html.helm-trial,
    so loading this file on a paid studio's page changes nothing. */
 html.helm-trial .trial-hide,
 html.helm-trial #exportBtn, html.helm-trial #jsonBtn,
@@ -18,7 +19,11 @@ html.helm-trial #menuTplList label:has(.tpl_active),
 html.helm-trial #imp_open, html.helm-trial [id^="imp_"],
 html.helm-trial #ch_add, html.helm-trial #pl_add, html.helm-trial #dc_add,
 html.helm-trial .addrow:has(#ch_add), html.helm-trial .addrow:has(#pl_add), html.helm-trial .addrow:has(#dc_add),
-html.helm-trial #chairList .rm, html.helm-trial #plateList .rm, html.helm-trial #dishList .rm { display: none !important; }
+html.helm-trial #chairList .rm, html.helm-trial #plateList .rm, html.helm-trial #dishList .rm,
+html.helm-trial #seedBtn, html.helm-trial #firstSeed, html.helm-trial #btn-export-gdpr,
+html.helm-trial #runNow, html.helm-trial #occBody [data-greet],
+html.helm-trial .hd-act-card, html.helm-trial a[href="audit.html"], html.helm-trial a[href="/audit.html"], html.helm-trial .hb-mi[data-area="audit"],
+html.helm-trial a[href$="/templates"], html.helm-trial a[href$="/audit"], html.helm-trial a[href*="tplEdit="] { display: none !important; }
 .tl-note { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: var(--paper-2, #f3f5f2); color: var(--ink-2, #333); font-size: 13px; }
 .tl-block { max-width: 520px; margin: 12vh auto; padding: 28px 24px; text-align: center; border-radius: 16px; background: var(--paper, #fff); border: 1px solid var(--line, #e5e7e3); }
 .tl-block h2 { margin: 0 0 8px; font-size: 20px; }

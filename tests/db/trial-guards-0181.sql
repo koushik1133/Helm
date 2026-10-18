@@ -122,11 +122,16 @@ do $$ declare o uuid := pg_temp.get('o')::uuid; e text; ch uuid; pl uuid; mt uui
   perform pg_temp.su();
   perform pg_temp.res('35 trial: plate price edit (whole-row patch) allowed', e = '' and (select price from public.plate_types where id = pl) = 450, e);
   perform pg_temp.login('tg_trial@t.test');
-  e := pg_temp.try(format('update public.menu_templates set price_per_plate = 999, active = true, dishes = %L::jsonb where id = %L',
-         '[{"c":"Main","n":"Biryani","k":"nonveg"}]', md));
+  e := pg_temp.try(format('update public.menu_templates set price_per_plate = 999, active = true where id = %L', md));
   perform pg_temp.su();
-  perform pg_temp.res('36 trial: package price + dish list edit allowed', e = '' and (select price_per_plate from public.menu_templates where id = md) = 999
-    and (select dishes -> 0 ->> 'n' from public.menu_templates where id = md) = 'Biryani', e);
+  perform pg_temp.res('36 trial: package price edit allowed', e = '' and (select price_per_plate from public.menu_templates where id = md) = 999, e);
+  -- 0202 (owner: prices only in the trial): the dish list of a package is fixed too once 0202 is installed
+  perform pg_temp.login('tg_trial@t.test');
+  e := pg_temp.try(format('update public.menu_templates set dishes = %L::jsonb where id = %L', '[{"c":"Main","n":"Biryani","k":"nonveg"}]', md));
+  perform pg_temp.su();
+  perform pg_temp.res('36b trial: package dish list (0202: fixed in the trial; before 0202: editable)',
+    case when exists (select 1 from pg_trigger where tgname = 'zzzz_tl202_menu_dishes') then e like '42501%not the dishes%'
+         else e = '' and (select dishes -> 0 ->> 'n' from public.menu_templates where id = md) = 'Biryani' end, e);
   perform pg_temp.res('37 trial: a price edit keeps the sample package a sample row', (select is_demo from public.menu_templates where id = md));
   perform pg_temp.login('tg_trial@t.test');
   e := pg_temp.try(format('update public.menu_templates set name = ''My Gold'' where id = %L', md));

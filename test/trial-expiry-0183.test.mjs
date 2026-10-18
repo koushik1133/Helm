@@ -106,7 +106,7 @@ t('store-api: edit helpers answer false while read-only; view stays open', () =>
   assert.match(API, /t\.read_only === true \|\| t\.locked === true/);
   assert.match(API, /const \[r, ro\] = await Promise\.all\(\[getRole\(\), cap === "view" \? false : studioReadOnly\(\)\]\)/);
   assert.match(API, /return EDIT_ROLES\.includes\(r\) && !ro;/);
-  assert.match(API, /if \(ro\) return false;\s+\/\/ 0183: read-only after the free trial \(admins too\)\s+if \(r === "admin"\) return true;/);
+  assert.match(API, /if \(ro\) return false;\s+\/\/ 0183: read-only after the free trial \(admins too\)\s+(if \(TRIAL_OFF_AREAS\[area\][^\n]*\s+)?if \(r === "admin"\) return true;/);
   assert.match(API, /readOnly: \(\) => studioReadOnly\(\)/);
   assert.match(API, /status: \(\) => trialOrgStatus\(\)/);
   assert.match(API, /swr\("trialorg", \(\) => rpc\("my_trial_org", \{\}\)/);
