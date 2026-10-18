@@ -3,8 +3,8 @@
 //   1. the trial bundle: APPLY-0173 .. APPLY-0187 (each file that exists, as in APPLY-TRIAL-BUNDLE.sql),
 //      then FIX-0177-existing-trials.sql,
 //   2. APPLY-0189 .. APPLY-0205 (each file that exists, verbatim, each in its own begin / commit),
-//   3. APPLY-0178-refresh-trials.sql LAST, so the existing trial studios move to the newest sample with
-//      every release rule already installed,
+//   3. APPLY-0178-refresh-trials.sql LAST, so the existing trial studios move to the NEWEST sample
+//      (the one 0202 publishes, with the sample event requirements) with every release rule already installed,
 //   4. ONE combined VERIFY grid (the last result the editor shows; every row must say ok = true).
 // Every section is the reviewed paste file unchanged under a plain-words header, so the bundle is exactly
 // "paste them one by one". No temp tables, no session settings; safe to paste twice (every section is
@@ -45,6 +45,7 @@ const WHAT = {
   '0199': 'Budget + guests single source: the quote leads; EMPTY lead / discovery values are filled, never overwritten.',
   '0200': 'Client booklet "Send to client" (queued e-mail / WhatsApp; free trial = skipped).',
   '0201': 'Release integration fix: sign-up keeps the one-trial-per-e-mail guard; retention list knows group contacts.',
+  '0202': 'Trial sample events get the client\'s requirements (Must-have / Nice-to-have / Optional); new sample version.',
   '0203': 'Free-trial server gates: no client greeting, fixed sample menu dishes, no activity log, no template edits, checkout says "trial".',
   '0204': 'Signed-out (anon) API tidy: no table grants / "to public" studio policies on 6 tables (link pages use their own functions).',
   '0205': 'Team invitations: a brand-new invitee can always join (service-role helpers for the invite edge functions).',
@@ -65,7 +66,6 @@ sections.push({ n: '0178', p: 'supabase/APPLY-0178-refresh-trials.sql' });
 
 const VSTART = 'select item, ok from (values\n';
 const VEND_AT = '\n) v(item, ok) order by item;';
-const BVSTART = '-- COMBINED VERIFY (read-only): every row must say ok = true\n';
 const verify = [];
 let body = '';
 sections.forEach((s, i) => {
@@ -106,11 +106,11 @@ const out = `-- APPLY-RELEASE-1018.sql - ONE paste for the Supabase SQL editor: 
 -- What it runs, in this order (each section is that file unchanged; each migration in its own transaction):
 ${list}
 -- Rows are only written where a section says so: FIX-0177 (India defaults on existing FREE-TRIAL studios),
--- 0182 (the sample master studio's builder rates), 0199 (fills EMPTY event budget / guest values from the
--- other copy - never overwrites a value that is there) and, LAST, REFRESH-0178 (each existing FREE-TRIAL
--- studio's SAMPLE rows are cleared and cloned again from the newest sample; the studio's own rows are kept).
--- Paid studios are not changed. Everything else is functions, triggers, policies, grants, new tables and
--- nullable columns.
+-- 0199 (fills EMPTY event budget / guest values from the other copy - never overwrites a value that is there),
+-- 0182 / 0202 (the sample master studio only: builder rates, sample event requirements, one new sample version)
+-- and, LAST, REFRESH-0178 (each existing FREE-TRIAL studio's SAMPLE rows are cleared and cloned again from the
+-- newest sample; the studio's own rows are kept). Paid studios are not changed. Everything else is functions,
+-- triggers, policies, grants, new tables and nullable columns.
 -- Nothing is deleted outside the trial sample refresh: the trial retention deletion (0184) is installed
 -- SWITCHED OFF.
 -- Safe to paste twice: every section is idempotent (the second paste changes nothing).
@@ -118,7 +118,8 @@ ${list}
 --
 -- The LAST result grid is the combined VERIFY: every row must say ok = true. Expected false rows: 0184
 -- row 03 only once the owner switched trial deletion on; 0174 row 04 and 0190 row 06 while the sample
--- switch (helm_sample_template.active) is still off.
+-- switch (helm_sample_template.active) is still off - the switch is the owner's own step, see
+-- docs/release/RELEASE-1018-OWNER-STEPS.md.
 ${body}
 -- ##########################################################################################
 -- RELEASE COMBINED VERIFY (read-only): every row must say ok = true

@@ -1664,8 +1664,9 @@ select item, ok from (values
   ('01 master: builder rates = owner list (142 types) + chair 100', coalesce((select c.value -> 'assetPrices' @> public._a182_owner_asset_prices() and c.value ->> 'chairPrice' = '100'
        from public.app_config c where c.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and c.key = 'pricing'), false)
      and (select count(*) from jsonb_object_keys(public._a182_owner_asset_prices())) = 142),
-  ('02 the 0182 sample manifest is current, published once, carries the rates + chair price', (select count(*) from public.helm_trial_seed_manifest where notes = public._a182_manifest_note()) = 1
-     and exists (select 1 from public.helm_trial_seed_manifest m where m.is_current and m.notes = public._a182_manifest_note()
+  ('02 the 0182 sample manifest (or a later one, e.g. 0202) is current, published once, carries the rates + chair price', (select count(*) from public.helm_trial_seed_manifest where notes = public._a182_manifest_note()) = 1
+     and exists (select 1 from public.helm_trial_seed_manifest m where m.is_current
+                   and m.version >= (select x.version from public.helm_trial_seed_manifest x where x.notes = public._a182_manifest_note())
                    and m.payload #> '{studio,pricing,assetPrices}' @> public._a182_owner_asset_prices() and m.payload #>> '{studio,pricing,chairPrice}' = '100')),
   ('03 Kapoor Sangeet: chair 100, milestones add up to the total, advance = 30 %', coalesce((select q.pricing ->> 'chairPrice' = '100'
        and (select sum(pm.amount) from public.payment_milestones pm where pm.quote_id = q.id) = (q.pricing ->> 'total')::numeric
@@ -4391,8 +4392,9 @@ select '0182 ' || item as item, ok from (values
   ('01 master: builder rates = owner list (142 types) + chair 100', coalesce((select c.value -> 'assetPrices' @> public._a182_owner_asset_prices() and c.value ->> 'chairPrice' = '100'
        from public.app_config c where c.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and c.key = 'pricing'), false)
      and (select count(*) from jsonb_object_keys(public._a182_owner_asset_prices())) = 142),
-  ('02 the 0182 sample manifest is current, published once, carries the rates + chair price', (select count(*) from public.helm_trial_seed_manifest where notes = public._a182_manifest_note()) = 1
-     and exists (select 1 from public.helm_trial_seed_manifest m where m.is_current and m.notes = public._a182_manifest_note()
+  ('02 the 0182 sample manifest (or a later one, e.g. 0202) is current, published once, carries the rates + chair price', (select count(*) from public.helm_trial_seed_manifest where notes = public._a182_manifest_note()) = 1
+     and exists (select 1 from public.helm_trial_seed_manifest m where m.is_current
+                   and m.version >= (select x.version from public.helm_trial_seed_manifest x where x.notes = public._a182_manifest_note())
                    and m.payload #> '{studio,pricing,assetPrices}' @> public._a182_owner_asset_prices() and m.payload #>> '{studio,pricing,chairPrice}' = '100')),
   ('03 Kapoor Sangeet: chair 100, milestones add up to the total, advance = 30 %', coalesce((select q.pricing ->> 'chairPrice' = '100'
        and (select sum(pm.amount) from public.payment_milestones pm where pm.quote_id = q.id) = (q.pricing ->> 'total')::numeric

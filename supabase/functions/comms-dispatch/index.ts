@@ -13,7 +13,12 @@
 //   * booklet_link  (0200) "Send to client" in the Share booklet dialog: the live client booklet
 //                   link (booklet-link.mjs; host = APP_URL, path added by the claim - no token in the row)
 // AUTO-ON: runs whenever it is called with the shared secret; each channel switches itself on
-// when its secrets exist (e-mail: RESEND_API_KEY; WhatsApp: WHATSAPP_TOKEN + WHATSAPP_PHONE_ID).
+// when its secrets exist (e-mail: SMTP_HOST + SMTP_USER + SMTP_PASS, or RESEND_API_KEY;
+// WhatsApp: WHATSAPP_TOKEN + WHATSAPP_PHONE_ID).
+// E-MAIL TRANSPORT (release 1018): SMTP first - the same shared mailer (_shared/mailer.ts + smtp.ts)
+// as client-mailer / invite-mailer / welcome-mailer, e.g. Gmail smtp.gmail.com:465 + an App Password.
+// Resend only when SMTP is NOT set and RESEND_API_KEY is. Neither -> e-mail rows are "skipped".
+// Both transports get the identical body + compliance footer + List-Unsubscribe headers (0165).
 // Kill switch: HELM_COMMS_ENABLED="false" -> every request is a no-op 200 and nothing is
 // claimed (rows stay queued). Invoked ONLY by a cron / service caller presenting a
 // shared secret. The database decides WHAT is due (comms_tick, pg_cron) and re-checks every row
@@ -25,8 +30,13 @@
 //   HELM_COMMS_ENABLED="false"        kill switch (unset / anything else -> on)
 //   HELM_COMMS_SECRET                 shared secret in the `x-helm-cron-secret` header; unset -> 401
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (injected)
-//   RESEND_API_KEY, RESEND_FROM       unset key -> e-mail rows are marked "skipped". The display
-//                                     name / Reply-To come from the studio's Integrations page (0150).
+//   SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_PORT (default 465), SMTP_FROM (default SMTP_USER)
+//                                     preferred e-mail transport (shared mailer). Display name:
+//                                     EMAIL_BRAND_MODE "helm" (default) -> "Helm Events"; "studio" ->
+//                                     the studio's sender name (0150) or "<Studio> via Helm".
+//   RESEND_API_KEY, RESEND_FROM       fallback transport, used only when SMTP is not set; the display
+//                                     name comes from the studio's Integrations page (0150).
+//   Neither set -> e-mail rows are marked "skipped". Reply-To = the studio's reply-to (0150), both.
 //   WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, WHATSAPP_API_VERSION (default v21.0)
 //   WHATSAPP_TPL_TASK_ASSIGNED        approved template for "you've been assigned" (e.g. helm_task_assigned)
 //   WHATSAPP_TPL_EVENT_REMINDER       approved template for event reminders  (e.g. helm_event_reminder)
@@ -51,6 +61,7 @@ import { inviteSiteMessage } from "./invite-site.mjs";
 import { bookletMessage } from "./booklet-link.mjs";
 import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
+import { brandMode, sendMail, type SmtpSend } from "../_shared/mailer.ts";
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com", "graph.facebook.com"]);
@@ -85,9 +96,34 @@ export type Identity = { from_name?: string | null; reply_to?: string | null };
 // Compliance (docs/ops/EMAIL-COMPLIANCE.md): every e-mail carries a footer; non-transactional
 // mail (follow-ups, trial nudges) also carries a visible Unsubscribe link + RFC 8058 headers.
 export type Extra = { footer: { text: string; html: string }; headers?: Record<string, string> };
+// which e-mail transport this run uses: SMTP when its three secrets are set, else Resend when
+// RESEND_API_KEY is set, else none (rows skipped)
+export function emailTransport(e: (k: string) => string | undefined = (k) => Deno.env.get(k)): "smtp" | "resend" | null {
+  if (e("SMTP_HOST") && e("SMTP_USER") && e("SMTP_PASS")) return "smtp";
+  return e("RESEND_API_KEY") ? "resend" : null;
+}
+// SMTP path through the shared mailer. `extra.footer` is the footer (transactional or marketing
+// with Unsubscribe); `extra.headers` the RFC 8058 List-Unsubscribe headers - passed through as is.
+// Helm's own mails (trial / retention, studio "Helm") always go out as "Helm Events".
+export async function sendEmailSmtp(to: string, subject: string, text: string, studio: string, ident: Identity, extra: Extra,
+  opts: { env?: (k: string) => string | undefined; smtp?: SmtpSend } = {}): Promise<Res> {
+  const e = opts.env || ((k: string) => Deno.env.get(k));
+  const own = studio === "Helm";
+  const fromName = !own && brandMode(e) === "studio" ? (String(ident.from_name ?? "").trim() || null) : null;
+  const r = await sendMail({ to, subject: subject.slice(0, 150), text, html: `<p>${escHtml(text).replace(/\n/g, "<br>")}</p>`,
+    studio: own ? null : studio, fromName, replyTo: replyToOf(ident.reply_to) || null, footer: extra.footer,
+    ...(extra.headers && Object.keys(extra.headers).length ? { headers: extra.headers } : {}) },
+    { env: e, prefer: "smtp", ...(opts.smtp ? { smtp: opts.smtp } : {}) });
+  if (r.status === "sent") return "sent";
+  if (r.status === "not_configured") return "skipped";
+  console.error("comms-dispatch: email smtp failed");
+  return "failed";
+}
 async function sendEmail(id: string, to: string, subject: string, text: string, studio: string, ident: Identity = {}, extra?: Extra): Promise<Res> {
+  const via = emailTransport();
+  if (!via || !EMAIL.test(to) || !text || !extra) return "skipped";
+  if (via === "smtp") return await sendEmailSmtp(to, subject, text, studio, ident, extra);
   const key = Deno.env.get("RESEND_API_KEY") || "";
-  if (!key || !EMAIL.test(to) || !text || !extra) return "skipped";
   const from = fromHeader(Deno.env.get("RESEND_FROM"), ident.from_name, studio);
   const replyTo = replyToOf(ident.reply_to);
   const body = withFooter({ text, html: `<p>${escHtml(text).replace(/\n/g, "<br>")}</p>` }, extra.footer);

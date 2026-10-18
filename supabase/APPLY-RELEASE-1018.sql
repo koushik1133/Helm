@@ -31,16 +31,17 @@
 --   24  APPLY-0199.sql                   Budget + guests single source: the quote leads; EMPTY lead / discovery values are filled, never overwritten.
 --   25  APPLY-0200.sql                   Client booklet "Send to client" (queued e-mail / WhatsApp; free trial = skipped).
 --   26  APPLY-0201.sql                   Release integration fix: sign-up keeps the one-trial-per-e-mail guard; retention list knows group contacts.
---   27  APPLY-0202.sql                   Free-trial server gates: no client greeting, fixed sample menu dishes, no activity log, no template edits, checkout says "trial".
---   28  APPLY-0203.sql                   Signed-out (anon) API tidy: no table grants / "to public" studio policies on 6 tables (link pages use their own functions).
---   29  APPLY-0204.sql                   Team invitations: a brand-new invitee can always join (service-role helpers for the invite edge functions).
---   30  APPLY-0178-refresh-trials.sql    LAST: every existing FREE-TRIAL studio is refreshed to the newest sample (its sample rows re-cloned, its own rows kept).
+--   27  APPLY-0202.sql                   Trial sample events get the client's requirements (Must-have / Nice-to-have / Optional); new sample version.
+--   28  APPLY-0203.sql                   Free-trial server gates: no client greeting, fixed sample menu dishes, no activity log, no template edits, checkout says "trial".
+--   29  APPLY-0204.sql                   Signed-out (anon) API tidy: no table grants / "to public" studio policies on 6 tables (link pages use their own functions).
+--   30  APPLY-0205.sql                   Team invitations: a brand-new invitee can always join (service-role helpers for the invite edge functions).
+--   31  APPLY-0178-refresh-trials.sql    LAST: every existing FREE-TRIAL studio is refreshed to the newest sample (its sample rows re-cloned, its own rows kept).
 -- Rows are only written where a section says so: FIX-0177 (India defaults on existing FREE-TRIAL studios),
--- 0182 (the sample master studio's builder rates), 0199 (fills EMPTY event budget / guest values from the
--- other copy - never overwrites a value that is there) and, LAST, REFRESH-0178 (each existing FREE-TRIAL
--- studio's SAMPLE rows are cleared and cloned again from the newest sample; the studio's own rows are kept).
--- Paid studios are not changed. Everything else is functions, triggers, policies, grants, new tables and
--- nullable columns.
+-- 0199 (fills EMPTY event budget / guest values from the other copy - never overwrites a value that is there),
+-- 0182 / 0202 (the sample master studio only: builder rates, sample event requirements, one new sample version)
+-- and, LAST, REFRESH-0178 (each existing FREE-TRIAL studio's SAMPLE rows are cleared and cloned again from the
+-- newest sample; the studio's own rows are kept). Paid studios are not changed. Everything else is functions,
+-- triggers, policies, grants, new tables and nullable columns.
 -- Nothing is deleted outside the trial sample refresh: the trial retention deletion (0184) is installed
 -- SWITCHED OFF.
 -- Safe to paste twice: every section is idempotent (the second paste changes nothing).
@@ -48,10 +49,11 @@
 --
 -- The LAST result grid is the combined VERIFY: every row must say ok = true. Expected false rows: 0184
 -- row 03 only once the owner switched trial deletion on; 0174 row 04 and 0190 row 06 while the sample
--- switch (helm_sample_template.active) is still off.
+-- switch (helm_sample_template.active) is still off - the switch is the owner's own step, see
+-- docs/release/RELEASE-1018-OWNER-STEPS.md.
 
 -- ##########################################################################################
--- RELEASE SECTION 01/30: APPLY-0173.sql
+-- RELEASE SECTION 01/31: APPLY-0173.sql
 -- In plain words: Free-trial lockdown: 2 own rows per main list, no new catalog items, no studio-settings / export changes; paid studios unchanged.
 -- ##########################################################################################
 -- APPLY-0173.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -271,7 +273,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 02/30: APPLY-0174.sql
+-- RELEASE SECTION 02/31: APPLY-0174.sql
 -- In plain words: Every trial seed ("Load demo data", sign-up) uses the CURRENT published sample, never the old built-in demo.
 -- ##########################################################################################
 -- APPLY-0174.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -386,7 +388,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 03/30: APPLY-0175.sql
+-- RELEASE SECTION 03/31: APPLY-0175.sql
 -- In plain words: Trial sample gets the owner's 3 layout templates (one theatre sample archived, never deleted).
 -- ##########################################################################################
 -- APPLY-0175.sql - paste into the Supabase SQL editor (STAGING first; production only when the owner says go).
@@ -456,7 +458,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 04/30: APPLY-0176.sql
+-- RELEASE SECTION 04/31: APPLY-0176.sql
 -- In plain words: Trial client portal: "Skip OTP" for the test client, and the trial event shows confirmed after it.
 -- ##########################################################################################
 -- APPLY-0176.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -584,7 +586,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 05/30: APPLY-0177.sql
+-- RELEASE SECTION 05/31: APPLY-0177.sql
 -- In plain words: Free trial is India only: new trials land on INR / Asia/Kolkata / GST and stay there.
 -- ##########################################################################################
 -- APPLY-0177.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -675,7 +677,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 06/30: APPLY-0179.sql
+-- RELEASE SECTION 06/31: APPLY-0179.sql
 -- In plain words: No real client message from a free-trial studio (approval code, WhatsApp, e-mail); seat limit admin + 2.
 -- ##########################################################################################
 -- APPLY-0179.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -989,7 +991,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 07/30: APPLY-0180.sql
+-- RELEASE SECTION 07/31: APPLY-0180.sql
 -- In plain words: Trial sign-up: every new trial starts WITH the sample data + India defaults + the welcome tour.
 -- ##########################################################################################
 -- APPLY-0180.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -1200,7 +1202,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 08/30: APPLY-0181.sql
+-- RELEASE SECTION 08/31: APPLY-0181.sql
 -- In plain words: More free-trial server guards: layout templates, reminder days, privacy PIN, custom fields; 2 created in total per list.
 -- ##########################################################################################
 -- APPLY-0181.sql - paste into the Supabase SQL editor (staging first, then production). Needs 0173 applied first.
@@ -1501,7 +1503,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 09/30: APPLY-0182.sql
+-- RELEASE SECTION 09/31: APPLY-0182.sql
 -- In plain words: Trial layout builder prices items at the owner's inventory rates (chair 100).
 -- ##########################################################################################
 -- APPLY-0182.sql - paste into the Supabase SQL editor (STAGING first; production only when the owner says go).
@@ -1693,8 +1695,9 @@ select item, ok from (values
   ('01 master: builder rates = owner list (142 types) + chair 100', coalesce((select c.value -> 'assetPrices' @> public._a182_owner_asset_prices() and c.value ->> 'chairPrice' = '100'
        from public.app_config c where c.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and c.key = 'pricing'), false)
      and (select count(*) from jsonb_object_keys(public._a182_owner_asset_prices())) = 142),
-  ('02 the 0182 sample manifest is current, published once, carries the rates + chair price', (select count(*) from public.helm_trial_seed_manifest where notes = public._a182_manifest_note()) = 1
-     and exists (select 1 from public.helm_trial_seed_manifest m where m.is_current and m.notes = public._a182_manifest_note()
+  ('02 the 0182 sample manifest (or a later one, e.g. 0202) is current, published once, carries the rates + chair price', (select count(*) from public.helm_trial_seed_manifest where notes = public._a182_manifest_note()) = 1
+     and exists (select 1 from public.helm_trial_seed_manifest m where m.is_current
+                   and m.version >= (select x.version from public.helm_trial_seed_manifest x where x.notes = public._a182_manifest_note())
                    and m.payload #> '{studio,pricing,assetPrices}' @> public._a182_owner_asset_prices() and m.payload #>> '{studio,pricing,chairPrice}' = '100')),
   ('03 Kapoor Sangeet: chair 100, milestones add up to the total, advance = 30 %', coalesce((select q.pricing ->> 'chairPrice' = '100'
        and (select sum(pm.amount) from public.payment_milestones pm where pm.quote_id = q.id) = (q.pricing ->> 'total')::numeric
@@ -1719,7 +1722,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 10/30: APPLY-0183.sql
+-- RELEASE SECTION 10/31: APPLY-0183.sql
 -- In plain words: An ended, unpaid free trial is read-only for everyone.
 -- ##########################################################################################
 -- APPLY-0183.sql - paste into the Supabase SQL editor (staging first, then production, when the owner says go).
@@ -2076,7 +2079,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 11/30: APPLY-0184.sql
+-- RELEASE SECTION 11/31: APPLY-0184.sql
 -- In plain words: Trial data retention: upgrade reminder 7 days after the trial ends; deletion stays SWITCHED OFF.
 -- ##########################################################################################
 -- APPLY-0184.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -3039,7 +3042,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 12/30: APPLY-0185.sql
+-- RELEASE SECTION 12/31: APPLY-0185.sql
 -- In plain words: Upgrade data choice: keep / remove sample data, or start clean (archive, never delete).
 -- ##########################################################################################
 -- APPLY-0185.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -3605,7 +3608,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 13/30: APPLY-0186.sql
+-- RELEASE SECTION 13/31: APPLY-0186.sql
 -- In plain words: One free trial per studio / e-mail; one trial extension that only Helm HQ can grant.
 -- ##########################################################################################
 -- APPLY-0186.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -4027,7 +4030,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 14/30: APPLY-0187.sql
+-- RELEASE SECTION 14/31: APPLY-0187.sql
 -- In plain words: Ended trials queue no payment reminders; no real Razorpay link from a trial studio.
 -- ##########################################################################################
 -- APPLY-0187.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -4171,7 +4174,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 15/30: FIX-0177-existing-trials.sql
+-- RELEASE SECTION 15/31: FIX-0177-existing-trials.sql
 -- In plain words: Existing free-trial studios corrected to the India defaults (5 columns of trial studios only).
 -- ##########################################################################################
 -- FIX-0177-existing-trials.sql - OWNER-RUN, after APPLY-0177.sql. Staging first, then production.
@@ -4215,7 +4218,7 @@ select o.id, o.name, o.currency, o.timezone, o.country, o.tax_region
    and (o.currency <> 'INR' or o.timezone <> 'Asia/Kolkata' or o.country is distinct from 'IN' or o.trial_region is distinct from 'IN');
 
 -- ##########################################################################################
--- RELEASE SECTION 16/30: APPLY-0189.sql
+-- RELEASE SECTION 16/31: APPLY-0189.sql
 -- In plain words: One quote status label everywhere ("sent - awaiting client approval" until the client approves).
 -- ##########################################################################################
 -- APPLY-0189.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -4545,7 +4548,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 17/30: APPLY-0190.sql
+-- RELEASE SECTION 17/31: APPLY-0190.sql
 -- In plain words: Faster free-trial sign-up and sample clone (stays far inside the 8 second API limit).
 -- ##########################################################################################
 -- APPLY-0190.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -4925,7 +4928,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 18/30: APPLY-0192.sql
+-- RELEASE SECTION 18/31: APPLY-0192.sql
 -- In plain words: Menu packages: the database refuses a cleared / zero price or an active package with no dishes.
 -- ##########################################################################################
 -- APPLY-0192.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5065,7 +5068,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 19/30: APPLY-0194.sql
+-- RELEASE SECTION 19/31: APPLY-0194.sql
 -- In plain words: Event group "Add people": staff / vendors / client as group contacts (nothing is sent).
 -- ##########################################################################################
 -- APPLY-0194.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5295,7 +5298,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 20/30: APPLY-0195.sql
+-- RELEASE SECTION 20/31: APPLY-0195.sql
 -- In plain words: Invitation website "Send to client" (queued e-mail / WhatsApp; free trial = skipped).
 -- ##########################################################################################
 -- APPLY-0195.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5658,7 +5661,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 21/30: APPLY-0196.sql
+-- RELEASE SECTION 21/31: APPLY-0196.sql
 -- In plain words: Budget & margin from the client's requirements (4 nullable columns on event_costs, no row changed).
 -- ##########################################################################################
 -- APPLY-0196.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5774,7 +5777,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 22/30: APPLY-0197.sql
+-- RELEASE SECTION 22/31: APPLY-0197.sql
 -- In plain words: Over-capacity decision on a quote + stock-shortage sourcing on "Reserve for this event".
 -- ##########################################################################################
 -- APPLY-0197.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -6095,7 +6098,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 23/30: APPLY-0198.sql
+-- RELEASE SECTION 23/31: APPLY-0198.sql
 -- In plain words: Event stages: no closing before the event day, Cancel event, calendar conflict acknowledgements.
 -- ##########################################################################################
 -- APPLY-0198.sql - paste into the Supabase SQL editor (staging first, then production), AFTER the trial bundle (0179-0186).
@@ -6620,7 +6623,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 24/30: APPLY-0199.sql
+-- RELEASE SECTION 24/31: APPLY-0199.sql
 -- In plain words: Budget + guests single source: the quote leads; EMPTY lead / discovery values are filled, never overwritten.
 -- ##########################################################################################
 -- APPLY-0199.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -6866,7 +6869,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 25/30: APPLY-0200.sql
+-- RELEASE SECTION 25/31: APPLY-0200.sql
 -- In plain words: Client booklet "Send to client" (queued e-mail / WhatsApp; free trial = skipped).
 -- ##########################################################################################
 -- APPLY-0200.sql - paste into the Supabase SQL editor (staging first, then production). Apply 0195 first.
@@ -7241,7 +7244,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 26/30: APPLY-0201.sql
+-- RELEASE SECTION 26/31: APPLY-0201.sql
 -- In plain words: Release integration fix: sign-up keeps the one-trial-per-e-mail guard; retention list knows group contacts.
 -- ##########################################################################################
 -- APPLY-0201.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -7436,10 +7439,248 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 27/30: APPLY-0202.sql
+-- RELEASE SECTION 27/31: APPLY-0202.sql
+-- In plain words: Trial sample events get the client's requirements (Must-have / Nice-to-have / Optional); new sample version.
+-- ##########################################################################################
+-- APPLY-0202.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
+-- Run AFTER APPLY-0182.sql and APPLY-0190.sql (APPLY-RELEASE-1018.sql runs everything in the right order in one paste).
+-- Free trial: the sample events carry the client's requirements (Must-have / Nice-to-have / Optional: Catering,
+-- Decor & flowers, Stage & lighting, Photography, Sound / PA, Entertainment / DJ, Transport ...), so Budget & margin
+-- has requirement lines on every sample event. The sample master's 7 events get 41 requirements (only events that
+-- have none) and their empty quote budget / guests are filled from the CRM lead (the 0199 rule; never overwrites),
+-- the sample copy includes the requirements, and a new sample version is published once. Only NEW trials get it;
+-- existing trials move to it with APPLY-0178-refresh-trials.sql (the last section of APPLY-RELEASE-1018.sql).
+-- Additive + idempotent: rows added to the sample master only, functions re-issued, nothing deleted, paid studios
+-- untouched. Safe to run twice (the 2nd run changes nothing). ASCII only.
+begin;
+-- ============================================================================
+-- 0202_trial_sample_requirements.sql - CANONICAL forward-only. Free-trial sample events get the
+-- client's requirements (quote step 3: Must-have / Nice-to-have / Optional), so Budget & margin
+-- (0196) has requirement lines to work with on every sample event.
+-- REQUIRES 0167 (sample master + publish_sample_manifest), 0168 (_sample_snapshot with studio
+--          settings), 0169 (_sample_clone_tables), 0171 (the 7 sample events), 0182 (latest manifest),
+--          0190 (set-wise clone), 0199 (_b199_amount / _b199_guests; the fill is skipped without them),
+--          phase3-discovery / base (event_requirements).
+--
+-- In plain words:
+--   1  The sample copy now includes event_requirements: _sample_clone_tables() gets
+--      'event_requirements' right after 'event_discovery' (its parent, quotes, is copied earlier).
+--      The snapshot (_sample_snapshot) and the clone (_sample_clone_into, 0190 body) both walk this
+--      list, so publishing takes the master's requirement rows and every NEW trial gets them, with
+--      new ids, its own studio, the quote link remapped and created_by cleared (the 0190 rules).
+--      Requirement rows have no is_demo column: they belong to a sample event and go with it
+--      ("Clear demo data" hard-deletes sample events; event_requirements.quote_id cascades).
+--   2  The sample master's 7 events get 4-7 requirements each (Catering, Decor & flowers, Stage &
+--      lighting, Photography, Sound / PA, Entertainment / DJ, Transport ...; the names of the quote
+--      step 3 suggestions), written ONLY for a master event that has no requirement yet - an owner
+--      edit in the master is never overwritten. Fixed ids, ON CONFLICT DO NOTHING.
+--   3  The 0199 "quote is the single source of budget / guests" fill, which 0199 left out for the
+--      sample master, is done for the master's events too (EMPTY values only, never overwritten): the
+--      three 0171 sample events had a budget / guest count on their CRM lead but not on the quote.
+--   4  A new sample manifest is published once (current + 1, marker = the note below). Only NEW
+--      trials get it; existing trials move to it with the owner-run APPLY-0178-refresh-trials.sql
+--      (the last section of APPLY-RELEASE-1018.sql).
+--   No table, column, index or trigger is added or dropped; paid studios are not touched; nothing is
+--   deleted or overwritten (rows are added / blanks filled in the sample master studio only). ASCII only (the e-acute of "Decor" is chr(233)). Safe to run twice.
+-- ============================================================================
+
+do $$ begin
+  if to_regclass('public.event_requirements') is null or to_regclass('public.helm_trial_seed_manifest') is null
+     or to_regprocedure('public._sample_clone_tables()') is null or to_regprocedure('public._sample_snapshot(uuid)') is null
+     or to_regprocedure('public.publish_sample_manifest(text)') is null or to_regprocedure('public._sample_clone_into__pre0168(uuid)') is null then
+    raise exception '0202 needs 0167 + 0168 + 0169 (+ 0190) and event_requirements first'; end if;
+end $$;
+
+-- ---- 1) the sample copy includes the requirements ----------------------------------------------
+create or replace function public._sample_clone_tables()
+returns text[] language sql immutable set search_path = '' as $$
+  -- trial-data-0169 (trial-sample-0167, trial-sandbox-0166) + trial-reqs-0202 (event_requirements)
+  select array['venues', 'vendors', 'crew_members', 'dish_catalog', 'inventory_items', 'menu_templates',
+               'item_rate_cards', 'checklist_templates', 'task_templates', 'coupons', 'studio_layout_templates',
+               'leads', 'quotes', 'quote_versions', 'event_discovery', 'event_requirements', 'payment_milestones', 'quote_payments',
+               'event_checklist', 'event_tasks', 'run_sheet_items', 'inventory_reservations',
+               'event_costs', 'event_closure', 'nurture']::text[];
+$$;
+
+-- the one-time marker (manifest note); a function so the migration, APPLY, VERIFY and test agree
+create or replace function public._a202_manifest_note()
+returns text language sql immutable set search_path = '' as $$
+  select 'sample event requirements (0202)'::text;
+$$;
+
+-- the sample requirements: (quote, row id, service, priority, qty, note) - one place for the
+-- migration, VERIFY and the test
+create or replace function public._a202_sample_requirements()
+returns table (quote_id uuid, id uuid, service text, priority text, qty integer, note text)
+language sql immutable set search_path = '' as $$
+  -- trial-reqs-0202
+  select x.q::uuid, x.i::uuid, replace(x.s, 'Decor', 'D' || chr(233) || 'cor'), x.p, x.n, x.t
+    from (values
+      -- Demo . Ananya & Vikram Wedding (450 guests)
+      ('a5a5a5a5-0167-4000-8000-0000000000a1', 'a5a5a5a5-0202-4000-8000-000000000101', 'Catering', 'mandatory', 450, 'Veg + non-veg buffet, live counters'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a1', 'a5a5a5a5-0202-4000-8000-000000000102', 'Decor & flowers', 'mandatory', null, 'Mandap, entrance and stage florals'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a1', 'a5a5a5a5-0202-4000-8000-000000000103', 'Stage & lighting', 'mandatory', null, 'Wedding stage with warm wash lighting'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a1', 'a5a5a5a5-0202-4000-8000-000000000104', 'Photography', 'mandatory', 2, 'Two photographers, full day'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a1', 'a5a5a5a5-0202-4000-8000-000000000105', 'Videography', 'nice', 1, 'Highlights film'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a1', 'a5a5a5a5-0202-4000-8000-000000000106', 'Entertainment / DJ', 'nice', null, 'DJ for the reception'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a1', 'a5a5a5a5-0202-4000-8000-000000000107', 'Transport', 'optional', 2, 'Guest shuttles from the hotel'),
+      -- Demo . Rohit & Meera Engagement (220 guests, quote)
+      ('a5a5a5a5-0167-4000-8000-0000000000a2', 'a5a5a5a5-0202-4000-8000-000000000201', 'Catering', 'mandatory', 220, 'Dinner buffet'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a2', 'a5a5a5a5-0202-4000-8000-000000000202', 'Decor & flowers', 'mandatory', null, 'Ring ceremony backdrop'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a2', 'a5a5a5a5-0202-4000-8000-000000000203', 'Photography', 'nice', 1, null),
+      ('a5a5a5a5-0167-4000-8000-0000000000a2', 'a5a5a5a5-0202-4000-8000-000000000204', 'Entertainment / DJ', 'nice', null, null),
+      ('a5a5a5a5-0167-4000-8000-0000000000a2', 'a5a5a5a5-0202-4000-8000-000000000205', 'Transport', 'optional', null, 'Family pick-up'),
+      -- Demo . TechNova Annual Day (corporate, 120 guests)
+      ('a5a5a5a5-0167-4000-8000-0000000000a3', 'a5a5a5a5-0202-4000-8000-000000000301', 'Stage & lighting', 'mandatory', null, 'Stage for awards + speeches'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a3', 'a5a5a5a5-0202-4000-8000-000000000302', 'Sound / PA', 'mandatory', null, 'Two handheld mics + podium mic'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a3', 'a5a5a5a5-0202-4000-8000-000000000303', 'LED wall / screens', 'mandatory', 1, '12 x 8 ft LED wall'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a3', 'a5a5a5a5-0202-4000-8000-000000000304', 'Catering', 'mandatory', 120, 'High tea + dinner'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a3', 'a5a5a5a5-0202-4000-8000-000000000305', 'Photography', 'nice', 1, null),
+      ('a5a5a5a5-0167-4000-8000-0000000000a3', 'a5a5a5a5-0202-4000-8000-000000000306', 'Transport', 'optional', null, 'Staff drop after the event'),
+      -- Demo . Meera & Aditya Engagement (250 guests, confirmed)
+      ('a5a5a5a5-0167-4000-8000-0000000000a4', 'a5a5a5a5-0202-4000-8000-000000000401', 'Catering', 'mandatory', 250, 'Dinner buffet'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a4', 'a5a5a5a5-0202-4000-8000-000000000402', 'Decor & flowers', 'mandatory', null, 'Floral stage + entrance'),
+      ('a5a5a5a5-0167-4000-8000-0000000000a4', 'a5a5a5a5-0202-4000-8000-000000000403', 'Photography', 'mandatory', 1, null),
+      ('a5a5a5a5-0167-4000-8000-0000000000a4', 'a5a5a5a5-0202-4000-8000-000000000404', 'Sound / PA', 'nice', null, null),
+      ('a5a5a5a5-0167-4000-8000-0000000000a4', 'a5a5a5a5-0202-4000-8000-000000000405', 'Entertainment / DJ', 'optional', null, null),
+      -- Demo . Kapoor Family Sangeet (300 guests, confirmed)
+      ('a5a5a5a5-0171-4000-8000-0000000000b5', 'a5a5a5a5-0202-4000-8000-000000000501', 'Stage & lighting', 'mandatory', null, 'Dance stage with moving heads'),
+      ('a5a5a5a5-0171-4000-8000-0000000000b5', 'a5a5a5a5-0202-4000-8000-000000000502', 'Entertainment / DJ', 'mandatory', null, 'DJ + choreographed family performances'),
+      ('a5a5a5a5-0171-4000-8000-0000000000b5', 'a5a5a5a5-0202-4000-8000-000000000503', 'Sound / PA', 'mandatory', null, null),
+      ('a5a5a5a5-0171-4000-8000-0000000000b5', 'a5a5a5a5-0202-4000-8000-000000000504', 'Catering', 'mandatory', 300, 'Chaat counters + dinner'),
+      ('a5a5a5a5-0171-4000-8000-0000000000b5', 'a5a5a5a5-0202-4000-8000-000000000505', 'Decor & flowers', 'nice', null, 'Marigold and lights theme'),
+      ('a5a5a5a5-0171-4000-8000-0000000000b5', 'a5a5a5a5-0202-4000-8000-000000000506', 'Photography', 'nice', 1, null),
+      ('a5a5a5a5-0171-4000-8000-0000000000b5', 'a5a5a5a5-0202-4000-8000-000000000507', 'Transport', 'optional', null, null),
+      -- Demo . Zenith Mobiles Product Launch (200 guests, confirmed)
+      ('a5a5a5a5-0171-4000-8000-0000000000b6', 'a5a5a5a5-0202-4000-8000-000000000601', 'Stage & lighting', 'mandatory', null, 'Launch stage with reveal lighting'),
+      ('a5a5a5a5-0171-4000-8000-0000000000b6', 'a5a5a5a5-0202-4000-8000-000000000602', 'LED wall / screens', 'mandatory', 1, 'Main LED wall + two side screens'),
+      ('a5a5a5a5-0171-4000-8000-0000000000b6', 'a5a5a5a5-0202-4000-8000-000000000603', 'Sound / PA', 'mandatory', null, null),
+      ('a5a5a5a5-0171-4000-8000-0000000000b6', 'a5a5a5a5-0202-4000-8000-000000000604', 'Photography', 'mandatory', 1, 'Press + product shots'),
+      ('a5a5a5a5-0171-4000-8000-0000000000b6', 'a5a5a5a5-0202-4000-8000-000000000605', 'Catering', 'nice', 200, 'Cocktail snacks'),
+      ('a5a5a5a5-0171-4000-8000-0000000000b6', 'a5a5a5a5-0202-4000-8000-000000000606', 'Security', 'optional', 4, null),
+      ('a5a5a5a5-0171-4000-8000-0000000000b6', 'a5a5a5a5-0202-4000-8000-000000000607', 'Valet parking', 'optional', null, null),
+      -- Demo . Lakshmi Housewarming (150 guests, quote)
+      ('a5a5a5a5-0171-4000-8000-0000000000b7', 'a5a5a5a5-0202-4000-8000-000000000701', 'Catering', 'mandatory', 150, 'Traditional lunch on banana leaf'),
+      ('a5a5a5a5-0171-4000-8000-0000000000b7', 'a5a5a5a5-0202-4000-8000-000000000702', 'Decor & flowers', 'mandatory', null, 'Toran, rangoli and pooja area'),
+      ('a5a5a5a5-0171-4000-8000-0000000000b7', 'a5a5a5a5-0202-4000-8000-000000000703', 'Photography', 'nice', 1, null),
+      ('a5a5a5a5-0171-4000-8000-0000000000b7', 'a5a5a5a5-0202-4000-8000-000000000704', 'Sound / PA', 'optional', null, 'Soft music during lunch')
+    ) x(q, i, s, p, n, t);
+$$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['public._sample_clone_tables()', 'public._a202_manifest_note()', 'public._a202_sample_requirements()'] loop
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f); end if;
+  end loop;
+end $$;
+
+-- ---- 2) once: the master's sample requirements, then publish (current + 1) ---------------------
+do $$
+declare
+  M constant uuid := 'a5a5a5a5-0166-4000-8000-000000000001';
+  N constant text := public._a202_manifest_note();
+  v_prev text := coalesce(current_setting('helm.maintenance', true), '');
+begin
+  if not exists (select 1 from public.organizations o where o.id = M and o.is_sample_master) then return; end if;
+  if exists (select 1 from public.helm_trial_seed_manifest m where m.notes = N) then return; end if;
+  perform set_config('helm.maintenance', 'on', true);          -- maintenance: no bell rows for this change
+
+  -- only a master event that exists (not deleted) and has NO requirement yet; listing order = created_at
+  insert into public.event_requirements (id, quote_id, service, priority, qty, note, created_at, org_id)
+  select r.id, r.quote_id, r.service, r.priority, r.qty, r.note,
+         now() + make_interval(secs => row_number() over (order by r.id)), M
+    from public._a202_sample_requirements() r
+    join public.quotes q on q.id = r.quote_id and q.org_id = M and q.deleted_at is null
+   where not exists (select 1 from public.event_requirements e where e.quote_id = r.quote_id)
+  on conflict (id) do nothing;
+
+  -- the 0199 single-source rule on the MASTER too (0199 left the master alone): fill only EMPTY
+  -- values, never overwrite - quote budget <- Discovery (max, else min) else the linked lead; quote
+  -- guests <- the linked lead; Discovery budget <- quote; lead budget / guests <- quote. Without this
+  -- the published sample would give every trial events with no budget on the quote (the 0171 events)
+  -- while their CRM lead has one, and a second paste of 0199 would fill them in each trial afterwards.
+  if to_regprocedure('public._b199_amount(text)') is not null and to_regprocedure('public._b199_guests(text)') is not null then
+    update public.quotes q
+       set client = jsonb_set(coalesce(q.client, '{}'::jsonb), '{budget}', to_jsonb(s.v), true)
+      from (select q2.id,
+                   coalesce(public._b199_amount(d.budget_max::text), public._b199_amount(d.budget_min::text),
+                            (select public._b199_amount(l.budget::text) from public.leads l
+                              where l.quote_id = q2.id and l.org_id = q2.org_id and l.budget is not null
+                              order by l.updated_at desc limit 1)) as v
+              from public.quotes q2
+              left join public.event_discovery d on d.quote_id = q2.id and d.org_id = q2.org_id
+             where q2.org_id = M and q2.deleted_at is null
+               and (q2.client is null or jsonb_typeof(q2.client) = 'object')
+               and nullif(btrim(coalesce(q2.client ->> 'budget', '')), '') is null) s
+     where q.id = s.id and s.v is not null;
+    update public.quotes q
+       set client = jsonb_set(coalesce(q.client, '{}'::jsonb), '{guests}', to_jsonb(s.v), true)
+      from (select q2.id,
+                   (select l.guest_count from public.leads l
+                     where l.quote_id = q2.id and l.org_id = q2.org_id and l.guest_count is not null
+                       and l.guest_count between 0 and 100000
+                     order by l.updated_at desc limit 1) as v
+              from public.quotes q2
+             where q2.org_id = M and q2.deleted_at is null
+               and (q2.client is null or jsonb_typeof(q2.client) = 'object')
+               and nullif(btrim(coalesce(q2.client ->> 'guests', '')), '') is null) s
+     where q.id = s.id and s.v is not null;
+    update public.event_discovery d
+       set budget_max = public._b199_amount(q.client ->> 'budget')
+      from public.quotes q
+     where q.id = d.quote_id and q.org_id = d.org_id and q.org_id = M and q.deleted_at is null
+       and d.budget_min is null and d.budget_max is null
+       and public._b199_amount(q.client ->> 'budget') is not null;
+    update public.leads l
+       set budget      = coalesce(l.budget, public._b199_amount(q.client ->> 'budget')),
+           guest_count = coalesce(l.guest_count, public._b199_guests(q.client ->> 'guests'))
+      from public.quotes q
+     where q.id = l.quote_id and q.org_id = l.org_id and q.org_id = M and q.deleted_at is null
+       and ( (l.budget is null and public._b199_amount(q.client ->> 'budget') is not null)
+          or (l.guest_count is null and public._b199_guests(q.client ->> 'guests') is not null) );
+  end if;
+
+  -- publish once: the snapshot now carries event_requirements
+  if exists (select 1 from public.quotes x where x.org_id = M) then
+    perform public.publish_sample_manifest(N);
+  end if;
+  perform set_config('helm.maintenance', v_prev, true);
+end $$;
+
+notify pgrst, 'reload schema';
+commit;
+
+-- VERIFY (every row should say ok = true)
+select item, ok from (values
+  ('01 the sample copy includes event_requirements (after quotes)', array_position(public._sample_clone_tables(), 'event_requirements')
+       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) = 25),
+  ('02 sample master: all 7 sample events have requirements (41)', (select count(*) from public.event_requirements
+       where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 41
+       and not exists (select 1 from public.quotes q where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null
+                         and not exists (select 1 from public.event_requirements r where r.quote_id = q.id))),
+  ('03 the 0202 sample version was published once and is current (or a later one), with the requirements',
+       (select count(*) from public.helm_trial_seed_manifest where notes = public._a202_manifest_note()) = 1
+       and exists (select 1 from public.helm_trial_seed_manifest c where c.is_current
+                     and c.version >= (select m.version from public.helm_trial_seed_manifest m where m.notes = public._a202_manifest_note())
+                     and jsonb_array_length(coalesce(c.payload #> '{tables,event_requirements}', '[]'::jsonb)) >= 41)),
+  ('05 sample master: every event with a budget / guests on its CRM lead has them on the quote too (0199 rule)',
+       not exists (select 1 from public.quotes q join public.leads l on l.quote_id = q.id and l.org_id = q.org_id
+                    where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null
+                      and ((l.budget is not null and nullif(btrim(coalesce(q.client ->> 'budget', '')), '') is null)
+                        or (l.guest_count is not null and nullif(btrim(coalesce(q.client ->> 'guests', '')), '') is null)))),
+  ('04 app roles cannot run the 0202 helpers', not has_function_privilege('authenticated', 'public._a202_sample_requirements()', 'execute')
+       and not has_function_privilege('anon', 'public._a202_sample_requirements()', 'execute')
+       and not has_function_privilege('authenticated', 'public._a202_manifest_note()', 'execute'))
+) v(item, ok) order by item;
+
+-- ##########################################################################################
+-- RELEASE SECTION 28/31: APPLY-0203.sql
 -- In plain words: Free-trial server gates: no client greeting, fixed sample menu dishes, no activity log, no template edits, checkout says "trial".
 -- ##########################################################################################
--- APPLY-0202.sql - paste into the Supabase SQL editor (staging first, then production).
+-- APPLY-0203.sql - paste into the Supabase SQL editor (staging first, then production).
 -- Free-trial server gates (trial studios only; paid studios unchanged):
 --   * no greeting to a client from a trial studio: "Send greeting" refused ("Greetings are sent once you
 --     choose a plan."), "Run today's greetings" / the automatic run does nothing, automatic greetings cannot
@@ -7454,7 +7695,7 @@ select item, ok from (values
 -- grants), 4 triggers, 1 restrictive policy, 2 helpers. No table or column is created, changed or
 -- dropped; no row is written or deleted. Safe to run twice.
 begin;
--- 0202_trial_gates.sql - CANONICAL forward-only.
+-- 0203_trial_gates.sql - CANONICAL forward-only.
 -- REQUIRES 0173 (_tl173_trial_locked), 0166 (_is_trial_org), 0179 (_tb179_no_send), 0183 (_trial_locked,
 --          status-based), 0159 (my_checkout_status + _studio_payment_pending), 0181 (catalog = prices only),
 --          base nurture (nurture_due / queue_nurture_greeting / run_nurture_auto / nurture_automation),
@@ -7483,7 +7724,7 @@ begin;
 --      studio on its free trial (the trial row IS a studio_subscriptions row). It now says
 --      has_subscription = false, trial = true and reason 'trial' (or 'trial_ended' for an ended,
 --      unpaid trial). "required" is unchanged, so nobody is sent to /checkout who was not before.
---   Already refused on the server before this file (kept, re-tested in tests/db/trial-gates-0202.sql):
+--   Already refused on the server before this file (kept, re-tested in tests/db/trial-gates-0203.sql):
 --   data export + studio archive, Excel / CSV smart import (staff / menu / inventory / vendors), photo
 --   render (0173); the inventory "Load starter items" bulk insert is held by the 2-per-list cap (0181).
 --
@@ -7509,13 +7750,13 @@ end $$;
 -- ---- helpers ----------------------------------------------------------------------------------------
 create or replace function public._tl202_no_send(p_org uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
-  -- trial-gates-0202: free trial / ended unpaid trial / sample master never greets a client (0179 rule)
+  -- trial-gates-0203: free trial / ended unpaid trial / sample master never greets a client (0179 rule)
   select coalesce(public._tb179_no_send(p_org), false);
 $$;
 
 create or replace function public._tl202_caller_trial()
 returns boolean language sql stable security definer set search_path = '' as $$
-  -- trial-gates-0202: the caller's studio is on its free trial or an ended, unpaid free trial
+  -- trial-gates-0203: the caller's studio is on its free trial or an ended, unpaid free trial
   -- (status-based; the sample master and paid studios -> false). Used by the audit_log policy.
   select coalesce(public._tl173_trial_locked(public.current_org_id()), false)
       or coalesce(public._trial_locked(public.current_org_id()), false);
@@ -7536,7 +7777,7 @@ end $$;
 
 create or replace function public.queue_nurture_greeting(p_id uuid)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
--- trial-gates-0202: no greeting to a client from a free-trial studio, then the original
+-- trial-gates-0203: no greeting to a client from a free-trial studio, then the original
 begin
   if public._tl202_no_send(public.current_org_id()) then
     raise exception 'Greetings are sent once you choose a plan.' using errcode = '42501', hint = 'trial_no_send';
@@ -7546,7 +7787,7 @@ end $$;
 
 create or replace function public.run_nurture_auto(p_within_days integer default null::integer)
 returns integer language plpgsql volatile security definer set search_path = '' as $$
--- trial-gates-0202: automatic greetings are off in the free trial (nothing queued), then the original
+-- trial-gates-0203: automatic greetings are off in the free trial (nothing queued), then the original
 begin
   if public._tl202_no_send(public.current_org_id()) then return 0; end if;
   return public.run_nurture_auto__pre0202(p_within_days);
@@ -7556,7 +7797,7 @@ create or replace function public.nurture_due(p_within_days integer default 30)
 returns table(id uuid, name text, email text, phone text, occasion text, occasion_type text, occasion_date date,
               next_date date, years integer, auto_on boolean, greeted_this_year boolean, quote_id uuid, last_event text)
 language plpgsql stable security definer set search_path = '' as $$
--- trial-gates-0202: same list; in the free trial auto-greet shows as off (nothing is sent automatically)
+-- trial-gates-0203: same list; in the free trial auto-greet shows as off (nothing is sent automatically)
 declare v_off boolean := public._tl202_no_send(public.current_org_id());
 begin
   return query
@@ -7585,7 +7826,7 @@ end $$;
 -- automatic greetings cannot be switched ON from the app in the free trial (off stays possible)
 create or replace function public._tl202_tg_nurture_auto()
 returns trigger language plpgsql set search_path = '' as $$
--- trial-gates-0202: SECURITY INVOKER on purpose (current_user = the app role); Helm's own functions
+-- trial-gates-0203: SECURITY INVOKER on purpose (current_user = the app role); Helm's own functions
 -- (trial seed / clone) are not checked
 begin
   if current_user not in ('anon', 'authenticated') then return new; end if;
@@ -7607,7 +7848,7 @@ end $$;
 -- ---- 2) menu packages: the dish list is fixed in the free trial (price per plate stays editable) ----------
 create or replace function public._tl202_tg_menu_dishes()
 returns trigger language plpgsql set search_path = '' as $$
--- trial-gates-0202: SECURITY INVOKER on purpose (current_user = the app role). Only direct app edits are
+-- trial-gates-0203: SECURITY INVOKER on purpose (current_user = the app role). Only direct app edits are
 -- checked; Helm's own functions (trial seed, clone, Clear sample data) still change the dishes.
 begin
   if current_user not in ('anon', 'authenticated') then return new; end if;
@@ -7637,7 +7878,7 @@ end $$;
 -- the audit page's "who is who" lookup: same body as 0041 + nothing for a trial studio
 create or replace function public.audit_actor_names()
 returns table(id uuid, full_name text, email text) language sql stable security definer set search_path = '' as $$
-  -- trial-gates-0202 (body of 0041 + the free-trial check)
+  -- trial-gates-0203 (body of 0041 + the free-trial check)
   select p.id, p.full_name, p.email
     from public.profiles p
    where auth.uid() is not null
@@ -7650,7 +7891,7 @@ $$;
 -- ---- 4) checklist / task templates: not part of the free trial ----------------------------------------
 create or replace function public._tl202_tg_templates()
 returns trigger language plpgsql set search_path = '' as $$
--- trial-gates-0202: SECURITY INVOKER on purpose (current_user = the app role); Helm's own functions are
+-- trial-gates-0203: SECURITY INVOKER on purpose (current_user = the app role); Helm's own functions are
 -- not checked, reading is unchanged (the sample events keep their checklists)
 declare v_org uuid;
 begin
@@ -7675,7 +7916,7 @@ end $$;
 -- ---- 5) checkout status: a free trial is not a subscription -------------------------------------------
 create or replace function public.my_checkout_status()
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
--- direct-studio-0159 + trial-gates-0202: has_subscription / reason say "trial" for a studio on its free
+-- direct-studio-0159 + trial-gates-0203: has_subscription / reason say "trial" for a studio on its free
 -- trial (or an ended, unpaid one); "required" is exactly as in 0159
 declare v_org uuid := public.current_org_id(); b public.helm_billing_settings; s public.studio_subscriptions;
   v_admin boolean := coalesce(public.is_admin(), false); v_created timestamptz; v_pending boolean;
@@ -7730,9 +7971,9 @@ commit;
 -- VERIFY (every row should say ok = true)
 select item, ok from (values
   ('01 nurture wrappers in place (trial check), old bodies kept',
-     position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.queue_nurture_greeting(uuid)')), '')) > 0
-     and position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.run_nurture_auto(integer)')), '')) > 0
-     and position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.nurture_due(integer)')), '')) > 0
+     position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.queue_nurture_greeting(uuid)')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.run_nurture_auto(integer)')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.nurture_due(integer)')), '')) > 0
      and to_regprocedure('public.queue_nurture_greeting__pre0202(uuid)') is not null
      and to_regprocedure('public.run_nurture_auto__pre0202(integer)') is not null
      and to_regprocedure('public.nurture_due__pre0202(integer)') is not null),
@@ -7751,8 +7992,8 @@ select item, ok from (values
   ('04 activity log: restrictive trial policy',
      exists (select 1 from pg_policy where polrelid = 'public.audit_log'::regclass and polname = 'tl202_trial_no_read' and not polpermissive)),
   ('05 checkout status + audit names re-issued (trial aware), grants kept',
-     position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_checkout_status()')), '')) > 0
-     and position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.audit_actor_names()')), '')) > 0
+     position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_checkout_status()')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.audit_actor_names()')), '')) > 0
      and has_function_privilege('authenticated', 'public.my_checkout_status()', 'execute')
      and not has_function_privilege('anon', 'public.my_checkout_status()', 'execute')
      and has_function_privilege('authenticated', 'public.audit_actor_names()', 'execute')),
@@ -7764,10 +8005,10 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 28/30: APPLY-0203.sql
+-- RELEASE SECTION 29/31: APPLY-0204.sql
 -- In plain words: Signed-out (anon) API tidy: no table grants / "to public" studio policies on 6 tables (link pages use their own functions).
 -- ##########################################################################################
--- APPLY-0203.sql - paste into the Supabase SQL editor (staging first, then production).
+-- APPLY-0204.sql - paste into the Supabase SQL editor (staging first, then production).
 -- Security tidy from the 2026-10-18 live audit: a signed-out (anon key) API call on profiles, layouts,
 -- venues, client booklets, coupons or invitation sites now gets a plain "permission denied for table"
 -- instead of an error that names the internal function current_org_id. No data was ever exposed (row
@@ -7778,7 +8019,7 @@ select item, ok from (values
 -- or row is created, changed or deleted. Paid and trial studios behave exactly as before. Safe to run twice.
 -- Run order: any time after the trial bundle (it does not depend on 0173-0187).
 begin;
--- 0203_anon_grant_tidy.sql - CANONICAL forward-only. REQUIRES 0004 (current_org_id), phase57 RLS.
+-- 0204_anon_grant_tidy.sql - CANONICAL forward-only. REQUIRES 0004 (current_org_id), phase57 RLS.
 --
 -- In plain words (live audit 2026-10-18, security gaps "anonymous API errors name internal objects"):
 -- with only the public (anon) key, a direct API read of a few studio tables answered
@@ -7808,7 +8049,7 @@ begin;
 
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'anon') then
-    raise notice '0203: no anon role on this database - nothing to do';
+    raise notice '0204: no anon role on this database - nothing to do';
   end if;
 end $$;
 
@@ -7850,7 +8091,7 @@ do $$ declare r record; begin
        and (coalesce(p.qual, '') || ' ' || coalesce(p.with_check, '')) ~ 'current_org_id\('
   loop
     execute format('alter policy %I on public.%I to authenticated', r.policyname, r.tablename);
-    raise notice '0203: policy %.% now applies to signed-in callers only', r.tablename, r.policyname;
+    raise notice '0204: policy %.% now applies to signed-in callers only', r.tablename, r.policyname;
   end loop;
 end $$;
 
@@ -7897,10 +8138,10 @@ select p.tablename, p.policyname
  order by 1, 2;
 
 -- ##########################################################################################
--- RELEASE SECTION 29/30: APPLY-0204.sql
+-- RELEASE SECTION 30/31: APPLY-0205.sql
 -- In plain words: Team invitations: a brand-new invitee can always join (service-role helpers for the invite edge functions).
 -- ##########################################################################################
--- APPLY-0204.sql - paste into the Supabase SQL editor (staging first, then production).
+-- APPLY-0205.sql - paste into the Supabase SQL editor (staging first, then production).
 -- Fixes the invite dead end: a brand-new invitee whose "Accept invitation" e-mail link was used,
 -- expired or opened while another account was signed in was told "This e-mail already has a Helm
 -- account - sign in instead", although Supabase had created that login WITHOUT a password.
@@ -7912,7 +8153,7 @@ select p.tablename, p.policyname
 -- No table, column, policy or existing function is changed. No DROP / DELETE / UPDATE / TRUNCATE.
 -- Safe to run twice. After it: redeploy the edge functions invite-signup and invite-mailer.
 begin;
--- 0204_invite_account_state.sql - CANONICAL forward-only.
+-- 0205_invite_account_state.sql - CANONICAL forward-only.
 -- REQUIRES phase83 (public.invitations) + 0131 (invite e-mails through Supabase Auth).
 --
 -- In plain words (prod bug 2026-10-18, "Join ABCD" invite says "already has a Helm account"):
@@ -7943,7 +8184,7 @@ begin;
 
 create or replace function public.invite_account_state(p_token text)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
--- invite-accept-0204: the invited e-mail's login state, for ONE valid invitation token (service role only)
+-- invite-accept-0205: the invited e-mail's login state, for ONE valid invitation token (service role only)
 declare v_inv record; v_u auth.users%rowtype; v_pw text; v_other boolean := false; v_state text;
 begin
   if p_token is null or p_token !~ '^[0-9a-f]{16,128}$' then
@@ -7977,7 +8218,7 @@ end $$;
 
 create or replace function public.my_needs_password()
 returns boolean language sql stable security definer set search_path = '' as $$
-  -- invite-accept-0204: the caller's OWN login has no password and no Google / other sign-in
+  -- invite-accept-0205: the caller's OWN login has no password and no Google / other sign-in
   select coalesce((
     select coalesce(u.encrypted_password, '') = ''
        and not exists (select 1 from auth.identities d where d.user_id = u.id and coalesce(d.provider, '') <> 'email')
@@ -7989,7 +8230,7 @@ $$;
 -- Supabase sign-in e-mail an EXISTING account gets reads like the same "Join <studio>" invitation.
 create or replace function public.invite_auth_user_id(p_token text)
 returns uuid language sql stable security definer set search_path = '' as $$
-  -- invite-accept-0204
+  -- invite-accept-0205
   select u.id from public.invitations i
     join auth.users u on lower(u.email) = lower(btrim(i.email))
    where p_token ~ '^[0-9a-f]{16,128}$' and i.token = p_token and i.status = 'pending' and i.expires_at > now()
@@ -8002,7 +8243,7 @@ $$;
 -- Returns { result: requested | already_requested | not_expired | not_found, studio }.
 create or replace function public.invite_request_new_link(p_token text)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
--- invite-accept-0204: never renews, never changes the invitation; one bell row at most per 24 h
+-- invite-accept-0205: never renews, never changes the invitation; one bell row at most per 24 h
 declare v_inv record; v_studio text;
 begin
   if p_token is null or p_token !~ '^[0-9a-f]{16,128}$' then return jsonb_build_object('result', 'not_found'); end if;
@@ -8021,7 +8262,7 @@ begin
   insert into public.notifications(quote_id, channel, kind, status, detail, org_id)
     values (null, 'in_app', 'invite_link_request', 'simulated',
             jsonb_build_object('label', left(v_inv.email, 254) || ' asked for a new invitation link (the old one expired). Re-send it from Staff.',
-                               'invitation', v_inv.id::text, 'source', '0204'),
+                               'invitation', v_inv.id::text, 'source', '0205'),
             v_inv.org_id);
   return jsonb_build_object('result', 'requested', 'studio', v_studio);
 end $$;
@@ -8079,7 +8320,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 30/30: APPLY-0178-refresh-trials.sql
+-- RELEASE SECTION 31/31: APPLY-0178-refresh-trials.sql
 -- In plain words: LAST: every existing FREE-TRIAL studio is refreshed to the newest sample (its sample rows re-cloned, its own rows kept).
 -- ##########################################################################################
 -- APPLY-0178-refresh-trials.sql -- paste into the Supabase SQL editor (runs as postgres; no auth.uid()).
@@ -8291,8 +8532,9 @@ select '0182 ' || item as item, ok from (values
   ('01 master: builder rates = owner list (142 types) + chair 100', coalesce((select c.value -> 'assetPrices' @> public._a182_owner_asset_prices() and c.value ->> 'chairPrice' = '100'
        from public.app_config c where c.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and c.key = 'pricing'), false)
      and (select count(*) from jsonb_object_keys(public._a182_owner_asset_prices())) = 142),
-  ('02 the 0182 sample manifest is current, published once, carries the rates + chair price', (select count(*) from public.helm_trial_seed_manifest where notes = public._a182_manifest_note()) = 1
-     and exists (select 1 from public.helm_trial_seed_manifest m where m.is_current and m.notes = public._a182_manifest_note()
+  ('02 the 0182 sample manifest (or a later one, e.g. 0202) is current, published once, carries the rates + chair price', (select count(*) from public.helm_trial_seed_manifest where notes = public._a182_manifest_note()) = 1
+     and exists (select 1 from public.helm_trial_seed_manifest m where m.is_current
+                   and m.version >= (select x.version from public.helm_trial_seed_manifest x where x.notes = public._a182_manifest_note())
                    and m.payload #> '{studio,pricing,assetPrices}' @> public._a182_owner_asset_prices() and m.payload #>> '{studio,pricing,chairPrice}' = '100')),
   ('03 Kapoor Sangeet: chair 100, milestones add up to the total, advance = 30 %', coalesce((select q.pricing ->> 'chairPrice' = '100'
        and (select sum(pm.amount) from public.payment_milestones pm where pm.quote_id = q.id) = (q.pricing ->> 'total')::numeric
@@ -8766,10 +9008,32 @@ select '0201 ' || item as item, ok from (values
 ) v(item, ok)
 union all
 select '0202 ' || item as item, ok from (values
+  ('01 the sample copy includes event_requirements (after quotes)', array_position(public._sample_clone_tables(), 'event_requirements')
+       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) = 25),
+  ('02 sample master: all 7 sample events have requirements (41)', (select count(*) from public.event_requirements
+       where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 41
+       and not exists (select 1 from public.quotes q where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null
+                         and not exists (select 1 from public.event_requirements r where r.quote_id = q.id))),
+  ('03 the 0202 sample version was published once and is current (or a later one), with the requirements',
+       (select count(*) from public.helm_trial_seed_manifest where notes = public._a202_manifest_note()) = 1
+       and exists (select 1 from public.helm_trial_seed_manifest c where c.is_current
+                     and c.version >= (select m.version from public.helm_trial_seed_manifest m where m.notes = public._a202_manifest_note())
+                     and jsonb_array_length(coalesce(c.payload #> '{tables,event_requirements}', '[]'::jsonb)) >= 41)),
+  ('05 sample master: every event with a budget / guests on its CRM lead has them on the quote too (0199 rule)',
+       not exists (select 1 from public.quotes q join public.leads l on l.quote_id = q.id and l.org_id = q.org_id
+                    where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null
+                      and ((l.budget is not null and nullif(btrim(coalesce(q.client ->> 'budget', '')), '') is null)
+                        or (l.guest_count is not null and nullif(btrim(coalesce(q.client ->> 'guests', '')), '') is null)))),
+  ('04 app roles cannot run the 0202 helpers', not has_function_privilege('authenticated', 'public._a202_sample_requirements()', 'execute')
+       and not has_function_privilege('anon', 'public._a202_sample_requirements()', 'execute')
+       and not has_function_privilege('authenticated', 'public._a202_manifest_note()', 'execute'))
+) v(item, ok)
+union all
+select '0203 ' || item as item, ok from (values
   ('01 nurture wrappers in place (trial check), old bodies kept',
-     position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.queue_nurture_greeting(uuid)')), '')) > 0
-     and position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.run_nurture_auto(integer)')), '')) > 0
-     and position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.nurture_due(integer)')), '')) > 0
+     position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.queue_nurture_greeting(uuid)')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.run_nurture_auto(integer)')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.nurture_due(integer)')), '')) > 0
      and to_regprocedure('public.queue_nurture_greeting__pre0202(uuid)') is not null
      and to_regprocedure('public.run_nurture_auto__pre0202(integer)') is not null
      and to_regprocedure('public.nurture_due__pre0202(integer)') is not null),
@@ -8788,8 +9052,8 @@ select '0202 ' || item as item, ok from (values
   ('04 activity log: restrictive trial policy',
      exists (select 1 from pg_policy where polrelid = 'public.audit_log'::regclass and polname = 'tl202_trial_no_read' and not polpermissive)),
   ('05 checkout status + audit names re-issued (trial aware), grants kept',
-     position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_checkout_status()')), '')) > 0
-     and position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.audit_actor_names()')), '')) > 0
+     position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_checkout_status()')), '')) > 0
+     and position('trial-gates-0203' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.audit_actor_names()')), '')) > 0
      and has_function_privilege('authenticated', 'public.my_checkout_status()', 'execute')
      and not has_function_privilege('anon', 'public.my_checkout_status()', 'execute')
      and has_function_privilege('authenticated', 'public.audit_actor_names()', 'execute')),
@@ -8800,7 +9064,7 @@ select '0202 ' || item as item, ok from (values
      not exists (select 1 from public.studio_subscriptions s where s.status = 'active' and (public._tl202_no_send(s.org_id) or public._tl173_trial_locked(s.org_id))))
 ) v(item, ok)
 union all
-select '0203 ' || item as item, ok from (values
+select '0204 ' || item as item, ok from (values
   ('01 anon holds no privilege on the six tables',
      not exists (select 1 from unnest(array['profiles','layouts','venues','client_booklets','coupons','event_sites']) t
                   where to_regclass('public.' || t) is not null
@@ -8828,7 +9092,7 @@ select '0203 ' || item as item, ok from (values
      and exists (select 1 from pg_proc where proname = 'public_event_site' and pronamespace = 'public'::regnamespace and has_function_privilege('anon', oid, 'execute')))
 ) v(item, ok)
 union all
-select '0204 ' || item as item, ok from (values
+select '0205 ' || item as item, ok from (values
   ('01 invite_account_state exists, SECURITY DEFINER, empty search_path',
      coalesce((select prosecdef and 'search_path=""' = any(proconfig) from pg_proc where oid = to_regprocedure('public.invite_account_state(text)')), false)),
   ('02 invite_account_state: service role only (not the app, not anon)',
