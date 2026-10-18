@@ -855,7 +855,7 @@ window.HelmUrl = HelmUrl;
      never sees its own write as stale. Keyed by the Authorization header → never
      shared across users. Storage / auth / functions URLs are never touched. */
   const READ_TTL_MS = 1500;
-  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending)(\?|$)/;
   const readCache = new Map();
   function hdrOf(init, input, name) {
     try {
@@ -1091,7 +1091,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "34";
+  const AUTH_UI_VERSION = "35";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -8768,6 +8768,13 @@ window.HelmUrl = HelmUrl;
       start: (loc) => (loc && (loc.timezone || loc.currency) ? rpc("start_trial", { p_timezone: loc.timezone || null, p_currency: loc.currency || null }) : rpc("start_trial", {})),
       // 0167 — 2-step trial welcome, step 1: rename the caller's own trial studio (name, link slug, city, optional phone)
       welcome: (name, city, phone) => rpc("trial_welcome_setup", { p_name: String(name || "").trim(), p_city: String(city || "").trim() || "Hyderabad", p_phone: String(phone || "").trim() || null }),
+      // 0180 — server-side welcome flag (works across devices): true while the free-trial owner's
+      // 2-step welcome is not finished, false otherwise; null = 0180 not installed (the page then
+      // falls back to this browser's sign-up flag)
+      welcomePending: () => (supa ? rpc("my_trial_welcome_pending", {}).then((v) => v === true, (e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // finished (Skip / Send invites) -> false; "start my own studio" names the studio again -> true
+      welcomeDone: () => (supa ? rpc("trial_welcome_set", { p_pending: false }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      welcomeAgain: () => (supa ? rpc("trial_welcome_set", { p_pending: true }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       status: () => (supa ? swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })) : Promise.resolve(null)),
       // 0177 — true while this is a self-serve free-trial studio still ON its trial (not yet paid):
       // such a studio uses the short 2-step welcome, never the full studio setup (/onboarding).
@@ -8780,18 +8787,20 @@ window.HelmUrl = HelmUrl;
       },
       // 0126 — {is_trial_org, ends_at, ended, locked, is_owner, blocked}; works for a member blocked after an unpaid trial ends.
       access: () => (supa ? rpc("my_trial_access", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
-      // 0119 — the ONE self-serve trial: {name (blank -> "Demo N"), timezone, currency, mode: "demo"|"own"}.
+      // 0119 — the ONE self-serve trial: {name (blank -> "Demo N")}. 0180: always the sample data on
+      // INR / Asia/Kolkata (any mode / time zone / currency passed in is ignored; the server does the same).
       // Before 0119 is applied: own studio name -> create_studio (old path); no name -> start_trial (Demo N).
       async startSelfServe(o) {
         o = o || {};
-        const name = String(o.name || "").trim() || null, mode = o.mode === "own" ? "own" : "demo";
+        // 0180: every free trial is sample data + India (INR / Asia/Kolkata); the server enforces the same
+        const name = String(o.name || "").trim() || null, mode = "demo";
         try {
-          return await rpc("start_self_serve_trial", { p_name: name, p_timezone: o.timezone || null, p_currency: o.currency || null, p_mode: mode });
+          return await rpc("start_self_serve_trial", { p_name: name, p_timezone: "Asia/Kolkata", p_currency: "INR", p_mode: mode });
         } catch (e) {
           if (!rpcMissing(e)) throw e;
-          if (!name) return BPStore.trialOrg.start({ timezone: o.timezone, currency: o.currency });
-          const id = await BPStore.org.createStudio(name, { currency: o.currency, timezone: o.timezone });
-          try { if (mode === "demo") await BPStore.demo.seed(); else await BPStore.demo.setMode("own"); } catch (x) {}
+          if (!name) return BPStore.trialOrg.start({ timezone: "Asia/Kolkata", currency: "INR" });
+          const id = await BPStore.org.createStudio(name, { currency: "INR", timezone: "Asia/Kolkata" });
+          try { await BPStore.demo.seed(); } catch (x) {}
           return { result: "started", org_id: id, name: name, mode: mode, legacy: true };
         }
       },

@@ -1631,8 +1631,10 @@
     // 0119: a self-serve trial studio already shows the ONE trial strip (trial.js) — no second notice
     var orgQ = st.trialOrg && st.trialOrg.status ? st.trialOrg.status().catch(function () { return null; }) : Promise.resolve(null);
     Promise.all([st.subscription.trial(), demoQ, orgQ]).then(function (both) {
-      var t = both[0], d = both[1];
-      demoStatus(t, d);
+      var t = both[0], d = both[1], o = both[2];
+      // 0180: during the free trial the trial strip is the only notice ("Free trial · N days left" +
+      // "Choose a plan"): no "You're exploring demo data" card with its own set-up action
+      if (!(o && o.is_trial_org === true && o.ended !== true && o.locked !== true && t && t.state === "trial")) demoStatus(t, d);
       var spec = both[2] && both[2].is_trial_org === true ? null : trialNotice(t);
       if (!spec || trialShown || !doc.body) return;
       var key = "trial_" + String(t.ends_at || "") + (spec.urgent ? "_u" : "");

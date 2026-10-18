@@ -47,7 +47,8 @@ do $$ declare r text; o public.organizations; begin
   perform pg_temp.t('own: trial started', r like '%"result": "started"%', r);
   select x.* into o from public.organizations x join public.profiles p on p.org_id = x.id where p.email = 't177_own@d.test';
   perform pg_temp.t('own: INR / Kolkata / IN', o.currency = 'INR' and o.timezone = 'Asia/Kolkata' and o.country = 'IN', o.currency || ' ' || o.timezone);
-  perform pg_temp.t('own: trial_mode own', o.trial_mode = 'own', o.trial_mode);
+  -- 0180: 'own' is ignored, every free trial is the sample trial
+  perform pg_temp.t('own: trial_mode own (demo from 0180)', o.trial_mode = case when coalesce(pg_get_functiondef(to_regprocedure('public.start_self_serve_trial(text, text, text, text)')) like '%trial-signup-0180%', false) then 'demo' else 'own' end, o.trial_mode);
 end $$;
 
 -- 3) during the trial an edit to USD / Chicago is pinned back; a chosen Indian state is kept

@@ -146,8 +146,11 @@
   // 0177: a free-trial studio never opens the full studio setup (/onboarding): it gets the short
   // 2-step welcome on the dashboard instead. After paying (checkout) the studio is no longer a trial.
   function nextAfterFresh(then) { return then === "checkout" ? "checkout.html?next=" + encodeURIComponent("onboarding.html?fresh=1") : "dashboard.html"; }
-  function toWelcome() {
-    try { global.localStorage.setItem("bp_trial_welcome", String(Date.now())); } catch (e) {}
+  // 0180: the welcome is a server-side flag (shows on any device). The browser flag ("again:<time>")
+  // still asks for it on THIS device, e.g. a studio that already chose a plan (the server flag is trial-only).
+  async function toWelcome() {
+    try { const st = S(); if (st && st.trialOrg && st.trialOrg.welcomeAgain) await st.trialOrg.welcomeAgain(); } catch (e) {}
+    try { global.localStorage.setItem("bp_trial_welcome", "again:" + String(Date.now())); } catch (e) {}
     global.location.assign("dashboard.html");
   }
 
@@ -206,7 +209,8 @@
     host.insertBefore(box, host.firstChild);
   }
   /* ---- rendering ---------------------------------------------------------- */
-  function render(host, v, d, place) {
+  // inTrial (0180): the studio is ON its free trial -> no "Start my own studio" (the trial keeps the samples)
+  function render(host, v, d, place, inTrial) {
     while (host.firstChild) host.removeChild(host.firstChild);
     if (!v) { host.hidden = true; return; }
     css(); host.hidden = false; host.classList.add("td");
@@ -233,7 +237,7 @@
       host.appendChild(el("p", null, "Sample data: everything marked “Demo ·” is sample data. Messages, approval codes and payment links are switched off for it."));
       if (admin) {
         const row = el("div", "td-row");
-        row.appendChild(btn("Start my own studio →", "btn primary", () => startFresh({})));
+        if (!inTrial) row.appendChild(btn("Start my own studio →", "btn primary", () => startFresh({})));
         const r = btn("Reset demo data", "btn", () => resetDemo(r)); row.appendChild(r);
         if (place === "control") { const c = btn("Clear sample data", "btn", () => clearSample(c)); row.appendChild(c); }
         host.appendChild(row);
@@ -264,7 +268,7 @@
   async function mount() {
     if (/(^|\/)onboarding(\.html)?$/.test(global.location.pathname || "")) { mountFresh(); return; }
     const dash = doc.querySelector("[data-td-auto]"), ctl = doc.querySelector("[data-td-control]");
-    if (welcomeOn) mountWelcome();
+    mountWelcome();
     if (!dash && !ctl) return;
     const st = S(); if (!st || !st.demo || !st.subscription) return;
     try { if (st.init) await st.init(); } catch (e) {}
@@ -272,25 +276,42 @@
     try { [d, t] = await Promise.all([st.demo.status(), st.subscription.trial().catch(() => null)]); } catch (e) { return; }
     if (!d) return;
     const v = view(d, t);
-    if (dash) render(dash, v, d, "dashboard");
-    if (ctl) { if (v === "demo" || v === "leftover") render(ctl, v, d, "control"); else renderControlEmpty(ctl, d, t); }
+    // 0180: during the free trial the trial strip + the 2-step welcome are the whole trial UI: no
+    // sample-data card on the dashboard and no "Start my own studio" (Control Center keeps Reset / Clear)
+    const inTrial = !!(t && typeof t === "object" && t.state === "trial");
+    if (dash) render(dash, inTrial && v === "demo" ? null : v, d, "dashboard", inTrial);
+    if (ctl) { if (v === "demo" || v === "leftover") render(ctl, v, d, "control", inTrial); else renderControlEmpty(ctl, d, t); }
     try {
       const q = global.location.search || "";
-      if (/[?&]demo=fresh\b/.test(q) && /[?&]then=checkout\b/.test(q) && !(d.is_admin && d.has_demo)) { global.location.assign("checkout.html?next=dashboard.html"); return; }
-      if (d.is_admin && d.has_demo && /[?&]demo=(switch|fresh)\b/.test(q)) startFresh({ then: /[?&]then=checkout\b/.test(q) ? "checkout" : "" });
+      // 0180: "Choose a plan" goes straight to the plan page (an old link that still asks to remove the samples first, too)
+      if (/[?&]demo=fresh\b/.test(q) && /[?&]then=checkout\b/.test(q)) { global.location.assign("checkout.html?next=dashboard.html"); return; }
+      if (d.is_admin && d.has_demo && /[?&]demo=(switch|fresh)\b/.test(q)) startFresh({});
     } catch (e) {}
   }
 
-  /* ---- 0167: 2-step trial welcome (dashboard, right after a demo-mode trial sign-up) ----------
+  /* ---- 0167: 2-step trial welcome (dashboard, right after a trial sign-up) ------------------------
      Step 1 "Name your trial studio": name + city (default Hyderabad) + optional phone ->
      trial_welcome_setup (own trial studio only). The sample data is already there (seeded at sign-up).
      Step 2 (optional) "Invite your team (up to 2)": email + role rows -> create_invitation (the
-     server enforces the seat limit) + Skip. Then the guided tour. Paid "Create studio" never sees this. */
+     server enforces the seat limit) + Skip. Then the guided tour. Paid "Create studio" never sees this.
+     0180: whether it shows is decided by the SERVER (organizations.trial_welcome_pending, set when
+     the trial starts, cleared when the welcome is finished), so it also shows when the e-mail confirm
+     link is opened on another device, and never twice. Before 0180 is installed the browser flag
+     set at sign-up (bp_trial_welcome) is used instead. The dashboard tour waits for this decision. */
   const WKEY = "bp_trial_welcome";
   function lsGet(k) { try { return global.localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v == null) global.localStorage.removeItem(k); else global.localStorage.setItem(k, v); } catch (e) {} }
-  // Pure (unit-tested): is the welcome due? a flag set at sign-up, at most 2 days old
-  function welcomeDue(flag, now) { const t = Number(flag); return isFinite(t) && t > 0 && now - t >= 0 && now - t < 2 * 24 * 3600 * 1000; }
+  // Pure (unit-tested): is the welcome due? a browser flag ("<time>" at sign-up, "again:<time>"), at most 2 days old
+  function welcomeDue(flag, now) { const t = Number(String(flag == null ? "" : flag).replace(/^again:/, "")); return isFinite(t) && t > 0 && now - t >= 0 && now - t < 2 * 24 * 3600 * 1000; }
+  // Pure (unit-tested): show the welcome? t = my_trial_org(), server = my_trial_welcome_pending()
+  //   server true  -> yes (any device);  server false -> no, unless THIS browser just asked for it again
+  //   ("again:" flag: start fresh / set up the studio); null (0180 not installed / unknown) -> the browser flag
+  function welcomeShow(t, server, flag, now) {
+    if (!t || typeof t !== "object" || t.is_trial_org !== true || t.is_admin !== true || t.ended === true || t.locked === true) return false;
+    if (server === true) return true;
+    if (server === false) return /^again:/.test(String(flag == null ? "" : flag)) && welcomeDue(flag, now);
+    return welcomeDue(flag, now);
+  }
   // Pure (unit-tested): the invite rows worth sending (valid-looking emails, max 2, no duplicates)
   function inviteRows(rows) {
     const out = [], seen = {};
@@ -301,9 +322,30 @@
     });
     return out;
   }
-  // hold the tour back until the welcome is done (dashboard reads bp_force_tour after init)
-  const welcomeOn = /(^|\/)dashboard(\.html)?$/.test((global.location && global.location.pathname) || "") && welcomeDue(lsGet(WKEY), Date.now());
-  if (welcomeOn) { lsSet("bp_tour_autorun", "1"); }
+  // hold the tour back until the welcome is done (dashboard awaits welcomeDecision() before its tour)
+  const onDash = /(^|\/)dashboard(\.html)?$/.test((global.location && global.location.pathname) || "");
+  let welcomeOn = false, welcomeT = null, decided = null;
+  // the one decision per page load (dashboard only): trial admin? then ask the server
+  function welcomeDecision() {
+    if (decided) return decided;
+    decided = (async () => {
+      if (!onDash) return false;
+      const st = S(); if (!st || !st.trialOrg) return false;
+      let t = null, server = null;
+      try { if (st.init) await st.init(); } catch (e) {}
+      try { t = await st.trialOrg.status(); } catch (e) { t = null; }
+      if (t && t.is_trial_org === true && t.is_admin === true && st.trialOrg.welcomePending) {
+        try { server = await st.trialOrg.welcomePending(); } catch (e) { server = null; }   // network: fall back to the browser flag
+      }
+      const on = welcomeShow(t, server, lsGet(WKEY), Date.now());
+      // finished elsewhere (or not a trial admin): drop this browser's old sign-up flag; the tour flag stays
+      if (!on) lsSet(WKEY, null); else lsSet("bp_tour_autorun", "1");
+      welcomeOn = on; welcomeT = t;
+      return on;
+    })().catch(() => false);
+    return decided;
+  }
+  if (onDash) welcomeDecision();
   function field(id, label, type, value, hint) {
     const f = el("div", "td-fld"), l = el("label", null, label); l.htmlFor = id; f.appendChild(l);
     const i = el("input"); i.id = id; i.type = type || "text"; if (value) i.value = value; f.appendChild(i);
@@ -311,15 +353,17 @@
     return { box: f, input: i };
   }
   async function finishWelcome(dlg) {
+    // 0180: finished on this device = finished everywhere (a failure only means it may show once more)
+    try { const st = S(); if (st && st.trialOrg && st.trialOrg.welcomeDone) await st.trialOrg.welcomeDone(); } catch (e) {}
     lsSet(WKEY, null); lsSet("bp_tour_autorun", null); lsSet("bp_force_tour", "1");
     try { dlg.close(); } catch (e) {} dlg.remove();
     global.location.replace("dashboard.html");
   }
+  let welcomeMounted = false;
   async function mountWelcome() {
-    if (!welcomeOn) return;
-    const st = S(); let t = null;
-    try { if (st.init) await st.init(); t = st.trialOrg ? await st.trialOrg.status() : null; } catch (e) {}
-    if (!t || t.is_trial_org !== true || t.is_admin !== true) { lsSet(WKEY, null); lsSet("bp_tour_autorun", null); lsSet("bp_force_tour", "1"); return; }   // keep the tour for the next load
+    if (welcomeMounted || !(await welcomeDecision())) return;   // not shown: the dashboard tour runs as usual
+    welcomeMounted = true;
+    const st = S(), t = welcomeT;
     css();
     const dlg = el("dialog", "td-dlg td-welcome"); dlg.setAttribute("aria-labelledby", "tdWT");
     const step = el("span", "td-tag", "Step 1 of 2"); dlg.appendChild(step);
@@ -383,6 +427,7 @@
     fn.input.focus();
   }
 
-  global.HelmTrialDemo = { welcomeDue: welcomeDue, inviteRows: inviteRows, view: view, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount, welcomeOn: welcomeOn };
+  global.HelmTrialDemo = { welcomeDue: welcomeDue, welcomeShow: welcomeShow, welcomeDecision: welcomeDecision, inviteRows: inviteRows, view: view, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount,
+    get welcomeOn() { return welcomeOn; } };
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", mount); else mount(); }
 })(typeof window !== "undefined" ? window : globalThis);

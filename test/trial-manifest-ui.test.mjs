@@ -1,6 +1,6 @@
 // 0167 trial sample manifest - front end + static migration guards.
 //  * trial-demo.js: 2-step welcome helpers (welcomeDue, inviteRows), held-back tour, seat-capped invites
-//  * trial.js: "Sample data" badge in the trial strip (demo mode only)
+//  * trial.js: 0180 - no "Sample data" badge in the trial strip any more
 //  * control.html: "N of M seats used" counter + friendly message at the limit
 //  * store-api: my_seat_usage / trial_welcome_setup wrappers, seat_limit friendly error
 //  * 0167: additive, ASCII, switch stays OFF, manifest-only seeding, MANIFEST + run-all wired
@@ -31,11 +31,11 @@ t('invite rows: valid emails only, max 2, no duplicates', () => {
   assert.deepEqual(r, [{ email: 'a@x.in', role: 'manager' }, { email: 'b@y.com', role: 'sales' }]);
   assert.deepEqual(JSON.parse(JSON.stringify(ctx.rows([{ email: '' }]))), []);
 });
-t('trial strip: "Sample data" badge in demo mode only', () => {
+t('trial strip: 0180 - no "Sample data" badge any more (title + Choose a plan only)', () => {
   const base = { is_trial_org: true, is_admin: true, days_left: 6, ends_at: null };
-  assert.equal(ctx.spec(Object.assign({ trial_mode: 'demo' }, base)).badge, 'Sample data');
-  assert.equal(ctx.spec(Object.assign({ trial_mode: 'own' }, base)).badge, null);
-  assert.match(TJ, /className = "htr-badge"/);
+  assert.equal(ctx.spec(Object.assign({ trial_mode: 'demo' }, base)).badge, undefined);
+  assert.equal(ctx.spec(Object.assign({ trial_mode: 'own' }, base)).badge, undefined);
+  assert.ok(!/htr-badge/.test(TJ));
 });
 t('welcome: holds the tour, uses the seat-capped invite path, 2 steps + Skip', () => {
   assert.match(TD, /lsSet\("bp_tour_autorun", "1"\)/); assert.match(TD, /lsSet\("bp_force_tour", "1"\)/);
