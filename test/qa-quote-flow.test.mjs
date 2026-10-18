@@ -50,6 +50,20 @@ t('B6: a coupon switched off later still prices as saved; a NEW unknown code is 
   els.q_coupon.value = 'NOPE'; api.applyCoupon();
   assert.equal(api.state().appliedCoupon, null); assert.equal(els.q_couponMsg.textContent, 'No such coupon code.');
 });
+t('B6 review: a switched-off coupon is re-saved EXACTLY as stored (tg_quote_money_guard re-checks a changed code/object)', async () => {
+  const sc = { kind: 'percent', value: 10, code: 'demo-welcome10' };
+  const { api, els } = couponHarness({ coupons: [], pricing: { couponCode: 'demo-welcome10', coupon: sc } });
+  await api.loadCoupons();
+  els.q_coupon.value = 'DEMO-WELCOME10'; api.applyCoupon();
+  assert.deepEqual(J(api.state().appliedCoupon), sc, 'stored coupon object unchanged (extra keys kept)');
+  assert.equal(api.state().appliedCouponCode, 'demo-welcome10', 'stored spelling kept - an upper-cased code would be "changed" and refused as inactive');
+});
+t('B20 review: a step-1 save clears a step 7 / 8 error it painted; hints + badge know a recorded advance', () => {
+  assert.match(FLOW, /\["layout","quote"\]\.forEach\(k=>\{ if\(badgeSt\[k\]==="invalid"\) paintBadge\(k,"idle"\); \}\);\n\s*saved\("client"\);/);
+  assert.match(FLOW, /BPStore\.quoteStatus\(ev,\{advance:PAID_SUM>0\}\)\.key/);
+  assert.match(FLOW, /PAID_SUM=paid\.reduce[^\n]*try\{ paintStatusBadge\(\); \}catch\(_\)\{ \}/);
+  assert.match(read('public/invite-site-share.js'), /el\("div", "ish-log-h", "Send history"\); logH\.hidden = true;/);
+});
 t('B6: loadAll loads the coupons BEFORE seedQuote; the stored code is upper-case', () => {
   const la = between(FLOW, '  async function loadAll(){', '    stampNewQuoteTax();');
   assert.match(la, /const couponsP=loadCoupons\(\);/);
@@ -82,7 +96,7 @@ t('B7: host hooks run in order and a failed step-1 save is reported (no decision
 
 /* ------------------------------------------------------------------ B19 one status label */
 t('B19: the flow header badge uses BPStore.quoteStatus (no raw status text left)', () => {
-  assert.match(FLOW, /function paintStatusBadge\(opts\)\{[\s\S]*?BPStore\.quoteStatus\(ev,opts\)/);
+  assert.match(FLOW, /function paintStatusBadge\(opts\)\{[\s\S]*?BPStore\.quoteStatus\(ev,Object\.assign\(\{advance:PAID_SUM>0\},opts\|\|\{\}\)\)/);
   assert.doesNotMatch(FLOW, /\$\("#statusBadge"\)\.textContent=/);
   assert.match(FLOW, /paintBookingBadge\(1\); paintStatusBadge\(\{advance:true\}\);/);
 });

@@ -611,7 +611,9 @@
     const savedHit=!c && sc && +sc.value>0 && (sc.kind==="percent"||sc.kind==="flat") && normCoupon(pr.couponCode)===normCoupon(code);
     if(c){ appliedCoupon={kind:c.kind,value:c.value}; appliedCouponCode=normCoupon(c.code);
       if(msg){ msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Applied: "+couponText(c)+(c.note?(" · "+c.note):""); } }
-    else if(savedHit){ appliedCoupon={kind:sc.kind,value:+sc.value}; appliedCouponCode=normCoupon(pr.couponCode);
+    // the saved coupon object + code are kept EXACTLY as stored: tg_quote_money_guard re-checks a coupon whose
+    // object or code changed against the ACTIVE coupons, so re-spelling a switched-off code would refuse the save
+    else if(savedHit){ appliedCoupon=Object.assign({}, sc); appliedCouponCode=String(pr.couponCode);
       if(msg){ msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Applied: "+couponText(appliedCoupon)+(couponsLoaded?" (as saved on this quote — the code is no longer active)":""); } }
     else { appliedCoupon=null; appliedCouponCode=""; if(msg){ msg.style.color="var(--warn-text,#8f5f00)"; msg.textContent=couponsLoaded?"No such coupon code.":"Checking the coupon…"; } }
     renderPrice();
@@ -790,6 +792,8 @@
     vocabAdd("event_types",$("#c_type").value); fillVocab();   // remember a custom event type
     // guests is entered once here and mirrored into the fields that read it (quotation/pricing)
     if($("#q_guests").value==="" && client.guests!=null){ $("#q_guests").value=client.guests; }
+    // B20: step 1 saved, so the hall size / chairs it carries are valid - a step 7 / 8 error it painted is cleared
+    ["layout","quote"].forEach(k=>{ if(badgeSt[k]==="invalid") paintBadge(k,"idle"); });
     saved("client"); renderPrice();
   }
   // guest-budget: ONE budget range in step 1. min/max save to Discovery (budget_min/budget_max) and the
@@ -1230,7 +1234,7 @@
     return null;
   }
   function paintLiveHints(){
-    let key=""; try{ key=ev&&BPStore.quoteStatus?BPStore.quoteStatus(ev).key:""; }catch(_){ key=""; }
+    let key=""; try{ key=ev&&BPStore.quoteStatus?BPStore.quoteStatus(ev,{advance:PAID_SUM>0}).key:""; }catch(_){ key=""; }   // a recorded advance = booked
     ["layout","quote"].forEach(k=>{ const h=$("#sec-"+k)&&$("#sec-"+k).querySelector("[data-next-step]"); const t=nextHintText(k,key); if(!h||t==null) return;
       if(h.dataset.hintKey===k+"|"+key) return; h.dataset.hintKey=k+"|"+key;
       const b=document.createElement("b"); b.textContent="Next step:"; h.replaceChildren(b, t); });
@@ -1338,7 +1342,7 @@
     let pays=[]; try{ pays=(await BPStore.milestones.payments(id))||[]; }catch(e){ BPUI.loadError($("#pay_receipts"), e, renderReceipts, {what:"receipts"}); return; }
     const paid=pays.filter(p=>p.status==='paid');
     paintBookingBadge(paid.length);
-    PAID_SUM=paid.reduce((a,p)=>a+(Number(p.amount)||0),0); try{ updateAdvance(); }catch(_){ }
+    PAID_SUM=paid.reduce((a,p)=>a+(Number(p.amount)||0),0); try{ updateAdvance(); }catch(_){ } try{ paintStatusBadge(); }catch(_){ }
     $("#pay_receipts").innerHTML = paid.length ? '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Receipts</div>'+
       paid.map(p=>`<div class="rowline"><span class="g">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span class="meta">${esc(p.paid_at?BPStore.fmtStudioDate(p.paid_at,{style:"long"}):'')}</span></div>`).join('')
       : '<div style="font-size:12px;color:var(--ink-3)">No payments recorded yet.</div>';
@@ -1546,7 +1550,7 @@
   // a locked quote the client has not approved yet reads "Sent · awaiting client approval", never "Confirmed".
   function paintStatusBadge(opts){
     const b=$("#statusBadge"); if(!b||!ev) return;
-    let st=null; try{ st=BPStore.quoteStatus?BPStore.quoteStatus(ev,opts):null; }catch(_){ st=null; }
+    let st=null; try{ st=BPStore.quoteStatus?BPStore.quoteStatus(ev,Object.assign({advance:PAID_SUM>0},opts||{})):null; }catch(_){ st=null; }
     b.textContent=st?st.label:(ev.status||ev.lifecycleStage||"draft");
     if(st&&st.title) b.title=st.title; else b.removeAttribute("title");
     b.dataset.status=st?st.key:"";
