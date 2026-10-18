@@ -150,8 +150,15 @@ do $$ declare lim jsonb := pg_temp.get('lim')::jsonb; begin
     pg_temp.get('k1') = 'true' and pg_temp.get('k2') = 'false' and pg_temp.get('k3') = 'false' and pg_temp.get('k4') = 'false',
     concat_ws(',', pg_temp.get('k1'), pg_temp.get('k2'), pg_temp.get('k3'), pg_temp.get('k4')));
 exception when others then perform pg_temp.su(); insert into _uf values ('zz exception B', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+-- 0236: the app wrappers refuse Clear / Reset sample data while the studio is on its free trial; this suite
+-- tests what the clear / reset itself does, so it calls the kept bodies (<name>__pre0236) as the studio admin
+do $$ declare f text; begin
+  foreach f in array array['public.clear_sample_data__pre0236()', 'public.reset_demo_data__pre0236()', 'public.clear_demo_data__pre0236()'] loop
+    if to_regprocedure(f) is not null then execute format('grant execute on function %s to authenticated', f); end if;
+  end loop;
+end $$;
 select pg_temp.login('tp182_a@t.test');
-select pg_temp.put('e7', pg_temp.try('select public.clear_sample_data()'));
+select pg_temp.put('e7', pg_temp.try('select public.clear_sample_data__pre0236()'));
 do $$ begin
   perform pg_temp.su();
   perform pg_temp.res('15 Clear demo data removes (or switches off) the edited sample dish, package and inventory item; the adopted lead stays',

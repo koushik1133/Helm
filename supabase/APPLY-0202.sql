@@ -212,7 +212,7 @@ commit;
 -- VERIFY (every row should say ok = true)
 select item, ok from (values
   ('01 the sample copy includes event_requirements (after quotes)', array_position(public._sample_clone_tables(), 'event_requirements')
-       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) = 25),
+       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) >= 25),   -- 0237 adds 4 more
   ('02 sample master: all 7 sample events have requirements (41)', (select count(*) from public.event_requirements
        where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 41
        and not exists (select 1 from public.quotes q where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null

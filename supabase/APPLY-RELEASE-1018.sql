@@ -35,10 +35,14 @@
 --   28  APPLY-0203.sql                   Free-trial server gates: no client greeting, fixed sample menu dishes, no activity log, no template edits, checkout says "trial".
 --   29  APPLY-0204.sql                   Signed-out (anon) API tidy: no table grants / "to public" studio policies on 6 tables (link pages use their own functions).
 --   30  APPLY-0205.sql                   Team invitations: a brand-new invitee can always join (service-role helpers for the invite edge functions).
---   31  APPLY-0178-refresh-trials.sql    LAST: every existing FREE-TRIAL studio is refreshed to the newest sample (its sample rows re-cloned, its own rows kept).
+--   31  APPLY-0236.sql                   One meaning of "in the free trial": checkout-started trials get the trial screens + client Test mode; package / message settings and sample clear / reset / switch refused in the trial; the admin's linked staff row is not a staff slot.
+--   32  APPLY-0237.sql                   Trial sample data complete: layout version 1 on every sample event, floor plans seat the guests, event menu plans, layout rules + chair / plate types; existing trials get missing rows (insert only); new sample version.
+--   33  APPLY-0178-refresh-trials.sql    LAST: every existing FREE-TRIAL studio is refreshed to the newest sample (its sample rows re-cloned, its own rows kept).
 -- Rows are only written where a section says so: FIX-0177 (India defaults on existing FREE-TRIAL studios),
 -- 0199 (fills EMPTY event budget / guest values from the other copy - never overwrites a value that is there),
 -- 0182 / 0202 (the sample master studio only: builder rates, sample event requirements, one new sample version)
+-- 0237 (the sample master: layout version 1 / floor plans / event plans / layout rules / chair + plate types, one new
+-- sample version; FREE-TRIAL studios: only the missing sample rows, insert only)
 -- and, LAST, REFRESH-0178 (each existing FREE-TRIAL studio's SAMPLE rows are cleared and cloned again from the
 -- newest sample; the studio's own rows are kept). Paid studios are not changed. Everything else is functions,
 -- triggers, policies, grants, new tables and nullable columns.
@@ -53,7 +57,7 @@
 -- docs/release/RELEASE-1018-OWNER-STEPS.md.
 
 -- ##########################################################################################
--- RELEASE SECTION 01/31: APPLY-0173.sql
+-- RELEASE SECTION 01/33: APPLY-0173.sql
 -- In plain words: Free-trial lockdown: 2 own rows per main list, no new catalog items, no studio-settings / export changes; paid studios unchanged.
 -- ##########################################################################################
 -- APPLY-0173.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -273,7 +277,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 02/31: APPLY-0174.sql
+-- RELEASE SECTION 02/33: APPLY-0174.sql
 -- In plain words: Every trial seed ("Load demo data", sign-up) uses the CURRENT published sample, never the old built-in demo.
 -- ##########################################################################################
 -- APPLY-0174.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -388,7 +392,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 03/31: APPLY-0175.sql
+-- RELEASE SECTION 03/33: APPLY-0175.sql
 -- In plain words: Trial sample gets the owner's 3 layout templates (one theatre sample archived, never deleted).
 -- ##########################################################################################
 -- APPLY-0175.sql - paste into the Supabase SQL editor (STAGING first; production only when the owner says go).
@@ -458,7 +462,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 04/31: APPLY-0176.sql
+-- RELEASE SECTION 04/33: APPLY-0176.sql
 -- In plain words: Trial client portal: "Skip OTP" for the test client, and the trial event shows confirmed after it.
 -- ##########################################################################################
 -- APPLY-0176.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -586,7 +590,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 05/31: APPLY-0177.sql
+-- RELEASE SECTION 05/33: APPLY-0177.sql
 -- In plain words: Free trial is India only: new trials land on INR / Asia/Kolkata / GST and stay there.
 -- ##########################################################################################
 -- APPLY-0177.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -677,7 +681,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 06/31: APPLY-0179.sql
+-- RELEASE SECTION 06/33: APPLY-0179.sql
 -- In plain words: No real client message from a free-trial studio (approval code, WhatsApp, e-mail); seat limit admin + 2.
 -- ##########################################################################################
 -- APPLY-0179.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -991,7 +995,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 07/31: APPLY-0180.sql
+-- RELEASE SECTION 07/33: APPLY-0180.sql
 -- In plain words: Trial sign-up: every new trial starts WITH the sample data + India defaults + the welcome tour.
 -- ##########################################################################################
 -- APPLY-0180.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -1202,7 +1206,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 08/31: APPLY-0181.sql
+-- RELEASE SECTION 08/33: APPLY-0181.sql
 -- In plain words: More free-trial server guards: layout templates, reminder days, privacy PIN, custom fields; 2 created in total per list.
 -- ##########################################################################################
 -- APPLY-0181.sql - paste into the Supabase SQL editor (staging first, then production). Needs 0173 applied first.
@@ -1503,7 +1507,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 09/31: APPLY-0182.sql
+-- RELEASE SECTION 09/33: APPLY-0182.sql
 -- In plain words: Trial layout builder prices items at the owner's inventory rates (chair 100).
 -- ##########################################################################################
 -- APPLY-0182.sql - paste into the Supabase SQL editor (STAGING first; production only when the owner says go).
@@ -1722,7 +1726,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 10/31: APPLY-0183.sql
+-- RELEASE SECTION 10/33: APPLY-0183.sql
 -- In plain words: An ended, unpaid free trial is read-only for everyone.
 -- ##########################################################################################
 -- APPLY-0183.sql - paste into the Supabase SQL editor (staging first, then production, when the owner says go).
@@ -2079,7 +2083,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 11/31: APPLY-0184.sql
+-- RELEASE SECTION 11/33: APPLY-0184.sql
 -- In plain words: Trial data retention: upgrade reminder 7 days after the trial ends; deletion stays SWITCHED OFF.
 -- ##########################################################################################
 -- APPLY-0184.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -3042,7 +3046,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 12/31: APPLY-0185.sql
+-- RELEASE SECTION 12/33: APPLY-0185.sql
 -- In plain words: Upgrade data choice: keep / remove sample data, or start clean (archive, never delete).
 -- ##########################################################################################
 -- APPLY-0185.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -3596,7 +3600,7 @@ select item, ok from (values
                    where i.tbl = 'nurture' and i.row_id = x.id and i.restored_at is null))
       and not exists (select 1 from public.layouts x where x.clean_archived_at is not null and not exists (select 1 from public.studio_clean_start_items i
                    where i.tbl = 'layouts' and i.row_id = x.id and i.restored_at is null))),
-  ('09 the clear used is the is_demo-only _demo_clear', position('_demo_clear' in pg_get_functiondef('public.delete_all_sample_data()'::regprocedure)) > 0
+  ('09 the clear used is the is_demo-only _demo_clear', position('_demo_clear' in pg_get_functiondef(coalesce(to_regprocedure('public.delete_all_sample_data__pre0236()'), 'public.delete_all_sample_data()'::regprocedure))) > 0   -- 0236 trial wrapper: the body it calls
       and position('_demo_clear' in pg_get_functiondef('public.upgrade_data_choice(text, text)'::regprocedure)) > 0),
   ('10 checkout: billing details + Terms can be saved in the free trial (0173 wrapper without the trial guard)',
       to_regprocedure('public.my_studio_account_update__pre0173(jsonb)') is null
@@ -3608,7 +3612,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 13/31: APPLY-0186.sql
+-- RELEASE SECTION 13/33: APPLY-0186.sql
 -- In plain words: One free trial per studio / e-mail; one trial extension that only Helm HQ can grant.
 -- ##########################################################################################
 -- APPLY-0186.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -4030,7 +4034,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 14/31: APPLY-0187.sql
+-- RELEASE SECTION 14/33: APPLY-0187.sql
 -- In plain words: Ended trials queue no payment reminders; no real Razorpay link from a trial studio.
 -- ##########################################################################################
 -- APPLY-0187.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -4174,7 +4178,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 15/31: FIX-0177-existing-trials.sql
+-- RELEASE SECTION 15/33: FIX-0177-existing-trials.sql
 -- In plain words: Existing free-trial studios corrected to the India defaults (5 columns of trial studios only).
 -- ##########################################################################################
 -- FIX-0177-existing-trials.sql - OWNER-RUN, after APPLY-0177.sql. Staging first, then production.
@@ -4218,7 +4222,7 @@ select o.id, o.name, o.currency, o.timezone, o.country, o.tax_region
    and (o.currency <> 'INR' or o.timezone <> 'Asia/Kolkata' or o.country is distinct from 'IN' or o.trial_region is distinct from 'IN');
 
 -- ##########################################################################################
--- RELEASE SECTION 16/31: APPLY-0189.sql
+-- RELEASE SECTION 16/33: APPLY-0189.sql
 -- In plain words: One quote status label everywhere ("sent - awaiting client approval" until the client approves).
 -- ##########################################################################################
 -- APPLY-0189.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -4548,7 +4552,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 17/31: APPLY-0190.sql
+-- RELEASE SECTION 17/33: APPLY-0190.sql
 -- In plain words: Faster free-trial sign-up and sample clone (stays far inside the 8 second API limit).
 -- ##########################################################################################
 -- APPLY-0190.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -4928,7 +4932,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 18/31: APPLY-0192.sql
+-- RELEASE SECTION 18/33: APPLY-0192.sql
 -- In plain words: Menu packages: the database refuses a cleared / zero price or an active package with no dishes.
 -- ##########################################################################################
 -- APPLY-0192.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5068,7 +5072,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 19/31: APPLY-0194.sql
+-- RELEASE SECTION 19/33: APPLY-0194.sql
 -- In plain words: Event group "Add people": staff / vendors / client as group contacts (nothing is sent).
 -- ##########################################################################################
 -- APPLY-0194.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5298,7 +5302,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 20/31: APPLY-0195.sql
+-- RELEASE SECTION 20/33: APPLY-0195.sql
 -- In plain words: Invitation website "Send to client" (queued e-mail / WhatsApp; free trial = skipped).
 -- ##########################################################################################
 -- APPLY-0195.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5661,7 +5665,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 21/31: APPLY-0196.sql
+-- RELEASE SECTION 21/33: APPLY-0196.sql
 -- In plain words: Budget & margin from the client's requirements (4 nullable columns on event_costs, no row changed).
 -- ##########################################################################################
 -- APPLY-0196.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -5777,7 +5781,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 22/31: APPLY-0197.sql
+-- RELEASE SECTION 22/33: APPLY-0197.sql
 -- In plain words: Over-capacity decision on a quote + stock-shortage sourcing on "Reserve for this event".
 -- ##########################################################################################
 -- APPLY-0197.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -6098,7 +6102,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 23/31: APPLY-0198.sql
+-- RELEASE SECTION 23/33: APPLY-0198.sql
 -- In plain words: Event stages: no closing before the event day, Cancel event, calendar conflict acknowledgements.
 -- ##########################################################################################
 -- APPLY-0198.sql - paste into the Supabase SQL editor (staging first, then production), AFTER the trial bundle (0179-0186).
@@ -6623,7 +6627,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 24/31: APPLY-0199.sql
+-- RELEASE SECTION 24/33: APPLY-0199.sql
 -- In plain words: Budget + guests single source: the quote leads; EMPTY lead / discovery values are filled, never overwritten.
 -- ##########################################################################################
 -- APPLY-0199.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -6869,7 +6873,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 25/31: APPLY-0200.sql
+-- RELEASE SECTION 25/33: APPLY-0200.sql
 -- In plain words: Client booklet "Send to client" (queued e-mail / WhatsApp; free trial = skipped).
 -- ##########################################################################################
 -- APPLY-0200.sql - paste into the Supabase SQL editor (staging first, then production). Apply 0195 first.
@@ -7244,7 +7248,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 26/31: APPLY-0201.sql
+-- RELEASE SECTION 26/33: APPLY-0201.sql
 -- In plain words: Release integration fix: sign-up keeps the one-trial-per-e-mail guard; retention list knows group contacts.
 -- ##########################################################################################
 -- APPLY-0201.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -7439,7 +7443,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 27/31: APPLY-0202.sql
+-- RELEASE SECTION 27/33: APPLY-0202.sql
 -- In plain words: Trial sample events get the client's requirements (Must-have / Nice-to-have / Optional); new sample version.
 -- ##########################################################################################
 -- APPLY-0202.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -7656,7 +7660,7 @@ commit;
 -- VERIFY (every row should say ok = true)
 select item, ok from (values
   ('01 the sample copy includes event_requirements (after quotes)', array_position(public._sample_clone_tables(), 'event_requirements')
-       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) = 25),
+       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) >= 25),   -- 0237 adds 4 more
   ('02 sample master: all 7 sample events have requirements (41)', (select count(*) from public.event_requirements
        where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 41
        and not exists (select 1 from public.quotes q where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null
@@ -7677,7 +7681,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 28/31: APPLY-0203.sql
+-- RELEASE SECTION 28/33: APPLY-0203.sql
 -- In plain words: Free-trial server gates: no client greeting, fixed sample menu dishes, no activity log, no template edits, checkout says "trial".
 -- ##########################################################################################
 -- APPLY-0203.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -8005,7 +8009,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 29/31: APPLY-0204.sql
+-- RELEASE SECTION 29/33: APPLY-0204.sql
 -- In plain words: Signed-out (anon) API tidy: no table grants / "to public" studio policies on 6 tables (link pages use their own functions).
 -- ##########################################################################################
 -- APPLY-0204.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -8138,7 +8142,7 @@ select p.tablename, p.policyname
  order by 1, 2;
 
 -- ##########################################################################################
--- RELEASE SECTION 30/31: APPLY-0205.sql
+-- RELEASE SECTION 30/33: APPLY-0205.sql
 -- In plain words: Team invitations: a brand-new invitee can always join (service-role helpers for the invite edge functions).
 -- ##########################################################################################
 -- APPLY-0205.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -8320,7 +8324,708 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 31/31: APPLY-0178-refresh-trials.sql
+-- RELEASE SECTION 31/33: APPLY-0236.sql
+-- In plain words: One meaning of "in the free trial": checkout-started trials get the trial screens + client Test mode; package / message settings and sample clear / reset / switch refused in the trial; the admin's linked staff row is not a staff slot.
+-- ##########################################################################################
+-- APPLY-0236.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
+-- Run AFTER APPLY-0203.sql (APPLY-RELEASE-1018.sql runs everything in the right order in one paste).
+-- Free trial, one meaning of "in the trial" (QA of the release build, B1 / B12 / B13):
+--   * a trial started from the plan / checkout page (no organizations.trial_ends_at) now gets the trial screens
+--     (my_trial_org / my_trial_access) and its client can use Test mode confirm on the approval page;
+--   * package flow settings and automatic client message / follow-up settings cannot be changed in the trial;
+--     the sample data cannot be cleared, reset or switched off from the app during the trial;
+--   * the admin's own login-linked staff row no longer uses one of the 2 trial staff slots.
+-- What it touches: 8 functions wrapped (old bodies kept as <name>__pre0236, no app grants), 7 function bodies
+-- re-issued (same signatures + grants), 1 helper. No table, column or policy changed; no row written or deleted.
+-- organizations.trial_ends_at is NOT back-filled (read-only lock + trial retention stay as they are).
+-- Safe to run twice. ASCII only.
+begin;
+-- 0236_trial_definition_unify.sql - CANONICAL forward-only.
+-- REQUIRES 0166 (_is_trial_org), 0173 (_tl173_trial_locked / _tl173_guard / _tl173_tg_create_cap),
+--          0128 + 0176 (_trial_test_mode_ok / trial_test_mode_for_token), 0183 (_trial_effective_end,
+--          _trial_locked, my_trial_org, my_trial_access), 0181 (_tl181_used / cap triggers / trial_create_log),
+--          0069 (pkg_settings_set), 0078 (comms_settings_set), 0097 / 0100 / 0127 / 0166 / 0185 (sample data RPCs),
+--          0041 (crew_members.profile_id).
+--
+-- In plain words (local QA of the release build, bugs B1 / B12 / B13; paid studios never reach a new check):
+--   B1  ONE meaning of "in the free trial". The caps and the lockdown (0173 / 0181 / 0203) ask the
+--       subscription (studio_subscriptions.status = 'trial', _is_trial_org). The trial banner data
+--       (my_trial_org / my_trial_access) and the client-approval test mode (_trial_test_mode_ok, used by
+--       trial_test_mode_for_token / trial_test_approve) still asked organizations.trial_ends_at, which a trial
+--       started from the plan / checkout page (0056 my_start_trial, 0058) never sets. Such a studio was locked
+--       down like a trial but got no trial screens and its client could not approve (only real OTP channels,
+--       which the trial blocks). Now:
+--         * _trial_test_mode_ok = the studio is on its free trial by the subscription (_tl173_trial_locked:
+--           status 'trial', not the sample master), no active plan, not read-only (_trial_locked), and the
+--           trial end - organizations.trial_ends_at (+ an HQ extension) or, when that is empty, the end of the
+--           day studio_subscriptions.trial_ends_at - is not past (no end recorded at all = allowed).
+--         * my_trial_org / my_trial_access: same answers as 0183 for a self-serve trial; a studio whose
+--           organizations.trial_ends_at is empty is a trial when its subscription is 'trial' (not the sample
+--           master), with ends_at = the end of studio_subscriptions.trial_ends_at.
+--       organizations.trial_ends_at is NOT back-filled on purpose: the 0183 read-only lock and the 0184 trial
+--       retention (data deletion after the trial, behind the owner switch) are keyed on it, and filling it
+--       would make checkout-started trials eligible for both. _trial_effective_end / _trial_locked /
+--       _trial_expired_at are unchanged. Self-serve sign-up (0180 / 0190 / 0201) still sets both dates.
+--   B12 More settings refused on the server in the trial (same-signature wrappers, originals kept as
+--       <name>__pre0236 with no app grants): package flow settings (pkg_settings_set) and automatic client
+--       messages / follow-ups / low-stock / WhatsApp forwarding settings (comms_settings_set) - "Not available
+--       in the free trial. Upgrade to use this." (42501, hint trial_locked). The sample data cannot be
+--       cleared, reset or switched from the app while the studio is on its free trial: clear_demo_data,
+--       clear_sample_data, reset_demo_data, set_trial_mode, trial_demo_choice, delete_all_sample_data
+--       (after upgrading they work exactly as before; seed_demo_data - fill-only - is unchanged).
+--   B13 Staff cap: the trial admin's own login-linked staff row ("Linked account", crew_members.profile_id set
+--       by the 0041 member sync) no longer uses one of the 2 staff slots. _tl181_used, the 0181 cap check +
+--       log and the 0173 cap trigger skip / do not count crew_members rows linked to a login, so 2 staff
+--       members can be added by hand. The app can never set profile_id itself (0041 guard).
+--
+-- Changes: 8 RPCs wrapped (originals kept as <name>__pre0236), 7 function bodies re-issued (same
+-- signatures + grants). No table, column, index, policy or row is created, changed or deleted. Additive +
+-- idempotent: safe to run twice. ASCII only.
+-- ROLLBACK (manual, only if ever needed; no data involved): for each wrapped f: drop function public.f(args);
+-- alter function public.f__pre0236(args) rename to f; grant execute on it to authenticated, service_role;
+-- re-run 0128 section 1 (_trial_test_mode_ok), 0183 sections 5 + 6 (my_trial_org / my_trial_access),
+-- 0181 (_tl181_used / _tl181_tg_cap_check / _tl181_tg_cap_log) and 0173 section 1 (_tl173_tg_create_cap).
+
+do $$ begin
+  if to_regprocedure('public._is_trial_org(uuid)') is null or to_regprocedure('public._tl173_trial_locked(uuid)') is null
+     or to_regprocedure('public._tl173_guard()') is null then raise exception 'STOP: 0166 + 0173 (trial lockdown) are not applied'; end if;
+  if to_regprocedure('public._trial_effective_end(uuid)') is null or to_regprocedure('public._trial_locked(uuid)') is null
+     or to_regprocedure('public.my_trial_org()') is null or to_regprocedure('public.my_trial_access()') is null then
+    raise exception 'STOP: 0183 (trial expiry) is not applied'; end if;
+  if to_regprocedure('public._trial_test_mode_ok(uuid)') is null then raise exception 'STOP: 0128 (trial test mode) is not applied'; end if;
+  if to_regprocedure('public._tl181_used(uuid,text)') is null or to_regclass('public.trial_create_log') is null then
+    raise exception 'STOP: 0181 (trial guards) is not applied'; end if;
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'crew_members'
+                   and column_name = 'profile_id') then raise exception 'STOP: 0041 (crew_members.profile_id) is not applied'; end if;
+end $$;
+
+-- ---- B1) one trial end: organizations.trial_ends_at (+ HQ extension), else the subscription's end day -------
+create or replace function public._tu236_trial_end(p_org uuid)
+returns timestamptz language sql stable security definer set search_path = '' as $$
+  -- trial-unify-0236: the 0183 effective end (self-serve trial + an approved extension); a trial started from
+  -- the plan / checkout page has no organizations.trial_ends_at -> the end of its subscription trial day (UTC)
+  select coalesce(public._trial_effective_end(p_org),
+                  (select (s.trial_ends_at + 1)::timestamp at time zone 'UTC'
+                     from public.studio_subscriptions s where s.org_id = p_org and s.trial_ends_at is not null));
+$$;
+
+create or replace function public._trial_test_mode_ok(p_org uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  -- helm-0128-trial-test trial-unify-0236: the same "in the free trial" as the caps and the lockdown
+  -- (_tl173_trial_locked = subscription status 'trial', not the sample master); no active plan, not read-only,
+  -- the trial end (self-serve or checkout-started) not past
+  select p_org is not null
+     and public._tl173_trial_locked(p_org)
+     and not exists (select 1 from public.studio_subscriptions s where s.org_id = p_org and s.status = 'active')
+     and not public._trial_locked(p_org)
+     and coalesce(public._tu236_trial_end(p_org) > now(), true);
+$$;
+
+-- banner data: the 0183 body; a studio without organizations.trial_ends_at is a trial when its subscription is
+create or replace function public.my_trial_org()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+-- trial-orgs-0116 unified-trial-0119 trial-reminders-0120 trial-expiry-0183 trial-unify-0236
+declare v_org uuid := public.current_org_id(); o public.organizations; s public.studio_subscriptions;
+  v_locked boolean; v_end timestamptz; v_paid boolean;
+begin
+  if auth.uid() is null or v_org is null or coalesce(public.user_role(), '') in ('', 'client') then
+    raise exception 'not authorized' using errcode = '42501'; end if;
+  select * into o from public.organizations x where x.id = v_org;
+  select * into s from public.studio_subscriptions x where x.org_id = v_org;
+  v_paid := exists (select 1 from public.subscription_payments sp where sp.org_id = v_org and sp.voided_at is null);
+  if s.org_id is null or v_paid
+     or not (s.status = 'trial' or (s.status in ('past_due', 'cancelled') and s.trial_ends_at is not null
+                                    and s.current_period_end is null))
+     or (o.trial_ends_at is null and not public._tl173_trial_locked(v_org)) then
+    return jsonb_build_object('is_trial_org', false, 'read_only', false, 'is_admin', coalesce(public.is_admin(), false));
+  end if;
+  v_end := public._tu236_trial_end(v_org);
+  v_locked := public._trial_locked(v_org);
+  return jsonb_build_object('is_trial_org', true, 'name', o.name, 'ends_at', v_end,
+    'days_left', case when v_end is null then null else greatest(0, ceil(extract(epoch from (v_end - now())) / 86400.0))::int end,
+    'ended', coalesce(v_end <= now(), false), 'locked', v_locked, 'read_only', v_locked, 'trial_mode', o.trial_mode,
+    'timezone', coalesce(nullif(btrim(o.timezone), ''), 'Asia/Kolkata'),
+    'is_admin', coalesce(public.is_admin(), false));
+end $$;
+
+create or replace function public.my_trial_access()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+-- trial-staff-0126 trial-expiry-0183 trial-unify-0236
+declare v_org uuid; o public.organizations; s public.studio_subscriptions; v_locked boolean; v_owner boolean;
+  v_end timestamptz;
+begin
+  if auth.uid() is null then raise exception 'not authorized' using errcode = '42501'; end if;
+  if not public.mfa_ok() then return jsonb_build_object('is_trial_org', false); end if;
+  v_org := public.current_org_id__pre0043();
+  if v_org is null then return jsonb_build_object('is_trial_org', false); end if;
+  select * into o from public.organizations x where x.id = v_org;
+  select * into s from public.studio_subscriptions x where x.org_id = v_org;
+  if o.id is null or s.org_id is null
+     or exists (select 1 from public.subscription_payments sp where sp.org_id = v_org and sp.voided_at is null)
+     or not (s.status = 'trial' or (s.status in ('past_due', 'cancelled') and s.trial_ends_at is not null
+                                    and s.current_period_end is null))
+     or (o.trial_ends_at is null and not public._tl173_trial_locked(v_org)) then
+    return jsonb_build_object('is_trial_org', false);
+  end if;
+  v_end := public._tu236_trial_end(v_org);
+  v_locked := public._trial_locked(v_org);
+  v_owner := o.created_by is not null and o.created_by = auth.uid();
+  return jsonb_build_object('is_trial_org', true, 'name', o.name, 'ends_at', v_end,
+    'ended', coalesce(v_end <= now(), false), 'locked', v_locked, 'read_only', v_locked, 'is_owner', v_owner,
+    'blocked', false,
+    'timezone', coalesce(nullif(btrim(o.timezone), ''), 'Asia/Kolkata'));
+end $$;
+
+-- ---- B13) staff cap: a login-linked staff row (the admin / a member) is not a staff slot --------------------
+create or replace function public._tl181_used(p_org uuid, p_table text)
+returns integer language plpgsql stable security definer set search_path = '' as $$
+-- trial-guards-0181 trial-unify-0236 (crew_members: rows linked to a login are not counted)
+declare n integer;
+begin
+  if p_org is null or p_table is null
+     or p_table not in ('leads', 'quotes', 'inventory_items', 'vendors', 'crew_members', 'venues') then return 0; end if;
+  if p_table = 'crew_members' then
+    select (select count(*) from public.trial_create_log l
+             where l.org_id = p_org and l.entity = 'crew_members'
+               and not exists (select 1 from public.crew_members c
+                                where c.org_id = p_org and c.id::text = l.row_id and c.profile_id is not null))::integer
+         + (select count(*) from public.crew_members x
+             where x.org_id = p_org and not x.is_demo and x.profile_id is null
+               and not exists (select 1 from public.trial_create_log l
+                                where l.org_id = p_org and l.entity = 'crew_members' and l.row_id = x.id::text))::integer
+      into n;
+    return coalesce(n, 0);
+  end if;
+  execute format('select (select count(*) from public.trial_create_log l where l.org_id = $1 and l.entity = $2)::integer
+                       + (select count(*) from public.%I x where x.org_id = $1 and not x.is_demo
+                            and not exists (select 1 from public.trial_create_log l
+                                             where l.org_id = $1 and l.entity = $2 and l.row_id = x.id::text))::integer', p_table)
+    into n using p_org, p_table;
+  return coalesce(n, 0);
+end $$;
+
+create or replace function public._tl181_tg_cap_check()
+returns trigger language plpgsql security definer set search_path = '' as $$
+-- trial-guards-0181: 2 own rows created IN TOTAL per list in the free trial
+-- trial-unify-0236: a staff row linked to a login (member sync) is not a slot
+begin
+  if new.org_id is null or coalesce(new.is_demo, false) then return new; end if;
+  if tg_table_name = 'crew_members' and (to_jsonb(new) ->> 'profile_id') is not null then return new; end if;
+  if public._is_system_change() then return new; end if;
+  if not public._tl173_trial_locked(new.org_id) then return new; end if;
+  perform pg_advisory_xact_lock(hashtextextended('helm:cap:' || tg_table_name || ':' || new.org_id::text, 0));
+  -- a restored row (same id) that was already counted comes back without using a new slot
+  if exists (select 1 from public.trial_create_log l
+              where l.org_id = new.org_id and l.entity = tg_table_name and l.row_id = new.id::text) then
+    return new;
+  end if;
+  if public._tl181_used(new.org_id, tg_table_name) >= 2 then
+    raise exception 'Free trial limit reached (2). Upgrade to add more.' using errcode = '42501', hint = 'trial_cap';
+  end if;
+  return new;
+end $$;
+
+create or replace function public._tl181_tg_cap_log()
+returns trigger language plpgsql security definer set search_path = '' as $$
+-- trial-guards-0181: remember the own row the trial studio just added (AFTER INSERT: only rows really saved)
+-- trial-unify-0236: a staff row linked to a login (member sync) is not logged
+begin
+  if new.org_id is null or coalesce(new.is_demo, false) then return null; end if;
+  if tg_table_name = 'crew_members' and (to_jsonb(new) ->> 'profile_id') is not null then return null; end if;
+  if public._is_system_change() then return null; end if;
+  if not public._tl173_trial_locked(new.org_id) then return null; end if;
+  insert into public.trial_create_log(org_id, entity, row_id) values (new.org_id, tg_table_name, new.id::text)
+    on conflict do nothing;
+  return null;
+end $$;
+
+create or replace function public._tl173_tg_create_cap()
+returns trigger language plpgsql security definer set search_path = '' as $$
+-- trial-lockdown-0173 trial-unify-0236 (crew_members: rows linked to a login are not counted)
+declare v_n integer;
+begin
+  if new.org_id is null or coalesce(new.is_demo, false) then return new; end if;
+  if tg_table_name = 'crew_members' and (to_jsonb(new) ->> 'profile_id') is not null then return new; end if;
+  if public._is_system_change() then return new; end if;
+  if not public._tl173_trial_locked(new.org_id) then return new; end if;
+  perform pg_advisory_xact_lock(hashtextextended('helm:cap:' || tg_table_name || ':' || new.org_id::text, 0));
+  if tg_table_name = 'crew_members' then
+    select count(*) into v_n from public.crew_members x where x.org_id = new.org_id and not x.is_demo and x.profile_id is null;
+  else
+    execute format('select count(*) from public.%I x where x.org_id = $1 and not x.is_demo', tg_table_name) into v_n using new.org_id;
+  end if;
+  if v_n >= 2 then
+    raise exception 'Free trial limit reached (2). Upgrade to add more.' using errcode = '42501', hint = 'trial_cap';
+  end if;
+  return new;
+end $$;
+
+-- ---- B12) more trial wrappers (same pattern as 0173 / 0181) -------------------------------------------------
+do $$
+declare
+  f text; v_new boolean; v_old regprocedure; v_pre regprocedure; v_name text; v_args text; v_idargs text; v_ret text; v_call text; n int; g record;
+begin
+  foreach f in array array[
+    'public.pkg_settings_set(jsonb)', 'public.comms_settings_set(jsonb)',
+    'public.clear_demo_data()', 'public.clear_sample_data()', 'public.reset_demo_data()',
+    'public.set_trial_mode(text)', 'public.trial_demo_choice(text)', 'public.delete_all_sample_data()'] loop
+    v_old := to_regprocedure(f);
+    if v_old is null then continue; end if;
+    select p.proname, pg_get_function_arguments(p.oid), oidvectortypes(p.proargtypes), pg_get_function_result(p.oid), p.pronargs
+      into v_name, v_args, v_idargs, v_ret, n from pg_proc p where p.oid = v_old;
+    v_pre := to_regprocedure(format('public.%I(%s)', v_name || '__pre0236', v_idargs));
+    v_new := false;
+    if v_pre is null then
+      -- first run: keep the original under __pre0236 (its grants move with it), then build the wrapper
+      execute format('alter function public.%I(%s) rename to %I', v_name, v_idargs, v_name || '__pre0236');
+      v_new := true;
+    end if;
+    select string_agg('$' || i, ', ' order by i) into v_call from generate_series(1, greatest(n, 1)) i where i <= n;
+    execute format($w$create or replace function public.%I(%s) returns %s language plpgsql volatile security definer set search_path = '' as $b$
+-- trial-unify-0236: free trial check, then the original
+begin
+  perform public._tl173_guard();
+  return public.%I(%s);
+end $b$
+$w$, v_name, v_args, v_ret, v_name || '__pre0236', coalesce(v_call, ''));
+    -- grants (only when the wrapper is new; a re-run keeps what is there): wrapper = the original's
+    -- grants; the kept original = definer only
+    continue when not v_new;
+    execute format('revoke all on function public.%I(%s) from public', v_name, v_idargs);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function public.%I(%s) from anon', v_name, v_idargs); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function public.%I(%s) from authenticated', v_name, v_idargs); end if;
+    for g in select distinct r.rolname from pg_proc p, lateral aclexplode(p.proacl) a join pg_roles r on r.oid = a.grantee
+              where p.oid = to_regprocedure(format('public.%I(%s)', v_name || '__pre0236', v_idargs)) and a.privilege_type = 'EXECUTE'
+                and r.rolname in ('anon', 'authenticated', 'service_role') loop
+      execute format('grant execute on function public.%I(%s) to %I', v_name, v_idargs, g.rolname);
+    end loop;
+    execute format('revoke all on function public.%I(%s) from public', v_name || '__pre0236', v_idargs);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function public.%I(%s) from anon', v_name || '__pre0236', v_idargs); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function public.%I(%s) from authenticated', v_name || '__pre0236', v_idargs); end if;
+  end loop;
+end $$;
+
+-- ---- privileges (same as before for the re-issued functions) -------------------------------------------------
+do $$ declare f text; begin
+  foreach f in array array['public._tu236_trial_end(uuid)', 'public._trial_test_mode_ok(uuid)', 'public.my_trial_org()',
+                           'public.my_trial_access()', 'public._tl181_used(uuid,text)', 'public._tl181_tg_cap_check()',
+                           'public._tl181_tg_cap_log()', 'public._tl173_tg_create_cap()'] loop
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f); end if;
+  end loop;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'grant execute on function public.my_trial_org() to authenticated';
+    execute 'grant execute on function public.my_trial_access() to authenticated';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    execute 'grant execute on function public._tu236_trial_end(uuid) to service_role';
+    execute 'grant execute on function public._trial_test_mode_ok(uuid) to service_role';
+    execute 'grant execute on function public.my_trial_org() to service_role';
+    execute 'grant execute on function public.my_trial_access() to service_role';
+  end if;
+end $$;
+
+notify pgrst, 'reload schema';
+
+commit;
+
+-- VERIFY (every row should say ok = true)
+select item, ok from (values
+  ('01 8 trial wrappers in place, old bodies kept',
+     (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like '%\_\_pre0236') = 8
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.pkg_settings_set(jsonb)')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.comms_settings_set(jsonb)')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.clear_sample_data()')), '')) > 0),
+  ('02 wrappers: signed-in users only; kept bodies not callable by the app',
+     has_function_privilege('authenticated', 'public.pkg_settings_set(jsonb)', 'execute')
+     and has_function_privilege('authenticated', 'public.comms_settings_set(jsonb)', 'execute')
+     and not has_function_privilege('anon', 'public.clear_demo_data()', 'execute')
+     and not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like '%\_\_pre0236'
+                      and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')))),
+  ('03 one trial definition: test mode + banner data + staff cap re-issued',
+     position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public._trial_test_mode_ok(uuid)')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_trial_org()')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_trial_access()')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public._tl181_used(uuid,text)')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public._tl173_tg_create_cap()')), '')) > 0),
+  ('04 every studio on its free trial (subscription) and not ended is in test mode; no paid studio is',
+     not exists (select 1 from public.studio_subscriptions s join public.organizations o on o.id = s.org_id
+                  where s.status = 'trial' and not coalesce(o.is_sample_master, false) and not public._trial_locked(s.org_id)
+                    and coalesce(public._tu236_trial_end(s.org_id) > now(), true) and not public._trial_test_mode_ok(s.org_id))
+     and not exists (select 1 from public.studio_subscriptions s where s.status = 'active' and public._trial_test_mode_ok(s.org_id))),
+  ('05 helpers internal; banner data signed-in only',
+     not has_function_privilege('authenticated', 'public._tu236_trial_end(uuid)', 'execute')
+     and not has_function_privilege('anon', 'public._trial_test_mode_ok(uuid)', 'execute')
+     and has_function_privilege('authenticated', 'public.my_trial_org()', 'execute')
+     and not has_function_privilege('anon', 'public.my_trial_org()', 'execute'))
+) v(item, ok) order by item;
+
+-- ##########################################################################################
+-- RELEASE SECTION 32/33: APPLY-0237.sql
+-- In plain words: Trial sample data complete: layout version 1 on every sample event, floor plans seat the guests, event menu plans, layout rules + chair / plate types; existing trials get missing rows (insert only); new sample version.
+-- ##########################################################################################
+-- APPLY-0237.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
+-- Run AFTER APPLY-0202.sql (APPLY-RELEASE-1018.sql runs everything in the right order in one paste).
+-- Free trial sample data complete (QA of the release build, B11): a layout version 1 for every sample event, the
+-- wedding (SMP-1001) and gala (SMP-1003) floor plans (+ the 3 matching layout templates) seat their guest count, the
+-- sample events carry their menu
+-- package in the event plan, the sample studio has layout rules / chair types / plate types, and the sample layout
+-- templates are counted in the sample-data summary. A new sample version is published once (NEW trials get it).
+-- Existing trials get only the MISSING rows (insert only); APPLY-0178-refresh-trials.sql (the last section of
+-- APPLY-RELEASE-1018.sql) moves them to the new sample version. Nothing deleted; paid studios untouched.
+-- Safe to run twice (the 2nd run changes nothing). ASCII only.
+begin;
+-- 0237_trial_seed_completeness.sql - CANONICAL forward-only. The free-trial sample data is complete and
+-- consistent (local QA of the release build, bug B11).
+-- REQUIRES 0167 (sample master + publish_sample_manifest), 0168 (_sample_snapshot), 0169 (_sample_clone_tables,
+--          the wedding / round-tables floor plans), 0171 (the 7 sample events), 0190 (set-wise clone, rows
+--          without an id), 0202 (current clone list), 0127 (my_demo_status), base (event_plan, layout_rules,
+--          chair_types, plate_types, quote_versions).
+--
+-- In plain words:
+--   1  Every sample event has a layout version 1. Five of the seven sample events had no quote_versions row
+--      (the builder opened them with nothing to save onto). The sample master gets an EMPTY version 1
+--      ({"items": []}, 0 objects - what a new event gets) for each event that has none.
+--   2  The two sample floor plans seat the guest count (they were over capacity):
+--        SMP-1001 wedding (450 guests): 974 seats against a 450 limit -> the two seating blocks become 8 x 25
+--          and 8 x 22 (+ 24 sofas + 2 armchairs) = 450 seats; venue limit 520 (the lawn is open-air).
+--        SMP-1003 corporate gala (120 guests): 132 seats against 120 -> tables T9-T12 seat 9 (were 12) =
+--          120 seats; hall limit 140.
+--      The matching sample layout templates (Wedding - Grand Lawn, Reception - Lawn reception (450 guests), Corporate -
+--      Round tables gala (120 guests)) get the same fit, so a plan still equals its template. Only while a plan is
+--      still the shipped one (an owner edit in the master is never overwritten).
+--   3  The sample events carry their menu package in the event plan (event_plan.menu_template + price per
+--      plate + venue name), taken from the event's own pricing; events past Planning have the menu locked
+--      (the 0198 Planning gate). Only events with no event plan yet.
+--   4  The sample studio gets layout rules (8 event types), 3 chair types (plastic 25 / cushioned banquet 45 /
+--      Chiavari 100 - the sample events' chair prices) and 3 plate types (vegetarian 700 / non-vegetarian 950 /
+--      special 1400), so Control Center -> Layout rules and Menus & catalog are not empty in a trial (where new
+--      rows cannot be added). Only into an empty list; fixed ids; on conflict do nothing.
+--   5  The sample copy includes them: _sample_clone_tables() + 'layout_rules', 'chair_types', 'plate_types'
+--      (after the layout templates) and 'event_plan' (after the requirements). Chair / plate types and layout
+--      rules have no is_demo column: they stay with the studio (price list / settings) when the sample is
+--      cleared; event_plan goes with its sample event (quote_id cascades).
+--   6  my_demo_status(): 'layouts' also counts the studio's sample layout templates (active, named "Demo . ...",
+--      the ones "Clear sample data" archives) - it said 0 while 3 templates were there. has_demo / demo_rows are
+--      unchanged (templates alone never count as "sample data still in the studio").
+--   7  ONE new sample manifest is published (current + 1, marker 'sample completeness (0237)'): every NEW trial
+--      gets all of the above.
+--   8  Existing free-trial studios (subscription 'trial', sample already copied, never the master), INSERT ONLY,
+--      only where missing: an empty version 1 for a sample event with none, the event plan from the sample
+--      event's own pricing, and the master's layout rules / chair types / plate types when the studio has
+--      none in that list. Their existing floor plans are not rewritten (no update of a trial's rows): the
+--      owner-run APPLY-0178-refresh-trials.sql (last section of APPLY-RELEASE-1018.sql) moves them to the new
+--      sample.
+--   No table, column, index, policy or trigger is added or dropped; paid studios are not touched; nothing is
+--   deleted. Rows are added (master + trial studios, where missing) and two shipped master floor plans
+--   updated (+ the 3 matching templates). ASCII only (the multiplication sign of the seating labels is chr(215)). Safe to run twice.
+
+do $$ begin
+  if to_regclass('public.helm_trial_seed_manifest') is null or to_regprocedure('public._sample_clone_tables()') is null
+     or to_regprocedure('public._sample_snapshot(uuid)') is null or to_regprocedure('public.publish_sample_manifest(text)') is null
+     or to_regprocedure('public._sample_clone_into__pre0168(uuid)') is null or to_regprocedure('public.my_demo_status()') is null then
+    raise exception '0237 needs 0167 + 0168 + 0169 + 0190 + 0127 first'; end if;
+  if to_regclass('public.event_plan') is null or to_regclass('public.layout_rules') is null
+     or to_regclass('public.chair_types') is null or to_regclass('public.plate_types') is null
+     or to_regclass('public.quote_versions') is null or to_regclass('public.studio_layout_templates') is null then
+    raise exception '0237 needs event_plan, layout_rules, chair_types, plate_types, quote_versions, studio_layout_templates'; end if;
+end $$;
+
+-- ---- 5) the sample copy includes the settings lists + the event plan -------------------------------------
+create or replace function public._sample_clone_tables()
+returns text[] language sql immutable set search_path = '' as $$
+  -- trial-data-0169 (trial-sample-0167, trial-sandbox-0166) + trial-reqs-0202 (event_requirements)
+  -- + trial-seed-0237 (layout_rules, chair_types, plate_types, event_plan)
+  select array['venues', 'vendors', 'crew_members', 'dish_catalog', 'inventory_items', 'menu_templates',
+               'item_rate_cards', 'checklist_templates', 'task_templates', 'coupons', 'studio_layout_templates',
+               'layout_rules', 'chair_types', 'plate_types',
+               'leads', 'quotes', 'quote_versions', 'event_discovery', 'event_requirements', 'event_plan', 'payment_milestones', 'quote_payments',
+               'event_checklist', 'event_tasks', 'run_sheet_items', 'inventory_reservations',
+               'event_costs', 'event_closure', 'nurture']::text[];
+$$;
+
+create or replace function public._a237_manifest_note()
+returns text language sql immutable set search_path = '' as $$
+  select 'sample completeness (0237)'::text;
+$$;
+
+-- the sample settings lists: (kind, id, name / event type, price, rules, seq) - one place for the migration,
+-- VERIFY and the test
+create or replace function public._a237_sample_settings()
+returns table (kind text, id uuid, name text, price numeric, rules jsonb, seq integer)
+language sql immutable set search_path = '' as $$
+  -- trial-seed-0237
+  select x.k, x.i::uuid, x.n, x.p, x.r::jsonb, x.s
+    from (values
+      ('layout_rule', 'a5a5a5a5-0237-4000-8000-000000000101', 'wedding', null::numeric, '{"seatsPerGuest":1,"buffetPer":75,"bars":1,"stage":true,"dancefloor":true,"walkway":true,"dj":true}', 1),
+      ('layout_rule', 'a5a5a5a5-0237-4000-8000-000000000102', 'reception', null, '{"seatsPerGuest":1,"buffetPer":75,"bars":1,"stage":true,"dancefloor":true,"walkway":true,"dj":true}', 2),
+      ('layout_rule', 'a5a5a5a5-0237-4000-8000-000000000103', 'engagement', null, '{"seatsPerGuest":1,"buffetPer":80,"bars":1,"stage":true,"dancefloor":true,"walkway":false,"dj":true}', 3),
+      ('layout_rule', 'a5a5a5a5-0237-4000-8000-000000000104', 'sangeet', null, '{"seatsPerGuest":0.8,"buffetPer":80,"bars":1,"stage":true,"dancefloor":true,"walkway":false,"dj":true}', 4),
+      ('layout_rule', 'a5a5a5a5-0237-4000-8000-000000000105', 'corporate', null, '{"seatsPerGuest":1,"buffetPer":100,"bars":0,"stage":true,"dancefloor":false,"walkway":false,"dj":false}', 5),
+      ('layout_rule', 'a5a5a5a5-0237-4000-8000-000000000106', 'conference', null, '{"seatsPerGuest":1,"buffetPer":100,"bars":0,"stage":true,"dancefloor":false,"walkway":false,"dj":false}', 6),
+      ('layout_rule', 'a5a5a5a5-0237-4000-8000-000000000107', 'product launch', null, '{"seatsPerGuest":0.6,"buffetPer":100,"bars":1,"stage":true,"dancefloor":false,"walkway":true,"dj":true}', 7),
+      ('layout_rule', 'a5a5a5a5-0237-4000-8000-000000000108', 'housewarming', null, '{"seatsPerGuest":0.7,"buffetPer":75,"bars":0,"stage":false,"dancefloor":false,"walkway":false,"dj":false}', 8),
+      ('chair_type', 'a5a5a5a5-0237-4000-8000-000000000201', 'Plastic chair', 25, null, 1),
+      ('chair_type', 'a5a5a5a5-0237-4000-8000-000000000202', 'Cushioned banquet chair', 45, null, 2),
+      ('chair_type', 'a5a5a5a5-0237-4000-8000-000000000203', 'Chiavari chair', 100, null, 3),
+      ('plate_type', 'a5a5a5a5-0237-4000-8000-000000000301', 'Vegetarian', 700, null, 1),
+      ('plate_type', 'a5a5a5a5-0237-4000-8000-000000000302', 'Non-vegetarian', 950, null, 2),
+      ('plate_type', 'a5a5a5a5-0237-4000-8000-000000000303', 'Special / premium', 1400, null, 3)
+    ) x(k, i, n, p, r, s);
+$$;
+
+-- the shipped over-capacity sample floor plans, fitted to their guest count (any other plan comes back unchanged):
+--   450-guest lawn plan (wedding / reception): seating blocks 20 x 25 + 16 x 25 (+ 24 sofas, 2 armchairs) = 974 seats,
+--     limit 450 -> 8 x 25 + 8 x 22 = 450 seats, limit 520
+--   120-guest round tables gala: tables T9-T12 seat 12 = 132 seats, limit 120 -> they seat 9 = 120 seats, limit 140
+create or replace function public._a237_fit_layout(p jsonb)
+returns jsonb language sql immutable set search_path = '' as $$
+  -- trial-seed-0237
+  select case
+    when jsonb_typeof(p -> 'items') = 'array'
+     and p @> '{"venue":{"capacity":450},"items":[{"id":"obj_439d","type":"seatblock","properties":{"rows":20,"cols":25}},{"id":"obj_59gi","type":"seatblock","properties":{"rows":16,"cols":25}}]}'::jsonb
+    then jsonb_set(jsonb_set(p, '{items}',
+           (select jsonb_agg(case e.i ->> 'id'
+                     when 'obj_439d' then e.i || jsonb_build_object('height', 19.2, 'label', 'Seating 8' || chr(215) || '25',
+                                            'properties', (e.i -> 'properties') || '{"rows":8,"cols":25}'::jsonb)
+                     when 'obj_59gi' then e.i || jsonb_build_object('width', 52.8, 'height', 19.2, 'label', 'Seating 8' || chr(215) || '22',
+                                            'properties', (e.i -> 'properties') || '{"rows":8,"cols":22}'::jsonb)
+                     else e.i end order by e.n)
+              from jsonb_array_elements(p -> 'items') with ordinality e(i, n))),
+         '{venue,capacity}', '520'::jsonb, true)
+    when jsonb_typeof(p -> 'items') = 'array'
+     and p @> '{"venue":{"capacity":120},"items":[{"id":"obj_7uq7c","properties":{"seats":12}},{"id":"obj_7vq7c","properties":{"seats":12}},{"id":"obj_7wq7c","properties":{"seats":12}},{"id":"obj_7xq7c","properties":{"seats":12}}]}'::jsonb
+    then jsonb_set(jsonb_set(p, '{items}',
+           (select jsonb_agg(case when e.i ->> 'id' in ('obj_7uq7c', 'obj_7vq7c', 'obj_7wq7c', 'obj_7xq7c')
+                     then e.i || jsonb_build_object('properties', (e.i -> 'properties') || '{"seats":9}'::jsonb)
+                     else e.i end order by e.n)
+              from jsonb_array_elements(p -> 'items') with ordinality e(i, n))),
+         '{venue,capacity}', '140'::jsonb, true)
+    else p end;
+$$;
+
+-- ---- 6) my_demo_status: the 0127 body; 'layouts' also counts the sample layout templates ------------------
+create or replace function public.my_demo_status()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+-- trial-start-fresh-0123 helm-0127-demo-choice trial-seed-0237 (sample layout templates counted)
+declare v_org uuid := public.current_org_id(); v_mode text; v_rows int; v_counts jsonb;
+  v_choice text; v_trial boolean; v_tpl int;
+begin
+  if auth.uid() is null or v_org is null or coalesce(public.user_role(), '') in ('', 'client') then
+    raise exception 'not authorized' using errcode = '42501'; end if;
+  select o.trial_mode, o.demo_choice, o.trial_ends_at is not null into v_mode, v_choice, v_trial
+    from public.organizations o where o.id = v_org;
+  -- the sample templates the clone copies (0169 / 0175); "Clear sample data" archives exactly these
+  select count(*) into v_tpl from public.studio_layout_templates t
+   where t.org_id = v_org and not t.archived and t.name like E'Demo \u00b7 %';
+  v_counts := jsonb_build_object(
+    'events',    (select count(*) from public.quotes where org_id = v_org and is_demo),
+    'leads',     (select count(*) from public.leads where org_id = v_org and is_demo),
+    'staff',     (select count(*) from public.crew_members where org_id = v_org and is_demo and active),
+    'vendors',   (select count(*) from public.vendors where org_id = v_org and is_demo and active),
+    'inventory', (select count(*) from public.inventory_items where org_id = v_org and is_demo and active),
+    'venues',    (select count(*) from public.venues where org_id = v_org and is_demo and active),
+    'packages',  (select count(*) from public.menu_templates where org_id = v_org and is_demo and active),
+    'dishes',    (select count(*) from public.dish_catalog where org_id = v_org and is_demo and active),
+    'layouts',   (select count(*) from public.layouts where org_id = v_org and is_demo) + v_tpl);
+  select (select count(*) from public.quotes where org_id = v_org and is_demo)
+       + (select count(*) from public.leads where org_id = v_org and is_demo)
+       + (select count(*) from public.crew_members where org_id = v_org and is_demo)
+       + (select count(*) from public.vendors where org_id = v_org and is_demo)
+       + (select count(*) from public.inventory_items where org_id = v_org and is_demo)
+       + (select count(*) from public.venues where org_id = v_org and is_demo and active)
+       + (select count(*) from public.menu_templates where org_id = v_org and is_demo)
+       + (select count(*) from public.layouts where org_id = v_org and is_demo)
+    into v_rows;   -- the templates are only shown in counts.layouts, never in has_demo / demo_rows: 0175 gave EVERY
+                   -- trial studio (also checkout trials and ones that had cleared their samples) a "Demo . Reception"
+                   -- template, which must not bring back a "Demo data is still in your studio" card
+  return jsonb_build_object('trial_mode', v_mode, 'demo_rows', v_rows, 'has_demo', v_rows > 0,
+    'is_admin', coalesce(public.is_admin(), false), 'counts', v_counts,
+    'demo_choice', v_choice, 'choice_pending', coalesce(v_trial, false) and v_choice is null and v_rows > 0);
+end $$;
+revoke all on function public.my_demo_status() from public, anon;
+grant execute on function public.my_demo_status() to authenticated, service_role;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['public._sample_clone_tables()', 'public._a237_manifest_note()', 'public._a237_sample_settings()',
+                           'public._a237_fit_layout(jsonb)'] loop
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f); end if;
+  end loop;
+end $$;
+
+-- ---- 1-4 + 7) once: the sample master, then publish (current + 1) -----------------------------------------
+do $$
+declare
+  M constant uuid := 'a5a5a5a5-0166-4000-8000-000000000001';
+  q1 constant uuid := 'a5a5a5a5-0167-4000-8000-0000000000a1';
+  q3 constant uuid := 'a5a5a5a5-0167-4000-8000-0000000000a3';
+  N constant text := public._a237_manifest_note();
+  v_prev text := coalesce(current_setting('helm.maintenance', true), '');
+begin
+  if not exists (select 1 from public.organizations o where o.id = M and o.is_sample_master) then return; end if;
+  if exists (select 1 from public.helm_trial_seed_manifest m where m.notes = N) then return; end if;
+  perform set_config('helm.maintenance', 'on', true);          -- maintenance: no bell rows for this change
+
+  -- 1) an empty version 1 for every master event that has none (fixed ids, created in event order)
+  insert into public.quote_versions (id, quote_id, version_no, data, object_count, org_id, created_at)
+  select ('a5a5a5a5-0237-4000-8000-0000000004' || lpad(row_number() over (order by q.code, q.id)::text, 2, '0'))::uuid,
+         q.id, 1, '{"items":[]}'::jsonb, 0, M, now()
+    from public.quotes q
+   where q.org_id = M and q.deleted_at is null
+     and not exists (select 1 from public.quote_versions v where v.quote_id = q.id)
+  on conflict do nothing;
+
+  -- 2) the shipped 450-guest lawn plans and the 120-guest gala plan seat the guest count: the two events' floor
+  --    plans and the matching layout templates (only while they are still the shipped plans)
+  update public.quote_versions v set data = public._a237_fit_layout(v.data)
+   where v.org_id = M and v.quote_id in (q1, q3) and v.version_no = 1 and v.data is distinct from public._a237_fit_layout(v.data);
+  update public.studio_layout_templates t set data = public._a237_fit_layout(t.data), updated_at = now()
+   where t.org_id = M and t.data is distinct from public._a237_fit_layout(t.data);
+
+  -- 3) the event plan: the event's own package + price per plate + venue; menu locked from Planning on
+  insert into public.event_plan (quote_id, org_id, venue_name, menu_template, menu_plate_price, menu_locked, locked_at, updated_at)
+  select q.id, M, nullif(btrim(coalesce(q.client ->> 'venue', '')), ''), left(btrim(q.pricing ->> '_packageName'), 200),
+         case when coalesce(q.pricing ->> 'platePrice', '') ~ '^[0-9]{1,9}(\.[0-9]{1,2})?$' then (q.pricing ->> 'platePrice')::numeric end,
+         coalesce(q.lifecycle_stage, '') in ('planning', 'resources', 'ready', 'event_day', 'settlement', 'closed'),
+         case when coalesce(q.lifecycle_stage, '') in ('planning', 'resources', 'ready', 'event_day', 'settlement', 'closed') then now() end,
+         now()
+    from public.quotes q
+   where q.org_id = M and q.deleted_at is null and jsonb_typeof(q.pricing) = 'object'
+     and nullif(btrim(coalesce(q.pricing ->> '_packageName', '')), '') is not null
+     and not exists (select 1 from public.event_plan p where p.quote_id = q.id)
+  on conflict do nothing;
+
+  -- 4) layout rules / chair types / plate types: only into an empty list
+  if not exists (select 1 from public.layout_rules x where x.org_id = M) then
+    insert into public.layout_rules (id, org_id, event_type, rules, active, seq, created_at)
+    select s.id, M, s.name, s.rules, true, s.seq, now() + make_interval(secs => s.seq)
+      from public._a237_sample_settings() s where s.kind = 'layout_rule'
+    on conflict do nothing;
+  end if;
+  if not exists (select 1 from public.chair_types x where x.org_id = M) then
+    insert into public.chair_types (id, org_id, name, price, active, created_at)
+    select s.id, M, s.name, s.price, true, now() + make_interval(secs => s.seq)
+      from public._a237_sample_settings() s where s.kind = 'chair_type'
+    on conflict do nothing;
+  end if;
+  if not exists (select 1 from public.plate_types x where x.org_id = M) then
+    insert into public.plate_types (id, org_id, name, price, active, created_at)
+    select s.id, M, s.name, s.price, true, now() + make_interval(secs => s.seq)
+      from public._a237_sample_settings() s where s.kind = 'plate_type'
+    on conflict do nothing;
+  end if;
+
+  -- 7) publish once: the snapshot now carries all of it
+  if exists (select 1 from public.quotes x where x.org_id = M) then
+    perform public.publish_sample_manifest(N);
+  end if;
+  perform set_config('helm.maintenance', v_prev, true);
+end $$;
+
+-- ---- 8) existing free-trial studios: insert only, where missing ---------------------------------------------
+do $$
+declare
+  M constant uuid := 'a5a5a5a5-0166-4000-8000-000000000001';
+  v_prev text := coalesce(current_setting('helm.maintenance', true), '');
+  o record;
+begin
+  perform set_config('helm.maintenance', 'on', true);
+  for o in select x.id from public.organizations x
+             join public.studio_subscriptions s on s.org_id = x.id and s.status = 'trial'
+            where x.id <> M and not coalesce(x.is_sample_master, false) and x.sample_cloned_at is not null
+            order by x.id loop
+    -- an empty version 1 for a sample event with none
+    insert into public.quote_versions (quote_id, version_no, data, object_count, org_id, created_at)
+    select q.id, 1, '{"items":[]}'::jsonb, 0, o.id, now()
+      from public.quotes q
+     where q.org_id = o.id and q.is_demo and q.deleted_at is null
+       and not exists (select 1 from public.quote_versions v where v.quote_id = q.id)
+    on conflict do nothing;
+    -- the event plan of a sample event, from its own pricing
+    insert into public.event_plan (quote_id, org_id, venue_name, menu_template, menu_plate_price, menu_locked, locked_at, updated_at)
+    select q.id, o.id, nullif(btrim(coalesce(q.client ->> 'venue', '')), ''), left(btrim(q.pricing ->> '_packageName'), 200),
+           case when coalesce(q.pricing ->> 'platePrice', '') ~ '^[0-9]{1,9}(\.[0-9]{1,2})?$' then (q.pricing ->> 'platePrice')::numeric end,
+           coalesce(q.lifecycle_stage, '') in ('planning', 'resources', 'ready', 'event_day', 'settlement', 'closed'),
+           case when coalesce(q.lifecycle_stage, '') in ('planning', 'resources', 'ready', 'event_day', 'settlement', 'closed') then now() end,
+           now()
+      from public.quotes q
+     where q.org_id = o.id and q.is_demo and q.deleted_at is null and jsonb_typeof(q.pricing) = 'object'
+       and nullif(btrim(coalesce(q.pricing ->> '_packageName', '')), '') is not null
+       and not exists (select 1 from public.event_plan p where p.quote_id = q.id)
+    on conflict do nothing;
+    -- the sample settings lists, only into an empty list (new ids)
+    if not exists (select 1 from public.layout_rules x where x.org_id = o.id) then
+      insert into public.layout_rules (org_id, event_type, rules, active, seq, created_at)
+      select o.id, r.event_type, r.rules, r.active, r.seq, now() from public.layout_rules r where r.org_id = M
+      on conflict do nothing;
+    end if;
+    if not exists (select 1 from public.chair_types x where x.org_id = o.id) then
+      insert into public.chair_types (org_id, name, price, active, created_at)
+      select o.id, c.name, c.price, c.active, now() from public.chair_types c where c.org_id = M
+      on conflict do nothing;
+    end if;
+    if not exists (select 1 from public.plate_types x where x.org_id = o.id) then
+      insert into public.plate_types (org_id, name, price, active, created_at)
+      select o.id, c.name, c.price, c.active, now() from public.plate_types c where c.org_id = M
+      on conflict do nothing;
+    end if;
+  end loop;
+  perform set_config('helm.maintenance', v_prev, true);
+end $$;
+
+notify pgrst, 'reload schema';
+
+commit;
+
+-- VERIFY (every row should say ok = true)
+select item, ok from (values
+  ('01 the sample copy includes layout rules, chair / plate types and the event plan',
+     array_position(public._sample_clone_tables(), 'event_plan') > array_position(public._sample_clone_tables(), 'quotes')
+     and 'layout_rules' = any(public._sample_clone_tables()) and 'chair_types' = any(public._sample_clone_tables())
+     and 'plate_types' = any(public._sample_clone_tables()) and 'event_requirements' = any(public._sample_clone_tables())),
+  ('02 sample master: every event has a layout version 1; no floor plan seats more than its guests or its limit',
+     not exists (select 1 from public.quotes q where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null
+                  and not exists (select 1 from public.quote_versions v where v.quote_id = q.id and v.version_no = 1))
+     and not exists (select 1 from public.quote_versions v join public.quotes q on q.id = v.quote_id
+                      where v.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and v.version_no = 1
+                        and (v.data #>> '{venue,capacity}') ~ '^[0-9]+$' and (q.client ->> 'guests') ~ '^[0-9]+$'
+                        and (select coalesce(sum(case when (i -> 'properties' ->> 'rows') ~ '^[0-9]+$' and (i -> 'properties' ->> 'cols') ~ '^[0-9]+$'
+                                                        then (i -> 'properties' ->> 'rows')::int * (i -> 'properties' ->> 'cols')::int
+                                                      when (i -> 'properties' ->> 'seats') ~ '^[0-9]+$' then (i -> 'properties' ->> 'seats')::int
+                                                      else case i ->> 'type' when 'sofa' then 3 when 'loveseat' then 2 when 'bench' then 2
+                                                             when 'lounge' then 4 when 'armchair' then 1 when 'ottoman' then 1 when 'chiavari' then 1
+                                                             when 'barstool' then 1 else 0 end end), 0)
+                               from jsonb_array_elements(coalesce(v.data -> 'items', '[]'::jsonb)) i)
+                            > least((v.data #>> '{venue,capacity}')::int, (q.client ->> 'guests')::int))),
+  ('03 sample master: event plans, 8 layout rules, 3 chair types, 3 plate types',
+     (select count(*) from public.event_plan where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and menu_template is not null) >= 6
+     and (select count(*) from public.layout_rules where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 8
+     and (select count(*) from public.chair_types where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 3
+     and (select count(*) from public.plate_types where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 3),
+  ('04 the 0237 sample version was published once and is current (or a later one), with the new lists',
+     (select count(*) from public.helm_trial_seed_manifest where notes = public._a237_manifest_note()) = 1
+     and exists (select 1 from public.helm_trial_seed_manifest c where c.is_current
+                   and c.version >= (select m.version from public.helm_trial_seed_manifest m where m.notes = public._a237_manifest_note())
+                   and jsonb_array_length(coalesce(c.payload #> '{tables,chair_types}', '[]'::jsonb)) >= 3
+                   and jsonb_array_length(coalesce(c.payload #> '{tables,event_plan}', '[]'::jsonb)) >= 6)),
+  ('05 existing free-trial studios (sample copied): every sample event has a layout version 1',
+     not exists (select 1 from public.quotes q join public.studio_subscriptions s on s.org_id = q.org_id and s.status = 'trial'
+                  join public.organizations o on o.id = q.org_id and o.sample_cloned_at is not null and not coalesce(o.is_sample_master, false)
+                  where q.is_demo and q.deleted_at is null
+                    and not exists (select 1 from public.quote_versions v where v.quote_id = q.id and v.version_no = 1))),
+  ('06 sample-data summary counts the sample layout templates; helpers internal',
+     position('trial-seed-0237' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_demo_status()')), '')) > 0
+     and not has_function_privilege('authenticated', 'public._a237_sample_settings()', 'execute')
+     and not has_function_privilege('anon', 'public._a237_manifest_note()', 'execute'))
+) v(item, ok) order by item;
+
+-- ##########################################################################################
+-- RELEASE SECTION 33/33: APPLY-0178-refresh-trials.sql
 -- In plain words: LAST: every existing FREE-TRIAL studio is refreshed to the newest sample (its sample rows re-cloned, its own rows kept).
 -- ##########################################################################################
 -- APPLY-0178-refresh-trials.sql -- paste into the Supabase SQL editor (runs as postgres; no auth.uid()).
@@ -8687,7 +9392,7 @@ select '0185 ' || item as item, ok from (values
                    where i.tbl = 'nurture' and i.row_id = x.id and i.restored_at is null))
       and not exists (select 1 from public.layouts x where x.clean_archived_at is not null and not exists (select 1 from public.studio_clean_start_items i
                    where i.tbl = 'layouts' and i.row_id = x.id and i.restored_at is null))),
-  ('09 the clear used is the is_demo-only _demo_clear', position('_demo_clear' in pg_get_functiondef('public.delete_all_sample_data()'::regprocedure)) > 0
+  ('09 the clear used is the is_demo-only _demo_clear', position('_demo_clear' in pg_get_functiondef(coalesce(to_regprocedure('public.delete_all_sample_data__pre0236()'), 'public.delete_all_sample_data()'::regprocedure))) > 0   -- 0236 trial wrapper: the body it calls
       and position('_demo_clear' in pg_get_functiondef('public.upgrade_data_choice(text, text)'::regprocedure)) > 0),
   ('10 checkout: billing details + Terms can be saved in the free trial (0173 wrapper without the trial guard)',
       to_regprocedure('public.my_studio_account_update__pre0173(jsonb)') is null
@@ -9009,7 +9714,7 @@ select '0201 ' || item as item, ok from (values
 union all
 select '0202 ' || item as item, ok from (values
   ('01 the sample copy includes event_requirements (after quotes)', array_position(public._sample_clone_tables(), 'event_requirements')
-       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) = 25),
+       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) >= 25),   -- 0237 adds 4 more
   ('02 sample master: all 7 sample events have requirements (41)', (select count(*) from public.event_requirements
        where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 41
        and not exists (select 1 from public.quotes q where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null
@@ -9114,6 +9819,77 @@ select '0205 ' || item as item, ok from (values
      and not has_function_privilege('authenticated', 'public.invite_request_new_link(text)', 'execute')
      and not has_function_privilege('anon', 'public.invite_request_new_link(text)', 'execute')),
   ('07 an unknown token is never renewable', public.invite_request_new_link(repeat('0', 48)) ->> 'result' = 'not_found')
+) v(item, ok)
+union all
+select '0236 ' || item as item, ok from (values
+  ('01 8 trial wrappers in place, old bodies kept',
+     (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like '%\_\_pre0236') = 8
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.pkg_settings_set(jsonb)')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.comms_settings_set(jsonb)')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.clear_sample_data()')), '')) > 0),
+  ('02 wrappers: signed-in users only; kept bodies not callable by the app',
+     has_function_privilege('authenticated', 'public.pkg_settings_set(jsonb)', 'execute')
+     and has_function_privilege('authenticated', 'public.comms_settings_set(jsonb)', 'execute')
+     and not has_function_privilege('anon', 'public.clear_demo_data()', 'execute')
+     and not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like '%\_\_pre0236'
+                      and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')))),
+  ('03 one trial definition: test mode + banner data + staff cap re-issued',
+     position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public._trial_test_mode_ok(uuid)')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_trial_org()')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_trial_access()')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public._tl181_used(uuid,text)')), '')) > 0
+     and position('trial-unify-0236' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public._tl173_tg_create_cap()')), '')) > 0),
+  ('04 every studio on its free trial (subscription) and not ended is in test mode; no paid studio is',
+     not exists (select 1 from public.studio_subscriptions s join public.organizations o on o.id = s.org_id
+                  where s.status = 'trial' and not coalesce(o.is_sample_master, false) and not public._trial_locked(s.org_id)
+                    and coalesce(public._tu236_trial_end(s.org_id) > now(), true) and not public._trial_test_mode_ok(s.org_id))
+     and not exists (select 1 from public.studio_subscriptions s where s.status = 'active' and public._trial_test_mode_ok(s.org_id))),
+  ('05 helpers internal; banner data signed-in only',
+     not has_function_privilege('authenticated', 'public._tu236_trial_end(uuid)', 'execute')
+     and not has_function_privilege('anon', 'public._trial_test_mode_ok(uuid)', 'execute')
+     and has_function_privilege('authenticated', 'public.my_trial_org()', 'execute')
+     and not has_function_privilege('anon', 'public.my_trial_org()', 'execute'))
+) v(item, ok)
+union all
+select '0237 ' || item as item, ok from (values
+  ('01 the sample copy includes layout rules, chair / plate types and the event plan',
+     array_position(public._sample_clone_tables(), 'event_plan') > array_position(public._sample_clone_tables(), 'quotes')
+     and 'layout_rules' = any(public._sample_clone_tables()) and 'chair_types' = any(public._sample_clone_tables())
+     and 'plate_types' = any(public._sample_clone_tables()) and 'event_requirements' = any(public._sample_clone_tables())),
+  ('02 sample master: every event has a layout version 1; no floor plan seats more than its guests or its limit',
+     not exists (select 1 from public.quotes q where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null
+                  and not exists (select 1 from public.quote_versions v where v.quote_id = q.id and v.version_no = 1))
+     and not exists (select 1 from public.quote_versions v join public.quotes q on q.id = v.quote_id
+                      where v.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and v.version_no = 1
+                        and (v.data #>> '{venue,capacity}') ~ '^[0-9]+$' and (q.client ->> 'guests') ~ '^[0-9]+$'
+                        and (select coalesce(sum(case when (i -> 'properties' ->> 'rows') ~ '^[0-9]+$' and (i -> 'properties' ->> 'cols') ~ '^[0-9]+$'
+                                                        then (i -> 'properties' ->> 'rows')::int * (i -> 'properties' ->> 'cols')::int
+                                                      when (i -> 'properties' ->> 'seats') ~ '^[0-9]+$' then (i -> 'properties' ->> 'seats')::int
+                                                      else case i ->> 'type' when 'sofa' then 3 when 'loveseat' then 2 when 'bench' then 2
+                                                             when 'lounge' then 4 when 'armchair' then 1 when 'ottoman' then 1 when 'chiavari' then 1
+                                                             when 'barstool' then 1 else 0 end end), 0)
+                               from jsonb_array_elements(coalesce(v.data -> 'items', '[]'::jsonb)) i)
+                            > least((v.data #>> '{venue,capacity}')::int, (q.client ->> 'guests')::int))),
+  ('03 sample master: event plans, 8 layout rules, 3 chair types, 3 plate types',
+     (select count(*) from public.event_plan where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and menu_template is not null) >= 6
+     and (select count(*) from public.layout_rules where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 8
+     and (select count(*) from public.chair_types where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 3
+     and (select count(*) from public.plate_types where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 3),
+  ('04 the 0237 sample version was published once and is current (or a later one), with the new lists',
+     (select count(*) from public.helm_trial_seed_manifest where notes = public._a237_manifest_note()) = 1
+     and exists (select 1 from public.helm_trial_seed_manifest c where c.is_current
+                   and c.version >= (select m.version from public.helm_trial_seed_manifest m where m.notes = public._a237_manifest_note())
+                   and jsonb_array_length(coalesce(c.payload #> '{tables,chair_types}', '[]'::jsonb)) >= 3
+                   and jsonb_array_length(coalesce(c.payload #> '{tables,event_plan}', '[]'::jsonb)) >= 6)),
+  ('05 existing free-trial studios (sample copied): every sample event has a layout version 1',
+     not exists (select 1 from public.quotes q join public.studio_subscriptions s on s.org_id = q.org_id and s.status = 'trial'
+                  join public.organizations o on o.id = q.org_id and o.sample_cloned_at is not null and not coalesce(o.is_sample_master, false)
+                  where q.is_demo and q.deleted_at is null
+                    and not exists (select 1 from public.quote_versions v where v.quote_id = q.id and v.version_no = 1))),
+  ('06 sample-data summary counts the sample layout templates; helpers internal',
+     position('trial-seed-0237' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_demo_status()')), '')) > 0
+     and not has_function_privilege('authenticated', 'public._a237_sample_settings()', 'execute')
+     and not has_function_privilege('anon', 'public._a237_manifest_note()', 'execute'))
 ) v(item, ok)
 union all
 select 'REFRESH-0178 every trial studio on the current sample, India, 4 sample venues, no queued send' as item,

@@ -89,7 +89,8 @@
     if (t && typeof t === "object" && ("state" in t || "status" in t)) return t.state === "trial" || t.status === "trial";
     try { return !!(doc && doc.documentElement && doc.documentElement.classList.contains("helm-trial")); } catch (e) { return false; }
   }
-  const TRIAL_KEEP = "Your free trial keeps its sample data for the whole trial. Choose a plan to start your own studio.";
+  // one message for the toasts (QA B3) and the cards (0236)
+  const TRIAL_KEEP = "The sample data stays for your whole free trial. When you choose a plan you decide whether to keep it or remove it.";
   async function trialNow() {
     // a CONFIRMED trial class wins; the early (cached, unconfirmed) class asks the server, so a studio that just
     // paid is not refused while trial-lock.js is still checking (refuses if the server cannot be asked)
@@ -251,6 +252,9 @@
       host.appendChild(el("span", "td-tag", "Sample data"));
       host.appendChild(el("h3", null, "You're exploring a demo studio"));
       host.appendChild(el("p", null, "Sample data: everything marked “Demo ·” is sample data. Messages, approval codes and payment links are switched off for it."));
+      // 0236: the sample data stays for the whole free trial (the server refuses clear / reset / switch there);
+      // what happens to it is chosen when the studio picks a plan (0185)
+      if (admin && inTrial) { host.appendChild(el("p", "td-safe", TRIAL_KEEP)); return; }
       if (admin) {
         const row = el("div", "td-row");
         if (!inTrial) row.appendChild(btn("Start my own studio →", "btn primary", () => startFresh({})));
@@ -265,6 +269,7 @@
       if (inTrial) { host.hidden = true; return; }   // QA B3: no remove / clear entry point during the trial
       host.appendChild(el("span", "td-tag", "Sample data"));
       host.appendChild(el("h3", null, "Demo data is still in your studio"));
+      if (inTrial) { host.appendChild(el("p", "td-safe", TRIAL_KEEP)); return; }
       host.appendChild(el("p", null, "Remove the sample rows marked “Demo ·” when you no longer need them. Your own data is never touched."));
       const row = el("div", "td-row");
       if (place === "control") { const c = btn("Clear sample data", "btn", () => clearSample(c)); row.appendChild(c); }
@@ -306,7 +311,7 @@
       const q = global.location.search || "";
       // 0180: "Choose a plan" goes straight to the plan page (an old link that still asks to remove the samples first, too)
       if (/[?&]demo=fresh\b/.test(q) && /[?&]then=checkout\b/.test(q)) { global.location.assign("checkout.html?next=dashboard.html"); return; }
-      // QA B3: dashboard.html?demo=switch is ignored during the trial (startFresh refuses as well)
+      // QA B3 + 0236: dashboard.html?demo=switch is ignored during the trial (the server refuses it as well)
       if (d.is_admin && d.has_demo && !inTrial && /[?&]demo=(switch|fresh)\b/.test(q)) startFresh({});
     } catch (e) {}
   }
