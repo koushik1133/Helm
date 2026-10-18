@@ -74,7 +74,9 @@ do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_t
     and (select count(distinct status) from public.leads where org_id = M) = 6
     and not exists (select 1 from public.leads where org_id = M and (email not like '%@example.com' or right(regexp_replace(phone, '\D', '', 'g'), 10) not like '00000%')));
   perform pg_temp.res('07 3 new events on packages, GST 18, D8 priced', (select string_agg(code || '=' || (pricing ->> 'platePrice') || '/' || (pricing ->> 'total'), ',' order by code)
-      from public.quotes where org_id = M and code in ('SMP-1004','SMP-1005','SMP-1006')) = 'SMP-1004=700/452530,SMP-1005=650/407100,SMP-1006=450/137175',
+      from public.quotes where org_id = M and code in ('SMP-1004','SMP-1005','SMP-1006'))
+      -- 0182 moves the Kapoor sangeet chair price 45 -> 100 (452530 -> 472000)
+      in ('SMP-1004=700/452530,SMP-1005=650/407100,SMP-1006=450/137175', 'SMP-1004=700/472000,SMP-1005=650/407100,SMP-1006=450/137175'),
     (select string_agg(code || '=' || (pricing ->> 'total'), ',') from public.quotes where org_id = M));
   perform pg_temp.res('08 confirmed events: 30 % advance paid (simulated) + balance = total', not exists (select 1 from public.quotes q where q.org_id = M and q.code in ('SMP-1004','SMP-1005')
       and ((select sum(amount) from public.payment_milestones pm where pm.quote_id = q.id) <> (q.pricing ->> 'total')::numeric
