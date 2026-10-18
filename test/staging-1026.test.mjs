@@ -38,7 +38,8 @@ await t('#2 booklet package chooser uses the booklet formatter (no $ on a rupee 
 
 await t('#3 default-PIN hint: admins only, only while the server says the PIN is default', () => {
   const P = r('public/shell-b-privacy.js');
-  assert.match(P, /var hint = !pinStatusErr && pinStatus && pinStatus\.is_default === true && canChangePin\(\)\n\s+\? " \(Default PIN 0000 — change it in Control Center\.\)" : "";/);
+  // B29 (QA): in the free trial the PIN cannot be changed (0181), so the hint says so instead of pointing to a locked page
+  assert.match(P, /var hint = pinTrial \? " \(Free trial: the studio PIN is 0000\.\)"\n\s+: !pinStatusErr && pinStatus && pinStatus\.is_default === true && canChangePin\(\)\n\s+\? " \(Default PIN 0000 — change it in Control Center\.\)" : "";/);
   assert.doesNotMatch(P, /your studio admin can change it/);
 });
 

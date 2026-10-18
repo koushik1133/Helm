@@ -295,7 +295,9 @@ window.HelmUrl = HelmUrl;
   function inFreeTrial() {
     if (mode !== "supabase" || !supa || !currentUser) return Promise.resolve(false);
     if (!trialSubInflight) {
-      const p = Promise.resolve(swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; })))
+      // B29: the same per-page memo as subscription.trial(), so the role gate, the trial banner, trial-lock and the
+      // demo card share ONE my_trial_status call per page (it went out 4 times on a cold load)
+      const p = Promise.resolve(memoRead("trial", 15000, () => swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))))
         .then((t) => !!(t && t.status === "trial"), () => false);
       trialSubInflight = p;
       p.then(() => { setTimeout(() => { if (trialSubInflight === p) trialSubInflight = null; }, 30000); });
@@ -2239,6 +2241,9 @@ window.HelmUrl = HelmUrl;
       roles: () => PICK_ROLES.slice(),
       roleLabel,
       areas: () => AREAS.slice(),
+      // B29: areas a FREE-TRIAL studio never gets whatever the matrix says (0203) -> [] for a paid studio. The Roles
+      // matrix hides them in the trial so it never offers a switch that does nothing.
+      trialOffAreas: () => inFreeTrial().then((t) => (t ? Object.keys(TRIAL_OFF_AREAS) : []), () => []),
       // the whole access matrix (admin only) → [{role,area,can_view,can_edit}]
       async getAccess() {
         if (!supa) throw new Error("Supabase not configured");
@@ -9775,6 +9780,8 @@ window.HelmUrl = HelmUrl;
     ".bpui-spin,:where(#boot:empty)::before{border:none;background:conic-gradient(from 90deg,color-mix(in srgb,var(--bpui-accent) 12%,transparent),var(--bpui-accent));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px))}",
     ".bpui-spin2{border:none;background:conic-gradient(from 90deg,color-mix(in srgb,var(--bpui-accent) 12%,transparent),var(--bpui-accent));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px))}}",
     "@media print{.bpui-toasts,.bpui-offline,.bpui-boot-overlay{display:none!important}}",
+    ".bpui-capnote{display:inline-block;margin:0 8px;font-size:12.5px;line-height:1.3;color:var(--bpui-ink-2);vertical-align:middle}",
+    ".bpui-capnote.is-full{color:var(--bpui-warn-ink);background:var(--bpui-warn-bg);border:1px solid var(--bpui-warn-line);border-radius:999px;padding:2px 10px}",
   ].join("\n");
   function injectCSS() {
     if (doc.__bpuiStyle) return;
@@ -9886,6 +9893,9 @@ window.HelmUrl = HelmUrl;
     if (e && (e.hint === "trial_cap" || e.hint === "trial_locked") && e.message) return pre + endDot(clip(String(e.message), 240));
     // 0192 - menu package checks (price per plate / dish list): the DB message is written for people
     if (e && e.hint === "menu_pkg_invalid" && e.message) return pre + endDot(clip(String(e.message), 240));
+    // B15: a phone refused by phoneOrThrow (staff / nurture / leads: per-country length, India = 10 digits) - the
+    // message says what to type ("Enter a 10-digit number for India."), never the generic "Something went wrong"
+    if (e && e.code === "invalid_phone" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
     if (e && e.hint === "seat_limit") return pre + "Your free trial includes you + 2 people, and both seats are in use. Revoke an invitation or remove someone to add another person — or upgrade for more seats.";
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
     // 0183 — the free trial ended unpaid: the whole studio is read-only for everyone until it is upgraded
@@ -10564,8 +10574,46 @@ window.HelmUrl = HelmUrl;
   function start() { injectCSS(); startModalObserver(); installOffline(); showFlash(); }
   if (doc.readyState !== "loading") start(); else doc.addEventListener("DOMContentLoaded", start, { once: true });
 
+  // B29 (QA): the free trial's creation cap is said BEFORE a form is filled ("2 of 2 used"), instead of a refusal
+  // after the whole form. entity = a key of my_trial_limits().used: leads, quotes, inventory_items, vendors,
+  // crew_members, venues. Paid studio / older database / any error -> null: nothing changes (the server still refuses).
+  function trialCap(entity) {
+    var S = global.BPStore;
+    if (!S || !S.subscription || typeof S.subscription.limits !== "function") return Promise.resolve(null);
+    return Promise.resolve().then(function () { return S.subscription.limits(); }).then(function (r) {
+      if (!r || r.trial !== true) return null;
+      var cap = Number(r.cap) > 0 ? Number(r.cap) : 2, used = Math.max(0, Number(r.used && r.used[entity]) || 0);
+      return { cap: cap, used: used, left: Math.max(0, cap - used), full: used >= cap };
+    }, function () { return null; });
+  }
+  function capText(c, nouns) {
+    if (!c) return "";
+    var u = Math.min(c.used, c.cap) + " of " + c.cap + " " + (nouns || "new records") + " used";
+    return c.full ? "Free trial: " + u + ". Choose a plan to add more." : "Free trial: " + u + ".";
+  }
+  // capGate(buttons, entity, nouns) -> Promise<cap|null>. At the cap the add buttons are switched off (only the ones
+  // this turned off are ever switched back on) and a short note sits after the first one; under it the note says
+  // how many are used. Re-run after every add / load so the state follows the server.
+  function capGate(btns, entity, nouns) {
+    var list = (Array.isArray(btns) ? btns : [btns]).filter(function (b) { return b && b.nodeType === 1; });
+    return trialCap(entity).then(function (c) {
+      var full = !!(c && c.full), txt = capText(c, nouns);
+      list.forEach(function (b, i) {
+        if (full) { if (!b.disabled) { b.disabled = true; b.setAttribute("data-cap-off", "1"); } b.setAttribute("title", txt); }
+        else if (b.getAttribute("data-cap-off") === "1") { b.disabled = false; b.removeAttribute("data-cap-off"); b.removeAttribute("title"); }
+        var id = (b.id || entity + "_add" + i) + "_capnote", note = doc.getElementById(id);
+        if (i > 0 || !c) { if (note && i === 0) note.remove(); return; }
+        injectCSS();
+        if (!note) { note = h("span", { id: id, class: "bpui-capnote", role: "status" }); b.insertAdjacentElement("afterend", note); }
+        note.textContent = txt; note.classList.toggle("is-full", full);
+      });
+      return c;
+    });
+  }
+
   global.BPUI = {
     version: 1,
+    trialCap: trialCap, capText: capText, capGate: capGate,
     toast: toast,
     alert: alertDlg, confirm: confirmDlg, prompt: promptDlg,
     guard: guard,
@@ -11161,6 +11209,8 @@ window.HelmUrl = HelmUrl;
   var NEG_HINT = "Negative numbers aren\u2019t allowed here";
   function negHint(el, text, ms) {
     try {
+      // B29: a field with its own message under it (data-own-msg, e.g. Control Center > Default pricing) says it once
+      if (el.hasAttribute && el.hasAttribute("data-own-msg")) return;
       var h = el.__negHint;
       if (!h || !h.isConnected) {
         __helmAdoptNegCss();

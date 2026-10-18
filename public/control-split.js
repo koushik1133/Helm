@@ -109,7 +109,7 @@
   main.insertBefore(head, main.firstChild);
   var empty=el("div","cs-empty","Nothing to set here for your role."); empty.hidden=true; main.appendChild(empty);
   var bar=el("div","cs-savebar"); bar.hidden=true; bar.setAttribute("role","status");
-  var barTxt=el("span"), bDis=el("button","cs-ghost","Dismiss"), bGo=el("button","cs-primary","Go to Save");
+  var barTxt=el("span"), bDis=el("button","cs-ghost","Discard changes"), bGo=el("button","cs-primary","Go to Save");
   bDis.type="button"; bGo.type="button";
   bar.appendChild(el("i","cs-dot")); bar.appendChild(barTxt); bar.appendChild(bDis); bar.appendChild(bGo); main.appendChild(bar);
   var tabs=main.querySelector(".tabs"); if(tabs) app.appendChild(tabs);
@@ -374,7 +374,9 @@
     while(n && c.contains(n)){ var bs=n.querySelectorAll("button"); for(var i=0;i<bs.length;i++){ if(isSave(bs[i])) return bs[i]; } if(n===c) break; n=n.parentElement; }
     var all=c.querySelectorAll("button"); for(var j=0;j<all.length;j++){ if(isSave(all[j])) return all[j]; } return null;
   }
-  function isField(t){ return !!t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) && t!==q && t!==msel && !/^(button|submit|reset|hidden|file|image)$/i.test(t.type||""); }
+  // a field the page saves the moment it changes (data-cs-autosave: a member's role, a person's notification choice)
+  // is never "unsaved" - and so "Discard changes" can never write it back
+  function isField(t){ return !!t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) && t!==q && t!==msel && !/^(button|submit|reset|hidden|file|image)$/i.test(t.type||"") && !(t.hasAttribute&&t.hasAttribute("data-cs-autosave")); }
   function fval(f){
     if(f.type==="checkbox"||f.type==="radio") return f.checked?"1":"0";
     if(f.tagName==="SELECT"&&f.multiple) return Array.prototype.filter.call(f.options,function(o){ return o.selected; }).map(function(o){ return o.value; }).join("\u0001");
@@ -384,7 +386,13 @@
     if(f.type!=="radio"||!f.name) return [f];
     var c=cardOf(f)||document; return Array.prototype.filter.call(c.querySelectorAll("input[type=radio]"),function(r){ return r.name===f.name; });
   }
-  function touch(f){ if(!isField(f)||!cardOf(f)) return; group(f).forEach(function(g){ if(!base.has(g)) base.set(g,fval(g)); }); }
+  // The saved value of a field is what it held just before the user's first edit in its card. While a card is still
+  // clean, every touch (focus / pointer / key) re-reads ALL its fields, so a value the page loaded late is never
+  // taken for "saved" as a stale placeholder; from the first edit on the card's values are frozen, which also covers a
+  // field the page changes as a side effect (country -> GST rate): "Discard changes" puts that one back too.
+  function touch(f){ if(!isField(f)) return; var c=cardOf(f); if(!c) return;
+    if(!dirtyCards.has(c)){ fieldsOf(c).forEach(function(g){ base.set(g,fval(g)); }); return; }
+    group(f).forEach(function(g){ if(!base.has(g)) base.set(g,fval(g)); }); }
   function fieldsOf(n){ return Array.prototype.filter.call(n.querySelectorAll("input,select,textarea"),isField); }
   function changed(f){ return base.has(f) && base.get(f)!==fval(f); }
   function recheck(c){
@@ -410,7 +418,7 @@
     if(t.tagName==="LABEL"&&t.control) t=t.control; else if(!isField(t)){ var l=t.closest("label"); if(l&&l.control) t=l.control; }
     touch(t);
   }
-  main.addEventListener("focusin",onTouch,true); main.addEventListener("pointerdown",onTouch,true);
+  main.addEventListener("focusin",onTouch,true); main.addEventListener("pointerdown",onTouch,true); main.addEventListener("keydown",onTouch,true);
   var editedAt=new WeakMap();
   function onEdit(e){
     if(!e.isTrusted) return; var t=e.target; if(!isField(t)) return;
@@ -442,7 +450,21 @@
       snap.forEach(function(p){ if(p[1]===undefined) base.delete(p[0]); else base.set(p[0],p[1]); }); snap=null; recheck(c); paintDirty();
     },ms); });
   },true);
-  bDis.addEventListener("click",function(){ if(!current) return; dirtyIn(current).forEach(function(c){ rebase(c); dirtyCards.delete(c); }); paintDirty(); });
+  // B24: "Discard changes" puts every changed field back to the value it had before the user touched it (the saved
+  // value), then lets the page re-run its own checks (synthetic input/change: onEdit ignores them), so a red "150%"
+  // or a cleared "-5" goes back to the stored number with no error left under it. Only then is the card clean.
+  function restore(c){
+    var put=[];
+    fieldsOf(c).forEach(function(f){ if(!changed(f)) return; var v=base.get(f);
+      if(f.type==="checkbox"||f.type==="radio") f.checked=v==="1";
+      else if(f.tagName==="SELECT"&&f.multiple){ var vs=v.split("\u0001"); Array.prototype.forEach.call(f.options,function(o){ o.selected=vs.indexOf(o.value)>=0; }); }
+      else f.value=v;
+      f.removeAttribute("data-rejected"); put.push(f); });
+    put.forEach(function(f){ try{ if(f.type!=="radio"||f.checked){ f.dispatchEvent(new Event("input",{bubbles:true})); f.dispatchEvent(new Event("change",{bubbles:true})); } }catch(x){} });
+    // a page handler that follows another field (country -> currency) must not leave a restored box on a new value
+    put.forEach(function(f){ var v=base.get(f); if(v!==undefined && fval(f)!==v && f.type!=="checkbox" && f.type!=="radio" && !(f.tagName==="SELECT"&&f.multiple)) f.value=v; });
+  }
+  bDis.addEventListener("click",function(){ if(!current) return; dirtyIn(current).forEach(function(c){ restore(c); rebase(c); dirtyCards.delete(c); }); paintDirty(); });
   bGo.addEventListener("click",function(){ var d=current?dirtyIn(current)[0]:null; if(!d) return; var b=saveBtn(d,lastField.get(d)); if(!b) return;
     try{ b.scrollIntoView({block:"center",behavior:"smooth"}); }catch(x){} try{ b.focus({preventScroll:true}); }catch(x){}
     d.classList.add("cs-flash"); setTimeout(function(){ d.classList.remove("cs-flash"); },1600); });
