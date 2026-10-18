@@ -281,3 +281,5 @@ forward  supabase/migrations/0170_trial_data_v4.sql
 forward  supabase/migrations/0171_trial_data_v5.sql
 # 0172 (cross-studio quote guard zz_quote_org_match added to wa_proposal_optins + wa_proposal_audit, which 0151 created after the 0136 catch-up; re-runs the 0136 install loop, only adds missing triggers, no rows changed) goes after 0151 + 0136.
 forward  supabase/migrations/0172_wa_proposal_quote_guard.sql
+# 0174 (trial seed always uses the CURRENT sample manifest while the switch is on: _demo_seed no longer falls back silently to the old 0100 seed for a trial studio (logs trial.sample_not_cloned instead), _demo_seed_for sends a TRIAL studio (also AE) to the manifest, an old-seed trial is never cloned on top of its old rows (Clear sample data -> Load demo data re-clones); functions only, nothing deleted, paid studios and switch-off unchanged) goes after 0167 + 0102.
+forward  supabase/migrations/0174_trial_seed_current_manifest.sql
