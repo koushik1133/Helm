@@ -101,6 +101,7 @@ run "storage-policy"     "STORAGE-POLICY: ALL PASS"        psql -q -f tests/db/s
 run "upload-hardening"   "UPLOAD-HARDENING: ALL PASS \(20/20\)" psql -q -f tests/db/upload-hardening.sql
 run "db-gates-0049"     "DB-GATES-0049: ALL PASS \(52/52\)" psql -q -f tests/db/db-gates-0049.sql
 run "lifecycle-reapproval-0052" "LIFECYCLE-REAPPROVAL-0052: ALL PASS \(49/49\)" psql -q -f tests/db/lifecycle-reapproval-0052.sql
+run "event-stages-0198" "EVENT-STAGES-0198: ALL PASS \(63/63\)" psql -q -f tests/db/event-stages-0198.sql
 run "password-lockout"   "PASSWORD-LOCKOUT: ALL PASS \(34/34\)" psql -q -f tests/db/password-lockout.sql
 run "notification-mutes" "NOTIFICATION-MUTES: ALL PASS \(17/17\)" psql -q -f tests/db/notification-mutes.sql
 run "notification-task-ref" "NOTIFICATION-TASK-REF: ALL PASS \(12/12\)" psql -q -f tests/db/notification-task-ref.sql

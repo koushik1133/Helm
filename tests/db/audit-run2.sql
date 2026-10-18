@@ -403,6 +403,8 @@ do $$ declare s text; begin
   perform pg_temp.login('b_admin@b.test');
   s := pg_temp.try($q$select public.close_event('a0000000-0000-4000-8000-00000042a002', true)$q$);
   perform pg_temp.res('RC4-10 denied: Org B admin closes an Org A event', s like '42501%', s);
+  perform pg_temp.su();   -- 0198: an event closes only after its event day (studio time zone)
+  update public.quotes set event_date = current_date - 1 where id = 'a0000000-0000-4000-8000-00000042a002';
   perform pg_temp.login('a_admin@a.test');
   s := pg_temp.try($q$select public.close_event('a0000000-0000-4000-8000-00000042a002', true, 'audit-run2: balance open (0049 admin override)')$q$);
   perform pg_temp.res('RC4-11 allowed: Org A admin closes the event', s = '', s);
