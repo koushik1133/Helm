@@ -4639,6 +4639,8 @@ async function init(){
           if(plan.menu_template) PRICING.menuPackageName = plan.menu_template;
           const match=(PRICING.packages||[]).find(p=>p.name===plan.menu_template);
           if(match) PRICING.appliedPkgId = match.id;
+          // qmodal-1018: the package's CURRENT price wins (the plan keeps the price it had when applied) - same as the workspace + quotes
+          if(match && match.price_per_plate!=null && match.price_per_plate!=="" && isFinite(+match.price_per_plate)) PRICING.menuPlatePrice = +match.price_per_plate;
         }
       }catch{}
       buildMenuControls();
