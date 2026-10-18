@@ -96,7 +96,8 @@ do $$ declare a uuid; b uuid; o public.organizations; r jsonb; begin
   perform pg_temp.newuser('td_b@t.test'); perform pg_temp.login('td_b@t.test');
   r := public.start_self_serve_trial('T own', 'UTC', 'USD', 'own');
   perform pg_temp.su(); b := (r ->> 'org_id')::uuid;
-  perform pg_temp.res('27 an own-data trial keeps its own settings (no clone)', (select currency from public.organizations where id = b) = 'USD'
+  -- 0177: a free trial is India only, so 'USD' sent by the browser still lands on INR
+  perform pg_temp.res('27 an own-data trial keeps its own settings (no clone)', (select currency from public.organizations where id = b) = case when to_regprocedure('public.tg_org_trial_india()') is null then 'USD' else 'INR' end
     and not exists (select 1 from public.venues where org_id = b), r::text);
   perform pg_temp.su();
 exception when others then perform pg_temp.su(); insert into _uf values ('2x clone', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;

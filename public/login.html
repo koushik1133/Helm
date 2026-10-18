@@ -331,7 +331,7 @@
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
 <script src="auth-ui.js?v=34"></script>
 <script src="/auth-visual.js?v=1"></script>
-<script src="/trial-signup.js?v=6"></script>
+<script src="/trial-signup.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -796,8 +796,12 @@
     const guess=meta.business_name || meta.full_name || meta.name || (u.email? u.email.split("@")[0] : "");
     if(guess && !$("#ob_name").value) $("#ob_name").value=guess.charAt(0).toUpperCase()+guess.slice(1);
     // default the timezone to the browser's, if it's one of our options
-    try{ const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if(tz && [...$("#ob_tz").options].some(o=>o.value===tz)) $("#ob_tz").value=tz; }catch(e){}
+    // 0177: a free trial is India only (INR / Asia/Kolkata) - no currency / time-zone choice
+    const lc=$("#ob_currency").closest(".s-8aed95a");
+    if(TRIAL()){ $("#ob_currency").value="INR"; $("#ob_tz").value="Asia/Kolkata"; if(lc) lc.hidden=true; }
+    else { if(lc) lc.hidden=false;
+      try{ const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if(tz && [...$("#ob_tz").options].some(o=>o.value===tz)) $("#ob_tz").value=tz; }catch(e){} }
     setTimeout(()=>$("#ob_name").focus(),60);
   }
   $("#onboardForm").addEventListener("submit", (e)=>{

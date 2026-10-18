@@ -97,7 +97,7 @@
   async function own(b) {
     if (b && b.disabled) return;
     const done = busy(b, "Opening setup…");
-    try { await S().demo.setMode("own"); global.location.assign("onboarding.html"); }
+    try { await S().demo.setMode("own"); toWelcome(); }
     catch (e) { done(); toast(errMsg(e, "start with your own data"), "err", b); }
   }
   async function clearDemo(then) {
@@ -143,7 +143,13 @@
     return out;
   }
   // only these follow-ups are allowed (never an arbitrary URL from the query string)
-  function nextAfterFresh(then) { return then === "checkout" ? "checkout.html?next=" + encodeURIComponent("onboarding.html?fresh=1") : "onboarding.html?fresh=1"; }
+  // 0177: a free-trial studio never opens the full studio setup (/onboarding): it gets the short
+  // 2-step welcome on the dashboard instead. After paying (checkout) the studio is no longer a trial.
+  function nextAfterFresh(then) { return then === "checkout" ? "checkout.html?next=" + encodeURIComponent("onboarding.html?fresh=1") : "dashboard.html"; }
+  function toWelcome() {
+    try { global.localStorage.setItem("bp_trial_welcome", String(Date.now())); } catch (e) {}
+    global.location.assign("dashboard.html");
+  }
 
   // One clear action: shows what goes (counts), what stays, then clear_demo_data() -> studio setup.
   // opts.then: "checkout" when opened from "Choose a plan".
@@ -157,7 +163,7 @@
     dlg.setAttribute("aria-labelledby", "tdDlgT");
     const h = el("h3", null, opts.then === "checkout" ? "Start fresh before you choose a plan?" : "Ready to start your own studio?"); h.id = "tdDlgT";
     dlg.appendChild(h);
-    dlg.appendChild(el("p", null, "We'll remove only the sample rows marked “Demo ·”, then take you to studio setup (name, logo, currency, packages)."));
+    dlg.appendChild(el("p", null, opts.then === "checkout" ? "We'll remove only the sample rows marked “Demo ·”, then take you to choose a plan." : "We'll remove only the sample rows marked “Demo ·”, then you can name your studio and invite up to 2 people."));
     const lines = countLines(d && d.counts);
     if (lines.length) { const ul = el("ul", "td-list"); lines.forEach((t) => ul.appendChild(el("li", null, t))); dlg.appendChild(ul); }
     else if (d && d.demo_rows > 0) dlg.appendChild(el("p", null, d.demo_rows + " sample rows in total."));
@@ -168,13 +174,13 @@
     row.appendChild(btn(opts.then === "checkout" ? "Keep samples, choose plan" : "Keep samples for now", "btn", async (ev) => {
       if (opts.then === "checkout") { close(); global.location.assign("checkout.html?next=dashboard.html"); return; }
       const done = busy(ev.currentTarget, "Opening setup…");
-      try { await S().demo.setMode("own"); global.location.assign("onboarding.html"); } catch (e) { done(); toast(errMsg(e, "keep the demo data"), "err", ev.currentTarget); } }));
+      try { await S().demo.setMode("own"); toWelcome(); } catch (e) { done(); toast(errMsg(e, "keep the demo data"), "err", ev.currentTarget); } }));
     const go = btn("Remove samples & set up my studio", "btn primary danger", async () => {
       const done = busy(go, "Removing samples…");
       try { await S().demo.clear(); }
       catch (e) { done(); toast(errMsg(e, "remove the demo data"), "err", go); return; }
       toast("Sample data removed. Your own data is untouched.");
-      global.location.assign(nextAfterFresh(opts.then));
+      if (opts.then === "checkout") global.location.assign(nextAfterFresh(opts.then)); else toWelcome();
     });
     row.appendChild(go);
     dlg.appendChild(row);
@@ -216,7 +222,7 @@
       a.addEventListener("click", () => seed(a));
       const b = el("button", "td-opt"); b.type = "button";
       b.appendChild(el("b", null, "Start with my own data"));
-      b.appendChild(el("span", null, "Go straight to studio setup: your details, menu, prices, team, venues and imports."));
+      b.appendChild(el("span", null, "An empty studio: name it, invite up to 2 people, then add your own events, clients and menus."));
       b.addEventListener("click", () => own(b));
       pick.appendChild(a); pick.appendChild(b); host.appendChild(pick);
       return;
@@ -323,7 +329,7 @@
     const row = el("div", "td-row"); dlg.appendChild(row);
     const showErr = (m) => { err.textContent = m; err.hidden = !m; };
     // step 1
-    body.appendChild(el("p", null, "Your sample studio is loading with events, leads, menus, staff and inventory. Give it your name — you can change it later."));
+    body.appendChild(el("p", null, t.trial_mode === "own" ? "Give your trial studio your name — you can change it later." : "Your sample studio is loading with events, leads, menus, staff and inventory. Give it your name — you can change it later."));
     const fn = field("tdw_name", "Studio name", "text", /^Demo [0-9]+$/.test(t.name || "") ? "" : (t.name || ""));
     fn.input.required = true; fn.input.maxLength = 120; fn.input.autocomplete = "organization";
     const fc = field("tdw_city", "City", "text", "Hyderabad"); fc.input.maxLength = 120;

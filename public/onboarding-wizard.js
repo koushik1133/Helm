@@ -154,6 +154,8 @@
     let o = null, role = null;
     try { o = await S.org.current(); role = await S.auth.role(); } catch (e) { return; }
     const n = nudgeFor(o, role); if (!n) return;
+    // 0177: a free-trial studio has no full studio setup, so no "Resume setup" nudge
+    try { if (S.trialOrg && S.trialOrg.inTrial && (await S.trialOrg.inTrial())) return; } catch (e) {}
     // one shared setup-progress source: the dashboard "Setup" chip reads this same value
     api.lastNudge = n; try { document.dispatchEvent(new CustomEvent("helm:onb-progress", { detail: n })); } catch (e) {}
     if (typeof global.__helmAdoptCss === "function") global.__helmAdoptCss(document, NUDGE_CSS);

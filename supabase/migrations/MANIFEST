@@ -289,3 +289,5 @@ forward  supabase/migrations/0174_trial_seed_current_manifest.sql
 forward  supabase/migrations/0175_trial_layout_templates.sql
 # 0176 (trial client flow: Skip OTP on the client approval portal for an ACTIVE trial studio - studio member or the not-signed-in client; a signed-in member of another studio, paid, ended or locked studios still refused; after the skip the trial event moves to status confirmed so event group / booklet link / members work; nothing is sent - 0166 outbound guard; 1 new function + 2 replaced, no table changed) goes after 0166.
 forward  supabase/migrations/0176_trial_client_flow.sql
+# 0177 (free trial is India only: new nullable organizations.trial_region stamped 'IN' when a free trial starts (start_self_serve_trial / my_pending_start_trial set trial_ends_at + trial_mode together; checkout trials never stamped); BEFORE UPDATE trigger keeps a stamped studio on INR / Asia/Kolkata / IN / GST (Telangana when no state) while its subscription is still 'trial'; no existing row updated - FIX-0177-existing-trials.sql is owner-run) goes after 0089 + 0097 + 0119 + 0159 + 0166.
+forward  supabase/migrations/0177_trial_india_defaults.sql
