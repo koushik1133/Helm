@@ -12,9 +12,9 @@ const tests = []; const t = (n, f) => tests.push([n, f]);
 const man = read('supabase/migrations/MANIFEST');
 const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
 const fresh = nums.filter((n) => +n > 205);
-t('MANIFEST: each migration number once; the new ones are 0206, 0207, 0236, 0237 in numeric order', () => {
+t('MANIFEST: each migration number once; the new ones are 0206, 0207, 0208, 0236, 0237 in numeric order', () => {
   assert.equal(new Set(nums).size, nums.length, 'duplicate migration number');
-  assert.deepEqual(fresh, ['0206', '0207', '0236', '0237']);
+  assert.deepEqual(fresh, ['0206', '0207', '0208', '0236', '0237']);
   assert.deepEqual([...fresh].sort(), fresh);
   assert.equal(nums.indexOf('0205'), nums.indexOf('0206') - 1, '0206 right after 0205');
 });
@@ -38,6 +38,16 @@ t('pasteable: ASCII, no psql meta-command, no temp table, no DROP TABLE / TRUNCA
   assert.ok(!/^\s*\\/m.test(rel), 'psql meta');
   assert.ok(!/\bcreate\s+(temp|temporary)\s+table\b/i.test(rel), 'temp table');
   assert.ok(!/^\s*(drop\s+table|truncate)\b/im.test(rel), 'drop table / truncate');
+});
+t('0208: widens quotes_deleted_reason_chk to a superset only (no row written / deleted), APPLY verbatim, DB suite registered', () => {
+  const m = read('supabase/migrations/0208_quote_deleted_reason_auto_draft.sql'), a = read('supabase/APPLY-0208.sql');
+  assert.ok(!/[^\x09\x0a\x0d\x20-\x7e]/.test(m), 'ASCII');
+  assert.ok(!/^\s*(update|delete|truncate|insert)\b/im.test(m), 'no row written');
+  assert.match(m, /if v_def is not null and v_def like '%''auto_empty_draft''%' then\s*return;/, 'skips when already widened');
+  assert.match(m, /unnest\(v_vals \|\| array\['manual', 'link_expired', 'auto_empty_draft'\]\)/, 'superset of the live values');
+  assert.match(m, /\) not valid', v_list\);/); assert.match(m, /^alter table public\.quotes validate constraint quotes_deleted_reason_chk;$/m);
+  assert.ok(a.includes(m.trim()), 'APPLY carries the migration'); assert.match(a, /^begin;$/m); assert.match(a, /^commit;$/m);
+  assert.match(read('scripts/db-test/run-all.sh'), /run "empty-draft-0208" "EMPTY-DRAFT-0208: ALL PASS \\\(13\/13\\\)" psql -q -f tests\/db\/empty-draft-0208\.sql/);
 });
 let pass = 0;
 for (const [n, f] of tests) { try { f(); pass++; console.log('  ok  ' + n); } catch (e) { console.log('  FAIL ' + n + '\n       ' + e.message); } }

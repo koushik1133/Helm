@@ -1,7 +1,8 @@
 // gen-apply-release-1018-c.mjs - builds supabase/APPLY-RELEASE-1018-C.sql: ONE paste for the Supabase SQL editor with
 // every database change of release/1018-c (the migrations after 0205, the last one in production with release 1018-b),
 // in MANIFEST order:
-//   APPLY-0206 (quote in progress), APPLY-0207 (trial terms "I agree"), APPLY-0236 (one free-trial definition),
+//   APPLY-0206 (quote in progress), APPLY-0207 (trial terms "I agree"), APPLY-0208 (empty-draft clean-up check),
+//   APPLY-0236 (one free-trial definition),
 //   APPLY-0237 (trial sample data complete) - each paste file verbatim, each in its own begin / commit -
 //   then ONE combined VERIFY grid (the last result the editor shows; every row must say ok = true).
 // No temp tables, no session settings, no psql meta-commands; safe to paste twice (every section is idempotent).
@@ -17,6 +18,7 @@ export const PROD_LAST = 205;   // production after release 1018-b
 const WHAT = {
   '0206': '"Continue where you left off" stays until the quote is finished: the step each person last worked on is kept on the server (new table quote_flow_progress + 4 functions).',
   '0207': 'Free-trial terms "I agree": the trial owner\'s agreement (or a teammate\'s notice) is recorded once per terms version (new table trial_terms_acceptances, kept as a consent record).',
+  '0208': 'Empty draft quotes are cleaned up again: the quotes check quotes_deleted_reason_chk now also allows the clean-up reason \'auto_empty_draft\' (superset of today\'s values; no row written).',
   '0236': 'One meaning of "in the free trial": checkout-started trials get the trial screens + client Test mode; package / message settings and sample clear / reset / switch refused in the trial; the admin\'s linked staff row is not a staff slot.',
   '0237': 'Trial sample data complete: layout version 1 on every sample event, floor plans seat the guests, event menu plans, layout rules + chair / plate types; existing trials get missing rows (insert only); new sample version.',
 };

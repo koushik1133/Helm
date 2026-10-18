@@ -116,7 +116,7 @@ t('MANIFEST: 0236 then 0237 (each once); suites registered; paste files carry th
   }
   // release 1018-b (APPLY-RELEASE-1018.sql, ends at 0205) is in production; 0236 + 0237 ship in APPLY-RELEASE-1018-C.sql
   const rel = read('supabase/APPLY-RELEASE-1018-C.sql');
-  assert.ok(rel.indexOf('RELEASE SECTION 03/4: APPLY-0236.sql') > 0 && rel.indexOf('RELEASE SECTION 04/4: APPLY-0237.sql') > rel.indexOf('APPLY-0236.sql'), '0236 then 0237 in the 1018-c paste');
+  assert.ok(rel.indexOf('RELEASE SECTION 04/5: APPLY-0236.sql') > 0 && rel.indexOf('RELEASE SECTION 05/5: APPLY-0237.sql') > rel.indexOf('APPLY-0236.sql'), '0236 then 0237 in the 1018-c paste');
   // older VERIFY rows follow the change (clone list longer; delete_all_sample_data body behind the wrapper)
   assert.match(read('supabase/APPLY-0202.sql'), /array_length\(public\._sample_clone_tables\(\), 1\) >= 25\)/);
   assert.match(read('supabase/APPLY-0185.sql'), /coalesce\(to_regprocedure\('public\.delete_all_sample_data__pre0236\(\)'\), 'public\.delete_all_sample_data\(\)'::regprocedure\)/);

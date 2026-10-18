@@ -7,8 +7,9 @@
 -- What it runs, in this order (each section is that file unchanged; each migration in its own transaction):
 --   01  APPLY-0206.sql   "Continue where you left off" stays until the quote is finished: the step each person last worked on is kept on the server (new table quote_flow_progress + 4 functions).
 --   02  APPLY-0207.sql   Free-trial terms "I agree": the trial owner's agreement (or a teammate's notice) is recorded once per terms version (new table trial_terms_acceptances, kept as a consent record).
---   03  APPLY-0236.sql   One meaning of "in the free trial": checkout-started trials get the trial screens + client Test mode; package / message settings and sample clear / reset / switch refused in the trial; the admin's linked staff row is not a staff slot.
---   04  APPLY-0237.sql   Trial sample data complete: layout version 1 on every sample event, floor plans seat the guests, event menu plans, layout rules + chair / plate types; existing trials get missing rows (insert only); new sample version.
+--   03  APPLY-0208.sql   Empty draft quotes are cleaned up again: the quotes check quotes_deleted_reason_chk now also allows the clean-up reason 'auto_empty_draft' (superset of today's values; no row written).
+--   04  APPLY-0236.sql   One meaning of "in the free trial": checkout-started trials get the trial screens + client Test mode; package / message settings and sample clear / reset / switch refused in the trial; the admin's linked staff row is not a staff slot.
+--   05  APPLY-0237.sql   Trial sample data complete: layout version 1 on every sample event, floor plans seat the guests, event menu plans, layout rules + chair / plate types; existing trials get missing rows (insert only); new sample version.
 -- Rows are only written where a section says so: 0237 (the sample master studio: layout version 1 / floor plans /
 -- event plans / layout rules / chair + plate types, one new sample version; existing FREE-TRIAL studios: only the
 -- missing sample rows, insert only). Paid studios are not changed. Everything else is new tables, functions,
@@ -19,7 +20,7 @@
 -- The LAST result grid is the combined VERIFY: every row must say ok = true.
 
 -- ##########################################################################################
--- RELEASE SECTION 01/4: APPLY-0206.sql
+-- RELEASE SECTION 01/5: APPLY-0206.sql
 -- In plain words: "Continue where you left off" stays until the quote is finished: the step each person last worked on is kept on the server (new table quote_flow_progress + 4 functions).
 -- ##########################################################################################
 -- APPLY-0206.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -487,7 +488,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 02/4: APPLY-0207.sql
+-- RELEASE SECTION 02/5: APPLY-0207.sql
 -- In plain words: Free-trial terms "I agree": the trial owner's agreement (or a teammate's notice) is recorded once per terms version (new table trial_terms_acceptances, kept as a consent record).
 -- ##########################################################################################
 -- APPLY-0207.sql - paste into the Supabase SQL editor (staging first, then production).
@@ -721,7 +722,70 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 03/4: APPLY-0236.sql
+-- RELEASE SECTION 03/5: APPLY-0208.sql
+-- In plain words: Empty draft quotes are cleaned up again: the quotes check quotes_deleted_reason_chk now also allows the clean-up reason 'auto_empty_draft' (superset of today's values; no row written).
+-- ##########################################################################################
+-- APPLY-0208.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
+-- Empty draft quotes can be cleaned up again: the clean-up of EMPTY drafts (0141, Quotes page open + daily) moved
+-- nothing, because the quotes check quotes_deleted_reason_chk (0040) did not allow its reason 'auto_empty_draft'.
+-- This widens that check to every value it allows today + 'auto_empty_draft' (drop + add NOT VALID + VALIDATE in
+-- one transaction). No row is written or deleted here; no other table, column, function or policy changes.
+-- Safe to run twice (the 2nd run changes nothing). ASCII only. No edge function to redeploy.
+begin;
+-- 0208_quote_deleted_reason_auto_draft.sql - CANONICAL forward-only.
+-- REQUIRES 0040 (quotes.deleted_reason + check quotes_deleted_reason_chk) and 0141 (empty-draft clean-up).
+--
+-- In plain words: the daily / on-open clean-up of EMPTY draft quotes (0141) has never moved anything to the
+-- Deleted shelf, because it stamps deleted_reason = 'auto_empty_draft' and the 0040 check
+-- quotes_deleted_reason_chk only allowed 'manual' and 'link_expired' (the update failed with 23514).
+-- This widens that check to the SUPERSET: every value the live check allows today (read from the database,
+-- so a value added there by hand is kept too) + 'auto_empty_draft'.
+--   * Only runs when the live check does not allow 'auto_empty_draft' yet (the 2nd run changes nothing).
+--   * Drop + re-add inside ONE transaction (no moment without the check), added NOT VALID and then
+--     VALIDATEd: every existing row met the narrower check, so it meets the wider one.
+--   * No row is read for change, written or deleted; no other table, column, function or policy changed.
+-- Additive + idempotent. ASCII only.
+
+do $$
+declare v_def text; v_vals text[]; v_list text;
+begin
+  select pg_get_constraintdef(c.oid) into v_def
+    from pg_constraint c
+   where c.conname = 'quotes_deleted_reason_chk' and c.conrelid = 'public.quotes'::regclass;
+  if v_def is not null and v_def like '%''auto_empty_draft''%' then
+    return;                                                    -- already widened
+  end if;
+  -- every quoted value the live check allows today (none when the check is missing)
+  select coalesce(array_agg(distinct m[1]), '{}') into v_vals
+    from regexp_matches(coalesce(v_def, ''), '''([^'']*)''', 'g') m;
+  v_vals := array(select distinct x from unnest(v_vals || array['manual', 'link_expired', 'auto_empty_draft']) x order by x);
+  select string_agg(quote_literal(x), ', ' order by x) into v_list from unnest(v_vals) x;
+  alter table public.quotes drop constraint if exists quotes_deleted_reason_chk;
+  execute format('alter table public.quotes add constraint quotes_deleted_reason_chk'
+                 ' check (deleted_reason is null or deleted_reason in (%s)) not valid', v_list);
+end $$;
+alter table public.quotes validate constraint quotes_deleted_reason_chk;
+commit;
+
+-- VERIFY (every row must say ok = true)
+select item, ok from (values
+  ('01 quotes_deleted_reason_chk allows manual, link_expired and auto_empty_draft (and empty)',
+     exists (select 1 from pg_constraint c where c.conname = 'quotes_deleted_reason_chk' and c.conrelid = 'public.quotes'::regclass
+              and pg_get_constraintdef(c.oid) like '%''auto_empty_draft''%' and pg_get_constraintdef(c.oid) like '%''manual''%'
+              and pg_get_constraintdef(c.oid) like '%''link_expired''%' and pg_get_constraintdef(c.oid) ilike '%deleted_reason IS NULL%')),
+  ('02 the check is validated and there is exactly one',
+     (select count(*) from pg_constraint c where c.conname = 'quotes_deleted_reason_chk' and c.conrelid = 'public.quotes'::regclass
+       and c.convalidated) = 1),
+  ('03 the empty-draft clean-up (0141) is installed and still stamps auto_empty_draft',
+     to_regprocedure('public._discard_empty_drafts_for(uuid, integer)') is not null
+     and position('auto_empty_draft' in pg_get_functiondef('public._discard_empty_drafts_for(uuid, integer)'::regprocedure)) > 0),
+  ('04 the other shelf checks are unchanged (archived reason, one shelf)',
+     exists (select 1 from pg_constraint where conname = 'quotes_archived_reason_chk' and conrelid = 'public.quotes'::regclass)
+     and exists (select 1 from pg_constraint where conname = 'quotes_shelf_one_chk' and conrelid = 'public.quotes'::regclass))
+) v(item, ok) order by item;
+
+-- ##########################################################################################
+-- RELEASE SECTION 04/5: APPLY-0236.sql
 -- In plain words: One meaning of "in the free trial": checkout-started trials get the trial screens + client Test mode; package / message settings and sample clear / reset / switch refused in the trial; the admin's linked staff row is not a staff slot.
 -- ##########################################################################################
 -- APPLY-0236.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -1059,7 +1123,7 @@ select item, ok from (values
 ) v(item, ok) order by item;
 
 -- ##########################################################################################
--- RELEASE SECTION 04/4: APPLY-0237.sql
+-- RELEASE SECTION 05/5: APPLY-0237.sql
 -- In plain words: Trial sample data complete: layout version 1 on every sample event, floor plans seat the guests, event menu plans, layout rules + chair / plate types; existing trials get missing rows (insert only); new sample version.
 -- ##########################################################################################
 -- APPLY-0237.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
@@ -1485,6 +1549,22 @@ select '0207 ' || item as item, ok from (values
   ('08 every studio table is still classified for the trial-data deletion',
      not exists (select 1 from unnest(public._tr184_org_tables()) t
                   where t <> all(public._tr184_purge_tables()) and t <> all(public._tr184_keep_tables())))
+) v(item, ok)
+union all
+select '0208 ' || item as item, ok from (values
+  ('01 quotes_deleted_reason_chk allows manual, link_expired and auto_empty_draft (and empty)',
+     exists (select 1 from pg_constraint c where c.conname = 'quotes_deleted_reason_chk' and c.conrelid = 'public.quotes'::regclass
+              and pg_get_constraintdef(c.oid) like '%''auto_empty_draft''%' and pg_get_constraintdef(c.oid) like '%''manual''%'
+              and pg_get_constraintdef(c.oid) like '%''link_expired''%' and pg_get_constraintdef(c.oid) ilike '%deleted_reason IS NULL%')),
+  ('02 the check is validated and there is exactly one',
+     (select count(*) from pg_constraint c where c.conname = 'quotes_deleted_reason_chk' and c.conrelid = 'public.quotes'::regclass
+       and c.convalidated) = 1),
+  ('03 the empty-draft clean-up (0141) is installed and still stamps auto_empty_draft',
+     to_regprocedure('public._discard_empty_drafts_for(uuid, integer)') is not null
+     and position('auto_empty_draft' in pg_get_functiondef('public._discard_empty_drafts_for(uuid, integer)'::regprocedure)) > 0),
+  ('04 the other shelf checks are unchanged (archived reason, one shelf)',
+     exists (select 1 from pg_constraint where conname = 'quotes_archived_reason_chk' and conrelid = 'public.quotes'::regclass)
+     and exists (select 1 from pg_constraint where conname = 'quotes_shelf_one_chk' and conrelid = 'public.quotes'::regclass))
 ) v(item, ok)
 union all
 select '0236 ' || item as item, ok from (values
