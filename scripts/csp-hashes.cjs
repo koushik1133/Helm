@@ -135,7 +135,7 @@ const SCRIPT_SRC_BUILDER = [...SCRIPT_SRC_BASE,
   'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/'];
 // Pages (clean URL or .html) whose policy may use SCRIPT_SRC_BUILDER.
 const BUILDER_SOURCES = new Set(['/builder', '/builder\\.html', '/builder.html', '/try', '/try.html', '/(builder|try)', '/(builder|try)\\.html', '/capture', '/capture\\.html', '/capture.html', '/(capture|capture\\.html)', '/([a-z0-9-]+)/events/([^/]+)/floor-plan', '/:studio/events/:ref/floor-plan',
-  '/([a-z0-9-]+)/(events/([^/]+)/floor-plan|builder)', '/:studio/builder']);   // 0067 pretty floor-plan URL serves builder.html; la-1018 /<studio>/builder too
+  '/([a-z0-9-]+)/(events/[^/]+/floor-plan|builder)', '/:studio/builder']);   // 0067 pretty floor-plan URL serves builder.html; la-1018 /<studio>/builder too
 
 // Sign-in / password-reset pages may also load the Cloudflare Turnstile CAPTCHA
 // widget (a single-purpose origin, not a library CDN).

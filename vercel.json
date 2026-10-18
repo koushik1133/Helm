@@ -637,7 +637,7 @@
       ]
     },
     {
-      "source": "/([a-z0-9-]+)/(events/([^/]+)/floor-plan|builder)",
+      "source": "/([a-z0-9-]+)/(events/[^/]+/floor-plan|builder)",
       "headers": [
         {
           "key": "Content-Security-Policy",
