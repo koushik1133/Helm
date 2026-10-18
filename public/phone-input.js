@@ -551,8 +551,25 @@
     };
     input.helmPhone = inst;
     insts.push(inst);
+    keepRowClean(wrap, [btn, input, pop]);
     setFrom(initial);
     return inst;
+  }
+  // L12 (live QA): a page / validator that puts its error message right after the input (input.nextSibling)
+  // dropped it INSIDE the flex phone row, which squeezed the number box to ~24px wide. The row only ever holds
+  // the country button, the input and the country list: anything else added to it is moved out, to just after
+  // the row (a block line under the field), in the order it arrived.
+  function keepRowClean(wrap, own) {
+    function sweep() {
+      var p = wrap.parentNode; if (!p) return;
+      var at = wrap.nextSibling;
+      Array.prototype.slice.call(wrap.childNodes).forEach(function (c) {
+        if (own.indexOf(c) >= 0 || c.nodeType !== 1) return;
+        p.insertBefore(c, at);
+      });
+    }
+    try { new MutationObserver(sweep).observe(wrap, { childList: true }); } catch (e) {}
+    return sweep;
   }
   var insts = [];
   API.attach = attach;

@@ -437,9 +437,57 @@
     host.appendChild(ul);
   }
 
+  /* ---- L10 (live QA): removing a reservation that "Reserve N + source M" made left its shortage (and the vendor
+     booking it raised) open: "Short: 5 ... sourcing from <vendor> (enquiry)" stayed, and so did the vendor's event
+     history. Now the planner is asked "Also cancel the shortage and the vendor booking?"; yes = the shortage is set
+     to Not needed (status cancelled) and its vendor booking to cancelled. Statuses only: nothing is deleted. */
+  // pure: the open shortages that came with this item's reservation on this event (same event + item, still open)
+  function linkedShortages(rows, quoteId, itemId) {
+    return (rows || []).filter(function (x) { return x && x.source && x.status === "requested" && x.quote_id === quoteId && x.item_id === itemId; });
+  }
+  // pure: bookings on those shortages that can still be cancelled (not cancelled, not delivered)
+  function cancellableBookings(shorts, bookings) {
+    var ids = {}; (shorts || []).forEach(function (x) { if (x && x.booking_id) ids[x.booking_id] = 1; });
+    return (bookings || []).filter(function (b) { return b && ids[b.id] && b.status !== "cancelled" && b.status !== "delivered"; });
+  }
+  // pure: the question + its body for the confirm dialog
+  function cancelAsk(shorts, bks, itemName) {
+    var n = (shorts || []).length, m = (bks || []).length, what = itemName ? " for " + optName(itemName) : "";
+    var sh = n === 1 ? "shortage" : "shortages", bk = m === 1 ? "vendor booking" : "vendor bookings";
+    return { title: "Also cancel the " + sh + (m ? " and the " + bk : "") + "?",
+      body: (n === 1 ? "This reservation came with an open shortage" : "This item has " + n + " open shortages") + what +
+        (m ? (m === 1 ? " and a vendor booking" : " and " + m + " vendor bookings") : "") + ". " +
+        "Yes marks the " + sh + " Not needed" + (m ? " and the " + bk + " Cancelled" : "") + ". Nothing is deleted." };
+  }
+  // after a reservation was removed (or set to Cancelled): ask, then cancel the linked shortage + booking. -> Promise<count>
+  async function afterReservationRemoved(o) {
+    o = o || {}; var S = global.BPStore, B = global.BPUI;
+    if (!S || !S.inventory || !S.inventory.shortages || !S.stockreq || !o.quoteId || !o.itemId || !B || !B.confirm) return 0;
+    var shorts = [];
+    try { shorts = linkedShortages(await S.inventory.shortages(o.quoteId), o.quoteId, o.itemId); } catch (e) { return 0; }
+    if (!shorts.length) return 0;
+    var bks = [];
+    if (shorts.some(function (x) { return x.booking_id; }) && S.bookings && S.bookings.list) {
+      try { bks = cancellableBookings(shorts, await S.bookings.list(o.quoteId)); } catch (e) { bks = []; }
+    }
+    var ask = cancelAsk(shorts, bks, o.itemName);
+    if (!(await B.confirm(ask.body, { title: ask.title, okLabel: "Yes, cancel them", cancelLabel: "No, keep them" }))) return 0;
+    var done = 0, failed = 0;
+    for (var i = 0; i < shorts.length; i++) {
+      try { await S.stockreq.setStatus(shorts[i].id, "cancelled"); done++; } catch (e) { failed++; }
+    }
+    for (var j = 0; j < bks.length; j++) {
+      try { await S.bookings.update(bks[j].id, { status: "cancelled" }); done++; } catch (e) { failed++; }
+    }
+    if (failed) toast("Some of it could not be cancelled (" + failed + "). Check the shortage and the vendor booking.", "err");
+    else toast(bks.length ? "Shortage marked not needed and vendor booking cancelled." : "Shortage marked not needed.", "ok");
+    return done;
+  }
+
   global.HelmCapacity = { hostSaveClient: hostSaveClient, hostRelock: hostRelock, capText: capText, venueTotal: venueTotal, sortVenues: sortVenues, whyText: whyText, headline: headline, decisionPayload: decisionPayload,
     statusFor: statusFor, gate: gate, openDialog: openDialog, mountIssues: mountIssues, _resetCache: function () { _venues = null; } };
-  global.HelmShortage = { split: split, vendorsFor: vendorsFor, headline: shortHeadline, showPanel: showPanel, renderList: renderList };
+  global.HelmShortage = { split: split, vendorsFor: vendorsFor, headline: shortHeadline, showPanel: showPanel, renderList: renderList,
+    linkedShortages: linkedShortages, cancellableBookings: cancellableBookings, cancelAsk: cancelAsk, afterReservationRemoved: afterReservationRemoved };
   // the quote flow: read the venues early so the first "Send for approval" / PDF click answers at once
   try { if (doc && isFlow()) setTimeout(function () { var S = global.BPStore; if (S && S.auth && S.auth.user && S.auth.user()) venuesAll().catch(function () {}); }, 1500); } catch (e) {}
 })(typeof window !== "undefined" ? window : globalThis);

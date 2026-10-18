@@ -1162,7 +1162,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "39";
+  const AUTH_UI_VERSION = "40";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1215,7 +1215,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "14";
+  const TRIAL_BANNER_VERSION = "15";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -9845,6 +9845,7 @@ window.HelmUrl = HelmUrl;
     ".bpui-spin2{border:none;background:conic-gradient(from 90deg,color-mix(in srgb,var(--bpui-accent) 12%,transparent),var(--bpui-accent));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px))}}",
     "@media print{.bpui-toasts,.bpui-offline,.bpui-boot-overlay{display:none!important}}",
     ".bpui-capnote{display:inline-block;margin:0 8px;font-size:12.5px;line-height:1.3;color:var(--bpui-ink-2);vertical-align:middle}",
+    ".bpui-caplink{font-weight:700;color:inherit;text-decoration:underline}",
     ".bpui-capnote.is-full{color:var(--bpui-warn-ink);background:var(--bpui-warn-bg);border:1px solid var(--bpui-warn-line);border-radius:999px;padding:2px 10px}",
   ].join("\n");
   function injectCSS() {
@@ -10675,9 +10676,55 @@ window.HelmUrl = HelmUrl;
     });
   }
 
+  // L13 (live QA): a "new record" dialog opened at the free-trial cap (e.g. ?hs_act=new at 2 / 2) had Save on, and the
+  // server's refusal ("Free trial limit reached (2)") came with no way to upgrade. capDialog(save, errEl, entity, nouns,
+  // stillNew) switches Save off and says "Free trial: 2 of 2 items used. Choose a plan to add more" with the link to
+  // /checkout; capDialogReset undoes ONLY what capDialog did (call it on every open). capLimit shows the same words for
+  // a server refusal. isCapError: the server's trial-cap refusal (0181 hint trial_cap).
+  function capHref() {
+    var pg = "dashboard";
+    try { pg = (global.location.pathname.split("/").pop() || "dashboard").replace(/\.html$/, "") || "dashboard"; } catch (e) {}
+    return "/checkout?next=" + encodeURIComponent(pg + ".html");
+  }
+  function capLimit(errEl, c, nouns) {
+    if (!errEl) return;
+    var used = c ? "Free trial: " + Math.min(c.used, c.cap) + " of " + c.cap + " " + (nouns || "new records") + " used. " : "Free trial limit reached. ";
+    errEl.textContent = "";
+    errEl.appendChild(doc.createTextNode(used));
+    var a = h("a", { href: capHref(), class: "bpui-caplink" }, "Choose a plan to add more");
+    errEl.appendChild(a); errEl.appendChild(doc.createTextNode("."));
+    errEl.setAttribute("data-cap", "1"); errEl.hidden = false;
+  }
+  function capDialogReset(save, errEl) {
+    if (save && save.getAttribute("data-cap-off") === "1") { save.disabled = false; save.removeAttribute("data-cap-off"); save.removeAttribute("title"); }
+    if (errEl && errEl.getAttribute("data-cap") === "1") { errEl.removeAttribute("data-cap"); errEl.textContent = ""; errEl.hidden = true; }
+  }
+  function capDialog(save, errEl, entity, nouns, stillNew) {
+    capDialogReset(save, errEl);
+    return trialCap(entity).then(function (c) {
+      if (!c || !c.full || (typeof stillNew === "function" && !stillNew())) return c;
+      capLimit(errEl, c, nouns);
+      if (save) { if (!save.disabled) { save.disabled = true; save.setAttribute("data-cap-off", "1"); } save.setAttribute("title", capText(c, nouns)); }
+      return c;
+    }, function () { return null; });
+  }
+  function isCapError(e) { return !!(e && (e.hint === "trial_cap" || /free trial limit reached/i.test(String(e.message || "")))); }
+  // L13: a form-level error ("Contact name is required.") goes away as soon as a field in the dialog is changed;
+  // the cap message (data-cap) stays - it is not about a field. Bound once per dialog.
+  function clearErrOnEdit(box, errEl) {
+    if (!box || !errEl || box.__bpuiErrClear) return;
+    box.__bpuiErrClear = true;
+    var clear = function (e) {
+      if (errEl.hidden || errEl.getAttribute("data-cap") === "1" || (e && e.target && errEl.contains(e.target))) return;
+      errEl.hidden = true; errEl.textContent = "";
+    };
+    box.addEventListener("input", clear, true); box.addEventListener("change", clear, true);
+  }
+
   global.BPUI = {
     version: 1,
     trialCap: trialCap, capText: capText, capGate: capGate,
+    capDialog: capDialog, capDialogReset: capDialogReset, capLimit: capLimit, isCapError: isCapError, clearErrOnEdit: clearErrOnEdit,
     toast: toast,
     alert: alertDlg, confirm: confirmDlg, prompt: promptDlg,
     guard: guard,
@@ -11390,7 +11437,7 @@ window.HelmUrl = HelmUrl;
   // Every phone field becomes the HelmPhone component (phone-input.js: flag + searchable
   // country list + as-you-type format; .value stays E.164). Pages that don't include the
   // script get it loaded on demand; if it can't load, the legacy hardener below is used.
-  var PHONE_LIB_V = "5", phoneLib = null;
+  var PHONE_LIB_V = "6", phoneLib = null;
   function loadPhoneLib() {
     if (window.HelmPhone && window.HelmPhone.attach) return Promise.resolve(true);
     if (phoneLib) return phoneLib;

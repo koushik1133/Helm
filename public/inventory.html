@@ -263,13 +263,13 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=251"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=5"></script>
 <script src="tour.js?v=20"></script>
 <script src="checkout-shortage.js?v=4"></script>
-<script src="capacity-shortage.js?v=4"></script>
+<script src="capacity-shortage.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -418,6 +418,12 @@
     });
   }
 
+  // L10: after a reservation is removed / cancelled, offer to cancel its open shortage + vendor booking
+  async function resLinkedCancel(tr, name){
+    const itemId=tr&&tr.dataset?tr.dataset.item:""; if(!itemId||!quoteId||!window.HelmShortage||!HelmShortage.afterReservationRemoved) return 0;
+    const it=items.find(x=>x.id===itemId)||{};
+    try{ return await HelmShortage.afterReservationRemoved({ quoteId, itemId, itemName: name||it.name||"" }); }catch(e){ return 0; }
+  }
   function renderEventPanel(){
     if(!quoteId) return;
     // item dropdown with available qty
@@ -443,14 +449,19 @@
       BPUI.guard(s,async()=>{
         try{ await BPStore.inventory.setResStatus(s.dataset.res, next); s.dataset.prev=next; BPUI.toast("Reservation marked "+(ST[next]||next).toLowerCase()+".",{type:"ok"}); }
         catch(e){ s.value=prev; BPUI.toast(BPUI.friendlyError(e,{action:"update the reservation"}),{type:"err"}); return; }
+        // L10: a cancelled reservation can also cancel the shortage + vendor booking it came with (asked first)
+        if(next==="cancelled") await resLinkedCancel(s.closest("tr"));
         await load();
       });
     }));
     $("#resRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
       if(!(await BPUI.confirm(`Remove the reservation for ${b.dataset.name||"this item"}? The stock goes back to available.`,{title:"Remove reservation?",okLabel:"Remove",danger:true}))) return;
       await BPUI.guard(b,async()=>{
-        try{ await BPStore.inventory.removeRes(b.dataset.del); BPUI.toast("Reservation removed.",{type:"ok"}); await load(); }
-        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove the reservation"}),{type:"err"}); }
+        try{ await BPStore.inventory.removeRes(b.dataset.del); BPUI.toast("Reservation removed.",{type:"ok"}); }
+        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove the reservation"}),{type:"err"}); return; }
+        // L10: "Also cancel the shortage and the vendor booking?" - statuses only, nothing deleted
+        await resLinkedCancel(b.closest("tr"), b.dataset.name);
+        await load();
       });
     }));
   }
@@ -465,7 +476,7 @@
     $("#i_pri").value=it?(it.priority||"C"):"C"; $("#i_cost").value=it?(it.unit_cost||0):0;
     editingItem=it||null; attrEd=window.HelmImport?HelmImport.attrEditor("inventory",it&&it.attributes,attrDefs):null;
     $("#i_attrs").replaceChildren(...(attrEd?[attrEd.el]:[])); $("#i_attrs_box").hidden=!attrEd;
-    $("#im_deact").hidden=!(it&&canEdit); $("#im_err").hidden=true; itemDirty.clean(); $("#itemModal").hidden=false; if(!it) capHint(); setTimeout(()=>$("#i_name").focus(),50);
+    $("#im_deact").hidden=!(it&&canEdit); $("#im_err").hidden=true; itemDirty.clean(); $("#itemModal").hidden=false; if(!it) capHint(); else if(window.BPUI&&BPUI.capDialogReset) BPUI.capDialogReset($("#im_save"),$("#im_err")); setTimeout(()=>$("#i_name").focus(),50);
   }
   const itemDirty=BPUI.trackDirty($("#itemModal"));
   function closeItem(){ $("#itemModal").hidden=true; editingId=null; itemDirty.clean(); }
@@ -499,7 +510,7 @@
     }catch(e){ /* if the check itself can't run, fall through to the normal save */ }
     try{ if(editingId && attrCh) rec.attributes=await BPStore.mergeAttributes("inventory_items", editingId, Object.assign({ base:editingItem&&editingItem.attributes }, attrCh));
          if(editingId) await BPStore.inventory.updateItem(editingId,rec); else await BPStore.inventory.addItem(rec); }
-    catch(e){ $("#im_err").textContent=BPUI.friendlyError(e,{action:"save the item"}); $("#im_err").hidden=false; return; }
+    catch(e){ if(!editingId&&BPUI.isCapError&&BPUI.isCapError(e)){ BPUI.capLimit($("#im_err"),null,"items"); return; } $("#im_err").textContent=BPUI.friendlyError(e,{action:"save the item"}); $("#im_err").hidden=false; return; }
     const wasEdit=!!editingId; closeItem(); BPUI.toast(wasEdit?"Item saved.":"Item added.",{type:"ok"}); await load();
   }
 
@@ -520,6 +531,7 @@
   $("#im_close").addEventListener("click",requestCloseItem);
   $("#im_cancel").addEventListener("click",requestCloseItem);
   $("#im_save").addEventListener("click",()=>BPUI.guard($("#im_save"),saveItem,{busyLabel:"Saving…"}));
+  if(BPUI.clearErrOnEdit) BPUI.clearErrOnEdit($("#itemModal"),$("#im_err"));   // L13: a fixed field clears the old form error
   $("#im_deact").addEventListener("click",async()=>{ const id=editingId; if(!id) return;
     const it=items.find(x=>x.id===id)||{};
     if(!(await BPUI.confirm(`Deactivate ${it.name||"this item"}? It will no longer appear in stock or be available to reserve.`,{title:"Deactivate item?",okLabel:"Deactivate",danger:true}))) return;
@@ -771,7 +783,9 @@
   // B29: free trial - "2 of 2 items used" is shown by the add button (switched off at the cap), not after the form
   function gateCap(){ if(canEdit&&window.BPUI&&BPUI.capGate) BPUI.capGate([$("#newBtn")],"inventory_items","items").catch(()=>{}); }
   // ...and a new-record dialog opened at the cap says so at once (the server would refuse the save)
-  function capHint(){ if(!window.BPUI||!BPUI.trialCap) return; BPUI.trialCap("inventory_items").then(c=>{ if(c&&c.full&&!editingId&&!$("#itemModal").hidden){ $("#im_err").textContent=BPUI.capText(c,"items"); $("#im_err").hidden=false; } }).catch(()=>{}); }
+  // L13: ...with Save switched off and a "Choose a plan to add more" link (an edit switches Save back on)
+  function capHint(){ if(!window.BPUI) return; if(BPUI.capDialog){ BPUI.capDialog($("#im_save"),$("#im_err"),"inventory_items","items",()=>!editingId&&!$("#itemModal").hidden); return; }
+    if(!BPUI.trialCap) return; BPUI.trialCap("inventory_items").then(c=>{ if(c&&c.full&&!editingId&&!$("#itemModal").hidden){ $("#im_err").textContent=BPUI.capText(c,"items"); $("#im_err").hidden=false; } }).catch(()=>{}); }
   async function load(){
     gateCap();
     // Wave 16 perf: these five fetches are independent — run them in parallel

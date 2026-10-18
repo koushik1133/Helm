@@ -227,8 +227,8 @@ t("paid save sends dishes + active only when they changed; trial never sends act
   m.save.click(); await tick();
   assert.deepEqual(m.calls[0], { dishes: [{ c: "Desserts", n: "Gulab jamun", k: "veg" }] });
   m = mount({ trial: true, pkg: { dishes: [] } });
-  // merged with the picker review: the trial gets the add-dish row (catalog dishes only), the switch stays fixed
-  assert.notEqual(one(m.box, "mpk-add"), undefined, "add-dish row in the trial (catalog only)"); assert.equal(m.act.disabled, true);
+  // L8 (live QA): the server refuses dish changes in the trial -> no add-dish row there, the switch stays fixed
+  assert.equal(one(m.box, "mpk-add"), undefined, "no add-dish row in the trial"); assert.equal(m.act.disabled, true);
   m.setPrice("999"); m.save.click(); await tick();
   assert.deepEqual(m.calls[0], { price_per_plate: 999 }, "trial: price only, an untouched empty legacy list is not blocked");
   m = mount({ trial: true }); m.setPrice(""); m.save.click();
@@ -260,8 +260,29 @@ t("a dish not in the catalog: offer to add it (free trial: refused)", async () =
   dish.value = "paneer TIKKA"; sel.value = "Starters"; btnText(m.box, "+ Add dish").click();
   assert.match(one(m.box, "mpk-addmsg")._t, /already in this package/, "duplicate refused");
   const tm = mount({ trial: true, pkg: { dishes: [{ c: "Mains", n: "Not in catalog", k: "veg" }] } });
-  assert.match(one(tm.box, "mpk-catnote").textContent, /You can't add new dishes in the free trial\./);
+  assert.match(one(tm.box, "mpk-catnote").textContent, /Dishes are fixed in the free trial\./);
   assert.equal(btnText(one(tm.box, "mpk-catnote"), "Add it to the catalog"), undefined);
+});
+
+// ---- L8: free trial = price only (the server 403s every dish change) -----------------------------------
+t("free trial: dishes are read-only (no x, reorder, add row or bulk text); Save sends the price only", async () => {
+  const m = mount({ trial: true, pkg: { dishes: [{ c: "Starters", n: "Paneer tikka", k: "veg" }, { c: "Drinks", n: "Lemon mint cooler", k: "veg" }] } });
+  assert.equal(byCls(m.box, "mpk-chip").length, 2, "the dishes are listed");
+  assert.equal(byCls(m.box, "mpk-x").length, 0, "no remove (x)");
+  assert.equal(byCls(m.box, "mpk-mv").length, 0, "no category up / down");
+  assert.equal(byCls(m.box, "mpk-chip").filter((c) => c.draggable).length, 0, "not draggable");
+  assert.ok(byCls(m.box, "mpk-chip").every((c) => c.classList.contains("mpk-chip-ro")));
+  assert.equal(one(m.box, "mpk-add"), undefined, "no add-dish row"); assert.equal(one(m.box, "mpk-ta"), undefined, "no bulk text");
+  const chip = byCls(m.box, "mpk-chip")[1]; chip.fire("keydown", { key: "Delete" }); chip.fire("keydown", { key: "ArrowLeft", altKey: true });
+  assert.equal(byCls(m.box, "mpk-chip").length, 2, "Delete / Alt+arrow do nothing");
+  assert.equal(m.state._t, "", "nothing changed");
+  assert.equal(one(m.host, "mpk-trialnote")._t, "Free trial: you can change the price per plate. Dishes are fixed.");
+  assert.equal(one(m.box, "mpk-trial")._t, "Free trial: you can change the price per plate. Dishes are fixed.");
+  m.setPrice("725"); m.save.click(); await tick();
+  assert.deepEqual(m.calls, [{ price_per_plate: 725 }], "price only - never dishes / active");
+  // paid studio: the same card keeps the dish tools
+  const p = mount({ pkg: { dishes: [{ c: "Starters", n: "Paneer tikka", k: "veg" }, { c: "Drinks", n: "Lemon mint cooler", k: "veg" }] } });
+  assert.equal(byCls(p.box, "mpk-x").length, 2); assert.equal(byCls(p.box, "mpk-mv").length, 4); assert.notEqual(one(p.box, "mpk-add"), undefined);
 });
 
 // ---- bulk text in the card ---------------------------------------------------------------------------

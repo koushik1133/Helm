@@ -32,7 +32,25 @@
     list = Array.isArray(list) ? list : [];
     return list.length ? list.map(function (m) { return money(m.amount, m.currency); }).join(" + ") : money(0);
   }
-  function date(v) { if (!v) return "—"; var d = new Date(v); return isNaN(d) ? "—" : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); }
+  // a bare day ("2026-10-26") is shown as that day (new Date("YYYY-MM-DD") is UTC midnight: the day before west of UTC)
+  function date(v) {
+    if (!v) return "—"; var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v).trim());
+    var d = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)) : new Date(v);
+    return isNaN(d) ? "—" : d.toLocaleDateString("en-IN", m ? { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" } : { day: "numeric", month: "short", year: "numeric" });
+  }
+  // L9 (live QA): a studio's trial end is the STUDIO's calendar day of the exact end moment (hq_trial_info 0223 sends
+  // the studio's timezone; trial studios are India by default) - the same day the studio sees, never the UTC day or
+  // the operator's browser day. An end at exactly midnight belongs to the day before.
+  function trialDay(v, tz) {
+    if (!v) return "—";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(v).trim())) return date(v);
+    var ms = Date.parse(v); if (!isFinite(ms)) return "—";
+    var zones = [tz || "Asia/Kolkata", "Asia/Kolkata"];
+    for (var i = 0; i < zones.length; i++) {
+      try { return new Date(ms - 1).toLocaleDateString("en-IN", { timeZone: zones[i], day: "numeric", month: "short", year: "numeric" }); } catch (e) {}
+    }
+    return date(v);
+  }
   function ago(v) {
     if (!v) return "never"; var d = (Date.now() - new Date(v).getTime()) / 864e5;
     if (!isFinite(d)) return "—"; if (d < 1) return "today"; if (d < 2) return "yesterday"; return Math.floor(d) + " days ago";
@@ -166,7 +184,8 @@
     wrap.appendChild(el("div", null, [statusPill(sub.status || d.status), " ", (sub.plan_name || "No plan"),
       sub.price_monthly != null ? " · " + money(sub.price_monthly, sub.currency) + "/month" : "",
       sub.current_period_end ? " · period ends " + date(sub.current_period_end) : "",
-      sub.trial_ends_at ? " · trial ends " + date(sub.trial_ends_at) : ""]));
+      // L9: replaced by the studio-zone day once hq_trial_info answers (loadTrialInfo)
+      sub.trial_ends_at ? el("span", { id: "subTrialEnd", text: " · trial ends " + date(sub.trial_ends_at) }) : ""]));
     if (sub.status === "suspended") wrap.appendChild(el("div", { cls: "muted", text: "Suspended " + date(sub.suspended_at) + " — " + (sub.suspend_reason || "") }));
     var selPlan = el("select", { "aria-label": "Plan" }); selPlan.appendChild(el("option", { value: "", text: "(keep plan)" }));
     plans.filter(function (p) { return p.active; }).forEach(function (p) { selPlan.appendChild(el("option", { value: p.code, text: p.name + " · " + money(p.price_monthly, p.currency) })); });
@@ -255,13 +274,15 @@
   async function loadTrialInfo(org, name, box) {
     var t = await call("hq_trial_info", { p_org: org }); t = t && !Array.isArray(t) ? t : {};
     clear(box);
-    var x = t.extension || null, ended = t.trial_ends_at && new Date(t.trial_ends_at).getTime() <= Date.now();
+    var x = t.extension || null, ended = t.trial_ends_at && new Date(t.trial_ends_at).getTime() <= Date.now(), tz = t.timezone || null;
+    var subEnd = document.getElementById("subTrialEnd");
+    if (subEnd && t.trial_ends_at) subEnd.textContent = " · trial ends " + trialDay(t.trial_ends_at, tz);
     box.appendChild(el("div", null, [statusPill(t.status || "none"), " ",
-      t.trial_ends_at ? (ended ? "trial ended " : "trial ends ") + date(t.trial_ends_at) : "no trial end date",
+      t.trial_ends_at ? (ended ? "trial ended " : "trial ends ") + trialDay(t.trial_ends_at, tz) : "no trial end date",
       t.locked ? " · read-only" : "", t.trial_mode ? " · " + (t.trial_mode === "demo" ? "sample data" : "own data") : ""]));
     if (x) {
       box.appendChild(el("div", { cls: "muted", text: "Extended once by " + int(x.days) + " day" + (num(x.days) === 1 ? "" : "s") +
-        " on " + date(x.granted_at) + (x.granted_by_email ? " by " + x.granted_by_email : "") + " (" + date(x.previous_ends_at) + " → " + date(x.new_ends_at) + ")." }));
+        " on " + date(x.granted_at) + (x.granted_by_email ? " by " + x.granted_by_email : "") + " (" + trialDay(x.previous_ends_at, tz) + " → " + trialDay(x.new_ends_at, tz) + ")." }));
       box.appendChild(el("div", { cls: "muted", text: "Reason: " + (x.reason || "—") }));
       box.appendChild(el("div", { cls: "muted", text: "Only one extension is allowed per studio." }));
       return;

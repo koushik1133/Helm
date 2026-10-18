@@ -62,15 +62,20 @@ assert.ok(M.same(std, JSON.parse(JSON.stringify(std))) && !M.same(std, M.removeA
 const src = r("public/menu-pkg-editor.js");
 assert.ok(/^[\x00-\x7F]*$/.test(src), "ASCII only (unicode as \\u escapes)");
 assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(src), "no HTML sinks");
-// free trial (0173, docs/trial/TRIAL-END-TO-END.md): price AND dishes editable, catalog dishes only, Active fixed
-assert.ok(!/ctx\.trial\(\) \? \{ price_per_plate: pp \}/.test(src), "trial no longer saves the price only");
-assert.ok(!/if \(!trial\) \{\s*add = el\("div", "mpk-add"\)/.test(src), "the add-dish row is shown in the trial too");
-assert.match(src, /add = el\("div", "mpk-add"\)/);
-assert.match(src, /if \(trial\) \{ addNote\("In the free trial you can add dishes from your Dishes catalog only/, "trial: no new dish names");
+// free trial (0173 + 0203; L8 live QA): the server refuses dish changes in the trial, so ONLY the price per plate is
+// editable there - no add-dish row, no remove / reorder, Save never sends dishes or Active
+assert.match(src, /if \(!trial\) \{\s*add = el\("div", "mpk-add"\)/, "no add-dish row in the trial (L8)");
+assert.ok(!/In the free trial you can add dishes/.test(src), "no 'add dishes from the catalog' path in the trial any more");
+assert.match(src, /var TRIAL_NOTE = "Free trial: you can change the price per plate\. Dishes are fixed\.";/);
+assert.equal((src.match(/TRIAL_NOTE\)\)/g) || []).length, 2, "both trial notes use the one wording");
+assert.ok(!/change each package's price and dishes|change the price and the dishes/.test(src), "old wording gone");
+assert.match(src, /if \(trial\) \{ c\.classList\.add\("mpk-chip-ro"\);[^\n]*return c; \}/, "trial chips: no x, no drag, no keys");
+assert.match(src, /if \(gs\.length > 1 && !trial\) \{/, "no category up / down in the trial");
+assert.match(src, /if \(!trial && !same\(st\.dishes, st\.base\.dishes\)\) patch\.dishes = normDishes\(st\.dishes\);/, "trial never sends dishes");
 assert.match(src, /if \(!v\.pr\.keep\) patch\.price_per_plate = v\.pr\.value;/, "price sent only when changed (0192 checkPrice)");
 assert.match(src, /if \(trial\) \{ act\.disabled = true;/, "active switch fixed in the trial");
 assert.match(src, /if \(!trial && v\.on !== st\.base\.active\) patch\.active = v\.on;/, "trial never sends active");
-assert.match(src, /if \(!same\(st\.dishes, st\.base\.dishes\)\) patch\.dishes = normDishes\(st\.dishes\);/, "price-only save never rewrites the stored dishes");
+assert.match(src, /if \(!trial && !same\(st\.dishes, st\.base\.dishes\)\) patch\.dishes = normDishes\(st\.dishes\);/, "price-only save never rewrites the stored dishes");
 assert.match(src, /if \(textPending\(\) && !applyText\(\)\) return;/, "pasted text not applied yet is saved (or its line errors shown), not dropped");
 assert.match(src, /price\.autocomplete = "off";/);
 assert.match(src, /price\.value = priceText\(st\.price\);/, "price set as a property from the tolerant reader");

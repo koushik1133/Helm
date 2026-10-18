@@ -44,7 +44,7 @@ t('HQ: studio page reads hq_trial_info and grants through hq_extend_trial only (
   assert.ok(/^hq_[a-z_]+$/.test('hq_trial_info') && /^hq_[a-z_]+$/.test('hq_extend_trial'));
 });
 t('HQ page loads the new hq.js (cache pin bumped), no inline handlers / styles', () => {
-  assert.match(HTML, /<script src="hq\.js\?v=11"><\/script>/);
+  assert.match(HTML, /<script src="hq\.js\?v=12"><\/script>/);
   assert.doesNotMatch(HTML, /\sstyle="/); assert.doesNotMatch(HTML, /\son[a-z]+="/i);
 });
 t('"already used" messages are friendly sentences the app shows as-is (login: friendlyError r9 rule; checkout: 160 chars)', () => {
