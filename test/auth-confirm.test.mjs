@@ -1,8 +1,8 @@
 // auth-confirm (0205): every auth e-mail link opens on www.helm.events/auth/confirm (never the Supabase
 // project URL). Pure parser: only the six e-mail types, a token-hash shape, and `next` only as a
 // same-origin path (no open redirect). Page: external scripts only, token stripped from the address
-// bar, never swaps a signed-in account without asking, keeps a sign-up session only in the browser
-// that started it.
+// bar, never swaps a signed-in account without asking, keeps a sign-up session silently only in the browser
+// that started it (round 19: another browser asks once - "Continue as <e-mail>" or sign out).
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -69,7 +69,9 @@ t("handler: token out of the address bar, no silent account swap, sign-up sessio
   assert.match(js, /history\.replaceState\(null, "", location\.pathname\)/);
   const i = js.indexOf("if (cur) {"), j = js.indexOf("verify();", i);
   assert.ok(i > 0 && js.slice(i, j).includes('addEventListener("click"'), "signed in: verify only after 'Sign out and continue'");
-  assert.match(js, /BPStore\.auth\.signupStartedHere\(user\.email\)\) \{ go\(link\.next\); return; \}/);
+  // round 19: same browser -> straight on (hand-over card on /login); another browser -> "Continue as <e-mail>" once
+  assert.match(js, /BPStore\.auth\.signupStartedHere\(user\.email\)\) \{\n\s+say\("Email confirmed", "Setting up your studio…"\); handoff\(\); go\(link\.next\); return; \}/);
+  assert.match(js, /if \(SIGNUP && user && user\.email\) \{ askContinue\(user\.email\); return; \}/);
   assert.match(js, /markInviteLinkSession\(need\)/);
   assert.match(js, /a sign-in link with no invitation behind it[\s\S]{0,120}signOut\(\)/);
   assert.match(js, /go\(C\.withParam\(link\.next, "error_code", expired \? "otp_expired" : "link_failed"\)\)/);

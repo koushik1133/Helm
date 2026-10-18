@@ -23,9 +23,11 @@ const WHAT = {
   '0237': 'Trial sample data complete: layout version 1 on every sample event, floor plans seat the guests, event menu plans, layout rules + chair / plate types; existing trials get missing rows (insert only); new sample version.',
 };
 
-// the new migrations = every MANIFEST entry numbered after PROD_LAST, in MANIFEST order
+// the release's migrations = the MANIFEST entries numbered after PROD_LAST that belong to release/1018-c
+// (RELEASE, frozen: it shipped; a later migration such as 0210 goes in its own paste file), in MANIFEST order
+export const RELEASE = ['0206', '0207', '0208', '0236', '0237'];
 const man = r('supabase/migrations/MANIFEST');
-const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]).filter((n) => +n > PROD_LAST);
+const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]).filter((n) => +n > PROD_LAST && RELEASE.includes(n));
 export const SECTIONS = nums;
 const sections = nums.map((n) => {
   const p = `supabase/APPLY-${n}.sql`;
