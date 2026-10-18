@@ -45,7 +45,7 @@ html[data-shell="b"] .hb-top { display: flex; align-items: center; gap: 6px; hei
 html[data-shell="b"] .hb-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; flex: 1; min-width: 0; }
 html[data-shell="b"] .hb-logo { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 9px; background: var(--hb-on); color: var(--hb-on-ink);
   display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; letter-spacing: -.02em; }
-html[data-shell="b"] .hb-logo .helm-mark { width: 26px; height: 26px; display: block; stroke: color-mix(in srgb, currentColor 58%, transparent); }
+html[data-shell="b"] .hb-logo .helm-mark { width: 26px; height: 26px; display: block; fill: color-mix(in srgb, currentColor 58%, transparent); stroke: color-mix(in srgb, currentColor 58%, transparent); }
 html[data-shell="b"] .hb-name { font-weight: 650; font-size: 15px; }
 html[data-shell="b"] .hb-pin { border: 1px solid var(--hb-line); background: var(--hb-bg); color: var(--hb-ink3); border-radius: 8px; width: 30px; height: 30px;
   cursor: pointer; opacity: 0; transition: opacity .12s ease; flex: 0 0 30px; display: flex; align-items: center; justify-content: center; padding: 0; }
@@ -295,11 +295,24 @@ html[data-shell="b"] .hb-rail .hb-item.on::before { content: ""; position: absol
 html[data-shell="b"] .hb-item .hb-ic { transition: transform .2s var(--hb-ease); }
 html[data-shell="b"] .hb-item:hover .hb-ic { transform: translateX(1px) scale(1.06); }
 /* brand tile */
-/* brand mark: bare (no tile). Pill 1 = --hb-mark (theme ink, max contrast on the rail), pill 2 = --hb-mark2 (theme accent text colour, AA on the rail). */
+/* brand mark: bare compass-H (no tile). H + ring = --hb-mark (theme ink, max contrast on the rail), compass points = --hb-mark2 (theme accent text colour, AA on the rail). */
 html[data-shell="b"] { --hb-mark: var(--hb-ink); --hb-mark2: var(--hb-acc-text); }
-html[data-shell="b"][data-hb-theme="graphite"] { --hb-mark2: var(--hb-ink3); }   /* graphite accent == ink: use the grey so the two pills stay distinct */
+html[data-shell="b"][data-hb-theme="graphite"] { --hb-mark2: var(--hb-mark); }   /* graphite = single-ink mark (pure black / white); the gaps keep the H readable */
 html[data-shell="b"] .hb-logo, html[data-shell="b"][data-hb-theme] .hb-logo { background: none; color: var(--hb-mark); box-shadow: none; border-radius: 0; }
-html[data-shell="b"] .hb-logo .helm-mark, html[data-shell="b"][data-hb-theme] .hb-logo .helm-mark { width: 32px; height: 32px; color: var(--hb-mark); stroke: var(--hb-mark2); }
+html[data-shell="b"] .hb-logo, html[data-shell="b"][data-hb-theme] .hb-logo { width: 34px; height: 38px; flex: 0 0 34px; }
+html[data-shell="b"] .hb-logo .hb-sym { width: 34px; height: 38px; display: block; }
+html[data-shell="b"] .hb-brand { gap: 0; }
+html[data-shell="b"] .hb-name { margin-left: -4px; font-size: 0; line-height: 0; }
+html[data-shell="b"] .hb-name .hb-elm { height: 38px; width: auto; display: block; }
+/* logo colours per theme (kit shape, recoloured): ink = H + ELM, acc = compass points, ring = ring + ticks */
+html[data-shell="b"] .hl-ink { fill: var(--hl-ink); } html[data-shell="b"] .hl-acc { fill: var(--hl-acc); stroke: var(--hl-acc); } html[data-shell="b"] .hl-ring { stroke: var(--hl-ring); }
+html[data-shell="b"], html[data-shell="b"][data-hb-theme="emerald"] { --hl-ink: #0b5d44; --hl-acc: #2fcf98; --hl-ring: #1aa37a; }
+html[data-shell="b"][data-hb-theme="cobalt"] { --hl-ink: #1d3fcf; --hl-acc: #38bdf8; --hl-ring: #2fa8e8; }
+html[data-shell="b"][data-hb-theme="midnight"] { --hl-ink: #3730a3; --hl-acc: #a78bfa; --hl-ring: #8b7cf6; }
+html[data-shell="b"][data-hb-theme="graphite"] { --hl-ink: #111111; --hl-acc: #111111; --hl-ring: #111111; }
+html[data-shell="b"][data-hb-theme="studio"] { --hl-ink: #5b2a86; --hl-acc: #d4a24c; --hl-ring: #c9963f; }
+html[data-shell="b"][data-theme="dark"] { --hl-ink: #e6f4ef; }
+html[data-shell="b"][data-theme="dark"][data-hb-theme="graphite"] { --hl-ink: #f2f2f2; --hl-acc: #f2f2f2; --hl-ring: #f2f2f2; }
 html[data-shell="b"] .hb-pin:hover, html[data-shell="b"] .hb-pin[aria-pressed="true"] { color: var(--hb-acc-text); border-color: var(--hb-acc); }
 /* top bar: frosted, hairline */
 html[data-shell="b"] header.hb-header { background: color-mix(in srgb, var(--hb-bg) 78%, transparent); -webkit-backdrop-filter: saturate(160%) blur(12px); backdrop-filter: saturate(160%) blur(12px);

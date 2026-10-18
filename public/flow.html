@@ -20,8 +20,8 @@
   a{color:inherit;text-decoration:none}
   .wrap{max-width:1180px;margin:0 auto;padding:0 24px 80px}
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
-  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
-  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  .mark{width:30px;height:30px;border-radius:0;background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat;position:relative;flex:0 0 auto}
+  .mark::after{content:none}
   header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;flex-wrap:wrap;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
@@ -162,9 +162,9 @@
             <div class="fld"><label for="c_city">City</label><input id="c_city" maxlength="60" autocomplete="address-level2" placeholder="e.g. Hyderabad"></div>
             <div class="fld"><label for="c_state" id="c_stateLbl">Client state</label><select id="c_state" autocomplete="address-level1"><option value="">Not set</option></select></div>
             <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0" max="100000"></div>
-            <div class="fld full"><label for="d_bmax">Budget (₹)</label><input id="d_bmax" type="number" min="0" placeholder="e.g. 500000"><input id="d_bmin" type="hidden"></div>
+            <div class="fld"><label for="d_bmax">Budget (₹)</label><input id="d_bmax" type="number" min="0" placeholder="e.g. 500000"><input id="d_bmin" type="hidden"></div>
           </div>
-          <p class="hint next-step" data-next-step><b>Next step:</b> fill in Discovery (step 2) — what the client wants (the budget range is above).</p>
+          <p class="hint next-step" data-next-step><b>Next step:</b> fill in Discovery (step 2) — what the client wants (the budget is above).</p>
         </section>
 
         <!-- 2 DISCOVERY -->

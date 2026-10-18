@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -3 1520 645" role="img" aria-label="HELM brand logo"><title>HELM</title><defs>
+<linearGradient id="blue" x1="0.24" x2="0.88" y1="0" y2="1"><stop stop-color="#087FC5"/><stop offset=".48" stop-color="#0663B0"/><stop offset="1" stop-color="#082F70"/></linearGradient>
+<linearGradient id="navy" x1="0" y1="0" x2=".85" y2="1"><stop stop-color="#0C6BAE"/><stop offset=".56" stop-color="#075397"/><stop offset="1" stop-color="#09245C"/></linearGradient>
+<linearGradient id="teal" x1="0" y1="0" x2=".9" y2="1"><stop stop-color="#10E0CA"/><stop offset=".60" stop-color="#08BCAA"/><stop offset="1" stop-color="#08857F"/></linearGradient>
+<linearGradient id="cyan" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#1DE2E2"/><stop offset=".6" stop-color="#079CD8"/><stop offset="1" stop-color="#0459A9"/></linearGradient>
+<linearGradient id="steel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#778998"/><stop offset=".5" stop-color="#C6D0DA"/><stop offset="1" stop-color="#8796A3"/></linearGradient>
+<clipPath id="Eclip"><path d="M518 153 H790 V220 H607 V290 H765 V357 H607 V416 H792 V486 H518 Z"/></clipPath>
+<clipPath id="Lclip"><path d="M822 153 H910 V416 H1037 V486 H822 Z"/></clipPath>
+<clipPath id="Mclip"><path d="M1060 486 V153 H1147 L1272 354 L1397 153 H1505 V486 H1419 V296 L1288 447 H1254 L1146 295 V486 Z"/></clipPath>
+</defs><g id="helm-mark">
+<g fill="none" stroke="url(#steel)" stroke-width="11" stroke-linecap="butt" opacity=".89"><path d="M 124.37,175.11 A 235,235 0 0 1 290.61,88.57"/><path d="M 323.39,88.57 A 235,235 0 0 1 481.64,165.75"/><path d="M 494.68,181.57 A 235,235 0 0 1 489.63,470.89"/><path d="M 467.27,494.87 A 235,235 0 0 1 327.48,557.11"/><path d="M 286.52,557.11 A 235,235 0 0 1 140.83,489.17"/><path d="M 119.32,464.43 A 235,235 0 0 1 121.82,178.32"/></g>
+<g stroke="url(#teal)" stroke-width="9" stroke-linecap="square"><path d="M 132.9 154.9 L 105.6 128.5"/><path d="M 481.1 154.9 L 508.4 128.5"/><path d="M 481.1 491.1 L 508.4 517.5"/><path d="M 132.9 491.1 L 105.6 517.5"/></g>
+<path d="M148 153 H232 V284 H386 V153 H475 V486 H386 V363 H232 V486 H148 Z" fill="url(#blue)"/>
+<path d="M386 153 H475 V486 H386 V363 L371 360 V282 L386 284 Z" fill="url(#navy)" opacity=".42"/>
+<g stroke="#FFFFFF" stroke-width="7" stroke-linejoin="round">
+<path d="M307 5 L256 272 L286 263 L307 102 L333 265 L356 272 Z" fill="url(#teal)"/>
+<path d="M307 5 L307 278" fill="none" stroke-width="6"/>
+<path d="M6 324 L269 260 L269 280 L114 323 Z" fill="url(#cyan)"/>
+<path d="M6 324 L269 368 L269 387 Z" fill="url(#blue)"/>
+<path d="M6 324 H270" fill="none" stroke-width="6"/>
+<path d="M280 365 L307 633 L340 365 Z" fill="url(#blue)"/>
+<path d="M307 366 V617" fill="none" stroke-width="4" opacity=".9"/>
+</g>
+</g><g fill="#F4F9FF"><path d="M518 153 H790 V220 H607 V290 H765 V357 H607 V416 H792 V486 H518 Z"/><path d="M822 153 H910 V416 H1037 V486 H822 Z"/><path d="M1060 486 V153 H1147 L1272 354 L1397 153 H1505 V486 H1419 V296 L1288 447 H1254 L1146 295 V486 Z"/></g></svg>

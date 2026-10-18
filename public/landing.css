@@ -25,7 +25,7 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:saturate(1.4) blur(8px);
 .bar{display:flex;align-items:center;gap:12px;padding:15px 0}
 .logo{display:flex;align-items:center;gap:11px}
 .mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
-.mark::after{content:"";position:absolute;inset:8px;border:2px solid rgba(255,255,255,.92);border-radius:3px}
+.mark::after{content:none}
 .logo h1,.logo .logo-name{display:block;font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em}
 .logo small{display:block;font-size:9.5px;color:var(--ink-3);font-weight:600;letter-spacing:.09em;text-transform:uppercase}
 .navlinks{margin-left:auto;display:flex;align-items:center;gap:26px}
@@ -103,3 +103,6 @@ main:focus{outline:none}
 .s-8a9c1f4:not(#_):not(#_):not(#_){margin-top:10px;font-size:13px;color:var(--ink-3)}
 .s-edd30cd:not(#_):not(#_):not(#_){color:var(--accent);font-weight:600;margin:0 0 8px}
 /* END generated: inline-style classes */
+
+/* brand kit symbol (as-is) replaces the old gradient tile */
+.mark{background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}

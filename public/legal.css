@@ -29,7 +29,7 @@ main{outline:none}
 .nav::before{content:"";position:absolute;inset:0;background:rgba(245,246,241,.78);backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);border-bottom:1px solid var(--line);opacity:0;transition:opacity .5s var(--ease)}
 .nav.scrolled::before{opacity:1}
 .brand{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:20px;text-decoration:none;letter-spacing:-.02em;position:relative}
-.mark{display:inline-flex;gap:2px;transform:rotate(-20deg)}.mark i{width:9px;height:15px;border-radius:9px;background:var(--ink)}.mark i+i{background:var(--acc)}
+/* brand kit logo (copied as-is to /brand/): header/footer use the HELM lockup <img class="lockup">; .mark = kit symbol */.lockup{height:32px;width:auto;display:block}.mark{display:inline-block;width:26px;height:30px;flex:none;background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat}.mark i{display:none}
 .menu{flex:1;display:flex;justify-content:center;gap:4px;position:relative}
 .mlink{display:inline-flex;align-items:center;min-height:42px;padding:8px 14px;border-radius:99px;font-size:15px;font-weight:500;text-decoration:none;transition:background .3s var(--ease)}
 .mlink:hover{background:rgba(16,21,17,.06)}
@@ -131,3 +131,5 @@ main{outline:none}
   .lg-progress{display:none}
   .lg-doc .lg-related a,.lg-toc a,.btn{transition:none}
 }
+/* Helm logo: brand-kit shape recoloured (Emerald): ink = H + ELM, acc = compass points, ring */
+.lockup{height:32px;width:auto;display:block}.hl-ink{fill:#0b5d44}.hl-acc{fill:#2fcf98;stroke:#2fcf98}.hl-ring{stroke:#1aa37a}
