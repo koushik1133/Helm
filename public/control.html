@@ -458,14 +458,16 @@
     <div class="card">
       <h3>Dishes catalog (menu)</h3>
       <p class="mnote s-020d693">The dishes staff can search &amp; add to an event's menu. Add your studio's specialities here.</p>
-      <input class="s-31b5119" id="dishFilter" placeholder="Filter dishes…" aria-label="Filter dishes">
+      <input class="s-31b5119" id="dishFilter" type="search" maxlength="100" autocomplete="off" placeholder="Filter dishes…" aria-label="Filter dishes">
       <div class="s-5f8400a" id="dishList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
       <div class="addrow s-07db89a">
-        <input id="dc_cat" placeholder="Category e.g. Starters (veg)" aria-label="Dish category">
-        <input id="dc_name" placeholder="Dish name" aria-label="Dish name">
+        <input id="dc_cat" maxlength="200" autocomplete="off" list="dc_cat_list" placeholder="Category e.g. Starters (veg)" aria-label="Dish category" aria-required="true"><datalist id="dc_cat_list"></datalist>
+        <input id="dc_name" maxlength="200" autocomplete="off" placeholder="Dish name" aria-label="Dish name" aria-required="true">
         <select id="dc_kind" aria-label="Dish type"><option value="veg">Veg</option><option value="nonveg">Non-veg</option><option value="special">Special</option></select>
         <button type="button" class="btn" id="dc_add">+ Add dish</button>
       </div>
+      <div class="cc-row-errs" id="dc_errs" data-cc-errs></div>
+      <p class="mnote cc-row-ok" id="dc_ok" role="status" aria-live="polite"></p>
     </div>
 
     <div class="card" id="menuCard">
@@ -666,9 +668,9 @@
             <label class="cmchk" for="cm_pay_email"><input type="checkbox" id="cm_pay_email"> E-mail</label>
             <label class="cmchk" for="cm_pay_wa"><input type="checkbox" id="cm_pay_wa"> WhatsApp</label></div>
           <div class="cmgrid">
-            <div class="fld"><label for="cm_pay_before">Days before the due date</label><input id="cm_pay_before" type="number" min="0" max="30" step="1" inputmode="numeric"></div>
-            <div class="fld"><label for="cm_pay_every">Then every N days overdue</label><input id="cm_pay_every" type="number" min="1" max="30" step="1" inputmode="numeric"></div>
-            <div class="fld"><label for="cm_pay_max">Max overdue reminders</label><input id="cm_pay_max" type="number" min="0" max="10" step="1" inputmode="numeric"></div>
+            <div class="fld"><label for="cm_pay_before">Days before the due date (0–30)</label><input id="cm_pay_before" type="number" min="0" inputmode="numeric" aria-required="true"></div>
+            <div class="fld"><label for="cm_pay_every">Then every N days overdue (1–30)</label><input id="cm_pay_every" type="number" min="0" inputmode="numeric" aria-required="true"></div>
+            <div class="fld"><label for="cm_pay_max">Max overdue reminders (0–10)</label><input id="cm_pay_max" type="number" min="0" inputmode="numeric" aria-required="true"></div>
             <div class="fld"><span class="cmlbl">On the due date</span><label class="cmchk" for="cm_pay_due"><input type="checkbox" id="cm_pay_due"> Remind on the day</label></div>
           </div>
           <div class="fld"><label for="cm_pay_tpl">Message</label><textarea id="cm_pay_tpl" rows="3" maxlength="1000"></textarea></div>
@@ -682,8 +684,8 @@
             <label class="cmchk" for="cm_fu_email"><input type="checkbox" id="cm_fu_email"> E-mail</label>
             <label class="cmchk" for="cm_fu_wa"><input type="checkbox" id="cm_fu_wa"> WhatsApp</label></div>
           <div class="cmgrid">
-            <div class="fld"><label for="cm_fu_delay">Days after opening</label><input id="cm_fu_delay" type="number" min="1" max="30" step="1" inputmode="numeric"></div>
-            <div class="fld"><label for="cm_fu_max">Max follow-ups</label><input id="cm_fu_max" type="number" min="1" max="5" step="1" inputmode="numeric"></div>
+            <div class="fld"><label for="cm_fu_delay">Days after opening (1–30)</label><input id="cm_fu_delay" type="number" min="0" inputmode="numeric" aria-required="true"></div>
+            <div class="fld"><label for="cm_fu_max">Max follow-ups (1–5)</label><input id="cm_fu_max" type="number" min="0" inputmode="numeric" aria-required="true"></div>
           </div>
           <div class="fld"><label for="cm_fu_tpl">Message</label><textarea id="cm_fu_tpl" rows="3" maxlength="1000"></textarea></div>
           <p class="mnote">Placeholders: {client} {studio} {event}. Follow-ups stop once the client approves, picks a package, or the event is cancelled.</p>
@@ -754,7 +756,8 @@
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=7"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
-<script src="event-reminders.js?v=1"></script>
+<script src="event-reminders.js?v=2"></script>
+<script src="cc-field-rules.js?v=1"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
@@ -762,11 +765,11 @@
 <script src="tour.js?v=15"></script>
 <script src="pkg-review.js?v=4"></script>
 <script src="onboarding-core.js?v=5"></script>
-<script src="comms-settings.js?v=3"></script>
+<script src="comms-settings.js?v=4"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="privacy-pin-settings.js?v=1"></script>
 <script src="venues-core.js?v=5"></script>
-<script src="venues-admin.js?v=4"></script>
+<script src="venues-admin.js?v=5"></script>
 <script src="studio-templates-core.js?v=1"></script>
 <script src="studio-templates.js?v=3"></script>
 <script src="item-pricing.js?v=1"></script>
@@ -1080,9 +1083,9 @@
       <div class="lr" data-id="${esc(r.id)}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
         <strong style="text-transform:capitalize">${et}</strong>
         <div class="grid" style="margin-top:8px">
-          <div class="fld"><label for="${k}_spg">Seats per guest</label><input id="${k}_spg" class="lr_spg" type="number" min="0" step="0.1" value="${num(r,'seatsPerGuest',1)}" aria-label="Seats per guest for ${et}"></div>
-          <div class="fld"><label for="${k}_buf">Buffet table per N guests</label><input id="${k}_buf" class="lr_buf" type="number" min="1" step="1" value="${num(r,'buffetPer',100)}" aria-label="Buffet table per N guests for ${et}"></div>
-          <div class="fld"><label for="${k}_bars">Bars</label><input id="${k}_bars" class="lr_bars" type="number" min="0" step="1" value="${num(r,'bars',0)}" aria-label="Bars for ${et}"></div>
+          <div class="fld"><label for="${k}_spg">Seats per guest <span class="lr_rng">(more than 0, up to 10)</span></label><input id="${k}_spg" class="lr_spg" type="number" min="0" step="0.1" inputmode="decimal" aria-required="true" value="${num(r,'seatsPerGuest',1)}" aria-label="Seats per guest for ${et}"></div>
+          <div class="fld"><label for="${k}_buf">Buffet table per N guests <span class="lr_rng">(10 to 500)</span></label><input id="${k}_buf" class="lr_buf" type="number" min="0" inputmode="numeric" aria-required="true" value="${num(r,'buffetPer',100)}" aria-label="Buffet table per N guests for ${et}"></div>
+          <div class="fld"><label for="${k}_bars">Bars <span class="lr_rng">(0 to 20)</span></label><input id="${k}_bars" class="lr_bars" type="number" min="0" inputmode="numeric" aria-required="true" value="${num(r,'bars',0)}" aria-label="Bars for ${et}"></div>
         </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:13px;color:var(--ink-2)">
           <label><input type="checkbox" class="lr_stage" ${on(r,'stage')?'checked':''}> Stage</label>
@@ -1090,20 +1093,29 @@
           <label><input type="checkbox" class="lr_walk" ${on(r,'walkway')?'checked':''}> Walkway</label>
           <label><input type="checkbox" class="lr_dj" ${on(r,'dj')?'checked':''}> DJ</label>
         </div>
-        <div class="actions" style="margin-top:8px"><button type="button" class="btn primary lr_save" aria-label="Save ${et} layout rule">Save</button></div>
+        <div class="actions" style="margin-top:8px"><span class="lr_msg mnote" role="status" aria-live="polite"></span><button type="button" class="btn primary lr_save" aria-label="Save ${et} layout rule">Save</button></div>
       </div>`; }).join("");
     $("#layoutRuleList").querySelectorAll(".lr").forEach(box=>{
       const sv=box.querySelector(".lr_save");
+      // inline errors under each field (blank / 0 / negative / decimals where whole numbers / out of range);
+      // a blank no longer saves a silent default, and the rule's other keys are kept (merged, never dropped)
+      const lm=box.querySelector(".lr_msg"), say=(k,t)=>{ lm.textContent=t||""; lm.dataset.kind=k||""; };
       sv.addEventListener("click",()=>BPUI.guard(sv,async()=>{
-        const V=BPStore.validate; const fail=(m)=>{ setMsg("err",m); };
-        let seatsPerGuest=1; { const raw=box.querySelector(".lr_spg").value; if(raw!==""){ const r=V.num(raw,{min:0.0001,field:"Seats per guest"}); if(!r.ok){ fail(r.error); return; } seatsPerGuest=r.value; } }
-        let buffetPer=100; { const raw=box.querySelector(".lr_buf").value; if(raw!==""){ const r=V.money(raw,{field:"Buffet table per N guests"}); if(!r.ok){ fail(r.error); return; } buffetPer=r.value; } }
-        let bars=0; { const raw=box.querySelector(".lr_bars").value; if(raw!==""){ const r=V.count(raw,{field:"Bars"}); if(!r.ok){ fail(r.error); return; } bars=r.value; } }
-        const rules={ seatsPerGuest, buffetPer, bars, stage:box.querySelector(".lr_stage").checked,
-          dancefloor:box.querySelector(".lr_dance").checked, walkway:box.querySelector(".lr_walk").checked, dj:box.querySelector(".lr_dj").checked };
-        try{ await BPStore.layoutRules.update(box.dataset.id,{rules}); setMsg("ok","Layout rule saved."); }
-        catch(e){ setMsg("err",errMsg(e,"save the layout rule")); }
+        const FR=window.HelmCCFields, ins={spg:box.querySelector(".lr_spg"),buf:box.querySelector(".lr_buf"),bars:box.querySelector(".lr_bars")};
+        Object.values(ins).forEach(x=>FR.fieldError(x,"")); say("","");
+        const v=FR.layoutRule({spg:ins.spg.value,buf:ins.buf.value,bars:ins.bars.value});
+        if(!v.ok){ FR.showErrors([[ins.spg,v.errors.spg],[ins.buf,v.errors.buf],[ins.bars,v.errors.bars]]); return; }
+        const row=rules.find(x=>String(x.id)===String(box.dataset.id))||{};
+        const next=Object.assign({}, (row.rules&&typeof row.rules==="object")?row.rules:{}, v.value, { stage:box.querySelector(".lr_stage").checked,
+          dancefloor:box.querySelector(".lr_dance").checked, walkway:box.querySelector(".lr_walk").checked, dj:box.querySelector(".lr_dj").checked });
+        say("","Saving…");
+        try{ await BPStore.layoutRules.update(box.dataset.id,{rules:next}); row.rules=next;
+          ins.spg.value=String(v.value.seatsPerGuest); ins.buf.value=String(v.value.buffetPer); ins.bars.value=String(v.value.bars);
+          say("ok","Saved."); }
+        catch(e){ say("",""); const p=document.createElement("p"); p.className="msg err lr_err"; p.setAttribute("role","alert"); p.textContent=errMsg(e,"save the layout rule");
+          const old=box.querySelector(".lr_err"); if(old) old.remove(); box.querySelector(".actions").before(p); }
       }));
+      box.addEventListener("input",()=>{ if(lm.dataset.kind==="ok") say("",""); const o=box.querySelector(".lr_err"); if(o) o.remove(); });
     });
   }
 
@@ -1415,19 +1427,29 @@
     drawDishes();
   }
   function drawDishes(){
-    const term=($("#dishFilter").value||"").trim().toLowerCase();
-    const list=dishCache.filter(d=>!term || (d.name+" "+d.category).toLowerCase().includes(term));
+    if(fillDishCats.src!==dishCache){ fillDishCats.src=dishCache; fillDishCats(); }
+    const FR=window.HelmCCFields, toks=FR?FR.tokens($("#dishFilter").value):[];   // every word must match (name, category or type), spaces / case ignored
+    const list=dishCache.filter(d=>!toks.length || FR.matches(d.name+" "+d.category+" "+(d.kind||"")+" "+String(KINDLBL[d.kind]||"").replace(/<[^>]*>/g,""),toks));
     $("#dishList").innerHTML = list.length ? list.map(x=>`<div class="row"><span class="g">${esc(x.name)} <span style="font-size:12px">· ${KINDLBL[x.kind]||""}</span><span class="cfline">${esc(dishAttrText(x))}</span></span><span class="mono" style="font-size:12px">${esc(x.category)}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.name)}" aria-label="Remove dish ${esc(x.name)}">Remove</button></div>`).join("")
       : `<div class="row" style="color:var(--ink-3)">${dishCache.length?"No dishes match this filter.":"No dishes yet — add your first below."}</div>`;
     $("#dishList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`dish ${b.dataset.name}`,()=>BPStore.dishCatalog.remove(b.dataset.id),renderDishes)));
   }
   $("#dishFilter").addEventListener("input",drawDishes);
+  // categories already in use, so "Starters" is picked instead of a near-duplicate "Starter"
+  function fillDishCats(){ const dl=$("#dc_cat_list"); if(!dl) return; const seen=new Map(); dishCache.forEach(d=>{ const c=String(d.category||"").replace(/\s+/g," ").trim(); if(c&&!seen.has(c.toLowerCase())) seen.set(c.toLowerCase(),c); });
+    dl.replaceChildren(...[...seen.values()].sort((a,b)=>a.localeCompare(b)).map(c=>Object.assign(document.createElement("option"),{value:c}))); }
+  // Add dish: inline errors under the row (empty / too short / too long / emoji / < > / no letters /
+  // already in this category), values cleaned (spaces collapsed) and kept when the save fails.
   $("#dc_add").addEventListener("click",()=>BPUI.guard($("#dc_add"),async()=>{
-    const cat=$("#dc_cat").value.trim(), name=$("#dc_name").value.trim();
-    if(cat.length<2||name.length<2){ setMsg("err","Enter a category and dish name."); return; }
-    try{ await BPStore.dishCatalog.add(cat,name,$("#dc_kind").value); $("#dc_name").value=""; await renderDishes(); setMsg("ok","Dish added."); }
-    catch(e){ setMsg("err",errMsg(e,"add the dish")); }
+    const FR=window.HelmCCFields, ci=$("#dc_cat"), ni=$("#dc_name"), ki=$("#dc_kind"), errs=$("#dc_errs"), ok=$("#dc_ok");
+    [ci,ni,ki].forEach(x=>FR.fieldError(x,"")); ok.textContent="";
+    const r=FR.dish({category:ci.value,name:ni.value,kind:ki.value}, dishCache);
+    if(!r.ok){ FR.showErrors([[ci,r.errors.category,errs],[ni,r.errors.name,errs],[ki,r.errors.kind,errs]]); return; }
+    ci.value=r.value.category; ni.value=r.value.name;
+    try{ await BPStore.dishCatalog.add(r.value.category,r.value.name,r.value.kind); ni.value=""; await renderDishes(); ok.textContent=`Added \u201c${r.value.name}\u201d to ${r.value.category}.`; try{ ni.focus(); }catch(_){} }
+    catch(e){ FR.showErrors([[ni,errMsg(e,"add the dish"),errs]]); }
   }));
+  [$("#dc_cat"),$("#dc_name")].forEach(x=>x.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.isComposing){ e.preventDefault(); $("#dc_add").click(); } }));
 
   /* ---------------- USER CONTROL: team members ---------------- */
   function setUMsg(k,t){ const m=$("#umsg"); m.innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; if(t) setTimeout(()=>{ if(m.firstChild) m.innerHTML=""; },4000); }
