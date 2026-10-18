@@ -285,3 +285,5 @@ forward  supabase/migrations/0172_wa_proposal_quote_guard.sql
 forward  supabase/migrations/0173_trial_lockdown.sql
 # 0174 (trial seed always uses the CURRENT sample manifest while the switch is on: _demo_seed no longer falls back silently to the old 0100 seed for a trial studio (logs trial.sample_not_cloned instead), _demo_seed_for sends a TRIAL studio (also AE) to the manifest, an old-seed trial is never cloned on top of its old rows (Clear sample data -> Load demo data re-clones); functions only, nothing deleted, paid studios and switch-off unchanged) goes after 0167 + 0102.
 forward  supabase/migrations/0174_trial_seed_current_manifest.sql
+# 0175 (trial layout templates: trial studios + sample master get the owner's 3rd layout (Reception - Lawn reception with sofa lounge, 73 objects, 200 x 140 ft) once by name; the 0169 Theatre/conference sample template is archived (never deleted) so trials show exactly Wedding + Corporate round tables + Reception; paid studios untouched; manifest v6 published once) goes after 0171.
+forward  supabase/migrations/0175_trial_layout_templates.sql

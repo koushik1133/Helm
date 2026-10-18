@@ -2443,6 +2443,8 @@ function lfNote(before, opts){ if(window.HelmLoadFit) window.HelmLoadFit.note(be
 async function loadTemplate(key){
   if(!key){ return; }
   // 0096: the studio's own templates ("st:<id>") are fitted to this hall + exact seats by studio-templates.js
+  // trial "From past events" entries reuse the Past events reference loader
+  if(String(key).indexOf('ref:')===0){ const r=$('#refEvents'); if(r){ r.value=String(key).slice(4); window.__refSkipConfirm=true; try{ r.dispatchEvent(new Event('change')); }finally{ window.__refSkipConfirm=false; } } return; }
   if(String(key).indexOf('st:')===0){ if(window.HelmStudioTemplates) window.HelmStudioTemplates.apply(String(key).slice(3)); return; }
   const lbl=document.querySelector('#preset option[value="'+key+'"]').textContent;
   // R8b: an open quote's seats value is the exact seating total for preset templates too
@@ -3652,7 +3654,7 @@ $('#refEvents').addEventListener('change', async (e)=>{
   const qid=e.target.value; if(!qid) return;
   if(RO){ e.target.value=''; toast('Read-only — cannot load a layout here'); return; }
   const label=e.target.options[e.target.selectedIndex].textContent;
-  if(store.items.length && !(await BPUI.confirm('Load the layout from "'+label+'" onto the canvas? This replaces the current objects (you can Undo).',{title:'Replace the floor?',okLabel:'Load layout'}))){ e.target.value=''; return; }
+  if(store.items.length && !window.__refSkipConfirm && !(await BPUI.confirm('Load the layout from "'+label+'" onto the canvas? This replaces the current objects (you can Undo).',{title:'Replace the floor?',okLabel:'Load layout'}))){ e.target.value=''; return; }
   try{
     const q=await BPStore.quotes.get(qid);
     const ver=await BPStore.quotes.getVersion(qid, q.currentVersion);
