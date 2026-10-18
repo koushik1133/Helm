@@ -8,6 +8,18 @@
      "Dismiss checklist" (stored on the server, per member), celebratory state
      when every required step is done.
    • A one-time tour hint points at the card (reuses tour.js).
+   • FREE TRIAL (Oct 2026): a short, different list (trialData): explore a sample
+     event, open the 2D/3D builder on a sample layout, send a quote in test mode,
+     invite a teammate (you + 2), choose a plan. Nothing the trial hides (studio
+     set-up, branding, import, notifications...) is ever listed. Opening an event
+     page / the builder ticks itself (trial-lock.js -> auth.markTrialStep); the
+     trial's "dismissed" lives on the account (auth user_metadata.helm_trial_gs),
+     so hiding the trial list never hides the paid list after upgrading.
+   • Paid list: lead / floor plan / quote tick from the studio's OWN rows
+     (store.gettingStarted.ownFacts) - sample rows never count, and a quote's floor
+     plan (saved as a quote version) counts.
+   • When every required step is done the card celebrates once, then is hidden for
+     good (same per-account dismissal as "Dismiss checklist").
    • CSP: no inline style attributes, runtime CSS via window.__helmAdoptCss;
      every interpolated value goes through esc().
    ========================================================================= */
@@ -17,7 +29,7 @@
   // key → presentation + where "Start" goes. `act` = open the account panel instead.
   const STEPS = {
     profile:    { icon: "👤", title: "Complete your profile", why: "Add your name and mobile so your team knows who you are and can reach you.", href: "profile-setup.html", act: "profile" },
-    studio:     { icon: "🏢", title: "Fill in studio details", why: "Your legal name and billing address appear on every Helm invoice.", href: "control.html#account" },
+    studio:     { icon: "🏢", title: "Add your Helm billing details", why: "Your legal name and billing address go on the invoices Helm sends you.", href: "control.html#account" },
     pricing:    { icon: "💲", title: "Set your prices", why: "New quotes use your default rates and menu packages automatically.", href: "control.html#pricing" },
     lead:       { icon: "📥", title: "Add your first lead", why: "Log each enquiry so you can follow it up and turn it into an event.", href: "leads.html" },
     floor_plan: { icon: "📐", title: "Design your first floor plan", why: "Plan the hall layout. The chairs you place are added to the quote.", href: "quotes.html?new=1&open=builder" },
@@ -28,7 +40,15 @@
     // 0096 (client-side, optional): the studio has saved at least one layout template of its own
     my_templates: { icon: "🧩", title: "Customize your own templates", why: "Save your own floor layouts so every new event starts from your studio's style.", href: "builder.html?new=1&tplEdit=new" },
     mfa:        { icon: "🔐", title: "Turn on two-step sign-in", why: "A code at sign-in protects your studio even if a password leaks.", href: "", act: "mfa" },
+    // FREE TRIAL list (trialData). href of t_event / t_builder is set per studio (a sample event with a floor plan).
+    t_event:    { icon: "📅", title: "Explore a sample event", why: "Open a sample event to see its plan, payments, tasks and run sheet in one place.", href: "quotes.html", trial: true, mark: "event" },
+    t_builder:  { icon: "📐", title: "Open the 2D/3D layout builder", why: "Open a sample floor plan, move things around and switch between 2D and 3D.", href: "builder.html?new=1", trial: true, mark: "builder" },
+    t_quote:    { icon: "📨", title: "Send a quote in test mode", why: "Make a quote and send it. Nothing reaches a real client in the trial, so you can approve it yourself.", href: "quotes.html?new=1", trial: true },
+    t_team:     { icon: "👥", title: "Invite a teammate", why: "Your trial includes you + 2 people. Send a join link from Users & invites.", href: "control.html#users", trial: true },
+    t_plan:     { icon: "⭐", title: "Choose a plan", why: "Pick a plan before your trial ends to keep your studio and everything in it.", href: "control.html#billing", trial: true },
   };
+  // a per-studio Start link may only be one of the app's own pages (never another site / scheme)
+  const SAFE_HREF = /^[a-z0-9-]+\.html(\?[A-Za-z0-9_=&%.-]*)?(#[A-Za-z0-9_-]*)?$/;
   const COLLAPSE_KEY = "bp_gs_collapsed";
   const HINT_KEY = "bp_seen_gs_hint";
   const RING_R = 22, RING_C = 2 * Math.PI * RING_R;
@@ -45,13 +65,41 @@
     const steps = data.steps
       .filter((s) => s && Object.prototype.hasOwnProperty.call(STEPS, s.key))
       .filter((s) => s.key !== "mfa" || data.admin === true)
-      .map((s) => Object.assign({ key: s.key, done: s.done === true, optional: s.optional === true }, STEPS[s.key]));
+      .filter((s) => data.trial === true ? STEPS[s.key].trial === true : STEPS[s.key].trial !== true)
+      .map((s) => Object.assign({ key: s.key, done: s.done === true, optional: s.optional === true }, STEPS[s.key],
+        typeof s.href === "string" && SAFE_HREF.test(s.href) ? { href: s.href } : {}));
     if (!steps.length) return null;
     const done = steps.filter((s) => s.done).length;
     const required = steps.filter((s) => !s.optional);
     const complete = required.length > 0 && required.every((s) => s.done);
-    return { steps, done, total: steps.length, complete, admin: data.admin === true, dismissed: data.dismissed === true,
+    return { steps, done, total: steps.length, complete, admin: data.admin === true, dismissed: data.dismissed === true, trial: data.trial === true,
       pct: Math.round((done / steps.length) * 100), next: steps.find((s) => !s.done) || null };
+  }
+  // FREE TRIAL checklist from: server = my_getting_started() (who may do what, "team" done),
+  // facts = store.gettingStarted.trialFacts(), flags = auth.trialSteps(), t = my_trial_status().
+  // An ended trial only offers "Choose a plan" (the studio is read-only until a plan is paid).
+  function trialData(server, facts, flags, t) {
+    const sv = server && Array.isArray(server.steps) ? server.steps : [];
+    const has = (k) => sv.some((s) => s && s.key === k);
+    const doneOf = (k) => sv.some((s) => s && s.key === k && s.done === true);
+    const admin = !!(server && server.admin === true), f = facts || {}, fl = flags || {};
+    const ended = !!(t && t.state === "ended");
+    const steps = [];
+    if (!ended) {
+      steps.push({ key: "t_event", done: fl.event === true, href: f.eventId ? "event.html?id=" + encodeURIComponent(f.eventId) : undefined });
+      steps.push({ key: "t_builder", done: fl.builder === true, href: f.layoutQuoteId ? "builder.html?quote=" + encodeURIComponent(f.layoutQuoteId) : undefined });
+      if (has("quote")) steps.push({ key: "t_quote", done: f.ownQuoteSent === true });
+      if (has("team")) steps.push({ key: "t_team", done: doneOf("team") });
+    }
+    if (admin) steps.push({ key: "t_plan", done: false });
+    return { admin, trial: true, dismissed: fl.dismissed === true, steps };
+  }
+  // paid list: the studio's OWN rows decide lead / floor plan / quote (null facts = keep the server flags)
+  function applyOwnFacts(data, facts) {
+    if (!data || !Array.isArray(data.steps) || !facts) return data;
+    const map = { lead: facts.lead, floor_plan: facts.floorPlan, quote: facts.quoteSent };
+    data.steps.forEach((s) => { if (s && Object.prototype.hasOwnProperty.call(map, s.key) && typeof map[s.key] === "boolean") s.done = map[s.key]; });
+    return data;
   }
   // stroke-dashoffset for the ring (number only — goes into an SVG attribute)
   const ringOffset = (pct) => +(RING_C * (1 - Math.max(0, Math.min(100, Number(pct) || 0)) / 100)).toFixed(2);
@@ -63,15 +111,16 @@
       + ` stroke-dasharray="${RING_C.toFixed(2)}" stroke-dashoffset="${ringOffset(m.pct)}"></circle>`
       + `<text x="26" y="30" text-anchor="middle" class="gs-ring-txt">${Number(m.done)}/${Number(m.total)}</text></svg>`;
     const head = m.complete
-      ? `<h3 id="gsTitle">🎉 You're all set up</h3><p class="gs-sub">${Number(m.done)} of ${Number(m.total)} done — your studio is ready for its first event.</p>`
-      : `<h3 id="gsTitle">Getting started</h3><p class="gs-sub"><b>${Number(m.done)} of ${Number(m.total)} done</b>${m.next ? " · Next: " + esc(m.next.title) : ""}</p>`;
+      ? (m.trial ? `<h3 id="gsTitle">🎉 You've tried the main parts of Helm</h3><p class="gs-sub">${Number(m.done)} of ${Number(m.total)} done. Keep exploring the sample data.</p>`
+        : `<h3 id="gsTitle">🎉 You're all set up</h3><p class="gs-sub">${Number(m.done)} of ${Number(m.total)} done. Your studio is ready for its first event.</p>`)
+      : `<h3 id="gsTitle">${m.trial ? "Try Helm in a few steps" : "Getting started"}</h3><p class="gs-sub"><b>${Number(m.done)} of ${Number(m.total)} done</b>${m.next ? " · Next: " + esc(m.next.title) : ""}</p>`;
     const items = m.steps.map((s) => `<li class="gs-item${s.done ? " done" : ""}">`
       + `<span class="gs-ico" aria-hidden="true">${s.done ? "✓" : esc(s.icon)}</span>`
       + `<span class="gs-txt"><span class="gs-t">${esc(s.title)}${s.optional ? ' <span class="gs-opt">Optional</span>' : ""}</span>`
       + `<span class="gs-why">${esc(s.why)}</span></span>`
       + (s.done ? `<span class="gs-done">Done<span class="sr-only"> — ${esc(s.title)}</span></span>`
         : (s.act ? `<button type="button" class="gs-go" data-act="${esc(s.act)}" data-href="${esc(s.href)}">Start<span class="sr-only"> — ${esc(s.title)}</span></button>`
-          : `<a class="gs-go" href="${esc(s.href)}">Start<span class="sr-only"> — ${esc(s.title)}</span></a>`))
+          : `<a class="gs-go" href="${esc(s.href)}"${s.mark ? ` data-mark="${esc(s.mark)}"` : ""}>${s.mark ? "Open" : "Start"}<span class="sr-only"> — ${esc(s.title)}</span></a>`))
       + `</li>`).join("");
     return `<div class="gs-head${m.complete ? " gs-win" : ""}">${ring}<div class="gs-hd">${head}</div>`
       + `<button type="button" class="gs-tog" id="gsToggle" aria-expanded="${collapsed ? "false" : "true"}" aria-controls="gsBody">`
@@ -128,9 +177,14 @@
   }
 
   /* ---- mount -------------------------------------------------------------- */
+  // "profile" -> the profile part; "mfa" -> Account settings scrolled to two-step sign-in (it used to open the
+  // whole panel at the top, so the two-step section was off-screen)
+  function accountOpts(focus) {
+    return focus === "profile" ? { focus: "profile" } : focus === "mfa" ? { section: "settings", focus: "mfa" } : {};
+  }
   function openAccount(focus) {
     const ui = global.HelmAuthUI;
-    if (ui && typeof ui.openAccount === "function") { ui.openAccount(focus === "profile" ? { focus: "profile" } : {}); return true; }
+    if (ui && typeof ui.openAccount === "function") { ui.openAccount(accountOpts(focus)); return true; }
     return false;
   }
 
@@ -150,8 +204,10 @@
     setTimeout(() => {
       if (card.hidden || global.document.querySelector(".htour")) return;
       if (auth && typeof auth.markGsHintSeen === "function") auth.markGsHintSeen();
-      global.HelmTour.start([{ sel: "#gsCard", title: "Your getting-started checklist",
-        desc: "Work through these steps to set up your studio. Each one ticks itself off as you do it, and you can collapse or dismiss the list any time." }], HINT_KEY);
+      const trial = card.getAttribute("data-gs-mode") === "trial";
+      global.HelmTour.start([{ sel: "#gsCard", title: trial ? "Your free-trial checklist" : "Your getting-started checklist",
+        desc: (trial ? "Try these steps to see what Helm can do with the sample data." : "Work through these steps to set up your studio.")
+          + " Each one ticks itself off as you do it, and you can collapse or dismiss the list any time." }], HINT_KEY);
     }, 700);
   }
 
@@ -177,6 +233,24 @@
     const step = { key: "whatsapp", done, optional: true };
     if (i >= 0) data.steps.splice(i + 1, 0, step); else data.steps.push(step);
   }
+  // Is this studio on its free trial? Asks the server (my_trial_status) so it never depends on whether
+  // trial-lock.js has loaded yet; trial-lock's own answer is the fallback. -> {trial, t}
+  async function trialState(store) {
+    let t = null;
+    try { t = store.subscription && store.subscription.trial ? await store.subscription.trial() : null; } catch (e) { t = null; }
+    if (t && typeof t === "object") return { trial: t.status === "trial" || t.state === "trial", t };
+    try { if (global.HelmTrialLock && (await global.HelmTrialLock.whenKnown())) return { trial: true, t: null }; } catch (e) {}
+    return { trial: false, t: null };
+  }
+  // per-account dismissal: the trial list on the account (user_metadata), the paid list on the server (0059)
+  async function setDismissed(store, trial, on) {
+    if (trial) {
+      const A = store.auth;
+      if (!A || typeof A.markTrialStep !== "function" || !(await A.markTrialStep("dismissed", on))) throw new Error("Couldn't save that. Please try again.");
+      return true;
+    }
+    return store.gettingStarted.dismiss(on);
+  }
   async function mount(opts) {
     const o = opts || {};
     const doc = global.document;
@@ -185,10 +259,19 @@
     if (!card || !store || !store.gettingStarted) return null;
     let data;
     try { data = await store.gettingStarted.get(); } catch (e) { card.hidden = true; return null; }
-    await addTemplatesStep(data, store);
-    await addWhatsappStep(data, store);
-    // 0173: studio details are fixed in the free trial - no "Fill in studio details" step
-    try { if (global.HelmTrialLock && (await global.HelmTrialLock.whenKnown()) && data && Array.isArray(data.steps)) data.steps = data.steps.filter((s) => !(s && s.key === "studio")); } catch (e) {}
+    if (!data || !Array.isArray(data.steps)) { card.hidden = true; return null; }
+    const ts = await trialState(store);
+    if (ts.trial) {
+      const flags = (store.auth && typeof store.auth.trialSteps === "function" ? store.auth.trialSteps() : null) || {};
+      if (flags.dismissed === true) { card.hidden = true; return { dismissed: true, trial: true }; }
+      let facts = null; try { facts = store.gettingStarted.trialFacts ? await store.gettingStarted.trialFacts() : null; } catch (e) { facts = null; }
+      data = trialData(data, facts, flags, ts.t);
+    } else {
+      if (data.dismissed === true) { card.hidden = true; return model(data); }
+      try { applyOwnFacts(data, store.gettingStarted.ownFacts ? await store.gettingStarted.ownFacts() : null); } catch (e) {}
+      await addTemplatesStep(data, store);
+      await addWhatsappStep(data, store);
+    }
     const m = model(data);
     if (!m || m.dismissed) { card.hidden = true; return m; }
     css();
@@ -196,6 +279,10 @@
     card.innerHTML = gsMarkup(m, collapsed);
     card.hidden = false;
     card.setAttribute("aria-labelledby", "gsTitle");
+    // read by the dashboard "Setup" chip (shell-b-dash.js)
+    card.setAttribute("data-gs-mode", m.trial ? "trial" : "setup");
+    card.setAttribute("data-gs-done", String(m.done)); card.setAttribute("data-gs-total", String(m.total));
+    card.setAttribute("data-gs-complete", m.complete ? "1" : "0");
 
     card.querySelector("#gsToggle").addEventListener("click", (e) => {
       collapsed = !collapsed; lsSet(COLLAPSE_KEY, collapsed ? "1" : null);
@@ -206,21 +293,27 @@
     card.querySelectorAll("button.gs-go[data-act]").forEach((b) => b.addEventListener("click", () => {
       if (!openAccount(b.dataset.act) && b.dataset.href) global.location.href = b.dataset.href;
     }));
+    // trial: "Open" on a sample event / the builder also ticks the step (the page itself ticks it too)
+    card.querySelectorAll("a.gs-go[data-mark]").forEach((a) => a.addEventListener("click", () => {
+      try { if (store.auth && store.auth.markTrialStep) store.auth.markTrialStep(a.dataset.mark).catch(() => {}); } catch (e) {}
+    }));
     card.querySelector("#gsDismiss").addEventListener("click", async (e) => {
       const btn = e.currentTarget; btn.disabled = true;
       try {
-        await store.gettingStarted.dismiss(true);
+        await setDismissed(store, m.trial, true);
         card.hidden = true;
         const ui = global.BPUI;
         if (ui && ui.toast) ui.toast("Checklist hidden.", { type: "info", action: { label: "Undo", onClick: async () => {
-          try { await store.gettingStarted.dismiss(false); await mount(o); } catch (err) {} } } });
+          try { await setDismissed(store, m.trial, false); await mount(o); } catch (err) {} } } });
       } catch (err) {
         btn.disabled = false;
         const ui = global.BPUI;
         if (ui && ui.toast) ui.toast(ui.friendlyError ? ui.friendlyError(err, { action: "hide the checklist" }) : "Couldn't hide the checklist.", { type: "err" });
       }
     });
-    if (o.hint !== false) maybeHint(card);
+    // every required step done: celebrate this once, then the card stays hidden on later visits
+    if (m.complete && o.autoHide !== false) { try { Promise.resolve(setDismissed(store, m.trial, true)).catch(() => {}); } catch (e) {} }
+    if (o.hint !== false && !m.complete) maybeHint(card);
     return m;
   }
 
@@ -242,7 +335,7 @@
     if (global.document.readyState === "loading") global.document.addEventListener("DOMContentLoaded", auto); else auto();
   }
 
-  const api = { mount, auto, model, addTemplatesStep, addWhatsappStep, render: gsMarkup, ringOffset, STEPS, esc, _css: CSS };
+  const api = { mount, auto, model, trialData, applyOwnFacts, accountOpts, trialState, _setDismissed: setDismissed, addTemplatesStep, addWhatsappStep, render: gsMarkup, ringOffset, STEPS, SAFE_HREF, esc, _css: CSS };
   global.HelmGettingStarted = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

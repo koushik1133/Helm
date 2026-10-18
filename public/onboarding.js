@@ -173,9 +173,9 @@
     const req = (k) => (W.REQUIRED[k] ? ' <span class="ob-req">required</span>' : "");
     const pos = S.step === BILL ? 1 : Math.min(KEYS.length + 2, S.step + 2), total = KEYS.length + 2, pct = W.percent(doneKeys(), skippedKeys());
     const prog = `<div class="ob-prog"><span class="ob-note">Step ${Number(pos)} of ${Number(total)} · ${Number(pct)}% done</span><progress max="100" value="${Number(pct)}" aria-label="Setup progress">${Number(pct)}%</progress></div>`;
-    const stepsNav = prog + `<ol class="ob-steps" aria-label="Setup steps"><li class="${billingOk() ? "done" : ""}"><button type="button" data-act="goto" data-i="${BILL}"${S.step === BILL ? ' aria-current="step"' : ""}><span class="n">${billingOk() ? "✓" : "0"}</span>Business details${req("billing")}</button></li>` + KEYS.map((k, i) => {
+    const stepsNav = prog + `<ol class="ob-steps" aria-label="Setup steps"><li class="${billingOk() ? "done" : ""}"><button type="button" data-act="goto" data-i="${BILL}"${S.step === BILL ? ' aria-current="step"' : ""}><span class="n">${billingOk() ? "✓" : "1"}</span>Business details${req("billing")}</button></li>` + KEYS.map((k, i) => {
       const st = S.steps[k]; const cls = st.done || st.skipped ? "done" : "";
-      return `<li class="${esc(cls)}"><button type="button" data-act="goto" data-i="${Number(i)}"${S.step === i ? ' aria-current="step"' : ""}><span class="n">${st.done ? "✓" : Number(i) + 1}</span>${esc(lbl(k))}${req(k)}</button></li>`;
+      return `<li class="${esc(cls)}"><button type="button" data-act="goto" data-i="${Number(i)}"${S.step === i ? ' aria-current="step"' : ""}><span class="n">${st.done ? "✓" : Number(i) + 2}</span>${esc(lbl(k))}${req(k)}</button></li>`;
     }).join("") + `<li class="${S.step === KEYS.length ? "" : ""}"><button type="button" data-act="goto" data-i="${KEYS.length}"${S.step === KEYS.length ? ' aria-current="step"' : ""}><span class="n">★</span>Finish</button></li></ol>`;
     let body = "";
     if (S.step === BILL) body = renderBilling();
@@ -287,6 +287,13 @@
   }
   async function saveSetting(kind) {
     const vals = readSet(); const st = S.steps[kind];
+    if (kind === "team") {
+      // Enter in the e-mail box (or Continue) with an address typed used to move on and silently drop it:
+      // create that invite first and stay here so the join link can be copied
+      const typed = String(vals.email || "").trim().toLowerCase();
+      if (typed && !invites.some((x) => x.email === typed)) { await createInvite(); return; }
+      if (!invites.length) { setVals.team = {}; setErr.team = {}; st.done = false; st.skipped = true; go(S.step + 1); return; }
+    }
     try {
       if (kind === "studio" || kind === "brand") {
         const r = kind === "studio" ? W.validateStudio(vals) : W.validateBrand(vals); if (!r.ok) return setFail(kind, r);
@@ -351,7 +358,7 @@
     if (orgErr) return `<div class="ob-card"><h2>Business details</h2><div class="ob-warn">Could not load your studio details. Reload the page to try again.</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn" data-act="goto" data-i="0">Continue</button></div></div>`;
     if (!org) return `<div class="ob-card"><h2>Business details</h2><p class="ob-note">Studio details aren't available for this workspace.</p><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
     const v = Object.assign(O.billingFromOrg(org), bill.values); const e = bill.errors || {};
-    if (!canBill) return `<div class="ob-card"><h2>Business details</h2><div class="ob-lock">Only an admin can enter the studio's billing details${billingOk() ? " (already complete)." : ". Ask your admin to complete them in Control Center → Studio details."}</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
+    if (!canBill) return `<div class="ob-card"><h2>Business details</h2><div class="ob-lock">Only an admin can enter the studio's billing details${billingOk() ? " (already complete)." : ". Ask your admin to complete them in Control Center → General."}</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
     const full = { legal_name: 1, line1: 1, line2: 1 };
     const ac = { legal_name: "organization", line1: "address-line1", line2: "address-line2", city: "address-level2", state: "address-level1", pin: "postal-code", phone: "tel", location: "off", gstin: "off" };
     const cc = O.countryCode(v.country), india = cc === "IN", tid = O.taxIdOf(cc), meta = billMeta(cc);
@@ -375,7 +382,7 @@
         + (f.key === "state" ? `<datalist id="ob_b_state_list">${meta.regions.map((r) => `<option value="${esc(r.name)}"></option>`).join("")}</datalist>` : "")
         + `<div class="ob-err" id="${esc(eid)}">${esc(e[f.key] || "")}</div></div>`;
     }).join("");
-    return `<div class="ob-card"><h2>Business details</h2><p class="sub">Used on your quotations and invoices. Fields marked * are required to finish setup; <span data-taxid="1">${esc(tid.label)}</span> is optional. You can edit these later in Control Center → Studio details.</p>`
+    return `<div class="ob-card"><h2>Business details</h2><p class="sub">Used on your quotations and invoices. Fields marked * are required to finish setup; <span data-taxid="1">${esc(tid.label)}</span> is optional. You can edit these later in Control Center → General.</p>`
       + `<form id="obBill" novalidate><div class="ob-bf">${fields}</div><div id="obErr" class="ob-err" role="alert"></div>`
       + `<div class="ob-row"><span class="ob-grow"></span><button type="submit" class="btn primary" data-act="billsave">Save &amp; continue</button></div></form></div>`;
   }

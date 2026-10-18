@@ -335,13 +335,14 @@
       }
       if (chip.__href) { chip.__href = null; chip.setAttribute("aria-controls", "gsCard"); chip.setAttribute("aria-expanded", "false"); }
       var t = gs.querySelector(".gs-ring-txt"), m = t && /(\d+)\s*\/\s*(\d+)/.exec(t.textContent || "");
-      if (!chip.__allowed || gs.hidden || !m || +m[1] >= +m[2]) { chip.hidden = true; return; }
-      clear(chip); chip.appendChild(el("span", null, "Setup " + m[1] + " of " + m[2]));
+      // hidden once every REQUIRED step is done (an optional step left over no longer keeps "Setup 7 of 8" up)
+      if (!chip.__allowed || gs.hidden || !m || +m[1] >= +m[2] || gs.getAttribute("data-gs-complete") === "1") { chip.hidden = true; return; }
+      clear(chip); chip.appendChild(el("span", null, (gs.getAttribute("data-gs-mode") === "trial" ? "Trial steps " : "Setup ") + m[1] + " of " + m[2]));
       chip.appendChild(meter(+m[1] / +m[2])); chip.appendChild(icon(IC.arrow)); chip.hidden = false;
     }
     chip.__sync = sync;
     document.addEventListener("helm:onb-progress", sync);
-    sync(); try { new MutationObserver(sync).observe(gs, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden"] }); } catch (e) {}
+    sync(); try { new MutationObserver(sync).observe(gs, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden", "data-gs-complete", "data-gs-mode"] }); } catch (e) {}
     return chip;
   }
 

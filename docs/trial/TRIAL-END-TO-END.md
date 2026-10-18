@@ -32,12 +32,15 @@ GST is set to 18% (intra-state). Event dates are relative to the sign-up day, so
 - **Roles & access:** editable.
 - **Plan & billing:** shown, so the studio can upgrade. The demo-data card (keep or clear the sample data) also sits here.
 
+## 3a. The trial checklist (dashboard "Try Helm in a few steps")
+Five steps, each ticking itself: **Explore a sample event** (opening any event page), **Open the 2D/3D layout builder** (opening the builder; the link opens a sample floor plan), **Send a quote in test mode** (one of the studio's own quotes is sent; sample quotes do not count), **Invite a teammate** (an invite or a second member; admins only) and **Choose a plan** (admins only). Teammates without admin or quote access see only the steps they can do. When the trial has ended only "Choose a plan" is shown. Hiding the trial list is saved on the person's account and does not hide the paid checklist after upgrading.
+
 ## 4. What is hidden and blocked
 "Blocked" means the screen hides the feature, a direct link shows **"Not available in the free trial"**, and the server refuses the request (migration 0173).
 
 | Feature | Screen | Server |
 |---|---|---|
-| Studio set-up: General, studio account, studio, branding, billing details, client link name | Control Center section hidden; the onboarding page is covered; the "Fill in studio details" step is removed | Direct `organizations` edits refused; `my_studio_account_update` and `set_studio_link_name` refused |
+| Studio set-up: General, studio account, studio, branding, billing details, client link name | Control Center section hidden; the onboarding page is covered; the dashboard checklist shows only the trial steps (see 3a) | Direct `organizations` edits refused; `my_studio_account_update` and `set_studio_link_name` refused |
 | Client links auto-expire and the package flow | Section hidden | `admin_set_link_autoexpire` and `admin_set_link_expiry_shelf` refused |
 | Import (Excel/CSV import, custom fields, builder layout import) | Section and Import buttons hidden; `HelmImport` does nothing | `smart_import_batch` refused |
 | Data & compliance, and all downloads (studio archive, CSV and PDF reports, quote PDF, booklet PDF, run sheet print, builder PNG/JSON, event file download) | Section and buttons hidden; print and download links blocked in the page | `export_tenant_organization_package` and `export_org_data` refused |

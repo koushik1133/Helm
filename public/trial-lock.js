@@ -52,8 +52,16 @@
     function page() { if (BLOCKED_PAGES.test(location.pathname)) cover(); }
     if (document.body) page(); else document.addEventListener("DOMContentLoaded", page);
     try { localStorage.setItem("helm.trial", "1"); } catch (e) {}
+    markVisit();
     try { window.dispatchEvent(new CustomEvent("helm:trial", { detail: { trial: true } })); } catch (e) {}
     known = true; waiters.splice(0).forEach(function (f) { try { f(true); } catch (e) {} });
+  }
+  // trial checklist (getting-started.js): opening an event page or the layout builder ticks
+  // "Explore a sample event" / "Open the 2D/3D builder" for this account (auth user_metadata)
+  var VISIT = /(^|\/)(event|builder)(\.html)?\/?$/;
+  function markVisit() {
+    var m = VISIT.exec(location.pathname || ""); if (!m) return;
+    try { var A = window.BPStore && window.BPStore.auth; if (A && typeof A.markTrialStep === "function") A.markTrialStep(m[2]).catch(function () {}); } catch (e) {}
   }
   function done() { known = true; waiters.splice(0).forEach(function (f) { try { f(on); } catch (e) {} }); }
   function check(tries) {
@@ -70,7 +78,8 @@
     // resolves true/false once the server has answered
     whenKnown: function () { return new Promise(function (r) { if (known || on) { r(on); return; } waiters.push(r); setTimeout(function () { r(on); }, 5000); }); },
     note: note,
-    cover: cover
+    cover: cover,
+    _visitRe: VISIT
   };
   check(0);
 })();

@@ -1629,6 +1629,23 @@ window.HelmUrl = HelmUrl;
       if ((u.user_metadata || {}).helm_gs_hint_seen === true) return true;
       try { const { data, error } = await supa.auth.updateUser({ data: { helm_gs_hint_seen: true } }); if (error) return false; if (data && data.user && currentUser && data.user.id === currentUser.id) currentUser = data.user; return true; } catch (e) { return false; }
     },
+    // Free-trial checklist, per account (auth user_metadata.helm_trial_gs, same pattern as the tour flag):
+    // {event, builder} = the person opened a sample event / the layout builder, dismissed = hid the list.
+    // UI-only flags (no studio data). null when nobody is signed in.
+    trialSteps: () => {
+      const u = pendingStep ? null : currentUser; if (!u) return null;
+      const v = (u.user_metadata || {}).helm_trial_gs; const o = {};
+      if (v && typeof v === "object") ["event", "builder", "dismissed"].forEach((k) => { if (v[k] === true) o[k] = true; });
+      return o;
+    },
+    markTrialStep: async (key, on) => {
+      if (["event", "builder", "dismissed"].indexOf(key) < 0) return false;
+      const u = pendingStep ? null : currentUser; if (!u || !supa) return false;
+      const cur = auth.trialSteps() || {}; const want = on !== false;
+      if ((cur[key] === true) === want) return true;
+      const next = Object.assign({}, cur); if (want) next[key] = true; else delete next[key];
+      try { const { data, error } = await supa.auth.updateUser({ data: { helm_trial_gs: next } }); if (error) return false; if (data && data.user && currentUser && data.user.id === currentUser.id) currentUser = data.user; return true; } catch (e) { return false; }
+    },
     // the signed-in account even while a step is pending (login / reset pages only)
     pendingUser: () => currentUser,
     // "" | the error from an auth link return: "pkce_exchange_failed" = the ?code=
@@ -8799,6 +8816,60 @@ window.HelmUrl = HelmUrl;
     gettingStarted: {
       get: () => (supa ? rpc("my_getting_started").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       dismiss: (on) => rpc("my_getting_started_dismiss", { p_dismissed: on !== false }),
+      // free-trial checklist facts (read-only, RLS = the caller's own studio): a sample event to open
+      // (prefers one whose floor plan has objects, so the builder link shows a real layout) and whether
+      // the studio has sent one of its OWN quotes (is_demo = false; sample quotes never count).
+      async trialFacts() {
+        const out = { eventId: null, layoutQuoteId: null, ownQuoteSent: false };
+        if (!supa) return out;
+        try {
+          let r = await supa.from("quotes").select("id,lifecycle_stage,event_date,deleted_at").eq("is_demo", true).is("deleted_at", null).order("event_date", { ascending: true }).limit(40);
+          if (r.error && isMissingColumn(r.error)) r = await supa.from("quotes").select("id,lifecycle_stage,event_date").eq("is_demo", true).order("event_date", { ascending: true }).limit(40);
+          const demo = (!r.error && Array.isArray(r.data)) ? r.data : [];
+          if (demo.length) {
+            const BOOKED = ["confirmed", "planning", "resources", "ready", "event_day"];
+            let withLayout = [];
+            try {
+              const v = await supa.from("quote_versions").select("quote_id,object_count").in("quote_id", demo.map((q) => q.id)).gt("object_count", 0).limit(40);
+              if (!v.error && Array.isArray(v.data)) withLayout = v.data.map((x) => x.quote_id);
+            } catch (e) { withLayout = []; }
+            const has = (q) => withLayout.indexOf(q.id) >= 0, booked = (q) => BOOKED.indexOf(q.lifecycle_stage) >= 0;
+            const ev = demo.find((q) => booked(q) && has(q)) || demo.find(booked) || demo[0];
+            const lay = demo.find((q) => has(q) && booked(q)) || demo.find(has) || null;
+            out.eventId = ev ? ev.id : null; out.layoutQuoteId = lay ? lay.id : null;
+          }
+        } catch (e) { /* links fall back to the lists */ }
+        try {
+          const s = await supa.from("quotes").select("id").eq("is_demo", false).in("approval_status", ["sent", "approved", "paid"]).limit(1);
+          out.ownQuoteSent = !s.error && Array.isArray(s.data) && s.data.length > 0;
+        } catch (e) { out.ownQuoteSent = false; }
+        return out;
+      },
+      // the studio's OWN work for the paid checklist (read-only, RLS = own studio). Sample rows (is_demo,
+      // a trial kept after paying) never tick a step, and a quote's floor plan counts: the builder saves
+      // it as a quote version (quote_versions), not in the standalone layouts table my_getting_started reads.
+      // -> {lead, floorPlan, quoteSent} booleans, or null when it can't be read (callers keep the server flags).
+      async ownFacts() {
+        if (!supa) return null;
+        const own = async (build) => {
+          let r = await build(true);
+          if (r.error && isMissingColumn(r.error)) r = await build(false);   // a database without is_demo: every row is the studio's own
+          if (r.error) throw r.error;
+          return Array.isArray(r.data) ? r.data : [];
+        };
+        try {
+          const lead = (await own((d) => { const q = supa.from("leads").select("id").limit(1); return d ? q.eq("is_demo", false) : q; })).length > 0;
+          const quoteSent = (await own((d) => { const q = supa.from("quotes").select("id").in("approval_status", ["sent", "approved", "paid"]).limit(1); return d ? q.eq("is_demo", false) : q; })).length > 0;
+          let floorPlan = false;
+          const v = await supa.from("quote_versions").select("quote_id").gt("object_count", 0).limit(200);
+          const ids = (!v.error && Array.isArray(v.data)) ? Array.from(new Set(v.data.map((x) => x.quote_id).filter(Boolean))) : [];
+          if (ids.length) floorPlan = (await own((d) => { const q = supa.from("quotes").select("id").in("id", ids).limit(1); return d ? q.eq("is_demo", false) : q; })).length > 0;
+          if (!floorPlan) {
+            try { floorPlan = (await own((d) => { const q = supa.from(TABLE).select("id").limit(1); return d ? q.eq("is_demo", false) : q; })).length > 0; } catch (e) { /* standalone layouts unreadable: quote plans decide */ }
+          }
+          return { lead, floorPlan, quoteSent };
+        } catch (e) { return null; }
+      },
     },
     myTasks: () => (supa ? rpc("my_tasks") : Promise.resolve({ today: [], overdue: [], blocked: [], upcoming: [], completed: [], counts: {} })),
     // Build 1 — Designer 2D->3D design-approval state machine.
