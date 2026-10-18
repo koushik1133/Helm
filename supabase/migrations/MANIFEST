@@ -281,3 +281,5 @@ forward  supabase/migrations/0170_trial_data_v4.sql
 forward  supabase/migrations/0171_trial_data_v5.sql
 # 0172 (cross-studio quote guard zz_quote_org_match added to wa_proposal_optins + wa_proposal_audit, which 0151 created after the 0136 catch-up; re-runs the 0136 install loop, only adds missing triggers, no rows changed) goes after 0151 + 0136.
 forward  supabase/migrations/0172_wa_proposal_quote_guard.sql
+# 0175 (trial layout templates: trial studios + sample master get the owner's 3rd layout (Reception - Lawn reception with sofa lounge, 73 objects, 200 x 140 ft) once by name; the 0169 Theatre/conference sample template is archived (never deleted) so trials show exactly Wedding + Corporate round tables + Reception; paid studios untouched; manifest v6 published once) goes after 0171.
+forward  supabase/migrations/0175_trial_layout_templates.sql

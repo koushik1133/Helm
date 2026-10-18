@@ -131,9 +131,27 @@
     var pr = B.pricing() || {};
     var list = C.order(rows, pr.eventType);
     if (!list.length) return;
-    var og = h("optgroup", { id: "st_optgroup", label: "My studio templates" },
-      list.map(function (r) { return h("option", { value: "st:" + r.id, text: (r.is_default ? "★ " : "") + r.name + (r.event_type ? " · " + C.label(r.event_type) : "") }); }));
+    // free-trial studio: ONLY the owner's sample layouts (+ blank + past events), not the built-in presets
+    var trial = false;
+    try { var ts = S() && S().trialOrg && S().trialOrg.status ? await S().trialOrg.status() : null; trial = !!(ts && ts.is_trial_org); } catch (_) {}
+    var og = h("optgroup", { id: "st_optgroup", label: trial ? "Sample layouts" : "My studio templates" },
+      list.map(function (r) { return h("option", { value: "st:" + r.id, text: (r.is_default ? "★ " : "") + (trial ? trialName(r.name) : r.name) + (r.event_type ? " · " + C.label(r.event_type) : "") }); }));
+    if (trial) {
+      Array.prototype.slice.call(sel.querySelectorAll("optgroup")).forEach(function (g) { if (g.id !== "st_optgroup" && g.id !== "st_pastgroup") g.remove(); });
+      fillPast(sel);
+    }
     var first = sel.querySelector("optgroup"); sel.insertBefore(og, first || null);
+  }
+  // "Demo · Wedding — Grand Lawn" -> "Wedding — Grand Lawn"
+  function trialName(n) { return String(n || "").replace(/^Demo \u00b7 /, ""); }
+  // trial: "From past events" = the studio's own earlier events (the builder's #refEvents reference picker)
+  function fillPast(sel) {
+    var old = $("st_pastgroup"); if (old) old.remove();
+    var ref = $("refEvents"); if (!ref) return;
+    var opts = Array.prototype.slice.call(ref.querySelectorAll("option")).filter(function (o) { return o.value; });
+    if (!opts.length) { if (fillPast.tries == null) fillPast.tries = 0; if (fillPast.tries++ < 20) setTimeout(function () { fillPast(sel); }, 700); return; }
+    sel.appendChild(h("optgroup", { id: "st_pastgroup", label: "From past events" },
+      opts.map(function (o) { return h("option", { value: "ref:" + o.value, text: o.textContent }); })));
   }
 
   /* ---------------- manager (builder modal + Control Center pane) ---------------- */
