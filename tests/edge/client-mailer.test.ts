@@ -60,7 +60,7 @@ Deno.test("client-mailer logic: masked e-mail, link escaping", () => {
   assert(m.html.includes("&lt;b&gt;A&lt;/b&gt;")); assert(m.text.includes("https://helm.events/portal.html?token=x"));
   let threw = false; try { linkEmail("booklet", { link: "javascript:alert(1)" }); } catch (_) { threw = true; } assert(threw);
   const b = linkEmail("booklet", { client: "Asha", studio: "Sparkle", link: "https://helm.events/booklet?t=x" });
-  assert(b.html.startsWith("<!DOCTYPE html>") && b.html.includes("https://www.helm.events/email/helm-logo.png"), "designed layout + logo");
+  assert(b.html.startsWith("<!DOCTYPE html>") && b.html.includes("https://www.helm.events/email/helm-logo-v3.png"), "designed layout + logo");
   assert(b.html.includes("Open booklet") && b.html.includes("Mindspace IT Park, Madhapur, Hyderabad, Telangana 500081"), "button + address");
   assert(b.html.includes("Helm Events</strong>") && b.text.includes("\n\nHelm Events"), "Helm sign-off");
   assert(linkEmail("booklet", { studio: "Sparkle", link: "https://x.io/b", brand: "studio" }).text.includes("\n\nSparkle"), "studio sign-off");
@@ -109,7 +109,7 @@ Deno.test("client-mailer: recipient comes from the QUOTE, never the body; Resend
     const sent = JSON.parse(String(fetchLog()[0].init!.body));
     assertEquals(sent.to, ["asha@example.com"]);
     assertEquals(sent.from, '"Helm Events" <mail@helm.events>');
-    assert(String(sent.html).includes("helm-logo.png"), "designed layout");
+    assert(String(sent.html).includes("helm-logo-v3.png"), "designed layout");
     assertEquals(sent.reply_to, "studio@sparkle.in");
     assert(sent.text.includes("https://helm.events/portal.html?token=" + TOKEN));
     const log = supaLog().find((x) => x.table === "notifications");

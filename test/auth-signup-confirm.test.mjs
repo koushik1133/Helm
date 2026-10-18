@@ -98,7 +98,7 @@ t('email templates exist with the required Supabase variables + branding', () =>
     assert.ok(/If you didn't request this, ignore this email/.test(h), n + ' security note');
     assert.ok(h.includes('Helm Events') && h.includes('helm.events'), n + ' footer');
     assert.ok(/prefers-color-scheme:dark/.test(h) && /role="presentation"/.test(h), n + ' dark + tables');
-    assert.deepEqual((h.match(/<img\b[^>]*>/gi) || []).map((x) => x.match(/src="([^"]+)"/)[1]), ['https://www.helm.events/email/helm-logo.png'], n + ' only the hosted logo image');
+    assert.deepEqual((h.match(/<img\b[^>]*>/gi) || []).map((x) => x.match(/src="([^"]+)"/)[1]), ['https://www.helm.events/email/helm-logo-v3.png'], n + ' only the hosted logo image');
     assert.ok(h.includes('width="600"') && /display:none;max-height:0/.test(h), n + ' 600px + preheader');
     assert.ok(!/\{\{ (?:if )?\.(?!TokenHash|RedirectTo|Email|SiteURL|Token|NewEmail|Data\.(?:studio|role|invited_by))\w+/.test(h), n + ' only known variables');
   }

@@ -3,6 +3,7 @@
 ## Current state (2026-10-18 v3): kit SHAPE recoloured per theme
 - Lockup + rail logo are inline SVG built from the kit geometry with classes hl-ink (H+ELM) / hl-acc (points) / hl-ring; colours = --hl-ink/--hl-acc/--hl-ring per theme in shell-b.css (marketing + login: Emerald in home.css/legal.css/login.html). Ring/ticks bolder, flat colours, points cut a gap into the H via a mask.
 - Emerald standalone: brand/helm-logo-emerald.svg, helm-symbol-emerald.svg, helm-app-icon-emerald.svg (icons), favicon.svg, helm-email-emerald.svg.
+- E-mail logo (r19): `public/email/helm-logo-v3.png` (80x80, from helm-email-emerald.svg) via `LOGO_URL` in `supabase/functions/_shared/email-layout.mjs`. Never overwrite an e-mail PNG in place (immutable cache + mail image proxies); add a new versioned file name.
 
 ## Earlier (v2): brand kit logo, copied as-is
 - Kit files (docs/HELM_Brand_and_Website_Kit 2/HELM_Brand_Kit/assets) are copied unchanged into `public/brand/` (svg), `public/brand/png/`, `public/brand/icons/`.
@@ -64,7 +65,7 @@ Note: ~50 app pages have no `<link rel="icon">` and rely on `/favicon.ico`; repl
 
 ## 3. Not affected
 - Booklet / proposal / portal show the **studio's own** logo (`booklet.js` `safeLogo(s.logo)`), not Helm's — no change.
-- Edge-function emails (`supabase/functions/*`) contain no Helm logo image today.
+- Edge-function and auth e-mails use the hosted PNG in `LOGO_URL` (see the r19 line at the top).
 
 ## 4. After the swap
 1. Put sources in `public/brand/` (`mark.svg`, `logo.svg`, `logo-dark.svg`).
