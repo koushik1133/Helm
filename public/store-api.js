@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=17"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=18"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -7985,6 +7985,8 @@ window.HelmUrl = HelmUrl;
   // who: display name, else e-mail, else "Client" for link-driven actions, else "System"
   function auditWho(row, names) {
     row = row || {}; const p = (names && row.actor && names[row.actor]) || null;
+    // 0164: a change made straight in the database (not by a studio user) is tagged by the server
+    if (!row.actor && row.actor_email === "helm:maintenance") return { text: "System maintenance", title: "Changed directly in the database, not by a studio user" };
     const nm = p && String(p.full_name || "").replace(/\s+/g, " ").trim();
     const email = row.actor_email || (p && p.email) || "";
     if (nm) return { text: nm, title: email || nm };
