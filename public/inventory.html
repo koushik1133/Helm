@@ -100,7 +100,7 @@
 <link rel="stylesheet" href="inventory-polish.css?v=3">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=27" id="shellProto"></script>
+<script src="/shell-proto.js?v=29" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -206,7 +206,7 @@
   <div class="sheet">
     <h3><span id="im_title">＋ Add item</span><button type="button" class="close" id="im_close" aria-label="Close" data-close>×</button></h3>
     <div class="fgrid">
-      <div class="fld"><label for="i_name">Name *</label><input id="i_name" placeholder="e.g. Gold chiavari chair"></div>
+      <div class="fld"><label for="i_name">Name *</label><input id="i_name" maxlength="120" placeholder="e.g. Gold chiavari chair"></div>
       <div class="fld"><label for="i_cat">Category</label><input id="i_cat" placeholder="e.g. Seating" list="catList"></div>
       <div class="fld"><label for="i_qty">Total quantity</label><input id="i_qty" type="number" min="0" value="0"></div>
       <div class="fld"><label for="i_unit">Unit</label><input id="i_unit" placeholder="pcs, sets, m…"></div>
@@ -263,18 +263,22 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=5"></script>
-<script src="tour.js?v=18"></script>
-<script src="checkout-shortage.js?v=2"></script>
-<script src="capacity-shortage.js?v=2"></script>
+<script src="tour.js?v=20"></script>
+<script src="checkout-shortage.js?v=4"></script>
+<script src="capacity-shortage.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const num=(n)=>Number(n||0).toLocaleString("en-IN");
-  const fmtDate=(d)=>{ if(!d) return ""; const s=String(d); const dt=new Date(s.length===10?s+"T00:00:00":s); if(isNaN(dt)) return esc(s); return dt.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}); };
+  // B29: the studio's time zone + locale (a timestamp near midnight was shown on the viewer's browser day); a calendar
+  // day "YYYY-MM-DD" is never shifted
+  const fmtDate=(d)=>{ if(!d) return ""; const s=String(d);
+    try{ if(BPStore.fmtStudioDate){ const o=BPStore.fmtStudioDate(s,{style:"long"}); if(o&&o!==s) return o; } }catch(e){}
+    const dt=new Date(s.length===10?s+"T00:00:00":s); if(isNaN(dt)) return esc(s); return dt.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}); };
   const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const ST={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
   let evDateText="";   // 0197: the event's date for "Only 20 free on 28 Nov 2026"
@@ -418,7 +422,7 @@
     if(!quoteId) return;
     // item dropdown with available qty
     $("#rv_item").innerHTML=items.map(i=>{ const a=avail[i.id]||{available:i.total_qty};
-      return `<option value="${esc(i.id)}">${esc(i.name)} — ${esc((()=>{ const f=Number(a.availableOnEvent!=null?a.availableOnEvent:a.available)||0; const u=i.unit||""; return f<0?"0 "+u+" free (short by "+num(-f)+")":num(f)+" "+u+" free"; })())}</option>`; }).join("");
+      return `<option value="${esc(i.id)}">${esc(optName(i.name))} — ${esc((()=>{ const f=Number(a.availableOnEvent!=null?a.availableOnEvent:a.available)||0; const u=i.unit||""; return f<0?"0 "+u+" free (short by "+num(-f)+")":num(f)+" "+u+" free"; })())}</option>`; }).join("");
     const rows=reservations;
     const byId=Object.fromEntries(items.map(i=>[i.id,i]));
     $("#resRows").innerHTML = rows.length ? rows.map(r=>{
@@ -451,6 +455,9 @@
     }));
   }
 
+  // B29: a drop-down can't show the Sample badge trial-upgrade.js puts on "Demo \u00b7 ..." text, so an option reads
+  // "PA Speaker (sample)" instead of the raw prefix (the value stays the record's id / name)
+  function optName(n){ const s=String(n==null?"":n), m=/^\s*Demo \u00b7\s*/.exec(s); return m?s.slice(m[0].length)+" (sample)":s; }
   function openItem(it){
     editingId=it?it.id:null; $("#im_title").textContent=it?"Edit item":"＋ Add item";
     $("#i_name").value=it?it.name||"":""; $("#i_cat").value=it?it.category||"":"";
@@ -458,7 +465,7 @@
     $("#i_pri").value=it?(it.priority||"C"):"C"; $("#i_cost").value=it?(it.unit_cost||0):0;
     editingItem=it||null; attrEd=window.HelmImport?HelmImport.attrEditor("inventory",it&&it.attributes,attrDefs):null;
     $("#i_attrs").replaceChildren(...(attrEd?[attrEd.el]:[])); $("#i_attrs_box").hidden=!attrEd;
-    $("#im_deact").hidden=!(it&&canEdit); $("#im_err").hidden=true; itemDirty.clean(); $("#itemModal").hidden=false; setTimeout(()=>$("#i_name").focus(),50);
+    $("#im_deact").hidden=!(it&&canEdit); $("#im_err").hidden=true; itemDirty.clean(); $("#itemModal").hidden=false; if(!it) capHint(); setTimeout(()=>$("#i_name").focus(),50);
   }
   const itemDirty=BPUI.trackDirty($("#itemModal"));
   function closeItem(){ $("#itemModal").hidden=true; editingId=null; itemDirty.clean(); }
@@ -479,9 +486,16 @@
     $("#im_err").hidden=true;
     // duplicate guard: same name ignoring case, spacing, punctuation, accents and "&" vs "and" (inactive items count too)
     try{
-      const norm=(t)=>String(t||"").normalize("NFKC").toLowerCase().replace(/&/g," and ").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\p{L}\p{N}]+/gu," ").trim();
-      const key=norm(name), dup=(await BPStore.inventory.items(true)).find(x=>x.id!==editingId && norm(x.name)===key);
+      // B14: a trial sample row is "Demo \u00b7 PA Speaker": the prefix is not part of the name. A sample match is
+      // asked about (your own item may replace the stand-in); a match with your own item is still refused.
+      const norm=(t)=>String(t||"").replace(/^\s*Demo \u00b7\s*/,"").normalize("NFKC").toLowerCase().replace(/&/g," and ").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\p{L}\p{N}]+/gu," ").trim();
+      const isDemo=(x)=>!!(x&&(x.is_demo===true||/^\s*Demo \u00b7 /.test(String(x.name||""))));
+      const key=norm(name), same=(await BPStore.inventory.items(true)).filter(x=>x.id!==editingId && norm(x.name)===key);
+      const dup=same.find(x=>!isDemo(x)), sample=same.find(isDemo);
       if(dup){ $("#im_err").textContent="You already have \u201c"+dup.name+"\u201d"+(dup.active===false?" (inactive \u2014 tick \u201cShow inactive\u201d and reactivate it)":" \u2014 edit that item's quantity instead of adding it again.")+""; $("#im_err").hidden=false; return; }
+      // ...asked only when the name is new or changed: editing your own "PA Speaker" (quantity, cost) never re-asks
+      const sameName=!!(editingItem&&editingItem.id===editingId&&norm(editingItem.name)===key);
+      if(sample && !sameName && !(await BPUI.confirm("\u201c"+sample.name+"\u201d is a sample item from the free-trial data. Save yours as a separate item anyway? (Clear sample data removes the sample later.)",{title:"Possible duplicate",okLabel:"Save anyway"}))) return;
     }catch(e){ /* if the check itself can't run, fall through to the normal save */ }
     try{ if(editingId && attrCh) rec.attributes=await BPStore.mergeAttributes("inventory_items", editingId, Object.assign({ base:editingItem&&editingItem.attributes }, attrCh));
          if(editingId) await BPStore.inventory.updateItem(editingId,rec); else await BPStore.inventory.addItem(rec); }
@@ -538,7 +552,7 @@
       if(!ev) return '<span style="color:var(--ink-3)">—</span>';
       const name=ev.title||ev.code||"(event)"; const d=fmtDate(ev.eventDate);
       return `<div style="font-weight:600">${esc(name)}</div>${d?`<div class="sub2">${esc(d)}</div>`:""}`; };
-    $("#co_item").innerHTML=items.map(i=>`<option value="${esc(i.id)}">${esc(i.name)}${i.priority?` (${esc(i.priority)})`:""}</option>`).join("");
+    $("#co_item").innerHTML=items.map(i=>`<option value="${esc(i.id)}">${esc(optName(i.name))}${i.priority?` (${esc(i.priority)})`:""}</option>`).join("");
     // open vs closed decided by REMAINING qty, not status alone:
     //   open = still out ('out', or 'partial' with units outstanding); loss = missing>0 and not open
     const remainingOut=(c)=>Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
@@ -677,7 +691,7 @@
   function hideShort(){ $("#coShort").hidden=true; $("#coShort").innerHTML=""; coPending=null; }
   function showShort(info, req){
     coPending.info=info;
-    const lines=CS.reasons(info, fmtD), acts=CS.actions(info, req);
+    const lines=CS.reasons(info, fmtD), acts=CS.actions(info, req, { event: !!quoteId });   // B29: "Add from vendor" needs an event to add it to
     const od=(info.overdue||[]);
     $("#coShort").innerHTML=`<h3>${esc(CS.headline(info, req, fmtD))}</h3>
       <ul>${lines.map(l=>`<li>${esc(l)}</li>`).join("")}</ul>
@@ -754,7 +768,12 @@
   });
   // Escape is handled by BPUI (clicks the open modal's [data-close] → the dirty-checked close).
 
+  // B29: free trial - "2 of 2 items used" is shown by the add button (switched off at the cap), not after the form
+  function gateCap(){ if(canEdit&&window.BPUI&&BPUI.capGate) BPUI.capGate([$("#newBtn")],"inventory_items","items").catch(()=>{}); }
+  // ...and a new-record dialog opened at the cap says so at once (the server would refuse the save)
+  function capHint(){ if(!window.BPUI||!BPUI.trialCap) return; BPUI.trialCap("inventory_items").then(c=>{ if(c&&c.full&&!editingId&&!$("#itemModal").hidden){ $("#im_err").textContent=BPUI.capText(c,"items"); $("#im_err").hidden=false; } }).catch(()=>{}); }
   async function load(){
+    gateCap();
     // Wave 16 perf: these five fetches are independent — run them in parallel
     // (was a 5-deep sequential waterfall) while preserving each group's error UI.
     const [itemsR, availR, resR, coR, qlR] = await Promise.allSettled([
@@ -789,7 +808,7 @@
     const sel=$("#co_to"); if(!sel) return;
     let opts=[]; try{ opts=await BPStore.people.options(); }catch{ opts=[]; }
     const staffOpts=opts.filter(p=>p.kind==="staff"), vendorOpts=opts.filter(p=>p.kind==="vendor");
-    const grp=(label,arr)=>arr.length?`<optgroup label="${label}">`+arr.map(p=>`<option value="${esc(p.name)}" data-id="${esc(p.id)}" data-kind="${p.kind}">${esc(p.name)}${p.role?" · "+esc(p.role):""}</option>`).join("")+`</optgroup>`:"";
+    const grp=(label,arr)=>arr.length?`<optgroup label="${label}">`+arr.map(p=>`<option value="${esc(p.name)}" data-id="${esc(p.id)}" data-kind="${p.kind}">${esc(optName(p.name))}${p.role?" · "+esc(p.role):""}</option>`).join("")+`</optgroup>`:"";
     sel.innerHTML='<option value="">Select person…</option>'+grp("Staff",staffOpts)+grp("Vendors",vendorOpts);
   }
 

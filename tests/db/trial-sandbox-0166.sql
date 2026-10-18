@@ -201,6 +201,13 @@ do $$ begin
   perform pg_temp.res('71 Skip OTP off for a paid studio', not public._trial_test_mode_ok('a0000000-0000-4000-8000-000000000001'));
 end $$;
 
+-- 0236: the app wrappers refuse Clear / Reset sample data while the studio is on its free trial; this suite
+-- tests what the clear / reset itself does, so it calls the kept bodies (<name>__pre0236) as the studio admin
+do $$ declare f text; begin
+  foreach f in array array['public.clear_sample_data__pre0236()', 'public.reset_demo_data__pre0236()', 'public.clear_demo_data__pre0236()'] loop
+    if to_regprocedure(f) is not null then execute format('grant execute on function %s to authenticated', f); end if;
+  end loop;
+end $$;
 -- ---- 7) Clear sample data: only is_demo rows of the caller's studio ----------------------------------
 do $$ declare o uuid := pg_temp.get('orgOn')::uuid; r jsonb; e text; begin
   perform pg_temp.login('ts_on@t.test');
@@ -213,7 +220,9 @@ do $$ declare o uuid := pg_temp.get('orgOn')::uuid; r jsonb; e text; begin
   e := pg_temp.try('select public.clear_sample_data()');
   perform pg_temp.res('81 non-trial studio refused', e like '22023%', e);
   perform pg_temp.login('ts_on@t.test');
-  r := public.clear_sample_data();
+  e := pg_temp.try('select public.clear_sample_data()');
+  perform pg_temp.res('80b trial studio: Clear sample data refused in the free trial (0236)', e like '42501%Not available in the free trial%', e);
+  r := public.clear_sample_data__pre0236();
   perform pg_temp.su();
   perform pg_temp.res('82 sample rows gone', not exists (select 1 from public.inventory_items where org_id = o and is_demo and active)
     and not exists (select 1 from public.vendors where org_id = o and is_demo and active), r::text);

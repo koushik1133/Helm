@@ -14,6 +14,8 @@
   var doc = global.document;
   var fmt = function (n) { return Math.round(Number(n) || 0).toLocaleString("en-IN"); };
   var money = function (n) { try { return global.BPStore && BPStore.studioMoney ? BPStore.studioMoney(n) : "₹" + fmt(n); } catch (e) { return "₹" + fmt(n); } };
+  // B29: options can't show the Sample badge, so "Demo \u00b7 PA Speaker" reads "PA Speaker (sample)" in a picker
+  function optName(n) { var s = String(n == null ? "" : n), m = /^\s*Demo \u00b7\s*/.exec(s); return m ? s.slice(m[0].length) + " (sample)" : s; }
   function h(tag, attrs, kids) {
     var el = doc.createElement(tag);
     Object.keys(attrs || {}).forEach(function (k) {
@@ -25,7 +27,7 @@
   }
   function css() {
     if (!doc || doc.getElementById("capShortCss")) return;
-    var l = doc.createElement("link"); l.id = "capShortCss"; l.rel = "stylesheet"; l.href = "/capacity-shortage.css?v=2";
+    var l = doc.createElement("link"); l.id = "capShortCss"; l.rel = "stylesheet"; l.href = "/capacity-shortage.css?v=4";
     (doc.head || doc.documentElement).appendChild(l);
   }
   function toast(msg, type) { try { global.BPUI.toast(msg, { type: type || "info", timeout: 7000 }); } catch (e) {} }
@@ -91,6 +93,13 @@
   function isFlow() { return !!($("v_venue_id") && $("c_guests") && $("q_other")); }
   function flowGuests() { var g = $("c_guests"); var n = g && g.value !== "" ? Math.round(Number(g.value)) : null; return n > 0 ? n : null; }
   function setField(id, v) { var el = $(id); if (!el) return false; el.value = String(v); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); return true; }
+  // qa-quote-flow B7: the flow page's save hooks (flow.html sets window.HelmFlowHost). The decision RPC
+  // moves quotes.updated_at, so a step-1 autosave landing AFTER it met a false "changed elsewhere"
+  // conflict and the reduced guest count was never saved. Order now: save step 1 and wait for it, then
+  // record the decision, then refresh the page's lock base.
+  function host() { var hh = global.HelmFlowHost; return hh && typeof hh === "object" ? hh : null; }
+  async function hostSaveClient() { var hh = host(); if (!hh || typeof hh.saveClientNow !== "function") return true; try { return (await hh.saveClientNow()) !== false; } catch (e) { return false; } }
+  async function hostRelock() { var hh = host(); if (!hh || typeof hh.relock !== "function") return; try { await hh.relock(); } catch (e) { /* best effort */ } }
 
   // current over-capacity status of a quote (flow: the page's guests + linked venue)
   async function statusFor(o) {
@@ -189,10 +198,10 @@
         itemSel.textContent = "";
         itemSel.appendChild(h("option", { value: "", text: items.length ? "Pick an item" : "No inventory items yet" }));
         [[tents, "Tents & seating"], [rest, "Other items"]].forEach(function (g) { if (!g[0].length) return;
-          itemSel.appendChild(h("optgroup", { label: g[1] }, g[0].map(function (i) { return h("option", { value: i.id, text: i.name + (i.unit ? " (" + i.unit + ")" : "") }); }))); });
+          itemSel.appendChild(h("optgroup", { label: g[1] }, g[0].map(function (i) { return h("option", { value: i.id, text: optName(i.name) + (i.unit ? " (" + i.unit + ")" : "") }); }))); });
         vendSel.textContent = "";
         vendSel.appendChild(h("option", { value: "", text: vendors.length ? "Pick a vendor" : "No vendors yet - add one under Partners" }));
-        vendors.forEach(function (v) { vendSel.appendChild(h("option", { value: v.id, text: v.name + (v.category ? " · " + v.category : "") })); });
+        vendors.forEach(function (v) { vendSel.appendChild(h("option", { value: v.id, text: optName(v.name) + (v.category ? " · " + v.category : "") })); });
       });
       itemSel.addEventListener("change", function () { var it = items.filter(function (i) { return i.id === itemSel.value; })[0]; if (it && !lbl.value) lbl.value = it.name; });
 
@@ -204,7 +213,7 @@
       });
 
       async function record(payload) {
-        try { var d = await S.quotes.setCapacityDecision(qid, payload); q.capacityDecision = d || payload; return true; }
+        try { var d = await S.quotes.setCapacityDecision(qid, payload); q.capacityDecision = d || payload; await hostRelock(); return true; }
         catch (x) {
           if (rpcMissing(x)) { q.capacityDecision = payload; toast("Kept for this session only - the database update 0197 is not installed yet.", "info"); return true; }
           throw x;
@@ -228,6 +237,7 @@
           if (!(n >= 1) || n !== Number(gIn.value)) { fail("Enter the new guest count as a whole number."); gIn.focus(); return undefined; }
           if (n > st.total) { fail("That is still more than the " + fmt(st.total) + " this venue holds."); gIn.focus(); return undefined; }
           setField("c_guests", n);
+          if (!(await hostSaveClient())) { fail("The new guest count could not be saved - check step 1 (Client & event), then try again."); return undefined; }
           try { await record(decisionPayload("reduce", st, { guests: n })); } catch (x) { /* the guest change itself is what matters */ }
           toast("Guests reduced to " + fmt(n) + ". Check the quotation (plates / chairs), then " + whyText(o.why) + " again.", "ok");
           return false;
@@ -361,7 +371,8 @@
     var opts = h("div", { cls: "rvs-opts", role: "radiogroup", "aria-label": "How to source the shortfall" }, [
       radio("vendor", "Rent " + fmt(sp.short) + " from a vendor", true), vBox,
       radio("buy", "Outsource / buy " + fmt(sp.short)), bBox,
-      radio("none", sp.take > 0 ? "Reserve the " + fmt(sp.take) + " only - mark " + fmt(sp.short) + " as unsourced" : "Mark " + fmt(sp.short) + " as unsourced for now")]);
+      // B29: plain words, not "unsourced"
+      radio("none", sp.take > 0 ? "Reserve the " + fmt(sp.take) + " only - decide later where the other " + fmt(sp.short) + " come from" : "Decide later - note the " + fmt(sp.short) + " as still to find")]);
     host.appendChild(opts); host.appendChild(err);
     host.appendChild(h("div", { cls: "rvs-acts" }, [go, cancel]));
     function choice() { var r = opts.querySelector('input[name="' + rName + '"]:checked'); return r ? r.value : "none"; }
@@ -426,7 +437,7 @@
     host.appendChild(ul);
   }
 
-  global.HelmCapacity = { capText: capText, venueTotal: venueTotal, sortVenues: sortVenues, whyText: whyText, headline: headline, decisionPayload: decisionPayload,
+  global.HelmCapacity = { hostSaveClient: hostSaveClient, hostRelock: hostRelock, capText: capText, venueTotal: venueTotal, sortVenues: sortVenues, whyText: whyText, headline: headline, decisionPayload: decisionPayload,
     statusFor: statusFor, gate: gate, openDialog: openDialog, mountIssues: mountIssues, _resetCache: function () { _venues = null; } };
   global.HelmShortage = { split: split, vendorsFor: vendorsFor, headline: shortHeadline, showPanel: showPanel, renderList: renderList };
   // the quote flow: read the venues early so the first "Send for approval" / PDF click answers at once

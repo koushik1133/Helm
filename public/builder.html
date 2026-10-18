@@ -9,7 +9,7 @@
 <meta name="bp-theme-toggle" content="off"><!-- the builder has its own ◑ theme button -->
 <script src="/public-theme.js?v=3"></script>
 <script src="/trusted-types.js?v=3"></script>
-<link rel="stylesheet" href="/trial-lock.css?v=5" id="trialLockCss"><script src="/trial-early.js?v=4"></script><!-- 0181: free trial locked before first paint -->
+<link rel="stylesheet" href="/trial-lock.css?v=7" id="trialLockCss"><script src="/trial-early.js?v=6"></script><!-- 0181: free trial locked before first paint -->
 <script>
   /* Pin the builder to a light background by default (user preference persisted). */
   (function(){
@@ -28,7 +28,8 @@
 <link rel="stylesheet" href="studio-templates.css?v=4">
 <link rel="stylesheet" href="walkthrough.css?v=7">
 <link rel="stylesheet" href="layout-wizard.css?v=5">
-<link rel="stylesheet" href="/builder-v2.css?v=7">
+<link rel="stylesheet" href="/builder-v2.css?v=9">
+<link rel="stylesheet" href="/shell-b-privacy.css?v=129"><!-- QA-B27: "Hide amounts" privacy screen (same as the app pages) -->
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -158,6 +159,7 @@
 
   <div class="s-97445a8"></div>
   <div class="hgroup s-33fcd4c">
+    <span class="hb-tools bp-priv-slot"></span><!-- QA-B27: shell-b-privacy.js mounts the "Hide amounts" eye button here -->
     <details class="hmenu acctmenu" id="acctMenu" hidden>
       <summary class="tbtn icon" title="Account" aria-label="Account menu">👤</summary>
       <div class="hmenu-pop" id="acct"></div>
@@ -436,7 +438,7 @@
     <canvas id="rulerTop"></canvas>
     <canvas id="rulerLeft"></canvas>
     <div class="scroll" id="scroll">
-      <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="svg" class="hbp-skip" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
     <div class="layoutloading" id="layoutLoading" role="status" aria-live="polite" hidden><span class="ll-spin" aria-hidden="true"></span>Loading event…</div>
     <div class="emptystate" id="emptyState" hidden>
@@ -506,21 +508,22 @@
   </aside>
 </main>
 
+<script src="/shell-b-privacy.js?v=129"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
-<script src="tour.js?v=18"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script>
+<script src="tour.js?v=20"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="builder-tools.js?v=3"></script>
 <script src="quote-state.js?v=4"></script>
-<script src="builder.js?v=70"></script>
+<script src="builder.js?v=73"></script>
 <script src="builder-back.js?v=1" defer></script>
-<script src="venues-core.js?v=7"></script>
-<script src="venue-picker.js?v=4"></script>
+<script src="venues-core.js?v=9"></script>
+<script src="venue-picker.js?v=6"></script>
 <script src="studio-templates-core.js?v=3"></script>
-<script src="studio-templates.js?v=6"></script>
+<script src="studio-templates.js?v=8"></script>
 <script src="load-fit.js?v=1"></script>
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
@@ -529,7 +532,7 @@
 <script src="photo-render-prompt.js?v=8"></script>
 <script src="photo-render-ui.js?v=7"></script>
 <script src="walkthrough.js?v=6"></script>
-<script src="layout-wizard.js?v=12"></script>
+<script src="layout-wizard.js?v=14"></script>
 <script src="fullscreen.js?v=5"></script>
 </body>
 </html>

@@ -81,7 +81,7 @@
 <script src="/telemetry.js?v=4"></script>
 <script src="/config.js?v=103"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=248"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=250"></script>
 <script>
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const LINK=BPStore.links.parse("proposal");   // branded /<studio>/proposal/<token> (server-verified below)
@@ -131,8 +131,9 @@
     if(num(c.discount)>0)      rows.push(["Discount", "− "+inr(c.discount), "sub"]);
     if(pvTax && pvTax.country!=="IN"){ BPStore.tax.rows(c, pr, pvTax).forEach(r=>{ if(num(r.amount)>0) rows.push([r.label, inr(Math.round(r.amount)), "sub"]); }); } else {
     if(num(c.igst)>0)          rows.push(["IGST", inr(c.igst), "sub"]);
-    if(num(c.cgst)>0)          rows.push(["CGST", inr(c.cgst), "sub"]);
-    if(num(c.sgst)>0)          rows.push(["SGST", inr(c.sgst), "sub"]);
+    { const hv=(BPStore.tax&&BPStore.tax.halves)?BPStore.tax.halves(num(c.cgst)+num(c.sgst)):[num(c.cgst),num(c.sgst)];   // one rounding, CGST + SGST = GST
+    if(num(c.cgst)>0)          rows.push(["CGST", inr(hv[0]), "sub"]);
+    if(num(c.sgst)>0)          rows.push(["SGST", inr(hv[1]), "sub"]); }
     if(!num(c.igst)&&!num(c.cgst)&&num(c.totalGst)>0) rows.push(["GST", inr(c.totalGst), "sub"]); }
     const total = p.total || c.total || pr.total;
     if(total)                  rows.push(["Total", inr(total), "total"]);

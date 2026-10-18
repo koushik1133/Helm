@@ -72,6 +72,10 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0198_event_stages_closure.sql
 -- 0201 (release integration) adds 0194's chat_group_contacts to the purge list on top of 0184
 \ir ../../supabase/migrations/0201_release_integration.sql
+-- 0206 adds quote_flow_progress (where each person left off in the quote flow) to the purge list
+\ir ../../supabase/migrations/0206_flow_progress.sql
+-- 0207 (trial terms) adds its consent record trial_terms_acceptances to the keep list on top of 0184
+\ir ../../supabase/migrations/0207_trial_terms_acceptance.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin

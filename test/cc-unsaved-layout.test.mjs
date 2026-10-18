@@ -15,8 +15,9 @@ const JS = r('public/control-split.js'), CSS = r('public/control-split.css'), HT
 new Function(JS);   // parses
 
 t('1a. dirty = value differs from the value the field had when the user first touched it', () => {
-  assert.match(JS, /main\.addEventListener\("focusin",onTouch,true\); main\.addEventListener\("pointerdown",onTouch,true\);/);
-  assert.match(JS, /function touch\(f\)\{[^}]*if\(!base\.has\(g\)\) base\.set\(g,fval\(g\)\)/, 'baseline taken once, at first touch (after the page filled the form)');
+  assert.match(JS, /main\.addEventListener\("focusin",onTouch,true\); main\.addEventListener\("pointerdown",onTouch,true\); main\.addEventListener\("keydown",onTouch,true\);/);
+  assert.match(JS, /function touch\(f\)\{[^\n]*\n\s*if\(!dirtyCards\.has\(c\)\)\{ fieldsOf\(c\)\.forEach\(function\(g\)\{ base\.set\(g,fval\(g\)\); \}\); return; \}/, 'while the card is clean every touch re-reads its fields (a late page fill is never a stale baseline)');
+  assert.match(JS, /function touch\(f\)\{[^]*?group\(f\)\.forEach\(function\(g\)\{ if\(!base\.has\(g\)\) base\.set\(g,fval\(g\)\); \}\); \}/, 'once the card is edited the baseline is frozen');
   assert.match(JS, /function changed\(f\)\{ return base\.has\(f\) && base\.get\(f\)!==fval\(f\); \}/, 'a field never touched (autofill, page fill) is never "changed"');
   assert.match(JS, /function onEdit\(e\)\{\s*if\(!e\.isTrusted\) return;/, 'synthetic events from page scripts never count');
   assert.match(JS, /if\(f\.type!=="radio"\|\|!f\.name\) return \[f\];/, 'radio groups are compared as a group');
@@ -88,8 +89,8 @@ t('6. Pricing shows the country read-only; General is the one place to change it
   assert.match(HTML, /\$\("#p_country"\)\.value=newCountry;/);
 });
 t('version pins bumped', () => {
-  assert.match(HTML, /control-split\.js\?v=15/);
-  assert.match(HTML, /control-split\.css\?v=10/);
+  assert.match(HTML, /control-split\.js\?v=17/);
+  assert.match(HTML, /control-split\.css\?v=12/);
   assert.match(HTML, /venues\.css\?v=6/);
 });
 console.log(`cc-unsaved-layout: ${n} passed`);

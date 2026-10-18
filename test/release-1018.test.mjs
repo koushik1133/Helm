@@ -25,7 +25,9 @@ t('0201: ASCII, additive, re-issues the 0186 wrapper over the 0180 body, patches
 });
 t('0201: right after 0200 in the MANIFEST, then 0202-0205 (each number once); suite registered, paste file has begin / commit / VERIFY', () => {
   const man = read('supabase/migrations/MANIFEST');
-  assert.match(man, /forward  supabase\/migrations\/0200_booklet_send\.sql\n#[^\n]*\nforward  supabase\/migrations\/0201_release_integration\.sql\n#[^\n]*\nforward  supabase\/migrations\/0202_trial_sample_requirements\.sql\n#[^\n]*\nforward  supabase\/migrations\/0203_trial_gates\.sql\n#[^\n]*\nforward  supabase\/migrations\/0204_anon_grant_tidy\.sql\n#[^\n]*\nforward  supabase\/migrations\/0205_invite_account_state\.sql\n?$/);
+  assert.match(man, /forward  supabase\/migrations\/0200_booklet_send\.sql\n#[^\n]*\nforward  supabase\/migrations\/0201_release_integration\.sql\n#[^\n]*\nforward  supabase\/migrations\/0202_trial_sample_requirements\.sql\n#[^\n]*\nforward  supabase\/migrations\/0203_trial_gates\.sql\n#[^\n]*\nforward  supabase\/migrations\/0204_anon_grant_tidy\.sql\n#[^\n]*\nforward  supabase\/migrations\/0205_invite_account_state\.sql\n/);
+  // later migrations follow: 0206 / 0207 (feature branches), then the QA fixes of the release build (0230 + index, parallel fixers)
+  assert.match(man, /forward  supabase\/migrations\/0205_invite_account_state\.sql\n[\s\S]*forward  supabase\/migrations\/0236_trial_definition_unify\.sql\n#[^\n]*\nforward  supabase\/migrations\/0237_trial_seed_completeness\.sql\n/);
   // every migration number is used once
   const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
   assert.equal(new Set(nums).size, nums.length, 'duplicate migration number in the MANIFEST');
@@ -34,7 +36,7 @@ t('0201: right after 0200 in the MANIFEST, then 0202-0205 (each number once); su
   assert.match(ap, /^begin;$/m); assert.match(ap, /^commit;$/m); assert.match(ap, /-- VERIFY/);
   assert.ok(ap.includes(MIG.trim()), 'the paste file carries the migration unchanged');
 });
-t('APPLY-RELEASE-1018.sql is current: trial bundle, FIX-0177, 0189..0205, REFRESH-0178 LAST, one VERIFY', () => {
+t('APPLY-RELEASE-1018.sql is current (the shipped 1018-b paste; later migrations are in APPLY-RELEASE-1018-C.sql): trial bundle, FIX-0177, 0189..0205, REFRESH-0178 LAST, one VERIFY', () => {
   const r = spawnSync(process.execPath, ['scripts/gen-apply-release-1018.mjs', '--check'], { cwd: new URL('..', import.meta.url).pathname, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr || r.stdout);
   const rel = read('supabase/APPLY-RELEASE-1018.sql');

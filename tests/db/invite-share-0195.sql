@@ -216,7 +216,9 @@ exception when others then perform pg_temp.su(); insert into _uf values ('4x cap
 do $$ declare t uuid; q uuid; sid uuid; r jsonb; r2 jsonb; c record; e text; begin
   perform pg_temp.su(); update public.helm_sample_template set active = true, block_trial_outbound = true where id;
   t := pg_temp.trial('is_t@t.test');
-  select id into q from public.quotes where org_id = t order by created_at limit 1;
+  -- the cloned sample events share one created_at: pick a live one deterministically (a closed sample event
+  -- refuses every send, which made this suite flaky)
+  select id into q from public.quotes where org_id = t and public._comms_quote_live(id) order by created_at, id limit 1;
   perform pg_temp.res('50 trial studio has an event to try it on', q is not null);
   update public.quotes set client = coalesce(client, '{}'::jsonb) || '{"name":"Riya","email":"riya@example.com","phone":"+91 90000 11111"}'::jsonb where id = q;
   perform pg_temp.login('is_t@t.test');

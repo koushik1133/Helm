@@ -106,7 +106,7 @@ t('the start-up reads go through the shared cache', () => {
   assert.match(SRC, /return memoRead\("leads\.list", MEMO_LIST_MS, \(\) => shareInflight\("leads\.list"/);
   assert.match(SRC, /return memoRead\("profile\.mine", 30000, \(\) => profile\._mineFetch\(\)\);/);
   assert.match(SRC, /memoRead\("trialorg", 15000, \(\) => swr\("trialorg"/);
-  assert.match(SRC, /trial: \(\) => \(supa \? memoRead\("trial", 15000, \(\) => swr\("trial"/);
+  assert.match(SRC, /trial: \(\) => \(supa \? (?:trialSignedIn\(\)\.then\(\(ok\) => \(ok \? )?memoRead\("trial", 15000, \(\) => swr\("trial"/);   // anon-42501: signed-out pages skip it
   assert.match(SRC, /status: \(\) => \(supa \? memoRead\("demo", 15000, \(\) => swr\("demo"/);
   assert.match(SRC, /feed: \(limit\) => memoRead\("bell\.feed:" \+ \(limit \|\| ""\), 5000, \(\) => rpc\("bell_feed"/);
   assert.match(SRC, /return memoRead\("chat\.roster", 60000, \(\) => chat\._rosterFetch\(\)\);/);

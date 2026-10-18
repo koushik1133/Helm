@@ -56,7 +56,7 @@
   const doc = global.document;
   // search-catalog.js (pages, Control Center sections + settings, account items) and the smart matcher
   // settings-search-core.js load next to this file on first open (loader constants: bumped with the files)
-  const CATALOG_V = "2", SSC_V = "1";
+  const CATALOG_V = "4", SSC_V = "1";
   const SELF = (() => { try { return doc && doc.currentScript && doc.currentScript.src || ""; } catch (e) { return ""; } })();
   const isMac = (() => { try { return /Mac|iPhone|iPad/.test(global.navigator.platform || global.navigator.userAgent || ""); } catch (e) { return false; } })();
 
@@ -275,9 +275,16 @@
   }
   const LOCAL_ICON = { page: "📄", section: "⚙", setting: "🔧", account: "👤" };
   const LOCAL_SUB = { page: "Page", section: "Control Center", account: "Your account" };
+  // QA B5: a studio on its free trial never sees the pages / actions the trial does not include (studio set-up and
+  // import, checklist templates, the activity log, Reports & exports) - html.helm-trial is set by trial-lock.js
+  const TRIAL_OUT = /(^|\/)(onboarding|templates|audit|reports)(\.html)?([?#\/]|$)/;
+  function trialOn() { try { return !!doc && doc.documentElement.classList.contains("helm-trial"); } catch (e) { return false; } }
+  function trialAction(a) { return !(trialOn() && a && typeof a.href === "string" && TRIAL_OUT.test(a.href)); }
   function localHits(q, list) {
     const cat = global.HelmSearchCatalog;
     if (!cat || !list || !list.length || cleanQuery(q).length < MIN) return [];
+    // QA B5: filtered again at search time (the list is cached; the trial answer may arrive after it was built)
+    if (typeof cat.forTrial === "function") list = cat.forTrial(list, trialOn());
     return cat.rank(q, list, global.HelmSettingsSearch, 8).map((e) => ({
       kind: e.kind === "account" ? "account" : "nav", label: e.text, icon: LOCAL_ICON[e.kind] || "📄",
       sub: e.kind === "setting" ? "Setting · " + e.context : LOCAL_SUB[e.kind] || "", href: e.href || "", open: e.open || null,
@@ -406,7 +413,7 @@
       S.groups.forEach((g) => out.push({ key: g.type, label: g.label,
         rows: g.items.map((it) => ({ kind: "result", label: it.title, sub: it.subtitle, icon: g.icon, href: it.href })) }));
     }
-    const acts = (S.actions || []).filter((a) => matchAction(a, q)).slice(0, q.length ? 4 : 8);
+    const acts = (S.actions || []).filter((a) => trialAction(a) && matchAction(a, q)).slice(0, q.length ? 4 : 8);
     if (acts.length) out.push({ key: "actions", label: q.length ? "Actions" : "Quick actions",
       rows: acts.map((a) => ({ kind: "action", label: a.label, sub: "", icon: a.icon, href: a.href })) });
     return out;
@@ -464,7 +471,8 @@
     } else if (q.length >= MIN && S.loading) {
       msg = "Searching…";
     } else if (q.length >= MIN) {
-      const c = S.groups.reduce((a, g) => a + g.items.length, 0);
+      // QA B5: the number of rows actually listed (pages & settings + records + actions), not only the record groups
+      const c = S.opts.length;
       msg = c + (c === 1 ? " result" : " results");
     } else if (!S.opts.length) {
       const m = el("div", { class: "hss-msg", role: "presentation" });

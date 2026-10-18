@@ -73,7 +73,8 @@
   }
 
   var CSS = ".nqd select{width:100%;box-sizing:border-box;min-height:40px;padding:8px 10px;border:1px solid var(--bpui-line);border-radius:8px;" +
-    "background:var(--bpui-bg);color:var(--bpui-ink);font:inherit}.nqd label{margin-top:10px}.nqd .bpui-actions{margin-top:16px}";
+    "background:var(--bpui-bg);color:var(--bpui-ink);font:inherit}.nqd label{margin-top:10px}.nqd .bpui-actions{margin-top:16px}" +
+    ".nqd-list{display:grid;gap:8px;margin-top:12px}.nqd-list .bpui-btn{display:block;text-align:left;white-space:normal;height:auto;min-height:44px;line-height:1.35;padding:10px 12px;text-decoration:none;overflow-wrap:anywhere}";
   var cssDone = false;
   function css() { if (cssDone) return; cssDone = true; try { if (typeof G.__helmAdoptCss === "function") G.__helmAdoptCss(doc, CSS); } catch (e) {} }
 
@@ -84,6 +85,73 @@
     // callers can never both go on to startBlank and create two quotes from one Create press
     if (open) return Promise.resolve(null);
     css();
+    // 0206: quotes still in progress? Offer to continue one first ("You have 2 quotes in progress").
+    // Only when the server list is available; otherwise (or on any error / after 2 s) straight to the dialog.
+    var F = G.BPStore && G.BPStore.flowProgress, R = G.HelmFlowResume;
+    var canAsk = !opts.skipResume && !!R && !!F && typeof F.list === "function" && typeof F.available === "function" && (function () { try { return !!F.available(); } catch (e) { return false; } })();
+    if (!canAsk) return createDialog(opts);
+    open = inProgressFirst(opts, F, R).then(function (go) {
+      if (go !== "new") { open = null; return null; }
+      return createDialog(opts);
+    }, function () { return createDialog(opts); });
+    return open;
+  }
+  function inProgressFirst(opts, F, R) {
+    var sub = G.BPStore && G.BPStore.subscription;
+    var lim = sub && typeof sub.limits === "function" ? Promise.resolve(sub.limits()).catch(function () { return null; }) : Promise.resolve(null);
+    var both = Promise.all([Promise.resolve(F.list({ scope: "mine", limit: 3, maxDays: R.DASH_DAYS || 60 })).catch(function () { return null; }), lim]);
+    var late = new Promise(function (res) { setTimeout(function () { res(null); }, 2000); });
+    return Promise.race([both, late]).then(function (got) {
+      var d = got && got[0], l = got && got[1];
+      if (!d || !Array.isArray(d.rows) || !d.rows.length) return "new";
+      var cap = l && l.trial === true ? (Number(l.cap) > 0 ? Number(l.cap) : 2) : 0;
+      var atCap = !!cap && (Number(l.used && l.used.quotes) || 0) >= cap;
+      return chooser(d, atCap, R);
+    });
+  }
+  // "You have 2 quotes in progress": Continue <quote> (up to 3) / Start a new one / Cancel. A free trial at its quote
+  // limit only gets Continue. Resolves "new" (go on to the create dialog) or null (continued / cancelled).
+  function chooser(d, atCap, R) {
+    return new Promise(function (resolve) {
+      var seq = Math.random().toString(36).slice(2, 8), id = "nqr-" + seq, n = Math.max(Number(d.total) || 0, d.rows.length);
+      var ov = el("div", { class: "bpui-overlay nqd-overlay", "data-bpui": "dialog", "data-bpui-keep": "" });
+      var form = el("form", { class: "bpui-dialog nqd nqd-resume", role: "dialog", "aria-modal": "true", "aria-labelledby": id + "-t", "aria-describedby": id + "-m", novalidate: "" });
+      form.appendChild(el("h2", { id: id + "-t" }, "You have " + n + " quote" + (n === 1 ? "" : "s") + " in progress"));
+      form.appendChild(el("p", { id: id + "-m" }, atCap
+        ? "Your free trial has used its new quotes. Continue a quote in progress, or choose a plan to add more."
+        : "Continue where you left off, or start a new quote."));
+      var list = el("div", { class: "nqd-list" });
+      d.rows.slice(0, 3).forEach(function (r, i) {
+        var v = R.fromServer(r, true);
+        var a = el("a", { class: "bpui-btn" + (i === 0 ? " bpui-primary" : ""), href: R.href(v) }, "Continue " + v.name + " (" + R.stepText(v) + ")");
+        a.addEventListener("click", function () { close(null); });
+        list.appendChild(a);
+      });
+      form.appendChild(list);
+      var acts = el("div", { class: "bpui-actions" });
+      var cancel = el("button", { type: "button", class: "bpui-btn", "data-close": "" }, "Cancel");
+      acts.appendChild(cancel);
+      if (!atCap) { var neu = el("button", { type: "submit", class: "bpui-btn" }, "Start a new one"); acts.appendChild(neu); }
+      form.appendChild(acts); ov.appendChild(form);
+      var done = false, U = G.BPUI;
+      function onKey(e) { if (e.key === "Escape" || e.key === "Esc") { e.preventDefault(); close(null); } }
+      function close(val) {
+        if (done) return; done = true;
+        try { if (U && U.modal && U.modal.close) U.modal.close(ov); } catch (e) {}
+        try { doc.removeEventListener("keydown", onKey, true); } catch (e) {}
+        if (ov.parentNode) ov.parentNode.removeChild(ov);
+        resolve(val);
+      }
+      form.addEventListener("submit", function (e) { e.preventDefault(); if (!atCap) close("new"); });
+      cancel.addEventListener("click", function () { close(null); });
+      (doc.body || doc.documentElement).appendChild(ov);
+      var trapped = false;
+      try { if (U && U.modal && U.modal.open) { U.modal.open(ov); trapped = true; } } catch (e) {}
+      if (!trapped) doc.addEventListener("keydown", onKey, true);
+      try { var f = list.firstChild; if (f && f.focus) f.focus(); } catch (e) {}
+    });
+  }
+  function createDialog(opts) {
     open = new Promise(function (resolve) {
       var seq = Math.random().toString(36).slice(2, 8), id = "nqd-" + seq;
       var ov = el("div", { class: "bpui-overlay nqd-overlay", "data-bpui": "dialog", "data-bpui-keep": "" });

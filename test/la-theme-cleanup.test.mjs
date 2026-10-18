@@ -117,7 +117,7 @@ await t('pages use the shared formatter + labels', () => {
   assert.match(crm, /const when=\(t\)=>\{ if\(!t\) return ""; return BPStore\.fmtStudioDate\(t,/);
   assert.doesNotMatch(crm, /toLocaleString\("en-IN"/);
   assert.match(crm, /\$\{esc\(stgLbl\(s\)\)\}<\/option>/, 'CRM stage dropdown');
-  assert.match(crm, /<td class="muted">\$\{esc\(stgLbl\(r\.status\)\)\}<\/td>/, 'CRM stage column');
+  assert.match(crm, /<td class="muted">\$\{esc\(stgLbl\(rowStage\(r\)\)\)\}<\/td>/, 'CRM stage column');   // B17: live stage on the latest row
   assert.match(crm, /if\(!srcMap\[k\]\) srcMap\[k\]=srcLbl\(c\);/, 'CRM source filter: Walk-in, never Walk-In');
   assert.match(leads, /\["Date", l\.event_date\?BPStore\.fmtDateIN\(l\.event_date\):""\]/);
   assert.match(dash, /stg\(e\.lifecycle_stage\)/); assert.match(dash, /esc\(stg\(t\.status\)\)/);

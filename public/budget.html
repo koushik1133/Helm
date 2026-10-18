@@ -71,7 +71,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="vendor-bills.css?v=1">
-<script src="/shell-proto.js?v=27" id="shellProto"></script>
+<script src="/shell-proto.js?v=29" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -108,8 +108,8 @@
       <div class="addgrid" id="addCost" hidden>
         <div class="fld"><label for="c_desc">Description</label><input id="c_desc" placeholder="e.g. Décor materials" maxlength="200"></div>
         <div class="fld"><label for="c_kind">Type</label><select id="c_kind"><option value="internal">Internal</option><option value="vendor">Vendor</option><option value="other">Other</option></select></div>
-        <div class="fld"><label for="c_est">Estimated ₹</label><input id="c_est" type="number" min="0" value="0"></div>
-        <div class="fld"><label for="c_act">Actual ₹</label><input id="c_act" type="number" min="0" placeholder="—"></div>
+        <div class="fld"><label for="c_est">Estimated ₹</label><input id="c_est" class="hbp-mi" type="number" min="0" value="0"></div>
+        <div class="fld"><label for="c_act">Actual ₹</label><input id="c_act" class="hbp-mi" type="number" min="0" placeholder="—"></div>
         <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="c_add">＋ Add</button></div>
       </div>
     </div>
@@ -133,8 +133,8 @@
     <div class="fld s-fdf33f2"><label for="ch_title">Title</label><input id="ch_title" placeholder="e.g. Add photo booth"></div>
     <div class="fld s-fdf33f2"><label for="ch_detail">Detail</label><input id="ch_detail" placeholder="optional"></div>
     <div class="s-4e330d8">
-      <div class="fld"><label for="ch_price">Charge client ₹ before tax <span class="muted">(negative = credit/discount)</span></label><input id="ch_price" type="number" value="0" data-allow-negative></div>
-      <div class="fld"><label for="ch_cost">Extra cost ₹ <span class="muted">(negative = saving)</span></label><input id="ch_cost" type="number" value="0" data-allow-negative></div>
+      <div class="fld"><label for="ch_price">Charge client ₹ before tax <span class="muted">(negative = credit/discount)</span></label><input id="ch_price" class="hbp-mi" type="number" value="0" data-allow-negative></div>
+      <div class="fld"><label for="ch_cost">Extra cost ₹ <span class="muted">(negative = saving)</span></label><input id="ch_cost" class="hbp-mi" type="number" value="0" data-allow-negative></div>
     </div>
     <p id="ch_taxhint" class="muted" hidden aria-live="polite"></p>
     <div id="ch_err" class="err s-8a77e5a" hidden role="alert" aria-live="assertive"></div>
@@ -156,7 +156,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=7"></script><script src="budget-plan.js?v=2"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=7"></script><script src="budget-plan.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

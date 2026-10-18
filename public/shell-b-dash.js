@@ -151,7 +151,12 @@
   function iso(d) { var m = d.getMonth() + 1, x = d.getDate(); return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (x < 10 ? "0" : "") + x; }
   function dOf(s) { var d = new Date(String(s || "").slice(0, 10) + "T00:00:00"); return isNaN(d) ? null : d; }
   /* whole calendar days from `now`'s day to date string ds (shared by the countdown + "In N days") */
-  function dayDiff(ds, now) { var d = dOf(ds), t = dOf(iso(now || new Date())); return d && t ? Math.round((d - t) / DAY) : null; }
+  function dayDiff(ds, now) { var d = dOf(ds), t = dOf(todayOf(now || new Date())); return d && t ? Math.round((d - t) / DAY) : null; }
+  /* B18: "today" + the wall clock are the STUDIO's (Asia/Kolkata for an Indian studio), never the device's:
+     todayOf(instant) -> the studio's YYYY-MM-DD; wallNow() -> a local Date that reads the studio's date + time
+     (so local-midnight arithmetic against dOf() dates and getHours() follow the studio's clock). */
+  function todayOf(t) { try { var B = S(); if (B && B.todayLocal) return B.todayLocal(t); } catch (e) {} return iso(t); }
+  function wallNow() { try { var B = S(), c = B && B.studioClock ? B.studioClock() : null; if (c) return new Date(c.y, c.mo - 1, c.d, c.h, c.mi, c.s); } catch (e) {} return new Date(); }
   function ym(d) { return d.getFullYear() * 12 + d.getMonth(); }
   /* LA-27: every date here goes through the ONE studio formatter (studio locale + timezone), never the browser's.
      dfmt(localDayDate, fields) formats a calendar day; tfmt(timestamp, fields) an instant in the studio's timezone. */
@@ -453,7 +458,7 @@
     function pad(n) { return (n < 10 ? "0" : "") + n; }
     function starts() { return tm ? el("span", "hd-cn-t", "· starts " + pad(+tm[1]) + ":" + tm[2]) : null; }
     function paint() {
-      var now = new Date(), isToday = iso(now) === ev.date, st;
+      var real = new Date(), now = wallNow(), isToday = todayOf(real) === ev.date, st;
       clear(clock); clock.classList.toggle("hd-count-today", isToday);
       if (isToday) {
         clock.appendChild(el("b", "hd-cn-n", "Today"));
@@ -463,7 +468,7 @@
       }
       // Days = calendar-day difference (same rule as the "In N days" list via dayDiff), so a
       // 14-day-away event never reads "13 days 11 hrs" here. 1+ days away: "N days · starts HH:MM".
-      var cd = dayDiff(ev.date, now);
+      var cd = dayDiff(ev.date, real);
       if (cd != null && cd > 0) {
         clock.appendChild(unit(String(cd), cd === 1 ? "day" : "days", "d"));
         if ((st = starts())) clock.appendChild(st);
@@ -487,7 +492,7 @@
      touched, so a saved layout can't reveal a gated block. Saved on Done (server RPC when 0109 is
      applied, else this device). Mouse = native drag and drop; touch = pointer events on the grip;
      keyboard = grip button (Space/Enter pick up, arrows move, Space drop, Esc cancel). */
-  var CZ_NAMES = { mywork: "My work", mytasks: "My tasks", quotes: "All quotes", roleboard: "Team board" };
+  var CZ_NAMES = { resume: "Continue where you left off", mywork: "My work", mytasks: "My tasks", quotes: "All quotes", roleboard: "Team board" };
   var CZ_CACHE = "helm.dash.layout.last";
   function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
   function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
@@ -755,7 +760,7 @@
     [[120, 110, "hd-sp1"], [120, 78, "hd-sp2"], [120, 46, "hd-sp3"]].forEach(function (c) { sv("circle", { cx: 200, cy: 40, r: c[1], "class": c[2] }, spot); });
     var hl = el("div", "hd-hl");
     var now = new Date();
-    var hr = now.getHours(), tod = hr < 5 || hr >= 20 ? "night" : hr < 12 ? "morning" : hr < 17 ? "afternoon" : "evening";
+    var hr = wallNow().getHours(), tod = hr < 5 || hr >= 20 ? "night" : hr < 12 ? "morning" : hr < 17 ? "afternoon" : "evening";
     hero.classList.add("hd-tod-" + tod);
     var orb = el("span", "hd-orb"); orb.setAttribute("aria-hidden", "true"); orb.appendChild(icon(tod === "night" || tod === "evening" ? IC.moon : IC.sun, "hd-ic hd-orb-ic")); hero.appendChild(orb);
     var dl = el("p", "hd-date hd-eyebrow"); dl.appendChild(el("span", null, tfmt(now, { weekday: "long", day: "numeric", month: "long" })));
@@ -809,6 +814,9 @@
     /* sections: one parent, DOM order = reading order (grid/cols are display:contents) */
     var grid = el("div", "hd-grid"); root.appendChild(grid);
     delayN = 2;
+    /* resume v3 (0206): "Continue where you left off" - my most recent unfinished quote, filled by flow-resume.js
+       (hidden until it has one; a real block, so it is never pushed below the whole dashboard) */
+    var cResume = card("hdResume", "Continue where you left off", IC.doc, { skel: 1, span: "hd-s-full", block: "resume" }); cResume.hidden = true;
     var cShift = card("hdShift", "My next shift", IC.pin, { skel: 2, span: "hd-s-full", block: "shift" }); cShift.hidden = true;
     var cCal = card("hdCal", "Your month", IC.cal, { skel: 4, more: ["calendar.html", "Calendar"], span: "hd-s-wide", block: "calendar" });
     var cAtt = card("hdAtt", "Needs attention", IC.alert, { span: "hd-s-side", block: "attention" });
@@ -821,7 +829,7 @@
     slotWork.setAttribute("data-block", "mywork"); slotTasks.setAttribute("data-block", "mytasks"); slotQuotes.setAttribute("data-block", "quotes"); slotRole.setAttribute("data-block", "roleboard");
     var cNotes = card("hdNotes", "Desk notes", IC.doc, { skel: 1, span: "hd-s-side", block: "notes" });
     var cAct = card("hdAct", "Recent activity", IC.pulse, { more: ["audit.html", "Audit log"], span: "hd-s-side hd-act-card", block: "activity" }); cAct.hidden = true;
-    [cShift, cCal, cAtt, cUp, cFol, cRev, cPipe, slotWork, slotTasks, slotQuotes, cNotes, slotRole, cAct, cWeek].forEach(function (n) { grid.appendChild(n); });
+    [cResume, cShift, cCal, cAtt, cUp, cFol, cRev, cPipe, slotWork, slotTasks, slotQuotes, cNotes, slotRole, cAct, cWeek].forEach(function (n) { grid.appendChild(n); });
     var DEF_ORDER = czBlocks(grid).map(function (n) { return n.getAttribute("data-block"); });
     if (L()) { var czLast = parseJ(ssGet(CZ_CACHE)); if (czLast) czApply(grid, czLast); }   // last layout this tab saw: no flicker
 
@@ -873,11 +881,11 @@
     if (!isMoney) { cRev.hidden = true; if (!vQuotes && !vLeads) cPipe.hidden = true; }
     if (isMoney) slotRole.classList.add("hd-off");                           // KPI tiles cover the money roles' board
     if (isCrew) { cShift.hidden = false; root.classList.add("hd-crew"); cWeek.classList.remove("hd-off");   // crew home: shift ticket, tasks, their week; nothing else
-      [cAtt, cUp, cCal, cFol, cPipe, cRev, slotWork, slotQuotes, slotRole].forEach(function (n) { n.classList.add("hd-off"); }); }
+      [cResume, cAtt, cUp, cCal, cFol, cPipe, cRev, slotWork, slotQuotes, slotRole].forEach(function (n) { n.classList.add("hd-off"); }); }
     if (vAudit) cAct.hidden = false;
     if ((vLeads || vQuotes) && !isCrew) cFol.hidden = false;
     if (signedOut) {                                                         // one shared empty instead of a wall of empty cards
-      [cAtt, cCal, cFol, cNotes, cPipe, cRev, cAct, slotWork, slotQuotes, slotRole, slotTasks].forEach(function (n) { n.classList.add("hd-off"); });
+      [cResume, cAtt, cCal, cFol, cNotes, cPipe, cRev, cAct, slotWork, slotQuotes, slotRole, slotTasks].forEach(function (n) { n.classList.add("hd-off"); });
       cUp.classList.remove("hd-s-wide"); cUp.classList.add("hd-s-full"); kpis.hidden = true;
     }
 
@@ -896,6 +904,7 @@
       if (pe[1]) items.push({ t: "Vendor", ic: IC.shop, href: "vendors.html" });
       if (pe[2]) items.push({ t: "Staff member", ic: IC.team, href: "staff.html" });
       setupNewMenu(createSlot, createBtn, items);
+      try { window.__helmNewMenu = items.slice(1).map(function (i) { return i.t; }); } catch (e) {}   // B30: the dashboard tour names exactly these
     });
 
     /* name for the greeting (fills while data loads) */
@@ -929,7 +938,7 @@
     function mStage(k) { var x = MP && MP[k]; return x ? { n: mN(x.count), v: x.value == null ? null : mN(x.value) } : null; }
     var mOpenLeads = null;
     if (M && M.leads && typeof M.leads === "object") { mOpenLeads = 0; Object.keys(M.leads).forEach(function (k) { if (k !== "lost" && k !== "won" && k !== "converted") mOpenLeads += mN(M.leads[k]); }); }
-    var today = iso(now), todayD = dOf(today);
+    var today = todayOf(now), todayD = dOf(today);
     var curRows = rows.filter(function (q) { return qCur(q) === CUR; });
 
     /* merged event list (my_pending scoped feed + loaded quotes) */

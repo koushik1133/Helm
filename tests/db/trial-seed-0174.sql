@@ -42,6 +42,13 @@ declare r jsonb; begin
 end $$;
 
 
+-- 0236: the app wrappers refuse Clear / Reset sample data while the studio is on its free trial; this suite
+-- tests what the clear / reset itself does, so it calls the kept bodies (<name>__pre0236) as the studio admin
+do $$ declare f text; begin
+  foreach f in array array['public.clear_sample_data__pre0236()', 'public.reset_demo_data__pre0236()', 'public.clear_demo_data__pre0236()'] loop
+    if to_regprocedure(f) is not null then execute format('grant execute on function %s to authenticated', f); end if;
+  end loop;
+end $$;
 do $$ declare a uuid; b uuid; c uuid; r jsonb; mv int; begin
   perform pg_temp.su();
   select version into mv from public.helm_trial_seed_manifest where is_current;
@@ -74,7 +81,7 @@ do $$ declare a uuid; b uuid; c uuid; r jsonb; mv int; begin
     and (select sample_cloned_at from public.organizations where id = b) is null, r::text);
   -- Clear -> Load: current manifest; old venues switched off, never deleted
   perform pg_temp.login('ts174_old@t.test');
-  perform public.clear_sample_data();
+  perform public.clear_sample_data__pre0236();
   r := public.seed_demo_data();
   perform pg_temp.su();
   perform pg_temp.res('05 clear -> load re-clones current manifest', coalesce((r ->> 'cloned')::boolean, false)
@@ -84,7 +91,7 @@ do $$ declare a uuid; b uuid; c uuid; r jsonb; mv int; begin
     and (select count(*) from public.venues where org_id = b and is_demo and active) = 4, r::text);
   -- Reset demo data on a cloned trial: clear + clone again, still current manifest
   perform pg_temp.login('ts174_old@t.test');
-  r := public.reset_demo_data();
+  r := public.reset_demo_data__pre0236();
   perform pg_temp.su();
   perform pg_temp.res('06 reset re-clones current manifest', coalesce((r #>> '{seeded,cloned}')::boolean, false)
     and (select count(*) from public.venues where org_id = b and is_demo and active) = 4, r::text);
@@ -93,7 +100,7 @@ do $$ declare a uuid; b uuid; c uuid; r jsonb; mv int; begin
   c := pg_temp.trial('ts174_ae@t.test', 'Asia/Dubai', 'AED');
   update public.organizations set country = 'AE' where id = c;
   perform pg_temp.login('ts174_ae@t.test');
-  perform public.clear_sample_data();
+  perform public.clear_sample_data__pre0236();
   r := public.seed_demo_data();
   perform pg_temp.su();
   perform pg_temp.res('07 AE trial load -> manifest', coalesce((r ->> 'cloned')::boolean, false), r::text);

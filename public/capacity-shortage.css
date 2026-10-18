@@ -1,5 +1,5 @@
 /* capacity-shortage.css (0197) - over-capacity decision dialog, workspace issues, inventory shortage panel */
-.capd-ov{position:fixed;inset:0;z-index:90;background:rgba(20,27,46,.5);display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;overflow:auto}
+.capd-ov{position:fixed;inset:0;z-index:1100;background:rgba(20,27,46,.5);display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;overflow:auto}
 .capd-sheet{background:var(--panel,#fff);color:var(--ink,#141b2e);border:1px solid var(--line,#e5e7e3);border-radius:16px;box-shadow:0 20px 60px rgba(20,27,46,.25);width:min(640px,100%);padding:20px 22px}
 .capd-hd{display:flex;align-items:center;gap:10px}
 .capd-hd h3{margin:0;font-size:19px;line-height:1.3;color:#b42318}

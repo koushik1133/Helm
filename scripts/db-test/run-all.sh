@@ -145,7 +145,7 @@ run "studio-search"      "STUDIO-SEARCH: ALL PASS \(52/52\)" psql -q -f tests/db
 run "client-360"         "CLIENT-360: ALL PASS \(48/48\)"  psql -q -f tests/db/client-360.sql
 run "saved-views"        "SAVED-VIEWS: ALL PASS \(28/28\)" psql -q -f tests/db/saved-views.sql
 run "system-quiet-0164"  "SYSTEM-QUIET-0164: ALL PASS \(18/18\)" psql -q -f tests/db/system-quiet-0164.sql
-run "trial-sandbox-0166" "TRIAL-SANDBOX-0166: ALL PASS \(50/50\)" psql -q -f tests/db/trial-sandbox-0166.sql
+run "trial-sandbox-0166" "TRIAL-SANDBOX-0166: ALL PASS \(51/51\)" psql -q -f tests/db/trial-sandbox-0166.sql
 run "trial-manifest-0167" "TRIAL-MANIFEST-0167: ALL PASS \(50/50\)" psql -q -f tests/db/trial-manifest-0167.sql
 run "trial-india-0177"   "TRIAL-INDIA-0177: ALL PASS \(17/17\)" psql -q -f tests/db/trial-india-0177.sql
 run "trial-data-0168" "TRIAL-DATA-0168: ALL PASS \(17/17\)" psql -q -f tests/db/trial-data-0168.sql
@@ -178,6 +178,11 @@ run "capacity-shortage-0197" "CAPACITY-SHORTAGE-0197: ALL PASS \(39/39\)" psql -
 run "trial-gates-0203" "TRIAL-GATES-0203: ALL PASS \(46/46\)" psql -q -f tests/db/trial-gates-0203.sql
 run "anon-grant-tidy-0204" "ANON-GRANT-TIDY-0204: ALL PASS \(28/28\)" psql -q -f tests/db/anon-grant-tidy-0204.sql
 run "invite-accept-0205" "INVITE-ACCEPT-0205: ALL PASS \(40/40\)" psql -q -f tests/db/invite-accept-0205.sql
+run "flow-progress-0206" "FLOW-PROGRESS-0206: ALL PASS \(46/46\)" psql -q -f tests/db/flow-progress-0206.sql
+run "trial-terms-0207" "TRIAL-TERMS-0207: ALL PASS \(39/39\)" psql -q -f tests/db/trial-terms-0207.sql
+run "empty-draft-0208" "EMPTY-DRAFT-0208: ALL PASS \(13/13\)" psql -q -f tests/db/empty-draft-0208.sql
+run "trial-unify-0236" "TRIAL-UNIFY-0236: ALL PASS \(38/38\)" psql -q -f tests/db/trial-unify-0236.sql
+run "trial-seed-0237" "TRIAL-SEED-0237: ALL PASS \(27/27\)" psql -q -f tests/db/trial-seed-0237.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

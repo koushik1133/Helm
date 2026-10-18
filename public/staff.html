@@ -94,7 +94,7 @@
 <link rel="stylesheet" href="staff-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=27" id="shellProto"></script>
+<script src="/shell-proto.js?v=29" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -142,7 +142,7 @@
       </div>
     </fieldset>
     <div class="fgrid smgrid">
-      <div class="fld"><label for="s_name">Name <span class="req" aria-hidden="true">*</span></label><input id="s_name" placeholder="e.g. Ravi Kumar" autocomplete="off" aria-required="true" aria-describedby="s_name_msg"><span class="fmsg" id="s_name_msg" aria-live="polite"></span></div>
+      <div class="fld"><label for="s_name">Name <span class="req" aria-hidden="true">*</span></label><input id="s_name" maxlength="120" placeholder="e.g. Ravi Kumar" autocomplete="off" aria-required="true" aria-describedby="s_name_msg"><span class="fmsg" id="s_name_msg" aria-live="polite"></span></div>
       <div class="fld"><label for="s_role">Role</label><select id="s_role" aria-describedby="s_role_hint"><option value="">— Choose a role —</option></select>
         <span class="fmsg fhint" id="s_role_hint">Roles come from Control Center → Users &amp; access.</span></div>
       <div class="fld"><label for="s_dept">Department</label><select id="s_dept"><option value="">— Choose a department —</option></select>
@@ -193,11 +193,11 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=5"></script>
-<script src="tour.js?v=18"></script>
+<script src="tour.js?v=20"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -215,8 +215,11 @@
 
   // 0041: a staff row with profile_id is linked to a Helm account (photo from the member's profile)
   let memberDir={}, isAdminUser=false, invites=[], loginRoles={}, deptList=[];
+  // B29: every saved number is shown the same way ("+91 98765 43210"), whether it was typed with spaces or not
+  function phoneTxt(p){ const c=String(p==null?"":p).replace(/[\s\-().]/g,""); try{ if(window.HelmPhone&&HelmPhone.display&&/^\+\d{7,15}$/.test(c)) return HelmPhone.display(c); }catch(e){} return String(p==null?"":p); }
   // 0106: role shown on the card — a defined role's label, or the old free text as "Custom: …"
-  function roleText(s){ if(!s.role) return "—"; return BPStore.staff.matchRole(s.role)?esc(s.role):`<span title="Not one of the studio's roles yet — edit to pick one">Custom: ${esc(s.role)}</span>`; }
+  // B29: a trial SAMPLE row's role is shown as written (no "Custom:" on every sample card)
+  function roleText(s){ if(!s.role) return "—"; if(BPStore.staff.isDemo&&BPStore.staff.isDemo(s)) return esc(s.role); return BPStore.staff.matchRole(s.role)?esc(s.role):`<span title="Not one of the studio's roles yet — edit to pick one">Custom: ${esc(s.role)}</span>`; }
   function loginTag(s){
     const st=BPStore.staff.loginStatus(s,invites);
     if(st==="active"){ const r=loginRoles[s.profile_id]; return `<span class="tag login-active" title="Signs in to Helm${r?" as "+esc(BPStore.staff.roleLabel(r)):""}">Active user${r?" · "+esc(BPStore.staff.roleLabel(r)):""}</span>`; }
@@ -298,7 +301,7 @@
       </div>
       ${skills.length?`<div class="tags">${skills.map(k=>`<span class="tag">${esc(k)}</span>`).join("")}</div>`:""}
       ${(()=>{ const al=typeof HelmImportCore!=="undefined"?HelmImportCore.attrList("staff",s.attributes,attrDefs):[]; return al.length?`<div class="tags attrs">${al.slice(0,6).map(a=>`<span class="tag" title="${esc(a.label)}: ${esc(a.value)}"><b>${esc(a.label)}:</b> ${esc(a.value.slice(0,40))}</span>`).join("")}${al.length>6?`<span class="tag">+${al.length-6} more</span>`:""}</div>`:""; })()}
-      <div class="meta">${[s.phone,s.email].filter(Boolean).map(esc).join(" · ")}${s.day_rate?`<br>${BPStore.studioMoney(s.day_rate)}/day`:""}</div>
+      <div class="meta">${[s.phone?phoneTxt(s.phone):"",s.email].filter(Boolean).map(esc).join(" · ")}${s.day_rate?`<br>${BPStore.studioMoney(s.day_rate)}/day`:""}</div>
       <div class="acts">
         ${canCal?`<a class="ic" href="calendar.html?staff=${encodeURIComponent(s.id)}#schedule" title="See ${esc(s.name||"this person")}'s event schedule (week / month)">Schedule</a>`:""}
         ${canEdit?`<button class="ic" data-act="edit">Edit</button>
@@ -415,7 +418,10 @@
     if(linkedEdit()){ fieldMsg("s_phone",""); return {ok:true,value:editingRow&&editingRow.phone}; }
     const raw=$("#s_phone").value;
     if(demoPhoneKept(raw)){ fieldMsg("s_phone",""); return {ok:true,value:editingRow.phone||null}; }
-    const v=BPStore.validate.phone(raw); fieldMsg("s_phone",v.ok?"":v.error+"."); return v;
+    // B15: the same rule staff.add / staff.update enforce (per-country length via HelmPhone: India = 10 digits), so a
+    // short "+91 12345" is flagged here, under the field, instead of the save failing with "Something went wrong"
+    const v=BPStore.staff.phoneE164(raw,true); const em=v.ok?"":String(v.error||"Enter a valid phone number.");
+    fieldMsg("s_phone",em?(/[.!?]$/.test(em)?em:em+"."):""); return v;
   }
   function checkEmail(){
     if(linkedEdit()){ fieldMsg("s_email",""); return {ok:true,value:null}; }
@@ -485,23 +491,30 @@
     $("#s_attrs").replaceChildren(...(attrEd?[attrEd.el]:[])); $("#s_attrs_box").hidden=!attrEd;
     $("#sm_err").hidden=true;
     if(s && !BPStore.staff.isLinked(s) && BPStore.staff.phoneInvalid(s)){ $("#sm_err").textContent=`Invalid phone — please fix. The saved number "${String(s.phone).slice(0,60)}" isn't a valid phone (7–15 digits, optional leading +).`; $("#sm_err").hidden=false; }
-    $("#staffModal").hidden=false; $("#staffModal .sm-body").scrollTop=0; formDirty.clean(); setTimeout(()=>(BPStore.staff.isLinked(s)?$("#s_emp"):$("#s_name")).focus(),50);
+    $("#staffModal").hidden=false; $("#staffModal .sm-body").scrollTop=0; formDirty.clean(); if(!s) capHint(); setTimeout(()=>(BPStore.staff.isLinked(s)?$("#s_emp"):$("#s_name")).focus(),50);
   }
   let editingRow=null;
   const formDirty=BPUI.trackDirty($("#staffModal"));
   function closeForm(){ $("#staffModal").hidden=true; editingId=null; editingRow=null; formDirty.clean(); }
   async function requestCloseForm(){ if($("#staffModal").hidden) return; if(!(await BPUI.confirmDiscard(formDirty))) return; closeForm(); }
-  const dupNorm=t=>String(t==null?"":t).normalize('NFKC').toLowerCase().replace(/&/g,' and ').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+  // B14: the trial's sample rows are named "Demo \u00b7 <name>" - the prefix is not part of the name, so
+  // "AV Solutions" next to "Demo \u00b7 AV Solutions" is a possible duplicate (asked, never blocked: the sample is a stand-in)
+  const isDemoRow=r=>!!(r&&(r.is_demo===true||/^\s*Demo \u00b7 /.test(String(r.name||""))));
+  const dupNorm=t=>String(t==null?"":t).replace(/^\s*Demo \u00b7\s*/,"").normalize('NFKC').toLowerCase().replace(/&/g,' and ').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
   const dupDigits=p=>String(p==null?"":p).replace(/\D+/g,"").slice(-10);
   // returns {block:msg}|{ask:msg}|null — compares against ALL records incl. inactive
   function dupCheck(rows,selfId,name,phone,noun){
-    const n=dupNorm(name); if(!n) return null; const pd=dupDigits(phone); let ask=null;
+    const n=dupNorm(name); if(!n) return null; const pd=dupDigits(phone); let ask=null, sampleAsk=null;
+    // a sample match is asked about only when the name is new or changed (editing your own record never re-asks)
+    const self=selfId?(rows||[]).find(r=>r.id===selfId):null, renamed=!self||dupNorm(self.name)!==n;
     for(const r of rows||[]){
       if(r.id===selfId || dupNorm(r.name)!==n) continue;
+      if(isDemoRow(r)){ if(renamed) sampleAsk=sampleAsk||`"${r.name}" is a sample ${noun} from the free-trial data. Save yours as a separate ${noun} anyway? (Clear sample data removes the sample later.)`; continue; }
       const rd=dupDigits(r.phone), tag=r.active===false?" (inactive)":"";
       if(!pd||!rd||pd===rd) return {block:`A ${noun} named "${r.name}"${tag} already exists${pd&&rd?" with this phone number":""}. Open the existing record instead of adding a duplicate${r.active===false?" (tick \"Show inactive\" and reactivate it)":""}.`};
       ask=ask||`A ${noun} named "${r.name}"${tag} already exists with a different phone number. Save this one as a separate person/partner anyway?`;
     }
+    ask=ask||sampleAsk;
     return ask?{ask}:null;
   }
   async function saveStaff(){
@@ -609,7 +622,12 @@
   $("#skillFilter").addEventListener("change",e=>{ skillF=e.target.value; reloadQuiet(); });
   $("#showInactive").addEventListener("change",e=>{ showInactive=e.target.checked; load(); });
 
+  // B29: free trial - "2 of 2 staff used" is shown by the add button (switched off at the cap), not after the form
+  function gateCap(){ if(canEdit&&window.BPUI&&BPUI.capGate) BPUI.capGate([$("#newBtn"),$("#importBtn")],"crew_members","staff").catch(()=>{}); }
+  // ...and a new-record dialog opened at the cap says so at once (the server would refuse the save)
+  function capHint(){ if(!window.BPUI||!BPUI.trialCap) return; BPUI.trialCap("crew_members").then(c=>{ if(c&&c.full&&!editingId&&!$("#staffModal").hidden){ $("#sm_err").textContent=BPUI.capText(c,"staff"); $("#sm_err").hidden=false; } }).catch(()=>{}); }
   async function load(){
+    gateCap();
     if(quoteId){
       const [fe,q]=await Promise.allSettled([BPStore.staff.forEvent(quoteId), BPStore.quotes.get(quoteId)]);
       if(fe.status==="fulfilled") eventCrew=new Set(fe.value.map(x=>x.crew_id));

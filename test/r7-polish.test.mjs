@@ -68,7 +68,7 @@ t('staff.html flags old bad phones without changing them', () => {
 t('nurture.html: Phone (WhatsApp) field, validated, stored, listed, prefilled, WhatsApp link', () => {
   const h = read('public/nurture.html');
   assert.match(h, /<label for="n_phone">Phone \(WhatsApp\)<\/label><input id="n_phone" type="tel"/);
-  assert.match(h, /const pv=BPStore\.staff\.phoneE164\(\$\("#n_phone"\)\.value\);/);
+  assert.match(h, /const pv=BPStore\.staff\.phoneE164\(v\.n_phone\);/);   // B16: read from the form snapshot taken on click
   assert.match(h, /phone:pv\.value/);
   assert.match(h, /phone: l\.phone \|\| ""/);
   assert.match(h, /if\(c\.phone && !\$\("#n_phone"\)\.value\)/);
@@ -84,7 +84,7 @@ t('closure.html: closed state, admin-only Re-open with reason, close hidden when
 });
 t('store-api v=158 on every page', () => {
   for (const p of readdirSync(join(ROOT, 'public')).filter((f) => f.endsWith('.html'))) {
-    const m = read('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '248', p);
+    const m = read('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '250', p);
   }
 });
 t('0084 SQL: additive, ASCII, no table constraint, APPLY verbatim + verify grid', () => {

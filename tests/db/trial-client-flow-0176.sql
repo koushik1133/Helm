@@ -116,6 +116,8 @@ do $$ declare b uuid; q record; r jsonb; begin
   perform pg_temp.res('24 paid studio: even its own admin cannot skip', r ->> 'error' = 'trial_test_unavailable', r::text);
   -- ended trial
   update public.organizations set trial_ends_at = now() - interval '1 day' where id = b;
+  -- 0236: test mode follows the 0183 effective end; a later subscription end day is an approved extension
+  update public.studio_subscriptions set trial_ends_at = current_date - 2 where org_id = b;
   select * into q from public.quotes where org_id = b and approval_status = 'sent' limit 1;
   perform pg_temp.anon();
   r := public.trial_test_approve(q.approval_token, null, 'x', 'v1', 'x', 'x');

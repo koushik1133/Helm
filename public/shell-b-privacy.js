@@ -159,6 +159,7 @@
     if (node.nodeType === 3) { markText(node); return; }
     if (node.nodeType !== 1) return;
     if (node.id === "hbpModal" || node.id === "hbRail") return;
+    if (node.closest && node.closest(".hbp-skip")) return;   /* QA-B27: e.g. the builder's floor-plan SVG (no amounts; redrawn on every drag) */
     if (node.tagName === "INPUT") { markInput(node); return; }
     if (masked.has(node)) return;
     if (node.hasAttribute && node.hasAttribute("title")) stashTitle(node);
@@ -255,13 +256,20 @@
    * BPStore.privacyPin.check() returns {ok, tries_left, locked_seconds}; the server counts wrong tries per person.
    * Before 0157 (or in local mode) it returns null and the default PIN 0000 applies, with a local try counter. */
   function pinApi() { var s = window.BPStore; return s && s.privacyPin ? s.privacyPin : null; }
-  var pinStatus = null, pinStatusErr = false;
+  var pinStatus = null, pinStatusErr = false, pinTrial = false;
+  // B29: a FREE-TRIAL studio cannot change the PIN (0181 refuses privacy_pin_set / _reset and Control Center >
+  // Hide amounts is locked), so the prompt never sends anyone there: it says the trial PIN is 0000.
+  function loadTrial() {
+    var s = window.BPStore; if (!s || !s.subscription || typeof s.subscription.trial !== "function") return Promise.resolve(false);
+    return Promise.resolve().then(function () { return s.subscription.trial(); })
+      .then(function (t) { pinTrial = !!(t && t.status === "trial"); return pinTrial; }, function () { return pinTrial; });
+  }
   function loadPinStatus() {
-    var a = pinApi(); if (!a) return Promise.resolve(null);
-    return Promise.resolve().then(function () { return a.status(); })
+    var a = pinApi(); loadTrial(); if (!a) return Promise.resolve(null);
+    return Promise.resolve().then(function () { return Promise.all([a.status(), loadTrial()]).then(function (r) { return r[0]; }); })
       .then(function (s) { pinStatus = s || null; pinStatusErr = false; return pinStatus; }, function () { pinStatusErr = true; return pinStatus; });
   }
-  function canChangePin() { return !!(pinStatus && pinStatus.can_change); }
+  function canChangePin() { return !pinTrial && !!(pinStatus && pinStatus.can_change); }
   async function checkPin(pin) {
     var a = pinApi(), r = a ? await a.check(pin) : null;   // throws on a network / server error
     if (!r) return { ok: String(pin) === DEFAULT_PIN, local: true };
@@ -308,7 +316,8 @@
     function unlockDesc() {
       // QA1026 #3: the default-PIN hint is for admins (who can change it) and only while the server
       // says the PIN is still the default; other roles never see it.
-      var hint = !pinStatusErr && pinStatus && pinStatus.is_default === true && canChangePin()
+      var hint = pinTrial ? " (Free trial: the studio PIN is 0000.)"
+        : !pinStatusErr && pinStatus && pinStatus.is_default === true && canChangePin()
         ? " (Default PIN 0000 — change it in Control Center.)" : "";
       return "Amounts are hidden while you present. Enter your studio's privacy PIN to show them." + hint;
     }
@@ -316,7 +325,9 @@
       clearInterval(timer); err.textContent = ""; inp.disabled = false; ok.disabled = false; while (foot.firstChild) foot.removeChild(foot.firstChild);
       if (step === "forgot") {
         ttl.textContent = "Forgot the PIN?";
-        desc.textContent = canChangePin()
+        desc.textContent = pinTrial
+          ? "In the free trial the studio privacy PIN is always 0000. You can set your own PIN in Control Center after you choose a plan."
+          : canChangePin()
           ? "The privacy PIN is one PIN for the whole studio. As an admin you can change it, or put it back to 0000, in Control Center › Hide amounts."
           : "The privacy PIN is one PIN for the whole studio. Only a studio admin can change or reset it — ask your admin for the PIN.";
         ok.textContent = canChangePin() ? "Open Control Center" : "Back";

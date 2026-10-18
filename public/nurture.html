@@ -89,7 +89,7 @@
 </style>
 <link rel="stylesheet" href="nurture-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=27" id="shellProto"></script>
+<script src="/shell-proto.js?v=29" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -214,8 +214,8 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
-<script src="tour.js?v=18"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script>
+<script src="tour.js?v=20"></script>
 <script src="nurture-templates.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -284,20 +284,34 @@
     const txt=encodeURIComponent("Hi "+(d.name||"")+", warm wishes on your "+(d.occasion||d.occasion_type||"special day")+"!");
     return ` <a class="lnk" target="_blank" rel="noopener" href="https://wa.me/${esc(wa)}?text=${esc(txt)}" aria-label="WhatsApp ${esc(d.name)}">WhatsApp</a>`;
   }
-  async function addOne(){ const name=$("#n_name").value.trim(); if(!name){ $("#n_name").focus(); BPUI.toast("Enter a name first.",{type:"info"}); return; }
-    const type=$("#n_type").value;
-    const em=$("#n_email").value.trim();
+  // B16: every Add is saved or clearly refused. The click snapshots the form, the form resets at once
+  // (so the next contact can be typed straight away) and the save goes into a queue that runs one at a time:
+  // a fast second Add is no longer dropped by a busy button. Each save shows a toast; a refused one puts its
+  // values back when the form is still empty.
+  const NUR_FIELDS=["n_name","n_email","n_phone","n_occ","n_occd","n_type"];
+  let addQueue=Promise.resolve(), addPending=0, addSaved=false;
+  function readForm(){ const v={}; NUR_FIELDS.forEach(k=>v[k]=$("#"+k).value); v.n_auto=$("#n_auto").checked; return v; }
+  function resetForm(){ ["n_name","n_email","n_phone","n_occ","n_occd"].forEach(k=>$("#"+k).value=""); $("#n_type").value="anniversary"; $("#n_auto").checked=false; }
+  function formEmpty(){ return ["n_name","n_email","n_phone","n_occ","n_occd"].every(k=>!$("#"+k).value.trim()); }
+  function restoreForm(v){ if(!formEmpty()) return false; NUR_FIELDS.forEach(k=>{ if(v[k]!=null) $("#"+k).value=v[k]; }); $("#n_auto").checked=!!v.n_auto; return true; }
+  function addOne(){ const v=readForm(); const name=v.n_name.trim();
+    if(!name){ if(addPending) return; $("#n_name").focus(); BPUI.toast("Enter a name first.",{type:"info"}); return; }
+    const em=v.n_email.trim();
     if(em){ const r=BPStore.validate.email(em); if(!r.ok){ BPUI.toast("Enter a valid email address.",{type:"err"}); $("#n_email").focus(); return; } }
-    const pv=BPStore.staff.phoneE164($("#n_phone").value);
+    const pv=BPStore.staff.phoneE164(v.n_phone);
     if(!pv.ok){ BPUI.toast(pv.error,{type:"err"}); $("#n_phone").focus(); return; }
-    const btn=$("#n_add");
-    return BPUI.guard(btn,async()=>{   // no duplicate rows on double-click
-    try{ await BPStore.nurture.add({ name, email:$("#n_email").value.trim()||null, phone:pv.value, occasion:$("#n_occ").value.trim()||null,
-        occasion_type:type, occasion_date:$("#n_occd").value||null, auto_on:$("#n_auto").checked });
-      ["n_name","n_email","n_phone","n_occ","n_occd"].forEach(k=>$("#"+k).value=""); $("#n_auto").checked=false;
-      await render(); await renderAuto(); }
-    catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add to the nurture list"}),{type:"err"}); }
-    });
+    const row={ name, email:em||null, phone:pv.value, occasion:v.n_occ.trim()||null,
+      occasion_type:v.n_type, occasion_date:v.n_occd||null, auto_on:!!v.n_auto };
+    resetForm(); $("#n_name").focus();
+    addPending++; $("#n_add").setAttribute("aria-busy","true");
+    const job=async()=>{
+      try{ await BPStore.nurture.add(row);
+        BPUI.toast("Added “"+name+"” to the nurture list.",{type:"ok"}); return true; }
+      catch(e){ const back=restoreForm(v);
+        BPUI.toast("“"+name+"” was not added: "+BPUI.friendlyError(e,{action:"add to the nurture list"})+(back?"":" (re-enter it to try again)"),{type:"err"}); return false; }
+      finally{ if(--addPending<=0){ addPending=0; $("#n_add").removeAttribute("aria-busy"); } } };
+    addQueue=addQueue.then(job).then(async(ok)=>{ if(ok) addSaved=true; if(addSaved&&!addPending){ addSaved=false; try{ await render(); await renderAuto(); }catch(e){} } });
+    return addQueue;
   }
 
   /* ---------------- occasions & automation ---------------- */
@@ -327,16 +341,22 @@
       <td><span class="occ">${esc(d.occasion_type)}</span> ${esc(d.occasion||"")}</td>
       <td>${d.next_date?esc(BPStore.fmtDateIN(d.next_date)):"—"}${d.greeted_this_year?' <span class="occ greeted">greeted</span>':""}</td>
       <td><label class="switch" style="width:40px;height:23px"><input type="checkbox" data-auto="${esc(d.id)}" aria-label="Auto-greet ${esc(d.name)}" ${d.auto_on&&!trial?"checked":""}${trial?" disabled":""}><span class="slider"></span></label> <span class="autolab"></span></td>
-      <td>${trial?"":`<button type="button" class="lnk" data-greet="${esc(d.id)}" aria-label="Send greeting to ${esc(d.name)}" ${d.email?"":"disabled title='no email on file'"}>Send greeting</button>`}${waLink(d)}</td>
+      <td>${trial?'<span class="occ paused" title="Free trial test mode: greetings are not sent to clients until you choose a plan.">Test mode · not sent</span>':`<button type="button" class="lnk" data-greet="${esc(d.id)}" data-gname="${esc(d.name)}" data-gmail="${esc(d.email||"")}" aria-label="Send greeting to ${esc(d.name)}" ${d.email?"":"disabled title='no email on file'"}>Send greeting</button>`}${waLink(d)}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No occasions coming up. Add an occasion date above.</td></tr>';
     $("#occBody").querySelectorAll("[data-auto]").forEach(c=>c.addEventListener("change",async()=>{
       try{ await BPStore.nurture.update(c.dataset.auto,{auto_on:c.checked}); autoMsg("ok","Auto-greet "+(c.checked?"on":"off")+" for this contact."); }
       catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"update auto-greet"})); c.checked=!c.checked; } }));
-    $("#occBody").querySelectorAll("[data-greet]").forEach(b=>b.addEventListener("click",()=>BPUI.guard(b,async()=>{
+    // B16: a greeting goes to a real client - ask first (and say so plainly in the free trial, where it is never sent)
+    $("#occBody").querySelectorAll("[data-greet]").forEach(b=>b.addEventListener("click",async()=>{
+      if(b.disabled||b.getAttribute("aria-busy")==="true") return;
+      if(await inTrial()){ autoMsg("err","Free trial test mode: greetings are sent once you choose a plan. Nothing was sent."); return; }
+      let ok=false; try{ ok=await BPUI.confirm("Send a greeting e-mail to "+(b.dataset.gname||"this client")+(b.dataset.gmail?" ("+b.dataset.gmail+")":"")+" now? It goes to the client, not to you.",{title:"Send greeting?",okLabel:"Send greeting",cancelLabel:"Cancel"}); }catch(e){ ok=false; }
+      if(!ok) return;
+      return BPUI.guard(b,async()=>{
       try{ const msg=await BPStore.nurture.greet(b.dataset.greet);
         autoMsg("ok",`Greeting queued: "${(msg&&msg.subject)||""}" ${msg&&msg.photos&&msg.photos.length?("· "+msg.photos.length+" photo(s) attached"):""}`);
         await renderAuto(); }
-      catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"send the greeting"})); } },{busyLabel:"Sending…"})));
+      catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"send the greeting"})); } },{busyLabel:"Sending…"}); }));
   }
   async function toggleAuto(){ const V=BPStore.validate; const want=$("#autoToggle").checked;
     if(want&&(await inTrial())){ $("#autoToggle").checked=false; setAutoState(false); autoMsg("err","Greetings are sent once you choose a plan."); return; }

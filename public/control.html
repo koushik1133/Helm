@@ -218,8 +218,8 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<link rel="stylesheet" href="control-split.css?v=10">
-<script src="/shell-proto.js?v=27" id="shellProto"></script>
+<link rel="stylesheet" href="control-split.css?v=12">
+<script src="/shell-proto.js?v=29" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -765,13 +765,13 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script>
 <script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=5"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="tour.js?v=18"></script>
+<script src="tour.js?v=20"></script>
 <script src="pkg-review.js?v=6"></script>
 <script src="onboarding-core.js?v=7"></script>
 <script src="studio-billing-form.js?v=2"></script>
@@ -780,17 +780,17 @@
 <script src="form-validate.js?v=1"></script>
 <script src="cc-inputs.js?v=4"></script>
 <script src="privacy-pin-settings.js?v=4"></script>
-<script src="venues-core.js?v=7"></script>
-<script src="venues-admin.js?v=7"></script>
+<script src="venues-core.js?v=9"></script>
+<script src="venues-admin.js?v=9"></script>
 <script src="studio-templates-core.js?v=3"></script>
-<script src="studio-templates.js?v=6"></script>
+<script src="studio-templates.js?v=8"></script>
 <script src="item-pricing.js?v=1"></script>
 <script src="asset-price-grid.js?v=2"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=2"></script>
-<script src="trial-demo.js?v=10"></script>
+<script src="trial-demo.js?v=12"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
-<script src="search-catalog.js?v=2"></script>
-<script src="control-split.js?v=15"></script>
+<script src="search-catalog.js?v=4"></script>
+<script src="control-split.js?v=17"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1034,7 +1034,8 @@
   const PF_KEYS=["chairPrice","platePrice","gstPct","cateringGstPct","serviceChargePct","layoutBase","conflictBufferHours"];
   let pricingInvalid=false;
   function pfCtx(){ try{ const r=BPStore.tax.resolve(Object.assign({},pricingDraftTax(),{taxName:$("#p_taxName").value||pricingCfg.taxName})); return {symbol:r.symbol,taxName:r.name,split:!!r.split}; }catch(e){ return {symbol:"₹",taxName:"GST",split:true}; } }
-  function pfErrEl(inp){ let e=document.getElementById(inp.id+"_err"); if(!e){ e=document.createElement("p"); e.id=inp.id+"_err"; e.className="pf-err hbp-skip"; e.setAttribute("role","alert"); e.hidden=true; inp.insertAdjacentElement("afterend",e);
+  function pfErrEl(inp){ inp.setAttribute("data-own-msg","1");   // B29: the hardener's own "Negative numbers..." line is not shown twice
+    let e=document.getElementById(inp.id+"_err"); if(!e){ e=document.createElement("p"); e.id=inp.id+"_err"; e.className="pf-err hbp-skip"; e.setAttribute("role","alert"); e.hidden=true; inp.insertAdjacentElement("afterend",e);
       inp.setAttribute("aria-describedby",[inp.getAttribute("aria-describedby"),e.id].filter(Boolean).join(" ")); } return e; }
   function pfShow(inp,msg){ const e=pfErrEl(inp); if(e.textContent!==(msg||"")) e.textContent=msg||""; e.hidden=!msg; inp.setAttribute("aria-invalid",msg?"true":"false"); inp.classList.toggle("pf-bad",!!msg); }
   function pfFlags(inp){ return {badInput:!!(inp&&inp.validity&&inp.validity.badInput), rejected:(inp&&inp.getAttribute("data-rejected"))||""}; }
@@ -1211,7 +1212,7 @@
     couponCodes=c.map(x=>String(x.code||""));
     const off=(x,v)=>x.kind==='percent'?esc(v)+'% off':esc(BPStore.studioMoney?BPStore.studioMoney(v):'₹'+v.toLocaleString("en-IN"))+' off';
     $("#couponList").innerHTML = c.length? c.map(x=>{ const v=numAttr(x.value,0); return `<div class="row"><span class="g mono">${esc(x.code)}</span><span>${off(x,v)}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.code)}" aria-label="Remove coupon ${esc(x.code)}">Remove</button></div>`; }).join("") : '<div class="row" style="color:var(--ink-3)">No coupons yet.</div>';
-    $("#couponList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`coupon ${b.dataset.name}`,()=>BPStore.coupons.remove(b.dataset.id),renderCoupons)));
+    $("#couponList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`coupon ${b.dataset.name}`,()=>BPStore.coupons.remove(b.dataset.id),()=>{ coStatus(""); return renderCoupons(); })));   // B29: "Coupon X added." does not outlive a removal
     coValidate();
   }
   // ---- coupon rules (pricing-form-core.js): message right under the add row, at the field that is wrong ----
@@ -1643,7 +1644,7 @@
   // → { head, body, shown, total } (pure: everything it shows goes through esc())
   function ucTable(list, o){
     const meId=o.meId, roles=o.roles||[], rl=o.roleLabel||((r)=>r);
-    const roleSel=(u,self)=>`<select class="roleSel" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${(u.role&&!roles.includes(u.role)?roles.concat([u.role]):roles).map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
+    const roleSel=(u,self)=>`<select class="roleSel" data-cs-autosave="1" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${(u.role&&!roles.includes(u.role)?roles.concat([u.role]):roles).map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
     const rm=(u,self)=>self?"":`<button type="button" class="rm" title="Remove user" aria-label="Remove user ${esc(u.email||u.full_name||"")}">🗑</button>`;
     if(!o.profiles){
       const head=`<tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr>`;
@@ -1893,8 +1894,9 @@
     const lock=(on)=>{ ["#inv_submit","#um_submit"].forEach(sel=>{ const b=$(sel); if(b){ b.disabled=!!on; if(on) b.title="All seats are in use"; else b.removeAttribute("title"); } }); };
     if(!r||!r.limited){ m.hidden=true; lock(false); return; }
     const extra=Number(r.extra_limit)||0, used=Math.min(Number(r.extra_used)||0, extra), pend=Number(r.pending)||0;
-    m.textContent=`${used} of ${extra} seats used`+(r.trial?" (free trial: you + "+extra+" people)":"")+(pend?` \u00b7 ${pend} pending invite${pend===1?"":"s"} count as seats`:"")+".";
-    if(r.at_limit) m.textContent+=" All seats are in use \u2014 revoke a pending invite or remove someone to add another person, or upgrade for more seats.";
+    // B29: grammatical in the singular too ("1 pending invite counts as a seat", "you + 1 person")
+    m.textContent=`${used} of ${extra} seat${extra===1?"":"s"} used`+(r.trial?" (free trial: you + "+extra+" "+(extra===1?"person":"people")+")":"")+(pend?(pend===1?" \u00b7 1 pending invite counts as a seat":` \u00b7 ${pend} pending invites count as seats`):"")+".";
+    if(r.at_limit) m.textContent+=" All seats are in use. To add another person, revoke a pending invite or remove someone, or upgrade for more seats.";
     m.hidden=false; lock(!!r.at_limit);
   }
   async function renderInvites(){
@@ -1972,7 +1974,9 @@
   });
 
   /* ---------------- USER CONTROL: access matrix ---------------- */
-  const AREAS = BPStore.auth.admin.areas();
+  const ALL_AREAS = BPStore.auth.admin.areas();
+  // B29: in the free trial the areas the trial never gets (photo renders, templates, activity log) are not offered
+  let AREAS = ALL_AREAS.slice();
   let MTX = {};              // {role:{area:{view,edit}}}
   let selRole = "manager";
   // 0147: an area with defaultOn (e.g. "Create new quotes") is ON for those roles until a row is saved
@@ -1986,6 +1990,7 @@
       $("#roleTabs").querySelectorAll(".rtab").forEach(x=>{ x.classList.toggle("active",x.dataset.role===selRole); x.setAttribute("aria-pressed",String(x.dataset.role===selRole)); });
       renderMatrix();
     }));
+    try{ const off=BPStore.auth.admin.trialOffAreas?await BPStore.auth.admin.trialOffAreas():[]; if(off&&off.length) AREAS=ALL_AREAS.filter(a=>off.indexOf(a.key)<0); }catch(e){}
     await loadMatrix(); renderMatrix();
   }
   // Reads the live matrix. On failure MTX is left untouched and mtxErr is set, so the
@@ -2150,7 +2155,7 @@
       const x=((NP.in_app||{})[c.type]||{})[u.role]; const roleOn = x ? !!x.on : true;
       const v = ov[c.type]===true ? "1" : ov[c.type]===false ? "0" : "";
       html+=`<div class="nprow${v?" ov":""}"><span class="nt">${esc(c.label)}</span>
-        <select data-type="${esc(c.type)}" aria-label="${esc(c.label)} for ${esc(u.full_name||u.email||"this person")}">
+        <select data-type="${esc(c.type)}" data-cs-autosave="1" aria-label="${esc(c.label)} for ${esc(u.full_name||u.email||"this person")}">
           <option value=""${v===""?" selected":""}>Follow role (${roleOn?"shown":"hidden"})</option>
           <option value="1"${v==="1"?" selected":""}>Always show</option>
           <option value="0"${v==="0"?" selected":""}>Never show</option></select></div>`;

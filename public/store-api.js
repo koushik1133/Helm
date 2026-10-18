@@ -1,15 +1,15 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=27"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=29"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
    (shell-proto.js, trial-early.js); this is the fallback for every other page. */
 (function () { try { if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
-  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=5"; document.head.appendChild(l); } } } catch (e) {} })();
+  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=7"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
-  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=5"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=7"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -275,13 +275,22 @@ window.HelmUrl = HelmUrl;
     }
     return fetcher().then(store);
   }
+  // anon-42501 (prod logs: "permission denied for function my_trial_status / my_trial_org"): both RPCs are granted to
+  // authenticated only (0180 / 0183 / 0204), so a signed-out page (login, public pages) never calls them - it gets
+  // the "not a trial" answer (null) instead. The session is read locally (no network call).
+  async function trialSignedIn() {
+    if (!supa) return false;
+    if (currentUser) return true;
+    try { const { data } = await supa.auth.getSession(); return !!(data && data.session && data.session.access_token); } catch (e) { return false; }
+  }
   // 0116 / 0183: my_trial_org() — one in-flight call shared by the trial strip and the read-only check
   function trialOrgStatus() {
     if (!supa) return Promise.resolve(null);
     if (trialOrgInflight) return trialOrgInflight;
     // la-fetch (audit 25): + a per-page memo, so the trial strip, trial-lock and trial-demo share ONE answer even
     // before the per-tab swr entry can be written (it needs the studio id cached first)
-    const p = memoRead("trialorg", 15000, () => swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })));
+    // anon-42501: signed out = "not a trial" without asking (my_trial_org is granted to authenticated only)
+    const p = trialSignedIn().then((ok) => (ok ? memoRead("trialorg", 15000, () => swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : null));
     trialOrgInflight = p;
     const done = () => { if (trialOrgInflight === p) trialOrgInflight = null; };
     p.then(done, done);
@@ -295,7 +304,9 @@ window.HelmUrl = HelmUrl;
   function inFreeTrial() {
     if (mode !== "supabase" || !supa || !currentUser) return Promise.resolve(false);
     if (!trialSubInflight) {
-      const p = Promise.resolve(swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; })))
+      // B29: the same per-page memo as subscription.trial(), so the role gate, the trial banner, trial-lock and the
+      // demo card share ONE my_trial_status call per page (it went out 4 times on a cold load)
+      const p = Promise.resolve(memoRead("trial", 15000, () => swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))))
         .then((t) => !!(t && t.status === "trial"), () => false);
       trialSubInflight = p;
       p.then(() => { setTimeout(() => { if (trialSubInflight === p) trialSubInflight = null; }, 30000); });
@@ -910,7 +921,7 @@ window.HelmUrl = HelmUrl;
   // la-fetch (audit 25): the list below also names the STABLE (read-only) RPCs every page asks while it
   // boots (trial / upgrade status, seat use, prefs, shelf list, mentions, PIN status). Before, each one was
   // treated as a write and dropped every shared read of the page, so the page's own reads ran again.
-  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|privacy_pin_status)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_terms_status|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|privacy_pin_status|my_unfinished_quotes)(\?|$)/;
   const readCache = new Map();
   function hdrOf(init, input, name) {
     try {
@@ -1151,7 +1162,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "37";
+  const AUTH_UI_VERSION = "39";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1167,7 +1178,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "7";
+  const STUDIO_SEARCH_VERSION = "9";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";
@@ -1204,7 +1215,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "12";
+  const TRIAL_BANNER_VERSION = "14";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -2239,6 +2250,9 @@ window.HelmUrl = HelmUrl;
       roles: () => PICK_ROLES.slice(),
       roleLabel,
       areas: () => AREAS.slice(),
+      // B29: areas a FREE-TRIAL studio never gets whatever the matrix says (0203) -> [] for a paid studio. The Roles
+      // matrix hides them in the trial so it never offers a switch that does nothing.
+      trialOffAreas: () => inFreeTrial().then((t) => (t ? Object.keys(TRIAL_OFF_AREAS) : []), () => []),
       // the whole access matrix (admin only) → [{role,area,can_view,can_edit}]
       async getAccess() {
         if (!supa) throw new Error("Supabase not configured");
@@ -2392,7 +2406,8 @@ window.HelmUrl = HelmUrl;
     "event_date,event_time,updated_at,created_at,confirmed_at,client_name:client->>name,client_phone:client->>phone," +
     "client_venue:client->>venue,client_address:client->>address,client_city:client->>city,total:pricing->total," +
     "pricing_client_name:pricing->client->>name,pricing_client_phone:pricing->client->>phone," +
-    "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency";   // B11: each quote's OWN currency
+    "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency," +
+    "pricing_guests:pricing->guests,client_guests:client->>guests";   // B11: each quote's OWN currency; cal-events-1018: guest count (a number, no contact) for the calendar
   // A list VIEW (page) needs even less: the client's name + phone, not the whole client JSON.
   const QUOTE_PAGE_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,current_version,event_date,event_time," +
     "updated_at,created_at,confirmed_at,client_name:client->>name,client_phone:client->>phone,total:pricing->total," +
@@ -2401,6 +2416,8 @@ window.HelmUrl = HelmUrl;
   const nameOnly = (n, p, x) => { const o = {}; if (n != null) o.name = n; if (p != null) o.phone = p;
     if (x) { if (x.client_venue != null) o.venue = x.client_venue; if (x.client_address != null) o.address = x.client_address; if (x.client_city != null) o.city = x.client_city; }
     return o; };
+  // cal-events-1018: the first whole, positive guest count of the candidates (pricing.guests, then client.guests)
+  const listGuests = (...v) => { for (const x of v) { const n = Number(x); if (x != null && x !== "" && Number.isFinite(n) && n > 0) return Math.round(n); } return null; };
   function mapQuoteSummary(q) {
     let pricing = q.pricing;
     if (!pricing) { pricing = {}; if (q.total != null) pricing.total = q.total;
@@ -2414,6 +2431,7 @@ window.HelmUrl = HelmUrl;
       approvalStatus: q.approval_status || "none", approvalToken: q.approval_token,
       currentVersion: q.current_version, client: q.client || {}, pricing, total: pricing.total || 0,
       eventDate: q.event_date || null, eventTime: q.event_time || null,
+      guests: listGuests(q.pricing_guests, q.client_guests, pricing.guests, q.client && q.client.guests),   // cal-events-1018 (null when unknown)
       updatedAt: q.updated_at, createdAt: q.created_at, confirmedAt: q.confirmed_at,
       // 0040 soft shelves (absent → null on a database without them)
       archivedAt: q.archived_at || null, archivedReason: q.archived_reason || null,
@@ -2672,6 +2690,7 @@ window.HelmUrl = HelmUrl;
       lifecycleStage: q.lifecycleStage || "quote",
       currentVersion: q.currentVersion, client: q.client || {}, pricing: q.pricing || {}, total: (q.pricing && q.pricing.total) || 0,
       eventDate: q.eventDate || null, eventTime: q.eventTime || null,
+      guests: listGuests(q.pricing && q.pricing.guests, q.client && q.client.guests),
       updatedAt: q.updatedAt, createdAt: q.createdAt, confirmedAt: q.confirmedAt,
       archivedAt: q.archivedAt || null, deletedAt: q.deletedAt || null })); },
     // local mirror of sbq.page / counts / codesFor / eventTypes (same filters, same order)
@@ -2943,6 +2962,39 @@ window.HelmUrl = HelmUrl;
   // 0069 booklet share checklist keys (server validates the same list)
   const BOOKLET_SECTIONS = ["studio", "client", "venue", "menu", "layout2d", "layout3d", "quotation", "payments", "terms", "note"];
   const UUID_RE_PKG = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  /* 0206: "Continue where you left off" - where each person last was in a quote's flow, kept on the server
+     (one row per quote per person; quote_flow_progress). mark(): flow.html, debounced, only on a step change
+     (mark_ RPC: keeps the cached reads). dismiss(): hide the dashboard button for ME until I work on it again.
+     list({scope:'mine'|'studio', limit, offset, quote, maxDays}) -> {total, rows, can_edit, read_only} or null
+     when this database has no 0206 / local mode / signed out (flow-resume.js then uses its per-quote
+     browser copy). Never throws for a missing function; other errors surface to the caller. */
+  const FLOW_STEP_KEYS = ["client", "discovery", "reqs", "venue", "menu", "proposal", "layout", "quote", "pay"];
+  const flowProgress = {
+    STEPS: FLOW_STEP_KEYS,
+    available() { return mode === "supabase" && !!supa && !!currentUser; },
+    async mark(quoteId, step) {
+      if (!UUID_RE_PKG.test(String(quoteId || "")) || FLOW_STEP_KEYS.indexOf(step) < 0) return { ok: false, invalid: true };
+      if (!flowProgress.available()) return { ok: false, local: true };
+      try { const r = await rpc("mark_flow_step", { p_quote: String(quoteId), p_step: step }); return r && typeof r === "object" ? r : { ok: true }; }
+      catch (e) { if (rpcMissing(e)) return { ok: false, missing: true }; throw e; }
+    },
+    async dismiss(quoteId) {
+      if (!UUID_RE_PKG.test(String(quoteId || ""))) return { ok: false, invalid: true };
+      if (!flowProgress.available()) return { ok: false, local: true };
+      try { const r = await rpc("mark_flow_resume_dismissed", { p_quote: String(quoteId) }); return r && typeof r === "object" ? r : { ok: true }; }
+      catch (e) { if (rpcMissing(e)) return { ok: false, missing: true }; throw e; }
+    },
+    async list(opts) {
+      if (!flowProgress.available()) return null;
+      const o = opts || {}, n = (v, lo, hi, d) => { v = Math.floor(Number(v)); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
+      const q = o.quote && UUID_RE_PKG.test(String(o.quote)) ? String(o.quote) : null;
+      if (o.quote && !q) return { total: 0, rows: [], can_edit: false };
+      const args = { p_scope: o.scope === "studio" ? "studio" : "mine", p_limit: n(o.limit, 1, 100, 20), p_offset: n(o.offset, 0, 100000, 0),
+        p_quote: q, p_max_days: o.maxDays == null ? null : n(o.maxDays, 1, 3650, 60) };
+      try { const d = await rpc("my_unfinished_quotes", args); return d && typeof d === "object" && Array.isArray(d.rows) ? d : null; }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+  };
   // 0083: booklet pictures kept in the database
   const BOOKLET_IMG_KINDS = ["2d", "3d"], BOOKLET_IMG_VARIANTS = ["labels", "plain"], BOOKLET_IMG_MAX = 1536 * 1024;
   const BOOKLET_IMG_MIME = /^image\/(jpeg|png|webp)$/;
@@ -3684,16 +3736,29 @@ window.HelmUrl = HelmUrl;
           if (leadArchiveHasRestored !== false && /restored_at/.test(String((err && err.message) || ""))) { leadArchiveHasRestored = false; return leads.archivePage(o); }
           throw err;
         }
+        // B17: the live lead's stage (read-only, best-effort). Converting a lead writes TWO archive rows in one
+        // transaction - the quote-sync trigger's "converted" row (stage discovery, from the new quote's
+        // lifecycle) and convert_lead_to_quote's own "quoted" update - and both carry the same archived_at.
+        // "Latest per lead" breaks that tie on the live stage instead of the random uuid, and every row
+        // carries live_status so the CRM shows the lead's CURRENT stage on its latest row.
+        const live = {};
+        try {
+          const lids0 = [...new Set(r.rows.map((x) => x.lead_id).filter(Boolean))];
+          if (lids0.length) {
+            const { data: lv, error: le } = await supa.from("leads").select("id,status").in("id", lids0);
+            if (!le && lv) lv.forEach((x) => { live[x.id] = x.status; });
+          }
+        } catch (e) {}
         if (o.latest) {
           const ids = [...new Set(r.rows.map((x) => x.lead_id).filter(Boolean))];
           if (ids.length) {
-            const { data, error } = await supa.from("lead_archive").select("id,lead_id,archived_at").in("lead_id", ids)
+            const { data, error } = await supa.from("lead_archive").select("id,lead_id,archived_at,status").in("lead_id", ids)
               .order("archived_at", { ascending: false }).order("id", { ascending: false });
             if (error) throw error;
-            const newest = {}; (data || []).forEach((x) => { if (!newest[x.lead_id]) newest[x.lead_id] = x.id; });
-            r.rows = r.rows.filter((x) => !x.lead_id || newest[x.lead_id] === x.id);
+            r.rows = r.rows.filter((x) => !x.lead_id || leads._newestArchive(data || [], live)[x.lead_id] === x.id);
           }
         }
+        r.rows.forEach((x) => { if (x.lead_id && live[x.lead_id] != null) x.live_status = live[x.lead_id]; });
         // LA-34: flag rows of SAMPLE leads (leads.is_demo, 0097) so the CRM never labels seeded rows "RESTORED".
         // Read-only and best-effort: a failure just leaves the flag off.
         try {
@@ -3707,14 +3772,26 @@ window.HelmUrl = HelmUrl;
       }
       let a = []; try { a = JSON.parse(localStorage.getItem(ARCH_LS) || "[]"); } catch {}
       a = a.slice().sort((x, y) => String(y.archived_at || "").localeCompare(String(x.archived_at || "")) || String(y.id).localeCompare(String(x.id)));
-      const newest = {}; a.forEach((x) => { if (x.lead_id && !newest[x.lead_id]) newest[x.lead_id] = x.id; });
+      const liveLs = {}; readLeadsLs().forEach((l) => { liveLs[l.id] = l.status; });
+      const newest = leads._newestArchive(a, liveLs);
       const src = String(o.source || "").trim().toLowerCase();
       const rows = a.filter((r) => (!o.stage || r.status === o.stage) && (!src || String(r.source || "").trim().toLowerCase() === src) &&
         textHit(o.search, [r.name, r.phone, r.event_type, r.source, r.action]));
       const pg = arrPage(rows, o);
       if (o.latest) pg.rows = pg.rows.filter((x) => !x.lead_id || newest[x.lead_id] === x.id);
-      pg.rows = pg.rows.map((x) => { const c = Object.assign({}, x); delete c.snapshot; return c; });
+      pg.rows = pg.rows.map((x) => { const c = Object.assign({}, x); delete c.snapshot; if (c.lead_id && liveLs[c.lead_id] != null) c.live_status = liveLs[c.lead_id]; return c; });
       return pg;
+    },
+    // B17: lead_id -> id of its newest archive row. Rows come newest first (archived_at desc, id desc); rows written in
+    // the same transaction share archived_at, so among those the one whose stage matches the live lead wins.
+    _newestArchive(rows, live) {
+      const out = {}, at = {}, hit = {};
+      (rows || []).forEach((x) => {
+        const k = x.lead_id; if (!k) return;
+        if (!(k in out)) { out[k] = x.id; at[k] = String(x.archived_at || ""); hit[k] = live && live[k] != null && x.status === live[k]; return; }
+        if (!hit[k] && String(x.archived_at || "") === at[k] && live && live[k] != null && x.status === live[k]) { out[k] = x.id; hit[k] = true; }
+      });
+      return out;
     },
     // CRM archive: re-create a DELETED lead from its saved snapshot (migration 0139). Server-side
     // checks: same studio, leads edit access, no live lead with that id, not already restored.
@@ -5899,6 +5976,24 @@ window.HelmUrl = HelmUrl;
       if (mode !== "supabase") { const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); if (c) { c.members = c.members || []; (memberIds || []).forEach((id) => { if (!c.members.some((m) => m.user_id === id)) c.members.push({ user_id: id }); }); chatWriteLs(CHAT_LS_C, convs); chatPing(); } return; }
       return rpc("chat_add_members", { p_conversation: convId, p_members: memberIds || [] });
     },
+    // B30: leave a group = remove MY membership row only (RLS chat_mem_del: user_id = auth.uid(), same studio).
+    // The conversation, its messages and every other member stay. Groups only - never a DM or the broadcast.
+    async leaveGroup(convId) {
+      if (!convId) throw new Error("No group selected.");
+      if (mode !== "supabase") {
+        const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); const me = chatLocalUid();
+        if (!c || c.kind !== "group") throw new Error("Only a group can be left.");
+        c.members = (c.members || []).filter((m) => m.user_id !== me); chatWriteLs(CHAT_LS_C, convs); chatPing(); return true;
+      }
+      const uidMe = currentUser && currentUser.id; if (!uidMe) throw new Error("Sign in again to leave the group.");
+      const { data: cv, error: ce } = await supa.from("chat_conversations").select("id,kind").eq("id", convId).maybeSingle();
+      if (ce) throw ce;
+      if (!cv || cv.kind !== "group") throw new Error("Only a group can be left.");
+      const { data, error } = await supa.from("chat_members").delete().eq("conversation_id", convId).eq("user_id", uidMe).select("conversation_id");
+      if (error) throw error;
+      if (!data || !data.length) throw new Error("You are not in this group any more.");
+      return true;
+    },
     prefs: chatPrefs,
     // A6: forward a photo / voice note = COPY the object into the target conversation's folder.
     // Storage checks both sides (chat-media policies: I can read the source conversation and
@@ -6470,7 +6565,7 @@ window.HelmUrl = HelmUrl;
         const inv = invRes.filter((r) => r.quote_id === e.id && ["reserved", "allocated"].includes(r.status));
         const vend = vendorBk.filter((b) => b.quote_id === e.id && b.status !== "cancelled");
         const crew = [...new Set(tasks.filter((t) => t.quote_id === e.id).map((t) => t.crew_id))];
-        return { event: e, invCount: inv.length, vendCount: vend.length, staffCount: crew.length,
+        return { event: e, invCount: inv.length, vendCount: vend.length, staffCount: crew.length, venue: venueOf(e).name,   // cal-events-1018: event_plan venue first
           items: inv.map((r) => ({ name: (itemById[r.item_id] || {}).name || "item", qty: r.qty })),
           vendorsList: vend.map((b) => (vendById[b.vendor_id] || {}).name || b.label),
           staffList: crew.map((c) => (staffById[c] || {}).name || "crew") };
@@ -6483,6 +6578,15 @@ window.HelmUrl = HelmUrl;
       });
       agenda.forEach((a) => { a.shortages = shortages.filter((x) => x.event && x.event.id === a.event.id); });
       return { agenda, conflicts, shortages, counts: { events: events.length, dated: events.filter((e) => e.eventDate).length } };
+    },
+    // cal-events-1018: ids of this studio's SAMPLE (free-trial seed, is_demo) quotes, for the calendar's "Sample" chip.
+    // Read-only, RLS = own studio; advisory: a database without is_demo / any error = no sample ids.
+    async sampleIds() {
+      if (mode !== "supabase" || !supa) return [];
+      try {
+        const { data, error } = await supa.from("quotes").select("id").eq("is_demo", true).limit(500);
+        return !error && Array.isArray(data) ? data.map((r) => r.id) : [];
+      } catch (e) { return []; }
     },
     // Phase 49 — the conflicts that involve one specific event (for the workspace card)
     async conflictsForEvent(quoteId) {
@@ -8941,7 +9045,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, capacityStatus, shortageText, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -8982,7 +9086,8 @@ window.HelmUrl = HelmUrl;
       // 0058: {state:'trial'|'ended'|'none', days_left, ends_at, is_admin, can_pay}; null before 0058
       // 0173: {trial, cap: 2, used: {leads, quotes, inventory_items, vendors, crew_members, venues}}; null before 0173
       limits: () => (supa ? rpc("my_trial_limits").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
-      trial: () => (supa ? memoRead("trial", 15000, () => swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : Promise.resolve(null)),
+      // anon-42501: signed out = null ("not a trial") without asking the server
+      trial: () => (supa ? trialSignedIn().then((ok) => (ok ? memoRead("trial", 15000, () => swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : null)) : Promise.resolve(null)),
     },
     // 0157 — "Hide amounts" privacy PIN, ONE per studio. The server keeps only a bcrypt hash
     // (default 0000 until an admin changes it) and counts wrong tries per person.
@@ -9343,6 +9448,13 @@ window.HelmUrl = HelmUrl;
       // finished (Skip / Send invites) -> false; "start my own studio" names the studio again -> true
       welcomeDone: () => (supa ? rpc("trial_welcome_set", { p_pending: false }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       welcomeAgain: () => (supa ? rpc("trial_welcome_set", { p_pending: true }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // 0207 — free-trial terms ("Your 8-day free trial", I agree): {version, trial, owner, accepted, must_agree,
+      // notice, welcome_pending}; null = 0207 not installed / no backend (the page then asks without recording)
+      terms: () => (supa ? rpc("my_trial_terms_status", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // records the owner's "I agree" (or a teammate's "Got it") for that terms version; null = not installed
+      acceptTerms: (version) => (supa ? rpc("accept_trial_terms", { p_version: String(version || ""),
+        p_user_agent: String((global.navigator && global.navigator.userAgent) || "").slice(0, 160) || null })
+        .catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       status: () => trialOrgStatus(),
       // 0183 — true while this studio is READ-ONLY after its free trial ended unpaid (everyone in it); false otherwise
       readOnly: () => studioReadOnly(),
@@ -9732,6 +9844,8 @@ window.HelmUrl = HelmUrl;
     ".bpui-spin,:where(#boot:empty)::before{border:none;background:conic-gradient(from 90deg,color-mix(in srgb,var(--bpui-accent) 12%,transparent),var(--bpui-accent));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px))}",
     ".bpui-spin2{border:none;background:conic-gradient(from 90deg,color-mix(in srgb,var(--bpui-accent) 12%,transparent),var(--bpui-accent));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px))}}",
     "@media print{.bpui-toasts,.bpui-offline,.bpui-boot-overlay{display:none!important}}",
+    ".bpui-capnote{display:inline-block;margin:0 8px;font-size:12.5px;line-height:1.3;color:var(--bpui-ink-2);vertical-align:middle}",
+    ".bpui-capnote.is-full{color:var(--bpui-warn-ink);background:var(--bpui-warn-bg);border:1px solid var(--bpui-warn-line);border-radius:999px;padding:2px 10px}",
   ].join("\n");
   function injectCSS() {
     if (doc.__bpuiStyle) return;
@@ -9843,6 +9957,9 @@ window.HelmUrl = HelmUrl;
     if (e && (e.hint === "trial_cap" || e.hint === "trial_locked") && e.message) return pre + endDot(clip(String(e.message), 240));
     // 0192 - menu package checks (price per plate / dish list): the DB message is written for people
     if (e && e.hint === "menu_pkg_invalid" && e.message) return pre + endDot(clip(String(e.message), 240));
+    // B15: a phone refused by phoneOrThrow (staff / nurture / leads: per-country length, India = 10 digits) - the
+    // message says what to type ("Enter a 10-digit number for India."), never the generic "Something went wrong"
+    if (e && e.code === "invalid_phone" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
     if (e && e.hint === "seat_limit") return pre + "Your free trial includes you + 2 people, and both seats are in use. Revoke an invitation or remove someone to add another person — or upgrade for more seats.";
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
     // 0183 — the free trial ended unpaid: the whole studio is read-only for everyone until it is upgraded
@@ -10521,8 +10638,46 @@ window.HelmUrl = HelmUrl;
   function start() { injectCSS(); startModalObserver(); installOffline(); showFlash(); }
   if (doc.readyState !== "loading") start(); else doc.addEventListener("DOMContentLoaded", start, { once: true });
 
+  // B29 (QA): the free trial's creation cap is said BEFORE a form is filled ("2 of 2 used"), instead of a refusal
+  // after the whole form. entity = a key of my_trial_limits().used: leads, quotes, inventory_items, vendors,
+  // crew_members, venues. Paid studio / older database / any error -> null: nothing changes (the server still refuses).
+  function trialCap(entity) {
+    var S = global.BPStore;
+    if (!S || !S.subscription || typeof S.subscription.limits !== "function") return Promise.resolve(null);
+    return Promise.resolve().then(function () { return S.subscription.limits(); }).then(function (r) {
+      if (!r || r.trial !== true) return null;
+      var cap = Number(r.cap) > 0 ? Number(r.cap) : 2, used = Math.max(0, Number(r.used && r.used[entity]) || 0);
+      return { cap: cap, used: used, left: Math.max(0, cap - used), full: used >= cap };
+    }, function () { return null; });
+  }
+  function capText(c, nouns) {
+    if (!c) return "";
+    var u = Math.min(c.used, c.cap) + " of " + c.cap + " " + (nouns || "new records") + " used";
+    return c.full ? "Free trial: " + u + ". Choose a plan to add more." : "Free trial: " + u + ".";
+  }
+  // capGate(buttons, entity, nouns) -> Promise<cap|null>. At the cap the add buttons are switched off (only the ones
+  // this turned off are ever switched back on) and a short note sits after the first one; under it the note says
+  // how many are used. Re-run after every add / load so the state follows the server.
+  function capGate(btns, entity, nouns) {
+    var list = (Array.isArray(btns) ? btns : [btns]).filter(function (b) { return b && b.nodeType === 1; });
+    return trialCap(entity).then(function (c) {
+      var full = !!(c && c.full), txt = capText(c, nouns);
+      list.forEach(function (b, i) {
+        if (full) { if (!b.disabled) { b.disabled = true; b.setAttribute("data-cap-off", "1"); } b.setAttribute("title", txt); }
+        else if (b.getAttribute("data-cap-off") === "1") { b.disabled = false; b.removeAttribute("data-cap-off"); b.removeAttribute("title"); }
+        var id = (b.id || entity + "_add" + i) + "_capnote", note = doc.getElementById(id);
+        if (i > 0 || !c) { if (note && i === 0) note.remove(); return; }
+        injectCSS();
+        if (!note) { note = h("span", { id: id, class: "bpui-capnote", role: "status" }); b.insertAdjacentElement("afterend", note); }
+        note.textContent = txt; note.classList.toggle("is-full", full);
+      });
+      return c;
+    });
+  }
+
   global.BPUI = {
     version: 1,
+    trialCap: trialCap, capText: capText, capGate: capGate,
     toast: toast,
     alert: alertDlg, confirm: confirmDlg, prompt: promptDlg,
     guard: guard,
@@ -10658,6 +10813,9 @@ window.HelmUrl = HelmUrl;
       var a = n(studioState), b = n(otherState); if (!a || !b) return null;
       return a === b ? "intra" : "inter";
     }
+    // qa-quote-flow B28: GST is rounded ONCE to whole rupees and split from that, so CGST + SGST always
+    // add up to the GST line and every screen shows the same two numbers (39,722 + 39,721, never 39,721.5)
+    function halves(gst) { var g = Math.round(Number(gst) || 0), a = Math.round(g / 2); return [a, g - a]; }
     // display rows for the tax part of a breakdown: [{label, pct, amount}]
     function rows(t, pricing, res) {
       res = res || resolve(pricing); t = t || {}; pricing = pricing || {};
@@ -10666,7 +10824,8 @@ window.HelmUrl = HelmUrl;
       if (res.exempt || String(pricing.taxExempt).toLowerCase() === "true") return [{ label: res.name + " (exempt)", pct: 0, amount: 0 }];
       if (res.split) {
         if (pricing.placeOfSupply === "inter") return [{ label: "IGST" + inc, pct: pct, amount: gst }];
-        return [{ label: "CGST" + inc, pct: pct / 2, amount: gst / 2 }, { label: "SGST" + inc, pct: pct / 2, amount: gst / 2 }];
+        var hv = halves(gst);
+        return [{ label: "CGST" + inc, pct: pct / 2, amount: hv[0] }, { label: "SGST" + inc, pct: pct / 2, amount: hv[1] }];
       }
       var st = ""; if (res.country === "US" && res.region) { var HC = (typeof window !== "undefined" && window.HelmCountry) || null, f = HC && HC.findRegion("US", res.region); st = " (" + (f ? f.code : res.region) + ")"; }
       return [{ label: res.name + st + inc, pct: pct, amount: gst }];
@@ -10710,7 +10869,7 @@ window.HelmUrl = HelmUrl;
       return same ? null : out;
     }
     function countries() { return Object.keys(C).map(function (k) { return { iso: k, name: C[k].name }; }); }
-    return { COUNTRIES: C, profile: profile, resolve: resolve, money: money, validateId: validateId, placeOfSupply: placeOfSupply, rows: rows, snapshot: snapshot, preserveSnapshot: preserveSnapshot, isPricedQuote: isPricedQuote, restampUnpriced: restampUnpriced, SNAPSHOT_KEYS: IDENT.concat(SOFT), countries: countries, code: code };
+    return { COUNTRIES: C, profile: profile, resolve: resolve, money: money, validateId: validateId, placeOfSupply: placeOfSupply, halves: halves, rows: rows, snapshot: snapshot, preserveSnapshot: preserveSnapshot, isPricedQuote: isPricedQuote, restampUnpriced: restampUnpriced, SNAPSHOT_KEYS: IDENT.concat(SOFT), countries: countries, code: code };
   })();
 
   // ---- studio money (0089) -------------------------------------------------------
@@ -10946,10 +11105,37 @@ window.HelmUrl = HelmUrl;
   };
   // the user's LOCAL calendar day (IST for an Indian studio) as YYYY-MM-DD - toISOString() is UTC
   // and reads as "yesterday" from 00:00 to 05:30 IST
+  // B18: the calendar day in the STUDIO's timezone (Asia/Kolkata for an Indian studio), not the device's -
+  // a browser set to America/Chicago no longer gets yesterday's date for "today" / date-picker minimums.
+  // Falls back to the device day only when the studio zone is unknown.
   BPStore.todayLocal = function (d) {
     d = (d && typeof d.getFullYear === "function") ? d : new Date();   // also a Date from another realm (iframe / test vm)
     var p = function (n) { return (n < 10 ? "0" : "") + n; };
+    var tz; try { tz = BPStore.studioTimezone ? BPStore.studioTimezone() : undefined; } catch (e) { tz = undefined; }
+    if (tz && !isNaN(d.getTime())) {
+      try {
+        var parts = {}; new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" })
+          .formatToParts(d).forEach(function (x) { parts[x.type] = x.value; });
+        if (/^\d{4}$/.test(parts.year) && /^\d{2}$/.test(parts.month) && /^\d{2}$/.test(parts.day)) return parts.year + "-" + parts.month + "-" + parts.day;
+      } catch (e) {}
+    }
     return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  };
+  // B18: wall-clock parts of an instant in the studio's timezone -> { y, mo, d, h, mi, s, date:"YYYY-MM-DD", min: minutes since midnight }
+  BPStore.studioClock = function (v) {
+    var d = v == null ? new Date() : ((v && typeof v.getTime === "function") ? v : new Date(v));
+    if (isNaN(d.getTime())) return null;
+    var tz; try { tz = BPStore.studioTimezone ? BPStore.studioTimezone() : undefined; } catch (e) { tz = undefined; }
+    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    var y = d.getFullYear(), mo = d.getMonth() + 1, dd = d.getDate(), h = d.getHours(), mi = d.getMinutes(), s = d.getSeconds();
+    if (tz) {
+      try {
+        var pt = {}; new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })
+          .formatToParts(d).forEach(function (x) { pt[x.type] = x.value; });
+        y = +pt.year; mo = +pt.month; dd = +pt.day; h = (+pt.hour) % 24; mi = +pt.minute; s = +pt.second;
+      } catch (e) {}
+    }
+    return { y: y, mo: mo, d: dd, h: h, mi: mi, s: s, date: y + "-" + pad(mo) + "-" + pad(dd), min: h * 60 + mi };
   };
   // date + time for display: dd/mm/yyyy, hh:mm (US studio: its own order) - never the browser's locale default
   BPStore.fmtDay = function (iso) {
@@ -11087,6 +11273,8 @@ window.HelmUrl = HelmUrl;
   var NEG_HINT = "Negative numbers aren\u2019t allowed here";
   function negHint(el, text, ms) {
     try {
+      // B29: a field with its own message under it (data-own-msg, e.g. Control Center > Default pricing) says it once
+      if (el.hasAttribute && el.hasAttribute("data-own-msg")) return;
       var h = el.__negHint;
       if (!h || !h.isConnected) {
         __helmAdoptNegCss();
@@ -11301,8 +11489,11 @@ window.HelmUrl = HelmUrl;
   // sets its own min=/max=.
   var DATE_MIN = "2000-01-01", DATE_MAX = "2100-12-31";
   function isoDay(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
-  function addYears(n) { var d = new Date(); d.setFullYear(d.getFullYear() + n); return isoDay(d); }
-  function prettyDay(v) { try { var p = String(v).split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return v; } }
+  // B18: "today" for a date window is the STUDIO's day (BPStore.todayLocal = studio timezone), not the device's
+  function todayIso() { try { var t = BPStore.todayLocal(); if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; } catch (e) {} return isoDay(new Date()); }
+  function addYears(n) { var t = todayIso().split("-"), md = t[1] + "-" + t[2]; if (md === "02-29") md = "02-28"; return (+t[0] + n) + "-" + md; }
+  function prettyDay(v) { try { if (BPStore.fmtStudioDate) { var o = BPStore.fmtStudioDate(String(v), { style: "long" }); if (o) return o; } } catch (e) {}
+    try { var p = String(v).split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return v; } }
   function hardenDate(el) {
     if (el.getAttribute("data-date-hardened") === "1") return;
     el.setAttribute("data-date-hardened", "1");
@@ -11311,7 +11502,7 @@ window.HelmUrl = HelmUrl;
     //   data-date-window="recent" meetings, follow-ups:   today - 2 years .. today + 1 year
     //   (none)                    other dates (birthdays, invoices, history): 2000 .. 2100
     var win = el.getAttribute("data-date-window") || (el.hasAttribute("data-min-today") ? "future" : "");
-    if (!el.getAttribute("min")) el.setAttribute("min", win === "future" ? isoDay(new Date()) : win === "recent" ? addYears(-2) : DATE_MIN);
+    if (!el.getAttribute("min")) el.setAttribute("min", win === "future" ? todayIso() : win === "recent" ? addYears(-2) : DATE_MIN);
     if (!el.getAttribute("max")) el.setAttribute("max", win === "future" ? addYears(5) : win === "recent" ? addYears(1) : DATE_MAX);
     var lo = el.getAttribute("min"), hi = el.getAttribute("max");
     // A value that was already saved (editing an old event) is kept even if it is now in the past;

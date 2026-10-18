@@ -3596,7 +3596,7 @@ select item, ok from (values
                    where i.tbl = 'nurture' and i.row_id = x.id and i.restored_at is null))
       and not exists (select 1 from public.layouts x where x.clean_archived_at is not null and not exists (select 1 from public.studio_clean_start_items i
                    where i.tbl = 'layouts' and i.row_id = x.id and i.restored_at is null))),
-  ('09 the clear used is the is_demo-only _demo_clear', position('_demo_clear' in pg_get_functiondef('public.delete_all_sample_data()'::regprocedure)) > 0
+  ('09 the clear used is the is_demo-only _demo_clear', position('_demo_clear' in pg_get_functiondef(coalesce(to_regprocedure('public.delete_all_sample_data__pre0236()'), 'public.delete_all_sample_data()'::regprocedure))) > 0   -- 0236 trial wrapper: the body it calls
       and position('_demo_clear' in pg_get_functiondef('public.upgrade_data_choice(text, text)'::regprocedure)) > 0),
   ('10 checkout: billing details + Terms can be saved in the free trial (0173 wrapper without the trial guard)',
       to_regprocedure('public.my_studio_account_update__pre0173(jsonb)') is null
@@ -7656,7 +7656,7 @@ commit;
 -- VERIFY (every row should say ok = true)
 select item, ok from (values
   ('01 the sample copy includes event_requirements (after quotes)', array_position(public._sample_clone_tables(), 'event_requirements')
-       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) = 25),
+       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) >= 25),   -- 0237 adds 4 more
   ('02 sample master: all 7 sample events have requirements (41)', (select count(*) from public.event_requirements
        where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 41
        and not exists (select 1 from public.quotes q where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null
@@ -8687,7 +8687,7 @@ select '0185 ' || item as item, ok from (values
                    where i.tbl = 'nurture' and i.row_id = x.id and i.restored_at is null))
       and not exists (select 1 from public.layouts x where x.clean_archived_at is not null and not exists (select 1 from public.studio_clean_start_items i
                    where i.tbl = 'layouts' and i.row_id = x.id and i.restored_at is null))),
-  ('09 the clear used is the is_demo-only _demo_clear', position('_demo_clear' in pg_get_functiondef('public.delete_all_sample_data()'::regprocedure)) > 0
+  ('09 the clear used is the is_demo-only _demo_clear', position('_demo_clear' in pg_get_functiondef(coalesce(to_regprocedure('public.delete_all_sample_data__pre0236()'), 'public.delete_all_sample_data()'::regprocedure))) > 0   -- 0236 trial wrapper: the body it calls
       and position('_demo_clear' in pg_get_functiondef('public.upgrade_data_choice(text, text)'::regprocedure)) > 0),
   ('10 checkout: billing details + Terms can be saved in the free trial (0173 wrapper without the trial guard)',
       to_regprocedure('public.my_studio_account_update__pre0173(jsonb)') is null
@@ -9009,7 +9009,7 @@ select '0201 ' || item as item, ok from (values
 union all
 select '0202 ' || item as item, ok from (values
   ('01 the sample copy includes event_requirements (after quotes)', array_position(public._sample_clone_tables(), 'event_requirements')
-       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) = 25),
+       > array_position(public._sample_clone_tables(), 'quotes') and array_length(public._sample_clone_tables(), 1) >= 25),   -- 0237 adds 4 more
   ('02 sample master: all 7 sample events have requirements (41)', (select count(*) from public.event_requirements
        where org_id = 'a5a5a5a5-0166-4000-8000-000000000001') >= 41
        and not exists (select 1 from public.quotes q where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null
