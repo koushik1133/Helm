@@ -427,12 +427,6 @@
   },
   {
    "file": "public/control.html",
-   "expr": "nm",
-   "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))",
-   "max": 3
-  },
-  {
-   "file": "public/control.html",
    "expr": "t.body",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
   },
