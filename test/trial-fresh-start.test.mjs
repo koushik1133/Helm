@@ -45,13 +45,14 @@ t('APPLY wraps the migration in one transaction and ends with VERIFY', () => {
   assert.match(apply, /commit;\s*\n\s*-- VERIFY 0127/);
   assert.match(read('supabase/migrations/MANIFEST'), /forward\s+supabase\/migrations\/0127_trial_fresh_start\.sql/);
 });
-t('checkout offers Start fresh / Keep after a verified payment', () => {
+t('checkout offers the data choice after a verified payment (0185: keep / remove sample / start clean)', () => {
   const js = read('public/checkout.js'); const html = read('public/checkout.html');
   assert.match(js, /if \(v && v\.verified\) \{ if \(!\(await offerDemoChoice\(\)\)\) finish/);
-  assert.match(js, /S\.demo\.choose\(choice\)/);
+  assert.match(js, /HelmTrialUpgrade/);
   assert.match(html, /id="coDemoChoice"[^>]*hidden/);
-  assert.match(html, /id="dcFresh"/); assert.match(html, /id="dcKeep"/);
   assert.ok(!/id="coDemoChoice"[\s\S]{0,900}style="/.test(html));
+  // the 0127 RPC stays callable (older clients); the new flow is upgrade_data_choice (0185)
   assert.match(read('public/store-api.js'), /choose: \(choice\) => rpc\("trial_demo_choice", \{ p_choice: choice === "fresh" \? "fresh" : "keep" \}\)/);
+  assert.match(read('public/store-api.js'), /rpc\("upgrade_data_choice"/);
 });
 console.log(n + ' passed');

@@ -191,7 +191,11 @@
     doc.body.appendChild(dlg);
     try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
   }
-  function openSwitch() { return startFresh({}); }
+  // 0185: once the plan is active, trial-upgrade.js (keep / remove sample / start clean) takes over
+  async function openSwitch() {
+    try { if (global.HelmTrialUpgrade && typeof global.HelmTrialUpgrade.takeOver === "function" && await global.HelmTrialUpgrade.takeOver()) return; } catch (e) {}
+    return startFresh({});
+  }
 
   // onboarding.html?fresh=1: a short welcome; offers to rename a "Demo N" studio in step 1
   async function mountFresh() {
@@ -275,6 +279,8 @@
     let d = null, t = null;
     try { [d, t] = await Promise.all([st.demo.status(), st.subscription.trial().catch(() => null)]); } catch (e) { return; }
     if (!d) return;
+    // 0185: not a trial any more (plan active) -> the trial-upgrade.js cards show the sample-data choices
+    if (t && t.state === "none" && global.HelmTrialUpgrade) { if (dash) dash.hidden = true; if (ctl) ctl.hidden = true; return; }
     const v = view(d, t);
     // 0180: during the free trial the trial strip + the 2-step welcome are the whole trial UI: no
     // sample-data card on the dashboard and no "Start my own studio" (Control Center keeps Reset / Clear)
