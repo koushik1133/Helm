@@ -100,7 +100,7 @@
     st = st || {}; var field = (label || "Item") + " price", s = String(raw == null ? "" : raw).trim();
     if (st.badInput) return { ok: false, error: field + " must be a number", short: "Enter a number" };
     if (s === "") {
-      if (st.rejected === "negative") return { ok: false, error: field + " cannot be negative — enter 0 or more, or leave it empty for the default", short: "Can't be negative" };
+      if (st.rejected === "negative") return { ok: false, error: field + " cannot be negative — enter 0 or more, or press Reset under it to use the default", short: "Can't be negative" };
       return { ok: true, value: null };
     }
     var V = global.BPStore && global.BPStore.validate;
@@ -161,7 +161,9 @@
         var lab = el("label", "apg-name", it.label); lab.htmlFor = id; lab.title = it.label; box.appendChild(lab);
         var field = el("div", "apg-field");
         var cur = el("span", "apg-cur", sym); cur.setAttribute("aria-hidden", "true"); field.appendChild(cur);
-        var inp = el("input"); inp.id = id; inp.type = "number"; inp.min = "0"; inp.max = String(MAX); inp.step = "0.01";
+        var inp = el("input"); inp.id = id; inp.type = "number"; inp.min = "0"; inp.step = "0.01";
+        // no max= attribute: the number hardener silently clamps a value above max= on blur, so 2,50,00,000
+        // would quietly be saved as 1,00,00,000. Without it the validator blocks the save with "Too large".
         inp.setAttribute("inputmode", "decimal"); inp.setAttribute("data-type", it.type); inp.placeholder = "Default"; inp.autocomplete = "off";
         inp.value = shownValue(prices[it.type]);
         var helpId = "apg_d_" + it.type; inp.setAttribute("aria-describedby", helpId);
@@ -189,9 +191,17 @@
     });
     host.appendChild(none);
 
+    // an item the user has not touched keeps its stored price exactly (e.g. a legacy 1500.555 or a price
+    // above today's cap) - only values the user typed are re-validated. A stored negative / junk is still blocked.
+    function legacy(rec) {
+      if (rec.inp.value !== rec.saved || rec.saved === "") return null;
+      var v = prices[rec.it.type], n = typeof v === "string" ? (v.trim() === "" ? NaN : Number(v)) : (typeof v === "number" ? v : NaN);
+      return isFinite(n) && n >= 0 ? { ok: true, value: n } : null;
+    }
+    function check(rec) { return legacy(rec) || checkRate(rec.inp.value, rec.it.label, state(rec)); }
     function state(rec) { return { badInput: !!(rec.inp.validity && rec.inp.validity.badInput), rejected: rec.inp.getAttribute("data-rejected") }; }
     function paint(rec) {
-      var r = checkRate(rec.inp.value, rec.it.label, state(rec)), custom = String(rec.inp.value).trim() !== "";
+      var r = check(rec), custom = String(rec.inp.value).trim() !== "";
       rec.box.classList.toggle("is-custom", custom && r.ok);
       rec.box.classList.toggle("is-changed", rec.inp.value !== rec.saved);
       rec.box.classList.toggle("is-bad", !r.ok);

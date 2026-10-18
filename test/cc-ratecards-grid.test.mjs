@@ -119,4 +119,71 @@ t('css: subgrid alignment, right-aligned numbers, currency inside, reset keeps i
   assert.match(css, /minmax\(min\(100%,180px\),1fr\)/);
   assert.match(css, /\.apg-field \.neg-hint\{display:none!important\}/);
 });
+// ---- review fixes (Oct 2026): no silent clamp, untouched stored prices kept exactly ----
+// tiny fake DOM: just enough for render() / read() in Node
+function fakeDom() {
+  class Node_ {
+    constructor(tag) { this.tagName = tag; this.children = []; this.attrs = {}; this.hidden = false; this._text = ''; this.value = ''; this.listeners = {};
+      const self = this; this.classList = { set: new Set(), add(c) { this.set.add(c); }, toggle(c, on) { if (on) this.set.add(c); else this.set.delete(c); }, contains(c) { return this.set.has(c); } };
+      this.validity = { badInput: false }; this.style = {}; void self; }
+    set className(v) { this.classList.set = new Set(String(v).split(/\s+/).filter(Boolean)); }
+    get className() { return [...this.classList.set].join(' '); }
+    set textContent(v) { this.children = []; this._text = String(v); }
+    get textContent() { return this._text + this.children.map((c) => c.textContent).join(''); }
+    get firstChild() { return this.children[0] || null; }
+    appendChild(c) { this.children.push(c); c.parentNode = this; return c; }
+    removeChild(c) { this.children = this.children.filter((x) => x !== c); return c; }
+    setAttribute(k, v) { this.attrs[k] = String(v); }
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+    removeAttribute(k) { delete this.attrs[k]; }
+    hasAttribute(k) { return k in this.attrs; }
+    addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); }
+    dispatchEvent() { return true; }
+    focus() {}
+    all() { return this.children.flatMap((c) => [c, ...c.all()]); }
+    querySelectorAll(sel) { const cls = sel.replace(/^\./, ''); return this.all().filter((n) => n.classList.contains(cls)); }
+  }
+  return { createElement: (t) => new Node_(t), createTextNode: (t) => { const n = new Node_('#text'); n._text = String(t); return n; } };
+}
+function renderFake(prices) {
+  const cx2 = { window: {}, document: fakeDom(), setTimeout: () => 0, Event: class {} }; cx2.globalThis = cx2; vm.createContext(cx2);
+  vm.runInContext(src, cx2);
+  const host = cx2.document.createElement('div'); host.id = 'itemPriceList';
+  const api = cx2.window.HelmAssetPriceGrid.render(host, { catalog: [['stage', 'Main Stage', 45000], ['tent', 'Tent', 35000], ['mandap', 'Decor Mandap', 75000]], prices });
+  const inp = (type) => host.all().find((n) => n.tagName === 'input' && n.getAttribute('data-type') === type);
+  return { api, inp };
+}
+t('inputs carry no max= (the hardener would silently clamp 2,50,00,000 down to 1,00,00,000 on blur)', () => {
+  assert.doesNotMatch(src, /inp\.max\s*=/);
+  const { inp } = renderFake({});
+  assert.equal(inp('stage').max, undefined);
+  assert.equal(inp('stage').getAttribute('max'), null);
+});
+t('a typed value above the cap blocks the save (not clamped, not defaulted)', () => {
+  const { api, inp } = renderFake({});
+  inp('stage').value = '25000000';
+  const r = api.read(); assert.equal(r.ok, false); assert.match(r.error, /^Main Stage price must be at most/);
+});
+t('untouched stored prices are kept exactly (legacy decimals / above-cap) and do not block other saves', () => {
+  const { api, inp } = renderFake({ tent: 1500.555, mandap: 30000000, stage: '2500', zzz_custom: 5 });
+  inp('stage').value = '9000';
+  const r = api.read(); assert.equal(r.ok, true, r.error);
+  assert.deepEqual(J(r.prices), { zzz_custom: 5, tent: 1500.555, mandap: 30000000, stage: 9000 });
+});
+t('an untouched stored negative / junk price is still blocked, an edited one re-validated', () => {
+  const a = renderFake({ tent: -4 }); assert.equal(a.api.read().ok, false);
+  const b = renderFake({ tent: 1500.555 }); b.inp('tent').value = '1500.555';
+  assert.equal(b.api.read().prices.tent, 1500.555, 'same text = untouched');
+  b.inp('tent').value = '1500.5555'; assert.equal(b.api.read().prices.tent, 1500.56, 'edited -> 2 dp');
+});
+t('a hardener-cleared negative tells the user to press Reset (the box is already empty)', () => {
+  const neg = G.checkRate('', 'Tent', { rejected: 'negative' });
+  assert.match(neg.error, /press Reset/); assert.doesNotMatch(neg.error, /leave it empty/);
+});
+t('after a successful save the new values become the untouched baseline', () => {
+  const { api, inp } = renderFake({ tent: 1500.555 });
+  inp('stage').value = '30000000'; assert.equal(api.read().ok, false);
+  inp('stage').value = '700'; const r = api.read(); api.markSaved(r.prices);
+  assert.deepEqual(J(api.read().prices), { tent: 1500.555, stage: 700 });
+});
 console.log('cc-ratecards-grid: ' + n + ' passed');
