@@ -10,7 +10,7 @@ a{color:inherit}
 .wrap{max-width:940px;margin:0 auto;padding:0 24px 60px}
 header{display:flex;align-items:center;gap:11px;padding:18px 0}
 .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
-.mark::after{content:"";position:absolute;inset:4px;background:#fff;-webkit-mask:url(/brand/mark-mono.svg) center/contain no-repeat;mask:url(/brand/mark-mono.svg) center/contain no-repeat}
+.mark::after{content:none}
 header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
 .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a{text-decoration:none} .nav a:hover{color:var(--accent)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
@@ -51,3 +51,6 @@ html[data-theme="dark"] .chip[aria-pressed="true"]{background:#7c3aed;border-col
 html[data-theme="dark"] .totals dd.due{color:#f87171}
 @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap}
   .totals{grid-template-columns:repeat(3,minmax(0,1fr))} .totals dd{font-size:13px}}
+
+/* brand kit symbol (as-is) replaces the old gradient tile */
+.mark{background:url(/brand/helm-symbol.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}

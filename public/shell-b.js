@@ -150,12 +150,13 @@
     var top = el("div", "hb-top");
     var brand = el("a", "hb-brand"); brand.href = "/dashboard.html"; brand.setAttribute("aria-label", "Helm home");
     var logo = el("span", "hb-logo"); logo.setAttribute("aria-hidden", "true");
-    (function () { /* shared Helm mark: /brand/mark.svg?v=3#helm-mark (one-file logo swap, see docs/LOGO-SWAP.md) */
-      var SN = "http://www.w3.org/2000/svg", sv = document.createElementNS(SN, "svg"), us = document.createElementNS(SN, "use");
-      sv.setAttribute("class", "helm-mark"); sv.setAttribute("viewBox", "0 0 48 48"); sv.setAttribute("focusable", "false");
-      us.setAttribute("href", "/brand/mark.svg?v=3#helm-mark"); sv.appendChild(us); logo.appendChild(sv);
-    })();
-    brand.appendChild(logo); brand.appendChild(el("span", "hb-lb hb-name", "Helm Events"));
+    /* brand kit logo (docs/HELM_Brand_and_Website_Kit 2, copied as-is to /brand/): compass-H symbol + "ELM" = the HELM lockup.
+       Collapsed rail = symbol only. Variants: primary (light rail), -on-dark (dark), -monochrome (graphite); CSS picks one. */
+    function kimg(cls, src) { var i = document.createElement("img"); i.className = cls; i.src = src; i.alt = ""; i.decoding = "async"; return i; }
+    logo.appendChild(kimg("hb-k hb-k-pri", "/brand/helm-symbol.svg?v=1")); logo.appendChild(kimg("hb-k hb-k-dark", "/brand/helm-symbol-on-dark.svg?v=1")); logo.appendChild(kimg("hb-k hb-k-mono", "/brand/helm-symbol-mono.svg?v=1"));
+    var elm = el("span", "hb-lb hb-name"); elm.setAttribute("aria-hidden", "true");
+    elm.appendChild(kimg("hb-k hb-k-pri", "/brand/helm-elm.svg?v=1")); elm.appendChild(kimg("hb-k hb-k-dark", "/brand/helm-elm-on-dark.svg?v=1")); elm.appendChild(kimg("hb-k hb-k-mono", "/brand/helm-elm-monochrome.svg?v=1"));
+    brand.appendChild(logo); brand.appendChild(elm);
     var pin = el("button", "hb-pin"); pin.type = "button"; pin.setAttribute("data-tour", "pin"); pin.appendChild(icon("pin"));
     function syncPin() { var p = root.classList.contains("hb-pinned"); pin.setAttribute("aria-pressed", p ? "true" : "false"); pin.title = p ? "Unpin sidebar" : "Keep sidebar open"; pin.setAttribute("aria-label", pin.title); }
     pin.addEventListener("click", function () { root.classList.toggle("hb-pinned"); ls(PIN, root.classList.contains("hb-pinned") ? "1" : "0"); syncPin(); });

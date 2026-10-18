@@ -37,8 +37,8 @@ em{font-family:var(--serif);font-style:italic;font-weight:400}
 .nav.scrolled::before,.nav.menu-open::before{opacity:1}
 
 .brand{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:20px;text-decoration:none;letter-spacing:-.02em;position:relative}
-/* compass-H mark: two CSS-mask layers (H+ring = --ink, compass points = --acc); see docs/LOGO-SWAP.md */.mark{display:inline-block;position:relative;width:26px;height:26px;flex:none}.mark i{position:absolute;inset:0;background:var(--ink);-webkit-mask:url(/brand/mark-ink.svg) center/contain no-repeat;mask:url(/brand/mark-ink.svg) center/contain no-repeat}.mark i+i{background:var(--acc);-webkit-mask-image:url(/brand/mark-acc.svg);mask-image:url(/brand/mark-acc.svg)}
-.mark.big{width:60px;height:60px}
+/* brand kit logo (copied as-is to /brand/): header/footer use the HELM lockup <img class="lockup">; .mark = kit symbol */.lockup{height:32px;width:auto;display:block}.mark{display:inline-block;width:26px;height:30px;flex:none;background:url(/brand/helm-symbol.svg?v=1) center/contain no-repeat}.mark i{display:none}
+.mark.big{width:56px;height:64px}
 .menu{flex:1;display:flex;justify-content:center;position:relative}
 .mlist{list-style:none;margin:0;padding:0;display:flex;gap:4px}
 .mi{position:relative}
@@ -175,7 +175,7 @@ em{font-family:var(--serif);font-style:italic;font-weight:400}
 .tile{position:absolute;left:50%;top:50%;display:inline-flex;align-items:center;gap:9px;padding:10px 16px 10px 10px;border-radius:16px;background:#fff;box-shadow:var(--sh-s);font-weight:600;font-size:14px;white-space:nowrap;will-change:transform,opacity;transform:translate(-50%,-50%)}
 .tile svg{width:34px;height:34px;padding:7px;border-radius:10px;background:var(--bg2);color:var(--ink)}
 .core{position:absolute;left:50%;top:50%;width:190px;height:190px;margin:-95px 0 0 -95px;border-radius:50%;background:var(--ink);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;will-change:transform;transform:scale(.6);box-shadow:0 40px 90px -30px rgba(8,60,40,.6)}
-.core .mark i{background:#fff}.core .mark i+i{background:var(--acc-l)}
+.core .mark{background-image:url(/brand/helm-symbol-on-dark.svg?v=1)}
 .core b{font-size:24px;margin-top:6px}.core small{font-size:12px;opacity:.7}
 .ring{position:absolute;inset:-26px;border-radius:50%;border:1px solid rgba(13,138,92,.25)}.ring.r2{inset:-60px;border-color:rgba(13,138,92,.12)}
 

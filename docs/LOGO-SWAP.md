@@ -1,10 +1,12 @@
 # Logo swap checklist (updated 2026-10-17)
 
-## Current state (2026-10-17): compass-H mark (from docs/HELM_Brand_and_Website_Kit 2)
-- `public/brand/mark.svg` `<symbol id="helm-mark">`: H + ring = `currentColor` (theme ink); 3 compass points carry no fill/stroke and inherit `fill` + `stroke` from the host `<svg>` (theme accent). Graphite sets both to the ink = single-ink mark.
-- `public/brand/mark-mono.svg` single-ink; `mark-ink.svg` + `mark-acc.svg` are CSS-mask layers for marketing `.mark` (`.mark i` = ink layer, `.mark i+i` = accent layer) and the tile glyph `.mark::after`.
-- `public/brand/favicon.svg` (= `public/favicon.svg`): bolder H, no ring (16px-clean). `public/brand/app-icon.svg` = source of apple-touch / icon-192 / 512 / maskable / email logo PNGs (rendered with headless Chromium).
-- Loader outlines (`HB_MARK`, `MARK`, `shell-b-loader-mark.svg`) = H outline + compass points.
+## Current state (2026-10-18): brand kit logo, copied as-is
+- Kit files (docs/HELM_Brand_and_Website_Kit 2/HELM_Brand_Kit/assets) are copied unchanged into `public/brand/` (svg), `public/brand/png/`, `public/brand/icons/`.
+- Lockup = kit `helm-primary.svg` (the compass symbol IS the H of HELM): marketing header/footer `<img class="lockup">`, login brand pane.
+- App rail: `.hb-logo` = kit symbol, `.hb-name` = `helm-elm*.svg` (the kit lockup cropped to "ELM", viewBox only) -> reads HELM; collapsed rail = symbol only. Variant by theme in `shell-b.css`: primary / `-on-dark` (dark) / `-monochrome` (graphite).
+- Small `.mark` / `.mmk` tiles = kit `helm-symbol.svg` background.
+- favicon.ico + favicon.svg (= helm-app-icon.svg), icon-192/512 = kit icons; favicon-48, apple-touch-180, email logo 112 = resized kit icons; og.png logo tile = kit symbol.
+- Loader outlines (`HB_MARK`, `MARK`) are a simplified H + compass trace (animation only).
 (The two-pill notes below are historical.)
 
 

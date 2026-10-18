@@ -28,8 +28,7 @@ html[data-pt="luxe"][data-theme="dark"]     { --bg:#14120f; --panel:#1c1915; --p
 /* ---------- LOGO MARK: the ONE place to swap in the real logo later ----------
    Every public page's mark (.mark landing/legal, .mk + .mmk sign-in/reset) is drawn here.
    To use an image: set background:url(/logo.svg) center/contain no-repeat and content:none on ::after. */
-html[data-pt] .mark, html[data-pt] .mk, html[data-pt] .mmk { background:var(--accent); border-radius:9px; box-shadow:none; }
-html[data-pt] .mark::after, html[data-pt] .mmk::after { background:var(--acc-ink); opacity:.95; }
+html[data-pt] .mk { background:var(--accent); border-radius:9px; box-shadow:none; }
 html[data-pt] .mk::after { border-color:var(--acc-ink); opacity:.92; }
 
 /* ---------- BASE ---------- */

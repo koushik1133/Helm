@@ -25,7 +25,7 @@ html[data-pt] .top {
   -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px);
   border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
-html[data-pt] .mark { border-radius: 10px; }
+html[data-pt] .mark { border-radius: 0; }
 html[data-pt] .brand { font-weight: 650; letter-spacing: -.02em; }
 html[data-pt] .steps .dot { border-color: var(--line); }
 html[data-pt] .steps .now .dot { background: var(--accent); }

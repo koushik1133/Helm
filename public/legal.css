@@ -29,7 +29,7 @@ main{outline:none}
 .nav::before{content:"";position:absolute;inset:0;background:rgba(245,246,241,.78);backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);border-bottom:1px solid var(--line);opacity:0;transition:opacity .5s var(--ease)}
 .nav.scrolled::before{opacity:1}
 .brand{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:20px;text-decoration:none;letter-spacing:-.02em;position:relative}
-/* compass-H mark: two CSS-mask layers (H+ring = --ink, compass points = --acc); see docs/LOGO-SWAP.md */.mark{display:inline-block;position:relative;width:26px;height:26px;flex:none}.mark i{position:absolute;inset:0;background:var(--ink);-webkit-mask:url(/brand/mark-ink.svg) center/contain no-repeat;mask:url(/brand/mark-ink.svg) center/contain no-repeat}.mark i+i{background:var(--acc);-webkit-mask-image:url(/brand/mark-acc.svg);mask-image:url(/brand/mark-acc.svg)}
+/* brand kit logo (copied as-is to /brand/): header/footer use the HELM lockup <img class="lockup">; .mark = kit symbol */.lockup{height:32px;width:auto;display:block}.mark{display:inline-block;width:26px;height:30px;flex:none;background:url(/brand/helm-symbol.svg?v=1) center/contain no-repeat}.mark i{display:none}
 .menu{flex:1;display:flex;justify-content:center;gap:4px;position:relative}
 .mlink{display:inline-flex;align-items:center;min-height:42px;padding:8px 14px;border-radius:99px;font-size:15px;font-weight:500;text-decoration:none;transition:background .3s var(--ease)}
 .mlink:hover{background:rgba(16,21,17,.06)}
