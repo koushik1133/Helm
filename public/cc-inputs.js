@@ -105,9 +105,50 @@
     var u; try { u = new URL(s); } catch (e) { return bad("That isn't a valid link — it should look like https://studio.com/logo.png."); }
     if (u.protocol !== "https:") return bad("Only https:// web links to an image are allowed.");
     if (u.username || u.password) return bad("Remove the user name / password from the link.");
-    if (!u.hostname || u.hostname.indexOf(".") <= 0) return bad("That link is missing the website name, e.g. https://studio.com/logo.png.");
+    if (!u.hostname || u.hostname.indexOf(".") <= 0 || /\.\.|\.$/.test(u.hostname)) return bad("That link is missing the website name, e.g. https://studio.com/logo.png.");
     if (/["'<>`]/.test(s)) return bad("That link contains characters that aren't allowed (quotes or < >).");
     return ok(s);
+  }
+
+  /* ---- studio name / currency / timezone (review of sweep A) -------------- */
+  // organizations.name is NOT NULL: an emptied box used to reach the database and fail with a
+  // generic error. Same limit as onboarding (80, needs a letter or digit).
+  var NAME_MAX = 80;
+  function studioName(v) {
+    var s = trim(v).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ");
+    if (!s) return bad("Enter your studio / business name - it is shown on quotes and invoices.");
+    if (len(s) > NAME_MAX) return bad("Keep the studio name to " + NAME_MAX + " characters or fewer (this has " + len(s) + ").");
+    if (/[<>]/.test(s)) return bad("The studio name can't contain < or >.");
+    if (!/[\p{L}\p{N}]/u.test(s)) return bad("The studio name needs at least one letter or number.");
+    return ok(s);
+  }
+  // free text before: "rupees" or "₹" was saved as the studio currency
+  function currency(v) {
+    var s = trim(v).replace(/\s+/g, "").toUpperCase();
+    if (!s) return ok("");
+    if (/^[A-Z]{3}$/.test(s)) return ok(s);
+    if (/[₹$€£¥]/.test(s)) return bad("Use the 3-letter currency code, e.g. INR, AED or USD - not the symbol.");
+    return bad("Use the 3-letter currency code, e.g. INR, AED or USD.");
+  }
+  // a typo'd zone ("Hyderabad", "IST", "+05:30") made the server quietly fall back to India time
+  var TZ_LIST = null;
+  function tzList() {
+    if (TZ_LIST) return TZ_LIST;
+    var a = []; try { a = (Intl.supportedValuesOf && Intl.supportedValuesOf("timeZone")) || []; } catch (e) { a = []; }
+    var HC = global.HelmCountry; TZ_LIST = ["Asia/Kolkata"].concat(HC && HC.COUNTRY_TZS || [], a); return TZ_LIST;
+  }
+  // "asia/kolkata" -> "Asia/Kolkata" when the browser's list spells the zone another way (Asia/Calcutta)
+  function tzCase(s) { if (s !== s.toLowerCase() && s !== s.toUpperCase()) return s;
+    return s.toLowerCase().split("/").map(function (seg) { return seg.split("_").map(function (w, i) { return i && /^(of|es|au)$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1); }).join("_"); }).join("/"); }
+  function timezone(v) {
+    var s = trim(v).replace(/\s*\/\s*/g, "/").replace(/ +/g, "_");
+    if (!s) return ok("");
+    if (s.length > 40) return bad("That timezone is too long - use a name like Asia/Kolkata.");
+    if (!/^[A-Za-z][A-Za-z0-9_+\-\/]*$/.test(s) || /^[A-Za-z]{2,5}$/.test(s) && !/^(UTC|GMT)$/i.test(s)) return bad("Use a timezone name like Asia/Kolkata or Asia/Dubai (not IST or +05:30).");
+    var hit = tzList().filter(function (z) { return z.toLowerCase() === s.toLowerCase(); })[0];
+    if (hit) return ok(hit);
+    try { new Intl.DateTimeFormat("en-GB", { timeZone: s }); } catch (e) { return bad("\u201c" + s + "\u201d isn't a timezone - use a name like Asia/Kolkata or Asia/Dubai."); }
+    return ok(/^(utc|gmt)$/i.test(s) ? s.toUpperCase() : tzCase(s));
   }
 
   /* ---- client link name (slug) ------------------------------------------- */
@@ -189,7 +230,7 @@
     return ok(e);
   }
 
-  var api = { unpaste: unpaste, email: email, gstin: gstin, taxId: taxId, accent: accent, logo: logo, slug: slug, slugLive: slugLive,
+  var api = { unpaste: unpaste, studioName: studioName, currency: currency, timezone: timezone, email: email, gstin: gstin, taxId: taxId, accent: accent, logo: logo, slug: slug, slugLive: slugLive,
     pin: pin, pinForm: pinForm, days: days, role: role, teamEmail: teamEmail, LOGO_MAX: LOGO_MAX };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   global.HelmCCInputs = api;
@@ -204,6 +245,7 @@
   HV.rules.cc_accent = adapt(accent);
   HV.rules.cc_logo = adapt(logo);
   HV.rules.cc_slug = adapt(slug);
+  HV.rules.cc_name = adapt(studioName); HV.rules.cc_currency = adapt(currency); HV.rules.cc_tz = adapt(timezone);
   HV.rules.cc_phone = function (v, o) {   // business phone: any number type, optional
     if (o && o.phone && o.phone.validate) { var r = o.phone.validate({ mobile: false, required: false }); return r.ok ? { ok: true, value: r.e164 || "" } : { ok: false, error: r.error }; }
     var s = trim(v); if (!s) return { ok: true, value: "" };
@@ -229,7 +271,8 @@
     if (opts && opts.country) ctx.country = opts.country;
     if (gen) return gen;
     gen = { email: b("o_email", "cc_email"), phone: b("o_phone", "cc_phone"), logo: b("o_logo", "cc_logo"),
-      accent: b("o_accent", "cc_accent"), tax: b("o_gst", "cc_tax"), slug: b("o_slug", "cc_slug", { required: function () { return true; } }) };
+      accent: b("o_accent", "cc_accent"), tax: b("o_gst", "cc_tax"),
+      name: b("o_name", "cc_name", { required: function () { return true; } }), currency: b("o_currency", "cc_currency"), tz: b("o_tz", "cc_tz"), slug: b("o_slug", "cc_slug", { required: function () { return true; } }) };
     return gen;
   }
   var team = null;

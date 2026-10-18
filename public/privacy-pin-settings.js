@@ -65,7 +65,9 @@
     var v = String(t.value || ""), st = t.selectionStart, en = t.selectionEnd;
     var res = (st == null || en == null) ? d : v.slice(0, st) + d + v.slice(en);
     if (/^\d+$/.test(d) && (/^\d{4}$/.test(d) || /^\d{0,4}$/.test(res))) { t.value = /^\d{4}$/.test(d) ? d : res; t.dispatchEvent(new Event("input", { bubbles: true })); if (t.getAttribute("aria-invalid") !== "true") fieldErr(t.id, ""); return; }
-    fieldErr(t.id, /\D/.test(d) ? "That paste has characters other than digits — the PIN is 4 digits (0-9)." : "That paste has " + d.length + " digits — the PIN is exactly 4.");
+    fieldErr(t.id, /\D/.test(d) ? "That paste has characters other than digits — the PIN is 4 digits (0-9)."
+      : d.length > 4 ? "That paste has " + d.length + " digits — the PIN is exactly 4."
+      : "Pasting " + d.length + " more digit" + (d.length === 1 ? "" : "s") + " would make " + res.length + " — the PIN is exactly 4. Clear the box and paste again.");
   }
   function clearErrs() { Object.keys(FIELDS).forEach(function (id) { fieldErr(id, ""); }); }
 

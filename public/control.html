@@ -261,14 +261,14 @@
       <div id="orgErr"></div>
       <div class="grid">
         <div class="fld"><label for="o_country">Country (sets tax &amp; currency)</label><select id="o_country"></select></div>
-        <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" placeholder="e.g. Aurora Events"></div>
+        <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" maxlength="120" autocomplete="organization" placeholder="e.g. Aurora Events"></div>
         <div class="fld"><label for="o_email">Business email</label><input id="o_email" type="email" maxlength="254" autocomplete="email" spellcheck="false" placeholder="hello@studio.com"></div>
         <div class="fld"><label for="o_phone">Business phone</label><input id="o_phone" type="tel" autocomplete="tel" maxlength="24" placeholder="+91 98765 43210"></div>
         <div class="fld"><label for="o_location">Location (city, country)</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
         <div class="fld"><label for="o_logo">Logo URL</label><input id="o_logo" type="url" maxlength="600" spellcheck="false" placeholder="https://…/logo.png"></div>
         <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" maxlength="12" spellcheck="false" placeholder="#6d28d9"></div>
-        <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" placeholder="INR"></div>
-        <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" placeholder="Asia/Kolkata"></div>
+        <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" maxlength="8" autocapitalize="characters" spellcheck="false" placeholder="INR"></div>
+        <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" maxlength="60" spellcheck="false" autocomplete="off" placeholder="Asia/Kolkata"></div>
         <div class="fld"><label for="o_gst" id="o_gst_lbl">GSTIN (optional)</label><input id="o_gst" maxlength="40" autocapitalize="characters" spellcheck="false" placeholder="22AAAAA0000A1Z5"></div>
       </div>
       <h3>Billing details</h3>
@@ -765,8 +765,8 @@
 <script src="comms-settings.js?v=3"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=1"></script>
-<script src="cc-inputs.js?v=1"></script>
-<script src="privacy-pin-settings.js?v=2"></script>
+<script src="cc-inputs.js?v=2"></script>
+<script src="privacy-pin-settings.js?v=3"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venues-admin.js?v=4"></script>
 <script src="studio-templates-core.js?v=1"></script>
@@ -1280,7 +1280,7 @@
   $("#o_save").addEventListener("click",()=>BPUI.guard($("#o_save"),async()=>{
     if(!orgLoaded){ orgMsg("err","Studio settings didn't load, so they can't be saved yet."); return; }
     const V=BPStore.validate, G=ccGen();
-    if(G && window.HelmCCInputs.first([G.email,G.phone,G.logo,G.accent,G.tax])){ orgMsg("",""); return; }   // messages are under the fields
+    if(G && window.HelmCCInputs.first([G.name,G.email,G.phone,G.logo,G.accent,G.currency,G.tz,G.tax])){ orgMsg("",""); return; }   // messages are under the fields
     const ccv=(b,id)=>{ const v=b?b.value():null; return v!=null?v:$("#"+id).value.trim(); };   // trimmed + normalised (e-mail lower-case, #rrggbb, https)
     const email=ccv(G&&G.email,"o_email"), logo=ccv(G&&G.logo,"o_logo"), accent=ccv(G&&G.accent,"o_accent");
     if(email){ const r=V.email(email); if(!r.ok){ orgMsg("err",r.error); $("#o_email").focus(); return; } }
@@ -1304,8 +1304,9 @@
       if(!(await BPUI.confirm(`Switch your studio to ${tp.name}? New quotes will use ${tp.tax} and ${tp.known?tp.currency:"your currency"}. Quotes you already saved, sent or got paid keep their price, tax and currency exactly as they are.`,{title:"Change country",okLabel:"Switch country"}))) return; }
     // #16: an email saved HERE is the studio's public contact (business_email_confirmed); the booklet
     // never shows an unconfirmed (e.g. signup) email. Brand keys we don't edit here are kept.
-    const patch={ name:$("#o_name").value.trim()||null, business_email:email?email.toLowerCase():null, business_email_confirmed:!!email,
-      currency:$("#o_currency").value.trim()||"INR", timezone:$("#o_tz").value.trim()||"Asia/Kolkata",
+    const ctp=BPStore.tax.profile(newCountry);   // an emptied currency box falls back to the country's currency, not always INR
+    const patch={ name:ccv(G&&G.name,"o_name")||null, business_email:email?email.toLowerCase():null, business_email_confirmed:!!email,
+      currency:ccv(G&&G.currency,"o_currency").toUpperCase()||(ctp&&ctp.known?ctp.currency:"INR"), timezone:ccv(G&&G.tz,"o_tz")||"Asia/Kolkata",
       location:($("#o_location")?$("#o_location").value.trim():"")||null,
       gst_number:gstRaw||null,
       brand:Object.assign({}, orgBrand, { logo:logo||null, accent:accent||null, phone:phone?phone.slice(0,40):null }) };
@@ -1403,7 +1404,7 @@
   $("#lx_save").addEventListener("click",()=>BPUI.guard($("#lx_save"),async()=>{
     if(!lxLoaded){ lxMsg("err","Link expiry didn't load, so it can't be saved yet."); return; }
     const on=$("#lx_on").checked, n=lxDays(), mv=lxMoveReady?lxMove():lxSavedMove;
-    if(on && n==null){ lxMsg("err",`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`); $("#lx_days").focus(); return; }
+    if(on && n==null){ lxMsg("err",lxCheck().error||`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`); $("#lx_days").focus(); return; }
     const moving = on && mv!=="keep" && mv!==lxSavedMove;
     if(on && !(await BPUI.confirm(`Every client, crew and guest link will stop working ${lxPlural(n)} after it was sent — including links already sent more than ${lxPlural(n)} ago, from the moment you save.`+
         (moving?` Quotes whose link has expired and that were never confirmed, approved or paid will move to ${LX_MOVE_LBL[mv]}${lxWaiting!=null?` (${lxWaiting} right now)`:""} — you can restore them from the Quotes page.`:""),
@@ -1896,9 +1897,13 @@
     btn.disabled=true;
     if(!(await BPUI.confirm("Switch on "+list.map(([a,e])=>lbl(a)+(e?" (view + edit)":" (view)")).join(", ")+" for "+rl+"? You can change each one afterwards.",{title:"Apply suggested access?",okLabel:"Apply"}))){ btn.disabled=false; return; }
     // same queue as single toggles, so a click made meanwhile is never overwritten by a stale grid
-    cellPending++;
+    cellPending++; $("#matrix").setAttribute("aria-busy","true");
     cellQueue = cellQueue.then(async()=>{
-      try{ for(const [a,e] of list) await BPStore.auth.admin.setAccess(role, a, true, e); BPUI.toast(rl+": suggested access applied",{type:"ok"}); }
+      // "switch on" only adds: an area this role can already EDIT keeps edit (never downgraded to view), one already as suggested is skipped
+      try{ for(const [a,e] of list){ const cur=(MTX[role]&&MTX[role][a])||cellDefault(role,a), ed=!!(e||cur.edit);
+          if(cur.view && !!cur.edit===ed) continue;
+          await BPStore.auth.admin.setAccess(role, a, true, ed); }
+        BPUI.toast(rl+": suggested access applied",{type:"ok"}); }
       catch(err){ BPUI.toast(errMsg(err,"change access"),{type:"err"}); }
       await loadMatrix();
     }).catch(()=>{}).finally(()=>{ cellPending--; if(!cellPending) $("#matrix").removeAttribute("aria-busy"); renderMatrix(); });
