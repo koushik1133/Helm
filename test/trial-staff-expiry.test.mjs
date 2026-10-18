@@ -1,4 +1,4 @@
-// Trial staff + after-trial access (0126).
+// Trial staff + after-trial access (0126; 0183: staff keep read-only access instead of being blocked).
 //  * SQL additive + idempotent; current_org_id keeps the 0043 2FA gate and only adds the trial gate
 //  * owner (organizations.created_by) is never blocked; gate depends on _trial_locked (pay -> unlock)
 //  * my_trial_access granted to authenticated, not anon; APPLY = migration + VERIFY
@@ -48,9 +48,10 @@ t('APPLY wraps migration + verify in one transaction', () => {
   assert.match(APPLY, /^-- APPLY 0126[^\n]*\nbegin;/); assert.match(APPLY, /\ncommit;\n/);
 });
 t('store-api exposes trialOrg.access -> my_trial_access', () => assert.match(API, /access: \(\) => \(supa \? rpc\("my_trial_access", \{\}\)/));
-t('staff note: active trial shows end date; ended says access paused', () => {
+t('staff note: active trial shows end date; ended says read-only for everyone (0183)', () => {
   const a = trial.staffNoteSpec({ is_trial_org: true, ends_at: '2026-10-24T10:00:00Z', ended: false, locked: false, timezone: 'Asia/Kolkata' });
-  assert.match(a.text, /^Trial: staff access ends when the trial ends on /);
+  assert.match(a.text, /^Trial: when the trial ends on .*, your staff keep read-only access until you upgrade\./);
+  assert.match(trial.staffNoteSpec({ is_trial_org: true, ended: true, locked: true }).text, /including invited staff, can still sign in and view everything in read-only mode/);
   assert.equal(trial.staffNoteSpec({ is_trial_org: false }), null); assert.equal(trial.staffNoteSpec(null), null);
   assert.equal(trial.staffNoteSpec({ is_trial_org: true, ended: true, locked: true }).tone, 'ended');
 });
@@ -64,7 +65,7 @@ t('blocked screen only for blocked non-owners', () => {
 t('trial.js stays CSP-safe', () => {
   assert.ok(!/innerHTML|insertAdjacentHTML|\.style\.|setAttribute\("style"/.test(TJS));
 });
-t('policy doc covers read-only owner, blocked staff, no auto-delete, instant unlock', () => {
-  for (const re of [/read-only/i, /ask the studio owner to subscribe/i, /never deleted automatically|No data is ever deleted automatically/i, /instantly/i]) assert.match(DOC, re);
+t('policy doc covers read-only owner + read-only staff (0183), no auto-delete, instant unlock', () => {
+  for (const re of [/read-only/i, /keep read-only access/i, /never deleted automatically|No data is ever deleted automatically/i, /instantly/i]) assert.match(DOC, re);
 });
 console.log(`\n${n} trial-staff-expiry checks passed`);

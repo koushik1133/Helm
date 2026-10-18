@@ -157,6 +157,7 @@ run "trial-no-send-0179" "TRIAL-NO-SEND-0179: ALL PASS \(38/38\)" psql -q -f tes
 run "trial-signup-0180" "TRIAL-SIGNUP-0180: ALL PASS \(33/33\)" psql -q -f tests/db/trial-signup-0180.sql
 run "trial-guards-0181" "TRIAL-GUARDS-0181: ALL PASS \(59/59\)" psql -q -f tests/db/trial-guards-0181.sql
 run "trial-prices-0182" "TRIAL-PRICES-0182: ALL PASS \(21/21\)" psql -q -f tests/db/trial-prices-0182.sql
+run "trial-expiry-0183" "TRIAL-EXPIRY-0183: ALL PASS \(61/61\)" psql -q -f tests/db/trial-expiry-0183.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
