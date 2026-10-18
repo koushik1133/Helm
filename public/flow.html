@@ -367,13 +367,13 @@
 
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
-<script src="config.js?v=102"></script>
+<script src="config.js?v=103"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=239"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=240"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=21"></script>
-<script src="share-checklist.js?v=9"></script>
+<script src="share-checklist.js?v=10"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=1"></script>
@@ -381,7 +381,7 @@
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
-<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="trial-test-note.js?v=1"></script>
+<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="email-send.js?v=1"></script><script src="trial-test-note.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   // QA1019: the step-9 "Next step" only says the booking is confirmed once an advance is recorded
@@ -1133,9 +1133,12 @@
         `<div style="display:flex;gap:8px;flex-wrap:wrap">`+
         `<button type="button" class="btn sm" id="copyLink">Copy link</button>`+
         (phone?`<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${phone}?text=${waText}">WhatsApp (manual)</a>`:``)+
-        `<a class="btn sm" target="_blank" rel="noopener" href="${esc(mailHref)}">Email</a>`+
+        `<a class="btn sm" target="_blank" rel="noopener" href="${esc(mailHref)}">Email (manual)</a>`+
         `<a class="btn sm" target="_blank" rel="noopener" href="${esc(link)}">Preview</a></div>`;
       $("#copyLink").addEventListener("click",()=>{ Promise.resolve().then(()=>navigator.clipboard.writeText(link)).then(()=>{ $("#copyLink").textContent="Copied ✓"; }).catch(()=>{ const u=$("#apprUrl"); if(u){ u.focus(); u.select(); } BPUI.toast("Couldn't copy automatically — the link is selected, press Ctrl/⌘+C.",{type:"info"}); }); });
+      // e-mail the link straight to the client e-mail on the quote (client-mailer)
+      if(window.HelmEmailSend) HelmEmailSend.mount($("#apprLinks"), { quoteId:id, kind:"approval",
+        getEmail:()=>(ev&&ev.client&&ev.client.email)||$("#c_email").value.trim() });
       // 0151: send through the Helm Events WhatsApp number (simulated until it is connected)
       if(window.HelmWaProposal) HelmWaProposal.mount($("#apprLinks"), { quoteId:id, country:flowCountry(),
         getPhone:()=>(ev&&ev.client&&ev.client.phone)||"", getApproval:()=>(ev&&ev.approval_status)||"" });

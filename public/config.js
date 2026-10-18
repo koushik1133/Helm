@@ -22,7 +22,8 @@ window.SUPABASE_CONFIG = {
   liveChannels: {
     sms: false,       // send-otp        → MSG91
     pay: false,       // create-payment-link → Razorpay Payment Links (enable only after deploy+secrets — see docs/INTEGRATIONS-WHATSAPP-RAZORPAY.md)
-    whatsapp: false   // send-whatsapp   → Meta WhatsApp Cloud API   (enable only after deploy+secrets — see docs/INTEGRATIONS-WHATSAPP-RAZORPAY.md)
+    whatsapp: false,  // send-whatsapp   → Meta WhatsApp Cloud API   (enable only after deploy+secrets — see docs/INTEGRATIONS-WHATSAPP-RAZORPAY.md)
+    email: true       // client-mailer + send-otp e-mail → Resend or SMTP (SMTP_* secrets). false = "Send by email" + e-mail code switched off
   },
   // Bot protection on sign-in / sign-up / password reset (Cloudflare Turnstile).
   // siteKey is the PUBLIC site key. EMPTY = off (sign-in works exactly as before).

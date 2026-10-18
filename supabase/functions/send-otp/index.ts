@@ -16,11 +16,14 @@
 // template proposal_approval_otp (copy-code) or by e-mail (Resend) - ALWAYS to the phone /
 // e-mail ON THE QUOTE (wa_otp_begin; a typed number is ignored), 30 s cooldown, 3 resends.
 // Simulated (nothing sent) while WHATSAPP_TOKEN+WHATSAPP_PHONE_ID / RESEND_API_KEY are unset.
-// Extra env: WHATSAPP_API_VERSION, WHATSAPP_TPL_LANG, RESEND_API_KEY, RESEND_FROM.
+// Extra env: WHATSAPP_API_VERSION, WHATSAPP_TPL_LANG, RESEND_API_KEY, RESEND_FROM,
+// or SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM (e-mail via _shared/mailer.ts).
+// The OTP value is never logged or stored in plain text (hash only, via admin_store_otp).
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { isLive, otpEmail, otpMessage } from "../wa-proposal/logic.mjs";
+import { sendMail } from "../_shared/mailer.ts";
 
 function newCode(): string {
   // CSPRNG (Math.random is predictable); rejection sampling avoids modulo bias
@@ -56,24 +59,26 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
       if (!r.ok) { console.error("whatsapp otp status", r.status); return json({ error: "WhatsApp message could not be sent", fallback: "email" }, 502); }
     }
   } else {
-    const key = Deno.env.get("RESEND_API_KEY") || "", from = Deno.env.get("RESEND_FROM") || "";
-    live = !!(key && from);
-    if (live) {
-      const m = otpEmail(code, "your planner");
-      const r = await fetch("https://api.resend.com/emails", {
-        method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to: [String(dest.email)], subject: m.subject, text: m.text }),
-      });
-      await r.text();
-      if (!r.ok) { console.error("email otp status", r.status); return json({ error: "e-mail could not be sent" }, 502); }
-    }
+    // e-mail: shared mailer (Resend, else SMTP_* e.g. Gmail); "<Studio> via Helm", Reply-To studio
+    let studio = "", replyTo: string | null = null;
+    try {
+      const { data: q } = await admin.from("quotes").select("org_id").eq("id", dest.quote_id).maybeSingle();
+      if (q && q.org_id) {
+        const { data: o } = await admin.from("organizations").select("name, business_email").eq("id", q.org_id).maybeSingle();
+        studio = (o && o.name) || ""; replyTo = (o && o.business_email) || null;
+      }
+    } catch (_) { /* studio name is cosmetic */ }
+    const m = otpEmail(code, studio || "your planner");
+    const res = await sendMail({ to: String(dest.email), subject: m.subject, text: m.text, studio, replyTo });
+    if (res.status === "failed") { console.error("email otp failed", res.provider || ""); return json({ error: "e-mail could not be sent", status: "failed" }, 502); }
+    live = res.status === "sent";
   }
   const { error: logErr } = await admin.from("notifications").insert({
     quote_id: dest.quote_id, channel: channel === "email" ? "email" : "whatsapp",
     recipient: channel === "email" ? String(dest.email) : String(dest.to), kind: "otp", status: live ? "sent" : "simulated",
   });
   if (logErr) console.error("otp log insert failed", errTag(logErr));
-  return json({ sent: true, live, simulated: !live, channel, masked: dest.masked, resends_left: dest.resends_left });
+  return json({ sent: true, live, simulated: !live, status: live ? "sent" : "not_configured", channel, masked: dest.masked, resends_left: dest.resends_left });
 }
 
 // DB error → [http status, generic message] (never error.message)

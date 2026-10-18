@@ -337,6 +337,9 @@
       });
       live.appendChild(lab); row.appendChild(inp); row.appendChild(copy); row.appendChild(open); row.appendChild(rev); live.appendChild(row);
       live.appendChild(el("p", c.expired ? "sc-meta sc-warn" : "sc-meta", (c.expired ? "Expired on " : "Valid until ") + when(c.expires_at)));
+      // e-mail the booklet link to the client e-mail on the quote (client-mailer)
+      if (!c.expired && global.HelmEmailSend) global.HelmEmailSend.mount(live, { quoteId: quoteId, kind: "booklet", label: "Email booklet to client", allowUnknown: true,
+        getEmail: () => { const i = global.document.getElementById("c_email"); return (i && i.value) || ""; } });
     };
     showLive(cur);
     go.addEventListener("click", async () => {
