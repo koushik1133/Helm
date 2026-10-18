@@ -115,6 +115,44 @@ await t('dashboard: same label + invoice total on the quote cards', () => {
   assert.match(DH, /renderList\(\); refreshInvoiceTotals\(\); \} \}\);/);
 });
 
+// review-1018: the LIVE dashboard is shell-b-dash.js / shell-b-money.js (shell-proto loads them on
+// dashboard.html) - its event pills + Upcoming rows used to say "Confirmed" for a locked + sent quote
+// and showed the bare quote total. Run the real pill code against the real BPStore.quoteStatus.
+await t('live dashboard (shell-b-dash): pills + calendar tone use the one label', () => {
+  const SD = read('public/shell-b-dash.js');
+  const a = SD.indexOf('  function qStatus(q)'), b = SD.indexOf('return pill("mute", st === "quote" ? "Tentative" : "Draft");', a);
+  assert.ok(a > 0 && b > a, 'qStatus .. statusPill block present');
+  const src = SD.slice(a, SD.indexOf('}', b) + 1);
+  const S = load();
+  const pill = (kind, text) => ({ kind, text, title: '' });
+  const f = new Function('S', 'pill', src + '\nreturn { statusPill: statusPill, qTone: qTone };')(() => S, pill);
+  const owner = { status: 'confirmed', approvalStatus: 'sent', lifecycleStage: 'quote' };
+  assert.equal(f.statusPill(owner).text, 'Sent · awaiting client approval'); assert.equal(f.statusPill(owner).kind, 'wait');
+  assert.equal(f.qTone(owner), 'tent', 'a sent quote is tentative on the calendar, not booked');
+  assert.equal(f.statusPill({ status: 'confirmed', approvalStatus: 'none' }).text, 'Locked · not sent yet');
+  assert.equal(f.qTone({ status: 'confirmed', approvalStatus: 'none' }), 'quote');
+  assert.equal(f.statusPill({ status: 'confirmed', approvalStatus: 'approved' }).text, 'Confirmed · client approved');
+  assert.equal(f.qTone({ status: 'confirmed', approvalStatus: 'approved' }), 'conf');
+  assert.equal(f.statusPill({ status: 'confirmed', lifecycleStage: 'closed' }).text, 'Completed');
+  assert.equal(f.statusPill({ status: 'cancelled' }).text, 'Cancelled');
+  // no BPStore.quoteStatus (old cached store-api) -> the previous pill, never a crash
+  const g = new Function('S', 'pill', src + '\nreturn { statusPill: statusPill, qTone: qTone };')(() => ({}), pill);
+  assert.equal(g.statusPill({ status: 'confirmed' }).text, 'Confirmed'); assert.equal(g.qTone({ status: 'confirmed' }), 'conf');
+  assert.match(SD, /var st = e\.q \? qTone\(e\.q\) : "quote";/);
+  assert.match(SD, /function stKey\(e\) \{ var t = e\.q \? qTone\(e\.q\) : "quote"; return t === "conf" \? "conf" : "quote"; \}/);
+});
+
+await t('live dashboard (shell-b-money): Upcoming row = invoice total + one label', () => {
+  const SM = read('public/shell-b-money.js');
+  assert.match(SM, /\(pu && pv > 0 \? qMoneyN\(pv, q\) : qMoney\(q\)\)/, 'server value (pricing.total + approved change orders) first');
+  assert.match(SM, /q\.client && q\.client\.name, qLabel\(q\)\]/);
+  assert.ok(!/q\.status === "confirmed" \? "Confirmed" : "Tentative"\]\.filter/.test(SM), 'old status-only label gone');
+  const a = SM.indexOf('  function qLabel(q)'); const src = SM.slice(a, SM.indexOf('\n', SM.indexOf('return q.status', a)) + 1);
+  const S = load(); const qLabel = new Function('S', src + '\nreturn qLabel;')(() => S);
+  assert.equal(qLabel({ status: 'confirmed', approvalStatus: 'sent' }), 'Sent · awaiting client approval');
+  const BIZ = read('public/business.html'); assert.match(BIZ, /shell-b-money\.js\?v=5/);
+});
+
 await t('list: the reference code never wraps', () => {
   assert.match(QCSS, /#rows td\.code,#rows \.refchip\{white-space:nowrap\}/);
   assert.match(QH, /\.refchip\{[^}]*white-space:nowrap\}/);

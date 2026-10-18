@@ -46,6 +46,12 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; begin
   insert into public.quote_payments(quote_id, amount, status, paid_at, org_id) values
     ('a0000000-0000-4000-8000-0000000160e1', 87600, 'paid', '2026-06-01 10:00+05:30', a),
     ('a0000000-0000-4000-8000-0000000160e3', 20000, 'paid', '2026-06-02 10:00+05:30', a);
+  -- review-1018: every fixture write shares one now(), so DU-1 and DU-2 tied on updated_at and
+  -- "the latest event" (case 07) depended on row order. Make DU-2 the latest, deterministically
+  -- (the updated_at trigger is skipped for this one test-only write).
+  perform set_config('session_replication_role', 'replica', true);
+  update public.quotes set updated_at = now() + interval '1 minute' where id = 'a0000000-0000-4000-8000-0000000160e1';
+  perform set_config('session_replication_role', 'origin', true);
 exception when others then perform pg_temp.su(); insert into _uf values ('00 fixture', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 do $$ declare r jsonb; tb jsonb; inr jsonb; begin

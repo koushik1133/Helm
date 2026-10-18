@@ -180,7 +180,16 @@
 
   /* ---------- small visual pieces ---------- */
   function pill(kind, text) { return el("span", "hd-pill hd-" + kind, text); }
+  /* qts-1018: ONE status label (BPStore.quoteStatus - the same words as the Quotes list + Event Workspace):
+     "Confirmed" only once the client approved / paid; a locked quote with the link out is "Sent · awaiting client approval" */
+  function qStatus(q) { try { var B = S(); return B && typeof B.quoteStatus === "function" ? B.quoteStatus(q) : null; } catch (e) { return null; } }
+  var QS_PILL = { draft: "mute", locked: "wait", sent: "wait", confirmed: "ok", paid: "ok", closed: "ok", cancelled: "mute" };
+  /* calendar / agenda tone: booked (client approved) / tentative (with the client) / plain quote */
+  function qTone(q) { var x = qStatus(q); if (x) return x.confirmed ? "conf" : x.key === "sent" ? "tent" : "quote";
+    return q && q.status === "confirmed" ? "conf" : "quote"; }
   function statusPill(q) {
+    var x = qStatus(q);
+    if (x) { var p = pill(QS_PILL[x.tone] || "mute", x.key === "closed" ? "Completed" : x.label); if (x.title) p.title = x.title; return p; }
     var st = String(q.status || ""), ap = String(q.approvalStatus || q.approval_status || ""), lc = q.lifecycleStage || q.lifecycle_stage;
     if (st === "confirmed") return pill("ok", lc === "closed" ? "Completed" : "Confirmed");
     if (st === "cancelled") return pill("mute", "Cancelled");
@@ -1212,7 +1221,7 @@
         else {
           any = true;
           evs.slice(0, 3).forEach(function (e) {
-            var st = e.q && e.q.status === "confirmed" ? "conf" : e.q && e.q.status === "quote" && (e.q.approvalStatus === "sent" || e.q.approvalStatus === "viewed" || e.q.approvalStatus === "approved") ? "tent" : "quote";
+            var st = e.q ? qTone(e.q) : "quote";   /* qts-1018: same rule as the status pill */
             var a = link(evHref(e.id), "hd-mini-i hd-ev-" + st);
             a.appendChild(el("b", null, e.name));
             var mt = [hhmm(e.time), e.client, e.type].filter(Boolean).join(" · "); if (mt) a.appendChild(el("small", "hd-mono", mt));
@@ -1291,7 +1300,7 @@
       calBox.appendChild(navH); calBox.appendChild(gridC);
       var byDay = {}; events.forEach(function (e) { (byDay[e.date] = byDay[e.date] || []).push(e); });
       var chipM = pill("info", ""); chipM.classList.add("hd-count-pill"); tools(cCal).insertBefore(chipM, tools(cCal).firstChild);
-      function stKey(e) { return e.q && e.q.status === "confirmed" ? "conf" : "quote"; }
+      function stKey(e) { var t = e.q ? qTone(e.q) : "quote"; return t === "conf" ? "conf" : "quote"; }   /* qts-1018: booked = client approved */
       function showDay(ds) {
         sel = ds; clear(agenda);
         Array.prototype.forEach.call(gridC.querySelectorAll(".hd-cd"), function (x) { var on = x.getAttribute("data-ds") === ds; x.classList.toggle("hd-sel", on); x.setAttribute("aria-selected", String(on)); });

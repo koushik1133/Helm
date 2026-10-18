@@ -52,6 +52,10 @@
   function num(n) { return Math.round(Number(n) || 0).toLocaleString(CUR === "INR" ? "en-IN" : undefined); }
   function qCur(q) { try { return S().quoteCurrency(q); } catch (e) { return "INR"; } }
   function qMoney(q) { try { return q.total ? S().quoteMoney(q.total, q) : ""; } catch (e) { return q.total ? full(q.total) : ""; } }
+  function qMoneyN(n, q) { try { return n ? S().quoteMoney(n, q) : ""; } catch (e) { return n ? full(n) : ""; } }
+  /* qts-1018: ONE status label (BPStore.quoteStatus): "Confirmed" only once the client approved / paid */
+  function qLabel(q) { try { var B = S(); if (B && typeof B.quoteStatus === "function") return B.quoteStatus(q).label; } catch (e) {}
+    return q.status === "confirmed" ? "Confirmed" : "Tentative"; }
   function qName(q) { try { var H = window.HelmEventName; if (H && H.displayName) { var x = H.displayName(q); if (x) return x; } } catch (e) {} var c = q.client || {}; return q.title || c.name || q.code || "Untitled"; }
   function evHref(id) { return "event.html?id=" + encodeURIComponent(id); }
   function mN(x) { var v = Number(x); return isFinite(v) ? v : 0; }
@@ -277,9 +281,11 @@
         var a = link(evHref(q.id), "bz-trow"), d = dOf(q.eventDate);
         var dc = el("div", "bz-day"); dc.appendChild(el("small", null, d.toLocaleDateString(undefined, { month: "short" }))); dc.appendChild(el("b", null, d.getDate())); a.appendChild(dc);
         var m = el("div", "bz-main"); m.appendChild(el("b", null, qName(q)));
-        m.appendChild(el("small", null, [iso(d) === today ? "Today" : fmtDay(q.eventDate), q.client && q.client.name, q.status === "confirmed" ? "Confirmed" : "Tentative"].filter(Boolean).join(" · "))); a.appendChild(m);
-        var val = el("div", "bz-val"); val.appendChild(money(el("span", "bz-num", qMoney(q) || "—")));
+        m.appendChild(el("small", null, [iso(d) === today ? "Today" : fmtDay(q.eventDate), q.client && q.client.name, qLabel(q)].filter(Boolean).join(" · "))); a.appendChild(m);
         var pu = paidBy[q.id], pv = pu ? mN(pu.value) : 0;
+        /* qts-1018: the row value = the invoice total (server dashboard_money: pricing.total + approved change orders),
+           the same number as the Quotes list + Event Workspace header; the bare quote total only when the server sent none */
+        var val = el("div", "bz-val"); val.appendChild(money(el("span", "bz-num", (pu && pv > 0 ? qMoneyN(pv, q) : qMoney(q)) || "—")));
         if (pu && pv > 0) { var pp = Math.max(0, Math.min(100, Math.round(100 * mN(pu.paid) / pv)));
           var pw = el("div", "bz-paid"); pw.appendChild(meter(pp / 100, pp >= 100 ? "ok" : pp >= 50 ? null : "wait")); pw.appendChild(money(el("small", pp >= 100 ? "bz-t-ok" : null, pp + "% paid"))); val.appendChild(pw); }
         else val.appendChild(el("small", "bz-muted", MFIN ? "No payments yet" : ""));
