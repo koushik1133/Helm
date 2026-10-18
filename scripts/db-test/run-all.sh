@@ -68,7 +68,7 @@ run "d6-money-freeze"    "D6-MONEY-FREEZE: ALL PASS \(49/49\)" bash -c "cd tests
 run "matrix-seed-revert" "MATRIX-SEED-REVERT: ALL PASS \(13/13\)" psql -q -f tests/db/matrix-seed-revert.sql
 run "mfa-enforce"        "MFA-ENFORCE: ALL PASS"           bash -c "cd tests/db && psql -q -f mfa-enforce.sql"
 run "contract-coverage"  "CONTRACT-COVERAGE: 100%"         node tests/db/contract-coverage.mjs
-run "pricing-parity"     "13 parity case\(s\) passed, 0 failed" node tests/db/pricing-parity.mjs
+run "pricing-parity"     "14 parity case\(s\) passed, 0 failed" node tests/db/pricing-parity.mjs
 run "auth-matrix"        "AUTH-MATRIX: ALL PASS"           psql -q -f tests/db/auth-matrix.sql
 run "rpc-authz-matrix"   "RPC-AUTHZ-MATRIX: ALL PASS"      psql -q -f tests/db/rpc-authz-matrix.sql
 run "tenant-attack"      "TENANT-ATTACK: ALL PASS"         psql -q -f tests/db/tenant-attack.sql
@@ -131,6 +131,7 @@ run "rescore3-fixes"     "RESCORE3-FIXES: ALL PASS \(26/26\)" psql -q -f tests/d
 run "display-names"      "DISPLAY-NAMES: ALL PASS \(38/38\)" psql -q -f tests/db/display-names.sql
 run "event-groups"       "EVENT-GROUPS: ALL PASS \(36/36\)" psql -q -f tests/db/event-groups.sql
 run "event-groups-race"  "EVENT-GROUP-RACE: PASS"          bash tests/db/event-groups-race.sh
+run "event-group-people-0194" "EVENT-GROUP-PEOPLE-0194: ALL PASS \(23/23\)" psql -q -f tests/db/event-group-people-0194.sql
 run "notification-prefs" "NOTIFICATION-PREFS: ALL PASS \(47/47\)" psql -q -f tests/db/notification-prefs.sql
 run "member-profile"     "MEMBER-PROFILE: ALL PASS \(81/81\)" psql -q -f tests/db/member-profile.sql
 run "phone-verify"       "PHONE-VERIFY: ALL PASS \(40/40\)" psql -q -f tests/db/phone-verify.sql

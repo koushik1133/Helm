@@ -1,0 +1,28 @@
+/* event-group-picker.js (0035 + 0194): the event group "Add people" dialog - self-contained, same look on
+   Quotes, the event workspace, the quote flow and the chat. The layer sits above the app chrome. */
+.egp-layer{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:1100;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto;overscroll-behavior:contain}
+.egp-layer[hidden]{display:none!important}
+.egp-sheet{background:var(--panel,#fff);color:var(--ink,#141b2e);border:1px solid var(--line,#e3e6ee);border-radius:16px;box-shadow:var(--shadow,0 12px 40px rgba(0,0,0,.18));width:min(480px,100%);margin:auto;padding:22px;text-align:left;max-height:calc(100dvh - 48px);overflow:auto}
+.egp-h{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:17px}
+.egp-x{margin-left:auto;border:0;background:none;font-size:16px;cursor:pointer;color:var(--ink-3,#6b7280);min-width:32px;min-height:32px}
+.egp-sub{margin:0 0 12px;font-size:13px;color:var(--ink-2,#4b5563)}
+.egp-lab{display:block;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--ink-3,#6b7280);margin:0 0 4px}
+.egp-search{width:100%;height:38px;border:1px solid var(--line,#e3e6ee);background:var(--panel-2,#f7f8fb);border-radius:9px;padding:0 12px;margin:0 0 10px;font-family:inherit;color:var(--ink,#141b2e);box-sizing:border-box}
+.egp-list{max-height:min(340px,50vh);overflow:auto;border:1px solid var(--line,#e3e6ee);border-radius:10px;margin-bottom:10px}
+.egp-sec{position:sticky;top:0;background:var(--panel-2,#f7f8fb);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3,#6b7280);padding:6px 12px;border-top:1px solid var(--line-2,#eef0f4)}
+.egp-sec:first-child{border-top:0}
+.egp-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line-2,#eef0f4);margin:0;text-transform:none;font-size:13px;font-weight:500;color:var(--ink,#141b2e);cursor:pointer;min-height:44px;box-sizing:border-box}
+.egp-row input[type=checkbox]{width:auto;height:auto;margin:0;flex:0 0 auto}
+.egp-row .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft,#e6f4ea);color:var(--accent,#1f7a3d);font-size:11px;font-weight:700;position:relative;overflow:hidden}
+.egp-nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.egp-rl{margin-left:auto;color:var(--ink-3,#6b7280);font-size:12px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%}
+.egp-empty{padding:14px;color:var(--ink-3,#6b7280);font-size:13px}
+.egp-note{margin:0 0 10px;font-size:12px;color:var(--ink-3,#6b7280)}
+.egp-err{color:var(--bad,#b42318);font-size:13px;margin:0 0 10px}
+.egp-err[hidden]{display:none}
+.egp-btns{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+/* "People in this group" list (chat page) */
+.egp-people{list-style:none;margin:0;padding:0}
+.egp-people li{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid var(--line-2,#eef0f4);font-size:13px}
+.egp-people li:first-child{border-top:0}
+.egp-people .egp-rl{max-width:none}

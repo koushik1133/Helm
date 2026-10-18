@@ -2640,6 +2640,15 @@ window.HelmUrl = HelmUrl;
       if (r.error && isMissingColumn(r.error)) r = await supa.from("quotes").select("*").in("id", a);
       if (r.error) throw r.error; return (r.data || []).map(mapQuoteSummary);
     },
+    // confirm-1018 #3: the approval state of a few quotes (lean columns only) — the studio pages poll this while a
+    // client approval is pending, so "Client approved" shows without a reload. → [{id, code, status, approvalStatus, updatedAt}]
+    async approvalStates(ids) {
+      const a = [...new Set((ids || []).filter((x) => typeof x === "string" && x))].slice(0, 100); if (!a.length) return [];
+      if (mode !== "supabase") { const set = new Set(a); return (await lsq.list()).filter((q) => set.has(q.id)).map((q) => ({ id: q.id, code: q.code, status: q.status, approvalStatus: q.approvalStatus || "none", updatedAt: q.updatedAt || null })); }
+      const { data, error } = await supa.from("quotes").select("id,code,status,approval_status,updated_at").in("id", a);
+      if (error) throw error;
+      return (data || []).map((q) => ({ id: q.id, code: q.code, status: q.status, approvalStatus: q.approval_status || "none", updatedAt: q.updated_at || null }));
+    },
     get: (id) => qt().get(id),
     getVersion: (id, no) => qt().getVersion(id, no),
     versions: (id) => qt().versions(id),
@@ -5780,6 +5789,48 @@ window.HelmUrl = HelmUrl;
           chatWriteLs(CHAT_LS_M, msgs); chatPing(); return id;
         }
         return rpc("create_event_group", { p_quote: quoteId, p_members: memberIds || [] });
+      },
+      // 0194: "Add people" — people = [{kind:"user"|"staff"|"vendor"|"client", id}]. Teammates (and staff who sign
+      // in) become chat members; other staff, vendors and the client are kept as the group's contacts (name only).
+      // Nothing is sent to anyone (no WhatsApp / SMS / e-mail). → { users, contacts, skipped, trial, messages_sent:0 }
+      async addPeople(convId, people) {
+        const list = (Array.isArray(people) ? people : []).filter((x) => x && typeof x === "object" && /^(user|staff|vendor|client)$/.test(String(x.kind)))
+          .map((x) => (x.kind === "client" ? { kind: "client" } : { kind: x.kind, id: String(x.id || "") })).slice(0, 200);
+        if (!list.length) return { users: 0, contacts: 0, skipped: 0, trial: false, messages_sent: 0 };
+        if (mode !== "supabase") {
+          const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId);
+          if (!c || !c.quote_id) throw new Error("People can be added this way only to an event group.");
+          c.members = c.members || []; c.contacts = c.contacts || []; let users = 0, contacts = 0;
+          const crew = list.some((x) => x.kind === "staff") ? await staff.list(true).catch(() => []) : [];
+          const vend = list.some((x) => x.kind === "vendor") ? await vendors.listAll(true).catch(() => []) : [];
+          let q = null; if (list.some((x) => x.kind === "client")) { try { q = await quotes.get(c.quote_id); } catch (e) { q = null; } }
+          list.forEach((x) => {
+            if (x.kind === "user") { if (!c.members.some((m) => m.user_id === x.id)) { c.members.push({ user_id: x.id }); users++; } return; }
+            let name = "", ref = x.kind === "client" ? null : x.id;
+            if (x.kind === "staff") { const r = crew.find((s) => s.id === x.id && s.active !== false); name = r ? r.name : ""; }
+            else if (x.kind === "vendor") { const r = vend.find((v) => v.id === x.id && v.active !== false); name = r ? r.name : ""; }
+            else name = (q && q.client && String(q.client.name || "").trim()) || "Client";
+            if (!name) return;
+            const key = ref || x.kind, cur = c.contacts.find((k) => k.kind === x.kind && k.ref_key === key);
+            if (cur) { if (cur.removed_at) { cur.removed_at = null; contacts++; } return; }
+            c.contacts.push({ id: uid(), conversation_id: convId, kind: x.kind, ref_id: ref, ref_key: key, name: String(name).slice(0, 120), created_at: now(), removed_at: null }); contacts++;
+          });
+          chatWriteLs(CHAT_LS_C, convs); chatPing(); return { users, contacts, skipped: 0, trial: false, messages_sent: 0 };
+        }
+        return rpc("event_group_add_people", { p_conversation: convId, p_people: list });
+      },
+      // 0194: the group's contacts still in it (staff / vendors / client who don't sign in), oldest first.
+      // Fail-soft: 0194 not installed yet → [] (the group shows its chat members only).
+      async contacts(convId) {
+        if (mode !== "supabase") { const c = chatReadLs(CHAT_LS_C).find((x) => x.id === convId); return ((c && c.contacts) || []).filter((k) => !k.removed_at); }
+        const { data, error } = await supa.from("chat_group_contacts").select("id,kind,ref_id,name,created_at")
+          .eq("conversation_id", convId).is("removed_at", null).order("created_at").limit(500);
+        if (error) { const U = global.BPUI; if (U && U.isMissingTable && U.isMissingTable(error)) return []; throw error; }
+        return data || [];
+      },
+      async removeContact(convId, contactId) {
+        if (mode !== "supabase") { const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); const k = c && (c.contacts || []).find((x) => x.id === contactId); if (k) { k.removed_at = now(); chatWriteLs(CHAT_LS_C, convs); chatPing(); } return !!k; }
+        return rpc("event_group_remove_contact", { p_conversation: convId, p_contact: contactId });
       },
       // post an updated event card when the details changed → new message id, or null if unchanged
       async refresh(convId) {

@@ -80,6 +80,10 @@ const CASES = [
   { name: 'everything stacked',
     p: { chairs: 80, chairPrice: 450, guests: 150, platePrice: 900, other: 20000, serviceChargePct: 8,
          discount: 10000, discountPct: 5, coupon: { kind: 'percent', value: 3 }, gstPct: 18 } },
+  // confirm-1018 #1: the owner's Confirm & lock case - flat Rs 1,000 coupon AND 5% discount, both off the subtotal
+  { name: 'flat coupon + percent discount (42,000 chairs / 60,000 plates)',
+    p: { chairs: 42000, chairPrice: 150, other: 110000, guests: 60000, platePrice: 450, couponCode: 'DEMO WELCOME BACK',
+         coupon: { kind: 'flat', value: 1000 }, discount: 0, discountPct: 5, gstPct: 18 } },
 ];
 
 // --- DB totals in one round-trip ---------------------------------------------

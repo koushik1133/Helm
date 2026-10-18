@@ -154,7 +154,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script><script src="save-back.js?v=1"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -352,6 +352,9 @@
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    // confirm-1018 #4: "Save & back to event" beside Save (only leaves when the save worked)
+    if(window.HelmSaveBack) HelmSaveBack.add({ button:"#v_save", msg:"#v_msg", run:()=>saveVenue() });
+    if(window.HelmSaveBack) HelmSaveBack.add({ button:"#p_save", msg:"#p_msg", run:()=>saveMenu() });
     // Don't silently drop unsaved venue/menu edits on "← Back": offer Save first, then Discard/Keep editing.
     $("#backLink").addEventListener("click", async (e)=>{
       if(!dirty.isDirty()) return;

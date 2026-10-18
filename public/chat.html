@@ -363,12 +363,13 @@
   </div>
 </div>
 
+<link rel="stylesheet" href="event-group-picker.css?v=1">
 <link rel="stylesheet" href="theme.css?v=80">
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script><script src="event-group-picker.js?v=3"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
 (function(){
@@ -587,7 +588,9 @@
     thread.conv=conv;
     const c=convs.find(x=>x.id===activeId);
     renderPinBar(c);
-    if(c){ if(c.kind==="group") $("#tSub").textContent=(c.quote_id?"Event group · ":"")+((thread.members||[]).map(m=>m.user_id===ME.id?"You":personName(m.user_id).split(" ")[0]).join(", ")||"group");
+    // 0194: an event group also lists its contacts (staff / vendors / client who don't sign in)
+    if(c&&c.kind==="group"&&c.quote_id){ try{ thread.contacts=await BPStore.chat.eventGroups.contacts(c.id); }catch(_){ thread.contacts=[]; } if(conv!==activeId) return; }
+    if(c){ if(c.kind==="group") $("#tSub").textContent=(c.quote_id?"Event group · ":"")+(((thread.members||[]).map(m=>m.user_id===ME.id?"You":personName(m.user_id).split(" ")[0]).concat((thread.contacts||[]).map(k=>String(k.name||"").split(" ")[0]))).join(", ")||"group");
       else if(c.kind==="broadcast") $("#tSub").textContent="Everyone in your team";
       else { const o=convOther(c), p=roster[o]; $("#tSub").textContent=(p&&p.job_title)||(p&&roleLbl(p.role))||""; } }
     renderMessages();
@@ -933,7 +936,8 @@
       {k:"fav",label:favs.has(c.id)?"★  Remove from favorites":"☆  Add to favorites",on:()=>{ const on=!favs.has(c.id); if(on)favs.add(c.id); else favs.delete(c.id); saveFavs(); savePref(c.id,"favourite",on); renderConvs(); }},
       {k:"mute",label:mutes.has(c.id)?"🔔  Unmute":"🔕  Mute notifications",on:()=>{ const on=!mutes.has(c.id); if(on)mutes.add(c.id); else mutes.delete(c.id); saveMutes(); savePref(c.id,"muted",on); renderConvs(); }}
     ];
-    if(c.kind==="group") items.push({k:"add",label:"➕  Add members",on:addMembersModal});
+    if(c.kind==="group") items.push({k:"add",label:c.quote_id?"➕  Add people":"➕  Add members",on:addMembersModal});
+    if(c.kind==="group"&&c.quote_id) items.push({k:"ppl",label:"👥  People in this group",on:peopleModal});
     if(c.kind==="group"&&c.quote_id){
       items.push({k:"evref",label:"🔄  Refresh event details",on:refreshEventDetails});
       items.push({k:"evws",label:"⧉  Open event workspace",on:()=>{ location.href="event.html?id="+encodeURIComponent(c.quote_id); }}); }
@@ -958,7 +962,37 @@
     document.body.appendChild(ov); paintAv(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     $("#gCreate").addEventListener("click",async()=>{ const name=$("#gName").value.trim(); if(!name){ $("#gName").focus(); return; } const ids=[...ov.querySelectorAll("input[type=checkbox]:checked")].map(c=>c.value);
       closeModal(); try{ const id=await BPStore.chat.createGroup(name,ids); await refresh(); await openConv(id); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create the group"}),{type:"err"}); } }); }
-  function addMembersModal(){ const c=convs.find(x=>x.id===activeId); if(!c) return; const inIds=(thread.members||[]).map(m=>m.user_id);
+  // confirm-1018 #2 (0194): an event group adds team, staff, vendors and the client with the shared picker
+  async function addEventPeople(c){
+    let ok=false; try{ ok=await BPStore.auth.canView("quotes"); }catch(_){ ok=false; }
+    let q=null; try{ q=await BPStore.quotes.get(c.quote_id); }catch(_){ q=null; }
+    HelmEventGroupPicker.open(q||{id:c.quote_id, code:"", status:"confirmed"},{ canEdit:ok, mode:"add", conversationId:c.id,
+      memberIds:(thread.members||[]).map(m=>m.user_id), onDone:async()=>{ await loadThread(); } });
+  }
+  // everyone in an event group: chat members + contacts (staff / vendors / client who don't sign in; 0194)
+  async function peopleModal(){ const c=convs.find(x=>x.id===activeId); if(!c) return;
+    const members=(thread.members||[]).map(m=>({ name:m.user_id===ME.id?"You":personName(m.user_id), sub:"in the chat" }));
+    const contacts=(thread.contacts||[]);
+    const KL={staff:"staff",vendor:"vendor",client:"client"};
+    const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
+    const modal=document.createElement("div"); modal.className="modal"; modal.setAttribute("role","dialog"); modal.setAttribute("aria-modal","true");
+    const h=document.createElement("h3"); h.textContent="People in this group"; modal.appendChild(h);
+    const body=document.createElement("div"); body.className="body"; const ul=document.createElement("ul"); ul.className="egp-people";
+    const li=(name,sub,btn)=>{ const l=document.createElement("li"); const n=document.createElement("span"); n.className="egp-nm"; n.textContent=name; const r=document.createElement("span"); r.className="egp-rl"; r.textContent=sub; l.appendChild(n); l.appendChild(r); if(btn) l.appendChild(btn); ul.appendChild(l); };
+    members.forEach(m=>li(m.name,m.sub));
+    contacts.forEach(k=>{ const b=document.createElement("button"); b.type="button"; b.className="btn"; b.textContent="Remove"; b.setAttribute("aria-label","Remove "+k.name+" from the group");
+      b.addEventListener("click",()=>BPUI.guard(b,async()=>{ try{ await BPStore.chat.eventGroups.removeContact(c.id,k.id); closeModal(); await loadThread(); BPUI.toast(k.name+" removed from the group.",{type:"ok"}); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove them from the group"}),{type:"err"}); } }));
+      li(k.name, (KL[k.kind]||k.kind)+" · listed (doesn't sign in)", b); });
+    body.appendChild(ul);
+    const note=document.createElement("p"); note.className="egp-note"; note.textContent="Staff, vendors and the client who don't sign in to Helm are listed here so everyone knows who is involved. Helm sends them nothing (no WhatsApp, SMS or e-mail)."; body.appendChild(note);
+    modal.appendChild(body);
+    const foot=document.createElement("div"); foot.className="foot"; const cl=document.createElement("button"); cl.type="button"; cl.className="btn"; cl.setAttribute("data-close",""); cl.textContent="Close"; foot.appendChild(cl);
+    const add=document.createElement("button"); add.type="button"; add.className="btn primary"; add.textContent="Add people"; add.addEventListener("click",()=>{ closeModal(); addEventPeople(c); }); foot.appendChild(add);
+    modal.appendChild(foot); ov.appendChild(modal); document.body.appendChild(ov);
+    ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); }); }
+  function addMembersModal(){ const c=convs.find(x=>x.id===activeId); if(!c) return;
+    if(c.quote_id && window.HelmEventGroupPicker){ addEventPeople(c); return; }
+    const inIds=(thread.members||[]).map(m=>m.user_id);
     const people=others().filter(p=>inIds.indexOf(p.id)<0); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
     ov.innerHTML=`<div class="modal"><h3>Add members</h3><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div data-st="padding:16px;color:var(--ink-3)">Everyone is already in this group.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="aAdd">Add</button></div></div>`;
     document.body.appendChild(ov); paintAv(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
