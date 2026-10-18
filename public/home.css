@@ -1225,3 +1225,24 @@ video.mimg{background:#1a231e}
  body.has-mcta .foot{padding-bottom:80px}
 }
 @media (max-width:767px) and (prefers-reduced-motion:reduce){.snap{scroll-behavior:auto;scroll-snap-type:x proximity}.mcta,.mcta.on{transition:none}}
+/* client portal reel (auto-scrolling phone screen) */
+.pscr.rl{display:block;padding:0;position:relative}
+.pscr.rl::before,.pscr.rl::after{content:"";position:absolute;left:0;right:0;height:34px;z-index:2;pointer-events:none}
+.pscr.rl::before{top:0;background:linear-gradient(#f7f8f4,rgba(247,248,244,0))}
+.pscr.rl::after{bottom:0;background:linear-gradient(rgba(247,248,244,0),#f7f8f4)}
+.rl-track{animation:rlScroll 28s linear infinite;will-change:transform}
+.rl-seg{display:flex;flex-direction:column;gap:10px;padding:40px 16px 26px}
+.pscr.rl:hover .rl-track,.pscr.rl.rl-paused .rl-track{animation-play-state:paused}
+@keyframes rlScroll{0%,4%{transform:translateY(0)}100%{transform:translateY(-50%)}}
+.rl-studio{display:flex;gap:10px;align-items:center}.rl-studio b{display:block;font-size:13px}.rl-studio small{font-size:11px;color:var(--mute)}
+.rl-logo{width:34px;height:34px;flex:none;border-radius:10px;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px}
+.pscr.rl .ps-top small+b+small{margin-top:2px}
+.rl-facts{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}.rl-facts div{background:#fff;border-radius:12px;padding:8px 10px;box-shadow:0 0 0 1px var(--line)}
+.rl-facts small{display:block;font-size:10px;color:var(--mute)}.rl-facts b{font-size:14px}
+.rl-h{margin:6px 0 -4px;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.rl-shots{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rl-shots figure{margin:0;background:#fff;border-radius:12px;padding:5px;box-shadow:0 0 0 1px var(--line)}
+.rl-shots img{display:block;width:100%;height:70px;object-fit:cover;border-radius:8px;background:#e7ece6}.rl-shots .rl-wide{grid-column:1/-1}.rl-shots .rl-wide img{height:96px}
+.rl-shots figcaption{font-size:10px;font-weight:700;padding:4px 2px 0}
+.pscr.rl .ps-l b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:8px}.pscr.rl .ps-l span{flex:none}
+.pscr.rl .ps-btn{margin-top:4px}.rl-approve{background:var(--ink)}
+@media (prefers-reduced-motion:reduce){.rl-track{animation:none}.pscr.rl{overflow-y:auto}.rl-seg+.rl-seg{display:none}}
