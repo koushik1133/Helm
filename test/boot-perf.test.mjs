@@ -215,15 +215,13 @@ t("another user's cached entries are never used (stale or fresh)", async () => {
   assert.ok(e.idx('rpc', 'current_org_id') >= 0);
   assert.equal(await e.S.auth.role(), 'sales');
 });
-t('stale role / matrix: used for this page, refreshed in the background for the next one', async () => {
+t('stale role / matrix (rbac-1030): NOT reused - this page reads the live role so a Roles & access change applies on the next load', async () => {
   const e = makeEnv({ role: 'planner', ss: { bp_sess_org: entry('u-1', 'org-1', 1000), bp_pw_ok: 'u-1',
     bp_sess_role: entry('u-1', 'sales', 5 * 60000), bp_sess_access: entry('u-1', { role: 'sales', map: { leads: { view: true, edit: true } } }, 5 * 60000) } });
   await e.S.init(); await flush();
-  assert.equal(await e.S.auth.role(), 'sales', 'this page keeps its stale role');
+  assert.equal(await e.S.auth.role(), 'planner', 'this page uses the live role');
   const r = JSON.parse(e.win.sessionStorage.getItem('bp_sess_role'));
-  const a = JSON.parse(e.win.sessionStorage.getItem('bp_sess_access'));
-  assert.equal(r.val, 'planner', 'next navigation sees the new role');
-  assert.equal(a.val.role, 'planner', 'role and matrix are refreshed together');
+  assert.equal(r.val, 'planner', 'cache refreshed with the live role');
 });
 
 let pass = 0, fail = 0;

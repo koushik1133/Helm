@@ -442,7 +442,7 @@
     canDelete = deleteRes.value;
     // QA1017 (sales role): create_quote() also needs the "quotes" EDIT area (has_area), not just the
     // role cap - a Sales login with quotes switched off saw "Generate a quote" and got "not authorized".
-    try { if (canCreate && !(await BPStore.auth.canEditArea("quotes"))) canCreate = false; } catch (e) { canCreate = false; }
+    try { if ((canCreate || canDelete) && !(await BPStore.auth.canEditArea("quotes"))) { canCreate = false; canDelete = false; } } catch (e) { canCreate = false; canDelete = false; }
     $("#createBtn").hidden = !canCreate;                    // only create-capable roles can start new quotes
     if (listRes.status === "rejected") {
       const err = listRes.reason;

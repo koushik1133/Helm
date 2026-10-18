@@ -275,7 +275,7 @@
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("runsheet"))) return;
-    canEdit=await BPStore.auth.canEditArea("runsheet"); canDelete=await BPStore.auth.can("delete");
+    canEdit=await BPStore.auth.canEditArea("runsheet"); canDelete=canEdit && await BPStore.auth.can("delete");
     let ev=null; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(!BPUI.isNotFound(e)) throw e; }
     // crew-1020: crew can't read quotes; their own assigned event comes from crew_event_brief (no client / money fields)
     if(!ev){ try{ BRIEF=await BPStore.ops.crew.eventBrief(id); }catch(e){ BRIEF=null; }

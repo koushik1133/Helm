@@ -721,7 +721,7 @@
     const [okView, e1, c1, d1, q1, cc1]=await Promise.all([BPStore.auth.requireView("leads"), BPStore.auth.canEditArea("leads"), BPStore.auth.can("create"), BPStore.auth.can("delete"),
       BPStore.auth.canView("quotes").catch(()=>false), BPStore.auth.canView("controls").catch(()=>false)]);
     if(!okView) return;
-    canEdit=e1; canCreate=!!(c1&&e1); canDelete=d1; canQuotes=!!q1;   // retest-1018: New lead / Convert need the create switch AND leads edit
+    canEdit=e1; canCreate=!!(c1&&e1); canDelete=!!(d1&&e1); canQuotes=!!q1;   // retest-1018: New lead / Convert need the create switch AND leads edit
     $("#newBtn").hidden=!canCreate;
     if(cc1) $("#ccLink").hidden=false;   // QA1017: only roles that can open the Control Center (was: any leads editor)
     await load();

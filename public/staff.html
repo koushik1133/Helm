@@ -553,7 +553,7 @@
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("staff"))) return;
-    canEdit=await BPStore.auth.canEditArea("staff"); canDelete=await BPStore.auth.can("delete");
+    canEdit=await BPStore.auth.canEditArea("staff"); canDelete=canEdit && await BPStore.auth.can("delete");
     canCal=await BPStore.auth.canView("calendar").catch(()=>false);   // verify-166: the Schedule link opens calendar.html - hide it when the role can't open that page
     isAdminUser=(await BPStore.auth.role())==="admin";
     try{ await loadLoginInfo(); }catch(e){}
