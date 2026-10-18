@@ -1,0 +1,24 @@
+/* Trial terms: "What's in your free trial" panel on the trial sign-up screen (built by trial-signup.js).
+   Theme tokens only (green light default via public-v2.css); no inline styles (CSP). */
+.tt{margin:14px 0 18px;padding:14px 14px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel-2);font-size:13px;line-height:1.45;color:var(--ink-2);text-align:left}
+.tt[hidden]{display:none}
+.tt-h{margin:0 0 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--acc-text,var(--accent))}
+.tt-key{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+.tt-key li{display:flex;gap:10px;align-items:flex-start}
+.tt-key b{display:block;color:var(--ink);font-weight:600;font-size:13.5px}
+.tt-key span span{display:block;font-size:12.5px;color:var(--ink-3)}
+.tt-ic{flex:none;width:20px;height:20px;margin-top:1px;border-radius:50%;background:var(--accent-soft);color:var(--acc-text,var(--accent));display:flex;align-items:center;justify-content:center}
+.tt-ic svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tt-more{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.tt-more summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--acc-text,var(--accent));border-radius:6px}
+.tt-more summary::-webkit-details-marker{display:none}
+.tt-more summary::after{content:"";width:6px;height:6px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform .15s ease}
+.tt-more[open] summary::after{transform:rotate(-135deg) translateY(-1px)}
+.tt-more summary:focus-visible,.tt-links a:focus-visible,.tt-agree a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tt-all{margin:8px 0 2px;padding-left:18px;font-size:12.5px;color:var(--ink-2)}
+.tt-all li{margin:0 0 5px}
+.tt-links{margin:10px 0 0;font-size:12px;color:var(--ink-3)}
+.tt-links a,.tt-agree a{color:var(--acc-text,var(--accent));font-weight:600}
+.tt-agree{margin:10px 0 0;font-size:12px;color:var(--ink-3);text-align:center;line-height:1.5}
+@media(max-width:420px){.tt{padding:12px 12px 10px}.tt-key b{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.tt-more summary::after{transition:none}}
