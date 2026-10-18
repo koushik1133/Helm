@@ -247,13 +247,16 @@ window.HelmUrl = HelmUrl;
      could change them (coalescedFetch). It is a display cache: RLS and the server still decide every read and write. */
   const SWR_PREFIX = "bp_swr:", SWR_MAX = 5 * 60000, SWR_REVAL = 20000;
   const swrBusy = {};
-  function swrClear() { try { const del = []; for (let i = 0; i < sessionStorage.length; i++) { const k = sessionStorage.key(i); if (k && k.indexOf(SWR_PREFIX) === 0) del.push(k); } del.forEach((k) => sessionStorage.removeItem(k)); } catch (e) {} }
+  // cc-general-billing: a read that STARTED before a write must not refill the cache after it
+  // (it would bring back the pre-save row - e.g. billing details "empty again" after a reload)
+  let swrGen = 0;
+  function swrClear() { swrGen++; try { const del = []; for (let i = 0; i < sessionStorage.length; i++) { const k = sessionStorage.key(i); if (k && k.indexOf(SWR_PREFIX) === 0) del.push(k); } del.forEach((k) => sessionStorage.removeItem(k)); } catch (e) {} }
   function swrOrg(uid) { const h = sessEntry("bp_sess_org", uid); return (h && h.val) || null; }
   function swr(name, fetcher) {
     if (!supa || !currentUser || mode !== "supabase") return fetcher();
-    const uid = currentUser.id, oid = swrOrg(uid), key = SWR_PREFIX + name;
+    const uid = currentUser.id, oid = swrOrg(uid), key = SWR_PREFIX + name, gen = swrGen;
     const store = (v) => { const o2 = swrOrg(uid);
-      if (o2 && currentUser && currentUser.id === uid) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid, oid: o2, val: v === undefined ? null : v })); } catch (e) {} }
+      if (o2 && gen === swrGen && currentUser && currentUser.id === uid) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid, oid: o2, val: v === undefined ? null : v })); } catch (e) {} }
       return v; };
     let hit = null;
     try { const o = JSON.parse(sessionStorage.getItem(key) || "null");
@@ -4342,19 +4345,30 @@ window.HelmUrl = HelmUrl;
     // Like id() but THROWS when the lookup fails, so callers can tell "no studio"
     // (null) from "couldn't check" (error) — onboarding must only follow a real null.
     resolveId: () => orgIdStrict(),
-    async current() { if (!supa) return null;
+    // opts.fresh: read the saved row from the server (an edit form must never start from the tab cache)
+    async current(opts) { if (!supa) return null;
       const oid = await this.id();
-      return swr("org:" + oid, async () => { const { data, error } = await supa.from("organizations").select("*").eq("id", oid).maybeSingle();
-        if (error) throw error; return data; }); },
+      const read = async () => { const { data, error } = await supa.from("organizations").select("*").eq("id", oid).maybeSingle();
+        if (error) throw error; return data; };
+      if (opts && opts.fresh) { try { sessionStorage.removeItem(SWR_PREFIX + "org:" + oid); } catch (e) {} }
+      return swr("org:" + oid, read); },
     async save(patch) { if (!supa) throw new Error("Supabase not configured");
       const oid = await this.id();
-      let { error } = await supa.from("organizations").update(patch).eq("id", oid);
+      if (!oid) throw new Error("Studio settings aren't available for this workspace yet.");
+      // cc-general-billing: ask for the updated row back - an update the database row rules do not
+      // allow changes NOTHING and returns no error, so "saved" must only be said when a row changed
+      let { data, error } = await supa.from("organizations").update(patch).eq("id", oid).select("id");
       // #16: business_email_confirmed arrives with 0075; on an older database save the rest
       if (error && patch && "business_email_confirmed" in patch && (error.code === "PGRST204" || /business_email_confirmed/.test(error.message || ""))) {
         const rest = Object.assign({}, patch); delete rest.business_email_confirmed;
-        ({ error } = await supa.from("organizations").update(rest).eq("id", oid));
+        ({ data, error } = await supa.from("organizations").update(rest).eq("id", oid).select("id"));
       }
-      if (error) throw error; return true; },
+      if (error) throw error;
+      if (Array.isArray(data) && data.length === 0) {
+        const e = new Error("Nothing was changed: only a studio admin (or someone allowed to edit Control Center) can change the studio settings.");
+        e.code = "42501"; e.hint = "org_not_updated"; throw e;
+      }
+      return true; },
     createStudio: (name, opts) => rpc("create_studio", { p_name: name, p_email: (opts && opts.email) || null,
       p_currency: (opts && opts.currency) || "INR", p_timezone: (opts && opts.timezone) || "Asia/Kolkata" }),
     // GDPR / DPDP: admin downloads THIS org's data only (server re-scopes to current_org_id)
