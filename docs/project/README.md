@@ -30,7 +30,7 @@ New team members can start with the KT document, then PRD and ARCHITECTURE.
 Prompts 9, 11 and 15 in the documentation prompt set are working prompts: they are run per task (for a specific feature, review or bug) rather than producing a standing document. What they guide is covered here:
 
 - Prompt 9 (build/feature work): [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md), [AGENTS.md](AGENTS.md)
-- Prompt 11 (debugging/fixing): [TESTING-QA.md](TESTING-QA.md), [MONITORING.md](MONITORING.md)
-- Prompt 15 (per-change review): [CODE-REVIEW.md](CODE-REVIEW.md), [SECURITY.md](SECURITY.md)
+- Prompt 11 (authentication & authorization): [SECURITY.md](SECURITY.md), [ARCHITECTURE.md](ARCHITECTURE.md), [API.md](API.md)
+- Prompt 15 (debugging / root cause): [TESTING-QA.md](TESTING-QA.md), [MONITORING.md](MONITORING.md), [AGENTS.md](AGENTS.md)
 
 The end-user manual lives separately at [../manual/USER-MANUAL.html](../manual/USER-MANUAL.html).
