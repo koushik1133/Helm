@@ -10,8 +10,9 @@ t('notifications() short-circuits once the chat backend is known missing', () =>
   assert.match(api, /if \(!me \|\| chatBackendMissing\) return \[\];/);
   assert.match(api, /isMissingTable\(e\)\)[\s\S]{0,80}chatBackendMissing = true;/);
 });
-t('chat_ensure_broadcast runs once per page, not per poll', () => {
-  assert.match(api, /if \(!chatBcastEnsured\) \{ try \{ await rpc\("chat_ensure_broadcast"\); chatBcastEnsured = true;/);
+t('chat_ensure_broadcast runs once per page, not per poll (la-fetch: only on Chat, once per tab session)', () => {
+  assert.match(api, /if \(!chatBcastEnsured && pageKey\(\) === "chat"\) \{/);
+  assert.match(api, /try \{ await rpc\("chat_ensure_broadcast"\); chatBcastEnsured = true;/);
   assert.equal((api.match(/rpc\("chat_ensure_broadcast"\)/g) || []).length, 1);
 });
 t('signed-out pages skip the members-only get_pricing_config RPC', () => {

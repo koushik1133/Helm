@@ -728,12 +728,15 @@
       var jobs = [];
       if (B.leads && typeof B.leads.list === "function") jobs.push(can("leads").then(function (ok) {
         if (!ok) return railCount("leads", 0);
+        // la-fetch (audit 25): a HEAD count when the store has one - no lead rows downloaded for a badge
+        if (typeof B.leads.countNew === "function") return Promise.resolve(B.leads.countNew()).then(function (n) { railCount("leads", n); });
         return Promise.resolve(B.leads.list()).then(function (rows) {
           railCount("leads", (Array.isArray(rows) ? rows : []).filter(function (l) { return l && String(l.status || "new") === "new"; }).length);
         });
       }).catch(function () {}));
       if (B.quotes && typeof B.quotes.list === "function") jobs.push(can("quotes").then(function (ok) {
         if (!ok) return railCount("quotes", 0);
+        if (typeof B.quotes.countAwaiting === "function") return Promise.resolve(B.quotes.countAwaiting()).then(function (n) { railCount("quotes", n); });
         return Promise.resolve(B.quotes.list()).then(function (rows) {
           railCount("quotes", (Array.isArray(rows) ? rows : []).filter(function (q) { return q && q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed"); }).length);
         });

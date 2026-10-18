@@ -45,7 +45,7 @@ await t('store-api → 0040 RPCs with the migration\'s argument names', () => {
   assert.match(api, /list: \(\) => rpc\("list_quote_shelf", \{\}\)/);
   assert.match(api, /move: \(quoteId, shelf\) => rpc\("move_quote_to_shelf", \{ p_quote_id: quoteId, p_shelf: shelf \}\)/);
   assert.match(api, /restore: \(quoteId\) => rpc\("restore_quote_from_shelf", \{ p_quote_id: quoteId \}\)/);
-  assert.match(api, /tick: \(\) => rpc\("link_expiry_shelf_tick", \{\}\)/);
+  assert.match(api, /tick\(o\) \{[\s\S]{0,600}return rpc\("link_expiry_shelf_tick", \{\}\);/);   // la-fetch: once per 10 min per tab
   assert.match(api, /profile, quoteShelf,/, 'quoteShelf exported on BPStore');
 });
 

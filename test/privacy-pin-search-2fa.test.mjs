@@ -49,7 +49,7 @@ t('store-api: BPStore.privacyPin wraps the four RPCs; null before 0157', () => {
   assert.match(s, /check: \(pin\) => \(supa \? rpc\("privacy_pin_check", \{ p_pin:/);
   assert.match(s, /set: \(current, next\) => rpc\("privacy_pin_set", \{ p_current:/);
   assert.match(s, /reset: \(\) => rpc\("privacy_pin_reset", \{\}\)/);
-  assert.match(s, /\|telemetry\|privacy_pin_\(\?:check\|status\)\)\/;/, 'a PIN check does not drop the read cache');
+  assert.match(s, /\|telemetry\|privacy_pin_\(\?:check\|status\)(?:\|link_expiry_shelf_tick)?\)\/;/, 'a PIN check does not drop the read cache');
 });
 const PRIV = r('public/shell-b-privacy.js');
 t('shell-b-privacy: unlock is checked on the server; no PIN in the browser; default 0000 fallback', () => {
