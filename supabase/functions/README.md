@@ -281,7 +281,14 @@ Queue: `invite_email_outbox` (one row per invitation, so each invite is e-mailed
 (or a re-tokened one) is queued by a trigger; **Resend email** (Staff page / Control Center → Users)
 re-queues it, at most once per 10 minutes per invite. Copy link keeps working as a backup.
 
-**No Resend account yet?** Leave `RESEND_API_KEY` unset: the function sends through Supabase
+**0204 (2026-10-18): one invitation for every invitee.** With an e-mail provider for the edge
+functions - `RESEND_API_KEY` + `RESEND_FROM`, **or** `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS`
+(+ `SMTP_PORT`, `SMTP_FROM`; the same secrets `client-mailer` uses) - every invitee (new address,
+existing account, re-invite) gets the same branded "Join <Studio> on Helm - <Inviter> invited you as
+<Role>" e-mail with **Accept invitation** → `<APP_URL>/login?invite=<token>`, and Supabase creates
+no login up front. Full trace: `docs/ops/INVITE-FLOW.md`.
+
+**No provider at all?** Leave both unset: the function sends through Supabase
 Auth's own mailer instead — a new address gets the **Invite user** e-mail, an existing account the
 **Magic Link** e-mail. Both open `<APP_URL>/login?invite=<token>` already signed in and the
 invitation is accepted automatically. Needs: Supabase → Authentication → URL Configuration →

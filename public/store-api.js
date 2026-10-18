@@ -490,7 +490,7 @@ window.HelmUrl = HelmUrl;
      expired" when expired=1.
      Only pages that GATE on auth (called auth.required() or auth.requireView())
      redirect, and never the public token pages below. */
-  const PUBLIC_PAGES = { approve: 1, portal: 1, booklet: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1,
+  const PUBLIC_PAGES = { approve: 1, portal: 1, booklet: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1, confirm: 1, "auth-confirm": 1,
     index: 1, login: 1, about: 1, services: 1, privacy: 1, terms: 1, "refund-policy": 1, "reset-password": 1 };
   let authGateUsed = false;     // page called auth.required()/requireView()
   let hadSession = false;       // a user was signed in at some point on this page
@@ -1431,7 +1431,8 @@ window.HelmUrl = HelmUrl;
   }
 
   /* ---------------- init: pick the best available backend ---------------- */
-  const INVITE_SET_PW_KEY = "bp_invite_set_pw";   // user id of an invitee who arrived by an "Invite user" link and still needs a password
+  const INVITE_SET_PW_KEY = "bp_invite_set_pw";
+  const SIGNUP_MARK_KEY = "bp_signup_email";   // 0204: e-mail of a sign-up started in this browser   // user id of an invitee who arrived by an "Invite user" link and still needs a password
   let inviteFragment = null;
   function invitePwPending() {
     try { const id = sessionStorage.getItem(INVITE_SET_PW_KEY); return !!(id && currentUser && currentUser.id === id); } catch (e) { return false; }
@@ -1494,8 +1495,14 @@ window.HelmUrl = HelmUrl;
               try { const cur = await supa.auth.getSession(); if (!(cur && cur.data && cur.data.session)) {
                 const isNew = inviteFragment.type === "invite";   // "Invite user" link = brand-new account with no password yet
                 const sr = await supa.auth.setSession({ access_token: inviteFragment.access_token, refresh_token: inviteFragment.refresh_token });
+                // 0204: a NEW link e-mailed from the join page ("Email me a new link") may be a magic link
+                // for a login the invitation made without a password: ask the server (own login only)
+                let needPw = isNew;
+                if (sr && !sr.error && sr.data && sr.data.user) {
+                  try { const np = await supa.rpc("my_needs_password"); if (!np.error && typeof np.data === "boolean") needPw = np.data; } catch (e) {}
+                }
                 try { sessionStorage.setItem("bp_invite_link_session", "1");
-                  if (isNew && sr && !sr.error && sr.data && sr.data.user) sessionStorage.setItem(INVITE_SET_PW_KEY, sr.data.user.id); } catch (e) {} } } catch (e) {}
+                  if (needPw && sr && !sr.error && sr.data && sr.data.user) sessionStorage.setItem(INVITE_SET_PW_KEY, sr.data.user.id); } catch (e) {} } } catch (e) {}
               inviteFragment = null;
             }
             const gs = await supa.auth.getSession();
@@ -1866,6 +1873,9 @@ window.HelmUrl = HelmUrl;
         if (captchaToken) so.captchaToken = captchaToken;
         const fullName = opts && typeof opts.fullName === "string" ? opts.fullName.trim().slice(0, 50) : "";
         if (fullName) so.data = { full_name: fullName };
+        // 0204: this browser started a sign-up for this address - /auth/confirm keeps the confirm link's
+        // session only then (a link someone else made for THEIR account never signs this browser in)
+        try { localStorage.setItem(SIGNUP_MARK_KEY, String(email || "").trim().toLowerCase().slice(0, 254)); } catch (e) {}
         const { data, error } = await supa.auth.signUp({ email, password, options: so });
         if (error) {
           const c = String(error.code || ""), m = String(error.message || ""), st = Number(error.status) || 0;
@@ -2014,6 +2024,34 @@ window.HelmUrl = HelmUrl;
     // password yet) must choose one + give their name before entering the studio.
     // Magic-link invitees (existing accounts) never get this flag.
     inviteSetPasswordPending: () => invitePwPending(),
+    // 0204 - /auth/confirm: e-mail links on Helm's own domain (token_hash + type), verified here.
+    // → { user } | throws the Supabase error (otp_expired / access_denied …). Never called with a session open.
+    async verifyEmailLink(tokenHash, type) {
+      if (!supa) throw new Error("Supabase not configured");
+      if (!/^(invite|magiclink|recovery|signup|email|email_change)$/.test(String(type || ""))) { const e = new Error("bad link type"); e.code = "bad_type"; throw e; }
+      localAuthOp++;
+      try {
+        const { data, error } = await supa.auth.verifyOtp({ token_hash: String(tokenHash || ""), type: type === "signup" ? "email" : type });
+        if (error) throw error;
+        if (data && data.user) { currentUser = data.user; hadSession = true; }
+        return { user: (data && data.user) || null };
+      } finally { localAuthOp--; }
+    },
+    // does MY login still have no password (0204 my_needs_password)? null = unknown (not applied / offline)
+    async needsPassword() {
+      if (!supa || !currentUser) return null;
+      try { const r = await supa.rpc("my_needs_password"); return !r.error && typeof r.data === "boolean" ? r.data : null; } catch (e) { return null; }
+    },
+    // the session came from an invitation e-mail link: same marks as the #fragment path in init()
+    markInviteLinkSession(needPw) {
+      try { sessionStorage.setItem("bp_invite_link_session", "1");
+        if (needPw && currentUser && currentUser.id) sessionStorage.setItem(INVITE_SET_PW_KEY, currentUser.id); } catch (e) {}
+    },
+    // a sign-up for this address was started in THIS browser (and the marker is used up)
+    signupStartedHere(email) {
+      try { const m = localStorage.getItem(SIGNUP_MARK_KEY); const ok = !!m && m === String(email || "").trim().toLowerCase();
+        if (ok) localStorage.removeItem(SIGNUP_MARK_KEY); return ok; } catch (e) { return false; }
+    },
     async setInvitePassword(newPassword, fullName) {
       if (!supa) throw new Error("Supabase not configured");
       if (!invitePwPending()) { const e = new Error("Please sign in again to set your password."); e.code = "reauth_required"; throw e; }
@@ -4734,15 +4772,45 @@ window.HelmUrl = HelmUrl;
     // { fallback:true } (use the normal confirm-by-e-mail sign-up: function not deployed, no
     // bound e-mail, kill switch). A refusal throws an Error with .code (email_mismatch, …).
     // the invited e-mail for a valid invitation (shown locked on the join form) → string | null
-    async invitedEmail(token) {
+    async invitedEmail(token) { const p = await invitations.peek(token); return p && !p.invalid ? p.email : null; },
+    // 0204: { email, account, studio, inviter, role, role_label } of a valid invitation (only its OWN
+    // e-mail; inviter = display name) | { invalid: true, reason: expired|used|revoked|"", studio } for a
+    // token that no longer works | null (function not deployed / offline). account:
+    // "new" (no login yet) | "needs_link" (the invite e-mail made a login without a password -
+    // the old link was used / expired: offer "Email me a new link") | "existing" (sign in) | null (unknown)
+    async peek(token) {
       if (!supa || !fnUrl("invite-signup") || !token) return null;
       try {
         const res = await fetch(fnUrl("invite-signup"), { method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
           body: JSON.stringify({ token, peek: true }) });
         const j = await res.json().catch(() => ({}));
-        return res.ok && j && typeof j.email === "string" && j.email ? j.email : null;
+        const str = (v, n) => String(v == null ? "" : v).slice(0, n);
+        if (res.status === 400 && j && j.code === "invalid_invite")
+          return { invalid: true, reason: /^(expired|used|revoked)$/.test(String(j.reason || "")) ? j.reason : "", studio: str(j.studio, 120) };
+        if (!(res.ok && j && typeof j.email === "string" && j.email)) return null;
+        return { email: j.email, account: /^(new|needs_link|unconfirmed|existing)$/.test(String(j.account || "")) ? j.account : null,
+          studio: str(j.studio, 120), inviter: str(j.inviter, 60), role: str(j.role, 40), role_label: str(j.role_label, 60) };
       } catch (e) { return null; }
+    },
+    // 0204: e-mail the invited address a NEW link (sign in → set password → join). The server sends
+    // only to the invitation's own e-mail and rate-limits it. → { sent: true } | { account: "new" };
+    // a refusal throws an Error with .code (rate_limited, account_exists, invalid_invite, send_failed, unavailable).
+    async resendLink(token) {
+      const fail = (msg, code) => { const e = new Error(msg); e.code = code; return e; };
+      if (!supa || !fnUrl("invite-signup") || !token) throw fail("We couldn't send a new link from here — ask your studio admin to re-send the invitation.", "unavailable");
+      let res;
+      try {
+        res = await fetch(fnUrl("invite-signup"), { method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
+          body: JSON.stringify({ token, resend: true }) });
+      } catch (e) { throw fail("We couldn't reach Helm — check your connection and try again.", "network"); }
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && j && j.sent === true) return { sent: true };
+      if (res.ok && j && j.account === "new") return { account: "new" };
+      if (res.ok && j && j.requested === true) return { requested: true, studio: String(j.studio || "").slice(0, 120) };   // expired: the studio was asked
+      if (j && j.code && (res.status < 500 || j.code === "send_failed")) throw fail(String(j.error || "Couldn't send the e-mail."), String(j.code));
+      throw fail("We couldn't send a new link from here — ask your studio admin to re-send the invitation.", "unavailable");
     },
     async signupDirect(token, email, password, fullName) {
       if (!supa || !fnUrl("invite-signup")) return { fallback: true };
@@ -4755,7 +4823,7 @@ window.HelmUrl = HelmUrl;
       const j = await res.json().catch(() => ({}));
       if (res.ok) return j && j.ok ? { ok: true } : { fallback: true };
       if (res.status === 404 || res.status >= 500 || !j || !j.code) return { fallback: true };
-      const e = new Error(String(j.error || "Couldn't create the account.")); e.code = j.code; e.status = res.status; throw e;
+      const e = new Error(String(j.error || "Couldn't create the account.")); e.code = j.code; e.status = res.status; if (j.reason) e.reason = String(j.reason).slice(0, 20); throw e;
     },
     async preview(token) {                                                                   // anon-safe banner info (SEC-06); falls back until deployed
       try { return await rpc("invitation_preview", { p_token: token }); }
@@ -7737,6 +7805,8 @@ window.HelmUrl = HelmUrl;
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
+      // 0204: an invitee whose invitation expired asked for a new link (re-send it from Staff)
+      invite_link_request: ["✉️", String(d.label || "A teammate asked for a new invitation link")],
       // 0069 client package flow
       pkg_selected: ["📦", "Client chose a package" + (d.package ? ": " + d.package : "") + (d.event_code ? " · " + d.event_code : "")],
       pkg_accepted: ["✅", "Package choice accepted" + (d.event_code ? " · " + d.event_code : "")],

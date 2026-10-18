@@ -4,6 +4,7 @@
 //   globalThis.__supaRpc(name, args, key)        -> { data?, error? }   (key = that client's API key)
 //   globalThis.__supaGetUser(jwt)                -> { data: { user } , error? }
 //   globalThis.__supaResolver(table, calls, key) -> { data, error }   (for .from(...))
+//   globalThis.__supaAuth(op, args, key)         -> { data, error }   (auth.signInWithOtp / auth.admin.createUser / updateUserById / generateLink / inviteUserByEmail)
 // Every call is also recorded on globalThis.__supaLog for assertions, including
 // which key / Authorization header each client was created with (caller vs service role).
 
@@ -46,6 +47,34 @@ export function createClient(_url?: string, key?: string, opts?: any): SupabaseC
         g().__supaLog.push({ getUser: jwt });
         const fn = g().__supaGetUser || (() => ({ data: { user: null } }));
         return Promise.resolve(fn(jwt));
+      },
+      // auth e-mail / admin subset (invite-signup 0204): globalThis.__supaAuth(op, args, key) -> { data, error }
+      signInWithOtp: (args: unknown) => {
+        g().__supaLog.push({ auth: "signInWithOtp", args, key });
+        const fn = g().__supaAuth || (() => ({ data: {}, error: null }));
+        return Promise.resolve(fn("signInWithOtp", args, key));
+      },
+      admin: {
+        createUser: (args: unknown) => {
+          g().__supaLog.push({ auth: "createUser", args, key });
+          const fn = g().__supaAuth || (() => ({ data: {}, error: null }));
+          return Promise.resolve(fn("createUser", args, key));
+        },
+        updateUserById: (id: string, attrs?: unknown) => {
+          g().__supaLog.push({ auth: "updateUserById", args: { id, attrs }, key });
+          const fn = g().__supaAuth || (() => ({ data: {}, error: null }));
+          return Promise.resolve(fn("updateUserById", { id, attrs }, key));
+        },
+        generateLink: (args: unknown) => {
+          g().__supaLog.push({ auth: "generateLink", args, key });
+          const fn = g().__supaAuth || (() => ({ data: {}, error: null }));
+          return Promise.resolve(fn("generateLink", args, key));
+        },
+        inviteUserByEmail: (email: string, opts?: unknown) => {
+          g().__supaLog.push({ auth: "inviteUserByEmail", args: { email, opts }, key });
+          const fn = g().__supaAuth || (() => ({ data: {}, error: null }));
+          return Promise.resolve(fn("inviteUserByEmail", { email, opts }, key));
+        },
       },
     },
     from: (table: string) => makeBuilder(table, key),

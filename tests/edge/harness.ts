@@ -93,6 +93,7 @@ export function resetSupaMock() {
   g.__supaGetUser = undefined;
   g.__supaResolver = undefined;
   g.__supaStorage = undefined;
+  g.__supaAuth = undefined;
 }
 export function supaLog(): any[] {
   return (g.__supaLog as any[]) || [];

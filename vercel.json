@@ -8,6 +8,10 @@
   "trailingSlash": false,
   "rewrites": [
     {
+      "source": "/auth/confirm",
+      "destination": "/auth-confirm"
+    },
+    {
       "source": "/i/:slug*",
       "destination": "/invite"
     },
@@ -355,7 +359,7 @@
       ]
     },
     {
-      "source": "/(404|approve|audit|booklet|budget|builder|business|capture|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|integrations|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|onboarding|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|unsubscribe|vendors|work)",
+      "source": "/(404|approve|audit|auth-confirm|booklet|budget|builder|business|capture|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|integrations|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|onboarding|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|unsubscribe|vendors|work)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -368,7 +372,7 @@
       ]
     },
     {
-      "source": "/(404|approve|audit|booklet|budget|builder|business|capture|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|integrations|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|onboarding|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|unsubscribe|vendors|work)\\.html",
+      "source": "/(404|approve|audit|auth-confirm|booklet|budget|builder|business|capture|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|integrations|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|onboarding|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|unsubscribe|vendors|work)\\.html",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -377,6 +381,23 @@
         {
           "key": "Cache-Control",
           "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/auth/confirm",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store, private"
         }
       ]
     },

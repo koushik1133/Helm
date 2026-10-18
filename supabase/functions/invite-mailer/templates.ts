@@ -43,23 +43,31 @@ function fmtDate(iso: unknown): string {
 
 export type Mail = { subject: string; html: string; text: string };
 
+export function roleLabel(role: unknown): string {
+  const k = String(role ?? "");
+  return ROLE_LABELS[k] || clean(k, 40) || "a team member";
+}
+
+// 0204: the SAME invitation for every invitee (brand-new address, existing account, re-invite):
+// "Join <Studio> on Helm" - "<Inviter> invited you as <Role>" - [Accept invitation] -> /login?invite=<token>.
+// The Supabase Auth fallback templates (docs/ops/email-templates invite-user + magic-link) use the same words.
 export function inviteEmail(opts: { token: unknown; inviter?: unknown; studio?: unknown; role?: unknown; expires_at?: unknown }): Mail | null {
   const link = joinLink(String(opts.token ?? ""));
   if (!link) return null;
-  const studio = clean(opts.studio) || "a studio";
+  const studio = clean(opts.studio) || "your studio";
   const inviter = clean(opts.inviter, 60) || "Your studio admin";
-  const roleKey = String(opts.role ?? "");
-  const role = ROLE_LABELS[roleKey] || clean(roleKey, 40) || "a team member";
+  const role = roleLabel(opts.role);
   const expires = fmtDate(opts.expires_at);
-  const headline = `${inviter} invited you to join ${studio} on Helm as ${role}`;
+  const headline = `Join ${studio} on Helm`;
+  const line = `${inviter} invited you as ${role}`;
   const site = appUrl();
 
   // layout() escapes title + preheader itself
-  const title = `You're invited to ${studio} on Helm`, pre = `Join ${studio} on Helm as ${role}.`;
+  const title = `Join ${studio} on Helm`, pre = `${line}.`;
   const html = layout(title, pre,
     h1(esc(headline)) +
-    para(`Hi there, ${strong(esc(inviter))} has invited you to ${strong(esc(studio))}, the team that runs its events on Helm. Create your login with this e-mail address and join as ${strong(esc(role))}.`) +
-    button(esc(link), `Join ${esc(studio)}`) +
+    para(`${strong(esc(inviter))} invited you as ${strong(esc(role))}. Accept below with this e-mail address: you choose your password (or sign in, if you already use Helm) and land straight in ${strong(esc(studio))}.`) +
+    button(esc(link), "Accept invitation") +
     (expires ? para(`This invitation expires on ${strong(esc(expires))}. After that, ask ${esc(inviter)} for a new one.`, "0 0 16px") : "") +
     fallback(esc(link)) +
     note(`Didn't expect this? You can ignore this e-mail - nothing happens unless you click the link. Helm will never ask for your password by e-mail. Questions: <a href="mailto:${SUPPORT}" class="lnk" style="color:#0d8a5c;">${SUPPORT}</a>.`),
@@ -68,7 +76,7 @@ export function inviteEmail(opts: { token: unknown; inviter?: unknown; studio?: 
   const text = [
     headline,
     "",
-    `Hi there, ${inviter} has invited you to ${studio} on Helm. Open this link to create your login with this e-mail address and join as ${role}:`,
+    `${line}. Open this link to accept with this e-mail address - you choose your password (or sign in, if you already use Helm) and land straight in ${studio}:`,
     "",
     link,
     "",
@@ -80,5 +88,29 @@ export function inviteEmail(opts: { token: unknown; inviter?: unknown; studio?: 
     "Helm Events · helm.events",
   ].join("\n");
 
-  return { subject: subj(`${inviter} invited you to join ${studio} on Helm`), html, text };
+  return { subject: subj(headline), html, text };
+}
+
+// 0204 (invite-signup "Email me a new link"): the invitation already made a login with no password and
+// its one-time link is gone. `link` is the Supabase sign-in link (generateLink) that lands on
+// /login?invite=<token> signed in → "Set your password" → the studio. Same look as the invitation.
+export function newLinkEmail(opts: { link: unknown; studio?: unknown; inviter?: unknown; role?: unknown }): Mail | null {
+  const link = String(opts.link ?? "");
+  let ok = false; try { const u = new URL(link); ok = u.protocol === "https:"; } catch (_) { ok = false; }
+  if (!ok || link.length > 4000) return null;
+  const studio = clean(opts.studio) || "your studio";
+  const inviter = clean(opts.inviter, 60) || "Your studio admin";
+  const role = roleLabel(opts.role);
+  const headline = `Join ${studio} on Helm`;
+  const html = layout(headline, "Your new link to set your password.",
+    h1(esc(headline)) +
+    para(`${strong(esc(inviter))} invited you as ${strong(esc(role))}. Here is the new link you asked for: open it in the same browser, choose your password and you land straight in ${strong(esc(studio))}.`) +
+    button(esc(link), "Set my password") +
+    para("This link works once, within 24 hours.", "0 0 16px") +
+    fallback(esc(link)) +
+    note(`Didn't ask for this? Ignore this e-mail - nothing happens unless you open the link. Helm will never ask for your password by e-mail. Questions: <a href="mailto:${SUPPORT}" class="lnk" style="color:#0d8a5c;">${SUPPORT}</a>.`),
+    { site: esc(appUrl()) });
+  const text = [headline, "", `${inviter} invited you as ${role}. Open this new link in the same browser to choose your password and join ${studio}:`, "", link, "",
+    "This link works once, within 24 hours.", "Didn't ask for this? Ignore this e-mail.", `Questions? ${SUPPORT}`, "", "--", "Helm Events · helm.events"].join("\n");
+  return { subject: subj(headline), html, text };
 }

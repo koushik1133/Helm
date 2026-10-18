@@ -615,6 +615,23 @@
   ! Cache-Control
   Cache-Control: no-store
 
+/auth-confirm
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/auth-confirm.html
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/auth/confirm
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Referrer-Policy
+  Referrer-Policy: no-referrer
+  ! Cache-Control
+  Cache-Control: no-store, private
+
 /vendors
   X-Robots-Tag: noindex, nofollow, noarchive
   ! Cache-Control
