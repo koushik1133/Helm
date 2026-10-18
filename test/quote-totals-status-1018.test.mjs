@@ -25,7 +25,7 @@ function memStore(seed) { const m = new Map(Object.entries(seed || {}));
   return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), clear: () => m.clear(), key: (i) => [...m.keys()][i] || null, get length() { return m.size; } }; }
 function load(ls) {
   const el = () => ({ style: {}, setAttribute() {}, appendChild() {}, addEventListener() {}, querySelector: () => null, remove() {} });
-  const doc = { readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=248' },
+  const doc = { readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=249' },
     createElement: el, head: { appendChild() {} }, body: { appendChild() {}, removeChild() {}, children: [] },
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; }, classList: { contains: () => false, add() {}, remove() {} } },
     querySelector: () => null, querySelectorAll: () => [], getElementById: () => null };
