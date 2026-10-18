@@ -15,7 +15,7 @@ const mergeSrc = api.match(/function staffMergeDepts\(list, defaults\) \{[\s\S]*
 const lib = new Function(`const ALL_ROLES=${roles}; const PICK_ROLES=ALL_ROLES.filter((r)=>r!=="worker"); const ROLE_LABELS=${labels}; const roleLabel=(r)=>ROLE_LABELS[r]||r; const STAFF_ROLE_WORDS=${words}; ${fnSrc}; ${mergeSrc}; return {staffMatchRole, staffMergeDepts};`)();
 
 t('role select replaces free text; department select with inline "Add new department"', () => {
-  assert.match(html, /<select id="s_role">/); assert.match(html, /<select id="s_dept">/);
+  assert.match(html, /<select id="s_role"[ >]/); assert.match(html, /<select id="s_dept">/);
   assert.doesNotMatch(html, /<input id="s_role"/); assert.doesNotMatch(html, /<input id="s_dept"/);
   assert.match(html, /value="__new__">＋ Add new department…/); assert.match(html, /BPStore\.staff\.addDepartment\(name\)/);
 });

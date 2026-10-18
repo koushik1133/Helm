@@ -44,3 +44,66 @@
   html:not([data-shell]) .person .rl{margin-top:1px}
   html:not([data-shell]) .tag{font-weight:500}
   html[data-theme="dark"]:not([data-shell]) .tag.emp{background:#123524;color:#5fd49a}
+
+/* --- staffui-1018: Add / Edit staff dialog (both layouts) ---
+   fixed head + scrolling body + sticky footer; "Helm login" as two equal option cards; an aligned 2-column grid where every
+   field has the same label / control / message rhythm (helper text and inline errors share one reserved line). */
+#staffModal > .smsheet{width:min(680px,100%);padding:0;margin:auto;display:flex;flex-direction:column;overflow:hidden;max-height:calc(100vh - 48px);max-height:calc(100dvh - 48px)}
+#staffModal .sm-head{flex:0 0 auto;padding:20px 24px 14px;border-bottom:1px solid var(--line-2,var(--line))}
+#staffModal .sm-head h3{margin:0 0 4px}
+#staffModal .sm-head .sub{margin:0;font-size:12.5px;line-height:1.5}
+#staffModal .sm-body{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:18px 24px 8px}
+#staffModal .sm-foot{flex:0 0 auto;padding:12px 24px 16px;border-top:1px solid var(--line-2,var(--line));background:var(--panel)}
+#staffModal .sm-foot .err{margin:0 0 10px}
+#staffModal .sm-foot .foot{margin:0;padding:0;border:0}
+#staffModal .linknote{margin:0 0 16px}
+
+#s_access.accessopt{border:0;padding:0;margin:0 0 18px;min-width:0}
+#s_access legend{font-size:12px;font-weight:600;color:var(--ink-2);padding:0;margin:0 0 8px}
+#s_access .acc-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#s_access .acc-card{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px;align-items:start;margin:0;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);cursor:pointer;text-transform:none;letter-spacing:0;transition:border-color .15s,background-color .15s,box-shadow .15s}
+#s_access .acc-card:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+#s_access .acc-card:has(input:checked){border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--panel));box-shadow:inset 0 0 0 1px var(--accent)}
+#s_access .acc-card:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+#s_access .acc-card input{margin:1px 0 0;width:16px;height:16px;min-width:16px;min-height:16px;flex:none}
+#s_access .acc-txt{display:flex;flex-direction:column;gap:4px;min-width:0}
+#s_access .acc-t{font-size:13.5px;font-weight:600;line-height:18px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s_access .acc-d{font-size:12px;line-height:1.45;color:var(--ink-3)}
+
+#staffModal .smgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:4px;align-items:start}
+#staffModal .smgrid .fld{gap:6px;min-width:0}
+#staffModal .smgrid .fld.full{grid-column:1/-1}
+#staffModal .smgrid .fld > label{font-size:12px;font-weight:600;line-height:16px;color:var(--ink-2);margin:0}
+#staffModal .smgrid .fld :is(input,select){width:100%;min-width:0;height:40px;box-sizing:border-box}
+#staffModal .smgrid .fld .hp{width:100%}
+#staffModal .req{color:#b42318;font-weight:700;margin-left:1px}
+#staffModal .fmsg{display:block;min-height:16px;font-size:11.5px;line-height:16px;color:var(--ink-3);margin:0}
+#staffModal .fmsg.bad{color:#b42318;font-weight:500}
+#staffModal .smgrid [aria-invalid="true"]{border-color:#d92d20!important;box-shadow:0 0 0 3px rgba(217,45,32,.12)}
+#staffModal .smgrid .hp:has([aria-invalid="true"]){border-color:#d92d20}
+#staffModal .deptnew{margin-top:2px}
+#staffModal .deptnew input{height:36px}
+/* day rate with the studio's currency in front */
+#staffModal .inpfx{position:relative;display:flex;min-width:0}
+#staffModal .inpfx .pfx{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:600;color:var(--ink-3);pointer-events:none;z-index:1}
+#staffModal .inpfx input{padding-left:calc(18px + var(--pfx-w,10px))}
+/* the global number hardener's "negative numbers aren't allowed" note lands on the field's message line, not beside the box */
+#staffModal .inpfx .neg-hint{position:absolute;left:0;right:0;top:calc(100% + 6px);margin:0;font-size:11.5px;line-height:16px;background:var(--panel);z-index:1}
+/* skills as chips: type, then comma / Enter */
+#staffModal .chipbox{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:40px;padding:5px 8px;border:1px solid var(--line-strong,var(--line));border-radius:9px;background:var(--panel-2);box-sizing:border-box;cursor:text}
+html[data-shell] #staffModal .chipbox{background:var(--hb-bg,var(--panel));border-radius:8px}
+#staffModal .chipbox:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+#staffModal .chips{display:contents}
+#staffModal .chip-s{display:inline-flex;align-items:center;gap:2px;height:26px;max-width:100%;padding:0 3px 0 10px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,var(--panel));color:var(--ink);font-size:12px;font-weight:600;box-sizing:border-box}
+#staffModal .chip-s span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#staffModal .chip-s button{border:0;background:transparent;width:20px;height:20px;min-width:20px!important;min-height:20px!important;padding:0;border-radius:50%;cursor:pointer;color:var(--ink-3);font-size:14px;line-height:1;display:inline-grid;place-items:center}
+#staffModal .chip-s button:hover{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--ink)}
+#staffModal .smgrid .chipbox input{flex:1 1 110px;width:auto;min-width:110px;height:28px;min-height:0!important;border:0!important;background:transparent!important;padding:0 4px!important;box-shadow:none!important;outline:none!important;border-radius:0}
+#staffModal .attrbox{margin:6px 0 4px}
+@media(max-width:560px){
+  #staffModal > .smsheet{max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px)}
+  #staffModal .sm-head{padding:16px 16px 12px} #staffModal .sm-body{padding:14px 16px 6px} #staffModal .sm-foot{padding:10px 16px 12px}
+  #s_access .acc-cards,#staffModal .smgrid{grid-template-columns:1fr}
+  #s_access .acc-t{white-space:normal}
+  #staffModal .sm-foot .foot .btn{flex:1 1 0;justify-content:center}
+}

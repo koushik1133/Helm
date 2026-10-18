@@ -11,7 +11,8 @@ html.helm-trial a[href*="onboarding"],
 html.helm-trial #imp_open, html.helm-trial [id^="imp_"],
 html.helm-trial #ch_add, html.helm-trial #pl_add, html.helm-trial #dc_add,
 html.helm-trial .addrow:has(#ch_add), html.helm-trial .addrow:has(#pl_add), html.helm-trial .addrow:has(#dc_add),
-html.helm-trial #chairList .rm, html.helm-trial #plateList .rm, html.helm-trial #dishList .rm { display: none !important; }
+html.helm-trial #chairList .rm, html.helm-trial #plateList .rm, html.helm-trial #dishList .rm,
+html.helm-trial details.attrbox { display: none !important; }   /* staffui-1018: "Custom fields" (staff / inventory dialogs) are studio set-up */
 .tl-note { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: var(--paper-2, #f3f5f2); color: var(--ink-2, #333); font-size: 13px; }
 .tl-block { max-width: 520px; margin: 12vh auto; padding: 28px 24px; text-align: center; border-radius: 16px; background: var(--paper, #fff); border: 1px solid var(--line, #e5e7e3); }
 .tl-block h2 { margin: 0 0 8px; font-size: 20px; }
