@@ -7,6 +7,9 @@
  *             seat count (exactSeats) when a quote is open.
  *   Layout wizard: "Start from my template" opens the picker (studio templates first).
  *   Control Center: "Layout templates" tab (#pane-ltemplates) with the same manager.
+ *   Cards without a stored picture draw a preview from the layout itself (core previewShapes).
+ *   Free-trial studio (subscription status "trial"): templates can only be USED - no new / edit /
+ *   rename / duplicate / archive / default, no "Save as template", archived ones never listed.
  * DOM nodes only (no HTML strings). The server enforces access again (has_area layouts / controls). */
 (function (G) {
   "use strict";
@@ -30,21 +33,37 @@
     return [h("option", { value: "", text: "Any event type" })].concat(C.EVENT_TYPES.map(function (t) { return h("option", { value: t[0], text: t[1], selected: t[0] === cur }); }));
   }
 
-  var perm = { view: false, edit: false, ready: null };
+  // view / edit come from the access matrix; manage = edit AND not a free-trial studio
+  var perm = { view: false, edit: false, manage: false, trial: false, ready: null };
+  // free trial = the studio's subscription status is "trial" (the same test as trial-lock.js and the server's 0173 / 0181
+  // guards), never trial_ends_at. 0181: waits a little for trial-lock.js (store-api.js loads it) when nothing can answer yet.
+  async function isTrial() {
+    try { if (G.HelmTrialLock && G.HelmTrialLock.isTrial && G.HelmTrialLock.isTrial()) return true; } catch (_) {}
+    var sub = function () { var st = S(); return st && st.subscription && st.subscription.trial ? st : null; };
+    for (var i = 0; i < 30 && !(G.HelmTrialLock && G.HelmTrialLock.whenKnown) && !sub(); i++) await new Promise(function (r) { setTimeout(r, 200); });
+    try { if (G.HelmTrialLock && G.HelmTrialLock.whenKnown) return !!(await G.HelmTrialLock.whenKnown()); } catch (_) {}
+    try {
+      var st = sub(); if (st) { var t = await st.subscription.trial(); if (t && t.status === "trial") return true; }
+    } catch (_) {}
+    try { return !!(doc.documentElement && doc.documentElement.classList.contains("helm-trial")); } catch (_) { return false; }
+  }
   function loadPerm() {
     if (perm.ready) return perm.ready;
     perm.ready = (async function () {
       var st = S(); if (!st || !st.auth) return perm;
+      perm.trial = await isTrial();
       var role = null; try { role = await st.auth.role(); } catch (_) {}
-      if (role === "admin") { perm.view = perm.edit = true; return perm; }
+      if (role === "admin") { perm.view = perm.edit = true; perm.manage = !perm.trial; return perm; }
       var ce = function (a) { return st.auth.canEditArea ? st.auth.canEditArea(a).catch(function () { return false; }) : false; };
       var cv = function (a) { return st.auth.canView ? st.auth.canView(a).catch(function () { return false; }) : false; };
       perm.edit = !!((await ce("layouts")) || (await ce("controls")));
       perm.view = perm.edit || !!((await cv("layouts")) || (await cv("controls")));
+      perm.manage = perm.edit && !perm.trial;
       return perm;
     })();
     return perm.ready;
   }
+  var TRIAL_MSG = "Not available in the free trial - you can use these sample layouts. Upgrade to make your own templates.";
   var rows = [], rowsLoaded = false;
   async function reload(all) {
     try { rows = await S().layoutTemplates.list({ all: !!all, lite: true }); rowsLoaded = true; }
@@ -130,13 +149,6 @@
     toast(row.name + " loaded" + (fit.scaled ? " · fitted to your " + fit.hall.w + "×" + fit.hall.h + " ft hall" : ""));
   }
 
-  // 0181: is this a free-trial studio? The server's subscription status decides (trial-lock.js asks
-  // subscription.trial()), never trial_ends_at. Waits a little for trial-lock.js (store-api.js loads it).
-  async function isTrial() {
-    for (var i = 0; i < 30 && !(G.HelmTrialLock && G.HelmTrialLock.whenKnown); i++) await new Promise(function (r) { setTimeout(r, 200); });
-    try { if (G.HelmTrialLock && G.HelmTrialLock.whenKnown) return !!(await G.HelmTrialLock.whenKnown()); } catch (_) {}
-    return doc.documentElement.classList.contains("helm-trial");
-  }
   // "My studio templates" as the FIRST optgroup of #preset (the template picker is built from it)
   async function fillPreset() {
     var sel = $("preset"); if (!sel) return;
@@ -170,25 +182,81 @@
   }
 
   /* ---------------- manager (builder modal + Control Center pane) ---------------- */
-  function thumbEl(r) {
-    return r.thumbnail && C.thumbOk(r.thumbnail) ? h("img", { cls: "st-thumb", src: r.thumbnail, alt: "Preview of " + r.name, loading: "lazy" })
-      : h("div", { cls: "st-thumb st-nothumb", "aria-hidden": "true", text: "📐" });
+  // a card preview drawn from the layout JSON when the template has no stored picture (SQL-seeded samples,
+  // or a browser that could not capture one). DOM nodes only; never written back to the template.
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function svgEl(tag, attrs) {
+    var el = doc.createElementNS(SVGNS, tag);
+    Object.keys(attrs).forEach(function (k) { el.setAttribute(k, String(attrs[k])); });
+    return el;
+  }
+  function r2(v) { return Math.round(v * 100) / 100; }
+  function previewSvg(data, name) {
+    var P = C.previewShapes(data, 1500); if (!P.rects.length) return null;
+    var sw = r2(Math.max(P.w, P.h) / 300);
+    var sv = svgEl("svg", { viewBox: "0 0 " + P.w + " " + P.h, preserveAspectRatio: "xMidYMid meet", role: "img",
+      "aria-label": "Preview of " + name, "class": "st-thumb st-gen" });
+    sv.appendChild(svgEl("rect", { x: 0, y: 0, width: P.w, height: P.h, fill: "#ffffff", stroke: "#c4cbc4", "stroke-width": sw * 1.5 }));
+    P.rects.forEach(function (q) {
+      var cx = r2(q.x + q.w / 2), cy = r2(q.y + q.h / 2);
+      var e = q.round ? svgEl("ellipse", { cx: cx, cy: cy, rx: r2(q.w / 2), ry: r2(q.h / 2) })
+        : svgEl("rect", { x: r2(q.x), y: r2(q.y), width: r2(q.w), height: r2(q.h), rx: r2(Math.min(q.w, q.h) * 0.08) });
+      e.setAttribute("fill", q.fill); e.setAttribute("fill-opacity", "0.5"); e.setAttribute("stroke", q.fill); e.setAttribute("stroke-width", String(sw));
+      if (q.rot) e.setAttribute("transform", "rotate(" + q.rot + " " + cx + " " + cy + ")");
+      sv.appendChild(e);
+    });
+    return sv;
+  }
+  var dataCache = {}, dataQueue = [], dataBusy = 0;
+  function layoutData(r) {
+    var key = r.id + "|" + (r.updated_at || "");
+    if (dataCache[key]) return dataCache[key];
+    dataCache[key] = new Promise(function (resolve) {
+      dataQueue.push(function () {
+        return Promise.resolve().then(function () { return S().layoutTemplates.get(r.id); })
+          .then(function (row) { resolve(row && row.data ? row.data : null); }, function () { delete dataCache[key]; resolve(null); });
+      });
+      pump();
+    });
+    return dataCache[key];
+  }
+  function pump() {   // at most 4 template reads at a time
+    while (dataBusy < 4 && dataQueue.length) {
+      dataBusy++; dataQueue.shift()().then(function () { dataBusy--; pump(); }, function () { dataBusy--; pump(); });
+    }
+  }
+  function thumbEl(r, label) {
+    var name = label || r.name;
+    if (r.thumbnail && C.thumbOk(r.thumbnail)) return h("img", { cls: "st-thumb", src: r.thumbnail, alt: "Preview of " + name, loading: "lazy" });
+    var ph = h("div", { cls: "st-thumb st-nothumb", "aria-hidden": "true", text: "📐" });
+    var draw = function (data) { var sv = data ? previewSvg(data, name) : null; if (sv && ph.parentNode) ph.parentNode.replaceChild(sv, ph); };
+    if (r.data) { setTimeout(function () { draw(r.data); }, 0); return ph; }
+    if (r.id && S() && S().layoutTemplates && S().layoutTemplates.get) {
+      ph.classList.add("st-loading");
+      layoutData(r).then(function (d) { ph.classList.remove("st-loading"); draw(d); });
+    }
+    return ph;
   }
   function renderManager(root, opts) {
     opts = opts || {};
     var state = { showArchived: false, renaming: null, err: "", msg: "" };
     async function refresh() { try { await reload(true); state.err = ""; } catch (e) { state.err = friendly(e, "load templates"); } paint(); if (isBuilder) fillPreset(); }
     async function act(p, msg) { try { await p; state.msg = msg; state.err = ""; } catch (e) { state.err = friendly(e); state.msg = ""; } await refresh(); }
+    // the manager's own permission + trial answer arrives before the first paint
+    var ready = loadPerm();
     function paint() {
       root.textContent = "";
+      var M = perm.manage, trial = perm.trial;
       var tools = h("div", { cls: "st-tools" }, [
-        perm.edit && opts.newHref ? h("a", { cls: "btn primary sm", href: opts.newHref, text: "+ New template" }) : null,
-        h("label", { cls: "st-chk" }, [h("input", { type: "checkbox", checked: state.showArchived, onchange: function (e) { state.showArchived = e.target.checked; paint(); } }), " Show archived"])]);
-      root.appendChild(tools);
+        M && opts.newHref ? h("a", { cls: "btn primary sm", href: opts.newHref, text: "+ New template" }) : null,
+        trial ? null : h("label", { cls: "st-chk" }, [h("input", { type: "checkbox", checked: state.showArchived, onchange: function (e) { state.showArchived = e.target.checked; paint(); } }), " Show archived"])]);
+      if (tools.childNodes.length) root.appendChild(tools);
+      if (trial) root.appendChild(h("p", { cls: "st-trial", role: "note", text: "Free trial: these sample layouts are ready to use - open one in the builder to start a design. Making, renaming, duplicating or archiving templates opens when you upgrade." }));
       if (state.msg) root.appendChild(h("p", { cls: "st-ok", role: "status", text: state.msg }));
       if (state.err) root.appendChild(h("p", { cls: "st-err", role: "alert", text: state.err }));
-      var list = rows.filter(function (r) { return state.showArchived || !r.archived; });
-      if (!list.length) { root.appendChild(h("p", { cls: "mnote", text: rows.length ? "No live templates - tick Show archived to see archived ones." : "No studio templates yet. Arrange a floor in the builder, then use Save as template." })); return; }
+      // archived templates are never listed in a free trial (0175 archives the retired sample layout)
+      var list = rows.filter(function (r) { return !r.archived || (state.showArchived && !trial); });
+      if (!list.length) { root.appendChild(h("p", { cls: "mnote", text: rows.length && !trial ? "No live templates - tick Show archived to see archived ones." : (trial ? "No sample layouts in this trial studio." : "No studio templates yet. Arrange a floor in the builder, then use Save as template.") })); return; }
       var grid = h("div", { cls: "st-grid" });
       list.forEach(function (r) {
         var nameNode;
@@ -201,23 +269,24 @@
               state.renaming = null; act(S().layoutTemplates.save(r.id, v.value), "Template renamed."); } }),
             h("button", { type: "button", cls: "btn sm", text: "Cancel", onclick: function () { state.renaming = null; paint(); } })]);
           setTimeout(function () { try { inp.focus(); } catch (_) {} }, 0);
-        } else nameNode = h("b", { cls: "st-name", text: r.name });
+        } else nameNode = h("b", { cls: "st-name", text: trial ? trialName(r.name) : r.name });
         var badges = h("div", { cls: "st-badges" }, [h("span", { cls: "st-badge", text: C.label(r.event_type) }),
           r.is_default ? h("span", { cls: "st-badge st-def", text: "★ Default" }) : null, r.archived ? h("span", { cls: "st-badge st-arc", text: "Archived" }) : null]);
         var acts = h("div", { cls: "st-acts" }, [
           opts.onUse && !r.archived ? h("button", { type: "button", cls: "btn sm primary", text: "Use", onclick: function () { opts.onUse(r); } }) : null,
-          perm.edit && opts.editHref ? h("a", { cls: "btn sm", href: opts.editHref(r), text: "Edit layout" }) : null,
-          perm.edit ? h("button", { type: "button", cls: "btn sm", text: "Rename", onclick: function () { state.renaming = r.id; paint(); } }) : null,
-          perm.edit ? h("button", { type: "button", cls: "btn sm", text: "Duplicate", onclick: function () { act(S().layoutTemplates.duplicate(r.id), "Template duplicated."); } }) : null,
-          perm.edit && !r.archived ? h("button", { type: "button", cls: "btn sm", text: r.is_default ? "Unset default" : "Set default",
+          !opts.onUse && opts.useHref && !r.archived ? h("a", { cls: "btn sm" + (M ? "" : " primary"), href: opts.useHref(r), text: "Open in builder", title: "Start a new design from this template" }) : null,
+          M && opts.editHref ? h("a", { cls: "btn sm", href: opts.editHref(r), text: "Edit layout" }) : null,
+          M ? h("button", { type: "button", cls: "btn sm", text: "Rename", onclick: function () { state.renaming = r.id; paint(); } }) : null,
+          M ? h("button", { type: "button", cls: "btn sm", text: "Duplicate", onclick: function () { act(S().layoutTemplates.duplicate(r.id), "Template duplicated."); } }) : null,
+          M && !r.archived ? h("button", { type: "button", cls: "btn sm", text: r.is_default ? "Unset default" : "Set default",
             title: "Default template for " + C.label(r.event_type), onclick: function () { act(S().layoutTemplates.setDefault(r.id, !r.is_default), r.is_default ? "Default removed." : "Default set for " + C.label(r.event_type) + "."); } }) : null,
-          perm.edit ? h("button", { type: "button", cls: "btn sm", text: r.archived ? "Restore" : "Archive", onclick: function () { act(S().layoutTemplates.setArchived(r.id, !r.archived), r.archived ? "Template restored." : "Template archived (it can be restored)."); } }) : null]);
-        grid.appendChild(h("div", { cls: "st-card" + (r.archived ? " st-archived" : "") }, [thumbEl(r), nameNode, badges,
+          M ? h("button", { type: "button", cls: "btn sm", text: r.archived ? "Restore" : "Archive", onclick: function () { act(S().layoutTemplates.setArchived(r.id, !r.archived), r.archived ? "Template restored." : "Template archived (it can be restored)."); } }) : null]);
+        grid.appendChild(h("div", { cls: "st-card" + (r.archived ? " st-archived" : "") }, [thumbEl(r, trial ? trialName(r.name) : r.name), nameNode, badges,
           r.description ? h("p", { cls: "st-desc", text: r.description }) : null, acts]));
       });
       root.appendChild(grid);
     }
-    refresh();
+    ready.then(refresh, refresh);
     return { refresh: refresh };
   }
 
@@ -260,7 +329,8 @@
     finally { btn.disabled = false; }
   }
   function openSaveModal() {
-    if (!perm.edit) { toast("You don't have access to create templates - ask an admin.", true); return; }
+    if (perm.trial) { toast(TRIAL_MSG, true); return; }
+    if (!perm.manage) { toast("You don't have access to create templates - ask an admin.", true); return; }
     var pr = B.pricing() || {}, pn = $("projName");
     var f = metaForm({ name: pn && pn.value && pn.value !== "Untitled event" ? pn.value : "", event_type: pr.eventType || "" });
     var err = h("p", { cls: "st-err", role: "alert", hidden: true });
@@ -300,7 +370,7 @@
     var bar = h("div", { cls: "st-editbar", id: "st_editbar", role: "region", "aria-label": "Template editing" }, [
       h("b", { text: editing ? "Editing studio template" : "New studio template" }),
       h("span", { cls: "mnote", text: " - arrange the floor, name it, then Save template." }), f.box, btn,
-      h("a", { cls: "tbtn", href: "control.html#ltemplates", text: "Done" }), err]);
+      h("a", { cls: "tbtn", href: "control.html#layout-templates", text: "Done" }), err]);
     doc.body.insertBefore(bar, doc.body.firstChild);
     // start from a blank hall (or the template's own layout + hall size)
     var tries = 0;
@@ -308,7 +378,8 @@
       var li = B.fn("loadItems"), W = B.world(), st = B.store();
       if (!li || !W || !st || !G.BPStore) { if (tries++ < 40) setTimeout(boot, 250); return; }
       if (editing && editing.data) {
-        var room = editing.data.room || {}, cap = (B.caps() || {}).hall || 1000;
+        // the template's own hall: data.room, or scale.worldFt / venue.room on the SQL-seeded samples
+        var room = C.roomOf(editing.data) || {}, cap = (B.caps() || {}).hall || 1000;
         if (+room.w > 0) W.w = Math.max(20, Math.min(cap, Math.round(+room.w))); if (+room.h > 0) W.h = Math.max(20, Math.min(cap, Math.round(+room.h)));
         st.venue = st.venue || {}; st.venue.room = { w: W.w, h: W.h };
         var u = B.fn("updateDimsLabel"), sc = B.fn("sizeCanvas"); if (u) u(); if (sc) sc();
@@ -334,16 +405,30 @@
       var st = S();
       if (!st || !st.auth || !st.auth.user || !st.auth.user() || !st.layoutTemplates) { if (tries++ < 40) setTimeout(wait, 500); return; }
       await loadPerm();
-      var trial = await isTrial();
+      var trial = perm.trial;
       if (!perm.view) { if (trial) fillPreset(); return; }   // 0181: the trial filter runs even without template access
-      bMgr.hidden = trial; bSave.hidden = trial || !perm.edit || B.ro();   // no own templates in the trial
+      // free trial: the manager is use-only (sample layouts), never "Save as template"
+      bMgr.hidden = false; bSave.hidden = !perm.manage || B.ro();
       try { await reload(false); } catch (_) { bMgr.hidden = true; bSave.hidden = true; if (trial) fillPreset(); return; }
       fillPreset();
-      var tp = null; try { tp = new URLSearchParams(G.location.search).get("tplEdit"); } catch (_) {}
-      if (tp && perm.edit && !trial) tplEditMode(/^(new|[0-9a-f-]{36})$/i.test(tp) ? tp : "new");   // 0181: no template editing in the trial
+      var qs = null; try { qs = new URLSearchParams(G.location.search); } catch (_) {}
+      var tp = qs ? qs.get("tplEdit") : null, use = qs ? qs.get("useTpl") : null;
+      // 0181: no template editing in the trial
+      if (tp && perm.trial) toast(TRIAL_MSG, true);
+      else if (tp && perm.manage) tplEditMode(/^(new|[0-9a-f-]{36})$/i.test(tp) ? tp : "new");
+      else if (use && /^[0-9a-f-]{36}$/i.test(use)) useOnArrival(use);
     })();
     // 0181: trial-lock.js confirmed the free trial after the first fill: rebuild the gallery as the trial one
-    G.addEventListener("helm:trial", function () { fillPreset(); });
+    G.addEventListener("helm:trial", function () { perm.trial = true; perm.manage = false; bSave.hidden = true; fillPreset(); });
+  }
+
+  // Control Center "Open in builder" (?new=1&useTpl=<id>): load the template onto the new floor once the builder is ready
+  function useOnArrival(id) {
+    var tries = 0;
+    (function go() {
+      if (!B.fn("loadItems") || !B.world() || !B.store()) { if (tries++ < 40) setTimeout(go, 250); return; }
+      apply(id).then(function () { try { var u = new URL(G.location.href); u.searchParams.delete("useTpl"); G.history.replaceState(null, "", u.pathname + u.search + u.hash); } catch (_) {} });
+    })();
   }
 
   function mountControl() {
@@ -353,7 +438,8 @@
     doc.querySelectorAll(".tab").forEach(function (t) {
       t.addEventListener("click", function () {
         var on = t.dataset.pane === "ltemplates"; pane.hidden = !on;
-        if (on && !mgr) mgr = renderManager(root, { newHref: "builder.html?new=1&tplEdit=new", editHref: function (r) { return "builder.html?new=1&tplEdit=" + encodeURIComponent(r.id); } });
+        if (on && !mgr) mgr = renderManager(root, { newHref: "builder.html?new=1&tplEdit=new", editHref: function (r) { return "builder.html?new=1&tplEdit=" + encodeURIComponent(r.id); },
+          useHref: function (r) { return "builder.html?new=1&useTpl=" + encodeURIComponent(r.id); } });
       });
     });
     var tries = 0;
@@ -361,7 +447,7 @@
       var st = S();
       if (!st || !st.auth || !st.auth.user || !st.auth.user() || !st.layoutTemplates) { if (tries++ < 40) setTimeout(wait, 500); return; }
       await loadPerm(); if (!perm.view) return;
-      tab.hidden = false; if (G.location.hash === "#ltemplates") tab.click();
+      tab.hidden = false; if (G.location.hash === "#ltemplates" || G.location.hash === "#layout-templates") tab.click();
     })();
   }
 
