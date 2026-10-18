@@ -44,6 +44,16 @@ t('dashboard tour follows the on-screen reading order exactly', () => {
   assert.match(TOUR[TOUR.length - 1].desc, /Take a guided tour/);
 });
 
+t('welcome step: trial wording for a free-trial studio, studio wording for a paid one', () => {
+  const ev = (trial) => vm.runInNewContext(D.slice(a, b).replace(/^\s*const /gm, 'var ') + '\nTOUR[0].desc',
+    { document: { documentElement: { classList: { contains: (c) => trial && c === 'helm-trial' } } } });
+  const tr = ev(true), pd = ev(false);
+  assert.match(tr, /Your 8-day trial is loaded with sample data marked “Demo ·”/);
+  assert.match(pd, /^Welcome to Helm — here's a quick look around your studio\./);
+  assert.doesNotMatch(pd, /trial|sample data|Demo/i);
+  assert.equal(TOUR.length, 22, 'still 22 steps');
+});
+
 t('sidebar steps sit beside the rail (side:"right"), top-bar / content steps do not', () => {
   for (let k = 1; k <= 10; k++) assert.equal(TOUR[k].side, 'right', KEYS[k]);
   for (let k = 11; k < TOUR.length; k++) assert.notEqual(TOUR[k].side, 'right', KEYS[k]);

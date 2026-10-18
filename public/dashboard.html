@@ -701,8 +701,15 @@
   // or hidden (role, screen size, trial-lock) and counts only the steps it shows.
   // trial:false = not part of a free-trial studio (studio set-up lives behind the checklist chip).
   const RAIL='#hbRail .hb-group:not(.hb-fav) ';
+  const TOUR_TRIAL=()=>{ try{ return document.documentElement.classList.contains("helm-trial"); }catch{ return false; } };
+  const TOUR_WELCOME={
+    trial:"Helm runs your events business in one place: quotes, leads, the calendar, staff, stock and payments. Your 8-day trial is loaded with sample data marked “Demo ·” so you can click around freely. This quick tour walks the screen from the menu on the left, across the top bar, then down the dashboard.",
+    paid:"Welcome to Helm — here's a quick look around your studio. Helm runs your events business in one place: quotes, leads, the calendar, staff, stock and payments. This quick tour walks the screen from the menu on the left, across the top bar, then down the dashboard.",
+  };
   const TOUR=[
-    {title:"Welcome to Helm 👋", desc:"Helm runs your events business in one place: quotes, leads, the calendar, staff, stock and payments. Your 8-day trial is loaded with sample data marked “Demo ·” so you can click around freely. This quick tour walks the screen from the menu on the left, across the top bar, then down the dashboard."},
+    // the welcome text is read when the step shows: a free-trial studio (html.helm-trial, set by
+    // trial-lock.js before the tour auto-starts) hears about its sample data; a paid studio does not
+    {title:"Welcome to Helm 👋", get desc(){ return TOUR_TRIAL() ? TOUR_WELCOME.trial : TOUR_WELCOME.paid; }},
     // 1 · sidebar, top to bottom
     {sel:'[data-tour="pin"]', side:"right", title:"Keep the sidebar open", desc:"The sidebar tucks away to give you room. Click the pin to keep it open all the time; click it again to let it tuck away."},
     {sel:[RAIL+'[data-nav="dashboard"]','#hbTabs [data-key="dashboard"]','[data-tour="m-home"]'], side:"right", title:"Dashboard", desc:"Home base: today's events, what needs attention and your key numbers. Click the Helm logo or Dashboard to come back here from anywhere."},
