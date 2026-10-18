@@ -287,3 +287,5 @@ forward  supabase/migrations/0173_trial_lockdown.sql
 forward  supabase/migrations/0174_trial_seed_current_manifest.sql
 # 0175 (trial layout templates: trial studios + sample master get the owner's 3rd layout (Reception - Lawn reception with sofa lounge, 73 objects, 200 x 140 ft) once by name; the 0169 Theatre/conference sample template is archived (never deleted) so trials show exactly Wedding + Corporate round tables + Reception; paid studios untouched; manifest v6 published once) goes after 0171.
 forward  supabase/migrations/0175_trial_layout_templates.sql
+# 0176 (trial client flow: Skip OTP on the client approval portal for an ACTIVE trial studio - studio member or the not-signed-in client; a signed-in member of another studio, paid, ended or locked studios still refused; after the skip the trial event moves to status confirmed so event group / booklet link / members work; nothing is sent - 0166 outbound guard; 1 new function + 2 replaced, no table changed) goes after 0166.
+forward  supabase/migrations/0176_trial_client_flow.sql
