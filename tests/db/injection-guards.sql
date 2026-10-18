@@ -108,7 +108,8 @@ exception when check_violation then execute 'reset role'; insert into _ig values
 do $$ begin
   execute 'reset role'; perform auth.logout(); execute 'reset role';
   perform auth.login_as((select id from auth.users where email='a_admin@a.test'));
-  insert into public.menu_templates(tier, diet, name, dishes) values ('premium','nonveg','ig-good','[{"name":"Paneer"}]'::jsonb);
+  -- 0192: an active package also needs a price above 0
+  insert into public.menu_templates(tier, diet, name, price_per_plate, dishes) values ('premium','nonveg','ig-good',500,'[{"name":"Paneer"}]'::jsonb);
   execute 'reset role'; insert into _ig values('menu: list of dishes accepted','PASS');
 exception when others then execute 'reset role'; insert into _ig values('menu: list of dishes accepted','FAIL: '||sqlerrm); end $$;
 

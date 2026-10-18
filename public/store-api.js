@@ -4321,8 +4321,12 @@ window.HelmUrl = HelmUrl;
       const { data, error } = await q; if (error) throw error; return data;
     },
     async update(id, patch) {
-      if (mode !== "supabase") { const a = readLs("bp_menu_templates"); const r = a.find((x) => x.id === id); if (r) Object.assign(r, patch); localStorage.setItem("bp_menu_templates", JSON.stringify(a)); return true; }
-      const { error } = await supa.from("menu_templates").update(patch).eq("id", id); if (error) throw error; return true;
+      if (mode !== "supabase") { const a = readLs("bp_menu_templates"); const r = a.find((x) => x.id === id); if (r) Object.assign(r, patch); localStorage.setItem("bp_menu_templates", JSON.stringify(a)); return r || true; }
+      // 0192: return the stored row (the card then shows exactly what was saved). No row back = nothing
+      // was saved (removed, or no access under RLS) - never report that as "saved".
+      const { data, error } = await supa.from("menu_templates").update(patch).eq("id", id).select("*"); if (error) throw error;
+      if (!data || !data.length) throw new Error("This package was not saved. It may have been removed, or you may not have access to edit it. Reload the page and try again.");
+      return data[0];
     },
     // apply a package to an event's menu in one shot (replaces current dishes)
     async apply(quoteId, templateId) {
@@ -9205,6 +9209,8 @@ window.HelmUrl = HelmUrl;
     // 0166 — free-trial seat limit (you + 2 people; open invitations count)
     // 0173 — free-trial lock / 2-row creation cap: the DB message is written for people
     if (e && (e.hint === "trial_cap" || e.hint === "trial_locked") && e.message) return pre + endDot(clip(String(e.message), 240));
+    // 0192 - menu package checks (price per plate / dish list): the DB message is written for people
+    if (e && e.hint === "menu_pkg_invalid" && e.message) return pre + endDot(clip(String(e.message), 240));
     if (e && e.hint === "seat_limit") return pre + "Your free trial includes you + 2 people, and both seats are in use. Revoke an invitation or remove someone to add another person — or upgrade for more seats.";
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
     if (e && (e.hint === "studio_suspended" || errCode(e) === "25006")) return pre + "This studio is read-only because its Helm subscription is suspended or the trial has ended — contact Helm (or an admin can renew in Billing).";

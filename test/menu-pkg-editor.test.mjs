@@ -62,12 +62,12 @@ assert.ok(M.same(std, JSON.parse(JSON.stringify(std))) && !M.same(std, M.removeA
 const src = r("public/menu-pkg-editor.js");
 assert.ok(/^[\x00-\x7F]*$/.test(src), "ASCII only (unicode as \\u escapes)");
 assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(src), "no HTML sinks");
-assert.match(src, /ctx\.trial\(\) \? \{ price_per_plate: pp \} : \{ price_per_plate: pp, active: !!act\.checked, dishes: normDishes\(st\.dishes\) \}/,
-  "free trial (0173): Save sends only the price");
+assert.match(src, /if \(!v\.pr\.keep\) patch\.price_per_plate = v\.pr\.value;\s*if \(!trial\) \{/,
+  "free trial (0173): Save sends only the price (dishes / active only for paid studios)");
 assert.match(src, /if \(!trial\) \{\s*add = el\("div", "mpk-add"\)/, "no add-dish row in the trial");
 assert.match(src, /if \(trial\) \{ act\.disabled = true;/, "active switch fixed in the trial");
 assert.match(src, /price\.value = priceText\(st\.price\);/, "price set as a property from the tolerant reader");
-assert.match(src, /if \(raw === ""\) \{ ctx\.error\("Enter the price per plate for "/, "an empty price is refused, never saved as 0");
+assert.match(src, /var pr = checkPrice\(price\.value, \{ active: on, base: st\.base\.price/, "an empty price is refused, never saved as 0 (0192)");
 assert.match(src, /el\("summary", null, "Paste as text \(bulk\)"\)/);
 assert.match(src, /dishIn\.setAttribute\("list", dl\.id\)/, "searchable dish list");
 
@@ -79,7 +79,7 @@ const fn = cc.slice(cc.indexOf("async function renderMenuTemplates(){"), cc.inde
 assert.match(fn, /BPStore\.menuTemplates\.list\(true\)/); assert.match(fn, /BPStore\.dishCatalog\.list\(\)/);
 assert.match(fn, /HelmMenuPkg\.render\(\$\("#menuTplList"\)/); assert.match(fn, /BPStore\.menuTemplates\.update\(t\.id, patch\)/);
 assert.match(fn, /trial:mpkTrial/); assert.match(cc, /const mpkTrial=\(\)=>document\.documentElement\.classList\.contains\("helm-trial"\)/);
-assert.match(cc, /window\.addEventListener\("helm:trial",\(\)=>\{ if\(mpkUI && !mpkUI\.dirty\(\)\) renderMenuTemplates\(\); \}\)/);
+assert.match(cc, /window\.addEventListener\("helm:trial",\(\)=>\{ if\(mpkUI && !mpkUI\.dirty\(\) && !mpkUI\.saving\(\)\) renderMenuTemplates\(\); \}\)/);
 assert.match(cc, /if\(mpkUI\) mpkUI\.setCatalog\(dishCache\);/, "new catalog dishes show up in the dropdowns");
 assert.ok(!/tpl_dishes"[^>]*>\$\{esc\(dishesToText/.test(cc), "old textarea editor gone");
 const css = r("public/menu-pkg-editor.css");
