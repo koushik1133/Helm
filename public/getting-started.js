@@ -9,7 +9,7 @@
      when every required step is done.
    • A one-time tour hint points at the card (reuses tour.js).
    • FREE TRIAL (Oct 2026): a short, different list (trialData): explore a sample
-     event, open the 2D/3D builder on a sample layout, send a quote in test mode,
+     event, open the 2D/3D builder on a sample layout, send a quote (e-mail works in the trial),
      invite a teammate (you + 2), choose a plan. Nothing the trial hides (studio
      set-up, branding, import, notifications...) is ever listed. Opening an event
      page / the builder ticks itself (trial-lock.js -> auth.markTrialStep); the
@@ -43,7 +43,7 @@
     // FREE TRIAL list (trialData). href of t_event / t_builder is set per studio (a sample event with a floor plan).
     t_event:    { icon: "📅", title: "Explore a sample event", why: "Open a sample event to see its plan, payments, tasks and run sheet in one place.", href: "quotes.html", trial: true, mark: "event" },
     t_builder:  { icon: "📐", title: "Open the 2D/3D layout builder", why: "Open a sample floor plan, move things around and switch between 2D and 3D.", href: "builder.html?new=1", trial: true, mark: "builder" },
-    t_quote:    { icon: "📨", title: "Send a quote in test mode", why: "Make a quote and send it. Nothing reaches a real client in the trial, so you can approve it yourself.", href: "quotes.html?new=1", trial: true },
+    t_quote:    { icon: "📨", title: "Send a quote to a client", why: "Make a quote and e-mail it: it really reaches your client in the trial. Or approve it yourself in Test mode.", href: "quotes.html?new=1", trial: true },
     t_team:     { icon: "👥", title: "Invite a teammate", why: "Your trial includes you + 2 people. Send a join link from Users & invites.", href: "control.html#users", trial: true },
     t_plan:     { icon: "⭐", title: "Choose a plan", why: "Pick a plan before your trial ends to keep your studio and everything in it.", href: "control.html#billing", trial: true },
   };

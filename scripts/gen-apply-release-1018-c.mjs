@@ -23,9 +23,13 @@ const WHAT = {
   '0237': 'Trial sample data complete: layout version 1 on every sample event, floor plans seat the guests, event menu plans, layout rules + chair / plate types; existing trials get missing rows (insert only); new sample version.',
 };
 
-// the new migrations = every MANIFEST entry numbered after PROD_LAST, in MANIFEST order
+// the release = these migrations (numbered after PROD_LAST), in MANIFEST order. The list is FROZEN: a migration
+// written after release 1018-c (e.g. 0212, trial client e-mail) ships in its own paste file, not in this one.
+export const RELEASE_1018_C = ['0206', '0207', '0208', '0236', '0237'];
 const man = r('supabase/migrations/MANIFEST');
-const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]).filter((n) => +n > PROD_LAST);
+const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1])
+  .filter((n) => +n > PROD_LAST && RELEASE_1018_C.includes(n));
+if (nums.join() !== RELEASE_1018_C.join()) throw new Error('MANIFEST does not list the 1018-c migrations in order: ' + nums.join());
 export const SECTIONS = nums;
 const sections = nums.map((n) => {
   const p = `supabase/APPLY-${n}.sql`;

@@ -162,9 +162,9 @@ t('B22: every "New quote" asks first (trial: says it uses 1 of the 2 quotes) - n
 
 // ---------------------------------------------------------------------------------------------- B25
 const TS = require('../public/trial-signup.js');
-t('B25: "What\'s in your free trial" box on the trial sign-up (caps, test mode, sample data, N days)', () => {
+t('B25: "What\'s in your free trial" box on the trial sign-up (caps, e-mail / WhatsApp rule, sample data, N days)', () => {
   const all = TS.TRIAL_KEY.map((k) => k.t + ' ' + k.s).join(' ') + ' ' + TS.TRIAL_ALL.join(' ');
-  assert.match(all, /8 days free/); assert.match(all, /sample data/i); assert.match(all, /test mode/i); assert.match(all, /up to 2 new records/);
+  assert.match(all, /8 days free/); assert.match(all, /sample data/i); assert.match(all, /E-mail to your clients works/); assert.match(all, /WhatsApp and SMS unlock on a plan/); assert.match(all, /up to 2 new records/);   // 0212: e-mail works
   assert.match(TSU, /What’s in your free trial/);
   assert.match(fnSrc(TSU, 'trialTerms'), /var show = mode === "signup" && !joining && !direct(?: && TRIAL_KEY\.length > 0)?;/);   // + 0207 (trial-facts.js)
   assert.match(r('public/login.html'), /trial-terms\.css\?v=\d+/);

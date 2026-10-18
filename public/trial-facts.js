@@ -8,13 +8,17 @@
    0166-0205 (sample counts verified on a real trial clone of the sample manifest: 0202).
    VERSION must equal public._trial_terms_version() (0207): accept_trial_terms() refuses
    any other version, so a stale cached page cannot record agreement to old terms.
+   0212 (owner decision): e-mail to clients WORKS in the trial (capped: EMAIL_PER_DAY a day per studio,
+   EMAIL_PER_RECIPIENT a day to one address); WhatsApp, SMS and online payment links unlock on a paid plan.
+   New wording -> new VERSION (= _trial_terms_version() in 0212): trial owners are asked once more.
    CSP: DOM built with createElement / textContent only; styles in trial-terms.css.
    ========================================================================= */
 (function (global) {
   "use strict";
-  var VERSION = "trial-2026-10-18";
+  var VERSION = "trial-2026-10-19";
   var DAYS = 8, KEEP_DAYS = 60, TEAM_EXTRA = 2, CREATE_CAP = 2, EXTENSION_DAYS = 7;
   var DELETE_WARN_DAYS = [30, 7, 1];
+  var EMAIL_PER_DAY = 30, EMAIL_PER_RECIPIENT = 5;   // 0212 trial client e-mail caps (trial_email_settings)
   var REGION = { currency: "INR", symbol: "₹", timezone: "Asia/Kolkata", tz: "IST" };
 
   // the sample studio every trial starts with (counts of one trial clone of the current manifest)
@@ -52,6 +56,7 @@
         { t: "Edit the sample data", s: "Open, change and re-price any sample record to try your own way of working." },
         { t: "Change menu prices", s: "Price per plate, chair and plate prices. Dishes and menu packages cannot be added, renamed or removed in the trial." },
         { t: "Invite up to " + TEAM_EXTRA + " teammates", s: "You + " + TEAM_EXTRA + " people. Open invitations count toward the " + TEAM_EXTRA + "." },
+        { t: "E-mail your clients", s: "Approval (quote) links, booklet and invitation links and the approval code by e-mail really reach your client: up to " + EMAIL_PER_DAY + " e-mails a day, " + EMAIL_PER_RECIPIENT + " a day to one address. Sample (demo) events are never e-mailed." },
         { t: "Plan layouts in 2D and 3D", s: "Start from the " + count("layouts") + " layout templates, a blank floor or a past event." },
         { t: "Set pricing, coupons and rules", s: "Pricing & coupons, layout rules, and roles & access are all editable." }
       ] },
@@ -63,7 +68,7 @@
         { t: "Photo renders", s: null },
         { t: "Notification settings and client link auto-expire", s: null },
         { t: "Your own templates and the activity log", s: "Saving layout or checklist templates, the Templates page and the audit (activity) log." },
-        { t: "Real messages to clients", s: "Approval codes (OTP), e-mail, WhatsApp and payment links run in test mode: nothing is sent to anyone." }
+        { t: "WhatsApp, SMS and online payment links", s: "They unlock on a paid plan. Approval codes go by e-mail only, and your client can also confirm with Test mode - confirm. Payments are recorded by hand." }
       ] },
     { id: "after", icon: "clock", title: "After the trial",
       items: [
@@ -80,7 +85,7 @@
   // ---- the short read-only notice for an invited teammate (no agreement needed) -------------------
   var NOTICE = [
     "This studio is on Helm’s " + DAYS + "-day free trial. It runs on sample data marked “Demo ·” / “Sample”.",
-    "Test mode: no real e-mails, WhatsApp messages, approval codes or payment links reach clients.",
+    "E-mail works: approval, booklet and invitation links (and the approval code) e-mailed from this studio really reach clients (up to " + EMAIL_PER_DAY + " a day). WhatsApp, SMS and payment links unlock on a paid plan.",
     "Downloads, prints, imports and photo renders unlock when the studio chooses a plan.",
     "The studio can add up to " + CREATE_CAP + " new records in each list (shared by the whole team).",
     "When the trial ends the studio becomes read-only for everyone until it chooses a plan."
@@ -90,7 +95,7 @@
   var SIGNUP_KEY = [
     { t: DAYS + " days free, no card", s: "An India studio: prices in " + REGION.symbol + ", times in " + REGION.tz + "." },
     { t: "Ready-made sample data", s: SAMPLE_SHORT + ", all marked “Demo”." },
-    { t: "You + up to " + TEAM_EXTRA + " teammates", s: "No real messages go to clients during the trial (test mode)." },
+    { t: "You + up to " + TEAM_EXTRA + " teammates", s: "E-mail to your clients works (up to " + EMAIL_PER_DAY + " a day); WhatsApp and SMS unlock on a plan." },
     { t: "After " + DAYS + " days: read-only", s: "Your data is kept " + KEEP_DAYS + " days, then deleted (we remind you first). Choose a plan anytime to keep everything." }
   ];
   var SIGNUP_ALL = [
@@ -100,7 +105,8 @@
     "You plus up to " + TEAM_EXTRA + " teammates can use the trial studio (open invitations count).",
     "You can add up to " + CREATE_CAP + " new records of each kind (" + joinList(CAP_LISTS) + "). Sample records do not count, and deleting a record does not free a slot.",
     "Menu prices are editable. New dishes, menu packages, chair or plate types cannot be added during the trial.",
-    "Test mode: no real e-mails, WhatsApp or SMS messages are sent to clients during the trial.",
+    "E-mail to your clients works during the trial: approval (quote) links, booklet and invitation links and approval codes by e-mail are really sent, up to " + EMAIL_PER_DAY + " e-mails a day per studio and " + EMAIL_PER_RECIPIENT + " a day to one address. Sample (demo) events are never e-mailed.",
+    "WhatsApp messages, SMS approval codes and online payment links are not sent during the trial; they unlock on a paid plan.",
     "Downloads (PDF, CSV, prints), imports and photo renders unlock on a paid plan.",
     "After " + DAYS + " days the studio becomes read-only: you and your teammates can still look, but nobody can add or change anything until you choose a plan.",
     "Your trial data is kept for " + KEEP_DAYS + " days after the trial ends, then permanently deleted. We e-mail you reminders before that (" + joinList(DELETE_WARN_DAYS.map(String)) + " day before).",
@@ -109,7 +115,7 @@
   ];
 
   var api = { VERSION: VERSION, DAYS: DAYS, KEEP_DAYS: KEEP_DAYS, TEAM_EXTRA: TEAM_EXTRA, CREATE_CAP: CREATE_CAP,
-    EXTENSION_DAYS: EXTENSION_DAYS, DELETE_WARN_DAYS: DELETE_WARN_DAYS, REGION: REGION, SAMPLE: SAMPLE, CAP_LISTS: CAP_LISTS,
+    EXTENSION_DAYS: EXTENSION_DAYS, DELETE_WARN_DAYS: DELETE_WARN_DAYS, EMAIL_PER_DAY: EMAIL_PER_DAY, EMAIL_PER_RECIPIENT: EMAIL_PER_RECIPIENT, REGION: REGION, SAMPLE: SAMPLE, CAP_LISTS: CAP_LISTS,
     SECTIONS: SECTIONS, AGREE_LABEL: AGREE_LABEL, LINKS: LINKS, NOTICE: NOTICE, SIGNUP_KEY: SIGNUP_KEY, SIGNUP_ALL: SIGNUP_ALL,
     count: count, joinList: joinList };
 

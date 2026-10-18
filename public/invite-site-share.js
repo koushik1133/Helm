@@ -3,7 +3,10 @@
  * BPStore.sites.send (event_site_send -> comms_outbox -> comms-dispatch, the same outbox as payment
  * reminders). The address is pre-filled from the quote and editable; the message is fixed text,
  * shown as a preview. WhatsApp needs the client's opt-in (stored with who / when); STOP is respected.
- * FREE TRIAL: nothing real is sent - the server stores the send as skipped and the box says so.
+ * FREE TRIAL (0212): e-mail WORKS in an ACTIVE trial - the link really reaches the client (capped by the server:
+ * 30 a day per studio, 5 a day to one address); the WhatsApp option is HIDDEN (WhatsApp and SMS unlock on a paid
+ * plan). An ended trial / owner switch off / a database without 0212 (BPStore.subscription.messaging() says
+ * email false or null): test mode as before - the server stores the send as skipped and the box says so.
  * Shared (0200): the "Share booklet" dialog mounts the same box for the client booklet link with
  * adapter options (send / sendLog / ready / message / gateText / pendingPreview / logKey) - see
  * booklet-share.js. Without them it behaves exactly as the Invitation Studio box above.
@@ -12,6 +15,9 @@
   "use strict";
   var OPT_TEXT = "Client agreed to receive WhatsApp messages about this event from Helm Events on behalf of the studio.";
   var TRIAL_NOTE = "Test mode — in the free trial we don't send real messages; copy the link instead.";
+  // 0212: an ACTIVE free trial - e-mail is real, WhatsApp is not offered
+  var TRIAL_EMAIL_NOTE = "Free trial: the e-mail really goes to your client (up to 30 a day). WhatsApp and SMS unlock on a paid plan.";
+  var TRIAL_CAP = "Not sent: the free trial e-mail limit for today is reached (30 a day, 5 to one address). Use Copy link to share it yourself.";
   var EMAIL_RE = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
   var STATUS = { queued: "Queued", pending: "Queued", sent: "Sent", skipped: "Not sent", failed: "Failed" };
 
@@ -37,6 +43,8 @@
     var st = r && r.status, how = channel === "whatsapp" ? "on WhatsApp" : "by email", to = (r && r.masked) ? " to " + r.masked : "";
     if (st === "queued") return "Queued — it goes out " + how + to + " within a few minutes.";
     if (st === "already_queued") return "Already queued a moment ago" + to + " — no second message was added.";
+    if (st === "skipped" && r.reason === "trial_email_cap") return TRIAL_CAP;
+    if (st === "skipped" && r.reason === "free_trial" && channel === "whatsapp") return "Not sent: WhatsApp unlocks on a paid plan. Send it by email or use Copy link.";
     if (st === "skipped" && r.reason === "free_trial") return "Test mode: nothing was sent (free trial). Use Copy link to share it yourself.";
     if (st === "skipped" && r.reason === "demo") return "Not sent: this is a demo event. Use Copy link to share it yourself.";
     if (st === "skipped") return "Not sent. Use Copy link to share it yourself.";
@@ -63,9 +71,9 @@
 
     var body = el("div", "ish-body"); body.id = "ishBody";
     var fs = el("fieldset", "ish-ch"); var lg = el("legend", null, "Send by"); fs.appendChild(lg);
-    var radios = {};
+    var radios = {}, radioLabs = {};
     [["email", "Email"], ["whatsapp", "WhatsApp"]].forEach(function (p) {
-      var lab = el("label", "ish-radio"); var r = el("input"); r.type = "radio"; r.name = "ishCh"; r.value = p[0]; r.id = "ishCh_" + p[0];
+      var lab = el("label", "ish-radio"); radioLabs[p[0]] = lab; var r = el("input"); r.type = "radio"; r.name = "ishCh"; r.value = p[0]; r.id = "ishCh_" + p[0];
       if (p[0] === "email") r.checked = true;
       lab.appendChild(r); lab.appendChild(el("span", null, p[1])); fs.appendChild(lab); radios[p[0]] = r;
     });
@@ -103,7 +111,8 @@
     // these fields are not part of the invitation: keep them out of the editor's "unsaved changes" tracking
     ["input", "change"].forEach(function (t) { box.addEventListener(t, function (e) { e.stopPropagation(); }); });
 
-    var typed = { email: null, whatsapp: null }, isTrial = false, loadedFor = null;
+    // isTrial: test mode (nothing reaches the client); trialEmail (0212): active trial, e-mail real, no WhatsApp
+    var typed = { email: null, whatsapp: null }, isTrial = false, trialEmail = false, loadedFor = null;
     function channel() { return radios.whatsapp.checked ? "whatsapp" : "email"; }
     function quoteTo(ch) {
       var q = opts.getQuote ? opts.getQuote() : null, c = q && q.client && typeof q.client === "object" ? q.client : {};
@@ -118,6 +127,9 @@
     function valid(ch, v) { return ch === "email" ? EMAIL_RE.test(v) : !!e164(v, opts.country ? opts.country() : "IN"); }
 
     function paint() {
+      // 0212: the WhatsApp option is hidden in an active free trial (e-mail only)
+      radioLabs.whatsapp.hidden = trialEmail && !isTrial;
+      if (radioLabs.whatsapp.hidden && radios.whatsapp.checked) { radios.whatsapp.checked = false; radios.email.checked = true; }
       var ch = channel(), pub = published();
       gate.hidden = pub; body.hidden = false;
       fs.disabled = !pub; to.disabled = !pub; opt.disabled = !pub;
@@ -132,7 +144,8 @@
       var q0 = opts.getQuote ? opts.getQuote() : null;
       pv.textContent = pub ? (opts.message || message)(q0, opts.getLink())
         : (opts.pendingPreview || ("Hi " + clientName(q0) + ", here is your invitation website: (link appears after you publish)"));
-      trial.hidden = !isTrial;
+      trial.hidden = !(isTrial || trialEmail);
+      trial.textContent = trialEmail && !isTrial ? TRIAL_EMAIL_NOTE : TRIAL_NOTE;
       dirtyNote.hidden = !(pub && opts.isDirty && opts.isDirty());
       send.textContent = (ch === "whatsapp" ? "Send on WhatsApp" : "Send by email") + (isTrial ? " (test mode)" : "");
       var ok = pub && valid(ch, String(to.value || "").trim());
@@ -183,11 +196,22 @@
       return U && U.guard ? U.guard(send, run) : run();
     });
 
-    Promise.resolve(opts.trial).then(function (t) { isTrial = t === true; paint(); }, function () {});
+    // trial: 0212 my_trial_messaging (e-mail real in an active trial) wins; before 0212 (null) opts.trial = test mode
+    var sub = S.subscription || {};
+    Promise.all([Promise.resolve(opts.trial).catch(function () { return false; }),
+                 Promise.resolve(sub.messaging ? sub.messaging() : null).catch(function () { return null; })]).then(function (a) {
+      var m = a[1];
+      if (m && typeof m === "object" && typeof m.trial === "boolean") {
+        trialEmail = m.trial === true && m.email === true;
+        isTrial = m.trial === true && m.email !== true;
+      } else { isTrial = a[0] === true; trialEmail = false; }
+      paint();
+    }, function () {});
     paint();
     return { refresh: paint, reloadLog: loadLog };
   }
 
-  window.HelmInviteShare = { mount: mount, message: message, clientName: clientName, resultText: resultText, OPT_TEXT: OPT_TEXT, TRIAL_NOTE: TRIAL_NOTE };
+  window.HelmInviteShare = { mount: mount, message: message, clientName: clientName, resultText: resultText, OPT_TEXT: OPT_TEXT, TRIAL_NOTE: TRIAL_NOTE,
+    TRIAL_EMAIL_NOTE: TRIAL_EMAIL_NOTE, TRIAL_CAP: TRIAL_CAP };
   window.HelmSendToClient = window.HelmInviteShare;   // shared name (booklet dialog, 0200)
 })();

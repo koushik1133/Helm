@@ -221,6 +221,9 @@ exception when others then perform pg_temp.su(); insert into _uf values ('4x cap
 -- ---- 6) FREE TRIAL: nothing is sent, recorded as skipped -----------------------------------------------
 do $$ declare t uuid; q uuid; r jsonb; r2 jsonb; c record; e text; begin
   perform pg_temp.su(); update public.helm_sample_template set active = true, block_trial_outbound = true where id;
+  -- 0212 lets an ACTIVE trial e-mail its clients (tests/db/trial-email-0212.sql); with its owner switch OFF the
+  -- trial sends nothing at all - the behaviour this section checks
+  if to_regclass('public.trial_email_settings') is not null then execute 'update public.trial_email_settings set enabled = false where id'; end if;
   t := pg_temp.trial('bk_t@t.test');
   -- the cloned sample events share one created_at: pick a live one deterministically (a closed sample event
   -- refuses every send, which made this suite flaky)
