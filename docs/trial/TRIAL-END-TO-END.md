@@ -26,6 +26,7 @@ GST is set to 18% (intra-state). Event dates are relative to the sign-up day, so
 ## 3. What a trial studio can use
 - The dashboard, leads, events and quotes, the layout builder (2D/3D), inventory, vendors, staff, venues, calendar, budget and chat.
 - **Pricing & coupons:** fully editable (default pricing, rate cards, capacity limits, object prices).
+- **Layout builder prices:** every builder item type starts at the owner's inventory rate (for example LED Wall 5,000, Stage Barrier 1,000, Main Stage 18,000) and the chair rate is 100 (migration 0182). Seats are billed at the chair rate: chairs, chair rows, seating blocks and the seats around round / banquet tables (a round table with 8 seats = 8 x 100). The studio can still change every rate under Pricing.
 - **Menus & catalog:** only prices change: a package's price per plate and its dish list, and the chair and plate prices. New dishes, packages, chair types or plate types **cannot be added**, and existing ones cannot be renamed, switched off or removed (the server refuses it, migration 0181). A price change keeps a sample row a sample row, so "Clear demo data" still removes it.
 - **Layout rules:** editable.
 - **Layout templates:** the builder gallery shows the sample layouts, **Start blank** and **From past events** (never the built-in presets, even when no sample layout is left). Saving, renaming, archiving, duplicating or setting a default template is not part of the trial (0181).
@@ -52,7 +53,7 @@ GST is set to 18% (intra-state). Event dates are relative to the sign-up day, so
 ## 5. Creation cap: 2 created in total per list
 - A trial studio can create at most **2 of its own rows in total** in each of these lists: leads (clients), events/quotes, inventory items, vendors, staff and venues.
 - "In total" (0181): every own row the trial adds is remembered in `trial_create_log`, so deleting it does not free a slot. Rows that still exist also count, including removed (inactive), soft-deleted and shelved ones. Restoring a deleted lead brings the same row back and does not use a new slot.
-- Sample (demo) rows do not count. A sample row that the studio renames out of the "Demo ·" prefix becomes the studio's own row and does count.
+- Sample (demo) rows do not count. A sample inventory item stays sample data even when the studio renames or re-prices it (migration 0182), so it never counts. For the other lists, a sample row that the studio renames out of the "Demo ·" prefix becomes the studio's own row and does count.
 - The 3rd add is refused with **"Free trial limit reached (2). Upgrade to add more."** `my_trial_limits()` returns the counts so the app can show the limit before the server refuses.
 
 ## 6. Messages
@@ -60,6 +61,7 @@ Nothing leaves Helm during a trial. E-mail, WhatsApp and SMS rows are queued as 
 
 ## 7. Clearing the demo data
 An admin can clear the sample data from the demo-data card. Only rows marked as demo data in that studio are removed. Rows the studio created or adopted are never touched.
+Sample dishes, menu packages and inventory items stay demo data even after the studio edits them during the trial (migration 0182), so clearing removes them too. Once the studio pays, the 0097 rule applies again: editing a sample row from then on makes it the studio's own row.
 
 ## 8. When the trial ends (day 8)
 The studio becomes read-only until a plan is paid. Everything stays as it was, and paying unlocks the studio again. Once the subscription is no longer `trial`, every limit in this brief stops applying automatically.

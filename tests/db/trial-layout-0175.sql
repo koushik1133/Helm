@@ -50,7 +50,8 @@ begin
     (select count(*) from public.studio_layout_templates where org_id = M and not archived) = 3
     and (select count(*) from public.studio_layout_templates where org_id = M and name = REC and not archived) = 1
     and exists (select 1 from public.studio_layout_templates where org_id = M and name = CTH and archived));
-  perform pg_temp.res('02 manifest v6 current', exists (select 1 from public.helm_trial_seed_manifest where is_current and notes = 'v6: owner 3 layout templates'));
+  perform pg_temp.res('02 manifest v6 published (current is v6 or a later one, e.g. 0182)', exists (select 1 from public.helm_trial_seed_manifest m where m.notes = 'v6: owner 3 layout templates'
+    and (m.is_current or exists (select 1 from public.helm_trial_seed_manifest x where x.is_current and x.version > m.version))));
 
   update public.helm_sample_template set active = true where id;
   a := pg_temp.trial('tl175_a@t.test');
