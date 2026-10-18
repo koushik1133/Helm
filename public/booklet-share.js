@@ -111,6 +111,9 @@
     const note = el("textarea", "bk-in"); note.id = "bkNote"; note.rows = 2; note.maxLength = 1000; note.value = (cur && cur.note) || "";
     const f4 = el("label", "bk-lab", "Terms (optional — standard terms are shown if empty)"); f4.setAttribute("for", "bkTerms");
     const terms = el("textarea", "bk-in"); terms.id = "bkTerms"; terms.rows = 4; terms.maxLength = 8000; terms.value = (cur && cur.terms) || "";
+    // trial-data-v3: an empty Terms box starts with the studio's own terms (pricing config termsText), when set
+    if (!terms.value) { try { const st = global.BPStore; if (st && st.config && st.config.getPricing) st.config.getPricing().then((pc) => {
+      const tt = pc && typeof pc.termsText === "string" ? pc.termsText.slice(0, 8000) : ""; if (tt && !terms.value) terms.value = tt; }).catch(() => {}); } catch (e) {} }
     form.appendChild(f3); form.appendChild(note); form.appendChild(f4); form.appendChild(terms);
     if (cur) form.appendChild(el("p", "bk-meta bk-warn", "Creating a new link replaces the current one — the old link stops working."));
     const msg = el("p", "bk-err"); msg.setAttribute("role", "alert"); form.appendChild(msg);
