@@ -91,6 +91,10 @@
   .mpgrid .mpchk input{width:17px;height:17px;margin:0;accent-color:var(--accent);flex:0 0 auto}
   .mpgrid .mplbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
   .ferr{margin:2px 0 0;font-size:12px;color:#b42318}
+  .fld input[aria-invalid="true"],.fld select[aria-invalid="true"],.fld .hp.is-invalid{border-color:#d92d20!important;box-shadow:0 0 0 3px rgba(217,45,32,.14)}
+  .fld .hp.is-invalid > input{box-shadow:none}
+  #orgSaveMsg .msg{margin:10px 0 0}
+  #o_phone::placeholder,#o_pin::placeholder{color:var(--ink-3);opacity:.75;font-style:italic}
   .mpgrid [aria-invalid="true"]{border-color:#e5484d}
   .mpchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
   .mpchips:empty{display:none}
@@ -264,8 +268,8 @@
         <div class="fld"><label for="o_country">Country (sets tax &amp; currency)</label><select id="o_country"></select></div>
         <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" placeholder="e.g. Aurora Events"></div>
         <div class="fld"><label for="o_email">Business email</label><input id="o_email" type="email" placeholder="hello@studio.com"></div>
-        <div class="fld"><label for="o_phone">Business phone</label><input id="o_phone" type="tel" autocomplete="tel" maxlength="24" placeholder="+91 98765 43210"></div>
-        <div class="fld"><label for="o_location">Location (city, country)</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
+        <div class="fld"><label for="o_phone">Business phone *</label><input id="o_phone" type="tel" autocomplete="tel" maxlength="24" placeholder="Enter business phone" data-ph-own="1"></div>
+        <div class="fld"><label for="o_location">Location (city, country) *</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
         <div class="fld"><label for="o_logo">Logo URL</label><input id="o_logo" type="url" placeholder="https://…/logo.png"></div>
         <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" placeholder="#6d28d9"></div>
         <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" placeholder="INR"></div>
@@ -279,10 +283,11 @@
         <div class="fld"><label for="o_line1">Billing address *</label><input id="o_line1" maxlength="160" autocomplete="address-line1"></div>
         <div class="fld"><label for="o_line2">Address line 2</label><input id="o_line2" maxlength="160" autocomplete="address-line2"></div>
         <div class="fld"><label for="o_city">City *</label><input id="o_city" maxlength="60" autocomplete="address-level2"></div>
-        <div class="fld"><label for="o_state" id="o_state_lbl">State *</label><input id="o_state" maxlength="60" autocomplete="address-level1" list="o_state_list"><datalist id="o_state_list"></datalist></div>
-        <div class="fld"><label for="o_pin" id="o_pin_lbl">PIN code *</label><input id="o_pin" maxlength="10" inputmode="numeric" autocomplete="postal-code"></div>
+        <div class="fld"><label for="o_state" id="o_state_lbl">State *</label><select id="o_state_sel" autocomplete="address-level1" hidden></select><input id="o_state" maxlength="60" autocomplete="address-level1" list="o_state_list"><datalist id="o_state_list"></datalist></div>
+        <div class="fld"><label for="o_pin" id="o_pin_lbl">PIN code *</label><input id="o_pin" maxlength="6" inputmode="numeric" pattern="[1-9][0-9]{5}" autocomplete="postal-code" placeholder="6-digit PIN"></div>
       </div>
       <div class="actions"><button type="button" class="btn primary" id="o_save">Save studio settings</button></div>
+      <div id="orgSaveMsg" role="status" aria-live="polite"></div>
       <div class="s-e3ae377" id="slugBox" hidden>
         <h3 class="s-58d955e">Client link name</h3>
         <p class="mnote s-759e41d">Every link you send clients and crew starts with this name, e.g. <code id="slugPreview">www.helm.events/your-studio/quote/…</code>. 3–40 lowercase letters, numbers or dashes. Links you already sent keep working after a change.</p>
@@ -763,6 +768,7 @@
 <script src="tour.js?v=15"></script>
 <script src="pkg-review.js?v=4"></script>
 <script src="onboarding-core.js?v=5"></script>
+<script src="studio-billing-form.js?v=1"></script>
 <script src="comms-settings.js?v=3"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="privacy-pin-settings.js?v=1"></script>
@@ -1197,7 +1203,8 @@
   async function renderOrg(){
     orgLoaded=false; $("#o_save").disabled=true; $("#orgErr").innerHTML="";
     let o=null;
-    try{ o=await BPStore.org.current(); }
+    // cc-general-billing: the form is the edit source - read the saved row, never a possibly stale tab cache
+    try{ o=await BPStore.org.current({ fresh:true }); }
     catch(e){ BPUI.loadError($("#orgErr"), e, renderOrg, {what:"studio settings"}); return; }
     if(!o){ $("#orgMsg").innerHTML='<div class="msg" style="color:var(--ink-3)">Studio settings aren\'t available for this workspace yet.</div>'; return; }
     const b=o.brand||{}; orgBrand=(b&&typeof b==="object"&&!Array.isArray(b))?b:{};
@@ -1228,6 +1235,17 @@
     // 0089: suggest the country's states / emirates (US options show the state base sales-tax rate)
     const dl=$("#o_state_list"); if(dl){ dl.textContent=""; const hc=window.HelmCountry;
       if(hc && ["IN","AE","US"].includes(cc)) hc.get(cc).regions.forEach(r=>{ const o=document.createElement("option"); o.value=r.name; if(r.rate!=null) o.label=r.name+" - "+r.rate+"% state sales tax"; dl.appendChild(o); }); }
+    // cc-general-billing: PIN = digits only (6) in India; state = dropdown of Indian states / UTs
+    if(BF){ BF.paintPostal($("#o_pin"), cc); syncStateSelect(); }
+  }
+  const BF=window.HelmBillingForm;
+  function syncStateSelect(){
+    if(!BF) return; const cc=BPStore.tax.code($("#o_country").value), hc=window.HelmCountry;
+    BF.paintState($("#o_state"), $("#o_state_sel"), $("#o_state_lbl"), (hc && cc==="IN") ? hc.get("IN").regions : [], cc==="IN" && !!hc);
+  }
+  if(BF){
+    BF.bindPostal($("#o_pin"), ()=>$("#o_country").value);
+    $("#o_state_sel").addEventListener("change",()=>{ const i=$("#o_state"); i.value=$("#o_state_sel").value; i.dispatchEvent(new Event("change",{bubbles:true})); billPromptLive(); });
   }
   // B2: timezone follows the country / state unless the studio typed its own
   function followTz(){ const HC=window.HelmCountry, tz=$("#o_tz"); if(!HC||!tz) return; const s=HC.timezone(BPStore.tax.code($("#o_country").value), $("#o_state").value);
@@ -1237,7 +1255,7 @@
   $("#o_state").addEventListener("change",followTz);
   // B3: a country switched from the PRICING card is written to Studio details too (one setting, two places)
   async function syncOrgCountry(cc, region){
-    try{ const o=await BPStore.org.current(); if(!o) return; const b=(o.brand&&typeof o.brand==="object"&&!Array.isArray(o.brand))?o.brand:{};
+    try{ const o=await BPStore.org.current({ fresh:true }); if(!o) return; const b=(o.brand&&typeof o.brand==="object"&&!Array.isArray(o.brand))?o.brand:{};
       const bl=(b.billing&&typeof b.billing==="object"&&!Array.isArray(b.billing))?b.billing:{}; const tp=BPStore.tax.profile(cc);
       const nb=Object.assign({}, bl, { country:cc }); if(region && !bl.state) nb.state=region;
       const patch={ brand:Object.assign({}, b, { billing:nb }) }; if(tp.known) patch.currency=tp.currency;
@@ -1249,9 +1267,27 @@
   function paintBilling(o){
     if(!OB) return; const v=OB.billingFromOrg(o);
     ["legal_name","line1","line2","city","state","pin"].forEach(k=>{ $("#"+BILL_IDS[k]).value=v[k]||""; });
-    const miss=OB.billingMissing(o), bp=$("#billPrompt");
-    bp.hidden=!miss.length; bp.textContent=miss.length?("Please complete your studio's billing details so they appear on quotations and invoices. Missing: "+miss.join(", ")+"."):"";
+    syncStateSelect();
+    showBillPrompt(OB.billingMissing(o));
   }
+  function showBillPrompt(miss){
+    const bp=$("#billPrompt"); bp.hidden=!miss.length;
+    bp.textContent=BF?BF.promptText(miss):(miss.length?("Please complete your studio's billing details so they appear on quotations and invoices. Missing: "+miss.join(", ")+"."):"");
+  }
+  function billVals(){ const vals={}; Object.keys(BILL_IDS).forEach(k=>{ vals[k]=$("#"+BILL_IDS[k]).value; }); return vals; }
+  // the visible control for a billing key (India: the state dropdown)
+  function billEl(k){ if(k==="state"){ const s=$("#o_state_sel"); if(s && !s.hidden) return s; } return $("#"+BILL_IDS[k]); }
+  // the "Missing: ..." list follows what is on screen (only while it is showing)
+  let bpT=0;
+  function billPromptLive(){ if(!OB||!BF) return;
+    // after a "saved, still fill in ..." message: once the studio types again, that message would go
+    // stale - swap it back for the live prompt (still exactly one message on screen)
+    const sm=$("#orgSaveMsg"), warnShown=!!(sm && sm.querySelector(".msg.warn"));
+    if(warnShown){ saveMsg("",""); showBillPrompt(BF.missingFromValues(OB, billVals())); return; }
+    else if($("#billPrompt").hidden) return;
+    clearTimeout(bpT); bpT=setTimeout(()=>{ const m=BF.missingFromValues(OB, billVals()); showBillPrompt(m); },250); }
+  Object.keys(BILL_IDS).forEach(k=>{ const el=$("#"+BILL_IDS[k]); if(el) el.addEventListener("input",billPromptLive); });
+  function saveMsg(k,t){ const el=$("#orgSaveMsg"); if(el) el.innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
   const SLUG_RE=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
   function slugMsg(k,t){ $("#slugMsg").innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
   function paintSlugPreview(){ const v=$("#o_slug").value.trim().toLowerCase()||"your-studio";
@@ -1266,28 +1302,40 @@
     catch(e){ const m=(e&&e.message)||""; slugMsg("err", /taken/i.test(m)?"That name is already used by another studio — try another.":/reserved|3-40|letters/i.test(m)?"That name isn't allowed (reserved word or wrong format) — try another.":errMsg(e,"save the link name")); }
   }));
   $("#o_save").addEventListener("click",()=>BPUI.guard($("#o_save"),async()=>{
-    if(!orgLoaded){ orgMsg("err","Studio settings didn't load, so they can't be saved yet."); return; }
-    const V=BPStore.validate;
+    if(!orgLoaded){ saveMsg("err","Studio settings didn't load, so they can't be saved yet."); return; }
+    const V=BPStore.validate, card=$("#o_save").closest(".card");
+    saveMsg("",""); if(BF) BF.clearAll(card);
+    // cc-general-billing: every problem is shown UNDER its own field (red border), the first one is focused
+    const errs=[]; const bad=(el,msg)=>{ if(el && !errs.some(x=>x.el===el)) errs.push({ el, msg }); };
     const email=$("#o_email").value.trim(), logo=$("#o_logo").value.trim(), accent=$("#o_accent").value.trim();
-    if(email){ const r=V.email(email); if(!r.ok){ orgMsg("err",r.error); $("#o_email").focus(); return; } }
-    if(logo){ const r=V.url(logo); if(!r.ok){ orgMsg("err","Logo URL: "+r.error); $("#o_logo").focus(); return; } }
-    if(accent && !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)){ orgMsg("err","Accent colour must be a hex colour like #6d28d9."); $("#o_accent").focus(); return; }
+    if(email){ const r=V.email(email); if(!r.ok) bad($("#o_email"), r.error); }
+    if(logo){ const r=V.url(logo); if(!r.ok) bad($("#o_logo"), "Logo URL: "+r.error); }
+    if(accent && !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)) bad($("#o_accent"), "Accent colour must be a hex colour like #6d28d9.");
     const phone=$("#o_phone")?$("#o_phone").value.trim():"";
-    if(phone){ const r=V.phone(phone); if(!r.ok){ orgMsg("err",r.error); $("#o_phone").focus(); return; } }
+    if(phone){ const r=V.phone(phone); if(!r.ok) bad($("#o_phone"), r.error); }
     const gstRaw=$("#o_gst").value.trim().toUpperCase().replace(/\s+/g,"");
     // billing: required fields only enforced once the studio has started filling them (or the prompt is shown)
     let billing=null;
-    if(OB){ const vals={}; Object.keys(BILL_IDS).forEach(k=>{ vals[k]=$("#"+BILL_IDS[k]).value; });
+    if(OB){ const vals=billVals();
       const r=OB.validateBilling(vals);
       const anyBill=["legal_name","line1","line2","city","state","pin"].some(k=>String(vals[k]||"").trim());
-      if(anyBill && !r.ok){ const k=OB.BILLING_FIELDS.find(f=>r.errors[f.key]).key; orgMsg("err",r.errors[k]); $("#"+BILL_IDS[k]).focus(); return; }
-      if(anyBill) billing=r.data; }
+      if(anyBill && !r.ok) OB.BILLING_FIELDS.forEach(f=>{ if(r.errors[f.key]) bad(billEl(f.key), r.errors[f.key]); });
+      if(anyBill && r.ok) billing=r.data; }
     const newCountry=BPStore.tax.code($("#o_country").value);
-    { const r=BPStore.tax.validateId(newCountry, gstRaw); if(!r.ok){ orgMsg("err", newCountry==="IN"?"Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank).":r.error); $("#o_gst").focus(); return; } }
+    { const r=BPStore.tax.validateId(newCountry, gstRaw); if(!r.ok) bad($("#o_gst"), newCountry==="IN"?"Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank).":r.error); }
+    if(errs.length){
+      if(BF) BF.showErrors(errs); else { errs[0].el.focus(); }
+      saveMsg("err", errs.length===1?(BF?"Please fix the highlighted field.":errs[0].msg):"Please fix the "+errs.length+" highlighted fields.");
+      return; }
     // 0089: switching country re-labels tax/currency for NEW quotes only - ask first
     const prevTaxCountry=BPStore.tax.code(pricingCfg.taxCountry||"IN");
     if(newCountry!==prevTaxCountry && pricingLoaded){ const tp=BPStore.tax.profile(newCountry);
       if(!(await BPUI.confirm(`Switch your studio to ${tp.name}? New quotes will use ${tp.tax} and ${tp.known?tp.currency:"your currency"}. Quotes you already saved, sent or got paid keep their price, tax and currency exactly as they are.`,{title:"Change country",okLabel:"Switch country"}))) return; }
+    // cc-general-billing: merge into the SAVED row, never into a copy read minutes ago (another tab,
+    // the welcome wizard or a cached read may have written brand keys since) - zero data loss
+    try{ const fresh=await BPStore.org.current({ fresh:true }); const fb=fresh&&fresh.brand;
+      if(fb && typeof fb==="object" && !Array.isArray(fb)) orgBrand=fb; }
+    catch(e){ saveMsg("err",errMsg(e,"check the latest studio settings before saving")); return; }
     // #16: an email saved HERE is the studio's public contact (business_email_confirmed); the booklet
     // never shows an unconfirmed (e.g. signup) email. Brand keys we don't edit here are kept.
     const patch={ name:$("#o_name").value.trim()||null, business_email:email?email.toLowerCase():null, business_email_confirmed:!!email,
@@ -1298,7 +1346,12 @@
     if(billing){ const bp=OB.billingPatch({ name:patch.name, brand:patch.brand }, billing);
       patch.brand=bp.brand; patch.location=bp.location; patch.gst_number=bp.gst_number; if(!patch.name) patch.name=bp.name||null; }
     if(!billing && newCountry!==orgCountry){ patch.brand=Object.assign({}, patch.brand, { billing:Object.assign({}, (orgBrand&&orgBrand.billing)||{}, { country:newCountry }) }); }
-    try{ await BPStore.org.save(patch); orgBrand=patch.brand; paintBilling(Object.assign({}, patch));
+    try{ await BPStore.org.save(patch); orgBrand=patch.brand;
+      // read back what the database now holds: the form and the "missing" list show the saved truth
+      let saved=null; try{ saved=await BPStore.org.current({ fresh:true }); }catch(e){}
+      const shown=saved||Object.assign({}, patch);
+      if(saved && saved.brand && typeof saved.brand==="object" && !Array.isArray(saved.brand)) orgBrand=saved.brand;
+      paintBilling(shown);
       if(newCountry!==BPStore.tax.code(pricingCfg.taxCountry||"IN") && pricingLoaded){
         // 0079: a new country re-labels the tax and suggests its default rate for NEW quotes (saved quotes keep their price)
         const tp=BPStore.tax.profile(newCountry);
@@ -1307,18 +1360,21 @@
         if(region && newCountry!=="IN") next.taxRegion=region; else delete next.taxRegion;
         if(window.HelmCountry && ["IN","AE","US"].includes(newCountry)) next.gstPct=window.HelmCountry.defaultRate(newCountry, region);
         else if(tp.rate!=null) next.gstPct=tp.rate;
-        try{ await BPStore.config.setPricing(next); pricingCfg=next; $("#p_gst").value=next.gstPct??""; $("#p_country").value=newCountry; $("#p_region").value=next.taxRegion||""; pLastDefault=next.gstPct; paintTaxFields(); }catch(e){ orgMsg("err",errMsg(e,"update the tax for the new country")); return; }
+        try{ await BPStore.config.setPricing(next); pricingCfg=next; $("#p_gst").value=next.gstPct??""; $("#p_country").value=newCountry; $("#p_region").value=next.taxRegion||""; pLastDefault=next.gstPct; paintTaxFields(); }catch(e){ saveMsg("err",errMsg(e,"update the tax for the new country")); return; }
       }
       else if(pricingLoaded && newCountry!=="IN" && ($("#o_state").value.trim().slice(0,60))!==(pricingCfg.taxRegion||"")){
         // 0089: same country, new state/emirate -> store the region; a US studio still on the old
         // state's default rate moves to the new state's base rate (a custom rate is kept)
         const region=$("#o_state").value.trim().slice(0,60), next=Object.assign({}, pricingCfg, { taxRegion:region });
         if(window.HelmCountry && newCountry==="US" && Number(pricingCfg.gstPct)===window.HelmCountry.defaultRate("US", pricingCfg.taxRegion||"")) next.gstPct=window.HelmCountry.defaultRate("US", region);
-        try{ await BPStore.config.setPricing(next); pricingCfg=next; $("#p_gst").value=next.gstPct??""; $("#p_region").value=region; paintTaxFields(); }catch(e){ orgMsg("err",errMsg(e,"update the tax region")); return; }
+        try{ await BPStore.config.setPricing(next); pricingCfg=next; $("#p_gst").value=next.gstPct??""; $("#p_region").value=region; paintTaxFields(); }catch(e){ saveMsg("err",errMsg(e,"update the tax region")); return; }
       }
       orgCountry=newCountry;
-      orgMsg("ok","Studio settings saved."); setTimeout(()=>orgMsg("",""),2500); }
-    catch(e){ orgMsg("err",errMsg(e,"save studio settings")); }
+      // one message only: "saved" - or "saved, but still fill in ..." (the yellow prompt is folded into it)
+      const miss=OB?OB.billingMissing(shown):[], m=BF?BF.afterSaveMessage(miss):{ kind:"ok", text:"Studio settings saved." };
+      clearTimeout(bpT); if(miss.length) $("#billPrompt").hidden=true;
+      saveMsg(m.kind, m.text); if(m.kind==="ok") setTimeout(()=>saveMsg("",""),4000); }
+    catch(e){ saveMsg("err",errMsg(e,"save studio settings")); }
   }));
 
   /* ---------------- CLIENT LINK AUTO-EXPIRE (0039, admin only) ---------------- */
