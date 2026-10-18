@@ -109,7 +109,7 @@ t('new studios default to the green accent; a saved colour is kept', () => {
   assert.doesNotMatch(s.slice(s.indexOf('if (kind === "brand")'), s.indexOf('if (kind === "payment")')), /6d28d9/);
   assert.match(W.validateBrand({ accent: 'red' }).errors.accent, /#047857/);
   assert.equal(W.brandPatch({ brand: { accent: '#123456' } }, { logo: '', accent: '#123456' }).brand.accent, '#123456');
-  assert.match(read('public/control.html'), /<input id="o_accent" placeholder="#047857">/);
+  assert.match(read('public/control.html'), /<input id="o_accent"[^>]* placeholder="#047857">/);
 });
 
 console.log(`setup-pin-picker: ${n} passed`);

@@ -150,7 +150,7 @@
   .lxmove:disabled{opacity:.55} .lxmove:disabled label{cursor:not-allowed}
   @media (prefers-reduced-motion:reduce){.lxtoggle input,.lxtoggle input::after{transition:none}}
   .lxwhich{margin-top:8px;font-size:13px;color:var(--ink-2)} .lxwhich summary{cursor:pointer;font-weight:600;color:var(--ink)}
-  .lxwhich ul{margin:8px 0 0;padding-left:20px;line-height:1.55} #lx_days:disabled{opacity:.55}
+  .lxwhich ul{margin:8px 0 0;padding-left:20px;line-height:1.55} #lx_days:disabled{opacity:.55} #lx_example.lx-bad{color:var(--bad,#b42318);font-weight:500}
   @media (prefers-reduced-motion:reduce){.chip{transition:none}}
   /* login modal */
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -267,15 +267,15 @@
       <div id="orgErr"></div>
       <div class="grid">
         <div class="fld"><label for="o_country">Country (sets tax &amp; currency)</label><select id="o_country" data-picker="search"></select></div>
-        <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" placeholder="e.g. Aurora Events"></div>
-        <div class="fld"><label for="o_email">Business email</label><input id="o_email" type="email" placeholder="hello@studio.com"></div>
+        <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" maxlength="120" autocomplete="organization" placeholder="e.g. Aurora Events"></div>
+        <div class="fld"><label for="o_email">Business email</label><input id="o_email" type="email" maxlength="254" autocomplete="email" spellcheck="false" placeholder="hello@studio.com"></div>
         <div class="fld"><label for="o_phone">Business phone *</label><input id="o_phone" type="tel" autocomplete="tel" maxlength="24" placeholder="Enter business phone" data-ph-own="1"></div>
         <div class="fld"><label for="o_location">Location (city, country) *</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
-        <div class="fld"><label for="o_logo">Logo URL</label><input id="o_logo" type="url" placeholder="https://…/logo.png"></div>
-        <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" placeholder="#047857"></div>
-        <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" placeholder="INR"></div>
-        <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" placeholder="Asia/Kolkata"></div>
-        <div class="fld"><label for="o_gst" id="o_gst_lbl">GSTIN (optional)</label><input id="o_gst" maxlength="30" placeholder="22AAAAA0000A1Z5"></div>
+        <div class="fld"><label for="o_logo">Logo URL</label><input id="o_logo" type="url" maxlength="600" spellcheck="false" placeholder="https://…/logo.png"></div>
+        <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" maxlength="12" spellcheck="false" placeholder="#047857"></div>
+        <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" maxlength="8" autocapitalize="characters" spellcheck="false" placeholder="INR"></div>
+        <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" maxlength="60" spellcheck="false" autocomplete="off" placeholder="Asia/Kolkata"></div>
+        <div class="fld"><label for="o_gst" id="o_gst_lbl">GSTIN (optional)</label><input id="o_gst" maxlength="40" autocapitalize="characters" spellcheck="false" placeholder="22AAAAA0000A1Z5"></div>
       </div>
       <h3>Billing details</h3>
       <p class="mnote">Shown on quotations and invoices. Required: legal name, address, city, state, PIN, business phone and location.</p>
@@ -294,7 +294,7 @@
         <p class="mnote s-759e41d">Every link you send clients and crew starts with this name, e.g. <code id="slugPreview">www.helm.events/your-studio/quote/…</code>. 3–40 lowercase letters, numbers or dashes. Links you already sent keep working after a change.</p>
         <div id="slugMsg" role="status" aria-live="polite"></div>
         <div class="grid">
-          <div class="fld"><label for="o_slug">Link name</label><input id="o_slug" autocomplete="off" spellcheck="false" maxlength="40" placeholder="aurora-events"></div>
+          <div class="fld"><label for="o_slug">Link name</label><input id="o_slug" autocomplete="off" spellcheck="false" maxlength="80" placeholder="aurora-events"></div>
         </div>
         <div class="actions"><button type="button" class="btn" id="o_slug_save">Save link name</button></div>
       </div>
@@ -311,7 +311,7 @@
         <span class="lxstate" id="lx_state" aria-live="polite">Disabled</span>
       </div>
       <div class="grid s-56f4356">
-        <div class="fld"><label for="lx_days">Days after the link is sent (1–365)</label><input id="lx_days" type="number" min="1" max="365" step="1" inputmode="numeric" value="10" aria-describedby="lx_example"></div>
+        <div class="fld"><label for="lx_days">Days after the link is sent (1–365)</label><input id="lx_days" type="number" min="1" max="365" step="1" inputmode="numeric" value="10" aria-describedby="lx_example" data-hardened="1"></div>
       </div>
       <p class="mnote s-d2c171b" id="lx_example" aria-live="polite">Off — links follow only the usual limits after the event.</p>
       <details class="lxwhich">
@@ -500,15 +500,15 @@
         <p class="mnote">Add teammates, set the name chat shows for each person, change each person's role, or remove access. Changes apply immediately.</p>
         <p class="mnote" id="seat_meter" role="status" aria-live="polite" hidden></p>
         <div class="uctools" id="uc_tools" hidden>
-          <input id="uc_q" type="search" placeholder="Search name, email, phone, title…" autocomplete="off" aria-label="Search team members">
+          <input id="uc_q" type="search" maxlength="100" placeholder="Search name, email, phone, title…" autocomplete="off" aria-label="Search team members">
           <select id="uc_f" aria-label="Show"><option value="">Everyone</option><option value="incomplete">Incomplete profiles</option><option value="complete">Complete profiles</option></select>
           <span class="uccount" id="uc_count" role="status" aria-live="polite"></span>
         </div>
         <div class="table-scroll"><table class="utable"><thead id="um_head"><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="um_rows"><tr><td class="s-1a1aca0" colspan="4"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
         </table></div>
-        <form id="um_add" class="addrow s-0dff578">
-          <input id="um_email" type="email" placeholder="name@studio.com" required autocomplete="off" aria-label="New user email">
+        <form id="um_add" class="addrow s-0dff578" novalidate>
+          <input id="um_email" type="email" maxlength="254" spellcheck="false" placeholder="name@studio.com" required autocomplete="off" aria-label="New user email">
           <select id="um_role" aria-label="New user role"></select>
           <button class="btn primary" type="submit" id="um_submit">Add user</button>
         </form>
@@ -518,8 +518,8 @@
       <div class="card">
         <h3>Invite by email link</h3>
         <p class="mnote">Create a join link for a teammate. They sign up with it and are added to <b>your studio</b> with the role you pick. The link expires in 7 days; nothing is charged.</p>
-        <form id="inv_add" class="addrow s-0dff578">
-          <input id="inv_email" type="email" placeholder="name@studio.com" required autocomplete="off" aria-label="Invite email">
+        <form id="inv_add" class="addrow s-0dff578" novalidate>
+          <input id="inv_email" type="email" maxlength="254" spellcheck="false" placeholder="name@studio.com" required autocomplete="off" aria-label="Invite email">
           <select id="inv_role" aria-label="Invite role"></select>
           <button class="btn primary" type="submit" id="inv_submit">Create invite link</button>
         </form>
@@ -770,12 +770,14 @@
 <script src="smart-import.js?v=3"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=16"></script>
-<script src="pkg-review.js?v=4"></script>
+<script src="pkg-review.js?v=5"></script>
 <script src="onboarding-core.js?v=6"></script>
 <script src="studio-billing-form.js?v=1"></script>
 <script src="comms-settings.js?v=3"></script>
 <script src="photo-render-settings.js?v=2"></script>
-<script src="privacy-pin-settings.js?v=1"></script>
+<script src="form-validate.js?v=1"></script>
+<script src="cc-inputs.js?v=2"></script>
+<script src="privacy-pin-settings.js?v=3"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venues-admin.js?v=6"></script>
 <script src="studio-templates-core.js?v=2"></script>
@@ -1289,8 +1291,13 @@
     paintBilling(o);
     orgMsg("",""); orgLoaded=true; $("#o_save").disabled=false;
     // branded client links (migration 0020) — only shown once the column exists
-    if(Object.prototype.hasOwnProperty.call(o,"public_slug")){ $("#slugBox").hidden=false; $("#o_slug").value=o.public_slug||""; paintSlugPreview(); }
+    if(Object.prototype.hasOwnProperty.call(o,"public_slug")){ $("#slugBox").hidden=false; $("#o_slug").value=o.public_slug||""; savedSlug=o.public_slug||""; paintSlugPreview(); }
+    { const G=ccGen(); if(G) Object.keys(G).forEach(k=>{ if(G[k]) G[k].reset(); }); }   // fresh values: no stale field errors
   }
+  // input sweep A (cc-inputs.js): each General field is checked where it is typed - message under the field,
+  // shown on leaving it and on Save; a failed save keeps everything that was typed
+  let savedSlug="";
+  function ccGen(){ const CI=window.HelmCCInputs; return CI&&CI.bindGeneral?CI.bindGeneral({country:()=>BPStore.tax.code($("#o_country").value)}):null; }
   // billing details live in brand.billing (+ location, brand.phone, gst_number) — see onboarding-core.js
   const OB=window.HelmOnboarding;
   const BILL_IDS={country:"o_country",legal_name:"o_legal",line1:"o_line1",line2:"o_line2",city:"o_city",state:"o_state",pin:"o_pin",phone:"o_phone",location:"o_location",gstin:"o_gst"};
@@ -1324,6 +1331,7 @@
   function followTz(){ const HC=window.HelmCountry, tz=$("#o_tz"); if(!HC||!tz) return; const s=HC.timezone(BPStore.tax.code($("#o_country").value), $("#o_state").value);
     if(s && HC.isAutoTimezone(tz.value) && tz.value!==s){ tz.value=s; } }
   $("#o_country").addEventListener("change",()=>{ paintCountryLabels(); const p=BPStore.tax.profile($("#o_country").value); if(p.known) $("#o_currency").value=p.currency; followTz();
+    { const G=ccGen(); if(G&&G.tax) G.tax.check(); }
     const ph=$("#o_phone"); if(ph && ph.helmPhone && !ph.helmPhone.national()) ph.helmPhone.setCountry(BPStore.tax.code($("#o_country").value)); });
   $("#o_state").addEventListener("change",followTz);
   // B3: a country switched from the PRICING card is written to Studio details too (one setting, two places)
@@ -1365,28 +1373,37 @@
   function slugMsg(k,t){ $("#slugMsg").innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
   function paintSlugPreview(){ const v=$("#o_slug").value.trim().toLowerCase()||"your-studio";
     $("#slugPreview").textContent=BPStore.links.base().replace(/^https?:\/\//,"")+"/"+v+"/quote/…"; }
-  $("#o_slug").addEventListener("input",()=>{ const el=$("#o_slug"), c=el.value.toLowerCase().replace(/[^a-z0-9-]+/g,"-");
+  $("#o_slug").addEventListener("input",()=>{ const el=$("#o_slug"), CI=window.HelmCCInputs, c=CI?CI.slugLive(el.value):el.value.toLowerCase().replace(/[^a-z0-9-]+/g,"-");
     if(c!==el.value) el.value=c; paintSlugPreview(); });
+  // a trailing dash left while typing ("aurora-") is dropped when the box is left
+  $("#o_slug").addEventListener("blur",()=>{ const el=$("#o_slug"), c=el.value.replace(/-+$/,""); if(c!==el.value){ el.value=c; paintSlugPreview(); } });
   $("#o_slug_save").addEventListener("click",()=>BPUI.guard($("#o_slug_save"),async()=>{
-    const v=$("#o_slug").value.trim().toLowerCase();
+    const G=ccGen(); slugMsg("","");
+    if(G&&G.slug&&window.HelmCCInputs.first([G.slug])) return;
+    const v=$("#o_slug").value.trim().toLowerCase().replace(/-+$/,"");
     if(!SLUG_RE.test(v)||v.includes("--")){ slugMsg("err","Use 3–40 lowercase letters, numbers or single dashes (no dash at the start or end)."); $("#o_slug").focus(); return; }
+    if(savedSlug && v===savedSlug){ slugMsg("ok","That is already your link name — nothing to change."); setTimeout(()=>slugMsg("",""),2500); return; }
     if(!(await BPUI.confirm(`Change your client link name to “${v}”? New links will use it; links you already sent keep working.`,{title:"Change link name",okLabel:"Change"}))) return;
-    try{ const r=await BPStore.links.rename(v); $("#o_slug").value=r||v; paintSlugPreview(); slugMsg("ok","Link name saved."); setTimeout(()=>slugMsg("",""),2500); }
-    catch(e){ const m=(e&&e.message)||""; slugMsg("err", /taken/i.test(m)?"That name is already used by another studio — try another.":/reserved|3-40|letters/i.test(m)?"That name isn't allowed (reserved word or wrong format) — try another.":errMsg(e,"save the link name")); }
+    try{ const r=await BPStore.links.rename(v); $("#o_slug").value=r||v; savedSlug=r||v; if(G&&G.slug) G.slug.reset(); paintSlugPreview(); slugMsg("ok","Link name saved."); setTimeout(()=>slugMsg("",""),2500); }
+    catch(e){ const m=(e&&e.message)||"", why=/taken/i.test(m)?"That name is already used by another studio — try another.":/reserved|3-40|letters/i.test(m)?"That name isn't allowed (reserved word or wrong format) — try another.":"";
+      if(why&&G&&G.slug){ G.slug.setError(why); G.slug.focus(); } else slugMsg("err", why||errMsg(e,"save the link name")); }
   }));
   $("#o_save").addEventListener("click",()=>BPUI.guard($("#o_save"),async()=>{
     if(!orgLoaded){ saveMsg("err","Studio settings didn't load, so they can't be saved yet."); return; }
-    const V=BPStore.validate, card=$("#o_save").closest(".card");
+    const V=BPStore.validate, card=$("#o_save").closest(".card"), G=ccGen();
     saveMsg("",""); if(BF) BF.clearAll(card);
+    // cc-inputs-sweep-a: the bound General inputs show their own message under the field (first one focused)
+    if(G && window.HelmCCInputs.first([G.name,G.email,G.phone,G.logo,G.accent,G.currency,G.tz,G.tax])){ orgMsg("",""); return; }
+    const ccv=(b,id)=>{ const v=b?b.value():null; return v!=null?v:$("#"+id).value.trim(); };   // trimmed + normalised (e-mail lower-case, #rrggbb, https)
     // cc-general-billing: every problem is shown UNDER its own field (red border), the first one is focused
     const errs=[]; const bad=(el,msg)=>{ if(el && !errs.some(x=>x.el===el)) errs.push({ el, msg }); };
-    const email=$("#o_email").value.trim(), logo=$("#o_logo").value.trim(), accent=$("#o_accent").value.trim();
+    const email=ccv(G&&G.email,"o_email"), logo=ccv(G&&G.logo,"o_logo"), accent=ccv(G&&G.accent,"o_accent");
     if(email){ const r=V.email(email); if(!r.ok) bad($("#o_email"), r.error); }
     if(logo){ const r=V.url(logo); if(!r.ok) bad($("#o_logo"), "Logo URL: "+r.error); }
     if(accent && !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)) bad($("#o_accent"), "Accent colour must be a hex colour like #6d28d9.");
     const phone=$("#o_phone")?$("#o_phone").value.trim():"";
     if(phone){ const r=V.phone(phone); if(!r.ok) bad($("#o_phone"), r.error); }
-    const gstRaw=$("#o_gst").value.trim().toUpperCase().replace(/\s+/g,"");
+    const gstRaw=ccv(G&&G.tax,"o_gst").toUpperCase().replace(/\s+/g,"");
     // billing: required fields only enforced once the studio has started filling them (or the prompt is shown)
     let billing=null;
     if(OB){ const vals=billVals();
@@ -1411,8 +1428,9 @@
     catch(e){ saveMsg("err",errMsg(e,"check the latest studio settings before saving")); return; }
     // #16: an email saved HERE is the studio's public contact (business_email_confirmed); the booklet
     // never shows an unconfirmed (e.g. signup) email. Brand keys we don't edit here are kept.
-    const patch={ name:$("#o_name").value.trim()||null, business_email:email?email.toLowerCase():null, business_email_confirmed:!!email,
-      currency:$("#o_currency").value.trim()||"INR", timezone:$("#o_tz").value.trim()||"Asia/Kolkata",
+    const ctp=BPStore.tax.profile(newCountry);   // an emptied currency box falls back to the country's currency, not always INR
+    const patch={ name:ccv(G&&G.name,"o_name")||null, business_email:email?email.toLowerCase():null, business_email_confirmed:!!email,
+      currency:ccv(G&&G.currency,"o_currency").toUpperCase()||(ctp&&ctp.known?ctp.currency:"INR"), timezone:ccv(G&&G.tz,"o_tz")||"Asia/Kolkata",
       location:($("#o_location")?$("#o_location").value.trim():"")||null,
       gst_number:gstRaw||null,
       brand:Object.assign({}, orgBrand, { logo:logo||null, accent:accent||null, phone:phone?phone.slice(0,40):null }) };
@@ -1456,8 +1474,13 @@
   const LX_MIN=1, LX_MAX=365, LX_DAY_MS=86400000;
   let lxLoaded=false, lxTz="Asia/Kolkata";
   function lxMsg(k,t){ $("#lxMsg").innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
-  function lxDays(){ const v=String($("#lx_days").value||"").trim(); if(!/^\d{1,3}$/.test(v)) return null;
-    const n=Number(v); return n>=LX_MIN && n<=LX_MAX ? n : null; }
+  // input sweep A: the box opts out of the global number hardener (data-hardened="1") so "2.5" is not
+  // silently read as 25 or 500 clamped to 365 - the exact reason is shown under the box instead
+  function lxCheck(){ const el=$("#lx_days"), CI=typeof HelmCCInputs!=="undefined"?HelmCCInputs:null;
+    if(CI) return CI.days(el.value,{min:LX_MIN,max:LX_MAX,badInput:!!(el.validity&&el.validity.badInput)});
+    const v=String(el.value||"").trim(), n=Number(v);
+    return /^\d{1,3}$/.test(v) && n>=LX_MIN && n<=LX_MAX ? {ok:true,value:n} : {ok:false,error:`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`}; }
+  function lxDays(){ const r=lxCheck(); return r.ok ? r.value : null; }
   const lxPlural=(n)=>n+" day"+(n===1?"":"s");
   function lxFmt(d){ const o={day:"numeric",month:"short",year:"numeric"};
     try{ return d.toLocaleDateString("en-GB",Object.assign({timeZone:lxTz},o)); }catch(e){ return d.toLocaleDateString("en-GB",o); } }
@@ -1475,6 +1498,7 @@
     $("#lx_on").setAttribute("aria-checked", on?"true":"false");
     $("#lx_days").disabled=!on;
     $("#lx_days").setAttribute("aria-invalid", on && n==null ? "true" : "false");
+    if($("#lx_days").classList){ $("#lx_days").classList.toggle("fv-error", on && n==null); ex.classList.toggle("lx-bad", on && n==null); }
     $("#lx_moveSet").hidden=!lxMoveReady;
     $("#lx_moveSet").disabled=!on;
     const mv=lxMove(), w=$("#lx_moveWait");
@@ -1483,7 +1507,7 @@
       : (lxWaiting!=null&&mv!==lxSavedMove ? `${lxWaiting} quote${lxWaiting===1?"":"s"} would move right now. ` : "")+
         `Quotes move to ${LX_MOVE_LBL[mv]} the next time someone opens Quotes or the Dashboard (checked at most every 10 minutes).`;
     if(!on){ ex.textContent="Off — links follow only the usual limits after the event."; return; }
-    if(n==null){ ex.textContent=`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`; return; }
+    if(n==null){ ex.textContent=lxCheck().error; return; }
     ex.textContent=`A link sent today would stop working on ${lxFmt(new Date(Date.now()+n*LX_DAY_MS))}.`;
   }
   async function initLinkExpiry(){
@@ -1507,11 +1531,12 @@
   }
   $("#lx_on").addEventListener("change",paintLx);
   $("#lx_days").addEventListener("input",paintLx);
+  $("#lx_days").addEventListener("blur",()=>{ const r=lxCheck(); if(r.ok && String(r.value)!==String($("#lx_days").value)){ $("#lx_days").value=String(r.value); paintLx(); } });   // "010" -> "10"
   LX_MOVES.forEach(v=>$("#lx_move_"+v).addEventListener("change",paintLx));
   $("#lx_save").addEventListener("click",()=>BPUI.guard($("#lx_save"),async()=>{
     if(!lxLoaded){ lxMsg("err","Link expiry didn't load, so it can't be saved yet."); return; }
     const on=$("#lx_on").checked, n=lxDays(), mv=lxMoveReady?lxMove():lxSavedMove;
-    if(on && n==null){ lxMsg("err",`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`); $("#lx_days").focus(); return; }
+    if(on && n==null){ lxMsg("err",lxCheck().error||`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`); $("#lx_days").focus(); return; }
     const moving = on && mv!=="keep" && mv!==lxSavedMove;
     if(on && !(await BPUI.confirm(`Every client, crew and guest link will stop working ${lxPlural(n)} after it was sent — including links already sent more than ${lxPlural(n)} ago, from the moment you save.`+
         (moving?` Quotes whose link has expired and that were never confirmed, approved or paid will move to ${LX_MOVE_LBL[mv]}${lxWaiting!=null?` (${lxWaiting} right now)`:""} — you can restore them from the Quotes page.`:""),
@@ -1767,15 +1792,26 @@
     if(/Something went wrong/.test(f) && m && m.length<200 && !/column|relation|violates|PGRST|syntax|function|null|undefined/i.test(m)) return "Couldn’t add the user. "+m.replace(/^./,ch=>ch.toUpperCase()).replace(/([^.!?])$/,"$1.");
     return f;
   }
+  // input sweep A (cc-inputs.js): the e-mail is checked under the box - format, spaces, your own address,
+  // someone already in the team, an invite already pending; the role must be one from the list
+  let invPending=[];
+  function ccTeam(){ const CI=window.HelmCCInputs; return CI&&CI.bindTeam?CI.bindTeam({
+    self:()=>{ const u=BPStore.auth.user(); return (u&&u.email)||""; }, members:()=>ucRows.map(u=>u.email).filter(Boolean), pending:()=>invPending }):null; }
+  function ccRoleOk(sel){ const CI=window.HelmCCInputs, r=CI?CI.role($(sel).value, ROLES):{ok:!!$(sel).value,error:"Choose a role."};
+    if(!r.ok){ setUMsg("err",r.error); $(sel).focus(); } return r.ok; }
+  ccTeam();
   $("#um_add").addEventListener("submit", async (e)=>{
     e.preventDefault();
-    const email=$("#um_email").value.trim(), role=$("#um_role").value;
+    if($("#um_submit").disabled) return;   // already adding (Enter pressed twice) or all seats in use
+    const T=ccTeam(); if(T&&T.member&&window.HelmCCInputs.first([T.member])) return;
+    if(!ccRoleOk("#um_role")) return;
+    const email=((T&&T.member&&T.member.value())||$("#um_email").value.trim()).toLowerCase(), role=$("#um_role").value;
     { const r=BPStore.validate.email(email); if(!r.ok){ setUMsg("err",r.error); $("#um_email").focus(); return; } }
     await BPUI.guard($("#um_submit"), async()=>{
     try{
       const r = await BPStore.auth.admin.createUserTemp(email, role);   // { user_id, temp_password }
       const tp = (r && r.temp_password) || "";
-      $("#um_email").value=""; await renderUsers();
+      $("#um_email").value=""; if(T&&T.member) T.member.reset(); await renderUsers();
       // Show the one-time temp password prominently with a copy button.
       const m=$("#umsg");
       m.innerHTML = `<div class="msg ok" style="line-height:1.6">Added <b>${esc(email)}</b> as ${esc(role)}.<br>`+
@@ -1805,7 +1841,10 @@
   }
   $("#inv_add").addEventListener("submit", async (e)=>{
     e.preventDefault();
-    const email=$("#inv_email").value.trim(), role=$("#inv_role").value;
+    if($("#inv_submit").disabled) return;   // already creating, or all seats in use
+    const T=ccTeam(); if(T&&T.invite&&window.HelmCCInputs.first([T.invite])) return;
+    if(!ccRoleOk("#inv_role")) return;
+    const email=((T&&T.invite&&T.invite.value())||$("#inv_email").value.trim()).toLowerCase(), role=$("#inv_role").value;
     { const r=BPStore.validate.email(email); if(!r.ok){ setUMsg("err",r.error); $("#inv_email").focus(); return; } }
     await BPUI.guard($("#inv_submit"), async()=>{
     try{
@@ -1813,7 +1852,7 @@
       const link=location.origin+"/login?invite="+encodeURIComponent(r.token);
       $("#inv_link").value=link; $("#inv_out").hidden=false;
       setUMsg("ok",(r.reused?"Existing invite link ready for ":"Invite link created for ")+email+".");
-      $("#inv_email").value=""; renderInvites();
+      $("#inv_email").value=""; if(T&&T.invite) T.invite.reset(); renderInvites();
       // 0131: a NEW invite row queues its e-mail by trigger; a reused one does not, so re-queue it first.
       if(r.reused){ try{ const rows=await BPStore.invitations.list();
         const inv=(rows||[]).find(i=>i.status==="pending"&&String(i.email||"").toLowerCase()===email.toLowerCase());
@@ -1843,6 +1882,7 @@
     catch(e){ BPUI.loadError(tb, e, renderInvites, {what:"pending invites"}); return; }
     const now=Date.now();
     const pend=(rows||[]).filter(i=>i.status==="pending" && (!i.expires_at || new Date(i.expires_at).getTime()>now));
+    invPending=pend.map(i=>({email:String(i.email||"").toLowerCase(), role:i.role}));
     tb.innerHTML=pend.map(i=>`<tr data-id="${esc(i.id)}" data-email="${esc(i.email)}" data-role="${esc(i.role)}"><td>${esc(i.email)}</td><td>${esc(BPStore.auth.admin.roleLabel(i.role))}</td><td>${esc(ucDate(i.created_at))}</td><td>${esc(ucDate(i.expires_at))}</td><td><button type="button" class="btn invCopy">Copy link</button> <button type="button" class="btn invResend">Resend email</button> <button type="button" class="btn invRevoke">Revoke</button></td></tr>`).join("")
       || `<tr><td colspan="5" style="color:var(--ink-3)">No pending invites.</td></tr>`;
     tb.querySelectorAll(".invRevoke").forEach(btn=>btn.addEventListener("click", async ()=>{
@@ -1985,11 +2025,22 @@
   async function applySuggested(role, btn){
     const list=(ROLE_SUGGEST[role]||[]).filter(([a])=>AREAS.some(x=>x.key===a));
     if(!list.length) return;
-    if(!(await BPUI.confirm("Switch on "+list.map(([a,e])=>a+(e?" (edit)":" (view)")).join(", ")+" for "+role+"? You can change each one afterwards.",{title:"Apply suggested access?",okLabel:"Apply"}))) return;
+    const lbl=(k)=>(AREAS.find(x=>x.key===k)||{}).label||k, rl=BPStore.auth.admin.roleLabel(role);
+    if(btn.disabled) return;   // a second click while the first is still asking / saving
     btn.disabled=true;
-    try{ for(const [a,e] of list) await BPStore.auth.admin.setAccess(role, a, true, e); BPUI.toast(role+": suggested access applied",{type:"ok"}); }
-    catch(err){ BPUI.toast(errMsg(err,"change access"),{type:"err"}); }
-    await loadMatrix(); renderMatrix();
+    if(!(await BPUI.confirm("Switch on "+list.map(([a,e])=>lbl(a)+(e?" (view + edit)":" (view)")).join(", ")+" for "+rl+"? You can change each one afterwards.",{title:"Apply suggested access?",okLabel:"Apply"}))){ btn.disabled=false; return; }
+    // same queue as single toggles, so a click made meanwhile is never overwritten by a stale grid
+    cellPending++; $("#matrix").setAttribute("aria-busy","true");
+    cellQueue = cellQueue.then(async()=>{
+      // "switch on" only adds: an area this role can already EDIT keeps edit (never downgraded to view), one already as suggested is skipped
+      try{ for(const [a,e] of list){ const cur=(MTX[role]&&MTX[role][a])||cellDefault(role,a), ed=!!(e||cur.edit);
+          if(cur.view && !!cur.edit===ed) continue;
+          await BPStore.auth.admin.setAccess(role, a, true, ed); }
+        BPUI.toast(rl+": suggested access applied",{type:"ok"}); }
+      catch(err){ BPUI.toast(errMsg(err,"change access"),{type:"err"}); }
+      await loadMatrix();
+    }).catch(()=>{}).finally(()=>{ cellPending--; if(!cellPending) $("#matrix").removeAttribute("aria-busy"); renderMatrix(); });
+    return cellQueue;
   }
   // saveCell is SERIALIZED: quick clicks queue up and each one computes its toggle
   // from the matrix as re-read from the server after the previous save, so two fast
