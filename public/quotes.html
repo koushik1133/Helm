@@ -84,9 +84,14 @@
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 
   /* modal */
-  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  /* qmodal-1018: the dialog layer sits ABOVE the app chrome (sticky top bar 800, side rail 900, trial / notice cards 900),
+     so the dimmed backdrop covers all of it and the sheet's title is never tucked under the top bar. The sheet is
+     centred when it fits (margin:auto), otherwise pinned to the top gutter and it scrolls inside itself. */
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:1100;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:hidden;overscroll-behavior:contain}
   .lmodal[hidden]{display:none!important}
-  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(760px,96vw);max-height:90vh;overflow:auto;padding:24px}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(760px,96vw);margin:auto;max-height:calc(100vh - 48px);max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;padding:24px}
+  /* the layer itself is not a card: theme skins that style every [role=dialog] must not paint the backdrop */
+  html[data-shell] .lmodal{background:rgba(20,27,46,.5)!important;border:0!important;border-radius:0!important;box-shadow:none!important}
   .sheet h3{margin:0 0 2px;font-size:18px;display:flex;align-items:center;gap:8px}
   .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:32px;height:32px;font-size:15px;cursor:pointer;color:var(--ink-2)}
   .sheet p.sub{margin:0 0 16px;font-size:12px;color:var(--ink-3)}
@@ -283,7 +288,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script><script src="quote-state.js?v=2"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script><script src="quote-state.js?v=2"></script><script src="quote-rates.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=15"></script>
 <script>
@@ -606,54 +611,64 @@
   let cmChairsSeed="", cmId=null, cmConfig=null, cmVendors=[], cmCoupons=[], platesEdited=false;
   async function openConfirm(id){
     $("#cm_err").hidden=true;
-    let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"open this quote"}),{type:"err"}); return; }
+    // qmodal-1018: always read the quote fresh - a copy cached earlier in this page's life (version list, an
+    // earlier open, a back/forward restore) can predate the client details typed in the event workspace
+    let full; try{ full=await BPStore.quotes.get(id); if(full) detailCache[id]=full; }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"open this quote"}),{type:"err"}); return; }
     if(!full){ BPUI.toast("This quote no longer exists.",{type:"err"}); return; }
     cmId=id;
-    // prefill from stored pricing/client, and counts from the current version
-    const pr=full.pricing||{}, cl=full.client||{};
+    const pr=full.pricing||{};
     $("#cm_titleText").textContent = (full.status==="confirmed"?"Re-price ":"Confirm ")+full.code;
-    $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
-    $("#c_phone").value=cl.phone||""; $("#c_date").value=cl.eventDate||""; $("#c_venue").value=cl.venue||"";
-    $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||""; $("#c_state").value=cl.state||""; $("#c_trn").value=cl.trn||"";
     // central rates + vendors + coupons from the Control Center
     // Each lookup is optional: run them together and give each a time limit, so one slow or
     // failing read (vendors, coupons, the plan, the layout version) can never leave the row's
     // Confirm button spinning with no dialog — the dialog opens with sensible fallbacks instead.
     const soft=(fn,fb)=>Promise.race([Promise.resolve().then(fn), new Promise(r=>setTimeout(()=>r(fb),8000))]).then(v=>v==null?fb:v,()=>fb);
-    const [cfgR, vendR, coupR, verR, planR]=await Promise.all([
+    const [cfgR, vendR, coupR, verR, planR, pkgR, selR]=await Promise.all([
       soft(()=>BPStore.config.getPricing(),null), soft(()=>BPStore.vendors.list(),[]), soft(()=>BPStore.coupons.list(),[]),
-      soft(()=>BPStore.quotes.getVersion(id, full.currentVersion),null), soft(()=>BPStore.plan.get(id),null)]);
-    cmConfig=cfgR||{chairPrice:200,platePrice:500,gstPct:18,cateringGstPct:18,serviceChargePct:0};
+      soft(()=>BPStore.quotes.getVersion(id, full.currentVersion),null), soft(()=>BPStore.plan.get(id),null),
+      soft(()=>BPStore.menuTemplates.list(true),[]),
+      // a plate price agreed with the client in the package flow must never be replaced by the list price
+      soft(()=>(BPStore.pkgflow&&BPStore.pkgflow.list)?BPStore.pkgflow.list(id):[],[])]);
+    // qmodal-1018: a pricing config may lack the rate keys (a free-trial studio's carries only tax + terms):
+    // fall back to the defaults Control Center shows for it, never to an empty / ₹0 rate
+    { const sr=HelmQuoteRates.studioRates(cfgR);
+      cmConfig=cfgR ? Object.assign({}, cfgR, { chairPrice:sr.chairPrice, platePrice:sr.platePrice }) : {chairPrice:200,platePrice:500,gstPct:18,cateringGstPct:18,serviceChargePct:0}; }
     cmVendors=Array.isArray(vendR)?vendR:[]; cmCoupons=Array.isArray(coupR)?coupR:[];
     const cfg=cmConfig; const sT=BPStore.tax.resolve(cfg), qT=BPStore.quoteTax(full);
     // B11: an already-priced quote stays in ITS currency/tax; switching to the studio's country is an explicit choice
     const priced=("gstPct" in pr)||("total" in pr); cmKeep = priced && qT.country!==sT.country;
     cmTaxSwitched=false; curTax = cmKeep ? qT : sT; paintCurBanner(cmKeep, qT, sT, pr, cfg);
-    $("#rateNote").textContent = `· ${inr(cfg.chairPrice)}/chair · ${inr(cfg.platePrice)}/plate · ${curTax.name} ${curTax.rate}%${curTax.inclusive?" (included in prices)":""}  (edit in Control Center)`;
+    $("#rateNote").textContent = "";   // painted with the effective rates by recalc() → paintRateNote()
     // seat counts + object cost from current version (same engine as the builder)
     let seats=0, objectsCost=0; try{ const v=verR;
       const items=v&&v.data&&v.data.items; seats=countSeats(items);
       const oi=BPStore.pricing.fromItems(items, cfg.assetPrices); objectsCost=oi.objectsCost;
     }catch{}
-    // menu package (set on the plan by the builder / plan screen) → its per-plate price drives catering
     const planRow=planR||null;
-    const menuPlate = planRow && planRow.menu_plate_price!=null ? +planRow.menu_plate_price : null;
+    // client: the quote's client record, else the copy inside its pricing / the list row (qmodal-1018)
+    const row=(Array.isArray(quotes)?quotes:[]).find(x=>x&&x.id===id)||null, mc=HelmQuoteRates.clientFor(full,row,planRow);
+    $("#c_name").value=mc.name; $("#c_company").value=mc.company; $("#c_email").value=mc.email;
+    $("#c_phone").value=mc.phone; $("#c_date").value=mc.eventDate; $("#c_venue").value=mc.venue;
+    $("#c_address").value=mc.address; $("#c_notes").value=mc.notes; $("#c_state").value=mc.state; $("#c_trn").value=mc.trn;
+    const cl=full.client||{};
+    // effective rates (qmodal-1018): the applied package's CURRENT price wins for the plate (the plan only keeps the price
+    // the package had when it was applied); the chair is the studio rate, or the quote's own when it keeps its currency
+    cmRatesIn={ cfg:cmConfig, pricing:pr, plan:planRow, packages:Array.isArray(pkgR)?pkgR:[], selections:Array.isArray(selR)?selR:[] };
+    cmRates=HelmQuoteRates.effective(Object.assign({ keep:cmKeep }, cmRatesIn));
     // R9: the quote's ONE chairs value (typed, else 70% of guests) — the layout count only when nothing else exists
     $("#p_chairs").value = pr.chairs!=null?HelmSizing.quoteChairs(cl,pr,pr.chairs):(HelmSizing.quoteChairs(cl,pr,seats)??seats);
     cmChairsSeed = String($("#p_chairs").value);
     // guests: last-priced value → layout seats → the count carried over from the lead
     $("#p_guests").value = pr.guests!=null?pr.guests:(pr.chairs!=null?pr.chairs:(seats||(cl.guests!=null?cl.guests:"")));
     // rates from the Control Center, but plate price follows the applied menu package when there is one
-    $("#p_chairPrice").value = cfg.chairPrice;
-    $("#p_platePrice").value = menuPlate!=null ? menuPlate : cfg.platePrice;
-    $("#p_gst").value = cmKeep && pr.gstPct!=null ? pr.gstPct : cfg.gstPct;
+    $("#p_chairPrice").value = cmRates.chairPrice;
+    $("#p_platePrice").value = cmRates.platePrice;
+    $("#p_gst").value = cmKeep && pr.gstPct!=null ? pr.gstPct : (cfg.gstPct!=null && cfg.gstPct!=="" ? cfg.gstPct : sT.rate);
     $("#p_cgst").value = cmKeep && pr.catering && pr.catering.gstPct!=null ? pr.catering.gstPct : (cfg.cateringGstPct!=null ? cfg.cateringGstPct : "");
-    if(cmKeep && pr.chairPrice!=null) $("#p_chairPrice").value = pr.chairPrice;
-    if(cmKeep && pr.platePrice!=null && menuPlate==null) $("#p_platePrice").value = pr.platePrice;
     $("#p_svc").value = cfg.serviceChargePct||0;
     // fold the layout's décor/equipment + setup fee into "other" (first time only, so manual edits stick)
     $("#p_other").value = (pr.other!=null && pr.other!=="") ? pr.other : (objectsCost + (+cfg.layoutBase||0));
-    cmPkgName = (menuPlate!=null && planRow.menu_template) ? String(planRow.menu_template) : "";
+    cmPkgName = (cmRates.plateSrc==="package"||cmRates.plateSrc==="agreed") ? cmRates.pkgName : "";
     // vendor dropdown (+ add new)
     $("#p_vendor").innerHTML = `<option value="">— none —</option>`+cmVendors.map(v=>`<option>${esc(v.name)}</option>`).join("")+`<option value="__new">＋ Add new vendor…</option>`;
     $("#p_vendor").value = (pr.catering&&pr.catering.vendor)||"";
@@ -664,7 +679,7 @@
     $("#p_camount").value = (pr.catering&&pr.catering.amount)||0;
     { const dv=HelmDiscount.pick(pr.discount, pr.discountPct); $("#p_discount").value = dv.discount||0; $("#p_discountPct").value = dv.discountPct||0; }   // PP1028 #5
     $("#p_taxExempt").checked = String(pr.taxExempt)==="true";
-    $("#p_pos").value = pr.placeOfSupply||BPStore.tax.placeOfSupply(studioState, cl.state)||"intra";
+    $("#p_pos").value = pr.placeOfSupply||BPStore.tax.placeOfSupply(studioState, mc.state)||"intra";
     platesEdited = pr.guests!=null && pr.chairs!=null && pr.guests!==pr.chairs;
     recalc();
     cmDirty.clean();
@@ -675,10 +690,17 @@
   async function requestCloseConfirm(){ if($("#confirmModal").hidden) return; if(!(await BPUI.confirmDiscard(cmDirty))) return; closeConfirm(); }
   let cmKeep=false;
   let cmPkgName="";   // applied menu package (its per-plate price overrides the studio default)
-  // the header shows the EFFECTIVE rates this quote is priced at (package plate price, kept chair price), not the studio defaults
+  let cmRates=null, cmRatesIn=null;   // qmodal-1018: HelmQuoteRates.effective() for the open quote (rate + where it comes from)
+  // the header shows the EFFECTIVE rates this quote is priced at (package plate price, kept chair price), not the studio defaults,
+  // each with its source, plus the rates the quote was last saved at when a save would change them
   function paintRateNote(p){
     const rn=$("#rateNote"); if(!rn || !curTax) return;
-    rn.textContent = `· ${inr(p.chairPrice)}/chair · ${inr(p.platePrice)}/plate${cmPkgName?` (package: ${cmPkgName})`:""} · ${curTax.name} ${curTax.rate}%${curTax.inclusive?" (included in prices)":""}  (edit in Control Center)`;
+    const r=Object.assign({}, cmRates||{chairSrc:"studio",plateSrc:cmPkgName?"package":"studio",pkgName:cmPkgName}, { chairPrice:p.chairPrice, platePrice:p.platePrice });
+    rn.textContent = HelmQuoteRates.note(r, inr, curTax);
+    let sv=document.getElementById("cmSavedRates");
+    if(!sv){ sv=document.createElement("div"); sv.id="cmSavedRates"; sv.className="taxnote"; sv.setAttribute("role","note"); const sec=rn.closest(".seclabel"); if(sec&&sec.parentNode) sec.parentNode.insertBefore(sv, sec.nextSibling); }
+    const txt=HelmQuoteRates.savedNote(cmRates&&cmRates.saved?Object.assign({},cmRates,{chairPrice:p.chairPrice,platePrice:p.platePrice}):null, inr);
+    sv.textContent=txt; sv.hidden=!txt;
   }
   // the total last saved on this quote (0 / unknown → no "changes from" line)
   function cmSavedTotal(){ const d=detailCache[cmId]||{}; const v=Number(d.pricing&&d.pricing.total!=null?d.pricing.total:d.total); return Number.isFinite(v)&&v>0?v:null; }
@@ -688,7 +710,8 @@
     b.textContent=""; b.hidden=!show; if(!show) return;
     b.append(document.createTextNode(`This quote is in ${qT.currency} (${qT.name}). Your studio now prices in ${sT.currency} (${sT.name} ${sT.rate}%). `));
     const btn=document.createElement("button"); btn.type="button"; btn.className="btn"; btn.textContent=`Switch to ${sT.currency}`;
-    btn.addEventListener("click",()=>{ cmKeep=false; cmTaxSwitched=true; curTax=sT; $("#p_gst").value=cfg.gstPct; $("#p_cgst").value=cfg.cateringGstPct; $("#p_chairPrice").value=cfg.chairPrice;
+    btn.addEventListener("click",()=>{ cmKeep=false; cmTaxSwitched=true; curTax=sT; $("#p_gst").value=(cfg.gstPct!=null&&cfg.gstPct!=="")?cfg.gstPct:sT.rate; $("#p_cgst").value=cfg.cateringGstPct; $("#p_chairPrice").value=cfg.chairPrice;
+      if(cmRatesIn){ cmRates=HelmQuoteRates.effective(Object.assign({ keep:false }, cmRatesIn)); $("#p_platePrice").value=cmRates.platePrice; }
       b.hidden=true; recalc(); BPUI.toast(`Re-priced in ${sT.currency} - check the rates, then save.`,{type:"info"}); });
     b.append(btn);
   }
@@ -1052,6 +1075,8 @@
   // Escape → BPUI clicks [data-close] (the × below), so every close path runs the unsaved-changes check
   $("#cm_close").addEventListener("click",requestCloseConfirm);
   $("#confirmModal").addEventListener("click",e=>{ if(e.target.id==="confirmModal") requestCloseConfirm(); });
+  // qmodal-1018: a page restored by Back / Forward keeps its old in-memory quotes - drop the cached details and re-read the list
+  window.addEventListener("pageshow",e=>{ if(!e.persisted) return; Object.keys(detailCache).forEach(k=>{ delete detailCache[k]; }); try{ Promise.resolve(load()).catch(()=>{}); }catch(_){ } });
   HelmDiscount.wireExclusive($("#p_discount"), $("#p_discountPct"));   // PP1028 #5: ₹ and % never add up
   $("#confirmModal").addEventListener("input",e=>{ if(e.target.closest(".grid,.totals")||/^p_/.test(e.target.id)) recalc(); });
   // plates auto-follow chairs until the user edits plates

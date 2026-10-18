@@ -4641,6 +4641,12 @@ async function init(){
           if(plan.menu_template) PRICING.menuPackageName = plan.menu_template;
           const match=(PRICING.packages||[]).find(p=>p.name===plan.menu_template);
           if(match) PRICING.appliedPkgId = match.id;
+          // qmodal-1018: the builder re-writes the quote's pricing on its own (every layout save), so it must never
+          // silently move the plate rate to the package's list price (that would undo a price agreed with the client).
+          // It keeps the plan's applied-at price, except when the quote was already re-priced at the package's
+          // CURRENT price (the Confirm / Re-price dialog) - then that saved price stays and the two screens agree.
+          if(match && currentPricing && currentPricing.platePrice!=null && currentPricing.platePrice!=="" && match.price_per_plate!=null
+             && +currentPricing.platePrice === +match.price_per_plate) PRICING.menuPlatePrice = +match.price_per_plate;
         }
       }catch{}
       buildMenuControls();
