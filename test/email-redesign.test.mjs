@@ -11,15 +11,16 @@ let n = 0; const ok = (c, m) => { assert.ok(c, m); n++; };
 
 const html = L.layout('T <x>', 'Pre <y>', L.h1('Hi') + L.button('https://a.test/', 'Go'));
 ok(html.includes('width="600"') && html.includes('max-width:600px'), '600px container');
-ok(html.includes('src="https://www.helm.events/email/helm-logo.png"') && html.includes('alt="Helm"'), 'hosted logo');
+ok(html.includes('src="https://www.helm.events/email/helm-logo-v3.png"') && html.includes('alt="Helm Events"'), 'hosted logo (r19 compass-H, versioned URL)');
 ok((html.match(/<img\b/g) || []).length === 1, 'exactly one image (logo), no tracking pixel');
 ok(/prefers-color-scheme:dark/.test(html) && /\[data-ogsc\]/.test(html), 'dark-mode friendly');
 ok(html.includes('Helm Events &middot;') && html.includes('helm.events</a>'), 'footer');
 ok(html.includes('Pre &lt;y&gt;') && html.includes('<title>T &lt;x&gt;</title>'), 'title + preheader escaped');
 ok(/role="presentation"/.test(html) && !/<script/i.test(html), 'tables, no script');
-ok(existsSync(new URL('public/email/helm-logo.png', root)), 'logo PNG shipped');
-const png = readFileSync(new URL('public/email/helm-logo.png', root));
-ok(png.readUInt32BE(16) === 112 && png.readUInt32BE(20) === 112, 'logo is 2x (112px for 40-56px display)');
+ok(existsSync(new URL('public/email/helm-logo-v3.png', root)), 'logo PNG shipped');
+const png = readFileSync(new URL('public/email/helm-logo-v3.png', root));
+ok(png.readUInt32BE(16) === 80 && png.readUInt32BE(20) === 80, 'logo is 2x (80px for the 40px display)');
+ok(existsSync(new URL('public/email/helm-logo.png', root)), 'old logo URL kept (already-sent e-mails still resolve)');
 
 const names = ['confirm-signup', 'invite-user', 'magic-link', 'reset-password', 'change-email', 'reauthentication'];
 ok(names.every((k) => TEMPLATES[k] && TEMPLATES[k].subject && TEMPLATES[k].supabase), 'six auth templates with subjects');

@@ -7,7 +7,13 @@
 import { DEFAULT_POSTAL_ADDRESS } from "./email-compliance.mjs";
 
 export const SITE = "https://www.helm.events";
-export const LOGO_URL = "https://www.helm.events/email/helm-logo.png";
+// r19: current compass-H app tile (public/brand/helm-email-emerald.svg rendered to an 80x80 PNG = 2x the
+// 40px display size; own dark-green tile, so it reads on light AND dark backgrounds). The file NAME is
+// versioned on purpose: /*.png is served "immutable" for a year and Gmail/Outlook image proxies cache by
+// URL, so overwriting helm-logo.png in place kept showing the old two-pill mark. Never overwrite an
+// e-mail image in place - add a new file name and point LOGO_URL at it (keep the old file for old mail).
+export const LOGO_URL = "https://www.helm.events/email/helm-logo-v3.png";
+export const LOGO_ALT = "Helm Events";
 export const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 export const C = {
   bg: "#f4f6f3", card: "#ffffff", ink: "#101511", body: "#3d4540", muted: "#66706a",
@@ -88,7 +94,7 @@ export function layout(title, preheader, inner, opts = {}) {
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
 <tr><td style="padding:0 4px 22px;" align="left">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-    <td width="40" height="40" valign="middle" style="width:40px;height:40px;"><a href="${site}" style="text-decoration:none;"><img src="${LOGO_URL}" width="40" height="40" alt="Helm" style="display:block;width:40px;height:40px;border:0;outline:none;border-radius:10px;"></a></td>
+    <td width="40" height="40" valign="middle" style="width:40px;height:40px;"><a href="${site}" style="text-decoration:none;"><img src="${LOGO_URL}" width="40" height="40" alt="${LOGO_ALT}" style="display:block;width:40px;height:40px;border:0;outline:none;text-decoration:none;border-radius:8px;"></a></td>
     <td class="ink" valign="middle" style="padding-left:12px;font-family:${FONT};font-size:20px;line-height:24px;font-weight:700;letter-spacing:-.02em;color:${C.ink};">Helm <span class="muted" style="font-weight:500;color:${C.muted};">Events</span></td>
   </tr></table>
 </td></tr>
