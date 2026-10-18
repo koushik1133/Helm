@@ -738,8 +738,13 @@
       const A = BPStore.auth;
       if(!(A && A.enabled && A.enabled())){ if(!localStorage.getItem("bp_seen_tour")) startTourWhenReady(); return; }   // local/demo mode: per-device
       const u = A.user && A.user(); if(!u) return;
-      // the trial welcome (trial-demo.js) is showing: leave bp_force_tour for after it (finishWelcome reloads)
-      if(window.HelmTrialDemo && HelmTrialDemo.welcomeOn) return;
+      // the trial welcome (trial-demo.js) is showing: leave bp_force_tour for after it (finishWelcome reloads).
+      // 0180: the server decides (works across devices), so wait for that answer (max 10 s) first.
+      if(window.HelmTrialDemo && HelmTrialDemo.welcomeDecision){
+        const w = await Promise.race([ HelmTrialDemo.welcomeDecision().then(v=>v===true, ()=>false),
+                                       new Promise(r => setTimeout(() => r(null), 10000)) ]);
+        if(w !== false) return;   // showing (or still unknown): bp_force_tour stays for after it
+      } else if(window.HelmTrialDemo && HelmTrialDemo.welcomeOn) return;
       let forced=false; try{ forced=!!localStorage.getItem("bp_force_tour"); localStorage.removeItem("bp_force_tour"); }catch{}
       const seen = A.tourSeen ? A.tourSeen() : true;
       const eligible = A.tourEligible ? A.tourEligible() : false;

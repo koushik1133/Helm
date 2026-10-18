@@ -3,7 +3,9 @@
    -------------------------------------------------------------------------
    Loaded by store-api.js on studio pages. Asks my_trial_org(); shows nothing
    unless this studio was made by start_trial().
-     • in trial  → "Free trial · N days left" + "Choose a plan" (admins)
+     • in trial  → "Free trial · N days left" + "Choose a plan" (admins) — 0180: nothing else
+                   (no sample-data text / badge / "Start my own studio"); the plan link goes
+                   straight to /checkout
      • ended     → "Trial ended — read-only. Your data is safe." + "Choose a plan"
      • 0120: admins see a reminder card once per day on day 5 / 7 / 8 (3 days left /
        ends tomorrow / ends today, in the studio's zone) — "Choose a plan" / "Remind me later"
@@ -29,20 +31,17 @@
     var n = Math.max(0, cal != null && isFinite(cal) ? cal : Math.floor(Number(t.days_left)));
     if (!isFinite(n)) return null;
     var left = n === 0 ? "ends today" : n === 1 ? "1 day left" : n + " days left";
+    // 0180: the strip is only "Free trial · N days left" + "Choose a plan" (admins): no body text,
+    // no "Sample data" badge and no "Start my own studio" link any more
     return { tone: n <= 2 ? "soon" : "", locked: false,
       title: "Free trial · " + left,
-      body: t.trial_mode === "own" ? null : "You're exploring sample data. Everything marked “Demo ·” is fictional.",
-      cta: admin ? "Choose a plan" : null,
-      // 0123: exploring samples -> one clear "start my own studio" action; "Choose a plan" offers it first
-      fresh: admin && t.trial_mode === "demo" ? "Start my own studio" : null,
-      // 0167: a visible "Sample data" badge while the studio still shows the sample dataset
-      badge: t.trial_mode === "demo" ? "Sample data" : null };
+      body: null,
+      cta: admin ? "Choose a plan" : null };
   }
 
-  // Pure (unit-tested): where "Choose a plan" goes. In demo mode it first offers to remove the samples.
+  // Pure (unit-tested): where "Choose a plan" goes - 0180: always straight to the plan / checkout page
+  // (it no longer offers to remove the samples first; t is kept for callers)
   function planHref(t, pageName) {
-    if (t && t.is_admin === true && t.trial_mode === "demo" && t.ended !== true && t.locked !== true)
-      return "dashboard.html?demo=fresh&then=checkout";
     return "checkout.html?next=" + encodeURIComponent((pageName || "dashboard") + ".html");
   }
 
@@ -137,10 +136,7 @@
     ".htr{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:center;padding:8px 16px;font-size:13.5px;line-height:1.4;background:var(--accent-soft,#efe9ff);color:var(--ink,#1b1930);border-bottom:1px solid var(--line,#e8e3db)}",
     ".htr.soon{background:#fff4e0}.htr.ended{background:#fde8e8}",
     ".htr b{font-weight:700}.htr span{color:var(--ink-2,#4b475f)}",
-    ".htr span.htr-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff);border-radius:999px;padding:2px 8px}",
     ".htr a{display:inline-block;padding:4px 12px;border-radius:999px;background:var(--accent,#6d28d9);color:#fff;font-weight:600;text-decoration:none}",
-    ".htr a.htr-fresh{background:transparent;color:var(--accent,#6d28d9);border:1px solid var(--accent,#6d28d9)}",
-    "html[data-theme=dark] .htr a.htr-fresh{color:#d9ccff;border-color:#8b7bd8}",
     ".htr a:focus-visible{outline:2px solid var(--ink,#1b1930);outline-offset:2px}",
     ".htrm{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(20,16,40,.45)}",
     ".htrm-c{max-width:440px;width:100%;background:var(--card,#fff);color:var(--ink,#1b1930);border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);font-size:14.5px;line-height:1.5}",
@@ -172,7 +168,6 @@
     bar.id = "helmTrialStrip";
     bar.className = "htr" + (spec.tone ? " " + spec.tone : "");
     bar.setAttribute("role", spec.locked ? "alert" : "status");
-    if (spec.badge) { var g = doc.createElement("span"); g.className = "htr-badge"; g.textContent = spec.badge; bar.appendChild(g); }
     var b = doc.createElement("b"); b.textContent = spec.title; bar.appendChild(b);
     if (spec.body) { var s = doc.createElement("span"); s.textContent = spec.body; bar.appendChild(s); }
     if (spec.cta) {
@@ -180,12 +175,6 @@
       a.href = planHref(lastT, page());
       a.textContent = spec.cta;
       bar.appendChild(a);
-    }
-    if (spec.fresh) {
-      var f = doc.createElement("a");
-      f.href = "dashboard.html?demo=fresh"; f.className = "htr-fresh";
-      f.textContent = spec.fresh;
-      bar.appendChild(f);
     }
     doc.body.insertBefore(bar, doc.body.firstChild);
     if (spec.locked) doc.documentElement.classList.add("helm-trial-locked");
