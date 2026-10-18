@@ -66,7 +66,7 @@ async function makeEnv(o = {}) {
     return (o.respond || (() => ({ data: [], error: null })))(q);
   });
   const doc = {
-    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=247' },
+    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=248' },
     createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, addEventListener() {}, querySelector: () => null, remove() {} }),
     head: { appendChild() {} }, body: { appendChild() {}, removeChild() {}, children: [] },
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; }, classList: { contains: () => false, add() {}, remove() {} } },
@@ -211,7 +211,7 @@ t('0198: additive, idempotent, ASCII; hard event-day rule + kept balance gate; r
   assert.match(RUNALL, /EVENT-STAGES-0198: ALL PASS \\\(63\/63\\\)/);
 });
 t('pins: event.html loads the bumped event-polish.css', () => {
-  assert.match(EV, /href="\/event-polish\.css\?v=3"/);
+  assert.match(EV, /href="\/event-polish\.css\?v=4"/);
 });
 
 let pass = 0, fail = 0;

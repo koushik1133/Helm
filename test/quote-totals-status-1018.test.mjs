@@ -25,7 +25,7 @@ function memStore(seed) { const m = new Map(Object.entries(seed || {}));
   return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), clear: () => m.clear(), key: (i) => [...m.keys()][i] || null, get length() { return m.size; } }; }
 function load(ls) {
   const el = () => ({ style: {}, setAttribute() {}, appendChild() {}, addEventListener() {}, querySelector: () => null, remove() {} });
-  const doc = { readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=247' },
+  const doc = { readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=248' },
     createElement: el, head: { appendChild() {} }, body: { appendChild() {}, removeChild() {}, children: [] },
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; }, classList: { contains: () => false, add() {}, remove() {} } },
     querySelector: () => null, querySelectorAll: () => [], getElementById: () => null };
@@ -150,7 +150,7 @@ await t('live dashboard (shell-b-money): Upcoming row = invoice total + one labe
   const a = SM.indexOf('  function qLabel(q)'); const src = SM.slice(a, SM.indexOf('\n', SM.indexOf('return q.status', a)) + 1);
   const S = load(); const qLabel = new Function('S', src + '\nreturn qLabel;')(() => S);
   assert.equal(qLabel({ status: 'confirmed', approvalStatus: 'sent' }), 'Sent · awaiting client approval');
-  const BIZ = read('public/business.html'); assert.match(BIZ, /shell-b-money\.js\?v=6/);
+  const BIZ = read('public/business.html'); assert.match(BIZ, /shell-b-money\.js\?v=7/);
 });
 
 await t('list: the reference code never wraps', () => {

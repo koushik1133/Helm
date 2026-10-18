@@ -163,7 +163,7 @@ await t('signed-out / local: no Save button, presets still shown', async () => {
   assert.ok(texts.includes('Low stock') && !texts.includes('+ Save view'));
 });
 await t('wiring: pages, inventory hook, store-api, CSP hygiene, migration', () => {
-  for (const f of ['leads', 'quotes', 'staff', 'vendors', 'inventory']) assert.match(read('public/' + f + '.html'), /<script src="saved-filters\.js\?v=3"><\/script>/, f);
+  for (const f of ['leads', 'quotes', 'staff', 'vendors', 'inventory']) assert.match(read('public/' + f + '.html'), /<script src="saved-filters\.js\?v=4"><\/script>/, f);
   assert.match(read('public/inventory.html'), /HelmSavedFilters\.match\("inventory"/);
   const S = read('public/store-api.js');
   assert.match(S, /savedViews:\s*\{/); assert.match(S, /from\("saved_views"\)/); assert.match(S, /rpc\("saved_view_set_default"/);

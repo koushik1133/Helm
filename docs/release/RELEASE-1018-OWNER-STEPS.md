@@ -1,6 +1,8 @@
 # Release 1018: owner steps (plain words)
 
-Branch: `release/trial-and-fixes-1018` (the free-trial bundle and 29 fix branches, merged and tested).
+Branch: `release/trial-and-fixes-1018` (the free-trial bundle and 29 fix branches, then 9 more live-audit fix
+branches (release-1018-b: trial gates, quote-create guards, calendar + chat, theme clean-up, fetch security,
+dashboard, invite accept, trial terms box, stage strip), merged and tested).
 Do everything on **STAGING first** (`xizehqgeyjcfpzrdymly`). Move to **PRODUCTION** (`nqltzgiwznphugcfhmbm`)
 only after staging looks right. Nothing here deletes data.
 
@@ -22,6 +24,9 @@ The SQL is additive, so the website still works if the database is updated first
    - `0184 03` says `false` only after you have switched trial deletion on yourself. It is off by default.
 4. If a section stops with an error: copy the error, fix the cause (or send it to Claude), then paste the **whole
    file again**. Every section can run twice safely; a second paste changes nothing.
+5. **Staging already has the earlier draft** (the file from commit cbae0cad, pasted with every VERIFY true).
+   Paste the NEW file on top of it the same way: it only adds what the draft did not have (0202 - 0205 and the
+   final trial refresh). Tested: draft first, then the new file twice - 0 errors, same schema as a fresh install.
 
 What the paste changes, in plain words:
 - **Free-trial studios only:** India defaults (FIX-0177). Then, as the very LAST step, each trial studio's
@@ -32,6 +37,13 @@ What the paste changes, in plain words:
   (0202). One new sample version is published.
 - **All studios:** an event's budget / guests that are **empty** are filled from the other copy of the same event.
   The copies are the quote, the CRM lead and Discovery (0199). A value that is already there is never changed.
+- **Free-trial studios only (0203):** no greeting to a client, the sample menu packages' dish lists stay fixed (price
+  per plate is editable), no activity log, no checklist / task template edits, and checkout says "trial" instead
+  of "subscribed".
+- **Signed-out visitors (0204):** the anonymous API role loses its table rights on 6 studio tables (the public
+  link pages use their own functions), so an error never names an internal object.
+- **Team invitations (0205):** 4 small service-role helpers so a brand-new invitee can always join (used by the
+  `invite-signup` / `invite-mailer` edge functions).
 - Everything else is new functions, triggers, tables and empty (nullable) columns. Paid studios' rows are not
   changed, apart from the 0199 empty-value fill.
 
@@ -55,10 +67,16 @@ These are the functions that changed in this release (`git diff origin/main -- s
 | `create-payment-link` | free-trial: no real Razorpay link (0187) | default (JWT) |
 | `send-whatsapp` | free-trial: no real WhatsApp (0179) | default (JWT) |
 | `wa-proposal` | free-trial: no real proposal WhatsApp (0179) | default (JWT) |
+| `invite-signup` | a brand-new invitee can always join; "Email me a new link" (0205) | `--no-verify-jwt` |
+| `invite-mailer` | one branded invitation for every invitee (0205) | `--no-verify-jwt` |
+| `welcome-mailer` | Outlook-safe e-mail button (shared `_shared/email-layout.mjs`) | `--no-verify-jwt` |
+| `pkg-client-notify` | Outlook-safe e-mail button (shared `_shared/email-layout.mjs`) | `--no-verify-jwt` |
+| `billing-reminder` | Outlook-safe e-mail button (shared `_shared/email-layout.mjs`) | `--no-verify-jwt` |
 
-Shared files changed: `_shared/mailer.ts`, `_shared/trial-guard.ts` and `_shared/trial-outbound.ts`. They are
-included in the six functions above, so nothing else needs a redeploy. `invite-mailer`, `invite-signup`,
-`welcome-mailer` and the rest did **not** change.
+Shared files changed: `_shared/mailer.ts`, `_shared/trial-guard.ts`, `_shared/trial-outbound.ts` and
+`_shared/email-layout.mjs` (the e-mail button). Every function that bundles one of them is in the table above,
+so nothing else needs a redeploy. The invite fix also has owner steps of its own (Supabase URL configuration +
+re-pasted auth e-mail templates): see `docs/ops/INVITE-FLOW.md` section 4.
 
 Run these from the **helm-deploy** folder, after the PR is merged to `main`. The functions must come from
 `main`, not from an old copy.
@@ -75,6 +93,11 @@ supabase functions deploy send-otp            --project-ref $REF
 supabase functions deploy create-payment-link --project-ref $REF
 supabase functions deploy send-whatsapp       --project-ref $REF
 supabase functions deploy wa-proposal         --project-ref $REF
+supabase functions deploy invite-signup       --project-ref $REF --no-verify-jwt
+supabase functions deploy invite-mailer       --project-ref $REF --no-verify-jwt
+supabase functions deploy welcome-mailer      --project-ref $REF --no-verify-jwt
+supabase functions deploy pkg-client-notify   --project-ref $REF --no-verify-jwt
+supabase functions deploy billing-reminder    --project-ref $REF --no-verify-jwt
 
 # PRODUCTION (only after staging is checked)
 REF=nqltzgiwznphugcfhmbm
@@ -84,6 +107,11 @@ supabase functions deploy send-otp            --project-ref $REF
 supabase functions deploy create-payment-link --project-ref $REF
 supabase functions deploy send-whatsapp       --project-ref $REF
 supabase functions deploy wa-proposal         --project-ref $REF
+supabase functions deploy invite-signup       --project-ref $REF --no-verify-jwt
+supabase functions deploy invite-mailer       --project-ref $REF --no-verify-jwt
+supabase functions deploy welcome-mailer      --project-ref $REF --no-verify-jwt
+supabase functions deploy pkg-client-notify   --project-ref $REF --no-verify-jwt
+supabase functions deploy billing-reminder    --project-ref $REF --no-verify-jwt
 ```
 
 ## 3. Secrets
