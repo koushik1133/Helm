@@ -48,7 +48,9 @@ t('welcome step: trial wording for a free-trial studio, studio wording for a pai
   const ev = (trial) => vm.runInNewContext(D.slice(a, b).replace(/^\s*const /gm, 'var ') + '\nTOUR[0].desc',
     { document: { documentElement: { classList: { contains: (c) => trial && c === 'helm-trial' } } } });
   const tr = ev(true), pd = ev(false);
-  assert.match(tr, /Your 8-day trial is loaded with sample data marked “Demo ·”/);
+  // B30: no hard-coded "8-day" / "Demo ·": the days left come from the server, the label is the "Sample" badge the screens show
+  assert.match(tr, /Your free trial is loaded with sample data tagged “Sample”/);
+  assert.doesNotMatch(tr, /8-day|Demo ·/);
   assert.match(pd, /^Welcome to Helm — here's a quick look around your studio\./);
   assert.doesNotMatch(pd, /trial|sample data|Demo/i);
   assert.equal(TOUR.length, 22, 'still 22 steps');

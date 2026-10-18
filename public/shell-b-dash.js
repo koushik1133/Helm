@@ -151,7 +151,12 @@
   function iso(d) { var m = d.getMonth() + 1, x = d.getDate(); return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (x < 10 ? "0" : "") + x; }
   function dOf(s) { var d = new Date(String(s || "").slice(0, 10) + "T00:00:00"); return isNaN(d) ? null : d; }
   /* whole calendar days from `now`'s day to date string ds (shared by the countdown + "In N days") */
-  function dayDiff(ds, now) { var d = dOf(ds), t = dOf(iso(now || new Date())); return d && t ? Math.round((d - t) / DAY) : null; }
+  function dayDiff(ds, now) { var d = dOf(ds), t = dOf(todayOf(now || new Date())); return d && t ? Math.round((d - t) / DAY) : null; }
+  /* B18: "today" + the wall clock are the STUDIO's (Asia/Kolkata for an Indian studio), never the device's:
+     todayOf(instant) -> the studio's YYYY-MM-DD; wallNow() -> a local Date that reads the studio's date + time
+     (so local-midnight arithmetic against dOf() dates and getHours() follow the studio's clock). */
+  function todayOf(t) { try { var B = S(); if (B && B.todayLocal) return B.todayLocal(t); } catch (e) {} return iso(t); }
+  function wallNow() { try { var B = S(), c = B && B.studioClock ? B.studioClock() : null; if (c) return new Date(c.y, c.mo - 1, c.d, c.h, c.mi, c.s); } catch (e) {} return new Date(); }
   function ym(d) { return d.getFullYear() * 12 + d.getMonth(); }
   /* LA-27: every date here goes through the ONE studio formatter (studio locale + timezone), never the browser's.
      dfmt(localDayDate, fields) formats a calendar day; tfmt(timestamp, fields) an instant in the studio's timezone. */
@@ -453,7 +458,7 @@
     function pad(n) { return (n < 10 ? "0" : "") + n; }
     function starts() { return tm ? el("span", "hd-cn-t", "· starts " + pad(+tm[1]) + ":" + tm[2]) : null; }
     function paint() {
-      var now = new Date(), isToday = iso(now) === ev.date, st;
+      var real = new Date(), now = wallNow(), isToday = todayOf(real) === ev.date, st;
       clear(clock); clock.classList.toggle("hd-count-today", isToday);
       if (isToday) {
         clock.appendChild(el("b", "hd-cn-n", "Today"));
@@ -463,7 +468,7 @@
       }
       // Days = calendar-day difference (same rule as the "In N days" list via dayDiff), so a
       // 14-day-away event never reads "13 days 11 hrs" here. 1+ days away: "N days · starts HH:MM".
-      var cd = dayDiff(ev.date, now);
+      var cd = dayDiff(ev.date, real);
       if (cd != null && cd > 0) {
         clock.appendChild(unit(String(cd), cd === 1 ? "day" : "days", "d"));
         if ((st = starts())) clock.appendChild(st);
@@ -755,7 +760,7 @@
     [[120, 110, "hd-sp1"], [120, 78, "hd-sp2"], [120, 46, "hd-sp3"]].forEach(function (c) { sv("circle", { cx: 200, cy: 40, r: c[1], "class": c[2] }, spot); });
     var hl = el("div", "hd-hl");
     var now = new Date();
-    var hr = now.getHours(), tod = hr < 5 || hr >= 20 ? "night" : hr < 12 ? "morning" : hr < 17 ? "afternoon" : "evening";
+    var hr = wallNow().getHours(), tod = hr < 5 || hr >= 20 ? "night" : hr < 12 ? "morning" : hr < 17 ? "afternoon" : "evening";
     hero.classList.add("hd-tod-" + tod);
     var orb = el("span", "hd-orb"); orb.setAttribute("aria-hidden", "true"); orb.appendChild(icon(tod === "night" || tod === "evening" ? IC.moon : IC.sun, "hd-ic hd-orb-ic")); hero.appendChild(orb);
     var dl = el("p", "hd-date hd-eyebrow"); dl.appendChild(el("span", null, tfmt(now, { weekday: "long", day: "numeric", month: "long" })));
@@ -896,6 +901,7 @@
       if (pe[1]) items.push({ t: "Vendor", ic: IC.shop, href: "vendors.html" });
       if (pe[2]) items.push({ t: "Staff member", ic: IC.team, href: "staff.html" });
       setupNewMenu(createSlot, createBtn, items);
+      try { window.__helmNewMenu = items.slice(1).map(function (i) { return i.t; }); } catch (e) {}   // B30: the dashboard tour names exactly these
     });
 
     /* name for the greeting (fills while data loads) */
@@ -929,7 +935,7 @@
     function mStage(k) { var x = MP && MP[k]; return x ? { n: mN(x.count), v: x.value == null ? null : mN(x.value) } : null; }
     var mOpenLeads = null;
     if (M && M.leads && typeof M.leads === "object") { mOpenLeads = 0; Object.keys(M.leads).forEach(function (k) { if (k !== "lost" && k !== "won" && k !== "converted") mOpenLeads += mN(M.leads[k]); }); }
-    var today = iso(now), todayD = dOf(today);
+    var today = todayOf(now), todayD = dOf(today);
     var curRows = rows.filter(function (q) { return qCur(q) === CUR; });
 
     /* merged event list (my_pending scoped feed + loaded quotes) */

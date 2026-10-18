@@ -57,9 +57,9 @@
   .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 </style>
-<link rel="stylesheet" href="crm-polish.css?v=2">
+<link rel="stylesheet" href="crm-polish.css?v=3">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=27" id="shellProto"></script>
+<script src="/shell-proto.js?v=28" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -109,8 +109,8 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
-<script src="tour.js?v=18"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script>
+<script src="tour.js?v=19"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -168,14 +168,14 @@
       return `<tr${openable?` class="openable" data-qid="${esc(r.quote_id)}" style="cursor:pointer"`:""}>
       <td class="when">${esc(when(r.archived_at))}</td>
       <td><span class="act ${esc(r.action)}">${esc(actLabel.get(r)||r.action)}</span>${g.n>1?` <span class="dup-n" title="${esc(g.n+" identical records saved within a minute")}" aria-label="${esc(g.n+" identical records")}">×${esc(g.n)}</span>`:""}</td>
-      <td>${esc(r.name||"—")}</td>
+      <td class="wrapc">${esc(r.name||"—")}</td>
       <td class="muted">${esc(r.phone||"")}</td>
       <td class="muted">${esc(srcLbl(r.source))}</td>
-      <td>${esc(r.event_type||"")}</td>
+      <td class="wrapc">${esc(r.event_type||"")}</td>
       <td class="muted">${esc(r.event_date?BPStore.fmtDateIN(r.event_date):"")}</td>
       <td class="amt">${r.budget?fmt(r.budget):""}</td>
       <td class="muted">${r.guest_count!=null?esc(r.guest_count):""}</td>
-      <td class="muted">${esc(stgLbl(r.status))}</td>
+      <td class="muted">${esc(stgLbl(rowStage(r)))}</td>
       <td>${openable?`<a class="open" href="${esc(href)}" aria-label="Open ${esc(r.name||"record")} workspace">Open&nbsp;→</a>`:(r.lead_id&&r.action!=="deleted"&&r.name?`<a class="open" href="${esc("leads.html?hs="+encodeURIComponent(String(r.name).slice(0,80)))}" aria-label="Open lead ${esc(r.name)}">Open&nbsp;→</a>`:"")}${restoreCell(r)}</td>
     </tr>`;}).join("");
     // click a row (or the Open link) → the event workspace hub (details + 2D/3D)
@@ -186,6 +186,9 @@
     }));
   }
 
+  // B17: the latest row of a lead shows the lead's CURRENT stage (a converted lead reads Quoted, not the
+  // discovery stage the quote-sync trigger wrote in the same moment); Full history keeps each snapshot's own stage.
+  function rowStage(r){ return (!fAll && r.live_status) ? r.live_status : r.status; }
   // LA-34: collapse identical rows (same lead, same action word, same details) written within 60 s of each other
   // into one row with a count. Display only - every archive record is still kept on the server.
   function crmGroupDuplicates(rows, labels){

@@ -9,11 +9,12 @@ const block = D.slice(D.indexOf('const TOUR=['), D.indexOf('];', D.indexOf('cons
 const steps = block.split('\n').filter((l) => /^\s*\{.*title:/.test(l));
 assert.ok(steps.length >= 18 && steps.length <= 24, 'tour has 18-24 steps, got ' + steps.length);
 assert.match(steps[0], /Welcome/); assert.match(steps[0], /TOUR_TRIAL\(\) \? TOUR_WELCOME\.trial : TOUR_WELCOME\.paid/);
-// welcome wording: the trial variant mentions the 8-day trial + "Demo ·" sample data; the paid
-// ("Create studio") variant must not mention a trial or sample data
+// welcome wording: the trial variant mentions the free trial (days left read from the server, B30) + the
+// "Sample" tag the screens show; the paid ("Create studio") variant must not mention a trial or sample data
 const W = D.slice(D.indexOf('const TOUR_WELCOME={'), D.indexOf('};', D.indexOf('const TOUR_WELCOME={')));
-const trialW = /trial:"([^"]+)"/.exec(W)[1], paidW = /paid:"([^"]+)"/.exec(W)[1];
-assert.match(trialW, /8-day trial/); assert.match(trialW, /Demo ·/);
+const trialW = /get trial\(\)\{([\s\S]+?)\},\n/.exec(W)[1], paidW = /paid:"([^"]+)"/.exec(W)[1];
+assert.match(trialW, /Your free trial/); assert.match(trialW, /TOUR_DAYS/); assert.match(trialW, /TOUR_SAMPLE\(\)/);
+assert.doesNotMatch(trialW, /8-day|Demo ·/);
 assert.match(paidW, /quick look around your studio/);
 assert.doesNotMatch(paidW, /trial|sample data|Demo ·/i);
 assert.match(steps[steps.length - 1], /Take a guided tour/);

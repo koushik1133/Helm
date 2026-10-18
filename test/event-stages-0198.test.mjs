@@ -66,7 +66,7 @@ async function makeEnv(o = {}) {
     return (o.respond || (() => ({ data: [], error: null })))(q);
   });
   const doc = {
-    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=248' },
+    readyState: 'complete', addEventListener() {}, removeEventListener() {}, currentScript: { src: 'https://www.helm.events/store-api.js?v=249' },
     createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, addEventListener() {}, querySelector: () => null, remove() {} }),
     head: { appendChild() {} }, body: { appendChild() {}, removeChild() {}, children: [] },
     documentElement: { setAttribute() {}, getAttribute() { return 'light'; }, classList: { contains: () => false, add() {}, remove() {} } },

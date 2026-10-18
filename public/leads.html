@@ -108,7 +108,7 @@
 </style>
 <link rel="stylesheet" href="leads-polish.css?v=3">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=27" id="shellProto"></script>
+<script src="/shell-proto.js?v=28" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -229,8 +229,8 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script><script src="form-validate.js?v=1"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
-<script src="tour.js?v=18"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script>
+<script src="tour.js?v=19"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   // shared event-type list (event-name.js): same options as the quote flow; saved spelling is canonical
@@ -458,14 +458,22 @@
   const stageOptions=()=>STAGES.map(s=>`<option value="${s.k}">${esc(s.label)}</option>`).join("");
   $("#dt_stage").innerHTML=stageOptions();
   $("#f_stage").innerHTML=stageOptions();
-  let detailId=null;
+  let detailId=null, editFromDetail=null;
+  // B30: a readable phone in the lead detail (+91 98765 43210), the saved value is unchanged
+  const fmtPhone=(p)=>{ const s=String(p==null?"":p).trim(); const c=s.replace(/[\s().-]/g,""); const m=/^(\+?)(\d{7,15})$/.exec(c); if(!m) return s; const d=m[2];
+    if(/^91\d{10}$/.test(d)) return "+91 "+d.slice(2,7)+" "+d.slice(7);
+    if(!m[1]&&/^\d{10}$/.test(d)) return d.slice(0,5)+" "+d.slice(5);
+    if(/^971\d{9}$/.test(d)) return "+971 "+d.slice(3,5)+" "+d.slice(5,8)+" "+d.slice(8);
+    if(/^1\d{10}$/.test(d)) return "+1 "+d.slice(1,4)+" "+d.slice(4,7)+" "+d.slice(7);
+    return s; };
   function fillDetail(l){
     $("#dt_name").textContent=l.name||"Lead";
     $("#dt_sub").textContent = "Stage: "+stageLabel(l.status)+(l.quote_id?" · linked to a quote":"");
     const rows=[
-      ["Phone", l.phone], ["Email", l.email], ["Source", BPStore.sourceLabel?BPStore.sourceLabel(l.source):l.source],
+      ["Phone", l.phone?fmtPhone(l.phone):""], ["Email", l.email], ["Source", BPStore.sourceLabel?BPStore.sourceLabel(l.source):l.source],
       ["Event", l.event_type], ["Date", l.event_date?BPStore.fmtDateIN(l.event_date):""],   // LA-27/28: same date + labels as the cards
       ["Budget", l.budget?fmt(l.budget):""], ["Guests", l.guest_count],
+      ["Birthday", l.birthday?BPStore.fmtDateIN(String(l.birthday).slice(0,10)):""], ["Anniversary", l.anniversary?BPStore.fmtDateIN(String(l.anniversary).slice(0,10)):""],
       ["Notes", l.notes],
     ].filter(r=>r[1]!=null && r[1]!=="");
     $("#dt_stageWrap").hidden=!canEdit;
@@ -507,7 +515,7 @@
   // (editingId), which a New lead form opened + discarded meanwhile resets to null -> DELETE ?id=eq.null -> HTTP 400
   $("#dt_edit").addEventListener("click",()=>{ const l=leadById(detailId);
     if(l&&l.quote_id&&canQuotes){ location.href="event.html?id="+encodeURIComponent(l.quote_id); return; }
-    closeDetail(); openForm(l); });
+    const from=detailId; closeDetail(); openForm(l); editFromDetail=from; });
   $("#dt_del").addEventListener("click",async()=>{
     const id=detailId, l=leadById(id);
     if(!id || !l){ BPUI.toast("This lead is no longer open — reopen it and try again.",{type:"err"}); return; }
@@ -589,6 +597,8 @@
     $("#f_budget").value=lead&&lead.budget!=null?lead.budget:""; $("#f_guests").value=lead&&lead.guest_count!=null?lead.guest_count:"";
     $("#f_notes").value=lead?lead.notes||"":"";
     $("#f_bday").value=lead&&lead.birthday?String(lead.birthday).slice(0,10):""; $("#f_anniv").value=lead&&lead.anniversary?String(lead.anniversary).slice(0,10):"";
+    { const td=BPStore.todayLocal(); $("#f_bday").max=td; $("#f_anniv").max=td; }   // B30: no future birthday / anniversary in the picker (Save checks too)
+    editFromDetail=null;
     $("#f_stageWrap").hidden=!lead;                       // new leads always start in "New"
     if(lead) $("#f_stage").value=lead.status||"new";
     formDirty.clean(); if(!leadFv) leadFv=leadFvBind(); leadFv.forEach(b=>{ if(b) b.reset(); });
@@ -656,7 +666,10 @@
     if(cur && toStage && toStage!==cur.status){ moveOk=await moveLead(id, cur.status, toStage, true); }
     // Only claim success if the stage move didn't fail (moveLead fired its own error toast on false)
     if(moveOk!==false) BPUI.toast(id?"Lead saved.":"Lead added.",{type:"ok"});
+    const back=editFromDetail; editFromDetail=null;
     await load();
+    // B30: an edit started from the lead's detail goes back to it - the detail and the breadcrumb show the NEW name
+    if(id && back===id && leadById(id)) openDetail(id);
   }
   $("#newBtn").addEventListener("click",()=>openForm(null));
   $("#firstRunBtn").addEventListener("click",()=>openForm(null));

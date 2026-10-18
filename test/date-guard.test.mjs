@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 let n = 0; const t = (name, fn) => { fn(); n++; console.log('  ✓ ' + name); };
 const s = read('public/store-api.js');
-t('event window is today .. today + 5 years', () => { assert.match(s, /win === "future" \? isoDay\(new Date\(\)\)/); assert.match(s, /win === "future" \? addYears\(5\)/); });
+t('event window is today .. today + 5 years', () => { assert.match(s, /win === "future" \? todayIso\(\)/); assert.match(s, /function todayIso\(\) \{ try \{ var t = BPStore\.todayLocal\(\);/); assert.match(s, /win === "future" \? addYears\(5\)/); });
 t('recent window is -2 .. +1 years', () => { assert.match(s, /win === "recent" \? addYears\(-2\)/); assert.match(s, /win === "recent" \? addYears\(1\)/); });
 t('half-typed year (badInput) is cleared on blur with a hint', () => assert.match(s, /!el\.value && el\.validity && el\.validity\.badInput[\s\S]{0,120}negHint\(el, msg\(\), 5000\)/));
 t('a value already saved is kept when editing', () => assert.match(s, /original && v === original\) return false/));
