@@ -197,7 +197,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="trial-terms.css?v=4">
-<script src="/shell-proto.js?v=29" id="shellProto"></script>
+<script src="/shell-proto.js?v=30" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -329,7 +329,7 @@
 <script src="event-name.js?v=9"></script>
 <script src="new-quote-dialog.js?v=4"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=251"></script><script src="flow-resume.js?v=4" data-mount></script>
 <script src="event-reminders.js?v=3"></script>
-<script src="tour.js?v=20"></script>
+<script src="tour.js?v=21"></script>
 <script src="getting-started.js?v=10"></script>
 <script src="onboarding-wizard.js?v=10"></script>
 <script src="trial-facts.js?v=2"></script>
@@ -814,7 +814,7 @@
     {sel:'[data-tour="customize"]', title:"Make the dashboard yours", desc:"Click Customize to arrange your dashboard. Drag any card by its ⋮⋮ handle to change the order, tap the eye on a card to hide it, and use Reset to bring back the default layout. Press Done to save it — your layout follows your account to any computer."},
     {sel:'[data-tour="kpis"]', title:"Key numbers", desc:"Your headline counts at a glance. The cards below cover your month, what needs attention, revenue and the pipeline."},
     // 4 · checklist (not in a free trial: its studio is ready-made), then wrap-up
-    {sel:['[data-tour="setup"]','[data-tour="checklist"]'], trial:false, title:"Getting started checklist", desc:"A short list of first steps, like adding your logo and sending your first quote. Click it to see what's left; it ticks itself off as you go."},
+    {sel:['[data-tour="setup"]','[data-tour="checklist"]','#hdGetSet'], trial:false, title:"Getting started checklist", desc:"A short list of first steps, like adding your logo and sending your first quote. Click it to see what's left; it ticks itself off as you go."},
     {title:"You're all set 🎉", desc:"Want this tour again? Click “Take a guided tour” in the sidebar (or the “More” menu on a phone) any time."},
   ];
   // The spotlight engine lives in tour.js (shared with every page): it re-glues the

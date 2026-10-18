@@ -119,7 +119,7 @@
     { sel: "#hbRail .hb-group:not(.hb-fav)", side: "right", title: "Your workspace", desc: "Every area of Helm lives in this sidebar: Workspace for daily work, Manage and Admin below it. Scroll the list if it is taller than your screen." },
     { sel: ".hb-recent .htr-btn", side: "right", title: "Recently viewed", desc: "Jump back to the pages and events you opened last." },
     { sel: "[data-tour='theme']", side: "right", title: "Look and feel", desc: window.HELM_DARK_MODE === true ? "Switch dark mode and pick a colour theme." : "Pick a colour theme: Emerald, Cobalt, Midnight, Graphite or Studio." },
-    { sel: "[data-tour='account']", side: "right", title: "Your account", desc: "Profile, studio settings and sign out." },
+    { sel: "[data-tour='account']", side: "right", title: "Your account", desc: "Your profile, account settings (password and two-step verification), the user manual and sign out." },
     { sel: "[data-tour='search']", title: "Search anything", desc: "Find quotes, leads, clients and pages from one box. Press / or Ctrl+K." },
     { sel: "[data-tour='bell']", title: "Notifications", desc: "Approvals, payments and mentions arrive here." },
     { sel: "[data-tour='new']", title: "Create", desc: "Start a new quote, lead or event from any page." }
@@ -204,7 +204,6 @@
       new MutationObserver(paint).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
     });
     var acctSlot = el("div", "hb-slot hb-acct"); acctSlot.setAttribute("data-tour", "account");
-    safe(function () { customizeItem(acctSlot); });
     var who = el("div", "hb-who hb-lb");
     var whoName = el("b", null, ""), whoRole = el("small", null, "");
     who.appendChild(whoName); who.appendChild(whoRole);
@@ -624,29 +623,8 @@
     });
   }
 
-  /* ---- profile menu: "Customize dashboard" (auth-ui rebuilds #hauMenu on every open, so re-add it after each rebuild) ---- */
-  function customizeItem(slot) {
-    function run() {
-      var btn = document.getElementById("hauAccountBtn"), pop = document.getElementById("hauMenu");
-      if (btn && pop && !pop.hidden) btn.click();   /* close the menu the same way the user would */
-      if (page === "dashboard.html") window.dispatchEvent(new CustomEvent("hb:customize"));
-      else location.href = abs("dashboard.html?customize=1");   /* same dashboard URL as the rail's Home item */
-    }
-    function add(pop) {
-      if (pop.querySelector('[data-mi="hb-customize"]')) return;
-      var mi = el("button", "hau-mi"); mi.type = "button"; mi.setAttribute("role", "menuitem"); mi.tabIndex = -1; mi.setAttribute("data-mi", "hb-customize");
-      var ic = icon("sliders"); ic.setAttribute("class", "hb-svg hau-mi-ic"); mi.appendChild(ic); mi.appendChild(el("span", null, "Customize dashboard"));
-      mi.addEventListener("click", run);
-      var out = pop.querySelector('[data-mi="signout"]'), anchor = out && out.previousElementSibling && out.previousElementSibling.getAttribute("role") === "separator" ? out.previousElementSibling : out;
-      pop.insertBefore(mi, anchor || null);
-    }
-    var seen = null;
-    new MutationObserver(function () {
-      var pop = document.getElementById("hauMenu"); if (!pop || !slot.contains(pop)) return;
-      if (pop !== seen) { seen = pop; new MutationObserver(function () { if (pop.childNodes.length) add(pop); }).observe(pop, { childList: true }); }
-      if (pop.childNodes.length) add(pop);
-    }).observe(slot, { childList: true, subtree: true });
-  }
+  /* R19: the profile menu no longer gets a "Customize dashboard" item - the dashboard's own Customize button
+     (shell-b-dash.js, data-tour="customize") is the one way in; the menu keeps to account items only. */
 
   /* ---- rail profile: from the auth/profile APIs (pages render #account differently) ---- */
   function fillWho(nameEl, roleEl) {

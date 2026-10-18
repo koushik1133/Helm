@@ -120,7 +120,7 @@ t('task schedule: earlier today is blocked (time-level check)', () => {
 });
 t('dashboard: no "Good evening" before 5 AM', () => {
   const j = r('public/shell-b-dash.js');
-  assert.match(j, /var greet = hr < 5 \? "Hello"/); assert.match(r('public/shell-proto.js'), /SHELL_V = "129"/);
+  assert.match(j, /var greet = hr < 5 \? "Hello"/); assert.match(r('public/shell-proto.js'), /SHELL_V = "130"/);
 });
 t('flow step 9: next-step says confirmed only after an advance', () => {
   const h = r('public/flow.html');
@@ -131,7 +131,7 @@ t('flow step 9: next-step says confirmed only after an advance', () => {
 });
 t('demo notice: once per session off the dashboard (auth-ui v32)', () => {
   assert.match(r('public/auth-ui.js'), /pageName\(\) !== "dashboard" && sessionStorage\.getItem\("helm_demo_seen"\) === "1"/);
-  assert.match(r('public/store-api.js'), /AUTH_UI_VERSION = "39"/);
+  assert.match(r('public/store-api.js'), /AUTH_UI_VERSION = "40"/);
 });
 
 console.log('manager-1019: ' + n + ' checks passed');

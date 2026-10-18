@@ -1,6 +1,6 @@
 // Profile menu (top-right avatar) + Account settings split + 0060 studio_avatars — front end.
-//  * menuModel (auth-ui.js, pure): name / initials / role / items; Control Center only when
-//    the access matrix says canView('controls') === true (never a role-name shortcut)
+//  * menuModel (auth-ui.js, pure): name / initials / role / items; R19: account items only
+//    (Profile, Account settings, User manual, Sign out) - Control Center is in the sidebar
 //  * menu a11y wiring: aria-haspopup=menu, aria-expanded, role=menu/menuitem, Esc/arrows/Home/End/Tab
 //  * #helm-topbar-search slot left of the avatar; not on HQ / client pages
 //  * openAccount sections (profile / settings) reuse profileForm + MFA + sign-out-others; e-mail change
@@ -32,10 +32,10 @@ t('no name → e-mail local part, 2-letter initials', () => {
   const m = mm({ id: 'u1', email: 'koushik@x.test' }, null, null, false);
   assert.equal(m.name, 'koushik'); assert.equal(m.initials, 'KO'); assert.equal(m.role, '');
 });
-t('Control Center only when the matrix says so', () => {
-  assert.equal(ids(mm({ id: 'a' }, {}, 'admin', true)), 'profile,settings,manual,control,signout');
+t('R19: account items only for every role (Control Center / Insights live in the sidebar)', () => {
+  assert.equal(ids(mm({ id: 'a' }, {}, 'admin', true)), 'profile,settings,manual,signout');
   assert.equal(ids(mm({ id: 'a' }, {}, 'admin', false)), 'profile,settings,manual,signout');
-  assert.equal(ids(mm({ id: 'a' }, {}, 'sales', 'yes')), 'profile,settings,manual,signout');   // only === true counts
+  assert.equal(ids(mm({ id: 'a' }, {}, 'sales', 'yes')), 'profile,settings,manual,signout');
 });
 t('links are same-origin pages only', () => {
   const m = mm({ id: 'a' }, {}, 'admin', true);
@@ -104,7 +104,7 @@ t('CSP: new CSS goes through __helmAdoptCss; no style= in the menu code', () => 
   assert.match(AUI, /\.hau-menu\{/); assert.match(AUI, /html\[data-theme=dark\] \.hau-menu/);
 });
 t('versions bumped: AUTH_UI_VERSION 19, every page on store-api v=158', () => {
-  assert.match(API, /const AUTH_UI_VERSION = "39";/);
+  assert.match(API, /const AUTH_UI_VERSION = "40";/);
   const pages = readdirSync(new URL('../public/', import.meta.url)).filter((f) => f.endsWith('.html'));
   pages.forEach((p) => { const h = read('public/' + p); const m = h.match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '251', p); });
 });

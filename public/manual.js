@@ -48,6 +48,17 @@
       if (res.files[src]) { img.setAttribute("src", res.files[src]); img.setAttribute("referrerpolicy", "no-referrer"); }
       else if (!/^data:image\//.test(src)) img.remove();
     });
+    // R19: a "Screenshot to add" box (<div class="shot-todo" data-shot="name.png">) becomes the picture as soon
+    // as the owner has uploaded screenshots/name.png to the bucket; until then the box + caption stay.
+    doc.querySelectorAll("[data-shot]").forEach(function (box) {
+      var name = String(box.getAttribute("data-shot") || "");
+      var url = /^[\w.-]+\.(webp|png|jpe?g)$/i.test(name) ? res.files["screenshots/" + name] : null;
+      if (!url) return;
+      var img = doc.createElement("img");
+      img.className = "screen"; img.setAttribute("src", url); img.setAttribute("referrerpolicy", "no-referrer");
+      img.setAttribute("alt", String(box.getAttribute("data-alt") || "")); img.setAttribute("loading", "lazy"); img.setAttribute("decoding", "async");
+      box.parentNode.replaceChild(img, box);
+    });
     if (css) __helmAdoptCss(document, css);
     var host = $("#mDoc");
     while (host.firstChild) host.removeChild(host.firstChild);

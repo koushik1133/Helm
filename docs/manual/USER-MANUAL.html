@@ -7,6 +7,17 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<!--
+  SOURCE of the signed-in user manual (/manual). Not deployed: the owner uploads this file to the root of
+  the private "helm-manual" storage bucket, and the PNG / WebP files in docs/manual/screenshots/ to
+  "screenshots/" (Supabase dashboard > Storage > helm-manual). See docs/OWNER-ACTIONS-SECURITY.md.
+
+  Screenshots: <img src="screenshots/NAME"> shows a picture that already exists. A box
+  <div class="shot-todo" data-shot="NAME" data-alt="..."> is a picture still to capture: scripts/manual-capture.mjs
+  lists every one of them (the TODO list) and writes NAME into docs/manual/screenshots/. Once NAME is uploaded to
+  the bucket, /manual (public/manual.js) shows the picture in place of the box automatically - no edit here needed.
+  Keep every data-shot name in the SHOTS list of scripts/manual-capture.mjs (test/manual-r19.test.mjs checks it).
+-->
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;--line:#e8e3db;
     --accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--code:#f4f1fb;
@@ -26,17 +37,18 @@
   nav a:hover{background:var(--accent-soft);color:var(--accent)}
   nav .grp{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin:16px 0 6px;padding-left:10px}
   /* content */
-  main{padding:40px 44px 100px;max-width:800px}
-  @media(max-width:820px){main{padding:28px 22px 80px}}
+  main{padding:40px 44px 100px;max-width:800px;min-width:0}
+  @media(max-width:820px){main{padding:28px 16px 80px}}
   h1{font-size:34px;letter-spacing:-.02em;margin:0 0 6px}
+  @media(max-width:820px){h1{font-size:28px}}
   .sub{color:var(--ink-3);font-size:15px;margin:0 0 8px}
   .ver{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:20px;padding:3px 11px;margin-bottom:26px}
-  h2{font-size:23px;letter-spacing:-.01em;margin:44px 0 12px;padding-top:14px;border-top:1px solid var(--line)}
-  h3{font-size:17px;margin:26px 0 8px}
+  h2{font-size:23px;letter-spacing:-.01em;margin:44px 0 12px;padding-top:14px;border-top:1px solid var(--line);scroll-margin-top:12px}
+  h3{font-size:17px;margin:26px 0 8px;scroll-margin-top:12px}
   p,li{font-size:15px;color:var(--ink-2)}
   ol,ul{padding-left:22px}li{margin:5px 0}
   b,strong{color:var(--ink)}
-  code{background:var(--code);color:var(--accent);border-radius:5px;padding:1px 6px;font-size:13px;font-family:ui-monospace,Menlo,monospace}
+  code{background:var(--code);color:var(--accent);border-radius:5px;padding:1px 6px;font-size:13px;font-family:ui-monospace,Menlo,monospace;overflow-wrap:anywhere}
   .note{background:var(--accent-soft);border:1px solid #e2d6ff;border-radius:12px;padding:14px 16px;margin:16px 0;font-size:14px}
   .note b{color:var(--accent)}
   .warn{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px;margin:16px 0;font-size:14px}
@@ -46,216 +58,550 @@
   .steps>li{counter-increment:s;position:relative;padding:2px 0 2px 40px;margin:12px 0}
   .steps>li::before{content:counter(s);position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;
     background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center}
-  .shot{border:1px solid var(--line);border-radius:12px;padding:10px 14px;background:#fff;color:var(--ink-3);font-size:13px;margin:14px 0;display:flex;gap:10px;align-items:center}
-  .shot .cam{font-size:18px}
   .screen{width:100%;height:auto;border:1px solid var(--line);border-radius:12px;margin:16px 0 4px;display:block;box-shadow:0 4px 16px rgba(20,27,46,.08)}
+  .shot-todo{border:1.5px dashed #cfc3ee;border-radius:12px;background:#fbfaff;color:var(--ink-3);font-size:13px;margin:16px 0 4px;
+    min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:18px;text-align:center}
+  .shot-todo b{color:var(--accent);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
   .cap{font-size:12px;color:var(--ink-3);margin:0 0 20px;text-align:center}
+  .tbl{width:100%;overflow-x:auto;margin:14px 0}
+  table{border-collapse:collapse;width:100%;font-size:14px;background:#fff;border:1px solid var(--line);border-radius:10px}
+  th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink-2)}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);background:#faf8f5}
+  tr:last-child td{border-bottom:0}
+  .toc{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:18px 0 8px}
+  .toc ol{columns:2;column-gap:28px;margin:6px 0 0;padding-left:20px}
+  @media(max-width:640px){.toc ol{columns:1}}
+  .toc li{font-size:14px;margin:3px 0;break-inside:avoid}
+  .toc a,a.inl{color:var(--accent)}
   footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-3)}
-  a.inl{color:var(--accent)}
 </style>
 </head>
 <body>
 <div class="layout">
   <aside>
     <div class="brand"><span class="mk"></span><div><b>Helm Events</b><small>User Manual</small></div></div>
-    <nav>
+    <nav aria-label="Manual chapters">
       <div class="grp">Start here</div>
       <a href="#intro">What is Helm</a>
-      <a href="#signup">Sign up & your studio</a>
-      <a href="#roles">Team & roles</a>
-      <div class="grp">Run an event</div>
-      <a href="#leads">1 · Leads</a>
-      <a href="#quote">2 · Quote & pricing</a>
-      <a href="#builder">3 · Floor plan (builder)</a>
-      <a href="#confirm">4 · Confirm & payment</a>
-      <a href="#plan">5 · Plan & resources</a>
-      <a href="#eventday">6 · Event day</a>
-      <a href="#close">7 · Settle & close</a>
-      <div class="grp">Extras</div>
-      <a href="#templates">Templates</a>
-      <a href="#crm">CRM & nurture</a>
-      <a href="#invite">Invitation websites</a>
+      <a href="#trial">Sign-up &amp; free trial</a>
+      <a href="#around">Getting around</a>
+      <a href="#dashboard">Dashboard</a>
+      <div class="grp">Win the event</div>
+      <a href="#leads">Leads, CRM &amp; nurture</a>
+      <a href="#quote">Quotes &amp; the 8-step flow</a>
+      <a href="#client">Client approval &amp; client pages</a>
+      <div class="grp">Plan &amp; run it</div>
+      <a href="#event">Event workspace &amp; stages</a>
+      <a href="#builder">Builder 2D/3D &amp; templates</a>
+      <a href="#inventory">Inventory</a>
+      <a href="#vendors">Vendors</a>
+      <a href="#staff">Staff</a>
+      <a href="#venues">Venues</a>
+      <a href="#calendar">Calendar</a>
+      <a href="#chat">Chat &amp; event groups</a>
+      <a href="#eventday">Event day</a>
+      <div class="grp">Money &amp; close</div>
+      <a href="#budget">Budget &amp; margin</a>
+      <a href="#settle">Settlement &amp; closure</a>
+      <div class="grp">Admin</div>
       <a href="#control">Control Center</a>
-      <div class="grp">New in Oct 2026</div>
-      <a href="#dash-period">Dashboard periods</a>
-      <a href="#calendar">Calendar (Day/Week/Month)</a>
-      <a href="#crew-schedule">Crew schedule</a>
-      <a href="#search">Search everything</a>
-      <a href="#record-advance">Record advance</a>
-      <a href="#photo-render">Photo render (landing)</a>
-      <a href="#oct-more">More October changes</a>
+      <a href="#roles">Roles &amp; invites</a>
+      <a href="#billing">Plans &amp; billing</a>
+      <a href="#after">After the trial</a>
       <a href="#faq">FAQ</a>
     </nav>
   </aside>
 
   <main>
     <h1>Helm Events — User Manual</h1>
-    <p class="sub">Everything you need to run an event business, from first enquiry to final bill.</p>
-    <span class="ver">Updated 17 Oct 2026 · v3</span>
+    <p class="sub">Everything you need to run an event business, from the first enquiry to the final bill. Written in plain words, one chapter per part of Helm.</p>
+    <span class="ver">Updated 18 Oct 2026 · v4</span>
+
+    <div class="toc">
+      <b>Contents</b>
+      <ol>
+        <li><a href="#intro">What is Helm</a></li>
+        <li><a href="#trial">Sign-up &amp; free trial (rules, limits, terms)</a></li>
+        <li><a href="#around">Getting around: sidebar, top bar, profile menu, tour</a></li>
+        <li><a href="#dashboard">Dashboard &amp; continue where you left off</a></li>
+        <li><a href="#leads">Leads, CRM &amp; nurture</a></li>
+        <li><a href="#quote">Quotes &amp; the 8-step flow</a></li>
+        <li><a href="#client">Client approval, portal, booklet &amp; invitation site</a></li>
+        <li><a href="#event">Event workspace &amp; stages</a></li>
+        <li><a href="#builder">Builder 2D/3D &amp; templates</a></li>
+        <li><a href="#inventory">Inventory: reserve, check-out, shortages</a></li>
+        <li><a href="#vendors">Vendors &amp; partners</a></li>
+        <li><a href="#staff">Staff &amp; crew</a></li>
+        <li><a href="#venues">Venues</a></li>
+        <li><a href="#calendar">Calendar: Events and Team</a></li>
+        <li><a href="#chat">Chat &amp; event groups</a></li>
+        <li><a href="#eventday">Event day</a></li>
+        <li><a href="#budget">Budget &amp; margin</a></li>
+        <li><a href="#settle">Settlement &amp; closure</a></li>
+        <li><a href="#control">Control Center (every section)</a></li>
+        <li><a href="#roles">Roles &amp; invites</a></li>
+        <li><a href="#billing">Plans &amp; billing</a></li>
+        <li><a href="#after">After the trial</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ol>
+    </div>
 
     <img class="screen" src="screenshots/index.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Helm Events home — your events dashboard">
-    <p class="cap">The home dashboard — every event lives here. Click the <b>Helm Events</b> logo on any page to come back.</p>
+    <p class="cap">The dashboard — every event starts and ends here. Click the <b>Helm</b> logo on any page to come back.</p>
 
-    <h2 id="intro">What is Helm</h2>
-    <p>Helm is a private workspace for your event business. It replaces spreadsheets, chats and paperwork with one connected system that follows every event through its whole life:</p>
-    <p><span class="pill">Enquiry</span> → <span class="pill">Proposal</span> → <span class="pill">Quote</span> → <span class="pill">Confirm</span> → <span class="pill">Plan</span> → <span class="pill">Event day</span> → <span class="pill">Settle & close</span></p>
-    <p>Your data is private to your studio — other businesses using Helm can never see it.</p>
+    <!-- ============================================================ 1 -->
+    <h2 id="intro">1 · What is Helm</h2>
+    <p>Helm is a private workspace for your event business. It replaces spreadsheets, chats and paperwork with one connected system that follows every event through its whole life. The quote <b>is</b> the event: you never retype anything as it moves forward.</p>
+    <p><span class="pill">Lead</span> → <span class="pill">Discovery</span> → <span class="pill">Proposal</span> → <span class="pill">Quote</span> → <span class="pill">Confirmed</span> → <span class="pill">Planning</span> → <span class="pill">Resources</span> → <span class="pill">Ready</span> → <span class="pill">Event Day</span> → <span class="pill">Settlement</span> → <span class="pill">Closed</span></p>
+    <p>Your data is private to your studio — other businesses using Helm can never see it. Each teammate sees only the parts their role allows (see <a class="inl" href="#roles">Roles &amp; invites</a>).</p>
 
-    <h2 id="signup">Sign up & your studio</h2>
-    <p>The first person to join <b>creates the studio</b>. Everyone else is <b>invited</b> into it (see Team & roles).</p>
+    <!-- ============================================================ 2 -->
+    <h2 id="trial">2 · Sign-up &amp; free trial</h2>
+    <p>There are two ways in:</p>
+    <ul>
+      <li><b>Start free trial</b> — an 8-day trial studio, no card needed. It comes ready-made with sample data so you can try everything straight away.</li>
+      <li><b>Create studio</b> — your own empty studio on a paid plan (see <a class="inl" href="#billing">Plans &amp; billing</a>).</li>
+    </ul>
+    <p>Were you invited by a colleague? Don't sign up on your own — open the <b>invite e-mail or link</b> they sent and join <em>their</em> studio (see <a class="inl" href="#roles">Roles &amp; invites</a>).</p>
+
+    <h3>Signing up</h3>
     <ol class="steps">
-      <li>Open the app and click <b>Sign up</b> (or <b>Continue with Google</b>).</li>
-      <li>You'll be asked to <b>Set up your studio</b> — enter your <b>business name</b>, pick your <b>currency</b> and <b>timezone</b>.</li>
-      <li>That creates your private workspace, pre-loaded with default pricing, chair types and catalogs you can edit later.</li>
+      <li>On the sign-in page choose <b>Start free trial</b> (or <b>Continue with Google</b>).</li>
+      <li>Enter your e-mail and a password: at least <b>12 characters</b> with a lowercase letter, an uppercase letter, a number and a symbol. The list under the field ticks each rule as you type.</li>
+      <li>Read the trial rules, tick <b>I agree</b> (free-trial terms, Terms of Service and Privacy Policy) and continue.</li>
+      <li>Open the confirmation e-mail and click the link. If it doesn't arrive, check spam or use <b>Resend confirmation link</b>.</li>
+      <li>Complete your profile (full name and mobile number). Helm then opens your trial studio with a short welcome tour.</li>
     </ol>
-    <div class="note"><b>Were you invited by a colleague?</b> Don't create a new studio — open the <b>invite link</b> they sent you and sign in / create your account there. That adds you to <em>their</em> studio with the role they chose.</div>
+    <div class="shot-todo" data-shot="m-signup-trial.png" data-alt="Sign-up form with the free-trial rules box"><b>Screenshot to add</b>The sign-up form with the free-trial rules box</div>
+    <p class="cap">Sign-up: the four key trial rules are always shown; <b>See all trial rules</b> opens the full list.</p>
 
-    <h2 id="roles">Team & roles</h2>
-    <p>Add teammates from <b>Control Center → User control</b>. Each person gets a <b>role</b>, and each role can be tuned to see or edit exactly the areas you allow (leads, quotes, inventory, finance, and so on).</p>
+    <h3>What's included in the trial</h3>
+    <ul>
+      <li><b>8 days free</b>, no card. The trial studio is set up for India: prices in ₹ (INR), times in IST.</li>
+      <li><b>Sample data</b>, marked <b>“Demo ·”</b> and tagged <b>Sample</b>: 16 leads, 7 events with quotes (in every stage, some confirmed with a simulated advance), 165 inventory items, 16 vendors, 12 staff, 4 venues, 6 menu packages (Standard, Gold and Premium, each Veg and Non-veg), 145 dishes, 3 layout templates and 3 coupons. Sample contacts are not real people.</li>
+    </ul>
+    <h3>Trial limits</h3>
+    <div class="tbl"><table>
+      <tr><th>You can</th><th>Locked until you choose a plan</th></tr>
+      <tr><td>Add up to <b>2 new records in each list</b>: leads (clients), events &amp; quotes, inventory items, vendors, staff and venues. Sample records don't count; deleting a record does not free a slot.</td><td><b>Studio setup and branding</b> — logo, studio account and client link name.</td></tr>
+      <tr><td>Edit and re-price any sample record.</td><td><b>Imports</b> — Excel / CSV import, custom fields, builder layout import.</td></tr>
+      <tr><td>Change menu prices (price per plate, chair and plate prices). Dishes and menu packages can't be added, renamed or removed.</td><td><b>Downloads and prints</b> — PDF, CSV, studio archive, run-sheet print, builder image / file downloads.</td></tr>
+      <tr><td>Invite <b>up to 2 teammates</b> (you + 2). Open invitations count.</td><td><b>Photo renders</b>.</td></tr>
+      <tr><td>Plan layouts in 2D and 3D from the 3 templates, a blank floor or a past event.</td><td><b>Notification settings</b> and client link auto-expire.</td></tr>
+      <tr><td>Set pricing, coupons, layout rules and roles &amp; access.</td><td><b>Your own templates</b> and the <b>activity (audit) log</b>.</td></tr>
+    </table></div>
+    <div class="warn"><b>Test mode:</b> during the trial nothing real is sent to anyone. Approval codes (OTP), e-mails, WhatsApp messages and payment links are simulated, and the screen tells you so.</div>
+    <p><b>Terms in short:</b> one free trial per person and e-mail address; Helm may approve one extension of up to 7 days. The full trial terms are in the Terms of Service (free trial section). What happens when the 8 days end is in <a class="inl" href="#after">After the trial</a>.</p>
+
+    <!-- ============================================================ 3 -->
+    <h2 id="around">3 · Getting around</h2>
+    <h3>The sidebar (left)</h3>
+    <ul>
+      <li><b>Workspace</b> — Dashboard, Quotes, Leads, Calendar, Chat.</li>
+      <li><b>Manage</b> — CRM archive, Nurture, Staff, Inventory, Vendors (each only if your role has it).</li>
+      <li><b>Admin</b> — Business, Control Center, Insights, Reports, Audit log, Studio setup (by role; some are not part of the free trial).</li>
+      <li><b>Pin</b> — the small pin button at the top keeps the sidebar open with labels. Unpinned, it tucks away to icons and opens when you hover.</li>
+      <li><b>Pinned pages</b> — star a page to keep it at the top of the sidebar.</li>
+      <li>At the bottom: <b>Take a guided tour</b>, <b>Colour theme</b> (Emerald is the default) and your <b>profile menu</b>.</li>
+    </ul>
+    <p>On a phone the sidebar becomes a bottom bar (Home, Quotes, Leads, Chat, <b>More</b>); everything else is in <b>More</b>.</p>
+
+    <h3>The top bar</h3>
+    <ul>
+      <li><b>Search</b> — press <span class="kbd">⌘ K</span> (Mac) or <span class="kbd">Ctrl K</span> (Windows) on any page. Finds clients, quotes, leads, pages your role can open, Control Center settings, your account items and quick actions like <b>New quote</b> or <b>Invite user</b>.</li>
+      <li><b>Hide amounts</b> (eye) — hides every amount on screen while you present to a client. Showing them again asks for the studio's 4-digit PIN.</li>
+      <li><b>Chat</b> — team chat, with a badge for unread messages.</li>
+      <li><b>Bell</b> — reminders, approvals waiting on you and trial reminders. Click one to jump to it; <b>Mark all read</b> clears the list.</li>
+      <li><b>New quote</b> — the arrow next to it adds a lead, client, inventory item, vendor, staff member or checklist template (what you see depends on your role).</li>
+    </ul>
+
+    <h3>Your profile menu</h3>
+    <p>Click your avatar at the bottom of the sidebar (on a phone, open <b>More</b>). It holds your own account only:</p>
+    <ul>
+      <li><b>Profile</b> — your full name (shown in chat and on assignments), mobile number, job title, department and photo.</li>
+      <li><b>Account settings</b> — your e-mail, <b>password</b>, <b>two-step verification</b> (a code from an authenticator app) and signing out your other devices. Available to everyone, free trial included.</li>
+      <li><b>User manual</b> — opens this manual in a new tab.</li>
+      <li><b>Sign out</b>.</li>
+    </ul>
+    <p>Control Center and Insights are in the sidebar's <b>Admin</b> group; <b>Customize</b> is a button on the dashboard.</p>
+    <div class="shot-todo" data-shot="m-profile-menu.png" data-alt="The profile menu open over the sidebar"><b>Screenshot to add</b>The profile menu: Profile, Account settings, User manual, Sign out</div>
+    <p class="cap">The profile menu keeps to your own account. Admin pages live in the sidebar.</p>
+
+    <h3>Guided tours</h3>
+    <p>The dashboard tour starts by itself the first time you sign in, and most pages have their own. Start one any time with <b>Take a guided tour</b> in the sidebar (on a phone: <b>More</b>). The tour highlights each control and explains it; press <span class="kbd">Esc</span> to leave and the arrow keys to move. While it walks the sidebar, the sidebar opens so you can read every label.</p>
+    <div class="note"><b>Filling in forms:</b> a red <b>*</b> marks a required field — the rest can be added later. Phone fields accept digits only (with an optional leading <code>+</code>).</div>
+
+    <!-- ============================================================ 4 -->
+    <h2 id="dashboard">4 · Dashboard</h2>
+    <p>Your home base. From top to bottom:</p>
+    <ul>
+      <li><b>Today</b> — one line: events on today, tasks due and payments overdue.</li>
+      <li><b>Your day at a glance</b> — a greeting, a summary and a countdown to your next event, with Search, New lead, New quote and <b>Customize</b>.</li>
+      <li><b>Continue where you left off</b> — the quote you were last preparing, with the step you stopped at (for example “step 4 of 8 · Venue”). Click <b>Continue</b> to land on that step, or <b>Dismiss</b> to hide it until you work on that quote again. “N more in progress” opens the <b>In progress</b> tab on Quotes. Your place is saved on the server per person and per quote, so it follows you to any device.</li>
+      <li><b>Key numbers</b> — Upcoming, Confirmed events, Open quotes and New leads, with one period switch for all of them: <b>7D / 1M / 6M / 1Y</b>. The arrow compares with the same length of time just before.</li>
+      <li><b>Cards</b> — your month, what needs attention, revenue and the pipeline (money only if your role can see finance).</li>
+      <li><b>Get set up / Getting started</b> — a short checklist of first steps for a new studio (not shown in a free trial, whose studio is ready-made).</li>
+    </ul>
+    <div class="shot-todo" data-shot="m-dashboard-resume.png" data-alt="Dashboard with the Continue where you left off card"><b>Screenshot to add</b>Dashboard with the “Continue where you left off” card and the 7D / 1M / 6M / 1Y switch</div>
+    <p class="cap">Continue where you left off: one click back into the quote you were preparing.</p>
+    <h3>Make the dashboard yours</h3>
     <ol class="steps">
-      <li>Go to <b>Control Center</b> (⚙ in the top nav) → <b>User control</b> tab.</li>
-      <li>Use <b>Invite by email link</b> — enter their email + role → copy the link → send it to them.</li>
-      <li>Use the <b>Access control matrix</b> to tick which areas each role can <b>view</b> and <b>edit</b>.</li>
+      <li>Click <b>Customize</b> on the dashboard.</li>
+      <li>Drag any card by its <b>⋮⋮</b> handle to change the order; tap the eye on a card to hide it.</li>
+      <li>Press <b>Done</b> to save. <b>Reset</b> brings back the default layout. Your layout follows your account to any computer.</li>
     </ol>
 
-    <h2 id="leads">1 · Leads</h2>
-    <p>Every enquiry starts as a <b>lead</b>. Capture it, qualify it on the pipeline, then convert the good ones into events.</p>
+    <!-- ============================================================ 5 -->
+    <h2 id="leads">5 · Leads, CRM &amp; nurture</h2>
+    <p>Every enquiry starts as a <b>lead</b>. Capture it, move it along as it warms up, then turn it into a quote.</p>
     <ol class="steps">
-      <li>Open <b>Leads</b> from the home nav.</li>
-      <li>Click <b>+ New lead</b> and fill in the enquiry (name, phone, event type, date, budget).</li>
-      <li><b>Drag</b> the lead card across the pipeline columns (New → Qualified → …) as it progresses.</li>
-      <li>When it's ready, click <b>Convert →</b> to turn the lead into a quote/event and open its workspace.</li>
+      <li>Open <b>Leads</b> and click <b>+ New lead</b>: name, phone, e-mail, source, event type, date, guests, budget and notes.</li>
+      <li><b>Drag</b> the card across the board (New → Qualified → …) as it progresses, and set a next follow-up date.</li>
+      <li>When it's ready, click <b>Convert →</b>. Helm creates the quote (= the event) with a code such as <code>12152026-01</code> (event date + number) and opens it. Contact details carry over.</li>
     </ol>
     <img class="screen" src="screenshots/leads.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Leads pipeline board with columns">
-    <p class="cap">The Leads pipeline — drag cards between columns. Click <b>+ New lead</b> and a guided walkthrough explains each field the first time.</p>
-    <div class="note"><b>Auto-sync:</b> every lead is snapshotted to the <b>CRM archive</b> whenever you create, edit, convert or delete it — so nothing is ever lost, and past clients are always searchable.</div>
-    <div class="note"><b>💡 Guided tours:</b> most pages have a <b>? Tour</b> button (and start one automatically the first time you visit). It spotlights each button and explains what it does — press <span class="kbd">Esc</span> to leave any time. The tour works on phones and tablets too: the highlight stays glued to the right control as you scroll.</div>
-    <div class="note"><b>Filling in forms:</b> a red <b>*</b> next to a field label means it's <b>required</b> — the rest are optional and can be added later. <b>Phone</b> fields accept digits only (with an optional leading <code>+</code> for a country code), so a number is always clean; typing letters or symbols simply won't register.</div>
+    <p class="cap">The Leads board — drag cards between columns.</p>
+    <ul>
+      <li><b>Saved filters</b> remember views like “Weddings this quarter”.</li>
+      <li><b>CRM archive</b> keeps every client and enquiry with a full history: quotes, events, payments and messages on one timeline. Archiving or restoring a record adds an entry to its history; nothing is lost.</li>
+      <li><b>Nurture</b> remembers birthdays, anniversaries and repeat occasions. When one is due it is flagged; <b>Followed up</b> moves it a year ahead and <b>→ Lead</b> starts a new enquiry. Ready-made message templates help you write the greeting.</li>
+    </ul>
+    <div class="shot-todo" data-shot="m-crm.png" data-alt="CRM archive with a client's history timeline"><b>Screenshot to add</b>CRM archive: a client's history on one timeline</div>
+    <p class="cap">CRM archive — past clients are always searchable.</p>
 
-    <h2 id="quote">2 · Quote & pricing</h2>
-    <p>Price the event and share it with the client.</p>
+    <!-- ============================================================ 6 -->
+    <h2 id="quote">6 · Quotes &amp; the 8-step flow</h2>
+    <p>Every quote is prepared in one guided page with eight steps. You can jump between steps; the right-hand rail shows the live total and the next action.</p>
+    <div class="tbl"><table>
+      <tr><th>Step</th><th>What you fill in</th></tr>
+      <tr><td><b>1 · Client &amp; event</b></td><td>Client name and phone (required), company, e-mail, event type, date, city, guests and budget. Filled in from the lead.</td></tr>
+      <tr><td><b>2 · Discovery</b></td><td>The first conversation: meeting date, mode (in person, phone, video), who attended, notes.</td></tr>
+      <tr><td><b>3 · Requirements</b></td><td>The services the client wants, each marked <b>Must-have</b>, <b>Optional</b> or <b>Nice-to-have</b>. These also build the Budget (see <a class="inl" href="#budget">Budget &amp; margin</a>).</td></tr>
+      <tr><td><b>4 · Venue &amp; access</b></td><td>Pick a saved venue or type one: contact, indoor / outdoor, address, access and load-in notes.</td></tr>
+      <tr><td><b>5 · Menu package</b></td><td>Pick a package (e.g. Gold Veg). It fills in the dishes and drives the catering price. Edit dishes for this event if needed.</td></tr>
+      <tr><td><b>6 · Proposal</b></td><td>The creative pitch the client sees: concept, theme and scope highlights.</td></tr>
+      <tr><td><b>7 · Floor layout</b></td><td>Enter the hall length × breadth, click <b>Generate default layout</b>, then tweak it in the builder. Chairs and objects feed the price.</td></tr>
+      <tr><td><b>8 · Quotation</b></td><td>The live total: chairs, plates, rates, décor / equipment, discount (₹ or %), coupon, tax-exempt client. <b>Save quotation</b> saves a new version.</td></tr>
+    </table></div>
+    <div class="shot-todo" data-shot="m-flow.png" data-alt="The quote flow with the 8 steps and the right-hand rail"><b>Screenshot to add</b>The 8-step quote flow with the live total in the right-hand rail</div>
+    <p class="cap">One page, eight steps. Each step tells you what comes next.</p>
+    <h3>Send, approve, book</h3>
     <ol class="steps">
-      <li>Fill in the <b>client details</b> — <b>client name</b> and <b>phone</b> are required (marked with <b>*</b>); company, email and the rest are optional.</li>
-      <li>From the event, open <b>Quote</b>. Set guest count, chairs, catering (in-house or client), and any extras.</li>
-      <li>Helm shows a live <b>breakdown</b> — rental, catering, service charge, GST, discount and total.</li>
-      <li>Save a <b>version</b> each time you revise, so you always have a history.</li>
+      <li>After step 8, use <b>Send for approval →</b> in the right rail. It locks that version and gives you the client's approval link to share.</li>
+      <li>The client approves (see <a class="inl" href="#client">Client approval</a>). The quote becomes <b>Confirmed</b>.</li>
+      <li>Click <b>Record advance</b> to record the client's advance payment and book the date. The status then reads <b>Confirmed · advance paid</b>.</li>
     </ol>
+    <ul>
+      <li><b>Quotes list tabs:</b> Active · In progress (quotes still being prepared, with who worked on each last) · Quotes · Sent &amp; confirmed · ⚠ Attention · Archive · Deleted.</li>
+      <li><b>Prices changed?</b> If your rates changed after a quote was priced, a banner offers <b>Review &amp; re-price</b> or <b>Keep current prices</b>.</li>
+      <li><b>Too many guests for the venue?</b> Before you send, Helm asks you to decide: change venue, reduce guests, extend the space (an overflow tent from inventory or a vendor) or proceed with a note. The decision is kept on the quote.</li>
+      <li><b>Money is checked by the server.</b> Tax is applied after the discount, and the database recomputes every total, so a quote can never be saved with a wrong total.</li>
+    </ul>
     <img class="screen" src="screenshots/quotes.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Quotes list with tabs">
-    <p class="cap">Quotes — the <b>Active · Quotes · Confirmed · Archived</b> tabs. Confirmed events are highlighted and rise to the top so you never scroll to find them.</p>
-    <div class="warn">Default rates (chair price, plate price, GST %, service charge) come from <b>Control Center → Pricing</b>. Set these once and every new quote uses them.</div>
+    <p class="cap">Quotes — find any quote by client name or code.</p>
 
-    <h2 id="builder">3 · Floor plan (builder)</h2>
-    <p>Design the room in 2D/3D — drop chairs, round tables, stage, bars, and more onto a canvas sized to your real hall.</p>
+    <!-- ============================================================ 7 -->
+    <h2 id="client">7 · Client approval, portal, booklet &amp; invitation site</h2>
+    <p>Clients never need a Helm account. Each link you send opens only that client's own event.</p>
+    <div class="tbl"><table>
+      <tr><th>Client page</th><th>What it does</th></tr>
+      <tr><td><b>Proposal</b></td><td>The concept, theme, scope and price summary.</td></tr>
+      <tr><td><b>Approval page</b></td><td>The client reads the scope and total, enters the one-time code sent to them, ticks consent and approves. That version is then locked; if you later change the scope, Helm asks the client to re-approve.</td></tr>
+      <tr><td><b>Client portal</b></td><td>“Your event portal”: the confirmed plan, payments made and due, and documents.</td></tr>
+      <tr><td><b>Event booklet</b></td><td>A polished summary of the event — plan, floor-plan pictures (2D/3D), menu, changes and payments, all in your studio currency. Use <b>Share booklet</b>: a checklist shows what's ready, then copy the link or send it.</td></tr>
+      <tr><td><b>Invitation site</b></td><td>For confirmed events: a public invitation website for the client's guests at <code>helm.events/i/…</code>. Pick a template, add details, photos and optional music, preview, then <b>Publish</b> and <b>Send to client</b>.</td></tr>
+    </table></div>
+    <ul>
+      <li><b>Sending:</b> copy the link, or send it by e-mail or WhatsApp from the share box (WhatsApp needs the client's opt-in, which Helm records). In the free trial, nothing is really sent.</li>
+      <li><b>Link windows:</b> client links can expire automatically after a time you choose in Control Center → Client links &amp; packages.</li>
+      <li><b>Offline approval:</b> staff can record an approval received in person.</li>
+    </ul>
+    <div class="shot-todo" data-shot="m-booklet-share.png" data-alt="The Share booklet dialog with its checklist"><b>Screenshot to add</b>The Share booklet dialog: readiness checklist and send box</div>
+    <p class="cap">Share booklet — check, then copy or send.</p>
+    <div class="shot-todo" data-shot="m-invite-studio.png" data-alt="Invitation Studio with template picker and live preview"><b>Screenshot to add</b>Invitation Studio: template picker and live preview</div>
+    <p class="cap">Invitation site — publish a guest website for a confirmed event.</p>
+
+    <!-- ============================================================ 8 -->
+    <h2 id="event">8 · Event workspace &amp; stages</h2>
+    <p>Open any quote to reach its <b>event workspace</b>: the stage strip at the top and one card per job below it. Each card opens a page for that job, and you only see the cards your role allows.</p>
+    <div class="tbl"><table>
+      <tr><th>Stage</th><th>What it's for</th></tr>
+      <tr><td>Lead · Discovery</td><td>Capture and qualify the enquiry; meet the client and capture requirements.</td></tr>
+      <tr><td>Proposal</td><td>Share the concept and design direction.</td></tr>
+      <tr><td>Quote</td><td>Lock the menu, design the floor, price the event.</td></tr>
+      <tr><td>Confirmed</td><td>Lock the details and get the client's approval and advance.</td></tr>
+      <tr><td>Planning</td><td>Assign tasks, plan resources, build the run-sheet and budget.</td></tr>
+      <tr><td>Resources</td><td>Map needs, cover them in-house (staff, stock), flag the gaps for vendors.</td></tr>
+      <tr><td>Ready</td><td>Pass the readiness gate, then brief the team.</td></tr>
+      <tr><td>Event Day</td><td>Run the day and handle issues live.</td></tr>
+      <tr><td>Settlement</td><td>Tear down, invoice, settle vendors and collect.</td></tr>
+      <tr><td>Closed</td><td>Feedback, profit &amp; loss and archive.</td></tr>
+    </table></div>
+    <ul>
+      <li><b>Clicking a stage only opens it</b> so you can look. Moving the event to another stage is a separate button, and Helm lists anything still blocking the move.</li>
+      <li>A banner shows where the quote stands in the 8-step flow (“This quote is at step 4 of 8 · Venue”) with <b>Continue where you left off</b>.</li>
+      <li>Open issues — for example a venue over capacity or a stock shortage — show at the top until they are resolved.</li>
+      <li><b>Event reminders</b> tell the team when an event is coming up.</li>
+    </ul>
+    <div class="shot-todo" data-shot="m-event-stages.png" data-alt="Event workspace with the stage strip and job cards"><b>Screenshot to add</b>Event workspace: stage strip and job cards</div>
+    <p class="cap">The event workspace — one place for every job on this event.</p>
+    <h3>Jobs inside an event</h3>
+    <ul>
+      <li><b>Event details / Plan</b> — timings, zones, headcounts; venue and menu, then <b>Lock</b>.</li>
+      <li><b>Operations (tasks &amp; crew)</b> — add tasks or apply a task template, assign an owner and a due time, set dependencies. Crew get the task in <b>My tasks</b>, accept or decline it, and mark it done with photo evidence; a supervisor verifies it.</li>
+      <li><b>Resource plan</b> — list what the event needs; Helm checks your own staff and stock first and flags the gaps.</li>
+      <li><b>Logistics &amp; payments</b> — guests, logistics checklist (apply a checklist template), permits, comms and payment milestones.</li>
+      <li><b>Run-sheet</b> — the timed schedule for the day: start time, minutes, activity, owner, location.</li>
+      <li><b>Readiness gate</b> — critical checks (vendors confirmed, stock reserved, team briefed). When everything is green, <b>Mark event ready</b>.</li>
+      <li><b>Media &amp; gallery</b> — photos and videos; choose which ones the client sees.</li>
+    </ul>
+
+    <!-- ============================================================ 9 -->
+    <h2 id="builder">9 · Builder 2D/3D &amp; templates</h2>
+    <p>Design the room to real measurements, price every item you place, and show the client a 3D walk-through.</p>
     <ol class="steps">
-      <li>Click <b>✨ Custom Event</b>, enter the <b>hall length &amp; breadth</b> and your <b>guest count</b>. The canvas scales to those exact measurements with a ruler.</li>
-      <li>Helm generates <b>ready-made layouts</b> (theatre rows, round tables, mixed reception, or your exact selections) — pick one and it drops onto the floor.</li>
-      <li>Drag objects from the toolbox; move, rotate, duplicate. Grab an <b>edge handle</b> to stretch a carpet or aisle to any length.</li>
-      <li>Turn on <b>📏 Measure</b> and select an object to see its distance from all four walls <em>and</em> its nearest neighbour on every side.</li>
-      <li>Switch to <b>3D</b> to preview, then <b>Save</b> — the chair count flows straight into the quote's price.</li>
+      <li>Open the builder from step 7 of the quote or from the event. Enter the <b>hall length &amp; breadth</b> and the guest count (or pick a saved venue) — the canvas scales to your hall with a ruler.</li>
+      <li>Start from a <b>layout template</b> (your studio's own templates come first), a generated layout (theatre rows, round tables, mixed reception …), a blank floor or a past event.</li>
+      <li>Drag items from the toolbox (stages, chairs, tables, bars, buffets, lounges, arches, lighting, sound, screens) and search by name. Move, rotate, duplicate; grab an edge handle to stretch a carpet or aisle.</li>
+      <li>Turn on <b>📏 Measure</b> (metres or feet) and select an item to see its distance to every wall and its nearest neighbours.</li>
+      <li>Switch to <b>3D</b> to present (drag to orbit, scroll or pinch to zoom), use <b>Full screen</b> in client meetings, then <b>Save</b>. The chair count and items flow into the quote's price.</li>
     </ol>
     <img class="screen" src="screenshots/builder.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Floor plan builder with the asset toolbox, a seated layout and the live price breakdown">
-    <p class="cap">The floor builder — drop objects from the toolbox and the price breakdown updates as you go. Turn on 📏 Measure to see spacing to the walls and neighbours.</p>
-    <div class="note"><b>Walkable spacing:</b> the auto-arranger lays seats out at a comfortable, walkable pitch. If a hall is genuinely too small for the headcount, it tells you how much more space you'd need instead of overpacking.</div>
-
-    <h2 id="confirm">4 · Confirm &amp; payment</h2>
-    <p>Lock the event and take the client's approval.</p>
-    <ol class="steps">
-      <li>From the event, choose <b>Advance to Confirmed</b>.</li>
-      <li>Send the client the <b>approval link</b>; they approve by OTP / consent / payment link.</li>
-      <li>Record the <b>advance payment</b>. (Live card/UPI via Razorpay is available once enabled.)</li>
-    </ol>
-
-    <h2 id="plan">5 · Plan &amp; resources</h2>
-    <p>Assign tasks, book staff and vendors, reserve inventory, and build the run-sheet.</p>
+    <p class="cap">The builder — the price updates as you place items.</p>
+    <div class="shot-todo" data-shot="m-builder-3d.png" data-alt="The builder in 3D view"><b>Screenshot to add</b>The same layout in 3D</div>
+    <p class="cap">3D view — true heights and colours for client presentations.</p>
     <ul>
-      <li><b>Staff</b> — assign your in-house team to tasks by section (stage, lighting…).</li>
-      <li><b>Inventory</b> — check equipment out to a person and back in; anything missing is flagged with its value.</li>
-      <li><b>Vendors</b> — book outside partners for gaps your team can't cover.</li>
-      <li><b>Run-sheet &amp; budget</b> — a timed schedule and a live cost vs. quote view.</li>
+      <li><b>Capacity meter</b> — seats placed against the venue's capacity; it flags any block packed tighter than a walkable aisle. If a hall is genuinely too small, Helm tells you how much more space you'd need instead of overpacking.</li>
+      <li><b>Versions</b> — each save is a layout version linked to the quote version.</li>
+      <li><b>Layout templates</b> — save a good layout as a studio template (Control Center → Layout templates). Templates fit themselves to each event's hall size and are archived, never deleted.</li>
+      <li><b>Checklist templates</b> — reusable to-do lists (for example “Wedding logistics”). Create them on the <b>Checklist templates</b> page; apply one from an event's Logistics page and all its tasks drop in.</li>
+      <li><b>Photo render</b> — turns the plan into a photo-real picture of the room. Renders use paid credits and are limited per month (Control Center → Photo renders); not part of the free trial.</li>
+    </ul>
+    <img class="screen" src="screenshots/templates.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Checklist templates management">
+    <p class="cap">Checklist templates — build once, apply to any event from its Logistics page.</p>
+
+    <!-- ============================================================ 10 -->
+    <h2 id="inventory">10 · Inventory: reserve, check-out, shortages</h2>
+    <p>Your own stock — chairs, tables, linen, lights, cables — and where it is.</p>
+    <ul>
+      <li><b>Stock items</b> — item, priority (A high value, B mid, C low), category, total owned, <b>committed</b> (reserved for events) and <b>available</b>, unit and unit cost. Add items one by one, from the <b>starter list</b> of common event items, or by Excel / CSV import (not in the trial).</li>
+      <li><b>Reserve for this event</b> — on an event's inventory page, pick an item and quantity and click <b>Reserve</b>. Reservations are checked against every other event, so two events can never take the same chairs.</li>
+      <li><b>Check-out / Check-in</b> — issue stock to a staff member or coordinator; when it comes back, record how many returned.</li>
+      <li><b>Loss report</b> — anything short on return is listed with its value, for sign-off.</li>
+    </ul>
+    <h3>When there isn't enough</h3>
+    <p>If you ask for more than is free, Helm says so plainly — for example “Only 20 free, short by 10”. It reserves the 20 and asks how to cover the 10: <b>rent from a vendor</b> (adds a vendor booking to the event), <b>outsource / buy</b>, or <b>leave it for now</b>. Open shortages stay visible on the event workspace until they are covered. Helm never over-commits stock.</p>
+    <div class="shot-todo" data-shot="m-shortage.png" data-alt="Reserve dialog showing a shortage and the ways to cover it"><b>Screenshot to add</b>A reservation with a shortage: “Only 20 free — short by 10” and the ways to cover it</div>
+    <p class="cap">Shortages — reserve what you have, source the rest.</p>
+
+    <!-- ============================================================ 11 -->
+    <h2 id="vendors">11 · Vendors &amp; partners</h2>
+    <ul>
+      <li><b>Vendors &amp; partners</b> page — your outside partners: vendors, freelancers, rentals and suppliers, with category, phone, e-mail and the services they offer. Deactivate a partner you no longer use (it is kept, not deleted).</li>
+      <li><b>Book a partner</b> on an event to cover a gap: which need it covers, cost, advance, status and contract. Booking marks the need as outsourced.</li>
+      <li><b>Vendor bills &amp; payouts</b> (Settlement) — add each vendor's bill (amount, date, reference) and record payouts against it, in part or in full. Helm refuses a payout above the bill. A wrong bill is <b>voided with a reason</b>, never deleted.</li>
+      <li>Vendors can be added to an event's chat group as contacts (see <a class="inl" href="#chat">Chat</a>).</li>
     </ul>
 
-    <h2 id="eventday">6 · Event day</h2>
-    <p>Run the day from <b>Command</b>: check in guests and staff, tick the run-sheet, and log any issues live.</p>
+    <!-- ============================================================ 12 -->
+    <h2 id="staff">12 · Staff &amp; crew</h2>
+    <p>Plan your in-house team first; reach for vendors and freelancers only for the gaps.</p>
+    <ol class="steps">
+      <li>Open <b>Staff</b> → <b>+ Add staff</b>: name, role, department, employment (full-time, part-time, on-call), phone, e-mail, day rate, skills and notes.</li>
+      <li>Choose <b>Save as a record only</b> (no login — you can still assign, call and pay them) or <b>Save and invite to sign in</b> (they get an invitation e-mail and a backup link to create their own Helm login).</li>
+      <li>Assign staff to event tasks and shifts from the event's Operations page.</li>
+    </ol>
+    <ul>
+      <li><b>Schedule</b> next to a person opens the calendar on that person's schedule.</li>
+      <li><b>Crew on their phones:</b> crew see <b>My tasks</b> and <b>My schedule</b> only — event, date, time, venue and their role. No prices or client contact details.</li>
+    </ul>
 
-    <h2 id="close">7 · Settle &amp; close</h2>
-    <p>After the event: tear down and return inventory, invoice and collect the balance, settle vendors, then close with feedback and a clear P&amp;L.</p>
+    <!-- ============================================================ 13 -->
+    <h2 id="venues">13 · Venues</h2>
+    <p>Keep the halls and spaces you work in, once, in <b>Control Center → Venues</b>: name, address, usable length × width, seated and standing capacity, access notes and contacts.</p>
+    <ul>
+      <li>Pick a venue in step 4 of a quote or in the builder, and the hall size fills in for you.</li>
+      <li>When the guest count is more than the venue holds, Helm asks you to decide before the quote is sent (see <a class="inl" href="#quote">Quotes</a>).</li>
+      <li>Venues are never deleted — deactivate one you no longer use.</li>
+    </ul>
+
+    <!-- ============================================================ 14 -->
+    <h2 id="calendar">14 · Calendar: Events and Team</h2>
+    <p>The calendar has two views, switched at the top:</p>
+    <ul>
+      <li><b>Events</b> — which event is on when. Month, Week or Day of every dated event: confirmed, tentative (still a quote) and open leads with a date, colour-coded. The legend doubles as a filter, and there is an event-type filter. Days with a clash get a conflict badge. Hover a chip for a quick card; click to open the event. On a phone it becomes an agenda list.</li>
+      <li><b>Team</b> — who is working when. Pick one crew member, or <b>All crew</b> for a week grid with people as rows and days as columns. Day / Week / Month, <b>Today</b> and the arrows work the same way.</li>
+    </ul>
+    <p>Crew only see <b>My schedule</b>. The calendar remembers the last view you used on this device.</p>
+    <div class="shot-todo" data-shot="m-calendar-events.png" data-alt="Calendar Events view, month grid"><b>Screenshot to add</b>Calendar — Events view (month)</div>
+    <p class="cap">Events view — every dated event, colour-coded by status.</p>
+    <div class="shot-todo" data-shot="m-calendar-team.png" data-alt="Calendar Team view, all crew week grid"><b>Screenshot to add</b>Calendar — Team view (All crew, week)</div>
+    <p class="cap">Team view — people as rows, days as columns.</p>
+
+    <!-- ============================================================ 15 -->
+    <h2 id="chat">15 · Chat &amp; event groups</h2>
+    <ul>
+      <li><b>Chat</b> is your team's message room inside Helm: one-to-one and group chats with text, photos, voice notes and files, mentions, reactions and pinned messages. Filters: All, Unread, Favorites, Groups.</li>
+      <li><b>Event groups</b> — on a confirmed event, a manager clicks <b>Create event group</b>. Helm pre-ticks the owners, admins and the staff assigned to the event; you can also tick other teammates, staff, vendors and the client. People without a Helm login are kept as the group's contacts (name only). Use <b>Add people</b> later from the chat.</li>
+      <li>Creating a group never sends anything to anyone by WhatsApp, SMS or e-mail.</li>
+    </ul>
+    <div class="shot-todo" data-shot="m-chat.png" data-alt="Team chat with an event group open"><b>Screenshot to add</b>Team chat with an event group open</div>
+    <p class="cap">Chat — the event group keeps everyone on one thread.</p>
+
+    <!-- ============================================================ 16 -->
+    <h2 id="eventday">16 · Event day</h2>
+    <p>Run the day from <b>Event-day command</b>:</p>
+    <ul>
+      <li><b>Arrivals</b> — pull in the team and vendors, then mark Arrived / Left / No-show.</li>
+      <li><b>Setup checks</b> — stage, sound, lighting: Done or Issue.</li>
+      <li><b>Guests</b> — count guest groups in.</li>
+      <li><b>Live stock requests</b> — “3 extension cords”: Issued / Replaced.</li>
+      <li><b>Live issues</b> — log an issue with severity and owner, then Resolve. Safety incidents have their own tab.</li>
+    </ul>
+    <p>Afterwards, <b>Teardown &amp; returns</b> brings reserved stock back, marks vendors as exited and runs the venue handover checklist.</p>
+
+    <!-- ============================================================ 17 -->
+    <h2 id="budget">17 · Budget &amp; margin</h2>
+    <p>Each event has one <b>Budget</b> page that shows what the event costs you against what the client pays.</p>
+    <ul>
+      <li>The client's <b>requirements</b> from step 3 of the quote become budget lines, grouped by priority: <b>Estimated cost</b>, <b>Vendor</b>, <b>Quoted to client</b> (filled in from the quote), <b>Actual cost</b> and <b>Margin</b> (amount and %), with totals per group and overall.</li>
+      <li>A <b>Suggested</b> group offers the lines most events need — venue, catering, chairs, décor, sound &amp; lights, staff, logistics, contingency — one click to add.</li>
+      <li>A requirement added later shows as “New requirement: X — add to budget?”. Budget lines are only ever added, never deleted or overwritten by Helm.</li>
+      <li><b>Change orders</b> — <b>+ New change</b>: what changed, the amount charged to the client and the extra cost. When approved, revenue, cost and the client's balance all update.</li>
+    </ul>
+    <div class="shot-todo" data-shot="m-budget.png" data-alt="Budget page with requirement lines and margin"><b>Screenshot to add</b>Budget &amp; margin: requirement lines, suggested lines and totals</div>
+    <p class="cap">Budget — estimated vs actual, and the margin on every line.</p>
+
+    <!-- ============================================================ 18 -->
+    <h2 id="settle">18 · Settlement &amp; closure</h2>
+    <h3>Settlement</h3>
+    <ul>
+      <li><b>Client</b> — revenue, payments received and the balance. <b>Record a payment</b> with mode, reference and date. Helm refuses a payment above the confirmed total plus approved changes.</li>
+      <li><b>Vendors</b> — each booking with cost, advance, outstanding and settled, plus <b>Vendor bills &amp; payouts</b> (see <a class="inl" href="#vendors">Vendors</a>).</li>
+      <li><b>Staff expense claims</b> — who, for what, amount → Approve → Mark paid.</li>
+      <li><b>Refunds &amp; recovery</b> — refund the client, recover a cost (for example broken chairs) or deduct it from a deposit.</li>
+    </ul>
+    <div class="shot-todo" data-shot="m-settlement.png" data-alt="Settlement page with client balance and vendor bills"><b>Screenshot to add</b>Settlement: client balance, vendors and vendor bills</div>
+    <p class="cap">Settlement — collect from the client, pay your vendors.</p>
+    <h3>Closure</h3>
+    <p><b>Closure &amp; P&amp;L</b> shows revenue (before tax) minus vendor bills and other costs = <b>net profit</b> and margin %. Tax collected is shown separately; it is not profit. Add the client's rating and feedback, a testimonial (with their consent), lessons learned, and rate vendors and staff.</p>
     <img class="screen" src="screenshots/closure.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Closure and P&L page">
-    <p class="cap">Closure — profit &amp; loss, client feedback, vendor/staff ratings, and the Close &amp; archive button.</p>
-    <div class="warn"><b>You can only close once the equipment is back.</b> When you click <b>Close</b>, Helm checks this event's inventory reservations. If anything is still out, it lists what's missing and blocks the close until you mark it <b>Returned</b> in Inventory. Then it asks you to confirm the event has ended, and moves it to the <b>Archived</b> tab.</p>
+    <p class="cap">Closure — profit &amp; loss, feedback, ratings and the Close &amp; archive button.</p>
+    <div class="warn"><b>Helm won't close an event that isn't finished.</b> When you click <b>Close</b>, it checks that the client owes nothing and that no equipment is still checked out. If something is open it lists it and offers to take you to Settlement or Inventory. It then asks you to confirm, and the event moves to the <b>Archive</b> tab.</div>
+    <p>Across all events: <b>Business</b> shows the studio-wide P&amp;L, what you still owe vendors and cash received by month; <b>Reports</b> exports lists (not in the trial); <b>Insights</b> shows conversion rate, average event value and profit by event type.</p>
 
-    <h2 id="templates">Templates (reusable checklists)</h2>
-    <p>A template is a <b>saved to-do list you reuse</b>, so you never retype the same tasks for every event. They don't touch pricing — they're for running the event.</p>
-    <ol class="steps">
-      <li><b>Create</b> a template in <b>Control Center → Templates</b> (e.g. "Wedding logistics" = confirm load-in, book generator, share run-sheet…).</li>
-      <li><b>Use</b> it: open an event's <b>Logistics</b> page → <b>Apply a template</b> → pick it → all its tasks drop into that event's checklist.</li>
-    </ol>
-    <img class="screen" src="screenshots/templates.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Templates management">
-    <p class="cap">Build templates once in Control Center; apply them to any event from its Logistics page.</p>
-
-    <h2 id="crm">CRM &amp; nurture</h2>
-    <p><b>CRM</b> keeps every past client and enquiry for reference and follow-up. <b>Nurture</b> can auto-send birthday/anniversary greetings to win repeat business.</p>
-
-    <h2 id="invite">Invitation websites</h2>
-    <p>Once an event is <b>confirmed</b>, you can build a public <b>digital invitation website</b> for the client to share with their guests.</p>
-    <ol class="steps">
-      <li>On the event, click <b>✨ Invitation site</b>.</li>
-      <li>Pick one of the <b>templates</b> (wedding, birthday, corporate, engagement, general).</li>
-      <li>Fill in the details, add <b>photos</b> and optional <b>background music</b>, preview live.</li>
-      <li>Click <b>Publish</b> — you get a clean shareable link like <code>helm.events/i/name-xxxx</code> and a <b>Share</b> button on the page.</li>
-    </ol>
-
-    <h2 id="control">Control Center</h2>
-    <p>The admin hub (⚙). Set default <b>pricing</b>, chair/plate types and coupons; manage <b>users &amp; roles</b>; build <b>templates</b>; and download a <b>GDPR data export</b> of your studio.</p>
+    <!-- ============================================================ 19 -->
+    <h2 id="control">19 · Control Center</h2>
+    <p>The admin hub (sidebar → Admin → <b>Control Center</b>). Sections are listed on the left; the search box at the top finds any setting, role or page (try <em>gst</em>, <em>invite</em>, <em>2fa</em> or <em>logo</em>) and jumps straight to the field. <b>Help → User manual</b> under the section list opens this manual. A dot marks a section with unsaved changes.</p>
     <img class="screen" src="screenshots/control.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Control Center">
-    <p class="cap">Control Center — pricing, catalogs, team &amp; roles, templates and data export in one place.</p>
-    <div class="note"><b>🌙 Light / dark mode:</b> tap the round <b>☾ / ☀</b> button in the bottom-left corner on any page to switch the whole app between light and dark. Your choice is remembered on that device.</div>
+    <p class="cap">Control Center — sections on the left, search at the top.</p>
+    <div class="tbl"><table>
+      <tr><th>Group</th><th>Section</th><th>What you set there</th></tr>
+      <tr><td rowspan="4">Workspace</td><td>General</td><td>Studio name, country (sets tax and currency), contact details, billing address, logo and accent colour, timezone, and your <b>client link name</b> (the start of every link you send).</td></tr>
+      <tr><td>Plan &amp; billing</td><td>Your Helm subscription, plan, trial status and invoices (see <a class="inl" href="#billing">Plans &amp; billing</a>).</td></tr>
+      <tr><td>Hide amounts (privacy PIN)</td><td>The studio's 4-digit PIN that shows amounts again after you hide them. Only admins change or reset it. The default is 0000 — change it.</td></tr>
+      <tr><td>Client links &amp; packages</td><td>How long client links stay open (auto-expire) and how clients choose a package.</td></tr>
+      <tr><td rowspan="4">Sales</td><td>Pricing &amp; coupons</td><td>Default pricing for new quotes (chair and plate rates, tax, service charge), rate cards, builder prices and limits, and coupons.</td></tr>
+      <tr><td>Menus &amp; catalog</td><td>Chair and plate types, dishes and the menu packages clients pick from.</td></tr>
+      <tr><td>Layout rules</td><td>What the layout generator uses for each event type (seats, buffet, bar …).</td></tr>
+      <tr><td>Import &amp; custom fields</td><td>Bring catalogues and clients in from Excel, and add your own fields.</td></tr>
+      <tr><td rowspan="3">People</td><td>Users &amp; invites</td><td>Add teammates, change roles, send join links, see pending invites (see <a class="inl" href="#roles">Roles &amp; invites</a>).</td></tr>
+      <tr><td>Roles &amp; access</td><td>The access matrix: what each role can view and edit.</td></tr>
+      <tr><td>Data &amp; compliance</td><td>Download a portable archive of your studio's data (admins only; read-only — nothing is changed or deleted).</td></tr>
+      <tr><td rowspan="3">Communication</td><td>Notifications</td><td>Who on the team hears about what — in the bell, by text or e-mail — plus per-person overrides.</td></tr>
+      <tr><td>Reminders &amp; client messages</td><td>Event reminders for the team, payment reminders and follow-ups for clients, stock warnings and WhatsApp forwarding.</td></tr>
+      <tr><td>Photo renders</td><td>Monthly limits for photo-real renders from the builder.</td></tr>
+      <tr><td rowspan="2">Operations</td><td>Venues</td><td>Halls and spaces with usable area and capacity (see <a class="inl" href="#venues">Venues</a>).</td></tr>
+      <tr><td>Layout templates</td><td>Your studio's reusable floor layouts.</td></tr>
+    </table></div>
+    <p>In the free trial, General, Client links, Import, Data &amp; compliance, Notifications, Reminders, Photo renders, Hide amounts and Layout templates are locked; Control Center opens on the first section the trial includes.</p>
 
-    <h2 id="dash-period">Dashboard period switch</h2>
-    <p>The dashboard now has <b>one period switch</b> at the top of the count tiles: <b>7D / 1M / 6M / 1Y</b>. It replaces the small menu that used to sit on each tile, so <b>Upcoming</b>, <b>Confirmed events</b>, <b>Open quotes</b> and <b>New leads</b> always show the same period. The arrow compares the chosen period with the same length of time just before it. Your choice is remembered per user on that device; screen readers hear the full wording (7 days, 1 month, 6 months, 1 year).</p>
-
-    <h2 id="calendar">Calendar: Day, Week and Month</h2>
+    <!-- ============================================================ 20 -->
+    <h2 id="roles">20 · Roles &amp; invites</h2>
+    <h3>Roles</h3>
+    <div class="tbl"><table>
+      <tr><th>Role</th><th>Typical person</th><th>Sees by default</th></tr>
+      <tr><td>Admin</td><td>Studio owner</td><td>Everything, always.</td></tr>
+      <tr><td>Event manager</td><td>Senior planner</td><td>Almost everything.</td></tr>
+      <tr><td>Planner · Designer</td><td>Planner, designer</td><td>Sales, quotes, builder and planning.</td></tr>
+      <tr><td>Sales</td><td>Enquiry handler</td><td>Leads, CRM and quotes.</td></tr>
+      <tr><td>Event coordinator · Supervisor · Quality engineer · Operations</td><td>On-ground leads</td><td>Operations areas; no finance unless you allow it.</td></tr>
+      <tr><td>Crew</td><td>Decorators, helpers</td><td>Only their own tasks and schedule.</td></tr>
+    </table></div>
+    <p>Change exactly what each role can see in <b>Control Center → Roles &amp; access</b>: pick a role, tap an area to allow <b>view</b> (green tick), tap ✎ to also allow <b>edit</b>. Admin always has full access. Pages and sidebar items follow the matrix.</p>
+    <h3>Invite your team</h3>
+    <ol class="steps">
+      <li>Go to <b>Control Center → Users &amp; invites</b> (or <b>Invite user</b> from search).</li>
+      <li><b>Invite by email link</b> — enter their e-mail and role, then <b>Create invite link</b>. Helm e-mails the invitation; the link is also shown for you to copy. It expires in 7 days and nothing is charged.</li>
+      <li>They click <b>Join</b>, create their login with that e-mail and land straight in your studio with the role you picked. Pending invites are listed until accepted.</li>
+    </ol>
     <ul>
-      <li>The calendar has an Apple-style layout with a <b>Day / Week / Month</b> switch, a <b>Today</b> button and arrows to move back and forward.</li>
-      <li>A <b>person picker</b> lets you show the whole studio, just yourself, or one team member.</li>
-      <li>The <b>crew view</b> shows people as rows and days as columns, so you can see who is booked where at a glance.</li>
+      <li><b>Add user</b> — creates the account straight away with a one-time temporary password (shown once). Share it; they set their own at first sign-in.</li>
+      <li>From <b>Staff</b>, <b>Save and invite to sign in</b> sends the same kind of invitation to a staff member.</li>
+      <li>In the free trial you can invite up to 2 teammates (open invitations count).</li>
+    </ul>
+    <div class="shot-todo" data-shot="m-cc-users.png" data-alt="Control Center Users and invites with the invite form"><b>Screenshot to add</b>Control Center → Users &amp; invites</div>
+    <p class="cap">Users &amp; invites — add, invite, change role.</p>
+    <div class="shot-todo" data-shot="m-cc-access.png" data-alt="Control Center Roles and access matrix"><b>Screenshot to add</b>Control Center → Roles &amp; access (the access matrix)</div>
+    <p class="cap">Roles &amp; access — view and edit, per role and area.</p>
+
+    <!-- ============================================================ 21 -->
+    <h2 id="billing">21 · Plans &amp; billing</h2>
+    <div class="tbl"><table>
+      <tr><th>Plan</th><th>For</th><th>Highlights</th></tr>
+      <tr><td><b>Starter</b></td><td>Solo planners and decorators</td><td>Up to 3 team members; leads and CRM; 2D builder and 3D view; quotes with tax and approval links; tasks and calendar; payments and profit per event.</td></tr>
+      <tr><td><b>Studio</b></td><td>Growing event companies</td><td>Everything in Starter; up to 15 team members; roles and access matrix; inventory, check-out and shortages; staff and crew app; team chat per event; client portal, booklet and invitation site; settlement, closure and insights.</td></tr>
+      <tr><td><b>Enterprise</b></td><td>Multi-city and corporate teams</td><td>Everything in Studio; unlimited team members; branches and countries; photo-real renders; onboarding and import help; custom roles.</td></tr>
+    </table></div>
+    <p>Prices on the Pricing page are proposals and may change; the plan and price shown at checkout are the ones that apply. Prices are shown before tax; checkout shows the exact tax for your billing details. Monthly or yearly (2 months free).</p>
+    <ol class="steps">
+      <li>Open <b>Control Center → Plan &amp; billing</b> (or <b>Choose a plan</b> from a trial notice).</li>
+      <li>Pick the plan and monthly / yearly, fill in the billing details shown on your invoices (legal name, address, state, GSTIN optional) and accept the terms.</li>
+      <li>Pay securely through Razorpay — Helm never sees or stores your card. While online payment is being switched on, the page says so and you can contact <b>sales@helm.events</b> to activate your plan.</li>
+    </ol>
+    <p>Your events, layouts and records stay with your studio when you move between plans.</p>
+    <div class="shot-todo" data-shot="m-checkout.png" data-alt="Choose your Helm plan page"><b>Screenshot to add</b>Choose your Helm plan</div>
+    <p class="cap">Choose a plan — you see the exact amount, tax included, before anything is charged.</p>
+
+    <!-- ============================================================ 22 -->
+    <h2 id="after">22 · After the trial</h2>
+    <ul>
+      <li><b>Reminders</b> — 3 days before, 1 day before, on the last day, and 7 days after the trial ends (bell, banner and e-mail).</li>
+      <li><b>Read-only after 8 days</b> — for everyone, including invited teammates. You can sign in and look, but nobody can add, change or delete anything until you choose a plan.</li>
+      <li><b>Data kept 60 days</b> after the trial ends, then permanently deleted. Helm e-mails you 30, 7 and 1 day before the deletion date.</li>
+      <li><b>Choose a plan any time</b> — when you upgrade you choose: keep the sample data, remove the sample data and keep your own records, or start completely clean. Later, Control Center offers <b>Delete all sample data</b>.</li>
+      <li>One free trial per person; Helm may approve one extension of up to 7 days.</li>
     </ul>
 
-<h2 id="crew-schedule">Crew schedule calendar</h2>
-    <ul>
-      <li><b>My schedule</b> (crew): open <b>Calendar</b> to see your own events and shifts in <b>Week</b> or <b>Month</b> view - event, date, time, venue and your role. No prices or client contact details are shown.</li>
-      <li><b>Team schedule</b> (staff / calendar viewers): pick one crew member, or <b>All crew</b> for a week grid with people as rows and days as columns.</li>
-      <li>From <b>Staff</b>, the <b>Schedule</b> link next to a person opens the calendar on that person's schedule.</li>
-    </ul>
-
-    <h2 id="search">Search everything</h2>
-    <p>Press <b>Cmd+K</b> (Mac) or <b>Ctrl+K</b> (Windows) on any page. Besides events, clients and leads, the palette now finds <b>pages</b> (only the ones your role can open), <b>Control Center sections and settings</b>, your <b>account</b> items (profile, password, 2FA, devices) and quick actions like <b>Invite user</b>, <b>Add user</b> and <b>New quote</b>. Choosing a setting jumps straight to it and highlights the exact field. The search box inside Control Center works the same way and understands words like <em>team</em>, <em>invite</em>, <em>2fa</em>, <em>gst</em>, <em>coupon</em> or <em>logo</em>.</p>
-
-    <h2 id="record-advance">Event page: Record advance</h2>
-    <p>On a sent quote that has no advance yet, the event page's next-step button reads <b>Record advance</b>. It opens the quote workspace at the payment step, where you record the client's advance to book the date.</p>
-
-    <h2 id="photo-render">Photo render on the landing page</h2>
-    <p>The public landing page now presents <b>Photo render</b> as a live feature: turn the 2D floor plan into a photoreal picture of the same room that the client can see before they sign.</p>
-    <h2 id="oct-more">More October changes</h2>
-    <ul>
-      <li><b>Advance wording:</b> advances now show as <b>Advance pending</b> until recorded and <b>Advance approved</b> once confirmed, everywhere they appear.</li>
-      <li><b>Booklet currency:</b> the client booklet shows all amounts in your <b>studio currency</b>.</li>
-      <li><b>Pick an event:</b> opening <b>Settlement</b>, <b>Budget</b> or <b>Closure</b> without an event selected now shows a <b>Pick an event</b> list instead of an empty page.</li>
-      <li><b>CRM history:</b> archiving or restoring a client or lead now adds an <b>Archived</b> or <b>Restored</b> entry to its history.</li>
-      <li><b>Search:</b> typing <em>theme</em> or <em>2fa</em> in search jumps straight to the matching setting.</li>
-    </ul>
-
-    <div class="note"><b>Screenshots pending:</b> the manual's screenshot script (<code>scripts/manual-capture.mjs</code>) needs the owner to sign in by hand in the window it opens, so pictures for the October sections will be added after the next capture run.</div>
-
+    <!-- ============================================================ FAQ -->
     <h2 id="faq">FAQ</h2>
+    <h3>I didn't get the confirmation e-mail</h3>
+    <p>Check spam, then use <b>Resend confirmation link</b> on the sign-in page.</p>
+    <h3>My password is refused</h3>
+    <p>It needs 12+ characters with an uppercase and a lowercase letter, a number and a symbol. Repeated wrong attempts lock the account for a short while.</p>
     <h3>A teammate can't see something</h3>
-    <p>Check <b>Control Center → Access control</b> — their role may not have <b>view</b>/<b>edit</b> on that area.</p>
-    <h3>The Google button says it isn't enabled</h3>
-    <p>An admin needs to finish the Google OAuth setup in the Supabase dashboard (one-time).</p>
+    <p>Their role doesn't have that area. An admin can allow it in <b>Control Center → Roles &amp; access</b>.</p>
+    <h3>Operations staff can see prices</h3>
+    <p>Remove <b>finance</b> from their role in the access matrix.</p>
+    <h3>The total differs from my calculator</h3>
+    <p>Tax is applied after the discount and rounded to whole currency units. The server's total is the correct one.</p>
+    <h3>“Payment exceeds amount due”</h3>
+    <p>Payments can't go above the confirmed total plus approved changes. Add a change order first.</p>
+    <h3>Stock shows a shortage</h3>
+    <p>Another event on the same date has reserved it. Check the calendar, then cover the gap with a vendor.</p>
+    <h3>A client link has expired</h3>
+    <p>Send a fresh link from the event. Link windows are set in Control Center → Client links &amp; packages.</p>
+    <h3>I entered a wrong vendor bill</h3>
+    <p>Void it with a reason and add the correct one.</p>
+    <h3>I'm showing my screen to a client</h3>
+    <p>Click the eye in the top bar to hide every amount; showing them again needs the studio PIN.</p>
+    <h3>Where is Control Center / Insights?</h3>
+    <p>In the sidebar under <b>Admin</b> (on a phone: <b>More</b>). The profile menu only holds your own account.</p>
     <h3>I created a studio by mistake</h3>
-    <p>Ask an admin — teammates should join via an <b>invite link</b>, not by creating a new studio.</p>
+    <p>Teammates should join through an invite link, not by creating a studio. Ask your admin to invite you.</p>
 
     <footer>
-      Helm Events · User Manual · this document is updated whenever features change.
+      Helm Events · User Manual · updated whenever features change. Screenshots marked “Screenshot to add” appear here automatically once they are captured.
     </footer>
   </main>
 </div>
