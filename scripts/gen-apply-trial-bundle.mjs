@@ -1,6 +1,6 @@
 // gen-apply-trial-bundle.mjs - builds supabase/APPLY-TRIAL-BUNDLE.sql: ONE paste for the Supabase SQL
 // editor that applies the whole free-trial release in order:
-//   APPLY-0173 .. APPLY-0186 (each file that exists, verbatim, each in its own begin / commit),
+//   APPLY-0173 .. APPLY-0187 (each file that exists, verbatim, each in its own begin / commit),
 //   then FIX-0177-existing-trials.sql, then APPLY-0178-refresh-trials.sql LAST,
 //   then ONE combined VERIFY grid (the last result the editor shows; every row must say ok = true).
 // Every section is the owner-reviewed paste file unchanged, so the bundle is exactly "paste them one
@@ -13,7 +13,7 @@ const r = (p) => readFileSync(ROOT + p, 'utf8');
 const OUT = 'supabase/APPLY-TRIAL-BUNDLE.sql';
 
 const sections = [];
-for (let n = 173; n <= 186; n++) {
+for (let n = 173; n <= 187; n++) {
   const p = `supabase/APPLY-0${n}.sql`;
   if (existsSync(ROOT + p)) sections.push({ n: '0' + n, p });
 }
