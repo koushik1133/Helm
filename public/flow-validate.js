@@ -257,7 +257,8 @@
   function hasContent(section, v) { return !!CONTENT[section] && filled(v || {}, CONTENT[section]); }
 
   // ---- DOM: messages under the fields --------------------------------------------
-  function anchorOf(el) { return (el.closest && (el.closest(".bpui-tel") || el.closest(".hp-wrap"))) || el; }
+  // L12: a HelmPhone field's message goes after the whole phone row (input.helmPhone.wrap = div.hp), never inside it
+  function anchorOf(el) { return (el.helmPhone && el.helmPhone.wrap) || (el.closest && (el.closest(".bpui-tel") || el.closest(".hp"))) || el; }
   function setMsg(doc, id, msg, kind) {
     var el = doc.getElementById(id); if (!el) return;
     var mid = id + "_fv", m = doc.getElementById(mid);

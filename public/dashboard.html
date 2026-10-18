@@ -821,7 +821,9 @@
   // (trial-lock hides trial-only items), so no step is skipped early or shown for a hidden page
   // B30: days left in the free trial for the welcome step (best-effort; null = not shown)
   async function tourTrialDays(){ try{ const T=BPStore.trialOrg&&BPStore.trialOrg.status?await BPStore.trialOrg.status():null;
-      const n=T&&T.is_trial_org===true&&T.days_left!=null?Number(T.days_left):NaN; TOUR_DAYS=isFinite(n)&&n>=0?Math.round(n):null; }catch(_){ TOUR_DAYS=null; } }
+      // L9: the same studio-zone calendar count as the trial strip (HelmTrial.daysLeft), else the server's number
+      const c=T&&T.is_trial_org===true&&window.HelmTrial&&HelmTrial.daysLeft?HelmTrial.daysLeft(T.ends_at,Date.now(),T.timezone):null;
+      const n=c!=null?c:(T&&T.is_trial_org===true&&T.days_left!=null?Number(T.days_left):NaN); TOUR_DAYS=isFinite(n)&&n>=0?Math.round(n):null; }catch(_){ TOUR_DAYS=null; } }
   function startTourWhenReady(){
     const t0=Date.now(); tourTrialDays();
     const trialKnown = Promise.race([ Promise.resolve(window.HelmTrialLock && HelmTrialLock.whenKnown ? HelmTrialLock.whenKnown() : null).catch(()=>null),

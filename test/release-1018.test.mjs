@@ -94,11 +94,11 @@ t('client-mailer: 0166 outbox gate, then 0179 trial_send_blocked, both before th
   assert.match(cm, /return json\(\{ status: "test_mode", masked, reason: TEST_MODE_TEXT \}\);/);
   assert.match(cm, /return json\(\{ status: "not_configured", trial: true,/);
 });
-t('menu package editor: Sample tag (0185) + trial edits price and catalog dishes, never Active', () => {
+t('menu package editor: Sample tag (0185) + trial edits the price only (L8), never dishes or Active', () => {
   const m = read('public/menu-pkg-editor.js');
   assert.match(m, /if \(t\.is_demo\) title\.appendChild\(el\("span", "hs-tag hs-solo", "Sample"\)\);/);
   assert.match(m, /if \(!trial && v\.on !== st\.base\.active\) patch\.active = v\.on;/);
-  assert.match(m, /if \(trial\) \{ addNote\("In the free trial you can add dishes from your Dishes catalog only/);
-  assert.match(m, /var dr = trial && same\(st\.dishes, st\.base\.dishes\) \? \{ ok: true \} : checkDishes\(st\.dishes, \{ active: on \}\);/);
+  assert.match(m, /if \(!trial && !same\(st\.dishes, st\.base\.dishes\)\) patch\.dishes = normDishes\(st\.dishes\);/);
+  assert.match(m, /var dr = trial \? \{ ok: true \} : checkDishes\(st\.dishes, \{ active: on \}\);/);
 });
 console.log(`release-1018: ${n} passed`);

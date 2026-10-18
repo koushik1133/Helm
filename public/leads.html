@@ -603,6 +603,8 @@
     if(lead) $("#f_stage").value=lead.status||"new";
     formDirty.clean(); if(!leadFv) leadFv=leadFvBind(); leadFv.forEach(b=>{ if(b) b.reset(); });
     $("#lm_err").hidden=true; $("#leadModal").hidden=false; setTimeout(()=>$("#f_name").focus(),50);
+    // L13: opened at the free-trial cap -> Save off + "Choose a plan to add more" (edit: Save back on)
+    if(window.BPUI&&BPUI.capDialog){ if(lead) BPUI.capDialogReset($("#lm_save"),$("#lm_err")); else BPUI.capDialog($("#lm_save"),$("#lm_err"),"leads","leads",()=>!editingId&&!$("#leadModal").hidden); }
   }
   function closeForm(){ $("#leadModal").hidden=true; editingId=null; formDirty.clean(); }
   async function requestCloseForm(){ if(!(await BPUI.confirmDiscard(formDirty))) return; closeForm(); }
@@ -654,7 +656,7 @@
     try{
       if(id) await BPStore.leads.update(id, patch);
       else await BPStore.leads.add(patch);
-    }catch(err){ fail(BPUI.friendlyError(err,{action:"save the lead"})); return; }
+    }catch(err){ if(!id&&BPUI.isCapError&&BPUI.isCapError(err)){ BPUI.capLimit($("#lm_err"),null,"leads"); return; } fail(BPUI.friendlyError(err,{action:"save the lead"})); return; }
     closeForm();
     // M-03: reflect the edit on the board IMMEDIATELY. Previously the in-memory lead was
     // merged only on a stage change, so a plain field edit (name/guests) stayed stale on the
@@ -676,6 +678,7 @@
   $("#lm_close").addEventListener("click",requestCloseForm);
   $("#lm_cancel").addEventListener("click",requestCloseForm);
   $("#lm_save").addEventListener("click",()=>BPUI.guard($("#lm_save"),saveLead,{busyLabel:"Saving…"}));
+  if(BPUI.clearErrOnEdit) BPUI.clearErrOnEdit($("#leadModal"),$("#lm_err"));   // L13: a fixed field clears the old form error
   $("#leadModal").addEventListener("click",(e)=>{ if(e.target.id==="leadModal") requestCloseForm(); });
 
   /* ---------- login ---------- */

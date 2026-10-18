@@ -269,6 +269,8 @@
     },{busyLabel:"Sending…"});
   }
   async function inviteStaff(s,btn){
+    // L14: a sample (is_demo, @example.com) staff row is never invited - it would use up one of the trial's 2 seats
+    if(BPStore.staff.isDemo(s)){ BPUI.toast("This is sample staff from the free-trial data. Add your real teammate and invite them instead.",{type:"info"}); return; }
     const key=BPStore.staff.matchRole(s.role);
     if(!key){ BPUI.toast(`Pick a role for ${s.name} first (Edit → Role), then invite them.`,{type:"info"}); return; }
     await BPUI.guard(btn, async()=>{
@@ -306,7 +308,7 @@
         ${canCal?`<a class="ic" href="calendar.html?staff=${encodeURIComponent(s.id)}#schedule" title="See ${esc(s.name||"this person")}'s event schedule (week / month)">Schedule</a>`:""}
         ${canEdit?`<button class="ic" data-act="edit">Edit</button>
         <button class="ic" data-act="toggle">${s.active===false?"Reactivate":"Deactivate"}</button>
-        ${isAdminUser&&!linked&&s.email&&s.active!==false?`<button class="ic" data-act="invite" title="Create a sign-up link for ${esc(s.email)} with their role">${BPStore.staff.loginStatus(s,invites)==="invited"?"Copy invite link":"Invite to log in"}</button>${BPStore.staff.loginStatus(s,invites)==="invited"?`<button class="ic" data-act="resend" title="E-mail the invite link to ${esc(s.email)} again">Resend email</button>`:""}`:""}`:""}
+        ${isAdminUser&&!linked&&s.email&&s.active!==false&&!BPStore.staff.isDemo(s)?`<button class="ic" data-act="invite" title="Create a sign-up link for ${esc(s.email)} with their role">${BPStore.staff.loginStatus(s,invites)==="invited"?"Copy invite link":"Invite to log in"}</button>${BPStore.staff.loginStatus(s,invites)==="invited"?`<button class="ic" data-act="resend" title="E-mail the invite link to ${esc(s.email)} again">Resend email</button>`:""}`:""}`:""}
       </div>
     </div>`;
   }
@@ -491,7 +493,7 @@
     $("#s_attrs").replaceChildren(...(attrEd?[attrEd.el]:[])); $("#s_attrs_box").hidden=!attrEd;
     $("#sm_err").hidden=true;
     if(s && !BPStore.staff.isLinked(s) && BPStore.staff.phoneInvalid(s)){ $("#sm_err").textContent=`Invalid phone — please fix. The saved number "${String(s.phone).slice(0,60)}" isn't a valid phone (7–15 digits, optional leading +).`; $("#sm_err").hidden=false; }
-    $("#staffModal").hidden=false; $("#staffModal .sm-body").scrollTop=0; formDirty.clean(); if(!s) capHint(); setTimeout(()=>(BPStore.staff.isLinked(s)?$("#s_emp"):$("#s_name")).focus(),50);
+    $("#staffModal").hidden=false; $("#staffModal .sm-body").scrollTop=0; formDirty.clean(); if(!s) capHint(); else if(window.BPUI&&BPUI.capDialogReset) BPUI.capDialogReset($("#sm_save"),$("#sm_err")); setTimeout(()=>(BPStore.staff.isLinked(s)?$("#s_emp"):$("#s_name")).focus(),50);
   }
   let editingRow=null;
   const formDirty=BPUI.trackDirty($("#staffModal"));
@@ -575,7 +577,7 @@
            if(editingId) await BPStore.staff.update(editingId,rec); else added=await BPStore.staff.add(rec); closeForm();
            if(loginRoleChange) await loadLoginInfo(); BPUI.toast("Staff saved.",{type:"ok"}); await load();
            if(wantInvite && added) await inviteStaff(Object.assign({}, rec, added), $("#newBtn")); }
-      catch(e){ fail(BPStore.staff.linkErrorText(e)||BPUI.friendlyError(e,{action:"save the staff member",setupHint:"phase6-staff.sql"})); }
+      catch(e){ if(!editingId&&BPUI.isCapError&&BPUI.isCapError(e)){ BPUI.capLimit($("#sm_err"),null,"staff"); return; } fail(BPStore.staff.linkErrorText(e)||BPUI.friendlyError(e,{action:"save the staff member",setupHint:"phase6-staff.sql"})); }
     },{busyLabel:"Saving…"});
   }
   async function toggleActive(s,btn){
@@ -625,7 +627,9 @@
   // B29: free trial - "2 of 2 staff used" is shown by the add button (switched off at the cap), not after the form
   function gateCap(){ if(canEdit&&window.BPUI&&BPUI.capGate) BPUI.capGate([$("#newBtn"),$("#importBtn")],"crew_members","staff").catch(()=>{}); }
   // ...and a new-record dialog opened at the cap says so at once (the server would refuse the save)
-  function capHint(){ if(!window.BPUI||!BPUI.trialCap) return; BPUI.trialCap("crew_members").then(c=>{ if(c&&c.full&&!editingId&&!$("#staffModal").hidden){ $("#sm_err").textContent=BPUI.capText(c,"staff"); $("#sm_err").hidden=false; } }).catch(()=>{}); }
+  // L13: ...with Save switched off and a "Choose a plan to add more" link (an edit switches Save back on)
+  function capHint(){ if(!window.BPUI) return; if(BPUI.capDialog){ BPUI.capDialog($("#sm_save"),$("#sm_err"),"crew_members","staff",()=>!editingId&&!$("#staffModal").hidden); return; }
+    if(!BPUI.trialCap) return; BPUI.trialCap("crew_members").then(c=>{ if(c&&c.full&&!editingId&&!$("#staffModal").hidden){ $("#sm_err").textContent=BPUI.capText(c,"staff"); $("#sm_err").hidden=false; } }).catch(()=>{}); }
   async function load(){
     gateCap();
     if(quoteId){

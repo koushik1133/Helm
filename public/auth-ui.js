@@ -1562,7 +1562,36 @@
       return d.toLocaleDateString("en-IN", f);
     } catch (e) { return String(v); }
   }
-  function subscriptionCard(st, sub) {
+  // L9 (live QA): the trial end on Plan & billing is the STUDIO's calendar day of the exact end moment - the same day
+  // the trial strip, the reminders and the Staff page show (trial.js endDay). studio_subscriptions.trial_ends_at is a
+  // bare day that sign-up stored as the UTC day (26 Oct for an end at 27 Oct 03:30 IST), so it is only the fallback.
+  // t = my_trial_org() (exact ends_at + timezone) and/or my_trial_status() (0223: ends_at_exact + timezone).
+  function zoneDay(ms, tz) {
+    var zones = [tz || "Asia/Kolkata", "Asia/Kolkata"];
+    for (var i = 0; i < zones.length; i++) {
+      try {
+        var o = {}; new Intl.DateTimeFormat("en-CA", { timeZone: zones[i], year: "numeric", month: "2-digit", day: "2-digit" })
+          .formatToParts(new Date(ms)).forEach(function (x) { o[x.type] = x.value; });
+        if (o.year && o.month && o.day) return o.year + "-" + o.month + "-" + o.day;
+      } catch (e) {}
+    }
+    return new Date(ms).toISOString().slice(0, 10);
+  }
+  function studioTz(st) { try { return st && typeof st.studioTimezone === "function" ? st.studioTimezone() : undefined; } catch (e) { return undefined; } }
+  function trialEndDay(sub, org, ts, tz) {
+    var exact = null, zone = null;
+    if (org && org.is_trial_org === true && org.ends_at) { exact = org.ends_at; zone = org.timezone; }
+    else if (ts && ts.ends_at_exact) { exact = ts.ends_at_exact; zone = ts.timezone; }
+    var e = exact ? Date.parse(exact) : NaN;
+    if (isFinite(e)) {
+      var H = global.HelmTrial;
+      if (H && typeof H.endDay === "function") { var d = H.endDay(exact, zone || tz); if (d) return d; }
+      return zoneDay(e - 1, zone || tz);
+    }
+    if (ts && /^\d{4}-\d{2}-\d{2}$/.test(String(ts.ends_at || "")) && ts.timezone) return String(ts.ends_at);   // 0223: already the studio day
+    return sub && sub.trial_ends_at ? sub.trial_ends_at : null;
+  }
+  function subscriptionCard(st, sub, org, ts) {
     var box = doc.getElementById("subCard"); if (!box) return;
     var body = doc.getElementById("subBody"); if (!body) return;
     if (!sub || !("payments" in sub)) { box.hidden = true; return; }        // admins only (the DB decides)
@@ -1572,7 +1601,7 @@
     body.appendChild(el("p", { class: "hau-muted", style: "font-weight:600" }, line));
     body.appendChild(el("p", { class: "hau-muted" }, "Status: " + String(sub.status || "not set").replace("_", " ") +
       (sub.current_period_end ? " · current period ends " + day(sub.current_period_end) : "") +
-      (sub.trial_ends_at ? " · trial ends " + day(sub.trial_ends_at) : "")));
+      (sub.trial_ends_at ? " · trial ends " + day(trialEndDay(sub, org, ts, studioTz(st)) || sub.trial_ends_at) : "")));
     var list = el("ul", { class: "hau-list" });
     (sub.payments || []).forEach(function (p) {
       var li = el("li", null, day(p.paid_on) + " · " + money2(p.amount, p.currency) + " · " + (p.invoice_no || "") + (p.voided ? " (void)" : "") + " ");
@@ -1638,8 +1667,12 @@
   }
   function subscriptionStatus() {
     var st = S(); if (!st || !st.auth.user() || !st.subscription || !st.subscription.mine) return;
-    st.subscription.mine().then(function (sub) {
-      subscriptionCard(st, sub);
+    // L9: the exact trial end (my_trial_org / my_trial_status) so the card shows the studio's day, not the UTC day
+    var orgQ = st.trialOrg && st.trialOrg.status ? Promise.resolve().then(function () { return st.trialOrg.status(); }).catch(function () { return null; }) : Promise.resolve(null);
+    var tsQ = st.subscription.trial ? Promise.resolve().then(function () { return st.subscription.trial(); }).catch(function () { return null; }) : Promise.resolve(null);
+    Promise.all([st.subscription.mine(), orgQ, tsQ]).then(function (all) {
+      var sub = all[0];
+      subscriptionCard(st, sub, all[1], all[2]);
       if (!sub || !sub.read_only || subBanner || !doc.body) return;
       subBanner = showNote({ id: "hauReadOnly", priority: 1, icon: "lock", tone: "warn", title: "Read-only: subscription suspended — contact Helm",
         body: "You can view and export everything, but nothing can be created, changed or deleted until it is reactivated." });
@@ -1777,6 +1810,7 @@
     demoNotice: demoNotice,
     onTrial: onTrial,
     _day: day,
+    _trialEndDay: trialEndDay,
     _safeQr: safeQr,
   };
 })(window);

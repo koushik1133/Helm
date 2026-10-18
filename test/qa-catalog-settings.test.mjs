@@ -148,7 +148,9 @@ t('B29 every catalog add button + new-record dialog reads the cap (inventory, ve
   for (const [src, ent] of [[INV, 'inventory_items'], [VEN, 'vendors'], [STAFF, 'crew_members']]) {
     assert.match(src, new RegExp('function gateCap\\(\\)\\{[^\\n]*BPUI\\.capGate\\([^\\n]*"' + ent + '"'));
     assert.match(src, /async function load\(\)\{\n    gateCap\(\);/);
-    assert.match(src, new RegExp('function capHint\\(\\)\\{[^\\n]*BPUI\\.trialCap\\("' + ent + '"\\)'));
+    // L13: the dialog uses BPUI.capDialog (Save off + upgrade link); the old trialCap text stays as the fallback
+    assert.match(src, new RegExp('function capHint\\(\\)\\{[^\\n]*BPUI\\.capDialog\\([^\\n]*"' + ent + '"'));
+    assert.match(src, new RegExp('BPUI\\.trialCap\\("' + ent + '"\\)'));
   }
   assert.match(INV, /\$\("#itemModal"\)\.hidden=false; if\(!it\) capHint\(\);/);
   assert.match(VEN, /formDirty\.clean\(\); if\(!v\) capHint\(\);/); assert.match(STAFF, /formDirty\.clean\(\); if\(!s\) capHint\(\);/);
