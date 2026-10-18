@@ -141,6 +141,42 @@ Deno.test("client-mailer: booklet needs a live booklet link; no approval token -
   } finally { rF(); rEnv(); }
 });
 
+Deno.test("client-mailer: FREE TRIAL studio -> test_mode, NOTHING sent, row logged suppressed", async () => {
+  resetSupaMock(); db(Q, { token: TOKEN, expires_at: new Date(Date.now() + 864e5).toISOString(), revoked_at: null });
+  g.__supaRpc = (name: string) => name === "_sample_outbound_blocked" ? { data: true, error: null } : { data: null, error: null };
+  const rEnv = setEnv(RESEND); const rF = installFetch((url) => { throw new Error("must not send: " + url); });
+  try {
+    const h = await loadHandler(FN);
+    for (const kind of ["booklet", "approval"]) {
+      const r = await h(post({ quote_id: QUOTE, kind }, auth));
+      assertEquals(r.status, 200); const j = await r.json();
+      assertEquals(j.status, "test_mode"); assert(String(j.reason).startsWith("Test mode"));
+    }
+    assertEquals(fetchLog().length, 0);
+    const rows = supaLog().filter((x) => x.table === "notifications");
+    assert(rows.length === 2 && rows.every((x) => JSON.stringify(x.calls).includes('"suppressed"')), "suppressed rows");
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("client-mailer: trial check falls back to studio_subscriptions, fails CLOSED when unknown", async () => {
+  resetSupaMock();
+  const B = { token: TOKEN, expires_at: new Date(Date.now() + 864e5).toISOString(), revoked_at: null };
+  g.__supaGetUser = () => ({ data: { user: { id: "u1" } } });
+  g.__supaRpc = () => ({ data: null, error: { code: "42501", message: "permission denied" } });
+  let subs: any = { data: { status: "trial" }, error: null };
+  g.__supaResolver = (table: string) => table === "quotes" ? { data: Q, error: null } : table === "client_booklets" ? { data: B, error: null }
+    : table === "organizations" ? { data: { name: "Sparkle" }, error: null } : table === "studio_subscriptions" ? subs : { data: null, error: null };
+  const rEnv = setEnv(RESEND); const rF = installFetch((url) => { throw new Error("must not send: " + url); });
+  try {
+    const h = await loadHandler(FN);
+    assertEquals((await (await h(post({ quote_id: QUOTE, kind: "booklet" }, auth))).json()).status, "test_mode");
+    subs = { data: null, error: { code: "XX000", message: "down" } };
+    const r = await h(post({ quote_id: QUOTE, kind: "booklet" }, auth));
+    assertEquals(r.status, 503); assertEquals((await r.json()).status, "failed");
+    assertEquals(fetchLog().length, 0);
+  } finally { rF(); rEnv(); }
+});
+
 Deno.test("send-otp e-mail: SMTP/Resend via shared mailer; OTP never logged", async () => {
   resetSupaMock();
   g.__supaRpc = (name: string) => name === "wa_otp_begin"

@@ -4,6 +4,9 @@
  * reminders). The address is pre-filled from the quote and editable; the message is fixed text,
  * shown as a preview. WhatsApp needs the client's opt-in (stored with who / when); STOP is respected.
  * FREE TRIAL: nothing real is sent - the server stores the send as skipped and the box says so.
+ * Shared (0200): the "Share booklet" dialog mounts the same box for the client booklet link with
+ * adapter options (send / sendLog / ready / message / gateText / pendingPreview / logKey) - see
+ * booklet-share.js. Without them it behaves exactly as the Invitation Studio box above.
  * CSP-safe: DOM built with createElement / textContent, no inline styles or handlers. */
 (function () {
   "use strict";
@@ -47,12 +50,15 @@
   }
 
   // opts: { getSite(), getQuote(), getLink(), country(), isDirty(), trial: Promise<boolean> }
+  // shared adapters (0200 booklet): send(channel, to, optIn, consentText) -> Promise, sendLog() -> Promise<rows>,
+  //   ready() -> boolean, message(quote, link) -> string, gateText, pendingPreview, logKey() -> string
   function mount(host, opts) {
     var S = window.BPStore, U = window.BPUI;
-    if (!host || !opts || !S || !S.sites || !S.sites.send) return null;
+    if (!host || !opts || !S || !(opts.send || (S.sites && S.sites.send))) return null;
+    var GATE = opts.gateText || "Publish first — then you can send the link to your client.";
     var box = el("div", "ish-box"); box.setAttribute("data-invite-share", "1");
 
-    var gate = el("p", "ish-gate", "Publish first — then you can send the link to your client.");
+    var gate = el("p", "ish-gate", GATE);
     gate.id = "ishGate"; box.appendChild(gate);
 
     var body = el("div", "ish-body"); body.id = "ishBody";
@@ -104,7 +110,11 @@
       if (ch === "email") return String(c.email || "").trim();
       return e164(c.phone || c.whatsapp || "", opts.country ? opts.country() : "IN") || String(c.phone || "").trim();
     }
-    function published() { var s = opts.getSite ? opts.getSite() : null; return !!(s && s.id && s.status === "published" && opts.getLink && opts.getLink()); }
+    function published() {
+      if (opts.ready) return !!(opts.ready() && opts.getLink && opts.getLink());
+      var s = opts.getSite ? opts.getSite() : null; return !!(s && s.id && s.status === "published" && opts.getLink && opts.getLink());
+    }
+    function logKey() { if (opts.logKey) return opts.logKey(); var s = opts.getSite ? opts.getSite() : null; return s && s.id; }
     function valid(ch, v) { return ch === "email" ? EMAIL_RE.test(v) : !!e164(v, opts.country ? opts.country() : "IN"); }
 
     function paint() {
@@ -119,14 +129,16 @@
       hint.textContent = typed[ch] != null && typed[ch] !== quoteTo(ch) ? "Changed here only — the quote keeps its own details."
         : quoteTo(ch) ? "From the quote — you can change it." : (ch === "email" ? "No email on the quote — type one." : "No mobile number on the quote — type one with the country code.");
       optLab.hidden = ch !== "whatsapp";
-      pv.textContent = pub ? message(opts.getQuote ? opts.getQuote() : null, opts.getLink()) : "Hi " + clientName(opts.getQuote ? opts.getQuote() : null) + ", here is your invitation website: (link appears after you publish)";
+      var q0 = opts.getQuote ? opts.getQuote() : null;
+      pv.textContent = pub ? (opts.message || message)(q0, opts.getLink())
+        : (opts.pendingPreview || ("Hi " + clientName(q0) + ", here is your invitation website: (link appears after you publish)"));
       trial.hidden = !isTrial;
       dirtyNote.hidden = !(pub && opts.isDirty && opts.isDirty());
       send.textContent = (ch === "whatsapp" ? "Send on WhatsApp" : "Send by email") + (isTrial ? " (test mode)" : "");
       var ok = pub && valid(ch, String(to.value || "").trim());
       send.disabled = !ok; if (!ok) send.setAttribute("aria-disabled", "true"); else send.removeAttribute("aria-disabled");
-      var s = opts.getSite ? opts.getSite() : null;
-      if (pub && s && loadedFor !== s.id) { loadedFor = s.id; loadLog(); }
+      var k = logKey();
+      if (pub && k && loadedFor !== k) { loadedFor = k; loadLog(); }
     }
     function paintLog(rows) {
       while (log.firstChild) log.removeChild(log.firstChild);
@@ -141,8 +153,9 @@
       log.hidden = logH.hidden = !list.length;
     }
     function loadLog() {
+      if (opts.sendLog) return Promise.resolve().then(opts.sendLog).then(paintLog).catch(function () {});
       var s = opts.getSite ? opts.getSite() : null;
-      if (!s || !s.id || !S.sites.sendLog) return Promise.resolve();
+      if (!s || !s.id || !S.sites || !S.sites.sendLog) return Promise.resolve();
       return S.sites.sendLog(s.id).then(paintLog).catch(function () {});
     }
 
@@ -152,11 +165,13 @@
     send.addEventListener("click", function () {
       msg.textContent = "";
       var ch = channel(), v = String(to.value || "").trim(), s = opts.getSite ? opts.getSite() : null;
-      if (!published() || !s) { msg.textContent = "Publish first — then you can send the link."; return; }
+      if (!published() || (!opts.send && !s)) { msg.textContent = GATE; return; }
       if (!valid(ch, v)) { msg.textContent = ch === "email" ? "Enter a valid email address." : "Enter a valid mobile number with the country code."; to.focus(); return; }
       var addr = ch === "whatsapp" ? e164(v, opts.country ? opts.country() : "IN") : v;
       var run = function () {
-        return S.sites.send(s.id, ch, addr, ch === "whatsapp" && opt.checked, OPT_TEXT).then(function (r) {
+        var go = opts.send ? opts.send(ch, addr, ch === "whatsapp" && opt.checked, OPT_TEXT)
+          : S.sites.send(s.id, ch, addr, ch === "whatsapp" && opt.checked, OPT_TEXT);
+        return Promise.resolve(go).then(function (r) {
           msg.textContent = resultText(r, ch);
           if (r && r.status === "queued" && U && U.toast) U.toast(msg.textContent, { type: "ok" });
           return loadLog();
@@ -174,4 +189,5 @@
   }
 
   window.HelmInviteShare = { mount: mount, message: message, clientName: clientName, resultText: resultText, OPT_TEXT: OPT_TEXT, TRIAL_NOTE: TRIAL_NOTE };
+  window.HelmSendToClient = window.HelmInviteShare;   // shared name (booklet dialog, 0200)
 })();
