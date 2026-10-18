@@ -11,9 +11,11 @@ const tests = []; const t = (n, f) => tests.push([n, f]);
 
 const man = read('supabase/migrations/MANIFEST');
 const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
-const fresh = nums.filter((n) => +n > 205);
+// the release's own migrations (later work numbered between them, e.g. 0213, ships in its own paste file)
+const fresh = nums.filter((n) => ['0206', '0207', '0208', '0236', '0237'].includes(n));
 t('MANIFEST: each migration number once; the new ones are 0206, 0207, 0208, 0236, 0237 in numeric order', () => {
   assert.equal(new Set(nums).size, nums.length, 'duplicate migration number');
+  const after = nums.filter((n) => +n > 205); assert.deepEqual([...after].sort(), after, 'everything after 0205 in numeric order');
   assert.deepEqual(fresh, ['0206', '0207', '0208', '0236', '0237']);
   assert.deepEqual([...fresh].sort(), fresh);
   assert.equal(nums.indexOf('0205'), nums.indexOf('0206') - 1, '0206 right after 0205');

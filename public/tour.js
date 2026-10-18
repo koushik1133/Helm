@@ -2,7 +2,7 @@
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
    One engine, many pages. Each page's steps live in STEPS keyed by filename.
-   A page opts in simply by including  <script src="tour.js?v=20"></script>.
+   A page opts in simply by including  <script src="tour.js?v=21"></script>.
 
    • Injects its own spotlight CSS (pages need no markup).
    • Renders a floating "? Tour" button, or wires an existing #helpBtn.
@@ -18,12 +18,30 @@
     // Steps follow the on-screen reading order: the top bar left to right, then the
     // panels below it (the old order jumped between the bar and the toolbox).
     "builder.html": [
-      { sel: "#preset", title: "Start from a template", desc: "Want a head start? Pick a ready-made event layout (wedding, conference, concert…) and tweak it." },
-      { sel: "#customBtn", title: "…or build your own floor", desc: "Click ✨ Create layout, type your hall length × breadth and guest count, and Helm sizes the canvas to your hall and arranges the seating." },
-      { sel: "#measureBtn", title: "Measure everything", desc: "Turn on 📏 Measure, then select an object to see its distance from all four walls AND its nearest neighbour on every side." },
-      { sel: "#saveBtn", title: "Save to the quote", desc: "Save ties this layout to the event — and the chair count flows straight into the price breakdown on the right." },
-      { sel: "#capMeter", title: "Capacity & congestion", desc: "Seats placed vs the venue's capacity. It flags any block packed tighter than a walkable aisle." },
-      { sel: "#toolbox", side: "right", title: "Drag any asset", desc: "Drag stages, chairs, tables, bars, exits — anything — onto the floor. Every object is movable, resizable and rotatable." },
+      // r19: the first-run mini tour - every toolbar control in screen order: the top row (this layout), the
+      // second row (the canvas), then the toolbox, the view dock and the price panel. Controls that are hidden
+      // here (outside a quote, in a free trial, for this role or screen) are skipped by the engine.
+      { sel: "#projName", title: "Name this layout", desc: "The event or quote name. Saved with every version of the floor." },
+      { sel: "#verSel", title: "Versions", desc: "Every Save keeps a numbered version. Pick an older one to look at it; saved versions are never changed." },
+      { sel: "#designChip", title: "Design stage", desc: "Opens the Design Studio for this event." },
+      { sel: "#backToFlowBtn", title: "Save & back to the quote", desc: "Saves this floor as a new version and takes you back to the quotation, re-priced from the chairs you placed." },
+      { sel: "#saveBtn", title: "Save", desc: "Saves a new version of this floor (⌘S / Ctrl+S). The chair count flows straight into the price breakdown on the right." },
+      { sel: "#loadBtn", title: "Open", desc: "Open another saved layout." },
+      { sel: "#clientImgBtn", title: "Client images", desc: "Captures a clean 2D plan and 3D view of this floor for the client booklet." },
+      { sel: "#moreMenu", title: "More", desc: "Download the floor as a PNG picture or a JSON file, or import a JSON layout." },
+      { sel: ".hg-edit", title: "Undo, Redo, Clear", desc: "Step back or forward through your changes (⌘Z / ⌘⇧Z). Clear removes every object - you can still Undo it." },
+      { sel: ".hg-cap", title: "Capacity & seats", desc: "Type the venue's capacity; the chip shows the seats placed against it and warns when a block is packed too tight to walk through." },
+      { sel: [".bp-priv-slot .hbp-btn", ".bp-priv-slot"], title: "Hide amounts", desc: "Hides every price on the screen - handy when a client is looking over your shoulder." },
+      { sel: "#preset", title: "Start from a template", desc: "Want a head start? Pick a ready-made layout (wedding, conference, concert...) or one of your own templates, then tweak it." },
+      { sel: "#refField", title: "Reuse a past event", desc: "Copies the floor of one of your earlier events onto this canvas, at today's prices." },
+      { sel: "#customBtn", title: "...or create your own floor", desc: "Type your hall length x breadth and guest count; Helm sizes the canvas to your hall and arranges the seating." },
+      { sel: "#viewSeg", title: "2D, 3D and Render", desc: "Edit in the 2D plan, walk around it in 3D, or make a photo-like render of the plan. All three show the same floor." },
+      { sel: [".wt-field", "#wtStart"], title: "Explore in 3D", desc: "Walkthrough takes a guided 3D walk through the venue. In the 3D view you also get Overview, Floor plan and Evening lighting." },
+      { sel: "#measureBtn", title: "Measure", desc: "Turn on Measure, then select an object to see its distance from all four walls and its nearest neighbour on every side." },
+      { sel: ".hg-grid", title: "Units, Snap and Grid", desc: "Work in feet or metres. Snap makes objects jump to the grid lines when you move them; Grid shows or hides the lines." },
+      { sel: "#toolbox", side: "right", title: "Drag any asset", desc: "Drag stages, chairs, tables, bars, exits - anything - onto the floor. Every object can be moved, resized and rotated." },
+      { sel: "#fabStack", title: "Zoom & move around", desc: "Zoom out / in, FIT the whole floor, the arrows to pan and fullscreen. These sit under the floor so they never cover it; hide them with the down arrow." },
+      { sel: "#rightPanel", side: "left", title: "Price & inspector", desc: "The menu package, guests and live price for this floor. Select an object to edit its size, position, rotation and colour here." },
     ],
     "quotes.html": [
       { sel: "#tabs", title: "Find confirmed fast", desc: "Active · Quotes · Confirmed · Archive · Deleted. Confirmed events rise to the top and are highlighted so you never scroll to find them." },

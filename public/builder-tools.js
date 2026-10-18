@@ -144,7 +144,33 @@
     return { hidden: o.hidden === true, manualAmount: n != null && isFinite(n) && n >= 0 ? Math.min(Math.round(n * 100) / 100, 1e12) : null };
   }
 
-  const API = { snapTo, gridAlign, offsets, fuzzyScore, searchAssets, eventSuggestions, normPriceDisplay, TAGS };
+  /* ---------------- 2D draw order (r19) ---------------- */
+  // The 3D view lays floor coverings (carpet, aisle runner, dance floor, walkway, parking, any piece that
+  // covers most of the hall) flat on the floor UNDER everything else. The 2D plan drew strictly in array
+  // order, so a full-hall "Carpet / Aisle" added after the stage hid the stage, screens, truss and pillars.
+  // drawOrder keeps the saved order for everything else and only lifts floor coverings to the bottom:
+  // the biggest covering first, so a dance floor laid on a full carpet still shows. Pure; never mutates.
+  const FLOOR_TYPES = { redcarpet: 1, dancefloor: 1, walkway: 1, parking: 1, carpet: 1, rug: 1, flooring: 1, grass: 1, lawn: 1, floor: 1 };
+  function footprint(it) {
+    const w = Math.abs(+it.width) || 0, h = Math.abs(+it.height) || 0;
+    return isFinite(w * h) ? w * h : 0;
+  }
+  function isFloorCover(it, world) {
+    if (!it || typeof it !== 'object') return false;
+    if (FLOOR_TYPES[String(it.type || '').toLowerCase()]) return true;
+    const W = world && +world.w, H = world && +world.h;
+    return W > 0 && H > 0 && footprint(it) >= 0.5 * W * H;   // anything spread over half the hall or more
+  }
+  function drawOrder(items, world) {
+    const list = Array.isArray(items) ? items : [];
+    const floor = [], rest = [];
+    list.forEach((it, i) => { (isFloorCover(it, world) ? floor : rest).push({ it, i }); });
+    if (!floor.length) return list.slice();
+    floor.sort((a, b) => (footprint(b.it) - footprint(a.it)) || (a.i - b.i));
+    return floor.map((x) => x.it).concat(rest.map((x) => x.it));
+  }
+
+  const API = { snapTo, gridAlign, offsets, fuzzyScore, searchAssets, eventSuggestions, normPriceDisplay, isFloorCover, drawOrder, TAGS };
   G.HelmBuilderTools = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (!G.document) return;
