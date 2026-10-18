@@ -54,6 +54,9 @@ begin
     insert into _r2_ids values (k, q);
     insert into _r2_ids select 'tok_'||k, approval_token from public.quotes where id = q;
   end loop;
+  -- 0152 caps open refunds at what the client has paid: the refund quote has 1000 received
+  insert into public.quote_payments(quote_id, provider, amount, status, simulated, receipt_no, method, paid_at)
+    values (pg_temp.id('refund'), 'cash', 1000, 'paid', false, 'RCP-R2-RF', 'cash', now());
   -- a LEGACY event dated year 61115 (written with triggers off, as old data was)
   set local session_replication_role = replica;
   update public.quotes set event_date = date '61115-01-01' where id = pg_temp.id('legacy');

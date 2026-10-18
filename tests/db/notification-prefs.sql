@@ -183,7 +183,10 @@ do $$ declare v text; s text; j jsonb; begin
   perform pg_temp.login('a_admin@a.test');
   begin perform public.admin_set_notification_pref('payment_receipt', 'in_app', null, true, pg_temp.uid('a_crew_np@a.test')); s := ''; exception when others then s := sqlstate; end;
   perform pg_temp.login('a_crew_np@a.test'); v := pg_temp.bell();
-  perform pg_temp.res('33 a person override can show a type their role hides', s = '' and v = 'design_revise,otp,payment_receipt,task_assigned', s||' '||v);
+  -- 0153 (crew money fix): bell_feed drops money kinds (payment_*, refund, ...) for anyone who can't
+  -- view quotes, AFTER the per-person prefs. So the override is accepted, but crew still never sees
+  -- a payment receipt in the bell; the money rule wins over the notification preference.
+  perform pg_temp.res('33 a person override is accepted, but money kinds stay hidden from crew (0153)', s = '' and v = 'design_revise,otp,task_assigned', s||' '||v);
   perform pg_temp.login('a_admin@a.test');
   perform public.admin_set_notification_pref('chat_message', 'in_app', null, false, pg_temp.uid('a_crew_np@a.test'));
   perform pg_temp.login('a_crew_np@a.test'); j := public.my_notification_prefs();

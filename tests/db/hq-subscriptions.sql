@@ -321,7 +321,8 @@ do $$ declare missing text; begin perform pg_temp.su();
                            'security_alert_events', 'security_alert_outbox',  -- 0054: system alert log (written by triggers only)
                            'welcome_email_outbox',  -- 0057: system welcome outbox (triggers + service role only)
                            'a155_admin_created',  -- 0155: system record of admin-created accounts (release must work for a suspended creator)
-                           'privacy_pin_attempts')  -- 0157: wrong-PIN counter (unlocking must work for a read-only studio)
+                           'privacy_pin_attempts',  -- 0157: wrong-PIN counter (unlocking must work for a read-only studio)
+                           'studio_payment_gate')  -- 0159: system marker written by create_studio; no API grants (paying must lift it)
      and not exists (select 1 from pg_trigger t where t.tgrelid = c.oid and t.tgname = 'zzz_studio_read_only');
   perform pg_temp.res('54 every studio table has the read-only guard', missing is null, missing);
 end $$;

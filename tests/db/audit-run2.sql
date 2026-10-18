@@ -474,6 +474,9 @@ do $$ declare s text; rid uuid; n text; begin perform pg_temp.su();
   insert into public.role_access(role, area, can_view, can_edit, org_id, updated_at)
     values ('sales', 'settlement', true, true, 'a0000000-0000-4000-8000-000000000001', now())
     on conflict (role, area, org_id) do update set can_view = true, can_edit = true;
+  -- 0152: no new refund on a CLOSED event. RC-4 above closed A-0422 (admin override), so re-open it
+  -- here (fixture-level, as superuser) before exercising the refund freeze.
+  update public.event_closure set closed_at = null where quote_id = 'a0000000-0000-4000-8000-00000042a002';
   perform pg_temp.login('a_staff@a.test');
   insert into public.event_refunds(quote_id, kind, amount, reason) values ('a0000000-0000-4000-8000-00000042a002', 'refund', 500, 'x') returning id into rid;
   perform pg_temp.put('rid', rid::text);
@@ -556,7 +559,9 @@ do $$ declare s text; u uuid; u2 uuid; begin perform pg_temp.su();
   perform pg_temp.res('RC7-10 denied: admin_create_user with a platform operator e-mail', s like '22023%', s);
   perform pg_temp.login('a_admin@a.test');
   s := pg_temp.try($q$select public.create_invitation('OPS@helm.test', 'sales')$q$);
-  perform pg_temp.res('RC7-11 denied: inviting a platform operator e-mail', s like '22023%', s);
+  -- 0156 (admin_first): an operator e-mail is refused with the same 42501 'not authorized' as any
+  -- other unauthorized call, so the error no longer reveals which addresses are operators.
+  perform pg_temp.res('RC7-11 denied: inviting a platform operator e-mail', s like '42501%', s);
   perform pg_temp.login('a_admin@a.test');
   s := pg_temp.try($q$select public.admin_create_user('fresh0042@a.test', 'Abcdefghij1!xy', 'sales')$q$);
   perform pg_temp.res('RC7-12 allowed: admin_create_user with an ordinary e-mail', s = '', s);

@@ -48,7 +48,7 @@ begin
          client = '{"name":"Alice","phone":"+919811100000","email":"alice@a.test"}'::jsonb where id = qA;
 
   -- test events in studio A (superuser writes; every token is unique to this suite)
-  foreach k in array array['free','nan','del1','del2','del3','del4','otp1','otp2','pay','mp'] loop
+  foreach k in array array['free','nan','del1','del2','del3','del4','otp1','otp2','pay','mp','rf'] loop
     insert into public.quotes(code, title, status, client, pricing, current_version, approval_status, org_id,
                               approval_token, approval_token_expires_at, created_at, updated_at)
       values ('BL-'||upper(k), 'bl '||k, 'quote', '{"name":"Alice","phone":"+919811100000"}'::jsonb,
@@ -64,6 +64,9 @@ begin
   update public.quotes set pricing = '{"total":"NaN"}'::jsonb where id = pg_temp.id('nan');
   set local session_replication_role = origin;
 
+  -- 0152 caps open refunds at what the client has paid: the maker-checker quote has 1000 received
+  insert into public.quote_payments(quote_id, provider, amount, status, simulated, receipt_no, method, paid_at)
+    values (pg_temp.id('rf'), 'cash', 1000, 'paid', false, 'RCP-BL-RF', 'cash', now());
   -- delete-guard fixtures
   insert into public.quote_payments(quote_id, provider, amount, status, simulated, receipt_no, method, paid_at)
     values (pg_temp.id('del1'), 'cash', 100, 'paid', false, 'RCP-BL-DEL1', 'cash', now());
@@ -324,7 +327,7 @@ end $$;
 do $$ declare cb uuid; begin
   perform pg_temp.login('a_staff@a.test');
   begin insert into public.event_refunds(quote_id, kind, amount, reason, created_by)
-          values (pg_temp.id('free'), 'refund', 500, 'bl-mc', pg_temp.id('admin'));
+          values (pg_temp.id('rf'), 'refund', 500, 'bl-mc', pg_temp.id('admin'));
   exception when others then perform pg_temp.res('refund: who entered it is stamped by the server', false, sqlerrm); return; end;
   perform pg_temp.su(); select created_by into cb from public.event_refunds where reason = 'bl-mc';
   perform pg_temp.res('refund: who entered it is stamped by the server', cb = pg_temp.id('staff'), 'created_by '||coalesce(cb::text,'null'));
@@ -382,7 +385,7 @@ do $$ declare k text; begin
   delete from public.inventory_reservations where item_id = pg_temp.id('item');
   delete from public.event_resources where vendor_id = pg_temp.id('vendor');
   delete from public.event_tasks where crew_id = pg_temp.id('crew');
-  foreach k in array array['free','nan','del1','del2','del3','del4','otp1','otp2','pay','mp'] loop
+  foreach k in array array['free','nan','del1','del2','del3','del4','otp1','otp2','pay','mp','rf'] loop
     delete from public.quotes where id = pg_temp.id(k);
   end loop;
   delete from public.inventory_items where id = pg_temp.id('item');
