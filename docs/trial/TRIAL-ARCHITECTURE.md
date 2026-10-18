@@ -263,8 +263,10 @@ The manifest now also stores `studio` (currency, timezone, country, payment term
   "Demo - Wedding - Grand Lawn (450+ guests)" (`studio_layout_templates`, event type `wedding`, 71 objects) and the
   sample wedding's layout version 1 (SMP-1001 moves to Green Meadows Lawn). Fixes to the owner JSON: DJ booth centred in
   front of the LED screen with the same rotation; duplicate fence (x 160) and the carpet piece past the checkpoint dropped;
-  overlapping aisle pieces trimmed. TODO: Corporate + Corporate round-table JSONs from the owner - add each as one row in
-  section 1 of a new migration (same insert shape), then publish a new manifest.
+  overlapping aisle pieces trimmed. Corporate (owner JSON, 170 x 150 ft indoor, 45 objects): "Demo - Corporate - Round
+  tables gala (120 guests)" (podium centred on the stage, lighting trusses aligned) is the floor plan of SMP-1003, and
+  "Demo - Corporate - Theatre/conference" is the same room with 4 seat blocks (8 x 10) instead of tables. A further
+  template = one more row in section 1 of a new migration, then publish a new manifest.
 - GST 18 % intra-state (`placeOfSupply: "intra"` -> CGST 9 % + SGST 9 %) on open sample events; studio `gstPct` 18.
 - Leads have full notes; events have guests / budget / source / address / notes in `client` + an `event_discovery` row.
 - Coupons DEMO-WELCOME10 (10 %), DEMO-FLAT5000 (Rs 5,000), DEMO-WEEKDAY15 (15 %, weekday rule is only in the note).

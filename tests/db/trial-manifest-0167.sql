@@ -68,7 +68,7 @@ do $$ declare m public.helm_trial_seed_manifest; begin
   perform pg_temp.res('03 dataset size (40 items, 10 staff, 8 vendors, 4 venues, 6 packages, 30 dishes, 8 leads, 4 events)',
     (m.counts ->> 'inventory_items')::int = 40 and (m.counts ->> 'crew_members')::int = 10 and (m.counts ->> 'vendors')::int = 8
     and (m.counts ->> 'venues')::int = 4 and (m.counts ->> 'menu_templates')::int = 6 and (m.counts ->> 'dish_catalog')::int = 30
-    and (m.counts ->> 'leads')::int = 8 and (m.counts ->> 'quotes')::int = 4 and (m.counts ->> 'run_sheet_items')::int = 37
+    and (m.counts ->> 'leads')::int = 8 and (m.counts ->> 'quotes')::int = 4 and (m.counts ->> 'run_sheet_items')::int = 37 and (m.counts ->> 'studio_layout_templates')::int = 3
     and (m.counts ->> 'event_tasks')::int = 10 and (m.counts ->> 'nurture')::int = 6, m.counts::text);
   perform pg_temp.res('04 master contacts all dummy',
     not exists (select 1 from jsonb_each(m.payload -> 'tables') t(k, rows), jsonb_array_elements(t.rows) r(j)

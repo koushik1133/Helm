@@ -78,6 +78,19 @@ do $$ declare M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; mf public.helm_t
     and (select count(*) from public.event_discovery where org_id = M) = 3);
   perform pg_temp.res('11 ASCII-only fixes kept the design (stage, video wall, 2 seat blocks)', (select count(*) from jsonb_array_elements(L -> 'items') e
     where e ->> 'type' in ('stage','videowall','ledscreen','dj','seatblock')) = 6);
+  perform pg_temp.res('12 corporate templates: round tables gala (45, podium centred, trusses aligned) + theatre (seat blocks, no tables)',
+    exists (select 1 from public.studio_layout_templates t where t.org_id = M and t.name = E'Demo \u00b7 Corporate \u2014 Round tables gala (120 guests)'
+      and t.event_type = 'corporate' and jsonb_array_length(t.data -> 'items') = 45
+      and (select (e->>'x')::numeric + (e->>'width')::numeric/2 from jsonb_array_elements(t.data->'items') e where e->>'id' = 'obj_6f3rc')
+        between (select (e->>'x')::numeric + (e->>'width')::numeric/2 - 0.02 from jsonb_array_elements(t.data->'items') e where e->>'id' = 'obj_6e3rc')
+            and (select (e->>'x')::numeric + (e->>'width')::numeric/2 + 0.02 from jsonb_array_elements(t.data->'items') e where e->>'id' = 'obj_6e3rc')
+      and (select count(distinct e->>'x') from jsonb_array_elements(t.data->'items') e where e->>'type' = 'lighting') = 1)
+    and exists (select 1 from public.studio_layout_templates t where t.org_id = M and t.name = E'Demo \u00b7 Corporate \u2014 Theatre/conference'
+      and not exists (select 1 from jsonb_array_elements(t.data->'items') e where e->>'type' in ('table','headtable'))
+      and (select count(*) from jsonb_array_elements(t.data->'items') e where e->>'type' = 'seatblock') = 4));
+  perform pg_temp.res('13 corporate event floor plan = round tables gala', (select v.data from public.quote_versions v where v.org_id = M
+    and v.quote_id = 'a5a5a5a5-0167-4000-8000-0000000000a3' and v.version_no = 1)
+    = (select data from public.studio_layout_templates where org_id = M and name = E'Demo \u00b7 Corporate \u2014 Round tables gala (120 guests)'));
 exception when others then perform pg_temp.su(); insert into _uf values ('0x master', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 do $$ declare a uuid; o public.organizations; r jsonb; M uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; begin
@@ -86,6 +99,7 @@ do $$ declare a uuid; o public.organizations; r jsonb; M uuid := 'a5a5a5a5-0166-
   a := pg_temp.trial('td3_a@t.test', 'UTC', 'USD');
   select * into o from public.organizations where id = a;
   perform pg_temp.res('20 trial cloned from v3', o.sample_version = 3, coalesce(o.sample_version::text, 'null'));
+  perform pg_temp.res('21b trial has all 3 layout templates', (select count(*) from public.studio_layout_templates where org_id = a and not archived) = 3);
   perform pg_temp.res('21 trial has the wedding layout template', exists (select 1 from public.studio_layout_templates where org_id = a and not archived
     and name = E'Demo \u00b7 Wedding \u2014 Grand Lawn (450+ guests)' and jsonb_array_length(data -> 'items') = 71));
   perform pg_temp.res('22 trial wedding floor plan = 71 objects', exists (select 1 from public.quote_versions v join public.quotes q on q.id = v.quote_id
@@ -99,9 +113,9 @@ do $$ declare a uuid; o public.organizations; r jsonb; M uuid := 'a5a5a5a5-0166-
     and (select count(*) from public.quotes where org_id = a and pricing ->> 'placeOfSupply' = 'intra') = 3);
   r := public._demo_clear(a);
   perform pg_temp.res('27 clear: coupons off + template archived, rows kept', (select count(*) from public.coupons where org_id = a and code like 'DEMO-%' and not active) = 3
-    and (select count(*) from public.studio_layout_templates where org_id = a and archived) = 1, r::text);
+    and (select count(*) from public.studio_layout_templates where org_id = a and archived) = 3, r::text);
   perform pg_temp.res('28 master untouched by clone + clear', (select count(*) from public.coupons where org_id = M and active) = 3
-    and (select count(*) from public.studio_layout_templates where org_id = M and not archived) = 1);
+    and (select count(*) from public.studio_layout_templates where org_id = M and not archived) = 3);
   perform pg_temp.su();
 exception when others then perform pg_temp.su(); insert into _uf values ('2x clone', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 

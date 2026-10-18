@@ -16,8 +16,11 @@
 --      centred on it with the same rotation (150); the duplicate fence at x 160 and a carpet piece
 --      running past the checkpoint are dropped; two overlapping carpet pieces are trimmed / moved
 --      so the aisle runs end to end without overlap. Nothing else in the design changes.
---      TODO (owner JSONs pending): "Corporate" and "Corporate - round tables" templates. Adding one
---      is ONE new row in the values list of section 1 (name, event type, description, layout JSON).
+--      Corporate (owner JSON, 45 objects, 170 x 150 ft indoor): "Demo . Corporate - Round tables gala (120
+--      guests)" (podium centred on the stage, the two lighting trusses aligned on x; the full-floor carpet stays
+--      as the floor colour) is also the floor plan of the sample corporate event; "Demo . Corporate -
+--      Theatre/conference" is the same room with 4 theatre seat blocks (8 x 10) instead of round tables.
+--      Another template later = ONE new row in the values list of section 1.
 --   2  GST: every sample event keeps gstPct 18 and is marked intra-state (placeOfSupply 'intra'), so
 --      the quote shows CGST 9 % + SGST 9 %. The studio default tax is 18 % (pricing gstPct).
 --   3  Sample leads carry full notes (requirement, venue, budget, guests, next step); the 3 open /
@@ -56,6 +59,9 @@ declare
   q4 constant uuid := 'a5a5a5a5-0167-4000-8000-0000000000a4';
   D constant text := E'Demo \u00b7 ';
   WED constant text := E'Demo \u00b7 Wedding \u2014 Grand Lawn (450+ guests)';
+  CRT constant text := E'Demo \u00b7 Corporate \u2014 Round tables gala (120 guests)';
+  CTH constant text := E'Demo \u00b7 Corporate \u2014 Theatre/conference';
+  v_crt jsonb;
   t record; v_wed jsonb; d0 date;
 begin
   if not exists (select 1 from public.organizations o where o.id = M and o.is_sample_master) then return; end if;
@@ -63,8 +69,7 @@ begin
   d0 := coalesce(d0, current_date);
 
   -- 1) layout templates of the master. ONE row per template.
-  --    TODO (owner): add the Corporate + Corporate round-table layouts here as two more rows when their
-  --    JSON arrives: (name, event_type, description, '<builder layout JSON>'::jsonb). Nothing else changes.
+  --    To add another template later: one more row (name, event_type, description, '<builder layout JSON>'::jsonb).
   for t in select * from (values
     (WED, 'wedding',
      'Sample template. Open-lawn wedding for 450+ guests on 200 x 140 ft: main stage with arch, dance floor, '
@@ -142,7 +147,98 @@ begin
 {"x":168,"y":115,"id":"obj_2bb5q","type":"floralarch","color":"#d6549a","label":"Floral Arch","width":10,"height":2,"category":"decor","rotation":270,"properties":{}},
 {"x":158,"y":115,"id":"obj_2cfk3","type":"floralarch","color":"#d6549a","label":"Floral Arch","width":10,"height":2,"category":"decor","rotation":270,"properties":{}},
 {"x":84,"y":111,"id":"obj_2drx3","type":"fountain","color":"#d6549a","label":"Fountain","width":6,"height":6,"category":"decor","rotation":0,"properties":{}}
-],"grid":{"snap":true,"show":true,"unit":"ft","sizeFt":1},"margins":{"left":0,"right":0,"top":0,"bottom":0},"venue":{"capacity":450},"scale":{"pxPerFt":12,"worldFt":{"w":200,"h":140}}}'::jsonb)
+],"grid":{"snap":true,"show":true,"unit":"ft","sizeFt":1},"margins":{"left":0,"right":0,"top":0,"bottom":0},"venue":{"capacity":450},"scale":{"pxPerFt":12,"worldFt":{"w":200,"h":140}}}'::jsonb),
+    (CRT, 'corporate',
+     'Sample template. Indoor gala dinner for 120 guests in a 170 x 150 ft hall: stage with front + back lighting truss, '
+     || 'angled LED screens left / right, line-array sound, centred podium, decor pillars, greenery, 12 round tables '
+     || '(8 / 9 / 12 seats), 2 head tables, entrance + 2 exits, full-floor carpet.',
+     '{"items":[
+{"id":"obj_6d3rc","type":"lighting","category":"av","x":59.5,"y":4,"width":51,"height":1.5,"rotation":0,"label":"Lighting Truss","color":"#7c5cff","properties":{}},
+{"id":"obj_6e3rc","type":"stage","category":"structure","x":59.5,"y":7,"width":51,"height":20,"rotation":0,"label":"Stage","color":"#2f6fed","properties":{}},
+{"id":"obj_6g3rc","type":"led","category":"av","x":34,"y":10,"width":17,"height":1.5,"rotation":330,"label":"LED Screen L","color":"#7c5cff","properties":{}},
+{"id":"obj_6h3rc","type":"led","category":"av","x":120,"y":10,"width":17,"height":1.5,"rotation":30,"label":"LED Screen R","color":"#7c5cff","properties":{}},
+{"id":"obj_6i3rc","type":"linearray","category":"av","x":57,"y":21,"width":2,"height":6,"rotation":0,"label":"Sound L","color":"#7c5cff","properties":{}},
+{"id":"obj_6j3rc","type":"linearray","category":"av","x":111,"y":21,"width":2,"height":6,"rotation":0,"label":"Sound R","color":"#7c5cff","properties":{}},
+{"id":"obj_6k3rc","type":"exit","category":"safety","x":158,"y":44,"width":12,"height":6,"rotation":0,"label":"Exit","color":"#18a558","properties":{}},
+{"id":"obj_6l3rc","type":"exit","category":"safety","x":1,"y":44,"width":12,"height":6,"rotation":0,"label":"Exit","color":"#18a558","properties":{}},
+{"id":"obj_6f3rc","type":"podium","category":"av","x":84.64,"y":19.17,"width":0.73,"height":1.67,"rotation":0,"label":"Podium","color":"#7c5cff","properties":{}},
+{"id":"obj_6sixo","type":"pillar","category":"decor","x":136.1,"y":15.49,"width":1.79,"height":5.03,"rotation":0,"label":"Decor Pillar","color":"#d6549a","properties":{}},
+{"id":"obj_6ucro","type":"lighting","category":"av","x":59.5,"y":25,"width":51,"height":1.5,"rotation":0,"label":"Lighting Truss","color":"#7c5cff","properties":{}},
+{"id":"obj_6zhfv","type":"planter","category":"structure","x":0,"y":57.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_70jmm","type":"pillar","category":"decor","x":118.1,"y":3.49,"width":1.79,"height":5.03,"rotation":0,"label":"Decor Pillar","color":"#d6549a","properties":{}},
+{"id":"obj_71vpb","type":"pillar","category":"decor","x":33.1,"y":15.49,"width":1.79,"height":5.03,"rotation":0,"label":"Decor Pillar","color":"#d6549a","properties":{}},
+{"id":"obj_72qc8","type":"pillar","category":"decor","x":51.1,"y":3.49,"width":1.79,"height":5.03,"rotation":0,"label":"Decor Pillar","color":"#d6549a","properties":{}},
+{"id":"obj_74b59","type":"planter","category":"structure","x":109.14,"y":26.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_75ber","type":"planter","category":"structure","x":161.14,"y":52.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_76bo3","type":"planter","category":"structure","x":1.14,"y":94.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_77bx9","type":"planter","category":"structure","x":159.14,"y":87.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_78c54","type":"planter","category":"structure","x":108.14,"y":3.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_79ccx","type":"planter","category":"structure","x":53.14,"y":25.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7almk","type":"planter","category":"structure","x":53.14,"y":5.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7blvm","type":"redcarpet","category":"structure","x":0,"y":0,"width":170,"height":150,"rotation":0,"label":"Carpet / Aisle","color":"#7b9bdb","properties":{},"colorCustom":true},
+{"id":"obj_7cbo1","type":"planter","category":"structure","x":92.14,"y":145.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7dq2u","type":"planter","category":"structure","x":74.14,"y":145.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7fqtb","type":"planter","category":"structure","x":28.14,"y":132.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7gy4t","type":"planter","category":"structure","x":49.14,"y":133.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7h6o3","type":"planter","category":"structure","x":118.14,"y":132.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7ie2h","type":"planter","category":"structure","x":138.14,"y":130.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7kvqz","type":"headtable","category":"seating","x":35.74,"y":132.5,"width":14.53,"height":3,"rotation":0,"label":"Head Table","color":"#546692","properties":{"seats":8},"colorCustom":true},
+{"id":"obj_7lmkg","type":"headtable","category":"seating","x":124.74,"y":130.5,"width":14.53,"height":3,"rotation":0,"label":"Head Table","color":"#6c7a99","properties":{"seats":8},"colorCustom":true},
+{"id":"obj_7mq7b","type":"table","category":"seating","x":27.6,"y":42.1,"width":12,"height":12,"rotation":0,"label":"T1","color":"#26324f","properties":{"seats":8,"shape":"round"},"colorCustom":true},
+{"id":"obj_7nq7c","type":"table","category":"seating","x":58,"y":42.9,"width":12,"height":12,"rotation":0,"label":"T2","color":"#26324f","properties":{"seats":8,"shape":"round"},"colorCustom":true},
+{"id":"obj_7oq7c","type":"table","category":"seating","x":89.7,"y":42.9,"width":12,"height":12,"rotation":0,"label":"T3","color":"#26324f","properties":{"seats":8,"shape":"round"},"colorCustom":true},
+{"id":"obj_7pq7c","type":"table","category":"seating","x":119.9,"y":42.8,"width":12,"height":12,"rotation":0,"label":"T4","color":"#26324f","properties":{"seats":8,"shape":"round"},"colorCustom":true},
+{"id":"obj_7qq7c","type":"table","category":"seating","x":26.7,"y":67.2,"width":12,"height":12,"rotation":0,"label":"T5","color":"#26324f","properties":{"seats":9,"shape":"round"},"colorCustom":true},
+{"id":"obj_7rq7c","type":"table","category":"seating","x":57,"y":67.2,"width":12,"height":12,"rotation":0,"label":"T6","color":"#26324f","properties":{"seats":9,"shape":"round"},"colorCustom":true},
+{"id":"obj_7sq7c","type":"table","category":"seating","x":89,"y":68.3,"width":12,"height":12,"rotation":0,"label":"T7","color":"#26324f","properties":{"seats":9,"shape":"round"},"colorCustom":true},
+{"id":"obj_7tq7c","type":"table","category":"seating","x":119.3,"y":68.5,"width":12,"height":12,"rotation":0,"label":"T8","color":"#26324f","properties":{"seats":9,"shape":"round"},"colorCustom":true},
+{"id":"obj_7uq7c","type":"table","category":"seating","x":26.5,"y":92.5,"width":12,"height":12,"rotation":0,"label":"T9","color":"#26324f","properties":{"seats":12,"shape":"round"},"colorCustom":true},
+{"id":"obj_7vq7c","type":"table","category":"seating","x":57,"y":93,"width":12,"height":12,"rotation":0,"label":"T10","color":"#26324f","properties":{"seats":12,"shape":"round"},"colorCustom":true},
+{"id":"obj_7wq7c","type":"table","category":"seating","x":87.6,"y":93.8,"width":12,"height":12,"rotation":0,"label":"T11","color":"#26324f","properties":{"seats":12,"shape":"round"},"colorCustom":true},
+{"id":"obj_7xq7c","type":"table","category":"seating","x":118.8,"y":94.3,"width":12,"height":12,"rotation":0,"label":"T12","color":"#26324f","properties":{"seats":12,"shape":"round"},"colorCustom":true},
+{"id":"obj_7zjs5","type":"exit","category":"safety","x":81,"y":144,"width":12,"height":6,"rotation":0,"label":"Entrance","color":"#2563eb","properties":{},"colorCustom":true},
+{"id":"obj_84n0s","type":"fence","category":"security","x":0,"y":0.25,"width":170,"height":0.5,"rotation":0,"label":"Fence Line","color":"#26324f","properties":{},"colorCustom":true}
+],"grid":{"snap":true,"show":true,"unit":"ft","sizeFt":1},"margins":{"left":19,"right":20,"top":0,"bottom":34},"scale":{"pxPerFt":12,"worldFt":{"w":170,"h":150}},"venue":{"capacity":120,"setting":"indoor","room":{"w":170,"h":150}}}'::jsonb),
+    (CTH, 'conference',
+     'Sample template. Same 170 x 150 ft hall set theatre style: stage, trusses, LED screens, sound and podium as the '
+     || 'gala layout, with 4 seat blocks of 8 x 10 (320 seats) and a centre aisle instead of round tables.',
+     '{"items":[
+{"id":"obj_6d3rc","type":"lighting","category":"av","x":59.5,"y":4,"width":51,"height":1.5,"rotation":0,"label":"Lighting Truss","color":"#7c5cff","properties":{}},
+{"id":"obj_6e3rc","type":"stage","category":"structure","x":59.5,"y":7,"width":51,"height":20,"rotation":0,"label":"Stage","color":"#2f6fed","properties":{}},
+{"id":"obj_6g3rc","type":"led","category":"av","x":34,"y":10,"width":17,"height":1.5,"rotation":330,"label":"LED Screen L","color":"#7c5cff","properties":{}},
+{"id":"obj_6h3rc","type":"led","category":"av","x":120,"y":10,"width":17,"height":1.5,"rotation":30,"label":"LED Screen R","color":"#7c5cff","properties":{}},
+{"id":"obj_6i3rc","type":"linearray","category":"av","x":57,"y":21,"width":2,"height":6,"rotation":0,"label":"Sound L","color":"#7c5cff","properties":{}},
+{"id":"obj_6j3rc","type":"linearray","category":"av","x":111,"y":21,"width":2,"height":6,"rotation":0,"label":"Sound R","color":"#7c5cff","properties":{}},
+{"id":"obj_6k3rc","type":"exit","category":"safety","x":158,"y":44,"width":12,"height":6,"rotation":0,"label":"Exit","color":"#18a558","properties":{}},
+{"id":"obj_6l3rc","type":"exit","category":"safety","x":1,"y":44,"width":12,"height":6,"rotation":0,"label":"Exit","color":"#18a558","properties":{}},
+{"id":"obj_6f3rc","type":"podium","category":"av","x":84.64,"y":19.17,"width":0.73,"height":1.67,"rotation":0,"label":"Podium","color":"#7c5cff","properties":{}},
+{"id":"obj_6sixo","type":"pillar","category":"decor","x":136.1,"y":15.49,"width":1.79,"height":5.03,"rotation":0,"label":"Decor Pillar","color":"#d6549a","properties":{}},
+{"id":"obj_6ucro","type":"lighting","category":"av","x":59.5,"y":25,"width":51,"height":1.5,"rotation":0,"label":"Lighting Truss","color":"#7c5cff","properties":{}},
+{"id":"obj_6zhfv","type":"planter","category":"structure","x":0,"y":57.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_70jmm","type":"pillar","category":"decor","x":118.1,"y":3.49,"width":1.79,"height":5.03,"rotation":0,"label":"Decor Pillar","color":"#d6549a","properties":{}},
+{"id":"obj_71vpb","type":"pillar","category":"decor","x":33.1,"y":15.49,"width":1.79,"height":5.03,"rotation":0,"label":"Decor Pillar","color":"#d6549a","properties":{}},
+{"id":"obj_72qc8","type":"pillar","category":"decor","x":51.1,"y":3.49,"width":1.79,"height":5.03,"rotation":0,"label":"Decor Pillar","color":"#d6549a","properties":{}},
+{"id":"obj_74b59","type":"planter","category":"structure","x":109.14,"y":26.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_75ber","type":"planter","category":"structure","x":161.14,"y":52.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_76bo3","type":"planter","category":"structure","x":1.14,"y":94.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_77bx9","type":"planter","category":"structure","x":159.14,"y":87.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_78c54","type":"planter","category":"structure","x":108.14,"y":3.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_79ccx","type":"planter","category":"structure","x":53.14,"y":25.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7almk","type":"planter","category":"structure","x":53.14,"y":5.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7blvm","type":"redcarpet","category":"structure","x":0,"y":0,"width":170,"height":150,"rotation":0,"label":"Carpet / Aisle","color":"#7b9bdb","properties":{},"colorCustom":true},
+{"id":"obj_7cbo1","type":"planter","category":"structure","x":92.14,"y":145.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7dq2u","type":"planter","category":"structure","x":74.14,"y":145.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7fqtb","type":"planter","category":"structure","x":28.14,"y":132.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7gy4t","type":"planter","category":"structure","x":49.14,"y":133.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7h6o3","type":"planter","category":"structure","x":118.14,"y":132.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7ie2h","type":"planter","category":"structure","x":138.14,"y":130.36,"width":7.72,"height":1.29,"rotation":0,"label":"Greenery","color":"#2f6fed","properties":{}},
+{"id":"obj_7zjs5","type":"exit","category":"safety","x":81,"y":144,"width":12,"height":6,"rotation":0,"label":"Entrance","color":"#2563eb","properties":{},"colorCustom":true},
+{"id":"obj_84n0s","type":"fence","category":"security","x":0,"y":0.25,"width":170,"height":0.5,"rotation":0,"label":"Fence Line","color":"#26324f","properties":{},"colorCustom":true},
+{"x":58.0,"y":40,"id":"obj_th1","type":"seatblock","color":"#0d9488","label":"Seating 8x10","width":24,"height":19.2,"category":"seating","rotation":0,"properties":{"cols":10,"rows":8,"pitch":2.4}},
+{"x":88.0,"y":40,"id":"obj_th2","type":"seatblock","color":"#0d9488","label":"Seating 8x10","width":24,"height":19.2,"category":"seating","rotation":0,"properties":{"cols":10,"rows":8,"pitch":2.4}},
+{"x":58.0,"y":64,"id":"obj_th3","type":"seatblock","color":"#0d9488","label":"Seating 8x10","width":24,"height":19.2,"category":"seating","rotation":0,"properties":{"cols":10,"rows":8,"pitch":2.4}},
+{"x":88.0,"y":64,"id":"obj_th4","type":"seatblock","color":"#0d9488","label":"Seating 8x10","width":24,"height":19.2,"category":"seating","rotation":0,"properties":{"cols":10,"rows":8,"pitch":2.4}}
+],"grid":{"snap":true,"show":true,"unit":"ft","sizeFt":1},"margins":{"left":19,"right":20,"top":0,"bottom":34},"scale":{"pxPerFt":12,"worldFt":{"w":170,"h":150}},"venue":{"capacity":320,"setting":"indoor","room":{"w":170,"h":150}}}'::jsonb)
   ) x(name, event_type, description, data) loop
     if not exists (select 1 from public.studio_layout_templates s where s.org_id = M and s.name = t.name) then
       insert into public.studio_layout_templates(org_id, name, event_type, description, data)
@@ -156,6 +252,13 @@ begin
     update public.quote_versions set data = v_wed, object_count = jsonb_array_length(v_wed -> 'items'),
            label = 'Sample layout - Grand Lawn'
      where org_id = M and quote_id = q1 and version_no = 1 and data #>> '{items,0,id}' = 'smp-stage';
+  end if;
+  -- the corporate event's floor plan = the round-tables gala template (only if it has no layout yet)
+  select s.data into v_crt from public.studio_layout_templates s where s.org_id = M and s.name = CRT;
+  if v_crt is not null and exists (select 1 from public.quotes q where q.id = q3 and q.org_id = M) then
+    insert into public.quote_versions(quote_id, version_no, label, data, object_count, org_id)
+    select q3, 1, 'Sample layout - Round tables gala', v_crt, jsonb_array_length(v_crt -> 'items'), M
+     where not exists (select 1 from public.quote_versions v where v.quote_id = q3);
   end if;
   update public.quotes set client = jsonb_set(client, '{venue}', to_jsonb(D || 'Green Meadows Lawn'))
    where org_id = M and id = q1 and client ->> 'venue' = D || 'Royal Banquet Hall';
