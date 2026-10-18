@@ -148,7 +148,7 @@
   .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
   .ecard .del{position:absolute;top:6px;right:6px;border:0;background:transparent;color:var(--ink-3);font-size:13px;cursor:pointer;opacity:0;transition:.12s;min-width:32px;min-height:32px;border-radius:6px}
   .ecard:hover .del,.ecard:focus-within .del,.ecard .del:focus-visible{opacity:1}
-  @media (hover:none){.ecard .del{opacity:1}} .ecard .del:hover{color:#e5484d}
+  @media (hover:none){.ecard .del{opacity:1}} .ecard .del:hover{color:#e5484d} .ecard .del.arch:hover{color:var(--ink)}
   .empty{grid-column:1/-1;text-align:center;color:var(--ink-3);padding:30px;border:1px dashed var(--line);border-radius:12px;font-size:13px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
   /* responsive module nav */
@@ -326,7 +326,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="flow-resume.js?v=2" data-mount></script>
+<script src="new-quote-dialog.js?v=1"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="flow-resume.js?v=2" data-mount></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=17"></script>
 <script src="getting-started.js?v=9"></script>
@@ -489,19 +489,59 @@
       if (e.target.closest(".del, a")) return;
       location.href = "event.html?id=" + encodeURIComponent(c.dataset.id);   // open the Event Workspace hub
     }));
-    host.querySelectorAll(".del").forEach((b) => b.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const q = summaries.find((s) => String(s.id) === b.dataset.id);
-      if (!(await BPUI.confirm(`Delete quote ${(q && q.code) || ""} and all its versions? This can't be undone.`, { title: "Delete quote?", danger: true }))) return;
-      try { await BPUI.guard(b, () => BPStore.quotes.remove(b.dataset.id)); }
-      catch (err) { BPUI.toast(BPUI.friendlyError(err, { action: "delete the quote" }), { type: "err" }); return; }
-      if (pager) pager.remove(b.dataset.id);
-      summaries = summaries.filter((s) => String(s.id) !== b.dataset.id); renderList();
-      if (counts && q) { counts.total = Math.max(0, counts.total - 1); const k = counts[q.status] != null && q.status !== "total" ? q.status : "quote"; counts[k] = Math.max(0, counts[k] - 1); }
-      try { nextCode = await BPStore.quotes.nextCodeFor(); } catch (e2) {}
-      $("#nextName").textContent = nextCode;
-      BPUI.toast("Quote deleted.", { type: "ok" });
-    }));
+    // Audit 13 (Oct 2026): a confirmed / approved / closed event is never deleted from this list -
+    // its ✕ becomes 🗄 Archive (restorable from Quotes → Archive). A draft's ✕ moves it to
+    // Deleted quotes (restorable); if the server says it has payments / an approval / refunds
+    // (it refuses the delete), Archive is offered instead.
+    host.querySelectorAll(".del").forEach((b) => {
+      const q0 = summaries.find((s) => String(s.id) === b.dataset.id);
+      if (keepOnDelete(q0)) {
+        b.dataset.mode = "archive"; b.classList.add("arch"); b.textContent = "🗄";
+        b.title = "Archive (you can restore it from Quotes → Archive)";
+        b.setAttribute("aria-label", "Archive quote " + ((q0 && q0.code) || ""));
+      }
+      b.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const q = summaries.find((s) => String(s.id) === b.dataset.id), code = (q && q.code) || "this quote";
+        if (b.dataset.mode === "archive") return archiveCard(b, q, code, false);
+        if (!(await BPUI.confirm(`Move ${code} to Deleted quotes? Nothing is erased — you can restore it from Quotes → Deleted.`, { title: "Delete quote?", okLabel: "Move to Deleted", danger: true }))) return;
+        try { await BPUI.guard(b, () => BPStore.quotes.remove(b.dataset.id)); }
+        catch (err) {
+          if (blockedDelete(err)) return archiveCard(b, q, code, true);
+          BPUI.toast(BPUI.friendlyError(err, { action: "delete the quote" }), { type: "err" }); return;
+        }
+        dropCard(b.dataset.id, q);
+        BPUI.toast(`${code} moved to Deleted quotes.`, { type: "ok" });
+      });
+    });
+  }
+  // confirmed, client-approved or closed: keep the record (archive, never delete)
+  function keepOnDelete(q) {
+    if (!q) return false;
+    return q.status === "confirmed" || !!q.confirmedAt || q.lifecycleStage === "closed" ||
+      q.approvalStatus === "approved" || q.approvalStatus === "paid";
+  }
+  // move_quote_to_shelf refuses a delete when money / consent / refunds are on record (0040)
+  function blockedDelete(err) {
+    const m = String((err && (err.message || err.details)) || "");
+    return /payments, a client approval or refunds/i.test(m) || /can'?t be deleted/i.test(m);
+  }
+  async function archiveCard(b, q, code, afterRefusal) {
+    const msg = afterRefusal
+      ? `${code} has payments, a client approval or refunds on record, so it can't be deleted. Move it to the Archive instead? You can restore it any time.`
+      : `${code} is a confirmed event, so it can't be deleted from here. Move it to the Archive? It leaves the day-to-day lists; you can restore it any time from Quotes → Archive.`;
+    if (!(await BPUI.confirm(msg, { title: "Archive quote?", okLabel: "Archive" }))) return;
+    try { await BPUI.guard(b, () => BPStore.quoteShelf.move(b.dataset.id, "archive")); }
+    catch (err) { BPUI.toast(BPUI.friendlyError(err, { action: "archive the quote" }), { type: "err" }); return; }
+    dropCard(b.dataset.id, q);
+    BPUI.toast(`${code} moved to the Archive.`, { type: "ok" });
+  }
+  async function dropCard(id, q) {
+    if (pager) pager.remove(id);
+    summaries = summaries.filter((s) => String(s.id) !== id); renderList();
+    if (counts && q) { counts.total = Math.max(0, counts.total - 1); const k = counts[q.status] != null && q.status !== "total" ? q.status : "quote"; counts[k] = Math.max(0, counts[k] - 1); }
+    try { nextCode = await BPStore.quotes.nextCodeFor(); } catch (e2) {}
+    $("#nextName").textContent = nextCode;
   }
   // E6 — memoize the per-load feeds so roleboard + pending + mytasks share ONE call each
   // (previously my_pending and my_tasks were each fetched twice per dashboard load).
@@ -668,15 +708,25 @@
   }
   $("#createBtn").addEventListener("click", async () => {
     const btn = $("#createBtn");
+    if (btn.disabled) return;
+    // Audit 7 (Oct 2026): confirm first (event name + type, Cancel / Create) - nothing is created
+    // on one click any more (the top-bar "New quote" and /dashboard#hb-new also land here).
+    if (!(window.HelmNewQuote && HelmNewQuote.ask)) { BPUI.toast("Couldn't open the new quote dialog. Reload the page and try again.", { type: "err" }); return; }
+    const pick = await HelmNewQuote.ask({});
+    if (!pick) return;   // Cancel / Escape: nothing created
     try {
       await BPUI.guard(btn, async () => {
         const code = nextCode || BPStore.quotes.nextCode(summaries);   // a guess — the server assigns the real code (M-04)
         // L8: reuse my untouched blank quote (no client/date/items/payments, < 7 days) instead of piling up empties
         const q = await BPStore.quotes.startBlank(code);
+        if (!q || !q.id) throw new Error("The quote could not be created. Please try again.");
         // M-04: the client code is only a guess; the server assigns the authoritative code.
         // Seed the title from the REAL code so the event/project name doesn't show a stale
         // guessed value (which the builder would otherwise re-persist on save).
-        if (q && q.code && q.code !== q.title) { try { await BPStore.quotes.updateMeta(q.id, { title: q.code }); } catch (e) {} }
+        const meta = {};
+        if (pick.title) meta.title = pick.title; else if (q.code && q.code !== q.title) meta.title = q.code;
+        if (pick.eventType) meta.eventType = pick.eventType;
+        if (Object.keys(meta).length) { try { await BPStore.quotes.updateMeta(q.id, meta); } catch (e) {} }
         location.href = "flow.html?quote=" + encodeURIComponent(q.id);
       });
     } catch (err) { BPUI.toast(BPUI.friendlyError(err, { action: "start a quote" }), { type: "err" }); }

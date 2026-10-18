@@ -297,6 +297,12 @@
     card.querySelectorAll("a.gs-go[data-mark]").forEach((a) => a.addEventListener("click", () => {
       try { if (store.auth && store.auth.markTrialStep) store.auth.markTrialStep(a.dataset.mark).catch(() => {}); } catch (e) {}
     }));
+    // audit 8: a "quotes?new=1" Start link carries a one-time nonce, so the Quotes page opens its
+    // "Start a new quote?" dialog only for Helm's own link (never creates by itself)
+    card.querySelectorAll("a.gs-go").forEach((a) => a.addEventListener("click", () => {
+      const NQ = global.HelmNewQuote, h = a.getAttribute("href") || "";
+      if (NQ && NQ.isNewQuoteHref && NQ.isNewQuoteHref(h)) a.setAttribute("href", NQ.arm(h));
+    }));
     card.querySelector("#gsDismiss").addEventListener("click", async (e) => {
       const btn = e.currentTarget; btn.disabled = true;
       try {

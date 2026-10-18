@@ -289,7 +289,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="flow-resume.js?v=2" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
+<script src="new-quote-dialog.js?v=1"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="flow-resume.js?v=2" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
 <script src="tour.js?v=17"></script>
 <script>
@@ -1175,18 +1175,27 @@
   // R8: "New quote" creates the quote right here and opens its flow — it used to link to
   // the home page, which never created anything (and could surface the dashboard tour).
   // open="builder": reuse my latest open quote (if any) and land in the floor-plan builder.
+  // Audit 7 (Oct 2026): nothing is created until the user confirms in a small dialog
+  // (event name + type, Cancel / Create) - one stray click used to spend a free trial's quote.
   async function startNewQuote(btn, open){
+    if(btn && btn.disabled) return;
+    if(open==="builder"){
+      const cur = (quotes||[]).find(x => x && x.id && x.status==="quote" && !x.archivedAt && !x.deletedAt);
+      if(cur){ location.href = "builder.html?quote=" + encodeURIComponent(cur.id) + "&from=flow"; return; }
+    }
+    if(!(window.HelmNewQuote && HelmNewQuote.ask)){ BPUI.toast("Couldn't open the new quote dialog. Reload the page and try again.", { type: "err" }); return; }
+    const pick = await HelmNewQuote.ask({ okLabel: open==="builder" ? "Create and open builder" : "Create quote" });
+    if(!pick) return;   // Cancel / Escape: nothing created
     try{
       await BPUI.guard(btn, async () => {
-        if(open==="builder"){
-          const cur = (quotes||[]).find(x => x && x.id && x.status==="quote" && !x.archivedAt && !x.deletedAt);
-          if(cur){ location.href = "builder.html?quote=" + encodeURIComponent(cur.id) + "&from=flow"; return; }
-        }
         let code=""; try{ code = await BPStore.quotes.nextCodeFor(); }catch(e){}
         if(!code) code = BPStore.quotes.nextCode(quotes);   // a guess — the server assigns the real code (M-04)
         const q = await BPStore.quotes.startBlank(code);
         if(!q || !q.id) throw new Error("The quote could not be created. Please try again.");
-        if(q.code && q.code !== q.title){ try{ await BPStore.quotes.updateMeta(q.id, { title: q.code }); }catch(e){} }
+        const meta = {};
+        if(pick.title) meta.title = pick.title; else if(q.code && q.code !== q.title) meta.title = q.code;
+        if(pick.eventType) meta.eventType = pick.eventType;
+        if(Object.keys(meta).length){ try{ await BPStore.quotes.updateMeta(q.id, meta); }catch(e){} }
         location.href = open==="builder" ? "builder.html?quote=" + encodeURIComponent(q.id) + "&from=flow" : "flow.html?quote=" + encodeURIComponent(q.id);
       }, { busyLabel: "Creating…" });
     }catch(err){ BPUI.toast(BPUI.friendlyError(err, { action: "create the quote" }), { type: "err", duration: 8000 }); }
@@ -1195,17 +1204,21 @@
     const b = e.target.closest && e.target.closest("[data-newquote]"); if(!b) return;
     e.preventDefault(); startNewQuote(b);
   });
+  // Audit 8: ?new=1 only OPENS the dialog (never creates), and only when one of Helm's own
+  // pages armed it (one-time sessionStorage nonce, HelmNewQuote.arm). A link from anywhere
+  // else just shows the list. The parameters are always dropped from the address bar.
   const newQs = new URLSearchParams(location.search);
-  if(newQs.get("new")==="1"){
+  if(newQs.has("new") || newQs.has("nq")){
+    const armed = !!(window.HelmNewQuote && HelmNewQuote.consume(location.search));
     const openTo = newQs.get("open")==="builder" ? "builder" : "";
     try{ history.replaceState(null, "", location.pathname); }catch(e){}
-    BPUI.boot(async () => { await load(); if(canCreate) startNewQuote($("#newBtn"), openTo); });
+    BPUI.boot(async () => { await load(); if(armed && canCreate) startNewQuote($("#newBtn"), openTo); });
   } else BPUI.boot(load);
   // qts-1018: Back/Forward restores this page from the bfcache with the totals + statuses it had
   // when you left (e.g. before a re-price or approval in the workspace) - re-read the list
   window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&pager) reloadQuiet(); });
 </script>
-<script src="saved-filters.js?v=2"></script>
+<script src="saved-filters.js?v=3"></script>
 <script src="capacity-shortage.js?v=2"></script>
 </body>
 </html>
