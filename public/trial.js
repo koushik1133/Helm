@@ -34,7 +34,9 @@
       body: t.trial_mode === "own" ? "Everything in Helm is open to you — no card needed." : "You're exploring sample data. Everything marked “Demo ·” is fictional.",
       cta: admin ? "Choose a plan" : null,
       // 0123: exploring samples -> one clear "start my own studio" action; "Choose a plan" offers it first
-      fresh: admin && t.trial_mode === "demo" ? "Start my own studio" : null };
+      fresh: admin && t.trial_mode === "demo" ? "Start my own studio" : null,
+      // 0167: a visible "Sample data" badge while the studio still shows the sample dataset
+      badge: t.trial_mode === "demo" ? "Sample data" : null };
   }
 
   // Pure (unit-tested): where "Choose a plan" goes. In demo mode it first offers to remove the samples.
@@ -135,6 +137,7 @@
     ".htr{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:center;padding:8px 16px;font-size:13.5px;line-height:1.4;background:var(--accent-soft,#efe9ff);color:var(--ink,#1b1930);border-bottom:1px solid var(--line,#e8e3db)}",
     ".htr.soon{background:#fff4e0}.htr.ended{background:#fde8e8}",
     ".htr b{font-weight:700}.htr span{color:var(--ink-2,#4b475f)}",
+    ".htr span.htr-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff);border-radius:999px;padding:2px 8px}",
     ".htr a{display:inline-block;padding:4px 12px;border-radius:999px;background:var(--accent,#6d28d9);color:#fff;font-weight:600;text-decoration:none}",
     ".htr a.htr-fresh{background:transparent;color:var(--accent,#6d28d9);border:1px solid var(--accent,#6d28d9)}",
     "html[data-theme=dark] .htr a.htr-fresh{color:#d9ccff;border-color:#8b7bd8}",
@@ -169,6 +172,7 @@
     bar.id = "helmTrialStrip";
     bar.className = "htr" + (spec.tone ? " " + spec.tone : "");
     bar.setAttribute("role", spec.locked ? "alert" : "status");
+    if (spec.badge) { var g = doc.createElement("span"); g.className = "htr-badge"; g.textContent = spec.badge; bar.appendChild(g); }
     var b = doc.createElement("b"); b.textContent = spec.title; bar.appendChild(b);
     var s = doc.createElement("span"); s.textContent = spec.body; bar.appendChild(s);
     if (spec.cta) {

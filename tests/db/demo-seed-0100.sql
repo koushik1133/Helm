@@ -77,7 +77,7 @@ exception when others then insert into _uf values ('00 prod drift', 'FAIL: '||sq
 do $$ begin
   perform pg_temp.res('01 old demo pricing shape = 0 under D8 (root cause)',
     public.helm_quote_total('{"guests":500,"subtotal":1250000,"discount":0,"gstPct":18}'::jsonb) = 0);
-  perform pg_temp.res('02 0100 body carries the marker', exists (select 1 from pg_proc where proname = '_demo_seed'
+  perform pg_temp.res('02 0100 body carries the marker', exists (select 1 from pg_proc where proname in ('_demo_seed', '_demo_seed__pre0166')  -- 0166 wraps it
     and pronamespace = 'public'::regnamespace and prosrc like '%demo-seed-0100%'));
 end $$;
 
