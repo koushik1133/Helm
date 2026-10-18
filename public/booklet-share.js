@@ -10,6 +10,13 @@
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const DAYS = [7, 14, 30, 60, 90, 180];
 
+  // PL1027 #5: no extra versions shared = the client sees the current quotation only
+  function versionsNote(cur) {
+    const n = Array.isArray(cur.shared_versions) ? cur.shared_versions.length : 0;
+    if (n > 0) return n + " quote version" + (n === 1 ? "" : "s") + " shown";
+    const v = cur.current_version || cur.version_no || cur.version || 1;
+    return "Current quotation (Version " + v + ")";
+  }
   function el(tag, cls, text) { const n = doc.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
   // 0092: studio date order - "12 Oct 2026" (India / UAE) or "Oct 12, 2026" (USA)
@@ -58,7 +65,7 @@
     box.appendChild(row);
     box.appendChild(el("p", cur.expired ? "bk-meta bk-warn" : "bk-meta",
       (cur.expired ? "Expired on " : "Valid until ") + when(cur.expires_at) + " · created " + when(cur.created_at) +
-      " · " + (Array.isArray(cur.shared_versions) ? cur.shared_versions.length : 0) + " quote version(s) shown"));
+      " · " + versionsNote(cur)));
     const acts = el("div", "bk-acts");
     const again = el("button", "bk-btn ghost", "Create a new link"); again.type = "button";
     again.addEventListener("click", () => renderForm(body, quoteId, cur));

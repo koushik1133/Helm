@@ -271,7 +271,7 @@
             <div class="fld"><label for="q_chairPrice">Chair rate (₹) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
             <div class="fld"><label for="q_platePrice">Plate price (₹) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
             <div class="fld"><label for="q_other">Décor / equipment &amp; setup (₹)</label><input id="q_other" type="number" min="0"></div>
-            <div class="fld"><label for="q_discount">Discount (₹)</label><input id="q_discount" type="number" min="0" aria-describedby="q_discount_err"><span class="hint" id="q_discount_err" role="alert" hidden></span></div>
+            <div class="fld"><label for="q_discount">Discount (₹)</label><input id="q_discount" type="number" min="0" aria-describedby="q_discount_err"><span class="hint" id="q_discount_err" role="alert" hidden></span><span class="hint" id="q_discountPctHint" hidden></span></div>
             <div class="fld"><label for="q_coupon">Coupon code</label><input id="q_coupon" list="couponList" placeholder="optional"><datalist id="couponList"></datalist>
               <div class="s-40d0688" id="q_couponMsg" role="status" aria-live="polite"></div></div>
             <div class="fld"><label for="q_taxExempt"><input type="checkbox" id="q_taxExempt"> Tax-exempt client (no tax charged)</label></div>
@@ -564,7 +564,10 @@
     if(p.guests>0) rows+=`<div class="prow"><span>Catering${p._packageName?' <span class="q">'+esc(p._packageName)+'</span>':''} <span class="q">${p.guests} × ${inr(p.platePrice)}</span></span><span class="amt">${inr(p.guests*p.platePrice)}</span></div>`;
     if(p.other>0) rows+=`<div class="prow"><span>Décor / setup</span><span class="amt">${inr(p.other)}</span></div>`;
     rows+=`<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`;
-    if(t.discount>0) rows+=`<div class="prow"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`;
+    // PL1027 #1: a % discount from the Quotes list is kept on save - show it (and its ₹ value) beside the ₹ field
+    { const h=$("#q_discountPctHint"); if(h){ const dp=+p.discountPct||0; h.hidden=!(dp>0);
+      h.textContent=dp>0?("Plus "+dp+"% discount set on the Quotes list (− "+inr(t.subtotal*dp/100)+") — kept when you save."):""; } }
+    if(t.discount>0) rows+=`<div class="prow"><span>Discount${(+p.discountPct||0)>0?' <span class="q">'+esc(String(+p.discountPct))+'%'+((+p.discount||0)>0?' + '+esc(inr(+p.discount)):'')+'</span>':''}</span><span class="amt">− ${inr(t.discount)}</span></div>`;
     rows+=`<div class="prow"><span>${esc(fTax().name)}${t.taxExempt?" (exempt)":t.taxInclusive?" (included)":""}</span><span class="amt">${inr(t.totalGst)}</span></div>`;
     if(fTax().country==="IN" && !t.taxExempt && t.totalGst>0) rows+=`<div class="prow posHint" style="color:var(--ink-3);font-size:11px"><span>${p.placeOfSupply==="inter"?"IGST (inter-state)":"CGST+SGST (intra-state)"}</span><span></span></div>`;
     rows+=`<div class="prow total"><span>Total</span><span class="amt">${inr(t.total)}</span></div>`;
@@ -1061,6 +1064,8 @@
   }
   // QA1026 #13: "Confirmed" only once an advance is recorded; a confirmed quote with no advance says so
   function paintBookingBadge(paidCount){ const b=$("#bookingBadge"); if(!b) return;
+    { const st=$("#apprState"); if(st){ if(paidCount>0) st.textContent="Booking confirmed.";   // PL1027 #2
+        else if(st.textContent==="Booking confirmed.") st.textContent="Client approved — advance pending."; } }
     if(paidCount>0){ b.textContent="Confirmed"; b.hidden=false; payNextConfirmed(); return; }
     if(ev&&ev.status==='confirmed'){ b.textContent="Advance pending"; b.hidden=false; return; }
     b.hidden=true; }
@@ -1290,8 +1295,9 @@
     paintBookingBadge(((ev.approvalStatus||ev.approval_status)==='paid') ? 1 : 0);
     // QA-FR2: after a reload the approval card said "Not sent yet." even when a link exists / the booking is confirmed
     { const ap=ev.approvalStatus||ev.approval_status||"", hasTok=!!(ev.approvalToken||ev.approval_token);
-      if(ap==='paid'||ev.status==='confirmed') $("#apprState").textContent="Booking confirmed.";
-      else if(ap==='approved') $("#apprState").textContent="Client approved the quote.";
+      // PL1027 #2: "Booking confirmed" only once an advance exists (paid); approved/confirmed without one = advance pending
+      if(ap==='paid') $("#apprState").textContent="Booking confirmed.";
+      else if(ap==='approved'||ev.status==='confirmed') $("#apprState").textContent="Client approved — advance pending.";
       else if(hasTok) $("#apprState").textContent="Approval link already created — use the button below to show it again."; }
     await renderReceipts(); await renderActivity(); await renderQuoteVersions();
     renderReprice(); watchHistory();

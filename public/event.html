@@ -186,7 +186,7 @@
 <script src="tour.js?v=15"></script>
 <script src="booklet.js?v=19"></script>
 <script src="share-checklist.js?v=9"></script>
-<script src="booklet-share.js?v=7"></script>
+<script src="booklet-share.js?v=8"></script>
 <script src="pkg-review.js?v=4"></script>
 <script src="event-group-picker.js?v=2"></script>
 <script>
@@ -381,6 +381,7 @@
     else if(cur<stageIndex("event_day")){ t="Plan the day"; href="runsheet.html?quote="+q; w="Build the minute-by-minute plan for the day."; }
     else if(cur<stageIndex("closed")){ t="Close the event"; href="closure.html?quote="+q; w="Settle up, collect feedback and close the books."; }
     if(!t || !canEdit){ bar.hidden=true; return false; }
+    if(window.HelmUrl&&HelmUrl.upgrade) href=HelmUrl.upgrade(href);   // PL1027 #3: studio-prefixed route (/<studio>/flow?quote=…), like Convert
     b.textContent=t+" →"; b.setAttribute("href",href); why.textContent=w; bar.hidden=false; return true;
   }
   // Event group (0035): after confirmation, a clear button at the bottom — "Create event group"
