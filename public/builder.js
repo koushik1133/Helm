@@ -3787,8 +3787,10 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
 function updateEmptyState(){
   const es=$('#emptyState'); if(!es) return;
   const threeD = $('#stage3d') && !$('#stage3d').hidden;
-  es.hidden = layoutLoading || RO || threeD || (store.items && store.items.length>0);
-  const ld=$('#layoutLoading'); if(ld) ld.hidden = !layoutLoading;
+  // studio-templates.js template edit (?tplEdit=<id>): "loading" shows the loading state, "edit"/"error" never the blank-floor prompt
+  const tpl=window.__helmTplEdit, tplMode=tpl&&tpl.mode, tplLoading=tplMode==='loading';
+  es.hidden = layoutLoading || tplLoading || tplMode==='edit' || tplMode==='error' || RO || threeD || (store.items && store.items.length>0);
+  const ld=$('#layoutLoading'); if(ld) ld.hidden = !(layoutLoading || (tplLoading && !threeD));
 }
 /* R4: while an existing event's quote/layout is being fetched, show a neutral loading state —
    never the blank-floor prompt or "Untitled event" (they flashed for 1-2s before the layout arrived). */

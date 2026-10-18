@@ -89,7 +89,7 @@ t('R5 capture3D: frames floor union, trims ground, hides name tags for badges + 
 t('R4 builder: neutral loading state while an existing event loads (no blank-floor flash)', () => {
   const js = read('public/builder.js'), html = read('public/builder.html');
   assert.match(html, /id="layoutLoading"[^>]*hidden>/);
-  assert.match(js, /es\.hidden = layoutLoading \|\| RO/);
+  assert.match(js, /es\.hidden = layoutLoading \|\| [^;]*\bRO \|\|/);
   assert.match(js, /if\(quoteId \|\| evId\) setLayoutLoading\(true\);/);
   assert.match(js, /if\(layoutLoading\) setLayoutLoading\(false\);[^\n]*\n  populateRefEvents\(\);/);
   assert.ok(js.indexOf('setLayoutLoading(true)') < js.indexOf('renderAll();\n  fitView();'), 'set before the first render');

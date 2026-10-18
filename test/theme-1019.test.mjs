@@ -24,5 +24,5 @@ test("tour popups use theme tokens (no old gold) and are themed in the builder",
   const t = P("tour.js");
   assert.doesNotMatch(t, /--gold/);
   assert.match(t, /border:3px solid var\(--hb-acc/);
-  assert.match(P("builder-v2.css"), /:is\(\.htour,\.htour-fab\) \{ --hb-bg:var\(--panel\)/);
+  assert.match(P("builder-v2.css"), /:is\(\.htour,\.htour-fab[^)]*\) \{ --hb-bg:var\(--panel\)/);
 });
