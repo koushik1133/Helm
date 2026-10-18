@@ -9,7 +9,7 @@
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
   if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=5"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
-  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=5"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=6"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -910,7 +910,7 @@ window.HelmUrl = HelmUrl;
   // la-fetch (audit 25): the list below also names the STABLE (read-only) RPCs every page asks while it
   // boots (trial / upgrade status, seat use, prefs, shelf list, mentions, PIN status). Before, each one was
   // treated as a write and dropped every shared read of the page, so the page's own reads ran again.
-  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|privacy_pin_status)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_terms_status|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|privacy_pin_status)(\?|$)/;
   const readCache = new Map();
   function hdrOf(init, input, name) {
     try {
@@ -9343,6 +9343,13 @@ window.HelmUrl = HelmUrl;
       // finished (Skip / Send invites) -> false; "start my own studio" names the studio again -> true
       welcomeDone: () => (supa ? rpc("trial_welcome_set", { p_pending: false }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       welcomeAgain: () => (supa ? rpc("trial_welcome_set", { p_pending: true }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // 0207 — free-trial terms ("Your 8-day free trial", I agree): {version, trial, owner, accepted, must_agree,
+      // notice, welcome_pending}; null = 0207 not installed / no backend (the page then asks without recording)
+      terms: () => (supa ? rpc("my_trial_terms_status", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // records the owner's "I agree" (or a teammate's "Got it") for that terms version; null = not installed
+      acceptTerms: (version) => (supa ? rpc("accept_trial_terms", { p_version: String(version || ""),
+        p_user_agent: String((global.navigator && global.navigator.userAgent) || "").slice(0, 160) || null })
+        .catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       status: () => trialOrgStatus(),
       // 0183 — true while this studio is READ-ONLY after its free trial ended unpaid (everyone in it); false otherwise
       readOnly: () => studioReadOnly(),

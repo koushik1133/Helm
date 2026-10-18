@@ -196,6 +196,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
+<link rel="stylesheet" href="trial-terms.css?v=3">
 <script src="/shell-proto.js?v=27" id="shellProto"></script>
 </head>
 <body>
@@ -326,12 +327,13 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=2"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script><script src="flow-resume.js?v=2" data-mount></script>
+<script src="new-quote-dialog.js?v=2"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script><script src="flow-resume.js?v=2" data-mount></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=18"></script>
 <script src="getting-started.js?v=10"></script>
 <script src="onboarding-wizard.js?v=10"></script>
-<script src="trial-demo.js?v=10"></script>
+<script src="trial-facts.js?v=1"></script>
+<script src="trial-demo.js?v=11"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="dash-prompts.js?v=1"></script>
 <script>
@@ -840,6 +842,8 @@
         const w = await Promise.race([ HelmTrialDemo.welcomeDecision().then(v=>v===true, ()=>false),
                                        new Promise(r => setTimeout(() => r(null), 10000)) ]);
         if(w !== false) return;   // showing (or still unknown): bp_force_tour stays for after it
+        // 0207: the one-time free-trial terms window / the teammate notice is open: the tour starts after it closes
+        if(HelmTrialDemo.termsGate){ try{ await HelmTrialDemo.termsGate(); }catch{} }
       } else if(window.HelmTrialDemo && HelmTrialDemo.welcomeOn) return;
       let forced=false; try{ forced=!!localStorage.getItem("bp_force_tour"); localStorage.removeItem("bp_force_tour"); }catch{}
       const seen = A.tourSeen ? A.tourSeen() : true;
