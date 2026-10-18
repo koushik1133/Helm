@@ -22,7 +22,8 @@
     image:"M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M15.5 9.5h.01",
     pin:"M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
     layout:"M3 3h18v18H3zM3 9h18M9 9v12",
-    lock:"M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4"
+    lock:"M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4",
+    book:"M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h11M9 8h5"
   };
   var SECTIONS=[
     {key:"general",  group:"Workspace",  label:"General",                icon:"home",  hash:"#general",       desc:"Studio name, country and tax, contact details, billing address and your client link name.", kw:"studio account organization business logo accent currency timezone gst gstin address demo trial slug control center centre admin overview"},
@@ -104,6 +105,11 @@
   var msel=el("select","cs-mnav"); msel.id="csMnav";
   var nv=el("nav","cs-nav"); nv.id="csNav"; nv.setAttribute("aria-label","Settings");
   aside.appendChild(sw); aside.appendChild(mlab); aside.appendChild(msel); aside.appendChild(nv);
+  // R19 help: the signed-in user manual (/manual, its Control Center chapter) in a new tab - also on phones
+  var help=el("div","cs-help"); help.appendChild(el("h4","cs-group-h","Help"));
+  var hl=el("a","cs-help-a"); hl.id="csHelpManual"; hl.href="manual.html#control"; hl.target="_blank"; hl.rel="noopener noreferrer";
+  hl.title="Open the Helm user manual in a new tab";
+  aside.appendChild(help);
   // page header, empty state and unsaved-changes bar live in the main column
   var head=el("div","cs-head"), hT=el("h2",null,""), hD=el("p",null,""); head.appendChild(hT); head.appendChild(hD);
   main.insertBefore(head, main.firstChild);
@@ -131,6 +137,7 @@
     var sv=document.createElementNS(SVGNS,"svg"); sv.setAttribute("viewBox","0 0 24 24"); sv.setAttribute("aria-hidden","true"); sv.setAttribute("class","cs-ico");
     var pa=document.createElementNS(SVGNS,"path"); pa.setAttribute("d",IC[name]||IC.home); sv.appendChild(pa); return sv;
   }
+  hl.appendChild(icon("book")); hl.appendChild(el("span",null,"User manual")); hl.appendChild(el("small",null,"How each section works")); help.appendChild(hl);
   function drawNav(){
     nav.textContent=""; msel.textContent="";
     var g=null, og=null;

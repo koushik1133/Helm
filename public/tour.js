@@ -2,7 +2,7 @@
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
    One engine, many pages. Each page's steps live in STEPS keyed by filename.
-   A page opts in simply by including  <script src="tour.js?v=20"></script>.
+   A page opts in simply by including  <script src="tour.js?v=21"></script>.
 
    • Injects its own spotlight CSS (pages need no markup).
    • Renders a floating "? Tour" button, or wires an existing #helpBtn.
@@ -159,7 +159,9 @@
   @media (max-width:767.98px){body.hmn-on:not(.hmn-kb) .htour-fab{bottom:calc(72px + env(safe-area-inset-bottom,0px))}}
   @media (min-width:820px){html.htour-tuck:not(.hb-pinned) .hb-rail{width:var(--hb-w)!important;box-shadow:none!important}
     html.htour-tuck:not(.hb-pinned) .hb-rail :is(.hb-lb,.hb-head,.hb-pin){opacity:0!important}}
-  @media (max-width:819.98px){html.htour-tuck .hb-rail{transform:translateX(-100%)!important;box-shadow:none!important}}`;
+  @media (max-width:819.98px){html.htour-tuck .hb-rail{transform:translateX(-100%)!important;box-shadow:none!important}}
+  @media (min-width:820px){html.htour-rail:not(.hb-pinned) .hb-rail{width:var(--hb-wx)!important;transition:none!important;box-shadow:10px 0 30px rgba(0,0,0,.10)!important}
+    html.htour-rail:not(.hb-pinned) .hb-rail :is(.hb-lb,.hb-head,.hb-pin){opacity:1!important;transition:none!important}}`;
   __helmAdoptCss(document, css);
 
   /* ---- engine -------------------------------------------------------- */
@@ -336,9 +338,17 @@
     try { h.classList.toggle("htour-tuck", !!on); } catch (_) { return; }
     if (on) { try { const a = document.activeElement, rail = document.getElementById("hbRail"); if (a && rail && rail.contains(a) && a.blur) a.blur(); } catch (_) {} }
   }
+  // R19: a sidebar step opens a slim (unpinned) desktop rail while it shows, without the width animation, so the
+  // ring is measured on the real control. Slim, the pin (opacity 0) sat on top of the logo, so the "Keep the
+  // sidebar open" step outlined the LOGO instead of the pin; the labels are readable on every sidebar step too.
+  function openRail(on) {
+    const h = document.documentElement; if (!h || !h.classList) return;
+    try { h.classList.toggle("htour-rail", !!on); } catch (_) {}
+  }
   function end() {
     const had = !!root;
     tuckRail(false);
+    openRail(false);
     if (root) { root.remove(); root = null; }
     visCache = null;
     document.removeEventListener("keydown", onKey, true);
@@ -472,6 +482,7 @@
     const tgt = pick(list[i]), seq = ++placeSeq;
     visCache = null;
     tuckRail(!(tgt && tgt.closest && tgt.closest("#hbRail")));
+    openRail(!!(tgt && tgt.closest && tgt.closest("#hbRail")));
     observe(tgt);
     let moving = false;
     if (tgt) {
