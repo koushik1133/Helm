@@ -313,6 +313,8 @@
   var heroLayers = [];
   var lerpEls = reduce ? [] : $$('[data-lerp]').map(function (el) { return { el: el, k: parseFloat(el.dataset.lerp), cur: 0 }; });
   var phStage = $('#phStage');
+  var phReel = $('#phReel');
+  if (phReel) phReel.addEventListener('touchstart', function () { phReel.classList.toggle('rl-paused'); }, { passive: true });
   var lastY = -1, lastStage = -1, mx = 0, my = 0, tmx = 0, tmy = 0, appsP = -1, morphP = -1;
 
   if (heroLayers.length) {
