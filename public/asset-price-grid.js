@@ -161,7 +161,7 @@
         var lab = el("label", "apg-name", it.label); lab.htmlFor = id; lab.title = it.label; box.appendChild(lab);
         var field = el("div", "apg-field");
         var cur = el("span", "apg-cur", sym); cur.setAttribute("aria-hidden", "true"); field.appendChild(cur);
-        var inp = el("input"); inp.id = id; inp.type = "number"; inp.min = "0"; inp.step = "0.01";
+        var inp = el("input", "hbp-mi"); inp.id = id; inp.type = "number";   // hbp-mi: masked while amounts are hidden (r19 L5) inp.min = "0"; inp.step = "0.01";
         // no max= attribute: the number hardener silently clamps a value above max= on blur, so 2,50,00,000
         // would quietly be saved as 1,00,00,000. Without it the validator blocks the save with "Too large".
         inp.setAttribute("inputmode", "decimal"); inp.setAttribute("data-type", it.type); inp.placeholder = "Default"; inp.autocomplete = "off";

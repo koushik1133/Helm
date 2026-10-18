@@ -6,7 +6,7 @@ assert.match(js, /a\.className = "ob-cta"; a\.textContent = "Resume setup"/);
 assert.match(js, /\.ob-nudge a\.ob-cta\{[^}]*color:var\(--hb-acc-ink,var\(--accent-ink,#fff\)\)/);
 assert.doesNotMatch(js, /\.ob-nudge a\{[^}]*color:#fff/);
 assert.match(css, /main a:not\(\.btn\):not\(\.ob-cta\):not\(\[class\*="nav"\]\)/);
-assert.match(css, /\.card a:not\(\.btn\):not\(\.ob-cta\) \{ color/);
+assert.match(css, /\.card a:not\(\.btn\):not\(\.ob-cta\):not\(\.hd-btn\) \{ color/);
 assert.match(css, /html\[data-shell="b"\] a\.ob-cta \{ background: var\(--hb-acc\); color: var\(--hb-acc-ink\); \}/);
 console.log("resume-setup-contrast: ok");
 

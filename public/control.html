@@ -219,7 +219,7 @@
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=12">
-<script src="/shell-proto.js?v=29" id="shellProto"></script>
+<script src="/shell-proto.js?v=30" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -363,14 +363,14 @@
       <h3>Default pricing (applies to every new quote)</h3>
       <div id="pricingErr"></div>
       <div class="grid">
-        <div class="fld"><label for="p_chair" id="p_chair_lbl">Price / chair (₹)</label><input id="p_chair" type="number" min="0" step="0.01" inputmode="decimal"></div>
-        <div class="fld"><label for="p_plate" id="p_plate_lbl">Price / plate (₹)</label><input id="p_plate" type="number" min="0" step="0.01" inputmode="decimal"></div>
+        <div class="fld"><label for="p_chair" id="p_chair_lbl">Price / chair (₹)</label><input id="p_chair" type="number" min="0" step="0.01" inputmode="decimal" class="hbp-mi"></div>
+        <div class="fld"><label for="p_plate" id="p_plate_lbl">Price / plate (₹)</label><input id="p_plate" type="number" min="0" step="0.01" inputmode="decimal" class="hbp-mi"></div>
         <div class="fld"><label for="p_gst" id="p_gst_lbl">Chair/rental GST %</label><input id="p_gst" type="number" min="0" step="0.01" list="p_gst_rates"><datalist id="p_gst_rates"></datalist></div>
         <div class="fld"><label for="p_cgst" id="p_cgst_lbl">Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5"></div>
         <div class="fld" id="p_taxName_fld" hidden><label for="p_taxName">Tax name</label><input id="p_taxName" maxlength="24" placeholder="e.g. VAT"></div>
         <div class="fld"><label class="mpchk" for="p_taxIncl"><input type="checkbox" id="p_taxIncl"> My prices already include tax</label><p class="mnote" id="p_taxNote"></p></div>
         <div class="fld"><label for="p_svc">Service charge % (optional)</label><input id="p_svc" type="number" min="0" step="0.5"></div>
-        <div class="fld"><label for="p_layout" id="p_layout_lbl">Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0"></div>
+        <div class="fld"><label for="p_layout" id="p_layout_lbl">Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" class="hbp-mi"></div>
         <div class="fld"><label for="p_buffer">Venue booking gap (hours)</label><input id="p_buffer" type="number" min="0" step="0.5" placeholder="3" title="Two events at the same venue on the same day that start closer together than this many hours are flagged as a clash on the calendar. A bigger gap (e.g. one ends 3pm, next starts 6pm) is fine."></div>
         <div class="fld" id="p_country_fld"><span class="p-clbl" id="p_country_lbl" title="Sets the tax name, default rate, currency and phone country code for new quotes">Country (tax &amp; currency)</span>
           <!-- one source of truth: the country is set in General (Studio details); Pricing only shows it -->
@@ -765,7 +765,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=251"></script>
 <script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -785,7 +785,7 @@
 <script src="studio-templates-core.js?v=3"></script>
 <script src="studio-templates.js?v=8"></script>
 <script src="item-pricing.js?v=1"></script>
-<script src="asset-price-grid.js?v=2"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=2"></script>
+<script src="asset-price-grid.js?v=3"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=2"></script>
 <script src="trial-demo.js?v=12"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
