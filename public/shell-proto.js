@@ -25,7 +25,7 @@
   try { localStorage.removeItem("helm.dash.v"); } catch (e) {}
   {
     /* SHELL_V: bump this whenever any shell-* file changes, so browsers refetch (was Date.now(), which defeated caching) */
-    var SHELL_V = "117", root = document.documentElement, head = document.head;
+    var SHELL_V = "118", root = document.documentElement, head = document.head;
     window.HELM_SHELL_V = SHELL_V;
     root.setAttribute("data-shell", v);
     var th = null; try {

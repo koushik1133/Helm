@@ -1,0 +1,21 @@
+// One shared event-type list; canonical case-insensitive match; custom values kept as options.
+import { readFileSync } from "node:fs"; import assert from "node:assert/strict"; import { createRequire } from "node:module";
+const N = createRequire(import.meta.url)("../public/event-name.js");
+assert.equal(N.canonEventType("  wedding "), "Wedding");
+assert.equal(N.canonEventType("GALA DINNER"), "Gala dinner");
+assert.equal(N.canonEventType("henna night", "AE"), "Henna night");
+assert.equal(N.canonEventType("Rooftop  mixer"), "Rooftop mixer");
+assert.equal(N.canonEventType(""), "");
+const o = N.eventTypeOptions("IN", "Rooftop mixer", []);
+assert.ok(o.includes("Rooftop mixer") && o.includes("Wedding"));
+assert.equal(N.eventTypeOptions("IN", "wedding", []).filter((x) => x.toLowerCase() === "wedding").length, 1);
+assert.ok(N.eventTypeOptions("AE", "", []).includes("Iftar"));
+assert.deepEqual(N.eventTypeOptions("IN", "", ["corporate", "Yacht party"]).slice(-1), ["Yacht party"]);
+const r = (f) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
+const flow = r("flow.html"), leads = r("leads.html"), quotes = r("quotes.html");
+assert.match(flow, /EVENT_TYPE_DEFAULTS=\(window\.HelmEventName&&HelmEventName\.EVENT_TYPE_LIST\)/);
+assert.match(flow, /\$\("#c_type"\)\.value=canonType\(\$\("#c_type"\)\.value\);/);
+assert.match(leads, /<input id="f_type" list="leadTypeList"/);
+assert.match(leads, /event_type:leadTypeCanon\(\$\("#f_type"\)\.value\)\|\|null/);
+assert.match(quotes, /HelmEventName\.canonEventType\(t\)/);
+console.log("event-type-dropdown: ok");

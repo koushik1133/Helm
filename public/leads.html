@@ -194,7 +194,7 @@
           <option value="google">Google</option><option value="instagram">Instagram</option><option value="walk-in">Walk-in</option>
           <option value="social">Other social</option><option value="ad">Ad</option><option value="other">Other</option>
         </select></div>
-      <div class="fld"><label for="f_type">Event type</label><input id="f_type" placeholder="e.g. Wedding, Corporate"></div>
+      <div class="fld"><label for="f_type">Event type</label><input id="f_type" list="leadTypeList" placeholder="Pick or type a new one…"><datalist id="leadTypeList"></datalist></div>
       <div class="fld"><label for="f_date">Event date</label><input id="f_date" type="date" data-min-today></div>
       <div class="fld"><label for="f_budget">Budget (₹)</label><input id="f_budget" type="number" min="0" placeholder="e.g. 500000"></div>
       <div class="fld"><label for="f_guests">Guest count</label><input id="f_guests" type="number" min="0" max="100000" placeholder="e.g. 300"></div>
@@ -227,11 +227,17 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
-<script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=237"></script>
+<script src="event-name.js?v=7"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=238"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
+  // shared event-type list (event-name.js): same options as the quote flow; saved spelling is canonical
+  const leadCountry=()=>{ try{ return (window.BPStore&&BPStore.studioTax&&BPStore.studioTax().country)||"IN"; }catch(_){ return "IN"; } };
+  const leadTypeCanon=(v)=>window.HelmEventName&&HelmEventName.canonEventType ? HelmEventName.canonEventType(v, leadCountry()) : String(v||"").trim();
+  function fillLeadTypes(){ const dl=document.getElementById("leadTypeList"); if(!dl||!window.HelmEventName||!HelmEventName.eventTypeOptions) return;
+    const cur=(document.getElementById("f_type")||{}).value;
+    dl.replaceChildren(...HelmEventName.eventTypeOptions(leadCountry(), cur).map(v=>{ const o=document.createElement("option"); o.value=v; return o; })); }
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const fmt=(n)=> n==null||n===""?"":BPStore.studioMoney(n);
   const STAGES=[
@@ -563,7 +569,7 @@
     $("#lm_title").textContent = lead ? "Edit lead" : "＋ New lead";
     $("#f_name").value=lead?lead.name||"":""; $("#f_phone").value=lead?lead.phone||"":"";
     $("#f_email").value=lead?lead.email||"":""; setSource(lead?lead.source||"":"");
-    $("#f_type").value=lead?lead.event_type||"":""; $("#f_date").value=lead?lead.event_date||"":""; $("#f_date").removeAttribute("data-date-rejected");
+    $("#f_type").value=lead?leadTypeCanon(lead.event_type):""; fillLeadTypes(); $("#f_date").value=lead?lead.event_date||"":""; $("#f_date").removeAttribute("data-date-rejected");
     $("#f_budget").value=lead&&lead.budget!=null?lead.budget:""; $("#f_guests").value=lead&&lead.guest_count!=null?lead.guest_count:"";
     $("#f_notes").value=lead?lead.notes||"":"";
     $("#f_bday").value=lead&&lead.birthday?String(lead.birthday).slice(0,10):""; $("#f_anniv").value=lead&&lead.anniversary?String(lead.anniversary).slice(0,10):"";
@@ -593,7 +599,7 @@
       if(!dv && rej){ fail(rej==="past"?"Event date can't be in the past.":"Pick an event date within the next 5 years."); return; }
       if(dv && dmin && dv<dmin && dv!==saved){ fail("Event date can't be in the past."); return; } }
     const patch={ name, phone, email,
-      source:$("#f_source").value||null, event_type:$("#f_type").value.trim()||null,
+      source:$("#f_source").value||null, event_type:leadTypeCanon($("#f_type").value)||null,
       event_date:$("#f_date").value||null,
       budget, guest_count,
       notes:$("#f_notes").value.trim()||null };

@@ -55,7 +55,7 @@ t('layout wizard: Gulf event types, AE hides political rally, metres default, ma
   assert.match(read('public/builder.js'), /return c==='IN'\|\|c==='US'\?'ft':'m';/);
 });
 t('flow: UAE event types / concepts without political rally or puja', () => {
-  const f = read('public/flow.html'); const m = /const EVENT_TYPE_AE=(\[[^\]]+\])/.exec(f); const list = JSON.parse(m[1]);
+  const f = read('public/flow.html'); const m = /const EVENT_TYPE_LIST_AE = (\[[^\]]+\])/.exec(read('public/event-name.js')); const list = JSON.parse(m[1]);
   for (const k of ['Iftar', 'Eid celebration', 'National Day celebration', 'Gala dinner', 'Exhibition']) assert.ok(list.includes(k), k);
   assert.ok(!list.some((x) => /political|puja|sangeet/i.test(x)));
   assert.match(f, /flowCountry\(\)==="AE"\?EVENT_TYPE_AE:EVENT_TYPE_DEFAULTS/);

@@ -147,7 +147,7 @@
   /* ---- dashboard nudge (DOM) --------------------------------------------- */
   const NUDGE_CSS = ".ob-nudge{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;background:var(--accent-soft,#efe9ff);border:1px solid var(--line,#e8e3db);border-radius:14px;padding:12px 16px;margin:0 0 14px}"
     + ".ob-nudge b{font-size:14px}.ob-nudge span{font-size:12.5px;color:var(--ink-3,#6b6577)}.ob-nudge progress{flex:1 1 120px;height:8px;accent-color:var(--accent,#6d28d9)}"
-    + ".ob-nudge a{font:600 13px var(--font,system-ui);background:var(--accent,#6d28d9);color:#fff;border-radius:9px;padding:8px 14px;text-decoration:none}";
+    + ".ob-nudge a.ob-cta{font:600 13px var(--font,system-ui);background:var(--hb-acc,var(--accent,#6d28d9));color:var(--hb-acc-ink,var(--accent-ink,#fff));border-radius:9px;padding:8px 14px;text-decoration:none}";
   async function mountNudge() {
     const box = global.document && document.getElementById("obNudge"); const S = global.BPStore;
     if (!box || !S || !S.org || (S.mode && S.mode() !== "supabase")) return;
@@ -161,7 +161,7 @@
     const t = document.createElement("div"); const b = document.createElement("b"); b.textContent = "Finish setting up your studio"; t.appendChild(b);
     const sub = document.createElement("span"); sub.textContent = " · " + n.pct + "% done · Next: " + n.label; t.appendChild(sub);
     const pr = document.createElement("progress"); pr.max = 100; pr.value = n.pct; pr.setAttribute("aria-label", "Setup progress");
-    const a = document.createElement("a"); a.href = n.href; a.textContent = "Resume setup";
+    const a = document.createElement("a"); a.href = n.href; a.className = "ob-cta"; a.textContent = "Resume setup";
     box.appendChild(t); box.appendChild(pr); box.appendChild(a); box.hidden = false;
   }
   if (global.document) {
