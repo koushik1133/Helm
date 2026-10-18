@@ -74,7 +74,7 @@ t('4. the search placeholder fits the 232px side column', () => {
 t('5. Metres / Feet is one segmented control that never shrinks', () => {
   assert.match(VCSS, /\.vn-unit\{display:inline-flex;flex:none;[^}]*border-radius:10px/);
   assert.match(VCSS, /\.vn-unit:not\(#_\) \.btn\{flex:none;min-width:max-content;[^}]*white-space:nowrap/);
-  assert.match(VCSS, /\.vn-unit:not\(#_\) \.btn\.on,/);
+  assert.match(VCSS, /\.vn-unit:not\(#_\) \.btn\.on:hover\{/);   // merged with 1018 venue form: on-state keeps its colour on hover
 });
 t('6. Pricing shows the country read-only; General is the one place to change it', () => {
   assert.match(HTML, /<select id="p_country" hidden aria-hidden="true" tabindex="-1"/);
