@@ -214,6 +214,8 @@ window.HelmUrl = HelmUrl;
   let photoProbe = null;        // in-flight / cached render-photo deploy probe (0095)
   let rolePromise = null;       // in-flight getRole() (dedupes the parallel canView fan-out)
   let accessPromise = null;     // in-flight loadAccess()
+  let trialOrgInflight = null;  // in-flight my_trial_org() (trial strip + read-only check share one call)
+  let readOnlyMemo = null;      // { uid, p } — 0183: is this studio read-only after its free trial? (once per page)
   // Per-tab session cache (Wave 16 perf): a static multipage app re-fetches
   // profiles + role_access on EVERY page navigation, which makes tabs feel slow.
   // Cache them in sessionStorage for a short TTL, keyed to the user id, so
@@ -263,6 +265,30 @@ window.HelmUrl = HelmUrl;
       return Promise.resolve(hit.val);
     }
     return fetcher().then(store);
+  }
+  // 0116 / 0183: my_trial_org() — one in-flight call shared by the trial strip and the read-only check
+  function trialOrgStatus() {
+    if (!supa) return Promise.resolve(null);
+    if (trialOrgInflight) return trialOrgInflight;
+    const p = swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }));
+    trialOrgInflight = p;
+    const done = () => { if (trialOrgInflight === p) trialOrgInflight = null; };
+    p.then(done, done);
+    return p;
+  }
+  // 0183 (post-trial policy 1 / 6 / 10): true when this studio's free trial ended unpaid — the studio is then
+  // READ-ONLY for everyone (owner + invited members) until it upgrades. The database refuses every change
+  // (hint 'trial_ended'); this only lets the edit helpers below answer "no" so pages show view-only screens.
+  // Any error / older database / paid studio = false (the server still decides).
+  function studioReadOnly() {
+    if (mode !== "supabase" || !supa || !currentUser) return Promise.resolve(false);
+    const uid = currentUser.id;
+    if (readOnlyMemo && readOnlyMemo.uid === uid) return readOnlyMemo.p;
+    let p;
+    try { p = Promise.resolve(trialOrgStatus()).then((t) => !!(t && (t.read_only === true || t.locked === true)), () => false); }
+    catch (e) { p = Promise.resolve(false); }
+    readOnlyMemo = { uid: uid, p: p };
+    return p;
   }
   // writes that cannot touch the cached reads above (everything else drops the cache)
   const SWR_KEEP_RPCS = /\/rest\/v1\/rpc\/(my_(?!start_trial|studio_account_update)|get_|is_|current_org_id|recent_|chat_|bell|my_notification|mfa_|resolve_|list_|pkg_selection_list|password_change_required|audit_actor_names|dashboard_|insights_|studio_search|studio_avatars|mark_|telemetry|privacy_pin_(?:check|status))/;
@@ -1132,7 +1158,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "9";
+  const TRIAL_BANNER_VERSION = "10";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -1652,10 +1678,13 @@ window.HelmUrl = HelmUrl;
     handleAuthError: (e) => (looksLikeAuthError(e) ? onAuthFailure() : Promise.resolve(false)),
     // In non-Supabase (server/local) mode there is no auth ⇒ single-user, full access.
     // Unknown role (profiles unreachable) fails CLOSED for every capability.
+    // 0183: in a studio that is read-only after its free trial every capability except "view" is
+    // false (owner and invited members alike) — the server refuses those writes anyway.
     async can(cap) {
       if (mode !== "supabase") return true; if (!currentUser) return false;
-      const r = await getRole(); if (!r) return false;
+      const [r, ro] = await Promise.all([getRole(), cap === "view" ? false : studioReadOnly()]); if (!r) return false;
       if (!(ROLE_CAPS[r] || ["view"]).includes(cap)) return false;
+      if (ro) return false;
       // 0147: create also follows the "Create new quotes" switch (no row = default ON), mirroring can_create()
       if (cap === "create" && r !== "admin") {
         const acc = await loadAccess();
@@ -1665,7 +1694,8 @@ window.HelmUrl = HelmUrl;
       }
       return true;
     },
-    canEdit: async () => { if (mode !== "supabase") return true; if (!currentUser) return false; const r = await getRole(); return EDIT_ROLES.includes(r); },
+    canEdit: async () => { if (mode !== "supabase") return true; if (!currentUser) return false;
+      const [r, ro] = await Promise.all([getRole(), studioReadOnly()]); return EDIT_ROLES.includes(r) && !ro; },
     // ---- role-based VIEW scope (must mirror the RLS read policies in phase21-hardening.sql) ----
     // finance = money pages/tables; pipeline = leads/CRM/discovery/proposal; ops = resources/planning/day-of; workspace = the event hub.
     // Area may be a fine key (e.g. "leads") or a legacy coarse key ("finance",
@@ -1691,7 +1721,8 @@ window.HelmUrl = HelmUrl;
     async canEditArea(area) {
       if (mode !== "supabase") return true;
       if (!currentUser) return false;
-      const r = await getRole();
+      const [r, ro] = await Promise.all([getRole(), studioReadOnly()]);
+      if (ro) return false;                          // 0183: read-only after the free trial (admins too)
       if (r === "admin") return true;
       const acc = await loadAccess();
       if (acc.unknown) return false;
@@ -8764,11 +8795,14 @@ window.HelmUrl = HelmUrl;
     // 0116 — "Start free trial": start() creates the caller's "Demo N" studio (sample data,
     // 8 days) through create_studio; a caller who already has a studio gets it back untouched.
     // status(): {is_trial_org, name, ends_at, days_left, ended, locked, is_admin}; null before 0116.
+    // 0183: + read_only (ended unpaid trial: read-only for everyone); is_trial_org false once paid / converted.
     trialOrg: {
       start: (loc) => (loc && (loc.timezone || loc.currency) ? rpc("start_trial", { p_timezone: loc.timezone || null, p_currency: loc.currency || null }) : rpc("start_trial", {})),
       // 0167 — 2-step trial welcome, step 1: rename the caller's own trial studio (name, link slug, city, optional phone)
       welcome: (name, city, phone) => rpc("trial_welcome_setup", { p_name: String(name || "").trim(), p_city: String(city || "").trim() || "Hyderabad", p_phone: String(phone || "").trim() || null }),
-      status: () => (supa ? swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })) : Promise.resolve(null)),
+      status: () => trialOrgStatus(),
+      // 0183 — true while this studio is READ-ONLY after its free trial ended unpaid (everyone in it); false otherwise
+      readOnly: () => studioReadOnly(),
       // 0177 — true while this is a self-serve free-trial studio still ON its trial (not yet paid):
       // such a studio uses the short 2-step welcome, never the full studio setup (/onboarding).
       async inTrial() {
@@ -9207,6 +9241,8 @@ window.HelmUrl = HelmUrl;
     if (e && (e.hint === "trial_cap" || e.hint === "trial_locked") && e.message) return pre + endDot(clip(String(e.message), 240));
     if (e && e.hint === "seat_limit") return pre + "Your free trial includes you + 2 people, and both seats are in use. Revoke an invitation or remove someone to add another person — or upgrade for more seats.";
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
+    // 0183 — the free trial ended unpaid: the whole studio is read-only for everyone until it is upgraded
+    if (e && e.hint === "trial_ended") return pre + "Your trial has ended. Your data is preserved and available in read-only mode. Upgrade now to continue creating and editing records.";
     if (e && (e.hint === "studio_suspended" || errCode(e) === "25006")) return pre + "This studio is read-only because its Helm subscription is suspended or the trial has ended — contact Helm (or an admin can renew in Billing).";
     // 0052 lifecycle gates / re-approval: the DB message is written for people
     if (e && (e.code === "HL409" || e.code === "HL428") && e.message) return endDot(clip(String(e.message), 300));
