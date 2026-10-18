@@ -301,7 +301,7 @@
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("logistics"))) return;
-    canEdit=await BPStore.auth.canEditArea("logistics"); canDelete=await BPStore.auth.can("delete");
+    canEdit=await BPStore.auth.canEditArea("logistics"); canDelete=canEdit && await BPStore.auth.can("delete");
     try{ PEOPLE_OPTS=await BPStore.people.options(); }catch{ PEOPLE_OPTS=[]; }
     // Payments are finance-only — hide that tab (and fall back off it) for roles without finance access
     if(!(await BPStore.auth.canView("finance"))){ const pb=document.querySelector('#tabs button[data-t="payments"]'); if(pb) pb.hidden=true; if(tab==="payments"){ tab="guests"; $("#tabs").querySelectorAll("button").forEach(x=>{ const on=x.dataset.t===tab; x.classList.toggle("on",on); x.setAttribute("aria-pressed",String(on)); }); } }

@@ -1656,6 +1656,18 @@
   });
 
   // ---- invite by email link (Phase 83) ----
+  // what actually happened to the invitation e-mail, in plain words → [kind, text]
+  function inviteMailMsg(sent,email,resend){
+    const tail=resend?"":" The link below also works.", diy=resend?"use Copy link":"copy the link below";
+    if(sent&&sent.status==="ok"&&sent.sent>0) return ["ok",`Invitation email sent to ${email}.`+tail];
+    if(sent&&sent.status==="ok"&&sent.failed>0) return ["err",`Couldn't send the email to ${email} — the mail service refused it (check the email setup). It will retry; meanwhile ${diy} and send it yourself.`];
+    if(sent&&sent.status==="ok"&&!(sent.skipped>0)) return ["ok",`Invitation email already sent or queued for ${email}.`+tail];
+    if(sent&&sent.status==="dormant") return ["info",`Automatic invite emails are switched off (HELM_INVITE_EMAILS_ENABLED=false) — ${diy} and send it to ${email} yourself.`];
+    const why={not_deployed:"the invite-mailer service isn't deployed yet",unauthorized:"the invite-mailer service rejected the sign-in (deploy it with --no-verify-jwt)",
+      forbidden:"only studio admins can send invite emails",rate_limited:"too many sends just now, try Resend in a minute",
+      not_configured:"email isn't configured on this site",network:"the mail service couldn't be reached"}[sent&&sent.reason]||"the mail service had an error";
+    return ["info",`The email to ${email} wasn't sent: ${why}. Please ${diy} and send it yourself.`];
+  }
   $("#inv_add").addEventListener("submit", async (e)=>{
     e.preventDefault();
     const email=$("#inv_email").value.trim(), role=$("#inv_role").value;
@@ -1667,12 +1679,12 @@
       $("#inv_link").value=link; $("#inv_out").hidden=false;
       setUMsg("ok",(r.reused?"Existing invite link ready for ":"Invite link created for ")+email+".");
       $("#inv_email").value=""; renderInvites();
-      // 0131: the invite row queues its e-mail; flush now and say what actually happened (same wording as Resend)
+      // 0131: a NEW invite row queues its e-mail by trigger; a reused one does not, so re-queue it first.
+      if(r.reused){ try{ const rows=await BPStore.invitations.list();
+        const inv=(rows||[]).find(i=>i.status==="pending"&&String(i.email||"").toLowerCase()===email.toLowerCase());
+        if(inv) await BPStore.invitations.resendEmail(inv.id); }catch(_){ /* rate-limited / old DB: flush anyway */ } }
       const sent=await BPStore.invitations.sendNow();
-      if(r.reused){ if(sent&&sent.status==="ok"&&sent.sent>0) setUMsg("ok",`Invitation email sent to ${email}. The link below also works.`); }
-      else if(sent&&sent.status==="ok"&&sent.sent>0) setUMsg("ok",`Invitation email sent to ${email}. The link below also works.`);
-      else if(sent&&sent.status==="ok"&&!(sent.skipped>0)) setUMsg("ok",`Invitation email queued for ${email}. The link below also works.`);
-      else setUMsg("info",`Invite link created for ${email}. Automatic emails aren't switched on yet — copy the link below and send it yourself.`);
+      setUMsg(...inviteMailMsg(sent,email));
     }catch(err){ setUMsg("err",errMsg(err,"create the invite")); }
     }, {busyLabel:"Creating…"});
   });
@@ -1700,9 +1712,7 @@
         if(st==="rate_limited"){ setUMsg("info",`Already sent recently — you can resend in ${Math.ceil((r.retry_in||600)/60)} min.`); return; }
         if(st==="not_pending"){ setUMsg("err","This invite is no longer pending — create a new one."); await renderInvites(); return; }
         const sent=await BPStore.invitations.sendNow();
-        if(sent&&sent.status==="ok"&&sent.sent>0) setUMsg("ok",`Invitation email sent to ${email}.`);
-        else if(sent&&sent.status==="ok"&&!(sent.skipped>0)) setUMsg("ok",`Invitation email queued for ${email}.`);
-        else setUMsg("err",`Automatic emails aren't switched on yet — use Copy link and send it to ${email} yourself.`); }
+        setUMsg(...inviteMailMsg(sent,email,true)); }
       catch(err){ setUMsg("err",errMsg(err,"resend the invite email")); }
     }));
     tb.querySelectorAll(".invCopy").forEach(btn=>btn.addEventListener("click", async ()=>{

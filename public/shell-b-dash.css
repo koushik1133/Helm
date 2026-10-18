@@ -666,7 +666,9 @@ html[data-shell="b"] nav.hd-today.hd-today-wait { visibility: hidden; min-height
 /* ---------- "See more" lists (Oct 2026): first rows only, the rest expand in place ---------- */
 html[data-shell="b"] .hd-dash .hd-sm-x { display: none !important; }
 html[data-shell="b"] .hd-dash .hd-sm-open { max-height: 480px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
-html[data-shell="b"] .hd-seemore { display: flex; width: 100%; justify-content: center; gap: 6px; margin-top: 10px; }
+/* dash-overflow 1017: border-box 100% width; inside an adopted .hd-legacy card the button carries the card side margins, so its width is reduced by them (it never sticks out past the card edge) */
+html[data-shell="b"] .hd-seemore { display: flex; box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; justify-content: center; gap: 6px; margin-top: 10px; }
+html[data-shell="b"] .hd-legacy > .hd-seemore { width: calc(100% - 2 * var(--hd-pad)); max-width: calc(100% - 2 * var(--hd-pad)); }
 html[data-shell="b"] .hd-seemore .hd-sm-chev { width: 14px; height: 14px; transition: transform var(--hd-t-fast) var(--hd-ease); }
 html[data-shell="b"] .hd-seemore[aria-expanded="true"] .hd-sm-chev { transform: rotate(180deg); }
 /* All quotes: the pager (Load more / End of list) only once the list is expanded */
@@ -701,3 +703,18 @@ html[data-shell="b"] .hd-per-b:hover { color: var(--hd-ink); }
 html[data-shell="b"] .hd-per-b[aria-pressed="true"] { background: var(--hd-acc); color: var(--hd-acc-ink); box-shadow: 0 1px 2px rgba(0,0,0,.16); }
 html[data-shell="b"] .hd-per-b:focus-visible { outline: 2px solid var(--hd-acc, var(--hd-accent, currentColor)); outline-offset: 2px; }
 @media (max-width: 640px) { html[data-shell="b"] .hd-per-row { flex-direction: column-reverse; align-items: stretch; } html[data-shell="b"] .hd-per-seg { display: flex; } html[data-shell="b"] .hd-per-b { flex: 1 1 0; min-height: 36px; } }
+/* dash-overflow 1017: "Upcoming & my tasks" event mini-cards — one aligned layout, nothing leaves the card.
+   Row 1: title (ellipsis) + "Open →" pinned right; row 2: code + task badge; row 3: meta line (ellipsis);
+   "Show tasks" is pinned to the bottom-left (space reserved below the tasks list) so cards in a grid row line up even when titles differ in length. */
+html[data-shell="b"] .hd-mw #mywork { align-items: stretch; }
+html[data-shell="b"] .hd-mw #mywork > .pcard { display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; gap: 6px 8px; min-width: 0; height: 100%; overflow: hidden; position: relative; padding-bottom: 50px; }
+html[data-shell="b"] .hd-mw #mywork > .pcard > b { order: 0; flex: 1 1 calc(100% - 90px); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-shell="b"] .hd-mw #mywork > .pcard > a.open { order: 1; float: none !important; flex: none; margin-left: auto; white-space: nowrap; line-height: 18px; }
+html[data-shell="b"] .hd-mw #mywork > .pcard > .refchip, html[data-shell="b"] .hd-mw #mywork > .pcard > .stat { order: 2; flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-shell="b"] .hd-mw #mywork > .pcard > small { order: 3; flex: 1 0 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-shell="b"] .hd-mw #mywork > .pcard > .ptoggle { position: absolute; left: 14px; bottom: 12px; margin: 0; max-width: calc(100% - 28px); }
+html[data-shell="b"] .hd-mw #mywork > .pcard > .ptasks { order: 5; flex: 1 0 100%; min-width: 0; overflow-wrap: anywhere; }
+/* dash-overflow 1017: card headers wrap their tools on a phone instead of pushing "Calendar →" past the edge */
+html[data-shell="b"] .hd-head { flex-wrap: wrap; min-width: 0; }
+html[data-shell="b"] .hd-head h3 { min-width: 0; overflow-wrap: anywhere; }
+html[data-shell="b"] .hd-tools { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; }

@@ -775,7 +775,7 @@
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("inventory"))) return;
-    canEdit=await BPStore.auth.canEditArea("inventory"); canDelete=await BPStore.auth.can("delete");
+    canEdit=await BPStore.auth.canEditArea("inventory"); canDelete=canEdit && await BPStore.auth.can("delete");
     try{ attrDefs=await BPStore.smartImport.fieldDefs("inventory"); }catch(e){ attrDefs=[]; }
     $("#app").hidden=false; $("#newBtn").hidden=!canEdit;
     if(!canEdit) $("#coCard").querySelectorAll("input,select,button").forEach(el=>el.disabled=true);

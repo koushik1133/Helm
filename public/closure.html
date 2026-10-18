@@ -380,7 +380,7 @@
     if(!id){ if(window.HelmPickEvent) HelmPickEvent.show($("#notfound"),"closure","closure checklist"); else $("#notfound").hidden=false; return; }   // QA1026 #10
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("closure"))) return;
-    canEdit=await BPStore.auth.canEditArea("closure"); canDelete=await BPStore.auth.can("delete");
+    canEdit=await BPStore.auth.canEditArea("closure"); canDelete=canEdit && await BPStore.auth.can("delete");
     try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     try{ evTax=BPStore.quoteTax(ev); }catch(_){ evTax=null; }
     if(!ev){ $("#notfound").hidden=false; return; }

@@ -8,7 +8,7 @@ let n = 0; const t = (name, fn) => { fn(); n++; };
 
 t("step 1 has the single budget range; step 2 has none; old c_budget input gone", () => {
   const s1 = sec("sec-client"), s2 = sec("sec-discovery");
-  assert.match(s1, /Budget range \(min – max/); assert.match(s1, /id="d_bmin"/); assert.match(s1, /id="d_bmax"/);
+  assert.match(s1, /<label for="d_bmax">Budget/); assert.match(s1, /id="d_bmin"/); assert.match(s1, /id="d_bmax"/);
   assert.doesNotMatch(s2, /d_bmin|d_bmax/); assert.doesNotMatch(f, /id="c_budget"/); assert.doesNotMatch(f, /#c_budget/);
 });
 t("range saves to Discovery storage and is autosaved as discovery", () => {
