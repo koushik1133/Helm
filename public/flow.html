@@ -66,6 +66,7 @@
   .dished .dish-in{flex:1 1 160px} .dished .dish-sel{max-width:100%}
   .dished button:focus-visible,.dished input:focus-visible,.dished select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .pkgcard.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .pkgcard.pkgnone{border-style:dashed} .pkgcard.pkgnone .p{color:var(--ink-3);font-weight:600}
   .pkgcard b{font-size:13px} .pkgcard .m{font-size:12px;color:var(--ink-3);margin-top:2px} .pkgcard .p{font-size:12px;color:var(--accent);font-weight:700;margin-top:4px}
 
   /* right rail */
@@ -124,7 +125,7 @@
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
-<script src="/shell-proto.js?v=29" id="shellProto"></script>
+<script src="/shell-proto.js?v=30" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -169,7 +170,7 @@
           <div class="grid">
             <div class="fld"><label for="c_name">Client name</label><input id="c_name" required></div>
             <div class="fld"><label for="c_company">Company (optional)</label><input id="c_company"></div>
-            <div class="fld"><label for="c_email">Email</label><input id="c_email" type="email"></div>
+            <div class="fld"><label for="c_email">Email</label><input id="c_email" type="email" autocomplete="email" required></div>
             <div class="fld"><label for="c_phone">Phone</label><input id="c_phone" type="tel" inputmode="tel" required></div>
             <div class="fld"><label for="c_type">Event type</label><input id="c_type" required list="eventTypeList" placeholder="Pick or type a new one…"><datalist id="eventTypeList"></datalist></div>
             <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date" data-min-today required></div>
@@ -226,7 +227,7 @@
         <!-- 5 MENU -->
         <section class="card" id="sec-menu">
           <h2><span class="step-n">5</span> Menu package <span class="saved" id="sv-menu" aria-live="polite"></span></h2>
-          <p class="sub">Pick a package — it pre-fills the dishes and drives the catering price.</p>
+          <p class="sub">Pick a package — it pre-fills the dishes and drives the catering price. Not sure yet? Choose “No package” and decide later.</p>
           <div class="secerr" id="err-menu"></div>
           <div class="pkgcards" id="pkgCards"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
           <div class="dished" id="dishEditor" aria-live="polite"></div>
@@ -398,14 +399,14 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=251"></script>
 <script src="tour.js?v=20"></script>
 <script src="booklet.js?v=25"></script>
 <script src="share-checklist.js?v=11"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=5"></script>
-<script src="flow-validate.js?v=2"></script>
+<script src="flow-validate.js?v=3"></script>
 <script src="flow-resume.js?v=4"></script>
 <script src="quote-state.js?v=4"></script>
 <script src="flow-dish-editor.js?v=2"></script>
@@ -725,10 +726,10 @@
   // Re-read updated_at after a write THIS tab made to the quote row (version save, approval token),
   // so the optimistic lock only fires for edits made elsewhere.
   async function relock(){ try{ const f=await BPStore.quotes.get(id); if(f&&f.updatedAt&&ev) ev.updatedAt=f.updatedAt; }catch(_){} }
-  // Explicit "Save quotation": the required client fields (name + phone) must be filled and valid,
+  // Explicit "Save quotation": the required client fields (name + email + phone) must be filled and valid,
   // and every problem is marked at once instead of one per click.
   // flow-validation (owner): step 1 is checked as a whole - name (2-80, letters), phone (shared validator),
-  // email format, event type + date required (date never in the past unless it is the saved one), guests
+  // email required + format (r19), event type + date required (date never in the past unless it is the saved one), guests
   // 1-100,000, budget >= 0 (Indian format ok) - plus the hall size (7) and chairs (8) that ride on the same record.
   function step1Problems(all){
     const r=check("client",all), lr=check("layout",all);
@@ -1180,14 +1181,20 @@
   }
 
   /* ---------- menu packages ---------- */
+  // r19: a package can be UNSELECTED - the "No package / decide later" card, or a click on the chosen card again.
+  // Catering is then priced at the studio's default plate price; the event's dishes stay (never deleted).
   function renderPackages(){
-    $("#pkgCards").innerHTML = packages.map(p=>{
+    const none = !appliedPkg;
+    $("#pkgCards").innerHTML = packages.length ? `<button type="button" class="pkgcard pkgnone ${none?'on':''}" data-none="1" aria-pressed="${none}">
+        <b>No package</b><div class="m">Decide later</div><div class="p">Default plate price</div></button>` + packages.map(p=>{
       const on = appliedPkg && appliedPkg.id===p.id;
-      return `<button type="button" class="pkgcard ${on?'on':''}" data-id="${esc(p.id)}" aria-pressed="${!!on}">
+      return `<button type="button" class="pkgcard ${on?'on':''}" data-id="${esc(p.id)}" aria-pressed="${!!on}"${on?' title="Selected - click again to remove the package"':''}>
         <b>${esc(p.name)}</b><div class="m">${esc(p.diet||'')} · ${Array.isArray(p.dishes)?p.dishes.length:0} dishes</div>
         <div class="p">${inr(p.price_per_plate)} / plate</div></button>`;
-    }).join("") || '<div class="meta">No menu packages set up yet — <a href="control.html#menu">add them in Control Center</a>.</div>';
-    $("#pkgCards").querySelectorAll(".pkgcard").forEach(b=>b.addEventListener("click",()=>applyPackage(b.dataset.id,b)));
+    }).join("") : '<div class="meta">No menu packages set up yet — <a href="control.html#menu">add them in Control Center</a>.</div>';
+    $("#pkgCards").querySelectorAll(".pkgcard").forEach(b=>b.addEventListener("click",()=>{
+      if(b.dataset.none==="1" || (appliedPkg && String(appliedPkg.id)===String(b.dataset.id))) clearPackage(b);
+      else applyPackage(b.dataset.id,b); }));
   }
   // Dishes now live in the per-course dish editor below the cards (event_menu_items,
   // the same list plan.html edits). The notes box keeps only service notes the user
@@ -1197,6 +1204,22 @@
     const host=$("#dishEditor"); if(!host || !window.HelmDishEditor) return;
     dishEd=HelmDishEditor.mount(host,{ store:BPStore, ui:BPUI, quoteId:id, editable:canEdit && !(plan&&plan.menu_locked) });
     dishEd.init(); }
+  // r19: "No package / decide later" (or the chosen card clicked again): the plan forgets the package and its plate
+  // price (clear_menu_template, 0211), so the quote is priced at the default plate price; the dishes are kept.
+  async function clearPackage(btn){
+    if(!appliedPkg && !$("#p_menu").dataset.pkg) return;   // nothing chosen yet
+    if(plan && plan.menu_locked){ BPUI.toast("The menu is locked. Unlock it to change the package.",{type:"err"}); return; }
+    try{ await BPUI.guard(btn||null, async()=>{ await BPStore.menuTemplates.clear(id);
+      appliedPkg=null; delete $("#p_menu").dataset.pkg;
+      const cleared={ package:null, menu_template:null, menu_plate_price:null };
+      if(plan) plan=Object.assign({}, plan, cleared);
+      if(planRow) planRow=Object.assign({}, planRow, { package:null });
+      $("#q_platePrice").value = rates.platePrice!=null ? rates.platePrice : "";
+      if(!loading) dirty=true;   // the saved quotation still has the package price: save it with the new total
+      renderPackages(); renderPrice(); updateAdvance(); saved("menu"); updateProgress(); });
+      BPUI.toast("No package for now. Catering uses your default plate price; the dishes below stay until you change them.",{type:"ok"});
+    }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove the package"}),{type:"err"}); }
+  }
   async function applyPackage(tid,btn){
     const t=packages.find(x=>String(x.id)===String(tid)); if(!t) return;
     if(appliedPkg && String(appliedPkg.id)===String(t.id) && dishEd && !dishEd.isCustom(t)) return;

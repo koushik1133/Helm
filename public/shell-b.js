@@ -687,20 +687,15 @@
         if (!ok) { creating = false; location.href = "/quotes.html"; return; }
         var b = document.getElementById("createBtn");
         if (b) { setTimeout(function () { creating = false; try { if (!b.hidden) b.click(); else location.href = "/quotes.html"; } catch (e) {} }, 400); return; }
-        var Q = B.quotes, NQ = window.HelmNewQuote;
-        /* audit 7: never create without the confirm dialog (no dialog on this page -> the Quotes list) */
-        if (!Q || typeof Q.startBlank !== "function" || !NQ || typeof NQ.ask !== "function") { creating = false; location.href = "/quotes.html"; return; }
-        Promise.resolve(NQ.ask({})).then(function (pick) {
-          if (!pick) { creating = false; return; }
-          var code = null; try { code = typeof Q.nextCode === "function" ? Q.nextCode([]) : null; } catch (e) { code = null; }
-          Promise.resolve(Q.startBlank(code)).then(function (q) {
-            if (!q || !q.id) throw new Error("no quote");
-            var patch = {}; if (pick.title) patch.title = pick.title; else if (q.code && q.code !== q.title) patch.title = q.code;
-            if (pick.eventType) patch.eventType = pick.eventType;
-            var meta = (Object.keys(patch).length && typeof Q.updateMeta === "function") ? Promise.resolve(Q.updateMeta(q.id, patch)).catch(function () {}) : null;
-            return Promise.resolve(meta).then(function () { var h = "flow.html?quote=" + encodeURIComponent(q.id); try { if (window.HelmUrl && HelmUrl.upgrade) h = HelmUrl.upgrade(h); } catch (e) {} location.href = h.charAt(0) === "/" ? h : "/" + h; });
-          }).catch(function () { creating = false; try { if (window.BPUI && BPUI.toast) BPUI.toast("Could not start a quote. Try again.", { type: "err" }); } catch (e) {} });
-        });
+        var Q = B.quotes;
+        /* r19: "New quote" opens the flow directly (no dialog); no create API on this page -> the Quotes list */
+        if (!Q || typeof Q.startBlank !== "function") { creating = false; location.href = "/quotes.html"; return; }
+        var code = null; try { code = typeof Q.nextCode === "function" ? Q.nextCode([]) : null; } catch (e) { code = null; }
+        Promise.resolve(Q.startBlank(code)).then(function (q) {
+          if (!q || !q.id) throw new Error("no quote");
+          var meta = (q.code && q.code !== q.title && typeof Q.updateMeta === "function") ? Promise.resolve(Q.updateMeta(q.id, { title: q.code })).catch(function () {}) : null;
+          return Promise.resolve(meta).then(function () { var h = "flow.html?quote=" + encodeURIComponent(q.id); try { if (window.HelmUrl && HelmUrl.upgrade) h = HelmUrl.upgrade(h); } catch (e) {} location.href = h.charAt(0) === "/" ? h : "/" + h; });
+        }).catch(function () { creating = false; try { if (window.BPUI && BPUI.toast) BPUI.toast("Could not start a quote. Try again.", { type: "err" }); } catch (e) {} });
       });
     })();
   }

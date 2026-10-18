@@ -1,7 +1,8 @@
 // Live audit Oct 2026 - items 7, 8, 13, 14 (NEW work 6, 11, 12): quote-creation guards.
-//  7  "New quote" never creates on one click: HelmNewQuote.ask() (name + type, Cancel / Create)
-//     runs BEFORE BPStore.quotes.startBlank on Quotes, the dashboard and the shell fallback.
-//  8  /quotes?new=1 only OPENS that dialog, and only with Helm's one-time sessionStorage nonce.
+//  7  r19 (owner) replaces the old "confirm first" dialog: "New quote" opens the flow directly
+//     (BPStore.quotes.startBlank, which reuses my untouched blank quote - no empty pile-up); no
+//     in-progress prompt (the dashboard card + In progress tab stay). Quotes are uncapped in the trial (0211).
+//  8  /quotes?new=1 only starts a quote with Helm's one-time sessionStorage nonce.
 //  13 dashboard "All quotes": a confirmed / approved / closed event's ✕ becomes Archive; a draft's
 //     ✕ moves it to Deleted (restorable); a server-refused delete (payments) offers Archive.
 //  14 saved-filters.js uses BPUI.prompt / BPUI.confirm, never the browser's prompt() / confirm().
@@ -67,63 +68,44 @@ await t('8: arm() adds a one-time nonce only to quotes?new=1 links; consume() ac
   assert.equal(NQ.arm('quotes.html?new=1&nq=old#x').replace(/[0-9a-f]{32}/, 'N'), 'quotes.html?new=1&nq=N#x', 're-arm replaces, keeps hash');
 });
 
-await t('7: ask() shows name + type + Cancel/Create; Cancel / Escape resolve null, Create returns the picks', async () => {
+await t('r19: no pre-create dialog - ask() answers at once (compat), shows nothing, never prompts for in-progress quotes', async () => {
   const env = makeWin(); const NQ = loadNQ(env);
-  env.win.HelmEventName = { eventTypeOptions: (c) => (c === 'AE' ? ['Iftar'] : ['Wedding', 'Corporate']), canonEventType: (v) => v };
-  let p = NQ.ask({ country: 'IN' });
-  assert.equal(await NQ.ask({}), null, 'a second caller (double click) gets null: no second dialog, no second create');
-  assert.equal(env.doc.body.childNodes.filter((n) => n.cls.has('bpui-overlay')).length, 1, 'only one dialog');
-  let ov = overlay(env.doc); assert.ok(ov, 'dialog mounted');
-  // the 2nd press of a double click lands on the backdrop: it must NOT dismiss the dialog
-  assert.equal((ov.ls.mousedown || []).length + (ov.ls.mouseup || []).length, 0, 'no backdrop dismiss');
-  const all = ov.all(); const form = all.find((x) => x.tagName === 'FORM');
-  assert.equal(form.getAttribute('role'), 'dialog'); assert.equal(form.getAttribute('aria-modal'), 'true');
-  const sel = all.find((x) => x.tagName === 'SELECT'); assert.deepEqual(sel.childNodes.map((o) => o.textContent), ['Choose later', 'Wedding', 'Corporate']);
-  const btns = all.filter((x) => x.tagName === 'BUTTON').map((b) => b.textContent); assert.deepEqual(btns, ['Cancel', 'Create quote']);
-  all.find((x) => x.tagName === 'BUTTON' && x.textContent === 'Cancel').click();
-  assert.equal(await p, null); assert.equal(overlay(env.doc), undefined, 'removed');
-  // Escape (no BPUI on this page): handled by the module
-  p = NQ.ask({}); env.doc.ls.keydown.forEach((f) => f({ key: 'Escape', preventDefault() {} })); assert.equal(await p, null);
-  // Create
-  p = NQ.ask({ country: 'IN' }); ov = overlay(env.doc);
-  const f2 = ov.all().find((x) => x.tagName === 'FORM'), name = ov.all().find((x) => x.tagName === 'INPUT'), s2 = ov.all().find((x) => x.tagName === 'SELECT');
-  name.value = '  Sharma   wedding '; s2.value = 'Wedding'; f2.fire('submit');
-  assert.deepEqual(JSON.parse(JSON.stringify(await p)), { title: 'Sharma wedding', eventType: 'Wedding' });
-  // too long name -> error, stays open
-  p = NQ.ask({}); ov = overlay(env.doc);
-  ov.all().find((x) => x.tagName === 'INPUT').value = 'x'.repeat(81); ov.all().find((x) => x.tagName === 'FORM').fire('submit');
-  assert.ok(overlay(env.doc), 'still open'); assert.match(ov.all().find((x) => x.cls.has('bpui-field-err')).textContent, /80 characters/);
-  ov.all().find((x) => x.tagName === 'BUTTON' && x.textContent === 'Cancel').click(); assert.equal(await p, null);
+  let listed = 0, limited = 0;
+  env.win.BPStore = { flowProgress: { available: () => true, list: async () => { listed++; return { total: 3, rows: [{ quote_id: 'q1' }] }; } },
+    subscription: { limits: async () => { limited++; return { trial: true, cap: 2, used: {} }; } } };
+  env.win.HelmFlowResume = { DASH_DAYS: 60, fromServer: (r) => r, href: () => 'flow.html', stepText: () => 'Client' };
+  assert.deepEqual(JSON.parse(JSON.stringify(await NQ.ask({}))), { title: '', eventType: '' });
+  assert.deepEqual(JSON.parse(JSON.stringify(await NQ.ask({}))), { title: '', eventType: '' }, 'a second call is not blocked (nothing is open)');
+  await flush();
+  assert.equal(env.doc.body.childNodes.length, 0, 'no dialog, no overlay');
+  assert.equal(listed + limited, 0, 'no "quotes in progress" prompt, no trial limit lookup');
+  const code = NQ_SRC.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.ok(!/createElement|You have|in progress|Create quote|Start a new quote|flowProgress|limits\(/.test(code), 'the dialog + chooser code is gone');
 });
 
-await t('7: free trial message comes from subscription.limits(); paid studios keep the plain text', async () => {
-  for (const [lim, want] of [[{ trial: true, cap: 2, used: { quotes: 1 } }, /1 of your 2 \(1 left\)/], [{ trial: true, cap: 2, used: { quotes: 2 } }, /used its 2 new quotes/], [{ trial: false }, /You can change these later/]]) {
-    const env = makeWin(); const NQ = loadNQ(env);
-    env.win.BPStore = { subscription: { limits: async () => lim } };
-    const p = NQ.ask({}); await flush(); await flush();
-    const ov = overlay(env.doc); assert.match(ov.all().find((x) => x.tagName === 'P' && x.attrs.id && /-m$/.test(x.attrs.id)).textContent, want);
-    ov.all().find((x) => x.tagName === 'BUTTON' && x.textContent === 'Cancel').click(); await p;
-  }
-});
-
-await t('7: every startBlank caller asks first; Cancel returns before anything is created', () => {
+await t('r19: every "New quote" opens the flow directly (startBlank, no ask); a guard keeps double clicks to one', () => {
   const q = read('public/quotes.html'), d = read('public/dashboard.html'), sb = read('public/shell-b.js');
   const fn = q.slice(q.indexOf('async function startNewQuote('), q.indexOf('document.addEventListener("click", (e) => {', q.indexOf('async function startNewQuote(')));
-  assert.ok(fn.indexOf('await HelmNewQuote.ask(') > 0 && fn.indexOf('await HelmNewQuote.ask(') < fn.indexOf('startBlank('), 'quotes: ask before startBlank');
-  assert.match(fn, /if\(!pick\) return;/);
+  assert.ok(!/HelmNewQuote\.ask\(/.test(fn), 'quotes: no dialog');
+  assert.match(fn, /await BPUI\.guard\(btn, async \(\) => \{[\s\S]*BPStore\.quotes\.startBlank\(code\)[\s\S]*location\.href = open==="builder" \? "builder\.html\?quote=" \+ encodeURIComponent\(q\.id\) \+ "&from=flow" : "flow\.html\?quote=" \+ encodeURIComponent\(q\.id\)/);
+  assert.match(fn, /if\(btn && btn\.disabled\) return;/);
   const cb = d.slice(d.indexOf('$("#createBtn").addEventListener'), d.indexOf('$("#loginForm")'));
-  assert.ok(cb.indexOf('await HelmNewQuote.ask(') > 0 && cb.indexOf('await HelmNewQuote.ask(') < cb.indexOf('startBlank('), 'dashboard: ask before startBlank');
-  assert.match(cb, /if \(!pick\) return;/);
+  assert.ok(!/HelmNewQuote\.ask\(/.test(cb), 'dashboard: no dialog');
+  assert.match(cb, /if \(btn\.disabled\) return;[\s\S]*await BPUI\.guard\(btn, async \(\) => \{[\s\S]*BPStore\.quotes\.startBlank\(code\)[\s\S]*location\.href = "flow\.html\?quote=" \+ encodeURIComponent\(q\.id\)/);
   const dc = sb.slice(sb.indexOf('function dashCreate()'), sb.indexOf('function autoBell('));
-  assert.ok(dc.indexOf('NQ.ask(') > 0 && dc.indexOf('NQ.ask(') < dc.indexOf('Q.startBlank('), 'shell fallback: ask before startBlank');
-  assert.match(dc, /!NQ \|\| typeof NQ\.ask !== "function"\) \{ creating = false; location\.href = "\/quotes\.html"/, 'no dialog -> list, never a silent create');
-  // every page that creates loads the dialog
+  assert.ok(!/NQ\.ask\(/.test(dc), 'shell fallback: no dialog');
+  assert.match(dc, /if \(creating\) return; creating = true;/, 'one create at a time');
+  assert.match(dc, /if \(!Q \|\| typeof Q\.startBlank !== "function"\) \{ creating = false; location\.href = "\/quotes\.html"/, 'no create API -> list, never a silent failure');
+  assert.match(dc, /Q\.startBlank\(code\)[\s\S]*"flow\.html\?quote=" \+ encodeURIComponent\(q\.id\)/);
+  // startBlank = the server's "reuse my untouched blank quote" (0075) so repeated clicks never pile up empty rows
+  assert.match(read('public/store-api.js'), /async startBlank\(code\) \{\s*const \{ data: q, error \} = await supa\.rpc\("start_blank_quote"/);
   for (const [f, src] of [['quotes.html', q], ['dashboard.html', d]]) assert.match(src, /<script src="new-quote-dialog\.js\?v=\d+"><\/script>/, f);
-  for (const f of ['public/quotes.html', 'public/dashboard.html', 'public/shell-b.js']) assert.ok(read(f).split('startBlank(').length - 1 >= 1);
   assert.ok(!/startBlank\(/.test(read('public/getting-started.js')), 'checklist never creates by itself');
+  // the dashboard card + In progress tab stay
+  assert.match(q, /get\("view"\)==="inprogress"/); assert.match(d, /flow-resume\.js\?v=\d+" data-mount/);
 });
 
-await t('8: ?new=1 only opens the dialog with a consumed nonce; the checklist link arms it', () => {
+await t('8: ?new=1 only starts a quote with a consumed nonce; the checklist link arms it', () => {
   const q = read('public/quotes.html'), gs = read('public/getting-started.js');
   const tail = q.slice(q.indexOf('const newQs = new URLSearchParams(location.search);'));
   assert.match(tail, /const armed = !!\(window\.HelmNewQuote && HelmNewQuote\.consume\(location\.search\)\);/);
@@ -184,9 +166,9 @@ await t('14: saved views use the app dialog (BPUI), never window.prompt / confir
   assert.deepEqual(r.saves, []); assert.match(r.toasts[0][0], /Couldn't open the dialog/);
 });
 
-await t('hygiene: dialog module is CSP-safe (no html sinks, no inline style)', () => {
+await t('hygiene: link-guard module is CSP-safe (no html sinks, no inline style, no DOM)', () => {
   assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|\.style\b|style=|eval\(/.test(NQ_SRC), 'no html sinks / inline style');
-  assert.match(NQ_SRC, /__helmAdoptCss/);
+  assert.ok(!/__helmAdoptCss|appendChild/.test(NQ_SRC), 'nothing is drawn any more');
   assert.match(NQ_SRC, /getRandomValues/);
 });
 

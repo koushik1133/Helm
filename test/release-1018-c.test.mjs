@@ -11,12 +11,15 @@ const tests = []; const t = (n, f) => tests.push([n, f]);
 
 const man = read('supabase/migrations/MANIFEST');
 const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
-const fresh = nums.filter((n) => +n > 205);
+// release 1018-c = these five; migrations written after it shipped (0209+, e.g. 0211) are not part of its paste file
+const REL = ['0206', '0207', '0208', '0236', '0237'];
+const fresh = nums.filter((n) => +n > 205 && REL.includes(n));
 t('MANIFEST: each migration number once; the new ones are 0206, 0207, 0208, 0236, 0237 in numeric order', () => {
   assert.equal(new Set(nums).size, nums.length, 'duplicate migration number');
   assert.deepEqual(fresh, ['0206', '0207', '0208', '0236', '0237']);
   assert.deepEqual([...fresh].sort(), fresh);
   assert.equal(nums.indexOf('0205'), nums.indexOf('0206') - 1, '0206 right after 0205');
+  assert.deepEqual(nums.filter((n) => +n > 205), [...nums.filter((n) => +n > 205)].sort(), 'later migrations in numeric order too');
 });
 t('APPLY-RELEASE-1018-C.sql is current', () => {
   const r = spawnSync(process.execPath, ['scripts/gen-apply-release-1018-c.mjs', '--check'], { cwd: root, encoding: 'utf8' });

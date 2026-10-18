@@ -197,7 +197,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="trial-terms.css?v=4">
-<script src="/shell-proto.js?v=29" id="shellProto"></script>
+<script src="/shell-proto.js?v=30" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -327,12 +327,12 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=4"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script><script src="flow-resume.js?v=4" data-mount></script>
+<script src="new-quote-dialog.js?v=5"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=251"></script><script src="flow-resume.js?v=4" data-mount></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=20"></script>
 <script src="getting-started.js?v=10"></script>
 <script src="onboarding-wizard.js?v=10"></script>
-<script src="trial-facts.js?v=2"></script>
+<script src="trial-facts.js?v=3"></script>
 <script src="trial-demo.js?v=12"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="dash-prompts.js?v=1"></script>
@@ -718,11 +718,9 @@
   $("#createBtn").addEventListener("click", async () => {
     const btn = $("#createBtn");
     if (btn.disabled) return;
-    // Audit 7 (Oct 2026): confirm first (event name + type, Cancel / Create) - nothing is created
-    // on one click any more (the top-bar "New quote" and /dashboard#hb-new also land here).
-    if (!(window.HelmNewQuote && HelmNewQuote.ask)) { BPUI.toast("Couldn't open the new quote dialog. Reload the page and try again.", { type: "err" }); return; }
-    const pick = await HelmNewQuote.ask({});
-    if (!pick) return;   // Cancel / Escape: nothing created
+    // r19 (owner): "New quote" opens the quote flow directly - no name / type dialog, no in-progress prompt
+    // (the top-bar "New quote" and /dashboard#hb-new also land here). Quotes are not capped in the free
+    // trial (0211); startBlank reuses my untouched blank quote, so repeated clicks never pile up empty rows.
     try {
       await BPUI.guard(btn, async () => {
         const code = nextCode || BPStore.quotes.nextCode(summaries);   // a guess — the server assigns the real code (M-04)
@@ -732,10 +730,7 @@
         // M-04: the client code is only a guess; the server assigns the authoritative code.
         // Seed the title from the REAL code so the event/project name doesn't show a stale
         // guessed value (which the builder would otherwise re-persist on save).
-        const meta = {};
-        if (pick.title) meta.title = pick.title; else if (q.code && q.code !== q.title) meta.title = q.code;
-        if (pick.eventType) meta.eventType = pick.eventType;
-        if (Object.keys(meta).length) { try { await BPStore.quotes.updateMeta(q.id, meta); } catch (e) {} }
+        if (q.code && q.code !== q.title) { try { await BPStore.quotes.updateMeta(q.id, { title: q.code }); } catch (e) {} }
         location.href = "flow.html?quote=" + encodeURIComponent(q.id);
       });
     } catch (err) { BPUI.toast(BPUI.friendlyError(err, { action: "start a quote" }), { type: "err" }); }
