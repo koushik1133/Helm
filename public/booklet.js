@@ -288,17 +288,24 @@
     fig.appendChild(s);
     fig.appendChild(el("figcaption", "", "Illustrative preview — heights and finishes are indicative."));
   }
+  // 0069 menu.mode: 'choose' = the server found no package applied/accepted for this quote
+  function menuChoosing(mn) { return !!(mn && mn.mode === "choose"); }
   function renderMenu(d) {
-    const box = clear($("#menuBody")), mn = d.menu || {}, pk = mn.selected_package;
+    const box = clear($("#menuBody")), mn = d.menu || {}, choosing = menuChoosing(mn), pk = choosing ? null : mn.selected_package;
     let any = false;
-    if (pk && pk.name) {
+    if (choosing) {
+      // no package applied for THIS quote: never present a free-text note or a stale name as the chosen package
+      any = true; const c = el("div", "pkg pkg-none"); c.appendChild(el("h3", "", "Choose a package"));
+      c.appendChild(el("p", "meta", "No package has been selected yet. Pick the one that suits you in \u201cChoose your package\u201d and the studio will be notified."));
+      box.appendChild(c);
+    } else if (pk && pk.name) {
       any = true; const c = el("div", "pkg"); c.appendChild(el("h3", "", pk.name));
       const meta = [pk.tier, pk.diet, num(pk.price_per_plate) ? money(pk.price_per_plate) + " per plate" : ""].filter(Boolean).join(" · ");
       if (meta) c.appendChild(el("p", "meta", meta));
       const dishes = Array.isArray(pk.dishes) ? pk.dishes.map((x) => (x && typeof x === "object" ? x.name : x)).filter((x) => typeof x === "string" && x) : [];
       if (dishes.length) { const ul = el("ul", "chips"); dishes.slice(0, 80).forEach((x) => ul.appendChild(el("li", "", x.slice(0, 60)))); c.appendChild(ul); }
       box.appendChild(c);
-    } else if (mn.package) {
+    } else if (mn.package && !choosing) {
       any = true; const c = el("div", "pkg"); c.appendChild(el("h3", "", String(mn.package)));
       if (num(mn.plate_price)) c.appendChild(el("p", "meta", money(mn.plate_price) + " per plate")); box.appendChild(c);
     }
@@ -540,7 +547,7 @@
       if (!lay && !snapUrl(d, "layout2d") && !dbImages(d, "layout2d").length) out.layout2d = false;
       if (!lay && !snapUrl(d, "layout3d") && !dbImages(d, "layout3d").length) out.layout3d = false;
       const mn = d.menu || {};
-      if (!(mn.selected_package || mn.package || mn.menu || (Array.isArray(mn.items) && mn.items.length))) out.menu = false;
+      if (!(menuChoosing(mn) || mn.selected_package || mn.package || mn.menu || (Array.isArray(mn.items) && mn.items.length))) out.menu = false;
       if (!quoteLines(d.quote).lines.length && quoteLines(d.quote).total == null) out.quote = false;
       if (!(Array.isArray(d.versions) && d.versions.length)) out.versions = false;
       const p = d.payments || {}; if (!(Array.isArray(p.milestones) && p.milestones.length) && p.paid == null && p.outstanding == null) out.payments = false;
@@ -590,7 +597,7 @@
     if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && d.menu.mode === "hidden")) global.HelmBookletPkg.mount(token, d).catch(() => {});
   }
 
-  global.HelmBooklet = { quoteChanges, withAdvance, balanceLine, msDisplayStatus, render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
+  global.HelmBooklet = { menuChoosing, quoteChanges, withAdvance, balanceLine, msDisplayStatus, render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
   if (doc && doc.getElementById("tocList")) {
     const pb = doc.getElementById("printBtn"); if (pb) pb.addEventListener("click", () => global.print());
     const rt = doc.getElementById("retry"); if (rt) rt.addEventListener("click", () => start());
