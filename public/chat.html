@@ -416,7 +416,7 @@
   function colorFor(id){ let h=0; const s=String(id||""); for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return NAME_COLORS[h%NAME_COLORS.length]; }
   /* B30: sample (free-trial) people are stored as "Demo · Name": the chat shows the name ("Kapoor", avatar "K"),
      never "Demo, Demo" or a "D·" avatar. Only the display is changed - the saved name is untouched. */
-  const DEMO_PFX=/^\s*Demo\s*[\u00b7\u2022·\-]\s*/;
+  const DEMO_PFX=/^\s*Demo\s*[\u00b7\u2022]\s*/;   // only the sample bullet prefix - a real "Demo - Q3" name is left alone
   function stripDemo(s){ const t=String(s==null?"":s); const o=t.replace(DEMO_PFX,""); return o.trim()?o:t; }
   function initials(name){ const p=stripDemo(String(name||"?")).trim().split(/\s+/).filter(w=>/[\p{L}\p{N}]/u.test(w)); return ((p[0]||"")[0]||"?").toUpperCase()+((p[1]||"")[0]||"").toUpperCase(); }
   /* names: display name → e-mail before "@" → role (BPStore.chat.displayName); always esc() before HTML */

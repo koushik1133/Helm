@@ -185,6 +185,7 @@ await t('B30 chat: sample names, group validation, alone-in-studio hint, leave g
   const f = vm.runInNewContext(C.slice(s, e).replace(/const /g, 'var ') + ';({stripDemo,initials})');
   assert.equal(f.stripDemo('Demo · Kapoor'), 'Kapoor'); assert.equal(f.initials('Demo · Kapoor Family'), 'KF'); assert.equal(f.initials('Demo · Ravi'), 'R');
   assert.equal(f.stripDemo('Demo · '), 'Demo · ', 'never blanks a name'); assert.equal(f.initials('Priya Sharma'), 'PS');
+  assert.equal(f.stripDemo('Demo - Q3 review'), 'Demo - Q3 review', 'only the sample bullet prefix is hidden'); assert.equal(f.stripDemo('Demo-Night'), 'Demo-Night');
   assert.match(C, /function pname\(p\)\{ return stripDemo\(/);
   assert.match(C, /if\(m\.deleted\) return who\+'<i>🚫 Message deleted<\/i>';/);
   assert.match(C, /if\(msg\)\{ Object\.assign\(msg,\{deleted:true,body:null,media_path:null,meta:null\}\);/);
@@ -203,7 +204,14 @@ await t('B30 invitation: the "Demo ·" sample prefix never reaches the guest-fac
   const s = I.indexOf('    const noDemo=(v)=>'), e = I.indexOf('\n', s);
   const noDemo = vm.runInNewContext(I.slice(s, e).replace('const noDemo=', '(').replace(/;\s*$/, '') + ')');
   assert.equal(noDemo('Demo · Kapoor Family Sangeet'), 'Kapoor Family Sangeet'); assert.equal(noDemo('Ayla & Sam'), 'Ayla & Sam');
+  assert.equal(noDemo('Demo-Night Gala'), 'Demo-Night Gala', 'a real name starting with Demo- is kept');
   assert.match(I, /const set=\(id,v\)=>\{ if\(v!=null && String\(v\)\.trim\(\) && !\$\("#"\+id\)\.value\) \$\("#"\+id\)\.value=noDemo\(v\); \};/);
+});
+
+await t('B18 ops: the task-time picker (device-time datetime-local) compares against the DEVICE day, not the studio day', () => {
+  const O = r('public/ops.html');
+  assert.match(O, /\$\("#sc_when"\)\.min=toLocalInput\(new Date\(\)\)\.slice\(0,10\)\+"T00:00";/);
+  assert.match(O, /when\.slice\(0,10\) < toLocalInput\(new Date\(\)\)\.slice\(0,10\) \|\|/);
 });
 
 console.log(`\nqa-leads-crm-chat-tz: ${n} passed${failed ? ', ' + failed + ' FAILED' : ''}`);
