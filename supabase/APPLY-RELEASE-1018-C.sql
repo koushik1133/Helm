@@ -52,7 +52,9 @@ begin;
 --     * mark_flow_resume_dismissed(quote) - hide the dashboard button for this quote, for ME only, until
 --       I next work on it (the next mark_flow_step clears it).
 --     * my_unfinished_quotes(scope, limit, offset, quote, max_days) - the quotes still in progress:
---       own studio, not deleted / archived / auto-discarded, status 'quote' at stage 'quote', nothing
+--       own studio, not deleted / archived / auto-discarded, status 'quote' at a stage before Confirmed
+--       (lead / discovery / proposal / quote - the same group 0040 / 0052 use; a quote moved to the
+--       Discovery or Proposal stage in the workspace is still being prepared), nothing
 --       sent to the client (approval 'none', no link, not confirmed), NO quotation version saved yet
 --       (owner decision A: finished = a quotation saved in step 8), not trial sample data (is_demo,
 --       decision D), and with some content (a step opened by anyone, or at least one step done).
@@ -281,7 +283,7 @@ begin
       from public.quotes q
      where q.org_id = v_org and (p_quote is null or q.id = p_quote)
        and q.deleted_at is null and q.archived_at is null and q.auto_discarded_at is null
-       and coalesce(q.status, 'quote') = 'quote' and coalesce(q.lifecycle_stage, 'quote') = 'quote'
+       and coalesce(q.status, 'quote') = 'quote' and coalesce(q.lifecycle_stage, 'quote') in ('lead', 'discovery', 'proposal', 'quote')
        and coalesce(q.approval_status, 'none') = 'none' and q.approval_token is null and q.confirmed_at is null
        and not coalesce(q.is_demo, false)
        and not exists (select 1 from public.quotation_versions qv where qv.quote_id = q.id)
