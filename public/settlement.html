@@ -170,7 +170,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=102"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=238"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=7"></script><script src="trial-test-note.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=239"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=7"></script><script src="trial-test-note.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -386,7 +386,7 @@
     if(!id){ if(window.HelmPickEvent) HelmPickEvent.show($("#notfound"),"settlement","settlement"); else $("#notfound").hidden=false; return; }   // QA1026 #10
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("settlement"))) return;
-    canEdit=await BPStore.auth.canEditArea("settlement"); canDelete=await BPStore.auth.can("delete");
+    canEdit=await BPStore.auth.canEditArea("settlement"); canDelete=canEdit && await BPStore.auth.can("delete");
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     try{ evTax=BPStore.quoteTax(ev); }catch(_){ evTax=null; }
     if(!ev){ $("#notfound").hidden=false; return; }

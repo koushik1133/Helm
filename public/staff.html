@@ -184,7 +184,7 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=238"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=239"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
@@ -553,7 +553,7 @@
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("staff"))) return;
-    canEdit=await BPStore.auth.canEditArea("staff"); canDelete=await BPStore.auth.can("delete");
+    canEdit=await BPStore.auth.canEditArea("staff"); canDelete=canEdit && await BPStore.auth.can("delete");
     canCal=await BPStore.auth.canView("calendar").catch(()=>false);   // verify-166: the Schedule link opens calendar.html - hide it when the role can't open that page
     isAdminUser=(await BPStore.auth.role())==="admin";
     try{ await loadLoginInfo(); }catch(e){}

@@ -54,7 +54,7 @@ t('A6: photos / voice notes forward by copying into the target conversation', ()
 t('L7: role reads use maybeSingle and keep the 0-row behaviour', () => {
   assert.doesNotMatch(api, /from\("profiles"\)\.select\("role"\)\.eq\("id", [a-zA-Z.]+\)\.single\(\)/);
   assert.match(api, /if \(!data\) throw new Error\("no profile row"\)/);
-  assert.match(api, /!p\.data \|\| !currentUser/);
+  assert.doesNotMatch(api, /revalidateAccess/);   // rbac-1030: the background role re-read is gone (stale snapshots are not served)
 });
 
 console.log(`chat-admin-fixes-ui: ${n} passed`);

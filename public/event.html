@@ -181,7 +181,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=102"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=238"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=239"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=15"></script>
 <script src="booklet.js?v=21"></script>
@@ -245,7 +245,7 @@
     // crew-1020: crew assigned to this event open their own view (run-sheet + my tasks) instead of a dead end
     if(!(await BPStore.auth.canView("quotes")) && BPStore.ops.crew){ try{ if(await BPStore.ops.crew.eventBrief(id)){ location.replace("runsheet.html?id="+encodeURIComponent(id)); return; } }catch(e){} }
     if(!(await BPStore.auth.requireView("quotes"))) return;   // crew/client don't see the workspace
-    canEdit = await BPStore.auth.can("edit");
+    canEdit = await BPStore.auth.canEditArea("quotes");   // rbac-1030: follow the access matrix (was the role cap list)
     canFin  = await BPStore.auth.canView("finance");             // gates the Total + money cards
     canPipe = await BPStore.auth.canView("pipeline");            // gates the discovery/proposal cards
     // 0143 role audit: each tool card shows only when the role can VIEW that tool's own area

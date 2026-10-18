@@ -1467,30 +1467,13 @@ window.HelmUrl = HelmUrl;
   // tab" bug). Instead: retry a few times, dedupe concurrent callers with one
   // in-flight promise, cache ONLY a successful lookup, and return null (unknown)
   // if it genuinely can't resolve so callers deny-this-render without caching.
-  // Background refresh of a stale cached role + matrix (stale-while-revalidate). Both
-  // entries are written together, and only when BOTH reads succeed; the in-memory
-  // values of this page are left alone (the next navigation uses the new ones).
-  let accessRecheck = false;
-  function revalidateAccess(uid) {
-    if (accessRecheck || !supa || !uid) return;
-    accessRecheck = true;
-    (async () => {
-      const p = await supa.from("profiles").select("role").eq("id", uid).maybeSingle();   // L7: no 406 on 0 rows
-      if (!p || p.error || !p.data || !currentUser || currentUser.id !== uid) return;
-      const r = (p.data && p.data.role) || "client";
-      const ra = await supa.from("role_access").select("area,can_view,can_edit").eq("role", r);
-      if (!ra || ra.error || !currentUser || currentUser.id !== uid) return;
-      const map = {};
-      (ra.data || []).forEach((row) => { map[row.area] = { view: !!row.can_view, edit: !!row.can_edit }; });
-      sessSet("bp_sess_role", uid, r);
-      sessSet("bp_sess_access", uid, { role: r, map });
-    })().catch(() => {}).then(() => { accessRecheck = false; });
-  }
   async function getRole() {
     if (!supa || !currentUser) return null;
     if (roleCache) return roleCache;
     const cached = sessEntry("bp_sess_role", currentUser.id);
-    if (cached && cached.val) { roleCache = cached.val; if (!cached.fresh) revalidateAccess(currentUser.id); return roleCache; }
+    // rbac-1030: only a FRESH (<= SESS_TTL) snapshot is reused. A stale role/matrix used to be served for one more
+    // navigation (stale-while-revalidate), so an admin's Roles & access change could take two page loads to show.
+    if (cached && cached.val && cached.fresh) { roleCache = cached.val; return roleCache; }
     if (rolePromise) return rolePromise;
     rolePromise = (async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -1516,9 +1499,9 @@ window.HelmUrl = HelmUrl;
     if (accessCache) return accessCache;
     const csnap = currentUser && sessEntry("bp_sess_access", currentUser.id);
     // a snapshot is used only for the role this page resolved (never mixes two roles)
-    if (csnap && csnap.val && csnap.val.role && (!roleCache || csnap.val.role === roleCache)) {
+    if (csnap && csnap.val && csnap.fresh && csnap.val.role && (!roleCache || csnap.val.role === roleCache)) {   // rbac-1030: fresh only
       roleCache = csnap.val.role;   // role and matrix of this page always come from the same snapshot
-      accessCache = csnap.val; if (!csnap.fresh) revalidateAccess(currentUser.id); return accessCache;
+      accessCache = csnap.val; return accessCache;
     }
     if (accessPromise) return accessPromise;              // dedupe the parallel canView fan-out
     accessPromise = (async () => {
@@ -2078,7 +2061,7 @@ window.HelmUrl = HelmUrl;
         if (!supa) throw new Error("Supabase not configured");
         const { data, error } = await supa.rpc("admin_set_role_access",
           { p_role: role, p_area: area, p_view: !!canView, p_edit: !!canEdit });
-        if (error) throw error; accessCache = null; return data;
+        if (error) throw error; accessCache = null; try { sessionStorage.removeItem("bp_sess_access"); } catch (e) {} return data;
       },
       async listUsers() {
         if (!supa) throw new Error("Supabase not configured");
