@@ -35,8 +35,14 @@
     tab.hidden = false;
   }
   var loaded = false;
+  // 1018: every visit starts with the filters on "Any" - a filter left over from an earlier visit (or put back by the
+  // browser's form restore / autofill) silently hid venues (owner saw 1 of 4 with Banquet hall / Hyderabad / AC / Wedding set)
+  function resetFilters() { state.q = ""; state.type = ""; state.city = ""; state.ac = ""; state.ev = ""; state.inactive = false; }
+  function filtersOn() { return !!(state.q.trim() || state.type || state.city || state.ac || state.ev); }
   async function open() {
-    if (loaded) return; loaded = true;
+    resetFilters();
+    if (loaded) { if (!state.editing) render(); return; }
+    loaded = true;
     await reload();
   }
   async function reload() {
@@ -68,7 +74,7 @@
     if (state.msg) root.appendChild(h("div", { cls: "msg ok", role: "status", text: state.msg }));
     if (state.editing) { root.appendChild(form(state.editing)); return; }
     var bar = h("div", { cls: "vn-tools" }, [
-      h("input", { type: "search", id: "vn_q", placeholder: "Search venues", "aria-label": "Search venues", value: state.q,
+      h("input", { type: "search", id: "vn_q", placeholder: "Search venues", "aria-label": "Search venues", value: state.q, autocomplete: "off",
         oninput: function (e) { state.q = e.target.value; paintList(); } }),
       sel("vn_f_type", "Type", V.VENUE_TYPES, state.type, "Any type", function (v) { state.type = v; }),
       sel("vn_f_city", "City", cities(), state.city, "Any city", function (v) { state.city = v; }),
@@ -82,11 +88,12 @@
       (state.isAdmin && (!state.rows.length || state.rows.some(function (r) { return r.is_sample; }))) ? h("button", { type: "button", cls: "btn", id: "vn_samples", text: "Load sample venues", onclick: loadSamples }) : null
     ]);
     root.appendChild(bar);
+    root.appendChild(h("div", { id: "vn_count", cls: "vn-count", role: "status", "aria-live": "polite", hidden: true }));
     root.appendChild(h("div", { id: "vn_list", cls: "vn-list" }));
     paintList();
   }
   function sel(id, label, list, cur, blank, set) {
-    return h("select", { id: id, "aria-label": label, onchange: function (e) { set(e.target.value); paintList(); } }, opts(list, cur, blank));
+    return h("select", { id: id, "aria-label": label, autocomplete: "off", onchange: function (e) { set(e.target.value); paintList(); } }, opts(list, cur, blank));
   }
   function unitToggle(after) {
     return h("div", { cls: "vn-unit", role: "group", "aria-label": "Length unit" }, ["m", "ft"].map(function (u) {
@@ -100,9 +107,21 @@
     root.querySelectorAll(".vn-tools .vn-unit .btn").forEach(function (b) { var on = (b.textContent === "Feet") === (state.unit === "ft"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
     box.textContent = "";
     var rows = filtered();
+    paintCount(rows.length);
     if (!state.rows.length) { box.appendChild(h("p", { cls: "mnote", text: state.isAdmin ? "No venues yet. Add one, or load 4 sample venues to try it out." : "No venues yet." })); return; }
     if (!rows.length) { box.appendChild(h("p", { cls: "mnote", text: "No venues match these filters." })); return; }
     rows.forEach(function (v) { box.appendChild(card(v)); });
+  }
+  // "Showing 1 of 4 venues · Clear filters" whenever a filter / search is narrowing the list
+  function paintCount(shown) {
+    var c = document.getElementById("vn_count"); if (!c) return;
+    c.textContent = "";
+    var total = state.rows.filter(function (v) { return state.inactive || v.active; }).length;
+    if (!state.rows.length || !filtersOn()) { c.hidden = true; return; }
+    c.hidden = false;
+    c.appendChild(h("span", { text: "Showing " + shown + " of " + total + " venue" + (total === 1 ? "" : "s") + " \u00b7 " }));
+    c.appendChild(h("button", { type: "button", cls: "vn-clear", id: "vn_clear", text: "Clear filters",
+      onclick: function () { resetFilters(); render(); var q = document.getElementById("vn_q"); if (q && q.focus) q.focus(); } }));
   }
   function dims(v) {
     if (!v.length_m || !v.width_m) return "";
@@ -141,6 +160,15 @@
   }
 
   // ---- add / edit form ---------------------------------------------------------------
+  // inline message under one field (msg "" clears it); the input is the direct child of its .fld box
+  function fieldErr(input, msg) {
+    if (!input) return;
+    var box = input.parentNode, id = input.id + "_err", e = document.getElementById(id);
+    if (!e && msg && box) { e = h("div", { id: id, cls: "vn-ferr" }); box.appendChild(e); }
+    if (e) { e.textContent = msg || ""; e.hidden = !msg; }
+    if (msg) { input.setAttribute("aria-invalid", "true"); input.setAttribute("aria-describedby", id); }
+    else { input.removeAttribute("aria-invalid"); input.removeAttribute("aria-describedby"); }
+  }
   function form(v) {
     var unit = state.unit;
     var f = function (id, label, input, full) { return h("div", { cls: "fld" + (full ? " full" : "") }, [h("label", { "for": id, text: label }), input]); };
@@ -155,11 +183,29 @@
       tog.querySelectorAll(".btn").forEach(function (b) { var on = (b.textContent === "Feet") === (u === "ft"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
     }
     var tog = unitToggle(setUnit);
-    var multi = function (name, list, cur) {
+    var multi = function (name, list, cur, refs, onchg) {
       return h("div", { cls: "vn-multi", role: "group", "aria-label": name }, list.map(function (x) {
-        return h("label", { cls: "vn-chk" }, [h("input", { type: "checkbox", name: name, value: x[0], checked: (cur || []).indexOf(x[0]) >= 0 }), " " + x[1]]);
+        var cb = h("input", { type: "checkbox", name: name, value: x[0], checked: (cur || []).indexOf(x[0]) >= 0, onchange: onchg ? function () { onchg(x[0]); } : null });
+        if (refs) refs[x[0]] = cb;
+        return h("label", { cls: "vn-chk" }, [cb, " " + x[1]]);
       }));
     };
+    // 1018: "Sound curfew time" / "Setup time window" only show while their restriction is ticked; unticking clears
+    // the value (it is not saved). A venue saved earlier with a value but no tick keeps showing it, so nothing is lost.
+    var rsRefs = {};
+    var curfewIn = inp("vf_curfew", v.sound_curfew ? String(v.sound_curfew).slice(0, 5) : "", "time");
+    var setupIn = inp("vf_setup", v.setup_window, "text", { maxlength: "200", placeholder: "e.g. 06:00-11:00 on event day" });
+    var curfewFld = f("vf_curfew", "Sound curfew time", curfewIn), setupFld = f("vf_setup", "Setup time window", setupIn);
+    var deps = { sound_curfew: [curfewFld, curfewIn], setup_window: [setupFld, setupIn] };
+    function syncDeps(changed) {
+      Object.keys(deps).forEach(function (k) {
+        var cb = rsRefs[k], on = !!(cb && cb.checked), d = deps[k];
+        if (changed === k && !on) { d[1].value = ""; fieldErr(d[1], ""); }
+        d[0].hidden = !on && !d[1].value;
+        if (changed === k && on && d[1].focus) d[1].focus();
+      });
+    }
+    var rsBox = multi("vf_rs", V.RESTRICTIONS, v.restrictions, rsRefs, syncDeps);
     var errBox = h("div", { id: "vf_err", cls: "msg err", role: "alert", hidden: true });
     var el = h("form", { id: "vn_form", cls: "vn-form", novalidate: true }, [
       h("h4", { text: v.id ? "Edit venue" : "Add venue" }),
@@ -174,10 +220,10 @@
         h("div", { cls: "fld" }, [lenLbl, lenIn]), h("div", { cls: "fld" }, [widLbl, widIn])
       ]),
       h("fieldset", { cls: "vn-fs" }, [h("legend", { text: "Event types available" }), multi("vf_ev", V.EVENT_TYPES, v.event_types)]),
-      h("fieldset", { cls: "vn-fs" }, [h("legend", { text: "Restrictions" }), multi("vf_rs", V.RESTRICTIONS, v.restrictions),
+      h("fieldset", { cls: "vn-fs" }, [h("legend", { text: "Restrictions" }), rsBox,
         h("div", { cls: "grid" }, [
-          f("vf_curfew", "Sound curfew time", inp("vf_curfew", v.sound_curfew ? String(v.sound_curfew).slice(0, 5) : "", "time")),
-          f("vf_setup", "Setup time window", inp("vf_setup", v.setup_window, "text", { maxlength: "200", placeholder: "e.g. 06:00-11:00 on event day" })),
+          curfewFld,
+          setupFld,
           f("vf_rnote", "Other restrictions", h("textarea", { id: "vf_rnote", maxlength: "2000" }, [v.restrictions_note || ""]), true)])]),
       h("fieldset", { cls: "vn-fs" }, [h("legend", { text: "Approximate cost (₹)" }), h("div", { cls: "grid" }, [
         f("vf_cmin", "Min ₹", inp("vf_cmin", v.cost_min, "number", { min: "0", step: "1" })),
@@ -202,6 +248,10 @@
         h("button", { type: "submit", cls: "btn primary", id: "vf_save", text: "Save venue" }),
         h("button", { type: "button", cls: "btn", text: "Cancel", onclick: function () { state.editing = null; render(); } })])
     ]);
+    syncDeps(null);
+    // typing in a flagged field clears its inline message
+    var clearMine = function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute("aria-invalid") === "true") fieldErr(t, ""); };
+    el.addEventListener("input", clearMine); el.addEventListener("change", clearMine);
     el.addEventListener("submit", async function (e) {
       e.preventDefault();
       var val = function (id) { var x = document.getElementById(id); return x ? x.value : ""; };
@@ -213,12 +263,23 @@
         parking_spaces: val("vf_park"), rooms: val("vf_rooms"), power_backup_kw: val("vf_kw"), green_rooms: val("vf_green"),
         washrooms: val("vf_wash"), address: val("vf_addr"), city: val("vf_city"), map_url: val("vf_map"),
         contact_name: val("vf_cname"), contact_phone: val("vf_cphone"), contact_email: val("vf_cemail"), notes: val("vf_notes") }, unit, { existing: !!v.id });
-      el.querySelectorAll("[aria-invalid]").forEach(function (x) { x.removeAttribute("aria-invalid"); });
+      el.querySelectorAll("[aria-invalid]").forEach(function (x) { fieldErr(x, ""); });
+      errBox.hidden = true; errBox.textContent = "";
       if (!r.ok) {
-        errBox.hidden = false; errBox.textContent = r.errors.map(function (x) { return x.msg; }).join(" ");
-        var ids = { name: "vf_name", seated_capacity: "vf_seat", floating_capacity: "vf_float", length: "vf_len", width: "vf_wid", cost_min: "vf_cmin", cost_max: "vf_cmax", map_url: "vf_map", sound_curfew: "vf_curfew" };
-        r.errors.forEach(function (x) { var t = document.getElementById(ids[x.field]); if (t) t.setAttribute("aria-invalid", "true"); });
-        var first = document.getElementById(ids[r.errors[0].field]); if (first) first.focus();
+        // 1018: each message sits under its own field (was one line at the bottom, near Notes); scroll to + focus the first
+        var ids = { name: "vf_name", seated_capacity: "vf_seat", floating_capacity: "vf_float", length: "vf_len", width: "vf_wid", cost_min: "vf_cmin", cost_max: "vf_cmax",
+          map_url: "vf_map", sound_curfew: "vf_curfew", parking_spaces: "vf_park", rooms: "vf_rooms", power_backup_kw: "vf_kw", green_rooms: "vf_green", washrooms: "vf_wash" };
+        var per = {}, loose = [];
+        r.errors.forEach(function (x) { var id = ids[x.field]; if (id && document.getElementById(id)) (per[id] = per[id] || []).push(x.msg); else loose.push(x.msg); });
+        Object.keys(per).forEach(function (id) { fieldErr(document.getElementById(id), per[id].join(" ")); });
+        var n = r.errors.length - loose.length;
+        errBox.hidden = false;
+        errBox.textContent = (n ? (n === 1 ? "Fix the highlighted field above." : "Fix the " + n + " highlighted fields above.") : "") + (loose.length ? (n ? " " : "") + loose.join(" ") : "");
+        var first = el.querySelector('[aria-invalid="true"]');
+        if (first) {
+          try { first.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (_) { try { first.scrollIntoView(); } catch (__) {} }
+          try { first.focus({ preventScroll: true }); } catch (_) { first.focus(); }
+        }
         return;
       }
       r.value.active = v.active !== false;
@@ -241,5 +302,6 @@
     if (S.auth && S.auth.user && S.auth.user()) { init().then(function () { if (location.hash === "#venues" && !tab.hidden) tab.click(); }).catch(function () {}); return; }
     if (tries++ < 40) setTimeout(wait, 500);
   })();
-  window.HelmVenuesAdmin = { reload: reload };
+  // onboarding opens the manager through reload(): start it on "Any" filters too
+  window.HelmVenuesAdmin = { reload: function () { resetFilters(); return reload(); } };
 })();

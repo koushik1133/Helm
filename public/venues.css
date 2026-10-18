@@ -3,8 +3,17 @@
 .vn-tools input[type=search]{flex:1 1 200px;min-width:0}
 .vn-tools select{max-width:100%}
 .vn-chk{display:inline-flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap}
-.vn-unit{display:inline-flex;gap:0}
-.vn-unit .btn.on{background:var(--ink,#111);color:var(--panel,#fff)}
+/* 1018: Metres / Feet as one segmented control - was two bordered buttons butted together (inner corners looked cut off)
+   and the app theme repainted the "on" button white, so neither looked picked. :not(#_) outranks the theme's .btn rules. */
+.vn-unit{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--line,#ddd);border-radius:10px;background:var(--panel-2,#f4f4f4);flex:0 0 auto;width:max-content;max-width:100%;box-sizing:border-box;overflow:visible}
+.vn-unit:not(#_) .btn{height:30px;min-width:64px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:var(--ink-2,#333);box-shadow:none;white-space:nowrap;line-height:1;flex:0 0 auto}
+.vn-unit:not(#_) .btn.on{background:var(--accent,#1f6f54);color:var(--hb-acc-ink,var(--accent-ink,#fff))}
+.vn-unit:not(#_) .btn:focus-visible{outline:2px solid var(--accent,#1f6f54);outline-offset:1px}
+.vn-form .fld .vn-unit{align-self:flex-start}
+.vn-form .fld[hidden],.vn-count[hidden],.vn-ferr[hidden]{display:none}
+.vn-ferr{font-size:12px;color:#b42318;line-height:1.35}
+.vn-count{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:13px;color:var(--ink-3,#666);margin:-4px 0 10px}
+.vn-count .vn-clear{appearance:none;border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--accent,#1f6f54);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .vn-list{display:grid;gap:10px}
 .vn-card{border:1px solid var(--line,#ddd);border-radius:10px;padding:10px 12px;background:var(--panel,#fff)}
 .vn-card.off{opacity:.65}
