@@ -138,7 +138,7 @@ main:focus{outline:none}
 .versions .v-total{font-variant-numeric:tabular-nums;font-weight:600}
 .badge{display:inline-block;margin-left:8px;padding:1px 10px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-size:12px;font-weight:600;vertical-align:middle}
 .st{display:inline-block;padding:1px 10px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line);text-transform:capitalize}
-.st.paid{color:var(--ok);border-color:currentColor}.st.due,.st.overdue{color:var(--due);border-color:currentColor}
+.st.paid{color:var(--ok);border-color:currentColor}.st.due,.st.overdue,.st.part_paid{color:var(--due);border-color:currentColor}
 
 .paysum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}
 .paysum div{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
