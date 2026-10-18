@@ -38,7 +38,22 @@
   }
   // where "Save & back to quote" goes (builder.html has <base href="/">, so this is site-root relative)
   function returnUrl(quoteId) { return "flow.html?quote=" + encodeURIComponent(String(quoteId || "")) + "&from=builder#sec-quote"; }
-  var api = { reconcile: reconcile, mark: mark, consume: consume, returnUrl: returnUrl, KEY: KEY };
+  // r19 L2: "Save & back to quote" must write a version whenever the canvas differs from the version stored
+  // on the server - not only when the edit tracker says "dirty" (a default layout generated on arrival was
+  // marked "Saved" and thrown away). A layout is compared by object count + a hash of its content signature.
+  function hash(str) { var s = String(str == null ? "" : str), h = 0x811c9dc5;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return ("0000000" + h.toString(16)).slice(-8) + ":" + s.length; }
+  function layoutKey(count, sig) { var n = Math.round(+count); return { count: isFinite(n) && n > 0 ? n : 0, hash: hash(sig) }; }
+  // stored = layoutKey of the version on the server (null = not known / never written); current = the canvas.
+  // Unknown stored copy: save a canvas with objects (versions are append-only, nothing is overwritten) or one the
+  // person changed; never write an untouched empty canvas.
+  function needsVersion(stored, current, dirty) {
+    if (!current) return false;
+    if (!stored) return !!dirty || current.count > 0;
+    return !!dirty || stored.count !== current.count || stored.hash !== current.hash;
+  }
+  var api = { reconcile: reconcile, mark: mark, consume: consume, returnUrl: returnUrl, KEY: KEY, hash: hash, layoutKey: layoutKey, needsVersion: needsVersion };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else global.HelmFlowLayout = api;
 })(typeof window !== "undefined" ? window : globalThis);
