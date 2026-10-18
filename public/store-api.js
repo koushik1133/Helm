@@ -1,6 +1,9 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
   var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=22"; document.head.appendChild(s); } } catch (e) {} })();
+/* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
+(function () { try { if (!document.getElementById("trialLock")) {
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=1"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -8428,6 +8431,8 @@ window.HelmUrl = HelmUrl;
       account: () => (supa ? rpc("my_studio_account").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       updateAccount: (patch) => rpc("my_studio_account_update", { p_account: patch || {} }),
       // 0058: {state:'trial'|'ended'|'none', days_left, ends_at, is_admin, can_pay}; null before 0058
+      // 0173: {trial, cap: 20, used: {leads, quotes, inventory_items, vendors, crew_members, venues}}; null before 0173
+      limits: () => (supa ? rpc("my_trial_limits").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       trial: () => (supa ? swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; })) : Promise.resolve(null)),
     },
     // 0157 — "Hide amounts" privacy PIN, ONE per studio. The server keeps only a bcrypt hash
@@ -9189,6 +9194,8 @@ window.HelmUrl = HelmUrl;
     // 0159: a directly created studio is read-only until its plan is paid (or it switches to the trial)
     if (e && e.hint === "payment_pending") return pre + "Choose a plan and complete payment to start using Helm — or start a free trial instead.";
     // 0166 — free-trial seat limit (you + 2 people; open invitations count)
+    // 0173 — free-trial lock / 20-row creation cap: the DB message is written for people
+    if (e && (e.hint === "trial_cap" || e.hint === "trial_locked") && e.message) return pre + endDot(clip(String(e.message), 240));
     if (e && e.hint === "seat_limit") return pre + "Your free trial includes you + 2 people, and both seats are in use. Revoke an invitation or remove someone to add another person — or upgrade for more seats.";
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
     if (e && (e.hint === "studio_suspended" || errCode(e) === "25006")) return pre + "This studio is read-only because its Helm subscription is suspended or the trial has ended — contact Helm (or an admin can renew in Billing).";

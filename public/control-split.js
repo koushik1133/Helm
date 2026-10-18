@@ -52,7 +52,8 @@
   function paneKey(c){ var p=c.closest("[id^='pane-']"); return p?p.id.slice(5):""; }
   function classify(c){
     var id=c.id||"", t=h3(c).toLowerCase(), pane=paneKey(c);
-    if(id==="accCard"||id==="tdControl"||c.querySelector("#o_name")) return "general";
+    if(id==="tdControl") return document.documentElement.classList.contains("helm-trial")?"billing":"general";
+    if(id==="accCard"||c.querySelector("#o_name")) return "general";
     if(id==="subCard") return "billing";
     if(id==="privPinCard") return "privacy";
     if(id==="lxCard"||id==="pkgFlowCard") return "links";
@@ -115,7 +116,13 @@
   var nav=aside.querySelector("#csNav"), q=aside.querySelector("#csSearch"), res=aside.querySelector("#csResults");
 
   function tabFor(pane){ return document.getElementById("tab-"+pane); }
-  function available(s){ var t=tabFor(s.pane); return !!t && !t.hidden; }
+  // 0173 free trial: studio set-up, client links, import, data export, notifications, reminders, photo renders and
+  // the privacy PIN are fixed (html.helm-trial is set by trial-lock.js only when the server says "trial")
+  var TRIAL_OFF={general:1,links:1,data:1,compliance:1,notify:1,reminders:1,renders:1,privacy:1};
+  function trial(){ return document.documentElement.classList.contains("helm-trial"); }
+  function locked(k){ return trial() && !!TRIAL_OFF[k]; }
+  function available(s){ if(locked(s.key)) return false; var t=tabFor(s.pane); return !!t && !t.hidden; }
+  function firstOpen(){ for(var i=0;i<SECTIONS.length;i++){ if(available(SECTIONS[i])) return SECTIONS[i].key; } return "general"; }
   var current=null, wanted=null;
   var SVGNS="http://www.w3.org/2000/svg";
   function icon(name){
@@ -140,7 +147,14 @@
   msel.addEventListener("change",function(){ var k=msel.value; wanted=k; setHash(SECHASH[k]); show(k); });
   function show(key, opts){
     var s=BYKEY[key]; if(!s) return;
-    if(!available(s)) s=BYKEY.general, key="general";
+    if(locked(key)){   // direct link to a section the free trial does not include
+      current=key; cards.forEach(function(c){ c.classList.add("cs-off"); });
+      hT.textContent=s.label; hD.textContent="Not available in the free trial.";
+      main.setAttribute("data-cs-cur",key); clearTimeout(emptyTimer); emptyTimer=null;
+      empty.textContent="Not available in the free trial. Your trial comes set up with sample data, so this setting is fixed. Upgrade to change it."; empty.hidden=false;
+      drawNav(); return;
+    }
+    if(!available(s)){ key=available(BYKEY.general)?"general":firstOpen(); s=BYKEY[key]; }
     if(current!==key){ clearTimeout(emptyTimer); emptyTimer=null; }
     current=key;
     var t=tabFor(s.pane); if(t && !t.classList.contains("active")) t.click();
@@ -154,6 +168,7 @@
   var emptyTimer=null;
   function setText(n,t){ if(n.textContent!==t) n.textContent=t; }
   function refreshEmpty(){
+    if(locked(current)) return;
     var vis=cards.some(function(c){ return c.getAttribute("data-cs-sec")===current && !c.hidden; });
     if(empty.hidden!==vis) empty.hidden=vis;
     if(vis){ clearTimeout(emptyTimer); emptyTimer=null; return; }
@@ -350,10 +365,19 @@
     dirty.classList.add("cs-flash"); var d=dirty; setTimeout(function(){ d.classList.remove("cs-flash"); },1600); });
 
   // tabs are revealed asynchronously by role checks: redraw the nav when that happens
-  if(tabs) new MutationObserver(function(){ drawNav(); if(current && !available(BYKEY[current])) show("general",{noScroll:true}); else if(!fromHash() && wanted && wanted!==current && available(BYKEY[wanted])) show(wanted,{noScroll:true}); })
+  if(tabs) new MutationObserver(function(){ drawNav(); if(current && !available(BYKEY[current]) && !locked(current)) show("general",{noScroll:true}); else if(!fromHash() && wanted && wanted!==current && available(BYKEY[wanted])) show(wanted,{noScroll:true}); })
     .observe(tabs,{subtree:true,attributes:true,attributeFilter:["hidden"]});
 
+  // free trial: the demo-data card moves next to Plan & billing (General is not part of the trial)
+  function onTrial(){
+    var td=document.getElementById("tdControl"); if(td) td.setAttribute("data-cs-sec","billing");
+    cards.forEach(function(c){ if(c.id==="tdControl") c.setAttribute("data-cs-sec","billing"); });
+    if(!fromHash()) show(locked(current)||!current?firstOpen():current,{noScroll:true});
+    else drawNav();
+  }
+  window.addEventListener("helm:trial",onTrial);
   var start="general"; try{ var st=localStorage.getItem("helm.cs.sec"); st=OLDKEY[st]||st; if(st&&BYKEY[st]) start=st; }catch(e){}
   wanted=HASH[location.hash]||start;
   if(!fromHash()) show(start,{noScroll:true});
+  if(trial()) onTrial();
 })();

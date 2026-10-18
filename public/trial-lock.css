@@ -1,0 +1,20 @@
+/* trial-lock.css (0173): free-trial studios only (html.helm-trial is set by trial-lock.js after the server says
+   the studio is in its free trial). Hides downloads, imports, photo renders and studio set-up entry points. */
+html.helm-trial .trial-hide,
+html.helm-trial #exportBtn, html.helm-trial #jsonBtn,
+html.helm-trial #importFile, html.helm-trial:not(.tl-budget) #importBtn,
+html.helm-trial #printBtn, html.helm-trial #printPL, html.helm-trial #q_pdf,
+html.helm-trial [data-csv], html.helm-trial [data-act="download"], html.helm-trial [data-act="dl"],
+html.helm-trial a[download],
+html.helm-trial #viewSeg [data-v="render"], html.helm-trial #photoModal,
+html.helm-trial a[href*="onboarding"],
+html.helm-trial #imp_open, html.helm-trial [id^="imp_"],
+html.helm-trial #ch_add, html.helm-trial #pl_add, html.helm-trial #dc_add,
+html.helm-trial .addrow:has(#ch_add), html.helm-trial .addrow:has(#pl_add), html.helm-trial .addrow:has(#dc_add),
+html.helm-trial #chairList .rm, html.helm-trial #plateList .rm, html.helm-trial #dishList .rm { display: none !important; }
+.tl-note { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: var(--paper-2, #f3f5f2); color: var(--ink-2, #333); font-size: 13px; }
+.tl-block { max-width: 520px; margin: 12vh auto; padding: 28px 24px; text-align: center; border-radius: 16px; background: var(--paper, #fff); border: 1px solid var(--line, #e5e7e3); }
+.tl-block h2 { margin: 0 0 8px; font-size: 20px; }
+.tl-block p { margin: 0 0 16px; color: var(--ink-2, #555); }
+.tl-block a { display: inline-block; padding: 10px 16px; border-radius: 10px; background: var(--accent, #1f7a4d); color: #fff; text-decoration: none; }
+.tl-cover { position: fixed; inset: 0; z-index: 9999; background: var(--paper-0, #f7f8f6); overflow: auto; padding: 0 16px; }
