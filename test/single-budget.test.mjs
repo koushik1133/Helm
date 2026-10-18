@@ -5,7 +5,7 @@ for (const f of ["flow.html", "discovery.html"]) {
   const h = r(f);
   assert.doesNotMatch(h, /Max should be at least the min/, f);
   assert.doesNotMatch(h, /Budget range \(min|Budget — min|Budget — max/, f);
-  assert.match(h, /<label for="d_bmax">Budget \(₹\)<\/label>/, f);
+  assert.match(h, /<label for="d_bmax">Budget \((?:₹|<span class="cur-sym">₹<\/span>)\)<\/label>/, f);   // LA-11: flow shows the quote currency
   assert.match(h, /<input (type="hidden" id="d_bmin"|id="d_bmin" type="hidden")>/, f);
   assert.match(h, /\$\("#d_bmax"\)\.value=d\.budget_max!=null\?d\.budget_max:\(d\.budget_min!=null\?d\.budget_min:""\)/, f);
   assert.match(h, /budget_min/, f);   // the old min is still written back, not nulled

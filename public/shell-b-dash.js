@@ -153,20 +153,25 @@
   /* whole calendar days from `now`'s day to date string ds (shared by the countdown + "In N days") */
   function dayDiff(ds, now) { var d = dOf(ds), t = dOf(iso(now || new Date())); return d && t ? Math.round((d - t) / DAY) : null; }
   function ym(d) { return d.getFullYear() * 12 + d.getMonth(); }
-  function fmtDay(s) { var d = dOf(s); return d ? d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) : ""; }
+  /* LA-27: every date here goes through the ONE studio formatter (studio locale + timezone), never the browser's.
+     dfmt(localDayDate, fields) formats a calendar day; tfmt(timestamp, fields) an instant in the studio's timezone. */
+  function dfmt(d, f) { try { return S().fmtStudioDate(iso(d), { fmt: f }); } catch (e) { return d.toLocaleDateString(undefined, f); } }
+  function tfmt(t, f) { try { return S().fmtStudioDate(t, { fmt: f }); } catch (e) { return new Date(t).toLocaleString(undefined, f); } }
+  function fmtDay(s) { var d = dOf(s); return d ? dfmt(d, { weekday: "short", day: "numeric", month: "short" }) : ""; }
   function ago(t) {
     var d = new Date(t); if (isNaN(d)) return "";
     var s = (Date.now() - d.getTime()) / 1000;
     if (s < 60) return "just now"; if (s < 3600) return Math.floor(s / 60) + "m ago"; if (s < 86400) return Math.floor(s / 3600) + "h ago";
     if (s < 7 * 86400) return Math.floor(s / 86400) + "d ago";
-    return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    return tfmt(d, { day: "numeric", month: "short" });
   }
 
   /* ---------- numbers (counts only: money lives on the Business page) ---------- */
   var CUR = "INR";
   function num(n) { return Math.round(Number(n) || 0).toLocaleString(CUR === "INR" ? "en-IN" : undefined); }
   function qCur(q) { try { return S().quoteCurrency(q); } catch (e) { return "INR"; } }
-  function qName(q) { try { var H = window.HelmEventName; if (H && H.displayName) { var x = H.displayName(q); if (x) return x; } } catch (e) {} var c = q.client || {}; return q.title || c.name || q.code || "Untitled"; }
+  /* LA-29: listName - an untitled quote reads "Untitled event" instead of repeating its code beside the code chip */
+  function qName(q) { try { var H = window.HelmEventName; if (H && H.listName) return H.listName(q); if (H && H.displayName) { var x = H.displayName(q); if (x) return x; } } catch (e) {} var c = q.client || {}; return q.title || c.name || q.code || "Untitled"; }
   function evHref(id) { return "event.html?id=" + encodeURIComponent(id); }
 
   /* ---------- motion ---------- */
@@ -389,7 +394,7 @@
       var smalls = host.querySelectorAll(".ecard small");
       for (var i = 0; i < smalls.length; i++) {
         var s = smalls[i]; if (s.__hdMoney || s.querySelector("[data-money]")) continue;
-        var parts = String(s.textContent || "").split(" · ");
+        var parts = String((window.HelmPrivacy && HelmPrivacy.realText ? HelmPrivacy.realText(s) : s.textContent) || "").split(" · ");   // LA-26: read past a hidden amount
         if (!parts.some(function (p) { return MONEY_RE.test(p); })) { s.__hdMoney = 1; continue; }
         clear(s);
         var kept = [];
@@ -725,11 +730,11 @@
     var hr = now.getHours(), tod = hr < 5 || hr >= 20 ? "night" : hr < 12 ? "morning" : hr < 17 ? "afternoon" : "evening";
     hero.classList.add("hd-tod-" + tod);
     var orb = el("span", "hd-orb"); orb.setAttribute("aria-hidden", "true"); orb.appendChild(icon(tod === "night" || tod === "evening" ? IC.moon : IC.sun, "hd-ic hd-orb-ic")); hero.appendChild(orb);
-    var dl = el("p", "hd-date hd-eyebrow"); dl.appendChild(el("span", null, now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })));
+    var dl = el("p", "hd-date hd-eyebrow"); dl.appendChild(el("span", null, tfmt(now, { weekday: "long", day: "numeric", month: "long" })));
     var clk = el("time", "hd-clock hd-mono"); dl.appendChild(clk); hl.appendChild(dl);
     (function () {                                                           // live clock, one tick per minute, paused while hidden
       var tmr = null;
-      function paint() { var d = new Date(); clk.textContent = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); clk.setAttribute("datetime", d.toISOString()); }
+      function paint() { var d = new Date(); clk.textContent = tfmt(d, { hour: "2-digit", minute: "2-digit" }); clk.setAttribute("datetime", d.toISOString()); }
       function arm() { clearTimeout(tmr); paint(); tmr = setTimeout(arm, 60000 - (Date.now() % 60000) + 50); }
       document.addEventListener("visibilitychange", function () { if (document.hidden) clearTimeout(tmr); else arm(); });
       arm();
@@ -1109,7 +1114,7 @@
     /* shared: ticket stub (month eyebrow + day) */
     function stub(ds, big) {
       var d = dOf(ds), s = el("div", "hd-stub" + (ds === today ? " hd-stub-today" : "") + (big ? " hd-stub-lg" : ""));
-      s.appendChild(el("small", "hd-eyebrow", ds === today ? "Today" : d ? d.toLocaleDateString(undefined, { month: "short" }) : ""));
+      s.appendChild(el("small", "hd-eyebrow", ds === today ? "Today" : d ? dfmt(d, { month: "short" }) : ""));
       s.appendChild(el("b", "hd-stub-d", d ? d.getDate() : "—"));
       return s;
     }
@@ -1226,7 +1231,7 @@
         var evs = events.filter(function (e) { return e.date === ds; }), wkEnd = d.getDay() === 0 || d.getDay() === 6;
         var li = el("li", "hd-day" + (ds === today ? " hd-today" : "") + (evs.length ? "" : " hd-free") + (wkEnd ? " hd-wkend" : ""));
         li.appendChild(el("i", "hd-node"));
-        var lab = el("div", "hd-dlab"); lab.appendChild(el("small", "hd-wd hd-eyebrow", d.toLocaleDateString(undefined, { weekday: "short" }))); lab.appendChild(el("b", "hd-dn", d.getDate())); li.appendChild(lab);
+        var lab = el("div", "hd-dlab"); lab.appendChild(el("small", "hd-wd hd-eyebrow", dfmt(d, { weekday: "short" }))); lab.appendChild(el("b", "hd-dn", d.getDate())); li.appendChild(lab);
         var box = el("div", "hd-devs");
         if (!evs.length) box.appendChild(el("span", "hd-free-t", "Free"));
         else {
@@ -1316,8 +1321,8 @@
         sel = ds; clear(agenda);
         Array.prototype.forEach.call(gridC.querySelectorAll(".hd-cd"), function (x) { var on = x.getAttribute("data-ds") === ds; x.classList.toggle("hd-sel", on); x.setAttribute("aria-selected", String(on)); });
         var d = dOf(ds), hd = el("div", "hd-ag-head");
-        hd.appendChild(el("small", "hd-eyebrow", ds === today ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" })));
-        hd.appendChild(el("b", null, d.toLocaleDateString(undefined, { day: "numeric", month: "long" })));
+        hd.appendChild(el("small", "hd-eyebrow", ds === today ? "Today" : dfmt(d, { weekday: "long" })));
+        hd.appendChild(el("b", null, dfmt(d, { day: "numeric", month: "long" })));
         agenda.appendChild(hd);
         var evs = byDay[ds] || [];
         if (!evs.length) { var e0 = el("div", "hd-ag-empty"); e0.appendChild(icon(IC.cal)); e0.appendChild(el("span", null, "No events on this day")); agenda.appendChild(e0); return; }
@@ -1331,10 +1336,10 @@
       }
       function render() {
         clear(gridC);
-        title.textContent = view.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+        title.textContent = dfmt(view, { month: "long", year: "numeric" });
         var pre = iso(view).slice(0, 7), nM = events.filter(function (e) { return e.date.slice(0, 7) === pre; }).length;
         chipM.textContent = nM + (nM === 1 ? " event" : " events") + " this month";
-        var mon = new Date(2024, 0, 1); for (var w = 0; w < 7; w++) { var hdc = el("span", "hd-cal-wd", new Date(mon.getTime() + w * DAY).toLocaleDateString(undefined, { weekday: "narrow" })); hdc.setAttribute("aria-hidden", "true"); gridC.appendChild(hdc); }
+        var mon = new Date(2024, 0, 1); for (var w = 0; w < 7; w++) { var hdc = el("span", "hd-cal-wd", dfmt(new Date(mon.getTime() + w * DAY), { weekday: "narrow" })); hdc.setAttribute("aria-hidden", "true"); gridC.appendChild(hdc); }
         var lead = (view.getDay() + 6) % 7, dim = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
         for (var k = 0; k < lead; k++) gridC.appendChild(el("span", "hd-cd-pad"));
         for (var dd = 1; dd <= dim; dd++) {
@@ -1400,7 +1405,7 @@
       var local = lsGet(key) || ""; ta.value = local;
       var st = el("p", "hd-caption", "Private to you."); st.setAttribute("aria-live", "polite");
       var tm = null, server = false, dirty = false, seq = 0;
-      function hhmm() { return new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); }
+      function hhmm() { return tfmt(new Date(), { hour: "2-digit", minute: "2-digit" }); }
       function push(v) {
         var D = S().dashboard, my = ++seq;
         if (!server || !D || !D.saveNotes) { lsSet(key, v.trim() ? v : ""); st.textContent = "Saved on this device · " + hhmm(); return Promise.resolve(); }

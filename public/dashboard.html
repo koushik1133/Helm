@@ -6,7 +6,7 @@
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Helm Events — Event Layout Builder</title>
+<title>Dashboard — Helm Events</title>
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +14,7 @@
 <style>
   :root{
     --bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;
     --gold:#f59e0b;--safe:#12a150;--warn:#e8912d;--muted:var(--ink-3);
     --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -128,7 +128,7 @@
   @media (max-width:840px){#mytasks{grid-template-columns:1fr}}
   .mtbucket{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
   .mtbucket>h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:6px}
-  .mtbucket .cnt{font-size:12px;font-weight:700;padding:1px 6px;border-radius:20px;background:#eef2ff;color:#4457c8}
+  .mtbucket .cnt{font-size:12px;font-weight:700;padding:1px 6px;border-radius:20px;background:#eef1f0;color:#2f4a42}
   .mtbucket.overdue h4{color:#b42318} .mtbucket.overdue .cnt{background:#fdecec;color:#b42318}
   .mtbucket.blocked h4{color:#9a6700} .mtbucket.blocked .cnt{background:#fdf6e3;color:#9a6700}
   .mtbucket.completed h4{color:#0f7a43} .mtbucket.completed .cnt{background:#e7f6ee;color:#0f7a43}
@@ -145,7 +145,7 @@
   .ecard .elink:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
   .ptoggle{border:1px solid var(--line);background:var(--panel);color:var(--ink-2);border-radius:8px;height:32px;padding:0 10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px}
   .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:20px;vertical-align:middle}
-  .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
+  .stat.q{background:#eef1f0;color:#2f4a42} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
   .ecard .del{position:absolute;top:6px;right:6px;border:0;background:transparent;color:var(--ink-3);font-size:13px;cursor:pointer;opacity:0;transition:.12s;min-width:32px;min-height:32px;border-radius:6px}
   .ecard:hover .del,.ecard:focus-within .del,.ecard .del:focus-visible{opacity:1}
   @media (hover:none){.ecard .del{opacity:1}} .ecard .del:hover{color:#e5484d} .ecard .del.arch:hover{color:var(--ink)}
@@ -203,7 +203,7 @@
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" aria-label="Helm Events home"></a>
-    <div><h1>Helm Events</h1><small>Event Layout Builder</small></div>
+    <div><h1>Helm Events</h1><small>Dashboard</small></div>
     <span class="spacer s-97445a8"></span>
     <button type="button" id="helpBtn" class="helpbtn" title="Take the guided tour" aria-label="Take the guided tour">? Tour</button>
     <span id="bell"></span>
@@ -287,7 +287,7 @@
   </section>
   </main>
 
-  <footer>Helm Events · runs locally · storage: <span id="footMode">detecting…</span></footer>
+  <footer>Helm Events — your studio at a glance.<span id="footDev" hidden> · storage: <span id="footMode">detecting…</span></span></footer>
 </div>
 
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
@@ -325,7 +325,7 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="event-name.js?v=7"></script>
+<script src="event-name.js?v=8"></script>
 <script src="new-quote-dialog.js?v=1"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="flow-resume.js?v=2" data-mount></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=17"></script>
@@ -347,6 +347,8 @@
     const map = { supabase: "Supabase", server: "Server", local: "This browser" };
     const b = $("#badge"); if (b) { b.className = "badge " + mode; const l=$("#badgeLbl"); if(l) l.textContent = map[mode] || mode; }
     const fm = $("#footMode"); if (fm) fm.textContent = map[mode] || mode;
+    // LA-21: the storage tag is developer detail - shown only on a local dev host, never on production
+    const fd = $("#footDev"); if (fd) fd.hidden = !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   }
   function eg() { const d = new Date(); const mm = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
     return mm + dd + d.getFullYear(); }
@@ -474,7 +476,9 @@
     try { if (!(BPStore.budget && BPStore.budget.invoiceTotals)) return; invTotals = (await BPStore.budget.invoiceTotals(summaries)) || {}; renderList(); } catch (_) {}
   }
   const cardTotal = (s) => (invTotals[s.id] != null ? invTotals[s.id] : BPStore.invoiceTotal(s, 0));
-  function qName(q) { const H = window.HelmEventName; return H && H.displayName ? H.displayName(q) : (q.title || q.code || ""); }
+  // LA-29: these rows show the code beside the name, so an untitled quote reads "Untitled event" (never the code twice)
+  function qName(q) { const H = window.HelmEventName; if (H && H.listName) return H.listName(q); const t = H && H.displayName ? H.displayName(q) : (q.title || ""); return !t || t === q.code ? "Untitled event" : t; }
+  const stg = (k) => (BPStore.stageLabel ? BPStore.stageLabel(k) : String(k || ""));   // LA-28: never a raw lowercase stage
   function renderList() {
     const host = $("#elist");
     if (!summaries.length) { host.innerHTML = '<div class="empty">No quotes yet' + (canCreate ? ' — hit <b>Generate a quote</b> to create your first.' : '.') + '</div>'; return; }
@@ -579,7 +583,7 @@
       return `<div class="ecard pcard" data-id="${esc(e.id)}" style="cursor:pointer">
         <b>${esc(qName(e) || "Event")}</b> <span class="refchip" title="Reference code">${esc(e.code || "")}</span> ${badge}
         <a class="open" href="event.html?id=${encodeURIComponent(e.id)}" style="float:right;font-size:12px;color:var(--accent)" aria-label="Open ${esc(e.code || e.title || "event")}">Open →</a>
-        <small>${esc(e.event_type || "")} · ${esc(date)} · ${esc(e.lifecycle_stage || "")}</small>
+        <small>${esc([e.event_type || "", date, stg(e.lifecycle_stage)].filter(Boolean).join(" · "))}</small>
         <button type="button" class="ptoggle" aria-expanded="false" aria-controls="pt-${esc(e.id)}">Show tasks</button>
         <div class="ptasks" id="pt-${esc(e.id)}" hidden></div></div>`;
     }).join("");
@@ -693,7 +697,7 @@
     if (total === 0 && (c.completed||0) === 0) { sec.hidden = true; return; }   // no crew link / no tasks
     sec.hidden = false;
     const tt = $("#mtTotal"); if (tt) { if (total > 0) { tt.textContent = total + " open"; tt.hidden = false; } else tt.hidden = true; }
-    const row = (t) => `<div class="mtrow">• ${esc(t.title||"Task")} ${t.status?`<span class="stat q">${esc(t.status)}</span>`:""}<div class="ev">${esc(t.event_code||"")}${t.event_title?" · "+esc(t.event_title):""}${t.planned_end?" · due "+fmtDate(t.planned_end):""}</div></div>`;
+    const row = (t) => `<div class="mtrow">• ${esc(t.title||"Task")} ${t.status?`<span class="stat q">${esc(stg(t.status))}</span>`:""}<div class="ev">${esc(t.event_code||"")}${t.event_title?" · "+esc(t.event_title):""}${t.planned_end?" · due "+fmtDate(t.planned_end):""}</div></div>`;
     const bucket = (key, label, cls) => {
       const items = (r && r[key]) || []; const n = (c[key]||0);
       return `<div class="mtbucket ${cls}"><h4>${label} <span class="cnt">${n}</span></h4>${

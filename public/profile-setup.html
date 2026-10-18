@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-strong:#a39dab;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --line:#e8e3db;--line-strong:#a39dab;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;
     --shadow:0 1px 2px rgba(27,25,48,.05),0 24px 60px -12px rgba(27,25,48,.16);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
   *{box-sizing:border-box} [hidden]{display:none!important}
@@ -43,14 +43,14 @@
   h1{margin:0 0 6px;font-size:26px;letter-spacing:-.015em;line-height:1.2}
   @media(max-width:560px){h1{font-size:22px}}
   .sub{margin:0 0 22px;font-size:14.5px;line-height:1.6;color:var(--ink-2)}
-  .btn{min-height:48px;padding:0 24px;border:0;border-radius:12px;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px -6px rgba(109,40,217,.55);transition:transform .12s,box-shadow .12s}
-  .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 22px -8px rgba(109,40,217,.6)}
+  .btn{min-height:48px;padding:0 24px;border:0;border-radius:12px;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px -6px rgba(4,120,87,.55);transition:transform .12s,box-shadow .12s}
+  .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 22px -8px rgba(4,120,87,.6)}
   .btn:disabled{opacity:.7;cursor:default}
   .btn:focus-visible,.linkbtn:focus-visible{outline:3px solid var(--accent-soft);outline-offset:2px}
   .err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:10px;padding:10px 13px;font-size:13px;margin:0 0 16px}
   .foot{margin-top:18px;font-size:12.5px;color:var(--ink-3);text-align:center;overflow-wrap:anywhere}
   .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
-  html[data-theme="dark"] body{background:radial-gradient(760px 420px at 88% -12%,#1d1730 0%,transparent 62%),var(--bg)}
+  html[data-theme="dark"] body{background:radial-gradient(760px 420px at 88% -12%,#123329 0%,transparent 62%),var(--bg)}
   html[data-theme="dark"] .err{background:#3a1414;color:#fecaca;border-color:#7f1d1d}
   html[data-theme="dark"] .steps .dot{background:var(--panel)}
   html[data-theme="dark"] .steps .done .dot{background:var(--accent);color:#141418}
@@ -90,7 +90,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
 <script src="form-validate.js?v=1"></script>
-<script src="event-name.js?v=7"></script>
+<script src="event-name.js?v=8"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
 <script src="auth-ui.js?v=36"></script>
 <script>

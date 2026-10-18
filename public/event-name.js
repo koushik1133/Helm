@@ -170,7 +170,13 @@
     for (const t of all) if (String(t).trim().toLowerCase() === k) return String(t).trim();
     return raw;
   }
-  const api = { EVENT_TYPE_LIST, EVENT_TYPE_LIST_AE, eventTypeOptions, canonEventType, TYPES, LEGACY_CODES, NAME_MAX, HINT, displayName, validateName, CITIES, LABELS, typeCode, cityCode, cityFromText, dateCode, guestsCode, format, fromQuote, isAuto, unique, label, shortDate, friendlyTitle };
+  /* LA-29: the name for a list row that ALREADY shows the quote code beside it: when the only name we have is
+     the code itself (or a code-shaped placeholder), say "Untitled event" instead of printing the code twice. */
+  function listName(q) {
+    q = q || {}; const n = String(displayName(q) || "").trim(), code = String(q.code == null ? "" : q.code).trim();
+    return !n || (code && n === code) || /^\d{8}-\d{2,}$/.test(n) ? "Untitled event" : n;
+  }
+  const api = { listName, EVENT_TYPE_LIST, EVENT_TYPE_LIST_AE, eventTypeOptions, canonEventType, TYPES, LEGACY_CODES, NAME_MAX, HINT, displayName, validateName, CITIES, LABELS, typeCode, cityCode, cityFromText, dateCode, guestsCode, format, fromQuote, isAuto, unique, label, shortDate, friendlyTitle };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (root) root.HelmEventName = api;
 })(typeof window !== "undefined" ? window : null);

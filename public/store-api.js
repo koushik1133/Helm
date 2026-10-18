@@ -322,7 +322,7 @@ window.HelmUrl = HelmUrl;
   const PW_OK_KEY = "bp_pw_ok";                 // per tab: "<uid>" once password_change_required() said no
   // Per-USER browser state that must not carry over to the next person who signs in
   // on a shared computer (audit Phase 4). Device prefs (theme, tours) are kept.
-  const USER_LOCAL_KEYS = ["bps.clip", "wa_pin", "wa_mute", "wa_fav", "bp_chat_ping", "helm_org_country", "helm_ev_showall", "helm.trial", "helm.studioTax"];   // 0181: helm.trial = the cached free-trial flag
+  const USER_LOCAL_KEYS = ["bps.clip", "wa_pin", "wa_mute", "wa_fav", "bp_chat_ping", "helm_org_country", "helm_ev_showall", "helm.trial", "helm.studioTax", "helm.studioTz"];   // 0181: helm.trial = the cached free-trial flag
   function userLocalClear() { USER_LOCAL_KEYS.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} }); }
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
 
@@ -560,7 +560,7 @@ window.HelmUrl = HelmUrl;
       const h = document.createElement("h2"); h.textContent = "Couldn’t reach Helm"; h.style.cssText = "color:#141b2e;margin:0 0 6px";
       const p = document.createElement("p"); p.textContent = "We couldn’t confirm your sign-in. Check your connection and try again."; p.style.margin = "0 0 16px";
       const r = document.createElement("button"); r.type = "button"; r.textContent = "Retry";
-      r.style.cssText = "min-height:40px;padding:0 18px;border:0;border-radius:10px;background:#6d28d9;color:#fff;font:inherit;font-weight:600;cursor:pointer";
+      r.style.cssText = "min-height:40px;padding:0 18px;border:0;border-radius:10px;background:#047857;color:#fff;font:inherit;font-weight:600;cursor:pointer";
       r.addEventListener("click", () => { try { location.reload(); } catch (e) {} });
       box.appendChild(h); box.appendChild(p); box.appendChild(r); b.appendChild(box);
       revealPage();
@@ -1071,7 +1071,7 @@ window.HelmUrl = HelmUrl;
       const h = document.createElement("h2"); h.id = "bpIdleTitle"; h.textContent = "Still there?"; h.style.cssText = "margin:0 0 8px;font-size:18px";
       const p = document.createElement("p"); p.id = "bpIdleText"; p.style.margin = "0 0 14px";
       const b = document.createElement("button"); b.type = "button"; b.textContent = "Stay signed in";
-      b.style.cssText = "min-height:40px;padding:0 18px;border:0;border-radius:10px;background:var(--bpui-accent,#6d28d9);color:#fff;font:inherit;font-weight:600;cursor:pointer";
+      b.style.cssText = "min-height:40px;padding:0 18px;border:0;border-radius:10px;background:var(--bpui-accent,#047857);color:#fff;font:inherit;font-weight:600;cursor:pointer";
       b.addEventListener("click", () => { touchActivity(true); hideWarn(); });
       card.appendChild(h); card.appendChild(p); card.appendChild(b); warnBox.appendChild(card);
       document.body.appendChild(warnBox);
@@ -1157,10 +1157,10 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "5";
+  const STUDIO_SEARCH_VERSION = "6";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
-  const NAV_TRAIL_VERSION = "4";
+  const NAV_TRAIL_VERSION = "5";
   if (typeof global.HelmTrail === "undefined") {
     global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
   }
@@ -1202,14 +1202,14 @@ window.HelmUrl = HelmUrl;
     // theme-aware banner/reminder colours (follows the app theme, not the OS setting)
     const css = document.createElement("link");
     css.rel = "stylesheet";
-    css.href = vendorUrl("trial-theme.css?v=1");
+    css.href = vendorUrl("trial-theme.css?v=2");
     document.head.appendChild(css);
     const s = document.createElement("script");
     s.src = vendorUrl("trial.js?v=" + TRIAL_BANNER_VERSION);
     document.head.appendChild(s);
   }
   // Mobile bottom bar (< 768px): same pages as the studio search; mobile-nav.js re-checks the role.
-  const MOBILE_NAV_VERSION = "2";
+  const MOBILE_NAV_VERSION = "3";
   let mobileNavLoading = false;
   function loadMobileNav() {
     if (mobileNavLoading || typeof document === "undefined" || global.HelmMobileNav) return;
@@ -1657,10 +1657,10 @@ window.HelmUrl = HelmUrl;
         box.innerHTML = '<div style="font-size:34px" aria-hidden="true">📡</div><h2 style="color:var(--ink,#141b2e);margin:10px 0 6px">Couldn’t reach the server</h2>' +
           '<p style="margin:0 0 16px">We couldn’t load your access for this page. Check your connection and try again.</p>' +
           '<button type="button" class="btn primary" data-retry style="min-height:40px;padding:0 18px;border-radius:10px;font:inherit;font-weight:600;cursor:pointer">Retry</button>' +
-          '<p style="margin:14px 0 0"><a href="dashboard.html" style="color:var(--accent,#6d28d9);font-weight:600">← Back to dashboard</a></p>';
+          '<p style="margin:14px 0 0"><a href="dashboard.html" style="color:var(--accent,#047857);font-weight:600">← Back to dashboard</a></p>';
         box.querySelector("[data-retry]").addEventListener("click", () => location.reload());
       } else {
-        box.innerHTML = '<div style="font-size:34px" aria-hidden="true">🔒</div><h2 style="color:var(--ink,#141b2e);margin:10px 0 6px">No access</h2><p style="margin:0 0 14px">Your role doesn’t have access to this page. Ask an admin if you need it.</p><a href="dashboard.html" style="color:var(--accent,#6d28d9);font-weight:600">← Back to dashboard</a>';
+        box.innerHTML = '<div style="font-size:34px" aria-hidden="true">🔒</div><h2 style="color:var(--ink,#141b2e);margin:10px 0 6px">No access</h2><p style="margin:0 0 14px">Your role doesn’t have access to this page. Ask an admin if you need it.</p><a href="dashboard.html" style="color:var(--accent,#047857);font-weight:600">← Back to dashboard</a>';
       }
       (document.querySelector("main") && !document.querySelector("main").closest("#app") ? document.querySelector("main") : document.body).appendChild(box);
     } catch (e) { /* non-browser context */ }
@@ -3601,6 +3601,15 @@ window.HelmUrl = HelmUrl;
             r.rows = r.rows.filter((x) => !x.lead_id || newest[x.lead_id] === x.id);
           }
         }
+        // LA-34: flag rows of SAMPLE leads (leads.is_demo, 0097) so the CRM never labels seeded rows "RESTORED".
+        // Read-only and best-effort: a failure just leaves the flag off.
+        try {
+          const lids = [...new Set(r.rows.map((x) => x.lead_id).filter(Boolean))];
+          if (lids.length) {
+            const { data: dm, error: de } = await supa.from("leads").select("id").in("id", lids).eq("is_demo", true);
+            if (!de && dm && dm.length) { const demo = new Set(dm.map((x) => x.id)); r.rows.forEach((x) => { if (demo.has(x.lead_id)) x.is_demo = true; }); }
+          }
+        } catch (e) {}
         return r;
       }
       let a = []; try { a = JSON.parse(localStorage.getItem(ARCH_LS) || "[]"); } catch {}
@@ -4524,7 +4533,7 @@ window.HelmUrl = HelmUrl;
     async current(opts) { if (!supa) return null;
       const oid = await this.id();
       const read = async () => { const { data, error } = await supa.from("organizations").select("*").eq("id", oid).maybeSingle();
-        if (error) throw error; return data; };
+        if (error) throw error; try { if (data && data.timezone && BPStore.rememberStudioTimezone) BPStore.rememberStudioTimezone(data.timezone); } catch (e) {} return data; };
       if (opts && opts.fresh) { try { sessionStorage.removeItem(SWR_PREFIX + "org:" + oid); } catch (e) {} }
       return swr("org:" + oid, read); },
     async save(patch) { if (!supa) throw new Error("Supabase not configured");
@@ -7512,19 +7521,19 @@ window.HelmUrl = HelmUrl;
   // Light/dark follow the page tokens (theme.css re-points them under html[data-theme=dark]).
   const BELL_CSS = [
     ".bpb-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;height:32px;width:36px;padding:0;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);color:var(--ink,#1b1930);border-radius:10px;cursor:pointer;transition:background .15s,border-color .15s}",
-    ".bpb-btn:hover{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff)}",
-    ".bpb-btn[aria-expanded=true]{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9)}",
+    ".bpb-btn:hover{border-color:var(--accent,#047857);background:var(--accent-soft,#e3f4ed)}",
+    ".bpb-btn[aria-expanded=true]{border-color:var(--accent,#047857);background:var(--accent-soft,#e3f4ed);color:var(--accent,#047857)}",
     ".bpb-btn svg{width:17px;height:17px}",
     ".bpb-dot{position:absolute;top:-6px;right:-7px;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:9px;background:#e5484d;color:#fff;font:700 10px/17px system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;box-shadow:0 0 0 2px var(--panel,#fff)}",
     ".bpb-dot[hidden]{display:none}",
     ".bpb-root{--bpb-bg:var(--panel,#fff);--bpb-bg2:var(--panel-2,#faf8f5);--bpb-ink:var(--ink,#1b1930);--bpb-ink2:var(--ink-2,#4b475f);--bpb-ink3:var(--ink-3,#6b6577);",
-    "--bpb-line:var(--line,#e8e3db);--bpb-acc:var(--accent,#6d28d9);--bpb-acc-t:var(--hb-acc-text,var(--accent,#6d28d9));--bpb-unread:#f7f3ff;",
+    "--bpb-line:var(--line,#e8e3db);--bpb-acc:var(--accent,#047857);--bpb-acc-t:var(--hb-acc-text,var(--accent,#047857));--bpb-unread:#f0f9f5;",
     "--bpb-mention-bg:#ffe4ec;--bpb-mention:#be123c;--bpb-chat-bg:#e0ecff;--bpb-chat:#1d4ed8;--bpb-task-bg:#dcf5e7;--bpb-task:#0f7a43;",
-    "--bpb-pay-bg:#fff1d6;--bpb-pay:#8f5f00;--bpb-other-bg:var(--accent-soft,#efe9ff);--bpb-other:var(--accent,#6d28d9);",
+    "--bpb-pay-bg:#fff1d6;--bpb-pay:#8f5f00;--bpb-other-bg:var(--accent-soft,#e3f4ed);--bpb-other:var(--accent,#047857);",
     "--bpb-scrim:rgba(24,20,40,.10);--bpb-scrim-phone:rgba(24,20,40,.38);--bpb-shadow:0 24px 60px rgba(20,27,46,.22),0 2px 8px rgba(20,27,46,.08);",
     "position:fixed;inset:0;z-index:2147482000;font:14px/1.4 var(--font,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif);color:var(--bpb-ink)}",
     "html[data-theme=dark] .bpb-root{--bpb-unread:#19152a;--bpb-mention-bg:#3a1424;--bpb-mention:#fda4af;--bpb-chat-bg:#172a4d;--bpb-chat:#93c5fd;--bpb-task-bg:#12301f;--bpb-task:#6ee7b7;",
-    "--bpb-pay-bg:#3a2a0c;--bpb-pay:#fcd34d;--bpb-other-bg:#1d1730;--bpb-other:#c4b5fd;--bpb-scrim:rgba(0,0,0,.28);--bpb-scrim-phone:rgba(0,0,0,.55);--bpb-shadow:0 24px 60px rgba(0,0,0,.7)}",
+    "--bpb-pay-bg:#3a2a0c;--bpb-pay:#fcd34d;--bpb-other-bg:#123329;--bpb-other:#6ee7b7;--bpb-scrim:rgba(0,0,0,.28);--bpb-scrim-phone:rgba(0,0,0,.55);--bpb-shadow:0 24px 60px rgba(0,0,0,.7)}",
     ".bpb-root[hidden]{display:none}",
     // backdrop: a light dim only (no blur — the page behind stays readable); darker under the phone sheet
     ".bpb-scrim{position:absolute;inset:0;background:var(--bpb-scrim);opacity:0;transition:opacity .2s ease}",
@@ -9444,12 +9453,12 @@ window.HelmUrl = HelmUrl;
   /* ------------------------------------------------------------------ CSS */
   var CSS = [
     ":root{--bpui-bg:#fff;--bpui-ink:#141b2e;--bpui-ink-2:#4a5673;--bpui-line:#86808f;--bpui-soft:#f4f2fb;",
-    "--bpui-accent:#6d28d9;--bpui-on-accent:#fff;--bpui-danger:#b91c1c;--bpui-on-danger:#fff;",
+    "--bpui-accent:#047857;--bpui-on-accent:#fff;--bpui-danger:#b91c1c;--bpui-on-danger:#fff;",
     "--bpui-scrim:rgba(20,27,46,.5);--bpui-veil:rgba(246,244,241,.72);--bpui-shadow:0 24px 60px rgba(20,27,46,.3);",
-    "--bpui-toast-bg:#1f1b2e;--bpui-toast-ink:#fff;--bpui-toast-act:#d8ccff;--bpui-ok:#34d399;--bpui-err:#f87171;--bpui-info:#a78bfa;",
+    "--bpui-toast-bg:#1f1b2e;--bpui-toast-ink:#fff;--bpui-toast-act:#a7f3d0;--bpui-ok:#34d399;--bpui-err:#f87171;--bpui-info:#34d399;",
     "--bpui-warn-bg:#fff4d6;--bpui-warn-ink:#5c3d00;--bpui-warn-line:#e8c26a}",
     "html[data-theme=dark]{--bpui-bg:#1c1c22;--bpui-ink:#f3f1fa;--bpui-ink-2:#c6c2d6;--bpui-line:#75707f;--bpui-soft:#26222f;",
-    "--bpui-accent:#7c3aed;--bpui-on-accent:#fff;--bpui-danger:#b91c1c;--bpui-on-danger:#fff;",
+    "--bpui-accent:#047857;--bpui-on-accent:#fff;--bpui-danger:#b91c1c;--bpui-on-danger:#fff;",
     "--bpui-scrim:rgba(0,0,0,.66);--bpui-veil:rgba(0,0,0,.6);--bpui-shadow:0 24px 60px rgba(0,0,0,.7);",
     "--bpui-toast-bg:#2a2635;--bpui-toast-ink:#f3f1fa;--bpui-warn-bg:#3a2f14;--bpui-warn-ink:#ffd884;--bpui-warn-line:#5a4a1e}",
     /* utilities usable on pages without theme.css (zero specificity → pages override) */
@@ -9485,9 +9494,9 @@ window.HelmUrl = HelmUrl;
     "html:has([role=dialog][aria-modal=true]:not([hidden])) .bpui-toasts,html:has(dialog[open]) .bpui-toasts{bottom:auto;top:20px}",
     ".bpui-toasts{position:fixed;bottom:20px;right:16px;z-index:2147483600;display:flex;flex-direction:column;gap:10px;",
     "width:min(380px,calc(100vw - 32px));pointer-events:none;--bpui-t-bg:#fff;--bpui-t-ink:#1b1930;--bpui-t-ink2:#5b566b;--bpui-t-line:#e8e3db;",
-    "--bpui-t-info:#6d28d9;--bpui-t-info-bg:#efe9ff;--bpui-t-ok:#0f7a43;--bpui-t-ok-bg:#dcf5e7;--bpui-t-warn:#8f5f00;--bpui-t-warn-bg:#fff1d6;",
+    "--bpui-t-info:#047857;--bpui-t-info-bg:#e3f4ed;--bpui-t-ok:#0f7a43;--bpui-t-ok-bg:#dcf5e7;--bpui-t-warn:#8f5f00;--bpui-t-warn-bg:#fff1d6;",
     "--bpui-t-err:#c0262d;--bpui-t-err-bg:#ffe3e3;--bpui-t-sec:#1d4ed8;--bpui-t-sec-bg:#e0ecff;--bpui-t-shadow:0 12px 32px rgba(20,27,46,.16),0 2px 6px rgba(20,27,46,.06)}",
-    "html[data-theme=dark] .bpui-toasts{--bpui-t-bg:#221e2e;--bpui-t-ink:#f3f1fa;--bpui-t-ink2:#c6c2d6;--bpui-t-line:#3a3548;--bpui-t-info:#c4b5fd;--bpui-t-info-bg:#2c2346;",
+    "html[data-theme=dark] .bpui-toasts{--bpui-t-bg:#221e2e;--bpui-t-ink:#f3f1fa;--bpui-t-ink2:#c6c2d6;--bpui-t-line:#3a3548;--bpui-t-info:#6ee7b7;--bpui-t-info-bg:#123329;",
     "--bpui-t-ok:#6ee7b7;--bpui-t-ok-bg:#12301f;--bpui-t-warn:#fcd34d;--bpui-t-warn-bg:#3a2a0c;--bpui-t-err:#fca5a5;--bpui-t-err-bg:#3d1518;--bpui-t-sec:#93c5fd;--bpui-t-sec-bg:#172a4d;--bpui-t-shadow:0 14px 36px rgba(0,0,0,.6)}",
     ".bpui-lane{display:flex;flex-direction:column;gap:10px}",
     ".bpui-toast{--bpui-t-c:var(--bpui-t-info);--bpui-t-cbg:var(--bpui-t-info-bg);position:relative;overflow:hidden;pointer-events:auto;display:flex;align-items:flex-start;gap:12px;padding:12px 8px 14px 12px;",
@@ -10701,7 +10710,71 @@ window.HelmUrl = HelmUrl;
   // India date format dd/mm/yyyy for a "YYYY-MM-DD" (or ISO) date; anything else is returned as-is
   BPStore.fmtDateIN = function (d) {
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ""));
+    if (m && BPStore.fmtStudioDate) { var o = BPStore.fmtStudioDate(m[0]); if (o) return o; }   // LA-27: the studio's own order (IN/AE/GB: dd/mm/yyyy, US: mm/dd/yyyy)
     return m ? m[3] + "/" + m[2] + "/" + m[1] : String(d || "");
+  };
+  // ---- LA-27: ONE date formatter for the whole app: the STUDIO's locale + the STUDIO's timezone ----
+  // (never the viewer's browser locale / clock). A calendar day "YYYY-MM-DD" is never shifted by a zone.
+  // style: "short" (default) 20/12/2026 · "medium" Sun, 20 Dec · "long" 20 Dec 2026 · "weekday" Sunday ·
+  // "month" December 2026 · "daymonth" 20 December · "time" 07:00 pm; or opts.fmt = explicit Intl fields.
+  // opts.time adds the time to a timestamp; opts.year adds the year to "medium". A local Date that stands for a
+  // calendar DAY must be passed as its "YYYY-MM-DD" string (else the studio zone could move it a day).
+  var STUDIO_TZ_KEY = "helm.studioTz";
+  BPStore.rememberStudioTimezone = function (tz) {
+    tz = typeof tz === "string" ? tz.trim() : "";
+    if (tz) { try { new Intl.DateTimeFormat("en", { timeZone: tz }); } catch (e) { tz = ""; } }
+    try { if (tz) localStorage.setItem(STUDIO_TZ_KEY, tz); } catch (e) {}
+    BPStore._studioTz = tz || null; return tz;
+  };
+  BPStore.studioTimezone = function () {
+    var tz = BPStore._studioTz || "";
+    if (!tz) { try { tz = localStorage.getItem(STUDIO_TZ_KEY) || ""; } catch (e) {} }
+    if (!tz) { try { var H = (typeof window !== "undefined" && window.HelmCountry) || null, cc = (BPStore.studioTax() || {}).country; tz = H && H.timezone ? H.timezone(cc) : ""; } catch (e) {} }
+    if (tz) { try { new Intl.DateTimeFormat("en", { timeZone: tz }); } catch (e) { tz = ""; } }
+    return tz || undefined;
+  };
+  BPStore.studioLocale = function () {
+    var r = null; try { r = BPStore.studioTax(); } catch (e) {}
+    var loc = (r && r.locale) || "en-IN"; try { new Intl.DateTimeFormat(loc); } catch (e) { loc = "en-IN"; } return loc;
+  };
+  BPStore.fmtStudioDate = function (v, opts) {
+    opts = opts || {};
+    if (v == null || v === "") return "";
+    var s = typeof v === "string" ? v.trim() : v, m = typeof s === "string" ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(s) : null, d, tz;
+    if (m) { d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)); tz = "UTC"; }
+    else { d = (v && typeof v.getTime === "function") ? v : new Date(s); tz = BPStore.studioTimezone(); }
+    if (!d || isNaN(d.getTime())) return typeof v === "string" ? v : "";
+    var st = opts.style || "short", f;
+    if (opts.fmt && typeof opts.fmt === "object") f = Object.assign({}, opts.fmt);   // explicit Intl fields (no timeZone: the studio's is added)
+    else if (st === "medium") { f = { weekday: "short", day: "numeric", month: "short" }; if (opts.year) f.year = "numeric"; }
+    else if (st === "long") f = { day: "numeric", month: "short", year: "numeric" };
+    else if (st === "weekday") f = { weekday: opts.narrow ? "short" : "long" };
+    else if (st === "month") f = { month: "long", year: "numeric" };
+    else if (st === "daymonth") f = { day: "numeric", month: "long" };
+    else if (st === "time") f = { hour: "2-digit", minute: "2-digit" };
+    else f = { day: "2-digit", month: "2-digit", year: "numeric" };
+    if (opts.time && !m && st !== "time") { f.hour = "2-digit"; f.minute = "2-digit"; }
+    if (tz) f.timeZone = tz;
+    try { return d.toLocaleString(BPStore.studioLocale(), f); }
+    catch (e) { return m ? m[3] + "/" + m[2] + "/" + m[1] : d.toISOString().slice(0, 16).replace("T", " "); }
+  };
+  // ---- LA-28: one label for every lead stage + event lifecycle stage + lead source (never a raw lowercase key) ----
+  var STAGE_LABELS = { "new": "New", qualified: "Qualified", discovery: "Discovery", quoted: "Quoted", won: "Won", lost: "Lost",
+    lead: "Lead", proposal: "Proposal", quote: "Quote", confirmed: "Confirmed", planning: "Planning", resources: "Resources",
+    ready: "Ready", event_day: "Event Day", settlement: "Settlement", closed: "Closed", cancelled: "Cancelled", archived: "Archived" };
+  BPStore.stageLabel = function (k) {
+    var raw = String(k == null ? "" : k).trim(); if (!raw) return "";
+    var key = raw.toLowerCase().replace(/[\s-]+/g, "_");
+    if (STAGE_LABELS[key]) return STAGE_LABELS[key];
+    var t = raw.replace(/_/g, " "); return t.charAt(0).toUpperCase() + t.slice(1);
+  };
+  var SOURCE_LABELS = { "walk_in": "Walk-in", walkin: "Walk-in", google: "Google", instagram: "Instagram", facebook: "Facebook", whatsapp: "WhatsApp",
+    referral: "Referral", website: "Website", social: "Other social", ad: "Ad", phone: "Phone", email: "Email", other: "Other", justdial: "Justdial", wedmegood: "WedMeGood" };
+  BPStore.sourceLabel = function (v) {
+    var raw = String(v == null ? "" : v).trim().replace(/\s+/g, " "); if (!raw) return "";
+    var key = raw.toLowerCase().replace(/[\s-]+/g, "_");
+    if (SOURCE_LABELS[key]) return SOURCE_LABELS[key];
+    return raw.charAt(0).toUpperCase() + raw.slice(1);   // first letter only: "walk-in" never becomes "Walk-In"
   };
   // the user's LOCAL calendar day (IST for an Indian studio) as YYYY-MM-DD - toISOString() is UTC
   // and reads as "yesterday" from 00:00 to 05:30 IST
@@ -10713,11 +10786,13 @@ window.HelmUrl = HelmUrl;
   // date + time for display: dd/mm/yyyy, hh:mm (US studio: its own order) - never the browser's locale default
   BPStore.fmtDay = function (iso) {
     var d = new Date(iso); if (iso == null || iso === "" || isNaN(d.getTime())) return "";
+    if (BPStore.fmtStudioDate) { var o = BPStore.fmtStudioDate(iso); if (o) return o; }
     var loc = "en-IN"; try { if (BPStore.studioTax && BPStore.studioTax().country === "US") loc = "en-US"; } catch (e) {}
     try { return d.toLocaleDateString(loc, { day: "2-digit", month: "2-digit", year: "numeric" }); } catch (e) { return d.toISOString().slice(0, 10); }
   };
   BPStore.fmtDateTime = function (iso) {
     var d = new Date(iso); if (iso == null || iso === "" || isNaN(d.getTime())) return "";
+    if (BPStore.fmtStudioDate) { var o = BPStore.fmtStudioDate(iso, { time: true }); if (o) return o; }
     var loc = "en-IN"; try { if (BPStore.studioTax && BPStore.studioTax().country === "US") loc = "en-US"; } catch (e) {}
     try { return d.toLocaleString(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return d.toISOString(); }
   };

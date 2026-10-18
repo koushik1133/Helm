@@ -18,7 +18,7 @@
 <style>
   :root{
     --bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;
     --safe:#18a558;--warn:#e8912d;--danger:#c0362c;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -90,7 +90,7 @@
   .bub mark{background:#ffe08a;color:#1b1930;border-radius:3px;padding:0 1px}
   html[data-theme="dark"] .bub mark{background:#9a7b1f;color:#fff}
   .m.dim{opacity:.32}
-  .dropzone{position:absolute;inset:0;z-index:25;background:rgba(109,40,217,.10);border:3px dashed var(--accent);border-radius:10px;margin:10px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .dropzone{position:absolute;inset:0;z-index:25;background:rgba(4,120,87,.10);border:3px dashed var(--accent);border-radius:10px;margin:10px;display:flex;align-items:center;justify-content:center;pointer-events:none}
   .dropzone .dz-inner{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 24px;font-size:16px;font-weight:600;color:var(--accent);box-shadow:var(--shadow)}
   .thead{flex:0 0 auto;display:flex;align-items:center;gap:13px;padding:11px 16px;background:var(--panel);border-bottom:1px solid var(--line-2)}
   .thead .bk{display:none;border:0;background:none;font-size:23px;cursor:pointer;color:var(--ink-2)}
@@ -110,7 +110,7 @@
   .m.them .bub{background:var(--panel);border-top-left-radius:4px}
   .m.me .bub{background:var(--accent-soft);border-color:transparent;border-top-right-radius:4px}
   .bub .who{font-size:12.5px;font-weight:700;margin-bottom:2px}
-  .bub .reply{border-left:3px solid var(--accent);background:rgba(109,40,217,.08);border-radius:6px;padding:4px 8px;margin-bottom:5px;cursor:pointer}
+  .bub .reply{border-left:3px solid var(--accent);background:rgba(4,120,87,.08);border-radius:6px;padding:4px 8px;margin-bottom:5px;cursor:pointer}
   .bub .reply b{color:var(--accent);display:block;font-size:12px;font-weight:700}
   .bub .reply .rt{color:var(--ink-2);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;display:block}
   .bub .txt{white-space:pre-wrap}
@@ -377,7 +377,7 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="event-name.js?v=7"></script>
+<script src="event-name.js?v=8"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="event-group-picker.js?v=4"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
@@ -386,7 +386,7 @@
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const RX_EMOJI=["👍","❤️","😂","😮","😢","🙏"];
   const INS_EMOJI=["😀","😁","😂","🤣","😊","😍","😎","😉","🤔","😅","🙌","👏","👍","🙏","🎉","🔥","✅","❤️","💯","😢","😮","🚀","⭐","🌸","☕","🍾","👌","💪"];
-  const NAME_COLORS=["#6d28d9","#4f46e5","#0ea5e9","#16a34a","#d97706","#dc2626","#db2777","#0891b2","#7c3aed","#0d9488"];
+  const NAME_COLORS=["#047857","#374151","#0ea5e9","#16a34a","#d97706","#dc2626","#db2777","#0891b2","#4d7c0f","#0d9488"];
   let ME={id:null,name:"",email:""}, roster={}, convs=[], activeId=null, replyTo=null, staged=null, sub=null, thread={messages:[],reactions:[],members:[]}, convSearch="", filter="all", backendReady=true;
   let rec=null, recChunks=[], recStart=0, recTimer=null;
   let favs=new Set(); try{ favs=new Set(JSON.parse(localStorage.getItem("wa_fav")||"[]")); }catch(e){}
@@ -623,10 +623,10 @@
   function applyMsgSearch(q){ const host=$("#msgs"); const ql=String(q||"").toLowerCase().trim(); let matches=0;
     host.querySelectorAll(".m").forEach(el=>{
       el.classList.remove("dim");
-      el.querySelectorAll(".txt,.cap").forEach(n=>{ if(n.querySelector("mark")) n.textContent=n.textContent; });  // strip old marks
+      el.querySelectorAll(".txt,.cap").forEach(n=>{ if(n.querySelector("mark")) n.textContent=(window.HelmPrivacy&&HelmPrivacy.realText)?HelmPrivacy.realText(n):n.textContent; });  // strip old marks
       const hay=(el.textContent||"").toLowerCase(); const hit=!!ql&&hay.includes(ql);
       el.classList.toggle("dim", !!ql&&!hit);
-      if(hit){ el.querySelectorAll(".txt,.cap").forEach(n=>{ n.innerHTML=highlight(n.textContent,q); }); matches++; } });
+      if(hit){ el.querySelectorAll(".txt,.cap").forEach(n=>{ n.innerHTML=highlight((window.HelmPrivacy&&HelmPrivacy.realText)?HelmPrivacy.realText(n):n.textContent,q); }); matches++; } });   // LA-26: a hidden amount keeps its real value
     const ct=$("#tSearchCt"); if(ct) ct.textContent=ql?(matches+" result"+(matches===1?"":"s")):"";
     if(ql){ const first=host.querySelector(".m:not(.dim)"); if(first) first.scrollIntoView({block:"center"}); } }
 
@@ -892,8 +892,9 @@
     $("#msgInput").focus(); syncSend(); }
   async function quotePicker(){ let list=[]; try{ list=await BPStore.quotes.list(); }catch(e){ list=[]; }
     pickerModal("Attach a quote","📄",(list||[]).map(q=>({ icon:"📄",
-      title:(q.code?q.code+" · ":"")+(q.title||"Untitled"),
-      sub:[q.total?inr(q.total):null,(q.lifecycleStage||q.status),q.client&&q.client.name].filter(Boolean).join(" · "),
+      // LA-29/28: an untitled quote reads "Untitled event" (not its code twice); the stage reads as its label
+      title:(q.code?q.code+" · ":"")+((window.HelmEventName&&HelmEventName.listName)?HelmEventName.listName(q):(q.title&&q.title!==q.code?q.title:"Untitled event")),
+      sub:[q.total?inr(q.total):null,(BPStore.stageLabel?BPStore.stageLabel(q.lifecycleStage||q.status):(q.lifecycleStage||q.status)),q.client&&q.client.name].filter(Boolean).join(" · "),
       meta:{kind:"quote",ref_id:q.id,code:q.code||"",title:q.title||"Untitled",total:q.total||0,status:q.lifecycleStage||q.status||"",client:(q.client&&q.client.name)||"",event_date:q.eventDate||""} })),
       "No quotes yet. Create one in Quotes, then attach it here."); }
   async function layoutPicker(){ let list=[]; try{ list=await BPStore.list(); }catch(e){ list=[]; }

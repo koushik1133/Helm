@@ -22,7 +22,9 @@
   var parse = function (s) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || "")); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
   var addDays = function (d, n) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() + n); return x; };
   var monday = function (d) { var w = (d.getDay() + 6) % 7; return addDays(d, -w); };
-  var hm = function (ts) { var d = new Date(ts); return isNaN(d.getTime()) ? "" : d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }); };
+  /* LA-27: labels in the STUDIO's locale (en-IN for an Indian studio, en-US for a US one), not a hard-coded en-IN */
+  var LOC = function () { try { var B = window.BPStore; return B && B.studioLocale ? B.studioLocale() : "en-IN"; } catch (e) { return "en-IN"; } };
+  var hm = function (ts) { var d = new Date(ts); return isNaN(d.getTime()) ? "" : d.toLocaleTimeString(LOC(), { hour: "2-digit", minute: "2-digit", hour12: false }); };
   var DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   var HOUR = 48;                                                      // px per hour in the time grid
   var VIEWS = ["day", "week", "month"];
@@ -120,9 +122,9 @@
       return { from: monday(first), to: addDays(monday(last), 6), first: first, last: last };
     }
     function label(rg) {
-      if (st.view === "month") return rg.first.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
-      if (st.view === "day") return rg.from.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-      var o = { day: "numeric", month: "short" }; return rg.from.toLocaleDateString("en-IN", o) + " – " + rg.to.toLocaleDateString("en-IN", Object.assign({ year: "numeric" }, o));
+      if (st.view === "month") return rg.first.toLocaleDateString(LOC(), { month: "long", year: "numeric" });
+      if (st.view === "day") return rg.from.toLocaleDateString(LOC(), { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      var o = { day: "numeric", month: "short" }; return rg.from.toLocaleDateString(LOC(), o) + " – " + rg.to.toLocaleDateString(LOC(), Object.assign({ year: "numeric" }, o));
     }
     function days(rg) { var a = [], d = rg.from; while (d <= rg.to) { a.push(d); d = addDays(d, 1); } return a; }
     function sKind(b) { if (b.lead) return "lead"; return String(statusFor(b.quote_id) || "").toLowerCase() === "confirmed" ? "confirmed" : "tentative"; }
@@ -159,7 +161,7 @@
     function openPop(btn) {
       var b = idx[btn.getAttribute("data-ev")]; if (!b) return; closePop(); lastFocus = btn;
       var k = sKind(b), d = parse(b.day);
-      var rows = [["When", (d ? d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }) : "") + " · " + (b.time || (b.event_time ? b.event_time : "All day"))]];
+      var rows = [["When", (d ? d.toLocaleDateString(LOC(), { weekday: "short", day: "numeric", month: "short" }) : "") + " · " + (b.time || (b.event_time ? b.event_time : "All day"))]];
       if (b.venue) rows.push(["Venue", b.venue]);
       rows.push(["Status", sLabel(k)]);
       if (!allCrew() && b.crew_role) rows.push(["Role", b.crew_role]);
@@ -248,12 +250,12 @@
         days(rg).map(function (d) {
           var k = iso(d), list = byDay[k] || [];
           var dots = nar ? '<span class="cs-dots">' + list.slice(0, 3).map(function (b) { return '<i class="cs-s-' + sKind(b) + '"></i>'; }).join("") + "</span>" : "";
-          return '<div class="cs-cell' + (d.getMonth() !== mo ? " cs-out" : "") + (k === today ? " cs-today" : "") + (list.length ? " cs-has" : "") + (st.sel === k ? " cs-sel" : "") + '" data-day="' + k + '" role="button" tabindex="0" aria-label="' + esc(d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" }) + (list.length ? ", " + list.length + " events" : "")) + '"><span class="cs-num">' + d.getDate() + "</span>" + dots +
+          return '<div class="cs-cell' + (d.getMonth() !== mo ? " cs-out" : "") + (k === today ? " cs-today" : "") + (list.length ? " cs-has" : "") + (st.sel === k ? " cs-sel" : "") + '" data-day="' + k + '" role="button" tabindex="0" aria-label="' + esc(d.toLocaleDateString(LOC(), { weekday: "long", day: "numeric", month: "long" }) + (list.length ? ", " + list.length + " events" : "")) + '"><span class="cs-num">' + d.getDate() + "</span>" + dots +
             list.slice(0, max).map(function (b) { return chip(b, "cs-mchip"); }).join("") + (!nar && list.length > max ? '<span class="cs-more">+' + (list.length - max) + " more</span>" : "") + "</div>";
         }).join("") + "</div></div>";
       var inMo = all.filter(function (b) { var d = parse(b.day); return d && d.getMonth() === mo && (!nar || !st.sel || b.day === st.sel); });
-      if (nar) html += '<div class="cs-agenda"><h3>' + (st.sel ? esc(parse(st.sel).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })) : "This month") + "</h3>" +
-        (inMo.length ? inMo.map(function (b) { var d = parse(b.day); return '<div class="cs-arow"><span class="cs-adate">' + esc(d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric" })) + "</span>" + chip(b, "cs-achip") + "</div>"; }).join("") : '<p class="cs-empty">Nothing scheduled.</p>') + "</div>";
+      if (nar) html += '<div class="cs-agenda"><h3>' + (st.sel ? esc(parse(st.sel).toLocaleDateString(LOC(), { weekday: "long", day: "numeric", month: "short" })) : "This month") + "</h3>" +
+        (inMo.length ? inMo.map(function (b) { var d = parse(b.day); return '<div class="cs-arow"><span class="cs-adate">' + esc(d.toLocaleDateString(LOC(), { weekday: "short", day: "numeric" })) + "</span>" + chip(b, "cs-achip") + "</div>"; }).join("") : '<p class="cs-empty">Nothing scheduled.</p>') + "</div>";
       else if (!all.length) html += '<p class="cs-empty">No shifts this month.</p>';
       return html;
     }

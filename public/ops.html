@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;--safe:#18a558;--warn:#e8912d;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
   *{box-sizing:border-box} [hidden]{display:none!important}
@@ -64,13 +64,13 @@
   .trow{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:13px;padding:6px 0;border-top:1px solid var(--line-2)}
   .trow .tt{flex:1} .trow .cat{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em;width:90px}
   .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px;white-space:nowrap}
-  .st.unassigned{background:#eceff3;color:#56606e} .st.assigned{background:#eef2ff;color:#4457c8} .st.accepted{background:#e6f6f2;color:#0f766e}
+  .st.unassigned{background:#eceff3;color:#56606e} .st.assigned{background:#eef1f0;color:#2f4a42} .st.accepted{background:#e6f6f2;color:#0f766e}
   .st.in_progress{background:#fff7e6;color:#946200} .st.completed{background:#e7f6ee;color:#0f7a43} .st.rejected{background:#fdecec;color:#b42318}
   .qc{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
-  .qc.pass{background:#e7f6ee;color:#0f7a43} .qc.pend{background:#eef2ff;color:#4457c8} .qc.rej{background:#fdecec;color:#b42318}
+  .qc.pass{background:#e7f6ee;color:#0f7a43} .qc.pend{background:#eef1f0;color:#2f4a42} .qc.rej{background:#fdecec;color:#b42318}
   .gate{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .gate.blocked{background:#fdecec;color:#b42318} .gate.scheduled{background:#fff7e6;color:#946200} .gate.ready{background:#e6f6f2;color:#0f766e}
-  .gate.special{background:#f3e8ff;color:#7c3aed;animation:pulse 1.6s ease-in-out infinite}
+  .gate.special{background:#eef1f0;color:#33403b;animation:pulse 1.6s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
   @media (prefers-reduced-motion: reduce){.gate.special{animation:none}}
   .muted{color:var(--ink-3);font-size:12px} .empty{text-align:center;color:var(--ink-3);padding:26px;font-size:13px}
@@ -222,7 +222,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
-<script src="event-name.js?v=7"></script>
+<script src="event-name.js?v=8"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
 <script>
   const $=(s)=>document.querySelector(s);

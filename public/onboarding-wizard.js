@@ -148,9 +148,9 @@
   }
 
   /* ---- dashboard nudge (DOM) --------------------------------------------- */
-  const NUDGE_CSS = ".ob-nudge{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;background:var(--accent-soft,#efe9ff);border:1px solid var(--line,#e8e3db);border-radius:14px;padding:12px 16px;margin:0 0 14px}"
-    + ".ob-nudge b{font-size:14px}.ob-nudge span{font-size:12.5px;color:var(--ink-3,#6b6577)}.ob-nudge progress{flex:1 1 120px;height:8px;accent-color:var(--accent,#6d28d9)}"
-    + ".ob-nudge a.ob-cta{font:600 13px var(--font,system-ui);background:var(--hb-acc,var(--accent,#6d28d9));color:var(--hb-acc-ink,var(--accent-ink,#fff));border-radius:9px;padding:8px 14px;text-decoration:none}";
+  const NUDGE_CSS = ".ob-nudge{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;background:var(--accent-soft,#e3f4ed);border:1px solid var(--line,#e8e3db);border-radius:14px;padding:12px 16px;margin:0 0 14px}"
+    + ".ob-nudge b{font-size:14px}.ob-nudge span{font-size:12.5px;color:var(--ink-3,#6b6577)}.ob-nudge progress{flex:1 1 120px;height:8px;accent-color:var(--accent,#047857)}"
+    + ".ob-nudge a.ob-cta{font:600 13px var(--font,system-ui);background:var(--hb-acc,var(--accent,#047857));color:var(--hb-acc-ink,var(--accent-ink,#fff));border-radius:9px;padding:8px 14px;text-decoration:none}";
   async function mountNudge() {
     const box = global.document && document.getElementById("obNudge"); const S = global.BPStore;
     if (!box || !S || !S.org || (S.mode && S.mode() !== "supabase")) return;

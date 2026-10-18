@@ -12,10 +12,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;--danger:#b42318;--warn-text:#8f5f00;--safe-text:#0f7a43;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;--safe:#18a558;--warn:#e8912d;--danger:#b42318;--warn-text:#8f5f00;--safe-text:#0f7a43;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
-  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#15131c;--panel:#1e1b28;--panel-2:#242030;--ink:#f3f1f7;--ink-2:#c8c3d4;--ink-3:#9a94a8;--line:#332e40;--line-2:#2a2635;--accent-soft:#2c2440;--warn-text:#f5b454;--safe-text:#5fd49a;}}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#15131c;--panel:#1e1b28;--panel-2:#242030;--ink:#f3f1f7;--ink-2:#c8c3d4;--ink-3:#9a94a8;--line:#332e40;--line-2:#2a2635;--accent-soft:#123329;--warn-text:#f5b454;--safe-text:#5fd49a;}}
   *{box-sizing:border-box} [hidden]{display:none!important}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
   a{color:inherit;text-decoration:none}
@@ -24,7 +24,7 @@
   .mark{width:30px;height:30px;border-radius:0;background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat;position:relative;flex:0 0 auto}
   .mark::after{content:none}
   header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)} html[data-theme="dark"] .nav a.on{color:#c4b5fd}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)} html[data-theme="dark"] .nav a.on{color:#6ee7b7}
   .spacer{margin-left:auto}
   @media(max-width:640px){header{flex-wrap:wrap}.nav{margin-left:0;order:3;width:100%}}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
@@ -44,7 +44,7 @@
   /* state rail */
   .rail{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
   .step{font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;background:var(--line-2);color:var(--ink-3);border:1px solid var(--line)}
-  .step.on{background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;border-color:transparent} html[data-theme="dark"] .step.on{background:linear-gradient(120deg,#7c3aed,#6d28d9)}
+  .step.on{background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;border-color:transparent} html[data-theme="dark"] .step.on{background:linear-gradient(120deg,#047857,#047857)}
   .step.past{background:#e7f6ee;color:#0f7a43;border-color:#cdeadd}
   .muted{color:var(--ink-3);font-size:13px}
   .note{width:100%;min-height:56px;border:1px solid var(--line);border-radius:9px;padding:9px;font-family:inherit;font-size:13px;background:var(--panel);color:var(--ink);margin:8px 0}
@@ -90,7 +90,7 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="event-name.js?v=7"></script>
+<script src="event-name.js?v=8"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
 <script>
   const $=(s)=>document.querySelector(s);

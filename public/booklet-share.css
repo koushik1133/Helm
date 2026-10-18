@@ -1,7 +1,7 @@
 /* booklet-share.css — the studio "Share booklet" button + dialog (booklet-share.js, 0065). */
-.bk-share{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:7px 14px;border-radius:999px;border:1px solid var(--accent,#6d28d9);
-  background:transparent;color:var(--hb-acc-text,var(--accent,#6d28d9));font:600 13px/1 var(--font,system-ui,sans-serif);cursor:pointer;text-decoration:none}
-.bk-share:hover{background:var(--accent-soft,#efe9ff)}
+.bk-share{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:7px 14px;border-radius:999px;border:1px solid var(--accent,#047857);
+  background:transparent;color:var(--hb-acc-text,var(--accent,#047857));font:600 13px/1 var(--font,system-ui,sans-serif);cursor:pointer;text-decoration:none}
+.bk-share:hover{background:var(--accent-soft,#e3f4ed)}
 .bk-dlg{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 48px);overflow:auto;border:1px solid var(--line,#e8e3db);border-radius:16px;padding:20px;
   background:var(--panel,#fff);color:var(--ink,#1b1930);box-shadow:0 24px 60px rgba(20,27,46,.3);font-family:var(--font,system-ui,sans-serif)}
 .bk-dlg::backdrop{background:rgba(20,27,46,.5)}
@@ -14,9 +14,9 @@
 textarea.bk-in{resize:vertical}
 .bk-row{display:flex;gap:8px;flex-wrap:wrap}
 .bk-url{flex:1 1 220px;font-family:var(--mono,ui-monospace,monospace);font-size:12px}
-.bk-btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 16px;border-radius:10px;border:1px solid var(--accent,#6d28d9);
-  background:var(--accent,#6d28d9);color:#fff;font:600 14px/1 inherit;cursor:pointer;text-decoration:none}
-.bk-btn.ghost{background:transparent;color:var(--accent,#6d28d9)}
+.bk-btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 16px;border-radius:10px;border:1px solid var(--accent,#047857);
+  background:var(--accent,#047857);color:#fff;font:600 14px/1 inherit;cursor:pointer;text-decoration:none}
+.bk-btn.ghost{background:transparent;color:var(--accent,#047857)}
 .bk-btn.danger{background:#b91c1c;border-color:#b91c1c;color:#fff}
 .bk-btn:disabled{opacity:.6;cursor:not-allowed}
 .bk-acts{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:18px}
@@ -40,7 +40,7 @@ html[data-theme=dark] .bk-in,html[data-theme=dark] .bk-url{background:#26222f;bo
 .bk-send .ish-ch{border:0;padding:0;margin:0 0 10px;display:flex;gap:16px;flex-wrap:wrap}
 .bk-send .ish-ch legend{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3,#6b6577);padding:0;margin:0 0 6px;width:100%}
 .bk-send .ish-radio,.bk-send .ish-opt{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--ink,#1b1930);cursor:pointer;margin:0;min-height:32px}
-.bk-send .ish-radio input,.bk-send .ish-opt input{width:18px;height:18px;margin:0;flex:0 0 auto;accent-color:var(--accent,#6d28d9)}
+.bk-send .ish-radio input,.bk-send .ish-opt input{width:18px;height:18px;margin:0;flex:0 0 auto;accent-color:var(--accent,#047857)}
 .bk-send .ish-opt{display:flex;margin:0 0 10px}
 .bk-send .ish-opt[hidden]{display:none}
 .bk-send .ish-hint{margin:6px 0 0}
@@ -54,4 +54,4 @@ html[data-theme=dark] .bk-in,html[data-theme=dark] .bk-url{background:#26222f;bo
 .bk-send .ish-li{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:12.5px;color:var(--ink-2,#4b475f);border:1px solid var(--line,#e8e3db);border-radius:8px;padding:6px 9px}
 .bk-send .ish-when{color:var(--ink-3,#6b6577)}
 .bk-send .ish-st{margin-left:auto;font-weight:600;font-size:12px;padding:2px 8px;border-radius:999px;background:#f4f4f5;color:#52525b}
-.bk-send .ish-st.ish-sent{background:#ecfdf5;color:#047857}.bk-send .ish-st.ish-queued{background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9)}.bk-send .ish-st.ish-failed{background:#fdecec;color:#b42318}
+.bk-send .ish-st.ish-sent{background:#ecfdf5;color:#047857}.bk-send .ish-st.ish-queued{background:var(--accent-soft,#e3f4ed);color:var(--accent,#047857)}.bk-send .ish-st.ish-failed{background:#fdecec;color:#b42318}

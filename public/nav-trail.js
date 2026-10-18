@@ -158,7 +158,7 @@
     ".htr-bc li+li::before{content:'/';opacity:.5}",
     ".htr-bc a{color:inherit;text-decoration:none;border-radius:4px}",
     ".htr-bc a:hover{color:var(--ink,var(--text,inherit));text-decoration:underline}",
-    ".htr-bc a:focus-visible,.htr-back:focus-visible,.htr-btn:focus-visible,.htr-it:focus-visible{outline:2px solid var(--accent,#6366f1);outline-offset:2px}",
+    ".htr-bc a:focus-visible,.htr-back:focus-visible,.htr-btn:focus-visible,.htr-it:focus-visible{outline:2px solid var(--accent,#047857);outline-offset:2px}",
     ".htr-bc [aria-current]{color:var(--ink,var(--text,inherit));font-weight:600;overflow:hidden;text-overflow:ellipsis}",
     ".htr-back{display:none;background:none;border:0;color:inherit;font:inherit;font-size:18px;line-height:1;cursor:pointer;padding:4px 6px;min-width:36px;min-height:36px}",
     "@media (max-width:640px){.htr-bc li{display:none}.htr-bc li:last-child{display:flex}.htr-bc li+li::before{content:none}.htr-back{display:inline-flex;align-items:center;justify-content:center}}",

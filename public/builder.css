@@ -8,8 +8,8 @@
   --ink-3:#6b6577;
   --line:#e8e3db;
   --line-2:#f1ede7;
-  --accent:#6d28d9;
-  --accent-soft:#efe9ff;
+  --accent:#047857;
+  --accent-soft:#e3f4ed;
   --grid:#c3d1ea;
   --grid-strong:#9fb4d8;
   --canvas:#f4f7fd;
@@ -525,7 +525,7 @@ header .kbd{font-size:11px;white-space:nowrap}
 /* layout version switcher: dropdown + "viewing an older version" banner + unsaved-changes modal */
 header select.versel{max-width:220px;font-family:var(--mono)}
 .verbanner{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;padding:6px 14px;font-size:12.5px;font-weight:600;
-  color:var(--ink);background:var(--accent-soft,#efe9ff);border-bottom:1px solid var(--line);flex:0 0 auto;z-index:19}
+  color:var(--ink);background:var(--accent-soft,#e3f4ed);border-bottom:1px solid var(--line);flex:0 0 auto;z-index:19}
 .verbanner .tbtn{height:26px;font-size:12px;padding:0 10px;border-radius:6px}
 .sheet-ver{width:min(560px,94vw)}
 .vermsg{margin:0 0 12px;font-size:13px;color:var(--ink-2);line-height:1.45}
@@ -614,7 +614,7 @@ header .tmenu-pop select,header .tmenu-pop select#preset,header .tmenu-pop selec
 .tm-slot .seg{display:flex;flex-direction:column;border:0;background:transparent;overflow:visible;gap:4px}
 .tm-slot .seg button,.tm-slot .fs-btn{height:32px;width:100%;text-align:left;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);padding:0 10px;font-size:12px}
 .tm-slot .seg button+button{border-left:1px solid var(--line)}
-.tm-slot .seg button.on,.tm-slot .seg button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft,#efe9ff)}
+.tm-slot .seg button.on,.tm-slot .seg button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft,#e3f4ed)}
 .tm-slot .field .flabel{display:none}
 .tmenu-pop .tbtn:focus-visible,.tm-slot button:focus-visible,.tmenu-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 /* capacity: seats chip + capacity input as one control; warnings as a compact chip */
@@ -649,7 +649,7 @@ header .capbanner[hidden]{display:none}
 @media (max-width:900px){ .viewport .hint3d{display:none} }
 /* quote name hint (auto TYPE_CITY_GUESTS_DATE name vs custom) */
 .tb-event .namehint{font-size:11px;color:var(--ink-3,#6b7280);margin-top:2px;max-width:320px}
-.tb-event .namehint .linkbtn{border:0;background:none;color:var(--accent,#4457c8);cursor:pointer;font-size:11px;padding:0;text-decoration:underline}
+.tb-event .namehint .linkbtn{border:0;background:none;color:var(--accent,#047857);cursor:pointer;font-size:11px;padding:0;text-decoration:underline}
 
 /* the auto-name hint stays out of the header (owner request) */
 #projNameHint{display:none!important}

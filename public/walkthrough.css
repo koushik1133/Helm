@@ -11,18 +11,18 @@
 .wt-from-sel{min-height:36px;max-width:min(320px,70vw);padding:4px 8px;border-radius:8px;border:1px solid var(--line,#ddd);background:var(--panel,#fff);color:inherit;font:500 13px 'IBM Plex Sans',sans-serif}
 .wt-dots{display:flex;gap:6px;justify-content:center;margin:10px 0}
 .wt-dot{width:8px;height:8px;border-radius:50%;background:var(--line,#ccc)}
-.wt-dot.on{background:var(--accent,#6d28d9);transform:scale(1.25)}
+.wt-dot.on{background:var(--accent,#047857);transform:scale(1.25)}
 .wt-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
 .wt-btn{min-height:40px;padding:8px 14px;border-radius:10px;border:1px solid var(--line,#ddd);background:var(--panel,#fff);color:inherit;font:600 14px 'IBM Plex Sans',sans-serif;cursor:pointer;touch-action:manipulation}
 .wt-btn:disabled{opacity:.45;cursor:default}
-.wt-primary{background:var(--accent,#6d28d9);border-color:var(--accent,#6d28d9);color:#fff}
+.wt-primary{background:var(--accent,#047857);border-color:var(--accent,#047857);color:#fff}
 .wt-list{position:absolute;left:16px;top:56px;margin:0;padding:8px;list-style:none;max-height:calc(100% - 220px);overflow:auto;min-width:200px}
 .wt-zone{display:flex;gap:10px;width:100%;min-height:36px;align-items:center;padding:6px 10px;border:0;border-radius:8px;background:none;color:inherit;font:500 14px 'IBM Plex Sans',sans-serif;text-align:left;cursor:pointer}
-.wt-zone.on,.wt-zone:hover{background:var(--accent-soft,#efe9ff)}
+.wt-zone.on,.wt-zone:hover{background:var(--accent-soft,#e3f4ed)}
 .wt-zn{font:600 12px 'IBM Plex Mono',monospace;opacity:.6}
-.wt-fab{position:absolute;right:56px;bottom:44px;z-index:30;min-height:44px;padding:10px 16px;border-radius:999px;border:0;background:var(--accent,#6d28d9);color:#fff;font:600 14px 'IBM Plex Sans',sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.22);cursor:pointer}
+.wt-fab{position:absolute;right:56px;bottom:44px;z-index:30;min-height:44px;padding:10px 16px;border-radius:999px;border:0;background:var(--accent,#047857);color:#fff;font:600 14px 'IBM Plex Sans',sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.22);cursor:pointer}
 body.wt-on .wt-fab,body.wt-on #hint3d{display:none}
-.wt-field .seg button[aria-pressed="true"]{background:var(--accent-soft,#efe9ff)}
+.wt-field .seg button[aria-pressed="true"]{background:var(--accent-soft,#e3f4ed)}
 @media (max-width:640px){
   .wt-overlay{padding:8px}
   .wt-card{padding:10px 12px}
