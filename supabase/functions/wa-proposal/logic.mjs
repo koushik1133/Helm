@@ -2,6 +2,8 @@
 // Template names are FIXED here; their wording lives in docs/ops/WHATSAPP-SETUP.md and must be
 // approved in Meta WhatsApp Manager before WHATSAPP_TOKEN is set.
 
+import { layout, h1, para, strong, note, codeBox, escHtml, TEXT_FOOTER } from "../_shared/email-layout.mjs";
+
 export const KINDS = ["proposal_sent", "proposal_reminder", "proposal_approved_pay", "payment_received"];
 export const OTP_TEMPLATE = "proposal_approval_otp";
 export const TOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -59,9 +61,15 @@ export function otpMessage(to, code, lang = "en") {
 
 export function otpEmail(code, studio) {
   const s = clip(studio || "your planner", 60);
+  const c = /^[0-9]{4,8}$/.test(String(code)) ? String(code) : escHtml(code);
   return {
     subject: "Your approval code: " + code,
-    text: `Your one-time code to approve your event with ${s} is ${code}.\nIt expires in 10 minutes. Do not share it with anyone.`,
+    text: `Your one-time code to approve your event with ${s} is ${code}.\nIt expires in 10 minutes. Do not share it with anyone.` + TEXT_FOOTER,
+    html: layout("Your approval code", `${code} is your one-time approval code.`,
+      h1("Your approval code") +
+      para(`Use this one-time code to approve your event with ${strong(escHtml(s))}. It expires in 10 minutes.`, "0 0 16px") +
+      codeBox(c) +
+      note("Never share this code with anyone &mdash; your planner will never ask for it. If you didn't request it, you can ignore this e-mail."), { sub: "" }),
   };
 }
 

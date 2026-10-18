@@ -53,7 +53,7 @@ t("invite-mailer metadata keys match the template variables", () => {
 t("all five branded templates + doc exist", () => {
   for (const f of ["invite-user", "magic-link", "reset-password", "confirm-signup", "change-email"]) {
     const h = r("docs/ops/email-templates/" + f + ".html");
-    assert.ok(h.includes("{{ .ConfirmationURL }}") && h.includes("#6d28d9") && h.includes("Helm"), f);
+    assert.ok(h.includes("{{ .ConfirmationURL }}") && h.includes("#0d8a5c") && h.includes("https://www.helm.events/email/helm-logo.png") && h.includes("Helm"), f);
     assert.ok(!/<script/i.test(h), f + " no script");
   }
   assert.ok(r("docs/ops/email-templates/change-email.html").includes("{{ .NewEmail }}"));

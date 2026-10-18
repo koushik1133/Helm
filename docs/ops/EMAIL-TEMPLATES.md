@@ -2,10 +2,15 @@
 
 These are the e-mails Supabase Auth sends for Helm: staff invites (when no Resend key is set,
 `supabase/functions/invite-mailer` sends through Supabase Auth), sign-in links, password resets,
-sign-up confirmation and e-mail changes. The templates in `docs/ops/email-templates/` use Helm's
-brand (violet accent `#6d28d9` from `public/theme.css`, ink `#1b1930`, warm background `#f6f4f1`),
-a clean card and one big button. They are table-based with inline CSS, so they render in Gmail,
-Outlook and Apple Mail, and they switch to a dark card in dark mode.
+sign-up confirmation, e-mail changes and reauthentication codes. The templates in
+`docs/ops/email-templates/` (2026-10 redesign) use the current Helm logo (hosted PNG
+`https://www.helm.events/email/helm-logo.png`, so it only appears once this branch is deployed),
+emerald brand `#0d8a5c`, ink `#101511`, a clean 600px card with an emerald top edge, one big button,
+preheader text and the footer "Helm Events · helm.events". They are table-based with inline CSS, so
+they render in Gmail, Outlook and Apple Mail, and switch to a dark card in dark mode. No tracking pixels.
+
+Do NOT hand-edit the HTML files: they are generated from `supabase/functions/_shared/email-layout.mjs`
+(the same layout the edge-function e-mails use) by `node scripts/gen-email-templates.mjs`.
 
 Do staging (`helm-staging`, `xizehqgeyjcfpzrdymly`) first, test, then prod (`nqltzgiwznphugcfhmbm`).
 
@@ -22,9 +27,10 @@ whole file, then **Save changes**.
 | Reset password | `email-templates/reset-password.html` | `Reset your Helm password` |
 | Confirm signup | `email-templates/confirm-signup.html` | `Confirm your email for Helm` |
 | Change email address | `email-templates/change-email.html` | `Confirm your new email for Helm` |
+| Reauthentication | `email-templates/reauthentication.html` | `Your Helm verification code` |
 
 Template variables used: `{{ .ConfirmationURL }}`, `{{ .Email }}`, `{{ .SiteURL }}`, `{{ .NewEmail }}`
-(change e-mail only) and, in the invite only, `{{ .Data.studio }}`, `{{ .Data.role }}`,
+(change e-mail only), `{{ .Token }}` (reauthentication only) and, in the invite only, `{{ .Data.studio }}`, `{{ .Data.role }}`,
 `{{ .Data.invited_by }}`. Those three `Data` names are exactly the metadata keys `invite-mailer` passes
 to `inviteUserByEmail(..., { data: { studio, role, invited_by } })`. Each is wrapped in
 `{{ if … }}`, so an empty value never shows a blank.

@@ -62,7 +62,7 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
       const m = otpEmail(code, "your planner");
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to: [String(dest.email)], subject: m.subject, text: m.text }),
+        body: JSON.stringify({ from, to: [String(dest.email)], subject: m.subject, html: m.html, text: m.text }),
       });
       await r.text();
       if (!r.ok) { console.error("email otp status", r.status); return json({ error: "e-mail could not be sent" }, 502); }
