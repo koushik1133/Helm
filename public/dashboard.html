@@ -328,7 +328,7 @@
 <script src="event-name.js?v=7"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
 <script src="event-reminders.js?v=1"></script>
-<script src="tour.js?v=15"></script>
+<script src="tour.js?v=16"></script>
 <script src="getting-started.js?v=8"></script>
 <script src="onboarding-wizard.js?v=7"></script>
 <script src="trial-demo.js?v=8"></script>
@@ -700,36 +700,67 @@
   $("#helpClose").addEventListener("click", () => { $("#helpModal").hidden = true; });
 
   /* ---- interactive spotlight tour ---- */
-  // Order matches the module nav bar left-to-right, so the spotlight walks the
-  // pills one by one in the order you actually see them.
-  // First-run tour of the app shell + dashboard. Every step points at a real element
-  // tagged data-tour="…" (shell-b*.js, mobile-nav.js, getting-started card). sel may list
-  // fallbacks: the desktop control first, then its phone bottom-bar twin. A step whose
-  // element is missing or hidden (role, screen size) is skipped by tour.js.
+  // First-run tour of the app shell + dashboard, in the order you read the screen:
+  //   1. the left sidebar, top to bottom (pin, Dashboard, Quotes, Leads, Calendar, Chat,
+  //      Manage, Admin / Control Center, then the theme + profile at its foot),
+  //   2. the top bar, left to right (search, hide amounts, chat, notifications, New quote),
+  //   3. the dashboard itself, top to bottom (Today, greeting + next event, Customize, KPI tiles),
+  //   4. the getting-started checklist, then a short wrap-up.
+  // Every step points at a real element tagged data-tour="…" / data-nav="…" (shell-b*.js,
+  // mobile-nav.js, getting-started card). sel may list fallbacks: the desktop control
+  // first, then its phone bottom-bar twin. tour.js skips a step whose element is missing
+  // or hidden (role, screen size, trial-lock) and counts only the steps it shows.
+  // trial:false = not part of a free-trial studio (studio set-up lives behind the checklist chip).
+  const RAIL='#hbRail .hb-group:not(.hb-fav) ';
+  const TOUR_TRIAL=()=>{ try{ return document.documentElement.classList.contains("helm-trial"); }catch{ return false; } };
+  const TOUR_WELCOME={
+    trial:"Helm runs your events business in one place: quotes, leads, the calendar, staff, stock and payments. Your 8-day trial is loaded with sample data marked “Demo ·” so you can click around freely. This quick tour walks the screen from the menu on the left, across the top bar, then down the dashboard.",
+    paid:"Welcome to Helm — here's a quick look around your studio. Helm runs your events business in one place: quotes, leads, the calendar, staff, stock and payments. This quick tour walks the screen from the menu on the left, across the top bar, then down the dashboard.",
+  };
   const TOUR=[
-    {title:"Welcome to Helm 👋", desc:"Helm runs your events business in one place: quotes, leads, the calendar, staff, stock and payments. Your 8-day trial is loaded with sample data marked “Demo ·” so you can click around freely. This quick tour takes about a minute."},
-    {sel:['[data-tour="nav"]','[data-tour="tabs"]','[data-tour="m-nav"]'], title:"Find your way around", desc:"This is your main menu. Dashboard is home, Quotes holds every event you price, Leads tracks new enquiries, Calendar shows what's booked, and Chat is your team's message room. On a phone, “More” opens the full menu."},
-    {sel:'[data-tour="pin"]', title:"Keep the sidebar open", desc:"The sidebar tucks away to give you room. Click the pin to keep it open all the time; click it again to let it tuck away."},
+    // the welcome text is read when the step shows: a free-trial studio (html.helm-trial, set by
+    // trial-lock.js before the tour auto-starts) hears about its sample data; a paid studio does not
+    {title:"Welcome to Helm 👋", get desc(){ return TOUR_TRIAL() ? TOUR_WELCOME.trial : TOUR_WELCOME.paid; }},
+    // 1 · sidebar, top to bottom
+    {sel:'[data-tour="pin"]', side:"right", title:"Keep the sidebar open", desc:"The sidebar tucks away to give you room. Click the pin to keep it open all the time; click it again to let it tuck away."},
+    {sel:[RAIL+'[data-nav="dashboard"]','#hbTabs [data-key="dashboard"]','[data-tour="m-home"]'], side:"right", title:"Dashboard", desc:"Home base: today's events, what needs attention and your key numbers. Click the Helm logo or Dashboard to come back here from anywhere."},
+    {sel:[RAIL+'[data-nav="quotes"]','#hbTabs [data-key="quotes"]'], side:"right", title:"Quotes", desc:"Every event you price lives here, from first quote to confirmed booking. Open one to plan the floor, the menu, payments and the day itself."},
+    {sel:[RAIL+'[data-nav="leads"]','#hbTabs [data-key="leads"]'], side:"right", title:"Leads", desc:"New enquiries on a simple board. Move a lead along as it warms up and turn it into a quote in one click."},
+    {sel:RAIL+'[data-nav="calendar"]', side:"right", title:"Calendar", desc:"Everything that's booked, by date, so two events never clash."},
+    {sel:[RAIL+'[data-nav="chat"]','#hbTabs [data-key="chat"]'], side:"right", title:"Chat", desc:"Your team's message room, inside Helm."},
+    {sel:['[data-tour="nav-manage"]','[data-tour="tabs-more"]'], side:"right", title:"Manage", desc:"Your people and things: clients, staff, inventory and vendors. (On a phone these sit in the “More” menu.)"},
+    {sel:['[data-tour="nav-admin"]','[data-tour="tabs-more"]'], side:"right", title:"Admin & Control Center", desc:"Business shows your money, Reports and Insights your numbers. Control Center holds your default prices, your team and what each role can see."},
+    {sel:['[data-tour="theme"]','[data-tour="tabs-more"]'], side:"right", title:"Colour theme", desc:"Pick a colour theme for the whole app (Emerald is the default). Your choice is remembered on this device. (On a phone it's inside the “More” menu.)"},
+    {sel:['[data-tour="account"]','[data-tour="m-me"]','[data-tour="tabs-more"]'], side:"right", title:"Your profile menu", desc:"Your account, settings, the user manual and sign out live here."},
+    // 2 · top bar, left to right
     {sel:['[data-tour="search"]','[data-tour="search-m"]','[data-tour="m-search"]'], title:"Search anything", desc:"Find a client, quote, lead or page by typing a few letters. Press ⌘K (Ctrl K on Windows) from anywhere to jump straight here."},
-    {sel:['[data-tour="new"]','[data-tour="m-add"]'], title:"Create something new", desc:"“New quote” starts pricing an event. The little arrow next to it opens more: a new lead, client, inventory item, vendor or staff member."},
-    {sel:['[data-tour="bell"]','[data-tour="m-bell"]'], title:"Notifications", desc:"The bell collects reminders, approvals waiting on you and trial reminders. Open it to act on one, or use “Mark all read” to clear the list."},
-    {sel:'[data-tour="chat"]', title:"Team chat", desc:"Talk to your team without leaving Helm. A small badge shows when there are messages you haven't read."},
     {sel:'[data-tour="privacy"]', title:"Hide the money", desc:"Showing your screen to a client? Tap the eye to hide every amount. Showing them again asks for your PIN, so nobody else can peek."},
-    {sel:['[data-tour="today"]','[data-tour="customize"]','#hdDash'], title:"Your day at a glance", desc:"The Today strip shows events and tasks due today; the cards below cover your month, what needs attention, revenue and the pipeline. Use “Customize” to drag cards around, hide the ones you don't need, or reset to the default."},
+    {sel:'[data-tour="chat"]', title:"Team chat, one click away", desc:"The same chat from any page. A small badge shows when there are messages you haven't read."},
+    {sel:['[data-tour="bell"]','[data-tour="m-bell"]'], title:"Notifications", desc:"The bell collects reminders, approvals waiting on you and trial reminders. Open it to act on one, or use “Mark all read” to clear the list."},
+    {sel:['[data-tour="new"]','[data-tour="m-add"]'], title:"Create something new", desc:"“New quote” starts pricing an event. The little arrow next to it opens more: a new lead, client, inventory item, vendor or staff member."},
+    // 3 · dashboard, top to bottom
+    {sel:'[data-tour="today"]', title:"Today", desc:"One calm line for today: events on, tasks due and payments overdue."},
+    {sel:['[data-tour="hero"]','#hdDash'], title:"Your day at a glance", desc:"A greeting with a summary of your day and, on the right, a countdown to your next event."},
     {sel:'[data-tour="customize"]', title:"Make the dashboard yours", desc:"Click Customize to arrange your dashboard. Drag any card by its ⋮⋮ handle to change the order, tap the eye on a card to hide it, and use Reset to bring back the default layout. Press Done to save it — your layout follows your account to any computer."},
-    {sel:['[data-tour="setup"]','[data-tour="checklist"]'], title:"Getting started checklist", desc:"A short list of first steps, like adding your logo and sending your first quote. Click it to see what's left; it ticks itself off as you go."},
-    {sel:['[data-tour="theme"]','[data-tour="tabs-more"]'], title:"Colour theme", desc:"Pick a colour theme for the whole app (Emerald is the default). Your choice is remembered on this device. (On a phone it's inside the “More” menu.)"},
-    {sel:['[data-tour="account"]','[data-tour="m-me"]','[data-tour="tabs-more"]'], title:"Your profile menu", desc:"Your account, settings, the user manual and sign out live here. Want this tour again? Click “Take a guided tour” in the sidebar (or the “More” menu on a phone) any time. You're all set!"},
+    {sel:'[data-tour="kpis"]', title:"Key numbers", desc:"Your headline counts at a glance. The cards below cover your month, what needs attention, revenue and the pipeline."},
+    // 4 · checklist (not in a free trial: its studio is ready-made), then wrap-up
+    {sel:['[data-tour="setup"]','[data-tour="checklist"]'], trial:false, title:"Getting started checklist", desc:"A short list of first steps, like adding your logo and sending your first quote. Click it to see what's left; it ticks itself off as you go."},
+    {title:"You're all set 🎉", desc:"Want this tour again? Click “Take a guided tour” in the sidebar (or the “More” menu on a phone) any time."},
   ];
   // The spotlight engine lives in tour.js (shared with every page): it re-glues the
   // ring on scroll/resize/orientation/layout changes, flips + clamps the tip inside
   // the viewport, and skips a step whose element is missing or hidden.
   function startTour(){ if(window.HelmTour) window.HelmTour.start(TOUR, "bp_seen_tour"); }
-  // auto-start: give the shell + dashboard cards a moment to render so no step is skipped early
+  // auto-start: wait until the shell + dashboard have rendered (dashboard cards ready, the
+  // sidebar's role-gated Manage / Admin items in) and the free-trial answer is known
+  // (trial-lock hides trial-only items), so no step is skipped early or shown for a hidden page
   function startTourWhenReady(){
     const t0=Date.now();
-    (function wait(){ const d=document.getElementById("hdDash"), td=document.querySelector('[data-tour="today"]');
-      if((d && d.classList.contains("hd-ready") && td && !td.hidden) || Date.now()-t0>5000) startTour(); else setTimeout(wait,150); })();
+    const trialKnown = Promise.race([ Promise.resolve(window.HelmTrialLock && HelmTrialLock.whenKnown ? HelmTrialLock.whenKnown() : null).catch(()=>null),
+                                      new Promise(r => setTimeout(r, 5000)) ]);
+    trialKnown.then(function wait(){ const d=document.getElementById("hdDash"), td=document.querySelector('[data-tour="today"]'), rail=document.getElementById("hbRail");
+      const dashOk = d && d.classList.contains("hd-ready") && td && !td.hidden, navOk = !rail || rail.hasAttribute("data-nav-ready");
+      if((dashOk && navOk) || Date.now()-t0>6000) startTour(); else setTimeout(wait,150); });
   }
   $("#helpBtn").addEventListener("click", startTour);
   // Auto-start the tour ONLY once, right after a brand-new studio sign-up (login.html

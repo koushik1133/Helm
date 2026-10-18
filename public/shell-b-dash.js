@@ -333,7 +333,17 @@
       document.documentElement.classList.toggle("hd-gs-open", open); chip.setAttribute("aria-expanded", String(open));
     });
     chip.__allowed = true;
+    /* Free trial: the studio is ready-made with sample data and has no studio set-up, so no "Setup x% done" pill
+     * (html.helm-trial is set by trial-lock.js; BPStore.trialOrg.inTrial() is the same server answer). Paid studios keep it. */
+    function trialNow() { return document.documentElement.classList.contains("helm-trial"); }
+    try {
+      var TO = window.BPStore && BPStore.trialOrg;
+      if (TO && typeof TO.inTrial === "function") Promise.resolve(TO.inTrial()).then(function (t) { if (t === true) { chip.__allowed = false; sync(); } }, function () {});
+    } catch (e) {}
+    window.addEventListener("helm:trial", function () { sync(); });
     function sync() {
+      if (trialNow()) chip.__allowed = false;
+      if (!chip.__allowed) { chip.hidden = true; return; }
       // Shared source: when the studio-setup wizard has progress (onboarding-wizard.js), show
       // the same % it shows on /onboarding instead of the separate getting-started count.
       var W = window.HelmOnbWizard, n = W && W.lastNudge;
@@ -707,7 +717,7 @@
     /* S-1 "Today" strip: one calm line at the very top (events today, tasks due, payments overdue). Read-only, empty-safe. */
     var todayBar = el("nav", "hd-today hd-s-full hd-today-wait");   /* space reserved from the first paint: no layout jump when it fills */ todayBar.setAttribute("aria-label", "Today"); todayBar.setAttribute("data-tour", "today");
     root.appendChild(todayBar);
-    var hero = enter(el("header", "hd-hero hd-s-full hd-hero-solo"), 0);
+    var hero = enter(el("header", "hd-hero hd-s-full hd-hero-solo"), 0); hero.setAttribute("data-tour", "hero");
     var spot = sv("svg", { viewBox: "0 0 240 240", "class": "hd-spot", "aria-hidden": "true", focusable: "false" }, hero);
     [[120, 110, "hd-sp1"], [120, 78, "hd-sp2"], [120, 46, "hd-sp3"]].forEach(function (c) { sv("circle", { cx: 200, cy: 40, r: c[1], "class": c[2] }, spot); });
     var hl = el("div", "hd-hl");
@@ -750,7 +760,7 @@
 
     /* S2 KPI strip (one banded card, 4 count tiles) */
     var perRow = el("div", "hd-per-row hd-s-full"); perRow.hidden = true; root.appendChild(perRow);   // universal period control (money roles)
-    var kpis = enter(el("div", "hd-kpis hd-s-full"), 1); kpis.setAttribute("aria-label", "Key numbers"); kpis.setAttribute("role", "group");
+    var kpis = enter(el("div", "hd-kpis hd-s-full"), 1); kpis.setAttribute("aria-label", "Key numbers"); kpis.setAttribute("role", "group"); kpis.setAttribute("data-tour", "kpis");
     var tiles = [];
     for (var i = 0; i < 4; i++) { var t = el("div", "hd-kpi"); t.appendChild(el("div", "hd-skel hd-skel-line")); t.appendChild(el("div", "hd-skel hd-skel-big")); kpis.appendChild(t); tiles.push(t); }
     root.appendChild(kpis);
