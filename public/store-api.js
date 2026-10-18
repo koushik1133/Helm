@@ -10324,8 +10324,9 @@ window.HelmUrl = HelmUrl;
     var strip = function () {
       var v = String(el.value);
       // PP1028 #6: a pasted/typed negative ("-500") must be REJECTED, not silently flipped to +500
-      if (!allowNeg && /^\s*-/.test(v)) { el.value = ""; negHint(el, "Negative numbers aren\u2019t allowed here \u2014 value cleared, enter a positive amount", 5000); el.dispatchEvent(new Event("change", { bubbles: true })); return; }
+      if (!allowNeg && /^\s*-/.test(v)) { el.value = ""; el.setAttribute("data-rejected", "negative"); negHint(el, "Negative numbers aren\u2019t allowed here \u2014 value cleared, enter a positive amount", 5000); el.dispatchEvent(new Event("change", { bubbles: true })); return; }
       if (!allowNeg && v.indexOf("-") !== -1) negHint(el);
+      if (v.trim() !== "") el.removeAttribute("data-rejected");
       var cleaned = v.replace(allowNeg ? /[^\d.\-]/g : /[^\d.]/g, "");
       if (integer) cleaned = cleaned.replace(/\./g, "");
       if (allowNeg) { var neg = cleaned.charAt(0) === "-"; cleaned = (neg ? "-" : "") + cleaned.replace(/-/g, ""); }

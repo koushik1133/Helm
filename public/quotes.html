@@ -282,7 +282,7 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=235"></script><script src="quote-state.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=236"></script><script src="quote-state.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=15"></script>
 <script>
@@ -532,7 +532,7 @@
         <td class="code"><span class="refchip" title="Reference code">${esc(x.code)}</span></td>
         <td><a class="qname" href="event.html?id=${esc(encodeURIComponent(x.id))}" title="Open the event workspace"><b>${esc(qName(x))}</b></a><div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
-        <td><select class="vsel" data-role="vsel" aria-label="Version of ${esc(x.code)}"><option>V${esc(x.currentVersion)}</option></select></td>
+        <td><select class="vsel" data-role="vsel" aria-label="Floor-plan (layout) version of ${esc(x.code)}" title="Floor-plan layout versions — quotation versions (Q1, Q2…) are in the quote's history"><option>Layout v${esc(x.currentVersion)}</option></select></td>
         <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat hs-pill hs-overdue">Deleted</span> ':'<span class="stat hs-pill hs-archived">Archived</span> '):''}${needsAttention(x)?'<span class="stat hs-pill hs-overdue" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat hs-pill hs-archived">Closed · Archived</span>':statBadge(x.status,x.approvalStatus)} ${apprBadge(x.approvalStatus)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
         <td style="text-align:right" class="amt">${listTotal(x)?esc(BPStore.quoteMoney(listTotal(x),x)):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
@@ -595,7 +595,7 @@
   function selectedVersion(sel){ const m=/v(\d+)/i.exec(sel.value||""); return m?parseInt(m[1],10):null; }
   async function fillVersions(id,sel){
     try{ const full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id));
-      sel.innerHTML=full.versions.map(v=>`<option value="v${esc(v.versionNo)}">V${esc(v.versionNo)} · ${esc(v.objectCount)} obj · ${fmtDate(v.createdAt)}</option>`).join("");
+      sel.innerHTML=full.versions.map(v=>`<option value="v${esc(v.versionNo)}">Layout v${esc(v.versionNo)} · ${esc(v.objectCount)} obj · ${fmtDate(v.createdAt)}</option>`).join("");
     }catch(e){/* keep current */}
   }
 
