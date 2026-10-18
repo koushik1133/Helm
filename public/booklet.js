@@ -63,7 +63,9 @@
     if (!d) return "";
     const dt = new Date(String(d).length === 10 ? d + "T00:00:00" : d);
     if (isNaN(dt.getTime())) return String(d);
-    try { return dt.toLocaleDateString(FMT.locale, { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return String(d); }
+    // a timestamp (not a plain day) is shown in the studio's zone for INR / AED quotes, so "valid until" is the same day as the studio's share box
+    const tz = String(d).length === 10 ? undefined : (FMT.currency === "INR" ? "Asia/Kolkata" : FMT.currency === "AED" ? "Asia/Dubai" : undefined);
+    try { return dt.toLocaleDateString(FMT.locale, tz ? { day: "numeric", month: "short", year: "numeric", timeZone: tz } : { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return String(d); }
   }
   function safeHex(c) { return typeof c === "string" && HEX_RE.test(c.trim()) ? c.trim() : null; }
   function safeLogo(u) { return typeof u === "string" && /^https:\/\/[^\s"'<>]+$/i.test(u) && u.length <= 500 ? u : null; }
@@ -106,8 +108,10 @@
     else if (tn) { /* no tax on this quote */ }
     else if (igst) out.push({ label: "IGST" + inc, detail: pct ? pct + "%" : "", amount: igst });
     else if (cgst || sgst) {
-      out.push({ label: "CGST" + inc, detail: pct ? pct / 2 + "%" : "", amount: cgst || 0 });
-      out.push({ label: "SGST" + inc, detail: pct ? pct / 2 + "%" : "", amount: sgst || 0 });
+      // one rounding to whole rupees, split from it: CGST + SGST = GST on every screen
+      const g2 = Math.round((cgst || 0) + (sgst || 0)), c2 = Math.round(g2 / 2);
+      out.push({ label: "CGST" + inc, detail: pct ? pct / 2 + "%" : "", amount: c2 });
+      out.push({ label: "SGST" + inc, detail: pct ? pct / 2 + "%" : "", amount: g2 - c2 });
     } else if (gst) out.push({ label: "GST" + inc, detail: pct ? pct + "%" : "", amount: gst });
     const total = num(q.total) != null ? num(q.total) : num(c.total);
     return { lines: out, total: total };

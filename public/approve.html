@@ -146,7 +146,7 @@
 <script src="/config.js?v=103"></script>
 <script src="/phone-input.js?v=5"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=248"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=249"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -226,7 +226,7 @@
       rows.push(`<div class="r"><span>Subtotal</span><span class="amt">${inr(Math.round(c.subtotal||0))}</span></div>`);
       if(c.discount) rows.push(`<div class="r"><span>Discount</span><span class="amt">− ${inr(Math.round(c.discount))}</span></div>`);
       if(apTax && apTax.country!=="IN") BPStore.tax.rows(c, p, apTax).forEach(r=>add(r.label, Math.round(r.amount||0)));
-      else if(p.placeOfSupply==='inter') add("IGST", Math.round(c.igst||0)); else { add("CGST", Math.round(c.cgst||0)); add("SGST", Math.round(c.sgst||0)); }
+      else if(p.placeOfSupply==='inter') add("IGST", Math.round(c.igst||0)); else { const hv=(BPStore.tax&&BPStore.tax.halves)?BPStore.tax.halves((+c.cgst||0)+(+c.sgst||0)):[Math.round(c.cgst||0),Math.round(c.sgst||0)]; add("CGST", hv[0]); add("SGST", hv[1]); }
     }
     rows.push(`<div class="r grand"><span>Total payable</span><span class="amt">${inr((p&&Number(p.total))||0)}</span></div>`);
     return rows.join("");

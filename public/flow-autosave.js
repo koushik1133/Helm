@@ -12,7 +12,7 @@
   function create(opts) {
     const st = opts.setTimeout || root.setTimeout.bind(root), ct = opts.clearTimeout || root.clearTimeout.bind(root);
     const delay = opts.delay == null ? 800 : opts.delay;
-    const timers = {}, queued = new Set(), failed = new Set();
+    const timers = {}, queued = new Set(), failed = new Set(), foreign = {};
     let chain = Promise.resolve(), inflight = 0;
     const badge = (s, state, msg) => { try { opts.badge && opts.badge(s, state, msg); } catch (e) {} };
 
@@ -20,10 +20,16 @@
       queued.delete(s);
       const fn = opts.save[s]; if (typeof fn !== "function") return Promise.resolve(true);
       inflight++; badge(s, "saving");
+      // a save may refuse because of a field shown in ANOTHER step ({invalid, section}): the error is painted
+      // there (once) and this section's badge is cleared; the other step's badge clears once this one saves
+      const clearForeign = () => { if (foreign[s]) { badge(foreign[s], "idle"); delete foreign[s]; } };
       return Promise.resolve().then(fn).then((r) => {
-        if (r && r.invalid) { failed.add(s); badge(s, "invalid", r.invalid); return false; }
+        if (r && r.invalid) { failed.add(s);
+          if (r.section && r.section !== s) { if (foreign[s] && foreign[s] !== r.section) badge(foreign[s], "idle"); foreign[s] = r.section; badge(r.section, "invalid", r.invalid); badge(s, "idle"); }
+          else { clearForeign(); badge(s, "invalid", r.invalid); }
+          return false; }
         if (r === false) { failed.add(s); badge(s, "error"); return false; }
-        failed.delete(s); badge(s, "saved"); return true;
+        failed.delete(s); clearForeign(); badge(s, "saved"); return true;
       }, (e) => { failed.add(s); badge(s, "error", e); return false; })
         .finally(() => { inflight--; });
     }

@@ -24,7 +24,11 @@
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
   // 0092: studio date order - "12 Oct 2026" (India / UAE) or "Oct 12, 2026" (USA)
   function dateLocale() { try { const B = (typeof window !== "undefined" && window.BPStore) || null; return B && B.studioTax && B.studioTax().country === "US" ? "en-US" : "en-IN"; } catch (e) { return "en-IN"; } }
-  function when(t) { const d = new Date(t); if (isNaN(d.getTime())) return ""; try { return d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return d.toISOString().slice(0, 10); } }
+  // qa-quote-flow B28: dates in the STUDIO's time zone (same day as the "valid until" in the sent message and on
+  // the booklet), never the viewer's browser zone - a link expiring 18 Nov 01:30 IST read "17 Nov" in a UTC browser
+  function when(t) { const d = new Date(t); if (isNaN(d.getTime())) return "";
+    try { const B = (typeof window !== "undefined" && window.BPStore) || null; if (B && B.fmtStudioDate) return B.fmtStudioDate(d, { style: "long" }); } catch (e) {}
+    try { return d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }); } catch (e) { return d.toISOString().slice(0, 10); } }
   function money(n) { const v = Number(n); if (!isFinite(v)) return ""; if ((typeof window!=="undefined"&&window.BPStore&&window.BPStore.studioTax&&window.BPStore.studioTax().country!=="IN")) return window.BPStore.studioMoney(v, { round: true }); try { return "₹" + v.toLocaleString("en-IN", { maximumFractionDigits: 0 }); } catch (e) { return "₹" + Math.round(v); } }
   function quoteIdFor(btn) {
     const q = btn && btn.getAttribute("data-quote");
@@ -169,8 +173,11 @@
     if (cur) { const back = el("button", "bk-btn ghost", "Cancel"); back.type = "button"; back.addEventListener("click", () => renderLive(body, quoteId, cur)); acts.appendChild(back); }
     const go = el("button", "bk-btn", "Create link"); go.type = "submit"; acts.appendChild(go); form.appendChild(acts);
     form.addEventListener("submit", async (e) => {
-      e.preventDefault(); msg.textContent = ""; go.disabled = true;
+      e.preventDefault(); msg.textContent = "";
       const ids = Array.from(form.querySelectorAll('input[name="bkv"]')).filter((c) => c.checked).map((c) => c.value);
+      // qa-quote-flow B28: with versions listed, at least one must be ticked (an empty list used to make a link anyway)
+      if (versions.length && !ids.length) { msg.textContent = "Tick at least one quote version to show the client."; const f0 = form.querySelector('input[name="bkv"]'); if (f0) f0.focus(); return; }
+      go.disabled = true;
       try {
         const vids = versions.length ? ids : null;
         if (ck) await ck.uploadSnapshots();

@@ -147,7 +147,8 @@ t('flow.html: budget saves with step 1, never marks Discovery; only edited secti
 });
 t('flow.html: step 1 validated on autosave + explicit save; ticks / next-step from saved data', () => {
   const sc = flow.slice(flow.indexOf('async function saveClient(quiet){'), flow.indexOf('// guest-budget: ONE budget range'));
-  assert.match(sc, /const errs=step1Problems\(!quiet\);[\s\S]{0,80}if\(quiet\) return \{ invalid:errs\[0\]\.msg \};/);
+  // qa-quote-flow B20: still refused on autosave, but a hall-size / chairs problem is reported on ITS step (7 / 8)
+  assert.match(sc, /const errs=step1Problems\(!quiet\);[\s\S]{0,260}if\(quiet\) return sec==="client" \? \{ invalid:e0\.msg \} : \{ invalid:e0\.msg, section:sec \};/);
   assert.match(flow, /FV\.client\(vals\(IDS\.client\),\{ today:studioToday\(\), originalDate:origDate, rejectedDate:/);
   assert.match(flow, /client:!!\(pc\.name && pc\.phone && pc\.eventType && pc\.eventDate\) && !bad\("client"\)/);
   assert.match(flow, /if\(h\) h\.hidden=!done\[k\];/);
@@ -215,6 +216,6 @@ t('new quotes elsewhere: lead Convert + quote modal refuse a past event date (st
 });
 t('pins', () => {
   assert.match(flow, /flow-validate\.js\?v=2/); assert.match(flow, /flow-resume\.js\?v=2/);
-  assert.match(flow, /flow-autosave\.js\?v=3/); assert.match(flow, /flow-polish\.css\?v=5/);
+  assert.match(flow, /flow-autosave\.js\?v=4/); assert.match(flow, /flow-polish\.css\?v=5/);
 });
 console.log(`flow-validation: ${n} passed`);

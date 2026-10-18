@@ -11,3 +11,4 @@
 .wap-opt{display:flex;align-items:flex-start;gap:6px;font-size:13px}
 .wap-msg{font-size:12px;color:var(--ink-2,#444)}
 .wap-msg:empty{display:none}
+.wap-trial{margin:0;font-size:12px;color:var(--warn-text,#8f5f00)}

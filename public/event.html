@@ -97,7 +97,7 @@
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=27" id="shellProto"></script>
+<script src="/shell-proto.js?v=28" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -199,14 +199,14 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=18"></script>
-<script src="booklet.js?v=23"></script>
+<script src="booklet.js?v=24"></script>
 <script src="email-send.js?v=3"></script><script src="share-checklist.js?v=11"></script>
-<script src="invite-site-share.js?v=3"></script><script src="booklet-share.js?v=11"></script>
+<script src="invite-site-share.js?v=4"></script><script src="booklet-share.js?v=12"></script>
 <script src="pkg-review.js?v=6"></script>
-<script src="event-group-picker.js?v=4"></script><script src="capacity-shortage.js?v=2"></script><script src="approval-watch.js?v=2"></script>
+<script src="event-group-picker.js?v=4"></script><script src="capacity-shortage.js?v=3"></script><script src="approval-watch.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -244,7 +244,9 @@
   const effStage=()=>{ const k=(ev&&ev.lifecycleStage)||"quote";
     return (ev && stageIndex(k)<stageIndex("confirmed") && BPStore.quoteStatus(ev,{advance:advanceIn()}).confirmed) ? "confirmed" : k; };
   const isConfirmed=()=> !!ev && (ev.status==="confirmed" || stageIndex(effStage())>=stageIndex("confirmed"));
-  const stageLabel=(s)=> (s.k==="confirmed" && advanceIn()) ? "Booked" : s.label;
+  // qa-quote-flow B28: stage 5 is "Confirmed" on every screen (lists, header, strip); the advance shows in the
+  // status label ("Confirmed · advance paid"), not as a second name for the same stage
+  const stageLabel=(s)=> s.label;
 
   // tool card -> the access-matrix area its page is gated on (requireView) and its tables use (RLS)
   const CARD_AREA={discovery:"discovery",plandetails:"plan",proposal:"proposal",layout:"layouts",quote:"quotes",tasks:"staff",staff:"staff",
@@ -255,7 +257,7 @@
   // 0198 stage strip: clicking a stage OPENS it (view only); moving the event is a separate, gated action
   let viewK=null, myRole="", conflictAcks=undefined;
   const stageInfo={};   // "<stage>|<stored stage>|<status>" -> blockers list (null = old database)
-  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
+  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, layoutSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   let hdrChange=null;   // qts-1018: this event's approved change-order sum (null = not read yet)
   const budgetRange=()=>{ const cb=ev&&ev.client&&ev.client.budget; if(cb!=null&&cb!==""&&isFinite(+cb)) return inr(+cb);   // budget-single-source: the quote's budget first
@@ -318,6 +320,8 @@
         runSummary={ total:rs.length, first: wt.length?wt[0].start_time.slice(0,5):null }; }),
       S(async()=>{ budgetSummary=await BPStore.budget.summary(id); }),
       S(async()=>{ planSummary=await BPStore.plan.get(id); }),
+      // qa-quote-flow B28: the Floor layout card says how many objects the current layout has
+      S(async()=>{ const v=await BPStore.quotes.getVersion(id, ev.currentVersion); const it=(v&&v.data&&Array.isArray(v.data.items))?v.data.items:[]; layoutSummary={ objects:it.length }; }),
       S(async()=>{ const m=await BPStore.eventMenu.list(id); menuCount=(m||[]).length; }),
       S(async()=>{ const g=await BPStore.checklist.list(id,"guests");
         const guests=g.reduce((a,x)=>a+Number(x.qty||0),0);
@@ -415,7 +419,7 @@
     // filled one is the event's real, stored stage; the outlined one is the stage being viewed
     paintStrip($("#steps"),cur,vis); paintStrip($("#stepsMini"),cur,vis);
     renderStick(cur,vis);
-    $("#nextHint").innerHTML=`<b>Now:</b> ${esc((STAGES[cur].k==="confirmed"&&advanceIn())?"Booked — the advance is in. Plan the day next.":STAGES[cur].hint)}`;
+    $("#nextHint").innerHTML=`<b>Now:</b> ${esc((STAGES[cur].k==="confirmed"&&advanceIn())?"Confirmed — the advance is in. Plan the day next.":STAGES[cur].hint)}`;
     const hasNext=renderNextStep(cur);
     // dedupe: when the "Next step" bar shows its own one-line reason, the stage "Now:" hint repeats it
     $("#nextHint").hidden=!!hasNext;
@@ -442,7 +446,10 @@
     const bar=$("#nextStepBar"), b=$("#nextStepBtn"), why=$("#nextStepWhy"); if(!bar||!b) return;
     const q=encodeURIComponent(id); let t="", href="", w="";
     if(evLocked()){ bar.hidden=true; return false; }   // 0198: cancelled / closed - nothing left to push
-    if(!isConfirmed()){ t="Send quote"; href="quotes.html?focus="+encodeURIComponent(ev.code||id); w="Price it, then send the quote to the client for approval."; }
+    // qa-quote-flow B28: a quote already sent (awaiting the client) no longer says "Send quote"
+    const qsKey=(BPStore.quoteStatus?BPStore.quoteStatus(ev,{advance:advanceIn()}).key:"");
+    if(!isConfirmed() && qsKey==="sent"){ t="Follow up on the quote"; href="quotes.html?focus="+encodeURIComponent(ev.code||id); w="Sent — waiting for the client to approve. Remind them or re-send the link from the quote."; }
+    else if(!isConfirmed()){ t="Send quote"; href="quotes.html?focus="+encodeURIComponent(ev.code||id); w="Price it, then send the quote to the client for approval."; }
     else if(!advanceIn()){
       if(!sumsLoaded){ bar.hidden=true; return false; }   // payments still loading: never flash "Record advance" for an event that has one
       t="Record advance"; href="flow.html?quote="+q+"#sec-pay"; /* money-1024: advances are recorded in the quote workspace payment step */ w="Record the client's advance to book the date."; }
@@ -644,7 +651,7 @@
       { key:"proposal", ic:"🎨", title:"Proposal & mood-board",
         sum: propSummary ? `${propSummary.published?'<span class="stat ok">Published</span>':'<span class="stat q">Draft</span>'} · ${(propSummary.scope&&propSummary.scope.length)||0} scope item${(propSummary.scope&&propSummary.scope.length)===1?"":"s"}${(propSummary.images&&propSummary.images.length)?` · ${propSummary.images.length} image${propSummary.images.length===1?"":"s"}`:""}` : "Compose a shareable concept &amp; mood-board.",
         acts:[{t: canEdit?"Open proposal":"View proposal", href:"proposal.html?quote="+encodeURIComponent(id), primary:true}] },
-      { key:"layout", ic:"📐", title:"Floor layout", sum:`Design the 2D/3D plan for this event.`,
+      { key:"layout", ic:"📐", title:"Floor layout", sum: layoutSummary&&layoutSummary.objects>0 ? `${layoutSummary.objects} object${layoutSummary.objects===1?"":"s"} on the floor plan · open the builder to adjust it.` : `Design the 2D/3D plan for this event.`,
         acts:[{t:"Open builder", href:"builder.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"quote", ic:"🧾", title:"Quote & approval", sum:`Version v${ev.currentVersion}${canFin&&!evTotal()?" · not priced yet":""}<div class="muted">${approvalText()}</div>${fromDisc}`,
         acts:[{t:"Open this quote", href:"quotes.html?focus="+encodeURIComponent(ev.code||id), primary:true}] },

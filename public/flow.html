@@ -123,8 +123,8 @@
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<link rel="stylesheet" href="wa-proposal.css?v=1">
-<script src="/shell-proto.js?v=27" id="shellProto"></script>
+<link rel="stylesheet" href="wa-proposal.css?v=2">
+<script src="/shell-proto.js?v=28" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -398,20 +398,20 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script>
 <script src="tour.js?v=18"></script>
-<script src="booklet.js?v=23"></script>
+<script src="booklet.js?v=24"></script>
 <script src="share-checklist.js?v=11"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
-<script src="flow-autosave.js?v=3"></script>
+<script src="flow-autosave.js?v=4"></script>
 <script src="flow-validate.js?v=2"></script>
 <script src="flow-resume.js?v=2"></script>
 <script src="quote-state.js?v=4"></script>
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=7"></script>
 <script src="venue-picker.js?v=4"></script>
-<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="email-send.js?v=3"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=4"></script><script src="approval-watch.js?v=2"></script>
+<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=2"></script><script src="email-send.js?v=3"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=4"></script><script src="approval-watch.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   // owner 2026-10 (flow validation): every field rule lives in flow-validate.js. Event dates follow the
@@ -587,20 +587,33 @@
   // EDGE-03: clamp any pricing quantity/amount to a finite, non-negative number
   // so negative / NaN / Infinity inputs can never reach the persisted total.
   function nn(v){ v=+v; return (isFinite(v) && v>0) ? v : 0; }
-  let COUPONS=[], appliedCoupon=null;
+  // qa-quote-flow B6: the coupon list is loaded BEFORE the saved quote is seeded (it used to load after,
+  // so a reopened quote found no coupon, dropped it from the live total and a re-save would lose it).
+  // couponCode is stored in the coupon's own (upper-case) spelling.
+  let COUPONS=[], couponsLoaded=false, appliedCoupon=null, appliedCouponCode="";
   async function loadCoupons(){
     try{ COUPONS=await BPStore.coupons.list(); }catch(e){ COUPONS=[]; }
+    couponsLoaded=true;
     const dl=document.getElementById("couponList");
     if(dl) dl.innerHTML=(COUPONS||[]).map(c=>`<option value="${esc(c.code)}"></option>`).join("");
+    if(!loading && $("#q_coupon") && $("#q_coupon").value.trim()) applyCoupon();   // a code typed meanwhile is (re)applied now (during a load seedQuote() applies it)
   }
+  const normCoupon=(v)=>String(v==null?"":v).trim().toUpperCase();
+  function couponText(c){ return c.kind==="percent"?(c.value+"% off"):(BPStore.tax.money(c.value, fTax())+" off"); }
   function applyCoupon(){
     const code=($("#q_coupon")?$("#q_coupon").value.trim():"");
     const msg=$("#q_couponMsg");
-    if(!code){ appliedCoupon=null; if(msg){msg.textContent="";} renderPrice(); return; }
-    const c=(COUPONS||[]).find(x=>String(x.code||"").toLowerCase()===code.toLowerCase());
-    if(c){ appliedCoupon={kind:c.kind,value:c.value};
-      if(msg){ msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Applied: "+(c.kind==="percent"?(c.value+"% off"):(BPStore.tax.money(c.value, fTax())+" off"))+(c.note?(" · "+c.note):""); } }
-    else { appliedCoupon=null; if(msg){ msg.style.color="var(--warn-text,#8f5f00)"; msg.textContent="No such coupon code."; } }
+    if(!code){ appliedCoupon=null; appliedCouponCode=""; if(msg){msg.textContent="";} renderPrice(); return; }
+    const c=(COUPONS||[]).find(x=>normCoupon(x.code)===normCoupon(code));
+    // the coupon saved on this quote (pricing.coupon {kind,value}) keeps applying while its code is unchanged,
+    // even before the list loads or after the coupon was switched off - the saved total never silently moves
+    const pr=(ev&&ev.pricing)||{}, sc=pr.coupon&&typeof pr.coupon==="object"?pr.coupon:null;
+    const savedHit=!c && sc && +sc.value>0 && (sc.kind==="percent"||sc.kind==="flat") && normCoupon(pr.couponCode)===normCoupon(code);
+    if(c){ appliedCoupon={kind:c.kind,value:c.value}; appliedCouponCode=normCoupon(c.code);
+      if(msg){ msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Applied: "+couponText(c)+(c.note?(" · "+c.note):""); } }
+    else if(savedHit){ appliedCoupon={kind:sc.kind,value:+sc.value}; appliedCouponCode=normCoupon(pr.couponCode);
+      if(msg){ msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Applied: "+couponText(appliedCoupon)+(couponsLoaded?" (as saved on this quote — the code is no longer active)":""); } }
+    else { appliedCoupon=null; appliedCouponCode=""; if(msg){ msg.style.color="var(--warn-text,#8f5f00)"; msg.textContent=couponsLoaded?"No such coupon code.":"Checking the coupon…"; } }
     renderPrice();
   }
   // India audit: GST place of supply - keep what the quote already says (staff may set IGST on the
@@ -656,7 +669,7 @@
       // so a % discount stays a % when the quote is re-priced (and the two never add up)
       ...HelmDiscount.pick($("#q_discount").value, $("#q_discountPct")?$("#q_discountPct").value:(ev&&ev.pricing&&ev.pricing.discountPct)),
       catering:{mode:"inhouse",gstPct},
-      couponCode:($("#q_coupon")?$("#q_coupon").value.trim():""), coupon:appliedCoupon,
+      couponCode:appliedCoupon?appliedCouponCode:normCoupon($("#q_coupon")?$("#q_coupon").value:""), coupon:appliedCoupon,
       placeOfSupply:flowPos(), currency:"INR", taxCountry:undefined, taxName:undefined, taxInclusive:undefined, taxRegion:undefined, ...BPStore.tax.snapshot(fTax()),   // R4: undefined clears a stale snapshot key on re-save
       taxExempt: exemptOn() ? true : undefined,
       chairsManual,
@@ -717,10 +730,15 @@
     const r=check("client",all), lr=check("layout",all);
     const cr=FV.count($("#q_chairs").value,{label:"Chairs",min:1});
     if(all || shown.has("q_chairs")) FV.setMsg(document,"q_chairs",cr.ok?"":cr.error);
-    const out=[]; const add=(res,sec)=>{ (IDS[sec]||[]).forEach(k=>{ if(res.errors[k]) out.push({id:k,msg:res.errors[k]}); }); };
-    add(r,"client"); add(lr,"layout"); if(!cr.ok) out.push({id:"q_chairs",msg:cr.error});
+    // qa-quote-flow B20: each problem names the step it belongs to (hall size = step 7, chairs = step 8)
+    const out=[]; const add=(res,sec)=>{ (IDS[sec]||[]).forEach(k=>{ if(res.errors[k]) out.push({id:k,msg:res.errors[k],sec}); }); };
+    add(r,"client"); add(lr,"layout"); if(!cr.ok) out.push({id:"q_chairs",msg:cr.error,sec:"quote"});
     return out;
   }
+  const STEP_NO={ client:1, layout:7, quote:8 };
+  // the same error toast is not stacked twice when two saves refuse for the same reason
+  let lastToast={ msg:"", at:0 };
+  function toastOnce(msg,opts){ const t=Date.now(); if(msg===lastToast.msg && t-lastToast.at<4000) return; lastToast={ msg, at:t }; BPUI.toast(msg,opts); }
   // Explicit "Save quotation": step 1 must be valid; every problem is marked at once (inline) instead of one per click.
   function clientReady(){
     const errs=step1Problems(true);
@@ -736,8 +754,11 @@
     // quiet (autosave): mark the fields already left + say why in the badge - no toast per keystroke
     const errs=step1Problems(!quiet);
     if(errs.length){
-      if(quiet) return { invalid:errs[0].msg };
-      const el=$("#"+errs[0].id); if(el) el.focus(); BPUI.toast("Step 1 not saved: "+errs[0].msg,{type:"err"}); return false;
+      // B20: the error shows on the step that owns the field (step 7 hall size / step 8 chairs), once
+      const e0=errs.find(e=>e.sec==="client")||errs[0], sec=e0.sec||"client";
+      if(quiet) return sec==="client" ? { invalid:e0.msg } : { invalid:e0.msg, section:sec };
+      if(sec!=="client") paintBadge(sec,"invalid",e0.msg);
+      const el=$("#"+e0.id); if(el) el.focus(); toastOnce("Step "+(STEP_NO[sec]||1)+" not saved: "+e0.msg,{type:"err"}); return false;
     }
     const emailRaw=$("#c_email").value.trim(), phoneRaw=$("#c_phone").value.trim();
     const guestsN=FV.guests($("#c_guests").value).value;
@@ -918,6 +939,8 @@
     const el=$("#q_discount_err"), inp=$("#q_discount"); if(!el||!inp) return "";
     const m=discountError(p); el.textContent=m; el.hidden=!m;
     if(m) inp.setAttribute("aria-invalid","true"); else inp.removeAttribute("aria-invalid");
+    // qa-quote-flow B28: the save line repeated the discount error - it clears as soon as the value is fixed
+    const qm=$("#q_msg"); if(!m && qm && qm.dataset.disc==="1"){ qm.textContent=""; delete qm.dataset.disc; }
     return m;
   }
   var lastSavedSig=null;
@@ -937,7 +960,7 @@
         const er=new Error(pe.msg); er.code="INVALID"; throw er; } }   // callers (layout sync, re-price) keep the numbers as unsaved edits
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
     const dErr=showDiscountError(p);
-    if(dErr){ if($("#q_msg")) $("#q_msg").textContent=dErr; BPUI.toast(dErr,{type:"err"}); $("#q_discount").focus(); return; }
+    if(dErr){ if($("#q_msg")){ $("#q_msg").textContent=dErr; $("#q_msg").dataset.disc="1"; } BPUI.toast(dErr,{type:"err"}); $("#q_discount").focus(); return; }
     const sig=JSON.stringify([p,t.total]);
     if(lastSavedSig && sig===lastSavedSig){ if($("#q_msg")) $("#q_msg").textContent="No changes since the last saved version — nothing new to save."; BPUI.toast("No changes since the last version.",{type:"info"}); return; }
     const reason=quoteEmptyReason(p,t);
@@ -1136,11 +1159,13 @@
   }
 
   /* ---------- requirements ---------- */
+  // qa-quote-flow B28: the list says what the picker says (Must-have / Optional / Nice-to-have), never the stored key
+  const REQ_PRI={ mandatory:"Must-have", optional:"Optional", nice:"Nice-to-have" };
   async function renderReqs(){
     let reqs=[]; try{ reqs=(await BPStore.discovery.listReqs(id))||[]; }catch(e){ BPUI.loadError($("#reqList"), e, renderReqs, {what:"requirements"}); return; }
     reqRows=reqs; $("#reqList").dataset.count = reqs.length;
     try{ updateProgress(); }catch(_){ }
-    $("#reqList").innerHTML = reqs.length? reqs.map(r=>{ const svc=r.service||r.title||""; return `<div class="rowline"><span class="g">${esc(svc)}${r.note?' <span class="meta">— '+esc(r.note)+'</span>':''}</span><span class="pill">${esc(r.priority||"")}</span><button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(svc)}" aria-label="Remove requirement ${esc(svc)}">×</button></div>`; }).join("")
+    $("#reqList").innerHTML = reqs.length? reqs.map(r=>{ const svc=r.service||r.title||""; return `<div class="rowline"><span class="g">${esc(svc)}${r.note?' <span class="meta">— '+esc(r.note)+'</span>':''}</span><span class="pill">${esc(REQ_PRI[r.priority]||r.priority||"")}</span><button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(svc)}" aria-label="Remove requirement ${esc(svc)}">×</button></div>`; }).join("")
       : '<div style="font-size:12px;color:var(--ink-3)">No requirements yet.</div>';
     $("#reqList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
       if(!(await BPUI.confirm(`Remove the requirement "${b.dataset.name}"?`,{title:"Remove requirement?",okLabel:"Remove",danger:true}))) return;
@@ -1190,14 +1215,34 @@
     return { client:!!(pc.name && pc.phone && pc.eventType && pc.eventDate) && !bad("client"),
       discovery:!!persisted.discovery && !bad("discovery"), reqs:reqRows.length>0, venue:!!persisted.venue && !bad("venue"),
       menu:(!!appliedPkg || !!persisted.menu) && !bad("menu"), proposal:!!persisted.proposal && !bad("proposal"),
-      layout:layoutItems.length>0, quote:!!(ev&&ev.pricing&&+ev.pricing.total>0) };
+      layout:layoutItems.length>0 && !bad("layout"), quote:!!(ev&&ev.pricing&&+ev.pricing.total>0) };
+  }
+  // qa-quote-flow B28: the step 7 / step 8 "Next step" hints follow where the quote really is (never
+  // "use Send for approval" once it was sent, never "once the client approves" after they did)
+  function nextHintText(k, key){
+    if(k==="layout") return (key==="quote"||key==="locked"||!key) ? " check the Quotation (step 8), then use “Send for approval →” in the right rail." : " check the Quotation (step 8).";
+    if(k==="quote"){
+      if(key==="sent") return " sent — waiting for the client to approve. Then record the advance under step 9 to confirm the booking.";
+      if(key==="approved") return " the client approved — record the advance under step 9 to confirm the booking.";
+      if(key==="booked"||key==="confirmed"||key==="closed") return " the booking is confirmed — see step 9.";
+      return " use “Send for approval →” in the right rail; once the client approves, record the advance under step 9.";
+    }
+    return null;
+  }
+  function paintLiveHints(){
+    let key=""; try{ key=ev&&BPStore.quoteStatus?BPStore.quoteStatus(ev).key:""; }catch(_){ key=""; }
+    ["layout","quote"].forEach(k=>{ const h=$("#sec-"+k)&&$("#sec-"+k).querySelector("[data-next-step]"); const t=nextHintText(k,key); if(!h||t==null) return;
+      if(h.dataset.hintKey===k+"|"+key) return; h.dataset.hintKey=k+"|"+key;
+      const b=document.createElement("b"); b.textContent="Next step:"; h.replaceChildren(b, t); });
   }
   function updateProgress(){
     const done=stepDone();
     $("#progList").innerHTML=STEPS.map(([k,label])=>`<a href="#sec-${esc(k)}" class="${done[k]?'done':''}" aria-label="${esc(label)} — ${done[k]?'done':'not done yet'}"><span class="dot"></span>${label}</a>`).join("");
     STEPS.forEach(([k])=>{ const sec=$("#sec-"+k), h=sec&&sec.querySelector("[data-next-step]"); if(h) h.hidden=!done[k]; });
+    paintLiveHints();
     // steps without autosave: "Not started" until they have something
-    ["reqs","layout","quote"].forEach(k=>{ const b=$("#sv-"+k); if(!b) return; if(!contentOf(k)){ if(badgeSt[k]!=="empty"){ badgeSt[k]="empty"; HelmAutosave.paint(b,"empty"); } }
+    ["reqs","layout","quote"].forEach(k=>{ const b=$("#sv-"+k); if(!b) return; if(badgeSt[k]==="invalid") return;   // B20: a field error on this step stays until it is fixed
+      if(!contentOf(k)){ if(badgeSt[k]!=="empty"){ badgeSt[k]="empty"; HelmAutosave.paint(b,"empty"); } }
       else if(badgeSt[k]==="empty"){ badgeSt[k]="idle"; HelmAutosave.paint(b,"idle"); } });
     const ms=$("#mPriceStep"); if(ms){ const n=STEPS.filter(([k])=>done[k]).length; ms.textContent=n+" of "+STEPS.length+" steps done"; }
   }
@@ -1250,7 +1295,7 @@
     try{
       const r=await BPStore.milestones.record(id, amount, method, $("#pay_receipt").value.trim()||null, null, null, idem);
       await relock();   // money-1024: recording the advance confirms the booking server-side (bumps quotes.updated_at)
-      paintBookingBadge(1); $("#statusBadge").textContent="confirmed";
+      paintBookingBadge(1); paintStatusBadge({advance:true});
       $("#pay_receipt").value=""; $("#pay_amount").value="";
       if(method==='online' && BPStore.approval.onlinePayAvailable()){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
         $("#pay_online").hidden=false; $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
@@ -1295,7 +1340,7 @@
     paintBookingBadge(paid.length);
     PAID_SUM=paid.reduce((a,p)=>a+(Number(p.amount)||0),0); try{ updateAdvance(); }catch(_){ }
     $("#pay_receipts").innerHTML = paid.length ? '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Receipts</div>'+
-      paid.map(p=>`<div class="rowline"><span class="g">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span class="meta">${esc((p.paid_at||'').slice(0,10))}</span></div>`).join('')
+      paid.map(p=>`<div class="rowline"><span class="g">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span class="meta">${esc(p.paid_at?BPStore.fmtStudioDate(p.paid_at,{style:"long"}):'')}</span></div>`).join('')
       : '<div style="font-size:12px;color:var(--ink-3)">No payments recorded yet.</div>';
   }
   async function renderActivity(){
@@ -1343,7 +1388,7 @@
       // 0151: send through the Helm Events WhatsApp number (simulated until it is connected)
       if(window.HelmWaProposal) HelmWaProposal.mount($("#apprLinks"), { quoteId:id, country:flowCountry(),
         getPhone:()=>(ev&&ev.client&&ev.client.phone)||"", getApproval:()=>(ev&&ev.approval_status)||"" });
-      $("#statusBadge").textContent="sent for approval";
+      { const ap=ev.approvalStatus||ev.approval_status||"none"; if(ap==="none"||!ap){ ev.approvalStatus="sent"; } paintStatusBadge(); }
     }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create the approval link"}),{type:"err"}); }
     });
   }
@@ -1417,7 +1462,7 @@
     $("#q_platePrice").value=pr.platePrice!=null?pr.platePrice:(appliedPkg?appliedPkg.price_per_plate:rates.platePrice);
     $("#q_other").value=pr.other!=null?pr.other:(oi.objectsCost+(+rates.layoutBase||0));
     { const dv=HelmDiscount.pick(pr.discount, pr.discountPct); $("#q_discount").value=dv.discount||0; if($("#q_discountPct")) $("#q_discountPct").value=dv.discountPct||0; }
-    if($("#q_coupon") && pr.couponCode){ $("#q_coupon").value=pr.couponCode; applyCoupon(); }
+    if($("#q_coupon") && pr.couponCode){ $("#q_coupon").value=normCoupon(pr.couponCode); applyCoupon(); }
     if(pr.chairPrice!=null) $("#q_chairPrice").value=pr.chairPrice;
     $("#q_taxExempt").checked=String(pr.taxExempt)==="true";
     paintCurBanner();
@@ -1463,7 +1508,9 @@
   function nameIsAuto(){ const H=HEN_(); return !ev || !H || H.isAuto(ev.title, ev.code); }
   function renderName(){
     if(!ev) return; const H=HEN_(); const h=$("#qName"); if(!h) return;
-    const auto=nameIsAuto(); const shown=H?(auto?(autoName()||H.displayName(liveParts())):ev.title):(ev.title||ev.code);
+    // qa-quote-flow B28: the SAME rule as the quotes list (HelmEventName.displayName): an automatic name keeps
+    // its stored "-2" suffix while it still matches, and follows the live type / city / guests / date otherwise
+    const auto=nameIsAuto(); const shown=H?(auto?(H.displayName(liveParts())||autoName()):ev.title):(ev.title||ev.code);
     if(!h.querySelector("input")) h.textContent=shown||ev.code||"Untitled event";
     const tt=$("#title"); if(tt) tt.textContent=shown||ev.title||"";   // keep the (hidden) legacy header in step
     $("#qNameHintText").textContent=auto?((H&&H.HINT)||""):"Custom name";
@@ -1495,9 +1542,19 @@
     // reset: store the code again (an automatic placeholder) so the auto name takes over and keeps updating
     $("#qNameReset").addEventListener("click",async()=>{ const a=autoName(); await saveName(a||ev.code); });
   }
+  // qa-quote-flow B19: the header badge uses the ONE status label every screen shows (BPStore.quoteStatus):
+  // a locked quote the client has not approved yet reads "Sent · awaiting client approval", never "Confirmed".
+  function paintStatusBadge(opts){
+    const b=$("#statusBadge"); if(!b||!ev) return;
+    let st=null; try{ st=BPStore.quoteStatus?BPStore.quoteStatus(ev,opts):null; }catch(_){ st=null; }
+    b.textContent=st?st.label:(ev.status||ev.lifecycleStage||"draft");
+    if(st&&st.title) b.title=st.title; else b.removeAttribute("title");
+    b.dataset.status=st?st.key:"";
+    try{ paintLiveHints(); }catch(_){ }
+  }
   async function loadAll(){
     $("#code").textContent="Ref "+(ev.code||"—"); $("#title").textContent=ev.title||""; renderName();
-    $("#statusBadge").textContent=ev.status||ev.lifecycleStage||"draft";
+    paintStatusBadge();
     $("#workspaceLink").href="event.html?id="+encodeURIComponent(id);
     $("#openBuilder").href="builder.html?quote="+encodeURIComponent(id)+"&from=flow";
     const cl=ev.client||{};
@@ -1509,6 +1566,7 @@
     persisted.client={ name:cl.name||"", phone:cl.phone||"", eventType:ev.eventType||"", eventDate:origDate };
     setDateWindow();
     $("#g_guests").value=cl.guests!=null?cl.guests:""; $("#q_guestsRo").value=cl.guests!=null?cl.guests:"";
+    const couponsP=loadCoupons();   // B6: in flight with the sections below, awaited before seedQuote()
     await runSection("rates");
     await runSection("discovery");
     { const b=$("#d_bmax"); if(b && b.value!==""){ const r=FV.budget(b.value); if(r.ok && r.value!=null){ b.value=FV.fmt(r.value); paintBudgetWords(); } } }   // Indian grouping: 2,00,00,000
@@ -1521,6 +1579,7 @@
     // R8: hall length/breadth persist on the quote (client.hallLen/hallWid; fallback: the saved layout's hall)
     { const sz=HelmSizing.resolve(cl, ev.pricing, layoutRoom); $("#g_len").value=sz.len||""; $("#g_wid").value=sz.wid||""; }
     if(window.HelmVenueArea && HelmVenueArea.refresh) HelmVenueArea.refresh();
+    await couponsP;
     seedQuote();
     renderPrice(); updateProgress();
     stampNewQuoteTax();
@@ -1653,6 +1712,9 @@
       save:{ client:()=>saveClient(true), discovery:saveDiscovery, venue:saveVenue, menu:saveMenuNotes, proposal:saveProposal },
       badge:(s,state,msg)=>paintBadge(s,state,typeof msg==="string"?msg:"") });
     AS.has=(s)=>canEdit && ["client","discovery","venue","menu","proposal"].indexOf(s)>=0;
+    // qa-quote-flow B7: capacity-shortage.js saves step 1 (and waits) before it records a decision, then
+    // refreshes the lock base the decision RPC moved - no false "changed elsewhere" after "Reduce guests"
+    window.HelmFlowHost={ saveClientNow:()=>(AS&&AS.has("client"))?AS.now("client"):Promise.resolve(true), relock };
     $("#app").addEventListener("input",markDirty);
     $("#app").addEventListener("change",markDirty);
     // blur: save the section now instead of waiting for the debounce
@@ -1661,7 +1723,7 @@
     ["client","discovery","venue","menu","proposal"].forEach(s=>{ const b=$("#sv-"+s); if(!b) return;
       const retry=()=>{ if(b.dataset.state==="error") AS.now(s); };
       b.addEventListener("click",retry); b.addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); retry(); } }); });
-    loadCoupons();                                           // populate coupon suggestions
+    // coupon suggestions are loaded by loadAll() before the saved quote is seeded (B6)
     // every Save attempt ends in a visible status: saved, an inline reason, or this error line (never silent)
     $("#q_save").addEventListener("click",()=>{ if(!clientReady()) return; BPUI.guard($("#q_save"),saveQuotation,{busyLabel:"Saving…"}).catch((e)=>{
       if(e && (e.code==="INVALID" || e.__shown)) return;
@@ -1680,9 +1742,14 @@
       shown.add("rq_title"); shown.add("rq_note"); FV.paint(document, r, IDS.reqs, shown);
       if(!r.ok){ const f=FV.first(r, IDS.reqs); if(f) $("#"+f.id).focus(); return; }
       BPUI.guard($("#rq_add"), async()=>{
-        try{ await BPStore.discovery.addReq(id,{ service:r.value, priority:$("#rq_pri").value, note:r.note||null }); vocabAdd("reqs",r.value); fillVocab();
-          $("#rq_title").value=""; $("#rq_note").value=""; shown.delete("rq_title"); shown.delete("rq_note"); await renderReqs(); }
-        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add the requirement"}),{type:"err"}); } }); };
+        try{ await BPStore.discovery.addReq(id,{ service:r.value, priority:$("#rq_pri").value, note:r.note||null }); }
+        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add the requirement"}),{type:"err"}); return; }
+        // qa-quote-flow B28: added -> the box is emptied and its messages cleared FIRST (a later hiccup - the
+        // suggestion list, the re-read - can no longer leave the text behind as a "listed twice" error)
+        $("#rq_title").value=""; $("#rq_note").value=""; shown.delete("rq_title"); shown.delete("rq_note");
+        FV.setMsg(document,"rq_title",""); FV.setMsg(document,"rq_note","");
+        try{ vocabAdd("reqs",r.value); fillVocab(); }catch(_){ }
+        await renderReqs(); }); };
     $("#rq_add").addEventListener("click",addReq);
     $("#rq_title").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); addReq(); } });
     $("#rq_note").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); addReq(); } });
@@ -1829,7 +1896,7 @@
       onChange:async(d)=>{ const r=d.changed[0]; if(!r||!ev) return;
         if(!unsaved() && !loading){ try{ const fresh=await BPStore.quotes.get(id); if(fresh){ ev=fresh; loading=true; await loadAll(); } }catch(_){} return; }
         ev.approvalStatus=r.approvalStatus; ev.status=r.status;
-        $("#statusBadge").textContent=ev.status||ev.lifecycleStage||"draft";
+        paintStatusBadge();
         $("#apprState").textContent=apprStateText(r.approvalStatus==="paid");
         paintBookingBadge(r.approvalStatus==="paid"?1:0);
         renderEgPrompt().catch(()=>{}); }
@@ -1853,6 +1920,6 @@
     await openQuote();
   });
 </script>
-<script src="capacity-shortage.js?v=2"></script>
+<script src="capacity-shortage.js?v=3"></script>
 </body>
 </html>

@@ -95,7 +95,7 @@
     row.appendChild(send); body.appendChild(row);
     var msg = el("div", "ish-msg"); msg.id = "ishMsg"; msg.setAttribute("role", "status"); msg.setAttribute("aria-live", "polite");
     body.appendChild(msg);
-    var logH = el("div", "ish-log-h", "Sent to the client"); logH.hidden = true;
+    var logH = el("div", "ish-log-h", "Send history");   // qa-quote-flow B28: the log also lists "Not sent" (test mode) rows logH.hidden = true;
     var log = el("ul", "ish-log"); log.id = "ishLog"; log.hidden = true;
     body.appendChild(logH); body.appendChild(log);
     box.appendChild(body);
