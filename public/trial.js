@@ -31,7 +31,7 @@
     var left = n === 0 ? "ends today" : n === 1 ? "1 day left" : n + " days left";
     return { tone: n <= 2 ? "soon" : "", locked: false,
       title: "Free trial · " + left,
-      body: t.trial_mode === "own" ? "Everything in Helm is open to you — no card needed." : "You're exploring sample data. Everything marked “Demo ·” is fictional.",
+      body: t.trial_mode === "own" ? null : "You're exploring sample data. Everything marked “Demo ·” is fictional.",
       cta: admin ? "Choose a plan" : null,
       // 0123: exploring samples -> one clear "start my own studio" action; "Choose a plan" offers it first
       fresh: admin && t.trial_mode === "demo" ? "Start my own studio" : null,
@@ -174,7 +174,7 @@
     bar.setAttribute("role", spec.locked ? "alert" : "status");
     if (spec.badge) { var g = doc.createElement("span"); g.className = "htr-badge"; g.textContent = spec.badge; bar.appendChild(g); }
     var b = doc.createElement("b"); b.textContent = spec.title; bar.appendChild(b);
-    var s = doc.createElement("span"); s.textContent = spec.body; bar.appendChild(s);
+    if (spec.body) { var s = doc.createElement("span"); s.textContent = spec.body; bar.appendChild(s); }
     if (spec.cta) {
       var a = doc.createElement("a");
       a.href = planHref(lastT, page());
