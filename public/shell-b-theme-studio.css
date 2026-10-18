@@ -67,7 +67,7 @@ html[data-shell="b"][data-hb-theme="studio"] h1,
 html[data-shell="b"][data-hb-theme="studio"] h2,
 html[data-shell="b"][data-hb-theme="studio"] h3 { color:var(--c8-ink); letter-spacing:-.015em; }
 html[data-shell="b"][data-hb-theme="studio"] h1 { font-weight:700; }
-html[data-shell="b"][data-hb-theme="studio"] a:not(.btn):not(.hb-item):not(.hb-mi):not([data-money]):not(.hbp-m) { color:var(--c8-ac); }
+html[data-shell="b"][data-hb-theme="studio"] a:not(.btn):not(.hb-item):not(.hb-mi):not([data-money]):not(.hbp-m):not(.ob-cta) { color:var(--c8-ac); }
 html[data-shell="b"][data-hb-theme="studio"] :focus-visible { outline:2px solid var(--c8-ac); outline-offset:2px; }
 html[data-shell="b"][data-hb-theme="studio"] ::selection { background:var(--c8-acs); color:var(--c8-ink); }
 html[data-shell="b"][data-hb-theme="studio"] hr { border-color:var(--c8-ln); }

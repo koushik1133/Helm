@@ -9,3 +9,6 @@ assert.match(css, /main a:not\(\.btn\):not\(\.ob-cta\):not\(\[class\*="nav"\]\)/
 assert.match(css, /\.card a:not\(\.btn\):not\(\.ob-cta\) \{ color/);
 assert.match(css, /html\[data-shell="b"\] a\.ob-cta \{ background: var\(--hb-acc\); color: var\(--hb-acc-ink\); \}/);
 console.log("resume-setup-contrast: ok");
+
+// Studio theme link-colour rule must skip the Resume setup button
+assert.match(readFileSync(new URL("../public/shell-b-theme-studio.css", import.meta.url), "utf8"), /data-hb-theme="studio"\] a:not\(\.btn\)[^{]*:not\(\.ob-cta\)/);

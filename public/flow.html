@@ -162,7 +162,7 @@
             <div class="fld"><label for="c_city">City</label><input id="c_city" maxlength="60" autocomplete="address-level2" placeholder="e.g. Hyderabad"></div>
             <div class="fld"><label for="c_state" id="c_stateLbl">Client state</label><select id="c_state" autocomplete="address-level1"><option value="">Not set</option></select></div>
             <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0" max="100000"></div>
-            <div class="fld full budget-range"><span class="lbl" id="budgetRangeLbl">Budget range (min – max, ₹)</span><div class="range2" role="group" aria-labelledby="budgetRangeLbl"><input id="d_bmin" type="number" min="0" placeholder="Min" aria-label="Budget minimum (₹)"><span class="range-sep" aria-hidden="true">–</span><input id="d_bmax" type="number" min="0" placeholder="Max" aria-label="Budget maximum (₹)" aria-describedby="d_bmaxErr"></div><div id="d_bmaxErr" class="err" role="alert" hidden>Max should be at least the min</div></div>
+            <div class="fld full"><label for="d_bmax">Budget (₹)</label><input id="d_bmax" type="number" min="0" placeholder="e.g. 500000"><input id="d_bmin" type="hidden"></div>
           </div>
           <p class="hint next-step" data-next-step><b>Next step:</b> fill in Discovery (step 2) — what the client wants (the budget range is above).</p>
         </section>
@@ -370,7 +370,7 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=238"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=239"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=21"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -643,16 +643,11 @@
     if(b && b.value!=="") return { el:b, v:+b.value }; if(a && a.value!=="") return { el:a, v:+a.value }; return { el:null, v:null }; }
   ["#d_bmin","#d_bmax"].forEach(s=>{ const el=$(s); if(el) el.addEventListener("input",()=>{ if(loading || failed.discovery) return; budgetTouched=true; syncClientMem(); if(AS) AS.schedule("client"); }); });
   // india-clickthrough D2: an inverted budget range (min > max) is flagged inline and never saved
-  function budgetRangeOk(){
-    const a=$("#d_bmin").value.trim(), b=$("#d_bmax").value.trim(), bad=!!a && !!b && +a > +b;   // PP1028 #7 / 1029 #7: only when BOTH are filled
-    ["#d_bmin","#d_bmax"].forEach(s=>{ if(bad) $(s).setAttribute("aria-invalid","true"); else $(s).removeAttribute("aria-invalid"); });
-    const m=$("#d_bmaxErr"); if(m) m.hidden=!bad;
-    return !bad;
-  }
+  // single budget field: one value saves to budget_max; an old budget_min is kept as-is (hidden), never dropped
+  function budgetRangeOk(){ return true; }
   ["#d_bmin","#d_bmax"].forEach(s=>{ const el=$(s); if(el){ el.addEventListener("input",budgetRangeOk); el.addEventListener("change",budgetRangeOk); } });
   async function saveDiscovery(){
     if(failed.discovery) throw blockedError("discovery");
-    if(!budgetRangeOk()){ $("#d_bmax").focus(); throw new Error("Max should be at least the min"); }
     await BPStore.discovery.save(id, { meet_date:$("#d_date").value||null, mode:$("#d_mode").value||null,
       attendees:$("#d_att").value.trim()||null, notes:$("#d_notes").value.trim()||null,
       budget_min:$("#d_bmin").value!==""?+$("#d_bmin").value:null, budget_max:$("#d_bmax").value!==""?+$("#d_bmax").value:null });
@@ -1173,7 +1168,7 @@
   async function loadDiscovery(){ const cl=ev.client||{};
     const d=await BPStore.discovery.get(id);
     if(d){ $("#d_date").value=d.meet_date||""; $("#d_mode").value=d.mode||"";
-      $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||""; $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:""; }
+      $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||""; $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:(d.budget_min!=null?d.budget_min:""); }
     // guest-budget: legacy quotes kept only client.budget — show it as the max so nothing looks lost
     if((!d || (d.budget_min==null && d.budget_max==null)) && cl.budget!=null){ $("#d_bmax").value=cl.budget; } }
   async function loadPlan(){ const cl=ev.client||{};
