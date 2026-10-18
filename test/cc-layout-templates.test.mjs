@@ -149,7 +149,8 @@ await t('TRIAL studio: only Open in builder, sample names, no archived, no Show 
 await t('wiring: builder trial gate, useTpl, seeded hall, Done link, control-split alias, pages load the CSS', () => {
   const st = read('public/studio-templates.js'), cs = read('public/control-split.js'), css = read('public/studio-templates.css');
   assert.match(st, /bSave\.hidden = !perm\.manage \|\| B\.ro\(\)/);
-  assert.match(st, /if \(tp && perm\.trial\) toast\(TRIAL_MSG, true\);\s*else if \(tp && perm\.manage\) tplEditMode/);
+  assert.match(st, /if \(tp && perm\.manage && !perm\.trial\) tplEditMode\(/);
+  assert.match(st, /if \(tp && perm\.trial\) toast\(TRIAL_MSG, true\);/);
   assert.match(st, /else if \(use && \/\^\[0-9a-f-\]\{36\}\$\/i\.test\(use\)\) useOnArrival\(use\)/);
   assert.match(st, /var room = C\.roomOf\(editing\.data\) \|\| \{\}/);
   assert.match(st, /href: "control\.html#layout-templates", text: "Done"/);
