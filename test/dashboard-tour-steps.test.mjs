@@ -1,4 +1,4 @@
-// Dashboard first-run tour: ~12 friendly steps, each anchored to a real data-tour element
+// Dashboard first-run tour: ~22 short steps in on-screen reading order, each anchored to a real data-tour element
 // emitted by the shell (shell-b*.js / mobile-nav.js / dashboard.html).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -7,7 +7,7 @@ const D = r('dashboard.html');
 const SRC = ['shell-b.js', 'shell-b-dash.js', 'shell-b-privacy.js', 'mobile-nav.js', 'dashboard.html'].map(r).join('\n');
 const block = D.slice(D.indexOf('const TOUR=['), D.indexOf('];', D.indexOf('const TOUR=[')));
 const steps = block.split('\n').filter((l) => /^\s*\{.*title:/.test(l));
-assert.ok(steps.length >= 10 && steps.length <= 13, 'tour has 10-13 steps, got ' + steps.length);
+assert.ok(steps.length >= 18 && steps.length <= 24, 'tour has 18-24 steps, got ' + steps.length);
 assert.match(steps[0], /Welcome/); assert.match(steps[0], /8-day trial/); assert.match(steps[0], /Demo ·/);
 assert.match(steps[steps.length - 1], /Take a guided tour/);
 const anchors = [...block.matchAll(/\[data-tour="([\w-]+)"\]/g)].map((m) => m[1]);
@@ -16,5 +16,9 @@ for (const a of new Set(anchors)) {
     || (a.startsWith('m-') && SRC.includes('"data-tour", "m-" + id'));
   assert.ok(tagged, 'anchor data-tour="' + a + '" is emitted somewhere');
 }
-for (const k of ['nav', 'pin', 'search', 'new', 'bell', 'chat', 'privacy', 'today', 'setup', 'theme', 'account']) assert.ok(anchors.includes(k), k);
+for (const k of ['pin', 'nav-manage', 'nav-admin', 'theme', 'account', 'search', 'privacy', 'chat', 'bell', 'new', 'today', 'hero', 'customize', 'kpis', 'setup']) assert.ok(anchors.includes(k), k);
+// sidebar items are anchored by their data-nav key (shell-b.js item())
+const navKeys = [...block.matchAll(/\[data-nav="([\w-]+)"\]/g)].map((m) => m[1]);
+assert.deepEqual(navKeys, ['dashboard', 'quotes', 'leads', 'calendar', 'chat']);
+assert.match(r('shell-b.js'), /a\.setAttribute\("data-nav", key\)/);
 console.log('dashboard-tour-steps: ok (' + steps.length + ' steps)');

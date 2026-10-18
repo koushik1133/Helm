@@ -11,7 +11,7 @@
   var BLOCKED_PAGES = /(^|\/)(onboarding)(\.html)?\/?$/;
   function css() {
     if (document.getElementById("trialLockCss")) return;
-    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=1";
+    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=2";
     (document.head || document.documentElement).appendChild(l);
   }
   function note(msg) {
