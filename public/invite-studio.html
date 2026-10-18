@@ -70,6 +70,28 @@
   .sw.soiree{background:radial-gradient(120px 60px at 50% 0,#241a35,#141019);color:#a78bfa}
   /* preview */
   .preview-wrap{position:sticky;top:16px}
+  @media(min-width:901px){.preview-wrap{max-height:calc(100vh - 32px);overflow-y:auto;overscroll-behavior:contain}}
+  /* 0195 Send to client */
+  .ish-card{border-top:1px solid var(--line-2);margin-top:16px;padding-top:14px}
+  .ish-gate{font-size:13px;color:var(--ink-2);background:var(--panel-2);border:1px dashed var(--line);border-radius:8px;padding:9px 11px;margin:0 0 10px}
+  .ish-ch{border:0;padding:0;margin:0 0 10px;display:flex;gap:16px;flex-wrap:wrap}
+  .ish-ch legend{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);padding:0;margin:0 0 6px;width:100%}
+  .ish-radio,.ish-opt{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink);cursor:pointer;margin:0;min-height:32px}
+  .ish-radio input,.ish-opt input{width:18px;height:18px;margin:0;flex:0 0 auto;accent-color:var(--accent)}
+  .ish-opt{display:flex;margin:0 0 10px}
+  .ish-hint{margin:6px 0 0}
+  .ish-pv-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin:0 0 4px}
+  .ish-pv{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px;line-height:1.5;color:var(--ink);overflow-wrap:anywhere;margin:0 0 10px}
+  .ish-trial{background:#fff7e6;color:#8a5300;border:1px solid #f4d8a4;border-radius:8px;padding:8px 11px;font-size:13px;margin:0 0 10px}
+  .ish-dirty{margin:0 0 10px}
+  .ish-row{display:flex;gap:8px;flex-wrap:wrap}
+  .ish-msg{font-size:13px;color:var(--ink-2);margin:8px 0 0;min-height:1em}
+  .ish-log-h{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin:14px 0 6px}
+  .ish-log{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+  .ish-li{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:12.5px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:8px;padding:6px 9px}
+  .ish-when{color:var(--ink-3)}
+  .ish-st{margin-left:auto;font-weight:600;font-size:12px;padding:2px 8px;border-radius:999px;background:#f4f4f5;color:#52525b}
+  .ish-st.ish-sent{background:#ecfdf5;color:#047857}.ish-st.ish-queued{background:var(--accent-soft);color:var(--accent)}.ish-st.ish-failed{background:#fdecec;color:#b42318}
   .frame{width:100%;height:560px;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
   .frame iframe{width:100%;height:100%;border:0}
   .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px}
@@ -211,11 +233,15 @@
             <label class="s-d6f2af6" for="pubLink">Public link (share with your client)</label>
             <div class="link">
               <input id="pubLink" readonly>
-              <button class="btn" id="copyBtn" type="button">Copy</button>
-              <a class="btn" id="openBtn" target="_blank" rel="noopener noreferrer">Open</a>
+              <button class="btn" id="copyBtn" type="button">Copy link</button>
+              <a class="btn" id="openBtn" target="_blank" rel="noopener noreferrer">Open site</a>
             </div>
             <p class="mnote s-84f4c59" id="liveUntil" hidden></p>
           </div>
+          <section class="ish-card" id="shareCard" aria-labelledby="shareTitle">
+            <h2 id="shareTitle">Send to client</h2>
+            <div id="shareHost"></div>
+          </section>
         </div>
       </div>
     </div>
@@ -237,7 +263,8 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=245"></script>
+<script src="invite-site-share.js?v=1"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -265,6 +292,11 @@
   // or ensureSite() would create a second (duplicate) site for this event.
   let siteLoadFailed=false;
   let dirty=null;
+  let share=null;   // 0195 "Send to client" box (invite-site-share.js)
+  // free-trial studio? (server answer; the send itself is skipped server-side either way)
+  let trialP=null;
+  const trialOnce=()=>trialP||(trialP=(BPStore.subscription&&BPStore.subscription.trial)
+    ?Promise.resolve(BPStore.init()).then(()=>BPStore.subscription.trial()).then(t=>!!(t&&t.status==="trial")).catch(()=>false):Promise.resolve(false));
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -374,6 +406,7 @@
     const g=gather();
     const frame=$("#pv");
     try{ frame.contentWindow.postMessage({type:"helm-preview",site:{template:g.template,event_type:g.event_type,title:g.title,data:g.data}},location.origin); }catch(e){}
+    if(share) share.refresh();
   }
 
   function applyTypeLabels(){
@@ -423,6 +456,7 @@
           : "This invitation ended on "+day+" — guests now see \u201cThis invitation has ended\u201d. Change the event date to reopen it.";
         el.hidden=false; }).catch(()=>{});
     }
+    if(share) share.refresh();
   }
 
   // A dropped/interrupted fetch surfaces as a TypeError ("Load failed" in WebKit,
@@ -525,6 +559,9 @@
     $("#evTitle").textContent=(ev.code?ev.code+" · ":"")+(ev.title||ev.client&&ev.client.name||"Event");
     $("#app").hidden=false;
     if(!dirty) dirty=BPUI.trackDirty($(".layout"));
+    if(!share && window.HelmInviteShare) share=HelmInviteShare.mount($("#shareHost"),{
+      getSite:()=>site, getQuote:()=>ev, getLink:()=>(site&&site.status==="published"&&site.slug)?$("#pubLink").value:"",
+      country:studioCC, isDirty:()=>!!(dirty&&dirty.isDirty()), trial:trialOnce() });
     // seed a sensible default type/template from the event, then load any saved site
     await loadSite();
   }
@@ -556,9 +593,21 @@
         PHOTOS.push(url); if(dirty) dirty.mark(); paintPhotos(); preview();
       }
       setPhotoMsg(PHOTOS.length+" photo"+(PHOTOS.length===1?"":"s")+" added.");
-    }catch(err){ const m=(err&&err.message)||"";
-      setPhotoMsg(/bucket/i.test(m)?"Photo uploads aren't set up yet — please contact your administrator.":BPUI.friendlyError(err,{action:"upload the photo"})); }
+    }catch(err){ setPhotoMsg(await photoErr(err)); }
   });
+  // a clear line for every refusal: not set up / storage full / too many uploads / not allowed (free trial or role)
+  async function photoErr(err){
+    const m=String((err&&err.message)||""), sc=String((err&&(err.statusCode||err.status))||"");
+    if(/bucket/i.test(m)&&/not.?found|does not exist/i.test(m)) return "Photo uploads aren't set up yet — please contact your administrator.";
+    if(/storage is full|too many uploads/i.test(m)) return m.slice(0,240);
+    if((err&&err.hint)==="trial_locked") return "Photo uploads aren't available in the free trial — use “Add by URL” instead.";
+    if(/row-level security|unauthori[sz]ed|permission denied|not authori[sz]ed/i.test(m)||sc==="403"){
+      const t=await trialOnce();
+      return t?"This photo couldn't be uploaded in the free trial — use “Add by URL” instead, or try a smaller JPG / PNG."
+              :"Photo upload was refused — your role needs edit access to this event. Ask an admin, or use “Add by URL”.";
+    }
+    return BPUI.friendlyError(err,{action:"upload the photo"});
+  }
   $("#photoUrlBtn").addEventListener("click",async()=>{
     const u=await BPUI.prompt("Paste an image URL:",{title:"Add photo by URL",label:"Image URL",type:"url",placeholder:"https://…/photo.jpg",okLabel:"Add"});
     if(u==null) return;                       // cancelled
