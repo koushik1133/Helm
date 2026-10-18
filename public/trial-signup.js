@@ -46,7 +46,32 @@
   function localeFor() { return "INR"; }
 
   var TRIAL_TZ = "Asia/Kolkata", TRIAL_CUR = "INR";
-  var api = { TRIAL_TZ: TRIAL_TZ, TRIAL_CUR: TRIAL_CUR, intentFrom: intentFrom, directFrom: directFrom, localeFor: localeFor, KEY: KEY, DKEY: DKEY, DAYS: DAYS };
+  // Trial terms: "What's in your free trial" - shown on the trial sign-up screen BEFORE the account is made.
+  // Plain words for docs/trial/POST-TRIAL-POLICY.md + docs/trial/TRIAL-END-TO-END.md (same rules as
+  // terms.html #trial). KEY = the 4 lines always visible; ALL = the "See all trial rules" list.
+  var KEEP_DAYS = 60, TEAM_EXTRA = 2, CREATE_CAP = 2;
+  var TRIAL_KEY = [
+    { t: DAYS + " days free, no card", s: "An India studio: prices in ₹, times in IST." },
+    { t: "Ready-made sample data", s: "Sample events, leads, inventory, vendors, staff, venues, menus and layouts, all marked “Demo”." },
+    { t: "You + up to " + TEAM_EXTRA + " teammates", s: "No real messages go to clients during the trial (test mode)." },
+    { t: "After " + DAYS + " days: read-only", s: "Your data is kept " + KEEP_DAYS + " days, then deleted (we remind you first). Choose a plan anytime to keep everything." }
+  ];
+  var TRIAL_ALL = [
+    DAYS + " days free. No card needed to start.",
+    "Your trial studio is set up for India: prices in ₹ (INR), times in IST (Asia/Kolkata).",
+    "It starts with ready-made sample data: sample events, leads, inventory, vendors, staff, venues, menus and layouts. Every sample record is marked “Demo”.",
+    "You plus up to " + TEAM_EXTRA + " teammates can use the trial studio.",
+    "You can add up to " + CREATE_CAP + " new records of each kind (leads, events, inventory items, vendors, staff and venues). Sample records do not count, and deleting a record does not free a slot.",
+    "Menu prices are editable. New dishes, menu packages, chair or plate types cannot be added during the trial.",
+    "Test mode: no real e-mails, WhatsApp or SMS messages are sent to clients during the trial.",
+    "Downloads (PDF, CSV, prints), imports and photo renders unlock on a paid plan.",
+    "After " + DAYS + " days the studio becomes read-only: you and your teammates can still look, but nobody can add or change anything until you choose a plan.",
+    "Your trial data is kept for " + KEEP_DAYS + " days after the trial ends, then permanently deleted. We e-mail you reminders before that (30, 7 and 1 day before).",
+    "One free trial per e-mail address.",
+    "Choose a plan anytime to keep everything and carry on where you left off."
+  ];
+  var api = { TRIAL_TZ: TRIAL_TZ, TRIAL_CUR: TRIAL_CUR, intentFrom: intentFrom, directFrom: directFrom, localeFor: localeFor, KEY: KEY, DKEY: DKEY, DAYS: DAYS,
+    KEEP_DAYS: KEEP_DAYS, TRIAL_KEY: TRIAL_KEY, TRIAL_ALL: TRIAL_ALL };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   if (!global || !global.document) return;
 
@@ -71,13 +96,61 @@
   function setText(sel, t) { var el = $(sel); if (el) el.textContent = t; }
   function el(tag, cls, text) { var n = doc.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
 
+  // Trial terms: the "What's in your free trial" panel (DOM only; styles in trial-terms.css)
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function tick() {
+    var s = doc.createElementNS(SVGNS, "svg"); s.setAttribute("viewBox", "0 0 16 16"); s.setAttribute("aria-hidden", "true"); s.setAttribute("focusable", "false");
+    var pth = doc.createElementNS(SVGNS, "path"); pth.setAttribute("d", "M3.5 8.5l3 3 6-7"); s.appendChild(pth);
+    var w = el("span", "tt-ic"); w.appendChild(s); return w;
+  }
+  function aLink(href, text) { var a = el("a", null, text); a.href = href; return a; }
+  function termsPanel(id) {
+    var box = el("section", "tt"); box.id = id; box.setAttribute("aria-labelledby", id + "H");
+    var h = el("h2", "tt-h", "What’s in your free trial"); h.id = id + "H"; box.appendChild(h);
+    var ul = el("ul", "tt-key");
+    TRIAL_KEY.forEach(function (k) {
+      var li = el("li"); li.appendChild(tick());
+      var tx = el("span"); tx.appendChild(el("b", null, k.t)); tx.appendChild(el("span", null, k.s)); li.appendChild(tx);
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+    var det = el("details", "tt-more"); det.appendChild(el("summary", null, "See all trial rules"));
+    var all = el("ul", "tt-all"); TRIAL_ALL.forEach(function (r) { all.appendChild(el("li", null, r)); });
+    det.appendChild(all); box.appendChild(det);
+    var lk = el("p", "tt-links"); lk.appendChild(doc.createTextNode("Full rules: "));
+    lk.appendChild(aLink("/terms#trial", "Terms")); lk.appendChild(doc.createTextNode(" · "));
+    lk.appendChild(aLink("/privacy", "Privacy Policy")); box.appendChild(lk);
+    return box;
+  }
+  // the consent line under the form: same pattern as the page's "By continuing you agree to …" line
+  var AGREE_TRIAL = "By starting the free trial you agree to the trial rules above, our";
+  function agreeLead(on) {
+    var a = doc.getElementById("agreeLead");
+    if (!a) return;
+    if (!a.getAttribute("data-default")) a.setAttribute("data-default", a.textContent);
+    a.textContent = on ? AGREE_TRIAL : a.getAttribute("data-default");
+  }
+  function trialTerms(mode, joining) {
+    var show = mode === "signup" && !joining && !direct;
+    var box = doc.getElementById("trialTerms");
+    if (!box && show) {
+      var after = doc.getElementById("pathLink") || $("#formSub");
+      if (!after || !after.parentNode) return;
+      box = termsPanel("trialTerms");
+      after.parentNode.insertBefore(box, after.nextSibling);
+    }
+    if (box) box.hidden = !show;
+    agreeLead(show);
+  }
+
   // called by login.html's setMode(m) after it has laid out the form
   function apply(mode, joining) {
     var link = doc.getElementById("trialLink");
     if (link) link.hidden = mode === "signup" || !!joining;
-    if (joining) return;
+    if (joining) { trialTerms(mode, joining); return; }
     var tab = doc.querySelector('.mtab[data-mode="signup"]'); if (tab) tab.textContent = direct ? "Create studio" : "Start free trial";
     pathLink(mode);
+    trialTerms(mode, joining);   // after pathLink: the panel sits right under the "Ready to subscribe?" link
     if (mode !== "signup") return;
     if (direct) {
       // 0159: the paid path - studio name required, the plan + payment come next on /checkout
@@ -155,6 +228,16 @@
     var obl = doc.querySelector('label[for="ob_name"]');
     if (obl) { obl.appendChild(doc.createTextNode(" ")); obl.appendChild(el("span", "opt", "(optional)")); }
     var obn = $("#ob_name"); if (obn) { obn.required = false; obn.placeholder = "e.g. Aurora Events — or leave empty"; }
+    // Trial terms: a Google sign-up lands here before the studio is made: the same trial rules + consent line
+    var obForm = doc.getElementById("onboardForm"), obBtn = $("#ob_submit");
+    if (obForm && obBtn && !doc.getElementById("obTrialTerms")) {
+      obForm.insertBefore(termsPanel("obTrialTerms"), obBtn);
+      var ag = el("p", "tt-agree"); ag.id = "obAgree";
+      ag.appendChild(doc.createTextNode(AGREE_TRIAL + " "));
+      ag.appendChild(aLink("/terms", "Terms")); ag.appendChild(doc.createTextNode(" & "));
+      ag.appendChild(aLink("/privacy", "Privacy Policy")); ag.appendChild(doc.createTextNode("."));
+      obForm.insertBefore(ag, obBtn.nextSibling);
+    }
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", mountLinks); else mountLinks();
 
