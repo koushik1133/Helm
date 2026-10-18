@@ -104,8 +104,28 @@ t('quotes.html: fresh read on open, merged client prefill, effective rates, bfca
   assert.match(q, /HelmQuoteRates\.savedNote\(/);
   assert.match(q, /addEventListener\("pageshow",e=>\{ if\(!e\.persisted\) return;/);
 });
-t('builder: the applied package’s current price wins over the plan snapshot', () => {
+t('package flow: a price agreed with the client (accepted selection = plan stamp) is never replaced by the list price', () => {
+  const plan = { menu_template: 'Standard — Vegetarian', menu_plate_price: 400 };
+  const sel = [{ status: 'superseded', package: 'Standard — Vegetarian', package_id: 'p1', per_person: 450, created_at: '2026-10-18T09:00:00Z' },
+               { status: 'accepted', package: 'Standard — Vegetarian', package_id: 'p1', per_person: 400, price_override: 400, created_at: '2026-10-18T08:00:00Z', reviewed_at: '2026-10-18T08:30:00Z' }];
+  const r = R.effective({ cfg: { chairPrice: 250, platePrice: 600 }, pricing: { platePrice: 400, total: 1, gstPct: 18 }, plan, packages: PKGS, selections: sel });
+  assert.equal(r.platePrice, 400); assert.equal(r.plateSrc, 'agreed'); assert.equal(r.saved, null);
+  assert.match(R.note(r, inr), /₹400\/plate \(package: Standard — Vegetarian, price agreed with the client\)/);
+  // matched by package id even after a rename
+  assert.equal(R.agreedPrice(plan, PKGS[0], [{ status: 'accepted', package: 'Renamed', package_id: 'p1', per_person: 400 }]), 400);
+  // a package re-applied after the deal (plan stamp no longer the agreed price) -> list price again
+  assert.equal(R.effective({ cfg: {}, pricing: {}, plan: { ...plan, menu_plate_price: 450 }, packages: PKGS, selections: sel }).plateSrc, 'package');
+  // no accepted selection / unreadable list -> the owner-case rule (current package price)
+  assert.equal(R.effective({ cfg: {}, pricing: {}, plan, packages: PKGS, selections: [sel[0]] }).platePrice, 450);
+  assert.equal(R.effective({ cfg: {}, pricing: {}, plan, packages: PKGS, selections: null }).platePrice, 450);
+  assert.equal(R.agreedPrice(plan, PKGS[0], [{ status: 'accepted', package: 'Gold — Vegetarian', package_id: 'p2', per_person: 400 }]), null);
+  assert.match(q, /BPStore\.pkgflow\.list\(id\)/);
+  assert.match(q, /selections:Array\.isArray\(selR\)\?selR:\[\]/);
+});
+t('builder: never silently moves the plate rate to the list price; keeps a quote already re-priced at the current package price', () => {
   const b = read('public/builder.js');
-  assert.match(b, /if\(match && match\.price_per_plate!=null[^\n]*PRICING\.menuPlatePrice = \+match\.price_per_plate;/);
+  assert.doesNotMatch(b, /if\(match && match\.price_per_plate!=null && match\.price_per_plate!=="" && isFinite\(\+match\.price_per_plate\)\) PRICING\.menuPlatePrice/);
+  assert.match(b, /if\(plan\.menu_plate_price!=null\) PRICING\.menuPlatePrice = \+plan\.menu_plate_price;/);
+  assert.match(b, /\+currentPricing\.platePrice === \+match\.price_per_plate\) PRICING\.menuPlatePrice = \+match\.price_per_plate;/);
 });
 console.log(n + ' passed');

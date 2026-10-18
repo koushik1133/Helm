@@ -288,7 +288,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script><script src="quote-state.js?v=2"></script><script src="quote-rates.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script><script src="quote-state.js?v=2"></script><script src="quote-rates.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=15"></script>
 <script>
@@ -621,10 +621,12 @@
     // failing read (vendors, coupons, the plan, the layout version) can never leave the row's
     // Confirm button spinning with no dialog — the dialog opens with sensible fallbacks instead.
     const soft=(fn,fb)=>Promise.race([Promise.resolve().then(fn), new Promise(r=>setTimeout(()=>r(fb),8000))]).then(v=>v==null?fb:v,()=>fb);
-    const [cfgR, vendR, coupR, verR, planR, pkgR]=await Promise.all([
+    const [cfgR, vendR, coupR, verR, planR, pkgR, selR]=await Promise.all([
       soft(()=>BPStore.config.getPricing(),null), soft(()=>BPStore.vendors.list(),[]), soft(()=>BPStore.coupons.list(),[]),
       soft(()=>BPStore.quotes.getVersion(id, full.currentVersion),null), soft(()=>BPStore.plan.get(id),null),
-      soft(()=>BPStore.menuTemplates.list(true),[])]);
+      soft(()=>BPStore.menuTemplates.list(true),[]),
+      // a plate price agreed with the client in the package flow must never be replaced by the list price
+      soft(()=>(BPStore.pkgflow&&BPStore.pkgflow.list)?BPStore.pkgflow.list(id):[],[])]);
     // qmodal-1018: a pricing config may lack the rate keys (a free-trial studio's carries only tax + terms):
     // fall back to the defaults Control Center shows for it, never to an empty / ₹0 rate
     { const sr=HelmQuoteRates.studioRates(cfgR);
@@ -649,7 +651,7 @@
     const cl=full.client||{};
     // effective rates (qmodal-1018): the applied package's CURRENT price wins for the plate (the plan only keeps the price
     // the package had when it was applied); the chair is the studio rate, or the quote's own when it keeps its currency
-    cmRatesIn={ cfg:cmConfig, pricing:pr, plan:planRow, packages:Array.isArray(pkgR)?pkgR:[] };
+    cmRatesIn={ cfg:cmConfig, pricing:pr, plan:planRow, packages:Array.isArray(pkgR)?pkgR:[], selections:Array.isArray(selR)?selR:[] };
     cmRates=HelmQuoteRates.effective(Object.assign({ keep:cmKeep }, cmRatesIn));
     // R9: the quote's ONE chairs value (typed, else 70% of guests) — the layout count only when nothing else exists
     $("#p_chairs").value = pr.chairs!=null?HelmSizing.quoteChairs(cl,pr,pr.chairs):(HelmSizing.quoteChairs(cl,pr,seats)??seats);
@@ -664,7 +666,7 @@
     $("#p_svc").value = cfg.serviceChargePct||0;
     // fold the layout's décor/equipment + setup fee into "other" (first time only, so manual edits stick)
     $("#p_other").value = (pr.other!=null && pr.other!=="") ? pr.other : (objectsCost + (+cfg.layoutBase||0));
-    cmPkgName = cmRates.plateSrc==="package" ? cmRates.pkgName : "";
+    cmPkgName = (cmRates.plateSrc==="package"||cmRates.plateSrc==="agreed") ? cmRates.pkgName : "";
     // vendor dropdown (+ add new)
     $("#p_vendor").innerHTML = `<option value="">— none —</option>`+cmVendors.map(v=>`<option>${esc(v.name)}</option>`).join("")+`<option value="__new">＋ Add new vendor…</option>`;
     $("#p_vendor").value = (pr.catering&&pr.catering.vendor)||"";

@@ -3,7 +3,8 @@
    test/quote-modal-pricing.test.mjs. No DOM, no network.
 
    Rules (same as the event workspace, flow.html):
-     plate  the applied menu package's CURRENT price wins (looked up by the package name on the event plan);
+     plate  a price agreed with the client in the package flow (accepted selection = the plan's stamp) wins;
+            else the applied menu package's CURRENT price (looked up by the package name on the event plan);
             only when that package can't be found any more, the price it was applied at (event_plan.menu_plate_price);
             with no package: the quote's own price when the quote keeps its own currency, else the studio default.
      chair  the studio default; the quote's own price only when the quote keeps its own currency / tax
@@ -35,6 +36,22 @@
     return hits.filter(function (p) { return p.active !== false; })[0] || hits[0];
   }
   // o: { cfg, pricing (the quote's stored pricing), plan (event_plan row), packages (menu templates), keep }
+  // review fix: a per-plate price AGREED with the client in the package flow (0069 pkg_selection_review
+  // accept, with or without a price override) is stamped on the plan as menu_plate_price = the selection's
+  // per_person. That is a deal, not a stale copy, so the package's list price must never replace it.
+  // selections = BPStore.pkgflow.list(quoteId) rows. Only while the plan still carries that price.
+  function agreedPrice(plan, pkg, selections) {
+    if (!plan || !plan.menu_template || !Array.isArray(selections)) return null;
+    var snap = num(plan.menu_plate_price); if (snap == null) return null;
+    var acc = selections.filter(function (x) { return x && x.status === "accepted"; })
+      .sort(function (a, b) { return String(b.reviewed_at || b.created_at || "").localeCompare(String(a.reviewed_at || a.created_at || "")); })[0];
+    if (!acc) return null;
+    var samePkg = (pkg && acc.package_id != null && String(acc.package_id) === String(pkg.id)) || norm(acc["package"]) === norm(plan.menu_template);
+    var pp = num(acc.per_person);
+    return samePkg && pp != null && pp === snap ? pp : null;
+  }
+  // o: { cfg, pricing (the quote's stored pricing), plan (event_plan row), packages (menu templates), keep,
+  //      selections (optional: package-flow choices for this quote) }
   function effective(o) {
     o = o || {};
     var s = studioRates(o.cfg), pr = o.pricing && typeof o.pricing === "object" ? o.pricing : {}, plan = o.plan || null, keep = !!o.keep;
@@ -43,7 +60,10 @@
     if (keep && prC != null) { r.chairPrice = prC; r.chairSrc = "locked"; }
     var pkg = findPackage(plan, o.packages), pkgPrice = pkg ? num(pkg.price_per_plate) : null;
     var snap = plan ? num(plan.menu_plate_price) : null;
-    if (pkgPrice != null) {
+    var agreed = agreedPrice(plan, pkg, o.selections);
+    if (agreed != null) {
+      r.platePrice = agreed; r.plateSrc = "agreed"; r.pkgName = String(pkg ? pkg.name : plan.menu_template);
+    } else if (pkgPrice != null) {
       r.platePrice = pkgPrice; r.plateSrc = "package"; r.pkgName = String(pkg.name);
       r.pkgStale = snap != null && snap !== pkgPrice;   // the plan still carries the price the package had when applied
     } else if (snap != null && plan && plan.menu_template) {
@@ -59,6 +79,7 @@
   function plateLabel(r) {
     if (!r) return "";
     if (r.plateSrc === "package") return "package: " + r.pkgName;
+    if (r.plateSrc === "agreed") return "package: " + r.pkgName + ", price agreed with the client";
     return r.plateSrc === "locked" ? "locked at quote time" : "studio rate";
   }
   // the header line of the dialog; money(n) formats an amount in the quote's currency
@@ -93,6 +114,6 @@
     return out;
   }
 
-  global.HelmQuoteRates = { DEFAULTS: DEFAULTS, num: num, studioRates: studioRates, findPackage: findPackage, effective: effective,
+  global.HelmQuoteRates = { DEFAULTS: DEFAULTS, num: num, studioRates: studioRates, findPackage: findPackage, agreedPrice: agreedPrice, effective: effective,
     chairLabel: chairLabel, plateLabel: plateLabel, note: note, savedNote: savedNote, clientFor: clientFor, CLIENT_KEYS: CLIENT_KEYS };
 })(typeof window !== "undefined" ? window : globalThis);
