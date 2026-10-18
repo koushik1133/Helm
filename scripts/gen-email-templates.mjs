@@ -6,13 +6,16 @@
 // {{ .Token }}, {{ .SiteURL }} and (invite only) {{ .Data.studio|role|invited_by }}.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { layout, h1, para, strong, note, button, fallback, codeBox } from "../supabase/functions/_shared/email-layout.mjs";
+import { DEFAULT_POSTAL_ADDRESS } from "../supabase/functions/_shared/email-compliance.mjs";
 
 const root = new URL("../", import.meta.url);
 const URL_ = "{{ .ConfirmationURL }}";
 const EMAIL = "{{ .Email }}";
 const SAFE = "If you didn't request this, ignore this email &mdash; nothing changes. Helm will never ask for your password by email.";
 const opt = { site: "{{ .SiteURL }}", sub: "" };
-const why = (r) => ({ ...opt, reason: r });
+// postal address in every footer (HELM_POSTAL_ADDRESS default; fixed here so --check is deterministic)
+export const HELM_POSTAL_ADDRESS = DEFAULT_POSTAL_ADDRESS;
+const why = (r) => ({ ...opt, reason: r, address: HELM_POSTAL_ADDRESS });
 const sentTo = (t) => t + `<br><br>Sent to ${EMAIL}.`;
 
 export const TEMPLATES = {

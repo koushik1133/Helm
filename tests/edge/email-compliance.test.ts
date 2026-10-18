@@ -3,7 +3,7 @@
 // NO real e-mail is sent.
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { setEnv, installFetch, loadHandler, resetSupaMock, supaLog, captureConsoleError } from "./harness.ts";
-import { listUnsubHeaders, mktFooter, POSTAL_PLACEHOLDER, postalAddress, txFooter, unsubLinks, withFooter, UNSUB_TOKEN_RE } from "../../supabase/functions/_shared/email-compliance.mjs";
+import { listUnsubHeaders, mktFooter, DEFAULT_POSTAL_ADDRESS, POSTAL_PLACEHOLDER, postalAddress, txFooter, unsubLinks, withFooter, UNSUB_TOKEN_RE } from "../../supabase/functions/_shared/email-compliance.mjs";
 import { sendMail } from "../../supabase/functions/_shared/mailer.ts";
 
 const g = globalThis as any;
@@ -30,6 +30,7 @@ Deno.test("links: page + one-click endpoint; malformed token -> null", () => {
 Deno.test("footers: transactional has reason + privacy + postal, no unsubscribe; marketing has unsubscribe", () => {
   const t = txFooter("otp", { app: "https://www.helm.events" });
   assert(t.text.includes("You received this because") && t.text.includes("https://www.helm.events/privacy") && t.text.includes(POSTAL_PLACEHOLDER));
+  assertEquals(DEFAULT_POSTAL_ADDRESS, "Mindspace IT Park, Madhapur, Hyderabad, Telangana 500081"); assertEquals(postalAddress(() => undefined), DEFAULT_POSTAL_ADDRESS);
   assert(!/unsubscribe/i.test(t.html + t.text));
   const s = txFooter("security", { noLinks: true });
   assert(!/https?:\/\//.test(s.html));

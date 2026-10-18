@@ -3,6 +3,7 @@
 // approved in Meta WhatsApp Manager before WHATSAPP_TOKEN is set.
 
 import { layout, h1, para, strong, note, codeBox, escHtml, TEXT_FOOTER } from "../_shared/email-layout.mjs";
+import { DEFAULT_POSTAL_ADDRESS, TX_REASONS } from "../_shared/email-compliance.mjs";
 
 export const KINDS = ["proposal_sent", "proposal_reminder", "proposal_approved_pay", "payment_received"];
 export const OTP_TEMPLATE = "proposal_approval_otp";
@@ -59,17 +60,19 @@ export function otpMessage(to, code, lang = "en") {
   };
 }
 
-export function otpEmail(code, studio) {
+// opts.address: postal address for the compliance footer (designed layout carries it)
+export function otpEmail(code, studio, opts = {}) {
   const s = clip(studio || "your planner", 60);
   const c = /^[0-9]{4,8}$/.test(String(code)) ? String(code) : escHtml(code);
   return {
     subject: "Your approval code: " + code,
-    text: `Your one-time code to approve your event with ${s} is ${code}.\nIt expires in 10 minutes. Do not share it with anyone.` + TEXT_FOOTER,
+    text: `Your one-time code to approve your event with ${s} is ${code}.\nIt expires in 10 minutes. Do not share it with anyone.\n\nHelm Events` + TEXT_FOOTER,
     html: layout("Your approval code", `${code} is your one-time approval code.`,
       h1("Your approval code") +
       para(`Use this one-time code to approve your event with ${strong(escHtml(s))}. It expires in 10 minutes.`, "0 0 16px") +
       codeBox(c) +
-      note("Never share this code with anyone &mdash; your planner will never ask for it. If you didn't request it, you can ignore this e-mail."), { sub: "" }),
+      note("Never share this code with anyone &mdash; your planner will never ask for it. If you didn't request it, you can ignore this e-mail.") +
+      para(strong("Helm Events"), "18px 0 0"), { sub: "", reason: TX_REASONS.otp, address: (opts && opts.address) || DEFAULT_POSTAL_ADDRESS }),
   };
 }
 

@@ -7,8 +7,11 @@
 //                e.g. Gmail: smtp.gmail.com / 465 / you@gmail.com / an App Password
 //   3. neither -> { status: "not_configured" } (nothing sent, never throws)
 //
-// Display name: "<Studio> via Helm" (the address is the configured sender, so SPF/DKIM pass);
-// Reply-To: the studio's business e-mail when it is a valid address.
+// Display name: EMAIL_BRAND_MODE (single switch). "helm" (default, any unset/unknown value) ->
+// "Helm Events"; "studio" -> "<Studio> via Helm". The address is always the configured sender
+// (SPF/DKIM pass). Reply-To: the studio's business e-mail when it is a valid address (both modes).
+// Designed HTML (email-layout.mjs layout() with opts.reason) already carries the compliance line,
+// so only the text footer is appended to it.
 // Logs carry only the provider + status code, never the recipient, body or any code.
 // Compliance: every message gets the transactional footer ("You received this because ... ·
 // Privacy · Helm Events, <postal address>", reason = msg.txReason, default client_link). A
@@ -34,15 +37,21 @@ const envOf = (): EnvGet => (k) => Deno.env.get(k);
 export function cleanName(s: unknown, max = 60): string {
   return String(s ?? "").replace(/[\r\n\t"<>\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
-export function fromName(studio: unknown): string {
+export const HELM_BRAND = "Helm Events";
+export type BrandMode = "helm" | "studio";
+export function brandMode(env: EnvGet = envOf()): BrandMode {
+  return String(env("EMAIL_BRAND_MODE") || "").trim().toLowerCase() === "studio" ? "studio" : "helm";
+}
+export function fromName(studio: unknown, mode: BrandMode = "helm"): string {
+  if (mode !== "studio") return HELM_BRAND;
   const s = cleanName(studio);
-  return s ? s + " via Helm" : "Helm";
+  return s ? s + " via Helm" : HELM_BRAND;
 }
 // "Name <addr>" from a configured sender (which may already be "X <a@b>")
-export function senderHeader(configured: string, studio: unknown): string {
+export function senderHeader(configured: string, studio: unknown, mode: BrandMode = "helm"): string {
   const m = /<([^<>\s]+@[^<>\s]+)>/.exec(configured);
   const addr = (m ? m[1] : configured).trim();
-  return `"${fromName(studio)}" <${addr}>`;
+  return `"${fromName(studio, mode)}" <${addr}>`;
 }
 
 export function mailConfig(env: EnvGet = envOf()): { provider: "resend" | "smtp" | null; smtp?: SmtpCfg; from?: string } {
@@ -66,10 +75,12 @@ export async function sendMail(msg: MailMsg, opts: { env?: EnvGet; smtp?: SmtpSe
   if (!cfg.provider) return { status: "not_configured", reason: "e-mail sending is not set up yet" };
   const replyTo = msg.replyTo && EMAIL_RE.test(String(msg.replyTo).trim()) ? String(msg.replyTo).trim() : undefined;
   const subject = String(msg.subject || "").replace(/[\r\n]+/g, " ").slice(0, 200);
-  const from = senderHeader(cfg.from!, msg.studio);
   const envGet = opts.env || envOf();
+  const from = senderHeader(cfg.from!, msg.studio, brandMode(envGet));
   const footer = msg.footer || txFooter(msg.txReason || "client_link", { app: envGet("APP_URL") || envGet("APP_ORIGIN"), address: postalAddress(envGet) });
-  const body = withFooter({ text: msg.text, html: msg.html }, footer);
+  // designed layout already has the compliance line in its footer -> text footer only
+  const designed = !!msg.html && /You received this because/.test(msg.html);
+  const body = withFooter({ text: msg.text, html: msg.html }, designed ? { text: footer.text, html: "" } : footer);
   const headers = msg.headers && Object.keys(msg.headers).length ? msg.headers : undefined;
   if (cfg.provider === "resend") {
     try {

@@ -8,10 +8,11 @@
 //     mktFooter(unsubUrl) adds a visible "Unsubscribe" link + the postal address (CAN-SPAM), and
 //     listUnsubHeaders(httpsUrl, mailto) gives the RFC 2369 + RFC 8058 one-click headers
 //     (Gmail / Yahoo bulk-sender rules).
-// The postal address comes from HELM_POSTAL_ADDRESS (owner sets it); until then a visible
-// placeholder is used so nobody mistakes it for a real address.
+// The postal address comes from HELM_POSTAL_ADDRESS when set; otherwise the registered default
+// (DEFAULT_POSTAL_ADDRESS) is used. POSTAL_PLACEHOLDER is kept as an alias for older callers/tests.
 
-export const POSTAL_PLACEHOLDER = "[Helm Events postal address - owner to fill]";
+export const DEFAULT_POSTAL_ADDRESS = "Mindspace IT Park, Madhapur, Hyderabad, Telangana 500081";
+export const POSTAL_PLACEHOLDER = DEFAULT_POSTAL_ADDRESS;
 export const DEFAULT_APP = "https://www.helm.events";
 export const DEFAULT_UNSUB_MAILTO = "unsubscribe@helm.events";
 const EMAIL_RE = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;

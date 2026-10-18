@@ -47,7 +47,7 @@ t('/unsubscribe page: no inline script/handlers, noindex, script + css files exi
 t('auth e-mail templates carry the transactional footer', () => {
   for (const d of ['docs/ops/email-templates', 'docs/email-templates'])
     for (const f of readdirSync(join(ROOT, d)).filter((x) => x.endsWith('.html')))
-      assert.match(read(`${d}/${f}`), /You received this because[\s\S]*Privacy[\s\S]*postal address/, `${d}/${f}`);
+      assert.match(read(`${d}/${f}`), /You received this because[\s\S]*Privacy[\s\S]*Helm Events, Mindspace IT Park, Madhapur, Hyderabad, Telangana 500081/, `${d}/${f}`);
 });
 t('EMAIL-COMPLIANCE.md documents classification + DNS', () => {
   const md = read('docs/ops/EMAIL-COMPLIANCE.md');

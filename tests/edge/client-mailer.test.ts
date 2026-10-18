@@ -1,7 +1,7 @@
 // client-mailer + _shared/mailer - mocked Supabase + mocked fetch; NO real e-mail is sent.
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { setEnv, installFetch, jsonResponse, loadHandler, post, resetSupaMock, supaLog, fetchLog, captureConsoleError } from "./harness.ts";
-import { mailConfig, sendMail, senderHeader } from "../../supabase/functions/_shared/mailer.ts";
+import { brandMode, fromName, mailConfig, sendMail, senderHeader } from "../../supabase/functions/_shared/mailer.ts";
 import { linkEmail, maskEmail } from "../../supabase/functions/client-mailer/logic.mjs";
 
 const FN = "../../supabase/functions/client-mailer/index.ts";
@@ -30,16 +30,23 @@ Deno.test("mailer: provider order Resend > SMTP > not_configured; sender name", 
   assertEquals(mailConfig(e({ SMTP_HOST: "smtp.gmail.com", SMTP_USER: "me@gmail.com", SMTP_PASS: "x" })).provider, "smtp");
   assertEquals(mailConfig(e({ SMTP_HOST: "h", SMTP_USER: "u@x.com", SMTP_PASS: "p", SMTP_PORT: "587" })).smtp!.tls, false);
   assertEquals(mailConfig(e({ RESEND_API_KEY: "k", RESEND_FROM: "a@b.com", SMTP_HOST: "h", SMTP_USER: "u", SMTP_PASS: "p" })).provider, "resend");
-  assertEquals(senderHeader("Helm <mail@helm.events>", "Sparkle\r\nBcc: x"), '"Sparkle Bcc: x via Helm" <mail@helm.events>');
+  assertEquals(senderHeader("Helm <mail@helm.events>", "Sparkle\r\nBcc: x"), '"Helm Events" <mail@helm.events>');
+  assertEquals(senderHeader("Helm <mail@helm.events>", "Sparkle\r\nBcc: x", "studio"), '"Sparkle Bcc: x via Helm" <mail@helm.events>');
+  assertEquals(brandMode(e({})), "helm"); assertEquals(brandMode(e({ EMAIL_BRAND_MODE: "garbage" })), "helm");
+  assertEquals(brandMode(e({ EMAIL_BRAND_MODE: " Studio " })), "studio");
+  assertEquals(fromName("", "studio"), "Helm Events");
 });
 
-Deno.test("mailer: SMTP path uses injected client, from = '<Studio> via Helm', reply-to studio", async () => {
+Deno.test("mailer: SMTP path uses injected client, from = 'Helm Events' (default), reply-to studio", async () => {
   let sent: any = null;
   const env = (k: string) => ({ SMTP_HOST: "smtp.gmail.com", SMTP_USER: "me@gmail.com", SMTP_PASS: "pw" } as any)[k];
   const r = await sendMail({ to: "c@example.com", subject: "Hi", text: "t", studio: "Sparkle", replyTo: "studio@sparkle.in" },
     { env, smtp: async (cfg, m) => { sent = { cfg, m }; } });
   assertEquals(r.status, "sent"); assertEquals(r.provider, "smtp");
-  assertEquals(sent.m.from, '"Sparkle via Helm" <me@gmail.com>'); assertEquals(sent.m.replyTo, "studio@sparkle.in");
+  assertEquals(sent.m.from, '"Helm Events" <me@gmail.com>'); assertEquals(sent.m.replyTo, "studio@sparkle.in");
+  await sendMail({ to: "c@example.com", subject: "Hi", text: "t", studio: "Sparkle" },
+    { env: (k: string) => k === "EMAIL_BRAND_MODE" ? "studio" : env(k), smtp: async (cfg, m) => { sent = { cfg, m }; } });
+  assertEquals(sent.m.from, '"Sparkle via Helm" <me@gmail.com>');
   assertEquals(sent.cfg.port, 465);
   const f = await sendMail({ to: "c@example.com", subject: "Hi", text: "t" }, { env, smtp: async () => { throw new Error("535 auth pw"); } });
   assertEquals(f.status, "failed"); assert(!String(f.reason).includes("pw"));
@@ -52,6 +59,20 @@ Deno.test("client-mailer logic: masked e-mail, link escaping", () => {
   const m = linkEmail("approval", { client: "<b>A</b>", studio: "S", link: "https://helm.events/portal.html?token=x" });
   assert(m.html.includes("&lt;b&gt;A&lt;/b&gt;")); assert(m.text.includes("https://helm.events/portal.html?token=x"));
   let threw = false; try { linkEmail("booklet", { link: "javascript:alert(1)" }); } catch (_) { threw = true; } assert(threw);
+  const b = linkEmail("booklet", { client: "Asha", studio: "Sparkle", link: "https://helm.events/booklet?t=x" });
+  assert(b.html.startsWith("<!DOCTYPE html>") && b.html.includes("https://www.helm.events/email/helm-logo.png"), "designed layout + logo");
+  assert(b.html.includes("Open booklet") && b.html.includes("Mindspace IT Park, Madhapur, Hyderabad, Telangana 500081"), "button + address");
+  assert(b.html.includes("Helm Events</strong>") && b.text.includes("\n\nHelm Events"), "Helm sign-off");
+  assert(linkEmail("booklet", { studio: "Sparkle", link: "https://x.io/b", brand: "studio" }).text.includes("\n\nSparkle"), "studio sign-off");
+});
+
+Deno.test("mailer: designed html gets no second compliance footer", async () => {
+  let sent: any = null;
+  const env = (k: string) => ({ SMTP_HOST: "h", SMTP_USER: "me@gmail.com", SMTP_PASS: "pw" } as any)[k];
+  const m = linkEmail("approval", { studio: "S", link: "https://helm.events/portal.html?token=x" });
+  await sendMail({ to: "c@example.com", subject: m.subject, text: m.text, html: m.html }, { env, smtp: async (_c, x) => { sent = x; } });
+  assertEquals((sent.html.match(/You received this because/g) || []).length, 1);
+  assert(sent.text.includes("You received this because"));
 });
 
 Deno.test("client-mailer: no / anon JWT -> 401; bad body -> 400", async () => {
@@ -87,7 +108,8 @@ Deno.test("client-mailer: recipient comes from the QUOTE, never the body; Resend
     const j = await r.json(); assertEquals(j.status, "sent"); assertEquals(j.masked, "a***@example.com");
     const sent = JSON.parse(String(fetchLog()[0].init!.body));
     assertEquals(sent.to, ["asha@example.com"]);
-    assertEquals(sent.from, '"Sparkle Events via Helm" <mail@helm.events>');
+    assertEquals(sent.from, '"Helm Events" <mail@helm.events>');
+    assert(String(sent.html).includes("helm-logo.png"), "designed layout");
     assertEquals(sent.reply_to, "studio@sparkle.in");
     assert(sent.text.includes("https://helm.events/portal.html?token=" + TOKEN));
     const log = supaLog().find((x) => x.table === "notifications");
@@ -134,7 +156,8 @@ Deno.test("send-otp e-mail: SMTP/Resend via shared mailer; OTP never logged", as
     assertEquals(result.status, 200);
     const j = await result.json(); assertEquals(j.status, "sent");
     const body = JSON.parse(String(fetchLog()[0].init!.body));
-    assertEquals(body.to, ["asha@example.com"]); assertEquals(body.from, '"Sparkle Events via Helm" <mail@helm.events>');
+    assertEquals(body.to, ["asha@example.com"]); assertEquals(body.from, '"Helm Events" <mail@helm.events>');
+    assert(String(body.html).includes("Mindspace IT Park"), "otp footer address");
     const code = /(\d{6})/.exec(body.subject)![1];
     assert(!logs.join(" ").includes(code));
     const n = supaLog().find((x) => x.table === "notifications"); assert(n);
