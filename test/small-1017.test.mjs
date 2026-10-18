@@ -5,7 +5,7 @@ let n = 0; const ok = (c, m) => { if (!c) { console.error('FAIL: ' + m); process
 const api = pub('store-api.js');
 // 1 perf: shared in-flight reads, dropped on writes; bell refresh coalesced; ops/nurture boot not serial
 ok(/function shareInflight\(key, fn\)/.test(api), 'shareInflight helper');
-ok(/list: \(\) => shareInflight\("quotes\.list"/.test(api), 'quotes.list shares in-flight read');
+ok(/list: \(\) => (?:memoRead\("quotes\.list", MEMO_LIST_MS, \(\) => )?shareInflight\("quotes\.list"/.test(api), 'quotes.list shares in-flight read');
 ok(/shareInflight\("leads\.list"/.test(api), 'leads.list shares in-flight read');
 ok(/dropInflightOnWrite\(leads, "leads\.list"\)/.test(api) && /dropInflightOnWrite\(quotes, "quotes\.list"\)/.test(api), 'writes drop the shared read');
 ok(/chat\.subscribe\(function \(\) \{ liveRefresh\(\); \}/.test(api) && /kicked = true; liveRefresh\(\);/.test(api), 'bell refresh coalesced');

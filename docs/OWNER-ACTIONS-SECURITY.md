@@ -194,6 +194,41 @@ apex is served by the project instead of by the domain-level redirect:
   through every page signed in on helm-v01 with the browser console open and send the
   `[helm-trusted-types] report-only:` lines; enforcement is a later, separate change.
 
+## 12. Live audit 2026-10-18 follow-ups (fix/la-fetch-security)
+- [ ] **Apply `supabase/APPLY-0203.sql`** (staging first, then production; safe to run twice). A
+      signed-out API call on profiles / layouts / venues / client booklets / coupons / invitation
+      sites then gets a plain "permission denied for table" instead of an error naming
+      `current_org_id`. Every VERIFY row must say `t`, and the INFO list at the end must be empty
+      (if it lists tables, send them to the developer - do not edit policies by hand).
+- [ ] **Apex redirect 308 (Vercel dashboard, not code).** `vercel.json` already sends
+      `helm.events -> https://www.helm.events` with `"permanent": true` (= 308). The live 307
+      comes from the Vercel **domain** setting, which runs before vercel.json: Vercel -> project ->
+      Settings -> Domains -> `helm.events` -> Edit -> "Redirect to www.helm.events" ->
+      status **308 Permanent Redirect** -> Save. Check:
+      `curl -sI https://helm.events/ | head -1` must show `308`.
+- [ ] **CSP violation reports (decision).** There is no report endpoint today (no Sentry DSN, no
+      `/api` route on Vercel, no report-collecting edge function), so no `report-to` /
+      `report-uri` was added - a directive pointing nowhere only adds noise. When telemetry is
+      turned on, take the Sentry project's "Security Headers" endpoint
+      (`https://o<org>.ingest.<region>.sentry.io/api/<project>/security/?sentry_key=<key>`), then
+      add `report-uri <that URL>` plus a `Reporting-Endpoints: csp="<that URL>"` header and
+      `report-to csp` to the CSP in `scripts/gen-csp.mjs` (it writes vercel.json + public/_headers)
+      and add the ingest host to `connect-src` (item 11). Report-only first.
+- [ ] **Client approval links inside the studio (decision).** Checked: `quotes.approval_token`
+      is readable by EVERY signed-in member whose role can view quotes in that studio (row level
+      security is per studio, and all app roles share the one database role `authenticated`, so a
+      column privilege cannot tell an admin from a sales user). It never reaches another studio or a
+      signed-out visitor (tests/db/anon-grant-tidy-0203.sql). The app no longer downloads it with
+      any list (shell, dashboard, calendar, pickers); only opening one event (`quotes.get`) still
+      reads the row. Hiding it from roles below admin needs the token moved to a separate,
+      admin-only table that every link function reads - a larger change across ~10 SECURITY
+      DEFINER functions (0012 / 0039 / 0042 / 0052 / 0176 ...). Say if you want that built.
+- **Not changed by design:** `/login?next=` already accepts only Helm's own pages and pretty
+  `/<studio>/<section>` paths; any other value (`https://...`, `//host`, `/\host`, encoded forms,
+  look-alike `/evil.example/...`) falls back to the dashboard (test/auth-gate.test.mjs and
+  test/la-fetch-security.test.mjs). Re-check live once: open
+  `https://www.helm.events/login?next=https://example.com`, sign in, you must land on the dashboard.
+
 ## Notes (no owner action needed)
 
 - **CORS on the static site.** Vercel adds `Access-Control-Allow-Origin: *` to

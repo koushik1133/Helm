@@ -180,7 +180,7 @@ await t('store-api: welcome RPC wrappers (null when 0180 is missing) + read-only
   assert.match(API, /welcomePending: \(\) => \(supa \? rpc\("my_trial_welcome_pending", \{\}\)\.then\(\(v\) => v === true, \(e\) => \{ if \(rpcMissing\(e\)\) return null; throw e; \}\)/);
   assert.match(API, /welcomeDone: \(\) => \(supa \? rpc\("trial_welcome_set", \{ p_pending: false \}\)/);
   assert.match(API, /welcomeAgain: \(\) => \(supa \? rpc\("trial_welcome_set", \{ p_pending: true \}\)/);
-  assert.match(API, /\|admin_get_role_access\|my_trial_welcome_pending\)\(\\\?\|\$\)\/;/);
+  assert.match(API, /\|admin_get_role_access\|my_trial_welcome_pending(?:\|[a-z_]+)*\)\(\\\?\|\$\)\/;/);   // la-fetch appends more read-only RPCs
   assert.ok(!/innerHTML|insertAdjacentHTML|\.style\./.test(TD), 'CSP-safe DOM');
 });
 

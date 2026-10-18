@@ -175,6 +175,7 @@ run "budget-plan-0196" "BUDGET-PLAN-0196: ALL PASS \(14/14\)" psql -q -f tests/d
 run "budget-single-source-0199" "BUDGET-SINGLE-SOURCE-0199: ALL PASS \(32/32\)" psql -q -f tests/db/budget-single-source-0199.sql
 run "capacity-shortage-0197" "CAPACITY-SHORTAGE-0197: ALL PASS \(39/39\)" psql -q -f tests/db/capacity-shortage-0197.sql
 run "trial-gates-0202" "TRIAL-GATES-0202: ALL PASS \(46/46\)" psql -q -f tests/db/trial-gates-0202.sql
+run "anon-grant-tidy-0203" "ANON-GRANT-TIDY-0203: ALL PASS \(28/28\)" psql -q -f tests/db/anon-grant-tidy-0203.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

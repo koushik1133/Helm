@@ -246,7 +246,7 @@ window.HelmUrl = HelmUrl;
   }
   function sessGet(key, uid) { const e = sessEntry(key, uid); return e && e.fresh ? e.val : null; }
   function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid || null, val: val })); } catch (e) {} }
-  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PROFILE_SESS_KEY); sessionStorage.removeItem(CHECKOUT_SESS_KEY); sessionStorage.removeItem(PW_OK_KEY); sessionStorage.removeItem("bp_studio_slug"); } catch (e) {} swrClear(); }
+  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PROFILE_SESS_KEY); sessionStorage.removeItem(CHECKOUT_SESS_KEY); sessionStorage.removeItem(PW_OK_KEY); sessionStorage.removeItem("bp_studio_slug"); } catch (e) {} swrClear(); memoClear(); }
   /* ---- per-tab stale-while-revalidate cache (perf pass 2, Oct 2026) ----
      Studio-wide, rarely-changing reads (pricing config, item rate cards, organization row, demo / trial status) are
      answered from sessionStorage for this tab and refreshed in the background. An entry is used ONLY when the user id
@@ -279,7 +279,9 @@ window.HelmUrl = HelmUrl;
   function trialOrgStatus() {
     if (!supa) return Promise.resolve(null);
     if (trialOrgInflight) return trialOrgInflight;
-    const p = swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }));
+    // la-fetch (audit 25): + a per-page memo, so the trial strip, trial-lock and trial-demo share ONE answer even
+    // before the per-tab swr entry can be written (it needs the studio id cached first)
+    const p = memoRead("trialorg", 15000, () => swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })));
     trialOrgInflight = p;
     const done = () => { if (trialOrgInflight === p) trialOrgInflight = null; };
     p.then(done, done);
@@ -315,7 +317,7 @@ window.HelmUrl = HelmUrl;
     return p;
   }
   // writes that cannot touch the cached reads above (everything else drops the cache)
-  const SWR_KEEP_RPCS = /\/rest\/v1\/rpc\/(my_(?!start_trial|studio_account_update)|get_|is_|current_org_id|recent_|chat_|bell|my_notification|mfa_|resolve_|list_|pkg_selection_list|password_change_required|audit_actor_names|dashboard_|insights_|studio_search|studio_avatars|mark_|telemetry|privacy_pin_(?:check|status))/;
+  const SWR_KEEP_RPCS = /\/rest\/v1\/rpc\/(my_(?!start_trial|studio_account_update)|get_|is_|current_org_id|recent_|chat_|bell|my_notification|mfa_|resolve_|list_|pkg_selection_list|password_change_required|audit_actor_names|dashboard_|insights_|studio_search|studio_avatars|mark_|telemetry|privacy_pin_(?:check|status)|link_expiry_shelf_tick)/;
   const CHECKOUT_SESS_KEY = "bp_sess_checkout"; // per tab: my_checkout_status() answer (never a "must check out" one)
   const PROFILE_SESS_KEY = "bp_sess_profile";   // per tab: my_profile_status() answer (never a "must complete" one)
   const NUDGE_KEY = "helm_profile_nudge";       // localStorage {uid, until}: "complete your profile" banner snoozed
@@ -905,7 +907,10 @@ window.HelmUrl = HelmUrl;
      never sees its own write as stale. Keyed by the Authorization header → never
      shared across users. Storage / auth / functions URLs are never touched. */
   const READ_TTL_MS = 1500;
-  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending)(\?|$)/;
+  // la-fetch (audit 25): the list below also names the STABLE (read-only) RPCs every page asks while it
+  // boots (trial / upgrade status, seat use, prefs, shelf list, mentions, PIN status). Before, each one was
+  // treated as a write and dropped every shared read of the page, so the page's own reads ran again.
+  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|privacy_pin_status)(\?|$)/;
   const readCache = new Map();
   function hdrOf(init, input, name) {
     try {
@@ -926,7 +931,12 @@ window.HelmUrl = HelmUrl;
     if (!(init && init.cache)) init = Object.assign({}, init || {}, { cache: "no-store" });
     if (init.signal) return global.fetch(input, init);
     const isRead = method === "GET" || method === "HEAD" || (method === "POST" && READ_RPCS.test(u) && typeof (init && init.body || "") === "string");
-    if (!isRead) { readCache.clear(); if (!SWR_KEEP_RPCS.test(u)) swrClear(); return global.fetch(input, init); }
+    if (!isRead) {
+      readCache.clear(); memoClear(); if (!SWR_KEEP_RPCS.test(u)) swrClear();
+      // a list read that started while this write was running must not be kept as the fresh answer
+      const wp = global.fetch(input, init); const after = () => { readCache.clear(); memoClear(); };
+      wp.then(after, after); return wp;
+    }
     const key = [method, u, (init && init.body) || "", hdrOf(init, input, "Authorization"), hdrOf(init, input, "Accept"),
       hdrOf(init, input, "Prefer"), hdrOf(init, input, "Range"), hdrOf(init, input, "Accept-Profile"), hdrOf(init, input, "Content-Profile")].join("\u0001");
     const now = Date.now();
@@ -2337,22 +2347,30 @@ window.HelmUrl = HelmUrl;
   /* ---------------- quotes + versions ---------------- */
   // What a quotes LIST shows — never the full pricing JSON (line items, computed
   // breakdown, catering…), only its total and client; layouts live in quote_versions.
-  const QUOTE_LIST_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,approval_token,current_version," +
-    "event_date,event_time,updated_at,created_at,confirmed_at,client,total:pricing->total,pricing_client:pricing->client," +
+  // la-fetch (audit 23): never the client approval link (approval_token) and never the whole client JSON
+  // (e-mail, notes, ...) - only the client fields a list shows: name + phone, plus venue / address / city for
+  // the calendar's venue-clash check. A page that needs more opens ONE quote with get().
+  const QUOTE_LIST_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,current_version," +
+    "event_date,event_time,updated_at,created_at,confirmed_at,client_name:client->>name,client_phone:client->>phone," +
+    "client_venue:client->>venue,client_address:client->>address,client_city:client->>city,total:pricing->total," +
+    "pricing_client_name:pricing->client->>name,pricing_client_phone:pricing->client->>phone," +
     "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency";   // B11: each quote's OWN currency
   // A list VIEW (page) needs even less: the client's name + phone, not the whole client JSON.
   const QUOTE_PAGE_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,current_version,event_date,event_time," +
     "updated_at,created_at,confirmed_at,client_name:client->>name,client_phone:client->>phone,total:pricing->total," +
     "pricing_client_name:pricing->client->>name,pricing_client_phone:pricing->client->>phone," +
     "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency";
-  const nameOnly = (n, p) => { const o = {}; if (n != null) o.name = n; if (p != null) o.phone = p; return o; };
+  const nameOnly = (n, p, x) => { const o = {}; if (n != null) o.name = n; if (p != null) o.phone = p;
+    if (x) { if (x.client_venue != null) o.venue = x.client_venue; if (x.client_address != null) o.address = x.client_address; if (x.client_city != null) o.city = x.client_city; }
+    return o; };
   function mapQuoteSummary(q) {
     let pricing = q.pricing;
     if (!pricing) { pricing = {}; if (q.total != null) pricing.total = q.total;
       if (q.pricing_client != null) pricing.client = q.pricing_client;
       else if (q.pricing_client_name != null || q.pricing_client_phone != null) pricing.client = nameOnly(q.pricing_client_name, q.pricing_client_phone);
       if (q.tax_country) { pricing.taxCountry = q.tax_country; if (q.tax_region) pricing.taxRegion = q.tax_region; if (q.tax_name) pricing.taxName = q.tax_name; if (q.tax_currency) pricing.currency = q.tax_currency; } }
-    if (!q.client && (q.client_name != null || q.client_phone != null)) q = Object.assign({}, q, { client: nameOnly(q.client_name, q.client_phone) });
+    if (!q.client && (q.client_name != null || q.client_phone != null || q.client_venue != null || q.client_address != null || q.client_city != null))
+      q = Object.assign({}, q, { client: nameOnly(q.client_name, q.client_phone, q) });
     return { id: q.id, code: q.code, title: q.title, eventType: q.event_type, status: q.status,
       lifecycleStage: q.lifecycle_stage || "quote",
       approvalStatus: q.approval_status || "none", approvalToken: q.approval_token,
@@ -2695,23 +2713,54 @@ window.HelmUrl = HelmUrl;
     p.then(done, done);
     return p;
   }
+  // la-fetch (audit 25): the shell (rail counts, search, bell, dashboard widgets) and the page used to
+  // read the same lists a few seconds apart - each one a full network read. A settled answer is now
+  // kept for a few seconds per tab and handed out as a COPY (no caller can change another's rows).
+  // It is dropped by ANY write from this tab (coalescedFetch -> memoClear), by a sign-in change and
+  // when the user id differs. Display cache only: RLS and the server still decide every read.
+  var _memo = new Map();   // var: memoClear() may run (sign-in / write) before this line is reached
+  function memoClear() { if (_memo) _memo.clear(); }
+  function memoCopy(v) {
+    if (v == null || typeof v !== "object") return v;
+    try { if (typeof structuredClone === "function") return structuredClone(v); } catch (e) {}
+    try { return JSON.parse(JSON.stringify(v)); } catch (e) { return v; }
+  }
+  function memoRead(key, ttl, fn) {
+    if (mode !== "supabase" || !currentUser) return Promise.resolve().then(fn);   // local mode writes skip fetch: never cache there
+    if (!_memo) _memo = new Map();
+    const uid = (currentUser && currentUser.id) || "", now = Date.now(), hit = _memo.get(key);
+    if (hit && hit.uid === uid && now - hit.t < ttl) return hit.p.then(memoCopy);
+    const p = Promise.resolve().then(fn);
+    const ent = { t: now, uid: uid, p: p };
+    _memo.set(key, ent);
+    p.catch(() => { if (_memo.get(key) === ent) _memo.delete(key); });
+    return p.then(memoCopy);
+  }
+  const MEMO_LIST_MS = 8000;
   // Any non-read method on the object forgets the shared read first, so a list() asked for after a
   // save never gets an answer that started before it.
   const READ_NAME = /^(list|page|get|counts|eventTypes|nextCode|byIds|isArchived|templates|categories|search|find|count|due|codes|lookup)/;
   function dropInflightOnWrite(obj, prefix) {
     Object.keys(obj).forEach((k) => { const fn = obj[k];
       if (typeof fn !== "function" || READ_NAME.test(k)) return;
-      obj[k] = function () { Object.keys(_inflight).forEach((x) => { if (x.indexOf(prefix) === 0) delete _inflight[x]; }); return fn.apply(this, arguments); };
+      obj[k] = function () { Object.keys(_inflight).forEach((x) => { if (x.indexOf(prefix) === 0) delete _inflight[x]; }); memoClear(); return fn.apply(this, arguments); };
     });
   }
   const quotes = {
-    list: () => shareInflight("quotes.list", () => qt().list()),
+    list: () => memoRead("quotes.list", MEMO_LIST_MS, () => shareInflight("quotes.list", () => qt().list())),
     // paged list view + counters (perf): see sbq.page / sbq.counts
     PAGE_SIZE,
     VIEWS: QUOTE_VIEWS.slice(),
     isArchived: quoteIsArchived,
     page: (o) => qt().page(o),
     counts: () => qt().counts(),
+    // la-fetch (audit 25): the sidebar "sent, waiting for client approval" badge - a HEAD count of open
+    // quotes (status quote, approval sent / viewed, not on the Archive / Deleted shelf) instead of the full list
+    async countAwaiting() {
+      if (mode !== "supabase") return (await lsq.list()).filter((q) => q && q.status === "quote" && !q.archivedAt && !q.deletedAt && (q.approvalStatus === "sent" || q.approvalStatus === "viewed")).length;
+      return withShelf((shelf) => { let q = supa.from("quotes").select("id", { count: "exact", head: true }).eq("status", "quote").in("approval_status", ["sent", "viewed"]);
+        if (shelf) q = q.is("archived_at", null).is("deleted_at", null); return sbCount(q); });
+    },
     eventTypes: () => qt().eventTypes(),
     // the next MMDDYYYY-NN guess for a date, from just that day's codes (not every quote)
     async nextCodeFor(date) {
@@ -3489,9 +3538,15 @@ window.HelmUrl = HelmUrl;
   const leads = {
     async list() {
       if (mode === "supabase") {
-        return shareInflight("leads.list", () => sbAll(() => supa.from("leads").select("*").order("updated_at", { ascending: false }).order("id", { ascending: false })));
+        return memoRead("leads.list", MEMO_LIST_MS, () => shareInflight("leads.list", () => sbAll(() => supa.from("leads").select("*").order("updated_at", { ascending: false }).order("id", { ascending: false }))));
       }
       return readLeadsLs();
+    },
+    // la-fetch (audit 25): the sidebar "new leads not yet contacted" badge - a HEAD count (no rows travel)
+    // instead of downloading every lead on every page; same rule as the badge used: status empty or "new"
+    async countNew() {
+      if (mode === "supabase") return sbCount(supa.from("leads").select("id", { count: "exact", head: true }).or("status.is.null,status.eq.new"));
+      return (await readLeadsLs()).filter((l) => l && String(l.status || "new") === "new").length;
     },
     async add(lead) {
       if (mode === "supabase") {
@@ -3737,7 +3792,9 @@ window.HelmUrl = HelmUrl;
         return readLs("bp_nurture_templates");
       },
       async save(type, patch) {
-        if (mode === "supabase") { const { error } = await supa.from("nurture_templates").update({ ...patch, updated_at: now() }).eq("occasion_type", type); if (error) throw error; return true; }
+        // la-fetch (security gap): scoped to THIS studio's row (key is org_id + occasion_type); RLS "ra upd" also checks org + nurture edit
+        if (mode === "supabase") { const org = await orgIdStrict(); if (!org) throw new Error("No studio is linked to this account.");
+          const { error } = await supa.from("nurture_templates").update({ ...patch, updated_at: now() }).eq("org_id", org).eq("occasion_type", type); if (error) throw error; return true; }
         const a = readLs("bp_nurture_templates"); const r = a.find((x) => x.occasion_type === type); if (r) Object.assign(r, patch); else a.push({ occasion_type: type, ...patch }); localStorage.setItem("bp_nurture_templates", JSON.stringify(a)); return true;
       },
     },
@@ -4634,8 +4691,18 @@ window.HelmUrl = HelmUrl;
     restore: (quoteId) => rpc("restore_quote_from_shelf", { p_quote_id: quoteId }),
     // opening Quotes / Dashboard: moves quotes whose client link expired, per the studio's
     // Control Center choice — the server runs it at most once per 10 minutes per studio
-    tick: () => rpc("link_expiry_shelf_tick", {}),
+    // la-fetch (audit 44): once per 10 minutes per tab (the server's own per-studio limit), not on every
+    // open of Quotes / Dashboard - a write on page open also dropped every shared read of that page
+    // (coalescedFetch), so the page's start-up reads ran twice. pg_cron (0040 helm_link_expiry_shelf,
+    // every 30 min) does the same work where it is installed. Skipped -> { moved: 0, skipped: true }.
+    tick(o) {
+      const k = "bp_shelf_tick:" + ((currentUser && currentUser.id) || "");
+      if (!(o && o.force)) { try { const last = Number(sessionStorage.getItem(k) || 0); if (last && Date.now() - last >= 0 && Date.now() - last < SHELF_TICK_MS) return Promise.resolve({ moved: 0, skipped: true }); } catch (e) {} }
+      try { sessionStorage.setItem(k, String(Date.now())); } catch (e) {}
+      return rpc("link_expiry_shelf_tick", {});
+    },
   };
+  const SHELF_TICK_MS = 10 * 60000;
 
   /* ---------------- invitations: join an existing studio (Phase 83) ---------------- */
   // Onboarding split: create a NEW company = org.createStudio; JOIN an existing
@@ -5405,6 +5472,12 @@ window.HelmUrl = HelmUrl;
     async mine() {
       if (mode !== "supabase") { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === chatLocalUid()) || CHAT_LOCAL_ROSTER[0]; return Object.assign({}, u); }
       if (!supa || !currentUser) return null;
+      // la-fetch (audit 25): the shell menu, the dashboard greeting and the page each asked my_profile()
+      // on open - one answer per 30 s per tab now (any save from this tab drops it, see memoRead)
+      return memoRead("profile.mine", 30000, () => profile._mineFetch());
+    },
+    async _mineFetch() {
+      if (!supa || !currentUser) return null;
       if (!profileRpcMissing) {
         const { data, error } = await supa.rpc("my_profile");
         if (!error) return data && typeof data === "object" ? Object.assign({ id: data.user_id }, data) : null;
@@ -5646,6 +5719,11 @@ window.HelmUrl = HelmUrl;
     // read — RLS then shows colleagues only to users with the users-view capability.
     async roster() {
       if (mode !== "supabase") return CHAT_LOCAL_ROSTER.slice();
+      // la-fetch (audit 25): the studio directory changes rarely - one read per minute per tab is shared by the
+      // bell poll, the chat page and the mention picker (any write from this tab drops it)
+      return memoRead("chat.roster", 60000, () => chat._rosterFetch());
+    },
+    async _rosterFetch() {
       if (!chatDirectoryMissing) {
         const { data, error } = await supa.rpc("chat_directory");
         if (!error) return (data || []).map(chatPerson);   // + avatar_path / job_title / department (0041)
@@ -5662,8 +5740,15 @@ window.HelmUrl = HelmUrl;
         if (!convs.some((c) => c.kind === "broadcast")) { convs.unshift({ id: "bcast", kind: "broadcast", title: "Everyone", created_at: now(), last_message_at: now(), members: [] }); chatWriteLs(CHAT_LS_C, convs); }
         return convs.slice().sort((a, b) => String(b.last_message_at || "").localeCompare(String(a.last_message_at || "")));
       }
-      // ensure the org "Everyone" channel ONCE per page — not on every bell poll
-      if (!chatBcastEnsured) { try { await rpc("chat_ensure_broadcast"); chatBcastEnsured = true; } catch (e) {} }
+      // ensure the org "Everyone" channel - la-fetch (audit 44): only on the Chat page and once per tab
+      // session (it is a write: on every page open it dropped that page's shared reads). The bell on other
+      // pages just lists the conversations that exist; the channel is made the first time someone opens Chat.
+      if (!chatBcastEnsured && pageKey() === "chat") {
+        const bk = "bp_chat_bcast:" + ((currentUser && currentUser.id) || "");
+        let done = false; try { done = sessionStorage.getItem(bk) === "1"; } catch (e) {}
+        if (done) chatBcastEnsured = true;
+        else { try { await rpc("chat_ensure_broadcast"); chatBcastEnsured = true; try { sessionStorage.setItem(bk, "1"); } catch (e) {} } catch (e) {} }
+      }
       const { data, error } = await supa.from("chat_conversations").select("*").order("last_message_at", { ascending: false });
       if (error) throw error;
       // event-group titles made while create_event_group's " \u00b7 " was mis-encoded (UTF-8 read as
@@ -6135,7 +6220,9 @@ window.HelmUrl = HelmUrl;
       return readLs(BOOK_LS).filter((b) => b.quote_id === quoteId);
     },
     async listAll() {
-      if (mode === "supabase") { const { data, error } = await supa.from("event_resources").select("*"); if (error) throw error; return data; }
+      // la-fetch (security gap): explicit studio filter + paged with the shared safety cap (calendar clash check)
+      if (mode === "supabase") { const org = await orgIdStrict(); if (!org) return [];
+        return sbAll(() => supa.from("event_resources").select("*").eq("org_id", org).order("id")); }
       return readLs(BOOK_LS);
     },
     // event history for a page of partners: just vendor / event / status of their bookings
@@ -6187,14 +6274,16 @@ window.HelmUrl = HelmUrl;
         vendors.listAll(true).catch(() => []),
         (async () => {
           if (mode !== "supabase") return readLs("bp_tasks_stub") || [];
-          const { data, error } = await supa.from("event_tasks").select("quote_id,crew_id,title,status").not("crew_id", "is", null);
-          if (error) throw error; return data;
+          // la-fetch (security gap): explicit studio filter (RLS is still the gate) + paged with the shared
+          // safety cap, not one unbounded read that PostgREST silently cut at 1000 rows
+          const org = await orgIdStrict(); if (!org) return [];
+          return sbAll(() => supa.from("event_tasks").select("id,quote_id,crew_id,title,status").eq("org_id", org).not("crew_id", "is", null).order("id"));
         })().catch(() => []),
         (async () => {
           // venue name/address per event (for the venue-double-booking check)
           if (mode !== "supabase") return [];
-          const { data, error } = await supa.from("event_plan").select("quote_id,venue_name,venue_address");
-          if (error) throw error; return data;
+          const org = await orgIdStrict(); if (!org) return [];
+          return sbAll(() => supa.from("event_plan").select("quote_id,venue_name,venue_address").eq("org_id", org).order("quote_id"));
         })().catch(() => []),
         config.getPricing().catch(() => ({})),   // for the venue-clash buffer (parallel, no extra round-trip)
         inventory.shortages().catch(() => []),   // 0197: open stock shortages ("Short: 10 x Air Cooler - sourcing from ...")
@@ -7714,7 +7803,9 @@ window.HelmUrl = HelmUrl;
 
   const bell = {
     link: notifLink,
-    feed: (limit) => rpc("bell_feed", limit ? { p_limit: limit } : {}),
+    // la-fetch (audit 25): the bell's first load and the realtime-subscribe refresh right after it asked bell_feed
+    // twice - one answer per 5 s per tab (markSeen or any other write drops it)
+    feed: (limit) => memoRead("bell.feed:" + (limit || ""), 5000, () => rpc("bell_feed", limit ? { p_limit: limit } : {})),
     markSeen: () => rpc("bell_mark_seen", {}),
     label: bellLabel,
     // 0036 admin-managed notifications. mine() → { hidden:[type…] } for the signed-in
@@ -7820,7 +7911,8 @@ window.HelmUrl = HelmUrl;
         r.toasts.slice().reverse().forEach((x) => { try { window.BPUI.toast(x.message, { title: x.title, type: x.type, icon: x.icon, href: x.href || null, linkLabel: "View", timeout: 5000,
           onOpen: () => { if (x.rk && readKeys.indexOf(x.rk) === -1) { readKeys.push(x.rk); saveRead(); } } }); } catch (e) {} });
       };
-      const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
+      let lastRf = 0;
+      const refresh = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
         if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
       // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
@@ -7936,7 +8028,13 @@ window.HelmUrl = HelmUrl;
       const kick = () => { if (kicked) return; kicked = true; liveRefresh();
         try { if (chat && chat.subscribe) { csub = chat.subscribe(function () { liveRefresh(); }, function () {}, "chat-rt-bell"); window.addEventListener("beforeunload", function () { try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} }); } } catch (e) {}
       };
-      const timer = setInterval(() => { if (kicked && !document.hidden && !isOpen) refresh(); }, 30000);
+      // la-fetch (audit 25): one poll is ~7 reads (feed + chat bootstrap). On the Chat page realtime already
+      // refreshes on every message, so the safety poll there runs every 90 s, elsewhere every 30 s; never
+      // while the tab is hidden, and a tab coming back after its interval catches up once.
+      const pollMs = () => (pageKey() === "chat" && csub ? 90000 : 30000);
+      const timer = setInterval(() => { if (kicked && !document.hidden && !isOpen && Date.now() - lastRf >= pollMs() - 1000) refresh(); }, 30000);
+      const onVis = () => { if (kicked && !document.hidden && !isOpen && Date.now() - lastRf >= pollMs()) liveRefresh(); };
+      document.addEventListener("visibilitychange", onVis);
       btn.addEventListener("click", kick);
       if (pageKey() === "chat") kick();
       else {
@@ -7945,7 +8043,7 @@ window.HelmUrl = HelmUrl;
       }
       // Let the chat page nudge the bell after it marks a conversation read.
       try { window.__bpBellRefresh = refresh; } catch (e) {}
-      try { window.__bpBellTeardown = () => { kicked = true; clearInterval(timer); window.removeEventListener("resize", onResize); if (isOpen) close(false);
+      try { window.__bpBellTeardown = () => { kicked = true; clearInterval(timer); window.removeEventListener("resize", onResize); document.removeEventListener("visibilitychange", onVis); if (isOpen) close(false);
         try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} try { root.remove(); } catch (e) {} }; } catch (e) {}
     },
   };
@@ -8814,7 +8912,7 @@ window.HelmUrl = HelmUrl;
       // 0058: {state:'trial'|'ended'|'none', days_left, ends_at, is_admin, can_pay}; null before 0058
       // 0173: {trial, cap: 2, used: {leads, quotes, inventory_items, vendors, crew_members, venues}}; null before 0173
       limits: () => (supa ? rpc("my_trial_limits").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
-      trial: () => (supa ? swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; })) : Promise.resolve(null)),
+      trial: () => (supa ? memoRead("trial", 15000, () => swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : Promise.resolve(null)),
     },
     // 0157 — "Hide amounts" privacy PIN, ONE per studio. The server keeps only a bcrypt hash
     // (default 0000 until an admin changes it) and counts wrong tries per person.
@@ -9137,7 +9235,7 @@ window.HelmUrl = HelmUrl;
     // is_admin}; null before 0097 / local mode. seed / clear / reset / setMode are studio-admin
     // only and touch ONLY this studio's rows flagged is_demo (enforced in the database).
     demo: {
-      status: () => (supa ? swr("demo", () => rpc("my_demo_status").catch((e) => { if (rpcMissing(e)) return null; throw e; })) : Promise.resolve(null)),
+      status: () => (supa ? memoRead("demo", 15000, () => swr("demo", () => rpc("my_demo_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : Promise.resolve(null)),
       setMode: (mode) => rpc("set_trial_mode", { p_mode: mode === "demo" ? "demo" : "own" }),
       seed: () => rpc("seed_demo_data"),
       clear: () => rpc("clear_demo_data"),
