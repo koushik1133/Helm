@@ -117,8 +117,9 @@
 
   function tabFor(pane){ return document.getElementById("tab-"+pane); }
   // 0173 free trial: studio set-up, client links, import, data export, notifications, reminders, photo renders and
-  // the privacy PIN are fixed (html.helm-trial is set by trial-lock.js only when the server says "trial")
-  var TRIAL_OFF={general:1,links:1,data:1,compliance:1,notify:1,reminders:1,renders:1,privacy:1};
+  // the privacy PIN are fixed (html.helm-trial is set by trial-lock.js only when the server says "trial");
+  // 0181: the studio's own layout templates too (the sample layouts stay usable in the builder)
+  var TRIAL_OFF={general:1,links:1,data:1,compliance:1,notify:1,reminders:1,renders:1,privacy:1,ltemplates:1};
   function trial(){ return document.documentElement.classList.contains("helm-trial"); }
   function locked(k){ return trial() && !!TRIAL_OFF[k]; }
   function available(s){ if(locked(s.key)) return false; var t=tabFor(s.pane); return !!t && !t.hidden; }

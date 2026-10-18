@@ -1,5 +1,7 @@
 /* trial-lock.css (0173): free-trial studios only (html.helm-trial is set by trial-lock.js after the server says
-   the studio is in its free trial). Hides downloads, imports, photo renders and studio set-up entry points. */
+   the studio is in its free trial; 0181: already before first paint from the cached flag, see trial-early.js).
+   Hides downloads, imports, photo renders and studio set-up entry points. Every rule is scoped to html.helm-trial,
+   so loading this file on a paid studio's page changes nothing. */
 html.helm-trial .trial-hide,
 html.helm-trial #exportBtn, html.helm-trial #jsonBtn,
 html.helm-trial #importFile, html.helm-trial:not(.tl-budget) #importBtn,
@@ -8,6 +10,11 @@ html.helm-trial [data-csv], html.helm-trial [data-act="download"], html.helm-tri
 html.helm-trial a[download],
 html.helm-trial #viewSeg [data-v="render"], html.helm-trial #photoModal,
 html.helm-trial a[href*="onboarding"],
+html.helm-trial a[href="templates.html"], html.helm-trial a[href="/templates.html"], html.helm-trial a[href^="templates.html#"], html.helm-trial a[href^="/templates.html#"],
+html.helm-trial .hb-mi[data-area="templates"],
+html.helm-trial #st_saveBtn, html.helm-trial #st_mgrBtn,
+html.helm-trial [data-remind],
+html.helm-trial #menuTplList label:has(.tpl_active),
 html.helm-trial #imp_open, html.helm-trial [id^="imp_"],
 html.helm-trial #ch_add, html.helm-trial #pl_add, html.helm-trial #dc_add,
 html.helm-trial .addrow:has(#ch_add), html.helm-trial .addrow:has(#pl_add), html.helm-trial .addrow:has(#dc_add),

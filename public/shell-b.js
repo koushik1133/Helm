@@ -399,7 +399,9 @@
   function quickCreate(split, nq) {
     waitAuth(function () {
       Promise.all(CREATE.map(function (c) { return can(c.area, c.edit); })).then(function (ok) {
-        var items = CREATE.filter(function (c, i) { return ok[i]; });
+        // free trial (0181): no "Checklist template" (Templates is not part of the trial)
+        var trial = document.documentElement.classList.contains("helm-trial");
+        var items = CREATE.filter(function (c, i) { return ok[i] && !(trial && c.area === "templates"); });
         if (!items.length) return;
         split.hidden = false;
         if (!ok[0]) { nq.hidden = true; }
@@ -412,7 +414,7 @@
         var menu = el("div", "hb-menu"); menu.setAttribute("role", "menu"); menu.hidden = true; menu.id = "hbCreateMenu";
         chev.setAttribute("aria-controls", menu.id);
         items.forEach(function (c) {
-          var b = el("button", "hb-mi"); b.type = "button"; b.setAttribute("role", "menuitem"); b.tabIndex = -1;
+          var b = el("button", "hb-mi"); b.type = "button"; b.setAttribute("role", "menuitem"); b.tabIndex = -1; b.setAttribute("data-area", c.area);
           b.appendChild(icon(c.icon)); b.appendChild(el("span", null, c.label));
           b.addEventListener("click", function () { close(false); if (c.run) c.run(); else go(c.href); });
           menu.appendChild(b);
