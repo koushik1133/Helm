@@ -36,7 +36,7 @@ notification had the Reset-password body pasted into it - its "Choose a new pass
 link (a notification has no confirmation URL), so it showed as plain text. The two security
 notifications now have their own files, with no one-time link.
 
-**0204 - every link is on Helm's own domain.** The six link templates use
+**0205 - every link is on Helm's own domain.** The six link templates use
 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=<type>&next=<where>` (never
 `{{ .ConfirmationURL }}`, which shows the Supabase project URL). `public/auth-confirm.html`
 (served at `/auth/confirm`) verifies the one-time token in the browser and routes: invite / magic
@@ -59,7 +59,7 @@ to `inviteUserByEmail(..., { data: { studio, role, invited_by } })`. Each is wra
 If the dashboard rejects a subject with `{{ if }}`, use the plain subject
 `Join your studio on Helm` instead.
 
-The magic link is also used for invites to people who **already have** a Helm account (0204,
+The magic link is also used for invites to people who **already have** a Helm account (0205,
 2026-10-18). Before sending it, `invite-mailer` writes the same three keys (`studio`, `role` as the
 human label e.g. "Event coordinator", `invited_by`) into that login's profile data, so the magic link
 reads exactly like the "Invite user" e-mail: "Join <studio> on Helm - <inviter> invited you as <role>"

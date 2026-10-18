@@ -1,6 +1,6 @@
 /* trial-lock.css (0173): free-trial studios only (html.helm-trial is set by trial-lock.js after the server says
    the studio is in its free trial; 0181: already before first paint from the cached flag, see trial-early.js).
-   Hides downloads, imports, photo renders and studio set-up entry points. 0202: also the inventory "Load starter
+   Hides downloads, imports, photo renders and studio set-up entry points. 0203: also the inventory "Load starter
    items" buttons, the studio data archive, the greeting send / run buttons, the activity log (dashboard card + links) and the Operations "+ Add to template" row. Every rule is scoped to html.helm-trial,
    so loading this file on a paid studio's page changes nothing. */
 html.helm-trial .trial-hide,

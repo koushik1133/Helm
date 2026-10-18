@@ -1,4 +1,4 @@
-// invite-signup (0204) — a brand-new invitee can always join. Fake invites, mocked Supabase, no network,
+// invite-signup (0205) — a brand-new invitee can always join. Fake invites, mocked Supabase, no network,
 // no real e-mail: peek gives the invite context, a login the invite e-mail made without a password is
 // "needs_link" (never "sign in"), "Email me a new link" goes only to the invitation's own e-mail.
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
@@ -38,7 +38,7 @@ Deno.test("invite-signup peek: invite context (studio, inviter name, role label)
   } finally { f(); r(); }
 });
 
-Deno.test("invite-signup peek: 0204 not applied -> context without account (old behaviour)", async () => {
+Deno.test("invite-signup peek: 0205 not applied -> context without account (old behaviour)", async () => {
   resetSupaMock(); db({ stateErr: true });
   const r = setEnv(ENV); const f = noFetch();
   try {
@@ -148,7 +148,7 @@ Deno.test("invite-signup resend (provider set): Supabase only makes the link, He
     const m = JSON.parse(String(fetchLog()[0].init?.body));
     assertEquals(m.to, ["shagantikoushik+test@gmail.com"]); assertEquals(m.subject, "Join ABCD on Helm");
     assert(m.html.includes("Set my password") && m.html.includes("Priya Shah") && m.html.includes("Event coordinator"));
-    // 0204: the link is on Helm's own domain - the Supabase project URL never appears in the e-mail
+    // 0205: the link is on Helm's own domain - the Supabase project URL never appears in the e-mail
     const own = "https://www.helm.events/auth/confirm?token_hash=" + "f".repeat(56) + "&amp;type=magiclink&amp;next=%2Flogin%3Finvite%3D" + TOK;
     assert(m.html.includes(own), "own-domain confirm link");
     assert(!m.html.includes("supabase.co") && !m.text.includes("supabase.co"), "no Supabase URL");

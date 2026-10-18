@@ -1,4 +1,4 @@
--- trial-gates-0202.sql -- 0202: free-trial server gates. Trial studio: no greeting to a client (send refused,
+-- trial-gates-0203.sql -- 0203: free-trial server gates. Trial studio: no greeting to a client (send refused,
 -- automatic run does nothing, automation cannot be switched on, auto-greet shown off), menu package dishes
 -- fixed (price editable), activity log not readable, checklist / task templates not writable, checkout status
 -- says "trial" (not "subscribed"); export / import / photo render / starter seed still refused (0173 / 0181).
@@ -53,10 +53,10 @@ declare e text; begin
   perform set_config('helm.maintenance', 'off', true); return e;
 end $$;
 
--- earlier suites in run-all re-apply older migrations over the 0173 / 0202 wrappers: re-run both
+-- earlier suites in run-all re-apply older migrations over the 0173 / 0203 wrappers: re-run both
 -- (also proves a re-run is safe)
 \ir ../../supabase/migrations/0173_trial_lockdown.sql
-\ir ../../supabase/migrations/0202_trial_gates.sql
+\ir ../../supabase/migrations/0203_trial_gates.sql
 
 -- ---- trial studio: greetings ------------------------------------------------------------------------
 do $$ declare o uuid; e text; v text; nid uuid; n0 int; n1 int; begin
@@ -257,6 +257,6 @@ do $$ begin
 end $$;
 
 select name, result from _uf order by name;
-select case when count(*) filter (where result <> 'PASS') = 0 then 'TRIAL-GATES-0202: ALL PASS (' || count(*) || '/' || count(*) || ')'
-            else 'TRIAL-GATES-0202: ' || count(*) filter (where result <> 'PASS') || ' FAILED of ' || count(*) end as summary from _uf;
+select case when count(*) filter (where result <> 'PASS') = 0 then 'TRIAL-GATES-0203: ALL PASS (' || count(*) || '/' || count(*) || ')'
+            else 'TRIAL-GATES-0203: ' || count(*) filter (where result <> 'PASS') || ' FAILED of ' || count(*) end as summary from _uf;
 rollback;

@@ -1,6 +1,6 @@
-# Team invitations: end-to-end trace, root causes and fixes (0204, 2026-10-18)
+# Team invitations: end-to-end trace, root causes and fixes (0205, 2026-10-18)
 
-Branch `fix/invite-accept-flow` (from `feat/trial-bundle`). Migration 0204, edge functions
+Branch `fix/invite-accept-flow` (from `feat/trial-bundle`). Migration 0205, edge functions
 `invite-signup` + `invite-mailer`, `public/login.html`, `public/auth-confirm.html`, `public/store-api.js`.
 
 ## 1. What went wrong in production (plain words)
@@ -37,10 +37,10 @@ account - sign in instead"** - although they never had a password.
 | # | Fix |
 |---|---|
 | 1 | With an e-mail provider (Resend, **or the SMTP secrets client-mailer already uses**), `invite-mailer` sends ONE branded invitation to everyone and Supabase creates **no** login up front. The join page creates it (`invite-signup`, already confirmed, only for the invited e-mail). |
-| 2 | Without a provider, the "Invite user" and "Magic link" Supabase templates now carry the same text ("Join <Studio> on Helm - <Inviter> invited you as <Role>" + **Accept invitation**); for an existing login `invite-mailer` writes that login's `studio` / `role` (human label) / `invited_by` first (0204 `invite_auth_user_id`). |
-| 3 | The join page knows, for the invitation's OWN e-mail only (0204 `invite_account_state`, service role): **new** → create password; **needs_link** (login made by the invite, no password) → "Email me a new link to set my password" (never "sign in"); **unconfirmed** (self sign-up never confirmed) → same new link (it confirms and joins); **existing** → "Sign in to accept" with the invite kept (accepted right after sign-in). |
+| 2 | Without a provider, the "Invite user" and "Magic link" Supabase templates now carry the same text ("Join <Studio> on Helm - <Inviter> invited you as <Role>" + **Accept invitation**); for an existing login `invite-mailer` writes that login's `studio` / `role` (human label) / `invited_by` first (0205 `invite_auth_user_id`). |
+| 3 | The join page knows, for the invitation's OWN e-mail only (0205 `invite_account_state`, service role): **new** → create password; **needs_link** (login made by the invite, no password) → "Email me a new link to set my password" (never "sign in"); **unconfirmed** (self sign-up never confirmed) → same new link (it confirms and joins); **existing** → "Sign in to accept" with the invite kept (accepted right after sign-in). |
 | 4 | Every path shows the invite context: "Join <Studio> on Helm", "<Inviter> invited you as <Role>", the invited e-mail read-only, then the one right action (Set your password / Email me a new link / Sign in to accept). |
-| 5 | A used / expired / cancelled link says "This invitation link has expired or was already used - ask <Studio> to resend it" + **Email me a new link**: expired → the studio's bell gets one note per 24 h (0204 `invite_request_new_link`; the invitation itself is never renewed - seat limit / admin's choice); used (already joined) → the normal reset link to choose a password; cancelled → "ask <Studio>". |
+| 5 | A used / expired / cancelled link says "This invitation link has expired or was already used - ask <Studio> to resend it" + **Email me a new link**: expired → the studio's bell gets one note per 24 h (0205 `invite_request_new_link`; the invitation itself is never renewed - seat limit / admin's choice); used (already joined) → the normal reset link to choose a password; cancelled → "ask <Studio>". |
 | 6 | An invitee **never** goes through self sign-up: no `signUp()` and no "Confirm your email" on the invite path. If the server can't create the account it says so. |
 | 7 | All auth e-mail links are on `https://www.helm.events/auth/confirm?token_hash=...&type=...&next=...` (`public/auth-confirm.html`): verified in the browser, then invite → Join page signed in → Set your password; reset → choose a new password; sign-up confirm → signed in (only in the browser that started the sign-up); `next` must be a same-origin path (open redirects refused). |
 | 8 | E-mail buttons are Outlook-safe (VML for Outlook desktop + a table cell with a real `<a href>` for everything else) and every e-mail keeps the plain "Copy and paste this link" line. Security notifications have their own templates. |
@@ -62,7 +62,7 @@ account - sign in instead"** - although they never had a password.
 | Brand-new e-mail | | Provider: no login exists → "Choose a password to join" (created confirmed, joins, lands in the studio). No provider: invite link signs in → Set your password → studio. Old/used link → needs_link → new link. |
 | E-mail that already has a Helm login (no studio, e.g. removed earlier) | | "Sign in to accept" (or Google) → accepted → studio. |
 | E-mail already in ANOTHER studio | `accept_invitation`: one org per login | Clear message: ask that studio's admin to remove you, or get invited with another e-mail. (A login the other studio created with "Add user" moves over - 0155.) |
-| Signed up on their own first, never confirmed | 0204 `unconfirmed` | Never "sign in" (it can't work): Email me a new link → the link confirms the e-mail and joins. |
+| Signed up on their own first, never confirmed | 0205 `unconfirmed` | Never "sign in" (it can't work): Email me a new link → the link confirms the e-mail and joins. |
 | Signed up on their own first and made their own (trial) studio | one org per login | Same "already in another studio" message. |
 | Browser signed in as someone else (e.g. the admin testing) | link session never swaps accounts | "This invitation is for a different e-mail - Sign out & accept invite" → then the right action (a used link → Email me a new link). On /auth/confirm: "Sign out and continue". |
 | Google | `signInWithGoogle(login.html?invite=...)` | Joins when the Google e-mail is the invited one; otherwise "different e-mail". |
@@ -73,7 +73,7 @@ Single-use and server-side validation: the invite token (48 hex) is checked on t
 
 ## 4. Owner actions (in this order)
 
-1. **SQL** - paste `supabase/APPLY-0204.sql` in the Supabase SQL editor, staging first, then prod.
+1. **SQL** - paste `supabase/APPLY-0205.sql` in the Supabase SQL editor, staging first, then prod.
    Every VERIFY row must be `true`. Safe to run twice; adds 4 small functions only.
 2. **Deploy the two edge functions** (staging ref `xizehqgeyjcfpzrdymly`, prod ref `nqltzgiwznphugcfhmbm`):
    ```
@@ -102,11 +102,11 @@ Single-use and server-side validation: the invite token (48 hex) is checked on t
 
 ## 5. Tests
 
-* `test/invite-accept-0204.test.mjs`, `test/auth-confirm.test.mjs` (+ updated invite-flow,
+* `test/invite-accept-0205.test.mjs`, `test/auth-confirm.test.mjs` (+ updated invite-flow,
   invite-mailer, email-redesign, auth-signup-confirm, email-compliance, auth-gate).
 * Deno harness, fake invites, no network: `tests/edge/invite-signup.test.ts` (peek context,
   needs_link / unconfirmed / existing, resend to the invited address only, own-domain link,
   rate limit 3/h, expired → bell) and `tests/edge/invite-mailer.test.ts` (brand-new, existing
   account, re-invite: identical e-mail; Supabase fallback metadata).
-* DB: `tests/db/invite-accept-0204.sql` (40 checks: privileges, states, read-only, single-use token,
+* DB: `tests/db/invite-accept-0205.sql` (40 checks: privileges, states, read-only, single-use token,
   pending invites hold trial seats, bell note once per 24 h, invitation never renewed).

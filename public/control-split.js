@@ -151,7 +151,7 @@
   function show(key, opts){
     var s=BYKEY[key]; if(!s) return;
     if(locked(key)){   // direct link to a section the free trial does not include
-      // 0202: go to the first section the trial does include (once the tabs are known) and say why
+      // 0203: go to the first section the trial does include (once the tabs are known) and say why
       var to=firstOpen();
       if(to && to!==key && !locked(to) && available(BYKEY[to])){
         wanted=to; setHash(SECHASH[to]);

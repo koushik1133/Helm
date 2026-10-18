@@ -1,4 +1,4 @@
--- 0203_anon_grant_tidy.sql - CANONICAL forward-only. REQUIRES 0004 (current_org_id), phase57 RLS.
+-- 0204_anon_grant_tidy.sql - CANONICAL forward-only. REQUIRES 0004 (current_org_id), phase57 RLS.
 --
 -- In plain words (live audit 2026-10-18, security gaps "anonymous API errors name internal objects"):
 -- with only the public (anon) key, a direct API read of a few studio tables answered
@@ -28,7 +28,7 @@
 
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'anon') then
-    raise notice '0203: no anon role on this database - nothing to do';
+    raise notice '0204: no anon role on this database - nothing to do';
   end if;
 end $$;
 
@@ -70,7 +70,7 @@ do $$ declare r record; begin
        and (coalesce(p.qual, '') || ' ' || coalesce(p.with_check, '')) ~ 'current_org_id\('
   loop
     execute format('alter policy %I on public.%I to authenticated', r.policyname, r.tablename);
-    raise notice '0203: policy %.% now applies to signed-in callers only', r.tablename, r.policyname;
+    raise notice '0204: policy %.% now applies to signed-in callers only', r.tablename, r.policyname;
   end loop;
 end $$;
 

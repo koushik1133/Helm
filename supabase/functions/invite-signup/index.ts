@@ -8,11 +8,11 @@
 // The invitation must be pending and unexpired. Nothing else is touched: the studio join
 // itself still happens through the normal accept_invitation() RPC after sign-in (same checks).
 //
-// 0204 (prod bug 2026-10-18): when the invitation went out through Supabase Auth's own mailer
+// 0205 (prod bug 2026-10-18): when the invitation went out through Supabase Auth's own mailer
 // (invite-mailer without a Resend key), Supabase ALREADY created the login - with no password.
 // Its "Accept invitation" link works once, for 24 h. If that link's sign-in was lost (used,
 // expired, opened while someone else was signed in) the invitee must NOT be told to "sign in":
-// they have no password. invite_account_state(token) (0204, service role only) tells the cases
+// they have no password. invite_account_state(token) (0205, service role only) tells the cases
 // apart, and { token, resend: true } e-mails a NEW link to the invited address only.
 //
 // When it falls back to the normal (confirm-by-e-mail) sign-up — answer { fallback: true }:
@@ -20,7 +20,7 @@
 // { token, peek: true }   → { email, account?, studio, inviter, role, role_label } of a valid
 //                           invitation, so EVERY path of the join page reads "Join <studio> on Helm -
 //                           <inviter> invited you as <role>" with the invited e-mail locked.
-//                           account (0204 applied): "new" (no login yet) | "needs_link" (a login made
+//                           account (0205 applied): "new" (no login yet) | "needs_link" (a login made
 //                           by the invite, no password yet) | "existing" (a real account: sign in).
 //                           Only ever about the invitation's OWN e-mail. A known but no longer valid
 //                           token → 400 invalid_invite + { reason: expired | used | revoked, studio }.
@@ -30,7 +30,7 @@
 //                           { ok: true, sent: true } | { account: "new" } | 409 account_exists.
 //                           Rate limited (3 / hour per invitation, 10 / hour per IP).
 //                           On an EXPIRED invitation it never renews anything: it asks the studio
-//                           (invite_request_new_link, 0204: one bell note per 24 h) → { requested: true }.
+//                           (invite_request_new_link, 0205: one bell note per 24 h) → { requested: true }.
 // Refusals (4xx { error, code }):
 //   invalid_invite  — unknown / not pending / expired token
 //   email_mismatch  — the typed e-mail is not the invited one
@@ -74,7 +74,7 @@ export function joinLink(token: string, base?: string): string | null {
   return `${origin}/login?invite=${encodeURIComponent(token)}`;
 }
 
-// 0204: an auth e-mail link on Helm's OWN domain (public/auth-confirm.html verifies the one-time
+// 0205: an auth e-mail link on Helm's OWN domain (public/auth-confirm.html verifies the one-time
 // hashed token there) - never the Supabase project URL. next = a fixed same-origin path.
 export function confirmLink(hashedToken: string, type: "invite" | "magiclink", next: string, base?: string): string | null {
   if (!/^[A-Za-z0-9_-]{8,256}$/.test(hashedToken) || !/^\/[^/\\]/.test(next)) return null;
@@ -83,8 +83,8 @@ export function confirmLink(hashedToken: string, type: "invite" | "magiclink", n
   return `${origin}/auth/confirm?token_hash=${encodeURIComponent(hashedToken)}&type=${type}&next=${encodeURIComponent(next)}`;
 }
 
-// invite_account_state (0204) → what the browser may know about the invitation's OWN e-mail.
-// "unknown" = 0204 not applied yet / lookup failed (callers keep the old behaviour).
+// invite_account_state (0205) → what the browser may know about the invitation's OWN e-mail.
+// "unknown" = 0205 not applied yet / lookup failed (callers keep the old behaviour).
 export type AccountState = "new" | "needs_link" | "unconfirmed" | "existing" | "unknown";
 export function mapAccount(row: unknown): { account: AccountState; confirmed: boolean | null } {
   const r = (row && typeof row === "object") ? row as Record<string, unknown> : null;
@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
         try {
           const { data: q, error: qErr } = await admin.rpc("invite_request_new_link", { p_token: token });
           if (!qErr && q && (q.result === "requested" || q.result === "already_requested")) return json({ requested: true, studio });
-        } catch (_) { /* 0204 not applied: plain answer below */ }
+        } catch (_) { /* 0205 not applied: plain answer below */ }
       }
       const who = studio || "your studio";
       const msg = reason === "used" ? `This invitation link was already used. If you joined ${who} but never chose a password, use "Forgot password?" to set one.`
@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
     }
     const bound = String(inv.email ?? "").trim().toLowerCase();
     if (!bound) return json({ fallback: true });          // no e-mail bound → normal confirm-by-e-mail sign-up
-    // the login state of the invitation's OWN e-mail (0204; "unknown" until it is applied)
+    // the login state of the invitation's OWN e-mail (0205; "unknown" until it is applied)
     const stateOf = async () => {
       try { const { data, error } = await admin.rpc("invite_account_state", { p_token: token }); return error ? mapAccount(null) : mapAccount(data); }
       catch (_) { return mapAccount(null); }

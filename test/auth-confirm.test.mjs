@@ -1,4 +1,4 @@
-// auth-confirm (0204): every auth e-mail link opens on www.helm.events/auth/confirm (never the Supabase
+// auth-confirm (0205): every auth e-mail link opens on www.helm.events/auth/confirm (never the Supabase
 // project URL). Pure parser: only the six e-mail types, a token-hash shape, and `next` only as a
 // same-origin path (no open redirect). Page: external scripts only, token stripped from the address
 // bar, never swaps a signed-in account without asking, keeps a sign-up session only in the browser

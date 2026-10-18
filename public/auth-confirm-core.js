@@ -1,4 +1,4 @@
-/* auth-confirm-core.js — pure helpers for /auth/confirm (0204). No DOM, no network: parse the e-mail
+/* auth-confirm-core.js — pure helpers for /auth/confirm (0205). No DOM, no network: parse the e-mail
    link Helm (or the Supabase Auth templates in docs/ops/email-templates) sends, so every auth e-mail
    link is on https://www.helm.events instead of the Supabase project URL:
      /auth/confirm?token_hash=<hashed token>&type=<invite|signup|email|recovery|magiclink|email_change>&next=<where>

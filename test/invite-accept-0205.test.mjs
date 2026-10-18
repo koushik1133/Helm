@@ -1,4 +1,4 @@
-// invite-accept-0204: a brand-new invitee can always join. The Supabase "Invite user" e-mail makes
+// invite-accept-0205: a brand-new invitee can always join. The Supabase "Invite user" e-mail makes
 // the login up front WITHOUT a password; when its one-time link's sign-in is lost the join page must
 // never say "already has an account - sign in" - it e-mails a new link instead (set password -> join).
 import { readFileSync } from "node:fs";
@@ -9,11 +9,11 @@ let n = 0; const t = (name, fn) => { try { fn(); n++; } catch (e) { console.erro
 
 const fn = r("supabase/functions/invite-signup/index.ts");
 const login = r("public/login.html"), api = r("public/store-api.js");
-const mig = r("supabase/migrations/0204_invite_account_state.sql"), apply = r("supabase/APPLY-0204.sql");
+const mig = r("supabase/migrations/0205_invite_account_state.sql"), apply = r("supabase/APPLY-0205.sql");
 const manifest = r("supabase/migrations/MANIFEST"), runAll = r("scripts/db-test/run-all.sh");
 
 // ---- migration ------------------------------------------------------------------------------
-t("0204: ASCII, additive, idempotent, no destructive statements", () => {
+t("0205: ASCII, additive, idempotent, no destructive statements", () => {
   assert.ok(/^[\x00-\x7f]*$/.test(mig) && /^[\x00-\x7f]*$/.test(apply), "ASCII only");
   const code = mig.replace(/--.*$/gm, "");
   assert.ok(!/\b(drop|delete|truncate|update|alter\s+table)\b/i.test(code), "no DROP / DELETE / UPDATE / ALTER TABLE");
@@ -21,7 +21,7 @@ t("0204: ASCII, additive, idempotent, no destructive statements", () => {
   assert.match(code, /insert into public\.notifications\(quote_id, channel, kind, status, detail, org_id\)/);
   assert.equal((mig.match(/create or replace function/g) || []).length, 4);
 });
-t("0204: invite_account_state is service-role only and looks at ONE valid invitation", () => {
+t("0205: invite_account_state is service-role only and looks at ONE valid invitation", () => {
   assert.match(mig, /invite_account_state\(p_token text\)[\s\S]*security definer set search_path = ''/);
   assert.match(mig, /grant execute on function public\.invite_account_state\(text\) to service_role/);
   assert.match(mig, /revoke all on function public\.invite_account_state\(text\) from authenticated/);
@@ -31,15 +31,15 @@ t("0204: invite_account_state is service-role only and looks at ONE valid invita
   assert.match(mig, /provider, ''\) <> 'email'/, "a Google / other sign-in counts as a real account");
   assert.ok(!/'email',\s*v_/.test(mig) && !/'user_id'/.test(mig), "never returns the address or the user id");
 });
-t("0204: my_needs_password is about the caller's OWN login only", () => {
+t("0205: my_needs_password is about the caller's OWN login only", () => {
   assert.match(mig, /my_needs_password\(\)[\s\S]*where u\.id = auth\.uid\(\)/);
   assert.match(mig, /grant execute on function public\.my_needs_password\(\) to authenticated/);
 });
-t("0204: MANIFEST + APPLY (with VERIFY) + DB suite registered", () => {
-  assert.match(manifest, /^forward  supabase\/migrations\/0204_invite_account_state\.sql$/m);
+t("0205: MANIFEST + APPLY (with VERIFY) + DB suite registered", () => {
+  assert.match(manifest, /^forward  supabase\/migrations\/0205_invite_account_state\.sql$/m);
   assert.ok(apply.includes(mig.trim()), "APPLY embeds the migration verbatim");
   assert.match(apply, /^begin;$/m); assert.match(apply, /^commit;$/m); assert.match(apply, /-- VERIFY/);
-  assert.match(runAll, /INVITE-ACCEPT-0204: ALL PASS \\\(40\/40\\\)/);
+  assert.match(runAll, /INVITE-ACCEPT-0205: ALL PASS \\\(40\/40\\\)/);
 });
 
 // ---- edge function invite-signup ----------------------------------------------------------------
@@ -210,4 +210,4 @@ t("Supabase templates: Invite user + Magic link read as the same invitation", ()
   const gen = r("scripts/gen-email-templates.mjs");
   assert.match(gen, /"magic-link": \{\s*supabase: "Magic link", subject: "\{\{ if \.Data\.studio \}\}Join \{\{ \.Data\.studio \}\} on Helm\{\{ else \}\}Your Helm sign-in link\{\{ end \}\}"/);
 });
-console.log(`invite-accept-0204: ${n} checks passed`);
+console.log(`invite-accept-0205: ${n} checks passed`);

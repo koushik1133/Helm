@@ -128,8 +128,8 @@
   .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
 <link rel="stylesheet" href="quotes-polish.css?v=8"><link rel="stylesheet" href="event-group-picker.css?v=2">
-<link rel="stylesheet" href="theme.css?v=82">
-<script src="/shell-proto.js?v=26" id="shellProto"></script>
+<link rel="stylesheet" href="theme.css?v=83">
+<script src="/shell-proto.js?v=27" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -275,10 +275,10 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=5"></script>
-<script src="event-name.js?v=8"></script>
-<script src="new-quote-dialog.js?v=1"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script><script src="flow-resume.js?v=2" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
+<script src="event-name.js?v=9"></script>
+<script src="new-quote-dialog.js?v=2"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script><script src="flow-resume.js?v=2" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
-<script src="tour.js?v=17"></script>
+<script src="tour.js?v=18"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1196,7 +1196,7 @@
   // when you left (e.g. before a re-price or approval in the workspace) - re-read the list
   window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&pager) reloadQuiet(); });
 </script>
-<script src="saved-filters.js?v=3"></script>
+<script src="saved-filters.js?v=4"></script>
 <script src="capacity-shortage.js?v=2"></script>
 </body>
 </html>

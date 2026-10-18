@@ -254,7 +254,7 @@ exception when others then perform pg_temp.su(); insert into _uf values ('6y wel
 
 -- ---- 6) clear + reset ---------------------------------------------------------------------------------
 do $$ declare a uuid := pg_temp.get('A')::uuid; b uuid := pg_temp.get('B')::uuid; r jsonb; begin
-  -- 0202: a trial studio cannot write task templates from the app any more, so this "own" template is
+  -- 0203: a trial studio cannot write task templates from the app any more, so this "own" template is
   -- written by Helm (superuser, no API claims); it is still the studio's own row (not is_demo)
   perform pg_temp.su();
   insert into public.task_templates(org_id, category, title, seq) values (a, 'Setup', 'My own task', 9);

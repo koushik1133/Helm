@@ -113,12 +113,12 @@
   html[data-theme="dark"] .err{background:#3a1717;color:#fda29b;border-color:#5c2222} html[data-theme="dark"] .ferr{color:#fda29b}
   html[data-theme="dark"] .okmsg{background:#0f2e20;color:#75e0a7;border-color:#1d4d35} html[data-theme="dark"] .info{background:#3a2f14;color:#ffd884;border-color:#5a4a1e}
 </style>
-<link rel="stylesheet" href="theme.css?v=82">
+<link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="/public-v2.css?v=5">
 <meta name="bp-theme-toggle" content="off">
 <script src="/marketing-theme.js?v=3"></script>
 <link rel="stylesheet" href="/marketing-loader.css?v=1">
-<link rel="stylesheet" href="/trial-terms.css?v=1">
+<link rel="stylesheet" href="/trial-terms.css?v=2">
 <script src="/marketing-loader.js?v=3"></script>
 <style>
   /* emerald auth polish + mode toggle (login/reset only) */
@@ -260,7 +260,7 @@
       <button class="btn" id="ip_submit" type="submit">Set password &amp; continue →</button>
     </form>
 
-    <!-- 0204: the invitation already made a login WITHOUT a password and its one-time e-mail link was
+    <!-- 0205: the invitation already made a login WITHOUT a password and its one-time e-mail link was
          used / expired / opened elsewhere: never "sign in" (there is no password) - e-mail a new link -->
     <section class="card" id="inviteLinkCard" hidden aria-labelledby="ilTitle">
       <div class="mmk"></div>
@@ -338,11 +338,11 @@
 
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="event-name.js?v=8"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
-<script src="auth-ui.js?v=36"></script>
+<script src="event-name.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
+<script src="auth-ui.js?v=37"></script>
 <script src="/auth-visual.js?v=1"></script>
-<script src="/trial-signup.js?v=9"></script>
+<script src="/trial-signup.js?v=10"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -371,7 +371,7 @@
       else if(legacy && !sessionStorage.getItem(INVITE_KEY)) sessionStorage.setItem(INVITE_KEY, legacy);
     }catch(e){}
   })();
-  let INVITE_DEAD=false;   // 0204: the token is known to be expired / used / cancelled → plain sign-in from here
+  let INVITE_DEAD=false;   // 0205: the token is known to be expired / used / cancelled → plain sign-in from here
   const pendingInvite=()=>{ if(INVITE_DEAD) return null; try{ return inviteTok||sessionStorage.getItem(INVITE_KEY)||null; }catch(e){ return inviteTok||null; } };
   const clearInvite=()=>{ try{ sessionStorage.removeItem(INVITE_KEY); }catch(e){} try{ localStorage.removeItem(INVITE_KEY); }catch(e){} };
   const JOINING=!!pendingInvite();   // an invitee joins a studio; they never create one
@@ -472,7 +472,7 @@
     const needStudio = !J() && m==="signup";
     $("#studioField").hidden = !needStudio;   // an invitee never names a studio
     $("#studio").required = needStudio;
-    // 0204: an invitee sees "Join <Studio> on Helm" + "<Inviter> invited you as <Role>" on every path
+    // 0205: an invitee sees "Join <Studio> on Helm" + "<Inviter> invited you as <Role>" on every path
     $("#formTitle").textContent = J() ? inviteTitle() : (m==="signup" ? "Create your studio" : "Welcome back");
     $("#formSub").textContent = m==="signup" ? (J()?inviteLine()+". Choose a password to join.":"Set up your studio, then choose a plan and complete payment to start. Want to try Helm first? Start the free trial instead.") : (J()?inviteLine()+". Sign in to accept.":"Sign in with the account your studio admin created for you.");
     $("#submit").textContent = submitLabel();
@@ -736,7 +736,7 @@
   function inviteWrongAccount(err){ const m=String((err&&err.message)||"").toLowerCase(); return /different email|operator account can.t join/.test(m); }
   function showInviteError(err, tok){
     showView("#loginForm");
-    // 0204: one login = one studio. A login that is already in another studio cannot join this one.
+    // 0205: one login = one studio. A login that is already in another studio cannot join this one.
     if(/already belong to an organi[sz]ation/i.test(String((err&&err.message)||""))){
       showErr($("#err"),"This e-mail already belongs to another studio on Helm, and a login can be in one studio at a time. Ask that studio's admin to remove you first — or ask "+(INVITE_ORG||"this studio")+" to invite a different e-mail."); return; }
     if(!inviteWrongAccount(err)){ showErr($("#err"),BPUI.friendlyError(err,{action:"accept the invitation"})); return; }
@@ -754,7 +754,7 @@
     return new Promise((resolve)=>{
       const u=BPStore.auth.user()||{}, meta=u.user_metadata||{};
       showView("#invitePwForm");
-      // 0204: same invite context as every other path (peek, else the invite e-mail's own data)
+      // 0205: same invite context as every other path (peek, else the invite e-mail's own data)
       const st=String(INVITE_ORG||meta.studio||"").slice(0,120), by=String((INV&&INV.inviter)||meta.invited_by||"").slice(0,60), rl=String((INV&&INV.role)||ROLE_NAMES[meta.role]||meta.role||"").slice(0,60);
       $("#ipTitle").textContent="Join "+(st||"your studio")+" on Helm";
       $("#ipSub").textContent=(by||"Your studio admin")+" invited you"+(rl?" as "+rl:"")+". Choose your password to finish joining — you'll use it to sign in next time.";
@@ -778,7 +778,7 @@
       form.addEventListener("submit",onSubmit);
     });
   }
-  // ----- 0204: the invitation context + the right way in, on EVERY path of the join page -----
+  // ----- 0205: the invitation context + the right way in, on EVERY path of the join page -----
   // One lookup per page (invite-signup peek: studio, inviter display name, human role label and the
   // invitation's OWN e-mail - only for the token holder; else the anon invitation_preview: studio + role).
   const ROLE_NAMES={admin:"Admin",manager:"Event manager",planner:"Planner",sales:"Sales",coordinator:"Event coordinator",supervisor:"Supervisor",quality:"Quality engineer",operations:"Operations",designer:"Designer",crew:"Crew",worker:"Worker"};
@@ -893,7 +893,7 @@
     else if(why==="max") $("#expiredMsg").textContent="For security, sessions end after a set time — sign in again.";
     $("#expiredMsg").hidden=false; if(mode!=="signin") setMode("signin");
   }
-  // 0204: back from /auth/confirm after an e-mail link that does not keep a session in this browser
+  // 0205: back from /auth/confirm after an e-mail link that does not keep a session in this browser
   if(QS.get("confirmed")){ $("#okmsg").textContent=QS.get("confirmed")==="email_change"?"Your e-mail address was changed — sign in with the new one.":"Your e-mail is confirmed — sign in to continue."; $("#okmsg").hidden=false; if(mode!=="signin" && !JOINING) setMode("signin"); }
   // back from reset-password.html after choosing a new password
   if(QS.get("reset")==="1"){ $("#okmsg").textContent="Your password was updated and other devices were signed out. Sign in with your new password."; $("#okmsg").hidden=false; if(mode!=="signin") setMode("signin"); }
@@ -968,7 +968,7 @@
   BPUI.boot(async ()=>{
     await BPStore.init();
     if(!BPStore.auth.enabled()){ location.replace(nextUrl()); return false; }
-    // 0204: invite context first (before the link session accepts the invitation and the token closes)
+    // 0205: invite context first (before the link session accepts the invitation and the token closes)
     if(JOINING) await Promise.race([loadInviteCtx().catch(()=>null), new Promise((r)=>setTimeout(r,4000))]);
     if(BPStore.auth.pendingUser()){
       // back from the email-confirmation link (PKCE ?code= exchanged) → "Email confirmed"
@@ -984,7 +984,7 @@
       const le=String(BPStore.auth.linkError()).toLowerCase();
       if(/otp_expired|access_denied|expired/.test(le)){
         // the e-mail link itself expired (Supabase "Email OTP expiration") or was already used
-        // 0204: links work once, within 24 h. applyInviteEntry() then shows the right way in
+        // 0205: links work once, within 24 h. applyInviteEntry() then shows the right way in
         // (a new link for a login without a password, the join form, or sign-in).
         if(JOINING){ showErr($("#err"),"This email link has expired or was already used — each link works once, within 24 hours. If your invitation is still valid you can continue below."); const w=$("#ilWhy"); if(w) w.textContent="The link you opened has expired or was already used — each link works once, within 24 hours. We'll e-mail you a new one: open it in this browser to choose your password and join."; }
         else { if(mode!=="signin") setMode("signin"); showErr($("#err"),"This email link has expired or was already used — request a new one, or sign in below."); }
@@ -995,7 +995,7 @@
     }
     if($("#forgotForm").hidden) ensureCap();
     if($("#forgotForm").hidden) setTimeout(()=>$(mode==="signup"&&!JOINING?"#studio":"#email").focus(),60);
-    // 0204: the invitation context + the right way in for this invitee
+    // 0205: the invitation context + the right way in for this invitee
     if(JOINING) applyInviteEntry().catch(()=>{});
     return false;
   }).then((resume)=>{ if(resume===true) resumeSession(); });
@@ -1005,7 +1005,7 @@
   $("#googleBtn").addEventListener("click", ()=>{
     $("#err").hidden=true; $("#okmsg").hidden=true;
     BPUI.guard($("#googleBtn"), async ()=>{
-      // 0204: the invite token rides along (also kept in this tab), so the Google account joins on return
+      // 0205: the invite token rides along (also kept in this tab), so the Google account joins on return
       const tok=pendingInvite();
       try{ await BPStore.auth.signInWithGoogle(location.origin+"/login.html?"+(tok?"invite="+encodeURIComponent(tok)+"&":"")+"next="+encodeURIComponent(nextUrl())); }
       catch(err){ showErr($("#err"),(err&&err.message&&!/TypeError|undefined/.test(err.message))?err.message:"Google sign-in isn’t enabled yet."); }
@@ -1041,7 +1041,7 @@
               let d=null;
               try{ d=await BPStore.invitations.signupDirect(inviteTok0, email, pw, fullName); }
               catch(x){
-                if(x&&x.code==="needs_link"){ showInviteLink(email, x.reason==="unconfirmed"); return; }   // 0204: no password yet → new link, never "sign in"
+                if(x&&x.code==="needs_link"){ showInviteLink(email, x.reason==="unconfirmed"); return; }   // 0205: no password yet → new link, never "sign in"
                 if(x&&x.code==="account_exists"){ showSignInForInvite(email); return; }
                 if(x&&/^(email_mismatch|invalid_invite|weak_password|bad_email)$/.test(x.code||"")){ showErr($("#err"),x.message); return; }
                 throw x;
@@ -1054,7 +1054,7 @@
                 await acceptPendingInvite(); await routeSignedIn(); return;
               }
             }
-            // 0204: an invitee NEVER goes through the self sign-up (no "Confirm your email" e-mail, no
+            // 0205: an invitee NEVER goes through the self sign-up (no "Confirm your email" e-mail, no
             // second login): the invitation is always bound to its e-mail, so the server (invite-signup)
             // makes the account. If it can't right now, say so - never fall back to signUp().
             if(!existing){ showErr($("#err"),"We couldn't create your account just now. Try again in a minute — or ask "+(INVITE_ORG||"your studio")+" to re-send the invitation."); return; }

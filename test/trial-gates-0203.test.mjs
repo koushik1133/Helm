@@ -1,4 +1,4 @@
-// trial-gates-0202: free-trial studios only. Server (migration + paste file, static) and the screens:
+// trial-gates-0203: free-trial studios only. Server (migration + paste file, static) and the screens:
 // - trial-lock.js sends a trial away from /:slug/onboarding, /:slug/audit, /:slug/templates (cover + redirect)
 // - Control Center: a deep link to a trial-hidden section goes to the first section the trial has
 // - store-api.js: photo renders, templates and the activity log are never "allowed" for a trial (admins too)
@@ -11,16 +11,16 @@ import vm from "node:vm";
 const read = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
 
 // ---- server: migration + paste file ------------------------------------------------------------------
-const mig = read("supabase/migrations/0202_trial_gates.sql"), apply = read("supabase/APPLY-0202.sql");
-assert.ok(/^[\x00-\x7F]*$/.test(mig) && /^[\x00-\x7F]*$/.test(apply), "0202 + APPLY ASCII only");
-assert.ok(apply.includes(mig.trim()), "APPLY-0202 carries the 0202 body unchanged");
+const mig = read("supabase/migrations/0203_trial_gates.sql"), apply = read("supabase/APPLY-0203.sql");
+assert.ok(/^[\x00-\x7F]*$/.test(mig) && /^[\x00-\x7F]*$/.test(apply), "0203 + APPLY ASCII only");
+assert.ok(apply.includes(mig.trim()), "APPLY-0203 carries the 0203 body unchanged");
 assert.match(apply, /^begin;$/m); assert.match(apply, /^commit;$/m); assert.match(apply, /VERIFY/); assert.match(mig, /ROLLBACK/);
 const man = read("supabase/migrations/MANIFEST");
-assert.ok(man.indexOf("0202_trial_gates.sql") > man.indexOf("0187_trial_outbound_gaps.sql"), "0202 after the trial bundle");
-assert.match(read("scripts/db-test/run-all.sh"), /trial-gates-0202" "TRIAL-GATES-0202: ALL PASS/);
+assert.ok(man.indexOf("0203_trial_gates.sql") > man.indexOf("0187_trial_outbound_gaps.sql"), "0203 after the trial bundle");
+assert.match(read("scripts/db-test/run-all.sh"), /trial-gates-0203" "TRIAL-GATES-0203: ALL PASS/);
 const code = mig.replace(/--[^\n]*/g, "");
-assert.ok(!/\b(drop\s+(table|column|function|trigger|policy)|truncate|delete\s+from|update\s+public\.|insert\s+into)\b/i.test(code), "0202: no drops, no row written");
-assert.ok(!/trial_ends_at/.test(code), "0202: the trial is decided by the subscription status, never trial_ends_at");
+assert.ok(!/\b(drop\s+(table|column|function|trigger|policy)|truncate|delete\s+from|update\s+public\.|insert\s+into)\b/i.test(code), "0203: no drops, no row written");
+assert.ok(!/trial_ends_at/.test(code), "0203: the trial is decided by the subscription status, never trial_ends_at");
 for (const fn of ["_tl202_tg_nurture_auto", "_tl202_tg_menu_dishes", "_tl202_tg_templates"]) {
   const at = code.indexOf("function public." + fn + "("), body = code.slice(at, code.indexOf("end $$;", at));
   assert.ok(at > 0, fn + " defined"); assert.match(body, /_tl173_trial_locked/, fn + " checks the trial");
@@ -156,4 +156,4 @@ function makeEnv(o) {
 { const e = makeEnv({ trial: true, role: "manager", matrix: [{ area: "templates", can_view: true, can_edit: true }, { area: "photo_render", can_view: true, can_edit: true }] }); await e.S.init();
   assert.equal(await e.S.auth.canView("templates"), false, "trial manager: saved matrix says yes, trial says no");
   assert.equal(await e.S.auth.canEditArea("photo_render"), false); }
-console.log("trial-gates-0202: ALL PASS");
+console.log("trial-gates-0203: ALL PASS");

@@ -210,14 +210,14 @@ t('/login?next=: off-site and look-alike targets fall back to the dashboard; own
   assert.ok(own.charAt(0) === '/' && own.charAt(1) !== '/' && /abcd/.test(own), own);
 });
 
-/* ------------------------------------------------------------ 7. DB migration 0203 is wired */
-t('0203: in the MANIFEST, has an APPLY with VERIFY, and its DB suite runs in run-all.sh', () => {
-  assert.match(read('supabase/migrations/MANIFEST'), /\nforward  supabase\/migrations\/0203_anon_grant_tidy\.sql\n?/);
-  const apply = read('supabase/APPLY-0203.sql');
-  assert.match(apply, /^-- APPLY-0203\.sql/); assert.match(apply, /\nbegin;\n/); assert.match(apply, /\ncommit;\n/); assert.match(apply, /-- VERIFY/);
+/* ------------------------------------------------------------ 7. DB migration 0204 is wired */
+t('0204: in the MANIFEST, has an APPLY with VERIFY, and its DB suite runs in run-all.sh', () => {
+  assert.match(read('supabase/migrations/MANIFEST'), /\nforward  supabase\/migrations\/0204_anon_grant_tidy\.sql\n?/);
+  const apply = read('supabase/APPLY-0204.sql');
+  assert.match(apply, /^-- APPLY-0204\.sql/); assert.match(apply, /\nbegin;\n/); assert.match(apply, /\ncommit;\n/); assert.match(apply, /-- VERIFY/);
   assert.doesNotMatch(apply, /create temp|temporary table/i, 'no session state in an editor paste');
-  assert.match(read('scripts/db-test/run-all.sh'), /run "anon-grant-tidy-0203" "ANON-GRANT-TIDY-0203: ALL PASS \\\(28\/28\\\)"/);
-  const mig = read('supabase/migrations/0203_anon_grant_tidy.sql');
+  assert.match(read('scripts/db-test/run-all.sh'), /run "anon-grant-tidy-0204" "ANON-GRANT-TIDY-0204: ALL PASS \\\(28\/28\\\)"/);
+  const mig = read('supabase/migrations/0204_anon_grant_tidy.sql');
   assert.ok(/^[\x09\x0a\x0d\x20-\x7e]*$/.test(mig) && /^[\x09\x0a\x0d\x20-\x7e]*$/.test(apply), 'ASCII only');
   assert.doesNotMatch(mig, /\b(drop|delete|truncate)\b\s+(table|policy|function|from)/i, 'nothing dropped / deleted');
   assert.match(mig, /revoke all on table public\.%I from anon/);

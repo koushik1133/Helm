@@ -1,4 +1,4 @@
--- anon-grant-tidy-0203.sql -- 0203: with only the public (anon) key, a direct read of profiles / layouts /
+-- anon-grant-tidy-0204.sql -- 0204: with only the public (anon) key, a direct read of profiles / layouts /
 -- venues / client_booklets / coupons / event_sites answers a plain "permission denied for table" (never the
 -- name of current_org_id or another internal object), anon holds no privilege on them, the 14 studio-only
 -- policies apply to signed-in callers only with their rules unchanged, signed-in members still read +
@@ -36,12 +36,12 @@ grant execute on function pg_temp.put(text, text) to anon, authenticated, servic
 create or replace function pg_temp.get(p_k text) returns text language sql as $$ select v from _agkv where k = p_k $$;
 grant execute on function pg_temp.get(text) to anon, authenticated, service_role;
 
--- what anon may call BEFORE 0203 runs here (0203 must not change any function grant)
+-- what anon may call BEFORE 0204 runs here (0204 must not change any function grant)
 insert into _agkv select 'anon_fns', coalesce(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text), '')
   from pg_proc p where p.pronamespace = 'public'::regnamespace and has_function_privilege('anon', p.oid, 'execute');
--- earlier suites in run-all re-apply older migrations: re-run 0203 (also proves a re-run is safe)
-\ir ../../supabase/migrations/0203_anon_grant_tidy.sql
-\ir ../../supabase/migrations/0203_anon_grant_tidy.sql
+-- earlier suites in run-all re-apply older migrations: re-run 0204 (also proves a re-run is safe)
+\ir ../../supabase/migrations/0204_anon_grant_tidy.sql
+\ir ../../supabase/migrations/0204_anon_grant_tidy.sql
 
 -- ---- setup: one layout, coupon and nurture template per fixture studio (made by each studio's admin; the
 -- org trigger stamps the caller's studio) ------------------------------------------------------------------
@@ -113,7 +113,7 @@ select pg_temp.res('13 no policy that anon gets still calls current_org_id (whol
 select pg_temp.res('14 restrictive policies untouched (layouts clean-archive rule still applies to everyone)',
   exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'layouts' and policyname = 'helm_clean_archive_185'
            and permissive = 'RESTRICTIVE' and roles = array['public']::name[]));
-select pg_temp.res('15 current_org_id still not callable by anon; 0203 changed no function grant (public link RPCs as before)',
+select pg_temp.res('15 current_org_id still not callable by anon; 0204 changed no function grant (public link RPCs as before)',
   not has_function_privilege('anon', 'public.current_org_id()', 'execute')
   and (select coalesce(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text), '') from pg_proc p
         where p.pronamespace = 'public'::regnamespace and has_function_privilege('anon', p.oid, 'execute')) = pg_temp.get('anon_fns')
@@ -175,6 +175,6 @@ select pg_temp.res('27 RPCs the app coalesces as reads are STABLE (never write)'
 select pg_temp.su();
 select name, result from _ag order by name;
 select case when (select count(*) from _ag where result <> 'PASS') = 0
-            then 'ANON-GRANT-TIDY-0203: ALL PASS (' || (select count(*) from _ag) || '/' || (select count(*) from _ag) || ')'
-            else 'ANON-GRANT-TIDY-0203: FAILURES ' || (select count(*) from _ag where result <> 'PASS') end as verdict;
+            then 'ANON-GRANT-TIDY-0204: ALL PASS (' || (select count(*) from _ag) || '/' || (select count(*) from _ag) || ')'
+            else 'ANON-GRANT-TIDY-0204: FAILURES ' || (select count(*) from _ag where result <> 'PASS') end as verdict;
 rollback;

@@ -23,7 +23,7 @@ t('migration 0165 + APPLY-0165: ASCII, additive (no drop/delete/truncate), VERIF
 });
 t('every Resend/SMTP sender adds a compliance footer', () => {
   for (const f of ['invite-mailer', 'welcome-mailer', 'pkg-client-notify', 'security-alert-mailer', 'razorpay-webhook', 'billing-reminder', 'integrations-test', 'comms-dispatch'])
-    assert.match(read(`supabase/functions/${f}/index.ts`), /txFooter\(|mktFooter\(|sendMail\(\{[^}]*txReason: "invite"/, f);   // 0204: invite-mailer via _shared/mailer.ts
+    assert.match(read(`supabase/functions/${f}/index.ts`), /txFooter\(|mktFooter\(|sendMail\(\{[^}]*txReason: "invite"/, f);   // 0205: invite-mailer via _shared/mailer.ts
   assert.match(read('supabase/functions/_shared/mailer.ts'), /txFooter\(msg\.txReason/);
 });
 t('non-transactional senders fail closed without an unsubscribe token', () => {

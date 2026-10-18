@@ -3,14 +3,14 @@
 // (supabase/functions/_shared/email-layout.mjs) into docs/ops/email-templates/ (paste source)
 // and mirrors them into docs/email-templates/. `--check` fails if any file is stale.
 // Supabase Go-template variables used: {{ .SiteURL }}, {{ .TokenHash }}, {{ .RedirectTo }} (links on
-// Helm's own /auth/confirm - 0204), {{ .Email }}, {{ .NewEmail }}, {{ .Token }} and (invite + magic
+// Helm's own /auth/confirm - 0205), {{ .Email }}, {{ .NewEmail }}, {{ .Token }} and (invite + magic
 // link) {{ .Data.studio|role|invited_by }}. {{ .ConfirmationURL }} (the Supabase project URL) is never used.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { layout, h1, para, strong, note, button, fallback, codeBox } from "../supabase/functions/_shared/email-layout.mjs";
 import { DEFAULT_POSTAL_ADDRESS } from "../supabase/functions/_shared/email-compliance.mjs";
 
 const root = new URL("../", import.meta.url);
-// 0204: every link is on Helm's own domain - {{ .SiteURL }} (Site URL = https://www.helm.events) +
+// 0205: every link is on Helm's own domain - {{ .SiteURL }} (Site URL = https://www.helm.events) +
 // /auth/confirm (public/auth-confirm.html) with the one-time {{ .TokenHash }}, never the Supabase
 // project URL ({{ .ConfirmationURL }}). `next` is LAST: the confirm page takes everything after it.
 const link = (type, next) => `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=${type}&amp;next=${next}`;
@@ -41,7 +41,7 @@ export const TEMPLATES = {
       para(`Welcome to Helm. Confirm ${strong(EMAIL)} to finish creating your account and open your studio.`) +
       button(U_SIGNUP, "Confirm my email") + fallback(U_SIGNUP) + note(sentTo(SAFE)), why("someone (hopefully you) signed up for Helm with this address")),
   },
-  // 0204: ONE invitation e-mail for every invitee. "Invite user" (brand-new address) and "Magic link"
+  // 0205: ONE invitation e-mail for every invitee. "Invite user" (brand-new address) and "Magic link"
   // (an address that already has a Helm login; invite-mailer refreshes its .Data.studio / role /
   // invited_by first) both read "Join <studio> on Helm - <inviter> invited you as <role>" and land on
   // the same /login?invite=<token> join page. Helm sends magic links only for invitations; without
@@ -74,7 +74,7 @@ export const TEMPLATES = {
       para(`You asked to change your Helm sign-in email from ${strong(EMAIL)} to ${strong("{{ .NewEmail }}")}. Confirm below to finish.`) +
       button(U_CHANGE, "Confirm new email") + fallback(U_CHANGE) + note(sentTo(SAFE)), why("someone asked to change the e-mail on a Helm account to this address")),
   },
-  // 0204: Supabase "Security notifications" (Authentication -> Emails -> Security). Owner evidence
+  // 0205: Supabase "Security notifications" (Authentication -> Emails -> Security). Owner evidence
   // 2026-10-18: the "Password changed" notification carried the Reset-password body (a "Choose a new
   // password" button with an EMPTY link - notifications have no confirmation URL), so it showed as dead
   // text. These two have no one-time link at all: only a fixed "wasn't you? reset it" link.

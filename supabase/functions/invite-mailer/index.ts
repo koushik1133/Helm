@@ -3,7 +3,7 @@
 // <APP_URL>/login?invite=<token> and the expiry date.
 // ON BY DEFAULT: kill switch HELM_INVITE_EMAILS_ENABLED="false" → every request is a
 // no-op 200 {status:"dormant"}.
-// Delivery (0204: ONE invitation for every invitee - brand-new address, existing account,
+// Delivery (0205: ONE invitation for every invitee - brand-new address, existing account,
 // re-invite / resend, bulk invite, Staff "Invite to log in", Control Center "Users & invites"):
 //   * an e-mail provider is set for the edge functions (RESEND_API_KEY + RESEND_FROM, else
 //     SMTP_HOST / SMTP_USER / SMTP_PASS [/ SMTP_PORT / SMTP_FROM] - _shared/mailer.ts, the same
@@ -12,7 +12,7 @@
 //     Supabase creates NO login up front; the join page makes it (invite-signup) or signs in.
 //   * neither set → Supabase Auth's own e-mail: a brand-new address gets the "Invite user" e-mail,
 //     an existing account the "Magic Link" e-mail - after its login's studio / role / inviter
-//     metadata is refreshed (invite_auth_user_id, 0204), so both templates
+//     metadata is refreshed (invite_auth_user_id, 0205), so both templates
 //     (docs/ops/email-templates) read as the same "Join <Studio>" invitation and land on
 //     <APP_URL>/login?invite=… signed in; login.html accepts the invitation automatically.
 //
@@ -76,14 +76,14 @@ async function sendViaSupabaseAuth(admin: any, to: string, token: string, meta: 
     if (!error) return "sent";
     const already = /already|registered|exists/i.test(String(error.message || "") + " " + String(error.code || "")) || error.status === 422;
     if (!already) { console.error("invite-mailer: auth invite status", error.status ?? "?"); return "failed"; }
-    // best effort: only the invitation keys of THIS invitation's own login (0204); never blocks the send
+    // best effort: only the invitation keys of THIS invitation's own login (0205); never blocks the send
     try {
       const { data: uid } = await admin.rpc("invite_auth_user_id", { p_token: token });
       if (typeof uid === "string" && UUIDISH.test(uid)) {
         const { error: uErr } = await admin.auth.admin.updateUserById(uid, { user_metadata: meta });
         if (uErr) console.error("invite-mailer: invite details not refreshed", uErr.status ?? "?");
       }
-    } catch (_) { /* 0204 not applied yet: the magic link shows the plain sign-in text */ }
+    } catch (_) { /* 0205 not applied yet: the magic link shows the plain sign-in text */ }
     const { error: oErr } = await admin.auth.signInWithOtp({ email: to, options: { shouldCreateUser: false, emailRedirectTo: link } });
     if (oErr) { console.error("invite-mailer: auth magic-link status", oErr.status ?? "?"); return "failed"; }
     return "sent";

@@ -45,7 +45,7 @@ ok(/forward  supabase\/migrations\/0131_invite_mailer\.sql/.test(manifest), 'MAN
 // ---- edge function: dormant, fail-closed, no PII/token logs ----
 ok(/if \(!inviteEmailsOn\(Deno\.env\.get\("HELM_INVITE_EMAILS_ENABLED"\)\)\) return json\(\{ status: "dormant" \}\)/.test(fn) && /!== "false"/.test(fn), 'on by default, explicit kill switch');
 ok(/admin\.auth\.admin\.inviteUserByEmail\(to, \{ redirectTo: link/.test(fn) && /signInWithOtp\(\{ email: to, options: \{ shouldCreateUser: false, emailRedirectTo: link/.test(fn), 'no Resend key -> Supabase Auth invite / magic link');
-// 0204: ONE branded invitation for every invitee whenever a provider (Resend, else SMTP) is set
+// 0205: ONE branded invitation for every invitee whenever a provider (Resend, else SMTP) is set
 ok(/const branded = !!mailConfig\(\)\.provider/.test(fn) && /if \(mail && branded\) res = await sendBranded/.test(fn), 'branded path for every row when a provider is set');
 ok(/r\.status === "sent" \? "sent" : r\.status === "failed" \? "failed" : "skipped"/.test(fn), 'not configured -> skipped');
 ok(/rpc\("invite_auth_user_id", \{ p_token: token \}\)/.test(fn) && /updateUserById\(uid, \{ user_metadata: meta \}\)/.test(fn), 'existing account: same invitation keys before the magic link');
@@ -62,7 +62,7 @@ ok(/TOKEN_RE = \/\^\[0-9a-f\]\{16,128\}\$\/i/.test(tpl), 'token shape validated'
 ok(/esc\(inviter\)/.test(tpl) && /esc\(studio\)/.test(tpl) && /esc\(role\)/.test(tpl) && /button\(esc\(link\)/.test(tpl) && /fallback\(esc\(link\)\)/.test(tpl), 'all values escaped');
 ok(!/\$\{(inviter|studio|role|link)\}/.test(tpl.split('const text =')[0].split('const html =')[1]), 'no raw values in html');
 ok(/expires/.test(tpl) && /text: /.test(tpl.slice(-300)) || /html, text/.test(tpl), 'plain-text fallback');
-ok(/const headline = `Join \$\{studio\} on Helm`/.test(tpl) && /`\$\{inviter\} invited you as \$\{role\}`/.test(tpl) && /"Accept invitation"/.test(tpl), 'headline wording (0204)');
+ok(/const headline = `Join \$\{studio\} on Helm`/.test(tpl) && /`\$\{inviter\} invited you as \$\{role\}`/.test(tpl) && /"Accept invitation"/.test(tpl), 'headline wording (0205)');
 ok(/replace\(\/\[\\r\\n<>\]\/g/.test(tpl), 'subject has no header injection');
 
 // ---- README ----

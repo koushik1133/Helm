@@ -16,7 +16,7 @@ t('sign-up never switches to sign-in with the password filled in', () => {
   const submit = LOGIN.slice(LOGIN.indexOf('$("#loginForm").addEventListener("submit"'));
   const signup = submit.slice(0, submit.indexOf('btn.textContent="Signing in…"'));
   assert.ok(!/setMode\("signin"\)/.test(signup), 'signup branch must not call setMode("signin")');
-  // 0204: the create-studio sign-up shows the inbox card; an invitee never goes through signUp()
+  // 0205: the create-studio sign-up shows the inbox card; an invitee never goes through signUp()
   // (invite-signup makes the account, already confirmed), so that branch has no inbox step
   assert.equal((signup.match(/showInbox\(email\)/g) || []).length, 1, 'the create-studio sign-up shows the inbox card');
   const inviteBranch = signup.slice(signup.indexOf('if(joining){'), signup.indexOf('const studio=$("#studio")'));
@@ -91,7 +91,7 @@ t('email templates exist with the required Supabase variables + branding', () =>
     assert.ok(existsSync(new URL(p, root)), p);
     const h = read(p);
     if (n === 'reauthentication') assert.ok(h.includes('{{ .Token }}'), n + ' token');
-    // 0204: links on Helm's own /auth/confirm (never the Supabase project URL)
+    // 0205: links on Helm's own /auth/confirm (never the Supabase project URL)
     else assert.ok(!h.includes('ConfirmationURL') && (h.match(/\{\{ \.SiteURL \}\}\/auth\/confirm\?token_hash=\{\{ \.TokenHash \}\}/g) || []).length >= 2, n + ' url + fallback link');
     assert.ok(h.includes('{{ .Email }}'), n + ' email');
     assert.ok(h.includes('#0d8a5c') && !/6C4CF1|6d28d9/i.test(h), n + ' emerald brand, no old violet');

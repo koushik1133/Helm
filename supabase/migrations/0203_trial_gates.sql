@@ -1,19 +1,4 @@
--- APPLY-0202.sql - paste into the Supabase SQL editor (staging first, then production).
--- Free-trial server gates (trial studios only; paid studios unchanged):
---   * no greeting to a client from a trial studio: "Send greeting" refused ("Greetings are sent once you
---     choose a plan."), "Run today's greetings" / the automatic run does nothing, automatic greetings cannot
---     be switched on, the occasions list shows auto-greet as off;
---   * menu packages: only the price per plate changes in the trial (the dish list is fixed);
---   * the activity log (audit_log) is not readable by a trial studio (or an ended, unpaid one);
---   * checklist / task templates cannot be added / changed / removed in the trial;
---   * my_checkout_status() says "trial" (has_subscription false) instead of "subscribed" for a trial.
--- Run it AFTER the trial bundle (APPLY-TRIAL-BUNDLE.sql: 0173 .. 0187) is applied.
--- What it touches: queue_nurture_greeting / run_nurture_auto / nurture_due wrapped (old bodies kept as
--- <name>__pre0202, no app grants), audit_actor_names + my_checkout_status re-issued (same signature +
--- grants), 4 triggers, 1 restrictive policy, 2 helpers. No table or column is created, changed or
--- dropped; no row is written or deleted. Safe to run twice.
-begin;
--- 0202_trial_gates.sql - CANONICAL forward-only.
+-- 0203_trial_gates.sql - CANONICAL forward-only.
 -- REQUIRES 0173 (_tl173_trial_locked), 0166 (_is_trial_org), 0179 (_tb179_no_send), 0183 (_trial_locked,
 --          status-based), 0159 (my_checkout_status + _studio_payment_pending), 0181 (catalog = prices only),
 --          base nurture (nurture_due / queue_nurture_greeting / run_nurture_auto / nurture_automation),
@@ -42,7 +27,7 @@ begin;
 --      studio on its free trial (the trial row IS a studio_subscriptions row). It now says
 --      has_subscription = false, trial = true and reason 'trial' (or 'trial_ended' for an ended,
 --      unpaid trial). "required" is unchanged, so nobody is sent to /checkout who was not before.
---   Already refused on the server before this file (kept, re-tested in tests/db/trial-gates-0202.sql):
+--   Already refused on the server before this file (kept, re-tested in tests/db/trial-gates-0203.sql):
 --   data export + studio archive, Excel / CSV smart import (staff / menu / inventory / vendors), photo
 --   render (0173); the inventory "Load starter items" bulk insert is held by the 2-per-list cap (0181).
 --
@@ -68,13 +53,13 @@ end $$;
 -- ---- helpers ----------------------------------------------------------------------------------------
 create or replace function public._tl202_no_send(p_org uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
-  -- trial-gates-0202: free trial / ended unpaid trial / sample master never greets a client (0179 rule)
+  -- trial-gates-0203: free trial / ended unpaid trial / sample master never greets a client (0179 rule)
   select coalesce(public._tb179_no_send(p_org), false);
 $$;
 
 create or replace function public._tl202_caller_trial()
 returns boolean language sql stable security definer set search_path = '' as $$
-  -- trial-gates-0202: the caller's studio is on its free trial or an ended, unpaid free trial
+  -- trial-gates-0203: the caller's studio is on its free trial or an ended, unpaid free trial
   -- (status-based; the sample master and paid studios -> false). Used by the audit_log policy.
   select coalesce(public._tl173_trial_locked(public.current_org_id()), false)
       or coalesce(public._trial_locked(public.current_org_id()), false);
@@ -95,7 +80,7 @@ end $$;
 
 create or replace function public.queue_nurture_greeting(p_id uuid)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
--- trial-gates-0202: no greeting to a client from a free-trial studio, then the original
+-- trial-gates-0203: no greeting to a client from a free-trial studio, then the original
 begin
   if public._tl202_no_send(public.current_org_id()) then
     raise exception 'Greetings are sent once you choose a plan.' using errcode = '42501', hint = 'trial_no_send';
@@ -105,7 +90,7 @@ end $$;
 
 create or replace function public.run_nurture_auto(p_within_days integer default null::integer)
 returns integer language plpgsql volatile security definer set search_path = '' as $$
--- trial-gates-0202: automatic greetings are off in the free trial (nothing queued), then the original
+-- trial-gates-0203: automatic greetings are off in the free trial (nothing queued), then the original
 begin
   if public._tl202_no_send(public.current_org_id()) then return 0; end if;
   return public.run_nurture_auto__pre0202(p_within_days);
@@ -115,7 +100,7 @@ create or replace function public.nurture_due(p_within_days integer default 30)
 returns table(id uuid, name text, email text, phone text, occasion text, occasion_type text, occasion_date date,
               next_date date, years integer, auto_on boolean, greeted_this_year boolean, quote_id uuid, last_event text)
 language plpgsql stable security definer set search_path = '' as $$
--- trial-gates-0202: same list; in the free trial auto-greet shows as off (nothing is sent automatically)
+-- trial-gates-0203: same list; in the free trial auto-greet shows as off (nothing is sent automatically)
 declare v_off boolean := public._tl202_no_send(public.current_org_id());
 begin
   return query
@@ -144,7 +129,7 @@ end $$;
 -- automatic greetings cannot be switched ON from the app in the free trial (off stays possible)
 create or replace function public._tl202_tg_nurture_auto()
 returns trigger language plpgsql set search_path = '' as $$
--- trial-gates-0202: SECURITY INVOKER on purpose (current_user = the app role); Helm's own functions
+-- trial-gates-0203: SECURITY INVOKER on purpose (current_user = the app role); Helm's own functions
 -- (trial seed / clone) are not checked
 begin
   if current_user not in ('anon', 'authenticated') then return new; end if;
@@ -166,7 +151,7 @@ end $$;
 -- ---- 2) menu packages: the dish list is fixed in the free trial (price per plate stays editable) ----------
 create or replace function public._tl202_tg_menu_dishes()
 returns trigger language plpgsql set search_path = '' as $$
--- trial-gates-0202: SECURITY INVOKER on purpose (current_user = the app role). Only direct app edits are
+-- trial-gates-0203: SECURITY INVOKER on purpose (current_user = the app role). Only direct app edits are
 -- checked; Helm's own functions (trial seed, clone, Clear sample data) still change the dishes.
 begin
   if current_user not in ('anon', 'authenticated') then return new; end if;
@@ -196,7 +181,7 @@ end $$;
 -- the audit page's "who is who" lookup: same body as 0041 + nothing for a trial studio
 create or replace function public.audit_actor_names()
 returns table(id uuid, full_name text, email text) language sql stable security definer set search_path = '' as $$
-  -- trial-gates-0202 (body of 0041 + the free-trial check)
+  -- trial-gates-0203 (body of 0041 + the free-trial check)
   select p.id, p.full_name, p.email
     from public.profiles p
    where auth.uid() is not null
@@ -209,7 +194,7 @@ $$;
 -- ---- 4) checklist / task templates: not part of the free trial ----------------------------------------
 create or replace function public._tl202_tg_templates()
 returns trigger language plpgsql set search_path = '' as $$
--- trial-gates-0202: SECURITY INVOKER on purpose (current_user = the app role); Helm's own functions are
+-- trial-gates-0203: SECURITY INVOKER on purpose (current_user = the app role); Helm's own functions are
 -- not checked, reading is unchanged (the sample events keep their checklists)
 declare v_org uuid;
 begin
@@ -234,7 +219,7 @@ end $$;
 -- ---- 5) checkout status: a free trial is not a subscription -------------------------------------------
 create or replace function public.my_checkout_status()
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
--- direct-studio-0159 + trial-gates-0202: has_subscription / reason say "trial" for a studio on its free
+-- direct-studio-0159 + trial-gates-0203: has_subscription / reason say "trial" for a studio on its free
 -- trial (or an ended, unpaid one); "required" is exactly as in 0159
 declare v_org uuid := public.current_org_id(); b public.helm_billing_settings; s public.studio_subscriptions;
   v_admin boolean := coalesce(public.is_admin(), false); v_created timestamptz; v_pending boolean;
@@ -282,42 +267,3 @@ begin
     grant execute on function public.my_checkout_status() to service_role;
   end if;
 end $$;
-
-notify pgrst, 'reload schema';
-commit;
-
--- VERIFY (every row should say ok = true)
-select item, ok from (values
-  ('01 nurture wrappers in place (trial check), old bodies kept',
-     position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.queue_nurture_greeting(uuid)')), '')) > 0
-     and position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.run_nurture_auto(integer)')), '')) > 0
-     and position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.nurture_due(integer)')), '')) > 0
-     and to_regprocedure('public.queue_nurture_greeting__pre0202(uuid)') is not null
-     and to_regprocedure('public.run_nurture_auto__pre0202(integer)') is not null
-     and to_regprocedure('public.nurture_due__pre0202(integer)') is not null),
-  ('02 wrappers: signed-in users only; kept bodies not callable by the app',
-     has_function_privilege('authenticated', 'public.queue_nurture_greeting(uuid)', 'execute')
-     and has_function_privilege('authenticated', 'public.run_nurture_auto(integer)', 'execute')
-     and has_function_privilege('authenticated', 'public.nurture_due(integer)', 'execute')
-     and not has_function_privilege('anon', 'public.queue_nurture_greeting(uuid)', 'execute')
-     and not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like '%\_\_pre0202'
-                      and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')))),
-  ('03 triggers: nurture automation, menu dishes, 2 template tables',
-     exists (select 1 from pg_trigger where tgrelid = 'public.nurture_automation'::regclass and tgname = 'zzzz_tl202_nurture_auto')
-     and exists (select 1 from pg_trigger where tgrelid = 'public.menu_templates'::regclass and tgname = 'zzzz_tl202_menu_dishes')
-     and exists (select 1 from pg_trigger where tgrelid = 'public.checklist_templates'::regclass and tgname = 'zzzz_tl202_templates')
-     and exists (select 1 from pg_trigger where tgrelid = 'public.task_templates'::regclass and tgname = 'zzzz_tl202_templates')),
-  ('04 activity log: restrictive trial policy',
-     exists (select 1 from pg_policy where polrelid = 'public.audit_log'::regclass and polname = 'tl202_trial_no_read' and not polpermissive)),
-  ('05 checkout status + audit names re-issued (trial aware), grants kept',
-     position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.my_checkout_status()')), '')) > 0
-     and position('trial-gates-0202' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.audit_actor_names()')), '')) > 0
-     and has_function_privilege('authenticated', 'public.my_checkout_status()', 'execute')
-     and not has_function_privilege('anon', 'public.my_checkout_status()', 'execute')
-     and has_function_privilege('authenticated', 'public.audit_actor_names()', 'execute')),
-  ('06 helpers internal (policy helper excepted)',
-     not has_function_privilege('authenticated', 'public._tl202_no_send(uuid)', 'execute')
-     and not has_function_privilege('anon', 'public._tl202_caller_trial()', 'execute')),
-  ('07 paid studios: never trial-gated',
-     not exists (select 1 from public.studio_subscriptions s where s.status = 'active' and (public._tl202_no_send(s.org_id) or public._tl173_trial_locked(s.org_id))))
-) v(item, ok) order by item;

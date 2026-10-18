@@ -1292,7 +1292,7 @@
         if (st.auth.mfa.requiredForAdmins()) return forceEnroll();
         var dismissed = noteSnoozed("mfa");
         if (dismissed || banner) return;
-        // 0202: never in the free trial (the trial studio is sample data; the strip is the only notice)
+        // 0203: never in the free trial (the trial studio is sample data; the strip is the only notice)
         if (doc.documentElement.classList.contains("helm-trial")) return;
         // at most once per browser session, and never on top of a tour step
         var SK = "hau_mfa_nudge_session";
@@ -1312,7 +1312,7 @@
       });
     }).catch(function () {});
   }
-  // 0202: is the signed-in studio on its free trial? (the server's answer via trial-lock.js; false when unknown)
+  // 0203: is the signed-in studio on its free trial? (the server's answer via trial-lock.js; false when unknown)
   function inTrialStudio() {
     try {
       if (global.HelmTrialLock && typeof global.HelmTrialLock.whenKnown === "function") return global.HelmTrialLock.whenKnown().then(function (v) { return v === true; }, function () { return false; });
@@ -1323,7 +1323,7 @@
     return Promise.resolve(false);
   }
   function showMfaNudge() {
-        // 0202: compact and non-blocking - it stays in the notice stack (never over the page's own docked notices),
+        // 0203: compact and non-blocking - it stays in the notice stack (never over the page's own docked notices),
         // shows once per browser session and folds away by itself after 20 s
         banner = showNote({ id: "hauMfaNudge", priority: 2, icon: "shield", compact: true, dock: false, autoHideMs: 20000,
           onAutoHide: function () { banner = null; }, title: "Turn on two-step verification",

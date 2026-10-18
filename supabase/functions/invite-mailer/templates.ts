@@ -48,7 +48,7 @@ export function roleLabel(role: unknown): string {
   return ROLE_LABELS[k] || clean(k, 40) || "a team member";
 }
 
-// 0204: the SAME invitation for every invitee (brand-new address, existing account, re-invite):
+// 0205: the SAME invitation for every invitee (brand-new address, existing account, re-invite):
 // "Join <Studio> on Helm" - "<Inviter> invited you as <Role>" - [Accept invitation] -> /login?invite=<token>.
 // The Supabase Auth fallback templates (docs/ops/email-templates invite-user + magic-link) use the same words.
 export function inviteEmail(opts: { token: unknown; inviter?: unknown; studio?: unknown; role?: unknown; expires_at?: unknown }): Mail | null {
@@ -91,7 +91,7 @@ export function inviteEmail(opts: { token: unknown; inviter?: unknown; studio?: 
   return { subject: subj(headline), html, text };
 }
 
-// 0204 (invite-signup "Email me a new link"): the invitation already made a login with no password and
+// 0205 (invite-signup "Email me a new link"): the invitation already made a login with no password and
 // its one-time link is gone. `link` is the Supabase sign-in link (generateLink) that lands on
 // /login?invite=<token> signed in → "Set your password" → the studio. Same look as the invitation.
 export function newLinkEmail(opts: { link: unknown; studio?: unknown; inviter?: unknown; role?: unknown }): Mail | null {

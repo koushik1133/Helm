@@ -1,4 +1,4 @@
-/* auth-confirm.js — /auth/confirm (0204): opens every Helm auth e-mail link on www.helm.events.
+/* auth-confirm.js — /auth/confirm (0205): opens every Helm auth e-mail link on www.helm.events.
    The link carries a one-time hashed token (never a session); it is verified HERE, in this browser
    (supabase.auth.verifyOtp), then:
      invite / magiclink → the Join page (/login?invite=<token>) signed in → accept → "Set your password"

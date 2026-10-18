@@ -281,7 +281,7 @@ Queue: `invite_email_outbox` (one row per invitation, so each invite is e-mailed
 (or a re-tokened one) is queued by a trigger; **Resend email** (Staff page / Control Center → Users)
 re-queues it, at most once per 10 minutes per invite. Copy link keeps working as a backup.
 
-**0204 (2026-10-18): one invitation for every invitee.** With an e-mail provider for the edge
+**0205 (2026-10-18): one invitation for every invitee.** With an e-mail provider for the edge
 functions - `RESEND_API_KEY` + `RESEND_FROM`, **or** `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS`
 (+ `SMTP_PORT`, `SMTP_FROM`; the same secrets `client-mailer` uses) - every invitee (new address,
 existing account, re-invite) gets the same branded "Join <Studio> on Helm - <Inviter> invited you as

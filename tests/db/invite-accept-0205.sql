@@ -1,4 +1,4 @@
--- invite-accept-0204.sql -- 0204: invite_account_state / my_needs_password / invite_auth_user_id / invite_request_new_link.
+-- invite-accept-0205.sql -- 0205: invite_account_state / my_needs_password / invite_auth_user_id / invite_request_new_link.
 -- Proves: only the service role can ask invite_account_state, only for ONE pending + unexpired
 -- invitation (bad / unknown / expired / revoked / accepted tokens -> valid false), it reports only
 -- valid / account / confirmed for the invitation's OWN e-mail (none / needs_password / existing,
@@ -8,8 +8,8 @@
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
 begin;
--- re-apply 0204 inside this rolled-back tx (also proves a second run is harmless)
-\ir ../../supabase/migrations/0204_invite_account_state.sql
+-- re-apply 0205 inside this rolled-back tx (also proves a second run is harmless)
+\ir ../../supabase/migrations/0205_invite_account_state.sql
 create temp table _ia(name text, result text); grant all on _ia to anon, authenticated, service_role;
 create temp table _iakv(k text primary key, v text); grant all on _iakv to anon, authenticated, service_role;
 
@@ -231,6 +231,6 @@ do $$ declare r jsonb; e text; v_inv0 text; v_uid uuid; begin
 exception when others then perform pg_temp.su(); insert into _ia values ('6x helpers', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 select name, result from _ia order by name;
-select case when count(*) filter (where result <> 'PASS') = 0 then 'INVITE-ACCEPT-0204: ALL PASS (' || count(*) || '/' || count(*) || ')'
-            else 'INVITE-ACCEPT-0204: ' || count(*) filter (where result <> 'PASS') || ' FAILED of ' || count(*) end as summary from _ia;
+select case when count(*) filter (where result <> 'PASS') = 0 then 'INVITE-ACCEPT-0205: ALL PASS (' || count(*) || '/' || count(*) || ')'
+            else 'INVITE-ACCEPT-0205: ' || count(*) filter (where result <> 'PASS') || ' FAILED of ' || count(*) end as summary from _ia;
 rollback;

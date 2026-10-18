@@ -1,7 +1,7 @@
 /* trial-lock.js (0173): FREE TRIAL studios only. Paid studios: the server says "not a trial" and nothing here runs.
  * - adds html.helm-trial (trial-lock.css hides downloads, imports, photo renders, studio set-up, catalog "add" rows)
  * - blocks print / file downloads / Excel import in the page and shows "Not available in the free trial"
- * - pages that are not part of the trial (onboarding = studio set-up, templates = checklist templates, 0202: audit =
+ * - pages that are not part of the trial (onboarding = studio set-up, templates = checklist templates, 0203: audit =
  *   activity log) show a "Not available in the free trial" panel and send you back to the dashboard
  * - 0181: a browser that last saw a trial studio already has html.helm-trial + helm-trial-early before first paint
  *   (trial-early.js / shell-proto.js / store-api.js read the cached "helm.trial" flag). The server's answer
@@ -12,15 +12,15 @@
   if (window.HelmTrialLock) return;
   var MSG = "Not available in the free trial. Upgrade to use this.";
   var on = false, known = false, waiters = [];
-  var BLOCKED_PAGES = /(^|\/)(onboarding|templates|audit)(\.html)?\/?$/;   // 0181: Templates; 0202: activity log
-  // 0202: where a page that is not part of the trial sends you (the studio's pretty dashboard when the URL has a slug)
+  var BLOCKED_PAGES = /(^|\/)(onboarding|templates|audit)(\.html)?\/?$/;   // 0181: Templates; 0203: activity log
+  // 0203: where a page that is not part of the trial sends you (the studio's pretty dashboard when the URL has a slug)
   function home() {
     var m = /^\/([a-z0-9-]{3,40})\/(onboarding|templates|audit)\/?$/.exec(location.pathname || "");
     return m ? "/" + m[1] + "/dashboard" : "/dashboard.html";
   }
   function css() {
     if (document.getElementById("trialLockCss")) return;
-    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=4";
+    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=5";
     (document.head || document.documentElement).appendChild(l);
   }
   function note(msg) {
@@ -66,7 +66,7 @@
       else if (/audit/.test(location.pathname)) cover("The activity log is not part of the free trial",
         "Upgrade to see who changed what in your studio.");
       else cover();
-      // 0202: a direct link to a page that is not part of the trial goes back to the dashboard (the cover shows meanwhile)
+      // 0203: a direct link to a page that is not part of the trial goes back to the dashboard (the cover shows meanwhile)
       try { location.replace(home()); } catch (e) {}
     }
     if (document.body) page(); else document.addEventListener("DOMContentLoaded", page);

@@ -1,4 +1,4 @@
-// invite-mailer (0131 + 0204) — every invitee gets the SAME invitation: "Join <Studio> on Helm" -
+// invite-mailer (0131 + 0205) — every invitee gets the SAME invitation: "Join <Studio> on Helm" -
 // "<Inviter> invited you as <Role>" [Accept invitation] -> /login?invite=<token>. With a provider
 // (Resend here) Supabase is never asked to create a login; without one, the Supabase "Invite user"
 // e-mail (new address) and "Magic link" e-mail (existing account, its invitation metadata refreshed
@@ -92,7 +92,7 @@ Deno.test("invite-mailer: no provider -> Supabase Invite user / Magic link carry
   } finally { f(); r(); }
 });
 
-Deno.test("invite-mailer: no provider + 0204 not applied -> magic link still sent (plain text), never blocked", async () => {
+Deno.test("invite-mailer: no provider + 0205 not applied -> magic link still sent (plain text), never blocked", async () => {
   resetSupaMock();
   g.__supaRpc = (name: string) => name === "invite_email_outbox_claim" ? { data: [rows()[1]], error: null }
     : name === "invite_auth_user_id" ? { data: null, error: { code: "PGRST202", message: "not found" } } : { data: "ok", error: null };

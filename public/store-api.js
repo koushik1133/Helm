@@ -1,15 +1,15 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=26"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=27"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
    (shell-proto.js, trial-early.js); this is the fallback for every other page. */
 (function () { try { if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
-  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=4"; document.head.appendChild(l); } } } catch (e) {} })();
+  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=5"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
-  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=4"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=5"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -287,9 +287,9 @@ window.HelmUrl = HelmUrl;
     p.then(done, done);
     return p;
   }
-  // 0202: areas a studio on its FREE TRIAL never gets (photo renders, checklist templates, activity log), whatever
+  // 0203: areas a studio on its FREE TRIAL never gets (photo renders, checklist templates, activity log), whatever
   // the saved role matrix says - admins included. Status-based (my_trial_status().status = 'trial', the same as the
-  // server's _is_trial_org); one shared call per page. The server refuses the same things (0173 / 0181 / 0202).
+  // server's _is_trial_org); one shared call per page. The server refuses the same things (0173 / 0181 / 0203).
   const TRIAL_OFF_AREAS = { photo_render: 1, templates: 1, audit: 1 };
   let trialSubInflight = null;
   function inFreeTrial() {
@@ -1151,7 +1151,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "36";
+  const AUTH_UI_VERSION = "37";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1167,10 +1167,10 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "6";
+  const STUDIO_SEARCH_VERSION = "7";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
-  const NAV_TRAIL_VERSION = "5";
+  const NAV_TRAIL_VERSION = "6";
   if (typeof global.HelmTrail === "undefined") {
     global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
   }
@@ -1204,7 +1204,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "11";
+  const TRIAL_BANNER_VERSION = "12";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -1212,14 +1212,14 @@ window.HelmUrl = HelmUrl;
     // theme-aware banner/reminder colours (follows the app theme, not the OS setting)
     const css = document.createElement("link");
     css.rel = "stylesheet";
-    css.href = vendorUrl("trial-theme.css?v=2");
+    css.href = vendorUrl("trial-theme.css?v=3");
     document.head.appendChild(css);
     const s = document.createElement("script");
     s.src = vendorUrl("trial.js?v=" + TRIAL_BANNER_VERSION);
     document.head.appendChild(s);
   }
   // Mobile bottom bar (< 768px): same pages as the studio search; mobile-nav.js re-checks the role.
-  const MOBILE_NAV_VERSION = "3";
+  const MOBILE_NAV_VERSION = "4";
   let mobileNavLoading = false;
   function loadMobileNav() {
     if (mobileNavLoading || typeof document === "undefined" || global.HelmMobileNav) return;
@@ -1432,7 +1432,7 @@ window.HelmUrl = HelmUrl;
 
   /* ---------------- init: pick the best available backend ---------------- */
   const INVITE_SET_PW_KEY = "bp_invite_set_pw";
-  const SIGNUP_MARK_KEY = "bp_signup_email";   // 0204: e-mail of a sign-up started in this browser   // user id of an invitee who arrived by an "Invite user" link and still needs a password
+  const SIGNUP_MARK_KEY = "bp_signup_email";   // 0205: e-mail of a sign-up started in this browser   // user id of an invitee who arrived by an "Invite user" link and still needs a password
   let inviteFragment = null;
   function invitePwPending() {
     try { const id = sessionStorage.getItem(INVITE_SET_PW_KEY); return !!(id && currentUser && currentUser.id === id); } catch (e) { return false; }
@@ -1495,7 +1495,7 @@ window.HelmUrl = HelmUrl;
               try { const cur = await supa.auth.getSession(); if (!(cur && cur.data && cur.data.session)) {
                 const isNew = inviteFragment.type === "invite";   // "Invite user" link = brand-new account with no password yet
                 const sr = await supa.auth.setSession({ access_token: inviteFragment.access_token, refresh_token: inviteFragment.refresh_token });
-                // 0204: a NEW link e-mailed from the join page ("Email me a new link") may be a magic link
+                // 0205: a NEW link e-mailed from the join page ("Email me a new link") may be a magic link
                 // for a login the invitation made without a password: ask the server (own login only)
                 let needPw = isNew;
                 if (sr && !sr.error && sr.data && sr.data.user) {
@@ -1774,7 +1774,7 @@ window.HelmUrl = HelmUrl;
     async canView(area) {
       if (mode !== "supabase") return true;          // single-user offline/server mode
       if (!currentUser) return false;
-      if (TRIAL_OFF_AREAS[area] && (await inFreeTrial())) return false;   // 0202: not part of the free trial
+      if (TRIAL_OFF_AREAS[area] && (await inFreeTrial())) return false;   // 0203: not part of the free trial
       const r = await getRole();
       if (r === "admin") return true;                // admin: full floor
       const acc = await loadAccess();
@@ -1794,7 +1794,7 @@ window.HelmUrl = HelmUrl;
       if (!currentUser) return false;
       const [r, ro] = await Promise.all([getRole(), studioReadOnly()]);
       if (ro) return false;                          // 0183: read-only after the free trial (admins too)
-      if (TRIAL_OFF_AREAS[area] && (await inFreeTrial())) return false;   // 0202: not part of the free trial
+      if (TRIAL_OFF_AREAS[area] && (await inFreeTrial())) return false;   // 0203: not part of the free trial
       if (r === "admin") return true;
       const acc = await loadAccess();
       if (acc.unknown) return false;
@@ -1873,7 +1873,7 @@ window.HelmUrl = HelmUrl;
         if (captchaToken) so.captchaToken = captchaToken;
         const fullName = opts && typeof opts.fullName === "string" ? opts.fullName.trim().slice(0, 50) : "";
         if (fullName) so.data = { full_name: fullName };
-        // 0204: this browser started a sign-up for this address - /auth/confirm keeps the confirm link's
+        // 0205: this browser started a sign-up for this address - /auth/confirm keeps the confirm link's
         // session only then (a link someone else made for THEIR account never signs this browser in)
         try { localStorage.setItem(SIGNUP_MARK_KEY, String(email || "").trim().toLowerCase().slice(0, 254)); } catch (e) {}
         const { data, error } = await supa.auth.signUp({ email, password, options: so });
@@ -2024,7 +2024,7 @@ window.HelmUrl = HelmUrl;
     // password yet) must choose one + give their name before entering the studio.
     // Magic-link invitees (existing accounts) never get this flag.
     inviteSetPasswordPending: () => invitePwPending(),
-    // 0204 - /auth/confirm: e-mail links on Helm's own domain (token_hash + type), verified here.
+    // 0205 - /auth/confirm: e-mail links on Helm's own domain (token_hash + type), verified here.
     // → { user } | throws the Supabase error (otp_expired / access_denied …). Never called with a session open.
     async verifyEmailLink(tokenHash, type) {
       if (!supa) throw new Error("Supabase not configured");
@@ -2037,7 +2037,7 @@ window.HelmUrl = HelmUrl;
         return { user: (data && data.user) || null };
       } finally { localAuthOp--; }
     },
-    // does MY login still have no password (0204 my_needs_password)? null = unknown (not applied / offline)
+    // does MY login still have no password (0205 my_needs_password)? null = unknown (not applied / offline)
     async needsPassword() {
       if (!supa || !currentUser) return null;
       try { const r = await supa.rpc("my_needs_password"); return !r.error && typeof r.data === "boolean" ? r.data : null; } catch (e) { return null; }
@@ -4773,7 +4773,7 @@ window.HelmUrl = HelmUrl;
     // bound e-mail, kill switch). A refusal throws an Error with .code (email_mismatch, …).
     // the invited e-mail for a valid invitation (shown locked on the join form) → string | null
     async invitedEmail(token) { const p = await invitations.peek(token); return p && !p.invalid ? p.email : null; },
-    // 0204: { email, account, studio, inviter, role, role_label } of a valid invitation (only its OWN
+    // 0205: { email, account, studio, inviter, role, role_label } of a valid invitation (only its OWN
     // e-mail; inviter = display name) | { invalid: true, reason: expired|used|revoked|"", studio } for a
     // token that no longer works | null (function not deployed / offline). account:
     // "new" (no login yet) | "needs_link" (the invite e-mail made a login without a password -
@@ -4793,7 +4793,7 @@ window.HelmUrl = HelmUrl;
           studio: str(j.studio, 120), inviter: str(j.inviter, 60), role: str(j.role, 40), role_label: str(j.role_label, 60) };
       } catch (e) { return null; }
     },
-    // 0204: e-mail the invited address a NEW link (sign in → set password → join). The server sends
+    // 0205: e-mail the invited address a NEW link (sign in → set password → join). The server sends
     // only to the invitation's own e-mail and rate-limits it. → { sent: true } | { account: "new" };
     // a refusal throws an Error with .code (rate_limited, account_exists, invalid_invite, send_failed, unavailable).
     async resendLink(token) {
@@ -7805,7 +7805,7 @@ window.HelmUrl = HelmUrl;
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
-      // 0204: an invitee whose invitation expired asked for a new link (re-send it from Staff)
+      // 0205: an invitee whose invitation expired asked for a new link (re-send it from Staff)
       invite_link_request: ["✉️", String(d.label || "A teammate asked for a new invitation link")],
       // 0069 client package flow
       pkg_selected: ["📦", "Client chose a package" + (d.package ? ": " + d.package : "") + (d.event_code ? " · " + d.event_code : "")],

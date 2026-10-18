@@ -195,7 +195,7 @@ apex is served by the project instead of by the domain-level redirect:
   `[helm-trusted-types] report-only:` lines; enforcement is a later, separate change.
 
 ## 12. Live audit 2026-10-18 follow-ups (fix/la-fetch-security)
-- [ ] **Apply `supabase/APPLY-0203.sql`** (staging first, then production; safe to run twice). A
+- [ ] **Apply `supabase/APPLY-0204.sql`** (staging first, then production; safe to run twice). A
       signed-out API call on profiles / layouts / venues / client booklets / coupons / invitation
       sites then gets a plain "permission denied for table" instead of an error naming
       `current_org_id`. Every VERIFY row must say `t`, and the INFO list at the end must be empty
@@ -218,7 +218,7 @@ apex is served by the project instead of by the domain-level redirect:
       is readable by EVERY signed-in member whose role can view quotes in that studio (row level
       security is per studio, and all app roles share the one database role `authenticated`, so a
       column privilege cannot tell an admin from a sales user). It never reaches another studio or a
-      signed-out visitor (tests/db/anon-grant-tidy-0203.sql). The app no longer downloads it with
+      signed-out visitor (tests/db/anon-grant-tidy-0204.sql). The app no longer downloads it with
       any list (shell, dashboard, calendar, pickers); only opening one event (`quotes.get`) still
       reads the row. Hiding it from roles below admin needs the token moved to a separate,
       admin-only table that every link function reads - a larger change across ~10 SECURITY

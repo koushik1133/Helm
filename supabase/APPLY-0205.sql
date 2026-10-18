@@ -1,4 +1,16 @@
--- 0204_invite_account_state.sql - CANONICAL forward-only.
+-- APPLY-0205.sql - paste into the Supabase SQL editor (staging first, then production).
+-- Fixes the invite dead end: a brand-new invitee whose "Accept invitation" e-mail link was used,
+-- expired or opened while another account was signed in was told "This e-mail already has a Helm
+-- account - sign in instead", although Supabase had created that login WITHOUT a password.
+-- It also lets an EXISTING account's invitation e-mail name the same studio / role / inviter, and lets
+-- an invitee whose invitation EXPIRED ask the studio for a new one (one bell note per 24 h).
+-- What it adds: 4 small functions - invite_account_state, invite_auth_user_id, invite_request_new_link
+-- (service role only: the edge functions invite-signup / invite-mailer) and my_needs_password (the
+-- signed-in person's own login). The only row ever written later is that bell note (insert only).
+-- No table, column, policy or existing function is changed. No DROP / DELETE / UPDATE / TRUNCATE.
+-- Safe to run twice. After it: redeploy the edge functions invite-signup and invite-mailer.
+begin;
+-- 0205_invite_account_state.sql - CANONICAL forward-only.
 -- REQUIRES phase83 (public.invitations) + 0131 (invite e-mails through Supabase Auth).
 --
 -- In plain words (prod bug 2026-10-18, "Join ABCD" invite says "already has a Helm account"):
@@ -29,7 +41,7 @@
 
 create or replace function public.invite_account_state(p_token text)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
--- invite-accept-0204: the invited e-mail's login state, for ONE valid invitation token (service role only)
+-- invite-accept-0205: the invited e-mail's login state, for ONE valid invitation token (service role only)
 declare v_inv record; v_u auth.users%rowtype; v_pw text; v_other boolean := false; v_state text;
 begin
   if p_token is null or p_token !~ '^[0-9a-f]{16,128}$' then
@@ -63,7 +75,7 @@ end $$;
 
 create or replace function public.my_needs_password()
 returns boolean language sql stable security definer set search_path = '' as $$
-  -- invite-accept-0204: the caller's OWN login has no password and no Google / other sign-in
+  -- invite-accept-0205: the caller's OWN login has no password and no Google / other sign-in
   select coalesce((
     select coalesce(u.encrypted_password, '') = ''
        and not exists (select 1 from auth.identities d where d.user_id = u.id and coalesce(d.provider, '') <> 'email')
@@ -75,7 +87,7 @@ $$;
 -- Supabase sign-in e-mail an EXISTING account gets reads like the same "Join <studio>" invitation.
 create or replace function public.invite_auth_user_id(p_token text)
 returns uuid language sql stable security definer set search_path = '' as $$
-  -- invite-accept-0204
+  -- invite-accept-0205
   select u.id from public.invitations i
     join auth.users u on lower(u.email) = lower(btrim(i.email))
    where p_token ~ '^[0-9a-f]{16,128}$' and i.token = p_token and i.status = 'pending' and i.expires_at > now()
@@ -88,7 +100,7 @@ $$;
 -- Returns { result: requested | already_requested | not_expired | not_found, studio }.
 create or replace function public.invite_request_new_link(p_token text)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
--- invite-accept-0204: never renews, never changes the invitation; one bell row at most per 24 h
+-- invite-accept-0205: never renews, never changes the invitation; one bell row at most per 24 h
 declare v_inv record; v_studio text;
 begin
   if p_token is null or p_token !~ '^[0-9a-f]{16,128}$' then return jsonb_build_object('result', 'not_found'); end if;
@@ -107,7 +119,7 @@ begin
   insert into public.notifications(quote_id, channel, kind, status, detail, org_id)
     values (null, 'in_app', 'invite_link_request', 'simulated',
             jsonb_build_object('label', left(v_inv.email, 254) || ' asked for a new invitation link (the old one expired). Re-send it from Staff.',
-                               'invitation', v_inv.id::text, 'source', '0204'),
+                               'invitation', v_inv.id::text, 'source', '0205'),
             v_inv.org_id);
   return jsonb_build_object('result', 'requested', 'studio', v_studio);
 end $$;
@@ -137,3 +149,29 @@ do $$ begin
 end $$;
 
 notify pgrst, 'reload schema';
+commit;
+
+-- VERIFY (every row should say ok = true)
+select item, ok from (values
+  ('01 invite_account_state exists, SECURITY DEFINER, empty search_path',
+     coalesce((select prosecdef and 'search_path=""' = any(proconfig) from pg_proc where oid = to_regprocedure('public.invite_account_state(text)')), false)),
+  ('02 invite_account_state: service role only (not the app, not anon)',
+     has_function_privilege('service_role', 'public.invite_account_state(text)', 'execute')
+     and not has_function_privilege('authenticated', 'public.invite_account_state(text)', 'execute')
+     and not has_function_privilege('anon', 'public.invite_account_state(text)', 'execute')),
+  ('03 my_needs_password exists, SECURITY DEFINER, signed-in only',
+     coalesce((select prosecdef and 'search_path=""' = any(proconfig) from pg_proc where oid = to_regprocedure('public.my_needs_password()')), false)
+     and has_function_privilege('authenticated', 'public.my_needs_password()', 'execute')
+     and not has_function_privilege('anon', 'public.my_needs_password()', 'execute')),
+  ('04 a malformed / unknown token tells nothing', public.invite_account_state('x') = '{"valid": false}'::jsonb
+     and public.invite_account_state(repeat('0', 48)) = '{"valid": false}'::jsonb),
+  ('05 nobody signed in here -> my_needs_password is false', public.my_needs_password() = false),
+  ('06 invite_auth_user_id + invite_request_new_link: service role only',
+     has_function_privilege('service_role', 'public.invite_auth_user_id(text)', 'execute')
+     and not has_function_privilege('authenticated', 'public.invite_auth_user_id(text)', 'execute')
+     and not has_function_privilege('anon', 'public.invite_auth_user_id(text)', 'execute')
+     and has_function_privilege('service_role', 'public.invite_request_new_link(text)', 'execute')
+     and not has_function_privilege('authenticated', 'public.invite_request_new_link(text)', 'execute')
+     and not has_function_privilege('anon', 'public.invite_request_new_link(text)', 'execute')),
+  ('07 an unknown token is never renewable', public.invite_request_new_link(repeat('0', 48)) ->> 'result' = 'not_found')
+) v(item, ok) order by item;

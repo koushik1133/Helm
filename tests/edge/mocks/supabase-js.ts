@@ -48,7 +48,7 @@ export function createClient(_url?: string, key?: string, opts?: any): SupabaseC
         const fn = g().__supaGetUser || (() => ({ data: { user: null } }));
         return Promise.resolve(fn(jwt));
       },
-      // auth e-mail / admin subset (invite-signup 0204): globalThis.__supaAuth(op, args, key) -> { data, error }
+      // auth e-mail / admin subset (invite-signup 0205): globalThis.__supaAuth(op, args, key) -> { data, error }
       signInWithOtp: (args: unknown) => {
         g().__supaLog.push({ auth: "signInWithOtp", args, key });
         const fn = g().__supaAuth || (() => ({ data: {}, error: null }));

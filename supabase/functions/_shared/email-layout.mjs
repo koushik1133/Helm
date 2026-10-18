@@ -28,7 +28,7 @@ export const link = (href, label) => `<a href="${href}" class="lnk" style="color
 
 /** big primary button; href/label must already be escaped (or be a Supabase {{ }} variable) */
 export function button(href, label) {
-  // 0204 bulletproof button: Outlook desktop (Word engine) gets the VML roundrect; every other client
+  // 0205 bulletproof button: Outlook desktop (Word engine) gets the VML roundrect; every other client
   // (Outlook web / new Outlook, Gmail, Apple Mail) gets a table cell + a real <a href> with inline
   // styles - no <!--[if !mso]> wrapper that some webmail sanitisers drop. The plain URL line
   // (fallback()) always follows, so the link works even when buttons are stripped.
