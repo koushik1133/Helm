@@ -120,6 +120,17 @@ do $$ declare a uuid; r jsonb; e text; n0 bigint; begin
   perform pg_temp.su();
   perform pg_temp.res('02 in trial: choice refused (choose a plan first), nothing removed',
     e like '22023%' and pg_temp.allrows(a) = n0, e);
+  -- section 10: checkout saves billing details + the Terms before payment, also in the trial
+  perform pg_temp.login('tu_a@t.test');
+  e := pg_temp.try($q$select public.my_studio_account_update('{"legal_business_name":"TU A Pvt Ltd","state":"Telangana","terms_version_accepted":"2026-10"}'::jsonb)$q$);
+  perform pg_temp.su();
+  perform pg_temp.res('02b in trial: the admin can save billing details + accept the Terms (checkout)',
+    e = '' and exists (select 1 from public.studio_account x where x.org_id = a and x.legal_business_name = 'TU A Pvt Ltd'
+                        and x.terms_accepted_at is not null), e);
+  perform pg_temp.login('tu_a@t.test');
+  e := pg_temp.try($q$select public.set_studio_link_name('tu-a-new-link')$q$);
+  perform pg_temp.su();
+  perform pg_temp.res('02c in trial: the other 0173 studio-setting guards still refuse', e like '42501%', e);
 exception when others then perform pg_temp.su(); insert into _uf values ('0x trial', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 -- ---- 2) access rules ---------------------------------------------------------------------------------
@@ -141,6 +152,11 @@ do $$ declare a uuid := pg_temp.get('A')::uuid; m uuid; c uuid; e text; r jsonb;
   e := pg_temp.try($q$select public.my_upgrade_status()$q$);
   perform pg_temp.su();
   perform pg_temp.res('05 a client cannot read the status', e like '42501%', e);
+  perform pg_temp.login('tu_a_cli@t.test');
+  e := pg_temp.try($q$select public.my_studio_account_update('{"legal_business_name":"Client Ltd"}'::jsonb)$q$);
+  perform pg_temp.su();
+  perform pg_temp.res('05b a client cannot change the billing details', e like '42501%'
+    and not exists (select 1 from public.studio_account x where x.org_id = a and x.legal_business_name = 'Client Ltd'), e);
   perform pg_temp.su(); perform set_config('role', 'anon', false);
   e := pg_temp.try($q$select public.upgrade_data_choice('keep')$q$);
   perform pg_temp.su();

@@ -32,7 +32,7 @@ GST is set to 18% (intra-state). Event dates are relative to the sign-up day, so
 - **Layout templates:** the builder gallery shows the sample layouts, **Start blank** and **From past events** (never the built-in presets, even when no sample layout is left). Saving, renaming, archiving, duplicating or setting a default template is not part of the trial (0181).
 - **Users & invites:** at most **you + 2 people**. Open invitations count toward that number. The server refuses a 3rd person even if the request is sent straight to the API.
 - **Roles & access:** editable.
-- **Plan & billing:** shown, so the studio can upgrade. The demo-data card (keep or clear the sample data) also sits here.
+- **Plan & billing:** shown, so the studio can upgrade. The demo-data card (keep or clear the sample data) also sits here. Checkout can save the billing details and accept the Terms during the trial (`my_studio_account_update` is open to the trial admin, migration 0185 section 10); the other studio settings stay fixed.
 
 ## 4. What is hidden and blocked
 "Blocked" means the screen hides the feature, a direct link shows **"Not available in the free trial"**, and the server refuses the request (migration 0173).
@@ -58,6 +58,7 @@ GST is set to 18% (intra-state). Event dates are relative to the sign-up day, so
 
 ## 6. Messages
 Nothing leaves Helm during a trial. E-mail, WhatsApp and SMS rows are queued as "skipped", and sample contacts are dummy addresses and numbers.
+The direct send routes (approval code, "Send on WhatsApp", proposal WhatsApp) are refused too (0179), and they stay refused after an unpaid trial ends and the studio is read-only, until it is on a paid plan.
 
 ## 7. Clearing the demo data
 An admin can clear the sample data from the demo-data card. Only rows marked as demo data in that studio are removed. Rows the studio created or adopted are never touched.

@@ -123,8 +123,13 @@ select pg_temp.put('e6', pg_temp.try($q$update public.dish_catalog set category 
 select pg_temp.put('k4', public._a182_keep_demo('dish_catalog', pg_temp.get('p')::uuid)::text);
 do $$ declare lim jsonb := pg_temp.get('lim')::jsonb; begin
   perform pg_temp.su();
-  perform pg_temp.res('08 trial: edited sample dish keeps is_demo',
-    exists (select 1 from public.dish_catalog where id = pg_temp.get('da')::uuid and category = 'My category' and is_demo), pg_temp.get('e1'));
+  -- with 0181 (trial guards) a trial cannot change a dish at all (dish_catalog has no price column):
+  -- the edit is refused and the sample dish stays as it was, still is_demo
+  perform pg_temp.res('08 trial: edited sample dish keeps is_demo (0181: edit refused, row unchanged)',
+    case when to_regprocedure('public._tl181_tg_catalog_edit()') is not null
+      then pg_temp.get('e1') like '42501%'
+           and exists (select 1 from public.dish_catalog where id = pg_temp.get('da')::uuid and category is distinct from 'My category' and is_demo)
+      else exists (select 1 from public.dish_catalog where id = pg_temp.get('da')::uuid and category = 'My category' and is_demo) end, pg_temp.get('e1'));
   perform pg_temp.res('09 trial: sample package price edited, keeps is_demo',
     pg_temp.get('e2') = '' and exists (select 1 from public.menu_templates where id = pg_temp.get('ma')::uuid and is_demo), pg_temp.get('e2'));
   perform pg_temp.res('10 trial: renamed sample inventory item keeps is_demo and does not count toward the cap',

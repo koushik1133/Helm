@@ -35,7 +35,8 @@
 --
 --   Changes: 3 nullable columns on organizations (+ a check + an API guard trigger), 1 nullable
 --   column + 1 partial index + 1 restrictive policy on leads / nurture / layouts, 1 new table
---   (RLS on, no tenant policy, definer RPCs only, 0045 read-only guard), 10 new functions. No existing function replaced,
+--   (RLS on, no tenant policy, definer RPCs only, 0045 read-only guard), 10 new functions. One existing function body
+--   replaced: the 0173 trial wrapper of my_studio_account_update (section 10, checkout billing in the trial). Otherwise none replaced,
 --   no row changed by this migration. No DROP TABLE / DROP COLUMN / TRUNCATE; the only row
 --   removals anywhere are the existing _demo_clear of is_demo (sample) rows, on an admin's choice.
 --   Additive + idempotent: safe to run twice. ASCII only.
@@ -478,4 +479,25 @@ begin
     if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('grant execute on function %s to authenticated', f); end if;
     if exists (select 1 from pg_roles where rolname = 'service_role') then execute format('grant execute on function %s to service_role', f); end if;
   end loop;
+end $$;
+
+-- ---- 10) checkout during the free trial: billing details + Terms stay open -------------------------
+-- 0173 put the free-trial guard on my_studio_account_update, so a trial admin could not save the
+-- billing details / accept the Terms that checkout saves BEFORE payment - an upgrade was refused
+-- while the subscription still said 'trial' (the whole trial, and up to a day after it ended).
+-- The 0173 wrapper keeps its name, signature and grants; it now calls the original directly
+-- (admin / users-edit check, field validation, audit row unchanged). It writes only the studio's
+-- studio_account row + consent log, as before. Every other 0173 guard stays. Paid studios: unchanged
+-- (the guard never applied to them). Runs only when 0173 is installed; a re-run of 0173 puts the
+-- guard back, so this file (or the bundle) must be pasted after it.
+do $$ begin
+  if to_regprocedure('public.my_studio_account_update__pre0173(jsonb)') is not null
+     and to_regprocedure('public.my_studio_account_update(jsonb)') is not null then
+    create or replace function public.my_studio_account_update(p_account jsonb)
+    returns jsonb language plpgsql volatile security definer set search_path = '' as $f$
+    -- trial-lockdown-0173 + trial-upgrade-0185: no free-trial guard (checkout needs billing details + Terms to upgrade)
+    begin
+      return public.my_studio_account_update__pre0173(p_account);
+    end $f$;
+  end if;
 end $$;

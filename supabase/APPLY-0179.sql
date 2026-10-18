@@ -15,7 +15,9 @@ begin;
 --   direct routes (approval OTP by SMS / WhatsApp / e-mail, staff "Send on WhatsApp", proposal
 --   WhatsApp) still sent. Now:
 --     1) _tb179_no_send(org): true while the studio is in its free trial
---        (studio_subscriptions.status = 'trial', via _is_trial_org) or is the sample master.
+--        (studio_subscriptions.status = 'trial', via _is_trial_org) or is the sample master,
+--        or (trial bundle) its free trial ENDED unpaid and it is read-only (_trial_locked: 0116,
+--        status-based from 0183) - an ended trial does not start sending to clients either.
 --        Paid studios: always false - nothing changes for them.
 --     2) otp_send_authorize, request_otp, wa_otp_begin, whatsapp_authorize, wa_proposal_prepare
 --        are wrapped (old body kept as <name>__pre0179): a trial studio gets
@@ -34,8 +36,9 @@ begin;
 --   studio row written. Additive + idempotent: safe to run twice. ASCII only.
 
 do $$ begin
-  if to_regprocedure('public._is_trial_org(uuid)') is null or to_regprocedure('public._sample_outbound_blocked(uuid,text)') is null then
-    raise exception '0179: apply 0166 first'; end if;
+  if to_regprocedure('public._is_trial_org(uuid)') is null or to_regprocedure('public._sample_outbound_blocked(uuid,text)') is null
+     or to_regprocedure('public._trial_locked(uuid)') is null then
+    raise exception '0179: apply 0116 + 0166 first'; end if;
   if to_regprocedure('public._wa151_token_quote(uuid)') is null or to_regprocedure('public.wa_otp_begin(uuid,text,text)') is null then
     raise exception '0179: apply 0151 first'; end if;
   if to_regprocedure('public.whatsapp_authorize__pre0155(uuid,text)') is null then raise exception '0179: apply 0155 first'; end if;
@@ -44,10 +47,12 @@ end $$;
 -- ---- 1) helpers --------------------------------------------------------------------------------
 create or replace function public._tb179_no_send(p_org uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
-  -- tb-msg-0179: free trial (subscription status) or the sample master never sends to clients
+  -- tb-msg-0179: free trial (subscription status), an ended unpaid (read-only) trial, or the sample
+  -- master never sends to clients
   select p_org is not null
      and (public._is_trial_org(p_org)
-          or exists (select 1 from public.organizations o where o.id = p_org and o.is_sample_master));
+          or exists (select 1 from public.organizations o where o.id = p_org and o.is_sample_master)
+          or coalesce(public._trial_locked(p_org), false));
 $$;
 revoke all on function public._tb179_no_send(uuid) from public;
 do $$ begin
@@ -299,5 +304,6 @@ select item, ok from (values
   ('07 seat triggers on role change', (select count(*) from pg_trigger where tgname = 'zzzz_tb179_seat_role' and not tgisinternal) = 2),
   ('08 outbox retry triggers', (select count(*) from pg_trigger where tgname = 'zzzz_tb179_outbox_skip_upd' and not tgisinternal) = 3),
   ('09 no paid studio is blocked', not exists (select 1 from public.studio_subscriptions s where s.status = 'active' and public.trial_send_blocked(s.org_id, null, null))),
-  ('10 every trial studio is blocked', not exists (select 1 from public.studio_subscriptions s where s.status = 'trial' and not public.trial_send_blocked(s.org_id, null, null)))
+  ('10 every trial studio is blocked', not exists (select 1 from public.studio_subscriptions s where s.status = 'trial' and not public.trial_send_blocked(s.org_id, null, null))),
+  ('11 every ended unpaid (read-only) trial is blocked', not exists (select 1 from public.studio_subscriptions s where public._trial_locked(s.org_id) and not public.trial_send_blocked(s.org_id, null, null)))
 ) v(item, ok) order by item;

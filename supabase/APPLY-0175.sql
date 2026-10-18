@@ -58,7 +58,8 @@ select item, ok from (values
   ('01 master has exactly the 3 owner templates live', (select count(*) from public.studio_layout_templates where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and not archived and name like E'Demo \u00b7 %') = 3),
   ('02 reception template present once', (select count(*) from public.studio_layout_templates where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and name = E'Demo \u00b7 Reception \u2014 Lawn reception with sofa lounge (450 guests)') = 1),
   ('03 theatre sample archived, not deleted', exists (select 1 from public.studio_layout_templates where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and name = E'Demo \u00b7 Corporate \u2014 Theatre/conference' and archived)),
-  ('04 manifest v6 current', exists (select 1 from public.helm_trial_seed_manifest where is_current and notes = 'v6: owner 3 layout templates')),
+  ('04 manifest v6 (or a later one, e.g. 0182) current', exists (select 1 from public.helm_trial_seed_manifest c where c.is_current
+       and c.version >= (select m.version from public.helm_trial_seed_manifest m where m.notes = 'v6: owner 3 layout templates'))),
   ('05 no paid studio got the reception template', not exists (select 1 from public.studio_layout_templates s join public.organizations o on o.id = s.org_id
        where s.name = E'Demo \u00b7 Reception \u2014 Lawn reception with sofa lounge (450 guests)' and not o.is_sample_master and not exists (select 1 from public.studio_subscriptions ss where ss.org_id = o.id and ss.status = 'trial')))
 ) v(item, ok) order by item;

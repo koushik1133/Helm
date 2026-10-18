@@ -129,7 +129,7 @@ console.log(`trial-demo: ${n} passed`);
   t('0123: start fresh calls the existing clear RPC only; onboarding hook; read-only migration', () => {
     const b = fnSrc(TD, 'startFresh');
     assert.match(b, /S\(\)\.demo\.clear\(\)/); assert.doesNotMatch(b, /rpc\(|delete/);
-    assert.match(read('public/onboarding.html'), /<script src="trial-demo\.js\?v=7"><\/script>/);
+    assert.match(read('public/onboarding.html'), /<script src="trial-demo\.js\?v=8"><\/script>/);
     const M = read('supabase/migrations/0123_trial_start_fresh.sql');
     assert.doesNotMatch(M.replace(/--.*$/gm, ''), /delete from|update public|insert into|drop |truncate/i);
     assert.doesNotMatch(M, /[^\x00-\x7f]/);

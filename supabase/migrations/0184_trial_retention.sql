@@ -307,7 +307,10 @@ returns text[] language sql immutable set search_path = '' as $$
     'comms_settings', 'pkg_settings', 'photo_render_settings', 'privacy_pin', 'privacy_pin_attempts',
     'org_link_autoexpire', 'org_link_expiry_shelf', 'org_payment_accounts', 'org_whatsapp_accounts', 'org_slug_history',
     'notification_prefs', 'notification_mutes', 'notification_seen', 'user_dashboard_prefs',
-    'trial_retention_schedule', 'trial_retention_notices', 'trial_retention_runs'
+    'trial_retention_schedule', 'trial_retention_notices', 'trial_retention_runs',
+    -- trial bundle: ledgers of the sibling trial migrations (ids / fingerprints only, never purged):
+    -- 0181 creation log, 0185 clean-start journal, 0186 one-trial grants + one-extension record
+    'trial_create_log', 'studio_clean_start_items', 'trial_grants', 'trial_extensions'
   ]::text[];
 $$;
 

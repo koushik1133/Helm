@@ -63,8 +63,9 @@ await t('trial strip: only "Free trial - N days left" + "Choose a plan"', () => 
   assert.equal(spec({ is_trial_org: true, is_admin: false, days_left: 1, trial_mode: 'demo' }).cta, null, 'members: no plan button');
   assert.equal(spec({ is_trial_org: true, is_admin: false, days_left: 1 }).title, 'Free trial · 1 day left');
   assert.ok(!/htr-badge|htr-fresh|spec\.fresh|spec\.badge|demo=fresh|exploring sample data/.test(TJ), 'render + CSS gone');
-  // the ended state is unchanged
-  assert.match(spec({ is_trial_org: true, is_admin: true, ended: true }).title, /trial has ended/);
+  // the ended state: 0183 shows it for a read-only (ended unpaid) studio; an ended date alone shows nothing
+  assert.match(spec({ is_trial_org: true, is_admin: true, ended: true, read_only: true }).title, /trial has ended/);
+  assert.equal(spec({ is_trial_org: true, is_admin: true, ended: true }), null);
 });
 await t('Choose a plan: straight to the plan / checkout page', () => {
   assert.equal(tj.href({ is_admin: true, trial_mode: 'demo' }, 'leads'), 'checkout.html?next=leads.html');

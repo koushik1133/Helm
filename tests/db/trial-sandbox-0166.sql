@@ -132,7 +132,7 @@ do $$ declare r jsonb; o uuid; o2 uuid; d uuid; k jsonb; v public.vendors; begin
   r := public.start_self_serve_trial('Own Studio', 'Asia/Kolkata', 'INR', 'own');
   perform pg_temp.su();
   -- 0180: 'own' is ignored - the trial gets the sample clone like every other trial
-  perform pg_temp.res('33 own-data request: nothing cloned before 0180, cloned from 0180', case when coalesce(pg_get_functiondef(to_regprocedure('public.start_self_serve_trial(text, text, text, text)')) like '%trial-signup-0180%', false)
+  perform pg_temp.res('33 own-data request: nothing cloned before 0180, cloned from 0180', case when coalesce(pg_get_functiondef(coalesce(to_regprocedure('public.start_self_serve_trial__pre0186(text, text, text, text)'), to_regprocedure('public.start_self_serve_trial(text, text, text, text)'))) like '%trial-signup-0180%', false)
     then (select count(*) from public.inventory_items where org_id = (r ->> 'org_id')::uuid and is_demo) > 0
          and (select sample_cloned_at is not null from public.organizations where id = (r ->> 'org_id')::uuid)
     else (select count(*) from public.inventory_items where org_id = (r ->> 'org_id')::uuid and is_demo) = 0

@@ -220,6 +220,32 @@ do $$ begin
     not has_table_privilege('authenticated', 'public.tb179_grants', 'select') and not has_table_privilege('anon', 'public.tb179_grants', 'select'));
 exception when others then perform pg_temp.su(); insert into _uf values ('5x shape', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
+-- ---- 6) trial bundle: an ENDED unpaid trial (read-only, _trial_locked) does not start sending ----------
+do $$ declare o uuid; q uuid := gen_random_uuid(); tok uuid := gen_random_uuid(); e text; begin
+  o := pg_temp.trial('tn_ended@t.test');
+  perform set_config('helm.maintenance', 'on', true);
+  insert into public.quotes(id, code, title, status, client, pricing, current_version, approval_status, org_id, approval_token,
+                            event_date, created_at, updated_at)
+    values (q, 'TN-0002', 'Ended trial wedding', 'quote', '{"name":"Tara","phone":"98765 43219","email":"tara@example.com"}'::jsonb,
+            '{"subtotal":100000,"discount":0,"gstPct":18,"total":118000}'::jsonb, 1, 'sent', o, tok, current_date + 30, now(), now());
+  update public.organizations set trial_ends_at = now() - interval '3 days' where id = o;
+  update public.studio_subscriptions set status = 'past_due', trial_ends_at = current_date - 3 where org_id = o;
+  perform set_config('helm.maintenance', 'off', true);
+  perform pg_temp.svc();
+  perform pg_temp.res('60 ended unpaid trial (past_due, read-only): trial_send_blocked = true (org / quote / token)',
+    public._trial_locked(o) and not public._is_trial_org(o)
+    and public.trial_send_blocked(o, null, null) and public.trial_send_blocked(null, q, null) and public.trial_send_blocked(null, null, tok));
+  e := pg_temp.try(format('select public.otp_send_authorize(%L, %L)', tok, '9876543219'));
+  perform pg_temp.res('61 ended unpaid trial: SMS code authorize refused (trial_no_send)', e like '42501%[trial_no_send]', e);
+  perform pg_temp.su();
+  perform set_config('helm.maintenance', 'on', true);
+  update public.studio_subscriptions set status = 'active', current_period_start = current_date, current_period_end = current_date + 30 where org_id = o;
+  perform set_config('helm.maintenance', 'off', true);
+  perform pg_temp.svc();
+  perform pg_temp.res('62 the same studio once on a paid plan: not blocked', not public.trial_send_blocked(o, null, null));
+  perform pg_temp.su();
+exception when others then perform pg_temp.su(); insert into _uf values ('6x ended trial', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
 select pg_temp.su();
 select name, result from _uf order by name;
 select case when (select count(*) from _uf where result <> 'PASS') = 0
