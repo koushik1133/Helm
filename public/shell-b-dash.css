@@ -718,3 +718,45 @@ html[data-shell="b"] .hd-mw #mywork > .pcard > .ptasks { order: 5; flex: 1 0 100
 html[data-shell="b"] .hd-head { flex-wrap: wrap; min-width: 0; }
 html[data-shell="b"] .hd-head h3 { min-width: 0; overflow-wrap: anywhere; }
 html[data-shell="b"] .hd-tools { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; }
+
+/* ===== la-1018 dashboard polish ===== */
+/* next-event countdown: one line "45 days · starts 19:00" (own hd-cn-* classes; .hd-cd belongs to the month calendar's day buttons) */
+html[data-shell="b"] .hd-count.hd-cn { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 12px; }
+html[data-shell="b"] .hd-cn-u { display: inline-flex; align-items: baseline; gap: 6px; }
+html[data-shell="b"] .hd-cn-n { font-family: var(--hd-f-disp); font-variation-settings: "opsz" 144; font-weight: 400; font-size: clamp(34px, 3.4vw, 48px); line-height: 1; letter-spacing: -.03em; color: var(--hd-ink); font-variant-numeric: tabular-nums; }
+html[data-shell="b"] .hd-cn-l { font: 500 16px/1.2 var(--hd-f-ui); color: var(--hd-ink-2); }
+html[data-shell="b"] .hd-cn-t { font: 500 14px/1.2 var(--hd-f-ui); color: var(--hd-ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+html[data-shell="b"] .hd-count-today .hd-cn-n { color: var(--hd-acc-text); }
+/* setup / sample-data / after-upgrade cards adopted into the grid: the grid gap spaces them */
+html[data-shell="b"] .hd-dash > .hd-prompt { margin: 0; box-sizing: border-box; min-width: 0; }
+/* "All quotes" spans the row when nothing sits beside it (masonry decides, see lay()) */
+html[data-shell="b"] .hd-grid > .hd-span-all { grid-column: 1 / -1; }
+/* activity: grouped repeats */
+html[data-shell="b"] .hd-act-x { display: inline-block; padding: 0 6px; border-radius: var(--hd-r-pill); background: var(--hd-card-2); color: var(--hd-ink-2); font: 600 11.5px/18px var(--hd-f-ui); font-style: normal; font-variant-numeric: tabular-nums; }
+/* touch screens: every dashboard control at least 44px tall (WCAG 2.5.5); links and buttons the same height side by side */
+@media (pointer: coarse) {
+  html[data-shell="b"] .hd-btn, html[data-shell="b"] .hd-btn.hd-sm { min-height: 44px; height: auto; }
+  html[data-shell="b"] .hd-more-link, html[data-shell="b"] .hd-seg-chip, html[data-shell="b"] .hd-today-seg { min-height: 44px; }
+  html[data-shell="b"] .hd-mw #mywork > .pcard > a.open { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
+  html[data-shell="b"] .hd-legacy .ptoggle { height: auto; min-height: 44px; }
+  html[data-shell="b"] .hd-grip, html[data-shell="b"] .hd-eye { width: 44px; height: 44px; }
+}
+/* "Show tasks" sits in the card's flow on touch screens / phones (pinned to the bottom it overlapped the
+   "Corporate · 03/11/2026 · proposal" line once the button grew to 44px) */
+@media (pointer: coarse), (max-width: 640px) {
+  html[data-shell="b"] .hd-mw #mywork > .pcard { padding-bottom: 14px; }
+  html[data-shell="b"] .hd-mw #mywork > .pcard > .ptoggle { position: static; order: 4; margin-top: 4px; }
+}
+/* phones: "Coming up" titles wrap to two lines instead of being cut off, and the status pill (Tentative / Confirmed) stays */
+@container hd (max-width: 759px) {
+  html[data-shell="b"] .hd-tk-name { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+}
+@container hd (max-width: 479px) {
+  html[data-shell="b"] .hd-ticket:not(.hd-shift) { grid-template-columns: 60px minmax(0, 1fr) auto; }
+  html[data-shell="b"] .hd-ticket:not(.hd-shift)::before, html[data-shell="b"] .hd-ticket:not(.hd-shift)::after { left: 53px; }
+  html[data-shell="b"] .hd-tk-body { padding: 10px 10px 10px 14px; }
+  html[data-shell="b"] .hd-ticket .hd-tk-end .hd-pill { display: inline-flex; font-size: 11px; padding: 0 7px; }
+  html[data-shell="b"] .hd-tk-end .hd-chev { display: none; }
+  html[data-shell="b"] .hd-tk-end { padding: 0 10px 0 0; }
+  html[data-shell="b"] .hd-cn-n { font-size: 34px; }
+}

@@ -50,3 +50,9 @@ html[data-shell] .btn:focus-visible,html[data-shell] .search:focus-visible{outli
   html[data-shell] .toolbar :is(.search,select,.btn){min-height:40px}
 }
 @media (prefers-reduced-motion:reduce){html[data-shell] tbody tr{transition:none}}
+
+/* la-1018: emoji in headings keep a gap (the space was lost where the heading lays out as flex); tab labels as written */
+.card h2 .h-emo{display:inline-block;margin-right:.45em}
+.ptab{text-transform:none}
+.ptab.ptab-more{background:transparent;border-style:dashed;color:var(--ink-3)}
+.ptab.ptab-more:hover{color:var(--ink-2)}

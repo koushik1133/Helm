@@ -62,7 +62,7 @@ t('upcoming birthdays / anniversaries in the next 30 days (year roll-over, Feb 2
 });
 t('nurture page: library card, preview with test data, self-only WhatsApp test, never auto-sends', () => {
   const h = read('public/nurture.html');
-  assert.match(h, /<script src="nurture-templates\.js\?v=1"><\/script>/);
+  assert.match(h, /<script src="nurture-templates\.js\?v=2"><\/script>/);
   assert.match(h, /id="libCard"/); assert.match(h, /Copy test message/); assert.match(h, /WhatsApp a test to me/);
   assert.match(h, /BPStore\.waNumber\(ME&&\(ME\.whatsapp\|\|ME\.phone\)\)/, 'test goes to the signed-in user only');
   assert.doesNotMatch(h.slice(h.indexOf('message library (0105)')), /nurture\.greet\(|runAuto\(/);

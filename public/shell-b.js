@@ -309,7 +309,15 @@
       safe(function () {
         var h = header.querySelector("h1"), sm = header.querySelector("h1 + small");
         if (h && page === "dashboard.html") { h.textContent = "Dashboard"; return; }
-        if (h && sm && /^\s*helm(\s+events)?\s*$/i.test(h.textContent) && sm.textContent.trim()) h.textContent = sm.textContent.trim();
+        if (h && sm && /^\s*helm(\s+events)?\s*$/i.test(h.textContent) && sm.textContent.trim()) {
+          var full = sm.textContent.trim(), short = String(sm.getAttribute("data-short") || "").trim();
+          if (!short || short === full) h.textContent = full;
+          else {   /* la-1018: a short name for phones ("Leads" instead of a clipped "Leads & …"); the full one stays for screen readers */
+            h.textContent = ""; h.title = full;
+            var lf = el("span", "hb-tl", full), ls = el("span", "hb-ts", short); ls.setAttribute("aria-hidden", "true");
+            h.appendChild(lf); h.appendChild(ls);
+          }
+        }
       });
       safe(function () { navTrim(header); });
       if (header.parentNode !== body) body.insertBefore(header, rail.nextSibling);
@@ -697,6 +705,10 @@
     var t = document.getElementById("hssTrigger") || document.querySelector(".hss-trig"); if (t) t.click();
   }
 
+  /* la-1018: ONE "not contacted yet" rule, shared with the dashboard (Follow-ups, Needs attention, New leads tile):
+     the lead is still in "New" and has not been turned into a quote. */
+  window.HelmLeadRules = window.HelmLeadRules || { uncontacted: function (l) { return !!l && String(l.status || "new") === "new" && !l.quote_id; } };
+
   /* ---- sidebar count badges (dot when collapsed, pill when expanded) ---- */
   var CNT_KEY = "helm.shellb.counts";
   function readCounts() { try { var v = JSON.parse(sessionStorage.getItem(CNT_KEY) || "{}"); return v && typeof v === "object" ? v : {}; } catch (e) { return {}; } }
@@ -729,7 +741,7 @@
       if (B.leads && typeof B.leads.list === "function") jobs.push(can("leads").then(function (ok) {
         if (!ok) return railCount("leads", 0);
         return Promise.resolve(B.leads.list()).then(function (rows) {
-          railCount("leads", (Array.isArray(rows) ? rows : []).filter(function (l) { return l && String(l.status || "new") === "new"; }).length);
+          railCount("leads", (Array.isArray(rows) ? rows : []).filter(window.HelmLeadRules.uncontacted).length);
         });
       }).catch(function () {}));
       if (B.quotes && typeof B.quotes.list === "function") jobs.push(can("quotes").then(function (ok) {
