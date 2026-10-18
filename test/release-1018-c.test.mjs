@@ -20,6 +20,7 @@ t('MANIFEST: each migration number once; the new ones are 0206, 0207, 0208, 0236
   assert.deepEqual(nums.filter((n) => +n > 205), [...nums.filter((n) => +n > 205)].sort(), 'every migration after 0205 in numeric order');
   assert.deepEqual([...fresh].sort(), fresh);
   assert.equal(nums.indexOf('0205'), nums.indexOf('0206') - 1, '0206 right after 0205');
+  assert.deepEqual(nums.filter((n) => +n > 205), [...nums.filter((n) => +n > 205)].sort(), 'later migrations in numeric order too');
 });
 t('APPLY-RELEASE-1018-C.sql is current', () => {
   const r = spawnSync(process.execPath, ['scripts/gen-apply-release-1018-c.mjs', '--check'], { cwd: root, encoding: 'utf8' });

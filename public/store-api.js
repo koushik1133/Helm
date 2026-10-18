@@ -4700,6 +4700,21 @@ window.HelmUrl = HelmUrl;
       }
       return rpc("apply_menu_template", { p_quote: quoteId, p_template: templateId });
     },
+    // r19 (0211): "No package / decide later" - the plan forgets the applied package + its plate price (the quote is
+    // priced at the default plate price again). The event's dishes are kept. Menu locked / not allowed -> refused.
+    async clear(quoteId) {
+      if (mode !== "supabase") {
+        const a = readLs("bp_plan"), row = a.find((x) => x.quote_id === quoteId);
+        if (row && row.menu_locked) throw new Error("The menu is locked. Unlock it to change the package.");
+        if (row) { row.package = null; row.menu_template = null; row.menu_plate_price = null; localStorage.setItem("bp_plan", JSON.stringify(a)); }
+        return { cleared: !!row };
+      }
+      try { return await rpc("clear_menu_template", { p_quote: quoteId }); }
+      catch (e) {
+        if (e && (e.code === "PGRST202" || e.code === "42883")) throw new Error("Removing a package needs the latest Helm update. Pick another package for now.");
+        throw e;
+      }
+    },
   };
 
   /* ---------------- organization / studio (Phase 58) ---------------- */

@@ -148,16 +148,14 @@ t('B5: Control Center settings search - no trial-off page hits; dropdown fits th
 });
 
 // ---------------------------------------------------------------------------------------------- B22
-t('B22: every "New quote" asks first (trial: says it uses 1 of the 2 quotes) - nothing created on one click', () => {
+t('B22 + r19: quotes are not capped in the trial - "New quote" opens the flow directly (no dialog, no "1 of 2" text)', () => {
   const NQ = r('public/new-quote-dialog.js');
-  assert.match(NQ, /Free trial: a new quote uses 1 of your " \+ cap/);
+  assert.doesNotMatch(NQ, /Free trial: a new quote uses|used its|used\.quotes/);
   const dash = r('public/dashboard.html'), quotes = r('public/quotes.html');
   for (const [name, src] of [['dashboard', dash], ['quotes', quotes], ['shell-b', SB]]) {
-    const a = src.indexOf('HelmNewQuote.ask(') >= 0 ? src.indexOf('HelmNewQuote.ask(') : src.indexOf('NQ.ask(');
-    const b = src.indexOf('startBlank(');
-    assert.ok(a > 0 && b > a, name + ': the dialog comes before startBlank');
+    assert.ok(src.indexOf('startBlank(') > 0, name + ': creates through startBlank (reuses an untouched blank quote)');
+    assert.ok(src.indexOf('HelmNewQuote.ask(') < 0 && src.indexOf('NQ.ask(') < 0, name + ': no pre-create dialog');
   }
-  assert.match(SB, /if \(!pick\) \{ creating = false; return; \}/);
 });
 
 // ---------------------------------------------------------------------------------------------- B25

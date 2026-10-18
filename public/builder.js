@@ -565,6 +565,8 @@ function quotePricingNow(){
     catering: currentPricing.catering || { mode:'inhouse', amount:0, gstPct:PRICING.gstPct },
     // hide-price mode: display-only flags for every screen that shows this quote's price (computed totals unchanged)
     ...(store.priceDisplay ? { priceDisplay: priceDisp() } : {}),
+    // r19: the package was removed here - the saved pricing no longer names it (undefined is dropped on save)
+    ...(pkgCleared ? { _packageName: undefined } : {}),
   // 0079: a NEW quote takes the studio's tax country/inclusive setting; a priced one keeps its own
   }, currentPricing.gstPct==null ? BPStore.tax.snapshot(BPStore.tax.resolve(PRICING)) : {});
 }
@@ -587,11 +589,27 @@ async function syncQuotePricingNow(){
       return true;
     }catch(e){ /* non-fatal */ return false; }
 }
+// r19: "No package / decide later" was picked - the quote's synced pricing drops the package name it was priced
+// with (pricing._packageName), so reopening the builder does not show the old package again (QA-B10)
+var pkgCleared=false;
 async function onPickPackage(){
   const tid=$('#bPkg').value;
   const prev={ id:PRICING.appliedPkgId, plate:PRICING.menuPlatePrice, name:PRICING.menuPackageName };
-  // there is no API to un-apply a package from the plan, so "No package…" can't be saved — keep the current one
-  if(!tid && prev.id){ $('#bPkg').value=prev.id; toast('A package can be changed but not removed here — pick another package'); return; }
+  // r19 (0211): "No package…" un-applies the package (clear_menu_template): the plan forgets it and its plate price,
+  // catering is priced at the studio's default plate price; the event's dishes are kept
+  if(!tid){
+    if(!prev.id && !prev.name) return;
+    if(!currentQuoteId){ PRICING.appliedPkgId=''; PRICING.menuPlatePrice=null; PRICING.menuPackageName=null; renderAll(); return; }
+    try{ await BPStore.menuTemplates.clear(currentQuoteId); }
+    catch(e){ const sel=$('#bPkg'); if(sel) sel.value=prev.id||'';
+      toast((e && e.message) ? 'Couldn\'t remove the package: '+String(e.message).slice(0,160) : 'Couldn\'t remove the package — price left unchanged'); return; }
+    PRICING.appliedPkgId=''; PRICING.menuPackageName=null;
+    PRICING.menuPlatePrice = PRICING.platePrice!=null ? +PRICING.platePrice : null;   // the default plate price, never the old package's
+    pkgCleared=true;
+    toast('No package for now — catering uses your default plate price');
+    renderAll(); syncQuotePricing(); return;
+  }
+  pkgCleared=false;
   PRICING.appliedPkgId=tid;
   const pkg=(PRICING.packages||[]).find(p=>p.id===tid);
   PRICING.menuPlatePrice = pkg ? pkg.price_per_plate : null;
