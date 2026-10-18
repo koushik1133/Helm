@@ -38,8 +38,15 @@
     try { if (localStorage.getItem("helm.shellb.pin") === "1") root.classList.add("hb-pinned"); } catch (e) {}   /* reserve the right rail width up-front */
     try { if (sessionStorage.getItem("helm.priv.state") !== "shown") root.classList.add("hb-priv-on"); } catch (e) { root.classList.add("hb-priv-on"); }   /* privacy mode: amounts hidden before first paint (default) */
     var page = appPage(location.pathname) + ".html";
-    function css(f) { var l = document.createElement("link"); l.rel = "stylesheet"; l.href = "/" + f + "?v=" + SHELL_V; head.appendChild(l); }
-    function js(f) { var s = document.createElement("script"); s.src = "/" + f + "?v=" + SHELL_V; s.async = false; head.appendChild(s); }   /* async=false: fetched in parallel, executed in insertion order */
+    /* HEAD MODE (flash fix): app pages now load this file synchronously in <head>, so data-shell/theme are set and the
+       shell stylesheets are requested BEFORE first paint (blocking=render: the browser does not paint the page's legacy
+       inline styles - the old violet accent/background - while they load). Shell scripts still run after the page's own
+       scripts (same order as when store-api.js injected this file): preloaded now, executed at DOMContentLoaded. */
+    var early = !document.body;
+    function css(f) { var l = document.createElement("link"); l.rel = "stylesheet"; l.href = "/" + f + "?v=" + SHELL_V; if (early) l.setAttribute("blocking", "render"); head.appendChild(l); }
+    var jsq = [];
+    function addJs(src) { var s = document.createElement("script"); s.src = src; s.async = false; head.appendChild(s); }   /* async=false: fetched in parallel, executed in insertion order */
+    function js(f) { var src = "/" + f + "?v=" + SHELL_V; if (!early) return addJs(src); var p = document.createElement("link"); p.rel = "preload"; p.as = "script"; p.href = src; head.appendChild(p); jsq.push(src); }
     css("shell-" + v + "-boot.css"); css("shell-b-loader.css");   /* critical: no old-header flash, no rail layout shift */
     css("shell-" + v + ".css"); css("shell-b-pages.css"); css("shell-b-style.css"); var sc = document.createElement("link"); sc.id = "hsb-css"; sc.rel = "stylesheet"; sc.href = "/shell-b-search.css?v=" + SHELL_V; head.appendChild(sc);   /* id matches shell-b-search.js so it is not added twice */
     css("shell-b-privacy.css");
@@ -51,6 +58,7 @@
     js("shell-b-privacy.js");   /* first: its observer must see the page's content as it renders */
     js("shell-" + v + ".js"); js("shell-b-style.js"); js("shell-b-search.js");
     if (page === "dashboard.html") { js("shell-b-money.js"); js("shell-b-dash.js"); }
+    if (early) document.addEventListener("DOMContentLoaded", function () { jsq.forEach(addJs); });
     ["ui-kit.js", "tables-mobile.js"].forEach(function (f) { var s = document.createElement("script"); s.src = "/" + f + "?v=" + SHELL_V; s.async = true; s.onerror = function () { try { s.remove(); } catch (e) {} }; head.appendChild(s); });   /* optional, independent of the shell chain */
 
     window.HELM_SHELL_ADDONS = true;   /* tells shell-b.js addons() everything is already requested */
