@@ -179,7 +179,7 @@ run "trial-gates-0203" "TRIAL-GATES-0203: ALL PASS \(46/46\)" psql -q -f tests/d
 run "anon-grant-tidy-0204" "ANON-GRANT-TIDY-0204: ALL PASS \(28/28\)" psql -q -f tests/db/anon-grant-tidy-0204.sql
 run "invite-accept-0205" "INVITE-ACCEPT-0205: ALL PASS \(40/40\)" psql -q -f tests/db/invite-accept-0205.sql
 run "trial-unify-0236" "TRIAL-UNIFY-0236: ALL PASS \(38/38\)" psql -q -f tests/db/trial-unify-0236.sql
-run "trial-seed-0237" "TRIAL-SEED-0237: ALL PASS \(26/26\)" psql -q -f tests/db/trial-seed-0237.sql
+run "trial-seed-0237" "TRIAL-SEED-0237: ALL PASS \(27/27\)" psql -q -f tests/db/trial-seed-0237.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

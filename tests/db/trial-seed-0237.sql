@@ -187,6 +187,23 @@ do $$ declare t uuid := pg_temp.get('O')::uuid; begin
     and exists (select 1 from public.quotes where id = pg_temp.get('OQ')::uuid));
 exception when others then perform pg_temp.su(); insert into _uf values ('2x existing trial', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
+-- a "Demo . " layout template alone (0175 gave one to every trial studio, also to checkout trials and studios that had
+-- cleared their samples) shows in counts.layouts but never turns has_demo / demo_rows on
+do $$ declare t uuid := pg_temp.get('O')::uuid; s0 jsonb; s1 jsonb; begin
+  perform pg_temp.login('ts237_old@t.test');
+  s0 := public.my_demo_status();
+  perform pg_temp.su();
+  insert into public.studio_layout_templates(org_id, name, event_type, description, data)
+    values (t, E'Demo · Template only 0237', 'reception', 'x', '{"items":[]}'::jsonb);
+  perform pg_temp.login('ts237_old@t.test');
+  s1 := public.my_demo_status();
+  perform pg_temp.su();
+  perform pg_temp.res('28 a sample template alone: counted in counts.layouts, not in demo_rows / has_demo',
+    (s1 #>> '{counts,layouts}')::int = (s0 #>> '{counts,layouts}')::int + 1
+    and (s1 ->> 'demo_rows')::int = (s0 ->> 'demo_rows')::int and (s1 ->> 'has_demo') = (s0 ->> 'has_demo'),
+    s0::text || ' -> ' || s1::text);
+exception when others then perform pg_temp.su(); insert into _uf values ('28 template only', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
 do $$ begin
   perform pg_temp.res('90 helpers internal, my_demo_status signed-in only',
     not has_function_privilege('authenticated', 'public._a237_sample_settings()', 'execute')

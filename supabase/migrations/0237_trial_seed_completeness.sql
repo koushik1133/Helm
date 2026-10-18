@@ -29,7 +29,8 @@
 --      rules have no is_demo column: they stay with the studio (price list / settings) when the sample is
 --      cleared; event_plan goes with its sample event (quote_id cascades).
 --   6  my_demo_status(): 'layouts' also counts the studio's sample layout templates (active, named "Demo . ...",
---      the ones "Clear sample data" archives) - it said 0 while 3 templates were there.
+--      the ones "Clear sample data" archives) - it said 0 while 3 templates were there. has_demo / demo_rows are
+--      unchanged (templates alone never count as "sample data still in the studio").
 --   7  ONE new sample manifest is published (current + 1, marker 'sample completeness (0237)'): every NEW trial
 --      gets all of the above.
 --   8  Existing free-trial studios (subscription 'trial', sample already copied, never the master), INSERT ONLY,
@@ -158,8 +159,9 @@ begin
        + (select count(*) from public.venues where org_id = v_org and is_demo and active)
        + (select count(*) from public.menu_templates where org_id = v_org and is_demo)
        + (select count(*) from public.layouts where org_id = v_org and is_demo)
-       + v_tpl
-    into v_rows;
+    into v_rows;   -- the templates are only shown in counts.layouts, never in has_demo / demo_rows: 0175 gave EVERY
+                   -- trial studio (also checkout trials and ones that had cleared their samples) a "Demo . Reception"
+                   -- template, which must not bring back a "Demo data is still in your studio" card
   return jsonb_build_object('trial_mode', v_mode, 'demo_rows', v_rows, 'has_demo', v_rows > 0,
     'is_admin', coalesce(public.is_admin(), false), 'counts', v_counts,
     'demo_choice', v_choice, 'choice_pending', coalesce(v_trial, false) and v_choice is null and v_rows > 0);

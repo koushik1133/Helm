@@ -96,6 +96,9 @@ t('B11: existing trials get missing rows only (where not exists / empty list); m
   const d = body(M37, 'my_demo_status');
   assert.match(d, /'layouts',   \(select count\(\*\) from public\.layouts where org_id = v_org and is_demo\) \+ v_tpl\);/);
   assert.match(d, /not t\.archived and t\.name like E'Demo \\u00b7 %'/);
+  // review: a sample template alone never turns has_demo / demo_rows on (0175 gave every trial studio one)
+  const sum = d.slice(d.indexOf('  select (select count(*) from public.quotes'), d.indexOf('into v_rows'));
+  assert.doesNotMatch(sum, /v_tpl/, 'templates are not added to demo_rows / has_demo');
 });
 
 t('MANIFEST: 0236 then 0237 (each once); suites registered; paste files carry the migrations; release bundle has them', () => {
@@ -103,7 +106,7 @@ t('MANIFEST: 0236 then 0237 (each once); suites registered; paste files carry th
   assert.match(man, /forward  supabase\/migrations\/0236_trial_definition_unify\.sql\n#[^\n]*\nforward  supabase\/migrations\/0237_trial_seed_completeness\.sql\n/);
   const ra = read('scripts/db-test/run-all.sh');
   assert.match(ra, /run "trial-unify-0236" "TRIAL-UNIFY-0236: ALL PASS \\\(38\/38\\\)" psql -q -f tests\/db\/trial-unify-0236\.sql/);
-  assert.match(ra, /run "trial-seed-0237" "TRIAL-SEED-0237: ALL PASS \\\(26\/26\\\)" psql -q -f tests\/db\/trial-seed-0237\.sql/);
+  assert.match(ra, /run "trial-seed-0237" "TRIAL-SEED-0237: ALL PASS \\\(27\/27\\\)" psql -q -f tests\/db\/trial-seed-0237\.sql/);
   for (const [a, m] of [['APPLY-0236.sql', M36], ['APPLY-0237.sql', M37]]) {
     const ap = read('supabase/' + a);
     assert.ok(ascii(ap), a + ' ASCII');
