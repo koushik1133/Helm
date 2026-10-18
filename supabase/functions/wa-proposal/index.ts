@@ -12,10 +12,15 @@
 // quotes EDIT, own studio, the number must be the client number ON THE QUOTE, opt-in on
 // record, not opted out (STOP), per-studio hourly cap. The service role is used ONLY to record
 // the send result (wa_proposal_mark). Logs never carry a number, name or message text.
+// 0179: a free-trial studio (studio_subscriptions.status 'trial') sends NO real WhatsApp: the service
+// role asks trial_send_blocked first and the request runs exactly like the SIMULATED path (prepare with
+// p_simulate = true, nothing sent, answer { simulated: true, trial: true }). The database refuses a real
+// prepare for a trial studio too (42501 / hint trial_no_send).
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { isLive, KINDS, templateMessage } from "./logic.mjs";
+import { isTrialNoSend, TRIAL_NO_SEND_MSG, trialSendBlocked } from "../_shared/trial-guard.ts";
 
 const VER = Deno.env.get("WHATSAPP_API_VERSION") || "v21.0";
 const LANG = Deno.env.get("WHATSAPP_TPL_LANG") || "en";
@@ -53,18 +58,25 @@ Deno.serve(async (req) => {
     const kind = String(body.kind || "proposal_sent");
     if (!UUID_RE.test(quoteId)) return json({ error: "quote_id is required" }, 400);
     if (!KINDS.includes(kind)) return json({ error: "unknown message" }, 400);
-    const live = isLive({ WHATSAPP_TOKEN: Deno.env.get("WHATSAPP_TOKEN"), WHATSAPP_PHONE_ID: Deno.env.get("WHATSAPP_PHONE_ID") });
+    let live = isLive({ WHATSAPP_TOKEN: Deno.env.get("WHATSAPP_TOKEN"), WHATSAPP_PHONE_ID: Deno.env.get("WHATSAPP_PHONE_ID") });
+    let trial = false;
+    if (live) {   // 0179: a free-trial studio never sends for real -> the simulated path
+      const admin0 = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+      trial = await trialSendBlocked(admin0, { quote: quoteId });
+      if (trial) live = false;
+    }
 
     const { data: prep, error: pErr } = await asCaller.rpc("wa_proposal_prepare", {
       p_quote: quoteId, p_kind: kind, p_phone: String(body.phone || "").slice(0, 32),
       p_opt_in: body.opt_in === true, p_consent_text: body.opt_in === true ? String(body.consent_text || "").slice(0, 500) : null,
       p_simulate: !live,
     });
+    if (isTrialNoSend(pErr)) return json({ error: TRIAL_NO_SEND_MSG, trial: true }, 403);
     if (pErr || !prep || !prep.audit_id) {
       const [status, msg] = prepFailure(String(pErr?.code || ""));
       return json({ error: msg }, status);
     }
-    if (!live) { console.log("wa-proposal: simulated", kind); return json({ simulated: true, status: "simulated" }); }
+    if (!live) { console.log("wa-proposal: simulated", kind); return json({ simulated: true, status: "simulated", ...(trial ? { trial: true } : {}) }); }
 
     let msg: unknown;
     try { msg = templateMessage(prep.to, kind, prep.vars, prep.token, LANG); }
