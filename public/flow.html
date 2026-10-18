@@ -793,7 +793,7 @@
     pricing=BPStore.tax.preserveSnapshot(ev.pricing||{}, pricing, { switch: taxSwitched });
     // 1029 #1: the stored total is re-derived from the stored object itself (same engine as the rail),
     // so merged / preserved fields can never leave an out-of-date total behind
-    pricing=HelmQuoteTotal.withTotal(pricing, BPStore.pricing.quoteTotal);
+    pricing=HelmQuoteTotal.withTotal(pricing, BPStore.pricing.quoteTotal.bind(BPStore.pricing));
     try{
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
       await relock();   // our own write bumped quotes.updated_at - refresh the lock base so the next client save isn't a false conflict
