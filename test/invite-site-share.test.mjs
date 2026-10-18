@@ -112,7 +112,7 @@ t("dispatcher: invite_site message = fixed greeting + APP_URL + path; anything o
   assert.equal(inviteSiteMessage({ text: "old shape", link_path: "i/x" }, "https://www.helm.events").text, "");
   assert.ok(INVITE_PATH.test("i/a"));
   assert.match(disp, /if \(purpose === "invite_site"\) return inviteSiteMessage\(payload, origin\);/);
-  assert.match(disp, /txFooter\(purpose === "invite_site" \? "client_link" : "pay_reminder"/);
+  assert.match(disp, /txFooter\(purpose === "invite_site"(?: \|\| purpose === "booklet_link")? \? "client_link" : "pay_reminder"/);
 });
 t("migration: server-side rules (published, quotes EDIT, trial skip via 0166, opt-in, STOP, caps, no URL stored)", () => {
   assert.match(sql, /has_area\('quotes', 'edit'\)/);

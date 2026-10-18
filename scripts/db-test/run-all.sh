@@ -154,6 +154,7 @@ run "trial-seed-0174" "TRIAL-SEED-0174: ALL PASS \(12/12\)" psql -q -f tests/db/
 run "trial-layout-0175" "TRIAL-LAYOUT-0175: ALL PASS \(6/6\)" psql -q -f tests/db/trial-layout-0175.sql
 run "trial-client-flow-0176" "TRIAL-CLIENT-FLOW-0176: ALL PASS \(16/16\)" psql -q -f tests/db/trial-client-flow-0176.sql
 run "invite-share-0195" "INVITE-SHARE-0195: ALL PASS \(40/40\)" psql -q -f tests/db/invite-share-0195.sql
+run "booklet-send-0200" "BOOKLET-SEND-0200: ALL PASS \(40/40\)" psql -q -f tests/db/booklet-send-0200.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

@@ -3,6 +3,9 @@
    data-quote attribute (event.html falls back to ?id=). Staff whose role may EDIT quotes create
    a link (expiry, which quote versions to show, a note, terms), copy it, open it, or revoke it.
    The server re-checks every permission (booklet_share / booklet_revoke / booklet_current).
+   0200: a live link also gets "Send to client" (Email / WhatsApp, address pre-filled from the quote and
+   editable, message preview, send log) - the shared box from invite-site-share.js (HelmSendToClient),
+   sending through booklet_send -> comms_outbox -> comms-dispatch. Free trial: nothing is sent.
    DOM built with textContent / setAttribute only. */
 (function (global) {
   "use strict";
@@ -30,6 +33,17 @@
     return null;
   }
   function toast(msg, type) { try { if (global.BPUI && global.BPUI.toast) { global.BPUI.toast(msg, { type: type || "ok" }); return; } } catch (e) {} }
+  // 0200: the same text the server queues (booklet_send): name / studio cut to 60, expiry as an India date
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function istDate(iso) { const t = Date.parse(String(iso || "")); if (!isFinite(t)) return ""; const d = new Date(t + 330 * 60000);
+    return d.getUTCDate() + " " + MON[d.getUTCMonth()] + " " + d.getUTCFullYear(); }
+  function sendText(q, studio, link, expiresAt) {
+    const c = q && q.client && typeof q.client === "object" ? q.client : {};
+    const name = String(c.name || "").replace(/\s+/g, " ").trim().slice(0, 60) || "there";
+    const st = String(studio || "").replace(/\s+/g, " ").trim().slice(0, 60) || "your event planner";
+    const until = istDate(expiresAt);
+    return "Hi " + name + ", here is your event booklet from " + st + ": " + String(link || "") + (until ? " (valid until " + until + ")" : "");
+  }
   function errText(e) { try { if (global.BPUI && global.BPUI.friendlyError) return global.BPUI.friendlyError(e, { action: "share the booklet" }); } catch (x) {} return String((e && e.message) || "Something went wrong"); }
 
   let dlg = null;
@@ -66,6 +80,7 @@
     box.appendChild(el("p", cur.expired ? "bk-meta bk-warn" : "bk-meta",
       (cur.expired ? "Expired on " : "Valid until ") + when(cur.expires_at) + " · created " + when(cur.created_at) +
       " · " + versionsNote(cur)));
+    mountSend(box, quoteId, cur, url);
     const acts = el("div", "bk-acts");
     const again = el("button", "bk-btn ghost", "Create a new link"); again.type = "button";
     again.addEventListener("click", () => renderForm(body, quoteId, cur));
@@ -80,6 +95,39 @@
     });
     acts.appendChild(again); acts.appendChild(rev); box.appendChild(acts);
     body.appendChild(box);
+  }
+
+  // 0200 "Send to client" under the live link (shared box, invite-site-share.js)
+  let trialP = null;
+  function trialOnce() {
+    const st = global.BPStore;
+    return trialP || (trialP = st && st.subscription && st.subscription.trial
+      ? Promise.resolve(st.init()).then(() => st.subscription.trial()).then((t) => !!(t && t.status === "trial")).catch(() => false)
+      : Promise.resolve(false));
+  }
+  function mountSend(box, quoteId, cur, url) {
+    const st = global.BPStore, S2C = global.HelmSendToClient;
+    if (!S2C || !st || !st.booklet || !st.booklet.send) return null;
+    const sec = el("section", "bk-send"); sec.setAttribute("aria-labelledby", "bkSendTitle");
+    const h = el("h3", "bk-send-h", "Send to client"); h.id = "bkSendTitle"; sec.appendChild(h);
+    box.appendChild(sec);
+    let quote = null, studio = "";
+    const live = !cur.expired && !!cur.token;
+    const share = S2C.mount(sec, {
+      ready: () => live, getLink: () => (live ? url : ""), getQuote: () => quote,
+      country: () => { try { return (st.studioTax && st.studioTax().country) || "IN"; } catch (e) { return "IN"; } },
+      message: (q, link) => sendText(q, studio, link, cur.expires_at),
+      gateText: "This booklet link has expired \u2014 create a new link to send it.",
+      pendingPreview: "Create a new booklet link to send it to your client.",
+      logKey: () => quoteId + ":" + cur.token,
+      send: (ch, to, optIn, consent) => st.booklet.send(quoteId, ch, to, optIn, consent),
+      sendLog: () => st.booklet.sendLog(quoteId),
+      trial: trialOnce(),
+    });
+    if (!share) return null;
+    Promise.resolve().then(() => st.quotes.get(quoteId)).then((q) => { quote = q; share.refresh(); }).catch(() => {});
+    Promise.resolve().then(() => st.org.current()).then((o) => { studio = (o && o.name) || ""; share.refresh(); }).catch(() => {});
+    return share;
   }
 
   async function renderForm(body, quoteId, cur) {
@@ -168,7 +216,7 @@
   // shown only to quote editors, and (data-wait-quote) only once the page has set data-quote
   function reveal(b) { if (b && b.dataset.bkCan === "1" && (!b.hasAttribute("data-wait-quote") || quoteIdFor(b))) b.hidden = false; }
 
-  global.HelmBookletShare = { quoteIdFor, wire, reveal, DAYS };
+  global.HelmBookletShare = { quoteIdFor, wire, reveal, DAYS, sendText, istDate };
   if (doc && doc.querySelector("[data-booklet-share]")) {
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", wire); else wire();
   }

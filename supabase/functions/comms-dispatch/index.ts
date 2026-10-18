@@ -7,6 +7,8 @@
 //                   each with a short deep link that opens the exact page in Helm.
 //   * invite_site   (0195) "Send to client" on the Invitation Studio: the published invitation
 //                   website link, e-mail / WhatsApp (invite-site.mjs; host = APP_URL, path from the row)
+//   * booklet_link  (0200) "Send to client" in the Share booklet dialog: the live client booklet
+//                   link (booklet-link.mjs; host = APP_URL, path added by the claim - no token in the row)
 // AUTO-ON: runs whenever it is called with the shared secret; each channel switches itself on
 // when its secrets exist (e-mail: RESEND_API_KEY; WhatsApp: WHATSAPP_TOKEN + WHATSAPP_PHONE_ID).
 // Kill switch: HELM_COMMS_ENABLED="false" -> every request is a no-op 200 and nothing is
@@ -43,6 +45,7 @@ import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/
 import { absoluteLink } from "./deeplink.js";
 import { trialReminderEmail } from "./trial-reminders.mjs";
 import { inviteSiteMessage } from "./invite-site.mjs";
+import { bookletMessage } from "./booklet-link.mjs";
 import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
 
@@ -183,6 +186,7 @@ export function assignMessage(text: string, linkPath: string, origin: string): s
 // the message for one claimed row (text from the database + the deep link for forwards)
 export function messageFor(purpose: string, payload: Record<string, unknown>, origin: string): { subject: string; text: string } {
   if (purpose === "invite_site") return inviteSiteMessage(payload, origin);   // 0195: no link / bad row -> "" -> skipped
+  if (purpose === "booklet_link") return bookletMessage(payload, origin);     // 0200: same rule
   const text = String(payload?.text ?? "").slice(0, 900);
   if (purpose === "wa_forward") {
     const link = absoluteLink(origin, payload);
@@ -221,7 +225,7 @@ Deno.serve(async (req) => {
         // 0150: sender name / reply-to of the row's studio (a database without 0150 -> defaults)
         let ident: Identity = {};
         try { const { data } = await admin.rpc("comms_outbox_email_identity", { p_id: id }); if (data && typeof data === "object") ident = data as Identity; } catch (_) { /* defaults */ }
-        let extra: Extra | null = { footer: txFooter(purpose === "invite_site" ? "client_link" : "pay_reminder", { app: origin, address: postalAddress(env) }) };
+        let extra: Extra | null = { footer: txFooter(purpose === "invite_site" || purpose === "booklet_link" ? "client_link" : "pay_reminder", { app: origin, address: postalAddress(env) }) };
         if (NON_TRANSACTIONAL.has(purpose)) {
           let u: any = null;
           try { const { data } = await admin.rpc("comms_outbox_unsub", { p_id: id }); u = data; } catch (_) { u = null; }

@@ -6986,6 +6986,7 @@ window.HelmUrl = HelmUrl;
       return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
     if (k === "price_change") return "flow.html?id=" + enc(q) + "#sec-quote";
     if (k === "invite_site_link") return "invite-studio.html?quote=" + enc(q);
+    if (k === "booklet_link") return "event.html?id=" + enc(q);
     if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
     if (/^pkg_(selected|accepted|declined)$/.test(k)) return "event.html?id=" + enc(q) + "#pkg-selections";
     if (k === "pkg_payment") return "settlement.html?quote=" + enc(q) + "#payments";
@@ -7301,8 +7302,12 @@ window.HelmUrl = HelmUrl;
       invite_site_link: ["💌", n.status === "suppressed"
         ? "Invitation link not sent" + (d.skipped === "free_trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : "")
         : n.status === "failed" ? "Invitation link could not be sent" : "Invitation link sent to the client"],
+      // 0200: "Send to client" in the Share booklet dialog (and the older client-mailer e-mail)
+      booklet_link: ["📖", n.status === "suppressed"
+        ? "Booklet link not sent" + (d.skipped === "free_trial" || d.suppressed_by === "trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : "")
+        : n.status === "failed" ? "Booklet link could not be sent" : n.status === "simulated" ? "Booklet link not sent (sending not set up)" : "Booklet link sent to the client"],
     };
-    if (k === "invite_site_link") return { icon: m[k][0], text: m[k][1] };
+    if (k === "invite_site_link" || k === "booklet_link") return { icon: m[k][0], text: m[k][1] };
     const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
                       : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
     // 0036: an automatic staff text/e-mail the studio switched off is logged, not sent
@@ -8013,6 +8018,8 @@ window.HelmUrl = HelmUrl;
       case "booklet.view": case "booklet.read": return "Client viewed the booklet" + ev;
       case "booklet.share": return "Booklet shared with the client" + ev + (c.expires_at ? " (link valid until " + String(c.expires_at).slice(0, 10) + ")" : "");
       case "booklet.revoke": return "Booklet link revoked" + ev;
+      case "booklet.link_sent": return "Booklet link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
+        + (c.channel === "whatsapp" ? " on WhatsApp" : c.channel === "email" ? " by email" : "") + (c.to ? " to " + String(c.to).slice(0, 80) : "") + ev;
       case "booklet.snapshot": case "booklet.snap": return auditHuman(kindLabel(c.kind)) + (c.set === false ? " removed" : " updated") + " in the booklet" + ev;
       case "booklet.log": return "Booklet activity" + ev;
       case "pkg.view": case "pkg.read": return "Client viewed the package options" + ev;
@@ -8593,6 +8600,11 @@ window.HelmUrl = HelmUrl;
           p_version_ids: vers, p_terms: o.terms ? String(o.terms).slice(0, 8000) : null, p_note: o.note ? String(o.note).slice(0, 1000) : null,
           ...(sec ? { p_sections: sec } : {}) }); },
       revoke: (quoteId) => rpc("booklet_revoke", { p_quote_id: quoteId }),
+      // 0200 "Send to client": queues the LIVE booklet link (fixed text) by e-mail / WhatsApp (comms_outbox -> comms-dispatch).
+      // The server checks consent / STOP / caps; a FREE TRIAL studio gets {status:"skipped", reason:"free_trial"} - nothing is sent.
+      send: (quoteId, channel, to, optIn, consentText) => rpc("booklet_send", { p_quote: quoteId, p_channel: channel === "whatsapp" ? "whatsapp" : "email",
+        p_to: String(to || "").slice(0, 200), p_opt_in: !!optIn, p_consent_text: optIn ? String(consentText || "").slice(0, 500) : null }),
+      sendLog: (quoteId) => (supa ? rpc("booklet_send_log", { p_quote: quoteId }).catch(() => []) : Promise.resolve([])),
       url: (token) => (HelmUrl.studio() ? links.base() + "/" + HelmUrl.studio() + "/booklet/" + encodeURIComponent(String(token || "")) : links.base() + "/booklet?t=" + encodeURIComponent(String(token || ""))),
       sections: () => BOOKLET_SECTIONS.slice(),
       // 0069: 2D / 3D snapshot -> private bucket booklet-snapshots at <org>/<quote>/<kind>.<png|jpg|webp> (<= 3 MB),
