@@ -266,12 +266,14 @@
     /* v86: short windows (< 1100px tall): Recently viewed + Tour move from the pinned footer to the END of the scrolling nav,
      * so the footer is only theme + account and Admin (Reports, Audit log, Studio setup) is never squeezed out of view.
      * A fade at the scroll edges shows there is more to scroll; the active item is scrolled into view. */
-    var tools = el("div", "hb-group hb-ftools"); scroll.appendChild(tools);
+    /* r19 L4: its own name - build() later declares `var tools` for the header's tool row, and with one hoisted `var` the
+     * first window resize moved the tour button into the header (and a tall window then HID the header's search/bell/New). */
+    var ftools = el("div", "hb-group hb-ftools"); scroll.appendChild(ftools);
     function placeTools() {
       var short = window.innerHeight < 1100 && window.innerWidth >= 820;
-      var host = short ? tools : bottom;
+      var host = short ? ftools : bottom;
       if (tourSlot.parentNode !== host) { if (RECENT_ON) host.insertBefore(recentSlot, short ? null : themeSlot); host.insertBefore(tourSlot, short ? null : themeSlot); }
-      tools.hidden = !short;
+      ftools.hidden = !short;
       edges();
     }
     function edges() {
