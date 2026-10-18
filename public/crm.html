@@ -179,19 +179,27 @@
     }));
   }
 
+  // PL1027 #4: pair each archive ("deleted") with ONE later "created" row - a second "created" row for the
+  // same restore (duplicate trigger write) no longer shows a second RESTORED; it keeps its own label.
   function crmActionLabels(rows){
     const m=new Map(), t=(x)=>{ const n=Date.parse(x||""); return isFinite(n)?n:NaN; };
-    rows.forEach(r=>{
-      let lab=r.action;
-      if(r.action==="deleted") lab="archived";
-      else if(r.action==="created" && r.lead_id){
-        const at=t(r.archived_at);
-        const restore=rows.some(o=>o!==r && o.lead_id===r.lead_id && (
-          (o.action==="deleted" && o.restored_at && Math.abs(t(o.restored_at)-at)<=120000) ||
-          (t(o.archived_at)<at && (o.action==="deleted" || o.action==="created"))));
-        if(restore) lab="restored";
-      }
-      m.set(r,lab);
+    const by=new Map();
+    rows.forEach(r=>{ m.set(r, r.action==="deleted"?"archived":r.action);
+      if(r.lead_id){ if(!by.has(r.lead_id)) by.set(r.lead_id,[]); by.get(r.lead_id).push(r); } });
+    by.forEach(list=>{
+      const asc=list.slice().sort((a,b)=>(t(a.archived_at)||0)-(t(b.archived_at)||0));
+      const hasDel=asc.some(o=>o.action==="deleted");
+      let pending=0, seen=false, fallbackUsed=false, lastRestoreAt=NaN;
+      asc.forEach(r=>{
+        if(r.action==="deleted"){ pending++; seen=true; return; }
+        if(r.action==="created"){
+          const at=t(r.archived_at);
+          if(pending>0){ m.set(r,"restored"); pending--; lastRestoreAt=at; }
+          else if(!hasDel && seen && !fallbackUsed){ m.set(r,"restored"); fallbackUsed=true; lastRestoreAt=at; }   // archive row not on screen
+          else if(isFinite(lastRestoreAt) && Math.abs(at-lastRestoreAt)<=120000) m.set(r,"updated");   // duplicate write of the same restore
+        }
+        seen=true;
+      });
     });
     return m;
   }

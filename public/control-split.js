@@ -25,7 +25,7 @@
     lock:"M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4"
   };
   var SECTIONS=[
-    {key:"general",  group:"Workspace",  label:"General",                icon:"home",  hash:"#general",       desc:"Studio name, country and tax, contact details, billing address and your client link name.", kw:"studio account organization business logo accent currency timezone gst gstin address demo trial slug"},
+    {key:"general",  group:"Workspace",  label:"General",                icon:"home",  hash:"#general",       desc:"Studio name, country and tax, contact details, billing address and your client link name.", kw:"studio account organization business logo accent currency timezone gst gstin address demo trial slug control center centre admin overview"},
     {key:"billing",  group:"Workspace",  label:"Plan & billing",         icon:"card",  hash:"#billing",       desc:"Your Helm subscription, plan and invoices.", kw:"subscription plan invoice trial upgrade"},
     {key:"privacy",  group:"Workspace",  label:"Hide amounts (privacy PIN)",icon:"lock",hash:"#privacy-pin",desc:"The 4-digit PIN that shows amounts again after you hide them in front of a client. One PIN for the studio; admins change it.", kw:"privacy pin passcode hide amounts money prices mask blur present client eye unlock 0000 change pin reset pin forgot pin"},
     {key:"links",    group:"Workspace",  label:"Client links & packages",icon:"link",  hash:"#client-links",  desc:"How long client links stay open and how clients choose a package.", kw:"expire expiry auto-expire link security package flow booklet"},
