@@ -67,7 +67,7 @@
   th{position:relative} .table-scroll{position:relative}
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="budget-polish.css?v=1">
+<link rel="stylesheet" href="budget-polish.css?v=2">
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="vendor-bills.css?v=1">
@@ -102,12 +102,9 @@
     <div data-vb-mount="pnl" id="netProfit"></div>
 
     <div class="card">
-      <div class="rowh"><h2 class="s-1169661">Cost lines</h2><span class="sub s-1169661">Estimated vs actual — internal &amp; vendor.</span>
+      <div class="rowh"><h2 class="s-1169661">Cost lines</h2><span class="sub s-1169661">Built from the client's requirements — estimated cost, vendor, quoted price, actual and margin per line.</span>
         <span class="spacer"></span><button type="button" class="btn sm" id="importBtn" hidden>↧ Import vendor bookings</button></div>
-      <div class="table-scroll"><table>
-        <thead><tr><th scope="col">Description</th><th scope="col">Type</th><th scope="col" class="num">Estimated</th><th scope="col" class="num">Actual</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="costRows"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
-      </table></div>
+      <div id="planMount" class="bp-plan"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
       <div class="addgrid" id="addCost" hidden>
         <div class="fld"><label for="c_desc">Description</label><input id="c_desc" placeholder="e.g. Décor materials" maxlength="200"></div>
         <div class="fld"><label for="c_kind">Type</label><select id="c_kind"><option value="internal">Internal</option><option value="vendor">Vendor</option><option value="other">Other</option></select></div>
@@ -159,15 +156,14 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=7"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=7"></script><script src="budget-plan.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   // B11: this event's OWN currency (India/INR without a snapshot), never the studio's current country
-  let evTax=null;
+  let evTax=null, evPricing=null;
   const inr=(n)=>evTax?BPStore.quoteMoney(n,evTax):BPStore.studioMoney(n);
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
-  const KIND={internal:"Internal",vendor:"Vendor",other:"Other"};
   const ST={requested:"Requested",approved:"Approved",rejected:"Rejected"};
   let canEdit=false, canDelete=false, sum=null;
   function act(btn,fn,action){ return BPUI.guard(btn,async()=>{ try{ await fn(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action}),{type:"err"}); } }); }
@@ -187,20 +183,6 @@
     $("#t_act").textContent=sum.actCost?inr(sum.actCost):"—";
     const m=sum.estMargin; const mn=$("#t_mar"); mn.textContent=inr(m); mn.className="n "+(m>=0?"pos":"neg");
     $("#t_marpct").textContent = sum.estMarginPct!=null ? (sum.estMarginPct+"% margin") : "";
-
-    $("#costRows").innerHTML = sum.costs.length ? sum.costs.map(c=>`<tr>
-      <td><b>${esc(c.description)}</b>${c.category?`<div style="font-size:12px;color:var(--ink-3)">${esc(c.category)}</div>`:""}</td>
-      <td><span class="kind ${esc(c.kind)}">${esc(KIND[c.kind]||c.kind)}</span></td>
-      <td class="num">${inr(c.estimated)}</td>
-      <td class="num">${canEdit?`<input class="cin" type="number" min="0" value="${c.actual!=null?esc(c.actual):""}" placeholder="—" data-act="${esc(c.id)}" aria-label="Actual cost for ${esc(c.description)}">`:(c.actual!=null?inr(c.actual):"—")}</td>
-      <td>${canDelete?`<button type="button" class="rm" data-del="${esc(c.id)}" data-name="${esc(c.description)}" aria-label="Remove cost line ${esc(c.description)}">✕</button>`:""}</td>
-    </tr>`).join("") : '<tr><td colspan="5" class="empty">No cost lines yet.</td></tr>';
-    $("#costRows").querySelectorAll("[data-act]").forEach(inp=>inp.addEventListener("change",async()=>{
-      let actual=null; if(inp.value!==""){ const r=BPStore.validate.money(inp.value,{field:"Actual cost"}); if(!r.ok){ BPUI.toast(r.error,{type:"err"}); await load(); return; } actual=r.value; }
-      await BPUI.guard(inp,async()=>{ try{ await BPStore.budget.updateCost(inp.dataset.act,{actual}); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"save the actual cost"}),{type:"err"}); } await load(); }); }));
-    $("#costRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
-      if(!(await BPUI.confirm(`Remove the cost line “${b.dataset.name||""}”?`,{title:"Remove cost line?",danger:true}))) return;
-      await act(b,async()=>{ await BPStore.budget.removeCost(b.dataset.del); await load(); },"remove the cost line"); }));
 
     $("#chgRows").innerHTML = sum.changes.length ? sum.changes.map(c=>`<tr>
       <td><b>${esc(c.title)}</b>${c.detail?`<div style="font-size:12px;color:var(--ink-3)">${esc(c.detail)}</div>`:""}</td>
@@ -268,10 +250,14 @@
   async function load(){
     try{ sum=await BPStore.budget.summary(id);
       if(BPStore.settlement.billsDelta) BPStore.settlement.applyBillsToBudget(sum, await BPStore.settlement.billsDelta(id)); }
-    catch(e){ BPUI.loadError($("#costRows"),e,load,{what:"the budget"}); BPUI.loadError($("#chgRows"),e,load,{what:"change requests"});
+    catch(e){ BPUI.loadError($("#planMount"),e,load,{what:"the budget"}); BPUI.loadError($("#chgRows"),e,load,{what:"change requests"});
       ["#t_rev","#t_est","#t_act","#t_mar"].forEach(x=>{ $(x).textContent="—"; }); $("#addCost").hidden=true; $("#importBtn").hidden=true; $("#chgBtn").hidden=true; return; }
     $("#addCost").hidden=!canEdit; $("#importBtn").hidden=!canEdit; $("#chgBtn").hidden=!canEdit;
-    render(); await pnlTiles();
+    render();
+    // 0196: cost lines grouped by requirement priority (Must-have / Nice-to-have / Optional) + suggested lines
+    try{ await HelmBudgetPlan.render({ el:$("#planMount"), quoteId:id, pricing:evPricing, costs:sum.costs, inr, canEdit, canDelete, reload:load }); }
+    catch(e){ BPUI.loadError($("#planMount"),e,load,{what:"the cost lines"}); }
+    await pnlTiles();
     try{ document.dispatchEvent(new CustomEvent("helm:pnl-refresh")); }catch(_){}
   }
   // dev pass 3: ONE profit number per event - the top tiles show the same Net profit P&L
@@ -289,6 +275,7 @@
     canEdit=await BPStore.auth.canEditArea("finance"); canDelete=canEdit && await BPStore.auth.can("delete");
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     try{ evTax=BPStore.quoteTax(ev); }catch(_){ evTax=null; }
+    evPricing=ev&&ev.pricing||null;
     if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false; $("#addCost").hidden=!canEdit; $("#importBtn").hidden=!canEdit; $("#chgBtn").hidden=!canEdit;
