@@ -48,21 +48,8 @@ t('D1 flow wires re-stamp on open and before the quotation save', () => {
   const sv = flow.slice(flow.indexOf('async function saveQuotation'), flow.indexOf('preserveSnapshot(ev.pricing'));
   assert.match(sv, /restampUnpriced\(ev, BPStore\.tax\.resolve\(rates/);
 });
-t('D2 inverted budget range is flagged inline and blocks the save', () => {
-  for (const [name, src] of [['flow', flow], ['discovery', disc]]) {
-    assert.match(src, /id="d_bmaxErr"[^>]*hidden>Max should be at least the min/, name + ' message');
-    assert.match(src, /function budgetRangeOk\(\)[\s\S]{0,300}aria-invalid/, name + ' aria-invalid');
-  }
-  const sd = flow.slice(flow.indexOf('async function saveDiscovery'), flow.indexOf('async function saveVenue'));
-  assert.match(sd, /if\(!budgetRangeOk\(\)\)/);
-  // behaviour: evaluate budgetRangeOk with a fake DOM
-  const fn = flow.slice(flow.indexOf('function budgetRangeOk(){'), flow.indexOf('\n  }\n', flow.indexOf('function budgetRangeOk(){')) + 4);
-  const els = {}; const mk = (v) => ({ value: v, attrs: {}, setAttribute(k, x) { this.attrs[k] = x; }, removeAttribute(k) { delete this.attrs[k]; }, hidden: true });
-  els['#d_bmin'] = mk('600000'); els['#d_bmax'] = mk('400000'); els['#d_bmaxErr'] = mk('');
-  const ctx = { $: (s) => els[s] }; vm.createContext(ctx); vm.runInContext(fn + ';this.f=budgetRangeOk;', ctx);
-  assert.equal(ctx.f(), false); assert.equal(els['#d_bmin'].attrs['aria-invalid'], 'true'); assert.equal(els['#d_bmaxErr'].hidden, false);
-  els['#d_bmax'].value = '700000'; assert.equal(ctx.f(), true); assert.equal(els['#d_bmaxErr'].hidden, true);
-  els['#d_bmax'].value = ''; assert.equal(ctx.f(), true);
+t('D2 (retired): single Budget field, no min/max inversion check', () => {
+  for (const [name, src] of [['flow', flow], ['discovery', disc]]) assert.doesNotMatch(src, /Max should be at least the min/, name);
 });
 t('versions: store-api bumped to 172', () => { for (const f of [flow, closure, disc]) assert.match(f, /store-api\.js\?v=239/); });
 t('D4 closure lists money owed AND equipment together, with links + admin override', () => {
