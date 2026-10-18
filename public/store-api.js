@@ -2,6 +2,12 @@
 (function () { try { if (!document.getElementById("shellProto")) {
   var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=23"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
+/* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
+   flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
+   (shell-proto.js, trial-early.js); this is the fallback for every other page. */
+(function () { try { if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
+  if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
+  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=1"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
   var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=1"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
@@ -272,7 +278,7 @@ window.HelmUrl = HelmUrl;
   const PW_OK_KEY = "bp_pw_ok";                 // per tab: "<uid>" once password_change_required() said no
   // Per-USER browser state that must not carry over to the next person who signs in
   // on a shared computer (audit Phase 4). Device prefs (theme, tours) are kept.
-  const USER_LOCAL_KEYS = ["bps.clip", "wa_pin", "wa_mute", "wa_fav", "bp_chat_ping", "helm_org_country", "helm_ev_showall", "helm.studioTax"];
+  const USER_LOCAL_KEYS = ["bps.clip", "wa_pin", "wa_mute", "wa_fav", "bp_chat_ping", "helm_org_country", "helm_ev_showall", "helm.trial", "helm.studioTax"];   // 0181: helm.trial = the cached free-trial flag
   function userLocalClear() { USER_LOCAL_KEYS.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} }); }
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
 
