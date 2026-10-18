@@ -78,10 +78,12 @@
       <a href="#control">Control Center</a>
       <div class="grp">New in Oct 2026</div>
       <a href="#dash-period">Dashboard periods</a>
+      <a href="#calendar">Calendar (Day/Week/Month)</a>
       <a href="#crew-schedule">Crew schedule</a>
       <a href="#search">Search everything</a>
       <a href="#record-advance">Record advance</a>
       <a href="#photo-render">Photo render (landing)</a>
+      <a href="#oct-more">More October changes</a>
       <a href="#faq">FAQ</a>
     </nav>
   </aside>
@@ -208,10 +210,17 @@
     <p class="cap">Control Center — pricing, catalogs, team &amp; roles, templates and data export in one place.</p>
     <div class="note"><b>🌙 Light / dark mode:</b> tap the round <b>☾ / ☀</b> button in the bottom-left corner on any page to switch the whole app between light and dark. Your choice is remembered on that device.</div>
 
-    <h2 id="dash-period">Dashboard period filter</h2>
-    <p>Each count tile on the dashboard (<b>Upcoming</b>, <b>Confirmed events</b>, <b>Open quotes</b>, <b>New leads</b>) has its own small period menu: <b>7 days</b>, <b>1 month</b>, <b>6 months</b> or <b>1 year</b>. The arrow compares the chosen period with the same length of time just before it. Your choice is remembered per user on that device. On phones the menu shows the short form <b>7D / 1M / 6M / 1Y</b>; screen readers still hear the full wording.</p>
+    <h2 id="dash-period">Dashboard period switch</h2>
+    <p>The dashboard now has <b>one period switch</b> at the top of the count tiles: <b>7D / 1M / 6M / 1Y</b>. It replaces the small menu that used to sit on each tile, so <b>Upcoming</b>, <b>Confirmed events</b>, <b>Open quotes</b> and <b>New leads</b> always show the same period. The arrow compares the chosen period with the same length of time just before it. Your choice is remembered per user on that device; screen readers hear the full wording (7 days, 1 month, 6 months, 1 year).</p>
 
-    <h2 id="crew-schedule">Crew schedule calendar</h2>
+    <h2 id="calendar">Calendar: Day, Week and Month</h2>
+    <ul>
+      <li>The calendar has an Apple-style layout with a <b>Day / Week / Month</b> switch, a <b>Today</b> button and arrows to move back and forward.</li>
+      <li>A <b>person picker</b> lets you show the whole studio, just yourself, or one team member.</li>
+      <li>The <b>crew view</b> shows people as rows and days as columns, so you can see who is booked where at a glance.</li>
+    </ul>
+
+<h2 id="crew-schedule">Crew schedule calendar</h2>
     <ul>
       <li><b>My schedule</b> (crew): open <b>Calendar</b> to see your own events and shifts in <b>Week</b> or <b>Month</b> view - event, date, time, venue and your role. No prices or client contact details are shown.</li>
       <li><b>Team schedule</b> (staff / calendar viewers): pick one crew member, or <b>All crew</b> for a week grid with people as rows and days as columns.</li>
@@ -226,7 +235,16 @@
 
     <h2 id="photo-render">Photo render on the landing page</h2>
     <p>The public landing page now presents <b>Photo render</b> as a live feature: turn the 2D floor plan into a photoreal picture of the same room that the client can see before they sign.</p>
-    <div class="note"><b>Screenshots pending:</b> the manual's screenshot script (<code>scripts/manual-capture.mjs</code>) needs the owner to sign in by hand in the window it opens, so pictures for these five sections will be added after the next capture run.</div>
+    <h2 id="oct-more">More October changes</h2>
+    <ul>
+      <li><b>Advance wording:</b> advances now show as <b>Advance pending</b> until recorded and <b>Advance approved</b> once confirmed, everywhere they appear.</li>
+      <li><b>Booklet currency:</b> the client booklet shows all amounts in your <b>studio currency</b>.</li>
+      <li><b>Pick an event:</b> opening <b>Settlement</b>, <b>Budget</b> or <b>Closure</b> without an event selected now shows a <b>Pick an event</b> list instead of an empty page.</li>
+      <li><b>CRM history:</b> archiving or restoring a client or lead now adds an <b>Archived</b> or <b>Restored</b> entry to its history.</li>
+      <li><b>Search:</b> typing <em>theme</em> or <em>2fa</em> in search jumps straight to the matching setting.</li>
+    </ul>
+
+    <div class="note"><b>Screenshots pending:</b> the manual's screenshot script (<code>scripts/manual-capture.mjs</code>) needs the owner to sign in by hand in the window it opens, so pictures for the October sections will be added after the next capture run.</div>
 
     <h2 id="faq">FAQ</h2>
     <h3>A teammate can't see something</h3>
