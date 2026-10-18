@@ -37,8 +37,8 @@ em{font-family:var(--serif);font-style:italic;font-weight:400}
 .nav.scrolled::before,.nav.menu-open::before{opacity:1}
 
 .brand{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:20px;text-decoration:none;letter-spacing:-.02em;position:relative}
-.mark{display:inline-flex;gap:2px;transform:rotate(-20deg)}.mark i{width:9px;height:15px;border-radius:9px;background:var(--ink)}.mark i+i{background:var(--acc)}
-.mark.big i{width:22px;height:38px;border-radius:22px}
+/* brand kit logo (copied as-is to /brand/): header/footer use the HELM lockup <img class="lockup">; .mark = kit symbol */.lockup{height:32px;width:auto;display:block}.mark{display:inline-block;width:26px;height:30px;flex:none;background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat}.mark i{display:none}
+.mark.big{width:56px;height:64px}
 .menu{flex:1;display:flex;justify-content:center;position:relative}
 .mlist{list-style:none;margin:0;padding:0;display:flex;gap:4px}
 .mi{position:relative}
@@ -175,7 +175,7 @@ em{font-family:var(--serif);font-style:italic;font-weight:400}
 .tile{position:absolute;left:50%;top:50%;display:inline-flex;align-items:center;gap:9px;padding:10px 16px 10px 10px;border-radius:16px;background:#fff;box-shadow:var(--sh-s);font-weight:600;font-size:14px;white-space:nowrap;will-change:transform,opacity;transform:translate(-50%,-50%)}
 .tile svg{width:34px;height:34px;padding:7px;border-radius:10px;background:var(--bg2);color:var(--ink)}
 .core{position:absolute;left:50%;top:50%;width:190px;height:190px;margin:-95px 0 0 -95px;border-radius:50%;background:var(--ink);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;will-change:transform;transform:scale(.6);box-shadow:0 40px 90px -30px rgba(8,60,40,.6)}
-.core .mark i{background:#fff}.core .mark i+i{background:var(--acc-l)}
+.core .mark{background-image:url(/brand/helm-symbol-emerald-on-dark.svg?v=1)}
 .core b{font-size:24px;margin-top:6px}.core small{font-size:12px;opacity:.7}
 .ring{position:absolute;inset:-26px;border-radius:50%;border:1px solid rgba(13,138,92,.25)}.ring.r2{inset:-60px;border-color:rgba(13,138,92,.12)}
 
@@ -950,7 +950,7 @@ video.mimg{background:#1a231e}
 .cflow[data-s="0"] .cs0,.cflow[data-s="1"] .cs1,.cflow[data-s="2"] .cs2,.cflow[data-s="3"] .cs3,.cflow[data-s="4"] .cs4{opacity:1;transform:none}
 .nban{display:flex;gap:10px;align-items:flex-start;background:rgba(255,255,255,.92);border-radius:16px;padding:11px;color:var(--ink);box-shadow:0 10px 24px -10px rgba(0,0,0,.5)}
 .nban small{display:block;font-size:10.5px;color:var(--mute)}.nban b{display:block;font-size:13.5px;line-height:1.25}.nban span{font-size:12px;color:var(--mute)}
-.nic{flex:none;width:30px;height:30px;border-radius:9px;background:var(--bg);display:grid;place-items:center}.nic .mark i{width:5px;height:10px}
+.nic{flex:none;width:30px;height:30px;border-radius:9px;background:var(--bg);display:grid;place-items:center}.nic .mark{width:18px;height:18px}
 .cp-l{color:rgba(255,255,255,.65);font-size:11px;font-weight:600}
 .cmsg{background:#fff;color:var(--ink);border-radius:16px 16px 16px 4px;padding:12px;font-size:12.5px;line-height:1.45}
 .cbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:auto}
@@ -1246,3 +1246,5 @@ video.mimg{background:#1a231e}
 .pscr.rl .ps-l b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:8px}.pscr.rl .ps-l span{flex:none}
 .pscr.rl .ps-btn{margin-top:4px}.rl-approve{background:var(--ink)}
 @media (prefers-reduced-motion:reduce){.rl-track{animation:none}.pscr.rl{overflow-y:auto}.rl-seg+.rl-seg{display:none}}
+/* Helm logo: brand-kit shape recoloured (Emerald): ink = H + ELM, acc = compass points, ring */
+.lockup{height:32px;width:auto;display:block}.hl-ink{fill:#0b5d44}.hl-acc{fill:#2fcf98;stroke:#2fcf98}.hl-ring{stroke:#1aa37a}

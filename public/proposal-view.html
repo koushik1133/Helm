@@ -18,8 +18,8 @@
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
   .wrap{max-width:820px;margin:0 auto;padding:0 22px 70px}
   header{display:flex;align-items:center;gap:11px;padding:22px 0}
-  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
-  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  .mark{width:30px;height:30px;border-radius:0;background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat;position:relative}
+  .mark::after{content:none}
   header b{font-size:15px} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .hero{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:34px;margin-bottom:18px}
   .hero .kick{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent)}
@@ -44,7 +44,7 @@
   #priceRows th{font-weight:inherit;text-align:left}
 </style>
 <link rel="stylesheet" href="/theme.css?v=80">
-<link rel="stylesheet" href="/public-pages-v2.css?v=4">
+<link rel="stylesheet" href="/public-pages-v2.css?v=5">
 <script src="/public-theme.js?v=3"></script>
 </head>
 <body>
@@ -81,7 +81,7 @@
 <script src="/telemetry.js?v=4"></script>
 <script src="/config.js?v=103"></script>
 <script src="/event-name.js?v=7"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=240"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=241"></script>
 <script>
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const LINK=BPStore.links.parse("proposal");   // branded /<studio>/proposal/<token> (server-verified below)

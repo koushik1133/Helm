@@ -50,7 +50,7 @@ html[data-pt] .card, html[data-pt] .panel, html[data-pt] .box, html[data-pt] .se
 html[data-pt] .btn.primary, html[data-pt] button.primary, html[data-pt] .btn-primary { background:var(--accent); background-image:none; color:var(--acc-ink); border-color:var(--accent); box-shadow:none; }
 html[data-pt] .btn.primary:hover:not(:disabled), html[data-pt] button.primary:hover:not(:disabled), html[data-pt] .btn-primary:hover:not(:disabled) { background:var(--accent-2); }
 html[data-pt][data-theme="dark"] .btn.primary:hover:not(:disabled), html[data-pt][data-theme="dark"] button.primary:hover:not(:disabled) { background:color-mix(in srgb,var(--accent) 88%,#fff); }
-html[data-pt] .mark, html[data-pt] .mk { background:var(--accent); background-image:none; box-shadow:none; }
+html[data-pt] .mk { background:var(--accent); background-image:none; box-shadow:none; }
 
 /* booklet keeps its serif display face (studio print look); body text uses the shared sans */
 html[data-pt] .booklet, html[data-pt] .bk { font-family:var(--font); }

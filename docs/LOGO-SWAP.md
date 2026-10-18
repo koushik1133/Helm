@@ -1,4 +1,18 @@
-# Logo swap checklist (updated 2026-10-16)
+# Logo swap checklist (updated 2026-10-17)
+
+## Current state (2026-10-18 v3): kit SHAPE recoloured per theme
+- Lockup + rail logo are inline SVG built from the kit geometry with classes hl-ink (H+ELM) / hl-acc (points) / hl-ring; colours = --hl-ink/--hl-acc/--hl-ring per theme in shell-b.css (marketing + login: Emerald in home.css/legal.css/login.html). Ring/ticks bolder, flat colours, points cut a gap into the H via a mask.
+- Emerald standalone: brand/helm-logo-emerald.svg, helm-symbol-emerald.svg, helm-app-icon-emerald.svg (icons), favicon.svg, helm-email-emerald.svg.
+
+## Earlier (v2): brand kit logo, copied as-is
+- Kit files (docs/HELM_Brand_and_Website_Kit 2/HELM_Brand_Kit/assets) are copied unchanged into `public/brand/` (svg), `public/brand/png/`, `public/brand/icons/`.
+- Lockup = kit `helm-primary.svg` (the compass symbol IS the H of HELM): marketing header/footer `<img class="lockup">`, login brand pane.
+- App rail: `.hb-logo` = kit symbol, `.hb-name` = `helm-elm*.svg` (the kit lockup cropped to "ELM", viewBox only) -> reads HELM; collapsed rail = symbol only. Variant by theme in `shell-b.css`: primary / `-on-dark` (dark) / `-monochrome` (graphite).
+- Small `.mark` / `.mmk` tiles = kit `helm-symbol.svg` background.
+- favicon.ico + favicon.svg (= helm-app-icon.svg), icon-192/512 = kit icons; favicon-48, apple-touch-180, email logo 112 = resized kit icons; og.png logo tile = kit symbol.
+- Loader outlines (`HB_MARK`, `MARK`) are a simplified H + compass trace (animation only).
+(The two-pill notes below are historical.)
+
 
 ## 0. Current state (2026-10-16): ONE shared mark
 The home-page mark (two tilted pills, ink + accent) is now the logo everywhere:
