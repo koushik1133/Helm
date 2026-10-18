@@ -167,7 +167,7 @@ t("a code that already exists is refused at the field, whatever its case", () =>
   assert.equal(PF.checkCouponCode("DIWALI11", ex).ok, true);
 });
 t("% coupon: required, more than 0, at most 100, 2 decimals", () => {
-  assert.equal(PF.checkCouponValue("", "percent").error, "Enter the % off (1 to 100).");
+  assert.equal(PF.checkCouponValue("", "percent").error, "Enter the % off (more than 0, up to 100).");
   assert.match(PF.checkCouponValue("0", "percent").error, /must take something off/);
   assert.equal(PF.checkCouponValue("100", "percent").value, 100);
   assert.equal(PF.checkCouponValue("100.01", "percent").error, "A % coupon can be at most 100% off.");
@@ -215,7 +215,7 @@ t("control.html loads the shared rules and validates per field, inline", () => {
   assert.match(html, /inp\.setAttribute\("aria-invalid",msg\?"true":"false"\)/);
   assert.match(html, /b\.disabled=!pricingLoaded\|\|pricingInvalid;/, "Save is off while a field is wrong");
   assert.match(html, /PF\.zeroConfirm\(PF\.newlyZero\(v\.values,pricingCfg\),ctx\)/, "a price changed to 0 is confirmed");
-  assert.match(html, /pfFill\(nextCfg\);/, "the boxes show what was stored after a save");
+  assert.match(html, /pfFill\(nextCfg,sent\);/, "the boxes show what was stored after a save");
 });
 t("pricing save messages stay in the pricing card (no top banner)", () => {
   const s = html.indexOf('$("#savePricing").addEventListener'), e = html.indexOf('$("#saveCaps").addEventListener');
@@ -251,10 +251,36 @@ t("Capacity limits save works on a copy (a failed save leaves memory as the serv
 t("alignment CSS: tax tick on its own row, equal label slots, item boxes aligned", () => {
   const css = read("public/control-polish.css");
   assert.match(css, /#pricingCard \.grid>\.fld:has\(#p_taxIncl\)\{grid-column:1\/-1;order:20\}/);
-  assert.match(css, /#pricingCard \.grid>\.fld>label:not\(\.mpchk\)\{display:flex;align-items:flex-end;min-height:2\.7em/);
+  assert.match(css, /#pricingCard \.grid>\.fld>label:not\(\.mpchk\),#pricingCard \.grid>\.fld>\.p-clbl\{display:flex;align-items:flex-end;min-height:2\.7em/,
+    "a read-only country caption (span.p-clbl, fix/cc-unsaved-and-layout) gets the same label slot");
   assert.match(css, /#itemPriceList\.grid,#app \.card \.grid:has\(#cap_guests\)\{align-items:end\}/);
   assert.match(css, /\.pf-err/);
   assert.match(html, /control-polish\.css\?v=(\d+)/); assert.ok(+html.match(/control-polish\.css\?v=(\d+)/)[1] >= 3, "control-polish.css pin bumped");
+});
+
+// ---------------- adversarial review fixes ----------------
+t("review: 'paise' is only named for rupee studios", () => {
+  assert.match(PF.checkField("chairPrice", "1.005", IN).error, /\(paise\), e\.g\. 199\.50\./);
+  const ae = PF.checkField("chairPrice", "1.005", AE).error;
+  assert.doesNotMatch(ae, /paise/); assert.match(ae, /^Use at most 2 decimal places, e\.g\. 199\.50\.$/);
+});
+t("review: the empty % coupon message matches the rule (0.01 is allowed, so not '1 to 100')", () => {
+  assert.equal(PF.checkCouponValue("0.5", "percent").value, 0.5);
+  assert.doesNotMatch(PF.checkCouponValue("", "percent").error, /1 to 100/);
+});
+t("review: saying No to 'Chairs free?' (or to a country switch) is reported as NOT saved, never as a success", () => {
+  const s = html.indexOf('$("#savePricing").addEventListener'), e = html.indexOf('$("#saveCaps").addEventListener');
+  const body = html.slice(s, e);
+  assert.doesNotMatch(body, /pfStatus\("ok","Not saved/, "a cancelled save must not look like a success (the unsaved bar reads it as saved)");
+  assert.match(body, /okLabel:z\.okLabel\}\)\)\)\{ pfStatus\("err","Not saved\. The price is still 0 in the box/);
+  assert.match(body, /okLabel:"Switch country"\}\)\)\)\{ pfStatus\("err","Not saved\. The country was not changed\."\); return; \}/);
+});
+t("review: after a save, a box edited while the save was in flight keeps the user's new value", () => {
+  assert.match(html, /const sent=\{\}; PF_KEYS\.forEach\(k=>\{ const i=\$\("#"\+PF\.fields\(ctx\)\[k\]\.id\); sent\[k\]=i\?i\.value:""; \}\);/);
+  assert.match(html, /function pfFill\(c,sent\)\{[\s\S]{0,200}?if\(sent && i\.value!==sent\[k\]\) return; i\.value=c\[k\];/);
+});
+t("review: the flat coupon option names the studio currency", () => {
+  assert.match(html, /querySelector\('option\[value="flat"\]'\), l=String\(sym==null\?"₹":sym\)\.trim\(\)\+" off"/);
 });
 
 console.log("cc-pricing-validation: ok (" + n + " checks)");

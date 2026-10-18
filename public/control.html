@@ -1034,8 +1034,9 @@
     pricingInvalid=pricingLoaded&&!r.ok; pfSaveState(); return r;
   }
   // after a save the boxes show exactly what was stored (e.g. "0200" -> 200, "199.5" stays 199.5)
-  function pfFill(c){ $("#p_chair").value=c.chairPrice; $("#p_plate").value=c.platePrice; $("#p_gst").value=c.gstPct; $("#p_cgst").value=c.cateringGstPct;
-    $("#p_svc").value=c.serviceChargePct; $("#p_layout").value=c.layoutBase; $("#p_buffer").value=c.conflictBufferHours; }
+  // sent = the box texts that were saved: a box the user changed while the save was in flight keeps the new edit
+  function pfFill(c,sent){ const F=PF.fields({});
+    PF_KEYS.forEach(k=>{ const i=$("#"+F[k].id); if(!i||c[k]==null) return; if(sent && i.value!==sent[k]) return; i.value=c[k]; }); }
   { const F=PF.fields({}); let t=null; const re=()=>{ clearTimeout(t); t=setTimeout(()=>{ pfValidate(); },0); };
     PF_KEYS.forEach(k=>{ const i=$("#"+F[k].id); if(!i) return; pfErrEl(i);
       // run after the shared number hardener has cleaned the value (it listens on the same events)
@@ -1045,18 +1046,21 @@
     if(!pricingLoaded){ pfStatus("err","Pricing didn't load, so it can't be saved yet — use Retry first."); return; }
     const ctx=pfCtx(), v=pfValidate();
     if(!v.ok){ const i=$("#"+PF.fields(ctx)[v.first].id); try{ i.focus(); }catch(e){} return; }
+    const sent={}; PF_KEYS.forEach(k=>{ const i=$("#"+PF.fields(ctx)[k].id); sent[k]=i?i.value:""; });
     const { chairPrice, platePrice, gstPct, serviceChargePct, layoutBase, conflictBufferHours }=v.values;
     // one rate outside India: an empty catering box just follows the main rate
     const cateringGstPct=v.values.cateringGstPct==null?gstPct:v.values.cateringGstPct;
     // a price changed TO 0 is asked about (only the one that changed — never "both are zero")
     const z=PF.zeroConfirm(PF.newlyZero(v.values,pricingCfg),ctx);
-    if(z && !(await BPUI.confirm(z.text,{title:z.title,okLabel:z.okLabel}))){ pfStatus("ok","Not saved — nothing changed."); return; }
+    // "No": nothing is saved and the edit stays in the box - said as an error so it is not read as a save
+    // (and the card's unsaved-changes state stays on)
+    if(z && !(await BPUI.confirm(z.text,{title:z.title,okLabel:z.okLabel}))){ pfStatus("err","Not saved. The price is still 0 in the box: change it, or press Save pricing again and confirm."); return; }
     // B3: the pricing country IS the studio's tax country (kept in sync with Studio details)
     const draft=pricingDraftTax(), country=draft.taxCountry, prevCountry=BPStore.tax.code(pricingCfg.taxCountry||"IN");
     const region=country==="AE"||country==="US"?draft.taxRegion:"";
     const taxRes=BPStore.tax.resolve(draft), taxIncl=$("#p_taxIncl").checked;
     if(country!==prevCountry){ const tp=BPStore.tax.profile(country);
-      if(!(await BPUI.confirm(`Switch your studio to ${tp.name}? New quotes will use ${tp.tax} ${gstPct}% and ${tp.known?tp.currency:"your currency"}. Quotes you already saved, sent or got paid keep their price, tax and currency exactly as they are.`,{title:"Change country",okLabel:"Switch country"}))) return; }
+      if(!(await BPUI.confirm(`Switch your studio to ${tp.name}? New quotes will use ${tp.tax} ${gstPct}% and ${tp.known?tp.currency:"your currency"}. Quotes you already saved, sent or got paid keep their price, tax and currency exactly as they are.`,{title:"Change country",okLabel:"Switch country"}))){ pfStatus("err","Not saved. The country was not changed."); return; } }
     const taxName=String($("#p_taxName").value||"").replace(/[<>"'`]/g,"").trim().slice(0,24);
     // build a copy: a failed save must not leave the in-memory config ahead of the server
     const nextCfg=Object.assign({}, pricingCfg, { chairPrice, platePrice, gstPct, cateringGstPct, serviceChargePct, layoutBase, currency:taxRes.currency, conflictBufferHours, country, taxCountry:country });
@@ -1066,7 +1070,7 @@
     if(taxName && !BPStore.tax.profile(taxRes.country).known) nextCfg.taxName=taxName; else delete nextCfg.taxName;
     try{ localStorage.setItem("helm_org_country", country); }catch(e){}
     try{ await BPStore.config.setPricing(nextCfg); pricingCfg=nextCfg; try{ BPStore.rememberStudioTax && BPStore.rememberStudioTax(nextCfg); }catch(e){}
-      pfFill(nextCfg);
+      pfFill(nextCfg,sent);
       if(country!==prevCountry) await syncOrgCountry(country, region);
       $("#p_countryNote").textContent=""; pLastDefault=defaultRateFor(country,region); paintTaxFields();
       pfStatus("ok","Pricing saved — new quotes use these rates."); }
@@ -1212,6 +1216,8 @@
     const e=coErrEl(), t=[codeMsg,valMsg].filter(Boolean).join(" ");
     if(e.textContent!==t) e.textContent=t; e.hidden=!t;
     $("#co_val").placeholder=kind==="percent"?"% off, e.g. 10":"Amount off, e.g. 500";
+    // the flat option names the studio's currency (an AED studio reads "AED off", not "₹ off")
+    { const o=$("#co_kind").querySelector('option[value="flat"]'), l=String(sym==null?"₹":sym).trim()+" off"; if(o&&o.textContent!==l) o.textContent=l; }
     return r;
   }
   { let t=null; const re=(f)=>()=>{ if(f) coTouched[f]=true; coStatus(""); clearTimeout(t); t=setTimeout(()=>coValidate(),0); };

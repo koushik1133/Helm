@@ -31,7 +31,7 @@
 /* two-column and wider: every label gets the same two-line slot, so a label that wraps
    ("Country (tax, currency & phone codes)") no longer pushes its box below the others in the row */
 @media (min-width:561px){
-  #pricingCard .grid>.fld>label:not(.mpchk){display:flex;align-items:flex-end;min-height:2.7em;line-height:1.35}
+  #pricingCard .grid>.fld>label:not(.mpchk),#pricingCard .grid>.fld>.p-clbl{display:flex;align-items:flex-end;min-height:2.7em;line-height:1.35}
 }
 /* builder item prices + capacity limits: the "(default ₹…)" note sits on its own line and the boxes line up at the bottom */
 #itemPriceList.grid,#app .card .grid:has(#cap_guests){align-items:end}

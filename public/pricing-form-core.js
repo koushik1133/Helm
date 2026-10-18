@@ -62,7 +62,8 @@
     if (/^-/.test(s)) return { ok: false, error: money ? "Negative amounts aren’t allowed. Enter " + fmt(0, sym) + " or more." : "Negative numbers aren’t allowed. Enter 0 or more." };
     if (!/^\+?(\d+(\.\d*)?|\.\d+)$/.test(s)) return { ok: false, error: "Enter a number, like " + eg + "." };
     var dec = s.indexOf(".") >= 0 ? s.split(".")[1].length : 0;
-    if (dec > 2) return { ok: false, error: "Use at most 2 decimal places" + (money ? " (paise), e.g. 199.50." : ", e.g. " + (spec.kind === "hours" ? "2.5." : "2.75.")) };
+    // "paise" only for rupees: an AED / USD studio reads "e.g. 199.50" without the Indian sub-unit name
+    if (dec > 2) return { ok: false, error: "Use at most 2 decimal places" + (money ? (String(sym).trim() === "₹" ? " (paise)" : "") + ", e.g. 199.50." : ", e.g. " + (spec.kind === "hours" ? "2.5." : "2.75.")) };
     var n = Number(s);
     if (!isFinite(n)) return { ok: false, error: "Enter a number, like " + eg + "." };
     if (n > spec.max) {
@@ -136,7 +137,7 @@
     var pct = kind === "percent";
     var s = raw == null ? "" : String(raw).trim();
     if (kind !== "percent" && kind !== "flat") return { ok: false, error: "Pick % off or " + String(sym).trim() + " off." };
-    if (s === "" && !flags.badInput && flags.rejected !== "negative") return { ok: false, error: pct ? "Enter the % off (1 to 100)." : "Enter the amount off, like " + fmt(500, sym) + "." };
+    if (s === "" && !flags.badInput && flags.rejected !== "negative") return { ok: false, error: pct ? "Enter the % off (more than 0, up to 100)." : "Enter the amount off, like " + fmt(500, sym) + "." };
     var r = checkNumber(s, { kind: pct ? "pct" : "money", required: true, max: pct ? 100 : MONEY_MAX, label: pct ? "Discount %" : "Amount off", empty: "" }, ctx, flags);
     if (!r.ok) {
       if (pct && /can be 0 to/.test(r.error)) return { ok: false, error: "A % coupon can be at most 100% off." };
