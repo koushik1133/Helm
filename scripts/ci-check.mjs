@@ -57,7 +57,13 @@ const htmls = walk(PUB).filter((f) => f.endsWith('.html'));
 let htmlOk = 0;
 for (const f of htmls) {
   const html = readFileSync(f, 'utf8');
-  const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  // JSON-LD data blocks are not JavaScript: check they are valid JSON instead of node --check
+  let ldBad = false;
+  for (const m of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
+    try { JSON.parse(m[1]); } catch { ldBad = true; }
+  }
+  if (ldBad) { fail(`invalid JSON-LD in ${f.replace(ROOT + '/', '')}`); continue; }
+  const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/ld\+json)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
   if (!blocks.length) { htmlOk++; continue; }
   const t = join(tmp, 'x.js');
   writeFileSync(t, blocks.join('\n;\n'));

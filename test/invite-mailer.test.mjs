@@ -56,7 +56,7 @@ for (const line of (fn + tpl).split('\n').filter((l) => /console\.(log|error|war
 }
 ok(/Deno\.env\.get\("APP_URL"\)/.test(tpl) && /\/login\?invite=\$\{encodeURIComponent\(token\)\}/.test(tpl), 'join link from APP_URL');
 ok(/TOKEN_RE = \/\^\[0-9a-f\]\{16,128\}\$\/i/.test(tpl), 'token shape validated');
-ok(/\$\{esc\(inviter\)\}/.test(tpl) && /\$\{esc\(studio\)\}/.test(tpl) && /\$\{esc\(role\)\}/.test(tpl) && /\$\{esc\(link\)\}/.test(tpl), 'all values escaped');
+ok(/esc\(inviter\)/.test(tpl) && /esc\(studio\)/.test(tpl) && /esc\(role\)/.test(tpl) && /button\(esc\(link\)/.test(tpl) && /fallback\(esc\(link\)\)/.test(tpl), 'all values escaped');
 ok(!/\$\{(inviter|studio|role|link)\}/.test(tpl.split('const text =')[0].split('const html =')[1]), 'no raw values in html');
 ok(/expires/.test(tpl) && /text: /.test(tpl.slice(-300)) || /html, text/.test(tpl), 'plain-text fallback');
 ok(/invited you to join \$\{studio\} on Helm as \$\{role\}/.test(tpl), 'headline wording');
