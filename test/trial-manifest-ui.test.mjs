@@ -43,7 +43,8 @@ t('welcome: holds the tour, uses the seat-capped invite path, 2 steps + Skip', (
   assert.match(TD, /"Name your trial studio"/); assert.match(TD, /"Invite your team \(up to 2\)"/); assert.match(TD, /btn\("Skip"/);
   assert.match(TD, /"Hyderabad"/);
   assert.ok(!/innerHTML|insertAdjacentHTML|\.style\./.test(TD), 'CSP-safe DOM');
-  assert.match(read('public/trial-signup.js'), /if \(mode === "demo"\) global\.localStorage\.setItem\("bp_trial_welcome"/);
+  // 0177: every trial (demo or own data) gets the 2-step welcome
+  assert.match(read('public/trial-signup.js'), /\n\s*try \{ global\.localStorage\.setItem\("bp_trial_welcome"/);
 });
 t('store-api: seat + welcome RPCs and friendly seat error', () => {
   assert.match(API, /seats: \(\) => rpc\("my_seat_usage"\)/);

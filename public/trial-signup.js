@@ -55,7 +55,8 @@
     return "USD";
   }
 
-  var api = { intentFrom: intentFrom, directFrom: directFrom, localeFor: localeFor, KEY: KEY, DKEY: DKEY, DAYS: DAYS };
+  var TRIAL_TZ = "Asia/Kolkata", TRIAL_CUR = "INR";
+  var api = { TRIAL_TZ: TRIAL_TZ, TRIAL_CUR: TRIAL_CUR, intentFrom: intentFrom, directFrom: directFrom, localeFor: localeFor, KEY: KEY, DKEY: DKEY, DAYS: DAYS };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   if (!global || !global.document) return;
 
@@ -125,10 +126,9 @@
     p.hidden = mode !== "signup";
   }
 
-  function visitorLocale() {
-    var tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
-    return { timezone: tz || "UTC", currency: localeFor(tz) };
-  }
+  // 0177: the free trial is India only (INR, Asia/Kolkata, GST) whatever the visitor's browser says;
+  // the server (start_self_serve_trial) enforces the same, this only keeps the request honest
+  function visitorLocale() { return { timezone: TRIAL_TZ, currency: TRIAL_CUR }; }
 
   /* ---- step 1 after the account exists: demo data or own data ---------------- */
   var chosen = null;
@@ -181,11 +181,12 @@
     try {
       var r = await global.BPStore.trialOrg.startSelfServe({
         name: String(name || "").trim(), mode: mode,
-        timezone: opts.timezone || loc.timezone, currency: opts.currency || loc.currency });
+        timezone: loc.timezone, currency: loc.currency });
       lsDel();
       try { global.localStorage.setItem("bp_force_tour", "1"); } catch (e) {}
       // 0167: the dashboard first shows the short 2-step welcome (name the studio, invite up to 2), then the tour
-      try { if (mode === "demo") global.localStorage.setItem("bp_trial_welcome", String(Date.now())); } catch (e) {}
+      // 0177: every trial (demo OR own data) gets it; trials never go through the full studio setup
+      try { global.localStorage.setItem("bp_trial_welcome", String(Date.now())); } catch (e) {}
       return r;
     } catch (e) { undoChoice(); throw e; }
   }

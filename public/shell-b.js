@@ -577,13 +577,15 @@
     waitAuth(function () {
       var A = BPStore.auth;
       var role = Promise.resolve().then(function () { return typeof A.role === "function" ? A.role() : null; }).catch(function () { return null; });
-      Promise.all([role, can("controls"), can("insights")]).then(function (r) {
-        var rl = String(r[0] || ""), ctl = r[1], ins = r[2];
+      // 0177: no "Studio setup" for a free-trial studio (it uses the 2-step welcome)
+      var trial = Promise.resolve().then(function () { return BPStore.trialOrg && BPStore.trialOrg.inTrial ? BPStore.trialOrg.inTrial() : false; }).catch(function () { return false; });
+      Promise.all([role, can("controls"), can("insights"), trial]).then(function (r) {
+        var rl = String(r[0] || ""), ctl = r[1], ins = r[2], inTrial = r[3] === true;
         var add = [
           [ins, "insights", "Insights", "insights.html", "insights"],
           [ctl || /^(admin|manager|planner)$/.test(rl), "reports", "Reports", "reports.html", "reports"],
           [ctl || rl === "admin", "audit", "Audit log", "audit.html", "audit"],
-          [ctl, "setup", "Studio setup", "onboarding.html", "setup"],
+          [ctl && !inTrial, "setup", "Studio setup", "onboarding.html", "setup"],
           [ctl && !!(window.HELM_FEATURES && window.HELM_FEATURES.integrationsPage === true), "integrations", "Integrations", "integrations.html", "integrations"]
         ];
         add.forEach(function (x) {

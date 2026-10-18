@@ -281,3 +281,5 @@ forward  supabase/migrations/0170_trial_data_v4.sql
 forward  supabase/migrations/0171_trial_data_v5.sql
 # 0172 (cross-studio quote guard zz_quote_org_match added to wa_proposal_optins + wa_proposal_audit, which 0151 created after the 0136 catch-up; re-runs the 0136 install loop, only adds missing triggers, no rows changed) goes after 0151 + 0136.
 forward  supabase/migrations/0172_wa_proposal_quote_guard.sql
+# 0177 (free trial is India only: new nullable organizations.trial_region stamped 'IN' when a free trial starts (start_self_serve_trial / my_pending_start_trial set trial_ends_at + trial_mode together; checkout trials never stamped); BEFORE UPDATE trigger keeps a stamped studio on INR / Asia/Kolkata / IN / GST (Telangana when no state) while its subscription is still 'trial'; no existing row updated - FIX-0177-existing-trials.sql is owner-run) goes after 0089 + 0097 + 0119 + 0159 + 0166.
+forward  supabase/migrations/0177_trial_india_defaults.sql

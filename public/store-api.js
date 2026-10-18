@@ -8764,6 +8764,15 @@ window.HelmUrl = HelmUrl;
       // 0167 — 2-step trial welcome, step 1: rename the caller's own trial studio (name, link slug, city, optional phone)
       welcome: (name, city, phone) => rpc("trial_welcome_setup", { p_name: String(name || "").trim(), p_city: String(city || "").trim() || "Hyderabad", p_phone: String(phone || "").trim() || null }),
       status: () => (supa ? swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })) : Promise.resolve(null)),
+      // 0177 — true while this is a self-serve free-trial studio still ON its trial (not yet paid):
+      // such a studio uses the short 2-step welcome, never the full studio setup (/onboarding).
+      async inTrial() {
+        if (!supa) return false;
+        try {
+          const r = await Promise.all([BPStore.trialOrg.status(), BPStore.subscription.trial()]);
+          return !!(r[0] && r[0].is_trial_org === true && r[1] && r[1].state === "trial");
+        } catch (e) { return false; }
+      },
       // 0126 — {is_trial_org, ends_at, ended, locked, is_owner, blocked}; works for a member blocked after an unpaid trial ends.
       access: () => (supa ? rpc("my_trial_access", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       // 0119 — the ONE self-serve trial: {name (blank -> "Demo N"), timezone, currency, mode: "demo"|"own"}.

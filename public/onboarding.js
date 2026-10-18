@@ -683,6 +683,8 @@
     CSS && typeof window.__helmAdoptCss === "function" && window.__helmAdoptCss(document, CSS);
     await BPStore.init();
     if (BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()) { location.replace("login.html?next=" + encodeURIComponent("onboarding.html")); return; }
+    // 0177: a free-trial studio never uses the full studio setup - its 2-step welcome is on the dashboard
+    if (BPStore.trialOrg && BPStore.trialOrg.inTrial && (await BPStore.trialOrg.inTrial())) { location.replace("dashboard.html"); return; }
     const u = BPStore.auth.user(); uid = (u && u.id) ? String(u.id).replace(/[^\w-]/g, "").slice(0, 40) : "anon";
     await computePerms();
     try { org = await BPStore.org.current(); } catch (e) { org = null; orgErr = e; }

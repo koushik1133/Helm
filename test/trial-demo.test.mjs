@@ -122,14 +122,14 @@ console.log(`trial-demo: ${n} passed`);
     assert.equal(ctx2.c(null).length, 0);
   });
   t('0123: after clearing only onboarding or checkout (no open redirect)', () => {
-    assert.equal(ctx2.n(''), 'onboarding.html?fresh=1');
+    assert.equal(ctx2.n(''), 'dashboard.html');   // 0177: a trial never opens the full studio setup
     assert.equal(ctx2.n('checkout'), 'checkout.html?next=onboarding.html%3Ffresh%3D1');
-    assert.equal(ctx2.n('https://evil.example'), 'onboarding.html?fresh=1');
+    assert.equal(ctx2.n('https://evil.example'), 'dashboard.html');
   });
   t('0123: start fresh calls the existing clear RPC only; onboarding hook; read-only migration', () => {
     const b = fnSrc(TD, 'startFresh');
     assert.match(b, /S\(\)\.demo\.clear\(\)/); assert.doesNotMatch(b, /rpc\(|delete/);
-    assert.match(read('public/onboarding.html'), /<script src="trial-demo\.js\?v=6"><\/script>/);
+    assert.match(read('public/onboarding.html'), /<script src="trial-demo\.js\?v=7"><\/script>/);
     const M = read('supabase/migrations/0123_trial_start_fresh.sql');
     assert.doesNotMatch(M.replace(/--.*$/gm, ''), /delete from|update public|insert into|drop |truncate/i);
     assert.doesNotMatch(M, /[^\x00-\x7f]/);
