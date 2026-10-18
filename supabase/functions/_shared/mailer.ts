@@ -3,6 +3,7 @@
 // Provider order:
 //   1. Resend  - RESEND_API_KEY + RESEND_FROM set
 //   2. SMTP    - SMTP_HOST + SMTP_USER + SMTP_PASS set (SMTP_PORT default 465, SMTP_FROM default SMTP_USER)
+//                (built-in client in ./smtp.ts; implicit TLS on 465 - Supabase blocks 25/587)
 //                e.g. Gmail: smtp.gmail.com / 465 / you@gmail.com / an App Password
 //   3. neither -> { status: "not_configured" } (nothing sent, never throws)
 //
@@ -13,6 +14,7 @@
 // Privacy · Helm Events, <postal address>", reason = msg.txReason, default client_link). A
 // non-transactional caller passes its own `footer` (with Unsubscribe) + List-Unsubscribe `headers`.
 import { postalAddress, txFooter, withFooter } from "./email-compliance.mjs";
+import { smtpReason, smtpSend } from "./smtp.ts";
 
 export type MailMsg = {
   to: string; subject: string; text: string; html?: string;
@@ -24,7 +26,6 @@ export type SmtpSend = (cfg: SmtpCfg, mail: { from: string; to: string; subject:
 export type SmtpCfg = { host: string; port: number; user: string; pass: string; tls: boolean };
 
 export const EMAIL_RE = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
-export const DENOMAILER = "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 type EnvGet = (k: string) => string | undefined;
 const envOf = (): EnvGet => (k) => Deno.env.get(k);
@@ -55,17 +56,9 @@ export function mailConfig(env: EnvGet = envOf()): { provider: "resend" | "smtp"
   return { provider: null };
 }
 
-// default SMTP sender: denomailer (pinned), loaded only when SMTP is actually used
-const denoSmtp: SmtpSend = async (cfg, mail) => {
-  const mod: any = await import(DENOMAILER);
-  const client = new mod.SMTPClient({
-    connection: { hostname: cfg.host, port: cfg.port, tls: cfg.tls, auth: { username: cfg.user, password: cfg.pass } },
-  });
-  try {
-    await client.send({ from: mail.from, to: mail.to, subject: mail.subject, content: mail.text, html: mail.html, replyTo: mail.replyTo, ...(mail.headers ? { headers: mail.headers } : {}) });
-  } finally { try { await client.close(); } catch (_) { /* ignore */ } }
-};
-
+// default SMTP sender: built-in minimal client (./smtp.ts). denomailer (v1.6.0) was dropped:
+// its encoding of non-ASCII bodies/headers and opaque errors broke Gmail sends on Supabase Edge.
+const builtinSmtp: SmtpSend = (cfg, mail) => smtpSend(cfg, mail);
 export async function sendMail(msg: MailMsg, opts: { env?: EnvGet; smtp?: SmtpSend } = {}): Promise<MailResult> {
   const to = String(msg.to || "").trim();
   if (!EMAIL_RE.test(to)) return { status: "failed", reason: "no valid e-mail address on file" };
@@ -92,10 +85,16 @@ export async function sendMail(msg: MailMsg, opts: { env?: EnvGet; smtp?: SmtpSe
     } catch (_) { console.error("mailer: resend unreachable"); return { status: "failed", provider: "resend", reason: "the e-mail provider could not be reached" }; }
   }
   try {
-    await (opts.smtp || denoSmtp)(cfg.smtp!, { from, to, subject, text: body.text, html: body.html, replyTo, ...(headers ? { headers } : {}) });
+    await (opts.smtp || builtinSmtp)(cfg.smtp!, { from, to, subject, text: body.text, html: body.html, replyTo, ...(headers ? { headers } : {}) });
     return { status: "sent", provider: "smtp" };
-  } catch (_) {
-    console.error("mailer: smtp send failed");
-    return { status: "failed", provider: "smtp", reason: "the mail server refused the message - check the SMTP settings" };
+  } catch (e) {
+    // safe diagnostic: stage, reply code, server text (never the password, recipient or body)
+    const err = e as { name?: string; stage?: string; code?: number | null; message?: string };
+    console.error("mailer: smtp send failed", JSON.stringify({
+      name: err?.name || "Error", stage: err?.stage || "unknown", code: err?.code ?? null,
+      message: String(err?.message || e).split(cfg.smtp!.pass).join("[redacted]").replace(/[^\s<>@]+@[^\s<>@]+/g, "[address]").slice(0, 300),
+      host: cfg.smtp!.host, port: cfg.smtp!.port, tls: cfg.smtp!.tls,
+    }));
+    return { status: "failed", provider: "smtp", reason: smtpReason(e) };
   }
 }
