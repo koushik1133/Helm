@@ -384,11 +384,6 @@
   },
   {
    "file": "public/control.html",
-   "expr": "def",
-   "why": "ITEM_CATALOG default price — numeric literal from the constant table"
-  },
-  {
-   "file": "public/control.html",
    "expr": "et",
    "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))",
    "max": 5

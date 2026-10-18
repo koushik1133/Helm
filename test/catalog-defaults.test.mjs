@@ -31,5 +31,9 @@ assert.equal(engine.unitPrice({ type: 'led' }, null), 18000);
 // badge only for items with neither a studio price nor a shipped default
 assert.match(b, /!inCatalog\(l\.type, PRICING\.assetPrices\) && DEFAULT_PRICES\[l\.type\]==null/);
 // Control Center save keeps only typed values (blank = use default), never writes defaults
-assert.match(cc, /const v=inp\.value\.trim\(\); if\(v===""\) continue;/);
+// (asset-price-grid.js since the Oct 2026 grid fix: an empty box is value null and mergePrices skips nulls)
+{ const g = read('public/asset-price-grid.js');
+  assert.match(g, /if \(s === ""\) \{[\s\S]{0,200}?return \{ ok: true, value: null \};/);
+  assert.match(g, /if \(e\.value != null\) out\[e\.type\] = e\.value;/);
+  assert.match(cc, /itemGrid\.read\(\)/); }
 console.log('catalog-defaults: ok');

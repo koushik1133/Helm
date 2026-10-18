@@ -239,7 +239,9 @@ t("Item prices save no longer saves the Default pricing box's unsaved chair pric
   const s = html.indexOf('$("#saveItemPrices").addEventListener'), e = html.indexOf("async function renderLayoutRules");
   const body = html.slice(s, e);
   assert.doesNotMatch(body, /\$\("#p_chair"\)/);
-  assert.match(body, /const nextCfg=Object\.assign\(\{\},pricingCfg,\{assetPrices:ap\}\);/);
+  // merged with fix/cc-ratecards-grid: the prices come from the grid (itemGrid.read())
+  assert.match(body, /const nextCfg=Object\.assign\(\{\}, pricingCfg, \{ assetPrices: res\.prices \}\);/);
+  assert.match(body, /if\(nextCfg\.chairPrice==null\) nextCfg\.chairPrice=200;/);
   assert.match(body, /pricingCfg=nextCfg;/);
 });
 t("Capacity limits save works on a copy (a failed save leaves memory as the server has it)", () => {
