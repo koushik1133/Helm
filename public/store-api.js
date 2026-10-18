@@ -4407,9 +4407,15 @@ window.HelmUrl = HelmUrl;
     // sendNow asks the invite-mailer to flush THIS studio's queue right away. Never throws:
     // { status: "ok", sent, skipped, failed } | { status: "dormant" } | { status: "unavailable" }.
     resendEmail: (id) => rpc("resend_invitation_email", { p_invitation_id: id }),
-    async sendNow() { if (!supa || !fnUrl("invite-mailer")) return { status: "unavailable" };
-      try { const r = await callFn("invite-mailer", {}); return (r && typeof r === "object") ? r : { status: "unavailable" }; }
-      catch (e) { return { status: "unavailable" }; } },
+    // "unavailable" carries a short reason: not_configured | not_deployed (404) | unauthorized
+    // (401 — usually deployed without --no-verify-jwt) | forbidden (not an admin) | rate_limited | server_error | network.
+    async sendNow() { if (!supa || !fnUrl("invite-mailer")) return { status: "unavailable", reason: "not_configured" };
+      try { const r = await callFn("invite-mailer", {}); return (r && typeof r === "object") ? r : { status: "unavailable", reason: "server_error" }; }
+      catch (e) { const msg = String(e && e.message || ""); const m = /HTTP (\d+)/.exec(msg);
+        const code = m ? Number(m[1]) : (/unauthor/i.test(msg) ? 401 : /forbidden/i.test(msg) ? 403 : /too many/i.test(msg) ? 429 : 0);
+        const reason = code === 404 ? "not_deployed" : code === 401 ? "unauthorized" : code === 403 ? "forbidden"
+          : code === 429 ? "rate_limited" : (code || (msg && !/fetch|network/i.test(msg))) ? "server_error" : "network";
+        return { status: "unavailable", reason }; } },
     accept:  (token) => rpc("accept_invitation", { p_token: token }),                        // signed-in invitee attaches to the org
     byToken: (token) => rpc("invitation_by_token", { p_token: token }),                      // minimal, no-PII info for the accept screen
     // Direct invite sign-up (edge function invite-signup): the server creates the account,
