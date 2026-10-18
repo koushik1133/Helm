@@ -103,17 +103,19 @@ const respondWith = (tbl) => (q) => (tbl[q.table] ? { data: tbl[q.table](q), err
 
 // ---------------------------------------------------------------- 3) stage strip
 t('strip: a stage click OPENS the stage (viewStage), it never writes and is never disabled', () => {
-  assert.match(EV, /querySelectorAll\(".step"\)\.forEach\(b=>b\.addEventListener\("click",\(e\)=>\{ if\(e\.detail>1\) return; viewStage\(b\.dataset\.k\); \}\)\)/);
+  // stage-strip-scroll: the pills are built as DOM nodes (paintStrip), each click still only VIEWS the stage
+  assert.match(EV, /onclick:\(e\)=>\{ if\(e\.detail>1\) return; viewStage\(s\.k\); \}/);
   assert.doesNotMatch(EV, /setStage\(b\.dataset\.k,b\)/);
   assert.doesNotMatch(EV, /canEdit&&!stageBusy\?"":"disabled"/);
-  assert.match(EV, /aria-current="step"/);   // the real stored stage
-  assert.match(EV, /aria-pressed=/);         // the stage being viewed
+  assert.match(EV, /"aria-current":i===cur\?"step":null/);   // the real stored stage
+  assert.match(EV, /"aria-pressed":i===vis\?"true":"false"/);  // the stage being viewed
   assert.match(EV, /renderMods\(STAGES\[vis\]\.mods\)/);
 });
 t('strip: the stage panel explains blockers from the server and offers the move only when allowed', () => {
   assert.match(EV, /BPStore\.quotes\.stageBlockers\(id,k\)/);
-  assert.match(EV, /"Move anyway \(admin\)… "/);
-  assert.match(EV, /disabled:\(blocked&&!admin\)\|\|stageBusy/);
+  // stage-strip-scroll: a blocked move is DISABLED with the reason (admins get a separate override button)
+  assert.match(EV, /"Override as admin…"/);
+  assert.match(EV, /disabled:blocked\|\|loading\|\|stageBusy/);
   assert.match(EV, /"You can close this event after "/);
   assert.match(EV, /Back to the current stage/);
 });

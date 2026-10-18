@@ -17,7 +17,46 @@
 html[data-theme="dark"]:not([data-shell]) .sum b[style*="0f7a43"] { color: #34d399 !important; }
 
 /* 0198 stage strip: the stage being VIEWED (outlined) vs the event's real stage (filled) + the stage panel */
-.step.viewing{outline:2px solid var(--accent);outline-offset:1px;color:var(--ink)}
+/* stage-strip-scroll: current stage = FILLED (.active); the stage being viewed = OUTLINED + "Viewing" tag */
+html[data-theme] .steps .step.viewing{background:var(--panel);border:2px solid var(--accent);color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);padding:4px 9px}
+html[data-theme] .steps .step.viewing .n{background:var(--accent-soft);color:var(--accent)}
+.step .vtag{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:10px;background:var(--accent);color:#fff}
+.step:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* the strip scrolls sideways: room for the ring/outline (no clipped first pill), edge fades + arrow buttons */
+.stepwrap{position:relative;margin-top:6px}
+.stepwrap .steps{position:relative;margin-top:0;padding:5px 6px 7px;scroll-padding-inline:40px;scroll-behavior:auto}
+.stepwrap.ov-l .steps{-webkit-mask-image:linear-gradient(to right,transparent 0,#000 44px);mask-image:linear-gradient(to right,transparent 0,#000 44px)}
+.stepwrap.ov-r .steps{-webkit-mask-image:linear-gradient(to left,transparent 0,#000 44px);mask-image:linear-gradient(to left,transparent 0,#000 44px)}
+.stepwrap.ov-l.ov-r .steps{-webkit-mask-image:linear-gradient(to right,transparent 0,#000 44px,#000 calc(100% - 44px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 44px,#000 calc(100% - 44px),transparent 100%)}
+.stp-arr{position:absolute;top:50%;transform:translateY(-55%);z-index:2;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  font:700 17px/1 var(--font,system-ui);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 4px rgba(20,27,46,.14);padding:0 0 2px}
+.stp-arr.l{left:0} .stp-arr.r{right:0}
+.stp-arr:hover{border-color:var(--accent);color:var(--accent)}
+.stp-arr:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stp-arr[hidden]{display:none!important}
+/* desktop: compact event header + strip pinned under the app top bar while the workspace scrolls */
+.evstick{position:sticky;top:var(--hb-top,0px);height:0;z-index:700}
+.evstick-in{position:absolute;left:0;right:0;top:0;padding:8px 14px 4px;background:color-mix(in srgb,var(--panel) 94%,transparent);
+  -webkit-backdrop-filter:saturate(160%) blur(10px);backdrop-filter:saturate(160%) blur(10px);border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;
+  box-shadow:0 8px 24px -14px rgba(20,27,46,.35);animation:evstick-in .16s ease-out}
+@keyframes evstick-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.evstick .es-h{display:flex;align-items:baseline;gap:10px;min-width:0;font-size:13px}
+.evstick .es-code{font-family:var(--mono);font-weight:700;color:var(--accent);flex:0 0 auto}
+.evstick .es-ttl{font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.evstick .es-now{margin-left:auto;flex:0 0 auto;font-size:12px;color:var(--ink-3)}
+.evstick .stepwrap{margin-top:2px}
+.evstick .steps{scrollbar-width:none} .evstick .steps::-webkit-scrollbar{display:none}
+.evstick .step{font-size:11.5px;padding:3px 9px} html[data-theme] .evstick .step.viewing{padding:2px 8px}
+.evstick .step .n{width:16px;height:16px;font-size:10px}
+.evstick .stp-arr{width:26px;height:26px;font-size:15px}
+@media (max-width:899px){.evstick{display:none!important}}
+@media (prefers-reduced-motion:reduce){.evstick-in{animation:none}}
+/* the stage panel lands below the pinned bar, not under it */
+#stagePanel{scroll-margin-top:calc(var(--hb-top,0px) + 110px)}
+.stagepanel .sp-eye{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:10px;border:2px solid var(--accent);color:var(--accent)}
+.stagepanel .sp-cur{margin-left:auto}
+.stagepanel{border-left:3px solid var(--accent)}
+.nextbar .paydone{margin-left:auto}
 .stagepanel{margin-top:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel-2)}
 .stagepanel .sp-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
 .stagepanel .sp-hint{font-size:13px;color:var(--ink-2);margin-top:4px}
