@@ -351,15 +351,21 @@
   function renderVersions(d) {
     const ol = clear($("#versionList")), vs = Array.isArray(d.versions) ? d.versions : [];
     if (!vs.length) { ol.appendChild(el("li", "empty", "This is the first version of your quotation.")); return; }
+    // PP1028 #4: never show two totals as both current - when the live quote differs from the latest saved
+    // version, the version reads "Saved" and the live total is its own clearly-labelled row
+    let live = null; try { live = quoteLines(d.quote).total; } catch (e) {}
+    const lv = vs.find((v) => v && v.latest), differs = lv && num(live) != null && num(lv.total) != null && Math.abs(num(live) - num(lv.total)) > 0.5;
+    if (differs) { const li = el("li"); const left = el("div"); left.appendChild(el("span", "v-label", "Current quotation"));
+      left.appendChild(el("span", "badge", "Latest")); li.appendChild(left); li.appendChild(el("span", "v-total", money(live))); ol.appendChild(li); }
     vs.forEach((v) => {
       const li = el("li"); const left = el("div"); const lab = el("span", "v-label", String(v.label || "Quotation")); left.appendChild(lab);
-      if (v.latest) left.appendChild(el("span", "badge", "Latest"));
+      if (v.latest) left.appendChild(el("span", "badge", differs ? "Saved" : "Latest"));
       if (v.created_at) { const t = el("time", "", shortDate(v.created_at)); t.setAttribute("datetime", String(v.created_at)); left.appendChild(t); }
       li.appendChild(left); li.appendChild(el("span", "v-total", money(v.total))); ol.appendChild(li);
     });
   }
   function renderPayments(d) {
-    const p = d.payments || {}, ms = Array.isArray(p.milestones) ? p.milestones : [];
+    const p = d.payments || {}; let ms = Array.isArray(p.milestones) ? p.milestones : [];
     // 0111: the server's payments.total = quote + approved change orders (the invoice); else the quote total
     const total = num(p.total) != null && num(p.total) > 0 ? num(p.total) : quoteLines(d.quote).total;
     const sum = clear($("#paySum"));
@@ -375,6 +381,8 @@
     const line = balanceLine(total, p.paid, bal, (d.event || {}).event_date, d.payTerms);
     const pt = $("#payTerm"); if (pt) { pt.textContent = line || ""; pt.hidden = !line; }
     const tb = clear($("#payLines"));
+    // PP1028 #9: the advance is part of the schedule - show it when the studio set one and no milestone covers it
+    ms = withAdvance(ms, total, d.payTerms);
     if (!ms.length) { const tr = el("tr"); const td = el("td", "empty", line || "The payment schedule will be shared by the studio."); td.setAttribute("colspan", "4"); tr.appendChild(td); tb.appendChild(tr); return; }
     const shown = msDisplayStatus(ms, p.paid);
     ms.forEach((m, i) => {
@@ -383,6 +391,13 @@
       const td = el("td"); td.appendChild(el("span", "st " + st, st.replace(/_/g, " "))); tr.appendChild(td);
       tr.appendChild(el("td", "amt", money(m.amount))); tb.appendChild(tr);
     });
+  }
+  // PP1028 #9 (display only): prepend an "Advance" row from the studio's advance % when no milestone is the advance
+  function withAdvance(ms, total, terms) {
+    const list = Array.isArray(ms) ? ms.slice() : [], pct = terms && num(terms.advance_pct), t = num(total);
+    if (!(pct > 0) || !(t > 0)) return list;
+    if (list.some((m) => m && /advance|booking|token/i.test(String(m.label || "")))) return list;
+    return [{ label: "Advance (" + pct + "%)", due_date: null, status: "due", amount: Math.round(t * pct) / 100 }].concat(list);
   }
   // Display only (no data change): milestones are a schedule, the ledger is the money truth. Money received
   // beyond the milestones already marked paid covers the remaining ones in schedule order, so a fully
@@ -572,7 +587,7 @@
     if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && d.menu.mode === "hidden")) global.HelmBookletPkg.mount(token, d).catch(() => {});
   }
 
-  global.HelmBooklet = { quoteChanges, balanceLine, msDisplayStatus, render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
+  global.HelmBooklet = { quoteChanges, withAdvance, balanceLine, msDisplayStatus, render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
   if (doc && doc.getElementById("tocList")) {
     const pb = doc.getElementById("printBtn"); if (pb) pb.addEventListener("click", () => global.print());
     const rt = doc.getElementById("retry"); if (rt) rt.addEventListener("click", () => start());

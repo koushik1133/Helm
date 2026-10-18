@@ -24,7 +24,7 @@ await t('#1 advance default uses the discounted grand total (10% of 1,01,952 = 1
   assert.equal(Math.round(disc), 101952);
   assert.equal(Math.round(disc * 10 / 100), 10195);
   // the flow passes the quote's % discount into every total it computes, and re-derives the advance on render
-  assert.match(FLOW, /discountPct:nn\(ev&&ev\.pricing&&ev\.pricing\.discountPct\)/);
+  assert.match(FLOW, /\.\.\.HelmDiscount\.pick\(\$\(\"#q_discount\"\)\.value, \$\(\"#q_discountPct\"\)\?\$\(\"#q_discountPct\"\)\.value:\(ev&&ev\.pricing&&ev\.pricing\.discountPct\)\)/  /* PP1028: ₹/% exclusive */);
   assert.match(FLOW, /\$\("#priceRows"\)\.innerHTML=rows;\n    try\{ updateAdvance\(\); \}catch\(_\)\{ \}/);
   assert.match(FLOW, /function quoteTotal\(\)\{ return BPStore\.pricing\.quoteTotal\(currentInputs\(\)\)\.total; \}/);
 });
