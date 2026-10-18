@@ -40,10 +40,18 @@
 .cs-mnav{display:none}
 .cs-ico{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
 #app.cs-on .cs-nav a[aria-current="page"] .cs-ico{opacity:1}
+/* a section with unsaved edits (the bar itself only shows on the section on screen) */
+#app.cs-on .cs-nav a.cs-unsaved::after{content:"";flex:0 0 7px;width:7px;height:7px;margin-left:auto;border-radius:50%;background:var(--warn,#d97706)}
 
 /* ---- consistent controls inside cards ---- */
 #app.cs-on .cs-main .card .cmchk,#app.cs-on .cs-main .card .lxtoggle{display:flex;align-items:center;gap:8px;min-height:32px}
 #app.cs-on .cs-main .card input[type=checkbox]{width:16px;height:16px;margin:0;accent-color:var(--accent,#6d28d9);flex:0 0 auto}
+/* the client-links on/off switch is a styled checkbox: the 16px rule above squeezed it, so its knob slid
+   over the label ("uto-expire client links"). Give the switch its own size back. */
+#app.cs-on .cs-main .card .lxtoggle input[type=checkbox][role=switch]{width:42px;height:24px;min-width:42px;min-height:24px;flex:0 0 42px;accent-color:auto}
+#app.cs-on .cs-main .card .lxswitchrow{row-gap:8px}
+#app.cs-on .cs-main .card .lxstate{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+#app.cs-on .cs-main .card .lxstate small{margin:0;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,var(--warn,#d97706) 14%,transparent);color:var(--warn-text,#8f5f00);font-size:11px;font-weight:600}
 #app.cs-on .cs-main .card fieldset.cmset{border:1px solid var(--line-2,var(--line,#e8e3db));border-radius:var(--r-ctl,8px);padding:var(--sp-4,16px);margin:0 0 var(--sp-4,16px)}
 #app.cs-on .cs-main .card fieldset.cmset legend{padding:0 6px;font-weight:600;font-size:var(--fs-sm,13px);color:var(--ink,#1c1a1f)}
 #app.cs-on .cs-main .utable th{font-size:var(--fs-xs,11px);text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3,#6b6573);font-weight:600;text-align:left}
@@ -89,3 +97,12 @@
   .cs-savebar{bottom:calc(var(--sp-3,12px) + env(safe-area-inset-bottom,0px))}
   .cs-savebar .cs-ghost{display:none}
 }
+
+/* Pricing: the country is shown read-only and changed in General (one source of truth) */
+#app.cs-on .p-clbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3,#6b6573)}
+#app.cs-on .p-cro{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;min-height:38px;margin:0;font-size:14px;color:var(--ink,#1c1a1f)}
+#app.cs-on .p-cro .p-cgo{padding:0;border:0;background:none;font:inherit;font-size:13px;font-weight:500;color:var(--hb-acc-text,var(--accent,#059669));text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+#app.cs-on .p-cro .p-cgo:focus-visible{outline:2px solid var(--accent,#059669);outline-offset:2px;border-radius:4px}
+#app.cs-on .p-cro .p-ctrial{font-size:12px;color:var(--ink-3,#6b6573)}
+html:not(.helm-trial) #app .p-cro .p-ctrial,html.helm-trial #app .p-cro .p-cgo{display:none}
+#p_country[hidden]{display:none !important}
