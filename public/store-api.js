@@ -1091,7 +1091,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "34";
+  const AUTH_UI_VERSION = "35";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -10459,7 +10459,7 @@ window.HelmUrl = HelmUrl;
   // Every phone field becomes the HelmPhone component (phone-input.js: flag + searchable
   // country list + as-you-type format; .value stays E.164). Pages that don't include the
   // script get it loaded on demand; if it can't load, the legacy hardener below is used.
-  var PHONE_LIB_V = "3", phoneLib = null;
+  var PHONE_LIB_V = "4", phoneLib = null;
   function loadPhoneLib() {
     if (window.HelmPhone && window.HelmPhone.attach) return Promise.resolve(true);
     if (phoneLib) return phoneLib;

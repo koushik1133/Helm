@@ -33,6 +33,9 @@
   const obj = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
   const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[a-z]{2,}$/i;
   const HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+  // #setup-accent: Helm's green (emerald theme accent, = --hb-acc) is the default for a NEW studio's
+  // brand colour; existing studios keep whatever colour they saved.
+  const DEFAULT_ACCENT = "#047857";
 
   function validTz(tz) {
     if (!/^[A-Za-z_]+(?:\/[A-Za-z0-9_+-]+){0,2}$/.test(tz) || tz.length > 40) return false;
@@ -89,7 +92,7 @@
   function validateBrand(v) {
     v = obj(v); const errors = {}; const data = { logo: clean(v.logo, 500), accent: clean(v.accent, 7) };
     if (data.logo && !httpsUrl(data.logo)) errors.logo = "Logo must be an https:// link to an image.";
-    if (data.accent && !HEX_RE.test(data.accent)) errors.accent = "Accent colour must look like #6d28d9.";
+    if (data.accent && !HEX_RE.test(data.accent)) errors.accent = "Accent colour must look like " + DEFAULT_ACCENT + ".";
     return { ok: !Object.keys(errors).length, data, errors };
   }
   function brandPatch(o, d) { const b = obj(obj(o).brand); return { brand: Object.assign({}, b, { logo: d.logo || null, accent: d.accent || null }) }; }
@@ -191,7 +194,7 @@
     { key: "lists", label: "Review checklist templates", href: "templates.html" },
     { key: "layouts", label: "Customize your own templates", href: "builder.html?new=1&tplEdit=new", why: "Save your own floor layouts so every new event starts from your studio's style." },
   ];
-  const api = { FLOW, TEMPLATE_ITEMS, followCountry, DEFAULT_ADVANCE_PCT, SETTINGS, REQUIRED, LABELS, LEGACY_KEYS, IMPORT_ENTITY, countryDefaults, validTz,
+  const api = { FLOW, TEMPLATE_ITEMS, DEFAULT_ACCENT, followCountry, DEFAULT_ADVANCE_PCT, SETTINGS, REQUIRED, LABELS, LEGACY_KEYS, IMPORT_ENTITY, countryDefaults, validTz,
     studioFromOrg, validateStudio, studioPatch, brandFromOrg, validateBrand, brandPatch,
     paymentFromCfg, validatePayment, paymentPatch, progressFromOrg, progressPatch, percent, requiredMissing, stepFromHash, nudgeFor, mountNudge };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

@@ -173,9 +173,9 @@
     const req = (k) => (W.REQUIRED[k] ? ' <span class="ob-req">required</span>' : "");
     const pos = S.step === BILL ? 1 : Math.min(KEYS.length + 2, S.step + 2), total = KEYS.length + 2, pct = W.percent(doneKeys(), skippedKeys());
     const prog = `<div class="ob-prog"><span class="ob-note">Step ${Number(pos)} of ${Number(total)} · ${Number(pct)}% done</span><progress max="100" value="${Number(pct)}" aria-label="Setup progress">${Number(pct)}%</progress></div>`;
-    const stepsNav = prog + `<ol class="ob-steps" aria-label="Setup steps"><li class="${billingOk() ? "done" : ""}"><button type="button" data-act="goto" data-i="${BILL}"${S.step === BILL ? ' aria-current="step"' : ""}><span class="n">${billingOk() ? "✓" : "0"}</span>Business details${req("billing")}</button></li>` + KEYS.map((k, i) => {
+    const stepsNav = prog + `<ol class="ob-steps" aria-label="Setup steps"><li class="${billingOk() ? "done" : ""}"><button type="button" data-act="goto" data-i="${BILL}"${S.step === BILL ? ' aria-current="step"' : ""}><span class="n">${billingOk() ? "✓" : "1"}</span>Business details${req("billing")}</button></li>` + KEYS.map((k, i) => {
       const st = S.steps[k]; const cls = st.done || st.skipped ? "done" : "";
-      return `<li class="${esc(cls)}"><button type="button" data-act="goto" data-i="${Number(i)}"${S.step === i ? ' aria-current="step"' : ""}><span class="n">${st.done ? "✓" : Number(i) + 1}</span>${esc(lbl(k))}${req(k)}</button></li>`;
+      return `<li class="${esc(cls)}"><button type="button" data-act="goto" data-i="${Number(i)}"${S.step === i ? ' aria-current="step"' : ""}><span class="n">${st.done ? "✓" : Number(i) + 2}</span>${esc(lbl(k))}${req(k)}</button></li>`;
     }).join("") + `<li class="${S.step === KEYS.length ? "" : ""}"><button type="button" data-act="goto" data-i="${KEYS.length}"${S.step === KEYS.length ? ' aria-current="step"' : ""}><span class="n">★</span>Finish</button></li></ol>`;
     let body = "";
     if (S.step === BILL) body = renderBilling();
@@ -230,10 +230,12 @@
         + `<datalist id="obTzList">${TZS.map((z) => `<option value="${esc(z)}"></option>`).join("")}</datalist></div>`);
     }
     if (kind === "brand") {
-      const d = Object.assign(W.brandFromOrg(org), v);
+      // #setup-accent: a studio that never picked a colour starts on Helm's green (the theme default),
+      // not the old violet; a colour the studio already saved is shown and kept exactly as it is.
+      const d = Object.assign(W.brandFromOrg(org), v); if (v.accent === undefined && !d.accent) d.accent = W.DEFAULT_ACCENT;
       return form(`<div class="ob-bf">${sfld(kind, "logo", "Logo link (https)", d.logo, { type: "url", max: 500, full: 1, hint: "A public https:// link to your logo image (PNG, JPG or SVG)." })}`
-        + sfld(kind, "accent", "Accent colour", d.accent, { max: 7, hint: "Hex colour, e.g. #6d28d9" })
-        + `<div><label for="ob_s_accent_pick">Pick a colour</label><input type="color" id="ob_s_accent_pick" data-pick="accent" value="${esc(/^#[0-9a-f]{6}$/i.test(d.accent) ? d.accent : "#6d28d9")}"></div></div>`);
+        + sfld(kind, "accent", "Accent colour", d.accent, { max: 7, hint: "Hex colour, e.g. " + W.DEFAULT_ACCENT + " (Helm green)" })
+        + `<div><label for="ob_s_accent_pick">Pick a colour</label><input type="color" id="ob_s_accent_pick" data-pick="accent" value="${esc(/^#[0-9a-f]{6}$/i.test(d.accent) ? d.accent : W.DEFAULT_ACCENT)}"></div></div>`);
     }
     if (kind === "payment") {
       const d = Object.assign(W.paymentFromCfg(pricingCfg), v);
@@ -362,7 +364,7 @@
       const id = "ob_b_" + f.key, eid = id + "_err", bad = !!e[f.key];
       if (f.type === "country") {
         const opt = (c) => `<option value="${esc(c.iso)}"${c.iso === cc ? " selected" : ""}>${esc(c.name)}</option>`;
-        return `<div><label for="${esc(id)}">Country * <span class="ob-note">(sets tax, tax ID and currency)</span></label><select id="${esc(id)}" data-bill="country" data-billcountry="1" aria-describedby="${esc(eid)}">`
+        return `<div><label for="${esc(id)}">Country * <span class="ob-note">(sets tax, tax ID and currency)</span></label><select id="${esc(id)}" data-bill="country" data-billcountry="1" data-picker="search" aria-describedby="${esc(eid)}">`
           + ctry.map(opt).join("") + (others.length ? `<optgroup label="Other countries (custom tax)">${others.map(opt).join("")}</optgroup>` : "")
           + `</select><div class="ob-err" id="${esc(eid)}">${esc(e[f.key] || "")}</div></div>`;
       }

@@ -391,15 +391,21 @@ html[data-theme="dark"]:not([data-shell]) .htr-bc { color: var(--ink-2, #c6c2d6)
   color:inherit;font-variant-numeric:tabular-nums;min-height:0!important;text-overflow:ellipsis}
 .hp > input.hp-num::placeholder{font-size:inherit}
 .hp .hp-cc{white-space:nowrap}
-.hp-pop{position:absolute;left:-1px;top:calc(100% + 6px);z-index:1200;width:min(340px,calc(100vw - 32px));box-sizing:border-box;
+/* #picker-clamp: position:fixed + top/left/width/max-height set by phone-input.js (placePopup), so the
+   list is never clipped by a modal or scrolled container and never leaves the viewport */
+.hp-pop{position:fixed;left:8px;top:8px;z-index:2147483000;width:min(340px,calc(100vw - 16px));max-height:calc(100vh - 16px);box-sizing:border-box;
   background:var(--panel,#fff);color:var(--ink,#1b1930);border:1px solid var(--line,#e8e3db);border-radius:12px;
   box-shadow:0 1px 2px rgba(20,27,46,.06),0 16px 40px rgba(20,27,46,.18);padding:8px;animation:hpIn .14s ease-out}
-.hp.hp-up .hp-pop{top:auto;bottom:calc(100% + 6px)}
+.hp-pop:not([hidden]){display:flex;flex-direction:column;overflow:hidden}
+.hp-pop .hp-search{flex:0 0 auto}
+.hp-pop.hp-pop-up{animation-name:hpInUp}
+.hp-pop.hp-measuring{animation:none!important;transform:none!important}
 html[data-theme="dark"] .hp-pop{box-shadow:0 1px 2px rgba(0,0,0,.5),0 18px 44px rgba(0,0,0,.7)}
 .hp-pop .hp-search{display:block;width:100%;box-sizing:border-box;min-height:40px;margin:0 0 6px;padding:8px 10px;border:1px solid var(--line-strong,#86808f);
   border-radius:8px;background:var(--panel-2,#faf8f5);color:inherit;font:inherit;font-size:15px}
 .hp-pop .hp-search:focus{outline:none;border-color:var(--accent,#6d28d9);box-shadow:0 0 0 3px var(--accent-soft,#efe9ff)}
-.hp-list{list-style:none;margin:0;padding:0;max-height:260px;overflow-y:auto;overscroll-behavior:contain}
+.hp-list{position:relative;flex:1 1 auto;min-height:0;list-style:none;margin:0;padding:0;max-height:260px;overflow-y:auto;overscroll-behavior:contain}
+.hp-grp{padding:8px 10px 4px;font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3,#6b6577)}
 .hp-opt{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:14.5px;line-height:1.3}
 .hp-opt:hover,.hp-opt.is-active{background:var(--accent-soft,#f1ebfd)}
 .hp-opt[aria-selected="true"]{font-weight:600}
@@ -409,6 +415,18 @@ html[data-theme="dark"] .hp-pop{box-shadow:0 1px 2px rgba(0,0,0,.5),0 18px 44px 
 .hp-ocode{flex:0 0 auto;color:var(--ink-3,#6b6577);font-variant-numeric:tabular-nums}
 .hp-empty{margin:6px 4px;color:var(--ink-3,#6b6577);font-size:13.5px}
 @keyframes hpIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes hpInUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* searchable <select data-picker="search"> (phone-input.js enhanceSelect): looks like the page's own select */
+.hp-sel{position:relative;display:block;width:100%;max-width:100%;min-width:0}
+.hp-sel > select.hp-sel-native{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;opacity:0!important;pointer-events:none!important;z-index:-1}
+.hp-sel-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0;min-height:var(--hp-h,38px);box-sizing:border-box;margin:0;
+  padding:var(--hp-py,6px) var(--hp-px,10px);border:1px solid var(--line-strong,#86808f);border-radius:var(--hp-r,10px);background:var(--panel,#fff);color:var(--ink,#1b1930);
+  font:inherit;font-size:var(--hp-fs,inherit);line-height:var(--hp-lh,normal);text-align:left;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.hp-sel-btn:focus-visible,.hp-sel.is-open .hp-sel-btn{outline:none;border-color:var(--accent,#047857);box-shadow:0 0 0 3px var(--accent-soft,#e3f4ed)}
+.hp-sel-btn:disabled{opacity:.55;cursor:not-allowed}
+.hp-sel-btn[aria-invalid="true"]{border-color:var(--bad,#c0392b)}
+.hp-sel-txt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hp-sel.is-open .hp-chev{transform:rotate(180deg)}
 @media (prefers-reduced-motion:reduce){.hp-pop{animation:none}.hp,.hp-chev{transition:none}}
 @media (pointer:coarse){.hp{min-height:44px}.hp > input.hp-num{font-size:16px!important}.hp-opt{min-height:44px}}
 @media (max-width:480px){.hp > input.hp-num{font-size:16px!important}}
