@@ -93,5 +93,8 @@
 .cs-grid th.cs-who a{color:var(--ink);font-weight:600;text-decoration:underline;text-decoration-color:var(--line)}
 .cs-grid .cs-today{background:var(--accent-soft)}
 .cs-grid .cs-ev{font-size:11px}
+/* cal-1018: "Events" row = every dated event + lead that day, crew or not; 3-day grid fits a phone without sideways scroll */
+.cs-grid tr.cs-evrow>*{background:var(--panel-2);border-bottom:2px solid var(--line)}
+.cs-grid tr.cs-evrow th.cs-who{color:var(--ink-2);font-weight:600}
 @media(max-width:600px){.csched{padding:12px}.cs-head{align-items:stretch}.cs-tools{width:100%;justify-content:space-between}.cs-pick{flex:1 1 100%}.cs-pick select{width:100%;max-width:none}
-  .cs-range{font-size:17px}.cs-grid{min-width:640px}.cs-grid th.cs-who{width:92px}.cs-cell{min-height:46px;text-align:center}.cs-tg-scroll{max-height:62vh}}
+  .cs-range{font-size:17px}.cs-grid{min-width:640px}.cs-grid.cs-grid-3,.cs-grid.cs-grid-1{min-width:0}.cs-grid th.cs-who{width:92px}.cs-cell{min-height:46px;text-align:center}.cs-tg-scroll{max-height:62vh}}

@@ -4,7 +4,7 @@
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <meta charset="utf-8">
 <base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Resource Calendar — Helm Events</title>
+<title>Calendar — Helm Events</title>
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -45,15 +45,15 @@
   /* agenda by date */
   .day{margin-bottom:16px}
   .day .hd{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
-  .day .hd .dt{font-family:var(--mono);font-weight:700;font-size:14px} .day .hd .wk{color:var(--ink-3);font-size:12px}
+  .day .hd .dt{font-weight:700;font-size:14px} .day .hd .wk{color:var(--ink-3);font-size:12px}
   .ev{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px;margin-bottom:8px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
   .ev.clash{border-color:#f5c6c6}
   .ev .code{font-family:var(--mono);font-weight:700;color:var(--accent)}
   .ev .ttl{font-weight:600;font-size:14px}
-  .ev .chips{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
-  .chip{font-size:12px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;color:var(--ink-2)}
+  .ev .chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:auto}
+  .chip{display:inline-flex;align-items:center;gap:4px;line-height:1.2;font-size:12px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;color:var(--ink-2)}
   .chip b{color:var(--ink)} .chip.zero{color:var(--ink-3)}
-  .open{border:1px solid var(--line);background:var(--panel);border-radius:8px;height:32px;padding:0 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--accent)} .open:hover{border-color:var(--accent)}
+  .open{display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--panel);border-radius:8px;height:32px;padding:0 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--accent)} .open:hover{border-color:var(--accent)}
   .nodate .ev{opacity:.85}
   /* 1017: tentative (quote-stage) vs confirmed events, and open lead dates */
   .ev.tentative{border-style:dashed;background:var(--panel-2,var(--panel))}
@@ -79,7 +79,7 @@
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
 </style>
 <link rel="stylesheet" href="calendar-polish.css?v=2">
-<link rel="stylesheet" href="crew-schedule.css?v=2">
+<link rel="stylesheet" href="crew-schedule.css?v=3">
 <link rel="stylesheet" href="capacity-shortage.css?v=2"><link rel="stylesheet" href="theme.css?v=82">
 <script src="/shell-proto.js?v=26" id="shellProto"></script>
 </head>
@@ -88,7 +88,7 @@
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
-    <div><h1>Helm Events</h1><small>Resource Calendar</small></div>
+    <div><h1>Helm Events</h1><small>Calendar</small></div>
     <nav class="nav"><a href="dashboard.html">Dashboard</a><a href="staff.html">Staff</a><a href="inventory.html">Inventory</a><a href="vendors.html">Vendors</a><a href="calendar.html" class="on" aria-current="page">Calendar</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
@@ -133,7 +133,7 @@
 <script src="event-name.js?v=7"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
 <script src="tour.js?v=17"></script>
-<script src="crew-schedule.js?v=2"></script>
+<script src="crew-schedule.js?v=3"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
   const $=(s)=>document.querySelector(s);
@@ -221,13 +221,28 @@
         ${canEdit?`<input type="date" data-min-today class="setdate" data-set="${esc(a.event.id)}" aria-label="Event date for ${esc(a.event.code)}${a.event.title?" "+esc(a.event.title):""}">`:""}
         <a class="open" href="event.html?id=${encodeURIComponent(a.event.id)}" aria-label="Open ${esc(a.event.code)}">Open</a>
       </div></div>`).join("");
-      $("#nodate").querySelectorAll("[data-set]").forEach(inp=>inp.addEventListener("change",()=>{
-        if(!inp.value || !validDate(inp.value)) return;
-        BPUI.guard(inp, async()=>{ await BPStore.quotes.updateMeta(inp.dataset.set,{eventDate:inp.value}); BPUI.toast("Date set.",{type:"ok"}); await load(); })
-          .catch((e)=>{ inp.value=""; BPUI.toast(BPUI.friendlyError(e,{action:"set the date"}),{type:"err"}); }); }));
+      // cal-1018: a native date picker is easy to mis-tap - ask before saving, then offer Undo (puts the event back under "No date set")
+      $("#nodate").querySelectorAll("[data-set]").forEach(inp=>inp.addEventListener("change",async()=>{
+        if(!inp.value || !validDate(inp.value) || inp.dataset.busy) return;
+        const ev=(nodate.find(a=>a.event.id===inp.dataset.set)||{}).event||{}, v=inp.value;
+        const label=ev.code&&ev.title&&ev.title!==ev.code?ev.code+" · "+ev.title:(ev.title||ev.code||"this event");
+        inp.dataset.busy="1";
+        let ok=false; try{ ok=await BPUI.confirm("Set the date of "+label+" to "+fmtDate(v)+" ("+weekday(v)+")? It will move onto the calendar and be checked for clashes.",{title:"Set event date?",okLabel:"Set date",cancelLabel:"Cancel"}); }catch(e){ ok=false; }
+        if(!ok){ inp.value=""; delete inp.dataset.busy; try{ inp.focus(); }catch(e){} return; }
+        BPUI.guard(inp, async()=>{ await BPStore.quotes.updateMeta(ev.id,{eventDate:v});
+            await load();
+            BPUI.toast("Date set to "+fmtDate(v)+".",{type:"ok",timeout:8000,action:{label:"Undo",onClick:()=>undoDate(ev)}}); })
+          .catch((e)=>{ inp.value=""; BPUI.toast(BPUI.friendlyError(e,{action:"set the date"}),{type:"err"}); })
+          .finally(()=>{ delete inp.dataset.busy; }); }));
     }
   }
 
+  // cal-1018: Undo for the inline date set - puts back the date value it had (none) and the title it had (an automatic title may follow the date)
+  async function undoDate(ev){
+    try{ const patch={eventDate:ev.eventDate||null}; if(ev.title) patch.title=ev.title;
+      await BPStore.quotes.updateMeta(ev.id,patch); BPUI.toast("Date removed again.",{type:"info"}); await load(); }
+    catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"undo the date"}),{type:"err"}); }
+  }
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",(ev)=>{ const em=$("#li_email").value.trim(), pw=$("#li_pass").value, er=$("#li_err");
     if(!em||!pw){ er.textContent="Enter your email and password."; er.hidden=false; (em?$("#li_pass"):$("#li_email")).focus(); return; }
@@ -275,7 +290,11 @@
       linkFor:(b)=>(crewOnly?"runsheet.html?id=":"event.html?id=")+encodeURIComponent(b.quote_id),
       // chip colour: quote status from the agenda (confirmed / tentative); open leads with a date as "Lead" chips
       statusFor:(qid)=>{ const a=data&&(data.agenda||[]).find(x=>x.event&&x.event.id===qid); return a?a.event.status:""; },
-      extra:()=>leadDates.map(l=>({day:l.event_date,title:l.name||"Lead",href:"leads.html"})) });
+      extra:()=>leadDates.map(l=>({day:l.event_date,title:l.name||"Lead",href:"leads.html"})),
+      // cal-1018: every dated, not-cancelled event is on the team schedule, crew or not
+      events:()=>((data&&data.agenda)||[]).filter(a=>a&&a.event&&validDate(a.event.eventDate)&&String(a.event.status||"").toLowerCase()!=="cancelled")
+        .map(a=>({quote_id:a.event.id,day:a.event.eventDate,title:a.event.title&&a.event.title!==a.event.code?a.event.title:"",code:a.event.code||"",venue:(a.event.client&&a.event.client.venue)||"",time:a.event.eventTime||""})),
+      leadLegend:canLeads });
     schedUI=ui;
     if(team&&canStaff){ try{ const ppl=await BPStore.staff.list(); ui.setPeople((ppl||[]).map(p=>({id:p.id,name:p.name}))); }catch(e){} }
     if(sp.get("staff")&&location.hash==="#schedule") el.scrollIntoView({block:"start"});
