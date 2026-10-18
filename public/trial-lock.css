@@ -1,7 +1,7 @@
 /* trial-lock.css (0173): free-trial studios only (html.helm-trial is set by trial-lock.js after the server says
    the studio is in its free trial; 0181: already before first paint from the cached flag, see trial-early.js).
    Hides downloads, imports, photo renders and studio set-up entry points. 0203: also the inventory "Load starter
-   items" buttons, the studio data archive, the greeting send / run buttons, the activity log (dashboard card + links) and the Operations "+ Add to template" row. Every rule is scoped to html.helm-trial,
+   items" buttons, the studio data archive, the greeting send / run buttons, the activity log (dashboard card + links) and the Operations "+ Add to template" row. QA B23: Reports & exports. Every rule is scoped to html.helm-trial,
    so loading this file on a paid studio's page changes nothing. */
 html.helm-trial .trial-hide,
 html.helm-trial #exportBtn, html.helm-trial #jsonBtn,
@@ -27,6 +27,16 @@ html.helm-trial #runNow, html.helm-trial #occBody [data-greet],
 html.helm-trial .hd-act-card, html.helm-trial a[href="audit.html"], html.helm-trial a[href="/audit.html"], html.helm-trial .hb-mi[data-area="audit"],
 html.helm-trial a[href$="/templates"], html.helm-trial a[href$="/audit"], html.helm-trial a[href*="tplEdit="],
 html.helm-trial #tplAddRow { display: none !important; }
+/* QA B4 / B23 / B26: the rail + pinned items for pages the trial does not include (no flash while the server answers:
+   html.helm-trial is set before first paint from the cached flag), the Reports & exports page (CSV / PDF only) and
+   every link to it (Business "Reports & exports", the dashboard Revenue "Reports" link, header nav, KPI tile links),
+   the dashboard "Recent activity" audit link, and the builder "More" menu (PNG / JSON / Import are all off in the trial) */
+html.helm-trial a.hb-item[data-key="audit"], html.helm-trial a.hb-item[data-key="setup"],
+html.helm-trial a.hb-item[data-key="templates"], html.helm-trial a.hb-item[data-key="reports"],
+html.helm-trial [data-fkey="audit"], html.helm-trial [data-fkey="setup"], html.helm-trial [data-fkey="templates"], html.helm-trial [data-fkey="reports"],
+html.helm-trial a[href="reports.html"], html.helm-trial a[href="/reports.html"], html.helm-trial a[href$="/reports"], html.helm-trial a[href^="reports.html?"], html.helm-trial a[href^="/reports.html?"],
+html.helm-trial a[href*="audit.html"], html.helm-trial a[href*="/audit?"],
+html.helm-trial #moreMenu { display: none !important; }
 .tl-note { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: var(--paper-2, #f3f5f2); color: var(--ink-2, #333); font-size: 13px; }
 .tl-block { max-width: 520px; margin: 12vh auto; padding: 28px 24px; text-align: center; border-radius: 16px; background: var(--paper, #fff); border: 1px solid var(--line, #e5e7e3); }
 .tl-block h2 { margin: 0 0 8px; font-size: 20px; }

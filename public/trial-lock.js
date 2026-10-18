@@ -2,7 +2,7 @@
  * - adds html.helm-trial (trial-lock.css hides downloads, imports, photo renders, studio set-up, catalog "add" rows)
  * - blocks print / file downloads / Excel import in the page and shows "Not available in the free trial"
  * - pages that are not part of the trial (onboarding = studio set-up, templates = checklist templates, 0203: audit =
- *   activity log) show a "Not available in the free trial" panel and send you back to the dashboard
+ *   activity log, QA B23: reports = CSV / PDF exports) show a "Not available in the free trial" panel and send you back to the dashboard
  * - 0181: a browser that last saw a trial studio already has html.helm-trial + helm-trial-early before first paint
  *   (trial-early.js / shell-proto.js / store-api.js read the cached "helm.trial" flag). The server's answer
  *   decides: trial -> the early mark is dropped (confirmed); paid / signed out -> the class comes off again.
@@ -12,15 +12,15 @@
   if (window.HelmTrialLock) return;
   var MSG = "Not available in the free trial. Upgrade to use this.";
   var on = false, known = false, waiters = [];
-  var BLOCKED_PAGES = /(^|\/)(onboarding|templates|audit)(\.html)?\/?$/;   // 0181: Templates; 0203: activity log
+  var BLOCKED_PAGES = /(^|\/)(onboarding|templates|audit|reports)(\.html)?\/?$/;   // 0181: Templates; 0203: activity log; QA B23: Reports & exports
   // 0203: where a page that is not part of the trial sends you (the studio's pretty dashboard when the URL has a slug)
   function home() {
-    var m = /^\/([a-z0-9-]{3,40})\/(onboarding|templates|audit)\/?$/.exec(location.pathname || "");
+    var m = /^\/([a-z0-9-]{3,40})\/(onboarding|templates|audit|reports)\/?$/.exec(location.pathname || "");
     return m ? "/" + m[1] + "/dashboard" : "/dashboard.html";
   }
   function css() {
     if (document.getElementById("trialLockCss")) return;
-    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=5";
+    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=6";
     (document.head || document.documentElement).appendChild(l);
   }
   function note(msg) {
@@ -60,11 +60,15 @@
     }, true);
     wrapImport(); var n = 0, iv = setInterval(function () { wrapImport(); if (++n > 40) clearInterval(iv); }, 250);
     function page() {
-      if (!BLOCKED_PAGES.test(location.pathname)) return;
-      if (/templates/.test(location.pathname)) cover("Templates are not part of the free trial",
+      var bm = BLOCKED_PAGES.exec(location.pathname || ""); if (!bm) return;
+      var which = bm[2];   // the page itself (never a studio slug that happens to contain "audit" / "reports")
+      if (which === "templates") cover("Templates are not part of the free trial",
         "Your free trial comes with sample events that already have their checklists and tasks. Upgrade to make your own templates.");
-      else if (/audit/.test(location.pathname)) cover("The activity log is not part of the free trial",
+      else if (which === "audit") cover("The activity log is not part of the free trial",
         "Upgrade to see who changed what in your studio.");
+      // QA B23: the Reports page is only CSV downloads + printable PDFs (both off in the trial): say so instead of dead cards
+      else if (which === "reports") cover("Reports & exports are not part of the free trial",
+        "CSV downloads and printable PDF reports unlock on a paid plan. Your numbers are still on the dashboard, Business and Insights.");
       else cover();
       // 0203: a direct link to a page that is not part of the trial goes back to the dashboard (the cover shows meanwhile)
       try { location.replace(home()); } catch (e) {}

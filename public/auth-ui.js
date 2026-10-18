@@ -1548,7 +1548,23 @@
     try { return new Intl.NumberFormat("en-IN", { style: "currency", currency: cur || "INR", maximumFractionDigits: 2 }).format(Number(v) || 0); }
     catch (e) { return (cur || "INR") + " " + (Number(v) || 0).toFixed(2); }
   }
-  function day(v) { if (!v) return "—"; try { return new Date(v).toLocaleDateString(undefined, { dateStyle: "medium" }); } catch (e) { return String(v); } }
+  // QA B2: a calendar day ("2026-10-29", e.g. trial_ends_at) is never shifted by a time zone (new Date("YYYY-MM-DD")
+  // is UTC midnight, which showed the day before in a zone west of UTC); a timestamp is shown in the STUDIO's zone.
+  // India format ("29 Oct 2026"), the same as BPStore.fmtStudioDate.
+  function day(v) {
+    if (!v) return "—";
+    var s = typeof v === "string" ? v.trim() : v, m = typeof s === "string" ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(s) : null;
+    var f = { day: "numeric", month: "short", year: "numeric" };
+    try {
+      var st = S();
+      if (st && typeof st.fmtStudioDate === "function") { var out = st.fmtStudioDate(s, { style: "long" }); if (out) return out; }
+    } catch (e) {}
+    try {
+      if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)).toLocaleDateString("en-IN", Object.assign({ timeZone: "UTC" }, f));
+      var d = new Date(s); if (isNaN(d.getTime())) return String(v);
+      return d.toLocaleDateString("en-IN", f);
+    } catch (e) { return String(v); }
+  }
   function subscriptionCard(st, sub) {
     var box = doc.getElementById("subCard"); if (!box) return;
     var body = doc.getElementById("subBody"); if (!body) return;
@@ -1650,6 +1666,13 @@
     return { id: "hauTrialNote", tone: urgent ? "urgent" : "", urgent: urgent, dismissible: true,
       title: "Your free trial ends " + when, body: urgent ? "Choose a plan now so nothing stops on your studio." : "Choose a plan to keep using Helm after your trial." };
   }
+  // QA B2/B3 (pure): is this studio on its free trial (running or ended, not yet paid)? my_trial_status() status
+  // 'trial' / state 'trial', or html.helm-trial (trial-lock.js: the server said "trial")
+  function onTrial(t) {
+    // the server's answer wins when we have it (a studio that just paid still has the cached early class for a moment)
+    if (t && typeof t === "object" && ("state" in t || "status" in t)) return t.state === "trial" || t.status === "trial";
+    try { return !!(doc && doc.documentElement && doc.documentElement.classList.contains("helm-trial")); } catch (e) { return false; }
+  }
   function trialDismissedThisSession(key) { try { return sessionStorage.getItem("helm_trial_dismissed_" + key) === "1"; } catch (e) { return false; } }
   var trialShown = false;
   function trialStatus() {
@@ -1661,9 +1684,14 @@
     Promise.all([st.subscription.trial(), demoQ, orgQ]).then(function (both) {
       var t = both[0], d = both[1], o = both[2];
       // 0180: during the free trial the trial strip is the only notice ("Free trial · N days left" +
-      // "Choose a plan"): no "You're exploring demo data" card with its own set-up action
-      if (!(o && o.is_trial_org === true && o.ended !== true && o.locked !== true && t && t.state === "trial")) demoStatus(t, d);
-      var spec = both[2] && both[2].is_trial_org === true ? null : trialNotice(t);
+      // "Choose a plan"): no "You're exploring demo data" card with its own set-up action.
+      // QA B2: "in the trial" is the SUBSCRIPTION's answer (my_trial_status status 'trial', the same rule trial-lock.js
+      // uses for html.helm-trial), not only a start_trial() studio (my_trial_org is_trial_org): a trial studio made
+      // another way used to get the old "ends in N days / Set up your studio" card + the demo-data card instead.
+      if (!onTrial(t)) demoStatus(t, d);
+      // the trial strip (trial.js) shows "Free trial · N days left" for every running trial; this notice is only
+      // for a trial that has ENDED on a studio the strip does not cover
+      var spec = (o && o.is_trial_org === true) || (t && t.state === "trial") ? null : trialNotice(t);
       if (!spec || trialShown || !doc.body) return;
       var key = "trial_" + String(t.ends_at || "") + (spec.urgent ? "_u" : "");
       if (spec.dismissible && (noteSnoozed(key) || trialDismissedThisSession(key))) return;
@@ -1671,7 +1699,8 @@
       showNote({ id: spec.id, priority: spec.urgent ? 1 : 4, icon: "clock", tone: spec.tone, role: spec.urgent ? "alert" : "status", compact: true,
         title: spec.title, body: spec.dismissible ? "" : spec.body,
         primary: { label: "Choose a plan", onClick: function () { try { location.assign("checkout.html?next=" + encodeURIComponent(pageName() + ".html")); } catch (e) {} } },
-        secondary: d && d.trial_mode === "demo" && d.has_demo && d.is_admin ? { label: "Set up your studio", onClick: goDemoSwitch } : null,
+        // QA B3: no "Set up your studio" (= remove the samples) here: the trial keeps its sample data
+        secondary: null,
         onDismiss: spec.dismissible ? function () { snoozeNote(key, 1); try { sessionStorage.setItem("helm_trial_dismissed_" + key, "1"); } catch (e) {} } : null, dismissLabel: "Dismiss — remind me tomorrow" });
     }).catch(function () {});
   }
@@ -1693,6 +1722,7 @@
   }
   function goDemoSwitch() {
     try {
+      if (onTrial(null)) return;   // QA B3: never offered during the trial (the sample data stays for the whole trial)
       if (pageName() === "dashboard" && global.HelmTrialDemo && global.HelmTrialDemo.openSwitch) { global.HelmTrialDemo.openSwitch(); return; }
       location.assign("dashboard.html?demo=switch");
     } catch (e) {}
@@ -1748,6 +1778,8 @@
     hideNote: hideNote,
     trialNotice: trialNotice,
     demoNotice: demoNotice,
+    onTrial: onTrial,
+    _day: day,
     _safeQr: safeQr,
   };
 })(window);

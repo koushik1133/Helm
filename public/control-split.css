@@ -19,7 +19,7 @@
 .cs-search:focus-within .cs-search-ico{border-color:var(--cs-acc)}
 .cs-search:focus-within .cs-search-ico::after{background:var(--cs-acc)}
 .cs-kbd{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-family:inherit;font-size:11px;font-weight:500;line-height:1;color:rgba(60,60,67,.6);border:0;border-radius:6px;padding:4px 6px;background:rgba(255,255,255,.85);box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 1px 1px rgba(0,0,0,.06);pointer-events:none}
-.cs-results{position:absolute;left:0;top:100%;margin-top:8px;z-index:40;width:max(100%,360px);max-height:380px;overflow:auto;overscroll-behavior:contain;background:rgba(255,255,255,.96);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border:.5px solid rgba(0,0,0,.1);border-radius:14px;box-shadow:0 12px 32px -8px rgba(0,0,0,.18),0 2px 6px rgba(0,0,0,.05);padding:6px}
+.cs-results{position:absolute;left:0;top:100%;margin-top:8px;z-index:40;width:100%;max-height:380px;overflow:auto;overscroll-behavior:contain;background:rgba(255,255,255,.96);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border:.5px solid rgba(0,0,0,.1);border-radius:14px;box-shadow:0 12px 32px -8px rgba(0,0,0,.18),0 2px 6px rgba(0,0,0,.05);padding:6px}
 .cs-results[hidden]{display:none}
 .cs-results button,.cs-results .cs-opt{display:block;width:100%;box-sizing:border-box;text-align:left;border:0;background:none;padding:9px 12px;border-radius:9px;font:inherit;font-size:14px;letter-spacing:-.01em;color:#1c1c1e;cursor:pointer;transition:background-color .12s ease}
 .cs-results .cs-opt+.cs-opt{margin-top:1px}

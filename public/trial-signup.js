@@ -206,6 +206,9 @@
     // 0180: the server flags it too (organizations.trial_welcome_pending), so it also shows when the
     // e-mail confirm link is opened on another device; this browser flag is only the fallback.
     try { global.localStorage.setItem("bp_trial_welcome", String(Date.now())); } catch (e) {}
+    // QA B26: the new studio IS a free trial - the very first app page is locked before first paint
+    // (trial-early.js / shell-proto.js read this cached flag; trial-lock.js clears it if the server says otherwise)
+    try { global.localStorage.setItem("helm.trial", "1"); } catch (e) {}
     return r;
   }
 

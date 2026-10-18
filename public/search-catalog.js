@@ -193,6 +193,29 @@
 
   var SECBY = {}; SECTIONS.forEach(function (s) { SECBY[s.key] = s; });
 
+  /* QA B5: what a studio on its FREE TRIAL never gets, so search never lists it (the pages / sections are locked
+     there anyway: trial-lock.js covers the pages, control-split.js locks the sections).
+     TRIAL_OFF_SECTIONS = control-split.js TRIAL_OFF (keep the two lists the same);
+     TRIAL_OFF_PAGES = studio set-up (onboarding, import), checklist templates, the activity log, Reports & exports. */
+  var TRIAL_OFF_SECTIONS = { general: 1, links: 1, data: 1, compliance: 1, notify: 1, reminders: 1, renders: 1, privacy: 1, ltemplates: 1 };
+  var TRIAL_OFF_PAGES = { setup: 1, templates: 1, audit: 1, reports: 1 };
+  var TRIAL_OFF_HREF = /(^|\/)(onboarding|templates|audit|reports)(\.html)?([?#\/]|$)/;
+  function trialOff(e) {
+    if (!e || typeof e !== "object") return false;
+    if (e.kind === "page" && TRIAL_OFF_PAGES[e.key]) return true;
+    if ((e.kind === "section" || e.kind === "setting") && TRIAL_OFF_SECTIONS[e.sec]) return true;
+    return typeof e.href === "string" && TRIAL_OFF_HREF.test(e.href);
+  }
+  /* is the page showing a free-trial studio? (html.helm-trial is set by trial-lock.js once the server says "trial") */
+  function trialNow() {
+    try { return typeof document !== "undefined" && !!document.documentElement && document.documentElement.classList.contains("helm-trial"); } catch (e) { return false; }
+  }
+  /* the list without the trial-off entries when trial is true (trial undefined -> asks the page) */
+  function forTrial(list, trial) {
+    if (trial === undefined) trial = trialNow();
+    return trial ? (list || []).filter(function (e) { return !trialOff(e); }) : (list || []);
+  }
+
   function settingHref(sec, text) {
     var s = SECBY[sec]; if (!s) return "control.html";
     return "control.html" + (text ? "?cs=" + encodeURIComponent(String(text).slice(0, 80)) : "") + s.hash;
@@ -227,7 +250,8 @@
 
   /* everything this person may open, as flat search entries:
      {kind:"page"|"section"|"setting"|"account", text, context, keywords, href?, open?, sec?} */
-  function entriesFor(auth, features) {
+  function entriesFor(auth, features, opts) {
+    var trial = opts && typeof opts.trial === "boolean" ? opts.trial : undefined;
     var cache = {};
     var pages = Promise.all(PAGES.map(function (p) { return canSee(p.gate, auth, features, cache); }));
     var secs = Promise.all(SECTIONS.map(function (s) { return canSee(s.gate, auth, features, cache); }));
@@ -243,7 +267,7 @@
         out.push({ kind: "setting", sec: x[0], text: x[1], context: "Control Center " + SECBY[x[0]].label, keywords: x[2] + " " + SECBY[x[0]].kw, href: settingHref(x[0], x[1]) });
       });
       ACCOUNT.forEach(function (a) { out.push({ kind: "account", id: a.id, text: a.text, context: "Your account", keywords: a.kw, open: a.open, boost: 0.2 }); });
-      return out;
+      return forTrial(out, trial);   // QA B5: no trial-off pages / sections / settings in a free trial
     });
   }
 
@@ -265,5 +289,6 @@
     return inText.concat(all.filter(function (e) { return inText.indexOf(e) < 0; })).slice(0, limit || 12);
   }
 
-  return { PAGES: PAGES, SECTIONS: SECTIONS, SETTINGS: SETTINGS, ACCOUNT: ACCOUNT, openAccountItem: openAccountItem, settingHref: settingHref, canSee: canSee, entriesFor: entriesFor, rank: rank };
+  return { PAGES: PAGES, SECTIONS: SECTIONS, SETTINGS: SETTINGS, ACCOUNT: ACCOUNT, openAccountItem: openAccountItem, settingHref: settingHref, canSee: canSee, entriesFor: entriesFor, rank: rank,
+    TRIAL_OFF_SECTIONS: TRIAL_OFF_SECTIONS, TRIAL_OFF_PAGES: TRIAL_OFF_PAGES, trialOff: trialOff, trialNow: trialNow, forTrial: forTrial };
 });

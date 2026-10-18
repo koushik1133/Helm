@@ -43,9 +43,9 @@ t('banner after converting: prompts to set up the studio', () => {
   const c = notice({ trial_mode: 'demo', has_demo: true, is_admin: true }, { state: 'none' });
   assert.equal(c.converted, true); assert.match(c.action, /^Set up your studio/);
 });
-t('banner is dismissible for the session only + trial notice gets "Set up your studio"', () => {
+t('banner is dismissible for the session only + QA B3: the trial notice no longer offers "Set up your studio"', () => {
   assert.match(AUI, /helm_demo_dismissed_/); assert.match(AUI, /sessionStorage\.setItem\(key, "1"\)/);
-  assert.match(AUI, /label: "Set up your studio", onClick: goDemoSwitch/);
+  assert.doesNotMatch(AUI, /label: "Set up your studio", onClick: goDemoSwitch/); assert.match(AUI, /secondary: null,/);
 });
 t('store-api demo namespace → 0097 RPCs', () => {
   for (const f of ['my_demo_status', 'set_trial_mode', 'seed_demo_data', 'clear_demo_data', 'reset_demo_data']) assert.match(API, new RegExp('rpc\\("' + f + '"'), f);
@@ -91,7 +91,7 @@ t('0097: admin-gated entry points, flag guard, gate wrappers', () => {
 t('MANIFEST + run-all + versions', () => {
   assert.match(read('supabase/migrations/MANIFEST'), /^forward {2}supabase\/migrations\/0097_trial_demo\.sql$/m);
   assert.match(read('scripts/db-test/run-all.sh'), /tests\/db\/trial-demo-0097\.sql/);
-  assert.match(API, /const AUTH_UI_VERSION = "37";/);
+  assert.match(API, /const AUTH_UI_VERSION = "38";/);
 });
 t('0100: seed / reset / load errors are shown (friendlyError toast) with a busy button state', () => {
   assert.match(TD, /BPUI\.friendlyError\(e, \{ action: action \|\| "load the demo data" \}\)/);
@@ -129,7 +129,7 @@ console.log(`trial-demo: ${n} passed`);
   t('0123: start fresh calls the existing clear RPC only; onboarding hook; read-only migration', () => {
     const b = fnSrc(TD, 'startFresh');
     assert.match(b, /S\(\)\.demo\.clear\(\)/); assert.doesNotMatch(b, /rpc\(|delete/);
-    assert.match(read('public/onboarding.html'), /<script src="trial-demo\.js\?v=10"><\/script>/);
+    assert.match(read('public/onboarding.html'), /<script src="trial-demo\.js\?v=11"><\/script>/);
     const M = read('supabase/migrations/0123_trial_start_fresh.sql');
     assert.doesNotMatch(M.replace(/--.*$/gm, ''), /delete from|update public|insert into|drop |truncate/i);
     assert.doesNotMatch(M, /[^\x00-\x7f]/);
