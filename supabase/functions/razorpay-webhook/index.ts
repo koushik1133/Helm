@@ -35,6 +35,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml, UUID_RE } from "../_shared/cors.ts";
 import { quoteCur, symMoney } from "../_shared/money.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped, WEBHOOK_BODY_LIMIT } from "../_shared/limits.ts";
+import { postalAddress, txFooter, withFooter } from "../_shared/email-compliance.mjs";
 
 const enc = new TextEncoder();
 async function hmacHex(secret: string, body: string) {
@@ -64,10 +65,11 @@ function fromHeader(studio: string) {
 async function sendEmail(to: string, subject: string, html: string, from: string, replyTo?: string): Promise<string> {
   const key = Deno.env.get("RESEND_API_KEY"); if (!key) return "simulated";
   if (!to || !EMAIL.test(to)) return "failed";
-  try {
+  const _f = withFooter({ text: "", html }, txFooter("payment", { app: Deno.env.get("APP_URL"), address: postalAddress((k: string) => Deno.env.get(k)) }));
+    try {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to, subject, html, ...(replyTo && EMAIL.test(replyTo) ? { reply_to: replyTo } : {}) }),
+      body: JSON.stringify({ from, to, subject, html: _f.html, ...(replyTo && EMAIL.test(replyTo) ? { reply_to: replyTo } : {}) }),
     });
     await r.text();
     if (!r.ok) console.error("resend error", r.status);

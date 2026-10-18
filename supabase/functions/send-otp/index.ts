@@ -69,7 +69,7 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
       }
     } catch (_) { /* studio name is cosmetic */ }
     const m = otpEmail(code, studio || "your planner");
-    const res = await sendMail({ to: String(dest.email), subject: m.subject, html: m.html, text: m.text, studio, replyTo });
+    const res = await sendMail({ to: String(dest.email), subject: m.subject, html: m.html, text: m.text, studio, replyTo, txReason: "otp" });
     if (res.status === "failed") { console.error("email otp failed", res.provider || ""); return json({ error: "e-mail could not be sent", status: "failed" }, 502); }
     live = res.status === "sent";
   }

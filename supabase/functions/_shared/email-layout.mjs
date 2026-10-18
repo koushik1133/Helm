@@ -52,6 +52,8 @@ export const facts = (rows) =>
 export function layout(title, preheader, inner, opts = {}) {
   const site = opts.site || SITE;
   const sub = opts.sub == null ? "Run every event, end to end." : String(opts.sub);
+  // opts.reason: compliance line (email-compliance.mjs) - "You received this because ..." + Privacy + postal address.
+  const comp = opts.reason ? `<br>You received this because ${escHtml(opts.reason)}. &middot; <a href="${site}/privacy" class="muted" style="color:${C.faint};text-decoration:underline;">Privacy</a> &middot; Helm Events, ${escHtml(opts.address || "[Helm Events postal address - owner to fill]")}` : "";
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
 <head>
@@ -90,7 +92,7 @@ ${inner}
 </table>
 </td></tr>
 <tr><td align="center" class="muted" style="padding:22px 8px 0;font-family:${FONT};font-size:12px;line-height:18px;color:${C.faint};">
-Helm Events &middot; <a href="${site}" class="muted" style="color:${C.faint};text-decoration:underline;">helm.events</a>${sub ? `<br>${escHtml(sub)}` : ""}
+Helm Events &middot; <a href="${site}" class="muted" style="color:${C.faint};text-decoration:underline;">helm.events</a>${sub ? `<br>${escHtml(sub)}` : ""}${comp}
 </td></tr>
 </table>
 </td></tr>

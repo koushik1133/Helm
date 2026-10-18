@@ -347,7 +347,7 @@
       ]
     },
     {
-      "source": "/(404|approve|audit|booklet|budget|builder|business|capture|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|integrations|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|onboarding|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|vendors|work)",
+      "source": "/(404|approve|audit|booklet|budget|builder|business|capture|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|integrations|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|onboarding|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|unsubscribe|vendors|work)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -360,7 +360,7 @@
       ]
     },
     {
-      "source": "/(404|approve|audit|booklet|budget|builder|business|capture|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|integrations|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|onboarding|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|vendors|work)\\.html",
+      "source": "/(404|approve|audit|booklet|budget|builder|business|capture|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|integrations|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|onboarding|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|unsubscribe|vendors|work)\\.html",
       "headers": [
         {
           "key": "X-Robots-Tag",

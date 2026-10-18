@@ -25,6 +25,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { render } from "./templates.ts";
+import { postalAddress, txFooter, withFooter } from "../_shared/email-compliance.mjs";
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com", "graph.facebook.com"]);
@@ -55,11 +56,12 @@ async function sendEmail(id: string, to: string, subject: string, html: string, 
   const conf = Deno.env.get("RESEND_FROM") || "onboarding@resend.dev";
   const m = conf.match(/<([^>]+)>/);
   const from = `"Helm" <${(m ? m[1] : conf).trim()}>`;
-  try {
+  const _f = withFooter({ text: text, html }, txFooter("package", { app: Deno.env.get("APP_URL"), address: postalAddress((k: string) => Deno.env.get(k)) }));
+    try {
     const r = await safeFetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json", "Idempotency-Key": "pkg-" + id },
-      body: JSON.stringify({ from, to: [to], subject, html, text }),
+      body: JSON.stringify({ from, to: [to], subject, html: _f.html, text: _f.text }),
     });
     await r.text();
     if (!r.ok) console.error("pkg-client-notify: email status", r.status);

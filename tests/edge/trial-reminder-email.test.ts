@@ -9,6 +9,7 @@ const REM = "../../supabase/functions/billing-reminder/index.ts";
 const ORG = "b0000000-0000-4000-8000-0000000000a1";
 const RID = "c0000000-0000-4000-8000-0000000000c9";
 const CRON = "cron-shared-secret-xyz";
+const UNSUB_TOKEN = "v1." + "a".repeat(32) + ".6f776e65724073747564696f2d612e696e." + "b".repeat(64);
 const ENV = { SUPABASE_URL: "https://proj.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
   HELM_BILLING_REMINDERS_ENABLED: "true", HELM_BILLING_CRON_SECRET: CRON, RESEND_API_KEY: "re_test",
   RESEND_FROM: "Helm <billing@helm.events>", APP_URL: "https://app.helm.test/" };
@@ -52,6 +53,9 @@ for (const kind of TRIAL_KINDS) {
       if (table === "organizations") return { data: { name: "Studio <A>", business_email: "owner@studio-a.in" }, error: null };
       return { data: null, error: null };
     };
+    // 0165: trial nudges are non-transactional -> opt-out check + signed unsubscribe token
+    g.__supaRpc = (name: string) => name === "email_is_opted_out" ? { data: false, error: null }
+      : name === "email_unsub_token" ? { data: UNSUB_TOKEN, error: null } : { data: null, error: null };
     const r = setEnv(ENV);
     const f = installFetch((url) => { if (url === "https://api.resend.com/emails") return jsonResponse({ id: "e1" }); throw new Error("unexpected " + url); });
     try {
@@ -63,6 +67,10 @@ for (const kind of TRIAL_KINDS) {
       assert(body.html.includes("Studio &lt;A&gt;"));
       assert(body.html.includes('href="https://app.helm.test/checkout"'));
       assert(/trial/i.test(body.subject));
+      assert(body.html.includes(">Unsubscribe</a>") && body.html.includes("https://app.helm.test/unsubscribe?t=" + UNSUB_TOKEN));
+      assertEquals(body.headers["List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
+      assert(body.headers["List-Unsubscribe"].includes("<https://proj.supabase.co/functions/v1/email-unsubscribe?t=" + UNSUB_TOKEN + ">"));
+      assert(body.headers["List-Unsubscribe"].startsWith("<mailto:"));
       const u = supaLog().filter((l) => l.table === "billing_reminders" && l.calls.some((c: any) => c[0] === "update"));
       assertEquals(u.length, 1);
       assert(u[0].calls.some((c: any) => c[0] === "is" && c[1][0] === "sent_at" && c[1][1] === null));
@@ -83,4 +91,23 @@ Deno.test("billing-reminder: unknown kind still counted invalid (no send)", asyn
     const out = await (await h(new Request("https://fn.local/", { method: "POST", headers: { "x-helm-cron-secret": CRON } }))).json();
     assertEquals(out.invalid, 1); assertEquals(fetchLog().length, 0);
   } finally { f(); r(); }
+});
+
+Deno.test("billing-reminder: trial nudge to an opted-out address -> skipped, nothing sent (0165)", async () => {
+  resetSupaMock();
+  g.__supaResolver = (table: string, calls: any[]) => {
+    if (table === "billing_reminders" && calls.some((c: any) => c[0] === "select")) return { data: [{ id: RID, org_id: ORG, kind: "trial_7d", period_end: "2026-10-20" }], error: null };
+    if (table === "organizations") return { data: { name: "Studio A", business_email: "owner@studio-a.in" }, error: null };
+    return { data: null, error: null };
+  };
+  for (const optedOut of [true, null]) {   // null = 0165 not applied (no token) -> fail closed
+    g.__supaRpc = (name: string) => name === "email_is_opted_out" ? { data: optedOut === true, error: null }
+      : name === "email_unsub_token" ? { data: optedOut === null ? null : UNSUB_TOKEN, error: null } : { data: null, error: null };
+    const r = setEnv(ENV); const f = installFetch((url) => { throw new Error("unexpected " + url); });
+    try {
+      const h = await loadHandler(REM);
+      const out = await (await h(new Request("https://fn.local/", { method: "POST", headers: { "x-helm-cron-secret": CRON } }))).json();
+      assertEquals(out.skipped, 1); assertEquals(fetchLog().length, 0);
+    } finally { f(); r(); }
+  }
 });
