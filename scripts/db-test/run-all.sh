@@ -55,6 +55,7 @@ run "country-templates-0092" "COUNTRY-TEMPLATES-0092: ALL PASS \(12/12\)" psql -
 run "country-terms-0093"  "COUNTRY-TERMS-0093: ALL PASS \(6/6\)" psql -q -f tests/db/country-terms-0093.sql
 run "per-currency-0094" "PER-CURRENCY-0094: ALL PASS \(12/12\)" psql -q -f tests/db/per-currency-0094.sql
 run "client-due-0160"  "CLIENT-DUE-0160: ALL PASS \(9/9\)" psql -q -f tests/db/client-due-0160.sql
+run "quote-status-0189" "QUOTE-STATUS-0189: ALL PASS \(19/19\)" psql -q -f tests/db/quote-status-0189.sql
 run "photo-render-0095" "PHOTO-RENDER-0095: ALL PASS \(21/21\)" psql -q -f tests/db/photo-render-0095.sql
 # early: later suites re-apply 0027 / 0052 / 0093 over the 0097 demo gate wrappers
 run "trial-demo-0097"   "TRIAL-DEMO-0097: ALL PASS \(51/51\)" psql -q -f tests/db/trial-demo-0097.sql

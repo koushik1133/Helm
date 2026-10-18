@@ -20,15 +20,18 @@ t('1 store: approvedChangeTotals sums approved price deltas per quote in one rea
   assert.match(f, /c\.status === "approved"/);
 });
 t('1 quotes list renders base + approved changes, fail-soft', () => {
-  assert.match(QH, /const listTotal=\(x\)=>\{ const b=Number\(x\.total\)\|\|0; return b \? Math\.round\(\(b\+\(Number\(chgTotals\[x\.id\]\)\|\|0\)\)\*100\)\/100 : 0; \};/);
+  // qts-1018: the rule now lives once in store-api (BPStore.invoiceTotal), shared with the workspace header
+  assert.match(QH, /const listTotal=\(x\)=>BPStore\.invoiceTotal\(x, chgTotals\[x\.id\]\);/);
   assert.match(QH, /\$\{listTotal\(x\)\?esc\(BPStore\.quoteMoney\(listTotal\(x\),x\)\)/);
   assert.match(QH, /refreshStale\(\); refreshChanges\(\);/);
   assert.match(QH, /async function refreshChanges\(\)\{[\s\S]{0,400}\}catch\(_\)\{\}/);
   // behaviour: 82,600 + approved 5,000 = 87,600; no change -> base; no base -> nothing
-  const listTotal = new Function('chgTotals', 'return ' + QH.match(/const listTotal=(\(x\)=>\{[^\n]*?\});/)[1].replace(/;$/, ''));
-  assert.equal(listTotal({ q2: 5000 })({ id: 'q2', total: 82600 }), 87600);
-  assert.equal(listTotal({})({ id: 'q1', total: 77600 }), 77600);
-  assert.equal(listTotal({ q3: 100 })({ id: 'q3', total: 0 }), 0);
+  const body = STORE.slice(STORE.indexOf('BPStore.invoiceTotal = function'), STORE.indexOf('BPStore.studioMoney = function'));
+  const invoiceTotal = new Function('return ' + body.slice(body.indexOf('function'), body.lastIndexOf('};') + 1))();
+  const chg = { q2: 5000 }, listTotal = (x) => invoiceTotal(x, chg[x.id]);
+  assert.equal(listTotal({ id: 'q2', total: 82600 }), 87600);
+  assert.equal(listTotal({ id: 'q1', total: 77600 }), 77600);
+  assert.equal(listTotal({ id: 'q3', total: 0 }), 0);
 });
 t('2+3 migration 0160: additive, confirmed-only due incl. approved changes, stage label', () => {
   assert.ok(!/[^\x00-\x7f]/.test(SQL), 'ASCII only');

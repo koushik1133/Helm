@@ -213,11 +213,13 @@
     {k:"closed",label:"Closed",hint:"Feedback, P&L and archive.",mods:["closure"]},
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
-  // The stored lifecycle stage can lag behind the quote: a confirmed quote is at least "Confirmed",
-  // and once the client's advance is recorded the event is "Booked". Display only — nothing is written.
+  // The stored lifecycle stage can lag behind the quote: a CLIENT-approved (or paid) quote is at least
+  // "Confirmed", and once the client's advance is recorded the event is "Booked". Display only — nothing
+  // is written. qts-1018: a quote the studio only LOCKED (status confirmed, link sent, client not yet
+  // approved) stays on "Quote" - the same "Sent · awaiting client approval" the header + Quotes list say.
   const advanceIn=()=> !!ev && (ev.approvalStatus==="paid" || !!(settleSummary && Number(settleSummary.received)>0));
   const effStage=()=>{ const k=(ev&&ev.lifecycleStage)||"quote";
-    return (ev && ev.status==="confirmed" && stageIndex(k)<stageIndex("confirmed")) ? "confirmed" : k; };
+    return (ev && stageIndex(k)<stageIndex("confirmed") && BPStore.quoteStatus(ev,{advance:advanceIn()}).confirmed) ? "confirmed" : k; };
   const isConfirmed=()=> !!ev && (ev.status==="confirmed" || stageIndex(effStage())>=stageIndex("confirmed"));
   const stageLabel=(s)=> (s.k==="confirmed" && advanceIn()) ? "Booked" : s.label;
 
@@ -228,6 +230,7 @@
   let cardDenied=new Set();
   let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
+  let hdrChange=null;   // qts-1018: this event's approved change-order sum (null = not read yet)
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     const v=b!=null?b:a; return v!=null?inr(v):""; };   // single budget: max, else an old min
 
@@ -262,7 +265,11 @@
     // Share booklet button (it could not open, so links could not be revoked from here).
     { const bk=document.getElementById("bkShare"); if(bk && ev && ev.id){ bk.setAttribute("data-quote", ev.id); if(window.HelmBookletShare) HelmBookletShare.reveal(bk); } }
     if(!ev){ $("#notfound").hidden=false; return; }
+    hdrChange=null;
     $("#app").hidden=false; render();   // paint the workspace shell instantly; summaries fill in below
+    // qts-1018: the header total's change orders - its own small read (same call as the Quotes list)
+    if(canFin && BPStore.budget && BPStore.budget.approvedChangeTotals)
+      BPStore.budget.approvedChangeTotals([ev.id||id]).then(m=>{ hdrChange=Number((m||{})[ev.id||id])||0; render(); }).catch(()=>{});
     // All module summaries fire CONCURRENTLY (one burst of requests instead of ~22 serial
     // round-trips) so the workspace opens fast. Each guards itself and never blocks the others.
     const S = (fn) => fn().catch(() => {});
@@ -306,9 +313,12 @@
     render();   // re-paint with the loaded summaries
   }
 
-  // final-1022: a closed event (lifecycle stage closed / closed_at set) says Closed, not Confirmed
-  const statBadge=(s,a,lc)=> (s==="confirmed"&&lc==="closed")?'<span class="stat ok">Closed</span>':s==="confirmed"?(a==="approved"||a==="paid"?'<span class="stat ok">Confirmed</span>':'<span class="stat ok">Confirmed</span>'):s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
-  const apprBadge=(a)=> a==="paid"?'<span class="stat ok" title="The client paid the advance; check Payments for the balance">Advance paid</span>':a==="approved"?'<span class="stat ok">Approved</span>':a==="sent"?'<span class="stat st">Sent for approval</span>':"";
+  // qts-1018: ONE status label (BPStore.quoteStatus - the same words as the Quotes list): status +
+  // client approval + stage folded together; "Confirmed" only once the client approved (or paid).
+  // final-1022 kept: a closed event says Closed.
+  const STAT_CLS={draft:"q",locked:"q",sent:"st",confirmed:"ok",paid:"ok",closed:"ok",cancelled:"no"};
+  const statusBadge=()=>{ const st=BPStore.quoteStatus(ev,{advance:advanceIn()});
+    return `<span class="stat ${STAT_CLS[st.tone]||"q"}" data-status="${esc(st.key)}" title="${esc(st.title)}">${esc(st.label)}</span>`; };
 
   let staleInfo=null;   // 0052: client approval went stale after a price change
   function renderReapproval(){
@@ -332,19 +342,21 @@
     renderReapproval();
     $("#code").textContent=ev.code;
     const evClosed=ev.lifecycleStage==="closed"||!!ev.closedAt;
-    $("#statusBadge").innerHTML=statBadge(ev.status,ev.approvalStatus,evClosed?"closed":ev.lifecycleStage);
-    // confirmed by the studio but the client never opened/approved the link: one clear note, not "Confirmed" + "Sent for approval"
-    $("#apprBadge").innerHTML=(ev.status==="confirmed"&&ev.approvalStatus==="sent")?'<span class="stat st" title="The studio confirmed this event; the client has not approved the online link">Client link not approved</span>':apprBadge(ev.approvalStatus);
-    if(evClosed) $("#apprBadge").textContent="";   // final-1022: a closed event drops the payment/approval badge
+    $("#statusBadge").innerHTML=statusBadge();
+    $("#apprBadge").textContent="";   // qts-1018: the approval state is part of the one label above (never a 2nd pill)
     $("#title").textContent=(window.HelmEventName&&HelmEventName.displayName)?HelmEventName.displayName(ev):(ev.title||ev.code);
     try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[ev.code,ev.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(" "),kind:"event",href:"event.html?id="+encodeURIComponent(id)}); }catch(e){}
     const cl=ev.client||{};
     // the date has its own editable row (#dateRow) and the client name is on the meta line — each shown once
     $("#meta").textContent=[ev.eventType, cl.name?("for "+cl.name):""].filter(Boolean).join(" · ")||"No client details yet";
     { const cLink=$("#clientLink"); if(cLink){ cLink.href="client.html?id="+encodeURIComponent(ev.id||id); cLink.textContent="Client page →"; cLink.hidden=false; } }
-    // the invoice total (quote + approved change orders) once settlement has loaded - same number as Payments & invoice
-    { const inv=(typeof settleSummary!=="undefined"&&settleSummary&&settleSummary.revenue>0)?settleSummary.revenue:evTotal();
-      $("#total").textContent = canFin ? (inv? inr(inv):"—") : "—"; }
+    // qts-1018: the invoice total by the ONE rule the Quotes list uses (BPStore.invoiceTotal: the
+    // server-stamped quote total + approved change orders). It no longer waits for - or silently falls
+    // back when - the settlement summary (one of ~20 parallel reads) fails or is slow.
+    { const chg = hdrChange!=null ? hdrChange : (budgetSummary&&budgetSummary.changeRevenue!=null ? budgetSummary.changeRevenue : null);
+      const inv = BPStore.invoiceTotal(ev, chg);
+      $("#total").textContent = canFin ? (inv? inr(inv):"—") : "—";
+      $("#total").title = canFin && chg==null && inv ? "Quote total - approved change orders are still loading" : ""; }
     const totWrap=$("#total").closest(".tot"); if(totWrap) totWrap.hidden=!canFin;
     renderDateRow();
 
@@ -478,7 +490,7 @@
     if(ev.status==="confirmed") return a==="approved"
       ? 'Client approved — record the advance to book the date.'
       : a==="sent" ? 'Approval link sent — waiting for the client. Record the advance once it arrives.'
-      : 'Quote confirmed — record the client\'s advance to book the date.';
+      : 'Quote priced and locked — send the client the approval link (or record their advance).';
     if(a==="none") return "Not sent yet — confirm the quote, then send the approval link.";
     return `Approval: <b>${esc(a)}</b>`;
   }
@@ -683,6 +695,9 @@
     finally{ btn.disabled=false; btn.textContent="Sign in"; } });
   $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal"&&BPStore.auth.user()) closeLogin(); });
   BPUI.boot(load);
+  // qts-1018: Back/Forward restores this page from the bfcache with the total + status it had when you
+  // left (before a re-price, change order or client approval elsewhere) - load it fresh instead
+  window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&ev) location.reload(); });
 </script>
 </body>
 </html>

@@ -50,7 +50,8 @@ t('portal + booklet + razorpay email: no "paid" wording when only an advance is 
 });
 t('dashboard row formats a quote total in the QUOTE currency', () => {
   const h = read('public/dashboard.html');
-  assert.match(h, /esc\(BPStore\.quoteMoney\(s\.total, s\)\)/); assert.doesNotMatch(h, /" · " \+ inr\(s\.total\)/);
+  // qts-1018: the card shows the invoice total (cardTotal: quote total + approved change orders), still in the QUOTE currency
+  assert.match(h, /esc\(BPStore\.quoteMoney\(cardTotal\(s\), s\)\)/); assert.doesNotMatch(h, /" · " \+ inr\(s\.total\)/);
   assert.equal(B().quoteMoney(306800, { pricing: { taxCountry: 'IN' } }), '₹3,06,800');
 });
 t('dates: dd/mm/yyyy, local (IST) today, no browser-default toLocaleString', () => {

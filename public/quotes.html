@@ -59,7 +59,7 @@
   tbody td{padding:12px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle}
   tbody tr:hover{background:var(--panel-2)}
   .code{font-family:var(--mono);font-weight:600}
-  .refchip{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink-3);background:var(--accent-soft);border-radius:20px;padding:2px 8px}
+  .refchip{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink-3);background:var(--accent-soft);border-radius:20px;padding:2px 8px;white-space:nowrap}
   .muted{color:var(--ink-3);font-size:12px}
   .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px}
   .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
@@ -122,7 +122,7 @@
   .eglist .rl{margin-left:auto;color:var(--ink-3);font-size:12px;text-transform:capitalize}
   .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
-<link rel="stylesheet" href="quotes-polish.css?v=6">
+<link rel="stylesheet" href="quotes-polish.css?v=7">
 <link rel="stylesheet" href="theme.css?v=80">
 <script src="/shell-proto.js?v=23" id="shellProto"></script>
 </head>
@@ -143,7 +143,7 @@
     <div class="tabs" id="tabs" role="group" aria-label="Show quotes">
       <button type="button" data-f="all" class="on" aria-pressed="true">Active</button>
       <button type="button" data-f="quote" aria-pressed="false">Quotes</button>
-      <button type="button" data-f="confirmed" aria-pressed="false">Confirmed</button>
+      <button type="button" data-f="confirmed" aria-pressed="false" title="Priced and locked quotes: sent to the client (awaiting approval) and client-confirmed events">Sent &amp; confirmed</button>
       <button type="button" data-f="attention" aria-pressed="false">⚠ Attention</button>
       <button type="button" data-f="archived" aria-pressed="false">Archive<span class="tcount" id="cnt_archived" hidden></span></button>
       <button type="button" data-f="deleted" aria-pressed="false" id="tab_deleted" hidden>Deleted<span class="tcount" id="cnt_deleted"></span></button>
@@ -294,9 +294,10 @@
   const inr = (n)=> (curTax && curTax.country!=="IN") ? BPStore.tax.money(Number(n||0), curTax) : "₹"+Number(n||0).toLocaleString("en-IN");
   const fmtDate=(iso)=>{try{return BPStore.fmtDay(iso)||"—";}catch{return "—";}};
   // shared status pills (ui-kit .hs-pill); the old .stat class stays as the fallback if ui-kit.css doesn't load
-  // confirmed by the studio but not yet approved/paid by the client → say so (not a bare "Confirmed")
-  const statBadge=(s,a)=> s==="confirmed"?(a==="approved"||a==="paid"?'<span class="stat hs-pill hs-confirmed">Confirmed</span>':'<span class="stat hs-pill hs-confirmed">Confirmed · awaiting client approval</span>'):s==="cancelled"?'<span class="stat hs-pill hs-overdue">Cancelled</span>':'<span class="stat hs-pill hs-draft">Quote</span>';
-  const apprBadge=(a)=> a==="paid"?'<span class="stat hs-pill hs-paid">Paid</span>':a==="approved"?'<span class="stat hs-pill hs-confirmed">Approved</span>':a==="sent"?'<span class="stat hs-pill hs-sent">Sent</span>':"";
+  // qts-1018: ONE label from status + approval + stage (BPStore.quoteStatus) - "Confirmed" only after the
+  // client approved; a locked quote with the link out reads "Sent · awaiting client approval" (never both)
+  const PILL={draft:"hs-draft",sent:"hs-sent",locked:"hs-draft",confirmed:"hs-confirmed",paid:"hs-paid",closed:"hs-archived",cancelled:"hs-overdue"};
+  const statusPill=(x)=>{ const st=BPStore.quoteStatus(x); return `<span class="stat hs-pill ${PILL[st.tone]||"hs-draft"}" data-status="${esc(st.key)}" title="${esc(st.title)}">${esc(st.label)}</span>`; };
 
   let focusPending=true;
   let quotes=[], filter="all", typeFilter="", canEdit=false, canDelete=false, canCreate=false, canMarkPaid=false;
@@ -474,7 +475,7 @@
     if(!pager) pager=BPUI.pager({ after: $("#rows").closest(".card"), what:"quotes",
       fetch:(offset)=>shelfPage(offset, ()=>BPStore.quotes.page({ offset, view:viewOf(filter), eventType:typeFilter, search:($("#search").value||"").trim(), sort:"confirmedFirst" })),
       render:(rows,info)=>{ quotes=info.all; render(); refreshStale(); refreshChanges(); } });
-    anyQuotes=null;
+    anyQuotes=null; chgKey=""; staleKey="";   // qts-1018: a reload re-reads change orders + stale approvals too
     return pager.reset();
   }
   // 0052: quotes whose client approval went stale after a price change (fail-soft)
@@ -491,7 +492,8 @@
     try{ if(!(BPStore.budget&&BPStore.budget.approvedChangeTotals)) return; const m=await BPStore.budget.approvedChangeTotals(ids)||{};
       const changed=Object.keys(m).length||Object.keys(chgTotals).length; chgTotals=m; if(changed) render(); }catch(_){}
   }
-  const listTotal=(x)=>{ const b=Number(x.total)||0; return b ? Math.round((b+(Number(chgTotals[x.id])||0))*100)/100 : 0; };
+  // qts-1018: the ONE invoice-total rule (server-stamped total + approved change orders) the workspace header uses
+  const listTotal=(x)=>BPStore.invoiceTotal(x, chgTotals[x.id]);
   const reloadQuiet=()=>reloadList().catch(e=>{ BPUI.loadError($("#rows"), e, reloadQuiet, {what:"quotes"}); });
   function render(){
     $("#rows").removeAttribute("aria-busy");
@@ -534,7 +536,7 @@
         <td><a class="qname" href="event.html?id=${esc(encodeURIComponent(x.id))}" title="Open the event workspace"><b>${esc(qName(x))}</b></a><div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
         <td><select class="vsel" data-role="vsel" aria-label="Floor-plan (layout) version of ${esc(x.code)}" title="Floor-plan layout versions — quotation versions (Q1, Q2…) are in the quote's history"><option>Layout v${esc(x.currentVersion)}</option></select></td>
-        <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat hs-pill hs-overdue">Deleted</span> ':'<span class="stat hs-pill hs-archived">Archived</span> '):''}${needsAttention(x)?'<span class="stat hs-pill hs-overdue" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat hs-pill hs-archived">Closed · Archived</span>':statBadge(x.status,x.approvalStatus)} ${apprBadge(x.approvalStatus)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
+        <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat hs-pill hs-overdue">Deleted</span> ':'<span class="stat hs-pill hs-archived">Archived</span> '):''}${needsAttention(x)?'<span class="stat hs-pill hs-overdue" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat hs-pill hs-archived">Closed · Archived</span>':statusPill(x)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
         <td style="text-align:right" class="amt">${listTotal(x)?esc(BPStore.quoteMoney(listTotal(x),x)):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
@@ -1110,6 +1112,9 @@
     try{ history.replaceState(null, "", location.pathname); }catch(e){}
     BPUI.boot(async () => { await load(); if(canCreate) startNewQuote($("#newBtn"), openTo); });
   } else BPUI.boot(load);
+  // qts-1018: Back/Forward restores this page from the bfcache with the totals + statuses it had
+  // when you left (e.g. before a re-price or approval in the workspace) - re-read the list
+  window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&pager) reloadQuiet(); });
 </script>
 <script src="saved-filters.js?v=2"></script>
 </body>

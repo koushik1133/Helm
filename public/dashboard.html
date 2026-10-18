@@ -428,7 +428,7 @@
     // HEAD count queries and the next-code hint from just today's codes.
     if (!pager) pager = BPUI.pager({ after: $("#elist"), what: "quotes",
       fetch: (offset) => BPStore.quotes.page({ offset, sort: "updated" }),
-      render: (rows, info) => { summaries = info.all; renderList(); } });
+      render: (rows, info) => { summaries = info.all; renderList(); refreshInvoiceTotals(); } });
     const [, createRes, deleteRes, listRes, countRes, codeRes] = await Promise.allSettled([
       BPStore.bell.mount($("#bell")),                       // was try/catch {} → swallow
       BPStore.auth.can("create"),
@@ -460,9 +460,18 @@
     renderMyTasks();                                        // Build 3 — bucketed personal tasks (best-effort)
   }
   const inr = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
-  // final-1022: a closed event says Closed, not Confirmed
-  const statBadge = (s, lc) => s === "confirmed" ? (lc === "closed" ? '<span class="stat ok">Closed</span>' : '<span class="stat ok">Confirmed</span>')
-    : s === "cancelled" ? '<span class="stat no">Cancelled</span>' : '<span class="stat q">Quote</span>';
+  // qts-1018: ONE status label (BPStore.quoteStatus - same words as Quotes + the workspace):
+  // "Confirmed" only after the client approved; final-1022 kept (a closed event says Closed)
+  const STAT_CLS = { draft: "q", locked: "q", sent: "q", confirmed: "ok", paid: "ok", closed: "ok", cancelled: "no" };
+  const statBadge = (q) => { const st = BPStore.quoteStatus(q);
+    return `<span class="stat ${STAT_CLS[st.tone] || "q"}" data-status="${esc(st.key)}" title="${esc(st.title)}">${esc(st.label)}</span>`; };
+  // qts-1018: the card total = the invoice total (server-stamped total + approved change orders), as on Quotes
+  let invTotals = {}, invKey = "";
+  async function refreshInvoiceTotals() {
+    const key = summaries.map((s) => s.id).join(","); if (key === invKey) return; invKey = key;
+    try { if (!(BPStore.budget && BPStore.budget.invoiceTotals)) return; invTotals = (await BPStore.budget.invoiceTotals(summaries)) || {}; renderList(); } catch (_) {}
+  }
+  const cardTotal = (s) => (invTotals[s.id] != null ? invTotals[s.id] : BPStore.invoiceTotal(s, 0));
   function qName(q) { const H = window.HelmEventName; return H && H.displayName ? H.displayName(q) : (q.title || q.code || ""); }
   function renderList() {
     const host = $("#elist");
@@ -472,8 +481,8 @@
     // card is a mouse convenience that follows the same link.
     host.innerHTML = sorted.map((s) =>
       `<div class="ecard" data-id="${esc(s.id)}">${canDelete ? `<button type="button" class="del" data-id="${esc(s.id)}" title="Delete" aria-label="Delete quote ${esc(s.code)}">✕</button>` : ""}
-        <a class="elink" href="event.html?id=${encodeURIComponent(s.id)}"><b>${esc(qName(s))}</b></a> <span class="refchip" title="Reference code">${esc(s.code)}</span> ${statBadge(s.status, s.lifecycleStage)}
-        <small>v${esc(s.currentVersion)}${s.total ? " · " + esc(BPStore.quoteMoney(s.total, s)) : ""} · ${esc(fmtDate(s.updatedAt))}</small></div>`).join("");
+        <a class="elink" href="event.html?id=${encodeURIComponent(s.id)}"><b>${esc(qName(s))}</b></a> <span class="refchip" title="Reference code">${esc(s.code)}</span> ${statBadge(s)}
+        <small>v${esc(s.currentVersion)}${cardTotal(s) ? " · " + esc(BPStore.quoteMoney(cardTotal(s), s)) : ""} · ${esc(fmtDate(s.updatedAt))}</small></div>`).join("");
     host.querySelectorAll(".ecard").forEach((c) => c.addEventListener("click", (e) => {
       if (e.target.closest(".del, a")) return;
       location.href = "event.html?id=" + encodeURIComponent(c.dataset.id);   // open the Event Workspace hub
