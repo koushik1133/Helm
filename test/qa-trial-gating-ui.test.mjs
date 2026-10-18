@@ -180,4 +180,27 @@ t('B26: a new trial is locked from its very first page (cached flag at sign-up);
   for (const f of ['public/trial-lock.js', 'public/shell-proto.js', 'public/store-api.js', 'public/builder.html']) assert.match(r(f), new RegExp('trial-lock\\.css\\?v=' + v), f);
 });
 
+// ---------------------------------------------------------------------------------------------- review
+t('review: the dashboard "Finish setting up your studio" nudge is hidden in the trial (not only its link)', () => {
+  assert.match(TLC, /html\.helm-trial #obNudge[^{]*\{ display: none !important; \}/);
+});
+{
+  // async: run before the summary line (t() is sync, so this one awaits on its own)
+  const name = 'review: trial-demo trialNow() - a confirmed trial refuses at once; the early (cached) class asks the server';
+  const src = fnSrc(TD, 'trialOn') + '\nglobalThis.trialNow = async ' + fnSrc(TD, 'trialNow') + ';';
+  const run = async (cls, sub) => {
+    const ctx = { doc: docStub(cls), S: () => ({ subscription: { trial: async () => { if (sub instanceof Error) throw sub; return sub; } } }) };
+    vm.createContext(ctx); vm.runInContext(src, ctx);
+    return ctx.trialNow();
+  };
+  try {
+    assert.equal(await run(['helm-trial'], { state: 'none', status: 'active' }), true);                    // confirmed class wins
+    assert.equal(await run(['helm-trial', 'helm-trial-early'], { state: 'none', status: 'active' }), false); // just paid: server says no
+    assert.equal(await run(['helm-trial', 'helm-trial-early'], new Error('offline')), true);                 // cannot ask: refuse
+    assert.equal(await run([], { state: 'trial', status: 'trial' }), true);
+    assert.equal(await run([], { state: 'none', status: 'active' }), false);
+    n++; console.log('ok - ' + name);
+  } catch (e) { failed++; console.error('FAIL - ' + name + '\n', e); process.exitCode = 1; }
+}
+
 console.log(`qa-trial-gating-ui: ${n} passed${failed ? ', ' + failed + ' FAILED' : ''}`);

@@ -91,9 +91,12 @@
   }
   const TRIAL_KEEP = "Your free trial keeps its sample data for the whole trial. Choose a plan to start your own studio.";
   async function trialNow() {
-    if (trialOn(null)) return true;
+    // a CONFIRMED trial class wins; the early (cached, unconfirmed) class asks the server, so a studio that just
+    // paid is not refused while trial-lock.js is still checking (refuses if the server cannot be asked)
+    const early = (() => { try { return !!(doc && doc.documentElement && doc.documentElement.classList.contains("helm-trial-early")); } catch (e) { return false; } })();
+    if (trialOn(null) && !early) return true;
     try { const st = S(); if (st && st.subscription && st.subscription.trial) return trialOn(await st.subscription.trial()); } catch (e) {}
-    return false;
+    return trialOn(null);
   }
 
   /* ---- actions ------------------------------------------------------------ */

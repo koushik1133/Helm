@@ -36,7 +36,8 @@ html.helm-trial a.hb-item[data-key="templates"], html.helm-trial a.hb-item[data-
 html.helm-trial [data-fkey="audit"], html.helm-trial [data-fkey="setup"], html.helm-trial [data-fkey="templates"], html.helm-trial [data-fkey="reports"],
 html.helm-trial a[href="reports.html"], html.helm-trial a[href="/reports.html"], html.helm-trial a[href$="/reports"], html.helm-trial a[href^="reports.html?"], html.helm-trial a[href^="/reports.html?"],
 html.helm-trial a[href*="audit.html"], html.helm-trial a[href*="/audit?"],
-html.helm-trial #moreMenu { display: none !important; }
+html.helm-trial #moreMenu,
+html.helm-trial #obNudge { display: none !important; }   /* review: the dashboard "Finish setting up your studio" nudge (its Resume link is hidden above) */
 .tl-note { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: var(--paper-2, #f3f5f2); color: var(--ink-2, #333); font-size: 13px; }
 .tl-block { max-width: 520px; margin: 12vh auto; padding: 28px 24px; text-align: center; border-radius: 16px; background: var(--paper, #fff); border: 1px solid var(--line, #e5e7e3); }
 .tl-block h2 { margin: 0 0 8px; font-size: 20px; }
