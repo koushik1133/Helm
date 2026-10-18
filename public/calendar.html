@@ -80,6 +80,7 @@
 </style>
 <link rel="stylesheet" href="calendar-polish.css?v=4">
 <link rel="stylesheet" href="crew-schedule.css?v=4">
+<link rel="stylesheet" href="events-calendar.css?v=1">
 <link rel="stylesheet" href="capacity-shortage.css?v=3"><link rel="stylesheet" href="theme.css?v=83">
 <script src="/shell-proto.js?v=28" id="shellProto"></script>
 </head>
@@ -99,8 +100,18 @@
 
   <div id="boot" aria-busy="true"></div>
   <div id="app" hidden>
+    <div class="cv-bar" id="cvBar" hidden>
+      <div class="cv-tabs" role="tablist" aria-label="Calendar view">
+        <button type="button" role="tab" id="cvTabEvents" data-cv="events" aria-controls="cvEvents" aria-selected="true">Events</button>
+        <button type="button" role="tab" id="cvTabTeam" data-cv="team" aria-controls="cvTeam" aria-selected="false" tabindex="-1">Team</button>
+      </div>
+      <p class="cv-hint" id="cvHint">Which event is on when</p>
+    </div>
+    <div id="cvEvents" role="tabpanel" aria-labelledby="cvTabEvents" hidden><section id="evcal" class="evc" aria-labelledby="evcTitle"></section></div>
+    <div id="cvTeam" role="tabpanel" aria-labelledby="cvTabTeam">
     <section id="schedule" class="csched" hidden aria-labelledby="schedTitle"></section>
-    <h2>Conflicts</h2>
+    </div>
+    <h2 id="conflictsH">Conflicts</h2>
     <div id="conflicts"><p class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></p></div>
 
     <h2 class="s-a26bda7">Upcoming events &amp; commitments</h2>
@@ -124,6 +135,7 @@
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script>
 <script src="tour.js?v=19"></script>
 <script src="crew-schedule.js?v=5"></script>
+<script src="events-calendar.js?v=1"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
   const $=(s)=>document.querySelector(s);
@@ -138,7 +150,7 @@
   const evName=(e)=>{ const H=window.HelmEventName; if(H&&H.listName) return H.listName(e); const t=String((e&&e.title)||"").trim(); return !t||t===(e&&e.code)?"Untitled event":t; };
   /* HelmUI empty state (guarded: falls back to the plain message if the kit isn't loaded) */
   const hEmpty=(host,o,cols)=>{ const H=window.HelmUI; if(!(H&&H.emptyState)||!host) return false; const n=H.emptyState(o); if(cols){ const tr=document.createElement("tr"),td=document.createElement("td"); td.colSpan=cols; td.className="hs-empty-cell"; td.appendChild(n); tr.appendChild(td); host.replaceChildren(tr); } else host.replaceChildren(n); return true; };
-  let schedUI=null, canEdit=false, data=null, leadDates=[], canLeads=false, canQuotes=true;
+  let schedUI=null, canEdit=false, data=null, leadDates=[], canLeads=false, canQuotes=true, evUI=null, sampleIds=new Set(), cvTeamOk=false, cvEventsOk=false;
   // B30: ONE status word with the dashboard / Quotes list (BPStore.quoteStatus): a settled event reads Closed, a
   // locked quote the client has not approved yet is still Tentative (it used to read Confirmed here)
   const qStat=(e)=>{ try{ return BPStore.quoteStatus?BPStore.quoteStatus(e||{}):null; }catch(_){ return null; } };
@@ -250,11 +262,12 @@
   }
   async function load(){
     const pLeads=loadLeadDates();
+    const pSample=(canQuotes&&BPStore.calendar.sampleIds)?BPStore.calendar.sampleIds().catch(()=>[]):Promise.resolve([]);
     try{ data=await BPStore.calendar.load(); }
     catch(e){ $("#conflicts").innerHTML=""; $("#nodateWrap").hidden=true; BPUI.loadError($("#agenda"), e, load, {what:"the calendar"}); return; }
     try{ data.acks=await BPStore.calendar.acks((data.conflicts||[]).map(c=>c.key)); }catch(_){ data.acks=null; }   // 0198: advisory
-    leadDates=await pLeads; $("#lgLead").hidden=!canLeads;
-    render(); if(schedUI&&schedUI.refresh) schedUI.refresh();
+    leadDates=await pLeads; $("#lgLead").hidden=!canLeads; sampleIds=new Set(await pSample);
+    render(); if(schedUI&&schedUI.refresh) schedUI.refresh(); if(evUI) evUI.refresh();
     if(!(data.agenda||[]).length && !canQuotes) await renderCrewEvents();
   }
   // crew-1020: crew can't read quotes, so the agenda is empty - list the events they are assigned to instead
@@ -289,12 +302,72 @@
     if(team&&canStaff){ try{ const ppl=await BPStore.staff.list(); ui.setPeople((ppl||[]).map(p=>({id:p.id,name:p.name}))); }catch(e){} }
     if(sp.get("staff")&&location.hash==="#schedule") el.scrollIntoView({block:"start"});
   }
+  /* cal-events-1018: "Events | Team" switch at the top. Events = which event is on when (month / week / day of every
+     dated event, colour-coded by status); Team = the crew schedule. Remembered per user on this device; default Events.
+     ?cv=events|team or a crew deep link (?staff=… / #schedule) picks the view. Crew (no quotes) only get their schedule. */
+  const SAMPLE_RE=/^\s*Demo \u00b7 /;
+  const unDemo=(s)=>String(s||"").replace(SAMPLE_RE,"");
+  const prefKey=(k)=>"helm.cal"+k+"."+(((BPStore.auth.user&&BPStore.auth.user())||{}).id||"local");
+  const prefGet=(k)=>{ try{ return localStorage.getItem(prefKey(k))||""; }catch(e){ return ""; } };
+  const prefSet=(k,v)=>{ try{ localStorage.setItem(prefKey(k),v); }catch(e){} };
+  // the STUDIO's today (its own timezone, not this device's clock zone)
+  const studioToday=()=>{ try{ const tz=BPStore.studioTimezone&&BPStore.studioTimezone(); return new Intl.DateTimeFormat("en-CA",{timeZone:tz||undefined,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()); }catch(e){ return new Date().toLocaleDateString("en-CA"); } };
+  // what the Events calendar draws: dated, not-cancelled events + open leads with a date
+  function calItems(){
+    const acks=(data&&data.acks)||{}, clashIds=new Set();
+    ((data&&data.conflicts)||[]).forEach(c=>{ if(acks[c.key]) return; (c.events||[]).forEach(e=>{ if(e&&e.id) clashIds.add(e.id); }); });
+    const out=[];
+    ((data&&data.agenda)||[]).forEach(a=>{ const e=a&&a.event; if(!e||!validDate(e.eventDate)) return;
+      const st=String(e.status||"").toLowerCase(); if(st==="cancelled") return;
+      const end=e.eventEndDate||e.endDate||null;
+      out.push({key:"q:"+e.id, kind:st==="confirmed"?"confirmed":"tentative", date:e.eventDate, end:validDate(end)&&end>e.eventDate?end:null,
+        title:unDemo(evName(e))||"Untitled event", code:e.code||"", time:e.eventTime||"", venue:a.venue||(e.client&&e.client.venue)||"", guests:e.guests,
+        type:e.eventType||"", href:"event.html?id="+encodeURIComponent(e.id), sample:sampleIds.has(e.id)||SAMPLE_RE.test(e.title||""), clash:clashIds.has(e.id)}); });
+    leadDates.forEach(l=>out.push({key:"l:"+l.id, kind:"lead", date:l.event_date, title:unDemo(l.name)||"Lead", code:"", time:l.event_time||"",
+      venue:l.venue||"", guests:l.guest_count, type:l.event_type||"", href:"leads.html", sample:l.is_demo===true||SAMPLE_RE.test(l.name||""), clash:false}));
+    return out;
+  }
+  // unacknowledged conflicts per day (the badge on a calendar day)
+  function clashByDay(){ const acks=(data&&data.acks)||{}, m={}; ((data&&data.conflicts)||[]).forEach(c=>{ if(c&&validDate(c.date)&&!acks[c.key]) m[c.date]=(m[c.date]||0)+1; }); return m; }
+  function mountEvents(){
+    if(evUI||!window.HelmEventsCalendar) return;
+    const v=prefGet("Range");
+    evUI=HelmEventsCalendar.mount($("#evcal"),{ items:calItems, conflicts:clashByDay, today:studioToday,
+      kinds:canLeads?["confirmed","tentative","lead"]:["confirmed","tentative"],
+      view:["month","week","day"].includes(v)?v:"month", onView:(x)=>prefSet("Range",x),
+      fmt:(d,o)=>BPStore.fmtStudioDate(d,{fmt:o}) });
+  }
+  let cvNow="";
+  function showView(v,focus){
+    if(v==="team"&&!cvTeamOk) v="events"; if(v==="events"&&!cvEventsOk) v="team";
+    cvNow=v;
+    document.querySelectorAll("#cvBar [role=tab]").forEach(t=>{ const on=t.dataset.cv===v; t.setAttribute("aria-selected",String(on)); t.tabIndex=on?0:-1; if(on&&focus) t.focus(); });
+    $("#cvEvents").hidden=v!=="events"; $("#cvTeam").hidden=v!=="team";
+    $("#cvHint").textContent=v==="events"?"Which event is on when":"Who is working when";
+    if(v==="events") mountEvents(); else if(!schedUI) mountSchedule();
+  }
+  async function setupViews(){
+    const role=String((await BPStore.auth.role().catch(()=>""))||"").toLowerCase(), crewOnly=role==="crew"||role==="worker";
+    cvEventsOk=!!(canQuotes&&!crewOnly&&window.HelmEventsCalendar);
+    cvTeamOk=!!(window.HelmCrewSchedule&&BPStore.ops&&BPStore.ops.crew&&BPStore.ops.crew.schedule);
+    if(!cvEventsOk&&!cvTeamOk){ $("#cvTeam").hidden=true; return; }
+    $("#cvBar").hidden=!(cvEventsOk&&cvTeamOk);
+    const sp=new URLSearchParams(location.search), q=sp.get("cv");
+    const want=q==="team"||q==="events"?q:(sp.get("staff")||location.hash==="#schedule")?"team":(prefGet("View")||"events");
+    showView(want);
+    const tabs=[...document.querySelectorAll("#cvBar [role=tab]")];
+    tabs.forEach((t,i)=>{
+      t.addEventListener("click",()=>{ if(t.dataset.cv!==cvNow){ prefSet("View",t.dataset.cv); showView(t.dataset.cv); } });
+      t.addEventListener("keydown",(e)=>{ const k=e.key; if(!["ArrowLeft","ArrowRight","Home","End"].includes(k)) return; e.preventDefault();
+        const j=k==="Home"?0:k==="End"?tabs.length-1:(i+(k==="ArrowRight"?1:-1)+tabs.length)%tabs.length; prefSet("View",tabs[j].dataset.cv); showView(tabs[j].dataset.cv,true); });
+    });
+  }
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("calendar"))) return;
     [canEdit, canLeads, canQuotes]=await Promise.all([BPStore.auth.canEditArea("calendar"), BPStore.auth.canView("leads").catch(()=>false), BPStore.auth.canView("quotes").catch(()=>false)]); $("#app").hidden=false;
-    mountSchedule();
+    await setupViews();
     await load();
   });
 </script>

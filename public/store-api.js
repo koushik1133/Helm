@@ -2397,7 +2397,8 @@ window.HelmUrl = HelmUrl;
     "event_date,event_time,updated_at,created_at,confirmed_at,client_name:client->>name,client_phone:client->>phone," +
     "client_venue:client->>venue,client_address:client->>address,client_city:client->>city,total:pricing->total," +
     "pricing_client_name:pricing->client->>name,pricing_client_phone:pricing->client->>phone," +
-    "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency";   // B11: each quote's OWN currency
+    "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency," +
+    "pricing_guests:pricing->guests,client_guests:client->>guests";   // B11: each quote's OWN currency; cal-events-1018: guest count (a number, no contact) for the calendar
   // A list VIEW (page) needs even less: the client's name + phone, not the whole client JSON.
   const QUOTE_PAGE_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,current_version,event_date,event_time," +
     "updated_at,created_at,confirmed_at,client_name:client->>name,client_phone:client->>phone,total:pricing->total," +
@@ -2406,6 +2407,8 @@ window.HelmUrl = HelmUrl;
   const nameOnly = (n, p, x) => { const o = {}; if (n != null) o.name = n; if (p != null) o.phone = p;
     if (x) { if (x.client_venue != null) o.venue = x.client_venue; if (x.client_address != null) o.address = x.client_address; if (x.client_city != null) o.city = x.client_city; }
     return o; };
+  // cal-events-1018: the first whole, positive guest count of the candidates (pricing.guests, then client.guests)
+  const listGuests = (...v) => { for (const x of v) { const n = Number(x); if (x != null && x !== "" && Number.isFinite(n) && n > 0) return Math.round(n); } return null; };
   function mapQuoteSummary(q) {
     let pricing = q.pricing;
     if (!pricing) { pricing = {}; if (q.total != null) pricing.total = q.total;
@@ -2419,6 +2422,7 @@ window.HelmUrl = HelmUrl;
       approvalStatus: q.approval_status || "none", approvalToken: q.approval_token,
       currentVersion: q.current_version, client: q.client || {}, pricing, total: pricing.total || 0,
       eventDate: q.event_date || null, eventTime: q.event_time || null,
+      guests: listGuests(q.pricing_guests, q.client_guests, pricing.guests, q.client && q.client.guests),   // cal-events-1018 (null when unknown)
       updatedAt: q.updated_at, createdAt: q.created_at, confirmedAt: q.confirmed_at,
       // 0040 soft shelves (absent → null on a database without them)
       archivedAt: q.archived_at || null, archivedReason: q.archived_reason || null,
@@ -2677,6 +2681,7 @@ window.HelmUrl = HelmUrl;
       lifecycleStage: q.lifecycleStage || "quote",
       currentVersion: q.currentVersion, client: q.client || {}, pricing: q.pricing || {}, total: (q.pricing && q.pricing.total) || 0,
       eventDate: q.eventDate || null, eventTime: q.eventTime || null,
+      guests: listGuests(q.pricing && q.pricing.guests, q.client && q.client.guests),
       updatedAt: q.updatedAt, createdAt: q.createdAt, confirmedAt: q.confirmedAt,
       archivedAt: q.archivedAt || null, deletedAt: q.deletedAt || null })); },
     // local mirror of sbq.page / counts / codesFor / eventTypes (same filters, same order)
@@ -6518,7 +6523,7 @@ window.HelmUrl = HelmUrl;
         const inv = invRes.filter((r) => r.quote_id === e.id && ["reserved", "allocated"].includes(r.status));
         const vend = vendorBk.filter((b) => b.quote_id === e.id && b.status !== "cancelled");
         const crew = [...new Set(tasks.filter((t) => t.quote_id === e.id).map((t) => t.crew_id))];
-        return { event: e, invCount: inv.length, vendCount: vend.length, staffCount: crew.length,
+        return { event: e, invCount: inv.length, vendCount: vend.length, staffCount: crew.length, venue: venueOf(e).name,   // cal-events-1018: event_plan venue first
           items: inv.map((r) => ({ name: (itemById[r.item_id] || {}).name || "item", qty: r.qty })),
           vendorsList: vend.map((b) => (vendById[b.vendor_id] || {}).name || b.label),
           staffList: crew.map((c) => (staffById[c] || {}).name || "crew") };
@@ -6531,6 +6536,15 @@ window.HelmUrl = HelmUrl;
       });
       agenda.forEach((a) => { a.shortages = shortages.filter((x) => x.event && x.event.id === a.event.id); });
       return { agenda, conflicts, shortages, counts: { events: events.length, dated: events.filter((e) => e.eventDate).length } };
+    },
+    // cal-events-1018: ids of this studio's SAMPLE (free-trial seed, is_demo) quotes, for the calendar's "Sample" chip.
+    // Read-only, RLS = own studio; advisory: a database without is_demo / any error = no sample ids.
+    async sampleIds() {
+      if (mode !== "supabase" || !supa) return [];
+      try {
+        const { data, error } = await supa.from("quotes").select("id").eq("is_demo", true).limit(500);
+        return !error && Array.isArray(data) ? data.map((r) => r.id) : [];
+      } catch (e) { return []; }
     },
     // Phase 49 — the conflicts that involve one specific event (for the workspace card)
     async conflictsForEvent(quoteId) {

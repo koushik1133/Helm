@@ -945,6 +945,16 @@
    "file": "public/quotes.html",
    "expr": "nf(p.guests)",
    "why": "confirm-1018 totals: nf = Number(v||0).toLocaleString('en-IN') - digits and separators only"
+  },
+  {
+   "file": "public/events-calendar.js",
+   "expr": "viewMarkup(rg, m, today, cx)",
+   "why": "events calendar (cal-events-1018): month / week / day / agenda markup where every item field (title, code, venue, type, time, href) goes through esc(), dates are YYYY-MM-DD strings built by toS(), day numbers are getUTCDate() numbers and classes are fixed status words (KINDS)"
+  },
+  {
+   "file": "public/events-calendar.js",
+   "expr": "typeOptions",
+   "why": "events calendar type filter: fixed first option + one <option> per event type with value and label esc()'d"
   }
  ]
 }
