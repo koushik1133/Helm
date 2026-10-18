@@ -252,6 +252,13 @@ do $$ declare a uuid := pg_temp.get('A')::uuid; r jsonb; e text; begin
   perform pg_temp.su();
 exception when others then perform pg_temp.su(); insert into _uf values ('6y welcome', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
+-- 0236: the app wrappers refuse Clear / Reset sample data while the studio is on its free trial; this suite
+-- tests what the clear / reset itself does, so it calls the kept bodies (<name>__pre0236) as the studio admin
+do $$ declare f text; begin
+  foreach f in array array['public.clear_sample_data__pre0236()', 'public.reset_demo_data__pre0236()', 'public.clear_demo_data__pre0236()'] loop
+    if to_regprocedure(f) is not null then execute format('grant execute on function %s to authenticated', f); end if;
+  end loop;
+end $$;
 -- ---- 6) clear + reset ---------------------------------------------------------------------------------
 do $$ declare a uuid := pg_temp.get('A')::uuid; b uuid := pg_temp.get('B')::uuid; r jsonb; begin
   -- 0203: a trial studio cannot write task templates from the app any more, so this "own" template is
@@ -262,7 +269,7 @@ do $$ declare a uuid := pg_temp.get('A')::uuid; b uuid := pg_temp.get('B')::uuid
   insert into public.nurture(org_id, name, occasion_type) values (a, 'My real contact', 'custom');
   perform pg_temp.su(); perform pg_temp.put('B1', pg_temp.fp(b));
   perform pg_temp.login('mf_a@t.test');
-  r := public.clear_sample_data();
+  r := public.clear_sample_data__pre0236();
   perform pg_temp.su();
   perform pg_temp.res('70 clear: sample events, leads, nurture, templates gone',
     not exists (select 1 from public.quotes where org_id = a and is_demo) and not exists (select 1 from public.leads where org_id = a and is_demo)
@@ -273,7 +280,7 @@ do $$ declare a uuid := pg_temp.get('A')::uuid; b uuid := pg_temp.get('B')::uuid
     and exists (select 1 from public.nurture where org_id = a and name = 'My real contact'));
   perform pg_temp.res('72 clear: trial B untouched', pg_temp.fp(b) = pg_temp.get('B1'));
   perform pg_temp.login('mf_a@t.test');
-  r := public.reset_demo_data();
+  r := public.reset_demo_data__pre0236();
   perform pg_temp.su();
   perform pg_temp.res('73 reset re-seeds a cleared trial', (select count(*) from public.quotes where org_id = a and is_demo) = 4, r::text);
 exception when others then perform pg_temp.su(); insert into _uf values ('7x clear', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;

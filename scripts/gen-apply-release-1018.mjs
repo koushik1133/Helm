@@ -2,7 +2,7 @@
 // editor with every database change of release/trial-and-fixes-1018, in the canonical MANIFEST order:
 //   1. the trial bundle: APPLY-0173 .. APPLY-0187 (each file that exists, as in APPLY-TRIAL-BUNDLE.sql),
 //      then FIX-0177-existing-trials.sql,
-//   2. APPLY-0189 .. APPLY-0205 (each file that exists, verbatim, each in its own begin / commit),
+//   2. APPLY-0189 .. APPLY-0237 (each file that exists, verbatim, each in its own begin / commit),
 //   3. APPLY-0178-refresh-trials.sql LAST, so the existing trial studios move to the NEWEST sample
 //      (the one 0202 publishes, with the sample event requirements) with every release rule already installed,
 //   4. ONE combined VERIFY grid (the last result the editor shows; every row must say ok = true).
@@ -15,7 +15,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 const ROOT = new URL('..', import.meta.url).pathname;
 const r = (p) => readFileSync(ROOT + p, 'utf8');
 const OUT = 'supabase/APPLY-RELEASE-1018.sql';
-export const LAST_MIGRATION = 205;
+export const LAST_MIGRATION = 237;
 
 // plain-words header for each section (what it does for the owner, in one or two lines)
 const WHAT = {
@@ -49,6 +49,8 @@ const WHAT = {
   '0203': 'Free-trial server gates: no client greeting, fixed sample menu dishes, no activity log, no template edits, checkout says "trial".',
   '0204': 'Signed-out (anon) API tidy: no table grants / "to public" studio policies on 6 tables (link pages use their own functions).',
   '0205': 'Team invitations: a brand-new invitee can always join (service-role helpers for the invite edge functions).',
+  '0236': 'One meaning of "in the free trial": checkout-started trials get the trial screens + client Test mode; package / message settings and sample clear / reset / switch refused in the trial; the admin\'s linked staff row is not a staff slot.',
+  '0237': 'Trial sample data complete: layout version 1 on every sample event, floor plans seat the guests, event menu plans, layout rules + chair / plate types; existing trials get missing rows (insert only); new sample version.',
   '0178': 'LAST: every existing FREE-TRIAL studio is refreshed to the newest sample (its sample rows re-cloned, its own rows kept).',
 };
 
@@ -108,6 +110,8 @@ ${list}
 -- Rows are only written where a section says so: FIX-0177 (India defaults on existing FREE-TRIAL studios),
 -- 0199 (fills EMPTY event budget / guest values from the other copy - never overwrites a value that is there),
 -- 0182 / 0202 (the sample master studio only: builder rates, sample event requirements, one new sample version)
+-- 0237 (the sample master: layout version 1 / floor plans / event plans / layout rules / chair + plate types, one new
+-- sample version; FREE-TRIAL studios: only the missing sample rows, insert only)
 -- and, LAST, REFRESH-0178 (each existing FREE-TRIAL studio's SAMPLE rows are cleared and cloned again from the
 -- newest sample; the studio's own rows are kept). Paid studios are not changed. Everything else is functions,
 -- triggers, policies, grants, new tables and nullable columns.

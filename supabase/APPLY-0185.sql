@@ -549,7 +549,7 @@ select item, ok from (values
                    where i.tbl = 'nurture' and i.row_id = x.id and i.restored_at is null))
       and not exists (select 1 from public.layouts x where x.clean_archived_at is not null and not exists (select 1 from public.studio_clean_start_items i
                    where i.tbl = 'layouts' and i.row_id = x.id and i.restored_at is null))),
-  ('09 the clear used is the is_demo-only _demo_clear', position('_demo_clear' in pg_get_functiondef('public.delete_all_sample_data()'::regprocedure)) > 0
+  ('09 the clear used is the is_demo-only _demo_clear', position('_demo_clear' in pg_get_functiondef(coalesce(to_regprocedure('public.delete_all_sample_data__pre0236()'), 'public.delete_all_sample_data()'::regprocedure))) > 0   -- 0236 trial wrapper: the body it calls
       and position('_demo_clear' in pg_get_functiondef('public.upgrade_data_choice(text, text)'::regprocedure)) > 0),
   ('10 checkout: billing details + Terms can be saved in the free trial (0173 wrapper without the trial guard)',
       to_regprocedure('public.my_studio_account_update__pre0173(jsonb)') is null

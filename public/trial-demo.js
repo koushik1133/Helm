@@ -207,6 +207,7 @@
   }
   /* ---- rendering ---------------------------------------------------------- */
   // inTrial (0180): the studio is ON its free trial -> no "Start my own studio" (the trial keeps the samples)
+  const TRIAL_KEEP = "The sample data stays for your whole free trial. When you choose a plan you decide whether to keep it or remove it.";
   function render(host, v, d, place, inTrial) {
     while (host.firstChild) host.removeChild(host.firstChild);
     if (!v) { host.hidden = true; return; }
@@ -230,6 +231,9 @@
       host.appendChild(el("span", "td-tag", "Sample data"));
       host.appendChild(el("h3", null, "You're exploring a demo studio"));
       host.appendChild(el("p", null, "Sample data: everything marked “Demo ·” is sample data. Messages, approval codes and payment links are switched off for it."));
+      // 0236: the sample data stays for the whole free trial (the server refuses clear / reset / switch there);
+      // what happens to it is chosen when the studio picks a plan (0185)
+      if (admin && inTrial) { host.appendChild(el("p", "td-safe", TRIAL_KEEP)); return; }
       if (admin) {
         const row = el("div", "td-row");
         if (!inTrial) row.appendChild(btn("Start my own studio →", "btn primary", () => startFresh({})));
@@ -242,6 +246,7 @@
     if (v === "leftover") {
       host.appendChild(el("span", "td-tag", "Sample data"));
       host.appendChild(el("h3", null, "Demo data is still in your studio"));
+      if (inTrial) { host.appendChild(el("p", "td-safe", TRIAL_KEEP)); return; }
       host.appendChild(el("p", null, "Remove the sample rows marked “Demo ·” when you no longer need them. Your own data is never touched."));
       const row = el("div", "td-row");
       if (place === "control") { const c = btn("Clear sample data", "btn", () => clearSample(c)); row.appendChild(c); }
@@ -282,7 +287,8 @@
       const q = global.location.search || "";
       // 0180: "Choose a plan" goes straight to the plan page (an old link that still asks to remove the samples first, too)
       if (/[?&]demo=fresh\b/.test(q) && /[?&]then=checkout\b/.test(q)) { global.location.assign("checkout.html?next=dashboard.html"); return; }
-      if (d.is_admin && d.has_demo && /[?&]demo=(switch|fresh)\b/.test(q)) startFresh({});
+      // 0236: no sample clear / switch during the free trial (the server refuses it)
+      if (!inTrial && d.is_admin && d.has_demo && /[?&]demo=(switch|fresh)\b/.test(q)) startFresh({});
     } catch (e) {}
   }
 

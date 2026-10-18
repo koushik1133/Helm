@@ -59,13 +59,14 @@ select pg_temp.put('paid_before', (select string_agg(id || '|' || org_id || '|' 
 
 -- ---- 0x: installed + master + manifest ------------------------------------------------------------
 do $$ declare t text[] := public._sample_clone_tables(); m public.helm_trial_seed_manifest; begin
-  select * into m from public.helm_trial_seed_manifest x where x.is_current;
+  -- 0237 publishes one more sample version after the 0202 one (and adds 4 tables to the clone list)
+  select * into m from public.helm_trial_seed_manifest x where x.notes = public._a202_manifest_note();
   perform pg_temp.res('01 clone list has event_requirements after quotes (+ every 0169 table kept)',
     array_position(t, 'event_requirements') > array_position(t, 'quotes')
     and t @> array['venues', 'vendors', 'crew_members', 'dish_catalog', 'inventory_items', 'menu_templates', 'item_rate_cards',
                    'checklist_templates', 'task_templates', 'coupons', 'studio_layout_templates', 'leads', 'quotes', 'quote_versions',
                    'event_discovery', 'payment_milestones', 'quote_payments', 'event_checklist', 'event_tasks', 'run_sheet_items',
-                   'inventory_reservations', 'event_costs', 'event_closure', 'nurture'] and array_length(t, 1) = 25, t::text);
+                   'inventory_reservations', 'event_costs', 'event_closure', 'nurture'] and array_length(t, 1) >= 25, t::text);
   perform pg_temp.res('02 master: all 7 sample events have 4-7 requirements; all 3 priorities used',
     (select count(*) from public.quotes q where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null) = 7
     and not exists (select 1 from public.quotes q where q.org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and q.deleted_at is null
@@ -77,8 +78,10 @@ do $$ declare t text[] := public._sample_clone_tables(); m public.helm_trial_see
     and not exists (select 1 from public.event_requirements where org_id = 'a5a5a5a5-0166-4000-8000-000000000001'
                       and service not in ('Catering', 'D' || chr(233) || 'cor & flowers', 'Stage & lighting', 'Photography', 'Videography',
                                           'Entertainment / DJ', 'Transport', 'Sound / PA', 'LED wall / screens', 'Security', 'Valet parking')));
-  perform pg_temp.res('04 the 0202 manifest is current, published once, = previous + 1, carries the 41 rows',
+  perform pg_temp.res('04 the 0202 manifest is current (or a later one is), published once, = previous + 1, carries the 41 rows',
     m.notes = public._a202_manifest_note()
+    and (select c.version >= m.version and jsonb_array_length(c.payload #> '{tables,event_requirements}') = 41
+           from public.helm_trial_seed_manifest c where c.is_current)
     and (select count(*) from public.helm_trial_seed_manifest where notes = public._a202_manifest_note()) = 1
     and m.version = (select max(version) from public.helm_trial_seed_manifest where version < m.version) + 1
     and jsonb_array_length(m.payload #> '{tables,event_requirements}') = 41 and (m.counts ->> 'event_requirements')::int = 41
