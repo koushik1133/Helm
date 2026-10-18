@@ -210,6 +210,7 @@
 <link rel="stylesheet" href="comms-settings.css?v=2">
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="studio-templates.css?v=1">
+<link rel="stylesheet" href="menu-pkg-editor.css?v=1">
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
@@ -470,7 +471,7 @@
 
     <div class="card" id="menuCard">
       <h3>Menu packages (Standard / Gold / Premium)</h3>
-      <p class="mnote s-020d693">The 6 fixed menu packages. Set each one's per-plate price and edit its dish list (one dish per line as <code>Category | Dish name | veg|nonveg|special</code>). Staff pick a package on the event's Menu screen to pre-fill the dishes in one click.</p>
+      <p class="mnote s-020d693">The 6 fixed menu packages. Set each one's price per plate and pick its dishes: choose a category, then a dish from your Dishes catalog (veg / non-veg is filled in for you). Remove a dish with its &times;, drag to reorder, or use &ldquo;Paste as text&rdquo; for bulk edits. Staff pick a package on the event's Menu screen to pre-fill the dishes in one click.</p>
       <div id="menuTplList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
     </div>
 
@@ -770,6 +771,7 @@
 <script src="studio-templates-core.js?v=1"></script>
 <script src="studio-templates.js?v=3"></script>
 <script src="item-pricing.js?v=1"></script>
+<script src="menu-pkg-editor.js?v=1"></script>
 <script src="trial-demo.js?v=7"></script>
 <script src="settings-search-core.js?v=1"></script>
 <script src="search-catalog.js?v=2"></script>
@@ -1107,38 +1109,24 @@
     });
   }
 
+  // Menu packages: dishes grouped by category as chips + category / dish dropdowns from the dish catalog
+  // (menu-pkg-editor.js). Free trial (0173): the price per plate is editable, the dishes are read-only.
+  let mpkUI=null;
+  const mpkTrial=()=>document.documentElement.classList.contains("helm-trial");
   async function renderMenuTemplates(){
-    let tpls=[];
-    try{ tpls=(await BPStore.menuTemplates.list(true))||[]; }catch(e){ BPUI.loadError($("#menuTplList"), e, renderMenuTemplates, {what:"menu packages"}); return; }
-    if(!tpls.length){ $("#menuTplList").innerHTML='<div class="row" style="color:var(--ink-3)">No menu packages yet.</div>'; return; }
-    const dishesToText=(arr)=>(arr||[]).map(d=>`${d.c} | ${d.n} | ${d.k||'veg'}`).join("\n");
-    $("#menuTplList").innerHTML = tpls.map(t=>{ const nm=esc(t.name); const k="mt_"+esc(t.id); return `
-      <div class="tpl" data-id="${esc(t.id)}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <strong style="flex:1;min-width:160px">${nm}</strong>
-          <label for="${k}_price" style="font-size:12px;color:var(--ink-3)">₹/plate</label>
-          <input id="${k}_price" class="tpl_price" type="number" min="0" step="1" value="${numAttr(t.price_per_plate,0)}" style="width:120px" aria-label="Price per plate for ${nm}">
-          <label style="font-size:12px;color:var(--ink-3)"><input class="tpl_active" type="checkbox" ${t.active?"checked":""}> active</label>
-        </div>
-        <textarea class="tpl_dishes" aria-label="Dishes in ${nm}, one per line" style="width:100%;min-height:140px;margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px">${esc(dishesToText(t.dishes))}</textarea>
-        <div class="actions" style="margin-top:6px"><button type="button" class="btn primary tpl_save">Save package</button></div>
-      </div>`; }).join("");
-    $("#menuTplList").querySelectorAll(".tpl").forEach(box=>{
-      const sv=box.querySelector(".tpl_save");
-      sv.addEventListener("click",()=>BPUI.guard(sv,async()=>{
-        const dishes=box.querySelector(".tpl_dishes").value.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{
-          const [c,n,k]=l.split("|").map(s=>(s||"").trim());
-          return { c:c||"Other", n:n||c||"", k:(k||"veg").toLowerCase() };
-        }).filter(d=>d.n);
-        const V=BPStore.validate; const fail=(m)=>{ setMsg("err",m); };
-        let pricePerPlate=0; { const raw=box.querySelector(".tpl_price").value; if(raw!==""){ const r=V.money(raw,{field:"Price / plate"}); if(!r.ok){ fail(r.error); return; } pricePerPlate=r.value; } }
-        const patch={ price_per_plate:pricePerPlate,
-          active:box.querySelector(".tpl_active").checked, dishes };
-        try{ await BPStore.menuTemplates.update(box.dataset.id, patch); setMsg("ok","Package saved."); }
-        catch(e){ setMsg("err",errMsg(e,"save the package")); }
-      }));
-    });
+    let tpls=[], cat=[];
+    try{ [tpls,cat]=await Promise.all([BPStore.menuTemplates.list(true), BPStore.dishCatalog.list().catch(()=>[])]); tpls=tpls||[]; }
+    catch(e){ BPUI.loadError($("#menuTplList"), e, renderMenuTemplates, {what:"menu packages"}); return; }
+    if(!tpls.length){ mpkUI=null; $("#menuTplList").textContent=""; const r=document.createElement("div"); r.className="row"; r.style.color="var(--ink-3)"; r.textContent="No menu packages yet."; $("#menuTplList").appendChild(r); return; }
+    const kindText=MENU_AE?{veg:"Vegetarian",nonveg:"Meat / fish (halal)",special:"Special"}:{veg:"Veg",nonveg:"Non-veg",special:"Special"};
+    let sym="\u20b9"; try{ const m=BPStore.studioMoney(0); const k=String(m||"").replace(/[\d.,\s]/g,""); if(k) sym=k; }catch(_){}
+    mpkUI=HelmMenuPkg.render($("#menuTplList"),{ packages:tpls, catalog:cat||[], trial:mpkTrial, kindText, symbol:sym,
+      error:(m)=>setMsg("err",m),
+      save:async(t,patch)=>{ try{ await BPStore.menuTemplates.update(t.id, patch); setMsg("ok",`${t.name||"Package"} saved.`); return true; }
+        catch(e){ setMsg("err",errMsg(e,"save the package")); return false; } } });
   }
+  // the free-trial answer can arrive after the first draw: redraw read-only (unsaved edits are not possible yet)
+  window.addEventListener("helm:trial",()=>{ if(mpkUI && !mpkUI.dirty()) renderMenuTemplates(); });
 
   // Vendors moved to the dedicated Vendors & Partners page (duplicate removed).
 
@@ -1413,6 +1401,7 @@
     try{ dishDefs=await BPStore.smartImport.fieldDefs("menu"); }catch(e){ dishDefs=[]; }
     try{ dishCache=(await BPStore.dishCatalog.list())||[]; }catch(e){ dishCache=[]; BPUI.loadError($("#dishList"), e, renderDishes, {what:"dishes"}); return; }
     drawDishes();
+    if(mpkUI) mpkUI.setCatalog(dishCache);
   }
   function drawDishes(){
     const term=($("#dishFilter").value||"").trim().toLowerCase();
