@@ -106,3 +106,9 @@
 #app.cs-on .p-cro .p-ctrial{font-size:12px;color:var(--ink-3,#6b6573)}
 html:not(.helm-trial) #app .p-cro .p-ctrial,html.helm-trial #app .p-cro .p-cgo{display:none}
 #p_country[hidden]{display:none !important}
+/* B29: User control > Members fits the card at 1366px (side nav + card): long names / e-mails wrap and the row's
+   action buttons wrap onto a second line instead of pushing the table wider than the card */
+#app.cs-on .cs-main .utable td.em{overflow-wrap:anywhere;min-width:14ch}
+#app.cs-on .cs-main .utable td.dn{white-space:normal;overflow-wrap:anywhere;min-width:12ch}
+#app.cs-on .cs-main .utable td.ucact{white-space:normal}
+#app.cs-on .cs-main .utable select{max-width:100%}

@@ -40,7 +40,7 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
   .v{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:8px}
   .v.off{opacity:.6}
-  .v .nm{font-weight:700;font-size:15px}
+  .v .nm{font-weight:700;font-size:15px;overflow-wrap:anywhere;min-width:0}   /* B29: a long unbroken name wraps inside the card */
   .kind{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:20px}
   .kind.vendor{background:var(--accent-soft);color:var(--accent)} .kind.freelancer{background:#f1f1f1;color:#404040}
   .kind.rental{background:#e7f6ee;color:#0f7a43} .kind.supplier{background:#fff7e6;color:#946200}
@@ -74,7 +74,7 @@
 <link rel="stylesheet" href="vendors-polish.css?v=3">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=27" id="shellProto"></script>
+<script src="/shell-proto.js?v=28" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -147,7 +147,7 @@
 <script src="phone-input.js?v=5"></script>
 <script src="form-validate.js?v=1"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=248"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=249"></script>
 <script src="tour.js?v=18"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -192,7 +192,7 @@
       <div style="display:flex;align-items:center;gap:8px"><span class="nm">${esc(v.name)}</span><span class="kind ${esc(v.kind||'vendor')}" style="margin-left:auto">${esc(KIND[v.kind]||v.kind||'Vendor')}</span></div>
       ${v.category?`<div class="meta">${esc(v.category)}</div>`:""}
       ${services.length?`<div class="tags">${services.map(s=>`<span class="tag">${esc(s)}</span>`).join("")}</div>`:""}
-      <div class="meta">${[v.phone,v.email].filter(Boolean).map(esc).join(" · ")}</div>
+      <div class="meta">${[v.phone?phoneTxt(v.phone):"",v.email].filter(Boolean).map(esc).join(" · ")}</div>
       ${histHtml}
       ${canEdit?`<div class="acts"><button type="button" class="ic" data-edit="${esc(v.id)}">Edit</button></div>`:""}
     </div>`;
@@ -224,17 +224,19 @@
     }
     else if(!anyPartners){
       $("#grid").innerHTML=`<div class="empty">No partners yet.${canEdit?` Add your first vendor, freelancer or rental partner.<br><button type="button" class="btn primary" id="emptyAdd">＋ Add your first partner</button>`:""}</div>`;
-      const b=$("#emptyAdd"); if(b) b.addEventListener("click",()=>openForm(null));
+      const b=$("#emptyAdd"); if(b){ b.addEventListener("click",()=>openForm(null)); gateCap(); }
     } else $("#grid").innerHTML='<div class="empty">No partners match this filter. Try another type or clear the search.</div>';
     $("#grid").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openForm(list.find(x=>x.id===b.dataset.edit))));
   }
 
+  // B29: every saved number is shown the same way ("+91 98765 43210"), whether it was typed with spaces or not
+  function phoneTxt(p){ const c=String(p==null?"":p).replace(/[\s\-().]/g,""); try{ if(window.HelmPhone&&HelmPhone.display&&/^\+\d{7,15}$/.test(c)) return HelmPhone.display(c); }catch(e){} return String(p==null?"":p); }
   function openForm(v){
     editingId=v?v.id:null; $("#vm_title").textContent=v?"Edit partner":"＋ Add partner";
     $("#v_name").value=v?v.name||"":""; $("#v_kind").value=v?v.kind||"vendor":"vendor"; $("#v_cat").value=v?v.category||"":"";
     $("#v_phone").value=v?v.phone||"":""; $("#v_email").value=v?v.email||"":"";
     $("#v_services").value=v&&Array.isArray(v.services)?v.services.join(", "):""; $("#v_notes").value=v?v.notes||"":"";
-    $("#vm_deact").hidden=!(v&&canEdit&&v.active!==false); $("#vm_react").hidden=!(v&&canEdit&&v.active===false); $("#vm_err").hidden=true; $("#vModal").hidden=false; formDirty.clean();
+    $("#vm_deact").hidden=!(v&&canEdit&&v.active!==false); $("#vm_react").hidden=!(v&&canEdit&&v.active===false); $("#vm_err").hidden=true; $("#vModal").hidden=false; formDirty.clean(); if(!v) capHint();
     if(!vFv) vFv=vFvBind(); vFv.forEach(b=>{ if(b) b.reset(); }); setTimeout(()=>$("#v_name").focus(),50);
   }
   const formDirty=BPUI.trackDirty($("#vModal"));
@@ -245,13 +247,17 @@
     return [ HV.bind($("#v_name"),{rule:"text",label:"Name",max:120}), HV.bind($("#v_phone"),{rule:"phone",label:"Phone"}), HV.bind($("#v_email"),{rule:"email"}) ]; };
   function closeForm(){ $("#vModal").hidden=true; editingId=null; formDirty.clean(); }
   async function requestCloseForm(){ if($("#vModal").hidden) return; if(!(await BPUI.confirmDiscard(formDirty))) return; closeForm(); }
-  const dupNorm=t=>String(t==null?"":t).normalize('NFKC').toLowerCase().replace(/&/g,' and ').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+  // B14: the trial's sample rows are named "Demo \u00b7 <name>" - the prefix is not part of the name, so
+  // "AV Solutions" next to "Demo \u00b7 AV Solutions" is a possible duplicate (asked, never blocked: the sample is a stand-in)
+  const isDemoRow=r=>!!(r&&(r.is_demo===true||/^\s*Demo \u00b7 /.test(String(r.name||""))));
+  const dupNorm=t=>String(t==null?"":t).replace(/^\s*Demo \u00b7\s*/,"").normalize('NFKC').toLowerCase().replace(/&/g,' and ').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
   const dupDigits=p=>String(p==null?"":p).replace(/\D+/g,"").slice(-10);
   // returns {block:msg}|{ask:msg}|null — compares against ALL records incl. inactive
   function dupCheck(rows,selfId,name,phone,noun){
     const n=dupNorm(name); if(!n) return null; const pd=dupDigits(phone); let ask=null;
     for(const r of rows||[]){
       if(r.id===selfId || dupNorm(r.name)!==n) continue;
+      if(isDemoRow(r)){ ask=ask||`"${r.name}" is a sample ${noun} from the free-trial data. Save yours as a separate ${noun} anyway? (Clear sample data removes the sample later.)`; continue; }
       const rd=dupDigits(r.phone), tag=r.active===false?" (inactive)":"";
       if(!pd||!rd||pd===rd) return {block:`A ${noun} named "${r.name}"${tag} already exists${pd&&rd?" with this phone number":""}. Open the existing record instead of adding a duplicate${r.active===false?" (tick \"Show inactive\" and reactivate it)":""}.`};
       ask=ask||`A ${noun} named "${r.name}"${tag} already exists with a different phone number. Save this one as a separate person/partner anyway?`;
@@ -263,7 +269,9 @@
     const V=BPStore.validate;
     const name=$("#v_name").value.trim(); if(!name){ fail("Name is required."); return; }
     let phone=null;
-    if($("#v_phone").value.trim()){ const pv=V.phone($("#v_phone").value); if(!pv.ok){ fail(pv.error); return; } phone=pv.value; }
+    // B15: one phone rule for every contact (BPStore.staff.phoneE164: per-country length, India = 10 digits) -
+    // "+91 12345" used to pass the loose 7-15 digit check and was saved as +9112345
+    if($("#v_phone").value.trim()){ const pv=BPStore.staff.phoneE164($("#v_phone").value,false); if(!pv.ok){ fail(pv.error); try{ const fv=$("#v_phone")._fv; if(fv) fv.setError(pv.error); }catch(e){} try{ $("#v_phone").focus(); }catch(e){} return; } phone=pv.value; }
     let email=null;
     if($("#v_email").value.trim()){ const ev=V.email($("#v_email").value); if(!ev.ok){ fail(ev.error); return; } email=ev.value; }
     const services=$("#v_services").value.split(",").map(x=>x.trim()).filter(Boolean);
@@ -309,7 +317,12 @@
   $("#kindTabs").addEventListener("click",e=>{ const b=e.target.closest("button[data-k]"); if(!b) return;
     kindF=b.dataset.k; $("#kindTabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); reloadQuiet(); });
 
+  // B29: free trial - "2 of 2 partners used" is shown by the add button (switched off at the cap), not after the form
+  function gateCap(){ if(canEdit&&window.BPUI&&BPUI.capGate) BPUI.capGate([$("#newBtn"),$("#emptyAdd")],"vendors","partners").catch(()=>{}); }
+  // ...and a new-record dialog opened at the cap says so at once (the server would refuse the save)
+  function capHint(){ if(!window.BPUI||!BPUI.trialCap) return; BPUI.trialCap("vendors").then(c=>{ if(c&&c.full&&!editingId&&!$("#vModal").hidden){ $("#vm_err").textContent=BPUI.capText(c,"partners"); $("#vm_err").hidden=false; } }).catch(()=>{}); }
   async function load(){
+    gateCap();
     if(quoteId){
       const [b,q]=await Promise.allSettled([BPStore.bookings.list(quoteId), BPStore.quotes.get(quoteId)]);
       if(b.status==="fulfilled"){ eventBookings=b.value.length; eventVendors=new Set(b.value.map(x=>x.vendor_id).filter(Boolean)); }

@@ -21,6 +21,26 @@
     var o = blank ? [h("option", { value: "", text: blank })] : [];
     return o.concat(list.map(function (x) { return h("option", { value: x[0], text: x[1], selected: x[0] === cur }); }));
   }
+  // B14: same name ignoring case, spacing, punctuation, accents, "&" vs "and" and the trial's "Demo \u00b7 " sample prefix
+  function dupNorm(t) {
+    return String(t == null ? "" : t).replace(/^\s*Demo \u00b7\s*/, "").normalize("NFKC").toLowerCase().replace(/&/g, " and ")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  }
+  function isSampleVenue(r) { return !!(r && (r.is_sample === true || r.is_demo === true || /^\s*Demo \u00b7 /.test(String(r.name || "")))); }
+  // -> {block: msg} | {ask: msg} | null. Your own venue with the same name in the same city (or no city) is refused;
+  // a sample venue, or the same name in another city, is asked about ("Possible duplicate").
+  function venueDup(rows, selfId, name, city) {
+    var n = dupNorm(name); if (!n) return null; var c = ckey(city), ask = null;
+    for (var i = 0; i < (rows || []).length; i++) {
+      var r = rows[i]; if (!r || r.id === selfId || dupNorm(r.name) !== n) continue;
+      var tag = r.active === false ? " (inactive)" : "";
+      if (isSampleVenue(r)) { ask = ask || "\u201c" + r.name + "\u201d is a sample venue. Save yours as a separate venue anyway?"; continue; }
+      var rc = ckey(r.city);
+      if (!c || !rc || c === rc) return { block: "You already have a venue named \u201c" + r.name + "\u201d" + tag + (rc ? " in " + r.city : "") + ". Edit that venue instead of adding it again" + (r.active === false ? " (tick Show inactive and re-activate it)." : ".") };
+      ask = ask || "A venue named \u201c" + r.name + "\u201d" + tag + " already exists in " + r.city + ". Save this one as a separate venue anyway?";
+    }
+    return ask ? { ask: ask } : null;
+  }
   function friendly(e) { try { return (window.BPUI && BPUI.friendlyError) ? BPUI.friendlyError(e, { action: "save the venue" }) : String(e && e.message || e); } catch (_) { return String(e && e.message || e); } }
 
   var state = { rows: [], canEdit: false, isAdmin: false, unit: "m", q: "", type: "", city: "", ac: "", ev: "", inactive: false, editing: null, msg: "", err: "" };
@@ -98,6 +118,9 @@
       (state.isAdmin && (!state.rows.length || state.rows.some(function (r) { return r.is_sample; }))) ? h("button", { type: "button", cls: "btn", id: "vn_samples", text: "Load sample venues", onclick: loadSamples }) : null
     ]);
     root.appendChild(bar);
+    // B29: free trial - "2 of 2 venues used" next to + Add venue (switched off at the cap), not a refusal after the form
+    var addB = document.getElementById("vn_add");
+    if (addB && window.BPUI && BPUI.capGate) BPUI.capGate([addB], "venues", "venues").catch(function () {});
     root.appendChild(h("div", { id: "vn_count", cls: "vn-count", role: "status", "aria-live": "polite", hidden: true }));
     root.appendChild(h("div", { id: "vn_list", cls: "vn-list" }));
     paintList();
@@ -275,7 +298,9 @@
     ]);
     syncDeps(null);
     // typing in a flagged field clears its inline message
-    var clearMine = function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute("aria-invalid") === "true") fieldErr(t, ""); };
+    // B29: ...and the "Fix the highlighted field above." summary goes once no field is flagged any more
+    var clearMine = function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute("aria-invalid") === "true") fieldErr(t, "");
+      if (!errBox.hidden && errBox.getAttribute("data-kind") === "fields" && !el.querySelector('[aria-invalid="true"]')) { errBox.hidden = true; errBox.textContent = ""; errBox.removeAttribute("data-kind"); } };
     el.addEventListener("input", clearMine); el.addEventListener("change", clearMine);
     el.addEventListener("submit", async function (e) {
       e.preventDefault();
@@ -293,13 +318,14 @@
       if (!r.ok) {
         // 1018: each message sits under its own field (was one line at the bottom, near Notes); scroll to + focus the first
         var ids = { name: "vf_name", seated_capacity: "vf_seat", floating_capacity: "vf_float", length: "vf_len", width: "vf_wid", cost_min: "vf_cmin", cost_max: "vf_cmax",
-          map_url: "vf_map", sound_curfew: "vf_curfew", parking_spaces: "vf_park", rooms: "vf_rooms", power_backup_kw: "vf_kw", green_rooms: "vf_green", washrooms: "vf_wash" };
+          map_url: "vf_map", sound_curfew: "vf_curfew", contact_email: "vf_cemail", contact_phone: "vf_cphone", parking_spaces: "vf_park", rooms: "vf_rooms", power_backup_kw: "vf_kw", green_rooms: "vf_green", washrooms: "vf_wash" };
         var per = {}, loose = [];
         r.errors.forEach(function (x) { var id = ids[x.field]; if (id && document.getElementById(id)) (per[id] = per[id] || []).push(x.msg); else loose.push(x.msg); });
         Object.keys(per).forEach(function (id) { fieldErr(document.getElementById(id), per[id].join(" ")); });
         var n = r.errors.length - loose.length;
         errBox.hidden = false;
         errBox.textContent = (n ? (n === 1 ? "Fix the highlighted field above." : "Fix the " + n + " highlighted fields above.") : "") + (loose.length ? (n ? " " : "") + loose.join(" ") : "");
+        if (!loose.length) errBox.setAttribute("data-kind", "fields"); else errBox.removeAttribute("data-kind");
         var first = el.querySelector('[aria-invalid="true"]');
         if (first) {
           try { first.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (_) { try { first.scrollIntoView(); } catch (__) {} }
@@ -308,10 +334,21 @@
         return;
       }
       r.value.active = v.active !== false;
+      var dc = venueDup(state.rows, v.id || null, r.value.name, r.value.city);
+      if (dc && dc.block) { fieldErr(document.getElementById("vf_name"), dc.block); errBox.hidden = false; errBox.textContent = "Fix the highlighted field above."; errBox.setAttribute("data-kind", "fields");
+        try { document.getElementById("vf_name").focus(); } catch (_) {} return; }
+      if (dc && dc.ask) {
+        var go = (window.BPUI && BPUI.confirm) ? await BPUI.confirm(dc.ask, { title: "Possible duplicate", okLabel: "Save anyway" }) : window.confirm(dc.ask);
+        if (!go) return;
+      }
       var btn = document.getElementById("vf_save"); btn.disabled = true;
       try { await S.venues.save(v.id || null, r.value); state.editing = null; state.msg = "Venue saved." + (r.warnings && r.warnings.length ? " " + r.warnings[0].msg : ""); state.err = ""; await reload(); }
       catch (err) { btn.disabled = false; errBox.hidden = false; errBox.textContent = friendly(err); }
     });
+    // B29: a NEW venue form opened at the free-trial cap says so at once (the server would refuse the save)
+    if (!v.id && window.BPUI && BPUI.trialCap) BPUI.trialCap("venues").then(function (c) {
+      if (c && c.full && el.isConnected && errBox.hidden) { errBox.hidden = false; errBox.textContent = BPUI.capText(c, "venues"); }
+    }).catch(function () {});
     return el;
   }
 

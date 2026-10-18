@@ -79,11 +79,13 @@
     return out;
   }
   // which actions to offer
-  function actions(info, requested) {
-    var a = [], free = n(info.available), req = n(requested);
+  // opts.event === false (a check-out not tied to an event): no "Add from vendor" - the sub-rent request is added to an
+  // event, so outside one the button did nothing but copy a note (B29)
+  function actions(info, requested, opts) {
+    var a = [], free = n(info.available), req = n(requested), ev = !(opts && opts.event === false);
     if (free > 0 && free < req) a.push({ key: "partial", label: "Check out the " + free + " available" });
     if ((info.overdue || []).length) a.push({ key: "checkin", label: "Check in returned items (" + info.overdue.length + " overdue)" });
-    a.push({ key: "subrent", label: "Add from vendor / sub-rent " + Math.max(req - free, 0) });
+    if (ev) a.push({ key: "subrent", label: "Add from vendor / sub-rent " + Math.max(req - free, 0) });
     if (free > 0) a.push({ key: "reduce", label: "Reduce quantity to " + free });
     (info.substitutes || []).slice(0, 3).forEach(function (s) { a.push({ key: "sub", item_id: s.item_id, label: "Use " + s.name + " instead (" + n(s.available) + " free)" }); });
     return a;

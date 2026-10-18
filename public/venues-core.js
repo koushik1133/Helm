@@ -82,6 +82,9 @@
     if (map && !/^https:\/\/[^\s<>"]+$/i.test(map)) bad("map_url", "The map link must start with https://");
     var curfew = String(f.sound_curfew || "").trim();
     if (curfew && !/^([01]\d|2[0-3]):[0-5]\d$/.test(curfew)) bad("sound_curfew", "Use a time like 22:00.");
+    // B29: a contact e-mail is an address ("notanemail" used to be saved as it was)
+    var cem = String(f.contact_email || "").trim();
+    if (cem && (cem.length > 254 || !/^[^\s@<>"',;]+@[^\s@<>"',;]+\.[A-Za-z]{2,}$/.test(cem))) bad("contact_email", "Enter a valid e-mail, like name@example.com.");
     var pick = function (list, v, d) { return keys(list).indexOf(v) >= 0 ? v : d; };
     var arr = function (list, v) { var k = keys(list); return (Array.isArray(v) ? v : []).filter(function (x, i, a) { return k.indexOf(x) >= 0 && a.indexOf(x) === i; }); };
     var t = function (k) { var s = String(f[k] == null ? "" : f[k]).trim(); return s || null; };

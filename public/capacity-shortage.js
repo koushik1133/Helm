@@ -14,6 +14,8 @@
   var doc = global.document;
   var fmt = function (n) { return Math.round(Number(n) || 0).toLocaleString("en-IN"); };
   var money = function (n) { try { return global.BPStore && BPStore.studioMoney ? BPStore.studioMoney(n) : "₹" + fmt(n); } catch (e) { return "₹" + fmt(n); } };
+  // B29: options can't show the Sample badge, so "Demo \u00b7 PA Speaker" reads "PA Speaker (sample)" in a picker
+  function optName(n) { var s = String(n == null ? "" : n), m = /^\s*Demo \u00b7\s*/.exec(s); return m ? s.slice(m[0].length) + " (sample)" : s; }
   function h(tag, attrs, kids) {
     var el = doc.createElement(tag);
     Object.keys(attrs || {}).forEach(function (k) {
@@ -189,10 +191,10 @@
         itemSel.textContent = "";
         itemSel.appendChild(h("option", { value: "", text: items.length ? "Pick an item" : "No inventory items yet" }));
         [[tents, "Tents & seating"], [rest, "Other items"]].forEach(function (g) { if (!g[0].length) return;
-          itemSel.appendChild(h("optgroup", { label: g[1] }, g[0].map(function (i) { return h("option", { value: i.id, text: i.name + (i.unit ? " (" + i.unit + ")" : "") }); }))); });
+          itemSel.appendChild(h("optgroup", { label: g[1] }, g[0].map(function (i) { return h("option", { value: i.id, text: optName(i.name) + (i.unit ? " (" + i.unit + ")" : "") }); }))); });
         vendSel.textContent = "";
         vendSel.appendChild(h("option", { value: "", text: vendors.length ? "Pick a vendor" : "No vendors yet - add one under Partners" }));
-        vendors.forEach(function (v) { vendSel.appendChild(h("option", { value: v.id, text: v.name + (v.category ? " · " + v.category : "") })); });
+        vendors.forEach(function (v) { vendSel.appendChild(h("option", { value: v.id, text: optName(v.name) + (v.category ? " · " + v.category : "") })); });
       });
       itemSel.addEventListener("change", function () { var it = items.filter(function (i) { return i.id === itemSel.value; })[0]; if (it && !lbl.value) lbl.value = it.name; });
 
@@ -361,7 +363,8 @@
     var opts = h("div", { cls: "rvs-opts", role: "radiogroup", "aria-label": "How to source the shortfall" }, [
       radio("vendor", "Rent " + fmt(sp.short) + " from a vendor", true), vBox,
       radio("buy", "Outsource / buy " + fmt(sp.short)), bBox,
-      radio("none", sp.take > 0 ? "Reserve the " + fmt(sp.take) + " only - mark " + fmt(sp.short) + " as unsourced" : "Mark " + fmt(sp.short) + " as unsourced for now")]);
+      // B29: plain words, not "unsourced"
+      radio("none", sp.take > 0 ? "Reserve the " + fmt(sp.take) + " only - decide later where the other " + fmt(sp.short) + " come from" : "Decide later - note the " + fmt(sp.short) + " as still to find")]);
     host.appendChild(opts); host.appendChild(err);
     host.appendChild(h("div", { cls: "rvs-acts" }, [go, cancel]));
     function choice() { var r = opts.querySelector('input[name="' + rName + '"]:checked'); return r ? r.value : "none"; }
