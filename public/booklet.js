@@ -288,17 +288,24 @@
     fig.appendChild(s);
     fig.appendChild(el("figcaption", "", "Illustrative preview — heights and finishes are indicative."));
   }
+  // 0069 menu.mode: 'choose' = the server found no package applied/accepted for this quote
+  function menuChoosing(mn) { return !!(mn && mn.mode === "choose"); }
   function renderMenu(d) {
-    const box = clear($("#menuBody")), mn = d.menu || {}, pk = mn.selected_package;
+    const box = clear($("#menuBody")), mn = d.menu || {}, choosing = menuChoosing(mn), pk = choosing ? null : mn.selected_package;
     let any = false;
-    if (pk && pk.name) {
+    if (choosing) {
+      // no package applied for THIS quote: never present a free-text note or a stale name as the chosen package
+      any = true; const c = el("div", "pkg pkg-none"); c.appendChild(el("h3", "", "Choose a package"));
+      c.appendChild(el("p", "meta", "No package has been selected yet. Pick the one that suits you in \u201cChoose your package\u201d and the studio will be notified."));
+      box.appendChild(c);
+    } else if (pk && pk.name) {
       any = true; const c = el("div", "pkg"); c.appendChild(el("h3", "", pk.name));
       const meta = [pk.tier, pk.diet, num(pk.price_per_plate) ? money(pk.price_per_plate) + " per plate" : ""].filter(Boolean).join(" · ");
       if (meta) c.appendChild(el("p", "meta", meta));
       const dishes = Array.isArray(pk.dishes) ? pk.dishes.map((x) => (x && typeof x === "object" ? x.name : x)).filter((x) => typeof x === "string" && x) : [];
       if (dishes.length) { const ul = el("ul", "chips"); dishes.slice(0, 80).forEach((x) => ul.appendChild(el("li", "", x.slice(0, 60)))); c.appendChild(ul); }
       box.appendChild(c);
-    } else if (mn.package) {
+    } else if (mn.package && !choosing) {
       any = true; const c = el("div", "pkg"); c.appendChild(el("h3", "", String(mn.package)));
       if (num(mn.plate_price)) c.appendChild(el("p", "meta", money(mn.plate_price) + " per plate")); box.appendChild(c);
     }
@@ -383,13 +390,15 @@
     const tb = clear($("#payLines"));
     // PP1028 #9: the advance is part of the schedule - show it when the studio set one and no milestone covers it
     ms = withAdvance(ms, total, d.payTerms);
-    if (!ms.length) { const tr = el("tr"); const td = el("td", "empty", line || "The payment schedule will be shared by the studio."); td.setAttribute("colspan", "4"); tr.appendChild(td); tb.appendChild(tr); return; }
-    const shown = msDisplayStatus(ms, p.paid);
+    if (!ms.length) { const tr = el("tr"); const td = el("td", "empty", line || "The payment schedule will be shared by the studio."); td.setAttribute("colspan", "6"); tr.appendChild(td); tb.appendChild(tr); return; }
+    const alloc = msAllocate(ms, p.paid);
     ms.forEach((m, i) => {
       const tr = el("tr"); tr.appendChild(el("td", "", String(m.label || "Payment"))); tr.appendChild(el("td", "", shortDate(m.due_date) || "—"));
-      const st = shown[i];
+      const a = alloc[i], st = a.status;
       const td = el("td"); td.appendChild(el("span", "st " + st, st.replace(/_/g, " "))); tr.appendChild(td);
-      tr.appendChild(el("td", "amt", money(m.amount))); tb.appendChild(tr);
+      tr.appendChild(el("td", "amt", money(m.amount)));
+      tr.appendChild(el("td", "amt", a.paid > 0 ? money(a.paid) : "—"));
+      tr.appendChild(el("td", "amt", a.remaining != null ? money(a.remaining) : "—")); tb.appendChild(tr);
     });
   }
   // PP1028 #9 (display only): prepend an "Advance" row from the studio's advance % when no milestone is the advance
@@ -414,6 +423,23 @@
       const amt = num(list[i] && list[i].amount) || 0;
       if (amt > 0 && left + 0.5 >= amt) { left -= amt; return "paid"; }
       left = 0; return x;
+    });
+  }
+  // Display only: allocate money received to milestones oldest-first (milestones stored as paid take their
+  // full amount first). Each row gets {status, paid, remaining}; a partly covered row reads "part_paid".
+  function msAllocate(ms, paid) {
+    const list = Array.isArray(ms) ? ms : [];
+    const st = list.map((m) => String((m && m.status) || "due").toLowerCase().replace(/[^a-z_]/g, ""));
+    const amt = list.map((m) => Math.max(0, num(m && m.amount) || 0));
+    let left = Math.max(0, (num(paid) || 0) - amt.reduce((a, v, i) => a + (st[i] === "paid" ? v : 0), 0));
+    return st.map((x, i) => {
+      const a = amt[i];
+      if (x === "paid") return { status: "paid", paid: a, remaining: 0 };
+      if (x !== "due" && x !== "overdue" && x !== "pending") return { status: x, paid: 0, remaining: null };
+      const take = Math.min(a, left); left -= take;
+      const rem = Math.round((a - take) * 100) / 100;
+      if (a > 0 && rem <= 0.5) return { status: "paid", paid: a, remaining: 0 };
+      return { status: take > 0.5 ? "part_paid" : x, paid: Math.round(take * 100) / 100, remaining: rem };
     });
   }
   // E6: "Paid in full" | "Balance ₹X due by dd/mm/yyyy" (terms.balance_due_days before the event) | null
@@ -540,7 +566,7 @@
       if (!lay && !snapUrl(d, "layout2d") && !dbImages(d, "layout2d").length) out.layout2d = false;
       if (!lay && !snapUrl(d, "layout3d") && !dbImages(d, "layout3d").length) out.layout3d = false;
       const mn = d.menu || {};
-      if (!(mn.selected_package || mn.package || mn.menu || (Array.isArray(mn.items) && mn.items.length))) out.menu = false;
+      if (!(menuChoosing(mn) || mn.selected_package || mn.package || mn.menu || (Array.isArray(mn.items) && mn.items.length))) out.menu = false;
       if (!quoteLines(d.quote).lines.length && quoteLines(d.quote).total == null) out.quote = false;
       if (!(Array.isArray(d.versions) && d.versions.length)) out.versions = false;
       const p = d.payments || {}; if (!(Array.isArray(p.milestones) && p.milestones.length) && p.paid == null && p.outstanding == null) out.payments = false;
@@ -590,7 +616,7 @@
     if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && d.menu.mode === "hidden")) global.HelmBookletPkg.mount(token, d).catch(() => {});
   }
 
-  global.HelmBooklet = { quoteChanges, withAdvance, balanceLine, msDisplayStatus, render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
+  global.HelmBooklet = { menuChoosing, quoteChanges, withAdvance, balanceLine, msDisplayStatus, msAllocate, render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
   if (doc && doc.getElementById("tocList")) {
     const pb = doc.getElementById("printBtn"); if (pb) pb.addEventListener("click", () => global.print());
     const rt = doc.getElementById("retry"); if (rt) rt.addEventListener("click", () => start());

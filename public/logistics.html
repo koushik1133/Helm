@@ -116,7 +116,7 @@
 
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
-<script src="config.js?v=102"></script>
+<script src="config.js?v=103"></script>
 <script src="event-name.js?v=7"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=240"></script>
 <script src="tour.js?v=14"></script>
@@ -232,9 +232,13 @@
     const owed=ms.filter(m=>m.status!=="waived").reduce((a,m)=>a+Number(m.amount||0),0);
     const due=Math.max(0,(qTotal>0?Math.max(owed,qTotal):owed)-paid);
     // Display only: a milestone counts as covered when cumulative ledger payments reach it (in due-date order).
-    covered=new Set(); let cum=0;
+    // Each row also shows Paid against it + Remaining (receipts allocated oldest milestone first; no data writes).
+    covered=new Set(); alloc=new Map(); let left=Math.max(0,paid-ms.filter(m=>m.status==="paid").reduce((a,m)=>a+Number(m.amount||0),0));
     ms.filter(m=>m.status!=="waived").slice().sort((a,b)=>String(a.due_date||"9999").localeCompare(String(b.due_date||"9999")))
-      .forEach(m=>{ cum+=Number(m.amount||0); if(m.status!=="paid"&&cum<=paid+0.005) covered.add(m.id); });
+      .forEach(m=>{ const a=Math.max(0,Number(m.amount||0));
+        if(m.status==="paid"){ alloc.set(m.id,{paid:a,rem:0}); return; }
+        const take=Math.min(a,left); left-=take; const rem=Math.round((a-take)*100)/100;
+        if(a>0&&rem<=0.005){ covered.add(m.id); alloc.set(m.id,{paid:a,rem:0}); } else alloc.set(m.id,{paid:Math.round(take*100)/100,rem}); });
     const phone=(ev.client&&(ev.client.phone))||"";
     $("#pane").innerHTML = `<h2>Payment schedule</h2><p class="sub">Milestones the client pays across the event. Reminders go through the notification outbox.</p>
       ${canEdit?`<div class="addrow pay">
@@ -242,8 +246,8 @@
         <div class="fld"><label for="m_due">Due date</label><input id="m_due" type="date" data-date-window="recent"></div>
         <div class="fld"><label for="m_amt">Amount ₹</label><input id="m_amt" type="number" min="0" value="0"></div>
         <div class="fld">${SPACER}<button type="button" class="btn primary" id="m_add">＋ Add milestone</button></div></div>`:""}
-      <div class="table-scroll"><table><thead><tr><th scope="col">Milestone</th><th scope="col">Due</th><th scope="col" class="num">Amount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody>${ms.length?ms.map(rowPay).join(""):'<tr><td colspan="5" class="empty">No milestones yet.</td></tr>'}</tbody></table></div>
+      <div class="table-scroll"><table><thead><tr><th scope="col">Milestone</th><th scope="col">Due</th><th scope="col" class="num">Amount</th><th scope="col" class="num">Paid</th><th scope="col" class="num">Remaining</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>${ms.length?ms.map(rowPay).join(""):'<tr><td colspan="7" class="empty">No milestones yet.</td></tr>'}</tbody></table></div>
       <div class="totbar"><span>Scheduled: <b>${inr(total)}</b></span><span class="tb-paid">Paid: <b>${inr(paid)}</b></span><span class="tb-due">Outstanding: <b>${inr(due)}</b></span>${qTotal>0&&total>qTotal?`<span>⚠ Scheduled is <b>${inr(total-qTotal)}</b> more than the invoice total (${inr(qTotal)})</span>`:""}</div>`;
     if(canEdit) $("#m_add").addEventListener("click",addMile);
     document.querySelectorAll("#pane [data-mst]").forEach(s=>s.addEventListener("change",async()=>{
@@ -263,12 +267,14 @@
         if(!phone){ BPUI.toast("No client phone on this event.",{type:"err"}); return; }
         await BPStore.milestones.sendReminder(id, phone, {label:m.label, amount:m.amount, due:m.due_date}); BPUI.toast("Reminder queued.",{type:"ok"}); },"send the reminder"); }));
   }
-  let covered=new Set();
-  function rowPay(m){ if(covered.has(m.id)) return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date?BPStore.fmtDateIN(m.due_date):"")}</td><td class="num">${inr(m.amount)}</td>
+  let covered=new Set(), alloc=new Map();
+  function payCells(m){ const a=alloc.get(m.id); return `<td class="num">${a&&a.paid>0?inr(a.paid):"—"}</td><td class="num">${a?inr(a.rem):"—"}</td>`; }
+  function rowPay(m){ if(covered.has(m.id)) return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date?BPStore.fmtDateIN(m.due_date):"")}</td><td class="num">${inr(m.amount)}</td>${payCells(m)}
       <td><span class="st paid" title="Covered by payments recorded on this event">Covered</span></td><td></td></tr>`;
     const opts=["due","invoiced","paid","waived"].map(s=>`<option value="${s}" ${s===m.status?"selected":""}>${PAY_ST[s]}</option>`).join("");
-    return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date?BPStore.fmtDateIN(m.due_date):"")}</td><td class="num">${inr(m.amount)}</td>
-      <td>${canEdit&&m.status!=="paid"?`<select class="ssel" data-mst="${esc(m.id)}" aria-label="Status for ${esc(m.label)}">${opts}</select>`:`<span class="st ${esc(m.status)}">${esc(PAY_ST[m.status]||m.status)}</span>`}</td>
+    const part=(alloc.get(m.id)||{}).paid>0;
+    return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date?BPStore.fmtDateIN(m.due_date):"")}</td><td class="num">${inr(m.amount)}</td>${payCells(m)}
+      <td>${part?'<span class="st due" title="Part of this milestone is covered by payments recorded">Part paid</span> ':""}${canEdit&&m.status!=="paid"?`<select class="ssel" data-mst="${esc(m.id)}" aria-label="Status for ${esc(m.label)}">${opts}</select>`:`<span class="st ${esc(m.status)}">${esc(PAY_ST[m.status]||m.status)}</span>`}</td>
       <td>${canEdit&&m.status!=="paid"?`<button type="button" class="rm" data-remind="${esc(m.id)}" aria-label="Send reminder now for ${esc(m.label)}">Send reminder now</button> `:""}${canDelete&&m.status!=="paid"?`<button type="button" class="rm" data-mdel="${esc(m.id)}" aria-label="Remove milestone ${esc(m.label)}">✕</button>`:""}</td></tr>`; }
   let msScheduled=0, invTotal=0;
   function invoiceTotal(chg){ const base=Number((ev&&ev.pricing&&ev.pricing.total)||(ev&&ev.total)||0);

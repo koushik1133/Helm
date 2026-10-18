@@ -2805,11 +2805,17 @@ window.HelmUrl = HelmUrl;
     // ---- 0151: WhatsApp / e-mail approval code (always to the phone / e-mail ON THE QUOTE) ----
     // live (liveChannels.whatsapp) -> send-otp edge function (itself simulated until the Meta /
     // Resend secrets exist); otherwise the simulated RPC (code shown on screen off production).
-    requestChannelOtp: (token, channel) => LIVE.whatsapp ? callFn("send-otp", { token, channel })
+    requestChannelOtp: (token, channel) => (channel === "email" ? LIVE.email : LIVE.whatsapp) ? callFn("send-otp", { token, channel })
       : rpc("wa_request_otp", { p_token: token, p_channel: channel, p_user_agent: (typeof navigator !== "undefined" ? navigator.userAgent : "").slice(0, 400) }),
     verifyChannel: (token, channel, code, agreed, termsVersion, consentText, clientName, ua) =>
       rpc("wa_verify_and_consent", { p_token: token, p_channel: channel, p_code: code, p_agreed: agreed,
         p_terms_version: termsVersion, p_consent_text: consentText, p_client_name: clientName, p_user_agent: ua }),
+    // "Send by email": client-mailer e-mails the approval / booklet link to the client e-mail ON THE
+    // QUOTE (server picks the address). Off when liveChannels.email is false.
+    emailEnabled: () => LIVE.email !== false,
+    emailLink: (quoteId, kind) => LIVE.email === false
+      ? Promise.resolve({ status: "not_configured", reason: "e-mail sending is switched off for this site" })
+      : callFn("client-mailer", { quote_id: quoteId, kind: kind === "booklet" ? "booklet" : "approval" }),
     // ---- 0151: studio "Send on WhatsApp" (Simulated / Sent / Delivered / Read / Failed) ----
     waSend: (quoteId, kind, phone, optIn, consentText) => LIVE.whatsapp
       ? callFn("wa-proposal", { quote_id: quoteId, kind, phone, opt_in: !!optIn, consent_text: consentText || "" })
