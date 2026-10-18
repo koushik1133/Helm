@@ -169,6 +169,10 @@
     if (trial) {
       Array.prototype.slice.call(sel.querySelectorAll("optgroup")).forEach(function (g) { if (g.id !== "st_optgroup" && g.id !== "st_pastgroup") g.remove(); });
       fillPast(sel);
+      // r19: the trial's past events are listed under "From past events" in this dropdown, so the separate
+      // "Reference a past layout" dropdown only repeated them. It stays in the page (it feeds that list and
+      // its loader), just out of sight.
+      var rf = $("refField"); if (rf) rf.hidden = true;
     }
     var first = sel.querySelector("optgroup"); sel.insertBefore(og, first || null);
   }
