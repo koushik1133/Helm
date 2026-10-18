@@ -402,8 +402,8 @@
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=251"></script>
 <script src="tour.js?v=21"></script>
 <script src="booklet.js?v=25"></script>
-<script src="share-checklist.js?v=11"></script>
-<script src="flow-layout-sync.js?v=4"></script>
+<script src="share-checklist.js?v=12"></script>
+<script src="flow-layout-sync.js?v=5"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=5"></script>
 <script src="flow-validate.js?v=3"></script>
@@ -1685,7 +1685,9 @@
       const pr=ev.pricing||{};
       const r=HelmFlowLayout.reconcile(pr,{ chairs:oi.chairs, objectsCost:oi.objectsCost, layoutBase:rates.layoutBase }, ev.client);
       syncLayoutChairsNote();
-      if(!r.changed){ if(fromBuilder) BPUI.toast("Back from the floor builder — quotation is up to date.",{type:"info"}); return; }
+      // r19 L2: say so when no layout version with objects exists (it used to read "Layout updated" over an empty plan)
+      const noLayout=!layoutItems.length;
+      if(!r.changed){ if(fromBuilder) BPUI.toast(noLayout?"Back from the floor builder — no floor layout is saved for this quote yet.":"Back from the floor builder — quotation is up to date.",{type:"info"}); return; }
       const before=BPStore.pricing.quoteTotal(currentInputs()).total;
       const wasLoading=loading; loading=true;
       if(r.chairsChanged) $("#q_chairs").value=r.chairs;
@@ -1697,7 +1699,7 @@
       flash.forEach(el=>el.classList.add("lay-flash")); setTimeout(()=>flash.forEach(el=>el.classList.remove("lay-flash")),2600);
       const moved=before!==t.total ? " ("+inr(before)+" → "+inr(t.total)+")" : "";
       if(fromBuilder && canEdit){
-        try{ await saveQuotation(); BPUI.toast("Layout updated — quotation recalculated"+moved,{type:"ok"}); }
+        try{ await saveQuotation(); BPUI.toast((noLayout?"Quotation recalculated — no floor layout is saved for this quote yet":"Layout updated — quotation recalculated")+moved,{type:"ok"}); }
         catch(_){ dirty=true; }   // saveQuotation already surfaced the error; keep the numbers as unsaved edits
       } else {
         dirty=true;

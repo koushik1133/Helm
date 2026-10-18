@@ -290,7 +290,7 @@
             if (e && e.code === "readonly") throw new Error("You don’t have permission to update this event’s pictures. Untick the 2D / 3D pictures, or ask someone who can edit the event.");
             if (e && e.code === "signin") throw new Error("Your session expired — sign in again, then share.");
             throw new Error("Couldn’t prepare the 2D / 3D pictures (" + String((e && e.message) || "failed") + "). Press the button again to retry, or untick them."); }
-          if (r && r.empty) { state.skipPics = true; prog.textContent = "The floor layout has no items yet — the 2D / 3D pictures are skipped for this link."; refresh(); return; }
+          if (r && r.empty) { state.skipPics = true; prog.textContent = "The floor layout has no items yet — the 2D / 3D pictures are skipped for now. The floor plan and 3D view are added to this link automatically once a layout is saved."; refresh(); return; }
           mark["2d"] = mark["3d"] = "\u2713"; show();
           await loadInfo();
           const still = missingImages(sec, state.variants, state.info);
@@ -316,6 +316,8 @@
     const quoteId = quoteIdFor(card); const body = clear(card.querySelector(".sc-body"));
     if (!quoteId) { body.appendChild(el("p", "sc-meta", "Save the client first to share a booklet.")); return; }
     const st = global.BPStore;
+    // r19 L11 (0220): a live link made on an empty layout gets the floor plan + 3D view back once the layout has objects
+    try { if (st.booklet && typeof st.booklet.layoutAutoOn === "function") await st.booklet.layoutAutoOn(quoteId); } catch (e) {}
     let cur = null; try { cur = await st.booklet.current(quoteId); } catch (e) { cur = null; }
     const ck = mount(body, { quoteId: quoteId, cur: cur });
     const g = el("div", "sc-grid");

@@ -738,6 +738,12 @@ function layoutSig(items, margins, venue, world, name){
   return JSON.stringify([its, margins||null, venue||null, world?[world.w,world.h]:null, String(name==null?'':name).trim()]);
 }
 function docSig(){ const pn=$('#projName'); return layoutSig(store.items, store.margins, store.venue, WORLD, pn?pn.value:''); }
+// r19 L2: what the server holds for the open quote's version on screen ({count, hash} of the canvas content, name
+// excluded). null = not known / never written (a missing V1). Set only when a version is opened or saved.
+let storedKey=null;
+function canvasKey(sig){ const s = sig!=null ? sig : layoutSig(store.items, store.margins, store.venue, WORLD, '');
+  return (window.HelmFlowLayout && HelmFlowLayout.layoutKey) ? HelmFlowLayout.layoutKey(store.items.length, s) : { count:store.items.length, hash:s }; }
+function noteStoredVersion(key){ storedKey = key || canvasKey(); }
 function markDirty(){ if(savedSig!==null && docSig()===savedSig){ dirty.clean(); if(typeof clearDraft==='function' && draftReady) clearDraft(); } else { dirty.mark(); if(typeof scheduleDraft==='function') scheduleDraft(); } }
 /* ---- local DRAFT (quotes only): a crash-safety copy in this browser. It is NEVER sent to the server and
    never replaces a saved version — on reload the planner is asked whether to restore it. ---- */
@@ -773,6 +779,9 @@ function setSavedBaseline(sig){
   if(dr && sig==null){ dirty.mark(); renderSaveState('dirty'); return; }   // keep a restored draft "unsaved"
   if(dr && sig!=null) draftRestored=false;
   savedSig = sig==null ? docSig() : sig; if(docSig()===savedSig) dirty.clean(); else dirty.mark(); }
+// r19 L2: a layout generated on arrival (?gen=1) is NOT what the server holds - keep the stored version as the
+// baseline and show "Unsaved changes" (the leave-page warning applies) until Save / Save & back writes it.
+function markGenUnsaved(){ if(savedSig===null) savedSig=''; dirty.mark(); renderSaveState('dirty'); }
 // dev pass 3: leaving while a Save is still going to the server loses it - warn first
 window.addEventListener('beforeunload', e=>{ let busy=false; try{ busy=!!saving; }catch{} if(busy){ e.preventDefault(); e.returnValue=''; return ''; } });
 const nid = () => 'obj_' + (uid++).toString(36) + Date.now().toString(36).slice(-3);
@@ -4004,6 +4013,7 @@ async function saveLayout(silent, opts){
   if(saving) return false;                    // in-flight lock: a second Save/⌘S before the first resolves must not create a duplicate
   saving=true; renderSaveState('saving');
   const sig = docSig();                        // edits made while this save is in flight keep the page dirty
+  const sentKey = canvasKey();                 // r19 L2: the content this save writes
   const name = ($('#projName').value || 'Untitled event').trim().slice(0,120);
   const data = serialize();
   const btn=$('#saveBtn'); if(btn){ btn.disabled=true; if(silent) btn.textContent='⏳ Saving…'; }
@@ -4028,6 +4038,7 @@ async function saveLayout(silent, opts){
       if(name) { try{ await BPStore.quotes.updateMeta(currentQuoteId, { title:name }); }catch{} }
       const v = await BPStore.quotes.addVersion(currentQuoteId, label, data, store.items.length);
       currentVersionNo = v.version_no || v.versionNo;
+      noteStoredVersion(sentKey);              // r19 L2: the server now holds exactly this content
       noteSavedVersion(v, label);
       refreshVersionsSoon(true);                // re-read the server list (names, teammates' saves)
       clearDraft();
@@ -4235,6 +4246,7 @@ function createVersionController(d){
 }
 function loadVersionIntoEditor(no, data){
   applyLayout(data);                       // resets undo history + makes this version the clean baseline
+  noteStoredVersion();                     // r19 L2: this version is what the server holds
   currentVersionNo=no;
   setVersionInUrl(no);
   updateQuoteBadge();
@@ -4547,9 +4559,15 @@ $('#saveBtn').addEventListener('click',()=>guardedSave());
 // Browser Back keeps the normal unsaved-changes guard (BPUI tracker / beforeunload).
 async function saveAndBackToFlow(){
   if(!currentQuoteId) return;
-  // unchanged layout → no phantom version; just go back (the flow still re-checks the price)
-  const ok = (RO || !dirty.isDirty()) ? true : await saveLayout(false);
+  // unchanged layout → no phantom version; just go back (the flow still re-checks the price).
+  // r19 L2: "unchanged" = same as the version STORED on the server (object count + content hash), not just
+  // "no edit since the page opened" - a default layout generated on arrival is new and must be written.
+  const need = !RO && (window.HelmFlowLayout && HelmFlowLayout.needsVersion
+    ? HelmFlowLayout.needsVersion(storedKey, canvasKey(), dirty.isDirty()) : dirty.isDirty());
+  const ok = !need ? true : await saveLayout(false);
   if(!ok) return;                               // save refused/failed: stay, the error is already shown
+  if(need && window.HelmFlowLayout && HelmFlowLayout.needsVersion && HelmFlowLayout.needsVersion(storedKey, canvasKey(), false)){
+    BPUI.toast('The layout was not saved yet — press Save & back to quote again.',{type:'err'}); return; }   // only leave once the version exists
   if(!RO) await syncQuotePricingNow();          // the flow page re-checks and saves the quotation too
   location.href = HelmFlowLayout.returnUrl(currentQuoteId);
 }
@@ -4755,6 +4773,7 @@ async function init(){
       if(!ver || !ver.data || !Array.isArray(ver.data.items)) throw new Error('version data unreadable');
       draftToRestore = readDraft(q.id);
       applyLayout(ver.data);                  // also restores hall size / margins / capacity of an empty version
+      storedKey = ver.missing ? null : canvasKey();   // r19 L2: what the server holds (a never-written V1 = unknown)
       // PP1028 #2: never silently drop priced default decor onto a quote that is already priced or locked
       // (confirmed / sent / approved) - that re-priced a locked ₹67,968 quote to ₹2,23,728 on save.
       // Those quotes open on a blank floor; the Templates menu / ?gen=1 stay the explicit way to add a default.
@@ -4783,7 +4802,10 @@ async function init(){
           if(N>0) exactSeats(store.items, N);   // R8b/R10: exactly the quote's (or flow's) seats
           _autoDefaultLoaded=true;
           toast('Loaded default '+(q.eventType||'')+' layout');
-          resetHistory(); setSavedBaseline(); renderAll();
+          // r19 L2: "Generate default layout" (?gen=1) makes a NEW layout - it is unsaved until a version is
+          // written (never "Saved ✓"; Save / Save & back write it). The quiet default for a brand-new quote keeps
+          // its old clean state, and Save & back still writes it (it differs from the stored empty V1).
+          resetHistory(); if(params.get('gen')==='1') markGenUnsaved(); else setSavedBaseline(); renderAll();
         }
       }
       versionsList = q.versions || [];
@@ -4814,7 +4836,7 @@ async function init(){
   // Guided default-layout generation from the flow: ?gen=1&type=&guests=&len=&wid=
   if(params.get('gen')==='1' && CAN_CREATE!==false){
     // R10: the default layout auto-built on arrival carries EXACTLY the flow's seats (all seating counted)
-    if(_autoDefaultLoaded){ const N=arrivalSeats(); if(N>0 && sumSeats(store.items)!==N){ exactSeats(store.items, N); resetHistory(); setSavedBaseline(); renderAll(); } }
+    if(_autoDefaultLoaded){ const N=arrivalSeats(); if(N>0 && sumSeats(store.items)!==N){ exactSeats(store.items, N); resetHistory(); markGenUnsaved(); renderAll(); } }
     // R10: one event-type map for the flow arrival and the dialog prefill (Reception stays Reception)
     const rawType=(params.get('type')||'').toLowerCase().trim();   // R10 hotfix: declared here (it went missing in R10)
     const ct=CE_TYPE[rawType]||'wedding';
@@ -4834,12 +4856,17 @@ async function init(){
         if(rule.buffetPer!=null && guests) setChk('c_buffet', guests>=(+rule.buffetPer));
         if(rule.stage!=null) setChk('c_stage', rule.stage);
         if(rule.dancefloor!=null) setChk('c_dance', rule.dancefloor);
-        toast('Applied "'+(rawType||ct)+'" default rules');
+        if(!_autoDefaultLoaded) toast('Applied "'+(rawType||ct)+'" default rules');
       }
     }catch(e){}
-    openCustomModal();
-    try{ runCustomGenerate(); }catch(e){}
-    toast('Pick a generated layout to start — then tweak it freely');
+    // r19 L2: the default layout is already on the floor - do not pop the "Custom event builder" window over it
+    // (it is still one click away under Layout ▾). Only when no default could be built does the window open.
+    if(_autoDefaultLoaded){ toast('Default layout ready — press Save & back to quote to keep it'); }
+    else {
+      openCustomModal();
+      try{ runCustomGenerate(); }catch(e){}
+      toast('Pick a generated layout to start — then tweak it freely');
+    }
   }
 }
 /* r19: the builder's first-run mini tour (tour.js STEPS["builder.html"]: every toolbar control in screen order;

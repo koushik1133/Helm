@@ -2489,6 +2489,21 @@ window.HelmUrl = HelmUrl;
     return q;
   }
   // Supabase tier (RPC-backed; errors surface). Falls back to localStorage when not in supabase mode.
+  // r19 L1: does THIS browser hold an unsaved floor plan (builder crash-safety copy, builder.js draftKey:
+  // bps.draft.<user>.<quote>) with at least one object for this quote? Blocked storage -> false.
+  function hasLocalLayoutDraft(quoteId, store) {
+    const id = String(quoteId || ""); if (!id) return false;
+    try {
+      const ls = store || localStorage; const n = ls.length || 0;
+      for (let i = 0; i < n; i++) {
+        const k = ls.key(i);
+        if (!k || k.indexOf("bps.draft.") !== 0 || k.slice(-(id.length + 1)) !== "." + id) continue;
+        let d = null; try { d = JSON.parse(ls.getItem(k) || "null"); } catch (e) { d = null; }
+        if (d && d.data && Array.isArray(d.data.items) && d.data.items.length > 0) return true;
+      }
+    } catch (e) {}
+    return false;
+  }
   const sbq = {
     // every quote, light columns (pickers, calendar, availability…). A database that
     // is missing one of the named columns falls back to select * rather than a 400.
@@ -2630,6 +2645,10 @@ window.HelmUrl = HelmUrl;
       const cl = row && row.client && typeof row.client === "object" ? row.client : {};
       const clean = !["name", "phone", "email", "company"].some((k) => String(cl[k] == null ? "" : cl[k]).trim() !== "");
       if (!clean) return this.create(code, code, null, { items: [] }, 0);
+      // r19 L1: a draft whose floor plan is still unsaved in THIS browser (builder crash-safety copy
+      // bps.draft.<user>.<quote>) is not blank either - reusing it renamed the person's draft and offered
+      // its plan in the "new" quote. Leave it untouched and start a fresh quote.
+      if (row && row.id && hasLocalLayoutDraft(row.id)) return this.create(code, code, null, { items: [] }, 0);
       return row;
     },
     // re-issue the code from the event date (idempotent); returns the (possibly new) code
@@ -9302,6 +9321,13 @@ window.HelmUrl = HelmUrl;
           p_version_ids: vers, p_terms: o.terms ? String(o.terms).slice(0, 8000) : null, p_note: o.note ? String(o.note).slice(0, 1000) : null,
           ...(sec ? { p_sections: sec } : {}) }); },
       revoke: (quoteId) => rpc("booklet_revoke", { p_quote_id: quoteId }),
+      // r19 L11 (0220): floor plan + 3D view on for the live link once the layout has objects (a link made on an
+      // empty layout had them skipped); never when someone switched sections on the live link. null before 0220.
+      layoutAutoOn: (quoteId) => (supa ? rpc("booklet_layout_auto_on", { p_quote_id: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // r19 L11 (0220): change which sections the LIVE link shows, in place (same link / token)
+      setSections: (quoteId, sections) => { const sec = {};
+        for (const k of BOOKLET_SECTIONS) if (sections && typeof sections === "object" && k in sections) sec[k] = !!sections[k];
+        return supa ? rpc("booklet_set_sections", { p_quote_id: quoteId, p_sections: sec }) : Promise.reject(new Error("Sharing a booklet needs a signed-in studio.")); },
       // 0200 "Send to client": queues the LIVE booklet link (fixed text) by e-mail / WhatsApp (comms_outbox -> comms-dispatch).
       // The server checks consent / STOP / caps. FREE TRIAL (0212): as sites.send - an active trial's e-mail is queued
       // (capped), WhatsApp / an ended trial / a demo event -> {status:"skipped", reason:"free_trial" | "demo"}.
