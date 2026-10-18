@@ -61,7 +61,7 @@ $$;
 do $$ begin
   perform pg_temp.res('01 dispatcher + AE seed installed', to_regprocedure('public._demo_seed_for(uuid)') is not null
     and to_regprocedure('public._demo_seed_ae(uuid)') is not null);
-  perform pg_temp.res('02 India _demo_seed body unchanged (0100 marker)', exists (select 1 from pg_proc where proname = '_demo_seed'
+  perform pg_temp.res('02 India _demo_seed body unchanged (0100 marker)', exists (select 1 from pg_proc where proname in ('_demo_seed', '_demo_seed__pre0166')  -- 0166 wraps it
     and pronamespace = 'public'::regnamespace and prosrc like '%demo-seed-0100%'));
   perform pg_temp.res('03 internal helpers not callable by app roles', not has_function_privilege('authenticated', 'public._demo_seed_ae(uuid)', 'execute')
     and not has_function_privilege('anon', 'public._demo_seed_for(uuid)', 'execute') and has_function_privilege('authenticated', 'public.seed_demo_data()', 'execute'));

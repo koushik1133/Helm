@@ -8748,6 +8748,8 @@ window.HelmUrl = HelmUrl;
       setMode: (mode) => rpc("set_trial_mode", { p_mode: mode === "demo" ? "demo" : "own" }),
       seed: () => rpc("seed_demo_data"),
       clear: () => rpc("clear_demo_data"),
+      // 0166 — Control Center "Clear sample data": admin of a trial / ex-trial studio; removes ONLY is_demo rows.
+      clearSample: () => rpc("clear_sample_data"),
       reset: () => rpc("reset_demo_data"),
       // 0127 — after subscribing: "fresh" removes ONLY this studio's is_demo rows, "keep" keeps them.
       choose: (choice) => rpc("trial_demo_choice", { p_choice: choice === "fresh" ? "fresh" : "keep" }),

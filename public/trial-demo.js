@@ -9,7 +9,8 @@
    • Switching to own data (openSwitch): keep the demo data, or clear it. Clearing
      asks twice and calls clear_demo_data(), which removes ONLY this studio's rows
      flagged is_demo inside one database transaction — real rows are never touched.
-   • Control Center (#tdControl[data-td-control]): the same actions in a card.
+   • Control Center (#tdControl[data-td-control]): the same actions in a card, plus
+     "Clear sample data" (0166 clear_sample_data: admin, trial / ex-trial, is_demo rows only).
    • The persistent banner lives in auth-ui.js (demoNotice), on every page.
    • CSP: DOM built with createElement/textContent only; runtime CSS via __helmAdoptCss.
    ========================================================================= */
@@ -102,6 +103,18 @@
     try { await S().demo.clear(); toast("Demo data removed. Your own data is untouched."); }
     catch (e) { toast(errMsg(e, "remove the demo data"), "err"); return false; }
     if (then) global.location.assign(then); else global.location.reload();
+    return true;
+  }
+  // 0166 — Control Center "Clear sample data" (admin; trial or converted studio; is_demo rows only)
+  async function clearSample(b) {
+    if (b && b.disabled) return false;
+    const ok = await confirmDlg("This deletes only the sample rows marked \u201cDemo \u00b7\u201d in this studio (events, leads, staff, vendors, items, packages, layout). Anything you added yourself is never touched. A sample item one of your real events uses is switched off instead of deleted.",
+      { title: "Clear sample data?", okLabel: "Clear sample data", danger: true });
+    if (!ok) return false;
+    const done = busy(b, "Clearing\u2026");
+    try { await S().demo.clearSample(); toast("Sample data cleared. Your own data is untouched."); }
+    catch (e) { done(); toast(errMsg(e, "clear the sample data"), "err", b); return false; }
+    global.location.reload();
     return true;
   }
   async function resetDemo(b) {
@@ -205,24 +218,25 @@
       return;
     }
     if (v === "demo") {
-      host.appendChild(el("span", "td-tag", "Demo data"));
+      host.appendChild(el("span", "td-tag", "Sample data"));
       host.appendChild(el("h3", null, "You're exploring a demo studio"));
-      host.appendChild(el("p", null, "Everything marked “Demo ·” is sample data. Messages, approval codes and payment links are switched off for it."));
+      host.appendChild(el("p", null, "Sample data: everything marked “Demo ·” is sample data. Messages, approval codes and payment links are switched off for it."));
       if (admin) {
         const row = el("div", "td-row");
         row.appendChild(btn("Start my own studio →", "btn primary", () => startFresh({})));
         const r = btn("Reset demo data", "btn", () => resetDemo(r)); row.appendChild(r);
-        if (place === "control") row.appendChild(btn("Remove demo data", "btn", () => clearDemo()));
+        if (place === "control") { const c = btn("Clear sample data", "btn", () => clearSample(c)); row.appendChild(c); }
         host.appendChild(row);
       }
       return;
     }
     if (v === "leftover") {
-      host.appendChild(el("span", "td-tag", "Demo data"));
+      host.appendChild(el("span", "td-tag", "Sample data"));
       host.appendChild(el("h3", null, "Demo data is still in your studio"));
       host.appendChild(el("p", null, "Remove the sample rows marked “Demo ·” when you no longer need them. Your own data is never touched."));
       const row = el("div", "td-row");
-      row.appendChild(btn("Remove demo data", "btn", () => clearDemo()));
+      if (place === "control") { const c = btn("Clear sample data", "btn", () => clearSample(c)); row.appendChild(c); }
+      else row.appendChild(btn("Remove demo data", "btn", () => clearDemo()));
       if (place === "control") { const r = btn("Reset demo data", "btn", () => resetDemo(r)); row.appendChild(r); }
       host.appendChild(row);
     }

@@ -60,6 +60,17 @@ t('CSP-safe: no innerHTML / inline styles in trial-demo.js; clearing always conf
   assert.match(TD, /__helmAdoptCss/);
   assert.match(fnSrc(TD, 'clearDemo'), /confirmDlg\([\s\S]*danger: true/);
 });
+t('0166: Control Center "Clear sample data" confirms, then calls clear_sample_data()', () => {
+  assert.match(fnSrc(TD, 'clearSample'), /confirmDlg\([\s\S]*danger: true/);
+  assert.match(fnSrc(TD, 'clearSample'), /demo\.clearSample\(\)/);
+  assert.match(TD, /"Clear sample data"/);
+  assert.match(TD, /"td-tag", "Sample data"/);
+  assert.match(read('public/store-api.js'), /clearSample: \(\) => rpc\("clear_sample_data"\)/);
+  const M166 = read('supabase/migrations/0166_trial_sandbox_skeleton.sql');
+  assert.doesNotMatch(M166, /[^\x00-\x7f]/);
+  assert.match(M166, /_demo_clear\(v_org\)/);
+  assert.match(read('supabase/migrations/MANIFEST'), /^forward {2}supabase\/migrations\/0166_trial_sandbox_skeleton\.sql$/m);
+});
 t('0097: every delete is limited to the caller studio\'s demo rows', () => {
   const dels = MIG.match(/delete from public\.[a-z_]+[^;]*;/g) || [];
   assert.ok(dels.length >= 9, 'deletes found');
@@ -118,7 +129,7 @@ console.log(`trial-demo: ${n} passed`);
   t('0123: start fresh calls the existing clear RPC only; onboarding hook; read-only migration', () => {
     const b = fnSrc(TD, 'startFresh');
     assert.match(b, /S\(\)\.demo\.clear\(\)/); assert.doesNotMatch(b, /rpc\(|delete/);
-    assert.match(read('public/onboarding.html'), /<script src="trial-demo\.js\?v=4"><\/script>/);
+    assert.match(read('public/onboarding.html'), /<script src="trial-demo\.js\?v=5"><\/script>/);
     const M = read('supabase/migrations/0123_trial_start_fresh.sql');
     assert.doesNotMatch(M.replace(/--.*$/gm, ''), /delete from|update public|insert into|drop |truncate/i);
     assert.doesNotMatch(M, /[^\x00-\x7f]/);
