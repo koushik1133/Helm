@@ -1137,11 +1137,16 @@
     let sym="\u20b9"; try{ const m=BPStore.studioMoney(0); const k=String(m||"").replace(/[\d.,\s]/g,""); if(k) sym=k; }catch(_){}
     mpkUI=HelmMenuPkg.render($("#menuTplList"),{ packages:tpls, catalog:cat||[], trial:mpkTrial, kindText, symbol:sym,
       error:(m)=>setMsg("err",m),
-      save:async(t,patch)=>{ try{ await BPStore.menuTemplates.update(t.id, patch); setMsg("ok",`${t.name||"Package"} saved.`); return true; }
-        catch(e){ setMsg("err",errMsg(e,"save the package")); return false; } } });
+      // returns the stored row, so the card shows exactly what was saved (same as after a reload)
+      save:async(t,patch)=>{ try{ const row=await BPStore.menuTemplates.update(t.id, patch); setMsg("ok",`${t.name||"Package"} saved.`); return row||true; }
+        catch(e){ setMsg("err",errMsg(e,"save the package")); return false; } },
+      // dishes typed into a package that are not in the Dishes catalog yet (refused in the free trial)
+      addToCatalog:async(list)=>{ if(mpkTrial()){ setMsg("err","You can't add new dishes in the free trial."); return false; }
+        try{ for(const d of list) await BPStore.dishCatalog.add(d.c, d.n, d.k); await renderDishes(); setMsg("ok",list.length===1?"Dish added to the catalog.":`${list.length} dishes added to the catalog.`); return true; }
+        catch(e){ setMsg("err",errMsg(e,"add the dish to the catalog")); try{ await renderDishes(); }catch(_){} return false; } } });
   }
-  // the free-trial answer can arrive after the first draw: redraw in trial mode unless there are unsaved edits
-  window.addEventListener("helm:trial",()=>{ if(mpkUI && !mpkUI.dirty()) renderMenuTemplates(); });
+  // the free-trial answer can arrive after the first draw: redraw in trial mode unless there are unsaved edits or a save is running
+  window.addEventListener("helm:trial",()=>{ if(mpkUI && !mpkUI.dirty() && !mpkUI.saving()) renderMenuTemplates(); });
 
   // Vendors moved to the dedicated Vendors & Partners page (duplicate removed).
 

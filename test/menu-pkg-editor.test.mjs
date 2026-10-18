@@ -58,22 +58,23 @@ assert.equal(M.findDish(cat, "Chicken 65", "Starters (veg)").category, "Starters
 assert.equal(M.findDish(cat, "Gone", ""), null);
 assert.ok(M.same(std, JSON.parse(JSON.stringify(std))) && !M.same(std, M.removeAt(std, 0)));
 
-// ---- the editor file: DOM by createElement only, trial saves the price only ----------------------
+// ---- the editor file: DOM by createElement only; trial: price + catalog dishes, never the Active switch ----
 const src = r("public/menu-pkg-editor.js");
 assert.ok(/^[\x00-\x7F]*$/.test(src), "ASCII only (unicode as \\u escapes)");
 assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(src), "no HTML sinks");
 // free trial (0173, docs/trial/TRIAL-END-TO-END.md): price AND dishes editable, catalog dishes only, Active fixed
 assert.ok(!/ctx\.trial\(\) \? \{ price_per_plate: pp \}/.test(src), "trial no longer saves the price only");
 assert.ok(!/if \(!trial\) \{\s*add = el\("div", "mpk-add"\)/.test(src), "the add-dish row is shown in the trial too");
-assert.match(src, /var add = el\("div", "mpk-add"\)/);
+assert.match(src, /add = el\("div", "mpk-add"\)/);
 assert.match(src, /if \(trial\) \{ addNote\("In the free trial you can add dishes from your Dishes catalog only/, "trial: no new dish names");
+assert.match(src, /if \(!v\.pr\.keep\) patch\.price_per_plate = v\.pr\.value;/, "price sent only when changed (0192 checkPrice)");
 assert.match(src, /if \(trial\) \{ act\.disabled = true;/, "active switch fixed in the trial");
-assert.match(src, /if \(!ctx\.trial\(\) && act\.checked !== st\.base\.active\) patch\.active = !!act\.checked;/, "trial never sends active");
+assert.match(src, /if \(!trial && v\.on !== st\.base\.active\) patch\.active = v\.on;/, "trial never sends active");
 assert.match(src, /if \(!same\(st\.dishes, st\.base\.dishes\)\) patch\.dishes = normDishes\(st\.dishes\);/, "price-only save never rewrites the stored dishes");
-assert.match(src, /if \(textPending\(\)\) applyText\(\);/, "pasted text not applied yet is saved, not dropped");
+assert.match(src, /if \(textPending\(\) && !applyText\(\)\) return;/, "pasted text not applied yet is saved (or its line errors shown), not dropped");
 assert.match(src, /price\.autocomplete = "off";/);
 assert.match(src, /price\.value = priceText\(st\.price\);/, "price set as a property from the tolerant reader");
-assert.match(src, /if \(raw === ""\) \{ ctx\.error\("Enter the price per plate for "/, "an empty price is refused, never saved as 0");
+assert.match(src, /var pr = checkPrice\(price\.value, \{ active: on, base: st\.base\.price/, "an empty price is refused, never saved as 0 (0192)");
 assert.match(src, /el\("summary", null, "Paste as text \(bulk\)"\)/);
 assert.match(src, /dishIn\.setAttribute\("list", dl\.id\)/, "searchable dish list");
 
@@ -85,7 +86,7 @@ const fn = cc.slice(cc.indexOf("async function renderMenuTemplates(){"), cc.inde
 assert.match(fn, /BPStore\.menuTemplates\.list\(true\)/); assert.match(fn, /BPStore\.dishCatalog\.list\(\)/);
 assert.match(fn, /HelmMenuPkg\.render\(\$\("#menuTplList"\)/); assert.match(fn, /BPStore\.menuTemplates\.update\(t\.id, patch\)/);
 assert.match(fn, /trial:mpkTrial/); assert.match(cc, /const mpkTrial=\(\)=>document\.documentElement\.classList\.contains\("helm-trial"\)/);
-assert.match(cc, /window\.addEventListener\("helm:trial",\(\)=>\{ if\(mpkUI && !mpkUI\.dirty\(\)\) renderMenuTemplates\(\); \}\)/);
+assert.match(cc, /window\.addEventListener\("helm:trial",\(\)=>\{ if\(mpkUI && !mpkUI\.dirty\(\) && !mpkUI\.saving\(\)\) renderMenuTemplates\(\); \}\)/);
 assert.match(cc, /if\(mpkUI\) mpkUI\.setCatalog\(dishCache\);/, "new catalog dishes show up in the dropdowns");
 assert.ok(!/tpl_dishes"[^>]*>\$\{esc\(dishesToText/.test(cc), "old textarea editor gone");
 const css = r("public/menu-pkg-editor.css");

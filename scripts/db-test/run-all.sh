@@ -163,6 +163,7 @@ run "trial-upgrade-0185" "TRIAL-UPGRADE-0185: ALL PASS \(45/45\)" psql -q -f tes
 run "trial-extension-0186" "TRIAL-EXTENSION-0186: ALL PASS \(55/55\)" psql -q -f tests/db/trial-extension-0186.sql
 run "trial-outbound-0187" "TRIAL-OUTBOUND-0187: ALL PASS \(17/17\)" psql -q -f tests/db/trial-outbound-0187.sql
 run "trial-clone-0190" "TRIAL-CLONE-0190: ALL PASS \(24/24\)" psql -q -f tests/db/trial-clone-0190.sql
+run "menu-pkg-0192"    "MENU-PKG-0192: ALL PASS \(41/41\)" psql -q -f tests/db/menu-pkg-0192.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
