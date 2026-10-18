@@ -102,6 +102,9 @@ do $$ declare r text; begin
   r := pg_temp.as_try('a_admin@a.test', $q$select public.reopen_event('a0000000-0000-4000-8000-00000000da01', 'g49 kit returned, re-open')$q$);
   perform pg_temp.t('reopen (admin, reason) is never gated', r = 'ok:1', r);
   update public.inventory_checkouts set status = 'returned', qty_in = qty_out where note = 'g49';
+  -- 0152: closing also needs a CONFIRMED, priced event (a draft could be closed before). The
+  -- fixture event is a 'quote'; confirm it here (fixture-level) so this case tests "nothing outstanding".
+  update public.quotes set status = 'confirmed' where id = 'a0000000-0000-4000-8000-00000000da01';
   r := pg_temp.as_try('a_staff@a.test', $q$select public.close_event('a0000000-0000-4000-8000-00000000da01', true)$q$);
   perform pg_temp.t('close: nothing outstanding → closes without override', r = 'ok:1'
     and (select lifecycle_stage from public.quotes where id = 'a0000000-0000-4000-8000-00000000da01') = 'closed', r);
@@ -166,15 +169,22 @@ do $$ declare r text; v_org uuid; v_before text; v_after text; n int; begin
     exists (select 1 from public.role_access where org_id = v_org and role = 'sales' and area = 'finance' and not can_view and not can_edit), null);
   perform pg_temp.t('NV-08: template-only custom area is switched off',
     not exists (select 1 from public.role_access where org_id = v_org and area = 'zz_custom' and (can_view or can_edit)), null);
+  -- 0143 (owner decision): a NEW studio also gets the designer / crew starting access
+  -- (_a143_role_defaults) on top of the 0049 default matrix, so compare against that overlay.
   select count(*) into n from public.role_access ra join public._a49_default_matrix() d using (role, area)
-   where ra.org_id = v_org and ra.can_view = d.can_view and ra.can_edit = d.can_edit;
+    left join public._a143_role_defaults() x using (role, area)
+   where ra.org_id = v_org and ra.can_view = coalesce(x.can_view, d.can_view) and ra.can_edit = coalesce(x.can_edit, d.can_edit);
   perform pg_temp.t('NV-08: every default (role, area) row present and equal', n = (select count(*) from public._a49_default_matrix()), n::text);
   perform pg_temp.t('NV-08: admin full on every area',
     not exists (select 1 from public.role_access where org_id = v_org and role = 'admin' and not (can_view and can_edit)), null);
-  perform pg_temp.t('NV-08: manager edits closure, sales sees leads only, crew nothing',
+  perform pg_temp.t('NV-08: manager edits closure, sales sees leads only, crew runsheet+calendar view (0143)',
     exists (select 1 from public.role_access where org_id = v_org and role = 'manager' and area = 'closure' and can_edit)
     and (select count(*) from public.role_access where org_id = v_org and role = 'sales' and can_view) = 2
-    and not exists (select 1 from public.role_access where org_id = v_org and role in ('crew', 'worker', 'client') and (can_view or can_edit)), null);
+    -- 0143: crew starts with runsheet + calendar VIEW only; worker / client still nothing
+    and not exists (select 1 from public.role_access where org_id = v_org and role = 'crew' and (can_edit
+                      or (can_view and area not in ('runsheet', 'calendar'))))
+    and (select count(*) from public.role_access where org_id = v_org and role = 'crew' and can_view) = 2
+    and not exists (select 1 from public.role_access where org_id = v_org and role in ('worker', 'client') and (can_view or can_edit)), null);
   select string_agg(role || area || can_view || can_edit, ',' order by role, area) into v_after
     from public.role_access where org_id = 'a0000000-0000-4000-8000-000000000001';
   perform pg_temp.t('NV-08: existing studio''s matrix untouched', v_before = v_after, null);

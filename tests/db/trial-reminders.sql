@@ -143,7 +143,9 @@ do $$ declare f uuid := 'f0000000-0000-4000-8000-0000000000f1'; j jsonb; begin
   perform pg_temp.res('30 admin: ended, can pay', j ->> 'state' = 'ended' and (j ->> 'days_left')::int = 0 and (j ->> 'can_pay')::boolean, j::text);
   j := public.my_checkout_prepare('zz-tr-basic', 'monthly');
   perform pg_temp.res('31 ended trial can still pay (prepare)', j ->> 'org_id' = f::text, j::text);
-  perform pg_temp.res('32 ended trial cannot restart a free trial', pg_temp.try('select public.my_start_trial(''bypass'')') = '22023');
+  -- 0162 (launch) switches the Skip-payment bypass off, so the refusal may now be 42501 (bypass off)
+  -- before the 22023 (already has a subscription) check is reached; either way no restart.
+  perform pg_temp.res('32 ended trial cannot restart a free trial', pg_temp.try('select public.my_start_trial(''bypass'')') in ('22023', '42501'), pg_temp.try('select public.my_start_trial(''bypass'')'));
   perform pg_temp.svc();
   perform pg_temp.res('33 service attach works for an ended trial', public.checkout_attach_subscription(f, 'sub_TRIALF123456', 'zz-tr-basic', 'monthly'));
   perform pg_temp.su();

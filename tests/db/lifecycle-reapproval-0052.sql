@@ -35,6 +35,11 @@ do $$ begin
     on conflict (id) do update set pricing = excluded.pricing, approval_status = 'sent', lifecycle_stage = 'quote',
       approval_token = excluded.approval_token, consent_stale = false, event_date = excluded.event_date,
       approval_token_revoked_at = null, approval_token_expires_at = null;
+  -- 0144 made the access matrix the authority for set_plan_lock (needs plan edit). The default
+  -- matrix gives sales no plan edit, so grant it here: this suite tests the HL428 stale gate.
+  insert into public.role_access(role, area, can_view, can_edit, org_id, updated_at)
+    values ('sales', 'plan', true, true, 'a0000000-0000-4000-8000-000000000001', now())
+    on conflict (role, area, org_id) do update set can_view = true, can_edit = true;
 end $$;
 
 do $$ declare r text; n int; begin
