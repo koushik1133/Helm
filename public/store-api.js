@@ -1884,6 +1884,13 @@ window.HelmUrl = HelmUrl;
         if (captchaToken) so.captchaToken = captchaToken;
         const fullName = opts && typeof opts.fullName === "string" ? opts.fullName.trim().slice(0, 50) : "";
         if (fullName) so.data = { full_name: fullName };
+        // round 19: what this sign-up was for (free trial / paid studio) + the studio name typed, kept on the
+        // account so a confirm link opened in ANOTHER browser can still go straight on to the trial welcome
+        const intent = opts && (opts.intent === "trial" || opts.intent === "direct") ? opts.intent : "";
+        if (intent) {
+          const sn = opts && typeof opts.studioName === "string" ? opts.studioName.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 80) : "";
+          so.data = Object.assign({}, so.data || {}, { helm_signup_intent: intent, helm_signup_studio: sn });
+        }
         // 0205: this browser started a sign-up for this address - /auth/confirm keeps the confirm link's
         // session only then (a link someone else made for THEIR account never signs this browser in)
         try { localStorage.setItem(SIGNUP_MARK_KEY, String(email || "").trim().toLowerCase().slice(0, 254)); } catch (e) {}
@@ -4901,6 +4908,45 @@ window.HelmUrl = HelmUrl;
       if (res.ok) return j && j.ok ? { ok: true } : { fallback: true };
       if (res.status === 404 || res.status >= 500 || !j || !j.code) return { fallback: true };
       const e = new Error(String(j.error || "Couldn't create the account.")); e.code = j.code; e.status = res.status; if (j.reason) e.reason = String(j.reason).slice(0, 20); throw e;
+    },
+    // 0210 (free-trial sign-up, before anything is created): does this e-mail have an OPEN invitation?
+    // → { invited: true, studio, role, role_label } | { invited: false } | null (function not deployed,
+    // rate limited, offline, slow - the sign-up then simply carries on). Only studio + role ever come back.
+    async openForEmail(email, opts) {
+      const em = String(email || "").trim().toLowerCase();
+      if (!supa || !fnUrl("invite-signup") || !em) return null;
+      const ms = Math.max(500, Math.min(10000, Number(opts && opts.timeoutMs) || 4000));
+      const ctl = typeof AbortController === "function" ? new AbortController() : null;
+      const timer = ctl ? setTimeout(() => { try { ctl.abort(); } catch (e) {} }, ms) : null;
+      try {
+        const res = await fetch(fnUrl("invite-signup"), { method: "POST", signal: ctl ? ctl.signal : undefined,
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
+          body: JSON.stringify({ email_lookup: true, email: em }) });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j || typeof j !== "object") return null;
+        if (j.invited !== true) return j.invited === false ? { invited: false } : null;
+        const str = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, n);
+        return { invited: true, studio: str(j.studio, 120), role: str(j.role, 40), role_label: str(j.role_label, 60) };
+      } catch (e) { return null; }
+      finally { if (timer) clearTimeout(timer); }
+    },
+    // 0210 "Join <Studio>" from the sign-up: e-mail THAT address its invitation again (Join link →
+    // /login?invite=<token>; the token never comes to this browser). → { sent: true|false }; a refusal
+    // throws an Error with .code (rate_limited, send_failed, unavailable, network).
+    async emailInviteLink(email) {
+      const fail = (msg, code) => { const e = new Error(msg); e.code = code; return e; };
+      const em = String(email || "").trim().toLowerCase();
+      if (!supa || !fnUrl("invite-signup") || !em) throw fail("We couldn't send it from here — open the invitation e-mail you already have.", "unavailable");
+      let res;
+      try {
+        res = await fetch(fnUrl("invite-signup"), { method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
+          body: JSON.stringify({ email_send: true, email: em }) });
+      } catch (e) { throw fail("We couldn't reach Helm — check your connection and try again.", "network"); }
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && j && j.ok === true) return { sent: j.sent === true };
+      if (j && (j.code === "rate_limited" || j.code === "send_failed")) throw fail(String(j.error || "Couldn't send the e-mail."), String(j.code));
+      throw fail("We couldn't send it from here — open the invitation e-mail you already have.", "unavailable");
     },
     async preview(token) {                                                                   // anon-safe banner info (SEC-06); falls back until deployed
       try { return await rpc("invitation_preview", { p_token: token }); }
@@ -9441,6 +9487,17 @@ window.HelmUrl = HelmUrl;
       start: (loc) => (loc && (loc.timezone || loc.currency) ? rpc("start_trial", { p_timezone: loc.timezone || null, p_currency: loc.currency || null }) : rpc("start_trial", {})),
       // 0167 — 2-step trial welcome, step 1: rename the caller's own trial studio (name, link slug, city, optional phone)
       welcome: (name, city, phone) => rpc("trial_welcome_setup", { p_name: String(name || "").trim(), p_city: String(city || "").trim() || "Hyderabad", p_phone: String(phone || "").trim() || null }),
+      // 0210 — the same step with City + State (Indian states) + Country India (fixed for the trial); phone optional.
+      // Falls back to the 0167 step (no state) while 0210 is not applied yet.
+      welcomeSave: (o) => {
+        const a = o || {};
+        const args = { p_name: String(a.name || "").trim(), p_city: String(a.city || "").trim(), p_state: String(a.state || "").trim(),
+          p_phone: String(a.phone || "").trim() || null, p_country: "IN" };
+        return rpc("trial_welcome_save", args).catch((e) => {
+          if (!rpcMissing(e)) throw e;
+          return rpc("trial_welcome_setup", { p_name: args.p_name, p_city: args.p_city || "Hyderabad", p_phone: args.p_phone });
+        });
+      },
       // 0180 — server-side welcome flag (works across devices): true while the free-trial owner's
       // 2-step welcome is not finished, false otherwise; null = 0180 not installed (the page then
       // falls back to this browser's sign-up flag)

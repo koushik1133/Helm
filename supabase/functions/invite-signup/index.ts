@@ -31,6 +31,19 @@
 //                           Rate limited (3 / hour per invitation, 10 / hour per IP).
 //                           On an EXPIRED invitation it never renews anything: it asks the studio
 //                           (invite_request_new_link, 0205: one bell note per 24 h) → { requested: true }.
+// 0210 (round 19, free-trial sign-up) - no token, an e-mail only, BEFORE a trial creates anything:
+// { email_lookup: true, email } → { invited: false } | { invited: true, studio, role, role_label }:
+//                           only the studio name + role of the newest OPEN (pending, unexpired) invitation
+//                           of exactly that e-mail (invite_open_for_email, 0210, service role only) - never
+//                           the token, the inviter, the expiry or anything about a login. Every other
+//                           e-mail gets the same { invited: false }. Rate limited (20 / 10 min per IP,
+//                           5 / 10 min per e-mail).
+// { email_send: true, email } → e-mails THAT address its invitation again (the same "Join <Studio>" e-mail
+//                           invite-mailer sends: branded via the provider, else Supabase Auth's own e-mail)
+//                           with the Join link /login?invite=<token>. The token never reaches the browser:
+//                           opening the e-mail proves the address. Always { ok: true } + sent true / false.
+//                           Rate limited (3 / hour per e-mail, 10 / hour per IP). Invite e-mails off
+//                           (HELM_INVITE_EMAILS_ENABLED="false") → { ok: true, sent: false }.
 // Refusals (4xx { error, code }):
 //   invalid_invite  — unknown / not pending / expired token
 //   email_mismatch  — the typed e-mail is not the invited one
@@ -47,7 +60,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
-import { clean, newLinkEmail, roleLabel } from "../invite-mailer/templates.ts";
+import { clean, inviteEmail, newLinkEmail, roleLabel } from "../invite-mailer/templates.ts";
 import { mailConfig, sendMail } from "../_shared/mailer.ts";
 
 const TOKEN = /^[0-9a-f]{48}$/;
@@ -110,6 +123,70 @@ const UNCONFIRMED_MSG = "This e-mail already started a Helm sign-up that was nev
   "We can e-mail you a link: open it to confirm your e-mail and join the studio.";
 const EXISTS_MSG = "This e-mail already has a Helm account — sign in instead to accept the invitation.";
 
+// 0210: what the sign-up page may learn about an e-mail's open invitation (studio + role, nothing else)
+export function lookupAnswer(row: unknown): { invited: boolean; studio?: string; role?: string; role_label?: string } {
+  const r = (row && typeof row === "object") ? row as Record<string, unknown> : null;
+  if (!r || r.found !== true || typeof r.token !== "string" || !TOKEN.test(r.token)) return { invited: false };
+  return { invited: true, studio: clean(r.studio, 120), role: clean(r.role, 40), role_label: roleLabel(r.role) };
+}
+
+// 0210: { email_lookup } / { email_send } - see the header. `email` is already trimmed + lower case.
+// deno-lint-ignore no-explicit-any
+async function byEmail(mode: "lookup" | "send", email: string, ip: string, json: any, serverError: any): Promise<Response> {
+  const limits: Array<[string, number, number]> = mode === "send"
+    ? [["invem:ip:" + ip, 10, 60 * 60_000], ["invem:em:" + email, 3, 60 * 60_000]]
+    : [["invlk:ip:" + ip, 20, 10 * 60_000], ["invlk:em:" + email, 5, 10 * 60_000]];
+  const wait = await checkLimits(limits);
+  if (wait) {
+    return json({ error: mode === "send" ? "We sent it a moment ago - check your inbox (and spam), or try again later." : "Too many requests - please try again in a few minutes.",
+      code: "rate_limited", retry_after: wait }, 429);
+  }
+  if (!EMAIL.test(email) || email.length > 254) return json(mode === "send" ? { ok: true, sent: false } : { invited: false });
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+  const { data: row, error } = await admin.rpc("invite_open_for_email", { p_email: email });
+  if (error) {
+    // 0210 not applied yet: the sign-up simply carries on (no invitation offered)
+    if (/could not find|does not exist|PGRST202|42883/i.test(String(error.message || "") + " " + String((error as { code?: string }).code || ""))) {
+      return json(mode === "send" ? { ok: true, sent: false } : { invited: false });
+    }
+    return serverError(error);
+  }
+  const ans = lookupAnswer(row);
+  if (mode === "lookup") return json(ans);
+  if (!ans.invited) return json({ ok: true, sent: false });
+  if (String(Deno.env.get("HELM_INVITE_EMAILS_ENABLED") ?? "").trim().toLowerCase() === "false") return json({ ok: true, sent: false });
+  // deno-lint-ignore no-explicit-any
+  const r = row as any;
+  const token = String(r.token);
+  const link = joinLink(token, Deno.env.get("APP_URL"));
+  if (!link) return json({ ok: true, sent: false });
+  let inviter = "";
+  if (r.invited_by) {
+    try { const { data } = await admin.from("profiles").select("full_name").eq("id", r.invited_by).maybeSingle(); inviter = clean(data?.full_name, 60); } catch (_) { /* "Your studio admin" */ }
+  }
+  const studio = clean(r.studio, 120);
+  if (mailConfig().provider) {
+    const mail = inviteEmail({ token, inviter, studio, role: r.role, expires_at: r.expires_at });
+    if (mail) {
+      const s = await sendMail({ to: email, subject: mail.subject, html: mail.html, text: mail.text, studio, txReason: "invite" });
+      if (s.status === "sent") return json({ ok: true, sent: true });
+    }
+  }
+  // no provider (or it refused): Supabase Auth's own e-mail, like invite-mailer - a new address gets the
+  // "Invite user" e-mail, an existing login the "Magic Link" one (never creating a user by OTP)
+  const meta = { studio: studio.slice(0, 120), role: roleLabel(r.role).slice(0, 60), invited_by: inviter.slice(0, 120) };
+  const { error: iErr } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo: link, data: meta });
+  if (!iErr) return json({ ok: true, sent: true });
+  if (isRateLimited(iErr)) return json({ error: "We sent it a moment ago - check your inbox (and spam), or try again in a minute.", code: "rate_limited" }, 429);
+  if (isAlready(iErr)) {
+    const { error: oErr } = await admin.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: link } });
+    if (!oErr) return json({ ok: true, sent: true });
+    if (isRateLimited(oErr)) return json({ error: "We sent it a moment ago - check your inbox (and spam), or try again in a minute.", code: "rate_limited" }, 429);
+    console.error("invite-signup: email_send magic link failed", errTag(oErr));
+  } else console.error("invite-signup: email_send invite failed", errTag(iErr));
+  return json({ error: "We couldn't send the e-mail just now - open the invitation e-mail you already have, or ask the studio to re-send it.", code: "send_failed" }, 502);
+}
+
 Deno.serve(async (req) => {
   const { cors, json, serverError } = responders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -122,6 +199,10 @@ Deno.serve(async (req) => {
     const password = typeof body.password === "string" ? body.password : "";
     const fullName = String(body.full_name ?? "").trim().slice(0, 50);
     const ip = clientIp(req);
+    // 0210: the free-trial sign-up asks about an e-mail (no token) - its own limits, before the token ones
+    if (body.email_lookup === true || body.email_send === true) {
+      return await byEmail(body.email_send === true ? "send" : "lookup", email, ip, json, serverError);
+    }
     const wait = await checkLimits([["invsu:ip:" + ip, 30, 10 * 60_000], ["invsu:tok:" + token, 15, 10 * 60_000]]);
     if (wait) return tooMany(json, wait);
     if (!TOKEN.test(token)) return json({ error: "This invitation link isn't valid.", code: "invalid_invite" }, 400);
