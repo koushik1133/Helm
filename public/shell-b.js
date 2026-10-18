@@ -176,6 +176,8 @@
     pin.addEventListener("click", function () { root.classList.toggle("hb-pinned"); ls(PIN, root.classList.contains("hb-pinned") ? "1" : "0"); syncPin(); });
     syncPin();
     top.appendChild(brand); top.appendChild(pin); rail.appendChild(top);
+    var studio = studioRow(); rail.appendChild(studio);   /* r19-studio-name: which studio you are in, under the Helm logo */
+    safe(function () { studioFill(studio); });
 
     var scroll = el("div", "hb-scroll");
     var work = group("Workspace");
@@ -321,6 +323,7 @@
         }
       });
       safe(function () { navTrim(header); });
+      safe(function () { studioCaption(header); });   /* r19-studio-name: phones show the studio under the page title */
       if (header.parentNode !== body) body.insertBefore(header, rail.nextSibling);
       safe(function () { var tr = document.getElementById("helmTrail"); if (tr) tr.classList.add("hb-trail"); });   // full-width bar, not inside the page column
       var burger = el("button", "hb-burger hb-ibtn"); burger.type = "button"; burger.setAttribute("aria-label", "Open menu"); burger.appendChild(icon("menu"));
@@ -646,6 +649,63 @@
       if (pop !== seen) { seen = pop; new MutationObserver(function () { if (pop.childNodes.length) add(pop); }).observe(pop, { childList: true }); }
       if (pop.childNodes.length) add(pop);
     }).observe(slot, { childList: true, subtree: true });
+  }
+
+  /* ---- r19-studio-name: which studio you are in. Rail: initials (or logo) tile + name + plan chip under the Helm logo
+   * (collapsed rail = the tile only; full name in the tooltip). Phones: a small line under the page title in the top bar.
+   * Data: BPStore.org.identity() (per-tab cached studio row + cached trial answer), repainted on "helm:studio" (rename). */
+  function studioAv(cls) {
+    var a = el("span", cls); a.setAttribute("aria-hidden", "true"); a.appendChild(el("span", "hb-st-i"));
+    var img = document.createElement("img"); img.alt = ""; img.hidden = true; img.decoding = "async";
+    try { img.referrerPolicy = "no-referrer"; } catch (e) {}
+    img.addEventListener("load", function () { if (img.getAttribute("src")) { img.hidden = false; a.classList.add("hb-st-logo"); } });
+    img.addEventListener("error", function () { img.hidden = true; img.removeAttribute("src"); a.classList.remove("hb-st-logo"); });   /* blocked / broken logo: initials */
+    a.appendChild(img); return a;
+  }
+  function studioAvSet(a, d) {
+    a.querySelector(".hb-st-i").textContent = d.initials || "";
+    var img = a.querySelector("img"), want = d.logo || "";
+    if ((img.getAttribute("src") || "") === want) return;
+    img.hidden = true; a.classList.remove("hb-st-logo");
+    if (want) img.setAttribute("src", want); else img.removeAttribute("src");
+  }
+  function studioRow() {
+    var row = el("div", "hb-studio"); row.hidden = true; row.setAttribute("data-studio", "rail");
+    row.appendChild(studioAv("hb-st-av"));
+    var t = el("span", "hb-st-t hb-lb"), k = el("span", "hb-st-k");
+    k.appendChild(el("span", null, "Studio")); var chip = el("span", "hb-plan"); chip.hidden = true; k.appendChild(chip);
+    t.appendChild(k); t.appendChild(el("b", "hb-st-n")); row.appendChild(t);
+    return row;
+  }
+  function studioCaption(header) {
+    if (header.querySelector(".hb-mstudio")) return;
+    var h = header.querySelector("h1"); if (!h || !h.parentNode || h.parentNode === header) return;   /* needs a title block to sit in */
+    var c = el("span", "hb-mstudio"); c.hidden = true; h.parentNode.appendChild(c);
+  }
+  function studioFill(row) {
+    var last = null, plan = null;
+    function paint(d) {
+      if (!d || !d.name) return;
+      if (d.plan) plan = d.plan;
+      var key = [d.name, d.initials, d.logo || "", plan ? plan.key + plan.title : ""].join("\n"); if (key === last) return; last = key;
+      var tip = d.name + (plan ? " \u00b7 " + plan.label : "");
+      studioAvSet(row.querySelector(".hb-st-av"), d);
+      row.querySelector(".hb-st-n").textContent = d.name;
+      var chip = row.querySelector(".hb-plan");
+      chip.hidden = !plan; chip.textContent = plan ? plan.label : ""; chip.className = "hb-plan" + (plan ? " is-" + plan.key : ""); chip.title = plan ? plan.title : "";
+      row.title = tip; row.hidden = false;
+      var c = document.querySelector("header.hb-header .hb-mstudio");
+      if (c) { c.textContent = d.name; c.title = tip; c.hidden = false; c.parentNode.classList.add("hb-has-studio"); }
+    }
+    window.addEventListener("helm:studio", function (e) { safe(function () { paint(e.detail); }); });
+    var n = 0;
+    waitAuth(function poll() {
+      var B = window.BPStore, u = null;
+      try { u = B.auth.user ? B.auth.user() : null; } catch (e) { u = null; }
+      if (!u) { if (++n < 200) setTimeout(function () { safe(poll); }, 150); return; }   /* signed out: nothing to show */
+      if (!B.org || typeof B.org.identity !== "function") return;
+      Promise.resolve(B.org.identity()).then(function (d) { safe(function () { paint(d); }); }, function () {});
+    });
   }
 
   /* ---- rail profile: from the auth/profile APIs (pages render #account differently) ---- */

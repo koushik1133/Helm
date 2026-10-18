@@ -240,6 +240,7 @@
       ".hau-mh-t{min-width:0;flex:1}",
       ".hau-mh-n{margin:0;font-weight:700;font-size:14.5px;color:var(--ink,#1b1930);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
       ".hau-mh-e{margin:1px 0 6px;font-size:12.5px;color:var(--ink-2,#4b475f);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".hau-mh-r{display:flex;align-items:center;gap:6px;min-width:0}.hau-mh-r .hau-chip{flex:0 0 auto}.hau-mh-s{min-width:0;font-size:12.5px;color:var(--ink-2,#4b475f);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hau-mh-s b{font-weight:650;color:var(--ink,#1b1930)}.hau-mh-s[hidden]{display:none}",
       ".hau-chip{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--accent-soft,#e3f4ed);color:var(--accent,#047857);font-size:11px;font-weight:700;letter-spacing:.02em}",
       "html[data-theme=dark] .hau-chip{background:#123329;color:#6ee7b7}",
       ".hau-msep{height:1px;margin:4px 6px;background:var(--line,#e8e3db)}",
@@ -1455,6 +1456,28 @@
       if (st) st.auth.signOut().then(function () { location.replace("login.html"); });
     }
   }
+  // r19-studio-name: the menu header says which studio you are signed in to - "[Admin] at Call · Hyderabad", tooltip
+  // "Signed in as <name> · <role> at <studio>". BPStore.org.identity() is the per-tab cached studio row (no extra request
+  // on a warm tab); a rename repaints the open menu through the "helm:studio" event.
+  function menuStudioLine(who, head, m) {
+    var row = el("div", { class: "hau-mh-r" });
+    if (m.role) row.appendChild(el("span", { class: "hau-chip" }, m.role));
+    var at = el("span", { class: "hau-mh-s" }); at.hidden = true; row.appendChild(at);
+    who.appendChild(row);
+    function fill(name) {
+      if (!name || !at.isConnected) return;
+      at.textContent = ""; at.appendChild(doc.createTextNode(m.role ? "at " : "")); at.appendChild(el("b", null, name)); at.hidden = false; at.title = name;
+      head.title = "Signed in as " + m.name + (m.role ? " \u00b7 " + m.role : "") + " at " + name;
+    }
+    menu.studioFill = fill;   // the open menu's line (a rename repaints it in place: focus stays where it is)
+    if (menu.studio) fill(menu.studio);
+    var st = S();
+    if (st && st.org && typeof st.org.identity === "function") Promise.resolve(st.org.identity()).then(function (d) {
+      if (d && d.name) { menu.studio = d.name; fill(d.name); }
+    }, function () {});
+    if (!menu.studioEv) { menu.studioEv = true;
+      window.addEventListener("helm:studio", function (e) { var d = e && e.detail; if (!d || !d.name) return; menu.studio = d.name; if (menu.studioFill) menu.studioFill(d.name); }); }
+  }
   function buildPop() {
     var m = menu.model, pop = menu.pop; if (!m || !pop) return;
     pop.textContent = ""; menu.avImgs = menu.avImgs.filter(function (i) { return i === menu.btnImg; });
@@ -1463,7 +1486,7 @@
     var who = el("div", { class: "hau-mh-t" });
     who.appendChild(el("p", { class: "hau-mh-n" }, m.name));
     if (m.email) who.appendChild(el("p", { class: "hau-mh-e" }, m.email));
-    if (m.role) who.appendChild(el("span", { class: "hau-chip" }, m.role));
+    menuStudioLine(who, head, m);   // r19-studio-name: "<role> at <Studio>" (was: the role chip alone)
     head.appendChild(who); pop.appendChild(head);
     m.items.forEach(function (it) {
       if (it.sep) pop.appendChild(el("div", { class: "hau-msep", role: "separator" }));
