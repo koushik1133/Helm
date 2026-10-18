@@ -8953,6 +8953,8 @@ window.HelmUrl = HelmUrl;
     ".bpui-btn[disabled]{opacity:.6;cursor:not-allowed}",
     "@media (pointer:coarse){.bpui-btn,.bpui-toast button{min-height:44px}}",
     /* toasts — white cards, bottom-right stack (1017: off the page toolbars; bottom-centre on phones), max 2, title + message + link + close + progress */
+    // PP1028 #8: while a modal is open, toasts move to the TOP so they never cover its footer buttons (e.g. Save lead)
+    "html:has([role=dialog][aria-modal=true]:not([hidden])) .bpui-toasts,html:has(dialog[open]) .bpui-toasts{bottom:auto;top:20px}",
     ".bpui-toasts{position:fixed;bottom:20px;right:16px;z-index:2147483600;display:flex;flex-direction:column;gap:10px;",
     "width:min(380px,calc(100vw - 32px));pointer-events:none;--bpui-t-bg:#fff;--bpui-t-ink:#1b1930;--bpui-t-ink2:#5b566b;--bpui-t-line:#e8e3db;",
     "--bpui-t-info:#6d28d9;--bpui-t-info-bg:#efe9ff;--bpui-t-ok:#0f7a43;--bpui-t-ok-bg:#dcf5e7;--bpui-t-warn:#8f5f00;--bpui-t-warn-bg:#fff1d6;",
@@ -10321,6 +10323,8 @@ window.HelmUrl = HelmUrl;
     // consumer. The blur `fix` still does the final min/max clamp.
     var strip = function () {
       var v = String(el.value);
+      // PP1028 #6: a pasted/typed negative ("-500") must be REJECTED, not silently flipped to +500
+      if (!allowNeg && /^\s*-/.test(v)) { el.value = ""; negHint(el, "Negative numbers aren\u2019t allowed here \u2014 value cleared, enter a positive amount", 5000); el.dispatchEvent(new Event("change", { bubbles: true })); return; }
       if (!allowNeg && v.indexOf("-") !== -1) negHint(el);
       var cleaned = v.replace(allowNeg ? /[^\d.\-]/g : /[^\d.]/g, "");
       if (integer) cleaned = cleaned.replace(/\./g, "");

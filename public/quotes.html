@@ -282,7 +282,7 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=234"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=235"></script><script src="quote-state.js?v=1"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=15"></script>
 <script>
@@ -659,7 +659,7 @@
     $("#p_coupon").value = pr.couponCode||"";
     $("#p_cmode").value = (pr.catering&&pr.catering.mode)||"inhouse";
     $("#p_camount").value = (pr.catering&&pr.catering.amount)||0;
-    $("#p_discount").value = pr.discount||0; $("#p_discountPct").value = pr.discountPct||0;
+    { const dv=HelmDiscount.pick(pr.discount, pr.discountPct); $("#p_discount").value = dv.discount||0; $("#p_discountPct").value = dv.discountPct||0; }   // PP1028 #5
     $("#p_taxExempt").checked = String(pr.taxExempt)==="true";
     $("#p_pos").value = pr.placeOfSupply||BPStore.tax.placeOfSupply(studioState, cl.state)||"intra";
     platesEdited = pr.guests!=null && pr.chairs!=null && pr.guests!==pr.chairs;
@@ -695,7 +695,7 @@
     return { chairs:+$("#p_chairs").value||0, chairPrice:+$("#p_chairPrice").value||0,
       guests:+$("#p_guests").value||0, platePrice:+$("#p_platePrice").value||0,
       gstPct:+$("#p_gst").value||0, other:+$("#p_other").value||0,
-      serviceChargePct:+$("#p_svc").value||0, discount:+$("#p_discount").value||0, discountPct:+$("#p_discountPct").value||0,
+      serviceChargePct:+$("#p_svc").value||0, ...HelmDiscount.pick($("#p_discount").value, $("#p_discountPct").value),   // PP1028 #5: one or the other, never both
       couponCode: cp?couponCode:"", coupon: cp?{kind:cp.kind,value:cp.value}:null,
       placeOfSupply:$("#p_pos").value, currency:"INR", ...BPStore.tax.snapshot(curTax), taxExempt: $("#p_taxExempt").checked ? true : undefined,
       catering:{ mode:$("#p_cmode").value, vendor: vsel==="__new"?"":vsel, amount:+$("#p_camount").value||0, gstPct:+$("#p_cgst").value||0 } };
@@ -1048,6 +1048,7 @@
   // Escape → BPUI clicks [data-close] (the × below), so every close path runs the unsaved-changes check
   $("#cm_close").addEventListener("click",requestCloseConfirm);
   $("#confirmModal").addEventListener("click",e=>{ if(e.target.id==="confirmModal") requestCloseConfirm(); });
+  HelmDiscount.wireExclusive($("#p_discount"), $("#p_discountPct"));   // PP1028 #5: ₹ and % never add up
   $("#confirmModal").addEventListener("input",e=>{ if(e.target.closest(".grid,.totals")||/^p_/.test(e.target.id)) recalc(); });
   // plates auto-follow chairs until the user edits plates
   $("#p_guests").addEventListener("input",()=>{ platesEdited=true; });

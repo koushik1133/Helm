@@ -4644,7 +4644,14 @@ async function init(){
       if(!ver || !ver.data || !Array.isArray(ver.data.items)) throw new Error('version data unreadable');
       draftToRestore = readDraft(q.id);
       applyLayout(ver.data);                  // also restores hall size / margins / capacity of an empty version
-      if(!ver.data.items.length && ver.versionNo===1 && +q.currentVersion===1){
+      // PP1028 #2: never silently drop priced default decor onto a quote that is already priced or locked
+      // (confirmed / sent / approved) - that re-priced a locked ₹67,968 quote to ₹2,23,728 on save.
+      // Those quotes open on a blank floor; the Templates menu / ?gen=1 stay the explicit way to add a default.
+      const _ppPriced = +((q.pricing&&(q.pricing.total||q.pricing.grandTotal||q.pricing.subtotal))||q.total||0) > 0;
+      const _ppAllowAuto = (typeof HelmBuilderAutoDefault==='function') ? HelmBuilderAutoDefault(q, _ppPriced, params.get('gen')==='1') : (params.get('gen')==='1' || (!_ppPriced && !currentQuoteGuard.approved && !currentQuoteGuard.sent));
+      if(!ver.data.items.length && ver.versionNo===1 && +q.currentVersion===1 && !_ppAllowAuto && !CAPTURE_HOST){
+        toast('No layout saved yet — blank floor. Use Templates to start from a default layout.'); }
+      if(_ppAllowAuto && !ver.data.items.length && ver.versionNo===1 && +q.currentVersion===1){
         // Brand-new (never-edited) quote → drop in the default layout for this event type so the
         // client immediately sees the standard package (chairs, mandap, stage…). Only ever for v1.
         const presetKey = EVENT_TYPE_PRESET[(q.eventType||'').toLowerCase()];

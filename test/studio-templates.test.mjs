@@ -65,7 +65,7 @@ t('wizard: Start from my template', () => {
 });
 t('pages: scripts + versions', () => {
   const bh = read('public/builder.html'), ch = read('public/control.html');
-  assert.match(bh, /builder\.js\?v=66/); assert.match(bh, /layout-wizard\.js\?v=12/);
+  assert.match(bh, /builder\.js\?v=67/); assert.match(bh, /layout-wizard\.js\?v=12/);
   for (const h of [bh, ch]) { assert.match(h, /studio-templates-core\.js\?v=1"><\/script>\s*<script src="studio-templates\.js\?v=2"/); assert.match(h, /studio-templates\.css\?v=1/); }
   assert.match(ch, /id="tab-ltemplates"[^>]*hidden/); assert.match(ch, /id="pane-ltemplates" hidden/);
   assert.match(read('public/capture.html'), /studio-templates\.js\?v=2/);

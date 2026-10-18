@@ -16,8 +16,8 @@ const F = read('public/flow.html');
 
 t('#1 save keeps the Quotes-list 10% discount; 96,000 + 10% + 18% GST = 1,01,952', () => {
   // flow seeds #q_discount from pr.discount (0) and carries pr.discountPct into currentInputs()
-  assert.match(F, /\$\("#q_discount"\)\.value=pr\.discount\|\|0;/);
-  assert.match(F, /discountPct:nn\(ev&&ev\.pricing&&ev\.pricing\.discountPct\)/);
+  assert.match(F, /HelmDiscount\.pick\(pr\.discount, pr\.discountPct\); \$\("#q_discount"\)\.value=dv\.discount\|\|0;/);
+  assert.match(F, /\.\.\.HelmDiscount\.pick\(\$\(\"#q_discount\"\)\.value, \$\(\"#q_discountPct\"\)\?\$\(\"#q_discountPct\"\)\.value:\(ev&&ev\.pricing&&ev\.pricing\.discountPct\)\)/  /* PP1028: ₹/% exclusive */);
   assert.match(F, /let pricing=Object\.assign\(\{\}, ev\.pricing\|\|\{\}, p, \{ computed:t, total:t\.total/);
   const evPricing = { chairs: 0, guests: 120, platePrice: 800, other: 0, gstPct: 18, discountPct: 10, discount: 0 };
   const p = { chairs: 0, chairPrice: 0, guests: 120, platePrice: 800, other: 0, gstPct: 18, serviceChargePct: 0,
@@ -27,11 +27,12 @@ t('#1 save keeps the Quotes-list 10% discount; 96,000 + 10% + 18% GST = 1,01,952
   const saved = Object.assign({}, evPricing, p, { computed: tt, total: tt.total });
   assert.equal(saved.discountPct, 10, 'discount kept'); assert.equal(saved.total, 101952);
   assert.equal(quoteTotal(saved).total, 101952, 're-open after save gives the same total');
-  assert.match(F, /id="q_discountPctHint"/); assert.match(F, /discount set on the Quotes list/);
+  assert.match(F, /id="q_discountPctHint"/); assert.match(F, /stays a % when the quote is re-priced/);
 });
 t('#2 approval card: Booking confirmed only after an advance', () => {
-  assert.match(F, /if\(ap==='paid'\) \$\("#apprState"\)\.textContent="Booking confirmed\.";/);
-  assert.match(F, /Client approved — advance pending\./);
+  // PP1028 #1: wording now comes from HelmApprovalState (quote-state.js); "Booking confirmed" only when paid
+  assert.match(F, /apprStateText\(ap==='paid'\)/);
+  assert.match(read('public/quote-state.js'), /Client approved — advance pending\./);
   assert.doesNotMatch(F, /ap==='paid'\|\|ev\.status==='confirmed'\) \$\("#apprState"\)/);
 });
 t('#3 event Record advance uses the studio route', () => {

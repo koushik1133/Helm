@@ -272,6 +272,7 @@
             <div class="fld"><label for="q_platePrice">Plate price (₹) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
             <div class="fld"><label for="q_other">Décor / equipment &amp; setup (₹)</label><input id="q_other" type="number" min="0"></div>
             <div class="fld"><label for="q_discount">Discount (₹)</label><input id="q_discount" type="number" min="0" aria-describedby="q_discount_err"><span class="hint" id="q_discount_err" role="alert" hidden></span><span class="hint" id="q_discountPctHint" hidden></span></div>
+            <div class="fld"><label for="q_discountPct">Discount (%)</label><input id="q_discountPct" type="number" min="0" max="100" step="0.5" aria-describedby="q_discount_err"></div>
             <div class="fld"><label for="q_coupon">Coupon code</label><input id="q_coupon" list="couponList" placeholder="optional"><datalist id="couponList"></datalist>
               <div class="s-40d0688" id="q_couponMsg" role="status" aria-live="polite"></div></div>
             <div class="fld"><label for="q_taxExempt"><input type="checkbox" id="q_taxExempt"> Tax-exempt client (no tax charged)</label></div>
@@ -369,13 +370,14 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=234"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=235"></script>
 <script src="tour.js?v=14"></script>
-<script src="booklet.js?v=19"></script>
+<script src="booklet.js?v=20"></script>
 <script src="share-checklist.js?v=9"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=1"></script>
+<script src="quote-state.js?v=1"></script>
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
@@ -539,10 +541,10 @@
     const gstPct = (rg==null||rg===""||!isFinite(+rg)) ? 18 : +rg;
     return { chairs, guests, chairPrice:nn(+$("#q_chairPrice").value||rates.chairPrice), platePrice,
       other, gstPct, serviceChargePct:+rates.serviceChargePct||0,
-      discount:nn($("#q_discount").value||0),
-      // QA1026 #1: a % discount set on the Quotes list has no field here - carry it so the flow total,
-      // the advance default and the saved total all match the list's discounted grand total
-      discountPct:nn(ev&&ev.pricing&&ev.pricing.discountPct), catering:{mode:"inhouse",gstPct},
+      // PP1028 #3/#5: ₹ and % are mutually exclusive - whichever the user typed is stored, the other is 0,
+      // so a % discount stays a % when the quote is re-priced (and the two never add up)
+      ...HelmDiscount.pick($("#q_discount").value, $("#q_discountPct")?$("#q_discountPct").value:(ev&&ev.pricing&&ev.pricing.discountPct)),
+      catering:{mode:"inhouse",gstPct},
       couponCode:($("#q_coupon")?$("#q_coupon").value.trim():""), coupon:appliedCoupon,
       placeOfSupply:flowPos(), currency:"INR", taxCountry:undefined, taxName:undefined, taxInclusive:undefined, taxRegion:undefined, ...BPStore.tax.snapshot(fTax()),   // R4: undefined clears a stale snapshot key on re-save
       taxExempt: exemptOn() ? true : undefined,
@@ -556,7 +558,7 @@
     const one=(inp,box,what)=>{ const b=$(box), i=$(inp); if(!b||!i) return; const v=i.value===""?null:+i.value;
       const diff=g!=null && v!=null && v!==g; b.hidden=!diff; b.textContent=diff?(what+" ("+v+") differ from guests ("+g+") — that's fine, only "+what.toLowerCase()+" are priced."):""; };
     one("#q_chairs","#q_chairsDiff","Chairs"); one("#q_guests","#q_platesDiff","Plates"); }
-  function renderPrice(){ syncQtyHints();
+  function renderPrice(){ syncQtyHints(); try{ if(_qVers&&_qVers.length) paintQuoteVersions(); }catch(_){}
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
     showDiscountError(p);
     let rows="";
@@ -566,7 +568,7 @@
     rows+=`<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`;
     // PL1027 #1: a % discount from the Quotes list is kept on save - show it (and its ₹ value) beside the ₹ field
     { const h=$("#q_discountPctHint"); if(h){ const dp=+p.discountPct||0; h.hidden=!(dp>0);
-      h.textContent=dp>0?("Plus "+dp+"% discount set on the Quotes list (− "+inr(t.subtotal*dp/100)+") — kept when you save."):""; } }
+      h.textContent=dp>0?(dp+"% discount (− "+inr(t.subtotal*dp/100)+") — stays a % when the quote is re-priced."):""; } }
     if(t.discount>0) rows+=`<div class="prow"><span>Discount${(+p.discountPct||0)>0?' <span class="q">'+esc(String(+p.discountPct))+'%'+((+p.discount||0)>0?' + '+esc(inr(+p.discount)):'')+'</span>':''}</span><span class="amt">− ${inr(t.discount)}</span></div>`;
     rows+=`<div class="prow"><span>${esc(fTax().name)}${t.taxExempt?" (exempt)":t.taxInclusive?" (included)":""}</span><span class="amt">${inr(t.totalGst)}</span></div>`;
     if(fTax().country==="IN" && !t.taxExempt && t.totalGst>0) rows+=`<div class="prow posHint" style="color:var(--ink-3);font-size:11px"><span>${p.placeOfSupply==="inter"?"IGST (inter-state)":"CGST+SGST (intra-state)"}</span><span></span></div>`;
@@ -638,7 +640,7 @@
   ["#d_bmin","#d_bmax"].forEach(s=>{ const el=$(s); if(el) el.addEventListener("input",()=>{ if(loading || failed.discovery) return; budgetTouched=true; syncClientMem(); if(AS) AS.schedule("client"); }); });
   // india-clickthrough D2: an inverted budget range (min > max) is flagged inline and never saved
   function budgetRangeOk(){
-    const a=$("#d_bmin").value, b=$("#d_bmax").value, bad=a!=="" && b!=="" && +a > +b;
+    const a=$("#d_bmin").value, b=$("#d_bmax").value, bad=(typeof HelmBudgetRange!=="undefined")?HelmBudgetRange.bad(a,b):(a!=="" && b!=="" && +a > +b);   // PP1028 #7: only when BOTH are filled
     ["#d_bmin","#d_bmax"].forEach(s=>{ if(bad) $(s).setAttribute("aria-invalid","true"); else $(s).removeAttribute("aria-invalid"); });
     const m=$("#d_bmaxErr"); if(m) m.hidden=!bad;
     return !bad;
@@ -752,6 +754,7 @@
   function discountError(p){
     const gross=(p.chairs>0?p.chairs*p.chairPrice:0)+(p.guests>0?p.guests*p.platePrice:0)+(p.other>0?p.other:0);
     const d=Number(p.discount)||0;
+    { const raw=HelmDiscount.rawError($("#q_discount")&&$("#q_discount").value, $("#q_discountPct")&&$("#q_discountPct").value); if(raw) return raw; }   // PP1028 #6
     return (d>0 && gross>0 && d>gross) ? "Discount can't exceed the subtotal ("+inr(gross)+")." : "";
   }
   function showDiscountError(p){
@@ -914,9 +917,17 @@
     try{ vs=(await BPStore.quotationVersions.list(id))||[]; }
     catch(e){ if(BPUI.isMissingFunction(e)||BPUI.isMissingTable(e)){ $("#q_versions").innerHTML=""; return; }
       BPUI.loadError($("#q_versions"), e, renderQuoteVersions, {what:"quotation versions"}); return; }
-    if(!vs.length){ $("#q_versions").innerHTML=""; return; }
-    $("#q_versions").innerHTML='<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Quotation versions</div>'+
-      vs.map((v,i)=>`<div class="rowline"><span class="g"><b>${esc(v.label)}</b>${i===0?' <span class="pill">current</span>':''}</span><span>${inr(v.total)}</span><span class="meta">${esc(BPStore.fmtDateTime(v.created_at)||'')}</span></div>`).join('');
+    _qVers=vs; paintQuoteVersions(); }
+  // PP1028 #4: the newest saved version is only "current" while the live price still matches it
+  var _qVers=[];
+  function paintQuoteVersions(){ const vs=_qVers||[]; const box=$("#q_versions"); if(!box) return;
+    if(!vs.length){ box.innerHTML=""; return; }
+    let live=null; try{ live=BPStore.pricing.quoteTotal(currentInputs()).total; }catch(_){}
+    const differs=HelmVersionLabel.differs(live, vs[0]&&vs[0].total);
+    const sd=v=>{ try{ return new Date(v.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short"}); }catch(_){ return ""; } };
+    box.innerHTML='<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Quotation versions</div>'+
+      (differs?`<div class="rowline"><span class="g"><b>Current (unsaved changes)</b> <span class="pill">current</span></span><span>${inr(live)}</span><span class="meta">Save the quotation to make this a new version</span></div>`:'')+
+      vs.map((v,i)=>`<div class="rowline"><span class="g"><b>${esc(v.label)}</b>${i===0&&!differs?' <span class="pill">current</span>':''}</span><span>${inr(v.total)}</span><span class="meta">${differs&&i===0?'saved '+esc(sd(v)):esc(BPStore.fmtDateTime(v.created_at)||'')}</span></div>`).join("");
   }
   function downloadQuotePDF(){
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p), cl=ev.client||{};
@@ -1063,9 +1074,12 @@
       BPUI.toast(BPUI.friendlyError(e,{action:"record the payment"}),{type:"err"}); }
   }
   // QA1026 #13: "Confirmed" only once an advance is recorded; a confirmed quote with no advance says so
+  // PP1028 #1: client-approval wording from the REAL approval state (same states as the quotes list)
+  function apprStateText(paid){ const ap=(ev&&(ev.approvalStatus||ev.approval_status))||"none", hasTok=!!(ev&&(ev.approvalToken||ev.approval_token));
+    return HelmApprovalState(ap, hasTok, paid); }
   function paintBookingBadge(paidCount){ const b=$("#bookingBadge"); if(!b) return;
     { const st=$("#apprState"); if(st){ if(paidCount>0) st.textContent="Booking confirmed.";   // PL1027 #2
-        else if(st.textContent==="Booking confirmed.") st.textContent="Client approved — advance pending."; } }
+        else if(st.textContent==="Booking confirmed.") st.textContent=apprStateText(false); } }
     if(paidCount>0){ b.textContent="Confirmed"; b.hidden=false; payNextConfirmed(); return; }
     if(ev&&ev.status==='confirmed'){ b.textContent="Advance pending"; b.hidden=false; return; }
     b.hidden=true; }
@@ -1186,7 +1200,7 @@
     $("#q_guests").value=pr.guests!=null?pr.guests:(cl.guests!=null?cl.guests:(oi.chairs||""));  // H-02: empty, not "0", when unknown
     $("#q_platePrice").value=pr.platePrice!=null?pr.platePrice:(appliedPkg?appliedPkg.price_per_plate:rates.platePrice);
     $("#q_other").value=pr.other!=null?pr.other:(oi.objectsCost+(+rates.layoutBase||0));
-    $("#q_discount").value=pr.discount||0;
+    { const dv=HelmDiscount.pick(pr.discount, pr.discountPct); $("#q_discount").value=dv.discount||0; if($("#q_discountPct")) $("#q_discountPct").value=dv.discountPct||0; }
     if($("#q_coupon") && pr.couponCode){ $("#q_coupon").value=pr.couponCode; applyCoupon(); }
     if(pr.chairPrice!=null) $("#q_chairPrice").value=pr.chairPrice;
     $("#q_taxExempt").checked=String(pr.taxExempt)==="true";
@@ -1296,9 +1310,8 @@
     // QA-FR2: after a reload the approval card said "Not sent yet." even when a link exists / the booking is confirmed
     { const ap=ev.approvalStatus||ev.approval_status||"", hasTok=!!(ev.approvalToken||ev.approval_token);
       // PL1027 #2: "Booking confirmed" only once an advance exists (paid); approved/confirmed without one = advance pending
-      if(ap==='paid') $("#apprState").textContent="Booking confirmed.";
-      else if(ap==='approved'||ev.status==='confirmed') $("#apprState").textContent="Client approved — advance pending.";
-      else if(hasTok) $("#apprState").textContent="Approval link already created — use the button below to show it again."; }
+      // PP1028 #1: an internal Confirm & lock is NOT a client approval - follow the real approval state
+      if(ap==='paid'||ap==='approved'||ap==='sent'||hasTok) $("#apprState").textContent=apprStateText(ap==='paid'); }
     await renderReceipts(); await renderActivity(); await renderQuoteVersions();
     renderReprice(); watchHistory();
     // reminder banner
@@ -1388,7 +1401,8 @@
     $("#c_state").addEventListener("change",()=>{ syncClientMem(); renderPrice(); });
     $("#c_city").addEventListener("change",()=>{ if(!$("#c_state").value){ const g=guessClientState(ev.client||{}); if(g){ $("#c_state").value=g; syncClientMem(); renderPrice(); } } });
     ["v_name","v_addr","v_venue_id","v_setting","v_vlen","v_vwid"].forEach(f=>{ $("#"+f).addEventListener("input",syncVenueMem); $("#"+f).addEventListener("change",syncVenueMem); });
-    ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
+    HelmDiscount.wireExclusive($("#q_discount"), $("#q_discountPct"));   // PP1028 #5: editing one clears the other
+    ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount","q_discountPct"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
     $("#q_guests").addEventListener("input",()=>{ qGuestsOverridden=true; });
     // R8: one sizing source — layout-section fields mirror the client record live
     $("#g_guests").addEventListener("input",()=>{ $("#c_guests").value=$("#g_guests").value; syncClientMem(); renderPrice(); });
@@ -1432,7 +1446,7 @@
     $("#sendApproval").addEventListener("click",()=>{ sendApproval().catch(()=>{}); });
     $("#pay_pct").addEventListener("input",()=>{ $("#pay_pct").dataset.touched="1"; updateAdvance(); });
     $("#c_date").addEventListener("change",applyPayTerms);
-    ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",updateAdvance));
+    ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount","q_discountPct"].forEach(f=>$("#"+f).addEventListener("input",updateAdvance));
     // Production without live Razorpay: manual recording only (no simulated link option)
     if(!BPStore.approval.onlinePayAvailable()){ const o=$("#pay_method").querySelector('option[value="online"]'); if(o) o.remove(); }
     $("#pay_method").addEventListener("change",()=>{ $("#pay_receiptWrap").style.display=$("#pay_method").value==='cash'?'':'none'; $("#pay_online").style.display='none'; });
