@@ -349,6 +349,9 @@
       await BPUI.guard(btn, async()=>{
         // QA1017: same GUESTS_MAX as flow - an over-cap lead must not price a quote around the flow cap
         { const cl=(typeof leads!=="undefined"&&Array.isArray(leads))?leads.find(x=>String(x.id)===String(id)):null; if(cl&&Number(cl.guest_count)>100000){ BPUI.toast("This lead has more than 100,000 guests. Edit the guest count first, then convert.",{type:"err"}); return; } }
+        // flow-validation (owner): a new quote never starts with a past event date (studio day, India = Asia/Kolkata)
+        { const cl=(typeof leads!=="undefined"&&Array.isArray(leads))?leads.find(x=>String(x.id)===String(id)):null; const dd=cl&&String(cl.event_date||"").slice(0,10);
+          if(dd && /^\d{4}-\d{2}-\d{2}$/.test(dd) && dd<new Intl.DateTimeFormat("en-CA",{timeZone:(((window.BPStore&&BPStore.studioTax&&BPStore.studioTax())||{}).country==="AE"?"Asia/Dubai":"Asia/Kolkata"),year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())){ BPUI.toast("Event date can't be in the past — this lead's date ("+dd+") has passed. Edit the lead's event date first, then convert.",{type:"err",timeout:8000}); return; } }
         // QA1017 (sales role): convert_lead_to_quote() accepts leads EDIT, but a role without the quotes
         // area cannot open the new quote - stay on Leads instead of landing on "Quote not found".
         try{ const q=await BPStore.leads.convert(id);

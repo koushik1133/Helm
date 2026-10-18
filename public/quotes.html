@@ -283,7 +283,8 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script><script src="quote-state.js?v=2"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=244"></script>
+<script src="flow-resume.js?v=1" data-mount></script><script src="quote-state.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=15"></script>
 <script>
@@ -765,6 +766,11 @@
       ["#p_camount",v=>V.money(v,{field:"Catering charge"})],["#p_discount",v=>V.money(v,{field:"Discount"})],["#p_discountPct",v=>V.pct(v,{field:"Discount %"})]];
     for(const [sel,fn] of checks){ const raw=$(sel).value; if(raw==="") continue; const r=fn(raw); if(!r.ok){ errEl.textContent=r.error; errEl.hidden=false; $(sel).focus(); return; } }
     if($("#c_email").value.trim()){ const r=V.email($("#c_email").value); if(!r.ok){ errEl.textContent=r.error; errEl.hidden=false; $("#c_email").focus(); return; } }
+    // flow-validation (owner): event date can't be in the past (studio day) unless it is the date already saved
+    { const de=$("#c_date"), dv=de.value, sv=String((((detailCache[cmId]||{}).client)||{}).eventDate||((detailCache[cmId]||{}).eventDate)||"").slice(0,10);
+      const today=new Intl.DateTimeFormat("en-CA",{timeZone:(((window.BPStore&&BPStore.studioTax&&BPStore.studioTax())||{}).country==="AE"?"Asia/Dubai":"Asia/Kolkata"),year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+      if((dv && dv<today && dv!==sv) || (!dv && de.getAttribute("data-date-rejected")==="past")){ errEl.textContent="Event date can't be in the past."; errEl.hidden=false; de.setAttribute("aria-invalid","true"); de.focus(); return; }
+      de.removeAttribute("aria-invalid"); }
     // Don't save a blank quote (QA): a deliberate save needs at least the client name.
     if(!$("#c_name").value.trim()){ errEl.textContent="Enter the client name before saving the quote."; errEl.hidden=false; $("#c_name").focus(); return; }
     // Confirming LOCKS a priced snapshot for the client — require client name + a valid

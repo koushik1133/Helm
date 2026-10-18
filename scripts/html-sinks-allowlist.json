@@ -519,11 +519,6 @@
   },
   {
    "file": "public/flow.html",
-   "expr": "k==='reqs'?'reqs':k",
-   "why": "k is a literal tab key from the fixed tab list"
-  },
-  {
-   "file": "public/flow.html",
    "expr": "label",
    "why": "literal section label passed by the caller"
   },
