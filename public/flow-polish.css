@@ -32,8 +32,27 @@ html[data-theme="dark"]:not([data-shell]) { --ink-3: #8b93a7; }
 /* QA-E2E: the sticky right rail (live price + steps + approval) grew taller than a laptop
    viewport, so "Send for approval" sat below the fold and could never scroll into view.
    Cap it to the viewport and let it scroll on its own (desktop two-column layout only). */
+/* flow-validation (owner): the rail slid UNDER the sticky app header (shell-b, z-index 800) while
+   scrolling, so Live price + Steps "disappeared". Stick it just below the header, cap it to the
+   viewport with its own scroll. Narrow screens get a bottom summary bar instead (.mbar). */
 @media (min-width:901px){
-  .rail{max-height:calc(100vh - 32px);overflow-y:auto;overscroll-behavior:contain}
+  .rail{position:sticky;top:calc(var(--hb-top,0px) + 16px);align-self:start;max-height:calc(100vh - var(--hb-top,0px) - 32px);overflow-y:auto;overscroll-behavior:contain}
+  .mbar{display:none!important}
+}
+.mbar{display:none}
+@media (max-width:900px){
+  .mbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -6px 20px rgba(20,27,46,.10);font-size:13px}
+  .mbar .mbar-l b{font-size:15px;color:var(--accent)} .mbar .mbar-s{color:var(--ink-3);font-size:12px;flex:1;min-width:0}
+  body{padding-bottom:72px}
+  .egbar{bottom:80px}
+  .rail{position:static;max-height:none}
+}
+/* the app's own bottom tab bar (shell-b, phones <= 819px) sits at the very bottom: ride just above it */
+@media (max-width:819px){
+  html[data-shell="b"] .mbar{bottom:calc(58px + env(safe-area-inset-bottom,0px));padding-bottom:10px}
+  html[data-shell="b"].hb-kb .mbar{bottom:0}
+  html[data-shell="b"] body{padding-bottom:140px}
+  html[data-shell="b"] .egbar{bottom:140px}
 }
 
 /* dev pass 3: inline discount error */
@@ -46,3 +65,14 @@ html[data-theme="dark"]:not([data-shell]) { --ink-3: #8b93a7; }
 .budget-range .range-sep{color:var(--ink-3)}
 .edit-step1{font-size:11px;font-weight:500;margin-left:6px}
 .qty-diff{margin:4px 0 0;font-size:12px;color:var(--ink-3)}
+
+/* flow-validation: messages under the fields */
+.fv-msg{display:block;margin-top:4px;font-size:12px;line-height:1.35;color:var(--danger-text,var(--danger,#b42318));overflow-wrap:anywhere}
+.fv-msg.fv-warn{color:var(--warn-text,#8f5f00)}
+.fld input[aria-invalid="true"],.fld select[aria-invalid="true"],.fld textarea[aria-invalid="true"],.row3 input[aria-invalid="true"]{border-color:var(--danger,#b42318);box-shadow:0 0 0 1px var(--danger,#b42318)}
+.saved.muted{color:var(--ink-3);font-weight:500}
+.price .prow.warnrow{color:var(--warn-text,#8f5f00);background:var(--warn-soft,#fff6e0);border-radius:8px;padding:6px 8px;margin:4px 0;font-size:12px}
+.row3>.fv-msg{grid-column:1/-1;order:9;margin-top:0}
+.rq-note{grid-column:1/-1;order:8;height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font:inherit;font-size:13px;color:var(--ink);min-width:0}
+#d_bmax_words:empty{display:none}
+#d_bmax_words{font-size:12px;color:var(--ink-3)}

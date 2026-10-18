@@ -15,7 +15,7 @@ t('#1 saved total is derived from the stored pricing object with the same engine
   const stale = { chairs: 63, chairPrice: 200, guests: 100, platePrice: 900, total: 106200 };
   const out = ctx.HelmQuoteTotal.withTotal(stale, engine);
   assert.equal(out.total, engine(stale).total); assert.equal(out.computed.total, out.total);
-  assert.match(flow, /pricing=HelmQuoteTotal\.withTotal\(pricing, BPStore\.pricing\.quoteTotal\.bind\(BPStore\.pricing\)\)/);
+  assert.match(flow, /pricing=HelmQuoteTotal\.withTotal\(pricing, BPStore\.pricing\.quoteTotal\.bind\(BPStore\.pricing\)\)/);   // flow-validation: bound (this._canon)
   assert.match(flow, /if\(!chairsManual\)\{ const a=autoChairs\(\);[^\n]*renderPrice\(\)/, 'default chairs applied before the save prices');
 });
 t('#2 booklet advance row falls back to the flow default 10%', () => {
