@@ -184,6 +184,8 @@
         timezone: opts.timezone || loc.timezone, currency: opts.currency || loc.currency });
       lsDel();
       try { global.localStorage.setItem("bp_force_tour", "1"); } catch (e) {}
+      // 0167: the dashboard first shows the short 2-step welcome (name the studio, invite up to 2), then the tour
+      try { if (mode === "demo") global.localStorage.setItem("bp_trial_welcome", String(Date.now())); } catch (e) {}
       return r;
     } catch (e) { undoChoice(); throw e; }
   }

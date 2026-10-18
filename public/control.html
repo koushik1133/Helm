@@ -487,6 +487,7 @@
       <div class="card">
         <h3>Team members</h3>
         <p class="mnote">Add teammates, set the name chat shows for each person, change each person's role, or remove access. Changes apply immediately.</p>
+        <p class="mnote" id="seat_meter" role="status" aria-live="polite" hidden></p>
         <div class="uctools" id="uc_tools" hidden>
           <input id="uc_q" type="search" placeholder="Search name, email, phone, title…" autocomplete="off" aria-label="Search team members">
           <select id="uc_f" aria-label="Show"><option value="">Everyone</option><option value="incomplete">Incomplete profiles</option><option value="complete">Complete profiles</option></select>
@@ -751,7 +752,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=7"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=241"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=242"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -768,7 +769,7 @@
 <script src="studio-templates-core.js?v=1"></script>
 <script src="studio-templates.js?v=2"></script>
 <script src="item-pricing.js?v=1"></script>
-<script src="trial-demo.js?v=5"></script>
+<script src="trial-demo.js?v=6"></script>
 <script src="settings-search-core.js?v=1"></script>
 <script src="search-catalog.js?v=2"></script>
 <script src="control-split.js?v=11"></script>
@@ -1502,6 +1503,7 @@
     try{ res=await BPStore.auth.admin.members(); }
     catch(e){ BPUI.loadError(tb, e, renderUsers, {what:"team members"}); return; }
     ucProfiles=!!res.profiles; ucRows=res.rows||[];
+    renderSeats();
     if(!ucProfiles) ucRows.sort((a,b)=>(a.email||"").localeCompare(b.email||""));
     $("#uc_tools").hidden=false; $("#uc_f").hidden=!ucProfiles;
     drawUsers();
@@ -1690,6 +1692,17 @@
   });
   $("#inv_link").addEventListener("click",(e)=>e.target.select());
   // ---- pending invites (existing invitations.list / .revoke; "Copy link" re-uses create(), which returns the same live token) ----
+  // ---- 0167: seat counter ("2 of 2 seats used") - a free trial is you + 2 people; open invites count ----
+  async function renderSeats(){
+    const m=$("#seat_meter"); if(!m||!BPStore.invitations.seats) return;
+    let r; try{ r=await BPStore.invitations.seats(); }catch(_){ m.hidden=true; return; }   // older server: no counter
+    const lock=(on)=>{ ["#inv_submit","#um_submit"].forEach(sel=>{ const b=$(sel); if(b){ b.disabled=!!on; if(on) b.title="All seats are in use"; else b.removeAttribute("title"); } }); };
+    if(!r||!r.limited){ m.hidden=true; lock(false); return; }
+    const extra=Number(r.extra_limit)||0, used=Math.min(Number(r.extra_used)||0, extra), pend=Number(r.pending)||0;
+    m.textContent=`${used} of ${extra} seats used`+(r.trial?" (free trial: you + "+extra+" people)":"")+(pend?` \u00b7 ${pend} pending invite${pend===1?"":"s"} count as seats`:"")+".";
+    if(r.at_limit) m.textContent+=" All seats are in use \u2014 revoke a pending invite or remove someone to add another person, or upgrade for more seats.";
+    m.hidden=false; lock(!!r.at_limit);
+  }
   async function renderInvites(){
     const tb=$("#inv_rows"); if(!tb) return;
     let rows;
@@ -1722,6 +1735,7 @@
         try{ await navigator.clipboard.writeText(link); setUMsg("ok","Link copied."); }catch(_){ $("#inv_link").select(); setUMsg("ok","Link ready to copy below."); } }
       catch(err){ setUMsg("err",errMsg(err,"get the invite link")); }
     }));
+    renderSeats();
   }
   // ---- GDPR / data portability export (Phase 85) ----
   $("#btn-export-gdpr").addEventListener("click", async ()=>{

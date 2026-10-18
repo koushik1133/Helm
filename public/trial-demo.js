@@ -34,6 +34,10 @@
     ".td-safe{font-weight:600}.td-fresh{margin:0 0 14px}",
     ".td-dlg .td-row .danger{background:var(--danger,#b42318);border-color:var(--danger,#b42318);color:#fff}",
     ".td-err{color:var(--danger,#b42318);margin:8px 0 0;font-size:13px}",
+    ".td-welcome{max-width:480px}.td-fld{display:flex;flex-direction:column;gap:4px;margin:0 0 10px}.td-fld label{font-size:13px;font-weight:600}",
+    ".td-fld input,.td-fld select{min-height:40px;padding:0 10px;border:1px solid var(--line,#e8e3db);border-radius:9px;font:inherit;background:var(--panel,#fff);color:inherit}",
+    ".td-hint{font-size:12px;color:var(--ink-3,#6b6577)}.td-inv{display:grid;grid-template-columns:1fr 150px;gap:8px}",
+    "@media (max-width:480px){.td-inv{grid-template-columns:1fr}}",
   ].join("\n");
   let cssDone = false;
   function css() { if (cssDone) return; cssDone = true; if (typeof global.__helmAdoptCss === "function") global.__helmAdoptCss(doc, CSS); }
@@ -254,6 +258,7 @@
   async function mount() {
     if (/(^|\/)onboarding(\.html)?$/.test(global.location.pathname || "")) { mountFresh(); return; }
     const dash = doc.querySelector("[data-td-auto]"), ctl = doc.querySelector("[data-td-control]");
+    if (welcomeOn) mountWelcome();
     if (!dash && !ctl) return;
     const st = S(); if (!st || !st.demo || !st.subscription) return;
     try { if (st.init) await st.init(); } catch (e) {}
@@ -270,6 +275,108 @@
     } catch (e) {}
   }
 
-  global.HelmTrialDemo = { view: view, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount };
+  /* ---- 0167: 2-step trial welcome (dashboard, right after a demo-mode trial sign-up) ----------
+     Step 1 "Name your trial studio": name + city (default Hyderabad) + optional phone ->
+     trial_welcome_setup (own trial studio only). The sample data is already there (seeded at sign-up).
+     Step 2 (optional) "Invite your team (up to 2)": email + role rows -> create_invitation (the
+     server enforces the seat limit) + Skip. Then the guided tour. Paid "Create studio" never sees this. */
+  const WKEY = "bp_trial_welcome";
+  function lsGet(k) { try { return global.localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { if (v == null) global.localStorage.removeItem(k); else global.localStorage.setItem(k, v); } catch (e) {} }
+  // Pure (unit-tested): is the welcome due? a flag set at sign-up, at most 2 days old
+  function welcomeDue(flag, now) { const t = Number(flag); return isFinite(t) && t > 0 && now - t >= 0 && now - t < 2 * 24 * 3600 * 1000; }
+  // Pure (unit-tested): the invite rows worth sending (valid-looking emails, max 2, no duplicates)
+  function inviteRows(rows) {
+    const out = [], seen = {};
+    (rows || []).forEach(function (r) {
+      const e = String((r && r.email) || "").trim().toLowerCase();
+      if (!e || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e) || seen[e] || out.length >= 2) return;
+      seen[e] = 1; out.push({ email: e, role: String((r && r.role) || "coordinator") });
+    });
+    return out;
+  }
+  // hold the tour back until the welcome is done (dashboard reads bp_force_tour after init)
+  const welcomeOn = /(^|\/)dashboard(\.html)?$/.test((global.location && global.location.pathname) || "") && welcomeDue(lsGet(WKEY), Date.now());
+  if (welcomeOn) { lsSet("bp_tour_autorun", "1"); }
+  function field(id, label, type, value, hint) {
+    const f = el("div", "td-fld"), l = el("label", null, label); l.htmlFor = id; f.appendChild(l);
+    const i = el("input"); i.id = id; i.type = type || "text"; if (value) i.value = value; f.appendChild(i);
+    if (hint) f.appendChild(el("span", "td-hint", hint));
+    return { box: f, input: i };
+  }
+  async function finishWelcome(dlg) {
+    lsSet(WKEY, null); lsSet("bp_tour_autorun", null); lsSet("bp_force_tour", "1");
+    try { dlg.close(); } catch (e) {} dlg.remove();
+    global.location.replace("dashboard.html");
+  }
+  async function mountWelcome() {
+    if (!welcomeOn) return;
+    const st = S(); let t = null;
+    try { if (st.init) await st.init(); t = st.trialOrg ? await st.trialOrg.status() : null; } catch (e) {}
+    if (!t || t.is_trial_org !== true || t.is_admin !== true) { lsSet(WKEY, null); lsSet("bp_tour_autorun", null); return; }
+    css();
+    const dlg = el("dialog", "td-dlg td-welcome"); dlg.setAttribute("aria-labelledby", "tdWT");
+    const step = el("span", "td-tag", "Step 1 of 2"); dlg.appendChild(step);
+    const h = el("h3", null, "Name your trial studio"); h.id = "tdWT"; dlg.appendChild(h);
+    const body = el("div"); dlg.appendChild(body);
+    const err = el("p", "td-err"); err.setAttribute("role", "alert"); err.hidden = true; dlg.appendChild(err);
+    const row = el("div", "td-row"); dlg.appendChild(row);
+    const showErr = (m) => { err.textContent = m; err.hidden = !m; };
+    // step 1
+    body.appendChild(el("p", null, "Your sample studio is loading with events, leads, menus, staff and inventory. Give it your name — you can change it later."));
+    const fn = field("tdw_name", "Studio name", "text", /^Demo [0-9]+$/.test(t.name || "") ? "" : (t.name || ""));
+    fn.input.required = true; fn.input.maxLength = 120; fn.input.autocomplete = "organization";
+    const fc = field("tdw_city", "City", "text", "Hyderabad"); fc.input.maxLength = 120;
+    const fp = field("tdw_phone", "Phone (optional)", "tel", "", "Shown on your quotes. Leave empty if you like."); fp.input.maxLength = 40;
+    [fn, fc, fp].forEach((x) => body.appendChild(x.box));
+    const next = btn("Continue", "btn primary", async () => {
+      const name = fn.input.value.trim();
+      if (name.length < 2) { showErr("Enter your studio name (at least 2 characters)."); fn.input.focus(); return; }
+      showErr(""); const done = busy(next, "Saving…");
+      try { await st.trialOrg.welcome(name, fc.input.value, fp.input.value); }
+      catch (e) { done(); showErr(errMsg(e, "save the studio name")); return; }
+      step2();
+    });
+    row.appendChild(next);
+    function step2() {
+      step.textContent = "Step 2 of 2 (optional)"; h.textContent = "Invite your team (up to 2)";
+      while (body.firstChild) body.removeChild(body.firstChild);
+      while (row.firstChild) row.removeChild(row.firstChild);
+      showErr("");
+      body.appendChild(el("p", null, "Your free trial includes you + 2 people. They get an email with a join link. You can also do this later in Control Center → Users & invites."));
+      const roles = (st.auth && st.auth.admin && st.auth.admin.roles) ? st.auth.admin.roles().filter((r) => r !== "client") : ["manager", "coordinator", "sales"];
+      const lines = [];
+      for (let n = 1; n <= 2; n++) {
+        const line = el("div", "td-inv");
+        const e = field("tdw_e" + n, "Email " + n, "email", ""); e.input.autocomplete = "off";
+        const rf = el("div", "td-fld"), rl = el("label", null, "Role"); rl.htmlFor = "tdw_r" + n; rf.appendChild(rl);
+        const sel = el("select"); sel.id = "tdw_r" + n;
+        roles.forEach((r) => { const o = el("option", null, st.auth.admin.roleLabel ? st.auth.admin.roleLabel(r) : r); o.value = r; if (r === "coordinator") o.selected = true; sel.appendChild(o); });
+        rf.appendChild(sel); line.appendChild(e.box); line.appendChild(rf); body.appendChild(line);
+        lines.push({ e: e.input, r: sel });
+      }
+      row.appendChild(btn("Skip", "btn", () => finishWelcome(dlg)));
+      const send = btn("Send invites", "btn primary", async () => {
+        const list = inviteRows(lines.map((x) => ({ email: x.e.value, role: x.r.value })));
+        if (!list.length) { showErr("Enter at least one email — or press Skip."); lines[0].e.focus(); return; }
+        showErr(""); const done = busy(send, "Sending…");
+        for (const it of list) {
+          try { await st.invitations.create(it.email, it.role); }
+          catch (e) { done(); showErr(errMsg(e, "invite " + it.email)); return; }
+        }
+        try { await st.invitations.sendNow(); } catch (e) {}
+        toast(list.length === 1 ? "Invite sent." : "Invites sent.");
+        finishWelcome(dlg);
+      });
+      row.appendChild(send);
+      lines[0].e.focus();
+    }
+    dlg.addEventListener("cancel", (ev) => { ev.preventDefault(); });   // finish or skip, never lost by Esc
+    doc.body.appendChild(dlg);
+    try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
+    fn.input.focus();
+  }
+
+  global.HelmTrialDemo = { welcomeDue: welcomeDue, inviteRows: inviteRows, view: view, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount };
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", mount); else mount(); }
 })(typeof window !== "undefined" ? window : globalThis);

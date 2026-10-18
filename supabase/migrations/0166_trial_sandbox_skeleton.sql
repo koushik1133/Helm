@@ -3,7 +3,7 @@
 -- REQUIRES 0097 + 0100 (is_demo flags, _demo_seed, _demo_clear), 0116 + 0119 (trial studios,
 --          start_self_serve_trial), 0127 (_trial_seed_custom), 0128 + 0146 (Skip OTP test mode).
 -- Design: docs/trial/TRIAL-ARCHITECTURE.md. This is the skeleton: the sample data itself is a
--- TINY placeholder (TODO owner data), and the clone is OFF until the owner switches it on.
+-- written by 0167 (publish snapshot model), and the clone is OFF until the owner switches it on.
 --
 -- In plain words:
 --   1  ONE "sample master" studio (organizations.is_sample_master) + a one-row switch table
@@ -33,7 +33,7 @@
 -- ZERO DATA LOSS / existing studios unaffected: additive + idempotent. New columns (nullable or
 -- with defaults), new tables, new functions, triggers created only if missing. The three seed
 -- functions are renamed to *__pre0166 once and wrapped (same signature, same grants). One new
--- studio row (the sample master, fixed id) and 4 placeholder rows inside it. No DROP / DELETE /
+-- studio row (the sample master, fixed id; its sample rows come from 0167). No DROP / DELETE /
 -- TRUNCATE of anything that exists; no existing row is changed. ASCII only. Safe to run twice.
 -- ============================================================================
 
@@ -99,8 +99,8 @@ do $$ begin
 end $$;
 
 -- ---- 2) helpers --------------------------------------------------------------------------------
--- the tables the clone copies, parents first. TODO(owner data / next phase): leads, quotes (priced
--- by the server engine, not copied), payment_milestones, event_checklist, layouts, tasks, run sheet.
+-- the tables the clone copies, parents first (0167 extends this to leads, quotes (priced
+-- by the server engine), payment_milestones, event_checklist, layouts, tasks, run sheet).
 create or replace function public._sample_clone_tables()
 returns text[] language sql immutable set search_path = '' as $$
   -- trial-sandbox-0166
@@ -387,7 +387,7 @@ begin
   return jsonb_build_object('result', 'ok', 'cleared', r);
 end $$;
 
--- ---- 8) the sample master + TINY placeholder data (TODO: owner fills the real data) -------------
+-- ---- 8) the sample master studio (its data: 0167) ---------------------------------------------
 insert into public.organizations(id, name, currency, timezone, country, is_sample_master)
 select 'a5a5a5a5-0166-4000-8000-000000000001'::uuid, 'Helm Sample Master', 'INR', 'Asia/Kolkata', 'IN', true
  where not exists (select 1 from public.organizations o where o.id = 'a5a5a5a5-0166-4000-8000-000000000001'::uuid);
@@ -397,22 +397,10 @@ update public.organizations set is_sample_master = true
 -- switch OFF until the owner has loaded the real data and checked it on staging
 insert into public.helm_sample_template(id, org_id, active, anchor_date, version, notes)
 values (true, 'a5a5a5a5-0166-4000-8000-000000000001'::uuid, false, current_date, 1,
-        'TODO owner: placeholder only (2 items, 1 vendor, 1 package). Fill the master studio, then set active = true.')
+        'Sample master studio. Data + publish: 0167. Switch on with active = true.')
 on conflict (id) do nothing;
 
--- TODO(owner data): replace with the real dataset (docs/trial/TRIAL-ARCHITECTURE.md section 12)
-insert into public.inventory_items(org_id, name, category, total_qty, unit, priority, unit_cost, notes, active)
-select 'a5a5a5a5-0166-4000-8000-000000000001'::uuid, v.name, v.cat, v.qty, 'pcs', 'A', v.cost, 'TODO owner data: placeholder sample item.', true
-  from (values (E'Demo \u00b7 Chiavari chair (TODO)', 'Furniture', 200, 45), (E'Demo \u00b7 Round table 6 ft (TODO)', 'Furniture', 30, 300)) v(name, cat, qty, cost)
- where not exists (select 1 from public.inventory_items i where i.org_id = 'a5a5a5a5-0166-4000-8000-000000000001'::uuid);
-insert into public.vendors(org_id, name, category, kind, phone, email, notes, active)
-select 'a5a5a5a5-0166-4000-8000-000000000001'::uuid, E'Demo \u00b7 Sample Florist (TODO)', 'Florist', 'vendor',
-       '+91 00000 00901', 'sample.florist@example.com', 'TODO owner data: placeholder sample vendor.', true
- where not exists (select 1 from public.vendors v where v.org_id = 'a5a5a5a5-0166-4000-8000-000000000001'::uuid);
-insert into public.menu_templates(org_id, tier, diet, name, price_per_plate, dishes, active, seq, description, min_guests)
-select 'a5a5a5a5-0166-4000-8000-000000000001'::uuid, 'standard', 'veg', E'Demo \u00b7 Silver Veg (TODO)', 650, '[]'::jsonb, true, 1,
-       'TODO owner data: placeholder sample package.', 100
- where not exists (select 1 from public.menu_templates m where m.org_id = 'a5a5a5a5-0166-4000-8000-000000000001'::uuid);
+-- the sample dataset itself is written by 0167 (and published as manifest v1)
 
 -- ---- 9) privileges -----------------------------------------------------------------------------
 do $$

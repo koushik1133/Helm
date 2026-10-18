@@ -4457,6 +4457,8 @@ window.HelmUrl = HelmUrl;
         const reason = code === 404 ? "not_deployed" : code === 401 ? "unauthorized" : code === 403 ? "forbidden"
           : code === 429 ? "rate_limited" : (code || (msg && !/fetch|network/i.test(msg))) ? "server_error" : "network";
         return { status: "unavailable", reason }; } },
+    // 0167 — "2 of 2 seats used": members + open invitations vs the studio's seat limit (free trial: you + 2)
+    seats: () => rpc("my_seat_usage"),
     accept:  (token) => rpc("accept_invitation", { p_token: token }),                        // signed-in invitee attaches to the org
     byToken: (token) => rpc("invitation_by_token", { p_token: token }),                      // minimal, no-PII info for the accept screen
     // Direct invite sign-up (edge function invite-signup): the server creates the account,
@@ -8759,6 +8761,8 @@ window.HelmUrl = HelmUrl;
     // status(): {is_trial_org, name, ends_at, days_left, ended, locked, is_admin}; null before 0116.
     trialOrg: {
       start: (loc) => (loc && (loc.timezone || loc.currency) ? rpc("start_trial", { p_timezone: loc.timezone || null, p_currency: loc.currency || null }) : rpc("start_trial", {})),
+      // 0167 — 2-step trial welcome, step 1: rename the caller's own trial studio (name, link slug, city, optional phone)
+      welcome: (name, city, phone) => rpc("trial_welcome_setup", { p_name: String(name || "").trim(), p_city: String(city || "").trim() || "Hyderabad", p_phone: String(phone || "").trim() || null }),
       status: () => (supa ? swr("trialorg", () => rpc("my_trial_org", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })) : Promise.resolve(null)),
       // 0126 — {is_trial_org, ends_at, ended, locked, is_owner, blocked}; works for a member blocked after an unpaid trial ends.
       access: () => (supa ? rpc("my_trial_access", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
@@ -9184,6 +9188,8 @@ window.HelmUrl = HelmUrl;
     if (e && e.hint === "money_frozen" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
     // 0159: a directly created studio is read-only until its plan is paid (or it switches to the trial)
     if (e && e.hint === "payment_pending") return pre + "Choose a plan and complete payment to start using Helm — or start a free trial instead.";
+    // 0166 — free-trial seat limit (you + 2 people; open invitations count)
+    if (e && e.hint === "seat_limit") return pre + "Your free trial includes you + 2 people, and both seats are in use. Revoke an invitation or remove someone to add another person — or upgrade for more seats.";
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
     if (e && (e.hint === "studio_suspended" || errCode(e) === "25006")) return pre + "This studio is read-only because its Helm subscription is suspended or the trial has ended — contact Helm (or an admin can renew in Billing).";
     // 0052 lifecycle gates / re-approval: the DB message is written for people
