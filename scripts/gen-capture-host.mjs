@@ -28,6 +28,9 @@ export function captureHtml(builder) {
   s = s.replace(/<link rel="stylesheet" href="layout-wizard\.css\?v=\d+">\n/, '');
   s = s.replace(/<script src="layout-wizard\.js\?v=\d+"><\/script>\n/, '');
   s = s.replace(/<script src="fullscreen\.js\?v=\d+"><\/script>\n/, '');
+  // QA-B27: no "Hide amounts" privacy screen in the headless picture host (no amounts, no PIN dialog, no eye button)
+  s = s.replace(/<link rel="stylesheet" href="\/shell-b-privacy\.css\?v=\d+">[^\n]*\n/, '');
+  s = s.replace(/<script src="\/shell-b-privacy\.js\?v=\d+"><\/script>\n/, '');
   return s;
 }
 const out = join(PUB, 'capture.html');

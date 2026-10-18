@@ -145,10 +145,11 @@
       var w = sw ? sw(N, nat, null, pr.eventType) : null; if (w) setTimeout(function () { toast("⚠ " + w, true); }, 50);
     }
     var li = B.fn("loadItems"); if (!li) return;
-    li(items, row.name);
+    var nm = trialName(row.name) || row.name;   // QA-B27: "Demo · Corporate — Round tables gala" -> "Corporate — Round tables gala"
+    li(items, nm);
     if (fitChoice === "fit") { var nt = B.fn("lfNote"); if (nt) nt(row.data.items || []); }
     var es = $("emptyState"); if (es) es.hidden = true;
-    toast(row.name + " loaded" + (fit.scaled ? " · fitted to your " + fit.hall.w + "×" + fit.hall.h + " ft hall" : ""));
+    toast(nm + " loaded" + (fit.scaled ? " · fitted to your " + fit.hall.w + "×" + fit.hall.h + " ft hall" : ""));
   }
 
   // "My studio templates" as the FIRST optgroup of #preset (the template picker is built from it)

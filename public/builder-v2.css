@@ -105,3 +105,10 @@ html[data-hb-theme] :is(.htour,.htour-fab,.st-editbar,.htr,.htrm,.htb) { --hb-bg
   --hb-acc:var(--accent); --hb-acc-ink:var(--acc-ink); --hb-acc-soft:var(--accent-soft); --hb-acc-text:var(--acc-text); font-family:var(--font); }
 html[data-hb-theme] body { font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
 html[data-hb-theme] .brand .brand-txt small { color:var(--acc-text); font-weight:600; }
+
+/* QA-B27: "Hide amounts" eye button (shell-b-privacy.js mounts it into header .hb-tools), styled like .tbtn.icon */
+header .bp-priv-slot { display:inline-flex; align-items:center; }
+header .bp-priv-slot .hbp-btn { height:32px; width:32px; padding:0; display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid var(--line); background:var(--panel-2); color:var(--ink); border-radius:7px; cursor:pointer; }
+header .bp-priv-slot .hbp-btn:hover { border-color:var(--grid-strong); }
+header .bp-priv-slot .hbp-btn.hbp-on { background:var(--accent-soft, var(--panel-2)); color:var(--acc-text, var(--accent)); }

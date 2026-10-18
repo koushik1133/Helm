@@ -778,8 +778,10 @@
   function venueSel() {
     const sel = el('select', 'lw-in', null, { id: 'wizVenue', 'aria-label': 'Saved venue' });
     sel.append(el('option', null, '- type the hall size by hand -', { value: '' }));
-    const B = window.HelmBuilderVenue, linkedId = venuePicked || (B && B.client && B.client().venueId) || '';
+    const B = window.HelmBuilderVenue;
     const fill = (rows) => {
+      // QA-B27: pre-select the event's venue - its linked id, else the saved venue the quote names (display only)
+      const linkedId = venuePicked || (B && B.linkedId ? B.linkedId(rows) : (B && B.client && B.client().venueId)) || '';
       (rows || []).forEach((v) => { const o = el('option', null, v.name + (v.city ? ' - ' + v.city : ''), { value: v.id }); if (v.id === linkedId) o.selected = true; sel.append(o); });
       sel.disabled = !(rows || []).length;
     };

@@ -447,6 +447,14 @@ async function setQuoteChairs(n){
 }
 // Build the menu-package + guests controls ONCE (rebuilding on every render
 // would steal focus from the guests field while typing).
+// QA-B10: the menu package a quote was priced with (pricing._packageName), matched by name; a sample
+// package named "Demo · Gold — Non-veg" matches "Gold — Non-veg" (and the other way round)
+function pkgNameKey(n){ return String(n==null?'':n).replace(/^\s*Demo \u00b7 /,'').replace(/\s+/g,' ').trim().toLowerCase(); }
+function pkgFromQuoteName(pkgs, name){
+  const k=pkgNameKey(name); if(!k) return null;
+  const list=Array.isArray(pkgs)?pkgs:[];
+  return list.find(p=>p && p.name===name) || list.find(p=>p && pkgNameKey(p.name)===k) || null;
+}
 function buildMenuControls(){
   const box=$('#pkgPanel'); if(!box) return;
   const pkgs=PRICING.packages||[];
@@ -489,6 +497,18 @@ window.HelmBuilderVenue = {
           venueLen: (window.HelmVenues && HelmVenues.mToFt(v.length_m)) || null, venueWid: (window.HelmVenues && HelmVenues.mToFt(v.width_m)) || null }
       : { venueId: null, venueName: null });
     try{ await BPStore.quotes.updateMeta(currentQuoteId, { client: currentClient }); }catch(e){ /* non-fatal */ }
+  },
+  // QA-B27: the saved venue this event points at, for pre-selecting the venue pickers: the linked id when it is
+  // in the list, else the venue the quote names (client.venueName / client.venue, e.g. the sample events) matched
+  // by name. Read-only: nothing is linked or saved until the planner picks a venue.
+  linkedId(rows){
+    const c=currentClient||{}, list=Array.isArray(rows)?rows:[];
+    if(c.venueId && list.some(v=>v && v.id===c.venueId)) return String(c.venueId);
+    const key=n=>String(n==null?'':n).replace(/\s+/g,' ').trim().toLowerCase();
+    const want=key(c.venueName||c.venue); if(!want) return c.venueId?String(c.venueId):'';
+    const strip=n=>key(n).replace(/^demo \u00b7 /,'');
+    const hit=list.find(v=>v && key(v.name)===want) || list.find(v=>v && strip(v.name)===strip(want));
+    return hit ? String(hit.id) : (c.venueId?String(c.venueId):'');
   },
 };
 async function persistGuests(){
@@ -589,12 +609,17 @@ function renderPrice(){
   let qp=null, qt=null; if(currentQuoteId && window.HelmSizing){ try{ qp=quotePricingNow(); qt=BPStore.pricing.quoteTotal(qp); }catch(e){ qp=null; } }
   const otherSet = qp ? HelmSizing.handOther(currentPricing, _lastAutoOther) : null;
   if(qt){ m.subtotal=qt.subtotal; m.gst=Math.round(qt.totalGst); m.total=qt.total; m.serviceCharge=Math.round(qt.serviceCharge); m.discount=qt.discount;
-    m.chairsCost=qp.chairs*qp.chairPrice; m.cateringCost=qt.cateringBucket; m.svcPct=+qp.serviceChargePct||0; m.gstPct=+qp.gstPct||0; m.taxInclusive=qt.taxInclusive; }
+    m.chairsCost=qp.chairs*qp.chairPrice; m.svcPct=+qp.serviceChargePct||0; m.gstPct=+qp.gstPct||0; m.taxInclusive=qt.taxInclusive;
+    // QA-B9: the line labels show the SAME counts and unit rates the totals were priced with (the quote's own
+    // chairPrice / platePrice), never the studio defaults - "450 × ₹100 = ₹20,250" read as wrong maths
+    m.chairs=+qp.chairs||0; m.chairPrice=+qp.chairPrice||0; m.guests=+qp.guests||0; m.platePrice=+qp.platePrice||0;
+    m.cateringCost=+qt.plateSub||0; m.cateringExtra=+qt.cateringAmt||0; }
   let rows='';
   if(m.chairs>0)
     rows+=`<div class="prow"><span>Chairs <span class="q">${m.chairs} × ${inr(m.chairPrice)}</span></span><span class="amt">${inr(m.chairsCost)}</span></div>`;
   if(m.cateringCost>0)
-    rows+=`<div class="prow"><span>Catering${PRICING.menuPackageName?' <span class="q">'+esc(PRICING.menuPackageName)+'</span>':''} <span class="q">${m.guests} × ${inr(m.platePrice)}</span></span><span class="amt">${inr(m.cateringCost)}</span></div>`;
+    rows+=`<div class="prow"><span>Catering${PRICING.menuPackageName?' <span class="q">'+esc(String(PRICING.menuPackageName).replace(/^\s*Demo \u00b7 /,''))+'</span>':''} <span class="q">${m.guests} × ${inr(m.platePrice)}</span></span><span class="amt">${inr(m.cateringCost)}</span></div>`;
+  if(m.cateringExtra>0) rows+=`<div class="prow"><span>Catering <span class="q">set on quote</span></span><span class="amt">${inr(m.cateringExtra)}</span></div>`;
   if(otherSet!=null){ if(otherSet>0) rows+=`<div class="prow"><span>Décor / setup <span class="q">set on quote</span></span><span class="amt">${inr(otherSet)}</span></div>`; }
   else (m.objectLines||[]).forEach(l=>{
     const label=ASSETS[l.type]?ASSETS[l.type].label:l.type;
@@ -2511,8 +2536,14 @@ function exactSeats(items, N){
     const tabs=items.filter(it=>{ const p=it.properties||{}; return p.seats && !(p.rows&&p.cols); });
     const blocks=items.filter(it=>{ const p=it.properties||{}; return p.rows&&p.cols; }).sort((a,b)=>genSeats(b)-genSeats(a));
     if(blocks.length) setBlockSeats(items, blocks[0], genSeats(blocks[0])+d);
-    else if(tabs.length){ for(let i=0;d>0;i=(i+1)%tabs.length,d--) tabs[i].properties={...tabs[i].properties, seats:(+tabs[i].properties.seats||0)+1}; }
-    else { // no seating survived (tiny hall): pack all N into the largest free spot found
+    else if(tabs.length){
+      // QA-B27: top up the round tables only to their own seats-per-table (the largest table = the generator's
+      // spt); a table is never given 20 chairs. Whatever is left is packed as a seat block below.
+      const cap=Math.max(...tabs.map(t=>+t.properties.seats||0));
+      for(const t of tabs){ if(d<=0) break; const add=Math.min(d, Math.max(0, cap-(+t.properties.seats||0))); if(add>0){ t.properties={...t.properties, seats:(+t.properties.seats||0)+add}; d-=add; } }
+    }
+    if(d>0 && !blocks.length){ // no seating survived (tiny hall) or the tables are full: pack the remaining d into the largest free spot found
+      N=d;   // from here on N = the seats still to place
       const taken=items.filter(it=>!GEN_OVERLAY.has(it.type)).map(genRect);
       let spot=null;
       // R9: first look for a free spot that holds all N at the comfortable pitch — if one exists the seats
@@ -2737,11 +2768,15 @@ function seatTheatre(items, o, topY){
 }
 function seatRounds(items, o, topY, mixed){
   const bottomY=seatBottom(o);
-  const spt=o.spt||8, margin=10, cell=9;
-  const cols=Math.max(1,Math.floor((WORLD.w-2*margin)/cell));
-  const rowsAvail=Math.max(1,Math.floor((bottomY-topY)/cell));
-  const capacity=cols*rowsAvail;
-  let tables = o.tables!=null ? o.tables : (o.guests?Math.ceil(o.guests/spt):Math.min(capacity, Math.round(capacity*0.7)));
+  const spt=o.spt||8, margin=10;
+  // QA-B27: tables = ceil(seats ÷ the form's seats per table). The 9 ft grid used to cap the count silently
+  // (420 chairs at 8 → 21 tables of 20 seats); the pitch now tightens to 8 ft (as the
+  // banquet rounds do) before giving up any table, and exactSeats never pushes a table past its seats (the rest goes in a block).
+  const want = o.tables!=null ? o.tables : (o.guests?Math.ceil(o.guests/spt):null);
+  const grid=c=>{ const cols=Math.max(1,Math.floor((WORLD.w-2*margin)/c)), rowsAvail=Math.max(1,Math.floor((bottomY-topY)/c)); return { cell:c, cols, rowsAvail, capacity:cols*rowsAvail }; };
+  let g=grid(9); if(want!=null && g.capacity<want) g=grid(8);   // same floor as seatBanquetRounds: never tighter than 8 ft
+  const { cell, cols, rowsAvail, capacity } = g;
+  let tables = want!=null ? want : Math.min(capacity, Math.round(capacity*0.7));
   tables=Math.min(tables, capacity);
   const dance=o.dance; const dcx=WORLD.w/2, dcy=(topY+bottomY)/2;
   if(dance){ items.push(makeItem('dancefloor', dcx-12, dcy-11, {width:24,height:22,label:'Dance Floor'}));
@@ -2949,7 +2984,7 @@ function generateVariants(oIn){
     else seatTheatre(it,o,t);
     if(o.lounge) it.push(makeItem('lounge', 8, 8, {label:'Lounge'}));
     supportZone(it,o);
-    finish(it,'Custom mix','Your exact selections — drop &amp; edit freely'); }
+    finish(it,'Custom mix','Your exact selections — drop & edit freely'); }
 
   // ---- Additional layout rules (additive; reuse the strategies above) ----
   const isConf = (o.type==='conference'||o.type==='corporate'||o.type==='product_launch');
@@ -3083,7 +3118,10 @@ function applyCapHints(){
 }
 function openCustomModal(){ const wasOpen=!$('#customModal').hidden; $('#customModal').hidden=false;
   if(!wasOpen) _ceFresh=true;   // R9: re-read the quote's sizing each time it opens (never mid-edit) $('#c_results').innerHTML=''; try{ applyCapHints(); }catch(e){}
-  try{ prefillCustomForm(); wireSizingForm(); renderRecommendations(); }catch(e){} }
+  try{ prefillCustomForm(); wireSizingForm(); renderRecommendations(); }catch(e){}
+  // QA-B27: the venue picker re-reads the quote's venue on every open (the wizard's "Classic" button opens this
+  // dialog without the #customBtn click the picker listens to, so the linked venue was never pre-selected)
+  try{ if(!wasOpen && window.HelmVenuePicker && HelmVenuePicker.where==='builder') HelmVenuePicker.sync(); }catch(e){} }
 /* R8: the Custom Event dialog is prefilled from the quote (guests, chairs, tables, hall, type) and
    keeps chairs = 70% of guests / tables = chairs ÷ seats-per-table until the user types their own. */
 const CE_TYPE = { wedding:'wedding', reception:'reception', engagement:'wedding', gala:'wedding', cocktail:'wedding', birthday:'wedding',
@@ -3995,7 +4033,10 @@ let verBusy = false;          // a switch is in progress (dropdown locked)
 function isViewingOlder(){ return !!(currentQuoteId && currentVersionNo && latestVersionNo && currentVersionNo<latestVersionNo); }
 function versionOptionLabel(v, latestNo, names, meId){
   const parts=['V'+v.versionNo+(v.versionNo===latestNo?' (latest)':'')];
-  if(v.createdAt){ const d=new Date(v.createdAt); if(!isNaN(d)) parts.push(d.toLocaleString(undefined,{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})); }
+  // QA-B27: the save time in the STUDIO's time zone + locale (BPStore.fmtStudioDate), never the viewer's browser clock
+  if(v.createdAt){ const d=new Date(v.createdAt); if(!isNaN(d)){ const f={day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'};
+    let t=''; try{ if(typeof BPStore!=='undefined' && BPStore.fmtStudioDate) t=BPStore.fmtStudioDate(v.createdAt,{fmt:f}); }catch(e){ t=''; }
+    parts.push(t || d.toLocaleString(undefined,f)); } }
   if(v.createdBy){ const who = (meId && v.createdBy===meId) ? 'you' : (names && names[v.createdBy]); if(who) parts.push(who); }
   const note=String(v.label||'').replace(/\s+/g,' ').trim();
   if(note) parts.push('“'+(note.length>40 ? note.slice(0,39)+'…' : note)+'”');
@@ -4627,7 +4668,11 @@ async function init(){
       currentQuoteRow=q; renderNameHint();
       try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[q.code,q.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' '),kind:'builder',href:'builder.html?quote='+encodeURIComponent(q.id),recordHref:'event.html?id='+encodeURIComponent(q.id)}); }catch(e){}
       const verNo = (openVer && /^\d{1,6}$/.test(String(openVer)) && +openVer>0) ? parseInt(openVer,10) : q.currentVersion;   // ignore junk like v=abc
-      const ver = await BPStore.quotes.getVersion(q.id, verNo);
+      // QA-B8: a quote whose V1 row was never written (current_version 1, no version rows at all) opens as an
+      // empty V1 instead of locking. Nothing can be overwritten: add_quote_version numbers from max(version_no)+1,
+      // so the first save simply becomes V1. Any other missing / unreadable version still locks (catch below).
+      const _noVersionRows = !(q.versions||[]).length && +verNo===1 && (+q.currentVersion||1)===1;
+      const ver = _noVersionRows ? { versionNo:1, data:{ items:[] }, missing:true } : await BPStore.quotes.getVersion(q.id, verNo);
       currentVersionNo = ver.versionNo;
       PRICING.eventType = q.eventType || null;
       PRICING.eventDate = q.eventDate || null;   // photo render: season from the event date
@@ -4649,6 +4694,14 @@ async function init(){
              && +currentPricing.platePrice === +match.price_per_plate) PRICING.menuPlatePrice = +match.price_per_plate;
         }
       }catch{}
+      // QA-B10: the event plan has no package but the quote was priced with one (pricing._packageName, e.g. the
+      // sample events) -> show that package as selected. Display only: the plate rate stays the quote's own
+      // platePrice (menuPlatePrice is left unset), so opening the builder never re-prices anything.
+      if(!PRICING.menuPackageName && currentPricing && currentPricing._packageName){
+        const pk=pkgFromQuoteName(PRICING.packages, currentPricing._packageName);
+        PRICING.menuPackageName = pk ? pk.name : String(currentPricing._packageName);
+        if(pk && !PRICING.appliedPkgId) PRICING.appliedPkgId = pk.id;
+      }
       buildMenuControls();
       // unreadable version data must lock the builder (catch below), never be shown as an empty floor to save over
       if(!ver || !ver.data || !Array.isArray(ver.data.items)) throw new Error('version data unreadable');
