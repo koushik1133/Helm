@@ -95,7 +95,7 @@
           <select id="d_mode"><option value="">—</option><option value="in_person">In person</option><option value="call">Phone call</option><option value="video">Video call</option></select></div>
         <div class="fld full"><label for="d_loc">Location / meeting link</label><input id="d_loc" placeholder="Venue address or video link"></div>
         <div class="fld full"><label for="d_att">Who attended</label><input id="d_att" placeholder="e.g. Client + spouse, planner"></div>
-        <div class="fld"><label for="d_bmax">Budget (₹)</label><input type="number" min="0" id="d_bmax" placeholder="e.g. 500000"><input type="hidden" id="d_bmin"></div>
+        <div class="fld"><label for="d_bmax">Budget (₹)</label><input type="number" min="0" id="d_bmax" placeholder="Not set yet" readonly aria-describedby="d_bmaxHint"><input type="hidden" id="d_bmin"><span class="muted" id="d_bmaxHint">One budget per event, set in the quote (step 1). <a id="d_bmaxEdit" href="flow.html">Edit in step 1</a></span></div>
         <div class="fld full"><label for="d_notes">Notes</label><textarea id="d_notes" placeholder="Theme ideas, constraints, preferences, must-avoids…"></textarea></div>
       </div>
       <div class="foot"><span id="d_msg" role="status" aria-live="polite"></span><button type="button" class="btn primary" id="d_save" hidden>Save discovery</button></div>
@@ -220,8 +220,9 @@
       $("#d_date").value=d.meet_date||""; $("#d_mode").value=d.mode||""; $("#d_loc").value=d.location||"";
       $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||"";
       $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:(d.budget_min!=null?d.budget_min:""); }
-      // if budget wasn't captured in discovery yet, seed the ceiling from the lead's budget (carried on the quote)
-      if(!$("#d_bmax").value){ const b=ev&&ev.client&&ev.client.budget; if(b!=null&&b!=="") $("#d_bmax").value=b; }
+      // budget-single-source (0199): the quote's budget (step 1, also the CRM lead's) is THE budget; this
+      // field only shows it (read-only) and Save keeps Discovery's copy equal. Old records without one keep theirs.
+      { const b=ev&&ev.client&&ev.client.budget; if(b!=null&&b!=="") $("#d_bmax").value=b; }
       dirty.clean(); }
     catch(e){ discFailed=true;
       $("#discErrMsg").textContent="Couldn't load the saved discovery — "+BPUI.friendlyError(e)+" Saving is paused so nothing gets overwritten.";
@@ -242,6 +243,7 @@
     $("#evName").textContent = (ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false;
     $("#d_save").hidden=!canEdit; $("#addReq").hidden=!canEdit;
+    $("#d_bmaxEdit").href="flow.html?quote="+encodeURIComponent(id)+"#sec-client";   // budget-single-source: one budget, edited in the quote flow
     // prefill discovery
     await loadDiscovery();
     await loadReqs();
