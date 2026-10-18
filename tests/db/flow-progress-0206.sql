@@ -17,6 +17,7 @@ do $$ declare a_admin uuid; a_staff uuid; b_admin uuid;
   qF uuid := gen_random_uuid(); qC uuid := gen_random_uuid(); qS uuid := gen_random_uuid(); qSent uuid := gen_random_uuid();
   qConf uuid := gen_random_uuid(); qArch uuid := gen_random_uuid(); qDemo uuid := gen_random_uuid(); qOld uuid := gen_random_uuid();
   qEmpty uuid := gen_random_uuid(); qBlank uuid := gen_random_uuid(); qDisc uuid := gen_random_uuid();
+  qStg uuid := gen_random_uuid(); qPlan uuid := gen_random_uuid();
   j jsonb; e text; n int; ids text[]; r jsonb; ts timestamptz; begin
   execute 'reset role';
   select id into a_admin from auth.users where email='a_admin@a.test';
@@ -34,12 +35,17 @@ do $$ declare a_admin uuid; a_staff uuid; b_admin uuid;
     (qOld, 'FP-OLD', 'Flow Old', 'quote', '{"name":"Old"}', '{"subtotal":0,"discount":0,"gstPct":18,"total":0}', 1, 'none', org, null, null, now() - interval '200 days', now() - interval '200 days'),
     (qEmpty, 'FP-EMPTY', 'FP-EMPTY', 'quote', '{}', '{}', 1, 'none', org, null, null, now() - interval '3 days', now() - interval '3 days'),
     (qBlank, 'FP-BLANK', 'FP-BLANK', 'quote', '{}', '{}', 1, 'none', org, null, null, now(), now()),
-    (qDisc, 'FP-DISC', 'Flow Disc', 'quote', '{"name":"Disc"}', '{"subtotal":0,"discount":0,"gstPct":18,"total":0}', 1, 'none', org, null, null, now(), now());
+    (qDisc, 'FP-DISC', 'Flow Disc', 'quote', '{"name":"Disc"}', '{"subtotal":0,"discount":0,"gstPct":18,"total":0}', 1, 'none', org, null, null, now(), now()),
+    (qStg, 'FP-STG', 'Flow Stage', 'quote', '{"name":"Stage"}', '{"subtotal":0,"discount":0,"gstPct":18,"total":0}', 1, 'none', org, null, null, now(), now()),
+    (qPlan, 'FP-PLAN', 'Flow Plan', 'quote', '{"name":"Plan"}', '{"subtotal":0,"discount":0,"gstPct":18,"total":0}', 1, 'none', org, null, null, now(), now());
+  -- moved to the Discovery stage in the workspace: still being prepared. Planning: past Confirmed, not a draft.
+  update public.quotes set lifecycle_stage = 'discovery' where id = qStg;
+  update public.quotes set lifecycle_stage = 'planning' where id = qPlan;
   update public.quotes set archived_at = now() where id = qArch;
   update public.quotes set auto_discarded_at = now(), deleted_at = now(), deleted_reason = 'manual' where id = qDisc;
   update public.quotes set is_demo = true where id = qDemo;
   insert into public.quote_versions(quote_id, version_no, data, object_count, created_by, org_id)
-    select x, 1, '{"items":[]}'::jsonb, 0, a_admin, org from unnest(array[qF, qC, qS, qSent, qConf, qArch, qDemo, qOld, qEmpty, qBlank, qDisc]) x;
+    select x, 1, '{"items":[]}'::jsonb, 0, a_admin, org from unnest(array[qF, qC, qS, qSent, qConf, qArch, qDemo, qOld, qEmpty, qBlank, qDisc, qStg, qPlan]) x;
   insert into public.quotation_versions(quote_id, label, pricing, total, org_id, created_by) values (qS, 'Q1', '{"total":5000}', 5000, org, a_admin);
   insert into public.event_discovery(quote_id, mode, org_id) values (qF, 'call', org);
   insert into public.event_requirements(quote_id, service, priority, qty, org_id) values (qF, 'Decor', 'mandatory', 1, org);
@@ -91,9 +97,9 @@ do $$ declare a_admin uuid; a_staff uuid; b_admin uuid;
   -- ---- 2) what is listed ----
   j := public.my_unfinished_quotes('studio', 100, 0, null, null);
   select array_agg(x ->> 'code' order by x ->> 'code') into ids from jsonb_array_elements(j -> 'rows') x where x ->> 'code' like 'FP-%';
-  insert into _fp values ('20 studio list = unfinished with content only', case when ids = array['FP-C','FP-F','FP-OLD']::text[] then 'PASS' else 'FAIL: ' || coalesce(ids::text, 'null') end);
-  insert into _fp values ('21 saved quotation / sent / confirmed / archived / discarded / sample / blank are left out',
-    case when not (ids && array['FP-S','FP-SENT','FP-CONF','FP-ARCH','FP-DISC','FP-DEMO','FP-BLANK','FP-EMPTY']::text[]) then 'PASS' else 'FAIL' end);
+  insert into _fp values ('20 studio list = unfinished with content only (a Discovery-stage quote included)', case when ids = array['FP-C','FP-F','FP-OLD','FP-STG']::text[] then 'PASS' else 'FAIL: ' || coalesce(ids::text, 'null') end);
+  insert into _fp values ('21 saved quotation / sent / confirmed / archived / discarded / sample / blank / past Confirmed are left out',
+    case when not (ids && array['FP-S','FP-SENT','FP-CONF','FP-ARCH','FP-DISC','FP-DEMO','FP-BLANK','FP-EMPTY','FP-PLAN']::text[]) then 'PASS' else 'FAIL' end);
   select x into r from jsonb_array_elements(j -> 'rows') x where x ->> 'code' = 'FP-F';
   insert into _fp values ('22 row carries step, progress and who', case when r ->> 'last_step' = 'venue' and r ->> 'my_step' = 'venue' and (r ->> 'last_by_me')::boolean
     and jsonb_array_length(r -> 'steps_done') = 4 and (r ->> 'steps_total')::int = 8 and r -> 'client' ->> 'name' = 'Asha' and not (r -> 'client' ? 'phone')
@@ -101,7 +107,7 @@ do $$ declare a_admin uuid; a_staff uuid; b_admin uuid;
   insert into _fp values ('23 most recent first', case when (j -> 'rows' -> 0 ->> 'code') = 'FP-F' then 'PASS' else 'FAIL: ' || (j -> 'rows' -> 0 ->> 'code') end);
   j := public.my_unfinished_quotes('mine', 100, 0, null, 60);
   select array_agg(x ->> 'code' order by x ->> 'code') into ids from jsonb_array_elements(j -> 'rows') x where x ->> 'code' like 'FP-%';
-  insert into _fp values ('24 mine (60 days): worked on + created by me, old one hidden', case when ids = array['FP-C','FP-F']::text[] then 'PASS' else 'FAIL: ' || coalesce(ids::text, 'null') end);
+  insert into _fp values ('24 mine (60 days): worked on + created by me, old one hidden', case when ids = array['FP-C','FP-F','FP-STG']::text[] then 'PASS' else 'FAIL: ' || coalesce(ids::text, 'null') end);
   j := public.my_unfinished_quotes('mine', 100, 0, null, null);
   insert into _fp values ('25 mine without the window still lists the old draft', case when exists (select 1 from jsonb_array_elements(j -> 'rows') x where x ->> 'code' = 'FP-OLD') then 'PASS' else 'FAIL' end);
   j := public.my_unfinished_quotes('studio', 1, 0, qF, null);

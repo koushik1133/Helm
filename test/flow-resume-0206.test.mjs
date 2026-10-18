@@ -287,6 +287,8 @@ await t('SQL 0206: table + 3 functions, never touches quotes, 0141 ignore list, 
   assert.match(m, /and cl\.relname not in \('quotes', 'quote_versions', 'audit_log', 'quote_flow_progress'\)/);
   assert.match(m, /not exists \(select 1 from public\.quotation_versions qv where qv\.quote_id = q\.id\)/, 'owner A: finished = a saved quotation version');
   assert.match(m, /and not coalesce\(q\.is_demo, false\)/, 'owner D: no trial sample quotes');
+  // review: a quote moved to the Lead / Discovery / Proposal stage in the workspace is still being prepared
+  assert.match(m, /and coalesce\(q\.lifecycle_stage, 'quote'\) in \('lead', 'discovery', 'proposal', 'quote'\)/, 'pre-Confirmed stages stay in progress');
   assert.match(m, /execute replace\(v_def, '''quotes''', '''quote_flow_progress'', ''quotes'''\);/);
   assert.match(a, /^-- APPLY-0206\.sql/); assert.match(a, /\nbegin;\n/); assert.match(a, /notify pgrst, 'reload schema';\ncommit;/); assert.match(a, /-- VERIFY/);
   assert.ok(a.includes(m), 'APPLY carries the migration verbatim');
