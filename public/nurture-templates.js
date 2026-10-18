@@ -66,11 +66,11 @@
       short: "Happy Dussehra, {{client_name}}! Wishing you success and happiness. - {{studio_name}}",
       subject: "Happy Dussehra, {{client_name}}!",
       body: "Hi {{client_name}},\n\nHappy Dussehra! May this festival bring you success and happiness in everything you do.\n\nWarm wishes,\n{{studio_name}}" },
-    { key: "ramadan", label: "Ramadan Kareem", emoji: "🌙", group: "Festivals & seasons", auto: "ramadan", countries: ["AE", "IN", "US"],
+    { key: "ramadan", label: "Ramadan Kareem", emoji: "🌙", group: "Festivals & seasons", auto: "ramadan", countries: ["AE", "IN", "US"], extraIn: ["IN", "US"],
       short: "Ramadan Kareem, {{client_name}}! Wishing you and your family a peaceful and blessed month. - {{studio_name}}",
       subject: "Ramadan Kareem, {{client_name}}",
       body: "Hi {{client_name}},\n\nRamadan Kareem! Wishing you and your family a peaceful, blessed month.\n\nWarm regards,\n{{studio_name}}" },
-    { key: "eid", label: "Eid al-Fitr", emoji: "🌙", group: "Festivals & seasons", auto: "eid", countries: ["AE", "IN", "US"],
+    { key: "eid", label: "Eid al-Fitr", emoji: "🌙", group: "Festivals & seasons", auto: "eid", countries: ["AE", "IN", "US"], extraIn: ["IN", "US"],
       short: "Eid Mubarak, {{client_name}}! Wishing you and your loved ones joy and peace. - {{studio_name}}",
       subject: "Eid Mubarak, {{client_name}}!",
       body: "Hi {{client_name}},\n\nEid Mubarak! May this special day bring you and your family happiness, peace and togetherness.\n\nWarm wishes,\n{{studio_name}}" },
@@ -122,6 +122,12 @@
     var c = String(cc || "IN").toUpperCase();
     return L.filter(function (t) { return !t.countries || t.countries.indexOf(c) >= 0; });
   }
+  // la-1018: what a studio sees FIRST. forCountry() is everything that fits the country; an occasion with
+  // `extraIn` (Ramadan / Eid for India and the US) is still available there, under "More occasions", but not
+  // in the default list. A UAE studio sees them by default.
+  function isExtra(t, cc) { var c = String(cc || "IN").toUpperCase(); return !!(t && t.extraIn && t.extraIn.indexOf(c) >= 0); }
+  function primaryFor(cc) { return forCountry(cc).filter(function (t) { return !isExtra(t, cc); }); }
+  function extrasFor(cc) { return forCountry(cc).filter(function (t) { return isExtra(t, cc); }); }
   function get(key) { for (var i = 0; i < L.length; i++) if (L[i].key === key) return L[i]; return null; }
   function placeholders(text) {
     var out = [], re = /\{\{?\s*([a-z_]+)\s*\}?\}/g, m;
@@ -180,7 +186,7 @@
     return out.sort(function (a, b) { return a.inDays - b.inDays || String(a.name).localeCompare(String(b.name)); });
   }
 
-  var api = { LIBRARY: L, forCountry: forCountry, get: get, render: render, placeholders: placeholders, toServer: toServer,
+  var api = { LIBRARY: L, forCountry: forCountry, primaryFor: primaryFor, extrasFor: extrasFor, isExtra: isExtra, get: get, render: render, placeholders: placeholders, toServer: toServer,
     serverSafe: serverSafe, sample: sample, nextOccurrence: nextOccurrence, upcoming: upcoming, SERVER_KEYS: SERVER_KEYS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.HelmNurtureTemplates = api;

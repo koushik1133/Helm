@@ -86,7 +86,7 @@ await t('#9 lead Convert opens the studio-prefixed /<studio>/flow route (served 
   assert.match(r('public/leads.html'), /location\.href=\(window\.HelmUrl&&HelmUrl\.upgrade\)\?HelmUrl\.upgrade\(h\):h;/);
   const v = JSON.parse(r('vercel.json'));
   assert.ok(v.rewrites.some((x) => x.source === '/([a-z0-9-]+)/flow' && x.destination === '/flow'));
-  assert.match(r('server.js'), /\|command\|ready\|ops\|issues\|flow\)/);
+  assert.match(r('server.js'), /\|command\|ready\|ops\|issues\|flow(\|event\|builder)?\)/);
   assert.match(FLOW, /<base href="\/">/);
   // HelmUrl: flow.html?quote= -> /<studio>/flow?quote=
   const core = STORE.slice(STORE.indexOf('var HelmUrl = (function'), STORE.indexOf('window.HelmUrl = HelmUrl;'));

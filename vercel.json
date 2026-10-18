@@ -178,6 +178,14 @@
     {
       "source": "/([a-z0-9-]+)/booklet/([^/]+)",
       "destination": "/booklet"
+    },
+    {
+      "source": "/([a-z0-9-]+)/event",
+      "destination": "/event"
+    },
+    {
+      "source": "/([a-z0-9-]+)/builder",
+      "destination": "/builder"
     }
   ],
   "redirects": [
@@ -373,7 +381,7 @@
       ]
     },
     {
-      "source": "/([a-z0-9-]+)/(dashboard|quotes|leads|chat|settings|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready|flow|ops|issues|events|events/[^/]+|events/[^/]+/floor-plan|events/[^/]+/tasks|clients/[^/]+|booklet/[^/]+)",
+      "source": "/([a-z0-9-]+)/(dashboard|quotes|leads|chat|settings|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready|flow|ops|issues|events|events/[^/]+|events/[^/]+/floor-plan|events/[^/]+/tasks|clients/[^/]+|booklet/[^/]+|event|builder)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -608,7 +616,7 @@
       ]
     },
     {
-      "source": "/([a-z0-9-]+)/events/([^/]+)/floor-plan",
+      "source": "/([a-z0-9-]+)/(events/([^/]+)/floor-plan|builder)",
       "headers": [
         {
           "key": "Content-Security-Policy",

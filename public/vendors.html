@@ -112,10 +112,10 @@
   <div class="sheet">
     <h3><span id="vm_title">＋ Add partner</span><button type="button" class="close" id="vm_close" aria-label="Close" data-close>×</button></h3>
     <div class="fgrid">
-      <div class="fld"><label for="v_name">Name *</label><input id="v_name" placeholder="e.g. Spotlight AV Rentals"></div>
+      <div class="fld"><label for="v_name">Name *</label><input id="v_name" maxlength="120" placeholder="e.g. Spotlight AV Rentals"></div>
       <div class="fld"><label for="v_kind">Type</label><select id="v_kind"><option value="vendor">Vendor</option><option value="freelancer">Freelancer</option><option value="rental">Rental</option><option value="supplier">Supplier</option></select></div>
       <div class="fld"><label for="v_cat">Category</label><input id="v_cat" placeholder="e.g. Lighting, Catering"></div>
-      <div class="fld"><label for="v_phone">Phone</label><input id="v_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
+      <div class="fld"><label for="v_phone">Phone</label><input id="v_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16"></div>
       <div class="fld"><label for="v_email">Email</label><input id="v_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
       <div class="fld"><label for="v_services">Services (comma separated)</label><input id="v_services" placeholder="e.g. LED walls, trussing"></div>
       <div class="fld full"><label for="v_notes">Notes</label><input id="v_notes" placeholder="optional"></div>
@@ -144,6 +144,8 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
+<script src="phone-input.js?v=3"></script>
+<script src="form-validate.js?v=1"></script>
 <script src="event-name.js?v=8"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=247"></script>
 <script src="tour.js?v=17"></script>
@@ -186,13 +188,13 @@
           ${hist.length>5?`<div style="font-size:12px;color:var(--ink-3);margin-top:3px">+${hist.length-5} more</div>`:""}
         </div>`
       : `<div class="meta" style="margin-top:8px;color:var(--ink-3);font-size:12px">No event history yet.</div>`;
-    return `<div class="v ${v.active===false?'off':''}" data-id="${v.id}">
+    return `<div class="v ${v.active===false?'off':''}" data-id="${esc(v.id)}">
       <div style="display:flex;align-items:center;gap:8px"><span class="nm">${esc(v.name)}</span><span class="kind ${esc(v.kind||'vendor')}" style="margin-left:auto">${esc(KIND[v.kind]||v.kind||'Vendor')}</span></div>
       ${v.category?`<div class="meta">${esc(v.category)}</div>`:""}
       ${services.length?`<div class="tags">${services.map(s=>`<span class="tag">${esc(s)}</span>`).join("")}</div>`:""}
       <div class="meta">${[v.phone,v.email].filter(Boolean).map(esc).join(" · ")}</div>
       ${histHtml}
-      ${canEdit?`<div class="acts"><button class="ic" data-edit="${v.id}">Edit</button></div>`:""}
+      ${canEdit?`<div class="acts"><button type="button" class="ic" data-edit="${esc(v.id)}">Edit</button></div>`:""}
     </div>`;
   }
   // Perf (Oct 2026): the directory is server-paged by name (type tab, search and "this event
@@ -232,9 +234,15 @@
     $("#v_name").value=v?v.name||"":""; $("#v_kind").value=v?v.kind||"vendor":"vendor"; $("#v_cat").value=v?v.category||"":"";
     $("#v_phone").value=v?v.phone||"":""; $("#v_email").value=v?v.email||"":"";
     $("#v_services").value=v&&Array.isArray(v.services)?v.services.join(", "):""; $("#v_notes").value=v?v.notes||"":"";
-    $("#vm_deact").hidden=!(v&&canEdit&&v.active!==false); $("#vm_react").hidden=!(v&&canEdit&&v.active===false); $("#vm_err").hidden=true; $("#vModal").hidden=false; formDirty.clean(); setTimeout(()=>$("#v_name").focus(),50);
+    $("#vm_deact").hidden=!(v&&canEdit&&v.active!==false); $("#vm_react").hidden=!(v&&canEdit&&v.active===false); $("#vm_err").hidden=true; $("#vModal").hidden=false; formDirty.clean();
+    if(!vFv) vFv=vFvBind(); vFv.forEach(b=>{ if(b) b.reset(); }); setTimeout(()=>$("#v_name").focus(),50);
   }
   const formDirty=BPUI.trackDirty($("#vModal"));
+  // la-1018: name / phone / e-mail are checked when you leave the field (message under it), not only on Save.
+  // Bound on the first open, so the phone field is already the HelmPhone component (flag + country code from the studio).
+  let vFv=null;
+  const vFvBind=()=>{ const HV=window.HelmValidate; if(!HV||!HV.bind) return [];
+    return [ HV.bind($("#v_name"),{rule:"text",label:"Name",max:120}), HV.bind($("#v_phone"),{rule:"phone",label:"Phone"}), HV.bind($("#v_email"),{rule:"email"}) ]; };
   function closeForm(){ $("#vModal").hidden=true; editingId=null; formDirty.clean(); }
   async function requestCloseForm(){ if($("#vModal").hidden) return; if(!(await BPUI.confirmDiscard(formDirty))) return; closeForm(); }
   const dupNorm=t=>String(t==null?"":t).normalize('NFKC').toLowerCase().replace(/&/g,' and ').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
