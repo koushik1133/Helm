@@ -8,7 +8,7 @@
 --   The 0169 "Corporate - Theatre/conference" sample template is ARCHIVED (never deleted) in the
 --   sample master and in existing trial studios, only while it still carries its original 0169 name.
 --   Existing trial studios also get template 3 once (by name). Paid studios are never touched
---   (only organizations with trial_ends_at set, or the sample master). A new manifest is published
+--   (only studios whose subscription status is trial right now, or the sample master; converted paid studios keep trial_ends_at so it is NOT used). A new manifest is published
 --   once so new trials get the set. Nothing is deleted. ASCII only. Safe to run twice.
 -- ============================================================================
 
@@ -29,7 +29,7 @@ declare
   o record;
 begin
   for o in select x.id from public.organizations x
-            where (x.id = M and x.is_sample_master) or (x.trial_ends_at is not null and not coalesce(x.is_sample_master, false))
+            where (x.id = M and x.is_sample_master) or (not coalesce(x.is_sample_master, false) and exists (select 1 from public.studio_subscriptions ss where ss.org_id = x.id and ss.status = 'trial'))
   loop
     update public.studio_layout_templates set archived = true, is_default = false, updated_at = now()
      where org_id = o.id and name = CTH and not archived;

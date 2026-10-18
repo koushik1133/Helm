@@ -11,7 +11,7 @@ begin;
 --   The 0169 "Corporate - Theatre/conference" sample template is ARCHIVED (never deleted) in the
 --   sample master and in existing trial studios, only while it still carries its original 0169 name.
 --   Existing trial studios also get template 3 once (by name). Paid studios are never touched
---   (only organizations with trial_ends_at set, or the sample master). A new manifest is published
+--   (only studios whose subscription status is trial right now, or the sample master; converted paid studios keep trial_ends_at so it is NOT used). A new manifest is published
 --   once so new trials get the set. Nothing is deleted. ASCII only. Safe to run twice.
 -- ============================================================================
 
@@ -32,7 +32,7 @@ declare
   o record;
 begin
   for o in select x.id from public.organizations x
-            where (x.id = M and x.is_sample_master) or (x.trial_ends_at is not null and not coalesce(x.is_sample_master, false))
+            where (x.id = M and x.is_sample_master) or (not coalesce(x.is_sample_master, false) and exists (select 1 from public.studio_subscriptions ss where ss.org_id = x.id and ss.status = 'trial'))
   loop
     update public.studio_layout_templates set archived = true, is_default = false, updated_at = now()
      where org_id = o.id and name = CTH and not archived;
@@ -55,10 +55,10 @@ commit;
 
 -- VERIFY (every row should say ok = true)
 select item, ok from (values
-  ('01 master has exactly the 3 owner templates live', (select count(*) from public.studio_layout_templates where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and not archived and name like E'Demo · %') = 3),
-  ('02 reception template present once', (select count(*) from public.studio_layout_templates where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and name = E'Demo · Reception — Lawn reception with sofa lounge (450 guests)') = 1),
-  ('03 theatre sample archived, not deleted', exists (select 1 from public.studio_layout_templates where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and name = E'Demo · Corporate — Theatre/conference' and archived)),
+  ('01 master has exactly the 3 owner templates live', (select count(*) from public.studio_layout_templates where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and not archived and name like E'Demo \u00b7 %') = 3),
+  ('02 reception template present once', (select count(*) from public.studio_layout_templates where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and name = E'Demo \u00b7 Reception \u2014 Lawn reception with sofa lounge (450 guests)') = 1),
+  ('03 theatre sample archived, not deleted', exists (select 1 from public.studio_layout_templates where org_id = 'a5a5a5a5-0166-4000-8000-000000000001' and name = E'Demo \u00b7 Corporate \u2014 Theatre/conference' and archived)),
   ('04 manifest v6 current', exists (select 1 from public.helm_trial_seed_manifest where is_current and notes = 'v6: owner 3 layout templates')),
   ('05 no paid studio got the reception template', not exists (select 1 from public.studio_layout_templates s join public.organizations o on o.id = s.org_id
-       where s.name = E'Demo · Reception — Lawn reception with sofa lounge (450 guests)' and o.trial_ends_at is null and not o.is_sample_master))
+       where s.name = E'Demo \u00b7 Reception \u2014 Lawn reception with sofa lounge (450 guests)' and not o.is_sample_master and not exists (select 1 from public.studio_subscriptions ss where ss.org_id = o.id and ss.status = 'trial')))
 ) v(item, ok) order by item;
