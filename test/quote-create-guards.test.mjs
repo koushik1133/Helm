@@ -71,8 +71,11 @@ await t('7: ask() shows name + type + Cancel/Create; Cancel / Escape resolve nul
   const env = makeWin(); const NQ = loadNQ(env);
   env.win.HelmEventName = { eventTypeOptions: (c) => (c === 'AE' ? ['Iftar'] : ['Wedding', 'Corporate']), canonEventType: (v) => v };
   let p = NQ.ask({ country: 'IN' });
-  assert.equal(NQ.ask({}), p, 'a double click does not stack a second dialog');
+  assert.equal(await NQ.ask({}), null, 'a second caller (double click) gets null: no second dialog, no second create');
+  assert.equal(env.doc.body.childNodes.filter((n) => n.cls.has('bpui-overlay')).length, 1, 'only one dialog');
   let ov = overlay(env.doc); assert.ok(ov, 'dialog mounted');
+  // the 2nd press of a double click lands on the backdrop: it must NOT dismiss the dialog
+  assert.equal((ov.ls.mousedown || []).length + (ov.ls.mouseup || []).length, 0, 'no backdrop dismiss');
   const all = ov.all(); const form = all.find((x) => x.tagName === 'FORM');
   assert.equal(form.getAttribute('role'), 'dialog'); assert.equal(form.getAttribute('aria-modal'), 'true');
   const sel = all.find((x) => x.tagName === 'SELECT'); assert.deepEqual(sel.childNodes.map((o) => o.textContent), ['Choose later', 'Wedding', 'Corporate']);

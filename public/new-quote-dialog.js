@@ -6,8 +6,8 @@
  *
  *   HelmNewQuote.ask({ country })  -> Promise<null | { title, eventType }>
  *       A small dialog: event name (optional), event type (optional), Cancel / Create quote.
- *       Nothing is created until the user presses Create. Cancel, Escape and the backdrop
- *       resolve null. The caller then calls BPStore.quotes.startBlank as before.
+ *       Nothing is created until the user presses Create. Cancel and Escape resolve null (the
+ *       backdrop does not dismiss it). A second ask() while one is open resolves null at once. The caller then calls BPStore.quotes.startBlank as before.
  *   HelmNewQuote.arm(href)          -> href with a one-time nonce (&nq=...) that Helm's own
  *       pages add to a "quotes?new=1" link. The nonce is kept in sessionStorage.
  *   HelmNewQuote.consume(search)    -> true only when the URL has new=1 AND the nonce Helm
@@ -80,7 +80,9 @@
   var open = null;   // one dialog at a time (a double click must not stack two)
   function ask(opts) {
     opts = opts || {};
-    if (open) return open;
+    // review fix: a second caller while the dialog is open gets null (never the same picks), so two
+    // callers can never both go on to startBlank and create two quotes from one Create press
+    if (open) return Promise.resolve(null);
     css();
     open = new Promise(function (resolve) {
       var seq = Math.random().toString(36).slice(2, 8), id = "nqd-" + seq;
@@ -132,10 +134,8 @@
         close({ title: t, eventType: et });
       });
       cancel.addEventListener("click", function () { close(null); });
-      // backdrop: close only when the press starts AND ends on the backdrop itself
-      var downOnOv = false;
-      ov.addEventListener("mousedown", function (e) { downOnOv = e.target === ov; });
-      ov.addEventListener("mouseup", function (e) { if (downOnOv && e.target === ov) close(null); downOnOv = false; });
+      // review fix: no backdrop dismiss (same rule as BPUI.prompt - it has a typed field). The second
+      // press of a double click on "New quote" lands on the new backdrop and used to close it again.
 
       (doc.body || doc.documentElement).appendChild(ov);
       var trapped = false;
