@@ -178,3 +178,13 @@ html[data-pt] .plan .pp.req { font-size: 24px; letter-spacing: -.03em; }
   border-left: 3px solid #fff; border-bottom: 3px solid #fff; transform: rotate(-45deg);
 }
 @media (max-width: 560px) { .sdlg { padding: 20px 16px; border-radius: 18px; } }
+
+/* r21: pay by UPI / bank transfer (online payment off) + the e-mail fallback link in Contact sales */
+.paydet { margin: 12px 0 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); }
+.paydet-h { margin: 0 0 8px; font-size: 13.5px; font-weight: 650; color: var(--ink); }
+.paydet-l { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0 0 8px; font-size: 13px; }
+.paydet-l dt { color: var(--ink-3); }
+.paydet-l dd { margin: 0; font-family: var(--mono); font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.paydet-n { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.sdlg-mail { margin: 10px 0 0; font-size: 13.5px; text-align: center; }
+.sdlg-mail a { color: var(--acc-text, var(--accent)); font-weight: 600; }

@@ -53,10 +53,10 @@ t('+7 reminder: read-only + preserved; names the deletion date only when one is 
 t('day 5 / 7 / 8 copy: unchanged by default, says "kept for 60 days" only when deletion is on', () => {
   const END = '2026-10-09T04:30:00Z';
   for (const k of ['d5', 'd7', 'd8']) {
-    assert.match(m.trialReminderEmail(k, 'Demo 7', END, 'Asia/Kolkata', '').text, /Nothing is deleted/);
-    assert.match(m.trialReminderEmail(k, 'Demo 7', END, 'Asia/Kolkata', '', { delete_enabled: false, retention_days: 60 }).text, /Nothing is deleted/);
+    assert.match(m.trialReminderEmail(k, 'Demo 7', END, 'Asia/Kolkata', '').text, /Your data is kept for 60 days after the trial ends, and we remind you before anything is deleted\./);   // r21 promise
+    assert.match(m.trialReminderEmail(k, 'Demo 7', END, 'Asia/Kolkata', '', { delete_enabled: false, retention_days: 60 }).text, /Your data is kept for 60 days after the trial ends, and we remind you before anything is deleted\./);
     const on = m.trialReminderEmail(k, 'Demo 7', END, 'Asia/Kolkata', '', { delete_enabled: true, retention_days: 60 }).text;
-    assert.ok(!/Nothing is deleted/.test(on)); assert.match(on, /kept for 60 days after the trial ends/); assert.match(on, /permanently deleted/);
+    assert.ok(!/Nothing is deleted|we remind you before anything is deleted/.test(on)); assert.match(on, /kept for 60 days after the trial ends/); assert.match(on, /permanently deleted/);
   }
   assert.equal(m.retentionDays({ delete_enabled: true, retention_days: 5 }), 0);
   assert.deepEqual(m.TRIAL_MILESTONES, ['d5', 'd7', 'd8']);

@@ -56,4 +56,6 @@ The trial ends after 8 days, or later if Helm approved an extension. From that m
 |---|---|---|---|
 | Owner | Full access | Read-only, "Your trial has ended" banner + Upgrade | Full access |
 | Invited staff | Full access (per their role) | Read-only (same banner) | Full access again automatically |
-| Data | Kept | Kept, never auto-deleted | Kept |
+| Data | Kept | Kept for 60 days after the trial ends, then deleted (reminders 30 / 7 / 1 day before; the deletion switch `helm_trial_retention.delete_enabled` stays OFF until the owner turns it on) | Kept |
+
+**The one public promise (r21, same words in the app, the trial e-mails and the policy pages):** "Your data is kept for 60 days after the trial ends, and we remind you before anything is deleted."

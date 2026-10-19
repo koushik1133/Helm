@@ -78,6 +78,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0207_trial_terms_acceptance.sql
 -- 0212 (trial client e-mail) adds its cap ledger trial_email_sends to the keep list on top of 0184
 \ir ../../supabase/migrations/0212_trial_client_email.sql
+-- 0244 (r21 trial -> paid) adds sales_requests + helm_notice_outbox to the keep list on top of 0184
+\ir ../../supabase/migrations/0244_trial_to_paid_activation.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin

@@ -73,7 +73,7 @@ t('form: prefilled studio / name / email / phone / plan / billing + message; CSP
   for (const id of ['sd_studio', 'sd_name', 'sd_email', 'sd_phone', 'sd_plan', 'sd_iv', 'sd_msg', 'sdSend', 'sdErr', 'sdDone', 'sdClose'])
     assert.match(COH, new RegExp('id="' + id + '"'), id);
   assert.match(COH, /<dialog class="sdlg" id="coSalesDlg" aria-labelledby="sdH">/);
-  assert.match(COH, /We'll get back to you within one working day\.|we'll get back to you within one working day\./);
+  assert.match(COH, /we'll contact you within one working day\./);   // r21: the request is saved first (test/r21-trial-paid.test.mjs)
   assert.match(CO, /who = \{ studio: acct\.legal_business_name \|\| "", name: acct\.primary_contact_name \|\| "", email: acct\.primary_contact_email \|\| u\.email \|\| "",/);
   assert.doesNotMatch(COH, /\sstyle="/); assert.doesNotMatch(COH, /\son[a-z]+=/i);
   assert.doesNotMatch(CO, /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\.style\./);

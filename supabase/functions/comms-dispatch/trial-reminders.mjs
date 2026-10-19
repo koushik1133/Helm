@@ -4,6 +4,9 @@
 // APP_URL + "/checkout" (never taken from a row). Plain text: comms-dispatch's sendEmail
 // wraps it in the branded HTML shell and escapes it.
 export const TRIAL_MILESTONES = ["d5", "d7", "d8"];
+// r21: the ONE retention promise (same words in the app, billing-reminder and the policy pages; 60 days after the
+// trial ends - the deletion switch helm_trial_retention.delete_enabled stays OFF until the owner turns it on)
+export const RETENTION_PROMISE = "Your data is kept for 60 days after the trial ends, and we remind you before anything is deleted.";
 
 // "Friday, 9 October, 10:00 AM" in the studio's zone; "" when the date or zone is unusable
 export function endsLabel(endsAt, timeZone) {
@@ -32,7 +35,7 @@ export function trialReminderEmail(milestone, studio, endsAt, timeZone, appUrl, 
   const keep = retentionDays(retention);
   const after = keep
     ? "When the trial ends your studio becomes view-only. Your events, clients and settings are kept for " + keep + " days after the trial ends and everything unlocks again as soon as you choose a plan. After that, trial data is permanently deleted."
-    : "When the trial ends your studio becomes view-only. Nothing is deleted: your events, clients and settings stay exactly as they are, and everything unlocks again as soon as you choose a plan.";
+    : "When the trial ends your studio becomes view-only. " + RETENTION_PROMISE + " Everything unlocks again as soon as you choose a plan.";
   const cta = "Choose a plan: " + app + "/checkout";
   const sign = "Your 8-day free trial needs no card, so nothing is charged unless you choose a plan.\n\n- The Helm team";
   const c = {
@@ -91,7 +94,7 @@ export function trialRetentionEmail(kind, studio, info, appUrl) {
     const ended = lastDayLabel(i.expiredAt, i.timeZone);
     const lines = [hi,
       "Your Helm free trial ended a week ago" + (ended ? " (" + ended + ")" : "") + ". Your data is preserved and available in read-only mode: you can still sign in and view your studio.",
-      ...(del ? ["Trial data is kept for " + days + " days after the trial ends. " + deletionSentence(del)] : []),
+      ...(del ? ["Trial data is kept for " + days + " days after the trial ends. " + deletionSentence(del)] : [RETENTION_PROMISE]),
       "Upgrade now to continue creating and editing records: " + app + "/checkout",
       sign];
     return { subject: "Your Helm free trial has ended - upgrade to keep going", text: lines.join("\n\n") };

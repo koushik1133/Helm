@@ -10,6 +10,8 @@
 //                   each with a short deep link that opens the exact page in Helm.
 //   * invite_site   (0195) "Send to client" on the Invitation Studio: the published invitation
 //                   website link, e-mail / WhatsApp (invite-site.mjs; host = APP_URL, path from the row)
+//   * Helm notices (0244) a studio's plan request -> sales@helm.events, and "Ask my admin to upgrade" -> the
+//                   studio's admins, claimed from helm_notice_outbox (helm-notices.mjs; transactional footer)
 //   * booklet_link  (0200) "Send to client" in the Share booklet dialog: the live client booklet
 //                   link (booklet-link.mjs; host = APP_URL, path added by the claim - no token in the row)
 // FREE TRIAL (0212): the database queues and hands out a free-trial studio's row ONLY for the invitation /
@@ -64,6 +66,7 @@ import { trialReminderEmail, trialRetentionEmail, RETENTION_NOTICE_KINDS, RETENT
 import { inviteSiteMessage } from "./invite-site.mjs";
 import { trialRowAllowed } from "./trial-row.mjs";   // 0212: free trial = link e-mails only
 import { bookletMessage } from "./booklet-link.mjs";
+import { helmNoticeEmail, NOTICE_TX_REASON } from "./helm-notices.mjs";   // 0244: sales requests + "ask my admin"
 import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
 import { brandMode, sendMail, type SmtpSend } from "../_shared/mailer.ts";
@@ -342,6 +345,29 @@ Deno.serve(async (req) => {
       const res: Res = text ? ((await waStopped(admin, to)) ?? await sendWhatsApp(to, text, "task_assigned")) : "skipped";
       const { error: mErr } = await admin.rpc("assign_notify_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("comms-dispatch: assign mark failed", errTag(mErr)); counts.failed++; continue; }
+      counts[res]++;
+    }
+    // 0244: Helm's own notices - a plan request to sales@helm.events, "Ask my admin to upgrade" to the studio's
+    // admins (recipients resolved by the claim, never from the row; a database without 0244 has nothing to claim)
+    const { data: hrows, error: hErr } = await admin.rpc("helm_notice_outbox_claim", { p_limit: batch });
+    if (hErr) console.error("comms-dispatch: notice claim skipped", errTag(hErr));
+    for (const r of (Array.isArray(hrows) ? hrows : [])) {
+      const id = String(r?.id ?? ""), kind = String(r?.kind ?? "");
+      if (!UUIDISH.test(id)) { counts.invalid++; continue; }
+      const data = (r?.data && typeof r.data === "object") ? r.data : {};
+      const msg = helmNoticeEmail(kind, data, origin);
+      const tos = (Array.isArray(r?.to) ? r.to : []).map((x: unknown) => String(x ?? "")).filter((x: string) => EMAIL.test(x)).slice(0, 20);
+      let res: Res = "skipped";
+      if (msg && tos.length) {
+        const extra: Extra = { footer: txFooter((NOTICE_TX_REASON as Record<string, string>)[kind] || "you use Helm", { app: origin, address: postalAddress(env) }) };
+        // a sales request: replying goes straight to the studio that asked
+        const ident: Identity = kind === "sales_request" ? { reply_to: String(data.email ?? "") || null } : {};
+        const outs: Res[] = [];
+        for (let i = 0; i < tos.length; i++) outs.push(await sendEmail(id + "-" + i, tos[i], msg.subject, msg.text, "Helm", ident, extra));
+        res = outs.includes("sent") ? "sent" : outs.includes("failed") ? "failed" : "skipped";
+      }
+      const { error: mErr } = await admin.rpc("helm_notice_outbox_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
+      if (mErr) { console.error("comms-dispatch: notice mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;
     }
     console.log("comms-dispatch: run", JSON.stringify(counts));
