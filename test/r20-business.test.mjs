@@ -87,7 +87,7 @@ await t('business page: gated on canView("business"); no-access panel otherwise;
   }
   const a = await boot('admin', {}); assert.equal(a.mounted, true); assert.equal(a.noaccess, undefined);
   const p = await boot('planner', PLANNER); assert.equal(p.mounted, false, 'planner: page not mounted'); assert.equal(p.noaccess, true, 'planner: no-access panel');
-  assert.deepEqual(p.asked, ['business']);
+  assert.deepEqual(p.asked, ['business', 'insights']);   // release/r20-pr4: r20 planner also asks "insights" for the header link
   const c = await boot('coordinator', { quotes: { view: true } }); assert.equal(c.mounted, false); assert.equal(c.noaccess, true);
   const on = await boot('planner', Object.assign({}, PLANNER, { business: { view: true } })); assert.equal(on.mounted, true, 'switched on: page opens');
 });
