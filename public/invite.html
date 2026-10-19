@@ -97,6 +97,24 @@
   .gal .ph{aspect-ratio:3/4;border-radius:14px;background-size:cover;background-position:center;border:1px solid var(--line);
     box-shadow:0 20px 40px -30px rgba(20,15,30,.5)}
   .gal .ph.wide{grid-column:span 2;aspect-ratio:3/2}
+  /* R23 photo placement: inline photos after a section, framed "behind names", faded full background, cover banner */
+  .inl{padding-top:6px;padding-bottom:6px}
+  .gal.one{grid-template-columns:1fr}.gal.one .ph{aspect-ratio:16/9}
+  .inl .gal.two{grid-template-columns:1fr 1fr}.inl .gal.two .ph{aspect-ratio:4/5}
+  .hero.banner{min-height:52vh}
+  .namespic{max-width:760px;margin:0 auto;padding:26px 22px 6px}
+  .nframe{position:relative;overflow:hidden;border-radius:28px;color:#fff;text-align:center;padding:64px 22px;min-height:340px;display:grid;place-items:center;
+    box-shadow:0 30px 60px -40px rgba(20,15,30,.6)}
+  .nframe .bgpic{position:absolute;inset:0;background-size:cover;background-position:center}
+  .nframe .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,14,24,.38),rgba(20,14,24,.66))}
+  .nframe .inner{position:relative}
+  .nframe .eyebrow,.nframe .divider .dot{color:var(--accent-2)}
+  body.t-confetti .nframe .names,body.t-confetti .hero.haspic .names{background:none;color:#fff}
+  .pagebg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+  .pagebg .bgpic{position:absolute;inset:-30px;background-size:cover;background-position:center}
+  .pagebg .wash{position:absolute;inset:0;background:var(--bg)}
+  html.pv .rv{opacity:1;transform:none;transition:none}
+  .fab[hidden]{display:none!important}
   .foot{text-align:center;color:var(--soft);font-family:var(--serif);font-style:italic;font-size:18px;padding:30px 0 90px}
   .foot .madeby{display:block;margin-top:16px;font-family:var(--sans);font-style:normal;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.7}
   .foot .madeby a{color:var(--accent);text-decoration:none;font-weight:600}
@@ -178,7 +196,7 @@
 
   <!-- floating controls -->
   <div id="fabs" class="fabs" hidden>
-    <button id="musicFab" class="fab paused" type="button" title="Music" aria-label="Toggle music">
+    <button id="musicFab" class="fab paused" type="button" title="Play music" aria-label="Play music" aria-pressed="false" hidden>
       <span class="eq" aria-hidden="true"><i class="s-925e0a3"></i><i class="s-925e0a3"></i><i class="s-925e0a3"></i></span>
     </button>
   </div>
@@ -197,6 +215,7 @@
 <script src="/config.js?v=106"></script>
 <script src="/event-name.js?v=9"></script>
 <script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=268"></script>
+<script src="/invite-music.js?v=1"></script><script src="/invite-placement.js?v=1"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -252,14 +271,23 @@
     const rows=list.filter(x=>x&&(x.time||x.label)).map(x=>`<li><span class="t">${esc(x.time||"")}</span><span>${esc(x.label||"")}</span></li>`).join("");
     return rows?`<section class="blk rv"><div class="card"><h2 class="sec-t">Schedule</h2><ul class="sched">${rows}</ul></div></section>`:"";
   }
-  function galleryHtml(photos){
-    if(!Array.isArray(photos)||photos.length<2) return "";   // hero already uses the first
-    const rest=photos.slice(1);
-    const cells=rest.map((u,i)=>`<div class="ph${(rest.length%2===1&&i===rest.length-1)?' wide':''}" role="img" aria-label="Photo ${i+1}" style="background-image:url('${cssUrl(u)}')"></div>`).join("");
-    return `<section class="blk rv"><h2 class="sec-t" style="color:var(--accent)">Moments</h2><div class="gal">${cells}</div></section>`;
+  // R23: the gallery shows the photos placed "Gallery" (an old site: every photo after the cover)
+  function galleryHtml(list){
+    if(!Array.isArray(list)||!list.length) return "";
+    const cells=list.map((u,i)=>`<div class="ph${(list.length%2===1&&i===list.length-1&&list.length>1)?' wide':''}" role="img" aria-label="Photo ${i+1}" style="background-image:url('${cssUrl(u)}')"></div>`).join("");
+    return `<section class="blk rv"><h2 class="sec-t" style="color:var(--accent)">Moments</h2><div class="gal${list.length===1?' one':''}">${cells}</div></section>`;
+  }
+  // R23: photos placed "After a section" - a single wide photo, a pair, or a small grid, right below that section
+  function inlineHtml(list, what){
+    if(!Array.isArray(list)||!list.length) return "";
+    const cls=list.length===1?" one":list.length===2?" two":"";
+    const cells=list.map((u,i)=>`<div class="ph" role="img" aria-label="Photo after ${esc(what)} ${i+1}" style="background-image:url('${cssUrl(u)}')"></div>`).join("");
+    return `<section class="blk rv inl"><div class="gal${cls}">${cells}</div></section>`;
   }
 
   const safeMusic=u=>(typeof u==="string"&&/^https:\/\/[^\s"'<>\\]+$/i.test(u.trim()))?u.trim():"";
+  // R23: a built-in track (data.musicTrack = a library KEY -> its fixed same-origin file) wins; else the https link
+  const siteMusic=d=>(d&&window.HelmInviteMusic&&HelmInviteMusic.src(d.musicTrack))||safeMusic(d&&d.music);
   let SITE=null;
   function render(site){
     SITE=site;
@@ -276,7 +304,12 @@
     // value is never injected as HTML, only ever as an <img>/background url(). Matches
     // proposal-view's gallery guard; blocks javascript:/data:/vbscript: etc.
     const photos=Array.isArray(d.photos)?d.photos.filter(u=>/^https?:\/\//i.test(u||"")):[];
-    const hero0=photos[0];
+    // R23: where each photo goes (data.photoPlaces, parallel to data.photos; old sites: 1st = cover, rest = gallery)
+    const PL=window.HelmInvitePlace, raw=Array.isArray(d.photos)?d.photos:[];
+    const allPlaces=PL?PL.normalize(raw.length,d.photoPlaces):raw.map((_,i)=>i?"gallery":"cover");
+    const places=raw.map((u,i)=>[u,allPlaces[i]]).filter(x=>/^https?:\/\//i.test(x[0]||"")).map(x=>x[1]);
+    const LY=PL?PL.layout(photos,places):{cover:photos[0]||"",background:"",names:"",gallery:photos.slice(1),after:{details:[],schedule:[],rsvp:[]}};
+    const hero0=LY.cover;
     const when=whenText(d);   // plain text
 
     // cover gate
@@ -285,7 +318,18 @@
     $("#coverNames").textContent=names;
     $("#coverSub").textContent=[d.headline, when].filter(Boolean).join(" · ")||"You're invited";
 
-    const heroBlock = hero0
+    const namesInner=`<p class="eyebrow">${esc(eyebrow)}</p>
+             <h1 class="names">${esc(names)}</h1>
+             ${d.headline?`<p class="headline">${esc(d.headline)}</p>`:""}
+             <div class="divider"><span class="ln"></span><span class="dot">✦</span><span class="ln"></span></div>
+             ${when?`<p class="whenwhere"><b>${esc(when)}</b></p>`:""}
+             ${d.venue?`<p class="whenwhere">${esc(d.venue)}</p>`:""}`;
+    // R23: a "Behind names" photo frames the names; with a cover too, the cover becomes a photo banner above it
+    const namesPic=LY.names;
+    const heroBlock = namesPic
+      ? (hero0?`<div class="hero haspic banner" role="img" aria-label="Cover photo"><div class="bgpic" style="background-image:url('${cssUrl(hero0)}')"></div><div class="veil"></div></div>`:"")
+        +`<div class="namespic"><div class="nframe"><div class="bgpic" style="background-image:url('${cssUrl(namesPic)}')"></div><div class="veil"></div><div class="inner rv in">${namesInner}</div></div></div>`
+      : hero0
       ? `<div class="hero haspic"><div class="bgpic" style="background-image:url('${cssUrl(hero0)}')"></div><div class="veil"></div>
            <div class="inner rv in">
              <p class="eyebrow">${esc(eyebrow)}</p>
@@ -304,21 +348,31 @@
              ${d.venue?`<p class="whenwhere">${esc(d.venue)}</p>`:""}
            </div></div>`;
 
+    // R23: a "Full background" photo sits behind everything, faded into the theme colour (dim) and blurred
+    const bgPic=LY.background, dim=PL?PL.dim(d.bgDim):55, blur=PL?PL.blur(d.bgBlur):3;
+    const bgBlock=bgPic?`<div class="pagebg" aria-hidden="true"><div class="bgpic" style="background-image:url('${cssUrl(bgPic)}');filter:blur(${blur}px)"></div><div class="wash" style="opacity:${dim/100}"></div></div>`:"";
     $("#page").innerHTML=`
+      ${bgBlock}
       ${heroBlock}
       ${d.message?`<section class="blk rv"><div class="card"><h2 class="sec-t">A note</h2><p class="msg">${esc(d.message)}</p></div></section>`:""}
-      ${galleryHtml(photos)}
+      ${galleryHtml(LY.gallery)}
       ${factsHtml(d)}
+      ${inlineHtml(LY.after.details,"details")}
       ${scheduleHtml(d.schedule)}
+      ${inlineHtml(LY.after.schedule,"schedule")}
       ${rsvpHtml(d, names)}
+      ${inlineHtml(LY.after.rsvp,"RSVP")}
       <div class="foot rv">With love &amp; joy
         <span class="madeby">Made with <a href="/" target="_blank" rel="noopener">Helm Events</a></span>
       </div>`;
 
     // music — https:// only (same rule as the Invitation Studio's song preview);
     // anything else (http:, data:, javascript:, relative) is ignored.
-    const music=safeMusic(d.music);
-    if(music){ $("#audio").src=music; } else { $("#audio").removeAttribute("src"); }
+    const music=siteMusic(d);
+    const au=$("#audio");
+    if(music){ if(au.getAttribute("src")!==music){ $("#audio").src=music; setFab(false); } }   // same track: keep playing (studio preview re-renders per keystroke)
+    else { if(au.getAttribute("src")){ au.pause(); au.removeAttribute("src"); } setFab(false); }
+    $("#musicFab").hidden=!music;
 
     // show gate
     $("#loading").hidden=true; $("#cover").hidden=false;
@@ -342,16 +396,19 @@
     $("#fabs").hidden=false; $("#shareBtm").hidden=false;
     armReveal();
     const a=$("#audio");
-    if(SITE&&SITE.data&&safeMusic(SITE.data.music)){
+    if(SITE&&SITE.data&&siteMusic(SITE.data)){
       a.volume=0.7;
-      a.play().then(()=>{ $("#musicFab").classList.remove("paused"); }).catch(()=>{ $("#musicFab").classList.add("paused"); });
+      a.play().then(()=>setFab(true)).catch(()=>setFab(false));   // the Open tap is the user gesture browsers need for sound
     }
     window.scrollTo({top:0});
   }
+  // R23: the floating button is a clear mute / play toggle (state + label for screen readers)
+  function setFab(on){ const b=$("#musicFab"); b.classList.toggle("paused",!on); b.setAttribute("aria-pressed",on?"true":"false");
+    const l=on?"Mute music":"Play music"; b.setAttribute("aria-label",l); b.title=l; }
   function toggleMusic(){
-    const a=$("#audio"); if(!a.src){ toast("No music on this invitation"); return; }
-    if(a.paused){ a.play().then(()=>$("#musicFab").classList.remove("paused")).catch(()=>toast("Tap again to play")); }
-    else { a.pause(); $("#musicFab").classList.add("paused"); }
+    const a=$("#audio"); if(!a.getAttribute("src")){ toast("No music on this invitation"); return; }
+    if(a.paused){ a.play().then(()=>setFab(true)).catch(()=>toast("Tap again to play")); }
+    else { a.pause(); setFab(false); }
   }
   async function share(){
     const url=location.href;
@@ -380,10 +437,12 @@
     const seq=++pvSeq; let site=m.site;
     try{ site=await signPhotos(m.site); }catch(e){}
     if(seq!==pvSeq) return;                 // a newer draft arrived while signing
-    try{ render(site); $("#cover").hidden=true; $("#fabs").hidden=false; armReveal(); }catch(e){} });
+    // R23: keep the guest's scroll spot in the preview while the studio re-renders on every keystroke
+    const y=window.scrollY;
+    try{ render(site); $("#cover").hidden=true; $("#fabs").hidden=false; armReveal(); window.scrollTo(0,y); }catch(e){} });
 
   async function load(){
-    if(new URLSearchParams(location.search).get("preview")==="1"){ $("#loading").querySelector("h1").textContent="Preview"; return; }
+    if(new URLSearchParams(location.search).get("preview")==="1"){ document.documentElement.classList.add("pv"); $("#loading").querySelector("h1").textContent="Preview"; return; }
     const slug=getSlug();
     if(!slug){ $("#loading").hidden=true; $("#missing").hidden=false; return; }
     $("#loadErr").hidden=true;
