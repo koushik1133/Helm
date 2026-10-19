@@ -173,7 +173,7 @@ t('bell poll: never while hidden, 90 s on Chat with realtime, catch-up on return
   assert.match(SRC, /setInterval\(\(\) => \{ if \(kicked && !document\.hidden && !isOpen && Date\.now\(\) - lastRf >= pollMs\(\) - 1000\) refresh\(\); \}, 30000\)/);
   assert.match(SRC, /document\.addEventListener\("visibilitychange", onVis\);/);
   assert.match(SRC, /document\.removeEventListener\("visibilitychange", onVis\);/);
-  assert.match(SRC, /const refresh = async \(\) => \{ lastRf = Date\.now\(\);/);
+  assert.match(SRC, /const refreshNow = async \(\) => \{ lastRf = Date\.now\(\);/);
 });
 
 /* ------------------------------------------------------------ 5. explicit studio filters */

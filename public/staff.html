@@ -94,7 +94,7 @@
 <link rel="stylesheet" href="staff-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=34" id="shellProto"></script>
+<script src="/shell-proto.js?v=35" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -193,7 +193,7 @@
 <script src="config.js?v=104"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=256"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=257"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=5"></script>
@@ -379,10 +379,10 @@
     const cur=linked?(loginRoles[s.profile_id]||guess):exact;
     const custom=!linked&&s&&s.role&&!cur?s.role:null;
     if(custom) $("#s_role_hint").textContent=guess?`Closest studio role: ${BPStore.staff.roleLabel(guess)} — pick it to switch.`:"Not one of the studio's roles — pick one to switch.";
+    // r20 planner: only an admin can hand out "Admin" (a non-admin's pick pre-fills an admin's later invite);
+    // a record that already says Admin keeps it, so opening + saving never rewrites it
     sel.innerHTML=`<option value="">— Choose a role —</option>`+
       (custom?`<option value="custom">Custom: ${esc(custom)}</option>`:"")+
-      // r20 planner: only an admin can hand out "Admin" (a non-admin's pick pre-fills an admin's later invite);
-      // a record that already says Admin keeps it, so opening + saving never rewrites it
       BPStore.staff.staffRoles().filter(r=>isAdminUser||linked||r.key!=="admin"||cur==="admin").map(r=>`<option value="${esc(r.key)}">${esc(r.label)}</option>`).join("");
     sel.value=custom?"custom":(cur||""); sel.dataset.orig=sel.value; sel.dataset.custom=custom||"";
   }

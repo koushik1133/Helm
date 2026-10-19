@@ -34,7 +34,7 @@ t('approve.html: hides Proceed to payment and shows planner note when unavailabl
 });
 t('flow.html: online option removed and no sim-pay link built when unavailable', () => {
   const f = read('public/flow.html');
-  assert.match(f, /if\(!BPStore\.approval\.onlinePayAvailable\(\)\)\{ const o=\$\("#pay_method"\)\.querySelector\('option\[value="online"\]'\); if\(o\) o\.remove\(\); \}/);
+  assert.match(f, /if\(!BPStore\.approval\.onlinePayAvailable\(\)\)\{ const o=\$\("#pay_method"\)\.querySelector\('option\[value="online"\]'\); if\(o\) o\.remove\(\);/);   // r20 planner: + the cash-only copy
   const uses = f.split('sim-pay.html').length - 1;
   assert.equal(uses, 1);
   assert.match(f, /if\(method==='online' && BPStore\.approval\.onlinePayAvailable\(\)\)\{ const link=location\.origin\+"\/sim-pay\.html/);
