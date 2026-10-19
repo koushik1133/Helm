@@ -89,15 +89,17 @@ do $$ declare s text; j jsonb; begin
   reset role;
 end $$;
 
--- reserved words + admin rename still works
+-- reserved words + a (Helm support) rename still works; r23 (0257): the studio admin can't rename
 do $$ declare bad text; ok int := 0; r text; begin
-  perform pg_temp.as_user('a_admin@a.test');
+  perform auth.logout(); execute 'reset role';
   foreach bad in array array['hq','booklet','events','clients','settings','client','manual','checkout','tasks','floor-plan','login','api','i','assets','static','portal','approve'] loop
-    begin perform public.set_studio_link_name(bad); exception when others then ok := ok + 1; end;
+    begin update public.organizations set public_slug = bad where id = 'a0000000-0000-4000-8000-000000000001'; exception when others then ok := ok + 1; end;
   end loop;
   perform pg_temp.res('31 reserved route words rejected (17)', ok = 17, ok::text);
-  r := public.set_studio_link_name('sharma-events');
-  perform pg_temp.res('32 admin rename to sharma-events', r = 'sharma-events', r);
+  update public.organizations set public_slug = 'sharma-events' where id = 'a0000000-0000-4000-8000-000000000001';
+  r := (select public_slug from public.organizations where id = 'a0000000-0000-4000-8000-000000000001');
+  perform pg_temp.res('32 support rename to sharma-events', r = 'sharma-events', r);
+  perform pg_temp.as_user('a_admin@a.test');
   perform pg_temp.res('33 renamed: old slug still own', (public.my_studio_route('studio-a')->>'own')::boolean);
   perform pg_temp.as_user('a_staff@a.test');
   begin perform public.set_studio_link_name('staff-pick'); perform pg_temp.res('34 non-admin rename denied', false, 'allowed');

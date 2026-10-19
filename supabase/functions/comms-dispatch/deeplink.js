@@ -29,6 +29,7 @@ export function notifLink(n) {
       return "inventory.html?quote=" + enc(q) + (it ? "&item=" + enc(it) : "");
     }
     if (k.indexOf("chat_") === 0) return "chat.html";
+    if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     if (!q) return "";
     // r22 (0254): a close request / its decision opens the event's Closure page at the request

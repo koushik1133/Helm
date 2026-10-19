@@ -6,20 +6,23 @@
 //   close_request  (0254) a teammate asked to close an event with checks still open -> the studio's admins,
 //                  coordinators and managers (not the requester)
 //   close_decision (0254) the request was approved (event closed) or declined -> the requester
+//   studio_identity (0257) Helm HQ changed the studio's name and/or link -> the studio's admins
 // Pure (no I/O); shared by comms-dispatch (Deno) and the node tests. Anything unexpected -> null and
 // comms-dispatch marks the row skipped (fails closed). Links are always APP_URL + a fixed path.
 const clip = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 const block = (v, n) => String(v == null ? "" : v).replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, n);
 const base = (app) => String(app || "https://www.helm.events").replace(/\/+$/, "");
 
-export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision"];
+export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "studio_identity"];
 // the footer reason for each kind (transactional: a service message about this account)
 export const NOTICE_TX_REASON = {
   sales_request: "a Helm studio asked Helm sales to activate a plan",
   upgrade_ask: "a teammate in your Helm studio asked you to choose a plan",
   close_request: "a teammate in your Helm studio asked to close an event and you can approve it",
   close_decision: "you asked to close an event in your Helm studio",
+  studio_identity: "you are an admin of a Helm studio whose name or link was changed by Helm support",
 };
+const SLUG = /^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const closureLink = (app, q) => app + "/closure.html?quote=" + String(q).toLowerCase() + "#close-request";
 
@@ -99,6 +102,27 @@ export function helmNoticeEmail(kind, data, appUrl) {
       };
     }
     return null;
+  }
+  if (kind === "studio_identity") {
+    // r23 (0257): Helm HQ changed the studio name and/or link; old links keep working
+    const nf = clip(d.name_from, 120), nt = clip(d.name_to, 120), lf = clip(d.link_from, 60), lt = clip(d.link_to, 60);
+    if (!nt || !SLUG.test(lt) || (lf && !SLUG.test(lf))) return null;
+    const nameChanged = !!nf && nf !== nt, linkChanged = !!lf && lf !== lt;
+    if (!nameChanged && !linkChanged) return null;
+    const host = app.replace(/^https?:\/\/(www\.)?/, "");
+    return {
+      subject: "Helm support changed your studio " + (nameChanged && linkChanged ? "name and link" : nameChanged ? "name" : "link"),
+      text: [
+        "Hi,",
+        "Helm support changed your studio on Helm, as requested.",
+        nameChanged ? "Studio name: " + nf + " -> " + nt : "",
+        linkChanged ? "Studio link: " + host + "/" + lf + " -> " + host + "/" + lt : "",
+        linkChanged ? "Links you already sent (quotes, portals, booklets, invitations, crew links) keep working and open under the new link." : "",
+        "If you did not ask for this, reply to this e-mail or write to support@helm.events straight away.",
+        "Open your studio: " + app + "/" + lt + "/dashboard",
+        "- The Helm team",
+      ].filter(Boolean).join("\n\n"),
+    };
   }
   return null;
 }

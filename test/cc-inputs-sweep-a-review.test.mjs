@@ -44,8 +44,8 @@ await t('logo URL: a host with an empty label (x..com) or a trailing dot is refu
 
 await t('control.html: name / currency / timezone are checked under the box and saved normalised; empty currency follows the country', () => {
   assert.match(ctl, /<input id="o_name" maxlength="120"/); assert.match(ctl, /<input id="o_currency" maxlength="8"/); assert.match(ctl, /<input id="o_tz" maxlength="60"/);
-  assert.match(ctl, /HelmCCInputs\.first\(\[G\.name,G\.email,G\.phone,G\.logo,G\.accent,G\.currency,G\.tz,G\.tax\]\)/);
-  assert.match(ctl, /name:ccv\(G&&G\.name,"o_name"\)\|\|null/);
+  assert.match(ctl, /HelmCCInputs\.first\(\[G\.email,G\.phone,G\.logo,G\.accent,G\.currency,G\.tz,G\.tax\]\)/);
+  assert.doesNotMatch(ctl, /name:ccv\(G&&G\.name,"o_name"\)/, 'r23 (0257): the studio name is fixed at creation - never sent by the General save');
   assert.match(ctl, /currency:ccv\(G&&G\.currency,"o_currency"\)\.toUpperCase\(\)\|\|\(ctp&&ctp\.known\?ctp\.currency:"INR"\)/);
   assert.match(ctl, /timezone:ccv\(G&&G\.tz,"o_tz"\)\|\|"Asia\/Kolkata"/);
   const ci = r('public/cc-inputs.js');

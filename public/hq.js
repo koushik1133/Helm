@@ -179,6 +179,10 @@
     var wrap = el("div", { cls: "detail" }, [el("h2", { text: d.name || "Studio" }),
       el("div", { cls: "muted", text: [d.slug, "created " + date(d.created_at), int(d.users_count) + " people"].filter(Boolean).join(" · ") })]);
 
+    // r23 (0257): studio name + link are fixed for the studio; only Helm HQ changes them (two-step, reason, audited,
+    // studio admins told by bell + e-mail, the old link keeps working)
+    wrap.appendChild(identityBox(org, d));
+
     // subscription
     wrap.appendChild(el("h3", { text: "Subscription" }));
     wrap.appendChild(el("div", null, [statusPill(sub.status || d.status), " ", (sub.plan_name || "No plan"),
@@ -262,6 +266,47 @@
     var cl = el("button", { cls: "btn", type: "button", text: "Close" }); cl.addEventListener("click", function () { openOrg = null; clear(box); });
     wrap.appendChild(el("div", { cls: "actions" }, [rec, cl]));
     box.appendChild(wrap); try { wrap.scrollIntoView({ block: "nearest" }); } catch (e) {}
+  }
+
+  /* ---------------- r23 (0257) "Change studio name / link" (Helm HQ only) ---------------- */
+  function identityBox(org, d) {
+    var box = el("div", { cls: "hq-ident" });
+    box.appendChild(el("h3", { text: "Studio name & link" }));
+    box.appendChild(el("div", { cls: "muted", text: "Studios can't change these themselves. Change them only when the studio asks (confirm who is asking). Old links keep working; the studio's admins get a bell notice and an e-mail." }));
+    var nm = el("input", { type: "text", maxlength: "120", "aria-label": "Studio name" }); nm.value = d.name || "";
+    var sl = el("input", { type: "text", maxlength: "40", spellcheck: "false", autocomplete: "off", "aria-label": "Studio link" }); sl.value = d.slug || "";
+    var why = el("input", { type: "text", maxlength: "500", "aria-label": "Reason", placeholder: "Who asked, and how you confirmed it (10+ characters)" });
+    var avail = el("div", { cls: "muted", "aria-live": "polite" });
+    var seq = 0, tmr = null;
+    var paint = function () {
+      var v = String(sl.value || "").trim().toLowerCase(); var my = ++seq; clearTimeout(tmr);
+      if (!v || v === d.slug) { avail.textContent = v ? "helm.events/" + v + " (current link)" : ""; return; }
+      avail.textContent = "helm.events/" + v + " - checking...";
+      tmr = setTimeout(function () {
+        call("hq_studio_link_check", { p_org: org, p_slug: v }).then(function (r) {
+          if (my !== seq || !r) return;
+          avail.textContent = "helm.events/" + v + " - " + (r.ok ? (r.previous ? "available (an earlier link of this studio)" : "available")
+            : r.reason === "taken" ? "used by another studio, or looks like one" : r.reason === "reserved" ? "reserved (a Helm word or look-alike)" : "3-40 lowercase letters, numbers or single dashes");
+        }).catch(function () { if (my === seq) avail.textContent = ""; });
+      }, 350);
+    };
+    sl.addEventListener("input", function () { var c = String(sl.value).toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/-{2,}/g, "-"); if (c !== sl.value) sl.value = c; paint(); });
+    var go = el("button", { cls: "btn", type: "button", text: "Change studio name / link" });
+    go.addEventListener("click", function () {
+      var n = String(nm.value || "").trim(), l = String(sl.value || "").trim().toLowerCase().replace(/-+$/, ""), r = String(why.value || "").trim();
+      if (n === (d.name || "") && l === (d.slug || "")) { showErr({ message: "Nothing to change." }); return; }
+      if (r.length < 10) { showErr({ message: "Give a reason of at least 10 characters." }); why.focus(); return; }
+      var lines = [];
+      if (n !== (d.name || "")) lines.push("Name: " + (d.name || "-") + " -> " + n);
+      if (l !== (d.slug || "")) lines.push("Link: helm.events/" + (d.slug || "-") + " -> helm.events/" + l + " (old links keep working)");
+      if (!window.confirm("Change this studio?\n\n" + lines.join("\n") + "\n\nThe studio's admins are told by bell and e-mail.")) return;
+      go.disabled = true;
+      call("hq_set_studio_identity", { p_org: org, p_name: n !== (d.name || "") ? n : null, p_slug: l !== (d.slug || "") ? l : null, p_reason: r })
+        .then(function () { okMsg("Studio name / link changed."); refreshAfterWrite(org); }).catch(showErr).then(function () { go.disabled = false; });
+    });
+    box.appendChild(el("div", { cls: "form" }, [field("Studio name", nm), field("Studio link (helm.events/...)", sl), field("Reason", why), go]));
+    box.appendChild(avail);
+    return box;
   }
 
   /* ---------------- r21 (0244) "Activate plan" ----------------

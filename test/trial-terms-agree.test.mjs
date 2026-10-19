@@ -204,7 +204,7 @@ await t('welcome step 1 "Your 8-day free trial": Continue disabled until ticked,
   cb.checked = true; cb.fire('change');
   await go.on.click[0]({ currentTarget: go });
   assert.deepEqual(r.calls, ['accept:trial-2026-10-20']);
-  assert.match(d.textContent, /Step 2 of 3/); assert.match(d.textContent, /Name your trial studio/);
+  assert.match(d.textContent, /Step 2 of 3/); assert.match(d.textContent, /Your trial studio/);
   assert.ok(!d.classList.contains('tw-dlg'), 'back to the small dialog'); assert.ok(!find(d, (e) => e.tagName === 'INPUT' && e.type === 'checkbox'), 'tick box gone');
   const ev = { prevented: false, preventDefault() { this.prevented = true; } }; d.on.cancel[0](ev); assert.equal(ev.prevented, true, 'Esc never closes the welcome');
 });
@@ -212,13 +212,13 @@ await t('welcome: saving the agreement fails -> stays on the terms with an error
   const r = await runDash({ server: true, terms: { trial: true, owner: true, must_agree: true }, trial: owner, acceptErr: new Error('offline') });
   const d = r.dialogs[0], cb = find(d, (e) => e.tagName === 'INPUT' && e.type === 'checkbox'), go = byText(d, /Agree and continue/);
   cb.checked = true; cb.fire('change'); await go.on.click[0]({ currentTarget: go });
-  assert.match(d.textContent, /Your 8-day free trial/); assert.ok(!/Name your trial studio/.test(d.textContent));
+  assert.match(d.textContent, /Your 8-day free trial/); assert.ok(!/Your trial studio/.test(d.textContent));
   const err = find(d, (e) => e.className === 'td-err'); assert.equal(err.hidden, false); assert.match(err.textContent, /offline/);
 });
 await t('welcome: already agreed (another device) -> the 2-step welcome starts at "Name"', async () => {
   const r = await runDash({ server: true, terms: { trial: true, owner: true, must_agree: false, accepted: true }, trial: owner });
   const d = r.dialogs[0];
-  assert.match(d.textContent, /Step 1 of 2/); assert.match(d.textContent, /Name your trial studio/); assert.ok(!/Your 8-day free trial/.test(d.textContent));
+  assert.match(d.textContent, /Step 1 of 2/); assert.match(d.textContent, /Your trial studio/); assert.ok(!/Your 8-day free trial/.test(d.textContent));
 });
 await t('trial that finished the welcome before: one-time window, Esc cannot close it, the tour waits for it', async () => {
   const r = await runDash({ server: false, terms: { trial: true, owner: true, must_agree: true }, trial: owner });

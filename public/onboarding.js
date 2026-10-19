@@ -199,7 +199,7 @@
   function sfld(kind, key, label, v, o) {
     o = o || {}; const id = "ob_s_" + key, eid = id + "_err", e = (setErr[kind] || {})[key] || "";
     const attrs = `id="${esc(id)}" data-set="${esc(key)}" aria-invalid="${!!e}" aria-describedby="${esc(eid)}${o.hint ? " " + esc(id) + "_hint" : ""}"${o.req ? ' aria-required="true"' : ""}${o.max ? ` maxlength="${Number(o.max)}"` : ""}${o.ac ? ` autocomplete="${esc(o.ac)}"` : ""}${o.list ? ` list="${esc(o.list)}"` : ""}${o.im ? ` inputmode="${esc(o.im)}"` : ""}`;
-    const ctl = o.area ? `<textarea ${attrs} rows="3">${esc(v)}</textarea>` : `<input type="${esc(o.type || "text")}" ${attrs} value="${esc(v)}"${o.type === "number" ? ` min="${Number(o.min || 0)}" max="${Number(o.maxN || 100)}" step="${esc(o.step || "1")}"` : ""}>`;
+    const ctl = o.area ? `<textarea ${attrs} rows="3">${esc(v)}</textarea>` : `<input type="${esc(o.type || "text")}" ${attrs}${o.ro ? ' readonly aria-readonly="true"' : ""} value="${esc(v)}"${o.type === "number" ? ` min="${Number(o.min || 0)}" max="${Number(o.maxN || 100)}" step="${esc(o.step || "1")}"` : ""}>`;
     return `<div class="${o.full ? "full" : ""}"><label for="${esc(id)}">${esc(label)}${o.req ? " *" : ""}</label>${ctl}`
       + (o.hint ? `<div class="ob-note" id="${esc(id)}_hint">${esc(o.hint)}</div>` : "") + `<div class="ob-err" id="${esc(eid)}">${esc(e)}</div></div>`;
   }
@@ -222,7 +222,7 @@
       const cd = studioDefaults(), d = W.followCountry(Object.assign(W.studioFromOrg(org), v), v, cd);
       const def = (cd.currency || cd.timezone) && (cd.currency !== d.currency || cd.timezone !== d.timezone)
         ? `<div class="ob-warn">Your country suggests ${esc(cd.currency)} · ${esc(cd.timezone)}. <button type="button" class="btn" data-act="setdefaults">Use these</button></div>` : "";
-      return form(`${def}<div class="ob-bf">${sfld(kind, "name", "Studio / brand name", d.name, { req: 1, max: 80, ac: "organization", full: 1 })}`
+      return form(`${def}<div class="ob-bf">${sfld(kind, "name", "Studio / brand name", W.studioFromOrg(org).name || d.name, { req: 1, max: 80, ac: "organization", full: 1, ro: 1, hint: "Set when the studio was created. Contact Helm support to change it." })}`
         + sfld(kind, "email", "Business email", d.email, { type: "email", max: 254, ac: "email", hint: "Shown to clients as your contact." })
         + sfld(kind, "website", "Website", d.website, { type: "url", max: 200, ac: "url", hint: "Optional, e.g. https://studio.com" })
         + sfld(kind, "currency", "Currency", d.currency, { req: 1, max: 3, hint: cd.taxName ? "Tax: " + cd.taxName + (cd.taxRate != null ? " " + cd.taxRate + "%" : "") : "" })
