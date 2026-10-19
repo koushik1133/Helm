@@ -36,12 +36,13 @@ t('panel: only on the trial sign-up; hidden on sign-in, the paid path and for in
   assert.match(TS, /var show = mode === "signup" && !joining && !direct && TRIAL_KEY\.length > 0;/);   // 0207: facts from trial-facts.js
   assert.match(TS, /if \(box\) box\.hidden = !show;/);
   assert.match(TS, /if \(joining\) \{ trialTerms\(mode, joining\); return; \}/);
-  assert.ok(TS.indexOf('pathLink(mode);\n    trialTerms(mode, joining);') > 0, 'placed under the path link');
-  // Google sign-up (no studio yet): the same panel + consent line above / below "Start free trial"
-  assert.match(TS, /obForm\.insertBefore\(termsPanel\("obTrialTerms"\), obBtn\)/);
+  // r22: ONE sign-up flow - the trial rules show on step 4 ("What's in the free trial?" under the plan cards), never on step 1
+  assert.match(TS, /trialTerms\("signin", joining\);   \/\/ never on step 1/);
+  assert.match(TS, /global\.BPTrialSignup = \{ termsPanel: termsPanel,/);
+  assert.match(read('public/signup-flow.js'), /rules\.appendChild\(global\.BPTrialSignup\.termsPanel\("stTrialTerms"\)\);/);
 });
 t('consent: follows the existing "By continuing you agree to our Terms & Privacy" line', () => {
-  assert.match(LOGIN, /<div class="foot"><span id="agreeLead">By continuing you agree to our<\/span> <a class="s-a805525" href="terms">Terms<\/a> &amp; <a class="s-a805525" href="privacy">Privacy Policy<\/a>\./);
+  assert.match(LOGIN, /<div class="foot"><span id="agreeFoot"><span id="agreeLead">By continuing you agree to our<\/span> <a class="s-a805525" href="terms">Terms<\/a> &amp; <a class="s-a805525" href="privacy">Privacy Policy<\/a>\./);
   assert.match(TS, /var AGREE_TRIAL = "By starting the free trial you agree to the trial rules above, our";/);
   assert.match(TS, /a\.textContent = on \? AGREE_TRIAL : a\.getAttribute\("data-default"\);/);
 });

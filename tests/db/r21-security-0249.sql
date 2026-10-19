@@ -34,6 +34,10 @@ do $$ begin
   delete from public.platform_admins where email not in ('admin@helm.events', 'security@helm.events');
   delete from auth.users where email = 'security@helm.events';
   update public.helm_hq_settings set hq_require_mfa = false, rpc_captcha_required = false where id;
+  -- r22 0255: Contact sales needs the current Terms - studio A's admin has accepted them
+  if to_regclass('public.account_terms_acceptances') is not null then
+    insert into public.account_terms_acceptances(user_id, version) select u.id, public._account_terms_version() from auth.users u
+     where u.email = 'a_admin@a.test' on conflict do nothing; end if;
 exception when others then perform pg_temp.su(); insert into _rs values ('0x setup', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 -- ---- 1) readiness report -------------------------------------------------------------------------------------

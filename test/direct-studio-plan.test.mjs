@@ -94,10 +94,11 @@ t('sign-in: "Create studio" directly is back (?direct=1), the free trial stays t
   assert.equal(signup.directFrom('', null, now), false, 'default = free trial');
   const TSU = read('public/trial-signup.js'), LOGIN = read('public/login.html');
   assert.match(TSU, /wanted: function \(\) \{ return !direct; \}/);
-  assert.match(TSU, /a\.href = direct \? "login\.html\?trial=1#signup" : "login\.html\?direct=1#signup";/);
-  assert.match(TSU, /setText\("#formTitle", "Create your studio"\);/);
+  // r22: ONE sign-up flow - ?direct=1 still opens the sign-up (mode paid); pay now / trial is chosen in step 4
+  assert.equal(createRequire(import.meta.url)('../public/signup-flow.js').intentFrom('?direct=1', '#signup', null, now).mode, 'paid');
+  assert.match(TSU, /setText\("#formTitle", "Create your Helm account"\);/);
   assert.match(LOGIN, /BPStore\.org\.createStudio\(name,opts\|\|\{\}\)\.then\(\(r\)=>\{ try\{ if\(window\.BPTrialSignup&&BPTrialSignup\.clearDirect\) BPTrialSignup\.clearDirect\(\); \}catch\(e\)\{\} return r; \}\)/);
-  assert.match(LOGIN, /if\(oid && BPStore\.checkout && await BPStore\.checkout\.routeIfRequired\(nextUrl\(\)\)\) return;/, 'new studio → /checkout after sign-up');
+  assert.match(LOGIN, /if\(oid && BPStore\.checkout && await BPStore\.checkout\.routeIfRequired\(first\|\|nextUrl\(\)\)\) return;/, 'new studio → /checkout after sign-up');
   assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|\.style\./.test(TSU));
 });
 console.log(n + ' passed');

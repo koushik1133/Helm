@@ -1,0 +1,34 @@
+/* r22 plan cards (plan-cards.js): the action row on every plan card (sign-up + /checkout), plus the card
+   itself where the page has no card styles of its own (.hpc = login.html "How would you like to start?").
+   Pay now = the primary; Try free = secondary (outline); Contact sales = a quiet link. Min 44px targets. */
+.plan-acts{display:flex;flex-direction:column;gap:8px;margin:14px 0 12px}
+.plan-acts .pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;padding:0 16px;
+  border-radius:12px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;border:1.5px solid var(--accent,#047857);margin:0}
+.plan-acts .pc-pay{background:var(--accent,#047857);color:#fff}
+.plan-acts .pc-pay:hover:not(:disabled){background:var(--accent-2,#036b4d);border-color:var(--accent-2,#036b4d)}
+.plan-acts .pc-trial{background:var(--panel,#fff);color:var(--acc-text,var(--accent,#047857));font-weight:600}
+.plan-acts .pc-trial:hover:not(:disabled){background:var(--accent-soft,#e3f4ed)}
+.plan-acts .pc-link{align-self:center;min-height:44px;padding:0 10px;border:0;background:none;font:inherit;font-size:14px;font-weight:600;
+  color:var(--acc-text,var(--accent,#047857));text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.plan-acts button:disabled{opacity:.6;cursor:progress}
+.plan-acts button:focus-visible{outline:3px solid var(--accent-soft,#e3f4ed);outline-offset:2px}
+.plan-acts .spin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;animation:pcrot .8s linear infinite}
+.plan-acts .pc-trial .spin{border-color:var(--accent-soft,#e3f4ed);border-top-color:var(--accent,#047857)}
+@keyframes pcrot{to{transform:rotate(360deg)}} @media(prefers-reduced-motion:reduce){.plan-acts .spin{animation:none}}
+
+/* cards on pages without checkout's styles */
+.hpc{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:0 0 14px}
+.hpc .plan{position:relative;display:flex;flex-direction:column;border:1.5px solid var(--line,#e8e3db);border-radius:16px;padding:16px;
+  background:var(--panel,#fff);cursor:pointer;min-width:0}
+.hpc .plan.on{border-color:var(--accent,#047857);box-shadow:0 0 0 3px var(--accent-soft,#e3f4ed)}
+.hpc .plan.off{opacity:.6}
+.hpc .pn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em;text-transform:none;color:var(--ink,#1b1930)}
+.hpc .badge{font-size:11px;font-weight:700;color:var(--acc-text,var(--accent,#047857));background:var(--accent-soft,#e3f4ed);padding:2px 8px;border-radius:99px}
+.hpc .pd{margin:4px 0 8px;font-size:13px;color:var(--ink-3,#6b6577)}
+.hpc .pp{margin:0;font-size:26px;font-weight:700;letter-spacing:-.02em;color:var(--ink,#1b1930)}
+.hpc .pp.req{font-size:20px}
+.hpc .pp small{font-size:13px;font-weight:500;color:var(--ink-3,#6b6577);margin-left:2px}
+.hpc .px{margin:2px 0 0;font-size:12px;color:var(--ink-3,#6b6577)}
+.hpc .pf{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.hpc .pf li{position:relative;padding-left:20px;font-size:13px;line-height:1.4;color:var(--ink-2,#4b475f)}
+.hpc .pf li::before{content:"";position:absolute;left:2px;top:4px;width:10px;height:5px;border-left:2px solid var(--accent,#047857);border-bottom:2px solid var(--accent,#047857);transform:rotate(-45deg)}

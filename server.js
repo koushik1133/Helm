@@ -370,8 +370,9 @@ function serveStatic(req, res) {
   // Parity with the vercel.json rewrite (0205): /auth/confirm = every auth e-mail link on our own domain.
   if (rel === '/auth/confirm') return serveFile(res, req, path.join(PUBLIC_DIR, 'auth-confirm.html'));
 
-  // Parity with the vercel.json redirect: /signup opens the sign-up form on the login page.
-  if (rel === '/signup') { res.writeHead(302, { Location: '/login#signup' }); return res.end(); }
+  // r22: /signup is a real page (parity with the vercel.json rewrite): the sign-in page's ONE sign-up flow, with the
+  // same headers / CSP as /login; ?plan=&mode=trial|paid|sales stay in the address bar.
+  if (rel === '/signup') return serveFile(res, req, path.join(PUBLIC_DIR, 'login.html'));
 
   // Public digital-invitation sites: /i/<slug> is served by invite.html, which
   // reads the slug from the path and fetches ONLY the published display fields.

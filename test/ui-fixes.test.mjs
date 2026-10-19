@@ -29,7 +29,11 @@ t('L8: 0075 RPC keeps the gates, locks per user, never deletes', () => {
 });
 t('#16: signup never seeds the business email with the login email', () => {
   for (const m of login.matchAll(/(?:createStudio|makeStudio)\(([^;]*?)\)/g)) assert.doesNotMatch(m[1], /email/, m[0]);
-  assert.equal((login.match(/BPStore\.org\.createStudio\(/g) || []).length, 1); assert.equal((login.match(/await makeStudio\(/g) || []).length, 3);
+  assert.equal((login.match(/BPStore\.org\.createStudio\(/g) || []).length, 1);
+  // r22: the studio is created in signup-flow.js (step 4) - never with the login e-mail as business e-mail
+  const sf = readFileSync(new URL('../public/signup-flow.js', import.meta.url), 'utf8');
+  assert.match(sf, /B\.signup\.createDirect\(\{ name: d\.name, plan: p\.code, interval: st\.interval, termsVersion: st\.termsVersion \}\)/);
+  assert.match(sf, /await global\.BPTrialSignup\.start\(d\.name\);/);
 });
 t('#16: Control Center save confirms the business email + keeps brand keys + saves a phone', () => {
   assert.match(ctrl, /<input id="o_phone" type="tel"/);
