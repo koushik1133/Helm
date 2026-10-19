@@ -52,7 +52,7 @@ when tapped. Up to 24 entries are used.
    changed CSS/JS; adding photos + editing `events.json` needs no other step.
 
 The current images are AI-generated illustrations supplied by the owner, so the section is titled
-"Event ideas" and shows an "Illustrative images." note — keep that wording unless every photo is from a real
+"Event ideas" ("Plan events like these") — keep that wording unless every photo is from a real
 client event. The same files (`wedding`, `product-launch`, `birthday`, `sangeet`, `corporate-gala`, `mehendi`)
 are also the backgrounds of the "Built for every kind of celebration" slider (see `CEL_PHOTOS` in `home.js`),
 so keep those names when replacing them (or update `CEL_PHOTOS`).

@@ -32,10 +32,10 @@ t('events.json lists all 8 with alt text, caption, type tag, local src + small c
   });
 });
 
-t('gallery does not claim real client work: "Event ideas" + illustrative note', () => {
+t('gallery does not claim real client work: "Event ideas" heading', () => {
   assert.match(html, /<p class="eyebrow">Event ideas<\/p><h2 id="ev-h" class="h2">Plan events <em>like these\.<\/em><\/h2>/);
   assert.match(html, /<p class="lead">Weddings, launches and celebrations you can plan, quote and run in Helm\.<\/p>/);
-  assert.match(html, /<p class="ev-note">Illustrative images\.<\/p>/);
+  assert.doesNotMatch(html, /Illustrative images/);
   assert.doesNotMatch(html, /Events made <em>with Helm|Real events/);
   assert.match(js, /img\.srcset = it\.small \+ ' 800w, ' \+ it\.src \+ ' 1600w'/);
   assert.match(js, /bimg\.src = \/\\\.avif\$\/i\.test\(shown\) \? shown : it\.src/);   // lightbox never shows the 800px copy
