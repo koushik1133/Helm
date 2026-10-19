@@ -10,6 +10,11 @@
 //                   each with a short deep link that opens the exact page in Helm.
 //   * invite_site   (0195) "Send to client" on the Invitation Studio: the published invitation
 //                   website link, e-mail / WhatsApp (invite-site.mjs; host = APP_URL, path from the row)
+//   * delivery reminders (0241) the vendor / staff member responsible for a delivery or arrival, at the reminder
+//                   times set on the assignment (e.g. 60 / 30 / 0 min before), e-mail only, each with a fresh
+//                   one-click status link APP_URL/delivery?t=<token>; claimed via delivery_reminder_claim (re-checked
+//                   there: answered / cancelled / switched off / ended trial -> skipped). Free trial: the database
+//                   applies the 0212 caps when it queues them.
 //   * booklet_link  (0200) "Send to client" in the Share booklet dialog: the live client booklet
 //                   link (booklet-link.mjs; host = APP_URL, path added by the claim - no token in the row)
 // FREE TRIAL (0212): the database queues and hands out a free-trial studio's row ONLY for the invitation /
@@ -64,6 +69,7 @@ import { trialReminderEmail, trialRetentionEmail, RETENTION_NOTICE_KINDS, RETENT
 import { inviteSiteMessage } from "./invite-site.mjs";
 import { trialRowAllowed } from "./trial-row.mjs";   // 0212: free trial = link e-mails only
 import { bookletMessage } from "./booklet-link.mjs";
+import { deliveryMessage } from "./delivery-reminder.mjs";   // 0241: delivery / arrival reminders
 import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
 import { brandMode, sendMail, type SmtpSend } from "../_shared/mailer.ts";
@@ -342,6 +348,20 @@ Deno.serve(async (req) => {
       const res: Res = text ? ((await waStopped(admin, to)) ?? await sendWhatsApp(to, text, "task_assigned")) : "skipped";
       const { error: mErr } = await admin.rpc("assign_notify_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("comms-dispatch: assign mark failed", errTag(mErr)); counts.failed++; continue; }
+      counts[res]++;
+    }
+    // 0241: delivery / arrival reminders (a database without 0241 just has nothing to claim). E-mail only.
+    const { data: drows, error: dErr } = await admin.rpc("delivery_reminder_claim", { p_limit: batch });
+    if (dErr) console.error("comms-dispatch: delivery claim skipped", errTag(dErr));
+    for (const r of (Array.isArray(drows) ? drows : [])) {
+      const id = String(r?.id ?? ""), to = String(r?.to ?? "");
+      if (!UUIDISH.test(id)) { counts.invalid++; continue; }
+      const msg = deliveryMessage(r, origin);
+      const ident: Identity = (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {};
+      const extra: Extra = { footer: txFooter("delivery", { app: origin, address: postalAddress(env) }) };
+      const res: Res = msg.text ? await sendEmail(id, to, msg.subject, msg.text, String(r?.studio ?? ""), ident, extra) : "skipped";
+      const { error: mErr } = await admin.rpc("delivery_reminder_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
+      if (mErr) { console.error("comms-dispatch: delivery mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;
     }
     console.log("comms-dispatch: run", JSON.stringify(counts));

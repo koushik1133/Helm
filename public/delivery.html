@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delivery status · Helm</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="stylesheet" href="/delivery-status.css?v=1">
+</head>
+<body>
+<main id="main" class="ds-wrap">
+  <section class="ds-card" aria-live="polite">
+    <p class="ds-brand"><img src="/brand/helm-logo-emerald.svg?v=1" alt="Helm" width="74" height="32"></p>
+    <h1 id="ds-title">Delivery status</h1>
+    <p id="ds-msg">Checking your link&hellip;</p>
+    <dl id="ds-facts" class="ds-facts" hidden></dl>
+    <p id="ds-now" class="ds-now" hidden></p>
+    <div id="ds-actions" class="ds-actions" hidden>
+      <button type="button" class="ds-btn" data-s="confirmed">On the way</button>
+      <button type="button" class="ds-btn ds-ok" data-s="arrived">Arrived</button>
+      <button type="button" class="ds-btn ds-ghost" data-s="delayed">Delayed</button>
+      <button type="button" class="ds-btn ds-ghost ds-bad" data-s="issue">Problem</button>
+    </div>
+    <form id="ds-more" class="ds-more" hidden>
+      <label id="ds-eta-l" for="ds-eta">New expected time</label>
+      <input id="ds-eta" type="time">
+      <label for="ds-note" id="ds-note-l">Note (optional)</label>
+      <input id="ds-note" maxlength="300" autocomplete="off">
+      <p id="ds-err" class="ds-err" role="alert" hidden></p>
+      <div class="ds-actions"><button type="submit" class="ds-btn" id="ds-send">Send</button><button type="button" class="ds-btn ds-ghost" id="ds-back">Back</button></div>
+    </form>
+    <p class="ds-foot">Only you have this link. It works for this one delivery and expires after the event day. <a href="/privacy">Privacy</a> &middot; Helm Events</p>
+  </section>
+</main>
+<script src="/trusted-types.js?v=3"></script>
+<script src="/config.js?v=104"></script>
+<script src="/delivery-tracker.js?v=1"></script>
+<script src="/delivery-status.js?v=1"></script>
+</body>
+</html>

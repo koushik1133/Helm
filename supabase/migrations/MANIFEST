@@ -369,3 +369,17 @@ forward  supabase/migrations/0238_trial_quotes_cap_two.sql
 forward  supabase/migrations/0239_business_area_admin_only.sql
 # 0240 (r21 owner, Insights: "per-event costs & expenses as interactive graphs" + "benchmarks for each event" - ONE NEW read-only function insights_event_costs(from, to): for every confirmed event in the period (same filter as insights_events) revenue ex-tax / profit / margin from _vb_event_pnl (= event_pnl, Settlement, Closure, Business), the cost split into vendors / crew / logistics / rentals / change orders / other / paid expense claims / processed refunds (parts add up to event_pnl), event type, guest count, collected + outstanding; needs 'insights' (admin only by default, unchanged) and 'finance' for any money; own studio only; no table / column / policy / row changed) goes after 0094 + 0101 + 0124 + 0142 + 0146. [numbering: 0240 = r21 insights brief]
 forward  supabase/migrations/0240_insights_event_costs.sql
+# 0241 (r21 owner: "automated reminders for vendors / staff about deliveries before an event" - per assignment: a
+# delivery / arrival commitment (event, what, qty, responsible vendor / staff / user / other + e-mail, due time,
+# its own reminder times, default from Control Center 60 / 30 / 0 min) in delivery_commitments + a full history
+# (delivery_commitment_log); delivery_reminders_tick (pg_cron */5, only if pg_cron is installed) queues reminder
+# e-mails (delivery_reminder_sends, UNIQUE dedupe, re-checked by delivery_reminder_claim; comms-dispatch sends them,
+# e-mail only); a one-click status link per e-mail (delivery_links: sha-256 of a 244-bit token, one delivery,
+# expiring) lets the person answer on the way / arrived / delayed + new time / problem without signing in; each
+# answer (and "no response" 15 min after the due time) is posted as Helm into the event's team chat group (or the
+# group picked in settings, @admins + the scheduler) and the bell; delivery_settings per studio (default OFF,
+# Control Center edit); new access area 'deliveries' with NO rows written (falls back to the role's 'command'
+# switch); free trial: e-mail under the 0212 caps, sample master / ended trial / demo events never send; 0184 trial retention lists patched in place (4 assignment tables purge with the quote, delivery_settings kept); 5 new
+# tables, new functions only, no existing table / column / policy / function / row changed) goes after 0004 +
+# 0016 + 0035 + 0045 + 0050 + 0078 + 0097 + 0129 + 0179 + 0183 + 0212. [numbering: 0240 + 0241 assigned to r21 branches]
+forward  supabase/migrations/0241_delivery_reminders.sql
