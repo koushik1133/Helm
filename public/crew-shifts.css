@@ -1,0 +1,78 @@
+/* crew-shifts.css - r23 (0265): crew availability, open shifts, self check-in.
+   Crew link (work.html, crew-self.js) + office cards (crew-shifts.js on Operations / Event day / Staff / Control Center).
+   Uses the page tokens (--accent, --line, --ink-*) with safe fallbacks; 375 px first. */
+
+/* ---- crew link ---- */
+.cs-big{height:48px;font-size:15px}
+.cs-msg{margin:10px 0 0;font-size:13px;border-radius:10px;padding:8px 12px}
+.cs-msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
+.cs-msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #bfe5cf}
+.cs-shift .acts,.cs-check .acts{margin-top:10px}
+.cs-shift a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.cs-facts{font-weight:600;color:var(--ink-2,#4b475f)}
+.cs-legend{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cs-key{display:inline-block;width:14px;height:14px;border-radius:4px;border:1px solid var(--line,#e8e3db);vertical-align:middle}
+.cs-key.off{background:#fdecec;border-color:#e9a3a3}
+.cs-key.work{background:#e3f4ed;border-color:#9fd3bd}
+.cs-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:10px}
+.cs-month{grid-column:1/-1;font-size:12px;font-weight:700;color:var(--ink-2,#4b475f);margin:8px 0 0;text-transform:uppercase;letter-spacing:.05em}
+.cs-day{min-height:48px;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);border-radius:10px;padding:4px 2px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:inherit;color:var(--ink,#1b1930)}
+.cs-day .w{font-size:10px;color:var(--ink-3,#6b6577);text-transform:uppercase}
+.cs-day b{font-size:15px}
+.cs-day.work{background:#e3f4ed;border-color:#9fd3bd}
+.cs-day.off{background:#fdecec;border-color:#e9a3a3;color:#b42318}
+.cs-day.off b{text-decoration:line-through}
+.cs-day:focus-visible{outline:2px solid var(--accent,#047857);outline-offset:2px}
+.cs-day:disabled{opacity:.5}
+
+/* ---- office cards ---- */
+.cs-card h3{margin:0 0 4px}
+.cs-sub{color:var(--ink-3,#6b6577);font-size:13px;margin:0 0 10px}
+.cs-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0}
+.cs-form label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--ink-2,#4b475f)}
+.cs-form input,.cs-form select{height:38px;border:1px solid var(--line,#e8e3db);border-radius:8px;padding:0 10px;font:inherit;font-size:14px;background:var(--panel,#fff);color:var(--ink,#1b1930);min-width:0}
+.cs-form .wide{grid-column:1/-1}
+.cs-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cs-list{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.cs-item{border:1px solid var(--line,#e8e3db);border-radius:12px;padding:12px}
+.cs-item .cs-t{font-weight:700;font-size:15px}
+.cs-item .cs-m{font-size:13px;color:var(--ink-3,#6b6577);margin-top:2px}
+.cs-pill{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:20px;background:#eef1f0;color:#2f4a42}
+.cs-pill.open{background:#e3f4ed;color:#036b4d}.cs-pill.filled{background:#e7f6ee;color:#0f7a43}
+.cs-pill.closed,.cs-pill.cancelled{background:#f1f3f7;color:#6b6577}
+.cs-pill.pending{background:#fff7e6;color:#946200}.cs-pill.approved{background:#e6f6f2;color:#0f766e}
+.cs-pill.declined,.cs-pill.withdrawn{background:#fdecec;color:#b42318}
+.cs-pill.late,.cs-pill.no_show_suspected,.cs-pill.no_show{background:#fdecec;color:#b42318}
+.cs-claims{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.cs-claim{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
+.cs-claim b{min-width:0}
+.cs-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.cs-note{font-size:12px;color:var(--ink-3,#6b6577);margin:6px 0 0}
+.cs-msg2{font-size:13px;margin:8px 0 0}
+.cs-msg2.err{color:#b42318}.cs-msg2.ok{color:#0f7a43}
+.cs-tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:8px}
+.cs-table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+.cs-table th,.cs-table td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line-2,#f1ede7);vertical-align:top}
+.cs-table th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3,#6b6577)}
+.cs-table td.num{font-variant-numeric:tabular-nums}
+.cs-edit{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;padding:8px 0}
+.cs-edit input{height:36px;border:1px solid var(--line,#e8e3db);border-radius:8px;padding:0 8px;font:inherit}
+/* staff availability month grid */
+.cs-grid{border-collapse:separate;border-spacing:2px;font-size:12px}
+.cs-grid th{font-weight:600;color:var(--ink-3,#6b6577);padding:2px;text-align:center;min-width:26px}
+.cs-grid th.nm{text-align:left;min-width:120px;position:sticky;left:0;background:var(--panel,#fff);z-index:1}
+.cs-grid td{padding:0}
+.cs-grid td.nm{position:sticky;left:0;background:var(--panel,#fff);z-index:1;padding-right:6px;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.cs-cell{width:26px;height:26px;border:1px solid var(--line,#e8e3db);border-radius:6px;background:var(--panel,#fff);cursor:pointer;padding:0;font-size:11px;line-height:24px;color:var(--ink-3,#6b6577)}
+.cs-cell.work{background:#e3f4ed;border-color:#9fd3bd;color:#036b4d}
+.cs-cell.off{background:#fdecec;border-color:#e9a3a3;color:#b42318;font-weight:700}
+.cs-cell:disabled{cursor:default}
+.cs-cell:focus-visible{outline:2px solid var(--accent,#047857);outline-offset:1px}
+.cs-grid th.we{color:#b42318}
+.cs-chk{display:flex;align-items:flex-start;gap:8px;font-size:14px;margin:8px 0}
+.cs-chk input{margin-top:3px}
+@media (max-width:640px){.cs-form{grid-template-columns:1fr 1fr}.cs-item{padding:10px}}
+@media (prefers-reduced-motion:reduce){.cs-day,.cs-cell{transition:none}}
+/* the Staff page has no generic .card frame */
+#crewAvailCard{background:var(--panel,#fff);border:1px solid var(--line,#e8e3db);border-radius:16px;padding:16px;margin:18px 0 0}

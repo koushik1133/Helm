@@ -3373,6 +3373,34 @@ window.HelmUrl = HelmUrl;
       // crew schedule calendar (0161): schedule fields only; own rows for crew, any org crew for staff/calendar viewers
       schedule: (from, to, staffId) => (supa ? rpc("crew_schedule", { p_from: from, p_to: to, p_staff: staffId || null }).then((r) => r || []) : Promise.resolve([])),
     },
+    // ---- r23 (0265): crew availability, open shifts, self check-in. Crew link calls take the work-link token
+    // (anon, rate-limited server side); office calls are Staff / Event-day gated in the database. Every read
+    // returns null on a database without 0265 so the pages keep working (the new cards stay hidden).
+    shifts: {
+      missing: (e) => rpcMissing(e),
+      home: (token) => wrpc("crew_link_home", { p_token: token }),
+      setAvailability: (token, day, status, note) => wrpc("crew_set_availability", { p_token: token, p_day: day, p_status: status, p_note: note || null }),
+      claim: (token, shiftId) => wrpc("crew_claim_shift", { p_token: token, p_shift: shiftId }),
+      withdraw: (token, shiftId) => wrpc("crew_withdraw_claim", { p_token: token, p_shift: shiftId }),
+      check: (token, action, loc) => wrpc("crew_check", { p_token: token, p_action: action === "out" ? "out" : "in",
+        p_lat: loc && isFinite(loc.lat) ? loc.lat : null, p_lng: loc && isFinite(loc.lng) ? loc.lng : null,
+        p_accuracy: loc && isFinite(loc.accuracy) ? Math.round(loc.accuracy) : null }),
+      async settings() { if (!supa) return null; try { return await rpc("get_crew_settings", {}); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
+      saveSettings: (patch) => rpc("set_crew_settings", { p: patch || {} }),
+      async forEvent(quoteId) { if (!supa) return null; try { return await rpc("open_shifts_for_event", { p_quote: quoteId }); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
+      post: (quoteId, s) => rpc("open_shift_post", { p_quote: quoteId, p_title: s.title, p_date: s.date, p_start: s.start || null, p_end: s.end || null,
+        p_wage: s.wage == null || s.wage === "" ? null : Number(s.wage), p_basis: s.basis === "hour" ? "hour" : "day", p_needed: Number(s.needed) || 1,
+        p_mode: s.mode || null, p_department: s.department || null, p_category: s.category || null, p_note: s.note || null }),
+      setStatus: (shiftId, action) => rpc("open_shift_set_status", { p_shift: shiftId, p_action: action }),
+      decide: (claimId, approve, reason) => rpc("open_shift_decide", { p_claim: claimId, p_approve: !!approve, p_reason: reason || null }),
+      async timesheet(quoteId) { if (!supa) return null; try { return await rpc("event_timesheet", { p_quote: quoteId }); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
+      setSite: (quoteId, lat, lng, radius) => rpc("event_checkin_site_set", { p_quote: quoteId, p_lat: lat, p_lng: lng, p_radius: radius || 300 }),
+      officeCheck: (quoteId, crewId, day, inAt, outAt, note) => rpc("crew_checkin_office_set", { p_quote: quoteId, p_crew: crewId, p_day: day,
+        p_in: inAt, p_out: outAt || null, p_note: note || null }),
+      async availability(from, to, crewId) { if (!supa) return null; try { return await rpc("crew_availability_range", { p_from: from, p_to: to, p_crew: crewId || null }); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
+      setCrewAvailability: (crewId, day, status, note) => rpc("crew_availability_set", { p_crew: crewId, p_day: day, p_status: status, p_note: note || null }),
+      async dayStatus(date, excludeQuote) { if (!supa || !date) return null; try { return await rpc("crew_day_status", { p_date: date, p_exclude_quote: excludeQuote || null }); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
+    },
     // ---- worker (no login; token-scoped) ----
     worker: {
       getTasks: (token) => wrpc("worker_get_tasks", { p_token: token }),
@@ -4501,6 +4529,7 @@ window.HelmUrl = HelmUrl;
             (ts || []).forEach((t) => busy.add(t.crew_id));
           }
         } catch {}
+        try { const st = await ops.shifts.dayStatus(date, excludeQuote); (st || []).forEach((x) => { if (x && x.unavailable) busy.add(x.crew_id); }); } catch {}   // r23: days off count as busy
       }
       const scored = crew.map((c) => {
         const dept = (c.department || "").toLowerCase();
@@ -6978,6 +7007,10 @@ window.HelmUrl = HelmUrl;
     // event's date collide with another event on the same day? (light, targeted queries)
     async wouldClash({ date, crewId, vendorId, excludeQuote } = {}) {
       if (!date || mode !== "supabase" || !supa) return { clash: false };
+      // r23 (0265): the person marked the day unavailable (their own crew link or the Staff page)
+      if (crewId) { try { const st = await ops.shifts.dayStatus(date, excludeQuote);
+        const me = (st || []).find((x) => x && x.crew_id === crewId && x.unavailable);
+        if (me) return { clash: true, type: "unavailable", detail: "marked unavailable on " + (BPStore.fmtStudioDate ? BPStore.fmtStudioDate(date) : date) + (me.note ? " (" + me.note + ")" : "") }; } catch (e) {} }
       const events = await quotes.list();
       // 0198: a cancelled / closed / archived event on that day holds nobody - never a clash
       const sameDay = events.filter((e) => calEvLive(e) && e.eventDate === date && e.id !== excludeQuote);
@@ -8407,6 +8440,12 @@ window.HelmUrl = HelmUrl;
       task_reject: ["⛔", "Task rejected" + (d.worker ? " by " + d.worker : "")],
       task_start: ["▶️", "Task started" + (d.worker ? " by " + d.worker : "")],
       task_complete: ["🎉", "Task completed" + (d.worker ? " by " + d.worker : "")],
+      // r23 (0265): open shifts + self check-in (names only)
+      shift_claimed: ["🙋", (d.worker || "Someone") + " took an open shift" + (d.shift ? ": " + d.shift : "")],
+      shift_claim_pending: ["🕒", (d.worker || "Someone") + " asked for an open shift" + (d.shift ? ": " + d.shift : "") + " - approve on Operations"],
+      shift_filled: ["✅", "Open shift filled" + (d.shift ? ": " + d.shift : "")],
+      crew_late: ["⏰", (d.worker || "A crew member") + " checked in late" + (d.late_min ? " (" + d.late_min + " min)" : "")],
+      crew_unavailable: ["📅", (d.worker || "A crew member") + " marked a booked day unavailable" + (d.day ? " (" + d.day + ")" : "")],
       task_reminder: ["🔔", "Task reminder" + (d.task ? ": " + d.task : "")],
       otp: ["🔐", "Approval OTP sent"],
       approval_link: ["✉️", "Approval link sent"],

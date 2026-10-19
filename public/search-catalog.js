@@ -57,6 +57,7 @@
     { key: "notify",     label: "Notifications",               hash: "#notifications",    gate: "admin", kw: "bell notification sms email override mute alert" },
     { key: "reminders",  label: "Reminders & client messages", hash: "#reminders",        gate: "admin", kw: "event reminder payment reminder client followup whatsapp inventory stock automatic message" },
     { key: "renders",    label: "Photo renders",               hash: "#renders",          gate: "admin", kw: "render photo quota image" },
+    { key: "crew",       label: "Crew & shifts",               hash: "#crew",             gate: CTL,     kw: "crew staff availability day off open shift claim check in check-in timesheet late no-show location wage hourly" },
     { key: "venues",     label: "Venues",                      hash: "#venues",           gate: { all: [CTL, { any: ["admin", { view: "venues" }] }] }, kw: "venue hall space" },
     { key: "ltemplates", label: "Layout templates",            hash: "#layout-templates", gate: { all: [CTL, { any: ["admin", { view: "templates" }] }] }, kw: "template floor layout" }
   ];
@@ -178,7 +179,11 @@
     ["renders", "Photo renders", "render photo"],
     ["renders", "Photos per month", "render quota"],
     ["renders", "Render requests per hour", "render limit"],
-    ["renders", "Save photo render settings", "render"]
+    ["renders", "Save photo render settings", "render"],
+    ["crew", "Open shifts", "shift claim crew"],
+    ["crew", "Self check-in", "check in attendance crew"],
+    ["crew", "Location check", "geofence location radius"],
+    ["crew", "Actual wages from check-in", "wage hourly pay basis"]
   ];
 
   /* the person's own account (auth-ui.js HelmAuthUI.openAccount) - every signed-in member */

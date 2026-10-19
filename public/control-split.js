@@ -41,6 +41,7 @@
     {key:"notify",   group:"Communication",label:"Notifications",        icon:"bell",  hash:"#notifications", desc:"Who on the team hears about what, in the bell and by text or e-mail, plus per-person overrides.", kw:"bell notification sms email override mute alert"},
     {key:"reminders",group:"Communication",label:"Reminders & client messages",icon:"clock",hash:"#reminders",desc:"Event reminders for the team, payment reminders and follow-ups for clients, stock warnings and WhatsApp forwarding.", kw:"event reminder payment reminder client follow-up follow up whatsapp inventory stock automatic message"},
     {key:"renders",  group:"Communication",label:"Photo renders",        icon:"image", hash:"#renders",       desc:"Monthly limits for photo-realistic renders from the builder.", kw:"render photo quota image"},
+    {key:"crew",     group:"Operations", label:"Crew & shifts",          icon:"users", hash:"#crew",          desc:"Crew availability, open shifts they take from their crew link, and event-day check-in that feeds actual wages.", kw:"crew staff availability unavailable day off open shift claim check in check-in check out timesheet late no-show geofence location wage hourly"},
     {key:"venues",   group:"Operations", label:"Venues",                 icon:"pin",   hash:"#venues",        desc:"Halls and spaces you work in, with usable area and capacity.", kw:"venue hall space"},
     {key:"ltemplates",group:"Operations",label:"Layout templates",       icon:"layout",hash:"#layout-templates",desc:"Reusable floor layouts your team can start a design from.", kw:"template floor layout"}
   ];
@@ -67,6 +68,7 @@
     if(id==="evrCard"||id==="commsCard") return "reminders";
     if(id==="pstCard") return "payments";
     if(id==="prCard") return "renders";
+    if(id==="crewCfgCard") return "crew";   // r23 (0265)
     if(pane==="users") return "users";
     if(pane==="notify") return "notify";
     if(pane==="venues"||pane==="ltemplates") return pane;
@@ -87,7 +89,7 @@
   PANES.forEach(function(p){ var e=document.getElementById("pane-"+p); if(e) paneEls.push(e); });
   collect();
   // a section's pane is where its cards live (fallbacks for sections whose cards arrive later)
-  SECTIONS.forEach(function(x){ if(!x.pane) x.pane=({reminders:"notify",renders:"notify",notify:"notify",users:"users",access:"users",compliance:"users",venues:"venues",ltemplates:"ltemplates"})[x.key]||"pricing"; });
+  SECTIONS.forEach(function(x){ if(!x.pane) x.pane=({reminders:"notify",renders:"notify",crew:"notify",notify:"notify",users:"users",access:"users",compliance:"users",venues:"venues",ltemplates:"ltemplates"})[x.key]||"pricing"; });
 
   // ---- layout: aside + main wrapper (moves nodes; ids/listeners intact) ----
   var main=document.createElement("div"); main.className="cs-main";

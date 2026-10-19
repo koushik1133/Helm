@@ -3,6 +3,7 @@
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <link rel="stylesheet" href="/control-polish.css?v=4">
+<link rel="stylesheet" href="/crew-shifts.css?v=1">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -757,6 +758,9 @@
       <!-- 0241: delivery / arrival reminders (built + wired by delivery-settings.js; hidden before 0241) -->
       <div class="card" id="dlvCard" hidden></div>
 
+      <!-- r23 (0265): crew availability / open shifts / self check-in settings (built by crew-shifts.js; hidden before 0265) -->
+      <div class="card" id="crewCfgCard" hidden></div>
+
       <!-- 0078: automatic client messages + WhatsApp forwarding (wired by comms-settings.js) -->
       <div class="card" id="commsCard" hidden>
         <h3>Automatic client messages &amp; WhatsApp</h3>
@@ -871,6 +875,7 @@
 <script src="comms-settings.js?v=5"></script>
 <script src="delivery-tracker.js?v=1"></script>
 <script src="delivery-settings.js?v=1"></script>
+<script src="crew-shifts.js?v=1"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=3"></script>
 <script src="cc-inputs.js?v=4"></script>

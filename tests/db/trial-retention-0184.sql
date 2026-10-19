@@ -93,6 +93,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 -- 0264 (r23 payment schedules) adds its templates / per-event prefs / overdue bookkeeping to the purge list and its
 -- studio settings to the keep list on top of 0184
 \ir ../../supabase/migrations/0264_payment_schedules.sql
+-- 0265 (r23 crew) adds its five tables (availability, open shifts + claims, check-ins, check-in sites) to the purge list
+\ir ../../supabase/migrations/0265_crew_availability_shifts_checkin.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin

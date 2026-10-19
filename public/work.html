@@ -69,6 +69,7 @@
 </style>
 <link rel="stylesheet" href="/theme.css?v=83">
 <link rel="stylesheet" href="/public-pages-v2.css?v=5">
+<link rel="stylesheet" href="/crew-shifts.css?v=1">
 <script src="/public-theme.js?v=3"></script>
 </head>
 <body>
@@ -91,12 +92,16 @@
     </div>
     <button class="btn refresh" id="refreshBtn" type="button">↻ Refresh</button>
     <div id="msg" role="alert"></div>
+    <!-- r23 (0265): event-day check-in, open shifts, my availability (built by crew-self.js; hidden when off / before 0265) -->
+    <div id="crewCheck" hidden></div>
     <div id="rsSec" hidden><div class="cat">🗓 Your run-sheet</div><div id="rs"></div></div>
     <div id="tasks"></div>
     <div id="equipSec" hidden><div class="cat">📦 Equipment to return</div><div id="equip"></div></div>
+    <div id="crewShifts" hidden></div>
+    <div id="crewAvail" hidden></div>
   </div>
   </main>
-  <footer>Helm Events · you only see tasks assigned to you.</footer>
+  <footer>Helm Events · you only see your own tasks, shifts and days.</footer>
 </div>
 
 <div class="sheet-bg" id="evSheet" hidden>
@@ -447,5 +452,6 @@
   $("#retryFirst").addEventListener("click",(ev)=>{ BPUI.guard(ev.currentTarget,()=>refresh(true)).catch(()=>{}); });
   BPUI.boot(load);
 </script>
+<script src="/crew-self.js?v=1"></script>
 </body>
 </html>

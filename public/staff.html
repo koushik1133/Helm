@@ -94,6 +94,7 @@
 <link rel="stylesheet" href="staff-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
+<link rel="stylesheet" href="crew-shifts.css?v=1">
 <script src="/shell-proto.js?v=39" id="shellProto"></script>
 </head>
 <body>
@@ -121,6 +122,8 @@
   </div>
 
   <div id="grid" class="grid"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+  <!-- r23 (0265): who can't work which day (built by crew-shifts.js; hidden without Staff view / before 0265) -->
+  <div class="card" id="crewAvailCard" hidden></div>
   </main>
   <footer>Helm Events — plan your in-house team first; reach for vendors &amp; freelancers only for the gaps.</footer>
 </div>
@@ -696,5 +699,6 @@
   });
 </script>
 <script src="saved-filters.js?v=6"></script>
+<script src="crew-shifts.js?v=1"></script>
 </body>
 </html>
