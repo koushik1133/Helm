@@ -99,7 +99,7 @@ t('0063: muted types vanish (mentions never), mark-read clears the dot, per-row 
   assert.equal(r.tabs.find((x) => x.id === 'tasks').count, 0);
   assert.doesNotMatch(r.html, /class="bpb-item g-task is-unread"/);
   const h = view(FEED, 'all', NOW).html;
-  assert.match(h, /<button type="button" class="bpb-more" data-mk="n:n1" data-ty="task_assigned" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">/);
+  assert.match(h, /<button type="button" class="bpb-more" data-mk="n:n1" data-ty="task_assigned" data-un="1" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">/);
   assert.match(h, /data-mk="c:g2@[^"]+" data-ty=""/);                                     // a mention can only be marked read
 });
 
@@ -189,7 +189,7 @@ t('mount: dialog semantics, own focus trap (BPUI skip), Esc closes, arrows walk 
 t('mount keeps the data flow: feed + chat merge, 0036 hidden chat, markSeen on open, live refresh', () => {
   assert.match(api, /const chatOff = hiddenTypes\.indexOf\("chat_message"\) !== -1;/);
   assert.match(api, /if \(chatOff\) chatItems = chatItems\.filter\(\(c\) => c && c\.mention\);/);
-  assert.match(api, /lastItems = mergedFeed\(f && f\.items\); loaded = true; render\(\); if \(f\) popToasts\(lastItems\);[^\n]*\n\s*try \{ await this\.markSeen\(\); \} catch \{\} setDot\(0\);/);
+  assert.match(api, /lastItems = mergedFeed\(f && f\.items\); loaded = true; render\(\); if \(f\) popToasts\(lastItems\);[^\n]*\n[^\n]*\n\s*if \(!inboxOn \|\| openMarksRead\) \{ try \{ await this\.markSeen\(\); \} catch \{\} setDot\(0\); \}/);   // r23: inbox studios keep items unread on open (setting)
   assert.match(api, /chat\.subscribe\(function \(\) \{ liveRefresh\(\); \}, function \(\) \{\}, "chat-rt-bell"\)/);
   assert.match(api, /window\.__bpBellRefresh = refresh;/);
   assert.match(api, /label: bellLabel,/);

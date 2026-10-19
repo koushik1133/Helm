@@ -1,0 +1,164 @@
+/* inbox.css - r23 (0266) the /inbox page. Uses the shell's --hb-* theme tokens when the app layout is on, the page's own
+   tokens otherwise (green Helm). Phones (<= 640px): the tools scroll sideways, row actions fold into the ⋯ menu (a bottom
+   sheet), the bulk bar sits at the bottom of the screen, every target is >= 40px. */
+body.ibx-body { margin: 0; background: var(--bg, #f6f4f1); color: var(--ink, #1b1930); font-family: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+html[data-shell="b"] body.ibx-body { background: var(--hb-bg2); color: var(--hb-ink); }
+.ibx-page { max-width: 1040px; width: 100%; min-width: 0; box-sizing: border-box; margin: 0 auto; padding: 0 24px 60px; }
+.ibx-header { display: flex; align-items: center; gap: 11px; padding: 18px 0; flex-wrap: wrap; }
+.ibx-header .mark { width: 30px; height: 30px; flex: 0 0 auto; background: url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat; }
+.ibx-header h1 { font-size: 16px; margin: 0; font-weight: 700; }
+.ibx-header small { display: block; font-size: 11px; color: var(--ink-3, #6b6577); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.ibx-header .nav { display: flex; gap: 14px; margin-left: 18px; font-size: 13px; font-weight: 600; }
+.ibx-header .nav a { color: inherit; text-decoration: none; }
+.ibx-header .spacer { margin-left: auto; }
+.ibx-header .account { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }
+.ibx-header .account button { height: 30px; padding: 0 12px; border: 1px solid var(--line, #e8e3db); background: transparent; color: inherit; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+.ibx { --ibx-bg: var(--hb-bg, var(--panel, #fff)); --ibx-bg2: var(--hb-bg2, var(--panel-2, #faf8f5)); --ibx-line: var(--hb-line, var(--line, #e8e3db));
+  --ibx-ink: var(--hb-ink, var(--ink, #1b1930)); --ibx-ink2: var(--hb-ink2, var(--ink-2, #4b475f)); --ibx-ink3: var(--hb-ink3, var(--ink-3, #6b6577));
+  --ibx-acc: var(--hb-acc, var(--accent, #047857)); --ibx-acc-t: var(--hb-acc-text, var(--accent, #047857)); --ibx-soft: var(--accent-soft, #e3f4ed);
+  --ibx-unread: #f0f9f5; --ibx-sel: #e3f4ed;
+  color: var(--ibx-ink); max-width: 1040px; min-width: 0; margin: 20px auto 40px; }
+.ibx > *, #ibxApp > * { min-width: 0; max-width: 100%; }
+.ibx-sum { overflow-wrap: anywhere; }
+.ibx [hidden] { display: none !important; }
+.ibx-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.ibx-muted { color: var(--ibx-ink3); font-size: 13px; }
+.ibx-card { background: var(--ibx-bg); border: 1px solid var(--ibx-line); border-radius: 14px; padding: 16px; }
+
+.ibx-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; margin-bottom: 16px; }
+.ibx-title { margin: 0; font-size: 28px; line-height: 1.15; font-weight: 650; letter-spacing: -.02em; }
+.ibx-sum { margin: 6px 0 0; color: var(--ibx-ink2); font-size: 14px; max-width: 620px; }
+.ibx-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.ibx-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--ibx-line, #e8e3db);
+  background: var(--ibx-bg, #fff); color: var(--ibx-ink, #1b1930); font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; text-decoration: none; }
+.ibx-btn:hover { border-color: var(--ibx-acc, #047857); }
+.ibx-btn:disabled { opacity: .5; cursor: default; }
+.ibx-btn:focus-visible, .ibx-tab:focus-visible, .ibx-chip:focus-visible, .ibx-ib:focus-visible, .ibx-link:focus-visible { outline: 2px solid var(--ibx-acc, #047857); outline-offset: 2px; }
+.ibx-btn.ibx-sm { height: 30px; padding: 0 10px; font-size: 12.5px; }
+.ibx-btn.ibx-primary { background: var(--ibx-acc, #047857); border-color: transparent; color: #fff; }
+.ibx-btn.ibx-ghost { background: transparent; }
+
+.ibx-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--ibx-line); overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.ibx-tabs::-webkit-scrollbar { display: none; }
+.ibx-tab { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 14px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent;
+  color: var(--ibx-ink2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0; }
+.ibx-tab:hover { color: var(--ibx-ink); background: var(--ibx-bg); }
+.ibx-tab[aria-selected="true"] { color: var(--ibx-acc-t); border-bottom-color: var(--ibx-acc); }
+.ibx-n:empty { display: none; }
+.ibx-n { min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 10px; background: var(--ibx-soft); color: var(--ibx-acc-t); font-size: 11px; font-weight: 700; line-height: 20px; text-align: center; }
+
+.ibx-tools { display: flex; align-items: center; gap: 10px; padding: 12px 0 8px; }
+.ibx-all { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 36px; flex: 0 0 auto; cursor: pointer; }
+.ibx-all input, .ibx-cb { width: 18px; height: 18px; accent-color: var(--ibx-acc, #047857); cursor: pointer; margin: 0; }
+.ibx-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; min-width: 0; }
+.ibx-chips::-webkit-scrollbar { display: none; }
+.ibx-chip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--ibx-line);
+  background: var(--ibx-bg); color: var(--ibx-ink2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.ibx-chip[aria-pressed="true"] { background: var(--ibx-acc); border-color: transparent; color: #fff; }
+.ibx-chip.is-ev { border-style: dashed; color: var(--ibx-acc-t); }
+.ibx-cn { font-size: 11px; font-weight: 700; opacity: .85; }
+.ibx-sp { flex: 1 1 auto; }
+.ibx-grp { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ibx-ink3); font-weight: 600; white-space: nowrap; }
+.ibx-grp select { height: 32px; border-radius: 8px; border: 1px solid var(--ibx-line); background: var(--ibx-bg); color: var(--ibx-ink); font: inherit; font-size: 13px; padding: 0 8px; }
+
+.ibx-bulk { position: sticky; top: 8px; z-index: 5; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; padding: 8px 10px; border-radius: 12px;
+  background: var(--ibx-bg); border: 1px solid var(--ibx-acc); box-shadow: 0 8px 24px rgba(20,27,46,.10); }
+.ibx-seln { font-size: 13px; font-weight: 700; margin-right: 4px; }
+
+.ibx-list { min-height: 160px; }
+.ibx-list[aria-busy="true"] { opacity: .7; }
+.ibx-sec { margin: 0 0 14px; background: var(--ibx-bg); border: 1px solid var(--ibx-line); border-radius: 14px; overflow: hidden; }
+.ibx-sec-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px 8px 16px; border-bottom: 1px solid var(--ibx-line); background: var(--ibx-bg2); }
+.ibx-sec-t { font-size: 13px; font-weight: 700; color: var(--ibx-ink); }
+.ibx-sec-s { font-size: 12px; color: var(--ibx-ink3); }
+.ibx-sec-n { font-size: 11px; font-weight: 700; color: var(--ibx-acc-t); background: var(--ibx-soft); border-radius: 999px; padding: 2px 8px; }
+.ibx-link { border: 0; background: transparent; color: var(--ibx-acc-t); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; padding: 6px 8px; border-radius: 8px; text-decoration: none; }
+.ibx-link:hover { background: var(--ibx-soft); }
+
+.ibx-row { position: relative; display: flex; align-items: center; gap: 6px; padding: 4px 8px 4px 4px; border-top: 1px solid var(--ibx-line); outline: none; }
+.ibx-rows .ibx-row:first-child { border-top: 0; }
+.ibx-row > label, .ibx-row > .ibx-cb { flex: 0 0 auto; }
+.ibx-row > .ibx-cb { margin: 0 11px; }
+.ibx-row.is-unread { background: var(--ibx-unread); }
+.ibx-row.is-sel { background: var(--ibx-sel); }
+.ibx-row:hover { background: var(--ibx-bg2); }
+.ibx-row.is-unread:hover { background: #e8f5ef; }
+.ibx-row.is-focus, .ibx-row:focus-visible { box-shadow: inset 3px 0 0 var(--ibx-acc); }
+.ibx-row:focus-visible { outline: 2px solid var(--ibx-acc); outline-offset: -2px; }
+.ibx-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 6px; color: inherit; text-decoration: none; border-radius: 10px; }
+.ibx-chipic { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 11px; font-size: 16px; background: var(--ibx-soft); }
+.g-task .ibx-chipic { background: #dcf5e7; } .g-billing .ibx-chipic { background: #fff1d6; } .g-chat .ibx-chipic { background: #e0ecff; }
+.ibx-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ibx-t { font-size: 14px; font-weight: 550; color: var(--ibx-ink); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.is-unread .ibx-t { font-weight: 700; }
+.ibx-p { font-size: 12.5px; color: var(--ibx-ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ibx-meta { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+.ibx-meta time { font-size: 12px; color: var(--ibx-ink3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ibx-u { width: 8px; height: 8px; border-radius: 50%; background: var(--ibx-acc); box-shadow: 0 0 0 3px var(--ibx-soft); }
+.ibx-ra { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; }
+.ibx-ib { width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; color: var(--ibx-ink3); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
+.ibx-ib:hover, .ibx-ib[aria-expanded="true"] { background: var(--ibx-bg); color: var(--ibx-ink); box-shadow: 0 0 0 1px var(--ibx-line); }
+/* desktop: row buttons show on hover / focus; the ⋯ menu is always there */
+@media (min-width: 641px) and (hover: hover) {
+  .ibx-ra .ibx-ib:not(.ibx-more-btn) { opacity: 0; }
+  .ibx-row:hover .ibx-ib, .ibx-row:focus-within .ibx-ib, .ibx-row.is-focus .ibx-ib { opacity: 1; }
+}
+
+.ibx-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 48px 24px; color: var(--ibx-ink2); background: var(--ibx-bg); border: 1px solid var(--ibx-line); border-radius: 14px; }
+.ibx-empty b { font-size: 16px; color: var(--ibx-ink); } .ibx-empty span { font-size: 13.5px; max-width: 380px; }
+.ibx-art { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background: var(--ibx-soft); font-size: 28px; margin-bottom: 4px; }
+.ibx-more { display: flex; justify-content: center; padding: 8px 0; }
+.ibx-keys { margin: 14px 0 0; text-align: center; color: var(--ibx-ink3); font-size: 12px; }
+.ibx-keys kbd { display: inline-block; min-width: 18px; padding: 1px 5px; border: 1px solid var(--ibx-line); border-bottom-width: 2px; border-radius: 5px; background: var(--ibx-bg); font: 600 11px/1.4 "IBM Plex Mono", ui-monospace, monospace; color: var(--ibx-ink2); }
+
+/* menus: a popover on desktop, a bottom sheet on phones */
+.ibx-menu { position: fixed; z-index: 2147482100; min-width: 240px; max-width: calc(100vw - 24px); padding: 4px; background: var(--hb-bg, #fff); color: var(--hb-ink, #1b1930);
+  border: 1px solid var(--hb-line, #e8e3db); border-radius: 12px; box-shadow: 0 18px 48px rgba(20,27,46,.20); }
+.ibx-menu button { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 38px; text-align: left; border: 0; background: transparent;
+  color: inherit; font: inherit; font-size: 13.5px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.ibx-menu button small { color: var(--hb-ink3, #6b6577); font-size: 12px; white-space: nowrap; }
+.ibx-menu button:hover, .ibx-menu button:focus-visible { background: var(--hb-bg2, #faf8f5); outline: none; }
+.ibx-menu-sep { height: 1px; margin: 4px 6px; background: var(--hb-line, #e8e3db); }
+.ibx-menu.is-sheet { left: 0; right: 0; bottom: 0; top: auto; max-width: none; border-radius: 18px 18px 0 0; padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.ibx-menu.is-sheet button { min-height: 48px; font-size: 15px; }
+
+/* dialogs */
+.ibx-dlg { border: 1px solid var(--hb-line, #e8e3db); border-radius: 16px; padding: 0; width: min(480px, calc(100vw - 32px)); background: var(--hb-bg, #fff); color: var(--hb-ink, #1b1930); box-shadow: 0 24px 60px rgba(20,27,46,.25); }
+.ibx-dlg::backdrop { background: rgba(24,20,40,.38); }
+.ibx-dlg-in { padding: 20px; margin: 0; }
+.ibx-dlg h3 { margin: 0 0 6px; font-size: 17px; }
+.ibx-radios { border: 0; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.ibx-radios label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--hb-line, #e8e3db); border-radius: 10px; cursor: pointer; }
+.ibx-radios label:has(input:checked) { border-color: var(--hb-acc, #047857); background: var(--accent-soft, #e3f4ed); }
+.ibx-radios input { margin-top: 3px; accent-color: var(--hb-acc, #047857); }
+.ibx-radios small { display: block; color: var(--hb-ink3, #6b6577); font-size: 12.5px; margin-top: 2px; }
+.ibx-fld { display: grid; gap: 6px; font-size: 13px; font-weight: 600; margin-top: 10px; }
+.ibx-fld input { height: 40px; border: 1px solid var(--hb-line, #e8e3db); border-radius: 8px; padding: 0 10px; font: inherit; font-size: 14px; }
+.ibx-msg { min-height: 1em; font-size: 13px; color: #b42318; margin: 10px 0 0; }
+.ibx-dlg-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+@media (max-width: 640px) {
+  .ibx-page { padding: 0 16px 96px; }
+  .ibx { margin-top: 8px; }
+  .ibx-title { font-size: 24px; }
+  .ibx-hero { align-items: flex-start; }
+  .ibx-acts { width: 100%; } .ibx-acts .ibx-btn { flex: 1 1 0; min-width: 0; height: 40px; }
+  #ibxMailLbl { overflow: hidden; text-overflow: ellipsis; }
+  .ibx-tools { flex-wrap: wrap; gap: 8px; }
+  .ibx-chips { order: 3; flex: 1 0 100%; }
+  .ibx-tab { padding: 8px 12px 10px; }
+  .ibx-row { padding-right: 2px; }
+  .ibx-row > .ibx-cb { margin: 0 8px; width: 20px; height: 20px; }
+  .ibx-main { gap: 10px; padding: 10px 2px; }
+  .ibx-chipic { width: 32px; height: 32px; font-size: 15px; }
+  .ibx-ra .ibx-ib:not(.ibx-more-btn) { display: none; }
+  .ibx-ib { width: 40px; height: 40px; }
+  .ibx-meta { flex-direction: column; align-items: flex-end; gap: 6px; }
+  .ibx-sec-h { padding: 8px 8px 6px 12px; }
+  .ibx-bulk { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); margin: 0; justify-content: center; }
+  .ibx-bulk .ibx-seln { flex: 1 0 100%; text-align: center; }
+  .ibx-keys { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ibx * { transition: none !important; } }
+@media print { .ibx-tools, .ibx-bulk, .ibx-ra, .ibx-acts, .ibx-keys { display: none !important; } }

@@ -97,6 +97,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0264_payment_schedules.sql
 -- 0265 (r23 crew) adds its five tables (availability, open shifts + claims, check-ins, check-in sites) to the purge list
 \ir ../../supabase/migrations/0265_crew_availability_shifts_checkin.sql
+-- 0266 (r23 inbox) adds notification_inbox_state to the purge list and inbox_settings + inbox_person_prefs to the keep list
+\ir ../../supabase/migrations/0266_notification_inbox.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin

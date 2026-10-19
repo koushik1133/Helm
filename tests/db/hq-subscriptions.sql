@@ -326,6 +326,7 @@ do $$ declare missing text; begin perform pg_temp.su();
                            'studio_payment_gate',  -- 0159: system marker written by create_studio; no API grants (paying must lift it)
                            'wa_proposal_optins', 'wa_proposal_audit',  -- 0151: append-only consent/audit log, definer + service role only (must record refused attempts too)
                            'helm_sample_template', 'trial_sample_runs',  -- 0166: HQ sample-master config + system seeding log; no client grants
+                           'notification_inbox_state', 'inbox_person_prefs',  -- 0266: a person's own inbox marks / e-mail choice (reading + clearing notifications must work for a read-only studio)
                            'sales_requests', 'helm_notice_outbox',  -- 0244: definer-only plan requests + notice queue (asking must work for a read-only studio)
                            'trial_grants', 'trial_extensions')  -- 0186: one-trial ledger + HQ extension record; definer-only, no client grants (an ended trial must still be extendable)
      and not exists (select 1 from pg_trigger t where t.tgrelid = c.oid and t.tgname = 'zzz_studio_read_only');
