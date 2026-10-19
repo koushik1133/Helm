@@ -45,8 +45,9 @@ await t('store-api: startSelfServe pins demo + Asia/Kolkata + INR on every path 
   assert.ok(!/setMode\("own"\)/.test(b));
 });
 await t('login: the trial onboarding form hides currency / time zone / location and never writes the location', () => {
-  assert.match(LOGIN, /if\(TRIAL\(\)\)\{ \$\("#ob_currency"\)\.value="INR"; \$\("#ob_tz"\)\.value="Asia\/Kolkata"; if\(lc\) lc\.hidden=true; \$\("#ob_location"\)\.hidden=true;/);
-  assert.match(LOGIN, /const loc=TRIAL\(\)\? "" : \$\("#ob_location"\)\.value\.trim\(\);/);
+  // r22: currency / time zone / location are never asked on the studio step (old fields kept hidden) and never written there
+  assert.match(LOGIN, /<div class="s-8aed95a" id="obLegacy" hidden>/);
+  assert.doesNotMatch(LOGIN, /BPStore\.org\.save\(\{ location: loc \}\)/);
   assert.match(LOGIN, /#onboardForm \[hidden\]\{display:none!important\}/);
 });
 

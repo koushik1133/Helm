@@ -58,15 +58,17 @@ t('plans: display-only catalog has Starter, Studio and Enterprise ("Price on req
 /* ---------------- Contact sales ---------------- */
 t('button: "Contact sales" whenever nothing is payable online; the pay path is unchanged when live', () => {
   assert.match(CO, /st\.sales = st\.catalog \|\| \(!st\.live && \(st\.upgrade \|\| st\.pending\)\);/);
-  assert.match(CO, /if \(st\.sales\) \{ b\.disabled = false; b\.textContent = "Contact sales"; return; \}/);
-  assert.match(CO, /if \(st\.sales\) \{ openSales\(\); return; \}/);
-  assert.ok(CO.indexOf('if (st.sales) { openSales(); return; }') < CO.indexOf('await S.checkout.saveBilling('), 'Contact sales never saves or pays');
+  // r22: the button is "Pay now" (UPI / bank details + payment pending) or "Contact sales" for an on-request plan
+  assert.match(CO, /if \(st\.sales\) \{ b\.disabled = false; b\.textContent = onRequest\(planBy\(st\.plan\)\) \|\| st\.catalog && !planBy\(st\.plan\) \? "Contact sales" : "Pay now"; return; \}/);
+  const salesLine = 'if (st.sales) { var sp = planBy(st.plan); if (sp && !onRequest(sp)) cardPay(sp); else cardSales(sp); return; }';
+  assert.ok(CO.includes(salesLine));
+  assert.ok(CO.indexOf(salesLine) < CO.indexOf('await S.checkout.saveBilling('), 'Contact sales / UPI never saves billing or pays');
   assert.match(CO, /var v = await S\.checkout\.pay\(st\.plan, st\.interval, \{ name: \$\("#f_legal"\)\.value, email: p\.email \|\| "", contact: p\.contact \|\| "" \}\);/);
   assert.match(CO, /st\.live \? "Pay " \+ money\(st\.preview\.total, st\.preview\.currency\) \+ " securely"/);
   assert.doesNotMatch(CO, /up\.textContent \+= " Online payment isn't switched on yet/, 'no "not switched on" notice on the page');
   assert.doesNotMatch(COH, /Payments are being set up/);
   // billing + Terms are taken when the team activates the plan
-  assert.match(CO, /\$\("#coBilling"\)\.hidden = st\.sales;/); assert.match(CO, /\$\("#coTermsCard"\)\.hidden = st\.sales;/);
+  assert.match(CO, /\$\("#coBilling"\)\.hidden = st\.sales;/); assert.match(CO, /\$\("#coTermsCard"\)\.hidden = false;/);   // r22: Terms always agreed + recorded
   assert.match(COH, /<section class="card" id="coBilling"/); assert.match(COH, /<section class="card" id="coTermsCard"/);
 });
 t('form: prefilled studio / name / email / phone / plan / billing + message; CSP-safe markup', () => {

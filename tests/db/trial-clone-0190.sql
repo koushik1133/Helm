@@ -90,11 +90,11 @@ do $$ begin
     position('trial-clone-0190' in (select prosrc from pg_proc where oid = 'public._sample_clone_into__pre0168(uuid)'::regprocedure)) > 0
     -- release-0201: after the trial bundle (0180 + 0186) the entry point is the 0186 one-trial wrapper over the
     -- 0180 body; 0190's cheap path holds when no function in that chain reads pg_timezone_names
-    and (position('trial-clone-0190' in (select prosrc from pg_proc where oid = 'public.start_self_serve_trial(text,text,text,text)'::regprocedure)) > 0
-         or (position('one-trial-0186' in (select prosrc from pg_proc where oid = 'public.start_self_serve_trial(text,text,text,text)'::regprocedure)) > 0
+    and (position('trial-clone-0190' in (select prosrc from pg_proc where oid = coalesce(to_regprocedure('public.start_self_serve_trial__pre0255(text,text,text,text)'), 'public.start_self_serve_trial(text,text,text,text)'::regprocedure))) > 0
+         or (position('one-trial-0186' in (select prosrc from pg_proc where oid = coalesce(to_regprocedure('public.start_self_serve_trial__pre0255(text,text,text,text)'), 'public.start_self_serve_trial(text,text,text,text)'::regprocedure))) > 0
              and position('trial-signup-0180' in (select prosrc from pg_proc where oid = 'public.start_self_serve_trial__pre0186(text,text,text,text)'::regprocedure)) > 0
              and position('pg_timezone_names' in (select prosrc from pg_proc where oid = 'public.start_self_serve_trial__pre0186(text,text,text,text)'::regprocedure)) = 0))
-    and position('pg_timezone_names' in (select prosrc from pg_proc where oid = 'public.start_self_serve_trial(text,text,text,text)'::regprocedure)) = 0);
+    and position('pg_timezone_names' in (select prosrc from pg_proc where oid = coalesce(to_regprocedure('public.start_self_serve_trial__pre0255(text,text,text,text)'), 'public.start_self_serve_trial(text,text,text,text)'::regprocedure))) = 0);
   perform pg_temp.res('02 app roles cannot run the clone / tz helper; can start a trial',
     not has_function_privilege('authenticated', 'public._sample_clone_into__pre0168(uuid)', 'execute')
     and not has_function_privilege('anon', 'public._sample_clone_into__pre0168(uuid)', 'execute')

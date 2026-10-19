@@ -114,11 +114,13 @@
   @media(max-width:560px){.ghost{width:100%}}
   .foot{margin-top:22px;font-size:12.5px;color:var(--ink-3);text-align:center}
   .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
+  .paid-btn{width:100%;margin-top:10px}
   .sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="/public-pages-v2.css?v=5">
 <link rel="stylesheet" href="/checkout-v2.css?v=5">
+<link rel="stylesheet" href="/plan-cards.css?v=1">
 <script src="/marketing-theme.js?v=3"></script>
 </head>
 <body>
@@ -137,6 +139,8 @@
       <p id="coLead">Pick the plan that fits your studio. You'll see exactly what you pay — tax included — before anything is charged. You can change plans later.</p>
     </div>
     <div class="alert err" id="coErr" role="alert" hidden></div>
+    <!-- r22: a studio made with "Pay now" / "Contact sales" opens after its first payment (0159) - said plainly -->
+    <div class="alert info" id="coPendingNote" role="status" hidden>Your studio is ready and waiting for its first payment. Choose <b>Pay now</b> on a plan to pay online, or by UPI / bank transfer &mdash; your studio opens as soon as the payment is confirmed.</div>
     <form id="coForm" novalidate>
       <div class="grid">
         <div>
@@ -193,7 +197,10 @@
             <h3 class="paydet-h">Pay by UPI or bank transfer</h3>
             <dl class="paydet-l" id="coPayList"></dl>
             <p class="paydet-n" id="coPayNote"></p>
+            <div id="coPaidWrap" hidden><button type="button" class="ghost paid-btn" id="coPaid">I've paid &mdash; send the payment reference</button></div>
           </div>
+          <!-- r22: never a fake success - after Pay now by UPI / bank the plan is PENDING until Helm confirms the payment -->
+          <div class="alert info" id="coPayPending" role="status" hidden><b>Payment pending.</b> We activate your plan as soon as we confirm your payment (usually the same working day) and e-mail your GST invoice. Nothing is charged on this page.</div>
           <button type="submit" class="btn" id="coPay" disabled>Continue</button>
           <div class="switch-wrap" id="coSwitchWrap" hidden>
             <p class="setup-or"><span>or</span></p>
@@ -260,9 +267,10 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=268"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=269"></script>
 <script src="captcha.js?v=1"></script>
+<script src="/plan-cards.js?v=1"></script>
 <script src="trial-upgrade.js?v=2"></script>
-<script src="checkout.js?v=10"></script>
+<script src="checkout.js?v=11"></script>
 </body>
 </html>
