@@ -229,7 +229,8 @@ t('User control: Name / Phone / Job title / Department / Profile (+ joined) / ph
   const rows = [mrow(1, 2, { full_name: 'Asha Admin', role: 'admin' }), mrow(2, 2, { avatar_path: AV(U(2)) }),
     mrow(3, 2, { complete: false, phone: null, profile_completed_at: null, full_name: '' })];
   const r = T(rows, { profiles: true, meId: U(1), roles: ROLES, roleLabel: (x) => x, canEdit: true, q: '', filter: '' });
-  for (const h of ['Name', 'Phone', 'Job title', 'Department', 'Role', 'Profile']) assert.match(r.head, new RegExp(`<th scope="col">${h}</th>`));
+  for (const h of ['Name', 'Phone', 'Job title', 'Role', 'Profile']) assert.match(r.head, new RegExp(`<th scope="col">${h}</th>`));
+  assert.match(r.body, /<div class="ucsub ucdept">Production<\/div>/, 'r22: department shown under the job title (one column)');
   assert.match(r.body, /\+91 98765 43210/, 'phone shown (admins get it) in a readable format');
   assert.match(r.body, /Rigger/); assert.match(r.body, /Production/);
   assert.match(r.body, /✓ Complete/); assert.match(r.body, /✗ Incomplete/); assert.match(r.body, /Joined /);

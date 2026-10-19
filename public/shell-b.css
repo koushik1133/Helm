@@ -111,6 +111,9 @@ html[data-shell="b"] #themeBtn { display: none !important; }   /* one theme togg
 html[data-shell="b"] .hb-row[hidden], html[data-shell="b"] .hb-item[hidden], html[data-shell="b"] .hb-tab[hidden] { display: none !important; }
 /* breadcrumb trail (nav-trail.js) sits under the moved top bar: indent it into the page column */
 html[data-shell="b"] body > #helmTrail { box-sizing: border-box; max-width: 1200px; margin: 12px auto 0; padding: 0 24px; }
+/* r22 headers: a trail that only repeats the top-bar title ("Calendar", "Quotes / Settlement") is hidden (shell-b.js trailTidy);
+   a trail with an open record ("Quotes / SMP-1004 · Kapoor Family Sangeet / Budget") stays */
+html[data-shell="b"] #helmTrail.hb-trail-lone { display: none !important; }
 /* trial / setup notices docked bottom-left must clear the rail */
 @media (min-width: 820px) {
   html[data-shell="b"] .hau-note.dock-left { left: calc(var(--hb-w) + 20px) !important; }
@@ -405,6 +408,12 @@ html[data-shell="b"] .hb-top, html[data-shell="b"] .hb-bottom { flex-shrink: 0; 
 html[data-shell="b"] .hb-row:hover .hb-cnt, html[data-shell="b"] .hb-row:focus-within .hb-cnt { visibility: hidden; }
 html[data-shell="b"] .hb-star { opacity: .7; }
 html[data-shell="b"] .hb-star:hover, html[data-shell="b"] .hb-star[aria-pressed="true"] { opacity: 1; }
+/* r22 (live QA, phone drawer): on touch screens the star is always shown at the row's right edge, and the Quotes /
+   Leads / Chat count pill (margin-left: auto) sat right under it. The pill keeps clear of the star instead, and is
+   no longer hidden by a "hover" that sticks after a tap. */
+@media (hover: none) {
+  html[data-shell="b"] .hb-rail .hb-row .hb-cnt, html[data-shell="b"] .hb-rail .hb-row:hover .hb-cnt, html[data-shell="b"] .hb-rail .hb-row:focus-within .hb-cnt { margin-right: 46px; visibility: visible; }
+}   /* 46px: the star is 26px, or a 44px touch target on coarse pointers */
 /* count pill: small, consistent per theme */
 /* expanded rail only: the collapsed rail keeps the small dot on the icon */
 html[data-shell="b"] .hb-rail:hover .hb-cnt, html[data-shell="b"] .hb-rail:focus-within .hb-cnt, html[data-shell="b"].hb-pinned .hb-cnt, html[data-shell="b"].hb-rail-hold .hb-cnt, html[data-shell="b"].hb-sw-open .hb-cnt { font-variant-numeric: tabular-nums; min-width: 18px; height: 18px; line-height: 18px; padding: 0 6px; border-radius: 9px; font-size: 10.5px; font-weight: 650; text-align: center; }

@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/dashboard-polish.css?v=2">
+<link rel="stylesheet" href="/dashboard-polish.css?v=3">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -144,7 +144,7 @@
   .ecard .elink{color:inherit;text-decoration:none;display:block}
   .ecard .elink:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
   .ptoggle{border:1px solid var(--line);background:var(--panel);color:var(--ink-2);border-radius:8px;height:32px;padding:0 10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px}
-  .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:20px;vertical-align:middle}
+  .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:20px;vertical-align:middle} .stat .st-short{display:none}
   .stat.q{background:#eef1f0;color:#2f4a42} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
   .ecard .del{position:absolute;top:6px;right:6px;border:0;background:transparent;color:var(--ink-3);font-size:13px;cursor:pointer;opacity:0;transition:.12s;min-width:32px;min-height:32px;border-radius:6px}
   .ecard:hover .del,.ecard:focus-within .del,.ecard .del:focus-visible{opacity:1}
@@ -197,7 +197,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="trial-terms.css?v=4">
-<script src="/shell-proto.js?v=37" id="shellProto"></script>
+<script src="/shell-proto.js?v=38" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -329,7 +329,7 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=265"></script><script src="flow-resume.js?v=4" data-mount></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=266"></script><script src="flow-resume.js?v=5" data-mount></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=24"></script>
 <script src="getting-started.js?v=12"></script>
@@ -479,8 +479,12 @@
   // qts-1018: ONE status label (BPStore.quoteStatus - same words as Quotes + the workspace):
   // "Confirmed" only after the client approved; final-1022 kept (a closed event says Closed)
   const STAT_CLS = { draft: "q", locked: "q", sent: "q", confirmed: "ok", paid: "ok", closed: "ok", cancelled: "no" };
+  // r22 (live QA 375): "Sent · awaiting client approval" overflowed its pill on a phone - a narrow card shows the short
+  // form ("Awaiting approval"); the full words stay for wider screens, the tooltip and screen readers
+  const STAT_SHORT = { sent: "Awaiting approval", locked: "Not sent yet", approved: "Client approved", booked: "Advance paid" };
   const statBadge = (q) => { const st = BPStore.quoteStatus(q);
-    return `<span class="stat ${STAT_CLS[st.tone] || "q"}" data-status="${esc(st.key)}" title="${esc(st.title)}">${esc(st.label)}</span>`; };
+    const sh = STAT_SHORT[st.key], lab = sh ? `<span class="st-full">${esc(st.label)}</span><span class="st-short" aria-hidden="true">${esc(sh)}</span>` : esc(st.label);
+    return `<span class="stat ${STAT_CLS[st.tone] || "q"}" data-status="${esc(st.key)}" title="${esc(st.title)}">${lab}</span>`; };
   // qts-1018: the card total = the invoice total (server-stamped total + approved change orders), as on Quotes
   let invTotals = {}, invKey = "";
   async function refreshInvoiceTotals() {

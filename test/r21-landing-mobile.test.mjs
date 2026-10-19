@@ -56,9 +56,9 @@ t('below-fold morph image is lazy; every <img> has width and height', () => {
   for (const m of html.matchAll(/<img\b[^>]*>/g)) assert.ok(/\bwidth="\d+"/.test(m[0]) && /\bheight="\d+"/.test(m[0]), m[0].slice(0, 80));
 });
 
-t('dashboard header on phones: caret no longer 26px; 414-480px gets 40px buttons', () => {
-  assert.match(dpol, /body header\.hb-header \.hb-split \.hb-chev:not\(\.hb-solo\) \{ width: 30px; min-width: 30px;/);
-  assert.match(dpol, /@media \(min-width: 414px\) and \(max-width: 480px\) \{[\s\S]{0,400}width: 40px; min-width: 40px;/);
+t('dashboard header on phones: caret no longer 26px; r22: 44px icon buttons + 40px caret on every phone', () => {
+  assert.match(dpol, /body header\.hb-header \.hb-split \.hb-chev:not\(\.hb-solo\) \{ width: 40px; min-width: 40px;/);
+  assert.match(dpol, /@media \(max-width: 480px\) \{[\s\S]{0,400}width: 44px; min-width: 44px;/);
 });
 
 console.log(`r21-landing-mobile: ${n} passed`);

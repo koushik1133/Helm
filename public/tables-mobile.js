@@ -19,6 +19,9 @@
     var out = [];
     for (var i = 0; i < row.cells.length; i++) {
       var th = row.cells[i], span = th.colSpan || 1;
+      // r22: a hidden header (e.g. Insights' Currency column, shown only with 2+ currencies) has no cells in the
+      // rows either - counting it shifted every label after it by one ("Profit" on the margin)
+      if (th.hidden) continue;
       var txt = (th.getAttribute("data-label") || th.textContent || "").replace(/\s+/g, " ").trim();
       for (var s = 0; s < span; s++) out.push(txt);
     }
@@ -48,7 +51,9 @@
         if (full) continue;
         var col = 0;
         for (var c = 0; c < cells.length; c++) {
-          var td = cells[c], label = labels[col] || "";
+          var td = cells[c];
+          if (td.hidden) continue;   // r22: a hidden cell belongs to a hidden header (skipped above)
+          var label = labels[col] || "";
           if (label && td.getAttribute("data-label") !== label) td.setAttribute("data-label", label);
           td.classList.toggle("tm-primary", col === cols.p);
           td.classList.toggle("tm-actions", col === cols.a);

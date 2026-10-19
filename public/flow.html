@@ -119,13 +119,13 @@
   .egp-rl{margin-left:auto;color:var(--ink-3);font-size:12px} .egp-empty{padding:14px}
   .egp-btns{display:flex;justify-content:flex-end;gap:8px}
 </style>
-<link rel="stylesheet" href="flow-polish.css?v=7">
+<link rel="stylesheet" href="flow-polish.css?v=8">
 <link rel="stylesheet" href="share-checklist.css?v=4">
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
-<script src="/shell-proto.js?v=37" id="shellProto"></script>
+<script src="/shell-proto.js?v=38" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -265,7 +265,7 @@
             <label class="s-af1acab"><input type="checkbox" id="remindAfter"> Remind me to finish this after the layout</label>
             <a class="btn primary" id="openBuilder" href="#">🎨 Open floor builder →</a>
           </div>
-          <p class="hint next-step" data-next-step><b>Next step:</b> check the Quotation (step 8), then open “Share with client” in the right rail and use “Send for approval →”.</p>
+          <p class="hint next-step" data-next-step><b>Next step:</b> check the Quotation (step 8), then share it with the client for approval (step 9).</p>
         </section>
 
         <!-- 8 QUOTATION -->
@@ -301,12 +301,47 @@
           </div>
           <div class="s-3e8ce99" id="q_msg" role="status" aria-live="polite"></div>
           <div class="s-56f4356" id="q_versions"></div>
-          <p class="hint next-step" data-next-step><b>Next step:</b> once the client approves, record the advance under step 9 to confirm the booking.</p>
+          <p class="hint next-step" data-next-step><b>Next step:</b> share it with the client and ask them to approve (step 9); once they approve, record the advance under step 10.</p>
         </section>
 
-        <!-- 9 ADVANCE PAYMENT & BOOKING -->
+        <!-- 9 SHARE WITH CLIENT & APPROVAL (r22: back on the page, BEFORE the advance - the client approves first).
+             The full controls: approval link (Send for approval → copy / e-mail / preview) + the event booklet settings.
+             The rail's "Share with client →" opens the same controls in a dialog (one copy of each id). -->
+        <section class="card" id="sec-approve">
+          <h2><span class="step-n">9</span> <span id="apTitle">Share with client &amp; approval</span></h2>
+          <p class="sub" id="apSub">One private link for your client: the event booklet, the quotation and an Approve button. Once they approve, record the advance in step 10.</p>
+          <div class="cs-home" id="csHome">
+            <div class="share-body" id="shareBody">
+              <ul class="cs-gets" id="csGets" aria-label="What the client gets">
+                <li data-get="booklet">Event booklet</li><li data-get="quote">Quotation</li><li data-get="approve">Approve button</li>
+              </ul>
+              <label class="cs-ask" id="csAskRow"><input type="checkbox" id="csAsk" checked>
+                <span><b>Ask the client to approve</b><small>Their page gets an Approve button - they confirm with a one-time code. Untick to share the booklet only.</small></span></label>
+              <p class="cs-done" id="csDoneNote" hidden>The client has approved this quotation - share the booklet (view-only). Nothing here asks for approval again.</p>
+              <section class="cs-part" id="csApprove">
+                <h2><span class="cs-n">1</span> Approval link</h2>
+                <p class="sub" id="csApproveSub">The client's page: the booklet, the quotation and the Approve button. Copy the link or e-mail it.</p>
+                <p class="cs-apst" id="csApprState" role="status" aria-live="polite">Not sent yet.</p>
+                <p class="cs-approved" id="csApproved" hidden>Approved ✓</p>
+                <button type="button" class="btn primary" id="sendApproval">Send for approval →</button>
+                <div class="s-d2c171b" id="apprLinks"></div>
+              </section>
+              <section class="card" id="sec-share" data-share-checklist hidden>
+                <h2><span class="cs-n">2</span> Event booklet <small class="cs-inc" id="csInc">included on the client's page</small></h2>
+                <p class="sub">Choose what goes into the client's private booklet, then create or update the link.</p>
+                <details class="cs-fold" id="csBkFold" open><summary>Booklet link &amp; settings - sections, pictures, note, expiry</summary>
+                  <div class="sc-body"></div>
+                </details>
+              </section>
+            </div>
+          </div>
+          <p class="cs-away" id="csAway" hidden>These controls are open in the Share dialog.</p>
+          <p class="hint next-step" data-next-step><b>Next step:</b> the client approved — record the advance under step 10 to confirm the booking.</p>
+        </section>
+
+        <!-- 10 ADVANCE PAYMENT & BOOKING -->
         <section class="card" id="sec-pay">
-          <h2><span class="step-n">9</span> Advance payment &amp; booking <span class="pill" id="bookingBadge" hidden>Confirmed</span></h2>
+          <h2><span class="step-n">10</span> Advance payment &amp; booking <span class="pill" id="bookingBadge" hidden>Confirmed</span></h2>
           <p class="sub">Accepting the quote isn't a confirmed booking — recording the advance is. <span id="pay_how">Send an online link or record cash.</span> A receipt is issued and both sides are notified.</p>
           <div class="row4 s-761d3ad">
             <div class="fld s-1169661"><label for="pay_pct">Advance %</label><input id="pay_pct" type="number" min="0" max="100" value="10"></div>
@@ -319,7 +354,7 @@
           <div class="fld" id="pay_receiptWrap"><label for="pay_receipt">Receipt no. (offline — blank to auto‑generate)</label><input id="pay_receipt" placeholder="e.g. RCP‑001 / cash memo no."></div>
           <div class="s-4856645" id="pay_online" hidden></div>
           <div class="s-56f4356" id="pay_receipts"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
-          <p class="hint next-step" id="pay_next" data-next-step><b>Next step:</b> record the advance above — that confirms the booking. Then move on to Resources and Logistics from the event page.</p>
+          <p class="hint next-step" id="pay_next" data-next-step><b>Next step:</b> record the advance above once the client has approved (step 9) — that confirms the booking. Then move on to Resources and Logistics from the event page.</p>
         </section>
 
         <!-- ACTIVITY TRAIL -->
@@ -345,7 +380,7 @@
         <div class="card apprcard">
           <h2 class="s-d5d221b">Client approval</h2>
           <div class="s-28b4c11" id="apprState">Not sent yet.</div>
-          <!-- r21: ONE place to share with the client - the booklet and the approval link live in the same dialog -->
+          <!-- r21/r22: the quick way to share - a dialog with the SAME controls as step 9 on the page (booklet + approval link) -->
           <button type="button" class="btn primary s-0466783" id="shareClient" aria-haspopup="dialog" aria-controls="shareModal">Share with client →</button>
           <p class="cs-railnote" id="shareClientNote">Booklet, quotation and the Approve button - one link.</p>
         </div>
@@ -377,32 +412,16 @@
 </div>
 
 <!-- r21: "Share with client" - one dialog for the event booklet + the approval link (copy / e-mail). Once the client
-     has approved (or paid) it becomes "Share booklet" (view-only booklet, no approval step). -->
+     has approved (or paid) it becomes "Share booklet" (view-only booklet, approval shows "Approved ✓").
+     r22: the quick way from the rail - it borrows step 9's controls (#shareBody, same ids + handlers) while it is open. -->
 <div id="shareModal" class="lmodal cs-modal" hidden role="dialog" aria-modal="true" aria-labelledby="csTitle" aria-describedby="csSub">
   <div class="cs-sheet">
     <div class="cs-head">
       <div><h3 id="csTitle">Share with client</h3><p class="cs-sub" id="csSub">One private link for your client.</p></div>
       <button type="button" class="cs-x" id="csClose" aria-label="Close" data-close>×</button>
     </div>
-    <ul class="cs-gets" id="csGets" aria-label="What the client gets">
-      <li data-get="booklet">Event booklet</li><li data-get="quote">Quotation</li><li data-get="approve">Approve button</li>
-    </ul>
-    <label class="cs-ask" id="csAskRow"><input type="checkbox" id="csAsk" checked>
-      <span><b>Ask the client to approve</b><small>Their page gets an Approve button - they confirm with a one-time code. Untick to share the booklet only.</small></span></label>
-    <p class="cs-done" id="csDoneNote" hidden>The client has approved this quotation - share the booklet (view-only). Nothing here asks for approval again.</p>
-    <section class="cs-part" id="csApprove">
-      <h2><span class="cs-n">1</span> Approval link</h2>
-      <p class="sub">The client's page: the booklet, the quotation and the Approve button. Copy the link or e-mail it.</p>
-      <button type="button" class="btn primary" id="sendApproval">Send for approval →</button>
-      <div class="s-d2c171b" id="apprLinks"></div>
-    </section>
-    <section class="card" id="sec-share" data-share-checklist hidden>
-      <h2><span class="cs-n">2</span> Event booklet <small class="cs-inc" id="csInc">included on the client's page</small></h2>
-      <p class="sub">Choose what goes into the client's private booklet, then create or update the link.</p>
-      <details class="cs-fold" id="csBkFold" open><summary>Booklet link &amp; settings - sections, pictures, note, expiry</summary>
-        <div class="sc-body"></div>
-      </details>
-    </section>
+    <!-- r22: the share controls (#shareBody) live in step 9 on the page; while this dialog is open they move in here -->
+    <div class="cs-slot" id="csSlot"></div>
   </div>
 </div>
 
@@ -433,7 +452,7 @@
 <script src="config.js?v=106"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=265"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=266"></script>
 <script src="tour.js?v=24"></script>
 <script src="booklet.js?v=25"></script>
 <script src="share-checklist.js?v=13"></script>
@@ -441,7 +460,7 @@
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=5"></script>
 <script src="flow-validate.js?v=4"></script>
-<script src="flow-resume.js?v=4"></script>
+<script src="flow-resume.js?v=5"></script>
 <script src="quote-state.js?v=4"></script>
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=10"></script>
@@ -456,6 +475,7 @@
   const studioToday=()=>FV.todayIn(FV.tzFor(studioCC()));
   function setDateWindow(){ const d=document.getElementById("c_date"); if(!d) return; const t=studioToday(); d.setAttribute("min",t); d.setAttribute("max",FV.addYears(t,5)); }
   setDateWindow();   // before store-api's date hardener runs (DOMContentLoaded), so it uses the studio day too
+  try{ if(window.BPUI && BPUI.dateHint) BPUI.dateHint(document.getElementById("c_date")); }catch(_){}   // r22: the event date in the studio's format under the box
   // QA1019: the step-9 "Next step" only says the booking is confirmed once an advance is recorded
   function payNextConfirmed(){ const p=$("#pay_next"); if(!p) return; const b=document.createElement("b"); b.textContent="Next step:"; p.replaceChildren(b, " the booking is confirmed \u2014 move on to Resources and Logistics from the event page."); }
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1317,7 +1337,7 @@
   }
 
   /* ---------- progress ---------- */
-  const STEPS=[["client","1 · Client"],["discovery","2 · Discovery"],["reqs","3 · Requirements"],["venue","4 · Venue"],["menu","5 · Menu"],["proposal","6 · Proposal"],["layout","7 · Layout"],["quote","8 · Quotation"]];
+  const STEPS=[["client","1 · Client"],["discovery","2 · Discovery"],["reqs","3 · Requirements"],["venue","4 · Venue"],["menu","5 · Menu"],["proposal","6 · Proposal"],["layout","7 · Layout"],["quote","8 · Quotation"],["approve","9 · Share & approval"]];
   // flow-validation: a tick = that section's OWN data is saved (and valid) - never the half-typed form, never
   // because another section saved. The "Next step" hint shows only once the section is complete.
   function stepDone(){
@@ -1325,17 +1345,19 @@
     return { client:!!(pc.name && pc.phone && pc.eventType && pc.eventDate) && !bad("client"),
       discovery:!!persisted.discovery && !bad("discovery"), reqs:reqRows.length>0, venue:!!persisted.venue && !bad("venue"),
       menu:(!!appliedPkg || !!persisted.menu) && !bad("menu"), proposal:!!persisted.proposal && !bad("proposal"),
-      layout:layoutItems.length>0 && !bad("layout"), quote:!!(ev&&ev.pricing&&+ev.pricing.total>0) };
+      layout:layoutItems.length>0 && !bad("layout"), quote:!!(ev&&ev.pricing&&+ev.pricing.total>0),
+      approve:(()=>{ try{ return clientApproved(); }catch(_){ return false; } })() };   // r22: step 9 is done once the client approved (or an advance is in)
   }
   // qa-quote-flow B28: the step 7 / step 8 "Next step" hints follow where the quote really is (never
   // "use Send for approval" once it was sent, never "once the client approves" after they did)
   function nextHintText(k, key){
-    if(k==="layout") return (key==="quote"||key==="locked"||!key) ? " check the Quotation (step 8), then open “Share with client” in the right rail and use “Send for approval →”." : " check the Quotation (step 8).";
+    // r22: the order is share & approve (step 9) → record the advance (step 10)
+    if(k==="layout") return (key==="quote"||key==="locked"||!key) ? " check the Quotation (step 8), then share it with the client for approval (step 9)." : " check the Quotation (step 8).";
     if(k==="quote"){
-      if(key==="sent") return " sent — waiting for the client to approve. Then record the advance under step 9 to confirm the booking.";
-      if(key==="approved") return " the client approved — record the advance under step 9 to confirm the booking.";
-      if(key==="booked"||key==="confirmed"||key==="closed") return " the booking is confirmed — see step 9.";
-      return " open “Share with client” in the right rail and use “Send for approval →”; once the client approves, record the advance under step 9.";
+      if(key==="sent") return " sent — waiting for the client to approve (step 9). Then record the advance under step 10 to confirm the booking.";
+      if(key==="approved") return " the client approved — record the advance under step 10 to confirm the booking.";
+      if(key==="booked"||key==="confirmed"||key==="closed") return " the booking is confirmed — see step 10.";
+      return " share it with the client: “Send for approval →” in step 9 (or “Share with client” in the right rail); once they approve, record the advance under step 10.";
     }
     return null;
   }
@@ -1429,31 +1451,51 @@
   function paintApprBtn(paidCount){ const sb=$("#sendApproval"); if(!sb) return; const ap=(ev&&(ev.approvalStatus||ev.approval_status))||"";
     sb.hidden = paidCount>0 || ap==="approved" || ap==="paid"; try{ syncShare(paidCount>0); }catch(_){} }
   /* ---------- r21: "Share with client" - ONE dialog for the booklet + the approval link ---------- */
-  // Before approval: booklet (step 1) + "Send for approval →" (step 2, same sendApproval() as before: same token RPC,
-  // same copy / e-mail / WhatsApp options). "Ask the client to approve" unticked = booklet only. Once the client
-  // approved (or paid) the dialog is "Share booklet" - the approval step is gone, nothing asks for approval again.
+  // Before approval: approval link (1, same sendApproval() as before: same token RPC, same copy / e-mail / WhatsApp
+  // options) + the event booklet (2). "Ask the client to approve" unticked = booklet only. Once the client approved
+  // (or paid) it is "Share booklet" - the approval step only says "Approved ✓ on <date>", nothing asks again.
+  // r22: these controls (#shareBody - ONE copy of every id) live in step 9 on the page, BEFORE the advance (step 10);
+  // the rail's "Share with client →" opens a dialog that borrows the same nodes while it is open (moved, not copied,
+  // so every listener, mounted e-mail box and booklet form keeps working) and hands them back on close.
   let sharePaid=false;
   function clientApproved(){ const ap=(ev&&(ev.approvalStatus||ev.approval_status))||""; return sharePaid || PAID_SUM>0 || ap==="approved" || ap==="paid"; }
+  function approvedOnText(){ const at=ev&&(ev.confirmedAt||ev.confirmed_at); let d="";
+    try{ d=at ? (BPStore.fmtStudioDate ? BPStore.fmtStudioDate(at) : BPStore.fmtDateIN(at)) : ""; }catch(_){ d=""; }
+    return d ? "Approved ✓ on "+d : "Approved ✓"; }
   function syncShare(paid){
     if(paid!=null) sharePaid=!!paid;
-    const done=clientApproved(), box=$("#csAsk"), ask=!done && !!(box&&box.checked);
+    const done=clientApproved(), box=$("#csAsk"), ask=!done && !!(box&&box.checked), inPage=!!($("#shareBody")&&$("#shareBody").parentNode===$("#csHome"));
     const set=(sel,fn)=>{ const n=$(sel); if(n) fn(n); };
-    set("#csAskRow",n=>{ n.hidden=done; }); set("#csDoneNote",n=>{ n.hidden=!done; }); set("#csApprove",n=>{ n.hidden=!ask; });
+    set("#csAskRow",n=>{ n.hidden=done; }); set("#csDoneNote",n=>{ n.hidden=!done; }); set("#csApprove",n=>{ n.hidden=!ask && !done; });
+    set("#csApproved",n=>{ n.hidden=!done; n.textContent=approvedOnText(); });
+    set("#csApproveSub",n=>{ n.textContent=done?"The client approved the quotation on their page - nothing more to send for approval."
+      :"The client's page: the booklet, the quotation and the Approve button. Copy the link or e-mail it."; }); set("#csApprState",n=>{ n.hidden=done; });
     set("#csTitle",n=>{ n.textContent=ask?"Share with client":"Share booklet"; });
     set("#csSub",n=>{ n.textContent=ask?"One private link: the event booklet, the quotation and an Approve button.":"A private, view-only event booklet for your client - no approval is asked."; });
+    set("#apTitle",n=>{ n.textContent=done?"Share booklet":"Share with client & approval"; });
+    set("#apSub",n=>{ n.textContent=done?"The client has approved - share the view-only event booklet whenever you like. The advance is recorded in step 10."
+      :"One private link for your client: the event booklet, the quotation and an Approve button. Once they approve, record the advance in step 10."; });
     document.querySelectorAll("#csGets [data-get]").forEach(li=>{ li.hidden = li.dataset.get==="approve" && !ask; });
-    document.querySelectorAll("#shareModal .cs-n").forEach(n=>{ n.hidden=!ask; });
+    document.querySelectorAll("#shareBody .cs-n").forEach(n=>{ n.hidden=!ask && !done; });
     set("#csInc",n=>{ n.hidden=!ask; });
-    set("#csBkFold",n=>{ if(n.dataset.user!=="1") n.open=!ask; });   // asking approval: booklet settings folded (still one click away)
+    set("#csBkFold",n=>{ if(n.dataset.user!=="1") n.open=inPage || !ask; });   // the page = the full version; the dialog folds the booklet settings while asking approval
     set("#shareClient",n=>{ n.textContent=done?"Share booklet →":"Share with client →"; });
-    set("#shareClientNote",n=>{ n.textContent=done?"Approved - share the view-only booklet.":"Booklet, quotation and the Approve button - one link."; });
+    set("#shareClientNote",n=>{ n.textContent=done?"Approved - share the view-only booklet (also step 9).":"Booklet, quotation and the Approve button - one link (also step 9)."; });
+    try{ updateProgress(); }catch(_){}
   }
+  // the rail card's status line is the source; step 9 shows the same words (text only)
+  function mirrorApprState(){ const a=$("#apprState"), b=$("#csApprState"); if(a&&b&&b.textContent!==a.textContent) b.textContent=a.textContent; }
   let shareFrom=null;
+  function placeShare(inDialog){
+    const body=$("#shareBody"), to=inDialog?$("#csSlot"):$("#csHome"); if(!body||!to||body.parentNode===to) return;
+    to.appendChild(body); const away=$("#csAway"); if(away) away.hidden=!inDialog;
+  }
   function openShare(){
-    syncShare(); shareFrom=document.activeElement; $("#shareModal").hidden=false;
+    placeShare(true); syncShare(); shareFrom=document.activeElement; $("#shareModal").hidden=false;
     setTimeout(()=>{ const a=$("#csAsk"), t=(a && !$("#csAskRow").hidden) ? a : $("#csClose"); try{ t.focus(); }catch(_){} }, 30);
   }
-  function closeShare(){ $("#shareModal").hidden=true; try{ (shareFrom&&shareFrom.isConnected?shareFrom:$("#shareClient")).focus(); }catch(_){} }
+  function closeShare(){ $("#shareModal").hidden=true; placeShare(false); syncShare();
+    try{ (shareFrom&&shareFrom.isConnected?shareFrom:$("#shareClient")).focus(); }catch(_){} }
   function paintBookingBadge(paidCount){ const b=$("#bookingBadge"); try{ paintApprBtn(paidCount); }catch(_){} if(!b) return;
     { const st=$("#apprState"); if(st){ if(paidCount>0) st.textContent="Booking confirmed.";   // PL1027 #2
         else if(st.textContent==="Booking confirmed.") st.textContent=apprStateText(false); } }
@@ -1482,7 +1524,7 @@
     paintBookingBadge(paid.length);
     PAID_SUM=paid.reduce((a,p)=>a+(Number(p.amount)||0),0); try{ updateAdvance(); }catch(_){ } try{ paintStatusBadge(); }catch(_){ }
     $("#pay_receipts").innerHTML = paid.length ? '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Receipts</div>'+
-      paid.map(p=>`<div class="rowline"><span class="g">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span class="meta">${esc(p.paid_at?BPStore.fmtStudioDate(p.paid_at,{style:"long"}):'')}</span></div>`).join('')
+      paid.map(p=>`<div class="rowline"><span class="g">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span class="meta">${esc(p.paid_at?BPStore.fmtStudioDate(p.paid_at):'')}</span></div>`).join('')
       : '<div style="font-size:12px;color:var(--ink-3)">No payments recorded yet.</div>';
   }
   async function renderActivity(){
@@ -1520,7 +1562,7 @@
       const waText=encodeURIComponent(`Hi ${ev.client&&ev.client.name||""}, here's your event proposal & quote: ${link}`);
       // URL-encode the address so a stored "a@b.com?bcc=…" can't add mail headers (Cc/Bcc) to the link email
       const mailHref="mailto:"+encodeURIComponent(ev.client&&ev.client.email||"").replace(/%40/g,"@")+"?subject="+encodeURIComponent("Your event proposal")+"&body="+waText;
-      $("#apprState").innerHTML='<b style="color:var(--safe-text)">Approval link ready.</b> Copy it or e-mail it from Share with client.';
+      $("#apprState").innerHTML='<b style="color:var(--safe-text)">Approval link ready.</b> Copy it or e-mail it in step 9 (or Share with client).';
       $("#apprLinks").innerHTML=
         `<div class="fld"><input id="apprUrl" value="${esc(link)}" readonly aria-label="Approval link" style="font-size:12px"></div>`+
         `<div style="display:flex;gap:8px;flex-wrap:wrap">`+
@@ -1955,6 +1997,7 @@
     document.addEventListener("visibilitychange",()=>{ if(document.hidden&&flowTrack) flowTrack.flush().catch(()=>{}); });
     $("#sendApproval").addEventListener("click",()=>{ sendApproval().catch(()=>{}); });
     $("#shareClient").addEventListener("click",openShare);
+    try{ const a=$("#apprState"); if(a&&window.MutationObserver){ new MutationObserver(mirrorApprState).observe(a,{childList:true,characterData:true,subtree:true}); } mirrorApprState(); }catch(_){}
     $("#csClose").addEventListener("click",closeShare);
     $("#csAsk").addEventListener("change",()=>syncShare());
     $("#csBkFold").addEventListener("click",(e)=>{ if(e.target&&e.target.tagName==="SUMMARY") $("#csBkFold").dataset.user="1"; });
@@ -2109,6 +2152,11 @@
       if(BPStore.auth.required() && !u){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     }
     if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-2)">No quote selected. Start one from <a href="dashboard.html" style="color:var(--accent);text-decoration:underline">Home</a> or <a href="leads.html" style="color:var(--accent);text-decoration:underline">Leads</a>.</p>'; return; }
+    // r22: /flow?quote=SMP-1003 (an event number, like the event page accepts) -> the same page with the id
+    if(!HelmUrl.isUuid(id) && HelmUrl.eventId){ let rid=null; try{ rid=await HelmUrl.eventId(id); }catch(_){ rid=null; }
+      if(!rid){ showNotFound(); return; }
+      const sp=new URLSearchParams(location.search); sp.delete("id"); sp.set("quote",rid);
+      location.replace(location.pathname+"?"+sp.toString()+location.hash); return; }
     try{ canEdit=await BPStore.auth.canEditArea("quotes"); }catch{ canEdit=true; }
     try{ const u=BPStore.auth.user&&BPStore.auth.user(); if(u&&u.id) userId=u.id; }catch(_){ }
     if(window.HelmFlowResume){   // resume v3: ask the server where I left off while the quote loads (never blocks it)

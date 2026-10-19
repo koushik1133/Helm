@@ -20,9 +20,12 @@ t('event: every id the page script uses is still in the markup', () => {
   assert.match(EV, /<link rel="stylesheet" href="event-ui\.css\?v=\d+">/);
   assert.match(EV, /id="bkShare" data-approval data-booklet-share data-quote-from-url hidden/);
 });
-t('event: Invitation site + Cancel event live in the ••• menu; the menu shows only with a visible item', () => {
+t('event: Invitation site + Cancel event are on the card again (r22) and repeated in the ••• menu; the menu shows only with a visible item', () => {
   const pop = EV.slice(EV.indexOf('id="evMenuPop"'), EV.indexOf('</div>', EV.indexOf('id="evMenuPop"')));
-  assert.match(pop, /id="inviteBtn"/); assert.match(pop, /id="cancelEvBtn"/);
+  assert.match(pop, /data-proxy="inviteBtn"/); assert.match(pop, /data-proxy="cancelEvBtn"/);
+  assert.doesNotMatch(pop, /id="inviteBtn"|id="cancelEvBtn"/);
+  const foot = EV.slice(EV.indexOf('class="nextbar evfoot"'), EV.indexOf('id="advBtn"'));
+  assert.match(foot, /id="inviteBtn"/); assert.match(foot, /id="cancelEvBtn"/);
   assert.match(EV, /function syncEvMenu\(\)\{[\s\S]*?const any=\[\.\.\.pop\.children\]\.some\(c=>!c\.hidden\);\s*m\.hidden=!any;/);
   assert.match(EV, /inv\.hidden=true;\n    syncEvMenu\(\);/);
   assert.match(EV, /e\.key==="Escape" && !pop\.hidden/);
@@ -47,8 +50,8 @@ t('event-ui.css: the stepper fits one line on desktop (11 columns, no arrows); a
   assert.match(UI, /#evHead #stepWrap \.stp-arr\{display:none!important\}/);
   assert.match(UI, /\.evstick \.steps\{display:grid;grid-template-columns:repeat\(11,minmax\(0,1fr\)\)/);
 });
-t('event-ui.css: one solid primary per area + masked money keeps its size', () => {
-  assert.match(UI, /#app \.mod:not\(\.reco\) \.act \.btn\.primary\{background:var\(--panel\)/);
+t('event-ui.css: card buttons are solid again (r22, owner) + masked money keeps its size', () => {
+  assert.doesNotMatch(UI, /#app \.mod:not\(\.reco\) \.act \.btn\.primary\{background:var\(--panel\)/);
   assert.match(UI, /html\.hb-priv-on #evHead \.tot \.amt\{min-width:6ch/);
 });
 
@@ -81,10 +84,13 @@ t('booklet-share: the approval link uses the SAME existing calls (no new RPC) an
 
 t('flow: ONE "Share with client" dialog holds the booklet card and the approval link', () => {
   const m = FLOW.slice(FLOW.indexOf('<div id="shareModal"'), FLOW.indexOf('<div class="mbar" id="mPriceBar"'));
-  for (const id of ['csAsk', 'csAskRow', 'csApprove', 'sendApproval', 'apprLinks', 'sec-share', 'csBkFold', 'csDoneNote', 'csTitle', 'csClose'])
-    assert.match(m, new RegExp('id="' + id + '"'), id);
-  assert.match(m, /<section class="card" id="sec-share" data-share-checklist hidden>/);
-  assert.match(m, /<div class="sc-body"><\/div>/);
+  // r22: the dialog keeps its head; the share controls (#shareBody) live in step 9 on the page and move in while it is open
+  for (const id of ['csTitle', 'csClose', 'csSlot']) assert.match(m, new RegExp('id="' + id + '"'), id);
+  const pg = FLOW.slice(FLOW.indexOf('<section class="card" id="sec-approve">'), FLOW.indexOf('<section class="card" id="sec-pay">'));
+  for (const id of ['shareBody', 'csAsk', 'csAskRow', 'csApprove', 'sendApproval', 'apprLinks', 'sec-share', 'csBkFold', 'csDoneNote'])
+    assert.match(pg, new RegExp('id="' + id + '"'), id);
+  assert.match(pg, /<section class="card" id="sec-share" data-share-checklist hidden>/);
+  assert.match(pg, /<div class="sc-body"><\/div>/);
   assert.equal((FLOW.match(/id="sendApproval"/g) || []).length, 1);
   assert.equal((FLOW.match(/id="apprLinks"/g) || []).length, 1);
   assert.match(FLOW, /<button type="button" class="btn primary s-0466783" id="shareClient"/);
@@ -92,7 +98,7 @@ t('flow: ONE "Share with client" dialog holds the booklet card and the approval 
 });
 t('flow: once approved / paid the dialog is "Share booklet" with no approval step', () => {
   assert.match(FLOW, /sb\.hidden = paidCount>0 \|\| ap==="approved" \|\| ap==="paid"; try\{ syncShare\(paidCount>0\); \}catch\(_\)\{\}/);
-  const fn = FLOW.slice(FLOW.indexOf('function syncShare(paid){'), FLOW.indexOf('let shareFrom=null;'));
+  const fn = FLOW.slice(FLOW.indexOf('function approvedOnText(){'), FLOW.indexOf('let shareFrom=null;'));
   const S = new Function('$', 'document', 'state', `let sharePaid=false, PAID_SUM=state.paid, ev=state.ev;
     function clientApproved(){ const ap=(ev&&(ev.approvalStatus||ev.approval_status))||""; return sharePaid || PAID_SUM>0 || ap==="approved" || ap==="paid"; }
     ${fn} return syncShare;`);
@@ -102,10 +108,12 @@ t('flow: once approved / paid the dialog is "Share booklet" with no approval ste
   assert.equal(n['#csTitle'].textContent, 'Share with client'); assert.equal(n['#csApprove'].hidden, false); assert.equal(n['#csAskRow'].hidden, false);
   assert.equal(n['#shareClient'].textContent, 'Share with client →');
   n = run({ approvalStatus: 'approved' }, 0);
-  assert.equal(n['#csTitle'].textContent, 'Share booklet'); assert.equal(n['#csApprove'].hidden, true); assert.equal(n['#csAskRow'].hidden, true);
+  // r22: the approval step stays, saying "Approved ✓ (on <date>)" - "Send for approval" itself is hidden by paintApprBtn
+  assert.equal(n['#csTitle'].textContent, 'Share booklet'); assert.equal(n['#csApprove'].hidden, false); assert.equal(n['#csAskRow'].hidden, true);
+  assert.equal(n['#csApproved'].hidden, false); assert.match(n['#csApproved'].textContent, /^Approved ✓/); assert.equal(n['#apTitle'].textContent, 'Share booklet');
   assert.equal(n['#csDoneNote'].hidden, false); assert.equal(n['#shareClient'].textContent, 'Share booklet →');
   n = run({ approvalStatus: 'none' }, 500);
-  assert.equal(n['#csApprove'].hidden, true, 'an advance in = booked: no approval step');
+  assert.equal(n['#csApproved'].hidden, false, 'an advance in = booked: the approval step says Approved'); assert.equal(n['#csApprState'].hidden, true);
 });
 t('flow: the approval link code and gates are the same as before', () => {
   assert.match(FLOW, /HelmEmailSend\.mount\(\$\("#apprLinks"\), \{ quoteId:id, kind:"approval"/);

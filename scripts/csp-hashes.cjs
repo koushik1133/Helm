@@ -186,8 +186,9 @@ function frameAncestorsProblem(value, route) {
 // r21 monitoring: CSP violation reports + the Sentry ingest host (production policies only).
 //   report-uri  -> the csp-report Supabase edge function of the PRODUCTION project (logs a
 //                  redacted one-line summary, rate-limited per IP; supabase/functions/csp-report).
-//                  report-uri (not report-to) on purpose: every browser still honours it and it
-//                  needs no extra Reporting-Endpoints header. Off: set CSP_REPORTS = false.
+//                  r22: also `report-to csp-endpoint` + a Reporting-Endpoints header naming the
+//                  same URL (the Reporting API; report-uri stays for browsers without it).
+//                  Off: set CSP_REPORTS = false.
 //   connect-src -> the EXACT Sentry ingest origin of the DSN in public/config.js
 //                  (window.HELM_TELEMETRY.dsn). Empty DSN = nothing added (telemetry dormant).
 //                  Never a wildcard (gen-csp --check refuses https://*.).
@@ -199,20 +200,23 @@ function sentryIngestOrigin(configSrc) {
   const m = /HELM_TELEMETRY[\s\S]{0,400}?\bdsn\s*:\s*["'](https:\/\/[0-9A-Za-z]{1,64}@(o\d{1,12}\.ingest(?:\.[a-z]{2})?\.sentry\.io)\/\d{1,12})["']/.exec(String(configSrc || ''));
   return m ? 'https://' + m[2] : '';
 }
+const REPORT_GROUP = 'csp-endpoint';
+// Reporting-Endpoints header value for a report URL ('' = send no header).
+function reportingEndpoints(reportUri) { return reportUri ? REPORT_GROUP + '="' + reportUri + '"' : ''; }
 function withReporting(csp, opts) {
   const o = opts || {};
   const out = [];
   for (const d of String(csp || '').split(';')) {
     const parts = d.trim().split(/\s+/);
-    if (!parts[0] || parts[0] === 'report-uri') continue;
+    if (!parts[0] || parts[0] === 'report-uri' || parts[0] === 'report-to') continue;
     if (parts[0] === 'connect-src' && o.sentryOrigin && !parts.includes(o.sentryOrigin)) parts.push(o.sentryOrigin);
     out.push(parts.join(' '));
   }
-  if (o.reportUri) out.push('report-uri ' + o.reportUri);
+  if (o.reportUri) out.push('report-uri ' + o.reportUri, 'report-to ' + REPORT_GROUP);
   return out.join('; ');
 }
 module.exports = {
-  CSP_REPORTS, cspReportUri, sentryIngestOrigin, withReporting,
+  CSP_REPORTS, cspReportUri, sentryIngestOrigin, withReporting, reportingEndpoints, REPORT_GROUP,
   TRUSTED_TYPES_ENFORCE, TT_DIRECTIVES,
   computeHashes, computeStyleHashes, inlineScripts, inlineStyles, htmlFiles, withHashes,
   SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, BUILDER_SOURCES, RAZORPAY_SCRIPT, scriptHosts, scriptSrcProblem, FRAME_SELF_ROUTES, frameAncestorsProblem,

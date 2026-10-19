@@ -62,7 +62,7 @@
     var idx = {}, tip = null, tipFor = null;
 
     root.innerHTML =
-      '<div class="evc-head"><div class="evc-titles"><h2 id="evcTitle">Events calendar</h2><div class="evc-range" id="evcRange" aria-live="polite"></div></div>' +
+      '<div class="evc-head"><div class="evc-titles"><h2 id="evcTitle"><span class="evc-sr">Events calendar: </span><span class="evc-range" id="evcRange" aria-live="polite"></span></h2></div>' +
       '<div class="evc-tools">' +
       '<div class="evc-seg" role="group" aria-label="Calendar range">' + VIEWS.map(function (v) { return '<button type="button" data-v="' + v + '">' + v.charAt(0).toUpperCase() + v.slice(1) + "</button>"; }).join("") + "</div>" +
       '<div class="evc-nav"><button type="button" class="evc-arrow" data-n="-1" aria-label="Previous">‹</button><button type="button" class="evc-todaybtn" data-n="0">Today</button><button type="button" class="evc-arrow" data-n="1" aria-label="Next">›</button></div>' +

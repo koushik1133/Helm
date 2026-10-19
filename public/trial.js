@@ -78,8 +78,10 @@
 
   // Pure (unit-tested): where "Choose a plan" goes - 0180: always straight to the plan / checkout page
   // (it no longer offers to remove the samples first; t is kept for callers)
+  // r22: a pretty studio path ("/<slug>/events/SMP-1001") is passed as-is (checkout's safeNext re-builds it from its
+  // parsed parts); a plain page name gets ".html" (was: "SMP-1001.html" on an event page)
   function planHref(t, pageName) {
-    return "checkout.html?next=" + encodeURIComponent((pageName || "dashboard") + ".html");
+    return "checkout.html?next=" + encodeURIComponent(String(pageName || "").charAt(0) === "/" ? String(pageName) : (pageName || "dashboard") + ".html");
   }
   // r21 (pure): "Talk to us" = the plan page with the Contact sales form open, from the read-only banner
   function talkHref(pageName) { return planHref(null, pageName) + "&sales=banner"; }
@@ -248,6 +250,8 @@
   ].join("");
 
   function page() { try { return (location.pathname.split("/").pop() || "dashboard").replace(/\.html$/, "") || "dashboard"; } catch (e) { return "dashboard"; } }
+  // r22: where "Choose a plan" returns to - the pretty path on /<slug>/... pages, else the page name
+  function hereRef() { try { var U = global.HelmUrl; if (U && U.route && U.route()) return U.here().split("#")[0]; } catch (e) {} return page(); }
 
   var lastT = null;
   function render(spec) {
@@ -261,12 +265,12 @@
     if (spec.body) { var s = doc.createElement("span"); s.textContent = spec.body; bar.appendChild(s); }
     if (spec.cta) {
       var a = doc.createElement("a");
-      a.href = planHref(lastT, page());
+      a.href = planHref(lastT, hereRef());
       a.textContent = spec.cta;
       bar.appendChild(a);
     }
     if (spec.talk) {
-      var tk = doc.createElement("a"); tk.className = "htr-talk"; tk.href = talkHref(page()); tk.textContent = spec.talk; bar.appendChild(tk);
+      var tk = doc.createElement("a"); tk.className = "htr-talk"; tk.href = talkHref(hereRef()); tk.textContent = spec.talk; bar.appendChild(tk);
     }
     if (spec.note) { var nt = doc.createElement("span"); nt.className = "htr-note"; nt.textContent = spec.note; bar.appendChild(nt); }
     if (spec.ask) {
@@ -307,7 +311,7 @@
     var p1 = doc.createElement("p"); p1.textContent = spec.body; card.appendChild(p1);
     var p2 = doc.createElement("p"); p2.textContent = spec.after; card.appendChild(p2);
     var row = doc.createElement("div"); row.className = "htrm-a";
-    var a = doc.createElement("a"); a.href = planHref(lastT, page()); a.textContent = spec.cta;
+    var a = doc.createElement("a"); a.href = planHref(lastT, hereRef()); a.textContent = spec.cta;
     var later = doc.createElement("button"); later.type = "button"; later.textContent = spec.later;
     row.appendChild(a); row.appendChild(later); card.appendChild(row); wrap.appendChild(card);
     function close() {

@@ -504,7 +504,7 @@
   },
   {
    "file": "public/flow.html",
-   "expr": "paid.map(p=>`<div class=\"rowline\"><span class=\"g\">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span class=\"meta\">${esc(p.paid_at?BPStore.fmtStudioDate(p.paid_at,{style:\"long\"}):'')}</span></div>`).join('') : '<div style=\"font-size:12px;color:var(--ink-3)\">No payments recorded yet.</div>'",
+   "expr": "paid.map(p=>`<div class=\"rowline\"><span class=\"g\">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span class=\"meta\">${esc(p.paid_at?BPStore.fmtStudioDate(p.paid_at):'')}</span></div>`).join('') : '<div style=\"font-size:12px;color:var(--ink-3)\">No payments recorded yet.</div>'",
    "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow"
   },
   {

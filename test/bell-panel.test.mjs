@@ -110,7 +110,7 @@ t('0063: security muted → Security tab stays with a "turn back on" line; muted
   assert.doesNotMatch(view(FEED, 'security', NOW).tabsHtml, /Security/);
   const m = view(FEED, 'muted', NOW, { muted: ['security_alert', '<x>'] });
   assert.equal(m.filter, 'muted');
-  assert.match(m.html, /Security alerts<\/span><button type="button" class="bpb-link" data-unmute="security_alert">Unmute/);
+  assert.match(m.html, /Security alerts \(Helm HQ only\)<\/span><button type="button" class="bpb-link" data-unmute="security_alert">Unmute/);
   assert.match(m.html, /&lt;x&gt;/); assert.doesNotMatch(m.html, /<x>/);
   assert.match(view(FEED, 'muted', NOW).html, /Nothing muted/);
 });

@@ -1604,7 +1604,8 @@ function renderRulers(){
   // TOP ruler
   const ctxT=prep(rTop, vw, 26);
   ctxT.font='9px "IBM Plex Mono", monospace'; ctxT.textBaseline='alphabetic';
-  const sx=scrollEl.scrollLeft;
+  const off=svgOff();                                 // r22: the floor may be centred in the plan area
+  const sx=scrollEl.scrollLeft-off.x;
   let unitIndex=0;
   for(let f=0; f<=WORLD.w+0.001; f+=cell, unitIndex++){
     const px=f*ppuFt - sx;
@@ -1618,7 +1619,7 @@ function renderRulers(){
   // LEFT ruler
   const ctxL=prep(rLeft, 26, vh);
   ctxL.font='9px "IBM Plex Mono", monospace';
-  const sy=scrollEl.scrollTop;
+  const sy=scrollEl.scrollTop-off.y;
   unitIndex=0;
   for(let f=0; f<=WORLD.h+0.001; f+=cell, unitIndex++){
     const py=f*ppuFt - sy;
@@ -2529,11 +2530,28 @@ async function loadTemplate(key){
   const fitChoice=await lfAsk(window.HelmLoadFit && window.HelmLoadFit.size(tItems)); if(fitChoice==='cancel' || window.__helmTplLoad!==tplSeq) return;
   if(fitChoice==='size') lfUseSize(window.HelmLoadFit.size(tItems));
   const N=currentQuoteId ? quoteChairsNow() : 0;
-  if(N>0){ const nat=sumSeats(tItems); exactSeats(tItems, N); const w=seatFitWarning(N, nat, null, PRICING.eventType); if(w) setTimeout(()=>BPUI.toast('⚠ '+w,{type:'err'}),50); }
+  let natSeats=0, fullItems=null;
+  if(N>0){ const nat=natSeats=sumSeats(tItems); if(nat>N) fullItems=JSON.parse(JSON.stringify(tItems)); exactSeats(tItems, N); const w=seatFitWarning(N, nat, null, PRICING.eventType); if(w) setTimeout(()=>BPUI.toast('⚠ '+w,{type:'err'}),50); }
   const lfBefore=fitChoice==='fit' ? JSON.parse(JSON.stringify(tItems)) : null;
   loadItems(tItems, lbl);
   toast(lbl + ' loaded');
   if(lfBefore) lfNote(lfBefore, {clamp:true});
+  seatsFittedNotice(N, natSeats, fullItems, tplSeq);
+}
+/* r22 (live QA): an open quote trims a bigger template's seating to the quote's chairs (R8b: "Political rally -
+   5,000 seats" on a 120-guest quote loaded 120 seats) - that stays, but it is SAID after the load, with a one-off
+   "Use the template's 5,000 seats" that puts the template's full seating on the floor for this load. The quote's
+   guest count is not changed (nothing is saved until Save). seq: a newer template pick makes the button stale. */
+function seatsFittedNotice(N, nat, full, seq){
+  N=Math.round(+N||0); nat=Math.round(+nat||0);
+  if(!(N>0) || !(nat>N) || !Array.isArray(full) || !full.length) return;
+  const n=v=>v.toLocaleString('en-IN');
+  try{ BPUI.toast('Seats fitted to your quote\u2019s '+n(N)+' guests (the template has '+n(nat)+').', { type:'info', timeout:14000,
+    action:{ label:'Use the template\u2019s '+n(nat)+' seats', onClick:()=>{
+      if(RO || (seq!=null && window.__helmTplLoad!==seq)) return;
+      loadItems(full, null); try{ renderPrice(); }catch(_){}
+      toast('Using the template\u2019s '+n(sumSeats(store.items))+' seats - your quote\u2019s guest count is unchanged');
+    } } }); }catch(_){}
 }
 
 /* ===================================================================
@@ -3586,9 +3604,16 @@ scrollEl.addEventListener('drop',e=>{
 /* ===================================================================
    VIEW: zoom / fit / pan-center
    =================================================================== */
+// r22: where the floor starts inside the scroll area's content (it is centred while smaller than the plan area)
+function svgOff(){
+  try{ const a=svg.getBoundingClientRect(), b=scrollEl.getBoundingClientRect();
+    return { x:a.left-b.left-scrollEl.clientLeft+scrollEl.scrollLeft, y:a.top-b.top-scrollEl.clientTop+scrollEl.scrollTop }; }
+  catch(_){ return {x:0,y:0}; }
+}
 function viewCenterFt(){
-  const cx=(scrollEl.scrollLeft+scrollEl.clientWidth/2)/(PX_PER_FT*store.view.zoom);
-  const cy=(scrollEl.scrollTop+scrollEl.clientHeight/2)/(PX_PER_FT*store.view.zoom);
+  const o=svgOff();
+  const cx=(scrollEl.scrollLeft-o.x+scrollEl.clientWidth/2)/(PX_PER_FT*store.view.zoom);
+  const cy=(scrollEl.scrollTop-o.y+scrollEl.clientHeight/2)/(PX_PER_FT*store.view.zoom);
   return {x:clamp(cx,0,WORLD.w), y:clamp(cy,0,WORLD.h)};
 }
 let viewAtFit=true;   // still showing the "fit" zoom (no manual zoom since the last fit)
@@ -3597,11 +3622,12 @@ function setZoom(z, anchor){
   const old=store.view.zoom;
   z=clamp(z,ZOOM_MIN,3);
   const a=anchor||{x:scrollEl.scrollLeft+scrollEl.clientWidth/2, y:scrollEl.scrollTop+scrollEl.clientHeight/2};
-  const fx=a.x/old, fy=a.y/old;                 // in base-px world coords
+  const o0=svgOff(), fx=(a.x-o0.x)/old, fy=(a.y-o0.y)/old;   // in base-px world coords (r22: minus the centring offset)
   store.view.zoom=z;
   sizeCanvas();
-  scrollEl.scrollLeft=fx*z-(anchor?anchor.sx:scrollEl.clientWidth/2);
-  scrollEl.scrollTop =fy*z-(anchor?anchor.sy:scrollEl.clientHeight/2);
+  const o1=svgOff();
+  scrollEl.scrollLeft=fx*z+o1.x-(anchor?anchor.sx:scrollEl.clientWidth/2);
+  scrollEl.scrollTop =fy*z+o1.y-(anchor?anchor.sy:scrollEl.clientHeight/2);
   $('#zoomLbl').textContent=Math.round(z*100)+'%';
   renderRulers();
 }
@@ -4723,7 +4749,13 @@ async function init(){
   fitView();
   window.addEventListener('resize',()=>{ renderRulers(); });
   // the plan's box also changes without a window resize (3D -> 2D switch, pseudo-fullscreen exit): redraw the rulers then too
-  if(window.ResizeObserver){ try{ new ResizeObserver(()=>{ renderRulers(); }).observe(scrollEl); }catch(_){} }
+  // r22 (live QA 375): ...and re-fit while the view is still the untouched "fit" - on a phone the plan area settled to
+  // its final size only after the first fit (toolbar rows / banners drawn late), which left the floor shifted
+  let fitBox='';
+  if(window.ResizeObserver){ try{ new ResizeObserver(()=>{
+    const box=scrollEl.clientWidth+'x'+scrollEl.clientHeight;
+    if(box!==fitBox && scrollEl.clientWidth>0 && scrollEl.clientHeight>0 && viewAtFit && !is3DActive()){ fitBox=box; requestAnimationFrame(()=>{ try{ if(viewAtFit && !is3DActive()) fitView(); }catch(_){} }); return; }
+    renderRulers(); }).observe(scrollEl); }catch(_){} }
   await initStore();
   initPanelToggles();   // after initStore so the saved state is per signed-in user
   // load pricing rates from the Control Centre (fallbacks stay if unavailable)
@@ -4857,6 +4889,9 @@ async function init(){
       watchVersions();                       // live: versions saved on another device / tab
       if(q.status==='confirmed'){ const b=$('#quoteBadge'); if(b) b.classList.add('confirmed'); }
       toast('Opened '+q.code+' · V'+currentVersionNo);
+      // r22 (live QA): "Restore unsaved draft?" opened while "Loading event…" was still on screen (~1s, both at once) -
+      // the layout is in by now, so the loading state ends first and the question comes after it
+      if(!CAPTURE_HOST && layoutLoading) setLayoutLoading(false);
       if(!CAPTURE_HOST){ await offerDraftRestore();
         setTimeout(()=>{ autoCaptureIfStale(); }, 2500); }   // R2: refresh stale client booklet images
     }catch(e){

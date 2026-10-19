@@ -1227,6 +1227,8 @@ video.mimg{background:#1a231e}
  .mcta{display:flex;align-items:center;position:fixed;left:0;right:0;bottom:0;z-index:55;gap:8px;padding:8px 8px max(8px,env(safe-area-inset-bottom)) 12px;background:rgba(245,246,241,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);transform:translateY(110%);visibility:hidden;transition:transform .35s var(--out),visibility 0s linear .35s}
  .mcta.on{transform:none;visibility:visible;transition:transform .35s var(--out)}
  body.has-mcta .hg{bottom:calc(max(16px,env(safe-area-inset-bottom)) + 80px)}
+ /* r22: the open guide sheet sits flush on the bottom edge (the sticky bar hides while it is open) */
+ body.has-mcta .hg.sheet,body.hg-sheet-open .hg.sheet{bottom:0}
 }
 @media (max-width:767px) and (prefers-reduced-motion:reduce){.snap{scroll-behavior:auto;scroll-snap-type:x proximity}.mcta,.mcta.on{transition:none}}
 /* client portal reel (auto-scrolling phone screen) */

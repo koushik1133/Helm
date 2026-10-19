@@ -66,7 +66,7 @@ await t('banner: ended trial -> admins "Upgrade" + "Talk to us"; teammates "Ask 
 await t('banner: the ask button calls the server once (disabled while busy / after it worked); DOM only, no HTML', () => {
   assert.match(TJS, /st\.trialOrg\.askAdmin\(\)/);
   assert.match(TJS, /if \(ab\.disabled \|\| !st \|\| !st\.trialOrg \|\| typeof st\.trialOrg\.askAdmin !== "function"\) return;/);
-  assert.match(TJS, /tk\.href = talkHref\(page\(\)\);/);
+  assert.match(TJS, /tk\.href = talkHref\(hereRef\(\)\);/);   // r22: pretty path on /<slug>/... pages
   assert.doesNotMatch(TJS, /innerHTML|insertAdjacentHTML|document\.write/);
   assert.match(API, /askAdmin: \(\) => \(supa \? rpc\("ask_admin_upgrade", \{\}\)/);
 });

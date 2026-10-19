@@ -45,6 +45,17 @@
   function num(v) { if (v === null || v === undefined || v === "") return null; var n = Number(v); return isFinite(n) ? n : null; }
   function pos(v) { var n = num(v); return n != null && n > 0 ? n : 0; }
   function r2(n) { return Math.round(n * 100) / 100; }
+  function pctRound(n) { return n < 0 ? -Math.round(-n) : Math.round(n); }   // like Postgres round(): half away from zero
+
+  /* r22 money: the "Planned margin" of the cost lines = the shared P&L's planned margin (0246 ledger: revenue minus
+   * every estimated cost incl. crew wages), the same number as the Budget & margin card. pnl = event_pnl
+   * (BPStore.vendorBills.pnl). Without the ledger (older database / offline) -> null and the lines' own margin is used. */
+  function ledgerPlan(pnl) {
+    if (!pnl || pnl.source !== "server" || pnl.rules !== "r21") return null;
+    var m = num(pnl.margin_estimated), rev = num(pnl.net_revenue != null ? pnl.net_revenue : pnl.revenue);
+    if (m == null) return null;
+    return { margin: r2(m), pct: rev != null && rev !== 0 ? pctRound(m / rev * 100) : null, cost: num(pnl.cost_estimated) };
+  }
 
   // The quote's own priced lines (before service charge / discount / tax), by standard line id.
   function quoteLines(p) {
@@ -141,13 +152,15 @@
       .filter(function (g) { return g.lines.length; });
     groups.forEach(function (g) { g.totals = totals(g.lines); });
     var all = totals(lines);
+    var plan = ledgerPlan(o.pnl);
+    if (plan) { all.lineMargin = all.margin; all.linePct = all.pct; all.margin = plan.margin; all.pct = plan.pct; all.ledger = true; all.hasQuoted = true; }
 
     var warnings = [];
     var mustNoEst = lines.filter(function (l) { return l.priority === "mandatory" && l.noEstimate; });
     if (mustNoEst.length) warnings.push({ kind: "must", text: mustNoEst.length + " must-have item" + (mustNoEst.length === 1 ? " has" : "s have") + " no estimated cost yet: " +
       mustNoEst.map(function (l) { return l.description; }).join(", ") + "." });
-    if (all.hasQuoted && all.quoted > 0) {
-      if (all.margin < 0) warnings.push({ kind: "neg", text: "Planned margin is negative - costs are higher than what the client is quoted for these lines." });
+    if (all.ledger || (all.hasQuoted && all.quoted > 0)) {
+      if (all.margin < 0) warnings.push({ kind: "neg", text: all.ledger ? "Planned margin is negative - the estimated costs (incl. crew wages) are higher than the event's revenue." : "Planned margin is negative - costs are higher than what the client is quoted for these lines." });
       else if (all.pct != null && all.pct < minPct) warnings.push({ kind: "low", text: "Planned margin is " + all.pct + "%, below the " + minPct + "% target." });
     }
     var negLines = lines.filter(function (l) { return l.margin != null && l.margin < 0; });
@@ -169,7 +182,7 @@
 
   var API = { PRI_ORDER: PRI_ORDER, PRI_LABEL: PRI_LABEL, STD: STD, MIN_MARGIN_PCT: MIN_MARGIN_PCT, CONTINGENCY_PCT: CONTINGENCY_PCT,
     fold: fold, reqKey: reqKey, classify: classify, classifyAll: classifyAll, quoteLines: quoteLines, dedupeReqs: dedupeReqs,
-    build: build, shouldAutoPull: shouldAutoPull, reqRow: reqRow, stdRow: stdRow };
+    build: build, shouldAutoPull: shouldAutoPull, reqRow: reqRow, stdRow: stdRow, ledgerPlan: ledgerPlan };
 
   /* ------------------------------------------------------------------ page UI (browser only) */
   if (typeof document !== "undefined") {
@@ -182,14 +195,14 @@
     function toast(m, t) { try { BPUI.toast(m, { type: t || "info" }); } catch (e) {} }
     function friendly(e, action) { try { return BPUI.friendlyError(e, { action: action, setupHint: "APPLY-0196.sql" }); } catch (_) { return (e && e.message) || "Something went wrong."; } }
 
-    // ctx: { el, quoteId, pricing, costs, inr, canEdit, canDelete, reload }
+    // ctx: { el, quoteId, pricing, costs, inr, canEdit, canDelete, reload, pnl (r22: event_pnl, optional) }
     API.render = async function (ctx) {
       var S = window.BPStore, el = ctx.el, inr = ctx.inr, q = ctx.quoteId;
       var ready = false; try { ready = await S.budget.planReady(); } catch (e) { ready = false; }
       var reqs = []; try { reqs = (await S.discovery.listReqs(q)) || []; } catch (e) { reqs = []; }
       if (vendorCache == null) { try { vendorCache = (await S.vendors.listAll()) || []; } catch (e) { vendorCache = []; } }
       var dismissed = dismissedFor(q);
-      var m = build(ctx.costs || [], reqs, ctx.pricing, vendorCache, { dismissed: dismissed });
+      var m = build(ctx.costs || [], reqs, ctx.pricing, vendorCache, { dismissed: dismissed, pnl: ctx.pnl });
       // first visit: map the requirements automatically (once per event per device, never twice)
       if (ready && ctx.canEdit && shouldAutoPull(m) && !autoTried[q] && !lsGet("helm.budget.autopull." + q)) {
         autoTried[q] = true; lsSet("helm.budget.autopull." + q, "1");
@@ -207,7 +220,7 @@
           <div class="bp-sum">
             <div><span class="l">Total estimated cost</span><b class="num">${inr(T.estimated)}</b></div>
             <div><span class="l">Total quoted</span><b class="num">${T.hasQuoted ? inr(T.quoted) : "—"}</b></div>
-            <div><span class="l">Planned margin</span><b class="num ${T.margin < 0 ? "neg" : "pos"}">${T.hasQuoted ? inr(T.margin) : "—"}</b>${T.pct != null ? `<small>${Number(T.pct)}%</small>` : ""}${T.incomplete ? `<small class="bp-inc">some quoted lines have no cost yet</small>` : ""}</div>
+            <div><span class="l">Planned margin</span><b class="num ${T.margin < 0 ? "neg" : "pos"}">${T.hasQuoted ? inr(T.margin) : "—"}</b>${T.pct != null ? `<small>${Number(T.pct)}%</small>` : ""}${T.ledger ? `<small class="bp-inc bp-ledger">all estimated costs incl. crew wages - same as Budget &amp; margin</small>` : (T.incomplete ? `<small class="bp-inc">some quoted lines have no cost yet</small>` : "")}</div>
           </div>
           ${ok ? `<button type="button" class="btn sm" data-pl-pull>↧ Pull from requirements</button>` : ""}
         </div>

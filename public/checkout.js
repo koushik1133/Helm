@@ -475,8 +475,14 @@
     st.opts.prefill = { email: u.email || "", contact: acct.primary_contact_phone || "" };
     who = { studio: acct.legal_business_name || "", name: acct.primary_contact_name || "", email: acct.primary_contact_email || u.email || "",
       phone: acct.primary_contact_phone || "" };
-    if (!who.name && S.profile && typeof S.profile.mine === "function")
-      S.profile.mine().then(function (p) { if (p && p.full_name && !who.name) who.name = String(p.full_name); }, function () {});
+    // r22: a trial admin has no billing contact yet - Contact sales still opens with the studio name
+    // (organization row) and your name (profile, else the sign-up name in auth user_metadata).
+    var meta = u.user_metadata && typeof u.user_metadata === "object" ? u.user_metadata : {};
+    if (!who.name) who.name = String(meta.full_name || meta.name || "").replace(/\s+/g, " ").trim().slice(0, 120);
+    if (S.profile && typeof S.profile.mine === "function")
+      S.profile.mine().then(function (p) { var n = p && String(p.full_name || "").trim(); if (n && !acct.primary_contact_name) who.name = n; }, function () {});
+    if (!who.studio && S.org && typeof S.org.identity === "function")
+      Promise.resolve(S.org.identity()).then(function (d) { if (d && d.name && !who.studio) who.studio = String(d.name); }, function () {});
     st.pending = st.opts.pending_payment === true;
     st.catalog = !(Array.isArray(st.opts.plans) && st.opts.plans.length);
     $("#coCur").textContent = curOf();

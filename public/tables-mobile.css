@@ -25,6 +25,10 @@
     text-align: left; color: var(--ink-3); font-size: 12px; font-weight: 500;
     letter-spacing: .02em; text-transform: uppercase;
   }
+  /* r22: "Hide amounts" makes a masked cell's text transparent (shell-b-privacy.css); its label is not an amount -
+     keep it readable (the label pseudo-element would otherwise inherit the transparent fill) */
+  html.hb-priv-on table.tm-stack > tbody > tr > td[data-label]::before {
+    color: var(--ink-3) !important; -webkit-text-fill-color: var(--ink-3) !important; }
   table.tm-stack > tbody > tr > td.tm-empty { display: none; }
 
   /* primary column becomes the card title */

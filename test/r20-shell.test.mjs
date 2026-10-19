@@ -100,7 +100,7 @@ t('7. trial: a blocked page leaves a one-shot notice for the dashboard; showFlas
 t('8. dashboard: "Complete your profile" goes into the page\'s notice slot, other notices still float', () => {
   assert.match(DASH, /noteSlot\.setAttribute\("data-hau-notes-slot", ""\); root\.appendChild\(noteSlot\);/);
   assert.ok(DASH.indexOf('data-hau-notes-slot') > DASH.indexOf('root.appendChild(kpis)'), 'slot sits below the KPI strip');
-  assert.match(AUI, /id: "hauProfileNudge", priority: 3, inline: true,/);
+  assert.match(AUI, /id: "hauProfileNudge", priority: 3, inline: "only",/);   // r22: inline-only (never floats)
   assert.match(AUI, /inline: o\.inline === true/);
   assert.match(fnSrc(AUI, 'layoutNotes'), /if \(n\.inline && slot && inlineHost\) \{ n\.node\.hidden = false; inlineHost\.appendChild\(n\.node\); inl\+\+; return; \}/);
   assert.match(fnSrc(AUI, 'layoutNotes'), /if \(slot\) slot\.hidden = !inl;/);
