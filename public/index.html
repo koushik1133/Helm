@@ -56,7 +56,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@500;700&display=swap">
 <script src="/marketing-theme.js?v=3"></script>
-<link rel="stylesheet" href="/home.css?v=19">
+<link rel="stylesheet" href="/home.css?v=20">
 <link rel="stylesheet" href="/home-guide.css?v=3">
 </head>
 <body>
@@ -223,7 +223,7 @@
   <div class="head-split"><div><p class="eyebrow rv">The way it's done today</p>
   <h2 id="p-h" class="h2 rv">Your studio runs on <em>scraps.</em></h2></div>
   <p class="lead rv">Bookings in a diary. Quotes on a calculator. Layouts measured by guess. Payments in a chat thread. And nobody is quite sure who was supposed to do what — every handoff is a chance to lose a lead, misprice a quote or miss a delivery.</p></div>
-  <div class="board scraps snap" role="list" aria-label="How event work gets lost today">
+  <div class="board scraps" role="list" aria-label="How event work gets lost today">
    <div class="note y n1 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Priya — wedding — Dec??<br>call back re: stage</p><small>Paper diary</small></div>
    <div class="note w n2 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Decor 12,000<br>Catering 300 × 85<br>+ tax?? ____<br>Total ≈ 41k</p><small>Calculator quote</small></div>
    <div class="wa rv" role="listitem"><span class="pin" aria-hidden="true"></span><small>Crew group · 412 unread</small><p class="b in">Who's bringing the generator??</p><p class="b out">I thought Ravi had it</p><p class="b in">Ravi thought Sita had it 🙃</p></div>
@@ -313,6 +313,10 @@
    <span class="tile"><svg><use href="#i-group"/></svg>Group chats</span>
    <div class="core"><span class="ring r1"></span><span class="ring r2"></span><span class="mark big"><i></i><i></i></span><b>Helm</b><small>One event record</small></div>
   </div>
+  <!-- phones only: what the one record holds (the scroll animation is replaced by a compact layout under 768px) -->
+  <ul class="cv-folds" aria-label="What one Helm record holds">
+   <li><svg aria-hidden="true"><use href="#i-lead"/></svg>Leads</li><li><svg aria-hidden="true"><use href="#i-layout"/></svg>Layouts</li><li><svg aria-hidden="true"><use href="#i-quote"/></svg>Quotes</li><li><svg aria-hidden="true"><use href="#i-users"/></svg>Crew</li><li><svg aria-hidden="true"><use href="#i-pay"/></svg>Payments</li>
+  </ul>
  </div>
 </section>
 
@@ -763,8 +767,24 @@
  </div>
 </section>
 
-<!-- VOICES placeholder -->
-<section class="sec voices" aria-labelledby="v-h"><div class="wrap c"><p class="eyebrow rv">Client stories</p><h2 id="v-h" class="h2 rv">What studios say — <em>soon.</em></h2><p class="lead rv">We're collecting stories from our first studios. These slots are placeholders until real quotes are approved.</p>
+<!-- EVENTS GALLERY: real event photos. Stays hidden until public/landing/events/events.json lists at least one photo
+     (home.js fills it). How to add photos: public/landing/events/README.md -->
+<section class="sec gallery" id="events" aria-labelledby="ev-h" hidden>
+ <div class="wrap">
+  <div class="head-split"><div><p class="eyebrow">Real events</p><h2 id="ev-h" class="h2">Events made <em>with Helm.</em></h2></div><p class="lead">Weddings, launches and celebrations planned, quoted and run by studios on Helm.</p></div>
+  <div class="ev-grid" id="evGrid" role="list" aria-label="Event photos"></div>
+ </div>
+ <dialog class="ev-box" id="evBox" aria-label="Event photo">
+  <figure class="ev-box-fig"><img id="evBoxImg" alt="" width="1600" height="1067" decoding="async"><figcaption id="evBoxCap"></figcaption></figure>
+  <button class="ev-box-btn ev-prev" type="button" aria-label="Previous photo"><svg aria-hidden="true"><use href="#i-chev"/></svg></button>
+  <button class="ev-box-btn ev-next" type="button" aria-label="Next photo"><svg aria-hidden="true"><use href="#i-chev"/></svg></button>
+  <button class="ev-box-btn ev-close" type="button" aria-label="Close photo"><svg aria-hidden="true"><use href="#i-x"/></svg></button>
+ </dialog>
+</section>
+
+<!-- VOICES placeholder: HIDDEN until real client quotes are approved. To show it again, delete the
+     `hidden` attribute on this <section> (one flag). It is not linked from the menu or footer. -->
+<section class="sec voices" aria-labelledby="v-h" hidden><div class="wrap c"><p class="eyebrow rv">Client stories</p><h2 id="v-h" class="h2 rv">What studios say — <em>soon.</em></h2><p class="lead rv">We're collecting stories from our first studios. These slots are placeholders until real quotes are approved.</p>
  <div class="vgrid snap" aria-label="Client stories"><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div></div>
  <a class="btn btn-dark rv" href="/login?trial=1#signup">Be one of our first studios, free <span class="bi"><svg><use href="#i-arrow"/></svg></span></a></div></section>
 
@@ -833,7 +853,7 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="/telemetry.js?v=4" defer></script>
 <script src="/home-assets/manifest.js?v=3" defer></script>
-<script src="/home.js?v=17" defer></script>
+<script src="/home.js?v=18" defer></script>
 <script src="/home-guide.js?v=2" defer></script>
 </body>
 </html>
