@@ -561,7 +561,7 @@ window.HelmUrl = HelmUrl;
   // ?next= may only name one of the app's own pages (fixed list — the page string is
   // never taken from the URL); only its query string is carried over, re-encoded.
   // Anything else (//host, https://…, /\host, javascript:, encoded tricks) → dashboard.
-  const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "integrations", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "ops", "plan", "proposal", "quotes", "ready", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
+  const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "integrations", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "onboarding", "ops", "plan", "proposal", "quotes", "ready", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
   function safeNext(raw) {
     // 0067: a pretty studio path (/<slug>/<section>…) is re-built from its parsed parts
     if (typeof raw === "string" && raw.charAt(0) === "/" && raw.charAt(1) !== "/" && raw.charAt(1) !== "\\") {
@@ -1972,6 +1972,11 @@ window.HelmUrl = HelmUrl;
           const sn = opts && typeof opts.studioName === "string" ? opts.studioName.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 80) : "";
           so.data = Object.assign({}, so.data || {}, { helm_signup_intent: intent, helm_signup_studio: sn });
         }
+        // r22: the ticked "I agree to the Terms + Privacy Policy" (recorded on the server - accept_account_terms - at the
+        // first signed-in step, even when the confirm link is opened in another browser) + the plan picked on the pricing page
+        if (opts && opts.termsAgreed === true) so.data = Object.assign({}, so.data || {}, { helm_terms_agreed_at: new Date().toISOString() });
+        if (opts && /^[a-z0-9][a-z0-9_-]{1,39}$/.test(String(opts.plan || ""))) so.data = Object.assign({}, so.data || {}, { helm_signup_plan: String(opts.plan) });
+        if (opts && /^(trial|paid|sales)$/.test(String(opts.mode || ""))) so.data = Object.assign({}, so.data || {}, { helm_signup_mode: String(opts.mode) });
         // 0205: this browser started a sign-up for this address - /auth/confirm keeps the confirm link's
         // session only then (a link someone else made for THEIR account never signs this browser in)
         try { localStorage.setItem(SIGNUP_MARK_KEY, String(email || "").trim().toLowerCase().slice(0, 254)); } catch (e) {}
@@ -2583,11 +2588,22 @@ window.HelmUrl = HelmUrl;
   //   deleted   = flagged deleted (0040 soft delete) — never in any other view
   //   active    = everything else;  attention = active, not cancelled, event date passed
   //   all       = everything not moved to Archive / Deleted (dashboard, pickers, counters)
-  const QUOTE_VIEWS = ["all", "active", "quote", "confirmed", "attention", "archived", "deleted"];
+  //   cancelled = r23: status cancelled (Cancel event on the event page), not deleted - a slice of
+  //               the Archive, so it includes a cancelled event someone also archived by hand
+  const QUOTE_VIEWS = ["all", "active", "quote", "confirmed", "attention", "cancelled", "archived", "deleted"];
+  // r23: optional event-date window for page() (o.dateFrom / o.dateTo, yyyy-mm-dd, inclusive)
+  const QUOTE_ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+  const quoteDay = (v) => (typeof v === "string" && QUOTE_ISO_DAY.test(v) ? v : "");
+  function quoteInDates(x, o) {
+    const f = quoteDay(o && o.dateFrom), t = quoteDay(o && o.dateTo); if (!f && !t) return true;
+    const d = String(x.eventDate || "").slice(0, 10); if (!QUOTE_ISO_DAY.test(d)) return false;
+    return (!f || d >= f) && (!t || d <= t);
+  }
   const quoteIsArchived = (x) => !x.deletedAt && (!!x.archivedAt || x.status === "cancelled" || (x.lifecycleStage === "closed" && x.status === "confirmed"));
   function quoteInView(x, view, today) {
     if (view === "deleted") return !!x.deletedAt;
     if (x.deletedAt) return false;
+    if (view === "cancelled") return x.status === "cancelled";
     const arch = quoteIsArchived(x);
     if (view === "archived") return arch;
     if (view === "all" || !view) return !x.archivedAt;
@@ -2599,6 +2615,7 @@ window.HelmUrl = HelmUrl;
   function sbQuoteView(q, view, today, shelf) {
     if (view === "deleted") return shelf ? q.not("deleted_at", "is", null) : q.eq("id", "00000000-0000-0000-0000-000000000000");
     if (shelf) q = q.is("deleted_at", null);
+    if (view === "cancelled") return q.eq("status", "cancelled");
     if (view === "archived") return q.or("status.eq.cancelled,and(lifecycle_stage.eq.closed,status.eq.confirmed)" + (shelf ? ",archived_at.not.is.null" : ""));
     if (shelf) q = q.is("archived_at", null);   // moved quotes leave every other view
     if (view === "all" || !view) return q;
@@ -2651,6 +2668,8 @@ window.HelmUrl = HelmUrl;
         let q = supa.from("quotes").select(cols);
         q = sbQuoteView(q, o.view, today, shelf);
         if (o.eventType) q = q.ilike("event_type", likeEscape(o.eventType));
+        if (quoteDay(o.dateFrom)) q = q.gte("event_date", o.dateFrom);
+        if (quoteDay(o.dateTo)) q = q.lte("event_date", o.dateTo);
         const s = orIlike(["code", "title", "client->>name"], o.search); if (s) q = q.or(s);
         // confirmed first: status sorts cancelled < confirmed < quote, so ascending puts
         // confirmed above quote in the active views and descending puts closed-confirmed
@@ -2843,7 +2862,7 @@ window.HelmUrl = HelmUrl;
       o = o || {}; const today = localISODate(), et = String(o.eventType || "").toLowerCase();
       const rank = (x) => (x.status === "cancelled" ? 0 : x.status === "confirmed" ? 1 : 2);
       const arch = o.view === "archived";
-      const rows = (await this.list()).filter((x) => quoteInView(x, o.view, today) && (!et || String(x.eventType || "").toLowerCase() === et) &&
+      const rows = (await this.list()).filter((x) => quoteInView(x, o.view, today) && quoteInDates(x, o) && (!et || String(x.eventType || "").toLowerCase() === et) &&
         textHit(o.search, [x.code, x.title, x.client && x.client.name]))
         .sort((a, b) => (o.sort === "confirmedFirst" ? (arch ? rank(b) - rank(a) : rank(a) - rank(b)) : 0) ||
           String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")) || String(b.id).localeCompare(String(a.id)));
@@ -2956,6 +2975,12 @@ window.HelmUrl = HelmUrl;
     isArchived: quoteIsArchived,
     page: (o) => qt().page(o),
     counts: () => qt().counts(),
+    // r23: the "Cancelled (N)" tab count - status cancelled, not on the Deleted shelf (HEAD count, no rows)
+    async countCancelled() {
+      if (mode !== "supabase") return (await lsq.list()).filter((q) => q && q.status === "cancelled" && !q.deletedAt).length;
+      return withShelf((shelf) => { let q = supa.from("quotes").select("id", { count: "exact", head: true }).eq("status", "cancelled");
+        if (shelf) q = q.is("deleted_at", null); return sbCount(q); });
+    },
     // la-fetch (audit 25): the sidebar "sent, waiting for client approval" badge - a HEAD count of open
     // quotes (status quote, approval sent / viewed, not on the Archive / Deleted shelf) instead of the full list
     async countAwaiting() {
@@ -7724,6 +7749,32 @@ window.HelmUrl = HelmUrl;
       try { return await rpc("close_event_blockers", { p_quote_id: quoteId }); }
       catch (e) { if (rpcMissing(e)) return null; throw e; }
     },
+    // r22 (0254): the live "Before you close" checklist (+ per-item inventory, counts, close requests).
+    // null = local mode or a database without 0254 (the page keeps the older blocker summary).
+    async review(quoteId) {
+      if (mode !== "supabase") return null;
+      try { return await rpc("event_closure_review", { p_quote: quoteId }); }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // "Request to close anyway": a pending request (reason 10-1000 characters) - it never closes the event itself
+    async requestClose(quoteId, reason, checks) {
+      const r = String(reason == null ? "" : reason).trim();
+      if (r.length < 10) throw new Error("Give a reason of at least 10 characters.");
+      if (mode !== "supabase") throw new Error("Needs the online database.");
+      const list = (Array.isArray(checks) ? checks : []).slice(0, 40).map((c) => ({ key: String(c.key || "").slice(0, 40), status: String(c.status || "").slice(0, 10), label: String(c.label || "").slice(0, 120) }));
+      return rpc("request_event_close", { p_quote_id: quoteId, p_reason: r, p_checks: list });
+    },
+    // an admin / coordinator / manager approves (closes the event) or declines (note required) - the server decides who may
+    async decideClose(requestId, approve, note) {
+      if (mode !== "supabase") throw new Error("Needs the online database.");
+      const n = note == null ? null : String(note).trim() || null;
+      if (!approve && (!n || n.length < 3)) throw new Error("Say why you are declining (at least 3 characters).");
+      return rpc("decide_event_close", { p_request_id: requestId, p_approve: !!approve, p_note: n });
+    },
+    async withdrawClose(requestId) {
+      if (mode !== "supabase") throw new Error("Needs the online database.");
+      return rpc("withdraw_event_close_request", { p_request_id: requestId });
+    },
     async setClosed(quoteId, closed, overrideReason) {
       if (mode === "supabase") {
         const reason = overrideReason == null ? "" : String(overrideReason).trim();
@@ -8021,6 +8072,8 @@ window.HelmUrl = HelmUrl;
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     if (!q) return "";
+    // r22 (0254): a close request / its decision opens the event's Closure page at the request
+    if (k === "event_close_request" || k === "event_close_decision") return "closure.html?quote=" + enc(q) + "#close-request";
     if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
     if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile|pkg_payment)$/.test(k))
       return "settlement.html?quote=" + enc(q) + "#payments";
@@ -8346,6 +8399,10 @@ window.HelmUrl = HelmUrl;
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
+      // r22 (0254): "request to close anyway" + the approval (admins / coordinators / managers only - the server decides)
+      event_close_request: ["🗄️", "Close request" + (d.actor_name ? " from " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "") + " - waiting for approval"],
+      event_close_decision: [d.decision === "declined" ? "↩️" : "✅", (d.decision === "declined" ? "Close request declined" : "Event closed with override")
+        + (d.actor_name ? " by " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "")],
       // 0205: an invitee whose invitation expired asked for a new link (re-send it from Staff)
       invite_link_request: ["✉️", String(d.label || "A teammate asked for a new invitation link")],
       // 0069 client package flow
@@ -10062,6 +10119,48 @@ window.HelmUrl = HelmUrl;
           try { await BPStore.demo.seed(); } catch (x) {}
           return { result: "started", org_id: id, name: name, mode: mode, legacy: true };
         }
+      },
+    },
+    // r22 (0255) - ONE sign-up flow: account + Terms -> verify e-mail -> create studio -> Pay now / Try free / Contact sales.
+    // Every call answers null when the server is older than 0255 (the page then uses the older paths).
+    signup: {
+      // {version, accepted, accepted_at}: has this person accepted the CURRENT Terms of Service + Privacy Policy?
+      termsStatus: () => (supa ? rpc("my_account_terms_status", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // records "I agree" for the person (server time + version + a short browser name); a stale version is refused
+      acceptTerms: (version, source) => (supa ? rpc("accept_account_terms", { p_version: String(version || ""),
+        p_user_agent: String((global.navigator && global.navigator.userAgent) || "").slice(0, 160) || null,
+        p_source: /^(signup|google|checkout|studio)$/.test(String(source || "")) ? source : "signup" })
+        .catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // {currency, plans, trial_days, online_payments_live, terms_version} - no studio needed
+      planOptions: () => (supa ? rpc("signup_plan_options", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // "Pay now" / "Contact sales": the paid studio (payment-gated until its first payment / HQ activation), Terms recorded
+      // in the same transaction. Before 0255: create_studio (the 0159 paid path) - the Terms are then taken on /checkout.
+      async createDirect(o) {
+        const a = o || {};
+        const name = String(a.name || "").trim();
+        try {
+          return await rpc("create_direct_studio", { p_name: name, p_plan: a.plan ? String(a.plan) : null,
+            p_interval: a.interval === "yearly" ? "yearly" : "monthly", p_terms_version: String(a.termsVersion || ""),
+            p_user_agent: String((global.navigator && global.navigator.userAgent) || "").slice(0, 160) || null });
+        } catch (e) {
+          if (!rpcMissing(e)) throw e;
+          const id = await BPStore.org.createStudio(name, {});
+          return { result: "created", org_id: id, legacy: true, pending_payment: true };
+        }
+      },
+      // the studio link a name would get right now (studio_slug_pick, 0020: unique, reserved words avoided); null on any error
+      slugPreview: (name) => {
+        if (!supa || !global.crypto || typeof global.crypto.randomUUID !== "function") return Promise.resolve(null);
+        return rpc("studio_slug_pick", { p_name: String(name || "").slice(0, 80), p_org: global.crypto.randomUUID() })
+          .then((s) => (typeof s === "string" && /^[a-z0-9-]{3,60}$/.test(s) ? s : null), () => null);
+      },
+      // the "create studio" step's city / team size / event types on the caller's own studio (best effort)
+      saveDetails: (d) => {
+        const a = d || {};
+        if (!supa) return Promise.resolve(null);
+        return rpc("my_studio_signup_details", { p_city: String(a.city || "").trim() || null, p_team_size: a.teamSize || null,
+          p_event_types: Array.isArray(a.eventTypes) && a.eventTypes.length ? a.eventTypes : null })
+          .catch((e) => { if (rpcMissing(e)) return null; throw e; });
       },
     },
     gettingStarted: {

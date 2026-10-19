@@ -290,10 +290,12 @@ t('login.html: after sign-in, studio / HQ / onboarding is decided BEFORE leaving
 t('login.html: a platform operator can never create a studio from onboarding / sign-up / pending name', () => {
   const h = read('public/login.html');
   const sub = h.slice(h.indexOf('$("#onboardForm").addEventListener("submit"'));
-  assert.ok(sub.indexOf('operatorToHq()') > 0 && sub.indexOf('operatorToHq()') < sub.indexOf('makeStudio('), 'onboarding submit: HQ check before createStudio');
-  const pend = /async function finishPendingStudio\(\)\{([\s\S]*?)\n  \}/.exec(h)[1];
-  assert.ok(pend.indexOf('isPlatformAdmin()') > 0 && pend.indexOf('isPlatformAdmin()') < pend.indexOf('makeStudio('), 'pending studio: HQ check first');
-  assert.ok(pend.indexOf('org.id()') < pend.indexOf('isPlatformAdmin()'), 'pending studio: HQ asked only with no studio');
+  // r22: the studio is created in signup-flow.js (step 4) - the HQ check comes first there and on the step-3 submit
+  assert.ok(sub.indexOf('operatorToHq()') > 0 && sub.indexOf('operatorToHq()') < sub.indexOf('BPSignupFlow.submitStudio('), 'onboarding submit: HQ check first');
+  const sf = read('public/signup-flow.js'), go = sf.slice(sf.indexOf('async function go('));
+  assert.ok(go.indexOf('operatorToHq()') > 0 && go.indexOf('operatorToHq()') < go.indexOf('BPTrialSignup.start(') && go.indexOf('operatorToHq()') < go.indexOf('createDirect('), 'step 4: HQ check before any studio');
+  // a confirmed sign-up never creates a studio by itself any more (no pending-name path)
+  assert.match(h, /async function finishPendingStudio\(\)\{ return; \}/);
 });
 t('operatorToHq(): replace → /hq only when is_platform_admin() is true', async () => {
   const yes = makeEnv({ path: '/login', gated: false, rpc: { is_platform_admin: { data: true, error: null } } });

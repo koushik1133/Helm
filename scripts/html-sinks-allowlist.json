@@ -78,6 +78,10 @@
    "why": "invite: cssUrl() percent-encodes quotes/parens then esc()"
   },
   {
+   "name": "inlineHtml",
+   "why": "invite (r23): photos placed after a section - each url through cssUrl() (percent-encodes quotes/parens, then esc()); the section name esc()'d"
+  },
+  {
    "name": "rsvpHtml",
    "why": "invite E10: host name / date esc()'d; wa.me number digits only + esc; text encodeURIComponent + esc; tel digits only + esc"
   },
@@ -546,18 +550,14 @@
   {
    "file": "public/invite-studio.html",
    "expr": "i",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
+   "max": 6
   },
   {
    "file": "public/invite-studio.html",
    "expr": "i+1",
    "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)",
-   "max": 2
-  },
-  {
-   "file": "public/invite-studio.html",
-   "expr": "i===0?'Cover photo':'Photo '+(i+1)",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+   "max": 4
   },
   {
    "file": "public/invite-studio.html",
@@ -575,6 +575,11 @@
    "file": "public/invite.html",
    "expr": "heroBlock",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/invite.html",
+   "expr": "bgBlock",
+   "why": "r23: HTML fragment built just above the sink - the photo url through cssUrl() (percent-encode + esc()), blur/opacity are clamped integers from HelmInvitePlace.blur()/dim()"
   },
   {
    "file": "public/issues.html",

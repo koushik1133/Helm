@@ -19,7 +19,7 @@ t('sign-up never switches to sign-in with the password filled in', () => {
   // 0205: the create-studio sign-up shows the inbox card; an invitee never goes through signUp()
   // (invite-signup makes the account, already confirmed), so that branch has no inbox step
   assert.equal((signup.match(/showInbox\(email\)/g) || []).length, 1, 'the create-studio sign-up shows the inbox card');
-  const inviteBranch = signup.slice(signup.indexOf('if(joining){'), signup.indexOf('const studio=$("#studio")'));
+  const inviteBranch = signup.slice(signup.indexOf('if(joining){'), signup.indexOf('// r22 step 1: the account only'));
   assert.ok(inviteBranch.length > 0 && !/signUp\(/.test(inviteBranch.replace(/\/\/.*$/gm, '')), 'invitee: no self sign-up');
   const show = LOGIN.slice(LOGIN.indexOf('function showInbox('), LOGIN.indexOf('async function doResend'));
   assert.match(show, /\$\("#pw"\)\.value=""/, 'password cleared');

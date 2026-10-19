@@ -179,7 +179,7 @@ t("login: no inline style on the new card", () => {
   assert.ok(!/style=/.test(blk));
 });
 t("an invitee never goes through the self sign-up (no 'Confirm your email' e-mail)", () => {
-  const i = login.indexOf("if(joining){"), j = login.indexOf("const studio=$(\"#studio\")", i);
+  const i = login.indexOf("if(joining){"), j = login.indexOf("// r22 step 1: the account only", i);
   assert.ok(i > 0 && j > i);
   const blk = login.slice(i, j);
   assert.ok(!/signUp\(/.test(blk.replace(/\/\/.*$/gm, "")), "no signUp() on the invite path");

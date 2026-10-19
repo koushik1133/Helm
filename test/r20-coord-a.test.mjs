@@ -44,7 +44,7 @@ t('9. view-only banner + every write control disabled (preview / copy / open / s
   assert.match(A, /if\(!readOnly\) return;/);
   assert.match(A, /\$\("#roBanner"\)\.hidden=false;/);
   assert.match(A, /const KEEP=new Set\(\["copyBtn","pubLink","musicTryBtn"\]\);/);
-  assert.match(A, /querySelectorAll\("input,select,textarea,button"\)\.forEach\(n=>\{ if\(KEEP\.has\(n\.id\)\) return; n\.disabled=true;/);
+  assert.match(A, /querySelectorAll\("input,select,textarea,button"\)\.forEach\(n=>\{ if\(KEEP\.has\(n\.id\)\|\|n\.hasAttribute\("data-ro-keep"\)\) return; n\.disabled=true;/);   // r23: the phone preview sheet's close button (data-ro-keep) stays usable
   assert.match(A, /\$\("#shareCard"\)\.hidden=true;/);
   // re-rendered controls stay disabled
   ['paintTpls', 'paintPhotos', 'addSchedRow'].forEach((f) => assert.match(fnSrc(INV, f), /applyReadOnly\(\);\n  \}$/, f));

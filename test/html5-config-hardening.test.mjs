@@ -200,7 +200,7 @@ t('TEL-01: Sentry beforeSend + beforeBreadcrumb scrub request URL, Referer, tran
 });
 
 /* ------------------------------------------------------------------ FILE-01 */
-const ALLOWED_EXT = new Set(['.html', '.js', '.css', '.png', '.webp', '.ico', '.svg', '.woff2', '.txt', '.xml', '.jpg', '.jpeg', '.gif', '.avif', '.mp4', '.webm', '.webmanifest']);
+const ALLOWED_EXT = new Set(['.html', '.js', '.css', '.png', '.webp', '.ico', '.svg', '.woff2', '.txt', '.xml', '.jpg', '.jpeg', '.gif', '.avif', '.mp4', '.webm', '.webmanifest', '.mp3']);   // .mp3: r23 built-in invitation music (public/invite/music/)
 // landing/events/events.json = the landing-page photo gallery list (public by design, read by home.js);
 // landing/events/README.md = how to add photos (vercelignored).
 const ALLOWED_EXTRA = new Set(['_headers', 'vendor/README.md', '.well-known/security.txt', 'landing/events/events.json', 'landing/events/README.md']);   // must be .vercelignored if not servable

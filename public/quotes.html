@@ -151,12 +151,14 @@
       <button type="button" data-f="quote" aria-pressed="false">Quotes</button>
       <button type="button" data-f="confirmed" aria-pressed="false" title="Priced and locked quotes: sent to the client (awaiting approval) and client-confirmed events">Sent &amp; confirmed</button>
       <button type="button" data-f="attention" aria-pressed="false">⚠ Attention</button>
+      <button type="button" data-f="cancelled" aria-pressed="false" id="tab_cancelled" title="Events cancelled with Cancel event on the event page. They also stay in the Archive.">Cancelled<span class="tcount" id="cnt_cancelled" hidden></span></button>
       <button type="button" data-f="archived" aria-pressed="false">Archive<span class="tcount" id="cnt_archived" hidden></span></button>
       <button type="button" data-f="deleted" aria-pressed="false" id="tab_deleted" hidden>Deleted<span class="tcount" id="cnt_deleted"></span></button>
     </div>
     <label class="discard-toggle" id="discardWrap" hidden title="Empty drafts (no client, date, guests, price or layout, untouched for 24h) are moved to Deleted automatically - restorable"><input type="checkbox" id="showDiscarded"> Show discarded drafts <span class="tcount" id="cnt_discarded"></span></label>
-    <input id="search" class="search" type="search" aria-label="Search quotes" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search code, client, title…">
+    <input id="search" class="search" type="search" aria-label="Search quotes" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search code, client, title…" title="Search code, client or title. Or type a filter and press Enter, e.g. “cancelled weddings this month”, “today”, “confirmed next month”.">
     <select id="typeFilter" class="typefilter" title="Filter by event type" aria-label="Filter by event type"><option value="">All types</option></select>
+    <select id="dateFilter" class="typefilter" title="Filter by event date" aria-label="Filter by event date"><option value="">Any date</option><option value="today">Today</option><option value="tomorrow">Tomorrow</option><option value="week">This week</option><option value="month">This month</option><option value="nextmonth">Next month</option><option value="next30">Next 30 days</option><option value="past">Past dates</option></select>
     <button type="button" class="btn" id="refresh">↻ Refresh</button>
     <button type="button" class="btn primary" id="newBtn" data-newquote>✨ New quote</button>
   </div>
@@ -279,7 +281,7 @@
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
 <script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=271"></script><script src="flow-resume.js?v=5" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=3"></script>
-<script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
+<script src="event-sizing.js?v=5"></script><script src="quote-smart-filter.js?v=1"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
 <script src="tour.js?v=24"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -295,7 +297,7 @@
   const statusPill=(x)=>{ const st=BPStore.quoteStatus(x); return `<span class="stat hs-pill ${PILL[st.tone]||"hs-draft"}" data-status="${esc(st.key)}" title="${esc(st.title)}">${esc(st.label)}</span>`; };
 
   let focusPending=true;
-  let quotes=[], filter="all", typeFilter="", canEdit=false, canDelete=false, canCreate=false, canMarkPaid=false, canEditLayouts=false;
+  let quotes=[], filter="all", typeFilter="", dateFilter="", canEdit=false, canDelete=false, canCreate=false, canMarkPaid=false, canEditLayouts=false;
   // Perf (Oct 2026): the list is server-paged — each tab / type / search asks the server for
   // the first page (light columns, no pricing JSON) and Load more / infinite scroll fetches
   // the next. `quotes` = the rows loaded so far for the current view.
@@ -334,6 +336,9 @@
     $("#discardWrap").hidden=!nd; $("#cnt_discarded").textContent=nd?String(nd):"";
   }
   const isDiscarded=(r)=>!!r&&r.shelf==="deleted"&&r.reason==="auto_empty_draft";
+  // r23: the "When" (event date) window - { from, to } yyyy-mm-dd or null (any date); shelf rows use it too
+  const dateWin=()=>{ const S=typeof window!=="undefined"?window.HelmQuoteSmart:null; return (S&&S.range&&typeof dateFilter==="string"&&dateFilter)?S.range(dateFilter):null; };
+  const inWin=(x,w)=>{ if(!w) return true; const d=String(x.eventDate||"").slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false; return (!w.from||d>=w.from)&&(!w.to||d<=w.to); };
   const showDiscarded=()=>!!($("#showDiscarded")&&$("#showDiscarded").checked);
   async function loadShelf(){
     if(BPStore.mode()!=="supabase" || !BPStore.quoteShelf){ shelf.ready=false; paintShelfTabs(); return; }
@@ -379,12 +384,14 @@
     const view=filter, term=($("#search").value||"").trim().toLowerCase(), type=(typeFilter||"").toLowerCase();
     paintIpVisibility();
     if(view==="inprogress"){ if(!offset) await renderInProgress(); return { rows:[], hasMore:false, offset:0 }; }
+    const win=dateWin();
     const mine=()=>shelf.rows.filter(r=>r.shelf===(view==="deleted"?"deleted":"archived") && (!isDiscarded(r) || showDiscarded())).map(shelfItem)
-      .filter(x=>(!type || (x.eventType||"").toLowerCase()===type)
+      .filter(x=>(!type || (x.eventType||"").toLowerCase()===type) && inWin(x,win)
                && (!term || [x.code,x.title,x.client.name].some(v=>String(v||"").toLowerCase().includes(term))));
     if(view==="deleted"){ if(!offset) await loadShelf(); return { rows: shelf.ready?mine():[], hasMore:false, offset:0 }; }
     const [, r]=await Promise.all([offset?null:loadShelf(), base()]);
-    const rows=((r&&r.rows)||[]).filter(x=>!shelf.byId[x.id]);
+    // r23: Cancelled = a slice of the Archive - keeps a cancelled event that was also archived by hand
+    const rows=((r&&r.rows)||[]).filter(x=>view==="cancelled" ? !(shelf.byId[x.id]&&shelf.byId[x.id].shelf==="deleted") : !shelf.byId[x.id]);
     return { rows: view==="archived"&&!offset ? mine().concat(rows) : rows, hasMore:!!(r&&r.hasMore), offset:r?r.offset:offset };
   }
   // opening Quotes runs the studio's "client link expired → Archive / Deleted" choice (the
@@ -486,6 +493,7 @@
     gateQuoteCap();   // r20 (0238): free trial "1 of 2 new quotes used" next to New quote; off at 2 of 2 (paid: nothing)
     runShelfTick();   // 0040: client link expired → Archive / Deleted (rate-limited server-side; never awaited)
     loadInProgressCount();   // 0206: "In progress (N)" tab (never awaited)
+    loadCancelledCount();    // r23: "Cancelled (N)" tab (never awaited)
     // opened from an event workspace? focus that quote by pre-filling the search
     const focus=focusPending ? new URLSearchParams(location.search).get("focus") : null;
     focusPending=false;   // apply the ?focus= prefill once, never overwrite what the user typed on later load()s
@@ -517,10 +525,17 @@
         render(); }
     });
   }
+  // r23: the "When" window as page() arguments (dateFrom / dateTo), {} for any date
+  function quoteDateArgs(){ const w=dateWin(); if(!w) return {}; const o={}; if(w.from) o.dateFrom=w.from; if(w.to) o.dateTo=w.to; return o; }
+  // r23: "Cancelled (N)" - a HEAD count, fail-soft (no count = the tab without a number)
+  async function loadCancelledCount(){
+    const c=$("#cnt_cancelled"); if(!c||!BPStore.quotes.countCancelled) return;
+    try{ const n=await BPStore.quotes.countCancelled(); c.textContent=String(Number(n)||0); c.hidden=false; }catch(_){ c.hidden=true; }
+  }
   // first page of the current tab / type / search (resolves after it painted)
   function reloadList(){
     if(!pager) pager=BPUI.pager({ after: $("#rows").closest(".card"), what:"quotes",
-      fetch:(offset)=>shelfPage(offset, ()=>BPStore.quotes.page({ offset, view:viewOf(filter), eventType:typeFilter, search:($("#search").value||"").trim(), sort:"confirmedFirst" })),
+      fetch:(offset)=>shelfPage(offset, ()=>BPStore.quotes.page({ offset, view:viewOf(filter), eventType:typeFilter, search:($("#search").value||"").trim(), sort:"confirmedFirst", ...quoteDateArgs() })),
       render:(rows,info)=>{ quotes=info.all; render(); refreshStale(); refreshChanges(); } });
     anyQuotes=null; chgKey=""; staleKey="";   // qts-1018: a reload re-reads change orders + stale approvals too
     return pager.reset();
@@ -598,7 +613,7 @@
       if(anyQuotes===null){ anyQuotes="?"; BPStore.quotes.counts().then(c=>{ anyQuotes=c.total>0; if(!quotes.length) render(); }).catch(()=>{ anyQuotes=true; }); }
       tb.innerHTML = anyQuotes===false
         ? `<tr><td colspan="8" class="empty"><b>No quotes yet.</b><br>${canCreate?'Design a layout and save it to create your first quote.<div style="margin-top:12px"><button type="button" class="btn primary" data-newquote>✨ Create your first quote</button></div>':"Quotes will appear here once they're created."}</td></tr>`
-        : `<tr><td colspan="8" class="empty">${(q||typeFilter)?"No quotes match this search or filter.":"No quotes in this view."}</td></tr>`;
+        : `<tr><td colspan="8" class="empty">${esc((q||typeFilter||dateFilter)?"No quotes match this search or filter.":filter==="cancelled"?"No cancelled events. An event cancelled with Cancel event on its page shows here.":"No quotes in this view.")}</td></tr>`;
       if(anyQuotes===false&&canCreate) hEmpty(tb,{icon:"✨",title:"No quotes yet",text:"Design a layout and save it to create your first quote.",actionLabel:"Create your first quote",onAction:()=>{ const b=$("#newBtn"); if(b) b.click(); }},8);
       return; }
     const visible=list;
@@ -1168,6 +1183,22 @@
   // search asks the server (code / title / client name), after a 300 ms pause in typing
   $("#search").addEventListener("input",BPUI.debounce(reloadQuiet,300));
   $("#typeFilter").addEventListener("change",e=>{ typeFilter=e.target.value; reloadQuiet(); });
+  $("#dateFilter").addEventListener("change",e=>{ dateFilter=e.target.value||""; reloadQuiet(); });
+  // r23 smart search (rule-based, no AI): Enter on a phrase made only of known words - a tab
+  // ("cancelled", "confirmed", "overdue"), an event type from the type list ("weddings") and / or a date
+  // ("today", "this month", "next 30 days") - sets those filters and clears the box. Anything else
+  // stays an ordinary search of code / client / title.
+  $("#search").addEventListener("keydown",e=>{
+    if(e.key!=="Enter"||e.isComposing||!window.HelmQuoteSmart) return;
+    const types=[].map.call($("#typeFilter").options||[],o=>o.value).filter(Boolean);
+    const p=HelmQuoteSmart.parse($("#search").value, types); if(!p) return;
+    e.preventDefault();
+    if(p.tab){ const b=[].find.call($("#tabs").querySelectorAll("button"),x=>x.dataset.f===p.tab&&!x.hidden); if(b&&!b.classList.contains("on")) b.click(); }
+    if(p.type&&$("#typeFilter").value!==p.type){ $("#typeFilter").value=p.type; $("#typeFilter").dispatchEvent(new Event("change",{bubbles:true})); }
+    if(p.date&&$("#dateFilter").value!==p.date){ $("#dateFilter").value=p.date; $("#dateFilter").dispatchEvent(new Event("change",{bubbles:true})); }
+    $("#search").value=""; $("#search").dispatchEvent(new Event("input",{bubbles:true}));
+    BPUI.toast("Showing: "+p.labels.join(" · "),{type:"info",timeout:2500});
+  });
   $("#refresh").addEventListener("click",()=>BPUI.guard($("#refresh"),load));
   async function fillTypeFilter(){
     // dedupe event types case-insensitively (so "wedding" and "Wedding" merge), keeping the nicest-cased label
@@ -1277,7 +1308,7 @@
   // when you left (e.g. before a re-price or approval in the workspace) - re-read the list
   window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&pager) reloadQuiet(); });
 </script>
-<script src="saved-filters.js?v=7"></script>
+<script src="saved-filters.js?v=6"></script>
 <script src="capacity-shortage.js?v=8"></script>
 </body>
 </html>

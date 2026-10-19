@@ -58,7 +58,7 @@
   .btn{height:38px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;justify-content:center}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
   .btn:hover{border-color:var(--accent)}.btn[disabled]{opacity:.55;cursor:default}
-  .layout{display:grid;grid-template-columns:1fr 420px;gap:16px;align-items:start}@media(max-width:900px){.layout{grid-template-columns:1fr}}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,420px);gap:16px;align-items:start}@media(max-width:900px){.layout{grid-template-columns:1fr}}
   /* template picker */
   .tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
   .tpl{border:2px solid var(--line);border-radius:12px;padding:0;cursor:pointer;overflow:hidden;background:var(--panel);text-align:left}
@@ -69,10 +69,71 @@
   .sw.confetti{background:#fff8ef;color:#e0533b}.sw.summit{background:#f6f7fb;color:#4f46e5;font-family:system-ui}
   .sw.soiree{background:radial-gradient(120px 60px at 50% 0,#241a35,#141019);color:#a78bfa}
   /* preview */
-  .preview-wrap{position:sticky;top:16px}
-  @media(min-width:901px){.preview-wrap{max-height:calc(100vh - 32px);overflow-y:auto;overscroll-behavior:contain}}
+  /* R23 scroll fix. Desktop: the preview column is sticky BELOW the shell's top bar (--hb-top) and exactly fills
+     the rest of the viewport; the iframe takes the free height, so there is one page scroll (the form) and no
+     inner scrollbar on the column. Phone / tablet: the preview is a bottom sheet opened by a floating button. */
+  .pv-head{display:flex;align-items:center;gap:8px;margin:0 0 14px}.pv-head h2{margin:0}
+  .pv-close,.pv-fab{display:none}
+  .pv-scrim{position:fixed;inset:0;background:rgba(20,27,46,.45);z-index:955}
+  @media(min-width:901px){
+    .preview-wrap{position:sticky;top:calc(var(--hb-top,0px) + 16px);height:calc(100vh - var(--hb-top,0px) - 32px);height:calc(100dvh - var(--hb-top,0px) - 32px);min-height:460px}
+    .preview-wrap>.card{height:100%;margin:0;display:flex;flex-direction:column;overflow:hidden}
+    .preview-wrap .frame{flex:1 1 auto;height:auto;min-height:220px}
+    .pv-scrim{display:none!important}
+  }
+  @media(min-width:901px) and (max-height:620px){
+    .preview-wrap{position:static;height:auto;min-height:0}.preview-wrap>.card{height:auto}.preview-wrap .frame{flex:none;height:520px}
+  }
+  @media(max-width:900px){
+    .wrap{padding-bottom:96px}
+    .preview-wrap{position:fixed;left:0;right:0;bottom:0;z-index:960;height:min(90vh,780px);height:min(90dvh,780px);transform:translateY(102%);visibility:hidden;
+      transition:transform .28s cubic-bezier(.22,1,.36,1),visibility 0s linear .28s}
+    .preview-wrap.open{transform:none;visibility:visible;transition:transform .28s cubic-bezier(.22,1,.36,1),visibility 0s}
+    .preview-wrap>.card{height:100%;margin:0;border-radius:18px 18px 0 0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+    .preview-wrap .frame{height:min(60vh,560px);height:min(60dvh,560px)}
+    .pv-close{display:inline-flex;margin-left:auto;width:38px;padding:0}
+    .pv-fab{display:inline-flex;position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:940;height:46px;border-radius:999px;padding:0 18px;
+      box-shadow:0 12px 28px -10px rgba(4,120,87,.55)}
+    html[data-shell="b"] .pv-fab{bottom:calc(16px + var(--pv-tabs,0px) + env(safe-area-inset-bottom,0px))}
+    html.pv-open,html.pv-open body{overflow:hidden}
+  }
+  @media(max-width:819px){html[data-shell="b"]{--pv-tabs:58px}}
+  @media(prefers-reduced-motion:reduce){.preview-wrap,.preview-wrap.open{transition:none}}
+  /* R23 photo placement */
+  .phl{display:grid;gap:10px}
+  .ph-row{display:grid;grid-template-columns:84px minmax(0,1fr);gap:12px;align-items:start;border:1px solid var(--line-2);border-radius:12px;padding:10px;background:var(--panel)}
+  .ph-row .th{width:84px}
+  .pp{border:0;padding:0;margin:0;min-width:0}
+  .pp legend{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);padding:0;margin:0 0 6px}
+  .pp-opts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  @media(max-width:520px){
+    .ph-row{grid-template-columns:64px minmax(0,1fr);gap:10px}.ph-row .th{width:64px}
+    .ph-row .pp{grid-column:1/-1}
+    .pp-o{font-size:10.5px;padding:6px 2px 5px}
+  }
+  .pp-o{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;margin:0;padding:7px 4px 6px;border:1.5px solid var(--line);border-radius:10px;cursor:pointer;
+    font-size:11.5px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-2);text-align:center;line-height:1.2;background:var(--panel-2)}
+  .pp-o input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
+  .pp-o:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent-2)}
+  .pp-o:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+  .pp-o svg{width:24px;height:32px;display:block;color:var(--ink-3)}
+  .pp-o:has(input:checked) svg{color:var(--accent)}
+  .pp-o .fill{fill:currentColor;opacity:.85}.pp-o .soft{fill:currentColor;opacity:.3}.pp-o .ln{stroke:currentColor;stroke-width:1.6;stroke-linecap:round;fill:none;opacity:.7}
+  .pp-o .pg{fill:var(--panel);stroke:currentColor;stroke-width:1.2}
+  .pp-after{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--ink-2)}
+  .pp-after label{margin:0}
+  .pp-after select{width:auto;min-width:0;flex:1 1 auto;padding:7px 9px;font-size:13px}
+  .pp-hint{margin:6px 0 0;font-size:12px;color:var(--ink-3)}
+  .bgctl{border:1px dashed var(--line);border-radius:12px;padding:12px;margin-top:12px;background:var(--panel-2)}
+  .bgctl .bg-t{font-size:13px}
+  .bgctl .rng{display:grid;grid-template-columns:110px minmax(0,1fr) 44px;gap:10px;align-items:center;margin-top:8px}
+  .bgctl .rng label{margin:0}.bgctl input[type=range]{padding:0;border:0;background:transparent;accent-color:var(--accent)}
+  .bgctl output{font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink-2);text-align:right}
+  /* R23 music library */
+  .mus-note{font-size:12px;color:var(--ink-3);margin:6px 0 10px}
   /* 0195 Send to client */
   .ish-card{border-top:1px solid var(--line-2);margin-top:16px;padding-top:14px}
+  .card.ish-card{border-top:1px solid var(--line);margin-top:0;padding-top:20px}
   .ish-gate{font-size:13px;color:var(--ink-2);background:var(--panel-2);border:1px dashed var(--line);border-radius:8px;padding:9px 11px;margin:0 0 10px}
   .ish-ch{border:0;padding:0;margin:0 0 10px;display:flex;gap:16px;flex-wrap:wrap}
   .ish-ch legend{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);padding:0;margin:0 0 6px;width:100%}
@@ -103,7 +164,6 @@
   .srow{display:grid;grid-template-columns:120px 1fr auto;gap:8px;margin-bottom:8px}
   .srow .btn{height:36px;min-width:36px;padding:0 10px}
   @media(max-width:480px){.srow{grid-template-columns:88px 1fr auto}}
-  .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
   .photos .th{position:relative;aspect-ratio:1;border-radius:10px;background-size:cover;background-position:center;border:1px solid var(--line)}
   .photos .th .x{position:absolute;top:-8px;right:-8px;width:32px;height:32px;border-radius:50%;border:2px solid #fff;background:#c62a2f;color:#fff;cursor:pointer;font-size:14px;line-height:1}
   .photos .th.cover::after{content:"Cover";position:absolute;left:4px;bottom:4px;font-size:12px;font-weight:700;background:rgba(0,0,0,.6);color:#fff;padding:2px 6px;border-radius:6px}
@@ -172,6 +232,7 @@
           </div>
           <div class="fld"><label id="l_names" for="f_names">Name</label><input id="f_names" placeholder="e.g. Ayla &amp; Sam"></div>
           <div class="fld"><label id="l_headline" for="f_headline">Headline</label><input id="f_headline" placeholder="e.g. are getting married"></div>
+          <p class="mnote" id="dateFmtNote">Dates read day / month / year (dd/mm/yyyy). If your browser's date box shows another order, the line under it spells the day out.</p>
           <div class="two">
             <div class="fld"><label for="f_date">Date</label><input id="f_date" type="date" data-min-today></div>
             <div class="fld"><label for="f_time">Time</label><input id="f_time" placeholder="e.g. 4:00 PM"></div>
@@ -192,8 +253,14 @@
 
         <div class="card">
           <h2>3 · Photos (optional)</h2>
-          <p class="mnote">The first photo becomes the invitation's cover; the rest appear in a gallery.</p>
-          <div id="photos" class="photos"></div>
+          <p class="mnote">Pick where each photo shows. <b>Cover</b>, <b>Full background</b> and <b>Behind names</b> take one photo each; any number can go in the <b>Gallery</b> or <b>After a section</b>.</p>
+          <div id="photos" class="photos phl"></div>
+          <div class="bgctl" id="bgCtl" hidden>
+            <b class="bg-t">Full-background photo</b>
+            <p class="pp-hint">Fade and blur it so names and details stay easy to read.</p>
+            <div class="rng"><label for="f_bgDim">Fade</label><input id="f_bgDim" type="range" min="0" max="85" step="5" value="55" aria-describedby="o_bgDim"><output id="o_bgDim" for="f_bgDim">55%</output></div>
+            <div class="rng"><label for="f_bgBlur">Blur</label><input id="f_bgBlur" type="range" min="0" max="12" step="1" value="3" aria-describedby="o_bgBlur"><output id="o_bgBlur" for="f_bgBlur">3px</output></div>
+          </div>
           <div class="s-c53adc9">
             <label class="btn s-9a9e5f3">＋ Upload photos<input id="photoFile" type="file" accept="image/*" multiple hidden></label>
             <button class="btn" id="photoUrlBtn" type="button">Add by URL</button>
@@ -203,12 +270,14 @@
 
         <div class="card">
           <h2>4 · Music (optional)</h2>
-          <p class="mnote">Plays softly when a guest opens the invitation. Paste an https:// link to your own song (MP3).</p>
+          <p class="mnote">Plays softly when a guest taps “Open Invitation” (browsers only allow sound after a tap); guests can mute it any time. Pick a track from the Helm library or paste an https:// link to your own song (MP3).</p>
           <div class="fld"><label for="f_musicPick">Song</label>
             <select id="f_musicPick">
               <option value="">No music</option>
+              <optgroup label="Helm music library (free to use)" id="musicLib"></optgroup>
               <option value="__custom">Custom link…</option>
             </select>
+            <p class="mus-note" id="musicLibNote" hidden>Original music made by Helm — free to use on your invitations.</p>
           </div>
           <div class="fld" id="musicCustomWrap" hidden><label for="f_musicUrl">Song URL (MP3, https:// only)</label><input id="f_musicUrl" placeholder="https://…/song.mp3"></div>
           <audio id="musicTry" preload="none"></audio>
@@ -220,11 +289,16 @@
           <div id="sched"></div>
           <button class="btn" id="addSched" type="button">+ Add schedule item</button>
         </div>
+
+        <section class="card ish-card" id="shareCard" aria-labelledby="shareTitle">
+          <h2 id="shareTitle">Send to client</h2>
+          <div id="shareHost"></div>
+        </section>
       </div>
 
-      <div class="preview-wrap">
+      <div class="preview-wrap" id="pvSheet" role="region" aria-labelledby="pvTitle">
         <div class="card">
-          <h2>Live preview</h2>
+          <div class="pv-head"><h2 id="pvTitle">Live preview</h2><button class="btn pv-close" id="pvClose" type="button" aria-label="Close preview" data-ro-keep>✕</button></div>
           <div class="frame"><iframe id="pv" src="invite.html?preview=1" title="Invitation preview"></iframe></div>
           <div id="msg" role="status"></div>
           <div class="s-1dc0525">
@@ -241,15 +315,21 @@
             </div>
             <p class="mnote s-84f4c59" id="liveUntil" hidden></p>
           </div>
-          <section class="ish-card" id="shareCard" aria-labelledby="shareTitle">
-            <h2 id="shareTitle">Send to client</h2>
-            <div id="shareHost"></div>
-          </section>
         </div>
       </div>
     </div>
+    <button class="btn primary pv-fab" id="pvToggle" type="button" aria-controls="pvSheet" aria-expanded="false">Preview &amp; publish</button>
+    <div class="pv-scrim" id="pvScrim" hidden></div>
   </div>
   </main>
+  <!-- R23: tiny placement diagrams (a page with the photo shaded), cloned next to each photo's options -->
+  <template id="ppIcons">
+    <svg data-k="cover" viewBox="0 0 24 32" aria-hidden="true"><rect class="pg" x="1" y="1" width="22" height="30" rx="2.5"/><path class="fill" d="M1 3.5a2.5 2.5 0 0 1 2.5-2.5h17a2.5 2.5 0 0 1 2.5 2.5V13H1z"/><path class="ln" d="M6 18h12M8 22h8M7 26h10"/></svg>
+    <svg data-k="background" viewBox="0 0 24 32" aria-hidden="true"><rect class="pg" x="1" y="1" width="22" height="30" rx="2.5"/><rect class="soft" x="1" y="1" width="22" height="30" rx="2.5"/><path class="ln" d="M6 9h12M8 13h8M6 19h12M7 23h10"/></svg>
+    <svg data-k="names" viewBox="0 0 24 32" aria-hidden="true"><rect class="pg" x="1" y="1" width="22" height="30" rx="2.5"/><rect class="fill" x="4" y="5" width="16" height="12" rx="3"/><path d="M8 10h8M9.5 13h5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path class="ln" d="M6 22h12M8 26h8"/></svg>
+    <svg data-k="gallery" viewBox="0 0 24 32" aria-hidden="true"><rect class="pg" x="1" y="1" width="22" height="30" rx="2.5"/><path class="ln" d="M6 6h12M8 10h8"/><rect class="fill" x="4.5" y="14" width="6.5" height="6.5" rx="1"/><rect class="fill" x="13" y="14" width="6.5" height="6.5" rx="1"/><rect class="fill" x="4.5" y="22.5" width="6.5" height="6.5" rx="1"/><rect class="fill" x="13" y="22.5" width="6.5" height="6.5" rx="1"/></svg>
+    <svg data-k="inline" viewBox="0 0 24 32" aria-hidden="true"><rect class="pg" x="1" y="1" width="22" height="30" rx="2.5"/><path class="ln" d="M6 6h12M8 10h8"/><rect class="fill" x="4" y="13.5" width="16" height="7" rx="1.5"/><path class="ln" d="M6 24.5h12M8 28h8"/></svg>
+  </template>
 </div>
 
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle" data-dismissible="false">
@@ -268,6 +348,7 @@
 <script src="event-name.js?v=9"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=271"></script>
 <script src="invite-site-share.js?v=10"></script>
+<script src="invite-music.js?v=1"></script><script src="invite-placement.js?v=1"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -305,7 +386,7 @@
     $("#roBanner").hidden=false;
     // the preview, "Copy link", "Open site" and "Preview song" stay usable; everything that changes the site is off
     const KEEP=new Set(["copyBtn","pubLink","musicTryBtn"]);
-    $(".layout").querySelectorAll("input,select,textarea,button").forEach(n=>{ if(KEEP.has(n.id)) return; n.disabled=true; n.setAttribute("aria-disabled","true"); });
+    $(".layout").querySelectorAll("input,select,textarea,button").forEach(n=>{ if(KEEP.has(n.id)||n.hasAttribute("data-ro-keep")) return; n.disabled=true; n.setAttribute("aria-disabled","true"); });
     const up=$("#photoFile")&&$("#photoFile").closest("label"); if(up){ up.setAttribute("aria-disabled","true"); up.classList.add("ro-off"); }
     $("#shareCard").hidden=true;   // "Send to client" also needs Quotes edit on the server (event_site_send)
   }
@@ -337,7 +418,7 @@
         <div class="sw ${t.k}" aria-hidden="true">${esc(t.n.charAt(0))}</div>
         <div class="lb"><b>${esc(t.n)}</b><span>${esc(t.d)}</span></div>
       </button>`).join("");
-    $("#tpls").querySelectorAll(".tpl").forEach(b=>b.addEventListener("click",()=>{ tpl=b.dataset.k; if(dirty) dirty.mark(); paintTpls(); preview(); const nb=$("#tpls").querySelector(`[data-k="${tpl}"]`); if(nb) nb.focus(); }));
+    $("#tpls").querySelectorAll(".tpl").forEach(b=>b.addEventListener("click",()=>{ tpl=b.dataset.k; if(dirty) dirty.mark(); paintTpls(); preview(); const nb=$("#tpls").querySelector(`[data-k="${tpl}"]`); if(nb) nb.focus({preventScroll:true}); }));
     applyReadOnly();
   }
 
@@ -356,27 +437,58 @@
 
   // ---- photos ----
   let PHOTOS=[];                            // stored REFERENCES (bucket is private — P2-01)
+  // R23: where each photo shows, parallel to PHOTOS (saved as data.photoPlaces; see invite-placement.js)
+  const PL=window.HelmInvitePlace;
+  let PLACES=[];
   const SIGNED=new Map();                    // reference -> signed display URL
   function paintPhotos(){
     const need=PHOTOS.filter(u=>!SIGNED.has(u));
     if(need.length){ need.forEach(u=>SIGNED.set(u,u));    // placeholder; avoid re-requesting
       BPStore.sites.mediaUrls(need).then(out=>{ need.forEach((u,i)=>SIGNED.set(u,out[i]||u)); paintPhotos(); }).catch(()=>{}); }
-    $("#photos").innerHTML=PHOTOS.map((u,i)=>`<div class="th${i===0?' cover':''}" style="background-image:url('${cssUrl(SIGNED.get(u)||u)}')" role="img" aria-label="${i===0?'Cover photo':'Photo '+(i+1)}"><button class="x" type="button" data-i="${i}" title="Remove photo ${i+1}" aria-label="Remove photo ${i+1}">✕</button></div>`).join("");
-    $("#photos").querySelectorAll(".x").forEach(b=>b.addEventListener("click",()=>{ PHOTOS.splice(+b.dataset.i,1); if(dirty) dirty.mark(); paintPhotos(); preview(); }));
+    PLACES=PL.normalize(PHOTOS.length,PLACES);
+    const kind=p=>p.indexOf("after:")===0?"inline":p;
+    $("#photos").innerHTML=PHOTOS.map((u,i)=>`<div class="ph-row" data-i="${i}">
+      <div class="th${PLACES[i]==='cover'?' cover':''}" style="background-image:url('${cssUrl(SIGNED.get(u)||u)}')" role="img" aria-label="Photo ${i+1}"><button class="x" type="button" data-i="${i}" title="Remove photo ${i+1}" aria-label="Remove photo ${i+1}">✕</button></div>
+      <fieldset class="pp"><legend>Where photo ${i+1} shows</legend>
+        <div class="pp-opts">${PL.OPTIONS.map(o=>`<label class="pp-o" title="${esc(o.hint)}"><input type="radio" name="pp${i}" value="${esc(o.key)}"${kind(PLACES[i])===o.key?' checked':''}><span class="pp-ic" data-ic="${esc(o.key)}"></span>${esc(o.label)}</label>`).join("")}</div>
+        <div class="pp-after"${kind(PLACES[i])==='inline'?'':' hidden'}><label for="ppa${i}">Show after</label><select id="ppa${i}" data-i="${i}">${PL.SECTIONS.map(x=>`<option value="${esc(x.key)}"${PLACES[i]==='after:'+x.key?' selected':''}>${esc(x.label)}</option>`).join("")}</select></div>
+        <p class="pp-hint">${esc((PL.OPTIONS.find(o=>o.key===kind(PLACES[i]))||{}).hint||"")}</p>
+      </fieldset></div>`).join("");
+    const icons=$("#ppIcons"); if(icons) $("#photos").querySelectorAll(".pp-ic").forEach(n=>{ const svg=icons.content.querySelector(`svg[data-k="${n.dataset.ic}"]`); if(svg) n.replaceWith(svg.cloneNode(true)); });
+    $("#photos").querySelectorAll(".x").forEach(b=>b.addEventListener("click",()=>{ const i=+b.dataset.i; PHOTOS.splice(i,1); PLACES.splice(i,1); if(dirty) dirty.mark(); paintPhotos(); preview(); }));
+    $("#photos").querySelectorAll(".pp-o input").forEach(r=>r.addEventListener("change",()=>{ const i=+r.closest(".ph-row").dataset.i; setPlace(i, r.value==="inline"?"after:"+($("#ppa"+i).value||"details"):r.value); }));
+    $("#photos").querySelectorAll(".pp-after select").forEach(sel=>sel.addEventListener("change",()=>setPlace(+sel.dataset.i,"after:"+sel.value)));
+    paintBgCtl();
     applyReadOnly();
+  }
+  // one photo per Cover / Full background / Behind names: picking one moves the previous holder to the gallery
+  function setPlace(i,p){
+    if(!PL.valid(p)||i<0||i>=PHOTOS.length) return;
+    let moved=-1; if(PL.SINGLE.indexOf(p)>=0) PLACES.forEach((q,j)=>{ if(j!==i&&q===p){ PLACES[j]="gallery"; moved=j; } });
+    PLACES[i]=p; if(dirty) dirty.mark();
+    const focusVal=p.indexOf("after:")===0?"inline":p;
+    paintPhotos(); preview();
+    const r=$("#photos").querySelector(`.ph-row[data-i="${i}"] input[value="${focusVal}"]`); if(r) r.focus({preventScroll:true});
+    if(moved>=0) setPhotoMsg("Photo "+(moved+1)+" moved to the gallery - only one photo can be the "+((PL.OPTIONS.find(o=>o.key===p)||{}).label||p).toLowerCase()+".");
+  }
+  function paintBgCtl(){
+    const on=PLACES.indexOf("background")>=0; $("#bgCtl").hidden=!on;
+    $("#o_bgDim").textContent=$("#f_bgDim").value+"%"; $("#o_bgBlur").textContent=$("#f_bgBlur").value+"px";
   }
   function setPhotoMsg(t){ $("#photoMsg").textContent=t||""; }
 
   // ---- music ----
-  // Built-in tracks. Deliberately empty: the old presets pointed at a third-party
-  // demo host we don't control (audit Phase 9). Add self-hosted https:// files here
-  // (e.g. under /media/…) once licensed tracks exist. Sites saved with an old preset
-  // keep their URL — it loads as a custom link.
-  const SONGS={};
+  // R23: the built-in library = Helm's own original loops (public/invite/music/, listed in invite-music.js;
+  // never a third-party host). A library pick saves only its KEY (data.musicTrack); the public page maps the key
+  // to the fixed same-origin file. A custom pick saves an https:// link (data.music), exactly as before.
+  const MUSIC=window.HelmInviteMusic;
+  (function fillMusicLib(){ const g=$("#musicLib"); if(!g||!MUSIC) return;
+    MUSIC.TRACKS.forEach(t=>{ const o=document.createElement("option"); o.value="lib:"+t.key; o.textContent=t.title+" — "+t.mood; g.appendChild(o); }); })();
+  function libKey(){ const v=$("#f_musicPick").value; return (v.indexOf("lib:")===0&&MUSIC&&MUSIC.has(v.slice(4)))?v.slice(4):""; }
   function musicUrl(){
     const pick=$("#f_musicPick").value;
     if(pick==="__custom") return $("#f_musicUrl").value.trim();
-    return SONGS[pick]||"";
+    return "";
   }
 
   function studioCC(){ try{ const t=ev&&BPStore.quoteTax?BPStore.quoteTax(ev):null; const c=(t&&t.country)||((BPStore.studioTax&&BPStore.studioTax())||{}).country; return /^(IN|AE|US)$/.test(c||"")?c:"IN"; }catch(_){ return "IN"; } }
@@ -424,7 +536,9 @@
         message:$("#f_message").value.trim(), host:$("#f_host").value.trim(), hostPhone:$("#f_hostPhone").value.trim(),
         dressCode:$("#f_dressCode").value.trim(), rsvpBy:$("#f_rsvpBy").value,
         country:studioCC(),   // E8: guests see dates in the studio's country style
-        photos:PHOTOS.slice(), music:musicUrl(),
+        photos:PHOTOS.slice(), photoPlaces:PL.normalize(PHOTOS.length,PLACES),
+        bgDim:PL.dim($("#f_bgDim").value), bgBlur:PL.blur($("#f_bgBlur").value),
+        music:musicUrl(), musicTrack:libKey(),
         schedule:gatherSchedule()
       }
     };
@@ -450,10 +564,14 @@
     $("#f_venue").value=d.venue||""; $("#f_address").value=d.address||""; $("#f_mapUrl").value=d.mapUrl||"";
     $("#f_message").value=d.message||""; $("#f_host").value=d.host||""; $("#f_hostPhone").value=d.hostPhone||"";
     $("#f_dressCode").value=d.dressCode||""; $("#f_rsvpBy").value=d.rsvpBy||"";
-    PHOTOS=Array.isArray(d.photos)?d.photos.filter(Boolean):[]; paintPhotos();
-    // music: match a predefined track, else custom
-    const mkey=Object.keys(SONGS).find(k=>SONGS[k]===d.music);
-    if(d.music){ $("#f_musicPick").value=mkey||"__custom"; if(!mkey){ $("#f_musicUrl").value=d.music; } } else { $("#f_musicPick").value=""; }
+    // R23: placements stay paired with their photo while empty entries are dropped (old sites: 1st = cover, rest = gallery)
+    { const raw=Array.isArray(d.photos)?d.photos:[], pl=PL.normalize(raw.length,d.photoPlaces), keep=raw.map((u,i)=>[u,pl[i]]).filter(x=>x[0]);
+      PHOTOS=keep.map(x=>x[0]); PLACES=keep.map(x=>x[1]); }
+    $("#f_bgDim").value=PL.dim(d.bgDim); $("#f_bgBlur").value=PL.blur(d.bgBlur);
+    paintPhotos();
+    // music: a library track (by key), else a custom link
+    if(MUSIC&&MUSIC.has(d.musicTrack)){ $("#f_musicPick").value="lib:"+d.musicTrack; }
+    else if(d.music){ $("#f_musicPick").value="__custom"; $("#f_musicUrl").value=d.music; } else { $("#f_musicPick").value=""; }
     applyMusicUi();
     $("#sched").innerHTML=""; (Array.isArray(d.schedule)?d.schedule:[]).forEach(x=>addSchedRow(x.time,x.label));
     paintTpls(); paintState();
@@ -461,8 +579,10 @@
   function applyMusicUi(){
     const custom=$("#f_musicPick").value==="__custom";
     $("#musicCustomWrap").hidden=!custom;
-    $("#musicTryBtn").hidden=!musicUrl();
+    $("#musicLibNote").hidden=!libKey();
+    $("#musicTryBtn").hidden=!(musicUrl()||libKey());
   }
+  function stopTry(){ const a=$("#musicTry"); if(!a.paused) a.pause(); $("#musicTryBtn").textContent="▶ Preview song"; $("#musicTryBtn").setAttribute("aria-pressed","false"); }
   function paintState(){
     if(!paintState._s){ paintState._s=1; BPStore.links.studio().then(s=>{ if(s) paintState(); }).catch(()=>{}); }   // re-render once the branded studio link name is known
     const pub = site && site.status==="published";
@@ -593,6 +713,9 @@
 
     $("#evTitle").textContent=(ev.code?ev.code+" · ":"")+(ev.title||ev.client&&ev.client.name||"Event");
     $("#app").hidden=false;
+    // R23: the native date box follows the BROWSER's order (mm/dd/yyyy on an en-US browser) - spell the day out under it
+    try{ if(BPUI.dateHint){ BPUI.dateHint($("#f_date")); BPUI.dateHint($("#f_rsvpBy")); } }catch(_){}
+    if(studioCC()==="US") $("#dateFmtNote").textContent="Dates read month / day / year (mm/dd/yyyy). The line under each date box spells the day out.";
     if(!dirty) dirty=BPUI.trackDirty($(".layout"));
     if(!share && !readOnly && window.HelmInviteShare) share=HelmInviteShare.mount($("#shareHost"),{
       getSite:()=>site, getQuote:()=>ev, getLink:()=>(site&&site.status==="published"&&site.slug)?$("#pubLink").value:"",
@@ -626,7 +749,7 @@
         if(PHOTOS.length>=MAX_PHOTOS){ setPhotoMsg("An invitation can show up to "+MAX_PHOTOS+" photos — the rest were skipped."); return; }
         if(f.size>8*1024*1024){ setPhotoMsg(f.name+" is over 8MB — skipped."); continue; }
         const url=await BPStore.sites.uploadPhoto(qid, f);
-        PHOTOS.push(url); if(dirty) dirty.mark(); paintPhotos(); preview();
+        PHOTOS.push(url); PLACES.push(PLACES.indexOf("cover")<0&&PHOTOS.length===1?"cover":"gallery"); if(dirty) dirty.mark(); paintPhotos(); preview();
       }
       setPhotoMsg(PHOTOS.length+" photo"+(PHOTOS.length===1?"":"s")+" added.");
     }catch(err){ setPhotoMsg(await photoErr(err)); }
@@ -650,20 +773,36 @@
     const v=u.trim(); if(!v) return;
     if(PHOTOS.length>=MAX_PHOTOS){ BPUI.toast("An invitation can show up to "+MAX_PHOTOS+" photos.",{type:"err"}); return; }
     if(!/^https?:\/\/\S+$/i.test(v)){ BPUI.toast("That isn't a valid image link — it must start with https://",{type:"err"}); return; }
-    PHOTOS.push(v); if(dirty) dirty.mark(); paintPhotos(); preview(); BPUI.toast("Photo added.",{type:"ok"});
+    PHOTOS.push(v); PLACES.push(PLACES.indexOf("cover")<0&&PHOTOS.length===1?"cover":"gallery"); if(dirty) dirty.mark(); paintPhotos(); preview(); BPUI.toast("Photo added.",{type:"ok"});
   });
 
   // music
-  $("#f_musicPick").addEventListener("change",()=>{ applyMusicUi(); preview(); });
-  $("#f_musicUrl").addEventListener("input",()=>{ applyMusicUi(); preview(); });
+  $("#f_musicPick").addEventListener("change",()=>{ stopTry(); applyMusicUi(); preview(); });
+  $("#f_musicUrl").addEventListener("input",()=>{ stopTry(); applyMusicUi(); preview(); });
   $("#musicTryBtn").addEventListener("click",()=>{
-    const a=$("#musicTry"); const raw=musicUrl(); if(!raw) return;
+    const a=$("#musicTry"), lib=libKey(); const raw=lib?MUSIC.src(lib):musicUrl(); if(!raw) return;
     let u; try{ u=new URL(raw, location.href); }catch(_){ u=null; }
-    if(!u || u.protocol!=="https:"){ setMsg("Use an https:// link for the song.","err"); return; }
+    // a library track is a fixed same-origin file; a custom link must be https://
+    if(!lib){ if(!u || u.protocol!=="https:"){ setMsg("Use an https:// link for the song.","err"); return; } }
     if(a.src!==u.href){ a.src=u.href; }
     if(a.paused){ a.play().then(()=>{$("#musicTryBtn").textContent="⏸ Stop"; $("#musicTryBtn").setAttribute("aria-pressed","true");}).catch(()=>setMsg("Couldn't play that link.","err")); }
     else { a.pause(); $("#musicTryBtn").textContent="▶ Preview song"; $("#musicTryBtn").setAttribute("aria-pressed","false"); }
   });
+
+  ["f_bgDim","f_bgBlur"].forEach(id=>$("#"+id).addEventListener("input",()=>{ paintBgCtl(); if(dirty) dirty.mark(); preview(); }));
+
+  // R23: phone / tablet - the live preview opens as a bottom sheet (one scroll at a time, the page stays put)
+  function sheet(open){
+    const w=$("#pvSheet"), on=!!open; if(w.classList.contains("open")===on) return;
+    w.classList.toggle("open",on); $("#pvScrim").hidden=!on; document.documentElement.classList.toggle("pv-open",on);
+    $("#pvToggle").setAttribute("aria-expanded",on?"true":"false");
+    if(on){ preview(); $("#pvClose").focus({preventScroll:true}); } else { $("#pvToggle").focus({preventScroll:true}); }
+  }
+  $("#pvToggle").addEventListener("click",()=>sheet(true));
+  $("#pvClose").addEventListener("click",()=>sheet(false));
+  $("#pvScrim").addEventListener("click",()=>sheet(false));
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&$("#pvSheet").classList.contains("open")) sheet(false); });
+  window.matchMedia("(min-width:901px)").addEventListener("change",m=>{ if(m.matches) sheet(false); });
 
   $("#pubLink").addEventListener("click",()=>$("#pubLink").select());
   $("#saveBtn").addEventListener("click",doSave);
