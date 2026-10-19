@@ -15,8 +15,10 @@ const FX = read('public/trial-facts.js'), TD = read('public/trial-demo.js'), TS 
 const API = read('public/store-api.js'), DASH = read('public/dashboard.html'), LOGIN = read('public/login.html'), TERMS = read('public/terms.html');
 const CSS = read('public/trial-terms.css');
 const MIG = read('supabase/migrations/0207_trial_terms_acceptance.sql'), APPLY = read('supabase/APPLY-0207.sql');
-// 0211: the terms wording changed (quotes / events not capped) -> the current version lives in 0211
+// 0211: the terms wording changed (quotes / events not capped) -> trial-2026-10-19
 const M211 = read('supabase/migrations/0211_trial_quotes_uncapped.sql');
+// 0238 (owner r20): quotes / events capped at 2 again -> the current version (trial-2026-10-20) lives in 0238
+const M238 = read('supabase/migrations/0238_trial_quotes_cap_two.sql');
 // 0212 (trial client e-mail) re-issued _trial_terms_version() with the new wording's version
 const MIG212 = read('supabase/migrations/0212_trial_client_email.sql');
 const DBT = read('tests/db/trial-terms-0207.sql'), M181 = read('supabase/migrations/0181_trial_guards.sql');
@@ -71,7 +73,7 @@ const byText = (root, re) => find(root, (x) => x.tagName === 'BUTTON' && re.test
 
 // ---- the shared facts ------------------------------------------------------------------------------------
 await t('facts: the real numbers (verified on a trial clone; same literal as the DB suite)', () => {
-  assert.equal(F.VERSION, 'trial-2026-10-19'); assert.equal(F.DAYS, 8); assert.equal(F.KEEP_DAYS, 60); assert.equal(F.TEAM_EXTRA, 2);
+  assert.equal(F.VERSION, 'trial-2026-10-20'); assert.equal(F.DAYS, 8); assert.equal(F.KEEP_DAYS, 60); assert.equal(F.TEAM_EXTRA, 2);
   assert.equal(F.CREATE_CAP, 2); assert.equal(F.EXTENSION_DAYS, 7); assert.deepEqual(F.DELETE_WARN_DAYS, [30, 7, 1]);
   assert.deepEqual(F.REGION, { currency: 'INR', symbol: '₹', timezone: 'Asia/Kolkata', tz: 'IST' });
   const m = DBT.match(/v_want jsonb := '(\{[^']+\})'::jsonb;/); assert.ok(m, 'SAMPLE-COUNTS literal in tests/db/trial-terms-0207.sql');
@@ -79,22 +81,25 @@ await t('facts: the real numbers (verified on a trial clone; same literal as the
   assert.deepEqual(got, want);
   assert.deepEqual(want, { leads: 16, events: 7, requirements: 41, inventory: 165, vendors: 16, staff: 12, venues: 4, menus: 6, dishes: 145, layouts: 3, coupons: 3 });
 });
-await t('facts: VERSION = the server version; the capped lists = the server cap list (0181 minus quotes, 0211)', () => {
-  assert.match(M211, new RegExp("select '" + F.VERSION + "'::text;"), '_trial_terms_version() re-issued by 0211');
-  assert.match(MIG212, new RegExp("select '" + F.VERSION + "'::text;"), 'the latest _trial_terms_version() (0212, same version: one release)');
+await t('facts: VERSION = the server version; the capped lists = the server cap list (0181 / 0238: quotes capped again)', () => {
+  assert.match(M238, new RegExp("select '" + F.VERSION + "'::text;"), '_trial_terms_version() re-issued by 0238 (the latest)');
+  assert.match(M211, /select 'trial-2026-10-19'::text;/, '0211 itself is unchanged (forward-only)');
+  assert.match(MIG212, /select 'trial-2026-10-19'::text;/, '0212 itself is unchanged (forward-only)');
   assert.match(MIG, /select 'trial-2026-10-18'::text;/, '0207 itself is unchanged (forward-only)');
-  const arr = M211.match(/foreach t in array array\[([^\]]+)\] loop\s*\n\s*v_used/)[1].match(/'([a-z_]+)'/g).map((x) => x.slice(1, -1));
-  assert.deepEqual(arr, ['leads', 'inventory_items', 'vendors', 'crew_members', 'venues']);
-  assert.deepEqual(F.CAP_LISTS, ['leads / clients', 'inventory items', 'vendors', 'staff', 'venues'], 'one label per server list, same order');
-  assert.deepEqual(F.UNCAPPED, ['events & quotes']);
-  assert.match(M211, /drop trigger if exists zzzz_tl173_cap on public\.quotes;/); assert.match(M211, /drop trigger if exists zzzz_tl181_cap on public\.quotes;/);
+  const arr = M238.match(/foreach t in array array\[([^\]]+)\] loop\s*\n\s*v_used/)[1].match(/'([a-z_]+)'/g).map((x) => x.slice(1, -1));
+  assert.deepEqual(arr, ['leads', 'quotes', 'inventory_items', 'vendors', 'crew_members', 'venues']);
+  assert.deepEqual(F.CAP_LISTS, ['leads / clients', 'events & quotes', 'inventory items', 'vendors', 'staff', 'venues'], 'one label per server list, same order');
+  assert.deepEqual(F.UNCAPPED, []);
+  assert.match(M238, /create trigger zzzz_tl173_cap before insert on public\.quotes for each row execute function public\._tl173_tg_create_cap\(\);/);
+  assert.match(M238, /create trigger zzzz_tl181_cap before insert on public\.quotes for each row execute function public\._tl181_tg_cap_check\(\);/);
+  assert.match(M238, /create trigger zzzz_tl181_cap_log after insert on public\.quotes for each row execute function public\._tl181_tg_cap_log\(\);/);
 });
 await t('facts: the four sections say exactly what the owner asked for', () => {
   assert.deepEqual(F.SECTIONS.map((s) => s.id), ['included', 'can', 'locked', 'after']);
   const txt = (id) => { const s = F.SECTIONS.find((x) => x.id === id); return [s.lead, s.foot].concat((s.items || []).map((i) => i.t + ' ' + (i.s || ''))).join('\n'); };
   const inc = txt('included'), can = txt('can'), lock = txt('locked'), aft = txt('after');
   for (const re of [/Free for 8 days, no card needed/, /₹ INR/, /times in IST/, /“Demo ·”/, /“Sample”/]) assert.match(inc, re, String(re));
-  for (const re of [/Create as many quotes and events as you like/, /Add up to 2 new records in each other list/, /Leads \(clients\), inventory items, vendors, staff and venues/,
+  for (const re of [/Create up to 2 new quotes \(events\)/, /sample events do not count/, /Add up to 2 new records in each other list/, /Leads \(clients\), inventory items, vendors, staff and venues/,
     /deleting a record does not free a slot/, /Edit the sample data/, /Change menu prices/, /cannot be added, renamed or removed/,
     /Invite up to 2 teammates/, /Open invitations count/, /2D and 3D/, /3 layout templates/, /past event/, /Pricing & coupons, layout rules, and roles & access/]) assert.match(can, re, String(re));
   for (const re of [/Studio setup and branding/, /Imports/, /Data export and every download or print/, /Photo renders/, /Notification settings/,
@@ -118,7 +123,7 @@ await t('one source: the sign-up box uses the same facts objects (numbers never 
 await t('Terms of Service section 4 states the same facts', () => {
   const at = TERMS.indexOf('<section id="trial"'), sec = TERMS.slice(at, TERMS.indexOf('</section>', at));
   for (const x of F.SAMPLE) assert.ok(sec.includes(x.n + ' ' + x.many), 'terms.html: ' + x.n + ' ' + x.many);
-  for (const re of [/8-day free trial/, /up to 2 teammates/, /Open invitations count/, /as many quotes and events as you like/, /up to 2 new records of each other kind/, /60 days/, /30, 7 and 1 day before deletion/,
+  for (const re of [/8-day free trial/, /up to 2 teammates/, /Open invitations count/, /up to 2 new quotes \(events\)/, /up to 2 new records of each other kind/, /60 days/, /30, 7 and 1 day before deletion/,
     /3 days before the trial ends, 1 day before, on the last day and 7 days after/, /extension of up to 7 days/, /keep the sample data, remove the sample data and keep your own records, or start completely clean/,
     /tick “I agree”/, /E-mail to clients:<\/b> e-mail works during the trial/, /up to 30 e-mails a day per studio and 5 a day to one address/,
     /WhatsApp messages, SMS approval codes and online payment links are not sent during the trial and unlock on a paid plan/, /client link auto-expire/]) assert.match(sec, re, String(re));
@@ -198,7 +203,7 @@ await t('welcome step 1 "Your 8-day free trial": Continue disabled until ticked,
   cb.checked = false; cb.fire('change'); assert.equal(go.disabled, true, 'unticked -> disabled again');
   cb.checked = true; cb.fire('change');
   await go.on.click[0]({ currentTarget: go });
-  assert.deepEqual(r.calls, ['accept:trial-2026-10-19']);
+  assert.deepEqual(r.calls, ['accept:trial-2026-10-20']);
   assert.match(d.textContent, /Step 2 of 3/); assert.match(d.textContent, /Name your trial studio/);
   assert.ok(!d.classList.contains('tw-dlg'), 'back to the small dialog'); assert.ok(!find(d, (e) => e.tagName === 'INPUT' && e.type === 'checkbox'), 'tick box gone');
   const ev = { prevented: false, preventDefault() { this.prevented = true; } }; d.on.cancel[0](ev); assert.equal(ev.prevented, true, 'Esc never closes the welcome');
@@ -226,7 +231,7 @@ await t('trial that finished the welcome before: one-time window, Esc cannot clo
   const go = byText(d, /Agree and continue/), cb = find(d, (e) => e.tagName === 'INPUT' && e.type === 'checkbox');
   assert.equal(go.disabled, true); cb.checked = true; cb.fire('change');
   await go.on.click[0]({ currentTarget: go }); await new Promise((x) => setTimeout(x, 10));
-  assert.deepEqual(r.calls, ['accept:trial-2026-10-19']); assert.ok(d.removed, 'closed after agreeing'); assert.equal(gateDone, true, 'tour may run now');
+  assert.deepEqual(r.calls, ['accept:trial-2026-10-20']); assert.ok(d.removed, 'closed after agreeing'); assert.equal(gateDone, true, 'tour may run now');
   assert.equal(d.attrs['data-done'], '1', 'finished: not opened again');
 });
 await t('invited teammate: a short read-only notice with "Got it" (no tick, no agreement)', async () => {
@@ -235,7 +240,7 @@ await t('invited teammate: a short read-only notice with "Got it" (no tick, no a
   assert.match(d.textContent, /You’re in a free-trial studio/); assert.match(d.textContent, /“Demo 7” is trying Helm until 26 October 2026/);
   assert.ok(!find(d, (e) => e.tagName === 'INPUT' && e.type === 'checkbox'), 'nothing to agree to');
   const b = byText(d, /Got it/); await b.on.click[0]({ currentTarget: b }); await new Promise((x) => setTimeout(x, 5));
-  assert.deepEqual(r.calls, ['accept:trial-2026-10-19'], 'seen once (server)'); assert.ok(d.removed);
+  assert.deepEqual(r.calls, ['accept:trial-2026-10-20'], 'seen once (server)'); assert.ok(d.removed);
 });
 await t('paid studio / agreed / ended trial: no window at all, the tour is not held', async () => {
   for (const [tr, terms] of [[{ is_trial_org: false, is_admin: true }, { trial: false }], [owner, { trial: true, owner: true, must_agree: false, accepted: true }],

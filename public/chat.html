@@ -95,7 +95,7 @@
   .thead{flex:0 0 auto;display:flex;align-items:center;gap:13px;padding:11px 16px;background:var(--panel);border-bottom:1px solid var(--line-2)}
   .thead .bk{display:none;border:0;background:none;font-size:23px;cursor:pointer;color:var(--ink-2)}
   @media(max-width:760px){.thead .bk{display:block}}
-  .thead .ti{flex:1;min-width:0}
+  .thead .ti{flex:1;min-width:0}.thead .ti.clk{cursor:pointer;border-radius:8px}.thead .ti.clk:hover #tSub{color:var(--ink-2)}.thead .ti.clk:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .thead .ti b{font-size:15.5px;font-weight:600;display:block}
   .thead .ti span{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
   .msgs{flex:1;overflow-y:auto;padding:16px 8% 10px;display:flex;flex-direction:column;gap:2px}
@@ -110,9 +110,11 @@
   .m.them .bub{background:var(--panel);border-top-left-radius:4px}
   .m.me .bub{background:var(--accent-soft);border-color:transparent;border-top-right-radius:4px}
   .bub .who{font-size:12.5px;font-weight:700;margin-bottom:2px}
-  .bub .reply{border-left:3px solid var(--accent);background:rgba(4,120,87,.08);border-radius:6px;padding:4px 8px;margin-bottom:5px;cursor:pointer}
+  .bub .reply{border-left:3px solid var(--accent);background:rgba(4,120,87,.08);border-radius:6px;padding:4px 8px;margin-bottom:5px;cursor:pointer;min-width:0;max-width:100%;overflow:hidden}
   .bub .reply b{color:var(--accent);display:block;font-size:12px;font-weight:700}
-  .bub .reply .rt{color:var(--ink-2);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;display:block}
+  .bub .reply .rt{color:var(--ink-2);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;display:block;contain:inline-size}
+  /* r20: the quote snippet no longer sets the bubble's width (contain above), so give a quoting message a readable minimum column instead */
+  .m:has(.bub .reply){min-width:min(340px,72%)}.m:has(.bub .reply)>.bub{align-self:stretch}
   .bub .txt{white-space:pre-wrap}
   .bub img.photo{max-width:320px;max-height:340px;border-radius:9px;display:block;cursor:pointer;background:var(--panel-2);margin-bottom:3px}
   .bub .cap{margin-top:3px}
@@ -260,7 +262,7 @@
   /* chatfix-1018: narrow phones - tighter composer; the camera is also reachable from Attach -> Photo */
   @media(max-width:420px){.composer{padding:8px 10px}.cbar{gap:6px}.cbar .ic{width:34px;height:34px}#camBtn{display:none}}
 </style>
-<script src="/shell-proto.js?v=32" id="shellProto"></script>
+<script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#msgs">Skip to messages</a>
@@ -307,7 +309,7 @@
     <div class="thead" id="thead" hidden>
       <button class="bk" id="backBtn" aria-label="Back">‹</button>
       <div class="av" id="tAv"></div>
-      <div class="ti"><b id="tName">—</b><span id="tSub"></span></div>
+      <div class="ti" id="tTi"><b id="tName">—</b><span id="tSub"></span></div>
       <button class="circbtn" id="searchBtn" title="Search in conversation" aria-label="Search in conversation">🔍</button>
       <button class="circbtn" id="headMenuBtn" title="Menu" aria-label="Conversation menu" data-menu-anchor="1">⋮</button>
     </div>
@@ -379,7 +381,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script><script src="event-group-picker.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script><script src="event-group-picker.js?v=4"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
 (function(){
@@ -423,6 +425,8 @@
   function pname(p){ return stripDemo(BPStore.chat.displayName?BPStore.chat.displayName(p):((p&&(p.full_name||p.email))||"Member")); }
   function roleLbl(r){ try{ return r?BPStore.auth.admin.roleLabel(r):""; }catch(e){ return r||""; } }
   function personName(id){ const p=roster[id]; return p?pname(p):(id===ME.id?ME.name:"Member"); }
+  // r20: first name for the group subtitle - but a 1-2 letter first word ("S Koushik") is an initial, so keep the full name
+  function shortName(name){ const full=String(name||"").replace(/\s+/g," ").trim(); const first=full.split(" ")[0]||""; return first.length>2?first:full; }
   /* B18: chat times + day separators in the STUDIO's timezone / locale (Asia/Kolkata, en-IN), not the device's */
   const SF=(ts,f)=>{ try{ const o=BPStore.fmtStudioDate(new Date(ts),{fmt:f}); if(o) return o; }catch(e){} try{ return new Date(ts).toLocaleString("en-IN",Object.assign({timeZone:"Asia/Kolkata"},f)); }catch(e){ return ""; } };
   const SDAY=(t)=>{ try{ return BPStore.todayLocal(t); }catch(e){ return ""; } };
@@ -590,6 +594,9 @@
     const a=convAvatar(c); const av=$("#tAv"); av.style.background=a.bg; av.textContent=a.txt;
     { const ph=c.kind==="dm"?photoOf(convOther(c)):""; av.removeAttribute("data-av-done"); if(ph) av.setAttribute("data-avatar-path",ph); else av.removeAttribute("data-avatar-path"); paintAv($("#thead")); }
     $("#tName").textContent=convTitle(c);
+    { const ti=$("#tTi"), grp=c.kind==="group"; ti.classList.toggle("clk",grp);   // r20: a group's header opens its member list
+      if(grp){ ti.setAttribute("role","button"); ti.tabIndex=0; ti.setAttribute("aria-label","Show members of "+convTitle(c)); }
+      else { ti.removeAttribute("role"); ti.removeAttribute("tabindex"); ti.removeAttribute("aria-label"); } }
     renderConvs(); await loadThread(); try{ await BPStore.chat.markRead(id); }catch(e){} bumpBell();
     setTimeout(()=>{ const c2=convs.find(x=>x.id===id); if(c2){ c2._unread=0; renderConvs(); } },300);
   }
@@ -613,7 +620,7 @@
     renderPinBar(c);
     // 0194: an event group also lists its contacts (staff / vendors / client who don't sign in)
     if(c&&c.kind==="group"&&c.quote_id){ try{ thread.contacts=await BPStore.chat.eventGroups.contacts(c.id); }catch(_){ thread.contacts=[]; } if(conv!==activeId) return; }
-    if(c){ if(c.kind==="group") $("#tSub").textContent=(c.quote_id?"Event group · ":"")+(((thread.members||[]).map(m=>m.user_id===ME.id?"You":personName(m.user_id).split(" ")[0]).concat((thread.contacts||[]).map(k=>String(k.name||"").split(" ")[0]))).join(", ")||"group");
+    if(c){ if(c.kind==="group") $("#tSub").textContent=(c.quote_id?"Event group · ":"")+(((thread.members||[]).map(m=>m.user_id===ME.id?"You":shortName(personName(m.user_id))).concat((thread.contacts||[]).map(k=>shortName(k.name)))).join(", ")||"group");
       else if(c.kind==="broadcast") $("#tSub").textContent="Everyone in your team";
       else { const o=convOther(c), p=roster[o]; $("#tSub").textContent=(p&&p.job_title)||(p&&roleLbl(p.role))||""; } }
     renderMessages();
@@ -970,11 +977,14 @@
     ];
     if(c.kind==="group") items.push({k:"add",label:c.quote_id?"➕  Add people":"➕  Add members",on:addMembersModal});
     if(c.kind==="group"&&BPStore.chat.leaveGroup) items.push({k:"leave",label:"🚪  Leave group",on:leaveGroup});
-    if(c.kind==="group"&&c.quote_id) items.push({k:"ppl",label:"👥  People in this group",on:peopleModal});
+    if(c.kind==="group") items.push({k:"ppl",label:c.quote_id?"👥  People in this group":"👥  Members",on:peopleModal});
     if(c.kind==="group"&&c.quote_id){
       items.push({k:"evref",label:"🔄  Refresh event details",on:refreshEventDetails});
       items.push({k:"evws",label:"⧉  Open event workspace",on:()=>{ location.href="event.html?id="+encodeURIComponent(c.quote_id); }}); }
     openMenu($("#headMenuBtn"),items); });
+
+  $("#tTi").addEventListener("click",()=>{ if($("#tTi").classList.contains("clk")) peopleModal(); });
+  $("#tTi").addEventListener("keydown",e=>{ if($("#tTi").classList.contains("clk")&&(e.key==="Enter"||e.key===" ")){ e.preventDefault(); peopleModal(); } });
 
   // B30: leave a group - only YOUR membership goes; the group and its messages stay for everyone else
   async function leaveGroup(){ const c=convs.find(x=>x.id===activeId); if(!c||c.kind!=="group") return;
@@ -1040,14 +1050,18 @@
     HelmEventGroupPicker.open(q||{id:c.quote_id, code:"", status:"confirmed"},{ canEdit:ok, mode:"add", conversationId:c.id,
       memberIds:(thread.members||[]).map(m=>m.user_id), onDone:async()=>{ await loadThread(); } });
   }
-  // everyone in an event group: chat members + contacts (staff / vendors / client who don't sign in; 0194)
-  async function peopleModal(){ const c=convs.find(x=>x.id===activeId); if(!c) return;
-    const members=(thread.members||[]).map(m=>({ name:m.user_id===ME.id?"You":personName(m.user_id), sub:"in the chat" }));
-    const contacts=(thread.contacts||[]);
+  // everyone in a group: chat members with their role (r20: every group, opened from the header too; read-only)
+  // + for an event group its contacts (staff / vendors / client who don't sign in; 0194)
+  function memberSub(m){ const p=roster[m.user_id]||{}; const bits=[(p.job_title||roleLbl(p.role)||"").trim()].filter(Boolean);
+    if(m.member_role==="admin") bits.push("group admin"); return bits.join(" · ")||"member"; }
+  async function peopleModal(){ const c=convs.find(x=>x.id===activeId); if(!c||c.kind!=="group") return; const ev=!!c.quote_id;
+    const members=(thread.members||[]).map(m=>({ me:m.user_id===ME.id, name:m.user_id===ME.id?"You":personName(m.user_id), sub:memberSub(m) }))
+      .sort((a,b)=>(a.me===b.me?a.name.localeCompare(b.name):(a.me?-1:1)));
+    const contacts=ev?(thread.contacts||[]):[];
     const KL={staff:"staff",vendor:"vendor",client:"client"};
     const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
     const modal=document.createElement("div"); modal.className="modal"; modal.setAttribute("role","dialog"); modal.setAttribute("aria-modal","true");
-    const h=document.createElement("h3"); h.textContent="People in this group"; modal.appendChild(h);
+    const h=document.createElement("h3"); h.textContent=(ev?"People in this group":"Members")+" ("+(members.length+contacts.length)+")"; modal.appendChild(h);
     const body=document.createElement("div"); body.className="body"; const ul=document.createElement("ul"); ul.className="egp-people";
     const li=(name,sub,btn)=>{ const l=document.createElement("li"); const n=document.createElement("span"); n.className="egp-nm"; n.textContent=name; const r=document.createElement("span"); r.className="egp-rl"; r.textContent=sub; l.appendChild(n); l.appendChild(r); if(btn) l.appendChild(btn); ul.appendChild(l); };
     members.forEach(m=>li(m.name,m.sub));
@@ -1055,10 +1069,10 @@
       b.addEventListener("click",()=>BPUI.guard(b,async()=>{ try{ await BPStore.chat.eventGroups.removeContact(c.id,k.id); closeModal(); await loadThread(); BPUI.toast(k.name+" removed from the group.",{type:"ok"}); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove them from the group"}),{type:"err"}); } }));
       li(k.name, (KL[k.kind]||k.kind)+" · listed (doesn't sign in)", b); });
     body.appendChild(ul);
-    const note=document.createElement("p"); note.className="egp-note"; note.textContent="Staff, vendors and the client who don't sign in to Helm are listed here so everyone knows who is involved. Helm sends them nothing (no WhatsApp, SMS or e-mail)."; body.appendChild(note);
+    if(ev){ const note=document.createElement("p"); note.className="egp-note"; note.textContent="Staff, vendors and the client who don't sign in to Helm are listed here so everyone knows who is involved. Helm sends them nothing (no WhatsApp, SMS or e-mail)."; body.appendChild(note); }
     modal.appendChild(body);
     const foot=document.createElement("div"); foot.className="foot"; const cl=document.createElement("button"); cl.type="button"; cl.className="btn"; cl.setAttribute("data-close",""); cl.textContent="Close"; foot.appendChild(cl);
-    const add=document.createElement("button"); add.type="button"; add.className="btn primary"; add.textContent="Add people"; add.addEventListener("click",()=>{ closeModal(); addEventPeople(c); }); foot.appendChild(add);
+    if(ev){ const add=document.createElement("button"); add.type="button"; add.className="btn primary"; add.textContent="Add people"; add.addEventListener("click",()=>{ closeModal(); addEventPeople(c); }); foot.appendChild(add); }
     modal.appendChild(foot); ov.appendChild(modal); showModal(ov);
     ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); }); }
   function addMembersModal(){ const c=convs.find(x=>x.id===activeId); if(!c) return;

@@ -127,9 +127,9 @@
   .eglist .rl{margin-left:auto;color:var(--ink-3);font-size:12px;text-transform:capitalize}
   .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
-<link rel="stylesheet" href="quotes-polish.css?v=8"><link rel="stylesheet" href="event-group-picker.css?v=2">
+<link rel="stylesheet" href="quotes-polish.css?v=9"><link rel="stylesheet" href="event-group-picker.css?v=2">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=32" id="shellProto"></script>
+<script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -278,9 +278,9 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=6"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=3"></script>
 <script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
-<script src="tour.js?v=22"></script>
+<script src="tour.js?v=23"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -481,6 +481,7 @@
       // mark_paid is admin/manager only server-side (SEC-05 F11); offline mode has no roles — server: mark_paid needs has_area(finance,edit)
       BPStore.auth.enabled() ? BPStore.auth.canEditArea("finance") : true]);
     $("#newBtn").hidden = !canCreate;
+    gateQuoteCap();   // r20 (0238): free trial "1 of 2 new quotes used" next to New quote; off at 2 of 2 (paid: nothing)
     runShelfTick();   // 0040: client link expired → Archive / Deleted (rate-limited server-side; never awaited)
     loadInProgressCount();   // 0206: "In progress (N)" tab (never awaited)
     // opened from an event workspace? focus that quote by pre-filling the search
@@ -539,7 +540,33 @@
   // qts-1018: the ONE invoice-total rule (server-stamped total + approved change orders) the workspace header uses
   const listTotal=(x)=>BPStore.invoiceTotal(x, chgTotals[x.id]);
   const reloadQuiet=()=>reloadList().catch(e=>{ BPUI.loadError($("#rows"), e, reloadQuiet, {what:"quotes"}); });
+  // r20: the "⋯" row menu floats on <body> while open (position:fixed next to its button), so the
+  // table's scroll box (.card.table-scroll) can't clip it — with one row only a sliver used to show.
+  // It flips upward when there's no room below, and closes on outside click, scroll, resize or Esc.
+  let qmoreCur=null;
+  function qmorePlace(sm,pop){
+    const r=sm.getBoundingClientRect(), h=pop.offsetHeight, w=pop.offsetWidth, vh=window.innerHeight, vw=document.documentElement.clientWidth||window.innerWidth;
+    const up = vh-r.bottom < h+16 && r.top > h+16;
+    pop.style.top=Math.max(8, up ? r.top-h-6 : r.bottom+6)+"px";
+    pop.style.left=Math.max(8, Math.min(vw-w-8, r.right-w))+"px";
+    pop.classList.toggle("up", up);
+  }
+  function qmoreOpen(dm,sm,pop){
+    if(qmoreCur&&qmoreCur.dm!==dm) qmoreClose(qmoreCur.dm);
+    qmoreCur={dm,sm,pop}; pop.classList.add("qmore-float"); document.body.appendChild(pop); qmorePlace(sm,pop);
+  }
+  function qmoreClose(dm){
+    if(!qmoreCur||(dm&&qmoreCur.dm!==dm)) return;
+    const c=qmoreCur; qmoreCur=null; c.pop.classList.remove("qmore-float","up"); c.pop.style.top=c.pop.style.left="";
+    if(c.dm.isConnected) c.dm.appendChild(c.pop); else c.pop.remove();   // row re-rendered → the old menu goes with it
+    if(c.dm.open) c.dm.open=false;
+  }
+  document.addEventListener("pointerdown",e=>{ if(qmoreCur&&!qmoreCur.pop.contains(e.target)&&!qmoreCur.dm.contains(e.target)) qmoreClose(); },true);
+  window.addEventListener("scroll",e=>{ if(qmoreCur&&!(e.target instanceof Node&&qmoreCur.pop.contains(e.target))) qmoreClose(); },true);
+  window.addEventListener("resize",()=>qmoreClose());
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&qmoreCur){ const sm=qmoreCur.sm; qmoreClose(); try{ sm.focus(); }catch(_){} } });
   function render(){
+    qmoreClose();
     $("#rows").removeAttribute("aria-busy");
     const q=($("#search").value||"").toLowerCase().trim();
     // Archived = closed or cancelled events — kept out of the day-to-day views,
@@ -594,7 +621,7 @@
                <button type="button" class="ic go" data-act="edit" title="View the quotation, pricing and floor layout (don't save changes to a closed event)" aria-label="View quote and layout for ${esc(x.code)}">👁 View quote &amp; layout</button>
                ${egReady&&egIndex[x.id]?`<button type="button" class="ic go" data-act="egroup" aria-label="Open the event group for ${esc(x.code)}">💬 Event group</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
-               ${canDelete?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`
+               ${canDelete&&canOfferDelete(x)?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`
             : // active event → the full working set
               `<button type="button" class="ic go" data-act="edit" title="Edit the floor layout in the builder" aria-label="Edit layout for ${esc(x.code)}">Edit layout</button>
                ${canEdit?`<button type="button" class="ic confirm" data-act="confirm" aria-label="${x.status==="confirmed"?"Re-price":"Confirm"} ${esc(x.code)}">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
@@ -604,7 +631,7 @@
                ${canMarkPaid&&x.approvalStatus==="approved"?`<button type="button" class="ic confirm" data-act="paid" title="Mark payment received" aria-label="Mark ${esc(x.code)} paid">Mark paid</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
                ${shelf.ready&&canEdit?`<button type="button" class="ic" data-act="archive" title="Move to the Archive (restorable)" aria-label="Archive ${esc(x.code)}">🗄 Archive</button>`:""}
-               ${canDelete?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`}
+               ${canDelete&&canOfferDelete(x)?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`}
         </div></td></tr>`;
     }).join("");   // Load more / infinite scroll lives in the pager footer under the table
     // lazy-load versions into each dropdown + wire actions
@@ -618,7 +645,7 @@
         const pop=document.createElement("div"); pop.className="qmore-pop"; pop.setAttribute("role","menu");
         acts.slice(3).forEach(b=>{ b.setAttribute("role","menuitem"); if(b.textContent.trim()==="✕") b.textContent="✕ Delete"; pop.appendChild(b); b.addEventListener("click",()=>{ dm.open=false; }); });
         dm.append(sm,pop); ra.appendChild(dm);
-        dm.addEventListener("toggle",()=>{ if(!dm.open) return; document.querySelectorAll("details.qmore[open]").forEach(o=>{ if(o!==dm) o.open=false; }); const r=sm.getBoundingClientRect(); dm.classList.toggle("up", window.innerHeight-r.bottom < pop.offsetHeight+16 && r.top > pop.offsetHeight+16); });
+        dm.addEventListener("toggle",()=>{ if(dm.open) qmoreOpen(dm,sm,pop); else qmoreClose(dm); });
       }
       const sel=tr.querySelector('[data-role="vsel"]');
       sel.addEventListener("focus",()=>fillVersions(id,sel),{once:true});
@@ -1020,6 +1047,15 @@
     curTax=studioTax;
   }
 
+  // r20: a confirmed / approved / paid / running event is never offered "Delete" in the list (the server refuses it as soon
+  // as a payment, client approval or refund is on record - 0026 trigger + move_quote_to_shelf); use Archive instead.
+  function canOfferDelete(x){
+    if(!x) return false;
+    const st=String(x.status||""), ap=String(x.approvalStatus||""), lc=String(x.lifecycleStage||"");
+    if(st==="confirmed"||st==="paid"||ap==="approved"||ap==="paid") return false;
+    if(["confirmed","planning","resources","ready","event_day","settlement","closed"].includes(lc)) return false;
+    return true;
+  }
   async function delQuote(id, btn){
     // 0040 installed: Delete = move to Deleted quotes (soft, restorable) — never erased
     if(shelf.ready) return shelfMove(id, "delete", btn);
@@ -1188,14 +1224,20 @@
   // R8: "New quote" creates the quote right here and opens its flow — it used to link to
   // the home page, which never created anything (and could surface the dashboard tour).
   // open="builder": reuse my latest open quote (if any) and land in the floor-plan builder.
-  // r19 (owner): "New quote" opens the quote flow directly - no name / type dialog, no in-progress prompt
-  // (quotes are not capped in the free trial any more, 0211). startBlank reuses MY untouched blank quote (0075),
-  // so repeated clicks never pile up empty rows; empty drafts go to the Deleted shelf after a day (0141 / 0208).
+  // r19 (owner): "New quote" opens the quote flow directly - no name / type dialog, no in-progress prompt.
+  // startBlank reuses MY untouched blank quote (0075), so repeated clicks never pile up empty rows; empty drafts go
+  // to the Deleted shelf after a day (0141 / 0208). r20 (owner, 0238): a free trial makes at most 2 new quotes again -
+  // the button says "Free trial: 1 of 2 new quotes used" and is off at 2 of 2; a refused 3rd quote says why.
+  function gateQuoteCap(){ if(canCreate && window.BPUI && BPUI.capGate) BPUI.capGate([$("#newBtn")],"quotes","new quotes").catch(()=>{}); }
   async function startNewQuote(btn, open){
-    if(btn && btn.disabled) return;
     if(open==="builder"){
       const cur = (quotes||[]).find(x => x && x.id && x.status==="quote" && !x.archivedAt && !x.deletedAt);
       if(cur){ location.href = "builder.html?quote=" + encodeURIComponent(cur.id) + "&from=flow"; return; }
+    }
+    if(btn && btn.disabled){
+      // switched off at the free-trial cap (capGate): say why instead of doing nothing
+      if(btn.getAttribute("data-cap-off")==="1" && window.BPUI && BPUI.capToast) BPUI.capToast({ hint: "trial_cap" }, "new quotes", "You can still open and edit your quotes and the sample events.");
+      return;
     }
     try{
       await BPUI.guard(btn, async () => {
@@ -1207,7 +1249,10 @@
         if(q.code && q.code !== q.title){ try{ await BPStore.quotes.updateMeta(q.id, { title: q.code }); }catch(e){} }
         location.href = open==="builder" ? "builder.html?quote=" + encodeURIComponent(q.id) + "&from=flow" : "flow.html?quote=" + encodeURIComponent(q.id);
       }, { busyLabel: "Creating…" });
-    }catch(err){ BPUI.toast(BPUI.friendlyError(err, { action: "create the quote" }), { type: "err", duration: 8000 }); }
+    }catch(err){
+      if(BPUI.capToast && BPUI.capToast(err, "new quotes", "You can still open and edit your quotes and the sample events.")){ gateQuoteCap(); return; }
+      BPUI.toast(BPUI.friendlyError(err, { action: "create the quote" }), { type: "err", duration: 8000 });
+    }
   }
   document.addEventListener("click", (e) => {
     const b = e.target.closest && e.target.closest("[data-newquote]"); if(!b) return;

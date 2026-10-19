@@ -92,7 +92,8 @@ t('L2: Save & back writes a version when the canvas differs from the stored one 
   assert.match(bjs, /function loadVersionIntoEditor\(no, data\)\{\s*\n\s*applyLayout\(data\);[^\n]*\n\s*noteStoredVersion\(\);/);
 });
 t('L2: ?gen=1 default layout is "Unsaved changes" (never "Saved"), and the Custom event builder window does not open over it', () => {
-  assert.match(bjs, /resetHistory\(\); if\(params\.get\('gen'\)==='1'\) markGenUnsaved\(\); else setSavedBaseline\(\); renderAll\(\);/);
+  // r20: the quiet default on a brand-new quote is unsaved too (it is not the stored V1)
+  assert.match(bjs, /_autoDefaultLoaded=true;[\s\S]{0,700}resetHistory\(\); markGenUnsaved\(\); renderAll\(\);/);
   assert.match(bjs, /exactSeats\(store\.items, N\); resetHistory\(\); markGenUnsaved\(\); renderAll\(\);/);
   assert.match(bjs, /function markGenUnsaved\(\)\{[^\n]*dirty\.mark\(\); renderSaveState\('dirty'\); \}/);
   const gen = bjs.slice(bjs.indexOf("if(params.get('gen')==='1' && CAN_CREATE!==false){"), bjs.indexOf('MOBILE DRAWERS'));

@@ -219,7 +219,7 @@ t('DB business messages from 0041 are shown as-is; technical ones are not', asyn
 /* ------------------------------------------------------------ User control: rendering */
 function ucCtx() {
   const ctx = { esc };
-  vm.runInNewContext(['ucId', 'ucDate', 'ucPhone', 'ucInitials', 'ucPrivateVisible', 'ucMatches', 'ucTable']
+  vm.runInNewContext(['ucId', 'ucDate', 'ucShownName', 'ucNameHtml', 'ucPhone', 'ucInitials', 'ucPrivateVisible', 'ucMatches', 'ucTable']
     .map((f) => (f === 'ucId' ? 'const ucId=(u)=>u.user_id||u.id;' : fnSrc(ctl, f))).join('\n') + '\nglobalThis.T=ucTable;', ctx);
   return ctx;
 }
@@ -262,7 +262,14 @@ t('User control before 0041: today\'s Name / Email / Role table with the display
     { profiles: false, meId: U(1), roles: ROLES, q: '', filter: '' });
   assert.match(r.head, /<th scope="col">Email<\/th>/); assert.doesNotMatch(r.head, /Phone|Job title/);
   assert.equal((r.body.match(/class="dnEdit"/g) || []).length, 2);
-  assert.match(r.body, /Not set/); assert.doesNotMatch(r.body, /ucEdit|✓ Complete/);
+  assert.doesNotMatch(r.body, /ucEdit|✓ Complete/);
+  // R20: no display name -> the e-mail name, greyed, titled "not set"; "Not set" only when there is nothing at all
+  assert.match(r.body, /<span class="dnTxt" style="color:var\(--ink-3\)" title="Display name not set yet[^"]*">B<\/span>/);
+  assert.match(r.body, /me@a\.test <span class="me">you<\/span>/, 'a space before the "you" badge (was "Not setyou")');
+  const none = T([{ id: U(2), email: '', full_name: '', role: 'crew' }], { profiles: false, meId: U(1), roles: ROLES, q: '', filter: '' });
+  assert.match(none.body, />Not set</);
+  const mine = T([{ id: U(1), email: 'koushik@a.test', full_name: '', role: 'admin' }], { profiles: true, meId: U(1), meName: 'Koushik Goud', roles: ROLES, q: '', filter: '' });
+  assert.match(mine.body, />Koushik Goud<\/span> <span class="me">you<\/span>/, 'my own row uses my sign-up name, like the dashboard greeting');
 });
 t('control.html wiring: members() + edit dialog fields + Day rate / Employment type + inline errors', () => {
   assert.match(ctl, /res=await BPStore\.auth\.admin\.members\(\)/);

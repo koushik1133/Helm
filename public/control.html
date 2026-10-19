@@ -219,7 +219,7 @@
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=14">
-<script src="/shell-proto.js?v=32" id="shellProto"></script>
+<script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -765,25 +765,25 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
 <script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=5"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="tour.js?v=22"></script>
+<script src="tour.js?v=23"></script>
 <script src="pkg-review.js?v=6"></script>
 <script src="onboarding-core.js?v=7"></script>
 <script src="studio-billing-form.js?v=2"></script>
 <script src="comms-settings.js?v=5"></script>
 <script src="photo-render-settings.js?v=2"></script>
-<script src="form-validate.js?v=1"></script>
+<script src="form-validate.js?v=2"></script>
 <script src="cc-inputs.js?v=4"></script>
 <script src="privacy-pin-settings.js?v=4"></script>
-<script src="venues-core.js?v=9"></script>
+<script src="venues-core.js?v=10"></script>
 <script src="venues-admin.js?v=9"></script>
 <script src="studio-templates-core.js?v=3"></script>
-<script src="studio-templates.js?v=10"></script>
+<script src="studio-templates.js?v=11"></script>
 <script src="item-pricing.js?v=1"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
 <script src="trial-demo.js?v=14"></script>
@@ -1624,7 +1624,19 @@
   // ---- User control table (0041 profiles; before 0041 → today's name / email / role list) ----
   let ucRows=[], ucProfiles=false;
   const ucId=(u)=>u.user_id||u.id;
-  function ucDate(iso){ if(!iso) return ""; try{ return new Date(iso).toLocaleDateString([], {day:"numeric",month:"short",year:"numeric"}); }catch(e){ return ""; } }
+  // R20 (live QA): "Joined 18 Oct 2026" in the studio's own date style + timezone (was the browser's "Oct 18, 2026")
+  function ucDate(iso){ if(!iso) return ""; try{ if(typeof BPStore!=="undefined"&&BPStore.fmtStudioDate){ const o=BPStore.fmtStudioDate(iso,{style:"long"}); if(o) return o; } return new Date(iso).toLocaleDateString("en-IN", {day:"numeric",month:"short",year:"numeric"}); }catch(e){ return ""; } }
+  // R20 (live QA): the same name chain as the dashboard greeting - profile full name, then (my own row) the sign-up
+  // name on my account, then the e-mail name. A row with no saved display name shows that fallback greyed out
+  // (title says it isn't set); "Not set" only when there is nothing at all. Display only - nothing is saved.
+  function ucShownName(u, self, meName){
+    const dn=String((u&&u.full_name)||"").trim(); if(dn) return { name:dn, set:true };
+    const mn=self?String(meName||"").trim():""; if(mn) return { name:mn, set:false };
+    const local=String((u&&(u.email_name||String(u.email||"").split("@")[0]))||"").trim();
+    return { name:local?local.charAt(0).toUpperCase()+local.slice(1):"", set:false };
+  }
+  function ucNameHtml(sn){ return sn.set?`<span class="dnTxt">${esc(sn.name)}</span>`
+    :`<span class="dnTxt" style="color:var(--ink-3)"${sn.name?' title="Display name not set yet - showing the name from the account"':""}>${esc(sn.name||"Not set")}</span>`; }
   function ucPhone(p){ if(typeof HelmPhone!=="undefined"&&HelmPhone.display) return HelmPhone.display(String(p||"")); const m=/^\+91([6-9]\d{4})(\d{5})$/.exec(String(p||"")); return m?"+91 "+m[1]+" "+m[2]:String(p||""); }
   function ucInitials(n){ const p=String(n||"?").trim().split(/\s+/); return (((p[0]||"")[0]||"?")+((p[1]||"")[0]||"")).toUpperCase(); }
   // Phone / private fields are shown only when the DB returned them (admins + users-view):
@@ -1651,8 +1663,8 @@
       const rows=list.filter(u=>ucMatches(u,o.q,""));
       const body=rows.map(u=>{ const self=meId&&ucId(u)===meId; const dn=(u.full_name||"").trim(), who=dn||u.email||"user";
         return `<tr data-id="${esc(ucId(u))}">
-        <td class="dn"><span class="dnTxt"${dn?"":' style="color:var(--ink-3)"'}>${esc(dn||"Not set")}</span><button type="button" class="dnEdit" title="Edit display name" aria-label="Edit display name for ${esc(who)}">✎</button></td>
-        <td class="em">${esc(u.email||"—")}${self?'<span class="me">you</span>':""}</td>
+        <td class="dn">${ucNameHtml(ucShownName(u,self,o.meName))} <button type="button" class="dnEdit" title="Edit display name" aria-label="Edit display name for ${esc(who)}">✎</button></td>
+        <td class="em">${esc(u.email||"—")}${self?' <span class="me">you</span>':""}</td>
         <td>${roleSel(u,self)}</td>
         <td style="text-align:right">${rm(u,self)}</td>
       </tr>`; }).join("") || `<tr><td colspan="4" style="color:var(--ink-3)">${list.length?"No one matches.":"No users."}</td></tr>`;
@@ -1667,7 +1679,7 @@
       const joined=ucDate(u.created_at);
       const st=u.complete?`<span class="ucok" title="${esc(u.profile_completed_at?"Completed "+ucDate(u.profile_completed_at):"Profile complete")}">✓ Complete</span>`:`<span class="ucno" title="No full name or mobile number yet">✗ Incomplete</span>`;
       return `<tr data-id="${esc(ucId(u))}">
-        <td class="dn"><div class="ucwho">${av}<div><span class="dnTxt"${dn?"":' style="color:var(--ink-3)"'}>${esc(dn||"Not set")}</span>${self?'<span class="me">you</span>':""}<div class="ucsub em">${esc(u.email||u.email_name||"")}</div></div></div></td>
+        <td class="dn"><div class="ucwho">${av}<div>${ucNameHtml(ucShownName(u,self,o.meName))}${self?' <span class="me">you</span>':""}<div class="ucsub em">${esc(u.email||u.email_name||"")}</div></div></div></td>
         ${priv?`<td class="ucph">${esc(u.phone?ucPhone(u.phone):"—")}</td>`:""}
         <td>${esc(u.job_title||"—")}</td>
         <td>${esc(u.department||"—")}</td>
@@ -1691,7 +1703,8 @@
   }
   function drawUsers(){
     const tb=$("#um_rows"), me=BPStore.auth.user();
-    const t=ucTable(ucRows,{profiles:ucProfiles, meId:me&&me.id, roles:ROLES, roleLabel:BPStore.auth.admin.roleLabel, canEdit:isAdmin,
+    const meMeta=(me&&me.user_metadata)||{};
+    const t=ucTable(ucRows,{profiles:ucProfiles, meId:me&&me.id, meName:meMeta.full_name||meMeta.name||"", roles:ROLES, roleLabel:BPStore.auth.admin.roleLabel, canEdit:isAdmin,
       q:$("#uc_q").value, filter:ucProfiles?$("#uc_f").value:""});
     $("#um_head").innerHTML=t.head; tb.innerHTML=t.body;
     const inc=ucProfiles?ucRows.filter(u=>u.complete===false).length:0;
@@ -1711,7 +1724,7 @@
          validate:(v)=>BPStore.profile.problem(v)});
       if(name==null) return;
       try{ const saved=await BPUI.guard(btn, ()=>BPStore.profile.setName(id, name)); if(saved===undefined) return; u.full_name=saved||BPStore.profile.clean(name);
-        const t=tr.querySelector(".dnTxt"); t.textContent=u.full_name; t.removeAttribute("style"); setUMsg("ok","Display name updated."); }
+        const t=tr.querySelector(".dnTxt"); t.textContent=u.full_name; t.removeAttribute("style"); t.removeAttribute("title"); setUMsg("ok","Display name updated."); }
       catch(err){ setUMsg("err",errMsg(err,"change the display name")); }
     }));
     tb.querySelectorAll(".ucEdit").forEach(btn=>btn.addEventListener("click",()=>{ const u=rowOf(btn.closest("tr")); if(u) openMemberEdit(u, btn); }));

@@ -2,7 +2,7 @@
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
    One engine, many pages. Each page's steps live in STEPS keyed by filename.
-   A page opts in simply by including  <script src="tour.js?v=22"></script>.
+   A page opts in simply by including  <script src="tour.js?v=23"></script>.
 
    • Injects its own spotlight CSS (pages need no markup).
    • Renders a floating "? Tour" button, or wires an existing #helpBtn.
@@ -18,29 +18,33 @@
     // Steps follow the on-screen reading order: the top bar left to right, then the
     // panels below it (the old order jumped between the bar and the toolbox).
     "builder.html": [
-      // r19: the first-run mini tour - every toolbar control in screen order: the top row (this layout), the
-      // second row (the canvas), then the toolbox, the view dock and the price panel. Controls that are hidden
-      // here (outside a quote, in a free trial, for this role or screen) are skipped by the engine.
+      // r20: the header is the one-row header again (left to right: logo, start a floor, units / grid / view /
+      // measure, undo / redo / clear, this layout, capacity, hide amounts), then the toolbox, the view dock and the
+      // price panel. Controls that are hidden here (outside a quote, in a free trial, for this role or screen) are skipped.
+      { sel: "header .brand", title: "Back home", desc: "The Helm logo takes you back to your events. Tip: press H (when you are not typing) to jump home to the dashboard from any screen." },
+      { sel: "#preset", title: "Start from a template", desc: "Want a head start? Pick a ready-made layout (wedding, conference, concert...) or one of your own templates, then tweak it." },
+      { sel: "#refField", title: "Reuse a past event", desc: "Copies the floor of one of your earlier events onto this canvas, at today's prices." },
+      { sel: "#customBtn", title: "...or create your own floor", desc: "Type your hall length x breadth and guest count; Helm sizes the canvas to your hall and arranges the seating." },
+      { sel: "#unitSel", title: "Units", desc: "Work in feet or metres." },
+      { sel: [".seg:has(#snapBtn)", "#snapBtn"], title: "Snap and Grid", desc: "Snap makes objects jump to the grid lines when you move them; Grid shows or hides the lines." },
+      { sel: "#viewSeg", title: "2D, 3D and Render", get desc() { return inTrial()
+        ? "Edit in the 2D plan, walk around it in 3D, or press Render for a realistic 3D look of the same floor. AI photos of the plan come with a paid plan."
+        : "Edit in the 2D plan, walk around it in 3D, or press Render to make a photo-like picture of the plan. All three show the same floor."; } },
+      { sel: [".wt-field", "#wtStart"], title: "Explore in 3D", desc: "Walkthrough takes a guided 3D walk through the venue. In the 3D view you also get Overview, Floor plan and Evening lighting." },
+      { sel: "#measureBtn", title: "Measure", desc: "Turn on Measure, then select an object to see its distance from all four walls and its nearest neighbour on every side." },
+      { sel: ".hg-edit", title: "Undo, Redo, Clear", desc: "Step back or forward through your changes (⌘Z / ⌘⇧Z). Clear removes every object - you can still Undo it." },
       { sel: "#projName", title: "Name this layout", desc: "The event or quote name. Saved with every version of the floor." },
       { sel: "#verSel", title: "Versions", desc: "Every Save keeps a numbered version. Pick an older one to look at it; saved versions are never changed." },
       { sel: "#designChip", title: "Design stage", desc: "Opens the Design Studio for this event." },
       { sel: "#backToFlowBtn", title: "Save & back to the quote", desc: "Saves this floor as a new version and takes you back to the quotation, re-priced from the chairs you placed." },
       { sel: "#saveBtn", title: "Save", desc: "Saves a new version of this floor (⌘S / Ctrl+S). The chair count flows straight into the price breakdown on the right." },
       { sel: "#loadBtn", title: "Open", desc: "Open another saved layout." },
-      { sel: "#clientImgBtn", title: "Client images", desc: "Captures a clean 2D plan and 3D view of this floor for the client booklet." },
+      { sel: "#clientImgBtn", trial: false, title: "Client images", desc: "Captures a clean 2D plan and 3D view of this floor for the client booklet." },
       { sel: "#moreMenu", title: "More", desc: "Download the floor as a PNG picture or a JSON file, or import a JSON layout." },
-      { sel: ".hg-edit", title: "Undo, Redo, Clear", desc: "Step back or forward through your changes (⌘Z / ⌘⇧Z). Clear removes every object - you can still Undo it." },
       { sel: ".hg-cap", title: "Capacity & seats", desc: "Type the venue's capacity; the chip shows the seats placed against it and warns when a block is packed too tight to walk through." },
-      { sel: [".bp-priv-slot .hbp-btn", ".bp-priv-slot"], title: "Hide amounts", desc: "Hides every price on the screen - handy when a client is looking over your shoulder." },
-      { sel: "#preset", title: "Start from a template", desc: "Want a head start? Pick a ready-made layout (wedding, conference, concert...) or one of your own templates, then tweak it." },
-      { sel: "#refField", title: "Reuse a past event", desc: "Copies the floor of one of your earlier events onto this canvas, at today's prices." },
-      { sel: "#customBtn", title: "...or create your own floor", desc: "Type your hall length x breadth and guest count; Helm sizes the canvas to your hall and arranges the seating." },
-      { sel: "#viewSeg", title: "2D, 3D and Render", desc: "Edit in the 2D plan, walk around it in 3D, or make a photo-like render of the plan. All three show the same floor." },
-      { sel: [".wt-field", "#wtStart"], title: "Explore in 3D", desc: "Walkthrough takes a guided 3D walk through the venue. In the 3D view you also get Overview, Floor plan and Evening lighting." },
-      { sel: "#measureBtn", title: "Measure", desc: "Turn on Measure, then select an object to see its distance from all four walls and its nearest neighbour on every side." },
-      { sel: ".hg-grid", title: "Units, Snap and Grid", desc: "Work in feet or metres. Snap makes objects jump to the grid lines when you move them; Grid shows or hides the lines." },
+      { sel: [".bp-priv-slot .hbp-btn", ".bp-priv-slot"], title: "Hide amounts", desc: "The eye hides every price on the screen - handy when a client is looking over your shoulder. Showing them again asks for your PIN." },
       { sel: "#toolbox", side: "right", title: "Drag any asset", desc: "Drag stages, chairs, tables, bars, exits - anything - onto the floor. Every object can be moved, resized and rotated." },
-      { sel: "#fabStack", title: "Zoom & move around", desc: "Zoom out / in, FIT the whole floor, the arrows to pan and fullscreen. These sit under the floor so they never cover it; hide them with the down arrow." },
+      { sel: "#fabStack", title: "Zoom & move around", desc: "Zoom out / in, FIT the whole floor, the arrows to pan and fullscreen. These sit under the floor so they never cover it. To hide them, press the down arrow (⌄); the small “⊕ View” button brings them back." },
       { sel: "#rightPanel", side: "left", title: "Price & inspector", desc: "The menu package, guests and live price for this floor. Select an object to edit its size, position, rotation and colour here." },
     ],
     "quotes.html": [
@@ -141,7 +145,11 @@
 
   // Normalise the page key so it matches with or without the ".html" suffix
   // (the app is served under clean URLs, e.g. "/builder" as well as "/builder.html").
-  const base = (location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "");
+  // r20 (live QA): studio pretty URLs end in an id or "floor-plan" (/<studio>/events/<id>/floor-plan is the builder), so
+  // the builder never found its steps there - no first-run tour, no "? Tour". HelmUrl (store-api.js) knows the real page.
+  let routed = null;
+  try { const H = window.HelmUrl; routed = H && typeof H.route === "function" && H.route() && typeof H.page === "function" ? H.page() : null; } catch (_) { routed = null; }
+  const base = (routed || location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "");
   const page = base || "index";
   // Pages without built-in steps (e.g. the dashboard, which passes its own list to
   // HelmTour.start) still get the engine, just no "? Tour" button of our own.
@@ -494,6 +502,23 @@
     tip.style.left = L.tip.left + "px"; tip.style.top = L.tip.top + "px";
   }
 
+  // r20 (live QA): a target inside a scrolled box (the sidebar list after you scrolled it) was ringed at its visible
+  // 18px sliver. Bring it fully inside its nearest scrolling ancestor first - instantly, the box only - before the
+  // page-level scrollIntoView below. A no-op when the target already fits.
+  function revealInScroller(t) {
+    try {
+      for (let a = t.parentElement; a && a !== document.body && a !== document.documentElement; a = a.parentElement) {
+        const cs = getComputedStyle(a);
+        if (!/(auto|scroll)/.test(cs.overflowY) || a.scrollHeight <= a.clientHeight + 1) continue;
+        const r = t.getBoundingClientRect(), ar = a.getBoundingClientRect(), pad = 12;
+        if (r.height + 2 * pad > ar.height) return;
+        if (r.top < ar.top + pad) a.scrollTop -= (ar.top + pad - r.top);
+        else if (r.bottom > ar.bottom - pad) a.scrollTop += (r.bottom - (ar.bottom - pad));
+        return;
+      }
+    } catch (_) {}
+  }
+
   function place() {
     if (!root) return;
     if (i >= list.length) { end(); return; }
@@ -504,6 +529,7 @@
     observe(tgt);
     let moving = false;
     if (tgt) {
+      revealInScroller(tgt);
       // Scroll the target into view BEFORE measuring (only when not already fully on screen).
       const r = tgt.getBoundingClientRect();
       const vr = visibleRect(tgt);   // also catches a pill clipped inside a scrolling nav bar

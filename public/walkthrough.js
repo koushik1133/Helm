@@ -330,7 +330,24 @@
   }
   // rapid-click gate: allow() is true at most once per `ms`
   function makeGate(ms, now) { let last = -Infinity; return { allow() { const t = now(); if (t - last < ms) return false; last = t; return true; }, reset() { last = -Infinity; } }; }
-  const topDown = (hall) => { const R = Math.max(num(hall.w, 200), num(hall.h, 140)); return { pos: [0, +(R * 1.05).toFixed(2), 0.01], target: [0, 0, 0] }; };
+  // r20 (live QA): with the 3D canvas size + the floating bars known (view: {aspect, fovDeg, top, bottom, side} = the
+  // fractions of the canvas height / width they cover), the top-down camera frames the whole hall in the CLEAR band
+  // between the Move / Rotate / Scale bar and the hint bar, like the 2D plan - they no longer cover the stage or the
+  // labels along the edges. Without it: the old fixed height.
+  const topDown = (hall, view) => {
+    const HW = Math.max(10, num(hall && hall.w, 200)), HD = Math.max(10, num(hall && hall.h, 140));
+    if (!view) { const R = Math.max(HW, HD); return { pos: [0, +(R * 1.05).toFixed(2), 0.01], target: [0, 0, 0] }; }
+    const a = num(view.aspect, 16 / 9) > 0.2 ? num(view.aspect, 16 / 9) : 16 / 9, fov = num(view.fovDeg, OVERVIEW_FOV);
+    const cl = (v) => Math.min(0.4, Math.max(0, num(v, 0)));
+    const top = cl(view.top), bot = cl(view.bottom), side = cl(view.side), m = 1.06;   // 6% breathing room
+    const tanV = Math.tan(fov * Math.PI / 360);
+    // visible half-height at distance d = d*tanV; the hall's depth must fit (1 - top - bot) of it, its width (1 - 2*side) of the width
+    const d = Math.max(HD * m / (2 * tanV * (1 - top - bot)), HW * m / (2 * tanV * a * (1 - 2 * side)), 20);
+    // screen top = the far side (-z): move the camera so the hall's centre sits in the middle of the clear band
+    const shift = (top - bot) * d * tanV;   // world units (fraction of the half-height x the half-height)
+    const r2 = (v) => +v.toFixed(2);
+    return { pos: [0, r2(d), r2(-shift + 0.01)], target: [0, 0, r2(-shift)] };
+  };
 
   const API = { walkthroughStops, eveningLightPoints, walkKey, flightMs, ease, topDown, EYE, EYE_FOV, WALK_FOV, CLEAR, overviewView, clearSpot, isClear, stopShowsLabels,
     tweenView, createFlight, makeGate, travel, NAV_GAP_MS, DWELL_MS, entryCandidates };
@@ -490,8 +507,18 @@
     const h = H3(), hall = hallNow();
     const v0 = h.getView();
     if (kind === 'overview') fly(overviewView(hall, v0 && v0.aspect, OVERVIEW_FOV, 0.8));
-    else if (kind === 'top') fly(Object.assign({ fov: OVERVIEW_FOV }, topDown(hall)));
+    else if (kind === 'top') fly(Object.assign({ fov: OVERVIEW_FOV }, topDown(hall, topDownView(v0))));
     else if (kind === 'evening') { const on = h.setEvening(!h.isEvening()); bEve.setAttribute('aria-pressed', String(on)); bEve.classList.toggle('on', on); }
+  }
+  // r20: how much of the 3D canvas the floating Move / Rotate / Scale bar (top) and the hint bar (bottom) cover
+  function topDownView(v0) {
+    try {
+      const st = doc.getElementById('stage3d'); if (!st) return null;
+      const sr = st.getBoundingClientRect(); if (!(sr.width > 50 && sr.height > 50)) return null;
+      const cover = (id, edge) => { const e = doc.getElementById(id); if (!e || e.hidden) return 0; const r = e.getBoundingClientRect(); if (!(r.height > 0)) return 0;
+        return edge === 'top' ? Math.max(0, r.bottom - sr.top + 8) / sr.height : Math.max(0, sr.bottom - r.top + 8) / sr.height; };
+      return { aspect: (v0 && v0.aspect) || sr.width / sr.height, fovDeg: OVERVIEW_FOV, top: cover('tools3d', 'top'), bottom: cover('hint3d', 'bottom'), side: 0.02 };
+    } catch (_) { return null; }
   }
   let lastLabels = 'names', labelsOn = false;
   function toggleLabels() {

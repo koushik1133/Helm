@@ -98,7 +98,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=32" id="shellProto"></script>
+<script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -223,7 +223,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -390,12 +390,14 @@
   ["#cr_name","#cr_phone"].forEach(s=>$(s).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); if(!$("#cr_add").disabled) addCrew(); } }));
 
   const STATUS_LABEL={unassigned:"Unassigned",assigned:"Assigned",accepted:"Accepted",in_progress:"In progress",completed:"Completed",rejected:"Rejected",cancelled:"Cancelled"};
+  // r20: display only - a task saved as "unassigned" that already names an assignee reads "Assigned" (the row is never rewritten)
+  const shownStatus=(t)=>(t && t.status==="unassigned" && (String(t.assignee_name||"").trim() || t.crew_id)) ? "assigned" : (t && t.status);
   // one task row; `label` is the left chip (category in crew-mode, assignee in section-mode)
   function taskRow(t, byId, label){
-    const tn=esc(t.title||"task");
+    const tn=esc(t.title||"task"), stS=shownStatus(t);
     return `<div class="trow" data-id="${esc(t.id)}">
       <span class="cat">${esc(label||"")}</span><span class="tt">${esc(t.title)}</span>
-      <span class="st ${esc(t.status)}">${STATUS_LABEL[t.status]||esc(t.status)}</span>
+      <span class="st ${esc(stS)}">${STATUS_LABEL[stS]||esc(stS)}</span>
       ${t.assignee_kind==='outsourced'?`<span class="qc" style="background:var(--accent-soft);color:var(--accent)" title="Outsourced to ${esc(t.assignee_name||'vendor')}">🤝 vendor</span>`:''}
       ${t.is_special?'<span class="gate special" title="Special task — recurring reminder">🔔 special</span>':''}
       ${gateChip(t,byId)}
@@ -484,7 +486,8 @@
     if(t.verify_status==='pending')  return '<span class="qc pend">QC pending</span>';
     return '';
   }
-  const fmtTime=(iso)=>{ try{ return new Date(iso).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }catch{ return iso; } };
+  // r20: task times in the STUDIO's time zone (Asia/Kolkata for an Indian studio), never the viewer's browser zone
+  const fmtTime=(iso)=>{ try{ const o=BPStore.fmtStudioDate(iso,{fmt:{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}}); if(o) return o; }catch{} try{ return new Date(iso).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }catch{ return iso; } };
   /* ---- crew evidence (0038): what the worker sent with a reject / done ---- */
   function evidenceBtn(t){
     const rows=evidence.filter(e=>e.task_id===t.id); if(!rows.length) return '';
@@ -552,7 +555,13 @@
 
   /* ---- schedule: a real date-time picker + a list of tasks to depend on ---- */
   const pad2=(n)=>String(n).padStart(2,"0");
-  const toLocalInput=(iso)=>{ const d=new Date(iso); if(isNaN(d)) return ""; return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+  // r20: the picker shows + reads the STUDIO's wall clock (same zone as the task list), not the device's
+  const toLocalInput=(iso)=>{ const d=new Date(iso); if(isNaN(d)) return ""; let c=null; try{ c=BPStore.studioClock(d); }catch{}
+    if(c) return `${c.date}T${pad2(c.h)}:${pad2(c.mi)}`; return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+  const fromLocalInput=(v)=>{ const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(v||"")); if(!m) return new Date(NaN);
+    const want=Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5]); let t=want;
+    try{ for(let i=0;i<2;i++){ const c=BPStore.studioClock(new Date(t)); if(!c) break; t=t-(Date.UTC(c.y,c.mo-1,c.d,c.h,c.mi)-want); } }catch{ return new Date(v); }
+    return new Date(t); };
   let scTaskId=null; const scDirty=BPUI.trackDirty($("#schedForm"));
   // would making `depId` a prerequisite of `id` create a cycle of any length? (walk depId's chain; bounded)
   function wouldCycle(id, depId){
@@ -565,7 +574,7 @@
     scTaskId=id;
     $("#sc_task").textContent=t.title||"Task";
     $("#sc_when").value=t.planned_start?toLocalInput(t.planned_start):"";
-    $("#sc_when").min=toLocalInput(new Date()).slice(0,10)+"T00:00";   // datetime-local is DEVICE time (toLocalInput): its own day, not the studio's (B18)
+    $("#sc_when").min=toLocalInput(new Date()).slice(0,10)+"T00:00";   // r20: datetime-local holds the STUDIO's wall clock (toLocalInput/fromLocalInput)
     const others=tasks.filter(x=>x.id!==id && !wouldCycle(id,x.id));   // no self / any-length cycle prerequisites
     $("#sc_dep").innerHTML=`<option value="">— none —</option>`+others.map(x=>`<option value="${esc(x.id)}">${esc(x.category||"")} — ${esc(x.title||"task")}${x.assignee_name?" ("+esc(x.assignee_name)+")":""}</option>`).join("");
     $("#sc_dep").value=t.depends_on && others.some(x=>x.id===t.depends_on) ? t.depends_on : "";
@@ -576,11 +585,11 @@
   $("#schedModal").addEventListener("click",e=>{ if(e.target.id==="schedModal") closeSched(); });
   $("#schedForm").addEventListener("submit",e=>{ e.preventDefault();
     const when=$("#sc_when").value;
-    if(when && isNaN(Date.parse(when))){ $("#sc_err").textContent="Couldn't read that date/time."; $("#sc_err").hidden=false; return; }
+    if(when && isNaN(fromLocalInput(when).getTime())){ $("#sc_err").textContent="Couldn't read that date/time."; $("#sc_err").hidden=false; return; }
     // 1017: no start in the past (any time today is fine) - it accepted 2020
     const scOrig=(()=>{ const t0=tasks.find(x=>x.id===scTaskId); return t0&&t0.planned_start?toLocalInput(t0.planned_start):""; })();
-    if(when && when!==scOrig && (when.slice(0,10) < toLocalInput(new Date()).slice(0,10) || new Date(when).getTime() < Date.now()-5*60000)){ $("#sc_err").textContent="Pick a time from now on - a task can't be scheduled to start in the past."; $("#sc_err").hidden=false; $("#sc_when").focus(); return; }
-    const startISO = when ? new Date(when).toISOString() : null;
+    if(when && when!==scOrig && (when.slice(0,10) < toLocalInput(new Date()).slice(0,10) || fromLocalInput(when).getTime() < Date.now()-5*60000)){ $("#sc_err").textContent="Pick a time from now on - a task can't be scheduled to start in the past."; $("#sc_err").hidden=false; $("#sc_when").focus(); return; }
+    const startISO = when ? fromLocalInput(when).toISOString() : null;
     const depId=$("#sc_dep").value||null;
     if(depId){
       if(wouldCycle(scTaskId,depId)){ $("#sc_err").textContent="That would create a circular dependency (the chosen task already depends on this one, directly or through other tasks)."; $("#sc_err").hidden=false; return; }

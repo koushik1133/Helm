@@ -1,5 +1,7 @@
 /* trial-lock.js (0173): FREE TRIAL studios only. Paid studios: the server says "not a trial" and nothing here runs.
  * - adds html.helm-trial (trial-lock.css hides downloads, imports, photo renders, studio set-up, catalog "add" rows)
+ *   r20: the builder's "Render" view button is NOT blocked (its realistic 3D look is drawn in the browser);
+ *   photo-render-ui.js keeps the AI photo dialog closed in the trial and says it comes with a paid plan
  * - blocks print / file downloads / Excel import in the page and shows "Not available in the free trial"
  * - pages that are not part of the trial (onboarding = studio set-up, templates = checklist templates, 0203: audit =
  *   activity log, QA B23: reports = CSV / PDF exports) show a "Not available in the free trial" panel and send you back to the dashboard
@@ -20,7 +22,7 @@
   }
   function css() {
     if (document.getElementById("trialLockCss")) return;
-    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=7";
+    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=8";
     (document.head || document.documentElement).appendChild(l);
   }
   function note(msg) {
@@ -54,7 +56,7 @@
       HTMLAnchorElement.prototype.click = function () { if (this.hasAttribute("download")) { note(); return; } return click.apply(this, arguments); };
     } catch (e) {}
     document.addEventListener("click", function (e) {
-      var t = e.target && e.target.closest ? e.target.closest('a[download], [data-csv], [data-act="download"], [data-act="dl"], #exportBtn, #jsonBtn, #printBtn, #printPL, #q_pdf, #viewSeg [data-v="render"], #ch_add, #pl_add, #dc_add, #seedBtn, #firstSeed, #btn-export-gdpr') : null;
+      var t = e.target && e.target.closest ? e.target.closest('a[download], [data-csv], [data-act="download"], [data-act="dl"], #exportBtn, #jsonBtn, #printBtn, #printPL, #q_pdf, #ch_add, #pl_add, #dc_add, #seedBtn, #firstSeed, #btn-export-gdpr') : null;
       if (!t) return;
       e.preventDefault(); e.stopImmediatePropagation(); note();
     }, true);
@@ -70,6 +72,11 @@
       else if (which === "reports") cover("Reports & exports are not part of the free trial",
         "CSV downloads and printable PDF reports unlock on a paid plan. Your numbers are still on the dashboard, Business and Insights.");
       else cover();
+      // R20 (live QA): the dashboard says why you landed there (the cover above is only seen for a blink) -
+      // the one-shot "bp_flash" toast every page shows on load (store-api.js showFlash)
+      var why = { audit: "The audit log isn't available on the free trial.", templates: "Templates aren't available on the free trial.",
+        reports: "Reports and exports aren't available on the free trial.", onboarding: "Studio set-up isn't needed on the free trial." }[which];
+      try { if (why) sessionStorage.setItem("bp_flash", "i|" + why); } catch (e) {}
       // 0203: a direct link to a page that is not part of the trial goes back to the dashboard (the cover shows meanwhile)
       try { location.replace(home()); } catch (e) {}
     }

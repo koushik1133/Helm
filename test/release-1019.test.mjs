@@ -13,13 +13,14 @@ const tests = []; const t = (n, f) => tests.push([n, f]);
 
 const SHIPPED_1018_C = ['0206', '0207', '0208', '0236', '0237'];
 const REL = ['0210', '0211', '0212', '0213', '0220', '0222', '0223'];
+const AFTER_1019 = ['0238'];   // r20: ships in release 1020 (supabase/APPLY-RELEASE-1020.sql), after release/1019
 const man = read('supabase/migrations/MANIFEST');
 const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
 const after = nums.filter((n) => +n > 205);
 t('MANIFEST: each migration number once; after 0205 in numeric order; the 1019 set = everything not shipped in 1018-c', () => {
   assert.equal(new Set(nums).size, nums.length, 'duplicate migration number');
   assert.deepEqual([...after].sort(), after, 'numeric order after 0205');
-  assert.deepEqual(after.filter((n) => !SHIPPED_1018_C.includes(n)), REL);
+  assert.deepEqual(after.filter((n) => !SHIPPED_1018_C.includes(n) && !AFTER_1019.includes(n)), REL);
 });
 t('APPLY-RELEASE-1019.sql is current', () => {
   const r = spawnSync(process.execPath, ['scripts/gen-apply-release-1019.mjs', '--check'], { cwd: root, encoding: 'utf8' });

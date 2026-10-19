@@ -100,7 +100,7 @@
 <link rel="stylesheet" href="inventory-polish.css?v=3">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=32" id="shellProto"></script>
+<script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -263,11 +263,11 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=5"></script>
-<script src="tour.js?v=22"></script>
+<script src="tour.js?v=23"></script>
 <script src="checkout-shortage.js?v=4"></script>
 <script src="capacity-shortage.js?v=6"></script>
 <script>
@@ -489,6 +489,10 @@
   async function saveItemOnce(){
     const name=$("#i_name").value.trim(); if(!name){ $("#im_err").textContent="Name is required."; $("#im_err").hidden=false; return; }
     const V=BPStore.validate;
+    // r20: text the number box can't read ("5e") reads as "" - that is not a missing value, it is not a number
+    const badNum=(sel)=>{ const e=$(sel); return !!(e&&e.validity&&e.validity.badInput); };
+    if(badNum("#i_qty")){ $("#im_err").textContent="Total quantity: enter a valid number."; $("#im_err").hidden=false; return; }
+    if(badNum("#i_cost")){ $("#im_err").textContent="Unit cost: enter a valid number."; $("#im_err").hidden=false; return; }
     const qr=V.count($("#i_qty").value,{allowZero:true,field:"Total quantity"}); if(!qr.ok){ $("#im_err").textContent=qr.error; $("#im_err").hidden=false; return; }
     const cr=V.money($("#i_cost").value,{field:"Unit cost"}); if(!cr.ok){ $("#im_err").textContent=cr.error; $("#im_err").hidden=false; return; }
     const rec={ name, category:$("#i_cat").value.trim()||null, total_qty:qr.value, unit:$("#i_unit").value.trim()||null, notes:$("#i_notes").value.trim()||null, priority:$("#i_pri").value||"C", unit_cost:cr.value };

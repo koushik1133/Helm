@@ -25,7 +25,9 @@
   // same greeting as the server (event_site_send): first 60 characters of the client name, else "there"
   function clientName(q) {
     var c = q && q.client && typeof q.client === "object" ? q.client : {};
-    return String(c.name || "").replace(/\s+/g, " ").trim().slice(0, 60) || "there";
+    // r20: display only - a free-trial sample client is stored as "Demo · Ananya Reddy"; the greeting never shows the "Demo · " prefix
+    var n = String(c.name || "").replace(/\s+/g, " ").trim(), o = n.replace(/^Demo\s*[\u00b7\u2022]\s*/, "").trim();
+    return (o || n).slice(0, 60) || "there";
   }
   function message(q, link) { return "Hi " + clientName(q) + ", here is your invitation website: " + (link || ""); }
   function e164(raw, cc) {

@@ -197,7 +197,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="trial-terms.css?v=4">
-<script src="/shell-proto.js?v=32" id="shellProto"></script>
+<script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -327,12 +327,12 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=6"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script><script src="flow-resume.js?v=4" data-mount></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script><script src="flow-resume.js?v=4" data-mount></script>
 <script src="event-reminders.js?v=3"></script>
-<script src="tour.js?v=22"></script>
+<script src="tour.js?v=23"></script>
 <script src="getting-started.js?v=12"></script>
 <script src="onboarding-wizard.js?v=10"></script>
-<script src="trial-facts.js?v=4"></script>
+<script src="trial-facts.js?v=5"></script>
 <script src="trial-demo.js?v=14"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="dash-prompts.js?v=1"></script>
@@ -454,6 +454,8 @@
     // role cap - a Sales login with quotes switched off saw "Generate a quote" and got "not authorized".
     try { if ((canCreate || canDelete) && !(await BPStore.auth.canEditArea("quotes"))) { canCreate = false; canDelete = false; } } catch (e) { canCreate = false; canDelete = false; }
     $("#createBtn").hidden = !canCreate;                    // only create-capable roles can start new quotes
+    // r20 (0238): free trial "1 of 2 new quotes used" next to the button; off at 2 of 2 (paid studio: nothing)
+    if (canCreate && window.BPUI && BPUI.capGate) BPUI.capGate([$("#createBtn")], "quotes", "new quotes").catch(() => {});
     if (listRes.status === "rejected") {
       const err = listRes.reason;
       const box = BPUI.loadError($("#elist"), err, load, { what: "your quotes" });
@@ -719,8 +721,9 @@
     const btn = $("#createBtn");
     if (btn.disabled) return;
     // r19 (owner): "New quote" opens the quote flow directly - no name / type dialog, no in-progress prompt
-    // (the top-bar "New quote" and /dashboard#hb-new also land here). Quotes are not capped in the free
-    // trial (0211); startBlank reuses my untouched blank quote, so repeated clicks never pile up empty rows.
+    // (the top-bar "New quote" and /dashboard#hb-new also land here). startBlank reuses my untouched blank
+    // quote, so repeated clicks never pile up empty rows. r20 (0238): a free trial makes at most 2 new quotes;
+    // a refused 3rd one says so with a "Choose a plan" link.
     try {
       await BPUI.guard(btn, async () => {
         const code = nextCode || BPStore.quotes.nextCode(summaries);   // a guess — the server assigns the real code (M-04)
@@ -733,7 +736,13 @@
         if (q.code && q.code !== q.title) { try { await BPStore.quotes.updateMeta(q.id, { title: q.code }); } catch (e) {} }
         location.href = "flow.html?quote=" + encodeURIComponent(q.id);
       });
-    } catch (err) { BPUI.toast(BPUI.friendlyError(err, { action: "start a quote" }), { type: "err" }); }
+    } catch (err) {
+      if (BPUI.capToast && BPUI.capToast(err, "new quotes", "You can still open and edit your quotes and the sample events.")) {
+        if (BPUI.capGate) BPUI.capGate([btn], "quotes", "new quotes").catch(() => {});
+        return;
+      }
+      BPUI.toast(BPUI.friendlyError(err, { action: "start a quote" }), { type: "err" });
+    }
   });
   $("#loginForm").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -788,13 +797,13 @@
     {title:"Welcome to Helm 👋", get desc(){ return TOUR_TRIAL() ? TOUR_WELCOME.trial : TOUR_WELCOME.paid; }},
     // 1 · sidebar, top to bottom
     {sel:'[data-tour="pin"]', side:"right", title:"Keep the sidebar open", desc:"The sidebar tucks away to give you room. Click the pin to keep it open all the time; click it again to let it tuck away."},
-    {sel:[RAIL+'[data-nav="dashboard"]','#hbTabs [data-key="dashboard"]','[data-tour="m-home"]'], side:"right", title:"Dashboard", desc:"Home base: today's events, what needs attention and your key numbers. Click the Helm logo or Dashboard to come back here from anywhere."},
+    {sel:[RAIL+'[data-nav="dashboard"]','#hbTabs [data-key="dashboard"]','[data-tour="m-home"]'], side:"right", title:"Dashboard", desc:"Home base: today's events, what needs attention and your key numbers. Click the Helm logo or Dashboard to come back here from anywhere, or press H on your keyboard (when you are not typing)."},
     {sel:[RAIL+'[data-nav="quotes"]','#hbTabs [data-key="quotes"]'], side:"right", title:"Quotes", desc:"Every event you price lives here, from first quote to confirmed booking. Open one to plan the floor, the menu, payments and the day itself."},
     {sel:[RAIL+'[data-nav="leads"]','#hbTabs [data-key="leads"]'], side:"right", title:"Leads", desc:"New enquiries on a simple board. Move a lead along as it warms up and turn it into a quote in one click."},
     {sel:RAIL+'[data-nav="calendar"]', side:"right", title:"Calendar", desc:"Everything that's booked, by date, so two events never clash."},
     {sel:[RAIL+'[data-nav="chat"]','#hbTabs [data-key="chat"]'], side:"right", title:"Chat", desc:"Your team's message room, inside Helm."},
     {sel:['[data-tour="nav-manage"]','[data-tour="tabs-more"]'], side:"right", title:"Manage", desc:"Your people and things: clients, staff, inventory and vendors. (On a phone these sit in the “More” menu.)"},
-    {sel:['[data-tour="nav-admin"]','[data-tour="tabs-more"]'], side:"right", title:"Admin & Control Center", desc:"Business shows your money, Reports and Insights your numbers. Control Center holds your default prices, your team and what each role can see."},
+    {sel:['[data-tour="nav-admin"]','[data-tour="tabs-more"]'], side:"right", title:"Admin & Control Center", desc:"Business shows your money and Insights your numbers. Control Center holds your default prices, your team and what each role can see."},
     {sel:['[data-tour="theme"]','[data-tour="tabs-more"]'], side:"right", title:"Colour theme", desc:"Pick a colour theme for the whole app (Emerald is the default). Your choice is remembered on this device. (On a phone it's inside the “More” menu.)"},
     {sel:['[data-tour="account"]','[data-tour="m-me"]','[data-tour="tabs-more"]'], side:"right", title:"Your profile menu", desc:"Your account, settings, the user manual and sign out live here."},
     // 2 · top bar, left to right
@@ -810,7 +819,7 @@
     {sel:'[data-tour="kpis"]', title:"Key numbers", desc:"Your headline counts at a glance. The cards below cover your month, what needs attention, revenue and the pipeline."},
     // 4 · checklist (not in a free trial: its studio is ready-made), then wrap-up
     {sel:['[data-tour="setup"]','[data-tour="checklist"]','#hdGetSet'], trial:false, title:"Getting started checklist", desc:"A short list of first steps, like adding your logo and sending your first quote. Click it to see what's left; it ticks itself off as you go."},
-    {title:"You're all set 🎉", desc:"Want this tour again? Click “Take a guided tour” in the sidebar (or the “More” menu on a phone) any time."},
+    {title:"You're all set 🎉", desc:"Want this tour again? Click the ? button in the top bar, or “Take a guided tour” in the sidebar (the “More” menu on a phone), any time."},
   ];
   // The spotlight engine lives in tour.js (shared with every page): it re-glues the
   // ring on scroll/resize/orientation/layout changes, flips + clamps the tip inside

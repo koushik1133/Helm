@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/event-polish.css?v=4">
+<link rel="stylesheet" href="/event-polish.css?v=5">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -97,7 +97,7 @@
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=32" id="shellProto"></script>
+<script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -199,13 +199,13 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
 <script src="flow-resume.js?v=4"></script>
 <script src="event-reminders.js?v=3"></script>
-<script src="tour.js?v=22"></script>
+<script src="tour.js?v=23"></script>
 <script src="booklet.js?v=25"></script>
 <script src="email-send.js?v=5"></script><script src="share-checklist.js?v=13"></script>
-<script src="invite-site-share.js?v=8"></script><script src="booklet-share.js?v=15"></script>
+<script src="invite-site-share.js?v=9"></script><script src="booklet-share.js?v=15"></script>
 <script src="pkg-review.js?v=6"></script>
 <script src="event-group-picker.js?v=4"></script><script src="capacity-shortage.js?v=6"></script><script src="approval-watch.js?v=2"></script>
 <script>
@@ -231,6 +231,18 @@
     {k:"closed",label:"Closed",hint:"Feedback, P&L and archive.",mods:["closure"]},
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
+  // r20: a PASSED stage is ticked only when it actually has something recorded. Discovery and Proposal are
+  // often skipped on the way to a quote - they then show as "skipped" (no tick) instead of a false ✓.
+  // Unknown (summary not read / no access) keeps the old tick. Display only - nothing is written.
+  let discLoaded=false, propLoaded=false;
+  const filled=(v)=> v!=null && String(v).trim()!=="" ;
+  function stageMet(k){
+    if(k==="discovery"){ if(!discLoaded) return true; const s=discSummary||{}, d=s.disc||{};
+      return (+s.total>0) || ["meet_date","mode","location","attendees","notes"].some(f=>filled(d[f])); }
+    if(k==="proposal"){ if(!propLoaded) return true; const p=propSummary||{};
+      return !!p.published || ["concept","theme"].some(f=>filled(p[f])) || (Array.isArray(p.scope)&&p.scope.length>0) || (Array.isArray(p.images)&&p.images.length>0); }
+    return true;
+  }
   // The stored lifecycle stage can lag behind the quote: a CLIENT-approved (or paid) quote is at least
   // "Confirmed", and once the client's advance is recorded the event is "Booked". Display only — nothing
   // is written. qts-1018: a quote the studio only LOCKED (status confirmed, link sent, client not yet
@@ -319,8 +331,8 @@
       S(async()=>{ const s=await BPStore.staff.forEvent(id); staffSummary={ people:s.length, tasks:s.reduce((a,x)=>a+(x.tasks||0),0) }; }),
       S(async()=>{ const b=await BPStore.bookings.list(id); vendorSummary={ total:b.length, confirmed:b.filter(x=>x.status && x.status!=='enquiry' && x.status!=='cancelled').length }; }),
       S(async()=>{ const [d,rq]=await Promise.all([BPStore.discovery.get(id), BPStore.discovery.listReqs(id)]);
-        discSummary={ disc:d, total:rq.length, must:rq.filter(r=>r.priority==='mandatory').length }; }),
-      S(async()=>{ propSummary=await BPStore.proposal.get(id); }),
+        discSummary={ disc:d, total:rq.length, must:rq.filter(r=>r.priority==='mandatory').length }; discLoaded=true; }),
+      S(async()=>{ propSummary=await BPStore.proposal.get(id); propLoaded=true; }),
       S(async()=>{ const rs=await BPStore.inventory.reservations(id); const active=rs.filter(r=>r.status==='reserved'||r.status==='allocated');
         invSummary={ total:rs.length, active:active.length }; }),
       S(async()=>{ const ck=await BPStore.resources.check(id);
@@ -855,11 +867,12 @@
     const keep=st.scrollLeft, tk=cur+"|"+vis, first=!st.dataset.tk;
     st.replaceChildren(...STAGES.map((s,i)=>{
       const viewing=i===vis && i!==cur;
-      const tip=i===cur?("Current stage - "+s.label+(vis!==cur?" (open it)":"")):viewing?("Viewing "+s.label+" - the event is at "+STAGES[cur].label):("Open "+s.label);
-      return el("button",{type:"button",class:"step"+(i<cur?" done":i===cur?" active":"")+(viewing?" viewing":""),"data-k":s.k,
+      const done=i<cur && stageMet(s.k), skipped=i<cur && !done;   // r20: no tick for an empty Discovery / Proposal
+      const tip=i===cur?("Current stage - "+s.label+(vis!==cur?" (open it)":"")):viewing?("Viewing "+s.label+" - the event is at "+STAGES[cur].label):skipped?("Skipped - nothing recorded for "+s.label+" yet (open it)"):("Open "+s.label);
+      return el("button",{type:"button",class:"step"+(done?" done":skipped?" skipped":i===cur?" active":"")+(viewing?" viewing":""),"data-k":s.k,
           "aria-current":i===cur?"step":null,"aria-pressed":i===vis?"true":"false",title:tip,
           onclick:(e)=>{ if(e.detail>1) return; viewStage(s.k); }},
-        [el("span",{class:"n",text:i<cur?"✓":String(i+1)}), stageLabel(s), viewing?el("span",{class:"vtag",text:"Viewing"}):null]);
+        [el("span",{class:"n",text:done?"✓":String(i+1)}), stageLabel(s), skipped?el("span",{class:"vtag sk",text:"Skipped"}):null, viewing?el("span",{class:"vtag",text:"Viewing"}):null]);
     }));
     st.scrollLeft=keep;   // re-painting resets the scroll: restore it, then glide to the stage that matters
     if(first || st.dataset.tk!==tk){ st.dataset.tk=tk; centerStrip(st, !first); } else stripEdges(st);

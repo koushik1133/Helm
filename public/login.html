@@ -373,10 +373,10 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script>
-<script src="auth-ui.js?v=42"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
+<script src="auth-ui.js?v=43"></script>
 <script src="/auth-visual.js?v=1"></script>
-<script src="/trial-facts.js?v=4"></script>
+<script src="/trial-facts.js?v=5"></script>
 <script src="/trial-signup.js?v=12"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -773,30 +773,58 @@
       const msg=String((e&&e.message)||e||"").toLowerCase();
       const terminal=/invalid invitation|invitation is |has expired|different email|already|no longer/.test(msg) && !/confirm your e-?mail/.test(msg);
       if(terminal) clearInvite();
+      // r20: mark it as the INVITATION's answer (not a sign-in failure) - every caller shows showInviteError
+      if(e && typeof e==="object"){ try{ e.inviteRefusal=true; }catch(_){} }
       if(fromLink) await dropLinkSession();
       throw e;
     }
     clearInvite();
     if(fromLink && res && res.already===true){
       await dropLinkSession();
-      throw new Error("This invitation was already accepted. Sign in with your own e-mail and password.");
+      const x=new Error("This invitation was already accepted. Sign in with your own e-mail and password."); x.inviteRefusal=true; x.inviteMsg=x.message;
+      throw x;
     }
   }
   // The invite belongs to someone else's e-mail (the browser is signed in as another account,
   // e.g. the owner opening a link they made for a teammate). That's correct - an invite only
   // works for its own e-mail - so say so plainly and offer "Sign out & accept" (keeps the token).
   function inviteWrongAccount(err){ const m=String((err&&err.message)||"").toLowerCase(); return /different email|operator account can.t join/.test(m); }
+  // r20 (owner: "I logged in ... but couldn't accept"): the accept RPC's refusals are short lowercase
+  // messages ("invitation has expired", "you already belong to an organization"), which friendlyError
+  // turned into "You don't have permission to sign you in." Say what happened and what to do instead.
+  // Words only - every check stays on the server (accept_invitation is unchanged).
+  function inviteRefusalText(err){
+    const raw=String((err&&err.message)||""), m=raw.toLowerCase(), who=INVITE_ORG||"the studio";
+    if(err&&err.inviteMsg) return err.inviteMsg;
+    if(err&&err.hint==="seat_limit") return who+"'s free trial already has all its seats in use (the admin + 2 people). Ask the studio admin to free a seat or choose a plan, then open this invitation again.";
+    if(/invitation is revoked/.test(m)) return "This invitation was cancelled — ask "+who+" if you should still join.";
+    if(/invitation is accepted/.test(m)) return "This invitation was already used. If you joined with it, just sign in with that e-mail — otherwise ask "+who+" to send you a new invitation.";
+    if(/invitation is expired|invitation has expired/.test(m)) return "This invitation has expired — ask "+who+" to send you a new one.";
+    if(/invalid invitation/.test(m)) return "This invitation link isn't valid any more — ask "+who+" to send you a new one.";
+    if(/must be signed in/.test(m)) return "Sign in (or create your account) with the invited e-mail to accept the invitation.";
+    return BPUI.friendlyError(err,{action:"accept the invitation"});
+  }
+  function inviteBtn(id, label, onClick){
+    const b=document.createElement("button"); b.type="button"; b.className="linkbtn"; b.id=id; b.textContent=label;
+    b.addEventListener("click", onClick); return b;
+  }
   function showInviteError(err, tok){
     showView("#loginForm");
+    const box=$("#err"), u=BPStore.auth.user()||{};
     // 0205: one login = one studio. A login that is already in another studio cannot join this one.
     if(/already belong to an organi[sz]ation/i.test(String((err&&err.message)||""))){
-      showErr($("#err"),"This e-mail already belongs to another studio on Helm, and a login can be in one studio at a time. Ask that studio's admin to remove you first — or ask "+(INVITE_ORG||"this studio")+" to invite a different e-mail."); return; }
-    if(!inviteWrongAccount(err)){ showErr($("#err"),BPUI.friendlyError(err,{action:"accept the invitation"})); return; }
-    const u=BPStore.auth.user()||{}, box=$("#err");
+      box.textContent="";
+      box.appendChild(document.createTextNode("This e-mail"+(u.email?" ("+u.email+")":"")+" already belongs to another studio on Helm, and a login can be in one studio at a time. Ask that studio's admin to remove you first — or ask "+(INVITE_ORG||"this studio")+" to invite a different e-mail. "));
+      box.appendChild(inviteBtn("inviteMyStudio","Go to my studio", ()=>{ routeSignedIn().catch(()=>{ location.replace("/dashboard.html"); }); }));
+      box.appendChild(document.createTextNode(" · "));
+      box.appendChild(inviteBtn("inviteSignOut","Sign out", async ()=>{ try{ await BPStore.auth.signOut(); }catch(e){} location.replace("login.html"); }));
+      box.hidden=false; return; }
+    if(!inviteWrongAccount(err)){ showErr(box,inviteRefusalText(err)); return; }
+    const want=(INV&&INV.valid&&INV.email)?String(INV.email):"";
     box.textContent="";
-    box.appendChild(document.createTextNode((/operator/i.test(String((err&&err.message)||""))?"Helm operator accounts can't join a studio. ":"This invitation is for a different e-mail address. ")+"You're signed in as "+(u.email||"another account")+". Sign out, then sign in (or create the account) with the e-mail the invitation was sent to. "));
-    const b=document.createElement("button"); b.type="button"; b.className="linkbtn"; b.id="inviteSwitch"; b.textContent="Sign out & accept invite";
-    b.addEventListener("click", async ()=>{ try{ await BPStore.auth.signOut(); }catch(e){}
+    box.appendChild(document.createTextNode((/operator/i.test(String((err&&err.message)||""))?"Helm operator accounts can't join a studio. ":"This invitation is for a different e-mail address"+(want?" ("+want+")":"")+". ")+"You're signed in as "+(u.email||"another account")+". Sign out, then sign in (or create the account) with the e-mail the invitation was sent to. "));
+    // label: "Sign out & accept invite" (kept), with the invited address when the page knows it
+    const b=inviteBtn("inviteSwitch", want?"Sign out & accept invite as "+want:"Sign out & accept invite", async ()=>{ try{ await BPStore.auth.signOut(); }catch(e){}
       location.replace(tok?"login.html?invite="+encodeURIComponent(tok):"login.html"); });
     box.appendChild(b); box.hidden=false;
   }
@@ -891,7 +919,7 @@
   function showSignInForInvite(em){
     lockInviteEmail(em);
     showView("#loginForm"); setMode("signin"); ensureCap();
-    const ok=$("#okmsg"); ok.textContent="This e-mail already has a Helm account — sign in to accept the invitation. Forgot your password? Use “Forgot password?” below."; ok.hidden=false;
+    const ok=$("#okmsg"); ok.textContent="This e-mail already has a Helm account — sign in to accept the invitation. Forgot your password? Use “Forgot password?” below. Signed up with Google? Use “Continue with Google”."; ok.hidden=false;
     setTimeout(()=>$("#pw").focus(),60);
   }
   // signed out: pick the way in (signed in: resumeSession accepts first, then "Set your password")
@@ -1200,7 +1228,16 @@
       }catch(err){
         showView("#loginForm");
         const m=(err&&err.message)||"";
-        if(joining && inviteWrongAccount(err)){ showInviteError(err, inviteTok0); return; }
+        if(joining && (inviteWrongAccount(err) || (err && err.inviteRefusal))){ showInviteError(err, inviteTok0); return; }
+        // r20: signing in to the invited e-mail failed, and the invitation lookup already said why (only the token
+        // holder sees it - 0205 peek): no account yet -> create it here; a login without a password -> new link
+        if(joining && mode==="signin" && err && err.code==="invalid_credentials" && INV && INV.valid && INV.email
+           && String(email).trim().toLowerCase()===String(INV.email).trim().toLowerCase()){
+          if(INV.account==="new"){ setMode("signup"); lockInviteEmail(INV.email);
+            showErr($("#err"),"There's no Helm account for "+INV.email+" yet — create it here to join "+(INVITE_ORG||"the studio")+" (choose a password below)."); return; }
+          if(INV.account==="needs_link"||INV.account==="unconfirmed"){ showInviteLink(INV.email, INV.account==="unconfirmed");
+            showErr($("#ilErr"),"Signing in can't work yet for "+INV.email+" — it has no password. Use the button below to get a new link."); return; }
+        }
         if(err&&err.code==="gate_verify"){ showErr($("#err"),m); return; }
         if(/captcha/i.test(m)){ showErr($("#err"),"The security check failed or expired — please try again."); return; }
         // credential / policy messages from Supabase Auth are written for users; everything else goes through friendlyError

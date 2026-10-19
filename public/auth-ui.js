@@ -26,7 +26,9 @@
   }
   function fmt(ts) {
     if (!ts) return "—";
-    try { return new Date(ts).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }); } catch (e) { return String(ts); }
+    // R20 (live QA): sign-in activity in the studio's date style + timezone ("18 Oct 2026, 10:30 am"), not the browser's US style
+    try { var S = window.BPStore; if (S && S.fmtStudioDate) { var o = S.fmtStudioDate(ts, { style: "long", time: true }); if (o) return o; } } catch (e) {}
+    try { return new Date(ts).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }); } catch (e) { return String(ts); }
   }
   function uaLabel(ua) {
     ua = String(ua || "");
@@ -107,6 +109,9 @@
       "@media (prefers-reduced-motion:reduce){.hau-note{animation:none}}",
       "@media (max-width:600px){.hau-notes{left:16px;right:16px;bottom:72px;width:auto}}",
       ".hau-notes[hidden]{display:none}",
+      /* R20: a page slot ([data-hau-notes-slot], the dashboard) holds "inline" notices in the page flow - never over the KPI tiles */
+      ".hau-notes.is-inline{position:static;right:auto;bottom:auto;z-index:auto;width:auto;flex-direction:row;flex-wrap:wrap;pointer-events:auto}",
+      ".hau-notes.is-inline .hau-note{flex:1 1 320px;min-width:0;box-shadow:0 1px 2px rgba(20,27,46,.06)}",
       /* profile form (Account panel + /profile-setup) — page tokens first, BPUI tokens as fallback */
       ".hpf{--hpf-ink:var(--ink,var(--bpui-ink,#141b2e));--hpf-ink2:var(--ink-2,var(--bpui-ink-2,#4a5673));--hpf-ink3:var(--ink-3,#6b6577);--hpf-line:var(--line-strong,var(--bpui-line,#86808f));--hpf-line2:var(--line,#e8e3db);--hpf-bg:var(--panel,var(--bpui-bg,#fff));--hpf-bg2:var(--panel-2,#faf8f5);--hpf-acc:var(--accent,var(--bpui-accent,#047857));--hpf-soft:var(--accent-soft,var(--bpui-soft,#f4f2fb));--hpf-bad:var(--bad,var(--bpui-danger,#b91c1c));--hpf-ok:var(--safe-text,#0f7a43);color:var(--hpf-ink);font-size:15px}",
       ".hpf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}",
@@ -564,7 +569,7 @@
     ]).then(function (r) { return r[0] && r[1]; });
     return libsP;
   }
-  var FORM_LIB_V = "1", PHONE_LIB_V = "7";
+  var FORM_LIB_V = "2", PHONE_LIB_V = "7";
   function pathIcon(path, cls) {
     var ns = "http://www.w3.org/2000/svg", s = doc.createElementNS(ns, "svg");
     s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", "16"); s.setAttribute("height", "16"); s.setAttribute("aria-hidden", "true"); if (cls) s.setAttribute("class", cls);
@@ -1134,7 +1139,11 @@
     info: [["circle", { cx: "12", cy: "12", r: "8.5" }], ["path", { d: "M12 11v5M12 8h.01" }]],
     x: [["path", { d: "M6 6l12 12M18 6L6 18" }]]
   };
-  var notes = []; var noteHost = null; var NOTE_MAX = 2;
+  var notes = []; var noteHost = null; var inlineHost = null; var NOTE_MAX = 2;
+  // R20 (live QA): the floating "Complete your profile" card covered the bottom of the dashboard's NEW LEADS tile at
+  // 1440x900. A notice shown with inline:true sits IN the page's notice slot ([data-hau-notes-slot]) when the page has one,
+  // so it takes its own room; everywhere else (and every other notice) it floats as before.
+  function noteSlot() { try { return doc.querySelector("[data-hau-notes-slot]"); } catch (e) { return null; } }
   function svgIcon(name) {
     var ns = "http://www.w3.org/2000/svg", s = doc.createElementNS(ns, "svg");
     s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor");
@@ -1147,10 +1156,17 @@
   function layoutNotes() {
     notes.sort(function (a, b) { return a.priority - b.priority; });
     var max = NOTE_MAX; try { if (global.matchMedia && global.matchMedia("(max-width:600px)").matches) max = 1; } catch (e) {}
-    notes.forEach(function (n, i) { n.node.hidden = i >= max; if (noteHost) noteHost.appendChild(n.node); });
+    var slot = noteSlot(), fl = 0, inl = 0;
+    if (slot && !inlineHost) inlineHost = el("div", { class: "hau-notes is-inline", "aria-label": "Notices" });
+    if (slot && inlineHost && inlineHost.parentNode !== slot) slot.appendChild(inlineHost);
+    notes.forEach(function (n) {
+      if (n.inline && slot && inlineHost) { n.node.hidden = false; inlineHost.appendChild(n.node); inl++; return; }
+      n.node.hidden = fl >= max; fl++; if (noteHost) noteHost.appendChild(n.node);
+    });
+    if (slot) slot.hidden = !inl;
     // mobile: reserve room under the page so content scrolls clear of the floating notice
     try {
-      var pad = (max === 1 && notes.length && noteHost) ? Math.ceil(noteHost.getBoundingClientRect().height) + 16 : 0;
+      var pad = (max === 1 && fl && noteHost) ? Math.ceil(noteHost.getBoundingClientRect().height) + 16 : 0;
       doc.body.classList.toggle("hau-notes-pad", pad > 0);
       if (pad) doc.body.style.setProperty("--hau-notes-pad", pad + "px"); else doc.body.style.removeProperty("--hau-notes-pad");
     } catch (e) {}
@@ -1167,6 +1183,8 @@
   }
   function syncNotesForModal() {
     modalRaf = 0;
+    // R20: the page's notice slot appeared after an inline notice was shown (the dashboard draws late) -> move it in
+    if (notes.some(function (n) { return n.inline; })) { var sl = noteSlot(); if (sl && (!inlineHost || inlineHost.parentNode !== sl)) layoutNotes(); }
     var hide = !!(notes.length && (modalOpen() || tourActive()));   // one prompt at a time: notices wait for the tour too
     if (noteHost && noteHost.hidden !== hide) noteHost.hidden = hide;   // only on change (the observer sees our own write)
   }
@@ -1203,7 +1221,7 @@
       card.appendChild(x);
     }
     card.addEventListener("keydown", function (e) { if (e.key === "Escape" && o.onDismiss) { o.onDismiss(); hideNote(o.id); } });
-    notes.push({ id: o.id, priority: o.priority || 9, node: card });
+    notes.push({ id: o.id, priority: o.priority || 9, node: card, inline: o.inline === true });
     layoutNotes();
     watchModals(); syncNotesForModal();
     // non-blocking notices fold away by themselves (not while the pointer / focus is on them)
@@ -1245,7 +1263,7 @@
       if (st.profile.gateDecision(s, page, st.auth.cachedRole ? st.auth.cachedRole() : null) !== "nudge") return;
       if (st.profile.nudgeSnoozed() || pBanner || !doc.body) return;
       css();
-      pBanner = showNote({ id: "hauProfileNudge", priority: 3, icon: "user", title: "Complete your profile",
+      pBanner = showNote({ id: "hauProfileNudge", priority: 3, inline: true, icon: "user", title: "Complete your profile",
         body: "Add your mobile number so your team can reach you and assign you work.",
         primary: { label: "Complete now", onClick: function () { openAccount({ focus: "profile" }); } },
         secondary: { label: "Later", onClick: function () { st.profile.snoozeNudge(7); pBanner = null; } },

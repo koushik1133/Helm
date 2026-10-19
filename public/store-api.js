@@ -1,15 +1,15 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=32"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=33"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
    (shell-proto.js, trial-early.js); this is the fallback for every other page. */
 (function () { try { if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
-  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=7"; document.head.appendChild(l); } } } catch (e) {} })();
+  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=8"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
-  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=7"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=8"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -1162,7 +1162,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "42";
+  const AUTH_UI_VERSION = "43";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -2401,6 +2401,16 @@ window.HelmUrl = HelmUrl;
   async function sbCount(query) { const { count, error } = await query; if (error) throw error; return count || 0; }
   // a column the query names doesn't exist on this database yet (older schema)
   const isMissingColumn = (e) => { const c = (e && e.code) || ""; return c === "42703" || c === "PGRST204" || /column .* does not exist/i.test(String((e && e.message) || "")); };
+  // R20 (live QA): the MMDDYYYY stamp of a quote-code guess. With no date it is the STUDIO's today (the server stamps
+  // codes with the studio's local date) - the browser's date gave 10182026-01 while the real code was 10192026-01.
+  // An explicit Date keeps its own calendar day.
+  const quoteCodeStamp = (date) => {
+    if (!date) {
+      try { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(BPStore.todayLocal ? BPStore.todayLocal() : "")); if (m) return m[2] + m[3] + m[1]; } catch (e) {}
+    }
+    const d = date || new Date();
+    return String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + d.getFullYear();
+  };
   const localISODate = (d) => { const x = d || new Date(); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
 
   /* ---------------- quotes + versions ---------------- */
@@ -2416,12 +2426,16 @@ window.HelmUrl = HelmUrl;
     "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency," +
     "pricing_guests:pricing->guests,client_guests:client->>guests";   // B11: each quote's OWN currency; cal-events-1018: guest count (a number, no contact) for the calendar
   // A list VIEW (page) needs even less: the client's name + phone, not the whole client JSON.
+  // r20: + venue / address / city and the guest count, so the automatic event name (TYPE_CITY_GUESTS_DATE)
+  // matches the event page - the list showed "WED_03DEC26" where the event page said "WED_HYD_200_03DEC26".
   const QUOTE_PAGE_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,current_version,event_date,event_time," +
     "updated_at,created_at,confirmed_at,client_name:client->>name,client_phone:client->>phone,total:pricing->total," +
     "pricing_client_name:pricing->client->>name,pricing_client_phone:pricing->client->>phone," +
-    "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency";
+    "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency," +
+    "client_venue:client->>venue,client_address:client->>address,client_city:client->>city,pricing_guests:pricing->guests,client_guests:client->>guests";
   const nameOnly = (n, p, x) => { const o = {}; if (n != null) o.name = n; if (p != null) o.phone = p;
-    if (x) { if (x.client_venue != null) o.venue = x.client_venue; if (x.client_address != null) o.address = x.client_address; if (x.client_city != null) o.city = x.client_city; }
+    if (x) { if (x.client_venue != null) o.venue = x.client_venue; if (x.client_address != null) o.address = x.client_address; if (x.client_city != null) o.city = x.client_city;
+      if (x.client_guests != null && x.client_guests !== "") o.guests = x.client_guests; }   // r20: same guest count the event page's name uses
     return o; };
   // cal-events-1018: the first whole, positive guest count of the candidates (pricing.guests, then client.guests)
   const listGuests = (...v) => { for (const x of v) { const n = Number(x); if (x != null && x !== "" && Number.isFinite(n) && n > 0) return Math.round(n); } return null; };
@@ -2847,9 +2861,8 @@ window.HelmUrl = HelmUrl;
     eventTypes: () => qt().eventTypes(),
     // the next MMDDYYYY-NN guess for a date, from just that day's codes (not every quote)
     async nextCodeFor(date) {
-      const d = date || new Date();
-      const stamp = String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + d.getFullYear();
-      return quotes.nextCode(await qt().codesFor(stamp), d);
+      const stamp = quoteCodeStamp(date);
+      return quotes.nextCode(await qt().codesFor(stamp), date);
     },
     // a few quotes by id, light columns (lookups for a page of something else)
     async byIds(ids) {
@@ -2952,8 +2965,7 @@ window.HelmUrl = HelmUrl;
     remove: (id) => qt().remove(id),
     // next MMDDYYYY-NN given a list of quote summaries (uses .code)
     nextCode(list, date) {
-      const d = date || new Date();
-      const stamp = String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + d.getFullYear();
+      const stamp = quoteCodeStamp(date);
       const re = new RegExp("^" + stamp + "-(\\d+)"); let max = 0;
       (list || []).forEach((s) => { const m = re.exec(s.code || ""); if (m) max = Math.max(max, parseInt(m[1], 10)); });
       return stamp + "-" + String(max + 1).padStart(2, "0");
@@ -5439,7 +5451,7 @@ window.HelmUrl = HelmUrl;
     try { const s = sessionStorage.getItem("helm_local_uid"); if (s) return s; } catch (e) {}
     try { return localStorage.getItem("helm_local_uid") || "u-you"; } catch (e) { return "u-you"; }
   }
-  let chatBackendMissing = false, chatBcastEnsured = false;   // bell: skip when chat SQL absent; ensure broadcast once
+  let chatBackendMissing = false, chatBcastEnsured = false, chatBcastInflight = null;   // bell: skip when chat SQL absent; ensure broadcast once
   function chatMultiUser() { try { return !!sessionStorage.getItem("helm_local_uid"); } catch (e) { return false; } }
   const chatReadLs = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch (e) { return []; } };
   const chatWriteLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
@@ -6023,7 +6035,18 @@ window.HelmUrl = HelmUrl;
         const bk = "bp_chat_bcast:" + ((currentUser && currentUser.id) || "");
         let done = false; try { done = sessionStorage.getItem(bk) === "1"; } catch (e) {}
         if (done) chatBcastEnsured = true;
-        else { try { await rpc("chat_ensure_broadcast"); chatBcastEnsured = true; try { sessionStorage.setItem(bk, "1"); } catch (e) {} } catch (e) {} }
+        else {
+          // r20: single-flight - the Chat page can ask for conversations twice at once on first visit;
+          // both used to fire the ensure RPC and the loser hit the one-broadcast-per-studio unique index
+          // (409 / 23505). Share one in-flight call, and treat 409/23505 as "already exists" (it does).
+          if (!chatBcastInflight) chatBcastInflight = (async () => {
+            try { await rpc("chat_ensure_broadcast"); chatBcastEnsured = true; try { sessionStorage.setItem(bk, "1"); } catch (e) {} }
+            catch (e) { const c = String((e && e.code) || ""), st = Number(e && e.status);
+              if (c === "23505" || c === "409" || st === 409) { chatBcastEnsured = true; try { sessionStorage.setItem(bk, "1"); } catch (_) {} } }
+            finally { chatBcastInflight = null; }
+          })();
+          try { await chatBcastInflight; } catch (e) {}
+        }
       }
       const { data, error } = await supa.from("chat_conversations").select("*").order("last_message_at", { ascending: false });
       if (error) throw error;
@@ -7142,13 +7165,22 @@ window.HelmUrl = HelmUrl;
         milestones.list(quoteId).catch(() => []),
         runsheet.list(quoteId).catch(() => []),
       ]);
+      // r20: a locked menu only counts when it HOLDS something (dishes, a package or menu notes) - never an empty lock.
+      // The package is read from the same places the builder reads it (plan.menu_template, else pricing._packageName).
+      const pkgName = String((planRow && (planRow.package || planRow.menu_template)) || (ev && ev.pricing && ev.pricing._packageName) || "").trim();
+      const menuLocked = !!(planRow && planRow.menu_locked);
       // 0197: stock shortages + guests vs the linked venue
-      const [shorts, items, vlist] = await Promise.all([
+      const [shorts, items, vlist, dishes] = await Promise.all([
         inventory.shortages(quoteId).catch(() => []),
         inventory.items(true).catch(() => []),
         (ev && ev.client && ev.client.venueId) ? venues.list({ all: true }).catch(() => []) : Promise.resolve([]),
+        eventMenu.list(quoteId).catch(() => null),
       ]);
-      const cap = capacityStatus(ev, (vlist || []).find((v) => v.id === (ev.client || {}).venueId) || null);
+      const menuHas = (Array.isArray(dishes) && dishes.length > 0) || !!pkgName || !!String((planRow && planRow.menu) || "").trim();
+      const capVenue = (vlist || []).find((v) => v.id === (ev.client || {}).venueId) || null;
+      const cap = capacityStatus(ev, capVenue);
+      const capUnchecked = !cap.over && !(cap.total > 0 && cap.guests > 0);
+      const capWhy = !capVenue ? "not checked - no saved venue linked" : !(cap.guests > 0) ? "not checked - no guest count yet" : "not checked - the venue has no capacity saved";
       const itemName = (id) => ((items || []).find((i) => i.id === id) || {}).name;
       const vend = (shorts || []).some((r) => r.vendor_id) ? await vendors.listAll(true).catch(() => []) : [];
       const shortLines = (shorts || []).map((r) => { const b = bk.find((x) => x.id === r.booking_id), v = (vend || []).find((x) => x.id === r.vendor_id);
@@ -7161,13 +7193,15 @@ window.HelmUrl = HelmUrl;
       const checks = [
         { key: "date", label: "Event date set", critical: true, ok: !!ev.eventDate, detail: ev.eventDate || "not set" },
         { key: "approval", label: "Client approved", critical: true, ok: ["approved", "paid"].includes(ev.approvalStatus), detail: ev.approvalStatus || "none" },
-        { key: "menu", label: "Menu & package locked", critical: true, ok: !!(planRow && planRow.menu_locked), detail: (planRow && planRow.menu_locked) ? "locked" : "not locked" },
+        { key: "menu", label: "Menu & package locked", critical: true, ok: menuLocked && menuHas,
+          detail: menuLocked ? (menuHas ? "locked" + (pkgName ? " - " + pkgName : "") : "locked, but no package or dishes yet") : "not locked" },
         { key: "resources", label: "Resources covered (no gaps)", critical: true, ok: resCheck.length > 0 && gaps === 0, detail: resCheck.length === 0 ? "no needs mapped yet" : (gaps ? (gaps + " gap" + (gaps === 1 ? "" : "s")) : "all covered") },
         { key: "vendors", label: "Vendors confirmed", critical: true, ok: enquiry === 0 && (bk.length > 0 || resCheck.length > 0), detail: enquiry ? (enquiry + " still enquiry") : (bk.length ? "all confirmed" : (resCheck.length ? "in-house — none needed" : "nothing planned")) },
         { key: "staff", label: "Staff assigned", critical: true, ok: crew > 0, detail: crew ? (crew + " assigned") : "none" },
         { key: "runsheet", label: "Run-sheet built", critical: true, ok: rs.length > 0, detail: rs.length ? (rs.length + " items") : "empty" },
-        { key: "capacity", label: "Guests fit the venue", critical: true, ok: !cap.over || cap.resolved,
-          detail: !cap.over ? (cap.total ? cap.guests.toLocaleString("en-IN") + " of " + cap.total.toLocaleString("en-IN") : "no saved venue linked")
+        // r20: no saved venue (or no capacity / guest count) = NOT CHECKED - a warning, never counted as passed
+        { key: "capacity", label: "Guests fit the venue", critical: !capUnchecked, unchecked: capUnchecked || undefined, ok: !capUnchecked && (!cap.over || cap.resolved),
+          detail: !cap.over ? (capUnchecked ? capWhy : cap.guests.toLocaleString("en-IN") + " of " + cap.total.toLocaleString("en-IN"))
             : cap.resolved ? (cap.decision.choice === "extend" ? "extended: +" + Number(cap.decision.extra_capacity || 0).toLocaleString("en-IN") + " space" : "proceeding anyway (noted)")
             : cap.short.toLocaleString("en-IN") + " guests won't fit - decide in the quote" },
         { key: "stock", label: "Stock sourced (no shortages left open)", critical: true, ok: unsourced === 0,
@@ -10170,6 +10204,7 @@ window.HelmUrl = HelmUrl;
   var TOAST_TYPES = { ok: "ok", success: "ok", err: "err", error: "err", warn: "warn", warning: "warn", security: "sec", sec: "sec", info: "info" };
   var TOAST_ICON = { info: "i", ok: "✓", warn: "!", err: "✕", sec: "🛡" };
   function toastType(t) { return TOAST_TYPES[t] || "info"; }
+  var toastRecent = {};   // r20: title|text -> when its card was last created (burst guard)
   // only relative / same-origin http(s) links (never javascript: / data:)
   function safeHref(u) {
     u = String(u == null ? "" : u).trim(); if (!u) return null;
@@ -10188,12 +10223,16 @@ window.HelmUrl = HelmUrl;
       if (!ensureToasts()) return;
       var lane = (type === "err" || type === "sec") ? lanes.assertive : lanes.polite;
       var text = String(msg == null ? "" : msg), title = o.title != null ? String(o.title) : "";
-      var key = type + "|" + title + "|" + text, existing = null;
-      Array.prototype.forEach.call(lane.children, function (t) { if (t.__bpuiKey === key) existing = t; });
-      if (existing) { existing.__bpuiArm(true); handle.close = existing.__bpuiClose; return; }
+      var key = type + "|" + title + "|" + text, same = title + "|" + text, existing = null;
+      // r20: the same title + text is ONE card in either lane (whatever its type) - a repeat restarts its timer
+      // instead of stacking another copy ("Step 1 not saved: Email is required." x5)
+      Array.prototype.forEach.call(toastRoot.querySelectorAll(".bpui-toast"), function (t) { if (t.__bpuiKey === key || t.__bpuiSame === same) existing = t; });
+      if (existing) { if (existing.__bpuiArm) existing.__bpuiArm(true); handle.close = existing.__bpuiClose || handle.close; return; }
+      // ...and a burst of the same message (several saves refusing at once) shows once, even if that card was just pushed out
+      var nowMs = Date.now(); if (toastRecent[same] && nowMs - toastRecent[same] < 1500) return; if (Object.keys(toastRecent).length > 60) toastRecent = {}; toastRecent[same] = nowMs;
       var href = safeHref(o.href);
       var t = h("div", { class: "bpui-toast bpui-" + type + (title ? " has-title" : " no-title") + (href ? " is-link" : "") });
-      t.__bpuiKey = key;
+      t.__bpuiKey = key; t.__bpuiSame = same;
       t.appendChild(h("span", { class: "bpui-toast-ic", "aria-hidden": "true" }, o.icon ? String(o.icon).slice(0, 4) : TOAST_ICON[type]));
       var col = h("div", { class: "bpui-toast-body" });
       var tEl = title ? h("strong", { class: "bpui-toast-title" }) : null;
@@ -10789,7 +10828,8 @@ window.HelmUrl = HelmUrl;
   function showFlash() {
     var f = null;
     try { f = sessionStorage.getItem("bp_flash"); sessionStorage.removeItem("bp_flash"); } catch (e) {}
-    if (f && /^[\w .,'!—-]{1,80}$/.test(f)) setTimeout(function () { toast(f, { type: "ok" }); }, 300);
+    var ty = "ok"; if (f && f.indexOf("i|") === 0) { ty = "info"; f = f.slice(2); }   // R20: "i|..." = a notice, not a success
+    if (f && /^[\w .,'!—-]{1,80}$/.test(f)) setTimeout(function () { toast(f, { type: ty }); }, 300);
   }
   function start() { injectCSS(); startModalObserver(); installOffline(); showFlash(); }
   if (doc.readyState !== "loading") start(); else doc.addEventListener("DOMContentLoaded", start, { once: true });
@@ -10864,6 +10904,18 @@ window.HelmUrl = HelmUrl;
     }, function () { return null; });
   }
   function isCapError(e) { return !!(e && (e.hint === "trial_cap" || /free trial limit reached/i.test(String(e.message || "")))); }
+  // r20 (owner: the trial makes 2 new quotes, 0238): a refused 3rd quote / lead / ... says so in plain words, with the
+  // way on ("Choose a plan" -> /checkout). capToast(err, nouns, keep) -> true when err was the trial cap (toast shown),
+  // false otherwise (the caller shows its usual error). nouns: "new quotes"; keep: what still works.
+  function capToast(e, nouns, keep) {
+    if (!isCapError(e)) return false;
+    var F = global.HelmTrialFacts, cap = (F && Number(F.CREATE_CAP) > 0) ? Number(F.CREATE_CAP) : 2;
+    var w = nouns || "new records";
+    toast("Your free trial includes " + cap + " " + w + " and " + (cap === 2 ? "both are" : "all are") + " used. " +
+      (keep ? String(keep) + " " : "") + "Choose a plan to add more.",
+      { type: "warn", title: "Free trial limit reached", href: capHref(), linkLabel: "Choose a plan", timeout: 12000 });
+    return true;
+  }
   // L13: a form-level error ("Contact name is required.") goes away as soon as a field in the dialog is changed;
   // the cap message (data-cap) stays - it is not about a field. Bound once per dialog.
   function clearErrOnEdit(box, errEl) {
@@ -10879,7 +10931,7 @@ window.HelmUrl = HelmUrl;
   global.BPUI = {
     version: 1,
     trialCap: trialCap, capText: capText, capGate: capGate,
-    capDialog: capDialog, capDialogReset: capDialogReset, capLimit: capLimit, isCapError: isCapError, clearErrOnEdit: clearErrOnEdit,
+    capDialog: capDialog, capDialogReset: capDialogReset, capLimit: capLimit, isCapError: isCapError, capToast: capToast, clearErrOnEdit: clearErrOnEdit,
     toast: toast,
     alert: alertDlg, confirm: confirmDlg, prompt: promptDlg,
     guard: guard,

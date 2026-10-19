@@ -6,7 +6,7 @@
 //   2  the zoom / pan / fullscreen / tour controls sit in a dock UNDER the plan (never over the hall), the pan arrows open on
 //      demand, the dock folds away to one button; semi-transparent until hovered
 //   3  free trial: the separate "Reference a past layout" dropdown is hidden (past events are under "Start blank...")
-//   4  the header: two fixed rows of whole groups (this layout / the canvas); 3D-only camera presets only in 3D
+//   4  the header: two fixed rows of whole groups (this layout / the canvas) - r20: REVERTED to the one-row header (owner)
 //   5  a first-run mini tour of every toolbar control in screen order (tour.js), once per browser
 //   6  0213: real floor plans for the five sample events that opened on an empty floor
 import { readFileSync } from 'node:fs';
@@ -89,29 +89,14 @@ t('free trial: the "Reference a past layout" dropdown is hidden; its options sti
   const st = read('public/studio-templates.js');
   assert.match(head, /<div class="field" id="refField">\s*<label for="refEvents">Past events<\/label>/);
   assert.match(st, /fillPast\(sel\);\n[\s\S]{0,400}var rf = \$\("refField"\); if \(rf\) rf\.hidden = true;/);
-  assert.match(css, /header\.hr19 #refField\[hidden\],html\.helm-trial header\.hr19 #refField\{display:none\}/);
+  assert.match(css, /#refField\[hidden\],html\.helm-trial #refField\{display:none\}/);   // r20: no longer scoped to the r19 header
   assert.match(js, /\$\('#refEvents'\)\.addEventListener\('change'/, 'the loader stays');
 });
 
-/* ---------------- 4) the header ---------------- */
-t('header: two rows of whole groups, in reading order', () => {
-  assert.match(head, /^<header class="hr19">/);
-  const rows = head.split('<div class="hrow ');
-  assert.equal(rows.length, 3, 'two rows');
-  const r1 = rows[1], r2 = rows[2];
-  for (const g of ['hg-doc', 'hg-save', 'hg-edit', 'hg-cap']) assert.match(r1, new RegExp('class="hgroup ' + g + '"'), g);
-  for (const g of ['hg-start', 'hg-view', 'hg-grid']) assert.match(r2, new RegExp('class="hgroup ' + g + '"'), g);
-  const order = ['projName', 'saveBtn', 'loadBtn', 'moreMenu', 'undoBtn', 'redoBtn', 'clearBtn', 'capInput', 'capMeter', 'preset', 'refEvents', 'customBtn', 'viewSeg', 'measureBtn', 'unitSel', 'snapBtn', 'gridBtn'];
-  const pos = order.map((id) => head.indexOf('id="' + id + '"'));
-  assert.ok(pos.every((p, k) => p > 0 && (k === 0 || p > pos[k - 1])), 'DOM order ' + pos);
-  assert.match(head, /id="undoBtn"[^>]*><svg viewBox="0 0 16 16"/, 'undo / redo drawn as icons (the arrow glyphs were missing from the font)');
-  assert.match(head, /placeholder="Capacity"/, 'the capacity box says what it is (its label is visually hidden)');
-  assert.match(css, /header\.hr19 \.hrow\{display:flex;align-items:center;flex-wrap:wrap;column-gap:10px;row-gap:6px;min-width:0\}/);
-  assert.match(css, /header\.hr19 \.hgroup\{gap:6px;flex-wrap:nowrap\}/, 'a group never splits');
-  assert.match(css, /html:not\(:has\(\.viewport\.is3d\)\) header\.hr19 \.wt-field \.seg button:not\(#wtStart\)\{display:none\}/, '3D presets only in 3D');
-  assert.match(css, /header\.hr19 #fsBtn\{display:none\}/, 'fullscreen lives in the canvas dock');
-  assert.match(css, /@media \(max-width:720px\)\{\n  header\.hr19\{flex-direction:row;flex-wrap:nowrap;overflow-x:auto/, 'phones keep the one scrolling strip');
-  assert.match(css, /header\.hr19:has\(#quoteBadge:not\(\[hidden\]\)\) \.hg-save \.tl:not\(\.tl-back\)\{display:none\}/, 'inside a quote, Open / More drop their words up to 1440 px');
+/* ---------------- 4) the header (r20: reverted to the one-row header - see test/r20-builder.test.mjs) ---------------- */
+t('header: the r19 two-row header is gone again (r20 owner revert)', () => {
+  assert.match(head, /^<header>/);
+  assert.ok(!/class="hrow/.test(head) && !/hr19/.test(css), 'no r19 rows / CSS left');
 });
 
 /* ---------------- 5) first-run tour ---------------- */
@@ -120,9 +105,9 @@ t('tour: every toolbar control in screen order, auto-started once', () => {
   const blk = tour.slice(tour.indexOf('"builder.html": ['), tour.indexOf('"quotes.html": ['));
   const sels = [...blk.matchAll(/sel: (\[[^\]]*\]|"[^"]*")/g)].map((m) => m[1]);
   assert.ok(sels.length >= 20, 'steps ' + sels.length);
-  for (const s of ['"#projName"', '"#saveBtn"', '"#loadBtn"', '"#moreMenu"', '".hg-edit"', '".hg-cap"', '"#preset"', '"#refField"', '"#customBtn"', '"#viewSeg"', '"#measureBtn"', '".hg-grid"', '"#toolbox"', '"#fabStack"', '"#rightPanel"'])
+  for (const s of ['"#projName"', '"#saveBtn"', '"#loadBtn"', '"#moreMenu"', '".hg-edit"', '".hg-cap"', '"#preset"', '"#refField"', '"#customBtn"', '"#viewSeg"', '"#measureBtn"', '"#unitSel"', '"#toolbox"', '"#fabStack"', '"#rightPanel"'])
     assert.ok(sels.includes(s), s);
-  assert.ok(sels.indexOf('".hg-cap"') < sels.indexOf('"#preset"'), 'row 1 before row 2');
+  assert.ok(sels.indexOf('"#preset"') < sels.indexOf('".hg-cap"'), 'r20: the one-row header, left to right');
   assert.match(js, /scheduleBuilderTour\(\); \/\/ r19: first visit only/);
   assert.match(js, /const BUILDER_TOUR_SEEN='helm_tour_seen_builder';/);
   assert.match(js, /if\(RO \|\| CAPTURE_HOST \|\| !window\.HelmTour \|\| !HelmTour\.hasSteps\) return;/, 'never for a viewer / the capture host');

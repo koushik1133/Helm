@@ -119,13 +119,13 @@
   .egp-rl{margin-left:auto;color:var(--ink-3);font-size:12px} .egp-empty{padding:14px}
   .egp-btns{display:flex;justify-content:flex-end;gap:8px}
 </style>
-<link rel="stylesheet" href="flow-polish.css?v=5">
+<link rel="stylesheet" href="flow-polish.css?v=6">
 <link rel="stylesheet" href="share-checklist.css?v=4">
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
-<script src="/shell-proto.js?v=32" id="shellProto"></script>
+<script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -286,7 +286,7 @@
             <div class="fld"><label for="q_guests">Plates <small>(catering quantity — drives plate pricing)</small></label><input id="q_guests" type="number" min="0" max="100000" step="1"><p class="hint qty-diff" id="q_platesDiff" hidden></p></div>
             <div class="fld"><label for="q_chairPrice">Chair rate (<span class="cur-sym">₹</span>) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
             <div class="fld"><label for="q_platePrice">Plate price (<span class="cur-sym">₹</span>) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
-            <div class="fld"><label for="q_other">Décor / equipment &amp; setup (<span class="cur-sym">₹</span>)</label><input id="q_other" type="number" min="0"></div>
+            <div class="fld"><label for="q_other">Décor / equipment &amp; setup (<span class="cur-sym">₹</span>)</label><input id="q_other" type="number" min="0"><p class="hint" id="q_otherLayout" role="status" hidden><span id="q_otherLayoutTxt"></span> <button type="button" class="btn ghost" id="q_otherUseLayout">Use it</button></p></div>
             <div class="fld"><label for="q_discount">Discount (<span class="cur-sym">₹</span>)</label><input id="q_discount" type="number" min="0" aria-describedby="q_discount_err"><span class="hint" id="q_discount_err" role="alert" hidden></span><span class="hint" id="q_discountPctHint" hidden></span></div>
             <div class="fld"><label for="q_discountPct">Discount (%)</label><input id="q_discountPct" type="number" min="0" max="100" step="0.5" aria-describedby="q_discount_err"></div>
             <div class="fld"><label for="q_coupon">Coupon code</label><input id="q_coupon" list="couponList" placeholder="optional"><datalist id="couponList"></datalist>
@@ -295,6 +295,7 @@
           </div>
           <div class="msg warn" id="q_curBanner" hidden><span id="q_curBannerTxt" role="status"></span> <button type="button" class="btn" id="q_curSwitch" hidden></button></div>
           <div class="s-7ffa8ad">
+            <button type="button" class="btn" id="q_preview" title="See the quotation as the client would - nothing is sent and the status doesn't change">👁 Preview quote</button>
             <button type="button" class="btn" id="q_pdf">⬇ Download quote PDF</button>
             <button type="button" class="btn primary" id="q_save">Save quotation (new version)</button>
           </div>
@@ -331,7 +332,7 @@
         <!-- ACTIVITY TRAIL -->
         <section class="card" id="sec-activity">
           <h2>Activity trail</h2>
-          <p class="sub">Every change kept on record — quote versions, discounts, advances, receipts, consents, messages.</p>
+          <p class="sub">Every change kept on record — quotation versions (Q1, Q2…), layout versions, advances, receipts, consents, messages.</p>
           <div class="s-5e0faad" id="activityList"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         </section>
 
@@ -360,6 +361,14 @@
   <footer>Helm Events — one flow from enquiry to client approval.</footer>
 </div>
 
+<!-- r20: staff-only quotation preview (no save, no client link, no status change) -->
+<div id="qPreviewModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="qPreviewTitle">
+  <div class="lsheet qprev-sheet">
+    <p class="qprev-staff" role="note">Staff preview — only you see this. Nothing is sent, no client link is created and the quote's status doesn't change.</p>
+    <div class="qprev-doc" id="qPreviewBody"></div>
+    <div class="s-d50b8a8"><button type="button" class="btn" id="qPreviewClose" data-close>Close preview</button></div>
+  </div>
+</div>
 <div id="leaveModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="leaveModalTitle" aria-describedby="leaveModalDesc">
   <div class="lsheet">
     <h3 id="leaveModalTitle">Save this quote?</h3>
@@ -399,8 +408,8 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script>
-<script src="tour.js?v=22"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
+<script src="tour.js?v=23"></script>
 <script src="booklet.js?v=25"></script>
 <script src="share-checklist.js?v=13"></script>
 <script src="flow-layout-sync.js?v=6"></script>
@@ -410,8 +419,8 @@
 <script src="flow-resume.js?v=4"></script>
 <script src="quote-state.js?v=4"></script>
 <script src="flow-dish-editor.js?v=2"></script>
-<script src="venues-core.js?v=9"></script>
-<script src="venue-picker.js?v=6"></script>
+<script src="venues-core.js?v=10"></script>
+<script src="venue-picker.js?v=7"></script>
 <script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=5"></script><script src="email-send.js?v=5"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=4"></script><script src="approval-watch.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -690,7 +699,7 @@
   // LA-9/11: money labels show THIS quote's currency (₹ for an India quote, AED / $ for others) - never a hard-coded ₹
   function syncCurLabels(){ let sym="₹"; try{ const r=fTax(); sym=r.country==="IN"?"₹":(String(r.symbol||r.currency||"").trim()||"₹"); }catch(_){}
     document.querySelectorAll(".cur-sym").forEach(n=>{ if(n.textContent!==sym) n.textContent=sym; }); }
-  function renderPrice(){ syncQtyHints(); syncCurLabels(); try{ if(_qVers&&_qVers.length) paintQuoteVersions(); }catch(_){}
+  function renderPrice(){ syncQtyHints(); syncCurLabels(); try{ if(_qVers&&_qVers.length) paintQuoteVersions(); }catch(_){} try{ syncOtherLayoutNote(); }catch(_){}
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
     showDiscountError(p);
     let rows="";
@@ -900,6 +909,22 @@
     const n=HelmSizing.layoutChairsNote($("#q_chairs").value===""?null:+$("#q_chairs").value, oi.chairs+(HelmSizing.extraFloorSeats?HelmSizing.extraFloorSeats(layoutItems):0));
     box.hidden=!n || !canEdit; if(n){ $("#q_chairsLayoutTxt").textContent=n.text; box.dataset.n=String(n.n); }
   }
+  // r20: a hand-typed Décor / setup value is never silently replaced by the layout's object prices. When it
+  // differs from what the layout's objects cost, say so beside the field with a one-click "Use it".
+  const OTHER_KEY="helm_flow_other:"+id;
+  let otherTyped=false;
+  function layoutOtherAuto(){ const oi=BPStore.pricing.fromItems(layoutItems||[], rates&&rates.assetPrices); return nn(oi.objectsCost+(+(rates&&rates.layoutBase)||0)); }
+  function syncOtherLayoutNote(){
+    const box=$("#q_otherLayout"); if(!box) return;
+    const v=$("#q_other").value, auto=layoutOtherAuto();
+    const show=!!canEdit && (layoutItems||[]).length>0 && auto>0 && v!=="" && +v!==auto && !quoteBlocked();
+    box.hidden=!show; if(show){ $("#q_otherLayoutTxt").textContent="Layout suggests "+inr(auto)+" (object prices)."; box.dataset.n=String(auto); }
+  }
+  // an unsaved hand entry survives the trip to the floor builder (same tab) and wins over the layout on return
+  function rememberTypedOther(){ try{ const v=$("#q_other").value;
+    if(otherTyped && v!=="" && isFinite(+v) && +v>=0) sessionStorage.setItem(OTHER_KEY, JSON.stringify({ v:+v, at:Date.now() })); else sessionStorage.removeItem(OTHER_KEY); }catch(_){ } }
+  function takeTypedOther(){ try{ const d=JSON.parse(sessionStorage.getItem(OTHER_KEY)||"null"); sessionStorage.removeItem(OTHER_KEY);
+    return d && d.v!=null && isFinite(+d.v) && +d.v>=0 ? +d.v : null; }catch(_){ return null; } }
   function syncVenueMem(){ const vid=$("#v_venue_id").value||null; ev.client=Object.assign({}, ev.client||{}, { venue:$("#v_name").value.trim()||null, address:$("#v_addr").value.trim()||null,
     venueId:vid, venueName:vid?($("#v_venue_name").value||null):null, setting:$("#v_setting").value||null,
     venueLen:+$("#v_vlen").value>0?+$("#v_vlen").value:null, venueWid:+$("#v_vwid").value>0?+$("#v_vwid").value:null }); }
@@ -1165,6 +1190,37 @@
     else BPUI.toast('Allow pop-ups to download the PDF.',{type:"info"});
   }
 
+  // r20: staff-only preview of the quotation the client would get - the numbers on screen now, built with
+  // textContent (no HTML strings). It never saves, never creates an approval link and never changes the status.
+  function previewQuote(){
+    const p=currentInputs(), t=BPStore.pricing.quoteTotal(p), cl=ev.client||{};
+    if(quoteEmptyReason(p,t)){ BPUI.toast("This quote is empty ("+inr(0)+"). Add seating, catering, or décor to preview it.",{type:"info"}); return; }
+    const mk=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=String(txt); return e; };
+    const fTitle=window.HelmEventName?HelmEventName.friendlyTitle(Object.assign({}, ev, {client:cl, eventType:$("#c_type").value||ev.eventType})):(ev.title||"");
+    const body=$("#qPreviewBody"); body.textContent="";
+    const hd=mk("div","qprev-hd"), left=mk("div"), right=mk("div","qprev-client");
+    const h=mk("h3",null,"Quotation"); h.id="qPreviewTitle"; left.appendChild(h);
+    if(fTitle) left.appendChild(mk("div","qprev-title",fTitle));
+    left.appendChild(mk("div","qprev-muted","Ref "+(ev.code||"")+" · "+BPStore.quoteDate(Date.now(), fTax())));
+    [cl.name, [cl.phone,cl.email].filter(Boolean).join(" "), cl.venue].forEach((x,i)=>{ if(x) right.appendChild(mk("div",i?"qprev-muted":"qprev-strong",x)); });
+    hd.append(left,right); body.appendChild(hd);
+    const tb=mk("table","qprev-tbl"), row=(l,a,cls)=>{ const tr=mk("tr",cls); tr.append(mk("td",null,l), mk("td","qprev-amt",a)); tb.appendChild(tr); };
+    if(p.chairs>0) row("Seating — "+p.chairs+" chairs × "+inr(p.chairPrice), inr(p.chairs*p.chairPrice));
+    if(p.guests>0) row("Catering"+(p._packageName?" ("+p._packageName+")":"")+" — "+p.guests+" × "+inr(p.platePrice), inr(p.guests*p.platePrice));
+    if(p.other>0) row("Décor / equipment & setup", inr(p.other));
+    row("Subtotal", inr(t.subtotal));
+    if(t.discount>0) row("Discount", "− "+inr(t.discount));
+    row(fTax().name+(t.taxInclusive?" (included)":""), inr(t.totalGst));
+    row("Total", inr(t.total), "qprev-tot");
+    body.appendChild(tb);
+    const saved=ev.pricing&&ev.pricing.total!=null?+ev.pricing.total:null;
+    if(dirty || (saved!=null && Math.round(saved)!==Math.round(t.total)))
+      body.appendChild(mk("p","qprev-note","Includes changes that aren't saved yet — use “Save quotation (new version)” to keep them."));
+    body.appendChild(mk("p","qprev-muted","This is a quotation, not a tax invoice."));
+    $("#qPreviewModal").hidden=false;
+    try{ $("#qPreviewClose").focus(); }catch(_){}
+  }
+
   /* ---------- requirements ---------- */
   // qa-quote-flow B28: the list says what the picker says (Must-have / Optional / Nice-to-have), never the stored key
   const REQ_PRI={ mandatory:"Must-have", optional:"Optional", nice:"Nice-to-have" };
@@ -1374,8 +1430,13 @@
   }
   async function renderActivity(){
     let acts=[]; try{ acts=await BPStore.milestones.activity(id); }catch(e){ BPUI.loadError($("#activityList"), e, renderActivity, {what:"activity"}); return; }
+    // r20: the trail promised "quote versions" but only listed layout versions - add the quotation versions (Q1, Q2…)
+    let qv=[]; try{ qv=(BPStore.quotationVersions&&await BPStore.quotationVersions.list(id))||[]; }catch(_){ qv=[]; }
+    const tsOf=(a)=>{ const n=Date.parse(a&&a.at||""); return isFinite(n)?n:0; };
+    acts=(Array.isArray(acts)?acts:[]).concat((Array.isArray(qv)?qv:[]).filter(v=>v&&v.created_at).map(v=>({ kind:"qversion", at:v.created_at,
+      text:"Quotation "+String(v.label||"version")+" saved"+(v.total!=null&&isFinite(+v.total)?" — "+inr(+v.total):"") }))).sort((a,b)=>tsOf(b)-tsOf(a));
     if(!acts||!acts.length){ $("#activityList").innerHTML='<div style="color:var(--ink-3)">No activity yet.</div>'; return; }
-    const ic={version:'📐',payment:'💳',milestone:'✅',consent:'✍️',notify:'🔔'};
+    const ic={version:'📐',qversion:'🧾',payment:'💳',milestone:'✅',consent:'✍️',notify:'🔔'};
     $("#activityList").innerHTML = acts.map(a=>`<div class="rowline"><span>${ic[a.kind]||'•'}</span><span class="g">${esc(BPStore.activityText(a,{clientName:ev&&ev.client&&ev.client.name,quote:ev}))}</span><span class="meta">${esc((a.at&&BPStore.fmtDateTime(a.at))||'')}</span></div>`).join('');
   }
 
@@ -1606,7 +1667,10 @@
     await runSection("proposal");
     await runSection("layout");
     // R8: hall length/breadth persist on the quote (client.hallLen/hallWid; fallback: the saved layout's hall)
-    { const sz=HelmSizing.resolve(cl, ev.pricing, layoutRoom); $("#g_len").value=sz.len||""; $("#g_wid").value=sz.wid||""; }
+    { const sz=HelmSizing.resolve(cl, ev.pricing, layoutRoom); $("#g_len").value=sz.len||""; $("#g_wid").value=sz.wid||"";
+      // r20: a linked venue's size ("Venue size 115×72 ft") prefills an EMPTY hall length / breadth - a typed value is never replaced
+      if($("#g_len").value==="" && +cl.venueLen>0) $("#g_len").value=String(+cl.venueLen);
+      if($("#g_wid").value==="" && +cl.venueWid>0) $("#g_wid").value=String(+cl.venueWid); }
     if(window.HelmVenueArea && HelmVenueArea.refresh) HelmVenueArea.refresh();
     await couponsP;
     seedQuote();
@@ -1683,7 +1747,11 @@
     try{
       const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
       const pr=ev.pricing||{};
-      const r=HelmFlowLayout.reconcile(pr,{ chairs:oi.chairs, objectsCost:oi.objectsCost, layoutBase:rates.layoutBase }, ev.client);
+      let r=HelmFlowLayout.reconcile(pr,{ chairs:oi.chairs, objectsCost:oi.objectsCost, layoutBase:rates.layoutBase }, ev.client);
+      // r20: a Décor / setup value typed by hand before opening the builder (even if it wasn't saved) is kept
+      const typed=fromBuilder?takeTypedOther():null;
+      if(typed!=null){ const oc=pr.other==null ? typed>0 : +pr.other!==typed;
+        r=Object.assign({}, r, { other:typed, otherHand:true, otherChanged:oc, changed:r.chairsChanged||oc }); }
       syncLayoutChairsNote();
       // r19 L2: say so when no layout version with objects exists (it used to read "Layout updated" over an empty plan)
       const noLayout=!layoutItems.length;
@@ -1697,7 +1765,9 @@
       const t=renderPrice(); updateAdvance(); updateProgress();
       const flash=[r.chairsChanged&&"#q_chairs", r.otherChanged&&"#q_other", "#priceRows"].filter(Boolean).map(s=>$(s)).filter(Boolean);
       flash.forEach(el=>el.classList.add("lay-flash")); setTimeout(()=>flash.forEach(el=>el.classList.remove("lay-flash")),2600);
-      const moved=before!==t.total ? " ("+inr(before)+" → "+inr(t.total)+")" : "";
+      const moved=(before!==t.total ? " ("+inr(before)+" → "+inr(t.total)+")" : "")
+        + (r.otherHand && r.otherAuto>0 && r.other!==r.otherAuto ? ". Décor / setup kept at your "+inr(r.other)+" — the layout suggests "+inr(r.otherAuto)
+          : (!r.otherHand && r.otherChanged ? ". Décor / setup is now "+inr(r.other)+" from the layout's object prices" : ""));
       if(fromBuilder && canEdit){
         try{ await saveQuotation(); BPUI.toast((noLayout?"Quotation recalculated — no floor layout is saved for this quote yet":"Layout updated — quotation recalculated")+moved,{type:"ok"}); }
         catch(_){ dirty=true; }   // saveQuotation already surfaced the error; keep the numbers as unsaved edits
@@ -1744,6 +1814,9 @@
     HelmDiscount.wireExclusive($("#q_discount"), $("#q_discountPct"));   // PP1028 #5: editing one clears the other
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount","q_discountPct"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
     $("#q_guests").addEventListener("input",()=>{ qGuestsOverridden=true; });
+    $("#q_other").addEventListener("input",()=>{ if(!loading) otherTyped=true; });   // r20: a hand entry
+    $("#q_otherUseLayout").addEventListener("click",()=>{ const n=+($("#q_otherLayout").dataset.n||0); if(!(n>0)) return;
+      $("#q_other").value=n; otherTyped=false; ev.pricing=Object.assign({}, ev.pricing, { otherAuto:n }); markDirty({target:$("#q_other")}); renderPrice(); updateAdvance(); });
     // R8: one sizing source — layout-section fields mirror the client record live
     $("#g_guests").addEventListener("input",()=>{ $("#c_guests").value=$("#g_guests").value; syncClientMem(); renderPrice(); });
     ["g_len","g_wid"].forEach(f=>$("#"+f).addEventListener("input",syncClientMem));
@@ -1778,6 +1851,9 @@
       if($("#q_msg")) $("#q_msg").textContent="Couldn't save — not saved: "+BPUI.friendlyError(e,{action:"save the quotation"});
       BPUI.toast("Save failed — nothing was saved.",{type:"err"}); }); });
     $("#q_pdf").addEventListener("click",downloadQuotePDF);
+    $("#q_preview").addEventListener("click",()=>{ try{ previewQuote(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"preview the quotation"}),{type:"err"}); } });
+    $("#qPreviewClose").addEventListener("click",()=>{ $("#qPreviewModal").hidden=true; try{ $("#q_preview").focus(); }catch(_){} });
+    $("#qPreviewModal").addEventListener("click",(e)=>{ if(e.target===$("#qPreviewModal")) $("#qPreviewModal").hidden=true; });
     $("#q_taxExempt").addEventListener("change",()=>{ dirty=true; renderPrice(); });
     $("#q_curSwitch").addEventListener("click",()=>{ quoteKeep=false; taxSwitched=true; $("#q_curBanner").hidden=true; $("#q_chairPrice").value=rates.chairPrice; dirty=true; renderPrice();
       // C3: an explicit switch is persisted right away (a new Q-version in the studio's currency) so a later
@@ -1841,6 +1917,7 @@
       if(unsaved()){ let ok=false; try{ ok=await saveAll(); }catch(_){}
         if(!ok && !(await confirmLeaveAnyway())){ btn.textContent=t; btn.removeAttribute("aria-busy"); return; } }
       leaving=true;   // intentional navigation — don't trip beforeunload
+      rememberTypedOther();   // r20: an unsaved hand-typed Décor / setup value comes back with us
       HelmFlowLayout.mark(sessionStorage, id);   // re-price once when we come back
       location.href="builder.html?quote="+encodeURIComponent(id)+"&from=flow";
     });
@@ -1860,6 +1937,7 @@
       const type=$("#c_type").value.trim()||(ev&&ev.eventType)||"";
       const guests=$("#g_guests").value||$("#c_guests").value||"";
       const p=new URLSearchParams({ quote:id, gen:"1", from:"flow" });
+      rememberTypedOther();   // r20
       HelmFlowLayout.mark(sessionStorage, id);
       if(type) p.set("type",type); if(guests) p.set("guests",guests);
       if($("#g_len").value) p.set("len",$("#g_len").value);

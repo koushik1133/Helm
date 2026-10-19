@@ -191,6 +191,7 @@
     }
 
     /* ---- render ---- */
+    var notifiedType = "";
     function render() {
       hideTip(); idx = {};
       var rg = range(), today = todayFn(), all = expand(itemsFn() || []);
@@ -211,6 +212,9 @@
       var body = $("#evcBody");
       body.innerHTML = viewMarkup(rg, m, today, cx);
       if (!all.length) body.insertAdjacentHTML("beforeend", '<p class="evc-empty evc-none">No dated events yet. Events show here once a quote has an event date.</p>');
+      // R20: tell the page when the event-type filter changes (picked, or reset because that type is gone), so the
+      // "Upcoming events & commitments" list below follows the same filter
+      if (opts.onType && st.type !== notifiedType) { notifiedType = st.type; try { opts.onType(st.type); } catch (e) {} }
     }
     // persist = the person picked Month / Week / Day (remembered); opening one day from the grid is not a preference
     function go(view, anchor, persist) {

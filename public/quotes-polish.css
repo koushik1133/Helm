@@ -56,12 +56,14 @@ html[data-shell] .btn:focus-visible,html[data-shell] .search:focus-visible{outli
 details.qmore{position:relative;display:inline-block}
 details.qmore>summary{list-style:none;cursor:pointer;min-width:32px;text-align:center;font-weight:700;letter-spacing:.08em}
 details.qmore>summary::-webkit-details-marker{display:none}
-details.qmore .qmore-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:190px;display:flex;flex-direction:column;gap:2px;padding:6px;
+.qmore-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:190px;display:flex;flex-direction:column;gap:2px;padding:6px;
   background:var(--panel,#fff);border:1px solid var(--line,#e5e7eb);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.14)}
-details.qmore .qmore-pop .ic{justify-content:flex-start;text-align:left;width:100%;border:0;background:transparent;border-radius:8px;padding:8px 10px}
-details.qmore .qmore-pop .ic:hover,details.qmore .qmore-pop .ic:focus-visible{background:var(--accent-soft,rgba(0,0,0,.05))}
-details.qmore .qmore-pop .ic.del{color:#d92d20}
-html[data-shell="b"] details.qmore .qmore-pop{background:var(--hb-bg,var(--panel));border-color:var(--hb-line,var(--line));color:var(--hb-ink,inherit)}
+/* r20: while open the menu lives on <body> (position:fixed by its button) so the table's scroll box can't clip it */
+.qmore-pop.qmore-float{position:fixed;right:auto;bottom:auto;z-index:1000;max-height:calc(100vh - 16px);overflow-y:auto}
+.qmore-pop .ic{justify-content:flex-start;text-align:left;width:100%;border:0;background:transparent;border-radius:8px;padding:8px 10px}
+.qmore-pop .ic:hover,.qmore-pop .ic:focus-visible{background:var(--accent-soft,rgba(0,0,0,.05))}
+.qmore-pop .ic.del{color:#d92d20}
+html[data-shell="b"] .qmore-pop{background:var(--hb-bg,var(--panel));border-color:var(--hb-line,var(--line));color:var(--hb-ink,inherit)}
 
 /* perf (Oct 2026): skeleton rows painted with the page, replaced by the first page of quotes */
 #rows tr.q-skel td{padding-block:14px}
@@ -78,7 +80,7 @@ html[data-shell="b"] details.qmore .qmore-pop{background:var(--hb-bg,var(--panel
 
 /* Shared status pills on the quotes table: ui-kit .hs-pill wins over the legacy .stat look */
 .stat.hs-pill{text-transform:none;letter-spacing:0;font-size:12px;padding:0 9px}
-details.qmore.up .qmore-pop{top:auto;bottom:calc(100% + 6px)}
+details.qmore.up .qmore-pop:not(.qmore-float){top:auto;bottom:calc(100% + 6px)}
 
 /* Confirm dialog: inline field errors (chairs / guests / discount %) */
 .cm-ferr{color:#b42318;font-size:12px;line-height:1.35;font-weight:500;text-transform:none;letter-spacing:0}

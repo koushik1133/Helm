@@ -14,7 +14,9 @@
     return n;
   }
   function fmt(iso) {
-    try { return new Date(iso + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); }
+    // R20 (live QA): the studio's date style ("1 Oct 2026"), never the browser's "Oct 1, 2026"; a calendar day is never zone-shifted
+    try { var S = window.BPStore; if (S && S.fmtStudioDate) { var o = S.fmtStudioDate(String(iso), { style: "long" }); if (o) return o; } } catch (e) {}
+    try { return new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); }
     catch (e) { return iso; }
   }
   function load(k) { try { return JSON.parse(global.localStorage.getItem(k) || "null"); } catch (e) { return null; } }

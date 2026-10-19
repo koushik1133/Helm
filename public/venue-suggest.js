@@ -7,7 +7,13 @@
   "use strict";
   if (window.HelmVenueSuggest) return;
   function name(v) { return String((v && v.name) || "").trim(); }
-  function addressOf(v) { return [v && v.address, v && v.city].filter(function (x) { return x && String(x).trim(); }).join(", "); }
+  // r20: the city is not repeated when the address already names it ("Banjara Hills, Hyderabad, Hyderabad")
+  function addressOf(v) {
+    var a = String((v && v.address) || "").trim(), c = String((v && v.city) || "").trim();
+    if (!c) return a; if (!a) return c;
+    var lc = c.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp("(^|[^a-z])" + lc + "([^a-z]|$)", "i").test(a) ? a : a + ", " + c;
+  }
   function attach(input, opts) {
     opts = opts || {};
     if (!input || !input.parentNode) return null;
