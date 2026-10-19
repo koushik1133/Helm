@@ -108,7 +108,7 @@
 </style>
 <link rel="stylesheet" href="leads-polish.css?v=3">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=32" id="shellProto"></script>
+<script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -229,7 +229,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=7"></script><script src="form-validate.js?v=1"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
 <script src="tour.js?v=22"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -727,7 +727,11 @@
   window.addEventListener('pagehide', ()=>{ try{ rtChannel && rtChannel.unsubscribe && rtChannel.unsubscribe(); }catch(e){} });
 
   /* ---------- load ---------- */
+  // R20 (live QA): free trial - "Free trial: 1 of 2 leads used" sits by + New lead (switched off at the cap), like
+  // Staff / Inventory / Vendors / Venues. Re-run on every load so it follows the server after an add / archive.
+  function gateCap(){ if(canCreate&&window.BPUI&&BPUI.capGate) BPUI.capGate([$("#newBtn"),$("#firstRunBtn")],"leads","leads").catch(()=>{}); }
   async function load(){
+    gateCap();
     const gen=++loadGen, term=filter.trim(), sameTerm=term===lastTerm;
     // a refresh (realtime / after a save) keeps each column as deep as it was scrolled
     const depth=(k)=> sameTerm ? Math.max(COL_PAGE, leads.filter(l=>l._srv===k).length) : COL_PAGE;

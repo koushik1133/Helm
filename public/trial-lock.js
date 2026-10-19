@@ -70,6 +70,11 @@
       else if (which === "reports") cover("Reports & exports are not part of the free trial",
         "CSV downloads and printable PDF reports unlock on a paid plan. Your numbers are still on the dashboard, Business and Insights.");
       else cover();
+      // R20 (live QA): the dashboard says why you landed there (the cover above is only seen for a blink) -
+      // the one-shot "bp_flash" toast every page shows on load (store-api.js showFlash)
+      var why = { audit: "The audit log isn't available on the free trial.", templates: "Templates aren't available on the free trial.",
+        reports: "Reports and exports aren't available on the free trial.", onboarding: "Studio set-up isn't needed on the free trial." }[which];
+      try { if (why) sessionStorage.setItem("bp_flash", "i|" + why); } catch (e) {}
       // 0203: a direct link to a page that is not part of the trial goes back to the dashboard (the cover shows meanwhile)
       try { location.replace(home()); } catch (e) {}
     }

@@ -78,7 +78,7 @@ t('insights: gated on the insights area, range bar, server RPC, money only with 
   assert.match(API, /rpc\("insights_range", \{ p_from: from \|\| null, p_to: to \|\| null \}\)/);
   assert.match(INS, /BPStore\.auth\.canView\("insights"\)/);
   assert.doesNotMatch(INS, /\["admin","manager","planner"\]\.includes\(role\)/);
-  assert.match(INS, /HelmRange\.mount\(\$\("#rangeBar"\)/); assert.match(INS, /range-bar\.js\?v=1/);
+  assert.match(INS, /HelmRange\.mount\(\$\("#rangeBar"\)/); assert.match(INS, /range-bar\.js\?v=2/);
   assert.match(INS, /if\(canFin && m\)/); assert.match(INS, /BPStore\.insights\.summary\(\{from:r\.from,to:r\.to\}\)/);
   assert.doesNotMatch(INS, /style="/); assert.doesNotMatch(read('public/range-bar.js'), /innerHTML|style=|\.style\./);
 });
