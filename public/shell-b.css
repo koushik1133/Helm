@@ -76,14 +76,20 @@ html[data-shell="b"] .hb-theme #bpThemeToggle { position: static !important; ins
 html[data-shell="b"] .hb-theme #bpThemeToggle:hover { background: var(--hb-bg2) !important; color: var(--hb-ink) !important; }
 html[data-shell="b"] .hb-acct { gap: 10px; padding: 6px 4px 0; border-top: 1px solid var(--hb-line); margin-top: 4px; min-height: 52px; }
 html[data-shell="b"] .hb-acct .hau-mw { flex: 0 0 auto; position: relative; }
-/* the rail clips its children (overflow hidden), so the account menu floats beside the rail instead */
-html[data-shell="b"] .hb-acct .hau-menu { position: fixed !important; left: calc(var(--hb-wx) + 10px) !important; right: auto !important; top: auto !important; bottom: 14px !important; max-height: calc(100vh - 28px); overflow-y: auto; z-index: 1200 !important; }
-@media (max-width: 819px) { html[data-shell="b"] .hb-acct .hau-menu { left: 12px !important; right: 12px !important; bottom: 76px !important; } }
+/* the rail clips its children (overflow hidden), so the account menu floats beside the rail instead.
+   r20 (Safari): shell-b.js moves the menu to <body> (.hb-acct-pop) - WebKit clipped it to the fixed, overflow-hidden
+   rail, so in Safari it opened invisible. Both selectors stay so either place looks the same. */
+html[data-shell="b"] .hb-acct .hau-menu, html[data-shell="b"] .hau-menu.hb-acct-pop { position: fixed !important; left: calc(var(--hb-wx) + 10px) !important; right: auto !important; top: auto !important; bottom: 14px !important; max-height: calc(100vh - 28px); overflow-y: auto; z-index: 1200 !important; }
+@media (max-width: 819px) { html[data-shell="b"] .hb-acct .hau-menu, html[data-shell="b"] .hau-menu.hb-acct-pop { left: 12px !important; right: 12px !important; bottom: 76px !important; } }
 /* the rail is its own stacking context (z 900) and the floating notes (.hau-notes, z 900) come later in the DOM, so
    they painted OVER the open account menu (it looked see-through and "Sign out" was unclickable). While the menu is
    open the rail is lifted above them; the menu itself is fully opaque. */
-html[data-shell="b"].hau-menu-open .hb-rail, html[data-shell="b"] .hb-rail:has(.hau-menu:not([hidden])) { z-index: 2000 !important; }
-html[data-shell="b"] .hb-acct .hau-menu { background: var(--hb-bg, var(--panel, #fff)) !important; opacity: 1; isolation: isolate; }
+/* r20: two rules - a browser without :has() (Safari < 15.4) drops a whole selector list that contains it */
+html[data-shell="b"].hau-menu-open .hb-rail { z-index: 2000 !important; }
+html[data-shell="b"] .hb-rail:has(.hau-menu:not([hidden])) { z-index: 2000 !important; }
+/* on <body> the menu stacks with the rail itself: above the lifted rail (the phone drawer sits under it) */
+html[data-shell="b"] .hau-menu.hb-acct-pop { z-index: 2010 !important; }
+html[data-shell="b"] .hb-acct .hau-menu, html[data-shell="b"] .hau-menu.hb-acct-pop { background: var(--hb-bg, var(--panel, #fff)) !important; opacity: 1; isolation: isolate; }
 html[data-shell="b"] .hb-who { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
 html[data-shell="b"] .hb-who b { font-weight: 600; font-size: 13px; color: var(--hb-ink); overflow: hidden; text-overflow: ellipsis; }
 html[data-shell="b"] .hb-who small { font-size: 11.5px; color: var(--hb-ink3); }
@@ -209,7 +215,7 @@ html[data-shell="b"] .hb-tabs { display: none; }
   /* exactly one bottom bar: hide mobile-nav.js's */
   html[data-shell="b"] .hmn-bar { display: none !important; }
   html[data-shell="b"] #shellSwitch { bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important; }
-  html[data-shell="b"] .hb-acct .hau-menu, html[data-shell="b"] .hb-recent .htr-pop { left: 12px !important; right: 12px !important; bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important; }
+  html[data-shell="b"] .hb-acct .hau-menu, html[data-shell="b"] .hau-menu.hb-acct-pop, html[data-shell="b"] .hb-recent .htr-pop { left: 12px !important; right: 12px !important; bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important; }
   html[data-shell="b"] .hb-menu { position: fixed; right: 12px; top: calc(var(--hb-top) + 6px); }
 }
 
@@ -333,7 +339,7 @@ html[data-shell="b"] .hb-rail:hover .hb-cnt, html[data-shell="b"] .hb-rail:focus
   background: var(--hb-acc-soft); color: var(--hb-acc-text); }
 html[data-shell="b"] .hb-rail:hover .hb-item.on .hb-cnt, html[data-shell="b"] .hb-rail:focus-within .hb-item.on .hb-cnt, html[data-shell="b"].hb-pinned .hb-item.on .hb-cnt { background: var(--hb-bg2); color: var(--hb-ink2); }
 /* menus/popovers: soft elevation + scale/fade in */
-html[data-shell="b"] .hb-menu, html[data-shell="b"] .hb-swpop, html[data-shell="b"] .hb-acct .hau-menu, html[data-shell="b"] .hb-recent .htr-pop, html[data-shell="b"] .hb-help-dlg { box-shadow: var(--hb-pop); }
+html[data-shell="b"] .hb-menu, html[data-shell="b"] .hb-swpop, html[data-shell="b"] .hb-acct .hau-menu, html[data-shell="b"] .hau-menu.hb-acct-pop, html[data-shell="b"] .hb-recent .htr-pop, html[data-shell="b"] .hb-help-dlg { box-shadow: var(--hb-pop); }
 html[data-shell="b"] .hb-menu:not([hidden]), html[data-shell="b"] .hb-swpop:not([hidden]), html[data-shell="b"] .hb-help-dlg { animation: hbPop .18s var(--hb-ease) both; transform-origin: top right; }
 html[data-shell="b"] .hb-swpop:not([hidden]) { transform-origin: bottom left; }
 html[data-shell="b"] .hb-help:not([hidden]) { animation: hbFade .18s ease both; }

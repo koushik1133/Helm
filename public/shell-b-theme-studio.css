@@ -101,6 +101,7 @@ html[data-shell="b"][data-hb-theme="studio"] .hb-chat.on { color:var(--c8-ac); b
 html[data-shell="b"][data-hb-theme="studio"] .hb-acct .hau-av { background:var(--c8-s2); color:var(--c8-ink2); border:1px solid var(--c8-ln); box-shadow:none; }
 html[data-shell="b"][data-hb-theme="studio"] .hb-menu,
 html[data-shell="b"][data-hb-theme="studio"] .hb-acct .hau-menu,
+html[data-shell="b"][data-hb-theme="studio"] .hau-menu.hb-acct-pop,
 html[data-shell="b"][data-hb-theme="studio"] .hb-help-dlg { background:var(--c8-su); border:1px solid var(--c8-ln); border-radius:12px; box-shadow:var(--c8-pop); color:var(--c8-ink2); }
 html[data-shell="b"][data-hb-theme="studio"] .hb-mi { color:var(--c8-ink2); border-radius:8px; }
 html[data-shell="b"][data-hb-theme="studio"] .hb-mi:hover { background:var(--c8-s2); color:var(--c8-ink); }

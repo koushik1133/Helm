@@ -589,6 +589,11 @@
   function profileForm(st, opts) {
     css();
     var o = opts || {}, P = o.profile || {}, idp = o.idp || "hpf", setup = o.mode === "setup";
+    // r20: {full_name|phone|city: {value, from}} from profileSuggest() - shown in EMPTY fields only, saved only by Save
+    var sug = {};
+    if (o.suggest && typeof o.suggest === "object") ["full_name", "phone", "city"].forEach(function (k) {
+      var x = o.suggest[k]; if (x && typeof x.value === "string" && x.value && !String(P[k] || "").trim()) sug[k] = x;
+    });
     var hadName = !!String(P.full_name || "").trim(), hadPhone = !!P.phone;
     var vopts = setup ? { requireName: true, requirePhone: true } : { requireName: hadName, requirePhone: hadPhone };
     var lim = (st.profile && st.profile.limits) || { text: 80, skill: 40, skills: 20 };
@@ -762,8 +767,8 @@
 
     // ---- About you
     var sA = section("About you", "How your team will see and reach you.", false);
-    field(sA, "full_name", "Full name", { req: setup || hadName, core: true, ac: "name", max: 50, ph: "e.g. Ananya Rao", value: P.full_name, wide: true });
-    var mob = field(sA, "phone", "Mobile number", { req: setup || hadPhone, core: true, type: "tel", ac: "tel", max: 24, mobile: true, value: P.phone || "", wide: true,
+    field(sA, "full_name", "Full name", { req: setup || hadName, core: true, ac: "name", max: 50, ph: "e.g. Ananya Rao", value: P.full_name || (sug.full_name && sug.full_name.value), wide: true });
+    var mob = field(sA, "phone", "Mobile number", { req: setup || hadPhone, core: true, type: "tel", ac: "tel", max: 24, mobile: true, value: P.phone || (sug.phone && sug.phone.value) || "", wide: true,
       hint: "We'll use this for event-day check-ins and urgent updates." });
     // WhatsApp is parked for launch (owner, Oct 2026): while config.liveChannels.whatsapp is off,
     // the WhatsApp checkboxes, number and the WhatsApp-code "Verify" button are not shown at all.
@@ -868,7 +873,23 @@
     });
     skIn.addEventListener("blur", function () { if (skIn.value.trim() && addSkills(skIn.value)) skIn.value = ""; });
     renderChips();
-    field(gW, "city", "City", { ac: "address-level2", ph: "e.g. Hyderabad", value: P.city });
+    field(gW, "city", "City", { ac: "address-level2", ph: "e.g. Hyderabad", value: P.city || (sug.city && sug.city.value) });
+    // r20: say where each pre-filled value came from; it is saved only when the person presses Save
+    var sugNotes = {};
+    Object.keys(sug).forEach(function (k) {
+      var inp = inputs[k], wrap = inp && inp.closest ? inp.closest(".hpf-f") : null; if (!wrap) return;
+      var note = el("p", { class: "hpf-h hpf-sug", id: idp + "_" + k + "_sug", style: "color:var(--accent,#047857)" },
+        sug[k].from === "studio" ? "Filled in from your studio details — check it, then Save." : "Filled in from your sign-up — check it, then Save.");
+      wrap.appendChild(note); sugNotes[k] = note;
+      inp.setAttribute("aria-describedby", (inp.getAttribute("aria-describedby") || "") + " " + note.id);
+    });
+    if (sug.city) { var citySec = inputs.city.closest ? inputs.city.closest("details") : null; if (citySec) citySec.open = true; }
+    function sugPending() { return Object.keys(sug).filter(function (k) { return inputs[k] && String(inputs[k].value || "").trim(); }).length; }
+    function sugClear() {
+      Object.keys(sugNotes).forEach(function (k) { var n = sugNotes[k]; if (n && n.parentNode) n.parentNode.removeChild(n);
+        var inp = inputs[k]; if (inp) inp.setAttribute("aria-describedby", String(inp.getAttribute("aria-describedby") || "").replace(" " + n.id, "")); });
+      sug = {}; sugNotes = {};
+    }
 
     // ---- Emergency contact (optional)
     var eFilled = !!(P.emergency_contact_name || P.emergency_contact_phone);
@@ -931,7 +952,9 @@
       if (!hasPhone) need.push("mobile number");
       progTxt.textContent = "";
       progTxt.appendChild(el("b", null, n + " of " + total));
-      progTxt.appendChild(doc.createTextNode(" details added" + (need.length ? " · still needed: " + need.join(" and ") : (setup ? " · ready to save" : ""))));
+      var sp = sugPending();
+      progTxt.appendChild(doc.createTextNode(" details added" + (sp ? " · " + sp + " suggested from sign-up — tap Save" : "")
+        + (need.length ? " · still needed: " + need.join(" and ") : (setup && !sp ? " · ready to save" : ""))));
       rowTx.textContent = need.length ? "Still needed: " + need.join(", ") : "All required details added";
       prog.classList.toggle("is-ready", !need.length);
     }
@@ -1087,6 +1110,7 @@
           if (Array.isArray(row.skills)) { skills = row.skills.slice(); renderChips(); }
           avIni.textContent = initials(row.full_name, row.email || o.email);
         }
+        sugClear();   // r20: the suggestions are saved values now
         progress();
         if (!setup) showAlert("Profile saved.", true);
         if (o.onSaved) o.onSaved(row || null);
@@ -1107,6 +1131,50 @@
       },
     };
   }
+  // r20 (pure, unit-tested): details the person ALREADY gave, offered where their own profile is still empty.
+  //   p = my_profile(); meta = auth user_metadata (sign-up "Full name" / Google name); studio = organizations row
+  //   (trial welcome: brand.phone, brand.billing.city, location); acct = my_studio_account() (primary contact, city).
+  //   The studio's phone / city are offered to the studio's admin only (the trial owner typed them at sign-up) -
+  //   a teammate's own mobile is never guessed. Returns {full_name|phone|city: {value, from: "signup"|"studio"}}.
+  //   Nothing is written: the form shows them and the person presses Save.
+  function profileSuggest(p, meta, studio, acct, isAdmin) {
+    p = p || {}; meta = meta || {}; var out = {};
+    function t(v, max) { return typeof v === "string" ? v.replace(/<[^>]*>/g, "").replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : ""; }
+    function has(k) { return !!String(p[k] == null ? "" : p[k]).trim(); }
+    var a = isAdmin && acct && typeof acct === "object" ? acct : {};
+    var o = isAdmin && studio && typeof studio === "object" ? studio : {};
+    var b = o.brand && typeof o.brand === "object" ? o.brand : {}, bill = b.billing && typeof b.billing === "object" ? b.billing : {};
+    var n = t(meta.full_name, 50) || t(meta.name, 50);
+    if (!has("full_name")) { if (n) out.full_name = { value: n, from: "signup" }; else if (t(a.primary_contact_name, 50)) out.full_name = { value: t(a.primary_contact_name, 50), from: "studio" }; }
+    // a mobile number in E.164 only (the profile keeps +<country><number>); the free trial is India, so a bare
+    // 10-digit Indian mobile (or 0 / 91 + it) becomes +91...; anything else (a landline, a short code) is not offered
+    function e164(v) { var d = v.replace(/\D/g, "");
+      if (!/^[0-9+() .-]{6,24}$/.test(v)) return "";
+      if (/^\+/.test(v)) return d.length >= 8 && d.length <= 15 ? "+" + d : "";
+      if (/^0?[6-9]\d{9}$/.test(d)) return "+91" + d.slice(-10);
+      if (/^91[6-9]\d{9}$/.test(d)) return "+" + d;
+      return ""; }
+    var ph = [a.primary_contact_phone, b.phone].map(function (v) { return e164(t(v, 24)); }).filter(Boolean)[0];
+    if (!has("phone") && ph) out.phone = { value: ph, from: "studio" };
+    var city = t(a.city, 80) || t(bill.city, 80) || t(o.location, 80);
+    if (!has("city") && city) out.city = { value: city, from: "studio" };
+    return out;
+  }
+  // r20: read what profileSuggest needs (all cached reads, no writes); never blocks the form for more than 2.5 s
+  function profileSuggestFor(st, p) {
+    var u = {}; try { u = (st.auth && st.auth.user && st.auth.user()) || {}; } catch (e) {}
+    var meta = u.user_metadata || {};
+    var work = Promise.resolve().then(function () { return p.role || (st.auth && st.auth.role ? st.auth.role() : null); }).catch(function () { return null; })
+      .then(function (role) {
+        if (!/^(admin|owner)$/i.test(String(role || ""))) return profileSuggest(p, meta, null, null, false);
+        return Promise.all([
+          Promise.resolve().then(function () { return st.org && st.org.current ? st.org.current() : null; }).catch(function () { return null; }),
+          Promise.resolve().then(function () { return st.subscription && st.subscription.account ? st.subscription.account() : null; }).catch(function () { return null; }),
+        ]).then(function (r) { return profileSuggest(p, meta, r[0], r[1], true); });
+      }).catch(function () { return {}; });
+    var late = new Promise(function (res) { setTimeout(function () { try { res(profileSuggest(p, meta, null, null, false)); } catch (e) { res({}); } }, 2500); });
+    return Promise.race([work, late]);
+  }
   // "Your profile" (Account panel) — falls back to the display-name section without 0041
   // r20-coord: soloHead = the panel opened on the profile alone - its <h2> already says "Your profile", so no second heading
   function profileSection(st, focusIt, soloHead) {
@@ -1118,13 +1186,17 @@
       if (!p || !("complete" in p)) { sec.replaceWith(displayNameSection(st)); return; }   // 0041 not installed
       body.textContent = "";
       body.appendChild(el("p", { class: "hau-muted" }, "Teammates see your name, job title, department and photo."));
-      if (!p.complete) body.appendChild(el("p", { class: "hau-muted", style: "font-weight:600" }, "Add your full name and mobile number to complete your profile."));
+      return profileSuggestFor(st, p).then(function (sg) {
+      var nSug = Object.keys(sg || {}).length;
+      if (nSug) body.appendChild(el("p", { class: "hau-muted", style: "font-weight:600" }, "We filled in " + nSug + (nSug === 1 ? " detail" : " details") + " you gave when you signed up. Check them and tap Save profile — nothing is saved until you do."));
+      else if (!p.complete) body.appendChild(el("p", { class: "hau-muted", style: "font-weight:600" }, "Add your full name and mobile number to complete your profile."));
       var u = st.auth.user() || {};
-      var f = profileForm(st, { mode: "panel", idp: "hap", profile: p, email: u.email, labelledBy: soloHead ? "hauTitle" : "hauProfileTitle", submitLabel: "Save profile",
+      var f = profileForm(st, { mode: "panel", idp: "hap", profile: p, email: u.email, labelledBy: soloHead ? "hauTitle" : "hauProfileTitle", submitLabel: "Save profile", suggest: sg,
         onSaved: function (row) { if (row && row.complete) hideProfileBanner(); } });
       body.appendChild(f.el);
       if (focusIt) { try { sec.scrollIntoView({ block: "start" }); } catch (e) {} f.focusFirst(); }
-    }, function (e) {
+      });
+    }).then(null, function (e) {
       body.textContent = "";
       body.appendChild(el("p", { class: "hau-err" }, errText(e, "load your profile")));
     });
@@ -1847,6 +1919,7 @@
     mountCaptcha: mountCaptcha,
     renderEnroll: renderEnroll,
     profileForm: profileForm,
+    _profileSuggest: profileSuggest,
     menuModel: menuModel,
     refreshMenu: refreshMenuIdentity,
     showNote: showNote,
