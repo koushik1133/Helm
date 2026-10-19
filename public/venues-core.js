@@ -166,10 +166,18 @@
     return out;
   }
 
+  // r20: "address, city" without repeating the city when the address already names it
+  // ("Banjara Hills, Hyderabad" + "Hyderabad" -> "Banjara Hills, Hyderabad"). Composed text only - the venue row is untouched.
+  function joinAddress(address, city) {
+    var a = String(address == null ? "" : address).trim(), c = String(city == null ? "" : city).trim();
+    if (!c) return a; if (!a) return c;
+    var lc = c.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp("(^|[^a-z])" + lc + "([^a-z]|$)", "i").test(a) ? a : a + ", " + c;
+  }
   // what a picked venue fills in. Builder works in feet; flow hall fields are feet too.
   function fillFor(v) {
     if (!v) return null;
-    return { name: v.name || "", address: [v.address, v.city].filter(Boolean).join(", "),
+    return { name: v.name || "", address: joinAddress(v.address, v.city),
       contact: [v.contact_name, v.contact_phone].filter(Boolean).join(" / "),
       lenFt: mToFt(v.length_m), widFt: mToFt(v.width_m),
       setting: v.setting === "outdoor" ? "outdoor" : "indoor",
@@ -189,5 +197,5 @@
   global.HelmVenues = { FT_PER_M: FT_PER_M, VENUE_TYPES: VENUE_TYPES, AC_TYPES: AC_TYPES, SETTINGS: SETTINGS,
     EVENT_TYPES: EVENT_TYPES, RESTRICTIONS: RESTRICTIONS, COST_BASIS: COST_BASIS, label: label,
     toMeters: toMeters, fromMeters: fromMeters, mToFt: mToFt, inrShort: inrShort, costText: costText,
-    validate: validate, eventKey: eventKey, warnings: warnings, capacity: capacity, capText: capText, fillFor: fillFor, summary: summary };
+    validate: validate, eventKey: eventKey, warnings: warnings, capacity: capacity, capText: capText, fillFor: fillFor, summary: summary, joinAddress: joinAddress };
 })(typeof window !== "undefined" ? window : globalThis);
