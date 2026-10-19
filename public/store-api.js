@@ -1243,7 +1243,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "12";
+  const STUDIO_SEARCH_VERSION = "13";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";
@@ -10258,6 +10258,32 @@ window.HelmUrl = HelmUrl;
       return stamp + "-" + String(max + 1).padStart(2, "0");
     },
   };
+  // server reads (0263). Every call returns null on a database without 0263 (screens then hide the timeline).
+  BPStore.stages = {
+    async history(quoteId) {
+      if (mode !== "supabase" || !supa || !quoteId) return null;
+      try { return await rpc("quote_stage_history", { p_quote: quoteId }); }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    async list(ids) {
+      const a = (Array.isArray(ids) ? ids : []).filter((x) => /^[0-9a-f-]{36}$/i.test(String(x || ""))).slice(0, 500);
+      if (mode !== "supabase" || !supa || !a.length) return [];
+      try { return (await rpc("quote_stage_list", { p_ids: a })) || []; }
+      catch (e) { if (rpcMissing(e)) return []; throw e; }
+    },
+    async settings() {
+      if (mode !== "supabase" || !supa) return null;
+      try { return await rpc("stage_machine_settings", {}); }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // studio admin with Control Center edit; guardMode "warn" | "enforce" (null = keep), showHistory boolean (null = keep)
+    async setSettings(guardMode, showHistory) {
+      if (guardMode != null && guardMode !== "warn" && guardMode !== "enforce") throw Object.assign(new Error("Stage rules must be warn or enforce."), { code: "22023" });
+      if (mode !== "supabase" || !supa) throw new Error("Stage rules need a signed-in studio.");
+      try { return await rpc("set_stage_machine_settings", { p_guard_mode: guardMode == null ? null : guardMode, p_show_history: showHistory == null ? null : !!showHistory }); }
+      catch (e) { if (rpcMissing(e)) { const er = new Error("Stage rules need database update 0263 (ask your admin to run APPLY-0263.sql)."); er.code = "stage_machine_missing"; throw er; } throw e; }
+    },
+  };
   global.BPStore = BPStore;
   BPStore.sampleName = sampleDisplayName;   // r20: shared sample-name display (see sampleDisplayName)
   /* ---- 0067 pretty studio URLs: studio check + ref resolution (HelmUrl.get) ----
@@ -11768,6 +11794,45 @@ window.HelmUrl = HelmUrl;
     if (ap === "sent") return mk("sent", "Sent · awaiting client approval", "sent", "The approval link is with the client - it becomes Confirmed when they approve.");
     if (st === "confirmed") return mk("locked", "Locked · not sent yet", "locked", "Priced and locked - send the client the approval link.");
     return mk("quote", "Quote", "draft", "Draft quote - price it, then send it for approval.");
+  };
+  // ---- r23 (0263): ONE canonical stage (the server's helm_quote_stage, line for line; parity-tested on
+  // tests/db/r23-stage-cases.json). shelf: null | "expired" | "lost"; viewed = the client opened the approval link.
+  BPStore.quoteStageRule = function (status, approval, lifecycle, closed, viewed, stale, shelf, tokenExpired) {
+    var st = status || "", ap = approval || "", lc = lifecycle || "quote";
+    if (st === "cancelled") return "cancelled";
+    if (lc === "closed" || closed) return "closed";
+    if (lc === "settlement") return "completed";
+    if (lc === "event_day") return "event_day";
+    if (lc === "planning" || lc === "resources" || lc === "ready") return "in_progress";
+    if (ap === "paid" && lc === "confirmed") return "confirmed";
+    if (ap === "paid") return "advance_paid";
+    if (ap === "approved" && !stale) return "approved";
+    if (lc === "confirmed" && !(stale && (ap === "sent" || ap === "approved"))) return "confirmed";
+    if (shelf === "expired" || shelf === "lost") return shelf;
+    if ((ap === "sent" || ap === "approved") && tokenExpired) return "expired";
+    if ((ap === "sent" || ap === "approved") && viewed) return "viewed";
+    if (ap === "sent" || ap === "approved") return "sent";
+    if (lc === "lead" || lc === "discovery") return "lead";
+    return "draft";
+  };
+  var QS_STAGE_LABELS = { lead: "Lead", draft: "Draft", sent: "Sent", viewed: "Viewed by client", approved: "Approved", advance_paid: "Advance paid",
+    confirmed: "Confirmed", in_progress: "In progress", event_day: "Event day", completed: "Completed", closed: "Closed",
+    cancelled: "Cancelled", expired: "Expired", lost: "Lost" };
+  // tone = the status-pills.css class (one colour language): grey draft, blue sent, amber due, green ok, dark green paid, red bad, outline muted
+  var QS_STAGE_TONES = { lead: "new", draft: "draft", sent: "sent", viewed: "active", approved: "approved", advance_paid: "paid", confirmed: "confirmed",
+    in_progress: "in_progress", event_day: "due", completed: "completed", closed: "closed", cancelled: "cancelled", expired: "overdue", lost: "archived" };
+  BPStore.quoteStageLabel = function (s) { return QS_STAGE_LABELS[s] || String(s || ""); };
+  BPStore.quoteStageTone = function (s) { return QS_STAGE_TONES[s] || "draft"; };
+  // a quote object from any screen (camelCase or snake_case) -> its canonical stage (opts.viewed / opts.closed when known)
+  BPStore.quoteStage = function (q, opts) {
+    q = q && typeof q === "object" ? q : {}; opts = opts || {};
+    var arch = q.archivedAt || q.archived_at, del = q.deletedAt || q.deleted_at;
+    var why = q.deletedReason || q.deleted_reason || q.archivedReason || q.archived_reason || "";
+    var shelf = (arch || del) ? ((why === "link_expired" || q.linkExpiredAt || q.link_expired_at) ? "expired" : "lost") : null;
+    var exp = q.approvalTokenExpiresAt || q.approval_token_expires_at, expired = false;
+    if (exp) { var t = Date.parse(exp); expired = isFinite(t) && t <= Date.now(); }
+    return BPStore.quoteStageRule(q.status, q.approvalStatus || q.approval_status, q.lifecycleStage || q.lifecycle_stage,
+      !!(opts.closed || q.closedAt || q.closed_at), !!(opts.viewed || q.viewed), !!(q.consentStale || q.consent_stale), shelf, expired);
   };
   // The invoice total = the SERVER-priced quote total (pricing.total is stamped by the D8 trigger
   // zz_enforce_pricing_total on every write - never a client-side recompute) + APPROVED change orders.
