@@ -58,11 +58,14 @@ create or replace function pg_temp.role_rows() returns text language sql as $$
 
 -- ---- setup ------------------------------------------------------------------------------------------------------
 do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000000-0000-4000-8000-000000000001';
-  qa uuid := 'a0000000-0000-4000-8000-00000000da01'; adm uuid; crd uuid; v uuid; vb uuid; cv uuid; begin
+  qa uuid := 'a0000000-0000-4000-8000-00000000da01'; adm uuid; crd uuid; mgr uuid; mgr2 uuid; bmgr uuid; v uuid; vb uuid; cv uuid; begin
   crd := pg_temp.member('dl_coord@a.test', 'coordinator', a, 'Ravi Coordinator');
   perform pg_temp.member('dl_quality@a.test', 'quality', a, 'Q Person');
   perform pg_temp.member('dl_crew@a.test', 'crew', a, 'Crew Person');
   perform pg_temp.member('dl_planner@b.test', 'planner', b, 'B Planner');
+  mgr := pg_temp.member('dl_mgr@a.test', 'manager', a, 'Meena Manager');
+  mgr2 := pg_temp.member('dl_mgr2@a.test', 'manager', a, 'Off-group Manager');
+  bmgr := pg_temp.member('dl_mgr@b.test', 'manager', b, 'B Manager');
   perform pg_temp.su();
   select id into adm from public.profiles where email = 'a_admin@a.test';
   update public.profiles set full_name = 'Asha Admin' where id = adm;
@@ -74,9 +77,10 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000
   insert into public.vendors(id, name, category, email, org_id) values (gen_random_uuid(), 'Deccan Rentals', 'Furniture', 'Orders@Deccan.test', a) returning id into v;
   insert into public.vendors(id, name, category, email, org_id) values (gen_random_uuid(), 'B Vendor', 'Furniture', 'b@vendor.test', b) returning id into vb;
   insert into public.chat_conversations(id, org_id, kind, title, quote_id, created_by) values (gen_random_uuid(), a, 'group', 'Event group A-0001', qa, adm) returning id into cv;
-  insert into public.chat_members(conversation_id, user_id, org_id) values (cv, adm, a), (cv, crd, a);
+  insert into public.chat_members(conversation_id, user_id, org_id) values (cv, adm, a), (cv, crd, a), (cv, mgr, a);
   perform pg_temp.put('v', v::text); perform pg_temp.put('vb', vb::text); perform pg_temp.put('cv', cv::text);
   perform pg_temp.put('adm', adm::text); perform pg_temp.put('crd', crd::text);
+  perform pg_temp.put('mgr', mgr::text); perform pg_temp.put('mgr2', mgr2::text); perform pg_temp.put('bmgr', bmgr::text);
   perform pg_temp.put('roles0', pg_temp.role_rows());
 end $$;
 
@@ -285,6 +289,14 @@ do $$ declare r jsonb; e text; tok text := pg_temp.get('tok'); c1 uuid := pg_tem
     (select string_agg(body, ' | ') from public.chat_messages where conversation_id = pg_temp.get('cv')::uuid));
   perform pg_temp.res('69 ... and dropped into the bell (studio, event-linked)',
     (select count(*) from public.notifications where org_id = 'a0000000-0000-4000-8000-000000000001' and kind = 'event_reminder' and detail ->> 'source' = '0241') = 2);
+  perform pg_temp.res('69b coordinators + managers: @mentioned when in the group (not off-group, not another studio); bell lists all of this studio''s',
+    not exists (select 1 from public.chat_messages where conversation_id = pg_temp.get('cv')::uuid and meta ->> 'delivery_id' = c1::text
+                  and not ((meta -> 'mentions') ? pg_temp.get('mgr') and (meta -> 'mentions') ? pg_temp.get('crd')
+                           and not (meta -> 'mentions') ? pg_temp.get('mgr2') and not (meta -> 'mentions') ? pg_temp.get('bmgr')))
+    and not exists (select 1 from public.notifications where org_id = 'a0000000-0000-4000-8000-000000000001' and detail ->> 'source' = '0241'
+                  and not ((detail -> 'notify') ? pg_temp.get('mgr') and (detail -> 'notify') ? pg_temp.get('mgr2')
+                           and (detail -> 'notify') ? pg_temp.get('crd') and not (detail -> 'notify') ? pg_temp.get('bmgr'))),
+    (select string_agg(meta::text, ' | ') from public.chat_messages where conversation_id = pg_temp.get('cv')::uuid and meta ? 'delivery_id'));
 end $$;
 
 -- ---- 7) reminders follow the new ETA; arrival stops them ----------------------------------------------------------

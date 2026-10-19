@@ -347,11 +347,12 @@ begin
 end $$;
 
 -- after a reply / status change / missed reply: post into the event's team chat group (or the group the studio
--- picked) as Helm (system message, @mentions the admins + the person who scheduled it) and drop a bell row.
+-- picked) as Helm (system message, @mentions the admins + the person who scheduled it + the
+-- studio's coordinators / managers who are in that group) and drop a bell row (listing every coordinator / manager).
 -- Only while the studio switched delivery reminders on. Never blocks the caller (errors are swallowed).
 create or replace function public._dl241_announce(p_id uuid, p_event text, p_note text, p_by text)
 returns boolean language plpgsql volatile security definer set search_path = '' as $$
-declare c public.delivery_commitments; s public.delivery_settings; v_txt text; v_conv uuid; v_ment jsonb; v_done boolean := false;
+declare c public.delivery_commitments; s public.delivery_settings; v_txt text; v_conv uuid; v_ment jsonb; v_ops jsonb; v_done boolean := false;
 begin
   select * into c from public.delivery_commitments d where d.id = p_id;
   if c.id is null then return false; end if;
@@ -370,7 +371,11 @@ begin
       if v_conv is not null then
         select coalesce(jsonb_agg(to_jsonb(u.id)), '[]'::jsonb) into v_ment
           from (select p.id from public.profiles p where p.org_id = c.org_id and p.role = 'admin'
-                union select c.created_by where c.created_by is not null) u;
+                union select c.created_by where c.created_by is not null
+                -- r21: event coordinators + managers of the same studio, only when they are in the group
+                union select p.id from public.profiles p
+                       join public.chat_members m on m.conversation_id = v_conv and m.user_id = p.id and m.org_id = c.org_id
+                      where p.org_id = c.org_id and p.role in ('coordinator', 'manager')) u;
         insert into public.chat_messages(conversation_id, org_id, sender_id, kind, body, meta)
           values (v_conv, c.org_id, null, 'system', v_txt,
                   case when jsonb_array_length(v_ment) > 0 then jsonb_build_object('mentions', v_ment, 'delivery_id', c.id) else jsonb_build_object('delivery_id', c.id) end);
@@ -382,9 +387,12 @@ begin
   end if;
   if s.notify_bell then
     begin
+      select coalesce(jsonb_agg(to_jsonb(p.id) order by p.id), '[]'::jsonb) into v_ops
+        from public.profiles p where p.org_id = c.org_id and p.role in ('coordinator', 'manager');
       insert into public.notifications(quote_id, channel, kind, status, detail, org_id)
         values (c.quote_id, 'in_app', 'event_reminder', 'simulated',
-                jsonb_build_object('label', v_txt, 'via', 'comms', 'source', '0241', 'delivery_id', c.id, 'event', p_event), c.org_id);
+                jsonb_build_object('label', v_txt, 'via', 'comms', 'source', '0241', 'delivery_id', c.id, 'event', p_event,
+                                   'notify', v_ops), c.org_id);
       v_done := true;
     exception when others then raise warning 'delivery-0241: bell row skipped (%)', sqlstate;
     end;
