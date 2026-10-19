@@ -63,4 +63,42 @@
 .cl-modal .cl-sheet{width:min(720px,96vw);max-height:90vh;overflow:auto}
 .cl-mbody{margin:6px 0 12px}
 .cl-modal textarea{min-height:80px}
-@media (max-width:480px){.cl-grid{grid-template-columns:1fr}.cl-check{flex-wrap:wrap}.cl-fix{margin-left:34px}.cl-modal{padding:8px}.cl-modal .cl-sheet{padding:16px}}
+/* r22 visual pass: masked money pills (Hide amounts) - compact, same width, aligned like the other Helm money pills */
+.cl-tile-m{display:inline-block}
+html.hb-priv-on .cl-tile-m[data-money]{min-width:112px}
+html.hb-priv-on .cl-leg-v[data-money]{display:inline-block;min-width:58px;text-align:right}
+html.hb-priv-on .cl-amt[data-money]{display:inline-block;min-width:52px}
+/* per-item equipment table: plain rows (no shaded first column), item column stays put when it scrolls on a phone */
+.cl-inv th[scope="row"]{background:var(--panel,#fff);font-weight:600;color:var(--ink);text-transform:none;letter-spacing:0;font-size:12.5px;position:sticky;left:0;z-index:1}
+.cl-inv thead th{background:var(--panel-2,#faf8f5);text-transform:none;letter-spacing:0;font-size:12px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.cl-inv thead th:first-child{position:sticky;left:0;z-index:2}
+.cl-inv tr.cl-inv-fail th[scope="row"]{color:#b42318}
+.cl-inv td.cl-st{text-align:center}
+.cl-inv .cl-ic{width:22px;height:22px;font-size:12px}
+.cl-cbody .cl-fix,.cl-check>.cl-fix{text-decoration:none} .cl-fix:hover{text-decoration:underline}
+/* the dialog: the actions stay visible at the bottom while the checklist scrolls */
+.cl-modal .cl-sheet{display:flex;flex-direction:column}
+.cl-modal .cl-sheet>.foot{position:sticky;bottom:-24px;margin:8px -24px -24px;padding:12px 24px;background:var(--panel,#fff);border-top:1px solid var(--line-2,#f1ede7);border-radius:0 0 16px 16px;z-index:3}
+.cl-modal .err{margin:4px 0 6px}
+@media (max-width:640px){
+  .cl-check{flex-wrap:wrap}
+  .cl-cbody{flex:1 1 calc(100% - 34px)}
+  .cl-check>.cl-fix{order:3;margin-left:34px;padding-top:0}
+  .cl-inv{min-width:480px;font-size:12px}
+  .cl-inv th,.cl-inv td{padding:6px}
+}
+@media (max-width:480px){.cl-grid{grid-template-columns:1fr}.cl-modal{padding:8px}.cl-modal .cl-sheet{padding:16px}
+  .cl-modal .cl-sheet>.foot{bottom:-16px;margin:8px -16px -16px;padding:10px 16px}
+  .cl-modal .cl-sheet>.foot .btn{flex:1}
+  .cl-req-acts{flex-wrap:wrap}.cl-req-acts .btn{flex:1 1 auto}}
+.cl-modal .cl-sheet>*{flex-shrink:0}
+.cl-inv-wrap{position:relative}   /* keeps the visually-hidden status labels inside the scroll box (no page-wide sideways scroll on phones) */
+.cl-check.ok{color:var(--ink);font-weight:400;font-size:inherit}   /* the page's generic .ok (green caption) must not restyle a passed check line */
+.cl-leg{align-items:flex-start}.cl-leg .cl-sw{margin-top:4px}.cl-leg-k{white-space:normal;overflow:visible;text-overflow:clip}   /* long legend labels wrap instead of being cut */
+.cl-inv th[scope="row"]{min-width:120px}
+/* the page Close button while something is open / waiting (request, pending, too early): a calm amber outline, not the
+   green "go" - the green primary stays for a real close and for the dialog's own "Request to close anyway" */
+html[data-shell] #closeBtn.cl-anyway,#closeBtn.cl-anyway{background:var(--panel,#fff)!important;background-image:none!important;color:#7a5200!important;
+  -webkit-text-fill-color:#7a5200;border:1px solid #d4a72c!important;box-shadow:none!important}
+html[data-shell] #closeBtn.cl-anyway:hover,#closeBtn.cl-anyway:hover{background:#fffaf0!important;transform:none}
+@media (min-width:641px){.cl-modal .cl-inv thead th{white-space:normal}.cl-modal .cl-inv th,.cl-modal .cl-inv td{padding:6px}}   /* the dialog table fits without sideways scroll on desktop */

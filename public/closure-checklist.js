@@ -106,7 +106,8 @@
   }
   function tile(title, big, sub, isMoney) {
     var t = el("div", "cl-tile"); t.appendChild(el("div", "cl-tile-k", title));
-    var b = el("div", "cl-tile-v", big); if (isMoney) money(b); t.appendChild(b);
+    // a money value is an inline pill inside the value row, so "Hide amounts" masks only the amount (not the whole row)
+    var b = el("div", "cl-tile-v"); if (isMoney) b.appendChild(money(el("span", "cl-tile-m", big))); else b.textContent = big; t.appendChild(b);
     if (sub) t.appendChild(sub.nodeType ? sub : el("div", "cl-tile-s", sub)); return t;
   }
 
@@ -139,7 +140,7 @@
       grid.appendChild(t2);
       // top cost categories
       var top = topCategories(m, 4);
-      var t3 = tile("Top cost categories", top.length ? String(top.length) : "None yet", null, false);
+      var t3 = tile("Top cost categories", top.length ? "Biggest: " + (top[0].label || top[0].key) : "None yet", null, false);
       t3.querySelector(".cl-tile-v").classList.add("cl-tile-v-sm");
       if (top.length) {
         t3.appendChild(bars(top.map(function (x) { return { v: x.expected, cls: "cost" }; })));
@@ -176,7 +177,7 @@
       t6.appendChild(meter([{ v: it.back, cls: "prof" }, { v: it.missing, cls: "warn" }, { v: it.stillOut, cls: "loss" }]));
       var l6 = el("div", "cl-legs"); l6.appendChild(legendRow("prof", "Checked in", fmtQty(it.back), false));
       l6.appendChild(legendRow("warn", "Missing / written off", fmtQty(Math.max(it.missing, it.writtenOff)), false));
-      l6.appendChild(legendRow("loss", "Still out / not marked returned", fmtQty(it.stillOut + it.reservedOpen), false)); t6.appendChild(l6);
+      l6.appendChild(legendRow("loss", "Still out / not returned", fmtQty(it.stillOut + it.reservedOpen), false)); t6.appendChild(l6);
     }
     grid.appendChild(t6);
     // tasks + issues
@@ -193,6 +194,7 @@
   /* ---------------- checklist + inventory table ---------------- */
   function inventoryTable(items) {
     var wrap = el("div", "cl-inv-wrap"); var t = el("table", "cl-inv");
+    t.setAttribute("data-tm", "off");   // keep the real table on phones (scrolls sideways, item column stays put) - not stacked cards
     var cap = el("caption", null, "Equipment for this event, per item"); t.appendChild(cap);
     var hr = el("tr"); ["Item", "Reserved", "Checked out", "Checked in", "Missing", "Written off", "Still out", ""].forEach(function (h, i) {
       var th = el("th", i ? "num" : null, h); th.setAttribute("scope", "col"); if (!h) th.appendChild(el("span", "sr-only", "Status")); hr.appendChild(th); });
@@ -306,14 +308,15 @@
         sh.appendChild(el("p", "cl-note", "Requested by " + s.pending.requested_name + " on " + when(s.pending.at) + ": " + (s.pending.reason || "")));
       } else if (s.fail && o.canRequest) {
         var f = el("div", "fld"); var lb = el("label", null, "Why should this event close anyway? (required, 10+ characters)"); lb.htmlFor = "clmReason"; f.appendChild(lb);
-        ta = el("textarea"); ta.id = "clmReason"; ta.maxLength = 1000; ta.required = true; ta.setAttribute("aria-describedby", "clmHelp");
+        f.appendChild(err);   // the error sits right above the reason box (never under the sticky buttons)
+        ta = el("textarea"); ta.id = "clmReason"; ta.maxLength = 1000; ta.required = true; ta.setAttribute("aria-describedby", "clmHelp"); err.id = "clmErr";
         ta.placeholder = "e.g. Client paying the last instalment by bank on Monday; 3 chairs lost, already written off"; f.appendChild(ta);
         var help = el("div", "cl-note", s.adminOnly ? "Some checks can only be approved by an admin." : "An admin, coordinator or manager approves it. Everyone who can approve is notified.");
-        help.id = "clmHelp"; f.appendChild(help); sh.appendChild(f); sh.appendChild(err);
+        help.id = "clmHelp"; f.appendChild(help); sh.appendChild(f);
         var go = el("button", "btn go cl-anyway", "Request to close anyway"); go.type = "button"; foot.appendChild(go);
         go.addEventListener("click", function () {
           var v = String(ta.value || "").trim();
-          if (v.length < 10) { err.textContent = "Write a reason of at least 10 characters - it is saved with your name and shown to the approver."; err.hidden = false; ta.focus(); return; }
+          if (v.length < 10) { err.textContent = "Write a reason of at least 10 characters - it is saved with your name and shown to the approver."; err.hidden = false; ta.setAttribute("aria-invalid", "true"); ta.setAttribute("aria-describedby", "clmErr clmHelp"); ta.focus(); return; }
           done({ reason: v });
         });
       } else if (s.fail) sh.appendChild(el("p", "cl-note", "Your role can't ask to close this event. Ask an admin."));
