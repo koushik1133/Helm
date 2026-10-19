@@ -135,7 +135,7 @@
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
 <script src="tour.js?v=23"></script>
 <script src="crew-schedule.js?v=6"></script>
-<script src="events-calendar.js?v=2"></script>
+<script src="events-calendar.js?v=3"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
   const $=(s)=>document.querySelector(s);
@@ -150,6 +150,7 @@
   const evName=(e)=>{ const H=window.HelmEventName; if(H&&H.listName) return H.listName(e); const t=String((e&&e.title)||"").trim(); return !t||t===(e&&e.code)?"Untitled event":t; };
   /* HelmUI empty state (guarded: falls back to the plain message if the kit isn't loaded) */
   const hEmpty=(host,o,cols)=>{ const H=window.HelmUI; if(!(H&&H.emptyState)||!host) return false; const n=H.emptyState(o); if(cols){ const tr=document.createElement("tr"),td=document.createElement("td"); td.colSpan=cols; td.className="hs-empty-cell"; td.appendChild(n); tr.appendChild(td); host.replaceChildren(tr); } else host.replaceChildren(n); return true; };
+  let agendaType="";   // R20: the Events calendar's event-type filter (lower-case; "" = all types)
   let schedUI=null, canEdit=false, data=null, leadDates=[], canLeads=false, canQuotes=true, evUI=null, sampleIds=new Set(), cvTeamOk=false, cvEventsOk=false;
   // B30: ONE status word with the dashboard / Quotes list (BPStore.quoteStatus): a settled event reads Closed, a
   // locked quote the client has not approved yet is still Tentative (it used to read Confirmed here)
@@ -199,10 +200,12 @@
   function render(){
     const clashDates=new Set(data.conflicts.map(c=>c.date));
     renderConflicts();
-    const dated=data.agenda.filter(a=>validDate(a.event.eventDate));
+    // R20: the Events calendar's "Event type" filter applies to this list too (only while that calendar is shown)
+    const tf=(cvNow!=="team"&&evUI)?agendaType:"", typeOk=(t)=>!tf||String(t||"").trim().toLowerCase()===tf;
+    const dated=data.agenda.filter(a=>validDate(a.event.eventDate)&&typeOk(a.event.eventType));
     const byDate={}; dated.forEach(a=>{ (byDate[a.event.eventDate]=byDate[a.event.eventDate]||[]).push(a); });
     // 1017: open leads with an event date show as a light "Lead" marker (roles that can view leads only)
-    const leadsByDate={}; leadDates.forEach(l=>{ (leadsByDate[l.event_date]=leadsByDate[l.event_date]||[]).push(l); if(!byDate[l.event_date]) byDate[l.event_date]=[]; });
+    const leadsByDate={}; leadDates.filter(l=>typeOk(l.event_type)).forEach(l=>{ (leadsByDate[l.event_date]=leadsByDate[l.event_date]||[]).push(l); if(!byDate[l.event_date]) byDate[l.event_date]=[]; });
     const leadRow=(l)=>`<div class="ev leadmk"><div><span class="ttl">${esc(l.name||"Lead")}</span><span class="stb lead">Lead</span>
         <div data-st="font-size:12px;color:var(--ink-3)">${esc([l.event_type, l.guest_count?(l.guest_count+" guests"):""].filter(Boolean).join(" · "))}</div></div>
       <div class="chips"><a class="open" href="leads.html" aria-label="Open leads for ${esc(l.name||"this lead")}">Leads</a></div></div>`;
@@ -219,8 +222,9 @@
     let html="";
     if(upcoming.length) html+=upcoming.map(dayBlock).join("");
     if(past.length) html+=`<div class="hd" data-st="margin:18px 0 8px;color:var(--ink-3);font-weight:600;border-top:1px solid var(--line);padding-top:14px">Past events</div>`+past.map(dayBlock).join("");
-    $("#agenda").innerHTML = (upcoming.length||past.length) ? html : '<div class="empty">No dated events yet.</div>';
-    if(!(upcoming.length||past.length)) hEmpty($("#agenda"),{icon:"📅",title:"No dated events yet",text:"Events show up here once a quote has an event date.",actionLabel:"Open quotes",onAction:()=>{ location.href="quotes.html"; }});
+    if(tf&&!(upcoming.length||past.length)){ $("#agenda").innerHTML='<div class="empty">No dated events of this type.</div>'; }
+    else{ $("#agenda").innerHTML = (upcoming.length||past.length) ? html : '<div class="empty">No dated events yet.</div>';
+    if(!(upcoming.length||past.length)) hEmpty($("#agenda"),{icon:"📅",title:"No dated events yet",text:"Events show up here once a quote has an event date.",actionLabel:"Open quotes",onAction:()=>{ location.href="quotes.html"; }}); }
 
     const nodate=data.agenda.filter(a=>!validDate(a.event.eventDate));
     $("#nodateWrap").hidden = !nodate.length;
@@ -335,7 +339,8 @@
     evUI=HelmEventsCalendar.mount($("#evcal"),{ items:calItems, conflicts:clashByDay, today:studioToday,
       kinds:canLeads?["confirmed","tentative","lead"]:["confirmed","tentative"],
       view:["month","week","day"].includes(v)?v:"month", onView:(x)=>prefSet("Range",x),
-      fmt:(d,o)=>BPStore.fmtStudioDate(d,{fmt:o}) });
+      fmt:(d,o)=>BPStore.fmtStudioDate(d,{fmt:o}),
+      onType:(t)=>{ agendaType=String(t||""); if(data) render(); } });
   }
   let cvNow="";
   function showView(v,focus){
@@ -345,6 +350,7 @@
     $("#cvEvents").hidden=v!=="events"; $("#cvTeam").hidden=v!=="team";
     $("#cvHint").textContent=v==="events"?"Which event is on when":"Who is working when";
     if(v==="events") mountEvents(); else if(!schedUI) mountSchedule();
+    if(data&&agendaType) render();   // R20: the type filter only applies under the Events view
   }
   async function setupViews(){
     const role=String((await BPStore.auth.role().catch(()=>""))||"").toLowerCase(), crewOnly=role==="crew"||role==="worker";

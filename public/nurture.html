@@ -279,9 +279,12 @@
 
   const converting=new Set();
   // r7: a WhatsApp greeting link when the contact has a valid phone (opens WhatsApp; nothing is sent automatically)
+  // R20 (live QA): the sample-data "Demo · " prefix is a label for the studio, never part of a message to the client
+  // ("Hi Demo · Vamshi Krishna, ..."). Text only - the saved name is not changed.
+  function msgName(n){ return String(n||"").replace(/^\s*Demo\s*\u00b7\s*/,"").trim(); }
   function waLink(d){
     const wa=BPStore.waNumber(d&&d.phone); if(!wa) return "";   // 0092: studio dial code (+91 / +971 / +1)
-    const txt=encodeURIComponent("Hi "+(d.name||"")+", warm wishes on your "+(d.occasion||d.occasion_type||"special day")+"!");
+    const txt=encodeURIComponent("Hi "+msgName(d.name)+", warm wishes on your "+(d.occasion||d.occasion_type||"special day")+"!");
     return ` <a class="lnk" target="_blank" rel="noopener" href="https://wa.me/${esc(wa)}?text=${esc(txt)}" aria-label="WhatsApp ${esc(d.name)}">WhatsApp</a>`;
   }
   // B16: every Add is saved or clearly refused. The click snapshots the form, the form resets at once
@@ -518,7 +521,7 @@
       <button type="button" class="lnk" data-up="${Number(i)}">Preview wish</button></div>`).join("")
       : '<p class="muted">No lead birthdays or anniversaries in the next 30 days. Add them on a lead (Leads → edit → Birthday / Anniversary).</p>';
     $("#lib_upcoming").querySelectorAll("[data-up]").forEach(b=>b.addEventListener("click",()=>{ const u=up[+b.dataset.up];
-      libKey=u.kind==="birthday"?"birthday":"anniversary"; $("#lib_occ").value=libKey; libExtra={ client_name:u.name, years:String(u.years||"") }; libFill();
+      libKey=u.kind==="birthday"?"birthday":"anniversary"; $("#lib_occ").value=libKey; libExtra={ client_name:msgName(u.name), years:String(u.years||"") }; libFill();
       $("#libCard").scrollIntoView({behavior:"smooth",block:"start"}); }));
   }
   $("#lib_occ").addEventListener("change",()=>{ libKey=$("#lib_occ").value; libExtra=null; libFill(); });

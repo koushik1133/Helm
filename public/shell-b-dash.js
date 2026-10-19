@@ -810,6 +810,9 @@
 
     /* la-1018: the page's setup / sample-data / after-upgrade cards join the dashboard grid as full-width blocks, so they
        line up with the cards around them (they sat under it, as wide as the whole page) */
+    /* R20: room for the "Complete your profile" notice in the page flow (auth-ui.js puts inline notices here), so it never
+       floats over the KPI tiles; hidden while empty */
+    var noteSlot = el("div", "hd-s-full hd-prompt hd-note-slot"); noteSlot.hidden = true; noteSlot.setAttribute("data-hau-notes-slot", ""); root.appendChild(noteSlot);
     ["obNudge", "tdCard", "tuCard"].forEach(function (id) { var n = document.getElementById(id); if (n) { n.classList.add("hd-s-full", "hd-prompt"); root.appendChild(n); } });
 
     /* sections: one parent, DOM order = reading order (grid/cols are display:contents) */

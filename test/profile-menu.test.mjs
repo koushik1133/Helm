@@ -104,7 +104,7 @@ t('CSP: new CSS goes through __helmAdoptCss; no style= in the menu code', () => 
   assert.match(AUI, /\.hau-menu\{/); assert.match(AUI, /html\[data-theme=dark\] \.hau-menu/);
 });
 t('versions bumped: AUTH_UI_VERSION 19, every page on store-api v=158', () => {
-  assert.match(API, /const AUTH_UI_VERSION = "42";/);
+  assert.match(API, /const AUTH_UI_VERSION = "43";/);
   const pages = readdirSync(new URL('../public/', import.meta.url)).filter((f) => f.endsWith('.html'));
   pages.forEach((p) => { const h = read('public/' + p); const m = h.match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '254', p); });
 });

@@ -1162,7 +1162,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "42";
+  const AUTH_UI_VERSION = "43";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -2401,6 +2401,16 @@ window.HelmUrl = HelmUrl;
   async function sbCount(query) { const { count, error } = await query; if (error) throw error; return count || 0; }
   // a column the query names doesn't exist on this database yet (older schema)
   const isMissingColumn = (e) => { const c = (e && e.code) || ""; return c === "42703" || c === "PGRST204" || /column .* does not exist/i.test(String((e && e.message) || "")); };
+  // R20 (live QA): the MMDDYYYY stamp of a quote-code guess. With no date it is the STUDIO's today (the server stamps
+  // codes with the studio's local date) - the browser's date gave 10182026-01 while the real code was 10192026-01.
+  // An explicit Date keeps its own calendar day.
+  const quoteCodeStamp = (date) => {
+    if (!date) {
+      try { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(BPStore.todayLocal ? BPStore.todayLocal() : "")); if (m) return m[2] + m[3] + m[1]; } catch (e) {}
+    }
+    const d = date || new Date();
+    return String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + d.getFullYear();
+  };
   const localISODate = (d) => { const x = d || new Date(); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
 
   /* ---------------- quotes + versions ---------------- */
@@ -2847,9 +2857,8 @@ window.HelmUrl = HelmUrl;
     eventTypes: () => qt().eventTypes(),
     // the next MMDDYYYY-NN guess for a date, from just that day's codes (not every quote)
     async nextCodeFor(date) {
-      const d = date || new Date();
-      const stamp = String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + d.getFullYear();
-      return quotes.nextCode(await qt().codesFor(stamp), d);
+      const stamp = quoteCodeStamp(date);
+      return quotes.nextCode(await qt().codesFor(stamp), date);
     },
     // a few quotes by id, light columns (lookups for a page of something else)
     async byIds(ids) {
@@ -2952,8 +2961,7 @@ window.HelmUrl = HelmUrl;
     remove: (id) => qt().remove(id),
     // next MMDDYYYY-NN given a list of quote summaries (uses .code)
     nextCode(list, date) {
-      const d = date || new Date();
-      const stamp = String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + d.getFullYear();
+      const stamp = quoteCodeStamp(date);
       const re = new RegExp("^" + stamp + "-(\\d+)"); let max = 0;
       (list || []).forEach((s) => { const m = re.exec(s.code || ""); if (m) max = Math.max(max, parseInt(m[1], 10)); });
       return stamp + "-" + String(max + 1).padStart(2, "0");
@@ -10789,7 +10797,8 @@ window.HelmUrl = HelmUrl;
   function showFlash() {
     var f = null;
     try { f = sessionStorage.getItem("bp_flash"); sessionStorage.removeItem("bp_flash"); } catch (e) {}
-    if (f && /^[\w .,'!—-]{1,80}$/.test(f)) setTimeout(function () { toast(f, { type: "ok" }); }, 300);
+    var ty = "ok"; if (f && f.indexOf("i|") === 0) { ty = "info"; f = f.slice(2); }   // R20: "i|..." = a notice, not a success
+    if (f && /^[\w .,'!—-]{1,80}$/.test(f)) setTimeout(function () { toast(f, { type: ty }); }, 300);
   }
   function start() { injectCSS(); startModalObserver(); installOffline(); showFlash(); }
   if (doc.readyState !== "loading") start(); else doc.addEventListener("DOMContentLoaded", start, { once: true });
