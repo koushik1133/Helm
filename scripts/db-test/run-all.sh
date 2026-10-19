@@ -50,6 +50,7 @@ run "r21-security-0249" "R21-SECURITY-0249: ALL PASS \(29/29\)" psql -q -f tests
 run "r22-mfa-reset-0253" "R22-MFA-RESET-0253: ALL PASS \(30/30\)" psql -q -f tests/db/r22-mfa-reset-0253.sql
 run "privacy-pin-0157"   "PRIVACY-PIN-0157: ALL PASS \(30/30\)" psql -q -f tests/db/privacy-pin-0157.sql
 run "direct-studio-0159" "DIRECT-STUDIO-0159: ALL PASS \(30/30\)" psql -q -f tests/db/direct-studio-0159.sql
+run "r22-create-studio-0255" "R22-CREATE-STUDIO-0255: ALL PASS \(46/46\)" psql -q -f tests/db/r22-create-studio-0255.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql
@@ -208,6 +209,8 @@ run "r21-reminders-0241" "R21-REMINDERS-0241: ALL PASS \(69/69\)" psql -q -f tes
 run "r21-money-0246" "R21-MONEY-0246: ALL PASS \(32/32\)" psql -q -f tests/db/r21-money-0246.sql
 # 0252 re-applies 0246 (proves the old skip) then 0252 twice (re-run safe)
 run "r22-money-0252" "R22-MONEY-0252: ALL PASS \(17/17\)" psql -q -f tests/db/r22-money-0252.sql
+# 0254 re-applies itself (fixture events are made after the clean install; proves a re-run is safe)
+run "r22-closure-0254" "R22-CLOSURE-0254: ALL PASS \(68/68\)" psql -q -f tests/db/r22-closure-0254.sql
 # 0244 re-applies itself twice (re-run safe) after every suite that re-applies 0045 / 0183 / 0185
 run "r21-trial-paid-0244" "R21-TRIAL-PAID-0244: ALL PASS \(56/56\)" psql -q -f tests/db/r21-trial-paid-0244.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh

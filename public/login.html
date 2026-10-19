@@ -127,6 +127,34 @@
   /* round 19: the sign-up e-mail has an open invitation - join it or start an own trial */
   .iv-own{margin-top:10px} .iv-who{word-break:break-all}
   .inbox-have{margin-top:12px}
+  /* r22: ONE sign-up flow (signup-flow.js) - the Terms box, the step line, the studio form chips and the wide plan step */
+  .agree{display:flex;gap:10px;align-items:flex-start;margin:0 0 16px;padding:12px;border:1px solid var(--line);border-radius:11px;background:var(--panel-2);
+    font-size:13.5px;line-height:1.5;color:var(--ink-2);text-transform:none;letter-spacing:0;font-weight:500;cursor:pointer}
+  .agree input{width:20px;height:20px;min-width:20px;margin:1px 0 0;accent-color:var(--accent)}
+  .agree a{color:var(--accent);font-weight:600}
+  .agree.is-err{border-color:#d92d20}
+  .su-step{margin:0 0 6px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
+  .su-link{margin-top:16px} .su-link a{color:var(--accent);font-weight:700;text-decoration:none} .su-link a:hover{text-decoration:underline}
+  .slugline{margin:-10px 0 16px;word-break:break-all} .slugline b{color:var(--ink);font-family:var(--mono);font-weight:500}
+  .types{border:0;padding:0;margin:0 0 16px;min-width:0}
+  .types legend{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:0 0 8px;padding:0}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chips .chip{display:inline-flex;align-items:center;gap:6px;min-height:40px;margin:0;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2);
+    font-size:13.5px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink-2);cursor:pointer}
+  .chips .chip input{width:16px;height:16px;margin:0;accent-color:var(--accent)}
+  .chips .chip:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+  .card.start{width:min(1000px,100%)}
+  body.su-wide{grid-template-columns:1fr} body.su-wide .brandpane{display:none}
+  .seg{display:inline-flex;padding:4px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line);margin:0 0 14px}
+  .seg label{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:38px;margin:0;padding:0 14px;border-radius:9px;font-size:14px;font-weight:600;
+    text-transform:none;letter-spacing:0;color:var(--ink-2);cursor:pointer}
+  .seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer;width:auto;height:auto}
+  .seg label.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(27,25,48,.12)}
+  .seg .save{font-size:11px;font-weight:700;color:#0f7a43;background:#e7f6ee;padding:2px 7px;border-radius:99px}
+  .st-rules{margin:0 0 12px;font-size:13.5px} .st-rules summary{cursor:pointer;font-weight:600;color:var(--accent);min-height:44px;display:flex;align-items:center}
+  .st-note{text-align:left}
+  .plan-acts .pc-btn{margin:0}
+  #stTitle:focus,#obTitle:focus{outline:none}
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="/public-v2.css?v=5">
@@ -134,6 +162,7 @@
 <script src="/marketing-theme.js?v=3"></script>
 <link rel="stylesheet" href="/marketing-loader.css?v=1">
 <link rel="stylesheet" href="/trial-terms.css?v=4">
+<link rel="stylesheet" href="/plan-cards.css?v=1">
 <script src="/marketing-loader.js?v=3"></script>
 <style>
   /* emerald auth polish + mode toggle (login/reset only) */
@@ -177,12 +206,8 @@
     </section>
     <form class="card" id="loginForm">
       <div class="mmk"></div>
-      <div class="modetabs">
-        <button type="button" class="mtab on" data-mode="signin" aria-pressed="true">Sign in</button>
-        <button type="button" class="mtab" data-mode="signup" aria-pressed="false">Create studio</button>
-      </div>
       <h1 id="formTitle">Welcome back</h1>
-      <p class="sub" id="formSub">Sign in with the account your studio admin created for you.</p>
+      <p class="sub" id="formSub">Sign in with your Helm account.</p>
       <div class="info" id="expiredMsg" role="status" hidden>Your session expired — sign in again.</div>
       <div class="err" id="err" role="alert" hidden></div>
       <div class="info" id="gHint" role="note" hidden>If you signed up with Google, use Continue with Google.</div>
@@ -193,7 +218,7 @@
         <p class="ferr" id="studio_err" hidden></p>
       </div>
       <div id="nameField" hidden>
-        <label for="fullname">Your name <span class="opt">(optional)</span></label>
+        <label for="fullname">Your name <span class="opt" id="fullnameOpt">(optional)</span><span class="req" id="fullnameReq" aria-hidden="true" hidden>*</span></label>
         <input id="fullname" placeholder="e.g. Priya Sharma" autocomplete="name" maxlength="50" aria-describedby="fullname_err">
         <p class="ferr" id="fullname_err" hidden></p>
       </div>
@@ -218,6 +243,11 @@
       </div>
       <p class="hint" id="inviteHaveAcct" hidden>Already have a Helm account? <button type="button" class="linkbtn" id="inviteSigninBtn">Sign in instead</button></p>
       <p class="hint" id="forgotRow"><button type="button" class="linkbtn" id="forgotBtn">Forgot password?</button></p>
+      <!-- r22: step 1 of the ONE sign-up flow - the Terms are agreed here and recorded on the server (0255) -->
+      <div id="agreeRow" hidden>
+        <label class="agree" for="agree"><input type="checkbox" id="agree" aria-describedby="agree_err"><span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> <span class="req" aria-hidden="true">*</span></span></label>
+        <p class="ferr" id="agree_err" hidden></p>
+      </div>
       <div class="captcha" id="captcha" hidden></div>
       <button class="btn" id="submit" type="submit">Sign in →</button>
       <div class="or"><span>or</span></div>
@@ -225,8 +255,10 @@
         <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
         Continue with Google
       </button>
+      <p class="helper su-link" id="newHere">New to Helm? <a href="/signup" id="createLink">Create your studio &rarr;</a></p>
+      <p class="helper su-link" id="haveAcct" hidden>Already have a Helm account? <button type="button" class="linkbtn" id="toSignin">Sign in</button></p>
       <p class="helper" id="confirmHelp">Just signed up? Confirm your email first — <button type="button" class="linkbtn" id="resendConfirmBtn">Resend confirmation link</button></p>
-      <div class="foot"><span id="agreeLead">By continuing you agree to our</span> <a class="s-a805525" href="terms">Terms</a> &amp; <a class="s-a805525" href="privacy">Privacy Policy</a>. · <a class="s-a805525" href="/">← Home</a></div>
+      <div class="foot"><span id="agreeFoot"><span id="agreeLead">By continuing you agree to our</span> <a class="s-a805525" href="terms">Terms</a> &amp; <a class="s-a805525" href="privacy">Privacy Policy</a>. · </span><a class="s-a805525" href="/">← Home</a></div>
     </form>
 
     <!-- After sign-up: the account exists but its email is not confirmed yet -->
@@ -234,12 +266,13 @@
       <div class="env" aria-hidden="true">
         <svg viewBox="0 0 96 80"><rect x="6" y="14" width="84" height="58" rx="10" class="env-b"/><path d="M8 20l40 28 40-28" class="env-f"/><circle cx="78" cy="16" r="12" class="env-dot"/><path d="M72.5 16l4 4 7-8" class="env-ck"/></svg>
       </div>
+      <p class="su-step" id="inboxStep">Step 2 of 4 &middot; Verify your e-mail</p>
       <h1 id="inboxTitle" tabindex="-1">Check your inbox</h1>
       <p class="sub">We sent a confirmation link to <b id="inboxEmail"></b>.</p>
       <ol class="steps">
         <li>Open the email from <b>Helm Events</b> (check spam or promotions too).</li>
         <li>Click <b>Confirm my email</b> — open it in this browser.</li>
-        <li>You'll come straight back here, signed in, to finish setting up.</li>
+        <li>You'll come straight back here, signed in, to name your studio and choose how to start.</li>
       </ol>
       <div class="mailbtns">
         <a class="mailbtn" id="openGmail" href="https://mail.google.com/mail/u/0/#search/from%3Ahelm+in%3Aanywhere" target="_blank" rel="noopener noreferrer">Open Gmail</a>
@@ -333,52 +366,64 @@
       <div class="foot">Signed in as <b id="mfaSetupEmail"></b> · <button type="button" class="linkbtn" id="mfaSetup_signout">Sign out</button></div>
     </div>
 
-    <!-- Onboarding: shown when a signed-in user (e.g. via Google) has no studio yet -->
-    <form class="card" id="onboardForm" hidden>
+    <!-- r22 step 3 of the ONE sign-up flow: a signed-in account (e-mail confirmed, or Google) with no studio yet -->
+    <form class="card" id="onboardForm" hidden novalidate>
       <div class="mmk"></div>
-      <h1 id="obTitle">Set up your studio</h1>
-      <p class="sub" id="obSub">You're signed in — tell us about your business to create your <b>own new</b> workspace.</p>
+      <p class="su-step">Step 3 of 4 &middot; Your studio</p>
+      <h1 id="obTitle" tabindex="-1">Create your studio</h1>
+      <p class="sub" id="obSub">You're signed in. Tell us about your business &mdash; you can change all of this later.</p>
       <div class="okmsg s-6be0d8b" id="obHint">Were you invited by a colleague? Don't create a studio here — open the <b>invite link</b> they sent you instead, so you join <em>their</em> studio. <button type="button" class="linkbtn" id="ob_signout2">Sign out</button></div>
       <div class="err" id="obErr" role="alert" hidden></div>
-      <label for="ob_name">Business / studio name</label>
-      <input id="ob_name" placeholder="e.g. Aurora Events" autocomplete="organization" required>
-      <label for="ob_location">Location (city, country)</label>
-      <input id="ob_location" placeholder="e.g. Hyderabad, India" autocomplete="address-level2">
-      <div class="s-8aed95a">
-        <div>
-          <label for="ob_currency">Currency</label>
-          <select id="ob_currency">
-            <option value="INR">₹ INR</option><option value="USD">$ USD</option>
-            <option value="EUR">€ EUR</option><option value="GBP">£ GBP</option>
-            <option value="AED">د.إ AED</option><option value="SGD">S$ SGD</option>
-          </select>
-        </div>
-        <div>
-          <label for="ob_tz">Timezone</label>
-          <select id="ob_tz">
-            <option value="Asia/Kolkata">Asia/Kolkata</option>
-            <option value="Asia/Dubai">Asia/Dubai</option>
-            <option value="Asia/Singapore">Asia/Singapore</option>
-            <option value="Europe/London">Europe/London</option>
-            <option value="America/New_York">America/New_York</option>
-            <option value="America/Los_Angeles">America/Los_Angeles</option>
-            <option value="Australia/Sydney">Australia/Sydney</option>
-          </select>
-        </div>
+      <label for="ob_name">Studio / business name <span class="req" aria-hidden="true">*</span></label>
+      <input id="ob_name" placeholder="e.g. Aurora Events" autocomplete="organization" maxlength="80" required aria-describedby="ob_name_err ob_slug_l">
+      <p class="ferr" id="ob_name_err" hidden></p>
+      <p class="hint slugline" id="ob_slug_l">Your studio link: <b id="ob_slug">helm.events/studio</b></p>
+      <label for="ob_city">City <span class="opt">(optional)</span></label>
+      <input id="ob_city" placeholder="e.g. Hyderabad" autocomplete="address-level2" maxlength="80">
+      <label for="ob_team">Team size <span class="opt">(optional)</span></label>
+      <select id="ob_team"></select>
+      <fieldset class="types"><legend>Events you run <span class="opt">(optional)</span></legend><div class="chips" id="ob_types"></div></fieldset>
+      <div id="obTermsRow" hidden>
+        <label class="agree" for="ob_terms"><input type="checkbox" id="ob_terms"><span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> <span class="req" aria-hidden="true">*</span></span></label>
       </div>
-      <button class="btn" id="ob_submit" type="submit">Create my studio →</button>
+      <!-- the older studio form's fields (kept, never shown: the studio setup wizard asks for currency / time zone) -->
+      <div class="s-8aed95a" id="obLegacy" hidden>
+        <label for="ob_location">Location (city, country)</label><input id="ob_location" autocomplete="off">
+        <label for="ob_currency">Currency</label><select id="ob_currency"><option value="INR">₹ INR</option></select>
+        <label for="ob_tz">Timezone</label><select id="ob_tz"><option value="Asia/Kolkata">Asia/Kolkata</option></select>
+      </div>
+      <button class="btn" id="ob_submit" type="submit">Continue &rarr;</button>
       <div class="foot">Signed in as <b id="obEmail"></b> · <button type="button" class="linkbtn" id="ob_signout">Not you? Sign out</button></div>
     </form>
+
+    <!-- r22 step 4: how to start - the same plan cards as /checkout (plan-cards.js): Pay now / Try free / Contact sales -->
+    <section class="card start" id="startCard" hidden aria-labelledby="stTitle">
+      <p class="su-step">Step 4 of 4 &middot; How to start</p>
+      <h1 id="stTitle" tabindex="-1">How would you like to start <b id="stStudio"></b>?</h1>
+      <p class="sub" id="stLead">Pay now to open your studio straight away, or try Helm free for 8 days - no payment needed.</p>
+      <div class="seg st-seg" role="radiogroup" aria-label="Billing period">
+        <label class="on" id="stIvM"><input type="radio" name="st_interval" value="monthly" checked>Monthly</label>
+        <label id="stIvY"><input type="radio" name="st_interval" value="yearly">Yearly <span class="save">2 months free</span></label>
+      </div>
+      <div class="err" id="stErr" role="alert" hidden></div>
+      <div class="okmsg" id="stOk" role="status" hidden></div>
+      <div id="stPlans" aria-live="polite"></div>
+      <details class="st-rules" id="stTrialRules"><summary>What's in the free trial?</summary></details>
+      <p class="helper st-note">Prices are before GST. Pay now shows the exact amount, tax included, before anything is charged. While online payment is being switched on you pay by UPI or bank transfer and your studio opens as soon as our team confirms the payment.</p>
+      <div class="foot"><button type="button" class="linkbtn" id="stBack">&larr; Back</button> · Signed in as <b id="stEmail"></b></div>
+    </section>
   </main>
 
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=269"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=270"></script>
 <script src="auth-ui.js?v=50"></script>
 <script src="/auth-visual.js?v=1"></script>
 <script src="/trial-facts.js?v=6"></script>
-<script src="/trial-signup.js?v=14"></script>
+<script src="/trial-signup.js?v=13"></script>
+<script src="/plan-cards.js?v=1"></script>
+<script src="/signup-flow.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -437,12 +482,25 @@
     try{ oid=await BPStore.org.resolveId(); known=true; }catch(e){}
     // a NEW studio member completes their profile first (0041; no-op when it isn't installed)
     if(oid && BPStore.profile.routeIfRequired && await BPStore.profile.routeIfRequired(nextUrl())) return;
+    // r22: a PAID studio (Pay now / Contact sales) opens the studio setup wizard once its plan is active - and /checkout
+    // sends it there after paying (no explicit ?next= only; trials keep the dashboard's 2-step welcome)
+    const first=oid ? await firstRunPage() : null;
     // then a NEW studio's owner picks a plan / starts the trial (0056; no-op when it isn't installed)
-    if(oid && BPStore.checkout && await BPStore.checkout.routeIfRequired(nextUrl())) return;
+    if(oid && BPStore.checkout && await BPStore.checkout.routeIfRequired(first||nextUrl())) return;
+    if(first){ location.replace(first); return; }
     if(oid || !known){ location.replace(nextUrl()); return; }   // unknown: the page gate re-checks
     if(!(await operatorTwoStep())) return;          // operators: two-step code (or set-up) first, no skip
     if(await BPStore.auth.operatorToHq()) return;   // Helm platform operator → HQ (replace)
     showOnboarding();
+  }
+  async function firstRunPage(){
+    if(QS.get("next") || !window.BPSignupFlow) return null;
+    try{
+      const o=await BPStore.org.current().catch(()=>null);
+      const p=o&&o.brand&&o.brand.onboarding; if(p && (p.completed_at||p.step)) return null;   // the wizard was opened already
+      const [a,tr]=await Promise.all([BPStore.subscription.account().catch(()=>null), BPStore.trialOrg.inTrial().catch(()=>false)]);
+      return BPSignupFlow.firstRun(o,a,tr);
+    }catch(e){ return null; }
   }
   const EXPIRED=new URLSearchParams(location.search).get("expired")==="1";
   const showErr=(el,text)=>{ el.textContent=text; el.hidden=false; };
@@ -510,15 +568,19 @@
   }
   let mode="signin"; let INVITE_ORG="";
   const J=()=>JOINING && !INVITE_DEAD;
-  function submitLabel(){ if(mode==="signup" && TRIAL()) return "Start free trial →"; return mode==="signup" ? (J()?"Create account & join →":"Create studio →") : (J()?"Sign in to accept →":"Sign in →"); }
+  function submitLabel(){ return mode==="signup" ? (J()?"Create account & join →":"Create account →") : (J()?"Sign in to accept →":"Sign in →"); }
   function setMode(m){ mode=m; $("#err").hidden=true; $("#okmsg").hidden=true; $("#gHint").hidden=true;
     document.querySelectorAll(".mtab").forEach(b=>{ const on=b.dataset.mode===m; b.classList.toggle("on",on); b.setAttribute("aria-pressed",on?"true":"false"); });
-    const needStudio = !J() && m==="signup";
-    $("#studioField").hidden = !needStudio;   // an invitee never names a studio
-    $("#studio").required = needStudio;
+    // r22: the studio is named AFTER the e-mail is verified (step 3, signup-flow.js) - never on this form
+    const owner = !J() && m==="signup";
+    $("#studioField").hidden = true; $("#studio").required = false;
+    $("#agreeRow").hidden = !owner; $("#agree_err").hidden = true; $("#agree").closest(".agree").classList.remove("is-err");
+    $("#fullnameOpt").hidden = owner; $("#fullnameReq").hidden = !owner;
+    $("#newHere").hidden = m==="signup" || J(); $("#haveAcct").hidden = !owner;
+    $("#agreeFoot").hidden = owner;
     // 0205: an invitee sees "Join <Studio> on Helm" + "<Inviter> invited you as <Role>" on every path
     $("#formTitle").textContent = J() ? inviteTitle() : (m==="signup" ? "Create your studio" : "Welcome back");
-    $("#formSub").textContent = m==="signup" ? (J()?inviteLine()+". Choose a password to join.":"Set up your studio, then choose a plan and complete payment to start. Want to try Helm first? Start the free trial instead.") : (J()?inviteLine()+". Sign in to accept.":"Sign in with the account your studio admin created for you.");
+    $("#formSub").textContent = m==="signup" ? (J()?inviteLine()+". Choose a password to join.":"Step 1 of 4. Next you verify your e-mail, name your studio and choose how to start.") : (J()?inviteLine()+". Sign in to accept.":"Sign in with your Helm account.");
     $("#submit").textContent = submitLabel();
     document.body.classList.toggle("invite-join", J() && m==="signup");
     { const sw=document.getElementById("inviteHaveAcct"); if(sw) sw.hidden=!(J() && m==="signup"); }
@@ -535,13 +597,14 @@
     $("#confirmHelp").hidden = m==="signup";
     clearFieldErrs();
     if(window.BPTrialSignup) BPTrialSignup.apply(m, J());
+    if(m==="signup" && !J()){ document.title="Create your studio · Helm"; } else { document.title="Sign in · Helm"; }
   }
   // ----- field rules (owner form rules): inline errors on blur, polite + specific -----
   const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   const NAME_RE=/^[\p{L} '\-]{1,50}$/u;
   const normEmail=(v)=>String(v||"").trim().toLowerCase();
   function emailProblem(v){ const e=normEmail(v); if(!e) return "Please enter your email address."; if(e.length>254||!EMAIL_RE.test(e)) return "That doesn't look like a valid email — check for typos (e.g. name@studio.com)."; if(mode==="signup" && window.BPStore && BPStore.reservedEmailDomain && BPStore.reservedEmailDomain(e)) return BPStore.RESERVED_EMAIL_MESSAGE; return null; }   // r21 0248: Helm's own domains are for the Helm team (the server refuses them too)
-  function nameProblem(v){ const n=String(v||"").trim(); if(!n) return null; if(n.length>50) return "Please keep your name to 50 characters or fewer."; if(!NAME_RE.test(n)) return "Names can use letters, spaces, hyphens (-) and apostrophes (') only."; return null; }
+  function nameProblem(v){ const n=String(v||"").trim(); if(!n) return (mode==="signup" && !J()) ? "Please enter your name." : null; if(n.length>50) return "Please keep your name to 50 characters or fewer."; if(!NAME_RE.test(n)) return "Names can use letters, spaces, hyphens (-) and apostrophes (') only."; return null; }
   function studioProblem(v){ const n=String(v||"").trim(); if(!n && TRIAL()) return null; if(n.length<2) return "Please enter your studio or business name (at least 2 characters)."; if(n.length>80) return "Please keep the studio name to 80 characters or fewer."; return null; }
   function setFieldErr(input, msg){
     const box=document.getElementById(input.id+"_err"); if(!box) return !msg;
@@ -604,8 +667,22 @@
     if(!setFieldErr(i, emailProblem(i.value))){ i.focus(); return; }
     doResend(i.value,$("#okmsg"),$("#err"),b,"Resend confirmation link");
   });
+  // r22: "I agree to the Terms of Service and Privacy Policy" - required for a NEW account (e-mail or Google)
+  function agreeOk(){
+    const box=$("#agree"), lab=box.closest(".agree"), er=$("#agree_err");
+    if(box.checked){ er.hidden=true; lab.classList.remove("is-err"); return true; }
+    er.textContent="Please agree to the Terms of Service and Privacy Policy to create your account."; er.hidden=false; lab.classList.add("is-err"); box.focus();
+    return false;
+  }
+  $("#agree").addEventListener("change", ()=>{ if($("#agree").checked){ $("#agree_err").hidden=true; $("#agree").closest(".agree").classList.remove("is-err"); } });
+  // sign-in only page: "New to Helm? Create your studio" opens the sign-up (step 1) in place; "Sign in" goes back
+  $("#createLink").addEventListener("click", (e)=>{ e.preventDefault(); setMode("signup"); ensureCap();
+    try{ history.replaceState(history.state,"","/signup"+location.search); }catch(_){} setTimeout(()=>$("#fullname").focus(),60); });
+  $("#toSignin").addEventListener("click", ()=>{ setMode("signin");
+    try{ history.replaceState(history.state,"",(location.pathname==="/signup"?"/login":location.pathname)+location.search); }catch(_){} setTimeout(()=>$("#email").focus(),60); });
   // ----- views: sign-in form / forgot password / two-step code -----
-  function showView(id){ hoEnd(); ["#loginForm","#forgotForm","#mfaForm","#mfaSetupForm","#onboardForm","#inboxCard","#invitedCard","#invitePwForm","#inviteLinkCard"].forEach(s=>{ $(s).hidden = s!==id; }); }
+  function showView(id){ hoEnd(); ["#loginForm","#forgotForm","#mfaForm","#mfaSetupForm","#onboardForm","#startCard","#inboxCard","#invitedCard","#invitePwForm","#inviteLinkCard"].forEach(s=>{ $(s).hidden = s!==id; });
+    document.body.classList.toggle("su-wide", id==="#startCard"); }
   function openForgot(){
     showView("#forgotForm"); $("#fgErr").hidden=true; $("#fgOk").hidden=true;
     if($("#email").value && !$("#fg_email").value) $("#fg_email").value=$("#email").value;
@@ -744,21 +821,16 @@
   }
   document.querySelectorAll(".mtab").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
 
-  // if signed in but no studio yet (just confirmed email), finish creating the pending studio
-  async function finishPendingStudio(){
-    try{ const oid=await BPStore.org.id(); if(oid) return;
-      let name=localStorage.getItem(PENDING);
-      // round 19: the confirm link was opened in ANOTHER browser (no local note): the free-trial sign-up's own
-      // note on the account (helm_signup_intent / helm_signup_studio), only straight after that confirm link
-      if(!name && fromConfirm() && TRIAL()){ const m=(BPStore.auth.user()||{}).user_metadata||{};
-        if(m.helm_signup_intent==="trial") name=String(m.helm_signup_studio||"").replace(/[\u0000-\u001f\u007f]/g," ").trim().slice(0,80)||" "; }
-      if(!name) return;
-      if(await BPStore.auth.isPlatformAdmin()) return;   // HQ operators never get a studio
-      hoStep(TRIAL()?"Setting up your free-trial studio…":"Creating your studio…", TRIAL()?"Adding the sample events, leads, menus and inventory — this takes a few seconds.":"This takes a few seconds.");
-      await makeStudio(name.trim(),{}); localStorage.removeItem(PENDING);   // #16: never seed the business email with the login email
-      try{ localStorage.setItem("bp_force_tour","1"); }catch(e){}   // brand-new studio → show the tour
-    }catch(e){}
+  // r22: a confirmed sign-up never creates a studio by itself any more - the person names the studio and chooses how to
+  // start (pay now / free trial / contact sales) in steps 3 + 4 (showOnboarding). The name typed in an older sign-up form
+  // (localStorage / the account note) only pre-fills step 3, so a confirm link opened in another browser can never turn a
+  // paid sign-up into a trial (auditor r22 #1).
+  function pendingStudioName(){
+    let n=""; try{ n=String(localStorage.getItem(PENDING)||"").trim(); }catch(e){}
+    if(!n){ const m=(BPStore.auth.user()||{}).user_metadata||{}; n=String(m.helm_signup_studio||""); }
+    return n.replace(/[\u0000-\u001f\u007f]/g," ").trim().slice(0,80);
   }
+  async function finishPendingStudio(){ return; }
   // accept a stashed invite once a session exists (parallels finishPendingStudio)
   async function acceptPendingInvite(){
     const tok=pendingInvite(); if(!tok) return;
@@ -962,7 +1034,7 @@
     }
   });
   // arriving from the intro page's "Sign up" button (login.html#signup) opens the create-studio tab
-  if((location.hash||"").toLowerCase().replace("#","")==="signup"){ setMode("signup"); }
+  if((location.hash||"").toLowerCase().replace("#","")==="signup" || (window.BPSignupFlow && BPSignupFlow.intent().signup)){ setMode("signup"); }
   // an invite implies "join", so default to the create-account tab for a new invitee
   if(JOINING){ setMode("signup");
     { const b=document.getElementById("inviteSigninBtn"); if(b) b.addEventListener("click",()=>{ setMode("signin"); }); }
@@ -992,42 +1064,28 @@
   // ----- Onboarding: a signed-in user with no studio (e.g. Google sign-in) -----
   function showOnboarding(){
     const u=BPStore.auth.user()||{};
-    hoEnd(); $("#loginForm").hidden=true; $("#onboardForm").hidden=false;
+    hoEnd(); showView("#onboardForm");
     try{ sessionStorage.removeItem("bp_flash"); }catch(e){}   // already toasted on this page
     $("#obEmail").textContent=u.email||"";
-    // prefill a friendly default name from the Google profile, if any
+    // prefill only a real studio name (an older sign-up form's, or a business name) - never the person's own name
     const meta=u.user_metadata||{};
-    const guess=meta.business_name || meta.full_name || meta.name || (u.email? u.email.split("@")[0] : "");
-    if(guess && !$("#ob_name").value) $("#ob_name").value=guess.charAt(0).toUpperCase()+guess.slice(1);
-    // default the timezone to the browser's, if it's one of our options
-    // 0177: a free trial is India only (INR / Asia/Kolkata) - no currency / time-zone choice
-    // 0180: and no location here either - the trial welcome asks for the city (studio details are fixed in the trial)
-    const lc=$("#ob_currency").closest(".s-8aed95a"), ll=document.querySelector('label[for="ob_location"]');
-    if(TRIAL()){ $("#ob_currency").value="INR"; $("#ob_tz").value="Asia/Kolkata"; if(lc) lc.hidden=true; $("#ob_location").hidden=true; if(ll) ll.hidden=true; }
-    else { if(lc) lc.hidden=false; $("#ob_location").hidden=false; if(ll) ll.hidden=false;
-      try{ const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if(tz && [...$("#ob_tz").options].some(o=>o.value===tz)) $("#ob_tz").value=tz; }catch(e){} }
+    const guess=pendingStudioName() || String(meta.business_name||"").slice(0,80);
+    if(guess && !$("#ob_name").value) $("#ob_name").value=guess;
+    try{ localStorage.removeItem(PENDING); }catch(e){}
+    if(window.BPSignupFlow) BPSignupFlow.showStudio().catch(()=>{});
     setTimeout(()=>$("#ob_name").focus(),60);
   }
+  if(window.BPSignupFlow) BPSignupFlow.wire({ showView, routeSignedIn:()=>routeSignedIn(), showErr });
   $("#onboardForm").addEventListener("submit", (e)=>{
     e.preventDefault();
     const btn=$("#ob_submit");
     BPUI.guard(btn, async ()=>{
       $("#obErr").hidden=true;
-      const name=$("#ob_name").value.trim();
-      if(!name && !TRIAL()){ showErr($("#obErr"),"Please enter your business name."); $("#ob_name").focus(); return; }
-      if(name && name.length<2){ showErr($("#obErr"),"Please enter at least 2 characters, or leave the name empty."); $("#ob_name").focus(); return; }
-      btn.textContent="Creating…";
-      try{
-        // a Helm platform operator must never create a studio from here → HQ
-        if(await BPStore.auth.operatorToHq()) return;
-        await makeStudio(name,{ currency:$("#ob_currency").value, timezone:$("#ob_tz").value });   // #16: no login email as business email
-        const loc=TRIAL()? "" : $("#ob_location").value.trim();   // 0180: a trial sets its city in the welcome
-        if(loc){ try{ await BPStore.org.save({ location: loc }); }catch(e){} }
-        try{ localStorage.setItem("bp_force_tour","1"); }catch(e){}   // brand-new studio → show the tour
-        await routeSignedIn();   // profile step (if any) → dashboard
-      }catch(err){ showErr($("#obErr"),BPUI.friendlyError(err,{action:"create your studio"})); }
-      finally{ btn.textContent=TRIAL()?"Start free trial →":"Create my studio →"; }
+      // a Helm platform operator must never create a studio from here → HQ
+      if(await BPStore.auth.operatorToHq()) return;
+      if(!window.BPSignupFlow){ showErr($("#obErr"),"This page didn't load completely. Reload it and try again."); return; }
+      try{ await BPSignupFlow.submitStudio(); }
+      catch(err){ showErr($("#obErr"),BPUI.friendlyError(err,{action:"continue"})); }
     });
   });
   const doSignOut=async ()=>{ clearInvite(); try{ await BPStore.auth.signOut(); }catch(e){} location.reload(); };
@@ -1092,7 +1150,7 @@
       }
     }
     if($("#forgotForm").hidden) ensureCap();
-    if($("#forgotForm").hidden) setTimeout(()=>$(mode==="signup"&&!JOINING?"#studio":"#email").focus(),60);
+    if($("#forgotForm").hidden) setTimeout(()=>$(mode==="signup"&&!JOINING?"#fullname":"#email").focus(),60);
     // 0205: the invitation context + the right way in for this invitee
     if(JOINING) applyInviteEntry().catch(()=>{});
     return false;
@@ -1102,6 +1160,8 @@
   // details for brand-new users (invitees skip straight to accepting).
   $("#googleBtn").addEventListener("click", ()=>{
     $("#err").hidden=true; $("#okmsg").hidden=true; $("#gHint").hidden=true;
+    // r22: a NEW account agrees to the Terms first (recorded on the server after Google returns, step 3)
+    if(mode==="signup" && !J()){ if(!agreeOk()) return; if(window.BPSignupFlow) BPSignupFlow.stashTerms("google"); }
     BPUI.guard($("#googleBtn"), async ()=>{
       // 0205: the invite token rides along (also kept in this tab), so the Google account joins on return
       const tok=pendingInvite();
@@ -1124,7 +1184,7 @@
     $("#ivTitle").textContent="You've been invited to join "+ivStudio+(role?" as "+role:"");
     $("#ivEmail").textContent=ivEmail;
     { const jb=$("#ivJoin"); if(jb._cd){ clearInterval(jb._cd); jb._cd=null; } jb.textContent="Join "+ivStudio; jb.hidden=false; jb.disabled=false; }
-    $("#ivOwn").textContent=TRIAL()?"Start my own trial":"Create my own studio";
+    $("#ivOwn").textContent="Create my own studio";
     $("#ivOk").hidden=true; $("#ivErr").hidden=true;
     setTimeout(()=>$("#ivTitle").focus(),60);
   }
@@ -1161,7 +1221,7 @@
       const email=$("#email").value, pw=$("#pw").value;
       $("#err").hidden=true; $("#okmsg").hidden=true; $("#gHint").hidden=true;
       // inline field checks first (first invalid field gets focus)
-      const ids = mode==="signup" ? [...(JOINING?[]:["studio"]),"fullname","email","pw"] : ["email","pw"];
+      const ids = mode==="signup" ? ["fullname","email","pw"] : ["email","pw"];   // r22: the studio is named in step 3
       let firstBad=null; ids.forEach(id=>{ const i=document.getElementById(id); if(!setFieldErr(i, fieldRule[id](i.value)) && !firstBad) firstBad=i; });
       if(firstBad){ firstBad.focus(); return; }
       const fullName=$("#fullname").value.trim();
@@ -1202,31 +1262,23 @@
             if(!existing){ showErr($("#err"),"We couldn't create your account just now. Try again in a minute — or ask "+(INVITE_ORG||"your studio")+" to re-send the invitation."); return; }
             await acceptPendingInvite(); await routeSignedIn(); return;
           }
-          const studio=$("#studio").value.trim();
-          if(studioProblem(studio)){ showErr($("#err"),"Enter your studio / business name."); $("#studio").focus(); return; }
-          // If an earlier attempt signed up (session exists) but createStudio failed,
-          // a retry must NOT call signUp again — only create the studio.
+          // r22 step 1: the account only (the studio + how to start come after the e-mail is verified)
+          if(!agreeOk()) return;
           const existing=BPStore.auth.user();
+          if(existing){ await routeSignedIn(); return; }   // a retry after a partial failure: never sign up twice
           // round 19: an OPEN invitation for this e-mail? offer "Join <Studio>" before anything is created
           // (slow / offline / not deployed → null: the sign-up simply carries on)
-          if(!existing && ivSkip!==email && BPStore.invitations.openForEmail){
+          if(ivSkip!==email && BPStore.invitations.openForEmail){
             btn.textContent="Checking…";
             const iv=await BPStore.invitations.openForEmail(email,{timeoutMs:4000});
             if(iv && iv.invited){ keepCap=true; showInvited(iv, email); return; }
           }
           btn.textContent="Creating…";
-          const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap), emailRedirectTo:confirmRedirect(), fullName,
-            intent: TRIAL()?"trial":"direct", studioName: studio});
-          if(r.session && existing){
-            // already signed in: an account that has a studio goes to it; a Helm platform
-            // operator (asked only when there is no studio) goes to HQ — never a new studio
-            let o=null; try{ o=await BPStore.org.resolveId(); }catch(e){}
-            if(o){ location.replace(nextUrl()); return; }
-            if(await BPStore.auth.operatorToHq()) return;
-          }
-          if(r.session){ await makeStudio(studio,{}); try{ localStorage.setItem("bp_force_tour","1"); }catch(e){} await routeSignedIn(); return; }
-          // email confirmation required → save the name (" " = no name: "Demo N"), finish after they confirm + sign in
-          localStorage.setItem(PENDING, studio || " ");
+          const want=window.BPSignupFlow? BPSignupFlow.intent() : {plan:"",mode:""};
+          if(window.BPSignupFlow) BPSignupFlow.stashTerms("signup");
+          const r=await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap), emailRedirectTo:confirmRedirect(), fullName,
+            intent: (want.mode==="paid"||want.mode==="sales")?"direct":"trial", studioName:"", termsAgreed:true, plan:want.plan, mode:want.mode});
+          if(r.session){ await routeSignedIn(); return; }   // no e-mail confirmation on this project: straight to step 3
           showInbox(email); return;
         }
         if(capMissing(cap)){ showErr($("#err"),"Please complete the security check."); return; }

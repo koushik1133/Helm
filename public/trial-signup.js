@@ -128,50 +128,19 @@
     agreeLead(show);
   }
 
-  // called by login.html's setMode(m) after it has laid out the form
+  // called by login.html's setMode(m) after it has laid out the form.
+  // r22: ONE sign-up flow - step 1 is the account only (the studio, the plan and "free trial or pay now" come after the
+  // e-mail is verified, signup-flow.js), so this only sets the step-1 words. The trial rules show on the plan step.
   function apply(mode, joining) {
     var link = doc.getElementById("trialLink");
-    if (link) link.hidden = mode === "signup" || !!joining;
+    if (link) link.hidden = true;
     if (joining) { trialTerms(mode, joining); return; }
-    var tab = doc.querySelector('.mtab[data-mode="signup"]'); if (tab) tab.textContent = direct ? "Create studio" : "Start free trial";
-    pathLink(mode);
-    trialTerms(mode, joining);   // after pathLink: the panel sits right under the "Ready to subscribe?" link
+    trialTerms("signin", joining);   // never on step 1
+    var pl = doc.getElementById("pathLink"); if (pl) pl.hidden = true;
     if (mode !== "signup") return;
-    if (direct) {
-      // 0159: the paid path - studio name required, the plan + payment come next on /checkout
-      setText("#formTitle", "Create your studio");
-      setText("#formSub", "Name your studio, then choose a plan and complete payment to start using Helm.");
-      var ds = $("#studio"); if (ds) ds.required = true;
-      var db = $("#submit"); if (db) db.textContent = "Create studio →";
-      return;
-    }
-    var studio = $("#studio");
-    if (studio) { studio.required = false; studio.placeholder = "e.g. Aurora Events — or leave empty"; if (studio.value === "Demo trial") studio.value = ""; }
-    var lbl = doc.querySelector('label[for="studio"]');
-    if (lbl) {
-      while (lbl.firstChild) lbl.removeChild(lbl.firstChild);
-      lbl.appendChild(doc.createTextNode("Studio / business name "));
-      lbl.appendChild(el("span", "opt", "(optional)"));
-    }
-    setText("#formTitle", "Start your free trial");
-    setText("#formSub", DAYS + " days free, no card needed. Leave the studio name empty and we'll call it “Demo N” — rename it any time.");
-    var sb = $("#submit"); if (sb) sb.textContent = "Start free trial →";
-  }
-
-  // 0159: under the sign-up heading, a quiet link to the other way in
-  function pathLink(mode) {
-    var p = doc.getElementById("pathLink");
-    if (!p) {
-      var sub = $("#formSub"); if (!sub || !sub.parentNode) return;
-      p = el("p", "sub path-link"); p.id = "pathLink";
-      p.appendChild(el("a"));
-      sub.parentNode.insertBefore(p, sub.nextSibling);
-    }
-    var a = p.querySelector("a");
-    a.textContent = direct ? "Want to try Helm first? Start the " + DAYS + "-day free trial instead →"
-      : "Ready to subscribe? Create your studio and choose a plan →";
-    a.href = direct ? "login.html?trial=1#signup" : "login.html?direct=1#signup";
-    p.hidden = mode !== "signup";
+    setText("#formTitle", "Create your Helm account");
+    setText("#formSub", "Step 1 of 4. Next you verify your e-mail, name your studio and choose how to start: pay now, or try Helm free for " + DAYS + " days.");
+    var sb = $("#submit"); if (sb) sb.textContent = "Create account →";
   }
 
   // 0177: the free trial is India only (INR, Asia/Kolkata, GST) whatever the visitor's browser says;
@@ -197,38 +166,10 @@
     return r;
   }
 
-  function mountLinks() {
-    var tabs = $(".modetabs");
-    if (!tabs || doc.getElementById("trialLink")) return;
-    var p = el("p", "sub"); p.id = "trialLink";
-    var a = el("a", null, "New to Helm? Start your " + DAYS + "-day free trial →");
-    a.href = "login.html?trial=1#signup";
-    p.appendChild(a);
-    tabs.parentNode.insertBefore(p, tabs.nextSibling);
-    var signup = (global.location.hash || "").toLowerCase() === "#signup";
-    // an invitee joins an existing studio: never offer them a new trial
-    var invited = !!new URLSearchParams(global.location.search).get("invite");
-    try { invited = invited || !!global.sessionStorage.getItem("bp_pending_invite"); } catch (e) {}
-    p.hidden = signup || invited;
-    if (direct) { setText("#obSub", "Name your studio, then choose a plan and complete payment to start using Helm."); return; }
-    setText("#obTitle", "Start your free trial");
-    var ob = $("#ob_submit"); if (ob) ob.textContent = "Start free trial →";
-    var obl = doc.querySelector('label[for="ob_name"]');
-    if (obl) { obl.appendChild(doc.createTextNode(" ")); obl.appendChild(el("span", "opt", "(optional)")); }
-    var obn = $("#ob_name"); if (obn) { obn.required = false; obn.placeholder = "e.g. Aurora Events — or leave empty"; }
-    // Trial terms: a Google sign-up lands here before the studio is made: the same trial rules + consent line
-    var obForm = doc.getElementById("onboardForm"), obBtn = $("#ob_submit");
-    if (obForm && obBtn && TRIAL_KEY.length && !doc.getElementById("obTrialTerms")) {
-      obForm.insertBefore(termsPanel("obTrialTerms"), obBtn);
-      var ag = el("p", "tt-agree"); ag.id = "obAgree";
-      ag.appendChild(doc.createTextNode(AGREE_TRIAL + " "));
-      ag.appendChild(aLink("/terms", "Terms")); ag.appendChild(doc.createTextNode(" & "));
-      ag.appendChild(aLink("/privacy", "Privacy Policy")); ag.appendChild(doc.createTextNode("."));
-      obForm.insertBefore(ag, obBtn.nextSibling);
-    }
-  }
+  // r22: no "Start your free trial" link and no trial-only studio form any more - one sign-up flow (signup-flow.js)
+  function mountLinks() {}
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", mountLinks); else mountLinks();
 
-  global.BPTrialSignup = { wanted: function () { return !direct; }, direct: function () { return direct; }, linked: function () { return linked; },
+  global.BPTrialSignup = { termsPanel: termsPanel, wanted: function () { return !direct; }, direct: function () { return direct; }, linked: function () { return linked; },
     apply: apply, start: start, clear: lsDel, clearDirect: dDel, intentFrom: intentFrom, directFrom: directFrom, localeFor: localeFor };
 })(typeof window !== "undefined" ? window : globalThis);

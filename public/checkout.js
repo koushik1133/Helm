@@ -81,6 +81,10 @@
       lab.appendChild(pp);
       lab.appendChild(el("div", "px", ask ? "Custom pricing for larger teams. Talk to our team" : off ? "Yearly billing isn't offered for this plan" :
         st.interval === "yearly" ? "≈ " + money(Number(price) / 12, curOf()) + " a month, plus tax" : "plus applicable tax"));
+      // r22: the same action row as every plan card (plan-cards.js): Pay now (primary) / Try free (waiting studio,
+      // payment off) / Contact sales. A button inside the card never toggles the radio by itself.
+      if (window.HelmPlanCards && !off) lab.appendChild(window.HelmPlanCards.actions(p, { interval: st.interval,
+        trial: st.pending && !st.live && !st.upgrade, trialDays: trialDays(), onPay: cardPay, onTrial: cardTrial, onSales: cardSales }));
       var feats = Array.isArray(p.features) ? p.features : [];
       if (feats.length) {
         lab.appendChild(el("h3", null, "What's included"));
@@ -195,7 +199,7 @@
   function updateButton() {
     var b = $("#coPay");
     if (st.busy) return;
-    if (st.sales) { b.disabled = false; b.textContent = "Contact sales"; return; }   // r20: online payment not live
+    if (st.sales) { b.disabled = false; b.textContent = onRequest(planBy(st.plan)) || st.catalog && !planBy(st.plan) ? "Contact sales" : "Pay now"; return; }   // r20 / r22: online payment not live - Pay now = UPI / bank transfer
     if (st.catalog || (st.pending && !st.live)) { b.disabled = true; b.textContent = "Online payment coming soon"; return; }
     b.disabled = !st.preview || (st.upgrade && !st.live);
     b.textContent = !st.preview ? "Continue" : st.upgrade && !st.live ? "Online payment coming soon" : st.live ? "Pay " + money(st.preview.total, st.preview.currency) + " securely" : "Start 8-day free trial";
@@ -233,7 +237,7 @@
 
   async function submit(ev) {
     if (ev) ev.preventDefault();
-    if (st.sales) { openSales(); return; }   // r20: no online payment yet - the team activates the plan
+    if (st.sales) { var sp = planBy(st.plan); if (sp && !onRequest(sp)) cardPay(sp); else cardSales(sp); return; }   // r20 / r22: no online payment yet - the team activates the plan
     if (st.busy || !st.preview || st.catalog || (st.pending && !st.live)) return;
     showErr("");
     if (!validateAll()) { showErr("Please fix the highlighted fields."); return; }
@@ -398,6 +402,8 @@
     $("#coSalesForm").hidden = true; $("#sdDone").hidden = false;
     try { $("#sdDone").focus(); } catch (e) {}
     showErr(SALES_OK + ".", "ok");
+    // r22: never a fake "paid" - the studio stays payment pending until HQ confirms the payment and activates the plan
+    if (st.pending || st.payRef) { $("#coPayPending").hidden = false; }
   }
 
   /* ---------------- r21: pay by UPI / bank transfer (while online payment is off) ----------------
@@ -430,8 +436,65 @@
     $("#coSalesForm").addEventListener("submit", function (e) { sendSales(e); });
     $("#sdClose").addEventListener("click", closeSales);
     $("#sdDoneClose").addEventListener("click", closeSales);
-    $("#coSalesLink").addEventListener("click", openSales);
+    $("#coSalesLink").addEventListener("click", function () { cardSales(planBy(st.plan)); });
+    var paid = $("#coPaid"); if (paid) paid.addEventListener("click", paidRef);
     d.addEventListener("click", function (e) { if (e.target === d) closeSales(); });   // backdrop
+  }
+
+  /* ---------------- r22: card actions (plan-cards.js) ----------------
+     Pay now      online payment live -> the normal pay path (billing + Terms, Razorpay); otherwise the UPI / bank details
+                  open with "I've paid - send the reference" (saved to HQ Requests). The studio stays PAYMENT PENDING until
+                  HQ confirms and activates the plan - nothing on this page ever marks a payment as done.
+     Try free     a waiting studio while payment is off (my_pending_start_trial)
+     Contact sales  the saved Contact-sales form
+     The Terms are agreed + recorded first every time (studio + person; the server asks for them too, 0255). */
+  function pickFrom(search, list) {
+    var q = new URLSearchParams(String(search || "")), want = String(q.get("plan") || "").toLowerCase();
+    return { plan: (list || []).some(function (p) { return p.code === want; }) ? want : "", interval: q.get("interval") === "yearly" ? "yearly" : "monthly" };
+  }
+  async function recordTerms() {
+    if (!termsOk(true)) { try { $("#coTerms").focus(); $("#coTermsCard").scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {} return false; }
+    var v = st.opts && st.opts.terms_version;
+    if (!v || st.termsSaved) return true;
+    try { await S.subscription.updateAccount({ terms_version_accepted: v }); } catch (e) {
+      // a server older than 0255 refuses this for a waiting studio (read-only guard); it does not ask for the Terms either
+      if (!(e && (e.code === "25006" || /read-only|Choose a plan/i.test(String(e.message || ""))))) { showErr(S.checkout.classify(e).message); return false; }
+    }
+    try { if (S.signup) await S.signup.acceptTerms(v, "checkout"); } catch (e) {}
+    st.termsSaved = true; st.opts.terms_accepted = true;
+    return true;
+  }
+  function selectPlan(p) { if (p && p.code && st.plan !== p.code) { st.plan = p.code; renderPlans(); refreshPreview(); } }
+  async function cardPay(p) {
+    if (st.busy) return;
+    selectPlan(p); showErr("");
+    if (st.live && !st.catalog) { submit(); return; }   // the normal pay path (validates billing + Terms itself)
+    if (!(await recordTerms())) { showErr("Please accept the Terms to continue."); return; }
+    renderPayDetails();
+    var box = $("#coPayDetails"); $("#coPaidWrap").hidden = false;
+    $("#coPayPending").hidden = false;
+    try { box.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+    try { $("#coPaid").focus({ preventScroll: true }); } catch (e) {}
+  }
+  async function cardSales(p) {
+    if (st.busy) return;
+    if (p) selectPlan(p);
+    if (!(await recordTerms())) { showErr("Please accept the Terms to continue."); return; }
+    openSales();
+  }
+  async function cardTrial(p) {
+    if (st.busy) return;
+    if (p) selectPlan(p);
+    if (!(await recordTerms())) { $("#coSwitchMsg").textContent = "Please accept the Terms first."; return; }
+    switchToTrial();
+  }
+  // "I've paid - send the reference": the saved Contact-sales form, prefilled; the plan stays pending until HQ activates it
+  function paidRef() {
+    openSales();
+    var m = $("#sd_msg");
+    if (m && !m.value) m.value = "I'm paying by UPI / bank transfer. Payment reference (UTR): ";
+    st.payRef = true;
+    try { m.focus(); m.setSelectionRange(m.value.length, m.value.length); } catch (e) {}
   }
 
   /* ---------------- boot ---------------- */
@@ -511,7 +574,7 @@
     $("#coSalesAlt").hidden = !st.sales;
     $("#coSalesLinkWrap").hidden = st.sales || st.live;   // fresh studio starting its trial: a quiet way to ask first
     $("#coBilling").hidden = st.sales;                    // billing details + Terms are taken when the plan is activated
-    $("#coTermsCard").hidden = st.sales;
+    $("#coTermsCard").hidden = false;                     // r22: the Terms are always agreed + recorded before Pay now / Contact sales / trial
     if (st.sales) {
       $("#sumH").textContent = "Your plan";
       $("#coLead").textContent = "Compare the plans and pick the one that fits your studio. You can change plans later.";
@@ -531,6 +594,16 @@
     }
     var list = plansList();
     st.plan = list.length ? list[Math.min(1, list.length - 1)].code : null;   // middle-of-range default
+    // r22: the plan picked on the sign-up / pricing page (?plan=&interval=) - only when it is one of these plans
+    var pick = pickFrom(location.search, list);
+    if (pick.plan) st.plan = pick.plan;
+    if (pick.interval === "yearly" && list.some(function (p) { return p.yearly != null; })) {
+      st.interval = "yearly"; var yr = document.querySelector('input[name="interval"][value="yearly"]'); if (yr) yr.checked = true;
+      $("#ivMonthlyL").classList.remove("on"); $("#ivYearlyL").classList.add("on");
+    }
+    $("#coPendingNote").hidden = !st.pending;
+    // r22: Terms already agreed on the sign-up (recorded for this studio, current version): shown ticked, not asked twice
+    if (st.opts.terms_accepted === true) { $("#coTerms").checked = true; st.termsSaved = true; }
     if (st.catalog && !st.upgrade) $("#coTest").hidden = true;
     renderPlans();
     if (st.plan) refreshPreview(); else renderSummary();
@@ -538,5 +611,6 @@
     try { $("#coTitle").focus({ preventScroll: true }); } catch (e) {}
     // r21: "Talk to us" from the read-only banner opens Contact sales straight away
     if (salesSource(location.search) === "read_only_banner") openSales();
+    if (/(?:^|[?&])sales=signup(?:&|$)/.test(location.search || "")) cardSales(planBy(st.plan));   // r22: "Contact sales" on the sign-up step
   });
 })();

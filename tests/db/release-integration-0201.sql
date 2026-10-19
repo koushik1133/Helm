@@ -46,7 +46,7 @@ end $$;
 create or replace function pg_temp.src(p regprocedure) returns text language sql as $$ select prosrc from pg_proc where oid = p $$;
 
 -- ---- 0x: the installed chain ----------------------------------------------------------------------
-do $$ declare w text := pg_temp.src('public.start_self_serve_trial(text,text,text,text)');
+do $$ declare w text := pg_temp.src(coalesce(to_regprocedure('public.start_self_serve_trial__pre0255(text,text,text,text)'), 'public.start_self_serve_trial(text,text,text,text)'::regprocedure));  -- r22 0255: a light-limit wrapper sits in front
               b text := pg_temp.src('public.start_self_serve_trial__pre0186(text,text,text,text)'); begin
   perform pg_temp.res('01 entry point is the 0186 one-trial wrapper',
     position('one-trial-0186' in w) > 0 and position('start_self_serve_trial__pre0186' in w) > 0 and position('trial_used' in w) > 0, left(w, 200));

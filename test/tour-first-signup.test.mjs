@@ -28,7 +28,9 @@ t('dashboard no longer auto-starts just because this browser lacks bp_seen_tour'
 
 t('manual Tour button still wired; signup still forces it', () => {
   assert.match(D, /\$\("#helpBtn"\)\.addEventListener\("click", startTour\)/);
-  assert.ok((L.match(/bp_force_tour","1"/g) || []).length >= 2);
+  // r22: a new studio is made in signup-flow.js (paid) / trial-signup.js (trial) - both force the tour
+  assert.ok(readFileSync(new URL('../public/signup-flow.js', import.meta.url), 'utf8').includes('global.localStorage.setItem("bp_force_tour", "1")'));
+  assert.ok(readFileSync(new URL('../public/trial-signup.js', import.meta.url), 'utf8').includes('global.localStorage.setItem("bp_force_tour", "1")'));
 });
 
 // behavioural: simulate the decision for each scenario

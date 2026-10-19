@@ -9,6 +9,7 @@
 .pr-price { margin: 0; } .pr-price b { font-size: 34px; letter-spacing: -.03em; } .pr-price span { margin-left: 6px; color: var(--ink-3); font-size: 13px; }
 .pr-alt { margin: 4px 0 18px; font-size: 13px; color: var(--ink-2); }
 .pr-btn { width: 100%; }
+.pr-ctas { display: grid; gap: 8px; }
 .pr-card ul { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 9px; }
 .pr-card li { position: relative; padding-left: 24px; font-size: 14px; color: var(--ink-2); line-height: 1.45; }
 .pr-card li::before { content: "\2713"; position: absolute; left: 2px; color: var(--accent); font-weight: 800; }
@@ -18,3 +19,5 @@
 .pr-faq .a { margin-top: 8px; color: var(--ink-2); font-size: 14px; }
 .pr-end { margin-top: 28px; }
 @media (max-width: 900px) { .pr-grid { grid-template-columns: 1fr; max-width: 520px; } }
+/* r22: .bar (padding 15px 0) cancels the .wrap side gutter, so on phones the header buttons touched the screen edge */
+header .wrap.bar { padding-left: 16px; padding-right: 16px; }

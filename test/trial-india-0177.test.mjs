@@ -17,7 +17,9 @@ t('trial-signup: welcome flag for every mode', () => {
   assert.match(TS, /global\.localStorage\.setItem\("bp_trial_welcome", String\(Date\.now\(\)\)\)/);
 });
 t('login: Google trial onboarding hides currency / time zone and pins INR / Kolkata', () => {
-  assert.match(read('public/login.html'), /if\(TRIAL\(\)\)\{ \$\("#ob_currency"\)\.value="INR"; \$\("#ob_tz"\)\.value="Asia\/Kolkata"/);
+  // r22: the studio step never asks currency / time zone (the trial is pinned to INR / Kolkata by the server; a paid studio sets them in the setup wizard)
+  assert.match(read('public/login.html'), /<div class="s-8aed95a" id="obLegacy" hidden>/);
+  assert.match(read('public/trial-signup.js'), /var TRIAL_TZ = "Asia\/Kolkata", TRIAL_CUR = "INR";/);
 });
 t('trial-demo: trial paths go to the dashboard welcome, never onboarding.html', () => {
   assert.ok(!/setMode\("own"\); global\.location\.assign\("onboarding\.html"\)/.test(TD));
