@@ -383,8 +383,9 @@
   }
   // round 19 (pure, unit-tested): the invite step's progress line, mail result and summary
   function inviteProgress(i, n, email) { return "Sending invite " + (i + 1) + " of " + n + " to " + email + "…"; }
-  // invitations.sendNow() → were the e-mails really sent? ({ status: "ok", failed: 0 } only)
-  function inviteMailOk(r) { return !!(r && typeof r === "object" && r.status === "ok" && !(Number(r.failed) > 0)); }
+  // invitations.sendNow() → were the e-mails really sent? ({ status: "ok", sent > 0, failed: 0, skipped: 0 } only;
+  // r21 email audit: a run that sent nothing - queued behind the daily cap, or skipped - is not "sent")
+  function inviteMailOk(r) { return !!(r && typeof r === "object" && r.status === "ok" && Number(r.sent) > 0 && !(Number(r.failed) > 0) && !(Number(r.skipped) > 0)); }
   // "Invites sent to a@x.com (Planner), b@y.com (Event coordinator)." / "... saved for ..." / errors only
   function inviteSummary(results, mailed) {
     const ok = (results || []).filter((r) => r && r.ok), bad = (results || []).filter((r) => r && !r.ok);
@@ -714,7 +715,7 @@
           ul.appendChild(li);
         });
         body.appendChild(ul);
-        if (okRows.length && !mailed) body.appendChild(el("p", "td-hint", "The invitations are saved and their e-mails go out shortly. You can re-send them any time in Control Center → Users & invites."));
+        if (okRows.length && !mailed) body.appendChild(el("p", "td-hint", "The invitations are saved, but we couldn't confirm their e-mails were sent. If they don't arrive in 10 minutes, re-send them or copy each link in Control Center → Users & invites."));
         if (bad.length) row.appendChild(btn("Try again", "btn", () => step2(bad.map((r) => ({ email: r.email, role: r.roleKey })))));
         const fin = btn(okRows.length ? "Continue to your studio" : "Skip for now", "btn primary", () => finishWelcome(dlg));
         row.appendChild(fin);
