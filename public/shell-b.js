@@ -209,9 +209,11 @@
     var who = el("div", "hb-who hb-lb");
     var whoName = el("b", null, ""), whoRole = el("small", null, "");
     who.appendChild(whoName); who.appendChild(whoRole);
-    adopt(function () { return document.querySelector("#account .hau-mw"); }, acctSlot, function () {
+    adopt(function () { return document.querySelector("#account .hau-mw"); }, acctSlot, function (w) {
       acctSlot.appendChild(who); safe(function () { fillWho(whoName, whoRole); });
+      safe(function () { acctMenuOut(w); });   /* r20 Safari: the menu lives on <body>, never inside the clipping rail */
     }, ".hau-mw");
+    safe(function () { acctNameOpens(who, acctSlot); });
     /* FLAG (Oct 2026): "Recently viewed" in the rail is OFF until it is flicker-free (late adoption after auth moved the
      * footer, popover re-anchoring). Code kept; turn on with window.HELM_FLAGS = { recentViewed: true } before shell-b.js. */
     var RECENT_ON = !!(window.HELM_FLAGS && window.HELM_FLAGS.recentViewed === true);
@@ -522,6 +524,35 @@
     document.addEventListener("focusin", kb); document.addEventListener("focusout", function () { setTimeout(kb, 60); });
   }
 
+  /* ---- r20 (Safari): the profile menu ----
+   * auth-ui builds the avatar button + its menu (.hau-menu, position:fixed BESIDE the rail) and the rail adopts both.
+   * Inside the rail the menu sat in a position:fixed, overflow:hidden box: Chrome lets a fixed child escape that clip,
+   * WebKit (Safari) clips it to the rail - and the menu lies wholly outside the rail, so in Safari a click on the avatar
+   * "did nothing" (the menu opened, fully clipped). Same pattern as the colour-theme picker: the menu moves to <body>.
+   * auth-ui keeps its own references (menu.pop), so open / close / keyboard / click-outside are unchanged. */
+  function acctMenuOut(w) {
+    var pop = w && w.querySelector ? w.querySelector(".hau-menu") : null;
+    if (!pop || !document.body || pop.parentNode === document.body) return;
+    /* a rebuilt menu replaces the old copy (closed ones only: an open menu is never pulled away) */
+    Array.prototype.slice.call(document.querySelectorAll("body > .hau-menu.hb-acct-pop")).forEach(function (o) {
+      if (o !== pop && o.hidden && o.parentNode) o.parentNode.removeChild(o);
+    });
+    pop.classList.add("hb-acct-pop");
+    document.body.appendChild(pop);
+  }
+  /* the name beside the avatar opens the same menu (mouse convenience; the avatar button stays the keyboard control).
+   * A press that started while the menu was open only closes it (auth-ui closes on that press already). */
+  function acctNameOpens(who, slot) {
+    var wasOpen = false;
+    function btn() { return slot.querySelector("#hauAccountBtn"); }
+    who.style.cursor = "pointer";
+    /* window capture runs before auth-ui's document-level "press outside closes" listener */
+    window.addEventListener("mousedown", function (e) {
+      var b = btn(); wasOpen = !!(b && who.contains(e.target) && b.getAttribute("aria-expanded") === "true");
+    }, true);
+    who.addEventListener("click", function () { var b = btn(); if (!b || wasOpen) { wasOpen = false; return; } b.click(); });
+  }
+
   /* ---- keep the hover-expanded rail open while a popover inside it is open ---- */
   function watchPopovers(root) {
     var rail = document.getElementById("hbRail"); if (!rail || !window.MutationObserver) return;
@@ -534,7 +565,9 @@
           if (!p.hidden && p.getAttribute("aria-hidden") !== "true" && getComputedStyle(p).display !== "none" && getComputedStyle(p).visibility !== "hidden") { open = true; if (p.classList.contains("htr-pop")) placePop(p); break; }
         }
       } catch (e) {}
-      root.classList.toggle("hb-rail-hold", open);
+      /* r20: the profile menu lives on <body> now - auth-ui marks <html class="hau-menu-open"> while it is open */
+      if (!open && root.classList.contains("hau-menu-open")) open = true;
+      if (root.classList.contains("hb-rail-hold") !== open) root.classList.toggle("hb-rail-hold", open);
     }
     /* Recently viewed: anchor the popover to its button (it moves between footer and nav), clamped inside the window */
     function placePop(p) {
@@ -544,6 +577,7 @@
       if (p.style.getPropertyValue("top") !== top + "px") { p.style.setProperty("top", top + "px", "important"); p.style.setProperty("bottom", "auto", "important"); }
     }
     new MutationObserver(check).observe(rail, { subtree: true, attributes: true, attributeFilter: ["hidden", "class", "style", "aria-hidden", "open"], childList: true });
+    new MutationObserver(check).observe(root, { attributes: true, attributeFilter: ["class"] });
     document.addEventListener("keydown", function (e) {
       if (e.key !== "Escape" || !root.classList.contains("hb-rail-hold")) return;
       // the widgets own their close logic; nudge them with an outside click, then drop the hold
