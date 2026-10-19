@@ -118,7 +118,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="/public-pages-v2.css?v=5">
-<link rel="stylesheet" href="/checkout-v2.css?v=2">
+<link rel="stylesheet" href="/checkout-v2.css?v=3">
 <script src="/marketing-theme.js?v=3"></script>
 </head>
 <body>
@@ -150,7 +150,7 @@
             <div class="plans" id="coPlans" role="radiogroup" aria-labelledby="plH"><div class="skel"></div></div>
           </section>
 
-          <section class="card" aria-labelledby="biH">
+          <section class="card" id="coBilling" aria-labelledby="biH">
             <h2 id="biH">Billing details</h2>
             <p class="hint">Shown on your invoices. Fields marked <span aria-hidden="true">*</span><span class="sr">with an asterisk</span> are required.</p>
             <div class="fgrid">
@@ -169,7 +169,7 @@
             </div>
           </section>
 
-          <section class="card" aria-labelledby="tH">
+          <section class="card" id="coTermsCard" aria-labelledby="tH">
             <h2 id="tH">Terms</h2>
             <label class="terms" id="coTermsBox">
               <input type="checkbox" id="coTerms" required aria-describedby="e_terms">
@@ -184,19 +184,19 @@
           <div id="coSummary" aria-live="polite"><div class="skel"></div></div>
           <div class="alert info" id="coUpgrade" role="status" hidden></div>
           <div class="alert info" id="coDormant" role="status" hidden>Online payment is being enabled — your studio starts on a free trial. We'll remind you before it ends.</div>
-          <div class="setup" id="coSetup" role="status" hidden>
-            <span class="setup-ic" aria-hidden="true"></span>
-            <h3 class="setup-h">Payments are being set up</h3>
-            <p class="setup-p">Online payment for Helm isn't switched on yet. Contact us and we'll activate your plan for you — nothing is charged on this page.</p>
-            <a class="ghost setup-mail" id="coContact" href="mailto:sales@helm.events?subject=Activate%20my%20Helm%20plan">Contact us · sales@helm.events</a>
-            <div id="coSwitchWrap" hidden>
-              <p class="setup-or"><span>or</span></p>
-              <button type="button" class="btn alt" id="coSwitch">Start 8-day free trial instead</button>
-              <p class="setup-note">Try Helm free for 8 days, then pick a plan. <a href="/terms#trial">Free-trial rules</a></p>
-              <p class="setup-msg" id="coSwitchMsg" role="alert" aria-live="polite"></p>
-            </div>
+          <!-- r20: while online payment is not live, plans are activated by the Helm team ("Contact sales") -->
+          <div class="sales-note" id="coSetup" role="status" hidden>
+            <p class="sales-p">Our team activates your plan and sends your invoice. Tell us which plan you'd like and we'll set it up for you. Nothing is charged on this page.</p>
           </div>
           <button type="submit" class="btn" id="coPay" disabled>Continue</button>
+          <div class="switch-wrap" id="coSwitchWrap" hidden>
+            <p class="setup-or"><span>or</span></p>
+            <button type="button" class="btn alt" id="coSwitch">Start 8-day free trial instead</button>
+            <p class="setup-note">Try Helm free for 8 days, then pick a plan. <a href="/terms#trial">Free-trial rules</a></p>
+            <p class="setup-msg" id="coSwitchMsg" role="alert" aria-live="polite"></p>
+          </div>
+          <p class="sales-alt" id="coSalesAlt" hidden>Prefer email? <a id="coContact" href="mailto:sales@helm.events?subject=Activate%20my%20Helm%20plan">sales@helm.events</a></p>
+          <p class="sales-alt" id="coSalesLinkWrap" hidden>Questions about plans? <button type="button" class="linkbtn" id="coSalesLink">Contact sales</button></p>
           <p class="secure" id="coSecure"><span aria-hidden="true">🔒</span><span>Payments are processed securely by Razorpay. Helm never sees or stores your card details.</span></p>
         </aside>
       </div>
@@ -214,12 +214,46 @@
 
     <p class="foot">Signed in as <b id="coEmail"></b> · <button type="button" class="linkbtn" id="coSignOut">Sign out</button></p>
   </main>
+
+  <!-- r20: "Contact sales" - opens the visitor's own email app addressed to sales@helm.events (the same
+       mechanism as the landing page's contact form); nothing is sent or stored from this page -->
+  <dialog class="sdlg" id="coSalesDlg" aria-labelledby="sdH">
+    <form id="coSalesForm" novalidate>
+      <div class="sdlg-hd"><h2 id="sdH">Contact sales</h2><button type="button" class="sdlg-x" id="sdClose" aria-label="Close">&times;</button></div>
+      <p class="hint">Tell us which plan you'd like and our team will activate it for your studio.</p>
+      <div class="fgrid">
+        <div class="fld wide"><label for="sd_studio">Studio name<span class="req" aria-hidden="true">*</span></label>
+          <input id="sd_studio" name="studio" autocomplete="organization" maxlength="160" required></div>
+        <div class="fld"><label for="sd_name">Your name<span class="req" aria-hidden="true">*</span></label>
+          <input id="sd_name" name="name" autocomplete="name" maxlength="80" required></div>
+        <div class="fld"><label for="sd_email">Email<span class="req" aria-hidden="true">*</span></label>
+          <input id="sd_email" name="email" type="email" autocomplete="email" maxlength="200" required spellcheck="false"></div>
+        <div class="fld"><label for="sd_phone">Phone <span class="opt">(optional)</span></label>
+          <input id="sd_phone" name="phone" type="tel" autocomplete="tel" maxlength="20"></div>
+        <div class="fld"><label for="sd_plan">Plan</label><select id="sd_plan" name="plan"></select></div>
+        <div class="fld"><label for="sd_iv">Billing</label>
+          <select id="sd_iv" name="interval"><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></div>
+        <div class="fld wide"><label for="sd_msg">Message <span class="opt">(optional)</span></label>
+          <textarea id="sd_msg" name="message" maxlength="1000" placeholder="Team size, number of events a year, anything we should know"></textarea></div>
+      </div>
+      <p class="sdlg-err" id="sdErr" role="alert" aria-live="polite"></p>
+      <button type="submit" class="btn" id="sdSend">Send to sales</button>
+      <p class="note">Opens your email app with these details addressed to sales@helm.events.</p>
+    </form>
+    <div class="sdlg-done" id="sdDone" tabindex="-1" hidden>
+      <span class="sdlg-ok" aria-hidden="true"></span>
+      <h2>Thanks, we've got your details</h2>
+      <p>Your email app is opening with your request. Send it and we'll get back to you within one working day.</p>
+      <p class="note">If it didn't open, write to <a href="mailto:sales@helm.events">sales@helm.events</a>.</p>
+      <button type="button" class="ghost" id="sdDoneClose">Done</button>
+    </div>
+  </dialog>
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=104"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=256"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=257"></script>
 <script src="trial-upgrade.js?v=2"></script>
-<script src="checkout.js?v=6"></script>
+<script src="checkout.js?v=7"></script>
 </body>
 </html>

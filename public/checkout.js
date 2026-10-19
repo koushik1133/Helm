@@ -16,14 +16,17 @@
   var FIELDS = { legal_business_name: "f_legal", gstin: "f_gstin", billing_address: "f_addr", city: "f_city", state: "f_state", country: "f_country" };
   var ERRS = { legal_business_name: "e_legal", gstin: "e_gstin", billing_address: "e_addr", city: "e_city", state: "e_state", country: "e_country" };
   var st = { upgrade: false, opts: null, plan: null, interval: "monthly", preview: null, seq: 0, busy: false, live: false, next: "dashboard.html", touched: {},
-    pending: false, catalog: false };
+    pending: false, catalog: false, sales: false };
   /* 0159: shown only when the server has no plan yet (display only - never payable; the server
      list replaces it as soon as HQ / 0159 adds plans). Same plans as the public pricing page. */
   var CATALOG = [
     { code: "starter", name: "Starter", description: "Solo planners and decorators", monthly: 1999, yearly: 19990,
       features: ["Up to 3 team members", "Leads, clients and follow-ups (CRM)", "2D layout builder and 3D view", "Quotes with tax and client approval links", "Tasks and event calendar"] },
     { code: "studio", name: "Studio", description: "Growing event companies", monthly: 4999, yearly: 49990,
-      features: ["Everything in Starter", "Up to 15 team members", "Roles and access matrix", "Inventory, stock check-out and shortages", "Client portal, booklet and invitation site"] }
+      features: ["Everything in Starter", "Up to 15 team members", "Roles and access matrix", "Inventory, stock check-out and shortages", "Client portal, booklet and invitation site"] },
+    // r20: no monthly / yearly price = "Price on request" (selectable; only ever reached through Contact sales)
+    { code: "enterprise", name: "Enterprise", description: "Multi-city teams and corporate studios", monthly: null, yearly: null,
+      features: ["Everything in Studio", "Unlimited team members", "Multiple branches and countries, local tax rules", "Priority onboarding and data import help", "Audit log review and custom roles"] }
   ];
 
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = String(text); return n; }
@@ -45,19 +48,22 @@
   function curOf() { return st.catalog ? "INR" : (st.opts && st.opts.currency) || "INR"; }
   function planBy(code) { return plansList().filter(function (p) { return p.code === code; })[0] || null; }
   // the middle-of-range plan gets the "Most studios" badge (only when there are 2+ plans)
+  // r20: a plan with no price at all is "Price on request"; offered() = can be picked for this billing period
+  function onRequest(p) { return !!p && p.monthly == null && p.yearly == null; }
+  function offered(p) { return onRequest(p) || (st.interval === "yearly" ? p.yearly : p.monthly) != null; }
   function recommended() { var l = plansList(); return l.length > 1 ? l[Math.min(1, l.length - 1)].code : ""; }
 
   /* ---------------- plans ---------------- */
   function renderPlans() {
     var box = $("#coPlans"); clear(box);
     var list = plansList();
-    if (!list.length) { box.appendChild(el("p", "hint", "No plans are available right now. Please contact Helm support.")); return; }
+    if (!list.length) list = CATALOG;   // r20: never an empty box - the display-only plans instead
     var anyYearly = list.some(function (p) { return p.yearly != null; });
     $("#ivYearlyL").hidden = !anyYearly;
     $("#coSave").hidden = !list.some(function (p) { return p.yearly != null && Number(p.yearly) < Number(p.monthly) * 12; });
     list.forEach(function (p) {
       var price = st.interval === "yearly" ? p.yearly : p.monthly;
-      var off = price == null;
+      var ask = onRequest(p), off = !offered(p);
       var lab = el("label", "plan" + (st.plan === p.code ? " on" : "") + (off ? " off" : ""));
       var inp = el("input"); inp.type = "radio"; inp.name = "plan"; inp.value = p.code; inp.checked = st.plan === p.code; inp.disabled = off;
       inp.setAttribute("aria-describedby", "pd_" + p.code.replace(/[^a-z0-9_-]/g, ""));
@@ -69,10 +75,11 @@
       pn.appendChild(el("span", "tick")); lab.appendChild(pn);
       var pd = el("div", "pd", p.description || ""); pd.id = "pd_" + p.code.replace(/[^a-z0-9_-]/g, ""); lab.appendChild(pd);
       var pp = el("div", "pp");
-      if (off) { pp.textContent = "—"; pp.appendChild(el("small", null, "monthly only")); }
+      if (ask) { pp.classList.add("req"); pp.textContent = "Price on request"; }
+      else if (off) { pp.textContent = "—"; pp.appendChild(el("small", null, "monthly only")); }
       else { pp.textContent = money(price, curOf()); pp.appendChild(el("small", null, st.interval === "yearly" ? "/year" : "/month")); }
       lab.appendChild(pp);
-      lab.appendChild(el("div", "px", off ? "Yearly billing isn't offered for this plan" :
+      lab.appendChild(el("div", "px", ask ? "Custom pricing for larger teams. Talk to our team" : off ? "Yearly billing isn't offered for this plan" :
         st.interval === "yearly" ? "≈ " + money(Number(price) / 12, curOf()) + " a month, plus tax" : "plus applicable tax"));
       var feats = Array.isArray(p.features) ? p.features : [];
       if (feats.length) {
@@ -87,8 +94,8 @@
     $("#ivMonthlyL").classList.toggle("on", st.interval === "monthly");
     $("#ivYearlyL").classList.toggle("on", st.interval === "yearly");
     var p = planBy(st.plan);
-    if (p && (st.interval === "yearly" ? p.yearly : p.monthly) == null) {
-      var alt = plansList().filter(function (x) { return (st.interval === "yearly" ? x.yearly : x.monthly) != null; })[0];
+    if (p && !offered(p)) {
+      var alt = plansList().filter(offered)[0];
       st.plan = alt ? alt.code : st.plan;
     }
     renderPlans(); refreshPreview();
@@ -99,8 +106,14 @@
   function renderSummary() {
     var box = $("#coSummary"); clear(box);
     var q = st.preview;
+    var cp = planBy(st.plan);
+    if (!q && onRequest(cp)) {
+      box.appendChild(row("Plan", cp.name));
+      box.appendChild(row("Price", "On request", "tot"));
+      box.appendChild(el("p", "note", "Our team prepares a quote for your studio's size and locations."));
+      updateButton(); return;
+    }
     if (!q && st.catalog) {
-      var cp = planBy(st.plan);
       if (cp) {
         box.appendChild(row("Plan", cp.name + " · " + (st.interval === "yearly" ? "Yearly" : "Monthly")));
         box.appendChild(row("Price before tax", money(st.interval === "yearly" ? cp.yearly : cp.monthly, "INR"), "tot"));
@@ -128,7 +141,7 @@
   var pvTimer = null;
   function refreshPreview() {
     if (!st.plan) return;
-    if (st.catalog) { renderSummary(); return; }   // display-only plans: nothing to price on the server
+    if (st.catalog || onRequest(planBy(st.plan))) { st.preview = null; renderSummary(); return; }   // display-only plans: nothing to price on the server
     st.preview = null; renderSummary(); updateButton();
     clearTimeout(pvTimer);
     pvTimer = setTimeout(function () {
@@ -182,6 +195,7 @@
   function updateButton() {
     var b = $("#coPay");
     if (st.busy) return;
+    if (st.sales) { b.disabled = false; b.textContent = "Contact sales"; return; }   // r20: online payment not live
     if (st.catalog || (st.pending && !st.live)) { b.disabled = true; b.textContent = "Online payment coming soon"; return; }
     b.disabled = !st.preview || (st.upgrade && !st.live);
     b.textContent = !st.preview ? "Continue" : st.upgrade && !st.live ? "Online payment coming soon" : st.live ? "Pay " + money(st.preview.total, st.preview.currency) + " securely" : "Start 8-day free trial";
@@ -219,6 +233,7 @@
 
   async function submit(ev) {
     if (ev) ev.preventDefault();
+    if (st.sales) { openSales(); return; }   // r20: no online payment yet - the team activates the plan
     if (st.busy || !st.preview || st.catalog || (st.pending && !st.live)) return;
     showErr("");
     if (!validateAll()) { showErr("Please fix the highlighted fields."); return; }
@@ -285,6 +300,80 @@
     } catch (e) { k.textContent = "Skip payment (testing only)"; fail(e); }
   }
 
+  /* ---------------- r20: Contact sales ----------------
+     While online payment is not live the plan button is "Contact sales": a small form prefilled with
+     the studio, the admin, the chosen plan + billing period, sent the same way as the landing page's
+     contact form - the visitor's own email app opens addressed to sales@helm.events. Nothing is sent
+     or stored from this page. Pure helpers (salesCheck / salesMail) are unit-tested. */
+  var SALES_TO = (S && S.checkout && S.checkout.SALES_EMAIL) || "sales@helm.events";
+  var who = { studio: "", name: "", email: "", phone: "" };
+  function salesCheck(f) {
+    f = f && typeof f === "object" ? f : {};
+    var one = function (k, n) { return String(f[k] == null ? "" : f[k]).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, n); };
+    var c = { studio: one("studio", 160), name: one("name", 80), email: one("email", 200), phone: one("phone", 20),
+      plan: one("plan", 60), interval: f.interval === "yearly" ? "yearly" : "monthly",
+      message: String(f.message == null ? "" : f.message).replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, 1000) };
+    var errors = {};
+    if (!c.studio) errors.studio = "Enter your studio name";
+    if (!c.name) errors.name = "Enter your name";
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c.email)) errors.email = "Enter a valid email address";
+    if (c.phone && !/^\+?[0-9][0-9 ()-]{5,19}$/.test(c.phone)) errors.phone = "Enter a valid phone number";
+    if (!c.plan) errors.plan = "Choose a plan";
+    return { ok: !Object.keys(errors).length, errors: errors, clean: c };
+  }
+  function salesMail(c, to) {
+    var iv = c.interval === "yearly" ? "Yearly" : "Monthly";
+    var subject = "Helm plan request: " + c.plan + " (" + iv + ")" + (c.studio ? " - " + c.studio : "");
+    var body = ["Hello Helm sales,", "", "I'd like to activate a Helm plan for my studio.", "",
+      "Studio: " + c.studio, "Name: " + c.name, "Email: " + c.email, "Phone: " + (c.phone || "-"),
+      "Plan: " + c.plan, "Billing: " + iv, "", "Message:", c.message || "-"].join("\n");
+    return "mailto:" + (to || "sales@helm.events") + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+  }
+  var SD = { studio: "sd_studio", name: "sd_name", email: "sd_email", phone: "sd_phone" };
+  function openSales() {
+    var d = $("#coSalesDlg"); if (!d) return;
+    var ps = $("#sd_plan"); clear(ps);
+    plansList().forEach(function (p) { var o = el("option", null, p.name); o.value = p.code; if (p.code === st.plan) o.selected = true; ps.appendChild(o); });
+    $("#sd_iv").value = st.interval;
+    if (!who.studio && $("#f_legal").value) who.studio = $("#f_legal").value;
+    Object.keys(SD).forEach(function (k) { var f = $("#" + SD[k]); if (!f.value && who[k]) f.value = who[k]; f.closest(".fld").classList.remove("bad"); });
+    $("#sdErr").textContent = ""; $("#coSalesForm").hidden = false; $("#sdDone").hidden = true;
+    try { if (typeof d.showModal === "function") { if (!d.open) d.showModal(); } else d.setAttribute("open", ""); } catch (e) { d.setAttribute("open", ""); }
+    var first = Object.keys(SD).map(function (k) { return $("#" + SD[k]); }).filter(function (f) { return f.required && !f.value; })[0] || $("#sd_msg");
+    try { first.focus(); } catch (e) {}
+  }
+  function closeSales() {
+    var d = $("#coSalesDlg"); if (!d) return;
+    try { if (typeof d.close === "function" && d.open) d.close(); else d.removeAttribute("open"); } catch (e) { d.removeAttribute("open"); }
+    try { $("#coPay").focus(); } catch (e) {}
+  }
+  function sendSales(ev) {
+    if (ev) ev.preventDefault();
+    var plan = planBy($("#sd_plan").value);
+    var v = salesCheck({ studio: $("#sd_studio").value, name: $("#sd_name").value, email: $("#sd_email").value, phone: $("#sd_phone").value,
+      plan: plan ? plan.name : "", interval: $("#sd_iv").value, message: $("#sd_msg").value });
+    Object.keys(SD).forEach(function (k) { $("#" + SD[k]).closest(".fld").classList.toggle("bad", !!v.errors[k]); });
+    if (!v.ok) {
+      $("#sdErr").textContent = Object.keys(v.errors).map(function (k) { return v.errors[k]; }).join(". ") + ".";
+      var bad = Object.keys(SD).filter(function (k) { return v.errors[k]; })[0]; if (bad) try { $("#" + SD[bad]).focus(); } catch (e) {}
+      return;
+    }
+    $("#sdErr").textContent = "";
+    if (plan) { st.plan = plan.code; if (st.interval !== v.clean.interval) setInterval_(v.clean.interval); else { renderPlans(); refreshPreview(); } }
+    try { location.href = salesMail(v.clean, SALES_TO); } catch (e) {}
+    $("#coSalesForm").hidden = true; $("#sdDone").hidden = false;
+    try { $("#sdDone").focus(); } catch (e) {}
+    showErr("Thanks - we'll get back to you within one working day.", "ok");
+  }
+  function wireSales() {
+    var d = $("#coSalesDlg"); if (!d) return;
+    $("#coSalesForm").addEventListener("submit", sendSales);
+    $("#sdClose").addEventListener("click", closeSales);
+    $("#sdDoneClose").addEventListener("click", closeSales);
+    $("#coSalesLink").addEventListener("click", openSales);
+    d.addEventListener("click", function (e) { if (e.target === d) closeSales(); });   // backdrop
+  }
+
   /* ---------------- boot ---------------- */
   function fillCountries(sel, current) {
     var o0 = el("option", null, "Select a country"); o0.value = ""; sel.appendChild(o0);
@@ -307,6 +396,7 @@
     $("#coTerms").addEventListener("change", function () { termsOk(true); });
     $("#coSkip").addEventListener("click", skip);
     $("#coSwitch").addEventListener("click", switchToTrial);
+    wireSales();
     $("#coSignOut").addEventListener("click", async function () { try { await S.auth.signOut(); } catch (e) {} location.replace("login.html"); });
   }
 
@@ -321,8 +411,12 @@
     try {
       var both = await Promise.all([S.checkout.options(), S.subscription.account().catch(function () { return null; })]);
       st.opts = both[0] || {}; acct = both[1] || {};
-    } catch (e) { showErr(S.checkout.classify(e).message); $("#coPlans").textContent = ""; return; }
+    } catch (e) { showErr(S.checkout.classify(e).message); st.opts = {}; acct = {}; }   // r20: still show the plans (display only) + Contact sales
     st.opts.prefill = { email: u.email || "", contact: acct.primary_contact_phone || "" };
+    who = { studio: acct.legal_business_name || "", name: acct.primary_contact_name || "", email: acct.primary_contact_email || u.email || "",
+      phone: acct.primary_contact_phone || "" };
+    if (!who.name && S.profile && typeof S.profile.mine === "function")
+      S.profile.mine().then(function (p) { if (p && p.full_name && !who.name) who.name = String(p.full_name); }, function () {});
     st.pending = st.opts.pending_payment === true;
     st.catalog = !(Array.isArray(st.opts.plans) && st.opts.plans.length);
     $("#coCur").textContent = curOf();
@@ -341,14 +435,24 @@
       $("#coTitle").textContent = "Choose a plan to open your studio";
       $("#coLead").textContent = "Your studio is ready. Pick the plan that fits, add your billing details and complete payment to start using Helm. You'll see exactly what you pay, tax included, before anything is charged.";
     }
-    var setupOn = (st.pending && !st.live) || st.catalog;
+    // 0058: a studio already on (or just past) its free trial is upgrading — pay only, no new trial
+    st.upgrade = st.opts.status === "trial" || st.opts.status === "past_due";
+    // r20: nothing payable online (display-only plans, or online payment not live for an upgrade /
+    // a studio waiting for its first payment) → the plan button is "Contact sales"
+    st.sales = st.catalog || (!st.live && (st.upgrade || st.pending));
+    var setupOn = st.sales;
     $("#coSetup").hidden = !setupOn;
-    $("#coPay").hidden = setupOn;            // nothing to pay here yet: the panel says what to do instead
+    $("#coSalesAlt").hidden = !st.sales;
+    $("#coSalesLinkWrap").hidden = st.sales || st.live;   // fresh studio starting its trial: a quiet way to ask first
+    $("#coBilling").hidden = st.sales;                    // billing details + Terms are taken when the plan is activated
+    $("#coTermsCard").hidden = st.sales;
+    if (st.sales) {
+      $("#sumH").textContent = "Your plan";
+      $("#coLead").textContent = "Compare the plans and pick the one that fits your studio. You can change plans later.";
+    }
     $("#coSwitchWrap").hidden = !(st.pending && !st.live);
     $("#coSwitch").textContent = "Start " + trialDays() + "-day free trial instead";
     if (setupOn) $("#coDormant").hidden = true;
-    // 0058: a studio already on (or just past) its free trial is upgrading — pay only, no new trial
-    st.upgrade = st.opts.status === "trial" || st.opts.status === "past_due";
     $("#coTest").hidden = st.upgrade || !(S.checkout.bypassEnabled() && st.opts.bypass_allowed === true);
     if (st.upgrade) {
       $("#coDormant").hidden = true;
@@ -357,13 +461,13 @@
         : "Your free trial has ended. Choose a plan to keep using Helm — your data is safe.";
       // 0185: what happens to the trial data is decided right after the plan is active
       up.textContent += " After upgrading you choose what happens to the sample data: keep it (default), remove it, or start completely clean.";
-      if (!st.live) up.textContent += " Online payment isn't switched on yet — contact Helm to activate your plan.";
     }
     var list = plansList();
     st.plan = list.length ? list[Math.min(1, list.length - 1)].code : null;   // middle-of-range default
     if (st.catalog && !st.upgrade) $("#coTest").hidden = true;
     renderPlans();
     if (st.plan) refreshPreview(); else renderSummary();
+    updateButton();
     try { $("#coTitle").focus({ preventScroll: true }); } catch (e) {}
   });
 })();
