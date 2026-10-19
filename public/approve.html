@@ -55,6 +55,7 @@
 </style>
 <link rel="stylesheet" href="/theme.css?v=83">
 <link rel="stylesheet" href="/public-pages-v2.css?v=5">
+<link rel="stylesheet" href="/quote-validity.css?v=1">
 <script src="/public-theme.js?v=3"></script>
 </head>
 <body>
@@ -68,6 +69,8 @@
   <div id="badlink" class="card" hidden><h1>Link not found</h1><p class="sub">This approval link is invalid or has expired. Please ask your event manager for a new one.</p></div>
 
   <div id="content" hidden>
+    <!-- r23 (0262): "This quote is valid until dd/mm/yyyy" / expired + "Request a new quote" (quote-validity.js) -->
+    <div id="qvBanner" class="qv-banner" hidden></div>
     <!-- Event summary + pricing -->
     <div class="card">
       <div class="s-1fadc7d">
@@ -147,7 +150,7 @@
 <script src="/config.js?v=107"></script>
 <script src="/phone-input.js?v=7"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=272"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=272"></script><script src="/quote-validity.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -286,6 +289,9 @@
     shownTerms=termsFor(apTax); phoneCountry(apTax);
     $("#terms").innerHTML=TERMS_BY_COUNTRY[termsKey(apTax)].html; $("#tver").textContent="("+shownTerms.v+")";
     if(quote.client_name) $("#c_name").value=quote.client_name;
+    // r23 (0262): valid-until line; while an expired quote is locked the Approve steps are replaced by "Request a new quote"
+    // (the server refuses the approval anyway). Approved / paid quotes show nothing.
+    if(window.HelmQuoteValidity && quote.approval_status!=="approved" && quote.approval_status!=="paid") HelmQuoteValidity.mountClient($("#qvBanner"), "quote", token, { onState:(s)=>{ const lock=!!(s&&s.state==="expired"&&s.locked); ["#step1","#step2"].forEach((sel)=>{ const x=$(sel); if(x&&lock){ x.hidden=true; } }); if(lock) $("#flow").classList.add("qv-locked"); } }).catch(()=>{});
     // 0128 trial test mode: only shown when the server says this link's studio is an active trial
     if(BPStore.approval.trialTestMode){ BPStore.approval.trialTestMode(token).then((on)=>{ if(on===true){ $("#trialSkip").hidden=false; { ["#sendOtp","#sendWa"].forEach((sel)=>{ const b=$(sel); if(b){ b.hidden=true; b.style.display="none"; } }); const wn=$("#waNote"); const em=$("#sendEmailOtp"); const emailOn=!(BPStore.approval.emailEnabled && !BPStore.approval.emailEnabled()); if(!emailOn && em){ em.hidden=true; em.style.display="none"; } if(wn){ if(emailOn) wn.textContent="Free trial: we send the one-time code to the e-mail address your planner has on file for you. SMS and WhatsApp codes are not used in the trial."; else wn.hidden=true; } }   // 0176 / 0212: a trial sends no SMS / WhatsApp; the code by e-mail works (capped by the server)
       $("#payManual").textContent="Trial test mode: in a real studio your client pays by UPI/card through the payment link. In this trial you can skip that step - record this payment from your studio (Payments / Record payment). No payment gateway is needed."; } }).catch(()=>{}); }
@@ -366,6 +372,7 @@
         showStep('step3'); $("#approvedNote").textContent=recordedNote(r); setMsg();
       } else {
         setMsg("err",(r&&r.message)||"Verification failed.");
+        if(r&&r.error==="quote_expired"&&window.HelmQuoteValidity) HelmQuoteValidity.refreshClient();   // r23 (0262): show the expired banner + request button
       }
     }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"verify the OTP"})); }
     finally{ b.textContent="✓ Confirm & approve"; }

@@ -127,7 +127,7 @@
   .eglist .rl{margin-left:auto;color:var(--ink-3);font-size:12px;text-transform:capitalize}
   .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
-<link rel="stylesheet" href="quotes-polish.css?v=9"><link rel="stylesheet" href="event-group-picker.css?v=2">
+<link rel="stylesheet" href="quotes-polish.css?v=9"><link rel="stylesheet" href="quote-validity.css?v=1"><link rel="stylesheet" href="event-group-picker.css?v=2">
 <link rel="stylesheet" href="link-views.css?v=1">
 <link rel="stylesheet" href="theme.css?v=83">
 <script src="/shell-proto.js?v=40" id="shellProto"></script>
@@ -151,7 +151,7 @@
       <button type="button" data-f="inprogress" aria-pressed="false" id="tab_inprogress" hidden title="Quotes still being prepared - no quotation saved in step 8 yet. The whole studio, with who worked on each last.">In progress<span class="tcount" id="cnt_inprogress"></span></button>
       <button type="button" data-f="quote" aria-pressed="false">Quotes</button>
       <button type="button" data-f="confirmed" aria-pressed="false" title="Priced and locked quotes: sent to the client (awaiting approval) and client-confirmed events">Sent &amp; confirmed</button>
-      <button type="button" data-f="attention" aria-pressed="false">⚠ Attention</button>
+      <button type="button" data-f="attention" aria-pressed="false" title="Events whose date has passed but are not wrapped up, and quotes that expire soon or just expired">⚠ Attention</button>
       <button type="button" data-f="cancelled" aria-pressed="false" id="tab_cancelled" title="Events cancelled with Cancel event on the event page. They also stay in the Archive.">Cancelled<span class="tcount" id="cnt_cancelled" hidden></span></button>
       <button type="button" data-f="archived" aria-pressed="false">Archive<span class="tcount" id="cnt_archived" hidden></span></button>
       <button type="button" data-f="deleted" aria-pressed="false" id="tab_deleted" hidden>Deleted<span class="tcount" id="cnt_deleted"></span></button>
@@ -281,7 +281,7 @@
 <script src="config.js?v=107"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script><script src="flow-resume.js?v=5" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=3"></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script><script src="flow-resume.js?v=5" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=1"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=3"></script>
 <script src="event-sizing.js?v=5"></script><script src="quote-smart-filter.js?v=1"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script><script src="link-views.js?v=1"></script>
 <script src="tour.js?v=24"></script>
 <script>
@@ -539,8 +539,8 @@
   function reloadList(){
     if(!pager) pager=BPUI.pager({ after: $("#rows").closest(".card"), what:"quotes",
       fetch:(offset)=>shelfPage(offset, ()=>BPStore.quotes.page({ offset, view:viewOf(filter), eventType:typeFilter, search:($("#search").value||"").trim(), sort:"confirmedFirst", ...quoteDateArgs() })),
-      render:(rows,info)=>{ quotes=info.all; render(); refreshStale(); refreshChanges(); } });
-    anyQuotes=null; chgKey=""; staleKey="";   // qts-1018: a reload re-reads change orders + stale approvals too
+      render:(rows,info)=>{ quotes=info.all; render(); refreshStale(); refreshChanges(); refreshValidity(); } });
+    anyQuotes=null; chgKey=""; staleKey=""; qvKey="";   // qts-1018: a reload re-reads change orders + stale approvals too
     return pager.reset();
   }
   // 0052: quotes whose client approval went stale after a price change (fail-soft)
@@ -549,6 +549,25 @@
     const ids=quotes.map(x=>x.id), key=ids.join(","); if(key===staleKey) return; staleKey=key;
     try{ const s=await BPStore.quotes.staleApprovals(ids); const changed=s.size||staleSet.size; staleSet=s; if(changed) render(); }catch(_){}
   }
+  // r23 (0262): "Expires in N days" pill for open quotes with a valid-until date (fail-soft: no pill before 0262)
+  let qvMap={}, qvKey="";
+  async function refreshValidity(){
+    const ids=quotes.map(x=>x.id), key=ids.join(","); if(key===qvKey) return; qvKey=key;
+    try{ if(!(BPStore.quoteValidity&&BPStore.quoteValidity.list)) return; const m=await BPStore.quoteValidity.list(ids)||{};
+      qvMap=m; paintValidity(); }catch(_){}
+  }
+  // painted with DOM text nodes after every render (a MutationObserver on the rows), never into the row template
+  function paintValidity(){
+    const H=window.HelmQuoteValidity; if(!H) return;
+    document.querySelectorAll("#rows tr[data-id]").forEach(tr=>{
+      const p=H.pill(qvMap[tr.getAttribute("data-id")]), td=tr.children[4]; if(!td||td.querySelector(".qv-pillwrap")) return;
+      if(!p) return;
+      const w=document.createElement("span"); w.className="qv-pillwrap";
+      const s=document.createElement("span"); s.className="stat hs-pill "+p.cls; s.title=p.title; s.textContent=p.text;
+      w.appendChild(s); td.appendChild(w);
+    });
+  }
+  try{ new MutationObserver(()=>paintValidity()).observe(document.getElementById("rows"),{childList:true}); }catch(_){}
   // money-1024: the list total = quote total + APPROVED change orders - the same invoice total the
   // event workspace and settlement show (BPStore.budget.summary). Fail-soft: base total if unreadable.
   let chgTotals={}, chgKey="";

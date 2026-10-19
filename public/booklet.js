@@ -631,6 +631,8 @@
     try { const pt = global.BPStore.booklet.payTerms ? await global.BPStore.booklet.payTerms(token) : null;
       if (pt && typeof pt === "object" && VISIBLE.payments !== false && $("#payTerm")) { d.payTerms = pt; renderPayments(d); } } catch (e) {}
     if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && d.menu.mode === "hidden")) global.HelmBookletPkg.mount(token, d).catch(() => {});
+    // r23 (0262): "This quote is valid until dd/mm/yyyy" / expired + "Request a new quote" (nothing once approved)
+    if (global.HelmQuoteValidity && $("#qvBanner")) global.HelmQuoteValidity.mountClient($("#qvBanner"), "booklet", token).catch(() => {});
   }
 
   global.HelmBooklet = { menuChoosing, quoteChanges, withAdvance, balanceLine, msDisplayStatus, msAllocate, render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };

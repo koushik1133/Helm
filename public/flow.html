@@ -125,7 +125,7 @@
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
-<link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=1"><link rel="stylesheet" href="payment-schedule.css?v=1">
+<link rel="stylesheet" href="quote-validity.css?v=1"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=1"><link rel="stylesheet" href="payment-schedule.css?v=1">
 <script src="/shell-proto.js?v=40" id="shellProto"></script>
 </head>
 <body>
@@ -325,6 +325,8 @@
                 <p class="cs-apst" id="csApprState" role="status" aria-live="polite">Not sent yet.</p>
                 <div id="lvPanel" data-link-views="panel" data-quote-from-url hidden></div>
                 <p class="cs-approved" id="csApproved" hidden>Approved ✓</p>
+                <!-- r23 (0262): "Valid until dd/mm/yyyy" + Extend / Change date (quote-validity.js; hidden once approved) -->
+                <div class="qv-staff" id="qvFlow" data-qv-staff hidden></div>
                 <button type="button" class="btn primary" id="sendApproval">Send for approval →</button>
                 <div class="s-d2c171b" id="apprLinks"></div>
               </section>
@@ -469,7 +471,7 @@
 <script src="flow-autosave.js?v=5"></script>
 <script src="flow-validate.js?v=4"></script>
 <script src="flow-resume.js?v=5"></script>
-<script src="quote-state.js?v=4"></script>
+<script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=1"></script>
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=10"></script>
 <script src="venue-picker.js?v=7"></script>
@@ -1574,6 +1576,7 @@
       // URL-encode the address so a stored "a@b.com?bcc=…" can't add mail headers (Cc/Bcc) to the link email
       const mailHref="mailto:"+encodeURIComponent(ev.client&&ev.client.email||"").replace(/%40/g,"@")+"?subject="+encodeURIComponent("Your event proposal")+"&body="+waText;
       $("#apprState").innerHTML='<b style="color:var(--safe-text)">Approval link ready.</b> Copy it or e-mail it in step 9 (or Share with client).';
+      if(window.HelmQuoteValidity) HelmQuoteValidity.refreshStaff();   // r23 (0262): the first send counts the validity from today
       $("#apprLinks").innerHTML=
         `<div class="fld"><input id="apprUrl" value="${esc(link)}" readonly aria-label="Approval link" style="font-size:12px"></div>`+
         `<div style="display:flex;gap:8px;flex-wrap:wrap">`+

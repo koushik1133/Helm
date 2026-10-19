@@ -22,6 +22,8 @@
 //                   studio's admins, claimed from helm_notice_outbox (helm-notices.mjs; transactional footer)
 //   * booklet_link  (0200) "Send to client" in the Share booklet dialog: the live client booklet
 //                   link (booklet-link.mjs; host = APP_URL, path added by the claim - no token in the row)
+//   * quote_expiry  (0262) "your quote is valid until dd/mm/yyyy" reminder before the date (quote-expiry.mjs; the
+//                   approval link path is added by the claim - no token in the row; re-checked there)
 // FREE TRIAL (0212): the database queues and hands out a free-trial studio's row ONLY for the invitation /
 //   booklet link by e-mail of an ACTIVE trial, under caps (30 a day per studio, 5 a day per address); such a
 //   row carries payload.trial_email = true. Checked once more here: a trial-marked row that is not exactly that
@@ -74,6 +76,7 @@ import { trialReminderEmail, trialRetentionEmail, RETENTION_NOTICE_KINDS, RETENT
 import { inviteSiteMessage } from "./invite-site.mjs";
 import { trialRowAllowed } from "./trial-row.mjs";   // 0212: free trial = link e-mails only
 import { bookletMessage } from "./booklet-link.mjs";
+import { quoteExpiryMessage } from "./quote-expiry.mjs";
 import { deliveryMessage } from "./delivery-reminder.mjs";   // 0241: delivery / arrival reminders
 import { vendorRequestMessage, VENDOR_TX_REASON } from "./vendor-request.mjs";   // 0256: vendor requests + reminders
 import { helmNoticeEmail, NOTICE_TX_REASON } from "./helm-notices.mjs";   // 0244: sales requests + "ask my admin"
@@ -244,6 +247,7 @@ export function assignMessage(text: string, linkPath: string, origin: string): s
 export function messageFor(purpose: string, payload: Record<string, unknown>, origin: string): { subject: string; text: string } {
   if (purpose === "invite_site") return inviteSiteMessage(payload, origin);   // 0195: no link / bad row -> "" -> skipped
   if (purpose === "booklet_link") return bookletMessage(payload, origin);     // 0200: same rule
+  if (purpose === "quote_expiry") return quoteExpiryMessage(payload, origin); // 0262: same rule
   const text = String(payload?.text ?? "").slice(0, 900);
   if (purpose === "wa_forward") {
     const link = absoluteLink(origin, payload);
@@ -284,6 +288,7 @@ Deno.serve(async (req) => {
         let ident: Identity = {};
         try { const { data } = await admin.rpc("comms_outbox_email_identity", { p_id: id }); if (data && typeof data === "object") ident = data as Identity; } catch (_) { /* defaults */ }
         let extra: Extra | null = { footer: txFooter(purpose === "invite_site" || purpose === "booklet_link" ? "client_link" : "pay_reminder", { app: origin, address: postalAddress(env) }) };
+        if (purpose === "quote_expiry") extra = { footer: txFooter("client_link", { app: origin, address: postalAddress(env) }) };   // 0262: a client-link reminder
         if (NON_TRANSACTIONAL.has(purpose)) {
           let u: any = null;
           try { const { data } = await admin.rpc("comms_outbox_unsub", { p_id: id }); u = data; } catch (_) { u = null; }

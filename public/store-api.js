@@ -2621,7 +2621,8 @@ window.HelmUrl = HelmUrl;
     if (view === "all" || !view) return q;
     q = q.neq("status", "cancelled").or("lifecycle_stage.is.null,lifecycle_stage.neq.closed,status.neq.confirmed");
     if (view === "quote" || view === "confirmed") q = q.eq("status", view);
-    // r23 (0261): + quotes the client viewed but has not approved (ids from link_views_attention, uuid-checked)
+    // r23 (0261 + 0262): + quotes the client viewed but has not approved (link_views_attention) and open quotes whose
+    // valid-until date is close / just passed (quotes_expiring_soon) - one uuid-checked id list from page()
     if (view === "attention") q = (extraIds && extraIds.length) ? q.or("event_date.lt." + today + ",id.in.(" + extraIds.join(",") + ")") : q.lt("event_date", today);
     return q;
   }
@@ -2666,9 +2667,11 @@ window.HelmUrl = HelmUrl;
     async page(o) {
       o = o || {}; const today = localISODate();
       const attnIds = o.view === "attention" ? await linkViews.attentionIds() : null;
+      const soon = o.view === "attention" ? await quoteValidity.expiringSoon().catch(() => []) : null;
+      const extraIds = o.view === "attention" ? [...new Set([...(attnIds || []), ...(soon || [])])].slice(0, 300) : null;
       const build = (cols, shelf) => {
         let q = supa.from("quotes").select(cols);
-        q = sbQuoteView(q, o.view, today, shelf, attnIds);
+        q = sbQuoteView(q, o.view, today, shelf, extraIds);
         if (o.eventType) q = q.ilike("event_type", likeEscape(o.eventType));
         if (quoteDay(o.dateFrom)) q = q.gte("event_date", o.dateFrom);
         if (quoteDay(o.dateTo)) q = q.lte("event_date", o.dateTo);
@@ -3312,6 +3315,37 @@ window.HelmUrl = HelmUrl;
       .select("*").eq("quote_id", quoteId).order("created_at", { ascending: false }); if (error) throw error; return data; },
     async notifications(quoteId) { if (!supa) return []; const { data, error } = await supa.from("notifications")
       .select("*").eq("quote_id", quoteId).order("created_at", { ascending: false }); if (error) throw error; return data; },
+  };
+
+  // r23 (0262) quote "Valid until" (PandaDoc / Zoho model). Staff reads need quotes VIEW, changes quotes EDIT
+  // (custom dates only when the studio allows them, admins always); settings = Control Center EDIT; "apply to open
+  // quotes" = admin. The two public calls are the signed-out client pages (token-scoped, rate-limited server-side).
+  // Before 0262 every read answers null / {} / [] (the screens then show nothing) and writes say "needs 0262".
+  const qvMissing = (e) => { if (rpcMissing(e)) { const er = new Error("Quote validity needs database update 0262 (ask your admin to run APPLY-0262.sql)."); er.code = "quote_validity_missing"; return er; } return e; };
+  const qvOn = () => mode === "supabase" && !!supa;
+  const QV_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let qvSoon = null;   // { at, ids } - the Attention tab's "expiring soon" ids, re-read at most once a minute
+  const quoteValidity = {
+    settings: () => qvOn() ? rpc("quote_validity_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null),
+    saveSettings: (o) => qvOn() ? rpc("quote_validity_settings_set", { p: o || {} }).catch((e) => { throw qvMissing(e); }) : Promise.reject(new Error("Settings need a signed-in studio.")),
+    get: (quoteId) => (qvOn() && QV_UUID.test(String(quoteId || ""))) ? rpc("quote_validity_get", { p_quote: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null),
+    list: (ids) => { const l = (ids || []).filter((x) => QV_UUID.test(String(x || ""))).slice(0, 200);
+      return (qvOn() && l.length) ? rpc("quote_validity_list", { p_ids: l }).then((r) => (r && typeof r === "object" ? r : {})).catch(() => ({})) : Promise.resolve({}); },
+    expiringSoon: async () => {
+      if (!qvOn()) return [];
+      if (qvSoon && Date.now() - qvSoon.at < 60000) return qvSoon.ids;
+      const r = await rpc("quotes_expiring_soon", {}).catch(() => null);
+      const ids = Array.isArray(r) ? r.filter((x) => QV_UUID.test(String(x || ""))).slice(0, 200) : [];
+      qvSoon = { at: Date.now(), ids }; return ids;
+    },
+    extend: (quoteId, days) => { qvSoon = null; return rpc("quote_validity_extend", days == null ? { p_quote: quoteId } : { p_quote: quoteId, p_days: Math.round(Number(days)) }).catch((e) => { throw qvMissing(e); }); },
+    setDate: (quoteId, isoDate, note) => { qvSoon = null; return rpc("quote_validity_set", { p_quote: quoteId, p_date: String(isoDate || "").slice(0, 10), p_note: note ? String(note).slice(0, 300) : null }).catch((e) => { throw qvMissing(e); }); },
+    applyOpen: (apply) => rpc("quote_validity_apply_open", { p_apply: !!apply }).catch((e) => { throw qvMissing(e); }),
+    // signed-out client pages: { state: valid|expired|none|done|off, valid_until_label, days_left, locked, studio, requested } or null
+    publicState: (kind, token) => (supa && QV_UUID.test(String(token || "")))
+      ? rpc("public_quote_validity", { p_kind: kind === "booklet" ? "booklet" : "quote", p_token: String(token) }).catch(() => null) : Promise.resolve(null),
+    requestNew: (kind, token, note) => rpc("public_request_new_quote", { p_kind: kind === "booklet" ? "booklet" : "quote", p_token: String(token || ""),
+      p_note: note ? String(note).slice(0, 300) : null }),
   };
 
   /* ---------------- event operations: crew + tasks ---------------- */
@@ -8150,6 +8184,8 @@ window.HelmUrl = HelmUrl;
     if (k === "event_close_request" || k === "event_close_decision") return "closure.html?quote=" + enc(q) + "#close-request";
     // r23 (0261): "Rahul opened the proposal" / "viewed but not approved" -> the event workspace, views timeline open
     if (k === "client_link_viewed" || k === "client_view_followup") return "event.html?id=" + enc(q) + "#link-views";
+    // r23 (0262): valid-until reminders / "request a new quote" open the event workspace at the validity line
+    if (k === "quote_expiring" || k === "quote_expired" || k === "quote_renew_request") return "event.html?id=" + enc(q) + "#quote-validity";
     if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
     if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile|pkg_payment)$/.test(k))
       return "settlement.html?quote=" + enc(q) + "#payments";
@@ -8493,6 +8529,10 @@ window.HelmUrl = HelmUrl;
       event_close_request: ["🗄️", "Close request" + (d.actor_name ? " from " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "") + " - waiting for approval"],
       event_close_decision: [d.decision === "declined" ? "↩️" : "✅", (d.decision === "declined" ? "Close request declined" : "Event closed with override")
         + (d.actor_name ? " by " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "")],
+      // r23 (0262): quote valid-until reminders + the client's "Request a new quote" (quote viewers only - server 0153)
+      quote_expiring: ["⏳", String(d.label || "A quote expires soon")],
+      quote_expired: ["⌛", String(d.label || "A quote has expired")],
+      quote_renew_request: ["🔁", String(d.label || "The client asked for an updated quote")],
       // 0205: an invitee whose invitation expired asked for a new link (re-send it from Staff)
       invite_link_request: ["✉️", String(d.label || "A teammate asked for a new invitation link")],
       // 0069 client package flow
@@ -9871,7 +9911,7 @@ window.HelmUrl = HelmUrl;
 
   const BPStore = {
     reservedEmailDomain, RESERVED_EMAIL_MESSAGE,
-    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, inbox, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, paySchedule, deliveries, vendorRequests, linkViews, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, inbox, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, paySchedule, deliveries, vendorRequests, linkViews, integrations, quoteValidity,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
