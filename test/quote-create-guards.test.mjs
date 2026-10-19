@@ -88,9 +88,9 @@ await t('r19: every "New quote" opens the flow directly (startBlank, no ask); a 
   const fn = q.slice(q.indexOf('async function startNewQuote('), q.indexOf('document.addEventListener("click", (e) => {', q.indexOf('async function startNewQuote(')));
   assert.ok(!/HelmNewQuote\.ask\(/.test(fn), 'quotes: no dialog');
   assert.match(fn, /await BPUI\.guard\(btn, async \(\) => \{[\s\S]*BPStore\.quotes\.startBlank\(code\)[\s\S]*location\.href = open==="builder" \? "builder\.html\?quote=" \+ encodeURIComponent\(q\.id\) \+ "&from=flow" : "flow\.html\?quote=" \+ encodeURIComponent\(q\.id\)/);
-  assert.match(fn, /if\(btn && btn\.disabled\)\{[\s\S]*?return;\s*\}/);
+  assert.match(fn, /if\(btn && \(btn\.disabled \|\| btn\.getAttribute\("data-cap-off"\)==="1"\)\)\{[\s\S]*?return;\s*\}/);
   // r20 (0238): the free-trial quote cap - shown next to the button, a refused 3rd quote explained
-  assert.match(q, /function gateQuoteCap\(\)\{ if\(canCreate && window\.BPUI && BPUI\.capGate\) BPUI\.capGate\(\[\$\("#newBtn"\)\],"quotes","new quotes"\)/);
+  assert.match(q, /function gateQuoteCap\(\)\{ if\(canCreate && window\.BPUI && BPUI\.capGate\) BPUI\.capGate\(\[\$\("#newBtn"\)\],"quotes","new quotes",\{ soft: true,/);
   assert.match(fn, /if\(BPUI\.capToast && BPUI\.capToast\(err, "new quotes"/);
   const cb = d.slice(d.indexOf('$("#createBtn").addEventListener'), d.indexOf('$("#loginForm")'));
   assert.ok(!/HelmNewQuote\.ask\(/.test(cb), 'dashboard: no dialog');

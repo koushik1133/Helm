@@ -106,12 +106,12 @@ await t('trial copy: 2 new quotes (events) in the terms, the sign-up rules, the 
 await t('UI: Quotes + dashboard gate New quote with the trial cap; every create path explains a refused 3rd quote', () => {
   const q = read('public/quotes.html'), d = read('public/dashboard.html'), sb = read('public/shell-b.js'), l = read('public/leads.html');
   assert.match(q, /\$\("#newBtn"\)\.hidden = !canCreate;\s*gateQuoteCap\(\);/);
-  assert.match(q, /BPUI\.capGate\(\[\$\("#newBtn"\)\],"quotes","new quotes"\)/);
+  assert.match(q, /BPUI\.capGate\(\[\$\("#newBtn"\)\],"quotes","new quotes",\{ soft: true,/);
   const fn = q.slice(q.indexOf('async function startNewQuote('), q.indexOf('document.addEventListener("click", (e) => {', q.indexOf('async function startNewQuote(')));
   assert.ok(fn.indexOf('open==="builder"') < fn.indexOf('btn.disabled'), 'reusing an open quote in the builder never needs a slot');
   assert.match(fn, /btn\.getAttribute\("data-cap-off"\)==="1" && window\.BPUI && BPUI\.capToast\) BPUI\.capToast\(\{ hint: "trial_cap" \}, "new quotes"/);
   assert.match(fn, /if\(BPUI\.capToast && BPUI\.capToast\(err, "new quotes", "You can still open and edit your quotes and the sample events\."\)\)\{ gateQuoteCap\(\); return; \}/);
-  assert.match(d, /\$\("#createBtn"\)\.hidden = !canCreate;[^\n]*\n[^\n]*\n\s*if \(canCreate && window\.BPUI && BPUI\.capGate\) BPUI\.capGate\(\[\$\("#createBtn"\)\], "quotes", "new quotes"\)/);
+  assert.match(d, /\$\("#createBtn"\)\.hidden = !canCreate;[^\n]*\n[^\n]*\n\s*if \(canCreate && window\.BPUI && BPUI\.capGate\) BPUI\.capGate\(\[\$\("#createBtn"\)\], "quotes", "new quotes", CAP_OPTS\)/);
   assert.match(d, /if \(BPUI\.capToast && BPUI\.capToast\(err, "new quotes"/);
   assert.match(sb, /if \(window\.BPUI && BPUI\.capToast && BPUI\.capToast\(err, "new quotes"/);
   assert.match(l, /if\(BPUI\.capToast&&BPUI\.capToast\(err,"new quotes","The lead is kept;/);
