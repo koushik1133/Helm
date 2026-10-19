@@ -27,7 +27,8 @@ t('try.js loads before store-api.js; banner + trial CTA present', () => {
   assert.ok(html.indexOf('/try.js?v=') > 0 && html.indexOf('/try.js?v=') < html.indexOf('store-api.js'));
   assert.match(html, /Sandbox — nothing is saved/);
   assert.match(html, /data-m="2d"[\s\S]*data-m="3d"[\s\S]*data-m="measure"/);
-  assert.match(html, /href="\/login\?trial=1#signup"><span class="try-cta-l">Start your 8-day free trial/);
+  assert.match(html, /href="\/signup\?mode=trial"><span class="try-cta-l">Start your 8-day free trial/);   // r23: the home page's trial link
+  assert.match(html, /<a class="try-signin" href="\/login">Sign in<\/a>/);
   assert.match(html, /<link rel="canonical" href="https:\/\/www\.helm\.events\/try">/);
 });
 t('committed public/try.html carries the sandbox shell (regenerate with node scripts/gen-try.mjs)', () => {

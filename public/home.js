@@ -208,7 +208,7 @@
       b.setAttribute('aria-label', 'Chapter ' + (i + 1) + ': ' + c);
       b.appendChild(document.createElement('b'));
       b.addEventListener('click', function () {
-        loadV(heroVideo);
+        heroReady = true; loadV(heroVideo);
         var d = heroVideo.duration;
         if (d && isFinite(d)) heroVideo.currentTime = d * i / 6 + 0.05;
         else heroVideo.addEventListener('loadedmetadata', function () { heroVideo.currentTime = heroVideo.duration * i / 6 + 0.05; }, { once: true });
@@ -248,6 +248,18 @@
 
     /* play / pause */
     var heroUserPaused = reduce || liteData, heroVisible = false;
+    /* r23: the film (HQ ~3.7 MB) never competes with the first paint - it is fetched only after the page's own
+       load event + an idle moment (poster shows until then); pressing Play or a chapter starts it at once */
+    var heroReady = false;
+    function heroGo() {
+      heroReady = true;
+      if (!smallScreen) loadV(heroVideo);   // desktop: buffer it now (idle) so it plays the moment it scrolls in; phones wait for the scroll
+      if (heroVisible && !heroUserPaused) { loadV(heroVideo); tryPlay(heroVideo); }
+    }
+    function afterLoadIdle(fn) {
+      var idle = function () { if (window.requestIdleCallback) window.requestIdleCallback(fn, { timeout: 2500 }); else setTimeout(fn, 300); };
+      if (document.readyState === 'complete') idle(); else window.addEventListener('load', idle, { once: true });
+    }
     function setBtn() {
       var paused = heroUserPaused;
       btn.setAttribute('aria-pressed', String(paused));
@@ -256,19 +268,20 @@
     setBtn();
     btn.addEventListener('click', function () {
       heroUserPaused = !heroUserPaused; setBtn();
-      if (heroUserPaused) heroVideo.pause(); else { loadV(heroVideo); tryPlay(heroVideo); }
+      if (heroUserPaused) heroVideo.pause(); else { heroReady = true; loadV(heroVideo); tryPlay(heroVideo); }
     });
     heroVideo.muted = true;
     if (!reduce && !liteData) {
       heroVideo.addEventListener('loadeddata', function () { if (heroVisible && !heroUserPaused) tryPlay(heroVideo); }, { once: true });
-      /* phones: fetch the film only once its card scrolls into view (observer below), not on page load */
-      if (!smallScreen) loadV(heroVideo);
+      /* phones: fetch the film only once its card scrolls into view (observer below), not on page load;
+         desktop: after load + idle (heroGo), never during the first paint */
+      afterLoadIdle(heroGo);
     }
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(function (ents) {
         ents.forEach(function (en) {
           heroVisible = en.isIntersecting;
-          if (heroVisible) { if (!heroUserPaused) { loadV(heroVideo); tryPlay(heroVideo); } }
+          if (heroVisible) { if (!heroUserPaused && heroReady) { loadV(heroVideo); tryPlay(heroVideo); } }
           else if (!heroVideo.paused) heroVideo.pause();
         });
       }, { threshold: 0.15 }).observe(card);

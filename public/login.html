@@ -155,6 +155,13 @@
   .st-note{text-align:left}
   .plan-acts .pc-btn{margin:0}
   #stTitle:focus,#obTitle:focus{outline:none}
+  /* r23: step 1 tailored to ?plan=&mode= - the chosen plan as a chip (change -> /pricing) and the no-account sales route */
+  .plan-chip{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-12px 0 18px;padding:6px 8px 6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2);font-size:13px;color:var(--ink-2)}
+  .plan-chip-l{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+  .plan-chip-n{color:var(--ink);font-weight:700}
+  .plan-chip-x{display:inline-flex;align-items:center;min-height:32px;padding:0 10px;border-radius:999px;color:var(--accent);font-weight:700;text-decoration:none}
+  .plan-chip-x:hover{text-decoration:underline}
+  .sales-note{margin:-8px 0 18px;font-size:13px;color:var(--ink-2)} .sales-note a{color:var(--accent);font-weight:700}
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="/public-v2.css?v=5">
@@ -597,6 +604,7 @@
     $("#confirmHelp").hidden = m==="signup";
     clearFieldErrs();
     if(window.BPTrialSignup) BPTrialSignup.apply(m, J());
+    if(window.BPSignupFlow && BPSignupFlow.applyStep1) BPSignupFlow.applyStep1(m, J());   // r23: words + plan chip per ?plan=&mode=
     if(m==="signup" && !J()){ document.title="Create your studio · Helm"; } else { document.title="Sign in · Helm"; }
   }
   // ----- field rules (owner form rules): inline errors on blur, polite + specific -----
