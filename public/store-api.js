@@ -1243,7 +1243,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "12";
+  const STUDIO_SEARCH_VERSION = "13";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";
@@ -5036,7 +5036,7 @@ window.HelmUrl = HelmUrl;
     async require(L) {                                 // throw a "link not found" the pages already handle
       if (!(await links.verify(L))) { const e = new Error("invalid link"); e.code = "PGRST116"; throw e; }
     },
-    rename: (slug) => rpc("set_studio_link_name", { p_slug: slug }).then((r) => { studioSlugCache = r || null; if (r) HelmUrl.setStudio(r); return r; }),
+    // r23 (0257): the studio link is fixed at creation - only Helm HQ changes it (hq_set_studio_identity); no app rename
     // optional "links stop working N days after they're sent" (0039) — studio admin only, enforced server-side
     autoExpire: {
       get: () => rpc("admin_get_link_autoexpire", {}),
@@ -8070,6 +8070,7 @@ window.HelmUrl = HelmUrl;
       return "inventory.html?quote=" + enc(q) + (it ? "&item=" + enc(it) : "");
     }
     if (k.indexOf("chat_") === 0) return "chat.html";
+    if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     if (!q) return "";
     // r22 (0254): a close request / its decision opens the event's Closure page at the request
@@ -8399,6 +8400,8 @@ window.HelmUrl = HelmUrl;
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
+      // r23 (0257): Helm support changed the studio name / link (old links keep working)
+      studio_identity_changed: ["🏷️", String(d.label || "Helm support changed your studio name or link")],
       // r22 (0254): "request to close anyway" + the approval (admins / coordinators / managers only - the server decides)
       event_close_request: ["🗄️", "Close request" + (d.actor_name ? " from " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "") + " - waiting for approval"],
       event_close_decision: [d.decision === "declined" ? "↩️" : "✅", (d.decision === "declined" ? "Close request declined" : "Event closed with override")
@@ -9155,7 +9158,8 @@ window.HelmUrl = HelmUrl;
     const fixed = { "booklet.view": "Viewed", "booklet.read": "Viewed", "booklet.share": "Shared", "booklet.revoke": "Link revoked",
       "booklet.snapshot": "Snapshot", "booklet.snap": "Snapshot", "pkg.view": "Viewed", "pkg.choose": "Chose", "pkg.accept": "Accepted",
       "pkg.decline": "Declined", "pkg.adjust": "Adjusted", "quote.moved_to_archive": "Archived", "quote.moved_to_deleted": "Moved to bin",
-      "quote.restored": "Restored", "design.advance": "Stage moved", "upload.rejected": "Rejected" };
+      "quote.restored": "Restored", "design.advance": "Stage moved", "upload.rejected": "Rejected",
+      "studio.renamed": "Studio renamed", "studio.link_renamed": "Link changed", "hq.studio.identity": "Renamed by Helm" };
     if (fixed[a]) return fixed[a];
     const last = a.split(".").pop(); return auditHuman(last) || "—";
   }
@@ -9176,6 +9180,9 @@ window.HelmUrl = HelmUrl;
       case "booklet.view": case "booklet.read": return "Client viewed the booklet" + ev;
       case "booklet.share": return "Booklet shared with the client" + ev + (c.expires_at ? " (link valid until " + String(c.expires_at).slice(0, 10) + ")" : "");
       case "booklet.revoke": return "Booklet link revoked" + ev;
+      // r23 (0257): studio name / link changes (Helm support only; old links keep working)
+      case "studio.renamed": return "Studio renamed" + (c.from || c.to ? " from \u201c" + String(c.from || "").slice(0, 120) + "\u201d to \u201c" + String(c.to || "").slice(0, 120) + "\u201d" : "");
+      case "studio.link_renamed": return "Studio link changed" + (c.from || c.to ? " from " + String(c.from || "").slice(0, 60) + " to " + String(c.to || "").slice(0, 60) + " (old links keep working)" : "");
       case "booklet.link_sent": return "Booklet link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
         + (c.channel === "whatsapp" ? " on WhatsApp" : c.channel === "email" ? " by email" : "") + (c.to ? " to " + String(c.to).slice(0, 80) : "") + ev;
       case "booklet.snapshot": case "booklet.snap": return auditHuman(kindLabel(c.kind)) + (c.set === false ? " removed" : " updated") + " in the booklet" + ev;

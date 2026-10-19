@@ -118,6 +118,7 @@ run "r21-security-notices-0250" "R21-SECURITY-NOTICES-0250: ALL PASS \(35/35\)" 
 run "upload-quarantine"  "UPLOAD-QUARANTINE: ALL PASS \(21/21\)" psql -q -f tests/db/upload-quarantine.sql
 run "chat-rls"           "CHAT-RLS: ALL PASS"              psql -q -f tests/db/chat-rls.sql
 run "studio-links"       "STUDIO-LINKS: ALL PASS"          psql -q -f tests/db/studio-links.sql
+run "r23-studio-name-0257" "R23-STUDIO-NAME-0257: ALL PASS \(41/41\)" psql -q -f tests/db/r23-studio-name-0257.sql
 run "privilege-escalation" "PRIVILEGE-ESCALATION: ALL PASS"  psql -q -f tests/db/privilege-escalation.sql
 run "link-windows"       "LINK-WINDOWS: ALL PASS"          psql -q -f tests/db/link-windows.sql
 run "link-autoexpire"    "LINK-AUTOEXPIRE: ALL PASS \(45/45\)" psql -q -f tests/db/link-autoexpire.sql
@@ -151,7 +152,7 @@ run "client-360"         "CLIENT-360: ALL PASS \(48/48\)"  psql -q -f tests/db/c
 run "saved-views"        "SAVED-VIEWS: ALL PASS \(28/28\)" psql -q -f tests/db/saved-views.sql
 run "system-quiet-0164"  "SYSTEM-QUIET-0164: ALL PASS \(18/18\)" psql -q -f tests/db/system-quiet-0164.sql
 run "trial-sandbox-0166" "TRIAL-SANDBOX-0166: ALL PASS \(51/51\)" psql -q -f tests/db/trial-sandbox-0166.sql
-run "trial-manifest-0167" "TRIAL-MANIFEST-0167: ALL PASS \(50/50\)" psql -q -f tests/db/trial-manifest-0167.sql
+run "trial-manifest-0167" "TRIAL-MANIFEST-0167: ALL PASS \(51/51\)" psql -q -f tests/db/trial-manifest-0167.sql
 run "trial-india-0177"   "TRIAL-INDIA-0177: ALL PASS \(17/17\)" psql -q -f tests/db/trial-india-0177.sql
 run "trial-data-0168" "TRIAL-DATA-0168: ALL PASS \(17/17\)" psql -q -f tests/db/trial-data-0168.sql
 run "trial-data-0169" "TRIAL-DATA-0169: ALL PASS \(24/24\)" psql -q -f tests/db/trial-data-0169.sql

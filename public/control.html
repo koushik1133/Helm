@@ -47,6 +47,10 @@
   .msg.warn{background:#fff7e8;color:#7a4a06;border:1px solid #f1d9a8}
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6} .msg.info{background:#eef4ff;color:#1d4ed8;border:1px solid #c7d7fe}
   .actions{display:flex;justify-content:flex-end;margin-top:14px}
+  /* r23 (0257): studio name + link are fixed at creation - shown read-only with a lock */
+  .lock-ico{vertical-align:-1px;margin-left:4px;color:var(--ink-3)} .lock-note{margin:6px 0 0;font-size:12.5px;color:var(--ink-3)}
+  #o_name[readonly]{background:var(--panel-2,#f6f6f4);color:var(--ink-2);cursor:default}
+  .slug-url{margin:0 0 6px;font-size:14px;word-break:break-all} .slug-url b{font-family:var(--mono,"IBM Plex Mono",monospace);font-weight:600;color:var(--ink)}
   .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px;min-height:32px;min-width:32px} .rm:hover{color:#e5484d;background:#fdecec}
   /* tab bar */
   .tabs{display:flex;gap:6px;margin:4px 0 18px;border-bottom:1px solid var(--line);padding-bottom:0}
@@ -314,7 +318,7 @@
       <div id="orgErr"></div>
       <div class="grid">
         <div class="fld"><label for="o_country">Country (sets tax &amp; currency)</label><select id="o_country" data-picker="search"></select></div>
-        <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" maxlength="120" autocomplete="organization" placeholder="e.g. Aurora Events"></div>
+        <div class="fld"><label for="o_name">Studio / business name <svg class="lock-ico" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false"><path fill="currentColor" d="M5 7V5a3 3 0 0 1 6 0v2h.5A1.5 1.5 0 0 1 13 8.5v5A1.5 1.5 0 0 1 11.5 15h-7A1.5 1.5 0 0 1 3 13.5v-5A1.5 1.5 0 0 1 4.5 7H5zm1.5 0h3V5a1.5 1.5 0 0 0-3 0v2z"/></svg></label><input id="o_name" maxlength="120" autocomplete="organization" placeholder="e.g. Aurora Events" readonly aria-readonly="true" aria-describedby="o_name_lock"><p class="lock-note" id="o_name_lock">Set when the studio was created. Contact Helm support to change it.</p></div>
         <div class="fld"><label for="o_email">Business email</label><input id="o_email" type="email" maxlength="254" autocomplete="email" spellcheck="false" placeholder="hello@studio.com"></div>
         <div class="fld"><label for="o_phone">Business phone *</label><input id="o_phone" type="tel" autocomplete="tel" maxlength="24" placeholder="Enter business phone" data-ph-own="1"></div>
         <div class="fld"><label for="o_location">Location (city, country) *</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
@@ -337,13 +341,10 @@
       <div class="actions"><button type="button" class="btn primary" id="o_save">Save studio settings</button></div>
       <div id="orgSaveMsg" role="status" aria-live="polite"></div>
       <div class="s-e3ae377" id="slugBox" hidden>
-        <h3 class="s-58d955e">Client link name</h3>
-        <p class="mnote s-759e41d">Every link you send clients and crew starts with this name, e.g. <code id="slugPreview">www.helm.events/your-studio/quote/…</code>. 3–40 lowercase letters, numbers or dashes. Links you already sent keep working after a change.</p>
-        <div id="slugMsg" role="status" aria-live="polite"></div>
-        <div class="grid">
-          <div class="fld"><label for="o_slug">Link name</label><input id="o_slug" autocomplete="off" spellcheck="false" maxlength="80" placeholder="aurora-events"></div>
-        </div>
-        <div class="actions"><button type="button" class="btn" id="o_slug_save">Save link name</button></div>
+        <h3 class="s-58d955e">Studio link <svg class="lock-ico" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false"><path fill="currentColor" d="M5 7V5a3 3 0 0 1 6 0v2h.5A1.5 1.5 0 0 1 13 8.5v5A1.5 1.5 0 0 1 11.5 15h-7A1.5 1.5 0 0 1 3 13.5v-5A1.5 1.5 0 0 1 4.5 7H5zm1.5 0h3V5a1.5 1.5 0 0 0-3 0v2z"/></svg></h3>
+        <p class="slug-url"><b id="slugUrlVal">helm.events/your-studio</b></p>
+        <p class="mnote s-759e41d">Your workspace and every link you send clients and crew start with it, e.g. <code id="slugPreview">www.helm.events/your-studio/quote/…</code>.</p>
+        <p class="lock-note" id="slugLock">Set when the studio was created. Contact Helm support to change it.</p>
       </div>
     </div>
 
@@ -827,7 +828,7 @@
 <script src="config.js?v=106"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=270"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=271"></script>
 <script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -850,10 +851,10 @@
 <script src="studio-templates.js?v=13"></script>
 <script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
-<script src="trial-demo.js?v=17"></script>
+<script src="trial-demo.js?v=18"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
-<script src="search-catalog.js?v=7"></script>
+<script src="search-catalog.js?v=8"></script>
 <script src="control-split.js?v=21"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -1368,12 +1369,11 @@
     paintBilling(o);
     orgMsg("",""); orgLoaded=true; $("#o_save").disabled=false;
     // branded client links (migration 0020) — only shown once the column exists
-    if(Object.prototype.hasOwnProperty.call(o,"public_slug")){ $("#slugBox").hidden=false; $("#o_slug").value=o.public_slug||""; savedSlug=o.public_slug||""; paintSlugPreview(); }
+    if(Object.prototype.hasOwnProperty.call(o,"public_slug")){ $("#slugBox").hidden=false; paintSlugPreview(o.public_slug||""); }
     { const G=ccGen(); if(G) Object.keys(G).forEach(k=>{ if(G[k]) G[k].reset(); }); }   // fresh values: no stale field errors
   }
   // input sweep A (cc-inputs.js): each General field is checked where it is typed - message under the field,
   // shown on leaving it and on Save; a failed save keeps everything that was typed
-  let savedSlug="";
   function ccGen(){ const CI=window.HelmCCInputs; return CI&&CI.bindGeneral?CI.bindGeneral({country:()=>BPStore.tax.code($("#o_country").value)}):null; }
   // billing details live in brand.billing (+ location, brand.phone, gst_number) — see onboarding-core.js
   const OB=window.HelmOnboarding;
@@ -1446,31 +1446,15 @@
     clearTimeout(bpT); bpT=setTimeout(()=>{ const m=BF.missingFromValues(OB, billVals()); showBillPrompt(m); },250); }
   Object.keys(BILL_IDS).forEach(k=>{ const el=$("#"+BILL_IDS[k]); if(el) el.addEventListener("input",billPromptLive); });
   function saveMsg(k,t){ const el=$("#orgSaveMsg"); if(el) el.innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
-  const SLUG_RE=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
-  function slugMsg(k,t){ $("#slugMsg").innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
-  function paintSlugPreview(){ const v=$("#o_slug").value.trim().toLowerCase()||"your-studio";
-    $("#slugPreview").textContent=BPStore.links.base().replace(/^https?:\/\//,"")+"/"+v+"/quote/…"; }
-  $("#o_slug").addEventListener("input",()=>{ const el=$("#o_slug"), CI=window.HelmCCInputs, c=CI?CI.slugLive(el.value):el.value.toLowerCase().replace(/[^a-z0-9-]+/g,"-");
-    if(c!==el.value) el.value=c; paintSlugPreview(); });
-  // a trailing dash left while typing ("aurora-") is dropped when the box is left
-  $("#o_slug").addEventListener("blur",()=>{ const el=$("#o_slug"), c=el.value.replace(/-+$/,""); if(c!==el.value){ el.value=c; paintSlugPreview(); } });
-  $("#o_slug_save").addEventListener("click",()=>BPUI.guard($("#o_slug_save"),async()=>{
-    const G=ccGen(); slugMsg("","");
-    if(G&&G.slug&&window.HelmCCInputs.first([G.slug])) return;
-    const v=$("#o_slug").value.trim().toLowerCase().replace(/-+$/,"");
-    if(!SLUG_RE.test(v)||v.includes("--")){ slugMsg("err","Use 3–40 lowercase letters, numbers or single dashes (no dash at the start or end)."); $("#o_slug").focus(); return; }
-    if(savedSlug && v===savedSlug){ slugMsg("ok","That is already your link name — nothing to change."); setTimeout(()=>slugMsg("",""),2500); return; }
-    if(!(await BPUI.confirm(`Change your client link name to “${v}”? New links will use it; links you already sent keep working.`,{title:"Change link name",okLabel:"Change"}))) return;
-    try{ const r=await BPStore.links.rename(v); $("#o_slug").value=r||v; savedSlug=r||v; if(G&&G.slug) G.slug.reset(); paintSlugPreview(); slugMsg("ok","Link name saved."); setTimeout(()=>slugMsg("",""),2500); }
-    catch(e){ const m=(e&&e.message)||"", why=/taken/i.test(m)?"That name is already used by another studio — try another.":/reserved|3-40|letters/i.test(m)?"That name isn't allowed (reserved word or wrong format) — try another.":"";
-      if(why&&G&&G.slug){ G.slug.setError(why); G.slug.focus(); } else slugMsg("err", why||errMsg(e,"save the link name")); }
-  }));
+  // r23 (0257): the studio link is set when the studio is created - shown read-only (Helm support changes it on request)
+  function paintSlugPreview(slug){ const host=BPStore.links.base().replace(/^https?:\/\//,""), v=slug||"your-studio";
+    $("#slugPreview").textContent=host+"/"+v+"/quote/…"; $("#slugUrlVal").textContent=host.replace(/^www\./,"")+"/"+v; }
   $("#o_save").addEventListener("click",()=>BPUI.guard($("#o_save"),async()=>{
     if(!orgLoaded){ saveMsg("err","Studio settings didn't load, so they can't be saved yet."); return; }
     const V=BPStore.validate, card=$("#o_save").closest(".card"), G=ccGen();
     saveMsg("",""); if(BF) BF.clearAll(card);
     // cc-inputs-sweep-a: the bound General inputs show their own message under the field (first one focused)
-    if(G && window.HelmCCInputs.first([G.name,G.email,G.phone,G.logo,G.accent,G.currency,G.tz,G.tax])){ saveMsg("",""); return; }
+    if(G && window.HelmCCInputs.first([G.email,G.phone,G.logo,G.accent,G.currency,G.tz,G.tax])){ saveMsg("",""); return; }
     const ccv=(b,id)=>{ const v=b?b.value():null; return v!=null?v:$("#"+id).value.trim(); };   // trimmed + normalised (e-mail lower-case, #rrggbb, https)
     // cc-general-billing: every problem is shown UNDER its own field (red border), the first one is focused
     const errs=[]; const bad=(el,msg)=>{ if(el && !errs.some(x=>x.el===el)) errs.push({ el, msg }); };
@@ -1506,13 +1490,13 @@
     // #16: an email saved HERE is the studio's public contact (business_email_confirmed); the booklet
     // never shows an unconfirmed (e.g. signup) email. Brand keys we don't edit here are kept.
     const ctp=BPStore.tax.profile(newCountry);   // an emptied currency box falls back to the country's currency, not always INR
-    const patch={ name:ccv(G&&G.name,"o_name")||null, business_email:email?email.toLowerCase():null, business_email_confirmed:!!email,
+    const patch={ business_email:email?email.toLowerCase():null, business_email_confirmed:!!email,
       currency:ccv(G&&G.currency,"o_currency").toUpperCase()||(ctp&&ctp.known?ctp.currency:"INR"), timezone:ccv(G&&G.tz,"o_tz")||"Asia/Kolkata",
       location:($("#o_location")?$("#o_location").value.trim():"")||null,
       gst_number:gstRaw||null,
       brand:Object.assign({}, orgBrand, { logo:logo||null, accent:accent||null, phone:phone?phone.slice(0,40):null }) };
-    if(billing){ const bp=OB.billingPatch({ name:patch.name, brand:patch.brand }, billing);
-      patch.brand=bp.brand; patch.location=bp.location; patch.gst_number=bp.gst_number; if(!patch.name) patch.name=bp.name||null; }
+    if(billing){ const bp=OB.billingPatch({ name:$("#o_name").value, brand:patch.brand }, billing);
+      patch.brand=bp.brand; patch.location=bp.location; patch.gst_number=bp.gst_number; }
     if(!billing && newCountry!==orgCountry){ patch.brand=Object.assign({}, patch.brand, { billing:Object.assign({}, (orgBrand&&orgBrand.billing)||{}, { country:newCountry }) }); }
     try{ await BPStore.org.save(patch); orgBrand=patch.brand;
       // read back what the database now holds: the form and the "missing" list show the saved truth

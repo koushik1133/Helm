@@ -146,13 +146,15 @@
   var slugT = null, slugSeq = 0;
   function slugSoon() {
     var nm = $("#ob_name"), out = $("#ob_slug"); if (!nm || !out) return;
-    var guess = slugify(nm.value); out.textContent = "helm.events/" + guess;
+    // r23 (0257): the link shows twice - under the name and in "this name and your link can't be changed later"
+    var paint = function (t) { out.textContent = t; var o2 = $("#ob_slug2"); if (o2) o2.textContent = t; };
+    var guess = slugify(nm.value); paint("helm.events/" + guess);
     clearTimeout(slugT);
     if (String(nm.value).trim().length < 2) return;
     var my = ++slugSeq;
     slugT = setTimeout(function () {
       var B = S(); if (!B || !B.signup || !B.signup.slugPreview) return;
-      B.signup.slugPreview(nm.value).then(function (s) { if (my === slugSeq && s) out.textContent = "helm.events/" + s; }, function () {});
+      B.signup.slugPreview(nm.value).then(function (s) { if (my === slugSeq && s) paint("helm.events/" + s); }, function () {});
     }, 350);
   }
   async function termsCheck() {

@@ -235,14 +235,19 @@ do $$ declare a uuid := pg_temp.get('A')::uuid; r jsonb; e text; begin
 exception when others then perform pg_temp.su(); insert into _uf values ('6x seats', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 -- ---- 5b) 2-step welcome, step 1: name the trial studio --------------------------------------------
-do $$ declare a uuid := pg_temp.get('A')::uuid; r jsonb; e text; begin
+do $$ declare a uuid := pg_temp.get('A')::uuid; r jsonb; e text; s0 text; begin
+  -- r23 (0257): the studio name + link are fixed at creation - the welcome may only save the SAME name (city / phone)
+  perform pg_temp.su(); update public.organizations set name = 'Aurora Events' where id = a;   -- as if typed at sign-up
+  s0 := (select public_slug from public.organizations where id = a);
   perform pg_temp.login('mf_a@t.test');
+  e := pg_temp.try('select public.trial_welcome_setup(''Renamed Later'', null, null)');
+  perform pg_temp.res('65b welcome: a different name is refused (r23 lock)', e like '42501%can''t be changed%', e);
   r := public.trial_welcome_setup('Aurora Events', null, '+91 98480 12345');
   perform pg_temp.su();
-  perform pg_temp.res('66 welcome: studio renamed, city defaults to Hyderabad, phone kept',
+  perform pg_temp.res('66 welcome: studio name kept, city defaults to Hyderabad, phone kept',
     (select name = 'Aurora Events' and location = 'Hyderabad' and brand ->> 'phone' = '+91 98480 12345' from public.organizations where id = a)
     and (select count(*) from public.quotes where org_id = a and is_demo) >= 7, r::text);
-  perform pg_temp.res('67 welcome: slug follows the name', (select public_slug like 'aurora-events%' from public.organizations where id = a), r::text);
+  perform pg_temp.res('67 welcome: link unchanged (r23 lock)', (select public_slug = s0 from public.organizations where id = a), r::text);
   perform pg_temp.login('mf_a@t.test');
   e := pg_temp.try('select public.trial_welcome_setup('' '', ''x'', null)');
   perform pg_temp.res('68 welcome: empty name refused', e like '22023%', e);

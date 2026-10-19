@@ -82,13 +82,13 @@ do $$ declare o uuid; e text; A uuid := 'a0000000-0000-4000-8000-000000000001'; 
   -- studio settings / downloads / import / render
   perform pg_temp.login('tl_trial@t.test');
   e := pg_temp.try(format('update public.organizations set name = ''Renamed'' where id = %L', o));
-  perform pg_temp.res('30 trial: studio / branding edit refused', e like '42501%Studio settings are fixed%', e);
+  perform pg_temp.res('30 trial: studio / branding edit refused', (e like '42501%Studio settings are fixed%' or e like '42501%can''t be changed%'), e);   -- r23: the name lock may answer first
   e := pg_temp.try('select public.export_org_data()');
   perform pg_temp.res('31 trial: data export refused', e like '42501%Not available in the free trial%', e);
   e := pg_temp.try('select public.export_tenant_organization_package()');
   perform pg_temp.res('32 trial: data archive refused', e like '42501%free trial%', e);
   e := pg_temp.try('select public.set_studio_link_name(''tl-link'')');
-  perform pg_temp.res('33 trial: client link name refused', e like '42501%free trial%', e);
+  perform pg_temp.res('33 trial: client link name refused', e like '42501%', e);   -- r23: endpoint closed to the app
   e := pg_temp.try('select public.admin_set_link_autoexpire(true, 30)');
   perform pg_temp.res('34 trial: auto-expire refused', e like '42501%free trial%', e);
   e := pg_temp.try('select public.admin_reset_notification_prefs()');

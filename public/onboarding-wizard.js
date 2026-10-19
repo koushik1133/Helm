@@ -83,7 +83,8 @@
   }
   function studioPatch(o, d) {
     const b = obj(obj(o).brand);
-    return { name: d.name, business_email: d.email || null, business_email_confirmed: !!d.email, currency: d.currency, timezone: d.timezone,
+    // r23 (0257): the studio name is fixed at creation (shown read-only) - never sent
+    return { business_email: d.email || null, business_email_confirmed: !!d.email, currency: d.currency, timezone: d.timezone,
       brand: Object.assign({}, b, { website: d.website || null }) };
   }
 
