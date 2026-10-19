@@ -103,12 +103,18 @@
 <div class="grp">New &amp; updated</div>
       <a href="#signup-flow">Sign-up, plans &amp; activation</a>
       <a href="#two-step">Two-step verification</a>
+      <a href="#cancelled-links">Event stages and stage history</a>
       <a href="#quotes-list">Quotes list: tabs, filters, views</a>
+      <a href="#link-views">See when your client opens their link</a>
       <a href="#share-approval">Share with client &amp; approval</a>
+      <a href="#quote-validity">Quote validity (&quot;Valid until&quot;)</a>
       <a href="#invitation-studio">Invitation Studio</a>
       <a href="#closing-event">Closing an event</a>
+      <a href="#payment-schedules">Payment schedules</a>
       <a href="#profit-wages">Profit now includes wages</a>
+      <a href="#crew-shifts">Crew: availability, open shifts and event-day check-in</a>
       <a href="#team-members">Control Center: team members</a>
+      <a href="#notification-inbox">Inbox (notifications)</a>
       <a href="#on-your-phone">Helm on your phone</a>
 <!-- /@gen:nav-new -->
       <div class="grp">Win the event</div>
@@ -137,13 +143,7 @@
 <div class="grp">Coming soon</div>
       <a href="#vendor-requests">Vendor requests &amp; invoices</a>
       <a href="#studio-link">Studio name &amp; link lock, URL protection</a>
-      <a href="#cancelled-links">Cancelled events: links expire, and restore</a>
-      <a href="#link-views">Link views &amp; follow-up</a>
-      <a href="#quote-validity">Quote valid-until date</a>
       <a href="#quote-stages">Quote stages</a>
-      <a href="#payment-schedules">Payment schedules (instalments)</a>
-      <a href="#crew-shifts">Crew availability, open shifts &amp; check-in</a>
-      <a href="#notification-inbox">Notification inbox</a>
 <!-- /@gen:nav-soon -->
       <div class="grp">Help</div>
       <a href="#faq">FAQ</a>
@@ -190,25 +190,25 @@
       <ol>
         <li><a href="#signup-flow">Sign-up, choosing a plan &amp; getting activated</a></li>
         <li><a href="#two-step">Two-step verification (sign-in code from your phone)</a></li>
+        <li><a href="#cancelled-links">Event stages and stage history</a></li>
         <li><a href="#quotes-list">Quotes list: tabs, the date filter, smart search and saved views</a></li>
+        <li><a href="#link-views">See when your client opens their link</a></li>
         <li><a href="#share-approval">Event cards, &quot;Share with client &amp; approval&quot; (step 9) and the advance (step 10)</a></li>
+        <li><a href="#quote-validity">Quote validity (&quot;Valid until&quot;)</a></li>
         <li><a href="#invitation-studio">Invitation Studio: templates, photos and music</a></li>
         <li><a href="#closing-event">Closing an event: summary, &quot;Before you close&quot; and close-anyway approval</a></li>
+        <li><a href="#payment-schedules">Payment schedules</a></li>
         <li><a href="#profit-wages">Profit and margin: one number everywhere (staff wages included)</a></li>
+        <li><a href="#crew-shifts">Crew: availability, open shifts and event-day check-in</a></li>
         <li><a href="#team-members">Control Center: the team members table</a></li>
+        <li><a href="#notification-inbox">Inbox (notifications)</a></li>
         <li><a href="#on-your-phone">Using Helm on your phone</a></li>
       </ol>
       <b>Coming soon</b>
       <ol>
         <li><a href="#vendor-requests">Vendor requests &amp; invoices</a></li>
         <li><a href="#studio-link">Studio name &amp; link lock, URL protection</a></li>
-        <li><a href="#cancelled-links">Cancelled events: links expire, and restore</a></li>
-        <li><a href="#link-views">Link views &amp; follow-up</a></li>
-        <li><a href="#quote-validity">Quote valid-until date</a></li>
         <li><a href="#quote-stages">Quote stages</a></li>
-        <li><a href="#payment-schedules">Payment schedules (instalments)</a></li>
-        <li><a href="#crew-shifts">Crew availability, open shifts &amp; check-in</a></li>
-        <li><a href="#notification-inbox">Notification inbox</a></li>
       </ol>
     </div>
 <!-- /@gen:toc -->
@@ -360,6 +360,23 @@
 <div class="tbl"><table><tr><th>Action</th><th>Who</th></tr><tr><td>Turn two-step on or off for yourself</td><td>Every signed-in user on a paid studio</td></tr><tr><td>Reset someone's two-step after a lost phone</td><td>Helm support (HQ) only — after checking who they are, and every reset is logged</td></tr><tr><td>Use two-step during the free trial</td><td>Not available</td></tr></table></div>
 </section>
 
+<section class="mch" data-src="r23-state-machine.md">
+<h2 id="cancelled-links" data-areas="quotes">Event stages and stage history</h2>
+<p>Every quote / event in Helm now has <b>one stage</b>, shown as the same coloured pill everywhere, and Helm keeps a <b>history of every stage change</b>: who made it, when, how and why.</p>
+<h3>The stages</h3>
+<div class="tbl"><table><tr><th>Stage</th><th>What it means</th></tr><tr><td>Lead</td><td>An enquiry, nothing priced or sent yet</td></tr><tr><td>Draft</td><td>Being priced. Locked but not sent also counts as Draft</td></tr><tr><td>Sent</td><td>The approval link is with the client (or the price changed and the client must approve again)</td></tr><tr><td>Viewed by client</td><td>The client opened the approval link</td></tr><tr><td>Expired</td><td>The approval link ran out before the client approved</td></tr><tr><td>Lost</td><td>Archived or deleted before the client approved</td></tr><tr><td>Approved</td><td>The client approved. The advance is still pending</td></tr><tr><td>Advance paid</td><td>The advance came in before the event was confirmed</td></tr><tr><td>Confirmed</td><td>Booked: approved and the advance is in, or the studio confirmed it without online approval</td></tr><tr><td>In progress</td><td>Planning, resources and ready</td></tr><tr><td>Event day</td><td>The day of the event</td></tr><tr><td>Completed</td><td>The event is over and money is being settled</td></tr><tr><td>Closed</td><td>Settled and closed</td></tr><tr><td>Cancelled</td><td>The event will not happen</td></tr></table></div>
+<p>You don't set these stages yourself. Helm works them out from what already happens: sending the link, the client opening and approving it, recording a payment, moving the event's stage strip, closing, re-opening or cancelling.</p>
+<h3>Stage history (event page and quote flow)</h3>
+<ol class="steps"><li>Open an event (or its quote flow).</li><li>The <b>Stage history</b> card shows the current stage and the date since then.</li><li>Under it is every move, newest first. For example: *Moved to Approved by the client · 20/10/2026, 14:05*. If a reason was given (cancelling, an admin override, re-opening), it shows under the move.</li><li><b>Show all</b> opens the older moves.</li></ol>
+<p>Anyone who can see the studio's quotes can see the history. Client links never show it.</p>
+<h3>Out-of-order moves</h3>
+<p>Helm has a list of the usual moves (for example Sent → Approved, or Closed → Completed when an event is re-opened). A move outside that list is marked <b>Out of the usual order</b>.</p>
+<ul><li><b>Warn (default):</b> the move goes through as before and is logged.</li><li><b>Enforce:</b> a team member's out-of-order move is refused with a clear message. Client links, payments and automatic jobs are never blocked.</li></ul>
+<h3>Control Center → Event stages (studio admin only)</h3>
+<ul><li><b>Stage rules:</b> Warn (recommended) or Enforce.</li><li><b>Show the stage history</b> on the event page and quote flow: on (default) or off.</li><li>The card also shows how many out-of-order moves were logged in the last 30 days.</li></ul>
+<p>Other roles see these settings read-only.</p>
+</section>
+
 <section class="mch" data-src="sections/30-quotes-list.md">
 <h2 id="quotes-list" data-areas="quotes">Quotes list: tabs, the date filter, smart search and saved views</h2>
 <p>The <b>Quotes</b> page lists every quote and event in your studio. These tools help you find the right one fast.</p>
@@ -376,6 +393,25 @@
 <p>On your own views, the <b>⋯</b> menu has <b>Update with current filters</b>, <b>Rename</b>, <b>Set as default</b> (★ — it opens first), <b>Share with studio</b> / <b>Stop sharing</b> (admins), and <b>Delete</b>. Deleting a view never deletes any quote. Views marked <b>· studio</b> were shared by an admin with everyone.</p>
 <h3>Who can do what</h3>
 <div class="tbl"><table><tr><th>Action</th><th>Who</th></tr><tr><td>See the Quotes list, tabs, filters, search</td><td>Roles that can view <b>Quotes &amp; workspace</b></td></tr><tr><td>Save, rename, delete your own views</td><td>Everyone who sees the list</td></tr><tr><td>Share a view with the whole studio</td><td>Admins</td></tr><tr><td>Cancel an event</td><td>Admin or event manager with edit rights</td></tr></table></div>
+</section>
+
+<section class="mch" data-src="r23-link-views.md">
+<h2 id="link-views" data-areas="quotes,leads">See when your client opens their link</h2>
+<p>Helm shows you when a client opens the private link you sent them: the client page (proposal), the quotation, the booklet, and the moment they start approving.</p>
+<h3>Where you see it</h3>
+<ul><li><b>Quotes list</b>: under the event name, a small chip like <b>&quot;👁 Viewed 3× · last 2h ago&quot;</b>. It turns orange with <b>&quot;not approved&quot;</b> when the client has looked but not approved for a while.</li><li><b>Event workspace</b>: the same chip next to the status at the top.</li><li><b>Quote flow, step 9 (Share with client &amp; approval)</b>: the chip plus one line (&quot;First opened 17/10/2026, 4:05 pm · last looked at: quotation&quot;). Before the first open it says &quot;Not opened yet&quot;.</li><li><b>Bell 🔔</b>: &quot;Rahul opened the proposal&quot; the first time the client opens any page.</li></ul>
+<p>Click the chip to open the <b>timeline</b>: each visit with the date and time, the device (Mobile / Tablet / Desktop, Android / iOS, browser) and the pages opened, for example &quot;Proposal → Quotation → Started approving&quot;. Pages opened on one device within 30 minutes count as one visit.</p>
+<h3>What is never counted</h3>
+<ul><li>You and your team, when you are signed in to Helm.</li><li>The <b>Preview</b> buttons (approval link and booklet), even in a private window.</li><li>Link previews made by WhatsApp, e-mail apps and search engines.</li></ul>
+<h3>&quot;Viewed but not approved&quot;</h3>
+<p>If the client opened their link <b>2 days ago</b> (you can change this) and still hasn't approved:</p>
+<ol class="steps"><li>The quote's owner (the event manager, otherwise the person who made the quote) and the admins get a bell reminder.</li><li>The quote shows in the <b>⚠ Attention</b> tab on Quotes and under <b>Needs attention</b> on the dashboard.</li><li>Open it and tap <b>Send a nudge by e-mail</b> (or <b>Nudge on WhatsApp</b>). Helm sends your studio's own follow-up message to the client's e-mail / WhatsApp saved on the event. Or tap <b>Dismiss</b> if you have already spoken to them.</li></ol>
+<p>Notes:</p>
+<ul><li>A nudge is queued and goes out with Helm's scheduled messages. In a free trial or on a demo event it is recorded but not sent.</li><li>WhatsApp needs the client's mobile number, their WhatsApp opt-in, and your studio's WhatsApp number (Control Center → Notifications).</li><li>Up to 3 nudges per client per day. A new reminder only comes after the client opens the link again.</li><li>When the client approves, the reminder disappears by itself.</li></ul>
+<h3>Who can do what</h3>
+<div class="tbl"><table><tr><th></th><th>See views and the timeline</th><th>Send a nudge / Dismiss</th><th>See the client's IP address</th><th>Change the settings</th></tr><tr><td>Admin</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>Roles with Quotes <b>view</b></td><td>✓</td><td>–</td><td>–</td><td>–</td></tr><tr><td>Roles with Quotes <b>edit</b></td><td>✓</td><td>✓</td><td>–</td><td>–</td></tr><tr><td>Roles with Control Center <b>edit</b></td><td>–</td><td>–</td><td>–</td><td>✓</td></tr></table></div>
+<h3>Settings (Control Center → 🔔 Notifications → &quot;Client link views&quot;)</h3>
+<ul><li><b>Track when clients open their links</b>: on by default.</li><li><b>Bell notification the first time</b>: on by default.</li><li><b>Also notify on later visits</b>: off by default; at most once every 12 hours (1 to 168).</li><li><b>&quot;Viewed but not approved&quot; reminder</b>: on by default, after 2 days (1 to 30).</li><li><b>Automatic nudge to the client</b>: this is the existing <b>Client follow-ups</b> switch in &quot;Automatic client messages&quot; just below. It is <b>off</b> by default.</li></ul>
 </section>
 
 <section class="mch" data-src="sections/40-share-approval.md">
@@ -397,6 +433,22 @@
 <p>Approval is not yet a booking. In step 10 enter <b>Advance %</b> (your studio's default, for example 10%) or <b>Advance amount (₹)</b>, pick <b>Cash / offline</b> or <b>Online link</b>, and press <b>Record advance payment</b>. Only then is the event confirmed.</p>
 <h3>Who can do what</h3>
 <div class="tbl"><table><tr><th>Action</th><th>Who</th></tr><tr><td>Send for approval, share the booklet, record the advance</td><td>Roles that can edit <b>Quotes &amp; workspace</b></td></tr><tr><td>See the event cards</td><td>Each card follows its own area in Roles &amp; access</td></tr><tr><td>Approve the quote</td><td>The client, with a one-time code</td></tr><tr><td>Cancel an event</td><td>Admin or event manager with edit rights</td></tr></table></div>
+</section>
+
+<section class="mch" data-src="r23-quote-validity.md">
+<h2 id="quote-validity" data-areas="quotes">Quote validity (&quot;Valid until&quot;)</h2>
+<p>Every new quote has a <b>Valid until</b> date. It tells your client how long the price holds, reminds them before it ends, and stops an old price from being approved by mistake.</p>
+<h3>What your client sees</h3>
+<ul><li>On their quote (approval page) and their event booklet: <b>&quot;This quote is valid until 03/11/2026.&quot;</b> In the last 3 days it also says how many days are left.</li><li>After that date: <b>&quot;This quote has expired - ask &lt;your studio&gt; for an updated one.&quot;</b> The Approve steps are replaced by a <b>Request a new quote</b> button. Pressing it puts a note in your bell (once a day at most).</li><li>Once they have approved, or the quote is cancelled, nothing about validity is shown any more.</li></ul>
+<h3>What your team sees</h3>
+<ul><li><b>Quote flow, step 9 (Share with client &amp; approval)</b> and the <b>event workspace</b>: &quot;Valid until 03/11/2026 · Expires in 14 days&quot;.<ul><li><b>Extend +14 days</b> — one click. It adds the studio's default number of days (from today if the quote has already expired).</li><li><b>Change date</b> — pick any date from today up to one year ahead (only if your studio allows custom dates; admins always can).</li><li><b>History</b> — every change, who made it and when.</li></ul></li><li><b>Quotes list</b>: a small pill — grey &quot;Expires in 10 days&quot;, amber &quot;Expires in 2 days&quot;, red &quot;Expired yesterday&quot;. The <b>Attention</b> tab also lists quotes that expire soon or have just expired.</li><li><b>Bell</b>: &quot;Quote A-1234 expires in 3 days&quot; (and 1 day), &quot;Quote A-1234 expired — extend it or send an updated quote&quot;, and &quot;The client asked for an updated quote&quot;. Only people who can see quotes get these.</li></ul>
+<h3>When the date is set</h3>
+<ul><li>A new quote gets today + the default (14 days).</li><li>When you send the approval link for the first time, an automatic date is counted again from that day, so the client always gets the full time. A date someone picked by hand is never moved.</li><li>Quotes made <b>before</b> this feature have no date and never expire. An admin can give them one (see below).</li></ul>
+<h3>Control Center → Client links &amp; packages → Quote validity</h3>
+<p>Who can change it: studio admins, or anyone whose role can edit Control Center.</p>
+<ul><li><b>Give new quotes a valid-until date</b> (on by default). Off = no dates anywhere, nothing expires or locks.</li><li><b>Quotes are valid for (days)</b>: 1 to 365 (default 14).</li><li><b>Remind before it ends (days)</b>: e.g. &quot;3, 1&quot; (default). 0 means on the last day. Up to 5 values.</li><li><b>An expired quote can't be approved by the client</b> (on by default). The server refuses the approval even if someone keeps an old page open.</li><li><b>Staff may pick a custom date on a quote</b> (on by default). Off = only admins pick dates; everyone who can edit quotes can still press Extend.</li><li><b>Remind the studio in the bell</b> (on) and <b>E-mail the client a reminder</b> (on). Client e-mails are only sent once client e-mail is switched on for Helm; until then they wait in the queue. Free-trial and demo studios never e-mail clients.</li><li><b>Apply to open quotes...</b> (admins only): gives every open, never-approved quote that has no date (and whose event is not in the past) today + the default. It shows how many quotes first and asks before changing anything. Quotes that already have a date are never changed.</li></ul>
+<h3>Who can do what</h3>
+<div class="tbl"><table><tr><th>Action</th><th>Who</th></tr><tr><td>See the date, pill and bell notes</td><td>Anyone who can view quotes</td></tr><tr><td>Extend +default days</td><td>Anyone who can edit quotes</td></tr><tr><td>Pick a custom date</td><td>Anyone who can edit quotes, when the studio allows it; admins always</td></tr><tr><td>Change the studio settings</td><td>Admins / roles that can edit Control Center</td></tr><tr><td>Apply to open quotes</td><td>Admins only</td></tr><tr><td>Request a new quote</td><td>The client, from their link, after the quote expired</td></tr></table></div>
 </section>
 
 <section class="mch" data-src="sections/50-invitation-studio.md">
@@ -435,6 +487,22 @@
 <div class="tbl"><table><tr><th>Action</th><th>Who</th></tr><tr><td>See the summary and the checklist</td><td>Roles that can view <b>Closure &amp; P&amp;L</b> (money only with <b>Budget &amp; finance</b>)</td></tr><tr><td>Close the event / ask to close anyway</td><td>Roles that can edit <b>Closure &amp; P&amp;L</b> (one open request per event)</td></tr><tr><td>Approve or decline a request</td><td>Admin, or a coordinator / manager with Closure edit — never your own request (unless you are the admin)</td></tr><tr><td>Approve admin-only checks</td><td>Admin only</td></tr></table></div>
 </section>
 
+<section class="mch" data-src="r23-payment-schedules.md">
+<h2 id="payment-schedules" data-areas="finance">Payment schedules</h2>
+<p>Helm splits what the client pays into a few payments (for example 30% now, 50% before the event, 20% on the day), reminds the client before each one is due, and marks each payment as paid when the money comes in.</p>
+<h3>What happens on its own</h3>
+<ul><li><b>When the client approves a quote</b>, Helm adds your default payment schedule to the event. It only does this when the event has no payments planned yet. A schedule that is already there is never changed.</li><li>The amounts come from the quote total, including GST and any approved change orders. They are rounded to whole rupees, and the last payment takes the small difference so the schedule always adds up to the total.</li><li><b>Reminders to the client are on by default</b>: 3 days before the due date, on the due date, and 3 days after if it is still unpaid. Each reminder includes your UPI ID, your payment note and the online payment link, if one is open.</li><li><b>When a payment is overdue</b>, the team gets one bell notice (&quot;Client payment overdue&quot;). Admins and roles that can see Finance get it.</li><li><b>When you record a payment</b>, every planned payment it fully covers is marked Paid. A part payment shows as &quot;Part paid&quot; with the amount still left.</li></ul>
+<h3>Set it up (Control Center &gt; Payment schedules)</h3>
+<ol class="steps"><li>Pick the <b>Default schedule</b>. Built in: 30 / 50 / 20 (the default), 50 / 50, and 100% upfront.</li><li>To make your own, click <b>+ New schedule</b>. Add 1 to 10 payments. Each payment has a name, an amount (a % of the total, a fixed amount, or &quot;Balance&quot; = whatever is left) and a due date (days after approval, or days before / after the event). An example on ₹1,00,000 shows as you type. Click <b>Add schedule</b>.</li><li>Enter your <b>UPI ID</b> and a short <b>payment note</b> (for example bank details). Clients see these on their page and in reminders.</li><li>Switch <b>Add the default schedule when a client approves</b> or <b>Bell notice when a client payment is overdue</b> off if you don't want them.</li><li>Click <b>Save payment settings</b>.</li></ol>
+<ul><li>You change reminder timing and wording in <b>Reminders &amp; client messages</b>.</li><li>Archiving a schedule hides it. Events that already use it keep their payments.</li></ul>
+<h3>On an event</h3>
+<ul><li>The <b>Payment schedule</b> card shows on the quote's payment step, the event workspace and Budget. Each payment shows as Paid, Part paid, Due or Overdue, with Total / Paid / Outstanding.</li><li>If an event has no schedule, pick a template, check the preview and click <b>Add this schedule</b>.</li><li><b>Pause automatic reminders for this event</b> stops automatic reminders for that one event. &quot;Send reminder now&quot; in Logistics &gt; Payments still works.</li><li>To change or remove a payment, go to <b>Logistics &gt; Payments</b>.</li></ul>
+<h3>The client's page</h3>
+<p>The client sees &quot;Payment schedule&quot; with each payment marked paid, part paid, due or overdue, plus a &quot;How to pay&quot; box with your UPI ID, note and online link.</p>
+<h3>Who can do what</h3>
+<ul><li>Change Control Center settings and schedules: admins, or roles that can edit Control Center.</li><li>See an event's schedule: roles with Finance view. Add a schedule: Finance edit. Pause reminders: Finance or Quotes edit.</li><li>Messages to clients are only queued. Nothing is sent until the studio's e-mail / WhatsApp sending is switched on. Free-trial studios never send them.</li></ul>
+</section>
+
 <section class="mch" data-src="sections/70-profit.md">
 <h2 id="profit-wages" data-areas="finance,closure,insights,business">Profit and margin: one number everywhere (staff wages included)</h2>
 <p>Profit on an event is now worked out the same way on every page, and it includes what you pay your staff and crew.</p>
@@ -451,6 +519,23 @@
 <div class="tbl"><table><tr><th>Action</th><th>Who</th></tr><tr><td>See profit and margin</td><td>Roles with <b>Budget &amp; finance</b> (Insights and Business have their own switches)</td></tr><tr><td>See each person's pay</td><td>Admins only — others see one combined crew line</td></tr></table></div>
 </section>
 
+<section class="mch" data-src="r23-crew.md">
+<h2 id="crew-shifts" data-areas="staff,calendar">Crew: availability, open shifts and event-day check-in</h2>
+<p>Your crew use the same link they already get for their tasks (the crew link). Three things now live on it.</p>
+<h3>1. Availability (days they can't work)</h3>
+<ul><li><b>Crew:</b> open your crew link, scroll to <b>My availability</b>, tap a day you can't work (it turns red). Add a reason if you like — only the office sees it. Tap it again when you're free. You can mark up to 120 days ahead.</li><li><b>Office (anyone who can edit Staff):</b> <b>Staff</b> page → <b>Availability</b> card. A month grid shows who can't work (red cross) and who is already working (green dot). Tap a day to mark it or clear it.</li><li><b>Operations</b> warns you before you assign someone on a day they marked off, or who already works another event that day.</li></ul>
+<h3>2. Open shifts (crew claim work with one tap)</h3>
+<ul><li><b>Post (anyone who can edit Staff):</b> <b>Operations</b> → <b>Open shifts</b> → <b>Post an open shift</b>. Give the role (e.g. Waiter), date, start / end time, wage (per day or per hour, optional), how many people, who can take it (anyone, or one department) and how it is given:<ul><li><b>First come, first served</b> — the first people to tap get it; the shift closes itself when full.</li><li><b>Needs my approval</b> — people ask; you <b>Approve</b> or <b>Decline</b> on Operations.</li></ul></li><li>Every eligible crew member sees the shift on their crew link. A WhatsApp message is queued for each of them (it goes out once WhatsApp is switched on for the studio).</li><li><b>Crew:</b> tap <b>Take this shift</b> (or <b>Ask for this shift</b>). It is added to your tasks as accepted. If you later reject that task, your place opens again for someone else.</li><li><b>Office:</b> <b>Stop taking claims</b>, <b>Re-open</b> or <b>Cancel shift</b> at any time. Cancelling tells people still waiting &quot;no&quot;; people already on it keep their task.</li></ul>
+<h3>3. Event-day check-in and check-out</h3>
+<ul><li><b>Crew:</b> on the event day your crew link shows <b>Check in now</b>. Tap it when you reach the venue, and <b>Check out</b> when you leave. The time is taken from Helm's server, not your phone. Check-in opens 3 hours before your start time.</li><li>If the studio switched on the <b>location check</b>, your phone asks for your location and you must be near the venue. Only the distance is saved, never where you are.</li><li><b>Office:</b> <b>Event day</b> page → <b>Crew check-in &amp; hours</b> shows start time, in / out times, hours, and flags: <b>Late</b> (more than the grace minutes after the start) and <b>No-show?</b> (no check-in long after the start). The office is told in the bell when someone checks in late.</li><li><b>Enter times / Edit:</b> people with Event-day or Staff edit rights can enter times for someone who couldn't check in, or correct times. Changing times the crew recorded needs a reason; the crew's own times are kept and shown.</li><li><b>Check-in location:</b> on the same card paste a Google Maps link (or &quot;12.97, 77.59&quot;), or tap <b>Use my location</b> at the venue, and set the radius.</li><li>Check-ins also update the <b>Arrivals &amp; attendance</b> list (Arrived / Left).</li></ul>
+<h3>Wages</h3>
+<p>On <b>Budget</b>, a crew member's <b>Actual</b> wage now comes from their check-in:</p>
+<ul><li><b>Per day</b> (default): day rate x days they checked in.</li><li><b>Per hour</b> (Control Center): hours checked in x (day rate / hours in a working day).</li><li>A wage posted on an open shift replaces their usual day rate for that event (per hour shifts are always paid by the hour).</li><li>No check-in: the Arrivals list counts as before (Arrived or Left = one day, No-show = nothing).</li></ul>
+<p>Per-person pay is still visible to admins only.</p>
+<h3>Control Center → Crew &amp; shifts (admins / Control Center edit)</h3>
+<p>Switch each part on or off: availability, open shifts (and the default: first come or needs approval), WhatsApp notices for new shifts, self check-in, location check and its radius, &quot;late after&quot; minutes, &quot;no-show? after&quot; minutes, pay per day or per hour, hours in a working day.</p>
+</section>
+
 <section class="mch" data-src="sections/80-team-members.md">
 <h2 id="team-members" data-areas="admin">Control Center: the team members table</h2>
 <p><b>Control Center → Users &amp; invites</b> lists everyone in your studio. Only admins see this section.</p>
@@ -463,6 +548,27 @@
 <p>The seat meter shows <b>X of Y seats used</b> for your plan — open invites count as seats. When all seats are used, the add buttons switch off until you free a seat or move to a bigger plan.</p>
 <h3>Who can do what</h3>
 <div class="tbl"><table><tr><th>Action</th><th>Who</th></tr><tr><td>Everything on this page</td><td>Studio admin only</td></tr><tr><td>Change your own role or remove yourself</td><td>Nobody (ask another admin)</td></tr></table></div>
+</section>
+
+<section class="mch" data-src="r23-inbox.md">
+<h2 id="notification-inbox">Inbox (notifications)</h2>
+<p>Your <b>Inbox</b> collects everything Helm tells you about your events — the same things the 🔔 bell shows you. Each person has their own inbox: what you read, finish or snooze does not change anyone else's.</p>
+<p><b>Open it:</b> click the 🔔 bell → <b>Open inbox</b>, or press <b>G</b> then <b>I</b>, or go to <code>/inbox</code>.</p>
+<h3>Tabs</h3>
+<ul><li><b>Unread</b> — what you have not opened or marked read yet.</li><li><b>All</b> — everything still in your inbox (read and unread).</li><li><b>Snoozed</b> — things you put away until later. Each one comes back to Unread at the time you picked (marked &quot;Back from snooze&quot;).</li><li><b>Done</b> — things you cleared. Nothing is deleted; <b>Back to inbox</b> brings one back.</li></ul>
+<p>Use the chips (Finance, Operations, Sales …) to show one kind, <b>Group by</b> Event or Date, and <b>Only this event</b> on an event's heading.</p>
+<h3>What you can do</h3>
+<div class="tbl"><table><tr><th>Action</th><th>How</th><th>Keyboard</th></tr><tr><td>Open (marks it read)</td><td>click the row</td><td><b>Enter</b></td></tr><tr><td>Mark read / unread</td><td>◉ button or ⋯ menu</td><td><b>u</b></td></tr><tr><td>Done (clear it)</td><td>✓ button or ⋯ menu</td><td><b>e</b></td></tr><tr><td>Snooze — later today (3 hours), tomorrow 9:00 am, next Monday 9:00 am, or a date &amp; time you pick</td><td>⏰ button or ⋯ menu</td><td><b>s</b></td></tr><tr><td>Select several, then Mark read / Done / Snooze them together</td><td>tick the boxes (or the box at the top for all shown)</td><td><b>x</b></td></tr><tr><td>Move up / down</td><td></td><td><b>j</b> / <b>k</b></td></tr></table></div>
+<p>Every change shows an <b>Undo</b> for a few seconds. <b>Mark all read</b> marks everything read. In the bell, the ⋯ menu on a row also has Done and Snooze.</p>
+<p>Times are in the studio's time zone (India: IST) and dates are dd/mm/yyyy.</p>
+<h3>E-mail about unread items</h3>
+<p>Click <b>E-mail: …</b> at the top of the Inbox and pick:</p>
+<ul><li><b>Studio default</b> (what your admin chose),</li><li><b>Daily digest</b> — one e-mail each morning (8:00 am by default) listing what has been unread for at least an hour,</li><li><b>Instant, important only</b> — a short e-mail a few minutes after a payment, client approval, close request, rejected task or low-stock warning, if you still have not read it,</li><li><b>No e-mails</b>.</li></ul>
+<p>Helm never e-mails something you already read, finished or snoozed, and never the same item twice. Free-trial studios do not send these e-mails.</p>
+<h3>For admins (Control Center → Notifications → Inbox &amp; e-mail digest)</h3>
+<p>People with Control Center <b>edit</b> rights can set:</p>
+<ul><li><b>Send inbox e-mails from this studio</b> (on by default) — off stops all inbox e-mails for everyone.</li><li><b>Default for the team</b> — Daily digest (default), Instant important only, or No e-mails.</li><li><b>Daily digest at</b> — the hour (studio time, default 8:00 am) and <b>Only items unread for at least</b> (default 1 hour).</li><li><b>Opening the bell marks everything read</b> — off by default: an item counts as read when it is opened or marked.</li></ul>
+<p>Who sees which notification is still decided by <b>Notifications - who hears about what</b> (per role) and each person's muted types; the inbox follows exactly the same rules as the bell.</p>
 </section>
 
 <section class="mch" data-src="sections/90-mobile.md">
@@ -818,60 +924,12 @@
 <p>Who: the studio admin.</p>
 </section>
 
-<section class="mch" data-src="soon/30-cancelled-links.md">
-<h2 id="cancelled-links" data-areas="quotes">Cancelled events: links expire, and restore <span class="soon">Coming soon</span></h2>
-<div class="note soonbox"><b>Coming soon.</b> This feature is being built. What is written here is a preview and may change before it goes live.</div>
-<p>What is coming:</p>
-<ul><li>When an event is cancelled, every client link for it (approval, booklet, portal, invitation) stops working at once.</li><li>An admin or event manager can <b>Restore</b> a cancelled event; links can then be sent again.</li><li>Every cancel and restore is kept in the event's history with the reason.</li></ul>
-<p>Who: admin or event manager.</p>
-</section>
-
-<section class="mch" data-src="soon/40-link-views.md">
-<h2 id="link-views" data-areas="quotes,leads">Link views &amp; follow-up <span class="soon">Coming soon</span></h2>
-<div class="note soonbox"><b>Coming soon.</b> This feature is being built. What is written here is a preview and may change before it goes live.</div>
-<p>What is coming:</p>
-<ul><li>See when your client opened the approval link or booklet, and how many times.</li><li>A gentle follow-up reminder when a sent quote hasn't been opened or approved after a few days.</li></ul>
-<p>Who: roles that can view <b>Quotes &amp; workspace</b>.</p>
-</section>
-
-<section class="mch" data-src="soon/50-quote-validity.md">
-<h2 id="quote-validity" data-areas="quotes">Quote valid-until date <span class="soon">Coming soon</span></h2>
-<div class="note soonbox"><b>Coming soon.</b> This feature is being built. What is written here is a preview and may change before it goes live.</div>
-<p>What is coming:</p>
-<ul><li>Every new quote gets a <b>Valid until</b> date (14 days by default) shown to your client.</li><li>Reminders before it ends; after the date the client can ask for a new quote instead of approving an old price.</li><li><b>Extend</b> with one click, and studio-wide settings in Control Center.</li></ul>
-<p>Who: roles that can edit quotes; settings for admins.</p>
-</section>
-
 <section class="mch" data-src="soon/60-quote-stages.md">
 <h2 id="quote-stages" data-areas="quotes">Quote stages <span class="soon">Coming soon</span></h2>
 <div class="note soonbox"><b>Coming soon.</b> This feature is being built. What is written here is a preview and may change before it goes live.</div>
 <p>What is coming:</p>
 <ul><li>Clear stages for every quote — Draft, Sent, Viewed, Approved, Booked, Cancelled — shown the same way on every page.</li><li>Only the right next steps are offered at each stage, so a quote can't jump ahead by mistake.</li></ul>
 <p>Who: roles that can edit <b>Quotes &amp; workspace</b>.</p>
-</section>
-
-<section class="mch" data-src="soon/70-payment-schedules.md">
-<h2 id="payment-schedules" data-areas="finance">Payment schedules (instalments) <span class="soon">Coming soon</span></h2>
-<div class="note soonbox"><b>Coming soon.</b> This feature is being built. What is written here is a preview and may change before it goes live.</div>
-<p>What is coming:</p>
-<ul><li>Split the event total into instalments — for example 10% advance, 40% a month before, 50% after the event — with due dates.</li><li>Your client sees the schedule on their page; Helm reminds them before each due date.</li><li>Each payment you record is matched to the next instalment.</li></ul>
-<p>Who: roles with <b>Budget &amp; finance</b>.</p>
-</section>
-
-<section class="mch" data-src="soon/80-crew-shifts.md">
-<h2 id="crew-shifts" data-areas="staff,calendar">Crew availability, open shifts &amp; check-in <span class="soon">Coming soon</span></h2>
-<div class="note soonbox"><b>Coming soon.</b> This feature is being built. What is written here is a preview and may change before it goes live.</div>
-<p>What is coming:</p>
-<ul><li>Crew mark the days they are free or busy from their phone.</li><li>Post an <b>open shift</b> for an event; available crew accept it, first come first served.</li><li>On the event day crew <b>check in</b> at the venue, and attendance flows into wages and the closure checklist.</li></ul>
-<p>Who: managers and coordinators post shifts; crew see only their own shifts.</p>
-</section>
-
-<section class="mch" data-src="soon/90-notification-inbox.md">
-<h2 id="notification-inbox">Notification inbox <span class="soon">Coming soon</span></h2>
-<div class="note soonbox"><b>Coming soon.</b> This feature is being built. What is written here is a preview and may change before it goes live.</div>
-<p>What is coming:</p>
-<ul><li>One inbox for every notification — approvals, payments, close requests, chat mentions — with <b>Unread</b>, filters and <b>Mark all read</b>.</li><li>Each notification opens exactly the place it is about.</li></ul>
-<p>Who: everyone; each person sees only what their role allows.</p>
 </section>
 <!-- /@gen:body-soon -->
 
