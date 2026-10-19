@@ -6,19 +6,21 @@
 //   close_request  (0254) a teammate asked to close an event with checks still open -> the studio's admins,
 //                  coordinators and managers (not the requester)
 //   close_decision (0254) the request was approved (event closed) or declined -> the requester
+//   inbox_digest   (0266) a person's still-unread inbox items (daily digest or instant important) -> that person
 // Pure (no I/O); shared by comms-dispatch (Deno) and the node tests. Anything unexpected -> null and
 // comms-dispatch marks the row skipped (fails closed). Links are always APP_URL + a fixed path.
 const clip = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 const block = (v, n) => String(v == null ? "" : v).replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, n);
 const base = (app) => String(app || "https://www.helm.events").replace(/\/+$/, "");
 
-export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision"];
+export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "inbox_digest"];
 // the footer reason for each kind (transactional: a service message about this account)
 export const NOTICE_TX_REASON = {
   sales_request: "a Helm studio asked Helm sales to activate a plan",
   upgrade_ask: "a teammate in your Helm studio asked you to choose a plan",
   close_request: "a teammate in your Helm studio asked to close an event and you can approve it",
   close_decision: "you asked to close an event in your Helm studio",
+  inbox_digest: "you have unread notifications in your Helm inbox (change how often on your Inbox page)",
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const closureLink = (app, q) => app + "/closure.html?quote=" + String(q).toLowerCase() + "#close-request";
@@ -99,6 +101,28 @@ export function helmNoticeEmail(kind, data, appUrl) {
       };
     }
     return null;
+  }
+  if (kind === "inbox_digest") {
+    const items = (Array.isArray(d.items) ? d.items : []).slice(0, 20).map((x) => {
+      const t = clip(x && x.title, 140); if (!t) return "";
+      const ev = [clip(x.code, 40), clip(x.event, 120)].filter(Boolean).join(" · ");
+      return "- " + t + (ev ? " (" + ev + ")" : "") + (clip(x.at, 24) ? " - " + clip(x.at, 24) : "");
+    }).filter(Boolean);
+    if (!items.length) return null;
+    const instant = d.mode === "instant_important", more = Math.max(0, Number(d.more) || 0), studio = clip(d.studio, 160);
+    const n = items.length;
+    return {
+      subject: instant ? "Helm: " + (n === 1 ? items[0].slice(2, 110) : n + " important updates") + (studio ? " - " + studio.slice(0, 60) : "")
+                       : "Helm: " + n + " unread notification" + (n === 1 ? "" : "s") + (studio ? " in " + studio.slice(0, 60) : ""),
+      text: [
+        "Hi" + (clip(d.name, 40) ? " " + clip(d.name, 40) : "") + ",",
+        (instant ? "Something important is waiting in your Helm inbox:" : "Still unread in your Helm inbox:") + "\n" + items.join("\n"),
+        more ? "And " + more + " more unread in your inbox." : "",
+        "Open your inbox: " + app + "/inbox",
+        "Change how often Helm e-mails you (daily, instant for important items, or never): " + app + "/inbox#settings",
+        "- The Helm team",
+      ].filter(Boolean).join("\n\n"),
+    };
   }
   return null;
 }

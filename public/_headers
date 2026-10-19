@@ -520,6 +520,16 @@
   ! Cache-Control
   Cache-Control: no-store
 
+/inbox
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/inbox.html
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
 /integrations
   X-Robots-Tag: noindex, nofollow, noarchive
   ! Cache-Control

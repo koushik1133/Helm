@@ -952,7 +952,7 @@
   }
 
   /* ---- keyboard shortcuts: H home, G then D/Q/L/C/M, N new, ? help ---- */
-  var GO = { d: ["dashboard.html", "Dashboard"], q: ["quotes.html", "Quotes"], l: ["leads.html", "Leads"], c: ["calendar.html", "Calendar"], m: ["chat.html", "Messages (chat)"], b: ["business.html", "Business (money)"] };
+  var GO = { d: ["dashboard.html", "Dashboard"], q: ["quotes.html", "Quotes"], l: ["leads.html", "Leads"], c: ["calendar.html", "Calendar"], m: ["chat.html", "Messages (chat)"], b: ["business.html", "Business (money)"], i: ["inbox.html", "Inbox (notifications)"] };
   function modalOpen() {
     try {
       if (document.querySelector(".hss-ov, .bpui-overlay, .hb-help:not([hidden])")) return true;

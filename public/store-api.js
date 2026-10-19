@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=39"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=40"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -965,7 +965,7 @@ window.HelmUrl = HelmUrl;
   // la-fetch (audit 25): the list below also names the STABLE (read-only) RPCs every page asks while it
   // boots (trial / upgrade status, seat use, prefs, shelf list, mentions, PIN status). Before, each one was
   // treated as a write and dropped every shared read of the page, so the page's own reads ran again.
-  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_terms_status|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|privacy_pin_status|my_unfinished_quotes)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_terms_status|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|inbox_feed|inbox_my_settings|admin_get_inbox_settings|privacy_pin_status|my_unfinished_quotes)(\?|$)/;
   const readCache = new Map();
   function hdrOf(init, input, name) {
     try {
@@ -8169,7 +8169,7 @@ window.HelmUrl = HelmUrl;
     const tabsHtml = tabs.map((t) => `<button type="button" role="tab" class="bpb-tab" id="bpBellTab-${t.id}" data-f="${t.id}" aria-selected="${t.id === filter}" aria-controls="bpBellList" tabindex="${t.id === filter ? 0 : -1}">${t.label}${t.count ? `<span class="bpb-n">${t.count > 99 ? "99+" : t.count}</span>` : ""}</button>`).join("");
     const unread = rows.reduce((s, r) => s + (!r.un ? 0 : r.n.__chat ? (Number(r.n.count) || 1) : 1), 0);
     // relative time + Today / Yesterday / Earlier (local calendar days)
-    const ts = (n) => { const t = new Date(n.created_at).getTime(); return Number.isFinite(t) ? t : NaN; };
+    const ts = (n) => { const t = new Date(n.sort_at || n.created_at).getTime(); return Number.isFinite(t) ? t : NaN; };   // r23: sort_at = back from a snooze
     const rel = (t) => {
       if (!Number.isFinite(t)) return "";
       const s = Math.max(0, (now - t) / 1000);
@@ -8191,6 +8191,7 @@ window.HelmUrl = HelmUrl;
       } else {
         const L = label(n) || {}; icon = esc(L.icon || "🔔"); title = esc(L.text || "Update");
         preview = esc([n.event_code, n.event_title].filter(Boolean).join(" · "));
+        if (n.returned) preview = "⏰ Back from snooze" + (preview ? " · " + preview : "");   // r23 (0266)
         href = notifHref(n); isUnread = r.un; key = r.k;
       }
       const cls = `bpb-item g-${r.g}${isUnread ? " is-unread" : ""}`;
@@ -8199,7 +8200,7 @@ window.HelmUrl = HelmUrl;
         + `<span class="bpb-meta">${Number.isFinite(t) ? `<time datetime="${esc(new Date(t).toISOString())}">${esc(rel(t))}</time>` : ""}`
         + `${isUnread ? '<span class="bpb-u"><span class="sr-only">Unread</span></span>' : ""}</span>`;
       const ty = bellTypeOf(n);
-      const more = `<button type="button" class="bpb-more" data-mk="${esc(key)}" data-ty="${esc(ty || "")}" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">⋯</button>`;
+      const more = `<button type="button" class="bpb-more" data-mk="${esc(key)}" data-ty="${esc(ty || "")}" data-un="${isUnread ? 1 : 0}" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">⋯</button>`;
       return `<div class="bpb-row">` + (href ? `<a class="${cls}" href="${esc(href)}" data-k="${esc(key)}">${inner}</a>`
                   : `<div class="${cls}" tabindex="0" data-k="${esc(key)}">${inner}</div>`) + more + `</div>`;
     };
@@ -8337,7 +8338,8 @@ window.HelmUrl = HelmUrl;
     ".bpb-mline{margin:8px 16px 4px;padding:8px 10px;border-radius:10px;background:var(--bpb-bg2);color:var(--bpb-ink2);font-size:12.5px}",
     ".bpb-mhead{display:flex;align-items:center;gap:8px;padding:10px 12px}.bpb-mlist{list-style:none;margin:0;padding:0 8px}",
     ".bpb-mlist li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border-bottom:1px solid var(--bpb-line)}",
-    ".bpb-foot{border-top:1px solid var(--bpb-line);padding:6px 10px;text-align:right}",
+    ".bpb-foot{border-top:1px solid var(--bpb-line);padding:6px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px}",
+    ".bpb-foot a.bpb-link{text-decoration:none}",
     ".bpb-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
     ".bpb-t{font-size:13.5px;font-weight:650;color:var(--bpb-ink);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}",
     ".bpb-chip{width:36px;height:36px;font-size:16px}",
@@ -8469,6 +8471,43 @@ window.HelmUrl = HelmUrl;
   }
   try { if (typeof document !== "undefined") { if (document.readyState !== "loading") setTimeout(deeplinkFocus, 0); else document.addEventListener("DOMContentLoaded", deeplinkFocus); } } catch (e) {}
 
+  /* ---------------- r23 (0266): notification inbox - per-person read / unread / Done / Snooze + the e-mail digest choice ----------------
+     feed() → { tab, items, next_cursor, counts{unread,all,snoozed,done}, groups[{key,label,count,unread}], settings } or null
+     on a database without 0266 (the /inbox page then says so). Every action is checked in the database (own studio, rows the
+     person can see, own marks only). After a change the bell is nudged so its badge follows at once. */
+  const INBOX_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const inboxNudge = () => { try { if (typeof window !== "undefined" && typeof window.__bpBellRefresh === "function") window.__bpBellRefresh(); } catch (e) {} };
+  const inbox = {
+    async feed(opts) {
+      opts = opts || {};
+      if (mode !== "supabase" || !supa) return null;
+      try {
+        return await rpc("inbox_feed", { p_tab: opts.tab || "unread", p_filter: opts.filter || null, p_quote: INBOX_ID.test(String(opts.quote || "")) ? opts.quote : null,
+          p_limit: Math.max(1, Math.min(100, Number(opts.limit) || 50)), p_cursor: opts.cursor || null });
+      } catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // action: read | unread | done | undone | snooze | unsnooze; opts.preset: later_today | tomorrow | next_week, or opts.until (Date / ISO)
+    async act(ids, action, opts) {
+      opts = opts || {};
+      const list = (Array.isArray(ids) ? ids : [ids]).map(String).filter((x) => INBOX_ID.test(x)).slice(0, 500);
+      if (!list.length) return { changed: 0 };
+      const until = opts.until ? new Date(opts.until) : null;
+      const r = await rpc("inbox_act", { p_ids: list, p_action: String(action || ""), p_until: until && !isNaN(until.getTime()) ? until.toISOString() : null, p_preset: opts.preset || null });
+      inboxNudge(); return r;
+    },
+    async readAll(filter, quote) { const r = await rpc("inbox_read_all", { p_filter: filter || null, p_quote: INBOX_ID.test(String(quote || "")) ? quote : null }); inboxNudge(); return r; },
+    async settings() {
+      if (mode !== "supabase" || !supa || !currentUser) return null;
+      try { return await rpc("inbox_my_settings", {}); } catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // off | instant_important | daily | null (= the studio default)
+    setDigest: (m) => rpc("inbox_set_my_digest", { p_mode: m == null ? null : String(m) }),
+    admin: {
+      async get() { if (mode !== "supabase" || !supa) return null; try { return await rpc("admin_get_inbox_settings", {}); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
+      set: (patch) => rpc("admin_set_inbox_settings", { p: patch || {} }),
+    },
+  };
+
   const bell = {
     link: notifLink,
     // la-fetch (audit 25): the bell's first load and the realtime-subscribe refresh right after it asked bell_feed
@@ -8524,7 +8563,7 @@ window.HelmUrl = HelmUrl;
             <div id="bpBellTabs" class="bpb-tabs" role="tablist" aria-label="Filter notifications"></div>
           </header>
           <div id="bpBellList" class="bpb-list" role="tabpanel" aria-labelledby="bpBellTitle"><div class="bpb-skel"></div><div class="bpb-skel"></div><div class="bpb-skel"></div></div>
-          <div class="bpb-foot"><button type="button" id="bpBellMuted" class="bpb-link">Muted types</button></div>
+          <div class="bpb-foot"><a id="bpBellInbox" class="bpb-link" href="inbox.html">Open inbox</a><button type="button" id="bpBellMuted" class="bpb-link">Muted types</button></div>
         </section>`;
       document.body.appendChild(root);
       const btn = el.querySelector("#bpBellBtn"), dot = el.querySelector("#bpBellDot");
@@ -8533,6 +8572,9 @@ window.HelmUrl = HelmUrl;
       const reduced = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
       const isPhone = () => { try { return window.matchMedia("(max-width: 640px)").matches; } catch (e) { return false; } };
       let isOpen = false, filter = "all", lastItems = [], loaded = false, closeTimer = null, prevOverflow = "", lastFocus = null;
+      // r23 (0266): the database keeps a per-person inbox (read / Done / Snooze); bell_feed says so in f.inbox
+      let inboxOn = false, openMarksRead = true;
+      const noteInbox = (f) => { if (f && f.inbox && typeof f.inbox === "object") { inboxOn = true; openMarksRead = f.inbox.open_marks_read === true; } };
       // Chat notifications (my unread DMs/groups/broadcast) merged into the same bell.
       let chatItems = [];
       const chatUnread = () => chatItems.reduce((s, c) => s + (c.count || 1), 0);
@@ -8542,7 +8584,7 @@ window.HelmUrl = HelmUrl;
         ? bellPanelView((f.items || []), { muted, read: readKeys }).unread : f.unread;
       const mergedFeed = (serverItems) => (serverItems || []).slice()
         .concat(chatItems.map((c) => Object.assign({ __chat: true }, c)))
-        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+        .sort((a, b) => String(b.sort_at || b.created_at || "").localeCompare(String(a.sort_at || a.created_at || "")));
       // 0036: the studio admin can switch chat off in the bell for a role / person
       // (re-checked every 5 minutes; server-side types are already filtered by bell_feed).
       let hiddenTypes = [], hiddenAt = 0, muted = [];
@@ -8583,7 +8625,7 @@ window.HelmUrl = HelmUrl;
           onOpen: () => { if (x.rk && readKeys.indexOf(x.rk) === -1) { readKeys.push(x.rk); saveRead(); } } }); } catch (e) {} });
       };
       let lastRf = 0;
-      const refreshNow = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
+      const refreshNow = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} noteInbox(f); await loadChat(); setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
         if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
       // r20 planner: refreshes run ONE AT A TIME, in call order. The chat page's "I just read this chat" nudge
@@ -8609,10 +8651,12 @@ window.HelmUrl = HelmUrl;
         void root.offsetWidth; root.classList.add("is-open"); document.documentElement.classList.add("bpb-is-open");     // next frame → CSS transition runs
         try { panel.focus({ preventScroll: true }); } catch (e) { panel.focus(); }
         if (loaded) render();                                       // show the last list at once, then refresh
-        let f = null; try { f = await this.feed(20); } catch {} await loadChat();
+        let f = null; try { f = await this.feed(20); } catch {} noteInbox(f); await loadChat();
         if (!isOpen) return;
         lastItems = mergedFeed(f && f.items); loaded = true; render(); if (f) popToasts(lastItems);   // panel open → just moves the baseline
-        try { await this.markSeen(); } catch {} setDot(0);   // event notifs cleared; any chat unread keeps the dot until that chat is opened
+        // r23 (0266): with the inbox, opening the bell no longer marks everything read (Control Center switch "opening the bell marks read")
+        if (!inboxOn || openMarksRead) { try { await this.markSeen(); } catch {} setDot(0); }   // event notifs cleared; any chat unread keeps the dot until that chat is opened
+        else setDot(serverUnread(f));
       };
       const close = (restore) => {
         if (!isOpen) return; isOpen = false;
@@ -8631,16 +8675,41 @@ window.HelmUrl = HelmUrl;
         catch (x) { say("Could not update muted types. Try again."); return false; }
         await refresh(); if (isOpen) render(); return true;
       };
+      // r23 (0266): opening a row marks it read in the inbox; a plain click waits briefly (max 0.7 s) for that before leaving
+      const inboxOpenRow = (it, e) => {
+        const k = it.getAttribute("data-k") || "";
+        const sid = inboxOn && k.indexOf("n:") === 0 && /^[0-9a-f-]{36}$/i.test(k.slice(2)) ? k.slice(2) : null;
+        if (!sid) return;
+        const p = inbox.act([sid], "read").catch(() => {});
+        if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) return;
+        e.preventDefault(); const href = it.href;
+        Promise.race([p, new Promise((res) => setTimeout(res, 700))]).then(() => { try { location.assign(href); } catch (x) { location.href = href; } });
+      };
       const markRead = (k, on) => { readKeys = readKeys.filter((x) => x !== k); if (on) readKeys.push(k); saveRead(); render(); refresh(); };
+      // r23 (0266): one row's inbox action on the server, with an Undo toast
+      const serverAct = async (id, action, opts, msg, undo) => {
+        try { await inbox.act([id], action, opts); }
+        catch (x) { say((window.BPUI && BPUI.friendlyError) ? BPUI.friendlyError(x, { action: "update this notification" }) : "Could not update this notification. Try again."); return; }
+        await refresh(); if (isOpen) render();
+        say(msg, undo ? () => { inbox.act([id], undo).then(() => refresh()).catch(() => {}); } : null);
+      };
       const openMenu = (btn) => {
         closeMenu();
         const k = btn.getAttribute("data-mk") || "", ty = btn.getAttribute("data-ty") || "";
         const m = document.createElement("div"); m.className = "bpb-menu"; m.setAttribute("role", "menu"); m.__btn = btn;
         const add = (text, fn) => { const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "menuitem"); b.textContent = text;
           b.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); closeMenu(); fn(); }); m.appendChild(b); return b; };
+        const sid = inboxOn && k.indexOf("n:") === 0 && /^[0-9a-f-]{36}$/i.test(k.slice(2)) ? k.slice(2) : null;
+        if (sid) {
+          const un = btn.getAttribute("data-un") === "1";
+          add(un ? "Mark read" : "Mark unread", () => serverAct(sid, un ? "read" : "unread", null, un ? "Marked as read" : "Marked as unread", un ? "unread" : "read"));
+          add("Done", () => serverAct(sid, "done", null, "Marked done - find it under Inbox → Done", "undone"));
+          add("Snooze until tomorrow 9:00 am", () => serverAct(sid, "snooze", { preset: "tomorrow" }, "Snoozed until tomorrow 9:00 am", "unsnooze"));
+          add("Snooze until next week", () => serverAct(sid, "snooze", { preset: "next_week" }, "Snoozed until Monday 9:00 am", "unsnooze"));
+        }
         if (ty) add("Mute this type", async () => { if (await setMuted(ty, true))
           say("Muted: " + (BELL_TYPE_LABELS[ty] || ty.replace(/_/g, " ")), () => { setMuted(ty, false); }); });
-        add("Mark read", () => { markRead(k, true); say("Marked as read", () => markRead(k, false)); });
+        if (!sid) add("Mark read", () => { markRead(k, true); say("Marked as read", () => markRead(k, false)); });
         btn.parentNode.appendChild(m); btn.setAttribute("aria-expanded", "true");
         try { m.querySelector("button").focus(); } catch (x) {}
       };
@@ -8656,9 +8725,10 @@ window.HelmUrl = HelmUrl;
         const tab = e.target.closest && e.target.closest(".bpb-tab"); if (tab) { filter = tab.getAttribute("data-f") || "all"; render(); try { root.querySelector(`[data-f="${filter}"]`).focus(); } catch (x) {} return; }
         const it = e.target.closest && e.target.closest("a.bpb-item");
         if (it) { const k = it.getAttribute("data-k"); if (k && readKeys.indexOf(k) === -1) { readKeys.push(k); saveRead(); } close(false); }   // mark read, navigate away
+        if (it) inboxOpenRow(it, e);
       });
       root.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); const b = e.currentTarget; b.disabled = true;
-        try { await this.markSeen(); } catch {} await refresh(); b.disabled = false; });
+        try { if (inboxOn) await inbox.readAll(); else await this.markSeen(); } catch {} await refresh(); b.disabled = false; });
       // keyboard: Esc closes, Tab is trapped, arrows walk the list, ←/→ switch tabs
       root.addEventListener("keydown", (e) => {
         if (!isOpen) return;
@@ -9652,7 +9722,7 @@ window.HelmUrl = HelmUrl;
 
   const BPStore = {
     reservedEmailDomain, RESERVED_EMAIL_MESSAGE,
-    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, deliveries, vendorRequests, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, inbox, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, deliveries, vendorRequests, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.

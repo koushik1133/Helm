@@ -266,7 +266,7 @@
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=15">
-<script src="/shell-proto.js?v=39" id="shellProto"></script>
+<script src="/shell-proto.js?v=40" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -707,6 +707,9 @@
         <div id="np_list"></div>
       </div>
 
+      <!-- 0266: notification inbox + e-mail digest defaults (built + wired by inbox-settings.js; hidden before 0266) -->
+      <div class="card" id="inboxCard" hidden></div>
+
       <!-- 0095: photo-realistic renders (wired by photo-render-settings.js; the image model runs server-side) -->
       <div class="card" id="prCard" hidden>
         <h3>✦ Photo renders</h3>
@@ -827,7 +830,7 @@
 <script src="config.js?v=106"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=271"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script>
 <script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -840,6 +843,7 @@
 <script src="comms-settings.js?v=5"></script>
 <script src="delivery-tracker.js?v=1"></script>
 <script src="delivery-settings.js?v=1"></script>
+<script src="inbox-settings.js?v=1"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=3"></script>
 <script src="cc-inputs.js?v=4"></script>

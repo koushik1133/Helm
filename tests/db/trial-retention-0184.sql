@@ -88,6 +88,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0254_closure_checklist_override.sql
 -- 0256 (r23 vendor requests) adds its six request / invoice tables to the purge list on top of 0184
 \ir ../../supabase/migrations/0256_vendor_requests_invoices.sql
+-- 0266 (r23 inbox) adds notification_inbox_state to the purge list and inbox_settings + inbox_person_prefs to the keep list
+\ir ../../supabase/migrations/0266_notification_inbox.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin
