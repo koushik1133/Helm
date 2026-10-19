@@ -150,7 +150,7 @@
       <div class="fld"><label for="s_emp">Employment</label><select id="s_emp"><option value="">— Choose employment —</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select><span class="fmsg"></span></div>
       <div class="fld"><label for="s_phone">Phone <span class="req" aria-hidden="true">*</span></label><input id="s_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…" aria-required="true" aria-describedby="s_phone_msg"><span class="fmsg" id="s_phone_msg" aria-live="polite"></span></div>
       <div class="fld"><label for="s_email">Email <span class="req" id="s_email_req" aria-hidden="true" hidden>*</span></label><input id="s_email" type="email" autocomplete="off" placeholder="name@email.com" aria-describedby="s_email_msg"><span class="fmsg" id="s_email_msg" aria-live="polite"></span></div>
-      <div class="fld"><label for="s_rate">Day rate</label><div class="inpfx"><span class="pfx" id="s_rate_cur" aria-hidden="true">₹</span><input id="s_rate" type="number" min="0" step="any" inputmode="decimal" placeholder="Optional" aria-describedby="s_rate_msg"></div><span class="fmsg" id="s_rate_msg" aria-live="polite"></span></div>
+      <div class="fld" id="s_rate_fld"><label for="s_rate">Day rate</label><div class="inpfx"><span class="pfx" id="s_rate_cur" aria-hidden="true">₹</span><input id="s_rate" type="number" min="0" step="any" inputmode="decimal" placeholder="Optional" aria-describedby="s_rate_msg"></div><span class="fmsg fhint" id="s_rate_msg" aria-live="polite"></span></div>
       <div class="fld"><label for="s_skills">Skills</label><div class="chipbox" id="s_skills_box"><span class="chips" id="s_skills_chips"></span><input id="s_skills" autocomplete="off" placeholder="Add a skill…" aria-describedby="s_skills_msg"></div><span class="fmsg fhint" id="s_skills_msg">Press comma or Enter after each skill.</span></div>
       <div class="fld full"><label for="s_notes">Notes</label><input id="s_notes" placeholder="Optional"></div>
     </div>
@@ -290,6 +290,7 @@
   function personCard(s){
     const skills=Array.isArray(s.skills)?s.skills:[];
     const linked=BPStore.staff.isLinked(s), m=linked?memberDir[s.profile_id]:null, photo=m&&m.avatar_path;
+    const showPay=BPStore.staff.payVisible(s,isAdminUser);   // r20 coord (d): a team login's pay is admin-only
     return `<div class="person ${s.active===false?'off':''}" data-id="${esc(s.id)}">
       <div class="top"><div class="av"${photo?` data-avatar-path="${esc(photo)}"`:""}>${esc(initials(s.name))}</div>
         <div><div class="nm">${esc(s.name)}</div><div class="rl">${roleText(s)}</div></div></div>
@@ -302,8 +303,8 @@
         ${BPStore.staff.phoneInvalid(s)?`<span class="tag badphone" title="The saved phone number isn't valid. Edit this person to correct it.">Invalid phone — please fix</span>`:""}
       </div>
       ${skills.length?`<div class="tags">${skills.map(k=>`<span class="tag">${esc(k)}</span>`).join("")}</div>`:""}
-      ${(()=>{ const al=typeof HelmImportCore!=="undefined"?HelmImportCore.attrList("staff",s.attributes,attrDefs):[]; return al.length?`<div class="tags attrs">${al.slice(0,6).map(a=>`<span class="tag" title="${esc(a.label)}: ${esc(a.value)}"><b>${esc(a.label)}:</b> ${esc(a.value.slice(0,40))}</span>`).join("")}${al.length>6?`<span class="tag">+${al.length-6} more</span>`:""}</div>`:""; })()}
-      <div class="meta">${[s.phone?phoneTxt(s.phone):"",s.email].filter(Boolean).map(esc).join(" · ")}${s.day_rate?`<br>${BPStore.studioMoney(s.day_rate)}/day`:""}</div>
+      ${(()=>{ const al=typeof HelmImportCore!=="undefined"?HelmImportCore.attrList("staff",s.attributes,attrDefs).filter(a=>showPay||!BPStore.staff.payAttr(a.key,a.label)):[]; return al.length?`<div class="tags attrs">${al.slice(0,6).map(a=>`<span class="tag" title="${esc(a.label)}: ${esc(a.value)}"><b>${esc(a.label)}:</b> ${esc(a.value.slice(0,40))}</span>`).join("")}${al.length>6?`<span class="tag">+${al.length-6} more</span>`:""}</div>`:""; })()}
+      <div class="meta">${[s.phone?phoneTxt(s.phone):"",s.email].filter(Boolean).map(esc).join(" · ")}${showPay&&s.day_rate?`<br>${BPStore.studioMoney(s.day_rate)}/day`:""}</div>
       <div class="acts">
         ${canCal?`<a class="ic" href="calendar.html?staff=${encodeURIComponent(s.id)}#schedule" title="See ${esc(s.name||"this person")}'s event schedule (week / month)">Schedule</a>`:""}
         ${canEdit?`<button class="ic" data-act="edit">Edit</button>
@@ -360,7 +361,7 @@
     if(!linked){ note.hidden=true; note.innerHTML=""; return; }
     note.innerHTML=`🔗 <b>Linked to a Helm account.</b> Name, phone, e-mail, department and title follow ${esc(s.name||"this person")}'s profile`+
       (isAdminUser?` — <a href="control.html#users">Edit in User control</a>.`:` — an admin can change them in Control Center → User control.`)+
-      ` Day rate, employment type, skills and notes stay editable here.`;
+      (isAdminUser?` Day rate (optional for team logins), employment type, skills and notes stay editable here.`:` Employment type, skills and notes stay editable here.`);
     note.hidden=false;
   }
   // role drop-down: the studio's roles; old free text that isn't an obvious role stays as "Custom: …"
@@ -431,7 +432,16 @@
     if(!raw){ const need=wantsInvite(); fieldMsg("s_email",need?"Needed to send the sign-in invitation.":""); return {ok:!need,value:null}; }
     const v=BPStore.validate.email(raw); fieldMsg("s_email",v.ok?"":v.error+"."); return v;
   }
+  // r20 coord (d): the pay box of a team login (linked row) is shown to the studio admin only
+  const payShown=()=>BPStore.staff.payVisible(editingRow,isAdminUser);
+  function setPayField(s){
+    const show=BPStore.staff.payVisible(s,isAdminUser), linked=BPStore.staff.isLinked(s);
+    $("#s_rate_fld").hidden=!show;
+    FHINT.s_rate=show&&linked?"Not needed for team logins. Leave empty to keep what is saved.":"";
+    fieldMsg("s_rate","");
+  }
   function checkRate(){
+    if(!payShown()){ fieldMsg("s_rate",""); return {ok:true,value:null}; }
     const el=$("#s_rate"), raw=el.value;
     if(raw===""){ const bad=!!(el.validity&&el.validity.badInput); fieldMsg("s_rate",bad?"Enter a number, e.g. 2500.":""); return {ok:!bad,value:null}; }
     const v=BPStore.validate.money(raw,{field:"Day rate"}); fieldMsg("s_rate",v.ok?"":v.error+"."); return v;
@@ -484,12 +494,15 @@
     $("#s_name").value=s?s.name||"":""; fillDept(s?s.department||"":""); $("#s_dept_new").hidden=true;
     if(!deptList.length) loadDepts().then(()=>{ if(!$("#staffModal")||!$("#staffModal").hidden) fillDept($("#s_dept").value||(s&&s.department)||""); }).catch(()=>{});
     $("#s_emp").value=s?s.emp_type||"":""; $("#s_phone").value=s?s.phone||"":""; $("#s_email").value=s?s.email||"":"";
-    $("#s_rate").value=s&&s.day_rate!=null?s.day_rate:""; $("#s_skills").value=""; skillChips=[]; addSkills(s&&Array.isArray(s.skills)?s.skills.join(","):""); paintChips(); $("#s_notes").value=s?s.notes||"":"";
+    $("#s_rate").value=s&&s.day_rate!=null&&BPStore.staff.payVisible(s,isAdminUser)?s.day_rate:""; $("#s_skills").value=""; skillChips=[]; addSkills(s&&Array.isArray(s.skills)?s.skills.join(","):""); paintChips(); $("#s_notes").value=s?s.notes||"":"";
     ["s_name","s_phone","s_email","s_rate"].forEach(id=>{ fieldMsg(id,""); delete $("#"+id).dataset.touched; }); setCurrencyPrefix();
-    editingRow=s||null; setLinkedLock(s); fillRole(s);
+    editingRow=s||null; setLinkedLock(s); fillRole(s); setPayField(s);
     // new person + admin: choose "record only" (no login) or "invite to sign in" (reuses inviteStaff)
     $("#s_access").hidden=!!s||!isAdminUser; const rec0=document.querySelector('input[name="s_access"][value="record"]'); if(rec0) rec0.checked=true; syncEmailReq();
-    attrEd=window.HelmImport?HelmImport.attrEditor("staff",s&&s.attributes,attrDefs):null;
+    // pay-like custom fields of a team login stay out of the editor for non-admins (unsent = kept as saved)
+    const payOk=BPStore.staff.payVisible(s,isAdminUser), hideAttr=(k,l)=>!payOk&&BPStore.staff.payAttr(k,l);
+    const edAttrs=s&&s.attributes&&typeof s.attributes==="object"&&!payOk?Object.fromEntries(Object.entries(s.attributes).filter(([k])=>!hideAttr(k,(attrDefs.find(d=>d&&d.key===k)||{}).label))):(s&&s.attributes);
+    attrEd=window.HelmImport?HelmImport.attrEditor("staff",edAttrs,payOk?attrDefs:attrDefs.filter(d=>!(d&&hideAttr(d.key,d.label)))):null;
     $("#s_attrs").replaceChildren(...(attrEd?[attrEd.el]:[])); $("#s_attrs_box").hidden=!attrEd;
     $("#sm_err").hidden=true;
     if(s && !BPStore.staff.isLinked(s) && BPStore.staff.phoneInvalid(s)){ $("#sm_err").textContent=`Invalid phone — please fix. The saved number "${String(s.phone).slice(0,60)}" isn't a valid phone (7–15 digits, optional leading +).`; $("#sm_err").hidden=false; }
@@ -540,14 +553,15 @@
       if(!$("#s_role").value && !$("#s_dept").value){ bad("#s_dept","Add a role or a department so this person can be assigned to the right work."); return; }
       phoneV=pv; email=ev.value||null;
     }
-    const day_rate=rv.value==null?null:rv.value;
+    // r20 coord (d): hidden, or left empty on a team login -> no day_rate key at all (the saved value stays)
+    const payPart=BPStore.staff.payPatch(editingId?editingRow:null,isAdminUser,rv.value==null?null:rv.value);
     const skills=readSkills();
     const rsel=$("#s_role"), rkey=rsel.value;
     const roleVal=rkey==="custom"?(rsel.dataset.custom||null):(rkey?BPStore.staff.roleLabel(rkey):null);
     const loginRoleChange=linked&&isAdminUser&&rkey&&rkey!=="custom"&&rkey!==rsel.dataset.orig?rkey:null;
     const rec={ name, phone:phoneV.value, role:roleVal, department:$("#s_dept").value||null,
       emp_type:$("#s_emp").value||null, email,
-      day_rate, skills, notes:$("#s_notes").value.trim()||null };
+      ...payPart, skills, notes:$("#s_notes").value.trim()||null };
     const wantInvite=!editingId && isAdminUser && !$("#s_access").hidden && (document.querySelector('input[name="s_access"]:checked')||{}).value==="invite";
     if(wantInvite){
       if(!email){ fail("Add an e-mail address so we can send the sign-in invitation — or choose “Save as a record only”."); $("#s_email").focus(); return; }

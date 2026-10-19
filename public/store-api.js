@@ -4168,7 +4168,28 @@ window.HelmUrl = HelmUrl;
     }
     return out.sort((a, b) => a.localeCompare(b));
   }
+  // r20 coord (d), owner decision: pay on a staff row LINKED to a team login (profile_id) is the
+  // studio admin's business only. Everyone else - including that person on their own record -
+  // never sees the day rate or a pay-like custom field of a linked row. Plain crew (no login) as before.
+  function staffPayVisible(s, isAdmin) { return isAdmin === true || !(s && s.profile_id); }
+  // a custom field that is pay (monthly salary, wage, CTC, ...): hidden with the day rate
+  function staffPayAttr(key, label) {
+    const re = /(salary|wage|ctc|stipend|remuneration|compensation|payout|day_?rate|daily_?rate|per_?day|(^|[^a-z])pay([^a-z]|$))/i;
+    return re.test(String(key == null ? "" : key)) || re.test(String(label == null ? "" : label));
+  }
+  // the day_rate part of a Staff-page save. ZERO DATA LOSS: a hidden field, or an admin leaving a
+  // linked member's (optional) rate empty, sends NO day_rate key at all - the stored value stays.
+  // Plain crew keep today's behaviour (an emptied box clears their rate). value: number | null.
+  function staffPayPatch(s, isAdmin, value) {
+    if (!staffPayVisible(s, isAdmin)) return {};
+    const v = value === undefined || value === "" ? null : value;
+    if (s && s.profile_id && v == null) return {};
+    return { day_rate: v };
+  }
   const staff = {
+    payVisible: staffPayVisible,
+    payAttr: staffPayAttr,
+    payPatch: staffPayPatch,
     async list(includeInactive) {
       if (mode === "supabase") {
         return sbAll(() => { let q = supa.from("crew_members").select("*").order("name").order("id");
