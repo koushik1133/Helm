@@ -34,7 +34,7 @@ t('/manual page: noindex, no inline script, gated exactly like app pages', () =>
   // the ?next= allowlist moved from login.html into store-api.js safeNext() (auth-gate fix)
   assert.match(read('public/login.html'), /BPStore\.auth\.safeNext\(/, 'login ?next= uses the shared sanitiser');
   assert.match(read('public/store-api.js'), /const NEXT_PAGES = \[[^\]]*"manual"/, 'login ?next= allowlist includes manual');
-  assert.match(js, /script,iframe,frame,object,embed,link,meta,base,form/, 'strips executable / remote-loading tags');
+  assert.match(js, /script,style,iframe,frame,object,embed,link,meta,base,form/, 'strips executable / remote-loading tags');
   assert.ok(!/innerHTML/.test(js), 'no innerHTML sinks');
 });
 t('store-api reads the manual from the PRIVATE bucket with the user session (signed URLs for images)', () => {

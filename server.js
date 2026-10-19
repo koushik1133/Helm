@@ -110,7 +110,7 @@ const MIME = {
    scripts/csp-hashes.cjs (path-scoped; CDNs are builder-only). */
 // Inline-script hashes, recomputed only when a page under public/ changes.
 const { computeHashes, computeStyleHashes, htmlFiles, withHashes, SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, TT_DIRECTIVES,
-  cspReportUri, sentryIngestOrigin, withReporting } = require('./scripts/csp-hashes.cjs');
+  cspReportUri, sentryIngestOrigin, withReporting, reportingEndpoints } = require('./scripts/csp-hashes.cjs');
 let hashCache = { sig: null, hashes: [], styles: [] };
 function inlineScriptHashes() {
   let sig = '';
@@ -260,7 +260,11 @@ function securityHeadersFor(req, filePath) {
   }
   h['Content-Security-Policy'] = withHashes(h['Content-Security-Policy'], inlineScriptHashes(), inlineStyleHashes());
   if (isLocalHost(req)) h['Content-Security-Policy'] = h['Content-Security-Policy'].replace(/;\s*upgrade-insecure-requests/, '');
-  if (isProdHost(req)) h['Content-Security-Policy'] = withReporting(stripStagingCsp(h['Content-Security-Policy']), prodReporting());
+  if (isProdHost(req)) {
+    h['Content-Security-Policy'] = withReporting(stripStagingCsp(h['Content-Security-Policy']), prodReporting());
+    const re = reportingEndpoints(prodReporting().reportUri);   // r22: report-to group (same as vercel.json)
+    if (re) h['Reporting-Endpoints'] = re;
+  }
   // Trusted Types report-only pass on a local run (same header the staging site sends):
   //   HELM_TRUSTED_TYPES=report node server.js
   if (process.env.HELM_TRUSTED_TYPES === 'report') h['Content-Security-Policy-Report-Only'] = TT_DIRECTIVES.join('; ');

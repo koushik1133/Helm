@@ -210,7 +210,7 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=265"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=266"></script>
 <script src="flow-resume.js?v=4"></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=24"></script>
@@ -266,6 +266,7 @@
   // "Advance recorded ₹X — record another payment" (the amount only for roles that can see money)
   const advanceDoneLabel=()=>{ const amt=paidAmount(); return "Advance recorded"+(canFin&&amt>0?" "+inr(amt):"")+" — record another payment"; };
   const effStage=()=>{ const k=(ev&&ev.lifecycleStage)||"quote";
+    if(ev && k!=="cancelled" && (k==="closed" || !!ev.closedAt || !!(closureSummary&&closureSummary.closed))) return "closed";   // r22: closed = every step done
     return (ev && stageIndex(k)<stageIndex("confirmed") && BPStore.quoteStatus(ev,{advance:advanceIn()}).confirmed) ? "confirmed" : k; };
   const isConfirmed=()=> !!ev && (ev.status==="confirmed" || stageIndex(effStage())>=stageIndex("confirmed"));
   // qa-quote-flow B28: stage 5 is "Confirmed" on every screen (lists, header, strip); the advance shows in the
@@ -780,7 +781,7 @@
     // dedupe: the card title is already shown in bold, so drop the repeated "Title — " lead-in
     const descLine=(k)=>{ const d=String(DESC[k]||""); const i=d.indexOf(" — "); const r=i>=0?d.slice(i+3):d; return r.charAt(0).toUpperCase()+r.slice(1); };
     const cardHtml=(c)=>{
-      const reco=recommended.includes(c.key)?"reco":"";
+      const reco=!evClosedNow() && recommended.includes(c.key)?"reco":"";   // r22: nothing is "Next" on a closed event
       return `<div class="mod ${reco}"><div class="h"><span class="ic">${c.ic}</span><b>${c.title}</b>${reco?'<span class="stat q" style="margin-left:auto">Next</span>':""}</div>
         ${DESC[c.key]?`<div class="desc">${esc(descLine(c.key))}</div>`:""}
         <div class="sum">${c.sum}</div>
@@ -917,7 +918,8 @@
     const keep=st.scrollLeft, tk=cur+"|"+vis, first=!st.dataset.tk;
     st.replaceChildren(...STAGES.map((s,i)=>{
       const viewing=i===vis && i!==cur;
-      const done=i<cur && stageMet(s.k), skipped=i<cur && !done;   // r20: no tick for an empty Discovery / Proposal
+      const fin=STAGES[cur]&&STAGES[cur].k==="closed";   // r22: a closed event ticks its Closed step too
+      const done=(i<cur && stageMet(s.k)) || (fin && i===cur), skipped=i<cur && !done;   // r20: no tick for an empty Discovery / Proposal
       const tip=i===cur?("Current stage - "+s.label+(vis!==cur?" (open it)":"")):viewing?("Viewing "+s.label+" - the event is at "+STAGES[cur].label):skipped?("Skipped - nothing recorded for "+s.label+" yet (open it)"):("Open "+s.label);
       return el("button",{type:"button",class:"step"+(done?" done":skipped?" skipped":i===cur?" active":"")+(viewing?" viewing":""),"data-k":s.k,
           "aria-current":i===cur?"step":null,"aria-pressed":i===vis?"true":"false",title:tip,

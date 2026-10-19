@@ -27,7 +27,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { computeHashes, computeStyleHashes, withHashes, htmlFiles, scriptSrcProblem, frameAncestorsProblem, TRUSTED_TYPES_ENFORCE, TT_DIRECTIVES,
-  cspReportUri, sentryIngestOrigin, withReporting } = require('./csp-hashes.cjs');   // R8b: frame-ancestors route allowlist lives there
+  cspReportUri, sentryIngestOrigin, withReporting, reportingEndpoints } = require('./csp-hashes.cjs');   // R8b: frame-ancestors route allowlist lives there
 
 // Production hosts (must match PROD_HOSTS in public/config.js) and the staging
 // Supabase project ref (from public/config.staging.js) that they must never allow.
@@ -57,6 +57,7 @@ function unionPolicy(values) {
   // /invite, /i/*, the branded invite link and /capture) keeps governing framing there.
   m.delete('frame-ancestors');
   m.delete('report-uri');   // r21: the staging site does not report into the production project
+  m.delete('report-to');
   if (STAGING_REF) {
     const add = (k, list) => { if (m.has(k)) list.forEach((x) => m.get(k).add(x)); };
     add('connect-src', ['https://' + STAGING_REF + '.supabase.co', 'wss://' + STAGING_REF + '.supabase.co']);
@@ -120,6 +121,14 @@ for (const rule of vercel.headers || []) {
   }
 }
 if (!cspCount) { console.error('  ✗ vercel.json has no Content-Security-Policy header'); problems++; }
+{ // r22: Reporting-Endpoints (the report-to group of every production CSP) on the catch-all rule
+  const all = (vercel.headers || []).find((r) => r.source === '/(.*)' && !r.has && !r.missing && (r.headers || []).some((h) => h.key.toLowerCase() === 'content-security-policy'));
+  const val = reportingEndpoints(REPORTING.reportUri);
+  if (all) {
+    all.headers = all.headers.filter((h) => h.key.toLowerCase() !== 'reporting-endpoints');
+    if (val) { const i = all.headers.findIndex((h) => h.key.toLowerCase() === 'content-security-policy'); all.headers.splice(i + 1, 0, { key: 'Reporting-Endpoints', value: val }); }
+  } else { console.error('  ✗ vercel.json has no catch-all /(.*) CSP rule for Reporting-Endpoints'); problems++; }
+}
 { // staging-site host rules (generated; appended last so they override the page rules)
   const pols = [];
   for (const rule of vercel.headers || []) for (const h of rule.headers || [])
@@ -153,7 +162,12 @@ const vNext = JSON.stringify(vercel, null, 2) + '\n';
 // 3) public/_headers (Netlify / Cloudflare Pages format)
 const hPath = join(PUBLIC, '_headers');
 const hRaw = readFileSync(hPath, 'utf8');
-const hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) => k + withReporting(stripStaging(withHashes(v, hashes, styleHashes)), REPORTING));
+let hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) => k + withReporting(stripStaging(withHashes(v, hashes, styleHashes)), REPORTING));
+{ // r22: Reporting-Endpoints line right after the catch-all (/*) block's CSP
+  const val = reportingEndpoints(REPORTING.reportUri);
+  hNext = hNext.replace(/^\s+Reporting-Endpoints:.*\n/gm, '');
+  if (val) hNext = hNext.replace(/^(\/\*\n(?:\s+.*\n)*?\s+Content-Security-Policy:.*\n)/m, (b) => b + '  Reporting-Endpoints: ' + val + '\n');
+}
 { // script-src host allowlist per _headers block (route = the unindented line above)
   let route = '';
   for (const line of hRaw.split('\n')) {

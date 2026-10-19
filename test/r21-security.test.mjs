@@ -217,12 +217,12 @@ await t("5a CSP report-uri on every production policy (vercel + _headers + serve
     assert.equal(h.value.includes(RU), !staging, rule.source + (staging ? " (staging)" : ""));
   }
   assert.equal((HDR.match(/Content-Security-Policy: /g) || []).length, (HDR.match(/report-uri https:\/\/nqltzgiwznphugcfhmbm\.supabase\.co\/functions\/v1\/csp-report/g) || []).length);
-  assert.match(SRV, /if \(isProdHost\(req\)\) h\['Content-Security-Policy'\] = withReporting\(stripStagingCsp/);
+  assert.match(SRV, /if \(isProdHost\(req\)\) \{\s*h\['Content-Security-Policy'\] = withReporting\(stripStagingCsp/);
   assert.equal(cspReportUri("bad"), "");
   assert.equal(sentryIngestOrigin('window.HELM_TELEMETRY = Object.assign({\n  dsn: "",'), "", "no DSN -> no connect-src host");
   assert.equal(sentryIngestOrigin('window.HELM_TELEMETRY = Object.assign({ dsn: "https://abc123@o42.ingest.us.sentry.io/77" }'), "https://o42.ingest.us.sentry.io");
   assert.equal(sentryIngestOrigin('window.HELM_TELEMETRY = { dsn: "https://abc@evil.example/1" }'), "", "only a sentry.io ingest host");
-  assert.equal(withReporting("connect-src 'self'; report-uri x", { reportUri: "https://r", sentryOrigin: "https://s" }), "connect-src 'self' https://s; report-uri https://r");
+  assert.equal(withReporting("connect-src 'self'; report-uri x", { reportUri: "https://r", sentryOrigin: "https://s" }), "connect-src 'self' https://s; report-uri https://r; report-to csp-endpoint");
 });
 await t("5b csp-report logic: redacted one-line summaries for both report formats", async () => {
   const L = await import("../supabase/functions/csp-report/logic.mjs");

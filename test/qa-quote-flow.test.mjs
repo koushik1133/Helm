@@ -207,7 +207,7 @@ t('B28: requirement list uses the picker words; the box is emptied before the re
 t('B28: discount error on the save line clears once fixed; live next-step hints; en-IN receipt dates', () => {
   assert.match(FLOW, /if\(!m && qm && qm\.dataset\.disc==="1"\)\{ qm\.textContent=""; delete qm\.dataset\.disc; \}/);
   assert.match(FLOW, /function nextHintText\(k, key\)/); assert.match(FLOW, /paintLiveHints\(\);/);
-  assert.match(FLOW, /BPStore\.fmtStudioDate\(p\.paid_at,\{style:"long"\}\)/);
+  assert.match(FLOW, /BPStore\.fmtStudioDate\(p\.paid_at\)/);   // r22: dd/mm/yyyy like the rest of the page
   const nh = new Function(between(FLOW, '  function nextHintText(k, key){', '  function paintLiveHints(){') + '; return nextHintText;')();
   assert.match(nh('quote', 'sent'), /waiting for the client/); assert.doesNotMatch(nh('quote', 'sent'), /Send for approval/);
   assert.match(nh('quote', 'locked'), /Send for approval/); assert.doesNotMatch(nh('layout', 'sent'), /Send for approval/);

@@ -1210,7 +1210,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "48";
+  const AUTH_UI_VERSION = "49";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1263,7 +1263,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "18";
+  const TRIAL_BANNER_VERSION = "19";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -8036,7 +8036,7 @@ window.HelmUrl = HelmUrl;
     task_reminder: "Task reminders", task_due: "Tasks due", payment_link: "Payment links", payment_reminder: "Payment reminders",
     payment_receipt: "Payment receipts", advance_paid: "Payments received", payment_reconcile: "Payments needing attention",
     chat_message: "Chat messages", pkg_selected: "Client package choices", pkg_accepted: "Package choices accepted",
-    pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts", billing_trial: "Free trial reminders",
+    pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts (Helm HQ only)", billing_trial: "Free trial reminders",
     inventory_low_stock: "Low stock warnings", client_follow_up: "Client follow-ups", other: "Other updates" };
   // A4: a chat row's read key carries its newest message time, so marking a conversation read
   // only covers what was there; a later message makes a new key and counts as unread again.
@@ -8390,7 +8390,10 @@ window.HelmUrl = HelmUrl;
         catch (e) { return { hidden: [] }; }
       },
       // studio admin only (the DB refuses anyone else): catalog + effective matrix
-      get: () => rpc("admin_get_notification_prefs", {}),
+      // r22: the Control Center list names security alerts "(Helm HQ only)" even before the database catalog says so
+      get: async () => { const r = await rpc("admin_get_notification_prefs", {});
+        try { (r && Array.isArray(r.catalog) ? r.catalog : []).forEach((c) => { if (c && c.type === "security_alert") c.label = BELL_TYPE_LABELS.security_alert; }); } catch (e) {}
+        return r; },
       // one cell; enabled null = back to the default. role for the bell; user for a person override
       set: (type, channel, role, enabled, userId) => rpc("admin_set_notification_pref",
         { p_type: type, p_channel: channel, p_role: role || null, p_enabled: enabled === null || enabled === undefined ? null : !!enabled, p_user: userId || null }),
@@ -10168,6 +10171,16 @@ window.HelmUrl = HelmUrl;
       try { return new URLSearchParams(location.search).get(name); } catch (e) { return null; }
     };
     HelmUrl.ready = ready;
+    // r22: an event number ("SMP-1003") or id -> the event id, looked up in the caller's OWN studio
+    // (resolve_event_ref: current_org_id + has_area quotes view; never another studio). null = not found.
+    HelmUrl.eventId = async function (ref) {
+      const v = String(ref == null ? "" : ref).trim();
+      if (!v || v.length > 80) return null;
+      if (HelmUrl.isUuid(v)) return v;
+      try { await ready(); } catch (e) {}
+      const r = await refToId("event", v);
+      return (r && r.id && HelmUrl.isUuid(r.id)) ? r.id : null;
+    };
     // keyless pages (quotes, leads, chat, settings, dashboard): pretty address bar once the studio is known
     if (PAGE_GATED) Promise.resolve().then(ready).then(() => {
       const k = { dashboard: "dashboard", quotes: "quotes", leads: "leads", chat: "chat", control: "settings" }[HelmUrl.page()];
@@ -11235,6 +11248,7 @@ window.HelmUrl = HelmUrl;
   // /checkout; capDialogReset undoes ONLY what capDialog did (call it on every open). capLimit shows the same words for
   // a server refusal. isCapError: the server's trial-cap refusal (0181 hint trial_cap).
   function capHref() {
+    try { var U = global.HelmUrl; if (U && U.route && U.route()) return "/checkout?next=" + encodeURIComponent(U.here().split("#")[0]); } catch (e) {}   // r22: pretty path
     var pg = "dashboard";
     try { pg = (global.location.pathname.split("/").pop() || "dashboard").replace(/\.html$/, "") || "dashboard"; } catch (e) {}
     return "/checkout?next=" + encodeURIComponent(pg + ".html");
