@@ -131,7 +131,7 @@ do $$ declare a uuid; c uuid; v jsonb; v_end timestamptz; v_today date; r text; 
   perform pg_temp.su(); update public.studio_subscriptions set trial_ends_at = current_date - 1 where org_id = c;
   v := pg_temp.st('td223_c@t.test');
   perform pg_temp.res('14 checkout trial past its day -> ended (the same moment as before 0223)', v ->> 'state' = 'ended' and (v ->> 'days_left')::int = 0, v::text);
-  perform pg_temp.su(); update public.studio_subscriptions set trial_ends_at = current_date where org_id = c;
+  perform pg_temp.su(); update public.studio_subscriptions set trial_ends_at = (now() at time zone 'UTC')::date where org_id = c;   -- its last UTC day (any session zone)
   v := pg_temp.st('td223_c@t.test');
   perform pg_temp.res('15 checkout trial on its last UTC day -> still trial', v ->> 'state' = 'trial', v::text);
 

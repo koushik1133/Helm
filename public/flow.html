@@ -1185,13 +1185,13 @@
   // Catering is then priced at the studio's default plate price; the event's dishes stay (never deleted).
   function renderPackages(){
     const none = !appliedPkg;
-    $("#pkgCards").innerHTML = packages.length ? `<button type="button" class="pkgcard pkgnone ${none?'on':''}" data-none="1" aria-pressed="${none}">
-        <b>No package</b><div class="m">Decide later</div><div class="p">Default plate price</div></button>` + packages.map(p=>{
+    $("#pkgCards").innerHTML = packages.length ? `<button type="button" class="pkgcard pkgnone ${none?'on':''}" data-none="1" aria-pressed="${none?'true':'false'}">
+        <b>No package</b><div class="m">Decide later</div><div class="p">Default plate price</div></button>${packages.map(p=>{
       const on = appliedPkg && appliedPkg.id===p.id;
       return `<button type="button" class="pkgcard ${on?'on':''}" data-id="${esc(p.id)}" aria-pressed="${!!on}"${on?' title="Selected - click again to remove the package"':''}>
         <b>${esc(p.name)}</b><div class="m">${esc(p.diet||'')} · ${Array.isArray(p.dishes)?p.dishes.length:0} dishes</div>
         <div class="p">${inr(p.price_per_plate)} / plate</div></button>`;
-    }).join("") : '<div class="meta">No menu packages set up yet — <a href="control.html#menu">add them in Control Center</a>.</div>';
+    }).join("")}` : '<div class="meta">No menu packages set up yet — <a href="control.html#menu">add them in Control Center</a>.</div>';
     $("#pkgCards").querySelectorAll(".pkgcard").forEach(b=>b.addEventListener("click",()=>{
       if(b.dataset.none==="1" || (appliedPkg && String(appliedPkg.id)===String(b.dataset.id))) clearPackage(b);
       else applyPackage(b.dataset.id,b); }));

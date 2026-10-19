@@ -51,8 +51,11 @@ t('every 1019 DB suite is in run-all.sh; generator --check is in npm run ci', ()
 t('owner steps: the paste file, every changed edge function (prod ref, --no-verify-jwt), the email templates', () => {
   const d = read('docs/release/RELEASE-1019-OWNER-STEPS.md');
   assert.match(d, /supabase\/APPLY-RELEASE-1019\.sql/);
-  for (const f of ['invite-signup', 'client-mailer', 'comms-dispatch', 'send-otp', 'invite-mailer', 'welcome-mailer', 'pkg-client-notify', 'billing-reminder', 'wa-proposal'])
-    assert.match(d, new RegExp('supabase functions deploy ' + f + ' --project-ref nqltzgiwznphugcfhmbm --no-verify-jwt'), f);
+  // the repo's JWT convention (release 1018): these run without the JWT check, the other four keep it
+  for (const f of ['invite-signup', 'client-mailer', 'comms-dispatch', 'invite-mailer', 'welcome-mailer', 'pkg-client-notify', 'billing-reminder'])
+    assert.match(d, new RegExp('supabase functions deploy ' + f + ' +--project-ref nqltzgiwznphugcfhmbm --no-verify-jwt\\n'), f);
+  for (const f of ['send-otp', 'wa-proposal', 'create-payment-link', 'send-whatsapp'])
+    assert.match(d, new RegExp('supabase functions deploy ' + f + ' +--project-ref nqltzgiwznphugcfhmbm\\n'), f);
   assert.match(d, /APPLY-0213-refresh-trial-layouts\.sql/);
   assert.match(d, /docs\/ops\/email-templates\//);
 });
