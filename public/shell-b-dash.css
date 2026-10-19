@@ -760,3 +760,16 @@ html[data-shell="b"] .hd-act-x { display: inline-block; padding: 0 6px; border-r
   html[data-shell="b"] .hd-tk-end { padding: 0 10px 0 0; }
   html[data-shell="b"] .hd-cn-n { font-size: 34px; }
 }
+/* r19-studio-name: which studio you are in - a calm label above the greeting (logo / initials tile, name, plan chip) */
+html[data-shell="b"] .hd-studio { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; margin: 0 0 12px; font: 600 13px/18px var(--hd-f-ui); color: var(--hd-ink-2); }
+html[data-shell="b"] .hd-studio[hidden] { display: none; }
+@container hd (min-width: 760px) { html[data-shell="b"] .hd-hero-solo .hd-studio { max-width: calc(100% - 76px); } }   /* never runs under the time-of-day orb (shown only then) */
+html[data-shell="b"] .hd-st-av { position: relative; flex: 0 0 24px; width: 24px; height: 24px; border-radius: 7px; overflow: hidden; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--hd-card); color: var(--hd-acc-text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hd-acc) 28%, transparent); font: 700 10px/1 var(--hd-f-ui); letter-spacing: .03em; }
+html[data-shell="b"] .hd-st-av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: var(--hd-card); }
+html[data-shell="b"] .hd-st-av img[hidden] { display: none; }
+html[data-shell="b"] .hd-st-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--hd-ink); }
+html[data-shell="b"] .hd-plan { flex: 0 0 auto; font: 600 11px/16px var(--hd-f-ui); padding: 1px 8px; border-radius: var(--hd-r-pill); background: var(--hd-acc-soft); color: var(--hd-acc-text); white-space: nowrap; }
+html[data-shell="b"] .hd-plan-ended, html[data-shell="b"] .hd-plan-due { background: var(--hd-warn-soft); color: var(--hd-warn); }
+html[data-shell="b"] .hd-plan-paid { background: var(--hd-card); color: var(--hd-ink-2); box-shadow: inset 0 0 0 1px var(--hd-hair); }
+html[data-shell="b"] .hd-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }

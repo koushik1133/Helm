@@ -763,6 +763,7 @@
     var hr = wallNow().getHours(), tod = hr < 5 || hr >= 20 ? "night" : hr < 12 ? "morning" : hr < 17 ? "afternoon" : "evening";
     hero.classList.add("hd-tod-" + tod);
     var orb = el("span", "hd-orb"); orb.setAttribute("aria-hidden", "true"); orb.appendChild(icon(tod === "night" || tod === "evening" ? IC.moon : IC.sun, "hd-ic hd-orb-ic")); hero.appendChild(orb);
+    var stl = el("p", "hd-studio"); stl.hidden = true; hl.appendChild(stl);   /* r19-studio-name: which studio you are in (filled once signed in) */
     var dl = el("p", "hd-date hd-eyebrow"); dl.appendChild(el("span", null, tfmt(now, { weekday: "long", day: "numeric", month: "long" })));
     var clk = el("time", "hd-clock hd-mono"); dl.appendChild(clk); hl.appendChild(dl);
     (function () {                                                           // live clock, one tick per minute, paused while hidden
@@ -915,6 +916,34 @@
       var rl = ""; try { rl = role && A.admin && A.admin.roleLabel ? A.admin.roleLabel(role) : ""; } catch (e) {}
       if (rl) { var rp = el("span", "hd-role", rl); h1.appendChild(rp); }
     });
+
+    /* r19-studio-name: studio label above the greeting - logo / initials tile, name, plan chip ("Free trial", "Paid plan").
+       BPStore.org.identity() = the per-tab cached studio row + cached trial answer; a rename repaints it ("helm:studio"). */
+    if (!signedOut) (function () {
+      var last = null, plan = null;
+      function paint(d) {
+        if (!d || !d.name) return;
+        if (d.plan) plan = d.plan;
+        var key = [d.name, d.initials, d.logo || "", plan ? plan.key + plan.title : ""].join("\n"); if (key === last) return; last = key;
+        clear(stl);
+        var av = el("span", "hd-st-av"); av.setAttribute("aria-hidden", "true"); av.appendChild(el("span", null, d.initials || ""));
+        if (d.logo) {
+          var im = document.createElement("img"); im.alt = ""; im.hidden = true; im.decoding = "async";
+          try { im.referrerPolicy = "no-referrer"; } catch (e) {}
+          im.addEventListener("load", function () { im.hidden = false; av.classList.add("hd-st-logo"); });
+          im.addEventListener("error", function () { if (im.parentNode) im.parentNode.removeChild(im); av.classList.remove("hd-st-logo"); });   /* blocked / broken: initials */
+          im.src = d.logo; av.appendChild(im);
+        }
+        stl.appendChild(av);
+        stl.appendChild(el("span", "hd-vh", "Studio: "));
+        stl.appendChild(el("span", "hd-st-n", d.name));
+        if (plan) { var pc = el("span", "hd-plan hd-plan-" + plan.key, plan.label); pc.title = plan.title || ""; stl.appendChild(pc); }
+        stl.title = d.name + (plan ? " \u00b7 " + plan.label : "");
+        stl.hidden = false;
+      }
+      window.addEventListener("helm:studio", function (e) { try { paint(e.detail); } catch (x) {} });
+      safe(function () { return S().org && S().org.identity ? S().org.identity() : null; }).then(paint);
+    })();
 
     /* fire everything in parallel */
     var P = {
