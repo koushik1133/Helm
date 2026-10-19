@@ -941,7 +941,7 @@
     // the Custom Event / Create layout entry points open the wizard (capture: before builder.js's own handler)
     ['customBtn', 'es_custom'].forEach((id) => { const b = doc.getElementById(id); if (!b) return;
       b.addEventListener('click', (e) => { e.stopImmediatePropagation(); open(e); }, true);
-      if (id === 'customBtn') { if (!b.querySelector('.tl')) b.textContent = '✨ Create layout'; b.title = 'Create a layout from your requirements: hall, guests, seating and objects'; } });
+      if (id === 'customBtn') { if (!b.querySelector('.tl')) b.textContent = '✨ Create layout'; b.title = 'Build a layout from your hall size, guests and seating'; } });
   }
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', mount); else mount();
   API._ui = { open, close, generate, apply, get spec() { return spec; }, set spec(v) { spec = v; }, get result() { return lastResult; }, go };
