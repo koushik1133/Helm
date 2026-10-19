@@ -68,7 +68,7 @@ do $$ declare r text; begin
   perform pg_temp.su(); update public.platform_admins set require_mfa = false;
   perform pg_temp.as_user('security@helm.events', 'aal1'); execute 'set role authenticated';
   r := pg_temp.rw();
-  perform pg_temp.res('11 on: operator without factor/require_mfa at aal1 may read, write refused', r = '|42501', r);
+  perform pg_temp.res('11 on: operator without factor/require_mfa at aal1 refused read + write (0253: switch on => aal2 for every HQ call)', r = '42501|42501', r);
   perform pg_temp.as_user('admin@helm.events', 'aal2'); execute 'set role authenticated';
   r := pg_temp.rw(); perform pg_temp.res('12 on: operator at aal2 allowed', r = '|', r);
   perform pg_temp.as_user('a_admin@a.test', 'aal2'); execute 'set role authenticated';

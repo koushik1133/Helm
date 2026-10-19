@@ -67,3 +67,14 @@ verify_jwt = false
 verify_jwt = false
 [functions.csp-report]   # browser CSP reports (no auth possible); r21 monitoring, nothing stored
 verify_jwt = false
+
+# ---- r22: two-step verification (TOTP) - LOCAL PARITY ONLY -----------------------------------------------------------
+# The hosted projects (staging + production) take this from the dashboard, NOT from this file:
+#   Authentication -> Multi-Factor (Sign In / Providers -> Multi-Factor) -> TOTP (App Authenticator): Enabled.
+# These lines only document that Helm expects TOTP enrol + verify ON (store-api.js auth.mfa, login.html code step).
+# Do NOT run `supabase config push` against a hosted project from this file: it is not a full copy of their settings.
+[auth.mfa]
+max_enrolled_factors = 10
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
