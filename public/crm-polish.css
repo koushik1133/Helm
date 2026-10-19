@@ -54,3 +54,6 @@ html[data-shell] .btn:focus-visible,html[data-shell] .search:focus-visible{outli
 @media (max-width:1320px){
   .card table thead th,#rows td{padding-left:9px;padding-right:9px}
 }
+
+/* r22 ui audit: phone cards - the desktop column cap (max-width 220px) made the Event value sit mid-card; full width like the other rows */
+@media (max-width:639.98px){ #rows td.wrapc{max-width:none;min-width:0} }
