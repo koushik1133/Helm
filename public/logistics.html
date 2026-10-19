@@ -52,7 +52,7 @@
   .ssel{min-height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)}
   .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .st.open{background:#fff7e6;color:#946200} .st.done{background:#e7f6ee;color:#0f7a43} .st.na{background:#f1f3f7;color:var(--ink-3)}
-  .st.due{background:#fff7e6;color:#946200} .st.invoiced{background:#eef1f0;color:#2f4a42} .st.paid{background:#e7f6ee;color:#0f7a43} .st.waived{background:#f1f3f7;color:var(--ink-3)}
+  .st.overdue{background:#fdecec;color:#a5281c} .st.due{background:#fff7e6;color:#946200} .st.invoiced{background:#eef1f0;color:#2f4a42} .st.paid{background:#e7f6ee;color:#0f7a43} .st.waived{background:#f1f3f7;color:var(--ink-3)}
   .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;min-height:32px;min-width:32px;padding:0 9px;font-size:12px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
   .empty{text-align:center;color:var(--ink-3);padding:22px;font-size:13px}
   .totbar{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin-top:12px;padding-top:10px;border-top:1px solid var(--line-2)}
@@ -70,6 +70,7 @@
 <link rel="stylesheet" href="logistics-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
+<link rel="stylesheet" href="payment-schedule.css?v=1">
 <script src="/shell-proto.js?v=39" id="shellProto"></script>
 </head>
 <body>
@@ -121,6 +122,7 @@
 <script src="event-name.js?v=9"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=270"></script>
 <script src="tour.js?v=24"></script>
+<script src="payment-schedule.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -241,7 +243,8 @@
         const take=Math.min(a,left); left-=take; const rem=Math.round((a-take)*100)/100;
         if(a>0&&rem<=0.005){ covered.add(m.id); alloc.set(m.id,{paid:a,rem:0}); } else alloc.set(m.id,{paid:Math.round(take*100)/100,rem}); });
     const phone=(ev.client&&(ev.client.phone))||"";
-    $("#pane").innerHTML = `<h2>Payment schedule</h2><p class="sub">Milestones the client pays across the event. Reminders go through the notification outbox.</p>
+    $("#pane").innerHTML = `<h2>Payment schedule</h2><p class="sub">Milestones the client pays across the event. Recording a payment marks every milestone it fully covers as paid; automatic reminders go to the client before, on and after each due date (Control Center).</p>
+      <div id="pschCtl" class="psch-ctl" hidden></div>
       ${canEdit?`<div class="addrow pay">
         <div class="fld"><label for="m_label">Milestone *</label><input id="m_label" maxlength="120" required placeholder="e.g. 50% advance"></div>
         <div class="fld"><label for="m_due">Due date</label><input id="m_due" type="date" data-date-window="recent"></div>
@@ -251,6 +254,8 @@
         <tbody>${ms.length?ms.map(rowPay).join(""):'<tr><td colspan="7" class="empty">No milestones yet.</td></tr>'}</tbody></table></div>
       <div class="totbar"><span>Scheduled: <b>${inr(total)}</b></span><span class="tb-paid">Paid: <b>${inr(paid)}</b></span><span class="tb-due">Outstanding: <b>${inr(due)}</b></span>${qTotal>0&&total>qTotal?`<span>⚠ Scheduled is <b>${inr(total-qTotal)}</b> more than the invoice total (${inr(qTotal)})</span>`:""}</div>`;
     if(canEdit) $("#m_add").addEventListener("click",addMile);
+    // r23 (0264): template picker (no schedule yet) + reminder cadence + "Pause automatic reminders" for this event
+    if(window.HelmPaySchedule) HelmPaySchedule.mount($("#pschCtl"), id, { controlsOnly:true, heading:"h3", onChange:()=>renderPane() });
     document.querySelectorAll("#pane [data-mst]").forEach(s=>s.addEventListener("change",async()=>{
       const m=ms.find(x=>x.id===s.dataset.mst);
       if((s.value==="paid"||s.value==="waived") && !(await BPUI.confirm(`Mark “${m?m.label:"this milestone"}” (${inr(m&&m.amount)}) as ${PAY_ST[s.value].toLowerCase()}?${s.value==="paid"?" A cash receipt for this amount is recorded and can't be undone here.":""}`,{title:"Change payment status?",okLabel:"Mark "+PAY_ST[s.value].toLowerCase()}))){ s.value=m?m.status:s.value; return; }
@@ -274,8 +279,10 @@
       <td><span class="st paid" title="Covered by payments recorded on this event">Covered</span></td><td></td></tr>`;
     const opts=["due","invoiced","paid","waived"].map(s=>`<option value="${s}" ${s===m.status?"selected":""}>${PAY_ST[s]}</option>`).join("");
     const _a=alloc.get(m.id)||{}; const part=m.status!=="paid" && m.status!=="waived" && _a.paid>0 && Number(_a.rem)>0.005;   // r20: a fully paid milestone is never also "Part paid"
+    // r23 (0264): an open milestone past its due date (studio day) reads Overdue
+    const late=(m.status==="due"||m.status==="invoiced") && m.due_date && String(m.due_date).slice(0,10)<BPStore.todayLocal();
     return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date?BPStore.fmtDateIN(m.due_date):"")}</td><td class="num">${inr(m.amount)}</td>${payCells(m)}
-      <td>${part?'<span class="st due" title="Part of this milestone is covered by payments recorded">Part paid</span> ':""}${canEdit&&m.status!=="paid"?`<select class="ssel" data-mst="${esc(m.id)}" aria-label="Status for ${esc(m.label)}">${opts}</select>`:`<span class="st ${esc(m.status)}">${esc(PAY_ST[m.status]||m.status)}</span>`}</td>
+      <td>${late?'<span class="st overdue" title="Past its due date and not fully paid">Overdue</span> ':""}${part?'<span class="st due" title="Part of this milestone is covered by payments recorded">Part paid</span> ':""}${canEdit&&m.status!=="paid"?`<select class="ssel" data-mst="${esc(m.id)}" aria-label="Status for ${esc(m.label)}">${opts}</select>`:`<span class="st ${esc(m.status)}">${esc(PAY_ST[m.status]||m.status)}</span>`}</td>
       <td>${canEdit&&m.status!=="paid"?`<button type="button" class="rm" data-remind="${esc(m.id)}" aria-label="Send reminder now for ${esc(m.label)}">Send reminder now</button> `:""}${canDelete&&m.status!=="paid"?`<button type="button" class="rm" data-mdel="${esc(m.id)}" aria-label="Remove milestone ${esc(m.label)}">✕</button>`:""}</td></tr>`; }
   let msScheduled=0, invTotal=0;
   function invoiceTotal(chg){ const base=Number((ev&&ev.pricing&&ev.pricing.total)||(ev&&ev.total)||0);
@@ -314,6 +321,9 @@
     if(!(await BPStore.auth.canView("finance"))){ const pb=document.querySelector('#tabs button[data-t="payments"]'); if(pb) pb.hidden=true;
       // r20-coord: no payments tab -> no "payments" in the page title either
       { const h=document.querySelector("header h1")||document.querySelector("h1"); if(h && /payments/i.test(h.textContent)) h.textContent="Logistics"; document.title="Logistics — Helm Events"; } if(tab==="payments"){ tab="guests"; $("#tabs").querySelectorAll("button").forEach(x=>{ const on=x.dataset.t===tab; x.classList.toggle("on",on); x.setAttribute("aria-pressed",String(on)); }); } }
+    // r23 (0264): #payments (bell "Payment overdue", schedule card links) opens the Payments tab
+    if(/^#payments$/i.test(location.hash||"")){ const pb=document.querySelector('#tabs button[data-t="payments"]');
+      if(pb && !pb.hidden){ tab="payments"; $("#tabs").querySelectorAll("button").forEach(x=>{ const on=x===pb; x.classList.toggle("on",on); x.setAttribute("aria-pressed",String(on)); }); } }
     try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");

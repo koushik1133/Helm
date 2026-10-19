@@ -86,6 +86,9 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0250_security_notices_hq_only.sql
 -- 0254 (r22 closure) adds event_close_requests (close requests / approvals) to the purge list on top of 0184
 \ir ../../supabase/migrations/0254_closure_checklist_override.sql
+-- 0264 (r23 payment schedules) adds its templates / per-event prefs / overdue bookkeeping to the purge list and its
+-- studio settings to the keep list on top of 0184
+\ir ../../supabase/migrations/0264_payment_schedules.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin

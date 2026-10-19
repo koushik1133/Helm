@@ -16,7 +16,9 @@ from (values
   ('11 callers use the country-aware helpers',
        pg_get_functiondef('public._comms_queue_pay(uuid, text, text, boolean, uuid)'::regprocedure) like '%_comms_client_to(q.client, ch, q.org_id)%'
    and pg_get_functiondef('public._comms_queue_pay(uuid, text, text, boolean, uuid)'::regprocedure) like '%_comms_quote_cur(q.id)%'
-   and pg_get_functiondef('public.comms_tick()'::regprocedure) like '%_comms_client_to(f.client, v_ch, o.id)%'
+   and (pg_get_functiondef('public.comms_tick()'::regprocedure) like '%_comms_client_to(f.client, v_ch, o.id)%'
+        or (to_regprocedure('public.comms_tick__pre0264()') is not null                     -- 0264 payment-schedule wrapper over the 0092 body
+            and pg_get_functiondef('public.comms_tick__pre0264()'::regprocedure) like '%_comms_client_to(f.client, v_ch, o.id)%'))
    and (pg_get_functiondef('public.payment_reminder_send_now(uuid)'::regprocedure) like '%_comms_client_to(q.client, c, v_org)%'
         or (to_regprocedure('public.payment_reminder_send_now__pre0181(uuid)') is not null   -- 0181 free-trial wrapper over the 0092 body
             and pg_get_functiondef('public.payment_reminder_send_now__pre0181(uuid)'::regprocedure) like '%_comms_client_to(q.client, c, v_org)%'))

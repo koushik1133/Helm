@@ -258,6 +258,7 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=3">
 <link rel="stylesheet" href="comms-settings.css?v=2">
+<link rel="stylesheet" href="payment-schedule.css?v=1">
 <link rel="stylesheet" href="delivery-tracker.css?v=1">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
@@ -438,6 +439,35 @@
       </div>
       <div id="tm_msg" role="status" aria-live="polite"></div>
       <div class="actions" id="tm_actions"><button type="button" class="btn primary" id="tm_save">Save target margin</button></div>
+    </div>
+
+    <!-- r23 (0264) payment schedules: templates, the default, applied on approval, reminders + how clients pay - payment-schedule-settings.js fills it; hidden until the server answers -->
+    <div class="card" id="pstCard" hidden>
+      <h3>Payment schedules</h3>
+      <p class="mnote">When a client approves a quote, Helm adds your default payment schedule to the event (only when it has none yet - an existing schedule is never changed) and reminds the client before, on and after each due date. Recording a payment marks every payment it fully covers as paid.</p>
+      <p class="mnote" id="pst_ro" hidden>Read-only: only a studio admin (or someone allowed to edit Control Center) can change these.</p>
+      <fieldset class="pst-set">
+        <legend>Automatic</legend>
+        <label class="pst-chk" for="pst_auto"><input type="checkbox" id="pst_auto"> Add the default schedule when a client approves a quote</label>
+        <label class="pst-chk" for="pst_bell"><input type="checkbox" id="pst_bell"> Bell notice to the team when a client payment is overdue</label>
+        <div class="pst-grid"><div class="fld"><label for="pst_default">Default schedule</label><select id="pst_default"></select></div></div>
+        <p class="mnote" id="pst_rem"></p>
+      </fieldset>
+      <fieldset class="pst-set">
+        <legend>How clients pay</legend>
+        <div class="pst-grid">
+          <div class="fld"><label for="pst_upi">UPI ID</label><input id="pst_upi" maxlength="130" placeholder="studio@okaxis" autocomplete="off" spellcheck="false"></div>
+          <div class="fld"><label for="pst_note">Payment note (e.g. bank details)</label><input id="pst_note" maxlength="300" placeholder="Bank: HDFC, A/c 1234567890, IFSC HDFC0001234"></div>
+        </div>
+        <p class="mnote">Shown on the client's page and added to every payment reminder. The online payment link is added on its own once online payments are live.</p>
+      </fieldset>
+      <fieldset class="pst-set">
+        <legend>Schedules</legend>
+        <div class="pst-list" id="pst_list"></div>
+        <div class="pst-ed" id="pst_ed" hidden></div>
+        <button type="button" class="btn" id="pst_new">+ New schedule</button>
+      </fieldset>
+      <div class="pst-foot"><span class="pst-msg" id="pst_msg" role="status" aria-live="polite"></span><button type="button" class="btn primary" id="pst_save">Save payment settings</button></div>
     </div>
 
     <div class="card" id="itemPricingCard" hidden>
@@ -730,7 +760,7 @@
       <div class="card" id="commsCard" hidden>
         <h3>Automatic client messages &amp; WhatsApp</h3>
         <p class="mnote">Helm can remind clients about payments, follow up on proposals they opened, warn your team about stock clashes and copy notifications to WhatsApp.
-          Everything here is <b>off</b> until you switch it on. Messages are sent by the server, never twice, and each one is logged on the event.
+          Payment reminders are <b>on</b> by default (3 days before the due date, on the day and 3 days after); everything else is <b>off</b> until you switch it on. Messages are sent by the server, never twice, and each one is logged on the event.
           WhatsApp is used only after you add your studio's WhatsApp number below.</p>
         <div id="cm_err"></div>
         <fieldset class="cmset">
@@ -746,7 +776,7 @@
             <div class="fld"><span class="cmlbl">On the due date</span><label class="cmchk" for="cm_pay_due"><input type="checkbox" id="cm_pay_due"> Remind on the day</label></div>
           </div>
           <div class="fld"><label for="cm_pay_tpl">Message</label><textarea id="cm_pay_tpl" rows="3" maxlength="1000"></textarea></div>
-          <p class="mnote">Placeholders: {client} {studio} {event} {label} {amount} {due} {status}. Reminders stop as soon as the milestone is paid.</p>
+          <p class="mnote">Placeholders: {client} {studio} {event} {label} {amount} {due} {status} {pay_details} {pay_link} {upi}. The pay details (online link, UPI ID, payment note from Payment schedules) are added at the end when the message has none of them. Reminders stop as soon as the milestone is paid; an event can pause them.</p>
           <p class="cmprev" id="cm_pay_prev" aria-live="polite"></p>
         </fieldset>
         <fieldset class="cmset">
@@ -848,13 +878,13 @@
 <script src="venues-admin.js?v=9"></script>
 <script src="studio-templates-core.js?v=4"></script>
 <script src="studio-templates.js?v=13"></script>
-<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script>
+<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script><script src="payment-schedule.js?v=1"></script><script src="payment-schedule-settings.js?v=1"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
 <script src="trial-demo.js?v=17"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
-<script src="search-catalog.js?v=7"></script>
-<script src="control-split.js?v=21"></script>
+<script src="search-catalog.js?v=8"></script>
+<script src="control-split.js?v=22"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

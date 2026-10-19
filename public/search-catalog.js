@@ -47,6 +47,7 @@
     { key: "privacy",    label: "Hide amounts (privacy PIN)",  hash: "#privacy-pin",      gate: "admin", kw: "privacy pin passcode hide amounts money mask unlock" },
     { key: "links",      label: "Client links & packages",     hash: "#client-links",     gate: "admin", kw: "expire expiry link security package flow booklet" },
     { key: "pricing",    label: "Pricing & coupons",           hash: "#pricing",          gate: CTL,     kw: "price tax gst vat discount rate card coupon capacity object service charge" },
+    { key: "payments",   label: "Payment schedules",           hash: "#payment-schedules", gate: CTL,    kw: "payment schedule milestone installment advance balance upfront deposit due upi bank overdue plan template" },
     { key: "catalog",    label: "Menus & catalog",             hash: "#menu",             gate: CTL,     kw: "chair plate dish catering menu package standard gold premium" },
     { key: "rules",      label: "Layout rules",                hash: "#layout-rules",     gate: CTL,     kw: "seats guests buffet bar generator event type layout" },
     { key: "data",       label: "Import & custom fields",      hash: "#data",             gate: CTL,     kw: "excel import xlsx csv custom field" },

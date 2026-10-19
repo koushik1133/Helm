@@ -211,6 +211,7 @@ run "r21-money-0246" "R21-MONEY-0246: ALL PASS \(32/32\)" psql -q -f tests/db/r2
 run "r22-money-0252" "R22-MONEY-0252: ALL PASS \(17/17\)" psql -q -f tests/db/r22-money-0252.sql
 # 0254 re-applies itself (fixture events are made after the clean install; proves a re-run is safe)
 run "r22-closure-0254" "R22-CLOSURE-0254: ALL PASS \(68/68\)" psql -q -f tests/db/r22-closure-0254.sql
+run "r23-payment-schedules-0264" "R23-PAYMENT-SCHEDULES-0264: ALL PASS \(71/71\)" psql -q -f tests/db/r23-payment-schedules-0264.sql
 # 0244 re-applies itself twice (re-run safe) after every suite that re-applies 0045 / 0183 / 0185
 run "r21-trial-paid-0244" "R21-TRIAL-PAID-0244: ALL PASS \(56/56\)" psql -q -f tests/db/r21-trial-paid-0244.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh

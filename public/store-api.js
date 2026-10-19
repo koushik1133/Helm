@@ -1243,7 +1243,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "12";
+  const STUDIO_SEARCH_VERSION = "13";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";
@@ -8399,6 +8399,8 @@ window.HelmUrl = HelmUrl;
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
+      // 0264: a client's scheduled payment is past its due date (money notice - admins + Finance viewers)
+      payment_overdue: ["⏰", String(d.label || "A client payment is overdue")],
       // r22 (0254): "request to close anyway" + the approval (admins / coordinators / managers only - the server decides)
       event_close_request: ["🗄️", "Close request" + (d.actor_name ? " from " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "") + " - waiting for approval"],
       event_close_decision: [d.decision === "declined" ? "↩️" : "✅", (d.decision === "declined" ? "Close request declined" : "Event closed with override")
@@ -9563,7 +9565,8 @@ window.HelmUrl = HelmUrl;
     return out.slice(0, 1000);
   }
   const COMMS_SAMPLE = { client: "Riya", studio: "your studio", event: "Riya's Wedding", label: "50% advance",
-    amount: "Rs. 50,000", due: "12 Nov 2026", status: "due in 3 days" };
+    amount: "Rs. 50,000", due: "12 Nov 2026", status: "due in 3 days",
+    pay_details: "UPI: yourstudio@okaxis", pay_link: "", upi: "yourstudio@okaxis" };   // 0264 pay-detail placeholders
   const comms = {
     render: commsRender, sample: COMMS_SAMPLE,
     get: () => (supa ? rpc("comms_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
@@ -9577,6 +9580,23 @@ window.HelmUrl = HelmUrl;
     reminderGet: () => (supa ? rpc("event_reminder_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
     reminderSet: (days) => (supa ? rpc("event_reminder_settings_set", { p_days: days }) : Promise.reject(new Error("Needs a signed-in studio."))),
     reminderUpcoming: () => (supa ? rpc("event_reminder_upcoming", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+  };
+
+  // 0264 (r23): payment schedules - templates (Control Center), the per-event schedule with paid / part paid / due /
+  // overdue, apply a template (with preview), pause automatic reminders, the client page. Every rule is in the database;
+  // null = the server is older than 0264.
+  const paySchedule = {
+    settings: () => (supa ? rpc("payment_schedule_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    saveSettings: (patch) => (supa ? rpc("payment_schedule_settings_set", { p: patch || {} }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    saveTemplate: (id, name, lines) => (supa ? rpc("payment_schedule_template_save", { p_id: id || null, p_name: String(name || ""), p_lines: lines || [] })
+      : Promise.reject(new Error("Needs a signed-in studio."))),
+    archiveTemplate: (id) => (supa ? rpc("payment_schedule_template_archive", { p_id: id }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    forQuote: (quoteId) => (supa ? rpc("payment_schedule_for_quote", { p_quote: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    apply: (quoteId, key, preview) => (supa ? rpc("payment_schedule_apply", { p_quote: quoteId, p_template: key || null, p_preview: !!preview })
+      : Promise.reject(new Error("Needs a signed-in studio."))),
+    pause: (quoteId, paused) => (supa ? rpc("payment_schedule_pause", { p_quote: quoteId, p_paused: !!paused }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    // client page (approval token, signed out) - null when unavailable
+    publicGet: (token) => (supa ? rpc("public_payment_schedule", { p_token: token }).catch(() => null) : Promise.resolve(null)),
   };
 
   // 0241 (r21): delivery / arrival reminders. Every call goes through the RPCs (studio + 'deliveries' area checked
@@ -9619,7 +9639,7 @@ window.HelmUrl = HelmUrl;
 
   const BPStore = {
     reservedEmailDomain, RESERVED_EMAIL_MESSAGE,
-    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, deliveries, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, paySchedule, deliveries, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.

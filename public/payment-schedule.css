@@ -1,0 +1,83 @@
+/* r23 (0264) payment schedule card (payment-schedule.js) + Control Center "Payment schedules" (payment-schedule-settings.js) */
+.psch{min-width:0}
+.psch[hidden]{display:none!important}
+.psch-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;margin:0 0 8px}
+.psch-title{font-size:15px;font-weight:700;margin:0;color:var(--ink,#1b1930)}
+.psch-tag{font-size:11.5px;font-weight:600;color:var(--ink-3,#6b6577);background:var(--panel-2,#faf8f5);border:1px solid var(--line,#e8e3db);border-radius:20px;padding:2px 9px}
+.psch-empty{font-size:13px;color:var(--ink-2,#4b475f);margin:4px 0 10px}
+.psch-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+.psch-table{width:100%;border-collapse:collapse;font-size:13px;min-width:460px}
+.psch-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3,#6b6577);font-weight:700;padding:8px 8px;border-bottom:1px solid var(--line,#e8e3db)}
+.psch-table td{padding:9px 8px;border-bottom:1px solid var(--line-2,#f1ede7);vertical-align:middle}
+.psch-table .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.psch-lbl{font-weight:600;color:var(--ink,#1b1930)}
+.psch-due{color:var(--ink-2,#4b475f);white-space:nowrap}
+.psch-chip{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.02em;padding:2px 9px;border-radius:20px;white-space:nowrap;background:#fff7e6;color:#8f5f00}
+.psch-chip-paid{background:#e7f6ee;color:#0f7a43}
+.psch-chip-part_paid{background:#eef6ff;color:#1d4f91}
+.psch-chip-overdue{background:#fdecec;color:#a5281c}
+.psch-chip-waived{background:#f1f3f7;color:var(--ink-3,#6b6577)}
+.psch-chip-invoiced{background:#eef1f0;color:#2f4a42}
+.psch-rem{font-size:12px;color:var(--ink-3,#6b6577);white-space:nowrap}
+.psch-tot{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--ink-2,#4b475f);margin-top:10px;padding-top:9px;border-top:1px solid var(--line-2,#f1ede7)}
+.psch-tot b{color:var(--ink,#1b1930);font-variant-numeric:tabular-nums}
+.psch-foot{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:10px}
+.psch-note{flex:1 1 260px;font-size:12.5px;color:var(--ink-3,#6b6577);margin:0}
+.psch-pause{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink,#1b1930);cursor:pointer;min-height:36px}
+.psch-pause input{width:18px;height:18px;margin:0;accent-color:var(--accent,#047857)}
+.psch-link{font-size:13px;font-weight:600;color:var(--accent,#047857);text-decoration:none;min-height:36px;display:inline-flex;align-items:center}
+.psch-link:hover{text-decoration:underline}
+.psch-apply{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:4px 0 6px}
+.psch-sel-lbl{font-size:12px;font-weight:600;color:var(--ink-2,#4b475f)}
+.psch-sel{min-height:36px;border:1px solid var(--line,#e8e3db);background:var(--panel-2,#faf8f5);border-radius:9px;padding:0 10px;font:inherit;font-size:13px;color:var(--ink,#1b1930);max-width:100%}
+.psch-prev{flex:1 0 100%;display:grid;gap:4px;margin-top:4px}
+.psch-prow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;font-size:12.5px;color:var(--ink-2,#4b475f);padding:5px 8px;background:var(--panel-2,#faf8f5);border-radius:8px}
+.psch-prow b{color:var(--ink,#1b1930);font-variant-numeric:tabular-nums}
+.psch-err{color:var(--danger,#c0392b);font-size:13px;margin:4px 0}
+@media (max-width:640px){
+  .psch-table{min-width:0}
+  .psch-table thead{display:none}
+  .psch-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:9px 0;border-bottom:1px solid var(--line-2,#f1ede7)}
+  .psch-table td{border:0;padding:0}
+  .psch-table td:nth-child(1){grid-column:1}
+  .psch-table td:nth-child(2){grid-column:1;font-size:12px}
+  .psch-table td:nth-child(3){grid-column:2;grid-row:1}
+  .psch-table td:nth-child(4){grid-column:2;grid-row:2;font-size:12px;color:var(--ink-3,#6b6577)}
+  .psch-table td:nth-child(5){grid-column:1 / -1;margin-top:4px}
+  .psch-table td:nth-child(4)::before{content:"Paid "}
+  .psch-prow{grid-template-columns:minmax(0,1fr) auto}
+  .psch-prow .psch-due{grid-column:1;font-size:11.5px}
+}
+
+/* Control Center card */
+#pstCard .pst-set{border:1px solid var(--line);border-radius:10px;padding:10px 14px 12px;margin:12px 0 0;min-width:0}
+#pstCard .pst-set legend{font-weight:700;font-size:13px;padding:0 6px;color:var(--ink)}
+#pstCard .pst-chk{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--ink);margin:6px 0;font-weight:500;text-transform:none;letter-spacing:normal}
+#pstCard .pst-chk input{width:16px;height:16px;margin:2px 0 0;flex:0 0 auto;accent-color:var(--accent)}
+#pstCard .pst-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:6px 0 4px}
+#pstCard .pst-list{display:grid;gap:8px;margin:8px 0}
+#pstCard .pst-item{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;border:1px solid var(--line-2,var(--line));border-radius:10px;padding:9px 12px;background:var(--panel-2)}
+#pstCard .pst-item b{font-size:13.5px}
+#pstCard .pst-item .pst-sum{flex:1 1 240px;font-size:12.5px;color:var(--ink-3)}
+#pstCard .pst-item .pst-acts{display:flex;gap:6px}
+#pstCard .pst-ed{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
+#pstCard .pst-lines{display:grid;gap:8px;margin:8px 0}
+#pstCard .pst-line{display:grid;grid-template-columns:minmax(140px,1.6fr) minmax(110px,.9fr) minmax(80px,.6fr) minmax(130px,1fr) minmax(70px,.5fr) auto;gap:6px;align-items:end}
+#pstCard .pst-line .fld{margin:0}
+#pstCard .pst-line input,#pstCard .pst-line select{width:100%;min-width:0}
+#pstCard .pst-prev{display:grid;gap:4px;margin:8px 0 0;font-size:12.5px;color:var(--ink-2)}
+#pstCard .pst-prev div{display:flex;justify-content:space-between;gap:12px;background:var(--panel-2);border-radius:8px;padding:5px 9px}
+#pstCard .pst-err{color:var(--danger,#c0392b);font-size:13px;margin:6px 0}
+#pstCard .pst-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px;margin-top:12px}
+#pstCard .pst-msg{font-size:13px;margin-right:auto}
+#pstCard .pst-msg[data-kind="err"]{color:var(--danger,#c0392b)}
+#pstCard .pst-msg[data-kind="ok"]{color:var(--accent)}
+@media (max-width:760px){
+  #pstCard .pst-line{grid-template-columns:1fr 1fr;padding:8px;border:1px solid var(--line-2,var(--line));border-radius:10px}
+  #pstCard .pst-line .pst-name{grid-column:1 / -1}
+}
+/* where the card sits inside another card (quote flow payment step, event workspace, Budget) */
+.psch-box{margin-top:14px;padding-top:12px;border-top:1px solid var(--line-2,#f1ede7)}
+.psch-ctl{margin:0 0 14px;padding:10px 12px;border:1px solid var(--line-2,#f1ede7);border-radius:10px;background:var(--panel-2,#faf8f5)}
+.psch-ctl .psch-foot{margin-top:0}
+.psch-card{background:var(--panel,#fff);border:1px solid var(--line,#e8e3db);border-radius:14px;padding:16px 18px;margin:0 0 16px}
