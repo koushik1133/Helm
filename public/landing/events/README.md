@@ -1,6 +1,7 @@
-# Event ideas — landing page photo gallery
+# Event ideas — landing page film strip
 
-The "Event ideas" section ("Plan events like these.") on the home page (`/`, section `#events`) is built
+The "Event ideas" section ("Plan events like these.") on the home page (`/`, section `#events`) is a
+full-width film strip (a dark tape with sprocket holes) that slowly scrolls on its own, built
 from `events.json` in this folder. While the list is empty (`[]`) the whole section stays
 hidden, so nothing half-finished ever shows on the live site.
 
@@ -35,9 +36,9 @@ hidden, so nothing half-finished ever shows on the live site.
 |-----------|----------|-------|
 | `src`     | yes      | Path under `/landing/events/` (WebP or JPG). Other hosts are ignored. |
 | `alt`     | yes      | What the photo shows, for screen readers. Entries without `alt` are skipped. |
-| `caption` | no       | Short line under the photo (event · city). |
+| `caption` | no       | Short line on the bottom of the frame (event · city); keep it short, long ones are cut with … |
 | `type`    | no       | Small tag on the photo: Wedding, Corporate, Birthday, Festival… |
-| `small`   | no       | ~800 px wide copy of the same photo (e.g. `wedding-800.webp`); phones and the grid load it, the full-screen view uses `src`. |
+| `small`   | no       | ~800 px wide copy of the same photo (e.g. `wedding-800.webp`); the strip loads it on most screens (and only it on Data Saver), the full-screen view uses `src`. |
 | `avif`    | no       | AVIF copy of the same photo; browsers that support it load it first. |
 | `width` / `height` | no | Pixel size of the file; stops the page jumping while photos load. |
 
@@ -45,13 +46,23 @@ Image files are cached by browsers for a year, so to **replace** a photo give th
 new name (e.g. `sharma-wedding-2.webp`) and update `events.json`. To remove one, delete its
 entry from `events.json`. Set the file back to `[]` to hide the whole section again.
 
-Photos are shown in the order listed (first = top left), lazy-loaded, and open full screen
-when tapped. Up to 24 entries are used.
+How the strip shows them:
+
+- Every frame is the same size (3:2); photos are cropped to fill it (centre crop), so any shape works,
+  but landscape photos with the subject near the middle look best.
+- With 6 or more photos there are two strips running in opposite directions: 1st, 3rd, 5th… photo
+  on the top strip, 2nd, 4th, 6th… on the bottom one. With fewer than 6 there is one strip.
+- The film moves slowly and loops forever; it stops while the mouse is over it or a frame has keyboard
+  focus, and it can be dragged / swiped sideways. Tapping a frame opens it full screen.
+- With "reduce motion" switched on in the device settings, the strip stands still and scrolls sideways
+  by hand instead.
+- Photos are lazy-loaded. Up to 24 entries are used. More photos = a longer, more varied strip, so
+  just keep adding files + entries.
 
 4. Before deploying, run `node scripts/bump-changed-assets.mjs --apply` only if you also
    changed CSS/JS; adding photos + editing `events.json` needs no other step.
 
-The current images are AI-generated illustrations supplied by the owner, so the section is titled
+The current images were supplied by the owner and are not from client events, so the section is titled
 "Event ideas" ("Plan events like these") — keep that wording unless every photo is from a real
 client event. The same files (`wedding`, `product-launch`, `birthday`, `sangeet`, `corporate-gala`, `mehendi`)
 are also the backgrounds of the "Built for every kind of celebration" slider (see `CEL_PHOTOS` in `home.js`),

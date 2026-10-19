@@ -1,4 +1,4 @@
-// r21 landing photos: owner-supplied event illustrations as celebration-slider backgrounds + "Event ideas" gallery.
+// r21 landing photos: owner-supplied event photos as celebration-slider backgrounds + "Event ideas" gallery.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read = (p) => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
@@ -38,7 +38,33 @@ t('gallery does not claim real client work: "Event ideas" heading', () => {
   assert.doesNotMatch(html, /Illustrative images/);
   assert.doesNotMatch(html, /Events made <em>with Helm|Real events/);
   assert.match(js, /img\.srcset = it\.small \+ ' 800w, ' \+ it\.src \+ ' 1600w'/);
-  assert.match(js, /bimg\.src = \/\\\.avif\$\/i\.test\(shown\) \? shown : it\.src/);   // lightbox never shows the 800px copy
+  assert.match(js, /bimg\.src = lite \? \(it\.small \|\| it\.src\) : \(\/\\\.avif\$\/i\.test\(shown\) \? shown : it\.src\)/);   // lightbox: full size, 800px only on Save-Data
+  const evHtml = html.slice(html.indexOf('<!-- EVENTS FILM STRIP'), html.indexOf('<!-- VOICES'));
+  const evJs = js.slice(js.indexOf('"Event ideas" film strip'));
+  for (const [name, txt] of [['html', evHtml], ['js', evJs], ['README', read('public/landing/events/README.md')]]) assert.doesNotMatch(txt, /illustrat|\bAI\b/i, name);
+});
+
+t('film strip: full-width band, equal frames, seamless loop, pause, drag, keyboard, reduced motion, Save-Data', () => {
+  assert.match(html, /<div class="reel" id="evReel" role="region" aria-roledescription="film strip" aria-label="Event images"><\/div>/);
+  assert.doesNotMatch(html, /evGrid|ev-grid/);
+  assert.doesNotMatch(css, /\.ev-grid\{|\.ev-item\{|columns:3 260px/);
+  assert.match(css, /\.reel\{--fh:clamp\(140px,17vw,250px\);[^}]*overflow:hidden;overflow:clip\}/);   // strip clips inside its band
+  assert.match(css, /\.reel \.ev-open\{[^}]*height:var\(--fh\);width:calc\(var\(--fh\) \* 1\.5\)/);   // every frame the same size
+  assert.match(css, /\.reel \.ev-open img\{[^}]*object-fit:cover/);
+  assert.match(css, /\.reel-set::before,\.reel-set::after\{/);   // sprocket holes per set = seamless
+  assert.match(css, /\.reel-row\{[^}]*touch-action:pan-y/);
+  assert.match(css, /\.reel\.moving \.reel-track\{will-change:transform\}/);
+  assert.match(css, /\.reel\.still \.reel-row\{overflow-x:auto;[^}]*scroll-snap-type:x mandatory/);
+  assert.match(js, /var lite = !!net\.saveData \|\| /);
+  assert.match(js, /if \(lite\) img\.src = it\.small \|\| it\.src;/);
+  assert.match(js, /var groups = \(!reduce && items\.length >= 6\)/);
+  assert.match(js, /cp\.setAttribute\('aria-hidden', 'true'\)/);
+  assert.match(js, /b\.tabIndex = -1;/);
+  assert.match(js, /R\.track\.style\.transform = 'translate3d\('/);
+  assert.match(js, /function running\(\) \{ return visible && !hover && !focus && !drag && !document\.hidden; \}/);
+  assert.match(js, /if \(!reduce\) motion\(\);/);
+  assert.match(js, /e\.key !== 'ArrowRight' && e\.key !== 'ArrowLeft'/);
+  assert.match(js, /open\(i, items\[i\]\.btn\);/);
 });
 
 t('celebration slider: photo per slide, 800w/1600w srcset, lazy + current/next only, Save-Data keeps gradient', () => {

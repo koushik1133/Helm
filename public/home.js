@@ -756,7 +756,7 @@
     cel.style.setProperty('--cn', String(slides.length));
     var bgs = [], dots = [], cur = -1;
     var evMan = Promise.resolve(window.DEMO9_MANIFEST || {});
-    /* r21 landing photos: owner-supplied illustrations in /landing/events/ (1600w + 800w WebP).
+    /* r21 landing photos: owner-supplied photos in /landing/events/ (1600w + 800w WebP).
        Data Saver / Save-Data or a 2G-class connection keeps the gradient only (no photo requests). */
     var CEL_PHOTOS = { wedding: 'wedding', corporate: 'product-launch', birthday: 'birthday', concert: 'sangeet', gala: 'corporate-gala', cultural: 'mehendi' };
     var celNet = navigator.connection || {};
@@ -1166,16 +1166,23 @@
   })();
 })();
 
-/* ================= r21 landing 2: "Event ideas" photo gallery (was "Events made with Helm") =================
+/* ================= r21 landing photos: "Event ideas" film strip (was a photo grid) =================
    Photos live in /landing/events/ and are listed in /landing/events/events.json
    ([{ src, alt, caption, type, small?, avif?, width?, height? }] — see public/landing/events/README.md).
-   small = an ~800px copy of the same photo; the grid uses it on phones/columns, the lightbox always shows src.
+   Shown as a full-width film strip: one row (fewer than 6 photos) or two rows running in opposite
+   directions. Each row = the photos once (focusable, read by screen readers) + copies that only fill
+   the band and make the loop seamless (aria-hidden, not focusable). Motion = one transform per row per
+   frame, only while the strip is on screen; it pauses on hover / keyboard focus, can be dragged or
+   swiped, and every frame opens the lightbox. Reduced motion = no copies, no motion: one row that
+   scrolls sideways with snap. Save-Data / 2G = the ~800px copies only (strip and lightbox).
    The section stays hidden while the list is empty, missing or invalid. DOM APIs only (no HTML strings). */
 (function () {
   'use strict';
-  var sec = document.getElementById('events'), grid = document.getElementById('evGrid');
-  if (!sec || !grid || !window.fetch) return;
+  var sec = document.getElementById('events'), reel = document.getElementById('evReel');
+  if (!sec || !reel || !window.fetch) return;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var net = navigator.connection || {};
+  var lite = !!net.saveData || /(^|-)2g$/.test(String(net.effectiveType || ''));
   var LOCAL = /^\/landing\/events\/[A-Za-z0-9._-]+\.(webp|avif|jpe?g|png)$/i;   // own folder only
   var str = function (v, max) { return typeof v === 'string' ? v.trim().slice(0, max) : ''; };
   var num = function (v) { v = Number(v); return v > 0 && v < 10000 ? Math.round(v) : 0; };
@@ -1197,39 +1204,171 @@
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
 
-  function build(items) {
-    items.forEach(function (it, i) {
-      var fig = el('figure', 'ev-item'); fig.setAttribute('role', 'listitem');
-      var btn = el('button', 'ev-open'); btn.type = 'button';
-      btn.setAttribute('aria-label', 'Open image: ' + (it.caption || it.alt));
-      var pic = el('picture');
-      if (it.avif) { var so = el('source'); so.type = 'image/avif'; so.srcset = it.avif; pic.appendChild(so); }
-      var img = el('img'); img.alt = it.alt; img.loading = 'lazy'; img.decoding = 'async';
-      if (it.small) { img.srcset = it.small + ' 800w, ' + it.src + ' 1600w'; img.sizes = '(max-width: 359px) 100vw, (max-width: 767px) 50vw, 400px'; }
+  /* one film frame: equal size for every photo (CSS aspect-ratio + object-fit: cover) */
+  function frame(it, i) {
+    var fig = el('figure', 'reel-frame'); fig.setAttribute('role', 'listitem');
+    var btn = el('button', 'ev-open'); btn.type = 'button'; btn.setAttribute('data-i', String(i));
+    btn.setAttribute('aria-label', 'Open image: ' + (it.caption || it.alt));
+    var pic = el('picture');
+    if (it.avif && !lite) { var so = el('source'); so.type = 'image/avif'; so.srcset = it.avif; pic.appendChild(so); }
+    var img = el('img'); img.alt = it.alt; img.loading = 'lazy'; img.decoding = 'async'; img.draggable = false;
+    if (lite) img.src = it.small || it.src;
+    else {
+      if (it.small) { img.srcset = it.small + ' 800w, ' + it.src + ' 1600w'; img.sizes = '(max-width: 767px) 240px, 400px'; }
       img.src = it.src;
-      img.width = it.w || 1600; img.height = it.h || 1067;
-      pic.appendChild(img); btn.appendChild(pic);
-      if (it.type) btn.appendChild(el('span', 'ev-tag', it.type));
-      fig.appendChild(btn);
-      if (it.caption) fig.appendChild(el('figcaption', '', it.caption));
-      it.img = img;
-      btn.addEventListener('click', function () { open(i, btn); });
-      grid.appendChild(fig);
+    }
+    img.width = it.w || 1600; img.height = it.h || 1067;
+    pic.appendChild(img); btn.appendChild(pic);
+    if (it.type) btn.appendChild(el('span', 'ev-tag', it.type));
+    if (it.caption) btn.appendChild(el('span', 'reel-cap', it.caption));
+    fig.appendChild(btn);
+    return { fig: fig, btn: btn, img: img };
+  }
+
+  var rows = [];
+  function build(items) {
+    var groups = (!reduce && items.length >= 6)
+      ? [items.filter(function (_, k) { return k % 2 === 0; }), items.filter(function (_, k) { return k % 2 === 1; })]
+      : [items];
+    var idx = new Map(items.map(function (it, k) { return [it, k]; }));
+    groups.forEach(function (g, r) {
+      var row = el('div', 'reel-row'), track = el('div', 'reel-track'), set = el('div', 'reel-set');
+      set.setAttribute('role', 'list');
+      set.setAttribute('aria-label', groups.length > 1 ? 'Event images, row ' + (r + 1) : 'Event images');
+      g.forEach(function (it) { var f = frame(it, idx.get(it)); it.img = f.img; it.btn = f.btn; set.appendChild(f.fig); });
+      track.appendChild(set); row.appendChild(track); reel.appendChild(row);
+      rows.push({ row: row, track: track, set: set, dir: r % 2 ? -1 : 1, speed: r % 2 ? 26 : 32, x: 0, segW: 0, copies: 0 });
+    });
+    reel.classList.toggle('still', reduce);
+    reel.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('.ev-open');
+      if (!b || !reel.contains(b)) return;
+      if (dragged) { e.preventDefault(); e.stopPropagation(); return; }
+      var i = Number(b.getAttribute('data-i')) || 0;
+      open(i, items[i].btn);   // focus returns to the real (focusable) frame, never a filler copy
+    }, true);
+    reel.addEventListener('keydown', function (e) {   // ← → move between frames of the same row
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      var b = document.activeElement, set = b && b.closest && b.closest('.reel-set');
+      if (!set || !reel.contains(set)) return;
+      var all = Array.prototype.slice.call(set.querySelectorAll('.ev-open')), k = all.indexOf(b);
+      var nb = all[(k + (e.key === 'ArrowRight' ? 1 : -1) + all.length) % all.length];
+      if (nb) { e.preventDefault(); nb.focus(); }
     });
     sec.hidden = false;
     lightbox(items);
+    if (!reduce) motion();
+  }
+
+  /* ---- seamless marquee: [set][copy]...[copy] where copies cover the band; x wraps every segW ---- */
+  var dragged = false;
+  function fill(R) {
+    var bandW = reel.clientWidth || window.innerWidth;
+    var gap = parseFloat(getComputedStyle(R.track).columnGap) || 0;
+    var setW = R.set.offsetWidth + gap;
+    if (!setW) return;
+    var need = Math.max(1, Math.ceil(bandW / setW)) * 2;   // 2x the band = always covered while x wraps
+    if (need !== R.copies + 1) {
+      while (R.track.children.length > 1) R.track.removeChild(R.track.lastChild);
+      for (var c = 1; c < need; c++) {
+        var cp = R.set.cloneNode(true);
+        cp.setAttribute('aria-hidden', 'true'); cp.removeAttribute('role'); cp.removeAttribute('aria-label');
+        cp.querySelectorAll('.ev-open').forEach(function (b) { b.tabIndex = -1; });
+        R.track.appendChild(cp);
+      }
+      R.copies = need - 1;
+    }
+    R.segW = setW * (need / 2);
+  }
+  function wrap(R) { if (!R.segW) return; while (R.x > 0) R.x -= R.segW; while (R.x <= -R.segW) R.x += R.segW; }
+  function paint(R) { R.track.style.transform = 'translate3d(' + R.x.toFixed(2) + 'px,0,0)'; }
+
+  function motion() {
+    reel.classList.add('moving');
+    rows.forEach(function (R) {
+      fill(R); if (R.dir < 0) R.x = -R.segW / 2; wrap(R); paint(R);
+      // keep the band itself from ever scrolling (focus could scroll an overflow box)
+      R.row.addEventListener('scroll', function () { R.row.scrollLeft = 0; });
+    });
+    var hover = false, focus = false, visible = false, raf = 0, last = 0, holdUntil = 0;
+    function running() { return visible && !hover && !focus && !drag && !document.hidden; }
+    function tick(t) {
+      raf = 0;
+      if (!running()) { last = 0; return; }
+      var dt = last ? Math.min(t - last, 64) / 1000 : 0; last = t;
+      if (t >= holdUntil) rows.forEach(function (R) { R.x -= R.dir * R.speed * dt; wrap(R); paint(R); });
+      raf = requestAnimationFrame(tick);
+    }
+    function go() { if (!raf && running()) raf = requestAnimationFrame(tick); }
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { visible = es[0].isIntersecting; go(); }, { rootMargin: '80px 0px' }).observe(reel);
+    } else { visible = true; }
+    document.addEventListener('visibilitychange', go);
+    reel.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') { hover = true; } });
+    reel.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') { hover = false; go(); } });
+    reel.addEventListener('focusin', function (e) {
+      var kb = true; try { kb = e.target.matches(':focus-visible'); } catch (_) {}
+      if (!kb) return;   // a mouse click focuses the frame too; only keyboard focus stops the film
+      focus = true;
+      var b = e.target.closest && e.target.closest('.ev-open'), R = rows.filter(function (q) { return q.row.contains(b); })[0];
+      if (!b || !R) return;
+      var bandW = R.row.clientWidth, left = b.parentNode.offsetLeft + R.x;   // frame position inside the band
+      if (left < 0 || left + b.offsetWidth > bandW) { R.x = Math.min(0, Math.max(-R.segW + 1, (bandW - b.offsetWidth) / 2 - b.parentNode.offsetLeft)); paint(R); }
+      R.row.scrollLeft = 0;
+    });
+    reel.addEventListener('focusout', function (e) { if (!reel.contains(e.relatedTarget)) { focus = false; go(); } });
+
+    /* drag / swipe to scrub (horizontal only; vertical swipes still scroll the page: touch-action pan-y) */
+    var drag = null;
+    rows.forEach(function (R) {
+      R.row.addEventListener('pointerdown', function (e) {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        drag = null; dragged = false;
+        R.p = { id: e.pointerId, x0: e.clientX, from: R.x, moved: false };
+      });
+      R.row.addEventListener('pointermove', function (e) {
+        var p = R.p; if (!p || p.id !== e.pointerId) return;
+        var dx = e.clientX - p.x0;
+        if (!p.moved) {
+          if (Math.abs(dx) < 6) return;
+          p.moved = true; drag = R; dragged = true; R.row.classList.add('dragging');
+          try { R.row.setPointerCapture(e.pointerId); } catch (_) {}
+        }
+        R.x = p.from + dx; wrap(R); paint(R);
+      });
+      var end = function (e) {
+        var p = R.p; if (!p || p.id !== e.pointerId) return;
+        R.p = null;
+        if (p.moved) {
+          drag = null; R.row.classList.remove('dragging');
+          holdUntil = performance.now() + 900;   // let the eye settle before the film moves again
+          setTimeout(function () { dragged = false; }, 0);   // swallow the click that ends a drag
+          go();
+        }
+      };
+      R.row.addEventListener('pointerup', end);
+      R.row.addEventListener('pointercancel', end);
+    });
+
+    var rt = 0;
+    window.addEventListener('resize', function () {
+      clearTimeout(rt);
+      rt = setTimeout(function () { rows.forEach(function (R) { fill(R); wrap(R); paint(R); }); }, 150);
+    }, { passive: true });
+    go();
   }
 
   var open = function () {};
   function lightbox(items) {
     var box = document.getElementById('evBox'), bimg = document.getElementById('evBoxImg'), bcap = document.getElementById('evBoxCap');
-    if (!box || typeof box.showModal !== 'function' || !bimg) return;   // no <dialog>: photos still show in the grid
+    if (!box || typeof box.showModal !== 'function' || !bimg) return;   // no <dialog>: photos still show in the strip
     var cur = 0, opener = null;
     function show(i) {
       cur = (i + items.length) % items.length;
       var it = items[cur];
       var shown = (it.img && it.img.currentSrc) || '';
-      bimg.src = /\.avif$/i.test(shown) ? shown : it.src; bimg.alt = it.alt;   // full-size file (AVIF if the grid picked it), never the 800px copy
+      // full-size file (AVIF if the strip picked it), never the 800px copy — except on Save-Data
+      bimg.src = lite ? (it.small || it.src) : (/\.avif$/i.test(shown) ? shown : it.src); bimg.alt = it.alt;
       if (it.w && it.h) { bimg.width = it.w; bimg.height = it.h; }
       bcap.textContent = [it.type, it.caption].filter(Boolean).join(' · ');
     }
