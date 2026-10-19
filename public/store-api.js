@@ -2426,12 +2426,16 @@ window.HelmUrl = HelmUrl;
     "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency," +
     "pricing_guests:pricing->guests,client_guests:client->>guests";   // B11: each quote's OWN currency; cal-events-1018: guest count (a number, no contact) for the calendar
   // A list VIEW (page) needs even less: the client's name + phone, not the whole client JSON.
+  // r20: + venue / address / city and the guest count, so the automatic event name (TYPE_CITY_GUESTS_DATE)
+  // matches the event page - the list showed "WED_03DEC26" where the event page said "WED_HYD_200_03DEC26".
   const QUOTE_PAGE_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,current_version,event_date,event_time," +
     "updated_at,created_at,confirmed_at,client_name:client->>name,client_phone:client->>phone,total:pricing->total," +
     "pricing_client_name:pricing->client->>name,pricing_client_phone:pricing->client->>phone," +
-    "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency";
+    "tax_country:pricing->>taxCountry,tax_region:pricing->>taxRegion,tax_name:pricing->>taxName,tax_currency:pricing->>currency," +
+    "client_venue:client->>venue,client_address:client->>address,client_city:client->>city,pricing_guests:pricing->guests,client_guests:client->>guests";
   const nameOnly = (n, p, x) => { const o = {}; if (n != null) o.name = n; if (p != null) o.phone = p;
-    if (x) { if (x.client_venue != null) o.venue = x.client_venue; if (x.client_address != null) o.address = x.client_address; if (x.client_city != null) o.city = x.client_city; }
+    if (x) { if (x.client_venue != null) o.venue = x.client_venue; if (x.client_address != null) o.address = x.client_address; if (x.client_city != null) o.city = x.client_city;
+      if (x.client_guests != null && x.client_guests !== "") o.guests = x.client_guests; }   // r20: same guest count the event page's name uses
     return o; };
   // cal-events-1018: the first whole, positive guest count of the candidates (pricing.guests, then client.guests)
   const listGuests = (...v) => { for (const x of v) { const n = Number(x); if (x != null && x !== "" && Number.isFinite(n) && n > 0) return Math.round(n); } return null; };
@@ -10200,6 +10204,7 @@ window.HelmUrl = HelmUrl;
   var TOAST_TYPES = { ok: "ok", success: "ok", err: "err", error: "err", warn: "warn", warning: "warn", security: "sec", sec: "sec", info: "info" };
   var TOAST_ICON = { info: "i", ok: "✓", warn: "!", err: "✕", sec: "🛡" };
   function toastType(t) { return TOAST_TYPES[t] || "info"; }
+  var toastRecent = {};   // r20: title|text -> when its card was last created (burst guard)
   // only relative / same-origin http(s) links (never javascript: / data:)
   function safeHref(u) {
     u = String(u == null ? "" : u).trim(); if (!u) return null;
@@ -10218,12 +10223,16 @@ window.HelmUrl = HelmUrl;
       if (!ensureToasts()) return;
       var lane = (type === "err" || type === "sec") ? lanes.assertive : lanes.polite;
       var text = String(msg == null ? "" : msg), title = o.title != null ? String(o.title) : "";
-      var key = type + "|" + title + "|" + text, existing = null;
-      Array.prototype.forEach.call(lane.children, function (t) { if (t.__bpuiKey === key) existing = t; });
-      if (existing) { existing.__bpuiArm(true); handle.close = existing.__bpuiClose; return; }
+      var key = type + "|" + title + "|" + text, same = title + "|" + text, existing = null;
+      // r20: the same title + text is ONE card in either lane (whatever its type) - a repeat restarts its timer
+      // instead of stacking another copy ("Step 1 not saved: Email is required." x5)
+      Array.prototype.forEach.call(toastRoot.querySelectorAll(".bpui-toast"), function (t) { if (t.__bpuiKey === key || t.__bpuiSame === same) existing = t; });
+      if (existing) { if (existing.__bpuiArm) existing.__bpuiArm(true); handle.close = existing.__bpuiClose || handle.close; return; }
+      // ...and a burst of the same message (several saves refusing at once) shows once, even if that card was just pushed out
+      var nowMs = Date.now(); if (toastRecent[same] && nowMs - toastRecent[same] < 1500) return; if (Object.keys(toastRecent).length > 60) toastRecent = {}; toastRecent[same] = nowMs;
       var href = safeHref(o.href);
       var t = h("div", { class: "bpui-toast bpui-" + type + (title ? " has-title" : " no-title") + (href ? " is-link" : "") });
-      t.__bpuiKey = key;
+      t.__bpuiKey = key; t.__bpuiSame = same;
       t.appendChild(h("span", { class: "bpui-toast-ic", "aria-hidden": "true" }, o.icon ? String(o.icon).slice(0, 4) : TOAST_ICON[type]));
       var col = h("div", { class: "bpui-toast-body" });
       var tEl = title ? h("strong", { class: "bpui-toast-title" }) : null;

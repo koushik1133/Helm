@@ -53,7 +53,7 @@
   if (!ctx || !ctx.anchor) return;
 
   var list = [], loaded = false;
-  var sel = h("select", { id: "vp_pick", "aria-describedby": "vp_sum" }, [h("option", { value: "", text: "- type the venue by hand -" })]);
+  var sel = h("select", { id: "vp_pick", "aria-label": "Pick a saved venue", "aria-describedby": "vp_sum" }, [h("option", { value: "", text: "- type the venue by hand -" })]);
   var sum = h("div", { id: "vp_sum", cls: "vp-sum", "aria-live": "polite" });
   var warn = h("ul", { id: "vp_warn", cls: "vp-warn", "aria-live": "polite" });
   var linkName = h("b", { id: "vp_linked_name" });

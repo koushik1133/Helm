@@ -76,3 +76,19 @@ html[data-theme="dark"]:not([data-shell]) { --ink-3: #8b93a7; }
 .rq-note{grid-column:1/-1;order:8;height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font:inherit;font-size:13px;color:var(--ink);min-width:0}
 #d_bmax_words:empty{display:none}
 #d_bmax_words{font-size:12px;color:var(--ink-3)}
+
+/* r20: staff-only quotation preview (flow.html #qPreviewModal) */
+.lsheet.qprev-sheet{width:min(720px,94vw);max-height:90vh;overflow:auto}
+.qprev-staff{margin:0 0 14px;padding:8px 12px;border-radius:10px;background:var(--accent-soft,rgba(0,0,0,.05));color:var(--ink-2,inherit);font-size:12.5px;line-height:1.45}
+.qprev-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+.qprev-hd h3{margin:0;font-size:20px}
+.qprev-title{font-weight:600;margin-top:4px}
+.qprev-client{text-align:right}
+.qprev-strong{font-weight:700}
+.qprev-muted{color:var(--ink-3,#8b8698);font-size:13px}
+.qprev-tbl{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+.qprev-tbl td{padding:8px 0;border-bottom:1px solid var(--line,#eee)}
+.qprev-tbl td.qprev-amt{text-align:right;white-space:nowrap;padding-left:12px;font-variant-numeric:tabular-nums}
+.qprev-tbl tr.qprev-tot td{font-weight:800;font-size:16px;border-top:2px solid var(--ink,#333);border-bottom:none}
+.qprev-note{margin:14px 0 4px;color:var(--warn-text,#93370d);font-size:13px}
+@media (max-width:560px){.qprev-client{text-align:left}}

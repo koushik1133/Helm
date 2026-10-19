@@ -127,7 +127,7 @@
   .eglist .rl{margin-left:auto;color:var(--ink-3);font-size:12px;text-transform:capitalize}
   .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
-<link rel="stylesheet" href="quotes-polish.css?v=8"><link rel="stylesheet" href="event-group-picker.css?v=2">
+<link rel="stylesheet" href="quotes-polish.css?v=9"><link rel="stylesheet" href="event-group-picker.css?v=2">
 <link rel="stylesheet" href="theme.css?v=83">
 <script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
@@ -278,7 +278,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=3"></script>
 <script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
 <script src="tour.js?v=23"></script>
 <script>
@@ -540,7 +540,33 @@
   // qts-1018: the ONE invoice-total rule (server-stamped total + approved change orders) the workspace header uses
   const listTotal=(x)=>BPStore.invoiceTotal(x, chgTotals[x.id]);
   const reloadQuiet=()=>reloadList().catch(e=>{ BPUI.loadError($("#rows"), e, reloadQuiet, {what:"quotes"}); });
+  // r20: the "⋯" row menu floats on <body> while open (position:fixed next to its button), so the
+  // table's scroll box (.card.table-scroll) can't clip it — with one row only a sliver used to show.
+  // It flips upward when there's no room below, and closes on outside click, scroll, resize or Esc.
+  let qmoreCur=null;
+  function qmorePlace(sm,pop){
+    const r=sm.getBoundingClientRect(), h=pop.offsetHeight, w=pop.offsetWidth, vh=window.innerHeight, vw=document.documentElement.clientWidth||window.innerWidth;
+    const up = vh-r.bottom < h+16 && r.top > h+16;
+    pop.style.top=Math.max(8, up ? r.top-h-6 : r.bottom+6)+"px";
+    pop.style.left=Math.max(8, Math.min(vw-w-8, r.right-w))+"px";
+    pop.classList.toggle("up", up);
+  }
+  function qmoreOpen(dm,sm,pop){
+    if(qmoreCur&&qmoreCur.dm!==dm) qmoreClose(qmoreCur.dm);
+    qmoreCur={dm,sm,pop}; pop.classList.add("qmore-float"); document.body.appendChild(pop); qmorePlace(sm,pop);
+  }
+  function qmoreClose(dm){
+    if(!qmoreCur||(dm&&qmoreCur.dm!==dm)) return;
+    const c=qmoreCur; qmoreCur=null; c.pop.classList.remove("qmore-float","up"); c.pop.style.top=c.pop.style.left="";
+    if(c.dm.isConnected) c.dm.appendChild(c.pop); else c.pop.remove();   // row re-rendered → the old menu goes with it
+    if(c.dm.open) c.dm.open=false;
+  }
+  document.addEventListener("pointerdown",e=>{ if(qmoreCur&&!qmoreCur.pop.contains(e.target)&&!qmoreCur.dm.contains(e.target)) qmoreClose(); },true);
+  window.addEventListener("scroll",e=>{ if(qmoreCur&&!(e.target instanceof Node&&qmoreCur.pop.contains(e.target))) qmoreClose(); },true);
+  window.addEventListener("resize",()=>qmoreClose());
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&qmoreCur){ const sm=qmoreCur.sm; qmoreClose(); try{ sm.focus(); }catch(_){} } });
   function render(){
+    qmoreClose();
     $("#rows").removeAttribute("aria-busy");
     const q=($("#search").value||"").toLowerCase().trim();
     // Archived = closed or cancelled events — kept out of the day-to-day views,
@@ -619,7 +645,7 @@
         const pop=document.createElement("div"); pop.className="qmore-pop"; pop.setAttribute("role","menu");
         acts.slice(3).forEach(b=>{ b.setAttribute("role","menuitem"); if(b.textContent.trim()==="✕") b.textContent="✕ Delete"; pop.appendChild(b); b.addEventListener("click",()=>{ dm.open=false; }); });
         dm.append(sm,pop); ra.appendChild(dm);
-        dm.addEventListener("toggle",()=>{ if(!dm.open) return; document.querySelectorAll("details.qmore[open]").forEach(o=>{ if(o!==dm) o.open=false; }); const r=sm.getBoundingClientRect(); dm.classList.toggle("up", window.innerHeight-r.bottom < pop.offsetHeight+16 && r.top > pop.offsetHeight+16); });
+        dm.addEventListener("toggle",()=>{ if(dm.open) qmoreOpen(dm,sm,pop); else qmoreClose(dm); });
       }
       const sel=tr.querySelector('[data-role="vsel"]');
       sel.addEventListener("focus",()=>fillVersions(id,sel),{once:true});

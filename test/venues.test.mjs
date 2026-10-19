@@ -66,10 +66,10 @@ t('cost text in lakh', () => {
 t('pages wire the venue scripts (no inline), store-api v=157', () => {
   const cc = read('public/control.html');
   assert.match(cc, /id="tab-venues"[^>]*hidden/); assert.match(cc, /id="pane-venues" hidden/);
-  assert.match(cc, /<script src="venues-core\.js\?v=9"><\/script>\s*<script src="venues-admin\.js\?v=9"><\/script>/);
+  assert.match(cc, /<script src="venues-core\.js\?v=10"><\/script>\s*<script src="venues-admin\.js\?v=9"><\/script>/);
   for (const p of ['flow.html', 'builder.html']) {
     const h = read('public/' + p);
-    assert.match(h, /<script src="venues-core\.js\?v=9"><\/script>\s*<script src="venue-picker\.js\?v=6"><\/script>/, p);
+    assert.match(h, /<script src="venues-core\.js\?v=10"><\/script>\s*<script src="venue-picker\.js\?v=7"><\/script>/, p);
     assert.match(h, /venues\.css\?v=6/, p);
     assert.match(h, /store-api\.js\?v=254/, p);
   }

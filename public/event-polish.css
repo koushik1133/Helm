@@ -76,3 +76,7 @@ html[data-theme] .steps .step.viewing .n{background:var(--accent-soft);color:var
 .cf-row .cf-act{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .cf-row.acked{opacity:.85}
 .cf-done summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--ink-3);padding:6px 0}
+/* r20: a passed stage with nothing recorded (Discovery / Proposal skipped on the way to a quote): no tick */
+.step.skipped{border-style:dashed;background:transparent;color:var(--ink-3)}
+.step.skipped .n{background:transparent;border:1px dashed var(--line);color:var(--ink-3)}
+.step .vtag.sk{background:var(--line);color:var(--ink-2)}
