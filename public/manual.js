@@ -66,7 +66,14 @@
     $("#mState").hidden = true; host.hidden = false;
     if (location.hash) { var t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); }
   }
+  // r20 coord (e): the user manual is hidden for now (config.js HELM_FEATURES.manual). While it is off the page
+  // only shows a calm "coming soon" note: no sign-in round trip, no storage fetch (the private bucket used to 400).
+  function manualEnabled() { return !!(window.HELM_FEATURES && window.HELM_FEATURES.manual === true); }
+  function comingSoon() {
+    state("The user manual is coming soon.", "We're still writing it. Everything in Helm works as usual in the meantime.", { href: "dashboard", text: "← Back to the dashboard" });
+  }
   async function boot() {
+    if (!manualEnabled()) { comingSoon(); return; }
     try { await BPStore.init(); } catch (e) {}
     // Same gate as every app page: signed-out visitors go to sign-in, then come back here.
     if (BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()) {

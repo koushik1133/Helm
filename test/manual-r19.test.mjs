@@ -47,12 +47,13 @@ await t('dashboard tour: step 2 targets the pin; getting-started falls back to t
   assert.match(SHELL, /pin\.setAttribute\("data-tour", "pin"\)/);
   assert.match(block, /\{sel:\['\[data-tour="setup"\]','\[data-tour="checklist"\]','#hdGetSet'\], trial:false, title:"Getting started checklist"/);
   assert.match(read('public/shell-b-dash.js'), /getSet\.id = "hdGetSet"/);
-  assert.match(block, /title:"Your profile menu", desc:"Your account, settings, the user manual and sign out live here\."/);
+  // r20 coord (e): the manual is hidden for now - the step only mentions it while HELM_FEATURES.manual is true
+  assert.match(block, /title:"Your profile menu", get desc\(\)\{ return \(window\.HELM_FEATURES&&window\.HELM_FEATURES\.manual===true\)\?"Your account, settings, the user manual and sign out live here\.":"Your account, settings and sign out live here\."; \}\}/);
 });
 
 // ---------------------------------------------------------------- 2. profile menu
-await t('profile menu: account items only, manual opens in a new tab (noopener)', () => {
-  const ctx = { S: () => ({ auth: { admin: { roleLabel: (r) => r } } }) };
+await t('profile menu: account items only, manual (when HELM_FEATURES.manual is on) opens in a new tab (noopener)', () => {
+  const ctx = { S: () => ({ auth: { admin: { roleLabel: (r) => r } } }), window: { HELM_FEATURES: { manual: true } } };
   vm.runInNewContext('var AV_COLORS = 8;\n' + ['initials', 'avColorIdx', 'menuModel'].map((f) => fnSrc(AUI, f)).join('\n') + '\nglobalThis.mm=menuModel;', ctx);
   for (const role of ['admin', 'manager', 'sales', 'crew', null]) {
     const m = JSON.parse(JSON.stringify(ctx.mm({ id: 'u', email: 'a@b.test' }, {}, role, true, true)));
@@ -60,6 +61,9 @@ await t('profile menu: account items only, manual opens in a new tab (noopener)'
     const man = m.items.find((i) => i.id === 'manual');
     assert.equal(man.href, 'manual.html'); assert.equal(man.newTab, true); assert.equal(man.label, 'User manual');
   }
+  // r20 coord (e): hidden for now - flag off (or missing) = no manual item
+  ctx.window = { HELM_FEATURES: { manual: false } };
+  assert.equal(ctx.mm({ id: 'u' }, {}, 'admin', true).items.map((i) => i.id).join(','), 'profile,settings,signout');
   const menu = fnSrc(AUI, 'menuModel').replace(/\/\/.*$/gm, '');   // code only, not the comment
   assert.doesNotMatch(menu, /control|insights|customize/i);
   assert.match(fnSrc(AUI, 'buildPop'), /it\.newTab \? \{ href: it\.href, class: "hau-mi", role: "menuitem", tabindex: "-1", target: "_blank", rel: "noopener noreferrer" \}/);
@@ -79,7 +83,8 @@ await t('Account settings stay for everyone (no trial gate on the menu items)', 
 await t('Control Center: Help -> User manual (new tab, #control), visible on phones too', () => {
   assert.match(CS, /var help=el\("div","cs-help"\); help\.appendChild\(el\("h4","cs-group-h","Help"\)\);/);
   assert.match(CS, /hl\.href="manual\.html#control"; hl\.target="_blank"; hl\.rel="noopener noreferrer";/);
-  assert.match(CS, /aside\.appendChild\(help\);/);
+  // r20 coord (e): the Help group is only added while HELM_FEATURES.manual is true (hidden for now)
+  assert.match(CS, /if\(window\.HELM_FEATURES && window\.HELM_FEATURES\.manual===true\) aside\.appendChild\(help\);/);
   assert.match(CSS_CS, /\.cs-help\{display:flex/);
   const mobile = CSS_CS.slice(CSS_CS.indexOf('@media (max-width:820px)'));
   assert.doesNotMatch(mobile, /\.cs-help\{display:none/);
@@ -129,7 +134,7 @@ await t('/manual swaps a placeholder for its uploaded picture (bucket names only
   assert.doesNotMatch(MJS, /innerHTML/);
 });
 await t('manual: one-line link targets and labels used by the app', () => {
-  assert.match(read('public/search-catalog.js'), /\{ key: "manual",\s+label: "User manual",\s+href: "manual\.html"/);
+  assert.match(read('public/search-catalog.js'), /\{ key: "manual",\s+label: "User manual",\s+href: "manual\.html",\s+gate: \{ feature: "manual" \}/);
   assert.match(read('public/store-api.js'), /const NEXT_PAGES = \[[^\]]*"manual"/);
 });
 console.log(`\nmanual-r19: ${n} passed`);

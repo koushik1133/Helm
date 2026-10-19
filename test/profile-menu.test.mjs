@@ -1,6 +1,6 @@
 // Profile menu (top-right avatar) + Account settings split + 0060 studio_avatars — front end.
 //  * menuModel (auth-ui.js, pure): name / initials / role / items; R19: account items only
-//    (Profile, Account settings, User manual, Sign out) - Control Center is in the sidebar
+//    (Profile, Account settings, [User manual - hidden for now, HELM_FEATURES.manual], Sign out) - Control Center is in the sidebar
 //  * menu a11y wiring: aria-haspopup=menu, aria-expanded, role=menu/menuitem, Esc/arrows/Home/End/Tab
 //  * #helm-topbar-search slot left of the avatar; not on HQ / client pages
 //  * openAccount sections (profile / settings) reuse profileForm + MFA + sign-out-others; e-mail change
@@ -33,9 +33,14 @@ t('no name → e-mail local part, 2-letter initials', () => {
   assert.equal(m.name, 'koushik'); assert.equal(m.initials, 'KO'); assert.equal(m.role, '');
 });
 t('R19: account items only for every role (Control Center / Insights live in the sidebar)', () => {
-  assert.equal(ids(mm({ id: 'a' }, {}, 'admin', true)), 'profile,settings,manual,signout');
-  assert.equal(ids(mm({ id: 'a' }, {}, 'admin', false)), 'profile,settings,manual,signout');
-  assert.equal(ids(mm({ id: 'a' }, {}, 'sales', 'yes')), 'profile,settings,manual,signout');
+  // r20 coord (e): the user manual is hidden for now (config.js HELM_FEATURES.manual false / absent)
+  assert.equal(ids(mm({ id: 'a' }, {}, 'admin', true)), 'profile,settings,signout');
+  assert.equal(ids(mm({ id: 'a' }, {}, 'admin', false)), 'profile,settings,signout');
+  assert.equal(ids(mm({ id: 'a' }, {}, 'sales', 'yes')), 'profile,settings,signout');
+  // ...and comes back between Account settings and Sign out once the flag is flipped to true
+  ctx.window = { HELM_FEATURES: { manual: true } };
+  try { assert.equal(ids(mm({ id: 'a' }, {}, 'admin', true)), 'profile,settings,manual,signout'); }
+  finally { delete ctx.window; }
 });
 t('links are same-origin pages only', () => {
   const m = mm({ id: 'a' }, {}, 'admin', true);
