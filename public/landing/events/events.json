@@ -1,1 +1,74 @@
-[]
+[
+  {
+    "src": "/landing/events/wedding.webp",
+    "small": "/landing/events/wedding-800.webp",
+    "alt": "Outdoor wedding at sunset: a marigold and white-rose mandap with draped curtains, string lights overhead and guests at candlelit round tables on the lawn",
+    "caption": "Sunset mandap on the lawn",
+    "type": "Wedding",
+    "width": 1600,
+    "height": 1067
+  },
+  {
+    "src": "/landing/events/engagement.webp",
+    "small": "/landing/events/engagement-800.webp",
+    "alt": "Engagement stage in a ballroom: the couple on a cream sofa under a white orchid arch, crystal chandeliers and guests seated among candles",
+    "caption": "Ring ceremony stage",
+    "type": "Engagement",
+    "width": 1600,
+    "height": 1067
+  },
+  {
+    "src": "/landing/events/mehendi.webp",
+    "small": "/landing/events/mehendi-800.webp",
+    "alt": "Daytime mehendi garden with yellow marigold strings, colourful parasols and floor cushions where artists apply henna to guests",
+    "caption": "Marigold mehendi garden",
+    "type": "Mehendi",
+    "width": 1600,
+    "height": 1067
+  },
+  {
+    "src": "/landing/events/sangeet.webp",
+    "small": "/landing/events/sangeet-800.webp",
+    "alt": "Sangeet night: guests dancing on a lit dance floor in front of a stage with a live band, green LED panels and draped ceiling florals",
+    "caption": "Sangeet dance night",
+    "type": "Sangeet",
+    "width": 1600,
+    "height": 1067
+  },
+  {
+    "src": "/landing/events/product-launch.webp",
+    "small": "/landing/events/product-launch-800.webp",
+    "alt": "Product launch: a product on a white plinth under spotlights in front of a wide green-and-white LED wall, with an audience in rows",
+    "caption": "Product launch stage",
+    "type": "Corporate",
+    "width": 1600,
+    "height": 901
+  },
+  {
+    "src": "/landing/events/corporate-gala.webp",
+    "small": "/landing/events/corporate-gala-800.webp",
+    "alt": "Corporate gala dinner in a grand ballroom: round tables with candles and white florals facing a stage with a lectern, LED screen and lighting rig",
+    "caption": "Awards gala dinner",
+    "type": "Gala",
+    "width": 1600,
+    "height": 1067
+  },
+  {
+    "src": "/landing/events/birthday.webp",
+    "small": "/landing/events/birthday-800.webp",
+    "alt": "Kids' birthday party in pastel mint and peach: a balloon arch, giraffe and elephant figures, a tiered cake and children playing between tables",
+    "caption": "Jungle-theme first birthday",
+    "type": "Birthday",
+    "width": 1600,
+    "height": 1067
+  },
+  {
+    "src": "/landing/events/event-setup.webp",
+    "small": "/landing/events/event-setup-800.webp",
+    "alt": "Event setup in progress: a planner checks the seating plan on a tablet while crew arrange gold chairs, florals and stage lighting",
+    "caption": "Setup day with the crew",
+    "type": "Behind the scenes",
+    "width": 1600,
+    "height": 1067
+  }
+]

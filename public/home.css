@@ -1179,6 +1179,14 @@ video.mimg{background:#1a231e}
  .hv-cap span{transition:none!important;filter:none!important}
 }
 .cel-bg.has-media>.cel-gr{display:none}
+/* r21 landing photos: once a real photo shows, deepen the scrim so the white copy keeps AA contrast on bright scenes */
+.cel.has-photos .cel-scrim{background:linear-gradient(90deg,rgba(13,26,20,.72) 30%,rgba(13,26,20,.45) 46%,rgba(13,26,20,.16) 58%,rgba(13,26,20,0) 70%)}
+.cel.has-photos .cel-in{text-shadow:0 1px 16px rgba(5,12,9,.55)}
+@media (max-width:760px){
+ .cel.has-photos .cel-bgs{height:calc(var(--cel-tt,46%) + 36px);-webkit-mask-image:linear-gradient(180deg,#000 0,#000 calc(100% - 120px),transparent 100%);mask-image:linear-gradient(180deg,#000 0,#000 calc(100% - 120px),transparent 100%)}
+ .cel.has-photos .cel-scrim{background:linear-gradient(180deg,rgba(13,26,20,.5) 0,rgba(13,26,20,.1) 90px,rgba(13,26,20,.14) calc(var(--cel-tt,46%) - 130px),rgba(13,26,20,.9) calc(var(--cel-tt,46%) - 6px),#0d1a14 calc(var(--cel-tt,46%) + 30px))}
+ .cel.has-photos .cel-eb{background:rgba(13,26,20,.72)}
+}
 /* photo render: static "coming soon" slot — owner drops an <img class="render-slot-img"> into .render-slot-media */
 .render-slot{max-width:680px;margin:14px 0 0 auto;display:flex;align-items:center;gap:14px;padding:10px;border-radius:16px;border:1px dashed rgba(255,255,255,.28);background:rgba(255,255,255,.04)}
 .render-slot-media{flex:0 0 120px;aspect-ratio:640/410;border-radius:10px;overflow:hidden;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 8px,rgba(255,255,255,.09) 8px 16px)}
@@ -1318,6 +1326,7 @@ video.mimg{background:#1a231e}
 .ev-open:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
 .ev-tag{position:absolute;left:10px;top:10px;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.92);color:var(--ink);font-size:11px;font-weight:700;letter-spacing:.04em}
 .ev-item figcaption{font-size:14px;line-height:1.4;color:var(--mute);padding:8px 4px 0}
+.ev-note{margin:6px 0 0;font-size:13px;color:var(--mute)}
 .ev-box{width:min(1100px,calc(100vw - 24px));max-width:none;max-height:calc(100dvh - 24px);padding:0;border:0;border-radius:20px;background:#0c1410;color:#fff;overflow:hidden}
 .ev-box::backdrop{background:rgba(8,14,11,.84)}
 .ev-box[open]{animation:evIn .35s var(--out)}.ev-box.still[open]{animation:none}

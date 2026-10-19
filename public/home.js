@@ -756,6 +756,27 @@
     cel.style.setProperty('--cn', String(slides.length));
     var bgs = [], dots = [], cur = -1;
     var evMan = Promise.resolve(window.DEMO9_MANIFEST || {});
+    /* r21 landing photos: owner-supplied illustrations in /landing/events/ (1600w + 800w WebP).
+       Data Saver / Save-Data or a 2G-class connection keeps the gradient only (no photo requests). */
+    var CEL_PHOTOS = { wedding: 'wedding', corporate: 'product-launch', birthday: 'birthday', concert: 'sangeet', gala: 'corporate-gala', cultural: 'mehendi' };
+    var celNet = navigator.connection || {};
+    var celLite = !!celNet.saveData || /(^|-)2g$/.test(String(celNet.effectiveType || ''));
+    var celLoad = function (bg) {   /* sets the src only when the slide is shown (or next), so later photos never load early */
+      if (!bg || !bg._im || bg._im.getAttribute('src')) return;
+      var f = '/landing/events/' + bg._ph;
+      bg._im.srcset = f + '-800.webp 800w, ' + f + '.webp 1600w';
+      bg._im.setAttribute('src', f + '.webp');
+    };
+    /* phones: the copy sits at the bottom over the photo, so the photo panel + scrim end where the heading starts
+       (measured, since the copy height depends on the phone) -> the white heading/body text always sits on the dark
+       section colour; only the small eyebrow pill (own dark background) overlaps the photo */
+    var celPhone = window.matchMedia('(max-width: 760px)'), celHd = $('.cel-h', cel), celPin = $('.cel-pin', cel);
+    var celMeasure = function () {
+      if (!celPhone.matches || !celHd || !celPin) { cel.style.removeProperty('--cel-tt'); return; }
+      cel.style.setProperty('--cel-tt', Math.max(0, Math.round(celHd.getBoundingClientRect().top - celPin.getBoundingClientRect().top)) + 'px');
+    };
+    celMeasure();
+    window.addEventListener('resize', celMeasure, { passive: true });
     slides.forEach(function (s, k) {
       var name = s.dataset.ev, bg = el('div', 'cel-bg');
       bg.setAttribute('data-ev', name);
@@ -780,6 +801,12 @@
           var im = el('img'); im.alt = ''; im.decoding = 'async'; im.loading = 'lazy';
           im.addEventListener('load', function () { bg.classList.add('has-media'); });
           im.src = base + '.' + ext; bg.appendChild(im);
+        } else if (CEL_PHOTOS[name] && !celLite) {
+          var ph = el('img'); ph.alt = ''; ph.decoding = 'async'; ph.loading = 'lazy';
+          ph.sizes = '(max-width: 760px) 100vw, 58vw';
+          ph.addEventListener('load', function () { bg.classList.add('has-media'); if (!cel.classList.contains('has-photos')) { cel.classList.add('has-photos'); celMeasure(); } });
+          bg._im = ph; bg._ph = CEL_PHOTOS[name]; bg.appendChild(ph);
+          if (k === 0 || k === cur || k === cur + 1) celLoad(bg);   /* first slide (lazy) + whatever is showing / next */
         }
       });
       bgBox.appendChild(bg); bgs.push(bg);
@@ -794,6 +821,7 @@
     var set = function (i) {
       if (i === cur) return; cur = i;
       slides.forEach(function (s, k) { s.classList.toggle('on', k === i); s.classList.toggle('past', k < i); s.setAttribute('aria-hidden', String(k !== i)); });
+      celLoad(bgs[i]); celLoad(bgs[i + 1]);   /* current + next photo only */
       bgs.forEach(function (b, k) {
         b.classList.toggle('on', k === i);
         if (b._v) { if (k === i && !reduce) { var pp = b._v.play(); if (pp && pp.catch) pp.catch(function () {}); } else b._v.pause(); }
@@ -1138,9 +1166,10 @@
   })();
 })();
 
-/* ================= r21 landing 2: "Events made with Helm" photo gallery =================
+/* ================= r21 landing 2: "Event ideas" photo gallery (was "Events made with Helm") =================
    Photos live in /landing/events/ and are listed in /landing/events/events.json
-   ([{ src, alt, caption, type, avif?, width?, height? }] — see public/landing/events/README.md).
+   ([{ src, alt, caption, type, small?, avif?, width?, height? }] — see public/landing/events/README.md).
+   small = an ~800px copy of the same photo; the grid uses it on phones/columns, the lightbox always shows src.
    The section stays hidden while the list is empty, missing or invalid. DOM APIs only (no HTML strings). */
 (function () {
   'use strict';
@@ -1157,9 +1186,9 @@
       if (!Array.isArray(list)) return;
       var items = list.map(function (p) {
         p = p || {};
-        var src = str(p.src, 200), alt = str(p.alt, 200), avif = str(p.avif, 200);
+        var src = str(p.src, 200), alt = str(p.alt, 200), avif = str(p.avif, 200), small = str(p.small, 200);
         if (!LOCAL.test(src) || !alt) return null;
-        return { src: src, alt: alt, avif: LOCAL.test(avif) && /\.avif$/i.test(avif) ? avif : '', caption: str(p.caption, 120), type: str(p.type, 30), w: num(p.width), h: num(p.height) };
+        return { src: src, alt: alt, avif: LOCAL.test(avif) && /\.avif$/i.test(avif) ? avif : '', small: LOCAL.test(small) ? small : '', caption: str(p.caption, 120), type: str(p.type, 30), w: num(p.width), h: num(p.height) };
       }).filter(Boolean).slice(0, 24);
       if (!items.length) return;
       build(items);
@@ -1172,10 +1201,12 @@
     items.forEach(function (it, i) {
       var fig = el('figure', 'ev-item'); fig.setAttribute('role', 'listitem');
       var btn = el('button', 'ev-open'); btn.type = 'button';
-      btn.setAttribute('aria-label', 'Open photo: ' + (it.caption || it.alt));
+      btn.setAttribute('aria-label', 'Open image: ' + (it.caption || it.alt));
       var pic = el('picture');
       if (it.avif) { var so = el('source'); so.type = 'image/avif'; so.srcset = it.avif; pic.appendChild(so); }
-      var img = el('img'); img.src = it.src; img.alt = it.alt; img.loading = 'lazy'; img.decoding = 'async';
+      var img = el('img'); img.alt = it.alt; img.loading = 'lazy'; img.decoding = 'async';
+      if (it.small) { img.srcset = it.small + ' 800w, ' + it.src + ' 1600w'; img.sizes = '(max-width: 359px) 100vw, (max-width: 767px) 50vw, 400px'; }
+      img.src = it.src;
       img.width = it.w || 1600; img.height = it.h || 1067;
       pic.appendChild(img); btn.appendChild(pic);
       if (it.type) btn.appendChild(el('span', 'ev-tag', it.type));
@@ -1197,7 +1228,8 @@
     function show(i) {
       cur = (i + items.length) % items.length;
       var it = items[cur];
-      bimg.src = (it.img && it.img.currentSrc) || it.src; bimg.alt = it.alt;   // same file the grid picked (AVIF or WebP)
+      var shown = (it.img && it.img.currentSrc) || '';
+      bimg.src = /\.avif$/i.test(shown) ? shown : it.src; bimg.alt = it.alt;   // full-size file (AVIF if the grid picked it), never the 800px copy
       if (it.w && it.h) { bimg.width = it.w; bimg.height = it.h; }
       bcap.textContent = [it.type, it.caption].filter(Boolean).join(' · ');
     }
