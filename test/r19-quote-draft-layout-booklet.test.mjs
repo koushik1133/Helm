@@ -119,7 +119,8 @@ t('L11: Share window - live link sections as switches (floor plan + 3D view incl
   const s = BS.liveSections({ sections: { layout2d: false, layout3d: true, menu: true } });
   assert.equal(s.layout2d, false); assert.equal(s.layout3d, true); assert.equal(s.terms, true, 'missing = shown');
   assert.equal(JSON.stringify(BS.LIVE_SECTIONS.map((x) => x[0]).slice(4, 6)), '["layout2d","layout3d"]');
-  assert.match(bks, /mountSections\(box, quoteId, cur\);\s*\n\s*mountSend\(box, quoteId, cur, url\);/);
+  // r21: the Send box is folded into "Send the booklet link on its own" while the same dialog makes the approval link
+  assert.match(bks, /mountSections\(box, quoteId, cur\);[\s\S]{0,700}?mountSend\(more, quoteId, cur, url\); \}\s*else mountSend\(box, quoteId, cur, url\);/);
   assert.match(bks, /await st\.booklet\.setSections\(quoteId, \{ \[x\[0\]\]: want \}\)/);
   assert.match(bks, /cb\.checked = !want;/, 'failed save puts the switch back');
 });
