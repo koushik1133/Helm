@@ -157,7 +157,7 @@ t('gateDecision is pure: client role / missing / not required → none', () => {
   assert.equal(S.checkout.gateDecision({ required: true }, 'dashboard', 'admin'), 'checkout');
 });
 t('login + profile-setup route a new owner on to /checkout', () => {
-  assert.match(read('public/login.html'), /BPStore\.checkout\.routeIfRequired\(nextUrl\(\)\)/);
+  assert.match(read('public/login.html'), /BPStore\.checkout\.routeIfRequired\(first\|\|nextUrl\(\)\)/);   // r22: a paid studio's first page is the setup wizard
   assert.match(read('public/profile-setup.html'), /BPStore\.checkout\.routeIfRequired\(next\)/);
 });
 

@@ -38,7 +38,8 @@ t("1 desktop / laptop: the brand column is sticky, full viewport height; phones 
 t("2a sign-up asks about an open invitation BEFORE signUp, only for a new (not joining) sign-up, once per e-mail", () => {
   const i = LOGIN.indexOf("BPStore.invitations.openForEmail(email,{timeoutMs:4000})"), j = LOGIN.indexOf("await BPStore.auth.signUp(email, pw,");
   assert.ok(i > 0 && j > i, "lookup before signUp");
-  assert.match(LOGIN, /if\(!existing && ivSkip!==email && BPStore\.invitations\.openForEmail\)\{/);
+  assert.match(LOGIN, /if\(existing\)\{ await routeSignedIn\(\); return; \}/);   // r22: a signed-in retry never signs up again
+  assert.match(LOGIN, /if\(ivSkip!==email && BPStore\.invitations\.openForEmail\)\{/);
   assert.match(LOGIN, /if\(iv && iv\.invited\)\{ keepCap=true; showInvited\(iv, email\); return; \}/);
   assert.ok(LOGIN.indexOf("if(joining){") < i, "an invitee (joining) never gets here");
   assert.match(LOGIN, /\}finally\{ if\(!keepCap\) capReset\(cap\); btn\.textContent=submitLabel\(\); \}/, "the unused security check is kept for 'Start my own trial'");
@@ -47,7 +48,7 @@ t("2b the choice card: 'You've been invited to join <Studio> as <role>' - Join <
   assert.match(LOGIN, /<section class="card" id="invitedCard" hidden aria-labelledby="ivTitle">/);
   assert.match(LOGIN, /\$\("#ivTitle"\)\.textContent="You've been invited to join "\+ivStudio\+\(role\?" as "\+role:""\);/);
   assert.match(LOGIN, /jb\.textContent="Join "\+ivStudio;/);
-  assert.match(LOGIN, /\$\("#ivOwn"\)\.textContent=TRIAL\(\)\?"Start my own trial":"Create my own studio";/);
+  assert.match(LOGIN, /\$\("#ivOwn"\)\.textContent="Create my own studio";/);
   assert.match(LOGIN, /ivSkip=ivEmail; showView\("#loginForm"\);/);
   assert.match(LOGIN, /"#inboxCard","#invitedCard","#invitePwForm","#inviteLinkCard"\]/, "the card is one of the page's views");
   // Join: the invitation e-mail again (the token never comes to this browser)
@@ -130,9 +131,9 @@ t("4c login.html: the hand-over card from <head> (no sign-in form flash), ended 
   assert.match(LOGIN, /html\.auth-handoff \.formpane > \.card:not\(#handoffCard\)\{display:none!important\}/);
   assert.match(LOGIN, /<section class="card ho" id="handoffCard" hidden aria-live="polite" aria-busy="true" aria-labelledby="hoTitle">/);
   assert.match(LOGIN, /function showView\(id\)\{ hoEnd\(\);/);
-  assert.match(LOGIN, /hoEnd\(\); \$\("#loginForm"\)\.hidden=true; \$\("#onboardForm"\)\.hidden=false;/, "onboarding ends it");
+  assert.match(LOGIN, /hoEnd\(\); showView\("#onboardForm"\);/, "onboarding ends it");
   assert.match(LOGIN, /hoEnd\(\);   \/\/ nobody signed in: the normal sign-in \/ sign-up page/);
-  assert.match(LOGIN, /hoStep\(TRIAL\(\)\?"Setting up your free-trial studio…":"Creating your studio…"/);
+  // r22: a confirmed sign-up no longer creates a studio behind the hand-over card - step 3 (studio) shows instead
   assert.match(LOGIN, /hoStep\("Opening your studio…",""\);/);
 });
 t("4d auth-handoff.js: one-shot flag, fresh for 2 minutes only, never stuck", () => {
@@ -146,12 +147,13 @@ t("4d auth-handoff.js: one-shot flag, fresh for 2 minutes only, never stuck", ()
   assert.match(HO, /safety = setTimeout\(end, 60 \* 1000\);/);
   assert.ok(!/innerHTML|eval\(|new Function/.test(HO));
 });
-t("4e another browser: the trial sign-up's own note goes straight on to the trial (only right after its confirm link)", () => {
+t("4e another browser: the sign-up's own note (plan, mode, Terms agreed) carries on to step 3 - nothing is created by the confirm link (r22, auditor #1)", () => {
   assert.match(API, /so\.data = Object\.assign\(\{\}, so\.data \|\| \{\}, \{ helm_signup_intent: intent, helm_signup_studio: sn \}\);/);
-  assert.match(LOGIN, /intent: TRIAL\(\)\?"trial":"direct", studioName: studio\}\);/);
-  assert.match(LOGIN, /if\(!name && fromConfirm\(\) && TRIAL\(\)\)\{ const m=\(BPStore\.auth\.user\(\)\|\|\{\}\)\.user_metadata\|\|\{\};/);
-  assert.match(LOGIN, /if\(m\.helm_signup_intent==="trial"\) name=/);
-  assert.ok(LOGIN.indexOf("if(await BPStore.auth.isPlatformAdmin()) return;   // HQ operators never get a studio") > LOGIN.indexOf("helm_signup_intent"), "operators still never get a studio");
+  assert.match(API, /helm_signup_plan: String\(opts\.plan\)/); assert.match(API, /helm_signup_mode: String\(opts\.mode\)/);
+  assert.match(LOGIN, /async function finishPendingStudio\(\)\{ return; \}/);
+  const sf = require("../public/signup-flow.js");
+  assert.equal(sf.agreedEarlier(null, { helm_terms_agreed_at: new Date().toISOString() }, Date.now()), "signup");
+  assert.match(r("public/signup-flow.js"), /function wantPlan\(\) \{ return intent\.plan \|\| String\(metaOf\(\)\.helm_signup_plan \|\| ""\); \}/);
 });
 
 // ---- 5) trial welcome: City + State + Country ------------------------------------------------------------------------

@@ -226,8 +226,10 @@
     try { const t = st && st.trialOrg ? await st.trialOrg.status() : null; name = (t && t.name) || ""; } catch (e) {}
     css();
     const box = el("div", "td td-fresh"); box.setAttribute("role", "status");
-    box.appendChild(el("span", "td-tag", "Fresh start"));
-    box.appendChild(el("h3", null, "Your studio is clean — let's set it up"));
+    // r22: a NEW paid studio (Pay now / Contact sales) lands here too, once its plan is active
+    const demoName = /^Demo [0-9]+$/.test(name);
+    box.appendChild(el("span", "td-tag", demoName ? "Fresh start" : "Welcome to Helm"));
+    box.appendChild(el("h3", null, demoName ? "Your studio is clean — let's set it up" : "Let's set up your studio"));
     box.appendChild(el("p", null, /^Demo [0-9]+$/.test(name)
       ? "Your studio is still called “" + name + "”. Give it your real name in the first step, then add your logo, currency and packages."
       : "Add your studio name, logo, currency and packages. You can change any of it later."));

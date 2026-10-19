@@ -142,7 +142,7 @@ const BUILDER_SOURCES = new Set(['/builder', '/builder\\.html', '/builder.html',
 // CDN). Always allowed on those routes (script-src + frame-src only, never connect-src): the
 // widget itself is only loaded when public/config.js has a site key, so with the key empty
 // nothing is fetched and the allowance is inert.
-const AUTH_ROUTE = /(^|\/|\()(login|reset)/;
+const AUTH_ROUTE = /(^|\/|\()(login|reset|signup)/;   // r22: /signup = the login page (rewrite)
 const TURNSTILE = /^https:\/\/challenges\.cloudflare\.com(\/[^\s;]*)?$/;
 // The onboarding checkout page (0056) only may load Razorpay Standard Checkout — the
 // EXACT script URL, nothing else on that origin. Card / UPI / netbanking fields live

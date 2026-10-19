@@ -32,6 +32,10 @@ do $$ begin
   -- a re-run starts each sign-up without a studio again (the earlier test studios stay, unused)
   update public.profiles set org_id = null where email in ('d159_direct@d.test', 'd159_trial@d.test', 'd159_hq@d.test');
   update public.helm_billing_settings set online_payments_live = false where id;
+  -- r22 0255: switching to the free trial needs the current Terms - this sign-up accepted them
+  if to_regclass('public.account_terms_acceptances') is not null then
+    insert into public.account_terms_acceptances(user_id, version) select u.id, public._account_terms_version() from auth.users u
+     where u.email = 'd159_direct@d.test' on conflict do nothing; end if;
 end $$;
 
 -- 1) plans exist for /checkout
