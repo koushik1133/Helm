@@ -7,9 +7,9 @@
    (shell-proto.js, trial-early.js); this is the fallback for every other page. */
 (function () { try { if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
-  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=7"; document.head.appendChild(l); } } } catch (e) {} })();
+  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=8"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
-  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=7"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=8"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:

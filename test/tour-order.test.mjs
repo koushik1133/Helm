@@ -93,14 +93,14 @@ t('per-page steps follow each toolbar left to right, then the content below', ()
   assert.deepEqual(sels('leads.html'), ['#search', '#newBtn', '#board']);
   assert.deepEqual(sels('staff.html'), ['#search', '#newBtn', '#grid']);
   assert.deepEqual(sels('inventory.html'), ['#eventPanel', '#pane-loans', '#newBtn']);
-  // r19: the builder's first-run tour walks every toolbar control: row 1 (this layout), row 2 (the canvas), then the panels
-  assert.deepEqual(sels('builder.html'), ['#projName', '#verSel', '#designChip', '#backToFlowBtn', '#saveBtn', '#loadBtn', '#clientImgBtn',
-    '#moreMenu', '.hg-edit', '.hg-cap', '.bp-priv-slot .hbp-btn', '#preset', '#refField', '#customBtn', '#viewSeg', '.wt-field', '#measureBtn',
-    '.hg-grid', '#toolbox', '#fabStack', '#rightPanel']);
+  // r20: the builder's first-run tour walks the one-row header left to right (the r19 two-row header was reverted), then the panels
+  assert.deepEqual(sels('builder.html'), ['header .brand', '#preset', '#refField', '#customBtn', '#unitSel', '.seg:has(#snapBtn)', '#viewSeg',
+    '.wt-field', '#measureBtn', '.hg-edit', '#projName', '#verSel', '#designChip', '#backToFlowBtn', '#saveBtn', '#loadBtn', '#clientImgBtn',
+    '#moreMenu', '.hg-cap', '.bp-priv-slot .hbp-btn', '#toolbox', '#fabStack', '#rightPanel']);
   // and that is the DOM order of those elements on the page
   for (const [pg, ids] of [['quotes.html', ['tabs', 'search', 'newBtn', 'rows']], ['leads.html', ['search', 'newBtn', 'board']],
-    ['staff.html', ['search', 'newBtn', 'grid']], ['builder.html', ['projName', 'verSel', 'designChip', 'backToFlowBtn', 'saveBtn', 'loadBtn',
-      'clientImgBtn', 'moreMenu', 'undoBtn', 'capInput', 'preset', 'refField', 'customBtn', 'viewSeg', 'measureBtn', 'unitSel', 'toolbox',
+    ['staff.html', ['search', 'newBtn', 'grid']], ['builder.html', ['preset', 'refField', 'customBtn', 'unitSel', 'snapBtn', 'viewSeg', 'measureBtn', 'undoBtn',
+      'projName', 'verSel', 'designChip', 'backToFlowBtn', 'saveBtn', 'loadBtn', 'clientImgBtn', 'moreMenu', 'capInput', 'toolbox',
       'fabStack', 'rightPanel']]]) {
     const H = r(pg), pos = ids.map((id) => H.indexOf('id="' + id + '"'));
     assert.ok(pos.every((p, k) => p > 0 && (k === 0 || p > pos[k - 1])), pg + ' DOM order ' + pos);

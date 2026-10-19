@@ -2505,6 +2505,8 @@ function lfUseSize(sz){
 function lfNote(before, opts){ if(window.HelmLoadFit) window.HelmLoadFit.note(before, store.items, ids=>{ setSelection(ids); renderAll(); }, opts); }
 async function loadTemplate(key){
   if(!key){ return; }
+  // r20: one load per pick (shared with studio-templates.js apply): a newer pick makes any pending load stale
+  const tplSeq=window.__helmTplLoad=(window.__helmTplLoad||0)+1;
   // 0096: the studio's own templates ("st:<id>") are fitted to this hall + exact seats by studio-templates.js
   // trial "From past events" entries reuse the Past events reference loader
   if(String(key).indexOf('ref:')===0){ const r=$('#refEvents'); if(r){ r.value=String(key).slice(4); window.__refSkipConfirm=true; try{ r.dispatchEvent(new Event('change')); }finally{ window.__refSkipConfirm=false; } } return; }
@@ -2512,7 +2514,7 @@ async function loadTemplate(key){
   const lbl=document.querySelector('#preset option[value="'+key+'"]').textContent;
   // R8b: an open quote's seats value is the exact seating total for preset templates too
   const tItems=TEMPLATES[key]();
-  const fitChoice=await lfAsk(window.HelmLoadFit && window.HelmLoadFit.size(tItems)); if(fitChoice==='cancel') return;
+  const fitChoice=await lfAsk(window.HelmLoadFit && window.HelmLoadFit.size(tItems)); if(fitChoice==='cancel' || window.__helmTplLoad!==tplSeq) return;
   if(fitChoice==='size') lfUseSize(window.HelmLoadFit.size(tItems));
   const N=currentQuoteId ? quoteChairsNow() : 0;
   if(N>0){ const nat=sumSeats(tItems); exactSeats(tItems, N); const w=seatFitWarning(N, nat, null, PRICING.eventType); if(w) setTimeout(()=>BPUI.toast('⚠ '+w,{type:'err'}),50); }
@@ -3840,6 +3842,13 @@ window.addEventListener('keydown',e=>{
   // a dialog owns the keyboard (BPUI handles Escape / focus trap) — never nudge/delete the floor behind it
   if(anyModalOpen()) return;
   if(e.key==='Escape' && drawersOpen()){ closeDrawers(true); return; }
+  // r20: H = home (the dashboard), the same key as the app pages. Never while typing (inputs, selects, text areas,
+  // editable text), with a modifier key or during the 3D walkthrough. Unsaved changes still ask first (beforeunload).
+  if((e.key==='h'||e.key==='H') && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.isComposing && !e.repeat){
+    const t=e.target||document.activeElement, ae=document.activeElement;
+    const isTyping=n=>!!(n && ((n.tagName && /INPUT|SELECT|TEXTAREA/.test(n.tagName)) || n.isContentEditable));
+    if(!isTyping(t) && !isTyping(ae) && !document.body.classList.contains('wt-on')){ e.preventDefault(); location.href='/dashboard.html'; return; }
+  }
   const mod=e.metaKey||e.ctrlKey;
   const typing=/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
   if(RO){                                       // view-only: only select-all / copy / escape
@@ -4068,7 +4077,7 @@ async function saveLayout(silent, opts){
   finally{ saving=false; if(btn) btn.disabled=false; if(saveUi==='saving'){ saveUi='dirty'; renderSaveState(); } }
 }
 function updateQuoteBadge(){
-  { const cb=document.getElementById('clientImgBtn'); if(cb) cb.hidden=!clientImagesSupported(); }
+  { const cb=document.getElementById('clientImgBtn'); if(cb){ cb.hidden=!clientImagesSupported(); syncClientImgTrial(); } }
   const el=$('#quoteBadge'); if(!el) return;
   if(currentQuoteId && currentQuoteCode){ el.hidden=false; el.textContent=quoteBadgeText(); }
   else el.hidden=true;
@@ -4440,6 +4449,15 @@ window.__helmPhotoCtx = function(){
    Each picture in two styles: 'labels' (numbered badges + legend, the approved look) and
    'plain' (the model without labels). Stored IN THE DATABASE via BPStore.booklet.putImage
    (JPEG ~0.85, <= 1600 px wide); the booklet link shows the newest ones. */
+// r20: "Client images" is a paid-plan feature: hidden in the free trial (builder.css), with the tooltip / click guard as a fallback
+function builderInTrial(){ try{ if(window.HelmTrialLock && HelmTrialLock.isTrial && HelmTrialLock.isTrial()) return true; return document.documentElement.classList.contains('helm-trial'); }catch(_){ return false; } }
+function syncClientImgTrial(){
+  const cb=document.getElementById('clientImgBtn'); if(!cb) return;
+  if(!cb.dataset.paidTitle) cb.dataset.paidTitle=cb.title||'';
+  const off=builderInTrial();
+  if(off){ cb.setAttribute('aria-disabled','true'); cb.title='Available on a paid plan'; cb.classList.add('trial-off'); }
+  else if(cb.classList.contains('trial-off')){ cb.removeAttribute('aria-disabled'); cb.title=cb.dataset.paidTitle; cb.classList.remove('trial-off'); }
+}
 function clientImagesSupported(){ return !!(currentQuoteId && !RO && BPStore.mode && BPStore.mode()==='supabase' && BPStore.booklet && BPStore.booklet.putImage); }
 let clientImgBusy=null, captureProgressHook=null, lastCaptureResults=null;
 // R8b: capture.html (generated from builder.html, the ONLY framable page — frame-ancestors 'self')
@@ -4637,7 +4655,17 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySele
 })();
 $('#loadModal').addEventListener('click',e=>{ if(e.target.id==='loadModal') closeLoadModal(); });
 $('#exportBtn').addEventListener('click',()=>{ BPUI.guard($('#exportBtn'), exportPNG,{busyLabel:'Exporting…'}).catch(()=>{}); });
-$('#clientImgBtn').addEventListener('click',()=>{ BPUI.guard($('#clientImgBtn'), ()=>captureClientImages(false),{busyLabel:'Capturing…'}).catch(()=>{}); });
+$('#clientImgBtn').addEventListener('click',()=>{
+  if(builderInTrial()){ syncClientImgTrial(); BPUI.toast('Client images are available on a paid plan.',{type:'info'}); return; }   // r20: off in the free trial
+  BPUI.guard($('#clientImgBtn'), ()=>captureClientImages(false),{busyLabel:'Capturing…'}).catch(()=>{});
+});
+// r20: free trial = html.helm-trial (trial-lock.js after the server answers; trial-early.js from the cached flag).
+// The button is hidden there (CSS), its click says "available on a paid plan"; already-saved client images are never touched.
+(function watchClientImgTrial(){
+  syncClientImgTrial();
+  try{ window.addEventListener('helm:trial', syncClientImgTrial); }catch(_){}
+  try{ new MutationObserver(syncClientImgTrial).observe(document.documentElement,{attributes:true, attributeFilter:['class']}); }catch(_){}
+})();
 $('#jsonBtn').addEventListener('click',()=>{ BPUI.guard($('#jsonBtn'), async()=>exportJSON()).catch(()=>{}); });
 $('#importBtn').addEventListener('click',async()=>{
   if(!(await BPUI.confirmDiscard(dirty,{message:'You have unsaved changes on this floor. Importing a file will replace them.'}))) return;
@@ -4801,11 +4829,13 @@ async function init(){
           store.items = fam ? buildEventDefault(fam, N) : TEMPLATES[presetKey]();
           if(N>0) exactSeats(store.items, N);   // R8b/R10: exactly the quote's (or flow's) seats
           _autoDefaultLoaded=true;
-          toast('Loaded default '+(q.eventType||'')+' layout');
+          toast('Loaded a default '+(q.eventType||'')+' layout — not saved yet, press Save to keep it');
           // r19 L2: "Generate default layout" (?gen=1) makes a NEW layout - it is unsaved until a version is
-          // written (never "Saved ✓"; Save / Save & back write it). The quiet default for a brand-new quote keeps
-          // its old clean state, and Save & back still writes it (it differs from the stored empty V1).
-          resetHistory(); if(params.get('gen')==='1') markGenUnsaved(); else setSavedBaseline(); renderAll();
+          // written (never "Saved ✓"; Save / Save & back write it).
+          // r20 (live QA): the quiet default for a brand-new quote is not stored either (V1 is still the empty floor the
+          // quote page counts as 0 objects): it also reads "Unsaved changes" + the leave-page warning until Save /
+          // Save & back writes it. Nothing is written by itself.
+          resetHistory(); markGenUnsaved(); renderAll();
         }
       }
       versionsList = q.versions || [];

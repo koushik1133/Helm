@@ -414,6 +414,8 @@ html[data-shell="b"] .hb-ftools { border-top: 1px solid var(--hb-line); margin-t
 html[data-shell="b"] .hb-ftools[hidden] { display: none; }
 html[data-shell="b"] .hb-tourbtn { width: 100%; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; }
 html[data-shell="b"] #helpBtn:not(.hb-item), html[data-shell="b"] body > .htour-fab { display: none !important; }   /* the rail's tour button replaces them */
+/* r20: the top bar's "?" tour button (shell-b.js); phones keep the tour in the "More" menu */
+@media (max-width: 819px) { html[data-shell="b"] .hb-ttour { display: none !important; } }
 @media (max-height: 640px) { html[data-shell="b"] .hb-ftools .hb-recent, html[data-shell="b"] .hb-ftools .hb-tour { display: flex; } }
 /* scroll cues: a soft fade where more nav items are hidden above / below */
 html[data-shell="b"] .hb-scroll { position: relative; }

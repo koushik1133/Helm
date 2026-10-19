@@ -28,7 +28,10 @@ const split = r("public/control-split.js");
 assert.match(split, /TRIAL_OFF=\{general:1,links:1,data:1,compliance:1,notify:1,reminders:1,renders:1,privacy:1,ltemplates:1\}/);
 assert.match(split, /Not available in the free trial/);
 const css = r("public/trial-lock.css");
-for (const sel of ["#exportBtn", "#printBtn", "#q_pdf", "[data-csv]", '#viewSeg [data-v="render"]', "#dc_add", "a[href*=\"onboarding\"]"]) assert.ok(css.includes(sel), "css hides " + sel);
+for (const sel of ["#exportBtn", "#printBtn", "#q_pdf", "[data-csv]", "#photoModal", "#dc_add", "a[href*=\"onboarding\"]"]) assert.ok(css.includes(sel), "css hides " + sel);
+// r20 (owner): the builder's Render view button stays visible in the trial (realistic 3D, drawn in the browser);
+// only the AI photo dialog stays off (photo-render-ui.js) and the server still refuses photo_render_begin (0173)
+assert.ok(!css.includes('#viewSeg [data-v="render"]'), "Render button is not hidden in the trial");
 assert.match(r("public/getting-started.js"), /HelmTrialLock/);
 
 // ---- run trial-lock.js against a fake page --------------------------------------------------------
