@@ -43,7 +43,9 @@ t('groups rows into Today / Yesterday / Earlier, newest first', () => {
 
 t('filter tabs: unread counts, Billing / Security only when present, unknown filter falls back to All', () => {
   const v = view(FEED, 'all', NOW);
-  assert.deepEqual(v.tabs.map((x) => [x.id, x.count]), [['all', 3], ['mentions', 1], ['tasks', 1], ['billing', 0], ['chat', 2]]);
+  // r20-2: chat rows count their unread messages (Crew has 3), same as the "N new" header / the dot; Mentions counts chats
+  assert.deepEqual(v.tabs.map((x) => [x.id, x.count]), [['all', 5], ['mentions', 1], ['tasks', 1], ['billing', 0], ['chat', 4]]);
+  assert.equal(v.tabs.find((x) => x.id === 'all').count, v.unread, 'All tab = N new');
   assert.match(v.tabsHtml, /role="tab"[^>]*id="bpBellTab-all"[^>]*aria-selected="true"[^>]*tabindex="0"/);
   const noPay = view(FEED.filter((x) => x.kind !== 'payment_received'), 'billing', NOW);
   assert.equal(noPay.tabs.some((x) => x.id === 'billing'), false);
@@ -51,7 +53,7 @@ t('filter tabs: unread counts, Billing / Security only when present, unknown fil
   assert.doesNotMatch(noPay.tabsHtml, /Billing/);
   const sec = view(FEED.concat([{ id: 's1', kind: 'security_alert', detail: { label: 'Role changed' }, created_at: at(7, 12), unread: true },
     { id: 't1', kind: 'trial_reminder', detail: {}, created_at: at(7, 11), unread: true }]), 'security', NOW);
-  assert.deepEqual(sec.tabs.map((x) => [x.id, x.count]), [['all', 5], ['mentions', 1], ['tasks', 1], ['billing', 1], ['security', 1], ['chat', 2]]);
+  assert.deepEqual(sec.tabs.map((x) => [x.id, x.count]), [['all', 7], ['mentions', 1], ['tasks', 1], ['billing', 1], ['security', 1], ['chat', 4]]);
   assert.deepEqual([...sec.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1].replace(/@.*$/, '')), ['n:s1']);
   assert.equal(view(FEED, 'bogus', NOW).filter, 'all');
 });

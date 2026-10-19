@@ -6040,9 +6040,15 @@ window.HelmUrl = HelmUrl;
     async me() {
       if (mode !== "supabase") { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === chatLocalUid()) || CHAT_LOCAL_ROSTER[0]; return { id: u.id, name: u.full_name, email: u.email }; }
       const id = currentUser && currentUser.id;
-      let name = personDisplayName({ email: currentUser && currentUser.email });
-      try { const { data } = await supa.from("profiles").select("full_name,email,role").eq("id", id).maybeSingle(); if (data) name = personDisplayName(data); } catch (e) {}
-      return { id, name, email: currentUser && currentUser.email };
+      // r20-2: same chain as the dashboard greeting - profile name, then the sign-in name (auth user_metadata
+      // full_name / name, e.g. from Google), then the e-mail before "@"
+      const md = (currentUser && currentUser.user_metadata) || {};
+      const metaRaw = cleanDisplayName(md.full_name || md.name || "");
+      const metaName = metaRaw && !displayNameProblem(metaRaw) ? metaRaw : "";
+      let name = personDisplayName({ full_name: metaName, email: currentUser && currentUser.email });
+      try { const { data } = await supa.from("profiles").select("full_name,email,role").eq("id", id).maybeSingle();
+        if (data) name = personDisplayName(Object.assign({}, data, { full_name: String(data.full_name || "").trim() || metaName })); } catch (e) {}
+      return { id, name, email: currentUser && currentUser.email, metaName };
     },
     // display name for a roster row (name → e-mail before "@" → role)
     displayName: personDisplayName,
@@ -7929,7 +7935,10 @@ window.HelmUrl = HelmUrl;
     const rows = list.map((n, i) => { const k = keyOf(n, i);
       return { n, i, g: groupOf(n), k, un: readKeys.indexOf(k) === -1 && (n.__chat || !!n.unread) }; });
     const has = (f) => rows.some((r) => inFilter(f, r.g));
-    const unreadIn = (f) => rows.filter((r) => r.un && inFilter(f, r.g)).length;
+    // r20-2: a chat row stands for `count` unread messages - the tabs count them the same way as the "N new"
+    // header and the bell dot (they used to count rows: "4 new" over an All tab of 2). Mentions counts chats.
+    const weight = (r, f) => (r.n.__chat && f !== "mentions" ? (Number(r.n.count) || 1) : 1);
+    const unreadIn = (f) => rows.reduce((s, r) => s + (r.un && inFilter(f, r.g) ? weight(r, f) : 0), 0);
     const secMuted = muted.indexOf("security_alert") !== -1;
     // Billing only when the feed carries any (bell_feed already hides money types this role can't see);
     // Security when there are alerts or they are muted (so the "turn back on" line stays reachable)
