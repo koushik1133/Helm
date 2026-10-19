@@ -17,7 +17,7 @@
 
 /* ---- r21 insights: one page title (the top bar), no duplicate breadcrumb / H1 ---- */
 html[data-shell] #helmTrail { display: none !important; }   /* "Reports / Insights" duplicated the top-bar title (and showed a lone "/" when Reports was hidden) */
-.ins-intro { margin: 2px 0 14px; font-size: 13.5px; color: var(--ink-3); }
+main p.ins-intro.sub { margin: 2px 0 14px; font-size: 13.5px; color: var(--ink-3); max-width: none; }   /* r22: one line at 1440 (pages-polish-admin.css capped every main .sub at 72ch) */
 h3.sec { display: flex; align-items: baseline; gap: 8px; margin: 22px 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
 h3.sec .sec-note { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--ink-3); }
 #rangeBar + #rangeErr + h3.sec { margin-top: 6px; }

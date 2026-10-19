@@ -19,7 +19,7 @@
   *{box-sizing:border-box} [hidden]{display:none!important}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
   a{color:inherit;text-decoration:none}
-  .wrap{max-width:960px;margin:0 auto;padding:0 24px 60px}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 24px 60px}   /* r22: room for the settings nav + a full-width members table (was 960px) */
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:0;background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat;position:relative;flex:0 0 auto}
   .mark::after{content:none}
@@ -75,6 +75,51 @@
   .ucok{display:inline-block;font-size:11.5px;font-weight:700;color:#0f7a43;background:#e7f6ee;border-radius:10px;padding:2px 8px;white-space:nowrap}
   .ucno{display:inline-block;font-size:11.5px;font-weight:700;color:#8a5a00;background:#fff4dc;border-radius:10px;padding:2px 8px;white-space:nowrap}
   .utable td.ucact{text-align:right;white-space:nowrap}
+  /* r22 members table: photo + name + "you" on ONE line, e-mail under it (ellipsis, full address on hover); the name
+     column can't be squeezed to a few letters any more, the role picker has a real width and Edit / remove never clip.
+     Wide card: a normal table. Narrower card (side nav + pinned rail, tablets): each member is a two-line row.
+     Phones (<640px): tables-mobile.css stacks each member as a card (Name = card title). */
+  .ucm-wrap{container:ucm/inline-size}
+  .utable.ucm td{vertical-align:middle;padding-left:6px;padding-right:6px}
+  .utable.ucm td.dn{width:34%;min-width:210px;white-space:normal}
+  .ucwt{flex:1 1 0;min-width:0;width:0}
+  .ucnm{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+  .ucnm .dnTxt{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .utable .ucnm .me{flex:0 0 auto;margin-left:0;line-height:1.3}
+  .ucwt .ucsub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .utable.ucm td.ucjob{min-width:110px;max-width:200px;overflow-wrap:break-word}
+  .utable.ucm td.ucrole{white-space:nowrap}
+  .utable.ucm td.ucrole select{width:136px;max-width:100%}
+  .utable.ucm td.ucprof{white-space:nowrap}
+  .utable.ucm td.ucact{white-space:nowrap;text-align:left}   /* Edit buttons line up (my own row has no remove button) */
+  .utable.ucm td.ucact .rm{margin-left:2px}
+  @media (max-width:639.98px){   /* phone cards (tables-mobile.css): cells use the card's full width, one divider between fields */
+    #pane-users .utable.ucm.tm-stack td{width:auto;min-width:0;max-width:none;border-bottom:0}
+    #pane-users .utable.ucm.tm-stack td.dn{text-align:left}
+  }
+  @media (min-width:640px){
+    @container ucm (max-width:859.98px){
+      #pane-users .utable.ucm,#pane-users .utable.ucm>tbody{display:block;width:100%}
+      #pane-users .utable.ucm>thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+      #pane-users .utable.ucm tr.ucr{display:grid;grid-template-columns:auto minmax(0,1fr) 136px 108px 96px;grid-template-areas:"who who role prof act" "ph job job job job";
+        column-gap:14px;row-gap:4px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line-2)}
+      #pane-users .utable.ucm tr.ucr.ucr-np{grid-template-areas:"who who role prof act" "job job job job job"}
+      #pane-users .utable.ucm tr.ucr>td{padding:0;border:0;min-width:0;max-width:none;width:auto}
+      #pane-users .utable.ucm tr.ucr>td.dn{grid-area:who}
+      #pane-users .utable.ucm tr.ucr>td.ucph{grid-area:ph;padding-left:44px}
+      #pane-users .utable.ucm tr.ucr>td.ucjob{grid-area:job}
+      #pane-users .utable.ucm tr.ucr.ucr-np>td.ucjob{padding-left:44px}
+      #pane-users .utable.ucm tr.ucr>td.ucrole{grid-area:role;white-space:normal}   /* a "No access" tag stacks above the picker */
+      #pane-users .utable.ucm tr.ucr>td.ucprof{grid-area:prof}
+      #pane-users .utable.ucm tr.ucr>td.ucact{grid-area:act;justify-self:start}
+      #pane-users .utable.ucm tr.ucr>td.ucrole select{width:136px}
+      #pane-users .utable.ucm tr.ucr>td.ucprof .ucsub{display:none}
+      #pane-users .utable.ucm tr.ucr>:is(td.ucph,td.ucjob){font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #pane-users .utable.ucm tr.ucr>:is(td.ucph,td.ucjob)::before{content:attr(data-label);margin-right:6px;font-family:var(--font);font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+      #pane-users .utable.ucm tr.ucr>td.ucjob .ucdept{display:inline;font-size:inherit;color:inherit}
+      #pane-users .utable.ucm tr.ucr>td.ucjob .ucdept::before{content:" · "}
+    }
+  }
   html[data-theme="dark"] .ucok{background:rgba(46,184,114,.14);color:#6ee7a8}
   html[data-theme="dark"] .ucno{background:rgba(245,158,11,.15);color:#fbbf24}
   /* profile edit dialog */
@@ -220,7 +265,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<link rel="stylesheet" href="control-split.css?v=14">
+<link rel="stylesheet" href="control-split.css?v=15">
 <script src="/shell-proto.js?v=38" id="shellProto"></script>
 </head>
 <body>
@@ -520,7 +565,7 @@
           <select id="uc_f" aria-label="Show"><option value="">Everyone</option><option value="incomplete">Incomplete profiles</option><option value="complete">Complete profiles</option></select>
           <span class="uccount" id="uc_count" role="status" aria-live="polite"></span>
         </div>
-        <div class="table-scroll"><table class="utable"><thead id="um_head"><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <div class="table-scroll ucm-wrap"><table class="utable ucm"><thead id="um_head"><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="um_rows"><tr><td class="s-1a1aca0" colspan="4"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
         </table></div>
         <form id="um_add" class="addrow s-0dff578" novalidate>
@@ -1694,20 +1739,22 @@
       return { head, body, shown:rows.length, total:list.length };
     }
     const priv=ucPrivateVisible(list, meId);
-    const cols=priv?8:7;
-    const head=`<tr><th scope="col">Name</th>${priv?'<th scope="col">Phone</th>':""}<th scope="col">Job title</th><th scope="col">Department</th><th scope="col">Role</th><th scope="col">Profile</th><th scope="col"><span class="sr-only">Actions</span></th></tr>`;
+    // r22: Department sits under the job title (one column, was two thin ones); every cell carries its label for the
+    // compact / phone layouts (tables-mobile.js writes the same data-label)
+    const cols=priv?6:5;
+    const head=`<tr><th scope="col">Name</th>${priv?'<th scope="col">Phone</th>':""}<th scope="col">Job title</th><th scope="col">Role</th><th scope="col">Profile</th><th scope="col"><span class="sr-only">Actions</span></th></tr>`;
     const rows=list.filter(u=>ucMatches(u,o.q,o.filter));
     const body=rows.map(u=>{ const self=meId&&ucId(u)===meId; const dn=(u.full_name||"").trim(); const who=dn||u.email||u.email_name||"user";
       const av=`<span class="ucav"${u.avatar_path?` data-avatar-path="${esc(u.avatar_path)}"`:""} aria-hidden="true">${esc(ucInitials(dn||u.email||u.email_name))}</span>`;
       const joined=ucDate(u.created_at);
       const st=u.complete?`<span class="ucok" title="${esc(u.profile_completed_at?"Completed "+ucDate(u.profile_completed_at):"Profile complete")}">✓ Complete</span>`:`<span class="ucno" title="No full name or mobile number yet">✗ Incomplete</span>`;
-      return `<tr data-id="${esc(ucId(u))}">
-        <td class="dn"><div class="ucwho">${av}<div>${ucNameHtml(ucShownName(u,self,o.meName))}${self?' <span class="me">you</span>':""}<div class="ucsub em">${esc(u.email||u.email_name||"")}</div></div></div></td>
-        ${priv?`<td class="ucph">${esc(u.phone?ucPhone(u.phone):"—")}</td>`:""}
-        <td>${esc(u.job_title||"—")}</td>
-        <td>${esc(u.department||"—")}</td>
-        <td>${roleSel(u,self)}</td>
-        <td>${st}${joined?`<div class="ucsub">Joined ${esc(joined)}</div>`:""}</td>
+      const mail=u.email||u.email_name||"";
+      return `<tr class="ucr${priv?"":" ucr-np"}" data-id="${esc(ucId(u))}">
+        <td class="dn" data-label="Name"><div class="ucwho">${av}<div class="ucwt"><div class="ucnm">${ucNameHtml(ucShownName(u,self,o.meName))}${self?' <span class="me">you</span>':""}</div><div class="ucsub em"${mail?` title="${esc(mail)}"`:""}>${esc(mail)}</div></div></div></td>
+        ${priv?`<td class="ucph" data-label="Phone">${esc(u.phone?ucPhone(u.phone):"—")}</td>`:""}
+        <td class="ucjob" data-label="Job title">${esc(u.job_title||"—")}${u.department?`<div class="ucsub ucdept">${esc(u.department)}</div>`:""}</td>
+        <td class="ucrole" data-label="Role">${roleSel(u,self)}</td>
+        <td class="ucprof" data-label="Profile">${st}${joined?`<div class="ucsub">Joined ${esc(joined)}</div>`:""}</td>
         <td class="ucact">${o.canEdit?`<button type="button" class="btn sm ucEdit" aria-label="Edit profile for ${esc(who)}">Edit</button>`:""}${rm(u,self)}</td>
       </tr>`; }).join("") || `<tr><td colspan="${cols}" style="color:var(--ink-3)">${list.length?"No one matches these filters.":"No users."}</td></tr>`;
     return { head, body, shown:rows.length, total:list.length };

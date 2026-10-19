@@ -11,10 +11,11 @@
 /* ---- the Events calendar card ---- */
 .evc{--evc-conf:var(--accent,#047857);--evc-tent:#c27c0e;--evc-lead:#5b5bd6;--evc-bad:var(--bad-text,#b42318);position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 22px}
 .evc-k-confirmed{--evc-c:var(--evc-conf)}.evc-k-tentative{--evc-c:var(--evc-tent)}.evc-k-lead{--evc-c:var(--evc-lead)}
-.evc-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;justify-content:space-between}
+.evc-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}
 .evc-titles{min-width:0}
 .evc-head h2{margin:0;font-size:17px}
-.evc-range{margin:2px 0 0;font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.01em;outline:none}
+/* r22 headers: the month ("October 2026") IS the card title - the top bar already says "Calendar"; "Events calendar" stays for screen readers */
+.evc-range{display:block;margin:0;font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.01em;outline:none}
 .evc-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .evc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .evc-seg{display:inline-flex;padding:2px;border-radius:999px;background:var(--panel-2,rgba(0,0,0,.05));border:1px solid var(--line-2,var(--line))}

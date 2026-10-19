@@ -330,6 +330,7 @@
       safe(function () { studioCaption(header); });   /* r19-studio-name: phones show the studio under the page title */
       if (header.parentNode !== body) body.insertBefore(header, rail.nextSibling);
       safe(function () { var tr = document.getElementById("helmTrail"); if (tr) tr.classList.add("hb-trail"); });   // full-width bar, not inside the page column
+      safe(trailWatch);   /* r22: hide breadcrumb rows that only repeat the page title */
       var burger = el("button", "hb-burger hb-ibtn"); burger.type = "button"; burger.setAttribute("aria-label", "Open menu"); burger.appendChild(icon("menu"));
       burger.addEventListener("click", function (e) { e.stopPropagation(); root.classList.toggle("hb-drawer"); });
       header.insertBefore(burger, header.firstChild);
@@ -398,6 +399,30 @@
     })();
   }
   function safe(fn) { try { fn(); } catch (e) { try { console.warn("[shell-b]", e); } catch (x) {} } }
+  /* r22 headers: the breadcrumb row (nav-trail.js #helmTrail) only shows when it adds context, i.e. an open record
+     ("Quotes / SMP-1004 · Kapoor Family Sangeet / Budget"). A trail that just repeats the page ("Calendar", "Settings",
+     "Reports / Insights", "Quotes / Settlement") is the top-bar title again: it gets .hb-trail-lone (hidden in shell-b.css).
+     nav-trail re-renders the same <nav> in place, so one observer per trail element keeps the class current. */
+  function trailBase() { try { var T = window.HelmTrail; if (T && !T._stub && typeof T.trail === "function") return T.trail().length; } catch (e) {} return 1; }
+  function trailTidy() {
+    var tr = document.getElementById("helmTrail"); if (!tr) return;
+    var lone = tr.querySelectorAll("li").length <= trailBase();
+    if (tr.classList.contains("hb-trail-lone") !== lone) tr.classList.toggle("hb-trail-lone", lone);
+    var r = document.documentElement; if (r.classList.contains("hb-has-trail") === lone) r.classList.toggle("hb-has-trail", !lone);
+  }
+  var trailEl = null, trailObs = null, trailQ = false;
+  function trailWatch() {
+    if (!window.MutationObserver) return;
+    function check() {
+      trailQ = false;
+      var tr = document.getElementById("helmTrail");
+      if (tr !== trailEl) { if (trailObs) trailObs.disconnect(); trailEl = tr; if (tr) { trailObs = new MutationObserver(trailTidy); trailObs.observe(tr, { childList: true, subtree: true }); } }
+      trailTidy();
+    }
+    new MutationObserver(function () { if (!trailQ) { trailQ = true; setTimeout(check, 0); } }).observe(document.body, { childList: true });
+    var wrap = document.querySelector("body > .wrap"); if (wrap) new MutationObserver(function () { if (!trailQ) { trailQ = true; setTimeout(check, 0); } }).observe(wrap, { childList: true });
+    check();
+  }
   function can(area, edit) {
     var a = window.BPStore && BPStore.auth; if (!a) return Promise.resolve(false);
     var fn = edit ? (a.canEditArea || a.canView) : a.canView;

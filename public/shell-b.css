@@ -111,6 +111,9 @@ html[data-shell="b"] #themeBtn { display: none !important; }   /* one theme togg
 html[data-shell="b"] .hb-row[hidden], html[data-shell="b"] .hb-item[hidden], html[data-shell="b"] .hb-tab[hidden] { display: none !important; }
 /* breadcrumb trail (nav-trail.js) sits under the moved top bar: indent it into the page column */
 html[data-shell="b"] body > #helmTrail { box-sizing: border-box; max-width: 1200px; margin: 12px auto 0; padding: 0 24px; }
+/* r22 headers: a trail that only repeats the top-bar title ("Calendar", "Quotes / Settlement") is hidden (shell-b.js trailTidy);
+   a trail with an open record ("Quotes / SMP-1004 · Kapoor Family Sangeet / Budget") stays */
+html[data-shell="b"] #helmTrail.hb-trail-lone { display: none !important; }
 /* trial / setup notices docked bottom-left must clear the rail */
 @media (min-width: 820px) {
   html[data-shell="b"] .hau-note.dock-left { left: calc(var(--hb-w) + 20px) !important; }
