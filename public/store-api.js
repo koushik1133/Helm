@@ -2588,11 +2588,22 @@ window.HelmUrl = HelmUrl;
   //   deleted   = flagged deleted (0040 soft delete) — never in any other view
   //   active    = everything else;  attention = active, not cancelled, event date passed
   //   all       = everything not moved to Archive / Deleted (dashboard, pickers, counters)
-  const QUOTE_VIEWS = ["all", "active", "quote", "confirmed", "attention", "archived", "deleted"];
+  //   cancelled = r23: status cancelled (Cancel event on the event page), not deleted - a slice of
+  //               the Archive, so it includes a cancelled event someone also archived by hand
+  const QUOTE_VIEWS = ["all", "active", "quote", "confirmed", "attention", "cancelled", "archived", "deleted"];
+  // r23: optional event-date window for page() (o.dateFrom / o.dateTo, yyyy-mm-dd, inclusive)
+  const QUOTE_ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+  const quoteDay = (v) => (typeof v === "string" && QUOTE_ISO_DAY.test(v) ? v : "");
+  function quoteInDates(x, o) {
+    const f = quoteDay(o && o.dateFrom), t = quoteDay(o && o.dateTo); if (!f && !t) return true;
+    const d = String(x.eventDate || "").slice(0, 10); if (!QUOTE_ISO_DAY.test(d)) return false;
+    return (!f || d >= f) && (!t || d <= t);
+  }
   const quoteIsArchived = (x) => !x.deletedAt && (!!x.archivedAt || x.status === "cancelled" || (x.lifecycleStage === "closed" && x.status === "confirmed"));
   function quoteInView(x, view, today) {
     if (view === "deleted") return !!x.deletedAt;
     if (x.deletedAt) return false;
+    if (view === "cancelled") return x.status === "cancelled";
     const arch = quoteIsArchived(x);
     if (view === "archived") return arch;
     if (view === "all" || !view) return !x.archivedAt;
@@ -2604,6 +2615,7 @@ window.HelmUrl = HelmUrl;
   function sbQuoteView(q, view, today, shelf) {
     if (view === "deleted") return shelf ? q.not("deleted_at", "is", null) : q.eq("id", "00000000-0000-0000-0000-000000000000");
     if (shelf) q = q.is("deleted_at", null);
+    if (view === "cancelled") return q.eq("status", "cancelled");
     if (view === "archived") return q.or("status.eq.cancelled,and(lifecycle_stage.eq.closed,status.eq.confirmed)" + (shelf ? ",archived_at.not.is.null" : ""));
     if (shelf) q = q.is("archived_at", null);   // moved quotes leave every other view
     if (view === "all" || !view) return q;
@@ -2656,6 +2668,8 @@ window.HelmUrl = HelmUrl;
         let q = supa.from("quotes").select(cols);
         q = sbQuoteView(q, o.view, today, shelf);
         if (o.eventType) q = q.ilike("event_type", likeEscape(o.eventType));
+        if (quoteDay(o.dateFrom)) q = q.gte("event_date", o.dateFrom);
+        if (quoteDay(o.dateTo)) q = q.lte("event_date", o.dateTo);
         const s = orIlike(["code", "title", "client->>name"], o.search); if (s) q = q.or(s);
         // confirmed first: status sorts cancelled < confirmed < quote, so ascending puts
         // confirmed above quote in the active views and descending puts closed-confirmed
@@ -2848,7 +2862,7 @@ window.HelmUrl = HelmUrl;
       o = o || {}; const today = localISODate(), et = String(o.eventType || "").toLowerCase();
       const rank = (x) => (x.status === "cancelled" ? 0 : x.status === "confirmed" ? 1 : 2);
       const arch = o.view === "archived";
-      const rows = (await this.list()).filter((x) => quoteInView(x, o.view, today) && (!et || String(x.eventType || "").toLowerCase() === et) &&
+      const rows = (await this.list()).filter((x) => quoteInView(x, o.view, today) && quoteInDates(x, o) && (!et || String(x.eventType || "").toLowerCase() === et) &&
         textHit(o.search, [x.code, x.title, x.client && x.client.name]))
         .sort((a, b) => (o.sort === "confirmedFirst" ? (arch ? rank(b) - rank(a) : rank(a) - rank(b)) : 0) ||
           String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")) || String(b.id).localeCompare(String(a.id)));
@@ -2961,6 +2975,12 @@ window.HelmUrl = HelmUrl;
     isArchived: quoteIsArchived,
     page: (o) => qt().page(o),
     counts: () => qt().counts(),
+    // r23: the "Cancelled (N)" tab count - status cancelled, not on the Deleted shelf (HEAD count, no rows)
+    async countCancelled() {
+      if (mode !== "supabase") return (await lsq.list()).filter((q) => q && q.status === "cancelled" && !q.deletedAt).length;
+      return withShelf((shelf) => { let q = supa.from("quotes").select("id", { count: "exact", head: true }).eq("status", "cancelled");
+        if (shelf) q = q.is("deleted_at", null); return sbCount(q); });
+    },
     // la-fetch (audit 25): the sidebar "sent, waiting for client approval" badge - a HEAD count of open
     // quotes (status quote, approval sent / viewed, not on the Archive / Deleted shelf) instead of the full list
     async countAwaiting() {
