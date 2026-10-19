@@ -1095,6 +1095,23 @@ window.HelmUrl = HelmUrl;
     if (mfaLock.n % MFA_MAX_TRIES === 0) mfaLock.until = Date.now() + MFA_FALLBACK_LOCK;
     return Math.max(0, mfaLock.until - Date.now());
   }
+  // r22: Supabase Auth refusals during set-up / turn-off, in plain words (code mfa_unavailable / mfa_aal2_required)
+  function mfaSetupError(error) {
+    const msg = String((error && error.message) || "") + " " + String((error && error.code) || "");
+    let e = null;
+    if (/enroll.*(disabled|not.?enabled)|totp.?enroll.?not.?enabled|mfa.*disabled|verify.?not.?enabled/i.test(msg)) {
+      e = new Error("Two-step set-up is switched off for this Helm site right now. Please try again later or contact Helm support (security@helm.events).");
+      e.code = "mfa_unavailable";
+    } else if (/too_many_enrolled|maximum.*factors|max.?enrolled/i.test(msg)) {
+      e = new Error("This account already has the most authenticators allowed. Turn two-step off and set it up again, or contact Helm support.");
+      e.code = "mfa_unavailable";
+    } else if (/aal2|insufficient_aal/i.test(msg)) {
+      e = new Error("For your security, sign out and sign in again with your code, then try once more.");
+      e.code = "mfa_aal2_required";
+    }
+    if (!e) return error;
+    e.cause = error; return e;
+  }
   function mfaLockedError(ms, cause) {
     const s = Math.max(1, Math.ceil(ms / 1000));
     const e = new Error("Too many incorrect codes. For your security, wait " + (s >= 90 ? Math.ceil(s / 60) + " minutes" : s + " seconds") + ", then enter the newest code from your app.");
@@ -1210,7 +1227,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "48";
+  const AUTH_UI_VERSION = "49";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -2238,7 +2255,7 @@ window.HelmUrl = HelmUrl;
           if (f.factor_type === "totp" && f.status !== "verified") { try { await supa.auth.mfa.unenroll({ factorId: f.id }); } catch (e) {} }
         }
         const { data, error } = await supa.auth.mfa.enroll({ factorType: "totp", friendlyName: "Helm " + new Date().toISOString().slice(0, 16).replace("T", " ") });
-        if (error) throw error;
+        if (error) throw mfaSetupError(error);
         return { factorId: data.id, qr: (data.totp && data.totp.qr_code) || "", secret: (data.totp && data.totp.secret) || "" };
       },
       // finish enrolment (or step up) with a 6-digit code from the authenticator app
@@ -2299,9 +2316,26 @@ window.HelmUrl = HelmUrl;
       async unenroll(factorId) {
         if (!supa) throw new Error("Supabase not configured");
         const { error } = await supa.auth.mfa.unenroll({ factorId });
-        if (error) throw error;
+        if (error) throw mfaSetupError(error);
         try { await supa.auth.refreshSession(); } catch (e) {}
         return true;
+      },
+      // r22: turning two-step OFF needs a CURRENT code from the app (an unlocked, signed-in browser alone is not
+      // enough). The code goes through verify(): same format check, same wrong-code lockout (0050 / 0158).
+      async disable(code) {
+        if (!supa) throw new Error("Supabase not configured");
+        const fs = await this.verifiedTotp();
+        if (!fs.length) return true;
+        await this.verify(fs[0].id, code);
+        for (const f of fs) await this.unenroll(f.id);
+        try { await evaluateGate(); } catch (e) {}
+        return true;
+      },
+      // r22 (0253): when Helm support last reset this person's two-step (lost phone) -> { reset_at } | null
+      async resetInfo() {
+        if (!supa || !currentUser) return null;
+        try { const { data, error } = await supa.rpc("my_mfa_reset_info"); if (error) return null; return data && data.reset_at ? data : null; }
+        catch (e) { return null; }
       },
       requiredForAdmins: () => AUTH_CFG.mfaRequiredForAdmins,
       _operatorDecision: operatorMfaDecision,

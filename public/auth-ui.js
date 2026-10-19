@@ -39,7 +39,7 @@
   }
   function errText(e, action) {
     var UI = global.BPUI;
-    if (e && e.code && /^(mfa_invalid|mfa_locked|bad_current_password|current_password_required|captcha_|rate_limited)/.test(e.code)) return e.message;
+    if (e && e.code && /^(mfa_invalid|mfa_locked|mfa_unavailable|mfa_aal2_required|bad_current_password|current_password_required|captcha_|rate_limited)/.test(e.code)) return e.message;
     if (e && e.message && /^(Use at least|Include at least|Enter the 6-digit|Choose a password)/.test(e.message)) return e.message;
     return UI && UI.friendlyError ? UI.friendlyError(e, { action: action }) : ((e && e.message) || "Something went wrong.");
   }
@@ -330,8 +330,9 @@
   }
 
   /* ------------------------------------------------ two-step enrolment */
-  // Renders the set-up steps into `box`; calls onDone() once the code verifies.
-  function renderEnroll(box, onDone) {
+  // Renders the set-up steps into `box`; calls onDone() once the code verifies. r22: onFail(e) (optional) when
+  // set-up could not even start; a "Try again" button is always offered then.
+  function renderEnroll(box, onDone, onFail) {
     css();
     box.textContent = "";
     var p = el("p", { class: "hau-muted" }, "Setting up…"); box.appendChild(p);
@@ -366,7 +367,11 @@
       inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); submit(); } });
       setTimeout(function () { inp.focus(); }, 30);
     }, function (e) {
-      box.textContent = ""; box.appendChild(el("p", { class: "hau-err" }, errText(e, "set up two-step verification")));
+      box.textContent = ""; box.appendChild(el("p", { class: "hau-err", role: "alert" }, errText(e, "set up two-step verification")));
+      var again = el("button", { type: "button", class: "hau-btn" }, "Try again");
+      again.addEventListener("click", function () { renderEnroll(box, onDone, onFail); });
+      var rr = el("div", { class: "hau-row" }); rr.appendChild(again); box.appendChild(rr);
+      if (onFail) try { onFail(e); } catch (x) {}
     });
   }
 
@@ -1379,21 +1384,42 @@
       box.textContent = "";
       if (fs.length) {
         box.appendChild(el("p", { class: "hau-ok" }, "On — you enter a code from your authenticator app when you sign in."));
+        box.appendChild(el("p", { class: "hau-muted" }, "Lost your phone? Sign-in needs the code, so contact Helm support (security@helm.events) from this account's e-mail address. They confirm who you are, then reset two-step so you can set it up on your new phone."));
+        // r22: turning it off needs a CURRENT code from the app (a signed-in browser alone is not enough)
         var off = el("button", { type: "button", class: "hau-btn danger" }, "Turn off");
         var er = el("div", { class: "hau-err", role: "alert" });
+        var offArea = el("div", { hidden: "" });
+        var offLab = el("label", { for: "hauOffCode", style: "display:block;margin:10px 0 4px;font-weight:600;font-size:14px" }, "Enter the 6-digit code from your authenticator app to turn two-step off");
+        var offInp = el("input", { id: "hauOffCode", class: "hau-input", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", pattern: "[0-9]{6}" });
+        var offGo = el("button", { type: "button", class: "hau-btn danger" }, "Turn off two-step");
+        var offCancel = el("button", { type: "button", class: "hau-btn" }, "Keep it on");
+        var offRow = el("div", { class: "hau-row" }); offRow.appendChild(offGo); offRow.appendChild(offCancel);
+        offArea.appendChild(offLab); offArea.appendChild(offInp); offArea.appendChild(offRow);
         off.addEventListener("click", function () {
-          var ask = global.BPUI && global.BPUI.confirm ? global.BPUI.confirm("Turn off two-step verification? Your account will be protected by " + (noPw ? "your Google sign-in" : "your password") + " only.", { title: "Turn off two-step verification", okLabel: "Turn off", danger: true }) : Promise.resolve(global.confirm("Turn off two-step verification?"));
-          ask.then(function (yes) {
-            if (!yes) return;
-            off.disabled = true;
-            Promise.all(fs.map(function (f) { return st.auth.mfa.unenroll(f.id); }))
-              .then(function () { renderMfaSection(box); }, function (e) { er.textContent = errText(e, "turn off two-step verification"); off.disabled = false; });
-          });
+          er.textContent = ""; off.hidden = true; offArea.hidden = false; offInp.value = "";
+          setTimeout(function () { try { offInp.focus(); } catch (e) {} }, 30);
         });
-        var row = el("div", { class: "hau-row" }); row.appendChild(off); box.appendChild(row); box.appendChild(er);
+        offCancel.addEventListener("click", function () { offArea.hidden = true; off.hidden = false; er.textContent = ""; });
+        var offSubmit = function () {
+          if (offGo.disabled) return;
+          er.textContent = ""; offGo.disabled = true;
+          st.auth.mfa.disable(offInp.value).then(function () { renderMfaSection(box); }, function (e) {
+            er.textContent = errText(e, "turn off two-step verification"); try { offInp.select(); } catch (x) {}
+            if (e && e.code === "mfa_locked" && e.retryAfter > 0) setTimeout(function () { offGo.disabled = false; er.textContent = ""; }, e.retryAfter * 1000);
+            else offGo.disabled = false;
+          });
+        };
+        offGo.addEventListener("click", offSubmit);
+        offInp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); offSubmit(); } });
+        var row = el("div", { class: "hau-row" }); row.appendChild(off); box.appendChild(row); box.appendChild(offArea); box.appendChild(er);
       } else {
         box.appendChild(el("p", { class: "hau-muted" }, noPw ? "Off. Turn it on so a Google account someone else gets into still can't open Helm without your code."
           : "Off. Turn it on so a stolen password alone can't open your account."));
+        // r22 (0253): after Helm support reset it (lost phone), say so - once set up again this line goes away
+        if (st.auth.mfa.resetInfo) st.auth.mfa.resetInfo().then(function (ri) {
+          if (!ri || !ri.reset_at || !box.isConnected) return;
+          box.insertBefore(el("p", { class: "hau-muted", role: "status" }, "Helm support reset your two-step verification on " + fmt(ri.reset_at) + ". Set it up again on your new phone."), box.firstChild);
+        }, function () {});
         var on = el("button", { type: "button", class: "hau-btn primary" }, "Turn on");
         var area = el("div", null);
         on.addEventListener("click", function () { on.hidden = true; renderEnroll(area, function () { hideBanner(); setTimeout(function () { renderMfaSection(box); }, 1500); }); });
@@ -1467,7 +1493,14 @@
     out.addEventListener("click", function () { S().auth.signOut().then(function () { location.replace("login.html"); }); });
     card.appendChild(out);
     ov.appendChild(card); doc.body.appendChild(ov);
-    renderEnroll(area, function () { setTimeout(function () { try { ov.remove(); } catch (e) {} }, 1200); });
+    renderEnroll(area, function () { setTimeout(function () { try { ov.remove(); } catch (e) {} }, 1200); }, function (e) {
+      // r22: the app asks admins to set it up; if the Helm site itself cannot offer set-up right now
+      // (Supabase two-step switched off), nobody is locked out - they can carry on and are asked again next time
+      if (!e || e.code !== "mfa_unavailable") return;
+      var later = el("button", { type: "button", class: "hau-btn" }, "Continue for now");
+      later.addEventListener("click", function () { try { ov.remove(); } catch (x) {} });
+      area.appendChild(later);
+    });
   }
 
   /* ------------------------------- profile menu (avatar, top-right) ---------
@@ -1960,5 +1993,7 @@
     _day: day,
     _trialEndDay: trialEndDay,
     _safeQr: safeQr,
+    _mfaSection: renderMfaSection,   // r22 tests (test/r22-mfa.test.mjs)
+    _adminTwoStep: adminTwoStep,
   };
 })(window);

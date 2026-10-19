@@ -249,7 +249,7 @@
     (d.members || []).forEach(function (m) {
       mt.appendChild(el("tr", null, [el("td", { text: m.display_name || "—" }), el("td", { cls: "m", text: m.email || "—" }), el("td", { text: m.role || "—" }),
         el("td", null, [el("span", { cls: "pill " + (m.active ? "ok" : "bad"), text: m.active ? "active" : "inactive" })]),
-        el("td", { text: ago(m.last_sign_in_at) }), el("td", null, [el("span", { cls: "pill " + (m.mfa_enabled ? "ok" : ""), text: m.mfa_enabled ? "on" : "off" })])]));
+        el("td", { text: ago(m.last_sign_in_at) }), el("td", null, mfaCell(m.email, m.mfa_enabled, function () { refreshAfterWrite(org); }))]));
     });
     wrap.appendChild(el("div", { cls: "scroll" }, [el("table", null, [el("thead", null, [el("tr", null, ["Name", "E-mail", "Role", "Status", "Last sign-in", "2-step"].map(function (h) { return el("th", { text: h }); }))]), mt])]));
 
@@ -415,6 +415,34 @@
     box.appendChild(el("div", { cls: "form" }, [field("Extra days", sel), field("Reason (required)", why), go]));
   }
 
+  /* ---------------- r22 (0253): lost phone -> Helm-assisted two-step reset ----------------
+     The database decides (hq_mfa_reset): HQ operator signed in WITH two-step (aal2), never your own account, a reason,
+     at most 10 a day, audited (HQ Activity) + kept in an append-only log. The person's authenticator is marked
+     unverified (never deleted); at their next sign-in Helm asks them to set it up again. */
+  function mfaCell(email, on, after) {
+    var kids = [el("span", { cls: "pill " + (on ? "ok" : ""), text: on ? "on" : "off" })];
+    var me = (BPStore.auth.user() && BPStore.auth.user().email) || "";
+    if (on && email && String(email).toLowerCase() !== String(me).toLowerCase()) {
+      var b = el("button", { cls: "btn sm danger", type: "button", text: "Reset", title: "Reset two-step for " + email + " (lost phone)" });
+      b.addEventListener("click", function () { resetMfa(email, b, after); });
+      kids.push(" "); kids.push(b);
+    }
+    return kids;
+  }
+  function resetMfa(email, btn, after) {
+    if (!window.confirm("Reset two-step verification for " + email + "?\n\nOnly do this after you have confirmed who they are (for example a call to the number you already have, or an e-mail from this address). Their next sign-in needs only their password or Google, and Helm then asks them to set two-step up again.")) return;
+    var why = ask("Reason (kept in the HQ log) - how did you confirm who they are?", "");
+    if (why == null) return;
+    if (why.length < 10) { showErr(new Error("Give a reason of at least 10 characters.")); return; }
+    var again = ask("Type the person's e-mail address to confirm:", "");
+    if (again == null) return;
+    if (again.toLowerCase() !== String(email).toLowerCase()) { showErr(new Error("The e-mail address didn't match - nothing was reset.")); return; }
+    btn.disabled = true;
+    call("hq_mfa_reset", { p_email: email, p_reason: why }).then(function (r) {
+      okMsg((r && r.message) || "Two-step reset."); if (after) after();
+    }).catch(showErr).then(function () { btn.disabled = false; });
+  }
+
   /* ---------------- people ---------------- */
   async function loadUsers(off) {
     uOff = off || 0;
@@ -424,7 +452,7 @@
       tb.appendChild(el("tr", null, [el("td", { cls: "m", text: r.email || "—" }), el("td", { text: r.studio || "—" }), el("td", { text: r.role || "—" }),
         el("td", { text: date(r.created_at) }), el("td", { text: ago(r.last_sign_in_at) }),
         el("td", null, [el("span", { cls: "pill " + (r.email_confirmed ? "ok" : "warn"), text: r.email_confirmed ? "yes" : "no" })]),
-        el("td", null, [el("span", { cls: "pill " + (r.mfa_enabled ? "ok" : ""), text: r.mfa_enabled ? "on" : "off" })])]));
+        el("td", null, mfaCell(r.email, r.mfa_enabled, function () { loadUsers(uOff).catch(showErr); }))]));
     });
     if (!rows.length) tb.appendChild(el("tr", null, [el("td", { colspan: "7", cls: "empty", text: "No users match." })]));
     pager($("#pUsers"), uOff, rows.length ? num(rows[0].total_count) : 0, function (o) { loadUsers(o).catch(showErr); });
