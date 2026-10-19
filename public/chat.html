@@ -704,6 +704,7 @@
     if(!msgs.length&&thread.failed){ host.innerHTML='<div class="welcome" role="alert"><b>Couldn’t load this chat</b><p><button type="button" class="btn" id="thRetry">Try again</button></p></div>'; const rb=$("#thRetry"); if(rb) rb.addEventListener("click",()=>{ thread.conv=null; renderMessages(); loadThread(); }); return; }
     if(!msgs.length){ host.innerHTML='<div class="welcome"><div class="big">👋</div><b>No messages yet</b><p>Say hello — this is the start of your conversation.</p></div>'; return; }
     let html=olderRowHtml(),lastDay="",lastSender=null;
+    const media=[];   // r21 CodeQL js/xss-through-dom: storage paths stay in JS; the markup carries only their index
     msgs.forEach(m=>{
       const day=fmtDay(m.created_at); if(day!==lastDay){ html+=`<div class="daysep">${esc(day)}</div>`; lastDay=day; lastSender=null; }
       const mine=m.sender_id===ME.id; const grpStart=(m.sender_id!==lastSender); lastSender=m.sender_id;
@@ -713,8 +714,8 @@
       let inner="";
       if(isGroup&&!mine&&grpStart) inner+=`<div class="who" data-st="color:${colorFor(m.sender_id)}">${personAv(m.sender_id,"width:20px;height:20px;font-size:9px;display:inline-flex;vertical-align:-5px;margin-right:6px")}${esc(personName(m.sender_id))}</div>`;
       if(m.reply_to){ const rm=msgs.find(x=>x.id===m.reply_to); if(rm){ const rsnip=rm.kind==="image"?"📷 Photo":rm.kind==="voice"?"🎤 Voice message":rm.kind==="card"?cardLabel(rm):(rm.body||""); inner+=`<div class="reply" data-goto="${esc(rm.id)}"><b>${esc(rm.sender_id===ME.id?"You":personName(rm.sender_id))}</b><span class="rt">${esc(rsnip)}</span></div>`; } }
-      if(m.kind==="image"){ inner+=`<img class="photo" data-media="${esc(m.media_path||"")}" alt="Photo" loading="lazy">`; if(m.body) inner+=`<div class="cap txt">${esc(m.body)}</div>`; }
-      else if(m.kind==="voice"){ inner+=`<audio controls preload="none" data-media="${esc(m.media_path||"")}"></audio>`; }
+      if(m.kind==="image"){ inner+=`<img class="photo" data-media="${media.push(String(m.media_path||""))-1}" alt="Photo" loading="lazy">`; if(m.body) inner+=`<div class="cap txt">${esc(m.body)}</div>`; }
+      else if(m.kind==="voice"){ inner+=`<audio controls preload="none" data-media="${media.push(String(m.media_path||""))-1}"></audio>`; }
       else if(m.kind==="card"){ inner+=cardHtml(m.meta); if(m.body) inner+=`<div class="cap txt">${mentionHtml(m.body,m.meta&&m.meta.mentions)}</div>`; }
       else inner+=`<span class="txt">${mentionHtml(m.body,m.meta&&m.meta.mentions)}</span>`;
       const ticks=mine?ticksHtml(m,thread.members,!!m._pending):"";
@@ -729,7 +730,7 @@
     host.querySelectorAll(".caret[data-caret]").forEach(el=>el.addEventListener("click",(e)=>{ e.stopPropagation(); msgMenu(el,el.dataset.caret); }));
     host.querySelectorAll(".reply[data-goto]").forEach(el=>el.addEventListener("click",()=>{ const t=host.querySelector('.m[data-mid="'+el.dataset.goto+'"]'); if(t){ t.scrollIntoView({block:"center"}); t.style.transition="background .3s"; t.style.background="var(--accent-soft)"; setTimeout(()=>t.style.background="",700); } }));
     host.querySelectorAll("img.photo").forEach(el=>el.addEventListener("click",()=>el.src&&lightbox(el.src)));
-    host.querySelectorAll("[data-media]").forEach(async el=>{ const p=el.getAttribute("data-media"); if(!p) return; try{ const u=String(await BPStore.chat.mediaUrl(p)||""); if(/^https:\/\//i.test(u)) el.src=u; }catch(e){} });   // r21 CodeQL: https (signed storage URL) only
+    host.querySelectorAll("[data-media]").forEach(async el=>{ const i=parseInt(el.getAttribute("data-media"),10); const p=(i>=0&&i<media.length)?media[i]:""; if(!p) return; try{ const u=String(await BPStore.chat.mediaUrl(p)||""); if(/^https:\/\//i.test(u)) el.src=u; }catch(e){} });   // r21 CodeQL: path from the render list (never DOM text), https (signed storage URL) only
     { const b=host.querySelector("[data-older-btn]"); if(b) b.addEventListener("click",loadOlder); }
     if(msgQuery) applyMsgSearch(msgQuery);
     else if(o.keepFromBottom!=null) host.scrollTop=Math.max(0,host.scrollHeight-o.keepFromBottom);   // prepended history: keep the reader's place

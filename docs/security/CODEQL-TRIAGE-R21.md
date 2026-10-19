@@ -36,6 +36,23 @@ Verdicts:
 
 Tests: `test/r21-security.test.mjs` covers each of these fixes (`auth-confirm go()`, the `noTags` and `stripHtml` fixed point, calendar day normalisation, and the escaped interpolations).
 
+## 1b. Follow-up - the 3 website alerts still open after the security PR (branch `fix/r21-codeql-last3`)
+
+The first CodeQL run on `main` after the merge (`ffd1ee12`) closed the other website alerts, but re-raised three on the
+hardened lines with new numbers. The guards added in round 21 were correct, but CodeQL does not treat a regex test or
+an `https:` check as a sanitizer. This time the flows themselves were changed, so the scanner can follow them.
+
+| # | Rule | Location | Root cause (data flow) | Verdict | Fix |
+|---|---|---|---|---|---|
+| 95 | js/xss | `public/auth-confirm.js:30` `go()` | `location.search` -> `next=` (`auth-confirm-core.js` `parse()` / `safePath()`) -> `link.next` -> `go(path)` -> `location.replace(p)`. The guard was `if (!/^\/.../.test(p)) p = "/login"`. CodeQL does not count a regex test as a sanitizer, so the link's own text still reached the sink. | False positive. `safePath()` and the regex already allowed only a same-origin path, so `javascript:` could never get through. | `go()` resolves the path with `new URL(path, location.origin)` and requires the same origin. The path must be exactly one of the fixed pages an auth e-mail returns to (`/login`, `/login.html`, `/reset-password`, `/reset-password.html`), and the string sent is the file's own constant. Only the query is carried over, after a literal `"?"`. Anything else goes to `/login`, the default every auth link already falls back to. No real link changes: invite (`/login?invite=`), sign-up (`/login.html?next=&invite=`), recovery (`/reset-password?via=confirm`), `?error_code=` and `?confirmed=` all keep their exact target, on both `helm.events` and `www.helm.events`. |
+| 98 | js/client-side-unvalidated-url-redirection | same line | Same flow as #95. | False positive (same reason). | Same fix as #95. The host can never come from the link. |
+| 96 | js/xss-through-dom | `public/chat.html:732` | `data-media` attribute (DOM text) -> `el.getAttribute("data-media")` -> `BPStore.chat.mediaUrl(p)` -> `el.src = u`. The `https:` check added in round 21 is not a sanitizer CodeQL knows. | False positive. `<img src>` / `<audio src>` cannot run script, and `mediaUrl()` returns a signed storage URL. | The storage path no longer goes through DOM text. `renderMessages()` keeps the paths in a local `media` list, and `data-media` carries only a number. The loader reads that number with `parseInt` and looks the path up in the list. The `https:` check stays. Photos and voice notes render exactly as before. Mentions, emoji, links and reactions were not touched. |
+
+Tests: `test/r21-security.test.mjs` 6a runs the new `go()` in a sandbox (allowed targets on both origins, and `//host`,
+`/\host`, other origins, `javascript:`, unknown pages and `/auth/confirm` all fall back to `/login`). 6c pins the chat
+media index list. If any of #95, #96 or #98 is still open after the next `main` run, dismiss it as **False positive** with
+the comment in this table.
+
 ## 2. Staging scripts - fixed
 
 | # | Rule | Location | Verdict |

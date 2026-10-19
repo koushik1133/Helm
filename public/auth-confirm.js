@@ -26,8 +26,21 @@
   function say(title, sub) { $("#title").textContent = title; $("#sub").textContent = sub || ""; }
   function err(t) { var e = $("#err"); e.textContent = t; e.hidden = !t; }
   // r21 CodeQL js/xss + js/client-side-unvalidated-url-redirection: parse() (auth-confirm-core.js safePath) already
-  // allows only same-origin paths; re-checked here so no other value can ever reach location.replace
-  function go(path) { var p = String(path || ""); if (!/^\/(?![\/\\])[^\s\u0000-\u001f]*$/.test(p)) p = "/login"; location.replace(p); }
+  // allows only same-origin paths. go() never hands the link's own text to location.replace: the path is resolved
+  // with new URL() against this origin, must be one of the fixed pages an auth e-mail returns to (the string sent
+  // is this file's own constant), and only the query (invite token, ?next=, ?error_code=) is carried after "?".
+  // Anything else -> /login (the default every auth link already falls back to).
+  var GO_PATHS = ["/login", "/login.html", "/reset-password", "/reset-password.html"];
+  function go(path) {
+    var target = "/login", u = null;
+    try { u = new URL(String(path || ""), location.origin); } catch (e) { u = null; }
+    if (u && u.origin === location.origin) {
+      for (var i = 0; i < GO_PATHS.length; i++) {
+        if (u.pathname === GO_PATHS[i]) { target = GO_PATHS[i]; if (u.search.length > 1) target = target + "?" + u.search.slice(1); break; }
+      }
+    }
+    location.replace(target);
+  }
   var SIGNUP = link.ok && (link.type === "signup" || link.type === "email");
   // round 19: the right words straight away (this file runs before the big store-api.js loads)
   if (SIGNUP) say("Confirming your email…", "One moment — we're confirming your e-mail address.");

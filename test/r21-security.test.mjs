@@ -250,13 +250,24 @@ await t("5c telemetry: DSN read lazily (config.js loads after telemetry.js) - a 
 });
 
 /* ------------------------------------------------------------------ 6. CodeQL fixes */
-await t("6a auth-confirm go(): only a same-origin path reaches location.replace", () => {
+await t("6a auth-confirm go(): only a fixed same-origin page (+ its query) reaches location.replace", () => {
   const src = r("public/auth-confirm.js");
-  const m = /function go\(path\) \{ var p = String\(path \|\| ""\); if \(!(\/.*\/)\.test\(p\)\) p = "\/login"; location\.replace\(p\); \}/.exec(src);
+  const m = /  var GO_PATHS = [\s\S]*?\n  function go\(path\) \{[\s\S]*?\n    location\.replace\(target\);\n  \}\n/.exec(src);
   assert.ok(m, "guarded go()");
-  const re = vm.runInNewContext(m[1]);
-  for (const ok of ["/login", "/login?invite=ab12", "/reset-password?via=confirm"]) assert.ok(re.test(ok), ok);
-  for (const bad of ["//evil.example", "/\\evil.example", "https://evil.example", "javascript:alert(1)", "", "/x\ny"]) assert.ok(!re.test(bad), JSON.stringify(bad));
+  assert.doesNotMatch(src, /location\.(replace|assign)\((?!target\))/, "go() is the only navigation");
+  const run = (origin, path) => { let to = null; const ctx = { URL, location: { origin, replace: (x) => { to = x; } } };
+    vm.runInNewContext(m[0] + "\ngo(" + JSON.stringify(path) + ");", ctx); return to; };
+  const W = "https://www.helm.events", A = "https://helm.events";
+  for (const [inp, out] of [["/login", "/login"], ["/login?invite=ab12cd34ef56ab78", "/login?invite=ab12cd34ef56ab78"],
+    ["/login.html?next=dashboard&invite=ab12cd34ef56ab78", "/login.html?next=dashboard&invite=ab12cd34ef56ab78"],
+    ["/reset-password?via=confirm", "/reset-password?via=confirm"], ["/login?confirmed=1", "/login?confirmed=1"],
+    ["/login?invite=ab12&error_code=otp_expired", "/login?invite=ab12&error_code=otp_expired"], ["/login?", "/login"]]) {
+    assert.equal(run(W, inp), out, inp); assert.equal(run(A, inp), out, "apex " + inp);
+  }
+  for (const bad of ["//evil.example", "/\\evil.example", "https://evil.example/login", "javascript:alert(1)", "", "/x\ny", "/dashboard", "/auth/confirm?x=1", "/login/../../evil"])
+    assert.equal(run(W, bad), "/login", JSON.stringify(bad));
+  // whatever is passed, the string handed to location.replace starts with one of the fixed pages
+  for (const x of ["//a.b/login", "/login?x=//evil", "\t/login", "https://www.helm.events/login?invite=ab12"]) assert.match(run(W, x), /^\/(login|reset-password)(\.html)?(\?|$)/, x);
 });
 await t("6b tag stripping runs to a fixed point (form-validate stripHtml, auth-ui noTags)", () => {
   const { stripHtml } = require("../public/form-validate.js");
@@ -279,6 +290,11 @@ await t("6c calendar day / quotes / event / chat sinks escaped or validated", ()
   assert.match(E, /sum:`Version v\$\{esc\(ev\.currentVersion\)\}/);
   assert.match(E, /href="\$\{esc\(a\.href\)\}">\$\{esc\(a\.t\)\}<\/a>/);
   assert.match(C, /if\(\/\^https:\\\/\\\/\/i\.test\(u\)\) el\.src=u;/);
+  // r21 codeql #96: the storage path never round-trips through DOM text (data-media carries an index into a render list)
+  assert.match(C, /data-media="\$\{media\.push\(String\(m\.media_path\|\|""\)\)-1\}" alt="Photo"/);
+  assert.match(C, /<audio controls preload="none" data-media="\$\{media\.push\(String\(m\.media_path\|\|""\)\)-1\}">/);
+  assert.match(C, /const i=parseInt\(el\.getAttribute\("data-media"\),10\); const p=\(i>=0&&i<media\.length\)\?media\[i\]:"";/);
+  assert.doesNotMatch(C, /data-media="\$\{esc\(/);
   assert.match(r("tests/staging/lib/client.mjs"), /globalThis\.crypto\.getRandomValues\(b\)/);
   assert.doesNotMatch(r("tests/staging/lib/client.mjs"), /Math\.random/);
 });
