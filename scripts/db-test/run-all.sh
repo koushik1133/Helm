@@ -219,6 +219,8 @@ run "r23-vendors-0256" "R23-VENDORS-0256: ALL PASS \(77/77\)" psql -q -f tests/d
 run "r23-payment-schedules-0264" "R23-PAYMENT-SCHEDULES-0264: ALL PASS \(71/71\)" psql -q -f tests/db/r23-payment-schedules-0264.sql
 # 0265 re-applies itself twice (re-run safe); after every suite that re-applies 0132 / 0246 / 0252 (it replaces the 0252 ledger body)
 run "r23-crew-0265" "R23-CREW-0265: ALL PASS \(60/60\)" psql -q -f tests/db/r23-crew-0265.sql
+# 0261 re-applies itself (after 0254, whose bell_feed / event_activity it wraps; proves a re-run is safe)
+run "r23-link-views-0261" "R23-LINK-VIEWS-0261: ALL PASS \(62/62\)" psql -q -f tests/db/r23-link-views-0261.sql
 # 0244 re-applies itself twice (re-run safe) after every suite that re-applies 0045 / 0183 / 0185
 run "r21-trial-paid-0244" "R21-TRIAL-PAID-0244: ALL PASS \(56/56\)" psql -q -f tests/db/r21-trial-paid-0244.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh

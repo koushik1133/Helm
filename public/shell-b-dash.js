@@ -979,9 +979,12 @@
       tasks: signedOut ? Promise.resolve(null) : safe(function () { return S().myTasks(); }, null),
       audit: vAudit ? safe(function () { return S().audit.list({ limit: 12 }); }, null) : Promise.resolve(null),
       // 0108: exact server numbers (ledger-based collected, overdue, pipeline). null = not installed -> fallback below
-      money: (vQuotes || isMoney) && !signedOut && S().dashboard && S().dashboard.money ? safe(function () { return S().dashboard.money(12); }, null) : Promise.resolve(null)
+      money: (vQuotes || isMoney) && !signedOut && S().dashboard && S().dashboard.money ? safe(function () { return S().dashboard.money(12); }, null) : Promise.resolve(null),
+      // r23 (0261): quotes the client viewed but has not approved (null = server older than 0261)
+      lv: vQuotes && !signedOut && S().linkViews ? safe(function () { return S().linkViews.attention(); }, null) : Promise.resolve(null)
     };
-    var R = await Promise.all([P.page, P.counts, P.leads, P.pend, P.tasks, P.money]);
+    var R = await Promise.all([P.page, P.counts, P.leads, P.pend, P.tasks, P.money, P.lv]);
+    var lvAttn = Array.isArray(R[6]) ? R[6] : [];
     var pageRes = R[0], rows = (pageRes && pageRes.rows) || [], counts = R[1], leads = R[2] || [], pend = R[3], tasks = R[4];
     var M = R[5] && typeof R[5] === "object" && Array.isArray(R[5].months) ? R[5] : null;
     var mCur = M && M.currency ? String(M.currency).toUpperCase() : null;
@@ -1300,12 +1303,20 @@
         if (dl != null && dl >= 0 && dl <= erWin) add(3, "warn", qName(q), "check the checklist, staff and vendors", evHref(q.id), "Get ready", q.code, ER.chipText(dl));
       });
       ((tasks && tasks.blocked) || []).forEach(function (t) { add(4, "warn", t.title || "Task", evTitleOf(t), t.quote_id ? evHref(t.quote_id) : "#mytasksSection", "Unblock", t.event_code, "Task blocked"); });
+      // r23 (0261): the client opened their link N days ago and has not approved -> one tap to the timeline + Send a nudge
+      lvAttn.forEach(function (x) {
+        if (!x || !x.quote_id) return;
+        var dd = x.first_at ? Math.max(1, Math.floor((Date.now() - new Date(x.first_at).getTime()) / DAY)) : null;
+        add(5, "warn", x.client || x.title || x.code || "Quote", [x.title && x.client ? x.title : "", dd ? "first opened " + dd + (dd === 1 ? " day" : " days") + " ago" : "", x.mine ? "yours" : (x.owner ? "owner " + x.owner : "")].filter(Boolean).join(" · "),
+          "event.html?id=" + encodeURIComponent(x.quote_id) + "#link-views", "Send a nudge", x.code, "Viewed " + (Number(x.views) || 1) + "×, not approved");
+      });
       var folShows = !cFol.hidden && !signedOut;   // Follow-ups owns "waiting on a reply" (stale leads, unanswered quotes): no duplicates here
       if (vLeads && !folShows) staleLeads.forEach(function (l) { add(5, "warn", l.name || "Unnamed lead", [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), leadHref(l), eLeads ? "Reply" : "View", null, "Not contacted"); });   // r20-coord: view-only leads
       if (vQuotes && !folShows) rows.forEach(function (q) {
-        if (q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed") && q.updatedAt && Date.now() - new Date(q.updatedAt).getTime() > 3 * DAY)
+        if (q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed") && q.updatedAt && Date.now() - new Date(q.updatedAt).getTime() > 3 * DAY) {
           var wd = Math.floor((Date.now() - new Date(q.updatedAt).getTime()) / DAY);
           add(6, "info", qName(q), (q.approvalStatus === "viewed" ? "viewed " : "sent ") + wd + " days ago", evHref(q.id), "Follow up", q.code, "Waiting for client " + wd + " days");
+        }
       });
       items.sort(function (a, b2) { return a.rank - b2.rank; });
       if (items.length) { var bd = pill(items[0].kind === "risk" ? "risk" : items[0].kind === "warn" ? "warn" : "info", items.length); bd.classList.add("hd-count-pill"); bd.setAttribute("aria-label", items.length + " items"); tools(cAtt).insertBefore(bd, tools(cAtt).firstChild); }

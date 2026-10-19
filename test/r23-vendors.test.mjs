@@ -130,7 +130,7 @@ t('C2 Vendors page: "Requests & invoices" tab, DOM-built UI (no innerHTML), stor
 t('C3 store-api: BPStore.vendorRequests wraps the RPCs (list [] / summary null on an older server)', () => {
   const S = read('public/store-api.js');
   assert.match(S, /const vendorRequests = \{/);
-  assert.match(S, /comms, deliveries, vendorRequests, integrations,/);
+  assert.match(S, /comms, deliveries, vendorRequests, (linkViews, )?integrations,/);
   for (const r of ['vendor_requests_list', 'vendor_requests_summary', 'vendor_request_save', 'vendor_request_set_status', 'vendor_request_reassign',
     'vendor_request_cancel', 'vendor_request_link', 'vendor_request_history', 'vendor_invoice_review']) assert.ok(S.includes('rpc("' + r + '"'), r);
   assert.match(S, /storage\.from\("vendor-invoices"\)\.createSignedUrl\(path, 120\)/);

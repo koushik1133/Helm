@@ -272,7 +272,8 @@
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=15">
-<script src="/shell-proto.js?v=39" id="shellProto"></script>
+<link rel="stylesheet" href="link-views.css?v=1">
+<script src="/shell-proto.js?v=40" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -761,6 +762,9 @@
       <!-- r23 (0265): crew availability / open shifts / self check-in settings (built by crew-shifts.js; hidden before 0265) -->
       <div class="card" id="crewCfgCard" hidden></div>
 
+      <!-- r23 (0261): client link views + "viewed but not approved" (built + wired by link-views.js; hidden before 0261) -->
+      <div class="card" id="lvCard" data-link-views-settings hidden></div>
+
       <!-- 0078: automatic client messages + WhatsApp forwarding (wired by comms-settings.js) -->
       <div class="card" id="commsCard" hidden>
         <h3>Automatic client messages &amp; WhatsApp</h3>
@@ -876,6 +880,7 @@
 <script src="delivery-tracker.js?v=1"></script>
 <script src="delivery-settings.js?v=1"></script>
 <script src="crew-shifts.js?v=1"></script>
+<script src="link-views.js?v=1"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=3"></script>
 <script src="cc-inputs.js?v=4"></script>

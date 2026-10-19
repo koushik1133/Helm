@@ -114,7 +114,7 @@
         const inp = el("input", "bk-url"); inp.id = "bkApprUrl"; inp.type = "text"; inp.readOnly = true; inp.value = link; inp.addEventListener("focus", () => inp.select());
         const copy = el("button", "bk-btn", "Copy"); copy.type = "button";
         copy.addEventListener("click", async () => { try { await global.navigator.clipboard.writeText(link); toast("Approval link copied"); } catch (e) { inp.focus(); inp.select(); toast("Press Ctrl/Cmd + C to copy", "info"); } });
-        const open = el("a", "bk-btn ghost", "Preview"); open.setAttribute("href", link); open.setAttribute("target", "_blank"); open.setAttribute("rel", "noopener noreferrer");
+        const open = el("a", "bk-btn ghost", "Preview"); open.setAttribute("href", link + "#preview");   // r23 (0261): a studio preview is never counted as a client view open.setAttribute("target", "_blank"); open.setAttribute("rel", "noopener noreferrer");
         row.appendChild(inp); row.appendChild(copy); row.appendChild(open); out.appendChild(row);
         if (global.HelmEmailSend) global.HelmEmailSend.mount(out, { quoteId: quoteId, kind: "approval", allowUnknown: true, getEmail: () => String(c.email || "") });
         go.textContent = "Create the link again";
@@ -157,7 +157,7 @@
       catch (e) { inp.focus(); inp.select(); toast("Press Ctrl/Cmd + C to copy", "info"); }
     });
     row.appendChild(copy);
-    const open = el("a", "bk-btn ghost", "Open"); open.setAttribute("href", url); open.setAttribute("target", "_blank"); open.setAttribute("rel", "noopener noreferrer");
+    const open = el("a", "bk-btn ghost", "Open"); open.setAttribute("href", url + "#preview");   // r23 (0261): not counted as a client view open.setAttribute("target", "_blank"); open.setAttribute("rel", "noopener noreferrer");
     row.appendChild(open);
     box.appendChild(row);
     box.appendChild(el("p", cur.expired ? "bk-meta bk-warn" : "bk-meta",
