@@ -496,7 +496,7 @@ t('auth-ui: "Your profile" in the Account panel (display-name fallback kept), ba
   assert.match(a, /if \(page === "profile-setup"\) return;/);
   assert.match(a, /st\.profile\.snoozeNudge\(7\)/);
   assert.match(a, /openAccount\(\{ focus: "profile" \}\)/);
-  assert.match(a, /renderMfaSection\(mfBody\)/, 'two-step section intact');
+  assert.match(a, /renderMfaSection\(mfBody(, mfPill)?\)/, 'two-step section intact');   // r22: + the status pill slot
   assert.match(a, /\/reset-password\?mode=change/, 'password section intact');
   assert.match(a, /profileForm: profileForm/);
   const pf = a.slice(a.indexOf('function profileForm('), a.indexOf('function profileSection('));

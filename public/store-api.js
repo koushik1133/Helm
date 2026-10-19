@@ -1227,7 +1227,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "49";
+  const AUTH_UI_VERSION = "50";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -2247,7 +2247,7 @@ window.HelmUrl = HelmUrl;
         return (data && (data.all || data.totp)) || [];
       },
       async verifiedTotp() { return (await this.factors()).filter((f) => f.factor_type === "totp" && f.status === "verified"); },
-      // Start enrolment → { factorId, qr (SVG data URI for <img src>), secret }.
+      // Start enrolment → { factorId, qr (SVG data URI for <img src>), secret, uri (otpauth:// link, r22) }.
       // Unfinished earlier attempts are removed first (Supabase refuses duplicates).
       async enrollTotp() {
         if (!supa) throw new Error("Supabase not configured");
@@ -2256,7 +2256,7 @@ window.HelmUrl = HelmUrl;
         }
         const { data, error } = await supa.auth.mfa.enroll({ factorType: "totp", friendlyName: "Helm " + new Date().toISOString().slice(0, 16).replace("T", " ") });
         if (error) throw mfaSetupError(error);
-        return { factorId: data.id, qr: (data.totp && data.totp.qr_code) || "", secret: (data.totp && data.totp.secret) || "" };
+        return { factorId: data.id, qr: (data.totp && data.totp.qr_code) || "", secret: (data.totp && data.totp.secret) || "", uri: (data.totp && data.totp.uri) || "" };
       },
       // finish enrolment (or step up) with a 6-digit code from the authenticator app
       async verify(factorId, code) {
