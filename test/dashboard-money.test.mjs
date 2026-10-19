@@ -42,7 +42,7 @@ assert.match(biz, /settlement\.html\?quote=/, "overdue rows link to settlement (
 assert.match(biz, /setAttribute\("data-money"/, "amounts are marked data-money");
 assert.ok(!/quoteMoney|% paid/.test(dash), "dashboard shows no per-quote money"); assert.match(dash, /h\.compact\(n\)/, "revenue total via HelmMoney.compact");
 const bizJs = readFileSync("public/business.js", "utf8");
-assert.match(bizJs, /canView\("finance"\)/, "business page gated on finance view");
+assert.match(bizJs, /canView\("business"\)/, "business page gated on its own business area (r20 / 0239)");
 const priv = readFileSync("public/shell-b-privacy.js", "utf8");
 // 0157: the PIN is one per studio, checked on the server (bcrypt hash there); nothing about it is stored in the browser
 assert.match(priv, /a\.check\(pin\)/, "PIN checked on the server (BPStore.privacyPin.check)");

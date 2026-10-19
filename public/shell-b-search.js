@@ -7,7 +7,7 @@
   "use strict";
   var doc = document;
   var EXTRA = [
-    { id: "go-business", label: "Go to Business", icon: "\u{1F4BC}", href: "/business.html", need: [["view", "finance"]], kw: "money revenue collected outstanding payments finance" },
+    { id: "go-business", label: "Go to Business", icon: "\u{1F4BC}", href: "/business.html", need: [["view", "business"]], kw: "money revenue collected outstanding payments finance" },
     { id: "go-reports", label: "Go to reports", icon: "\u{1F4C8}", href: "/reports.html", need: [["view", "controls"]], kw: "revenue export summary" },
     { id: "go-audit", label: "Open audit log", icon: "\u{1F6E1}", href: "/audit.html", need: [["view", "controls"]], kw: "history changes log security" },
     { id: "go-insights-b", label: "Go to insights", icon: "\u{1F4CA}", href: "/insights.html", need: [["view", "insights"]], kw: "analytics trends" },

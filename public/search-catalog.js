@@ -29,7 +29,7 @@
     { key: "vendors",    label: "Vendors",          href: "vendors.html",    gate: { view: "vendors" }, kw: "partners suppliers" },
     { key: "templates",  label: "Templates",        href: "templates.html",  gate: { view: "templates" }, kw: "proposal templates layouts" },
     { key: "control",    label: "Control Center",   href: "control.html",    gate: CTL, kw: "control center settings preferences configuration admin", alias: ["control center", "control centre", "settings", "control"] },
-    { key: "business",   label: "Business",         href: "business.html",   gate: { view: "finance" }, kw: "money revenue collected outstanding payments finance" },
+    { key: "business",   label: "Business",         href: "business.html",   gate: { view: "business" }, kw: "money revenue collected outstanding payments finance" },
     { key: "insights",   label: "Insights",         href: "insights.html",   gate: { view: "insights" }, kw: "insights analytics numbers trends" },
     { key: "reports",    label: "Reports",          href: "reports.html",    gate: { any: [CTL, { role: /^(admin|manager|planner)$/ }] }, kw: "reports export summary analytics" },
     { key: "audit",      label: "Audit log",        href: "audit.html",      gate: CTL, kw: "audit history activity who changed log" },

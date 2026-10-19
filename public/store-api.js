@@ -1204,7 +1204,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "10";
+  const STUDIO_SEARCH_VERSION = "11";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";
@@ -1344,6 +1344,10 @@ window.HelmUrl = HelmUrl;
     { key: "issues",     label: "Issues & incidents",icon: "🚨", page: null,             group: "Event day" },
     { key: "media",      label: "Media & gallery",   icon: "📸", page: null,             group: "Event day" },
     { key: "controls",   label: "Control Center",    icon: "⚙", page: "control.html",   group: "Admin" },
+    // 0239 (r20): the Business page (studio money: P&L, vendor payables). Its own switch, separate from
+    // "Budget & finance" (planners keep finance for payments / settlement / closure on events). No row = off:
+    // admin only until a studio switches it on for a role here.
+    { key: "business",   label: "Business overview (studio money)", icon: "💼", page: null, group: "Admin" },
     // 0076: date-ranged Insights page (insights_range). Money inside it also needs "finance".
     { key: "insights",   label: "Insights",          icon: "📊", page: null,             group: "Admin" },
     { key: "codes",      label: "Coupons & codes",   icon: "🔑", page: null,             group: "Admin" },

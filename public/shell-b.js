@@ -614,8 +614,9 @@
             var label = a.key === "controls" ? "Control Center" : a.label;
             (isAdmin ? admin : manage).appendChild(item(KEY_ICON[a.key] || "dot", label, a.page, a.key));
           });
-          /* Business: the studio's money, moved off the client-facing dashboard (finance VIEW, same gate as dashboard_money) */
-          Promise.resolve(BPStore.auth.canView("finance")).catch(function () { return false; }).then(function (fin) {
+          /* Business: the studio's money, moved off the client-facing dashboard. r20 / 0239: its own "business" area
+             (admin only by default; Control Center -> Roles & access), no longer every role with finance */
+          Promise.resolve(BPStore.auth.canView("business")).catch(function () { return false; }).then(function (fin) {
             if (fin && !document.querySelector('#hbRail .hb-group:not(.hb-fav) [data-key="business"]')) { /* planner-1023: the first item may sit inside an .hb-row wrapper — insert before the admin group's own child, never a grandchild (that threw and left Manage hidden) */
               var ref = admin.querySelector(".hb-item"); while (ref && ref.parentNode !== admin) ref = ref.parentNode;
               admin.insertBefore(item("business", "Business", "business.html", "business"), ref || null); }
