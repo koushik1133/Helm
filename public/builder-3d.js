@@ -1203,6 +1203,14 @@
 
   function buildFurniture(it, chairs){
     if(it.properties && it.properties.model){ return buildModelGroup(it); }   // custom mesh replaces the primitive
+    const LINEAR_RUN={fence:1, stagebarrier:1, barricade:1};   // line objects whose rails follow the width
+    // r21 political layout: a fence / barrier line drawn top-to-bottom (1 ft wide, 222 ft long) is built along its
+    // long side and turned a quarter - it used to come out as a 1 ft stub (the rails only follow the width)
+    if(LINEAR_RUN[it.type] && +it.height > +it.width){
+      const inner=buildFurniture(Object.assign({}, it, { width: it.height, height: it.width }), chairs);
+      if(!inner) return inner;
+      const gl=new THREE.Group(); inner.rotation.y=Math.PI/2; gl.add(inner); return gl;
+    }
     const g=new THREE.Group();
     if(buildPremium(it, chairs, g)) return g;            // refined / new models (premium kit above)
     const w=it.width, d=it.height, c=it.color;

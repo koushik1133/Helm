@@ -44,11 +44,14 @@ end $$;
 do $$ declare M constant uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; a uuid; b uuid; p uuid;
   CTH constant text := E'Demo · Corporate — Theatre/conference';
   REC constant text := E'Demo · Reception — Lawn reception with sofa lounge (450 guests)';
+  POL constant text := E'Demo \u00b7 Political rally \u2014 5,000 seats';
 begin
   perform pg_temp.su();
-  perform pg_temp.res('01 master: 3 live owner templates, reception once, theatre archived (kept)',
+  -- r21 (0251): the Reception sample is later archived in favour of the Political rally sample - still 3 live
+  perform pg_temp.res('01 master: 3 live owner templates, reception once (live, or archived by 0251), theatre archived (kept)',
     (select count(*) from public.studio_layout_templates where org_id = M and not archived) = 3
-    and (select count(*) from public.studio_layout_templates where org_id = M and name = REC and not archived) = 1
+    and (select count(*) from public.studio_layout_templates where org_id = M and name = REC
+          and (not archived or exists (select 1 from public.studio_layout_templates x where x.org_id = M and x.name = POL and not x.archived))) = 1
     and exists (select 1 from public.studio_layout_templates where org_id = M and name = CTH and archived));
   perform pg_temp.res('02 manifest v6 published (current is v6 or a later one, e.g. 0182)', exists (select 1 from public.helm_trial_seed_manifest m where m.notes = 'v6: owner 3 layout templates'
     and (m.is_current or exists (select 1 from public.helm_trial_seed_manifest x where x.is_current and x.version > m.version))));
@@ -57,7 +60,7 @@ begin
   a := pg_temp.trial('tl175_a@t.test');
   perform pg_temp.res('03 new trial: 3 live templates incl. reception, theatre not live',
     (select count(*) from public.studio_layout_templates where org_id = a and not archived) = 3
-    and exists (select 1 from public.studio_layout_templates where org_id = a and name = REC and not archived)
+    and exists (select 1 from public.studio_layout_templates where org_id = a and name in (REC, POL) and not archived)
     and not exists (select 1 from public.studio_layout_templates where org_id = a and name = CTH and not archived),
     (select string_agg(name || ':' || archived, ', ') from public.studio_layout_templates where org_id = a));
 

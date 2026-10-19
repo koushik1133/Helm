@@ -195,6 +195,8 @@ run "trial-seed-0237" "TRIAL-SEED-0237: ALL PASS \(27/27\)" psql -q -f tests/db/
 run "trial-quotes-cap-0238" "TRIAL-QUOTES-CAP-0238: ALL PASS \(28/28\)" psql -q -f tests/db/trial-quotes-cap-0238.sql
 run "sample-layouts-0213" "SAMPLE-LAYOUTS-0213: ALL PASS \(16/16\)" psql -q -f tests/db/sample-layouts-0213.sql
 run "trial-seed-0222" "TRIAL-SEED-0222: ALL PASS \(18/18\)" psql -q -f tests/db/trial-seed-0222.sql
+# 0251 re-applies itself twice (existing trial / paid studios are made after the clean install; re-run safe)
+run "r21-political-0251" "R21-POLITICAL-0251: ALL PASS \(9/9\)" psql -q -f tests/db/r21-political-0251.sql
 # 0239 re-applies itself (the fixture studios are made after the clean install; also proves a re-run is safe)
 run "r20-business-0239" "R20-BUSINESS-0239: ALL PASS \(34/34\)" psql -q -f tests/db/r20-business-0239.sql
 run "insights-costs-0240" "INSIGHTS-COSTS-0240: ALL PASS \(18/18\)" psql -q -f tests/db/insights-costs-0240.sql
