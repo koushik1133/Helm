@@ -514,5 +514,7 @@
     touch();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
-  window.HelmPrivacy = { hide: function () { setHidden(true); }, show: requestShow, toggle: toggle, changePin: changePin, isHidden: hidden, rescan: fullScan, realText: realText };
+  window.HelmPrivacy = { hide: function () { setHidden(true); }, show: requestShow, toggle: toggle, changePin: changePin, isHidden: hidden, rescan: fullScan, realText: realText,
+    /* r20 planner: for text a page shows in a box the scanner skips (lead Notes textarea) */
+    hasMoney: hasMoney, maskText: function (s) { RE.lastIndex = 0; return String(s == null ? "" : s).replace(RE, "••••"); } };
 })();

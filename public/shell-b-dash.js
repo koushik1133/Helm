@@ -175,6 +175,8 @@
      dfmt(localDayDate, fields) formats a calendar day; tfmt(timestamp, fields) an instant in the studio's timezone. */
   function dfmt(d, f) { try { return S().fmtStudioDate(iso(d), { fmt: f }); } catch (e) { return d.toLocaleDateString(undefined, f); } }
   function tfmt(t, f) { try { return S().fmtStudioDate(t, { fmt: f }); } catch (e) { return new Date(t).toLocaleString(undefined, f); } }
+  /* r20 planner: a Follow-ups "Reply" opens THAT lead (Leads search pre-filled, like CRM's "Open ->"), not the whole board */
+  function leadHref(l) { var n = l && l.name ? String(l.name).slice(0, 80) : ""; return n ? "leads.html?hs=" + encodeURIComponent(n) : "leads.html"; }
   function fmtDay(s) { var d = dOf(s); return d ? dfmt(d, { weekday: "short", day: "numeric", month: "short" }) : ""; }
   function ago(t) {
     var d = new Date(t); if (isNaN(d)) return "";
@@ -195,8 +197,10 @@
      uncontacted = still in "New" and not turned into a quote; converted = linked to a quote, or marked won / converted. */
   function uncontacted(l) { try { var R = window.HelmLeadRules; if (R && typeof R.uncontacted === "function") return R.uncontacted(l); } catch (e) {}
     return !!l && String(l.status || "new") === "new" && !l.quote_id; }
-  function leadConverted(l) { return !!l && (!!l.quote_id || ["won", "converted"].indexOf(String(l.status || "")) >= 0); }
-  function leadConv(list) { list = Array.isArray(list) ? list : []; var c = 0; list.forEach(function (l) { if (leadConverted(l)) c++; });
+  function leadConverted(l) { try { var R = window.HelmLeadRules; if (R && typeof R.converted === "function") return R.converted(l); } catch (e) {}
+    return !!l && (!!l.quote_id || ["won", "converted"].indexOf(String(l.status || "")) >= 0); }
+  function leadConv(list) { try { var R = window.HelmLeadRules; if (R && typeof R.conv === "function") return R.conv(list); } catch (e) {}   /* r20 planner: shared with Business */
+    list = Array.isArray(list) ? list : []; var c = 0; list.forEach(function (l) { if (leadConverted(l)) c++; });
     return { n: list.length, conv: c, pct: list.length ? Math.round(100 * c / list.length) : null }; }
 
   /* ---------- motion ---------- */
@@ -927,7 +931,8 @@
     /* name for the greeting (fills while data loads) */
     safe(function () { return S().profile && S().profile.mine ? S().profile.mine() : null; }).then(function (p) {
       var nm = (p && (p.full_name || p.name)) || (user && user.user_metadata && user.user_metadata.full_name) || (user && user.email ? String(user.email).split("@")[0] : "");
-      nm = String(nm || "").trim().split(/\s+/)[0];
+      /* r20 planner: the same rule chat uses (shortName): a 1-2 letter first word ("S Koushik") -> the full name */
+      nm = String(nm || "").replace(/\s+/g, " ").trim(); var nm1 = nm.split(" ")[0] || ""; nm = nm1.length > 2 ? nm1 : nm;
       if (nm) h1t.textContent = greet + ", " + nm.charAt(0).toUpperCase() + nm.slice(1);
       var rl = ""; try { rl = role && A.admin && A.admin.roleLabel ? A.admin.roleLabel(role) : ""; } catch (e) {}
       if (rl) { var rp = el("span", "hd-role", rl); h1.appendChild(rp); }
@@ -1290,7 +1295,7 @@
       });
       ((tasks && tasks.blocked) || []).forEach(function (t) { add(4, "warn", t.title || "Task", evTitleOf(t), t.quote_id ? evHref(t.quote_id) : "#mytasksSection", "Unblock", t.event_code, "Task blocked"); });
       var folShows = !cFol.hidden && !signedOut;   // Follow-ups owns "waiting on a reply" (stale leads, unanswered quotes): no duplicates here
-      if (vLeads && !folShows) staleLeads.forEach(function (l) { add(5, "warn", l.name || "Unnamed lead", [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), "leads.html", eLeads ? "Reply" : "View", null, "Not contacted"); });   // r20-coord: view-only leads
+      if (vLeads && !folShows) staleLeads.forEach(function (l) { add(5, "warn", l.name || "Unnamed lead", [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), leadHref(l), eLeads ? "Reply" : "View", null, "Not contacted"); });   // r20-coord: view-only leads
       if (vQuotes && !folShows) rows.forEach(function (q) {
         if (q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed") && q.updatedAt && Date.now() - new Date(q.updatedAt).getTime() > 3 * DAY)
           var wd = Math.floor((Date.now() - new Date(q.updatedAt).getTime()) / DAY);
@@ -1472,7 +1477,7 @@
     /* ---- follow-ups: stale leads + quotes waiting on the client ---- */
     if (!cFol.hidden && !signedOut) (function () {
       var b = body(cFol), items = [];
-      if (vLeads) staleLeads.forEach(function (l) { items.push({ age: Date.now() - new Date(l.created_at).getTime(), who: l.name || "Unnamed lead", what: "New enquiry, not contacted", ctx: [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), href: "leads.html", act: eLeads ? "Reply" : null }); });   // r20-coord: no Reply for leads view-only
+      if (vLeads) staleLeads.forEach(function (l) { items.push({ age: Date.now() - new Date(l.created_at).getTime(), who: l.name || "Unnamed lead", what: "New enquiry, not contacted", ctx: [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), href: leadHref(l), act: eLeads ? "Reply" : null }); });   // r20-coord: no Reply for leads view-only
       if (vQuotes) rows.forEach(function (q) {
         if (q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed") && q.updatedAt && Date.now() - new Date(q.updatedAt).getTime() > 3 * DAY)
           items.push({ age: Date.now() - new Date(q.updatedAt).getTime(), who: qName(q), what: "Quote " + (q.approvalStatus === "viewed" ? "viewed" : "sent") + ", no reply", ctx: [q.code, "for " + Math.floor((Date.now() - new Date(q.updatedAt).getTime()) / DAY) + " days"].filter(Boolean).join(" · "), href: evHref(q.id), act: "Follow up" });

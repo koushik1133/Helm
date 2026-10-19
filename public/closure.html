@@ -44,7 +44,7 @@
   .stars{display:flex;gap:4px} .star{font-size:22px;line-height:1;cursor:pointer;color:var(--ink-3);background:transparent;border:0;border-radius:6px;min-width:36px;min-height:36px;padding:0;font-family:inherit} .star.on{color:#b86f00} .star:disabled{cursor:default}
   .star:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .loadbanner{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fdecec;color:#b42318;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px}
-  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer} .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn.go{background:#0f7a43;border-color:transparent;color:#fff} .btn:disabled{opacity:.4}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer} .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn.go{background:#0f7a43;border-color:transparent;color:#fff} .btn.go.cl-anyway{background:var(--panel);border-color:#d4a72c;color:#7a5200} .btn:disabled{opacity:.4}
   .foot{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:6px} .ok{color:var(--safe-text,#0f7a43);font-size:12px;font-weight:600}
   .rrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-2)} .rrow:last-child{border-bottom:0}
   .rrow .nm{font-weight:600;font-size:13px} .rrow .kd{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--ink-3)}
@@ -64,7 +64,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="vendor-bills.css?v=1">
-<script src="/shell-proto.js?v=34" id="shellProto"></script>
+<script src="/shell-proto.js?v=35" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -259,6 +259,7 @@
       // 0198: an older database has no too_early flag - say it from the event date
       if(!bl.early && futureEventDate()){ bl.lines.unshift("• "+tooEarlyText(null)); bl.early=true; }
       box.replaceChildren();
+      closeLabel(bl);
       if(!bl.lines.length){ box.hidden=true; return; }
       const h=document.createElement("strong"); h.textContent="Before this event can close:"; box.appendChild(h);
       const ul=document.createElement("ul"); bl.lines.forEach(l=>{ const li=document.createElement("li"); li.textContent=l.replace(/^• /,""); ul.appendChild(li); }); box.appendChild(ul);
@@ -266,8 +267,16 @@
       if(bl.owed>0){ const a=document.createElement("a"); a.href="settlement.html?quote="+encodeURIComponent(id); a.textContent="Open Settlement"; links.appendChild(a); }
       if(bl.checkouts>0){ if(links.childNodes.length) links.appendChild(document.createTextNode(" · ")); const a=document.createElement("a"); a.href="inventory.html?quote="+encodeURIComponent(id); a.textContent="Open Inventory"; links.appendChild(a); }
       box.appendChild(links); box.hidden=false;
-    }catch(_){ box.hidden=true; /* summary is advisory only */ }
+    }catch(_){ box.hidden=true; closeLabel(null); /* summary is advisory only */ }
   }
+  // r20 planner: with blockers listed above, the close button no longer reads like a plain "go". It says what a click
+  // does - "Close anyway…" (the same confirm / admin-override flow as before; no new hard block - the server gate
+  // decides) - and its accessible description is the blocker summary. Before the event day there is no override.
+  function closeLabel(bl){ const btn=$("#closeBtn"); if(!btn) return;
+    const lines=bl&&bl.lines?bl.lines.map(l=>l.replace(/^• /,"")):[];
+    if(!lines.length){ btn.textContent="Mark event closed & archived"; btn.removeAttribute("title"); btn.removeAttribute("aria-describedby"); btn.classList.remove("cl-anyway"); return; }
+    btn.textContent=bl.early?"Can't close until after the event day":"Close anyway…";
+    btn.title="Still open: "+lines.join("; "); btn.setAttribute("aria-describedby","closeBlockers"); btn.classList.add("cl-anyway"); }
   async function closeEvent(){
     // Gate 1 — every piece of equipment booked for this event must be back
     // (nothing still 'reserved' or 'allocated'). Closing is how the archive is built,

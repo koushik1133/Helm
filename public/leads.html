@@ -106,9 +106,9 @@
   .archived li .nm{font-weight:600} .archived li .meta{color:var(--ink-3);font-size:12px} .archived li .btn{margin-left:auto}
   .pill{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:20px;padding:2px 9px;background:var(--accent-soft);color:var(--accent)}
 </style>
-<link rel="stylesheet" href="leads-polish.css?v=3">
+<link rel="stylesheet" href="leads-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=34" id="shellProto"></script>
+<script src="/shell-proto.js?v=35" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -201,7 +201,7 @@
       <div class="fld"><label for="f_budget">Budget (₹)</label><input id="f_budget" type="number" min="0" max="10000000000" step="any" placeholder="e.g. 500000" class="hbp-mi"></div>
       <div class="fld"><label for="f_bday">Birthday <span class="muted">(optional)</span></label><input id="f_bday" type="date" min="1900-01-01"></div>
       <div class="fld"><label for="f_anniv">Anniversary <span class="muted">(optional)</span></label><input id="f_anniv" type="date" min="1900-01-01"></div>
-      <div class="fld full"><label for="f_notes">Notes</label><textarea id="f_notes" maxlength="2000" placeholder="Anything the planner should know…"></textarea></div>
+      <div class="fld full"><label for="f_notes">Notes</label><textarea id="f_notes" maxlength="2000" placeholder="Anything the planner should know…" aria-describedby="f_notesHint"></textarea><p id="f_notesHint" class="nhint" hidden>Amounts in this note are hidden. <button type="button" id="f_notesShow">Show amounts to edit notes</button></p></div>
     </div>
     <div id="lm_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot">
@@ -249,7 +249,7 @@
     {k:"won",label:"Won",c:"#18a558"},
     {k:"lost",label:"Lost",c:"#e5484d"},
   ];
-  let leads=[], canEdit=false, canCreate=false, canDelete=false, canQuotes=false, filter="", editingId=null;   // QA1017: canQuotes = may open the quote workspace
+  let leads=[], canEdit=false, canCreate=false, canConvertQ=false, canDelete=false, canQuotes=false, filter="", editingId=null;   // QA1017: canQuotes = may open the quote workspace
   // Perf (Oct 2026): each stage column loads its newest COL_PAGE leads (server-side search,
   // column total from the same request); "Load more" / scrolling to a column's end fetches
   // the next page. `leads` = every lead loaded so far; each remembers the stage the server
@@ -268,7 +268,7 @@
   }
 
   function card(l){
-    const canConvert = canCreate && !l.quote_id && l.status!=="lost";
+    const canConvert = canConvertQ && !l.quote_id && l.status!=="lost";
     const bits=[];
     if(l.event_type) bits.push(esc(l.event_type));
     if(l.event_date) bits.push(esc(BPStore.fmtDateIN(l.event_date)));
@@ -595,6 +595,18 @@
              HV.bind($("#f_email"),{rule:"email"}),
              HV.bind($("#f_phone"),{rule:"phone",label:"Phone"}),
              HV.bind($("#f_budget"),{rule:"leadBudget"}) ]; };
+  // r20 planner: Notes can hold amounts ("budget Rs 9 lakh") that the detail view hides. While amounts are hidden the box
+  // shows them as •••• and is read-only ("Show amounts to edit notes"); Save sends the REAL note (notesReal), so the masked
+  // text is never written back. Anything typed before amounts got hidden (5-minute idle re-hide) is kept in notesReal.
+  let notesReal="", notesMasked=false, notesPriv=null;
+  function paintNotes(){ const ta=$("#f_notes"), hint=$("#f_notesHint"), P=window.HelmPrivacy; if(!ta) return;
+    const on=document.documentElement.classList.contains("hb-priv-on"); if(on===notesPriv) return; notesPriv=on;
+    if(!notesMasked) notesReal=ta.value;
+    const mask=!!(on && P && P.hasMoney && P.maskText && P.hasMoney(notesReal));
+    const v=mask?P.maskText(notesReal):notesReal; if(ta.value!==v) ta.value=v;
+    notesMasked=mask; ta.readOnly=mask; if(hint) hint.hidden=!mask; }
+  try{ new MutationObserver(()=>{ if(!$("#leadModal").hidden) paintNotes(); }).observe(document.documentElement,{attributes:true,attributeFilter:["class"]}); }catch(_){}
+  $("#f_notesShow").addEventListener("click",()=>{ try{ if(window.HelmPrivacy&&HelmPrivacy.show) HelmPrivacy.show(); }catch(_){} });
   function openForm(lead){
     editingId = lead ? lead.id : null;
     $("#lm_title").textContent = lead ? "Edit lead" : "＋ New lead";
@@ -602,7 +614,7 @@
     $("#f_email").value=lead?lead.email||"":""; setSource(lead?lead.source||"":"");
     $("#f_type").value=lead?leadTypeCanon(lead.event_type):""; fillLeadTypes(); $("#f_date").value=lead?lead.event_date||"":""; $("#f_date").removeAttribute("data-date-rejected");
     $("#f_budget").value=lead&&lead.budget!=null?lead.budget:""; $("#f_guests").value=lead&&lead.guest_count!=null?lead.guest_count:"";
-    $("#f_notes").value=lead?lead.notes||"":"";
+    $("#f_notes").value=lead?lead.notes||"":""; notesMasked=false; notesPriv=null; paintNotes();
     $("#f_bday").value=lead&&lead.birthday?String(lead.birthday).slice(0,10):""; $("#f_anniv").value=lead&&lead.anniversary?String(lead.anniversary).slice(0,10):"";
     { const td=BPStore.todayLocal(); $("#f_bday").max=td; $("#f_anniv").max=td; }   // B30: no future birthday / anniversary in the picker (Save checks too)
     editFromDetail=null;
@@ -640,7 +652,7 @@
       source:$("#f_source").value||null, event_type:leadTypeCanon($("#f_type").value)||null,
       event_date:$("#f_date").value||null,
       budget, guest_count,
-      notes:$("#f_notes").value.trim()||null };
+      notes:(notesMasked?notesReal:$("#f_notes").value).trim()||null };   // r20 planner: never the "••••" text
     const id=editingId, cur=id?leadById(id):null;
     // 0105 optional personal dates (Nurture "upcoming" list). Sent only when set, or when clearing a saved one,
     // so a database without the 0105 columns keeps saving leads as before.
@@ -767,7 +779,13 @@
     const [okView, e1, c1, d1, q1, cc1]=await Promise.all([BPStore.auth.requireView("leads"), BPStore.auth.canEditArea("leads"), BPStore.auth.can("create"), BPStore.auth.can("delete"),
       BPStore.auth.canView("quotes").catch(()=>false), BPStore.auth.canView("controls").catch(()=>false)]);
     if(!okView) return;
-    canEdit=e1; canCreate=!!(c1&&e1); canDelete=!!(d1&&e1); canQuotes=!!q1;   // retest-1018: New lead / Convert need the create switch AND leads edit
+    canEdit=e1; canDelete=!!(d1&&e1); canQuotes=!!q1;
+    // r20 planner: a NEW LEAD is not a new quote. The server lets anyone with leads EDIT add a lead (RLS "ra ins" =
+    // has_area('leads','edit'); the free-trial lead cap is checked by capGate + the server), so "+ New lead" follows leads
+    // edit alone - the dashboard, the top-bar create menu and the search "New lead" already used that rule, and they
+    // silently did nothing for a planner whose "Create new quotes" switch is off. "Convert -> quote" DOES create a quote:
+    // convert_lead_to_quote() needs can_create() (the quote_create switch), so it keeps the create switch AND leads edit.
+    canCreate=!!e1; canConvertQ=!!(c1&&e1);
     { const hb=$("#boardHint"); if(hb && !canEdit) hb.textContent="Open a card to view it."; }   // r20-coord: view-only roles can't drag or change a lead
     $("#newBtn").hidden=!canCreate;
     if(cc1) $("#ccLink").hidden=false;   // QA1017: only roles that can open the Control Center (was: any leads editor)

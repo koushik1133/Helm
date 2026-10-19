@@ -125,7 +125,7 @@
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
-<script src="/shell-proto.js?v=34" id="shellProto"></script>
+<script src="/shell-proto.js?v=35" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -307,7 +307,7 @@
         <!-- 9 ADVANCE PAYMENT & BOOKING -->
         <section class="card" id="sec-pay">
           <h2><span class="step-n">9</span> Advance payment &amp; booking <span class="pill" id="bookingBadge" hidden>Confirmed</span></h2>
-          <p class="sub">Accepting the quote isn't a confirmed booking — recording the advance is. Send an online link or record cash. A receipt is issued and both sides are notified.</p>
+          <p class="sub">Accepting the quote isn't a confirmed booking — recording the advance is. <span id="pay_how">Send an online link or record cash.</span> A receipt is issued and both sides are notified.</p>
           <div class="row4 s-761d3ad">
             <div class="fld s-1169661"><label for="pay_pct">Advance %</label><input id="pay_pct" type="number" min="0" max="100" value="10"></div>
             <div class="fld s-1169661"><label for="pay_amount">Advance amount (<span class="cur-sym">₹</span>)</label><input id="pay_amount" type="number" min="0"></div>
@@ -1397,7 +1397,11 @@
   // PP1028 #1: client-approval wording from the REAL approval state (same states as the quotes list)
   function apprStateText(paid){ const ap=(ev&&(ev.approvalStatus||ev.approval_status))||"none", hasTok=!!(ev&&(ev.approvalToken||ev.approval_token));
     return HelmApprovalState(ap, hasTok, paid); }
-  function paintBookingBadge(paidCount){ const b=$("#bookingBadge"); if(!b) return;
+  // r20 planner: once the client has approved (or the advance is in - booking confirmed) there is nothing to send:
+  // "Send for approval →" goes away; the card above says "Booking confirmed." / the approval state instead
+  function paintApprBtn(paidCount){ const sb=$("#sendApproval"); if(!sb) return; const ap=(ev&&(ev.approvalStatus||ev.approval_status))||"";
+    sb.hidden = paidCount>0 || ap==="approved" || ap==="paid"; }
+  function paintBookingBadge(paidCount){ const b=$("#bookingBadge"); try{ paintApprBtn(paidCount); }catch(_){} if(!b) return;
     { const st=$("#apprState"); if(st){ if(paidCount>0) st.textContent="Booking confirmed.";   // PL1027 #2
         else if(st.textContent==="Booking confirmed.") st.textContent=apprStateText(false); } }
     if(paidCount>0){ b.textContent="Confirmed"; b.hidden=false; payNextConfirmed(); return; }
@@ -1499,7 +1503,7 @@
   function applyPayTerms(){
     const t=BPStore.paymentTerms(rates, $("#c_date").value);
     if(t.advancePct!=null && !$("#pay_pct").dataset.touched){ $("#pay_pct").value=t.advancePct; updateAdvance(); }
-    const bits=[]; if(t.balanceDue) bits.push("Balance due by "+t.balanceDue+(t.balanceDueDays?" ("+t.balanceDueDays+" days before the event)":" (event day)")+".");
+    const bits=[]; if(t.balanceDue) bits.push("Balance due by "+BPStore.fmtDateIN(t.balanceDue)+(t.balanceDueDays?" ("+t.balanceDueDays+" days before the event)":" (event day)")+".");
     else if(t.balanceDueDays!=null) bits.push("Balance due "+(t.balanceDueDays?t.balanceDueDays+" days before the event":"on the event day")+".");
     if(t.note) bits.push(t.note);
     const el=$("#pay_terms"); el.textContent=bits.join(" "); el.hidden=!bits.length;
@@ -1901,7 +1905,9 @@
     $("#c_date").addEventListener("change",applyPayTerms);
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount","q_discountPct"].forEach(f=>$("#"+f).addEventListener("input",updateAdvance));
     // Production without live Razorpay: manual recording only (no simulated link option)
-    if(!BPStore.approval.onlinePayAvailable()){ const o=$("#pay_method").querySelector('option[value="online"]'); if(o) o.remove(); }
+    if(!BPStore.approval.onlinePayAvailable()){ const o=$("#pay_method").querySelector('option[value="online"]'); if(o) o.remove();
+      // r20 planner: only "Cash / offline" is left - don't offer an online link the Method box doesn't have
+      const ph=$("#pay_how"); if(ph) ph.textContent="Record a cash / offline payment (online payment links aren't switched on yet)."; }
     $("#pay_method").addEventListener("change",()=>{ $("#pay_receiptWrap").style.display=$("#pay_method").value==='cash'?'':'none'; $("#pay_online").style.display='none'; });
     $("#pay_record").addEventListener("click",()=>{ recordPayment().catch(()=>{}); });
     $("#openBuilder").addEventListener("click", async (e)=>{

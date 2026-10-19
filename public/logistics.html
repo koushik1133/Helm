@@ -70,7 +70,7 @@
 <link rel="stylesheet" href="logistics-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=34" id="shellProto"></script>
+<script src="/shell-proto.js?v=35" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -184,7 +184,7 @@
   }
   function rowChk(i){ const opts=["open","done","na"].map(s=>`<option value="${s}" ${s===i.status?"selected":""}>${CHK_ST[s]}</option>`).join("");
     return `<tr><td><b>${esc(i.title)}</b>${i.detail?`<div style="font-size:12px;color:var(--ink-3)">${esc(i.detail)}</div>`:""}</td>
-      <td class="muted">${esc(i.owner||"")}</td><td class="muted">${esc(i.due_date||"")}</td>
+      <td class="muted">${esc(i.owner||"")}</td><td class="muted">${esc(i.due_date?BPStore.fmtDateIN(i.due_date):"")}</td>
       <td>${canEdit?`<select class="ssel" data-st="${esc(i.id)}" aria-label="Status for ${esc(i.title)}">${opts}</select>`:`<span class="st ${esc(i.status)}">${esc(CHK_ST[i.status]||i.status)}</span>`}</td>
       <td>${canDelete?`<button type="button" class="rm" data-del="${esc(i.id)}" data-name="${esc(i.title)}" aria-label="Remove ${esc(i.title)}">✕</button>`:""}</td></tr>`; }
   function wireRows(noun){
@@ -195,7 +195,7 @@
   }
   function addChk(section){ const t=$("#a_title").value.trim(); if(!t){ BPUI.toast("Enter the item first.",{type:"err"}); $("#a_title").focus(); return; }
     // dev pass 3: the date picker's min/max is only a hint in the browser - enforce it
-    const dIn=$("#a_due"), dv=dIn.value; if(dv && ((dIn.min && dv<dIn.min) || (dIn.max && dv>dIn.max))){ BPUI.toast("Pick a due date between "+dIn.min+" and "+dIn.max+".",{type:"err"}); dIn.focus(); return; }
+    const dIn=$("#a_due"), dv=dIn.value; if(dv && ((dIn.min && dv<dIn.min) || (dIn.max && dv>dIn.max))){ BPUI.toast("Pick a due date between "+BPStore.fmtDateIN(dIn.min)+" and "+BPStore.fmtDateIN(dIn.max)+".",{type:"err"}); dIn.focus(); return; }
     return act($("#a_add"),async()=>{ await BPStore.checklist.add(id,{ section, title:t, owner:$("#a_owner").value.trim()||null, due_date:$("#a_due").value||null }); await renderPane(); },"add the item"); }
 
   async function renderGuests(){

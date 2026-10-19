@@ -54,7 +54,7 @@
 <link rel="stylesheet" href="templates-polish.css?v=3">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=34" id="shellProto"></script>
+<script src="/shell-proto.js?v=35" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -175,7 +175,9 @@
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
-    if(!(await BPStore.auth.requireView("templates"))) return;
+    // r20 planner: same one-time notice as the audit log - a free-trial studio gets "Templates aren't available on the free
+    // trial." (trial-lock.js page()), a role without Templates "Your role can't open that page." - instead of a silent bounce
+    if(!(await BPStore.auth.requireView("templates"))){ try{ if(window.HelmTrialLock&&HelmTrialLock.roleBlocked) HelmTrialLock.roleBlocked(); }catch(_){} return; }
     canEdit=await BPStore.auth.canEditArea("templates");
     $("#app").hidden=false; $("#editCard").hidden=!canEdit;
     if(canEdit) dirty=BPUI.trackDirty($("#editCard"));

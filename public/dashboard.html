@@ -197,7 +197,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="trial-terms.css?v=4">
-<script src="/shell-proto.js?v=34" id="shellProto"></script>
+<script src="/shell-proto.js?v=35" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -334,8 +334,8 @@
 <script src="tour.js?v=24"></script>
 <script src="getting-started.js?v=12"></script>
 <script src="onboarding-wizard.js?v=10"></script>
-<script src="trial-facts.js?v=5"></script>
-<script src="trial-demo.js?v=14"></script>
+<script src="trial-facts.js?v=6"></script>
+<script src="trial-demo.js?v=15"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="dash-prompts.js?v=1"></script>
 <script>
@@ -813,9 +813,14 @@
     paid:"Welcome to Helm — here's a quick look around your studio. Helm runs your events business in one place: quotes, leads, the calendar, staff, stock and payments. This quick tour walks the screen from the menu on the left, across the top bar, then down the dashboard.",
   };
   // B30: the "Create something new" step lists the options the New menu really has for this person (shell-b-dash.js)
-  const TOUR_NEW=()=>{ const l=(window.__helmNewMenu||[]).map(t=>String(t).toLowerCase());
+  // r20 planner: the step points at the TOP-BAR create button ([data-tour="new"], shell-b.js), so it names that menu's
+  // items (__helmTopNewMenu) - it said "new client", which only the dashboard's own New menu has. A role without the
+  // "Create new quotes" switch gets the plain "New" menu (lead / stock / vendor / staff) and no quote wording.
+  const TOUR_NEW=(quote)=>{ const src=Array.isArray(window.__helmTopNewMenu)?window.__helmTopNewMenu:(window.__helmNewMenu||[]);
+    const l=src.map(t=>String(t).toLowerCase());
+    const last=l.length>1?l.slice(0,-1).join(", ")+" or "+l[l.length-1]:(l[0]||"");
+    if(!quote) return l.length?"“New” opens a menu to add a "+last+".":"“New” opens a menu of the things you can add.";
     if(!l.length) return "“New quote” starts pricing an event.";
-    const last=l.length>1?l.slice(0,-1).join(", ")+" or "+l[l.length-1]:l[0];
     return "“New quote” starts pricing an event. The little arrow next to it opens more: a "+last+"."; };
 
   const TOUR=[
@@ -838,7 +843,7 @@
     {sel:'[data-tour="privacy"]', title:"Hide the money", desc:"Showing your screen to a client? Tap the eye to hide every amount. Showing them again asks for your PIN, so nobody else can peek."},
     {sel:'[data-tour="chat"]', title:"Team chat, one click away", desc:"The same chat from any page. A small badge shows when there are messages you haven't read."},
     {sel:['[data-tour="bell"]','[data-tour="m-bell"]'], title:"Notifications", desc:"The bell collects reminders, approvals waiting on you and trial reminders. Open it to act on one, or use “Mark all read” to clear the list."},
-    {sel:['[data-tour="new"]','[data-tour="m-add"]'], need:["create","edit:quotes"], title:"Create something new", get desc(){ return TOUR_NEW(); }},
+    {sel:['[data-tour="new"]','[data-tour="m-add"]'], uses:["create","edit:quotes"], alt:(can)=>(can("create")&&can("edit:quotes"))?null:{desc:TOUR_NEW(false)}, title:"Create something new", get desc(){ return TOUR_NEW(true); }},
     // 3 · dashboard, top to bottom
     {sel:'[data-tour="today"]', uses:"finance", alt:(can)=>can("finance")?null:{desc:"One calm line for today: events on and tasks due."}, title:"Today", desc:"One calm line for today: events on, tasks due and payments overdue."},
     {sel:['[data-tour="hero"]','#hdDash'], title:"Your day at a glance", desc:"A greeting with a summary of your day and, on the right, a countdown to your next event."},

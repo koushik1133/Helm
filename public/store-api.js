@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=34"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=35"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -1188,7 +1188,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "44";
+  const AUTH_UI_VERSION = "45";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -8363,9 +8363,14 @@ window.HelmUrl = HelmUrl;
           onOpen: () => { if (x.rk && readKeys.indexOf(x.rk) === -1) { readKeys.push(x.rk); saveRead(); } } }); } catch (e) {} });
       };
       let lastRf = 0;
-      const refresh = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
+      const refreshNow = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
         if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
+      // r20 planner: refreshes run ONE AT A TIME, in call order. The chat page's "I just read this chat" nudge
+      // (__bpBellRefresh) used to run alongside a realtime / poll refresh that had read the chat BEFORE the mark;
+      // when that older one finished last it put the stale count back ("4 unread" until a reload / the 90 s poll).
+      let rfChain = Promise.resolve();
+      const refresh = () => { const p = rfChain.then(refreshNow, refreshNow); rfChain = p.then(() => {}, () => {}); return p; };
       // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
       const position = () => {
         if (isPhone()) { panel.style.top = ""; panel.style.right = ""; panel.style.maxHeight = ""; return; }

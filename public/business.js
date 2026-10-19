@@ -25,6 +25,8 @@
     var A = BPStore.auth;
     if (A.enabled() && A.required() && !A.user()) { location.replace("login.html?next=" + encodeURIComponent(here())); return; }
     var ok = !A.enabled() || await A.canView("finance");
+    /* r20 planner: the header "Insights" link only for a role that can open Insights */
+    try { var ins = $("#bzInsNav"); if (ins) ins.hidden = !(!A.enabled() || (await A.canView("insights")) === true); } catch (e) {}
     if (!ok) { $("#noaccess").hidden = false; return; }
     var app = $("#bzApp"); app.hidden = false;
     await window.HelmMoney.mount(app);

@@ -94,7 +94,7 @@
 <link rel="stylesheet" href="staff-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=34" id="shellProto"></script>
+<script src="/shell-proto.js?v=35" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -273,6 +273,9 @@
     if(BPStore.staff.isDemo(s)){ BPUI.toast("This is sample staff from the free-trial data. Add your real teammate and invite them instead.",{type:"info"}); return; }
     const key=BPStore.staff.matchRole(s.role);
     if(!key){ BPUI.toast(`Pick a role for ${s.name} first (Edit → Role), then invite them.`,{type:"info"}); return; }
+    // r20 planner: the invite uses the role written on the record (anyone with staff edit can set it) - an Admin login is
+    // never created without the admin saying so first
+    if(key==="admin" && !(await BPUI.confirm(`Invite ${s.name} (${s.email}) to sign in as Admin? An admin can open and change everything in the studio, including users, prices and payments.`,{title:"Invite as Admin?",okLabel:"Invite as Admin",danger:true}))) return;
     await BPUI.guard(btn, async()=>{
       try{
         const r=await BPStore.invitations.create(s.email, key);
@@ -355,7 +358,9 @@
     const linked=BPStore.staff.isLinked(s), note=$("#sm_link");
     // the login role of a linked person: admins change it here (0106), everyone else sees it read-only
     $("#s_role").disabled=linked&&!isAdminUser;
-    $("#s_role_hint").textContent=linked?(isAdminUser?"This is their Helm login role — changing it changes what they can open.":"Their Helm login role — an admin can change it."):"Roles come from Control Center → Users & access.";
+    $("#s_role_hint").textContent=linked?(isAdminUser?"This is their Helm login role — changing it changes what they can open.":"Their Helm login role — an admin can change it."):(isAdminUser?"Roles come from Control Center → Users & access.":"A job title on this record. It gives no Helm login — only an admin can invite them, and picks the login role then.");
+    // r20 planner: for a record without a login, a non-admin sets a JOB role (crew_members.role text) - it grants nothing
+    { const lb=document.querySelector('label[for="s_role"]'); if(lb) lb.textContent=(!linked&&!isAdminUser)?"Job role":"Role"; }
     LOCKED.forEach(([sel])=>{ const el=$(sel); if(el.tagName==="SELECT") el.disabled=linked; else el.readOnly=linked; if(linked) el.setAttribute("aria-readonly","true"); else el.removeAttribute("aria-readonly");
       const cc=el.parentNode&&el.parentNode.querySelector&&el.parentNode.querySelector(".bpui-tel-cc"); if(cc) cc.disabled=linked; });
     if(!linked){ note.hidden=true; note.innerHTML=""; return; }
@@ -374,9 +379,11 @@
     const cur=linked?(loginRoles[s.profile_id]||guess):exact;
     const custom=!linked&&s&&s.role&&!cur?s.role:null;
     if(custom) $("#s_role_hint").textContent=guess?`Closest studio role: ${BPStore.staff.roleLabel(guess)} — pick it to switch.`:"Not one of the studio's roles — pick one to switch.";
+    // r20 planner: only an admin can hand out "Admin" (a non-admin's pick pre-fills an admin's later invite);
+    // a record that already says Admin keeps it, so opening + saving never rewrites it
     sel.innerHTML=`<option value="">— Choose a role —</option>`+
       (custom?`<option value="custom">Custom: ${esc(custom)}</option>`:"")+
-      BPStore.staff.staffRoles().map(r=>`<option value="${esc(r.key)}">${esc(r.label)}</option>`).join("");
+      BPStore.staff.staffRoles().filter(r=>isAdminUser||linked||r.key!=="admin"||cur==="admin").map(r=>`<option value="${esc(r.key)}">${esc(r.label)}</option>`).join("");
     sel.value=custom?"custom":(cur||""); sel.dataset.orig=sel.value; sel.dataset.custom=custom||"";
   }
   function fillDept(val){

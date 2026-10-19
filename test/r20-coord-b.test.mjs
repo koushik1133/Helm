@@ -226,7 +226,7 @@ t('dashboard tour: admins get exactly the admin wording; the coordinator gets no
   assert.deepEqual(J(admin), J(plain), 'admin / owner wording unchanged');
   assert.equal(admin.length, 22);
   const co = shownFor(coordCan), text = co.map((s) => s.title + ' ' + s.desc).join('\n');
-  assert.ok(!co.some((s) => s.title === 'Create something new'), 'no New quote step without quote create');
+  { const cs = co.find((s) => s.title === 'Create something new'); assert.ok(!cs || !/New quote/.test(cs.desc), 'no New quote wording without quote create'); }   // r20 planner: the plain "New" menu step
   for (const bad of [/payments/i, /revenue/i, /P&L/, /Nurture/, /Control Center/, /into a quote in one click/, /Business shows/]) assert.doesNotMatch(text, bad, String(bad));
   assert.match(text, /Open a lead to see its details/);
   assert.match(co[0].desc, /quotes, leads, the calendar, staff and stock\./);

@@ -419,7 +419,11 @@
     // other devices
     var dv = el("div", { class: "hau-sec", id: "hauDevSec" });
     dv.appendChild(el("h3", { tabindex: "-1" }, "Other devices"));
-    dv.appendChild(el("p", { class: "hau-muted" }, "Signed in somewhere you don't recognise? Sign out everywhere except this browser, then change your password."));
+    /* r20 planner: a Google sign-in account has no Helm password - point at the Google account instead */
+    var dvNoPw = !!(st.auth.hasPassword && !st.auth.hasPassword());
+    dv.appendChild(el("p", { class: "hau-muted" }, dvNoPw
+      ? "Signed in somewhere you don't recognise? Sign out everywhere except this browser, then secure your Google account (change its password and check its signed-in devices)."
+      : "Signed in somewhere you don't recognise? Sign out everywhere except this browser, then change your password."));
     var dvMsg = el("div", { class: "hau-err", role: "status" });
     var dvBtn = el("button", { type: "button", class: "hau-btn" }, "Sign out other devices");
     dvBtn.addEventListener("click", function () {
@@ -817,7 +821,7 @@
 
     // ---- Work (optional)
     var wFilled = !!(P.job_title || P.department || P.city || (P.skills && P.skills.length));
-    var sW = section("Work", "Helps planners assign the right jobs to you.", true, wFilled);
+    var sW = section("Work", "Helps your studio assign the right jobs to you.", true, wFilled);   // r20 planner: neutral (the viewer may be a planner)
     var gW = el("div", { class: "hpf-grid" }); sW.appendChild(gW);
     field(gW, "job_title", "Job title", { ac: "organization-title", ph: "e.g. Event coordinator", value: P.job_title });
     field(gW, "department", "Department", { ph: "e.g. Operations", value: P.department });
@@ -1346,6 +1350,7 @@
 
   function renderMfaSection(box) {
     var st = S();
+    var noPw = false; try { noPw = !!(st.auth.hasPassword && !st.auth.hasPassword()); } catch (e) {}   // r20 planner: Google sign-in wording
     st.auth.mfa.verifiedTotp().then(function (fs) {
       box.textContent = "";
       if (fs.length) {
@@ -1353,7 +1358,7 @@
         var off = el("button", { type: "button", class: "hau-btn danger" }, "Turn off");
         var er = el("div", { class: "hau-err", role: "alert" });
         off.addEventListener("click", function () {
-          var ask = global.BPUI && global.BPUI.confirm ? global.BPUI.confirm("Turn off two-step verification? Your account will be protected by your password only.", { title: "Turn off two-step verification", okLabel: "Turn off", danger: true }) : Promise.resolve(global.confirm("Turn off two-step verification?"));
+          var ask = global.BPUI && global.BPUI.confirm ? global.BPUI.confirm("Turn off two-step verification? Your account will be protected by " + (noPw ? "your Google sign-in" : "your password") + " only.", { title: "Turn off two-step verification", okLabel: "Turn off", danger: true }) : Promise.resolve(global.confirm("Turn off two-step verification?"));
           ask.then(function (yes) {
             if (!yes) return;
             off.disabled = true;
@@ -1363,7 +1368,8 @@
         });
         var row = el("div", { class: "hau-row" }); row.appendChild(off); box.appendChild(row); box.appendChild(er);
       } else {
-        box.appendChild(el("p", { class: "hau-muted" }, "Off. Turn it on so a stolen password alone can't open your account."));
+        box.appendChild(el("p", { class: "hau-muted" }, noPw ? "Off. Turn it on so a Google account someone else gets into still can't open Helm without your code."
+          : "Off. Turn it on so a stolen password alone can't open your account."));
         var on = el("button", { type: "button", class: "hau-btn primary" }, "Turn on");
         var area = el("div", null);
         on.addEventListener("click", function () { on.hidden = true; renderEnroll(area, function () { hideBanner(); setTimeout(function () { renderMfaSection(box); }, 1500); }); });
