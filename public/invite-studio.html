@@ -108,6 +108,8 @@
   .photos .th .x{position:absolute;top:-8px;right:-8px;width:32px;height:32px;border-radius:50%;border:2px solid #fff;background:#c62a2f;color:#fff;cursor:pointer;font-size:14px;line-height:1}
   .photos .th.cover::after{content:"Cover";position:absolute;left:4px;bottom:4px;font-size:12px;font-weight:700;background:rgba(0,0,0,.6);color:#fff;padding:2px 6px;border-radius:6px}
   .gatebox{text-align:center;padding:40px}
+  label.ro-off{opacity:.55;cursor:not-allowed;pointer-events:none}
+  .robanner{background:#fff7e6;color:#8a5a00;border:1px solid #f3d9a4;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:14px}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px}
@@ -140,6 +142,7 @@
   </div>
 
   <div id="app" hidden>
+    <div id="roBanner" class="robanner" role="status" hidden>View only — your role can't change the invitation site.</div>
     <div class="card s-be9931b">
       <div>
         <div class="s-5aecf5e">Building an invitation for</div>
@@ -292,6 +295,20 @@
   // or ensureSite() would create a second (duplicate) site for this event.
   let siteLoadFailed=false;
   let dirty=null;
+  // R20 (live QA, item 9): the server writes the invitation site only for a role with Quotes & workspace EDIT
+  // (create_event_site / publish_event_site / event_sites UPDATE RLS / event_site_send all check has_area('quotes','edit')).
+  // A view-only role (e.g. Event coordinator) sees the editor read-only: every write control is disabled.
+  let readOnly=false;
+  const RO_MSG="View only — your role can't change the invitation site.";
+  function applyReadOnly(){
+    if(!readOnly) return;
+    $("#roBanner").hidden=false;
+    // the preview, "Copy link", "Open site" and "Preview song" stay usable; everything that changes the site is off
+    const KEEP=new Set(["copyBtn","pubLink","musicTryBtn"]);
+    $(".layout").querySelectorAll("input,select,textarea,button").forEach(n=>{ if(KEEP.has(n.id)) return; n.disabled=true; n.setAttribute("aria-disabled","true"); });
+    const up=$("#photoFile")&&$("#photoFile").closest("label"); if(up){ up.setAttribute("aria-disabled","true"); up.classList.add("ro-off"); }
+    $("#shareCard").hidden=true;   // "Send to client" also needs Quotes edit on the server (event_site_send)
+  }
   let share=null;   // 0195 "Send to client" box (invite-site-share.js)
   // free-trial studio? (server answer; the send itself is skipped server-side either way)
   let trialP=null;
@@ -321,6 +338,7 @@
         <div class="lb"><b>${esc(t.n)}</b><span>${esc(t.d)}</span></div>
       </button>`).join("");
     $("#tpls").querySelectorAll(".tpl").forEach(b=>b.addEventListener("click",()=>{ tpl=b.dataset.k; if(dirty) dirty.mark(); paintTpls(); preview(); const nb=$("#tpls").querySelector(`[data-k="${tpl}"]`); if(nb) nb.focus(); }));
+    applyReadOnly();
   }
 
   // ---- schedule repeater ----
@@ -332,6 +350,7 @@
     [ti,la].forEach(i=>i.addEventListener("input",preview));
     rm.addEventListener("click",()=>{ row.remove(); if(dirty) dirty.mark(); preview(); $("#addSched").focus(); });
     $("#sched").appendChild(row);
+    applyReadOnly();
   }
   function gatherSchedule(){ return [...$("#sched").querySelectorAll(".srow")].map(r=>({time:r.children[0].value.trim(),label:r.children[1].value.trim()})).filter(x=>x.time||x.label); }
 
@@ -344,6 +363,7 @@
       BPStore.sites.mediaUrls(need).then(out=>{ need.forEach((u,i)=>SIGNED.set(u,out[i]||u)); paintPhotos(); }).catch(()=>{}); }
     $("#photos").innerHTML=PHOTOS.map((u,i)=>`<div class="th${i===0?' cover':''}" style="background-image:url('${cssUrl(SIGNED.get(u)||u)}')" role="img" aria-label="${i===0?'Cover photo':'Photo '+(i+1)}"><button class="x" type="button" data-i="${i}" title="Remove photo ${i+1}" aria-label="Remove photo ${i+1}">✕</button></div>`).join("");
     $("#photos").querySelectorAll(".x").forEach(b=>b.addEventListener("click",()=>{ PHOTOS.splice(+b.dataset.i,1); if(dirty) dirty.mark(); paintPhotos(); preview(); }));
+    applyReadOnly();
   }
   function setPhotoMsg(t){ $("#photoMsg").textContent=t||""; }
 
@@ -490,13 +510,14 @@
     });
   }
   function blockedBySiteLoad(){
+    if(readOnly){ BPUI.toast(RO_MSG,{type:"err"}); return true; }
     if(!siteLoadFailed) return false;
     BPUI.toast("The saved invitation couldn't be loaded — retry loading it before saving, so no duplicate is created.",{type:"err"});
     return true;
   }
   function paintActions(){
     ACTION_BTNS.forEach(sel=>{ const b=$(sel); if(b.getAttribute("aria-busy")==="true") return;
-      b.disabled=siteLoadFailed; if(siteLoadFailed) b.setAttribute("aria-disabled","true"); else b.removeAttribute("aria-disabled"); });
+      const off=siteLoadFailed||readOnly; b.disabled=off; if(off) b.setAttribute("aria-disabled","true"); else b.removeAttribute("aria-disabled"); });
   }
   // input checks shared by Save and Publish: the map link must be https, and "reply by" can't be after the event
   function inputProblem(g){
@@ -550,6 +571,13 @@
   async function load(){
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
+    // R20 item 9: same area as the server (Quotes & workspace). No view -> the "No access" panel; view only -> read-only editor
+    if(BPStore.auth.enabled() && BPStore.auth.user()){
+      if(!(await BPStore.auth.requireView("quotes"))) return;
+      readOnly=!(await BPStore.auth.canEditArea("quotes"));
+      if(readOnly){ let ro=false; try{ ro=!!(BPStore.trialOrg&&BPStore.trialOrg.readOnly&&await BPStore.trialOrg.readOnly()); }catch(_){ ro=false; }
+        if(ro) $("#roBanner").textContent="View only — this studio is read-only after its free trial."; }
+    }
     if(!qid){ $("#notfound").hidden=false; return; }
     $("#loadErrTop").hidden=true;
     try{ ev=await BPStore.quotes.get(qid); }
@@ -566,11 +594,12 @@
     $("#evTitle").textContent=(ev.code?ev.code+" · ":"")+(ev.title||ev.client&&ev.client.name||"Event");
     $("#app").hidden=false;
     if(!dirty) dirty=BPUI.trackDirty($(".layout"));
-    if(!share && window.HelmInviteShare) share=HelmInviteShare.mount($("#shareHost"),{
+    if(!share && !readOnly && window.HelmInviteShare) share=HelmInviteShare.mount($("#shareHost"),{
       getSite:()=>site, getQuote:()=>ev, getLink:()=>(site&&site.status==="published"&&site.slug)?$("#pubLink").value:"",
       country:studioCC, isDirty:()=>!!(dirty&&dirty.isDirty()), trial:trialOnce() });
     // seed a sensible default type/template from the event, then load any saved site
     await loadSite();
+    applyReadOnly(); paintActions();
   }
 
   // wire inputs

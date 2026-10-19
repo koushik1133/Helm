@@ -202,7 +202,9 @@
     try{ await BPStore.bell.mount($("#bell")); }catch{}
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     const ok = (await BPStore.auth.role())==='admin' || await BPStore.auth.canView("controls");
-    if(!ok){ $("#noaccess").hidden=false; return; }
+    // R20 item 20: a role without Control Center view goes to the dashboard with a one-time "Your role can't open
+    // that page." notice (trial-lock.js; a free-trial studio keeps its own trial wording). The card shows meanwhile.
+    if(!ok){ $("#noaccess").hidden=false; try{ if(window.HelmTrialLock&&HelmTrialLock.roleBlocked) HelmTrialLock.roleBlocked(); }catch(_){} return; }
     $("#app").hidden=false;
     const namesP=BPStore.audit.actorNames().catch(()=>({}));   // in parallel with the area list
     // populate the area filter

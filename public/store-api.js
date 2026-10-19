@@ -709,6 +709,7 @@ window.HelmUrl = HelmUrl;
      not installed (PGRST202 / 42883) = the feature is off. "Not required" answers are
      cached per tab (bp_sess_checkout); a "must check out" answer is always asked again. */
   const CHECKOUT_PAGE = "checkout";
+  const ROLE_BLOCK_MSG = "Your role can't open that page.";   // same text as trial-lock.js ROLE_MSG (R20 item 20)
   let coEarly = null;
   // Pure decision (exported for tests): "checkout" (send to /checkout) or "none".
   function checkoutGateDecision(st, page, role) {
@@ -796,6 +797,9 @@ window.HelmUrl = HelmUrl;
         // nothing to buy here (member, already subscribed, older studio, 0056 not
         // installed) → straight on to ?next= (never back to this page: no loop)
         if (cst && (cst.missing || cst.required !== true)) {
+          // R20 (live QA, item 20): a teammate (not a studio admin) can't buy a plan - say so once on the page they land on
+          // (the same one-time "bp_flash" notice trial-lock.js uses), instead of a silent bounce to the dashboard
+          if (!cst.missing && cst.reason === "member") { try { sessionStorage.setItem("bp_flash", "i|" + ROLE_BLOCK_MSG); } catch (e) {} }
           try { location.replace(safeNext(nextParam())); } catch (e) {}
           return HANG();
         }

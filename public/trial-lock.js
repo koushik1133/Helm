@@ -13,6 +13,10 @@
   "use strict";
   if (window.HelmTrialLock) return;
   var MSG = "Not available in the free trial. Upgrade to use this.";
+  // R20 (live QA, item 20): a page your ROLE can't open sends you to the dashboard with this one-time notice
+  // (the same "bp_flash" notice the trial block below uses - store-api.js showFlash shows it once on the next page)
+  var ROLE_MSG = "Your role can't open that page.";
+  function flash(msg) { try { if (msg) sessionStorage.setItem("bp_flash", "i|" + msg); } catch (e) {} }
   var on = false, known = false, waiters = [];
   var BLOCKED_PAGES = /(^|\/)(onboarding|templates|audit|reports)(\.html)?\/?$/;   // 0181: Templates; 0203: activity log; QA B23: Reports & exports
   // 0203: where a page that is not part of the trial sends you (the studio's pretty dashboard when the URL has a slug)
@@ -132,11 +136,26 @@
       else { try { localStorage.removeItem("helm.trial"); } catch (e) {} unearly(); done(); }
     }, done);
   }
+  // R20 item 20: a page refused by the ROLE (not the trial) -> dashboard + "Your role can't open that page." once.
+  // In a free-trial studio the trial block above already sends a trial-blocked page there with the TRIAL wording,
+  // so this waits for the trial answer and then leaves the trial case alone.
+  function roleBlocked() {
+    return whenKnown().then(function (trial) {
+      if (trial && BLOCKED_PAGES.test(location.pathname || "")) return false;   // page(): trial wording + redirect
+      flash(ROLE_MSG);
+      try { location.replace(dashHome()); } catch (e) {}
+      return true;
+    });
+  }
+  function whenKnown() { return new Promise(function (r) { if (known || on) { r(on); return; } waiters.push(r); setTimeout(function () { r(on); }, 5000); }); }
   window.HelmTrialLock = {
     MSG: MSG,
+    ROLE_MSG: ROLE_MSG,
+    flash: flash,
+    roleBlocked: roleBlocked,
     isTrial: function () { return on; },
     // resolves true/false once the server has answered
-    whenKnown: function () { return new Promise(function (r) { if (known || on) { r(on); return; } waiters.push(r); setTimeout(function () { r(on); }, 5000); }); },
+    whenKnown: whenKnown,
     note: note,
     cover: cover,
     _visitRe: VISIT,

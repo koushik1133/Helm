@@ -192,7 +192,14 @@
       if (p.dataset.pkrWired === q) continue; p.dataset.pkrWired = q;
       p.dataset.pkrEdit = edit ? "1" : "0"; build(p); p.hidden = false; load(p, q, null);
     }
-    if (sets.length) { let can = false; try { can = await st.auth.canEditArea("controls"); } catch (e) { can = false; } sets.forEach((c) => wireSettings(c, can)); }
+    if (sets.length) {
+      // R20 (live QA): pkg_settings_get (0069) answers only a role with Control Center OR Package selections VIEW
+      // (has_area('controls','view') or has_area('pkg_review','view')); any other role got a 403 in the console.
+      // Same check here BEFORE the call: no access -> the card stays hidden and nothing is asked.
+      let read = false, can = false;
+      try { read = (await st.auth.canView("controls")) || (await st.auth.canView("pkg_review")); } catch (e) { read = false; }
+      if (read) { try { can = await st.auth.canEditArea("controls"); } catch (e) { can = false; } sets.forEach((c) => wireSettings(c, can)); }
+    }
   }
 
   /* ---- Control Center card ---- */
