@@ -1162,7 +1162,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "42";
+  const AUTH_UI_VERSION = "43";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -7142,13 +7142,22 @@ window.HelmUrl = HelmUrl;
         milestones.list(quoteId).catch(() => []),
         runsheet.list(quoteId).catch(() => []),
       ]);
+      // r20: a locked menu only counts when it HOLDS something (dishes, a package or menu notes) - never an empty lock.
+      // The package is read from the same places the builder reads it (plan.menu_template, else pricing._packageName).
+      const pkgName = String((planRow && (planRow.package || planRow.menu_template)) || (ev && ev.pricing && ev.pricing._packageName) || "").trim();
+      const menuLocked = !!(planRow && planRow.menu_locked);
       // 0197: stock shortages + guests vs the linked venue
-      const [shorts, items, vlist] = await Promise.all([
+      const [shorts, items, vlist, dishes] = await Promise.all([
         inventory.shortages(quoteId).catch(() => []),
         inventory.items(true).catch(() => []),
         (ev && ev.client && ev.client.venueId) ? venues.list({ all: true }).catch(() => []) : Promise.resolve([]),
+        eventMenu.list(quoteId).catch(() => null),
       ]);
-      const cap = capacityStatus(ev, (vlist || []).find((v) => v.id === (ev.client || {}).venueId) || null);
+      const menuHas = (Array.isArray(dishes) && dishes.length > 0) || !!pkgName || !!String((planRow && planRow.menu) || "").trim();
+      const capVenue = (vlist || []).find((v) => v.id === (ev.client || {}).venueId) || null;
+      const cap = capacityStatus(ev, capVenue);
+      const capUnchecked = !cap.over && !(cap.total > 0 && cap.guests > 0);
+      const capWhy = !capVenue ? "not checked - no saved venue linked" : !(cap.guests > 0) ? "not checked - no guest count yet" : "not checked - the venue has no capacity saved";
       const itemName = (id) => ((items || []).find((i) => i.id === id) || {}).name;
       const vend = (shorts || []).some((r) => r.vendor_id) ? await vendors.listAll(true).catch(() => []) : [];
       const shortLines = (shorts || []).map((r) => { const b = bk.find((x) => x.id === r.booking_id), v = (vend || []).find((x) => x.id === r.vendor_id);
@@ -7161,13 +7170,15 @@ window.HelmUrl = HelmUrl;
       const checks = [
         { key: "date", label: "Event date set", critical: true, ok: !!ev.eventDate, detail: ev.eventDate || "not set" },
         { key: "approval", label: "Client approved", critical: true, ok: ["approved", "paid"].includes(ev.approvalStatus), detail: ev.approvalStatus || "none" },
-        { key: "menu", label: "Menu & package locked", critical: true, ok: !!(planRow && planRow.menu_locked), detail: (planRow && planRow.menu_locked) ? "locked" : "not locked" },
+        { key: "menu", label: "Menu & package locked", critical: true, ok: menuLocked && menuHas,
+          detail: menuLocked ? (menuHas ? "locked" + (pkgName ? " - " + pkgName : "") : "locked, but no package or dishes yet") : "not locked" },
         { key: "resources", label: "Resources covered (no gaps)", critical: true, ok: resCheck.length > 0 && gaps === 0, detail: resCheck.length === 0 ? "no needs mapped yet" : (gaps ? (gaps + " gap" + (gaps === 1 ? "" : "s")) : "all covered") },
         { key: "vendors", label: "Vendors confirmed", critical: true, ok: enquiry === 0 && (bk.length > 0 || resCheck.length > 0), detail: enquiry ? (enquiry + " still enquiry") : (bk.length ? "all confirmed" : (resCheck.length ? "in-house — none needed" : "nothing planned")) },
         { key: "staff", label: "Staff assigned", critical: true, ok: crew > 0, detail: crew ? (crew + " assigned") : "none" },
         { key: "runsheet", label: "Run-sheet built", critical: true, ok: rs.length > 0, detail: rs.length ? (rs.length + " items") : "empty" },
-        { key: "capacity", label: "Guests fit the venue", critical: true, ok: !cap.over || cap.resolved,
-          detail: !cap.over ? (cap.total ? cap.guests.toLocaleString("en-IN") + " of " + cap.total.toLocaleString("en-IN") : "no saved venue linked")
+        // r20: no saved venue (or no capacity / guest count) = NOT CHECKED - a warning, never counted as passed
+        { key: "capacity", label: "Guests fit the venue", critical: !capUnchecked, unchecked: capUnchecked || undefined, ok: !capUnchecked && (!cap.over || cap.resolved),
+          detail: !cap.over ? (capUnchecked ? capWhy : cap.guests.toLocaleString("en-IN") + " of " + cap.total.toLocaleString("en-IN"))
             : cap.resolved ? (cap.decision.choice === "extend" ? "extended: +" + Number(cap.decision.extra_capacity || 0).toLocaleString("en-IN") + " space" : "proceeding anyway (noted)")
             : cap.short.toLocaleString("en-IN") + " guests won't fit - decide in the quote" },
         { key: "stock", label: "Stock sourced (no shortages left open)", critical: true, ok: unsourced === 0,

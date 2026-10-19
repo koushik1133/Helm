@@ -159,7 +159,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script><script src="save-back.js?v=2"></script><script src="venue-suggest.js?v=2"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script><script src="save-back.js?v=2"></script><script src="venue-suggest.js?v=2"></script>
 <script src="tour.js?v=22"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -169,6 +169,11 @@
   // planFailed: the saved venue/menu (and its lock state) couldn't be loaded — lock is UNKNOWN,
   // so all editing and saving stays blocked until a retry succeeds (never overwrite unseen data).
   let planFailed=false, menuFailed=false;
+  // r20: the package the event is priced with, read from the SAME source as the builder: the plan's applied
+  // package (menu_template), else the quote's pricing (_packageName, e.g. the sample events). Display only.
+  let quotePkg="";
+  const pkgKey=(n)=>String(n==null?"":n).replace(/^\s*Demo \u00b7 /,"").replace(/\s+/g," ").trim().toLowerCase();
+  const pkgTemplate=(name)=>{ const k=pkgKey(name); if(!k) return null; return templates.find(t=>t&&t.name===name)||templates.find(t=>t&&pkgKey(t.name)===k)||null; };
   const dirty=BPUI.trackDirty();
   // UAE audit: a UAE studio's menu reads vegetarian / halal meat & fish (no "veg / non-veg" Indian wording)
   const MENU_AE=(()=>{ try{ return BPStore.studioTax().country==="AE"; }catch(_){ return false; } })();
@@ -255,7 +260,11 @@
   function renderSelected(){
     const host=$("#selDishes"); const editable=dishEditable();
     if(menuFailed){ BPUI.loadError(host,menuFailed,load,{what:"the selected dishes"}); return; }
-    if(!menuItems.length){ host.innerHTML='<div class="muted" style="font-size:12px">No dishes selected yet'+(editable?" — search above to add.":".")+'</div>'; return; }
+    if(!menuItems.length){
+      // r20: the event is priced with a package but has no dishes of its own yet -> say so (never "empty" with a known package)
+      const pk=($("#p_pkg").value||"").trim()||quotePkg, tp=pkgTemplate(pk), dn=tp&&Array.isArray(tp.dishes)?tp.dishes.map(d=>d&&(d.n||d.name)).filter(Boolean):[];
+      if(pk){ host.innerHTML='<div class="muted" style="font-size:12px">Package <b>'+esc(pk)+'</b>'+(dn.length?' ('+dn.length+' dishes: '+esc(dn.slice(0,12).join(", "))+(dn.length>12?", …":"")+')':'')+' — no dishes are listed on this event yet'+(editable?(tp?"; pick the package above or search to add them.":"; search above to add them."):".")+'</div>'; return; }
+      host.innerHTML='<div class="muted" style="font-size:12px">No dishes selected yet'+(editable?" — search above to add.":".")+'</div>'; return; }
     // group by category
     const byCat={}; menuItems.forEach(m=>{ (byCat[m.category||"Other"]=byCat[m.category||"Other"]||[]).push(m); });
     host.innerHTML=Object.entries(byCat).map(([cat,items])=>`
@@ -324,8 +333,10 @@
   async function renderApproval(){
     const st = ev.approvalStatus||"none"; $("#apprStat").className="stat "+st; $("#apprStat").textContent=st;
     let lines=[];
-    try{ const cons=await BPStore.approval.consents(id); (cons||[]).slice(0,3).forEach(c=>lines.push(`✍ ${esc(c.client_name||c.phone||"client")} agreed — ${new Date(c.created_at).toLocaleDateString("en-IN")}`)); }catch{}
-    try{ const pays=await BPStore.approval.payments(id); (pays||[]).slice(0,3).forEach(p=>lines.push(`₹ payment ${esc(p.status||"")} — ${new Date(p.created_at).toLocaleDateString("en-IN")}`)); }catch{}
+    // r20: dates in the STUDIO's zone (never the browser's); a payment shows the day the LEDGER says it was paid (paid_at), not when the row was made
+    const day=(t)=>{ try{ const o=BPStore.fmtDay(t); if(o) return o; }catch{} return t?new Date(t).toLocaleDateString("en-IN"):""; };
+    try{ const cons=await BPStore.approval.consents(id); (cons||[]).slice(0,3).forEach(c=>lines.push(`✍ ${esc(c.client_name||c.phone||"client")} agreed — ${esc(day(c.created_at))}`)); }catch{}
+    try{ const pays=await BPStore.approval.payments(id); (pays||[]).slice(0,3).forEach(p=>lines.push(`₹ payment ${esc(p.status||"")} — ${esc(day(p.paid_at||p.created_at))}`)); }catch{}
     $("#apprHist").innerHTML = lines.length ? lines.map(l=>`<div>${l}</div>`).join("") : '<div class="muted">No consent or payment recorded yet.</div>';
   }
 
@@ -357,6 +368,7 @@
       if(p){
       $("#v_name").value=p.venue_name||""; $("#v_addr").value=p.venue_address||""; $("#v_contact").value=p.venue_contact||""; $("#v_access").value=p.access_notes||"";
       $("#p_pkg").value=p.package||""; $("#p_menu").value=p.menu||""; locked=!!p.menu_locked; } else locked=false;
+      quotePkg=String((p&&p.menu_template)||(ev&&ev.pricing&&ev.pricing._packageName)||"").trim();
       dirty.clean(); }
     catch(e){
       planFailed=true; locked=false;
@@ -367,6 +379,7 @@
     try{ catalog=await BPStore.dishCatalog.list(); }catch{ catalog=[]; }
     try{ menuItems=await BPStore.eventMenu.list(id); menuFailed=false; }catch(e){ menuItems=[]; menuFailed=e||new Error("load failed"); }
     try{ templates=await BPStore.menuTemplates.list(); }catch{ templates=[]; }
+    if(!planFailed && quotePkg && !$("#p_pkg").value.trim()){ const tp=pkgTemplate(quotePkg); $("#p_pkg").value=tp?tp.name:quotePkg; }   // r20: same package the builder shows
     applyLock();
   }
   BPUI.boot(async ()=>{

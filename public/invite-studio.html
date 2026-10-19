@@ -263,8 +263,8 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script>
-<script src="invite-site-share.js?v=8"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
+<script src="invite-site-share.js?v=9"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -386,7 +386,11 @@
     if(typeof c.mapUrl==="string"&&MAP_RE.test(c.mapUrl.trim())) set("f_mapUrl",c.mapUrl);
     set("f_host",c.name); set("f_hostPhone",c.phone);
     const HEN=window.HelmEventName, tOk=ev.title&&HEN&&!HEN.isAuto(ev.title,ev.code)?ev.title:"";
-    set("f_names",c.names||c.coupleNames||tOk||(st==="corporate"?c.company:"")||c.name);
+    // r20: an event TITLE like "Ananya & Vikram Wedding" prefills the names as "Ananya & Vikram" - the headline already says
+    // "are getting married". Only trailing event-type words are dropped, only for couple names (wedding / engagement sites),
+    // and only from the title (never from saved names; a corporate / general "Event name" keeps the whole title).
+    const noTypeWords=(v)=>{ const t=noDemo(v); let o=t, prev; do{ prev=o; o=o.replace(/(?:'s|\u2019s)?\s+(?:wedding|engagement|reception|sangeet|mehendi|mehndi|haldi|ceremony|celebrations?|nikah|shaadi|marriage|ring ceremony|roka|cocktail|party)\s*$/i,"").trim(); }while(o && o!==prev); return o||t; };
+    set("f_names",c.names||c.coupleNames||(tOk?((st==="wedding"||st==="engagement")?noTypeWords(tOk):tOk):"")||(st==="corporate"?c.company:"")||c.name);
   }
   function gather(){
     return {

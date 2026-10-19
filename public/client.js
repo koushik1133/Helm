@@ -38,12 +38,49 @@
     if (!B || !B.sumByCurrency) return rows.map((x) => String(x.currency || "INR") + " " + Number(x[key]).toLocaleString("en-US")).join(" · ");
     return B.formatByCurrency(B.sumByCurrency(rows, (x) => x[key], (x) => x.currency));
   }
+  // r20: a timeline moment in the STUDIO's time zone (Asia/Kolkata for an Indian studio), never the browser's
   function when(t) {
     if (!t) return "";
     const d = new Date(t);
     if (isNaN(d.getTime())) return "";
+    const B = typeof window !== "undefined" && window.BPStore;
+    if (B && typeof B.fmtStudioDate === "function") {
+      try { const o = B.fmtStudioDate(d, { fmt: { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" } }); if (o) return o; } catch (e) {}
+    }
     try { return d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
     catch (e) { return d.toISOString(); }
+  }
+  // r20: "YYYY-MM-DD" -> the studio's day format (dd/mm/yyyy for IN)
+  function day(s) {
+    const B = typeof window !== "undefined" && window.BPStore;
+    if (B && typeof B.fmtDateIN === "function") { try { const o = B.fmtDateIN(s); if (o) return o; } catch (e) {} }
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ""));
+    return m ? m[3] + "/" + m[2] + "/" + m[1] : String(s || "");
+  }
+  // r20: the server's timeline subtitle is "A / B / C" with raw amounts ("572005.00", "INR 245145.00") and ISO days.
+  // Split it into display parts: amounts become studio money (₹5,72,005) flagged money:true (masked by "Hide amounts"
+  // via [data-money]), days become dd/mm/yyyy, a task saved "unassigned" that names an assignee reads "assigned".
+  // Message bodies are free text and are never parsed.
+  const AMT_RE = /^(?:([A-Z]{3}) )?(-?\d+\.\d{2})$/;
+  function subtitleParts(sub, kind) {
+    const s = String(sub == null ? "" : sub);
+    if (!s) return [];
+    if (kind === "messages") return [{ text: s, money: false }];
+    const segs = s.split(" / ");
+    return segs.map((seg, i) => {
+      const a = AMT_RE.exec(seg);
+      if (a) {
+        const B = typeof window !== "undefined" && window.BPStore, v = Number(a[2]);
+        let txt = money(v);
+        if (a[1] && B && typeof B.moneyIn === "function") { try { txt = B.moneyIn(v, a[1]); } catch (e) {} }
+        return { text: txt, money: true };
+      }
+      let m = /^due (\d{4}-\d{2}-\d{2})$/.exec(seg);
+      if (m) return { text: "due " + day(m[1]), money: false };
+      if (/^\d{4}-\d{2}-\d{2}$/.test(seg)) return { text: day(seg), money: false };
+      if (kind === "tasks" && seg === "unassigned" && i + 1 < segs.length && String(segs[i + 1] || "").trim()) return { text: "assigned", money: false };
+      return { text: seg, money: false };
+    });
   }
   function initials(name) {
     // first letters of the first two alphabetic words; skip "(testing)", "E2E"-style digits, emoji
@@ -127,7 +164,15 @@
       if (it.href) { const a = el("a", "", it.title); a.setAttribute("href", it.href); t.appendChild(a); }
       else t.appendChild(doc.createTextNode(it.title));
       body.appendChild(t);
-      if (it.subtitle) body.appendChild(el("div", "s", it.subtitle));
+      if (it.subtitle) {
+        const sd = el("div", "s");
+        subtitleParts(it.subtitle, it.kind).forEach((p, i) => {
+          if (i) sd.appendChild(doc.createTextNode(" / "));
+          if (p.money) { const sp = el("span", "", p.text); sp.setAttribute("data-money", ""); sd.appendChild(sp); }
+          else sd.appendChild(doc.createTextNode(p.text));
+        });
+        body.appendChild(sd);
+      }
       const w = when(it.at);
       if (w) { const tm = el("time", "when", w); tm.setAttribute("datetime", String(it.at)); body.appendChild(tm); }
       li.appendChild(body);
@@ -185,6 +230,6 @@
     wireBooklet(model, id).catch(() => {});
   }
 
-  global.HelmClient360 = { bookletQuote, safeLink, money, moneyByCurrency, when, initials, normalize, filterItems, KINDS };
+  global.HelmClient360 = { bookletQuote, safeLink, money, moneyByCurrency, when, day, subtitleParts, initials, normalize, filterItems, KINDS };
   if (doc && global.BPUI && typeof global.BPUI.boot === "function" && doc.getElementById("timeline")) global.BPUI.boot(start);
 })(typeof window !== "undefined" ? window : globalThis);

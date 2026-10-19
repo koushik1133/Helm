@@ -113,7 +113,11 @@
       if (state === "error" && text) { var ic = el("span", "fv-ic", "!"); ic.setAttribute("aria-hidden", "true"); msg.appendChild(ic); msg.appendChild(doc.createTextNode(text)); }
       msg.hidden = state !== "error";
     }
+    // r20: a number box holding text the browser can't read as a number (badInput: "5e", "-7e") has value "" -
+    // flag it instead of letting it pass as an empty (optional) field
+    function bad() { return !!(input.validity && input.validity.badInput); }
     function run() {
+      if (bad()) return { ok: false, error: "Enter a valid number." };
       return rule(input.value, { label: o.label, required: req(), mobile: o.mobile, max: o.max, phone: input.helmPhone, requiredMsg: o.requiredMsg, article: o.article });
     }
     function check(force) {
@@ -133,7 +137,7 @@
       // the country list lives inside the phone wrapper: don't flag the field while it's in use
       setTimeout(function () {
         if (input.helmPhone && input.helmPhone.wrap.contains(doc.activeElement)) return;
-        if (!touched && !String(input.value || "").trim() && !o.validateEmptyOnBlur) return;   // tabbing past an empty field isn't an error yet
+        if (!touched && !String(input.value || "").trim() && !o.validateEmptyOnBlur && !bad()) return;   // tabbing past an empty field isn't an error yet
         touched = true; tidy(); check(); if (o.onChange) o.onChange();
       }, 0);
     });

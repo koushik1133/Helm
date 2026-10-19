@@ -278,7 +278,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=6"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
+<script src="new-quote-dialog.js?v=6"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
 <script src="tour.js?v=22"></script>
 <script>
@@ -594,7 +594,7 @@
                <button type="button" class="ic go" data-act="edit" title="View the quotation, pricing and floor layout (don't save changes to a closed event)" aria-label="View quote and layout for ${esc(x.code)}">👁 View quote &amp; layout</button>
                ${egReady&&egIndex[x.id]?`<button type="button" class="ic go" data-act="egroup" aria-label="Open the event group for ${esc(x.code)}">💬 Event group</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
-               ${canDelete?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`
+               ${canDelete&&canOfferDelete(x)?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`
             : // active event → the full working set
               `<button type="button" class="ic go" data-act="edit" title="Edit the floor layout in the builder" aria-label="Edit layout for ${esc(x.code)}">Edit layout</button>
                ${canEdit?`<button type="button" class="ic confirm" data-act="confirm" aria-label="${x.status==="confirmed"?"Re-price":"Confirm"} ${esc(x.code)}">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
@@ -604,7 +604,7 @@
                ${canMarkPaid&&x.approvalStatus==="approved"?`<button type="button" class="ic confirm" data-act="paid" title="Mark payment received" aria-label="Mark ${esc(x.code)} paid">Mark paid</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
                ${shelf.ready&&canEdit?`<button type="button" class="ic" data-act="archive" title="Move to the Archive (restorable)" aria-label="Archive ${esc(x.code)}">🗄 Archive</button>`:""}
-               ${canDelete?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`}
+               ${canDelete&&canOfferDelete(x)?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`}
         </div></td></tr>`;
     }).join("");   // Load more / infinite scroll lives in the pager footer under the table
     // lazy-load versions into each dropdown + wire actions
@@ -1020,6 +1020,15 @@
     curTax=studioTax;
   }
 
+  // r20: a confirmed / approved / paid / running event is never offered "Delete" in the list (the server refuses it as soon
+  // as a payment, client approval or refund is on record - 0026 trigger + move_quote_to_shelf); use Archive instead.
+  function canOfferDelete(x){
+    if(!x) return false;
+    const st=String(x.status||""), ap=String(x.approvalStatus||""), lc=String(x.lifecycleStage||"");
+    if(st==="confirmed"||st==="paid"||ap==="approved"||ap==="paid") return false;
+    if(["confirmed","planning","resources","ready","event_day","settlement","closed"].includes(lc)) return false;
+    return true;
+  }
   async function delQuote(id, btn){
     // 0040 installed: Delete = move to Deleted quotes (soft, restorable) — never erased
     if(shelf.ready) return shelfMove(id, "delete", btn);

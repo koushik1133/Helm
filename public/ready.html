@@ -110,7 +110,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -140,13 +140,14 @@
     $("#markBtn").disabled = already;
 
     $("#checks").innerHTML = r.checks.map(c=>{
-      const cls = c.ok?"ok":(c.critical?"no":"warn"); const icon=c.ok?"✓":(c.critical?"✕":"!");
+      // r20: a check with nothing to check against (c.unchecked) reads "Not checked" - never passed, never a blocker
+      const cls = c.ok?"ok":(c.critical?"no":"warn"); const icon=c.ok?"✓":(c.unchecked?"?":(c.critical?"✕":"!"));
       const href = linkFor(c.key);
       let act="";
       if(c.signoff && canEdit){ act = `<button type="button" class="btn" style="height:32px;padding:0 12px;font-size:12px" data-sign="${esc(c.signoff)}" data-done="${c.ok?1:0}" aria-label="${c.ok?"Undo":"Mark done"}: ${esc(c.label)}">${c.ok?"Undo":"Mark done"}</button>`; }
       else if(href && !c.ok){ act = `<a class="link" href="${esc(href)}" aria-label="Fix ${esc(c.label)}">Fix →</a>`; }
-      return `<div class="chk"><div class="ic ${cls}" aria-hidden="true">${icon}</div><span class="sr-only">${c.ok?"Passed":(c.critical?"Not done":"Warning")}:</span>
-        <div><div class="l">${esc(c.label)}${c.critical?"":'<span class="opt">optional</span>'}</div><div class="d">${esc(c.detail)}</div></div>
+      return `<div class="chk"><div class="ic ${cls}" aria-hidden="true">${icon}</div><span class="sr-only">${c.ok?"Passed":(c.unchecked?"Not checked":(c.critical?"Not done":"Warning"))}:</span>
+        <div><div class="l">${esc(c.label)}${c.unchecked?'<span class="opt">not checked</span>':(c.critical?"":'<span class="opt">optional</span>')}</div><div class="d">${esc(c.detail)}</div></div>
         <div class="act">${act}</div></div>`;
     }).join("");
     $("#checks").querySelectorAll("[data-sign]").forEach(b=>b.addEventListener("click",()=>BPUI.guard(b,async()=>{
