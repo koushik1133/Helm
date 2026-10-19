@@ -124,3 +124,99 @@ html[data-shell="b"] body.bz-body { background: var(--hb-bg2); color: var(--hb-i
 
 /* brand kit symbol (as-is) replaces the old gradient tile */
 .bz-header .mark{background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}
+
+/* ===================== r21 business ui: calmer layout =====================
+   One card header style, a source chip under the title, section jump links, the profit section
+   built like the rest of the page, real tables (header row, right-aligned money, hairlines, zebra)
+   that turn into cards on phones, and masked amounts that sit where the number sits (no grey bars). */
+.bz:not(.bz-profit) { margin-bottom: 32px; }
+.bz-hero { margin-bottom: 16px; }
+.bz-src { display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 0; padding: 3px 10px 3px 8px; border-radius: 999px;
+  border: 1px solid var(--bz-line); background: var(--bz-bg); color: var(--bz-ink2); font-size: 12px; font-weight: 600; line-height: 1.5; }
+.bz-src .bz-ic { width: 14px; height: 14px; }
+.bz-src-ok .bz-ic { color: var(--bz-ok); } .bz-src-est .bz-ic { color: var(--bz-wait); }
+
+.bz-snav { display: flex; gap: 2px; width: max-content; max-width: 100%; margin: 0 0 16px; padding: 4px; border: 1px solid var(--bz-line); border-radius: 12px;
+  background: var(--bz-bg); overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
+.bz-snav::-webkit-scrollbar { display: none; }
+.bz-snav a { flex: 0 0 auto; padding: 6px 12px; border-radius: 8px; color: var(--bz-ink2); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.bz-snav a:hover { background: var(--bz-bg2); color: var(--bz-ink); }
+.bz-kpis, .bz-card, .bz-sec, .bz.bz-profit { scroll-margin-top: 84px; }
+
+/* cards: one header style everywhere (icon + title + optional link, hairline under it) */
+.bz-card { padding: 16px 18px 18px; }
+.bz-head { margin: 0 0 12px; padding-bottom: 12px; border-bottom: 1px solid var(--bz-line); }
+.bz-head .bz-ic { color: var(--bz-ink3); }
+.bz-head h3 { font-family: inherit; line-height: 1.3; }
+.bz-empty { justify-content: center; padding: 18px 12px; border: 1px dashed var(--bz-line); border-radius: 10px; background: var(--bz-bg2); }
+.bz-empty .bz-ic { color: var(--bz-ok); }
+.bz-caption, .bz-note { line-height: 1.5; }
+
+/* names + small pills (Sample / Upcoming / This month) */
+.bz-main b { display: block; }
+.bz-nm { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; vertical-align: bottom; }
+.bz-nm-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bz-pill { display: inline-flex; align-items: center; flex: 0 0 auto; height: 18px; padding: 0 7px; border-radius: 999px; font-size: 10.5px; font-weight: 650;
+  letter-spacing: .02em; line-height: 1; white-space: nowrap; text-transform: none; }
+.bz-pill-smp { color: var(--bz-ink3); background: var(--bz-bg2); border: 1px solid var(--bz-line); }
+.bz-pill-up { color: var(--bz-acc); background: color-mix(in srgb, var(--bz-acc) 10%, transparent); }
+.bz-pill-now { color: var(--bz-ok); background: color-mix(in srgb, var(--bz-ok) 12%, transparent); }
+
+/* top clients: name + value on one line, count under it, bar full width */
+.bz-client { padding: 12px 0; }
+.bz-client-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
+.bz-client-top > b { flex: 1 1 auto; min-width: 0; }
+.bz-client .bz-meter { margin-top: 6px; }
+.bz-num { text-align: right; }
+
+/* profit & payables section */
+.bz.bz-profit { margin-top: 0; }
+.bz-sec-head { margin: 0 0 14px; }
+.bz-sec-t { margin: 0; font-family: inherit; font-size: 20px; font-weight: 650; line-height: 1.25; letter-spacing: -.01em; color: var(--bz-ink); }
+.bz-sec-sub { margin: 4px 0 0; max-width: 720px; color: var(--bz-ink2); font-size: 13px; line-height: 1.5; }
+.bz-kpis-sm .bz-kpi { min-height: 0; padding: 14px 16px; gap: 4px; }
+.bz-kpis-sm .bz-kpi-v { font-size: 22px; }
+.bz-kpis-sm .bz-kpi-sub { color: var(--bz-ink3); }
+.bz-grid-even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.bz-profit .bz-caption { margin: 0 0 12px; }
+
+/* tables */
+.bz-tbl-wrap { overflow-x: auto; }
+.bz-tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.bz-tbl th { padding: 8px 12px; background: var(--bz-bg2); color: var(--bz-ink3); font-size: 11.5px; font-weight: 600; letter-spacing: .01em; text-transform: none; text-align: left; white-space: nowrap; border: 0; }
+.bz-tbl th:first-child { border-radius: 8px 0 0 8px; } .bz-tbl th:last-child { border-radius: 0 8px 8px 0; }
+.bz-tbl td { padding: 10px 12px; border: 0; border-bottom: 1px solid var(--bz-line); color: var(--bz-ink); vertical-align: middle; white-space: nowrap; }
+.bz-tbl tbody tr:last-child td { border-bottom: 0; }
+.bz-tbl tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--bz-bg2) 50%, transparent); }
+.bz-tbl tbody tr:hover td { background: var(--bz-bg2); }
+.bz-tbl .num { text-align: right; }
+.bz-tbl td:last-child { font-weight: 650; }
+.bz-tbl td.bz-tc-main { width: 100%; min-width: 140px; white-space: normal; }
+.bz-cell-row { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bz-tr-up td:not(:last-child) { color: var(--bz-ink2); }
+.bz-ev-link { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; color: var(--bz-ink); font-weight: 600; text-decoration: none; }
+.bz-ev-link:hover .bz-ev-t { text-decoration: underline; }
+.bz-code { flex: 0 0 auto; color: var(--bz-ink3); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; font-weight: 500; }
+.bz-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* masked amounts (privacy mode): four dots where the number sits - no grey block, same line height */
+html.hb-priv-on body.bz-body .bz [data-money]:not(svg):not(svg *) { background: transparent !important; display: inline-block; min-width: 3.4em; vertical-align: baseline; }
+html.hb-priv-on body.bz-body .bz [data-money]:not(svg):not(svg *)::after { justify-content: flex-start; font-size: .8em; letter-spacing: .16em; }
+html.hb-priv-on body.bz-body .bz :is(.num, .bz-val, .bz-client-top) > [data-money]:not(svg)::after,
+html.hb-priv-on body.bz-body .bz :is(.bz-li, .bz-val) > .bz-num[data-money]::after { justify-content: flex-end; }
+
+@media (max-width: 1100px) { .bz-grid-even { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) {
+  .bz-card { padding: 14px; }
+  .bz-sec-t { font-size: 18px; }
+  .bz-tbl, .bz-tbl tbody { display: block; width: 100%; }
+  .bz-tbl thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .bz-tbl tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; padding: 12px 0; border-bottom: 1px solid var(--bz-line); }
+  .bz-tbl tbody tr:last-child { border-bottom: 0; }
+  .bz-tbl td, .bz-tbl tbody tr:nth-child(even) td, .bz-tbl tbody tr:hover td { display: flex; flex-direction: column; align-items: flex-start; padding: 0; border: 0; background: none; white-space: normal; min-width: 0; }
+  .bz-tbl td.bz-tc-main { grid-column: 1 / -1; width: auto; min-width: 0; font-weight: 600; }
+  .bz-tbl td.num { text-align: left; }
+  .bz-tbl td.num::before { content: attr(data-label); margin-bottom: 2px; color: var(--bz-ink3); font-size: 11px; font-weight: 600; }
+  html.hb-priv-on body.bz-body .bz .bz-tbl .num > [data-money]:not(svg)::after { justify-content: flex-start; }
+  .bz-ev-link { flex-wrap: wrap; row-gap: 2px; }
+}
