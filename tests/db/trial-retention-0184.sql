@@ -84,6 +84,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0244_trial_to_paid_activation.sql
 -- 0250 (r21 security notices) adds hq_security_notices (Helm HQ's own record) to the keep list on top of 0184
 \ir ../../supabase/migrations/0250_security_notices_hq_only.sql
+-- 0254 (r22 closure) adds event_close_requests (close requests / approvals) to the purge list on top of 0184
+\ir ../../supabase/migrations/0254_closure_checklist_override.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin
