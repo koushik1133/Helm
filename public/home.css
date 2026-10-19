@@ -326,6 +326,10 @@ em{font-family:var(--serif);font-style:italic;font-weight:400}
 .price{font-size:46px;font-weight:700;letter-spacing:-.04em;margin:14px 0 10px;line-height:1}.price .from{display:block;font-size:13px;letter-spacing:0;font-weight:600;color:var(--mute);margin-bottom:6px}.price small{font-size:14px;font-weight:500;color:var(--mute);letter-spacing:0;margin-left:6px}
 .plan ul{margin:0 0 24px;padding:0 0 0 18px;color:var(--mute)}.plan li::marker{color:var(--acc)}
 .plan .btn{margin-top:auto;align-self:flex-start}
+/* r22: Pay now (primary) + Try free (secondary), stacked full width so both fit at 375px */
+.plan-ctas{margin-top:auto;display:grid;gap:10px}.plan .plan-ctas .btn{margin-top:0;align-self:stretch;width:100%}.plan .plan-ctas .btn-dark{justify-content:space-between}
+.plan.hot .btn-line{border-color:rgba(255,255,255,.4);background:transparent;color:#fff}.plan.hot .btn-line:hover{background:rgba(255,255,255,.1)}
+.ct-sales{margin:18px 0 0}
 .plan.hot{background:var(--ink);color:#fff}.plan.hot .who,.plan.hot small,.plan.hot ul,.plan.hot .from{color:rgba(255,255,255,.68)}
 .plan.hot .btn-dark{background:#fff;color:var(--ink)}.plan.hot .btn-dark .bi{background:var(--ink);color:#fff}
 .tagp{position:absolute;top:22px;right:22px;background:var(--acc-l);color:var(--ink);font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px}

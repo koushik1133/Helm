@@ -37,7 +37,7 @@
 <link rel="stylesheet" href="/marketing-features.css?v=3">
 <script src="/marketing-theme.js?v=3"></script>
 <link rel="stylesheet" href="/marketing-story.css?v=1">
-<link rel="stylesheet" href="/marketing-pricing.css?v=1">
+<link rel="stylesheet" href="/marketing-pricing.css?v=2">
 <link rel="stylesheet" href="/marketing-loader.css?v=1">
 <script src="/marketing-loader.js?v=3"></script>
 </head>
@@ -51,8 +51,8 @@
         <a class="nl" href="about">About</a>
         <a class="nl" href="services">Services</a>
         <a class="nl" href="pricing">Pricing</a>
-        <a class="btn" href="login">Sign in</a>
-        <a class="btn primary hs-pop" href="login?trial=1#signup">Start free trial</a>
+        <a class="btn" href="/login">Sign in</a>
+        <a class="btn primary hs-pop" href="/signup?mode=trial">Start free trial</a>
       </nav>
     </div>
   </header>
@@ -72,7 +72,7 @@
       <p class="pr-for">Solo planners and decorators</p>
       <p class="pr-price"><b>&#8377;1,999</b><span>/month, proposed</span></p>
       <p class="pr-alt">or &#8377;19,990/year proposed (2 months free)</p>
-      <a class="btn primary hs-pop pr-btn" href="login?trial=1#signup">Start free trial</a>
+      <div class="pr-ctas"><a class="btn primary hs-pop pr-btn" href="/signup?plan=starter&amp;mode=paid">Pay now</a><a class="btn pr-btn pr-btn2" href="/signup?plan=starter&amp;mode=trial">Try free for 8 days</a></div>
       <ul>
         <li>Up to 3 team members</li>
         <li>Leads, clients and follow-ups (CRM)</li>
@@ -89,7 +89,7 @@
       <p class="pr-for">Growing event companies</p>
       <p class="pr-price"><b>&#8377;4,999</b><span>/month, proposed</span></p>
       <p class="pr-alt">or &#8377;49,990/year proposed (2 months free)</p>
-      <a class="btn primary hs-pop pr-btn" href="login?trial=1#signup">Try Helm Studio free</a>
+      <div class="pr-ctas"><a class="btn primary hs-pop pr-btn" href="/signup?plan=studio&amp;mode=paid">Pay now</a><a class="btn pr-btn pr-btn2" href="/signup?plan=studio&amp;mode=trial">Try free for 8 days</a></div>
       <ul>
         <li>Everything in Starter</li>
         <li>Up to 15 team members</li>
@@ -106,7 +106,7 @@
       <p class="pr-for">Multi-city teams and corporate studios</p>
       <p class="pr-price"><b>Custom</b><span>talk to us</span></p>
       <p class="pr-alt">Volume pricing for 60+ events a year</p>
-      <a class="btn pr-btn" href="/#contact">Talk to sales</a>
+      <div class="pr-ctas"><a class="btn pr-btn" href="/signup?plan=enterprise&amp;mode=sales">Talk to sales</a></div>
       <ul>
         <li>Everything in Studio</li>
         <li>Unlimited team members</li>
@@ -123,7 +123,7 @@
     <details class="q"><summary>Do I need a card to start?</summary><div class="a">No. Start the free trial without a card and try every feature on a real event.</div></details>
     <details class="q"><summary>Are prices inclusive of GST?</summary><div class="a">Proposed prices are shown before tax. Checkout shows the exact tax for your billing details.</div></details>
     <details class="q"><summary>Can I change plans later?</summary><div class="a">Yes. Your events, layouts and records stay with your workspace when you move between plans.</div></details>
-    <div class="mf-btns pr-end"><a class="mf-btn mf-btn-p hs-pop" href="login?trial=1#signup">Run your next event on Helm, free</a></div>
+    <div class="mf-btns pr-end"><a class="mf-btn mf-btn-p hs-pop" href="/signup?mode=trial">Run your next event on Helm, free</a></div>
   </section>
 </div>
   </main>
@@ -139,7 +139,7 @@
           <a href="pricing">Pricing</a>
           <a href="privacy">Privacy Policy</a>
           <a href="terms">Terms of Service</a>
-          <a href="login">Sign in</a>
+          <a href="/login">Sign in</a>
         </div>
       </div>
       <div class="copy">&copy; Helm. All rights reserved.</div>
