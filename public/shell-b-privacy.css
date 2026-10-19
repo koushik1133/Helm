@@ -76,5 +76,6 @@ html[data-theme="dark"] .hbp-err { color: #f28b82; }
 @media (max-width: 420px) { .hbp-key { height: 56px; } }
 
 /* ---- one-time hint chip under the eye button ---- */
-.hbp-hint { position: fixed; z-index: 1500; top: 64px; right: 16px; max-width: calc(100vw - 16px); padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hb-line, rgba(0,0,0,.12));
+/* r22 ui audit: the chip hugs its text (JS sets left; with right:16px too it stretched across the bar) and sits under page dialogs (1100) */
+.hbp-hint { position: fixed; z-index: 1090; top: 64px; right: 16px; width: max-content; max-width: calc(100vw - 16px); padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hb-line, rgba(0,0,0,.12));
   background: var(--hb-ink, #111); color: var(--hb-bg, #fff); font: 600 12.5px/1.3 inherit; box-shadow: 0 6px 20px rgba(0,0,0,.18); cursor: pointer; white-space: nowrap; }

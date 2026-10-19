@@ -108,7 +108,7 @@ t('MANIFEST lists 0152', () => assert.match(r('supabase/migrations/MANIFEST'), /
 t('issues: long unbroken titles wrap inside the card (css v2)', () => {
   assert.match(r('public/issues-polish.css'), /\.issue \.t\{overflow-wrap:anywhere/);
   assert.match(r('public/issues-polish.css'), /\.issue > div\{min-width:0\}/);
-  assert.match(r('public/issues.html'), /issues-polish\.css\?v=2"/);
+  assert.match(r('public/issues.html'), /issues-polish\.css\?v=3"/);
 });
 t('payments: past due date needs a confirm, dates shown dd/mm/yyyy', () => {
   const h = r('public/logistics.html');

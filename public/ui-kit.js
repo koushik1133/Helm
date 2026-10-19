@@ -1,5 +1,5 @@
 /* Helm UI kit (window.HelmUI). DOM built with createElement/textContent only, no style attrs — CSP safe.
-   Include: <link rel="stylesheet" href="ui-kit.css?v=1"> + <script src="ui-kit.js?v=1" defer></script> */
+   Include: <link rel="stylesheet" href="ui-kit.css?v=2"> + <script src="ui-kit.js?v=2" defer></script> */
 (function (root) {
   "use strict";
   var doc = root.document;

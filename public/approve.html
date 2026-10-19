@@ -24,7 +24,8 @@
   header b{font-size:15px} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:22px;margin-bottom:16px}
   h1{font-size:20px;margin:0 0 4px} .sub{color:var(--ink-3);font-size:13px;margin:0 0 4px}
-  .code{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--accent)}
+  .code{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--accent);white-space:nowrap;flex:none}
+  @media (max-width:520px){ .card > div:has(> #code){flex-wrap:wrap;row-gap:4px} #code{order:-1;flex-basis:100%;font-size:13px} }
   .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px;vertical-align:middle}
   .stat.q{background:#eef1f0;color:#2f4a42} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.paid{background:#e7f6ee;color:#0f7a43}
   .rows{margin-top:10px} .r{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:var(--ink-2)}

@@ -15,3 +15,12 @@
   #payTable td,#payTable th{white-space:nowrap}
   #payTable thead th:nth-child(5),#payTable td:nth-child(5){display:none}
 }
+
+/* r22 ui audit: phones - the three money tiles become label / amount rows (a 3-across tile broke "₹18,45,000" over two
+   lines in the serif face) and a very long event name no longer fills the whole first screen */
+@media (max-width:480px){
+  .paysum{grid-template-columns:1fr;gap:6px}
+  .paysum > div{flex-direction:row;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 12px}
+  .paysum .v{white-space:nowrap;font-size:17px}
+  .title{font-size:clamp(30px,8.5vw,38px);line-height:1.06}
+}
