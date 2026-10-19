@@ -12,8 +12,8 @@
 //   HELM_SECURITY_ALERT_HQ_TO             HQ inbox for HQ-level alerts (unset → HQ rows skipped)
 //   SECURITY_ALERT_BATCH                  rows per run, 1..100 (default 25)
 //
-// The database decides WHO gets mail (security_alert_outbox_claim: that studio's admins,
-// or nothing when the studio switched security e-mail off) and already throttles floods
+// The database decides WHO gets mail (security_alert_outbox_claim; since 0250 every row is
+// an HQ row - security notices are for Helm HQ only, never studio members) and already throttles floods
 // (one row per alert type per studio per 10 minutes, with a count).
 // The e-mail carries the alert name, count and studio name only — no links, tokens,
 // file names or reasons. Logs carry only counts, SQLSTATE codes and HTTP status.
@@ -76,7 +76,8 @@ async function sendEmail(to: string[], subject: string, html: string): Promise<S
 
 export function message(label: string, count: number, studio: string, hq: boolean) {
   const times = count > 1 ? ` (${count} times in about 10 minutes)` : "";
-  const where = hq ? "Helm HQ" : (studio || "your studio");
+  // r21 (0250): every alert is an HQ copy now; name the studio it happened in
+  const where = hq ? (studio || "Helm HQ") : (studio || "your studio");
   return {
     subject: `Helm security alert: ${label}${count > 1 ? " ×" + count : ""}`,
     html: `<p>Security alert for <b>${escHtml(where)}</b>:</p><p><b>${escHtml(label)}</b>${escHtml(times)}.</p>` +

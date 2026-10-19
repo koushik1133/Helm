@@ -7965,7 +7965,8 @@ window.HelmUrl = HelmUrl;
     }
     const k = k0, q = has(n.quote_id) ? n.quote_id : null;
     if (k === "trial_reminder") return "checkout.html";
-    if (k === "security_alert") return "control.html#users";
+    // r21 (0250): security notices are Helm HQ only - an HQ notice opens HQ (Activity log -> Security)
+    if (k === "security_alert") return d.hq === true ? "hq.html" : "control.html#users";
     // 0078: low stock -> the event's inventory page, the item row highlighted
     if (k === "inventory_low_stock") {
       const it = /^[0-9a-f-]{36}$/i.test(String(d.item_id || "")) ? String(d.item_id) : "";
@@ -7992,6 +7993,19 @@ window.HelmUrl = HelmUrl;
      bellPanelView(items, { filter, now, label }) → { filter, tabs, tabsHtml, html, unread }
      items = the merged feed: bell_feed rows + chat rows ({ __chat:true, … }). Every piece of
      server / chat text goes through esc(); hrefs are built from encodeURIComponent'd ids. */
+  // r21 (0250): security notices are for Helm HQ only. bell_feed already leaves studio security rows out; this is
+  // the same rule on the page (also while an older database still sends them): a security_alert row stays only when
+  // it is an HQ notice (detail.hq === true), and the unread count drops by the unread rows removed. Pure.
+  function bellHqOnlySecurity(f) {
+    if (!f || typeof f !== "object" || !Array.isArray(f.items)) return f;
+    const isStudioSec = (n) => !!n && typeof n === "object" && String(n.kind || "").toLowerCase().trim() === "security_alert"
+      && !(n.detail && typeof n.detail === "object" && n.detail.hq === true);
+    const drop = f.items.filter(isStudioSec);
+    if (!drop.length) return f;
+    const unreadDrop = drop.filter((n) => !!n.unread).length;
+    return Object.assign({}, f, { items: f.items.filter((n) => !isStudioSec(n)),
+      unread: Math.max(0, (Number(f.unread) || 0) - unreadDrop) });
+  }
   // 0063: a feed row → its catalog type (mirrors notification_type_of in SQL). @mentions → null (never muted).
   function bellTypeOf(n) {
     if (!n || typeof n !== "object") return "other";
@@ -8281,7 +8295,8 @@ window.HelmUrl = HelmUrl;
       security_alert: ["🛡️", "Security: " + String(d.label || "security event")
         + ((Number(d.count) || 1) > 1 ? " ×" + (Number(d.count) || 1) : "")
         + (d.subject_name ? " · " + d.subject_name : d.actor_name ? " · by " + d.actor_name : "")
-        + (d.event_code ? " · " + d.event_code : "")],
+        + (d.event_code ? " · " + d.event_code : "")
+        + (d.hq === true && d.studio ? " · " + d.studio : "")],
       // 0058: free-trial reminders (admins only — the server decides)
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
       // 0129: "event is coming up" (studio-wide; never forwarded)
@@ -8356,7 +8371,7 @@ window.HelmUrl = HelmUrl;
     link: notifLink,
     // la-fetch (audit 25): the bell's first load and the realtime-subscribe refresh right after it asked bell_feed
     // twice - one answer per 5 s per tab (markSeen or any other write drops it)
-    feed: (limit) => memoRead("bell.feed:" + (limit || ""), 5000, () => rpc("bell_feed", limit ? { p_limit: limit } : {})),
+    feed: (limit) => memoRead("bell.feed:" + (limit || ""), 5000, () => rpc("bell_feed", limit ? { p_limit: limit } : {})).then(bellHqOnlySecurity),
     markSeen: () => rpc("bell_mark_seen", {}),
     label: bellLabel,
     // 0036 admin-managed notifications. mine() → { hidden:[type…] } for the signed-in
