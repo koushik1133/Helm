@@ -213,6 +213,8 @@ run "r22-money-0252" "R22-MONEY-0252: ALL PASS \(17/17\)" psql -q -f tests/db/r2
 run "r22-closure-0254" "R22-CLOSURE-0254: ALL PASS \(68/68\)" psql -q -f tests/db/r22-closure-0254.sql
 # 0256 re-applies itself twice (fixture events are made after the clean install; proves a re-run is safe)
 run "r23-vendors-0256" "R23-VENDORS-0256: ALL PASS \(77/77\)" psql -q -f tests/db/r23-vendors-0256.sql
+# 0265 re-applies itself twice (re-run safe); after every suite that re-applies 0132 / 0246 / 0252 (it replaces the 0252 ledger body)
+run "r23-crew-0265" "R23-CREW-0265: ALL PASS \(60/60\)" psql -q -f tests/db/r23-crew-0265.sql
 # 0244 re-applies itself twice (re-run safe) after every suite that re-applies 0045 / 0183 / 0185
 run "r21-trial-paid-0244" "R21-TRIAL-PAID-0244: ALL PASS \(56/56\)" psql -q -f tests/db/r21-trial-paid-0244.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
