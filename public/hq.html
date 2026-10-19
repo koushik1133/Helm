@@ -135,6 +135,15 @@
     <div class="grid">
       <section class="card"><h2>Studios by subscription status</h2><ul class="list" id="byStatus"></ul></section>
       <section class="card"><h2>Two-step verification</h2><div id="mfa"></div></section>
+      <!-- r21 (0249): can two-step be REQUIRED for HQ yet? who still needs to set it up; "Set up two-step" for me -->
+      <section class="card" aria-labelledby="hMfaR">
+        <div class="hd"><h2 id="hMfaR">HQ two-step readiness</h2><span id="mfaRState"></span></div>
+        <p class="muted" id="mfaRHint"></p>
+        <ul class="list" id="mfaROps"></ul>
+        <p class="muted" id="mfaRAdmins"></p>
+        <div id="mfaREnroll" hidden></div>
+        <button class="btn primary" id="btnMfaEnroll" type="button" hidden>Set up two-step</button>
+      </section>
     </div>
   </section>
 
@@ -336,12 +345,14 @@
 </div>
 
 <script src="/trusted-types.js?v=3"></script>
-<script src="telemetry.js?v=4"></script>
-<script src="config.js?v=105"></script>
+<script src="telemetry.js?v=5"></script>
+<script src="config.js?v=106"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=263"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=264"></script>
+<script src="auth-ui.js?v=48"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="hq.js?v=15"></script>
+<script src="hq-mfa.js?v=1"></script>
+<script src="hq.js?v=16"></script>
 </body>
 </html>

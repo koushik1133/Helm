@@ -25,7 +25,9 @@
 
   function say(title, sub) { $("#title").textContent = title; $("#sub").textContent = sub || ""; }
   function err(t) { var e = $("#err"); e.textContent = t; e.hidden = !t; }
-  function go(path) { location.replace(path); }
+  // r21 CodeQL js/xss + js/client-side-unvalidated-url-redirection: parse() (auth-confirm-core.js safePath) already
+  // allows only same-origin paths; re-checked here so no other value can ever reach location.replace
+  function go(path) { var p = String(path || ""); if (!/^\/(?![\/\\])[^\s\u0000-\u001f]*$/.test(p)) p = "/login"; location.replace(p); }
   var SIGNUP = link.ok && (link.type === "signup" || link.type === "email");
   // round 19: the right words straight away (this file runs before the big store-api.js loads)
   if (SIGNUP) say("Confirming your email…", "One moment — we're confirming your e-mail address.");

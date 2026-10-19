@@ -326,7 +326,7 @@ Deploy note: webhooks (`razorpay-webhook`, `razorpay-subscription-webhook`, `wa-
   - First an in-memory fixed window per isolate. Keys are hashed, so no raw IP, phone or token is held.
   - Then the durable `rate_hit(bucket, key, window_s, max)` limit, shared across isolates.
   - `HELM_DURABLE_RATE_LIMIT=on|off` (default on).
-  - `HELM_RATE_LIMIT_FAIL_CLOSED=true` turns a DB error into a 429. The default is fail-open, with the in-memory limit still applied.
+  - `HELM_RATE_LIMIT_FAIL_CLOSED` (r21): by default a DB error is a 429 (fail **closed**). The one exception is a database without `rate_hit` (migration 0050 missing): that fails open with a loud log line. `false` = fail open (the in-memory limit still applies). `true` = strict (closed even when `rate_hit` is missing).
   - Responses are 429 with `Retry-After`.
 - **Database limits:**
   - OTP attempts and expiry (`admin_store_otp`, `request_otp`).
@@ -405,7 +405,7 @@ Decision needed: the README example shows `RESEND_FROM` with `events@helm.events
 - **Dormant by default:** flags plus `liveChannels`, with a simulated path so the app works without providers.
 - **Outbox pattern:** DB rows are claimed, sent, then marked `sent`, `failed` or `skipped`, with idempotency keys. A failed provider call does not lose the record.
 - **Payments:** the webhook is the source of truth. Settlement RPCs are idempotent, and money records freeze after approval or payment.
-- **Rate limiter:** fails open by default, configurable with `HELM_RATE_LIMIT_FAIL_CLOSED`.
+- **Rate limiter:** fails closed by default since r21 (`HELM_RATE_LIMIT_FAIL_CLOSED=false` turns that off).
 - **UI:** shows `friendlyError` text only.
 - Monitoring and incident steps: `docs/OBSERVABILITY-ACTIVATION.md`, `docs/INCIDENT-RESPONSE-RUNBOOK.md`, `docs/DISASTER-RECOVERY-RUNBOOK.md`.
 

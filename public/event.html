@@ -207,10 +207,10 @@
 </div>
 
 <script src="/trusted-types.js?v=3"></script>
-<script src="telemetry.js?v=4"></script>
-<script src="config.js?v=105"></script>
+<script src="telemetry.js?v=5"></script>
+<script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=263"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=264"></script>
 <script src="flow-resume.js?v=4"></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=24"></script>
@@ -714,7 +714,7 @@
         acts:[{t: canEdit?"Open proposal":"View proposal", href:"proposal.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"layout", ic:"📐", title:"Floor layout", sum: layoutSummary&&layoutSummary.objects>0 ? `${layoutSummary.objects} object${layoutSummary.objects===1?"":"s"} on the floor plan · open the builder to adjust it.` : `Design the 2D/3D plan for this event.`,
         acts:[{t:"Open builder", href:"builder.html?quote="+encodeURIComponent(id), primary:true}] },
-      { key:"quote", ic:"🧾", title:"Quote & approval", sum:`Version v${ev.currentVersion}${canFin&&!evTotal()?" · not priced yet":""}<div class="muted">${approvalText()}</div>${fromDisc}`,
+      { key:"quote", ic:"🧾", title:"Quote & approval", sum:`Version v${esc(ev.currentVersion)}${canFin&&!evTotal()?" · not priced yet":""}<div class="muted">${approvalText()}</div>${fromDisc}`,
         acts:[{t:"Open this quote", href:"quotes.html?focus="+encodeURIComponent(ev.code||id), primary:true}] },
       { key:"tasks", ic:"🛠️", title:"Tasks", sum: tasksSummary?`${tasksSummary.done}/${tasksSummary.total} tasks done`:"Assign predefined tasks to your staff.",
         acts:[{t:"Open operations", href:"ops.html?quote="+encodeURIComponent(id), primary:true}] },
@@ -784,7 +784,7 @@
       return `<div class="mod ${reco}"><div class="h"><span class="ic">${c.ic}</span><b>${c.title}</b>${reco?'<span class="stat q" style="margin-left:auto">Next</span>':""}</div>
         ${DESC[c.key]?`<div class="desc">${esc(descLine(c.key))}</div>`:""}
         <div class="sum">${c.sum}</div>
-        <div class="act">${c.acts.map(a=>a.act?`<button type="button" class="btn ${a.primary?'primary':''}" data-act="${esc(a.act)}">${esc(a.t)}</button>`:`<a class="btn ${a.primary?'primary':''}" href="${a.href}">${a.t}</a>`).join("")}</div></div>`;
+        <div class="act">${c.acts.map(a=>a.act?`<button type="button" class="btn ${a.primary?'primary':''}" data-act="${esc(a.act)}">${esc(a.t)}</button>`:`<a class="btn ${a.primary?'primary':''}" href="${esc(a.href)}">${esc(a.t)}</a>`).join("")}</div></div>`;
     };
     // Stage-focused view: show the modules recommended for the current stage first, and tuck the
     // rest under a collapsible "More tools" section. Falls back to showing everything when the

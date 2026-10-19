@@ -190,10 +190,10 @@ t('cache policy: versioned assets / vendor immutable, config.js short, marketing
   for (const p of MARKETING) assert.equal(vercelHeaders('/' + (p === 'index' ? '' : p))['cache-control'], 'no-cache', `${p} keeps no-cache`);
 });
 
-t('CAPTCHA CSP allowance (Turnstile) only on the login / reset pages', () => {
+t('CAPTCHA CSP allowance (Turnstile) only on the login / reset pages + checkout (r21: Contact sales)', () => {
   for (const p of PAGES) {
     const c = cspMap(vercelHeaders('/' + p)['content-security-policy']);
-    const auth = p === 'login' || p === 'reset-password';
+    const auth = p === 'login' || p === 'reset-password' || p === 'checkout';
     assert.equal(/challenges\.cloudflare\.com/.test(c['script-src']), auth, `/${p} script-src Turnstile allowance`);
     assert.equal(/challenges\.cloudflare\.com/.test(c['frame-src']), auth, `/${p} frame-src Turnstile allowance`);
     assert.ok(!/challenges\.cloudflare\.com/.test(c['connect-src'] || ''), `/${p} connect-src must not gain Turnstile`);

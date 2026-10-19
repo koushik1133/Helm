@@ -26,7 +26,8 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { computeHashes, computeStyleHashes, withHashes, htmlFiles, scriptSrcProblem, frameAncestorsProblem, TRUSTED_TYPES_ENFORCE, TT_DIRECTIVES } = require('./csp-hashes.cjs');   // R8b: frame-ancestors route allowlist lives there
+const { computeHashes, computeStyleHashes, withHashes, htmlFiles, scriptSrcProblem, frameAncestorsProblem, TRUSTED_TYPES_ENFORCE, TT_DIRECTIVES,
+  cspReportUri, sentryIngestOrigin, withReporting } = require('./csp-hashes.cjs');   // R8b: frame-ancestors route allowlist lives there
 
 // Production hosts (must match PROD_HOSTS in public/config.js) and the staging
 // Supabase project ref (from public/config.staging.js) that they must never allow.
@@ -55,6 +56,7 @@ function unionPolicy(values) {
   // X-Frame-Options: each page's own X-Frame-Options (catch-all DENY; SAMEORIGIN only on
   // /invite, /i/*, the branded invite link and /capture) keeps governing framing there.
   m.delete('frame-ancestors');
+  m.delete('report-uri');   // r21: the staging site does not report into the production project
   if (STAGING_REF) {
     const add = (k, list) => { if (m.has(k)) list.forEach((x) => m.get(k).add(x)); };
     add('connect-src', ['https://' + STAGING_REF + '.supabase.co', 'wss://' + STAGING_REF + '.supabase.co']);
@@ -71,6 +73,10 @@ const STAGING_PATH = join(PUBLIC, 'config.staging.js');
 const STAGING_REF = existsSync(STAGING_PATH)
   ? (/https:\/\/([a-z0-9]{20})\.supabase\.co/.exec(readFileSync(STAGING_PATH, 'utf8')) || [])[1] : '';
 const PROD_REF = (/url:\s*"https:\/\/([a-z0-9]{20})\.supabase\.co"/.exec((existsSync(join(PUBLIC, 'config.js')) ? readFileSync(join(PUBLIC, 'config.js'), 'utf8') : '')) || [])[1] || '';
+// r21 monitoring (scripts/csp-hashes.cjs): CSP violation reports -> the prod csp-report edge function, and the
+// EXACT Sentry ingest origin of the DSN in public/config.js (none while telemetry is dormant).
+const CONFIG_SRC = existsSync(join(PUBLIC, 'config.js')) ? readFileSync(join(PUBLIC, 'config.js'), 'utf8') : '';
+const REPORTING = { reportUri: cspReportUri(PROD_REF), sentryOrigin: sentryIngestOrigin(CONFIG_SRC) };
 function stripStaging(v) {
   if (!STAGING_REF) return v;   // no staging project configured → nothing to strip
   return v.split(';').map((d) => d.split(' ').filter((tok) => !tok.includes(STAGING_REF)).join(' ')).join(';');
@@ -105,7 +111,7 @@ vercel.headers = (vercel.headers || []).filter((r) => !r.__prodCsp && !isProdCsp
 for (const rule of vercel.headers || []) {
   for (const h of rule.headers || []) {
     if (h.key.toLowerCase() === 'content-security-policy') {
-      h.value = stripStaging(withHashes(h.value, hashes, styleHashes)); cspCount++;
+      h.value = withReporting(stripStaging(withHashes(h.value, hashes, styleHashes)), REPORTING); cspCount++;
       const fbad = frameAncestorsProblem(h.value, rule.source);
       if (fbad) { console.error(`  ✗ vercel.json ${rule.source}: ${fbad}`); problems++; }
       const bad = scriptSrcProblem(h.value, rule.source);
@@ -147,7 +153,7 @@ const vNext = JSON.stringify(vercel, null, 2) + '\n';
 // 3) public/_headers (Netlify / Cloudflare Pages format)
 const hPath = join(PUBLIC, '_headers');
 const hRaw = readFileSync(hPath, 'utf8');
-const hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) => k + stripStaging(withHashes(v, hashes, styleHashes)));
+const hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) => k + withReporting(stripStaging(withHashes(v, hashes, styleHashes)), REPORTING));
 { // script-src host allowlist per _headers block (route = the unindented line above)
   let route = '';
   for (const line of hRaw.split('\n')) {

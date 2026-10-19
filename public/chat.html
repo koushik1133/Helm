@@ -378,10 +378,10 @@
 
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <script src="/trusted-types.js?v=3"></script>
-<script src="telemetry.js?v=4"></script>
-<script src="config.js?v=105"></script>
+<script src="telemetry.js?v=5"></script>
+<script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=263"></script><script src="event-group-picker.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=264"></script><script src="event-group-picker.js?v=4"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
 (function(){
@@ -729,7 +729,7 @@
     host.querySelectorAll(".caret[data-caret]").forEach(el=>el.addEventListener("click",(e)=>{ e.stopPropagation(); msgMenu(el,el.dataset.caret); }));
     host.querySelectorAll(".reply[data-goto]").forEach(el=>el.addEventListener("click",()=>{ const t=host.querySelector('.m[data-mid="'+el.dataset.goto+'"]'); if(t){ t.scrollIntoView({block:"center"}); t.style.transition="background .3s"; t.style.background="var(--accent-soft)"; setTimeout(()=>t.style.background="",700); } }));
     host.querySelectorAll("img.photo").forEach(el=>el.addEventListener("click",()=>el.src&&lightbox(el.src)));
-    host.querySelectorAll("[data-media]").forEach(async el=>{ const p=el.getAttribute("data-media"); if(!p) return; try{ el.src=await BPStore.chat.mediaUrl(p); }catch(e){} });
+    host.querySelectorAll("[data-media]").forEach(async el=>{ const p=el.getAttribute("data-media"); if(!p) return; try{ const u=String(await BPStore.chat.mediaUrl(p)||""); if(/^https:\/\//i.test(u)) el.src=u; }catch(e){} });   // r21 CodeQL: https (signed storage URL) only
     { const b=host.querySelector("[data-older-btn]"); if(b) b.addEventListener("click",loadOlder); }
     if(msgQuery) applyMsgSearch(msgQuery);
     else if(o.keepFromBottom!=null) host.scrollTop=Math.max(0,host.scrollHeight-o.keepFromBottom);   // prepended history: keep the reader's place

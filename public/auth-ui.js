@@ -270,6 +270,13 @@
     }
   }
 
+  // r21 CodeQL js/incomplete-multi-character-sanitization: strip tags to a fixed point, then any stray < > (values
+  // are always shown with textContent; this keeps stored profile text free of markup)
+  function noTags(v) {
+    var s = String(v == null ? "" : v), prev;
+    do { prev = s; s = s.replace(/<[^>]*>/g, ""); } while (s !== prev);
+    return s.replace(/[<>]/g, "");
+  }
   /* ------------------------------------------------------------ CAPTCHA */
   var tsPromise = null;
   function loadTurnstile() {
@@ -287,25 +294,38 @@
   }
   // Mount a Turnstile widget in `host`. Returns null when CAPTCHA is off
   // (config siteKey empty) — callers then send no token, exactly as before.
+  // r21: opts.appearance "interaction-only" keeps the widget invisible unless Cloudflare wants a click (sign-in);
+  // escalate() re-draws it as a visible check (after repeated wrong passwords).
   function mountCaptcha(host, opts) {
     var st = S(); if (!st || !st.auth.captcha.enabled() || !host) return null;
-    var token = null, wid = null;
+    var token = null, wid = null, appearance = (opts && opts.appearance === "interaction-only") ? "interaction-only" : "always";
     host.hidden = false;
-    var ready = loadTurnstile().then(function (ok) {
-      if (!ok || !global.turnstile) { host.textContent = "The security check couldn't load. Check your connection (or pause content blockers) and reload the page."; return false; }
+    function draw() {
       wid = global.turnstile.render(host, {
         sitekey: st.auth.captcha.siteKey(),
         action: (opts && opts.action) || "auth",
+        appearance: appearance,
         callback: function (t) { token = t; },
         "expired-callback": function () { token = null; },
         "error-callback": function () { token = null; },
       });
+    }
+    var ready = loadTurnstile().then(function (ok) {
+      if (!ok || !global.turnstile) { host.textContent = "The security check couldn't load. Check your connection (or pause content blockers) and reload the page."; return false; }
+      draw();
       return true;
     });
     return {
       ready: ready,
       token: function () { return token; },
       reset: function () { token = null; try { if (wid !== null && global.turnstile) global.turnstile.reset(wid); } catch (e) {} },
+      appearance: function () { return appearance; },
+      escalate: function () {
+        if (appearance === "always") return false;
+        appearance = "always"; token = null;
+        ready.then(function (ok) { if (!ok) return; try { if (wid !== null) global.turnstile.remove(wid); } catch (e) {} wid = null; draw(); });
+        return true;
+      },
     };
   }
 
@@ -573,7 +593,7 @@
     ]).then(function (r) { return r[0] && r[1]; });
     return libsP;
   }
-  var FORM_LIB_V = "2", PHONE_LIB_V = "7";
+  var FORM_LIB_V = "3", PHONE_LIB_V = "7";
   function pathIcon(path, cls) {
     var ns = "http://www.w3.org/2000/svg", s = doc.createElementNS(ns, "svg");
     s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", "16"); s.setAttribute("height", "16"); s.setAttribute("aria-hidden", "true"); if (cls) s.setAttribute("class", cls);
@@ -857,7 +877,7 @@
       if (!skHint.textContent || /of \d+ skills\.$/.test(skHint.textContent)) skHint.textContent = "e.g. Lighting, Décor, Sound — " + skills.length + " of " + lim.skills + " skills.";
     }
     function addSkills(raw) {
-      var parts = String(raw || "").split(",").map(function (s) { return s.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim(); }).filter(Boolean);
+      var parts = String(raw || "").split(",").map(function (s) { return noTags(s).replace(/\s+/g, " ").trim(); }).filter(Boolean);
       if (!parts.length) return true;
       var r = st.profile.validate({ skills: skills.concat(parts) });
       if (r.errors.skills) { setErr("skills", r.errors.skills); return false; }
@@ -923,7 +943,7 @@
 
     function collect() {
       var pending = skIn.value.trim() ? skills.concat([skIn.value]) : skills;
-      var t = function (k) { return String(inputs[k].value || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim(); };
+      var t = function (k) { return noTags(inputs[k].value || "").replace(/\s+/g, " ").trim(); };
       return {
         full_name: t("full_name"), phone: inputs.phone.value, whatsapp_same: same.checked,
         whatsapp: same.checked ? null : inputs.whatsapp.value, job_title: t("job_title"), department: t("department"),
@@ -1143,7 +1163,11 @@
   //   Nothing is written: the form shows them and the person presses Save.
   function profileSuggest(p, meta, studio, acct, isAdmin) {
     p = p || {}; meta = meta || {}; var out = {};
-    function t(v, max) { return typeof v === "string" ? v.replace(/<[^>]*>/g, "").replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : ""; }
+    function t(v, max) {   // r21 CodeQL: tags stripped to a fixed point (self-contained: this function is unit-tested on its own)
+      if (typeof v !== "string") return "";
+      var s = v, prev; do { prev = s; s = s.replace(/<[^>]*>/g, ""); } while (s !== prev);
+      return s.replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+    }
     function has(k) { return !!String(p[k] == null ? "" : p[k]).trim(); }
     var a = isAdmin && acct && typeof acct === "object" ? acct : {};
     var o = isAdmin && studio && typeof studio === "object" ? studio : {};

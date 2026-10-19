@@ -391,3 +391,12 @@ forward  supabase/migrations/0244_trial_to_paid_activation.sql
 forward  supabase/migrations/0246_event_money_ledger.sql
 # 0248 (r21 owner: "Someone signed up as anil@helm.events. We don't want ANYONE signing up with helm.events" - Helm's own e-mail domains are for the Helm team only: NEW reserved_email_domains (seed helm.events + helm.com, built in) + staff_email_allowlist (seed admin@ / security@helm.events + every HQ operator on a reserved domain; removal = removed_at, never deleted); email_is_reserved(email) (sub-domains, case / spaces / trailing dot normalised, exact allowlist match, HQ operators always allowed); hook_before_user_created(event) = Supabase Auth "Before User Created" hook (DORMANT until enabled in Dashboard -> Authentication -> Hooks; supabase_auth_admin only); backstop guard triggers a248_reserved_email_guard on auth.users (new login / e-mail change to a reserved address: admin API createUser, admin_create_user_temp, change-email) and on invitations (new / changed e-mail) - rows whose e-mail does not change pass untouched; HQ hq_staff_access / hq_staff_allow_add / hq_staff_allow_remove / hq_reserved_domain_add / hq_reserved_domain_remove (operators only, audited via _hq_wgate); EXISTING accounts are not changed - see R21-RESERVED-DOMAIN-REPORT.sql / -DISABLE.sql) goes after 0029 + 0045 + 0047. [numbering: 0248 = r21 reserved-domain brief; 0241/0242/0244/0246/0247 taken by other r21 branches]
 forward  supabase/migrations/0248_reserved_email_domains.sql
+# 0249 (r21 security posture, top-10 actions #3 + #4 - code side only, both switches stay OFF): NEW hq_mfa_readiness() (HQ
+# operators only, read-only, logged as an HQ view: every operator's login + verified two-step, studio admins with two-step,
+# safe_to_require); a guard trigger a249_hq_require_mfa_guard on helm_hq_settings REFUSES turning hq_require_mfa ON while an
+# operator with a login has no verified authenticator (names them; turning it off is never blocked) and audits the new switch
+# helm_hq_settings.rpc_captcha_required (NEW column, default false); NEW private captcha_passes (RLS on, no policies) written
+# only by the captcha-verify edge function (captcha_pass_record, service role); a249_sales_captcha (BEFORE INSERT on
+# sales_requests) needs a fresh unused pass only while rpc_captcha_required is on; no existing row / policy / function changed,
+# nothing deleted) goes after 0029 + 0042 + 0045 + 0047 + 0244. [numbering: 0249 = r21 security brief]
+forward  supabase/migrations/0249_security_readiness.sql
