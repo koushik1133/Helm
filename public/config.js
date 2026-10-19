@@ -12,10 +12,11 @@
 // Helm's own e-mail and WhatsApp are used. Flip to true to bring all of it back.
 // Local preview (owner 2026-10-17): the WhatsApp number + e-mail setup is ON on localhost only, still off on live sites.
 window.HELM_FEATURES = Object.assign({ integrationsPage: /^(localhost|127\.0\.0\.1)$/.test(location.hostname) }, window.HELM_FEATURES || {});
-// manual (owner 2026-10-18, r20 coord): ONE flag for the user manual. "admin" = only the studio admin sees
-// "User manual" (profile menu, Control Center Help, search) and can open /manual (private-bucket file); every other
-// role gets no entry and /manual says "coming soon" (no storage fetch). true = every signed-in role, false = nobody.
-window.HELM_FEATURES = Object.assign({ manual: "admin" }, window.HELM_FEATURES);
+// manual (owner 2026-10-18, r20 coord; r23 2026-10-19: back on for everyone): ONE flag for the user manual.
+// true = every signed-in studio role sees "User manual" (profile menu, Control Center Help, search) and /manual shows
+// the chapters for their role (manual.js data-areas filter). "admin" = only the studio admin; false = nobody
+// (/manual says "coming soon", no storage fetch).
+window.HELM_FEATURES = Object.assign({ manual: true }, window.HELM_FEATURES);
 window.helmManualFor = function (role) { var f = window.HELM_FEATURES && window.HELM_FEATURES.manual; return f === true || (f === "admin" && String(role || "") === "admin"); };
 // r21 (owner fills these in): Helm's OWN bank / UPI details shown on /checkout ("Pay by UPI or bank transfer") while
 // online payment is off. Public on purpose (customers pay to them) - put ONLY the receiving details here, never a
