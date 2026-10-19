@@ -1258,6 +1258,7 @@
     sec.hidden = false;
     lightbox(items);
     if (!reduce) motion();
+    cylinder(items);
   }
 
   /* ---- seamless marquee: [set][copy]...[copy] where copies cover the band; x wraps every segW ---- */
@@ -1290,13 +1291,14 @@
       // keep the band itself from ever scrolling (focus could scroll an overflow box)
       R.row.addEventListener('scroll', function () { R.row.scrollLeft = 0; });
     });
-    var hover = false, focus = false, visible = false, raf = 0, last = 0, holdUntil = 0;
+    var hover = false, focus = false, visible = false, raf = 0, last = 0, holdUntil = 0, lastY = window.scrollY;
     function running() { return visible && !hover && !focus && !drag && !document.hidden; }
     function tick(t) {
       raf = 0;
       if (!running()) { last = 0; return; }
       var dt = last ? Math.min(t - last, 64) / 1000 : 0; last = t;
-      if (t >= holdUntil) rows.forEach(function (R) { R.x -= R.dir * R.speed * dt; wrap(R); paint(R); });
+      var sy = window.scrollY, boost = Math.min(Math.abs(sy - lastY), 120) * 0.35; lastY = sy;   // scrolling the page nudges the film along
+      if (t >= holdUntil) rows.forEach(function (R) { R.x -= R.dir * (R.speed * dt + boost); wrap(R); paint(R); });
       raf = requestAnimationFrame(tick);
     }
     function go() { if (!raf && running()) raf = requestAnimationFrame(tick); }
@@ -1356,6 +1358,165 @@
       rt = setTimeout(function () { rows.forEach(function (R) { fill(R); wrap(R); paint(R); }); }, 150);
     }, { passive: true });
     go();
+  }
+
+  /* ---- "Moments": 3D photo cylinder (curved coverflow), after the owner's pocket-360 reel dial ----
+     Geometry per card from its distance o to the current position: x = o * gap,
+     z = -|o|^1.35 * depth, rotateY = clamp(-o * 16deg), scale = 1.14 - |o| * .16, darker with |o|.
+     No page pinning / scroll-jacking: the cylinder moves by drag / swipe, horizontal wheel or
+     trackpad, ← → keys, the buttons, and a slow autoplay while idle (paused on hover / focus / off
+     screen). Position eases towards the target every frame (exponential smoothing) and a drag
+     release keeps some inertia before snapping to the nearest photo. transform / opacity only.
+     Reduced motion: no autoplay, no easing (jumps), no scroll tilt. */
+  function cylinder(items) {
+    var msec = document.getElementById('moments'), stage = document.getElementById('moStage'), cyl = document.getElementById('moCyl');
+    var bar = document.getElementById('moBar'), count = document.getElementById('moCount');
+    if (!msec || !stage || !cyl) return;
+    var n = items.length, pad = function (k) { return (k < 10 ? '0' : '') + k; };
+    var cards = items.map(function (it, i) {
+      var b = el('button', 'cyl-card'); b.type = 'button'; b.tabIndex = -1;
+      b.setAttribute('aria-label', 'Open image: ' + (it.caption || it.alt) + ' (' + (i + 1) + ' of ' + n + ')');
+      var pic = el('picture');
+      if (it.avif && !lite) { var so = el('source'); so.type = 'image/avif'; so.srcset = it.avif; pic.appendChild(so); }
+      var img = el('img'); img.alt = it.alt; img.loading = 'lazy'; img.decoding = 'async'; img.draggable = false;
+      if (lite) img.src = it.small || it.src;
+      else {
+        if (it.small) { img.srcset = it.small + ' 800w, ' + it.src + ' 1600w'; img.sizes = '(max-width: 767px) 300px, 400px'; }
+        img.src = it.src;
+      }
+      img.width = it.w || 1600; img.height = it.h || 1067;
+      pic.appendChild(img); b.appendChild(pic);
+      var shade = el('span', 'cyl-shade'); b.appendChild(shade);
+      if (it.type) b.appendChild(el('span', 'ev-tag', it.type));
+      if (it.caption) b.appendChild(el('span', 'cyl-cap', it.caption));
+      stage.appendChild(b);
+      return { b: b, shade: shade };
+    });
+    msec.hidden = false;
+    if (n < 2) { msec.querySelector('.cyl-ctl').hidden = true; }
+
+    var pos = 0, target = 0, gap = 260, depth = 85, range = 3.2, cur = -1, k = 0;
+    function measure() {
+      var cw = cards[0].b.offsetWidth || 240, phone = window.innerWidth < 768;
+      gap = cw * (phone ? 0.82 : 1.02); depth = phone ? 70 : 85; range = phone ? 1.75 : (window.innerWidth < 1100 ? 2.4 : 3.2);
+    }
+    function wrapO(o) { o = ((o % n) + n) % n; return o >= n / 2 ? o - n : o; }   // shortest way round the cylinder
+    function render() {
+      cards.forEach(function (c, i) {
+        var o = wrapO(i - pos), a = Math.abs(o), s = c.b.style;
+        if (a > range + 0.6) { if (s.visibility !== 'hidden') { s.visibility = 'hidden'; s.opacity = '0'; } return; }
+        var rot = Math.max(-42, Math.min(42, -o * 16)), sc = Math.max(0.72, 1.14 - a * 0.16);
+        s.visibility = '';
+        s.transform = 'translate3d(' + (o * gap).toFixed(1) + 'px,0,' + (-Math.pow(a, 1.35) * depth).toFixed(1) + 'px) rotateY(' + rot.toFixed(2) + 'deg) scale(' + sc.toFixed(3) + ')';
+        s.opacity = String(Math.max(0, Math.min(1, (range + 0.6 - a) / 0.8)));
+        s.zIndex = String(100 - Math.round(a * 10));
+        c.shade.style.opacity = String(Math.min(0.72, a * 0.3).toFixed(3));
+      });
+      var idx = ((Math.round(pos) % n) + n) % n;
+      if (idx !== cur) {
+        if (cur >= 0) { cards[cur].b.classList.remove('on'); cards[cur].b.tabIndex = -1; }
+        cards[idx].b.classList.add('on'); cards[idx].b.tabIndex = 0;
+        var hadFocus = cyl.contains(document.activeElement);
+        cur = idx; if (count) count.textContent = pad(idx + 1) + '/' + pad(n);
+        if (bar) bar.style.transform = 'scaleX(' + ((idx + 1) / n).toFixed(4) + ')';
+        if (hadFocus) cards[idx].b.focus({ preventScroll: true });
+      }
+    }
+
+    var hover = false, focus = false, visible = false, drag = null, raf = 0, last = 0, lastPos = NaN, autoT = 0, AUTO = 4200;
+    function go() { if (!raf) raf = requestAnimationFrame(tick); }
+    function schedule() {   // slow autoplay while idle: one photo every few seconds
+      clearTimeout(autoT);
+      if (reduce || n < 2) return;
+      autoT = setTimeout(function () {
+        if (visible && !hover && !focus && !drag && !document.hidden) { target = Math.round(target) + 1; go(); }
+        schedule();
+      }, AUTO);
+    }
+    function kick() { schedule(); go(); }
+    function step(d) { target = Math.round(target) + d; if (reduce) pos = target; kick(); }
+    function tick(t) {
+      raf = 0;
+      var dt = last ? Math.min(t - last, 64) / 1000 : 1 / 60; last = t;
+      pos += (target - pos) * (1 - Math.exp(-dt * (drag ? 22 : 7.5)));
+      if (Math.abs(target - pos) < 0.0005) pos = target;
+      if (pos !== lastPos) { lastPos = pos; render(); }
+      if (pos !== target || drag) raf = requestAnimationFrame(tick); else last = 0;
+    }
+
+    /* drag / swipe with inertia; a tap (no movement) opens the photo in front or turns to the tapped one */
+    stage.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      drag = { id: e.pointerId, x0: e.clientX, from: target, moved: false, vx: 0, lx: e.clientX, lt: performance.now() };
+    });
+    stage.addEventListener('pointermove', function (e) {
+      if (!drag || drag.id !== e.pointerId) return;
+      var dx = e.clientX - drag.x0;
+      if (!drag.moved) { if (Math.abs(dx) < 6) return; drag.moved = true; cyl.classList.add('dragging'); try { stage.setPointerCapture(e.pointerId); } catch (_) {} }
+      var now = performance.now(), dtm = Math.max(1, now - drag.lt);
+      drag.vx = 0.8 * ((e.clientX - drag.lx) / dtm) + 0.2 * drag.vx; drag.lx = e.clientX; drag.lt = now;
+      target = drag.from - dx / gap; if (reduce) pos = target; go();
+    });
+    function endDrag(e) {
+      if (!drag || drag.id !== e.pointerId) return;
+      var d = drag; drag = null; cyl.classList.remove('dragging');
+      if (d.moved) {
+        target = Math.round(target - (reduce ? 0 : Math.max(-2.5, Math.min(2.5, d.vx * 160 / gap))));   // fling: px/ms -> up to 2-3 cards
+        if (reduce) pos = target;
+        stage.dataset.dragged = '1'; setTimeout(function () { delete stage.dataset.dragged; }, 0);
+      }
+      kick();
+    }
+    stage.addEventListener('pointerup', endDrag);
+    stage.addEventListener('pointercancel', endDrag);
+    stage.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('.cyl-card');
+      if (!b || stage.dataset.dragged) return;
+      var i = cards.map(function (c) { return c.b; }).indexOf(b);
+      if (i < 0) return;
+      if (i === cur && Math.abs(target - pos) < 0.3) { open(i, b); return; }
+      target = Math.round(target) + wrapO(i - Math.round(target)); if (reduce) pos = target; kick();
+    });
+    /* horizontal wheel / trackpad only — vertical wheel always scrolls the page */
+    var wheelT = 0;
+    cyl.addEventListener('wheel', function (e) {
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || n < 2) return;
+      e.preventDefault();
+      target += e.deltaX / (gap * 1.2); if (reduce) pos = target;
+      clearTimeout(wheelT); wheelT = setTimeout(function () { target = Math.round(target); if (reduce) pos = target; go(); }, 140);
+      kick();
+    }, { passive: false });
+    cyl.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+    });
+    msec.querySelector('.cyl-prev').addEventListener('click', function () { step(-1); });
+    msec.querySelector('.cyl-next').addEventListener('click', function () { step(1); });
+    cyl.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') hover = true; });
+    cyl.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') { hover = false; kick(); } });
+    msec.addEventListener('focusin', function () { focus = true; });
+    msec.addEventListener('focusout', function (e) { if (!msec.contains(e.relatedTarget)) { focus = false; kick(); } });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) kick(); });
+
+    /* scroll-linked entrance: the stage rises and straightens as the section comes up the screen */
+    var tiltP = -1;
+    var tiltRaf = 0;
+    function tilt() {
+      tiltRaf = 0;
+      if (reduce) return;
+      var r = msec.getBoundingClientRect(), vh = window.innerHeight || 800;
+      var p = Math.max(0, Math.min(1, (vh - r.top) / (vh * 0.75)));
+      if (Math.abs(p - tiltP) < 0.002) return;
+      tiltP = p; var q = 1 - p;
+      stage.style.transform = 'translate3d(0,' + (q * 60).toFixed(1) + 'px,0) rotateX(' + (q * 14).toFixed(2) + 'deg) scale(' + (0.9 + p * 0.1).toFixed(3) + ')';
+    }
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { visible = es[0].isIntersecting; if (visible) { tilt(); kick(); } }, { rootMargin: '60px 0px' }).observe(msec);
+    } else { visible = true; }
+    if (!reduce) window.addEventListener('scroll', function () { if (visible && !tiltRaf) tiltRaf = requestAnimationFrame(tilt); }, { passive: true });
+    var rt = 0;
+    window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { measure(); render(); tilt(); }, 120); }, { passive: true });
+    measure(); render(); tilt(); kick();
   }
 
   var open = function () {};
