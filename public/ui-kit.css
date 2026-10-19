@@ -69,3 +69,41 @@ html[data-theme="dark"] .hs-overdue{background:rgba(240,90,90,.18);color:#ff9b9b
 /* Studio (light): its warning amber #A86B12 is only 4.40:1 on white as text ("Part paid"/"Unpaid" vendor-bill status, warn chips). Deepen to 5.3:1. */
 html[data-shell="b"][data-hb-theme="studio"][data-theme="light"]:root { --c8-wt: #94600F; }
 @media (prefers-color-scheme: light) { html[data-shell="b"][data-hb-theme="studio"]:not([data-theme]):root { --c8-wt: #94600F; } }
+
+/* ---- r22 ui audit: shared app-page consistency (signed-in shell pages only; look only, no behaviour) ---- */
+/* every app page starts the same distance under the top bar (issues/command already had this - 5i in shell-b-pages.css) */
+html[data-shell="b"] .wrap > main#main { padding-top: 20px; }
+html[data-shell="b"] .wrap > main#main > .hsf-row:first-child { margin-top: -4px; }
+/* table headers use the page font: numeric (.num) columns no longer switch the header to monospace */
+html[data-shell="b"] thead th { font-family: var(--font, inherit); }
+/* hidden amounts in a table cell: a small dotted pill, not a grey slab filling the whole cell */
+html[data-shell="b"].hb-priv-on :is(td, th):is(.hbp-m, [data-money]) { background: transparent !important; border-radius: 0; }
+html[data-shell="b"].hb-priv-on :is(td, th):is(.hbp-m, [data-money])::after {
+  inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: 52px; height: 22px; border-radius: 6px;
+  background: color-mix(in srgb, var(--hb-ink, #111) 9%, transparent); }
+/* phone cards (tables-mobile): the row label stays readable and the dots sit on the right like every other value */
+@media (max-width: 639.98px) {
+  html[data-shell="b"].hb-priv-on table.tm-stack > tbody > tr > td:is(.hbp-m, [data-money])::after { inset: 50% 0 auto auto; transform: translateY(-50%); }
+  html[data-shell="b"].hb-priv-on table.tm-stack > tbody > tr > td:is(.hbp-m, [data-money])[data-label]::before {
+    color: var(--ink-3) !important; -webkit-text-fill-color: var(--ink-3) !important; }
+  html[data-shell="b"] table.tm-stack > tbody > tr > td[data-label]::before { font-family: var(--font, system-ui, sans-serif); }
+}
+/* phones: tab strips scroll sideways on one line instead of wrapping into ragged rows; 40px tap targets */
+@media (max-width: 640px) {
+  html[data-shell="b"] .tabs { flex-wrap: nowrap !important; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; max-width: 100%; }
+  html[data-shell="b"] .tabs::-webkit-scrollbar { display: none; }
+  html[data-shell="b"] .tabs > :is(button, a) { flex: 0 0 auto; white-space: nowrap; min-height: 40px; }
+  html[data-shell="b"] main :is(.btn, button.ic, a.ic, button.rm, button.chip, .hsf-chip) { min-height: 40px; }
+  html[data-shell="b"] main :is(button.ic, a.ic, button.rm) { display: inline-flex; align-items: center; justify-content: center; }
+  html[data-shell="b"] main :is(input[type="checkbox"], input[type="radio"]) { width: 18px; height: 18px; }
+}
+/* phones: the "← Back to …" crumb link is a 40px tap target (it was a 15px-tall text link) */
+@media (max-width: 640px) {
+  html[data-shell="b"] main .crumb > a#backLink { display: inline-flex; align-items: center; min-height: 40px; }
+}
+/* phones: a Save + "Save & back to event" pair wraps instead of clipping the second label; the status text gets its own line */
+@media (max-width: 640px) {
+  html[data-shell="b"] main :is(.foot, .actions):has(> .save-back) { flex-wrap: wrap; }
+  html[data-shell="b"] main :is(.foot, .actions):has(> .save-back) > [role="status"]:not(:empty) { flex-basis: 100%; }
+  html[data-shell="b"] main .save-back { white-space: normal; height: auto; min-height: 40px; }
+}

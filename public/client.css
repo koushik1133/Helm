@@ -87,3 +87,6 @@ html.hb-priv-on #app .totals dd{min-width:6ch;line-height:1.35}
   #app .filters::-webkit-scrollbar{display:none}
   #app .chip{flex:0 0 auto}
 }
+
+/* r22 ui audit: phones - filter chips are 40px tap targets */
+@media (max-width:640px){ .chip{min-height:40px} }

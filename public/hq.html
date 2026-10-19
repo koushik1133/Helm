@@ -29,7 +29,7 @@
   .btn{height:32px;padding:0 12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;font:inherit;font-size:13px;cursor:pointer}
   .btn:hover{border-color:var(--accent)}
   .btn:disabled{opacity:.5;cursor:default}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
   .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
   .kpi .l{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:600}
   .kpi .v{font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
@@ -64,6 +64,7 @@
   .list{list-style:none;margin:0;padding:0}
   .list li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
   .list li:last-child{border-bottom:0}
+  .list li{align-items:center} .list li>.m:first-child{flex:1;min-width:0;overflow-wrap:anywhere} .list li>.m+.muted{text-align:right}
   .muted{color:var(--ink-3)} .empty{color:var(--ink-3);font-size:13px;padding:6px 0}
   .bar{height:8px;border-radius:99px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;margin:6px 0}
   .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
@@ -90,6 +91,17 @@
   .detail h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);margin:14px 0 6px}
   tr.void td{color:var(--ink-3);text-decoration:line-through}
   tr.void td:last-child,tr.void td:nth-last-child(2){text-decoration:none}
+  section[id^="pane-"]>.card+.card{margin-top:14px}
+  @media (max-width:640px){
+    .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-left:-16px;margin-right:-16px;padding:0 16px}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab{flex:none;height:40px}
+    .btn{height:40px} .btn.sm{height:36px}
+    .fld input,.fld select,.card select,.card input[type=search],.card input[type=date]{height:40px}
+    .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .kpi .v{font-size:19px;overflow-wrap:anywhere}
+    .list li{flex-wrap:wrap;row-gap:4px} .list li>.m:first-child{flex-basis:100%}
+  }
   .okm{background:#e9f8ef;color:#126b39;border:1px solid #b8e6c9;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:14px}
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
@@ -349,7 +361,7 @@
 <script src="config.js?v=106"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=265"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=266"></script>
 <script src="auth-ui.js?v=48"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="hq-mfa.js?v=1"></script>

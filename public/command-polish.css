@@ -12,3 +12,9 @@
   html:not([data-shell]) .num,html:not([data-shell]) .kpi,html:not([data-shell]) .stat,html:not([data-shell]) .tile{font-variant-numeric:tabular-nums}
   @media (max-width:640px){ html:not([data-shell]) .wrap{padding-left:16px;padding-right:16px} html:not([data-shell]) .card{border-radius:12px} }
   @media (prefers-reduced-motion:reduce){ html:not([data-shell]) *{transition:none!important;animation:none!important} }
+
+/* r22 ui audit: the event banner's Issues / Run-sheet / Floor buttons stay white on the dark banner in the new layout
+   (the shell's accent link colour made them dark green on navy - unreadable) */
+html[data-shell] #app .banner .links a{color:#fff}
+html[data-shell] #app .banner .links a:hover{color:#fff;background:rgba(255,255,255,.2)}
+@media (max-width:640px){html[data-shell] .banner .links a{min-height:40px}}

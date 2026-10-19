@@ -108,7 +108,7 @@ t('MANIFEST lists 0152', () => assert.match(r('supabase/migrations/MANIFEST'), /
 t('issues: long unbroken titles wrap inside the card (css v2)', () => {
   assert.match(r('public/issues-polish.css'), /\.issue \.t\{overflow-wrap:anywhere/);
   assert.match(r('public/issues-polish.css'), /\.issue > div\{min-width:0\}/);
-  assert.match(r('public/issues.html'), /issues-polish\.css\?v=2"/);
+  assert.match(r('public/issues.html'), /issues-polish\.css\?v=3"/);
 });
 t('payments: past due date needs a confirm, dates shown dd/mm/yyyy', () => {
   const h = r('public/logistics.html');
@@ -120,7 +120,7 @@ t('task schedule: earlier today is blocked (time-level check)', () => {
 });
 t('dashboard: no "Good evening" before 5 AM', () => {
   const j = r('public/shell-b-dash.js');
-  assert.match(j, /var greet = hr < 5 \? "Hello"/); assert.match(r('public/shell-proto.js'), /SHELL_V = "137"/);
+  assert.match(j, /var greet = hr < 5 \? "Hello"/); assert.match(r('public/shell-proto.js'), /SHELL_V = "138"/);
 });
 t('flow step 9: next-step says confirmed only after an advance', () => {
   const h = r('public/flow.html');
