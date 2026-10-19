@@ -18,7 +18,7 @@
   var IC = {
     chart: "M4 20V10|M10 20V4|M16 20v-7|M22 20H2", pipe: "M3 5h18|M6 12h12|M10 19h4", alert: "M12 3 2 20h20z|M12 10v4|M12 17h.01",
     cal: "M4 6h16v14H4z|M4 10h16|M8 3v4|M16 3v4", user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z|M4 21a8 8 0 0 1 16 0",
-    arrow: "M5 12h14|M13 6l6 6-6 6", check: "M5 12l5 5 9-10"
+    arrow: "M5 12h14|M13 6l6 6-6 6", check: "M5 12l5 5 9-10", info: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z|M12 11v5|M12 8h.01"
   };
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
   function abs(h) { try { if (window.HelmUrl && HelmUrl.upgrade) h = HelmUrl.upgrade(h); } catch (e) {} return (typeof h === "string" && h && !/^([a-z]+:|\/|#)/i.test(h)) ? "/" + h : h; }
@@ -85,14 +85,26 @@
     sv("rect", { x: 0, y: 0, width: Math.max(0, Math.min(1, frac || 0)) * 100, height: 6, rx: 3, "class": "bz-meter-fg" + (kind ? " bz-mf-" + kind : "") }, s);
     return s;
   }
-  function card(title, ic, more) {
-    var c = el("section", "bz-card"); c.setAttribute("aria-label", title);
+  function card(title, ic, more, id) {
+    var c = el("section", "bz-card"); c.setAttribute("aria-label", title); if (id) c.id = id;
     var h = el("div", "bz-head"); h.appendChild(icon(ic)); h.appendChild(el("h3", null, title));
     if (more) { var a = link(more[0], "bz-more", more[1]); a.appendChild(icon(IC.arrow)); h.appendChild(a); }
     c.appendChild(h); var b = el("div", "bz-body"); c.appendChild(b);
     for (var i = 0; i < 3; i++) b.appendChild(el("div", "bz-skel"));
     return c;
   }
+  /* r21 business ui: a free-trial sample name ("Demo · X", old seed "SAMPLE - X", or "X (sample)") shows as
+     "X" + a small Sample pill, the same everywhere on the page. Display only - the stored name is never touched. */
+  var SAMPLE_RE = /^\s*(?:demo|sample)(?:\s*[\u00b7\u2022:]|\s+[\-\u2013\u2014])\s*/i, SAMPLE_END = /\s*\(sample\)\s*$/i;
+  function nameTag(text) {
+    var s = String(text == null ? "" : text), f = el("span", "bz-nm"), smp = false;
+    if (SAMPLE_RE.test(s)) { s = s.replace(SAMPLE_RE, ""); smp = true; }
+    if (SAMPLE_END.test(s)) { s = s.replace(SAMPLE_END, ""); smp = true; }
+    if (!s) { s = String(text == null ? "" : text); smp = false; }
+    f.appendChild(el("span", "bz-nm-t", s)); if (smp) f.appendChild(el("span", "bz-pill bz-pill-smp", "Sample"));
+    f.title = s + (smp ? " (sample data)" : ""); return f;
+  }
+  function plainName(text) { var s = String(text == null ? "" : text), t = s.replace(SAMPLE_RE, "").replace(SAMPLE_END, ""); return t || s; }
   function body(c) { return clear(c.querySelector(".bz-body")); }
   function empty(b, text) { var e = el("div", "bz-empty"); e.appendChild(icon(IC.check)); e.appendChild(el("span", null, text)); b.appendChild(e); }
   function monthSeries(list, dateOf, valOf, n, now) {
@@ -173,17 +185,23 @@
       if (!IA || !IA.enabled || !IA.enabled()) insL.hidden = false;
       else Promise.resolve(IA.canView("insights")).then(function (v) { insL.hidden = v !== true; }, function () {}); } catch (e) {}
     head.appendChild(acts); root.appendChild(head);
+    /* r21 business ui: where the numbers come from, under the title (was a lone line at the page foot) */
+    var note = el("p", "bz-src"); note.hidden = true; hl.appendChild(note);
+    /* r21 business ui: jump links to each section (plain in-page anchors) */
+    var snav = el("nav", "bz-snav"); snav.setAttribute("aria-label", "Sections on this page");
+    [["#bz-overview", "Overview"], ["#bz-revenue", "Revenue"], ["#bz-upcoming", "Upcoming"], ["#bz-overdue", "Overdue"],
+     ["#bz-pipeline", "Pipeline"], ["#bz-clients", "Clients"], ["#vbBiz", "Profit & payables"]].forEach(function (x) { var a = el("a", null, x[1]); a.href = x[0]; snav.appendChild(a); });
+    root.appendChild(snav);
 
-    var kpis = el("div", "bz-kpis"); kpis.setAttribute("aria-label", "Key money numbers"); var tiles = [];
+    var kpis = el("div", "bz-kpis"); kpis.id = "bz-overview"; kpis.setAttribute("aria-label", "Key money numbers"); var tiles = [];
     for (var i = 0; i < 4; i++) { var t = el("div", "bz-kpi bz-loading"); t.appendChild(el("div", "bz-skel bz-skel-line")); t.appendChild(el("div", "bz-skel bz-skel-big")); kpis.appendChild(t); tiles.push(t); }
     root.appendChild(kpis);
 
     var grid = el("div", "bz-grid"), colM = el("div", "bz-col"), colS = el("div", "bz-col");
     grid.appendChild(colM); grid.appendChild(colS); root.appendChild(grid);
-    var cRev = card("Revenue — booked vs collected", IC.chart), cOver = card("Overdue payments", IC.alert), cUp = card("Upcoming events", IC.cal, ["calendar.html", "Calendar"]);
-    var cPipe = card("Pipeline", IC.pipe, ["quotes.html", "Quotes"]), cTop = card("Top clients by value", IC.user);
+    var cRev = card("Revenue — booked vs collected", IC.chart, null, "bz-revenue"), cOver = card("Overdue payments", IC.alert, null, "bz-overdue"), cUp = card("Upcoming events", IC.cal, ["calendar.html", "Calendar"], "bz-upcoming");
+    var cPipe = card("Pipeline", IC.pipe, ["quotes.html", "Quotes"], "bz-pipeline"), cTop = card("Top clients by value", IC.user, null, "bz-clients");
     colM.appendChild(cRev); colM.appendChild(cUp); colS.appendChild(cOver); colS.appendChild(cPipe); colS.appendChild(cTop);
-    var note = el("p", "bz-note"); root.appendChild(note);
 
     /* ---- data ---- */
     for (var w = 0; w < 100 && !(S() && S().quotes); w++) await new Promise(function (r) { setTimeout(r, 100); });
@@ -273,8 +291,8 @@
         var bal = mN(o.balance != null ? o.balance : mN(o.amount) - mN(o.paid)), oc = String(o.currency || CUR).toUpperCase(), mny;
         try { mny = S().moneyIn(bal, oc); } catch (e) { mny = full(bal); }
         var li = el("li", "bz-li"); li.appendChild(el("i", "bz-dot bz-dot-bad"));
-        var m = el("div", "bz-main"); m.appendChild(el("b", null, o.title || o.code || "Event"));
-        m.appendChild(el("small", null, [o.client, o.label, o.due_date ? "due " + fmtDay(o.due_date) : ""].filter(Boolean).join(" · "))); li.appendChild(m);
+        var m = el("div", "bz-main"), ob = el("b"); ob.appendChild(nameTag(o.title || o.code || "Event")); m.appendChild(ob);
+        m.appendChild(el("small", null, [o.client && plainName(o.client), o.label, o.due_date ? "due " + fmtDay(o.due_date) : ""].filter(Boolean).join(" · "))); li.appendChild(m);
         li.appendChild(money(el("span", "bz-num bz-t-bad", mny)));
         li.appendChild(link("settlement.html?quote=" + encodeURIComponent(o.quote_id), "bz-btn bz-sm", "Collect"));
         ul.appendChild(li);
@@ -293,8 +311,8 @@
       list.slice(0, 8).forEach(function (q) {
         var a = link(evHref(q.id), "bz-trow"), d = dOf(q.eventDate);
         var dc = el("div", "bz-day"); dc.appendChild(el("small", null, dfmt(d, { month: "short" }))); dc.appendChild(el("b", null, d.getDate())); a.appendChild(dc);
-        var m = el("div", "bz-main"); m.appendChild(el("b", null, qName(q)));
-        m.appendChild(el("small", null, [iso(d) === today ? "Today" : fmtDay(q.eventDate), q.client && q.client.name, qLabel(q)].filter(Boolean).join(" · "))); a.appendChild(m);
+        var m = el("div", "bz-main"), qb = el("b"); qb.appendChild(nameTag(qName(q))); m.appendChild(qb);
+        m.appendChild(el("small", null, [iso(d) === today ? "Today" : fmtDay(q.eventDate), q.client && q.client.name && plainName(q.client.name), qLabel(q)].filter(Boolean).join(" · "))); a.appendChild(m);
         var pu = paidBy[q.id], pv = pu ? mN(pu.value) : 0;
         /* qts-1018: the row value = the invoice total (server dashboard_money: pricing.total + approved change orders),
            the same number as the Quotes list + Event Workspace header; the bare quote total only when the server sent none */
@@ -361,15 +379,19 @@
       if (!list.length) { empty(b, "Client totals appear once quotes have a client and a price."); return; }
       var mx = list[0].v || 1, ul = el("ul", "bz-list");
       list.forEach(function (x) {
-        var li = el("li", "bz-li bz-client"), m = el("div", "bz-main");
-        m.appendChild(el("b", null, x.name)); m.appendChild(el("small", null, x.n + (x.n === 1 ? " event" : " events") + (x.conf ? " · " + x.conf + " confirmed" : "")));
-        m.appendChild(meter(x.v / mx)); li.appendChild(m); li.appendChild(money(el("span", "bz-num", compact(x.v)))); ul.appendChild(li);
+        /* r21 business ui: name + value on one line, the count under it, the bar full width below */
+        var li = el("li", "bz-li bz-client"), m = el("div", "bz-main"), top = el("div", "bz-client-top"), nb = el("b");
+        nb.appendChild(nameTag(x.name)); top.appendChild(nb); top.appendChild(money(el("span", "bz-num", compact(x.v)))); m.appendChild(top);
+        m.appendChild(el("small", null, x.n + (x.n === 1 ? " event" : " events") + (x.conf ? " · " + x.conf + " confirmed" : "")));
+        m.appendChild(meter(x.v / mx)); li.appendChild(m); ul.appendChild(li);
       });
       b.appendChild(ul);
       b.appendChild(el("p", "bz-caption", "Confirmed + open quotes in " + CUR + (pageRes && pageRes.hasMore ? ", from the 500 most recently updated quotes." : ".")));
     })();
 
-    note.textContent = M ? "Exact numbers from your payment ledger." : "Showing estimates from your latest quotes (exact ledger numbers aren't available on this account yet).";
+    note.appendChild(icon(M ? IC.check : IC.info)); note.classList.add(M ? "bz-src-ok" : "bz-src-est");
+    note.appendChild(el("span", null, M ? "Exact numbers from your payment ledger." : "Showing estimates from your latest quotes (exact ledger numbers aren't available on this account yet)."));
+    note.hidden = false;
   }
 
   window.HelmMoney = { mount: mount, compact: compact, full: full,
