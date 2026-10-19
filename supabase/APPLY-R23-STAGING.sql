@@ -1367,9 +1367,10 @@ select item, ok from (values
      and not has_function_privilege('authenticated', 'public._lv261_sweep(uuid)', 'execute')
      and not has_function_privilege('authenticated', 'public.comms_outbox_claim(integer)', 'execute')),
   ('04 wrappers in place (marker), old bodies kept as *__pre0261',
-     position('r23-link-views-0261' in (select prosrc from pg_proc where oid = to_regprocedure('public.bell_feed(integer)'))) > 0
-     and position('r23-link-views-0261' in (select prosrc from pg_proc where oid = to_regprocedure('public.event_activity(uuid)'))) > 0
-     and position('r23-link-views-0261' in (select prosrc from pg_proc where oid = to_regprocedure('public.comms_outbox_claim(integer)'))) > 0
+     -- the 0261 wrapper is the top one or a body kept by a later wrapper (0262 / 0264 claim, 0266 bell_feed wrap over it)
+     exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^bell_feed(__pre0(26[2-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('r23-link-views-0261' in p.prosrc) > 0)
+     and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^event_activity(__pre0(26[2-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('r23-link-views-0261' in p.prosrc) > 0)
+     and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^comms_outbox_claim(__pre0(26[2-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('r23-link-views-0261' in p.prosrc) > 0)
      and to_regprocedure('public.bell_feed__pre0261(integer)') is not null
      and to_regprocedure('public.comms_outbox_claim__pre0261(integer)') is not null
      and to_regprocedure('public.notification_catalog__pre0261()') is not null
@@ -2291,8 +2292,9 @@ select item, ok from (values
      exists (select 1 from pg_trigger where tgrelid = 'public.quotes'::regclass and tgname = 'zzzzzz_qv262_insert')
      and exists (select 1 from pg_trigger where tgrelid = 'public.quotes'::regclass and tgname = 'zzzzzz_qv262_sent')),
   ('04 server lock: verify_and_consent goes through the 0262 check, the 0156 price check still in the chain',
-     position('_qv262_verify' in (select prosrc from pg_proc where oid = to_regprocedure('public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'))) > 0
-     and position('price_changed' in (select prosrc from pg_proc where oid = to_regprocedure('public.verify_and_consent__pre0262(uuid,text,text,boolean,text,text,text,text)'))) > 0
+     -- 0262 is the top wrapper or kept by a later one; the 0156 price check is in a body under it (0260 may sit between)
+     exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^verify_and_consent(__pre0(26[3-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('_qv262_verify' in p.prosrc) > 0)
+     and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^verify_and_consent__pre0(1[5-9][0-9]|2[0-5][0-9]|26[0-2])$' and position('price_changed' in p.prosrc) > 0)
      and has_function_privilege('anon', 'public.verify_and_consent(uuid, text, text, boolean, text, text, text, text)', 'execute')
      and not has_function_privilege('anon', 'public.verify_and_consent__pre0262(uuid, text, text, boolean, text, text, text, text)', 'execute')),
   ('05 client page RPCs open to signed-out clients; staff RPCs only signed in',
@@ -2312,7 +2314,7 @@ select item, ok from (values
      (select pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.comms_outbox'::regclass and conname = 'comms_outbox_purpose_check') like '%quote_expiry%'
      and (select pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.comms_outbox'::regclass and conname = 'comms_outbox_purpose_check') like '%pay_reminder%'
      and (select pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.comms_outbox'::regclass and conname = 'comms_outbox_purpose_check') like '%booklet_link%'
-     and position('_qv262_claim' in (select prosrc from pg_proc where oid = to_regprocedure('public.comms_outbox_claim(integer)'))) > 0
+     and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^comms_outbox_claim(__pre0(26[3-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('_qv262_claim' in p.prosrc) > 0)
      and to_regprocedure('public.comms_outbox_claim__pre0262(integer)') is not null),
   ('08 defaults: on, 14 days, reminders 3 + 1, lock on, custom dates allowed',
      public._qv262_cfg(gen_random_uuid()) = '{"enabled": true, "auto_lock": true, "default_days": 14, "reminder_days": [3, 1], "allow_override": true, "client_reminders": true, "studio_reminders": true}'::jsonb),
@@ -6726,9 +6728,10 @@ select '0261 ' || item as item, ok from (values
      and not has_function_privilege('authenticated', 'public._lv261_sweep(uuid)', 'execute')
      and not has_function_privilege('authenticated', 'public.comms_outbox_claim(integer)', 'execute')),
   ('04 wrappers in place (marker), old bodies kept as *__pre0261',
-     position('r23-link-views-0261' in (select prosrc from pg_proc where oid = to_regprocedure('public.bell_feed(integer)'))) > 0
-     and position('r23-link-views-0261' in (select prosrc from pg_proc where oid = to_regprocedure('public.event_activity(uuid)'))) > 0
-     and position('r23-link-views-0261' in (select prosrc from pg_proc where oid = to_regprocedure('public.comms_outbox_claim(integer)'))) > 0
+     -- the 0261 wrapper is the top one or a body kept by a later wrapper (0262 / 0264 claim, 0266 bell_feed wrap over it)
+     exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^bell_feed(__pre0(26[2-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('r23-link-views-0261' in p.prosrc) > 0)
+     and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^event_activity(__pre0(26[2-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('r23-link-views-0261' in p.prosrc) > 0)
+     and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^comms_outbox_claim(__pre0(26[2-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('r23-link-views-0261' in p.prosrc) > 0)
      and to_regprocedure('public.bell_feed__pre0261(integer)') is not null
      and to_regprocedure('public.comms_outbox_claim__pre0261(integer)') is not null
      and to_regprocedure('public.notification_catalog__pre0261()') is not null
@@ -6762,8 +6765,9 @@ select '0262 ' || item as item, ok from (values
      exists (select 1 from pg_trigger where tgrelid = 'public.quotes'::regclass and tgname = 'zzzzzz_qv262_insert')
      and exists (select 1 from pg_trigger where tgrelid = 'public.quotes'::regclass and tgname = 'zzzzzz_qv262_sent')),
   ('04 server lock: verify_and_consent goes through the 0262 check, the 0156 price check still in the chain',
-     position('_qv262_verify' in (select prosrc from pg_proc where oid = to_regprocedure('public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'))) > 0
-     and position('price_changed' in (select prosrc from pg_proc where oid = to_regprocedure('public.verify_and_consent__pre0262(uuid,text,text,boolean,text,text,text,text)'))) > 0
+     -- 0262 is the top wrapper or kept by a later one; the 0156 price check is in a body under it (0260 may sit between)
+     exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^verify_and_consent(__pre0(26[3-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('_qv262_verify' in p.prosrc) > 0)
+     and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^verify_and_consent__pre0(1[5-9][0-9]|2[0-5][0-9]|26[0-2])$' and position('price_changed' in p.prosrc) > 0)
      and has_function_privilege('anon', 'public.verify_and_consent(uuid, text, text, boolean, text, text, text, text)', 'execute')
      and not has_function_privilege('anon', 'public.verify_and_consent__pre0262(uuid, text, text, boolean, text, text, text, text)', 'execute')),
   ('05 client page RPCs open to signed-out clients; staff RPCs only signed in',
@@ -6783,7 +6787,7 @@ select '0262 ' || item as item, ok from (values
      (select pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.comms_outbox'::regclass and conname = 'comms_outbox_purpose_check') like '%quote_expiry%'
      and (select pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.comms_outbox'::regclass and conname = 'comms_outbox_purpose_check') like '%pay_reminder%'
      and (select pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.comms_outbox'::regclass and conname = 'comms_outbox_purpose_check') like '%booklet_link%'
-     and position('_qv262_claim' in (select prosrc from pg_proc where oid = to_regprocedure('public.comms_outbox_claim(integer)'))) > 0
+     and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^comms_outbox_claim(__pre0(26[3-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('_qv262_claim' in p.prosrc) > 0)
      and to_regprocedure('public.comms_outbox_claim__pre0262(integer)') is not null),
   ('08 defaults: on, 14 days, reminders 3 + 1, lock on, custom dates allowed',
      public._qv262_cfg(gen_random_uuid()) = '{"enabled": true, "auto_lock": true, "default_days": 14, "reminder_days": [3, 1], "allow_override": true, "client_reminders": true, "studio_reminders": true}'::jsonb),

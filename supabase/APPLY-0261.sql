@@ -939,9 +939,10 @@ select item, ok from (values
      and not has_function_privilege('authenticated', 'public._lv261_sweep(uuid)', 'execute')
      and not has_function_privilege('authenticated', 'public.comms_outbox_claim(integer)', 'execute')),
   ('04 wrappers in place (marker), old bodies kept as *__pre0261',
-     position('r23-link-views-0261' in (select prosrc from pg_proc where oid = to_regprocedure('public.bell_feed(integer)'))) > 0
-     and position('r23-link-views-0261' in (select prosrc from pg_proc where oid = to_regprocedure('public.event_activity(uuid)'))) > 0
-     and position('r23-link-views-0261' in (select prosrc from pg_proc where oid = to_regprocedure('public.comms_outbox_claim(integer)'))) > 0
+     -- the 0261 wrapper is the top one or a body kept by a later wrapper (0262 / 0264 claim, 0266 bell_feed wrap over it)
+     exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^bell_feed(__pre0(26[2-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('r23-link-views-0261' in p.prosrc) > 0)
+     and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^event_activity(__pre0(26[2-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('r23-link-views-0261' in p.prosrc) > 0)
+     and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^comms_outbox_claim(__pre0(26[2-9]|2[7-9][0-9]|[3-9][0-9][0-9]))?$' and position('r23-link-views-0261' in p.prosrc) > 0)
      and to_regprocedure('public.bell_feed__pre0261(integer)') is not null
      and to_regprocedure('public.comms_outbox_claim__pre0261(integer)') is not null
      and to_regprocedure('public.notification_catalog__pre0261()') is not null

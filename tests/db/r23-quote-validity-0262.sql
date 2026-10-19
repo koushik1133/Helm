@@ -358,7 +358,8 @@ do $$ declare r text; begin
     and (position('_qv262_claim' in (select prosrc from pg_proc where oid = 'public.comms_outbox_claim(integer)'::regprocedure)) > 0
          or (position('comms_outbox_claim__pre0264' in (select prosrc from pg_proc where oid = 'public.comms_outbox_claim(integer)'::regprocedure)) > 0
              and position('_qv262_claim' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.comms_outbox_claim__pre0264(integer)')), '')) > 0))
-    and position('price_changed' in (select prosrc from pg_proc where oid = 'public.verify_and_consent__pre0262(uuid,text,text,boolean,text,text,text,text)'::regprocedure)) > 0, null);
+    -- the 0156 price check is in a body under the 0262 wrapper (0260 cancel-links may sit between them)
+    and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^verify_and_consent__pre0(1[5-9][0-9]|2[0-5][0-9]|26[0-2])$' and position('price_changed' in p.prosrc) > 0), null);
   perform pg_temp.t('69 purpose check is a superset (old values kept)', (select pg_get_constraintdef(oid) from pg_constraint where conname = 'comms_outbox_purpose_check')
     ~ 'booklet_link.*invite_site.*pay_reminder.*quote_expiry.*wa_forward', null);
 end $$;
