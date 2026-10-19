@@ -86,7 +86,12 @@
         if (st === "void" && b.void_reason) c1.appendChild(el("div", "vb-muted", "Void: " + b.void_reason));
         tr.appendChild(c1); tr.appendChild(el("td", null, b.bill_date || "")); tr.appendChild(el("td", null, b.due_date || "—"));
         // mask the amount, not the cell: on phones the cell carries its column label (Amount / Paid)
-        var ca = el("td", "num"); ca.appendChild(money(el("span", null, fmt(b.amount)))); tr.appendChild(ca);
+        var ca = el("td", "num"); ca.appendChild(money(el("span", null, fmt(b.amount))));
+        if (b.gst_amount != null && Number(b.gst_amount) > 0) {   // r21 money (0246)
+          var gl = el("div", "vb-muted"); gl.appendChild(document.createTextNode("incl. GST ")); gl.appendChild(money(el("span", null, fmt(b.gst_amount))));
+          if (b.gst_claimable === false) gl.appendChild(document.createTextNode(" (not claimable)")); ca.appendChild(gl);
+        }
+        tr.appendChild(ca);
         var cp = el("td", "num"); cp.appendChild(money(el("span", null, fmt(paid))));
         if (f && f.advance > 0) {   // e.g. ₹18,000 (₹5,000 advance + ₹13,000 payouts)
           var br = el("div", "vb-muted"); br.appendChild(document.createTextNode("("));
@@ -172,17 +177,26 @@
       var dd = inp("date");
       var amt = inp("number", "0"); amt.min = "0"; amt.step = "0.01";
       var ds = inp("text", "e.g. Flowers - stage + entrance"); ds.maxLength = 500;
+      // r21 money (0246): optional GST inside the bill, and whether its input credit can be claimed
+      // (claimable GST is not a cost; food / catering GST usually is). Empty = "GST unknown".
+      var gst = inp("number", "optional"); gst.min = "0"; gst.step = "0.01"; gst.classList.add("hbp-mi");
+      var claim = inp("checkbox"); claim.checked = true; var claimTouched = false;
+      claim.addEventListener("change", function () { claimTouched = true; });
+      function foodLike(b) { return /(cater|food|meal|buffet|menu|kitchen|beverage|\bbar\b)/i.test([b && b.kind, b && b.label].join(" ")); }
       var fl = inp("file"); fl.accept = "image/png,image/jpeg,image/webp,application/pdf";
       var add = el("button", "btn primary", "Add bill"); add.type = "button";
       var fBk = field("Vendor booking", bk), fNo = field("Bill no.", no), fBd = field("Bill date", bd), fDd = field("Due date", dd),
-          fAmt = field("Amount", amt), fDs = field("What for", ds), fFl = field("Photo / PDF", fl), fGo = el("div", "vb-fld");
+          fAmt = field("Amount (incl. GST)", amt), fGst = field("of which GST", gst), fDs = field("What for", ds), fFl = field("Photo / PDF", fl), fGo = el("div", "vb-fld");
+      var fCl = el("label", "vb-fld vb-chk"); fCl.appendChild(claim); fCl.appendChild(el("span", null, "We can claim this GST (input credit)"));
+      fCl.title = "Claimable GST is not a cost of the event. GST on food / catering usually can't be claimed.";
+      bk.addEventListener("change", function () { if (claimTouched) return; claim.checked = !foodLike(bookings.find(function (b) { return b.id === bk.value; })); });
       fGo.appendChild(add);
-      [fBk, fNo, fBd, fDd, fAmt, fDs, fFl, fGo].forEach(function (n) { g.appendChild(n); });
+      [fBk, fNo, fBd, fDd, fAmt, fGst, fCl, fDs, fFl, fGo].forEach(function (n) { g.appendChild(n); });
       formBox.appendChild(g);
       var quickMode = false;
       function mode(q) {
         quickMode = q; full.classList.toggle("vb-on", !q); quick.classList.toggle("vb-on", q);
-        [fBk, fNo, fBd, fDd, fDs].forEach(function (n) { n.hidden = q; });
+        [fBk, fNo, fBd, fDd, fDs, fGst, fCl].forEach(function (n) { n.hidden = q; });
         fl.accept = q ? "image/png,image/jpeg,image/webp" : "image/png,image/jpeg,image/webp,application/pdf";
         fFl.firstChild.textContent = q ? "WhatsApp photo of the bill" : "Photo / PDF";
       }
@@ -193,13 +207,17 @@
         var file = fl.files && fl.files[0] ? fl.files[0] : null;
         if (quickMode && !file) { msg.textContent = "Choose the photo of the bill."; return; }
         if (!quickMode && dd.value && bd.value && dd.value < bd.value) { msg.textContent = "The due date is before the bill date."; return; }
+        var gp = quickMode ? { value: null } : B.vendorBills.gstPart(gst.value, a);
+        if (gp.error) { msg.textContent = gp.error; gst.focus(); return; }
         add.disabled = true; msg.textContent = file ? "Uploading…" : "Saving…";
         try {
-          await B.vendorBills.add(id, quickMode
+          var added = await B.vendorBills.add(id, quickMode
             ? { amount: a, description: "From WhatsApp", bill_date: today() }
             : { amount: a, bill_no: no.value, bill_date: bd.value, due_date: dd.value, description: ds.value, booking_id: bk.value || null,
-                vendor_id: (bookings.find(function (b) { return b.id === bk.value; }) || {}).vendor_id || null }, file);
-          msg.textContent = "Bill added."; amt.value = ""; no.value = ""; ds.value = ""; dd.value = ""; fl.value = ""; await reload();
+                vendor_id: (bookings.find(function (b) { return b.id === bk.value; }) || {}).vendor_id || null,
+                gst_amount: gp.value, gst_claimable: gp.value != null ? claim.checked : undefined }, file);
+          msg.textContent = (added && added.gst_dropped) ? "Bill added (the GST split needs database update 0246 - it was not saved)." : "Bill added.";
+          amt.value = ""; no.value = ""; ds.value = ""; dd.value = ""; fl.value = ""; gst.value = ""; await reload();
         } catch (e) { msg.textContent = (e && e.code === "vendor_bills_missing") ? e.message : errText(e); }
         add.disabled = false;
       });
@@ -226,7 +244,7 @@
       var p; try { p = await B.vendorBills.pnl(id); } catch (e) { if (my !== seq) return; clear(body); body.appendChild(el("p", "vb-err", "Couldn't work out the profit: " + errText(e))); return; }
       if (my !== seq) return;                                     // a newer refresh is on its way
       clear(body);
-      [["Revenue", p.revenue, "", ""], ["Vendors", p.vendors, "− ", "neg"], ["Logistics & other", p.other, "− ", "neg"], ["Staff expenses", p.staff, "− ", "neg"]].concat(Number(p.refunds || 0) > 0 ? [["Refunds to client", p.refunds, "− ", "neg"]] : []).forEach(function (r) {
+      [["Revenue", p.revenue, "", ""], ["Vendors", p.vendors, "− ", "neg"], ["Logistics & other", p.other, "− ", "neg"], [p.rules === "r21" ? "Staff wages & expenses" : "Staff expenses", p.staff, "− ", "neg"]].concat(Number(p.refunds || 0) > 0 ? [["Refunds to client", p.refunds, "− ", "neg"]] : []).forEach(function (r) {
         var row = el("div", "vb-pl-row"); row.appendChild(el("span", null, r[0])); row.appendChild(money(el("b", r[3], r[2] + fmt(r[1])))); body.appendChild(row);
       });
       var net = Number(p.net_profit || 0), tot = el("div", "vb-pl-row vb-pl-net");

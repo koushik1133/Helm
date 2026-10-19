@@ -99,7 +99,7 @@ assert.equal(state({ amount: 100, due_date: "2026-10-20" }, t), "unpaid");
 assert.equal(state({ amount: 100, status: "void" }, t), "void");
 
 // ---- store + UI wiring ----
-assert.match(src, /settlement, closure, vendorBills, bell,/, "BPStore.vendorBills exported");
+assert.match(src, /settlement, closure, vendorBills, (moneyLedger, )?bell,/, "BPStore.vendorBills exported");
 assert.match(src, /rpc\("record_vendor_payout"/); assert.match(src, /rpc\("event_pnl"/);
 assert.match(src, /er\.code = "vendor_bills_missing"/, "graceful 'run 0124' state");
 const ui = readFileSync("public/vendor-bills-ui.js", "utf8");
@@ -111,7 +111,7 @@ assert.ok(!/\.delete\(|vendorBills\.remove/.test(ui), "UI never deletes bills");
 for (const [p, m] of [["settlement", "bills"], ["closure", "pnl"], ["budget", "pnl"], ["business", "business"]]) {
   const h = readFileSync("public/" + p + ".html", "utf8");
   assert.ok(h.includes('data-vb-mount="' + m + '"'), p + " mounts " + m);
-  assert.match(h, /vendor-bills-ui\.js\?v=8"/); assert.match(h, /vendor-bills\.css\?v=1"/);
+  assert.match(h, /vendor-bills-ui\.js\?v=9"/); assert.match(h, /vendor-bills\.css\?v=2"/);
   assert.ok(h.indexOf("store-api.js") < h.indexOf("vendor-bills-ui.js"), p + ": store before UI");
 }
 // QA fixes (2026-10-15): one profit card on Closure, live refresh on Budget, upcoming events on Business,

@@ -13,7 +13,7 @@ const tests = []; const t = (n, f) => tests.push([n, f]);
 
 const SHIPPED_1018_C = ['0206', '0207', '0208', '0236', '0237'];
 const REL = ['0210', '0211', '0212', '0213', '0220', '0222', '0223'];
-const AFTER_1019 = ['0238', '0239', '0240', '0241'];   // r20: 0238 ships in release 1020 (supabase/APPLY-RELEASE-1020.sql); 0239 (Business area) its own APPLY-0239.sql; r21: 0240 (Insights event costs) APPLY-0240.sql; r21 reminders: APPLY-0241.sql
+const AFTER_1019 = ['0238', '0239', '0240', '0241', '0246'];   // r20: 0238 ships in release 1020 (supabase/APPLY-RELEASE-1020.sql); 0239 (Business area) its own APPLY-0239.sql; r21: 0240 (Insights event costs) APPLY-0240.sql; r21 reminders: APPLY-0241.sql; r21: 0240 (Insights event costs) its own APPLY-0240.sql; r21: 0246 (event money ledger) its own APPLY-0246.sql
 const man = read('supabase/migrations/MANIFEST');
 const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
 const after = nums.filter((n) => +n > 205);
