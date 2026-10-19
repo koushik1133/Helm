@@ -111,7 +111,8 @@ run "notification-task-ref" "NOTIFICATION-TASK-REF: ALL PASS \(12/12\)" psql -q 
 # before security-alerts / notification-prefs: they re-apply 0054 / 0036 over the 0058 catalog wrappers
 run "trial-reminders"    "TRIAL-REMINDERS: ALL PASS \(36/36\)" psql -q -f tests/db/trial-reminders.sql
 # before notification-prefs: that suite re-applies 0036 (which resets the 0054 catalog wrapper)
-run "security-alerts"    "SECURITY-ALERTS: ALL PASS \(47/47\)" psql -q -f tests/db/security-alerts.sql
+run "security-alerts"    "SECURITY-ALERTS: ALL PASS \(48/48\)" psql -q -f tests/db/security-alerts.sql
+run "r21-security-notices-0250" "R21-SECURITY-NOTICES-0250: ALL PASS \(35/35\)" psql -q -f tests/db/r21-security-notices-0250.sql
 run "upload-quarantine"  "UPLOAD-QUARANTINE: ALL PASS \(21/21\)" psql -q -f tests/db/upload-quarantine.sql
 run "chat-rls"           "CHAT-RLS: ALL PASS"              psql -q -f tests/db/chat-rls.sql
 run "studio-links"       "STUDIO-LINKS: ALL PASS"          psql -q -f tests/db/studio-links.sql

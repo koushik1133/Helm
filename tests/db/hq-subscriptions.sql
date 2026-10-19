@@ -319,6 +319,7 @@ do $$ declare missing text; begin perform pg_temp.su();
      and c.relname not in ('audit_log','notification_seen','studio_subscriptions','subscription_payments','billing_reminders','helm_audit_0044_reverted',
                            'upload_scans',  -- 0051: system scan metadata (scanner must work for suspended studios too)
                            'security_alert_events', 'security_alert_outbox',  -- 0054: system alert log (written by triggers only)
+                           'hq_security_notices',  -- 0250: HQ-only security notices (written by triggers only, no client grants)
                            'welcome_email_outbox',  -- 0057: system welcome outbox (triggers + service role only)
                            'a155_admin_created',  -- 0155: system record of admin-created accounts (release must work for a suspended creator)
                            'privacy_pin_attempts',  -- 0157: wrong-PIN counter (unlocking must work for a read-only studio)

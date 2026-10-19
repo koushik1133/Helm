@@ -1,7 +1,7 @@
--- security-alerts.sql — 0054: security events notify the RIGHT studio's admins only,
--- floods are throttled (one alert per type per studio per 10 min, with a count), the
--- original action is never blocked, the HQ feed is operator-only, the e-mail outbox is
--- service-role-only and honours the studio's e-mail switch.
+-- security-alerts.sql — 0054 + 0250: security events are recorded per studio for Helm HQ ONLY
+-- (r21 owner: no studio member gets them; 0250 = one HQ notice per studio + type + India day,
+-- with a count), the original action is never blocked, the HQ feed is operator-only, the
+-- e-mail outbox is service-role-only and goes to the HQ inbox only.
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
 drop table if exists _sa; create temp table _sa(name text, result text); grant all on _sa to anon, authenticated, service_role;
@@ -28,13 +28,19 @@ begin perform pg_temp.as_user(p_email); r := public.bell_feed(100);
   select count(*) into n from jsonb_array_elements(r -> 'items') i
    where i ->> 'kind' = 'security_alert' and (p_alert is null or i -> 'detail' ->> 'alert' = p_alert);
   perform pg_temp.su(); return n; end $$;
+-- 0250: the HQ notice for a studio + alert (one per India day)
 create or replace function pg_temp.nrows(p_org uuid, p_alert text) returns int language sql as $$
-  select count(*)::int from public.notifications where org_id = p_org and kind = 'security_alert' and detail ->> 'alert' = p_alert $$;
+  select count(*)::int from public.hq_security_notices where org_id = p_org and alert_type = p_alert $$;
+create or replace function pg_temp.ncount(p_org uuid, p_alert text) returns int language sql as $$
+  select max(count)::int from public.hq_security_notices where org_id = p_org and alert_type = p_alert $$;
+create or replace function pg_temp.ndetail(p_org uuid, p_alert text) returns jsonb language sql as $$
+  select detail from public.hq_security_notices where org_id = p_org and alert_type = p_alert order by last_at desc limit 1 $$;
 
 -- clean slate (disposable test DB only)
 do $$ begin perform pg_temp.su();
   delete from public.notifications where kind = 'security_alert';
   delete from public.security_alert_throttle; delete from public.security_alert_outbox; delete from public.security_alert_events;
+  delete from public.hq_security_notices;
   delete from public.notification_prefs where type = 'security_alert';
   update public.profiles set full_name = 'Asha Admin' where email = 'a_admin@a.test';
   update public.profiles set full_name = 'Sam Sales' where email = 'a_staff@a.test';
@@ -48,12 +54,11 @@ begin perform pg_temp.su();
   select id into astf from auth.users where email = 'a_staff@a.test';
   -- admin overrides
   insert into public.event_close_overrides(org_id, quote_id, actor, actor_email, reason) values (A, qA, aadm, 'a_admin@a.test', 'client paid in cash');
-  perform pg_temp.t('01 close_event override -> Org A admin alert', pg_temp.nrows(A, 'admin_override') = 1);
+  perform pg_temp.t('01 close_event override -> Org A HQ notice', pg_temp.nrows(A, 'admin_override') = 1);
   insert into public.lifecycle_stage_overrides(org_id, quote_id, actor, actor_email, from_stage, to_stage, reason)
     values (A, qA, aadm, 'a_admin@a.test', 'quote', 'confirmed', 'verbal approval on call');
   perform pg_temp.t('02 stage override deduped into the same alert (count 2)',
-    pg_temp.nrows(A, 'admin_override') = 1
-    and (select (detail ->> 'count')::int from public.notifications where org_id = A and detail ->> 'alert' = 'admin_override') = 2);
+    pg_temp.nrows(A, 'admin_override') = 1 and pg_temp.ncount(A, 'admin_override') = 2);
   -- MFA lockout (0050 writes org_id NULL; org comes from the actor's profile)
   insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id)
     values (astf, 'a_staff@a.test', 'auth.mfa.locked', 'auth_mfa_attempts', astf::text, '{"fails":5}', null);
@@ -63,19 +68,17 @@ begin perform pg_temp.su();
     values (null, null, 'auth.password.locked', 'auth.users', astf::text, null);
   perform pg_temp.t('04 password lockout (auth.password.locked) -> Org A alert', pg_temp.nrows(A, 'password_lockout') = 1);
   insert into public.audit_log(actor, action, entity, entity_id, org_id) values (astf, 'auth.login.lockout', 'auth.users', astf::text, null);
-  perform pg_temp.t('05 other lockout spelling (auth.login.lockout) counted on the same alert',
-    (select (detail ->> 'count')::int from public.notifications where org_id = A and detail ->> 'alert' = 'password_lockout') = 2);
+  perform pg_temp.t('05 other lockout spelling (auth.login.lockout) counted on the same alert', pg_temp.ncount(A, 'password_lockout') = 2);
   insert into public.audit_log(actor, action, entity, entity_id, org_id) values (astf, 'auth.password.unlocked', 'auth.users', astf::text, null);
-  perform pg_temp.t('06 an UNlock is not an alert',
-    (select (detail ->> 'count')::int from public.notifications where org_id = A and detail ->> 'alert' = 'password_lockout') = 2);
+  perform pg_temp.t('06 an UNlock is not an alert', pg_temp.ncount(A, 'password_lockout') = 2);
   -- rejected upload
   insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id)
     values (null, null, 'upload.rejected', 'storage.objects', gen_random_uuid()::text,
             jsonb_build_object('bucket', 'event-media', 'name', A::text || '/secret-file.exe', 'reason', 'eicar', 'owner', astf), A);
   perform pg_temp.t('07 rejected upload -> Org A alert', pg_temp.nrows(A, 'upload_rejected') = 1);
   perform pg_temp.t('08 rejected upload alert carries no file name / reason / owner',
-    (select not (detail ? 'name') and not (detail ? 'reason') and not (detail ? 'owner') and detail::text not like '%secret-file%'
-       from public.notifications where org_id = A and detail ->> 'alert' = 'upload_rejected'));
+    (select not (d ? 'name') and not (d ? 'reason') and not (d ? 'owner') and d::text not like '%secret-file%'
+       from pg_temp.ndetail(A, 'upload_rejected') d));
   -- studio suspend / reactivate (HQ audit rows: org_id NULL, entity_id = studio)
   insert into public.audit_log(actor, action, entity, entity_id, changed, org_id) values (null, 'hq.studio.suspend', 'studio_subscriptions', A::text, '{"reason":"unpaid"}', null);
   insert into public.audit_log(actor, action, entity, entity_id, org_id) values (null, 'hq.studio.reactivate', 'studio_subscriptions', A::text, null);
@@ -83,9 +86,9 @@ begin perform pg_temp.su();
   -- role change + member removed
   update public.profiles set role = 'manager' where id = astf;
   perform pg_temp.t('10 role change -> Org A alert with roles + name only',
-    (select detail ->> 'old_role' = 'sales' and detail ->> 'new_role' = 'manager' and detail ->> 'subject_name' = 'Sam Sales'
-            and detail::text not like '%@%'
-       from public.notifications where org_id = A and detail ->> 'alert' = 'role_changed'));
+    (select d ->> 'old_role' = 'sales' and d ->> 'new_role' = 'manager' and d ->> 'subject_name' = 'Sam Sales'
+            and d::text not like '%@%'
+       from pg_temp.ndetail(A, 'role_changed') d));
   update public.profiles set role = 'sales' where id = astf;
   select id into tmp from auth.users where email = 'a_temp54@a.test';
   if tmp is null then tmp := auth.seed_user('a_temp54@a.test'); end if;
@@ -101,14 +104,18 @@ begin perform pg_temp.su();
     and not exists (select 1 from public.notifications where kind = 'security_alert' and detail ->> 'alert' like 'hq_operator%'));
   perform pg_temp.t('13 HQ operator e-mail is not stored in the event', not exists (
     select 1 from public.security_alert_events where detail::text like '%helm.events%'));
-  perform pg_temp.t('13b HQ log keeps no event code / quote link', not exists (select 1 from public.security_alert_events where detail ? 'event_code')
-    and exists (select 1 from public.notifications where org_id = A and detail ->> 'alert' = 'admin_override' and detail ->> 'event_code' = 'A-0001'));
-  perform pg_temp.t('14 Org B got NO security notification', not exists (select 1 from public.notifications where org_id = B and kind = 'security_alert'));
+  perform pg_temp.t('13b HQ log + HQ notices keep no event code / quote link (0250: no studio notification at all)',
+    not exists (select 1 from public.security_alert_events where detail ? 'event_code')
+    and not exists (select 1 from public.hq_security_notices where detail ? 'event_code')
+    and not exists (select 1 from public.notifications where kind = 'security_alert'));
+  perform pg_temp.t('14 Org B got NO security notice', not exists (select 1 from public.notifications where org_id = B and kind = 'security_alert')
+    and not exists (select 1 from public.hq_security_notices where org_id = B));
 end $$;
 
 -- ---- 2) who sees it --------------------------------------------------------------------------
 do $$ declare n int; s text; begin
-  perform pg_temp.t('15 Org A admin bell shows the alerts (8 types)', pg_temp.bell('a_admin@a.test') = 8, pg_temp.bell('a_admin@a.test')::text);
+  perform pg_temp.t('15 Org A admin bell shows NO security alerts (0250: Helm HQ only)', pg_temp.bell('a_admin@a.test') = 0, pg_temp.bell('a_admin@a.test')::text);
+  perform pg_temp.t('15b ... HQ holds 8 Org A notices (one per type)', (select count(*) from public.hq_security_notices where org_id = 'a0000000-0000-4000-8000-000000000001') = 8);
   perform pg_temp.t('16 Org A staff (sales) bell shows none', pg_temp.bell('a_staff@a.test') = 0, pg_temp.bell('a_staff@a.test')::text);
   perform pg_temp.t('17 Org B admin bell shows none', pg_temp.bell('b_admin@b.test') = 0, pg_temp.bell('b_admin@b.test')::text);
   perform pg_temp.as_user('a_staff@a.test');
@@ -116,7 +123,7 @@ do $$ declare n int; s text; begin
   perform pg_temp.t('18 Org A staff cannot read security rows directly (RLS)', n = 0, n::text);
   perform pg_temp.as_user('a_admin@a.test');
   select count(*) into n from public.notifications where kind = 'security_alert';
-  perform pg_temp.t('19 Org A admin can read them directly', n = 8, n::text);
+  perform pg_temp.t('19 Org A admin cannot read any directly either (0250)', n = 0, n::text);
   s := pg_temp.try($q$insert into public.notifications(channel, kind, status, detail, org_id) values ('in_app', 'security_alert', 'simulated', '{}', 'a0000000-0000-4000-8000-000000000001')$q$);
   perform pg_temp.t('20 a member cannot forge a security alert', s <> 'ok', s);
   perform pg_temp.as_user('b_admin@b.test');
@@ -130,7 +137,7 @@ do $$ declare r jsonb; begin
   perform pg_temp.as_user('a_admin@a.test');
   r := public.admin_set_notification_pref('security_alert', 'in_app', 'sales', true);
   perform pg_temp.su();
-  perform pg_temp.t('22 admin opts sales in -> sales bell shows alerts', pg_temp.bell('a_staff@a.test') = 8);
+  perform pg_temp.t('22 admin opts sales in -> sales bell still shows none (0250: Helm HQ only)', pg_temp.bell('a_staff@a.test') = 0);
   perform pg_temp.t('23 Org B sales still sees none', pg_temp.bell('b_staff@b.test') = 0);
   perform pg_temp.as_user('a_admin@a.test');
   r := public.admin_set_notification_pref('security_alert', 'in_app', 'sales', null);
@@ -146,16 +153,17 @@ do $$ declare A uuid := 'a0000000-0000-4000-8000-000000000001'; i int; begin per
     insert into public.audit_log(action, entity, entity_id, changed, org_id)
       values ('upload.rejected', 'storage.objects', gen_random_uuid()::text, '{"bucket":"event-media"}', A);
   end loop;
-  perform pg_temp.t('26 flood of 20 rejects -> still ONE notification', pg_temp.nrows(A, 'upload_rejected') = 1);
-  perform pg_temp.t('27 ... with count 21', (select (detail ->> 'count')::int from public.notifications where org_id = A and detail ->> 'alert' = 'upload_rejected') = 21);
+  perform pg_temp.t('26 flood of 20 rejects -> still ONE notice', pg_temp.nrows(A, 'upload_rejected') = 1);
+  perform pg_temp.t('27 ... with count 21', pg_temp.ncount(A, 'upload_rejected') = 21);
   perform pg_temp.t('28 ... and ONE queued e-mail with count 21',
     (select count(*) from public.security_alert_outbox where org_id = A and alert_type = 'upload_rejected') = 1
     and (select count from public.security_alert_outbox where org_id = A and alert_type = 'upload_rejected') = 21);
   perform pg_temp.t('29 every event is still in the HQ log', (select count(*) from public.security_alert_events where org_id = A and alert_type = 'upload_rejected') = 21);
   update public.security_alert_throttle set window_start = window_start - interval '11 minutes' where alert_type = 'upload_rejected';
   insert into public.audit_log(action, entity, entity_id, changed, org_id) values ('upload.rejected', 'storage.objects', gen_random_uuid()::text, '{}', A);
-  perform pg_temp.t('30 after the 10-minute window a NEW alert starts (count 1)', pg_temp.nrows(A, 'upload_rejected') = 2
-    and exists (select 1 from public.notifications where org_id = A and detail ->> 'alert' = 'upload_rejected' and (detail ->> 'count')::int = 1));
+  perform pg_temp.t('30 after the 10-minute window: a NEW queued e-mail, the same day notice (count 22, no duplicate)',
+    pg_temp.nrows(A, 'upload_rejected') = 1 and pg_temp.ncount(A, 'upload_rejected') = 22
+    and (select count(*) from public.security_alert_outbox where org_id = A and alert_type = 'upload_rejected') = 2);
 end $$;
 
 -- ---- 5) never blocks the original action -------------------------------------------------------
@@ -203,9 +211,9 @@ do $$ declare r jsonb; s text; A uuid := 'a0000000-0000-4000-8000-000000000001';
   perform pg_temp.t('38 ... nor read it', s = '42501', s);
   perform pg_temp.su(); execute 'set role service_role';
   r := public.security_alert_outbox_claim(100);
-  perform pg_temp.t('39 service role claims; studio rows go to that studio''s admins only',
-    exists (select 1 from jsonb_array_elements(r) x where x ->> 'studio' = 'Studio A' and x -> 'to' = '["a_admin@a.test"]'::jsonb)
-    and not exists (select 1 from jsonb_array_elements(r) x where x::text like '%a_staff%' or x::text like '%b_admin%'), left(r::text, 300));
+  perform pg_temp.t('39 service role claims; studio rows go to the HQ inbox only (0250), naming the studio',
+    exists (select 1 from jsonb_array_elements(r) x where x ->> 'studio' = 'Studio A' and (x ->> 'hq')::boolean and x -> 'to' = '[]'::jsonb)
+    and not exists (select 1 from jsonb_array_elements(r) x where x::text like '%@%'), left(r::text, 300));
   perform pg_temp.t('40 HQ rows have no studio recipients', exists (select 1 from jsonb_array_elements(r) x where (x ->> 'hq')::boolean and x -> 'to' = '[]'::jsonb));
   perform public.security_alert_outbox_mark(((r -> 0) ->> 'id')::uuid, 'sent');
   perform pg_temp.su();
@@ -219,9 +227,9 @@ do $$ declare r jsonb; s text; A uuid := 'a0000000-0000-4000-8000-000000000001';
   execute 'set role service_role';
   r := public.security_alert_outbox_claim(100);
   perform pg_temp.su();
-  perform pg_temp.t('42 studio e-mail switched off -> row skipped, not handed to the mailer',
-    not exists (select 1 from jsonb_array_elements(r) x where x ->> 'studio' = 'Studio A')
-    and exists (select 1 from public.security_alert_outbox where org_id = A and status = 'skipped'), left(r::text, 200));
+  perform pg_temp.t('42 a studio e-mail switch does not stop HQ mail (0250: HQ inbox only)',
+    exists (select 1 from jsonb_array_elements(r) x where x ->> 'studio' = 'Studio A' and (x ->> 'hq')::boolean)
+    and not exists (select 1 from public.security_alert_outbox where org_id = A and status = 'skipped'), left(r::text, 200));
   delete from public.notification_prefs where type = 'security_alert';
 end $$;
 
@@ -252,6 +260,8 @@ do $$ begin perform pg_temp.su();
     (select count(*) from pg_trigger where tgname like 'zzz_sa54_%') = 5
     and (select count(*) from public.security_alert_events) >= 30);
 end $$;
+-- put 0250 back on top (re-applying 0054 restored the pre-0250 alert body for the suites after this one)
+\i supabase/migrations/0250_security_notices_hq_only.sql
 
 select name, result from _sa where result <> 'PASS';
 select case when not exists (select 1 from _sa where result <> 'PASS')
