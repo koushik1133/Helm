@@ -61,7 +61,7 @@ t('B12: Control Center sample card: no Reset / Clear during the trial; no ?demo=
   assert.match(td, /if \(inTrial\) \{ host\.appendChild\(el\("p", "td-safe", TRIAL_KEEP\)\); return; \}/);
   assert.match(td, /if \(!inTrial && d\.is_admin && d\.has_demo && \/\[\?&\]demo=\(switch\|fresh\)\\b\/\.test\(q\)\) startFresh\(\{\}\);/);
   for (const p of ['public/control.html', 'public/dashboard.html', 'public/onboarding.html'])
-    assert.match(read(p), /<script src="trial-demo\.js\?v=14"><\/script>/, p + ' pin');
+    assert.match(read(p), /<script src="trial-demo\.js\?v=15"><\/script>/, p + ' pin');
 });
 
 t('B13: staff cap ignores crew rows linked to a login (count, check, log, 0173 trigger)', () => {

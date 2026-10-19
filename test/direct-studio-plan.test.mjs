@@ -59,10 +59,11 @@ t('APPLY: one transaction around the exact migration + read-only VERIFY; MANIFES
   assert.match(read('supabase/migrations/MANIFEST'), /forward\s+supabase\/migrations\/0159_direct_studio_plan_gate\.sql/);
   assert.match(read('scripts/db-test/run-all.sh'), /DIRECT-STUDIO-0159: ALL PASS/);
 });
-t('checkout: waiting studio sees "Payments are being set up", contact + free-trial switch; pay disabled', () => {
-  assert.match(COH, /<div class="setup" id="coSetup" role="status" hidden>/);
-  assert.match(COH, /Payments are being set up/);
+t('checkout: waiting studio sees the team-activation note, Contact sales + free-trial switch (r20: no "being set up" panel)', () => {
+  assert.match(COH, /<div class="sales-note" id="coSetup" role="status" hidden>/);
+  assert.doesNotMatch(COH, /Payments are being set up/);
   assert.match(COH, /href="mailto:sales@helm\.events\?subject=Activate%20my%20Helm%20plan"/);
+  assert.match(CO, /st\.sales = st\.catalog \|\| \(!st\.live && \(st\.upgrade \|\| st\.pending\)\);/);
   assert.match(COH, /id="coSwitchWrap" hidden/); assert.match(COH, /id="coSwitch"/);
   assert.match(CO, /st\.pending = st\.opts\.pending_payment === true;/);
   assert.match(CO, /\$\("#coSwitchWrap"\)\.hidden = !\(st\.pending && !st\.live\);/);
@@ -73,7 +74,7 @@ t('checkout: waiting studio sees "Payments are being set up", contact + free-tri
 t('checkout: never "No plans available" when the server has none - display-only catalog, not payable', () => {
   assert.match(CO, /st\.catalog = !\(Array\.isArray\(st\.opts\.plans\) && st\.opts\.plans\.length\);/);
   assert.match(CO, /return l\.length \? l : \(st\.catalog \? CATALOG : l\);/);
-  assert.match(CO, /if \(st\.catalog\) \{ renderSummary\(\); return; \}/, 'no server preview for catalog plans');
+  assert.match(CO, /if \(st\.catalog \|\| onRequest\(planBy\(st\.plan\)\)\) \{ st\.preview = null; renderSummary\(\); return; \}/, 'no server preview for catalog / on-request plans');
 });
 t('checkout: CSP-safe (no inline handlers / styles / HTML sinks), polished sheet loaded last', () => {
   assert.doesNotMatch(COH, /\sstyle="/); assert.doesNotMatch(COH, /\son[a-z]+=/i);

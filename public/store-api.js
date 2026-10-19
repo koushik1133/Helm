@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=34"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=36"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -718,6 +718,14 @@ window.HelmUrl = HelmUrl;
     if (page === CHECKOUT_PAGE || page === PROFILE_SETUP_PAGE) return "none";   // profile step comes first
     return "checkout";
   }
+  // r20: on /checkout itself - stay when a plan is required, or when a studio ADMIN on (or just past) the free
+  // trial came to pick a plan ("Choose a plan": trial banner, cap toast / note, bell). Anyone else (members,
+  // subscribed or older studios, 0056 missing) goes straight on to ?next=. Pure (unit-tested).
+  function checkoutPageStays(st) {
+    if (!st || typeof st !== "object" || st.missing) return false;
+    if (st.required === true) return true;
+    return st.is_admin === true && (st.reason === "trial" || st.reason === "trial_ended");
+  }
   async function fetchCheckoutStatus(force) {
     if (!supa || !currentUser) return null;
     const uid = currentUser.id;
@@ -796,7 +804,7 @@ window.HelmUrl = HelmUrl;
       if (pk === CHECKOUT_PAGE) {
         // nothing to buy here (member, already subscribed, older studio, 0056 not
         // installed) → straight on to ?next= (never back to this page: no loop)
-        if (cst && (cst.missing || cst.required !== true)) {
+        if (cst && !checkoutPageStays(cst)) {
           // R20 (live QA, item 20): a teammate (not a studio admin) can't buy a plan - say so once on the page they land on
           // (the same one-time "bp_flash" notice trial-lock.js uses), instead of a silent bounce to the dashboard
           if (!cst.missing && cst.reason === "member") { try { sessionStorage.setItem("bp_flash", "i|" + ROLE_BLOCK_MSG); } catch (e) {} }
@@ -1180,7 +1188,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "44";
+  const AUTH_UI_VERSION = "46";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1196,7 +1204,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "10";
+  const STUDIO_SEARCH_VERSION = "11";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";
@@ -1336,6 +1344,10 @@ window.HelmUrl = HelmUrl;
     { key: "issues",     label: "Issues & incidents",icon: "🚨", page: null,             group: "Event day" },
     { key: "media",      label: "Media & gallery",   icon: "📸", page: null,             group: "Event day" },
     { key: "controls",   label: "Control Center",    icon: "⚙", page: "control.html",   group: "Admin" },
+    // 0239 (r20): the Business page (studio money: P&L, vendor payables). Its own switch, separate from
+    // "Budget & finance" (planners keep finance for payments / settlement / closure on events). No row = off:
+    // admin only until a studio switches it on for a role here.
+    { key: "business",   label: "Business overview (studio money)", icon: "💼", page: null, group: "Admin" },
     // 0076: date-ranged Insights page (insights_range). Money inside it also needs "finance".
     { key: "insights",   label: "Insights",          icon: "📊", page: null,             group: "Admin" },
     { key: "codes",      label: "Coupons & codes",   icon: "🔑", page: null,             group: "Admin" },
@@ -8355,9 +8367,14 @@ window.HelmUrl = HelmUrl;
           onOpen: () => { if (x.rk && readKeys.indexOf(x.rk) === -1) { readKeys.push(x.rk); saveRead(); } } }); } catch (e) {} });
       };
       let lastRf = 0;
-      const refresh = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
+      const refreshNow = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
         if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
+      // r20 planner: refreshes run ONE AT A TIME, in call order. The chat page's "I just read this chat" nudge
+      // (__bpBellRefresh) used to run alongside a realtime / poll refresh that had read the chat BEFORE the mark;
+      // when that older one finished last it put the stale count back ("4 unread" until a reload / the 90 s poll).
+      let rfChain = Promise.resolve();
+      const refresh = () => { const p = rfChain.then(refreshNow, refreshNow); rfChain = p.then(() => {}, () => {}); return p; };
       // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
       const position = () => {
         if (isPhone()) { panel.style.top = ""; panel.style.right = ""; panel.style.maxHeight = ""; return; }
@@ -9157,6 +9174,7 @@ window.HelmUrl = HelmUrl;
       try { return await fetchCheckoutStatus(!!(o && o.fresh)); } catch (e) { return null; }
     },
     gateDecision: (st, page, role) => checkoutGateDecision(st, page, role),
+    pageStays: (st) => checkoutPageStays(st),
     // where /checkout sends you afterwards (always one of the app's own pages)
     next: () => safeNext(nextParam()),
     url: (next) => checkoutUrl(next),

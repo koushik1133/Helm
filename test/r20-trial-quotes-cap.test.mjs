@@ -75,7 +75,7 @@ await t('APPLY-0238: migration verbatim in one transaction + a VERIFY grid (item
   assert.ok(!/^\s*\\/m.test(A) && !/create\s+(temp|temporary)\s+table/i.test(A) && !/set\s+(session|local)\b/i.test(A), 'pasteable');
   const nums = [...MAN.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
   assert.equal(new Set(nums).size, nums.length);
-  assert.equal(nums[nums.length - 1], '0238'); assert.ok(nums.indexOf('0238') > nums.indexOf('0237'));
+  assert.ok(nums.slice(nums.indexOf('0238') + 1).every((x) => +x > 238), '0238 is the newest before later r20 work (0239+)'); assert.ok(nums.indexOf('0238') > nums.indexOf('0237'));
   const n = (DBT.match(/pg_temp\.res\('\d\d /g) || []).length;
   assert.equal(n, 28);
   assert.match(RUNALL, new RegExp('run "trial-quotes-cap-0238" "TRIAL-QUOTES-CAP-0238: ALL PASS \\\\\\(' + n + '/' + n + '\\\\\\)" psql -q -f tests/db/trial-quotes-cap-0238\\.sql'));

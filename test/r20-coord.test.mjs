@@ -112,8 +112,8 @@ t('13 plan: status line and approval note read one truth; no payment note withou
 t('14 leads view-only: hint "Open a card to view it."; dashboard follow-ups no Reply', () => {
   assert.match(LEADS, /<div class="hintbar" id="boardHint">/);
   assert.match(LEADS, /if\(hb && !canEdit\) hb\.textContent="Open a card to view it\."/);
-  assert.match(DASH, /href: "leads\.html", act: eLeads \? "Reply" : null \}/);
-  assert.match(DASH, /"leads\.html", eLeads \? "Reply" : "View", null, "Not contacted"/);
+  assert.match(DASH, /href: leadHref\(l\), act: eLeads \? "Reply" : null \}/);
+  assert.match(DASH, /leadHref\(l\), eLeads \? "Reply" : "View", null, "Not contacted"/);
   assert.match(DASH, /if \(it\.act\) li\.appendChild\(link\(it\.href, "hd-btn hd-ghost hd-sm", it\.act\)\)/);
 });
 

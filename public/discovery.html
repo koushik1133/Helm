@@ -64,7 +64,7 @@
 </style>
 <link rel="stylesheet" href="discovery-polish.css?v=1">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=34" id="shellProto"></script>
+<script src="/shell-proto.js?v=36" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -136,7 +136,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=104"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=256"></script><script src="save-back.js?v=2"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=258"></script><script src="save-back.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -213,6 +213,10 @@
 
   ["#d_bmin","#d_bmax"].forEach(s=>{ $(s).addEventListener("input",budgetRangeOk); $(s).addEventListener("change",budgetRangeOk); });
   const DFIELDS=["#d_date","#d_mode","#d_loc","#d_att","#d_bmin","#d_bmax","#d_notes"];
+  // r20 planner: while amounts are hidden the read-only Budget box never says "Not set yet" (that reveals whether there is
+  // a budget, and read as "missing" next to masked amounts) - it shows the same •••• as every other hidden amount
+  function paintBudgetPh(){ const i=$("#d_bmax"); if(!i) return; const ph=document.documentElement.classList.contains("hb-priv-on")?"••••":"Not set yet"; if(i.placeholder!==ph) i.placeholder=ph; }
+  paintBudgetPh(); try{ new MutationObserver(paintBudgetPh).observe(document.documentElement,{attributes:true,attributeFilter:["class"]}); }catch(_){}
   async function loadDiscovery(){
     try{ const d=await BPStore.discovery.get(id);
       discFailed=false; $("#discErr").hidden=true;

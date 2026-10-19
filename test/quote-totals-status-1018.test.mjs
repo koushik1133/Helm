@@ -150,7 +150,7 @@ await t('live dashboard (shell-b-money): Upcoming row = invoice total + one labe
   const a = SM.indexOf('  function qLabel(q)'); const src = SM.slice(a, SM.indexOf('\n', SM.indexOf('return q.status', a)) + 1);
   const S = load(); const qLabel = new Function('S', src + '\nreturn qLabel;')(() => S);
   assert.equal(qLabel({ status: 'confirmed', approvalStatus: 'sent' }), 'Sent · awaiting client approval');
-  const BIZ = read('public/business.html'); assert.match(BIZ, /shell-b-money\.js\?v=7/);
+  const BIZ = read('public/business.html'); assert.match(BIZ, /shell-b-money\.js\?v=8/);
 });
 
 await t('list: the reference code never wraps', () => {

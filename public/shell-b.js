@@ -210,9 +210,11 @@
     var who = el("div", "hb-who hb-lb");
     var whoName = el("b", null, ""), whoRole = el("small", null, "");
     who.appendChild(whoName); who.appendChild(whoRole);
-    adopt(function () { return document.querySelector("#account .hau-mw"); }, acctSlot, function () {
+    adopt(function () { return document.querySelector("#account .hau-mw"); }, acctSlot, function (w) {
       acctSlot.appendChild(who); safe(function () { fillWho(whoName, whoRole); });
+      safe(function () { acctMenuOut(w); });   /* r20 Safari: the menu lives on <body>, never inside the clipping rail */
     }, ".hau-mw");
+    safe(function () { acctNameOpens(who, acctSlot); });
     /* FLAG (Oct 2026): "Recently viewed" in the rail is OFF until it is flicker-free (late adoption after auth moved the
      * footer, popover re-anchoring). Code kept; turn on with window.HELM_FLAGS = { recentViewed: true } before shell-b.js. */
     var RECENT_ON = !!(window.HELM_FLAGS && window.HELM_FLAGS.recentViewed === true);
@@ -403,9 +405,16 @@
     try { return Promise.resolve(fn.call(a, area)).then(function (x) { return !!x; }, function () { return false; }); } catch (e) { return Promise.resolve(false); }
   }
 
+  function capOk(cap) {   /* BPStore.auth.can(cap): role capability (+ the quote_create switch for "create") */
+    var a = window.BPStore && BPStore.auth; if (!a || typeof a.can !== "function") return Promise.resolve(false);
+    try { return Promise.resolve(a.can(cap)).then(function (x) { return !!x; }, function () { return false; }); } catch (e) { return Promise.resolve(false); }
+  }
+
   /* ---- quick-create split button ---- */
   var CREATE = [
-    { label: "New quote", icon: "quotes", area: "quotes", edit: true, run: startQuote },
+    /* r20 planner: "New quote" also needs the "Create new quotes" switch (can("create") = server can_create()); a role
+     * without it (a planner with quote_create off) saw the button and was silently sent to the Quotes list. */
+    { label: "New quote", icon: "quotes", area: "quotes", edit: true, cap: "create", run: startQuote },
     { label: "New lead", icon: "leads", area: "leads", edit: true, href: "leads.html#hb-new" },
     { label: "Checklist template", icon: "templates", area: "templates", edit: true, href: "templates.html" },
     { label: "Inventory item", icon: "inventory", area: "inventory", edit: true, href: "inventory.html#hb-new" },
@@ -419,10 +428,12 @@
   }
   function quickCreate(split, nq) {
     waitAuth(function () {
-      Promise.all(CREATE.map(function (c) { return can(c.area, c.edit); })).then(function (ok) {
+      Promise.all(CREATE.map(function (c) { return c.cap ? Promise.all([can(c.area, c.edit), capOk(c.cap)]).then(function (r) { return r[0] && r[1]; }) : can(c.area, c.edit); })).then(function (ok) {
         // free trial (0181): no "Checklist template" (Templates is not part of the trial)
         var trial = document.documentElement.classList.contains("helm-trial");
         var items = CREATE.filter(function (c, i) { return ok[i] && !(trial && c.area === "templates"); });
+        /* r20 planner: the dashboard tour's "Create something new" step names exactly these (not the dashboard's own menu) */
+        try { window.__helmTopNewMenu = items.filter(function (c) { return c.run !== startQuote; }).map(function (c) { return c.label; }); } catch (e) {}
         if (!items.length) return;
         split.hidden = false;
         if (!ok[0]) { nq.hidden = true; }
@@ -524,6 +535,35 @@
     document.addEventListener("focusin", kb); document.addEventListener("focusout", function () { setTimeout(kb, 60); });
   }
 
+  /* ---- r20 (Safari): the profile menu ----
+   * auth-ui builds the avatar button + its menu (.hau-menu, position:fixed BESIDE the rail) and the rail adopts both.
+   * Inside the rail the menu sat in a position:fixed, overflow:hidden box: Chrome lets a fixed child escape that clip,
+   * WebKit (Safari) clips it to the rail - and the menu lies wholly outside the rail, so in Safari a click on the avatar
+   * "did nothing" (the menu opened, fully clipped). Same pattern as the colour-theme picker: the menu moves to <body>.
+   * auth-ui keeps its own references (menu.pop), so open / close / keyboard / click-outside are unchanged. */
+  function acctMenuOut(w) {
+    var pop = w && w.querySelector ? w.querySelector(".hau-menu") : null;
+    if (!pop || !document.body || pop.parentNode === document.body) return;
+    /* a rebuilt menu replaces the old copy (closed ones only: an open menu is never pulled away) */
+    Array.prototype.slice.call(document.querySelectorAll("body > .hau-menu.hb-acct-pop")).forEach(function (o) {
+      if (o !== pop && o.hidden && o.parentNode) o.parentNode.removeChild(o);
+    });
+    pop.classList.add("hb-acct-pop");
+    document.body.appendChild(pop);
+  }
+  /* the name beside the avatar opens the same menu (mouse convenience; the avatar button stays the keyboard control).
+   * A press that started while the menu was open only closes it (auth-ui closes on that press already). */
+  function acctNameOpens(who, slot) {
+    var wasOpen = false;
+    function btn() { return slot.querySelector("#hauAccountBtn"); }
+    who.style.cursor = "pointer";
+    /* window capture runs before auth-ui's document-level "press outside closes" listener */
+    window.addEventListener("mousedown", function (e) {
+      var b = btn(); wasOpen = !!(b && who.contains(e.target) && b.getAttribute("aria-expanded") === "true");
+    }, true);
+    who.addEventListener("click", function () { var b = btn(); if (!b || wasOpen) { wasOpen = false; return; } b.click(); });
+  }
+
   /* ---- keep the hover-expanded rail open while a popover inside it is open ---- */
   function watchPopovers(root) {
     var rail = document.getElementById("hbRail"); if (!rail || !window.MutationObserver) return;
@@ -536,7 +576,9 @@
           if (!p.hidden && p.getAttribute("aria-hidden") !== "true" && getComputedStyle(p).display !== "none" && getComputedStyle(p).visibility !== "hidden") { open = true; if (p.classList.contains("htr-pop")) placePop(p); break; }
         }
       } catch (e) {}
-      root.classList.toggle("hb-rail-hold", open);
+      /* r20: the profile menu lives on <body> now - auth-ui marks <html class="hau-menu-open"> while it is open */
+      if (!open && root.classList.contains("hau-menu-open")) open = true;
+      if (root.classList.contains("hb-rail-hold") !== open) root.classList.toggle("hb-rail-hold", open);
     }
     /* Recently viewed: anchor the popover to its button (it moves between footer and nav), clamped inside the window */
     function placePop(p) {
@@ -546,6 +588,7 @@
       if (p.style.getPropertyValue("top") !== top + "px") { p.style.setProperty("top", top + "px", "important"); p.style.setProperty("bottom", "auto", "important"); }
     }
     new MutationObserver(check).observe(rail, { subtree: true, attributes: true, attributeFilter: ["hidden", "class", "style", "aria-hidden", "open"], childList: true });
+    new MutationObserver(check).observe(root, { attributes: true, attributeFilter: ["class"] });
     document.addEventListener("keydown", function (e) {
       if (e.key !== "Escape" || !root.classList.contains("hb-rail-hold")) return;
       // the widgets own their close logic; nudge them with an outside click, then drop the hold
@@ -571,8 +614,9 @@
             var label = a.key === "controls" ? "Control Center" : a.label;
             (isAdmin ? admin : manage).appendChild(item(KEY_ICON[a.key] || "dot", label, a.page, a.key));
           });
-          /* Business: the studio's money, moved off the client-facing dashboard (finance VIEW, same gate as dashboard_money) */
-          Promise.resolve(BPStore.auth.canView("finance")).catch(function () { return false; }).then(function (fin) {
+          /* Business: the studio's money, moved off the client-facing dashboard. r20 / 0239: its own "business" area
+             (admin only by default; Control Center -> Roles & access), no longer every role with finance */
+          Promise.resolve(BPStore.auth.canView("business")).catch(function () { return false; }).then(function (fin) {
             if (fin && !document.querySelector('#hbRail .hb-group:not(.hb-fav) [data-key="business"]')) { /* planner-1023: the first item may sit inside an .hb-row wrapper — insert before the admin group's own child, never a grandchild (that threw and left Manage hidden) */
               var ref = admin.querySelector(".hb-item"); while (ref && ref.parentNode !== admin) ref = ref.parentNode;
               admin.insertBefore(item("business", "Business", "business.html", "business"), ref || null); }
@@ -731,7 +775,7 @@
       var B = window.BPStore, u = null;
       try { u = B && B.auth && typeof B.auth.user === "function" ? B.auth.user() : null; } catch (e) { u = null; }
       if (!B || !B.auth || (B.auth.user && !u && n < 120)) { if (++n < 160) return void setTimeout(poll, 250); creating = false; return; }
-      can("quotes", true).then(function (ok) {
+      Promise.all([can("quotes", true), capOk("create")]).then(function (r) { var ok = r[0] && r[1];
         if (!ok) { creating = false; location.href = "/quotes.html"; return; }
         var b = document.getElementById("createBtn");
         if (b) { setTimeout(function () { creating = false; try { if (!b.hidden) b.click(); else location.href = "/quotes.html"; } catch (e) {} }, 400); return; }
@@ -780,6 +824,13 @@
   /* la-1018: ONE "not contacted yet" rule, shared with the dashboard (Follow-ups, Needs attention, New leads tile):
      the lead is still in "New" and has not been turned into a quote. */
   window.HelmLeadRules = window.HelmLeadRules || { uncontacted: function (l) { return !!l && String(l.status || "new") === "new" && !l.quote_id; } };
+  /* r20 planner: ONE "lead became a quote" rule for the dashboard (New leads tile + Pipeline) AND Business (Pipeline):
+     linked to a quote, or marked won / converted; conv(list) -> { n, conv, pct } (they disagreed: 47% vs "45% moved on") */
+  (function (R) {
+    if (typeof R.converted !== "function") R.converted = function (l) { return !!l && (!!l.quote_id || ["won", "converted"].indexOf(String(l.status || "")) >= 0); };
+    if (typeof R.conv !== "function") R.conv = function (list) { list = Array.isArray(list) ? list : []; var c = 0; list.forEach(function (l) { if (R.converted(l)) c++; });
+      return { n: list.length, conv: c, pct: list.length ? Math.round(100 * c / list.length) : null }; };
+  })(window.HelmLeadRules);
 
   /* ---- sidebar count badges (dot when collapsed, pill when expanded) ---- */
   var CNT_KEY = "helm.shellb.counts";

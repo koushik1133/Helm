@@ -262,7 +262,7 @@
   /* chatfix-1018: narrow phones - tighter composer; the camera is also reachable from Attach -> Photo */
   @media(max-width:420px){.composer{padding:8px 10px}.cbar{gap:6px}.cbar .ic{width:34px;height:34px}#camBtn{display:none}}
 </style>
-<script src="/shell-proto.js?v=34" id="shellProto"></script>
+<script src="/shell-proto.js?v=36" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#msgs">Skip to messages</a>
@@ -381,7 +381,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=104"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=256"></script><script src="event-group-picker.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=258"></script><script src="event-group-picker.js?v=4"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
 (function(){
@@ -483,9 +483,10 @@
     if(!others.length) return false;
     const readers=others.filter(x=>x.last_read_at && String(x.last_read_at)>=String(m.created_at));
     return readers.length===others.length; }
-  function ticksHtml(m,members,pendingFlag){ if(pendingFlag) return '<span class="tick">✓</span>';
+  // r20 planner: the ticks say what they mean to screen readers (and on hover) - Sent / Delivered / Read
+  function ticksHtml(m,members,pendingFlag){ if(pendingFlag) return '<span class="tick" role="img" aria-label="Sent" title="Sent">✓</span>';
     const r=readByOthers(m,members); if(r===null) return "";
-    return r?'<span class="tick dbl read">✓✓</span>':'<span class="tick dbl">✓✓</span>'; }
+    return r?'<span class="tick dbl read" role="img" aria-label="Read" title="Read">✓✓</span>':'<span class="tick dbl" role="img" aria-label="Delivered" title="Delivered">✓✓</span>'; }
 
   /* ---------- attachment cards (quote / layout) ---------- */
   const inr=(n)=>{ const v=Number(n||0); try{ return BPStore.studioMoney(v); }catch(e){ return "₹"+v; } };
@@ -1122,7 +1123,9 @@
   // Mark the open conversation read whenever it's on screen (like WhatsApp): on
   // open, on focus, and when a new message lands while I'm looking at the thread.
   function bumpBell(){ try{ if(window.__bpBellRefresh) window.__bpBellRefresh(); }catch(e){} }
-  function markActiveRead(){ if(!activeId) return; try{ BPStore.chat.markRead(activeId); }catch(e){} const c=convs.find(x=>x.id===activeId); if(c&&c._unread){ c._unread=0; renderConvs(); } bumpBell(); }
+  // r20 planner: the bell re-counts AFTER the server has the read mark (it re-counted at once and could keep the old number)
+  function markActiveRead(){ if(!activeId) return; const id=activeId; const c=convs.find(x=>x.id===id); if(c&&c._unread){ c._unread=0; renderConvs(); }
+    Promise.resolve().then(()=>BPStore.chat.markRead(id)).catch(()=>{}).then(bumpBell); }
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") markActiveRead(); });
   window.addEventListener("focus",markActiveRead);
   let rtT=null; function onRealtime(){ clearTimeout(rtT); rtT=setTimeout(async()=>{ await refresh(); if(activeId){ await loadThread(); if(document.visibilityState!=="hidden") markActiveRead(); } },250); }

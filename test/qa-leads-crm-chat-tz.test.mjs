@@ -163,9 +163,9 @@ await t('B30 tour: welcome reads days left + the "Sample" tag, New-menu step lis
   assert.doesNotMatch(D.slice(D.indexOf('const TOUR_WELCOME={'), D.indexOf('const TOUR=[')), /8-day|“Demo ·”/);
   // L9: the studio-day count of the trial strip first (HelmTrial.daysLeft), the server's days_left as the fallback
   assert.match(D, /const n=c!=null\?c:\(T&&T\.is_trial_org===true&&T\.days_left!=null\?Number\(T\.days_left\):NaN\);/);
-  assert.match(D, /title:"Create something new", get desc\(\)\{ return TOUR_NEW\(\); \}/);
-  const s = D.indexOf('  const TOUR_NEW=()=>'), e = D.indexOf('."; };', s) + 6;
-  const mk = (list) => vm.runInNewContext(D.slice(s, e).replace('const TOUR_NEW=', 'var TOUR_NEW=') + ';TOUR_NEW()', { window: { __helmNewMenu: list } });
+  assert.match(D, /title:"Create something new", get desc\(\)\{ return TOUR_NEW\(true\); \}/);
+  const s = D.indexOf('  const TOUR_NEW=(quote)=>'), e = D.indexOf('."; };', s) + 6;
+  const mk = (list) => vm.runInNewContext(D.slice(s, e).replace('const TOUR_NEW=', 'var TOUR_NEW=') + ';TOUR_NEW(true)', { window: { __helmNewMenu: list } });
   assert.equal(mk(['New lead', 'Inventory item', 'Vendor']), '“New quote” starts pricing an event. The little arrow next to it opens more: a new lead, inventory item or vendor.');
   assert.doesNotMatch(mk(['New lead']), /client/);
   assert.match(r('public/shell-b-dash.js'), /window\.__helmNewMenu = items\.slice\(1\)\.map\(function \(i\) \{ return i\.t; \}\);/);

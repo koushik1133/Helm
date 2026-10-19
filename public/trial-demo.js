@@ -567,6 +567,12 @@
     try { if (t && t.ends_at) end = new Date(t.ends_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: (t && t.timezone) || "Asia/Kolkata" }); } catch (e) { end = ""; }
     s.extra.appendChild(el("p", "tw-intro", ((t && t.name) ? "“" + t.name + "”" : "This studio") + " is trying Helm" + (end ? " until " + end : "") + ". A few things work differently during the trial:"));
     if (F && F.notice) s.body.appendChild(F.notice(doc));
+    // r20 planner: a role without "Create new quotes" (can("create") + quotes edit) is not promised quote creation
+    try {
+      const A = global.BPStore && BPStore.auth, li = s.body.querySelector('li[data-k="quotes"] > span:last-child');
+      if (li && F && F.NOTICE_NO_QUOTES && A && typeof A.can === "function" && typeof A.canEditArea === "function")
+        Promise.all([A.can("create"), A.canEditArea("quotes")]).then((r) => { if (!(r[0] === true && r[1] === true)) li.textContent = F.NOTICE_NO_QUOTES; }, () => {});
+    } catch (e) {}
     let closed = false;
     const close = async () => {
       if (closed) return; closed = true;
