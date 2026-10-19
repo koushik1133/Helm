@@ -91,7 +91,7 @@ t('20. audit log: a role block calls HelmTrialLock.roleBlocked() (card shows mea
 });
 t('20. checkout: a teammate (reason "member") is sent on with the same one-time notice; admins are not', () => {
   assert.match(S, /const ROLE_BLOCK_MSG = "Your role can't open that page\.";/);
-  assert.match(S, /if \(cst && \(cst\.missing \|\| cst\.required !== true\)\) \{\n[^\n]*\n[^\n]*\n\s+if \(!cst\.missing && cst\.reason === "member"\) \{ try \{ sessionStorage\.setItem\("bp_flash", "i\|" \+ ROLE_BLOCK_MSG\); \} catch \(e\) \{\} \}\n\s+try \{ location\.replace\(safeNext\(nextParam\(\)\)\); \} catch \(e\) \{\}/);
+  assert.match(S, /if \(cst && !checkoutPageStays\(cst\)\) \{\n[^\n]*\n[^\n]*\n\s+if \(!cst\.missing && cst\.reason === "member"\) \{ try \{ sessionStorage\.setItem\("bp_flash", "i\|" \+ ROLE_BLOCK_MSG\); \} catch \(e\) \{\} \}\n\s+try \{ location\.replace\(safeNext\(nextParam\(\)\)\); \} catch \(e\) \{\}/);
 });
 t('20. trial-lock.js still parses', () => { new vm.Script(TL); });
 

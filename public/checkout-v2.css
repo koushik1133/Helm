@@ -135,3 +135,46 @@ html[data-pt] .setup-msg { margin: 8px 0 0; font-size: 13px; color: var(--bad); 
 html[data-pt] .setup-msg:empty { display: none; }
 
 html[data-pt] .foot { color: var(--ink-3); }
+
+/* ---- r20: "Contact sales" while online payment is not live ---- */
+.plan .pp.req { font-size: 22px; letter-spacing: -.02em; line-height: 1.25; }
+html[data-pt] .plan .pp.req { font-size: 24px; letter-spacing: -.03em; }
+.sales-note {
+  margin: 14px 0 0; padding: 12px 14px; border-radius: 14px; background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+}
+.sales-p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+.sales-alt { margin: 12px 0 0; font-size: 12.5px; color: var(--ink-3); text-align: center; }
+.sales-alt a { color: var(--acc-text, var(--accent)); text-underline-offset: 2px; }
+.sales-alt .linkbtn { font-size: inherit; }
+.switch-wrap { margin-top: 4px; text-align: center; }
+
+.sdlg {
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 24px;
+  border: 1px solid var(--line); border-radius: 22px; background: var(--panel); color: var(--ink);
+  box-shadow: 0 24px 80px -20px rgba(16, 24, 20, .35);
+}
+.sdlg::backdrop { background: rgba(16, 24, 20, .38); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.sdlg-hd { display: flex; align-items: center; gap: 12px; margin: 0 0 4px; }
+.sdlg-hd h2 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -.02em; }
+.sdlg-x {
+  margin-left: auto; width: 36px; height: 36px; flex: 0 0 auto; border: 0; border-radius: 50%;
+  background: var(--panel-2); color: var(--ink-2); font: inherit; font-size: 22px; line-height: 1; cursor: pointer;
+}
+.sdlg-x:hover { color: var(--ink); }
+.sdlg-x:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+.sdlg .hint { margin: 0 0 16px; font-size: 13.5px; color: var(--ink-3); }
+.sdlg .note { text-align: center; }
+.sdlg-err { margin: 12px 0 0; font-size: 13px; line-height: 1.45; color: var(--bad); }
+.sdlg-err:empty { display: none; }
+.sdlg-done { text-align: center; padding: 10px 4px 4px; outline: none; }
+.sdlg-done h2 { margin: 14px 0 6px; font-size: 20px; font-weight: 650; letter-spacing: -.02em; }
+.sdlg-done p { margin: 0 0 8px; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.sdlg-done a { color: var(--acc-text, var(--accent)); }
+.sdlg-done .ghost { margin-top: 10px; min-width: 140px; }
+.sdlg-ok { display: inline-block; position: relative; width: 52px; height: 52px; border-radius: 50%; background: var(--accent); }
+.sdlg-ok::after {
+  content: ""; position: absolute; left: 17px; top: 17px; width: 16px; height: 9px;
+  border-left: 3px solid #fff; border-bottom: 3px solid #fff; transform: rotate(-45deg);
+}
+@media (max-width: 560px) { .sdlg { padding: 20px 16px; border-radius: 18px; } }

@@ -718,6 +718,14 @@ window.HelmUrl = HelmUrl;
     if (page === CHECKOUT_PAGE || page === PROFILE_SETUP_PAGE) return "none";   // profile step comes first
     return "checkout";
   }
+  // r20: on /checkout itself - stay when a plan is required, or when a studio ADMIN on (or just past) the free
+  // trial came to pick a plan ("Choose a plan": trial banner, cap toast / note, bell). Anyone else (members,
+  // subscribed or older studios, 0056 missing) goes straight on to ?next=. Pure (unit-tested).
+  function checkoutPageStays(st) {
+    if (!st || typeof st !== "object" || st.missing) return false;
+    if (st.required === true) return true;
+    return st.is_admin === true && (st.reason === "trial" || st.reason === "trial_ended");
+  }
   async function fetchCheckoutStatus(force) {
     if (!supa || !currentUser) return null;
     const uid = currentUser.id;
@@ -796,7 +804,7 @@ window.HelmUrl = HelmUrl;
       if (pk === CHECKOUT_PAGE) {
         // nothing to buy here (member, already subscribed, older studio, 0056 not
         // installed) → straight on to ?next= (never back to this page: no loop)
-        if (cst && (cst.missing || cst.required !== true)) {
+        if (cst && !checkoutPageStays(cst)) {
           // R20 (live QA, item 20): a teammate (not a studio admin) can't buy a plan - say so once on the page they land on
           // (the same one-time "bp_flash" notice trial-lock.js uses), instead of a silent bounce to the dashboard
           if (!cst.missing && cst.reason === "member") { try { sessionStorage.setItem("bp_flash", "i|" + ROLE_BLOCK_MSG); } catch (e) {} }
@@ -9157,6 +9165,7 @@ window.HelmUrl = HelmUrl;
       try { return await fetchCheckoutStatus(!!(o && o.fresh)); } catch (e) { return null; }
     },
     gateDecision: (st, page, role) => checkoutGateDecision(st, page, role),
+    pageStays: (st) => checkoutPageStays(st),
     // where /checkout sends you afterwards (always one of the app's own pages)
     next: () => safeNext(nextParam()),
     url: (next) => checkoutUrl(next),
