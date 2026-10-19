@@ -1316,17 +1316,31 @@ video.mimg{background:#1a231e}
 #film,#morph,#solutions{scroll-margin-top:calc(-1 * var(--navh) - 18px)}
 .cv-folds,.snap-dots{display:none}
 
-/* events gallery (hidden until /landing/events/events.json lists photos) */
+/* events film strip (hidden until /landing/events/events.json lists photos; built by home.js) */
+.gallery{padding-bottom:clamp(64px,8vw,110px)}
 .gallery .head-split{margin-bottom:32px}
-.ev-grid{columns:3 260px;column-gap:16px}
-.ev-item{break-inside:avoid;margin:0 0 16px;display:block}
-.ev-open{display:block;position:relative;width:100%;padding:0;border:0;border-radius:18px;overflow:hidden;background:var(--bg2);cursor:zoom-in;box-shadow:var(--sh-s)}
-.ev-open img{display:block;width:100%;height:auto;transition:transform .8s var(--out)}
-@media (hover:hover){.ev-open:hover img{transform:scale(1.03)}}
-.ev-open:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
-.ev-tag{position:absolute;left:10px;top:10px;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.92);color:var(--ink);font-size:11px;font-weight:700;letter-spacing:.04em}
-.ev-item figcaption{font-size:14px;line-height:1.4;color:var(--mute);padding:8px 4px 0}
-.ev-note{margin:6px 0 0;font-size:13px;color:var(--mute)}
+.reel{--fh:clamp(140px,17vw,250px);--fg:12px;display:grid;gap:10px;padding:12px 0;background:#0d110f;width:100%;overflow:hidden;overflow:clip}
+.reel-row{position:relative;overflow:hidden;overflow:clip;background:#151a17;touch-action:pan-y;-webkit-user-select:none;user-select:none}
+.reel.moving .reel-row{cursor:grab}.reel-row.dragging{cursor:grabbing}
+.reel-track{position:relative;display:flex;gap:var(--fg);width:max-content}
+.reel.moving .reel-track{will-change:transform}
+.reel-set{position:relative;display:flex;gap:var(--fg);padding:24px 0}
+/* sprocket holes, top and bottom; drawn per set so the loop stays seamless */
+.reel-set::before,.reel-set::after{content:"";position:absolute;left:0;right:calc(-1 * var(--fg));height:9px;pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='9'%3E%3Crect x='5' width='12' height='9' rx='2.5' fill='%23ecebe4'/%3E%3C/svg%3E") 0 0/22px 9px repeat-x;background-repeat:space no-repeat;opacity:.82}
+.reel-set::before{top:8px}.reel-set::after{bottom:8px}
+.reel-frame{flex:none;margin:0}
+.reel .ev-open{display:block;position:relative;height:var(--fh);width:calc(var(--fh) * 1.5);padding:0;border:0;border-radius:4px;overflow:hidden;background:#232a26;cursor:zoom-in;color:#fff;font:inherit;text-align:left}
+.reel.moving .ev-open{cursor:inherit}
+.reel .ev-open picture{display:block;width:100%;height:100%}
+.reel .ev-open img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .8s var(--out);-webkit-user-drag:none}
+@media (hover:hover){.reel .ev-open:hover img{transform:scale(1.04)}}
+.reel .ev-open:focus-visible{outline:3px solid var(--acc-l);outline-offset:-3px}
+.ev-tag{position:absolute;left:10px;top:10px;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.92);color:var(--ink);font-size:11px;font-weight:700;letter-spacing:.04em;line-height:1.3}
+.reel-cap{position:absolute;left:0;right:0;bottom:0;padding:30px 12px 10px;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.72));font-size:13px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* reduced motion: one still strip that scrolls sideways with snap */
+.reel.still .reel-row{overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-padding-inline:16px;overscroll-behavior-x:contain;touch-action:auto;-webkit-user-select:auto;user-select:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.35) transparent}
+.reel.still .reel-track{padding:0 16px}
+.reel.still .reel-frame{scroll-snap-align:start}
 .ev-box{width:min(1100px,calc(100vw - 24px));max-width:none;max-height:calc(100dvh - 24px);padding:0;border:0;border-radius:20px;background:#0c1410;color:#fff;overflow:hidden}
 .ev-box::backdrop{background:rgba(8,14,11,.84)}
 .ev-box[open]{animation:evIn .35s var(--out)}.ev-box.still[open]{animation:none}
@@ -1339,7 +1353,7 @@ video.mimg{background:#1a231e}
 .ev-close{right:10px;top:10px}
 .ev-prev,.ev-next{top:calc(50% - 44px)}.ev-prev{left:10px}.ev-next{right:10px}
 .ev-prev svg{transform:rotate(90deg)}.ev-next svg{transform:rotate(-90deg)}
-@media (prefers-reduced-motion:reduce){.ev-open img{transition:none}.ev-box[open]{animation:none}}
+@media (prefers-reduced-motion:reduce){.reel .ev-open img{transition:none}.ev-box[open]{animation:none}}
 
 @media (max-width:767px){
  /* 1. converge: compact static block (no 280vh pinned scroll on phones) — tool chips, the Helm core, then what it holds */
@@ -1411,17 +1425,18 @@ video.mimg{background:#1a231e}
  .sec-box .snap-dots i{background:rgba(255,255,255,.28)}.sec-box .snap-dots i.on{background:var(--acc-l)}
  .mods.snap>.mod,.why-grid.snap>*,.sec-grid.snap>*,.ways.snap>*,.pgrid.snap>*{height:auto}
 
- /* 7. gallery on phones */
+ /* 7. film strip on phones */
  .gallery .head-split{margin-bottom:18px}
- .ev-grid{columns:2;column-gap:10px}
- .ev-item{margin-bottom:12px}
- .ev-open{border-radius:14px}
- .ev-item figcaption{font-size:13px;padding-top:6px}
+ .reel{--fg:8px;gap:8px;padding:8px 0}
+ .reel-set{padding:20px 0}
+ .reel-set::before{top:6px}.reel-set::after{bottom:6px}
+ .ev-tag{left:8px;top:8px;padding:3px 8px;font-size:10px}
+ .reel-cap{padding:24px 10px 8px;font-size:12px}
  .ev-box{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);border-radius:16px}
 }
 @media (max-width:767px) and (max-height:760px){.morph-copy>.btn{display:none}}
 @media (max-width:767px) and (max-height:700px){.story .rec-h{display:none}.story .rec-bar{display:none}.sv-ctl{margin-top:10px}}
-@media (max-width:359px){.ev-grid{columns:1}.field .tile{font-size:12px}}
+@media (max-width:359px){.field .tile{font-size:12px}}
 @media (max-width:767px) and (prefers-reduced-motion:reduce){
  .apps-pin{padding:56px 0 52px}
  .field{margin-top:22px}

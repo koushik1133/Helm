@@ -767,13 +767,13 @@
  </div>
 </section>
 
-<!-- EVENTS GALLERY: "Event ideas". Stays hidden until public/landing/events/events.json
-     lists at least one photo (home.js fills it). How to add photos: public/landing/events/README.md -->
+<!-- EVENTS FILM STRIP: "Event ideas". Stays hidden until public/landing/events/events.json
+     lists at least one photo (home.js fills the strip). How to add photos: public/landing/events/README.md -->
 <section class="sec gallery" id="events" aria-labelledby="ev-h" hidden>
  <div class="wrap">
   <div class="head-split"><div><p class="eyebrow">Event ideas</p><h2 id="ev-h" class="h2">Plan events <em>like these.</em></h2></div><p class="lead">Weddings, launches and celebrations you can plan, quote and run in Helm.</p></div>
-  <div class="ev-grid" id="evGrid" role="list" aria-label="Event images"></div>
  </div>
+ <div class="reel" id="evReel" role="region" aria-roledescription="film strip" aria-label="Event images"></div>
  <dialog class="ev-box" id="evBox" aria-label="Event image">
   <figure class="ev-box-fig"><img id="evBoxImg" alt="" width="1600" height="1067" decoding="async"><figcaption id="evBoxCap"></figcaption></figure>
   <button class="ev-box-btn ev-prev" type="button" aria-label="Previous photo"><svg aria-hidden="true"><use href="#i-chev"/></svg></button>

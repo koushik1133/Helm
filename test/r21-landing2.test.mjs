@@ -46,7 +46,7 @@ t('events gallery: hidden by default, filled only from /landing/events/events.js
   assert.match(js, /if \(!LOCAL\.test\(src\) \|\| !alt\) return null;/);
   assert.match(js, /img\.loading = 'lazy'/);
   assert.match(js, /sec\.hidden = false;/);
-  assert.doesNotMatch(js.slice(js.indexOf('"Event ideas" photo gallery')), /innerHTML|insertAdjacentHTML/);
+  assert.doesNotMatch(js.slice(js.indexOf('"Event ideas" film strip')), /innerHTML|insertAdjacentHTML/);
   assert.match(read('public/landing/events/README.md'), /1600 px wide/);
   assert.ok(read('.vercelignore').split('\n').includes('public/landing/events/README.md'));
 });
