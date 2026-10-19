@@ -54,3 +54,37 @@ Every automatic message is a row in `comms_outbox` with a UNIQUE `dedupe_key`, s
 select purpose, channel, status, count(*) from public.comms_outbox group by 1, 2, 3 order by 1, 2, 3;
 select public.comms_tick();   -- run the scheduler once by hand (service role / SQL editor)
 ```
+
+## Delivery & arrival reminders (0241, round 21)
+
+Per assignment: on the event-day page (Event workspace -> Event-day command -> "Deliveries & arrivals") a planner
+schedules "120 chairs from Deccan Rentals by 4:30 pm" and, at the bottom of the same form, picks the reminders for
+that one assignment (default from Control Center: 1 hour before, 30 minutes before, at the time; up to 6, editable).
+A vendor-sourced stock shortage also offers "Delivery reminder", which opens the same form prefilled.
+
+What happens: at each reminder time Helm e-mails the responsible person (vendor / staff / studio user, as allowed in
+Control Center) with a one-tap link `https://www.helm.events/delivery?t=<token>`: On the way / Arrived / Delayed (+ new
+time) / Problem (+ note). No sign-in. Every reply is kept on the assignment (history: who, when, note), shown live on
+the board (late = red), and posted by Helm into the event's team chat group (or a group picked in Control Center),
+@mentioning the admins and the person who scheduled it, plus a bell row. No reply 15 minutes after the due time ->
+"No response from X" in the group + bell (once). E-mail only - WhatsApp / SMS are not used.
+
+Owner steps (staging first, then production when you say go):
+1. **Database** - paste `supabase/APPLY-0241.sql` in the SQL editor; the last grid must show 7 rows, all `true`.
+2. **Scheduler** - if pg_cron is enabled the paste already created `helm_delivery_reminders` (every 5 minutes; it only
+   queues). Check: `select jobname, schedule from cron.job where jobname = 'helm_delivery_reminders';`. If pg_cron is
+   not enabled: Database > Extensions > `pg_cron`, then
+   `select cron.schedule('helm_delivery_reminders', '*/5 * * * *', 'select public.delivery_reminders_tick()');`
+3. **Sender** - redeploy the dispatcher: `supabase functions deploy comms-dispatch --no-verify-jwt`
+   (same secrets as above: `HELM_COMMS_SECRET`, SMTP_* or RESEND_*, `APP_URL`, `HELM_COMMS_ENABLED`).
+   The dispatcher must run on a schedule (step 5 above, `helm_comms_dispatch`). For reminders that land close to the
+   chosen minute, run it every 2-5 minutes (`*/2 * * * *` is fine; each run claims at most `COMMS_BATCH` rows).
+4. **Switch it on** - Control Center > Notifications > "Delivery & arrival reminders": tick "Send automatic delivery &
+   arrival reminders", check the default times, who may be e-mailed and where replies are posted, Save.
+5. **Who may schedule** - Control Center > Roles & access > "Deliveries & arrivals (reminders)". Until you save that
+   row for a role, the role follows its "Event-day command" switch.
+
+Free trial: reminder e-mails share the trial e-mail limits (30 a day per studio, 5 a day to one address); an ended
+trial, the sample studio and sample (demo) events never send. Check: 
+`select status, reason, count(*) from public.delivery_reminder_sends group by 1, 2;` and
+`select public.delivery_reminders_tick();` (runs the scheduler once by hand).

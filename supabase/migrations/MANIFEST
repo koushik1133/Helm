@@ -367,3 +367,17 @@ forward  supabase/migrations/0237_trial_seed_completeness.sql
 forward  supabase/migrations/0238_trial_quotes_cap_two.sql
 # 0239 (r20 owner: "By default the Business page should be seen only by the admin" - NEW access area 'business' (Control Center -> Roles & access "Business overview (studio money)"): every existing studio gets one 'business' row per role, admin view + edit, every other role off, INSERT ONLY (on conflict do nothing, no existing role_access row changed or deleted, nobody gains access); _a49_default_matrix() (0049 clean matrix that create_studio seeds) lists 'business' for admin only, its other 297 rows checked identical to 0049 before the replace (STOP when drifted); vendor_payables_summary() + business_pnl(from, to) (Business page only) are kept as *__pre0239 (renamed once, no app grants) behind wrappers that also need has_area('business', 'view') - the finance check inside stays; dashboard_money / dashboard_money_for / dashboard_due_today / event_pnl and every settlement / payment / closure RPC unchanged (planners keep finance); insights unchanged (never in the default matrix = admin only); has_area unchanged) goes after phase29 / phase57 + 0049 + 0072 + 0124 + 0142. [numbering: 0239 = next after 0238 on release/r20 and every fix/r20-* branch at the time]
 forward  supabase/migrations/0239_business_area_admin_only.sql
+# 0241 (r21 owner: "automated reminders for vendors / staff about deliveries before an event" - per assignment: a
+# delivery / arrival commitment (event, what, qty, responsible vendor / staff / user / other + e-mail, due time,
+# its own reminder times, default from Control Center 60 / 30 / 0 min) in delivery_commitments + a full history
+# (delivery_commitment_log); delivery_reminders_tick (pg_cron */5, only if pg_cron is installed) queues reminder
+# e-mails (delivery_reminder_sends, UNIQUE dedupe, re-checked by delivery_reminder_claim; comms-dispatch sends them,
+# e-mail only); a one-click status link per e-mail (delivery_links: sha-256 of a 244-bit token, one delivery,
+# expiring) lets the person answer on the way / arrived / delayed + new time / problem without signing in; each
+# answer (and "no response" 15 min after the due time) is posted as Helm into the event's team chat group (or the
+# group picked in settings, @admins + the scheduler) and the bell; delivery_settings per studio (default OFF,
+# Control Center edit); new access area 'deliveries' with NO rows written (falls back to the role's 'command'
+# switch); free trial: e-mail under the 0212 caps, sample master / ended trial / demo events never send; 0184 trial retention lists patched in place (4 assignment tables purge with the quote, delivery_settings kept); 5 new
+# tables, new functions only, no existing table / column / policy / function / row changed) goes after 0004 +
+# 0016 + 0035 + 0045 + 0050 + 0078 + 0097 + 0129 + 0179 + 0183 + 0212. [numbering: 0240 + 0241 assigned to r21 branches]
+forward  supabase/migrations/0241_delivery_reminders.sql
