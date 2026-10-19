@@ -82,6 +82,50 @@
   snapA11y();
   if (snapMq.addEventListener) snapMq.addEventListener('change', snapA11y);
 
+  /* r21 landing 2: position dots under every swipe row (visual cue that more cards follow).
+     Decorative only (aria-hidden) — the row itself is the keyboard/AT control. Hidden >= 768px by CSS. */
+  $$('.snap').forEach(function (el) {
+    var dots = document.createElement('div');
+    dots.className = 'snap-dots'; dots.setAttribute('aria-hidden', 'true');
+    el.parentNode.insertBefore(dots, el.nextSibling);
+    var items = function () { return Array.prototype.filter.call(el.children, function (c) { return c.offsetParent !== null; }); };
+    var raf = 0;
+    function paint() {
+      raf = 0;
+      if (!snapMq.matches) return;
+      var list = items(), n = list.length;
+      if (dots.childElementCount !== n) {
+        while (dots.firstChild) dots.removeChild(dots.firstChild);
+        for (var i = 0; i < n; i++) dots.appendChild(document.createElement('i'));
+      }
+      dots.classList.toggle('one', n < 2);
+      if (!n) return;
+      var x = el.scrollLeft, base = list[0].offsetLeft, best = 0, bd = Infinity;
+      list.forEach(function (c, k) { var d = Math.abs(c.offsetLeft - base - x); if (d < bd) { bd = d; best = k; } });
+      if (x + el.clientWidth >= el.scrollWidth - 4) best = n - 1;       // last card fully in view
+      Array.prototype.forEach.call(dots.children, function (d, k) { d.classList.toggle('on', k === best); });
+    }
+    var req = function () { if (!raf) raf = requestAnimationFrame(paint); };
+    el.addEventListener('scroll', req, { passive: true });
+    window.addEventListener('resize', req, { passive: true });
+    el.addEventListener('click', function () { setTimeout(req, 50); });          // flip cards / filters change layout
+    var tabs = document.getElementById('ftabs');
+    if (el.id === 'flips' && tabs) tabs.addEventListener('click', function () { el.scrollLeft = 0; setTimeout(req, 60); });
+    if (el.id === 'flips' && 'MutationObserver' in window) new MutationObserver(req).observe(el, { childList: true });
+    req();
+  });
+
+  /* r21 landing 2: phones show "every tool in -> one Helm" as a compact static block; it plays a
+     short staggered reveal once, when it scrolls into view (CSS keeps it fully visible without JS/motion) */
+  var cvSec = $('#converge');
+  if (cvSec) {
+    if (reduce || !('IntersectionObserver' in window)) cvSec.classList.add('cv-in');
+    else {
+      var cvIo = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { cvSec.classList.add('cv-in'); cvIo.disconnect(); } }, { threshold: 0.18 });
+      cvIo.observe(cvSec);
+    }
+  }
+
   /* ---------- mobile sticky CTA: shows once the hero is gone, hides over the final CTA ---------- */
   /* r21 mobile: the bar can be hidden with its X; that choice is remembered on this device for
      14 days (localStorage; private mode / blocked storage just means it is remembered for this visit). */
@@ -379,8 +423,15 @@
     if (!reduce) {
       if (moved || appsP < 0) { filmFrame(); storyFrame(); }
       speedFrame();
-      /* converge */
-      if (apps && core && (moved || appsP < 0)) {
+      /* converge — r21 landing 2: phones (<768px) get a compact static layout from CSS, so the
+         scroll-driven fold-in only runs on wider screens; inline styles are cleared when we get small */
+      if (apps && core && vw < 768) {
+        if (appsP !== -2) {
+          appsP = -2;
+          tiles.forEach(function (t) { t.style.removeProperty('transform'); t.style.removeProperty('opacity'); });
+          core.style.removeProperty('transform'); core.style.removeProperty('opacity');
+        }
+      } else if (apps && core && (moved || appsP < 0)) {
         var p = progress(apps);
         if (Math.abs(p - appsP) > 0.0005) {
           appsP = p;
@@ -1085,4 +1136,94 @@
     } else { if (ws) ws.forEach(function (w) { w.classList.add('on'); }); if (cur) cur.classList.add('open'); return; }
     window.addEventListener('scroll', req, { passive: true });
   })();
+})();
+
+/* ================= r21 landing 2: "Events made with Helm" photo gallery =================
+   Photos live in /landing/events/ and are listed in /landing/events/events.json
+   ([{ src, alt, caption, type, avif?, width?, height? }] — see public/landing/events/README.md).
+   The section stays hidden while the list is empty, missing or invalid. DOM APIs only (no HTML strings). */
+(function () {
+  'use strict';
+  var sec = document.getElementById('events'), grid = document.getElementById('evGrid');
+  if (!sec || !grid || !window.fetch) return;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var LOCAL = /^\/landing\/events\/[A-Za-z0-9._-]+\.(webp|avif|jpe?g|png)$/i;   // own folder only
+  var str = function (v, max) { return typeof v === 'string' ? v.trim().slice(0, max) : ''; };
+  var num = function (v) { v = Number(v); return v > 0 && v < 10000 ? Math.round(v) : 0; };
+
+  fetch('/landing/events/events.json', { cache: 'no-cache', credentials: 'same-origin' })
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (list) {
+      if (!Array.isArray(list)) return;
+      var items = list.map(function (p) {
+        p = p || {};
+        var src = str(p.src, 200), alt = str(p.alt, 200), avif = str(p.avif, 200);
+        if (!LOCAL.test(src) || !alt) return null;
+        return { src: src, alt: alt, avif: LOCAL.test(avif) && /\.avif$/i.test(avif) ? avif : '', caption: str(p.caption, 120), type: str(p.type, 30), w: num(p.width), h: num(p.height) };
+      }).filter(Boolean).slice(0, 24);
+      if (!items.length) return;
+      build(items);
+    })
+    .catch(function () { /* no list = no section */ });
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
+
+  function build(items) {
+    items.forEach(function (it, i) {
+      var fig = el('figure', 'ev-item'); fig.setAttribute('role', 'listitem');
+      var btn = el('button', 'ev-open'); btn.type = 'button';
+      btn.setAttribute('aria-label', 'Open photo: ' + (it.caption || it.alt));
+      var pic = el('picture');
+      if (it.avif) { var so = el('source'); so.type = 'image/avif'; so.srcset = it.avif; pic.appendChild(so); }
+      var img = el('img'); img.src = it.src; img.alt = it.alt; img.loading = 'lazy'; img.decoding = 'async';
+      img.width = it.w || 1600; img.height = it.h || 1067;
+      pic.appendChild(img); btn.appendChild(pic);
+      if (it.type) btn.appendChild(el('span', 'ev-tag', it.type));
+      fig.appendChild(btn);
+      if (it.caption) fig.appendChild(el('figcaption', '', it.caption));
+      it.img = img;
+      btn.addEventListener('click', function () { open(i, btn); });
+      grid.appendChild(fig);
+    });
+    sec.hidden = false;
+    lightbox(items);
+  }
+
+  var open = function () {};
+  function lightbox(items) {
+    var box = document.getElementById('evBox'), bimg = document.getElementById('evBoxImg'), bcap = document.getElementById('evBoxCap');
+    if (!box || typeof box.showModal !== 'function' || !bimg) return;   // no <dialog>: photos still show in the grid
+    var cur = 0, opener = null;
+    function show(i) {
+      cur = (i + items.length) % items.length;
+      var it = items[cur];
+      bimg.src = (it.img && it.img.currentSrc) || it.src; bimg.alt = it.alt;   // same file the grid picked (AVIF or WebP)
+      if (it.w && it.h) { bimg.width = it.w; bimg.height = it.h; }
+      bcap.textContent = [it.type, it.caption].filter(Boolean).join(' · ');
+    }
+    var many = items.length > 1;
+    box.querySelector('.ev-prev').hidden = !many; box.querySelector('.ev-next').hidden = !many;
+    box.querySelector('.ev-prev').addEventListener('click', function () { show(cur - 1); });
+    box.querySelector('.ev-next').addEventListener('click', function () { show(cur + 1); });
+    box.querySelector('.ev-close').addEventListener('click', function () { box.close(); });
+    box.addEventListener('click', function (e) { if (e.target === box) box.close(); });   // tap the backdrop
+    box.addEventListener('keydown', function (e) {
+      if (!many) return;
+      if (e.key === 'ArrowRight') { e.preventDefault(); show(cur + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); show(cur - 1); }
+    });
+    var x0 = null;
+    box.addEventListener('touchstart', function (e) { x0 = e.touches.length === 1 ? e.touches[0].clientX : null; }, { passive: true });
+    box.addEventListener('touchend', function (e) {
+      if (x0 == null || !many) return;
+      var dx = (e.changedTouches[0] ? e.changedTouches[0].clientX : x0) - x0; x0 = null;
+      if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+    box.addEventListener('close', function () { document.body.classList.remove('lock'); if (opener && document.contains(opener)) opener.focus(); });
+    open = function (i, from) {
+      opener = from; show(i);
+      box.classList.toggle('still', reduce);
+      box.showModal(); document.body.classList.add('lock');
+      box.querySelector('.ev-close').focus();
+    };
+  }
 })();

@@ -200,8 +200,10 @@ t('TEL-01: Sentry beforeSend + beforeBreadcrumb scrub request URL, Referer, tran
 });
 
 /* ------------------------------------------------------------------ FILE-01 */
-const ALLOWED_EXT = new Set(['.html', '.js', '.css', '.png', '.webp', '.ico', '.svg', '.woff2', '.txt', '.xml', '.jpg', '.jpeg', '.gif', '.mp4', '.webm', '.webmanifest']);
-const ALLOWED_EXTRA = new Set(['_headers', 'vendor/README.md', '.well-known/security.txt']);   // must be .vercelignored if not servable
+const ALLOWED_EXT = new Set(['.html', '.js', '.css', '.png', '.webp', '.ico', '.svg', '.woff2', '.txt', '.xml', '.jpg', '.jpeg', '.gif', '.avif', '.mp4', '.webm', '.webmanifest']);
+// landing/events/events.json = the landing-page photo gallery list (public by design, read by home.js);
+// landing/events/README.md = how to add photos (vercelignored).
+const ALLOWED_EXTRA = new Set(['_headers', 'vendor/README.md', '.well-known/security.txt', 'landing/events/events.json', 'landing/events/README.md']);   // must be .vercelignored if not servable
 const FORBIDDEN = /(\.(md|map|sql|bak|env|log|orig|swp|zip|tgz|gz|pem|key|sqlite|db)$)|(^|\/)\.env|(^|\/)\.DS_Store$|~$/i;
 function walk(dir) {
   const out = [];
@@ -227,7 +229,7 @@ t('FILE-01: internal files are excluded from the Vercel upload and 404/redirecte
   const ign = read('.vercelignore').split('\n').map((l) => l.trim());
   for (const f of ['public/_headers', 'public/vendor/README.md', '**/.DS_Store']) assert.ok(ign.includes(f), '.vercelignore must list ' + f);
   for (const f of ALLOWED_EXTRA) {
-    if (/\.(html|js|css|txt|xml)$/.test(f)) continue;     // servable by design (security.txt)
+    if (/\.(html|js|css|txt|xml)$/.test(f) || f === 'landing/events/events.json') continue;     // servable by design (security.txt, gallery list)
     assert.ok(ign.includes('public/' + f), f + ' is allowlisted but not .vercelignored');
   }
   const redirectFor = (p) => (vercel.redirects || []).find((r) => !r.has && vercelRe(r.source).test(p));

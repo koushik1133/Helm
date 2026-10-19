@@ -1298,3 +1298,163 @@ video.mimg{background:#1a231e}
 /* footer: keep two link columns on phones (one column made a ~2-screen-long list) */
 @media (min-width:340px) and (max-width:400px){.fgr{grid-template-columns:1fr 1fr;column-gap:16px}}
 @media (max-width:479px){.nav.menu-open .mg-grid,.nav.menu-open .mg-grid.two{grid-template-columns:1fr}}
+
+/* ===================== r21 landing 2: phones look finished at every width ===================== */
+/* pinned scenes: centred when they fit, top-aligned (never under the nav) when they don't */
+.story-pin{justify-content:flex-start}.story-pin>.story-head{margin-top:auto}.story-pin>.story-body{margin-bottom:auto}
+.morph-pin{align-items:flex-start}.morph-pin>.morph-grid{margin-block:auto}
+.film-pin{justify-content:flex-start}.film-pin>.film-rail{margin-top:auto}.film-pin>.film-grid{margin-bottom:auto}
+/* in-page links into a pinned scene land on its first frame (the scene pads for the nav itself) */
+#film,#morph,#solutions{scroll-margin-top:calc(-1 * var(--navh) - 18px)}
+.cv-folds,.snap-dots{display:none}
+
+/* events gallery (hidden until /landing/events/events.json lists photos) */
+.gallery .head-split{margin-bottom:32px}
+.ev-grid{columns:3 260px;column-gap:16px}
+.ev-item{break-inside:avoid;margin:0 0 16px;display:block}
+.ev-open{display:block;position:relative;width:100%;padding:0;border:0;border-radius:18px;overflow:hidden;background:var(--bg2);cursor:zoom-in;box-shadow:var(--sh-s)}
+.ev-open img{display:block;width:100%;height:auto;transition:transform .8s var(--out)}
+@media (hover:hover){.ev-open:hover img{transform:scale(1.03)}}
+.ev-open:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.ev-tag{position:absolute;left:10px;top:10px;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.92);color:var(--ink);font-size:11px;font-weight:700;letter-spacing:.04em}
+.ev-item figcaption{font-size:14px;line-height:1.4;color:var(--mute);padding:8px 4px 0}
+.ev-box{width:min(1100px,calc(100vw - 24px));max-width:none;max-height:calc(100dvh - 24px);padding:0;border:0;border-radius:20px;background:#0c1410;color:#fff;overflow:hidden}
+.ev-box::backdrop{background:rgba(8,14,11,.84)}
+.ev-box[open]{animation:evIn .35s var(--out)}.ev-box.still[open]{animation:none}
+@keyframes evIn{from{opacity:0;transform:scale(.97)}}
+.ev-box-fig{margin:0}
+.ev-box-fig img{display:block;width:100%;height:auto;max-height:calc(100dvh - 92px);object-fit:contain;background:#000}
+.ev-box-fig figcaption{padding:12px 16px 14px;min-height:44px;font-size:14px;color:rgba(255,255,255,.85)}
+.ev-box-btn{position:absolute;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.92);color:var(--ink);display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 18px -8px rgba(0,0,0,.5)}
+.ev-box-btn svg{width:20px;height:20px;stroke-width:2}
+.ev-close{right:10px;top:10px}
+.ev-prev,.ev-next{top:calc(50% - 44px)}.ev-prev{left:10px}.ev-next{right:10px}
+.ev-prev svg{transform:rotate(90deg)}.ev-next svg{transform:rotate(-90deg)}
+@media (prefers-reduced-motion:reduce){.ev-open img{transition:none}.ev-box[open]{animation:none}}
+
+@media (max-width:767px){
+ /* 1. converge: compact static block (no 280vh pinned scroll on phones) — tool chips, the Helm core, then what it holds */
+ .apps{height:auto}
+ .apps-pin{position:relative;height:auto;overflow:visible;padding:56px 0 52px}
+ .field{flex:none;min-height:0;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px 6px;max-width:520px;margin:22px auto 0;padding:0 16px}
+ .field .tile{position:static;transform:none;width:auto;max-width:none;white-space:nowrap;line-height:1.2;font-size:12.5px;padding:4px 10px 4px 4px;gap:6px;border-radius:12px;box-shadow:0 6px 16px -12px rgba(20,48,34,.4),0 0 0 1px var(--line);will-change:auto}
+ .field .tile svg{width:22px;height:22px;padding:4px;border-radius:7px}
+ .field .tile:nth-child(8),.field .tile:nth-child(13),.field .tile:nth-child(14),.field .tile:nth-child(16){display:none}
+ .field .core{position:relative;left:auto;top:auto;flex:0 0 176px;width:176px;height:176px;margin:48px calc(50% - 88px) 14px;padding:0 16px;gap:2px;text-align:center;transform:none;opacity:1;will-change:auto}
+ .field .core::before{content:"";position:absolute;left:50%;top:-46px;width:12px;height:12px;margin-left:-6px;border-right:1.6px solid var(--acc);border-bottom:1.6px solid var(--acc);transform:rotate(45deg);opacity:.7}
+ .core .mark.big{width:42px;height:48px}
+ .core b{font-size:22px;line-height:1.1;margin-top:4px}
+ .core small{font-size:12.5px;line-height:1.25;opacity:.8}
+ .ring{inset:-12px}.ring.r2{inset:-26px}
+ .film-glow i:first-child{opacity:.5;top:-5vw}
+ .cv-folds{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;list-style:none;max-width:520px;margin:30px auto 0;padding:0 16px}
+ .cv-folds li{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 13px 6px 10px;border-radius:99px;background:var(--acc-s);color:var(--acc-d);font-size:13px;font-weight:700;box-shadow:inset 0 0 0 1px rgba(11,125,83,.16)}
+ .cv-folds svg{width:16px;height:16px;stroke-width:1.8}
+ .js-motion .apps .tile{transition:opacity .5s var(--out),transform .6s var(--out)}
+ .js-motion .apps .core{transition:opacity .6s var(--out) .45s,transform .8s cubic-bezier(.34,1.56,.64,1) .45s}
+ .js-motion .apps .cv-folds li{transition:opacity .5s var(--out),transform .6s var(--out)}
+ .js-motion .apps:not(.cv-in) .tile{opacity:0;transform:translateY(14px) scale(.96)}
+ .js-motion .apps:not(.cv-in) .core{opacity:0;transform:scale(.86)}
+ .js-motion .apps:not(.cv-in) .cv-folds li{opacity:0;transform:translateY(8px)}
+ .apps .tile:nth-child(2){transition-delay:25ms}.apps .tile:nth-child(3){transition-delay:50ms}.apps .tile:nth-child(4){transition-delay:75ms}
+ .apps .tile:nth-child(5){transition-delay:100ms}.apps .tile:nth-child(6){transition-delay:125ms}.apps .tile:nth-child(7){transition-delay:150ms}
+ .apps .tile:nth-child(8){transition-delay:175ms}.apps .tile:nth-child(9){transition-delay:200ms}.apps .tile:nth-child(10){transition-delay:225ms}
+ .apps .tile:nth-child(11){transition-delay:250ms}.apps .tile:nth-child(12){transition-delay:275ms}.apps .tile:nth-child(13){transition-delay:300ms}
+ .apps .tile:nth-child(14){transition-delay:325ms}.apps .tile:nth-child(15){transition-delay:350ms}.apps .tile:nth-child(16){transition-delay:375ms}
+ .apps .cv-folds li:nth-child(1){transition-delay:.8s}.apps .cv-folds li:nth-child(2){transition-delay:.86s}.apps .cv-folds li:nth-child(3){transition-delay:.92s}
+ .apps .cv-folds li:nth-child(4){transition-delay:.98s}.apps .cv-folds li:nth-child(5){transition-delay:1.04s}
+
+ /* 2. problem board: a 2-column pinboard (no sideways scroll, nothing clipped); chat thread full width */
+ .problem .board{grid-template-columns:1fr 1fr;gap:20px 12px;margin:18px 0 8px;padding:0 2px}
+ .problem .board>.wa{grid-column:1/-1!important}
+ .problem .board>.xl{grid-column:auto!important}
+ .scraps>.rv.in{transform:rotate(calc(var(--r) * .55))}
+ .scraps .note{min-height:0;padding:20px 12px 10px}
+ .scraps .hand{font-size:clamp(16px,4.7vw,19px);overflow-wrap:anywhere}
+ .scraps .note small,.scraps .xl small{font-size:10px;letter-spacing:.08em;overflow-wrap:anywhere}
+ .scraps .xl{padding:16px 12px}
+ .scraps .wa{padding:16px 14px}
+ .scraps-cta{margin-top:24px}
+
+ /* 3. pinned scenes keep clear of the nav (top) and the bottom bar */
+ body:not(.mcta-off) .film-pin,body:not(.mcta-off) .story-pin,body:not(.mcta-off) .morph-pin{padding-bottom:64px}
+ body:not(.mcta-off) .cel-in{padding-bottom:84px}
+ .dev-scr{height:min(310px,38dvh)}
+ .sl-n{font-size:42px}
+ .morph-pin{padding-top:calc(var(--navh) + 8px)}
+ .morph .eyebrow{font-size:10px;letter-spacing:.12em;margin-bottom:12px;padding:5px 12px}
+ .morph-copy .h2{margin-bottom:10px}
+ .mstages{display:none}
+ .ly-tabs{margin:2px 0 0}
+ .morph-grid{gap:16px}
+
+ /* 4. tools: no dead band before the dark 2D->3D scene */
+ .tools{padding-bottom:36px}
+ .map-cta{margin:0;font-size:14px}
+
+ /* 5. swipe rows: dots under each row as the "more cards" cue; equal card heights */
+ .snap{scrollbar-width:none;margin-bottom:6px!important;align-items:stretch}
+ .snap::-webkit-scrollbar{display:none}
+ .snap-dots{display:flex;justify-content:center;gap:6px;margin:0 0 26px;pointer-events:none}
+ .snap-dots.one{display:none}
+ .snap-dots i{display:block;width:6px;height:6px;border-radius:99px;background:rgba(16,21,17,.2);transition:width .3s var(--out),background .3s var(--out)}
+ .snap-dots i.on{width:20px;background:var(--acc)}
+ .sec-box .snap-dots i{background:rgba(255,255,255,.28)}.sec-box .snap-dots i.on{background:var(--acc-l)}
+ .mods.snap>.mod,.why-grid.snap>*,.sec-grid.snap>*,.ways.snap>*,.pgrid.snap>*{height:auto}
+
+ /* 7. gallery on phones */
+ .gallery .head-split{margin-bottom:18px}
+ .ev-grid{columns:2;column-gap:10px}
+ .ev-item{margin-bottom:12px}
+ .ev-open{border-radius:14px}
+ .ev-item figcaption{font-size:13px;padding-top:6px}
+ .ev-box{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);border-radius:16px}
+}
+@media (max-width:767px) and (max-height:760px){.morph-copy>.btn{display:none}}
+@media (max-width:767px) and (max-height:700px){.story .rec-h{display:none}.story .rec-bar{display:none}.sv-ctl{margin-top:10px}}
+@media (max-width:359px){.ev-grid{columns:1}.field .tile{font-size:12px}}
+@media (max-width:767px) and (prefers-reduced-motion:reduce){
+ .apps-pin{padding:56px 0 52px}
+ .field{margin-top:22px}
+ .scraps>.rv,.scraps>.rv.in{transform:rotate(calc(var(--r) * .55))!important}
+}
+/* short phones (SE 1st gen 568px, landscape-ish browsers): trim the pinned scenes so nothing sits under the nav or the bar */
+@media (max-width:767px){.sv-count{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
+@media (max-width:360px){.sv-dots button{padding:4px 8px}.sv-dots{gap:4px}}
+@media (max-width:767px) and (max-height:620px){
+ .story .rec{display:none}
+ .morph .eyebrow{display:none}
+ .film-copy{min-height:150px}
+ .fc p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+ .dev-scr{height:30dvh}
+ .cel-eb{display:none}
+ .cel-slides{min-height:180px}
+}
+/* the celebrations text block sits at the bottom of its scene, but never runs up under the nav */
+@media (max-width:760px){.cel-in{justify-content:flex-start}.cel-in::before{content:"";margin-top:auto}}
+@media (max-width:767px){.rec-rows li b{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rec-rows li{padding-top:7px;padding-bottom:7px}}
+@media (max-width:767px){.story .rec-bar{display:none}.rec-rows{gap:6px}.story-body{gap:16px}}
+/* phones: pinned scenes sit in the upper part of the screen (leftover space 1:3 above:below) instead of
+   dead-centre, so a tall phone shows no empty band when the scene scrolls in; overflow still starts at the top */
+@media (max-width:767px){
+ .film-pin>.film-rail,.film-pin>.film-grid,.story-pin>.story-head,.story-pin>.story-body,.morph-pin>.morph-grid{margin-top:0;margin-bottom:0}
+ .morph-pin{flex-direction:column;align-items:stretch}
+ .film-pin::before,.story-pin::before,.morph-pin::before{content:"";flex:1 1 0;max-height:40px}
+ .film-pin::after,.story-pin::after,.morph-pin::after{content:"";flex:3 1 0}
+}
+/* tablets (768-1023): the single-column 2D->3D scene fits one screen; touch-size controls */
+@media (min-width:768px) and (max-width:1023px){
+ .mstages{display:none}
+ .morph-copy .btn{margin-top:14px}
+ .mframe,.mseg,.mprog{max-width:min(680px,calc((100dvh - 400px) * 1.545))}
+ .ly-tabs button,.mseg button,.unit button,.sv-dots button,#ftabs button,.munits button{min-height:44px}
+ .munits button{min-width:44px}
+ .hv-play{width:44px;height:44px}
+ .hv-seg{height:44px;padding:20px 0}.hv-seg b{top:20px}
+ .brand,.link-d,.link-w{min-height:44px}
+ details p .link-d{min-height:0}
+ .ct-mails a{display:inline-flex;align-items:center;min-height:44px}
+ .foot .fgr>div>a:not(.brand){padding:10px 0}
+}
+/* laptops with short screens (<= 860px tall): the 2D->3D copy column fits under the nav */
+@media (min-width:1024px) and (max-height:860px){.mstages{margin:6px 0 20px}.mstages li{padding:9px 0 9px 18px}.morph .h2{margin-bottom:14px}}
