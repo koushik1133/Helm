@@ -66,7 +66,7 @@ await t('approve.html: WhatsApp code, email fallback, SMS kept, no typed number 
 });
 await t('store-api routes live vs simulated', () => {
   const s = r('public/store-api.js');
-  assert.match(s, /requestChannelOtp: \(token, channel\) => \(channel === "email" \? LIVE\.email : LIVE\.whatsapp\) \? callFn\("send-otp", \{ token, channel \}\)/);
+  assert.match(s, /requestChannelOtp: \(token, channel\) => lvApprove\(token, \(channel === "email" \? LIVE\.email : LIVE\.whatsapp\) \? callFn\("send-otp", \{ token, channel \}\)/);
   assert.match(s, /callFn\("wa-proposal"/); assert.match(s, /p_simulate: true/);
 });
 await t('SQL 0151: additive, ASCII, RLS, append-only, grants, MANIFEST + APPLY verify', () => {

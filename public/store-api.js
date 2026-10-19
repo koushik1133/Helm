@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=39"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=40"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -2612,7 +2612,7 @@ window.HelmUrl = HelmUrl;
     if (view === "attention") return x.status !== "cancelled" && !!x.eventDate && String(x.eventDate).slice(0, 10) < today;
     return true;   // "active"
   }
-  function sbQuoteView(q, view, today, shelf) {
+  function sbQuoteView(q, view, today, shelf, extraIds) {
     if (view === "deleted") return shelf ? q.not("deleted_at", "is", null) : q.eq("id", "00000000-0000-0000-0000-000000000000");
     if (shelf) q = q.is("deleted_at", null);
     if (view === "cancelled") return q.eq("status", "cancelled");
@@ -2621,7 +2621,8 @@ window.HelmUrl = HelmUrl;
     if (view === "all" || !view) return q;
     q = q.neq("status", "cancelled").or("lifecycle_stage.is.null,lifecycle_stage.neq.closed,status.neq.confirmed");
     if (view === "quote" || view === "confirmed") q = q.eq("status", view);
-    if (view === "attention") q = q.lt("event_date", today);
+    // r23 (0261): + quotes the client viewed but has not approved (ids from link_views_attention, uuid-checked)
+    if (view === "attention") q = (extraIds && extraIds.length) ? q.or("event_date.lt." + today + ",id.in.(" + extraIds.join(",") + ")") : q.lt("event_date", today);
     return q;
   }
   // Supabase tier (RPC-backed; errors surface). Falls back to localStorage when not in supabase mode.
@@ -2664,9 +2665,10 @@ window.HelmUrl = HelmUrl;
     //   o.offset / o.limit
     async page(o) {
       o = o || {}; const today = localISODate();
+      const attnIds = o.view === "attention" ? await linkViews.attentionIds() : null;
       const build = (cols, shelf) => {
         let q = supa.from("quotes").select(cols);
-        q = sbQuoteView(q, o.view, today, shelf);
+        q = sbQuoteView(q, o.view, today, shelf, attnIds);
         if (o.eventType) q = q.ilike("event_type", likeEscape(o.eventType));
         if (quoteDay(o.dateFrom)) q = q.gte("event_date", o.dateFrom);
         if (quoteDay(o.dateTo)) q = q.lte("event_date", o.dateTo);
@@ -3124,8 +3126,18 @@ window.HelmUrl = HelmUrl;
   const rpcMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "PGRST202" || c === "42883" || /could not find the function|function[^]*does not exist/i.test(m); };
   // 0078: fire-and-forget "the client opened the link" (follow-up timing); never throws, never blocks
-  const linkOpened = (kind, token) => { try { if (supa && /^[0-9a-f-]{36}$/i.test(String(token || "")))
-    Promise.resolve(supa.rpc("public_link_opened", { p_kind: kind, p_token: String(token) })).catch(() => {}); } catch (e) {} };
+  // r23 (0261): which page (portal / quotation / booklet / approve) via public_link_viewed - the server reads the
+  // device from the request and ignores signed-in studio members. "#preview" on a client page (the studio's
+  // Preview buttons) marks this browser tab as a preview: nothing is counted. Older database -> the 0078 RPC.
+  const lvPreview = () => { let h = ""; try { h = String((typeof location !== "undefined" && location.hash) || ""); } catch (e) {}
+    const now = /^#(.*&)?preview(=1)?(&|$)/i.test(h);
+    try { if (now) sessionStorage.setItem("helm.lv.preview", "1"); return now || sessionStorage.getItem("helm.lv.preview") === "1"; } catch (e) { return now; } };
+  const linkOpened = (kind, token, page) => { try { if (supa && /^[0-9a-f-]{36}$/i.test(String(token || ""))) {
+    const pg = page || (kind === "booklet" ? "booklet" : "quotation"), pv = lvPreview();
+    Promise.resolve(supa.rpc("public_link_viewed", { p_page: pg, p_token: String(token), p_preview: pv }))
+      .then((r) => ((r && r.error && rpcMissing(r.error) && pg !== "approve" && !pv) ? supa.rpc("public_link_opened", { p_kind: kind, p_token: String(token) }) : null)).catch(() => {}); } } catch (e) {} };
+  // r23 (0261): the client started approving (asked for the code / test-mode confirm) - a timeline entry, never blocks
+  const lvApprove = (token, p) => { linkOpened("quote", token, "approve"); return p; };
   // Edge Function caller — used only when live channels are enabled in config.js
   // 0069 booklet share checklist keys (server validates the same list)
   const BOOKLET_SECTIONS = ["studio", "client", "venue", "menu", "layout2d", "layout3d", "quotation", "payments", "terms", "note"];
@@ -3226,7 +3238,7 @@ window.HelmUrl = HelmUrl;
     // 0098: paid vs total from the quote_payments ledger (null when the function is not deployed yet)
     paidStatus: (token) => mode === "supabase" ? rpc("public_quote_paid_status", { p_token: token }).catch(() => null) : Promise.resolve(null),
     // simulation → RPC (returns dev OTP); live → MSG91 via Edge Function (sends real SMS, no code returned)
-    requestOtp: (token, phone) => LIVE.sms ? callFn("send-otp", { token, phone }) : rpc("request_otp", { p_token: token, p_phone: phone }),
+    requestOtp: (token, phone) => lvApprove(token, LIVE.sms ? callFn("send-otp", { token, phone }) : rpc("request_otp", { p_token: token, p_phone: phone })),
     verifyConsent: (token, phone, code, agreed, termsVersion, consentText, clientName, ua) =>
       rpc("verify_and_consent", { p_token: token, p_phone: phone, p_code: code, p_agreed: agreed,
         p_terms_version: termsVersion, p_consent_text: consentText, p_client_name: clientName, p_user_agent: ua }),
@@ -3241,8 +3253,8 @@ window.HelmUrl = HelmUrl;
     // ---- 0151: WhatsApp / e-mail approval code (always to the phone / e-mail ON THE QUOTE) ----
     // live (liveChannels.whatsapp) -> send-otp edge function (itself simulated until the Meta /
     // Resend secrets exist); otherwise the simulated RPC (code shown on screen off production).
-    requestChannelOtp: (token, channel) => (channel === "email" ? LIVE.email : LIVE.whatsapp) ? callFn("send-otp", { token, channel })
-      : rpc("wa_request_otp", { p_token: token, p_channel: channel, p_user_agent: (typeof navigator !== "undefined" ? navigator.userAgent : "").slice(0, 400) }),
+    requestChannelOtp: (token, channel) => lvApprove(token, (channel === "email" ? LIVE.email : LIVE.whatsapp) ? callFn("send-otp", { token, channel })
+      : rpc("wa_request_otp", { p_token: token, p_channel: channel, p_user_agent: (typeof navigator !== "undefined" ? navigator.userAgent : "").slice(0, 400) })),
     verifyChannel: (token, channel, code, agreed, termsVersion, consentText, clientName, ua) =>
       rpc("wa_verify_and_consent", { p_token: token, p_channel: channel, p_code: code, p_agreed: agreed,
         p_terms_version: termsVersion, p_consent_text: consentText, p_client_name: clientName, p_user_agent: ua }),
@@ -3261,9 +3273,9 @@ window.HelmUrl = HelmUrl;
     // ---- manager (authenticated) ----
     // 0128 trial test mode (server-gated: active trial studios only; no SMS / email sent)
     trialTestMode: (token) => mode === "supabase" ? rpc("trial_test_mode_for_token", { p_token: token }).catch(() => false) : Promise.resolve(false),
-    trialTestApprove: (token, phone, clientName, termsVersion, consentText, ua) =>
+    trialTestApprove: (token, phone, clientName, termsVersion, consentText, ua) => lvApprove(token,
       rpc("trial_test_approve", { p_token: token, p_phone: phone || null, p_client_name: clientName,
-        p_terms_version: termsVersion, p_consent_text: consentText, p_user_agent: ua }),
+        p_terms_version: termsVersion, p_consent_text: consentText, p_user_agent: ua })),
     generateToken: (quoteId) => rpc("generate_approval_token", { p_quote_id: quoteId }),
     markPaid: (quoteId, ref) => rpc("mark_paid", { p_quote_id: quoteId, p_provider_ref: ref || null }),
     async consents(quoteId) { if (!supa) return []; const { data, error } = await supa.from("quote_consents")
@@ -8074,6 +8086,8 @@ window.HelmUrl = HelmUrl;
     if (!q) return "";
     // r22 (0254): a close request / its decision opens the event's Closure page at the request
     if (k === "event_close_request" || k === "event_close_decision") return "closure.html?quote=" + enc(q) + "#close-request";
+    // r23 (0261): "Rahul opened the proposal" / "viewed but not approved" -> the event workspace, views timeline open
+    if (k === "client_link_viewed" || k === "client_view_followup") return "event.html?id=" + enc(q) + "#link-views";
     if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
     if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile|pkg_payment)$/.test(k))
       return "settlement.html?quote=" + enc(q) + "#payments";
@@ -8110,7 +8124,8 @@ window.HelmUrl = HelmUrl;
     if (n.__chat) return n.mention ? null : "chat_message";
     const k = String(n.kind || "").toLowerCase().trim();
     if (["approval_link", "otp", "payment_link", "payment_reminder", "payment_receipt", "advance_paid", "payment_reconcile",
-         "task_assigned", "task_reminder", "task_due", "security_alert", "inventory_low_stock", "client_follow_up"].indexOf(k) !== -1) return k;
+         "task_assigned", "task_reminder", "task_due", "security_alert", "inventory_low_stock", "client_follow_up",
+         "client_link_viewed", "client_view_followup"].indexOf(k) !== -1) return k;
     if (k === "payment" || k === "payment_received") return "payment_receipt";
     if (k === "trial_reminder") return "billing_trial";
     if (/^pkg_(selected|accepted|declined|payment)$/.test(k)) return k;
@@ -8128,7 +8143,8 @@ window.HelmUrl = HelmUrl;
     payment_receipt: "Payment receipts", advance_paid: "Payments received", payment_reconcile: "Payments needing attention",
     chat_message: "Chat messages", pkg_selected: "Client package choices", pkg_accepted: "Package choices accepted",
     pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts (Helm HQ only)", billing_trial: "Free trial reminders",
-    inventory_low_stock: "Low stock warnings", client_follow_up: "Client follow-ups", other: "Other updates" };
+    inventory_low_stock: "Low stock warnings", client_follow_up: "Client follow-ups",
+    client_link_viewed: "Client opened their link", client_view_followup: "Viewed but not approved", other: "Other updates" };
   // A4: a chat row's read key carries its newest message time, so marking a conversation read
   // only covers what was there; a later message makes a new key and counts as unread again.
   function bellChatKey(n) { return "c:" + ((n && n.conversation_id) || "") + "@" + ((n && n.created_at) || ""); }
@@ -8416,6 +8432,9 @@ window.HelmUrl = HelmUrl;
       inventory_low_stock: ["📦", "Low stock: " + String(d.item || "an item") + (d.date ? " on " + d.date : "")
         + (Number(d.short) > 0 ? " — short by " + Number(d.short) : "")],
       client_follow_up: ["💬", "Follow-up sent to the client" + (d.auto === false ? "" : " (automatic)")],
+      // r23 (0261): the client opened their link (first time / again) + "viewed, not approved" for the owner
+      client_link_viewed: ["👁", String(d.label || "Your client opened their link") + (d.event_code ? " · " + d.event_code : "")],
+      client_view_followup: ["⏳", String(d.label || "Viewed but not approved - send a nudge") + (d.event_code ? " · " + d.event_code : "")],
       // 0195: "Send to client" on the Invitation Studio
       invite_site_link: ["💌", n.status === "suppressed"
         ? "Invitation link not sent" + (d.skipped === "free_trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : d.suppressed_by === "trial_cap" ? " (free trial e-mail limit)" : "")
@@ -8725,7 +8744,7 @@ window.HelmUrl = HelmUrl;
   };
 
   /* ---------------- client portal (Phase 53) ---------------- */
-  const portal = { get: (token) => rpc("public_get_portal", { p_token: token }),
+  const portal = { get: (token) => rpc("public_get_portal", { p_token: token }).then((r) => { linkOpened("quote", token, "portal"); return r; }),
     // 0101 (E11): booklet link, published invitation, receipts, studio contact - read-only, same token; null before 0101
     extras: (token) => (mode === "supabase" ? rpc("public_portal_extras", { p_token: token }).catch(() => null) : Promise.resolve(null)) };
 
@@ -9631,6 +9650,42 @@ window.HelmUrl = HelmUrl;
     linkUrl: (token) => (/^[0-9a-f]{64}$/.test(String(token || "")) ? location.origin + "/vendor-request?t=" + token : ""),
   };
 
+  // r23 (0261): client link views ("Viewed 3x - last 2h ago"), the timeline, "viewed, not approved" follow-ups,
+  // Send a nudge (queued; comms-dispatch sends it) and the Control Center settings. Every check is in the database
+  // (same studio + Quotes view / edit / Control Center edit). null = the server is older than 0261.
+  const LV_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let lvAttn = null, lvAttnAt = 0;
+  const lvNull = (e) => { if (rpcMissing(e)) return null; throw e; };
+  const linkViews = {
+    // { "<quote id>": { views, opens, first_at, last_at, last_page, last_device, approved, followup } }
+    async summary(ids) {
+      if (!supa) return null;
+      const list = [...new Set((ids || []).map(String).filter((x) => LV_UUID.test(x)))];
+      if (!list.length) return {};
+      const out = {};
+      for (let i = 0; i < list.length; i += 200) {
+        const r = await rpc("link_views_summary", { p_quotes: list.slice(i, i + 200) }).catch(lvNull);
+        if (r === null) return null;
+        Object.assign(out, r || {});
+      }
+      return out;
+    },
+    timeline: (quoteId) => (supa && LV_UUID.test(String(quoteId || "")) ? rpc("link_views_timeline", { p_quote: String(quoteId) }).catch(lvNull) : Promise.resolve(null)),
+    // the open "viewed, not approved" follow-ups (Attention tab + dashboard); cached 60 s per page
+    attention(fresh) {
+      if (!supa) return Promise.resolve(null);
+      if (!fresh && lvAttn && Date.now() - lvAttnAt < 60000) return lvAttn;
+      lvAttnAt = Date.now();
+      lvAttn = rpc("link_views_attention", {}).then((r) => (Array.isArray(r) ? r : [])).catch((e) => { lvAttn = null; return lvNull(e); });
+      return lvAttn;
+    },
+    attentionIds: () => linkViews.attention().then((r) => (Array.isArray(r) ? r.map((x) => x && x.quote_id).filter((x) => LV_UUID.test(String(x || ""))).slice(0, 150) : [])).catch(() => []),
+    nudge: (quoteId, channel) => { lvAttn = null; return rpc("link_view_nudge", { p_quote: quoteId, p_channel: channel === "whatsapp" ? "whatsapp" : "email" }); },
+    dismiss: (followupId) => { lvAttn = null; return rpc("link_view_followup_dismiss", { p_followup: followupId }); },
+    settings: () => (supa ? rpc("link_view_settings_get", {}).catch(lvNull) : Promise.resolve(null)),
+    saveSettings: (patch) => (supa ? rpc("link_view_settings_set", { p: patch || {} }) : Promise.reject(new Error("Needs a signed-in studio."))),
+  };
+
   // 0117 studio integration accounts + 0134 read-only overview (Integrations page). null = server too old.
   const integrations = {
     overview: () => (supa ? rpc("integrations_overview", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
@@ -9652,7 +9707,7 @@ window.HelmUrl = HelmUrl;
 
   const BPStore = {
     reservedEmailDomain, RESERVED_EMAIL_MESSAGE,
-    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, deliveries, vendorRequests, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, deliveries, vendorRequests, linkViews, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
