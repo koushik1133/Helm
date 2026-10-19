@@ -1,0 +1,46 @@
+/* vendor-request.css - the signed-out vendor request + invoice page (0256, /vendor-request?t=...). Light only, no inline styles. */
+:root{--bg:#f5f6f1;--ink:#101511;--mute:#5a6159;--line:rgba(16,21,17,.12);--acc:#0b7d53;--acc-d:#08603f;--card:#fff;--bad:#b42318;--warn:#8a5a00;color-scheme:light}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.vr-wrap{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px}
+.vr-card{width:100%;max-width:560px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 24px}
+.vr-brand{margin:0 0 8px}
+h1{margin:0 0 8px;font-size:22px;line-height:1.25;overflow-wrap:anywhere}
+h2{margin:0 0 8px;font-size:17px}
+.vr-facts{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:14px 0;font-size:15px}
+.vr-facts dt{color:var(--mute)}
+.vr-facts dd{margin:0;font-weight:600;overflow-wrap:anywhere;white-space:pre-line}
+.vr-now{background:#eef7f2;border-radius:10px;padding:10px 12px;font-size:15px}
+.vr-actions{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.vr-btn{min-height:46px;padding:10px 18px;border-radius:99px;border:0;background:var(--acc);color:#fff;font:600 15px/1 inherit;cursor:pointer;flex:1 1 140px}
+.vr-btn:hover{background:var(--acc-d)}
+.vr-btn:disabled{opacity:.6;cursor:wait}
+.vr-ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+.vr-ghost:hover{background:#e3f5ec}
+.vr-bad{color:var(--bad);border-color:var(--bad)}
+.vr-bad:hover{background:#fdecec}
+.vr-sm{min-height:38px;font-size:14px;flex:0 0 auto;margin-top:8px}
+.vr-form{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.vr-form label{font-size:14px;font-weight:600;color:var(--mute);display:block;margin-bottom:2px}
+.vr-form input,.vr-form select,.vr-form textarea{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font:inherit;font-size:16px;background:#fff;color:var(--ink)}
+.vr-form textarea{resize:vertical}
+.vr-form input[type=file]{padding:9px 10px}
+.vr-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.vr-full{grid-column:1/-1}
+@media(max-width:480px){.vr-grid{grid-template-columns:1fr}.vr-card{padding:22px 16px}}
+.vr-section{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.vr-hint{margin:0 0 10px;font-size:14px;color:var(--mute)}
+.vr-total{margin:6px 0 0;font-weight:700}
+.vr-inv-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.vr-inv{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.vr-inv-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.vr-inv-st{font-size:14px;color:var(--mute)}
+.vr-inv-approved .vr-inv-st{color:var(--acc);font-weight:600}
+.vr-inv-queried .vr-inv-st{color:var(--warn);font-weight:600}
+.vr-inv-rejected .vr-inv-st{color:var(--bad);font-weight:600}
+.vr-inv-note{font-size:14px;margin-top:4px;background:#fff7e6;border-radius:8px;padding:6px 10px;overflow-wrap:anywhere}
+.vr-err{color:var(--bad);font-size:14px;margin:4px 0}
+.vr-foot{margin:20px 0 0;font-size:13px;color:var(--mute)}
+.vr-foot a{color:var(--mute)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px}

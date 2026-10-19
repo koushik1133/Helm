@@ -95,3 +95,6 @@ html[data-theme] .steps .step.viewing .n{background:var(--accent-soft);color:var
 .step.skipped{border-style:dashed;background:transparent;color:var(--ink-3)}
 .step.skipped .n{background:transparent;border:1px dashed var(--line);color:var(--ink-3)}
 .step .vtag.sk{background:var(--line);color:var(--ink-2)}
+
+/* 0256 (r23): vendor request status pills on the Vendors card */
+.vrq-pills-ws{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}

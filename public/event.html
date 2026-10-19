@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/event-polish.css?v=7">
+<link rel="stylesheet" href="/event-polish.css?v=8">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -286,7 +286,7 @@
   // 0198 stage strip: clicking a stage OPENS it (view only); moving the event is a separate, gated action
   let viewK=null, myRole="", conflictAcks=undefined;
   const stageInfo={};   // "<stage>|<stored stage>|<status>" -> blockers list (null = old database)
-  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, layoutSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
+  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, vendorReqSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, layoutSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   let hdrChange=null;   // qts-1018: this event's approved change-order sum (null = not read yet)
   const budgetRange=()=>{ const cb=ev&&ev.client&&ev.client.budget; if(cb!=null&&cb!==""&&isFinite(+cb)) return inr(+cb);   // budget-single-source: the quote's budget first
@@ -346,6 +346,7 @@
       S(async()=>{ const t=await BPStore.ops.listTasks(id); tasksSummary={total:t.length, done:t.filter(x=>x.status==='completed').length}; }),
       S(async()=>{ const s=await BPStore.staff.forEvent(id); staffSummary={ people:s.length, tasks:s.reduce((a,x)=>a+(x.tasks||0),0) }; }),
       S(async()=>{ const b=await BPStore.bookings.list(id); vendorSummary={ total:b.length, confirmed:b.filter(x=>x.status && x.status!=='enquiry' && x.status!=='cancelled').length }; }),
+      S(async()=>{ if(BPStore.vendorRequests) vendorReqSummary=await BPStore.vendorRequests.summary(id); }),   // 0256: vendor requests + invoices (pills on the Vendors card)
       S(async()=>{ const [d,rq]=await Promise.all([BPStore.discovery.get(id), BPStore.discovery.listReqs(id)]);
         discSummary={ disc:d, total:rq.length, must:rq.filter(r=>r.priority==='mandatory').length }; discLoaded=true; }),
       S(async()=>{ propSummary=await BPStore.proposal.get(id); propLoaded=true; }),
@@ -711,6 +712,16 @@
       : "Meet the client and capture requirements &amp; budget.";
     const fromDisc = (!canPipe && discSummary && (budgetRange()||discSummary.must))
       ? `<div class="muted" style="margin-top:4px">From discovery: ${budgetRange()?budgetRange():""}${(budgetRange()&&discSummary.must)?" · ":""}${discSummary.must?discSummary.must+" must-have"+(discSummary.must===1?"":"s"):""}</div>` : "";
+    // 0256 (r23): status pills for the vendor requests of this event (counts only, no money)
+    const vendorReqPills = () => { const r=vendorReqSummary; if(!r) return "";
+      const p=[]; const n=(k)=>Number(r[k])||0;
+      if(n("awaiting")) p.push(`<span class="stat q">${n("awaiting")} awaiting reply</span>`);
+      if(n("late")) p.push(`<span class="stat no">${n("late")} reply overdue</span>`);
+      if(n("accepted")) p.push(`<span class="stat ok">${n("accepted")} accepted</span>`);
+      if(n("declined")) p.push(`<span class="stat no">${n("declined")} declined</span>`);
+      if(n("invoices_to_review")) p.push(`<span class="stat st">${n("invoices_to_review")} invoice${n("invoices_to_review")===1?"":"s"} to review</span>`);
+      if(n("invoices_unpaid")) p.push(`<span class="stat st">${n("invoices_unpaid")} unpaid</span>`);
+      return p.length ? `<div class="vrq-pills-ws">${p.join(" ")}</div>` : ""; };
     const cards=[
       { key:"discovery", ic:"🔎", title:"Discovery & requirements", sum:discSum,
         acts:[{t: canEdit?"Open discovery":"View discovery", href:"discovery.html?quote="+encodeURIComponent(id), primary:true}] },
@@ -732,8 +743,8 @@
         sum: staffSummary && staffSummary.people ? `${staffSummary.people} staff assigned · ${staffSummary.tasks} task${staffSummary.tasks===1?"":"s"}` : "No staff assigned yet — assign staff in Operations.",
         acts:[{t:"View event staff", href:"staff.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"vendors", ic:"🤝", title:"Vendors & partners",
-        sum: vendorSummary && vendorSummary.total ? (+vendorSummary.confirmed>=+vendorSummary.total ? `${vendorSummary.total} booked, all confirmed` : `${vendorSummary.total} booked (${+vendorSummary.confirmed||0} confirmed, ${vendorSummary.total-(+vendorSummary.confirmed||0)} to confirm)`) : "No vendors booked — book partners for the gaps.",
-        acts:[{t:"View event vendors", href:"vendors.html?quote="+encodeURIComponent(id), primary:true}] },
+        sum: (vendorSummary && vendorSummary.total ? (+vendorSummary.confirmed>=+vendorSummary.total ? `${vendorSummary.total} booked, all confirmed` : `${vendorSummary.total} booked (${+vendorSummary.confirmed||0} confirmed, ${vendorSummary.total-(+vendorSummary.confirmed||0)} to confirm)`) : "No vendors booked — book partners for the gaps.") + vendorReqPills(),
+        acts:[{t:"View event vendors", href:"vendors.html?quote="+encodeURIComponent(id), primary:true}, {t:"Requests & invoices", href:"vendors.html?tab=requests&quote="+encodeURIComponent(id)}] },
       { key:"runsheet", ic:"🗓️", title:"Run-sheet",
         sum: runSummary && runSummary.total ? `${runSummary.total} item${runSummary.total===1?"":"s"}${runSummary.first?` · starts ${runSummary.first}`:""}` : "Build the minute-by-minute event-day schedule.",
         acts:[{t: canEdit?"Open run-sheet":"View run-sheet", href:"runsheet.html?quote="+encodeURIComponent(id), primary:true}] },

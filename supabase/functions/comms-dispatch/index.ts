@@ -15,6 +15,9 @@
 //                   one-click status link APP_URL/delivery?t=<token>; claimed via delivery_reminder_claim (re-checked
 //                   there: answered / cancelled / switched off / ended trial -> skipped). Free trial: the database
 //                   applies the 0212 caps when it queues them.
+//   * vendor requests (0256) a vendor asked to take part in an event (+ reminders 24 h / 48 h later while unanswered),
+//                   e-mail only, each with a fresh link APP_URL/vendor-request?t=<token> (accept / decline / invoice);
+//                   claimed via vendor_request_claim(limit, 'email') (re-checked there; trials / samples never queue)
 //   * Helm notices (0244) a studio's plan request -> sales@helm.events, and "Ask my admin to upgrade" -> the
 //                   studio's admins, claimed from helm_notice_outbox (helm-notices.mjs; transactional footer)
 //   * booklet_link  (0200) "Send to client" in the Share booklet dialog: the live client booklet
@@ -72,6 +75,7 @@ import { inviteSiteMessage } from "./invite-site.mjs";
 import { trialRowAllowed } from "./trial-row.mjs";   // 0212: free trial = link e-mails only
 import { bookletMessage } from "./booklet-link.mjs";
 import { deliveryMessage } from "./delivery-reminder.mjs";   // 0241: delivery / arrival reminders
+import { vendorRequestMessage, VENDOR_TX_REASON } from "./vendor-request.mjs";   // 0256: vendor requests + reminders
 import { helmNoticeEmail, NOTICE_TX_REASON } from "./helm-notices.mjs";   // 0244: sales requests + "ask my admin"
 import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
@@ -365,6 +369,21 @@ Deno.serve(async (req) => {
       const res: Res = msg.text ? await sendEmail(id, to, msg.subject, msg.text, String(r?.studio ?? ""), ident, extra) : "skipped";
       const { error: mErr } = await admin.rpc("delivery_reminder_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("comms-dispatch: delivery mark failed", errTag(mErr)); counts.failed++; continue; }
+      counts[res]++;
+    }
+    // 0256: vendor requests + "still waiting" reminders (e-mail lane only; WhatsApp rows stay queued for a future
+    // lane; a database without 0256 just has nothing to claim). The claim re-checks each row and mints a fresh link.
+    const { data: vrows, error: vErr } = await admin.rpc("vendor_request_claim", { p_limit: batch, p_channel: "email" });
+    if (vErr) console.error("comms-dispatch: vendor request claim skipped", errTag(vErr));
+    for (const r of (Array.isArray(vrows) ? vrows : [])) {
+      const id = String(r?.id ?? ""), to = String(r?.to ?? "");
+      if (!UUIDISH.test(id)) { counts.invalid++; continue; }
+      const msg = vendorRequestMessage(r, origin);
+      const ident: Identity = (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {};
+      const extra: Extra = { footer: txFooter(VENDOR_TX_REASON, { app: origin, address: postalAddress(env) }) };
+      const res: Res = msg.text ? await sendEmail(id, to, msg.subject, msg.text, String(r?.studio ?? ""), ident, extra) : "skipped";
+      const { error: mErr } = await admin.rpc("vendor_request_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
+      if (mErr) { console.error("comms-dispatch: vendor request mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;
     }
     // 0244: Helm's own notices - a plan request to sales@helm.events, "Ask my admin to upgrade" to the studio's

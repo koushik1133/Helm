@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vendor request · Helm</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="stylesheet" href="/vendor-request.css?v=1">
+</head>
+<body>
+<main id="main" class="vr-wrap">
+  <section class="vr-card" aria-live="polite">
+    <p class="vr-brand"><img src="/brand/helm-logo-emerald.svg?v=1" alt="Helm" width="74" height="32"></p>
+    <h1 id="vr-title">Vendor request</h1>
+    <p id="vr-msg">Checking your link&hellip;</p>
+    <dl id="vr-facts" class="vr-facts" hidden></dl>
+    <p id="vr-now" class="vr-now" hidden></p>
+
+    <div id="vr-answer" hidden>
+      <div class="vr-actions">
+        <button type="button" class="vr-btn" id="vr-accept">Accept</button>
+        <button type="button" class="vr-btn vr-ghost vr-bad" id="vr-reject">Decline</button>
+      </div>
+      <form id="vr-answer-form" class="vr-form" hidden>
+        <label for="vr-comment" id="vr-comment-l">Comment (optional)</label>
+        <textarea id="vr-comment" maxlength="500" rows="3" autocomplete="off"></textarea>
+        <p id="vr-answer-err" class="vr-err" role="alert" hidden></p>
+        <div class="vr-actions"><button type="submit" class="vr-btn" id="vr-answer-send">Send</button><button type="button" class="vr-btn vr-ghost" id="vr-answer-back">Back</button></div>
+      </form>
+    </div>
+
+    <section id="vr-invoices" class="vr-section" hidden>
+      <h2>Your invoices</h2>
+      <ul id="vr-inv-list" class="vr-inv-list"></ul>
+    </section>
+
+    <section id="vr-invoice" class="vr-section" hidden>
+      <h2 id="vr-inv-title">Send your invoice</h2>
+      <p class="vr-hint" id="vr-inv-hint">After the work is done, send your tax invoice here. The studio reviews it and you can see when it is approved and paid.</p>
+      <button type="button" class="vr-btn" id="vr-inv-open">Send an invoice</button>
+      <form id="vr-inv-form" class="vr-form" hidden novalidate>
+        <div class="vr-grid">
+          <div><label for="vi-no">Invoice number *</label><input id="vi-no" maxlength="16" autocomplete="off" inputmode="text" placeholder="e.g. DR/2026/101"></div>
+          <div><label for="vi-date">Invoice date *</label><input id="vi-date" type="date"></div>
+          <div><label for="vi-taxable">Taxable value (₹) *</label><input id="vi-taxable" type="number" inputmode="decimal" min="0" step="0.01"></div>
+          <div><label for="vi-gst">GST</label>
+            <select id="vi-gst">
+              <option value="none">No GST</option>
+              <option value="intra">CGST + SGST (same state)</option>
+              <option value="inter">IGST (other state)</option>
+            </select></div>
+          <div class="vr-gstrow" id="vi-rate-w" hidden><label for="vi-rate">GST rate</label>
+            <select id="vi-rate"><option value="5">5%</option><option value="12">12%</option><option value="18" selected>18%</option><option value="28">28%</option></select></div>
+          <div class="vr-gstrow" id="vi-cgst-w" hidden><label for="vi-cgst">CGST (₹)</label><input id="vi-cgst" type="number" inputmode="decimal" min="0" step="0.01"></div>
+          <div class="vr-gstrow" id="vi-sgst-w" hidden><label for="vi-sgst">SGST (₹)</label><input id="vi-sgst" type="number" inputmode="decimal" min="0" step="0.01"></div>
+          <div class="vr-gstrow" id="vi-igst-w" hidden><label for="vi-igst">IGST (₹)</label><input id="vi-igst" type="number" inputmode="decimal" min="0" step="0.01"></div>
+          <div class="vr-full" id="vi-gstin-w" hidden><label for="vi-gstin">Your GSTIN *</label><input id="vi-gstin" maxlength="15" autocomplete="off" placeholder="e.g. 36ABCDE1234F1Z5"></div>
+          <div class="vr-full"><label for="vi-notes">Notes (optional)</label><input id="vi-notes" maxlength="500" autocomplete="off"></div>
+          <div class="vr-full"><label for="vi-file">Invoice file * (PDF or photo, up to 10 MB)</label><input id="vi-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"></div>
+        </div>
+        <p class="vr-total" id="vi-total"></p>
+        <p id="vi-err" class="vr-err" role="alert" hidden></p>
+        <div class="vr-actions"><button type="submit" class="vr-btn" id="vi-send">Send invoice</button><button type="button" class="vr-btn vr-ghost" id="vi-cancel">Cancel</button></div>
+      </form>
+    </section>
+
+    <p class="vr-foot">Only you have this link. It works for this one request and expires some weeks after the event. <a href="/privacy">Privacy</a> &middot; Helm Events</p>
+  </section>
+</main>
+<script src="/trusted-types.js?v=3"></script>
+<script src="/config.js?v=106"></script>
+<script src="/vendor-request.js?v=1"></script>
+</body>
+</html>
