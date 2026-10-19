@@ -39,11 +39,11 @@ var HelmUrl = (function (global) {
     client: ["clients", "", "client", "id"], booklet: ["booklet", "", "booklet", "t"]
   };
   // plain sidebar pages served at /<studio>/<page> (no ref); control is reached via "settings"
-  "audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready|flow".split("|").forEach(function (p) { KINDS[p] = [p, "", p, ""]; });
+  "audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|settlement|discovery|proposal|budget|closure|runsheet|resources|logistics|teardown|command|ready|flow".split("|").forEach(function (p) { KINDS[p] = [p, "", p, ""]; });
   var PAGE_KIND = { dashboard: "dashboard", quotes: "quotes", leads: "leads", chat: "chat", control: "settings",
     event: "event", builder: "floor-plan", ops: "tasks", client: "client", booklet: "booklet" };
   Object.keys(KINDS).forEach(function (k) { if (!PAGE_KIND[KINDS[k][2]]) PAGE_KIND[KINDS[k][2]] = k; });
-  var RE = /^\/([a-z0-9-]{3,40})\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready|flow)(?:\/([^/?#]{1,160})(?:\/(floor-plan|tasks))?)?\/?$/;
+  var RE = /^\/([a-z0-9-]{3,40})\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|discovery|proposal|budget|closure|runsheet|resources|logistics|teardown|command|ready|flow)(?:\/([^/?#]{1,160})(?:\/(floor-plan|tasks))?)?\/?$/;
   var slug = null;
   try { var s0 = global.sessionStorage && sessionStorage.getItem("bp_studio_slug"); if (s0 && SLUG.test(s0)) slug = s0; } catch (e) {}
   function dec(v) { try { return decodeURIComponent(v); } catch (e) { return null; } }

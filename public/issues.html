@@ -201,6 +201,8 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("issues"))) return;
     canEdit=await BPStore.auth.canEditArea("issues"); canDelete=canEdit && await BPStore.auth.can("delete");
+    // r20-coord: the billable-change link opens Budget (finance) - hidden for a role that can't open it
+    { const fin=await BPStore.auth.canView("finance").catch(()=>false), cl=$("#changeLink"); if(cl && !fin) cl.hidden=true; }
     try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");

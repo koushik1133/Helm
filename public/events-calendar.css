@@ -115,6 +115,7 @@
 @media(max-width:900px) and (min-width:601px){.evc-week{grid-template-columns:repeat(7,minmax(108px,1fr));overflow-x:auto;padding-bottom:4px}.evc-cell{min-height:92px}}
 @media(max-width:600px){.evc{padding:12px}.evc-head{align-items:stretch}.evc-tools{width:100%;justify-content:space-between}.evc-range{font-size:17px}
   .evc-filters{align-items:stretch;margin:10px 0 8px}.evc-type,.evc-type select{width:100%;max-width:none}
-  .evc-legend{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;scrollbar-width:none}.evc-lg,.evc-lg-clash,.evc-lg-sample{flex:0 0 auto;white-space:nowrap}
+  /* r20-coord: the status chips wrap onto a second line on a phone (a hidden-scrollbar row cut "Lead 0" / "Clash" off with no cue) */
+  .evc-legend{flex-wrap:wrap;width:100%;padding-bottom:2px}.evc-lg,.evc-lg-clash,.evc-lg-sample{flex:0 0 auto;white-space:nowrap}
   .cv-tabs{width:100%}.cv-tabs [role=tab]{flex:1;min-height:40px}.cv-hint{display:none}}
 @media (prefers-reduced-motion:no-preference){.evc-chip,.evc-card,.evc-lg{transition:background-color .12s ease,border-color .12s ease,opacity .12s ease}}

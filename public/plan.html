@@ -331,13 +331,25 @@
   }
 
   async function renderApproval(){
-    const st = ev.approvalStatus||"none"; $("#apprStat").className="stat "+st; $("#apprStat").textContent=st;
-    let lines=[];
+    // r20-coord: the status line and the note below read ONE truth. The status is the quote's approval state; the note
+    // lists the consent / payment records behind it and, when there are none, says the status was set on the quote
+    // (no more "Status: paid" beside "No consent or payment recorded yet"). Roles without finance view see no payment note.
+    const st = ev.approvalStatus||"none";
+    const LBL={ none:"Not sent yet", sent:"Sent to client", viewed:"Viewed by client", approved:"Approved", paid:"Approved · advance paid", rejected:"Changes requested", expired:"Link expired" };
+    $("#apprStat").className="stat "+st; $("#apprStat").textContent=LBL[st]||(st.charAt(0).toUpperCase()+st.slice(1));
+    const fin = await BPStore.auth.canView("finance").catch(()=>false);
+    const hist=$("#apprHist");
+    if(!fin){ hist.hidden=true; hist.innerHTML=""; return; }
+    hist.hidden=false;
+    let lines=[], cons=null, pays=null;
     // r20: dates in the STUDIO's zone (never the browser's); a payment shows the day the LEDGER says it was paid (paid_at), not when the row was made
     const day=(t)=>{ try{ const o=BPStore.fmtDay(t); if(o) return o; }catch{} return t?new Date(t).toLocaleDateString("en-IN"):""; };
-    try{ const cons=await BPStore.approval.consents(id); (cons||[]).slice(0,3).forEach(c=>lines.push(`✍ ${esc(c.client_name||c.phone||"client")} agreed — ${esc(day(c.created_at))}`)); }catch{}
-    try{ const pays=await BPStore.approval.payments(id); (pays||[]).slice(0,3).forEach(p=>lines.push(`₹ payment ${esc(p.status||"")} — ${esc(day(p.paid_at||p.created_at))}`)); }catch{}
-    $("#apprHist").innerHTML = lines.length ? lines.map(l=>`<div>${l}</div>`).join("") : '<div class="muted">No consent or payment recorded yet.</div>';
+    try{ cons=await BPStore.approval.consents(id); (cons||[]).slice(0,3).forEach(c=>lines.push(`✍ ${esc(c.client_name||c.phone||"client")} agreed — ${esc(day(c.created_at))}`)); }catch{}
+    try{ pays=await BPStore.approval.payments(id); (pays||[]).slice(0,3).forEach(p=>lines.push(`₹ payment ${esc(p.status||"")} — ${esc(day(p.paid_at||p.created_at))}`)); }catch{}
+    const setOnQuote = st==="approved"||st==="paid";
+    hist.innerHTML = lines.length ? lines.map(l=>`<div>${l}</div>`).join("")
+      : setOnQuote ? `<div class="muted">${st==="paid"?"Marked approved and paid on the quote":"Marked approved on the quote"} — no online consent or payment record here. Payments recorded by the studio are on the event's Payments &amp; invoice page.</div>`
+      : '<div class="muted">No consent or payment recorded yet.</div>';
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }

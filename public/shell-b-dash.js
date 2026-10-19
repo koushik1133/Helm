@@ -125,6 +125,19 @@
   function dpDays(k) { for (var i = 0; i < DP_OPTS.length; i++) if (DP_OPTS[i][0] === k) return DP_OPTS[i][1]; return 0; }
   function dpName(k) { return k === "1m" ? "month" : k === "1y" ? "year" : k === "6m" ? "6 months" : k === "7d" ? "7 days" : ""; }
   function dpVs(k) { return k === "7d" ? "vs previous 7 days" : k === "1m" ? "vs previous month" : k === "6m" ? "vs previous 6 months" : "vs previous year"; }
+  /* r20-coord: the "Completed" tile's subtitle - tasks finished since Monday (studio calendar), not "N upcoming events" */
+  function doneThisWeek(list, today) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(today || "")); if (!m) return 0;
+    var t = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])), back = (t.getUTCDay() + 6) % 7;   // Monday = 0
+    var mon = new Date(t.getTime() - back * 864e5).toISOString().slice(0, 10), n = 0;
+    (Array.isArray(list) ? list : []).forEach(function (x) {
+      var at = x && x.completed_at; if (!at) return;
+      var c = null; try { c = S().studioClock ? S().studioClock(at) : null; } catch (e) { c = null; }
+      var day = c && c.date ? c.date : String(at).slice(0, 10);
+      if (day >= mon && day <= today) n++;
+    });
+    return n;
+  }
   /* back windows: [nowT - days, nowT) and the equal window before it; t(x) -> ms or NaN */
   function dpBack(list, t, nowT, days) {
     var W = days * 864e5, cur = 0, prev = 0, hit = [];
@@ -984,6 +997,11 @@
     });
     rows.forEach(function (q) { if (q.eventDate && !seen[q.id] && q.status !== "cancelled") events.push({ id: q.id, date: String(q.eventDate).slice(0, 10), name: qName(q), code: q.code, type: q.eventType, client: q.client && q.client.name, q: q, time: q.eventTime || null }); });
     events.sort(function (a, b) { return a.date.localeCompare(b.date); });
+    // r20-coord: one event name everywhere - task rows carry the raw stored title (my_tasks.event_title); show the
+    // same HelmEventName name the event page / quotes list / calendar use when the event is in the loaded list
+    var nameById = {}; events.forEach(function (e) { if (e && e.id && e.name) nameById[e.id] = e.name; });
+    rows.forEach(function (q) { if (q && q.id && !nameById[q.id]) { var n = qName(q); if (n) nameById[q.id] = n; } });
+    function evTitleOf(t) { return (t && t.quote_id && nameById[t.quote_id]) || (t && t.event_title) || ""; }
     var future = events.filter(function (e) { return e.date >= today; });
     var in30 = iso(new Date(todayD.getTime() + 30 * DAY));
     var weekStart = new Date(todayD); weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
@@ -1190,7 +1208,7 @@
         tile(tiles[1], { label: "Overdue", tip: "Your tasks past their due date.", ic: IC.alert, value: tasks ? (tc.overdue || 0) : null, sub: tc.overdue ? "Needs action" : "On track", subKind: tc.overdue ? "bad" : "ok", href: "#mytasksSection" });
         tile(tiles[2], { label: "Blocked", tip: "Your tasks waiting on someone or something.", ic: IC.clock, value: tasks ? (tc.blocked || 0) : null, sub: tc.blocked ? "Waiting on something" : "Nothing blocked", subKind: tc.blocked ? "wait" : null, href: "#mytasksSection" });
         tile(tiles[3], role === "operations" ? { label: "Upcoming events", tip: "All upcoming events you can see.", ic: IC.cal, value: future.length, sub: "Open inventory", href: "inventory.html" }
-          : { label: "Completed", tip: "Tasks you have finished.", ic: IC.check, value: tasks ? (tc.completed || 0) : null, sub: future.length + " upcoming events", subKind: "ok", href: "#mytasksSection" });
+          : { label: "Completed", tip: "Tasks you have finished.", ic: IC.check, value: tasks ? (tc.completed || 0) : null, sub: tasks ? doneThisWeek(tasks.completed, today) + " done this week" : "Tasks unavailable", subKind: "ok", href: "#mytasksSection" });
       }
     }
 
@@ -1224,7 +1242,7 @@
       var tk = el("div", "hd-ticket hd-shift");
       tk.appendChild(stub(ds, true));
       var m = el("div", "hd-shift-m");
-      m.appendChild(el("b", "hd-shift-n", nextEv ? nextEv.name : (nextT.event_title || nextT.title || "Task")));
+      m.appendChild(el("b", "hd-shift-n", nextEv ? nextEv.name : (evTitleOf(nextT) || nextT.title || "Task")));
       var call = hhmm(nextEv && nextEv.time);
       if (call) { var cl = el("p", "hd-shift-call"); cl.appendChild(el("small", "hd-eyebrow", "Call time")); cl.appendChild(el("span", "hd-shift-t", call)); m.appendChild(cl); }
       var meta = el("p", "hd-tk-meta");
@@ -1248,7 +1266,7 @@
     (function () {
       var b = body(cAtt), items = [];
       function add(rank, kind, title, ctx, href, act, code, why) { items.push({ rank: rank, kind: kind, title: title, why: why, ctx: ctx, href: href, act: act, code: code }); }
-      ((tasks && tasks.overdue) || []).forEach(function (t) { add(1, "risk", t.title || "Task", [t.event_title, t.planned_end ? "due " + fmtDay(t.planned_end) : ""].filter(Boolean).join(" · "), t.quote_id ? evHref(t.quote_id) : "#mytasksSection", "Open", t.event_code, "Task overdue"); });
+      ((tasks && tasks.overdue) || []).forEach(function (t) { add(1, "risk", t.title || "Task", [evTitleOf(t), t.planned_end ? "due " + fmtDay(t.planned_end) : ""].filter(Boolean).join(" · "), t.quote_id ? evHref(t.quote_id) : "#mytasksSection", "Open", t.event_code, "Task overdue"); });
       if (vQuotes) rows.forEach(function (q) {
         if (q.status === "confirmed" && q.lifecycleStage !== "closed" && q.eventDate && String(q.eventDate).slice(0, 10) < today)
           add(2, "risk", qName(q), "event was " + fmtDay(q.eventDate), "settlement.html?quote=" + encodeURIComponent(q.id), "Settle", q.code, "Settlement pending");
@@ -1270,9 +1288,9 @@
         var dl = ER.daysUntil(q.eventDate);
         if (dl != null && dl >= 0 && dl <= erWin) add(3, "warn", qName(q), "check the checklist, staff and vendors", evHref(q.id), "Get ready", q.code, ER.chipText(dl));
       });
-      ((tasks && tasks.blocked) || []).forEach(function (t) { add(4, "warn", t.title || "Task", t.event_title || "", t.quote_id ? evHref(t.quote_id) : "#mytasksSection", "Unblock", t.event_code, "Task blocked"); });
+      ((tasks && tasks.blocked) || []).forEach(function (t) { add(4, "warn", t.title || "Task", evTitleOf(t), t.quote_id ? evHref(t.quote_id) : "#mytasksSection", "Unblock", t.event_code, "Task blocked"); });
       var folShows = !cFol.hidden && !signedOut;   // Follow-ups owns "waiting on a reply" (stale leads, unanswered quotes): no duplicates here
-      if (vLeads && !folShows) staleLeads.forEach(function (l) { add(5, "warn", l.name || "Unnamed lead", [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), "leads.html", "Reply", null, "Not contacted"); });
+      if (vLeads && !folShows) staleLeads.forEach(function (l) { add(5, "warn", l.name || "Unnamed lead", [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), "leads.html", eLeads ? "Reply" : "View", null, "Not contacted"); });   // r20-coord: view-only leads
       if (vQuotes && !folShows) rows.forEach(function (q) {
         if (q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed") && q.updatedAt && Date.now() - new Date(q.updatedAt).getTime() > 3 * DAY)
           var wd = Math.floor((Date.now() - new Date(q.updatedAt).getTime()) / DAY);
@@ -1454,7 +1472,7 @@
     /* ---- follow-ups: stale leads + quotes waiting on the client ---- */
     if (!cFol.hidden && !signedOut) (function () {
       var b = body(cFol), items = [];
-      if (vLeads) staleLeads.forEach(function (l) { items.push({ age: Date.now() - new Date(l.created_at).getTime(), who: l.name || "Unnamed lead", what: "New enquiry, not contacted", ctx: [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), href: "leads.html", act: "Reply" }); });
+      if (vLeads) staleLeads.forEach(function (l) { items.push({ age: Date.now() - new Date(l.created_at).getTime(), who: l.name || "Unnamed lead", what: "New enquiry, not contacted", ctx: [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), href: "leads.html", act: eLeads ? "Reply" : null }); });   // r20-coord: no Reply for leads view-only
       if (vQuotes) rows.forEach(function (q) {
         if (q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed") && q.updatedAt && Date.now() - new Date(q.updatedAt).getTime() > 3 * DAY)
           items.push({ age: Date.now() - new Date(q.updatedAt).getTime(), who: qName(q), what: "Quote " + (q.approvalStatus === "viewed" ? "viewed" : "sent") + ", no reply", ctx: [q.code, "for " + Math.floor((Date.now() - new Date(q.updatedAt).getTime()) / DAY) + " days"].filter(Boolean).join(" · "), href: evHref(q.id), act: "Follow up" });
@@ -1468,7 +1486,7 @@
         var ini = String(it.who).split(/\s+/).filter(Boolean).slice(0, 2).map(function (x) { return x.charAt(0).toUpperCase(); }).join("") || "•";
         li.appendChild(el("span", "hd-av", ini));
         var m = el("div", "hd-main"); m.appendChild(el("b", null, it.who)); m.appendChild(el("span", "hd-why hd-why-warn", it.what)); if (it.ctx) m.appendChild(el("small", null, it.ctx)); li.title = [it.who, it.what, it.ctx].filter(Boolean).join(" — "); li.appendChild(m);
-        li.appendChild(link(it.href, "hd-btn hd-ghost hd-sm", it.act)); ul.appendChild(li);
+        if (it.act) li.appendChild(link(it.href, "hd-btn hd-ghost hd-sm", it.act)); ul.appendChild(li);
       });
       b.appendChild(ul); seeMore(ul, ul.children);
       if (vLeads) { var ol = link("leads.html", "hd-btn hd-ghost hd-sm", "Open leads"); ol.appendChild(icon(IC.arrow)); b.appendChild(ol); }

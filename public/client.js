@@ -140,7 +140,10 @@
     const box = $("#filters"); box.textContent = "";
     const defs = [{ key: "all", label: "All", icon: "" }].concat(KINDS.filter((k) => m.sections.indexOf(k.key) >= 0));
     defs.forEach((d) => {
-      const n = d.key === "all" ? m.items.length : m.items.filter((i) => i.kind === d.key).length;
+      // r20-coord: Leads / Events count RECORDS (the same numbers as the header "1 lead · 1 event"), not timeline
+      // entries - one event has several (created, confirmed, each version), which showed "Events 3" for one event
+      const rec = (d.key === "leads" || d.key === "events") && typeof m.counts[d.key] === "number" ? m.counts[d.key] : null;
+      const n = d.key === "all" ? m.items.length : rec != null ? rec : m.items.filter((i) => i.kind === d.key).length;
       const b = el("button", "chip");
       b.type = "button"; b.dataset.k = d.key;
       b.setAttribute("aria-pressed", String(active === d.key));

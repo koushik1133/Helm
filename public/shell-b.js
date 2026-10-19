@@ -430,7 +430,8 @@
         chev.setAttribute("aria-label", "More create options"); chev.setAttribute("aria-haspopup", "menu"); chev.setAttribute("aria-expanded", "false");
         var cs = document.createElementNS(NS, "svg"); cs.setAttribute("viewBox", "0 0 24 24"); cs.setAttribute("class", "hb-svg"); cs.setAttribute("aria-hidden", "true");
         var cp = document.createElementNS(NS, "path"); cp.setAttribute("d", "M6 9l6 6 6-6"); cs.appendChild(cp); chev.appendChild(cs);
-        if (!ok[0]) { chev.classList.add("hb-solo"); chev.insertBefore(icon("plus"), cs); chev.insertBefore(el("span", null, "New"), cs); }
+        if (!ok[0]) { chev.classList.add("hb-solo"); chev.insertBefore(icon("plus"), cs); chev.insertBefore(el("span", null, "New"), cs);
+          chev.setAttribute("aria-label", "New - open the create menu"); chev.title = "New"; }   // r20-coord: icon-only on phones
         var menu = el("div", "hb-menu"); menu.setAttribute("role", "menu"); menu.hidden = true; menu.id = "hbCreateMenu";
         chev.setAttribute("aria-controls", menu.id);
         items.forEach(function (c) {

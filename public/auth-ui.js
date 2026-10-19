@@ -376,7 +376,7 @@
     card.appendChild(el("h2", { id: "hauTitle" }, section === "profile" ? "Your profile" : section === "settings" ? "Account settings" : "Your account"));
     card.appendChild(el("p", { class: "hau-muted" }, "Signed in as " + (u.email || "")));
     if (section !== "settings") {
-      if (st.profile && st.profile.validate && st.profile.update) card.appendChild(profileSection(st, focusProfile));
+      if (st.profile && st.profile.validate && st.profile.update) card.appendChild(profileSection(st, focusProfile, section === "profile"));
       else if (st.profile && st.profile.setMine) card.appendChild(displayNameSection(st));
     }
     panel._hauReturn = returnFocus;
@@ -1108,9 +1108,10 @@
     };
   }
   // "Your profile" (Account panel) — falls back to the display-name section without 0041
-  function profileSection(st, focusIt) {
+  // r20-coord: soloHead = the panel opened on the profile alone - its <h2> already says "Your profile", so no second heading
+  function profileSection(st, focusIt, soloHead) {
     var sec = el("div", { class: "hau-sec", id: "hauProfile" });
-    sec.appendChild(el("h3", { id: "hauProfileTitle" }, "Your profile"));
+    if (!soloHead) sec.appendChild(el("h3", { id: "hauProfileTitle" }, "Your profile"));
     var body = el("div", null); body.appendChild(el("p", { class: "hau-muted" }, "Loading…"));
     sec.appendChild(body);
     Promise.resolve(st.profile.mine()).then(function (p) {
@@ -1119,7 +1120,7 @@
       body.appendChild(el("p", { class: "hau-muted" }, "Teammates see your name, job title, department and photo."));
       if (!p.complete) body.appendChild(el("p", { class: "hau-muted", style: "font-weight:600" }, "Add your full name and mobile number to complete your profile."));
       var u = st.auth.user() || {};
-      var f = profileForm(st, { mode: "panel", idp: "hap", profile: p, email: u.email, labelledBy: "hauProfileTitle", submitLabel: "Save profile",
+      var f = profileForm(st, { mode: "panel", idp: "hap", profile: p, email: u.email, labelledBy: soloHead ? "hauTitle" : "hauProfileTitle", submitLabel: "Save profile",
         onSaved: function (row) { if (row && row.complete) hideProfileBanner(); } });
       body.appendChild(f.el);
       if (focusIt) { try { sec.scrollIntoView({ block: "start" }); } catch (e) {} f.focusFirst(); }

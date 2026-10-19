@@ -180,7 +180,7 @@
       <span class="when">${esc(fmtDate(c.date))}</span></div>`).join("")+sh.map(x=>`<div class="conflict${x.source==="vendor"||x.source==="buy"?" short-src":""}">
       <span class="ico" aria-hidden="true">📦</span>
       <div><div class="t">${esc(x.text)}<span class="ctype inventory">${x.source==="vendor"||x.source==="buy"?"sourcing":"unsourced"}</span></div>
-        <div class="d">${esc((x.event&&x.event.code)||"")}${x.event&&x.event.title?" · "+esc(x.event.title):""} — <a href="inventory.html?quote=${encodeURIComponent((x.event&&x.event.id)||"")}">open stock for this event</a></div></div>
+        <div class="d">${esc((x.event&&x.event.code)||"")}${x.event&&(x.event.title||x.event.eventType)?" · "+esc(evName(x.event)):""} — <a href="inventory.html?quote=${encodeURIComponent((x.event&&x.event.id)||"")}">open stock for this event</a></div></div>
       <span class="when">${esc(x.date?fmtDate(x.date):"no date")}</span></div>`).join("");
   }
 
@@ -238,7 +238,7 @@
       $("#nodate").querySelectorAll("[data-set]").forEach(inp=>inp.addEventListener("change",async()=>{
         if(!inp.value || !validDate(inp.value) || inp.dataset.busy) return;
         const ev=(nodate.find(a=>a.event.id===inp.dataset.set)||{}).event||{}, v=inp.value;
-        const label=ev.code&&ev.title&&ev.title!==ev.code?ev.code+" · "+ev.title:(ev.title||ev.code||"this event");
+        const nm=evName(ev), label=ev.code&&nm&&nm!=="Untitled event"?ev.code+" · "+nm:(ev.code||"this event");   // r20-coord: shared event name
         inp.dataset.busy="1";
         let ok=false; try{ ok=await BPUI.confirm("Set the date of "+label+" to "+fmtDate(v)+" ("+weekday(v)+")? It will move onto the calendar and be checked for clashes.",{title:"Set event date?",okLabel:"Set date",cancelLabel:"Cancel"}); }catch(e){ ok=false; }
         if(!ok){ inp.value=""; delete inp.dataset.busy; try{ inp.focus(); }catch(e){} return; }

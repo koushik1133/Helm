@@ -140,7 +140,7 @@
     <button id="archBtn" type="button" class="btn" aria-pressed="false" aria-controls="archivedView">Archived</button>
     <button id="newBtn" type="button" class="btn primary" hidden>＋ New lead</button>
   </div>
-  <div class="hintbar">Drag a card between columns to change its stage (on touch, press and hold a card first) · open a card to view, edit, change its stage or archive it.</div>
+  <div class="hintbar" id="boardHint">Drag a card between columns to change its stage (on touch, press and hold a card first) · open a card to view, edit, change its stage or archive it.</div>
 
   <section id="archivedView" class="archived" hidden aria-labelledby="archTitle">
     <h3 id="archTitle">Archived leads</h3>
@@ -768,6 +768,7 @@
       BPStore.auth.canView("quotes").catch(()=>false), BPStore.auth.canView("controls").catch(()=>false)]);
     if(!okView) return;
     canEdit=e1; canCreate=!!(c1&&e1); canDelete=!!(d1&&e1); canQuotes=!!q1;   // retest-1018: New lead / Convert need the create switch AND leads edit
+    { const hb=$("#boardHint"); if(hb && !canEdit) hb.textContent="Open a card to view it."; }   // r20-coord: view-only roles can't drag or change a lead
     $("#newBtn").hidden=!canCreate;
     if(cc1) $("#ccLink").hidden=false;   // QA1017: only roles that can open the Control Center (was: any leads editor)
     await load();
