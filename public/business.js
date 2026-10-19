@@ -1,5 +1,6 @@
-/* business.js — Business page bootstrap: auth gate (finance VIEW, same gate as the money
-   numbers in dashboard_money) then HelmMoney.mount. Read-only. */
+/* business.js — Business page bootstrap: auth gate (r20 / 0239: the "business" area VIEW - admin only by
+   default, a studio can switch it on per role in Control Center -> Roles & access; planners keep "finance"
+   for payments on events without seeing this page) then HelmMoney.mount. Read-only. */
 (function () {
   "use strict";
   function $(s) { return document.querySelector(s); }
@@ -24,7 +25,7 @@
     try { await BPStore.bell.mount($("#bell")); } catch (e) {}
     var A = BPStore.auth;
     if (A.enabled() && A.required() && !A.user()) { location.replace("login.html?next=" + encodeURIComponent(here())); return; }
-    var ok = !A.enabled() || await A.canView("finance");
+    var ok = !A.enabled() || await A.canView("business");
     if (!ok) { $("#noaccess").hidden = false; return; }
     var app = $("#bzApp"); app.hidden = false;
     await window.HelmMoney.mount(app);

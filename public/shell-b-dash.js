@@ -887,6 +887,10 @@
     // QA1017 (sales role): no "View all" links into pages this role cannot open, and no empty
     // "All quotes" list for a role without the quotes area (it only ever showed an empty state).
     var vCal = perms[5] && !signedOut;
+    // r20 / 0239: the Business page has its own area (admin only by default). A role without it (e.g. a planner
+    // with finance) gets the payment strip linked to the events list instead, or plain text without quotes either.
+    var vBiz = !signedOut && (await canView("business"));
+    var bizHref = vBiz ? "business.html" : vQuotes ? "quotes.html" : null;
     function dropMore(c) { var m = c && c.querySelector(".hd-more-link"); if (m) m.remove(); }
     if (!signedOut && !vCal) { dropMore(cCal); dropMore(cUp); }
     if (!signedOut && !vQuotes) { dropMore(cPipe); slotQuotes.classList.add("hd-off"); }
@@ -1033,7 +1037,9 @@
       clear(todayBar);
       todayBar.appendChild(el("span", "hd-today-lbl hd-eyebrow", "Today"));
       function seg(href, ic, txt, kind) {
-        var a = link(href, "hd-today-seg" + (kind ? " hd-today-" + kind : "")); a.appendChild(icon(ic, "hd-ic")); a.appendChild(txt); todayBar.appendChild(a); return a;
+        var cls = "hd-today-seg" + (kind ? " hd-today-" + kind : "");
+        var a = href ? link(href, cls) : el("span", cls);   /* r20: no link into a page this role cannot open */
+        a.appendChild(icon(ic, "hd-ic")); a.appendChild(txt); todayBar.appendChild(a); return a;
       }
       var evT = tEv.length ? tEv.length + (tEv.length === 1 ? " event" : " events") + (tEv.length === 1 && tEv[0].name ? " · " + tEv[0].name : "") : "No events";
       seg(tEv.length === 1 ? evHref(tEv[0].id) : "calendar.html", IC.cal, document.createTextNode(evT), tEv.length ? "on" : null);
@@ -1049,7 +1055,7 @@
           if (window.HelmMoney && HelmMoney.money) HelmMoney.money(amt); else amt.setAttribute("data-money", "");
           pt.appendChild(amt);
         } else pt.textContent = "No payments overdue";
-        seg(pOver.length === 1 && pOver[0].quote_id ? evHref(pOver[0].quote_id) : "business.html", IC.alert, pt, pOver.length ? "bad" : null);
+        seg(pOver.length === 1 && pOver[0].quote_id ? evHref(pOver[0].quote_id) : bizHref, IC.alert, pt, pOver.length ? "bad" : null);
       }
       todayBar.hidden = false; todayBar.classList.remove("hd-today-wait");
       /* 0121: payments due TODAY, added when the call answers (fail-soft: nothing shown if not installed) */
@@ -1065,7 +1071,7 @@
             if (window.HelmMoney && HelmMoney.money) HelmMoney.money(am); else am.setAttribute("data-money", "");
             dt.appendChild(am);
           } else dt.textContent = "No payments due today";
-          seg(list.length === 1 && list[0].quote_id ? evHref(list[0].quote_id) : "business.html", IC.cal, dt, list.length ? "on" : null);
+          seg(list.length === 1 && list[0].quote_id ? evHref(list[0].quote_id) : bizHref, IC.cal, dt, list.length ? "on" : null);
         }, function () {});
       }
     });

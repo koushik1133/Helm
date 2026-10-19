@@ -13,13 +13,14 @@ const tests = []; const t = (n, f) => tests.push([n, f]);
 
 const SHIPPED = ['0206', '0207', '0208', '0236', '0237', '0210', '0211', '0212', '0213', '0220', '0222', '0223'];
 const REL = ['0238'];
+const AFTER_1020 = ['0239'];   // r20 business (admin-only Business page): its own paste file APPLY-0239.sql, not in the frozen 1020 bundle
 const man = read('supabase/migrations/MANIFEST');
 const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
 const after = nums.filter((n) => +n > 205);
 t('MANIFEST: each migration number once; after 0205 in numeric order; the 1020 set = everything not shipped before', () => {
   assert.equal(new Set(nums).size, nums.length, 'duplicate migration number');
   assert.deepEqual([...after].sort(), after, 'numeric order after 0205');
-  assert.deepEqual(after.filter((n) => !SHIPPED.includes(n)), REL);
+  assert.deepEqual(after.filter((n) => !SHIPPED.includes(n) && !AFTER_1020.includes(n)), REL);
 });
 t('APPLY-RELEASE-1020.sql is current', () => {
   const r = spawnSync(process.execPath, ['scripts/gen-apply-release-1020.mjs', '--check'], { cwd: root, encoding: 'utf8' });
