@@ -790,3 +790,22 @@ header #clientImgBtn.trial-off,html.helm-trial header #clientImgBtn{display:none
 /* 3D: the same zoom / fit buttons drive the 3D camera (builder.js in3D()), so the bar stays; the 2D zoom % is hidden */
 .viewport.is3d .fabstack .zoombar{display:flex}
 .viewport.is3d .fabstack .zoombar .z{display:none}
+
+/* ===================== r21 builder hover: the builder's own tooltip (builder-tooltip.js) ===================== */
+/* Replaces the browser's native title box: small, follows the theme tokens of the control it describes, opens below
+   the whole header for toolbar controls (never over a toolbar row), never on touch. */
+.btip{position:fixed;left:0;top:0;z-index:2147483000;pointer-events:none;display:inline-flex;align-items:center;gap:8px;
+  max-width:360px;padding:5px 9px;border-radius:7px;background:var(--panel,#fff);color:var(--ink-2,#3a3a3a);
+  border:1px solid var(--line,#e5e5e5);box-shadow:0 1px 2px color-mix(in srgb,var(--ink,#000) 8%,transparent),0 8px 22px -10px color-mix(in srgb,var(--ink,#000) 30%,transparent);
+  font:500 12px/1.35 var(--font,system-ui,-apple-system,"Segoe UI",sans-serif);letter-spacing:0;text-transform:none;white-space:normal;
+  opacity:0;transform:translateY(-2px);transition:opacity .12s ease,transform .12s ease}
+.btip[hidden]{display:none}
+.btip.on{opacity:1;transform:none}
+.btip[data-side="above"]{transform:translateY(2px)}
+.btip[data-side="above"].on{transform:none}
+.btip-t{min-width:0;overflow-wrap:anywhere}
+.btip-k{flex:none;font:600 10.5px/1 var(--mono,ui-monospace,monospace);color:var(--ink-3,#666);background:var(--panel-2,#f6f6f6);
+  border:1px solid var(--line,#e5e5e5);border-radius:4px;padding:2px 5px}
+.btip-k[hidden]{display:none}
+@media (hover:none){ .btip{display:none!important} }
+@media (prefers-reduced-motion:reduce){ .btip{transition:none} }
