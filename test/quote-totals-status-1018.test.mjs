@@ -145,12 +145,12 @@ await t('live dashboard (shell-b-dash): pills + calendar tone use the one label'
 await t('live dashboard (shell-b-money): Upcoming row = invoice total + one label', () => {
   const SM = read('public/shell-b-money.js');
   assert.match(SM, /\(pu && pv > 0 \? qMoneyN\(pv, q\) : qMoney\(q\)\)/, 'server value (pricing.total + approved change orders) first');
-  assert.match(SM, /q\.client && q\.client\.name, qLabel\(q\)\]/);
+  assert.match(SM, /q\.client && q\.client\.name && plainName\(q\.client\.name\), qLabel\(q\)\]/);   // r21 business ui: sample prefix dropped from the client line
   assert.ok(!/q\.status === "confirmed" \? "Confirmed" : "Tentative"\]\.filter/.test(SM), 'old status-only label gone');
   const a = SM.indexOf('  function qLabel(q)'); const src = SM.slice(a, SM.indexOf('\n', SM.indexOf('return q.status', a)) + 1);
   const S = load(); const qLabel = new Function('S', src + '\nreturn qLabel;')(() => S);
   assert.equal(qLabel({ status: 'confirmed', approvalStatus: 'sent' }), 'Sent · awaiting client approval');
-  const BIZ = read('public/business.html'); assert.match(BIZ, /shell-b-money\.js\?v=8/);
+  const BIZ = read('public/business.html'); assert.match(BIZ, /shell-b-money\.js\?v=9/);
 });
 
 await t('list: the reference code never wraps', () => {
