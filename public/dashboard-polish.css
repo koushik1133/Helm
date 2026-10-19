@@ -15,3 +15,16 @@
 
 /* dash-prompts.js: only one setup-style prompt at a time (demo data -> setup -> two-step) */
 .dp-defer { display: none !important; }
+
+/* r21 mobile: dashboard top bar on phones. shell-b-pages.css squeezes the four icon buttons to 36px, 2px apart, with a
+   26px create-menu caret. Give the caret a usable 30px everywhere, and on 414-480px phones (iPhone Plus / Pro Max,
+   16 Pro at 440) 40px buttons with a 4px gap - the page title still keeps >= 100px. 360-413px keeps the tight row.
+   ("body" in the selector: this file loads before the shell's own CSS, so it needs the extra specificity.) */
+@media (max-width: 480px) {
+  html[data-shell="b"] body header.hb-header .hb-split .hb-chev:not(.hb-solo) { width: 30px; min-width: 30px; padding: 0; justify-content: center; }
+}
+@media (min-width: 414px) and (max-width: 480px) {
+  html[data-shell="b"] body header.hb-header .hb-tools { gap: 4px; }
+  html[data-shell="b"] body header.hb-header :is(.hb-burger, .hb-tools .hb-ibtn, .hb-tools .hb-bell .bpb-btn) { width: 40px; min-width: 40px; }
+  html[data-shell="b"] body header.hb-header .hb-split .hb-chev:not(.hb-solo) { width: 34px; min-width: 34px; }
+}

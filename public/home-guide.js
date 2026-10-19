@@ -6,7 +6,11 @@
     get: function () { try { return window.localStorage.getItem(KEY); } catch (e) { return null; } },
     set: function () { try { window.localStorage.setItem(KEY, '1'); } catch (e) { /* storage blocked: fine */ } }
   };
-  if (store.get()) return;
+  /* r21 mobile: the guide never floats over the page on phones/tablets (<768px) or after
+     "Don't show again"; it is still one tap away from the in-page "Ask the trial guide" buttons
+     ([data-guide-open]), which open it as a bottom sheet on small screens. */
+  var muted = !!store.get();
+  var smallMq = window.matchMedia('(max-width: 767px)');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var TRIAL = '/login?trial=1#signup', SALES = 'mailto:sales@helm.events?subject=Helm%20demo';
 
@@ -75,16 +79,31 @@
   }
 
   function focusables() { return Array.prototype.slice.call(panel.querySelectorAll('button, a[href]')).filter(function (x) { return x.offsetParent !== null; }); }
-  function toggle(open) {
+  var opener = null;   /* the in-page button that opened the guide, for focus return */
+  function floating() { return !muted && !smallMq.matches; }
+  function toggle(open, from) {
     panel.hidden = !open; root.classList.toggle('open', open); launcher.setAttribute('aria-expanded', String(open));
+    root.classList.toggle('sheet', open && smallMq.matches);
+    document.body.classList.toggle('hg-sheet-open', open && smallMq.matches);
     if (open) {
+      opener = from || null;
+      root.classList.add('show');
       if (!started) { started = true; run('hello'); }
       requestAnimationFrame(function () { close.focus(); });
-    } else launcher.focus();
+    } else {
+      if (!shown || !floating()) root.classList.remove('show');
+      var back = opener && document.contains(opener) ? opener : (floating() ? launcher : null);
+      opener = null;
+      if (back) back.focus({ preventScroll: true });
+    }
   }
   launcher.addEventListener('click', function () { toggle(panel.hidden); });
   close.addEventListener('click', function () { toggle(false); });
-  mute.addEventListener('click', function () { store.set(); timers.forEach(clearTimeout); root.remove(); });
+  mute.addEventListener('click', function () { store.set(); muted = true; shown = false; toggle(false); });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-guide-open]'), function (b) {
+    b.hidden = false;
+    b.addEventListener('click', function () { toggle(true, b); });
+  });
   panel.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') { e.preventDefault(); toggle(false); return; }
     if (e.key !== 'Tab') return;
@@ -97,7 +116,7 @@
   /* appear after a short delay AND some scroll depth, so it never interrupts the hero */
   var shown = false, timeOk = false;
   function maybeShow() {
-    if (shown || !timeOk) return;
+    if (shown || !timeOk || !floating()) return;
     var depth = (window.scrollY || 0) / Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
     if (depth < 0.12) return;
     shown = true; root.classList.add('show'); window.removeEventListener('scroll', maybeShow);

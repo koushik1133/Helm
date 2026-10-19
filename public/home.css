@@ -1216,13 +1216,9 @@ video.mimg{background:#1a231e}
  .mframe{border-radius:16px}
  .mseg{justify-content:center;margin:12px auto 0;flex-wrap:wrap}
  .mstages li{padding:6px 0 6px 12px}.mstages b{font-size:16px}
- .mcta{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:55;gap:8px;padding:10px 12px max(10px,env(safe-area-inset-bottom));background:rgba(245,246,241,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);transform:translateY(110%);visibility:hidden;transition:transform .35s var(--out),visibility 0s linear .35s}
+ .mcta{display:flex;align-items:center;position:fixed;left:0;right:0;bottom:0;z-index:55;gap:8px;padding:8px 8px max(8px,env(safe-area-inset-bottom)) 12px;background:rgba(245,246,241,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);transform:translateY(110%);visibility:hidden;transition:transform .35s var(--out),visibility 0s linear .35s}
  .mcta.on{transform:none;visibility:visible;transition:transform .35s var(--out)}
- .mcta .btn{flex:1;min-height:48px;padding:6px 6px 6px 16px;font-size:14px;white-space:nowrap}
- .mcta .btn-line{flex:0 0 auto;padding:6px 16px}
- .mcta .btn .bi{width:34px;height:34px}
  body.has-mcta .hg{bottom:calc(max(16px,env(safe-area-inset-bottom)) + 80px)}
- body.has-mcta .foot{padding-bottom:80px}
 }
 @media (max-width:767px) and (prefers-reduced-motion:reduce){.snap{scroll-behavior:auto;scroll-snap-type:x proximity}.mcta,.mcta.on{transition:none}}
 /* client portal reel (auto-scrolling phone screen) */
@@ -1248,3 +1244,57 @@ video.mimg{background:#1a231e}
 @media (prefers-reduced-motion:reduce){.rl-track{animation:none}.pscr.rl{overflow-y:auto}.rl-seg+.rl-seg{display:none}}
 /* Helm logo: brand-kit shape recoloured (Emerald): ink = H + ELM, acc = compass points, ring */
 .lockup{height:32px;width:auto;display:block}.hl-ink{fill:#0b5d44}.hl-acc{fill:#2fcf98;stroke:#2fcf98}.hl-ring{stroke:#1aa37a}
+
+/* ===================== r21 mobile: hero polish, slim bottom bar, tap targets ===================== */
+.ew-s{display:none}
+.mcta-x{display:none}
+@media (max-width:767px){
+ /* hero: tighter pill, fluid headline, shorter measure, one clean CTA stack */
+ .hero{padding-top:calc(var(--navh) + 20px)}
+ .hero .eyebrow{font-size:10.5px;letter-spacing:.11em;padding:7px 14px 7px 12px;margin-bottom:18px;white-space:nowrap;max-width:100%}
+ .ew-l{display:none}.ew-s{display:inline}
+ .hl{font-size:clamp(38px,11.2vw,56px);line-height:.98;letter-spacing:-.042em;max-width:none}
+ .hero .lede{font-size:16px;line-height:1.55;max-width:34ch;margin:18px auto 24px}
+ .hero .cta-row{flex-direction:column;align-items:stretch;gap:10px;max-width:340px;margin:0 auto}
+ .hero .cta-row .btn{width:100%;min-height:52px}
+ .hero .cta-row .btn-dark{justify-content:space-between;padding-left:24px}
+ .hero-alt{margin-top:8px}
+ .hero-alt .link-d{min-height:44px}
+ .hero .fine{font-size:14px;line-height:1.5;max-width:30ch;margin:6px auto 0}
+ /* trust ticker: softer fade at both edges so the cut-off reads as intentional */
+ .trust{margin-top:28px;padding:20px 0 4px;mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
+ .track span{font-size:14px;padding:0 18px;gap:8px}.track svg{font-size:18px}
+ /* film card: taller than the desktop letterbox (16:7.8) so the 3D scene reads on a phone; still trims the film's burnt-in corner labels */
+ .hero-vid{margin-top:28px}
+ .hv-card .stage-frame.has-video{aspect-ratio:16/8;border-radius:20px}
+ .hv-play{width:44px;height:44px;right:10px;top:10px}
+ .hv-prog{max-width:none}
+ .hv-seg{height:44px;padding:20px 0}.hv-seg b{top:20px}
+ /* slim, dismissible bottom bar (only after the hero has scrolled away) */
+ .mcta .btn{min-height:44px;font-size:14px;white-space:nowrap}
+ .mcta .btn-dark{flex:1;padding:4px 4px 4px 16px;justify-content:space-between}
+ .mcta .btn-dark .bi{width:34px;height:34px}
+ .mcta .btn-line{flex:0 0 auto;padding:4px 14px;background:#fff}
+ .mcta-x{display:grid;place-items:center;flex:none;width:44px;height:44px;margin-left:-4px;border:0;border-radius:50%;background:transparent;color:var(--mute);cursor:pointer}
+ .mcta-x svg{width:18px;height:18px;stroke-width:1.8}
+ .mcta-x:active{background:rgba(16,21,17,.06)}
+ body.lock .mcta{transform:translateY(110%);visibility:hidden}
+ /* reserve the bar's height at the very end of the page all the time (no jump when it toggles) */
+ .foot{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+ body.mcta-off .foot{padding-bottom:30px}
+ /* tap targets >= 44px for standalone links and small toggles */
+ .brand{min-height:44px}
+ .link-d,.link-w,.skip{min-height:44px}
+ details p .link-d{min-height:0}
+ .foot .fgr>div>a:not(.brand){padding:10px 0}
+ .ct-mails a{display:inline-flex;align-items:center;min-height:44px}
+ .munits button{min-width:44px;min-height:44px}
+ /* pricing row is itself a .wrap (not inside one): no negative gutter, so card 1 doesn't touch the screen edge */
+ .wrap.snap{margin-left:0!important;margin-right:0!important}
+ /* readable small print */
+ .fine,.fine-d,.note-s{font-size:14px}
+}
+@media (max-width:359px){.hero .eyebrow{white-space:normal;letter-spacing:.08em}}
+/* footer: keep two link columns on phones (one column made a ~2-screen-long list) */
+@media (min-width:340px) and (max-width:400px){.fgr{grid-template-columns:1fr 1fr;column-gap:16px}}
+@media (max-width:479px){.nav.menu-open .mg-grid,.nav.menu-open .mg-grid.two{grid-template-columns:1fr}}
