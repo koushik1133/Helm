@@ -45,6 +45,7 @@ run "ui-fixes"           "UI-FIXES: ALL PASS \(27/27\)" psql -q -f tests/db/ui-f
 run "wa-proposal-0151"   "WA-PROPOSAL-0151: ALL PASS \(24/24\)" psql -q -f tests/db/wa-proposal-0151.sql
 run "audit-medium-0155"  "AUDIT-MEDIUM-0155: ALL PASS \(37/37\)" psql -q -f tests/db/audit-medium-0155.sql
 run "mfa-verify-hook-0158" "MFA-VERIFY-HOOK-0158: ALL PASS \(15/15\)" psql -q -f tests/db/mfa-verify-hook-0158.sql
+run "r21-reserved-domain-0248" "R21-RESERVED-DOMAIN-0248: ALL PASS \(42/42\)" psql -q -f tests/db/r21-reserved-domain-0248.sql
 run "privacy-pin-0157"   "PRIVACY-PIN-0157: ALL PASS \(30/30\)" psql -q -f tests/db/privacy-pin-0157.sql
 run "direct-studio-0159" "DIRECT-STUDIO-0159: ALL PASS \(30/30\)" psql -q -f tests/db/direct-studio-0159.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
@@ -195,6 +196,13 @@ run "trial-seed-0222" "TRIAL-SEED-0222: ALL PASS \(18/18\)" psql -q -f tests/db/
 # 0239 re-applies itself (the fixture studios are made after the clean install; also proves a re-run is safe)
 run "r20-business-0239" "R20-BUSINESS-0239: ALL PASS \(34/34\)" psql -q -f tests/db/r20-business-0239.sql
 run "insights-costs-0240" "INSIGHTS-COSTS-0240: ALL PASS \(18/18\)" psql -q -f tests/db/insights-costs-0240.sql
+run "r21-target-margin-0242" "R21-TARGET-MARGIN-0242: ALL PASS \(23/23\)" psql -q -f tests/db/r21-target-margin-0242.sql
+# 0241 re-applies itself (fixture studios are made after the clean install; also proves a re-run is safe)
+run "r21-reminders-0241" "R21-REMINDERS-0241: ALL PASS \(69/69\)" psql -q -f tests/db/r21-reminders-0241.sql
+# 0246 re-applies itself (fixture events are made after the clean install; proves a re-run is safe)
+run "r21-money-0246" "R21-MONEY-0246: ALL PASS \(32/32\)" psql -q -f tests/db/r21-money-0246.sql
+# 0244 re-applies itself twice (re-run safe) after every suite that re-applies 0045 / 0183 / 0185
+run "r21-trial-paid-0244" "R21-TRIAL-PAID-0244: ALL PASS \(56/56\)" psql -q -f tests/db/r21-trial-paid-0244.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

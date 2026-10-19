@@ -88,6 +88,20 @@ do $$ declare r jsonb; e text; x jsonb; y jsonb; pnl jsonb; begin
   perform pg_temp.res('08 tenant scope: studio B event never listed', position('ICB-1' in r::text) = 0 and position('777777' in r::text) = 0);
   select v into x from jsonb_array_elements(r -> 'events') v where v ->> 'code' = 'IC-1';
   select v into y from jsonb_array_elements(r -> 'events') v where v ->> 'code' = 'IC-5';
+  -- r21: once 0246 (event money ledger) has re-issued insights_event_costs (x.rules = 'r21') the split follows the
+  -- 0246 ledger (r21-money-0246.sql checks its numbers); here only the invariants that must hold either way.
+  if x ->> 'rules' = 'r21' then
+    perform pg_temp.res('09 vendors = one source per booking + larger loose source', (x ->> 'vendors')::numeric >= 12000, x::text);
+    perform pg_temp.res('10 logistics / crew (actual over estimate) / rentals classified',
+      (x ->> 'logistics')::numeric = 6000 and (x ->> 'crew')::numeric = 7500 and (x ->> 'rentals')::numeric >= 3000, x::text);
+    perform pg_temp.res('11 change orders + other + expense claims (paid only) + refunds (processed only)',
+      (x ->> 'change_orders')::numeric = 2000 and (x ->> 'refunds')::numeric = 1500 and (x ->> 'expense_claims')::numeric >= 1000, x::text);
+    perform pg_temp.res('12 parts add up to cost_total; revenue - cost_total = profit',
+      (x ->> 'vendors')::numeric + (x ->> 'crew')::numeric + (x ->> 'logistics')::numeric + (x ->> 'rentals')::numeric
+      + (x ->> 'change_orders')::numeric + (x ->> 'other_costs')::numeric + (x ->> 'expense_claims')::numeric + (x ->> 'refunds')::numeric
+      + coalesce((x ->> 'wages')::numeric, 0) + coalesce((x ->> 'damages')::numeric, 0) = (x ->> 'cost_total')::numeric
+      and (x ->> 'revenue')::numeric = 110000 and (x ->> 'revenue')::numeric - (x ->> 'cost_total')::numeric = (x ->> 'profit')::numeric, x::text);
+  else
   -- vendors: DJ line 5000 + Tent booking 3000 + max(loose bill 4000, loose vendor line 2500) = 12000
   perform pg_temp.res('09 vendors = one source per booking + larger loose source', (x ->> 'vendors')::numeric = 12000, x::text);
   perform pg_temp.res('10 logistics / crew (actual over estimate) / rentals classified',
@@ -100,6 +114,7 @@ do $$ declare r jsonb; e text; x jsonb; y jsonb; pnl jsonb; begin
     and (x ->> 'vendors')::numeric + (x ->> 'crew')::numeric + (x ->> 'logistics')::numeric + (x ->> 'rentals')::numeric
       + (x ->> 'change_orders')::numeric + (x ->> 'other_costs')::numeric + (x ->> 'expense_claims')::numeric + (x ->> 'refunds')::numeric = 43000
     and (x ->> 'revenue')::numeric = 110000 and (x ->> 'profit')::numeric = 67000 and (x ->> 'margin_pct')::numeric = 61, x::text);
+  end if;
   pnl := public.event_pnl('a0000000-0000-4000-8000-0000000240e1');
   perform pg_temp.res('13 profit equals event_pnl net_profit (one profit everywhere)',
     (pnl ->> 'net_profit')::numeric = (x ->> 'profit')::numeric and (pnl ->> 'revenue')::numeric = (x ->> 'revenue')::numeric, pnl::text);

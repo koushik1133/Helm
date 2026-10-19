@@ -14,8 +14,8 @@
     { k: "rentals", label: "Rentals & inventory" }, { k: "expense_claims", label: "Expense claims" },
     { k: "change_orders", label: "Change orders" }, { k: "other_costs", label: "Miscellaneous" }, { k: "refunds", label: "Refunds to client" }
   ];
-  var DEFAULT_TARGET = 30;           // target margin % when the viewer has not set one (saved per device)
-  var TARGET_KEY = "helm_ins_target_margin";
+  var DEFAULT_TARGET = 30;           // target margin % until the studio sets one (Control Center, 0242)
+  var TARGET_KEY = "helm_ins_target_margin";   // retired per-device value (before 0242): offered once to the studio, then removed
 
   /* ---------------- pure helpers ---------------- */
   function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
@@ -92,7 +92,7 @@
       });
       var cpgHigh = peer && out.costPerGuest != null && peer.costPerGuest != null && peer.costPerGuest > 0 && out.costPerGuest / peer.costPerGuest >= 1.15;
       if (out.badge === "good" && !worst) {
-        out.why = "Margin " + margin + "% - " + (margin - target === 0 ? "on" : (margin - target) + " pts above") + " your " + target + "% target" +
+        out.why = "Margin " + margin + "% - " + (margin - target === 0 ? "on" : Math.round((margin - target) * 10) / 10 + " pts above") + " your " + target + "% target" +
           (peer && peer.margin != null ? " (" + Math.round(peer.margin) + "%" + where + ")" : "") + ".";
       } else if (worst) {
         out.why = worst.k.label + " " + fmtPct(worst.a) + " of revenue vs " + fmtPct(worst.b) + where + ".";
@@ -150,15 +150,18 @@
   /* ---------------- DOM helpers ---------------- */
   function H(tag, cls, text, parent) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
   function S(tag, attrs, parent) { var e = document.createElementNS(NS, tag); for (var k in attrs) if (attrs[k] != null) e.setAttribute(k, String(attrs[k])); if (parent) parent.appendChild(e); return e; }
-  function readTarget() { try { var v = Number(localStorage.getItem(TARGET_KEY)); if (v >= -50 && v <= 95 && String(localStorage.getItem(TARGET_KEY) || "") !== "") return Math.round(v); } catch (e) {} return DEFAULT_TARGET; }
-  function saveTarget(v) { try { localStorage.setItem(TARGET_KEY, String(v)); } catch (e) {} }
+  /* r21 (0242): the target margin is ONE studio-wide value (Control Center). The old per-device value is only read
+   * to offer it once to someone who can edit Control Center, then removed. */
+  function readDeviceTarget() { try { var raw = String(localStorage.getItem(TARGET_KEY) || "").trim(), v = Number(raw); if (raw !== "" && isFinite(v)) return Math.round(v); } catch (e) {} return null; }
+  function forgetDeviceTarget() { try { localStorage.removeItem(TARGET_KEY); } catch (e) {} }
 
   /* ---------------- the component ---------------- */
   /* mount(costHost, benchHost, ctx) -> { set(data), clear(msg) }
    *   ctx.money(n, currency) - formatted amount; ctx.hidden() - amounts hidden?; ctx.href(id) - event link;
    *   ctx.fmtDate(d); ctx.studioCurrency() ; data = { rows (benchmark window), from, to } */
   function mount(costHost, benchHost, ctx) {
-    var st = { rows: [], from: null, to: null, sel: "all", cur: null, target: readTarget(), msg: "" };
+    var st = { rows: [], from: null, to: null, sel: "all", cur: null, target: DEFAULT_TARGET, msg: "", ready: false,
+      tm: { loaded: false, missing: false, studio: null, canEdit: false, offer: null, busy: false, err: "" } };
     var hidden = function () { try { return !!ctx.hidden(); } catch (e) { return false; } };
     var M = function (n, c) { return hidden() ? MASK : ctx.money(n, c); };
     var inPeriod = function (r) { var d = String(r.date || "").slice(0, 10); return (!st.from || d >= st.from) && (!st.to || d <= st.to); };
@@ -390,15 +393,54 @@
       if (benchHost) renderBench(benchHost, period, bmBy, c);
     }
 
+    /* once: this device had its own target before 0242 and the studio has none yet - offer it to an editor */
+    function renderOffer(host) {
+      var v = st.tm.offer, box = H("div", "ic-offer", null, host); box.setAttribute("role", "region"); box.setAttribute("aria-label", "Studio target margin");
+      H("p", null, "This device used a " + fmtPct(v) + " target margin. Targets are now one setting for the whole studio (currently the " + DEFAULT_TARGET + "% default).", box);
+      var acts = H("div", "ic-offer-acts", null, box);
+      var yes = H("button", "btn primary sm", "Save " + fmtPct(v) + " for the whole studio", acts); yes.type = "button";
+      var no = H("button", "btn sm", "Keep " + DEFAULT_TARGET + "%", acts); no.type = "button";
+      var m = H("span", "ic-offer-msg", st.tm.err || "", acts); m.setAttribute("role", "status"); m.setAttribute("aria-live", "polite");
+      yes.disabled = no.disabled = !!st.tm.busy;
+      yes.addEventListener("click", function () {
+        if (st.tm.busy || !ctx.saveTargetMargin) return; st.tm.busy = true; st.tm.err = ""; yes.disabled = no.disabled = true; m.textContent = "Saving…";
+        Promise.resolve().then(function () { return ctx.saveTargetMargin(v); }).then(function (d) {
+          var p = d && d.target_margin_pct != null ? Number(d.target_margin_pct) : v;
+          st.tm.studio = p; st.target = p; st.tm.offer = null; st.tm.busy = false; forgetDeviceTarget(); render();
+        }, function (e) { st.tm.busy = false; st.tm.err = "Couldn't save: " + ((e && e.message) || "try again."); render(); });
+      });
+      no.addEventListener("click", function () { st.tm.offer = null; st.tm.err = ""; forgetDeviceTarget(); render(); });
+    }
+    function loadTarget() {
+      if (typeof ctx.targetMargin !== "function") { st.tm.loaded = true; return; }
+      Promise.resolve().then(function () { return ctx.targetMargin(); }).then(function (d) {
+        st.tm.loaded = true;
+        if (!d) {   // server older than 0242 (or signed out): keep this device's old value until the update, else 30
+          var dv = readDeviceTarget(); st.tm.missing = true; st.target = dv != null && dv >= 0 && dv <= 90 ? dv : DEFAULT_TARGET;
+        } else {
+          var p = d.target_margin_pct == null ? null : Number(d.target_margin_pct), dev = readDeviceTarget();
+          st.tm.missing = false; st.tm.canEdit = !!d.can_edit;
+          st.tm.studio = p != null && isFinite(p) ? p : null; st.target = st.tm.studio != null ? st.tm.studio : DEFAULT_TARGET;
+          if (dev != null && st.tm.studio == null && st.tm.canEdit && dev >= 0 && dev <= 90 && dev !== DEFAULT_TARGET) st.tm.offer = dev;
+          else if (dev != null) forgetDeviceTarget();   // the studio value wins; the per-device setting is retired
+        }
+        if (st.ready) render();
+      }, function () { st.tm.loaded = true; /* keep the default; the cards still work */ });
+    }
+
     function renderBench(host, period, bmBy, c) {
       var top = H("div", "ic-tools", null, host);
-      /* hbp-skip: a percent, not money - the privacy screen leaves it readable */
-      var fl = H("label", "ic-f ic-target hbp-skip", null, top); H("span", null, "Target margin", fl);
-      var w = H("span", "ic-pct", null, fl), inp = H("input", null, null, w); inp.type = "number"; inp.min = "-50"; inp.max = "95"; inp.step = "1"; inp.inputMode = "numeric"; inp.value = String(st.target); inp.id = "icTarget";
-      inp.setAttribute("aria-describedby", "icTargetNote"); H("span", null, "%", w);
-      var apply = function () { var v = Math.round(Number(inp.value)); if (!(v >= -50 && v <= 95)) { inp.value = String(st.target); return; } if (v !== st.target) { st.target = v; saveTarget(v); render(); } };
-      inp.addEventListener("change", apply); inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); apply(); } });
-      var nt = H("span", "ic-note", "Saved on this device (default " + DEFAULT_TARGET + "%). Typical = your own median for the same event type over the last 12 months.", top); nt.id = "icTargetNote";
+      /* hbp-skip: a percent, not money - the privacy screen leaves it readable. Read-only here: the ONE studio-wide
+       * target is set in Control Center -> Pricing (0242), so everyone in the studio sees the same colours. */
+      var fl = H("div", "ic-f ic-target hbp-skip", null, top); H("span", null, "Target margin", fl);
+      var tv = H("b", "ic-tval", fmtPct(st.target), fl); tv.id = "icTarget";
+      var nt = H("span", "ic-note", null, top); nt.id = "icTargetNote";
+      nt.appendChild(document.createTextNode(st.tm.missing ? "Default " + DEFAULT_TARGET + "% - a studio-wide target needs database update 0242. "
+        : (st.tm.studio == null ? "Studio default (" + DEFAULT_TARGET + "%), the same for everyone. " : "Set for the whole studio, the same for everyone. ")));
+      if (!st.tm.missing && st.tm.canEdit) { var cl = H("a", "ic-tlink", "Change in Control Center", nt); cl.href = "control.html#target-margin"; nt.appendChild(document.createTextNode(". ")); }
+      else if (!st.tm.missing) nt.appendChild(document.createTextNode("An admin can change it in Control Center. "));
+      nt.appendChild(document.createTextNode("Typical = your own median for the same event type over the last 12 months."));
+      if (st.tm.offer != null) renderOffer(host);
       if (!period.length) { H("div", "ic-empty", "No confirmed events in this period.", host); return; }
       var counts = { good: 0, watch: 0, poor: 0, na: 0 };
       period.forEach(function (r) { var b = bmBy[r.id]; if (b) counts[b.badge]++; });
@@ -426,6 +468,8 @@
       H("p", "ic-note", "On target = margin at or above the target. Watch = up to 10 points below. Below target = more than 10 points below, or a loss. Cost per guest needs the guest count on the event. Click a row to see that event's costs.", host);
     }
 
+    loadTarget();
+
     /* re-draw when the eye button hides / shows amounts, and when the width changes (crisp text at every size) */
     var lastHidden = hidden();
     try { new MutationObserver(function () { var h = hidden(); if (h !== lastHidden) { lastHidden = h; render(); } }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
@@ -433,9 +477,10 @@
     try { window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { var w = costHost.clientWidth; if (Math.abs(w - lastW) > 24) { lastW = w; render(); } }, 180); }); } catch (e) {}
 
     return {
-      set: function (data) { st.rows = Array.isArray(data && data.rows) ? data.rows : []; st.from = (data && data.from) || null; st.to = (data && data.to) || null; st.msg = ""; lastW = costHost.clientWidth; render(); },
-      clear: function (msg) { st.rows = []; st.msg = msg || ""; render(); },
-      select: function (id) { pick(id); }
+      set: function (data) { st.ready = true; st.rows = Array.isArray(data && data.rows) ? data.rows : []; st.from = (data && data.from) || null; st.to = (data && data.to) || null; st.msg = ""; lastW = costHost.clientWidth; render(); },
+      clear: function (msg) { st.ready = true; st.rows = []; st.msg = msg || ""; render(); },
+      select: function (id) { pick(id); },
+      target: function () { return st.target; }
     };
   }
 

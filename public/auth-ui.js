@@ -1810,7 +1810,7 @@
     if (!t || typeof t !== "object" || t.is_admin !== true || t.can_pay !== true) return null;
     if (t.state === "ended") return { id: "hauTrialNote", tone: "urgent", urgent: true, dismissible: false,
       title: "Your trial has ended — choose a plan to keep using Helm",
-      body: "Your data is safe. Pick a plan to keep your team, events and clients running." };
+      body: "Your data is kept for 60 days after the trial ends, and we remind you before anything is deleted. Pick a plan to keep your team, events and clients running." };   // r21: the one retention promise
     if (t.state !== "trial") return null;
     var n = Math.max(0, Math.floor(Number(t.days_left)));
     if (!isFinite(n)) return null;

@@ -17,6 +17,20 @@ window.HELM_FEATURES = Object.assign({ integrationsPage: /^(localhost|127\.0\.0\
 // role gets no entry and /manual says "coming soon" (no storage fetch). true = every signed-in role, false = nobody.
 window.HELM_FEATURES = Object.assign({ manual: "admin" }, window.HELM_FEATURES);
 window.helmManualFor = function (role) { var f = window.HELM_FEATURES && window.HELM_FEATURES.manual; return f === true || (f === "admin" && String(role || "") === "admin"); };
+// r21 (owner fills these in): Helm's OWN bank / UPI details shown on /checkout ("Pay by UPI or bank transfer") while
+// online payment is off. Public on purpose (customers pay to them) - put ONLY the receiving details here, never a
+// password, PIN or API key. An empty value is not shown; with everything empty the page says our team sends the
+// details with the plan confirmation. HQ then confirms the payment with Studios -> "Activate plan".
+window.HELM_PAY_MANUAL = Object.assign({
+  upiId: "",          // e.g. "helmevents@okaxis"
+  payeeName: "",      // the UPI payee / company name, e.g. "Helm Events Pvt Ltd"
+  accountName: "",    // bank account holder name
+  accountNumber: "",  // bank account number
+  ifsc: "",           // IFSC code
+  bankName: "",       // bank name
+  branch: "",         // branch (optional)
+  note: ""            // optional line under the details (default: send us the UTR / reference, same-day activation)
+}, window.HELM_PAY_MANUAL || {});
 window.SUPABASE_CONFIG = {
   url: "https://nqltzgiwznphugcfhmbm.supabase.co",
   anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xbHR6Z2l3em5waHVnY2ZobWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTg5NDYsImV4cCI6MjEwNDk3NDk0Nn0.UWainTYBaCr8dNaugqWkCuLVh2H0TkiG6ZIFH6ZPKIQ",

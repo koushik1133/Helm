@@ -32,7 +32,7 @@
   }
   function css() {
     if (!doc || doc.getElementById("capShortCss")) return;
-    var l = doc.createElement("link"); l.id = "capShortCss"; l.rel = "stylesheet"; l.href = "/capacity-shortage.css?v=4";
+    var l = doc.createElement("link"); l.id = "capShortCss"; l.rel = "stylesheet"; l.href = "/capacity-shortage.css?v=5";
     (doc.head || doc.documentElement).appendChild(l);
   }
   function toast(msg, type) { try { global.BPUI.toast(msg, { type: type || "info", timeout: 7000 }); } catch (e) {} }
@@ -414,6 +414,16 @@
     setTimeout(function () { try { host.scrollIntoView({ block: "nearest" }); } catch (e) {} var f = opts.querySelector("input"); if (f) f.focus(); }, 0);
   }
 
+  // 0241: "Delivery reminder" link -> command.html opens the assignment dialog prefilled (vendor, item, quantity)
+  function deliveryHref(quoteId, x, it) {
+    var nm = String((it && it.name) || x.label || "").replace(/^Short: \S+ x /, "").slice(0, 120);
+    return "command.html?quote=" + encodeURIComponent(quoteId) + "&deliver=1&src=shortage&vendor=" + encodeURIComponent(x.vendor_id) +
+      "&what=" + encodeURIComponent(nm) + (Number(x.qty) > 0 ? "&qty=" + encodeURIComponent(String(Number(x.qty))) : "");
+  }
+  function deliveryLink(quoteId, x, it) {
+    return h("a", { cls: "rvs-dlv", href: deliveryHref(quoteId, x, it), text: "\u23f0 Delivery reminder", title: "Schedule the delivery time and automatic reminders to the vendor" });
+  }
+
   // open shortages of one event under the reservations table, with a status per row
   async function renderList(host, o) {
     if (!host) return; o = o || {}; css();
@@ -437,6 +447,8 @@
         });
         li.appendChild(sel);
       }
+      // 0241: a vendor is bringing the missing items -> schedule the delivery with reminders on the event-day page
+      if (o.canEdit && x.source === "vendor" && x.vendor_id && x.status === "requested" && o.quoteId) li.appendChild(deliveryLink(o.quoteId, x, it));
       ul.appendChild(li);
     });
     host.appendChild(ul);
@@ -492,7 +504,7 @@
   global.HelmCapacity = { hostSaveClient: hostSaveClient, hostRelock: hostRelock, capText: capText, venueTotal: venueTotal, sortVenues: sortVenues, whyText: whyText, headline: headline, decisionPayload: decisionPayload,
     statusFor: statusFor, gate: gate, openDialog: openDialog, mountIssues: mountIssues, _resetCache: function () { _venues = null; } };
   global.HelmShortage = { split: split, vendorsFor: vendorsFor, headline: shortHeadline, showPanel: showPanel, renderList: renderList,
-    linkedShortages: linkedShortages, cancellableBookings: cancellableBookings, cancelAsk: cancelAsk, afterReservationRemoved: afterReservationRemoved };
+    linkedShortages: linkedShortages, cancellableBookings: cancellableBookings, cancelAsk: cancelAsk, afterReservationRemoved: afterReservationRemoved, deliveryHref: deliveryHref };
   // the quote flow: read the venues early so the first "Send for approval" / PDF click answers at once
   try { if (doc && isFlow()) setTimeout(function () { var S = global.BPStore; if (S && S.auth && S.auth.user && S.auth.user()) venuesAll().catch(function () {}); }, 1500); } catch (e) {}
 })(typeof window !== "undefined" ? window : globalThis);

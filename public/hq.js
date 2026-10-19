@@ -76,7 +76,7 @@
   }
 
   /* ---------------- tabs ---------------- */
-  var TABS = ["overview", "studios", "billing", "plans", "people", "activity"];
+  var TABS = ["overview", "studios", "billing", "requests", "plans", "people", "activity", "staff"];
   function showTab(name) {
     TABS.forEach(function (t) {
       var p = $("#pane-" + t), b = $("#tab-" + t);
@@ -213,6 +213,9 @@
     });
     wrap.appendChild(el("div", { cls: "actions" }, [sus]));
 
+    // r21 (0244): ONE step from trial (or ended trial) to a paying studio
+    if (sub.status !== "suspended") wrap.appendChild(activateBox(org, d.name, sub));
+
     // 0186: free trial — one extension per studio (1–7 days, reason required)
     wrap.appendChild(el("h3", { text: "Free trial" }));
     var trialBox = el("div", { id: "trialExt" }); wrap.appendChild(trialBox);
@@ -259,6 +262,114 @@
     var cl = el("button", { cls: "btn", type: "button", text: "Close" }); cl.addEventListener("click", function () { openOrg = null; clear(box); });
     wrap.appendChild(el("div", { cls: "actions" }, [rec, cl]));
     box.appendChild(wrap); try { wrap.scrollIntoView({ block: "nearest" }); } catch (e) {}
+  }
+
+  /* ---------------- r21 (0244) "Activate plan" ----------------
+     Records the payment (numbered GST invoice), sets the plan ACTIVE with plan, billing and period and lifts the
+     trial caps / read-only - one server step (hq_activate_plan), audit-logged. The studio admin is then asked
+     once what happens to the sample data (keep / remove sample / start clean). */
+  // pure: the last day of a period that starts on start (inclusive) - mirrors public._sub_period_end
+  function periodEnd(start, interval) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(start || "")); if (!m) return "";
+    var y = +m[1], mo = +m[2] - 1, d = +m[3];
+    if (interval === "yearly") y += 1; else mo += 1;
+    var last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();   // Postgres date + interval clamps to the month end
+    var e = new Date(Date.UTC(y, mo, Math.min(d, last)) - 864e5);
+    return e.toISOString().slice(0, 10);
+  }
+  // pure: validated args for hq_activate_plan (exported for tests). The database checks the same.
+  function activateArgs(org, plan, interval, amount, method, start, paidOn, ref) {
+    var a = Number(amount), r = String(ref == null ? "" : ref).replace(/\s+/g, " ").trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(org || ""))) throw new Error("Open a studio first");
+    if (!/^[a-z0-9][a-z0-9_-]{1,39}$/.test(String(plan || ""))) throw new Error("Choose the plan");
+    if (interval !== "monthly" && interval !== "yearly") throw new Error("Choose monthly or yearly");
+    if (!(a > 0) || a > 100000000) throw new Error("Amount (incl. tax) must be more than 0");
+    if (["upi", "bank", "cash", "card", "other"].indexOf(method) < 0) throw new Error("Choose how they paid");
+    if (start && !/^\d{4}-\d{2}-\d{2}$/.test(start)) throw new Error("Period start must be a date");
+    if (paidOn && !/^\d{4}-\d{2}-\d{2}$/.test(paidOn)) throw new Error("Paid on must be a date");
+    if (r.length > 120) throw new Error("Reference: up to 120 characters");
+    return { p_org: org, p_plan_code: plan, p_interval: interval, p_amount: Math.round(a * 100) / 100, p_method: method,
+      p_period_start: start || null, p_paid_on: paidOn || null, p_reference: r || null, p_currency: "INR", p_fx_rate_to_inr: null };
+  }
+  function activateBox(org, name, sub) {
+    var box = el("div", { id: "activatePlan" });
+    box.appendChild(el("h3", { text: "Activate plan" }));
+    box.appendChild(el("div", { cls: "muted", text: "When the studio has paid (UPI / bank transfer): records the payment with a GST invoice, makes the plan active for the period and lifts the trial limits and read-only - in one step. The studio admin then chooses what happens to the sample data." }));
+    var selPlan = el("select", { "aria-label": "Plan to activate" });
+    plans.filter(function (p) { return p.active; }).forEach(function (p) {
+      var o = el("option", { value: p.code, text: p.name + " · " + money(p.price_monthly, p.currency) + "/month" });
+      if (sub.plan_code === p.code || sub.plan_name === p.name) o.selected = true;
+      selPlan.appendChild(o);
+    });
+    var selIv = el("select", { "aria-label": "Billing" });
+    [["monthly", "Monthly"], ["yearly", "Yearly"]].forEach(function (o) { selIv.appendChild(el("option", { value: o[0], text: o[1] })); });
+    var amt = el("input", { type: "number", min: "1", step: "0.01", "aria-label": "Amount paid incl. tax" });
+    var meth = el("select", { "aria-label": "Paid by" });
+    [["upi", "UPI"], ["bank", "Bank transfer"], ["card", "Card"], ["cash", "Cash"], ["other", "Other"]].forEach(function (o) { meth.appendChild(el("option", { value: o[0], text: o[1] })); });
+    var today = iso(new Date());
+    var start = el("input", { type: "date", "aria-label": "Period start" }); start.value = today;
+    var paid = el("input", { type: "date", "aria-label": "Paid on" }); paid.value = today;
+    var ref = el("input", { type: "text", maxlength: "120", placeholder: "UTR / reference", "aria-label": "Payment reference" });
+    var endTxt = el("div", { cls: "muted" });
+    var showEnd = function () { var e = periodEnd(start.value, selIv.value); endTxt.textContent = e ? "Plan period: " + date(start.value) + " – " + date(e) : ""; };
+    selIv.addEventListener("change", showEnd); start.addEventListener("change", showEnd); showEnd();
+    var go = el("button", { cls: "btn primary", type: "button", text: "Activate plan…" });
+    if (!selPlan.options.length) { go.disabled = true; endTxt.textContent = "Add an active plan in Plans first."; }
+    go.addEventListener("click", function () {
+      var a; try { a = activateArgs(org, selPlan.value, selIv.value, amt.value, meth.value, start.value, paid.value, ref.value); } catch (e) { showErr(e); return; }
+      var pe = periodEnd(a.p_period_start || today, a.p_interval);
+      if (!window.confirm("Activate " + (selPlan.options[selPlan.selectedIndex] ? selPlan.options[selPlan.selectedIndex].text.split(" · ")[0] : a.p_plan_code) +
+        " (" + a.p_interval + ") for " + (name || "this studio") + "?\n\nPayment " + money(a.p_amount) + " by " + a.p_method + (a.p_reference ? " (" + a.p_reference + ")" : "") +
+        "\nPeriod " + date(a.p_period_start || today) + " – " + date(pe) + "\n\nThis records the payment with a GST invoice and makes the plan active now.")) return;
+      go.disabled = true;
+      call("hq_activate_plan", a).then(function (r) {
+        var inv = r && r.payment && r.payment.invoice_no;
+        okMsg((r && r.result === "replay" ? "Already activated with this payment" : "Plan activated") + (inv ? " — invoice " + inv : "") + ".");
+        amt.value = ""; ref.value = ""; refreshAfterWrite(org);
+      }).catch(showErr).then(function () { go.disabled = false; });
+    });
+    box.appendChild(el("div", { cls: "form" }, [field("Plan", selPlan), field("Billing", selIv), field("Amount paid (incl. tax)", amt),
+      field("Paid by", meth), field("Paid on", paid), field("Period start", start), field("Reference (UTR)", ref), go]));
+    box.appendChild(endTxt);
+    return box;
+  }
+
+  /* ---------------- r21 (0244) plan requests ("Contact sales") ---------------- */
+  var REQ_STATUS = { new: ["New", "warn"], contacted: ["Contacted", ""], won: ["Won", "ok"], lost: ["Lost", "bad"] };
+  async function loadRequests() {
+    var r = await call("hq_sales_requests", { p_status: $("#fReq").value || null }); r = r && !Array.isArray(r) ? r : {};
+    var c = r.counts || {};
+    $("#reqCounts").textContent = ["new", "contacted", "won", "lost"].map(function (k) { return REQ_STATUS[k][0] + ": " + int(c[k] || 0); }).join(" · ");
+    var tb = clear($("#tReq"));
+    (Array.isArray(r.rows) ? r.rows : []).forEach(function (x) {
+      var st = REQ_STATUS[x.status] || [x.status || "—", ""];
+      var acts = el("td");
+      ["contacted", "won", "lost"].filter(function (k) { return k !== x.status; }).forEach(function (k) {
+        var b = el("button", { cls: "btn sm", type: "button", text: REQ_STATUS[k][0] });
+        b.addEventListener("click", function () {
+          var note = ask("Mark this request " + REQ_STATUS[k][0].toLowerCase() + ". Note (optional):", x.hq_note || "");
+          if (note == null) return;
+          call("hq_set_sales_request_status", { p_id: x.id, p_status: k, p_note: note || null })
+            .then(function () { okMsg("Request marked " + REQ_STATUS[k][0].toLowerCase() + "."); loadRequests().catch(showErr); }).catch(showErr);
+        });
+        acts.appendChild(b);
+      });
+      if (x.org_id) {
+        var o = el("button", { cls: "btn sm", type: "button", text: "Open studio" });
+        o.addEventListener("click", function () { showTab("studios"); loadDetail(x.org_id).catch(showErr); });
+        acts.appendChild(o);
+      }
+      tb.appendChild(el("tr", null, [
+        el("td", { text: x.created_at ? new Date(x.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }) + " IST" : "—" }),
+        el("td", null, [el("strong", { text: x.studio || x.studio_name || "—" }), el("div", { cls: "muted",
+          text: [x.subscription_status ? "now: " + String(x.subscription_status).replace("_", " ") : "", x.source === "read_only_banner" ? "from read-only banner" : "from plan page"].filter(Boolean).join(" · ") })]),
+        el("td", null, [x.contact_name || "—", el("div", { cls: "muted", text: [x.contact_email, x.contact_phone].filter(Boolean).join(" · ") })]),
+        el("td", { text: (x.plan_name || x.plan_code || "—") + " · " + (x.billing_interval === "yearly" ? "Yearly" : "Monthly") }),
+        el("td", { text: x.message || "—" }),
+        el("td", null, [el("span", { cls: "pill " + st[1], text: st[0] }), x.hq_note ? el("div", { cls: "muted", text: x.hq_note }) : null]),
+        acts]));
+    });
+    if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "7", cls: "empty", text: "No requests here." })]));
   }
 
   /* ---------------- 0186 free-trial extension ---------------- */
@@ -537,6 +648,64 @@
     call("hq_add_operator", { p_email: e }).then(function () { $("#opEmail").value = ""; okMsg("Operator added."); loadOperators().catch(showErr); }).catch(showErr);
   }
 
+  /* ---------------- staff access (0248): reserved e-mail domains + staff allowlist ---------------- */
+  async function loadStaff() {
+    var r = await call("hq_staff_access"); r = r && !Array.isArray(r) ? r : {};
+    var doms = Array.isArray(r.domains) ? r.domains : [], allow = Array.isArray(r.allowlist) ? r.allowlist : [], acc = Array.isArray(r.accounts) ? r.accounts : [];
+    var open = acc.filter(function (a) { return !a.allowlisted && !a.banned_until; }).length;
+    $("#stState").textContent = "Reserved: " + (doms.map(function (d) { return d.domain; }).join(", ") || "none") + " · " + int(allow.length) + " allowlisted · "
+      + int(acc.length) + " existing login" + (acc.length === 1 ? "" : "s") + " on these domains" + (open ? " (" + int(open) + " not staff — review below)" : "");
+    var ul = clear($("#stAllow"));
+    allow.forEach(function (a) {
+      var right = el("span", { cls: "muted", text: (a.is_platform_admin ? "HQ operator · " : "") + (a.has_login ? "has a login" : "no login yet") + (a.note ? " · " + a.note : "") });
+      var li = el("li", null, [el("span", { cls: "m", text: a.email }), right]);
+      if (!a.is_platform_admin) {
+        var rm = el("button", { cls: "btn sm danger", type: "button", text: "Remove" });
+        rm.addEventListener("click", function () {
+          if (!window.confirm("Remove " + a.email + " from the staff allowlist? New logins for it will be refused. An existing login is not deleted or signed out.")) return;
+          call("hq_staff_allow_remove", { p_email: a.email }).then(function () { okMsg("Removed from the staff allowlist."); loadStaff().catch(showErr); }).catch(showErr);
+        });
+        li.appendChild(rm);
+      }
+      ul.appendChild(li);
+    });
+    if (!ul.firstChild) ul.appendChild(el("li", { cls: "empty", text: "Nobody yet." }));
+    var dl = clear($("#stDomains"));
+    doms.forEach(function (d) {
+      var li = el("li", null, [el("span", { cls: "m", text: d.domain + (d.include_subdomains ? " (+ sub-domains)" : "") }),
+        el("span", { cls: "muted", text: d.builtin ? "Helm’s own domain" : (d.note || "added " + date(d.added_at)) })]);
+      if (!d.builtin) {
+        var rm = el("button", { cls: "btn sm danger", type: "button", text: "Remove" });
+        rm.addEventListener("click", function () {
+          if (!window.confirm("Stop reserving " + d.domain + "? People could sign up with it again.")) return;
+          call("hq_reserved_domain_remove", { p_domain: d.domain }).then(function () { okMsg("Domain no longer reserved."); loadStaff().catch(showErr); }).catch(showErr);
+        });
+        li.appendChild(rm);
+      }
+      dl.appendChild(li);
+    });
+    var tb = clear($("#tStAcc"));
+    acc.forEach(function (a) {
+      var st = a.banned_until ? el("span", { cls: "pill", text: "sign-in off" })
+        : a.allowlisted ? el("span", { cls: "pill ok", text: a.is_platform_admin ? "HQ operator" : "staff" })
+        : el("span", { cls: "pill warn", text: "not staff — review" });
+      tb.appendChild(el("tr", null, [el("td", { cls: "m", text: a.email || "" }), el("td", { text: a.studio ? a.studio + (a.role ? " · " + a.role : "") : "—" }),
+        el("td", { text: date(a.created_at) }), el("td", { text: ago(a.last_sign_in_at) }), el("td", null, [st])]));
+    });
+    if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "5", cls: "empty", text: "No logins on reserved domains." })]));
+  }
+  function addStaff() {
+    var e = String($("#stEmail").value || "").trim().toLowerCase(); if (!e) return;
+    call("hq_staff_allow_add", { p_email: e, p_note: String($("#stNote").value || "").trim() || null })
+      .then(function () { $("#stEmail").value = ""; $("#stNote").value = ""; okMsg("Added to the staff allowlist — this address can now be given a login."); loadStaff().catch(showErr); }).catch(showErr);
+  }
+  function addDomain() {
+    var d = String($("#stDomain").value || "").trim().toLowerCase(); if (!d) return;
+    if (!window.confirm("Reserve " + d + " (and its sub-domains)? Nobody outside the staff allowlist will be able to sign up with it.")) return;
+    call("hq_reserved_domain_add", { p_domain: d, p_note: String($("#stDomNote").value || "").trim() || null })
+      .then(function () { $("#stDomain").value = ""; $("#stDomNote").value = ""; okMsg("Domain reserved."); loadStaff().catch(showErr); }).catch(showErr);
+  }
+
   async function loadAll() {
     $("#err").hidden = true;
     var r = await Promise.all([call("hq_overview"), loadPlans(), loadStudios(0), loadUsers(0), loadBilling()]);
@@ -580,12 +749,16 @@
       showTab(t);
       if (t === "activity") { loadAudit().catch(showErr); loadSecurity().catch(showErr); loadOperators().catch(showErr); }
       if (t === "billing") loadSettings().catch(showErr);
+      if (t === "requests") loadRequests().catch(showErr);
+      if (t === "staff") loadStaff().catch(showErr);
     }); });
     on("#btnRefresh", "click", function () { loadAll().catch(showErr); });
     on("#btnOut", "click", function () { Promise.resolve(BPStore.auth.signOut && BPStore.auth.signOut()).finally(function () { location.replace("login.html"); }); });
     on("#btnBill", "click", function () { loadBilling().catch(showErr); });
     on("#btnCsv", "click", exportCsv);
     on("#btnRecord", "click", recordPayment);
+    on("#btnReq", "click", function () { loadRequests().catch(showErr); });
+    on("#fReq", "change", function () { loadRequests().catch(showErr); });
     on("#btnSettings", "click", saveSettings);
     on("#btnPlan", "click", savePlan);
     on("#btnCheckout", "click", saveCheckoutSettings);
@@ -595,6 +768,8 @@
     on("#btnAudit", "click", function () { loadAudit().catch(showErr); loadSecurity().catch(showErr); });
     on("#aWrites", "change", function () { loadAudit().catch(showErr); });
     on("#btnOp", "click", addOperator);
+    on("#btnStAdd", "click", addStaff);
+    on("#btnStDom", "click", addDomain);
     on("#btnRefreshBilling", "click", function () { call("hq_refresh_billing_status").then(function (r) { okMsg("Billing status refreshed: " + int(r && r.past_due_set) + " now past due, " + int(r && r.reminders_queued) + " reminders queued."); refreshAfterWrite(null); }).catch(showErr); });
     on("#fStatus", "change", function () { loadStudios(0).catch(showErr); });
     on("#qStudios", "input", function () { clearTimeout(sTimer); sTimer = setTimeout(function () { loadStudios(0).catch(showErr); }, 300); });

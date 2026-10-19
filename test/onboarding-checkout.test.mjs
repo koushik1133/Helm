@@ -275,7 +275,10 @@ t('trial: payment_pending / bypass sources only; marks the gate done', async () 
 t('checkout page: gated, no card/UPI/bank fields, no inline handlers/styles, textContent only', () => {
   const h = read('public/checkout.html'), js = read('public/checkout.js');
   assert.match(h, /<html[^>]*class="auth-pending"/);
-  assert.doesNotMatch(h + js, /card.?number|cvv|cvc|expiry|autocomplete="cc-|upi id|ifsc|netbanking/i);
+  assert.doesNotMatch(h + js, /card.?number|cvv|cvc|expiry|autocomplete="cc-|netbanking/i);
+  // r21: Helm's OWN receiving UPI ID / IFSC may be SHOWN (pay by UPI / bank transfer, from config.js) - never asked for
+  assert.doesNotMatch(h, /<(input|select|textarea)[^>]*(upi|ifsc|account)/i);
+  assert.doesNotMatch(js.slice(0, js.indexOf('var PAY_FIELDS = [')) + js.slice(js.indexOf('function renderPayDetails(')), /upi id|ifsc/i);
   assert.doesNotMatch(h, /\sstyle="/); assert.doesNotMatch(h, /\son[a-z]+=/i);
   assert.doesNotMatch(js, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
   assert.match(h, /Skip payment \(testing only\)/); assert.match(h, /id="coTest"[^>]*hidden/);

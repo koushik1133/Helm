@@ -20,7 +20,13 @@
 (function (global) {
   "use strict";
 
+  // r21: the ONE retention promise (same words in the trial e-mails, billing-reminder and the policy pages). The
+  // deletion switch (helm_trial_retention.delete_enabled) stays OFF until the owner turns it on.
+  var RETENTION_PROMISE = "Your data is kept for 60 days after the trial ends, and we remind you before anything is deleted.";
+
   // Pure (unit-tested): my_trial_org() answer → strip spec, or null.
+  // r21: an ended trial also offers "Talk to us" (admins: the plan page opens Contact sales) and "Ask my admin to
+  // upgrade" (teammates: one bell notice + e-mail to the admins, 0244 ask_admin_upgrade), plus the retention promise.
   function bannerSpec(t) {
     if (!t || typeof t !== "object" || t.is_trial_org !== true) return null;
     var admin = t.is_admin === true;
@@ -31,7 +37,10 @@
         title: "Your trial has ended.",
         body: "Your data is preserved and available in read-only mode. Upgrade now to continue creating and editing records.",
         cta: admin ? "Upgrade" : null,
-        note: admin ? null : "Only a studio admin can upgrade." };
+        note: admin ? null : "Only a studio admin can upgrade.",
+        talk: admin ? "Talk to us" : null,
+        ask: admin ? null : "Ask my admin to upgrade",
+        keep: "Your data is kept for 60 days after the trial ends, and we remind you before anything is deleted." };   // = RETENTION_PROMISE (self-contained: tests run this function alone)
     }
     // trial date passed but the studio is not read-only (paid / extended on an older server answer): no strip
     if (t.ended === true) return null;
@@ -71,6 +80,14 @@
   // (it no longer offers to remove the samples first; t is kept for callers)
   function planHref(t, pageName) {
     return "checkout.html?next=" + encodeURIComponent((pageName || "dashboard") + ".html");
+  }
+  // r21 (pure): "Talk to us" = the plan page with the Contact sales form open, from the read-only banner
+  function talkHref(pageName) { return planHref(null, pageName) + "&sales=banner"; }
+  // r21 (pure): ask_admin_upgrade() answer -> the line shown next to the button
+  function askResultText(r) {
+    if (r && r.sent === true) return "Done - your studio admin has been asked to choose a plan.";
+    if (r && r.already === true) return "Your studio admin has already been asked today.";
+    return "We couldn't send that just now. Please ask your studio admin directly.";
   }
 
   // Pure (unit-tested) mirror of _trial_next_demo_number(): next free "Demo N".
@@ -157,7 +174,7 @@
     var left = m === "d5" ? "3 days left" : m === "d7" ? "Ends tomorrow" : "Last day";
     return { milestone: m, title: REMINDER_TITLES[m], left: left,
       body: "Your 8-day free trial (no card required) ends" + (when ? " on " + when : "") + ".",
-      after: "After that your studio becomes view-only — nothing is deleted, and everything unlocks again as soon as you choose a plan.",
+      after: "After that your studio becomes view-only. " + RETENTION_PROMISE + " Everything unlocks again as soon as you choose a plan.",
       cta: "Choose a plan", later: "Remind me later",
       key: "helm_trial_reminder:" + m + ":" + ymdIn(nowMs, tz) };
   }
@@ -175,7 +192,7 @@
     if (a.ended === true) return null;
     var when = endsLabel(a.ends_at, a.timezone || null);
     if (mate) return { tone: "", text: "Your studio is on a free trial" + (when ? " until " + when : "") +
-      ". If it ends before a plan is chosen, you can still sign in and view everything; nothing is deleted." };
+      ". If it ends before a plan is chosen, you can still sign in and view everything. " + RETENTION_PROMISE };
     return { tone: "", text: "Trial: when the trial ends" + (when ? " on " + when : "") +
       ", your staff keep read-only access until you upgrade. Invite your real team now; if you choose a plan, they keep working without being re-invited." };
   }
@@ -188,7 +205,7 @@
       cta: "Sign out" };
   }
 
-  var api = { subscriptionStrip: subscriptionStrip, staffNoteSpec: staffNoteSpec, blockedSpec: blockedSpec, bannerSpec: bannerSpec, planHref: planHref, nextDemoNumber: nextDemoNumber, reminderMilestone: reminderMilestone,
+  var api = { RETENTION_PROMISE: RETENTION_PROMISE, talkHref: talkHref, askResultText: askResultText, subscriptionStrip: subscriptionStrip, staffNoteSpec: staffNoteSpec, blockedSpec: blockedSpec, bannerSpec: bannerSpec, planHref: planHref, nextDemoNumber: nextDemoNumber, reminderMilestone: reminderMilestone,
               reminderSpec: reminderSpec, endsLabel: endsLabel, ymdIn: ymdIn, REMINDER_TITLES: REMINDER_TITLES,
               endDay: endDay, daysLeft: daysLeft, endDayText: endDayText };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
@@ -204,6 +221,12 @@
     "html.helm-read-only #composer,html.helm-read-only #sendBtn,html.helm-read-only #newBtn,html.helm-read-only #createBtn,html.helm-read-only [data-requires-edit]{display:none!important}",
     ".htr a{display:inline-block;padding:4px 12px;border-radius:999px;background:var(--accent,#047857);color:#fff;font-weight:600;text-decoration:none}",
     ".htr a:focus-visible{outline:2px solid var(--ink,#1b1930);outline-offset:2px}",
+    // r21: "Talk to us" (outline pill next to Upgrade), "Ask my admin to upgrade" (teammates), the retention line
+    ".htr a.htr-talk{background:transparent;color:var(--accent,#047857);border:1px solid var(--accent,#047857);padding:3px 11px}",
+    ".htr button.htr-ask{font:inherit;font-weight:600;padding:4px 12px;border-radius:999px;border:1px solid var(--accent,#047857);background:var(--accent,#047857);color:#fff;cursor:pointer;min-height:28px}",
+    ".htr button.htr-ask:disabled{opacity:.6;cursor:default}.htr button.htr-ask:focus-visible{outline:2px solid var(--ink,#1b1930);outline-offset:2px}",
+    ".htr span.htr-askmsg:empty{display:none}.htr span.htr-askmsg{font-weight:600}",
+    ".htr span.htr-keep{flex-basis:100%;text-align:center;font-size:12.5px}",
     ".htrm{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(20,16,40,.45)}",
     ".htrm-c{max-width:440px;width:100%;background:var(--card,#fff);color:var(--ink,#1b1930);border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);font-size:14.5px;line-height:1.5}",
     ".htrm-c .k{display:inline-block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--accent,#047857);margin-bottom:6px}",
@@ -242,7 +265,26 @@
       a.textContent = spec.cta;
       bar.appendChild(a);
     }
+    if (spec.talk) {
+      var tk = doc.createElement("a"); tk.className = "htr-talk"; tk.href = talkHref(page()); tk.textContent = spec.talk; bar.appendChild(tk);
+    }
     if (spec.note) { var nt = doc.createElement("span"); nt.className = "htr-note"; nt.textContent = spec.note; bar.appendChild(nt); }
+    if (spec.ask) {
+      var ab = doc.createElement("button"); ab.type = "button"; ab.className = "htr-ask"; ab.textContent = spec.ask;
+      var am = doc.createElement("span"); am.className = "htr-askmsg"; am.setAttribute("role", "status"); am.setAttribute("aria-live", "polite");
+      ab.addEventListener("click", function () {
+        var st = global.BPStore;
+        if (ab.disabled || !st || !st.trialOrg || typeof st.trialOrg.askAdmin !== "function") return;
+        ab.disabled = true; ab.setAttribute("aria-busy", "true");
+        Promise.resolve(st.trialOrg.askAdmin()).then(function (r) {
+          am.textContent = askResultText(r);
+          if (!(r && (r.sent === true || r.already === true))) ab.disabled = false;
+        }, function () { am.textContent = askResultText(null); ab.disabled = false; })
+          .then(function () { ab.removeAttribute("aria-busy"); });
+      });
+      bar.appendChild(ab); bar.appendChild(am);
+    }
+    if (spec.keep) { var kp = doc.createElement("span"); kp.className = "htr-keep"; kp.textContent = spec.keep; bar.appendChild(kp); }
     doc.body.insertBefore(bar, doc.body.firstChild);
     // 0183: read-only studio -> html.helm-read-only hides the few create / compose controls a page does not gate itself
     if (spec.locked) { doc.documentElement.classList.add("helm-trial-locked"); doc.documentElement.classList.add("helm-read-only"); }
