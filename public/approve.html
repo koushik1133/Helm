@@ -147,7 +147,7 @@
 <script src="/config.js?v=106"></script>
 <script src="/phone-input.js?v=7"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=271"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=272"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -248,6 +248,12 @@
     return (d && !isNaN(d)) ? "Recorded on "+BPStore.fmtDateTime(d) : "Recorded";
   }
   const isBadLink=(e)=>BPUI.isNotFound(e) || /invalid link|expired/i.test((e&&e.message)||"") || (e&&e.code)==="22P02";
+  // r23-0260: the event was cancelled - every client link says so (no event details)
+  const isCancelled=(e)=>/has been cancelled/i.test((e&&e.message)||"");
+  const showCancelled=(el)=>{ const h=el.querySelector("h1"), p=el.querySelector("p");
+    if(h){ h.textContent="This event has been cancelled"; if(p) p.textContent="This link is no longer active. If you have any questions, please contact your event planner."; }
+    else el.textContent="This event has been cancelled. This link is no longer active. If you have any questions, please contact your event planner.";
+    el.hidden=false; };
 
   let quote=null;
   async function load(){
@@ -259,6 +265,7 @@
     try{ await BPStore.links.require(LINK); quote=await BPStore.approval.getByToken(token); }
     catch(e){
       $("#loading").hidden=true;
+      if(isCancelled(e)){ showCancelled($("#badlink")); return; }
       if(isBadLink(e)){ $("#badlink").hidden=false; return; }
       // anything else (offline, server error) is NOT "link not found" — offer a retry
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"your event"}); return;

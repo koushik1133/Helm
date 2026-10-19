@@ -81,19 +81,26 @@
 <script src="/telemetry.js?v=5"></script>
 <script src="/config.js?v=106"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=271"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=272"></script>
 <script>
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const LINK=BPStore.links.parse("proposal");   // branded /<studio>/proposal/<token> (server-verified below)
   const token=LINK?LINK.ref:new URLSearchParams(location.search).get("token");
   const $=(s)=>document.querySelector(s);
   const isBadLink=(e)=>BPUI.isNotFound(e) || /invalid link|expired|not available/i.test((e&&e.message)||"") || (e&&e.code)==="22P02";
+  // r23-0260: the event was cancelled - every client link says so (no event details)
+  const isCancelled=(e)=>/has been cancelled/i.test((e&&e.message)||"");
+  const showCancelled=(el)=>{ const h=el.querySelector("h1"), p=el.querySelector("p");
+    if(h){ h.textContent="This event has been cancelled"; if(p) p.textContent="This link is no longer active. If you have any questions, please contact your event planner."; }
+    else el.textContent="This event has been cancelled. This link is no longer active. If you have any questions, please contact your event planner.";
+    el.hidden=false; };
   async function load(){
     await BPStore.init();
     if(!token){ $("#loading").hidden=true; $("#error").hidden=false; return; }
     $("#loadErr").hidden=true;
     let p; try{ await BPStore.links.require(LINK); p=await BPStore.proposal.getByToken(token); }
     catch(e){ $("#loading").hidden=true;
+      if(isCancelled(e)){ showCancelled($("#error")); return; }
       if(isBadLink(e)){ $("#error").hidden=false; return; }
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"your proposal"}); return; }
     if(!p){ $("#loading").hidden=true; $("#error").hidden=false; return; }

@@ -148,6 +148,8 @@
                 <!-- r22: shortcuts to the footer buttons below (they keep the ids, gates and handlers) -->
                 <a class="btn" data-proxy="inviteBtn" hidden>✨ Invitation site</a>
                 <button type="button" class="btn evdanger" data-proxy="cancelEvBtn" hidden>Cancel event</button>
+                <button type="button" class="btn" data-proxy="restoreEvBtn" hidden>↺ Restore event</button>
+                <button type="button" class="btn" data-proxy="reshareBtn" hidden>🔗 Re-share links</button>
               </div>
             </div>
           </div>
@@ -167,6 +169,9 @@
         <!-- r22 (owner): the card's own action buttons are visible again (as before r21); the ••• menu repeats them -->
         <a class="btn" id="inviteBtn" hidden>✨ Invitation site</a>
         <button type="button" class="btn" id="cancelEvBtn" hidden>Cancel event</button>
+        <!-- r23-0260: undo a cancellation; client links stay off until "Re-share links" -->
+        <button type="button" class="btn" id="restoreEvBtn" hidden>↺ Restore event</button>
+        <button type="button" class="btn" id="reshareBtn" title="Client, crew and vendor links are off since this event was restored" hidden>🔗 Re-share links</button>
         <button type="button" class="btn" id="advBtn" hidden>Advance to next stage →</button>
       </div>
     </div>
@@ -214,11 +219,11 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=271"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script>
 <script src="flow-resume.js?v=5"></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=24"></script>
-<script src="booklet.js?v=25"></script>
+<script src="booklet.js?v=26"></script>
 <script src="email-send.js?v=5"></script><script src="share-checklist.js?v=13"></script>
 <script src="invite-site-share.js?v=10"></script><script src="booklet-share.js?v=16"></script>
 <script src="pkg-review.js?v=7"></script>
@@ -284,7 +289,7 @@
   let cardDenied=new Set();
   let canEditPlan=false, menuCount=0;   // workspace menu lock: plan edit right + selected dish count
   // 0198 stage strip: clicking a stage OPENS it (view only); moving the event is a separate, gated action
-  let viewK=null, myRole="", conflictAcks=undefined;
+  let viewK=null, myRole="", conflictAcks=undefined, linkState=null;
   const stageInfo={};   // "<stage>|<stored stage>|<status>" -> blockers list (null = old database)
   let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, vendorReqSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, layoutSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
@@ -328,6 +333,7 @@
     if(!ev){ $("#notfound").hidden=false; return; }
     hdrChange=null;
     $("#app").hidden=false; render();   // paint the workspace shell instantly; summaries fill in below
+    refreshLinkState();
     // 0206: a quote still being prepared says where it stopped: "This quote is at step 4 of 8 (Venue). Continue where you
     // left off" (+ "Last worked on by Priya, 10 min ago" when a teammate was last). Never blocks the page; no banner on error.
     if(window.HelmFlowResume && BPStore.flowProgress && HelmFlowResume.unfinished(ev))
@@ -470,6 +476,10 @@
     else adv.hidden=true;
     // 0198: an event that will not happen is cancelled (admin / manager, with a reason) - never "closed early"
     $("#cancelEvBtn").hidden=!(canEdit && (myRole==="admin"||myRole==="manager") && !evLocked());
+    // r23-0260: Restore (cancelled events) + Re-share links (restored, links still off) - admin / manager / coordinator
+    { const may=canEdit && (linkState ? !!linkState.can_restore : ["admin","manager","coordinator"].includes(myRole));
+      $("#restoreEvBtn").hidden=!(may && ev.status==="cancelled" && !evClosedNow());
+      $("#reshareBtn").hidden=!(may && ev.status!=="cancelled" && !!(linkState&&linkState.links_paused)); }
     // Digital invitation website — unlocks once the event is confirmed (or beyond).
     const inv=$("#inviteBtn");
     if(canEdit && cur>=stageIndex("confirmed")){ inv.hidden=false; inv.href="invite-studio.html?quote="+encodeURIComponent(id); }
@@ -1135,7 +1145,8 @@
   // 0198: Cancel event - for an event that will not happen (admin / manager, reason recorded + audited)
   $("#cancelEvBtn").addEventListener("click",async()=>{
     if(!ev || evLocked()) return;
-    const reason=await BPUI.prompt("Cancel "+(ev.code||"this event")+"? It moves to the archive, stops holding its date, venue, crew and stock, and the client's approval link stops working. Payments already received stay recorded - add any refund in Settlement. The reason is saved in the audit log.",
+    // r23-0260: the server refuses every link of a cancelled event (checked each time a link is opened)
+    const reason=await BPUI.prompt("Cancel "+(ev.code||"this event")+"? It moves to the archive and stops holding its date, venue, crew and stock.\n\nThese links stop working straight away: the client's quote approval and payment link, client portal, booklet, proposal, the invitation website (it is also unpublished; its content is kept), crew task links and vendor delivery links. Anyone opening them sees \"This event has been cancelled\".\n\nA Razorpay payment link already sent can still be paid at Razorpay until it expires - any money received is recorded; add a refund in Settlement. Payments already received stay recorded. The reason is saved in the audit log.",
       { title:"Cancel this event?", label:"Reason (5-1000 characters)", required:true, multiline:true, okLabel:"Cancel event",
         validate:(v)=>{ const t=String(v||"").trim(); return t.length<5?"Give a reason of at least 5 characters.":t.length>1000?"Keep the reason under 1000 characters.":""; } });
     if(!reason) return;
@@ -1143,9 +1154,38 @@
       try{ const r=await BPStore.quotes.cancelEvent(id, reason.trim());
         try{ const fresh=await BPStore.quotes.get(id); if(fresh) ev=fresh; }catch(_){ ev.status="cancelled"; }
         viewK=null; render();
-        BPUI.toast("Event cancelled."+(r&&r.refund_to_review?" Payments were received - review any refund in Settlement.":""),{type:"ok",timeout:8000}); }
+        BPUI.toast("Event cancelled. Its client, crew and vendor links no longer work"+(r&&r.invitation_unpublished?" and the invitation website is unpublished":"")+"."+(r&&r.refund_to_review?" Payments were received - review any refund in Settlement.":""),{type:"ok",timeout:8000}); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"cancel the event"}),{type:"err"}); }
     },{busyLabel:"Cancelling…"});
+  });
+
+  // r23-0260: is the event cancelled / are its links paused after a restore (null on an older database)
+  async function refreshLinkState(){
+    try{ linkState=await BPStore.quotes.linkState(id); }catch(_){ linkState=null; }
+    if(ev) render();
+  }
+  $("#restoreEvBtn").addEventListener("click",async()=>{
+    if(!ev || ev.status!=="cancelled") return;
+    const reason=await BPUI.prompt("Restore "+(ev.code||"this event")+"? It goes back to the status it had before it was cancelled, with its stages, payments and reservations as they were. The team is told.\n\nClient links do NOT come back by themselves: the quote approval, portal, booklet, proposal, crew and vendor links stay off until you click \"Re-share links\", and the invitation website stays unpublished until you publish it again. The reason is saved in the audit log.",
+      { title:"Restore this event?", label:"Reason (5-1000 characters)", required:true, multiline:true, okLabel:"Restore event",
+        validate:(v)=>{ const t=String(v||"").trim(); return t.length<5?"Give a reason of at least 5 characters.":t.length>1000?"Keep the reason under 1000 characters.":""; } });
+    if(!reason) return;
+    await BPUI.guard($("#restoreEvBtn"),async()=>{
+      try{ await BPStore.quotes.restoreEvent(id, reason.trim());
+        try{ const fresh=await BPStore.quotes.get(id); if(fresh) ev=fresh; }catch(_){}
+        viewK=null; await refreshLinkState();
+        BPUI.toast("Event restored. Its links stay off until you click Re-share links; publish the invitation website again when you are ready.",{type:"ok",timeout:9000}); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"restore the event"}),{type:"err"}); }
+    },{busyLabel:"Restoring…"});
+  });
+  $("#reshareBtn").addEventListener("click",async()=>{
+    if(!ev || ev.status==="cancelled") return;
+    if(!(await BPUI.confirm("Turn this event's links back on? The client's quote approval, portal, booklet and proposal links, crew task links and vendor delivery links work again. (The invitation website is published separately from Invitation site.)",{title:"Re-share links",okLabel:"Re-share links"}))) return;
+    await BPUI.guard($("#reshareBtn"),async()=>{
+      try{ await BPStore.quotes.resumeLinks(id); await refreshLinkState();
+        BPUI.toast("Links are on again - send them to the client when you are ready.",{type:"ok",timeout:7000}); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"re-share the links"}),{type:"err"}); }
+    },{busyLabel:"Turning links on…"});
   });
 
   $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();

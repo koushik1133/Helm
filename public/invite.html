@@ -214,7 +214,7 @@
 <script src="/telemetry.js?v=5"></script>
 <script src="/config.js?v=106"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=271"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=272"></script>
 <script src="/invite-music.js?v=1"></script><script src="/invite-placement.js?v=1"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -451,6 +451,10 @@
     catch(e){
       $("#loading").hidden=true;
       if(BPUI.isNotFound(e)){ $("#missing").hidden=false; return; }
+      if(/has been cancelled/i.test((e&&e.message)||"")){   // r23-0260: the event was cancelled - no details
+        $("#ended").querySelector("h1").textContent="This event has been cancelled";
+        $("#ended").querySelector("p").textContent="This invitation link is no longer active.";
+        $("#ended").hidden=false; return; }
       if(/has ended|expired/i.test((e&&e.message)||"")){ $("#ended").hidden=false; return; }   // past its live window (0022)
       // a network / server failure is not "invitation not found" — offer a retry
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"this invitation"}); return;

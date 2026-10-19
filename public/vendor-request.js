@@ -47,6 +47,8 @@
 
   function render(d) {
     if (!d || d.ok !== true) {
+      if (d && d.reason === "cancelled") return bad("This event has been cancelled", "This link is no longer active - there is nothing more to do. Thank you.");   // r23-0260
+      if (d && d.reason === "paused") return bad("Link not active", "This link has expired. Ask the studio to share it again.");   // r23-0260: restored, not re-shared yet
       if (d && d.reason === "rate") return bad("Please wait a moment", "Too many tries from this link. Try again in a few minutes.");
       if (d && d.reason === "closed" && d.status) { /* fall through with the fresh state */ }
       else return bad("Link not valid", "This link is not valid or has expired. Ask the studio for a new link.");

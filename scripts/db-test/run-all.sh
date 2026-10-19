@@ -37,6 +37,8 @@ echo "== behavioral suites =="
 # 0156 first: later suites re-apply older migrations over the 0156 wrappers
 run "audit-p2-0156"      "AUDIT-P2-0156: ALL PASS \(76/76\)" psql -q -f tests/db/audit-p2-0156.sql
 # before anything that re-applies older migrations (0011/0012/0015/0025/0026) over the 0071/0072 bodies
+# 0260 early (later suites commit grant changes it probes); it re-applies itself twice (re-run safe), rolled back
+run "r23-cancel-links-0260" "R23-CANCEL-LINKS-0260: ALL PASS \(40/40\)" psql -q -f tests/db/r23-cancel-links-0260.sql
 run "pending-fixes"      "PENDING-FIXES: ALL PASS \(30/30\)" psql -q -f tests/db/pending-fixes.sql
 run "inv-fixes"          "INV-FIXES: ALL PASS \(24/24\)" psql -q -f tests/db/inv-fixes.sql
 run "checkout-shortage-0105" "CHECKOUT-SHORTAGE-0105: ALL PASS \(24/24\)" psql -q -f tests/db/checkout-shortage-0105.sql
