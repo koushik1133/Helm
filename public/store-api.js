@@ -1204,7 +1204,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "11";
+  const STUDIO_SEARCH_VERSION = "12";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";
@@ -8700,6 +8700,22 @@ window.HelmUrl = HelmUrl;
       if (mode !== "supabase" || !supa) return null;
       try { return await rpc("insights_event_costs", { p_from: from || null, p_to: to || null }); }
       catch (e) { if (rpcMissing(e)) { const er = new Error("Event cost charts need database update 0240 (ask your admin to run APPLY-0240.sql)."); er.code = "insights_costs_missing"; throw er; } throw e; }
+    },
+    // r21 (0242) ONE studio-wide target margin for the Benchmarks card (was per device).
+    // -> { target_margin_pct (null = not set; screens use default_pct 30), default_pct, can_edit, updated_at };
+    //    null when signed out / the server is older than 0242. Readers: insights OR controls view (admins always).
+    async targetMargin() {
+      if (mode !== "supabase" || !supa) return null;
+      try { return await rpc("get_studio_target_margin", {}); }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // Control Center edit / admins only (server re-checks has_area('controls','edit')); 0 to 90, kept to 1 decimal
+    async setTargetMargin(pct) {
+      const raw = String(pct == null ? "" : pct).trim(), n = Number(raw);
+      if (raw === "" || !isFinite(n) || n < 0 || n > 90) throw Object.assign(new Error("Target margin must be a number from 0 to 90."), { code: "22023" });
+      if (mode !== "supabase" || !supa) throw new Error("The target margin needs a signed-in studio.");
+      try { return await rpc("set_studio_target_margin", { p_pct: Math.round(n * 10) / 10 }); }
+      catch (e) { if (rpcMissing(e)) { const er = new Error("Saving the target margin needs database update 0242 (ask your admin to run APPLY-0242.sql)."); er.code = "target_margin_missing"; throw er; } throw e; }
     },
     // 0076 insights_range: counts, money (null without finance), top types, staff participation
     async range(from, to) {

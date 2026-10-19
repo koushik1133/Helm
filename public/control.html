@@ -383,6 +383,18 @@
       <div class="actions"><button type="button" class="btn primary" id="savePricing">Save pricing</button></div>
     </div>
 
+    <!-- r21 (0242) ONE studio-wide target margin for Insights benchmarks - target-margin-settings.js fills it; hidden until the server answers -->
+    <div class="card" id="tmCard" hidden>
+      <h3>Target margin</h3>
+      <p class="mnote">One value for the whole studio, so everyone sees the same colours on the Insights page.</p>
+      <p class="mnote" id="tm_ro" hidden>Read-only: only a studio admin (or someone allowed to edit Control Center) can change it.</p>
+      <div class="grid">
+        <div class="fld"><label for="tm_pct">Target margin %</label><input id="tm_pct" type="number" min="0" max="90" step="0.5" inputmode="decimal" placeholder="30" aria-describedby="tm_help tm_err"><p class="mnote" id="tm_help">Used by Insights benchmarks to colour events green/amber/red. A number from 0 to 90 (default 30).</p><p class="fv-msg" id="tm_err" aria-live="polite" hidden></p></div>
+      </div>
+      <div id="tm_msg" role="status" aria-live="polite"></div>
+      <div class="actions" id="tm_actions"><button type="button" class="btn primary" id="tm_save">Save target margin</button></div>
+    </div>
+
     <div class="card" id="itemPricingCard" hidden>
       <h3>Item pricing (rate cards)</h3>
       <p class="mnote">Prices for items you adjust in the layout builder: stage by size (m²), generator by kVA and days, DJ by setup and power connection, lighting, LED wall, chandelier, photo booth, chocolate fountain, chariot, smoke effects and dancers. Items that are not adjusted keep their flat catalog price. Who can change these is set in the role matrix (“Item pricing (rate cards)”).</p>
@@ -791,13 +803,13 @@
 <script src="venues-admin.js?v=9"></script>
 <script src="studio-templates-core.js?v=3"></script>
 <script src="studio-templates.js?v=12"></script>
-<script src="item-pricing.js?v=1"></script>
+<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
 <script src="trial-demo.js?v=16"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
-<script src="search-catalog.js?v=6"></script>
-<script src="control-split.js?v=20"></script>
+<script src="search-catalog.js?v=7"></script>
+<script src="control-split.js?v=21"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
