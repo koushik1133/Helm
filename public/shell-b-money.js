@@ -147,6 +147,13 @@
     return s;
   }
 
+  /* r20 planner: the shared lead-conversion rule (shell-b.js HelmLeadRules.conv), same fallback as the dashboard */
+  function leadConvAll(list) {
+    try { var R = window.HelmLeadRules; if (R && typeof R.conv === "function") return R.conv(list); } catch (e) {}
+    list = Array.isArray(list) ? list : []; var c = 0;
+    list.forEach(function (l) { if (l && (l.quote_id || ["won", "converted"].indexOf(String(l.status || "")) >= 0)) c++; });
+    return { n: list.length, conv: c, pct: list.length ? Math.round(100 * c / list.length) : null };
+  }
   /* ================================================================== */
   async function mount(host) {
     if (!host || host.__bz) return; host.__bz = 1;
@@ -160,7 +167,11 @@
     hl.appendChild(sum); head.appendChild(hl);
     var acts = el("div", "bz-acts");
     acts.appendChild(link("reports.html", "bz-btn", "Reports & exports"));
-    acts.appendChild(link("insights.html", "bz-btn", "Insights"));
+    /* r20 planner: Insights only for a role that can open it (a planner has finance but not insights) */
+    var insL = link("insights.html", "bz-btn", "Insights"); insL.hidden = true; acts.appendChild(insL);
+    try { var IA = window.BPStore && BPStore.auth;
+      if (!IA || !IA.enabled || !IA.enabled()) insL.hidden = false;
+      else Promise.resolve(IA.canView("insights")).then(function (v) { insL.hidden = v !== true; }, function () {}); } catch (e) {}
     head.appendChild(acts); root.appendChild(head);
 
     var kpis = el("div", "bz-kpis"); kpis.setAttribute("aria-label", "Key money numbers"); var tiles = [];
@@ -315,8 +326,13 @@
       var tot = stages.reduce(function (s, x) { return s + x.n; }, 0);
       if (!tot) { empty(b, "No pipeline yet. Add a lead to get started."); return; }
       var mx = Math.max.apply(null, stages.map(function (x) { return x.n; })) || 1, list = el("div", "bz-funnel");
+      var allLc = leadConvAll(leads);
       stages.forEach(function (st, i) {
-        if (i) {
+        if (i && stages[i - 1].l === "Leads") {
+          /* r20 planner: Leads -> Quoted = the dashboard's rule (HelmLeadRules.conv: all leads, linked to a quote or won),
+             not "share of open leads that moved on" - the two pages showed 47% vs 45% for the same studio */
+          list.appendChild(el("div", "bz-conv", allLc.pct == null ? "↓ —" : "↓ " + allLc.conv + " of " + allLc.n + " leads became quotes (" + allLc.pct + "%)"));
+        } else if (i) {
           var nextN = 0; for (var j = i; j < stages.length; j++) nextN += Math.max(0, Number(stages[j].n) || 0);
           var prevN = Math.max(0, Number(stages[i - 1].n) || 0) > 0 ? Math.max(0, Number(stages[i - 1].n) || 0) + nextN : 0;
           var conv = prevN > 0 ? Math.min(100, Math.round(100 * nextN / prevN)) : null;
@@ -329,7 +345,7 @@
         list.appendChild(a);
       });
       b.appendChild(list);
-      b.appendChild(el("p", "bz-caption", "Share of each stage that has moved past the previous one" + (!(MP && po) && pageRes && pageRes.hasMore ? "; values from the 500 most recent quotes." : ".")));
+      b.appendChild(el("p", "bz-caption", (stages[0] && stages[0].l === "Leads" ? "Leads: open enquiries; the first arrow is how many of all your leads became quotes. Later arrows: share" : "Share") + " of each stage that has moved past the previous one" + (!(MP && po) && pageRes && pageRes.hasMore ? "; values from the 500 most recent quotes." : ".")));
     })();
 
     /* ---- top clients by value (from the quotes already loaded) ---- */

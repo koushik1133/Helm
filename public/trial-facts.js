@@ -98,6 +98,10 @@
     "The studio can create up to " + CREATE_CAP + " new quotes (events), and up to " + CREATE_CAP + " new leads, inventory items, vendors, staff and venues each (shared by the whole team). Sample records do not count.",
     "When the trial ends the studio becomes read-only for everyone until it chooses a plan."
   ];
+  // r20 planner: the same line for a teammate whose role can't create quotes (no "Create new quotes" switch) - it
+  // must not promise them quote creation. notice() tags the line; trial-demo.js swaps it in once the role is known.
+  var NOTICE_QUOTES_AT = 3;
+  var NOTICE_NO_QUOTES = "The studio can add up to " + CREATE_CAP + " new leads, inventory items, vendors, staff and venues each (shared by the whole team); sample records do not count. Your role does not create new quotes - teammates who can will see “New quote”.";
 
   // ---- the sign-up box (trial-signup.js): KEY = 4 lines always visible, ALL = "See all trial rules" ----
   var SIGNUP_KEY = [
@@ -124,7 +128,7 @@
 
   var api = { VERSION: VERSION, DAYS: DAYS, KEEP_DAYS: KEEP_DAYS, TEAM_EXTRA: TEAM_EXTRA, CREATE_CAP: CREATE_CAP,
     EXTENSION_DAYS: EXTENSION_DAYS, DELETE_WARN_DAYS: DELETE_WARN_DAYS, EMAIL_PER_DAY: EMAIL_PER_DAY, EMAIL_PER_RECIPIENT: EMAIL_PER_RECIPIENT, REGION: REGION, SAMPLE: SAMPLE, CAP_LISTS: CAP_LISTS, UNCAPPED: UNCAPPED,
-    SECTIONS: SECTIONS, AGREE_LABEL: AGREE_LABEL, LINKS: LINKS, NOTICE: NOTICE, SIGNUP_KEY: SIGNUP_KEY, SIGNUP_ALL: SIGNUP_ALL,
+    SECTIONS: SECTIONS, AGREE_LABEL: AGREE_LABEL, LINKS: LINKS, NOTICE: NOTICE, NOTICE_NO_QUOTES: NOTICE_NO_QUOTES, SIGNUP_KEY: SIGNUP_KEY, SIGNUP_ALL: SIGNUP_ALL,
     count: count, joinList: joinList };
 
   /* ---- DOM (browser only) ------------------------------------------------------------------------ */
@@ -201,7 +205,7 @@
   function notice(doc) {
     var root = el(doc, "div", "tw-notice");
     var ul = el(doc, "ul", "tw-list");
-    NOTICE.forEach(function (t) { var li = el(doc, "li"); var m = el(doc, "span", "tw-mk"); m.appendChild(icon(doc, "tick")); li.appendChild(m); li.appendChild(el(doc, "span", null, t)); ul.appendChild(li); });
+    NOTICE.forEach(function (t, i) { var li = el(doc, "li"); if (i === NOTICE_QUOTES_AT) li.setAttribute("data-k", "quotes"); var m = el(doc, "span", "tw-mk"); m.appendChild(icon(doc, "tick")); li.appendChild(m); li.appendChild(el(doc, "span", null, t)); ul.appendChild(li); });
     root.appendChild(ul);
     var lk = el(doc, "p", "tw-links"); lk.appendChild(doc.createTextNode("Full rules: ")); lk.appendChild(link(doc, LINKS[0]));
     lk.appendChild(doc.createTextNode(" · ")); lk.appendChild(link(doc, LINKS[1])); root.appendChild(lk);

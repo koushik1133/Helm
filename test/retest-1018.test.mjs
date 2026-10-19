@@ -5,7 +5,7 @@ const api = r('store-api.js'), q = r('quotes.html'), l = r('leads.html'), c = r(
 ok(/balance = Math\.round\(\(revenue - gross\) \* 100\) \/ 100/.test(api), 'refund does not create client debt');
 ok(/v\.source === "server" && Number\.isFinite\(Number\(v\.net_profit\)\)/.test(api), 'closure.pl uses server event_pnl');
 ok(/Promise\.all\(\[BPStore\.auth\.can\("create"\), BPStore\.auth\.canEditArea\("quotes"\)\]\)/.test(q), 'quotes New quote needs can(create) + quotes edit');
-ok(/canCreate=!!\(c1&&e1\)/.test(l), 'leads New lead needs create + leads edit');
+ok(/canCreate=!!e1; canConvertQ=!!\(c1&&e1\)/.test(l), 'r20 planner: New lead = leads edit (RLS ra ins); Convert -> quote = create switch + leads edit');
 ok(/BPStore\.vendorBills\.pnl\(id\)/.test(c) && /bills_due/.test(c), 'close dialog counts vendor bills owed');
 ok(/pl\.refunds>0/.test(c), 'closure P&L shows refunds');
 ok(!/<td class="num">\+ \$\{inr\(s\.refundedOut\)\}/.test(s), 'settlement refund row not added to balance');

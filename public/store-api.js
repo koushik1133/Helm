@@ -8355,9 +8355,14 @@ window.HelmUrl = HelmUrl;
           onOpen: () => { if (x.rk && readKeys.indexOf(x.rk) === -1) { readKeys.push(x.rk); saveRead(); } } }); } catch (e) {} });
       };
       let lastRf = 0;
-      const refresh = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
+      const refreshNow = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
         if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
+      // r20 planner: refreshes run ONE AT A TIME, in call order. The chat page's "I just read this chat" nudge
+      // (__bpBellRefresh) used to run alongside a realtime / poll refresh that had read the chat BEFORE the mark;
+      // when that older one finished last it put the stale count back ("4 unread" until a reload / the 90 s poll).
+      let rfChain = Promise.resolve();
+      const refresh = () => { const p = rfChain.then(refreshNow, refreshNow); rfChain = p.then(() => {}, () => {}); return p; };
       // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
       const position = () => {
         if (isPhone()) { panel.style.top = ""; panel.style.right = ""; panel.style.maxHeight = ""; return; }

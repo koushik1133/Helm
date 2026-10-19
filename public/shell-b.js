@@ -403,9 +403,16 @@
     try { return Promise.resolve(fn.call(a, area)).then(function (x) { return !!x; }, function () { return false; }); } catch (e) { return Promise.resolve(false); }
   }
 
+  function capOk(cap) {   /* BPStore.auth.can(cap): role capability (+ the quote_create switch for "create") */
+    var a = window.BPStore && BPStore.auth; if (!a || typeof a.can !== "function") return Promise.resolve(false);
+    try { return Promise.resolve(a.can(cap)).then(function (x) { return !!x; }, function () { return false; }); } catch (e) { return Promise.resolve(false); }
+  }
+
   /* ---- quick-create split button ---- */
   var CREATE = [
-    { label: "New quote", icon: "quotes", area: "quotes", edit: true, run: startQuote },
+    /* r20 planner: "New quote" also needs the "Create new quotes" switch (can("create") = server can_create()); a role
+     * without it (a planner with quote_create off) saw the button and was silently sent to the Quotes list. */
+    { label: "New quote", icon: "quotes", area: "quotes", edit: true, cap: "create", run: startQuote },
     { label: "New lead", icon: "leads", area: "leads", edit: true, href: "leads.html#hb-new" },
     { label: "Checklist template", icon: "templates", area: "templates", edit: true, href: "templates.html" },
     { label: "Inventory item", icon: "inventory", area: "inventory", edit: true, href: "inventory.html#hb-new" },
@@ -419,10 +426,12 @@
   }
   function quickCreate(split, nq) {
     waitAuth(function () {
-      Promise.all(CREATE.map(function (c) { return can(c.area, c.edit); })).then(function (ok) {
+      Promise.all(CREATE.map(function (c) { return c.cap ? Promise.all([can(c.area, c.edit), capOk(c.cap)]).then(function (r) { return r[0] && r[1]; }) : can(c.area, c.edit); })).then(function (ok) {
         // free trial (0181): no "Checklist template" (Templates is not part of the trial)
         var trial = document.documentElement.classList.contains("helm-trial");
         var items = CREATE.filter(function (c, i) { return ok[i] && !(trial && c.area === "templates"); });
+        /* r20 planner: the dashboard tour's "Create something new" step names exactly these (not the dashboard's own menu) */
+        try { window.__helmTopNewMenu = items.filter(function (c) { return c.run !== startQuote; }).map(function (c) { return c.label; }); } catch (e) {}
         if (!items.length) return;
         split.hidden = false;
         if (!ok[0]) { nq.hidden = true; }
@@ -731,7 +740,7 @@
       var B = window.BPStore, u = null;
       try { u = B && B.auth && typeof B.auth.user === "function" ? B.auth.user() : null; } catch (e) { u = null; }
       if (!B || !B.auth || (B.auth.user && !u && n < 120)) { if (++n < 160) return void setTimeout(poll, 250); creating = false; return; }
-      can("quotes", true).then(function (ok) {
+      Promise.all([can("quotes", true), capOk("create")]).then(function (r) { var ok = r[0] && r[1];
         if (!ok) { creating = false; location.href = "/quotes.html"; return; }
         var b = document.getElementById("createBtn");
         if (b) { setTimeout(function () { creating = false; try { if (!b.hidden) b.click(); else location.href = "/quotes.html"; } catch (e) {} }, 400); return; }
@@ -780,6 +789,13 @@
   /* la-1018: ONE "not contacted yet" rule, shared with the dashboard (Follow-ups, Needs attention, New leads tile):
      the lead is still in "New" and has not been turned into a quote. */
   window.HelmLeadRules = window.HelmLeadRules || { uncontacted: function (l) { return !!l && String(l.status || "new") === "new" && !l.quote_id; } };
+  /* r20 planner: ONE "lead became a quote" rule for the dashboard (New leads tile + Pipeline) AND Business (Pipeline):
+     linked to a quote, or marked won / converted; conv(list) -> { n, conv, pct } (they disagreed: 47% vs "45% moved on") */
+  (function (R) {
+    if (typeof R.converted !== "function") R.converted = function (l) { return !!l && (!!l.quote_id || ["won", "converted"].indexOf(String(l.status || "")) >= 0); };
+    if (typeof R.conv !== "function") R.conv = function (list) { list = Array.isArray(list) ? list : []; var c = 0; list.forEach(function (l) { if (R.converted(l)) c++; });
+      return { n: list.length, conv: c, pct: list.length ? Math.round(100 * c / list.length) : null }; };
+  })(window.HelmLeadRules);
 
   /* ---- sidebar count badges (dot when collapsed, pill when expanded) ---- */
   var CNT_KEY = "helm.shellb.counts";
