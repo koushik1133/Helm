@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/event-polish.css?v=5">
+<link rel="stylesheet" href="/event-polish.css?v=6">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -97,7 +97,7 @@
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=33" id="shellProto"></script>
+<script src="/shell-proto.js?v=34" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -197,17 +197,17 @@
 
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
-<script src="config.js?v=103"></script>
+<script src="config.js?v=104"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=255"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=256"></script>
 <script src="flow-resume.js?v=4"></script>
 <script src="event-reminders.js?v=3"></script>
-<script src="tour.js?v=23"></script>
+<script src="tour.js?v=24"></script>
 <script src="booklet.js?v=25"></script>
 <script src="email-send.js?v=5"></script><script src="share-checklist.js?v=13"></script>
 <script src="invite-site-share.js?v=9"></script><script src="booklet-share.js?v=15"></script>
-<script src="pkg-review.js?v=6"></script>
-<script src="event-group-picker.js?v=4"></script><script src="capacity-shortage.js?v=6"></script><script src="approval-watch.js?v=2"></script>
+<script src="pkg-review.js?v=7"></script>
+<script src="event-group-picker.js?v=4"></script><script src="capacity-shortage.js?v=7"></script><script src="approval-watch.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -359,14 +359,17 @@
         paidSoFar=Math.round((pays||[]).filter(p=>p&&p.status==="paid").reduce((a,p)=>a+Number(p.amount||0),0)*100)/100; }),
       S(async()=>{ billsDelta=0; const sm=await BPStore.settlement.summary(id); billsDelta=BPStore.settlement.applyBills?await BPStore.settlement.applyBills(sm,id):0; settleSummary=sm; }),
       S(async()=>{ const st=await BPStore.quotes.staleApprovals([id]); staleInfo = st.has(id) ? ((st.detail||{})[id]||{}) : null; }),
-      S(async()=>{ const [pl,c]=await Promise.all([BPStore.closure.pl(id), BPStore.closure.get(id)]);
+      // r20-coord: the P&L (server event_pnl) needs finance view - a coordinator got a 403 on every open.
+      // Roles without finance only read whether the event is closed; the Closure/P&L card is hidden for them.
+      S(async()=>{ if(!canFin){ const c=await BPStore.closure.get(id); closureSummary={ profit:null, rev:null, pct:null, closed:!!(c&&c.closed_at), billsIncluded:false, noFin:true }; return; }
+        const [pl,c]=await Promise.all([BPStore.closure.pl(id), BPStore.closure.get(id)]);
         closureSummary={ profit:pl.profit, rev:pl.revenue, pct:pl.marginPct, closed:!!(c&&c.closed_at), billsIncluded:!!pl.billsIncluded }; }),
       S(async()=>{ const md=await BPStore.media.list(id); mediaSummary={ photos:md.filter(m=>m.kind==='photo').length, videos:md.filter(m=>m.kind==='video').length, gallery:md.filter(m=>m.in_gallery).length, total:md.length }; }),
       S(async()=>{ conflictSummary=await BPStore.calendar.conflictsForEvent(id);
         try{ conflictAcks=await BPStore.calendar.acks(conflictSummary.map(c=>c.key)); }catch(_){ conflictAcks=null; } }),
     ]);
     if(budgetSummary && billsDelta && BPStore.settlement.applyBillsToBudget) BPStore.settlement.applyBillsToBudget(budgetSummary,billsDelta);
-    if(closureSummary && billsDelta && !closureSummary.billsIncluded){   // manager-1019: server P&L already counts bills
+    if(closureSummary && !closureSummary.noFin && billsDelta && !closureSummary.billsIncluded){   // manager-1019: server P&L already counts bills
       closureSummary.profit=Math.round((closureSummary.profit+billsDelta)*100)/100;
       closureSummary.pct=closureSummary.rev?Math.round(closureSummary.profit/closureSummary.rev*100):null; }
     sumsLoaded=true;
@@ -585,7 +588,7 @@
     const me=ev.id||id;
     const row=(c,ack)=>{
       const t=TYPE[c.type]||["⚠️","Clash"], others=(c.events||[]).filter(e=>e&&e.id!==me);
-      const withKids=others.length?others.map((e,i)=>[i?", ":"", el("a",{href:"event.html?id="+encodeURIComponent(e.id), text:[e.code,(e.title&&e.title!==e.code)?e.title:""].filter(Boolean).join(" · ")+(e.eventTime?" ("+String(e.eventTime).slice(0,5)+")":"")})]).flat()
+      const withKids=others.length?others.map((e,i)=>[i?", ":"", el("a",{href:"event.html?id="+encodeURIComponent(e.id), text:[e.code,(e.title&&e.title!==e.code)?e.title:""].filter(Boolean).join(" · ")+(e.eventTime?" ("+evTimeLabel(e.eventTime)+")":"")})]).flat()
         : ["another booking on the same day"];
       const acts=el("div",{class:"cf-act"});
       if(canEdit && !evLocked()){
@@ -697,7 +700,7 @@
         sum: readySummary ? (readySummary.ready ? '<span class="stat ok">Event Ready ✓</span>' : `<b>${readySummary.criticalPassed}/${readySummary.criticalTotal}</b> checks passed — ${readySummary.criticalTotal-readySummary.criticalPassed} to go`) : "Check the event is ready across everything.",
         acts:[{t:"Open readiness", href:"ready.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"logistics", ic:"🚚", title:"Logistics",
-        sum: logiSummary && logiSummary.guests ? `${logiSummary.guests} guests` : "Guests, permits, comms &amp; the payment schedule.",
+        sum: logiSummary && logiSummary.guests ? `${logiSummary.guests} guests` : (canFin?"Guests, permits, comms &amp; the payment schedule.":"Guests, permits &amp; comms."),
         acts:[{t: canEdit?"Open logistics":"View logistics", href:"logistics.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"closure", ic:"📊", title:"Closure & P&L",
         sum: closureSummary && noCosts() ? `${closureSummary.closed?'<span class="stat ok">Closed</span> · ':''}Profit ${NOCOST}` : closureSummary ? `${closureSummary.closed?'<span class="stat ok">Closed</span> · ':''}Profit <b class="${closureSummary.profit>=0?'t-ok':'t-bad'}">${inr(closureSummary.profit)}</b>${closureSummary.pct!=null?` (${closureSummary.pct}%)`:""}` : "Feedback, P&amp;L, ratings &amp; archive.",
@@ -728,7 +731,7 @@
       tasks:"Tasks — who does what, and when",staff:"Staff — your people working this event",vendors:"Vendors — outside partners you've booked",
       runsheet:"Run-sheet — minute-by-minute plan for the day",command:"Event-day command — arrivals and checks, live",
       issues:"Issues — problems on the day and how they were fixed",readycheck:"Readiness — is everything in place?",
-      logistics:"Logistics — guests, permits and the payment schedule",closure:"Closure — profit, feedback and archive",
+      logistics:canFin?"Logistics — guests, permits and the payment schedule":"Logistics — guests, permits and comms",closure:"Closure — profit, feedback and archive",
       media:"Media — photos and videos for the client",settle:"Settlement — final bill, payments in and vendors paid",
       teardown:"Teardown — pack up, return stock, hand back the venue",budget:"Budget — costs against the quote, and your margin",
       resourceplan:"Resource plan — what you need and what to hire in",inventory:"Inventory — your own stock set aside for this event"};
@@ -814,7 +817,7 @@
     const missing = early && (!d || !tm);
     const warn = missing ? `<span class="stat q" style="background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn-text);margin-left:8px">⚠️ ${d?"Add a start time":"Set the event date &amp; time first"}</span>` : "";
     if(canEdit){ el.innerHTML=`📅 Event date: <input type="date" data-min-today id="evDate" aria-label="Event date" value="${esc(d)}" style="${inp}">
-        <span style="margin-left:8px">🕒 Time:</span> <input type="time" id="evTime" aria-label="Event time" value="${esc(tm)}" style="${inp}">${warn}`;
+        <span style="margin-left:8px">🕒 Time:</span> <input type="time" id="evTime" aria-label="Event time" value="${esc(evTimeInput(tm))}" style="${inp}">${warn}`;
       const di=$("#evDate"), ti=$("#evTime");
       // Save only a complete, plausible date (a half-typed year like 0002-10-08 or a hardener-cleared
       // value must never be written as null). Clearing on purpose is committed on blur only.
@@ -835,8 +838,18 @@
       di.addEventListener("blur",()=>commitDate(true));
       ti.addEventListener("change",()=>BPUI.guard(ti,async()=>{ try{ const nt=ti.value||null; await BPStore.quotes.updateMeta(id,{eventTime:nt}); ev.eventTime=nt; renderDateRow(); BPUI.toast("Event time saved.",{type:"ok"}); }
         catch(e){ ti.value=ev.eventTime||""; BPUI.toast(BPUI.friendlyError(e,{action:"save the event time"}),{type:"err"}); } }));
-    } else { el.innerHTML = (d||tm) ? ("📅 "+esc(d)+(tm?(" · 🕒 "+esc(tm)):"")) : ""; }
+    } else { el.innerHTML = (d||tm) ? ("📅 "+esc(evDateLabel(d))+(tm?(" · 🕒 "+esc(evTimeLabel(tm))):"")) : ""; }
   }
+  // r20-coord: the read-only date row reads "Thu, 29 Oct · 7:00 pm" (studio style), never ISO "2026-10-29 · 19:00".
+  // A YYYY-MM-DD is a calendar day (fmtStudioDate pins it, no zone shift); the time is the studio's wall clock.
+  function evDateLabel(d){ const s=String(d||"").slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return String(d||"");
+    let thisYear=""; try{ thisYear=(BPStore.todayLocal?BPStore.todayLocal():"").slice(0,4); }catch(_){}
+    try{ const o=BPStore.fmtStudioDate?BPStore.fmtStudioDate(s,{style:"medium", year: !!thisYear && s.slice(0,4)!==thisYear}):""; if(o) return o; }catch(_){}
+    return s; }
+  // r20-coord: a stored "19:00:00" showed its seconds in the time box (SMP-1004) - the box gets HH:MM like every other event
+  function evTimeInput(t){ const m=/^(\d{1,2}):(\d{2})/.exec(String(t||"")); return m?(m[1].length<2?"0":"")+m[1]+":"+m[2]:""; }
+  function evTimeLabel(t){ const m=/^(\d{1,2}):(\d{2})/.exec(String(t||"")); if(!m) return String(t||""); const h=+m[1];
+    if(h>23||+m[2]>59) return String(t); return ((h%12)||12)+":"+m[2]+" "+(h<12?"am":"pm"); }
   // ---- 0198 stage strip: VIEW a stage (always allowed), MOVE the event (gated, explained) ----
   const viewIdx=()=> viewK!=null ? stageIndex(viewK) : stageIndex(effStage());
   const evClosedNow=()=> !!ev && (ev.lifecycleStage==="closed" || !!ev.closedAt || !!(closureSummary&&closureSummary.closed));
@@ -891,6 +904,7 @@
     const w=st&&st.closest("[data-strip]"); if(!w) return;
     const max=st.scrollWidth-st.clientWidth, x=st.scrollLeft, l=max>1&&x>1, r=max>1&&x<max-1;
     w.classList.toggle("ov-l",l); w.classList.toggle("ov-r",r);
+    w.classList.toggle("ov",max>1);   // r20-coord: phones reserve side gutters for the ‹ › arrows (event-polish.css)
     const al=w.querySelector(".stp-arr.l"), ar=w.querySelector(".stp-arr.r");
     [[al,l],[ar,r]].forEach(([b,on])=>{ if(!b || b.hidden===!on) return;
       if(!on && document.activeElement===b){ const ps=st.querySelectorAll(".step"), t=b===al?ps[0]:ps[ps.length-1]; if(t) t.focus({preventScroll:true}); }

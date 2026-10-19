@@ -66,7 +66,14 @@
     $("#mState").hidden = true; host.hidden = false;
     if (location.hash) { var t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); }
   }
+  // r20 coord (e): the user manual is hidden for now (config.js HELM_FEATURES.manual). While it is off the page
+  // only shows a calm "coming soon" note: no sign-in round trip, no storage fetch (the private bucket used to 400).
+  function manualEnabled() { var f = window.HELM_FEATURES && window.HELM_FEATURES.manual; return f === true || f === "admin"; }
+  function comingSoon() {
+    state("The user manual is coming soon.", "We're still writing it. Everything in Helm works as usual in the meantime.", { href: "dashboard", text: "← Back to the dashboard" });
+  }
   async function boot() {
+    if (!manualEnabled()) { comingSoon(); return; }
     try { await BPStore.init(); } catch (e) {}
     // Same gate as every app page: signed-out visitors go to sign-in, then come back here.
     if (BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()) {
@@ -74,6 +81,11 @@
       return;
     }
     if (!BPStore.auth.enabled()) { state("Sign-in required", "The manual is only available to signed-in Helm users.", { href: "login.html?next=manual", text: "Sign in →" }); return; }
+    // r20 coord: "admin" = only the studio admin loads the file; everyone else sees "coming soon" (no storage fetch)
+    if (window.HELM_FEATURES && window.HELM_FEATURES.manual === "admin") {
+      var r = null; try { r = await BPStore.auth.role(); } catch (e) { r = null; }
+      if (r !== "admin") { comingSoon(); return; }
+    }
     await render();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();

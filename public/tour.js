@@ -2,7 +2,7 @@
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
    One engine, many pages. Each page's steps live in STEPS keyed by filename.
-   A page opts in simply by including  <script src="tour.js?v=23"></script>.
+   A page opts in simply by including  <script src="tour.js?v=24"></script>.
 
    • Injects its own spotlight CSS (pages need no markup).
    • Renders a floating "? Tour" button, or wires an existing #helpBtn.
@@ -50,8 +50,9 @@
     "quotes.html": [
       { sel: "#tabs", title: "Find confirmed fast", desc: "Active · Quotes · Confirmed · Archive · Deleted. Confirmed events rise to the top and are highlighted so you never scroll to find them." },
       { sel: "#search", title: "Search", desc: "Jump to any quote by client name or quote code." },
-      { sel: "#newBtn", title: "Start a new quote", desc: "Price a fresh event here. It becomes the event everything else hangs off." },
-      { sel: "#rows", title: "Your quotes", desc: "Click a row to open it, confirm it, re-price it, or take client approval by OTP / consent / payment link." },
+      { sel: "#newBtn", need: ["create", "edit:quotes"], title: "Start a new quote", desc: "Price a fresh event here. It becomes the event everything else hangs off." },
+      { sel: "#rows", uses: "edit:quotes", alt: (can) => can("edit:quotes") ? null : { desc: "Click a row to open the event and see its details." },
+        title: "Your quotes", desc: "Click a row to open it, confirm it, re-price it, or take client approval by OTP / consent / payment link." },
     ],
     "flow.html": [
       { sel: "#code", title: "The event workspace", desc: "Every stage of this one event lives here, top to bottom — fill it in order and nothing gets missed." },
@@ -60,7 +61,7 @@
       { sel: "#sec-proposal", title: "3 · Proposal", desc: "Your pitch to the client — it sits above the floor layout so you sell first, then plan." },
       { sel: "#sec-layout", title: "4 · Floor layout", desc: "Open the builder. The chairs you place here feed straight back into the quotation." },
       { sel: "#sec-quote", title: "5 · Quote", desc: "Final pricing and confirmation. Confirming sets the event live." },
-      { sel: "#sec-pay", title: "6 · Payment", desc: "Send the client an approval + payment link and track what's paid." },
+      { sel: "#sec-pay", need: "finance", title: "6 · Payment", desc: "Send the client an approval + payment link and track what's paid." },
     ],
     "logistics.html": [
       { sel: "#tabs", title: "Event logistics", desc: "Everything that has to happen for this event, organised by section (stage, lighting, catering…)." },
@@ -70,8 +71,9 @@
     ],
     "leads.html": [
       { sel: "#search", title: "Find anyone fast", desc: "Search by name, phone or event type across every column." },
-      { sel: "#newBtn", title: "Capture a lead", desc: "Every enquiry starts here. Click + New lead to open the form and record who got in touch." },
-      { sel: "#board", title: "The pipeline board", desc: "Leads sit in columns by stage — New, Qualified, Discovery, Quoted, Won, Lost. Drag a card between columns to move it along." },
+      { sel: "#newBtn", need: "edit:leads", title: "Capture a lead", desc: "Every enquiry starts here. Click + New lead to open the form and record who got in touch." },
+      { sel: "#board", uses: "edit:leads", alt: (can) => can("edit:leads") ? null : { desc: "Leads sit in columns by stage — New, Qualified, Discovery, Quoted, Won, Lost. Open a lead to see its details." },
+        title: "The pipeline board", desc: "Leads sit in columns by stage — New, Qualified, Discovery, Quoted, Won, Lost. Drag a card between columns to move it along." },
     ],
     "staff.html": [
       { sel: "#search", title: "Find a person", desc: "Search by name or role to quickly pull someone up." },
@@ -233,7 +235,37 @@
   // settings, templates). html.helm-trial is set by trial-lock.js once the server
   // says the studio is on its free trial; such steps are never shown there.
   function inTrial() { try { return document.documentElement.classList.contains("helm-trial"); } catch (_) { return false; } }
-  function allowed(step) { return !!step && !(step.trial === false && inTrial()); }
+  // r20 coord (b): role-aware steps. A step may carry need: "area" | "edit:area" | "create" (or a list,
+  // all must pass) - it is skipped for a role without that access - and uses: [...] for the tokens its
+  // alt(can) reads to pick role-appropriate wording (see wording()). Tokens resolve once
+  // through BPStore.auth (canView / canEditArea / can) before the tour starts. An unresolved token
+  // (no BPStore on the page, auth off) reads as allowed, so admins / owners keep the full wording.
+  const access = {};
+  function toks(v) { return v == null ? [] : [].concat(v).filter((x) => typeof x === "string" && x); }
+  function can(tok) { return access[tok] !== false; }
+  function needOk(step) { return toks(step && step.need).every(can); }
+  function resolveTok(tok) {
+    const A = window.BPStore && window.BPStore.auth;
+    if (!A || typeof A.canView !== "function") return Promise.resolve(true);
+    return Promise.resolve().then(() => {
+      if (tok === "create") return typeof A.can === "function" ? A.can("create") : true;
+      if (tok.indexOf("edit:") === 0) return typeof A.canEditArea === "function" ? A.canEditArea(tok.slice(5)) : true;
+      return A.canView(tok.indexOf("view:") === 0 ? tok.slice(5) : tok);
+    }).then((v) => v === true, () => false);
+  }
+  function prepare(list) {
+    const want = [];
+    (list || []).forEach((st) => { if (st) toks(st.need).concat(toks(st.uses)).forEach((t) => { if (!(t in access) && want.indexOf(t) < 0) want.push(t); }); });
+    return Promise.all(want.map((t) => resolveTok(t).then((v) => { access[t] = v; })));
+  }
+  function allowed(step) { return !!step && !(step.trial === false && inTrial()) && needOk(step); }
+  // step.alt(can) may return { title?, desc? } for a role that lacks something the admin wording names
+  // (payments, revenue, Control Center...); null / nothing = the step's own (admin) wording.
+  function wording(step) {
+    let o = null;
+    try { o = typeof step.alt === "function" ? step.alt(can) : null; } catch (_) { o = null; }
+    return { title: (o && o.title) || step.title, desc: (o && o.desc) || step.desc };
+  }
 
   // The steps that would show RIGHT NOW, as indexes into list, in order: allowed,
   // target rendered + visible, and not the very same element as the step before
@@ -429,7 +461,15 @@
     if (tgt) ro.observe(tgt);
   }
 
+  // role-aware steps (need / uses) resolve their access first; plain steps start right away
   function start(customSteps, key) {
+    const src = customSteps || steps;
+    const pending = (src || []).some((st) => st && toks(st.need).concat(toks(st.uses)).some((t) => !(t in access)));
+    if (pending) { const seq = ++startSeq; prepare(src).then(() => { if (seq === startSeq) startNow(customSteps, key); }); return; }
+    startSeq++; startNow(customSteps, key);
+  }
+  let startSeq = 0;
+  function startNow(customSteps, key) {
     end();
     endKey = key || seenKey;
     // Keep every step this studio's plan allows; whether its target is on screen
@@ -474,9 +514,10 @@
     const C = counter(i);
     const stepTxt = `Step ${C.n} of ${C.total}`, tsEl = root.querySelector(".tstep");
     if (tsEl.textContent !== stepTxt) tsEl.textContent = stepTxt;
-    root.querySelector("h4").textContent = step.title;
-    root.querySelector("p").textContent = (tgt || !step.sel) ? step.desc
-      : step.desc + " (This part isn't shown at the current screen size — widen the window or open the menu to see it.)";
+    const W = wording(step);
+    root.querySelector("h4").textContent = W.title;
+    root.querySelector("p").textContent = (tgt || !step.sel) ? W.desc
+      : W.desc + " (This part isn't shown at the current screen size — widen the window or open the menu to see it.)";
     root.querySelector(".back").style.visibility = C.first ? "hidden" : "visible";
     root.querySelector(".next").textContent = C.last ? "Done" : "Next →";
     tip.style.width = Math.min(320, vw - 24) + "px";
@@ -614,7 +655,7 @@
     // for the form-coaching hints above, which remain click-triggered.)
   }
 
-  window.HelmTour = { start, end, hasSteps: steps.length > 0, _layout: layout, _present: present, _pick: pick, _steps: STEPS,
+  window.HelmTour = { start, end, can, prepare, wording, hasSteps: steps.length > 0, _layout: layout, _present: present, _pick: pick, _steps: STEPS,
     _shown: (stepsList) => { const keep = list; list = stepsList || []; try { return shown(); } finally { list = keep; } },
     _state: () => ({ i, list }) };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);

@@ -36,7 +36,8 @@
     { key: "setup",      label: "Studio setup",     href: "onboarding.html", gate: CTL, kw: "onboarding wizard getting started setup import" },
     // hidden on live (config.js HELM_FEATURES.integrationsPage): never a dead link in search
     { key: "integrations", label: "Integrations (WhatsApp, e-mail, payments)", href: "integrations.html", gate: { all: [CTL, { feature: "integrationsPage" }] }, kw: "whatsapp email smtp webhook api connect payment gateway razorpay" },
-    { key: "manual",     label: "User manual",      href: "manual.html",     gate: "always", kw: "help guide docs how to manual" }
+    // r20 coord (e): hidden for now (config.js HELM_FEATURES.manual) - never a "coming soon" dead end in search
+    { key: "manual",     label: "User manual",      href: "manual.html",     gate: { feature: "manual" }, kw: "help guide docs how to manual" }
   ];
 
   /* keys/hashes mirror control-split.js; gate = who sees that section's cards */
@@ -240,6 +241,8 @@
       if (!g || typeof g !== "object") return Promise.resolve(false);
       if (g.view) return view(g.view);
       if (g.role) return role().then(function (r) { return g.role.test(r); });
+      // r20 coord: the manual flag may be "admin" (studio admin only)
+      if (g.feature === "manual" && features && features.manual === "admin") return role().then(function (r) { return r === "admin"; });
       if (g.feature) return Promise.resolve(!!(features && features[g.feature] === true));
       if (g.any) return Promise.all(g.any.map(check)).then(function (v) { return v.some(Boolean); });
       if (g.all) return Promise.all(g.all.map(check)).then(function (v) { return v.every(Boolean); });

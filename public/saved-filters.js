@@ -32,7 +32,9 @@
       presets: [{ key: "inactive", name: "Include inactive", state: { chk: { showInactive: true } } }],
     },
     vendors: {
-      search: "search", sel: [], chk: ["showInactive"], tabs: null,
+      // r20 (live QA): the type tabs (All / Vendors / Freelancers / Rentals / Suppliers, data-k; "" = All) are part
+      // of a view too, so the "All" chip resets them (it used to leave "Rentals" selected)
+      search: "search", sel: [], chk: ["showInactive"], tabs: "kindTabs", tabKey: "k", tabAll: "",
       presets: [{ key: "inactive", name: "Include inactive", state: { chk: { showInactive: true } } }],
     },
     inventory: {
@@ -63,12 +65,15 @@
   var current = { page: null, x: "", activeId: "" };
 
   function el(id) { return doc.getElementById(id); }
+  // tab buttons carry data-f (value "all" = no tab filter) unless the page names another attribute (cfg.tabKey / cfg.tabAll)
+  function tabKey(cfg) { return cfg.tabKey || "f"; }
+  function tabAll(cfg) { return Object.prototype.hasOwnProperty.call(cfg, "tabAll") ? cfg.tabAll : "all"; }
   function readState(cfg) {
     var s = { q: "", sel: {}, chk: {}, tab: "", x: current.x || "" };
     var q = el(cfg.search); if (q) s.q = String(q.value || "");
     cfg.sel.forEach(function (id) { var e = el(id); if (e && e.value) s.sel[id] = String(e.value); });
     cfg.chk.forEach(function (id) { var e = el(id); if (e && e.checked) s.chk[id] = true; });
-    if (cfg.tabs) { var t = el(cfg.tabs); var on = t && t.querySelector("button.on"); if (on && on.dataset && on.dataset.f && on.dataset.f !== "all") s.tab = on.dataset.f; }
+    if (cfg.tabs) { var t = el(cfg.tabs), k = tabKey(cfg); var on = t && t.querySelector("button.on"); if (on && on.dataset && on.dataset[k] && on.dataset[k] !== tabAll(cfg)) s.tab = on.dataset[k]; }
     return clean(cfg, s);
   }
   function fire(e, type) { try { e.dispatchEvent(new global.Event(type, { bubbles: true })); } catch (_) {} }
@@ -84,8 +89,8 @@
       e.value = want; fire(e, "change");
     });
     if (cfg.tabs) {
-      var t = el(cfg.tabs), want = s.tab || "all";
-      var b = t && [].filter.call(t.querySelectorAll("button"), function (x) { return x.dataset && x.dataset.f === want && !x.hidden; })[0];
+      var t = el(cfg.tabs), k = tabKey(cfg), want = s.tab || tabAll(cfg);
+      var b = t && [].filter.call(t.querySelectorAll("button"), function (x) { return x.dataset && x.dataset[k] === want && !x.hidden; })[0];
       if (b && !b.classList.contains("on")) b.click();
     }
     var q = el(cfg.search); if (q && q.value !== s.q) { q.value = s.q; fire(q, "input"); }

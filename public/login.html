@@ -185,6 +185,7 @@
       <p class="sub" id="formSub">Sign in with the account your studio admin created for you.</p>
       <div class="info" id="expiredMsg" role="status" hidden>Your session expired — sign in again.</div>
       <div class="err" id="err" role="alert" hidden></div>
+      <div class="info" id="gHint" role="note" hidden>If you signed up with Google, use Continue with Google.</div>
       <div class="okmsg" id="okmsg" role="status" hidden></div>
       <div id="studioField" hidden>
         <label for="studio">Studio / business name <span class="req" aria-hidden="true">*</span></label>
@@ -371,10 +372,10 @@
   </main>
 
 <script src="telemetry.js?v=4"></script>
-<script src="config.js?v=103"></script>
+<script src="config.js?v=104"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=255"></script>
-<script src="auth-ui.js?v=43"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=256"></script>
+<script src="auth-ui.js?v=44"></script>
 <script src="/auth-visual.js?v=1"></script>
 <script src="/trial-facts.js?v=5"></script>
 <script src="/trial-signup.js?v=12"></script>
@@ -510,7 +511,7 @@
   let mode="signin"; let INVITE_ORG="";
   const J=()=>JOINING && !INVITE_DEAD;
   function submitLabel(){ if(mode==="signup" && TRIAL()) return "Start free trial →"; return mode==="signup" ? (J()?"Create account & join →":"Create studio →") : (J()?"Sign in to accept →":"Sign in →"); }
-  function setMode(m){ mode=m; $("#err").hidden=true; $("#okmsg").hidden=true;
+  function setMode(m){ mode=m; $("#err").hidden=true; $("#okmsg").hidden=true; $("#gHint").hidden=true;
     document.querySelectorAll(".mtab").forEach(b=>{ const on=b.dataset.mode===m; b.classList.toggle("on",on); b.setAttribute("aria-pressed",on?"true":"false"); });
     const needStudio = !J() && m==="signup";
     $("#studioField").hidden = !needStudio;   // an invitee never names a studio
@@ -971,7 +972,13 @@
     const why=QS.get("reason");
     if(why==="idle") $("#expiredMsg").textContent="You were signed out after a period of inactivity — sign in again.";
     else if(why==="max") $("#expiredMsg").textContent="For security, sessions end after a set time — sign in again.";
+    else if(why==="revoked") $("#expiredMsg").textContent="You were signed out — this account was signed out on another browser or device, or the account changed. Sign in again.";
     $("#expiredMsg").hidden=false; if(mode!=="signin") setMode("signin");
+  }
+  // r20-coord #33: the "expired" / "signed out" notice shows once - drop expired / reason from the address so a
+  // reload doesn't show it again (next= and everything else stay)
+  if(EXPIRED || QS.get("reason")==="signout"){
+    try{ const u=new URL(location.href); u.searchParams.delete("expired"); u.searchParams.delete("reason"); history.replaceState(history.state, "", u.pathname+(u.search||"")+(u.hash||"")); }catch(_){}
   }
   // 0205: back from /auth/confirm after an e-mail link that does not keep a session in this browser
   if(QS.get("confirmed")){ $("#okmsg").textContent=QS.get("confirmed")==="email_change"?"Your e-mail address was changed — sign in with the new one.":"Your e-mail is confirmed — sign in to continue."; $("#okmsg").hidden=false; if(mode!=="signin" && !JOINING) setMode("signin"); }
@@ -1087,7 +1094,7 @@
   // Google OAuth — sign in first; on return, showOnboarding() collects the studio
   // details for brand-new users (invitees skip straight to accepting).
   $("#googleBtn").addEventListener("click", ()=>{
-    $("#err").hidden=true; $("#okmsg").hidden=true;
+    $("#err").hidden=true; $("#okmsg").hidden=true; $("#gHint").hidden=true;
     BPUI.guard($("#googleBtn"), async ()=>{
       // 0205: the invite token rides along (also kept in this tab), so the Google account joins on return
       const tok=pendingInvite();
@@ -1145,7 +1152,7 @@
     BPUI.guard(btn, async ()=>{
       $("#email").value=normEmail($("#email").value);
       const email=$("#email").value, pw=$("#pw").value;
-      $("#err").hidden=true; $("#okmsg").hidden=true;
+      $("#err").hidden=true; $("#okmsg").hidden=true; $("#gHint").hidden=true;
       // inline field checks first (first invalid field gets focus)
       const ids = mode==="signup" ? [...(JOINING?[]:["studio"]),"fullname","email","pw"] : ["email","pw"];
       let firstBad=null; ids.forEach(id=>{ const i=document.getElementById(id); if(!setFieldErr(i, fieldRule[id](i.value)) && !firstBad) firstBad=i; });
@@ -1244,6 +1251,9 @@
         // never echo "already registered" / "not confirmed" (account enumeration): one answer
         const direct=(err&&(err.code==="invalid_credentials"||err.code==="account_locked"||err.code==="rate_limited"||err.code==="captcha_failed")) || (/^(Use at least|Include at least|Choose a)/.test(m));
         showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create the studio":"sign you in"}));
+        // r20-coord #33: a wrong password may be an account that signs in with Google - a generic hint, shown for every
+        // invalid sign-in (it says nothing about whether this e-mail has an account: no enumeration)
+        if(mode==="signin" && err && err.code==="invalid_credentials"){ const g=$("#googleBtn"), gh=$("#gHint"); if(gh && g && !g.hidden) gh.hidden=false; }
       }finally{ if(!keepCap) capReset(cap); btn.textContent=submitLabel(); }
     });
   });

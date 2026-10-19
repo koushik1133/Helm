@@ -164,12 +164,18 @@
 
   // ---- 0126 / 0183: trial staff + after-trial access ----
   // my_trial_access() answer -> Staff-page note spec, or null (active trial only)
-  function staffNoteSpec(a) {
+  // r20 coord (d): isAdmin === false -> teammate wording (a teammate can't invite or choose a plan);
+  // the studio admin (or an older caller that passes nothing) keeps the owner wording.
+  function staffNoteSpec(a, isAdmin) {
     if (!a || typeof a !== "object" || a.is_trial_org !== true) return null;
-    if (a.read_only === true || a.locked === true) return { tone: "ended",
-      text: "Trial ended: everyone in this studio, including invited staff, can still sign in and view everything in read-only mode. Upgrade to continue creating and editing records." };
+    var mate = isAdmin === false;
+    if (a.read_only === true || a.locked === true) return { tone: "ended", text: mate
+      ? "Your studio's free trial has ended. You can still sign in and view everything in read-only mode; creating and editing come back when your studio admin chooses a plan."
+      : "Trial ended: everyone in this studio, including invited staff, can still sign in and view everything in read-only mode. Upgrade to continue creating and editing records." };
     if (a.ended === true) return null;
     var when = endsLabel(a.ends_at, a.timezone || null);
+    if (mate) return { tone: "", text: "Your studio is on a free trial" + (when ? " until " + when : "") +
+      ". If it ends before a plan is chosen, you can still sign in and view everything; nothing is deleted." };
     return { tone: "", text: "Trial: when the trial ends" + (when ? " on " + when : "") +
       ", your staff keep read-only access until you upgrade. Invite your real team now; if you choose a plan, they keep working without being re-invited." };
   }
@@ -326,7 +332,12 @@
     st.trialOrg.access().then(function (a) {
       var blk = blockedSpec(a);
       if (blk) { renderBlocked(blk, st); return; }
-      if (page() === "staff") renderStaffNote(staffNoteSpec(a));
+      if (page() !== "staff") return;
+      // the owner wording ("Invite your real team now...") is for the studio admin only
+      var roleP; try { roleP = Promise.resolve(st.auth.role ? st.auth.role() : null); } catch (e) { roleP = Promise.resolve(null); }
+      roleP.catch(function () { return null; }).then(function (r) {
+        renderStaffNote(staffNoteSpec(a, r === "admin" || a.is_owner === true));
+      });
     }).catch(function () {});
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", run); else run();

@@ -70,5 +70,28 @@ t('4 group header opens a read-only member list (every group, with roles)', () =
   assert.match(html, /const contacts=ev\?\(thread\.contacts\|\|\[\]\):\[\];/);
 });
 
+t('r2-1 new group: one create per press, opens at once with a toast, survives a late/older refresh', () => {
+  assert.match(html, /async function tryCreate\(\)\{ if\(creating\) return;/);
+  assert.match(html, /creating=true; btn\.disabled=true; btn\.setAttribute\("aria-busy","true"\)/);
+  assert.match(html, /closeModal\(\); BPUI\.toast\("Group created",\{type:"ok"\}\);\s*await openNewConv\(id,\{kind:"group"/);
+  assert.match(html, /const gen=\+\+refreshGen;[\s\S]{0,400}if\(gen!==refreshGen\) return;[\s\S]{0,120}convs=keepJustMade\(list\.slice\(\)\);/);
+  assert.match(html, /function keepJustMade\(list\)\{[\s\S]{0,200}list\.unshift\(c\)/);
+  assert.match(html, /startDm\(r\.dataset\.id\); await openNewConv\(id,/);
+});
+
+t('r2-2 switching chats: subtitle reset + loading state at once, stale answers dropped', () => {
+  assert.match(html, /if\(thread\.conv!==id\)\{ thread=\{messages:\[\],reactions:\[\],members:c\._members\|\|\[\],hasMore:false,conv:null,loadingFor:id\};\s*setSub\(c\);/);
+  assert.match(html, /if\(!msgs\.length&&thread\.conv!==activeId\)\{ host\.innerHTML='<div class="welcome" role="status">[^']*Loading messages/);
+  assert.match(html, /if\(conv!==activeId\) return;   \/\/ r20-2[^\n]*\n\s*if\(!t\) return;[^\n]*\n\s*thread=t; thread\.conv=conv;/);
+  // the fetched thread is held in a local until it is known to be for the open chat
+  assert.doesNotMatch(html, /\} else thread=await BPStore\.chat\.thread\(conv,THREAD_PAGE\);/);
+});
+
+t('r2-3 my name: profile name -> sign-in (user_metadata) name -> e-mail prefix', () => {
+  assert.match(api, /const md = \(currentUser && currentUser\.user_metadata\) \|\| \{\};\s*const metaRaw = cleanDisplayName\(md\.full_name \|\| md\.name \|\| ""\);/);
+  assert.match(api, /full_name: String\(data\.full_name \|\| ""\)\.trim\(\) \|\| metaName/);
+  assert.match(html, /if\(ME\.metaName&&roster\[ME\.id\]&&!String\(roster\[ME\.id\]\.full_name\|\|""\)\.trim\(\)\) roster\[ME\.id\]=Object\.assign\(\{\},roster\[ME\.id\],\{full_name:ME\.metaName\}\);/);
+});
+
 for (const [name, fn] of tests) { await fn(); n++; console.log('ok -', name); }
 console.log(`r20-chat: ${n} passed`);

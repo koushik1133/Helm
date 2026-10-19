@@ -34,6 +34,14 @@ html[data-theme] .steps .step.viewing .n{background:var(--accent-soft);color:var
 .stp-arr:hover{border-color:var(--accent);color:var(--accent)}
 .stp-arr:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .stp-arr[hidden]{display:none!important}
+/* r20-coord: on a phone the ‹ › arrows sat ON the first/last visible stage pills. When the strip overflows the
+   wrap keeps a gutter each side for the arrows (pills never sit under them) and pills snap into place. */
+@media (max-width:899px){
+  .stepwrap.ov{padding:0 34px}
+  .stepwrap.ov .steps{scroll-snap-type:x proximity;scroll-padding-inline:6px}
+  .stepwrap.ov .step{scroll-snap-align:center}
+  .stepwrap.ov.ov-l .steps,.stepwrap.ov.ov-r .steps,.stepwrap.ov.ov-l.ov-r .steps{-webkit-mask-image:none;mask-image:none}
+}
 /* desktop: compact event header + strip pinned under the app top bar while the workspace scrolls */
 .evstick{position:sticky;top:var(--hb-top,0px);height:0;z-index:700}
 .evstick-in{position:absolute;left:0;right:0;top:0;padding:8px 14px 4px;background:color-mix(in srgb,var(--panel) 94%,transparent);

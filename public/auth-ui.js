@@ -376,7 +376,7 @@
     card.appendChild(el("h2", { id: "hauTitle" }, section === "profile" ? "Your profile" : section === "settings" ? "Account settings" : "Your account"));
     card.appendChild(el("p", { class: "hau-muted" }, "Signed in as " + (u.email || "")));
     if (section !== "settings") {
-      if (st.profile && st.profile.validate && st.profile.update) card.appendChild(profileSection(st, focusProfile));
+      if (st.profile && st.profile.validate && st.profile.update) card.appendChild(profileSection(st, focusProfile, section === "profile"));
       else if (st.profile && st.profile.setMine) card.appendChild(displayNameSection(st));
     }
     panel._hauReturn = returnFocus;
@@ -1108,9 +1108,10 @@
     };
   }
   // "Your profile" (Account panel) — falls back to the display-name section without 0041
-  function profileSection(st, focusIt) {
+  // r20-coord: soloHead = the panel opened on the profile alone - its <h2> already says "Your profile", so no second heading
+  function profileSection(st, focusIt, soloHead) {
     var sec = el("div", { class: "hau-sec", id: "hauProfile" });
-    sec.appendChild(el("h3", { id: "hauProfileTitle" }, "Your profile"));
+    if (!soloHead) sec.appendChild(el("h3", { id: "hauProfileTitle" }, "Your profile"));
     var body = el("div", null); body.appendChild(el("p", { class: "hau-muted" }, "Loading…"));
     sec.appendChild(body);
     Promise.resolve(st.profile.mine()).then(function (p) {
@@ -1119,7 +1120,7 @@
       body.appendChild(el("p", { class: "hau-muted" }, "Teammates see your name, job title, department and photo."));
       if (!p.complete) body.appendChild(el("p", { class: "hau-muted", style: "font-weight:600" }, "Add your full name and mobile number to complete your profile."));
       var u = st.auth.user() || {};
-      var f = profileForm(st, { mode: "panel", idp: "hap", profile: p, email: u.email, labelledBy: "hauProfileTitle", submitLabel: "Save profile",
+      var f = profileForm(st, { mode: "panel", idp: "hap", profile: p, email: u.email, labelledBy: soloHead ? "hauTitle" : "hauProfileTitle", submitLabel: "Save profile",
         onSaved: function (row) { if (row && row.complete) hideProfileBanner(); } });
       body.appendChild(f.el);
       if (focusIt) { try { sec.scrollIntoView({ block: "start" }); } catch (e) {} f.focusFirst(); }
@@ -1371,8 +1372,8 @@
      Replaces the old "Account" button + role/e-mail/Log out chip on signed-in studio
      pages (never HQ, never client pages). Like GitHub: a round avatar button opens a
      menu (role=menu) with the identity header, Profile, Account settings (profile,
-     password, two-step verification), User manual (opens /manual in a new tab) and
-     Sign out - for every role, free trial included. R19: Control Center, Insights and
+     password, two-step verification), User manual (opens /manual in a new tab; only while
+     config.js HELM_FEATURES.manual is true - hidden for now) and Sign out - for every role, free trial included. R19: Control Center, Insights and
      Customize dashboard left the menu (the sidebar and the dashboard already have them). Keyboard: Enter/Space/ArrowDown open, arrows/Home/End move, Esc closes
      and returns focus, Tab stays inside the open menu. Click outside closes.
      #helm-topbar-search is an empty slot left of the avatar for the studio search. */
@@ -1392,8 +1393,11 @@
     var items = [
       { id: "profile", label: "Profile" },
       { id: "settings", label: "Account settings" },
-      { id: "manual", label: "User manual", href: "manual.html", newTab: true },
     ];
+    // r20 coord: the user manual follows config.js HELM_FEATURES.manual ("admin" = studio admin only)
+    var manualFlag = typeof window !== "undefined" && window.HELM_FEATURES ? window.HELM_FEATURES.manual : false;
+    if (manualFlag === true || (manualFlag === "admin" && role === "admin"))
+      items.push({ id: "manual", label: "User manual", href: "manual.html", newTab: true });
     items.push({ id: "signout", label: "Sign out", sep: true });
     return { name: name || email.split("@")[0] || "Account", email: email, role: label,
       initials: initials(name, email), color: avColorIdx(u.id || email),

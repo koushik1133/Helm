@@ -54,6 +54,10 @@ html[data-shell="b"][data-theme="dark"] :is(.app, .page, .wrap, main) { backgrou
   html[data-shell="b"] header.hb-header .hb-tools { gap: 2px; flex: 0 0 auto; }
   html[data-shell="b"] header.hb-header :is(.hb-burger, .hb-tools .hb-ibtn, .hb-tools .hb-bell .bpb-btn) { width: 36px; min-width: 36px; }
   html[data-shell="b"] header.hb-header .hb-split .hb-chev { width: 26px; min-width: 26px; padding: 0; }
+  /* r20-coord: a role without "New quote" gets the menu button alone ("+ New ⌄") - on a phone it was squeezed to
+     26px showing "+ ⌄". Icon-only 44px square instead (the button keeps its aria-label "New - open the create menu"). */
+  html[data-shell="b"] header.hb-header .hb-split .hb-chev.hb-solo { width: 44px; min-width: 44px; height: 44px; padding: 0; justify-content: center; }
+  html[data-shell="b"] header.hb-header .hb-split .hb-chev.hb-solo .hb-svg:last-child { display: none; }
 }
 /* 5c. quotes: row actions on one horizontally scrollable line instead of a 470px stack */
 @media (max-width: 600px) {

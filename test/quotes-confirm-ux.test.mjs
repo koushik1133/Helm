@@ -22,7 +22,7 @@ t('double click: buttons locked before the prompt; group offer only after the lo
   assert.ok(body.indexOf('await BPStore.quotes.confirm(') < body.indexOf('showEventGroupPrompt(confirmedId)'));
 });
 t('row actions: Edit layout, name opens the workspace', () => {
-  assert.match(q, />Edit layout<\/button>/);
+  assert.match(q, /\$\{canEditLayouts\?"Edit":"View"\} layout<\/button>/);   // r20-coord: "View layout" for layouts view-only
   assert.match(q, /<a class="qname" href="event\.html\?id=\$\{esc\(encodeURIComponent\(x\.id\)\)\}"/);
 });
 t('quotes Views row hides presets that duplicate the tabs', () => {

@@ -64,7 +64,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=33" id="shellProto"></script>
+<script src="/shell-proto.js?v=34" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -108,9 +108,9 @@
 
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
-<script src="config.js?v=103"></script>
+<script src="config.js?v=104"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=255"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=256"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -145,7 +145,8 @@
       const href = linkFor(c.key);
       let act="";
       if(c.signoff && canEdit){ act = `<button type="button" class="btn" style="height:32px;padding:0 12px;font-size:12px" data-sign="${esc(c.signoff)}" data-done="${c.ok?1:0}" aria-label="${c.ok?"Undo":"Mark done"}: ${esc(c.label)}">${c.ok?"Undo":"Mark done"}</button>`; }
-      else if(href && !c.ok){ act = `<a class="link" href="${esc(href)}" aria-label="Fix ${esc(c.label)}">Fix →</a>`; }
+      // r20 coord (b): no "Fix" link when the role can't open the page it points at (c.noFix: Advance received without finance)
+      else if(href && !c.ok && !c.noFix){ act = `<a class="link" href="${esc(href)}" aria-label="Fix ${esc(c.label)}">Fix →</a>`; }
       return `<div class="chk"><div class="ic ${cls}" aria-hidden="true">${icon}</div><span class="sr-only">${c.ok?"Passed":(c.unchecked?"Not checked":(c.critical?"Not done":"Warning"))}:</span>
         <div><div class="l">${esc(c.label)}${c.unchecked?'<span class="opt">not checked</span>':(c.critical?"":'<span class="opt">optional</span>')}</div><div class="d">${esc(c.detail)}</div></div>
         <div class="act">${act}</div></div>`;

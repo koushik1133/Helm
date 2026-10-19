@@ -69,7 +69,7 @@ t('a definitive refusal (revoked session, nothing in storage) still ends the ses
     getSession: (s) => (gone ? null : s) });
   await e.S.init(); e.S.auth.required(); e.fire('SIGNED_OUT', null); await flush();
   assert.equal(e.replaced().length, 1);
-  assert.match(e.replaced()[0], /^login\.html\?next=dashboard&expired=1$/);
+  assert.match(e.replaced()[0], /^login\.html\?next=dashboard&expired=1&reason=revoked$/);   // r20-coord #33: says why
 });
 t('sign-in status check failing on the network → retried, then "Couldn\'t reach Helm" (never the sign-in page)', async () => {
   let n = 0;

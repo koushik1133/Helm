@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=33"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=34"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -9,7 +9,7 @@
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
   if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=8"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
-  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=8"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=9"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -39,11 +39,11 @@ var HelmUrl = (function (global) {
     client: ["clients", "", "client", "id"], booklet: ["booklet", "", "booklet", "t"]
   };
   // plain sidebar pages served at /<studio>/<page> (no ref); control is reached via "settings"
-  "audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready|flow".split("|").forEach(function (p) { KINDS[p] = [p, "", p, ""]; });
+  "audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|settlement|discovery|proposal|budget|closure|runsheet|resources|logistics|teardown|command|ready|flow".split("|").forEach(function (p) { KINDS[p] = [p, "", p, ""]; });
   var PAGE_KIND = { dashboard: "dashboard", quotes: "quotes", leads: "leads", chat: "chat", control: "settings",
     event: "event", builder: "floor-plan", ops: "tasks", client: "client", booklet: "booklet" };
   Object.keys(KINDS).forEach(function (k) { if (!PAGE_KIND[KINDS[k][2]]) PAGE_KIND[KINDS[k][2]] = k; });
-  var RE = /^\/([a-z0-9-]{3,40})\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready|flow)(?:\/([^/?#]{1,160})(?:\/(floor-plan|tasks))?)?\/?$/;
+  var RE = /^\/([a-z0-9-]{3,40})\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|discovery|proposal|budget|closure|runsheet|resources|logistics|teardown|command|ready|flow)(?:\/([^/?#]{1,160})(?:\/(floor-plan|tasks))?)?\/?$/;
   var slug = null;
   try { var s0 = global.sessionStorage && sessionStorage.getItem("bp_studio_slug"); if (s0 && SLUG.test(s0)) slug = s0; } catch (e) {}
   function dec(v) { try { return decodeURIComponent(v); } catch (e) { return null; } }
@@ -709,6 +709,7 @@ window.HelmUrl = HelmUrl;
      not installed (PGRST202 / 42883) = the feature is off. "Not required" answers are
      cached per tab (bp_sess_checkout); a "must check out" answer is always asked again. */
   const CHECKOUT_PAGE = "checkout";
+  const ROLE_BLOCK_MSG = "Your role can't open that page.";   // same text as trial-lock.js ROLE_MSG (R20 item 20)
   let coEarly = null;
   // Pure decision (exported for tests): "checkout" (send to /checkout) or "none".
   function checkoutGateDecision(st, page, role) {
@@ -796,6 +797,9 @@ window.HelmUrl = HelmUrl;
         // nothing to buy here (member, already subscribed, older studio, 0056 not
         // installed) → straight on to ?next= (never back to this page: no loop)
         if (cst && (cst.missing || cst.required !== true)) {
+          // R20 (live QA, item 20): a teammate (not a studio admin) can't buy a plan - say so once on the page they land on
+          // (the same one-time "bp_flash" notice trial-lock.js uses), instead of a silent bounce to the dashboard
+          if (!cst.missing && cst.reason === "member") { try { sessionStorage.setItem("bp_flash", "i|" + ROLE_BLOCK_MSG); } catch (e) {} }
           try { location.replace(safeNext(nextParam())); } catch (e) {}
           return HANG();
         }
@@ -827,14 +831,24 @@ window.HelmUrl = HelmUrl;
     const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "PGRST301" || c === "PGRST303" || (e && e.status === 401) || /jwt expired|invalid jwt/i.test(m);
   }
-  function expireSession() {
+  // r20-coord #33: the auth server REVOKED this browser's session (signed out on another browser / device with
+  // "Sign out other devices", the account was removed or changed) - not a plain timeout. supabase-js reports it as
+  // a 400 from /auth/v1/token?grant_type=refresh_token with one of these error codes.
+  const REVOKED_CODES = /^(refresh_token_not_found|session_not_found|user_not_found)$/;
+  let refreshRevoked = false;
+  function isRevokedRefusal(err) {
+    if (!err) return false;
+    const c = String(err.code || err.error_code || ""), st = Number(err.status) || 0;
+    return REVOKED_CODES.test(c) && (!st || st === 400 || st === 403 || st === 404);
+  }
+  function expireSession(revoked) {
     if (sessionExpired || !shouldRedirectOnExpiry()) return false;
     sessionExpired = true;
     const byLogout = signedOutElsewhere(lsGet(SIGNOUT_KEY), currentUser && currentUser.id, Date.now());
     currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = true;
     let page = "dashboard.html";
     try { page = HelmUrl.here(); } catch (e) {}
-    const url = "login.html?next=" + encodeURIComponent(page) + (byLogout ? "&reason=signout" : "&expired=1");
+    const url = "login.html?next=" + encodeURIComponent(page) + (byLogout ? "&reason=signout" : "&expired=1" + ((revoked || refreshRevoked) ? "&reason=revoked" : ""));
     const UI = global.BPUI;
     // signed out on purpose in another tab: nothing "expired" and nothing to warn about
     if (byLogout) { try { if (UI && UI.allowUnload) UI.allowUnload(); } catch (e) {} try { location.replace(url); } catch (e) {} return true; }
@@ -901,7 +915,7 @@ window.HelmUrl = HelmUrl;
       }
       if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
       if (lastErr && !definiteAuthRefusal(lastErr)) return false;   // transient: stay signed in
-      return expireSession();
+      return expireSession(isRevokedRefusal(lastErr));
     })();
     authFailPromise.then(() => { authFailPromise = null; }, () => { authFailPromise = null; });
     return authFailPromise;
@@ -962,9 +976,14 @@ window.HelmUrl = HelmUrl;
   function authAwareFetch(input, init) {
     return coalescedFetch(input, init).then((res) => {
       try {
+        const u = typeof input === "string" ? input : (input && input.url) || "";
         if (res.status === 401 && currentUser) {
-          const u = typeof input === "string" ? input : (input && input.url) || "";
           if (/\/rest\/v1\//.test(u)) onAuthFailure();
+        }
+        // r20-coord #33: a refused token refresh (supabase-js auto-refresh included) - remember whether the server said
+        // the session was REVOKED, so the sign-in page can say why. Reads a clone; the caller's response is untouched.
+        if (res.status === 400 && /\/auth\/v1\/token\?(?:[^#]*&)?grant_type=refresh_token/.test(u) && res.clone) {
+          res.clone().json().then((b) => { if (b && isRevokedRefusal({ code: b.error_code || b.code, status: 400 })) refreshRevoked = true; }).catch(() => {});
         }
       } catch (e) {}
       return res;
@@ -1106,13 +1125,12 @@ window.HelmUrl = HelmUrl;
     if (limitTimer) { clearInterval(limitTimer); limitTimer = null; }
     explicitSignOut = true;
     if (!fromOtherTab) { try { if (bc) bc.postMessage({ type: "logout", reason: reason }); } catch (e) {} }
-    // Max session age: revoke the refresh token server-side too (global) so it can't outlive
-    // the cap. Only the originating tab does this (the broadcast above tells other tabs, which
-    // just clear locally). If the network call fails, still sign out locally.
+    // Max session age / idle: revoke THIS session's refresh token server-side so it can't outlive the cap
+    // (scope "local" revokes the current session on the server too). r20-coord #33: never "global" - one
+    // browser hitting its cap must not sign the account out on every other browser / device.
+    // If the network call fails, still sign out locally.
     if (supa) {
-      const sc = (reason === "max" && !fromOtherTab) ? "global" : "local";
-      try { await supa.auth.signOut({ scope: sc }); }
-      catch (e) { if (sc !== "local") { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } }
+      try { await supa.auth.signOut({ scope: "local" }); } catch (e) {}
     }
     currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null;
     sessClear(); userLocalClear(); lsDel(SESSION_START_KEY); authRequired = true;
@@ -1162,7 +1180,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "43";
+  const AUTH_UI_VERSION = "44";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1178,7 +1196,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "9";
+  const STUDIO_SEARCH_VERSION = "10";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";
@@ -1215,7 +1233,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "16";
+  const TRIAL_BANNER_VERSION = "17";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -1927,8 +1945,11 @@ window.HelmUrl = HelmUrl;
       if (error) throw error;
       return data; // browser navigates away to Google
     },
-    // Explicit "Log out" = global sign-out (revokes every device's refresh token).
-    async signOut() { explicitSignOut = true; reauthClear(); if (currentUser && currentUser.id) lsSet(SIGNOUT_KEY, JSON.stringify({ uid: currentUser.id, ts: Date.now() })); if (supa) { try { await supa.auth.signOut(); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); navTrailClear(); studioSlugCache = null;
+    // Explicit "Log out" = THIS browser only (r20-coord #33). scope "local" still revokes this session's refresh
+    // token on the server; it no longer ends the account's sessions on other browsers / devices (supabase-js v2's
+    // bare signOut() defaults to "global", which logged the owner's Safari out when another browser signed out).
+    // "Sign out other devices" (signOutOthers, scope "others") is the explicit way to end the rest.
+    async signOut() { explicitSignOut = true; reauthClear(); if (currentUser && currentUser.id) lsSet(SIGNOUT_KEY, JSON.stringify({ uid: currentUser.id, ts: Date.now() })); if (supa) { try { await supa.auth.signOut({ scope: "local" }); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); navTrailClear(); studioSlugCache = null;
       lsDel(SESSION_START_KEY); lsDel(RECOVERY_KEY);
       if (mode === "supabase") authRequired = true; },
     // End every OTHER session of this account (other browsers / devices); this one stays.
@@ -4164,7 +4185,28 @@ window.HelmUrl = HelmUrl;
     }
     return out.sort((a, b) => a.localeCompare(b));
   }
+  // r20 coord (d), owner decision: pay on a staff row LINKED to a team login (profile_id) is the
+  // studio admin's business only. Everyone else - including that person on their own record -
+  // never sees the day rate or a pay-like custom field of a linked row. Plain crew (no login) as before.
+  function staffPayVisible(s, isAdmin) { return isAdmin === true || !(s && s.profile_id); }
+  // a custom field that is pay (monthly salary, wage, CTC, ...): hidden with the day rate
+  function staffPayAttr(key, label) {
+    const re = /(salary|wage|ctc|stipend|remuneration|compensation|payout|day_?rate|daily_?rate|per_?day|(^|[^a-z])pay([^a-z]|$))/i;
+    return re.test(String(key == null ? "" : key)) || re.test(String(label == null ? "" : label));
+  }
+  // the day_rate part of a Staff-page save. ZERO DATA LOSS: a hidden field, or an admin leaving a
+  // linked member's (optional) rate empty, sends NO day_rate key at all - the stored value stays.
+  // Plain crew keep today's behaviour (an emptied box clears their rate). value: number | null.
+  function staffPayPatch(s, isAdmin, value) {
+    if (!staffPayVisible(s, isAdmin)) return {};
+    const v = value === undefined || value === "" ? null : value;
+    if (s && s.profile_id && v == null) return {};
+    return { day_rate: v };
+  }
   const staff = {
+    payVisible: staffPayVisible,
+    payAttr: staffPayAttr,
+    payPatch: staffPayPatch,
     async list(includeInactive) {
       if (mode === "supabase") {
         return sbAll(() => { let q = supa.from("crew_members").select("*").order("name").order("id");
@@ -5529,6 +5571,18 @@ window.HelmUrl = HelmUrl;
     return hit(eventType) || hit(title) || "📅";
   }
 
+  /* ---------------- sample-row names (r20) ---------------- */
+  // r20 (live QA): ONE display format for a free-trial sample name everywhere a page shows it as
+  // plain text (lists and drop-downs alike): "Demo \u00b7 PA Speaker" -> "PA Speaker (sample)". A seed
+  // name that already ends in "(sample)" ("Demo \u00b7 Pandit Sharma Ji (sample)") gets it once, never
+  // twice. Any other name is returned unchanged. Display only - the stored name is never touched.
+  function sampleDisplayName(n) {
+    const s = String(n == null ? "" : n), m = /^\s*Demo \u00b7\s*/.exec(s);
+    if (!m) return s;
+    const base = s.slice(m[0].length).replace(/\s*\(sample\)\s*$/i, "");
+    return base ? base + " (sample)" : s;
+  }
+
   /* ---------------- display names (0034) ---------------- */
   // What to call a person: their display name → the part of their e-mail before "@"
   // → their role → "Member". Plain text — callers must still escape it.
@@ -5986,9 +6040,15 @@ window.HelmUrl = HelmUrl;
     async me() {
       if (mode !== "supabase") { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === chatLocalUid()) || CHAT_LOCAL_ROSTER[0]; return { id: u.id, name: u.full_name, email: u.email }; }
       const id = currentUser && currentUser.id;
-      let name = personDisplayName({ email: currentUser && currentUser.email });
-      try { const { data } = await supa.from("profiles").select("full_name,email,role").eq("id", id).maybeSingle(); if (data) name = personDisplayName(data); } catch (e) {}
-      return { id, name, email: currentUser && currentUser.email };
+      // r20-2: same chain as the dashboard greeting - profile name, then the sign-in name (auth user_metadata
+      // full_name / name, e.g. from Google), then the e-mail before "@"
+      const md = (currentUser && currentUser.user_metadata) || {};
+      const metaRaw = cleanDisplayName(md.full_name || md.name || "");
+      const metaName = metaRaw && !displayNameProblem(metaRaw) ? metaRaw : "";
+      let name = personDisplayName({ full_name: metaName, email: currentUser && currentUser.email });
+      try { const { data } = await supa.from("profiles").select("full_name,email,role").eq("id", id).maybeSingle();
+        if (data) name = personDisplayName(Object.assign({}, data, { full_name: String(data.full_name || "").trim() || metaName })); } catch (e) {}
+      return { id, name, email: currentUser && currentUser.email, metaName };
     },
     // display name for a roster row (name → e-mail before "@" → role)
     displayName: personDisplayName,
@@ -7152,8 +7212,44 @@ window.HelmUrl = HelmUrl;
     if (r && r.source === "buy") return head + " \u2014 outsource / buy";
     return head + " \u2014 unsourced";
   }
+  // r20 coord (b): ONE "advance is in" rule for every screen - the same truth the status label
+  // ("Confirmed · advance paid") uses: the client paid (approval_status "paid"), or a payment
+  // milestone is paid, or the payments ledger has a paid receipt, or settlement received > 0.
+  // Every input is optional: a role without finance may not be able to read milestones or the
+  // ledger, so a missing / denied read simply counts as "no evidence", never an error.
+  function advanceIn(ev, o) {
+    o = o || {};
+    if (ev && String(ev.approvalStatus || ev.approval_status || "") === "paid") return true;
+    if ((o.milestones || []).some((m) => m && m.status === "paid")) return true;
+    if ((o.payments || []).some((p) => p && p.status === "paid" && Number(p.amount || 0) > 0)) return true;
+    if (o.settlement && Number(o.settlement.received) > 0) return true;
+    return false;
+  }
+  // r20 coord (b): a quote whose venue is typed by name ("Demo · Green Meadows Lawn") but not linked
+  // to a saved venue: match a saved venue by name - case / space-insensitive, tolerating the trial
+  // "Demo · " and old seed "SAMPLE - " prefixes on either side. Only an unambiguous match counts.
+  function venueNameKey(n, keepPrefix) {
+    let s = String(n == null ? "" : n).normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+    if (!keepPrefix) s = s.replace(/^(demo|sample)\s*[\u00b7\u2022:\-\u2013\u2014]\s*/, "").trim();
+    return s;
+  }
+  function venueForQuote(ev, list) {
+    const c = (ev && ev.client) || {}; list = (list || []).filter(Boolean);
+    if (c.venueId) { const byId = list.find((v) => v.id === c.venueId); if (byId) return byId; }
+    const want = venueNameKey(c.venue);
+    if (!want) return null;
+    const exact = list.filter((v) => venueNameKey(v.name, true) === venueNameKey(c.venue, true));
+    if (exact.length === 1) return exact[0];
+    const loose = list.filter((v) => venueNameKey(v.name) === want);
+    if (loose.length === 1) return loose[0];
+    const live = loose.filter((v) => v.active !== false);
+    return live.length === 1 ? live[0] : null;
+  }
   const readiness = {
     async check(quoteId) {
+      // r20 coord (b): money truth (milestones / ledger) only for a role that can see finance - for the
+      // rest those reads are RLS-blocked (and read as "not yet"), so they get the quote's own status.
+      const canFin = await Promise.resolve().then(() => auth.canView("finance")).then((v) => v === true, () => false);
       const [ev, planRow, resCheck, bk, tasks, ms, rs] = await Promise.all([
         quotes.get(quoteId),
         plan.get(quoteId).catch(() => null),
@@ -7162,7 +7258,7 @@ window.HelmUrl = HelmUrl;
         (async () => { if (mode !== "supabase") return [];
           const { data, error } = await supa.from("event_tasks").select("crew_id").eq("quote_id", quoteId).not("crew_id", "is", null);
           if (error) throw error; return data; })().catch(() => []),
-        milestones.list(quoteId).catch(() => []),
+        canFin ? milestones.list(quoteId).catch(() => []) : Promise.resolve([]),
         runsheet.list(quoteId).catch(() => []),
       ]);
       // r20: a locked menu only counts when it HOLDS something (dishes, a package or menu notes) - never an empty lock.
@@ -7173,11 +7269,12 @@ window.HelmUrl = HelmUrl;
       const [shorts, items, vlist, dishes] = await Promise.all([
         inventory.shortages(quoteId).catch(() => []),
         inventory.items(true).catch(() => []),
-        (ev && ev.client && ev.client.venueId) ? venues.list({ all: true }).catch(() => []) : Promise.resolve([]),
+        (ev && ev.client && (ev.client.venueId || String(ev.client.venue || "").trim())) ? venues.list({ all: true }).catch(() => []) : Promise.resolve([]),
         eventMenu.list(quoteId).catch(() => null),
       ]);
       const menuHas = (Array.isArray(dishes) && dishes.length > 0) || !!pkgName || !!String((planRow && planRow.menu) || "").trim();
-      const capVenue = (vlist || []).find((v) => v.id === (ev.client || {}).venueId) || null;
+      // r20 coord (b): the linked venue, else a saved venue matching the typed venue name ("Demo · Green Meadows Lawn")
+      const capVenue = venueForQuote(ev, vlist);
       const cap = capacityStatus(ev, capVenue);
       const capUnchecked = !cap.over && !(cap.total > 0 && cap.guests > 0);
       const capWhy = !capVenue ? "not checked - no saved venue linked" : !(cap.guests > 0) ? "not checked - no guest count yet" : "not checked - the venue has no capacity saved";
@@ -7189,7 +7286,10 @@ window.HelmUrl = HelmUrl;
       const gaps = resCheck.filter((c) => !c.covered).length;
       const enquiry = bk.filter((b) => b.status === "enquiry").length;
       const crew = new Set(tasks.map((t) => t.crew_id)).size;
-      const paid = ms.some((m) => m.status === "paid");
+      // ledger receipts only when the milestones don't already show it (a role without finance gets [])
+      const pays = (canFin && ev && String(ev.approvalStatus || "") !== "paid" && !ms.some((m) => m && m.status === "paid"))
+        ? await milestones.payments(quoteId).catch(() => []) : [];
+      const paid = advanceIn(ev, { milestones: ms, payments: pays });
       const checks = [
         { key: "date", label: "Event date set", critical: true, ok: !!ev.eventDate, detail: ev.eventDate || "not set" },
         { key: "approval", label: "Client approved", critical: true, ok: ["approved", "paid"].includes(ev.approvalStatus), detail: ev.approvalStatus || "none" },
@@ -7206,7 +7306,8 @@ window.HelmUrl = HelmUrl;
             : cap.short.toLocaleString("en-IN") + " guests won't fit - decide in the quote" },
         { key: "stock", label: "Stock sourced (no shortages left open)", critical: true, ok: unsourced === 0,
           detail: shortLines.length ? shortLines.join("; ") : "no shortages" },
-        { key: "payments", label: "Advance received", critical: false, ok: paid, detail: paid ? "yes" : "not yet" },
+        // no "Fix" link without finance: the payments tab it points at is hidden for that role
+        { key: "payments", label: "Advance received", critical: false, ok: paid, detail: paid ? "yes" : "not yet", noFix: !canFin },
         { key: "dry_run", label: "Dry run done", critical: true, ok: !!(planRow && planRow.dry_run_at), detail: (planRow && planRow.dry_run_at) ? "done" : "pending", signoff: "dry_run" },
         { key: "briefing", label: "Team briefed", critical: true, ok: !!(planRow && planRow.briefing_at), detail: (planRow && planRow.briefing_at) ? "done" : "pending", signoff: "briefing" },
       ];
@@ -7834,7 +7935,10 @@ window.HelmUrl = HelmUrl;
     const rows = list.map((n, i) => { const k = keyOf(n, i);
       return { n, i, g: groupOf(n), k, un: readKeys.indexOf(k) === -1 && (n.__chat || !!n.unread) }; });
     const has = (f) => rows.some((r) => inFilter(f, r.g));
-    const unreadIn = (f) => rows.filter((r) => r.un && inFilter(f, r.g)).length;
+    // r20-2: a chat row stands for `count` unread messages - the tabs count them the same way as the "N new"
+    // header and the bell dot (they used to count rows: "4 new" over an All tab of 2). Mentions counts chats.
+    const weight = (r, f) => (r.n.__chat && f !== "mentions" ? (Number(r.n.count) || 1) : 1);
+    const unreadIn = (f) => rows.reduce((s, r) => s + (r.un && inFilter(f, r.g) ? weight(r, f) : 0), 0);
     const secMuted = muted.indexOf("security_alert") !== -1;
     // Billing only when the feed carries any (bell_feed already hides money types this role can't see);
     // Security when there are alerts or they are muted (so the "turn back on" line stays reachable)
@@ -9210,7 +9314,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, capacityStatus, shortageText, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -9772,6 +9876,7 @@ window.HelmUrl = HelmUrl;
     },
   };
   global.BPStore = BPStore;
+  BPStore.sampleName = sampleDisplayName;   // r20: shared sample-name display (see sampleDisplayName)
   /* ---- 0067 pretty studio URLs: studio check + ref resolution (HelmUrl.get) ----
      Signed-in pages only. my_studio_route() answers for the caller's OWN studio only:
      another studio's slug (or an unknown one) shows "not your studio" and the page's own

@@ -489,11 +489,11 @@ t('no session limits on public client-link pages (approve / portal / proposal-vi
     assert.ok(!e.calls.some((x) => x[0] === 'rpc' && x[1] === 'password_change_required'), p + ' must not run the staff gate');
   }
 });
-t('explicit Log out is global and clears per-user + session-clock state', async () => {
+t('explicit Log out signs out THIS browser only (scope local) and clears per-user + session-clock state', async () => {
   const e = makeEnv({ ls: { bp_session_start: JSON.stringify({ uid: 'u-1', ts: 1 }), wa_pin: '1' } });
   await e.S.init();
   await e.S.auth.signOut();
-  assert.deepEqual(e.calls.find((x) => x[0] === 'signOut'), ['signOut', null], 'default scope = global');
+  assert.equal(JSON.stringify(e.calls.find((x) => x[0] === 'signOut')), JSON.stringify(['signOut', { scope: 'local' }]), 'r20-coord #33: scope local (never the global default)');
   assert.equal(e.win.localStorage.getItem('bp_session_start'), null);
   assert.equal(e.win.localStorage.getItem('wa_pin'), null);
 });

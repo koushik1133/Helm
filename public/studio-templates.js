@@ -383,6 +383,7 @@
   }
   function openSaveModal() {
     if (perm.trial) { toast(TRIAL_MSG, true); return; }
+    if (B.ro()) { toast("View only - your role can view layouts but not change them.", true); return; }   // r20-coord
     if (!perm.manage) { toast("You don't have access to create templates - ask an admin.", true); return; }
     var pr = B.pricing() || {}, pn = $("projName");
     var f = metaForm({ name: pn && pn.value && pn.value !== "Untitled event" ? pn.value : "", event_type: pr.eventType || "" });

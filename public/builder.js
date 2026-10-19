@@ -465,7 +465,7 @@ function buildMenuControls(){
     pkgs.map(p=>`<option value="${esc(p.id)}" ${p.id===PRICING.appliedPkgId?'selected':''}>${esc(p.name)}${hideAmt?'':' · '+inr(p.price_per_plate)+'/plate'}</option>`)).join('');
   box.innerHTML =
     `<label class="pfield">Menu package<select id="bPkg" ${CAN_CREATE?'':'disabled'}>${opts}</select></label>`+
-    `<label class="pfield">Guests / plates <input id="bGuests" type="number" min="0" value="${PRICING.guests!=null?PRICING.guests:''}"></label>`+
+    `<label class="pfield">Guests / plates <input id="bGuests" type="number" min="0" value="${PRICING.guests!=null?PRICING.guests:''}" ${RO?'disabled':''}></label>`+
     `<label class="pfield">Chairs (priced) <input id="bChairs" type="number" min="1" ${RO?'disabled':''}></label>`+
     `<p class="delta" id="bChairsNote" hidden><span id="bChairsNoteTxt"></span> <button type="button" class="tbtn" id="bChairsUse">Use layout count</button></p>`+
     `<div class="delta" id="pkgDelta"></div>`;
@@ -810,13 +810,16 @@ function roLockInspector(){ if(!RO) return; const box=$('#inspector'); if(!box) 
   box.querySelectorAll('.swatches,.aligngrid').forEach(el=>el.style.pointerEvents='none'); }
 function applyReadonly(role, customMsg){
   RO = true;
-  ['saveBtn','clearBtn','customBtn','importBtn','undoBtn','redoBtn','hidePriceChk'].forEach(id=>{ const b=$('#'+id); if(b) b.disabled=true; });
+  // r20-coord: also the name / venue capacity / guests inputs, "Save & back to quote" and "Save as template"
+  // (shown later by studio-templates.js, which checks B.ro() too) - a view-only role changes nothing here
+  ['saveBtn','clearBtn','customBtn','importBtn','undoBtn','redoBtn','hidePriceChk','projName','capInput','bGuests','backToFlowBtn','st_saveBtn'].forEach(id=>{ const b=$('#'+id); if(b) b.disabled=true; });
+  { const sb=$('#st_saveBtn'); if(sb) sb.hidden=true; }
   const tb=$('#toolbox'); if(tb){ tb.style.pointerEvents='none'; tb.style.opacity='.45';
     tb.querySelectorAll('.tool').forEach(t=>{ t.tabIndex=-1; t.setAttribute('aria-disabled','true'); }); }
   document.querySelector('.viewport').classList.add('ro');
   const bar=document.createElement('div'); bar.className='robanner';
   if(customMsg) bar.textContent=customMsg;
-  else bar.innerHTML='👁 View only — signed in as <b>'+esc(role||'viewer')+'</b>. You can view, open, and export events, but not edit them.';
+  else { bar.setAttribute('role','status'); bar.textContent='👁 View only — your role can view layouts but not change them.'; }
   document.querySelector('header').insertAdjacentElement('afterend', bar);
 }
 

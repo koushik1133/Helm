@@ -75,7 +75,7 @@ assert.match(bh, /<option value="product_launch">Corporate \/ product launch<\/o
 assert.match(bh, /<option value="political">Political \/ rally<\/option>/);
 assert.match(rd('public/event-name.js'), /"Product launch","Political"/);
 for (const f of ['public/builder.html', 'public/capture.html']) { const h = rd(f);
-  assert.match(h, /builder\.js\?v=76/, f); assert.match(h, /builder-3d\.js\?v=24/, f); assert.match(h, /capture-frame\.js\?v=12/, f); }
+  assert.match(h, /builder\.js\?v=77/, f); assert.match(h, /builder-3d\.js\?v=24/, f); assert.match(h, /capture-frame\.js\?v=12/, f); }
 
 // ---- 4. every new asset: toolbox entry, 2D drawing + icon, 3D model builder that runs ----
 const NEW = ['dj', 'speaker', 'generator', 'stage', 'lighting', 'truss', 'led', 'ledscreen', 'chandelier', 'photobooth', 'chocolatefountain', 'chariot', 'smoke',

@@ -15,7 +15,12 @@
   var fmt = function (n) { return Math.round(Number(n) || 0).toLocaleString("en-IN"); };
   var money = function (n) { try { return global.BPStore && BPStore.studioMoney ? BPStore.studioMoney(n) : "₹" + fmt(n); } catch (e) { return "₹" + fmt(n); } };
   // B29: options can't show the Sample badge, so "Demo \u00b7 PA Speaker" reads "PA Speaker (sample)" in a picker
-  function optName(n) { var s = String(n == null ? "" : n), m = /^\s*Demo \u00b7\s*/.exec(s); return m ? s.slice(m[0].length) + " (sample)" : s; }
+  // r20: same format as every other list / picker (BPStore.sampleName); a seed name already ending in "(sample)" gets it once
+  function optName(n) {
+    try { if (global.BPStore && typeof global.BPStore.sampleName === "function") return global.BPStore.sampleName(n); } catch (e) {}
+    var s = String(n == null ? "" : n), m = /^\s*Demo \u00b7\s*/.exec(s); if (!m) return s;
+    var b = s.slice(m[0].length).replace(/\s*\(sample\)\s*$/i, ""); return b ? b + " (sample)" : s;
+  }
   function h(tag, attrs, kids) {
     var el = doc.createElement(tag);
     Object.keys(attrs || {}).forEach(function (k) {

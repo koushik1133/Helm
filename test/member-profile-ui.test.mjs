@@ -292,9 +292,11 @@ t('staff: linked rows get the "Linked account" badge + photo; unlinked unchanged
   const ctx = { esc, EMP: { full_time: 'Full-time' }, canEdit: true, canCal: true, memberDir: { [U(7)]: { avatar_path: AV(U(7)) } },
     initials: (n) => String(n || '?').slice(0, 1), isAdminUser: false, invites: [], loginRoles: {},
     BPStore: { staff: { isLinked: (s) => !!(s && s.profile_id), phoneInvalid: () => false, matchRole: () => null, roleLabel: (r) => r,
-      loginStatus: (s) => (s && s.profile_id ? 'active' : 'none') } } };
+      loginStatus: (s) => (s && s.profile_id ? 'active' : 'none'),
+      payVisible: (s, isAdmin) => isAdmin === true || !(s && s.profile_id), payAttr: () => false }, studioMoney: (n) => '\u20b9' + n } };
   vm.runInNewContext(fnSrc(staffHtml, 'phoneTxt') + '\n' + fnSrc(staffHtml, 'roleText') + '\n' + fnSrc(staffHtml, 'loginTag') + '\n' + fnSrc(staffHtml, 'personCard') + '\nglobalThis.f=personCard;', ctx);
-  const linked = ctx.f({ id: 'c1', name: 'Ravi', role: 'Rigger', department: 'AV', phone: '+919876543210', profile_id: U(7), skills: [] });
+  const linked = ctx.f({ id: 'c1', name: 'Ravi', role: 'Rigger', department: 'AV', phone: '+919876543210', profile_id: U(7), skills: [], day_rate: 2500 });
+  assert.doesNotMatch(linked, /\/day/, 'r20 coord (d): a team login\'s day rate is hidden from non-admins');
   assert.match(linked, /🔗 Linked account/); assert.match(linked, /data-avatar-path="[^"]+\.webp"/);
   const plain = ctx.f({ id: 'c2', name: '<i>Sam</i>', phone: '1', skills: [] });
   assert.doesNotMatch(plain, /Linked account|data-avatar-path/); assert.doesNotMatch(plain, /<i>Sam/);

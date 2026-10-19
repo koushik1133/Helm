@@ -119,10 +119,11 @@
     { sel: "#hbRail .hb-group:not(.hb-fav)", side: "right", title: "Your workspace", desc: "Every area of Helm lives in this sidebar: Workspace for daily work, Manage and Admin below it. Scroll the list if it is taller than your screen. Press H (when you are not typing) to jump home to the dashboard." },
     { sel: ".hb-recent .htr-btn", side: "right", title: "Recently viewed", desc: "Jump back to the pages and events you opened last." },
     { sel: "[data-tour='theme']", side: "right", title: "Look and feel", desc: window.HELM_DARK_MODE === true ? "Switch dark mode and pick a colour theme." : "Pick a colour theme: Emerald, Cobalt, Midnight, Graphite or Studio." },
-    { sel: "[data-tour='account']", side: "right", title: "Your account", desc: "Your profile, account settings (password and two-step verification), the user manual and sign out." },
+    { sel: "[data-tour='account']", side: "right", title: "Your account", desc: (window.HELM_FEATURES && window.HELM_FEATURES.manual === true) ? "Your profile, account settings (password and two-step verification), the user manual and sign out." : "Your profile, account settings (password and two-step verification) and sign out." },
     { sel: "[data-tour='search']", title: "Search anything", desc: "Find quotes, leads, clients and pages from one box. Press / or Ctrl+K." },
-    { sel: "[data-tour='bell']", title: "Notifications", desc: "Approvals, payments and mentions arrive here." },
-    { sel: "[data-tour='new']", title: "Create", desc: "Start a new quote, lead or event from any page." }
+    /* r20 coord (b): role-aware (tour.js resolves need / uses through BPStore.auth); null alt = this admin wording */
+    { sel: "[data-tour='bell']", uses: "finance", alt: function (can) { return can("finance") ? null : { desc: "Approvals, reminders and mentions arrive here." }; }, title: "Notifications", desc: "Approvals, payments and mentions arrive here." },
+    { sel: "[data-tour='new']", need: ["create", "edit:quotes"], title: "Create", desc: "Start a new quote, lead or event from any page." }
   ];
   function startTour() {
     var hb = document.getElementById("helpBtn");
@@ -430,7 +431,8 @@
         chev.setAttribute("aria-label", "More create options"); chev.setAttribute("aria-haspopup", "menu"); chev.setAttribute("aria-expanded", "false");
         var cs = document.createElementNS(NS, "svg"); cs.setAttribute("viewBox", "0 0 24 24"); cs.setAttribute("class", "hb-svg"); cs.setAttribute("aria-hidden", "true");
         var cp = document.createElementNS(NS, "path"); cp.setAttribute("d", "M6 9l6 6 6-6"); cs.appendChild(cp); chev.appendChild(cs);
-        if (!ok[0]) { chev.classList.add("hb-solo"); chev.insertBefore(icon("plus"), cs); chev.insertBefore(el("span", null, "New"), cs); }
+        if (!ok[0]) { chev.classList.add("hb-solo"); chev.insertBefore(icon("plus"), cs); chev.insertBefore(el("span", null, "New"), cs);
+          chev.setAttribute("aria-label", "New - open the create menu"); chev.title = "New"; }   // r20-coord: icon-only on phones
         var menu = el("div", "hb-menu"); menu.setAttribute("role", "menu"); menu.hidden = true; menu.id = "hbCreateMenu";
         chev.setAttribute("aria-controls", menu.id);
         items.forEach(function (c) {
