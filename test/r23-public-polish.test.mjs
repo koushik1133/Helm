@@ -125,4 +125,10 @@ t('home hero film: preload=metadata + poster, fetched after load + idle, HQ webm
   assert.ok(size <= 4 * 1024 * 1024, 'hero-hq.webm is ' + size + ' bytes');
 });
 
+// ---- 6. /try: no "Amounts hidden" privacy chip (the sandbox shows no amounts) ----
+t('/try hides the shell privacy chip (.hbp-hint); try.html loads try.css with a bumped version', () => {
+  assert.match(read('public/try.css'), /html\.helm-sandbox \.hbp-hint\{display:none!important\}/);
+  assert.match(read('public/try.html'), /<link rel="stylesheet" href="\/try\.css\?v=9">/);
+});
+
 console.log('\nr23-public-polish: ' + n + ' passed');

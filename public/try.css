@@ -25,7 +25,9 @@ html.helm-sandbox #status, html.helm-sandbox #fabStack,
 html.helm-sandbox #emptyState, html.helm-sandbox #layoutLoading,
 html.helm-sandbox #tools3d, html.helm-sandbox #legend3d, html.helm-sandbox #hint3d,
 html.helm-sandbox .fs-fab, html.helm-sandbox #photoModal,
-html.helm-sandbox #acctMenu, html.helm-sandbox .skip-link{display:none!important}
+html.helm-sandbox #acctMenu, html.helm-sandbox .skip-link,
+/* r23: the shell's "Amounts hidden - tap to show" privacy chip - /try has no amounts */
+html.helm-sandbox .hbp-hint{display:none!important}
 
 /* ---- full-bleed stage ---- */
 html.helm-sandbox main{position:fixed;inset:0;display:block}
