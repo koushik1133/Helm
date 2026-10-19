@@ -1,7 +1,7 @@
 /* Control Center settings layout (preview). Linear/Stripe/Vercel-style: grouped left nav,
    page header, labelled cards, sticky unsaved-changes bar, ⌘K search. Uses theme tokens
    only, so it follows light/dark and every data-hb-theme. Pure layout layer. */
-#app.cs-on:not([hidden]){display:grid;grid-template-columns:232px minmax(0,1fr);gap:var(--sp-6,32px);align-items:start;max-width:1120px;margin-inline:auto}
+#app.cs-on:not([hidden]){display:grid;grid-template-columns:232px minmax(0,1fr);gap:var(--sp-6,32px);align-items:start;max-width:1180px;margin-inline:auto}
 #app.cs-on > .tabs{display:none}
 
 /* ---- left settings nav ---- */
@@ -70,7 +70,10 @@
 .cs-head h2{margin:0;font-size:var(--fs-xl,20px);font-weight:600;letter-spacing:-.01em;color:var(--ink,#1c1a1f)}
 .cs-head p{margin:4px 0 0;font-size:var(--fs-sm,13px);color:var(--ink-3,#6b6573);max-width:62ch}
 #app.cs-on .cs-main .card{margin:0 0 var(--sp-4,16px);border:1px solid var(--line,#e8e3db);border-radius:var(--r-card,12px);background:var(--panel,#fff);box-shadow:var(--elev-sm,none);padding:var(--sp-5,24px)}
-#app.cs-on .cs-main .card > h3:first-child,#app.cs-on .cs-main .card > h3{margin-top:0;font-size:var(--fs-md,15px);font-weight:600;color:var(--ink,#1c1a1f)}
+/* r22 headers: ONE card-title style in every section - sentence case like the section header above it. The page's old
+   uppercase grey h3 (letter-spaced "TEAM MEMBERS" under "Users & invites") leaked through; the compliance card's
+   nested title was 16px. */
+#app.cs-on .cs-main .card > h3:first-child,#app.cs-on .cs-main .card > h3,#app.cs-on .cs-main .card > .cx-head h3{margin-top:0;font-size:var(--fs-md,15px);font-weight:600;color:var(--ink,#1c1a1f);text-transform:none;letter-spacing:-.005em;line-height:1.35}
 #app.cs-on .cs-main .card > .mnote,#app.cs-on .cs-main .card > h3 + p{color:var(--ink-3,#6b6573);font-size:var(--fs-sm,13px);margin-top:4px}
 #app.cs-on .cs-main .fld label{font-weight:500;color:var(--ink-2,#3d3842)}
 .cs-off{display:none !important}
@@ -112,9 +115,10 @@
 #app.cs-on .p-cro .p-ctrial{font-size:12px;color:var(--ink-3,#6b6573)}
 html:not(.helm-trial) #app .p-cro .p-ctrial,html.helm-trial #app .p-cro .p-cgo{display:none}
 #p_country[hidden]{display:none !important}
-/* B29: User control > Members fits the card at 1366px (side nav + card): long names / e-mails wrap and the row's
-   action buttons wrap onto a second line instead of pushing the table wider than the card */
-#app.cs-on .cs-main .utable td.em{overflow-wrap:anywhere;min-width:14ch}
-#app.cs-on .cs-main .utable td.dn{white-space:normal;overflow-wrap:anywhere;min-width:12ch}
-#app.cs-on .cs-main .utable td.ucact{white-space:normal}
+/* B29 -> r22: User control > Members. overflow-wrap:anywhere let the auto table squeeze the name column to ~40px
+   ("S Kous hik", the e-mail one letter per line, "Edi" clipped). The members table now lays itself out in control.html
+   (.ucm: name + e-mail with ellipsis, two-line rows on a narrow card); only the older Name / Email table keeps the wrap. */
+#app.cs-on .cs-main .utable:not(.ucm) td.em{overflow-wrap:anywhere;min-width:14ch}
+#app.cs-on .cs-main .utable:not(.ucm) td.dn{white-space:normal;overflow-wrap:anywhere;min-width:12ch}
 #app.cs-on .cs-main .utable select{max-width:100%}
+#app.cs-on .cs-main .utable.ucm td,#app.cs-on .cs-main .utable.ucm th{padding-left:6px;padding-right:6px}

@@ -79,8 +79,13 @@ html[data-shell="b"] .stat.q { background: var(--hb-bg2); color: var(--hb-ink2);
 html[data-shell="b"][data-theme="dark"] #s_gap { color: var(--bad-text, #fca5a5); }
 /* 5h. settlement: emoji clear of the heading text in the serif themes */
 html[data-shell="b"] body:has(#pay_amt) .card h2 { word-spacing: .22em; letter-spacing: 0; }
-/* 5i. issues + command: gap under the header */
-html[data-shell="b"] body:is(:has(#arrRows), :has(#openBadge)) .wrap > main#main { padding-top: 20px; }
+/* 5i. (r22 headers) ONE gap under the top bar on every app page - was 0-2px on most pages (the first card, toolbar or
+       "Back to workspace" link touched the bar; only issues + command had 20px). A breadcrumb row with an open record sits
+       between the bar and the page, so the gap under it is a little smaller. Dashboard + chat keep their own layouts. */
+html[data-shell="b"]:not([data-dash]) body > .wrap > main#main { padding-top: 20px; }
+html[data-shell="b"].hb-has-trail:not([data-dash]) body > .wrap > main#main { padding-top: 14px; }
+html[data-shell="b"]:not([data-dash]) body > .wrap > main#main > .toolbar:first-child { margin-top: 0; }
+@media (max-width: 640px) { html[data-shell="b"]:not([data-dash]):not(.hb-has-trail) body > .wrap > main#main { padding-top: 16px; } }
 /* 5j. chat read ticks readable on light bubbles */
 html[data-shell="b"]:not([data-theme="dark"]) .tick.read { color: #0b7fb8; }
 /* 5k. no violet flash: accent controls don't animate colour from the pre-shell values */
