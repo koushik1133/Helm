@@ -1630,7 +1630,9 @@
 
   /* ---------------- USER CONTROL: team members ---------------- */
   function setUMsg(k,t){ const m=$("#umsg"); m.innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; if(t) setTimeout(()=>{ if(m.firstChild) m.innerHTML=""; },4000); }
-  const ROLES = BPStore.auth.admin.roles();
+  // r21: team role pickers (add user, change role, invite link, Roles & access tabs) never offer "Client" (the
+  // no-access fallback role, kept server-side) nor "worker" (an old duplicate of Crew).
+  const ROLES = BPStore.auth.admin.roles().filter(r=>r!=="client"&&r!=="worker");
 
   async function initUsers(){
     const sel=$("#um_role");
@@ -1675,7 +1677,9 @@
   // → { head, body, shown, total } (pure: everything it shows goes through esc())
   function ucTable(list, o){
     const meId=o.meId, roles=o.roles||[], rl=o.roleLabel||((r)=>r);
-    const roleSel=(u,self)=>`<select class="roleSel" data-cs-autosave="1" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${(u.role&&!roles.includes(u.role)?roles.concat([u.role]):roles).map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
+    // r21: a user whose role is 'client' (no access) shows "No access" + a blank "Choose a role…" picker, never "Client"
+    const noAccess=(u)=>u.role==="client";
+    const roleSel=(u,self)=>`${noAccess(u)?'<span class="tag no-access">No access</span> ':""}<select class="roleSel" data-cs-autosave="1" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${noAccess(u)?'<option value="" selected disabled>Choose a role…</option>':""}${(u.role&&!noAccess(u)&&!roles.includes(u.role)?roles.concat([u.role]):roles).map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
     const rm=(u,self)=>self?"":`<button type="button" class="rm" title="Remove user" aria-label="Remove user ${esc(u.email||u.full_name||"")}">🗑</button>`;
     if(!o.profiles){
       const head=`<tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr>`;
@@ -1733,7 +1737,7 @@
     tb.querySelectorAll(".roleSel").forEach(sel=>sel.addEventListener("change", async (e)=>{
       const tr=e.target.closest("tr"), id=tr.dataset.id, role=e.target.value;
       const prev=[...e.target.options].find(o=>o.defaultSelected);
-      try{ await BPUI.guard(e.target, ()=>BPStore.auth.admin.setRole(id, role)); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); const u=rowOf(tr); if(u) u.role=role; }
+      try{ await BPUI.guard(e.target, ()=>BPStore.auth.admin.setRole(id, role)); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); const na=tr.querySelector(".no-access"); if(na) na.remove(); const u=rowOf(tr); if(u) u.role=role; }
       catch(err){ setUMsg("err",errMsg(err,"change the role")); if(prev) e.target.value=prev.value; }
     }));
     tb.querySelectorAll(".dnEdit").forEach(btn=>btn.addEventListener("click", async ()=>{
