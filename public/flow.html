@@ -119,7 +119,7 @@
   .egp-rl{margin-left:auto;color:var(--ink-3);font-size:12px} .egp-empty{padding:14px}
   .egp-btns{display:flex;justify-content:flex-end;gap:8px}
 </style>
-<link rel="stylesheet" href="flow-polish.css?v=6">
+<link rel="stylesheet" href="flow-polish.css?v=7">
 <link rel="stylesheet" href="share-checklist.css?v=4">
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="venues.css?v=6">
@@ -265,7 +265,7 @@
             <label class="s-af1acab"><input type="checkbox" id="remindAfter"> Remind me to finish this after the layout</label>
             <a class="btn primary" id="openBuilder" href="#">🎨 Open floor builder →</a>
           </div>
-          <p class="hint next-step" data-next-step><b>Next step:</b> check the Quotation (step 8), then use “Send for approval →” in the right rail.</p>
+          <p class="hint next-step" data-next-step><b>Next step:</b> check the Quotation (step 8), then open “Share with client” in the right rail and use “Send for approval →”.</p>
         </section>
 
         <!-- 8 QUOTATION -->
@@ -322,13 +322,6 @@
           <p class="hint next-step" id="pay_next" data-next-step><b>Next step:</b> record the advance above — that confirms the booking. Then move on to Resources and Logistics from the event page.</p>
         </section>
 
-        <!-- SHARE WITH CLIENT (0069) — share-checklist.js fills it -->
-        <section class="card" id="sec-share" data-share-checklist hidden>
-          <h2>Share with client</h2>
-          <p class="sub">Choose what goes into the client's private booklet, then create or update the link.</p>
-          <div class="sc-body"></div>
-        </section>
-
         <!-- ACTIVITY TRAIL -->
         <section class="card" id="sec-activity">
           <h2>Activity trail</h2>
@@ -346,13 +339,15 @@
         </div>
         <div class="card">
           <h2 class="s-67af347">Steps</h2>
+          <div class="progsum"><div class="progbar" aria-hidden="true"><i id="progFill"></i></div><span class="progtxt" id="progTxt"></span></div>
           <div class="prog" id="progList"></div>
         </div>
-        <div class="card">
+        <div class="card apprcard">
           <h2 class="s-d5d221b">Client approval</h2>
           <div class="s-28b4c11" id="apprState">Not sent yet.</div>
-          <button type="button" class="btn primary s-0466783" id="sendApproval">Send for approval →</button>
-          <div class="s-d2c171b" id="apprLinks"></div>
+          <!-- r21: ONE place to share with the client - the booklet and the approval link live in the same dialog -->
+          <button type="button" class="btn primary s-0466783" id="shareClient" aria-haspopup="dialog" aria-controls="shareModal">Share with client →</button>
+          <p class="cs-railnote" id="shareClientNote">Booklet, quotation and the Approve button - one link.</p>
         </div>
       </aside>
     </div>
@@ -378,6 +373,36 @@
       <button type="button" class="btn" id="lv_discard">Leave without saving</button>
       <button type="button" class="btn primary" id="lv_save">Save and leave</button>
     </div>
+  </div>
+</div>
+
+<!-- r21: "Share with client" - one dialog for the event booklet + the approval link (copy / e-mail). Once the client
+     has approved (or paid) it becomes "Share booklet" (view-only booklet, no approval step). -->
+<div id="shareModal" class="lmodal cs-modal" hidden role="dialog" aria-modal="true" aria-labelledby="csTitle" aria-describedby="csSub">
+  <div class="cs-sheet">
+    <div class="cs-head">
+      <div><h3 id="csTitle">Share with client</h3><p class="cs-sub" id="csSub">One private link for your client.</p></div>
+      <button type="button" class="cs-x" id="csClose" aria-label="Close" data-close>×</button>
+    </div>
+    <ul class="cs-gets" id="csGets" aria-label="What the client gets">
+      <li data-get="booklet">Event booklet</li><li data-get="quote">Quotation</li><li data-get="approve">Approve button</li>
+    </ul>
+    <label class="cs-ask" id="csAskRow"><input type="checkbox" id="csAsk" checked>
+      <span><b>Ask the client to approve</b><small>Their page gets an Approve button - they confirm with a one-time code. Untick to share the booklet only.</small></span></label>
+    <p class="cs-done" id="csDoneNote" hidden>The client has approved this quotation - share the booklet (view-only). Nothing here asks for approval again.</p>
+    <section class="cs-part" id="csApprove">
+      <h2><span class="cs-n">1</span> Approval link</h2>
+      <p class="sub">The client's page: the booklet, the quotation and the Approve button. Copy the link or e-mail it.</p>
+      <button type="button" class="btn primary" id="sendApproval">Send for approval →</button>
+      <div class="s-d2c171b" id="apprLinks"></div>
+    </section>
+    <section class="card" id="sec-share" data-share-checklist hidden>
+      <h2><span class="cs-n">2</span> Event booklet <small class="cs-inc" id="csInc">included on the client's page</small></h2>
+      <p class="sub">Choose what goes into the client's private booklet, then create or update the link.</p>
+      <details class="cs-fold" id="csBkFold" open><summary>Booklet link &amp; settings - sections, pictures, note, expiry</summary>
+        <div class="sc-body"></div>
+      </details>
+    </section>
   </div>
 </div>
 
@@ -1305,12 +1330,12 @@
   // qa-quote-flow B28: the step 7 / step 8 "Next step" hints follow where the quote really is (never
   // "use Send for approval" once it was sent, never "once the client approves" after they did)
   function nextHintText(k, key){
-    if(k==="layout") return (key==="quote"||key==="locked"||!key) ? " check the Quotation (step 8), then use “Send for approval →” in the right rail." : " check the Quotation (step 8).";
+    if(k==="layout") return (key==="quote"||key==="locked"||!key) ? " check the Quotation (step 8), then open “Share with client” in the right rail and use “Send for approval →”." : " check the Quotation (step 8).";
     if(k==="quote"){
       if(key==="sent") return " sent — waiting for the client to approve. Then record the advance under step 9 to confirm the booking.";
       if(key==="approved") return " the client approved — record the advance under step 9 to confirm the booking.";
       if(key==="booked"||key==="confirmed"||key==="closed") return " the booking is confirmed — see step 9.";
-      return " use “Send for approval →” in the right rail; once the client approves, record the advance under step 9.";
+      return " open “Share with client” in the right rail and use “Send for approval →”; once the client approves, record the advance under step 9.";
     }
     return null;
   }
@@ -1330,6 +1355,8 @@
       if(!contentOf(k)){ if(badgeSt[k]!=="empty"){ badgeSt[k]="empty"; HelmAutosave.paint(b,"empty"); } }
       else if(badgeSt[k]==="empty"){ badgeSt[k]="idle"; HelmAutosave.paint(b,"idle"); } });
     const ms=$("#mPriceStep"); if(ms){ const n=STEPS.filter(([k])=>done[k]).length; ms.textContent=n+" of "+STEPS.length+" steps done"; }
+    { const n=STEPS.filter(([k])=>done[k]).length, f=$("#progFill"), t=$("#progTxt");   // r21: rail progress bar
+      if(f) f.style.width=Math.round(n/STEPS.length*100)+"%"; if(t) t.textContent=n+" of "+STEPS.length+" done"; }
   }
   // Light the progress steps live as the user fills fields (not only on reload/save).
   try{ document.addEventListener("input", ()=>{ try{ updateProgress(); }catch(_){ } }); }catch(_){ }
@@ -1400,7 +1427,33 @@
   // r20 planner: once the client has approved (or the advance is in - booking confirmed) there is nothing to send:
   // "Send for approval →" goes away; the card above says "Booking confirmed." / the approval state instead
   function paintApprBtn(paidCount){ const sb=$("#sendApproval"); if(!sb) return; const ap=(ev&&(ev.approvalStatus||ev.approval_status))||"";
-    sb.hidden = paidCount>0 || ap==="approved" || ap==="paid"; }
+    sb.hidden = paidCount>0 || ap==="approved" || ap==="paid"; try{ syncShare(paidCount>0); }catch(_){} }
+  /* ---------- r21: "Share with client" - ONE dialog for the booklet + the approval link ---------- */
+  // Before approval: booklet (step 1) + "Send for approval →" (step 2, same sendApproval() as before: same token RPC,
+  // same copy / e-mail / WhatsApp options). "Ask the client to approve" unticked = booklet only. Once the client
+  // approved (or paid) the dialog is "Share booklet" - the approval step is gone, nothing asks for approval again.
+  let sharePaid=false;
+  function clientApproved(){ const ap=(ev&&(ev.approvalStatus||ev.approval_status))||""; return sharePaid || PAID_SUM>0 || ap==="approved" || ap==="paid"; }
+  function syncShare(paid){
+    if(paid!=null) sharePaid=!!paid;
+    const done=clientApproved(), box=$("#csAsk"), ask=!done && !!(box&&box.checked);
+    const set=(sel,fn)=>{ const n=$(sel); if(n) fn(n); };
+    set("#csAskRow",n=>{ n.hidden=done; }); set("#csDoneNote",n=>{ n.hidden=!done; }); set("#csApprove",n=>{ n.hidden=!ask; });
+    set("#csTitle",n=>{ n.textContent=ask?"Share with client":"Share booklet"; });
+    set("#csSub",n=>{ n.textContent=ask?"One private link: the event booklet, the quotation and an Approve button.":"A private, view-only event booklet for your client - no approval is asked."; });
+    document.querySelectorAll("#csGets [data-get]").forEach(li=>{ li.hidden = li.dataset.get==="approve" && !ask; });
+    document.querySelectorAll("#shareModal .cs-n").forEach(n=>{ n.hidden=!ask; });
+    set("#csInc",n=>{ n.hidden=!ask; });
+    set("#csBkFold",n=>{ if(n.dataset.user!=="1") n.open=!ask; });   // asking approval: booklet settings folded (still one click away)
+    set("#shareClient",n=>{ n.textContent=done?"Share booklet →":"Share with client →"; });
+    set("#shareClientNote",n=>{ n.textContent=done?"Approved - share the view-only booklet.":"Booklet, quotation and the Approve button - one link."; });
+  }
+  let shareFrom=null;
+  function openShare(){
+    syncShare(); shareFrom=document.activeElement; $("#shareModal").hidden=false;
+    setTimeout(()=>{ const a=$("#csAsk"), t=(a && !$("#csAskRow").hidden) ? a : $("#csClose"); try{ t.focus(); }catch(_){} }, 30);
+  }
+  function closeShare(){ $("#shareModal").hidden=true; try{ (shareFrom&&shareFrom.isConnected?shareFrom:$("#shareClient")).focus(); }catch(_){} }
   function paintBookingBadge(paidCount){ const b=$("#bookingBadge"); try{ paintApprBtn(paidCount); }catch(_){} if(!b) return;
     { const st=$("#apprState"); if(st){ if(paidCount>0) st.textContent="Booking confirmed.";   // PL1027 #2
         else if(st.textContent==="Booking confirmed.") st.textContent=apprStateText(false); } }
@@ -1467,7 +1520,7 @@
       const waText=encodeURIComponent(`Hi ${ev.client&&ev.client.name||""}, here's your event proposal & quote: ${link}`);
       // URL-encode the address so a stored "a@b.com?bcc=…" can't add mail headers (Cc/Bcc) to the link email
       const mailHref="mailto:"+encodeURIComponent(ev.client&&ev.client.email||"").replace(/%40/g,"@")+"?subject="+encodeURIComponent("Your event proposal")+"&body="+waText;
-      $("#apprState").innerHTML='<b style="color:var(--safe-text)">Approval link ready.</b> Share it with the client:';
+      $("#apprState").innerHTML='<b style="color:var(--safe-text)">Approval link ready.</b> Copy it or e-mail it from Share with client.';
       $("#apprLinks").innerHTML=
         `<div class="fld"><input id="apprUrl" value="${esc(link)}" readonly aria-label="Approval link" style="font-size:12px"></div>`+
         `<div style="display:flex;gap:8px;flex-wrap:wrap">`+
@@ -1901,6 +1954,12 @@
     window.addEventListener("pagehide",()=>{ if(flowTrack) flowTrack.flush().catch(()=>{}); });
     document.addEventListener("visibilitychange",()=>{ if(document.hidden&&flowTrack) flowTrack.flush().catch(()=>{}); });
     $("#sendApproval").addEventListener("click",()=>{ sendApproval().catch(()=>{}); });
+    $("#shareClient").addEventListener("click",openShare);
+    $("#csClose").addEventListener("click",closeShare);
+    $("#csAsk").addEventListener("change",()=>syncShare());
+    $("#csBkFold").addEventListener("click",(e)=>{ if(e.target&&e.target.tagName==="SUMMARY") $("#csBkFold").dataset.user="1"; });
+    $("#shareModal").addEventListener("click",(e)=>{ if(e.target===$("#shareModal")) closeShare(); });
+    $("#shareModal").addEventListener("keydown",(e)=>{ if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); closeShare(); } });
     $("#pay_pct").addEventListener("input",()=>{ $("#pay_pct").dataset.touched="1"; updateAdvance(); });
     $("#c_date").addEventListener("change",applyPayTerms);
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount","q_discountPct"].forEach(f=>$("#"+f).addEventListener("input",updateAdvance));
@@ -2057,6 +2116,7 @@
       flowTrack=HelmFlowResume.track({ quoteId:id, uid:userId, canEdit, store:BPStore, name:()=>($("#qName").textContent||(ev&&ev.code)||"").trim() }); }
     // planner-1023: save_quotation_version / generate_approval_token need quotes EDIT server-side - a view-only role sees why instead of a 403 toast
     if(!canEdit) ["#q_save","#sendApproval"].forEach(sel=>{ const b=$(sel); if(b){ b.disabled=true; b.title="Your role can view quotes but not edit them — ask an admin."; } });
+    if(!canEdit){ const b=$("#shareClient"); if(b){ b.disabled=true; b.title="Your role can view quotes but not share them — ask an admin."; } }
     await openQuote();
   });
 </script>
