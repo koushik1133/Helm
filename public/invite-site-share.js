@@ -20,6 +20,17 @@
   var TRIAL_CAP = "Not sent: the free trial e-mail limit for today is reached (30 a day, 5 to one address). Use Copy link to share it yourself.";
   var EMAIL_RE = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
   var STATUS = { queued: "Queued", pending: "Queued", sent: "Sent", skipped: "Not sent", failed: "Failed" };
+  // r21 email audit: a send still "Queued" after this long has not gone out (Helm's sender runs every few minutes)
+  var STALE_MS = 15 * 60000;
+  var STALE_NOTE = "Not sent yet: a message above has been waiting more than 15 minutes. Helm's e-mail sender may be paused — use Copy link to share it yourself, and tell your Helm admin.";
+  // pure: is any queued row older than STALE_MS? (rows: [{ status, at }])
+  function staleQueued(rows, now) {
+    var t = typeof now === "number" ? now : Date.now();
+    return (Array.isArray(rows) ? rows : []).some(function (r) {
+      var st = r && r.status, at = r && Date.parse(r.at);
+      return (st === "queued" || st === "pending") && isFinite(at) && t - at > STALE_MS;
+    });
+  }
 
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
   // same greeting as the server (event_site_send): first 60 characters of the client name, else "there"
@@ -107,7 +118,8 @@
     body.appendChild(msg);
     var logH = el("div", "ish-log-h", "Send history"); logH.hidden = true;   // qa-quote-flow B28: the log also lists "Not sent" (test mode) rows
     var log = el("ul", "ish-log"); log.id = "ishLog"; log.hidden = true;
-    body.appendChild(logH); body.appendChild(log);
+    var stale = el("p", "mnote ish-stale", STALE_NOTE); stale.hidden = true; stale.setAttribute("role", "note");
+    body.appendChild(logH); body.appendChild(log); body.appendChild(stale);
     box.appendChild(body);
     host.appendChild(box);
     // these fields are not part of the invitation: keep them out of the editor's "unsaved changes" tracking
@@ -162,10 +174,13 @@
         var li = el("li", "ish-li");
         li.appendChild(el("span", "ish-when", fmtAt(r.at)));
         li.appendChild(el("span", null, (r.channel === "whatsapp" ? "WhatsApp" : "Email") + " · " + String(r.to || "")));
-        var st = el("span", "ish-st ish-" + String(r.status || "").replace(/[^a-z]/g, ""), STATUS[r.status] || String(r.status || ""));
+        var label = STATUS[r.status] || String(r.status || "");
+        if (staleQueued([r])) label = "Queued — not sent yet";
+        var st = el("span", "ish-st ish-" + String(r.status || "").replace(/[^a-z]/g, ""), label);
         li.appendChild(st); log.appendChild(li);
       });
       log.hidden = logH.hidden = !list.length;
+      stale.hidden = !staleQueued(list);
     }
     function loadLog() {
       if (opts.sendLog) return Promise.resolve().then(opts.sendLog).then(paintLog).catch(function () {});
@@ -214,6 +229,6 @@
   }
 
   window.HelmInviteShare = { mount: mount, message: message, clientName: clientName, resultText: resultText, OPT_TEXT: OPT_TEXT, TRIAL_NOTE: TRIAL_NOTE,
-    TRIAL_EMAIL_NOTE: TRIAL_EMAIL_NOTE, TRIAL_CAP: TRIAL_CAP };
+    TRIAL_EMAIL_NOTE: TRIAL_EMAIL_NOTE, TRIAL_CAP: TRIAL_CAP, staleQueued: staleQueued, STALE_NOTE: STALE_NOTE };
   window.HelmSendToClient = window.HelmInviteShare;   // shared name (booklet dialog, 0200)
 })();

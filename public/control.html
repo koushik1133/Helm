@@ -787,7 +787,7 @@
 <script src="studio-templates.js?v=12"></script>
 <script src="item-pricing.js?v=1"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
-<script src="trial-demo.js?v=15"></script>
+<script src="trial-demo.js?v=16"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
 <script src="search-catalog.js?v=6"></script>
@@ -1868,9 +1868,11 @@
   // what actually happened to the invitation e-mail, in plain words → [kind, text]
   function inviteMailMsg(sent,email,resend){
     const tail=resend?"":" The link below also works.", diy=resend?"use Copy link":"copy the link below";
-    if(sent&&sent.status==="ok"&&sent.sent>0) return ["ok",`Invitation email sent to ${email}.`+tail];
-    if(sent&&sent.status==="ok"&&sent.failed>0) return ["err",`Couldn't send the email to ${email} — the mail service refused it (check the email setup). It will retry; meanwhile ${diy} and send it yourself.`];
-    if(sent&&sent.status==="ok"&&!(sent.skipped>0)) return ["ok",`Invitation email already sent or queued for ${email}.`+tail];
+    // r21 email audit: only "sent" says sent; queued / skipped say plainly that nothing has gone out yet
+    if(sent&&sent.status==="ok"&&sent.sent>0&&!(sent.failed>0)) return ["ok",`Invitation email sent to ${email}.`+tail];
+    if(sent&&sent.status==="ok"&&sent.failed>0) return ["err",`Couldn't send the email to ${email} — the mail service refused it (check the email setup). Please ${diy} and send it yourself, or press Resend email later.`];
+    if(sent&&sent.status==="ok"&&sent.skipped>0) return ["info",`The email to ${email} wasn't sent (the address or the link was not usable). Please ${diy} and send it yourself.`];
+    if(sent&&sent.status==="ok") return ["info",`Invitation email for ${email} is queued but not sent yet. If it hasn't arrived in 10 minutes, press Resend email or ${diy}.`];
     if(sent&&sent.status==="dormant") return ["info",`Automatic invite emails are switched off (HELM_INVITE_EMAILS_ENABLED=false) — ${diy} and send it to ${email} yourself.`];
     const why={not_deployed:"the invite-mailer service isn't deployed yet",unauthorized:"the invite-mailer service rejected the sign-in (deploy it with --no-verify-jwt)",
       forbidden:"only studio admins can send invite emails",rate_limited:"too many sends just now, try Resend in a minute",

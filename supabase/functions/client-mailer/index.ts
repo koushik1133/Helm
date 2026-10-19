@@ -39,8 +39,10 @@ export const KINDS = ["approval", "booklet"];
 function appOrigin(req: Request): string {
   const o = req.headers.get("origin");
   if (isAllowedOrigin(o)) return o;
-  const env = String(Deno.env.get("APP_ORIGIN") || "").replace(/\/+$/, "");
-  return /^https:\/\/[^\s/]+$/.test(env) ? env : "https://helm.events";
+  // r21: APP_URL (the name every other mailer uses) is read too; the default is the canonical www host
+  // (the apex only 308-redirects there)
+  const env = String(Deno.env.get("APP_ORIGIN") || Deno.env.get("APP_URL") || "").trim().replace(/\/+$/, "");
+  return /^https:\/\/[^\s/]+$/.test(env) ? env : "https://www.helm.events";
 }
 
 Deno.serve(async (req) => {
