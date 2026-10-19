@@ -106,7 +106,7 @@ do $$ declare n int := -1; e text := ''; begin
   perform pg_temp.res('anon cannot read platform_admins', e = '42501', 'n='||n||' e='||e);
 end $$;
 do $$ declare n int := -1; e text := ''; begin
-  perform pg_temp.login('admin@helm.events');
+  perform pg_temp.login_x('admin@helm.events', '{"aal":"aal2"}');   -- 0253: switch on => aal2 for HQ reads too
   begin select count(*) into n from public.platform_admins; exception when others then e := sqlstate; end;
   perform pg_temp.res('even an operator cannot read platform_admins directly (definer-only)', e = '42501', 'n='||n||' e='||e);
 end $$;
@@ -133,7 +133,7 @@ end $$;
 do $$ declare r jsonb; e_orgs bigint; e_users bigint; begin
   perform pg_temp.su();
   select count(*) into e_orgs from public.organizations; select count(*) into e_users from auth.users;
-  perform pg_temp.login('admin@helm.events');
+  perform pg_temp.login_x('admin@helm.events', '{"aal":"aal2"}');   -- 0253: switch on => aal2 for HQ reads too
   begin r := public.hq_overview(); exception when others then perform pg_temp.res('operator: hq_overview returns data', false, sqlerrm); return; end;
   perform pg_temp.res('operator: hq_overview returns data', r ? 'studios' and r ? 'billing' and r ? 'signups_30d', r::text);
   perform pg_temp.res('overview: studio + user totals match the database',
@@ -148,24 +148,24 @@ do $$ declare r jsonb; e_orgs bigint; e_users bigint; begin
   perform pg_temp.res('overview: MFA adoption section present', r ? 'mfa', r::text);
 end $$;
 do $$ declare rec record; n int; begin
-  perform pg_temp.login('admin@helm.events');
+  perform pg_temp.login_x('admin@helm.events', '{"aal":"aal2"}');   -- 0253: switch on => aal2 for HQ reads too
   select * into rec from public.hq_studios('Studio A', null, 25, 0) limit 1;
   select count(*) into n from public.hq_studios('Studio A', null, 25, 0);
   perform pg_temp.res('hq_studios: search finds Studio A with users + owner (no revenue columns)',
     n = 1 and rec.name = 'Studio A' and rec.users_count >= 2 and rec.owner_email = 'a_admin@a.test' and rec.total_count = 1
     and not (to_jsonb(rec) ? 'revenue') and not (to_jsonb(rec) ? 'events_count'), coalesce(row_to_json(rec)::text, 'none'));
-  perform pg_temp.login('admin@helm.events');
+  perform pg_temp.login_x('admin@helm.events', '{"aal":"aal2"}');   -- 0253: switch on => aal2 for HQ reads too
   select count(*) into n from public.hq_studios(null, null, 1, 0);
   perform pg_temp.res('hq_studios: paging limit honoured', n = 1, n::text);
 end $$;
 do $$ declare r jsonb; begin
-  perform pg_temp.login('admin@helm.events');
+  perform pg_temp.login_x('admin@helm.events', '{"aal":"aal2"}');   -- 0253: switch on => aal2 for HQ reads too
   r := public.hq_studio_detail('b0000000-0000-4000-8000-000000000001');
   perform pg_temp.res('hq_studio_detail: Studio B members, no events / milestones',
     r->>'name' = 'Studio B' and jsonb_array_length(r->'members') >= 2 and not r ? 'recent_events' and not r ? 'open_milestones', r::text);
 end $$;
 do $$ declare rec record; cols text; begin
-  perform pg_temp.login('admin@helm.events');
+  perform pg_temp.login_x('admin@helm.events', '{"aal":"aal2"}');   -- 0253: switch on => aal2 for HQ reads too
   select * into rec from public.hq_users('a_admin@a.test', 25, 0);
   perform pg_temp.res('hq_users: finds a_admin with studio + role', rec.studio = 'Studio A' and rec.role = 'admin'
     and rec.email_confirmed and not rec.mfa_enabled, coalesce(row_to_json(rec)::text,'none'));
@@ -175,7 +175,7 @@ do $$ declare rec record; cols text; begin
   perform pg_temp.res('hq_users: exposes no password / token columns', cols is null, cols);
 end $$;
 do $$ declare r jsonb; begin
-  perform pg_temp.login('admin@helm.events');
+  perform pg_temp.login_x('admin@helm.events', '{"aal":"aal2"}');   -- 0253: switch on => aal2 for HQ reads too
   r := public.hq_payments(current_date - 7, current_date);
   perform pg_temp.res('hq_payments: Helm subscription payments only (no studio client payments / milestones)',
     r ? 'payments' and not r ? 'milestones'

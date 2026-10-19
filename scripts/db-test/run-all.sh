@@ -47,6 +47,7 @@ run "audit-medium-0155"  "AUDIT-MEDIUM-0155: ALL PASS \(37/37\)" psql -q -f test
 run "mfa-verify-hook-0158" "MFA-VERIFY-HOOK-0158: ALL PASS \(15/15\)" psql -q -f tests/db/mfa-verify-hook-0158.sql
 run "r21-reserved-domain-0248" "R21-RESERVED-DOMAIN-0248: ALL PASS \(42/42\)" psql -q -f tests/db/r21-reserved-domain-0248.sql
 run "r21-security-0249" "R21-SECURITY-0249: ALL PASS \(29/29\)" psql -q -f tests/db/r21-security-0249.sql
+run "r22-mfa-reset-0253" "R22-MFA-RESET-0253: ALL PASS \(30/30\)" psql -q -f tests/db/r22-mfa-reset-0253.sql
 run "privacy-pin-0157"   "PRIVACY-PIN-0157: ALL PASS \(30/30\)" psql -q -f tests/db/privacy-pin-0157.sql
 run "direct-studio-0159" "DIRECT-STUDIO-0159: ALL PASS \(30/30\)" psql -q -f tests/db/direct-studio-0159.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
