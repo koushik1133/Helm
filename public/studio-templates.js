@@ -127,12 +127,20 @@
       if (st0 && st0.items && st0.items.length && lb) lb([], null);
       var eb = $("emptyState"); if (eb) eb.hidden = true; return;
     }
-    var row; try { row = await S().layoutTemplates.get(id); } catch (e) { toast(friendly(e, "load the template"), true); return; }
+    // r20 (live QA): one load per pick. A slow template read that finishes after a newer pick (another template, a
+    // built-in layout, a past event) is dropped instead of popping a stale "bigger than your hall" window or replacing
+    // the newer floor; a slow read says "Loading..." instead of looking like nothing happened.
+    var seq = G.__helmTplLoad = (G.__helmTplLoad || 0) + 1;
+    var live = function () { return G.__helmTplLoad === seq; };
+    var slow = setTimeout(function () { if (live()) toast("Loading the template…"); }, 350);
+    var row; try { row = await S().layoutTemplates.get(id); } catch (e) { clearTimeout(slow); if (live()) toast(friendly(e, "load the template"), true); return; }
+    clearTimeout(slow);
+    if (!live()) return;
     if (!row || !row.data) { toast("That template could not be found.", true); return; }
     // load-fit.js: bigger than this hall → Fit to my hall / Use the layout's size / Cancel
     var lfSz = G.HelmLoadFit ? G.HelmLoadFit.size(row.data) : null, ask = B.fn("lfAsk");
     var fitChoice = ask && lfSz ? await ask(lfSz) : "ok";
-    if (fitChoice === "cancel") return;
+    if (fitChoice === "cancel" || !live()) return;
     if (fitChoice === "size") { var us = B.fn("lfUseSize"); if (us) us(lfSz); }
     var W = B.world() || { w: 200, h: 140 }, caps = B.caps() || {};
     var fit = C.fitToHall(row.data, { w: W.w, h: W.h }, caps.hall || 1000);

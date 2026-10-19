@@ -115,8 +115,8 @@
   /* ---- guided tour: page steps when tour.js has them, else a generic tour of the shell ---- */
   /* on-screen reading order: the sidebar top to bottom, then the top bar left to right */
   var SHELL_TOUR = [
-    { sel: "[data-tour='pin']", side: "right", title: "Keep it open", desc: "Pin the sidebar to keep the labels visible, or leave it slim and hover to expand." },
-    { sel: "#hbRail .hb-group:not(.hb-fav)", side: "right", title: "Your workspace", desc: "Every area of Helm lives in this sidebar: Workspace for daily work, Manage and Admin below it. Scroll the list if it is taller than your screen." },
+    { sel: "[data-tour='pin']", side: "right", title: "Keep it open", desc: "Pin the sidebar to keep the labels visible, or leave it slim (tucked away) and hover to expand." },
+    { sel: "#hbRail .hb-group:not(.hb-fav)", side: "right", title: "Your workspace", desc: "Every area of Helm lives in this sidebar: Workspace for daily work, Manage and Admin below it. Scroll the list if it is taller than your screen. Press H (when you are not typing) to jump home to the dashboard." },
     { sel: ".hb-recent .htr-btn", side: "right", title: "Recently viewed", desc: "Jump back to the pages and events you opened last." },
     { sel: "[data-tour='theme']", side: "right", title: "Look and feel", desc: window.HELM_DARK_MODE === true ? "Switch dark mode and pick a colour theme." : "Pick a colour theme: Emerald, Cobalt, Midnight, Graphite or Studio." },
     { sel: "[data-tour='account']", side: "right", title: "Your account", desc: "Your profile, account settings (password and two-step verification), the user manual and sign out." },
@@ -342,6 +342,12 @@
       nq.addEventListener("click", startQuote);
       split.appendChild(nq);
       tools.appendChild(searchSlot); tools.appendChild(chat); tools.appendChild(bellSlot); tools.appendChild(split);
+      /* r20 (owner QA): the tour is easy to find - a "?" button in the top bar beside the bell (the sidebar's
+       * "Take a guided tour" sits at the foot of the rail and needed scrolling at 1440 x 900). Same start as the rail button. */
+      var tourTop = el("button", "hb-ibtn hb-ttour"); tourTop.type = "button"; tourTop.title = "Take the guided tour";
+      tourTop.setAttribute("aria-label", "Take the guided tour"); tourTop.setAttribute("data-tour", "tour-top"); tourTop.appendChild(icon("help"));
+      tourTop.addEventListener("click", function () { safe(startTour); });
+      tools.insertBefore(tourTop, bellSlot);
       header.appendChild(tools);
       adopt(function () { return document.getElementById("helm-topbar-search"); }, searchSlot);
       (function hint(n) {   /* subtle "jump to" hint + ⌘K chip in the header search field */
@@ -860,7 +866,7 @@
     favRender();
   }
 
-  /* ---- keyboard shortcuts: G then D/Q/L/C/M, N new, ? help ---- */
+  /* ---- keyboard shortcuts: H home, G then D/Q/L/C/M, N new, ? help ---- */
   var GO = { d: ["dashboard.html", "Dashboard"], q: ["quotes.html", "Quotes"], l: ["leads.html", "Leads"], c: ["calendar.html", "Calendar"], m: ["chat.html", "Messages (chat)"], b: ["business.html", "Business (money)"] };
   function modalOpen() {
     try {
@@ -878,7 +884,7 @@
     var go = Object.keys(GO).map(function (k) { return ["G " + k.toUpperCase(), "Go to " + GO[k][1]]; });
     return [
       ["Search", [[MOD + " K", "Open search and commands"], ["/", "Open search (when not typing)"]]],
-      ["Navigate", go],
+      ["Navigate", [["H", "Go home (Dashboard)"]].concat(go)],
       ["Create", [["N", "New quote / create menu"]]],
       ["General", [["?", "Show keyboard shortcuts"], ["Esc", "Close dialogs and menus"]]]
     ];
@@ -939,6 +945,8 @@
         }
         gAt = 0;
         if (k === "g" && !e.shiftKey) { gAt = Date.now(); return; }
+        /* r20: H = home (the dashboard) from any app page - never while typing, in a dialog or with a modifier key */
+        if (k === "h" && !e.shiftKey) { e.preventDefault(); if (!/^dashboard(\.html)?$/.test(page)) location.href = abs("dashboard.html"); return; }
         if (e.key === "?") { e.preventDefault(); helpOpen(); return; }
         if (k === "n" && !e.shiftKey) {
           var chev = document.querySelector(".hb-split:not([hidden]) .hb-chev"), nq = document.querySelector(".hb-split:not([hidden]) .hb-new:not(.hb-chev):not([hidden])");

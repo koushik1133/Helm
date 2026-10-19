@@ -273,7 +273,14 @@
     });
     if (ok.indexOf(sel.value) < 0 && sel.value !== 'other') sel.value = 'none';
   }
+  // r20: free trial (html.helm-trial / HelmTrialLock) - the Render button shows the realistic 3D look, but AI photos are a
+  // paid-plan feature (the server refuses photo_render_begin in the trial, 0173): the dialog never opens there
+  var TRIAL_MSG = 'This is the realistic 3D look of your plan. AI photos of the plan come with a paid plan.';
+  function inTrial() {
+    try { if (window.HelmTrialLock && HelmTrialLock.isTrial && HelmTrialLock.isTrial()) return true; return document.documentElement.classList.contains('helm-trial'); } catch (e) { return false; }
+  }
   function open() {
+    if (inTrial()) { toast(TRIAL_MSG, { type: 'info', timeout: 5000 }); return; }
     var m = $('photoModal'); if (!m) return;
     var c = withFresh(ctx());
     var sel0 = $('phTypeSel'); if (sel0) sel0.value = '';
@@ -320,6 +327,15 @@
     var b = document.querySelector('#viewSeg [data-v="render"]');
     // the 3D render view still opens behind the dialog (used by the "My current 3D view" camera)
     if (b) b.addEventListener('click', function () { setTimeout(open, 0); });
+    // r20: in the free trial the tooltip says what Render does there (the paid-plan tooltip comes back after an upgrade)
+    function syncTitle() {
+      if (!b) return;
+      if (!b.dataset.paidTitle) b.dataset.paidTitle = b.title || '';
+      b.title = inTrial() ? 'Realistic 3D look of this plan (AI photos come with a paid plan)' : b.dataset.paidTitle;
+    }
+    syncTitle();
+    try { window.addEventListener('helm:trial', syncTitle); } catch (e) {}
+    try { new MutationObserver(syncTitle).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] }); } catch (e) {}
   }
   window.HelmPhotoRenderUI = { renderContext: renderContext, effective: effective, withFresh: withFresh, fitThemes: fitThemes, drawSemantic: drawSemantic, open: open, close: close, outputSize: outputSize, cameraOpts: cameraOpts, plainError: plainError, readForm: readForm };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();

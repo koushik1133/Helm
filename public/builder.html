@@ -9,7 +9,7 @@
 <meta name="bp-theme-toggle" content="off"><!-- the builder has its own ◑ theme button -->
 <script src="/public-theme.js?v=3"></script>
 <script src="/trusted-types.js?v=3"></script>
-<link rel="stylesheet" href="/trial-lock.css?v=7" id="trialLockCss"><script src="/trial-early.js?v=6"></script><!-- 0181: free trial locked before first paint -->
+<link rel="stylesheet" href="/trial-lock.css?v=8" id="trialLockCss"><script src="/trial-early.js?v=7"></script><!-- 0181: free trial locked before first paint -->
 <script>
   /* Pin the builder to a light background by default (user preference persisted). */
   (function(){
@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="builder.css?v=29">
+<link rel="stylesheet" href="builder.css?v=30">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="studio-templates.css?v=4">
 <link rel="stylesheet" href="walkthrough.css?v=7">
@@ -34,10 +34,8 @@
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 
-<header class="hr19">
-  <!-- r19: two fixed rows, related controls grouped. Row 1 = this layout (name, versions, save / open, undo /
-       redo / clear, capacity); row 2 = the canvas (start a floor, view, measure, units + grid). Groups never split. -->
-  <div class="hrow hrow-doc">
+<header>
+  <!-- r20: the one-row header from before r19 (owner: the two-row header lost Render); groups tagged for the tour -->
   <div class="hgroup drawer-btns">
     <button type="button" class="tbtn" id="toolsToggle" aria-controls="leftPanel" aria-expanded="false">🧰 Tools</button>
     <button type="button" class="tbtn" id="inspToggle" aria-controls="rightPanel" aria-expanded="false">☰ Inspector</button>
@@ -47,64 +45,7 @@
     <div class="brand-txt"><h1>Helm Events</h1><small>← All events</small></div>
   </a>
 
-  <div class="hgroup hg-doc" role="group" aria-label="This layout">
-    <div class="field">
-      <label for="projName">Project</label>
-      <input id="projName" class="nameinput" type="text" value="Untitled event" title="Event / quote name" maxlength="120">
-      <div id="projNameHint" class="namehint" hidden><span id="projNameHintText"></span> <button type="button" id="projNameReset" class="linkbtn" hidden>Reset to auto name</button></div>
-    </div>
-    <span id="saveState" class="savestate" role="status" aria-live="polite" hidden></span>
-    <span id="quoteBadge" class="qbadge" hidden title="Quote code · current version"></span>
-    <select id="verSel" class="versel" hidden aria-label="Layout version" title="Saved versions of this layout — pick one to view it (saved versions are never changed)"></select>
-    <a id="designChip" class="qbadge qlink" hidden title="Design stage — open the Design Studio"></a>
-  </div>
-
-  <div class="hgroup hg-save" role="group" aria-label="Save and open">
-    <button type="button" class="tbtn primary" id="backToFlowBtn" hidden title="Save this layout and return to the quotation">✓<span class="tl tl-back"> Save &amp; back</span></button>
-    <button class="tbtn primary" id="saveBtn" title="Save a new version (⌘S)">💾 Save</button>
-    <button class="tbtn" id="loadBtn" title="Open a saved layout">📂<span class="tl"> Open</span></button>
-    <button class="tbtn" id="clientImgBtn" hidden title="Capture a clean 2D plan and 3D view of this layout for the client booklet">📸 Client images</button>
-    <details class="hmenu" id="moreMenu">
-      <summary class="tbtn" title="More actions" aria-label="More actions"><span class="tl">More </span>▾</summary>
-      <div class="hmenu-pop" role="menu">
-        <button class="tbtn" id="exportBtn" role="menuitem" title="Download as PNG image">⤓ PNG</button>
-        <button class="tbtn" id="jsonBtn" role="menuitem" title="Download layout JSON">{ } JSON</button>
-        <button class="tbtn" id="importBtn" role="menuitem" title="Import a layout JSON file">⤒ Import</button>
-      </div>
-    </details>
-    <input type="file" id="importFile" accept="application/json,.json" hidden>
-  </div>
-
-  <div class="hsep"></div>
-  <div class="hgroup hg-edit" role="group" aria-label="Edit">
-    <button class="tbtn icon" id="undoBtn" title="Undo (⌘Z)" aria-label="Undo" disabled><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M6 3.5 2.5 7 6 10.5M3 7h6.5a4 4 0 0 1 0 8H7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <button class="tbtn icon" id="redoBtn" title="Redo (⌘⇧Z)" aria-label="Redo" disabled><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M10 3.5 13.5 7 10 10.5M13 7H6.5a4 4 0 0 0 0 8H9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <button class="tbtn danger" id="clearBtn" title="Remove every object">Clear</button>
-  </div>
-
-  <div class="hsep"></div>
-  <div class="hgroup hg-cap" role="group" aria-label="Capacity">
-    <div class="field">
-      <label for="capInput">Venue capacity</label>
-      <input id="capInput" class="nameinput capinput" type="number" min="0" max="20000" placeholder="Capacity" title="Venue capacity: the venue's stated max capacity — occupancy is checked against this">
-    </div>
-    <div class="capmeter" id="capMeter" title="Seats placed vs venue capacity"><span id="capLbl">—</span></div>
-  </div>
-
-  <div class="s-97445a8"></div>
-  <div class="hgroup s-33fcd4c">
-    <span class="hb-tools bp-priv-slot"></span><!-- QA-B27: shell-b-privacy.js mounts the "Hide amounts" eye button here -->
-    <details class="hmenu acctmenu" id="acctMenu" hidden>
-      <summary class="tbtn icon" title="Account" aria-label="Account menu">👤</summary>
-      <div class="hmenu-pop" id="acct"></div>
-    </details>
-    <button class="tbtn icon" id="themeBtn" title="Toggle light / dark" aria-label="Toggle light or dark theme">◑</button>
-    <span class="kbd" id="dimsLabel">200 × 140 ft · 12 px/ft</span>
-  </div>
-  </div>
-
-  <div class="hrow hrow-tools">
-  <div class="hgroup hg-start" role="group" aria-label="Start the floor">
+  <div class="hgroup">
     <div class="field">
       <label for="preset">Template</label>
       <select id="preset" title="Load a foundational event layout">
@@ -154,7 +95,15 @@
 
   <div class="hsep"></div>
 
-  <div class="hgroup hg-view" role="group" aria-label="View">
+  <div class="hgroup">
+    <div class="field">
+      <label for="unitSel">Units</label>
+      <select id="unitSel" class="unitsel" title="Measurement units"><option value="ft" selected>Feet</option><option value="m">Metres</option></select>
+    </div>
+    <div class="field">
+      <span class="flabel" id="gridLbl">Grid</span>
+      <div class="seg" role="group" aria-labelledby="gridLbl"><button id="snapBtn" class="on" title="Snap: items jump to the nearest grid line when you move them">Snap</button><button id="gridBtn" class="on" title="Grid: show or hide the grid lines on the floor">Grid</button></div>
+    </div>
     <div class="field">
       <span class="flabel" id="viewLbl">View</span>
       <div class="seg" id="viewSeg" role="group" aria-labelledby="viewLbl"><button data-v="2d" class="on" title="2D blueprint (edit)">2D Plan</button><button data-v="3d" title="3D rendered view">3D View</button><button data-v="render" title="Ultra-realistic photo of this plan (AI photograph)">✦ Render</button></div>
@@ -167,17 +116,57 @@
 
   <div class="hsep"></div>
 
-  <div class="hgroup hg-grid" role="group" aria-label="Units and grid">
-    <div class="field">
-      <label for="unitSel">Units</label>
-      <select id="unitSel" class="unitsel" title="Measurement units"><option value="ft" selected>Feet</option><option value="m">Metres</option></select>
-    </div>
-    <div class="field">
-      <span class="flabel" id="gridLbl">Grid</span>
-      <div class="seg" role="group" aria-labelledby="gridLbl"><button id="snapBtn" class="on" title="Snap: items jump to the nearest grid line when you move them">Snap</button><button id="gridBtn" class="on" title="Grid: show or hide the grid lines on the floor">Grid</button></div>
-    </div>
+  <div class="hgroup hg-edit">
+    <button class="tbtn icon" id="undoBtn" title="Undo (⌘Z)" aria-label="Undo" disabled><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M6 3.5 2.5 7 6 10.5M3 7h6.5a4 4 0 0 1 0 8H7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="tbtn icon" id="redoBtn" title="Redo (⌘⇧Z)" aria-label="Redo" disabled><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M10 3.5 13.5 7 10 10.5M13 7H6.5a4 4 0 0 0 0 8H9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="tbtn danger" id="clearBtn" title="Remove every object">Clear</button>
   </div>
 
+  <div class="hsep"></div>
+
+  <div class="hgroup">
+    <div class="field">
+      <label for="projName">Project</label>
+      <input id="projName" class="nameinput" type="text" value="Untitled event" title="Event / quote name" maxlength="120">
+      <div id="projNameHint" class="namehint" hidden><span id="projNameHintText"></span> <button type="button" id="projNameReset" class="linkbtn" hidden>Reset to auto name</button></div>
+    </div>
+    <span id="saveState" class="savestate" role="status" aria-live="polite" hidden></span>
+    <span id="quoteBadge" class="qbadge" hidden title="Quote code · current version"></span>
+    <select id="verSel" class="versel" hidden aria-label="Layout version" title="Saved versions of this layout — pick one to view it (saved versions are never changed)"></select>
+    <a id="designChip" class="qbadge qlink" hidden title="Design stage — open the Design Studio"></a>
+    <button type="button" class="tbtn primary" id="backToFlowBtn" hidden title="Save this layout and return to the quotation">✓ Save &amp; back to quote</button>
+    <button class="tbtn primary" id="saveBtn" title="Save a new version (⌘S)">💾 Save</button>
+    <button class="tbtn" id="loadBtn" title="Open a saved layout">📂 Open</button>
+    <button class="tbtn" id="clientImgBtn" hidden title="Capture a clean 2D plan and 3D view of this layout for the client booklet">📸 Update client images</button>
+    <details class="hmenu" id="moreMenu">
+      <summary class="tbtn" title="More actions" aria-label="More actions">More ▾</summary>
+      <div class="hmenu-pop" role="menu">
+        <button class="tbtn" id="exportBtn" role="menuitem" title="Download as PNG image">⤓ PNG</button>
+        <button class="tbtn" id="jsonBtn" role="menuitem" title="Download layout JSON">{ } JSON</button>
+        <button class="tbtn" id="importBtn" role="menuitem" title="Import a layout JSON file">⤒ Import</button>
+      </div>
+    </details>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+  </div>
+
+  <div class="hsep"></div>
+  <div class="hgroup hg-cap">
+    <div class="field">
+      <label for="capInput">Venue capacity</label>
+      <input id="capInput" class="nameinput capinput" type="number" min="0" max="20000" placeholder="e.g. 500" title="The venue's stated max capacity — occupancy is checked against this">
+    </div>
+    <div class="capmeter" id="capMeter" title="Seats placed vs venue capacity"><span id="capLbl">—</span></div>
+  </div>
+
+  <div class="s-97445a8"></div>
+  <div class="hgroup s-33fcd4c">
+    <span class="hb-tools bp-priv-slot"></span><!-- QA-B27: shell-b-privacy.js mounts the "Hide amounts" eye button here -->
+    <details class="hmenu acctmenu" id="acctMenu" hidden>
+      <summary class="tbtn icon" title="Account" aria-label="Account menu">👤</summary>
+      <div class="hmenu-pop" id="acct"></div>
+    </details>
+    <button class="tbtn icon" id="themeBtn" title="Toggle light / dark" aria-label="Toggle light or dark theme">◑</button>
+    <span class="kbd" id="dimsLabel">200 × 140 ft · 12 px/ft</span>
   </div>
 </header>
 <div class="capbanner" id="capBanner" role="status" hidden></div>
@@ -528,26 +517,26 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script>
-<script src="tour.js?v=22"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
+<script src="tour.js?v=23"></script>
 <script src="flow-layout-sync.js?v=6"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="builder-tools.js?v=5"></script>
 <script src="quote-state.js?v=4"></script>
-<script src="builder.js?v=75"></script>
+<script src="builder.js?v=76"></script>
 <script src="builder-back.js?v=1" defer></script>
 <script src="venues-core.js?v=9"></script>
 <script src="venue-picker.js?v=6"></script>
 <script src="studio-templates-core.js?v=3"></script>
-<script src="studio-templates.js?v=10"></script>
+<script src="studio-templates.js?v=11"></script>
 <script src="load-fit.js?v=1"></script>
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
 <script src="capture-frame.js?v=12"></script>
 <script src="builder-3d.js?v=24"></script>
 <script src="photo-render-prompt.js?v=8"></script>
-<script src="photo-render-ui.js?v=7"></script>
-<script src="walkthrough.js?v=6"></script>
+<script src="photo-render-ui.js?v=8"></script>
+<script src="walkthrough.js?v=7"></script>
 <script src="layout-wizard.js?v=14"></script>
 <script src="fullscreen.js?v=5"></script>
 </body>
