@@ -1,6 +1,6 @@
-# Events made with Helm — landing page photo gallery
+# Event ideas — landing page photo gallery
 
-The "Events made with Helm" section on the home page (`/`, section `#events`) is built
+The "Event ideas" section ("Plan events like these.") on the home page (`/`, section `#events`) is built
 from `events.json` in this folder. While the list is empty (`[]`) the whole section stays
 hidden, so nothing half-finished ever shows on the live site.
 
@@ -37,6 +37,7 @@ hidden, so nothing half-finished ever shows on the live site.
 | `alt`     | yes      | What the photo shows, for screen readers. Entries without `alt` are skipped. |
 | `caption` | no       | Short line under the photo (event · city). |
 | `type`    | no       | Small tag on the photo: Wedding, Corporate, Birthday, Festival… |
+| `small`   | no       | ~800 px wide copy of the same photo (e.g. `wedding-800.webp`); phones and the grid load it, the full-screen view uses `src`. |
 | `avif`    | no       | AVIF copy of the same photo; browsers that support it load it first. |
 | `width` / `height` | no | Pixel size of the file; stops the page jumping while photos load. |
 
@@ -49,6 +50,12 @@ when tapped. Up to 24 entries are used.
 
 4. Before deploying, run `node scripts/bump-changed-assets.mjs --apply` only if you also
    changed CSS/JS; adding photos + editing `events.json` needs no other step.
+
+The current images are AI-generated illustrations supplied by the owner, so the section is titled
+"Event ideas" ("Plan events like these") — keep that wording unless every photo is from a real
+client event. The same files (`wedding`, `product-launch`, `birthday`, `sangeet`, `corporate-gala`, `mehendi`)
+are also the backgrounds of the "Built for every kind of celebration" slider (see `CEL_PHOTOS` in `home.js`),
+so keep those names when replacing them (or update `CEL_PHOTOS`).
 
 Only use photos you own or have written permission to publish, and make sure guests who
 can be identified are fine with it.
