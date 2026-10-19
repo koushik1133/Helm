@@ -1354,6 +1354,12 @@
   /* ------------------------------- "Complete your profile" banner (0041) */
   var pBanner = null;
   function hideProfileBanner() { if (pBanner) { hideNote("hauProfileNudge"); pBanner = null; } }
+  // r22: "Choose a plan" return path - the pretty /<slug>/... path when on one (checkout's safeNext re-builds it),
+  // else "<page>.html" (was "SMP-1001.html" on /<slug>/events/SMP-1001)
+  function checkoutNextRef() {
+    try { var U = global.HelmUrl; if (U && U.route && U.route()) return U.here().split("#")[0]; } catch (e) {}
+    return pageName() + ".html";
+  }
   function pageName() {
     try { return (location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "") || "index"; } catch (e) { return ""; }
   }
@@ -1488,7 +1494,11 @@
   // pure (unit-tested): what the menu shows for a user / profile / role
   function menuModel(u, prof, role) {
     u = u || {}; prof = prof || {};
-    var name = String(prof.full_name || "").trim();
+    // r22: same fallback chain as the dashboard greeting - profile name, then the sign-up name
+    // (auth user_metadata), then the e-mail's local part - so the button never reads "koushik.lf38"
+    // while a real name is known.
+    var meta = u.user_metadata && typeof u.user_metadata === "object" ? u.user_metadata : {};
+    var name = String(prof.full_name || prof.name || meta.full_name || meta.name || "").replace(/\s+/g, " ").trim();
     var email = String(u.email || prof.email || "");
     var st = S(), label = role && st && st.auth && st.auth.admin && st.auth.admin.roleLabel ? st.auth.admin.roleLabel(role) : (role || "");
     // R19: only account items - Control Center + Insights live in the sidebar (Admin), Customize on the dashboard
@@ -1875,7 +1885,7 @@
       trialShown = true;
       showNote({ id: spec.id, priority: spec.urgent ? 1 : 4, icon: "clock", tone: spec.tone, role: spec.urgent ? "alert" : "status", compact: true,
         title: spec.title, body: spec.dismissible ? "" : spec.body,
-        primary: { label: "Choose a plan", onClick: function () { try { location.assign("checkout.html?next=" + encodeURIComponent(pageName() + ".html")); } catch (e) {} } },
+        primary: { label: "Choose a plan", onClick: function () { try { location.assign("checkout.html?next=" + encodeURIComponent(checkoutNextRef())); } catch (e) {} } },
         // QA B3: no "Set up your studio" (= remove the samples) here: the trial keeps its sample data
         secondary: null,
         onDismiss: spec.dismissible ? function () { snoozeNote(key, 1); try { sessionStorage.setItem("helm_trial_dismissed_" + key, "1"); } catch (e) {} } : null, dismissLabel: "Dismiss — remind me tomorrow" });

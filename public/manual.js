@@ -15,10 +15,12 @@
     var p = document.createElement("p"); p.textContent = text; box.appendChild(p);
     if (link) { var a = document.createElement("a"); a.href = link.href; a.textContent = link.text; box.appendChild(a); }
   }
+  // r22: <style> too - its CSS was already read (adopted as a constructable sheet); an imported <style> element
+  // would be refused by style-src-elem (no 'unsafe-inline') and log a CSP violation.
   // Remove anything that could run code or load from elsewhere (defence in depth:
   // only the owner can write to the bucket, but the page must stay safe anyway).
   function sanitize(root) {
-    root.querySelectorAll("script,iframe,frame,object,embed,link,meta,base,form,noscript,template").forEach(function (n) { n.remove(); });
+    root.querySelectorAll("script,style,iframe,frame,object,embed,link,meta,base,form,noscript,template").forEach(function (n) { n.remove(); });
     root.querySelectorAll("*").forEach(function (el) {
       Array.prototype.slice.call(el.attributes).forEach(function (at) {
         var n = at.name.toLowerCase(), v = String(at.value || "").trim().toLowerCase();

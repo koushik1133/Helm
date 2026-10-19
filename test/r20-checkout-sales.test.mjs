@@ -108,7 +108,7 @@ t('salesMail: mailto sales@helm.events with every detail; subject is one line', 
 /* ---------------- "Choose a plan" links ---------------- */
 t('every "Choose a plan" link lands on /checkout', () => {
   assert.match(read('public/trial.js'), /function planHref\(t, pageName\) \{\s*return "checkout\.html\?next=" \+ encodeURIComponent/);   // trial banner
-  assert.match(API, /function capHref\(\) \{[\s\S]{0,260}return "\/checkout\?next=" \+ encodeURIComponent\(pg \+ "\.html"\);/);          // cap note + cap toast
+  assert.match(API, /function capHref\(\) \{[\s\S]{0,460}return "\/checkout\?next=" \+ encodeURIComponent\(pg \+ "\.html"\);/);          // cap note + cap toast
   assert.match(API, /href: capHref\(\), linkLabel: "Choose a plan"/);
   assert.match(API, /h\("a", \{ href: capHref\(\), class: "bpui-caplink" \}, "Choose a plan to add more"\)/);
   assert.match(read('public/auth-ui.js'), /primary: \{ label: "Choose a plan", onClick: function \(\) \{ try \{ location\.assign\("checkout\.html\?next="/);   // trial notice card

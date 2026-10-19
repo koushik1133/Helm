@@ -1,0 +1,5 @@
+/* manual.css - the /manual page shell (r22: was an inline <style>; a stylesheet needs no CSP hash) */
+body{margin:0;background:#f6f4f1;color:#1b1930;font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.6}
+.mstate{max-width:560px;margin:12vh auto;padding:28px 26px;background:#fff;border:1px solid #e8e3db;border-radius:14px;text-align:center}
+.mstate h1{font-size:20px;margin:0 0 8px}.mstate p{color:#4b475f;margin:0 0 14px}
+.mstate a{color:#047857;font-weight:600}

@@ -32,7 +32,7 @@ await t('store-api bell.prefs → 0036 RPCs with the migration\'s argument names
   const set = api.match(/set: \(type, channel, role, enabled, userId\) => rpc\("admin_set_notification_pref",\s*\{([^}]*)\}/);
   assert.ok(set, 'bell.prefs.set missing');
   for (const p of names) assert.match(set[1], new RegExp(p + ':'), p + ' not passed');
-  assert.match(api, /get: \(\) => rpc\("admin_get_notification_prefs", \{\}\)/);
+  assert.match(api, /get: async \(\) => \{ const r = await rpc\("admin_get_notification_prefs", \{\}\);/);   // r22: + the HQ-only label
   assert.match(api, /reset: \(\) => rpc\("admin_reset_notification_prefs", \{\}\)/);
   assert.match(api, /rpc\("my_notification_prefs", \{\}\)/);
   for (const f of ['admin_get_notification_prefs()', 'admin_reset_notification_prefs()', 'my_notification_prefs()'])

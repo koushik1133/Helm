@@ -381,7 +381,7 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=265"></script><script src="event-group-picker.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=266"></script><script src="event-group-picker.js?v=4"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
 (function(){
@@ -460,6 +460,10 @@
   function closeMenus(){ document.querySelectorAll(".menu,.rxpop").forEach(m=>m.remove()); document.querySelectorAll(".m.menu-open").forEach(m=>m.classList.remove("menu-open")); }
   document.addEventListener("click",(e)=>{ if(!e.target.closest(".menu")&&!e.target.closest(".rxpop")&&!e.target.closest("[data-menu-anchor]")&&!e.target.closest(".caret")) closeMenus(); });
   let menuAnchor=null, modalOpener=null;
+  /* r22: Escape closes an open ⋮ / reaction menu and puts focus back on the button that opened it */
+  document.addEventListener("keydown",(e)=>{ if(e.key!=="Escape"||!document.querySelector(".menu,.rxpop")) return;
+    e.preventDefault(); e.stopPropagation(); closeMenus();
+    if(menuAnchor&&menuAnchor.isConnected&&menuAnchor.focus){ try{ menuAnchor.focus(); }catch(err){} } });
   function openMenu(anchor, items){ closeMenus(); menuAnchor=anchor; const r=anchor.getBoundingClientRect(); const m=document.createElement("div"); m.className="menu";
     m.innerHTML=items.map(it=>it.sep?'<div class="sep"></div>':`<button data-k="${esc(it.k)}">${esc(it.label)}</button>`).join("");
     document.body.appendChild(m); let top=r.bottom+4, left=Math.min(r.left, window.innerWidth-m.offsetWidth-8); if(left<8)left=8;
