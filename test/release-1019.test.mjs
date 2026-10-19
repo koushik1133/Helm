@@ -59,6 +59,16 @@ t('owner steps: the paste file, every changed edge function (prod ref, --no-veri
   assert.match(d, /APPLY-0213-refresh-trial-layouts\.sql/);
   assert.match(d, /docs\/ops\/email-templates\//);
 });
+t('owner steps: the website is already live (PR #204), so step 1 on production comes first', () => {
+  const d = read('docs/release/RELEASE-1019-OWNER-STEPS.md');
+  assert.match(d, /## 0\. URGENT: the website is already live, the database is not/);
+  assert.match(d, /PR #204/);
+  assert.match(d, /do \*\*step 1 on PRODUCTION now\*\* \(`nqltzgiwznphugcfhmbm`\)/);
+  assert.doesNotMatch(d, /Merge the PR `release\/1019` into `main`/);
+  // the facts the urgent note rests on
+  assert.match(read('public/trial-facts.js'), /var VERSION = "trial-2026-10-19";/);
+  assert.match(read('supabase/migrations/0207_trial_terms_acceptance.sql'), /if p_version is distinct from v_ver then/);
+});
 let pass = 0;
 for (const [n, f] of tests) { try { f(); pass++; console.log('  ok  ' + n); } catch (e) { console.log('  FAIL ' + n + '\n       ' + e.message); } }
 console.log(`release-1019: ${pass} passed${pass === tests.length ? '' : ', ' + (tests.length - pass) + ' FAILED'}`);

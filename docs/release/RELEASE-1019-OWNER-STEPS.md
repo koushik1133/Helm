@@ -15,22 +15,34 @@ Branch: `release/1019`. It is round 19: ten fix branches merged and tested toget
 | `fix/r19-live-trial-seed-sql` | L6 "Prices changed" alerts on a new trial, L7 sample phone numbers |
 | `fix/r19-live-trial-ui-controls` | L8 trial menu packages, L9 trial end date, L10 reservations, L12 / L13 / L14 trial dialogs |
 
-Do everything on **STAGING first** (`xizehqgeyjcfpzrdymly`). Move to **PRODUCTION** (`nqltzgiwznphugcfhmbm`)
-only after staging looks right. Nothing here deletes data.
+## 0. URGENT: the website is already live, the database is not
 
-Order: **1 database, then 2 edge functions, then 3 website (merge the PR), then 4 e-mail templates, then
-5 user manual, then 6 optional trial refresh, then 7 checks.**
+PR #204 merged `release/1019` into `main` on 2026-10-19 (00:21 UTC), so Vercel already serves the round-19
+website on production. The production database and edge functions are still at release 1018. Until step 1 is
+pasted on production:
+- **New free-trial owners cannot get past "I agree".** The website sends terms version `trial-2026-10-19`
+  (`public/trial-facts.js`); the database still expects `trial-2026-10-18` and refuses it, and the agreement
+  window cannot be closed. Trial owners who already agreed to the 10-18 terms are not asked again until step 1.
+- The website says quotes are unlimited in the trial, but the database still refuses a third new quote.
+- Trial client e-mail stays off (the old "nothing is sent" rule) until step 1 **and** step 2 are done.
+- Everything else falls back safely (the sign-up invitation check is skipped, the welcome step saves without
+  State, "No package" says it needs the latest update).
 
-Do steps 1 and 3 close together. The free-trial terms version changes to `trial-2026-10-19`, both in the
-database and in the website (`public/trial-facts.js`). While only one of them is updated, a trial owner's
-"I agree" is refused with a version error. Once both are updated, every trial owner is asked to agree once more,
-because the wording changed. Their earlier agreement stays on record.
+So do **step 1 on PRODUCTION now** (`nqltzgiwznphugcfhmbm`), then step 2. The paste was tested twice on a copy
+at the production state (below). If you want staging (`xizehqgeyjcfpzrdymly`) too, paste it there as well; the
+order between the two does not matter. Nothing here deletes data.
+
+Order: **1 database, then 2 edge functions, then 4 e-mail templates, then 5 user manual, then 6 optional trial
+refresh, then 7 checks.** Step 3 (the website) is already done.
+
+Once step 1 is in, every trial owner is asked to agree once more, because the wording changed. Their earlier
+agreement stays on record.
 
 ---
 
 ## 1. Database: one paste
 
-1. Open Supabase, pick the project (staging first), then go to **SQL Editor > New query**.
+1. Open Supabase, pick the project (**production first this time**, see step 0), then go to **SQL Editor > New query**.
 2. Open `supabase/APPLY-RELEASE-1019.sql` from the repo. Copy **the whole file**, paste it, and press **Run**.
    It takes under a minute.
 3. The **last result grid** is the combined VERIFY: 43 rows, from `0210 01` to `0223 04`. Every row must say
@@ -94,8 +106,8 @@ Shared files changed: `_shared/email-layout.mjs` (logo), `_shared/trial-guard.ts
 (0212 gate). `comms-dispatch/trial-row.mjs` is new. Every function that bundles one of them is in the table, so
 nothing else needs a redeploy. The JWT flags are the same ones each function had in release 1018.
 
-Run these from the **helm-deploy** folder, after the PR is merged to `main`. The functions must come from
-`main`, not from an old copy.
+Run these from the **helm-deploy** folder. `main` already has the release (PR #204). The functions must come
+from `main`, not from an old copy. Run the PRODUCTION block right after step 1 on production.
 
 ```bash
 cd ~/Desktop/Agency/Helm/helm-deploy
@@ -114,7 +126,7 @@ supabase functions deploy wa-proposal         --project-ref xizehqgeyjcfpzrdymly
 supabase functions deploy create-payment-link --project-ref xizehqgeyjcfpzrdymly
 supabase functions deploy send-whatsapp       --project-ref xizehqgeyjcfpzrdymly
 
-# PRODUCTION (only after staging is checked)
+# PRODUCTION (right after step 1 on production)
 supabase functions deploy invite-signup       --project-ref nqltzgiwznphugcfhmbm --no-verify-jwt
 supabase functions deploy client-mailer       --project-ref nqltzgiwznphugcfhmbm --no-verify-jwt
 supabase functions deploy comms-dispatch      --project-ref nqltzgiwznphugcfhmbm --no-verify-jwt
@@ -137,8 +149,8 @@ day for a normal account, so keep an eye on the volume. Use the off switch in st
 
 ## 3. Website
 
-Merge the PR `release/1019` into `main`. Vercel deploys the site. Do this right after step 1 on production,
-so the trial terms version matches.
+Already done: PR #204 merged `release/1019` into `main` and Vercel deployed it. Nothing to do here. (A
+follow-up PR, "Release 1019: owner live-test round", only updates this page; merging it changes no code.)
 
 ## 4. E-mail templates: re-paste after the site deploy
 
