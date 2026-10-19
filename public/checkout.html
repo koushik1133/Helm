@@ -118,7 +118,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="/public-pages-v2.css?v=5">
-<link rel="stylesheet" href="/checkout-v2.css?v=3">
+<link rel="stylesheet" href="/checkout-v2.css?v=4">
 <script src="/marketing-theme.js?v=3"></script>
 </head>
 <body>
@@ -188,6 +188,12 @@
           <div class="sales-note" id="coSetup" role="status" hidden>
             <p class="sales-p">Our team activates your plan and sends your invoice. Tell us which plan you'd like and we'll set it up for you. Nothing is charged on this page.</p>
           </div>
+          <!-- r21: pay by UPI / bank transfer while online payment is off (values: window.HELM_PAY_MANUAL in config.js) -->
+          <div class="paydet" id="coPayDetails" hidden>
+            <h3 class="paydet-h">Pay by UPI or bank transfer</h3>
+            <dl class="paydet-l" id="coPayList"></dl>
+            <p class="paydet-n" id="coPayNote"></p>
+          </div>
           <button type="submit" class="btn" id="coPay" disabled>Continue</button>
           <div class="switch-wrap" id="coSwitchWrap" hidden>
             <p class="setup-or"><span>or</span></p>
@@ -215,8 +221,8 @@
     <p class="foot">Signed in as <b id="coEmail"></b> · <button type="button" class="linkbtn" id="coSignOut">Sign out</button></p>
   </main>
 
-  <!-- r20: "Contact sales" - opens the visitor's own email app addressed to sales@helm.events (the same
-       mechanism as the landing page's contact form); nothing is sent or stored from this page -->
+  <!-- r20 / r21: "Contact sales" - the request is saved in Helm (HQ Requests + an e-mail alert to sales@helm.events);
+       the visitor's own email app is only a fallback link when saving fails. Nothing is charged here. -->
   <dialog class="sdlg" id="coSalesDlg" aria-labelledby="sdH">
     <form id="coSalesForm" novalidate>
       <div class="sdlg-hd"><h2 id="sdH">Contact sales</h2><button type="button" class="sdlg-x" id="sdClose" aria-label="Close">&times;</button></div>
@@ -237,23 +243,24 @@
           <textarea id="sd_msg" name="message" maxlength="1000" placeholder="Team size, number of events a year, anything we should know"></textarea></div>
       </div>
       <p class="sdlg-err" id="sdErr" role="alert" aria-live="polite"></p>
-      <button type="submit" class="btn" id="sdSend">Send to sales</button>
-      <p class="note">Opens your email app with these details addressed to sales@helm.events.</p>
+      <p class="sdlg-mail" id="sdMailWrap" hidden><a id="sdMail" href="mailto:sales@helm.events">E-mail sales@helm.events instead</a></p>
+      <button type="submit" class="btn" id="sdSend">Send request</button>
+      <p class="note">We save your request and our team contacts you within one working day. Nothing is charged.</p>
     </form>
     <div class="sdlg-done" id="sdDone" tabindex="-1" hidden>
       <span class="sdlg-ok" aria-hidden="true"></span>
-      <h2>Thanks, we've got your details</h2>
-      <p>Your email app is opening with your request. Send it and we'll get back to you within one working day.</p>
-      <p class="note">If it didn't open, write to <a href="mailto:sales@helm.events">sales@helm.events</a>.</p>
+      <h2>Request received</h2>
+      <p>Request received — we'll contact you within one working day.</p>
+      <p class="note">Questions in the meantime? Write to <a href="mailto:sales@helm.events">sales@helm.events</a>.</p>
       <button type="button" class="ghost" id="sdDoneClose">Done</button>
     </div>
   </dialog>
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
-<script src="config.js?v=104"></script>
+<script src="config.js?v=105"></script>
 <script src="event-name.js?v=9"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=262"></script>
 <script src="trial-upgrade.js?v=2"></script>
-<script src="checkout.js?v=7"></script>
+<script src="checkout.js?v=8"></script>
 </body>
 </html>

@@ -121,6 +121,7 @@
     <button type="button" class="tab" id="tab-overview" aria-pressed="true">Overview</button>
     <button type="button" class="tab" id="tab-studios" aria-pressed="false">Studios</button>
     <button type="button" class="tab" id="tab-billing" aria-pressed="false">Billing</button>
+    <button type="button" class="tab" id="tab-requests" aria-pressed="false">Requests</button>
     <button type="button" class="tab" id="tab-plans" aria-pressed="false">Plans</button>
     <button type="button" class="tab" id="tab-people" aria-pressed="false">People</button>
     <button type="button" class="tab" id="tab-activity" aria-pressed="false">Activity log</button>
@@ -210,6 +211,18 @@
     </section>
   </section>
 
+  <!-- r21 (0244): "Contact sales" requests from studios (plan page + read-only banner) -->
+  <section id="pane-requests" hidden>
+    <section class="card">
+      <div class="hd"><h2>Plan requests</h2>
+        <select id="fReq" aria-label="Filter requests"><option value="new">New</option><option value="contacted">Contacted</option><option value="won">Won</option><option value="lost">Lost</option><option value="">All</option></select>
+        <button class="btn" id="btnReq" type="button">Show</button></div>
+      <p class="muted">Studio admins ask for a plan from the plan page or the read-only banner. Call or e-mail them, mark the request, and once they have paid use Studios &rarr; open the studio &rarr; <b>Activate plan</b>.</p>
+      <p class="muted" id="reqCounts"></p>
+      <div class="scroll"><table><thead><tr><th>When</th><th>Studio</th><th>Contact</th><th>Plan</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody id="tReq"></tbody></table></div>
+    </section>
+  </section>
+
   <section id="pane-plans" hidden>
     <section class="card">
       <h2>Plans</h2>
@@ -291,11 +304,11 @@
 
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
-<script src="config.js?v=104"></script>
+<script src="config.js?v=105"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=262"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="hq.js?v=13"></script>
+<script src="hq.js?v=14"></script>
 </body>
 </html>

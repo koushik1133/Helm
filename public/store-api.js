@@ -1188,7 +1188,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "46";
+  const AUTH_UI_VERSION = "47";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1241,7 +1241,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "17";
+  const TRIAL_BANNER_VERSION = "18";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -9375,6 +9375,16 @@ window.HelmUrl = HelmUrl;
       noteCheckoutDone();
       return out;
     },
+    // r21 (0244): "Contact sales" is saved in Helm (HQ Requests + an e-mail alert to sales) - studio admin only.
+    // { id, status: "received", duplicate }; null when the server is older than 0244 (the page then falls back to e-mail).
+    requestSales: (c) => {
+      const a = c || {};
+      if (mode !== "supabase" || !supa) return Promise.resolve(null);
+      return rpc("request_plan_activation", { p_plan: String(a.plan || ""), p_interval: a.interval === "yearly" ? "yearly" : "monthly",
+        p_studio: String(a.studio || ""), p_name: String(a.name || ""), p_email: String(a.email || ""), p_phone: String(a.phone || "") || null,
+        p_message: String(a.message || "") || null, p_source: a.source === "read_only_banner" ? "read_only_banner" : "checkout" })
+        .catch((e) => { if (rpcMissing(e)) return null; throw e; });
+    },
     // the contact address shown while online payment is being set up
     SALES_EMAIL: "sales@helm.events",
   };
@@ -9850,6 +9860,9 @@ window.HelmUrl = HelmUrl;
     // status(): {is_trial_org, name, ends_at, days_left, ended, locked, is_admin}; null before 0116.
     // 0183: + read_only (ended unpaid trial: read-only for everyone); is_trial_org false once paid / converted.
     trialOrg: {
+      // r21 (0244): "Ask my admin to upgrade" - a teammate of a trial / ended-trial studio puts one admin-only bell
+      // notice (+ an e-mail to the admins). { sent, already }; null when the server is older than 0244.
+      askAdmin: () => (supa ? rpc("ask_admin_upgrade", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       start: (loc) => (loc && (loc.timezone || loc.currency) ? rpc("start_trial", { p_timezone: loc.timezone || null, p_currency: loc.currency || null }) : rpc("start_trial", {})),
       // 0167 — 2-step trial welcome, step 1: rename the caller's own trial studio (name, link slug, city, optional phone)
       welcome: (name, city, phone) => rpc("trial_welcome_setup", { p_name: String(name || "").trim(), p_city: String(city || "").trim() || "Hyderabad", p_phone: String(phone || "").trim() || null }),

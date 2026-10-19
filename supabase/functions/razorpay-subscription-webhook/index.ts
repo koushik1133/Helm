@@ -18,6 +18,9 @@
 //     notes.org_id, when present, must AGREE with that row or the event is refused.
 //   * Idempotent: hq_settle_provider_payment is keyed on the provider payment id, so a
 //     replayed delivery settles nothing twice.
+//   * 0244: a settled charge for the attached subscription also makes the plan ACTIVE (plan, interval,
+//     period) through the same database step as HQ "Activate plan" (_sub_activate); an older charge
+//     never shortens a newer period. Still dormant / fail-closed until the flag + secret are set.
 //
 // ASSUMED SHAPES (NOT FINAL — read defensively):
 //   Razorpay `subscription.charged` (standard):
@@ -108,6 +111,9 @@ Deno.serve(async (req) => {
       p_paid_on: isoDate(pay.created_at) || isoDate(created),
       p_period_start: isoDate(sub.current_start),
       p_period_end: isoDate(sub.current_end),
+      // 0244: the database activates the plan (status active + period) only when this is the subscription
+      // Helm attached to the studio - the same activation step as HQ "Activate plan"
+      p_provider_subscription_id: subId,
     });
     if (rErr) { console.error("sub-webhook: settle failed", errTag(rErr)); return text("error", 500); }
     if (out && typeof out === "object" && out.result === "replay") return text("already recorded (idempotent)");
