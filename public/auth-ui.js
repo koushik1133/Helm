@@ -1394,8 +1394,9 @@
       { id: "profile", label: "Profile" },
       { id: "settings", label: "Account settings" },
     ];
-    // r20 coord (e): the user manual is hidden for now - only when config.js HELM_FEATURES.manual === true
-    if (typeof window !== "undefined" && window.HELM_FEATURES && window.HELM_FEATURES.manual === true)
+    // r20 coord: the user manual follows config.js HELM_FEATURES.manual ("admin" = studio admin only)
+    var manualFlag = typeof window !== "undefined" && window.HELM_FEATURES ? window.HELM_FEATURES.manual : false;
+    if (manualFlag === true || (manualFlag === "admin" && role === "admin"))
       items.push({ id: "manual", label: "User manual", href: "manual.html", newTab: true });
     items.push({ id: "signout", label: "Sign out", sep: true });
     return { name: name || email.split("@")[0] || "Account", email: email, role: label,

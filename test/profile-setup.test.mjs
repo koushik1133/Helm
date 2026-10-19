@@ -490,7 +490,7 @@ t('profile-setup.html: protected page shell, no inline handlers, replace-only na
 });
 t('auth-ui: "Your profile" in the Account panel (display-name fallback kept), banner skips /profile-setup, 7-day snooze', () => {
   const a = read('public/auth-ui.js');
-  assert.match(a, /function profileSection\(st, focusIt\)/);
+  assert.match(a, /function profileSection\(st, focusIt(?:, soloHead)?\)/);   // r20-coord: soloHead = no 2nd heading
   assert.match(a, /function displayNameSection\(st\)/, 'display-name section kept (pre-0041 fallback)');
   assert.match(a, /if \(!p \|\| !\("complete" in p\)\) \{ sec\.replaceWith\(displayNameSection\(st\)\); return; \}/);
   assert.match(a, /if \(page === "profile-setup"\) return;/);

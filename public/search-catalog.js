@@ -241,6 +241,8 @@
       if (!g || typeof g !== "object") return Promise.resolve(false);
       if (g.view) return view(g.view);
       if (g.role) return role().then(function (r) { return g.role.test(r); });
+      // r20 coord: the manual flag may be "admin" (studio admin only)
+      if (g.feature === "manual" && features && features.manual === "admin") return role().then(function (r) { return r === "admin"; });
       if (g.feature) return Promise.resolve(!!(features && features[g.feature] === true));
       if (g.any) return Promise.all(g.any.map(check)).then(function (v) { return v.some(Boolean); });
       if (g.all) return Promise.all(g.all.map(check)).then(function (v) { return v.every(Boolean); });

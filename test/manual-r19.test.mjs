@@ -84,7 +84,7 @@ await t('Control Center: Help -> User manual (new tab, #control), visible on pho
   assert.match(CS, /var help=el\("div","cs-help"\); help\.appendChild\(el\("h4","cs-group-h","Help"\)\);/);
   assert.match(CS, /hl\.href="manual\.html#control"; hl\.target="_blank"; hl\.rel="noopener noreferrer";/);
   // r20 coord (e): the Help group is only added while HELM_FEATURES.manual is true (hidden for now)
-  assert.match(CS, /if\(window\.HELM_FEATURES && window\.HELM_FEATURES\.manual===true\) aside\.appendChild\(help\);/);
+  assert.match(CS, /if\(f===true\)\{ aside\.appendChild\(help\); return; \} if\(f!=="admin"\) return;/);
   assert.match(CSS_CS, /\.cs-help\{display:flex/);
   const mobile = CSS_CS.slice(CSS_CS.indexOf('@media (max-width:820px)'));
   assert.doesNotMatch(mobile, /\.cs-help\{display:none/);

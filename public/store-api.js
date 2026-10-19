@@ -7,7 +7,7 @@
    (shell-proto.js, trial-early.js); this is the fallback for every other page. */
 (function () { try { if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
-  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=9"; document.head.appendChild(l); } } } catch (e) {} })();
+  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=8"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (!document.getElementById("trialLock")) {
   var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=9"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
@@ -1196,7 +1196,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "9";
+  const STUDIO_SEARCH_VERSION = "10";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";

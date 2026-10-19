@@ -26,7 +26,7 @@
   }
   function css() {
     if (document.getElementById("trialLockCss")) return;
-    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=9";
+    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=8";
     (document.head || document.documentElement).appendChild(l);
   }
   function note(msg) {

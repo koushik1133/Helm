@@ -51,6 +51,6 @@ t('0031: private bucket + ONE staff-read policy, no write policy; in MANIFEST', 
   assert.ok(!/for (insert|update|delete|all)/i.test(m), 'no write policy');
   assert.match(read('supabase/migrations/MANIFEST'), /^forward\s+supabase\/migrations\/0031_manual_private_bucket\.sql$/m);
 });
-t('profile menu "User manual" opens the gated page - only while HELM_FEATURES.manual is true (hidden for now)', () =>
-  assert.match(read('public/auth-ui.js'), /window\.HELM_FEATURES\.manual === true\)\n\s+items\.push\(\{ id: "manual", label: "User manual", href: "manual\.html"/));
+t('profile menu "User manual" opens the gated page - only per HELM_FEATURES.manual (true = all, "admin" = studio admin)', () =>
+  assert.match(read('public/auth-ui.js'), /if \(manualFlag === true \|\| \(manualFlag === "admin" && role === "admin"\)\)\n\s+items\.push\(\{ id: "manual", label: "User manual", href: "manual\.html"/));
 console.log(`\nmanual-gate: ${n} passed`);

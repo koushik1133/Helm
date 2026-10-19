@@ -12,10 +12,11 @@
 // Helm's own e-mail and WhatsApp are used. Flip to true to bring all of it back.
 // Local preview (owner 2026-10-17): the WhatsApp number + e-mail setup is ON on localhost only, still off on live sites.
 window.HELM_FEATURES = Object.assign({ integrationsPage: /^(localhost|127\.0\.0\.1)$/.test(location.hostname) }, window.HELM_FEATURES || {});
-// manual=false (owner 2026-10-18, r20 coord e): the user manual is hidden for now - no "User manual" in the
-// profile menu, Control Center Help, search or tour text, and /manual only says "coming soon" (no storage fetch).
-// Flip to true to bring every entry point back (the manual code + docs/manual are kept).
-window.HELM_FEATURES = Object.assign({ manual: false }, window.HELM_FEATURES);
+// manual (owner 2026-10-18, r20 coord): ONE flag for the user manual. "admin" = only the studio admin sees
+// "User manual" (profile menu, Control Center Help, search) and can open /manual (private-bucket file); every other
+// role gets no entry and /manual says "coming soon" (no storage fetch). true = every signed-in role, false = nobody.
+window.HELM_FEATURES = Object.assign({ manual: "admin" }, window.HELM_FEATURES);
+window.helmManualFor = function (role) { var f = window.HELM_FEATURES && window.HELM_FEATURES.manual; return f === true || (f === "admin" && String(role || "") === "admin"); };
 window.SUPABASE_CONFIG = {
   url: "https://nqltzgiwznphugcfhmbm.supabase.co",
   anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xbHR6Z2l3em5waHVnY2ZobWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTg5NDYsImV4cCI6MjEwNDk3NDk0Nn0.UWainTYBaCr8dNaugqWkCuLVh2H0TkiG6ZIFH6ZPKIQ",
