@@ -607,6 +607,11 @@
       d = await global.BPStore.booklet.get(token);
     }
     catch (e) {
+      if (/has been cancelled/i.test(String((e && e.message) || ""))) {   // r23-0260: the event was cancelled
+        const b = $("#bad"); b.querySelector("h1").textContent = "This event has been cancelled";
+        b.querySelector("p").textContent = "This booklet link is no longer active. If you have any questions, please contact your event studio.";
+        show("#bad"); return;
+      }
       if (isBad(e)) { show("#bad"); return; }
       $("#errMsg").textContent = /too many/i.test(String((e && e.message) || "")) ? "Too many requests — please wait a few minutes and try again." : "Please check your connection and try again.";
       show("#err"); return;

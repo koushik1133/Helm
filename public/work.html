@@ -138,7 +138,7 @@
 <script src="/telemetry.js?v=5"></script>
 <script src="/config.js?v=106"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=271"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=272"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -220,12 +220,13 @@
       // link expired / revoked (0022): never keep showing cached tasks
       // link expired / revoked (0022) or not a real link: never keep showing cached tasks
       const em=(e&&e.message)||"";
-      if(/expired|revoked|invalid link/i.test(em)){
+      if(/expired|revoked|invalid link/i.test(em) || /has been cancelled/i.test(em)){
         try{ if(CK) sessionStorage.removeItem(CK); }catch{}
         const bad=/invalid link/i.test(em);
         data=null; $("#content").hidden=true; $("#offline").hidden=true; $("#offlineFirst").hidden=true; $("#loading").hidden=true;
-        $("#badlink").querySelector("h1").textContent=bad?"Link not valid":"Link expired";
-        $("#badlink").querySelector(".sub").textContent=bad?"This task link isn't valid. Please check you opened the full link, or ask your manager to send it again.":"This task link has expired. Please ask your manager for a new one.";
+        const gone=/has been cancelled/i.test(em);   // r23-0260: the event was cancelled
+        $("#badlink").querySelector("h1").textContent=gone?"This event has been cancelled":bad?"Link not valid":"Link expired";
+        $("#badlink").querySelector(".sub").textContent=gone?"This task link is no longer active. Your manager will tell you if anything changes.":bad?"This task link isn't valid. Please check you opened the full link, or ask your manager to send it again.":"This task link has expired. Please ask your manager for a new one.";
         $("#badlink").hidden=false; return;
       }
       if(strict && !data){

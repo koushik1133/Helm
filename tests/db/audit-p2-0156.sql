@@ -322,7 +322,9 @@ do $$ declare r text; v_tok uuid := gen_random_uuid(); begin
   perform pg_temp.t('link opened: a random token writes no rate-limit row', r = 'ok:1'
     and not exists (select 1 from public.auth_rate_hits where bucket = 'link_open' and key = v_tok::text), r);
   perform pg_temp.t('wa approval: failed-code audit row is throttled',
-    position('a156 end' in pg_get_functiondef('public.wa_verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure)) > 0, null);
+    -- r23-0260 wraps it once (the a156 body is kept as *__pre0260)
+    position('a156 end' in pg_get_functiondef(coalesce(to_regprocedure('public.wa_verify_and_consent__pre0260(uuid,text,text,boolean,text,text,text,text)'),
+                                                       'public.wa_verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure))) > 0, null);
 end $$;
 
 -- ---- 15) crew-link limiter always counts --------------------------------------------------------

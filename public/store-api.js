@@ -3046,6 +3046,8 @@ window.HelmUrl = HelmUrl;
     },
     // 0198: an event that will not happen - status 'cancelled' (admin / manager, reason 5-1000 characters,
     // recorded + audited). Payments, reservations and the stage are kept; the client link is revoked.
+    // 0260: every public link of a cancelled event refuses (approval, portal, booklet, proposal, invitation
+    // site + photos, crew, delivery) and the invitation site is unpublished ({links_expired, invitation_unpublished}).
     async cancelEvent(id, reason) {
       const r = String(reason == null ? "" : reason).trim();
       if (r.length < 5 || r.length > 1000) throw new Error("Give a reason of 5 to 1000 characters for cancelling.");
@@ -3056,6 +3058,32 @@ window.HelmUrl = HelmUrl;
       }
       const { data, error } = await supa.rpc("cancel_event", { p_quote_id: id, p_reason: r });
       if (error) throw error; return data;
+    },
+    // 0260: undo a cancellation (admin / manager / coordinator, reason, audited, team bell). Links stay OFF.
+    async restoreEvent(id, reason) {
+      const r = String(reason == null ? "" : reason).trim();
+      if (r.length < 5 || r.length > 1000) throw new Error("Give a reason of 5 to 1000 characters for restoring.");
+      if (mode !== "supabase" || !supa) {
+        const a = lsq.read(); const q = a.find((x) => x.id === id); if (!q) throw new Error("This event no longer exists.");
+        if (q.status === "cancelled") { q.status = "quote"; q.updatedAt = now(); lsq.write(a); }
+        return { status: q.status, restored: true, links_paused: true };
+      }
+      const { data, error } = await supa.rpc("restore_event", { p_quote_id: id, p_reason: r });
+      if (error) throw error; return data;
+    },
+    // 0260: "Re-share links" - the restored event's client / crew / vendor links work again
+    async resumeLinks(id) {
+      if (mode !== "supabase" || !supa) return { links_paused: false };
+      const { data, error } = await supa.rpc("resume_client_links", { p_quote_id: id });
+      if (error) throw error; return data;
+    },
+    // 0260: {status, links_paused, can_restore, ...} for the event page; null before 0260 is applied
+    async linkState(id) {
+      if (mode !== "supabase" || !supa) return null;
+      const { data, error } = await supa.rpc("event_link_state", { p_quote_id: id });
+      if (error) { const c = error.code || "", m = String(error.message || "");
+        if (c === "PGRST202" || c === "42883" || /could not find the function/i.test(m)) return null; throw error; }
+      return data || null;
     },
     staleApprovals: (ids) => (qt().staleApprovals ? qt().staleApprovals(ids) : Promise.resolve(new Set())),
     reissueApprovalLink: (id) => qt().reissueApprovalLink(id),

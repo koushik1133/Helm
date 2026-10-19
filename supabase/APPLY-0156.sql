@@ -1,6 +1,11 @@
 -- APPLY-0156.sql - paste into the Supabase SQL editor (staging first, then prod).
 -- Additive + idempotent: audit run 3 P2 low DB fixes. New nullable columns, one snapshot table, new triggers, functions re-created or wrapped (old bodies kept as *__pre0156), five read policies + vendor_bills update policy re-created, three lead_archive write policies dropped, privilege revokes. No rows deleted. Safe to run twice.
 begin;
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0260(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
 -- 0156_audit_p2_db_low.sql - CANONICAL forward-only.
 -- REQUIRES 0042 (shelf helpers, OTP expiry) + 0049 (close gate) + 0069 (package flow) + 0078 (comms)
 --          + 0083/0095 (booklet images) + 0084 (reopen_event) + 0088 (smart import) + 0097 (demo guard)

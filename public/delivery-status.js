@@ -26,6 +26,7 @@
   function bad(title, msg) { $("ds-title").textContent = title; $("ds-msg").textContent = msg; $("ds-facts").hidden = true; $("ds-actions").hidden = true; $("ds-more").hidden = true; $("ds-now").hidden = true; }
   function render(d) {
     if (!d || d.ok !== true) {
+      if (d && d.reason === "cancelled") return bad("This event has been cancelled", "This delivery link is no longer active - there is nothing more to do. Thank you.");   // r23-0260
       if (d && d.reason === "rate") return bad("Please wait a moment", "Too many tries from this link. Try again in a few minutes.");
       return bad("Link not valid", "This status link is not valid or has expired. Use the link in the latest reminder e-mail, or reply to it.");
     }
