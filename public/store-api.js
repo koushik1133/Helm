@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=37"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=38"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -1210,7 +1210,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "48";
+  const AUTH_UI_VERSION = "49";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -11286,8 +11286,43 @@ window.HelmUrl = HelmUrl;
     box.addEventListener("input", clear, true); box.addEventListener("change", clear, true);
   }
 
+  // r22 (live QA): a native date box shows the date in the BROWSER's order (mm/dd/yyyy on an en-US browser), not the
+  // studio's. dateHint(input) adds a small line under it that spells the picked day in the studio's format
+  // ("Thu, 29 Oct 2026"; a US studio "Thu, Oct 29, 2026"), so the date can never be read the wrong way round.
+  // Display only: the input, its value and its save rules are untouched. Idempotent per input.
+  function dateHintText(v) {
+    var B = global.BPStore; v = String(v || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || !B || typeof B.fmtStudioDate !== "function") return "";
+    var f = function (o) { try { return B.fmtStudioDate(v, { fmt: o }) || ""; } catch (e) { return ""; } };
+    var wd = f({ weekday: "short" }), dd = f({ day: "numeric" }), mo = f({ month: "short" }), yy = f({ year: "numeric" });
+    if (!wd || !dd || !mo || !yy) return "";
+    var loc = ""; try { loc = String(B.studioLocale ? B.studioLocale() : ""); } catch (e) { loc = ""; }
+    return /^en-US$/i.test(loc) ? wd + ", " + mo + " " + dd + ", " + yy : wd + ", " + dd + " " + mo + " " + yy;
+  }
+  function dateHint(input) {
+    if (!input || input.__bpuiDateHint || !input.ownerDocument) return null;
+    var d = input.ownerDocument, hint = d.createElement("span");
+    input.__bpuiDateHint = hint;
+    hint.className = "bpui-date-hint"; hint.id = (input.id || "bpuiDate") + "Hint"; hint.setAttribute("aria-live", "polite");
+    var upd = function () { var t = dateHintText(input.value); hint.textContent = t; hint.hidden = !t; };
+    input.addEventListener("input", upd); input.addEventListener("change", upd);
+    // a value the page sets in code (a quote loading into the form) updates the hint too (same pattern as phone-input.js)
+    try {
+      var W = d.defaultView || global, own = Object.getOwnPropertyDescriptor(input, "value"),
+        base = own || Object.getOwnPropertyDescriptor(W.HTMLInputElement.prototype, "value");
+      if (base && base.set && base.get && (!own || own.configurable)) Object.defineProperty(input, "value", { configurable: true, enumerable: base.enumerable,
+        get: function () { return base.get.call(this); }, set: function (x) { base.set.call(this, x); upd(); } });
+    } catch (e) {}
+    input.insertAdjacentElement("afterend", hint);
+    var db = input.getAttribute("aria-describedby") || "";
+    if ((" " + db + " ").indexOf(" " + hint.id + " ") < 0) input.setAttribute("aria-describedby", (db ? db + " " : "") + hint.id);
+    upd();
+    return hint;
+  }
+
   global.BPUI = {
     version: 1,
+    dateHint: dateHint, dateHintText: dateHintText,
     trialCap: trialCap, capText: capText, capGate: capGate,
     capDialog: capDialog, capDialogReset: capDialogReset, capLimit: capLimit, isCapError: isCapError, capToast: capToast, clearErrOnEdit: clearErrOnEdit,
     toast: toast,

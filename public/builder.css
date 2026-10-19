@@ -144,6 +144,11 @@ aside{background:var(--panel);flex:0 0 auto;display:flex;flex-direction:column;m
 #rulerLeft{left:0;top:26px;bottom:0;width:26px;border-right:1px solid var(--line)}
 .scroll{position:absolute;left:26px;top:26px;right:0;bottom:0;overflow:auto}
 #svg{display:block;background:var(--canvas)}
+/* r22 (live QA 375): a floor smaller than the plan area sits in its middle (it hugged the top-left corner, the fit's
+   spare room all on one side, which read as a shifted view on a phone). Auto margins in a flex box fall back to 0
+   once the floor is bigger, so a zoomed-in plan still scrolls from its edge. builder.js reads the real offset. */
+.scroll{display:flex}
+#svg{margin:auto;flex:none}
 .obj{cursor:move}
 .obj .body{transition:filter .1s}
 .obj:hover .hitbox{stroke:var(--accent);stroke-opacity:.5}
@@ -787,6 +792,19 @@ header #clientImgBtn.trial-off,html.helm-trial header #clientImgBtn{display:none
   .viewport:not(.dock-min) .fabstack .navpad{bottom:calc(100% + 10px)}
 }
 @media (prefers-reduced-motion:reduce){ .fabstack{transition:none} }
+/* r22 (live QA 375): with 44px touch buttons the dock was 382px wide on a 375px phone and started at -17px (the
+   fullscreen button half off-screen). On phones it is held inside the viewport, centred, with 40px buttons and the
+   tour button as a round "?" (its name / tooltip still say "Tour"). */
+@media (max-width:480px){
+  .viewport:not(.dock-min) .fabstack{left:8px;right:8px;max-width:calc(100vw - 16px);justify-content:center;gap:4px}
+  .fabstack .zoombar{gap:1px}
+  .fabstack .zoombar button{width:40px;min-width:40px;height:40px;padding:0}
+  .fabstack .zoombar .z{min-width:34px}
+  .fabstack .zoombar .zsep{margin:0 1px}
+  .fabstack .fs-fab{width:40px;height:40px}
+  .fabstack .htour-fab.in-stack{width:40px;min-width:40px;height:40px;padding:0;font-size:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;overflow:hidden}
+  .fabstack .htour-fab.in-stack::before{content:"?";font-size:16px;font-weight:700;line-height:1}
+}
 /* 3D: the same zoom / fit buttons drive the 3D camera (builder.js in3D()), so the bar stays; the 2D zoom % is hidden */
 .viewport.is3d .fabstack .zoombar{display:flex}
 .viewport.is3d .fabstack .zoombar .z{display:none}

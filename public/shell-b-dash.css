@@ -773,3 +773,15 @@ html[data-shell="b"] .hd-plan { flex: 0 0 auto; font: 600 11px/16px var(--hd-f-u
 html[data-shell="b"] .hd-plan-ended, html[data-shell="b"] .hd-plan-due { background: var(--hd-warn-soft); color: var(--hd-warn); }
 html[data-shell="b"] .hd-plan-paid { background: var(--hd-card); color: var(--hd-ink-2); box-shadow: inset 0 0 0 1px var(--hd-hair); }
 html[data-shell="b"] .hd-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+/* r22 (live QA 375): All quotes rows on a phone - the long "Sent · awaiting client approval" pill overflowed and squeezed
+   the event / client name to a few letters. The name takes the whole first line; code + status sit under it, the
+   status shows its short form ("Awaiting approval") and may wrap inside its pill. */
+html[data-shell="b"] .hd-quotes .stat .st-short { display: none; }
+@container hd (max-width: 479px) {
+  html[data-shell="b"] .hd-quotes .ecard { grid-template-columns: auto minmax(0, 1fr); row-gap: 6px; padding-right: 12px; }
+  html[data-shell="b"] .hd-quotes .ecard .elink { grid-column: 1 / -1; margin-right: 30px; }   /* clear of the ✕ (top-right) */
+  html[data-shell="b"] .hd-quotes .ecard .refchip { grid-column: 1; margin-left: 0; }
+  html[data-shell="b"] .hd-quotes .ecard .stat { grid-column: 2; justify-self: start; max-width: 100%; white-space: normal; line-height: 1.3; }
+  html[data-shell="b"] .hd-quotes .stat .st-short { display: inline; }
+  html[data-shell="b"] .hd-quotes .stat .st-full { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}

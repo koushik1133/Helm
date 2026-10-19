@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/event-polish.css?v=6">
+<link rel="stylesheet" href="/event-polish.css?v=7">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -97,8 +97,8 @@
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<link rel="stylesheet" href="event-ui.css?v=1">
-<script src="/shell-proto.js?v=37" id="shellProto"></script>
+<link rel="stylesheet" href="event-ui.css?v=2">
+<script src="/shell-proto.js?v=38" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -210,7 +210,7 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=265"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=266"></script>
 <script src="flow-resume.js?v=4"></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=24"></script>
@@ -856,6 +856,7 @@
     if(canEdit){ el.innerHTML=`<label class="evd-f"><span class="evd-l">Event date</span><input type="date" data-min-today id="evDate" aria-label="Event date" value="${esc(d)}" class="evd-in"></label>
         <label class="evd-f"><span class="evd-l">Time</span><input type="time" id="evTime" aria-label="Event time" value="${esc(evTimeInput(tm))}" class="evd-in"></label>${warn}`;
       const di=$("#evDate"), ti=$("#evTime");
+      try{ if(window.BPUI && BPUI.dateHint) BPUI.dateHint(di); }catch(_){}   // r22: "Thu, 29 Oct 2026" beside the browser-locale date box
       // Save only a complete, plausible date (a half-typed year like 0002-10-08 or a hardener-cleared
       // value must never be written as null). Clearing on purpose is committed on blur only.
       const dateOk=(v)=>/^\d{4}-\d{2}-\d{2}$/.test(v) && +v.slice(0,4)>=2000 && +v.slice(0,4)<=2100;
@@ -925,15 +926,23 @@
         [el("span",{class:"n",text:done?"✓":String(i+1)}), stageLabel(s), skipped?el("span",{class:"vtag sk",text:"Skipped"}):null, viewing?el("span",{class:"vtag",text:"Viewing"}):null]);
     }));
     st.scrollLeft=keep;   // re-painting resets the scroll: restore it, then glide to the stage that matters
-    if(first || st.dataset.tk!==tk){ st.dataset.tk=tk; centerStrip(st, !first); } else stripEdges(st);
+    // r22: a re-paint while the glide to the current stage is still running froze it half way (the scroll position
+    // was kept as it was mid-glide) - finish the centring at once instead
+    if(first || st.dataset.tk!==tk){ st.dataset.tk=tk; centerStrip(st, !first); } else if(st.__gliding) centerStrip(st, false); else stripEdges(st);
   }
   function centerStrip(st, smooth){
     if(!st) return;
+    // r22 (live QA 375/390/440): the phone gutters for the ‹ › arrows (.ov) were switched on only AFTER the
+    // centring maths, so the strip narrowed by 2 x 34px under an already-chosen scroll position and the current
+    // pill ended up under the right arrow. Settle the gutters first, then centre between the arrows.
+    const w=st.closest("[data-strip]"); if(w){ w.classList.remove("ov"); w.classList.toggle("ov", st.scrollWidth-st.clientWidth>1); }
     const on=st.querySelector('.step[aria-pressed="true"]')||st.querySelector('.step[aria-current="step"]');
     const max=st.scrollWidth-st.clientWidth;
     if(on && max>0 && st.clientWidth>0){
       const left=Math.max(0,Math.min(max,Math.round(on.offsetLeft-(st.clientWidth-on.offsetWidth)/2)));
-      if(Math.abs(left-st.scrollLeft)>1){ try{ st.scrollTo({left,behavior:(smooth&&!reduceMotion())?"smooth":"auto"}); }catch(_){ st.scrollLeft=left; } }
+      if(Math.abs(left-st.scrollLeft)>1){ const glide=smooth&&!reduceMotion();
+        clearTimeout(st.__glideT); st.__gliding=glide; if(glide) st.__glideT=setTimeout(()=>{ st.__gliding=false; },700);
+        try{ st.scrollTo({left,behavior:(smooth&&!reduceMotion())?"smooth":"auto"}); }catch(_){ st.scrollLeft=left; } }
     }
     stripEdges(st);
   }
@@ -951,7 +960,10 @@
     const st=w.querySelector(".steps"); if(!st) return;
     let raf=0; const upd=()=>{ if(raf) return; raf=requestAnimationFrame(()=>{ raf=0; stripEdges(st); }); };
     st.addEventListener("scroll",upd,{passive:true});
-    try{ new ResizeObserver(upd).observe(st); }catch(_){ addEventListener("resize",upd); }
+    // r22: a width change (rotate, resize, the gutters appearing) re-centres the current / viewed stage between
+    // the arrows; plain scrolling only repaints the fades + arrows
+    let lastW=-1; const onResize=()=>{ const cw=w.clientWidth; if(cw!==lastW){ const first=lastW<0; lastW=cw; if(!first){ requestAnimationFrame(()=>centerStrip(st,false)); return; } } upd(); };
+    try{ new ResizeObserver(onResize).observe(w); }catch(_){ addEventListener("resize",onResize); }
     w.querySelectorAll(".stp-arr").forEach(b=>b.addEventListener("click",()=>{
       const d=(b.classList.contains("l")?-1:1)*Math.max(120,Math.round(st.clientWidth*.7));
       try{ st.scrollBy({left:d,behavior:reduceMotion()?"auto":"smooth"}); }catch(_){ st.scrollLeft+=d; } }));
@@ -963,6 +975,10 @@
     });
   }
   document.querySelectorAll("[data-strip]").forEach(wireStrip);
+  // r22: the stage pills are measured before the web font arrives; once it is in (wider pills) the current stage is
+  // centred again so it never ends up under the right arrow
+  try{ if(document.fonts){ const re=()=>document.querySelectorAll("[data-strip] .steps").forEach(st=>{ if(st.dataset.tk) centerStrip(st,false); });
+    document.fonts.ready.then(re); document.fonts.addEventListener && document.fonts.addEventListener("loadingdone", re); } }catch(_){}
   // desktop: a compact event header + strip stays under the app top bar once the event card scrolls away
   // (phones keep the normal page - the bar would eat too much of a small screen)
   function renderStick(cur,vis){

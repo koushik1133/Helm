@@ -1245,6 +1245,9 @@
   // 1440x900. A notice shown with inline:true sits IN the page's notice slot ([data-hau-notes-slot]) when the page has one,
   // so it takes its own room; everywhere else (and every other notice) it floats as before.
   function noteSlot() { try { return doc.querySelector("[data-hau-notes-slot]"); } catch (e) { return null; } }
+  // R22: where an inline-only notice waits on a page without a notice slot (detached from the layout, never shown)
+  var parkHost = null;
+  function parked() { if (!parkHost) parkHost = doc.createElement("div"); return parkHost; }
   function svgIcon(name) {
     var ns = "http://www.w3.org/2000/svg", s = doc.createElementNS(ns, "svg");
     s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor");
@@ -1262,6 +1265,10 @@
     if (slot && inlineHost && inlineHost.parentNode !== slot) slot.appendChild(inlineHost);
     notes.forEach(function (n) {
       if (n.inline && slot && inlineHost) { n.node.hidden = false; inlineHost.appendChild(n.node); inl++; return; }
+      // R22 (live QA, phones): an inline-only notice ("Complete your profile") never floats - pinned above the tab bar it
+      // covered the chat message box, the last quotes row's menu, the Share dialog backdrop on /flow and the builder
+      // toolbar. Without the page's notice slot (only the dashboard has one) it simply waits, hidden and out of the way.
+      if (n.inlineOnly) { n.node.hidden = true; if (n.node.parentNode !== parked()) parked().appendChild(n.node); return; }
       n.node.hidden = fl >= max; fl++; if (noteHost) noteHost.appendChild(n.node);
     });
     if (slot) slot.hidden = !inl;
@@ -1322,7 +1329,7 @@
       card.appendChild(x);
     }
     card.addEventListener("keydown", function (e) { if (e.key === "Escape" && o.onDismiss) { o.onDismiss(); hideNote(o.id); } });
-    notes.push({ id: o.id, priority: o.priority || 9, node: card, inline: o.inline === true });
+    notes.push({ id: o.id, priority: o.priority || 9, node: card, inline: o.inline === true || o.inline === "only", inlineOnly: o.inline === "only" });
     layoutNotes();
     watchModals(); syncNotesForModal();
     // non-blocking notices fold away by themselves (not while the pointer / focus is on them)
@@ -1364,7 +1371,7 @@
       if (st.profile.gateDecision(s, page, st.auth.cachedRole ? st.auth.cachedRole() : null) !== "nudge") return;
       if (st.profile.nudgeSnoozed() || pBanner || !doc.body) return;
       css();
-      pBanner = showNote({ id: "hauProfileNudge", priority: 3, inline: true, icon: "user", title: "Complete your profile",
+      pBanner = showNote({ id: "hauProfileNudge", priority: 3, inline: "only", icon: "user", title: "Complete your profile",
         body: "Add your mobile number so your team can reach you and assign you work.",
         primary: { label: "Complete now", onClick: function () { openAccount({ focus: "profile" }); } },
         secondary: { label: "Later", onClick: function () { st.profile.snoozeNudge(7); pBanner = null; } },
