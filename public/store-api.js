@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=32"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=33"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -10864,6 +10864,18 @@ window.HelmUrl = HelmUrl;
     }, function () { return null; });
   }
   function isCapError(e) { return !!(e && (e.hint === "trial_cap" || /free trial limit reached/i.test(String(e.message || "")))); }
+  // r20 (owner: the trial makes 2 new quotes, 0238): a refused 3rd quote / lead / ... says so in plain words, with the
+  // way on ("Choose a plan" -> /checkout). capToast(err, nouns, keep) -> true when err was the trial cap (toast shown),
+  // false otherwise (the caller shows its usual error). nouns: "new quotes"; keep: what still works.
+  function capToast(e, nouns, keep) {
+    if (!isCapError(e)) return false;
+    var F = global.HelmTrialFacts, cap = (F && Number(F.CREATE_CAP) > 0) ? Number(F.CREATE_CAP) : 2;
+    var w = nouns || "new records";
+    toast("Your free trial includes " + cap + " " + w + " and " + (cap === 2 ? "both are" : "all are") + " used. " +
+      (keep ? String(keep) + " " : "") + "Choose a plan to add more.",
+      { type: "warn", title: "Free trial limit reached", href: capHref(), linkLabel: "Choose a plan", timeout: 12000 });
+    return true;
+  }
   // L13: a form-level error ("Contact name is required.") goes away as soon as a field in the dialog is changed;
   // the cap message (data-cap) stays - it is not about a field. Bound once per dialog.
   function clearErrOnEdit(box, errEl) {
@@ -10879,7 +10891,7 @@ window.HelmUrl = HelmUrl;
   global.BPUI = {
     version: 1,
     trialCap: trialCap, capText: capText, capGate: capGate,
-    capDialog: capDialog, capDialogReset: capDialogReset, capLimit: capLimit, isCapError: isCapError, clearErrOnEdit: clearErrOnEdit,
+    capDialog: capDialog, capDialogReset: capDialogReset, capLimit: capLimit, isCapError: isCapError, capToast: capToast, clearErrOnEdit: clearErrOnEdit,
     toast: toast,
     alert: alertDlg, confirm: confirmDlg, prompt: promptDlg,
     guard: guard,

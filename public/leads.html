@@ -108,7 +108,7 @@
 </style>
 <link rel="stylesheet" href="leads-polish.css?v=3">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=32" id="shellProto"></script>
+<script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -229,7 +229,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=7"></script><script src="form-validate.js?v=1"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
 <script src="tour.js?v=22"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -358,7 +358,7 @@
           if(!canQuotes){ BPUI.toast(`${l.name||"Lead"} converted to quote ${q&&q.code?q.code:""}. A planner can take it from Quotes.`,{type:"ok",timeout:8000}); await load(); return; }
           // QA1026 #9: the studio-prefixed route (/<studio>/flow?quote=…), like every other app link
           { const h="flow.html?quote="+encodeURIComponent(q.id); location.href=(window.HelmUrl&&HelmUrl.upgrade)?HelmUrl.upgrade(h):h; } }
-        catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"convert the lead"}),{type:"err"}); }
+        catch(err){ if(BPUI.capToast&&BPUI.capToast(err,"new quotes","The lead is kept; you can still open and edit your quotes and the sample events.")) return; BPUI.toast(BPUI.friendlyError(err,{action:"convert the lead"}),{type:"err"}); }
       },{busyLabel:"Converting…"});
     }
   });

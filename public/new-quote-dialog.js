@@ -49,8 +49,8 @@
   }
 
   // r19 (owner): "New quote" opens the quote flow directly - the pre-create dialog (event name / type) and the
-  // "You have N quotes in progress" prompt are gone (quotes are not capped in the free trial any more, 0211; the
-  // dashboard "Continue where you left off" card and the Quotes "In progress" tab stay). Callers go straight to
+  // "You have N quotes in progress" prompt are gone (the dashboard "Continue where you left off" card and the Quotes
+  // "In progress" tab stay; r20 / 0238: the free trial's 2-new-quotes cap is shown next to the New quote buttons). Callers go straight to
   // BPStore.quotes.startBlank, which reuses the person's untouched blank quote (0075), and empty drafts move to the
   // Deleted shelf after a day (0141 / 0208) - so no empty rows pile up. ask() is kept for an older cached page
   // that still calls it: it answers at once with no picks (nothing is shown).

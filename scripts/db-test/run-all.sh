@@ -188,6 +188,8 @@ run "start-blank-0220" "START-BLANK-0220: ALL PASS \(48/48\)" psql -q -f tests/d
 run "trial-dates-0223" "TRIAL-DATES-0223: ALL PASS \(23/23\)" psql -q -f tests/db/trial-dates-0223.sql
 run "trial-unify-0236" "TRIAL-UNIFY-0236: ALL PASS \(38/38\)" psql -q -f tests/db/trial-unify-0236.sql
 run "trial-seed-0237" "TRIAL-SEED-0237: ALL PASS \(27/27\)" psql -q -f tests/db/trial-seed-0237.sql
+# 0238 after every suite that re-applies 0211 / 0173 / 0181 (it re-applies 0236 + 0211 itself, then 0238)
+run "trial-quotes-cap-0238" "TRIAL-QUOTES-CAP-0238: ALL PASS \(28/28\)" psql -q -f tests/db/trial-quotes-cap-0238.sql
 run "sample-layouts-0213" "SAMPLE-LAYOUTS-0213: ALL PASS \(16/16\)" psql -q -f tests/db/sample-layouts-0213.sql
 run "trial-seed-0222" "TRIAL-SEED-0222: ALL PASS \(18/18\)" psql -q -f tests/db/trial-seed-0222.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
