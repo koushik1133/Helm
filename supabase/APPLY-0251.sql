@@ -1,0 +1,157 @@
+-- APPLY-0251.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
+-- Run AFTER APPLY-0175 + APPLY-0237 (already applied on production). Order-independent of 0238-0250.
+-- Free-trial "Sample layouts" (builder Template dropdown): the Reception - Lawn reception (450 guests) sample is
+-- replaced by the owner's POLITICAL RALLY layout (350 x 550 ft open ground, 73 objects, 5,000 seats, event type
+-- political). Sample master: Reception archived (hidden, never deleted) + "Demo . Political rally - 5,000 seats"
+-- added once. Existing trial studios: Reception archived only while it is still the shipped one; the new sample
+-- added once where sample layouts are still shown. Paid studios are not touched. One new sample manifest for new
+-- trials. Rows only - no table / column / policy / function changed, nothing deleted. Safe to run twice. ASCII only.
+--
+-- OWNER STEPS (staging first, then production):
+--   1  Paste this whole file and Run. Every VERIFY row at the end must say ok = true.
+--   2  Deploy the site (builder-3d.js: long fence / barrier lines drawn top-to-bottom now show in 3D;
+--      studio-templates-core.js: a Political event lists the Political rally sample first).
+--   3  Check: start a NEW free trial (or open an existing trial studio) -> Builder -> Template -> Sample layouts
+--      shows Corporate - Round tables gala, Political rally - 5,000 seats, Wedding - Grand Lawn (no Reception).
+--      Pick Political rally -> on a hall smaller than 350 x 550 ft the "Fit to my hall / Use the layout's size"
+--      question appears; seats show 5000; 3D view shows the stage, barriers, fences, exits and seat blocks.
+begin;
+-- 0251_political_rally_layout.sql - CANONICAL forward-only.
+-- REQUIRES 0096 (studio_layout_templates + archived flag), 0167 (sample master + publish_sample_manifest),
+--          0175 (the Reception sample template), 0237 (_a237_fit_layout: the seat fit of the shipped samples).
+--
+-- In plain words (owner, r21, long-pending: "replace the Reception sample layout with my political event layout"):
+--   The builder's "Sample layouts" (Template dropdown in a free trial) were:
+--     Corporate - Round tables gala, Reception - Lawn reception with sofa lounge (450 guests), Wedding - Grand Lawn.
+--   Reception is replaced by the owner's own POLITICAL RALLY layout (his builder export, 73 objects on an open
+--   ground of 350 x 550 ft, 5,000 seats):
+--     main stage 100 x 50 ft, artist stage, centre runway, interaction area, 2 green rooms, inauguration plaque,
+--     backstage fences, front control barriers, runway barriers, 20 seat blocks of 250 (VIP, PRESS / MEDIA,
+--     AUDIENCE 1-4), 4 entry checkpoints + artist access, rear fence with entry gaps, perimeter fences with exit
+--     breaks, 8 side exits, FOH, 2 first aid, 2 restrooms, generator, power distribution, 2 truss towers and
+--     4 carpet aisles under the seat columns. Event type "political", capacity 5000, 1 ft grid.
+--     (The owner's export also had one stray Chiavari chair at 0,0 - an export artefact, left out.)
+--   1  Sample master studio: the Reception sample is ARCHIVED (hidden from the picker, never deleted) and
+--      "Demo . Political rally - 5,000 seats" is added once (by name).
+--   2  Existing free-trial studios (subscription status 'trial' now, never paid studios):
+--        - their Reception sample is archived ONLY while it is still the shipped one (its layout equals the
+--          sample master's Reception, before or after the 0237 seat fit) - a studio that changed it keeps it;
+--        - the Political rally sample is added once (by name) ONLY to a studio that still shows sample layouts
+--          (at least one live "Demo . ..." template). A studio that cleared its sample data gets nothing new.
+--   3  ONE new sample manifest is published (current + 1, marker 'political rally layout (0251)') so every NEW
+--      trial gets the new set.
+--   Nothing is deleted. No table / column / index / policy / trigger / function is added or changed.
+--   Rows: inserts (new template rows) + archived = true on unchanged sample rows. ASCII only. Safe to run twice.
+-- ROLLBACK (manual, only if ever needed; only sample rows involved):
+--   update public.studio_layout_templates set archived = false, updated_at = now()
+--    where name = E'Demo \u00b7 Reception \u2014 Lawn reception with sofa lounge (450 guests)' and archived;
+--   update public.studio_layout_templates set archived = true, updated_at = now()
+--    where name = E'Demo \u00b7 Political rally \u2014 5,000 seats' and not archived;
+--   then publish a manifest again: select public.publish_sample_manifest('rollback 0251');
+
+do $$ begin
+  if to_regclass('public.studio_layout_templates') is null then
+    raise exception 'STOP: 0096 (studio_layout_templates) is not applied'; end if;
+  if not exists (select 1 from information_schema.columns where table_schema = 'public'
+                 and table_name = 'studio_layout_templates' and column_name = 'archived') then
+    raise exception 'STOP: studio_layout_templates.archived missing (0096)'; end if;
+  if to_regclass('public.helm_trial_seed_manifest') is null or to_regprocedure('public.publish_sample_manifest(text)') is null then
+    raise exception 'STOP: 0167 (sample manifest) is not applied'; end if;
+  if to_regprocedure('public._a237_fit_layout(jsonb)') is null then
+    raise exception 'STOP: 0237 (_a237_fit_layout) is not applied'; end if;
+end $$;
+
+do $$
+declare
+  M constant uuid := 'a5a5a5a5-0166-4000-8000-000000000001';
+  REC constant text := E'Demo \u00b7 Reception \u2014 Lawn reception with sofa lounge (450 guests)';
+  POL constant text := E'Demo \u00b7 Political rally \u2014 5,000 seats';
+  POL_DESC constant text := 'Sample template. Political rally / public meeting on an open ground of 350 x 550 ft for 5,000 seats: '
+    || 'main stage 100 x 50 ft with artist stage, centre runway and interaction area, green rooms, inauguration plaque, '
+    || 'front control and runway barriers, 20 seat blocks of 250 (VIP, press / media, audience 1-4) on carpet aisles, '
+    || '4 entry checkpoints, perimeter fences with 8 side exits, FOH, first aid, restrooms, generator and truss towers.';
+  POL_DATA constant jsonb := '{"items":[{"x":125,"y":60,"id":"obj_001","type":"stage","color":"#2f6fed","label":"MAIN STAGE | 100 x 50 ft","width":100,"height":50,"category":"structure","rotation":0,"properties":{}},{"x":25,"y":100,"id":"obj_002","type":"stage","color":"#2f6fed","label":"ARTIST STAGE | 40 x 20 ft","width":40,"height":20,"category":"structure","rotation":0,"properties":{}},{"x":167,"y":110,"id":"obj_003","type":"redcarpet","color":"#2f6fed","label":"CENTER RUNWAY | 16 x 100 ft","width":16,"height":100,"category":"structure","rotation":0,"properties":{}},{"x":125,"y":15,"id":"obj_004","type":"redcarpet","color":"#2f6fed","label":"INTERACTION AREA | 100 x 30 ft","width":100,"height":30,"category":"structure","rotation":0,"properties":{}},{"x":25,"y":12,"id":"obj_005","type":"greenroom","color":"#e8912d","label":"GREEN ROOM WEST","width":16,"height":12,"category":"logistics","rotation":0,"properties":{}},{"x":307,"y":12,"id":"obj_006","type":"greenroom","color":"#e8912d","label":"GREEN ROOM EAST","width":16,"height":12,"category":"logistics","rotation":0,"properties":{}},{"x":265,"y":16,"id":"obj_007","type":"arch","color":"#2f6fed","label":"INAUGURATION PLAQUE","width":40,"height":8,"category":"structure","rotation":0,"properties":{}},{"x":88,"y":1,"id":"obj_008","type":"fence","color":"#e5484d","label":"BACKSTAGE SIDE SEPARATION","width":1,"height":130,"category":"security","rotation":0,"properties":{}},{"x":260,"y":1,"id":"obj_009","type":"fence","color":"#e5484d","label":"BACKSTAGE SIDE SEPARATION","width":1,"height":130,"category":"security","rotation":0,"properties":{}},{"x":90,"y":143,"id":"obj_010","type":"stagebarrier","color":"#e5484d","label":"FRONT CONTROL LINE WEST","width":73,"height":1.5,"category":"security","rotation":0,"properties":{}},{"x":187,"y":143,"id":"obj_011","type":"stagebarrier","color":"#e5484d","label":"FRONT CONTROL LINE EAST","width":73,"height":1.5,"category":"security","rotation":0,"properties":{}},{"x":163,"y":146,"id":"obj_012","type":"stagebarrier","color":"#e5484d","label":"RUNWAY WEST BARRIER","width":1.5,"height":67,"category":"security","rotation":0,"properties":{}},{"x":185.5,"y":146,"id":"obj_013","type":"stagebarrier","color":"#e5484d","label":"RUNWAY EAST BARRIER","width":1.5,"height":67,"category":"security","rotation":0,"properties":{}},{"x":18,"y":158,"id":"obj_014","type":"seatblock","color":"#ffffff","label":"VIP | 1A | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":100,"y":158,"id":"obj_015","type":"seatblock","color":"#ffffff","label":"VIP | 1B | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":190,"y":158,"id":"obj_016","type":"seatblock","color":"#ffffff","label":"PRESS / MEDIA | 1C | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":272,"y":158,"id":"obj_017","type":"seatblock","color":"#ffffff","label":"VIP | 1D | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":18,"y":238,"id":"obj_018","type":"seatblock","color":"#ffffff","label":"AUDIENCE 1 | 2A | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":100,"y":238,"id":"obj_019","type":"seatblock","color":"#ffffff","label":"AUDIENCE 1 | 2B | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":190,"y":238,"id":"obj_020","type":"seatblock","color":"#ffffff","label":"AUDIENCE 1 | 2C | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":272,"y":238,"id":"obj_021","type":"seatblock","color":"#ffffff","label":"AUDIENCE 1 | 2D | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":18,"y":310,"id":"obj_022","type":"seatblock","color":"#ffffff","label":"AUDIENCE 2 | 3A | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":100,"y":310,"id":"obj_023","type":"seatblock","color":"#ffffff","label":"AUDIENCE 2 | 3B | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":190,"y":310,"id":"obj_024","type":"seatblock","color":"#ffffff","label":"AUDIENCE 2 | 3C | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":272,"y":310,"id":"obj_025","type":"seatblock","color":"#ffffff","label":"AUDIENCE 2 | 3D | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":18,"y":382,"id":"obj_026","type":"seatblock","color":"#ffffff","label":"AUDIENCE 3 | 4A | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":104.60324242209498,"y":385,"id":"obj_027","type":"seatblock","color":"#ffffff","label":"AUDIENCE 3 | 4B | 250 seats","width":50.79351515581004,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":190,"y":382,"id":"obj_028","type":"seatblock","color":"#ffffff","label":"AUDIENCE 3 | 4C | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":272,"y":382,"id":"obj_029","type":"seatblock","color":"#ffffff","label":"AUDIENCE 3 | 4D | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":18,"y":454,"id":"obj_030","type":"seatblock","color":"#ffffff","label":"AUDIENCE 4 | 5A | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":100,"y":454,"id":"obj_031","type":"seatblock","color":"#ffffff","label":"AUDIENCE 4 | 5B | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":190,"y":454,"id":"obj_032","type":"seatblock","color":"#ffffff","label":"AUDIENCE 4 | 5C | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":272,"y":454,"id":"obj_033","type":"seatblock","color":"#ffffff","label":"AUDIENCE 4 | 5D | 250 seats","width":60,"height":60,"category":"seating","rotation":0,"properties":{"cols":25,"rows":10},"colorCustom":true},{"x":60,"y":541,"id":"obj_034","type":"checkpoint","color":"#e5484d","label":"ENTRY 1","width":6,"height":3,"category":"security","rotation":0,"properties":{}},{"x":117,"y":541,"id":"obj_035","type":"checkpoint","color":"#e5484d","label":"ENTRY 2","width":6,"height":3,"category":"security","rotation":0,"properties":{}},{"x":231,"y":541,"id":"obj_036","type":"checkpoint","color":"#e5484d","label":"ENTRY 3","width":6,"height":3,"category":"security","rotation":0,"properties":{}},{"x":287,"y":541,"id":"obj_037","type":"checkpoint","color":"#e5484d","label":"ENTRY 4","width":6,"height":3,"category":"security","rotation":0,"properties":{}},{"x":0,"y":549,"id":"obj_038","type":"fence","color":"#e5484d","label":"REAR FENCE / ENTRY GAP","width":52,"height":1,"category":"security","rotation":0,"properties":{}},{"x":74,"y":549,"id":"obj_039","type":"fence","color":"#e5484d","label":"REAR FENCE / ENTRY GAP","width":36,"height":1,"category":"security","rotation":0,"properties":{}},{"x":132,"y":549,"id":"obj_040","type":"fence","color":"#e5484d","label":"REAR FENCE / ENTRY GAP","width":91,"height":1,"category":"security","rotation":0,"properties":{}},{"x":246,"y":549,"id":"obj_041","type":"fence","color":"#e5484d","label":"REAR FENCE / ENTRY GAP","width":34,"height":1,"category":"security","rotation":0,"properties":{}},{"x":302,"y":549,"id":"obj_042","type":"fence","color":"#e5484d","label":"REAR FENCE / ENTRY GAP","width":48,"height":1,"category":"security","rotation":0,"properties":{}},{"x":0,"y":0,"id":"obj_043","type":"fence","color":"#e5484d","label":"PERIMETER / OPEN EXIT BREAKS","width":1,"height":222,"category":"security","rotation":0,"properties":{}},{"x":0,"y":232,"id":"obj_044","type":"fence","color":"#e5484d","label":"PERIMETER / OPEN EXIT BREAKS","width":1,"height":62,"category":"security","rotation":0,"properties":{}},{"x":0,"y":304,"id":"obj_045","type":"fence","color":"#e5484d","label":"PERIMETER / OPEN EXIT BREAKS","width":1,"height":62,"category":"security","rotation":0,"properties":{}},{"x":0,"y":376,"id":"obj_046","type":"fence","color":"#e5484d","label":"PERIMETER / OPEN EXIT BREAKS","width":1,"height":146,"category":"security","rotation":0,"properties":{}},{"x":349,"y":0,"id":"obj_047","type":"fence","color":"#e5484d","label":"PERIMETER / OPEN EXIT BREAKS","width":1,"height":222,"category":"security","rotation":0,"properties":{}},{"x":349,"y":232,"id":"obj_048","type":"fence","color":"#e5484d","label":"PERIMETER / OPEN EXIT BREAKS","width":1,"height":62,"category":"security","rotation":0,"properties":{}},{"x":349,"y":304,"id":"obj_049","type":"fence","color":"#e5484d","label":"PERIMETER / OPEN EXIT BREAKS","width":1,"height":62,"category":"security","rotation":0,"properties":{}},{"x":349,"y":376,"id":"obj_050","type":"fence","color":"#e5484d","label":"PERIMETER / OPEN EXIT BREAKS","width":1,"height":146,"category":"security","rotation":0,"properties":{}},{"x":1,"y":0,"id":"obj_051","type":"fence","color":"#e5484d","label":"BACKSTAGE REAR BOUNDARY","width":348,"height":1,"category":"security","rotation":0,"properties":{}},{"x":2,"y":224,"id":"obj_052","type":"exit","color":"#18a558","label":"SIDE EXIT APPROACH","width":12,"height":6,"category":"safety","rotation":0,"properties":{}},{"x":2,"y":296,"id":"obj_053","type":"exit","color":"#18a558","label":"SIDE EXIT APPROACH","width":12,"height":6,"category":"safety","rotation":0,"properties":{}},{"x":2,"y":368,"id":"obj_054","type":"exit","color":"#18a558","label":"SIDE EXIT APPROACH","width":12,"height":6,"category":"safety","rotation":0,"properties":{}},{"x":2,"y":524,"id":"obj_055","type":"exit","color":"#18a558","label":"SIDE EXIT APPROACH","width":12,"height":6,"category":"safety","rotation":0,"properties":{}},{"x":336,"y":224,"id":"obj_056","type":"exit","color":"#18a558","label":"SIDE EXIT APPROACH","width":12,"height":6,"category":"safety","rotation":0,"properties":{}},{"x":336,"y":296,"id":"obj_057","type":"exit","color":"#18a558","label":"SIDE EXIT APPROACH","width":12,"height":6,"category":"safety","rotation":0,"properties":{}},{"x":336,"y":368,"id":"obj_058","type":"exit","color":"#18a558","label":"SIDE EXIT APPROACH","width":12,"height":6,"category":"safety","rotation":0,"properties":{}},{"x":336,"y":524,"id":"obj_059","type":"exit","color":"#18a558","label":"SIDE EXIT APPROACH","width":12,"height":6,"category":"safety","rotation":0,"properties":{}},{"x":171,"y":525,"id":"obj_060","type":"foh","color":"#7c5cff","label":"FOH - ADDED AT REAR","width":8,"height":8,"category":"av","rotation":0,"properties":{}},{"x":2,"y":534,"id":"obj_061","type":"firstaid","color":"#18a558","label":"FIRST AID WEST","width":8,"height":8,"category":"safety","rotation":0,"properties":{}},{"x":340,"y":534,"id":"obj_062","type":"firstaid","color":"#18a558","label":"FIRST AID EAST","width":8,"height":8,"category":"safety","rotation":0,"properties":{}},{"x":18,"y":529,"id":"obj_063","type":"restroom","color":"#e8912d","label":"RESTROOM WEST","width":12,"height":8,"category":"logistics","rotation":0,"properties":{}},{"x":320,"y":529,"id":"obj_064","type":"restroom","color":"#e8912d","label":"RESTROOM EAST","width":12,"height":8,"category":"logistics","rotation":0,"properties":{}},{"x":5,"y":92,"id":"obj_065","type":"checkpoint","color":"#e5484d","label":"ARTIST ACCESS","width":6,"height":3,"category":"security","rotation":0,"properties":{}},{"x":318,"y":56,"id":"obj_066","type":"generator","color":"#e8912d","label":"BACKSTAGE GENERATOR","width":8,"height":4,"category":"logistics","rotation":0,"properties":{}},{"x":333,"y":56,"id":"obj_067","type":"distro","color":"#e8912d","label":"POWER DISTRIBUTION","width":3,"height":2,"category":"logistics","rotation":0,"properties":{}},{"x":229,"y":107,"id":"obj_1yub","type":"truss","color":"#2f6fed","label":"Truss Tower","width":4,"height":4,"category":"structure","rotation":0,"properties":{}},{"x":118,"y":111,"id":"obj_2ei3","type":"truss","color":"#2f6fed","label":"Truss Tower","width":4,"height":4,"category":"structure","rotation":0,"properties":{}},{"x":17.060330063870328,"y":156.85609763337297,"id":"obj_3mwp","type":"redcarpet","color":"#e5484d","label":"Carpet / Aisle","width":63.879339872259344,"height":360.28780473325406,"category":"structure","rotation":0,"properties":{},"colorCustom":true},{"x":99.35102593930178,"y":162.1323109984258,"id":"obj_4ywg","type":"redcarpet","color":"#e5484d","label":"Carpet / Aisle","width":63.29794812139645,"height":349.7353780031484,"category":"structure","rotation":0,"properties":{},"colorCustom":true},{"x":186.79140791396867,"y":155.52544013206577,"id":"obj_5bgd","type":"redcarpet","color":"#e5484d","label":"Carpet / Aisle","width":74.41718417206268,"height":372.94911973586846,"category":"structure","rotation":0,"properties":{},"colorCustom":true},{"x":270.7733846085215,"y":142.04855384643187,"id":"obj_66ly","type":"redcarpet","color":"#e5484d","label":"Carpet / Aisle","width":68.45323078295704,"height":371.90289230713626,"category":"structure","rotation":0,"properties":{},"colorCustom":true}],"grid":{"snap":true,"show":true,"unit":"ft","sizeFt":1},"margins":{"left":0,"right":0,"top":0,"bottom":0},"venue":{"capacity":5000},"scale":{"pxPerFt":12,"worldFt":{"w":350,"h":550}}}'::jsonb;
+  v_master_rec jsonb;
+  v_prev text := coalesce(current_setting('helm.maintenance', true), '');
+  o record;
+begin
+  perform set_config('helm.maintenance', 'on', true);          -- maintenance: no bell rows for this change
+  -- the shipped Reception layout (the sample master's own row, archived or not)
+  select t.data into v_master_rec from public.studio_layout_templates t
+   where t.org_id = M and t.name = REC order by t.created_at limit 1;
+
+  -- 1) the sample master
+  if exists (select 1 from public.organizations x where x.id = M and x.is_sample_master) then
+    update public.studio_layout_templates set archived = true, is_default = false, updated_at = now()
+     where org_id = M and name = REC and not archived;
+    if not exists (select 1 from public.studio_layout_templates s where s.org_id = M and s.name = POL) then
+      insert into public.studio_layout_templates(org_id, name, event_type, description, data)
+      values (M, POL, 'political', POL_DESC, POL_DATA);
+    end if;
+  end if;
+
+  -- 2) existing free-trial studios (never the master, never a paid studio)
+  for o in select x.id from public.organizations x
+            where not coalesce(x.is_sample_master, false)
+              and exists (select 1 from public.studio_subscriptions ss where ss.org_id = x.id and ss.status = 'trial')
+  loop
+    if not exists (select 1 from public.studio_layout_templates s where s.org_id = o.id and s.name = POL)
+       and exists (select 1 from public.studio_layout_templates s where s.org_id = o.id and not s.archived
+                    and s.name like E'Demo \u00b7 %') then
+      insert into public.studio_layout_templates(org_id, name, event_type, description, data)
+      values (o.id, POL, 'political', POL_DESC, POL_DATA);
+    end if;
+    if v_master_rec is not null then
+      update public.studio_layout_templates t set archived = true, is_default = false, updated_at = now()
+       where t.org_id = o.id and t.name = REC and not t.archived
+         and (t.data = v_master_rec or public._a237_fit_layout(t.data) = v_master_rec
+              or t.data = public._a237_fit_layout(v_master_rec));
+    end if;
+  end loop;
+  perform set_config('helm.maintenance', v_prev, true);
+end $$;
+
+-- 3) new trials: one new manifest (current + 1), once
+do $$ begin
+  if exists (select 1 from public.organizations o where o.id = 'a5a5a5a5-0166-4000-8000-000000000001' and o.is_sample_master)
+     and exists (select 1 from public.quotes x where x.org_id = 'a5a5a5a5-0166-4000-8000-000000000001'::uuid)
+     and not exists (select 1 from public.helm_trial_seed_manifest m where m.notes = 'political rally layout (0251)') then
+    perform public.publish_sample_manifest('political rally layout (0251)');
+  end if;
+end $$;
+
+commit;
+
+-- VERIFY (every row must say ok = true)
+select item, ok from (values
+  ('01 sample master: Political rally template once, live, political, 73 objects, 5000 seats, 350 x 550 ft',
+     not exists (select 1 from public.organizations o where o.id = 'a5a5a5a5-0166-4000-8000-000000000001' and o.is_sample_master)
+     or ((select count(*) from public.studio_layout_templates t where t.org_id = 'a5a5a5a5-0166-4000-8000-000000000001'
+            and t.name = E'Demo \u00b7 Political rally \u2014 5,000 seats') = 1
+         and exists (select 1 from public.studio_layout_templates t where t.org_id = 'a5a5a5a5-0166-4000-8000-000000000001'
+            and t.name = E'Demo \u00b7 Political rally \u2014 5,000 seats' and not t.archived and t.event_type = 'political'
+            and jsonb_array_length(t.data -> 'items') = 73
+            and (t.data #>> '{scale,worldFt,w}')::numeric = 350 and (t.data #>> '{scale,worldFt,h}')::numeric = 550
+            and (select sum((i #>> '{properties,rows}')::int * (i #>> '{properties,cols}')::int)
+                   from jsonb_array_elements(t.data -> 'items') i where i ->> 'type' = 'seatblock') = 5000))),
+  ('02 sample master: Reception sample hidden (archived, kept - never deleted)',
+     not exists (select 1 from public.studio_layout_templates t where t.org_id = 'a5a5a5a5-0166-4000-8000-000000000001'
+       and t.name = E'Demo \u00b7 Reception \u2014 Lawn reception with sofa lounge (450 guests)' and not t.archived)),
+  ('03 new trials: the current sample manifest is the 0251 one or a later one',
+     not exists (select 1 from public.organizations o where o.id = 'a5a5a5a5-0166-4000-8000-000000000001' and o.is_sample_master)
+     or exists (select 1 from public.helm_trial_seed_manifest m where m.notes = 'political rally layout (0251)'
+       and (m.is_current or exists (select 1 from public.helm_trial_seed_manifest x where x.is_current and x.version > m.version)))),
+  ('04 no studio has the Political rally sample twice',
+     not exists (select 1 from public.studio_layout_templates t where t.name = E'Demo \u00b7 Political rally \u2014 5,000 seats'
+       group by t.org_id having count(*) > 1)),
+  ('05 paid studios untouched: no Political rally sample outside the master and trial studios',
+     not exists (select 1 from public.studio_layout_templates t join public.organizations o on o.id = t.org_id
+       where t.name = E'Demo \u00b7 Political rally \u2014 5,000 seats' and not coalesce(o.is_sample_master, false)
+         and not exists (select 1 from public.studio_subscriptions ss where ss.org_id = o.id and ss.status = 'trial'))),
+  ('06 trial studios still showing samples have the Political rally sample',
+     not exists (select 1 from public.organizations o
+       where not coalesce(o.is_sample_master, false)
+         and exists (select 1 from public.studio_subscriptions ss where ss.org_id = o.id and ss.status = 'trial')
+         and exists (select 1 from public.studio_layout_templates s where s.org_id = o.id and not s.archived and s.name like E'Demo \u00b7 %')
+         and not exists (select 1 from public.studio_layout_templates s where s.org_id = o.id and s.name = E'Demo \u00b7 Political rally \u2014 5,000 seats')))
+) v(item, ok) order by item;

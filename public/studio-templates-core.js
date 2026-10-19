@@ -108,16 +108,25 @@
     return { items: out, hall: { w: W, h: H }, scaled: Math.abs(sx - 1) > 0.001 || Math.abs(sy - 1) > 0.001, from: src };
   }
 
+  // r21: the quote's event type is the list label ("Political", "Product launch", "Political rally") while a
+  // template carries the key ("political", "product_launch"); compare on the key so a political event gets the
+  // Political rally sample first (was a case-sensitive miss for every type)
+  var TYPE_ALIAS = { rally: "political", political_rally: "political", public_meeting: "political" };
+  function typeKey(v) {
+    var k = String(v == null ? "" : v).trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    return TYPE_ALIAS[k] || k;
+  }
   function order(rows, eventType) {
-    var t = eventType || "";
+    var t = typeKey(eventType);
     return (Array.isArray(rows) ? rows : []).filter(function (r) { return r && !r.archived; }).slice().sort(function (a, b) {
-      var ra = (a.is_default && (a.event_type || "") === t ? 0 : (t && a.event_type === t ? 1 : (a.is_default ? 2 : 3)));
-      var rb = (b.is_default && (b.event_type || "") === t ? 0 : (t && b.event_type === t ? 1 : (b.is_default ? 2 : 3)));
+      var ta = typeKey(a.event_type), tb = typeKey(b.event_type);
+      var ra = (a.is_default && ta === t ? 0 : (t && ta === t ? 1 : (a.is_default ? 2 : 3)));
+      var rb = (b.is_default && tb === t ? 0 : (t && tb === t ? 1 : (b.is_default ? 2 : 3)));
       return ra - rb || String(a.name || "").localeCompare(String(b.name || ""));
     });
   }
 
-  var API = { EVENT_TYPES: EVENT_TYPES, LIMITS: LIMITS, label: label, validate: validate, thumbOk: thumbOk, payload: payload, fitToHall: fitToHall, order: order,
+  var API = { EVENT_TYPES: EVENT_TYPES, LIMITS: LIMITS, label: label, validate: validate, thumbOk: thumbOk, payload: payload, fitToHall: fitToHall, order: order, typeKey: typeKey,
     roomOf: roomOf, previewShapes: previewShapes };
   G.HelmStudioTemplatesCore = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;

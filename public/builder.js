@@ -47,6 +47,9 @@ const CATS = {
 };
 const catColor = k => getComputedStyle(document.documentElement).getPropertyValue(CATS[k].varName).trim();
 
+// r21 political layout: 10% lets FIT show a whole open ground (350 x 550 ft rally) on one screen; was 25%
+const ZOOM_MIN=0.1;
+
 /* ---- asset catalog : the toolbox + creation defaults ---- */
 const ASSETS = {
   stage:      { label:'Main Stage',    category:'structure', w:40, h:16 },
@@ -1590,6 +1593,10 @@ function renderRulers(){
   const inkc=css.getPropertyValue('--ink-3').trim();
   const linec=css.getPropertyValue('--line').trim();
   const strong=css.getPropertyValue('--grid-strong').trim();
+  // r21: zoomed far out (a 550 ft rally ground at 10%) the numbers every 10 units ran into each other and the
+  // 1-unit ticks merged into a bar: number every 10 / 20 / 50 / 100... units so they stay >= 30 px apart, and
+  // skip the small ticks closer than 3 px. At the usual zoom levels nothing changes (every 10th, every tick).
+  const labEvery=10*([1,2,5,10,20,50].find(k=>10*k*cell*ppuFt>=30)||100), tickOk=cell*ppuFt>=3;
 
   function prep(cv,w,h){ cv.width=w*dpr; cv.height=h*dpr; cv.style.width=w+'px'; cv.style.height=h+'px';
     const x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); x.clearRect(0,0,w,h); return x; }
@@ -1603,9 +1610,10 @@ function renderRulers(){
     const px=f*ppuFt - sx;
     if(px<-20||px>vw+20) continue;
     const major = unitIndex%10===0;
+    if(!major && !tickOk) continue;
     ctxT.strokeStyle=major?strong:linec; ctxT.beginPath();
     ctxT.moveTo(px, major?12:18); ctxT.lineTo(px,26); ctxT.stroke();
-    if(major){ ctxT.fillStyle=inkc; ctxT.fillText(Math.round(f/cell*10)/10, px+2, 10); }
+    if(major && unitIndex%labEvery===0){ ctxT.fillStyle=inkc; ctxT.fillText(Math.round(f/cell*10)/10, px+2, 10); }
   }
   // LEFT ruler
   const ctxL=prep(rLeft, 26, vh);
@@ -1616,9 +1624,10 @@ function renderRulers(){
     const py=f*ppuFt - sy;
     if(py<-20||py>vh+20) continue;
     const major=unitIndex%10===0;
+    if(!major && !tickOk) continue;
     ctxL.strokeStyle=major?strong:linec; ctxL.beginPath();
     ctxL.moveTo(major?12:18, py); ctxL.lineTo(26, py); ctxL.stroke();
-    if(major){ ctxL.save(); ctxL.fillStyle=inkc; ctxL.translate(9, py+2); ctxL.rotate(-Math.PI/2);
+    if(major && unitIndex%labEvery===0){ ctxL.save(); ctxL.fillStyle=inkc; ctxL.translate(9, py+2); ctxL.rotate(-Math.PI/2);
       ctxL.fillText(Math.round(f/cell*10)/10, -0, 8); ctxL.restore(); }
   }
 }
@@ -3586,7 +3595,7 @@ let viewAtFit=true;   // still showing the "fit" zoom (no manual zoom since the 
 function setZoom(z, anchor){
   viewAtFit=false;
   const old=store.view.zoom;
-  z=clamp(z,0.25,3);
+  z=clamp(z,ZOOM_MIN,3);
   const a=anchor||{x:scrollEl.scrollLeft+scrollEl.clientWidth/2, y:scrollEl.scrollTop+scrollEl.clientHeight/2};
   const fx=a.x/old, fy=a.y/old;                 // in base-px world coords
   store.view.zoom=z;
@@ -3600,7 +3609,7 @@ function fitView(){
   const pad=40;
   const zx=(scrollEl.clientWidth-pad)/(WORLD.w*PX_PER_FT);
   const zy=(scrollEl.clientHeight-pad)/(WORLD.h*PX_PER_FT);
-  store.view.zoom=clamp(Math.min(zx,zy),0.25,3);
+  store.view.zoom=clamp(Math.min(zx,zy),ZOOM_MIN,3);
   viewAtFit=true;
   sizeCanvas();
   $('#zoomLbl').textContent=Math.round(store.view.zoom*100)+'%';
