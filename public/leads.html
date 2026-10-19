@@ -227,7 +227,7 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="phone-input.js?v=7"></script><script src="form-validate.js?v=1"></script>
+<script src="phone-input.js?v=7"></script><script src="form-validate.js?v=2"></script>
 <script src="event-name.js?v=9"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
 <script src="tour.js?v=23"></script>
@@ -577,6 +577,13 @@
 
   /* ---------- new / edit form ---------- */
   const formDirty=BPUI.trackDirty($("#leadModal"));
+  // r20: the form only counts as changed when a field really differs from how it opened - a rejected keystroke that
+  // left Budget empty is not a change (Cancel then closes without "Discard changes?"). Text a number box can't read
+  // (badInput, e.g. "5e") still counts as a change.
+  let formSnap=null;
+  const formSnapshot=()=>Array.from($("#leadModal").querySelectorAll("input,select,textarea")).map(e=>(e.type==="checkbox"||e.type==="radio")?(e.checked?"1":"0"):(String(e.value)+(e.validity&&e.validity.badInput?"\u0000bad":""))).join("\u0001");
+  const unDirtyIfSame=()=>{ if(formSnap!=null && formSnapshot()===formSnap) formDirty.clean(); };
+  $("#leadModal").addEventListener("input",unDirtyIfSame); $("#leadModal").addEventListener("change",unDirtyIfSame);
   // la-1018: e-mail / phone / name / budget are checked when you leave the field (message under it), not only on Save
   // bound on the first open, so the phone field is already the HelmPhone component (its wrapper gets the red border)
   let leadFv=null;
@@ -601,12 +608,12 @@
     editFromDetail=null;
     $("#f_stageWrap").hidden=!lead;                       // new leads always start in "New"
     if(lead) $("#f_stage").value=lead.status||"new";
-    formDirty.clean(); if(!leadFv) leadFv=leadFvBind(); leadFv.forEach(b=>{ if(b) b.reset(); });
+    formDirty.clean(); if(!leadFv) leadFv=leadFvBind(); leadFv.forEach(b=>{ if(b) b.reset(); }); formSnap=formSnapshot();
     $("#lm_err").hidden=true; $("#leadModal").hidden=false; setTimeout(()=>$("#f_name").focus(),50);
     // L13: opened at the free-trial cap -> Save off + "Choose a plan to add more" (edit: Save back on)
     if(window.BPUI&&BPUI.capDialog){ if(lead) BPUI.capDialogReset($("#lm_save"),$("#lm_err")); else BPUI.capDialog($("#lm_save"),$("#lm_err"),"leads","leads",()=>!editingId&&!$("#leadModal").hidden); }
   }
-  function closeForm(){ $("#leadModal").hidden=true; editingId=null; formDirty.clean(); }
+  function closeForm(){ $("#leadModal").hidden=true; editingId=null; formDirty.clean(); formSnap=null; }
   async function requestCloseForm(){ if(!(await BPUI.confirmDiscard(formDirty))) return; closeForm(); }
   async function saveLead(){
     const fail=(m)=>{ const er=$("#lm_err"); er.textContent=m; er.hidden=false; try{ er.scrollIntoView({block:"nearest"}); }catch(_){}   // manager-1019: the error was below the fold, Save looked dead
@@ -618,6 +625,9 @@
     if($("#f_phone").value.trim()){ const pv=V.phone($("#f_phone").value); if(!pv.ok){ fail(pv.error); return; } phone=pv.value; }
     let email=null;
     if($("#f_email").value.trim()){ const ev=V.email($("#f_email").value); if(!ev.ok){ fail(ev.error); return; } email=ev.value; }
+    // r20: a number box holding text it can't read ("5e", "-7e") reads as "" - say so instead of silently saving nothing
+    if($("#f_guests").validity&&$("#f_guests").validity.badInput){ fail("Guest count: enter a valid number."); return; }
+    if($("#f_budget").validity&&$("#f_budget").validity.badInput){ fail("Budget: enter a valid number."); return; }
     let budget=null;
     if($("#f_budget").value!==""){ const bv=V.money($("#f_budget").value,{field:"Budget",max:10000000000}); if(!bv.ok){ fail(bv.error); return; } budget=bv.value; }
     let guest_count=null;

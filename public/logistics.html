@@ -273,7 +273,7 @@
   function rowPay(m){ if(covered.has(m.id)) return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date?BPStore.fmtDateIN(m.due_date):"")}</td><td class="num">${inr(m.amount)}</td>${payCells(m)}
       <td><span class="st paid" title="Covered by payments recorded on this event">Covered</span></td><td></td></tr>`;
     const opts=["due","invoiced","paid","waived"].map(s=>`<option value="${s}" ${s===m.status?"selected":""}>${PAY_ST[s]}</option>`).join("");
-    const part=(alloc.get(m.id)||{}).paid>0;
+    const _a=alloc.get(m.id)||{}; const part=m.status!=="paid" && m.status!=="waived" && _a.paid>0 && Number(_a.rem)>0.005;   // r20: a fully paid milestone is never also "Part paid"
     return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date?BPStore.fmtDateIN(m.due_date):"")}</td><td class="num">${inr(m.amount)}</td>${payCells(m)}
       <td>${part?'<span class="st due" title="Part of this milestone is covered by payments recorded">Part paid</span> ':""}${canEdit&&m.status!=="paid"?`<select class="ssel" data-mst="${esc(m.id)}" aria-label="Status for ${esc(m.label)}">${opts}</select>`:`<span class="st ${esc(m.status)}">${esc(PAY_ST[m.status]||m.status)}</span>`}</td>
       <td>${canEdit&&m.status!=="paid"?`<button type="button" class="rm" data-remind="${esc(m.id)}" aria-label="Send reminder now for ${esc(m.label)}">Send reminder now</button> `:""}${canDelete&&m.status!=="paid"?`<button type="button" class="rm" data-mdel="${esc(m.id)}" aria-label="Remove milestone ${esc(m.label)}">✕</button>`:""}</td></tr>`; }
