@@ -125,7 +125,7 @@
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
-<link rel="stylesheet" href="link-views.css?v=1"><link rel="stylesheet" href="payment-schedule.css?v=1">
+<link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=1"><link rel="stylesheet" href="payment-schedule.css?v=1">
 <script src="/shell-proto.js?v=40" id="shellProto"></script>
 </head>
 <body>
@@ -361,6 +361,9 @@
           <p class="hint next-step" id="pay_next" data-next-step><b>Next step:</b> record the advance above once the client has approved (step 9) — that confirms the booking. Then move on to Resources and Logistics from the event page.</p>
         </section>
 
+        <!-- r23 (0263): stage history - one canonical stage pill + every move (stage-history.js fills it; hidden before 0263) -->
+        <section class="card r23-sh" id="sec-stages" data-stage-history data-quote-from-url data-refresh-on="#apprState" aria-label="Stage history" hidden></section>
+
         <!-- ACTIVITY TRAIL -->
         <section class="card" id="sec-activity">
           <h2>Activity trail</h2>
@@ -470,7 +473,7 @@
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=10"></script>
 <script src="venue-picker.js?v=7"></script>
-<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=5"></script><script src="email-send.js?v=5"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=4"></script><script src="approval-watch.js?v=2"></script><script src="link-views.js?v=1"></script>
+<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=5"></script><script src="email-send.js?v=5"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=4"></script><script src="approval-watch.js?v=2"></script><script src="stage-history.js?v=1"></script><script src="link-views.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   // owner 2026-10 (flow validation): every field rule lives in flow-validate.js. Event dates follow the

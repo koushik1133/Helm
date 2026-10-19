@@ -473,6 +473,20 @@
       <div class="pst-foot"><span class="pst-msg" id="pst_msg" role="status" aria-live="polite"></span><button type="button" class="btn primary" id="pst_save">Save payment settings</button></div>
     </div>
 
+    <!-- r23 (0263) stage rules + stage history switch - stage-machine-settings.js fills it; hidden until the server answers -->
+    <div class="card" id="smCard" hidden>
+      <h3>Event stages</h3>
+      <p class="mnote">Helm records every stage change of a quote / event (Draft, Sent, Viewed, Approved, Confirmed ... Closed) with who, when and why. A move outside the usual order is logged as a warning.</p>
+      <p class="mnote" id="sm_ro" hidden>Read-only: only a studio admin can change these.</p>
+      <div class="grid">
+        <div class="fld"><label for="sm_mode">Stage rules</label><select id="sm_mode"><option value="warn">Warn - allow and log moves outside the usual order (recommended)</option><option value="enforce">Enforce - refuse moves outside the usual order</option></select><p class="mnote" id="sm_help">Enforce never blocks client links, payments or automatic jobs - only a team member's out-of-order move.</p></div>
+        <div class="fld"><label class="chk"><input type="checkbox" id="sm_hist"> Show the stage history on the event page and quote flow</label></div>
+      </div>
+      <p class="mnote" id="sm_stats"></p>
+      <div id="sm_msg" role="status" aria-live="polite"></div>
+      <div class="actions" id="sm_actions"><button type="button" class="btn primary" id="sm_save">Save stage settings</button></div>
+    </div>
+
     <div class="card" id="itemPricingCard" hidden>
       <h3>Item pricing (rate cards)</h3>
       <p class="mnote">Prices for items you adjust in the layout builder: stage by size (m²), generator by kVA and days, DJ by setup and power connection, lighting, LED wall, chandelier, photo booth, chocolate fountain, chariot, smoke effects and dancers. Items that are not adjusted keep their flat catalog price. Who can change these is set in the role matrix (“Item pricing (rate cards)”).</p>
@@ -892,7 +906,7 @@
 <script src="venues-admin.js?v=9"></script>
 <script src="studio-templates-core.js?v=4"></script>
 <script src="studio-templates.js?v=13"></script>
-<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script><script src="payment-schedule.js?v=1"></script><script src="payment-schedule-settings.js?v=1"></script>
+<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script><script src="stage-machine-settings.js?v=1"></script><script src="payment-schedule.js?v=1"></script><script src="payment-schedule-settings.js?v=1"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
 <script src="trial-demo.js?v=18"></script>
 <script src="trial-upgrade.js?v=2"></script>

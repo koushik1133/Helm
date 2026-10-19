@@ -223,6 +223,8 @@ run "r23-crew-0265" "R23-CREW-0265: ALL PASS \(60/60\)" psql -q -f tests/db/r23-
 run "r23-link-views-0261" "R23-LINK-VIEWS-0261: ALL PASS \(62/62\)" psql -q -f tests/db/r23-link-views-0261.sql
 # 0266 re-applies itself (after r22-closure, which re-applies 0254 over the bell_feed wrapper)
 run "r23-inbox-0266" "R23-INBOX-0266: ALL PASS \(66/66\)" psql -q -f tests/db/r23-inbox-0266.sql
+# 0263 re-applies itself (fixture quotes are made after the clean install; proves the backfill re-run adds nothing)
+run "r23-state-machine-0263" "R23-STATE-MACHINE-0263: ALL PASS \(48/48\)" psql -q -f tests/db/r23-state-machine-0263.sql
 # 0244 re-applies itself twice (re-run safe) after every suite that re-applies 0045 / 0183 / 0185
 run "r21-trial-paid-0244" "R21-TRIAL-PAID-0244: ALL PASS \(56/56\)" psql -q -f tests/db/r21-trial-paid-0244.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh

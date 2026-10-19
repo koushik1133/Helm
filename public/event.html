@@ -98,7 +98,7 @@
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="event-ui.css?v=2">
-<link rel="stylesheet" href="link-views.css?v=1"><link rel="stylesheet" href="payment-schedule.css?v=1">
+<link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=1"><link rel="stylesheet" href="payment-schedule.css?v=1">
 <script src="/shell-proto.js?v=40" id="shellProto"></script>
 </head>
 <body>
@@ -185,6 +185,8 @@
     <section id="paySchedCard" class="card psch-card" aria-label="Payment schedule" hidden></section>
 
     <section id="pkg-selections" class="card" data-pkg-review data-quote-from-url aria-label="Package selections" hidden></section>
+    <!-- r23 (0263): stage history - one canonical stage pill + every move (stage-history.js fills it; hidden before 0263) -->
+    <section id="stageHistory" class="card r23-sh" data-stage-history data-quote-from-url data-refresh-on="#statusBadge, #apprBadge" aria-label="Stage history" hidden></section>
 
     <section id="filesPanel" class="card s-1b0f499" hidden>
       <div class="s-145919b">
@@ -232,7 +234,7 @@
 <script src="email-send.js?v=5"></script><script src="share-checklist.js?v=13"></script>
 <script src="invite-site-share.js?v=10"></script><script src="booklet-share.js?v=17"></script>
 <script src="pkg-review.js?v=7"></script>
-<script src="event-group-picker.js?v=4"></script><script src="capacity-shortage.js?v=8"></script><script src="approval-watch.js?v=2"></script><script src="link-views.js?v=1"></script>
+<script src="event-group-picker.js?v=4"></script><script src="capacity-shortage.js?v=8"></script><script src="approval-watch.js?v=2"></script><script src="stage-history.js?v=1"></script><script src="link-views.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
