@@ -47,7 +47,7 @@
   function el(tag,cls,txt){ var e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
   var BYKEY={}, SECHASH={}, HASH={}; SECTIONS.forEach(function(x){ BYKEY[x.key]=x; SECHASH[x.key]=x.hash; HASH[x.hash]=x.key; });
   // legacy deep links (dashboard checklist, old bookmarks) -> section
-  Object.assign(HASH,{"#account":"general","#studio":"general","#team":"users","#notify":"notify","#security":"links","#link-expiry":"links","#pricing-packages":"pricing","#catalog":"catalog","#event-reminders":"reminders","#client-reminders":"reminders","#payment-reminders":"reminders","#whatsapp":"reminders","#privacy":"privacy","#hide-amounts":"privacy","#pin":"privacy","#ltemplates":"ltemplates"});
+  Object.assign(HASH,{"#account":"general","#studio":"general","#team":"users","#notify":"notify","#security":"links","#link-expiry":"links","#pricing-packages":"pricing","#target-margin":"pricing","#catalog":"catalog","#event-reminders":"reminders","#client-reminders":"reminders","#payment-reminders":"reminders","#whatsapp":"reminders","#privacy":"privacy","#hide-amounts":"privacy","#pin":"privacy","#ltemplates":"ltemplates"});
   var OLDKEY={studio:"general",team:"users",security:"links"};
   function h3(c){ var h=c.querySelector("h3"); return h?h.textContent.trim():""; }
   function paneKey(c){ var p=c.closest("[id^='pane-']"); return p?p.id.slice(5):""; }

@@ -241,7 +241,9 @@
     $("#app").hidden=false;
     if(!canFin) $("#marginCard").hidden=true;
     if(canFin && window.HelmInsightsCosts) costsUI=HelmInsightsCosts.mount($("#costsBody"),$("#benchBody"),{ money:(n,c)=>curM(n,c), studioCurrency:()=>BPStore.studioCurrency(),
-      hidden:()=>!!(window.HelmPrivacy&&HelmPrivacy.isHidden&&HelmPrivacy.isHidden()), fmtDate:(d)=>BPStore.fmtDateIN(d), href:(id)=>"event.html?id="+encodeURIComponent(id||"") });
+      hidden:()=>!!(window.HelmPrivacy&&HelmPrivacy.isHidden&&HelmPrivacy.isHidden()), fmtDate:(d)=>BPStore.fmtDateIN(d), href:(id)=>"event.html?id="+encodeURIComponent(id||""),
+      // r21 (0242): ONE studio-wide target margin (Control Center); Insights reads it, an editor may adopt this device's old value once
+      targetMargin:()=>BPStore.insights.targetMargin(), saveTargetMargin:(v)=>BPStore.insights.setTargetMargin(v) });
     HelmRange.mount($("#rangeBar"),{ storeKey:"helm_range_insights", defaultKey:"this_month", onChange:(r)=>{ range=r; refresh(); } });
   }
   async function refresh(){
