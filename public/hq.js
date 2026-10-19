@@ -76,7 +76,7 @@
   }
 
   /* ---------------- tabs ---------------- */
-  var TABS = ["overview", "studios", "billing", "plans", "people", "activity"];
+  var TABS = ["overview", "studios", "billing", "plans", "people", "activity", "staff"];
   function showTab(name) {
     TABS.forEach(function (t) {
       var p = $("#pane-" + t), b = $("#tab-" + t);
@@ -537,6 +537,64 @@
     call("hq_add_operator", { p_email: e }).then(function () { $("#opEmail").value = ""; okMsg("Operator added."); loadOperators().catch(showErr); }).catch(showErr);
   }
 
+  /* ---------------- staff access (0248): reserved e-mail domains + staff allowlist ---------------- */
+  async function loadStaff() {
+    var r = await call("hq_staff_access"); r = r && !Array.isArray(r) ? r : {};
+    var doms = Array.isArray(r.domains) ? r.domains : [], allow = Array.isArray(r.allowlist) ? r.allowlist : [], acc = Array.isArray(r.accounts) ? r.accounts : [];
+    var open = acc.filter(function (a) { return !a.allowlisted && !a.banned_until; }).length;
+    $("#stState").textContent = "Reserved: " + (doms.map(function (d) { return d.domain; }).join(", ") || "none") + " · " + int(allow.length) + " allowlisted · "
+      + int(acc.length) + " existing login" + (acc.length === 1 ? "" : "s") + " on these domains" + (open ? " (" + int(open) + " not staff — review below)" : "");
+    var ul = clear($("#stAllow"));
+    allow.forEach(function (a) {
+      var right = el("span", { cls: "muted", text: (a.is_platform_admin ? "HQ operator · " : "") + (a.has_login ? "has a login" : "no login yet") + (a.note ? " · " + a.note : "") });
+      var li = el("li", null, [el("span", { cls: "m", text: a.email }), right]);
+      if (!a.is_platform_admin) {
+        var rm = el("button", { cls: "btn sm danger", type: "button", text: "Remove" });
+        rm.addEventListener("click", function () {
+          if (!window.confirm("Remove " + a.email + " from the staff allowlist? New logins for it will be refused. An existing login is not deleted or signed out.")) return;
+          call("hq_staff_allow_remove", { p_email: a.email }).then(function () { okMsg("Removed from the staff allowlist."); loadStaff().catch(showErr); }).catch(showErr);
+        });
+        li.appendChild(rm);
+      }
+      ul.appendChild(li);
+    });
+    if (!ul.firstChild) ul.appendChild(el("li", { cls: "empty", text: "Nobody yet." }));
+    var dl = clear($("#stDomains"));
+    doms.forEach(function (d) {
+      var li = el("li", null, [el("span", { cls: "m", text: d.domain + (d.include_subdomains ? " (+ sub-domains)" : "") }),
+        el("span", { cls: "muted", text: d.builtin ? "Helm’s own domain" : (d.note || "added " + date(d.added_at)) })]);
+      if (!d.builtin) {
+        var rm = el("button", { cls: "btn sm danger", type: "button", text: "Remove" });
+        rm.addEventListener("click", function () {
+          if (!window.confirm("Stop reserving " + d.domain + "? People could sign up with it again.")) return;
+          call("hq_reserved_domain_remove", { p_domain: d.domain }).then(function () { okMsg("Domain no longer reserved."); loadStaff().catch(showErr); }).catch(showErr);
+        });
+        li.appendChild(rm);
+      }
+      dl.appendChild(li);
+    });
+    var tb = clear($("#tStAcc"));
+    acc.forEach(function (a) {
+      var st = a.banned_until ? el("span", { cls: "pill", text: "sign-in off" })
+        : a.allowlisted ? el("span", { cls: "pill ok", text: a.is_platform_admin ? "HQ operator" : "staff" })
+        : el("span", { cls: "pill warn", text: "not staff — review" });
+      tb.appendChild(el("tr", null, [el("td", { cls: "m", text: a.email || "" }), el("td", { text: a.studio ? a.studio + (a.role ? " · " + a.role : "") : "—" }),
+        el("td", { text: date(a.created_at) }), el("td", { text: ago(a.last_sign_in_at) }), el("td", null, [st])]));
+    });
+    if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "5", cls: "empty", text: "No logins on reserved domains." })]));
+  }
+  function addStaff() {
+    var e = String($("#stEmail").value || "").trim().toLowerCase(); if (!e) return;
+    call("hq_staff_allow_add", { p_email: e, p_note: String($("#stNote").value || "").trim() || null })
+      .then(function () { $("#stEmail").value = ""; $("#stNote").value = ""; okMsg("Added to the staff allowlist — this address can now be given a login."); loadStaff().catch(showErr); }).catch(showErr);
+  }
+  function addDomain() {
+    var d = String($("#stDomain").value || "").trim().toLowerCase(); if (!d) return;
+    if (!window.confirm("Reserve " + d + " (and its sub-domains)? Nobody outside the staff allowlist will be able to sign up with it.")) return;
+    call("hq_reserved_domain_add", { p_domain: d, p_note: String($("#stDomNote").value || "").trim() || null })
+      .then(function () { $("#stDomain").value = ""; $("#stDomNote").value = ""; okMsg("Domain reserved."); loadStaff().catch(showErr); }).catch(showErr);
+  }
+
   async function loadAll() {
     $("#err").hidden = true;
     var r = await Promise.all([call("hq_overview"), loadPlans(), loadStudios(0), loadUsers(0), loadBilling()]);
@@ -580,6 +638,7 @@
       showTab(t);
       if (t === "activity") { loadAudit().catch(showErr); loadSecurity().catch(showErr); loadOperators().catch(showErr); }
       if (t === "billing") loadSettings().catch(showErr);
+      if (t === "staff") loadStaff().catch(showErr);
     }); });
     on("#btnRefresh", "click", function () { loadAll().catch(showErr); });
     on("#btnOut", "click", function () { Promise.resolve(BPStore.auth.signOut && BPStore.auth.signOut()).finally(function () { location.replace("login.html"); }); });
@@ -595,6 +654,8 @@
     on("#btnAudit", "click", function () { loadAudit().catch(showErr); loadSecurity().catch(showErr); });
     on("#aWrites", "change", function () { loadAudit().catch(showErr); });
     on("#btnOp", "click", addOperator);
+    on("#btnStAdd", "click", addStaff);
+    on("#btnStDom", "click", addDomain);
     on("#btnRefreshBilling", "click", function () { call("hq_refresh_billing_status").then(function (r) { okMsg("Billing status refreshed: " + int(r && r.past_due_set) + " now past due, " + int(r && r.reminders_queued) + " reminders queued."); refreshAfterWrite(null); }).catch(showErr); });
     on("#fStatus", "change", function () { loadStudios(0).catch(showErr); });
     on("#qStudios", "input", function () { clearTimeout(sTimer); sTimer = setTimeout(function () { loadStudios(0).catch(showErr); }, 300); });

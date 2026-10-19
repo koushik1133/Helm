@@ -39,6 +39,7 @@ import { bearer, errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped, tooMany } from "../_shared/limits.ts";
 import { inviteEmail, joinLink, roleLabel } from "./templates.ts";
 import { mailConfig, sendMail } from "../_shared/mailer.ts";
+import { isReservedEmail } from "../_shared/reserved-email.mjs";
 
 const enc = new TextEncoder();
 const EMAIL = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
@@ -71,6 +72,8 @@ export function inviteEmailsOn(v: string | undefined): boolean {
 async function sendViaSupabaseAuth(admin: any, to: string, token: string, meta: Record<string, string>): Promise<SendResult> {
   const link = joinLink(token);
   if (!link || !EMAIL.test(to)) return "skipped";
+  // r21 (0248): never create a login on Helm's own domains (helm.events, ...) - the database refuses it too
+  if (await isReservedEmail(admin, to)) return "skipped";
   try {
     const { error } = await admin.auth.admin.inviteUserByEmail(to, { redirectTo: link, data: meta });
     if (!error) return "sent";

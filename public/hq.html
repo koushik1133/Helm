@@ -124,6 +124,7 @@
     <button type="button" class="tab" id="tab-plans" aria-pressed="false">Plans</button>
     <button type="button" class="tab" id="tab-people" aria-pressed="false">People</button>
     <button type="button" class="tab" id="tab-activity" aria-pressed="false">Activity log</button>
+    <button type="button" class="tab" id="tab-staff" aria-pressed="false">Staff access</button>
   </nav>
   <div id="err" class="err" hidden role="alert"></div>
   <div id="ok" class="okm" hidden role="status"></div>
@@ -287,6 +288,38 @@
       </div>
     </section>
   </section>
+  <section id="pane-staff" hidden>
+    <section class="card" aria-labelledby="stH">
+      <h2 id="stH">Staff access</h2>
+      <p class="muted">E-mail addresses on Helm&rsquo;s own domains are reserved for the Helm team. Nobody can sign up, be invited or be given a login with one &mdash; unless the exact address is on the staff allowlist below. HQ operators always count as allowlisted. Every change here is recorded in the HQ activity log.</p>
+      <p class="muted" id="stState"></p>
+    </section>
+    <section class="card" aria-labelledby="stAllowH">
+      <h2 id="stAllowH">Staff allowlist</h2>
+      <p class="muted">Add a Helm team member&rsquo;s exact address here BEFORE you create their login. &ldquo;Remove&rdquo; stops new logins for that address (it does not delete or sign out an existing login).</p>
+      <ul class="list" id="stAllow"></ul>
+      <div class="form s-d2c171b">
+        <label class="fld"><span>Team e-mail</span><input type="email" id="stEmail" maxlength="254" placeholder="name@helm.events" autocomplete="off"></label>
+        <label class="fld"><span>Note (optional)</span><input type="text" id="stNote" maxlength="200" placeholder="e.g. support team"></label>
+        <button class="btn" id="btnStAdd" type="button">Add to allowlist</button>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="stDomH">
+      <h2 id="stDomH">Reserved domains</h2>
+      <p class="muted">Sub-domains are included (team.helm.events). Add look-alike domains someone could use to pretend to be Helm. Helm&rsquo;s own domains can&rsquo;t be removed.</p>
+      <ul class="list" id="stDomains"></ul>
+      <div class="form s-d2c171b">
+        <label class="fld"><span>Domain</span><input type="text" id="stDomain" maxlength="253" placeholder="helm-events.com" autocomplete="off"></label>
+        <label class="fld"><span>Note (optional)</span><input type="text" id="stDomNote" maxlength="200" placeholder="e.g. look-alike"></label>
+        <button class="btn" id="btnStDom" type="button">Reserve domain</button>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="stAccH">
+      <h2 id="stAccH">Existing logins on reserved domains</h2>
+      <p class="muted">Read-only. Logins made before this protection existed are not changed automatically. To turn one off, review it here, then use R21-RESERVED-DOMAIN-DISABLE.sql (reversible, nothing is deleted).</p>
+      <div class="scroll"><table><thead><tr><th>E-mail</th><th>Studio</th><th>Created</th><th>Last sign-in</th><th>Status</th></tr></thead><tbody id="tStAcc"></tbody></table></div>
+    </section>
+  </section>
 </div>
 
 <script src="/trusted-types.js?v=3"></script>
@@ -294,8 +327,8 @@
 <script src="config.js?v=104"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=260"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=261"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="hq.js?v=13"></script>
+<script src="hq.js?v=14"></script>
 </body>
 </html>

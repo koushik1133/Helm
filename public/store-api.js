@@ -423,6 +423,22 @@ window.HelmUrl = HelmUrl;
       { id: "symbol", label: "A symbol, e.g. ! @ # $ % & * ? -",   ok: sym },
     ];
   }
+  // r21 (0248): addresses on Helm's own domains (helm.events, helm.com + sub-domains) are for the Helm team.
+  // Early, friendly check only - the DATABASE is the real gate (Before User Created hook + auth.users /
+  // invitations guards, which also know HQ's look-alike domains and the staff allowlist). Same rule as
+  // supabase/functions/_shared/reserved-email.mjs.
+  const RESERVED_EMAIL_DOMAINS = ["helm.events", "helm.com"];
+  const RESERVED_EMAIL_MESSAGE = "Addresses on helm.events are reserved for the Helm team. Please use your own e-mail address.";
+  function reservedEmailDomain(email) {
+    const e = String(email == null ? "" : email).trim().toLowerCase();
+    const at = e.lastIndexOf("@"); if (at < 1) return "";
+    const host = e.slice(at + 1).replace(/\.+$/, "");
+    for (const d of RESERVED_EMAIL_DOMAINS) if (host === d || host.endsWith("." + d)) return d;
+    return "";
+  }
+  function reservedEmailError() { const e = new Error(RESERVED_EMAIL_MESSAGE); e.code = "reserved_domain"; return e; }
+  // the server's refusal (hook 403 / guard trigger) -> the same friendly error
+  function isReservedRefusal(err) { return /reserved for the helm team/i.test(String((err && (err.message || err.msg || err.error_description)) || "")); }
   function passwordProblem(pw) {
     pw = String(pw || "");
     if (pw.length < PW_MIN) return "Use at least " + PW_MIN + " characters.";
@@ -1508,6 +1524,10 @@ window.HelmUrl = HelmUrl;
         const qs = new URLSearchParams(location.search || "");
         urlAuthCode = !!qs.get("code");
         urlAuthError = qs.get("error_code") || qs.get("error") || "";
+        // r21 (0248): a Google / e-mail-link sign-up refused by the Before User Created hook comes back with
+        // the hook's message in error_description - only a fixed code is kept, never the text itself
+        if (/reserved for the helm team/i.test(String(qs.get("error_description") || "") + " " +
+            String(new URLSearchParams(String(location.hash || "").replace(/^#/, "")).get("error_description") || ""))) urlAuthError = "reserved_domain";
         // EXCEPTION (0131 invite e-mails sent by Supabase Auth): a staff invitation link opens
         // login?invite=<token> with an invite / magic-link fragment. Keep those two tokens in
         // memory only, ONLY on the login page with an invite token, and hand them to
@@ -1904,6 +1924,7 @@ window.HelmUrl = HelmUrl;
     // Phase 58 — self-serve sign-up (studio created via create_studio once a session exists)
     async signUp(email, password, opts) {
       if (!supa) throw new Error("Supabase not configured");
+      if (reservedEmailDomain(email)) throw reservedEmailError();   // r21 0248 (the server refuses it too)
       const bad = passwordProblem(password); if (bad) throw new Error(bad);
       const captchaToken = opts && opts.captchaToken;
       if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
@@ -1929,6 +1950,7 @@ window.HelmUrl = HelmUrl;
           const c = String(error.code || ""), m = String(error.message || ""), st = Number(error.status) || 0;
           if (st === 429 || /rate limit|too many/i.test(m)) { const e = new Error("Too many requests — please wait a few minutes and try again."); e.code = "rate_limited"; throw e; }
           if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
+          if (isReservedRefusal(error)) throw reservedEmailError();
           // "already registered" must look exactly like a fresh sign-up awaiting confirmation
           if (/user_already_exists|email_exists|already registered|already exists/i.test(c + " " + m)) return { user: null, session: null, generic: GENERIC_SENT };
           throw error;
@@ -1978,8 +2000,9 @@ window.HelmUrl = HelmUrl;
       const em = String(newEmail == null ? "" : newEmail).trim().toLowerCase();
       if (!/^[^\s@<>()\[\],;:"]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(em) || em.length > 254) { const e = new Error("Enter a valid e-mail address."); e.code = "email_invalid"; throw e; }
       if (em === String(currentUser.email || "").toLowerCase()) { const e = new Error("That's already your e-mail address."); e.code = "email_same"; throw e; }
+      if (reservedEmailDomain(em)) throw reservedEmailError();
       const { error } = await supa.auth.updateUser({ email: em }, { emailRedirectTo: location.origin + "/login.html" });
-      if (error) throw error;
+      if (error) throw (isReservedRefusal(error) ? reservedEmailError() : error);
       return { pending: em };
     },
     // Option A: does the signed-in user still hold a temp password they must replace?
@@ -2352,6 +2375,7 @@ window.HelmUrl = HelmUrl;
       // first login. Returns { user_id, temp_password } — show temp_password ONCE.
       async createUserTemp(email, role) {
         if (!supa) throw new Error("Supabase not configured");
+        if (reservedEmailDomain(email)) throw reservedEmailError();
         const { data, error } = await supa.rpc("admin_create_user_temp",
           { p_email: email, p_role: role });
         if (error) throw error; return data;   // { user_id, temp_password }
@@ -4979,7 +5003,8 @@ window.HelmUrl = HelmUrl;
   // Onboarding split: create a NEW company = org.createStudio; JOIN an existing
   // one = accept an admin's invite token. Tenant is resolved server-side by RLS.
   const invitations = {
-    create: (email, role) => rpc("create_invitation", { p_email: email, p_role: role }),   // admin only (server-checked)
+    create: (email, role) => (reservedEmailDomain(email) ? Promise.reject(reservedEmailError())   // r21 0248 (server-checked too)
+      : rpc("create_invitation", { p_email: email, p_role: role })),   // admin only (server-checked)
     async list() { if (!supa) return [];                                                     // RLS returns only this org's invites
       const { data, error } = await supa.from("invitations").select("*").order("created_at", { ascending: false });
       if (error) throw error; return data || []; },
@@ -5046,6 +5071,7 @@ window.HelmUrl = HelmUrl;
       throw fail("We couldn't send a new link from here — ask your studio admin to re-send the invitation.", "unavailable");
     },
     async signupDirect(token, email, password, fullName) {
+      if (reservedEmailDomain(email)) throw reservedEmailError();
       if (!supa || !fnUrl("invite-signup")) return { fallback: true };
       let res;
       try {
@@ -9339,6 +9365,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
+    reservedEmailDomain, RESERVED_EMAIL_MESSAGE,
     activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
@@ -10287,6 +10314,9 @@ window.HelmUrl = HelmUrl;
     // B15: a phone refused by phoneOrThrow (staff / nurture / leads: per-country length, India = 10 digits) - the
     // message says what to type ("Enter a 10-digit number for India."), never the generic "Something went wrong"
     if (e && e.code === "invalid_phone" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
+    // r21 0248: an address on Helm's own domains (helm.events, ...) - client check or the server's refusal
+    if (e && (e.code === "reserved_domain" || /reserved for the helm team/i.test(errMsg(e) || "")))
+      return (global.BPStore && global.BPStore.RESERVED_EMAIL_MESSAGE) || "Addresses on helm.events are reserved for the Helm team. Please use your own e-mail address.";
     if (e && e.hint === "seat_limit") return pre + "Your free trial includes you + 2 people, and both seats are in use. Revoke an invitation or remove someone to add another person — or upgrade for more seats.";
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
     // 0183 — the free trial ended unpaid: the whole studio is read-only for everyone until it is upgraded
