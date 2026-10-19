@@ -98,7 +98,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=36" id="shellProto"></script>
+<script src="/shell-proto.js?v=37" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -606,11 +606,12 @@
     groupMode=b.dataset.g; $("#groupToggle").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); renderDashboard();
   }));
   $("#remindDue") && $("#remindDue").addEventListener("click",()=>BPUI.guard($("#remindDue"),async()=>{
-    try{ const n=await BPStore.ops.runReminders(quoteId); BPUI.toast(n?("Sent "+n+" reminder"+(n===1?"":"s")+"."):"No special tasks are due for a reminder.",{type:n?"ok":"info"}); await refreshDashboard(); }
+    // r21 email audit: run_task_reminders only LOGS the reminder on the event (SMS to staff is not switched on) - say so
+    try{ const n=await BPStore.ops.runReminders(quoteId); BPUI.toast(n?("Logged "+n+" reminder"+(n===1?"":"s")+" on the event. Text messages to staff aren't switched on yet, so remind them in chat or by phone."):"No special tasks are due for a reminder.",{type:n?"ok":"info"}); await refreshDashboard(); }
     catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"send reminders"}),{type:"err"}); }
   }));
   $("#fireDue") && $("#fireDue").addEventListener("click",()=>BPUI.guard($("#fireDue"),async()=>{
-    try{ const n=await BPStore.ops.runTriggers(quoteId); BPUI.toast(n?("Fired "+n+" due task"+(n===1?"":"s")+" — assignees notified."):"No tasks due right now.",{type:n?"ok":"info"}); await refreshDashboard(); }
+    try{ const n=await BPStore.ops.runTriggers(quoteId); BPUI.toast(n?("Marked "+n+" task"+(n===1?"":"s")+" as due and logged it on the event. Text messages to staff aren't switched on yet, so tell the assignees in chat or by phone."):"No tasks due right now.",{type:n?"ok":"info"}); await refreshDashboard(); }
     catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"fire due tasks"}),{type:"err"}); }
   }));
 

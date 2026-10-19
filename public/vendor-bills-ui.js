@@ -244,12 +244,24 @@
   }
 
   // ---------------- Business: payables, net profit by month, top events ----------------
+  /* r21 business ui: laid out like the rest of the Business page - a section header, a row of 4 tiles,
+     then two cards with proper tables (header row, right-aligned money, hairlines). Same data, same masking. */
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function bzIcon(d) { var s = document.createElementNS(SVGNS, "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", "bz-ic"); s.setAttribute("aria-hidden", "true");
+    d.split("|").forEach(function (x) { var p = document.createElementNS(SVGNS, "path"); p.setAttribute("d", x); s.appendChild(p); }); return s; }
+  var BZ_IC = { month: "M4 6h16v14H4z|M4 10h16|M8 3v4|M16 3v4", top: "M4 20V10|M10 20V4|M16 20v-7|M22 20H2", check: "M5 12l5 5 9-10" };
+  function bzCard(title, ic, id) {
+    var c = el("section", "bz-card"); c.setAttribute("aria-label", title); if (id) c.id = id;
+    var hd = el("div", "bz-head"); hd.appendChild(bzIcon(ic)); hd.appendChild(el("h3", null, title)); c.appendChild(hd); return c;
+  }
+  function bzEmpty(box, text) { var e = el("div", "bz-empty"); e.appendChild(bzIcon(BZ_IC.check)); e.appendChild(el("span", null, text)); box.appendChild(e); }
   async function mountBusiness(box) {
     var B = S(), fmt = function (n) { try { return B.studioMoney(n); } catch (e) { return String(Math.round(n)); } };
-    clear(box); box.hidden = false; box.classList.add("vb-biz");
-    var h = el("section", "bz-card vb-card"); box.appendChild(h);
-    h.appendChild(el("h2", null, "Vendor payables & net profit"));
-    h.appendChild(el("p", "vb-muted", "What you owe vendors, and profit after vendors, logistics and staff expenses (confirmed events: the last 12 months and the next 12)."));
+    clear(box); box.hidden = false; box.classList.add("vb-biz", "bz", "bz-profit");
+    var h = el("section", "bz-sec"); h.setAttribute("aria-labelledby", "bzProfitT"); box.appendChild(h);
+    var sh = el("div", "bz-sec-head"), st = el("h2", "bz-sec-t", "Vendor payables & net profit"); st.id = "bzProfitT"; sh.appendChild(st);
+    sh.appendChild(el("p", "bz-sec-sub", "What you owe vendors, and profit after vendors, logistics and staff expenses (confirmed events: the last 12 months and the next 12)."));
+    h.appendChild(sh);
     var pay, biz;
     try { pay = await B.vendorBills.payables(); } catch (e) { pay = null; }
     // upcoming confirmed events count too (most studios book months ahead); the server allows up to 3 years
@@ -257,42 +269,59 @@
       biz = await B.vendorBills.business(ymd(from), ymd(to)); } catch (e) { biz = null; }
     if (!pay && !biz) { missingNote(h, "Payables and net profit"); return; }
     if (pay) {
-      var tiles = el("div", "vb-sum");
-      [["Owed to vendors", pay.outstanding, pay.outstanding > 0 ? "due" : ""], ["Overdue", pay.overdue, pay.overdue > 0 ? "over" : ""],
-       ["Due in 7 days", pay.due_7d, ""], ["Paid to vendors", pay.paid, "ok"]].forEach(function (x) {
-        var c = el("div", "vb-chip " + x[2]); c.appendChild(el("span", null, x[0])); c.appendChild(money(el("b", null, fmt(Number(x[1] || 0))))); tiles.appendChild(c);
+      var tiles = el("div", "bz-kpis bz-kpis-sm"); tiles.setAttribute("aria-label", "Vendor payables");
+      [["Owed to vendors", pay.outstanding, pay.outstanding > 0 ? "wait" : "", "Bills not yet paid"], ["Overdue", pay.overdue, pay.overdue > 0 ? "bad" : "", "Past the bill due date"],
+       ["Due in 7 days", pay.due_7d, "", "Bills due this week"], ["Paid to vendors", pay.paid, "ok", "Payouts recorded"]].forEach(function (x) {
+        var c = el("div", "bz-kpi bz-kpi-sm"), tp = el("div", "bz-kpi-top"); tp.appendChild(el("span", "bz-kpi-l", x[0])); c.appendChild(tp);
+        c.appendChild(money(el("b", "bz-kpi-v" + (x[2] ? " bz-t-" + x[2] : ""), fmt(Number(x[1] || 0))))); c.appendChild(el("span", "bz-kpi-sub", x[3])); tiles.appendChild(c);
       });
       h.appendChild(tiles);
-      if (Array.isArray(pay.currencies) && pay.currencies.length > 1) h.appendChild(el("p", "vb-muted", "Bills are in more than one currency (" + pay.currencies.join(", ") + "); these totals add them together."));
+      if (Array.isArray(pay.currencies) && pay.currencies.length > 1) h.appendChild(el("p", "vb-muted bz-caption", "Bills are in more than one currency (" + pay.currencies.join(", ") + "); these totals add them together."));
     }
     var evs = biz && Array.isArray(biz.events) ? biz.events : [];
-    if (!evs.length) { h.appendChild(el("p", "vb-muted", "No confirmed events in the last 12 months or the next 12 yet.")); return; }
+    if (!evs.length) { var ec = el("div", "bz-card"); bzEmpty(ec, "No confirmed events in the last 12 months or the next 12 yet."); h.appendChild(ec); return; }
     // QA1017: never add amounts in different currencies - totals use the studio currency only, others are listed apart
     var sCur = "INR"; try { sCur = String(B.studioCurrency() || "INR").toUpperCase(); } catch (e) {}
     var other = evs.filter(function (e) { return e.currency && String(e.currency).toUpperCase() !== sCur; });
     evs = evs.filter(function (e) { return !e.currency || String(e.currency).toUpperCase() === sCur; });
-    if (other.length) h.appendChild(el("p", "vb-muted", other.length + " event" + (other.length > 1 ? "s" : "") + " priced in another currency (" + other.map(function (e) { return String(e.currency).toUpperCase(); }).filter(function (c, i, a) { return a.indexOf(c) === i; }).join(", ") + ") not included in the " + sCur + " totals below."));
+    if (other.length) h.appendChild(el("p", "vb-muted bz-caption", other.length + " event" + (other.length > 1 ? "s" : "") + " priced in another currency (" + other.map(function (e) { return String(e.currency).toUpperCase(); }).filter(function (c, i, a) { return a.indexOf(c) === i; }).join(", ") + ") not included in the " + sCur + " totals below."));
     if (!evs.length) return;
     var byMonth = {};
     evs.forEach(function (e) { var m = String(e.date || "").slice(0, 7); if (!m) return; byMonth[m] = byMonth[m] || { rev: 0, net: 0, n: 0 }; byMonth[m].rev += Number(e.revenue || 0); byMonth[m].net += Number(e.net_profit || 0); byMonth[m].n++; });
-    function table(head, rows) {
-      var w = el("div", "table-scroll"), t = el("table", "vb-table"), th = el("thead"), tr = el("tr");
-      head.forEach(function (x, i) { var c = el("th", i > 0 ? "num" : null, x); c.scope = "col"; tr.appendChild(c); }); th.appendChild(tr); t.appendChild(th);
-      var b = el("tbody"); rows.forEach(function (r) { var row = el("tr"); r.forEach(function (v, i) { var c = el("td", i > 0 ? "num" : null); if (v && v.nodeType) c.appendChild(v); else if (i > 1 && typeof v === "string") c.appendChild(money(el("span", null, v))); else c.textContent = v; row.appendChild(c); }); b.appendChild(row); });
+    /* cols: [label, kind] - kind "txt" | "num" (plain number) | "money" (masked span). Cells: string or a node. */
+    function table(cols, rows, caption) {
+      var w = el("div", "bz-tbl-wrap"), t = el("table", "vb-table bz-tbl"), th = el("thead"), tr = el("tr");
+      t.setAttribute("data-tm", "off");   // its own phone layout (cards) below, not tables-mobile.js
+      if (caption) { var cp = el("caption", "bz-sr", caption); t.appendChild(cp); }
+      cols.forEach(function (x) { var c = el("th", x[1] !== "txt" ? "num" : null, x[0]); c.scope = "col"; tr.appendChild(c); }); th.appendChild(tr); t.appendChild(th);
+      var b = el("tbody"); rows.forEach(function (r) { var row = el("tr"); if (r.cls) row.className = r.cls;
+        r.cells.forEach(function (v, i) { var k = cols[i][1], c = el("td", k !== "txt" ? "num" : "bz-tc-main"); c.setAttribute("data-label", cols[i][0]);
+          if (v && v.nodeType) c.appendChild(v);
+          else if (k === "money") { var sp = money(el("span", "bz-m", v)); if (r.neg && r.neg[i]) sp.classList.add("bz-t-bad"); c.appendChild(sp); }
+          else c.textContent = v;
+          row.appendChild(c); }); b.appendChild(row); });
       t.appendChild(b); w.appendChild(t); return w;
     }
-    h.appendChild(el("h3", null, "Net profit by month"));
+    function pill(text, cls) { return el("span", "bz-pill " + cls, text); }
+    var grid = el("div", "bz-grid bz-grid-even"); h.appendChild(grid);
+    var cM = bzCard("Net profit by month", BZ_IC.month, "bz-profit-month"), cT = bzCard("Top events by profit", BZ_IC.top, "bz-profit-top");
+    grid.appendChild(cM); grid.appendChild(cT);
     var months = Object.keys(byMonth).sort().reverse(), thisMonth = today().slice(0, 7);
-    h.appendChild(table(["Month", "Events", "Revenue", "Net profit"], months.map(function (m) {
-      var x = byMonth[m], d = new Date(m + "-01T00:00:00");
-      return [d.toLocaleDateString(undefined, { month: "short", year: "numeric" }) + (m > thisMonth ? " (upcoming)" : ""), String(x.n), fmt(x.rev), fmt(x.net)];
-    })));
-    h.appendChild(el("h3", null, "Top events by profit"));
+    cM.appendChild(table([["Month", "txt"], ["Events", "num"], ["Revenue", "money"], ["Net profit", "money"]], months.map(function (m) {
+      var x = byMonth[m], d = new Date(m + "-01T00:00:00"), lab = el("span", "bz-cell-row");
+      lab.appendChild(el("span", null, d.toLocaleDateString(undefined, { month: "short", year: "numeric" })));
+      if (m > thisMonth) lab.appendChild(pill("Upcoming", "bz-pill-up")); else if (m === thisMonth) lab.appendChild(pill("This month", "bz-pill-now"));
+      return { cls: m > thisMonth ? "bz-tr-up" : "", neg: [0, 0, 0, x.net < 0], cells: [lab, String(x.n), fmt(x.rev), fmt(x.net)] };
+    }), "Net profit by month"));
     var top = evs.slice().sort(function (a, b) { return Number(b.net_profit || 0) - Number(a.net_profit || 0); }).slice(0, 10);
-    h.appendChild(table(["Event", "Margin", "Revenue", "Net profit"], top.map(function (e) {
-      var a = el("a", null, (e.code ? e.code + " · " : "") + (e.title || "Event")); a.href = "closure.html?quote=" + encodeURIComponent(e.quote_id);
-      return [a, e.margin_pct != null ? e.margin_pct + "%" : "—", fmt(e.revenue), fmt(e.net_profit)];
-    })));
+    cT.appendChild(table([["Event", "txt"], ["Margin", "num"], ["Revenue", "money"], ["Net profit", "money"]], top.map(function (e) {
+      var a = el("a", "bz-ev-link"); a.href = "closure.html?quote=" + encodeURIComponent(e.quote_id);
+      if (e.code) a.appendChild(el("span", "bz-code", e.code));
+      /* a free-trial sample title ("Demo · X") shows as "X" + a Sample pill, like the rest of the page (display only) */
+      var tt = String(e.title || "Event"), smp = /^\s*(?:demo|sample)(?:\s*[\u00b7\u2022:]|\s+[\-\u2013\u2014])\s*/i, t2 = tt.replace(smp, "");
+      a.appendChild(el("span", "bz-ev-t", t2 || tt)); if (t2 && t2 !== tt) a.appendChild(pill("Sample", "bz-pill-smp"));
+      return { neg: [0, 0, 0, Number(e.net_profit || 0) < 0], cells: [a, e.margin_pct != null ? e.margin_pct + "%" : "—", fmt(e.revenue), fmt(e.net_profit)] };
+    }), "Top events by profit"));
   }
 
   // ---------------- self-mount once the page shows its app ----------------

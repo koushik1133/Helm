@@ -94,7 +94,7 @@
 <link rel="stylesheet" href="staff-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=36" id="shellProto"></script>
+<script src="/shell-proto.js?v=37" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -236,12 +236,14 @@
   let ivCurrent=null;   // { id, email } of the invite shown in the modal
   function inviteMailText(r,email){
     const st=r&&r.status;
-    if(st==="ok"&&r.sent>0) return `Invitation email sent to ${email}.`;
-    if(st==="ok"&&!(r.skipped>0)&&!(r.failed>0)) return `Invitation email queued for ${email} — it goes out within a few minutes.`;
-    if(st==="ok"&&r.failed>0) return `The email to ${email} didn't go through yet — Helm will retry automatically.`;
+    // r21 email audit: only "sent" says sent; every other answer says plainly that nothing has gone out yet
+    if(st==="ok"&&r.sent>0&&!(r.failed>0)) return `Invitation email sent to ${email}.`;
+    if(st==="ok"&&r.failed>0) return `The email to ${email} couldn't be sent — the mail service refused it (check the email setup). Copy the link below and send it yourself, or try Resend email later.`;
+    if(st==="ok"&&r.skipped>0) return `The email to ${email} wasn't sent (the address or the link was not usable). Copy the link below and send it yourself.`;
+    if(st==="ok") return `Invitation email queued for ${email} but not sent yet. If it hasn't arrived in 10 minutes, use Resend email or copy the link below.`;
     if(st==="dormant") return `Invitation emails are switched off — copy the link below and send it to ${email} yourself.`;
-    if(st==="unavailable") return `The invite is saved and queued, but Helm couldn't reach the email service just now — copy the link below and send it to ${email} yourself, or use Resend email later.`;
-    return `Invitation email is on its way to ${email}.`;
+    if(st==="unavailable") return `The invite is saved, but Helm couldn't reach the email service just now — nothing was emailed. Copy the link below and send it to ${email} yourself, or use Resend email later.`;
+    return `The invite is saved, but we couldn't confirm the email to ${email} — copy the link below and send it yourself.`;
   }
   // keep the static footer consistent with the status line (it promises an automatic e-mail)
   function setInviteMail(r,email){
