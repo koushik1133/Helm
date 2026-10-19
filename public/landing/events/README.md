@@ -2,11 +2,7 @@
 
 The "Event ideas" section ("Plan events like these.") on the home page (`/`, section `#events`) is a
 full-width film strip (a dark tape with sprocket holes) that slowly scrolls on its own, built
-from `events.json` in this folder. Right under it, the "Moments" section ("Scroll through the moments.",
-section `#moments`) shows the same photos on a 3D cylinder: tall frames (photos are centre-cropped),
-the front one large with a green glow, the rest turned and darker. It moves by swipe / drag,
-sideways trackpad scroll, the arrow keys or its buttons, and turns slowly by itself while nobody
-is using it. Both sections come from the same list, so one new entry shows up in both. While the list is empty (`[]`) the whole section stays
+from `events.json` in this folder. While the list is empty (`[]`) the whole section stays
 hidden, so nothing half-finished ever shows on the live site.
 
 ## Add photos

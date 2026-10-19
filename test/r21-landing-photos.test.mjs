@@ -33,13 +33,13 @@ t('events.json lists all 8 with alt text, caption, type tag, local src + small c
 });
 
 t('gallery does not claim real client work: "Event ideas" heading', () => {
-  assert.match(html, /<p class="eyebrow rv">Event ideas<\/p><h2 id="ev-h" class="h2 rv">Plan events <em>like these\.<\/em><\/h2>/);
-  assert.match(html, /<p class="lead rv">Weddings, launches and celebrations you can plan, quote and run in Helm\.<\/p>/);
+  assert.match(html, /<p class="eyebrow">Event ideas<\/p><h2 id="ev-h" class="h2">Plan events <em>like these\.<\/em><\/h2>/);
+  assert.match(html, /<p class="lead">Weddings, launches and celebrations you can plan, quote and run in Helm\.<\/p>/);
   assert.doesNotMatch(html, /Illustrative images/);
   assert.doesNotMatch(html, /Events made <em>with Helm|Real events/);
   assert.match(js, /img\.srcset = it\.small \+ ' 800w, ' \+ it\.src \+ ' 1600w'/);
   assert.match(js, /bimg\.src = lite \? \(it\.small \|\| it\.src\) : \(\/\\\.avif\$\/i\.test\(shown\) \? shown : it\.src\)/);   // lightbox: full size, 800px only on Save-Data
-  const evHtml = html.slice(html.indexOf('<!-- EVENTS FILM STRIP'), html.indexOf('<!-- VOICES'));   // film strip + moments
+  const evHtml = html.slice(html.indexOf('<!-- EVENTS FILM STRIP'), html.indexOf('<!-- VOICES'));
   const evJs = js.slice(js.indexOf('"Event ideas" film strip'));
   for (const [name, txt] of [['html', evHtml], ['js', evJs], ['README', read('public/landing/events/README.md')]]) assert.doesNotMatch(txt, /illustrat|\bAI\b/i, name);
 });
@@ -77,41 +77,6 @@ t('celebration slider: photo per slide, 800w/1600w srcset, lazy + current/next o
   for (const ev of ['wedding', 'corporate', 'birthday', 'concert', 'gala', 'cultural']) assert.ok(html.includes(`data-ev="${ev}"`), ev);
   assert.match(css, /\.cel\.has-photos \.cel-scrim\{/);
   assert.match(css, /\.cel-bg\{[^}]*transition:opacity 1\.4s/);   // crossfade
-});
-
-t('moments: 3D photo cylinder under the film strip, same events.json, no page scroll-jacking', () => {
-  const evAt = html.indexOf('id="events"'), moAt = html.indexOf('id="moments"');
-  assert.ok(evAt > 0 && moAt > evAt && moAt < html.indexOf('<!-- VOICES'), 'moments sits right under the film strip');
-  assert.match(html, /<section class="sec moments" id="moments" aria-labelledby="mo-h" hidden>/);
-  assert.match(html, /<p class="eyebrow light rv">Moments<\/p><h2 id="mo-h" class="h2 rv">Scroll through <em>the moments\.<\/em><\/h2>/);
-  assert.match(html, /<div class="cyl" id="moCyl" role="region" aria-roledescription="carousel" aria-label="Event moments"><div class="cyl-stage" id="moStage"><\/div><\/div>/);
-  assert.match(html, /<span class="cyl-count" id="moCount" aria-live="polite" aria-atomic="true">01\/08<\/span>/);
-  assert.match(html, /class="cyl-btn cyl-prev" type="button" aria-label="Previous photo"/);
-  assert.match(html, /class="cyl-btn cyl-next" type="button" aria-label="Next photo"/);
-  const cy = js.slice(js.indexOf('function cylinder(items)'), js.indexOf('var open = function () {};'));
-  assert.ok(cy.length > 2000);
-  assert.match(js, /lightbox\(items\);\n    if \(!reduce\) motion\(\);\n    cylinder\(items\);/);   // one fetch feeds both sections
-  assert.match(cy, /-Math\.pow\(a, 1\.35\) \* depth/);   // curved depth
-  assert.match(cy, /Math\.max\(-42, Math\.min\(42, -o \* 16\)\)/);   // rotateY clamp
-  assert.match(cy, /pos \+= \(target - pos\) \* \(1 - Math\.exp\(-dt \*/);   // eased, frame-rate independent
-  assert.match(cy, /if \(Math\.abs\(e\.deltaX\) <= Math\.abs\(e\.deltaY\) \|\| n < 2\) return;/);   // vertical wheel never hijacked
-  assert.match(cy, /\{ passive: false \}/);
-  assert.match(cy, /if \(reduce \|\| n < 2\) return;/);   // no autoplay on reduced motion
-  assert.match(cy, /visible && !hover && !focus && !drag && !document\.hidden/);
-  assert.match(cy, /if \(lite\) img\.src = it\.small \|\| it\.src;/);
-  assert.match(cy, /img\.loading = 'lazy'/);
-  assert.match(cy, /open\(i, b\)/);
-  assert.doesNotMatch(cy, /innerHTML|insertAdjacentHTML|\.top\s*=|scrollTo\(/);
-  assert.doesNotMatch(js, /lenis|gsap|ScrollTrigger/i);   // no libraries
-  assert.match(css, /\.moments\{[^}]*overflow:hidden;overflow:clip/);
-  assert.match(css, /\.cyl-stage\{[^}]*perspective:1300px;touch-action:pan-y/);
-  assert.match(css, /\.cyl-card img\{object-fit:cover;object-position:center/);
-  assert.match(css, /\.cyl-card\.on::before\{opacity:1\}/);   // green glow on the front photo
-  assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{\.cyl-card::before,\.cyl-bar i\{transition:none\}\}/);
-});
-
-t('film strip: page scroll nudges the film (motion only, not reduced)', () => {
-  assert.match(js, /boost = Math\.min\(Math\.abs\(sy - lastY\), 120\) \* 0\.35/);
 });
 
 console.log(`r21-landing-photos: ${n} passed`);
