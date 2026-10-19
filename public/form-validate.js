@@ -19,8 +19,11 @@
 (function (global) {
   "use strict";
 
+  // r21 CodeQL: strip tags until nothing changes ("<scr<script>ipt>" can't re-form a tag), then drop stray < >
   function stripHtml(v) {
-    return String(v == null ? "" : v).replace(/<[^>]*>/g, "").replace(/[<>]/g, "");
+    var s = String(v == null ? "" : v), prev;
+    do { prev = s; s = s.replace(/<[^>]*>/g, ""); } while (s !== prev);
+    return s.replace(/[<>]/g, "");
   }
   function clean(v) { return stripHtml(v).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim(); }
 

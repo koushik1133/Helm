@@ -104,7 +104,7 @@ t('CAPTCHA OFF (empty siteKey, the default): sign-in sends exactly email+passwor
 });
 t('committed config.js ships CAPTCHA off (empty siteKey) and the documented defaults', () => {
   const cfg = read('public/config.js');
-  assert.match(cfg, /captcha:\s*\{\s*provider:\s*"turnstile",\s*siteKey:\s*""\s*\}/);
+  assert.match(cfg, /captcha:\s*\{\s*provider:\s*"turnstile",\s*siteKey:\s*""\s*(,\s*login:\s*\{[^}]*\}\s*)?\}/);
   assert.match(cfg, /mfaRequiredForAdmins:\s*false/);
   assert.match(cfg, /session:\s*\{\s*idleMinutes:\s*0,\s*warnSeconds:\s*120,\s*maxHours:\s*0\s*\}/, 'no app-side session limit (owner decision 2026-10-16; 0 = off)');
   assert.match(cfg, /mfaRequiredForAdmins:\s*false/, 'two-step stays optional (owner decision) — documented switch');

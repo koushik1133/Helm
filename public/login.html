@@ -371,11 +371,11 @@
     </form>
   </main>
 
-<script src="telemetry.js?v=4"></script>
-<script src="config.js?v=105"></script>
+<script src="telemetry.js?v=5"></script>
+<script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=264"></script>
-<script src="auth-ui.js?v=47"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=265"></script>
+<script src="auth-ui.js?v=48"></script>
 <script src="/auth-visual.js?v=1"></script>
 <script src="/trial-facts.js?v=6"></script>
 <script src="/trial-signup.js?v=12"></script>
@@ -614,7 +614,11 @@
   }
   $("#forgotBtn").addEventListener("click", openForgot);
   // the widget is mounted only while its form is visible (Turnstile can't size a hidden box)
-  function ensureCap(){ if(!cap && window.HelmAuthUI) cap=HelmAuthUI.mountCaptcha($("#captcha"),{action:"login"}); }
+  // r21: invisible unless Cloudflare wants a click; a visible check after N wrong passwords in this tab (config captcha.login)
+  const capLogin=()=>{ try{ return BPStore.auth.captcha.login(); }catch(e){ return { appearance:"interaction-only", alwaysAfterFailures:3 }; } };
+  function ensureCap(){ if(!cap && window.HelmAuthUI){ cap=HelmAuthUI.mountCaptcha($("#captcha"),{action:"login", appearance:capLogin().appearance}); if(cap && loginFails()>=capLogin().alwaysAfterFailures) cap.escalate(); } }
+  function loginFails(){ try{ return Number(sessionStorage.getItem("bp_login_fails"))||0; }catch(e){ return 0; } }
+  function noteLoginFail(){ let n=loginFails()+1; try{ sessionStorage.setItem("bp_login_fails", String(n)); }catch(e){} if(cap && n>=capLogin().alwaysAfterFailures) cap.escalate(); }
   $("#fg_back").addEventListener("click", ()=>{ showView("#loginForm"); ensureCap(); setTimeout(()=>$("#email").focus(),60); });
   $("#forgotForm").addEventListener("submit",(e)=>{
     e.preventDefault();
@@ -1256,7 +1260,7 @@
         showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create the studio":"sign you in"}));
         // r20-coord #33: a wrong password may be an account that signs in with Google - a generic hint, shown for every
         // invalid sign-in (it says nothing about whether this e-mail has an account: no enumeration)
-        if(mode==="signin" && err && err.code==="invalid_credentials"){ const g=$("#googleBtn"), gh=$("#gHint"); if(gh && g && !g.hidden) gh.hidden=false; }
+        if(mode==="signin" && err && err.code==="invalid_credentials"){ noteLoginFail(); const g=$("#googleBtn"), gh=$("#gHint"); if(gh && g && !g.hidden) gh.hidden=false; }
       }finally{ if(!keepCap) capReset(cap); btn.textContent=submitLabel(); }
     });
   });

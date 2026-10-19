@@ -176,7 +176,7 @@ t('33 revoked session: refresh refusal codes -> &expired=1&reason=revoked; login
 t('33 login: a failed password sign-in shows the generic Google hint', () => {
   const L = read('public/login.html');
   assert.match(L, /<div class="info" id="gHint" role="note" hidden>If you signed up with Google, use Continue with Google\.<\/div>/);
-  assert.match(L, /if\(mode==="signin" && err && err\.code==="invalid_credentials"\)\{ const g=\$\("#googleBtn"\), gh=\$\("#gHint"\); if\(gh && g && !g\.hidden\) gh\.hidden=false; \}/);
+  assert.match(L, /if\(mode==="signin" && err && err\.code==="invalid_credentials"\)\{ (noteLoginFail\(\); )?const g=\$\("#googleBtn"\), gh=\$\("#gHint"\); if\(gh && g && !g\.hidden\) gh\.hidden=false; \}/);
   assert.equal((L.match(/\$\("#err"\)\.hidden=true; \$\("#okmsg"\)\.hidden=true; \$\("#gHint"\)\.hidden=true;/g) || []).length, 3);
 });
 

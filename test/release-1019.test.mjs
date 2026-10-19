@@ -13,7 +13,7 @@ const tests = []; const t = (n, f) => tests.push([n, f]);
 
 const SHIPPED_1018_C = ['0206', '0207', '0208', '0236', '0237'];
 const REL = ['0210', '0211', '0212', '0213', '0220', '0222', '0223'];
-const AFTER_1019 = ['0238', '0239', '0240', '0241', '0242', '0244', '0246', '0248', '0250'];   // r21 security notices: APPLY-0250.sql; r20: 0238 ships in release 1020 (supabase/APPLY-RELEASE-1020.sql); 0239 (Business area) its own APPLY-0239.sql; r21: 0240 (Insights event costs) its own APPLY-0240.sql; r21 reserved domain: APPLY-0248.sql; 0244 (r21 trial -> paid) its own APPLY-0244.sql; r21 0242 (studio target margin): APPLY-0242.sql; r21: 0240 (Insights event costs) APPLY-0240.sql; r21 reminders: APPLY-0241.sql; r21: 0246 (event money ledger) its own APPLY-0246.sql
+const AFTER_1019 = ['0238', '0239', '0240', '0241', '0242', '0244', '0246', '0248', '0249', '0250'];   // r21 security notices: APPLY-0250.sql; r20: 0238 ships in release 1020 (supabase/APPLY-RELEASE-1020.sql); 0239 (Business area) its own APPLY-0239.sql; r21: 0240 (Insights event costs) its own APPLY-0240.sql; r21 reserved domain: APPLY-0248.sql; 0244 (r21 trial -> paid) its own APPLY-0244.sql; r21 0242 (studio target margin): APPLY-0242.sql; r21: 0240 (Insights event costs) APPLY-0240.sql; r21 reminders: APPLY-0241.sql; r21: 0246 (event money ledger) its own APPLY-0246.sql; r21 0249 (security readiness) APPLY-0249.sql
 const man = read('supabase/migrations/MANIFEST');
 const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
 const after = nums.filter((n) => +n > 205);

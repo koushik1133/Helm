@@ -270,7 +270,10 @@ export function makeReporter(suiteName) {
   };
 }
 
-// Random suffix for idempotency keys / unique values in tests.
+// Random suffix for idempotency keys / unique values in tests. r21 (CodeQL js/insecure-randomness): it also
+// becomes throw-away passwords of red-team accounts, so it comes from the CSPRNG (crypto.getRandomValues).
 export function rand(n = 8) {
-  return Math.random().toString(36).slice(2, 2 + n) + Date.now().toString(36).slice(-4);
+  const A = '0123456789abcdefghijklmnopqrstuvwxyz', b = new Uint8Array(n);
+  globalThis.crypto.getRandomValues(b);
+  return Array.from(b, (x) => A[x % 36]).join('') + Date.now().toString(36).slice(-4);
 }

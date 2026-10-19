@@ -13,7 +13,7 @@ const tests = []; const t = (n, f) => tests.push([n, f]);
 
 const SHIPPED = ['0206', '0207', '0208', '0236', '0237', '0210', '0211', '0212', '0213', '0220', '0222', '0223'];
 const REL = ['0238'];
-const AFTER_1020 = ['0239', '0240', '0241', '0242', '0244', '0246', '0248', '0250'];   // r21 security notices: APPLY-0250.sql (own paste file); r20 business (admin-only Business page): its own paste file APPLY-0239.sql, not in the frozen 1020 bundle; r21 0240 (Insights event costs): APPLY-0240.sql; r21 0248 (reserved e-mail domains): APPLY-0248.sql (own paste file); r21 0242 (studio target margin): APPLY-0242.sql; r21 reminders: APPLY-0241.sql (own paste file); r21 0246 (event money ledger): APPLY-0246.sql
+const AFTER_1020 = ['0239', '0240', '0241', '0242', '0244', '0246', '0248', '0249', '0250'];   // r21 security notices: APPLY-0250.sql; r20 business (admin-only Business page): its own paste file APPLY-0239.sql, not in the frozen 1020 bundle; r21 0240 (Insights event costs): APPLY-0240.sql; r21 0248 (reserved e-mail domains): APPLY-0248.sql (own paste file); r21 0242 (studio target margin): APPLY-0242.sql; r21 reminders: APPLY-0241.sql (own paste file); r21 0246 (event money ledger): APPLY-0246.sql; r21 0249 (security readiness): APPLY-0249.sql
 const man = read('supabase/migrations/MANIFEST');
 const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
 const after = nums.filter((n) => +n > 205);

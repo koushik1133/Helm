@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- DRAFT Template — have a qualified lawyer in each jurisdiction review before publishing. Replace every [OWNER TO FILL] / [BRACKETED] placeholder. Reviewed 2026-10-16. -->
+<!-- DRAFT Template — have a qualified lawyer in each jurisdiction review before publishing. Company facts (entity, address, contacts, GSTIN...) come from /legal-facts.js - fill them in there, never here. Reviewed 2026-10-16. -->
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
@@ -77,7 +77,7 @@
 </section>
 <section id="cancel" aria-labelledby="h-cancel">
 <h2 id="h-cancel">3. How to cancel</h2>
-<ol class="lg-steps"><li>Workspace owner signs in and opens <b>Settings &rarr; Billing</b>.</li><li>Choose <b>Cancel subscription</b>, or email <span class="lg-ph">[BILLING EMAIL]</span> from the owner's email address.</li><li>We confirm by email. Renewal stops and access continues until the end of the paid period.</li></ol>
+<ol class="lg-steps"><li>Workspace owner signs in and opens <b>Settings &rarr; Billing</b>.</li><li>Choose <b>Cancel subscription</b>, or email <span class="lg-ph" data-fact="billingEmail">To be updated</span> from the owner's email address.</li><li>We confirm by email. Renewal stops and access continues until the end of the paid period.</li></ol>
 </section>
 <section id="refunds" aria-labelledby="h-refunds">
 <h2 id="h-refunds">4. Refunds</h2>
@@ -85,11 +85,11 @@
 </section>
 <section id="how" aria-labelledby="h-how">
 <h2 id="h-how">5. How refunds are paid</h2>
-<p>Approved refunds are made to the original payment method in USD through <span class="lg-ph">[PAYMENT PROCESSOR, e.g. Stripe / Razorpay]</span>, usually within 5 to 10 business days after approval. Your bank may take longer, and exchange-rate differences or fees charged by your card issuer are outside our control. Taxes charged on a refunded amount are refunded too, and we issue a credit note where required.</p>
+<p>Approved refunds are made to the original payment method in USD through <span class="lg-ph" data-fact="paymentProcessor">To be updated</span>, usually within 5 to 10 business days after approval. Your bank may take longer, and exchange-rate differences or fees charged by your card issuer are outside our control. Taxes charged on a refunded amount are refunded too, and we issue a credit note where required.</p>
 </section>
 <section id="chargebacks" aria-labelledby="h-chargebacks">
 <h2 id="h-chargebacks">6. Disputes and chargebacks</h2>
-<p>Please contact <span class="lg-ph">[BILLING EMAIL]</span> before raising a chargeback so we can fix the issue quickly. Accounts with an open chargeback may be suspended until it is resolved.</p>
+<p>Please contact <span class="lg-ph" data-fact="billingEmail">To be updated</span> before raising a chargeback so we can fix the issue quickly. Accounts with an open chargeback may be suspended until it is resolved.</p>
 </section>
 <section id="data" aria-labelledby="h-data">
 <h2 id="h-data">7. Your data after cancellation</h2>
@@ -97,7 +97,7 @@
 </section>
 <section id="contact" aria-labelledby="h-contact">
 <h2 id="h-contact">8. Contact</h2>
-<p>Billing questions: <span class="lg-ph">[BILLING EMAIL]</span>. Postal: <span class="lg-ph">[LEGAL ENTITY NAME]</span>, <span class="lg-ph">[REGISTERED ADDRESS]</span>.</p>
+<p>Billing questions: <span class="lg-ph" data-fact="billingEmail">To be updated</span>. Postal: <span class="lg-ph" data-fact="legalEntityName">To be updated</span>, <span class="lg-ph" data-fact="registeredAddress">To be updated</span>.</p>
 </section>
       <nav class="lg-related" aria-label="Related policies"><a href="privacy">Privacy Policy<span>How we handle personal data</span></a><a href="terms">Terms of Service<span>The agreement for using Helm</span></a><a href="data-deletion">Data Deletion<span>Export or erase your data</span></a><a href="cookie-policy">Cookie Policy<span>Cookies and local storage</span></a><a href="dpa">Data Processing Addendum<span>For studios as controllers</span></a><a href="acceptable-use">Acceptable Use<span>Rules for using the platform</span></a><a href="subprocessors">Sub-processors<span>Who processes data for us</span></a><a href="security">Security &amp; Trust<span>How we protect your workspace</span></a><a href="sla">Service Level Agreement<span>Uptime, support and credits</span></a><a href="accessibility">Accessibility Statement<span>WCAG 2.2 AA commitment</span></a><a href="grievance">Grievance &amp; DPO Contact<span>Complaints and privacy officers</span></a><a href="ai-notice">AI &amp; Automation Notice<span>Where Helm uses AI</span></a><a href="copyright">Copyright &amp; Takedown<span>Report infringing content</span></a></nav>
       </article>
@@ -112,6 +112,7 @@
     <div><h4>Contact</h4><a href="mailto:sales@helm.events">sales@helm.events</a><a href="mailto:support@helm.events">support@helm.events</a></div>
   </div><div class="wrap copy"><span>&copy; <span id="yr"></span> Helm. Amateurs panic. Professionals go for Helm.</span><span class="big-word" aria-hidden="true">Helm</span></div></footer>
   <script src="/trusted-types.js?v=3"></script>
+  <script src="/legal-facts.js?v=1" defer></script>
   <script src="/legal.js?v=2" defer></script>
 </body>
 </html>

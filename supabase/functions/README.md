@@ -4,6 +4,29 @@ Until you do this, the app runs in **simulation mode** and is fully usable for t
 the OTP is shown on the client approval page, the payment link is a mock, and every
 SMS/email is recorded (not sent). Nothing here charges money or messages anyone.
 
+## 0. JWT setting per function (r21) - `supabase/config.toml`
+Every function's gateway JWT check (`verify_jwt`) is now declared in `supabase/config.toml`, and
+`supabase functions deploy <name>` reads it, so the `--no-verify-jwt` flags below are only reminders.
+The file lists each function with the reason it is `true` or `false`. A `false` function always
+authenticates the caller in code: user JWT via `getUser`, a cron secret, a provider HMAC, or a link
+token. `test/r21-security.test.mjs` fails if any function is missing from the file, or if a `false`
+function loses its check.
+Rate limits fail **closed** by default since r21 (`_shared/limits.ts`). Set
+`HELM_RATE_LIMIT_FAIL_CLOSED=false` only to go back to fail-open.
+
+New in r21 (both dormant or harmless until configured):
+- `captcha-verify` (verify_jwt false, user JWT checked in code): server-side Cloudflare Turnstile check
+  for checkout "Contact sales". Secret: `TURNSTILE_SECRET_KEY` (the same Turnstile secret pasted
+  into Supabase Attack Protection). Optional: `HELM_TURNSTILE_HOSTNAMES=www.helm.events,helm.events`.
+  With no secret it answers `{ ok: true, configured: false }`. Needs migration 0249.
+- `csp-report` (verify_jwt false, public): receives browser CSP violation reports (`report-uri` on
+  every production page), writes one redacted log line per report, stores nothing, and allows
+  30 reports per minute per IP. To switch it off: `HELM_CSP_REPORTS_ENABLED=false`.
+```bash
+supabase functions deploy captcha-verify --no-verify-jwt
+supabase functions deploy csp-report --no-verify-jwt
+```
+
 ## 1. Run the SQL
 Run `supabase/otp-payments.sql` in the SQL editor (after `setup-complete.sql`).
 

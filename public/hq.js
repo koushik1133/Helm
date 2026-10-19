@@ -706,10 +706,38 @@
       .then(function () { $("#stDomain").value = ""; $("#stDomNote").value = ""; okMsg("Domain reserved."); loadStaff().catch(showErr); }).catch(showErr);
   }
 
+  /* ---------------- r21 (0249): HQ two-step readiness ---------------- */
+  async function loadMfaReadiness() {
+    var M = window.HelmHqMfa; if (!M || !$("#mfaROps")) return;
+    var r = null, ops = null;
+    try { r = await call("hq_mfa_readiness"); }
+    catch (e) { try { ops = await call("hq_operators"); } catch (e2) { ops = []; } }   // database without 0249
+    var m = M.model(r, ops, undefined);
+    var st = clear($("#mfaRState")); st.appendChild(el("span", { cls: "pill " + m.state.tone, text: m.state.text }));
+    $("#mfaRHint").textContent = m.hint;
+    var ul = clear($("#mfaROps"));
+    m.lines.forEach(function (x) {
+      ul.appendChild(el("li", null, [el("span", { cls: "m", text: x.email + (x.me ? " (you)" : "") }), el("span", { cls: "pill " + x.tone, text: x.label })]));
+    });
+    if (!ul.firstChild) ul.appendChild(el("li", { cls: "empty", text: "No HQ operators." }));
+    var ad = $("#mfaRAdmins"); ad.textContent = m.admins || ""; ad.hidden = !m.admins;
+    var b = $("#btnMfaEnroll"); b.hidden = !m.showEnroll || !(window.HelmAuthUI && window.HelmAuthUI.renderEnroll);
+  }
+  function startMfaEnroll() {
+    var box = $("#mfaREnroll"), b = $("#btnMfaEnroll");
+    if (!window.HelmAuthUI || !window.HelmAuthUI.renderEnroll) { showErr(new Error("Two-step set-up couldn't load. Reload the page and try again.")); return; }
+    b.hidden = true; box.hidden = false;
+    window.HelmAuthUI.renderEnroll(box, function () {
+      okMsg("Two-step is on for your HQ account. Next time you sign in, Helm asks for the code from your app.");
+      setTimeout(function () { box.hidden = true; clear(box); loadMfaReadiness().catch(showErr); }, 1200);
+    });
+  }
+
   async function loadAll() {
     $("#err").hidden = true;
     var r = await Promise.all([call("hq_overview"), loadPlans(), loadStudios(0), loadUsers(0), loadBilling()]);
     renderOverview(r[0] || {});
+    loadMfaReadiness().catch(function () {});
   }
 
   // Who may see HQ, decided BEFORE any hq_* data is requested:
@@ -753,6 +781,7 @@
       if (t === "staff") loadStaff().catch(showErr);
     }); });
     on("#btnRefresh", "click", function () { loadAll().catch(showErr); });
+    on("#btnMfaEnroll", "click", startMfaEnroll);
     on("#btnOut", "click", function () { Promise.resolve(BPStore.auth.signOut && BPStore.auth.signOut()).finally(function () { location.replace("login.html"); }); });
     on("#btnBill", "click", function () { loadBilling().catch(showErr); });
     on("#btnCsv", "click", exportCsv);

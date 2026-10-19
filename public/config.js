@@ -31,6 +31,16 @@ window.HELM_PAY_MANUAL = Object.assign({
   branch: "",         // branch (optional)
   note: ""            // optional line under the details (default: send us the UTR / reference, same-day activation)
 }, window.HELM_PAY_MANUAL || {});
+// r21 monitoring: front-end error reports (public/telemetry.js -> Sentry). EMPTY dsn = OFF (nothing loaded, nothing
+// sent). To turn on: Sentry -> Projects -> Create project (Browser JavaScript) -> Client Keys (DSN) -> paste it here,
+// then run `node scripts/gen-csp.mjs` (it adds the DSN's EXACT ingest host to connect-src) and deploy. The DSN is
+// public by design (it only allows sending events). Tokens, e-mails and phone numbers are redacted before sending.
+window.HELM_TELEMETRY = Object.assign({
+  dsn: "",                // e.g. "https://<key>@o123456.ingest.us.sentry.io/7890123"
+  env: /^(www\.)?helm\.events$/.test(((typeof location !== "undefined" && location.hostname) || "").toLowerCase()) ? "production" : "staging",
+  release: "r21",
+  tracesSampleRate: 0     // errors only, no performance tracing
+}, window.HELM_TELEMETRY || {});
 window.SUPABASE_CONFIG = {
   url: "https://nqltzgiwznphugcfhmbm.supabase.co",
   anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xbHR6Z2l3em5waHVnY2ZobWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTg5NDYsImV4cCI6MjEwNDk3NDk0Nn0.UWainTYBaCr8dNaugqWkCuLVh2H0TkiG6ZIFH6ZPKIQ",
@@ -48,7 +58,10 @@ window.SUPABASE_CONFIG = {
   // siteKey is the PUBLIC site key. EMPTY = off (sign-in works exactly as before).
   // Turn on only AFTER Supabase → Authentication → Bot protection is enabled with
   // the Turnstile SECRET key (docs/AUTH-DASHBOARD-SETTINGS.md) — never put the secret here.
-  captcha: { provider: "turnstile", siteKey: "" },
+  // r21: the same key also guards checkout "Contact sales" (captcha-verify edge function + the
+  // 0249 database switch) - order of steps: docs/security/OWNER-DASHBOARD-STEPS-R21.md section D.
+  // login: invisible unless Cloudflare wants a click; a visible check after 3 wrong passwords in a tab.
+  captcha: { provider: "turnstile", siteKey: "", login: { appearance: "interaction-only", alwaysAfterFailures: 3 } },
   // Onboarding checkout (0056). allowPaymentBypass shows the clearly-labelled
   // "Skip payment (testing only)" button on /checkout. The SERVER flag
   // helm_billing_settings.allow_trial_bypass is the real gate — set BOTH to false
@@ -66,6 +79,9 @@ window.SUPABASE_CONFIG = {
     // true (later, for launch) — admins without two-step must set it up first.
     //   Flip together with the HQ database switch:
     //     update public.helm_hq_settings set hq_require_mfa = true where id;   (0047)
+    //   r21 (0249): HQ -> Overview -> "HQ two-step readiness" shows who still needs it (operators by name,
+    //   studio admins as a count) and the database refuses the HQ switch while an operator would be locked
+    //   out. Admins who have not enrolled are ASKED to set it up at their next sign-in (not locked out).
     mfaRequiredForAdmins: false,
     // App-side sign-out on signed-in staff pages (studio app AND Helm HQ):
     //   idleMinutes — sign out after this many minutes with no activity in any tab

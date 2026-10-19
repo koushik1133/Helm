@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- DRAFT Template — have a qualified lawyer in each jurisdiction review before publishing. Replace every [OWNER TO FILL] / [BRACKETED] placeholder. Reviewed 2026-10-16. -->
+<!-- DRAFT Template — have a qualified lawyer in each jurisdiction review before publishing. Company facts (entity, address, contacts, GSTIN...) come from /legal-facts.js - fill them in there, never here. Reviewed 2026-10-16. -->
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
@@ -69,7 +69,7 @@
       <article class="lg-doc">
 <section id="overview" aria-labelledby="h-overview">
 <h2 id="h-overview">1. Our approach</h2>
-<p>Security is built into how Helm stores data, not added later. This page summarises our measures; the binding commitments are in the <a href="dpa">Data Processing Addendum</a> (Annex: security measures). We do not currently hold a third-party certification such as ISO/IEC 27001 or SOC 2 <span class="lg-ph">[OWNER TO FILL: update if certified]</span>.</p>
+<p>Security is built into how Helm stores data, not added later. This page summarises our measures; the binding commitments are in the <a href="dpa">Data Processing Addendum</a> (Annex: security measures). We do not currently hold a third-party certification such as ISO/IEC 27001 or SOC 2 <span class="lg-ph" data-fact="certificationConfirmed">To be confirmed</span>.</p>
 </section>
 <section id="isolation" aria-labelledby="h-isolation">
 <h2 id="h-isolation">2. Tenant isolation</h2>
@@ -89,7 +89,7 @@
 </section>
 <section id="resilience" aria-labelledby="h-resilience">
 <h2 id="h-resilience">6. Backups and availability</h2>
-<p>Daily automated database backups with point-in-time recovery as provided by our database host <span class="lg-ph">[OWNER TO FILL: confirm backup plan and retention]</span>. Service targets are in our <a href="sla">Service Level Agreement</a>.</p>
+<p>Daily automated database backups with point-in-time recovery as provided by our database host <span class="lg-ph" data-fact="backupPlanConfirmed">To be confirmed</span>. Service targets are in our <a href="sla">Service Level Agreement</a>.</p>
 </section>
 <section id="incident" aria-labelledby="h-incident">
 <h2 id="h-incident">7. Incident response</h2>
@@ -97,7 +97,7 @@
 </section>
 <section id="disclosure" aria-labelledby="h-disclosure">
 <h2 id="h-disclosure">8. Responsible disclosure</h2>
-<p>Found a vulnerability? Email <span class="lg-ph">[OWNER TO FILL: SECURITY EMAIL, e.g. security@helm.events]</span> (also listed in <code>/.well-known/security.txt</code>). Please give us reasonable time to fix it before disclosure and follow the safe-harbour rules in our <a href="acceptable-use">Acceptable Use Policy</a>. We do not currently run a paid bug bounty.</p>
+<p>Found a vulnerability? Email <span class="lg-ph" data-fact="securityEmail">To be updated</span> (also listed in <code>/.well-known/security.txt</code>). Please give us reasonable time to fix it before disclosure and follow the safe-harbour rules in our <a href="acceptable-use">Acceptable Use Policy</a>. We do not currently run a paid bug bounty.</p>
 </section>
       <nav class="lg-related" aria-label="Related policies"><a href="privacy">Privacy Policy<span>How we handle personal data</span></a><a href="terms">Terms of Service<span>The agreement for using Helm</span></a><a href="refund-policy">Refund Policy<span>Trial, cancellation, refunds</span></a><a href="data-deletion">Data Deletion<span>Export or erase your data</span></a><a href="cookie-policy">Cookie Policy<span>Cookies and local storage</span></a><a href="dpa">Data Processing Addendum<span>For studios as controllers</span></a><a href="acceptable-use">Acceptable Use<span>Rules for using the platform</span></a><a href="subprocessors">Sub-processors<span>Who processes data for us</span></a><a href="sla">Service Level Agreement<span>Uptime, support and credits</span></a><a href="accessibility">Accessibility Statement<span>WCAG 2.2 AA commitment</span></a><a href="grievance">Grievance &amp; DPO Contact<span>Complaints and privacy officers</span></a><a href="ai-notice">AI &amp; Automation Notice<span>Where Helm uses AI</span></a><a href="copyright">Copyright &amp; Takedown<span>Report infringing content</span></a></nav>
       </article>
@@ -112,6 +112,7 @@
     <div><h4>Contact</h4><a href="mailto:sales@helm.events">sales@helm.events</a><a href="mailto:support@helm.events">support@helm.events</a></div>
   </div><div class="wrap copy"><span>&copy; <span id="yr"></span> Helm. Amateurs panic. Professionals go for Helm.</span><span class="big-word" aria-hidden="true">Helm</span></div></footer>
   <script src="/trusted-types.js?v=3"></script>
+  <script src="/legal-facts.js?v=1" defer></script>
   <script src="/legal.js?v=2" defer></script>
 </body>
 </html>

@@ -403,7 +403,13 @@ window.HelmUrl = HelmUrl;
   const CAPTCHA = (function () {
     const c = (CFG && CFG.captcha) || {};
     const key = typeof c.siteKey === "string" ? c.siteKey.trim() : "";
-    return (c.provider === "turnstile" && key) ? { provider: "turnstile", siteKey: key } : null;
+    // r21: login widget options. Supabase checks the token on EVERY password sign-in once its CAPTCHA is on, so the
+    // widget is always mounted; "interaction-only" keeps it invisible unless Cloudflare wants a click, and after
+    // `alwaysAfterFailures` wrong passwords in this tab it is shown as a visible check.
+    const l = (c.login && typeof c.login === "object") ? c.login : {};
+    const login = { appearance: l.appearance === "always" ? "always" : "interaction-only",
+      alwaysAfterFailures: Number(l.alwaysAfterFailures) >= 1 && Number(l.alwaysAfterFailures) <= 20 ? Math.floor(Number(l.alwaysAfterFailures)) : 3 };
+    return (c.provider === "turnstile" && /^[0-9A-Za-z_-]{8,128}$/.test(key)) ? { provider: "turnstile", siteKey: key, login } : null;
   })();
   const PW_MIN = 12;
   // Password rule used everywhere a password is SET. Identical to the Supabase Auth
@@ -1204,7 +1210,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "47";
+  const AUTH_UI_VERSION = "48";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -2301,7 +2307,8 @@ window.HelmUrl = HelmUrl;
       _operatorDecision: operatorMfaDecision,
     },
     // ---- CAPTCHA (Cloudflare Turnstile through Supabase's captchaToken) ----------
-    captcha: { enabled: () => !!CAPTCHA, siteKey: () => (CAPTCHA ? CAPTCHA.siteKey : ""), provider: () => (CAPTCHA ? CAPTCHA.provider : "") },
+    captcha: { enabled: () => !!CAPTCHA, siteKey: () => (CAPTCHA ? CAPTCHA.siteKey : ""), provider: () => (CAPTCHA ? CAPTCHA.provider : ""),
+      login: () => (CAPTCHA ? CAPTCHA.login : { appearance: "interaction-only", alwaysAfterFailures: 3 }) },
     // ---- the caller's own sign-in details (my_auth_info, 0028) -------------------
     async myAuthInfo() {
       if (!supa || !currentUser) return null;
@@ -9425,6 +9432,24 @@ window.HelmUrl = HelmUrl;
         p_studio: String(a.studio || ""), p_name: String(a.name || ""), p_email: String(a.email || ""), p_phone: String(a.phone || "") || null,
         p_message: String(a.message || "") || null, p_source: a.source === "read_only_banner" ? "read_only_banner" : "checkout" })
         .catch((e) => { if (rpcMissing(e)) return null; throw e; });
+    },
+    // r21 (0249): a Turnstile token -> the captcha-verify edge function records a one-use pass for this user, which
+    // the database needs for Contact sales only while HQ's rpc_captcha_required switch is on.
+    //   { ok: true }               verified (or the function / secret is not set up yet - the database decides)
+    //   throws (code captcha_failed) Cloudflare refused the token: the person tries the check again
+    captchaPass: async (action, token) => {
+      if (mode !== "supabase" || !supa || !CAPTCHA || !token) return { ok: true, skipped: true };
+      let bearer = ""; try { const { data: { session } } = await supa.auth.getSession(); bearer = (session && session.access_token) || ""; } catch (e) {}
+      if (!bearer || !fnUrl("captcha-verify")) return { ok: true, skipped: true };
+      let res = null;
+      try {
+        res = await fetch(fnUrl("captcha-verify"), { method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + bearer, "apikey": CFG.anonKey },
+          body: JSON.stringify({ action: String(action || ""), token: String(token) }) });
+      } catch (e) { return { ok: true, skipped: true }; }   // network / not deployed: the server-side switch decides
+      if (res.status === 403) { const e = new Error("The security check failed - please try again."); e.code = "captcha_failed"; throw e; }
+      if (res.status === 429) { const e = new Error("Too many attempts - please wait a minute and try again."); e.code = "rate_limited"; throw e; }
+      return { ok: true, skipped: !res.ok };
     },
     // the contact address shown while online payment is being set up
     SALES_EMAIL: "sales@helm.events",

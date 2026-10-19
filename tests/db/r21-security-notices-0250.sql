@@ -231,6 +231,16 @@ do $$ begin perform pg_temp.su();
     and (select count(*) from pg_policy where polname = 'sa250_read') = 1);
 end $$;
 
+-- a signed-in studio user can read the catalog directly (and gets the HQ-only label); signed out cannot
+do $$ declare v text; c int; begin
+  perform pg_temp.as_user('a_admin@a.test');
+  v := pg_temp.try('select public.notification_catalog()');
+  c := (select count(*) from jsonb_array_elements(public.notification_catalog()) e where e ->> 'type' = 'security_alert' and e ->> 'audience' = 'hq');
+  perform pg_temp.su();
+  perform pg_temp.res('34b signed-in user can call notification_catalog(); security entry says Helm HQ only', v = 'ok' and c = 1, v);
+exception when others then perform pg_temp.su(); perform pg_temp.res('34b signed-in user can call notification_catalog(); security entry says Helm HQ only', false, sqlerrm);
+end $$;
+
 select name, result from _sn order by name;
 select case when count(*) filter (where result <> 'PASS') = 0 then 'R21-SECURITY-NOTICES-0250: ALL PASS (' || count(*) || '/' || count(*) || ')'
             else 'R21-SECURITY-NOTICES-0250: ' || count(*) filter (where result <> 'PASS') || ' FAILED of ' || count(*) end as summary from _sn;

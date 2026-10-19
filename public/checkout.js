@@ -340,6 +340,8 @@
     if (!who.studio && $("#f_legal").value) who.studio = $("#f_legal").value;
     Object.keys(SD).forEach(function (k) { var f = $("#" + SD[k]); if (!f.value && who[k]) f.value = who[k]; f.closest(".fld").classList.remove("bad"); });
     $("#sdErr").textContent = ""; $("#sdMailWrap").hidden = true; $("#coSalesForm").hidden = false; $("#sdDone").hidden = true;
+    // r21: Cloudflare Turnstile (only when config.js has a site key; null = off, the form works as before)
+    if (!salesCap && window.HelmCaptcha) salesCap = window.HelmCaptcha.mount($("#sdCaptcha"), { action: "sales" });
     try { if (typeof d.showModal === "function") { if (!d.open) d.showModal(); } else d.setAttribute("open", ""); } catch (e) { d.setAttribute("open", ""); }
     var first = Object.keys(SD).map(function (k) { return $("#" + SD[k]); }).filter(function (f) { return f.required && !f.value; })[0] || $("#sd_msg");
     try { first.focus(); } catch (e) {}
@@ -352,7 +354,7 @@
   // r21: where the request came from - the read-only banner's "Talk to us" opens this page with ?sales=banner
   function salesSource(search) { return /(?:^|[?&])sales=banner(?:&|$)/.test(String(search || "")) ? "read_only_banner" : "checkout"; }
   var SALES_OK = "Request received — we'll contact you within one working day";
-  var salesSending = false;
+  var salesSending = false, salesCap = null;
   function salesFallback(c) {
     var a = $("#sdMail"); if (!a) return;
     a.href = salesMail(c, SALES_TO); $("#sdMailWrap").hidden = false;
@@ -370,6 +372,14 @@
       return;
     }
     $("#sdErr").textContent = ""; $("#sdMailWrap").hidden = true;
+    // r21: the security check first (one-use token -> captcha-verify -> a pass the database asks for)
+    if (salesCap) {
+      var capTok = salesCap.token();
+      if (!capTok) { $("#sdErr").textContent = "Please complete the security check."; return; }
+      try { await S.checkout.captchaPass("sales", capTok); }
+      catch (e) { salesCap.reset(); $("#sdErr").textContent = String((e && e.message) || "The security check failed - please try again."); return; }
+      salesCap.reset();
+    }
     if (plan) { st.plan = plan.code; if (st.interval !== v.clean.interval) setInterval_(v.clean.interval); else { renderPlans(); refreshPreview(); } }
     var b = $("#sdSend"); salesSending = true; b.disabled = true; b.setAttribute("aria-busy", "true");
     var r = null, err = null;

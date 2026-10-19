@@ -220,8 +220,9 @@ returns text language sql immutable security definer set search_path = '' as $$
 $$;
 
 create or replace function public.notification_catalog()
-returns jsonb language sql immutable set search_path = '' as $$
+returns jsonb language sql immutable security definer set search_path = '' as $$
   -- r21-secnotice-0250: the security_alert type stays (mutes / prefs keep working) but says it is HQ only
+  -- (security definer: a fixed list, no data; the kept prior body is not callable by the app)
   select coalesce(jsonb_agg(case when e ->> 'type' = 'security_alert'
                                  then e || jsonb_build_object('label', 'Security alerts (Helm HQ only)', 'audience', 'hq',
                                    'description', 'Security alerts go to the Helm team only (Helm HQ). Studio members do not receive them.')
@@ -362,6 +363,7 @@ select item, ok from (values
      and has_function_privilege('authenticated', 'public.bell_mark_seen()', 'execute')
      and has_function_privilege('authenticated', 'public.event_activity(uuid)', 'execute')
      and has_function_privilege('authenticated', 'public.notification_catalog()', 'execute')
+     and (select p.prosecdef from pg_proc p where p.oid = 'public.notification_catalog()'::regprocedure)
      and not has_function_privilege('anon', 'public.bell_feed(integer)', 'execute')),
   ('07 studio bells hide the security type; direct reads blocked by sa250_read',
      'security_alert' = any (public._notify_hidden_types(null, null))

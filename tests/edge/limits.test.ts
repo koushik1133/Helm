@@ -150,18 +150,26 @@ Deno.test("durable: in-memory limit trips first without a DB round-trip", async 
   } finally { delete g.__supaRpc; rEnv(); }
 });
 
-Deno.test("durable: DB error fails OPEN with a log line by default; CLOSED when configured", async () => {
+Deno.test("durable (r21): DB error fails CLOSED by default; a MISSING rate_hit fails open (loud); 'false' = open; 'true' = strict", async () => {
   _resetRateLimits(); resetSupaMock();
-  g.__supaRpc = () => ({ data: null, error: { code: "PGRST202", message: "not found" } });
   const origErr = console.error; const logs: string[] = []; console.error = (m: string) => logs.push(String(m));
-  let rEnv = setEnv(DUR_ENV);
+  let rEnv = setEnv(DUR_ENV);   // HELM_RATE_LIMIT_FAIL_CLOSED unset
   try {
-    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 0);
-    assert(logs.some((l) => /failing open/.test(l)) && !logs.some((l) => l.includes("abc")));
-    rEnv(); rEnv = setEnv({ ...DUR_ENV, HELM_RATE_LIMIT_FAIL_CLOSED: "true" });
-    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 30);
     g.__supaRpc = () => { throw new Error("network"); };
-    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 30);
+    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 30, "default: network error -> 429");
+    g.__supaRpc = () => ({ data: null, error: { code: "57014", message: "timeout" } });
+    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 30, "default: statement timeout -> 429");
+    assert(logs.some((l) => /failing CLOSED/.test(l)) && !logs.some((l) => l.includes("abc")));
+    g.__supaRpc = () => ({ data: null, error: { code: "PGRST202", message: "not found" } });
+    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 0, "default: rate_hit missing -> open");
+    assert(logs.some((l) => /failing open \(rate_hit missing/.test(l)));
+    rEnv(); rEnv = setEnv({ ...DUR_ENV, HELM_RATE_LIMIT_FAIL_CLOSED: "false" });
+    g.__supaRpc = () => { throw new Error("network"); };
+    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 0, "'false': open");
+    rEnv(); rEnv = setEnv({ ...DUR_ENV, HELM_RATE_LIMIT_FAIL_CLOSED: "true" });
+    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 30, "'true': closed");
+    g.__supaRpc = () => ({ data: null, error: { code: "PGRST202", message: "not found" } });
+    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 30, "'true': strict even when rate_hit is missing");
   } finally { console.error = origErr; delete g.__supaRpc; rEnv(); }
 });
 

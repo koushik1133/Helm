@@ -15,8 +15,13 @@
 // service-role-only RPC public.rate_hit(bucket, key, window_s, max) (migration 0050),
 // shared by every isolate. Config (env):
 //   HELM_DURABLE_RATE_LIMIT = "on" (default) | "off"
-//   HELM_RATE_LIMIT_FAIL_CLOSED = "true" → a DB error refuses the request (429, 30 s);
-//                                 default fail-OPEN (the in-memory limit still applied)
+//   HELM_RATE_LIMIT_FAIL_CLOSED   r21 security: default CLOSED - a DB error (timeout, network, 5xx) refuses the
+//                                 request (429, 30 s) so an outage of the limiter can't become an open door.
+//                                 "false" = fail OPEN (the in-memory limit still applied).
+//                                 "true"  = strict: closed even when rate_hit itself is missing.
+//                                 Unset: a database WITHOUT rate_hit (migration 0050 not applied: PGRST202 /
+//                                 42883) fails OPEN with a loud log line instead of 429-ing every request -
+//                                 that is a set-up gap, not an attack, and every live project has 0050.
 // Every DB error is logged (no key / IP in the log line).
 
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
@@ -112,12 +117,24 @@ export function bucketOf(key: string): string {
   const b = key.split(":").slice(0, 2).join(".").toLowerCase().replace(/[^a-z0-9_.-]/g, "_").slice(0, 64);
   return b || "default";
 }
-// 0 = allowed, else Retry-After seconds. Fail-open on DB error unless configured closed.
+// "true" | "false" | "" (unset) - see the header
+export function failMode(): "strict" | "open" | "closed" {
+  const v = envGet("HELM_RATE_LIMIT_FAIL_CLOSED").trim().toLowerCase();
+  if (v === "true") return "strict";
+  if (v === "false") return "open";
+  return "closed";
+}
+// rate_hit not installed on this database (PostgREST "function not found" / Postgres undefined_function)
+export function isMissingRpc(e: unknown): boolean {
+  const c = String((e as any)?.code || "");
+  return c === "PGRST202" || c === "42883";
+}
+// 0 = allowed, else Retry-After seconds. r21: fail CLOSED on a DB error by default (see the header).
 export async function durableHit(key: string, limit: number, windowMs: number): Promise<number> {
   if (!durableEnabled()) return 0;
   const client = getDurableClient();
   if (!client) return 0;   // no service role in this environment → in-memory only
-  const failClosed = envGet("HELM_RATE_LIMIT_FAIL_CLOSED") === "true";
+  const mode = failMode();
   const bucket = bucketOf(key);
   try {
     const { data, error } = await client.rpc("rate_hit", {
@@ -129,8 +146,10 @@ export async function durableHit(key: string, limit: number, windowMs: number): 
     if (!Number.isFinite(n) || n < 0) throw new Error("rate_hit returned a non-number");
     return Math.ceil(n);
   } catch (e) {
+    const failClosed = mode === "strict" || (mode === "closed" && !isMissingRpc(e));
     console.error("[limits] durable rate limit unavailable (" + bucket + "): " +
-      String((e as any)?.code || (e as any)?.message || e).slice(0, 80) + (failClosed ? " — failing CLOSED" : " — failing open"));
+      String((e as any)?.code || (e as any)?.message || e).slice(0, 80) + (failClosed ? " — failing CLOSED" : " — failing open") +
+      (!failClosed && mode === "closed" ? " (rate_hit missing: apply migration 0050)" : ""));
     return failClosed ? 30 : 0;
   }
 }
