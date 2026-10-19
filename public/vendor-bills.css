@@ -21,6 +21,9 @@ tr.vb-void td{opacity:.6} tr.vb-void td b{text-decoration:line-through}
 .vb-fld>span{font-size:12px;font-weight:600;color:var(--ink-2)}
 .vb-fld input,.vb-fld select{height:36px;border:1px solid var(--line);background:var(--panel-2,var(--panel));color:var(--ink);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;min-width:0;width:100%}
 .vb-fld input[type=file]{padding:6px;height:auto}
+.vb-fld.vb-chk{flex-direction:row;align-items:center;gap:8px;min-height:36px}
+.vb-fld.vb-chk input{width:auto;height:auto;min-width:18px;min-height:18px}
+.vb-fld.vb-chk span{font-weight:500}
 .vb-pnl{display:flex;flex-direction:column;gap:2px;max-width:520px}
 .vb-pl-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-2,var(--line));font-size:13.5px}
 .vb-pl-row b{font-family:var(--mono,monospace)} .vb-pl-row b.neg{color:var(--ink-2)}

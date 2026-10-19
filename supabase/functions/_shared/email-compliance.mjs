@@ -42,6 +42,7 @@ export const TX_REASONS = {
   billing: "you manage billing for a studio on Helm",
   security: "you are an owner or admin of a studio on Helm",
   test: "a studio admin sent a test message from Helm's Integrations page",
+  delivery: "a studio on Helm scheduled a delivery or arrival with you for an event",
 };
 
 export function txFooter(reasonKey, o = {}) {

@@ -372,10 +372,10 @@
   </main>
 
 <script src="telemetry.js?v=4"></script>
-<script src="config.js?v=104"></script>
+<script src="config.js?v=105"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=260"></script>
-<script src="auth-ui.js?v=46"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=263"></script>
+<script src="auth-ui.js?v=47"></script>
 <script src="/auth-visual.js?v=1"></script>
 <script src="/trial-facts.js?v=6"></script>
 <script src="/trial-signup.js?v=12"></script>
@@ -540,7 +540,7 @@
   const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   const NAME_RE=/^[\p{L} '\-]{1,50}$/u;
   const normEmail=(v)=>String(v||"").trim().toLowerCase();
-  function emailProblem(v){ const e=normEmail(v); if(!e) return "Please enter your email address."; if(e.length>254||!EMAIL_RE.test(e)) return "That doesn't look like a valid email — check for typos (e.g. name@studio.com)."; return null; }
+  function emailProblem(v){ const e=normEmail(v); if(!e) return "Please enter your email address."; if(e.length>254||!EMAIL_RE.test(e)) return "That doesn't look like a valid email — check for typos (e.g. name@studio.com)."; if(mode==="signup" && window.BPStore && BPStore.reservedEmailDomain && BPStore.reservedEmailDomain(e)) return BPStore.RESERVED_EMAIL_MESSAGE; return null; }   // r21 0248: Helm's own domains are for the Helm team (the server refuses them too)
   function nameProblem(v){ const n=String(v||"").trim(); if(!n) return null; if(n.length>50) return "Please keep your name to 50 characters or fewer."; if(!NAME_RE.test(n)) return "Names can use letters, spaces, hyphens (-) and apostrophes (') only."; return null; }
   function studioProblem(v){ const n=String(v||"").trim(); if(!n && TRIAL()) return null; if(n.length<2) return "Please enter your studio or business name (at least 2 characters)."; if(n.length>80) return "Please keep the studio name to 80 characters or fewer."; return null; }
   function setFieldErr(input, msg){
@@ -1073,7 +1073,10 @@
     // a ?code= link (Google / email confirm / magic link) that could not be exchanged
     if(BPStore.auth.linkError && BPStore.auth.linkError()){
       const le=String(BPStore.auth.linkError()).toLowerCase();
-      if(/otp_expired|access_denied|expired/.test(le)){
+      if(le==="reserved_domain"){   // r21 0248: Google / link sign-up with a helm.events address refused by the server
+        if(mode!=="signup") setMode("signup");
+        showErr($("#err"),BPStore.RESERVED_EMAIL_MESSAGE||"Addresses on helm.events are reserved for the Helm team. Please use your own e-mail address.");
+      } else if(/otp_expired|access_denied|expired/.test(le)){
         // the e-mail link itself expired (Supabase "Email OTP expiration") or was already used
         // 0205: links work once, within 24 h. applyInviteEntry() then shows the right way in
         // (a new link for a login without a password, the join form, or sign-in).
@@ -1178,7 +1181,7 @@
               catch(x){
                 if(x&&x.code==="needs_link"){ showInviteLink(email, x.reason==="unconfirmed"); return; }   // 0205: no password yet → new link, never "sign in"
                 if(x&&x.code==="account_exists"){ showSignInForInvite(email); return; }
-                if(x&&/^(email_mismatch|invalid_invite|weak_password|bad_email)$/.test(x.code||"")){ showErr($("#err"),x.message); return; }
+                if(x&&/^(email_mismatch|invalid_invite|weak_password|bad_email|reserved_domain)$/.test(x.code||"")){ showErr($("#err"),x.message); return; }
                 throw x;
               }
               if(d&&d.ok){
@@ -1249,7 +1252,7 @@
         if(/captcha/i.test(m)){ showErr($("#err"),"The security check failed or expired — please try again."); return; }
         // credential / policy messages from Supabase Auth are written for users; everything else goes through friendlyError
         // never echo "already registered" / "not confirmed" (account enumeration): one answer
-        const direct=(err&&(err.code==="invalid_credentials"||err.code==="account_locked"||err.code==="rate_limited"||err.code==="captcha_failed")) || (/^(Use at least|Include at least|Choose a)/.test(m));
+        const direct=(err&&(err.code==="invalid_credentials"||err.code==="account_locked"||err.code==="rate_limited"||err.code==="captcha_failed"||err.code==="reserved_domain")) || (/^(Use at least|Include at least|Choose a)/.test(m));
         showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create the studio":"sign you in"}));
         // r20-coord #33: a wrong password may be an account that signs in with Google - a generic hint, shown for every
         // invalid sign-in (it says nothing about whether this e-mail has an account: no enumeration)

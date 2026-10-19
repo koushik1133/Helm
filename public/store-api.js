@@ -423,6 +423,22 @@ window.HelmUrl = HelmUrl;
       { id: "symbol", label: "A symbol, e.g. ! @ # $ % & * ? -",   ok: sym },
     ];
   }
+  // r21 (0248): addresses on Helm's own domains (helm.events, helm.com + sub-domains) are for the Helm team.
+  // Early, friendly check only - the DATABASE is the real gate (Before User Created hook + auth.users /
+  // invitations guards, which also know HQ's look-alike domains and the staff allowlist). Same rule as
+  // supabase/functions/_shared/reserved-email.mjs.
+  const RESERVED_EMAIL_DOMAINS = ["helm.events", "helm.com"];
+  const RESERVED_EMAIL_MESSAGE = "Addresses on helm.events are reserved for the Helm team. Please use your own e-mail address.";
+  function reservedEmailDomain(email) {
+    const e = String(email == null ? "" : email).trim().toLowerCase();
+    const at = e.lastIndexOf("@"); if (at < 1) return "";
+    const host = e.slice(at + 1).replace(/\.+$/, "");
+    for (const d of RESERVED_EMAIL_DOMAINS) if (host === d || host.endsWith("." + d)) return d;
+    return "";
+  }
+  function reservedEmailError() { const e = new Error(RESERVED_EMAIL_MESSAGE); e.code = "reserved_domain"; return e; }
+  // the server's refusal (hook 403 / guard trigger) -> the same friendly error
+  function isReservedRefusal(err) { return /reserved for the helm team/i.test(String((err && (err.message || err.msg || err.error_description)) || "")); }
   function passwordProblem(pw) {
     pw = String(pw || "");
     if (pw.length < PW_MIN) return "Use at least " + PW_MIN + " characters.";
@@ -1188,7 +1204,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "46";
+  const AUTH_UI_VERSION = "47";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1204,7 +1220,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "11";
+  const STUDIO_SEARCH_VERSION = "12";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";
@@ -1241,7 +1257,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "17";
+  const TRIAL_BANNER_VERSION = "18";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -1341,6 +1357,9 @@ window.HelmUrl = HelmUrl;
     { key: "pkg_review",   label: "Package selections (review)", icon: "📦", page: null, group: "Finance" },
     { key: "pkg_payments", label: "Package payment alerts",      icon: "💸", page: null, group: "Finance" },
     { key: "command",    label: "Event-day command", icon: "🎛", page: null,             group: "Event day" },
+    // 0241 (r21): delivery / arrival reminders + the tracker on the event-day page. view = see the tracker,
+    // edit = schedule reminders and mark status. No row yet = the role's "Event-day command" switch (defaultFrom).
+    { key: "deliveries", label: "Deliveries & arrivals (reminders)", icon: "🚚", page: null, group: "Event day", defaultFrom: "command" },
     { key: "issues",     label: "Issues & incidents",icon: "🚨", page: null,             group: "Event day" },
     { key: "media",      label: "Media & gallery",   icon: "📸", page: null,             group: "Event day" },
     { key: "controls",   label: "Control Center",    icon: "⚙", page: "control.html",   group: "Admin" },
@@ -1356,6 +1375,8 @@ window.HelmUrl = HelmUrl;
     { key: "item_pricing", label: "Item pricing (rate cards)", icon: "🏷", page: null, group: "Admin" },
     { key: "users",      label: "Users & access",    icon: "👥", page: "control.html",   group: "Admin" },
   ];
+  // 0241: an area with no saved row follows another area's switch (the server's _dl241_can does the same)
+  const AREA_FALLBACK = AREAS.reduce((m, a) => { if (a.defaultFrom) m[a.key] = a.defaultFrom; return m; }, {});
   // coarse keys the older per-page gates pass → the fine areas they cover
   const COARSE_TO_FINE = {
     finance:   ["finance", "settlement", "closure"],
@@ -1508,6 +1529,10 @@ window.HelmUrl = HelmUrl;
         const qs = new URLSearchParams(location.search || "");
         urlAuthCode = !!qs.get("code");
         urlAuthError = qs.get("error_code") || qs.get("error") || "";
+        // r21 (0248): a Google / e-mail-link sign-up refused by the Before User Created hook comes back with
+        // the hook's message in error_description - only a fixed code is kept, never the text itself
+        if (/reserved for the helm team/i.test(String(qs.get("error_description") || "") + " " +
+            String(new URLSearchParams(String(location.hash || "").replace(/^#/, "")).get("error_description") || ""))) urlAuthError = "reserved_domain";
         // EXCEPTION (0131 invite e-mails sent by Supabase Auth): a staff invitation link opens
         // login?invite=<token> with an invite / magic-link fragment. Keep those two tokens in
         // memory only, ONLY on the login page with an invite token, and hand them to
@@ -1823,6 +1848,7 @@ window.HelmUrl = HelmUrl;
       const fine = COARSE_TO_FINE[area];             // set only for coarse keys
       if (acc.map) {
         if (fine) return fine.some((k) => acc.map[k] && acc.map[k].view);   // coarse: any child visible
+        if (!acc.map[area] && AREA_FALLBACK[area]) return !!(acc.map[AREA_FALLBACK[area]] && acc.map[AREA_FALLBACK[area]].view);   // 0241
         return !!(acc.map[area] && acc.map[area].view);                     // fine key
       }
       // legacy fallback (phase29 not yet applied)
@@ -1842,6 +1868,7 @@ window.HelmUrl = HelmUrl;
       const fine = COARSE_TO_FINE[area];
       if (acc.map) {
         if (fine) return fine.some((k) => acc.map[k] && acc.map[k].edit);
+        if (!acc.map[area] && AREA_FALLBACK[area]) return !!(acc.map[AREA_FALLBACK[area]] && acc.map[AREA_FALLBACK[area]].edit);   // 0241
         return !!(acc.map[area] && acc.map[area].edit);
       }
       return EDIT_ROLES.includes(r);
@@ -1904,6 +1931,7 @@ window.HelmUrl = HelmUrl;
     // Phase 58 — self-serve sign-up (studio created via create_studio once a session exists)
     async signUp(email, password, opts) {
       if (!supa) throw new Error("Supabase not configured");
+      if (reservedEmailDomain(email)) throw reservedEmailError();   // r21 0248 (the server refuses it too)
       const bad = passwordProblem(password); if (bad) throw new Error(bad);
       const captchaToken = opts && opts.captchaToken;
       if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
@@ -1929,6 +1957,7 @@ window.HelmUrl = HelmUrl;
           const c = String(error.code || ""), m = String(error.message || ""), st = Number(error.status) || 0;
           if (st === 429 || /rate limit|too many/i.test(m)) { const e = new Error("Too many requests — please wait a few minutes and try again."); e.code = "rate_limited"; throw e; }
           if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
+          if (isReservedRefusal(error)) throw reservedEmailError();
           // "already registered" must look exactly like a fresh sign-up awaiting confirmation
           if (/user_already_exists|email_exists|already registered|already exists/i.test(c + " " + m)) return { user: null, session: null, generic: GENERIC_SENT };
           throw error;
@@ -1978,8 +2007,9 @@ window.HelmUrl = HelmUrl;
       const em = String(newEmail == null ? "" : newEmail).trim().toLowerCase();
       if (!/^[^\s@<>()\[\],;:"]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(em) || em.length > 254) { const e = new Error("Enter a valid e-mail address."); e.code = "email_invalid"; throw e; }
       if (em === String(currentUser.email || "").toLowerCase()) { const e = new Error("That's already your e-mail address."); e.code = "email_same"; throw e; }
+      if (reservedEmailDomain(em)) throw reservedEmailError();
       const { error } = await supa.auth.updateUser({ email: em }, { emailRedirectTo: location.origin + "/login.html" });
-      if (error) throw error;
+      if (error) throw (isReservedRefusal(error) ? reservedEmailError() : error);
       return { pending: em };
     },
     // Option A: does the signed-in user still hold a temp password they must replace?
@@ -2352,6 +2382,7 @@ window.HelmUrl = HelmUrl;
       // first login. Returns { user_id, temp_password } — show temp_password ONCE.
       async createUserTemp(email, role) {
         if (!supa) throw new Error("Supabase not configured");
+        if (reservedEmailDomain(email)) throw reservedEmailError();
         const { data, error } = await supa.rpc("admin_create_user_temp",
           { p_email: email, p_role: role });
         if (error) throw error; return data;   // { user_id, temp_password }
@@ -4979,7 +5010,8 @@ window.HelmUrl = HelmUrl;
   // Onboarding split: create a NEW company = org.createStudio; JOIN an existing
   // one = accept an admin's invite token. Tenant is resolved server-side by RLS.
   const invitations = {
-    create: (email, role) => rpc("create_invitation", { p_email: email, p_role: role }),   // admin only (server-checked)
+    create: (email, role) => (reservedEmailDomain(email) ? Promise.reject(reservedEmailError())   // r21 0248 (server-checked too)
+      : rpc("create_invitation", { p_email: email, p_role: role })),   // admin only (server-checked)
     async list() { if (!supa) return [];                                                     // RLS returns only this org's invites
       const { data, error } = await supa.from("invitations").select("*").order("created_at", { ascending: false });
       if (error) throw error; return data || []; },
@@ -5046,6 +5078,7 @@ window.HelmUrl = HelmUrl;
       throw fail("We couldn't send a new link from here — ask your studio admin to re-send the invitation.", "unavailable");
     },
     async signupDirect(token, email, password, fullName) {
+      if (reservedEmailDomain(email)) throw reservedEmailError();
       if (!supa || !fnUrl("invite-signup")) return { fallback: true };
       let res;
       try {
@@ -7782,9 +7815,19 @@ window.HelmUrl = HelmUrl;
   }
   const vbTableMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "42P01" || c === "PGRST205" || /relation .*vendor_(bills|payouts).* does not exist|could not find the table/i.test(m); };
+  // r21 money (0246): the GST part of a bill - empty = unknown; must be 0 or more and below the bill amount
+  function vbGstPart(v, amount) {
+    if (v === null || v === undefined || String(v).trim() === "") return { value: null };
+    const n = Number(v); const a = Number(amount);
+    if (!Number.isFinite(n) || n < 0) return { error: "Enter the GST as an amount of 0 or more (or leave it empty)." };
+    if (Number.isFinite(a) && n >= a) return { error: "The GST must be less than the bill amount (the amount includes the GST)." };
+    return { value: Math.round(n * 100) / 100 };
+  }
+  const vbGstColMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
+    return c === "PGRST204" || c === "42703" || /gst_(amount|claimable)/i.test(m); };
   const vbMissingErr = () => { const er = new Error("Vendor bills need database update 0124 (ask your admin to run APPLY-0124.sql)."); er.code = "vendor_bills_missing"; return er; };
   const vendorBills = {
-    calc: vendorPnlCalc, state: vendorBillState, settle: vendorSettle,
+    calc: vendorPnlCalc, state: vendorBillState, settle: vendorSettle, gstPart: vbGstPart,
     async list(quoteId) {
       if (mode !== "supabase") return [];
       const { data, error } = await supa.from("vendor_bills").select("*, vendor_payouts(*)").eq("quote_id", quoteId).order("bill_date", { ascending: false });
@@ -7804,7 +7847,17 @@ window.HelmUrl = HelmUrl;
         description: clean(b.description, 500), bill_date: day(b.bill_date) || new Date().toISOString().slice(0, 10),
         due_date: day(b.due_date), vendor_id: b.vendor_id || null, booking_id: b.booking_id || null, file_id: fileId };
       if (b.currency) row.currency = String(b.currency).slice(0, 3).toUpperCase();
-      const { data, error } = await supa.from("vendor_bills").insert(row).select().single();
+      // r21 money (0246): optional GST inside the bill amount + whether the input credit can be claimed
+      const gst = vbGstPart(b.gst_amount, row.amount);
+      if (gst.error) throw new Error(gst.error);
+      if (gst.value != null) { row.gst_amount = gst.value; if (typeof b.gst_claimable === "boolean") row.gst_claimable = b.gst_claimable; }
+      let { data, error } = await supa.from("vendor_bills").insert(row).select().single();
+      if (error && gst.value != null && vbGstColMissing(error)) {
+        // database without 0246: keep the bill, drop only the GST split (it is optional)
+        delete row.gst_amount; delete row.gst_claimable;
+        ({ data, error } = await supa.from("vendor_bills").insert(row).select().single());
+        if (!error && data) data.gst_dropped = true;
+      }
       if (error) { if (vbTableMissing(error)) throw vbMissingErr(); throw error; }
       return data;
     },
@@ -7841,6 +7894,49 @@ window.HelmUrl = HelmUrl;
     async business(from, to) {
       if (mode !== "supabase") return null;
       try { return await rpc("business_pnl", { p_from: from || null, p_to: to || null }); } catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+  };
+
+  /* ---------------- r21 money (0246): event cost ledger (Estimated / Committed / Actual) ----------------
+     One server calculation: event_cost_breakdown(quote) = P&L (estimated / expected / actual margin +
+     accuracy %), per-category variance, cost lines and warnings; studio_cost_breakdown(from, to) = the same
+     per confirmed event + totals per currency (Insights / Business). null = database without 0246 (callers
+     keep their older cards). Pure helpers are unit-tested in test/r21-money.test.mjs. */
+  const ML_CATS = [["venue", "Venue"], ["food", "Food & catering"], ["decor", "Décor & flowers"], ["rentals", "Rentals & equipment"],
+    ["vendors", "Other vendors"], ["staff", "Staff & crew wages"], ["misc", "Misc, petty cash & staff expenses"],
+    ["logistics", "Logistics & transport"], ["damages", "Damages & loss"], ["changes", "Change orders"], ["contingency", "Contingency (plan only)"]];
+  const mlCatLabel = (k) => { const f = ML_CATS.find((c) => c[0] === k); return f ? f[1] : String(k || "Other"); };
+  // flag a category row (plan section 3.6): "over" = above the plan by more than pct % OR more than abs
+  // (defaults 10 % / 10,000); a smaller overrun is "watch"; spend with no plan at all is "new"
+  function mlVarianceFlag(row, o) {
+    o = o || {}; const pct = o.pct != null ? Number(o.pct) : 10, abs = o.abs != null ? Number(o.abs) : 10000;
+    const est = vbNum(row && row.estimated), v = vbNum(row && row.variance);
+    if (v <= 0) return v < 0 ? "under" : "";
+    if (est <= 0) return v > abs ? "over" : "new";
+    return (v / est * 100 > pct || v > abs) ? "over" : "watch";
+  }
+  // the stage a line has reached: actual > committed > estimated
+  function mlStage(line) {
+    if (!line) return "estimated";
+    if (line.actual !== null && line.actual !== undefined) return "actual";
+    if (line.committed !== null && line.committed !== undefined) return "committed";
+    return "estimated";
+  }
+  const moneyLedger = {
+    CATS: ML_CATS, catLabel: mlCatLabel, varianceFlag: mlVarianceFlag, stage: mlStage,
+    async breakdown(quoteId) {
+      if (mode !== "supabase") return null;
+      try { return await rpc("event_cost_breakdown", { p_quote: quoteId }); } catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    async studio(from, to) {
+      if (mode !== "supabase") return null;
+      try { return await rpc("studio_cost_breakdown", { p_from: from || null, p_to: to || null }); } catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // a typed staff budget line is replaced by the automatic crew wage lines (or counted again)
+    async setCrewCovered(costId, on) {
+      if (mode !== "supabase") throw new Error("Needs the online database.");
+      const { error } = await supa.from("event_costs").update({ crew_covered: !!on }).eq("id", costId);
+      if (error) throw error; return true;
     },
   };
 
@@ -8631,6 +8727,22 @@ window.HelmUrl = HelmUrl;
       try { return await rpc("insights_event_costs", { p_from: from || null, p_to: to || null }); }
       catch (e) { if (rpcMissing(e)) { const er = new Error("Event cost charts need database update 0240 (ask your admin to run APPLY-0240.sql)."); er.code = "insights_costs_missing"; throw er; } throw e; }
     },
+    // r21 (0242) ONE studio-wide target margin for the Benchmarks card (was per device).
+    // -> { target_margin_pct (null = not set; screens use default_pct 30), default_pct, can_edit, updated_at };
+    //    null when signed out / the server is older than 0242. Readers: insights OR controls view (admins always).
+    async targetMargin() {
+      if (mode !== "supabase" || !supa) return null;
+      try { return await rpc("get_studio_target_margin", {}); }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // Control Center edit / admins only (server re-checks has_area('controls','edit')); 0 to 90, kept to 1 decimal
+    async setTargetMargin(pct) {
+      const raw = String(pct == null ? "" : pct).trim(), n = Number(raw);
+      if (raw === "" || !isFinite(n) || n < 0 || n > 90) throw Object.assign(new Error("Target margin must be a number from 0 to 90."), { code: "22023" });
+      if (mode !== "supabase" || !supa) throw new Error("The target margin needs a signed-in studio.");
+      try { return await rpc("set_studio_target_margin", { p_pct: Math.round(n * 10) / 10 }); }
+      catch (e) { if (rpcMissing(e)) { const er = new Error("Saving the target margin needs database update 0242 (ask your admin to run APPLY-0242.sql)."); er.code = "target_margin_missing"; throw er; } throw e; }
+    },
     // 0076 insights_range: counts, money (null without finance), top types, staff participation
     async range(from, to) {
       if (mode !== "supabase" || !supa) return null;
@@ -9289,6 +9401,16 @@ window.HelmUrl = HelmUrl;
       noteCheckoutDone();
       return out;
     },
+    // r21 (0244): "Contact sales" is saved in Helm (HQ Requests + an e-mail alert to sales) - studio admin only.
+    // { id, status: "received", duplicate }; null when the server is older than 0244 (the page then falls back to e-mail).
+    requestSales: (c) => {
+      const a = c || {};
+      if (mode !== "supabase" || !supa) return Promise.resolve(null);
+      return rpc("request_plan_activation", { p_plan: String(a.plan || ""), p_interval: a.interval === "yearly" ? "yearly" : "monthly",
+        p_studio: String(a.studio || ""), p_name: String(a.name || ""), p_email: String(a.email || ""), p_phone: String(a.phone || "") || null,
+        p_message: String(a.message || "") || null, p_source: a.source === "read_only_banner" ? "read_only_banner" : "checkout" })
+        .catch((e) => { if (rpcMissing(e)) return null; throw e; });
+    },
     // the contact address shown while online payment is being set up
     SALES_EMAIL: "sales@helm.events",
   };
@@ -9319,6 +9441,25 @@ window.HelmUrl = HelmUrl;
     reminderUpcoming: () => (supa ? rpc("event_reminder_upcoming", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
   };
 
+  // 0241 (r21): delivery / arrival reminders. Every call goes through the RPCs (studio + 'deliveries' area checked
+  // in the database). null from settings() = the server is older than 0241.
+  const DLV_STATUS = { scheduled: "Scheduled", reminded: "Reminded", confirmed: "On the way", arrived: "Arrived",
+    delayed: "Delayed", issue: "Problem", cancelled: "Cancelled", edited: "Edited", no_response: "No response" };
+  const deliveries = {
+    STATUS: DLV_STATUS,
+    statusLabel: (s) => DLV_STATUS[s] || String(s || ""),
+    settings: () => (supa ? rpc("delivery_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    saveSettings: (patch) => (supa ? rpc("delivery_settings_set", { p: patch || {} }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    list: (quoteId) => (supa ? rpc("delivery_list", { p_quote: quoteId || null, p_from: null, p_to: null }).then((d) => (Array.isArray(d) ? d : []))
+      : Promise.resolve([])),
+    save: (row) => (supa ? rpc("delivery_save", { p: row || {} }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    setStatus: (id, status, note, eta) => (supa ? rpc("delivery_set_status", { p_id: id, p_status: status, p_note: note || null, p_eta: eta || null })
+      : Promise.reject(new Error("Needs a signed-in studio."))),
+    history: (id) => (supa ? rpc("delivery_history", { p_id: id }) : Promise.resolve({ log: [], reminders: [] })),
+    issueLink: (id) => (supa ? rpc("delivery_link_issue", { p_id: id }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    linkUrl: (token) => (/^[0-9a-f]{64}$/.test(String(token || "")) ? location.origin + "/delivery?t=" + token : ""),
+  };
+
   // 0117 studio integration accounts + 0134 read-only overview (Integrations page). null = server too old.
   const integrations = {
     overview: () => (supa ? rpc("integrations_overview", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
@@ -9339,7 +9480,8 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
+    reservedEmailDomain, RESERVED_EMAIL_MESSAGE,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, deliveries, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -9745,6 +9887,9 @@ window.HelmUrl = HelmUrl;
     // status(): {is_trial_org, name, ends_at, days_left, ended, locked, is_admin}; null before 0116.
     // 0183: + read_only (ended unpaid trial: read-only for everyone); is_trial_org false once paid / converted.
     trialOrg: {
+      // r21 (0244): "Ask my admin to upgrade" - a teammate of a trial / ended-trial studio puts one admin-only bell
+      // notice (+ an e-mail to the admins). { sent, already }; null when the server is older than 0244.
+      askAdmin: () => (supa ? rpc("ask_admin_upgrade", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       start: (loc) => (loc && (loc.timezone || loc.currency) ? rpc("start_trial", { p_timezone: loc.timezone || null, p_currency: loc.currency || null }) : rpc("start_trial", {})),
       // 0167 — 2-step trial welcome, step 1: rename the caller's own trial studio (name, link slug, city, optional phone)
       welcome: (name, city, phone) => rpc("trial_welcome_setup", { p_name: String(name || "").trim(), p_city: String(city || "").trim() || "Hyderabad", p_phone: String(phone || "").trim() || null }),
@@ -10287,6 +10432,9 @@ window.HelmUrl = HelmUrl;
     // B15: a phone refused by phoneOrThrow (staff / nurture / leads: per-country length, India = 10 digits) - the
     // message says what to type ("Enter a 10-digit number for India."), never the generic "Something went wrong"
     if (e && e.code === "invalid_phone" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
+    // r21 0248: an address on Helm's own domains (helm.events, ...) - client check or the server's refusal
+    if (e && (e.code === "reserved_domain" || /reserved for the helm team/i.test(errMsg(e) || "")))
+      return (global.BPStore && global.BPStore.RESERVED_EMAIL_MESSAGE) || "Addresses on helm.events are reserved for the Helm team. Please use your own e-mail address.";
     if (e && e.hint === "seat_limit") return pre + "Your free trial includes you + 2 people, and both seats are in use. Revoke an invitation or remove someone to add another person — or upgrade for more seats.";
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
     // 0183 — the free trial ended unpaid: the whole studio is read-only for everyone until it is upgraded

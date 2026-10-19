@@ -230,3 +230,43 @@ Deno.test("invite-signup: self sign-up never confirmed -> 409 needs_link (reason
     assertEquals(auth().map((a) => a.auth), ["createUser", "inviteUserByEmail"]);
   } finally { f(); r(); }
 });
+
+// r21 (0248): an invitation bound to Helm's own domain never makes, re-links or e-mails a login
+Deno.test("invite-signup: invitation to a reserved helm.events address -> 403 reserved_domain, no login made or sent", async () => {
+  for (const body of [{ token: TOK, email: "anil@helm.events", password: PW }, { token: TOK, resend: true }]) {
+    resetSupaMock(); db({ email: "Anil@HELM.events" });
+    const r = setEnv(ENV); const f = noFetch();
+    try {
+      const h = await loadHandler(FN);
+      const res = await h(post(body));
+      assertEquals(res.status, 403);
+      const j = await res.json();
+      assertEquals(j.code, "reserved_domain");
+      assert(String(j.error).startsWith("Addresses on helm.events are reserved for the Helm team."));
+      assertEquals(auth().length, 0);
+    } finally { f(); r(); }
+  }
+});
+Deno.test("invite-signup: the database allowlist wins (email_is_reserved = false) -> staff invite proceeds", async () => {
+  resetSupaMock(); db({ email: "newhire@helm.events" });
+  const rpc0 = g.__supaRpc; g.__supaRpc = (name: string, args: unknown) => name === "email_is_reserved" ? { data: false, error: null } : rpc0(name, args);
+  const r = setEnv(ENV); const f = noFetch();
+  try {
+    const h = await loadHandler(FN);
+    const res = await h(post({ token: TOK, email: "newhire@helm.events", password: PW }));
+    assertEquals(res.status, 200);
+    assert(auth().some((a) => a.auth === "createUser"));
+  } finally { f(); r(); }
+});
+Deno.test("invite-signup email_send: a reserved address is refused (403), email_lookup just says not invited", async () => {
+  resetSupaMock(); db();
+  const r = setEnv(ENV); const f = noFetch();
+  try {
+    const h = await loadHandler(FN);
+    const s = await h(post({ email_send: true, email: "x@team.helm.events" }));
+    assertEquals(s.status, 403); assertEquals((await s.json()).code, "reserved_domain");
+    const l = await h(post({ email_lookup: true, email: "x@helm.com" }));
+    assertEquals(await l.json(), { invited: false });
+    assertEquals(auth().length, 0);
+  } finally { f(); r(); }
+});

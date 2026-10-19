@@ -62,6 +62,7 @@ import { errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { clean, inviteEmail, newLinkEmail, roleLabel } from "../invite-mailer/templates.ts";
 import { mailConfig, sendMail } from "../_shared/mailer.ts";
+import { isReservedEmail, RESERVED_EMAIL_MESSAGE } from "../_shared/reserved-email.mjs";
 
 const TOKEN = /^[0-9a-f]{48}$/;
 const EMAIL = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
@@ -143,6 +144,10 @@ async function byEmail(mode: "lookup" | "send", email: string, ip: string, json:
   }
   if (!EMAIL.test(email) || email.length > 254) return json(mode === "send" ? { ok: true, sent: false } : { invited: false });
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+  // r21 (0248): Helm's own domains (helm.events, ...) are never offered a studio login from here
+  if (await isReservedEmail(admin, email)) {
+    return mode === "send" ? json({ error: RESERVED_EMAIL_MESSAGE, code: "reserved_domain" }, 403) : json({ invited: false });
+  }
   const { data: row, error } = await admin.rpc("invite_open_for_email", { p_email: email });
   if (error) {
     // 0210 not applied yet: the sign-up simply carries on (no invitation offered)
@@ -261,6 +266,10 @@ Deno.serve(async (req) => {
       const info = { email: bound, studio: ctx.studio, inviter: ctx.inviter, role: String(inv.role ?? ""), role_label: roleLabel(inv.role) };
       return json(st.account === "unknown" ? info : { ...info, account: st.account });
     }
+
+    // r21 (0248): an invitation bound to one of Helm's own domains (helm.events, ...) never makes or
+    // re-links a login. The database refuses it too (hook + auth.users guard); this is the friendly answer.
+    if (await isReservedEmail(admin, bound)) return json({ error: RESERVED_EMAIL_MESSAGE, code: "reserved_domain" }, 403);
 
     if (resend) {
       const st = await stateOf();

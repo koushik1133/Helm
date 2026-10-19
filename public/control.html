@@ -213,6 +213,7 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=3">
 <link rel="stylesheet" href="comms-settings.css?v=2">
+<link rel="stylesheet" href="delivery-tracker.css?v=1">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
 <link rel="stylesheet" href="menu-pkg-editor.css?v=5">
@@ -380,6 +381,18 @@
         <div class="fld" id="p_region_fld" hidden><label for="p_region" id="p_region_lbl">State</label><input id="p_region" maxlength="60" list="p_region_list" autocomplete="off"><datalist id="p_region_list"></datalist></div>
       </div>
       <div class="actions"><button type="button" class="btn primary" id="savePricing">Save pricing</button></div>
+    </div>
+
+    <!-- r21 (0242) ONE studio-wide target margin for Insights benchmarks - target-margin-settings.js fills it; hidden until the server answers -->
+    <div class="card" id="tmCard" hidden>
+      <h3>Target margin</h3>
+      <p class="mnote">One value for the whole studio, so everyone sees the same colours on the Insights page.</p>
+      <p class="mnote" id="tm_ro" hidden>Read-only: only a studio admin (or someone allowed to edit Control Center) can change it.</p>
+      <div class="grid">
+        <div class="fld"><label for="tm_pct">Target margin %</label><input id="tm_pct" type="number" min="0" max="90" step="0.5" inputmode="decimal" placeholder="30" aria-describedby="tm_help tm_err"><p class="mnote" id="tm_help">Used by Insights benchmarks to colour events green/amber/red. A number from 0 to 90 (default 30).</p><p class="fv-msg" id="tm_err" aria-live="polite" hidden></p></div>
+      </div>
+      <div id="tm_msg" role="status" aria-live="polite"></div>
+      <div class="actions" id="tm_actions"><button type="button" class="btn primary" id="tm_save">Save target margin</button></div>
     </div>
 
     <div class="card" id="itemPricingCard" hidden>
@@ -665,6 +678,9 @@
         <button type="button" class="btn" id="pr_save">Save photo render settings</button>
       </div>
 
+      <!-- 0241: delivery / arrival reminders (built + wired by delivery-settings.js; hidden before 0241) -->
+      <div class="card" id="dlvCard" hidden></div>
+
       <!-- 0078: automatic client messages + WhatsApp forwarding (wired by comms-settings.js) -->
       <div class="card" id="commsCard" hidden>
         <h3>Automatic client messages &amp; WhatsApp</h3>
@@ -763,10 +779,10 @@
 
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
-<script src="config.js?v=104"></script>
+<script src="config.js?v=105"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=260"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=263"></script>
 <script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -777,6 +793,8 @@
 <script src="onboarding-core.js?v=7"></script>
 <script src="studio-billing-form.js?v=2"></script>
 <script src="comms-settings.js?v=5"></script>
+<script src="delivery-tracker.js?v=1"></script>
+<script src="delivery-settings.js?v=1"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=2"></script>
 <script src="cc-inputs.js?v=4"></script>
@@ -785,13 +803,13 @@
 <script src="venues-admin.js?v=9"></script>
 <script src="studio-templates-core.js?v=3"></script>
 <script src="studio-templates.js?v=12"></script>
-<script src="item-pricing.js?v=1"></script>
+<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
 <script src="trial-demo.js?v=16"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
-<script src="search-catalog.js?v=6"></script>
-<script src="control-split.js?v=20"></script>
+<script src="search-catalog.js?v=7"></script>
+<script src="control-split.js?v=21"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1612,7 +1630,9 @@
 
   /* ---------------- USER CONTROL: team members ---------------- */
   function setUMsg(k,t){ const m=$("#umsg"); m.innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; if(t) setTimeout(()=>{ if(m.firstChild) m.innerHTML=""; },4000); }
-  const ROLES = BPStore.auth.admin.roles();
+  // r21: team role pickers (add user, change role, invite link, Roles & access tabs) never offer "Client" (the
+  // no-access fallback role, kept server-side) nor "worker" (an old duplicate of Crew).
+  const ROLES = BPStore.auth.admin.roles().filter(r=>r!=="client"&&r!=="worker");
 
   async function initUsers(){
     const sel=$("#um_role");
@@ -1657,7 +1677,9 @@
   // → { head, body, shown, total } (pure: everything it shows goes through esc())
   function ucTable(list, o){
     const meId=o.meId, roles=o.roles||[], rl=o.roleLabel||((r)=>r);
-    const roleSel=(u,self)=>`<select class="roleSel" data-cs-autosave="1" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${(u.role&&!roles.includes(u.role)?roles.concat([u.role]):roles).map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
+    // r21: a user whose role is 'client' (no access) shows "No access" + a blank "Choose a role…" picker, never "Client"
+    const noAccess=(u)=>u.role==="client";
+    const roleSel=(u,self)=>`${noAccess(u)?'<span class="tag no-access">No access</span> ':""}<select class="roleSel" data-cs-autosave="1" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${noAccess(u)?'<option value="" selected disabled>Choose a role…</option>':""}${(u.role&&!noAccess(u)&&!roles.includes(u.role)?roles.concat([u.role]):roles).map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
     const rm=(u,self)=>self?"":`<button type="button" class="rm" title="Remove user" aria-label="Remove user ${esc(u.email||u.full_name||"")}">🗑</button>`;
     if(!o.profiles){
       const head=`<tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr>`;
@@ -1715,7 +1737,7 @@
     tb.querySelectorAll(".roleSel").forEach(sel=>sel.addEventListener("change", async (e)=>{
       const tr=e.target.closest("tr"), id=tr.dataset.id, role=e.target.value;
       const prev=[...e.target.options].find(o=>o.defaultSelected);
-      try{ await BPUI.guard(e.target, ()=>BPStore.auth.admin.setRole(id, role)); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); const u=rowOf(tr); if(u) u.role=role; }
+      try{ await BPUI.guard(e.target, ()=>BPStore.auth.admin.setRole(id, role)); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); const na=tr.querySelector(".no-access"); if(na) na.remove(); const u=rowOf(tr); if(u) u.role=role; }
       catch(err){ setUMsg("err",errMsg(err,"change the role")); if(prev) e.target.value=prev.value; }
     }));
     tb.querySelectorAll(".dnEdit").forEach(btn=>btn.addEventListener("click", async ()=>{
@@ -1997,7 +2019,10 @@
   let MTX = {};              // {role:{area:{view,edit}}}
   let selRole = "manager";
   // 0147: an area with defaultOn (e.g. "Create new quotes") is ON for those roles until a row is saved
-  function cellDefault(role, key){ const a=AREAS.find(x=>x.key===key); const on=!!(a&&a.defaultOn&&a.defaultOn.includes(role)); return {view:on, edit:on}; }
+  function cellDefault(role, key){ const a=AREAS.find(x=>x.key===key);
+    // 0241: an area with defaultFrom (Deliveries & arrivals) follows that area's switch until its own row is saved
+    if(a&&a.defaultFrom){ const f=MTX[role]&&MTX[role][a.defaultFrom]; return {view:!!(f&&f.view), edit:!!(f&&f.edit)}; }
+    const on=!!(a&&a.defaultOn&&a.defaultOn.includes(role)); return {view:on, edit:on}; }
 
   async function initMatrix(){
     // role tabs (admin first, shown as locked-full)
@@ -2124,6 +2149,7 @@
   async function initNotify(){
     if(npStarted) return; npStarted=true;
     if(typeof HelmCommsSettings!=="undefined") HelmCommsSettings.init();   // 0078 (independent of the prefs load)
+    if(typeof HelmDeliverySettings!=="undefined") HelmDeliverySettings.init();   // 0241 delivery reminders
     await loadNotify(); renderNotify();
     try{ npUsers=(await BPStore.auth.admin.listUsers())||[]; }catch(e){ npUsers=[]; }
     npUsers.sort((a,b)=>String(a.full_name||a.email||"").localeCompare(String(b.full_name||b.email||"")));

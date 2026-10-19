@@ -74,7 +74,7 @@ t('reminder card copy: 8 days, no card, view-only, nothing deleted, CTAs', () =>
   const s = trial.reminderSpec({ is_trial_org: true, is_admin: true, ends_at: END, timezone: 'Asia/Kolkata' }, ist('2026-10-06T08:00:00'));
   assert.equal(s.title, '3 days left in your free trial');
   assert.match(s.body, /8-day free trial \(no card required\)/);
-  assert.match(s.after, /view-only/); assert.match(s.after, /nothing is deleted/);
+  assert.match(s.after, /view-only/); assert.match(s.after, /Your data is kept for 60 days after the trial ends, and we remind you before anything is deleted\./);   // r21: the one retention promise
   assert.equal(s.cta, 'Choose a plan'); assert.equal(s.later, 'Remind me later');
   assert.deepEqual(trial.REMINDER_TITLES, { d5: '3 days left in your free trial', d7: 'Your free trial ends tomorrow', d8: 'Your trial ends today' });
   assert.ok(!/14[- ]day/.test(TJS), 'no 14-day wording');
@@ -152,7 +152,7 @@ t('e-mail copy for each reminder', () => {
   assert.equal(c.subject, 'Your Helm free trial ends today');
   for (const m of [a, b, c]) {
     assert.match(m.text, /^Hi Demo 7,/);
-    assert.match(m.text, /8-day/); assert.match(m.text, /no card/); assert.match(m.text, /view-only/); assert.match(m.text, /Nothing is deleted/);
+    assert.match(m.text, /8-day/); assert.match(m.text, /no card/); assert.match(m.text, /view-only/); assert.match(m.text, /Your data is kept for 60 days after the trial ends, and we remind you before anything is deleted\./);   // r21: the one retention promise
     assert.match(m.text, /Choose a plan: https:\/\/www\.helm\.events\/checkout/);
     assert.ok(!/14[- ]day/.test(m.text));
   }

@@ -300,11 +300,13 @@
     } catch (e) { k.textContent = "Skip payment (testing only)"; fail(e); }
   }
 
-  /* ---------------- r20: Contact sales ----------------
+  /* ---------------- r20 / r21: Contact sales ----------------
      While online payment is not live the plan button is "Contact sales": a small form prefilled with
-     the studio, the admin, the chosen plan + billing period, sent the same way as the landing page's
-     contact form - the visitor's own email app opens addressed to sales@helm.events. Nothing is sent
-     or stored from this page. Pure helpers (salesCheck / salesMail) are unit-tested. */
+     the studio, the admin, the chosen plan + billing period. r21 (0244): the request is SAVED in Helm
+     (request_plan_activation: HQ "Requests" + an e-mail alert to sales@helm.events) and the page says
+     "Request received - we'll contact you within one working day". The visitor's own email app is only a
+     fallback LINK (prefilled mailto, never opened by itself) for when saving fails. Nothing is charged.
+     Pure helpers (salesCheck / salesMail / salesSource / payDetails) are unit-tested. */
   var SALES_TO = (S && S.checkout && S.checkout.SALES_EMAIL) || "sales@helm.events";
   var who = { studio: "", name: "", email: "", phone: "" };
   function salesCheck(f) {
@@ -337,7 +339,7 @@
     $("#sd_iv").value = st.interval;
     if (!who.studio && $("#f_legal").value) who.studio = $("#f_legal").value;
     Object.keys(SD).forEach(function (k) { var f = $("#" + SD[k]); if (!f.value && who[k]) f.value = who[k]; f.closest(".fld").classList.remove("bad"); });
-    $("#sdErr").textContent = ""; $("#coSalesForm").hidden = false; $("#sdDone").hidden = true;
+    $("#sdErr").textContent = ""; $("#sdMailWrap").hidden = true; $("#coSalesForm").hidden = false; $("#sdDone").hidden = true;
     try { if (typeof d.showModal === "function") { if (!d.open) d.showModal(); } else d.setAttribute("open", ""); } catch (e) { d.setAttribute("open", ""); }
     var first = Object.keys(SD).map(function (k) { return $("#" + SD[k]); }).filter(function (f) { return f.required && !f.value; })[0] || $("#sd_msg");
     try { first.focus(); } catch (e) {}
@@ -347,8 +349,17 @@
     try { if (typeof d.close === "function" && d.open) d.close(); else d.removeAttribute("open"); } catch (e) { d.removeAttribute("open"); }
     try { $("#coPay").focus(); } catch (e) {}
   }
-  function sendSales(ev) {
+  // r21: where the request came from - the read-only banner's "Talk to us" opens this page with ?sales=banner
+  function salesSource(search) { return /(?:^|[?&])sales=banner(?:&|$)/.test(String(search || "")) ? "read_only_banner" : "checkout"; }
+  var SALES_OK = "Request received — we'll contact you within one working day";
+  var salesSending = false;
+  function salesFallback(c) {
+    var a = $("#sdMail"); if (!a) return;
+    a.href = salesMail(c, SALES_TO); $("#sdMailWrap").hidden = false;
+  }
+  async function sendSales(ev) {
     if (ev) ev.preventDefault();
+    if (salesSending) return;
     var plan = planBy($("#sd_plan").value);
     var v = salesCheck({ studio: $("#sd_studio").value, name: $("#sd_name").value, email: $("#sd_email").value, phone: $("#sd_phone").value,
       plan: plan ? plan.name : "", interval: $("#sd_iv").value, message: $("#sd_msg").value });
@@ -358,16 +369,55 @@
       var bad = Object.keys(SD).filter(function (k) { return v.errors[k]; })[0]; if (bad) try { $("#" + SD[bad]).focus(); } catch (e) {}
       return;
     }
-    $("#sdErr").textContent = "";
+    $("#sdErr").textContent = ""; $("#sdMailWrap").hidden = true;
     if (plan) { st.plan = plan.code; if (st.interval !== v.clean.interval) setInterval_(v.clean.interval); else { renderPlans(); refreshPreview(); } }
-    try { location.href = salesMail(v.clean, SALES_TO); } catch (e) {}
+    var b = $("#sdSend"); salesSending = true; b.disabled = true; b.setAttribute("aria-busy", "true");
+    var r = null, err = null;
+    try {
+      r = await S.checkout.requestSales({ plan: plan ? plan.code : "", interval: v.clean.interval, studio: v.clean.studio, name: v.clean.name,
+        email: v.clean.email, phone: v.clean.phone, message: v.clean.message, source: salesSource(location.search) });
+    } catch (e) { err = e; }
+    salesSending = false; b.disabled = false; b.removeAttribute("aria-busy");
+    if (!r || r.status !== "received") {
+      // not saved (older server / network / refused): say so and offer the e-mail fallback link
+      $("#sdErr").textContent = (err && err.message ? String(err.message).slice(0, 200) + ". " : "We couldn't save your request just now. ")
+        + "You can e-mail our sales team instead.";
+      salesFallback(v.clean);
+      return;
+    }
     $("#coSalesForm").hidden = true; $("#sdDone").hidden = false;
     try { $("#sdDone").focus(); } catch (e) {}
-    showErr("Thanks - we'll get back to you within one working day.", "ok");
+    showErr(SALES_OK + ".", "ok");
+  }
+
+  /* ---------------- r21: pay by UPI / bank transfer (while online payment is off) ----------------
+     Values come ONLY from window.HELM_PAY_MANUAL (config.js - the owner fills them in). An empty value is
+     not shown; with nothing filled the block says the team sends the details with the invoice. */
+  var PAY_FIELDS = [["upiId", "UPI ID"], ["payeeName", "Payee name"], ["accountName", "Account name"], ["accountNumber", "Account number"],
+    ["ifsc", "IFSC"], ["bankName", "Bank"], ["branch", "Branch"]];
+  function payDetails(cfg) {
+    var c = cfg && typeof cfg === "object" ? cfg : {};
+    var rows = [];
+    PAY_FIELDS.forEach(function (f) {
+      var v = String(c[f[0]] == null ? "" : c[f[0]]).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+      if (v && !/^\[.*\]$/.test(v)) rows.push([f[1], v]);   // "[FILL ME]"-style placeholders are never shown
+    });
+    var note = String(c.note == null ? "" : c.note).replace(/\s+/g, " ").trim().slice(0, 240);
+    return { rows: rows, note: note || (rows.length
+      ? "After paying, send us the UTR / reference number (reply to our e-mail or add it in Contact sales). We activate your plan the same working day and e-mail your GST invoice."
+      : "Our team sends Helm's UPI ID and bank details with your plan confirmation. We activate your plan the same working day after payment and e-mail your GST invoice.") };
+  }
+  function renderPayDetails() {
+    var box = $("#coPayDetails"); if (!box) return;
+    var d = payDetails(window.HELM_PAY_MANUAL), dl = $("#coPayList"); clear(dl);
+    d.rows.forEach(function (r) { dl.appendChild(el("dt", null, r[0])); dl.appendChild(el("dd", null, r[1])); });
+    dl.hidden = !d.rows.length;
+    $("#coPayNote").textContent = d.note;
+    box.hidden = false;
   }
   function wireSales() {
     var d = $("#coSalesDlg"); if (!d) return;
-    $("#coSalesForm").addEventListener("submit", sendSales);
+    $("#coSalesForm").addEventListener("submit", function (e) { sendSales(e); });
     $("#sdClose").addEventListener("click", closeSales);
     $("#sdDoneClose").addEventListener("click", closeSales);
     $("#coSalesLink").addEventListener("click", openSales);
@@ -453,12 +503,13 @@
     $("#coSwitchWrap").hidden = !(st.pending && !st.live);
     $("#coSwitch").textContent = "Start " + trialDays() + "-day free trial instead";
     if (setupOn) $("#coDormant").hidden = true;
+    if (st.sales) renderPayDetails();   // r21: UPI / bank transfer details while online payment is off
     $("#coTest").hidden = st.upgrade || !(S.checkout.bypassEnabled() && st.opts.bypass_allowed === true);
     if (st.upgrade) {
       $("#coDormant").hidden = true;
       var up = $("#coUpgrade"); up.hidden = false;
       up.textContent = st.opts.status === "trial" ? "You're on the free trial. Choose a plan now — your trial days are not lost."
-        : "Your free trial has ended. Choose a plan to keep using Helm — your data is safe.";
+        : "Your free trial has ended. Choose a plan to keep using Helm. Your data is kept for 60 days after the trial ends, and we remind you before anything is deleted.";
       // 0185: what happens to the trial data is decided right after the plan is active
       up.textContent += " After upgrading you choose what happens to the sample data: keep it (default), remove it, or start completely clean.";
     }
@@ -469,5 +520,7 @@
     if (st.plan) refreshPreview(); else renderSummary();
     updateButton();
     try { $("#coTitle").focus({ preventScroll: true }); } catch (e) {}
+    // r21: "Talk to us" from the read-only banner opens Contact sales straight away
+    if (salesSource(location.search) === "read_only_banner") openSales();
   });
 })();

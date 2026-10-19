@@ -1,0 +1,29 @@
+/* delivery-status.css - the one-tap delivery / arrival status page (0241, /delivery?t=...). Light only, no inline styles. */
+:root{--bg:#f5f6f1;--ink:#101511;--mute:#5a6159;--line:rgba(16,21,17,.12);--acc:#0b7d53;--acc-d:#08603f;--card:#fff;--bad:#b42318;color-scheme:light}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.ds-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.ds-card{width:100%;max-width:480px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 24px}
+.ds-brand{margin:0 0 8px}
+h1{margin:0 0 8px;font-size:22px;line-height:1.25;overflow-wrap:anywhere}
+.ds-facts{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:14px 0;font-size:15px}
+.ds-facts dt{color:var(--mute)}
+.ds-facts dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.ds-now{background:#eef7f2;border-radius:10px;padding:10px 12px;font-size:15px}
+.ds-actions{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.ds-btn{min-height:46px;padding:10px 18px;border-radius:99px;border:0;background:var(--acc);color:#fff;font:600 15px/1 inherit;cursor:pointer;flex:1 1 140px}
+.ds-btn:hover{background:var(--acc-d)}
+.ds-btn:disabled{opacity:.6;cursor:wait}
+.ds-ok{background:#0f7a43}
+.ds-ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+.ds-ghost:hover{background:#e3f5ec}
+.ds-bad{color:var(--bad);border-color:var(--bad)}
+.ds-bad:hover{background:#fdecec}
+.ds-more{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.ds-more label{font-size:14px;font-weight:600;color:var(--mute)}
+.ds-more input{min-height:44px;border:1px solid var(--line);border-radius:10px;padding:0 12px;font:inherit;font-size:16px}
+.ds-err{color:var(--bad);font-size:14px;margin:4px 0}
+.ds-foot{margin:16px 0 0;font-size:13px;color:var(--mute)}
+.ds-foot a{color:var(--mute)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px}

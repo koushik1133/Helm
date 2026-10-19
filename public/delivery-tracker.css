@@ -1,0 +1,59 @@
+/* delivery-tracker.css (0241) - Deliveries & arrivals board (command page), its assignment dialog and the
+   Control Center "Delivery & arrival reminders" card. Uses the page tokens (--line, --ink, --accent...). */
+#dlvBoard{grid-column:1/-1}
+#dlvBoard h2{flex-wrap:wrap}
+#dlvBoard .dlv-add{margin-left:8px;height:32px}
+.dlv-list{display:flex;flex-direction:column}
+.dlv-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;padding:10px 8px;border-bottom:1px solid var(--line-2,#f1ede7);border-radius:8px}
+.dlv-row:last-child{border-bottom:0}
+.dlv-row .dlv-acts{grid-column:1/-1;display:flex;gap:5px;flex-wrap:wrap}
+.dlv-row .dlv-histbox{grid-column:1/-1}
+.dlv-main{min-width:0}
+.dlv-what{font-weight:600;font-size:13px;overflow-wrap:anywhere}
+.dlv-who{font-weight:500;color:var(--ink-3,#6b6577)}
+.dlv-when{font-size:12px;color:var(--ink-2,#4b475f);margin-top:2px}
+.dlv-meta{font-size:12px;color:var(--ink-3,#6b6577);margin-top:2px;overflow-wrap:anywhere}
+.dlv-note{color:var(--ink-2,#4b475f)}
+.dlv-late{background:#fdecec;box-shadow:inset 3px 0 0 #b42318}
+.dlv-late .dlv-when,.dlv-latetag{color:#b42318}
+.dlv-off{opacity:.6}
+.dlv-pill{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:20px;white-space:nowrap;justify-self:end}
+.dlv-s-sched{background:#f1f3f7;color:#4b475f}
+.dlv-s-way{background:#e8f1fd;color:#1d4f91}
+.dlv-s-ok{background:#e7f6ee;color:#0f7a43}
+.dlv-s-warn{background:#fff4e0;color:#8a5300}
+.dlv-s-bad{background:#fdecec;color:#b42318}
+.dlv-s-off{background:#eef0f2;color:#6b6577}
+.dlv-histbtn{border:0;background:none;padding:0;font:inherit;font-size:12px;color:var(--accent,#047857);text-decoration:underline;cursor:pointer}
+.dlv-hist{margin:6px 0 4px;padding-left:20px;font-size:12px;color:var(--ink-2,#4b475f)}
+.dlv-hist li{margin:2px 0}
+.dlv-muted{font-size:12px;color:var(--ink-3,#6b6577);margin:4px 0}
+.dlv-err{color:#b42318;font-size:12px;margin:6px 0}
+/* dialog */
+.dlv-ov{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:90;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto}
+.dlv-sheet{background:var(--panel,#fff);border:1px solid var(--line,#e8e3db);border-radius:16px;box-shadow:0 10px 30px rgba(20,27,46,.18);width:min(560px,100%);padding:20px;margin:auto 0}
+.dlv-sheet h3{margin:0 0 12px;font-size:16px}
+.dlv-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.dlv-grid2{grid-template-columns:1fr}}
+.dlv-fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;min-width:0}
+.dlv-fld label{font-size:12px;font-weight:600;color:var(--ink-2,#4b475f)}
+.dlv-fld input,.dlv-fld select,.dlv-addsel{height:38px;border:1px solid var(--line,#e8e3db);background:var(--panel-2,#faf8f5);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink,#1b1930);min-width:0;width:100%}
+.dlv-remset{border:1px solid var(--line,#e8e3db);border-radius:10px;padding:10px 12px;margin:4px 0 10px}
+.dlv-remset legend{font-weight:700;font-size:13px;padding:0 6px}
+.dlv-chk{display:inline-flex;align-items:center;gap:8px;font-size:13px;margin:2px 0 8px}
+.dlv-chk input{width:16px;height:16px;accent-color:var(--accent,#047857)}
+.dlv-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.dlv-chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft,#e3f4ed);color:var(--accent,#047857);border-radius:20px;padding:4px 6px 4px 11px;font-size:12px;font-weight:600}
+.dlv-chipx{border:0;background:rgba(4,120,87,.12);color:inherit;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:11px;line-height:22px;padding:0}
+.dlv-none{font-size:12px;color:var(--ink-3,#6b6577)}
+.dlv-addrow{display:flex;gap:10px;align-items:center}
+.dlv-addrow .dlv-addsel{max-width:240px}
+.dlv-count{font-size:12px;color:var(--ink-3,#6b6577)}
+.dlv-hint{font-size:12px;color:var(--ink-3,#6b6577);margin:8px 0 0}
+.dlv-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+/* Control Center card */
+#dlvCard .dlv-set{border:1px solid var(--line,#e8e3db);border-radius:10px;padding:10px 14px 12px;margin:12px 0 0;min-width:0}
+#dlvCard .dlv-set legend{font-weight:700;font-size:13px;padding:0 6px}
+#dlvCard .dlv-chk{margin-right:14px}
+#dlvCard select{height:36px;border:1px solid var(--line,#e8e3db);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;max-width:100%}
+#dlvCard .dlv-addrow select{max-width:240px}
