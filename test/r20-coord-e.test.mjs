@@ -17,11 +17,15 @@ const FLAG = /HELM_FEATURES\.manual|manualFlag === true/;
 const fnSrc = (src, name) => { const s = src.indexOf('function ' + name + '('); assert.ok(s >= 0, name); let i = src.indexOf('{', s), d = 0;
   for (; i < src.length; i++) { if (src[i] === '{') d++; else if (src[i] === '}' && --d === 0) break; } return src.slice(s, i + 1); };
 
-t('1 one flag in config.js: HELM_FEATURES.manual is "admin" (evaluated)', () => {
+// r23 manual (owner 2026-10-19): the manual is back for EVERY signed-in role (true), per role inside /manual
+// (test/r23-manual.test.mjs). The "admin" / false values below still work exactly as before.
+t('1 one flag in config.js: HELM_FEATURES.manual is true since r23 (evaluated); "admin" still means admin only', () => {
   const ctx = { window: {}, location: { hostname: 'helm.events' } };
   vm.runInNewContext(CFG, ctx);
-  assert.equal(ctx.window.HELM_FEATURES.manual, 'admin');
-  assert.equal((CFG.match(/manual: "admin"/g) || []).length, 1, 'declared once');
+  assert.equal(ctx.window.HELM_FEATURES.manual, true);
+  assert.equal((CFG.match(/manual: true \}/g) || []).length, 1, 'declared once');
+  assert.equal(ctx.window.helmManualFor('admin'), true); assert.equal(ctx.window.helmManualFor('coordinator'), true);
+  ctx.window.HELM_FEATURES.manual = 'admin';
   assert.equal(ctx.window.helmManualFor('admin'), true); assert.equal(ctx.window.helmManualFor('coordinator'), false);
 });
 
