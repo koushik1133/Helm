@@ -9541,6 +9541,39 @@ window.HelmUrl = HelmUrl;
     linkUrl: (token) => (/^[0-9a-f]{64}$/.test(String(token || "")) ? location.origin + "/delivery?t=" + token : ""),
   };
 
+  // 0256 (r23): vendor requests (assign -> accept / reject -> reassign / cancel) + vendor invoices into the budget.
+  // Every call goes through the RPCs (studio + Vendors / Finance areas checked in the database). list() is [] and
+  // summary() null on a server older than 0256. Payments use the existing record_vendor_payout (vendorBills.pay).
+  const VR_STATUS = { sent: "Awaiting reply", accepted: "Accepted", rejected: "Declined", cancelled: "Cancelled", reassigned: "Reassigned" };
+  const VI_STATUS = { submitted: "To review", queried: "Queried", approved: "Approved", rejected: "Rejected", superseded: "Replaced" };
+  const vrNeed = () => Promise.reject(new Error("Needs a signed-in studio."));
+  const vendorRequests = {
+    STATUS: VR_STATUS, INVOICE_STATUS: VI_STATUS,
+    statusLabel: (s) => VR_STATUS[s] || String(s || ""),
+    invoiceLabel: (s) => VI_STATUS[s] || String(s || ""),
+    list: (quoteId, vendorId) => (supa ? rpc("vendor_requests_list", { p_quote: quoteId || null, p_vendor: vendorId || null })
+      .then((d) => (Array.isArray(d) ? d : [])).catch((e) => { if (rpcMissing(e)) return []; throw e; }) : Promise.resolve([])),
+    summary: (quoteId) => (supa ? rpc("vendor_requests_summary", { p_quote: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    // row: { quote_id, vendor_id, booking_id?, what, qty?, when_at (ISO), where_text?, details?, agreed_amount, respond_by?, send? }
+    save: (row) => (supa ? rpc("vendor_request_save", { p: row || {} }) : vrNeed()),
+    setStatus: (id, status, note) => (supa ? rpc("vendor_request_set_status", { p_id: id, p_status: status, p_note: note || null }) : vrNeed()),
+    reassign: (id, vendorId, agreed, note) => (supa ? rpc("vendor_request_reassign", { p_id: id, p_vendor: vendorId,
+      p_agreed: agreed == null || agreed === "" ? null : Number(agreed), p_note: note || null }) : vrNeed()),
+    cancel: (id, reason) => (supa ? rpc("vendor_request_cancel", { p_id: id, p_reason: reason || "" }) : vrNeed()),
+    issueLink: (id) => (supa ? rpc("vendor_request_link", { p_id: id }) : vrNeed()),
+    history: (id) => (supa ? rpc("vendor_request_history", { p_id: id }) : Promise.resolve({ log: [], sends: [] })),
+    // action: approve | query | reject; opts: { gst_claimable, tds_section, tds_amount, allow_over, due_date }
+    review: (invoiceId, action, note, opts) => (supa ? rpc("vendor_invoice_review", { p_id: invoiceId, p_action: action, p_note: note || null, p_opts: opts || {} }) : vrNeed()),
+    // a short-lived signed URL for the invoice file (private bucket; the storage policy checks studio + Finance)
+    async fileUrl(path) {
+      if (!supa || !/^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(pdf|jpg|png|webp)$/.test(String(path || ""))) return null;
+      const { data, error } = await supa.storage.from("vendor-invoices").createSignedUrl(path, 120);
+      if (error) throw error;
+      return (data && data.signedUrl) || null;
+    },
+    linkUrl: (token) => (/^[0-9a-f]{64}$/.test(String(token || "")) ? location.origin + "/vendor-request?t=" + token : ""),
+  };
+
   // 0117 studio integration accounts + 0134 read-only overview (Integrations page). null = server too old.
   const integrations = {
     overview: () => (supa ? rpc("integrations_overview", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
@@ -9562,7 +9595,7 @@ window.HelmUrl = HelmUrl;
 
   const BPStore = {
     reservedEmailDomain, RESERVED_EMAIL_MESSAGE,
-    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, deliveries, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, deliveries, vendorRequests, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.

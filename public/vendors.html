@@ -74,6 +74,7 @@
 <link rel="stylesheet" href="vendors-polish.css?v=3">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
+<link rel="stylesheet" href="vendor-requests.css?v=1">
 <script src="/shell-proto.js?v=39" id="shellProto"></script>
 </head>
 <body>
@@ -88,6 +89,14 @@
   </header>
   <main id="main">
 
+  <div class="vrq-view">
+    <div class="tabs" id="viewTabs" role="group" aria-label="Partners or requests">
+      <button type="button" data-view="partners" class="on" aria-pressed="true">Partners</button>
+      <button type="button" data-view="requests" aria-pressed="false">Requests &amp; invoices</button>
+    </div>
+  </div>
+
+  <div id="partnersView">
   <div class="toolbar">
     <div class="tabs" id="kindTabs" role="group" aria-label="Filter by type">
       <button type="button" data-k="" class="on" aria-pressed="true">All</button>
@@ -103,6 +112,23 @@
   </div>
 
   <div id="grid" class="grid"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+  </div>
+
+  <section id="requestsView" hidden aria-label="Vendor requests and invoices">
+    <div class="vrq-bar">
+      <div class="tabs" id="vrqFilters" role="group" aria-label="Filter requests">
+        <button type="button" data-f="open" class="on" aria-pressed="true">Open</button>
+        <button type="button" data-f="review" aria-pressed="false">Invoices to review</button>
+        <button type="button" data-f="unpaid" aria-pressed="false">Unpaid</button>
+        <button type="button" data-f="closed" aria-pressed="false">Declined &amp; closed</button>
+        <button type="button" data-f="all" aria-pressed="false">All</button>
+      </div>
+      <span class="vrq-count" id="vrqCount"></span>
+      <span class="spacer"></span>
+      <button type="button" id="vrqNew" class="btn primary" hidden>＋ New request</button>
+    </div>
+    <div id="vrqList" class="vrq-list"></div>
+  </section>
   </main>
   <footer>Helm Events — your outside partners, ready to fill the gaps your in-house team can't.</footer>
 </div>
@@ -146,7 +172,7 @@
 <script src="phone-input.js?v=7"></script>
 <script src="form-validate.js?v=3"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=267"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=271"></script>
 <script src="tour.js?v=24"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -366,6 +392,8 @@
     await load();
   });
 </script>
-<script src="saved-filters.js?v=5"></script>
+<script src="delivery-tracker.js?v=1"></script>
+<script src="vendor-requests-ui.js?v=1"></script>
+<script src="saved-filters.js?v=7"></script>
 </body>
 </html>
