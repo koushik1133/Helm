@@ -87,7 +87,8 @@
       renderAll: typeof renderAll !== "undefined" ? renderAll : null, lfAsk: typeof lfAsk !== "undefined" ? lfAsk : null,
       lfUseSize: typeof lfUseSize !== "undefined" ? lfUseSize : null, lfNote: typeof lfNote !== "undefined" ? lfNote : null, fitView: typeof fitView !== "undefined" ? fitView : null,
       updateEmptyState: typeof updateEmptyState !== "undefined" ? updateEmptyState : null, resetHistory: typeof resetHistory !== "undefined" ? resetHistory : null,
-      setSavedBaseline: typeof setSavedBaseline !== "undefined" ? setSavedBaseline : null }[n] || null; } catch (_) { return null; } },
+      setSavedBaseline: typeof setSavedBaseline !== "undefined" ? setSavedBaseline : null,
+      seatsFittedNotice: typeof seatsFittedNotice !== "undefined" ? seatsFittedNotice : null }[n] || null; } catch (_) { return null; } },
   };
   /* eslint-enable no-undef */
   var isBuilder = !!$("preset");
@@ -147,8 +148,11 @@
     var items = fit.items, N = 0;
     try { var qc = B.fn("quoteChairsNow"); if (B.quoteId() && qc) N = +qc() || 0; } catch (_) {}
     var ex = B.fn("exactSeats"), ss = B.fn("sumSeats");
+    var natSeats = 0, fullItems = null;
     if (N > 0 && ex) {
-      var nat = ss ? ss(items) : 0; ex(items, N);
+      var nat = natSeats = ss ? ss(items) : 0;
+      if (nat > N) { try { fullItems = JSON.parse(JSON.stringify(items)); } catch (_) { fullItems = null; } }   // r22: kept for "Use the template's N seats"
+      ex(items, N);
       var sw = B.fn("seatFitWarning"), pr = B.pricing() || {};
       var w = sw ? sw(N, nat, null, pr.eventType) : null; if (w) setTimeout(function () { toast("⚠ " + w, true); }, 50);
     }
@@ -158,7 +162,12 @@
     if (fitChoice === "fit") { var nt = B.fn("lfNote"); if (nt) nt(row.data.items || []); }
     var es = $("emptyState"); if (es) es.hidden = true;
     toast(nm + " loaded" + (fit.scaled ? " · fitted to your " + fit.hall.w + "×" + fit.hall.h + " ft hall" : ""));
+    // r22: the seating was trimmed to the quote's chairs - say so, with a one-off way to keep the template's full seating
+    var sfn = B.fn("seatsFittedNotice"); if (sfn && fullItems) sfn(N, natSeats, fullItems, seq);
   }
+  // r22 (live QA): "Political rally — 5,000 seats" read as a fixed 5,000; an open quote fits the seating to its guests,
+  // so the list says it scales: "Political rally (up to 5,000 seats)"
+  function scaleName(n) { return String(n || "").replace(/\s*[\u2014\u2013-]\s*([\d,]+)\s+seats\s*$/i, " (up to $1 seats)"); }
 
   // "My studio templates" as the FIRST optgroup of #preset (the template picker is built from it)
   async function fillPreset() {
@@ -171,7 +180,7 @@
     var old = $("st_optgroup"); if (old) old.remove();
     var list = C.order(rows.filter(function (r) { return !r.archived; }), pr.eventType);
     if (!trial && !list.length) return;
-    var opts = list.map(function (r) { return h("option", { value: "st:" + r.id, text: (r.is_default ? "\u2605 " : "") + (trial ? trialName(r.name) : r.name) + (r.event_type ? " \u00b7 " + C.label(r.event_type) : "") }); });
+    var opts = list.map(function (r) { return h("option", { value: "st:" + r.id, text: (r.is_default ? "\u2605 " : "") + scaleName(trial ? trialName(r.name) : r.name) + (r.event_type ? " \u00b7 " + C.label(r.event_type) : "") }); });
     if (trial) opts.unshift(h("option", { value: "st:__blank", text: "Start blank" }));
     var og = h("optgroup", { id: "st_optgroup", label: trial ? "Sample layouts" : "My studio templates" }, opts);
     if (trial) {

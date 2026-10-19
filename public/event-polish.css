@@ -42,6 +42,13 @@ html[data-theme] .steps .step.viewing .n{background:var(--accent-soft);color:var
   .stepwrap.ov .step{scroll-snap-align:center}
   .stepwrap.ov.ov-l .steps,.stepwrap.ov.ov-r .steps,.stepwrap.ov.ov-l.ov-r .steps{-webkit-mask-image:none;mask-image:none}
 }
+/* r22 (live QA 375/390/440): touch screens grow the arrows to 44px, wider than the 34px gutter, so the arrow sat on
+   the pill next to it. The gutter is now exactly the arrow's width (40px touch target + 2px), and event.html centres
+   the current / viewed stage between the arrows on load and on every width change. */
+@media (max-width:899px){
+  .stepwrap.ov{--stp-w:40px;padding:0 calc(var(--stp-w) + 2px)}
+  .stepwrap.ov .stp-arr{width:var(--stp-w);height:var(--stp-w);min-width:var(--stp-w);min-height:var(--stp-w)}
+}
 /* desktop: compact event header + strip pinned under the app top bar while the workspace scrolls */
 .evstick{position:sticky;top:var(--hb-top,0px);height:0;z-index:700}
 .evstick-in{position:absolute;left:0;right:0;top:0;padding:8px 14px 4px;background:color-mix(in srgb,var(--panel) 94%,transparent);

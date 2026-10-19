@@ -475,6 +475,7 @@
   const studioToday=()=>FV.todayIn(FV.tzFor(studioCC()));
   function setDateWindow(){ const d=document.getElementById("c_date"); if(!d) return; const t=studioToday(); d.setAttribute("min",t); d.setAttribute("max",FV.addYears(t,5)); }
   setDateWindow();   // before store-api's date hardener runs (DOMContentLoaded), so it uses the studio day too
+  try{ if(window.BPUI && BPUI.dateHint) BPUI.dateHint(document.getElementById("c_date")); }catch(_){}   // r22: the event date in the studio's format under the box
   // QA1019: the step-9 "Next step" only says the booking is confirmed once an advance is recorded
   function payNextConfirmed(){ const p=$("#pay_next"); if(!p) return; const b=document.createElement("b"); b.textContent="Next step:"; p.replaceChildren(b, " the booking is confirmed \u2014 move on to Resources and Logistics from the event page."); }
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

@@ -98,8 +98,14 @@
 
   // the header controls a tooltip must not cover (anything the user could click or read next)
   var CTRL = 'button,select,input:not([type="hidden"]),a[href],summary,.seg,.capmeter,.qbadge,.kbd,.savestate';
+  // r22: the free-trial strip above the toolbar is covered no more than a toolbar control
+  var BANNERS = '#helmTrialStrip';
   function obstacles(hdr, el) {
     var out = [];
+    doc.querySelectorAll(BANNERS).forEach(function (b) {
+      if (b.contains(el) || (b.checkVisibility && !b.checkVisibility())) return;
+      var r = b.getBoundingClientRect(); if (r.width > 0 && r.height > 0) out.push(r);
+    });
     hdr.querySelectorAll(CTRL).forEach(function (c) {
       if (c === el || c.contains(el) || el.contains(c) || c === tip) return;
       if (c.checkVisibility && !c.checkVisibility()) return;          // closed menus, hidden controls
@@ -130,8 +136,10 @@
       var mr = menu.getBoundingClientRect();
       cands = [{ side: 'right', left: mr.right + GAP, top: cy }, { side: 'left', left: mr.left - GAP - w, top: cy }];
     } else {
-      cands = [{ side: 'below', left: cx, top: r.bottom + GAP }, { side: 'above', left: cx, top: r.top - GAP - h }];
-      if (hdr) cands.push({ side: 'right', left: r.right + GAP, top: cy }, { side: 'left', left: r.left - GAP - w, top: cy });
+      var below = { side: 'below', left: cx, top: r.bottom + GAP }, above = { side: 'above', left: cx, top: r.top - GAP - h };
+      // r22 (live QA): in the header, "above" a first-row control opened over the trial banner. Order there: below, then
+      // beside it (right, left), and above only as the last spot - the same collision test decides each one
+      cands = hdr ? [below, { side: 'right', left: r.right + GAP, top: cy }, { side: 'left', left: r.left - GAP - w, top: cy }, above] : [below, above];
     }
     var obs = hdr ? obstacles(hdr, el) : [];
     for (var i = 0; i < cands.length && !pick; i++) {
