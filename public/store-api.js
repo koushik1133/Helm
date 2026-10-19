@@ -5447,7 +5447,7 @@ window.HelmUrl = HelmUrl;
     try { const s = sessionStorage.getItem("helm_local_uid"); if (s) return s; } catch (e) {}
     try { return localStorage.getItem("helm_local_uid") || "u-you"; } catch (e) { return "u-you"; }
   }
-  let chatBackendMissing = false, chatBcastEnsured = false;   // bell: skip when chat SQL absent; ensure broadcast once
+  let chatBackendMissing = false, chatBcastEnsured = false, chatBcastInflight = null;   // bell: skip when chat SQL absent; ensure broadcast once
   function chatMultiUser() { try { return !!sessionStorage.getItem("helm_local_uid"); } catch (e) { return false; } }
   const chatReadLs = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch (e) { return []; } };
   const chatWriteLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
@@ -6031,7 +6031,18 @@ window.HelmUrl = HelmUrl;
         const bk = "bp_chat_bcast:" + ((currentUser && currentUser.id) || "");
         let done = false; try { done = sessionStorage.getItem(bk) === "1"; } catch (e) {}
         if (done) chatBcastEnsured = true;
-        else { try { await rpc("chat_ensure_broadcast"); chatBcastEnsured = true; try { sessionStorage.setItem(bk, "1"); } catch (e) {} } catch (e) {} }
+        else {
+          // r20: single-flight - the Chat page can ask for conversations twice at once on first visit;
+          // both used to fire the ensure RPC and the loser hit the one-broadcast-per-studio unique index
+          // (409 / 23505). Share one in-flight call, and treat 409/23505 as "already exists" (it does).
+          if (!chatBcastInflight) chatBcastInflight = (async () => {
+            try { await rpc("chat_ensure_broadcast"); chatBcastEnsured = true; try { sessionStorage.setItem(bk, "1"); } catch (e) {} }
+            catch (e) { const c = String((e && e.code) || ""), st = Number(e && e.status);
+              if (c === "23505" || c === "409" || st === 409) { chatBcastEnsured = true; try { sessionStorage.setItem(bk, "1"); } catch (_) {} } }
+            finally { chatBcastInflight = null; }
+          })();
+          try { await chatBcastInflight; } catch (e) {}
+        }
       }
       const { data, error } = await supa.from("chat_conversations").select("*").order("last_message_at", { ascending: false });
       if (error) throw error;
