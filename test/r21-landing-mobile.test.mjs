@@ -38,7 +38,7 @@ t('Save-Data / 2G: no autoplaying video; phones fetch the hero film only when it
   assert.match(js, /var liteData = !!netInfo\.saveData \|\| \/\(\^\|-\)2g\$\/\.test/);
   assert.match(js, /var userPaused = reduce \|\| liteData;/);
   assert.match(js, /var heroUserPaused = reduce \|\| liteData, heroVisible = false;/);
-  assert.match(js, /if \(!reduce && !liteData\) \{[\s\S]{0,260}if \(!smallScreen\) loadV\(heroVideo\);/);
+  assert.match(js, /if \(!reduce && !liteData\) \{[\s\S]{0,400}afterLoadIdle\(heroGo\);/);   // r23: phones + desktop: after load + idle, then only when in view
 });
 
 t('mobile hero: one-line eyebrow, fluid headline, stacked CTAs, softer ticker fade, 44px controls', () => {

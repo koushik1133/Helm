@@ -100,7 +100,29 @@
     return { kind: "other", text: "" };
   }
 
-  var api = { KEY: KEY, TERMS_KEY: TERMS_KEY, EVENT_TYPES: EVENT_TYPES, TEAM_SIZES: TEAM_SIZES, intentFrom: intentFrom, slugify: slugify,
+  // r23: step 1's words follow where the visitor came from (?plan= & ?mode=) - pure, unit-tested.
+  // planName: the plan's display name ("" = none/unknown); days: the trial length (trial-facts.js).
+  // kind "neutral" = no mode: the caller keeps the generic words (trial-signup.js).
+  var PLAN_NAMES = { starter: "Starter", studio: "Studio", enterprise: "Enterprise" };
+  function planName(code, plans) {
+    code = String(code || "").toLowerCase();
+    if (!CODE_RE.test(code)) return "";
+    var hit = (Array.isArray(plans) ? plans : []).filter(function (p) { return p && p.code === code; })[0];
+    return hit && hit.name ? String(hit.name).slice(0, 60) : (PLAN_NAMES[code] || "");
+  }
+  function step1Copy(m, name, days) {
+    m = mode(m); name = String(name || ""); days = Number(days) > 0 ? Math.round(Number(days)) : 8;
+    var next = "Step 1 of 4: your account. Next you verify your e-mail and name your studio";
+    if (m === "paid") return { kind: "paid", title: "Create your studio",
+      sub: (name ? name + " plan" : "Your plan") + ", pay after setup. " + next + ", then pay to open it." };
+    if (m === "trial") return { kind: "trial", title: "Start your " + days + "-day free trial",
+      sub: "No payment needed. " + next + ", then your trial starts." };
+    if (m === "sales") return { kind: "sales", title: "Talk to our sales team",
+      sub: "Create a Helm account so our team can set up your " + (name ? name + " " : "") + "studio with you. " + next + ", then contact sales from the plan step." };
+    return { kind: "neutral", title: "", sub: "" };
+  }
+
+  var api = { KEY: KEY, step1Copy: step1Copy, planName: planName, TERMS_KEY: TERMS_KEY, EVENT_TYPES: EVENT_TYPES, TEAM_SIZES: TEAM_SIZES, intentFrom: intentFrom, slugify: slugify,
     detailsCheck: detailsCheck, agreedEarlier: agreedEarlier, onSignupPath: onSignupPath, firstRun: firstRun, checkoutHref: checkoutHref, startError: startError, mode: mode };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (!global || !global.document) return;
@@ -290,7 +312,49 @@
     var back = $("#stBack"); if (back) back.addEventListener("click", function () { doc.body.classList.remove("su-wide"); ctx.showView("#onboardForm"); });
   }
 
-  global.BPSignupFlow = Object.assign({}, api, { intent: function () { return intent; }, wantMode: wantMode, wantPlan: wantPlan,
+  // r23: called by login.html's setMode() after trial-signup.js has laid out step 1. Tailors the heading to
+  // ?mode= (paid / trial / sales), shows the chosen plan as a chip with a "change" link back to /pricing, and on
+  // mode=sales offers the no-account route (the home page's contact form, which only opens the visitor's e-mail app).
+  function applyStep1(m, joining) {
+    var on = m === "signup" && !joining;
+    var chip = doc.getElementById("planChip"), note = doc.getElementById("salesNote");
+    if (!on) { if (chip) chip.hidden = true; if (note) note.hidden = true; return; }
+    var plans = global.HelmPlanCards && global.HelmPlanCards.plansOr ? global.HelmPlanCards.plansOr([]) : [];
+    // only what THIS link says (a bare /signup stays neutral even if an older pricing click is remembered)
+    var name = intent.fromUrl ? planName(intent.plan, plans) : "";
+    var days = global.HelmTrialFacts && global.HelmTrialFacts.DAYS;
+    var c = step1Copy(intent.fromUrl ? intent.mode : "", name, days);
+    var sub = $("#formSub");
+    if (c.kind !== "neutral") {
+      var t = $("#formTitle"); if (t) t.textContent = c.title;
+      if (sub) sub.textContent = c.sub;
+    }
+    if (!sub || !sub.parentNode) return;
+    if (name) {
+      if (!chip) {
+        chip = el("p", "plan-chip"); chip.id = "planChip";
+        chip.appendChild(el("span", "plan-chip-l", "Plan"));
+        chip.appendChild(el("b", "plan-chip-n"));
+        var a = el("a", "plan-chip-x", "change"); a.href = "/pricing"; a.setAttribute("aria-label", "Change plan (opens the pricing page)");
+        chip.appendChild(a);
+        sub.parentNode.insertBefore(chip, sub.nextSibling);
+      }
+      chip.querySelector(".plan-chip-n").textContent = name + (c.kind === "trial" ? " · free trial" : c.kind === "sales" ? " · talk to sales" : "");
+      chip.hidden = false;
+    } else if (chip) chip.hidden = true;
+    if (c.kind === "sales") {
+      if (!note) {
+        note = el("p", "sales-note"); note.id = "salesNote";
+        note.appendChild(doc.createTextNode("Rather talk first, without an account? "));
+        var l = el("a", "", "Write to our sales team \u2192"); l.href = "/#contact"; note.appendChild(l);
+        var anchor = chip && !chip.hidden ? chip : sub;
+        anchor.parentNode.insertBefore(note, anchor.nextSibling);
+      }
+      note.hidden = false;
+    } else if (note) note.hidden = true;
+  }
+
+  global.BPSignupFlow = Object.assign({}, api, { intent: function () { return intent; }, wantMode: wantMode, wantPlan: wantPlan, applyStep1: applyStep1,
     stashTerms: stashTerms, wire: wire, showStudio: showStudio, submitStudio: submitStudio, showStart: showStart,
     clearIntent: function () { lsDel(KEY); } });
 })(typeof window !== "undefined" ? window : globalThis);
