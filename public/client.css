@@ -54,3 +54,36 @@ html[data-theme="dark"] .totals dd.due{color:#f87171}
 
 /* brand kit symbol (as-is) replaces the old gradient tile */
 .mark{background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}
+
+/* r21: calmer client page - a compact header, money tiles that mask neatly, a lighter timeline */
+#app .card.head{padding:18px 20px;gap:18px}
+#app .head h2{font-size:21px;font-weight:650;letter-spacing:-.015em}
+#app .avatar{width:48px;height:48px;font-size:17px}
+#app .totals{gap:10px;flex:0 1 420px}
+#app .totals div{padding:10px 12px;border-radius:12px}
+#app .totals dt{font-size:10.5px;letter-spacing:.07em}
+#app .totals dd{font-size:16px;margin-top:4px;width:fit-content;max-width:100%}
+html.hb-priv-on #app .totals dd{min-width:6ch;line-height:1.35}
+#app .filters{gap:6px;margin:6px 0 14px}
+#app .chip{min-height:32px;font-size:12.5px}
+#app .timeline::before{left:15px;background:var(--line-2)}
+#app .tl{gap:12px;padding:0 0 10px}
+#app .tl .dot{width:32px;height:32px;font-size:14px;background:var(--panel-2);border-color:var(--line-2)}
+#app .tl .body{box-shadow:none;border-color:var(--line-2);padding:10px 14px;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:baseline}
+#app .tl .body > .t,#app .tl .body > .s{grid-column:1}
+#app .tl .body > .when{grid-column:2;grid-row:1;margin:0;font-family:var(--font);font-size:11.5px;white-space:nowrap}
+#app .tl .k{font-size:9.5px;letter-spacing:.07em;padding:2px 6px;border-radius:6px;background:var(--accent-soft);margin-right:8px;vertical-align:1px}
+@media (max-width:560px){
+  #app .tl .body{grid-template-columns:minmax(0,1fr)}
+  #app .tl .body > .when{grid-column:1;grid-row:auto;margin-top:4px}
+  #app .totals{flex-basis:100%}
+}
+#bkShare{white-space:nowrap}
+@media (max-width:560px){
+  #bkShare{padding:6px 10px;font-size:0;min-height:34px;gap:5px}
+  #bkShare::after{content:"Share";font-size:12px}
+  #bkShare svg{width:15px;height:15px}
+  #app .filters{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;margin-right:-16px;padding-right:16px}
+  #app .filters::-webkit-scrollbar{display:none}
+  #app .chip{flex:0 0 auto}
+}

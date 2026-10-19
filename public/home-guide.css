@@ -35,6 +35,16 @@
 .hg-chip:hover{background:#e3f5ec}.hg-chip:active{transform:scale(.97)}
 .hg-foot{padding:4px 14px 10px;text-align:right}
 .hg-mute{border:0;background:none;color:#5a6159;font:500 12px "Plus Jakarta Sans",system-ui,sans-serif;text-decoration:underline;cursor:pointer;min-height:32px}
-@media (max-width:420px){.hg-tease{display:none}.hg-launch{padding:6px}}
+/* r21 mobile: no floating launcher on phones/tablets; the guide opens from in-page buttons as a bottom sheet */
+@media (max-width:767px){
+ .hg-launch{display:none}
+ .hg:not(.open){display:none}
+ .hg.sheet{left:0;right:0;bottom:0;align-items:stretch;gap:0;transform:none}
+ .hg.sheet .hg-panel{width:100%;max-height:min(78dvh,600px);border-radius:22px 22px 0 0;padding-bottom:env(safe-area-inset-bottom);transform-origin:bottom center;animation-name:hgsheet}
+ body.hg-sheet-open .mcta{transform:translateY(110%);visibility:hidden}
+ .hg-chip{min-height:44px}.hg-mute{min-height:44px;padding:0 4px}
+}
+@keyframes hgsheet{from{transform:translateY(24px);opacity:0}}
+.hg-ask{margin:28px auto 0;display:flex}
 @media (prefers-reduced-motion:reduce){.hg,.hg-panel,.hg-msg,.hg-launch .hg-av,.hg-typing i{animation:none!important;transition:none!important}}
 .hg-log:focus{outline:none}

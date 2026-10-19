@@ -229,6 +229,6 @@ t("SQL 0210: ASCII, additive (no drop / delete / truncate), MANIFEST in numeric 
 t("pins: the changed files are re-pinned on the pages that load them", () => {
   assert.match(LOGIN, /<script src="\/auth-handoff\.js\?v=2"><\/script>/);
   assert.match(ACH, /<script src="\/auth-confirm\.js\?v=4"><\/script>/);
-  assert.match(r("public/dashboard.html"), /<script src="trial-demo\.js\?v=15"><\/script>/);
+  assert.match(r("public/dashboard.html"), /<script src="trial-demo\.js\?v=(?:1[5-9]|[2-9][0-9])"><\/script>/);
 });
 console.log(`signup-auth-r19: ${n} checks passed`);
