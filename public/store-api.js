@@ -1341,6 +1341,9 @@ window.HelmUrl = HelmUrl;
     { key: "pkg_review",   label: "Package selections (review)", icon: "📦", page: null, group: "Finance" },
     { key: "pkg_payments", label: "Package payment alerts",      icon: "💸", page: null, group: "Finance" },
     { key: "command",    label: "Event-day command", icon: "🎛", page: null,             group: "Event day" },
+    // 0241 (r21): delivery / arrival reminders + the tracker on the event-day page. view = see the tracker,
+    // edit = schedule reminders and mark status. No row yet = the role's "Event-day command" switch (defaultFrom).
+    { key: "deliveries", label: "Deliveries & arrivals (reminders)", icon: "🚚", page: null, group: "Event day", defaultFrom: "command" },
     { key: "issues",     label: "Issues & incidents",icon: "🚨", page: null,             group: "Event day" },
     { key: "media",      label: "Media & gallery",   icon: "📸", page: null,             group: "Event day" },
     { key: "controls",   label: "Control Center",    icon: "⚙", page: "control.html",   group: "Admin" },
@@ -1356,6 +1359,8 @@ window.HelmUrl = HelmUrl;
     { key: "item_pricing", label: "Item pricing (rate cards)", icon: "🏷", page: null, group: "Admin" },
     { key: "users",      label: "Users & access",    icon: "👥", page: "control.html",   group: "Admin" },
   ];
+  // 0241: an area with no saved row follows another area's switch (the server's _dl241_can does the same)
+  const AREA_FALLBACK = AREAS.reduce((m, a) => { if (a.defaultFrom) m[a.key] = a.defaultFrom; return m; }, {});
   // coarse keys the older per-page gates pass → the fine areas they cover
   const COARSE_TO_FINE = {
     finance:   ["finance", "settlement", "closure"],
@@ -1823,6 +1828,7 @@ window.HelmUrl = HelmUrl;
       const fine = COARSE_TO_FINE[area];             // set only for coarse keys
       if (acc.map) {
         if (fine) return fine.some((k) => acc.map[k] && acc.map[k].view);   // coarse: any child visible
+        if (!acc.map[area] && AREA_FALLBACK[area]) return !!(acc.map[AREA_FALLBACK[area]] && acc.map[AREA_FALLBACK[area]].view);   // 0241
         return !!(acc.map[area] && acc.map[area].view);                     // fine key
       }
       // legacy fallback (phase29 not yet applied)
@@ -1842,6 +1848,7 @@ window.HelmUrl = HelmUrl;
       const fine = COARSE_TO_FINE[area];
       if (acc.map) {
         if (fine) return fine.some((k) => acc.map[k] && acc.map[k].edit);
+        if (!acc.map[area] && AREA_FALLBACK[area]) return !!(acc.map[AREA_FALLBACK[area]] && acc.map[AREA_FALLBACK[area]].edit);   // 0241
         return !!(acc.map[area] && acc.map[area].edit);
       }
       return EDIT_ROLES.includes(r);
@@ -9382,6 +9389,25 @@ window.HelmUrl = HelmUrl;
     reminderUpcoming: () => (supa ? rpc("event_reminder_upcoming", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
   };
 
+  // 0241 (r21): delivery / arrival reminders. Every call goes through the RPCs (studio + 'deliveries' area checked
+  // in the database). null from settings() = the server is older than 0241.
+  const DLV_STATUS = { scheduled: "Scheduled", reminded: "Reminded", confirmed: "On the way", arrived: "Arrived",
+    delayed: "Delayed", issue: "Problem", cancelled: "Cancelled", edited: "Edited", no_response: "No response" };
+  const deliveries = {
+    STATUS: DLV_STATUS,
+    statusLabel: (s) => DLV_STATUS[s] || String(s || ""),
+    settings: () => (supa ? rpc("delivery_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    saveSettings: (patch) => (supa ? rpc("delivery_settings_set", { p: patch || {} }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    list: (quoteId) => (supa ? rpc("delivery_list", { p_quote: quoteId || null, p_from: null, p_to: null }).then((d) => (Array.isArray(d) ? d : []))
+      : Promise.resolve([])),
+    save: (row) => (supa ? rpc("delivery_save", { p: row || {} }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    setStatus: (id, status, note, eta) => (supa ? rpc("delivery_set_status", { p_id: id, p_status: status, p_note: note || null, p_eta: eta || null })
+      : Promise.reject(new Error("Needs a signed-in studio."))),
+    history: (id) => (supa ? rpc("delivery_history", { p_id: id }) : Promise.resolve({ log: [], reminders: [] })),
+    issueLink: (id) => (supa ? rpc("delivery_link_issue", { p_id: id }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    linkUrl: (token) => (/^[0-9a-f]{64}$/.test(String(token || "")) ? location.origin + "/delivery?t=" + token : ""),
+  };
+
   // 0117 studio integration accounts + 0134 read-only overview (Integrations page). null = server too old.
   const integrations = {
     overview: () => (supa ? rpc("integrations_overview", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
@@ -9402,7 +9428,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, deliveries, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.

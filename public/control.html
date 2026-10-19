@@ -213,6 +213,7 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=3">
 <link rel="stylesheet" href="comms-settings.css?v=2">
+<link rel="stylesheet" href="delivery-tracker.css?v=1">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
 <link rel="stylesheet" href="menu-pkg-editor.css?v=5">
@@ -665,6 +666,9 @@
         <button type="button" class="btn" id="pr_save">Save photo render settings</button>
       </div>
 
+      <!-- 0241: delivery / arrival reminders (built + wired by delivery-settings.js; hidden before 0241) -->
+      <div class="card" id="dlvCard" hidden></div>
+
       <!-- 0078: automatic client messages + WhatsApp forwarding (wired by comms-settings.js) -->
       <div class="card" id="commsCard" hidden>
         <h3>Automatic client messages &amp; WhatsApp</h3>
@@ -766,7 +770,7 @@
 <script src="config.js?v=104"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=260"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=261"></script>
 <script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -777,6 +781,8 @@
 <script src="onboarding-core.js?v=7"></script>
 <script src="studio-billing-form.js?v=2"></script>
 <script src="comms-settings.js?v=5"></script>
+<script src="delivery-tracker.js?v=1"></script>
+<script src="delivery-settings.js?v=1"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=2"></script>
 <script src="cc-inputs.js?v=4"></script>
@@ -1997,7 +2003,10 @@
   let MTX = {};              // {role:{area:{view,edit}}}
   let selRole = "manager";
   // 0147: an area with defaultOn (e.g. "Create new quotes") is ON for those roles until a row is saved
-  function cellDefault(role, key){ const a=AREAS.find(x=>x.key===key); const on=!!(a&&a.defaultOn&&a.defaultOn.includes(role)); return {view:on, edit:on}; }
+  function cellDefault(role, key){ const a=AREAS.find(x=>x.key===key);
+    // 0241: an area with defaultFrom (Deliveries & arrivals) follows that area's switch until its own row is saved
+    if(a&&a.defaultFrom){ const f=MTX[role]&&MTX[role][a.defaultFrom]; return {view:!!(f&&f.view), edit:!!(f&&f.edit)}; }
+    const on=!!(a&&a.defaultOn&&a.defaultOn.includes(role)); return {view:on, edit:on}; }
 
   async function initMatrix(){
     // role tabs (admin first, shown as locked-full)
@@ -2124,6 +2133,7 @@
   async function initNotify(){
     if(npStarted) return; npStarted=true;
     if(typeof HelmCommsSettings!=="undefined") HelmCommsSettings.init();   // 0078 (independent of the prefs load)
+    if(typeof HelmDeliverySettings!=="undefined") HelmDeliverySettings.init();   // 0241 delivery reminders
     await loadNotify(); renderNotify();
     try{ npUsers=(await BPStore.auth.admin.listUsers())||[]; }catch(e){ npUsers=[]; }
     npUsers.sort((a,b)=>String(a.full_name||a.email||"").localeCompare(String(b.full_name||b.email||"")));

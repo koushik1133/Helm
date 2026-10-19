@@ -66,3 +66,4 @@
 .conflict.short-src .when{color:#946200}
 .chip.short{background:#fff7e6;border-color:#f0d9a8;color:#946200}
 .chip.short b{color:#946200}
+.rvs-list .rvs-dlv{font-size:12px;font-weight:600;color:var(--accent,#047857);text-decoration:underline}
