@@ -123,26 +123,46 @@ t('B24 "Discard changes" puts each changed field back to its saved value, re-run
 
 // ---- B29: trial cap up front, executed ----
 const mkDoc = () => { const byId = {}; return { byId, getElementById: (id) => byId[id] || null }; };
-async function capRun(limits) {
+async function capRun(limits, opts, role, btn0) {
   const doc = mkDoc();
-  const ctx = { global: { BPStore: { subscription: { limits: async () => limits } } }, doc, injectCSS() {},
-    h: (tag, a) => { const e = { tag, id: a.id, classList: { s: new Set([a.class]), toggle(c, on) { on ? this.s.add(c) : this.s.delete(c); }, contains(c) { return this.s.has(c); } }, textContent: '', remove() { delete doc.byId[a.id]; } }; doc.byId[a.id] = e; return e; } };
+  const ctx = { global: { BPStore: { subscription: { limits: async () => limits }, auth: { cachedRole: () => role || null } } }, doc, injectCSS() {},
+    h: (tag, a, txt) => { const e = { tag, id: a.id, kids: [], classList: { s: new Set([a.class]), toggle(c, on) { on ? this.s.add(c) : this.s.delete(c); }, contains(c) { return this.s.has(c); } },
+      _t: txt == null ? '' : String(txt), get textContent() { return this._t + this.kids.map((k) => k.textContent).join(''); }, set textContent(v) { this._t = String(v); this.kids = []; },
+      appendChild(k) { this.kids.push(k); return k; }, remove() { delete doc.byId[a.id]; } }; if (a.id) doc.byId[a.id] = e; return e; } };
   vm.createContext(ctx);
   vm.runInContext(slice(STORE, '  function trialCap(entity) {', '  global.BPUI = {') + '\nthis.capGate = capGate; this.trialCap = trialCap;', ctx);
-  const btn = { nodeType: 1, id: 'newBtn', disabled: false, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }, removeAttribute(k) { delete this.attrs[k]; }, insertAdjacentElement() {} };
-  const c = await ctx.capGate([btn, null], 'vendors', 'partners');
-  return { c, btn, note: doc.byId.newBtn_capnote, ctx };
+  const btn = btn0 || { nodeType: 1, id: 'newBtn', disabled: false, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }, removeAttribute(k) { delete this.attrs[k]; }, insertAdjacentElement() {} };
+  const c = await ctx.capGate([btn, null], 'vendors', 'partners', opts);
+  return { c, btn, note: doc.byId[btn.id + '_capnote'], ctx };
 }
 t('B29 trial at the cap: the add button is off and "Free trial: 2 of 2 partners used" shows before any form', async () => {
   const { c, btn, note } = await capRun({ trial: true, cap: 2, used: { vendors: 2 } });
   assert.equal(c.full, true); assert.equal(btn.disabled, true); assert.equal(btn.attrs['data-cap-off'], '1');
-  assert.equal(note.textContent, 'Free trial: 2 of 2 partners used. Choose a plan to add more.'); assert.ok(note.classList.contains('is-full'));
+  assert.equal(note.textContent, 'Free trial \u00b7 2 of 2 partners used \u00b7 Choose a plan \u2192'); assert.ok(note.classList.contains('is-full'));
 });
 t('B29 below the cap: button stays on, the count is shown; paid studio / no answer: nothing changes', async () => {
   const a = await capRun({ trial: true, cap: 2, used: { vendors: 1 } });
-  assert.equal(a.btn.disabled, false); assert.equal(a.note.textContent, 'Free trial: 1 of 2 partners used.');
+  assert.equal(a.btn.disabled, false); assert.equal(a.note.textContent, 'Free trial \u00b7 1 of 2 partners used');
   const p = await capRun({ trial: false, cap: 2, used: { vendors: 9 } }); assert.equal(p.c, null); assert.equal(p.btn.disabled, false); assert.equal(p.note, undefined);
   const z = await capRun(null); assert.equal(z.c, null); assert.equal(z.btn.disabled, false);
+});
+t('r20 cap note: soft mode only LOOKS off (aria-disabled, click still lands), keeps/restores the tooltip; teammates are told to ask the admin', async () => {
+  const mk = () => ({ nodeType: 1, id: 'createBtn', disabled: false, attrs: { title: 'Start a new quote' }, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }, removeAttribute(k) { delete this.attrs[k]; }, insertAdjacentElement() {} });
+  const opts = { soft: true, offTitle: 'Free trial limit reached \u2014 choose a plan to add more quotes' };
+  const b = mk(), r = await capRun({ trial: true, cap: 2, used: { vendors: 2 } }, opts, 'admin', b);
+  assert.equal(b.disabled, false, 'soft: never the disabled property (the click must reach the handler for the toast)');
+  assert.equal(b.attrs['aria-disabled'], 'true'); assert.equal(b.attrs['data-cap-off'], '1'); assert.equal(b.attrs['data-cap-soft'], '1');
+  assert.equal(b.attrs.title, opts.offTitle); assert.equal(b.attrs['data-cap-title'], 'Start a new quote');
+  assert.equal(r.note.textContent, 'Free trial \u00b7 2 of 2 partners used \u00b7 Choose a plan \u2192');
+  // back under the cap (e.g. after an upgrade / delete): everything this switched off comes back, tooltip restored
+  const again = await capRun({ trial: true, cap: 2, used: { vendors: 1 } }, opts, 'admin', b);
+  assert.equal(b.attrs['aria-disabled'], undefined); assert.equal(b.attrs['data-cap-off'], undefined); assert.equal(b.attrs['data-cap-soft'], undefined);
+  assert.equal(b.attrs.title, 'Start a new quote'); assert.equal(again.note.textContent, 'Free trial \u00b7 1 of 2 partners used');
+  const tm = await capRun({ trial: true, cap: 2, used: { vendors: 2 } }, opts, 'sales', mk());
+  assert.equal(tm.note.textContent, 'Free trial \u00b7 2 of 2 partners used \u00b7 Ask your studio admin to choose a plan');
+  // the note is a line of its own BELOW the dashboard button row, never inside the split button
+  assert.match(STORE, /var row = b\.closest \? b\.closest\("\.hd-acts"\) : null;/);
+  assert.match(STORE, /if \(row\) \{ if \(note\.parentNode !== row \|\| row\.lastElementChild !== note\) row\.appendChild\(note\); \}/);
 });
 t('B29 every catalog add button + new-record dialog reads the cap (inventory, vendors, staff, venues)', () => {
   for (const [src, ent] of [[INV, 'inventory_items'], [VEN, 'vendors'], [STAFF, 'crew_members']]) {
