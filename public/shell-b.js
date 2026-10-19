@@ -121,8 +121,9 @@
     { sel: "[data-tour='theme']", side: "right", title: "Look and feel", desc: window.HELM_DARK_MODE === true ? "Switch dark mode and pick a colour theme." : "Pick a colour theme: Emerald, Cobalt, Midnight, Graphite or Studio." },
     { sel: "[data-tour='account']", side: "right", title: "Your account", desc: "Your profile, account settings (password and two-step verification), the user manual and sign out." },
     { sel: "[data-tour='search']", title: "Search anything", desc: "Find quotes, leads, clients and pages from one box. Press / or Ctrl+K." },
-    { sel: "[data-tour='bell']", title: "Notifications", desc: "Approvals, payments and mentions arrive here." },
-    { sel: "[data-tour='new']", title: "Create", desc: "Start a new quote, lead or event from any page." }
+    /* r20 coord (b): role-aware (tour.js resolves need / uses through BPStore.auth); null alt = this admin wording */
+    { sel: "[data-tour='bell']", uses: "finance", alt: function (can) { return can("finance") ? null : { desc: "Approvals, reminders and mentions arrive here." }; }, title: "Notifications", desc: "Approvals, payments and mentions arrive here." },
+    { sel: "[data-tour='new']", need: ["create", "edit:quotes"], title: "Create", desc: "Start a new quote, lead or event from any page." }
   ];
   function startTour() {
     var hb = document.getElementById("helpBtn");

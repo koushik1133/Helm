@@ -7189,8 +7189,44 @@ window.HelmUrl = HelmUrl;
     if (r && r.source === "buy") return head + " \u2014 outsource / buy";
     return head + " \u2014 unsourced";
   }
+  // r20 coord (b): ONE "advance is in" rule for every screen - the same truth the status label
+  // ("Confirmed · advance paid") uses: the client paid (approval_status "paid"), or a payment
+  // milestone is paid, or the payments ledger has a paid receipt, or settlement received > 0.
+  // Every input is optional: a role without finance may not be able to read milestones or the
+  // ledger, so a missing / denied read simply counts as "no evidence", never an error.
+  function advanceIn(ev, o) {
+    o = o || {};
+    if (ev && String(ev.approvalStatus || ev.approval_status || "") === "paid") return true;
+    if ((o.milestones || []).some((m) => m && m.status === "paid")) return true;
+    if ((o.payments || []).some((p) => p && p.status === "paid" && Number(p.amount || 0) > 0)) return true;
+    if (o.settlement && Number(o.settlement.received) > 0) return true;
+    return false;
+  }
+  // r20 coord (b): a quote whose venue is typed by name ("Demo · Green Meadows Lawn") but not linked
+  // to a saved venue: match a saved venue by name - case / space-insensitive, tolerating the trial
+  // "Demo · " and old seed "SAMPLE - " prefixes on either side. Only an unambiguous match counts.
+  function venueNameKey(n, keepPrefix) {
+    let s = String(n == null ? "" : n).normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+    if (!keepPrefix) s = s.replace(/^(demo|sample)\s*[\u00b7\u2022:\-\u2013\u2014]\s*/, "").trim();
+    return s;
+  }
+  function venueForQuote(ev, list) {
+    const c = (ev && ev.client) || {}; list = (list || []).filter(Boolean);
+    if (c.venueId) { const byId = list.find((v) => v.id === c.venueId); if (byId) return byId; }
+    const want = venueNameKey(c.venue);
+    if (!want) return null;
+    const exact = list.filter((v) => venueNameKey(v.name, true) === venueNameKey(c.venue, true));
+    if (exact.length === 1) return exact[0];
+    const loose = list.filter((v) => venueNameKey(v.name) === want);
+    if (loose.length === 1) return loose[0];
+    const live = loose.filter((v) => v.active !== false);
+    return live.length === 1 ? live[0] : null;
+  }
   const readiness = {
     async check(quoteId) {
+      // r20 coord (b): money truth (milestones / ledger) only for a role that can see finance - for the
+      // rest those reads are RLS-blocked (and read as "not yet"), so they get the quote's own status.
+      const canFin = await Promise.resolve().then(() => auth.canView("finance")).then((v) => v === true, () => false);
       const [ev, planRow, resCheck, bk, tasks, ms, rs] = await Promise.all([
         quotes.get(quoteId),
         plan.get(quoteId).catch(() => null),
@@ -7199,7 +7235,7 @@ window.HelmUrl = HelmUrl;
         (async () => { if (mode !== "supabase") return [];
           const { data, error } = await supa.from("event_tasks").select("crew_id").eq("quote_id", quoteId).not("crew_id", "is", null);
           if (error) throw error; return data; })().catch(() => []),
-        milestones.list(quoteId).catch(() => []),
+        canFin ? milestones.list(quoteId).catch(() => []) : Promise.resolve([]),
         runsheet.list(quoteId).catch(() => []),
       ]);
       // r20: a locked menu only counts when it HOLDS something (dishes, a package or menu notes) - never an empty lock.
@@ -7210,11 +7246,12 @@ window.HelmUrl = HelmUrl;
       const [shorts, items, vlist, dishes] = await Promise.all([
         inventory.shortages(quoteId).catch(() => []),
         inventory.items(true).catch(() => []),
-        (ev && ev.client && ev.client.venueId) ? venues.list({ all: true }).catch(() => []) : Promise.resolve([]),
+        (ev && ev.client && (ev.client.venueId || String(ev.client.venue || "").trim())) ? venues.list({ all: true }).catch(() => []) : Promise.resolve([]),
         eventMenu.list(quoteId).catch(() => null),
       ]);
       const menuHas = (Array.isArray(dishes) && dishes.length > 0) || !!pkgName || !!String((planRow && planRow.menu) || "").trim();
-      const capVenue = (vlist || []).find((v) => v.id === (ev.client || {}).venueId) || null;
+      // r20 coord (b): the linked venue, else a saved venue matching the typed venue name ("Demo · Green Meadows Lawn")
+      const capVenue = venueForQuote(ev, vlist);
       const cap = capacityStatus(ev, capVenue);
       const capUnchecked = !cap.over && !(cap.total > 0 && cap.guests > 0);
       const capWhy = !capVenue ? "not checked - no saved venue linked" : !(cap.guests > 0) ? "not checked - no guest count yet" : "not checked - the venue has no capacity saved";
@@ -7226,7 +7263,10 @@ window.HelmUrl = HelmUrl;
       const gaps = resCheck.filter((c) => !c.covered).length;
       const enquiry = bk.filter((b) => b.status === "enquiry").length;
       const crew = new Set(tasks.map((t) => t.crew_id)).size;
-      const paid = ms.some((m) => m.status === "paid");
+      // ledger receipts only when the milestones don't already show it (a role without finance gets [])
+      const pays = (canFin && ev && String(ev.approvalStatus || "") !== "paid" && !ms.some((m) => m && m.status === "paid"))
+        ? await milestones.payments(quoteId).catch(() => []) : [];
+      const paid = advanceIn(ev, { milestones: ms, payments: pays });
       const checks = [
         { key: "date", label: "Event date set", critical: true, ok: !!ev.eventDate, detail: ev.eventDate || "not set" },
         { key: "approval", label: "Client approved", critical: true, ok: ["approved", "paid"].includes(ev.approvalStatus), detail: ev.approvalStatus || "none" },
@@ -7243,7 +7283,8 @@ window.HelmUrl = HelmUrl;
             : cap.short.toLocaleString("en-IN") + " guests won't fit - decide in the quote" },
         { key: "stock", label: "Stock sourced (no shortages left open)", critical: true, ok: unsourced === 0,
           detail: shortLines.length ? shortLines.join("; ") : "no shortages" },
-        { key: "payments", label: "Advance received", critical: false, ok: paid, detail: paid ? "yes" : "not yet" },
+        // no "Fix" link without finance: the payments tab it points at is hidden for that role
+        { key: "payments", label: "Advance received", critical: false, ok: paid, detail: paid ? "yes" : "not yet", noFix: !canFin },
         { key: "dry_run", label: "Dry run done", critical: true, ok: !!(planRow && planRow.dry_run_at), detail: (planRow && planRow.dry_run_at) ? "done" : "pending", signoff: "dry_run" },
         { key: "briefing", label: "Team briefed", critical: true, ok: !!(planRow && planRow.briefing_at), detail: (planRow && planRow.briefing_at) ? "done" : "pending", signoff: "briefing" },
       ];
@@ -9247,7 +9288,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, capacityStatus, shortageText, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.

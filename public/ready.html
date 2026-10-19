@@ -145,7 +145,8 @@
       const href = linkFor(c.key);
       let act="";
       if(c.signoff && canEdit){ act = `<button type="button" class="btn" style="height:32px;padding:0 12px;font-size:12px" data-sign="${esc(c.signoff)}" data-done="${c.ok?1:0}" aria-label="${c.ok?"Undo":"Mark done"}: ${esc(c.label)}">${c.ok?"Undo":"Mark done"}</button>`; }
-      else if(href && !c.ok){ act = `<a class="link" href="${esc(href)}" aria-label="Fix ${esc(c.label)}">Fix →</a>`; }
+      // r20 coord (b): no "Fix" link when the role can't open the page it points at (c.noFix: Advance received without finance)
+      else if(href && !c.ok && !c.noFix){ act = `<a class="link" href="${esc(href)}" aria-label="Fix ${esc(c.label)}">Fix →</a>`; }
       return `<div class="chk"><div class="ic ${cls}" aria-hidden="true">${icon}</div><span class="sr-only">${c.ok?"Passed":(c.unchecked?"Not checked":(c.critical?"Not done":"Warning"))}:</span>
         <div><div class="l">${esc(c.label)}${c.unchecked?'<span class="opt">not checked</span>':(c.critical?"":'<span class="opt">optional</span>')}</div><div class="d">${esc(c.detail)}</div></div>
         <div class="act">${act}</div></div>`;
