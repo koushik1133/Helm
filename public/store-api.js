@@ -8631,6 +8631,13 @@ window.HelmUrl = HelmUrl;
       try { return await rpc("insights_events", { p_from: from || null, p_to: to || null }); }
       catch (e) { if (rpcMissing(e)) { const er = new Error("Per-event profit needs database update 0077 (ask your admin to run APPLY-0077.sql)."); er.code = "insights_events_missing"; throw er; } throw e; }
     },
+    // r21 (0240) insights_event_costs: per-event cost split (vendors / crew / logistics / rentals / change orders /
+    // other / expense claims / refunds), profit = event_pnl, type, guests, collected / outstanding. Finance only.
+    async costs(from, to) {
+      if (mode !== "supabase" || !supa) return null;
+      try { return await rpc("insights_event_costs", { p_from: from || null, p_to: to || null }); }
+      catch (e) { if (rpcMissing(e)) { const er = new Error("Event cost charts need database update 0240 (ask your admin to run APPLY-0240.sql)."); er.code = "insights_costs_missing"; throw er; } throw e; }
+    },
     // 0076 insights_range: counts, money (null without finance), top types, staff participation
     async range(from, to) {
       if (mode !== "supabase" || !supa) return null;
