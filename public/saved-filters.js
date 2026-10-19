@@ -17,11 +17,13 @@
   var PAGES = {
     leads: { search: "search", sel: [], chk: [], tabs: null, presets: [] },
     quotes: {
-      search: "search", sel: ["typeFilter"], chk: [], tabs: "tabs",
+      // r23: + the "When" (event date) select - a view called "This month" now really keeps that date window
+      search: "search", sel: ["typeFilter", "dateFilter"], chk: [], tabs: "tabs",
       presets: [
         { key: "confirmed", name: "Confirmed events", state: { tab: "confirmed" } },
         { key: "attention", name: "Needs attention", state: { tab: "attention" } },
         { key: "archived", name: "Archive", state: { tab: "archived" } },
+        { key: "cancelled", name: "Cancelled events", state: { tab: "cancelled" } },
       ],
       // the tabs right below already are these three filters: keep the presets for ?view=preset:…
       // deep links, but don't draw them as a second, duplicate set of chips
@@ -98,6 +100,32 @@
     return s;
   }
 
+  // r23: what a view applies, in words ("Cancelled · Wedding · This month · search “Rao”") - the chip
+  // tooltip and the top line of its ⋯ menu, read from the page's own tab / option labels
+  var CHK_LABEL = { showInactive: "including inactive" }, X_LABEL = { low: "Low stock" };
+  function ownText(b) {
+    var f = b && b.firstChild;
+    var t = f && f.nodeType === 3 ? f.nodeValue : (b ? b.textContent : "");
+    return String(t || "").replace(/\s+/g, " ").trim();
+  }
+  function describe(cfg, raw) {
+    var s = clean(cfg, raw), parts = [];
+    if (s.tab && cfg.tabs) {
+      var t = el(cfg.tabs), k = tabKey(cfg);
+      var b = t && [].filter.call(t.querySelectorAll("button"), function (x) { return x.dataset && x.dataset[k] === s.tab; })[0];
+      parts.push(ownText(b) || s.tab);
+    }
+    cfg.sel.forEach(function (id) {
+      var v = s.sel[id]; if (!v) return; var e = el(id);
+      var o = e && e.options && [].filter.call(e.options, function (x) { return x.value === v; })[0];
+      parts.push((o && o.textContent ? String(o.textContent).trim() : "") || v);
+    });
+    cfg.chk.forEach(function (id) { if (s.chk[id]) parts.push(CHK_LABEL[id] || id); });
+    if (s.x) parts.push(X_LABEL[s.x] || s.x);
+    if (s.q) parts.push("search “" + s.q + "”");
+    return parts.length ? parts.join(" · ") : "Everything (no filters)";
+  }
+
   // page render hook (inventory): extra preset-only filters that have no visible control
   function match(page, ctx) {
     if (page !== current.page || !current.x) return true;
@@ -134,6 +162,7 @@
     ".hsf-menu button{border:0;background:transparent;text-align:left;font:inherit;font-size:13px;color:var(--ink,#101828);padding:8px 10px;border-radius:7px;cursor:pointer}" +
     ".hsf-menu button:hover{background:var(--panel-2,#f2f4f7)}.hsf-menu .danger{color:#b42318}" +
     ".hsf-tag{font-size:10px;font-weight:700;opacity:.8}" +
+    ".hsf-sum{font-size:12px;color:var(--ink-3,#667085);padding:6px 10px 8px;border-bottom:1px solid var(--line,#e4e7ec);margin-bottom:4px;max-width:260px;white-space:normal}" +
     "html[data-theme=dark] .hsf-menu{box-shadow:0 8px 24px rgba(0,0,0,.5)}";
 
   function Ctl(page, cfg, store, deps) {
@@ -161,7 +190,9 @@
   Ctl.prototype.render = function () {
     var self = this, row = this.row; if (!row) return;
     while (row.firstChild) row.removeChild(row.firstChild);
-    var lbl = doc.createElement("span"); lbl.className = "hsf-lbl"; lbl.textContent = "Views:"; row.appendChild(lbl);
+    var lbl = doc.createElement("span"); lbl.className = "hsf-lbl"; lbl.textContent = "Views:";
+    lbl.title = "A view remembers this page's tab, filters and search box - click it to show that list again. ★ = your default (opens first). · studio = shared with your studio by an admin.";
+    row.appendChild(lbl);
     row.appendChild(this.chip("All", !current.activeId, function () { self.select("", { q: "" }); }));
     if (!this.cfg.hidePresets) this.cfg.presets.forEach(function (p) {
       var id = "preset:" + p.key;
@@ -170,8 +201,13 @@
     this.views.forEach(function (v) {
       var mine = self.me && v.user_id === self.me;
       var grp = doc.createElement("span"); grp.className = "hsf-grp";
-      grp.appendChild(self.chip(v.name, current.activeId === v.id, function () { self.select(v.id, v.state); },
-        v.is_default && mine ? " ★" : (v.shared ? " · studio" : "")));
+      // r23: ★ (my default) and · studio (shared) both show; the tooltip says what the view applies
+      var c = self.chip(v.name, current.activeId === v.id, function () { self.select(v.id, v.state); },
+        (v.is_default && mine ? " ★" : "") + (v.shared ? " · studio" : ""));
+      c.title = v.name + " - shows: " + describe(self.cfg, v.state) +
+        (v.is_default && mine ? "\nYour default view (opens first)" : "") +
+        (v.shared ? (mine ? "\nShared with your studio" : "\nShared with the studio by an admin") : "");
+      grp.appendChild(c);
       if (mine) grp.appendChild(self.menu(v));
       row.appendChild(grp);
     });
@@ -193,12 +229,13 @@
       b.addEventListener("click", function () { close(); fn(); }); m.appendChild(b);
     }
     function close() { m.hidden = true; btn.setAttribute("aria-expanded", "false"); }
+    var sum = doc.createElement("div"); sum.className = "hsf-sum"; sum.textContent = "Shows: " + describe(this.cfg, v.state); m.appendChild(sum);
     item("Update with current filters", function () { self.act(self.store.update(v.id, { state: readState(self.cfg) }), "View updated"); });
     item("Rename", function () { self.rename(v); });
     item(v.is_default ? "Clear default" : "Set as default", function () { self.act(self.store.setDefault(v.id, !v.is_default), v.is_default ? "Default cleared" : "Default view set"); });
     if (this.admin) item(v.shared ? "Stop sharing" : "Share with studio", function () { self.act(self.store.update(v.id, { shared: !v.shared }), v.shared ? "No longer shared" : "Shared with your studio"); });
     item("Delete", function () { self.remove(v); }, true);
-    btn.addEventListener("click", function () { var open = m.hidden; m.hidden = !open; btn.setAttribute("aria-expanded", String(open)); if (open && m.firstChild) m.firstChild.focus(); });
+    btn.addEventListener("click", function () { var open = m.hidden; m.hidden = !open; btn.setAttribute("aria-expanded", String(open)); var fb = open && [].filter.call(m.childNodes, function (x) { return x.tagName === "BUTTON"; })[0]; if (fb) fb.focus(); });
     m.addEventListener("keydown", function (e) { if (e.key === "Escape") { close(); btn.focus(); } });
     wrap.appendChild(btn); wrap.appendChild(m);
     return wrap;
@@ -303,7 +340,7 @@
     roleP.then(function (r) { ctl.admin = r === "admin"; return ctl.start(); });
   }
 
-  global.HelmSavedFilters = { PAGES: PAGES, pageKey: pageKey, clean: clean, readState: readState, applyState: applyState, match: match, Ctl: Ctl, _current: current };
+  global.HelmSavedFilters = { PAGES: PAGES, pageKey: pageKey, clean: clean, readState: readState, applyState: applyState, match: match, describe: describe, Ctl: Ctl, _current: current };
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", function () { global.setTimeout(function () { boot(0); }, 0); });
   else global.setTimeout(function () { boot(0); }, 0);
 })(typeof window !== "undefined" ? window : globalThis);

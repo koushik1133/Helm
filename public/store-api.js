@@ -2588,11 +2588,22 @@ window.HelmUrl = HelmUrl;
   //   deleted   = flagged deleted (0040 soft delete) — never in any other view
   //   active    = everything else;  attention = active, not cancelled, event date passed
   //   all       = everything not moved to Archive / Deleted (dashboard, pickers, counters)
-  const QUOTE_VIEWS = ["all", "active", "quote", "confirmed", "attention", "archived", "deleted"];
+  //   cancelled = r23: status cancelled (Cancel event on the event page), not deleted - a slice of
+  //               the Archive, so it includes a cancelled event someone also archived by hand
+  const QUOTE_VIEWS = ["all", "active", "quote", "confirmed", "attention", "cancelled", "archived", "deleted"];
+  // r23: optional event-date window for page() (o.dateFrom / o.dateTo, yyyy-mm-dd, inclusive)
+  const QUOTE_ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+  const quoteDay = (v) => (typeof v === "string" && QUOTE_ISO_DAY.test(v) ? v : "");
+  function quoteInDates(x, o) {
+    const f = quoteDay(o && o.dateFrom), t = quoteDay(o && o.dateTo); if (!f && !t) return true;
+    const d = String(x.eventDate || "").slice(0, 10); if (!QUOTE_ISO_DAY.test(d)) return false;
+    return (!f || d >= f) && (!t || d <= t);
+  }
   const quoteIsArchived = (x) => !x.deletedAt && (!!x.archivedAt || x.status === "cancelled" || (x.lifecycleStage === "closed" && x.status === "confirmed"));
   function quoteInView(x, view, today) {
     if (view === "deleted") return !!x.deletedAt;
     if (x.deletedAt) return false;
+    if (view === "cancelled") return x.status === "cancelled";
     const arch = quoteIsArchived(x);
     if (view === "archived") return arch;
     if (view === "all" || !view) return !x.archivedAt;
@@ -2604,6 +2615,7 @@ window.HelmUrl = HelmUrl;
   function sbQuoteView(q, view, today, shelf) {
     if (view === "deleted") return shelf ? q.not("deleted_at", "is", null) : q.eq("id", "00000000-0000-0000-0000-000000000000");
     if (shelf) q = q.is("deleted_at", null);
+    if (view === "cancelled") return q.eq("status", "cancelled");
     if (view === "archived") return q.or("status.eq.cancelled,and(lifecycle_stage.eq.closed,status.eq.confirmed)" + (shelf ? ",archived_at.not.is.null" : ""));
     if (shelf) q = q.is("archived_at", null);   // moved quotes leave every other view
     if (view === "all" || !view) return q;
@@ -2656,6 +2668,8 @@ window.HelmUrl = HelmUrl;
         let q = supa.from("quotes").select(cols);
         q = sbQuoteView(q, o.view, today, shelf);
         if (o.eventType) q = q.ilike("event_type", likeEscape(o.eventType));
+        if (quoteDay(o.dateFrom)) q = q.gte("event_date", o.dateFrom);
+        if (quoteDay(o.dateTo)) q = q.lte("event_date", o.dateTo);
         const s = orIlike(["code", "title", "client->>name"], o.search); if (s) q = q.or(s);
         // confirmed first: status sorts cancelled < confirmed < quote, so ascending puts
         // confirmed above quote in the active views and descending puts closed-confirmed
@@ -2848,7 +2862,7 @@ window.HelmUrl = HelmUrl;
       o = o || {}; const today = localISODate(), et = String(o.eventType || "").toLowerCase();
       const rank = (x) => (x.status === "cancelled" ? 0 : x.status === "confirmed" ? 1 : 2);
       const arch = o.view === "archived";
-      const rows = (await this.list()).filter((x) => quoteInView(x, o.view, today) && (!et || String(x.eventType || "").toLowerCase() === et) &&
+      const rows = (await this.list()).filter((x) => quoteInView(x, o.view, today) && quoteInDates(x, o) && (!et || String(x.eventType || "").toLowerCase() === et) &&
         textHit(o.search, [x.code, x.title, x.client && x.client.name]))
         .sort((a, b) => (o.sort === "confirmedFirst" ? (arch ? rank(b) - rank(a) : rank(a) - rank(b)) : 0) ||
           String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")) || String(b.id).localeCompare(String(a.id)));
@@ -2961,6 +2975,12 @@ window.HelmUrl = HelmUrl;
     isArchived: quoteIsArchived,
     page: (o) => qt().page(o),
     counts: () => qt().counts(),
+    // r23: the "Cancelled (N)" tab count - status cancelled, not on the Deleted shelf (HEAD count, no rows)
+    async countCancelled() {
+      if (mode !== "supabase") return (await lsq.list()).filter((q) => q && q.status === "cancelled" && !q.deletedAt).length;
+      return withShelf((shelf) => { let q = supa.from("quotes").select("id", { count: "exact", head: true }).eq("status", "cancelled");
+        if (shelf) q = q.is("deleted_at", null); return sbCount(q); });
+    },
     // la-fetch (audit 25): the sidebar "sent, waiting for client approval" badge - a HEAD count of open
     // quotes (status quote, approval sent / viewed, not on the Archive / Deleted shelf) instead of the full list
     async countAwaiting() {
@@ -7729,6 +7749,32 @@ window.HelmUrl = HelmUrl;
       try { return await rpc("close_event_blockers", { p_quote_id: quoteId }); }
       catch (e) { if (rpcMissing(e)) return null; throw e; }
     },
+    // r22 (0254): the live "Before you close" checklist (+ per-item inventory, counts, close requests).
+    // null = local mode or a database without 0254 (the page keeps the older blocker summary).
+    async review(quoteId) {
+      if (mode !== "supabase") return null;
+      try { return await rpc("event_closure_review", { p_quote: quoteId }); }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // "Request to close anyway": a pending request (reason 10-1000 characters) - it never closes the event itself
+    async requestClose(quoteId, reason, checks) {
+      const r = String(reason == null ? "" : reason).trim();
+      if (r.length < 10) throw new Error("Give a reason of at least 10 characters.");
+      if (mode !== "supabase") throw new Error("Needs the online database.");
+      const list = (Array.isArray(checks) ? checks : []).slice(0, 40).map((c) => ({ key: String(c.key || "").slice(0, 40), status: String(c.status || "").slice(0, 10), label: String(c.label || "").slice(0, 120) }));
+      return rpc("request_event_close", { p_quote_id: quoteId, p_reason: r, p_checks: list });
+    },
+    // an admin / coordinator / manager approves (closes the event) or declines (note required) - the server decides who may
+    async decideClose(requestId, approve, note) {
+      if (mode !== "supabase") throw new Error("Needs the online database.");
+      const n = note == null ? null : String(note).trim() || null;
+      if (!approve && (!n || n.length < 3)) throw new Error("Say why you are declining (at least 3 characters).");
+      return rpc("decide_event_close", { p_request_id: requestId, p_approve: !!approve, p_note: n });
+    },
+    async withdrawClose(requestId) {
+      if (mode !== "supabase") throw new Error("Needs the online database.");
+      return rpc("withdraw_event_close_request", { p_request_id: requestId });
+    },
     async setClosed(quoteId, closed, overrideReason) {
       if (mode === "supabase") {
         const reason = overrideReason == null ? "" : String(overrideReason).trim();
@@ -8026,6 +8072,8 @@ window.HelmUrl = HelmUrl;
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     if (!q) return "";
+    // r22 (0254): a close request / its decision opens the event's Closure page at the request
+    if (k === "event_close_request" || k === "event_close_decision") return "closure.html?quote=" + enc(q) + "#close-request";
     if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
     if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile|pkg_payment)$/.test(k))
       return "settlement.html?quote=" + enc(q) + "#payments";
@@ -8351,6 +8399,10 @@ window.HelmUrl = HelmUrl;
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
+      // r22 (0254): "request to close anyway" + the approval (admins / coordinators / managers only - the server decides)
+      event_close_request: ["🗄️", "Close request" + (d.actor_name ? " from " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "") + " - waiting for approval"],
+      event_close_decision: [d.decision === "declined" ? "↩️" : "✅", (d.decision === "declined" ? "Close request declined" : "Event closed with override")
+        + (d.actor_name ? " by " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "")],
       // 0205: an invitee whose invitation expired asked for a new link (re-send it from Staff)
       invite_link_request: ["✉️", String(d.label || "A teammate asked for a new invitation link")],
       // 0069 client package flow

@@ -3,7 +3,7 @@
 <head>
 <base href="/">
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="closure-polish.css?v=1">
+<link rel="stylesheet" href="closure-polish.css?v=2">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Closure &amp; P&amp;L — Helm Events</title>
@@ -87,6 +87,8 @@
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
     <div id="closedBanner" class="closed-banner" hidden>✓ Event closed &amp; archived <span class="s-1afaaf4" id="closedWhen"></span></div>
 
+    <div class="card" id="closeDash" hidden></div>
+
     <div data-ml-mount="margin" data-ml-replaces="plCard netProfit" id="moneyLedger" hidden></div>
 
     <div class="card" id="plCard">
@@ -125,6 +127,8 @@
       <h2>🗄 Close &amp; archive</h2>
       <p class="sub">Marks the event complete and moves it to Closed. Follow-up: keep the client warm for the next occasion.</p>
       <div id="closeBlockers" class="note" role="status" hidden></div>
+      <div id="closeChecklist" hidden></div>
+      <div id="close-request" role="status" aria-live="polite" hidden></div>
       <div class="foot s-a562f4f">
         <a class="btn" id="followBtn" href="#">＋ Add CRM follow-up lead</a>
         <button type="button" class="btn go" id="closeBtn" hidden>Mark event closed &amp; archived</button>
@@ -150,7 +154,7 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=268"></script><script src="save-back.js?v=2"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=9"></script><script src="money-ledger-ui.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=270"></script><script src="save-back.js?v=2"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=9"></script><script src="money-ledger-ui.js?v=1"></script><script src="closure-checklist.js?v=1"></script>
 <script src="tour.js?v=24"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -255,7 +259,50 @@
       +outstanding.slice(0,8).join(", ")+(outstanding.length>8?", …":"")+" (return them in Inventory)");
     return { lines, owed, checkouts:co, early, server:owed>0||co>0||!!nb||nodate };
   }
+  // r22 (0254): the live "Before you close" checklist + close requests (null = older database / local mode)
+  let review=null, blockersCache=null;
+  const fmtMoney=(n)=>evTax?BPStore.quoteMoney(n,evTax,{round:true}):BPStore.studioMoney(n,{round:true});
+  async function loadReview(){ try{ review=await BPStore.closure.review(id); }catch(_){ review=null; } return review; }
+  async function renderDash(){
+    if(!review || !window.HelmClosure) return;
+    let m=null; try{ m=await BPStore.moneyLedger.breakdown(id); }catch(_){ m=null; }
+    if(!blockersCache){ try{ blockersCache=await BPStore.closure.blockers(id); }catch(_){ blockersCache=null; } }
+    HelmClosure.renderDashboard($("#closeDash"),{ review, ledger:m, blockers:blockersCache, fmt:fmtMoney });
+  }
+  function renderReviewUI(){
+    if(!review || !window.HelmClosure) return false;
+    $("#closeBlockers").hidden=true;
+    if(closedAt){ $("#closeChecklist").hidden=true; }
+    else HelmClosure.renderChecklist($("#closeChecklist"), review, { quoteId:id, fmt:fmtMoney });
+    HelmClosure.renderRequests($("#close-request"), review, { approve:approveReq, decline:declineReq, withdraw:withdrawReq });
+    const st=HelmClosure.buttonState(review), btn=$("#closeBtn");
+    if(btn){ btn.textContent=st.label; btn.classList.toggle("cl-anyway", st.mode!=="close");
+      if(st.mode==="close"){ btn.removeAttribute("aria-describedby"); btn.removeAttribute("title"); }
+      else { btn.setAttribute("aria-describedby","closeChecklist"); btn.title=st.mode==="pending"?"A close request is waiting for approval":st.mode==="early"?"The event day is not over yet":"Some checks are still open"; } }
+    return true;
+  }
+  async function refreshReview(){ await loadReview(); renderReviewUI(); }
+  async function approveReq(q, btn){
+    const open=(q.failed||[]).map(f=>"• "+f.label).join("\n");
+    if(!(await BPUI.confirm("Approve closing this event anyway?\n\nRequested by "+q.requested_name+": "+q.reason+(open?"\n\nStill open when asked:\n"+open:"")
+      +"\n\nThe event closes now and your approval is saved with your name.",{title:"Approve & close?",okLabel:"Approve & close",danger:true}))) return;
+    await BPUI.guard(btn,async()=>{ try{ await BPStore.closure.decideClose(q.id,true,null); BPUI.allowUnload(); location.reload(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"approve the close request"}),{type:"err"}); await refreshReview(); } },{busyLabel:"Closing…"});
+  }
+  async function declineReq(q, btn){
+    const note=await BPUI.prompt("Tell "+q.requested_name+" why - they get a notification with this note.",{ title:"Decline the close request?", label:"Why are you declining? (required)",
+      required:true, multiline:true, okLabel:"Decline request", validate:(v)=>(String(v||"").trim().length<3?"Write at least 3 characters.":"") });
+    if(!note) return;
+    await BPUI.guard(btn,async()=>{ try{ await BPStore.closure.decideClose(q.id,false,note); BPUI.toast("Request declined - "+q.requested_name+" is notified."); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"decline the close request"}),{type:"err"}); } await refreshReview(); });
+  }
+  async function withdrawReq(q, btn){
+    if(!(await BPUI.confirm("Withdraw this close request? It stays in the history.",{title:"Withdraw request?",okLabel:"Withdraw"}))) return;
+    await BPUI.guard(btn,async()=>{ try{ await BPStore.closure.withdrawClose(q.id); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"withdraw the request"}),{type:"err"}); } await refreshReview(); });
+  }
   async function renderCloseSummary(){
+    if(review && renderReviewUI()) return;
     const box=$("#closeBlockers"); if(!box || closedAt) { if(box) box.hidden=true; return; }
     try{
       const b=await BPStore.closure.blockers(id), bl=closeBlockerLines(b, []);
@@ -281,6 +328,25 @@
     btn.textContent=bl.early?"Can't close until after the event day":"Close anyway…";
     btn.title="Still open: "+lines.join("; "); btn.setAttribute("aria-describedby","closeBlockers"); btn.classList.add("cl-anyway"); }
   async function closeEvent(){
+    // r22 (0254): with the live checklist, failing checks open "Before you close" + "Request to close anyway"
+    // (a pending request an admin / coordinator approves). All checks passing = the normal close below.
+    if(window.HelmClosure && await loadReview()){
+      renderReviewUI();
+      const st=HelmClosure.buttonState(review);
+      if(st.mode==="early"){ await BPUI.alert(tooEarlyText({too_early:true,close_after:review.close_after})+"\n\nIf this event will not happen, cancel it from the event page instead (Cancel event).",{title:"Not yet - the event hasn't happened"}); return; }
+      if(st.mode==="pending"){ await HelmClosure.openModal(review,{ quoteId:id, fmt:fmtMoney, canRequest:false }); return; }
+      if(st.mode==="request"){
+        const res=await HelmClosure.openModal(review,{ quoteId:id, fmt:fmtMoney, canRequest:canEdit });
+        if(!res) return;
+        await BPUI.guard($("#closeBtn"),async()=>{
+          try{ await BPStore.closure.requestClose(id,res.reason,review.checks); BPUI.toast("Close request sent - the admins and coordinators are notified."); }
+          catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"send the close request"}),{type:"err"}); }
+          await refreshReview(); },{busyLabel:"Sending…"});
+        return;
+      }
+      if(st.mode==="close") return finishClose(null,false);
+      return;
+    }
     // Gate 1 — every piece of equipment booked for this event must be back
     // (nothing still 'reserved' or 'allocated'). Closing is how the archive is built,
     // so we never archive an event that still has kit out in the field.
@@ -324,6 +390,9 @@
         await BPUI.alert("Please write a reason of 5 to 1000 characters.",{title:"Reason needed"});
       }
     }
+    return finishClose(overrideReason, invUnverified);
+  }
+  async function finishClose(overrideReason, invUnverified){
     // Gate 1.5 — financial caution. The server blocks only on the client LEDGER balance (above), so
     // surface any uncollected client balance or unsettled vendor amount and require an
     // explicit acknowledgement before archiving. Non-blocking (a manager may legitimately
@@ -423,7 +492,10 @@
     const plSafe=async()=>{ try{ await renderPL(); }catch(e){ BPUI.loadError($("#plBody"),e,plSafe,{what:"the P&L"}); const c=$("#plBody .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; } };
     await plSafe();
     await loadClosure();
+    await loadReview();
     renderCloseSummary();
+    renderDash().catch(()=>{});
+    if(location.hash==="#close-request"){ const r=$("#close-request"); if(r&&!r.hidden) r.scrollIntoView({block:"center"}); }
     await renderRatingsSafe();
     if(!canEdit){ document.querySelectorAll("#app input,#app textarea,#app select").forEach(el=>el.disabled=true); }
   });
