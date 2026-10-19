@@ -103,7 +103,7 @@ t('L9 migration 0223: ASCII, additive (no table / row change), APPLY = migration
   assert.ok(!/_tu236_trial_end/.test(m.replace(/--.*$/gm, '')), 'no dependency on 0236 (0223 runs before it on a clean install)');
   const man = read('supabase/migrations/MANIFEST');
   const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((x) => x[1]);
-  assert.equal(nums.indexOf('0223'), nums.indexOf('0208') + 1, '0223 right after 0208 (numeric order)');
+  assert.ok(nums.indexOf('0223') > nums.indexOf('0208') && nums.indexOf('0223') < nums.indexOf('0236'), '0223 after 0208, before 0236 (numeric order)');   // release/1019: 0210-0222 sit between
   assert.equal(new Set(nums).size, nums.length);
   assert.match(read('scripts/db-test/run-all.sh'), /run "trial-dates-0223" "TRIAL-DATES-0223: ALL PASS \\\(23\/23\\\)" psql -q -f tests\/db\/trial-dates-0223\.sql/);
 });

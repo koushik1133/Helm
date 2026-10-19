@@ -69,7 +69,8 @@ await t('terms version: 0212 = public/trial-facts.js VERSION (0207 format); MANI
   assert.match(F.VERSION, /^trial-[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
   assert.notEqual(F.VERSION, 'trial-2026-10-18', 'new wording = new version');
   const man = read('supabase/migrations/MANIFEST');
-  assert.match(man, /forward  supabase\/migrations\/0208_quote_deleted_reason_auto_draft\.sql\n#[^\n]*\nforward  supabase\/migrations\/0212_trial_client_email\.sql\n#[^\n]*\nforward  supabase\/migrations\/0236_/);
+  { const ns = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);   // release/1019: 0210 / 0211 / 0213+ sit around it
+    assert.ok(ns.indexOf('0212') > ns.indexOf('0211') && ns.indexOf('0212') < ns.indexOf('0236'), '0212 in numeric order'); assert.deepEqual(ns.filter((n) => +n > 205), [...ns.filter((n) => +n > 205)].sort()); }
   assert.match(read('scripts/db-test/run-all.sh'), /run "trial-email-0212" "TRIAL-EMAIL-0212: ALL PASS \\\(46\/46\\\)" psql -q -f tests\/db\/trial-email-0212\.sql/);
   assert.ok(ascii(A)); assert.match(A, /^begin;$/m); assert.match(A, /^commit;$/m); assert.match(A, /-- VERIFY/);
   assert.ok(A.includes(M.trim()), 'APPLY carries the migration unchanged');

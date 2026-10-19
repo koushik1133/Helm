@@ -227,8 +227,8 @@ t("SQL 0210: ASCII, additive (no drop / delete / truncate), MANIFEST in numeric 
   assert.match(RUNALL, /run "signup-invite-0210" "SIGNUP-INVITE-0210: ALL PASS \\\(39\/39\\\)" psql -q -f tests\/db\/signup-invite-0210\.sql/);
 });
 t("pins: the changed files are re-pinned on the pages that load them", () => {
-  assert.match(LOGIN, /<script src="\/auth-handoff\.js\?v=1"><\/script>/);
-  assert.match(ACH, /<script src="\/auth-confirm\.js\?v=3"><\/script>/);
-  assert.match(r("public/dashboard.html"), /<script src="trial-demo\.js\?v=13"><\/script>/);
+  assert.match(LOGIN, /<script src="\/auth-handoff\.js\?v=2"><\/script>/);
+  assert.match(ACH, /<script src="\/auth-confirm\.js\?v=4"><\/script>/);
+  assert.match(r("public/dashboard.html"), /<script src="trial-demo\.js\?v=14"><\/script>/);
 });
 console.log(`signup-auth-r19: ${n} checks passed`);

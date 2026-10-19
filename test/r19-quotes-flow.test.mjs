@@ -63,7 +63,7 @@ await t('APPLY-0211: migration verbatim in one transaction + a VERIFY grid; MANI
   assert.ok(!/^\s*\\/m.test(A) && !/create\s+(temp|temporary)\s+table/i.test(A), 'pasteable');
   const nums = [...MAN.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
   assert.equal(new Set(nums).size, nums.length);
-  assert.equal(nums.indexOf('0211'), nums.indexOf('0208') + 1, '0211 right after 0208');
+  assert.ok(nums.indexOf('0211') > nums.indexOf('0208'), '0211 after 0208');   // release/1019: 0210 sits between
   assert.ok(nums.indexOf('0211') < nums.indexOf('0236'), 'before 0236');
   assert.deepEqual(nums.filter((n) => +n > 205), [...nums.filter((n) => +n > 205)].sort(), 'numeric order');
   const n = (DBT.match(/pg_temp\.res\('\d\d /g) || []).length;
