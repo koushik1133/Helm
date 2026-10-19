@@ -5,6 +5,9 @@
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
 \i supabase/migrations/0262_quote_validity.sql
+-- r23 staging: the suite's own rows (quotes, validity, outbox) are rolled back at the end, like comms-automation - with
+-- 0264 (payment reminders on by default) they would otherwise be picked up by later suites on the same database
+begin;
 drop table if exists _g262; create temp table _g262(name text, result text); grant all on _g262 to anon, authenticated;
 
 create or replace function pg_temp.as_try(p_who text, p_sql text) returns text language plpgsql as $$
@@ -351,7 +354,10 @@ do $$ declare r text; begin
     and has_function_privilege('authenticated', 'public.quote_validity_extend(uuid, integer)', 'execute'), null);
   perform pg_temp.t('68 wrappers in place (verify + claim), the 0156 price check still in the chain',
     position('_qv262_verify' in (select prosrc from pg_proc where oid = 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure)) > 0
-    and position('_qv262_claim' in (select prosrc from pg_proc where oid = 'public.comms_outbox_claim(integer)'::regprocedure)) > 0
+    -- the 0262 claim layer is the top wrapper, or sits right under a later one (0264 payment schedules wraps it)
+    and (position('_qv262_claim' in (select prosrc from pg_proc where oid = 'public.comms_outbox_claim(integer)'::regprocedure)) > 0
+         or (position('comms_outbox_claim__pre0264' in (select prosrc from pg_proc where oid = 'public.comms_outbox_claim(integer)'::regprocedure)) > 0
+             and position('_qv262_claim' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.comms_outbox_claim__pre0264(integer)')), '')) > 0))
     and position('price_changed' in (select prosrc from pg_proc where oid = 'public.verify_and_consent__pre0262(uuid,text,text,boolean,text,text,text,text)'::regprocedure)) > 0, null);
   perform pg_temp.t('69 purpose check is a superset (old values kept)', (select pg_get_constraintdef(oid) from pg_constraint where conname = 'comms_outbox_purpose_check')
     ~ 'booklet_link.*invite_site.*pay_reminder.*quote_expiry.*wa_forward', null);
@@ -361,3 +367,4 @@ select name, result from _g262 order by name;
 select case when count(*) filter (where result <> 'PASS') = 0
             then 'R23-QUOTE-VALIDITY-0262: ALL PASS (' || count(*) || '/' || count(*) || ')'
             else 'R23-QUOTE-VALIDITY-0262: FAILURES ' || count(*) filter (where result <> 'PASS') || '/' || count(*) end as summary from _g262;
+rollback;

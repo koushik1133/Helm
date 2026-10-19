@@ -113,7 +113,10 @@ begin
     and has_function_privilege('authenticated', 'public.bell_feed(integer)', 'execute'), null);
   perform pg_temp.t('03 bell_feed is the 0266 wrapper over the kept body',
     position('r23-inbox-0266' in (select prosrc from pg_proc where oid = 'public.bell_feed(integer)'::regprocedure)) > 0
-    and position('r22-closure-0254' in (select prosrc from pg_proc where oid = 'public.bell_feed__pre0266(integer)'::regprocedure)) > 0, null);
+    -- the kept body is the 0254 wrapper, or 0261's (link views) which itself keeps the 0254 one
+    and (position('r22-closure-0254' in (select prosrc from pg_proc where oid = 'public.bell_feed__pre0266(integer)'::regprocedure)) > 0
+         or (position('bell_feed__pre0261' in (select prosrc from pg_proc where oid = 'public.bell_feed__pre0266(integer)'::regprocedure)) > 0
+             and position('r22-closure-0254' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.bell_feed__pre0261(integer)')), '')) > 0)), null);
 
   -- ---- the inbox shows exactly what the bell shows (per role) ----
   r := pg_temp.bell_ids('c_admin266@c.test'); r2 := pg_temp.inbox_ids('c_admin266@c.test', 'all');

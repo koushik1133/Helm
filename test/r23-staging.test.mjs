@@ -17,14 +17,14 @@ t('staging set = 0257 0261 0262 0263 0264 0265 0266, in MANIFEST order; 0256 + 0
   const nums = [...read('supabase/migrations/MANIFEST').matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
   assert.deepEqual(nums.filter((n) => R23_STAGING.includes(n)), R23_STAGING);
   assert.ok(!/RELEASE SECTION \d+\/\d+: APPLY-02(56|60)\.sql/.test(REL));
-  assert.match(REL, /STOP r23 staging: 0256/); assert.match(REL, /STOP r23 staging: 0260/);
+  for (const f of ['APPLY-0240.sql', 'APPLY-0249.sql', 'APPLY-0250.sql', 'APPLY-0251.sql', 'APPLY-0252.sql', 'APPLY-0253.sql', 'APPLY-0254.sql', 'APPLY-0255.sql', 'APPLY-0256.sql', 'APPLY-0260.sql', 'APPLY-0241.sql', 'APPLY-0242.sql', 'APPLY-0244.sql', 'APPLY-0246.sql', 'APPLY-0248.sql']) assert.ok(REL.slice(0, REL.indexOf('-- RELEASE SECTION 01/')).includes(f), 'PRECHECK names ' + f);
 });
 t('APPLY-R23-STAGING.sql is current', () => {
   const r = spawnSync(process.execPath, ['scripts/gen-apply-r23-staging.mjs', '--check'], { cwd: root, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr || r.stdout);
 });
 t('REQUIRE first; one section per migration, in order, verbatim; ONE combined VERIFY last', () => {
-  assert.ok(REL.indexOf('STOP r23 staging: 0254') < REL.indexOf('-- RELEASE SECTION 01/'));
+  assert.ok(REL.indexOf('STOP r23 staging PRECHECK') < REL.indexOf('-- RELEASE SECTION 01/'));
   const heads = [...REL.matchAll(/^-- RELEASE SECTION (\d+)\/(\d+): (\S+)\n-- In plain words: \S/gm)].map((m) => m[3]);
   assert.deepEqual(heads, R23_STAGING.map((n) => `APPLY-${n}.sql`));
   for (const n of R23_STAGING) assert.ok(REL.includes(read(`supabase/APPLY-${n}.sql`).replace(/\s*$/, '\n')), n + ' verbatim');
