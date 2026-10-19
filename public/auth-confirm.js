@@ -9,7 +9,12 @@
                           else's account can never sign this browser into it)
      email_change       → "E-mail changed - sign in"
    Already signed in → nothing is verified until the person chooses "Sign out and continue".
-   External file: no inline script, so the hash-based CSP needs no change for this page's logic. */
+   External file: no inline script, so the hash-based CSP needs no change for this page's logic.
+   Round 19: loaded BEFORE store-api.js, so the right words show at once ("Confirming your email…" for a
+   sign-up link) and the token leaves the address bar sooner; the work starts once store-api.js is in.
+   A confirmed sign-up hands over to /login with a one-shot flag (sessionStorage bp_confirm_handoff): the
+   sign-in page opens on "Setting up your studio…" instead of flashing its sign-in form. A sign-up confirmed
+   in ANOTHER browser asks once - "Continue as <e-mail>" (or sign out) - then goes straight on to the welcome. */
 (function () {
   "use strict";
   var $ = function (s) { return document.querySelector(s); };
@@ -21,9 +26,38 @@
   function say(title, sub) { $("#title").textContent = title; $("#sub").textContent = sub || ""; }
   function err(t) { var e = $("#err"); e.textContent = t; e.hidden = !t; }
   function go(path) { location.replace(path); }
+  var SIGNUP = link.ok && (link.type === "signup" || link.type === "email");
+  // round 19: the right words straight away (this file runs before the big store-api.js loads)
+  if (SIGNUP) say("Confirming your email…", "One moment — we're confirming your e-mail address.");
+  // the sign-in page opens on "Setting up your studio…" (auth-handoff.js), never on its sign-in form
+  function handoff() { try { sessionStorage.setItem("bp_confirm_handoff", String(Date.now())); } catch (e) {} }
+  // a sign-up confirmed in a browser that did not start it: say whose account it is, continue on one click
+  // left without choosing (tab closed / navigated away): this browser keeps NO session of that account
+  // (synchronous: the Supabase session lives in localStorage under sb-<project>-auth-token)
+  function dropSessionNow() {
+    try { for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i); if (k && /^sb-[a-z0-9]+-auth-token$/.test(k)) localStorage.removeItem(k); } } catch (e) {}
+  }
+  function askContinue(email) {
+    var chosen = false;
+    window.addEventListener("pagehide", function () { if (!chosen) dropSessionNow(); });
+    say("Your e-mail is confirmed", "Continue as " + (email || "this account") + " to start your free trial. Not you? Sign out and sign in with your own account.");
+    var b0 = $("#switchBtn"), b = b0.cloneNode(false);   // a fresh button: no "Sign out and continue" listener left on it
+    b0.parentNode.replaceChild(b, b0); b.hidden = false; b.disabled = false;
+    b.textContent = "Continue as " + (email || "this account") + " →";
+    b.addEventListener("click", function () { chosen = true; b.disabled = true; b.textContent = "Opening…"; handoff(); go(link.next); });
+    var l = $("#toLogin"); l.textContent = "Not you? Sign out"; l.setAttribute("href", "/login?confirmed=1");
+    l.addEventListener("click", async function (ev) {
+      ev.preventDefault(); chosen = true;
+      try { await BPStore.auth.signOut(); } catch (e) {}
+      dropSessionNow();
+      go("/login?confirmed=1");
+    });
+    setTimeout(function () { try { b.focus(); } catch (e) {} }, 30);
+  }
 
   async function verify() {
-    say("Opening your link…", "One moment — we're checking your e-mail link.");
+    if (SIGNUP) say("Confirming your email…", "One moment — we're confirming your e-mail address.");
+    else say("Opening your link…", "One moment — we're checking your e-mail link.");
     var res;
     try { res = await BPStore.auth.verifyEmailLink(link.tokenHash, link.type); }
     catch (e) {
@@ -49,7 +83,10 @@
       go("/login?confirmed=1");
       return;
     }
-    if ((link.type === "signup" || link.type === "email") && BPStore.auth.signupStartedHere(user.email)) { go(link.next); return; }
+    if ((link.type === "signup" || link.type === "email") && BPStore.auth.signupStartedHere(user.email)) {
+      say("Email confirmed", "Setting up your studio…"); handoff(); go(link.next); return; }
+    // round 19: confirmed in another browser - never silently: "Continue as <e-mail>" (one click) or sign out
+    if (SIGNUP && user && user.email) { askContinue(user.email); return; }
     try { await BPStore.auth.signOut(); } catch (e) {}
     go("/login?confirmed=" + (link.type === "email_change" ? "email_change" : "1"));
   }
@@ -73,5 +110,7 @@
     }
     verify();
   }
-  start().catch(function () { err("Something went wrong opening this link. Check your connection and try again."); });
+  function run() { start().catch(function () { err("Something went wrong opening this link. Check your connection and try again."); }); }
+  // store-api.js loads after this file: start once it is there (DOMContentLoaded = every script ran)
+  if (window.BPStore) run(); else document.addEventListener("DOMContentLoaded", run);
 })();

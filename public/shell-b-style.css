@@ -37,9 +37,12 @@ html[data-shell="b"][data-theme="dark"] .btn.danger, html[data-shell="b"][data-t
 html[data-shell="b"] .btn:disabled, html[data-shell="b"] .btn[disabled] { opacity: .45; }
 
 /* 3. Links */
-html[data-shell="b"] main a:not(.btn):not(.ob-cta):not([class*="nav"]):not([class*="tab"]):not([class*="chip"]),
-html[data-shell="b"] .card a:not(.btn):not(.ob-cta) { color: var(--hb-acc-text); text-decoration: none; }
-html[data-shell="b"] main a:not(.btn):not(.ob-cta):hover, html[data-shell="b"] .card a:not(.btn):not(.ob-cta):hover { text-decoration: underline; text-underline-offset: 2px; }
+html[data-shell="b"] main a:not(.btn):not(.ob-cta):not([class*="nav"]):not([class*="tab"]):not([class*="chip"]):not(.hd-btn),
+html[data-shell="b"] .card a:not(.btn):not(.ob-cta):not(.hd-btn) { color: var(--hb-acc-text); text-decoration: none; }
+html[data-shell="b"] main a:not(.btn):not(.ob-cta):not(.hd-btn):hover, html[data-shell="b"] .card a:not(.btn):not(.ob-cta):not(.hd-btn):hover { text-decoration: underline; text-underline-offset: 2px; }
+/* L3: <a class="hd-btn hd-primary"> (dashboard "Continue where you left off") is a button, not a link:
+   keep on-accent ink + no underline even if a broader link rule ever matches it. */
+html[data-shell="b"] main a.hd-btn.hd-primary, html[data-shell="b"] main a.hd-btn.hd-primary:hover { color: var(--hd-acc-ink, var(--hb-acc-ink, #fff)); text-decoration: none; }
 
 /* on-accent link CTAs (dashboard "Resume setup"): accent fill + on-accent ink in every theme */
 html[data-shell="b"] a.ob-cta { background: var(--hb-acc); color: var(--hb-acc-ink); }

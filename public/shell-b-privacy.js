@@ -6,7 +6,8 @@
  * hidden use HelmPrivacy.realText(node).
  *   - [data-money] elements, text that looks like money (₹ / Rs / INR / AED / د.إ / $ …, 1,23,456, 12.3 L, 1.2 Cr)
  *   - title attributes and SVG <title> tooltips containing money (stashed while hidden, restored on show)
- *   - inputs that hold money get a CSS class (the value is untouched; editing one reveals it)
+ *   - inputs that hold money get a CSS class: the value is masked until the input is focused, then shown + selected
+ *     so typing replaces it (r19 L5; the value itself is untouched)
  * The PIN is ONE per studio and is checked on the server (0157): the server keeps only a bcrypt hash, counts wrong tries
  * per person, and only a studio admin can change or reset it (Control Center > Hide amounts). Default 0000 until changed.
  * Before 0157 / in local mode the default 0000 applies. The PIN is never stored in this browser.
@@ -148,12 +149,54 @@
     e.setAttribute("data-hbp-title", tt); e.removeAttribute("title");
   }
   function stashSvgTitle(t) { if (t.hasAttribute("data-hbp-t")) return; t.setAttribute("data-hbp-t", t.textContent); selfMut = true; t.textContent = "Amount hidden"; selfMut = false; }
+  /* r19 L5: ONE rule for every money input while amounts are hidden (lead Budget, budget-plan cost lines, Control Center
+   * pricing + item prices, ...): its value is masked ("hbp-mi") until the user focuses it to edit; on focus the real value
+   * shows and is selected, so what they type REPLACES it (typing into a hidden "0" made 50000 -> 500000) and nobody ever
+   * types into transparent text. The value itself is never changed. */
+  var CUR_RE = new RegExp("(?:^|[^A-Za-z])" + CUR + "(?![A-Za-z])");   // "Budget (₹)", "Rate in AED" - not "Hours"
+  var CUR_ONLY = new RegExp("^\\(?\\s*" + CUR + "\\s*\\)?$");
+  function labelText(i) {
+    var t = "";
+    try {
+      if (i.labels) for (var k = 0; k < i.labels.length; k++) t += " " + i.labels[k].textContent;
+      var lb = i.getAttribute("aria-labelledby");
+      if (lb) lb.split(/\s+/).forEach(function (id) { var n = id && document.getElementById(id); if (n) t += " " + n.textContent; });
+    } catch (e) {}
+    return t;
+  }
+  function curBeside(i) {   /* a currency sign drawn next to the box (Control Center item prices: <span>₹</span><input>) */
+    var p = i.parentElement; if (!p) return false;
+    for (var c = p.firstElementChild; c; c = c.nextElementSibling) if (c !== i && c.tagName !== "INPUT" && CUR_ONLY.test((c.textContent || "").trim())) return true;
+    return false;
+  }
+  function moneyInput(i) {
+    if (i.hasAttribute("data-money") || hasMoney(i.value)) return true;
+    if (!(i.type === "number" || i.inputMode === "decimal" || i.inputMode === "numeric")) return false;
+    var sig = [i.id, i.name, i.getAttribute("aria-label"), i.placeholder, i.className, i.getAttribute("data-k")].join(" ");
+    if (MONEY_INPUT.test(sig)) return true;
+    var lt = labelText(i);
+    return MONEY_INPUT.test(lt) || CUR_RE.test(lt) || curBeside(i);
+  }
   function markInput(i) {
     if (i.type === "hidden" || i.type === "checkbox" || i.type === "radio" || i.type === "password") return;
-    var sig = [i.id, i.name, i.getAttribute("aria-label"), i.placeholder, i.className, i.getAttribute("data-k")].join(" ");
-    if (i.hasAttribute("data-money") || hasMoney(i.value) || ((i.type === "number" || i.inputMode === "decimal" || i.inputMode === "numeric") && MONEY_INPUT.test(sig)))
-      i.classList.add("hbp-in");
+    if (i.closest && i.closest("#hbpModal, .hbp-skip")) return;
+    if (!moneyInput(i)) return;
+    i.classList.add("hbp-in");
+    if (i.type !== "search") i.classList.add("hbp-mi");
   }
+  var MASKED_IN = "input.hbp-mi, input[data-pl-est], input[data-pl-quoted], input[data-pl-act]";
+  var selectOnUp = null;
+  function onFocusIn(e) {
+    var t = e.target;
+    if (!hidden() || !t || t.tagName !== "INPUT") return;
+    if (!t.classList.contains("hbp-in")) markInput(t);
+    if (!t.matches || !t.matches(MASKED_IN) || t.readOnly || t.disabled) return;
+    t.classList.add("hbp-rv");   // real value on screen while it is being edited
+    try { t.select(); selectOnUp = t; } catch (x) {}   // typing replaces the hidden value instead of adding to it
+  }
+  function onFocusOut(e) { var t = e.target; if (t && t.classList && t.classList.contains("hbp-rv")) t.classList.remove("hbp-rv"); }
+  /* a mouse click focuses on mousedown and would put the caret back on mouseup: keep the select-all */
+  function onMouseUp(e) { var t = selectOnUp; selectOnUp = null; if (t && e.target === t && document.activeElement === t) e.preventDefault(); }
   function scan(node) {
     if (!node) return;
     if (node.nodeType === 3) { markText(node); return; }
@@ -460,6 +503,9 @@
   /* ---------- boot ---------- */
   if (hidden()) observe();
   document.addEventListener("input", inputWatch, true);
+  document.addEventListener("focusin", onFocusIn, true);
+  document.addEventListener("focusout", onFocusOut, true);
+  document.addEventListener("mouseup", onMouseUp, true);
   function boot() {
     if (hidden()) fullScan();
     var n = 0; (function wait() { if (mountBtn()) { setTimeout(hint, 600); return; } if (n++ < 40) setTimeout(wait, 150); else { mountFallback(); setTimeout(hint, 600); } })();

@@ -181,8 +181,15 @@ run "invite-accept-0205" "INVITE-ACCEPT-0205: ALL PASS \(40/40\)" psql -q -f tes
 run "flow-progress-0206" "FLOW-PROGRESS-0206: ALL PASS \(46/46\)" psql -q -f tests/db/flow-progress-0206.sql
 run "trial-terms-0207" "TRIAL-TERMS-0207: ALL PASS \(39/39\)" psql -q -f tests/db/trial-terms-0207.sql
 run "empty-draft-0208" "EMPTY-DRAFT-0208: ALL PASS \(13/13\)" psql -q -f tests/db/empty-draft-0208.sql
+run "signup-invite-0210" "SIGNUP-INVITE-0210: ALL PASS \(39/39\)" psql -q -f tests/db/signup-invite-0210.sql
+run "trial-quotes-0211" "TRIAL-QUOTES-0211: ALL PASS \(27/27\)" psql -q -f tests/db/trial-quotes-0211.sql
+run "trial-email-0212" "TRIAL-EMAIL-0212: ALL PASS \(46/46\)" psql -q -f tests/db/trial-email-0212.sql
+run "start-blank-0220" "START-BLANK-0220: ALL PASS \(48/48\)" psql -q -f tests/db/start-blank-0220.sql
+run "trial-dates-0223" "TRIAL-DATES-0223: ALL PASS \(23/23\)" psql -q -f tests/db/trial-dates-0223.sql
 run "trial-unify-0236" "TRIAL-UNIFY-0236: ALL PASS \(38/38\)" psql -q -f tests/db/trial-unify-0236.sql
 run "trial-seed-0237" "TRIAL-SEED-0237: ALL PASS \(27/27\)" psql -q -f tests/db/trial-seed-0237.sql
+run "sample-layouts-0213" "SAMPLE-LAYOUTS-0213: ALL PASS \(16/16\)" psql -q -f tests/db/sample-layouts-0213.sql
+run "trial-seed-0222" "TRIAL-SEED-0222: ALL PASS \(18/18\)" psql -q -f tests/db/trial-seed-0222.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

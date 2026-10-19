@@ -37,6 +37,13 @@
     ".td-fld input,.td-fld select{min-height:40px;padding:0 10px;border:1px solid var(--line,#e8e3db);border-radius:9px;font:inherit;background:var(--panel,#fff);color:inherit}",
     ".td-hint{font-size:12px;color:var(--ink-3,#6b6577)}.td-inv{display:grid;grid-template-columns:1fr 150px;gap:8px}",
     "@media (max-width:480px){.td-inv{grid-template-columns:1fr}}",
+    // round 19: City / State / Country in the "Name your studio" step; invite progress + results
+    ".td-loc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.td-loc .td-fld{min-width:0}.td-loc select{width:100%;min-width:0;max-width:100%}",
+    "@media (max-width:480px){.td-loc{grid-template-columns:minmax(0,1fr)}}",
+    ".td-fld input[readonly]{background:var(--panel-2,#faf8f5);color:var(--ink-2,#4b475f)}",
+    ".td-prog{margin:4px 0 10px;font-size:13px;color:var(--ink-2,#4b475f)}",
+    ".td-res{margin:0 0 12px;padding:0;list-style:none;font-size:14px}.td-res li{margin:0 0 6px;padding:8px 10px;border-radius:9px;border:1px solid var(--line,#e8e3db)}",
+    ".td-res .ok{background:var(--accent-soft,#e3f4ed)}.td-res .bad{border-color:var(--danger,#b42318);color:var(--danger,#b42318)}",
   ].join("\n");
   let cssDone = false;
   function css() { if (cssDone) return; cssDone = true; if (typeof global.__helmAdoptCss === "function") global.__helmAdoptCss(doc, CSS); }
@@ -239,7 +246,7 @@
     if (v === "choose") {
       host.appendChild(el("span", "td-tag", "Free trial"));
       host.appendChild(el("h3", null, "Load your sample studio"));
-      host.appendChild(el("p", null, "Your free trial runs on ready-made sample data: leads, quotes in every stage, a confirmed wedding with an advance paid, venues, menu packages, inventory, staff, vendors, a finished floor layout and a checklist. Every sample record is marked “Demo ·”, and nothing is sent to anyone."));
+      host.appendChild(el("p", null, "Your free trial runs on ready-made sample data: leads, quotes in every stage, a confirmed wedding with an advance paid, venues, menu packages, inventory, staff, vendors, a finished floor layout and a checklist. Every sample record is marked “Demo ·”, and sample contacts are never messaged. E-mail to your own clients works in the trial; WhatsApp and SMS unlock on a paid plan."));
       const pick = el("div", "td-pick");
       const a = el("button", "td-opt"); a.type = "button";
       a.appendChild(el("b", null, "Load the sample data"));
@@ -374,6 +381,18 @@
     });
     return out;
   }
+  // round 19 (pure, unit-tested): the invite step's progress line, mail result and summary
+  function inviteProgress(i, n, email) { return "Sending invite " + (i + 1) + " of " + n + " to " + email + "…"; }
+  // invitations.sendNow() → were the e-mails really sent? ({ status: "ok", failed: 0 } only)
+  function inviteMailOk(r) { return !!(r && typeof r === "object" && r.status === "ok" && !(Number(r.failed) > 0)); }
+  // "Invites sent to a@x.com (Planner), b@y.com (Event coordinator)." / "... saved for ..." / errors only
+  function inviteSummary(results, mailed) {
+    const ok = (results || []).filter((r) => r && r.ok), bad = (results || []).filter((r) => r && !r.ok);
+    const who = ok.map((r) => r.email + " (" + r.role + ")").join(", ");
+    let out = ok.length ? (mailed ? "Invites sent to " : "Invites saved for ") + who + "." : "";
+    if (bad.length) out += (out ? " " : "") + (bad.length === 1 ? "1 invite could not be sent:" : bad.length + " invites could not be sent:");
+    return out;
+  }
   // hold the tour back until the welcome is done (dashboard awaits welcomeDecision() before its tour)
   const onDash = /(^|\/)dashboard(\.html)?$/.test((global.location && global.location.pathname) || "");
   let welcomeOn = false, welcomeT = null, decided = null, plan = null;
@@ -412,6 +431,22 @@
     const i = el("input"); i.id = id; i.type = type || "text"; if (value) i.value = value; f.appendChild(i);
     if (hint) f.appendChild(el("span", "td-hint", hint));
     return { box: f, input: i };
+  }
+  // round 19: the "State" dropdown (Indian states + union territories, public/country-profile.js)
+  function inStates() {
+    try { const p = global.HelmCountry && global.HelmCountry.get && global.HelmCountry.get("IN");
+      if (p && Array.isArray(p.regions) && p.regions.length) return p.regions.map((r) => String(r.name || r.code || "")).filter(Boolean); } catch (e) {}
+    return [];
+  }
+  function stateField(id) {
+    const list = inStates();
+    if (!list.length) { const f = field(id, "State", "text", ""); f.input.maxLength = 60; f.input.required = true; return f; }   // list missing: type it (the server checks)
+    const f = el("div", "td-fld"), l = el("label", null, "State"); l.htmlFor = id; f.appendChild(l);
+    const sel = el("select"); sel.id = id; sel.required = true;
+    const ph = el("option", null, "Choose your state"); ph.value = ""; ph.selected = true; sel.appendChild(ph);
+    list.forEach((n) => { const o = el("option", null, n); o.value = n; sel.appendChild(o); });
+    f.appendChild(sel);
+    return { box: f, input: sel };
   }
   async function finishWelcome(dlg) {
     // 0180: finished on this device = finished everywhere (a failure only means it may show once more)
@@ -587,22 +622,34 @@
       body.appendChild(el("p", null, t.trial_mode === "own" ? "Give your trial studio your name — you can change it later." : "Your sample studio is loading with events, leads, menus, staff and inventory. Give it your name — you can change it later."));
       const fn = field("tdw_name", "Studio name", "text", /^Demo [0-9]+$/.test(t.name || "") ? "" : (t.name || ""));
       fn.input.required = true; fn.input.maxLength = 120; fn.input.autocomplete = "organization";
-      const fc = field("tdw_city", "City", "text", "Hyderabad"); fc.input.maxLength = 120;
+      // round 19: City + State (Indian states) + Country (India, fixed for the free trial); phone stays optional
+      const fc = field("tdw_city", "City", "text", ""); fc.input.maxLength = 120; fc.input.required = true;
+      fc.input.placeholder = "e.g. Hyderabad"; fc.input.autocomplete = "address-level2";
+      const fs = stateField("tdw_state");
+      const fk = field("tdw_country", "Country", "text", "India", "The free trial is for studios in India."); fk.input.readOnly = true;
+      fk.input.setAttribute("aria-readonly", "true"); fk.input.tabIndex = -1;
+      const loc = el("div", "td-loc"); loc.appendChild(fc.box); loc.appendChild(fs.box);
       const fp = field("tdw_phone", "Phone (optional)", "tel", "", "Shown on your quotes. Leave empty if you like."); fp.input.maxLength = 40;
-      [fn, fc, fp].forEach((x) => body.appendChild(x.box));
+      body.appendChild(fn.box); body.appendChild(loc); body.appendChild(fk.box); body.appendChild(fp.box);
       const next = btn("Continue", "btn primary", async () => {
-        const name = fn.input.value.trim();
+        const name = fn.input.value.trim(), city = fc.input.value.trim(), state = fs.input.value.trim();
         if (name.length < 2) { showErr("Enter your studio name (at least 2 characters)."); fn.input.focus(); return; }
+        if (city.length < 2) { showErr("Enter your city."); fc.input.focus(); return; }
+        if (!state) { showErr("Choose your state."); fs.input.focus(); return; }
         showErr(""); const done = busy(next, "Saving…");
-        try { await st.trialOrg.welcome(name, fc.input.value, fp.input.value); }
-        catch (e) { done(); showErr(errMsg(e, "save the studio name")); return; }
+        try {
+          if (st.trialOrg.welcomeSave) await st.trialOrg.welcomeSave({ name: name, city: city, state: state, phone: fp.input.value, country: "IN" });
+          else await st.trialOrg.welcome(name, city, fp.input.value);
+        }
+        catch (e) { done(); showErr(errMsg(e, "save the studio details")); return; }
         step2();
       });
       row.appendChild(next);
       try { fn.input.focus(); } catch (e) {}
       return fn.input;
     }
-    function step2() {
+    // prefill: [{ email, role }] - "Try again" brings back only the invites that failed
+    function step2(prefill) {
       step.textContent = "Step " + total + " of " + total + " (optional)"; h.textContent = "Invite your team (up to 2)";
       s.empty(body); s.empty(row);
       showErr("");
@@ -616,23 +663,58 @@
         const sel = el("select"); sel.id = "tdw_r" + n;
         roles.forEach((r) => { const o = el("option", null, st.auth.admin.roleLabel ? st.auth.admin.roleLabel(r) : r); o.value = r; if (r === "coordinator") o.selected = true; sel.appendChild(o); });
         rf.appendChild(sel); line.appendChild(e.box); line.appendChild(rf); body.appendChild(line);
+        const pre = Array.isArray(prefill) ? prefill[n - 1] : null;
+        if (pre && pre.email) { e.input.value = pre.email; if (roles.indexOf(pre.role) >= 0) sel.value = pre.role; }
         lines.push({ e: e.input, r: sel });
       }
-      row.appendChild(btn("Skip", "btn", () => finishWelcome(dlg)));
+      const skip = btn("Skip", "btn", () => finishWelcome(dlg));
+      row.appendChild(skip);
+      // round 19: visible progress per e-mail, then a clear result list ("Invites sent to …" / per-e-mail errors)
+      const prog = el("p", "td-prog"); prog.setAttribute("role", "status"); prog.setAttribute("aria-live", "polite"); prog.hidden = true;
+      body.appendChild(prog);
+      const label = (r) => (st.auth && st.auth.admin && st.auth.admin.roleLabel ? st.auth.admin.roleLabel(r) : r);
       const send = btn("Send invites", "btn primary", async () => {
         const list = inviteRows(lines.map((x) => ({ email: x.e.value, role: x.r.value })));
         if (!list.length) { showErr("Enter at least one email — or press Skip."); lines[0].e.focus(); return; }
-        showErr(""); const done = busy(send, "Sending…");
-        for (const it of list) {
-          try { await st.invitations.create(it.email, it.role); }
-          catch (e) { done(); showErr(errMsg(e, "invite " + it.email)); return; }
+        showErr(""); const done = busy(send, "Sending…"); skip.disabled = true;
+        lines.forEach((x) => { x.e.disabled = true; x.r.disabled = true; });
+        const results = [];
+        for (let i = 0; i < list.length; i++) {
+          const it = list[i];
+          prog.hidden = false; prog.textContent = inviteProgress(i, list.length, it.email);
+          try { await st.invitations.create(it.email, it.role); results.push({ email: it.email, roleKey: it.role, role: label(it.role), ok: true }); }
+          catch (e) { results.push({ email: it.email, roleKey: it.role, role: label(it.role), ok: false, error: errMsg(e, "invite " + it.email) }); }
         }
-        try { await st.invitations.sendNow(); } catch (e) {}
-        toast(list.length === 1 ? "Invite sent." : "Invites sent.");
-        finishWelcome(dlg);
+        let mail = null;
+        if (results.some((r) => r.ok)) {
+          prog.textContent = "Sending the invitation e-mails…";
+          try { mail = await st.invitations.sendNow(); } catch (e) { mail = null; }
+        }
+        prog.hidden = true;
+        showInviteResults(results, inviteMailOk(mail));
       });
       row.appendChild(send);
       lines[0].e.focus();
+      // the results screen: who got an invite, who did not (and why); retry only the failed ones
+      function showInviteResults(results, mailed) {
+        s.empty(body); s.empty(row); showErr("");
+        const okRows = results.filter((r) => r.ok), bad = results.filter((r) => !r.ok);
+        h.textContent = okRows.length ? (mailed ? "Invites sent" : "Invites saved") : "Invites not sent";
+        const sum = inviteSummary(results, mailed);
+        if (sum) body.appendChild(el("p", null, sum));
+        const ul = el("ul", "td-res");
+        results.forEach((r) => {
+          const li = el("li", r.ok ? "ok" : "bad", r.ok ? r.email + " (" + r.role + ")" : r.email + " (" + r.role + ") — " + r.error);
+          ul.appendChild(li);
+        });
+        body.appendChild(ul);
+        if (okRows.length && !mailed) body.appendChild(el("p", "td-hint", "The invitations are saved and their e-mails go out shortly. You can re-send them any time in Control Center → Users & invites."));
+        if (bad.length) row.appendChild(btn("Try again", "btn", () => step2(bad.map((r) => ({ email: r.email, role: r.roleKey })))));
+        const fin = btn(okRows.length ? "Continue to your studio" : "Skip for now", "btn primary", () => finishWelcome(dlg));
+        row.appendChild(fin);
+        if (okRows.length) toast(mailed ? (okRows.length === 1 ? "Invite sent." : "Invites sent.") : "Invites saved.");
+        try { fin.focus(); } catch (e) {}
+      }
     }
     keepOpen(dlg);   // finish or skip, never lost by Esc
     const first = withTerms ? stepTerms() : null;
@@ -640,7 +722,7 @@
     if (!withTerms) stepName();
   }
 
-  global.HelmTrialDemo = { welcomeDue: welcomeDue, welcomeShow: welcomeShow, welcomeDecision: welcomeDecision, termsPlan: termsPlan, termsGate: termsGate, inviteRows: inviteRows, view: view, trialOn: trialOn, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount,
+  global.HelmTrialDemo = { inviteProgress: inviteProgress, inviteMailOk: inviteMailOk, inviteSummary: inviteSummary, welcomeDue: welcomeDue, welcomeShow: welcomeShow, welcomeDecision: welcomeDecision, termsPlan: termsPlan, termsGate: termsGate, inviteRows: inviteRows, view: view, trialOn: trialOn, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount,
     get welcomeOn() { return welcomeOn; } };
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", mount); else mount(); }
 })(typeof window !== "undefined" ? window : globalThis);

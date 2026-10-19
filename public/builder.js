@@ -565,6 +565,8 @@ function quotePricingNow(){
     catering: currentPricing.catering || { mode:'inhouse', amount:0, gstPct:PRICING.gstPct },
     // hide-price mode: display-only flags for every screen that shows this quote's price (computed totals unchanged)
     ...(store.priceDisplay ? { priceDisplay: priceDisp() } : {}),
+    // r19: the package was removed here - the saved pricing no longer names it (undefined is dropped on save)
+    ...(pkgCleared ? { _packageName: undefined } : {}),
   // 0079: a NEW quote takes the studio's tax country/inclusive setting; a priced one keeps its own
   }, currentPricing.gstPct==null ? BPStore.tax.snapshot(BPStore.tax.resolve(PRICING)) : {});
 }
@@ -587,11 +589,27 @@ async function syncQuotePricingNow(){
       return true;
     }catch(e){ /* non-fatal */ return false; }
 }
+// r19: "No package / decide later" was picked - the quote's synced pricing drops the package name it was priced
+// with (pricing._packageName), so reopening the builder does not show the old package again (QA-B10)
+var pkgCleared=false;
 async function onPickPackage(){
   const tid=$('#bPkg').value;
   const prev={ id:PRICING.appliedPkgId, plate:PRICING.menuPlatePrice, name:PRICING.menuPackageName };
-  // there is no API to un-apply a package from the plan, so "No package…" can't be saved — keep the current one
-  if(!tid && prev.id){ $('#bPkg').value=prev.id; toast('A package can be changed but not removed here — pick another package'); return; }
+  // r19 (0211): "No package…" un-applies the package (clear_menu_template): the plan forgets it and its plate price,
+  // catering is priced at the studio's default plate price; the event's dishes are kept
+  if(!tid){
+    if(!prev.id && !prev.name) return;
+    if(!currentQuoteId){ PRICING.appliedPkgId=''; PRICING.menuPlatePrice=null; PRICING.menuPackageName=null; renderAll(); return; }
+    try{ await BPStore.menuTemplates.clear(currentQuoteId); }
+    catch(e){ const sel=$('#bPkg'); if(sel) sel.value=prev.id||'';
+      toast((e && e.message) ? 'Couldn\'t remove the package: '+String(e.message).slice(0,160) : 'Couldn\'t remove the package — price left unchanged'); return; }
+    PRICING.appliedPkgId=''; PRICING.menuPackageName=null;
+    PRICING.menuPlatePrice = PRICING.platePrice!=null ? +PRICING.platePrice : null;   // the default plate price, never the old package's
+    pkgCleared=true;
+    toast('No package for now — catering uses your default plate price');
+    renderAll(); syncQuotePricing(); return;
+  }
+  pkgCleared=false;
   PRICING.appliedPkgId=tid;
   const pkg=(PRICING.packages||[]).find(p=>p.id===tid);
   PRICING.menuPlatePrice = pkg ? pkg.price_per_plate : null;
@@ -720,6 +738,12 @@ function layoutSig(items, margins, venue, world, name){
   return JSON.stringify([its, margins||null, venue||null, world?[world.w,world.h]:null, String(name==null?'':name).trim()]);
 }
 function docSig(){ const pn=$('#projName'); return layoutSig(store.items, store.margins, store.venue, WORLD, pn?pn.value:''); }
+// r19 L2: what the server holds for the open quote's version on screen ({count, hash} of the canvas content, name
+// excluded). null = not known / never written (a missing V1). Set only when a version is opened or saved.
+let storedKey=null;
+function canvasKey(sig){ const s = sig!=null ? sig : layoutSig(store.items, store.margins, store.venue, WORLD, '');
+  return (window.HelmFlowLayout && HelmFlowLayout.layoutKey) ? HelmFlowLayout.layoutKey(store.items.length, s) : { count:store.items.length, hash:s }; }
+function noteStoredVersion(key){ storedKey = key || canvasKey(); }
 function markDirty(){ if(savedSig!==null && docSig()===savedSig){ dirty.clean(); if(typeof clearDraft==='function' && draftReady) clearDraft(); } else { dirty.mark(); if(typeof scheduleDraft==='function') scheduleDraft(); } }
 /* ---- local DRAFT (quotes only): a crash-safety copy in this browser. It is NEVER sent to the server and
    never replaces a saved version — on reload the planner is asked whether to restore it. ---- */
@@ -755,6 +779,9 @@ function setSavedBaseline(sig){
   if(dr && sig==null){ dirty.mark(); renderSaveState('dirty'); return; }   // keep a restored draft "unsaved"
   if(dr && sig!=null) draftRestored=false;
   savedSig = sig==null ? docSig() : sig; if(docSig()===savedSig) dirty.clean(); else dirty.mark(); }
+// r19 L2: a layout generated on arrival (?gen=1) is NOT what the server holds - keep the stored version as the
+// baseline and show "Unsaved changes" (the leave-page warning applies) until Save / Save & back writes it.
+function markGenUnsaved(){ if(savedSig===null) savedSig=''; dirty.mark(); renderSaveState('dirty'); }
 // dev pass 3: leaving while a Save is still going to the server loses it - warn first
 window.addEventListener('beforeunload', e=>{ let busy=false; try{ busy=!!saving; }catch{} if(busy){ e.preventDefault(); e.returnValue=''; return ''; } });
 const nid = () => 'obj_' + (uid++).toString(36) + Date.now().toString(36).slice(-3);
@@ -986,6 +1013,9 @@ function renderMargins(){
   }
   svg.appendChild(g);
 }
+// r19: the 2D paint order = the 3D one - floor coverings (carpet, aisle runner, dance floor, walkway, anything
+// spread over half the hall) lie under everything else; the rest keeps its saved order (Bring Front still works)
+function drawOrder2D(items, world){ const T=window.HelmBuilderTools; return (T && T.drawOrder) ? T.drawOrder(items, world||WORLD) : items.slice(); }
 function renderAll(){
   const refocus=focusedObjId();
   sizeCanvas();
@@ -1015,8 +1045,8 @@ function renderAll(){
   svg.appendChild(el('rect',{x:0.5,y:0.5,width:W-1,height:H-1,fill:'none',
     stroke:'var(--grid-strong)','stroke-width':1.5}));
 
-  // --- items ---
-  store.items.forEach(it=> svg.appendChild(renderItem(it)));
+  // --- items --- (r19: floor coverings first, so a full-hall carpet never hides the stage / screens above it)
+  drawOrder2D(store.items).forEach(it=> svg.appendChild(renderItem(it)));
 
   // --- draggable margins (guides + shaded out-of-bounds) ---
   renderMargins();
@@ -2033,7 +2063,7 @@ function renderSceneOnly(){
     svg.appendChild(g);
   }
   svg.appendChild(el('rect',{x:0.5,y:0.5,width:W-1,height:H-1,fill:'none',stroke:'var(--grid-strong)','stroke-width':1.5}));
-  store.items.forEach(it=>svg.appendChild(renderItem(it)));
+  drawOrder2D(store.items).forEach(it=>svg.appendChild(renderItem(it)));
   renderMargins();
   appendSelectionOverlays();
   // live-sync a couple inspector readouts (single-selection only)
@@ -3621,6 +3651,25 @@ function recenterView(){
   window.addEventListener('blur',stop);
 })();
 window.__builderPan={pan2D, panViewStep, recenterView};
+/* r19: the view controls sit in a dock under the plan. The pan arrows open on demand (✥) and the dock folds away
+   to one "⊕ View" button; both choices are remembered per browser (a convenience only - storage may be off). */
+(function wireViewDock(){
+  const vp=document.querySelector('.viewport'), pad=$('#navPad'), tgl=$('#navPadToggle'), hide=$('#dockHide'), show=$('#dockShow');
+  if(!vp || !pad || !tgl || !hide || !show) return;
+  const KEY='bps.viewDock';
+  let st={}; try{ st=JSON.parse(localStorage.getItem(KEY)||'{}')||{}; }catch(_){ st={}; }
+  const keep=()=>{ try{ localStorage.setItem(KEY, JSON.stringify({pad:!!st.pad, min:!!st.min})); }catch(_){} };
+  const refit=()=>{ try{ window.dispatchEvent(new Event('resize')); }catch(_){} try{ if(viewAtFit && !is3DActive()) fitView(); }catch(_){} };
+  function setPad(on){ st.pad=!!on; pad.hidden=!on; tgl.setAttribute('aria-expanded', String(!!on));
+    tgl.setAttribute('aria-label', on?'Hide the pan arrows':'Show the pan arrows'); }
+  function setMin(on, focus){ st.min=!!on; vp.classList.toggle('dock-min', !!on); refit();
+    if(focus){ try{ (on?show:hide).focus({preventScroll:true}); }catch(_){} } }
+  tgl.addEventListener('click',()=>{ setPad(pad.hidden); keep(); });
+  hide.addEventListener('click',()=>{ setMin(true, true); keep(); });
+  show.addEventListener('click',()=>{ setMin(false, true); keep(); });
+  ['pointerdown','mousedown','touchstart','dblclick','wheel'].forEach(t=>[tgl,hide,show].forEach(b=>b.addEventListener(t,e=>e.stopPropagation(),{passive:true})));
+  setPad(!!st.pad); setMin(!!st.min, false);
+})();
 
 // in 3D the same buttons drive the 3D camera (smooth dolly / fit) instead of the hidden 2D canvas
 const in3D=()=>!!(window.__helm3D && window.__helm3D.isActive && window.__helm3D.isActive() && window.__zoom3D);
@@ -3964,6 +4013,7 @@ async function saveLayout(silent, opts){
   if(saving) return false;                    // in-flight lock: a second Save/⌘S before the first resolves must not create a duplicate
   saving=true; renderSaveState('saving');
   const sig = docSig();                        // edits made while this save is in flight keep the page dirty
+  const sentKey = canvasKey();                 // r19 L2: the content this save writes
   const name = ($('#projName').value || 'Untitled event').trim().slice(0,120);
   const data = serialize();
   const btn=$('#saveBtn'); if(btn){ btn.disabled=true; if(silent) btn.textContent='⏳ Saving…'; }
@@ -3988,6 +4038,7 @@ async function saveLayout(silent, opts){
       if(name) { try{ await BPStore.quotes.updateMeta(currentQuoteId, { title:name }); }catch{} }
       const v = await BPStore.quotes.addVersion(currentQuoteId, label, data, store.items.length);
       currentVersionNo = v.version_no || v.versionNo;
+      noteStoredVersion(sentKey);              // r19 L2: the server now holds exactly this content
       noteSavedVersion(v, label);
       refreshVersionsSoon(true);                // re-read the server list (names, teammates' saves)
       clearDraft();
@@ -4138,7 +4189,7 @@ function drawLayoutThumb(host, data){
     'aria-label':items.length+' object'+(items.length===1?'':'s') });
   const floor=el('rect',{ x:0, y:0, width:w, height:h, 'stroke-width':Math.max(w,h)/150 });
   floor.style.fill='var(--panel)'; floor.style.stroke='var(--line)'; s.appendChild(floor);
-  items.forEach(it=>{
+  drawOrder2D(items, {w, h}).forEach(it=>{
     if(!it || typeof it!=='object') return;
     const x=+it.x, y=+it.y, iw=Math.max(.5,+it.width), ih=Math.max(.5,+it.height), r=+it.rotation||0;
     if(![x,y,iw,ih,r].every(Number.isFinite)) return;
@@ -4195,6 +4246,7 @@ function createVersionController(d){
 }
 function loadVersionIntoEditor(no, data){
   applyLayout(data);                       // resets undo history + makes this version the clean baseline
+  noteStoredVersion();                     // r19 L2: this version is what the server holds
   currentVersionNo=no;
   setVersionInUrl(no);
   updateQuoteBadge();
@@ -4507,9 +4559,15 @@ $('#saveBtn').addEventListener('click',()=>guardedSave());
 // Browser Back keeps the normal unsaved-changes guard (BPUI tracker / beforeunload).
 async function saveAndBackToFlow(){
   if(!currentQuoteId) return;
-  // unchanged layout → no phantom version; just go back (the flow still re-checks the price)
-  const ok = (RO || !dirty.isDirty()) ? true : await saveLayout(false);
+  // unchanged layout → no phantom version; just go back (the flow still re-checks the price).
+  // r19 L2: "unchanged" = same as the version STORED on the server (object count + content hash), not just
+  // "no edit since the page opened" - a default layout generated on arrival is new and must be written.
+  const need = !RO && (window.HelmFlowLayout && HelmFlowLayout.needsVersion
+    ? HelmFlowLayout.needsVersion(storedKey, canvasKey(), dirty.isDirty()) : dirty.isDirty());
+  const ok = !need ? true : await saveLayout(false);
   if(!ok) return;                               // save refused/failed: stay, the error is already shown
+  if(need && window.HelmFlowLayout && HelmFlowLayout.needsVersion && HelmFlowLayout.needsVersion(storedKey, canvasKey(), false)){
+    BPUI.toast('The layout was not saved yet — press Save & back to quote again.',{type:'err'}); return; }   // only leave once the version exists
   if(!RO) await syncQuotePricingNow();          // the flow page re-checks and saves the quotation too
   location.href = HelmFlowLayout.returnUrl(currentQuoteId);
 }
@@ -4715,6 +4773,7 @@ async function init(){
       if(!ver || !ver.data || !Array.isArray(ver.data.items)) throw new Error('version data unreadable');
       draftToRestore = readDraft(q.id);
       applyLayout(ver.data);                  // also restores hall size / margins / capacity of an empty version
+      storedKey = ver.missing ? null : canvasKey();   // r19 L2: what the server holds (a never-written V1 = unknown)
       // PP1028 #2: never silently drop priced default decor onto a quote that is already priced or locked
       // (confirmed / sent / approved) - that re-priced a locked ₹67,968 quote to ₹2,23,728 on save.
       // Those quotes open on a blank floor; the Templates menu / ?gen=1 stay the explicit way to add a default.
@@ -4743,7 +4802,10 @@ async function init(){
           if(N>0) exactSeats(store.items, N);   // R8b/R10: exactly the quote's (or flow's) seats
           _autoDefaultLoaded=true;
           toast('Loaded default '+(q.eventType||'')+' layout');
-          resetHistory(); setSavedBaseline(); renderAll();
+          // r19 L2: "Generate default layout" (?gen=1) makes a NEW layout - it is unsaved until a version is
+          // written (never "Saved ✓"; Save / Save & back write it). The quiet default for a brand-new quote keeps
+          // its old clean state, and Save & back still writes it (it differs from the stored empty V1).
+          resetHistory(); if(params.get('gen')==='1') markGenUnsaved(); else setSavedBaseline(); renderAll();
         }
       }
       versionsList = q.versions || [];
@@ -4770,10 +4832,11 @@ async function init(){
   }
   if(layoutLoading) setLayoutLoading(false); if(CAPTURE_HOST){ runCaptureHost(); return; }   // blank-floor prompt only if the loaded layout truly has no items; R8b: headless picture capture
   populateRefEvents();   // fill the "Past events" reference picker
+  scheduleBuilderTour(); // r19: first visit only - the mini tour of the toolbar (tour.js), once nothing else is open
   // Guided default-layout generation from the flow: ?gen=1&type=&guests=&len=&wid=
   if(params.get('gen')==='1' && CAN_CREATE!==false){
     // R10: the default layout auto-built on arrival carries EXACTLY the flow's seats (all seating counted)
-    if(_autoDefaultLoaded){ const N=arrivalSeats(); if(N>0 && sumSeats(store.items)!==N){ exactSeats(store.items, N); resetHistory(); setSavedBaseline(); renderAll(); } }
+    if(_autoDefaultLoaded){ const N=arrivalSeats(); if(N>0 && sumSeats(store.items)!==N){ exactSeats(store.items, N); resetHistory(); markGenUnsaved(); renderAll(); } }
     // R10: one event-type map for the flow arrival and the dialog prefill (Reception stays Reception)
     const rawType=(params.get('type')||'').toLowerCase().trim();   // R10 hotfix: declared here (it went missing in R10)
     const ct=CE_TYPE[rawType]||'wedding';
@@ -4793,13 +4856,41 @@ async function init(){
         if(rule.buffetPer!=null && guests) setChk('c_buffet', guests>=(+rule.buffetPer));
         if(rule.stage!=null) setChk('c_stage', rule.stage);
         if(rule.dancefloor!=null) setChk('c_dance', rule.dancefloor);
-        toast('Applied "'+(rawType||ct)+'" default rules');
+        if(!_autoDefaultLoaded) toast('Applied "'+(rawType||ct)+'" default rules');
       }
     }catch(e){}
-    openCustomModal();
-    try{ runCustomGenerate(); }catch(e){}
-    toast('Pick a generated layout to start — then tweak it freely');
+    // r19 L2: the default layout is already on the floor - do not pop the "Custom event builder" window over it
+    // (it is still one click away under Layout ▾). Only when no default could be built does the window open.
+    if(_autoDefaultLoaded){ toast('Default layout ready — press Save & back to quote to keep it'); }
+    else {
+      openCustomModal();
+      try{ runCustomGenerate(); }catch(e){}
+      toast('Pick a generated layout to start — then tweak it freely');
+    }
   }
+}
+/* r19: the builder's first-run mini tour (tour.js STEPS["builder.html"]: every toolbar control in screen order;
+   a step whose control is hidden for this person / studio / screen is skipped by the engine). It starts by itself
+   ONCE per browser - tour.js marks it seen when it ends or is skipped; "? Tour" replays it any time. Never for a
+   read-only viewer, the headless capture host or a phone-width screen, and only once no dialog / walkthrough /
+   other tour is open (it waits a little, then gives up for this visit). */
+const BUILDER_TOUR_SEEN='helm_tour_seen_builder';
+function builderTourBusy(){
+  if(document.querySelector('.htour, .bpui-overlay, .modal:not([hidden]), body.wt-on, body.fs-on')) return true;
+  return Array.prototype.some.call(document.querySelectorAll('[aria-modal="true"]'), m=>!m.hidden && !m.closest('[hidden]') && m.getClientRects().length>0);
+}
+function scheduleBuilderTour(){
+  if(RO || CAPTURE_HOST || !window.HelmTour || !HelmTour.hasSteps) return;
+  if(window.matchMedia && matchMedia('(max-width:720px)').matches) return;
+  try{ if(localStorage.getItem(BUILDER_TOUR_SEEN)) return; }catch(_){ return; }   // no storage: never nag on every visit
+  let tries=0;
+  const attempt=function(){
+    if(++tries>40) return;
+    if(layoutLoading || builderTourBusy()){ setTimeout(attempt, 1500); return; }
+    try{ if(localStorage.getItem(BUILDER_TOUR_SEEN)) return; }catch(_){ return; }
+    try{ HelmTour.start(); }catch(_){}
+  };
+  setTimeout(attempt, 900);   // let the late controls (walkthrough, privacy eye, templates) mount first
 }
 /* ===================================================================
    MOBILE DRAWERS (≤720px) — the toolbox and inspector overlay the canvas.

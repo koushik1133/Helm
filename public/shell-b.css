@@ -469,3 +469,15 @@ html[data-shell="b"] header.hb-header h1 .hb-ts { display: none; }
   html[data-shell="b"] header.hb-header h1 .hb-tl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
   html[data-shell="b"] header.hb-header h1 .hb-ts { display: inline; }
 }
+
+/* ===== r19 L4: short windows (1224x704, 1280x720): the rail is a strict 3-row column =====
+   top (fixed) / nav (takes the free space, scrolls) / footer (fixed, pinned to the bottom). No row can shrink below its
+   content, so footer slots (Colour theme, account avatar) never overlap each other or get pushed off the bottom, and the
+   nav's last row (the guided-tour button on short windows) scrolls fully clear of the footer + the fade cue. */
+html[data-shell="b"] .hb-rail { display: flex; flex-direction: column; height: 100vh; height: 100dvh; max-height: 100dvh; min-height: 0; }
+html[data-shell="b"] .hb-rail > .hb-top, html[data-shell="b"] .hb-rail > .hb-bottom { flex: none; }
+html[data-shell="b"] .hb-rail > .hb-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; scroll-padding-bottom: 32px; }
+html[data-shell="b"] .hb-rail > .hb-bottom { position: relative; z-index: 1; background: inherit; }
+html[data-shell="b"] .hb-bottom > .hb-slot { flex: none; }
+html[data-shell="b"] .hb-scroll > .hb-ftools:last-child { margin-bottom: 4px; }
+html[data-shell="b"] .hb-ftools .hb-slot > .hb-item { flex: 1 1 auto; min-width: 0; }

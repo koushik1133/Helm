@@ -41,7 +41,7 @@ t('welcome: holds the tour, uses the seat-capped invite path, 2 steps + Skip', (
   assert.match(TD, /lsSet\("bp_tour_autorun", "1"\)/); assert.match(TD, /lsSet\("bp_force_tour", "1"\)/);
   assert.match(TD, /st\.trialOrg\.welcome\(/); assert.match(TD, /st\.invitations\.create\(/);
   assert.match(TD, /"Name your trial studio"/); assert.match(TD, /"Invite your team \(up to 2\)"/); assert.match(TD, /btn\("Skip"/);
-  assert.match(TD, /"Hyderabad"/);
+  assert.match(TD, /fc\.input\.placeholder = "e\.g\. Hyderabad"/);   // round 19: City is asked (required), with State + Country India
   assert.ok(!/innerHTML|insertAdjacentHTML|\.style\./.test(TD), 'CSP-safe DOM');
   // 0177: every trial (demo or own data) gets the 2-step welcome
   assert.match(read('public/trial-signup.js'), /\n\s*try \{ global\.localStorage\.setItem\("bp_trial_welcome"/);

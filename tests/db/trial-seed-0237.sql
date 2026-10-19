@@ -84,7 +84,8 @@ do $$ declare M constant uuid := 'a5a5a5a5-0166-4000-8000-000000000001'; d jsonb
     and (select count(*) from public.plate_types where org_id = M and active) = 3);
   perform pg_temp.res('07 one new current manifest with the new lists in it',
     (select count(*) from public.helm_trial_seed_manifest where notes = 'sample completeness (0237)') = 1
-    and (select is_current from public.helm_trial_seed_manifest where notes = 'sample completeness (0237)')
+    and exists (select 1 from public.helm_trial_seed_manifest c where c.is_current   -- (or a later one: 0213 publishes after it on live)
+                  and c.version >= (select m.version from public.helm_trial_seed_manifest m where m.notes = 'sample completeness (0237)'))
     and (select (counts ->> 'layout_rules')::int = 8 and (counts ->> 'chair_types')::int = 3 and (counts ->> 'plate_types')::int = 3
                 and (counts ->> 'event_plan')::int = 6 and (counts ->> 'quote_versions')::int = 7
            from public.helm_trial_seed_manifest where is_current));

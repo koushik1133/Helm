@@ -744,3 +744,91 @@ details.state[hidden]{display:none}
 
 /* brand kit symbol (as-is) replaces the old gradient tile */
 .brand .mark{background:url(/brand/helm-symbol-emerald.svg?v=1) center/contain no-repeat !important;border-radius:0 !important;box-shadow:none !important}
+
+/* ===================== r19: tidy two-row header ===================== */
+/* Row 1 = this layout (name, versions, save / open, capacity, account); row 2 = the canvas (start a floor,
+   view, measure, units + grid, undo / redo / clear). Each group stays whole: when a row is too narrow the
+   last GROUP moves down, never a single button. 3D-only camera presets show only in 3D. */
+header.hr19{flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:6px;padding:8px 14px 7px}
+header.hr19 .hrow{display:flex;align-items:center;flex-wrap:wrap;column-gap:10px;row-gap:6px;min-width:0}
+header.hr19 .hrow>*{flex:0 0 auto}
+header.hr19 .hrow>.s-97445a8{flex:1 1 0;min-width:0}
+header.hr19 .hgroup{gap:6px;flex-wrap:nowrap}
+header.hr19 .hsep{height:20px;margin:0}
+header.hr19 select,header.hr19 .tbtn,header.hr19 .capmeter,header.hr19 .nameinput{height:30px}
+header.hr19 .seg button{height:28px}
+header.hr19 .tbtn.icon{width:30px}
+header.hr19 .tbtn.icon svg{display:block}
+header.hr19 .nameinput{min-width:140px;max-width:200px;font-weight:600}
+header.hr19 .capinput{width:104px;min-width:104px;max-width:104px;font-weight:400}
+header.hr19 select#preset,header.hr19 select#refEvents{max-width:160px}
+header.hr19 select.versel{max-width:190px}
+header.hr19 .hrow-tools{padding-top:6px;border-top:1px solid var(--line)}
+header.hr19 #refField[hidden],html.helm-trial header.hr19 #refField{display:none}   /* trial: past events sit under "Start blank..." */
+/* the canvas dock has the fullscreen button; the header one would only repeat it */
+header.hr19 #fsBtn{display:none}
+/* 3D camera presets (walkthrough.js): only Walkthrough in 2D, the rest once the 3D view is on */
+html:not(:has(.viewport.is3d)) header.hr19 .wt-field .seg button:not(#wtStart){display:none}
+header.hr19 .wt-field .seg button{height:28px}
+@media (max-width:1440px){ header.hr19 .hrow{column-gap:8px} header.hr19 select#preset,header.hr19 select#refEvents{max-width:146px} header.hr19 .nameinput{max-width:170px} }
+@media (max-width:1300px){ header.hr19 .nameinput{min-width:120px;max-width:150px} header.hr19 select.versel{max-width:150px}
+  header.hr19 select#preset,header.hr19 select#refEvents{max-width:132px} header.hr19 .capinput{width:92px;min-width:92px;max-width:92px} }
+/* phone / small tablet: one row that scrolls sideways (as before) - the two rows become one strip */
+@media (max-width:720px){
+  header.hr19{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:10px;padding:6px 10px}
+  header.hr19 .hrow{display:contents}
+  header.hr19 .hrow-tools{border-top:0;padding-top:0}
+  header.hr19 .hrow>.s-97445a8{display:none}
+}
+
+/* ===================== r19: canvas view controls docked under the floor ===================== */
+/* The zoom / pan / fullscreen / tour controls live in a thin strip UNDER the plan (the plan and the 3D view
+   stop above it), so they never cover the hall. The pan arrows open on demand, the controls are
+   semi-transparent until hovered or focused, and the whole dock folds away to one small button. */
+.viewport{--dock-h:44px}
+.fabstack .navpad[hidden]{display:none!important}
+.fabstack{flex-direction:row;align-items:center;gap:6px;opacity:.78;transition:opacity .15s}
+.fabstack:hover,.fabstack:focus-within{opacity:1}
+.fabstack .navpad{position:absolute!important;right:0;bottom:calc(100% + 8px);top:auto;left:auto;opacity:1}
+.fabstack .zoombar{padding:3px;gap:2px;box-shadow:none}
+.fabstack .zoombar button{width:30px;height:30px}
+.fabstack .zoombar .z{min-width:38px}
+.fabstack .zoombar .zsep{width:1px;height:18px;background:var(--line);margin:0 2px}
+.fabstack .zoombar button[aria-expanded="true"]{background:var(--accent-soft,var(--panel-2));color:var(--accent)}
+.fabstack .htour-fab{height:32px}
+.fabstack .fs-fab{width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);
+  border-radius:8px;background:var(--panel);color:var(--ink-2);cursor:pointer}
+.fabstack .fs-fab:hover{color:var(--ink);background:var(--panel-2)}
+.fabstack .dock-open{display:none;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);
+  color:var(--ink-2);font:600 12px var(--font,inherit);box-shadow:var(--shadow);cursor:pointer}
+.viewport.dock-min .fabstack>*:not(.dock-open):not(.htour-fab){display:none!important}
+.viewport.dock-min .fabstack .dock-open{display:inline-flex;align-items:center;gap:5px}
+.viewport.dock-min .fabstack{opacity:.6}
+@media (min-width:721px){
+  .viewport:not(.dock-min) .scroll,.viewport:not(.dock-min) #rulerLeft,.viewport:not(.dock-min) .stage3d{bottom:var(--dock-h)}
+  .viewport:not(.dock-min)::after{content:"";position:absolute;left:0;right:0;bottom:0;height:var(--dock-h);z-index:6;pointer-events:none;
+    background:var(--ruler,var(--panel));border-top:1px solid var(--line)}
+  .viewport:not(.dock-min) .fabstack{right:10px;bottom:5px}
+  .viewport:not(.dock-min) .statusbar{left:10px;bottom:6px;box-shadow:none;padding:4px 10px;max-width:calc(100% - 330px);overflow:hidden;white-space:nowrap}
+  .viewport:not(.dock-min) .fabstack .navpad{bottom:calc(100% + 10px)}
+}
+@media (prefers-reduced-motion:reduce){ .fabstack{transition:none} }
+/* 3D: the same zoom / fit buttons drive the 3D camera (builder.js in3D()), so the bar stays; the 2D zoom % is hidden */
+.viewport.is3d .fabstack .zoombar{display:flex}
+.viewport.is3d .fabstack .zoombar .z{display:none}
+/* the 3D toolbar on the canvas has the Labels switch (None / Numbers / Names); the header one would repeat it */
+header.hr19 .wt-field .seg button[aria-pressed]:last-child{display:none}
+@media (max-width:1300px){ header.hr19 .hrow-tools .seg button{padding:0 6px} header.hr19 .hrow-tools .tbtn{padding:0 7px} }
+/* inside a quote the first row also carries the quote code, versions, Design, Save & back and Client images:
+   up to 1440 px wide the Open / More / Save & back buttons drop their words (icons + tooltips stay) */
+@media (max-width:1440px){
+  header.hr19:has(#quoteBadge:not([hidden])) .hg-save .tl:not(.tl-back){display:none}
+  header.hr19:has(#quoteBadge:not([hidden])) .kbd{display:none}
+  header.hr19:has(#quoteBadge:not([hidden])) .nameinput{min-width:110px;max-width:150px}
+  header.hr19:has(#quoteBadge:not([hidden])) select.versel{max-width:136px}
+}
+@media (max-width:1300px){
+  header.hr19:has(#quoteBadge:not([hidden])) .capinput{width:84px;min-width:84px;max-width:84px;padding:0 6px}
+  header.hr19:has(#quoteBadge:not([hidden])) .hrow-doc{column-gap:6px}
+  header.hr19:has(#quoteBadge:not([hidden])) .hg-save .tl-back{display:none}
+}

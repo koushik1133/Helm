@@ -34,7 +34,7 @@ t('roles come from the access-matrix roles (no Client for staff)', () => {
   assert.match(api, /staffRoles: \(\) => PICK_ROLES\.filter\(\(r\) => r !== "client"\)/);
 });
 t('invite to log in: admin only, needs e-mail + a defined role, uses invitations.create, never sends', () => {
-  assert.match(html, /isAdminUser&&!linked&&s\.email&&s\.active!==false\?`<button class="ic" data-act="invite"/);
+  assert.match(html, /isAdminUser&&!linked&&s\.email&&s\.active!==false&&!BPStore\.staff\.isDemo\(s\)\?`<button class="ic" data-act="invite"/);   // L14: never on sample staff
   assert.match(html, /const key=BPStore\.staff\.matchRole\(s\.role\);\s*if\(!key\)/);
   assert.match(html, /BPStore\.invitations\.create\(s\.email, key\)/);
   // 0131: the invite is e-mailed only through the invite-mailer queue (copy link still offered)

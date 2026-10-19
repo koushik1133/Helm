@@ -253,5 +253,10 @@ apex is served by the project instead of by the domain-level redirect:
   upload `docs/manual/USER-MANUAL.html` to the bucket root and the 7 files in
   `docs/manual/screenshots/` to `screenshots/` (Dashboard → Storage → helm-manual).
   Until then `/manual` shows "The manual isn't available yet".
+  **R19 (2026-10-18):** the manual was rebuilt (v4, every feature chapter). Re-upload
+  `docs/manual/USER-MANUAL.html` (overwrite). Its "Screenshot to add" boxes are listed by
+  `node scripts/manual-capture.mjs --list`; capture them (sign in by hand in the window the
+  script opens, on a demo studio), then upload the new files in `docs/manual/screenshots/`
+  to `screenshots/` - `/manual` shows each picture in place of its box automatically.
 - **sim-pay.html** and the **Edge Function CORS preview-origin regex** belong to the
   uploads/payments work (0027), not this list.

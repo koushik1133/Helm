@@ -563,7 +563,7 @@
     ]).then(function (r) { return r[0] && r[1]; });
     return libsP;
   }
-  var FORM_LIB_V = "1", PHONE_LIB_V = "5";
+  var FORM_LIB_V = "1", PHONE_LIB_V = "7";
   function pathIcon(path, cls) {
     var ns = "http://www.w3.org/2000/svg", s = doc.createElementNS(ns, "svg");
     s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", "16"); s.setAttribute("height", "16"); s.setAttribute("aria-hidden", "true"); if (cls) s.setAttribute("class", cls);
@@ -1351,9 +1351,10 @@
   /* ------------------------------- profile menu (avatar, top-right) ---------
      Replaces the old "Account" button + role/e-mail/Log out chip on signed-in studio
      pages (never HQ, never client pages). Like GitHub: a round avatar button opens a
-     menu (role=menu) with the identity header, Profile, Account settings, User manual,
-     Control Center (only when the access matrix lets this role view 'controls') and
-     Sign out. Keyboard: Enter/Space/ArrowDown open, arrows/Home/End move, Esc closes
+     menu (role=menu) with the identity header, Profile, Account settings (profile,
+     password, two-step verification), User manual (opens /manual in a new tab) and
+     Sign out - for every role, free trial included. R19: Control Center, Insights and
+     Customize dashboard left the menu (the sidebar and the dashboard already have them). Keyboard: Enter/Space/ArrowDown open, arrows/Home/End move, Esc closes
      and returns focus, Tab stays inside the open menu. Click outside closes.
      #helm-topbar-search is an empty slot left of the avatar for the studio search. */
   var AV_COLORS = 8;
@@ -1363,19 +1364,17 @@
     return h % AV_COLORS;
   }
   // pure (unit-tested): what the menu shows for a user / profile / role
-  function menuModel(u, prof, role, canControls, canInsights) {
+  function menuModel(u, prof, role) {
     u = u || {}; prof = prof || {};
     var name = String(prof.full_name || "").trim();
     var email = String(u.email || prof.email || "");
     var st = S(), label = role && st && st.auth && st.auth.admin && st.auth.admin.roleLabel ? st.auth.admin.roleLabel(role) : (role || "");
+    // R19: only account items - Control Center + Insights live in the sidebar (Admin), Customize on the dashboard
     var items = [
       { id: "profile", label: "Profile" },
       { id: "settings", label: "Account settings" },
-      { id: "manual", label: "User manual", href: "manual.html" },
+      { id: "manual", label: "User manual", href: "manual.html", newTab: true },
     ];
-    // 0076: Insights only when the access matrix says canView('insights') === true
-    if (canInsights === true) items.push({ id: "insights", label: "Insights", href: "insights.html" });
-    if (canControls === true) items.push({ id: "control", label: "Control Center", href: "control.html", sep: true });
     items.push({ id: "signout", label: "Sign out", sep: true });
     return { name: name || email.split("@")[0] || "Account", email: email, role: label,
       initials: initials(name, email), color: avColorIdx(u.id || email),
@@ -1409,7 +1408,6 @@
     profile: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5",
     settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4",
     manual: "M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h11M9 8h5",
-    control: "M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1M15 5v4M9 10v4M17 15v4",
     signout: "M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10",
   };
   function menuItems() { return menu.pop ? Array.prototype.slice.call(menu.pop.querySelectorAll("[role=menuitem]")) : []; }
@@ -1467,7 +1465,8 @@
     head.appendChild(who); pop.appendChild(head);
     m.items.forEach(function (it) {
       if (it.sep) pop.appendChild(el("div", { class: "hau-msep", role: "separator" }));
-      var node = it.href ? el("a", { href: it.href, class: "hau-mi", role: "menuitem", tabindex: "-1" })
+      var node = it.href ? el("a", it.newTab ? { href: it.href, class: "hau-mi", role: "menuitem", tabindex: "-1", target: "_blank", rel: "noopener noreferrer" }
+          : { href: it.href, class: "hau-mi", role: "menuitem", tabindex: "-1" })
         : el("button", { type: "button", class: "hau-mi" + (it.id === "signout" ? " is-out" : ""), role: "menuitem", tabindex: "-1" });
       node.setAttribute("data-mi", it.id);
       node.appendChild(pathIcon(MI_ICONS[it.id] || MI_ICONS.profile, "hau-mi-ic"));
@@ -1483,11 +1482,9 @@
     Promise.all([
       Promise.resolve().then(function () { return st.profile && st.profile.mine ? st.profile.mine() : null; }).catch(function () { return null; }),
       Promise.resolve().then(function () { return st.auth.role ? st.auth.role() : null; }).catch(function () { return null; }),
-      Promise.resolve().then(function () { return st.auth.canView ? st.auth.canView("controls") : false; }).catch(function () { return false; }),
-      Promise.resolve().then(function () { return st.auth.canView ? st.auth.canView("insights") : false; }).catch(function () { return false; }),
     ]).then(function (r) {
       if (r[1] === "client") { if (menu.root) menu.root.remove(); return; }
-      var m = menuModel(u, r[0], r[1], r[2] === true, r[3] === true);
+      var m = menuModel(u, r[0], r[1]);
       menu.model = m;
       var ini = menu.btn.querySelector(".hau-av-i"); if (ini) ini.textContent = m.initials;
       var av = menu.btn.querySelector(".hau-av"); if (av) av.className = "hau-av hau-c" + m.color;
@@ -1511,7 +1508,7 @@
     var old = doc.getElementById("hauTopbar"); if (old) old.remove();
     var st = S(), u = st && st.auth.user(); if (!u) return;
     css();
-    var m = menuModel(u, null, st.auth.cachedRole ? st.auth.cachedRole() : null, false);
+    var m = menuModel(u, null, st.auth.cachedRole ? st.auth.cachedRole() : null);
     menu.model = m; menu.avImgs = [];
     var root = el("div", { id: "hauTopbar", class: "hau-tb" });
     root.appendChild(el("div", { id: "helm-topbar-search", class: "hau-tb-slot" }));   // studio search mounts here
@@ -1565,7 +1562,36 @@
       return d.toLocaleDateString("en-IN", f);
     } catch (e) { return String(v); }
   }
-  function subscriptionCard(st, sub) {
+  // L9 (live QA): the trial end on Plan & billing is the STUDIO's calendar day of the exact end moment - the same day
+  // the trial strip, the reminders and the Staff page show (trial.js endDay). studio_subscriptions.trial_ends_at is a
+  // bare day that sign-up stored as the UTC day (26 Oct for an end at 27 Oct 03:30 IST), so it is only the fallback.
+  // t = my_trial_org() (exact ends_at + timezone) and/or my_trial_status() (0223: ends_at_exact + timezone).
+  function zoneDay(ms, tz) {
+    var zones = [tz || "Asia/Kolkata", "Asia/Kolkata"];
+    for (var i = 0; i < zones.length; i++) {
+      try {
+        var o = {}; new Intl.DateTimeFormat("en-CA", { timeZone: zones[i], year: "numeric", month: "2-digit", day: "2-digit" })
+          .formatToParts(new Date(ms)).forEach(function (x) { o[x.type] = x.value; });
+        if (o.year && o.month && o.day) return o.year + "-" + o.month + "-" + o.day;
+      } catch (e) {}
+    }
+    return new Date(ms).toISOString().slice(0, 10);
+  }
+  function studioTz(st) { try { return st && typeof st.studioTimezone === "function" ? st.studioTimezone() : undefined; } catch (e) { return undefined; } }
+  function trialEndDay(sub, org, ts, tz) {
+    var exact = null, zone = null;
+    if (org && org.is_trial_org === true && org.ends_at) { exact = org.ends_at; zone = org.timezone; }
+    else if (ts && ts.ends_at_exact) { exact = ts.ends_at_exact; zone = ts.timezone; }
+    var e = exact ? Date.parse(exact) : NaN;
+    if (isFinite(e)) {
+      var H = global.HelmTrial;
+      if (H && typeof H.endDay === "function") { var d = H.endDay(exact, zone || tz); if (d) return d; }
+      return zoneDay(e - 1, zone || tz);
+    }
+    if (ts && /^\d{4}-\d{2}-\d{2}$/.test(String(ts.ends_at || "")) && ts.timezone) return String(ts.ends_at);   // 0223: already the studio day
+    return sub && sub.trial_ends_at ? sub.trial_ends_at : null;
+  }
+  function subscriptionCard(st, sub, org, ts) {
     var box = doc.getElementById("subCard"); if (!box) return;
     var body = doc.getElementById("subBody"); if (!body) return;
     if (!sub || !("payments" in sub)) { box.hidden = true; return; }        // admins only (the DB decides)
@@ -1575,7 +1601,7 @@
     body.appendChild(el("p", { class: "hau-muted", style: "font-weight:600" }, line));
     body.appendChild(el("p", { class: "hau-muted" }, "Status: " + String(sub.status || "not set").replace("_", " ") +
       (sub.current_period_end ? " · current period ends " + day(sub.current_period_end) : "") +
-      (sub.trial_ends_at ? " · trial ends " + day(sub.trial_ends_at) : "")));
+      (sub.trial_ends_at ? " · trial ends " + day(trialEndDay(sub, org, ts, studioTz(st)) || sub.trial_ends_at) : "")));
     var list = el("ul", { class: "hau-list" });
     (sub.payments || []).forEach(function (p) {
       var li = el("li", null, day(p.paid_on) + " · " + money2(p.amount, p.currency) + " · " + (p.invoice_no || "") + (p.voided ? " (void)" : "") + " ");
@@ -1641,8 +1667,12 @@
   }
   function subscriptionStatus() {
     var st = S(); if (!st || !st.auth.user() || !st.subscription || !st.subscription.mine) return;
-    st.subscription.mine().then(function (sub) {
-      subscriptionCard(st, sub);
+    // L9: the exact trial end (my_trial_org / my_trial_status) so the card shows the studio's day, not the UTC day
+    var orgQ = st.trialOrg && st.trialOrg.status ? Promise.resolve().then(function () { return st.trialOrg.status(); }).catch(function () { return null; }) : Promise.resolve(null);
+    var tsQ = st.subscription.trial ? Promise.resolve().then(function () { return st.subscription.trial(); }).catch(function () { return null; }) : Promise.resolve(null);
+    Promise.all([st.subscription.mine(), orgQ, tsQ]).then(function (all) {
+      var sub = all[0];
+      subscriptionCard(st, sub, all[1], all[2]);
       if (!sub || !sub.read_only || subBanner || !doc.body) return;
       subBanner = showNote({ id: "hauReadOnly", priority: 1, icon: "lock", tone: "warn", title: "Read-only: subscription suspended — contact Helm",
         body: "You can view and export everything, but nothing can be created, changed or deleted until it is reactivated." });
@@ -1780,6 +1810,7 @@
     demoNotice: demoNotice,
     onTrial: onTrial,
     _day: day,
+    _trialEndDay: trialEndDay,
     _safeQr: safeQr,
   };
 })(window);

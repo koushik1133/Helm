@@ -93,10 +93,15 @@ t('per-page steps follow each toolbar left to right, then the content below', ()
   assert.deepEqual(sels('leads.html'), ['#search', '#newBtn', '#board']);
   assert.deepEqual(sels('staff.html'), ['#search', '#newBtn', '#grid']);
   assert.deepEqual(sels('inventory.html'), ['#eventPanel', '#pane-loans', '#newBtn']);
-  assert.deepEqual(sels('builder.html'), ['#preset', '#customBtn', '#measureBtn', '#saveBtn', '#capMeter', '#toolbox']);
+  // r19: the builder's first-run tour walks every toolbar control: row 1 (this layout), row 2 (the canvas), then the panels
+  assert.deepEqual(sels('builder.html'), ['#projName', '#verSel', '#designChip', '#backToFlowBtn', '#saveBtn', '#loadBtn', '#clientImgBtn',
+    '#moreMenu', '.hg-edit', '.hg-cap', '.bp-priv-slot .hbp-btn', '#preset', '#refField', '#customBtn', '#viewSeg', '.wt-field', '#measureBtn',
+    '.hg-grid', '#toolbox', '#fabStack', '#rightPanel']);
   // and that is the DOM order of those elements on the page
   for (const [pg, ids] of [['quotes.html', ['tabs', 'search', 'newBtn', 'rows']], ['leads.html', ['search', 'newBtn', 'board']],
-    ['staff.html', ['search', 'newBtn', 'grid']], ['builder.html', ['preset', 'customBtn', 'measureBtn', 'saveBtn', 'capMeter', 'toolbox']]]) {
+    ['staff.html', ['search', 'newBtn', 'grid']], ['builder.html', ['projName', 'verSel', 'designChip', 'backToFlowBtn', 'saveBtn', 'loadBtn',
+      'clientImgBtn', 'moreMenu', 'undoBtn', 'capInput', 'preset', 'refField', 'customBtn', 'viewSeg', 'measureBtn', 'unitSel', 'toolbox',
+      'fabStack', 'rightPanel']]]) {
     const H = r(pg), pos = ids.map((id) => H.indexOf('id="' + id + '"'));
     assert.ok(pos.every((p, k) => p > 0 && (k === 0 || p > pos[k - 1])), pg + ' DOM order ' + pos);
   }

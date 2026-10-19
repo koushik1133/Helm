@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=29"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=31"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -1162,7 +1162,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "39";
+  const AUTH_UI_VERSION = "41";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1215,7 +1215,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "14";
+  const TRIAL_BANNER_VERSION = "16";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -1884,6 +1884,13 @@ window.HelmUrl = HelmUrl;
         if (captchaToken) so.captchaToken = captchaToken;
         const fullName = opts && typeof opts.fullName === "string" ? opts.fullName.trim().slice(0, 50) : "";
         if (fullName) so.data = { full_name: fullName };
+        // round 19: what this sign-up was for (free trial / paid studio) + the studio name typed, kept on the
+        // account so a confirm link opened in ANOTHER browser can still go straight on to the trial welcome
+        const intent = opts && (opts.intent === "trial" || opts.intent === "direct") ? opts.intent : "";
+        if (intent) {
+          const sn = opts && typeof opts.studioName === "string" ? opts.studioName.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 80) : "";
+          so.data = Object.assign({}, so.data || {}, { helm_signup_intent: intent, helm_signup_studio: sn });
+        }
         // 0205: this browser started a sign-up for this address - /auth/confirm keeps the confirm link's
         // session only then (a link someone else made for THEIR account never signs this browser in)
         try { localStorage.setItem(SIGNUP_MARK_KEY, String(email || "").trim().toLowerCase().slice(0, 254)); } catch (e) {}
@@ -2482,6 +2489,21 @@ window.HelmUrl = HelmUrl;
     return q;
   }
   // Supabase tier (RPC-backed; errors surface). Falls back to localStorage when not in supabase mode.
+  // r19 L1: does THIS browser hold an unsaved floor plan (builder crash-safety copy, builder.js draftKey:
+  // bps.draft.<user>.<quote>) with at least one object for this quote? Blocked storage -> false.
+  function hasLocalLayoutDraft(quoteId, store) {
+    const id = String(quoteId || ""); if (!id) return false;
+    try {
+      const ls = store || localStorage; const n = ls.length || 0;
+      for (let i = 0; i < n; i++) {
+        const k = ls.key(i);
+        if (!k || k.indexOf("bps.draft.") !== 0 || k.slice(-(id.length + 1)) !== "." + id) continue;
+        let d = null; try { d = JSON.parse(ls.getItem(k) || "null"); } catch (e) { d = null; }
+        if (d && d.data && Array.isArray(d.data.items) && d.data.items.length > 0) return true;
+      }
+    } catch (e) {}
+    return false;
+  }
   const sbq = {
     // every quote, light columns (pickers, calendar, availability…). A database that
     // is missing one of the named columns falls back to select * rather than a 400.
@@ -2623,6 +2645,10 @@ window.HelmUrl = HelmUrl;
       const cl = row && row.client && typeof row.client === "object" ? row.client : {};
       const clean = !["name", "phone", "email", "company"].some((k) => String(cl[k] == null ? "" : cl[k]).trim() !== "");
       if (!clean) return this.create(code, code, null, { items: [] }, 0);
+      // r19 L1: a draft whose floor plan is still unsaved in THIS browser (builder crash-safety copy
+      // bps.draft.<user>.<quote>) is not blank either - reusing it renamed the person's draft and offered
+      // its plan in the "new" quote. Leave it untouched and start a fresh quote.
+      if (row && row.id && hasLocalLayoutDraft(row.id)) return this.create(code, code, null, { items: [] }, 0);
       return row;
     },
     // re-issue the code from the event date (idempotent); returns the (possibly new) code
@@ -4693,6 +4719,21 @@ window.HelmUrl = HelmUrl;
       }
       return rpc("apply_menu_template", { p_quote: quoteId, p_template: templateId });
     },
+    // r19 (0211): "No package / decide later" - the plan forgets the applied package + its plate price (the quote is
+    // priced at the default plate price again). The event's dishes are kept. Menu locked / not allowed -> refused.
+    async clear(quoteId) {
+      if (mode !== "supabase") {
+        const a = readLs("bp_plan"), row = a.find((x) => x.quote_id === quoteId);
+        if (row && row.menu_locked) throw new Error("The menu is locked. Unlock it to change the package.");
+        if (row) { row.package = null; row.menu_template = null; row.menu_plate_price = null; localStorage.setItem("bp_plan", JSON.stringify(a)); }
+        return { cleared: !!row };
+      }
+      try { return await rpc("clear_menu_template", { p_quote: quoteId }); }
+      catch (e) {
+        if (e && (e.code === "PGRST202" || e.code === "42883")) throw new Error("Removing a package needs the latest Helm update. Pick another package for now.");
+        throw e;
+      }
+    },
   };
 
   /* ---------------- organization / studio (Phase 58) ---------------- */
@@ -4901,6 +4942,45 @@ window.HelmUrl = HelmUrl;
       if (res.ok) return j && j.ok ? { ok: true } : { fallback: true };
       if (res.status === 404 || res.status >= 500 || !j || !j.code) return { fallback: true };
       const e = new Error(String(j.error || "Couldn't create the account.")); e.code = j.code; e.status = res.status; if (j.reason) e.reason = String(j.reason).slice(0, 20); throw e;
+    },
+    // 0210 (free-trial sign-up, before anything is created): does this e-mail have an OPEN invitation?
+    // → { invited: true, studio, role, role_label } | { invited: false } | null (function not deployed,
+    // rate limited, offline, slow - the sign-up then simply carries on). Only studio + role ever come back.
+    async openForEmail(email, opts) {
+      const em = String(email || "").trim().toLowerCase();
+      if (!supa || !fnUrl("invite-signup") || !em) return null;
+      const ms = Math.max(500, Math.min(10000, Number(opts && opts.timeoutMs) || 4000));
+      const ctl = typeof AbortController === "function" ? new AbortController() : null;
+      const timer = ctl ? setTimeout(() => { try { ctl.abort(); } catch (e) {} }, ms) : null;
+      try {
+        const res = await fetch(fnUrl("invite-signup"), { method: "POST", signal: ctl ? ctl.signal : undefined,
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
+          body: JSON.stringify({ email_lookup: true, email: em }) });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j || typeof j !== "object") return null;
+        if (j.invited !== true) return j.invited === false ? { invited: false } : null;
+        const str = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, n);
+        return { invited: true, studio: str(j.studio, 120), role: str(j.role, 40), role_label: str(j.role_label, 60) };
+      } catch (e) { return null; }
+      finally { if (timer) clearTimeout(timer); }
+    },
+    // 0210 "Join <Studio>" from the sign-up: e-mail THAT address its invitation again (Join link →
+    // /login?invite=<token>; the token never comes to this browser). → { sent: true|false }; a refusal
+    // throws an Error with .code (rate_limited, send_failed, unavailable, network).
+    async emailInviteLink(email) {
+      const fail = (msg, code) => { const e = new Error(msg); e.code = code; return e; };
+      const em = String(email || "").trim().toLowerCase();
+      if (!supa || !fnUrl("invite-signup") || !em) throw fail("We couldn't send it from here — open the invitation e-mail you already have.", "unavailable");
+      let res;
+      try {
+        res = await fetch(fnUrl("invite-signup"), { method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
+          body: JSON.stringify({ email_send: true, email: em }) });
+      } catch (e) { throw fail("We couldn't reach Helm — check your connection and try again.", "network"); }
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && j && j.ok === true) return { sent: j.sent === true };
+      if (j && (j.code === "rate_limited" || j.code === "send_failed")) throw fail(String(j.error || "Couldn't send the e-mail."), String(j.code));
+      throw fail("We couldn't send it from here — open the invitation e-mail you already have.", "unavailable");
     },
     async preview(token) {                                                                   // anon-safe banner info (SEC-06); falls back until deployed
       try { return await rpc("invitation_preview", { p_token: token }); }
@@ -5139,7 +5219,9 @@ window.HelmUrl = HelmUrl;
       if (error) throw error; return true; },
     publish:   (id) => rpc("publish_event_site", { p_id: id, p_publish: true }),          // stamps published_at + name-based slug server-side
     // 0195 "Send to client": queues the PUBLISHED invitation link (fixed text) by e-mail / WhatsApp.
-    // The server checks consent / STOP / caps; a FREE TRIAL studio gets {status:"skipped", reason:"free_trial"} - nothing is sent.
+    // The server checks consent / STOP / caps. FREE TRIAL (0212): an e-mail of an ACTIVE trial is queued
+    // ({status:"queued", trial_email:true}; over the daily cap {status:"skipped", reason:"trial_email_cap"}); WhatsApp,
+    // an ended trial and a demo event get {status:"skipped", reason:"free_trial" | "demo"} - nothing is sent.
     send: (siteId, channel, to, optIn, consentText) => rpc("event_site_send", { p_site: siteId, p_channel: channel === "whatsapp" ? "whatsapp" : "email",
       p_to: String(to || "").slice(0, 200), p_opt_in: !!optIn, p_consent_text: optIn ? String(consentText || "").slice(0, 500) : null }),
     sendLog: (siteId) => (supa ? rpc("event_site_send_log", { p_site: siteId }).catch(() => []) : Promise.resolve([])),
@@ -7924,11 +8006,11 @@ window.HelmUrl = HelmUrl;
       client_follow_up: ["💬", "Follow-up sent to the client" + (d.auto === false ? "" : " (automatic)")],
       // 0195: "Send to client" on the Invitation Studio
       invite_site_link: ["💌", n.status === "suppressed"
-        ? "Invitation link not sent" + (d.skipped === "free_trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : "")
+        ? "Invitation link not sent" + (d.skipped === "free_trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : d.suppressed_by === "trial_cap" ? " (free trial e-mail limit)" : "")
         : n.status === "failed" ? "Invitation link could not be sent" : "Invitation link sent to the client"],
       // 0200: "Send to client" in the Share booklet dialog (and the older client-mailer e-mail)
       booklet_link: ["📖", n.status === "suppressed"
-        ? "Booklet link not sent" + (d.skipped === "free_trial" || d.suppressed_by === "trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : "")
+        ? "Booklet link not sent" + (d.skipped === "free_trial" || d.suppressed_by === "trial" ? " (free trial test mode)" : d.skipped === "demo" || d.suppressed_by === "demo" ? " (demo event)" : d.suppressed_by === "trial_cap" ? " (free trial e-mail limit)" : "")
         : n.status === "failed" ? "Booklet link could not be sent" : n.status === "simulated" ? "Booklet link not sent (sending not set up)" : "Booklet link sent to the client"],
     };
     if (k === "invite_site_link" || k === "booklet_link") return { icon: m[k][0], text: m[k][1] };
@@ -9088,6 +9170,11 @@ window.HelmUrl = HelmUrl;
       limits: () => (supa ? rpc("my_trial_limits").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       // anon-42501: signed out = null ("not a trial") without asking the server
       trial: () => (supa ? trialSignedIn().then((ok) => (ok ? memoRead("trial", 15000, () => swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }))) : null)) : Promise.resolve(null)),
+      // 0212 — what reaches this studio's clients: {trial, active, email, whatsapp, sms, payment_links,
+      // email_per_day, email_per_recipient_day, email_used_today}. Paid studio: everything true. An ACTIVE free
+      // trial: e-mail true (capped), WhatsApp / SMS / payment links false. null before 0212 / signed out / error
+      // (callers then keep the older "free trial = test mode" wording).
+      messaging: () => (supa ? trialSignedIn().then((ok) => (ok ? rpc("my_trial_messaging").catch(() => null) : null)) : Promise.resolve(null)),
     },
     // 0157 — "Hide amounts" privacy PIN, ONE per studio. The server keeps only a bcrypt hash
     // (default 0000 until an admin changes it) and counts wrong tries per person.
@@ -9234,8 +9321,16 @@ window.HelmUrl = HelmUrl;
           p_version_ids: vers, p_terms: o.terms ? String(o.terms).slice(0, 8000) : null, p_note: o.note ? String(o.note).slice(0, 1000) : null,
           ...(sec ? { p_sections: sec } : {}) }); },
       revoke: (quoteId) => rpc("booklet_revoke", { p_quote_id: quoteId }),
+      // r19 L11 (0220): floor plan + 3D view on for the live link once the layout has objects (a link made on an
+      // empty layout had them skipped); never when someone switched sections on the live link. null before 0220.
+      layoutAutoOn: (quoteId) => (supa ? rpc("booklet_layout_auto_on", { p_quote_id: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // r19 L11 (0220): change which sections the LIVE link shows, in place (same link / token)
+      setSections: (quoteId, sections) => { const sec = {};
+        for (const k of BOOKLET_SECTIONS) if (sections && typeof sections === "object" && k in sections) sec[k] = !!sections[k];
+        return supa ? rpc("booklet_set_sections", { p_quote_id: quoteId, p_sections: sec }) : Promise.reject(new Error("Sharing a booklet needs a signed-in studio.")); },
       // 0200 "Send to client": queues the LIVE booklet link (fixed text) by e-mail / WhatsApp (comms_outbox -> comms-dispatch).
-      // The server checks consent / STOP / caps; a FREE TRIAL studio gets {status:"skipped", reason:"free_trial"} - nothing is sent.
+      // The server checks consent / STOP / caps. FREE TRIAL (0212): as sites.send - an active trial's e-mail is queued
+      // (capped), WhatsApp / an ended trial / a demo event -> {status:"skipped", reason:"free_trial" | "demo"}.
       send: (quoteId, channel, to, optIn, consentText) => rpc("booklet_send", { p_quote: quoteId, p_channel: channel === "whatsapp" ? "whatsapp" : "email",
         p_to: String(to || "").slice(0, 200), p_opt_in: !!optIn, p_consent_text: optIn ? String(consentText || "").slice(0, 500) : null }),
       sendLog: (quoteId) => (supa ? rpc("booklet_send_log", { p_quote: quoteId }).catch(() => []) : Promise.resolve([])),
@@ -9441,6 +9536,17 @@ window.HelmUrl = HelmUrl;
       start: (loc) => (loc && (loc.timezone || loc.currency) ? rpc("start_trial", { p_timezone: loc.timezone || null, p_currency: loc.currency || null }) : rpc("start_trial", {})),
       // 0167 — 2-step trial welcome, step 1: rename the caller's own trial studio (name, link slug, city, optional phone)
       welcome: (name, city, phone) => rpc("trial_welcome_setup", { p_name: String(name || "").trim(), p_city: String(city || "").trim() || "Hyderabad", p_phone: String(phone || "").trim() || null }),
+      // 0210 — the same step with City + State (Indian states) + Country India (fixed for the trial); phone optional.
+      // Falls back to the 0167 step (no state) while 0210 is not applied yet.
+      welcomeSave: (o) => {
+        const a = o || {};
+        const args = { p_name: String(a.name || "").trim(), p_city: String(a.city || "").trim(), p_state: String(a.state || "").trim(),
+          p_phone: String(a.phone || "").trim() || null, p_country: "IN" };
+        return rpc("trial_welcome_save", args).catch((e) => {
+          if (!rpcMissing(e)) throw e;
+          return rpc("trial_welcome_setup", { p_name: args.p_name, p_city: args.p_city || "Hyderabad", p_phone: args.p_phone });
+        });
+      },
       // 0180 — server-side welcome flag (works across devices): true while the free-trial owner's
       // 2-step welcome is not finished, false otherwise; null = 0180 not installed (the page then
       // falls back to this browser's sign-up flag)
@@ -9845,6 +9951,7 @@ window.HelmUrl = HelmUrl;
     ".bpui-spin2{border:none;background:conic-gradient(from 90deg,color-mix(in srgb,var(--bpui-accent) 12%,transparent),var(--bpui-accent));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px))}}",
     "@media print{.bpui-toasts,.bpui-offline,.bpui-boot-overlay{display:none!important}}",
     ".bpui-capnote{display:inline-block;margin:0 8px;font-size:12.5px;line-height:1.3;color:var(--bpui-ink-2);vertical-align:middle}",
+    ".bpui-caplink{font-weight:700;color:inherit;text-decoration:underline}",
     ".bpui-capnote.is-full{color:var(--bpui-warn-ink);background:var(--bpui-warn-bg);border:1px solid var(--bpui-warn-line);border-radius:999px;padding:2px 10px}",
   ].join("\n");
   function injectCSS() {
@@ -10675,9 +10782,55 @@ window.HelmUrl = HelmUrl;
     });
   }
 
+  // L13 (live QA): a "new record" dialog opened at the free-trial cap (e.g. ?hs_act=new at 2 / 2) had Save on, and the
+  // server's refusal ("Free trial limit reached (2)") came with no way to upgrade. capDialog(save, errEl, entity, nouns,
+  // stillNew) switches Save off and says "Free trial: 2 of 2 items used. Choose a plan to add more" with the link to
+  // /checkout; capDialogReset undoes ONLY what capDialog did (call it on every open). capLimit shows the same words for
+  // a server refusal. isCapError: the server's trial-cap refusal (0181 hint trial_cap).
+  function capHref() {
+    var pg = "dashboard";
+    try { pg = (global.location.pathname.split("/").pop() || "dashboard").replace(/\.html$/, "") || "dashboard"; } catch (e) {}
+    return "/checkout?next=" + encodeURIComponent(pg + ".html");
+  }
+  function capLimit(errEl, c, nouns) {
+    if (!errEl) return;
+    var used = c ? "Free trial: " + Math.min(c.used, c.cap) + " of " + c.cap + " " + (nouns || "new records") + " used. " : "Free trial limit reached. ";
+    errEl.textContent = "";
+    errEl.appendChild(doc.createTextNode(used));
+    var a = h("a", { href: capHref(), class: "bpui-caplink" }, "Choose a plan to add more");
+    errEl.appendChild(a); errEl.appendChild(doc.createTextNode("."));
+    errEl.setAttribute("data-cap", "1"); errEl.hidden = false;
+  }
+  function capDialogReset(save, errEl) {
+    if (save && save.getAttribute("data-cap-off") === "1") { save.disabled = false; save.removeAttribute("data-cap-off"); save.removeAttribute("title"); }
+    if (errEl && errEl.getAttribute("data-cap") === "1") { errEl.removeAttribute("data-cap"); errEl.textContent = ""; errEl.hidden = true; }
+  }
+  function capDialog(save, errEl, entity, nouns, stillNew) {
+    capDialogReset(save, errEl);
+    return trialCap(entity).then(function (c) {
+      if (!c || !c.full || (typeof stillNew === "function" && !stillNew())) return c;
+      capLimit(errEl, c, nouns);
+      if (save) { if (!save.disabled) { save.disabled = true; save.setAttribute("data-cap-off", "1"); } save.setAttribute("title", capText(c, nouns)); }
+      return c;
+    }, function () { return null; });
+  }
+  function isCapError(e) { return !!(e && (e.hint === "trial_cap" || /free trial limit reached/i.test(String(e.message || "")))); }
+  // L13: a form-level error ("Contact name is required.") goes away as soon as a field in the dialog is changed;
+  // the cap message (data-cap) stays - it is not about a field. Bound once per dialog.
+  function clearErrOnEdit(box, errEl) {
+    if (!box || !errEl || box.__bpuiErrClear) return;
+    box.__bpuiErrClear = true;
+    var clear = function (e) {
+      if (errEl.hidden || errEl.getAttribute("data-cap") === "1" || (e && e.target && errEl.contains(e.target))) return;
+      errEl.hidden = true; errEl.textContent = "";
+    };
+    box.addEventListener("input", clear, true); box.addEventListener("change", clear, true);
+  }
+
   global.BPUI = {
     version: 1,
     trialCap: trialCap, capText: capText, capGate: capGate,
+    capDialog: capDialog, capDialogReset: capDialogReset, capLimit: capLimit, isCapError: isCapError, clearErrOnEdit: clearErrOnEdit,
     toast: toast,
     alert: alertDlg, confirm: confirmDlg, prompt: promptDlg,
     guard: guard,
@@ -11390,7 +11543,7 @@ window.HelmUrl = HelmUrl;
   // Every phone field becomes the HelmPhone component (phone-input.js: flag + searchable
   // country list + as-you-type format; .value stays E.164). Pages that don't include the
   // script get it loaded on demand; if it can't load, the legacy hardener below is used.
-  var PHONE_LIB_V = "5", phoneLib = null;
+  var PHONE_LIB_V = "7", phoneLib = null;
   function loadPhoneLib() {
     if (window.HelmPhone && window.HelmPhone.attach) return Promise.resolve(true);
     if (phoneLib) return phoneLib;

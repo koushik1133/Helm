@@ -119,7 +119,7 @@
     { sel: "#hbRail .hb-group:not(.hb-fav)", side: "right", title: "Your workspace", desc: "Every area of Helm lives in this sidebar: Workspace for daily work, Manage and Admin below it. Scroll the list if it is taller than your screen." },
     { sel: ".hb-recent .htr-btn", side: "right", title: "Recently viewed", desc: "Jump back to the pages and events you opened last." },
     { sel: "[data-tour='theme']", side: "right", title: "Look and feel", desc: window.HELM_DARK_MODE === true ? "Switch dark mode and pick a colour theme." : "Pick a colour theme: Emerald, Cobalt, Midnight, Graphite or Studio." },
-    { sel: "[data-tour='account']", side: "right", title: "Your account", desc: "Profile, studio settings and sign out." },
+    { sel: "[data-tour='account']", side: "right", title: "Your account", desc: "Your profile, account settings (password and two-step verification), the user manual and sign out." },
     { sel: "[data-tour='search']", title: "Search anything", desc: "Find quotes, leads, clients and pages from one box. Press / or Ctrl+K." },
     { sel: "[data-tour='bell']", title: "Notifications", desc: "Approvals, payments and mentions arrive here." },
     { sel: "[data-tour='new']", title: "Create", desc: "Start a new quote, lead or event from any page." }
@@ -204,7 +204,6 @@
       new MutationObserver(paint).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
     });
     var acctSlot = el("div", "hb-slot hb-acct"); acctSlot.setAttribute("data-tour", "account");
-    safe(function () { customizeItem(acctSlot); });
     var who = el("div", "hb-who hb-lb");
     var whoName = el("b", null, ""), whoRole = el("small", null, "");
     who.appendChild(whoName); who.appendChild(whoRole);
@@ -267,12 +266,14 @@
     /* v86: short windows (< 1100px tall): Recently viewed + Tour move from the pinned footer to the END of the scrolling nav,
      * so the footer is only theme + account and Admin (Reports, Audit log, Studio setup) is never squeezed out of view.
      * A fade at the scroll edges shows there is more to scroll; the active item is scrolled into view. */
-    var tools = el("div", "hb-group hb-ftools"); scroll.appendChild(tools);
+    /* r19 L4: its own name - build() later declares `var tools` for the header's tool row, and with one hoisted `var` the
+     * first window resize moved the tour button into the header (and a tall window then HID the header's search/bell/New). */
+    var ftools = el("div", "hb-group hb-ftools"); scroll.appendChild(ftools);
     function placeTools() {
       var short = window.innerHeight < 1100 && window.innerWidth >= 820;
-      var host = short ? tools : bottom;
+      var host = short ? ftools : bottom;
       if (tourSlot.parentNode !== host) { if (RECENT_ON) host.insertBefore(recentSlot, short ? null : themeSlot); host.insertBefore(tourSlot, short ? null : themeSlot); }
-      tools.hidden = !short;
+      ftools.hidden = !short;
       edges();
     }
     function edges() {
@@ -624,29 +625,8 @@
     });
   }
 
-  /* ---- profile menu: "Customize dashboard" (auth-ui rebuilds #hauMenu on every open, so re-add it after each rebuild) ---- */
-  function customizeItem(slot) {
-    function run() {
-      var btn = document.getElementById("hauAccountBtn"), pop = document.getElementById("hauMenu");
-      if (btn && pop && !pop.hidden) btn.click();   /* close the menu the same way the user would */
-      if (page === "dashboard.html") window.dispatchEvent(new CustomEvent("hb:customize"));
-      else location.href = abs("dashboard.html?customize=1");   /* same dashboard URL as the rail's Home item */
-    }
-    function add(pop) {
-      if (pop.querySelector('[data-mi="hb-customize"]')) return;
-      var mi = el("button", "hau-mi"); mi.type = "button"; mi.setAttribute("role", "menuitem"); mi.tabIndex = -1; mi.setAttribute("data-mi", "hb-customize");
-      var ic = icon("sliders"); ic.setAttribute("class", "hb-svg hau-mi-ic"); mi.appendChild(ic); mi.appendChild(el("span", null, "Customize dashboard"));
-      mi.addEventListener("click", run);
-      var out = pop.querySelector('[data-mi="signout"]'), anchor = out && out.previousElementSibling && out.previousElementSibling.getAttribute("role") === "separator" ? out.previousElementSibling : out;
-      pop.insertBefore(mi, anchor || null);
-    }
-    var seen = null;
-    new MutationObserver(function () {
-      var pop = document.getElementById("hauMenu"); if (!pop || !slot.contains(pop)) return;
-      if (pop !== seen) { seen = pop; new MutationObserver(function () { if (pop.childNodes.length) add(pop); }).observe(pop, { childList: true }); }
-      if (pop.childNodes.length) add(pop);
-    }).observe(slot, { childList: true, subtree: true });
-  }
+  /* R19: the profile menu no longer gets a "Customize dashboard" item - the dashboard's own Customize button
+     (shell-b-dash.js, data-tour="customize") is the one way in; the menu keeps to account items only. */
 
   /* ---- rail profile: from the auth/profile APIs (pages render #account differently) ---- */
   function fillWho(nameEl, roleEl) {
@@ -687,20 +667,15 @@
         if (!ok) { creating = false; location.href = "/quotes.html"; return; }
         var b = document.getElementById("createBtn");
         if (b) { setTimeout(function () { creating = false; try { if (!b.hidden) b.click(); else location.href = "/quotes.html"; } catch (e) {} }, 400); return; }
-        var Q = B.quotes, NQ = window.HelmNewQuote;
-        /* audit 7: never create without the confirm dialog (no dialog on this page -> the Quotes list) */
-        if (!Q || typeof Q.startBlank !== "function" || !NQ || typeof NQ.ask !== "function") { creating = false; location.href = "/quotes.html"; return; }
-        Promise.resolve(NQ.ask({})).then(function (pick) {
-          if (!pick) { creating = false; return; }
-          var code = null; try { code = typeof Q.nextCode === "function" ? Q.nextCode([]) : null; } catch (e) { code = null; }
-          Promise.resolve(Q.startBlank(code)).then(function (q) {
-            if (!q || !q.id) throw new Error("no quote");
-            var patch = {}; if (pick.title) patch.title = pick.title; else if (q.code && q.code !== q.title) patch.title = q.code;
-            if (pick.eventType) patch.eventType = pick.eventType;
-            var meta = (Object.keys(patch).length && typeof Q.updateMeta === "function") ? Promise.resolve(Q.updateMeta(q.id, patch)).catch(function () {}) : null;
-            return Promise.resolve(meta).then(function () { var h = "flow.html?quote=" + encodeURIComponent(q.id); try { if (window.HelmUrl && HelmUrl.upgrade) h = HelmUrl.upgrade(h); } catch (e) {} location.href = h.charAt(0) === "/" ? h : "/" + h; });
-          }).catch(function () { creating = false; try { if (window.BPUI && BPUI.toast) BPUI.toast("Could not start a quote. Try again.", { type: "err" }); } catch (e) {} });
-        });
+        var Q = B.quotes;
+        /* r19: "New quote" opens the flow directly (no dialog); no create API on this page -> the Quotes list */
+        if (!Q || typeof Q.startBlank !== "function") { creating = false; location.href = "/quotes.html"; return; }
+        var code = null; try { code = typeof Q.nextCode === "function" ? Q.nextCode([]) : null; } catch (e) { code = null; }
+        Promise.resolve(Q.startBlank(code)).then(function (q) {
+          if (!q || !q.id) throw new Error("no quote");
+          var meta = (q.code && q.code !== q.title && typeof Q.updateMeta === "function") ? Promise.resolve(Q.updateMeta(q.id, { title: q.code })).catch(function () {}) : null;
+          return Promise.resolve(meta).then(function () { var h = "flow.html?quote=" + encodeURIComponent(q.id); try { if (window.HelmUrl && HelmUrl.upgrade) h = HelmUrl.upgrade(h); } catch (e) {} location.href = h.charAt(0) === "/" ? h : "/" + h; });
+        }).catch(function () { creating = false; try { if (window.BPUI && BPUI.toast) BPUI.toast("Could not start a quote. Try again.", { type: "err" }); } catch (e) {} });
       });
     })();
   }

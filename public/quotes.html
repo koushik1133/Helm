@@ -129,7 +129,7 @@
 </style>
 <link rel="stylesheet" href="quotes-polish.css?v=8"><link rel="stylesheet" href="event-group-picker.css?v=2">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=29" id="shellProto"></script>
+<script src="/shell-proto.js?v=31" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -276,11 +276,11 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="phone-input.js?v=5"></script>
+<script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=4"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
+<script src="new-quote-dialog.js?v=6"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=252"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
-<script src="tour.js?v=20"></script>
+<script src="tour.js?v=22"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1188,27 +1188,23 @@
   // R8: "New quote" creates the quote right here and opens its flow — it used to link to
   // the home page, which never created anything (and could surface the dashboard tour).
   // open="builder": reuse my latest open quote (if any) and land in the floor-plan builder.
-  // Audit 7 (Oct 2026): nothing is created until the user confirms in a small dialog
-  // (event name + type, Cancel / Create) - one stray click used to spend a free trial's quote.
+  // r19 (owner): "New quote" opens the quote flow directly - no name / type dialog, no in-progress prompt
+  // (quotes are not capped in the free trial any more, 0211). startBlank reuses MY untouched blank quote (0075),
+  // so repeated clicks never pile up empty rows; empty drafts go to the Deleted shelf after a day (0141 / 0208).
   async function startNewQuote(btn, open){
     if(btn && btn.disabled) return;
     if(open==="builder"){
       const cur = (quotes||[]).find(x => x && x.id && x.status==="quote" && !x.archivedAt && !x.deletedAt);
       if(cur){ location.href = "builder.html?quote=" + encodeURIComponent(cur.id) + "&from=flow"; return; }
     }
-    if(!(window.HelmNewQuote && HelmNewQuote.ask)){ BPUI.toast("Couldn't open the new quote dialog. Reload the page and try again.", { type: "err" }); return; }
-    const pick = await HelmNewQuote.ask({ okLabel: open==="builder" ? "Create and open builder" : "Create quote" });
-    if(!pick) return;   // Cancel / Escape: nothing created
     try{
       await BPUI.guard(btn, async () => {
         let code=""; try{ code = await BPStore.quotes.nextCodeFor(); }catch(e){}
         if(!code) code = BPStore.quotes.nextCode(quotes);   // a guess — the server assigns the real code (M-04)
         const q = await BPStore.quotes.startBlank(code);
         if(!q || !q.id) throw new Error("The quote could not be created. Please try again.");
-        const meta = {};
-        if(pick.title) meta.title = pick.title; else if(q.code && q.code !== q.title) meta.title = q.code;
-        if(pick.eventType) meta.eventType = pick.eventType;
-        if(Object.keys(meta).length){ try{ await BPStore.quotes.updateMeta(q.id, meta); }catch(e){} }
+        // M-04: seed the title from the REAL code (the event name is typed in step 1 of the flow)
+        if(q.code && q.code !== q.title){ try{ await BPStore.quotes.updateMeta(q.id, { title: q.code }); }catch(e){} }
         location.href = open==="builder" ? "builder.html?quote=" + encodeURIComponent(q.id) + "&from=flow" : "flow.html?quote=" + encodeURIComponent(q.id);
       }, { busyLabel: "Creating…" });
     }catch(err){ BPUI.toast(BPUI.friendlyError(err, { action: "create the quote" }), { type: "err", duration: 8000 }); }
@@ -1217,9 +1213,9 @@
     const b = e.target.closest && e.target.closest("[data-newquote]"); if(!b) return;
     e.preventDefault(); startNewQuote(b);
   });
-  // Audit 8: ?new=1 only OPENS the dialog (never creates), and only when one of Helm's own
-  // pages armed it (one-time sessionStorage nonce, HelmNewQuote.arm). A link from anywhere
-  // else just shows the list. The parameters are always dropped from the address bar.
+  // Audit 8: ?new=1 only starts a quote when one of Helm's own pages armed it (one-time
+  // sessionStorage nonce, HelmNewQuote.arm) - the same as pressing "New quote". A link from
+  // anywhere else just shows the list. The parameters are always dropped from the address bar.
   // 0206: the dashboard's "N more in progress" link opens the In progress tab (?view=inprogress)
   if(new URLSearchParams(location.search).get("view")==="inprogress"){ filter="inprogress";
     $("#tabs").querySelectorAll("button").forEach(x=>{ const on=x.dataset.f==="inprogress"; x.classList.toggle("on",on); x.setAttribute("aria-pressed",String(on)); if(on) x.hidden=false; }); }
@@ -1235,6 +1231,6 @@
   window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&pager) reloadQuiet(); });
 </script>
 <script src="saved-filters.js?v=4"></script>
-<script src="capacity-shortage.js?v=4"></script>
+<script src="capacity-shortage.js?v=6"></script>
 </body>
 </html>

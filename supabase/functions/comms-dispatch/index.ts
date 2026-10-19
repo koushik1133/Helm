@@ -12,6 +12,10 @@
 //                   website link, e-mail / WhatsApp (invite-site.mjs; host = APP_URL, path from the row)
 //   * booklet_link  (0200) "Send to client" in the Share booklet dialog: the live client booklet
 //                   link (booklet-link.mjs; host = APP_URL, path added by the claim - no token in the row)
+// FREE TRIAL (0212): the database queues and hands out a free-trial studio's row ONLY for the invitation /
+//   booklet link by e-mail of an ACTIVE trial, under caps (30 a day per studio, 5 a day per address); such a
+//   row carries payload.trial_email = true. Checked once more here: a trial-marked row that is not exactly that
+//   (any WhatsApp row, any other purpose) is marked skipped and never sent (trial-row.mjs).
 // AUTO-ON: runs whenever it is called with the shared secret; each channel switches itself on
 // when its secrets exist (e-mail: SMTP_HOST + SMTP_USER + SMTP_PASS, or RESEND_API_KEY;
 // WhatsApp: WHATSAPP_TOKEN + WHATSAPP_PHONE_ID).
@@ -58,6 +62,7 @@ import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/
 import { absoluteLink } from "./deeplink.js";
 import { trialReminderEmail, trialRetentionEmail, RETENTION_NOTICE_KINDS, RETENTION_TX_REASON } from "./trial-reminders.mjs";
 import { inviteSiteMessage } from "./invite-site.mjs";
+import { trialRowAllowed } from "./trial-row.mjs";   // 0212: free trial = link e-mails only
 import { bookletMessage } from "./booklet-link.mjs";
 import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
@@ -260,7 +265,8 @@ Deno.serve(async (req) => {
       const payload = (r?.payload && typeof r.payload === "object") ? r.payload : {};
       const msg = messageFor(purpose, payload, origin);
       let res: Res = "skipped";
-      if (channel === "email" && purpose !== "wa_forward") {
+      if (!trialRowAllowed(purpose, channel, payload)) res = "skipped";   // 0212: free trial = link e-mails only
+      else if (channel === "email" && purpose !== "wa_forward") {
         // 0150: sender name / reply-to of the row's studio (a database without 0150 -> defaults)
         let ident: Identity = {};
         try { const { data } = await admin.rpc("comms_outbox_email_identity", { p_id: id }); if (data && typeof data === "object") ident = data as Identity; } catch (_) { /* defaults */ }

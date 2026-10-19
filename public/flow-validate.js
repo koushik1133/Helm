@@ -71,8 +71,9 @@
   }
   function clientName(v) { return text(v, { label: "Client name", required: true, requiredMsg: "Client name is required.", min: 2, max: 80, letters: true, noEmoji: true }); }
   function eventType(v) { return text(v, { label: "Event type", required: true, requiredMsg: "Pick or type the event type.", max: 60, letters: true, noEmoji: true }); }
-  function email(v) {
-    var s = clean(v); if (!s) return { ok: true, value: "" };
+  // o.required (r19: the client e-mail is required in step 1, like name and phone)
+  function email(v, o) {
+    var s = clean(v); if (!s) return o && o.required ? { ok: false, error: "Email is required." } : { ok: true, value: "" };
     if (len(s) > 254 || !EMAIL.test(s) || s.split("@")[0].length > 64 || /\.\./.test(s)) return { ok: false, error: "Enter an email like name@example.com." };
     return { ok: true, value: s };
   }
@@ -164,7 +165,7 @@
     ctx = ctx || {}; var r = blank();
     put(r, "c_name", clientName(v.c_name));
     put(r, "c_company", text(v.c_company, { label: "Company", max: 80 }));
-    put(r, "c_email", email(v.c_email));
+    put(r, "c_email", email(v.c_email, { required: true }));
     var ph = str(v.c_phone).trim();
     if (!ph) r.errors.c_phone = "Phone is required.";
     else if (ctx.phone) { var p = ctx.phone(ph); if (p && !p.ok) r.errors.c_phone = p.error || "Enter a valid phone number."; }
@@ -256,7 +257,8 @@
   function hasContent(section, v) { return !!CONTENT[section] && filled(v || {}, CONTENT[section]); }
 
   // ---- DOM: messages under the fields --------------------------------------------
-  function anchorOf(el) { return (el.closest && (el.closest(".bpui-tel") || el.closest(".hp-wrap"))) || el; }
+  // L12: a HelmPhone field's message goes after the whole phone row (input.helmPhone.wrap = div.hp), never inside it
+  function anchorOf(el) { return (el.helmPhone && el.helmPhone.wrap) || (el.closest && (el.closest(".bpui-tel") || el.closest(".hp"))) || el; }
   function setMsg(doc, id, msg, kind) {
     var el = doc.getElementById(id); if (!el) return;
     var mid = id + "_fv", m = doc.getElementById(mid);

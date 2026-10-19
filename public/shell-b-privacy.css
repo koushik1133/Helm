@@ -20,11 +20,21 @@ html.hb-priv-on .hbp-m:not(svg *) *, html.hb-priv-on [data-money]:not(svg):not(s
 /* SVG: chart labels vanish, whole money charts blur */
 html.hb-priv-on svg .hbp-m, html.hb-priv-on svg [data-money] { fill: transparent !important; }
 html.hb-priv-on svg[data-money] { filter: blur(7px); -webkit-user-select: none; user-select: none; }
-/* editable inputs are never masked: the user must see what they type (QA: #pay_amt). Read-only values stay masked via .hbp-m/[data-money]. */
+/* inputs the user types into always show what they type (QA: #pay_amt). Read-only values stay masked via .hbp-m/[data-money]. */
 html.hb-priv-on :is(input, textarea, select) { color: var(--hb-ink, inherit) !important; -webkit-text-fill-color: var(--hb-ink, currentColor) !important; }
-/* qa-quote-flow B28: a money input that is PREFILLED with a saved amount (budget lines) stays hidden until it is focused -
-   the user still sees what they type, an onlooker does not see the saved amounts */
-html.hb-priv-on :is(input.hbp-mi, input[data-pl-est], input[data-pl-quoted], input[data-pl-act]):not(:focus) { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; }
+/* qa-quote-flow B28 + r19 L5: EVERY money input (lead Budget, budget-plan cost lines, Control Center pricing / item prices;
+   shell-b-privacy.js adds .hbp-mi) keeps its saved amount hidden until it is focused. On focus the real value shows and is
+   selected (.hbp-rv), so typing replaces it - never typing into transparent text, never appending to a hidden "0". */
+html.hb-priv-on :is(input.hbp-mi, input[data-pl-est], input[data-pl-quoted], input[data-pl-act]):not(:focus):not(.hbp-rv) {
+  color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; caret-color: transparent; }
+/* a masked box that holds a value shows four dots, like the masked amounts around it */
+html.hb-priv-on :is(input.hbp-mi, input[data-pl-est], input[data-pl-quoted], input[data-pl-act]):not(:focus):not(.hbp-rv):not(:placeholder-shown) {
+  background-image: radial-gradient(circle, var(--hb-ink3, #6b6577) 2px, transparent 2.5px), radial-gradient(circle, var(--hb-ink3, #6b6577) 2px, transparent 2.5px),
+    radial-gradient(circle, var(--hb-ink3, #6b6577) 2px, transparent 2.5px), radial-gradient(circle, var(--hb-ink3, #6b6577) 2px, transparent 2.5px) !important;
+  background-repeat: no-repeat !important; background-size: 6px 6px !important;
+  background-position: 10px 50%, 19px 50%, 28px 50%, 37px 50% !important; }
+html.hb-priv-on :is(input.hbp-mi, input[data-pl-est], input[data-pl-quoted], input[data-pl-act])::placeholder { color: var(--hb-ink3, #6b6577); -webkit-text-fill-color: var(--hb-ink3, #6b6577); }
+html.hb-priv-on :is(input.hbp-mi, input[data-pl-est], input[data-pl-quoted], input[data-pl-act]):is(:focus, .hbp-rv) { color: var(--hb-ink, inherit) !important; -webkit-text-fill-color: var(--hb-ink, currentColor) !important; caret-color: auto; }
 @media print { html.hb-priv-on .hbp-m, html.hb-priv-on [data-money] { visibility: hidden; } }
 
 /* ---- eye button ---- */

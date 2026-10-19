@@ -12,6 +12,7 @@ This is a plain-words brief of the free trial. It covers what a new studio gets,
 - `accept_trial_terms(version)` records it in `trial_terms_acceptances` (studio, person, version, time, short user agent). `my_trial_terms_status()` tells the app whether to ask, so another device asks again until it is agreed. Other studio pages send an owner who has not agreed back to the dashboard (`trial-lock.js`).
 - A trial that finished the welcome before 0207 gets the same terms once as a window. Invited teammates get a short read-only notice instead ("Got it", no agreement). Paid studios and ended trials are never asked.
 - Every number and rule shown comes from `public/trial-facts.js` (also used by the sign-up box). The version there must match `_trial_terms_version()`; a new wording needs a new version.
+- Current version: **`trial-2026-10-19`** (migration 0211: quotes and events are no longer capped). A trial owner who agreed to `trial-2026-10-18` is asked once more (the one-time window); the earlier agreement stays on record.
 
 ## 2. Sample data the trial starts with
 | List | Count |
@@ -42,7 +43,7 @@ GST is set to 18% (intra-state). Event dates are relative to the sign-up day, so
 - **Plan & billing:** shown, so the studio can upgrade. The demo-data card (keep or clear the sample data) also sits here. Checkout can save the billing details and accept the Terms during the trial (`my_studio_account_update` is open to the trial admin, migration 0185 section 10); the other studio settings stay fixed.
 
 ## 3a. The trial checklist (dashboard "Try Helm in a few steps")
-Five steps, each ticking itself: **Explore a sample event** (opening any event page), **Open the 2D/3D layout builder** (opening the builder; the link opens a sample floor plan), **Send a quote in test mode** (one of the studio's own quotes is sent; sample quotes do not count), **Invite a teammate** (an invite or a second member; admins only) and **Choose a plan** (admins only). Teammates without admin or quote access see only the steps they can do. When the trial has ended only "Choose a plan" is shown. Hiding the trial list is saved on the person's account and does not hide the paid checklist after upgrading.
+Five steps, each ticking itself: **Explore a sample event** (opening any event page), **Open the 2D/3D layout builder** (opening the builder; the link opens a sample floor plan), **Send a quote to a client** (one of the studio's own quotes is sent - the e-mail really goes out; sample quotes do not count), **Invite a teammate** (an invite or a second member; admins only) and **Choose a plan** (admins only). Teammates without admin or quote access see only the steps they can do. When the trial has ended only "Choose a plan" is shown. Hiding the trial list is saved on the person's account and does not hide the paid checklist after upgrading.
 
 ## 4. What is hidden and blocked
 "Blocked" means the screen hides the feature, a direct link shows **"Not available in the free trial"**, and the server refuses the request (migration 0173).
@@ -60,15 +61,17 @@ Five steps, each ticking itself: **Explore a sample event** (opening any event p
 | Layout templates (your own) | "Save as template" and "My templates" hidden in the builder; Control Center section shows "Not available in the free trial" | `studio_template_save`, `_set_archived`, `_set_default`, `_duplicate` refused (0181) |
 | Templates page (checklist templates) | Page covered with "Templates are not part of the free trial"; "Go to templates" (search) and "Checklist template" (quick create) removed | - |
 
-## 5. Creation cap: 2 created in total per list
-- A trial studio can create at most **2 of its own rows in total** in each of these lists: leads (clients), events/quotes, inventory items, vendors, staff and venues.
+## 5. Creation cap: 2 created in total per list (quotes and events not capped)
+- **Quotes and events are not capped** (migration 0211): a trial studio can create as many as it likes. "New quote" opens the quote flow straight away (no name / type dialog); an untouched blank quote is reused, and empty drafts move to the Deleted shelf after a day (0141 / 0208).
+- A trial studio can create at most **2 of its own rows in total** in each of these lists: leads (clients), inventory items, vendors, staff and venues.
 - "In total" (0181): every own row the trial adds is remembered in `trial_create_log`, so deleting it does not free a slot. Rows that still exist also count, including removed (inactive), soft-deleted and shelved ones. Restoring a deleted lead brings the same row back and does not use a new slot.
 - Sample (demo) rows do not count. A sample inventory item stays sample data even when the studio renames or re-prices it (migration 0182), so it never counts. For the other lists, a sample row that the studio renames out of the "Demo ·" prefix becomes the studio's own row and does count.
-- The 3rd add is refused with **"Free trial limit reached (2). Upgrade to add more."** `my_trial_limits()` returns the counts so the app can show the limit before the server refuses.
+- The 3rd add is refused with **"Free trial limit reached (2). Upgrade to add more."** `my_trial_limits()` returns the counts so the app can show the limit before the server refuses (quotes are not in `used`; it says `"uncapped": ["quotes"]`).
 
 ## 6. Messages
-Nothing leaves Helm during a trial. E-mail, WhatsApp and SMS rows are queued as "skipped", and sample contacts are dummy addresses and numbers.
-The direct send routes (approval code, "Send on WhatsApp", proposal WhatsApp) are refused too (0179), and they stay refused after an unpaid trial ends and the studio is read-only, until it is on a paid plan.
+**E-mail works during an active trial (owner decision, migration 0212).** The approval (quote) link e-mail and the booklet link e-mail ("Send by email", client-mailer), the booklet and invitation website "Send to client" by e-mail (comms_outbox -> comms-dispatch) and the approval code by e-mail (send-otp) really reach the client. Caps: **30 client e-mails a day per studio and 5 a day to one address** (rolling 24 hours, counted in `trial_email_sends`, which stores only a sha-256 fingerprint of the address). Sample (demo) events are never e-mailed. The owner can switch trial e-mail off at once: `update public.trial_email_settings set enabled = false where id;` (caps: `per_studio_day`, `per_recipient_day`).
+**WhatsApp, SMS and online payment links stay off** in the trial: their rows are queued as "skipped" and the direct routes (SMS / WhatsApp approval code, "Send on WhatsApp", proposal WhatsApp, payment links) are refused (0179 / 0187). The app hides the WhatsApp options in the trial; the client page offers the code by e-mail or **Test mode - confirm**. Payment reminders and automatic follow-ups are not sent in the trial either.
+After an unpaid trial ends (read-only) nothing is sent at all, e-mail included, until the studio is on a paid plan; the sample master never sends.
 
 ## 7. Clearing the demo data
 An admin can clear the sample data from the demo-data card. Only rows marked as demo data in that studio are removed. Rows the studio created or adopted are never touched.

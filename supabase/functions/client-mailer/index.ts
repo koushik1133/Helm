@@ -10,13 +10,21 @@
 // business e-mail and to write the notifications log row (no message body, no token).
 //
 // Delivery: _shared/mailer.ts (Resend, else SMTP_* e.g. Gmail, else not_configured).
-// Answer: { status: "sent" | "not_configured" | "failed" | "test_mode", masked, reason? }.
+// Answer: { status: "sent" | "not_configured" | "failed" | "test_mode" | "limit" | "demo", masked, reason?, trial? }.
 // Free trial (0166 rule, _shared/trial-outbound.ts, first gate): a trial / sample studio sends NOTHING -
 // the row is logged 'suppressed' (suppressed_by trial) and the answer is status "test_mode"; when the
 // plan cannot be read: 503 failed, nothing sent.
 // 0179 (second gate): trial_send_blocked asked with the service role right before the send (fails
 // closed) -> { status: "not_configured", trial: true }; nothing is sent, the log row says "simulated".
-// (The "Share booklet" dialog's Send to client goes through booklet_send / comms_outbox, 0200.)
+// 0212 (owner decision: e-mail works in the free trial): the gate is public.trial_email_gate (asked with the service
+// role, _shared/trial-guard.ts trialEmailGate). Paid studio: sent as before. ACTIVE free trial: the e-mail really
+// goes out, capped at 30 a day per studio and 5 a day per address (one slot per send) -> { status: "sent", trial:
+// true }; over the cap -> 429 { status: "limit" }; a sample (demo) event -> { status: "demo" }; an ENDED trial,
+// the sample master or the owner switch off -> { status: "test_mode" } as before. A database without 0212 keeps
+// the two pre-0212 gates below (a trial sends nothing; an unreadable plan -> 503) - also used whenever the 0212 gate
+// gives no clear answer, so a broken gate never becomes a trial e-mail.
+// WhatsApp / SMS are not sent from here at all.
+// (The "Share booklet" dialog's Send to client goes through booklet_send / comms_outbox, 0200 / 0212.)
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, isAllowedOrigin, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
@@ -24,7 +32,7 @@ import { brandMode, EMAIL_RE, sendMail } from "../_shared/mailer.ts";
 import { postalAddress } from "../_shared/email-compliance.mjs";
 import { outboundBlocked, TEST_MODE_TEXT } from "../_shared/trial-outbound.ts";
 import { linkEmail, maskEmail } from "./logic.mjs";
-import { trialSendBlocked } from "../_shared/trial-guard.ts";
+import { TRIAL_DEMO_MSG, TRIAL_EMAIL_CAP_MSG, trialEmailGate, trialSendBlocked } from "../_shared/trial-guard.ts";
 
 export const KINDS = ["approval", "booklet"];
 
@@ -91,8 +99,22 @@ Deno.serve(async (req) => {
     const logKind = kind === "approval" ? "approval_link" : "booklet_link";
     const masked = maskEmail(to);
 
-    // free trial / sample studio: nothing real is sent (same rule as the 0166 outbox triggers)
-    const gate = await outboundBlocked(admin, String(q.org_id || ""), to);
+    // 0212: one gate for paid studios and the free trial (an active trial e-mails its client, capped)
+    const g = await trialEmailGate(admin, { org: String(q.org_id || "") || null, quote: quoteId }, to, logKind);
+    if (g && !g.allowed) {
+      const why = g.reason === "cap_studio" || g.reason === "cap_recipient" ? "trial_cap" : g.reason === "demo" ? "demo" : "trial";
+      const { error: sErr } = await admin.from("notifications").insert({
+        quote_id: quoteId, channel: "email", recipient: to, kind: logKind, status: "suppressed", detail: { suppressed_by: why },
+      });
+      if (sErr) console.error("client-mailer: log insert failed", errTag(sErr));
+      if (why === "trial_cap") return json({ status: "limit", trial: true, masked, reason: TRIAL_EMAIL_CAP_MSG, error: TRIAL_EMAIL_CAP_MSG }, 429);
+      if (why === "demo") return json({ status: "demo", trial: true, masked, reason: TRIAL_DEMO_MSG });
+      return json({ status: "test_mode", trial: true, masked, reason: TEST_MODE_TEXT });
+    }
+    const trialEmail = !!(g && g.allowed && g.trial);
+
+    // no 0212 answer: the pre-0212 rule - a trial / sample studio sends nothing real (0166 rule)
+    const gate = g ? { blocked: false, unknown: false } : await outboundBlocked(admin, String(q.org_id || ""), to);
     if (gate.blocked) {
       const { error: sErr } = await admin.from("notifications").insert({
         quote_id: quoteId, channel: "email", recipient: to, kind: logKind, status: "suppressed",
@@ -103,8 +125,8 @@ Deno.serve(async (req) => {
       return json({ status: "test_mode", masked, reason: TEST_MODE_TEXT });
     }
 
-    // 0179 (second gate): no e-mail to a client from a free-trial studio (trial_send_blocked, fails closed)
-    if (await trialSendBlocked(admin, { org: String(q.org_id || "") || null, quote: quoteId })) {
+    // 0179 (second gate, no 0212 answer): no e-mail to a client from a free-trial studio (fails closed)
+    if (!g && await trialSendBlocked(admin, { org: String(q.org_id || "") || null, quote: quoteId })) {
       const { error: tErr } = await admin.from("notifications").insert({
         quote_id: quoteId, channel: "email", recipient: to, kind: kind === "approval" ? "approval_link" : "booklet_link", status: "simulated",
       });
@@ -121,7 +143,7 @@ Deno.serve(async (req) => {
       status: res.status === "sent" ? "sent" : res.status === "not_configured" ? "simulated" : "failed",
     });
     if (logErr) console.error("client-mailer: log insert failed", errTag(logErr));
-    if (res.status === "sent") return json({ status: "sent", masked, provider: res.provider });
+    if (res.status === "sent") return json({ status: "sent", masked, provider: res.provider, ...(trialEmail ? { trial: true } : {}) });
     return json({ status: res.status, masked, reason: res.reason, ...(res.status === "failed" ? { error: res.reason } : {}) }, res.status === "failed" ? 502 : 200);
   } catch (e) {
     if (e instanceof BodyTooLarge) return json({ error: "payload too large" }, 413);

@@ -92,8 +92,13 @@ end $$;
 -- ---- 2) member reads (before the end) -------------------------------------------------------------
 do $$ declare j jsonb; begin
   perform pg_temp.login('f_admin@f.test'); j := public.my_trial_status();
-  perform pg_temp.res('11 admin: trial, 1 day left, can pay', j ->> 'state' = 'trial' and (j ->> 'days_left')::int = 1
-    and (j ->> 'can_pay')::boolean and j ->> 'ends_at' = (current_date + 1)::text, j::text);
+  -- 0223: the end day + days left are counted in the studio's zone (F: Asia/Kolkata) from the end of the
+  -- subscription's trial day (current_date + 1, UTC); the same formula here, so the check holds at any hour / zone
+  perform pg_temp.res('11 admin: trial, 1 day left, can pay', j ->> 'state' = 'trial'
+    and (j ->> 'days_left')::int = ((((current_date + 2)::timestamp at time zone 'UTC') - interval '1 microsecond') at time zone 'Asia/Kolkata')::date
+                                   - (now() at time zone 'Asia/Kolkata')::date
+    and (j ->> 'can_pay')::boolean
+    and j ->> 'ends_at' = ((((current_date + 2)::timestamp at time zone 'UTC') - interval '1 microsecond') at time zone 'Asia/Kolkata')::date::text, j::text);
   perform pg_temp.login('f_staff@f.test'); j := public.my_trial_status();
   perform pg_temp.res('12 member reads status but cannot pay', j ->> 'state' = 'trial' and not (j ->> 'can_pay')::boolean, j::text);
   perform pg_temp.res('13 member cannot read trial bell rows (RLS)', (select count(*) from public.notifications where kind = 'trial_reminder') = 0);

@@ -47,7 +47,7 @@ html[data-shell="b"][data-hb-theme="luxe"] h2 { font-size:clamp(24px,2.6vw,30px)
 html[data-shell="b"][data-hb-theme="luxe"] h3 { font-size:21px; line-height:1.2; }
 html[data-shell="b"][data-hb-theme="luxe"] :is(h4,h5,th,.eyebrow,.lbl,label.fld > span:first-child) { letter-spacing:.08em; }
 html[data-shell="b"][data-hb-theme="luxe"] .muted { color:var(--s9-ink3); }
-html[data-shell="b"][data-hb-theme="luxe"] a:not(.btn):not([class*="hb-"]) { color:inherit; text-decoration-color:var(--s9-line2); text-underline-offset:3px; }
+html[data-shell="b"][data-hb-theme="luxe"] a:not(.btn):not([class*="hb-"]):not(.hd-btn) { color:inherit; text-decoration-color:var(--s9-line2); text-underline-offset:3px; }
 html[data-shell="b"][data-hb-theme="luxe"] ::selection { background:var(--s9-acc-soft); color:var(--s9-ink); }
 html[data-shell="b"][data-hb-theme="luxe"] :focus-visible { outline:2px solid var(--s9-acc); outline-offset:2px; }
 

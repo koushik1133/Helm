@@ -27,10 +27,10 @@ t('phone-input.js measures the input before restyling it', () => {
 t('every page loads the new phone + theme versions', () => {
   for (const f of readdirSync(root).filter((x) => x.endsWith('.html'))) {
     const h = read(f);
-    for (const m of h.matchAll(/phone-input\.js\?v=(\d+)/g)) assert.equal(m[1], '5', f);
+    for (const m of h.matchAll(/phone-input\.js\?v=(\d+)/g)) assert.equal(m[1], '7', f);
     for (const m of h.matchAll(/theme\.css\?v=(\d+)/g)) assert.equal(m[1], '83', f);
   }
-  assert.match(read('store-api.js'), /var PHONE_LIB_V = "5"/); assert.match(read('auth-ui.js'), /PHONE_LIB_V = "5"/);
+  assert.match(read('store-api.js'), /var PHONE_LIB_V = "7"/); assert.match(read('auth-ui.js'), /PHONE_LIB_V = "7"/);
 });
 
 let pw = null; try { pw = await import('playwright'); } catch (e) {}
@@ -53,7 +53,7 @@ for (const [p, id] of pages) {
   const r = await pg.evaluate(async (id) => {
     const inp = document.getElementById(id); if (!inp) return { err: 'no input' };
     let n = inp; while (n) { if (n.hidden) n.hidden = false; if (getComputedStyle(n).display === 'none') n.style.display = 'block'; n = n.parentElement; }
-    if (!window.HelmPhone) await new Promise((ok) => { const s = document.createElement('script'); s.src = '/phone-input.js?v=5'; s.onload = ok; s.onerror = ok; document.head.appendChild(s); });
+    if (!window.HelmPhone) await new Promise((ok) => { const s = document.createElement('script'); s.src = '/phone-input.js?v=7'; s.onload = ok; s.onerror = ok; document.head.appendChild(s); });
     if (!inp.helmPhone && window.HelmPhone) window.HelmPhone.attach(inp);
     const wrap = inp.closest('.hp'); if (!wrap) return { err: 'not attached' };
     const form = wrap.parentElement.closest('form,.fgrid,.grid,.sheet,.card,section,main') || document.body;

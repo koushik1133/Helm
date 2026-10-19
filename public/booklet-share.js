@@ -5,7 +5,7 @@
    The server re-checks every permission (booklet_share / booklet_revoke / booklet_current).
    0200: a live link also gets "Send to client" (Email / WhatsApp, address pre-filled from the quote and
    editable, message preview, send log) - the shared box from invite-site-share.js (HelmSendToClient),
-   sending through booklet_send -> comms_outbox -> comms-dispatch. Free trial: nothing is sent.
+   sending through booklet_send -> comms_outbox -> comms-dispatch. Free trial (0212): e-mail is sent (capped), the WhatsApp option is hidden.
    DOM built with textContent / setAttribute only. */
 (function (global) {
   "use strict";
@@ -84,6 +84,7 @@
     box.appendChild(el("p", cur.expired ? "bk-meta bk-warn" : "bk-meta",
       (cur.expired ? "Expired on " : "Valid until ") + when(cur.expires_at) + " · created " + when(cur.created_at) +
       " · " + versionsNote(cur)));
+    mountSections(box, quoteId, cur);
     mountSend(box, quoteId, cur, url);
     const acts = el("div", "bk-acts");
     const again = el("button", "bk-btn ghost", "Create a new link"); again.type = "button";
@@ -99,6 +100,39 @@
     });
     acts.appendChild(again); acts.appendChild(rev); box.appendChild(acts);
     body.appendChild(box);
+  }
+
+  // r19 L11 (0220): which sections the LIVE link shows, as switches - a change applies to the same link at once
+  // (booklet_set_sections; the client sees it on the next visit). Before 0220 (no sections on the link) nothing shows.
+  const LIVE_SECTIONS = [["studio", "Studio details"], ["client", "Client details"], ["venue", "Venue details"], ["menu", "Menu / packages"],
+    ["layout2d", "Floor plan"], ["layout3d", "3D view"], ["quotation", "Quotation"], ["payments", "Payments"], ["terms", "Terms"]];
+  function liveSections(cur) {
+    const s = cur && cur.sections && typeof cur.sections === "object" ? cur.sections : null; if (!s) return null;
+    const out = {}; LIVE_SECTIONS.forEach((x) => { out[x[0]] = s[x[0]] !== false; }); return out;
+  }
+  function mountSections(box, quoteId, cur) {
+    const st = global.BPStore, state = liveSections(cur);
+    if (!state || !st || !st.booklet || typeof st.booklet.setSections !== "function" || cur.expired) return null;
+    const fs = el("fieldset", "bk-fs bk-secs"); fs.appendChild(el("legend", "bk-lab", "What the client sees"));
+    const list = el("div", "bk-seclist"); fs.appendChild(list);
+    const note = el("p", "bk-meta"); note.setAttribute("aria-live", "polite"); fs.appendChild(note);
+    if (cur.layoutAutoOn) note.textContent = "Floor plan and 3D view are now shown — this event has a saved layout. Switch them off if the client should not see them.";
+    LIVE_SECTIONS.forEach((x) => {
+      const id = "bkSec_" + x[0], lab = el("label", "bk-check"); lab.setAttribute("for", id);
+      const cb = el("input"); cb.type = "checkbox"; cb.id = id; cb.setAttribute("role", "switch"); cb.setAttribute("data-sec", x[0]); cb.checked = state[x[0]];
+      cb.addEventListener("change", async () => {
+        const want = cb.checked; cb.disabled = true; note.textContent = "Saving…";
+        try {
+          const r = await st.booklet.setSections(quoteId, { [x[0]]: want });
+          state[x[0]] = want; if (r && r.sections && typeof r.sections === "object") cur.sections = r.sections;
+          note.textContent = x[1] + (want ? " is shown" : " is hidden") + " on this booklet link — the client sees the change on their next visit.";
+        } catch (e) { cb.checked = !want; note.textContent = ""; toast(errText(e), "err"); }
+        cb.disabled = false;
+      });
+      lab.appendChild(cb); lab.appendChild(doc.createTextNode(" " + x[1])); list.appendChild(lab);
+    });
+    box.appendChild(fs);
+    return fs;
   }
 
   // 0200 "Send to client" under the live link (shared box, invite-site-share.js)
@@ -193,8 +227,11 @@
   async function load(quoteId) {
     const body = clear(doc.getElementById("bkDlgBody"));
     body.appendChild(el("p", "bk-meta", "Loading…"));
-    let cur = null;
-    try { cur = await global.BPStore.booklet.current(quoteId); }
+    let cur = null, autoOn = false;
+    // r19 L11 (0220): a link made while the layout was empty had the floor plan / 3D view switched off -
+    // turn them on now that the layout has objects (server-checked; never after someone switched sections)
+    try { const B = global.BPStore.booklet; if (B && typeof B.layoutAutoOn === "function") { const r = await B.layoutAutoOn(quoteId); autoOn = !!(r && r.changed); } } catch (e) { autoOn = false; }
+    try { cur = await global.BPStore.booklet.current(quoteId); if (cur && autoOn) cur.layoutAutoOn = true; }
     catch (e) { clear(body); body.appendChild(el("p", "bk-err", errText(e))); return; }
     if (cur && cur.token) await renderLive(body, quoteId, cur); else await renderForm(body, quoteId, null);
   }
@@ -223,7 +260,7 @@
   // shown only to quote editors, and (data-wait-quote) only once the page has set data-quote
   function reveal(b) { if (b && b.dataset.bkCan === "1" && (!b.hasAttribute("data-wait-quote") || quoteIdFor(b))) b.hidden = false; }
 
-  global.HelmBookletShare = { quoteIdFor, wire, reveal, DAYS, sendText, istDate };
+  global.HelmBookletShare = { quoteIdFor, wire, reveal, DAYS, sendText, istDate, liveSections, LIVE_SECTIONS };
   if (doc && doc.querySelector("[data-booklet-share]")) {
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", wire); else wire();
   }

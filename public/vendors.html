@@ -74,7 +74,7 @@
 <link rel="stylesheet" href="vendors-polish.css?v=3">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=29" id="shellProto"></script>
+<script src="/shell-proto.js?v=31" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -144,11 +144,11 @@
 <script src="/trusted-types.js?v=3"></script>
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
-<script src="phone-input.js?v=5"></script>
+<script src="phone-input.js?v=7"></script>
 <script src="form-validate.js?v=1"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script>
-<script src="tour.js?v=20"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=252"></script>
+<script src="tour.js?v=22"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -236,7 +236,7 @@
     $("#v_name").value=v?v.name||"":""; $("#v_kind").value=v?v.kind||"vendor":"vendor"; $("#v_cat").value=v?v.category||"":"";
     $("#v_phone").value=v?v.phone||"":""; $("#v_email").value=v?v.email||"":"";
     $("#v_services").value=v&&Array.isArray(v.services)?v.services.join(", "):""; $("#v_notes").value=v?v.notes||"":"";
-    $("#vm_deact").hidden=!(v&&canEdit&&v.active!==false); $("#vm_react").hidden=!(v&&canEdit&&v.active===false); $("#vm_err").hidden=true; $("#vModal").hidden=false; formDirty.clean(); if(!v) capHint();
+    $("#vm_deact").hidden=!(v&&canEdit&&v.active!==false); $("#vm_react").hidden=!(v&&canEdit&&v.active===false); $("#vm_err").hidden=true; $("#vModal").hidden=false; formDirty.clean(); if(!v) capHint(); else if(window.BPUI&&BPUI.capDialogReset) BPUI.capDialogReset($("#vm_save"),$("#vm_err"));
     if(!vFv) vFv=vFvBind(); vFv.forEach(b=>{ if(b) b.reset(); }); setTimeout(()=>$("#v_name").focus(),50);
   }
   const formDirty=BPUI.trackDirty($("#vModal"));
@@ -288,7 +288,7 @@
         if(dc&&dc.ask&&!(await BPUI.confirm(dc.ask,{title:"Possible duplicate",okLabel:"Save anyway"}))) return;
       }catch(e){ /* lookup failed: don't block the save */ }
       try{ if(editingId) await BPStore.vendors.update(editingId,rec); else await BPStore.vendors.addFull(rec); closeForm(); BPUI.toast("Partner saved.",{type:"ok"}); await load(); }
-      catch(e){ fail(BPUI.friendlyError(e,{action:"save the partner",setupHint:"phase9-vendors.sql"})); }
+      catch(e){ if(!editingId&&BPUI.isCapError&&BPUI.isCapError(e)){ BPUI.capLimit($("#vm_err"),null,"partners"); return; } fail(BPUI.friendlyError(e,{action:"save the partner",setupHint:"phase9-vendors.sql"})); }
     },{busyLabel:"Saving…"});
   }
 
@@ -304,6 +304,7 @@
   $("#vm_close").addEventListener("click",requestCloseForm);
   $("#vm_cancel").addEventListener("click",requestCloseForm);
   $("#vm_save").addEventListener("click",save);
+  if(BPUI.clearErrOnEdit) BPUI.clearErrOnEdit($("#vModal"),$("#vm_err"));   // L13: a fixed field clears the old form error
   $("#vm_deact").addEventListener("click",async()=>{ const id=editingId; if(!id) return;
     let openBk=0; try{ const bl=await BPStore.bookings.forVendors([id]); openBk=bl.filter(b=>b.status&&b.status!=="cancelled"&&b.status!=="delivered").length; }catch(e){}
     if(!(await BPUI.confirm((openBk?`This partner has ${openBk} open booking${openBk===1?"":"s"} (not yet delivered or cancelled) — existing bookings stay in place. `:"")+"Deactivate this partner? They'll be hidden from vendor pickers until reactivated.",{title:"Deactivate partner?",okLabel:"Deactivate"}))) return;
@@ -323,7 +324,9 @@
   // B29: free trial - "2 of 2 partners used" is shown by the add button (switched off at the cap), not after the form
   function gateCap(){ if(canEdit&&window.BPUI&&BPUI.capGate) BPUI.capGate([$("#newBtn"),$("#emptyAdd")],"vendors","partners").catch(()=>{}); }
   // ...and a new-record dialog opened at the cap says so at once (the server would refuse the save)
-  function capHint(){ if(!window.BPUI||!BPUI.trialCap) return; BPUI.trialCap("vendors").then(c=>{ if(c&&c.full&&!editingId&&!$("#vModal").hidden){ $("#vm_err").textContent=BPUI.capText(c,"partners"); $("#vm_err").hidden=false; } }).catch(()=>{}); }
+  // L13: ...with Save switched off and a "Choose a plan to add more" link (an edit switches Save back on)
+  function capHint(){ if(!window.BPUI) return; if(BPUI.capDialog){ BPUI.capDialog($("#vm_save"),$("#vm_err"),"vendors","partners",()=>!editingId&&!$("#vModal").hidden); return; }
+    if(!BPUI.trialCap) return; BPUI.trialCap("vendors").then(c=>{ if(c&&c.full&&!editingId&&!$("#vModal").hidden){ $("#vm_err").textContent=BPUI.capText(c,"partners"); $("#vm_err").hidden=false; } }).catch(()=>{}); }
   async function load(){
     gateCap();
     if(quoteId){

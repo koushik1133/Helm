@@ -7,11 +7,12 @@
  * Chips can be dragged (or moved with Alt+Left / Alt+Right) inside their category, and a
  * category can be moved up / down. "Paste as text" keeps the old bulk format for power users.
  *
- * Free trial (0173 lockdown, docs/trial/TRIAL-END-TO-END.md): existing packages can be changed,
- * price AND dish list; dishes can only be added from the studio's dish catalog (no new dish names),
- * and the "active" switch is fixed (a package cannot be removed). Save never sends "active" there.
- * Save sends the dish list only when it was changed, so a price-only save never rewrites the stored
- * dishes (no normalising of old data the owner did not touch).
+ * Free trial (0173 lockdown + 0203, docs/trial/TRIAL-END-TO-END.md): only the price per plate can be
+ * changed. The server refuses every dish-list change in the trial (PATCH menu_templates -> 403), so
+ * L8 (live QA): the trial shows the dishes read-only - no remove (x), no reorder (drag, Alt+arrows,
+ * category up / down), no add-dish row and no bulk text - and Save never sends "dishes" or "active".
+ * Paid studios: Save sends the dish list only when it was changed, so a price-only save never
+ * rewrites the stored dishes (no normalising of old data the owner did not touch).
  *
  * The data shape is unchanged: menu_templates.dishes = [{c: category, n: name, k: kind}] and
  * menu_templates.price_per_plate. Saving goes through the existing BPStore.menuTemplates.update.
@@ -262,6 +263,7 @@
   function el(tag, cls, text) { var x = doc.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
   function btn(cls, text, label) { var b = el("button", cls, text); b.type = "button"; if (label) b.setAttribute("aria-label", label); return b; }
   var DEF_KIND_TEXT = { veg: "Veg", nonveg: "Non-veg", special: "Special" };
+  var TRIAL_NOTE = "Free trial: you can change the price per plate. Dishes are fixed.";
 
   // one package card. st = {t, dishes, price, active, base}
   function card(st, ctx) {
@@ -294,9 +296,9 @@
     var derr = el("p", "mpk-err mpk-derr"); derr.id = "mpk_derr_" + n; derr.hidden = true; derr.setAttribute("role", "alert"); box.appendChild(derr);
     var live = el("div", "sr-only"); live.setAttribute("role", "status"); live.setAttribute("aria-live", "polite"); box.appendChild(live);
 
-    // add-dish row (free trial: catalog dishes only)
+    // add-dish row (L8: not in the free trial - the server refuses dish changes there)
     var add = null, catSel = null, dishIn = null, kindSel = null, dl = null, addBtn = null, addMsg = null, catNote = null;
-    {
+    if (!trial) {
       add = el("div", "mpk-add");
       var f1 = el("div", "mpk-fld"), l1 = el("label", null, "Category"); catSel = el("select", "mpk-cat-sel"); catSel.id = "mpk_cat_" + n; l1.htmlFor = catSel.id;
       f1.appendChild(l1); f1.appendChild(catSel);
@@ -313,7 +315,7 @@
       box.appendChild(add); box.appendChild(addMsg);
     }
     // dishes in this package that are not in the dish catalog: offer to add them there
-    // (free trial: flagged only - new dishes cannot be added in the trial)
+    // (free trial: flagged only - dishes are fixed in the trial)
     catNote = el("div", "mpk-catnote"); catNote.hidden = true; box.appendChild(catNote);
 
     // bulk text (not in the free trial: it could add dish names that are not in the catalog)
@@ -336,7 +338,7 @@
 
     var foot = el("div", "mpk-foot");
     var state = el("span", "mpk-state"); foot.appendChild(state);
-    if (trial) foot.appendChild(el("span", "mpk-trial", "Free trial: change the price and the dishes (from your Dishes catalog)."));
+    if (trial) foot.appendChild(el("span", "mpk-trial", TRIAL_NOTE));
     var save = btn("btn primary tpl_save", "Save package"); foot.appendChild(save);
     box.appendChild(foot);
 
@@ -354,7 +356,7 @@
       if (!miss.length) return;
       var names = miss.slice(0, 6).map(function (d) { return d.n; }).join(", ") + (miss.length > 6 ? ", \u2026" : "");
       catNote.appendChild(el("span", null, plural(miss.length, "dish", "dishes") + " not in your Dishes catalog: " + names + ". "));
-      if (ctx.trial()) { catNote.appendChild(el("span", "mpk-catnote-t", "You can't add new dishes in the free trial.")); return; }
+      if (ctx.trial()) { catNote.appendChild(el("span", "mpk-catnote-t", "Dishes are fixed in the free trial.")); return; }
       var b = btn("btn sm mpk-catadd", miss.length === 1 ? "Add it to the catalog" : "Add them to the catalog", "Add " + plural(miss.length, "dish", "dishes") + " to the Dishes catalog");
       b.addEventListener("click", function () {
         var run = function () {
@@ -437,7 +439,6 @@
       var m = findDish(ctx.catalog(), name, catSel.value), d;
       if (m) d = { c: clean(m.category, 80) || "Other", n: clean(m.name), k: normKind(m.kind) };
       else {
-        if (trial) { addNote("In the free trial you can add dishes from your Dishes catalog only. Pick one from the list.", true); dishIn.focus(); return; }
         if (!catSel.value) { addNote("\u201c" + name + "\u201d is not in your dish catalog. Choose a category for it first.", true); catSel.focus(); return; }
         d = { c: catSel.value, n: name, k: normKind(kindSel.value) };
       }
@@ -456,7 +457,10 @@
       c.appendChild(el("i", "mpk-dot"));
       var lab = el("span", "mpk-chip-n", d.n); c.appendChild(lab);
       c.title = d.n + " \u00b7 " + (kt[d.k] || DEF_KIND_TEXT[d.k]);
-      c.tabIndex = 0; c.draggable = true;
+      c.tabIndex = 0;
+      // L8: free trial - the dish list is fixed (the server refuses dish changes): a plain, read-only chip
+      if (trial) { c.classList.add("mpk-chip-ro"); c.setAttribute("aria-label", d.n + ", " + (kt[d.k] || DEF_KIND_TEXT[d.k]) + "."); return c; }
+      c.draggable = true;
       c.setAttribute("aria-label", d.n + ", " + (kt[d.k] || DEF_KIND_TEXT[d.k]) + ". Alt+Left or Alt+Right to move, Delete to remove.");
       var x = btn("mpk-x", "\u00d7", "Remove " + d.n + " from " + nm); x.tabIndex = -1;
       x.addEventListener("click", function () { if (st.saving) return; st.dishes = removeAt(st.dishes, i); draw(); say("Removed " + d.n + "."); });
@@ -481,11 +485,11 @@
     function draw() {
       body.textContent = "";
       var gs = groups(st.dishes);
-      if (!gs.length) body.appendChild(el("p", "mpk-empty", "No dishes yet. Pick a category and a dish below to add one."));
+      if (!gs.length) body.appendChild(el("p", "mpk-empty", trial ? "No dishes in this package." : "No dishes yet. Pick a category and a dish below to add one."));
       gs.forEach(function (g, gi) {
         var sec = el("div", "mpk-cat"), h = el("div", "mpk-cat-h");
         h.appendChild(el("span", "mpk-cat-n", g.c)); h.appendChild(el("span", "mpk-cat-c", String(g.items.length)));
-        if (gs.length > 1) {
+        if (gs.length > 1 && !trial) {          // L8: no category reorder in the free trial
           var up = btn("mpk-mv", "\u2191", "Move " + g.c + " up"), dn = btn("mpk-mv", "\u2193", "Move " + g.c + " down");
           up.disabled = gi === 0; dn.disabled = gi === gs.length - 1;
           up.addEventListener("click", function () { if (st.saving) return; st.dishes = moveCategory(st.dishes, g.c, -1); draw(); say(g.c + " moved up."); });
@@ -515,8 +519,8 @@
     function build() {
       var on = trial ? !!st.base.active : !!act.checked;
       var pr = checkPrice(price.value, { active: on, base: st.base.price, badInput: !!(price.validity && price.validity.badInput) });
-      // free trial: an untouched (e.g. empty legacy) dish list never blocks a price change; edited dishes are checked
-      var dr = trial && same(st.dishes, st.base.dishes) ? { ok: true } : checkDishes(st.dishes, { active: on });
+      // free trial: the dish list is fixed (L8), so an empty legacy list never blocks a price change
+      var dr = trial ? { ok: true } : checkDishes(st.dishes, { active: on });
       return { pr: pr, dr: dr, on: on };
     }
     function lock(on) {
@@ -550,7 +554,7 @@
       // dishes only when changed (a price-only save never rewrites the stored list); free trial: never the switch
       var patch = {};
       if (!v.pr.keep) patch.price_per_plate = v.pr.value;
-      if (!same(st.dishes, st.base.dishes)) patch.dishes = normDishes(st.dishes);
+      if (!trial && !same(st.dishes, st.base.dishes)) patch.dishes = normDishes(st.dishes);   // L8: never in the trial
       if (!trial && v.on !== st.base.active) patch.active = v.on;
       if (!Object.keys(patch).length) { if (v.pr.keep && price.value !== priceText(st.base.price)) price.value = priceText(st.base.price); paintState(); say("No changes to save."); return; }
       var run = function () {
@@ -597,7 +601,7 @@
       return { t: t, dishes: dishes, price: price, active: active, base: { dishes: dishes.slice(), price: price, active: active } };
     });
     host.textContent = "";
-    if (ctx.trial()) host.appendChild(el("p", "mpk-trialnote", "Free trial: you can change each package's price and dishes. Dishes come from your Dishes catalog; new dishes and packages need an upgrade."));
+    if (ctx.trial()) host.appendChild(el("p", "mpk-trialnote", TRIAL_NOTE));
     states.forEach(function (st) { var c = card(st, ctx); host.appendChild(c); cards.push(c); });
     ctx.changed();
     return {

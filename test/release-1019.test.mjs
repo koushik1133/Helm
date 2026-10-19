@@ -1,0 +1,65 @@
+// release-1019.test.mjs - the release/1019 paste file and migration numbering:
+//  * MANIFEST: every migration number once, everything after 0205 in numeric order; the 1019 set = every migration
+//    after 0205 that did not ship with release 1018-c (0206 / 0207 / 0208 / 0236 / 0237 are in production)
+//  * supabase/APPLY-RELEASE-1019.sql is current (generator --check), one section per 1019 migration in order,
+//    each paste file verbatim, ends with ONE combined VERIFY grid; pasteable (ASCII, no psql meta / temp table)
+//  * the owner steps document names the paste file and every changed edge function
+import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import assert from 'node:assert/strict';
+const root = new URL('..', import.meta.url).pathname;
+const read = (p) => readFileSync(root + p, 'utf8');
+const tests = []; const t = (n, f) => tests.push([n, f]);
+
+const SHIPPED_1018_C = ['0206', '0207', '0208', '0236', '0237'];
+const REL = ['0210', '0211', '0212', '0213', '0220', '0222', '0223'];
+const man = read('supabase/migrations/MANIFEST');
+const nums = [...man.matchAll(/^forward  supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
+const after = nums.filter((n) => +n > 205);
+t('MANIFEST: each migration number once; after 0205 in numeric order; the 1019 set = everything not shipped in 1018-c', () => {
+  assert.equal(new Set(nums).size, nums.length, 'duplicate migration number');
+  assert.deepEqual([...after].sort(), after, 'numeric order after 0205');
+  assert.deepEqual(after.filter((n) => !SHIPPED_1018_C.includes(n)), REL);
+});
+t('APPLY-RELEASE-1019.sql is current', () => {
+  const r = spawnSync(process.execPath, ['scripts/gen-apply-release-1019.mjs', '--check'], { cwd: root, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+});
+t('one section per 1019 migration, in order, each paste file verbatim; ONE combined VERIFY last', () => {
+  const rel = read('supabase/APPLY-RELEASE-1019.sql');
+  const heads = [...rel.matchAll(/^-- RELEASE SECTION (\d+)\/(\d+): (\S+)\n-- In plain words: \S/gm)].map((m) => m[3]);
+  assert.deepEqual(heads, REL.map((n) => `APPLY-${n}.sql`));
+  for (const n of REL) assert.ok(rel.includes(read(`supabase/APPLY-${n}.sql`).replace(/\s*$/, '\n')), n + ' verbatim');
+  assert.equal((rel.match(/^begin;$/gm) || []).length, REL.length);
+  assert.equal((rel.match(/^commit;$/gm) || []).length, REL.length);
+  assert.match(rel, /-- COMBINED VERIFY[^\n]*\n-- #+\nselect item, ok from \(\n[\s\S]*\n\) z order by item;\n$/);
+  for (const n of REL) assert.ok(rel.includes(`select '${n} ' || item as item, ok from (values`), n + ' VERIFY rows in the grid');
+});
+t('pasteable: ASCII, no psql meta-command, no temp table, no DROP TABLE / TRUNCATE', () => {
+  const rel = read('supabase/APPLY-RELEASE-1019.sql');
+  assert.ok(!/[^\x09\x0a\x0d\x20-\x7e]/.test(rel), 'ASCII');
+  assert.ok(!/^\s*\\/m.test(rel), 'psql meta');
+  assert.ok(!/\bcreate\s+(temp|temporary)\s+table\b/i.test(rel), 'temp table');
+  assert.ok(!/^\s*(drop\s+table|truncate)\b/im.test(rel), 'drop table / truncate');
+});
+t('every 1019 DB suite is in run-all.sh; generator --check is in npm run ci', () => {
+  const ra = read('scripts/db-test/run-all.sh');
+  for (const s of ['signup-invite-0210', 'trial-quotes-0211', 'trial-email-0212', 'sample-layouts-0213', 'start-blank-0220', 'trial-seed-0222', 'trial-dates-0223'])
+    assert.match(ra, new RegExp('^run "' + s + '" ', 'm'), s);
+  assert.match(JSON.parse(read('package.json')).scripts.ci, /node scripts\/gen-apply-release-1019\.mjs --check/);
+});
+t('owner steps: the paste file, every changed edge function (prod ref, --no-verify-jwt), the email templates', () => {
+  const d = read('docs/release/RELEASE-1019-OWNER-STEPS.md');
+  assert.match(d, /supabase\/APPLY-RELEASE-1019\.sql/);
+  // the repo's JWT convention (release 1018): these run without the JWT check, the other four keep it
+  for (const f of ['invite-signup', 'client-mailer', 'comms-dispatch', 'invite-mailer', 'welcome-mailer', 'pkg-client-notify', 'billing-reminder'])
+    assert.match(d, new RegExp('supabase functions deploy ' + f + ' +--project-ref nqltzgiwznphugcfhmbm --no-verify-jwt\\n'), f);
+  for (const f of ['send-otp', 'wa-proposal', 'create-payment-link', 'send-whatsapp'])
+    assert.match(d, new RegExp('supabase functions deploy ' + f + ' +--project-ref nqltzgiwznphugcfhmbm\\n'), f);
+  assert.match(d, /APPLY-0213-refresh-trial-layouts\.sql/);
+  assert.match(d, /docs\/ops\/email-templates\//);
+});
+let pass = 0;
+for (const [n, f] of tests) { try { f(); pass++; console.log('  ok  ' + n); } catch (e) { console.log('  FAIL ' + n + '\n       ' + e.message); } }
+console.log(`release-1019: ${pass} passed${pass === tests.length ? '' : ', ' + (tests.length - pass) + ' FAILED'}`);
+if (pass !== tests.length) process.exit(1);

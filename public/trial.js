@@ -9,9 +9,12 @@
      • ended     → 0183: "Your trial has ended. Your data is preserved and available in read-only
                    mode. Upgrade now to continue creating and editing records." + "Upgrade" (admins);
                    the same strip for invited members (read-only too), who are told an admin upgrades
-     • 0120: admins see a reminder card once per day on day 5 / 7 / 8 (3 days left /
-       ends tomorrow / ends today, in the studio's zone) — "Choose a plan" / "Remind me later"
-       (the database refuses edits; nothing is hidden or deleted)
+     • 0120: admins see a reminder card once per day 3 days before the trial's end day, the day
+       before it and on the end day (3 days left / ends tomorrow / ends today) — "Choose a plan" /
+       "Remind me later" (the database refuses edits; nothing is hidden or deleted)
+     • L9: every trial date is the STUDIO's calendar day of the end moment (endDay / daysLeft /
+       endDayText): the strip, the reminder card, the Staff note and Plan & billing all count the same way
+       (a trial that ends 27 Oct 03:30 IST ends on 27 Oct, never the UTC day 26 Oct)
    CSP: createElement/textContent only; CSS through __helmAdoptCss.
    ========================================================================= */
 (function (global) {
@@ -32,9 +35,9 @@
     }
     // trial date passed but the studio is not read-only (paid / extended on an older server answer): no strip
     if (t.ended === true) return null;
-    // calendar days to the last trial day in the studio's zone — the same count the reminder card uses
+    // calendar days to the last trial day in the studio's zone — the same count the reminder card uses (L9: daysLeft)
     var cal = null;
-    try { var e0 = Date.parse(t.ends_at); if (isFinite(e0) && e0 > Date.now()) cal = dayNo(ymdIn(e0 - 1, t.timezone)) - dayNo(ymdIn(Date.now(), t.timezone)); } catch (e) { cal = null; }
+    try { cal = daysLeft(t.ends_at, Date.now(), t.timezone); } catch (e) { cal = null; }
     var n = Math.max(0, cal != null && isFinite(cal) ? cal : Math.floor(Number(t.days_left)));
     if (!isFinite(n)) return null;
     var left = n === 0 ? "ends today" : n === 1 ? "1 day left" : n + " days left";
@@ -54,8 +57,10 @@
   function subscriptionStrip(s, o, nowMs, tz) {
     if (o && o.is_trial_org === true) return null;
     if (!s || typeof s !== "object" || s.state !== "trial") return null;
-    var zone = tz || "Asia/Kolkata", left = null;
-    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s.ends_at || ""));
+    var zone = s.timezone || tz || "Asia/Kolkata", left = null;
+    // L9 / 0223: the exact end (ends_at_exact) counted in the studio's zone when the server sends it
+    if (s.ends_at_exact) { try { left = daysLeft(s.ends_at_exact, nowMs == null ? Date.now() : nowMs, zone); } catch (e) { left = null; } }
+    var m = left == null ? /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s.ends_at || "")) : null;
     if (m) { try { left = dayNo(m[1] + "-" + m[2] + "-" + m[3]) - dayNo(ymdIn(nowMs == null ? Date.now() : nowMs, zone)); } catch (e) { left = null; } }
     if (left == null || !isFinite(left)) left = Math.floor(Number(s.days_left));
     if (!isFinite(left) || left < 0) return null;
@@ -83,7 +88,7 @@
     return n;
   }
 
-  // ---- 0120: day 5 / 7 / 8 reminder card (mirror of _trial_reminder_milestone) ----
+  // ---- 0120: reminder card 3 days / 1 day / 0 days before the end day (mirror of _trial_reminder_milestone) ----
   // YYYY-MM-DD of a moment in a time zone (bad zone -> Asia/Kolkata, then UTC)
   function ymdIn(ms, tz) {
     var zones = [tz || "Asia/Kolkata", "Asia/Kolkata"];
@@ -98,11 +103,38 @@
   }
   function dayNo(ymd) { return Math.round(Date.parse(ymd + "T00:00:00Z") / 86400000); }
 
+  // L9 (live QA): ONE way to say when the trial ends, everywhere. The end is an exact moment (sign-up + 8 days,
+  // e.g. 2026-10-26T22:00Z = 27 Oct 03:30 IST). Its day is the STUDIO's calendar day of that moment (an end at
+  // exactly midnight belongs to the day before) - never the UTC day. A bare "YYYY-MM-DD" is already a day.
+  function endDay(endsAt, tz) {
+    var s = String(endsAt == null ? "" : endsAt).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    var e = Date.parse(s);
+    return isFinite(e) ? ymdIn(e - 1, tz) : null;
+  }
+  // calendar days from today (studio zone) to the end day; null when unknown or already over
+  function daysLeft(endsAt, nowMs, tz) {
+    var d = endDay(endsAt, tz), now = nowMs == null ? Date.now() : Number(nowMs);
+    if (!d || !isFinite(now)) return null;
+    var s = String(endsAt).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s) && !(Date.parse(s) > now)) return null;
+    var n = dayNo(d) - dayNo(ymdIn(now, tz));
+    return isFinite(n) && n >= 0 ? n : null;
+  }
+  // "27 Oct 2026" (India format) for the end day in the studio's zone
+  function endDayText(endsAt, tz) {
+    var d = endDay(endsAt, tz); if (!d) return "";
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
+    try { return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)).toLocaleDateString("en-IN", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }); }
+    catch (e) { return d; }
+  }
+
   // 'd5' (3 days left) | 'd7' (ends tomorrow) | 'd8' (ends today) | null — calendar days in the studio's zone
+  // (the ids d5 / d7 / d8 are kept: the database ledger + e-mail copy use them; they mean 3 / 1 / 0 days left)
   function reminderMilestone(endsAt, nowMs, tz) {
     var end = Date.parse(endsAt), now = Number(nowMs);
     if (!isFinite(end) || !isFinite(now) || end <= now) return null;
-    var left = dayNo(ymdIn(end - 1, tz)) - dayNo(ymdIn(now, tz));
+    var left = daysLeft(endsAt, now, tz);
     return left === 3 ? "d5" : left === 1 ? "d7" : left === 0 ? "d8" : null;
   }
 
@@ -151,7 +183,8 @@
   }
 
   var api = { subscriptionStrip: subscriptionStrip, staffNoteSpec: staffNoteSpec, blockedSpec: blockedSpec, bannerSpec: bannerSpec, planHref: planHref, nextDemoNumber: nextDemoNumber, reminderMilestone: reminderMilestone,
-              reminderSpec: reminderSpec, endsLabel: endsLabel, ymdIn: ymdIn, REMINDER_TITLES: REMINDER_TITLES };
+              reminderSpec: reminderSpec, endsLabel: endsLabel, ymdIn: ymdIn, REMINDER_TITLES: REMINDER_TITLES,
+              endDay: endDay, daysLeft: daysLeft, endDayText: endDayText };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   if (!global || !global.document) return;
   global.HelmTrial = api;

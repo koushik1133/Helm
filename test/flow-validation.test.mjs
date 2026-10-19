@@ -86,11 +86,18 @@ t('budget: Indian formats (2 crore = 2,00,00,000), >= 0, sanity warning per gues
 });
 t('step 1 as a whole: errors keyed by field, warnings never block', () => {
   const phone = (v) => (/^\+91[6-9]\d{9}$/.test(v) ? { ok: true } : { ok: false, error: 'Indian numbers are 10 digits.' });
-  const good = { c_name: 'Ravi Kumar', c_company: '', c_email: '', c_phone: '+919876543210', c_type: 'Wedding', c_date: '2026-12-25', c_city: 'Hyderabad', c_guests: '300', d_bmax: '2 crore' };
+  const good = { c_name: 'Ravi Kumar', c_company: '', c_email: 'ravi@example.com', c_phone: '+919876543210', c_type: 'Wedding', c_date: '2026-12-25', c_city: 'Hyderabad', c_guests: '300', d_bmax: '2 crore' };
   assert.ok(F.client(good, { today: TODAY, phone }).ok);
   const r = F.client({ ...good, c_name: ' ', c_phone: '+91123', c_date: '2026-10-01', c_type: '', c_guests: '-1' }, { today: TODAY, phone });
   assert.deepEqual(Object.keys(r.errors).sort(), ['c_date', 'c_guests', 'c_name', 'c_phone', 'c_type']);
   assert.equal(F.client({ ...good, c_phone: '' }, { today: TODAY, phone }).errors.c_phone, 'Phone is required.');
+  // r19: the client e-mail is required in step 1 too (inline), and must look like an e-mail
+  assert.equal(F.client({ ...good, c_email: '' }, { today: TODAY, phone }).errors.c_email, 'Email is required.');
+  assert.equal(F.client({ ...good, c_email: '   ' }, { today: TODAY, phone }).errors.c_email, 'Email is required.');
+  assert.match(F.client({ ...good, c_email: 'ravi@' }, { today: TODAY, phone }).errors.c_email, /name@example\.com/);
+  assert.equal(F.client({ ...good, c_email: '' }, { today: TODAY, phone }).ok, false, 'no e-mail -> step 1 not saved');
+  // elsewhere (send for approval: e-mail OR phone) the e-mail stays optional
+  assert.deepEqual(F.email(''), { ok: true, value: '' });
   const w = F.client({ ...good, d_bmax: '20000', c_guests: '1000' }, { today: TODAY, phone });
   assert.ok(w.ok && /per guest/.test(w.warnings.d_bmax));
 });
@@ -222,7 +229,7 @@ t('new quotes elsewhere: lead Convert + quote modal refuse a past event date (st
   assert.match(Q, /if\(\(dv && dv<today && dv!==sv\) \|\| \(!dv && de\.getAttribute\("data-date-rejected"\)==="past"\)\)\{ errEl\.textContent="Event date can't be in the past\.";/);
 });
 t('pins', () => {
-  assert.match(flow, /flow-validate\.js\?v=2/); assert.match(flow, /flow-resume\.js\?v=4/);
+  assert.match(flow, /flow-validate\.js\?v=4/); assert.match(flow, /flow-resume\.js\?v=4/);
   assert.match(flow, /flow-autosave\.js\?v=5/); assert.match(flow, /flow-polish\.css\?v=5/);
 });
 console.log(`flow-validation: ${n} passed`);

@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="/trusted-types.js?v=3"></script>
+<script src="/auth-handoff.js?v=2"></script>
 <title>Sign in · Helm</title>
 <meta name="description" content="Sign in to Helm, or create your studio's private workspace to run every event from first enquiry to final bill.">
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -112,6 +113,20 @@
   html[data-theme="dark"] .formpane{background:var(--bg)} html[data-theme="dark"] .gbtn{background:var(--panel-2);color:var(--ink)} html[data-theme="dark"] .btn.ghost{color:#6ee7b7;border-color:#10b981}
   html[data-theme="dark"] .err{background:#3a1717;color:#fda29b;border-color:#5c2222} html[data-theme="dark"] .ferr{color:#fda29b}
   html[data-theme="dark"] .okmsg{background:#0f2e20;color:#75e0a7;border-color:#1d4d35} html[data-theme="dark"] .info{background:#3a2f14;color:#ffd884;border-color:#5a4a1e}
+  /* round 19: on desktop / laptop the brand column stays in view while a long sign-up form ("See all trial
+     rules") scrolls - no tall blank column on the left; phones / tablets unchanged */
+  @media(min-width:1024px){.brandpane{position:sticky;top:0;align-self:start;height:100vh;height:100dvh}}
+  @media(min-width:1024px) and (max-height:820px){.brandpane{padding:36px 48px}.brandpane .tagline{margin-top:36px;font-size:34px}.brandpane p{margin-bottom:20px}.av{margin:14px 0 18px}.flist{gap:10px}}
+  /* round 19: right after an e-mail confirm link / while a session resumes - one calm card, no sign-in form flash */
+  html.auth-handoff .formpane > .card:not(#handoffCard){display:none!important}
+  html.auth-handoff #handoffCard{display:block!important}
+  .ho{text-align:center} .ho h1{margin-bottom:6px}
+  .ho-spin{width:40px;height:40px;margin:4px auto 18px;border-radius:50%;border:3px solid var(--accent-soft);border-top-color:var(--accent);animation:hospin .9s linear infinite}
+  @keyframes hospin{to{transform:rotate(360deg)}}
+  @media(prefers-reduced-motion:reduce){.ho-spin{animation:none}}
+  /* round 19: the sign-up e-mail has an open invitation - join it or start an own trial */
+  .iv-own{margin-top:10px} .iv-who{word-break:break-all}
+  .inbox-have{margin-top:12px}
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="/public-v2.css?v=5">
@@ -154,6 +169,12 @@
   </section>
 
   <main class="formpane" id="main">
+    <!-- round 19: right after an e-mail confirm link (auth-handoff.js) / while a signed-in session resumes -->
+    <section class="card ho" id="handoffCard" hidden aria-live="polite" aria-busy="true" aria-labelledby="hoTitle">
+      <div class="ho-spin" aria-hidden="true"></div>
+      <h1 id="hoTitle">Confirming your email…</h1>
+      <p class="sub" id="hoSub">One moment — we're signing you in.</p>
+    </section>
     <form class="card" id="loginForm">
       <div class="mmk"></div>
       <div class="modetabs">
@@ -226,7 +247,20 @@
       <div class="okmsg" id="inboxOk" role="status" hidden></div>
       <div class="err" id="inboxErr" role="alert" hidden></div>
       <button type="button" class="btn ghost" id="inboxResend">Resend email</button>
+      <p class="helper inbox-have" id="inboxHave">Already have a Helm account? <button type="button" class="linkbtn" id="inboxSignin">Sign in</button> · <button type="button" class="linkbtn" id="inboxReset">Reset password</button></p>
       <div class="foot"><button type="button" class="linkbtn" id="inboxOther">Use a different email</button> · <button type="button" class="linkbtn" id="inboxBack">Back to sign in</button></div>
+    </section>
+
+    <!-- round 19: the sign-up e-mail has an OPEN invitation (pending, not expired) - nothing is created yet -->
+    <section class="card" id="invitedCard" hidden aria-labelledby="ivTitle">
+      <div class="mmk"></div>
+      <h1 id="ivTitle" tabindex="-1">You've been invited</h1>
+      <p class="sub" id="ivSub">There's an open invitation for <b class="iv-who" id="ivEmail"></b>. Join that studio — or start your own free trial instead.</p>
+      <div class="okmsg" id="ivOk" role="status" hidden></div>
+      <div class="err" id="ivErr" role="alert" hidden></div>
+      <button type="button" class="btn" id="ivJoin">Join your studio</button>
+      <button type="button" class="btn ghost iv-own" id="ivOwn">Start my own trial</button>
+      <div class="foot"><button type="button" class="linkbtn" id="ivBack">← Back</button></div>
     </section>
 
     <!-- Forgot password: always the same answer, whether or not the email has an account -->
@@ -339,10 +373,10 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=250"></script>
-<script src="auth-ui.js?v=39"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=252"></script>
+<script src="auth-ui.js?v=41"></script>
 <script src="/auth-visual.js?v=1"></script>
-<script src="/trial-facts.js?v=2"></script>
+<script src="/trial-facts.js?v=4"></script>
 <script src="/trial-signup.js?v=12"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -397,6 +431,7 @@
   //   no studio               → onboarding ("Set up your studio") on this page
   // is_platform_admin() is asked only when there is no studio; errors count as "no".
   async function routeSignedIn(){
+    hoStep("Opening your studio…","");
     let oid=null, known=false;
     try{ oid=await BPStore.org.resolveId(); known=true; }catch(e){}
     // a NEW studio member completes their profile first (0041; no-op when it isn't installed)
@@ -410,6 +445,13 @@
   }
   const EXPIRED=new URLSearchParams(location.search).get("expired")==="1";
   const showErr=(el,text)=>{ el.textContent=text; el.hidden=false; };
+  // round 19: the "Confirming your email… / Setting up your studio…" card (auth-handoff.js) instead of a
+  // sign-in form flash while a confirmed sign-up / resumed session is finished; any real form ends it
+  const HO=()=>window.HelmAuthHandoff||null;
+  const hoStep=(t,sub)=>{ const h=HO(); if(h && h.on()) h.step(t,sub); };
+  const hoEnd=()=>{ const h=HO(); if(h) h.end(); };
+  // the sign-up's own note (user_metadata) is used ONLY right after its e-mail confirm link (another browser)
+  const fromConfirm=()=>{ const h=HO(); return !!((h && h.flagged && h.flagged()) || (BPStore.auth.linkReturned && BPStore.auth.linkReturned())); };
 
   // Option A — force a user who signed in with a temporary password to set their own.
   // Blocks (returns a promise) until they successfully set a new password.
@@ -551,6 +593,9 @@
   $("#inboxResend").addEventListener("click", ()=>{ const b=$("#inboxResend"); if(b.disabled) return; doResend(inboxAddr,$("#inboxOk"),$("#inboxErr"),b,"Resend email"); });
   $("#inboxOther").addEventListener("click", ()=>{ showView("#loginForm"); setMode("signup"); $("#email").value=""; ensureCap(); setTimeout(()=>$("#email").focus(),60); });
   $("#inboxBack").addEventListener("click", ()=>{ showView("#loginForm"); setMode("signin"); $("#email").value=inboxAddr; $("#pw").value=""; ensureCap(); setTimeout(()=>$("#pw").focus(),60); });
+  // round 19: shown to everyone after a sign-up (no account enumeration): an existing account signs in / resets
+  $("#inboxSignin").addEventListener("click", ()=>{ showView("#loginForm"); setMode("signin"); $("#email").value=inboxAddr; $("#pw").value=""; ensureCap(); setTimeout(()=>$("#pw").focus(),60); });
+  $("#inboxReset").addEventListener("click", ()=>{ $("#email").value=inboxAddr; $("#fg_email").value=inboxAddr; openForgot(); });
   // sign-in helper: same generic answer whatever the account state (no enumeration)
   $("#resendConfirmBtn").addEventListener("click", ()=>{
     const b=$("#resendConfirmBtn"); if(b.disabled) return;
@@ -559,7 +604,7 @@
     doResend(i.value,$("#okmsg"),$("#err"),b,"Resend confirmation link");
   });
   // ----- views: sign-in form / forgot password / two-step code -----
-  function showView(id){ ["#loginForm","#forgotForm","#mfaForm","#mfaSetupForm","#onboardForm","#inboxCard","#invitePwForm","#inviteLinkCard"].forEach(s=>{ $(s).hidden = s!==id; }); }
+  function showView(id){ hoEnd(); ["#loginForm","#forgotForm","#mfaForm","#mfaSetupForm","#onboardForm","#inboxCard","#invitedCard","#invitePwForm","#inviteLinkCard"].forEach(s=>{ $(s).hidden = s!==id; }); }
   function openForgot(){
     showView("#forgotForm"); $("#fgErr").hidden=true; $("#fgOk").hidden=true;
     if($("#email").value && !$("#fg_email").value) $("#fg_email").value=$("#email").value;
@@ -697,8 +742,14 @@
   // if signed in but no studio yet (just confirmed email), finish creating the pending studio
   async function finishPendingStudio(){
     try{ const oid=await BPStore.org.id(); if(oid) return;
-      const name=localStorage.getItem(PENDING); if(!name) return;
+      let name=localStorage.getItem(PENDING);
+      // round 19: the confirm link was opened in ANOTHER browser (no local note): the free-trial sign-up's own
+      // note on the account (helm_signup_intent / helm_signup_studio), only straight after that confirm link
+      if(!name && fromConfirm() && TRIAL()){ const m=(BPStore.auth.user()||{}).user_metadata||{};
+        if(m.helm_signup_intent==="trial") name=String(m.helm_signup_studio||"").replace(/[\u0000-\u001f\u007f]/g," ").trim().slice(0,80)||" "; }
+      if(!name) return;
       if(await BPStore.auth.isPlatformAdmin()) return;   // HQ operators never get a studio
+      hoStep(TRIAL()?"Setting up your free-trial studio…":"Creating your studio…", TRIAL()?"Adding the sample events, leads, menus and inventory — this takes a few seconds.":"This takes a few seconds.");
       await makeStudio(name.trim(),{}); localStorage.removeItem(PENDING);   // #16: never seed the business email with the login email
       try{ localStorage.setItem("bp_force_tour","1"); }catch(e){}   // brand-new studio → show the tour
     }catch(e){}
@@ -902,7 +953,7 @@
   // ----- Onboarding: a signed-in user with no studio (e.g. Google sign-in) -----
   function showOnboarding(){
     const u=BPStore.auth.user()||{};
-    $("#loginForm").hidden=true; $("#onboardForm").hidden=false;
+    hoEnd(); $("#loginForm").hidden=true; $("#onboardForm").hidden=false;
     try{ sessionStorage.removeItem("bp_flash"); }catch(e){}   // already toasted on this page
     $("#obEmail").textContent=u.email||"";
     // prefill a friendly default name from the Google profile, if any
@@ -972,6 +1023,9 @@
     // 0205: invite context first (before the link session accepts the invitation and the token closes)
     if(JOINING) await Promise.race([loadInviteCtx().catch(()=>null), new Promise((r)=>setTimeout(r,4000))]);
     if(BPStore.auth.pendingUser()){
+      // round 19: one calm card while the session is finished (no sign-in form flash); any real form ends it
+      // (the /auth/confirm hand-over flag = a confirmed sign-up; anything else, e.g. Google, is a plain sign-in)
+      { const h=HO(); if(h){ if(h.on()) h.step("Email confirmed","Signing you in…"); else h.begin("Signing you in…","One moment."); } }
       // back from the email-confirmation link (PKCE ?code= exchanged) → "Email confirmed"
       if(BPStore.auth.linkReturned && BPStore.auth.linkReturned() && !(BPStore.auth.linkError && BPStore.auth.linkError())){
         // toast here (onboarding stays on this page) + a one-shot flash for the next page
@@ -980,6 +1034,7 @@
       }
       return true;
     }
+    hoEnd();   // nobody signed in: the normal sign-in / sign-up page
     // a ?code= link (Google / email confirm / magic link) that could not be exchanged
     if(BPStore.auth.linkError && BPStore.auth.linkError()){
       const le=String(BPStore.auth.linkError()).toLowerCase();
@@ -1013,6 +1068,49 @@
     });
   });
 
+  // ----- round 19: the sign-up e-mail has an OPEN invitation (pending, not expired) -----
+  // Asked BEFORE anything is created (invite-signup { email_lookup }: only the studio name + role come
+  // back, rate limited; any other e-mail gets the same "no"). "Join <Studio>" e-mails that address its
+  // invitation again - the Join page link /login?invite=<token> (the token never comes to this browser:
+  // opening the e-mail proves the address). "Start my own trial" carries on with the sign-up as typed.
+  let ivSkip="";   // the e-mail the person chose "Start my own trial" for (asked once per e-mail)
+  let ivEmail="", ivStudio="";
+  function showInvited(iv, email){
+    ivEmail=normEmail(email); ivStudio=String((iv&&iv.studio)||"").slice(0,120)||"a studio";
+    const role=String((iv&&(iv.role_label||iv.role))||"").slice(0,60);
+    showView("#invitedCard");
+    $("#ivTitle").textContent="You've been invited to join "+ivStudio+(role?" as "+role:"");
+    $("#ivEmail").textContent=ivEmail;
+    { const jb=$("#ivJoin"); if(jb._cd){ clearInterval(jb._cd); jb._cd=null; } jb.textContent="Join "+ivStudio; jb.hidden=false; jb.disabled=false; }
+    $("#ivOwn").textContent=TRIAL()?"Start my own trial":"Create my own studio";
+    $("#ivOk").hidden=true; $("#ivErr").hidden=true;
+    setTimeout(()=>$("#ivTitle").focus(),60);
+  }
+  $("#ivJoin").addEventListener("click", async ()=>{
+    const b=$("#ivJoin"); if(b.disabled) return;
+    {
+      $("#ivOk").hidden=true; $("#ivErr").hidden=true; b.disabled=true; b.textContent="Sending…";
+      let wait=false;
+      try{
+        const r=await BPStore.invitations.emailInviteLink(ivEmail);
+        $("#ivOk").textContent=(r&&r.sent)
+          ? "Check your inbox: we've e-mailed your invitation to "+ivEmail+" again (look in spam or promotions too). Open it and tap “Accept invitation” to join "+ivStudio+" — it opens the Join page in Helm."
+          : "Open the invitation e-mail from "+ivStudio+" in "+ivEmail+" (check spam or promotions too) and tap “Accept invitation” — it opens the Join page in Helm.";
+        $("#ivOk").hidden=false; wait=true;
+      }catch(err){
+        showErr($("#ivErr"), (err&&/^(rate_limited|send_failed|unavailable|network)$/.test(err.code||""))? err.message : BPUI.friendlyError(err,{action:"send the invitation"}));
+        wait=!!(err&&err.code==="rate_limited");
+      }finally{
+        if(wait) cooldown(b,"Join "+ivStudio,COOLDOWN); else { b.disabled=false; b.textContent="Join "+ivStudio; }
+      }
+    }
+  });
+  $("#ivOwn").addEventListener("click", ()=>{
+    ivSkip=ivEmail; showView("#loginForm");
+    const f=$("#loginForm"); if(f.requestSubmit) f.requestSubmit($("#submit")); else $("#submit").click();
+  });
+  $("#ivBack").addEventListener("click", ()=>{ showView("#loginForm"); setTimeout(()=>$("#email").focus(),60); });
+
   $("#loginForm").addEventListener("submit", (e)=>{
     e.preventDefault();
     const btn=$("#submit");
@@ -1026,6 +1124,7 @@
       if(firstBad){ firstBad.focus(); return; }
       const fullName=$("#fullname").value.trim();
       const joining=!!pendingInvite(), inviteTok0=pendingInvite();
+      let keepCap=false;   // round 19: paused for the invitation choice - the security check is still unused
       try{
         if(mode==="signup"){
           const bad=pwProblem(pw); if(bad){ showErr($("#err"),"Choose a stronger password: "+bad); $("#pw").focus(); return; }
@@ -1063,11 +1162,19 @@
           }
           const studio=$("#studio").value.trim();
           if(studioProblem(studio)){ showErr($("#err"),"Enter your studio / business name."); $("#studio").focus(); return; }
-          btn.textContent="Creating…";
           // If an earlier attempt signed up (session exists) but createStudio failed,
           // a retry must NOT call signUp again — only create the studio.
           const existing=BPStore.auth.user();
-          const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap), emailRedirectTo:confirmRedirect(), fullName});
+          // round 19: an OPEN invitation for this e-mail? offer "Join <Studio>" before anything is created
+          // (slow / offline / not deployed → null: the sign-up simply carries on)
+          if(!existing && ivSkip!==email && BPStore.invitations.openForEmail){
+            btn.textContent="Checking…";
+            const iv=await BPStore.invitations.openForEmail(email,{timeoutMs:4000});
+            if(iv && iv.invited){ keepCap=true; showInvited(iv, email); return; }
+          }
+          btn.textContent="Creating…";
+          const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap), emailRedirectTo:confirmRedirect(), fullName,
+            intent: TRIAL()?"trial":"direct", studioName: studio});
           if(r.session && existing){
             // already signed in: an account that has a studio goes to it; a Helm platform
             // operator (asked only when there is no studio) goes to HQ — never a new studio
@@ -1100,7 +1207,7 @@
         // never echo "already registered" / "not confirmed" (account enumeration): one answer
         const direct=(err&&(err.code==="invalid_credentials"||err.code==="account_locked"||err.code==="rate_limited"||err.code==="captcha_failed")) || (/^(Use at least|Include at least|Choose a)/.test(m));
         showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create the studio":"sign you in"}));
-      }finally{ capReset(cap); btn.textContent=submitLabel(); }
+      }finally{ if(!keepCap) capReset(cap); btn.textContent=submitLabel(); }
     });
   });
 </script>

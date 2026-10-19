@@ -1,29 +1,20 @@
-/* new-quote-dialog.js (window.HelmNewQuote) - the one guard in front of every "New quote".
+/* new-quote-dialog.js (window.HelmNewQuote) - the one-time link guard for "quotes?new=1".
  *
- * Owner audit (Oct 2026, items 7 + 8): "New quote" created a real quote on ONE click, and
- * opening /quotes?new=1 (or /dashboard#hb-new) created one on page load. A free trial may
- * only add 2 quotes, so one stray click - or one link someone sends you - used one up.
+ * Owner audit (Oct 2026, item 8): opening /quotes?new=1 (or /dashboard#hb-new) created a quote on page
+ * load, so a link someone sent you made one. r19 (owner): the "New quote" button itself now opens the
+ * quote flow directly (no name / type dialog, no in-progress prompt) - see ask() below.
  *
- *   HelmNewQuote.ask({ country })  -> Promise<null | { title, eventType }>
- *       A small dialog: event name (optional), event type (optional), Cancel / Create quote.
- *       Nothing is created until the user presses Create. Cancel and Escape resolve null (the
- *       backdrop does not dismiss it). A second ask() while one is open resolves null at once. The caller then calls BPStore.quotes.startBlank as before.
  *   HelmNewQuote.arm(href)          -> href with a one-time nonce (&nq=...) that Helm's own
  *       pages add to a "quotes?new=1" link. The nonce is kept in sessionStorage.
  *   HelmNewQuote.consume(search)    -> true only when the URL has new=1 AND the nonce Helm
  *       stored for this tab (then the stored nonce is dropped: one use, 10-minute life).
- *       A link from anywhere else (no / wrong nonce) never opens anything by itself.
- *
- * DOM built with createElement / textContent only (no HTML strings, no inline styles - CSP and
- * Trusted Types safe). Reuses the app dialog look (BPUI .bpui-overlay / .bpui-dialog) and
- * BPUI.modal for the focus trap and inert background.
+ *       A link from anywhere else (no / wrong nonce) never starts anything by itself.
+ *   HelmNewQuote.ask()              -> Promise<{ title: "", eventType: "" }> at once (compatibility only).
  */
 (function (G) {
   "use strict";
-  var doc = G.document;
   var NONCE_KEY = "helm.newQuoteNonce";
   var NONCE_TTL = 10 * 60 * 1000;
-  var NAME_MAX = 80;
 
   function ss() { try { return G.sessionStorage || null; } catch (e) { return null; } }
   function randomNonce() {
@@ -57,174 +48,13 @@
     return got === stored.n;
   }
 
-  function el(tag, attrs, text) {
-    var e = doc.createElement(tag);
-    if (attrs) for (var k in attrs) if (attrs[k] != null && attrs[k] !== false) e.setAttribute(k, attrs[k] === true ? "" : attrs[k]);
-    if (text != null) e.textContent = String(text);
-    return e;
-  }
-  function typeOptions(country) {
-    var N = G.HelmEventName;
-    try { if (N && typeof N.eventTypeOptions === "function") return N.eventTypeOptions(country || "", "", undefined); } catch (e) {}
-    return (N && N.EVENT_TYPE_LIST) || ["Wedding", "Reception", "Birthday", "Corporate", "Conference"];
-  }
-  function studioCountry() {
-    try { var t = G.BPStore && typeof G.BPStore.studioTax === "function" ? G.BPStore.studioTax() : null; return (t && t.country) || ""; } catch (e) { return ""; }
-  }
-
-  var CSS = ".nqd select{width:100%;box-sizing:border-box;min-height:40px;padding:8px 10px;border:1px solid var(--bpui-line);border-radius:8px;" +
-    "background:var(--bpui-bg);color:var(--bpui-ink);font:inherit}.nqd label{margin-top:10px}.nqd .bpui-actions{margin-top:16px}" +
-    ".nqd-list{display:grid;gap:8px;margin-top:12px}.nqd-list .bpui-btn{display:block;text-align:left;white-space:normal;height:auto;min-height:44px;line-height:1.35;padding:10px 12px;text-decoration:none;overflow-wrap:anywhere}";
-  var cssDone = false;
-  function css() { if (cssDone) return; cssDone = true; try { if (typeof G.__helmAdoptCss === "function") G.__helmAdoptCss(doc, CSS); } catch (e) {} }
-
-  var open = null;   // one dialog at a time (a double click must not stack two)
-  function ask(opts) {
-    opts = opts || {};
-    // review fix: a second caller while the dialog is open gets null (never the same picks), so two
-    // callers can never both go on to startBlank and create two quotes from one Create press
-    if (open) return Promise.resolve(null);
-    css();
-    // 0206: quotes still in progress? Offer to continue one first ("You have 2 quotes in progress").
-    // Only when the server list is available; otherwise (or on any error / after 2 s) straight to the dialog.
-    var F = G.BPStore && G.BPStore.flowProgress, R = G.HelmFlowResume;
-    var canAsk = !opts.skipResume && !!R && !!F && typeof F.list === "function" && typeof F.available === "function" && (function () { try { return !!F.available(); } catch (e) { return false; } })();
-    if (!canAsk) return createDialog(opts);
-    open = inProgressFirst(opts, F, R).then(function (go) {
-      if (go !== "new") { open = null; return null; }
-      return createDialog(opts);
-    }, function () { return createDialog(opts); });
-    return open;
-  }
-  function inProgressFirst(opts, F, R) {
-    var sub = G.BPStore && G.BPStore.subscription;
-    var lim = sub && typeof sub.limits === "function" ? Promise.resolve(sub.limits()).catch(function () { return null; }) : Promise.resolve(null);
-    var both = Promise.all([Promise.resolve(F.list({ scope: "mine", limit: 3, maxDays: R.DASH_DAYS || 60 })).catch(function () { return null; }), lim]);
-    var late = new Promise(function (res) { setTimeout(function () { res(null); }, 2000); });
-    return Promise.race([both, late]).then(function (got) {
-      var d = got && got[0], l = got && got[1];
-      if (!d || !Array.isArray(d.rows) || !d.rows.length) return "new";
-      var cap = l && l.trial === true ? (Number(l.cap) > 0 ? Number(l.cap) : 2) : 0;
-      var atCap = !!cap && (Number(l.used && l.used.quotes) || 0) >= cap;
-      return chooser(d, atCap, R);
-    });
-  }
-  // "You have 2 quotes in progress": Continue <quote> (up to 3) / Start a new one / Cancel. A free trial at its quote
-  // limit only gets Continue. Resolves "new" (go on to the create dialog) or null (continued / cancelled).
-  function chooser(d, atCap, R) {
-    return new Promise(function (resolve) {
-      var seq = Math.random().toString(36).slice(2, 8), id = "nqr-" + seq, n = Math.max(Number(d.total) || 0, d.rows.length);
-      var ov = el("div", { class: "bpui-overlay nqd-overlay", "data-bpui": "dialog", "data-bpui-keep": "" });
-      var form = el("form", { class: "bpui-dialog nqd nqd-resume", role: "dialog", "aria-modal": "true", "aria-labelledby": id + "-t", "aria-describedby": id + "-m", novalidate: "" });
-      form.appendChild(el("h2", { id: id + "-t" }, "You have " + n + " quote" + (n === 1 ? "" : "s") + " in progress"));
-      form.appendChild(el("p", { id: id + "-m" }, atCap
-        ? "Your free trial has used its new quotes. Continue a quote in progress, or choose a plan to add more."
-        : "Continue where you left off, or start a new quote."));
-      var list = el("div", { class: "nqd-list" });
-      d.rows.slice(0, 3).forEach(function (r, i) {
-        var v = R.fromServer(r, true);
-        var a = el("a", { class: "bpui-btn" + (i === 0 ? " bpui-primary" : ""), href: R.href(v) }, "Continue " + v.name + " (" + R.stepText(v) + ")");
-        a.addEventListener("click", function () { close(null); });
-        list.appendChild(a);
-      });
-      form.appendChild(list);
-      var acts = el("div", { class: "bpui-actions" });
-      var cancel = el("button", { type: "button", class: "bpui-btn", "data-close": "" }, "Cancel");
-      acts.appendChild(cancel);
-      if (!atCap) { var neu = el("button", { type: "submit", class: "bpui-btn" }, "Start a new one"); acts.appendChild(neu); }
-      form.appendChild(acts); ov.appendChild(form);
-      var done = false, U = G.BPUI;
-      function onKey(e) { if (e.key === "Escape" || e.key === "Esc") { e.preventDefault(); close(null); } }
-      function close(val) {
-        if (done) return; done = true;
-        try { if (U && U.modal && U.modal.close) U.modal.close(ov); } catch (e) {}
-        try { doc.removeEventListener("keydown", onKey, true); } catch (e) {}
-        if (ov.parentNode) ov.parentNode.removeChild(ov);
-        resolve(val);
-      }
-      form.addEventListener("submit", function (e) { e.preventDefault(); if (!atCap) close("new"); });
-      cancel.addEventListener("click", function () { close(null); });
-      (doc.body || doc.documentElement).appendChild(ov);
-      var trapped = false;
-      try { if (U && U.modal && U.modal.open) { U.modal.open(ov); trapped = true; } } catch (e) {}
-      if (!trapped) doc.addEventListener("keydown", onKey, true);
-      try { var f = list.firstChild; if (f && f.focus) f.focus(); } catch (e) {}
-    });
-  }
-  function createDialog(opts) {
-    open = new Promise(function (resolve) {
-      var seq = Math.random().toString(36).slice(2, 8), id = "nqd-" + seq;
-      var ov = el("div", { class: "bpui-overlay nqd-overlay", "data-bpui": "dialog", "data-bpui-keep": "" });
-      var form = el("form", { class: "bpui-dialog nqd", role: "dialog", "aria-modal": "true", "aria-labelledby": id + "-t", "aria-describedby": id + "-m", novalidate: "" });
-      form.appendChild(el("h2", { id: id + "-t" }, opts.title || "Start a new quote?"));
-      var msg = el("p", { id: id + "-m" }, opts.message || "This adds a new quote to your studio. You can change these later.");
-      form.appendChild(msg);
-
-      form.appendChild(el("label", { for: id + "-n" }, "Event name (optional)"));
-      var name = el("input", { id: id + "-n", type: "text", autocomplete: "off", maxlength: String(NAME_MAX), placeholder: "e.g. Sharma wedding" });
-      form.appendChild(name);
-      var err = el("p", { id: id + "-e", class: "bpui-field-err", hidden: true });
-      form.appendChild(err);
-
-      form.appendChild(el("label", { for: id + "-y" }, "Event type (optional)"));
-      var type = el("select", { id: id + "-y" });
-      type.appendChild(el("option", { value: "" }, "Choose later"));
-      typeOptions(opts.country != null ? opts.country : studioCountry()).forEach(function (t) { type.appendChild(el("option", { value: t }, t)); });
-      form.appendChild(type);
-
-      var acts = el("div", { class: "bpui-actions" });
-      var cancel = el("button", { type: "button", class: "bpui-btn", "data-close": "" }, "Cancel");
-      var ok = el("button", { type: "submit", class: "bpui-btn bpui-primary" }, opts.okLabel || "Create quote");
-      acts.appendChild(cancel); acts.appendChild(ok); form.appendChild(acts);
-      ov.appendChild(form);
-
-      var done = false, U = G.BPUI;
-      function onKey(e) { if (e.key === "Escape" || e.key === "Esc") { e.preventDefault(); close(null); } }
-      function close(val) {
-        if (done) return; done = true;
-        try { if (U && U.modal && U.modal.close) U.modal.close(ov); } catch (e) {}
-        try { doc.removeEventListener("keydown", onKey, true); } catch (e) {}
-        if (ov.parentNode) ov.parentNode.removeChild(ov);
-        open = null;
-        resolve(val);
-      }
-      function fail(msg) {
-        err.textContent = msg; err.hidden = false;
-        name.setAttribute("aria-invalid", "true"); name.setAttribute("aria-describedby", id + "-e"); name.focus();
-      }
-      name.addEventListener("input", function () { if (!err.hidden) { err.hidden = true; name.removeAttribute("aria-invalid"); } });
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        var t = String(name.value || "").trim().replace(/\s+/g, " ");
-        if (t.length > NAME_MAX) return fail("Keep the name to " + NAME_MAX + " characters or fewer.");
-        var N = G.HelmEventName, et = String(type.value || "").trim();
-        try { if (et && N && N.canonEventType) et = N.canonEventType(et) || et; } catch (x) {}
-        close({ title: t, eventType: et });
-      });
-      cancel.addEventListener("click", function () { close(null); });
-      // review fix: no backdrop dismiss (same rule as BPUI.prompt - it has a typed field). The second
-      // press of a double click on "New quote" lands on the new backdrop and used to close it again.
-
-      (doc.body || doc.documentElement).appendChild(ov);
-      var trapped = false;
-      try { if (U && U.modal && U.modal.open) { U.modal.open(ov); trapped = true; } } catch (e) {}
-      // BPUI.modal Escape clicks [data-close]; without BPUI handle Escape here
-      if (!trapped) doc.addEventListener("keydown", onKey, true);
-      try { name.focus(); } catch (e) {}
-      // free trial only: say how many of the trial's new quotes are left (paid studios: no change)
-      if (!opts.message) try {
-        var sub = G.BPStore && G.BPStore.subscription;
-        if (sub && typeof sub.limits === "function") Promise.resolve(sub.limits()).then(function (r) {
-          if (done || !r || r.trial !== true) return;
-          var cap = Number(r.cap) > 0 ? Number(r.cap) : 2, used = Number(r.used && r.used.quotes) || 0, left = Math.max(0, cap - used);
-          msg.textContent = left > 0
-            ? "Free trial: a new quote uses 1 of your " + cap + " (" + left + " left). Deleting a quote does not give it back."
-            : "Your free trial has used its " + cap + " new quotes. Choose a plan to add more.";
-        }).catch(function () {});
-      } catch (e) {}
-    });
-    return open;
-  }
+  // r19 (owner): "New quote" opens the quote flow directly - the pre-create dialog (event name / type) and the
+  // "You have N quotes in progress" prompt are gone (quotes are not capped in the free trial any more, 0211; the
+  // dashboard "Continue where you left off" card and the Quotes "In progress" tab stay). Callers go straight to
+  // BPStore.quotes.startBlank, which reuses the person's untouched blank quote (0075), and empty drafts move to the
+  // Deleted shelf after a day (0141 / 0208) - so no empty rows pile up. ask() is kept for an older cached page
+  // that still calls it: it answers at once with no picks (nothing is shown).
+  function ask() { return Promise.resolve({ title: "", eventType: "" }); }
 
   G.HelmNewQuote = { ask: ask, arm: arm, consume: consume, isNewQuoteHref: isNewQuoteHref, NONCE_KEY: NONCE_KEY, NONCE_TTL: NONCE_TTL };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -148,23 +148,21 @@ t('B5: Control Center settings search - no trial-off page hits; dropdown fits th
 });
 
 // ---------------------------------------------------------------------------------------------- B22
-t('B22: every "New quote" asks first (trial: says it uses 1 of the 2 quotes) - nothing created on one click', () => {
+t('B22 + r19: quotes are not capped in the trial - "New quote" opens the flow directly (no dialog, no "1 of 2" text)', () => {
   const NQ = r('public/new-quote-dialog.js');
-  assert.match(NQ, /Free trial: a new quote uses 1 of your " \+ cap/);
+  assert.doesNotMatch(NQ, /Free trial: a new quote uses|used its|used\.quotes/);
   const dash = r('public/dashboard.html'), quotes = r('public/quotes.html');
   for (const [name, src] of [['dashboard', dash], ['quotes', quotes], ['shell-b', SB]]) {
-    const a = src.indexOf('HelmNewQuote.ask(') >= 0 ? src.indexOf('HelmNewQuote.ask(') : src.indexOf('NQ.ask(');
-    const b = src.indexOf('startBlank(');
-    assert.ok(a > 0 && b > a, name + ': the dialog comes before startBlank');
+    assert.ok(src.indexOf('startBlank(') > 0, name + ': creates through startBlank (reuses an untouched blank quote)');
+    assert.ok(src.indexOf('HelmNewQuote.ask(') < 0 && src.indexOf('NQ.ask(') < 0, name + ': no pre-create dialog');
   }
-  assert.match(SB, /if \(!pick\) \{ creating = false; return; \}/);
 });
 
 // ---------------------------------------------------------------------------------------------- B25
 const TS = require('../public/trial-signup.js');
-t('B25: "What\'s in your free trial" box on the trial sign-up (caps, test mode, sample data, N days)', () => {
+t('B25: "What\'s in your free trial" box on the trial sign-up (caps, e-mail / WhatsApp rule, sample data, N days)', () => {
   const all = TS.TRIAL_KEY.map((k) => k.t + ' ' + k.s).join(' ') + ' ' + TS.TRIAL_ALL.join(' ');
-  assert.match(all, /8 days free/); assert.match(all, /sample data/i); assert.match(all, /test mode/i); assert.match(all, /up to 2 new records/);
+  assert.match(all, /8 days free/); assert.match(all, /sample data/i); assert.match(all, /E-mail to your clients works/); assert.match(all, /WhatsApp and SMS unlock on a plan/); assert.match(all, /up to 2 new records/);   // 0212: e-mail works
   assert.match(TSU, /What’s in your free trial/);
   assert.match(fnSrc(TSU, 'trialTerms'), /var show = mode === "signup" && !joining && !direct(?: && TRIAL_KEY\.length > 0)?;/);   // + 0207 (trial-facts.js)
   assert.match(r('public/login.html'), /trial-terms\.css\?v=\d+/);

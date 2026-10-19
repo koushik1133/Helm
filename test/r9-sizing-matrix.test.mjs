@@ -168,7 +168,7 @@ assert.match(bjs, /if\(guests && PRICING\.guests==null\)\{ PRICING\.guests=guest
 assert.match(bjs, /renderPrice\(\); syncChairsPanel\(\); \}catch\(e\)\{\}   \/\/ R9/);
 for (const f of ['public/builder.html', 'public/flow.html', 'public/capture.html']) {
   const h = rd(f); if (/event-sizing\.js/.test(h)) assert.match(h, /event-sizing\.js\?v=5/, f);
-  if (/flow-layout-sync\.js/.test(h)) assert.match(h, /flow-layout-sync\.js\?v=4/, f);
+  if (/flow-layout-sync\.js/.test(h)) assert.match(h, /flow-layout-sync\.js\?v=6/, f);
 }
 console.log(`r9-sizing-matrix: ${n} generated layouts + sizing cases OK`);
 

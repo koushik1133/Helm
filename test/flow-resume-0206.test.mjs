@@ -222,34 +222,13 @@ await t('workspace banner + flow notice', () => {
   assert.match(n.textContent, /You stopped at Venue·Go to top/); n.all().find((x) => x.tagName === 'BUTTON').click(); assert.equal(top, 1);
 });
 
-await t('New quote with quotes in progress: "You have 3 quotes in progress" - Continue / Start a new one; trial at its cap: Continue only', async () => {
-  for (const [lim, canNew] of [[{ trial: false }, true], [{ trial: true, cap: 2, used: { quotes: 2 } }, false]]) {
-    const env = makeWin('/dashboard.html'); load(env, FR_SRC); load(env, NQ_SRC);
-    const S = fakeStore(); await S.init(); S.subscription = { limits: async () => lim }; env.win.BPStore = S;
-    const p = env.win.HelmNewQuote.ask({}); await flush();
-    assert.equal(await env.win.HelmNewQuote.ask({}), null, 'double click: one dialog');
-    const ov = env.doc.body.childNodes.find((n) => n.cls.has('bpui-overlay')); assert.ok(ov);
-    assert.match(ov.textContent, /You have 3 quotes in progress/);
-    const links = ov.all().filter((x) => x.tagName === 'A'); assert.equal(links.length, 2);
-    assert.match(links[0].textContent, /^Continue WED_HYD_300 \(step 4 of 8 · Venue\)$/); assert.equal(links[0].href, 'flow.html?quote=' + Q1 + '#sec-venue');
-    const startNew = ov.all().find((x) => x.tagName === 'BUTTON' && x.textContent === 'Start a new one');
-    assert.equal(!!startNew, canNew);
-    if (canNew) {
-      ov.all().find((x) => x.tagName === 'FORM').fire('submit'); await flush();
-      const ov2 = env.doc.body.childNodes.find((n) => n.cls.has('bpui-overlay')); assert.ok(ov2 && ov2.all().some((x) => x.textContent === 'Create quote'), 'then the normal create dialog');
-      ov2.all().find((x) => x.tagName === 'BUTTON' && x.textContent === 'Cancel').click();
-    } else {
-      assert.match(ov.textContent, /free trial has used its new quotes/);
-      ov.all().find((x) => x.tagName === 'BUTTON' && x.textContent === 'Cancel').click();
-    }
-    assert.equal(await p, null);
-  }
-  // nothing in progress -> straight to the create dialog
+await t('r19: New quote no longer asks about quotes in progress (the dashboard card + In progress tab stay)', async () => {
   const env = makeWin('/dashboard.html'); load(env, FR_SRC); load(env, NQ_SRC);
-  const S = fakeStore({ list: () => ({ total: 0, rows: [] }) }); await S.init(); env.win.BPStore = S;
-  const p = env.win.HelmNewQuote.ask({}); await flush();
-  const ov = env.doc.body.childNodes.find((n) => n.cls.has('bpui-overlay')); assert.ok(ov.all().some((x) => x.textContent === 'Create quote'));
-  ov.all().find((x) => x.tagName === 'BUTTON' && x.textContent === 'Cancel').click(); assert.equal(await p, null);
+  let listed = 0; const S = fakeStore({ list: () => { listed++; return { total: 3, rows: [row()] }; } }); await S.init(); env.win.BPStore = S;
+  const pick = await env.win.HelmNewQuote.ask({}); await flush();
+  assert.deepEqual(JSON.parse(JSON.stringify(pick)), { title: '', eventType: '' });
+  assert.equal(env.doc.body.childNodes.filter((n) => n.cls && n.cls.has('bpui-overlay')).length, 0, 'no "You have 3 quotes in progress" dialog');
+  assert.equal(listed, 0, 'the in-progress list is not asked for on New quote');
 });
 
 await t('pages: Quotes "In progress (N)" tab, dashboard block, workspace banner, flow hooks, store helpers, pins', () => {

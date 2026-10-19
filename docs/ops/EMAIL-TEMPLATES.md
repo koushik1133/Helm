@@ -4,7 +4,8 @@ These are the e-mails Supabase Auth sends for Helm: staff invites (when no Resen
 `supabase/functions/invite-mailer` sends through Supabase Auth), sign-in links, password resets,
 sign-up confirmation, e-mail changes and reauthentication codes. The templates in
 `docs/ops/email-templates/` (2026-10 redesign) use the current Helm logo (hosted PNG
-`https://www.helm.events/email/helm-logo.png`, so it only appears once this branch is deployed),
+`https://www.helm.events/email/helm-logo-v3.png` = the compass-H app tile, 80px = 2x the 40px display,
+alt "Helm Events"; the file name is versioned because image proxies cache by URL - see r19 note below),
 emerald brand `#0d8a5c`, ink `#101511`, a clean 600px card with an emerald top edge, one big button,
 preheader text and the footer "Helm Events · helm.events". They are table-based with inline CSS, so
 they render in Gmail, Outlook and Apple Mail, and switch to a dark card in dark mode. No tracking pixels.
@@ -156,3 +157,22 @@ For a reset link, Helm still notices the recovery session and moves them to `/re
 If step 2 fails with a "current password" error, check **Authentication → Providers → Email →
 "Require current password when updating"**. Supabase only asks for it when the account already has a
 password, and a new invitee has none. Report the error if it still appears.
+
+## 7. r19 (2026-10-18): compass-H logo in every e-mail
+
+Why the e-mails kept the old two-pill mark: the compass-H art was written over
+`/email/helm-logo.png` in place, but `/*.png` is served `public, max-age=31536000, immutable` and
+Gmail / Outlook / Apple image proxies cache by URL, so they kept serving the old picture. r19 points
+every e-mail at a NEW file name, `https://www.helm.events/email/helm-logo-v3.png` (80x80 PNG = 2x the
+40px display, rendered from `public/brand/helm-email-emerald.svg`; it is a dark-green tile with a
+white H and mint compass, so it reads on light and dark backgrounds; alt "Helm Events"). The old
+`helm-logo.png` stays in place so mail already sent keeps resolving. Rule: never overwrite an e-mail
+image in place - add `-v4` etc. and change `LOGO_URL` in `supabase/functions/_shared/email-layout.mjs`.
+
+Owner steps after the site deploy (the PNG must be live first - open the URL above to check):
+1. Re-paste the BODY of all eight auth templates (subjects unchanged) from `docs/ops/email-templates/`:
+   Confirm signup, Invite user, Magic link, Change email address, Reset password, Reauthentication,
+   and under Security notifications: Password changed, Email address changed. Staging first, then prod.
+2. Redeploy the edge functions that bundle `_shared/email-layout.mjs`:
+   `supabase functions deploy invite-mailer welcome-mailer pkg-client-notify billing-reminder client-mailer invite-signup send-otp wa-proposal`
+   (staging first, then prod).

@@ -38,6 +38,12 @@
 #app.cs-on .cs-nav a:focus-visible{outline:none;box-shadow:var(--focus-halo,0 0 0 3px rgba(4,120,87,.2))}
 #app.cs-on .cs-nav a[aria-current="page"]{background:color-mix(in srgb,var(--accent,#047857) 10%,transparent);color:var(--accent,#047857);font-weight:600}
 .cs-mnav{display:none}
+/* R19: Help -> User manual (new tab) under the section list; stays visible on phones */
+.cs-help{display:flex;flex-direction:column;gap:1px;padding-top:var(--sp-3,12px);border-top:1px solid var(--line,#e8e3db)}
+#app.cs-on .cs-help-a{display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:10px;align-items:center;padding:7px 10px;border-radius:var(--r-ctl,8px);text-decoration:none;color:var(--ink-2,#3d3842);font-size:var(--fs-sm,13px);line-height:1.35}
+#app.cs-on .cs-help-a small{grid-column:2;font-size:var(--fs-xs,11px);color:var(--ink-3,#6b6573)}
+#app.cs-on .cs-help-a:hover{background:var(--panel-2,#f1eee9);color:var(--ink,#1c1a1f)}
+#app.cs-on .cs-help-a:focus-visible{outline:none;box-shadow:var(--focus-halo,0 0 0 3px rgba(4,120,87,.2))}
 .cs-ico{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
 #app.cs-on .cs-nav a[aria-current="page"] .cs-ico{opacity:1}
 /* a section with unsaved edits (the bar itself only shows on the section on screen) */
