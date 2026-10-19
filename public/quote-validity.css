@@ -1,0 +1,37 @@
+/* quote-validity.css - r23 (0262) "Valid until" banner (client pages), staff line (quote flow / event workspace),
+   list pill (Quotes) and the Control Center card. Theme tokens with safe fallbacks; 375 px friendly. */
+.qv-banner,.qv-staff{--qv-ok-bg:var(--sp-ok-bg,#e3f6ea);--qv-ok-fg:var(--safe-text,#0f7a43);
+  --qv-due-bg:var(--sp-due-bg,#fff4dc);--qv-due-fg:var(--warn-text,#8a5a00);
+  --qv-bad-bg:var(--sp-bad-bg,#fdeaea);--qv-bad-fg:var(--bad-text,#b42318);
+  border-radius:12px;border:1px solid transparent;padding:12px 14px;margin:0 0 14px;line-height:1.45;font-size:14px}
+.qv-banner.qv-ok,.qv-staff.qv-ok{background:var(--qv-ok-bg);border-color:color-mix(in srgb,var(--qv-ok-fg) 22%,transparent)}
+.qv-banner.qv-due,.qv-staff.qv-due{background:var(--qv-due-bg);border-color:color-mix(in srgb,var(--qv-due-fg) 25%,transparent)}
+.qv-banner.qv-bad,.qv-staff.qv-bad{background:var(--qv-bad-bg);border-color:color-mix(in srgb,var(--qv-bad-fg) 25%,transparent)}
+.qv-banner .qv-lead{margin:0;font-weight:600;color:var(--ink,#1c2230)}
+.qv-banner .qv-sub{margin:4px 0 0;color:var(--ink-2,#3d4555);font-size:13.5px}
+.qv-banner .qv-sub:empty{display:none}
+.qv-banner .qv-req{margin-top:10px;min-height:44px}
+.qv-staff .qv-line{margin:0;color:var(--ink,#1c2230)}
+.qv-staff .qv-k{color:var(--ink-2,#3d4555)}
+.qv-staff .qv-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}
+.qv-staff .qv-actions .btn{min-height:36px}
+.qv-staff .qv-date{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2,#3d4555)}
+.qv-staff .qv-date input{min-height:36px;padding:0 8px;border:1px solid var(--line-strong,#cfd6e4);border-radius:8px;background:var(--panel,#fff);color:var(--ink,#1c2230);font:inherit}
+.qv-staff .qv-msg{margin:6px 0 0;font-size:13px;color:var(--qv-bad-fg)}
+.qv-staff .qv-msg:empty{display:none}
+.qv-staff .qv-log{margin-top:8px;font-size:12.5px;color:var(--ink-2,#3d4555)}
+.qv-staff .qv-log summary{cursor:pointer;min-height:28px;display:inline-flex;align-items:center}
+.qv-staff .qv-log ul{margin:4px 0 0;padding-left:18px}
+/* Quotes list pill: amber "expires soon" (red expired + grey use the shared .hs-overdue / .hs-draft tones) */
+.hs-pill.qv-due{background:var(--sp-due-bg,#fff4dc);color:var(--sp-due-fg,#8a5a00)}
+.qv-pillwrap{display:block;margin-top:4px}
+/* Control Center card */
+#qvCard .qvchk{display:flex;align-items:center;gap:8px;min-height:32px;font-size:13.5px;color:var(--ink,#1c2230);margin:2px 0;text-transform:none;letter-spacing:normal;font-weight:500}
+#qvCard .qvchk input{width:16px;height:16px;margin:0;accent-color:var(--accent,#0f7a43)}
+#qvCard .qvapply{margin-top:12px;padding-top:12px;border-top:1px solid var(--line,#e3e8f2)}
+@media (max-width:480px){
+  .qv-staff .qv-actions{flex-direction:column;align-items:stretch}
+  .qv-staff .qv-date{justify-content:space-between}
+  .qv-banner .qv-req{width:100%}
+}
+@media print{.qv-banner .qv-req{display:none}}

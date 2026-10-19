@@ -266,6 +266,7 @@
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=15">
+<link rel="stylesheet" href="quote-validity.css?v=1">
 <script src="/shell-proto.js?v=39" id="shellProto"></script>
 </head>
 <body>
@@ -381,6 +382,28 @@
       </fieldset>
       <p class="mnote s-d2c171b">Links you already sent count from when they were sent, so any older than the limit stop working as soon as you save. Switching this off, or raising the number, makes them work again. To give someone a fresh link, send it again (Send approval link, publish the proposal again, or assign the crew member a task). Anyone opening an expired link sees the usual “this link has expired — please contact the studio for a new one” page.</p>
       <div class="actions"><button type="button" class="btn primary" id="lx_save">Save link expiry</button></div>
+    </div>
+
+    <!-- r23 (0262) quote "Valid until" - quote-validity.js fills it; hidden until the server answers -->
+    <div class="card" id="qvCard" hidden>
+      <h3>Quote validity</h3>
+      <p class="mnote">Every new quote gets a "Valid until" date. Your client sees it on their quote and booklet, gets a reminder before it ends, and after it ends sees "This quote has expired - ask us for an updated one" with a button that tells you. Anyone who can edit quotes can extend a quote with one click.</p>
+      <p class="mnote" id="qv_ro" hidden>Read-only: only a studio admin (or someone allowed to edit Control Center) can change these.</p>
+      <label class="qvchk" for="qv_on"><input type="checkbox" id="qv_on"> Give new quotes a valid-until date</label>
+      <div class="grid">
+        <div class="fld"><label for="qv_days">Quotes are valid for (days)</label><input id="qv_days" type="number" min="1" max="365" step="1" inputmode="numeric" placeholder="14" data-hardened="1"></div>
+        <div class="fld"><label for="qv_rem">Remind before it ends (days)</label><input id="qv_rem" inputmode="numeric" autocomplete="off" placeholder="3, 1" maxlength="40" aria-describedby="qv_rem_help"><p class="mnote" id="qv_rem_help">Days before the last day, e.g. 3, 1 (0 = on the last day). Up to 5.</p></div>
+      </div>
+      <label class="qvchk" for="qv_lock"><input type="checkbox" id="qv_lock"> An expired quote can't be approved by the client</label>
+      <label class="qvchk" for="qv_over"><input type="checkbox" id="qv_over"> Staff may pick a custom date on a quote (admins always can)</label>
+      <label class="qvchk" for="qv_stu"><input type="checkbox" id="qv_stu"> Remind the studio in the bell</label>
+      <label class="qvchk" for="qv_cli"><input type="checkbox" id="qv_cli"> E-mail the client a reminder (sent once client e-mail is switched on)</label>
+      <div id="qv_msg" role="status" aria-live="polite"></div>
+      <div class="actions"><button type="button" class="btn primary" id="qv_save">Save quote validity</button></div>
+      <div class="qvapply" id="qv_apply_row" hidden>
+        <p class="mnote" id="qv_apply_note"></p>
+        <button type="button" class="btn" id="qv_apply">Apply to open quotes…</button>
+      </div>
     </div>
 
     <!-- "Hide amounts" privacy PIN (0157) - privacy-pin-settings.js fills it; hidden until the server answers -->
@@ -827,7 +850,7 @@
 <script src="config.js?v=106"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=271"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script>
 <script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -848,13 +871,13 @@
 <script src="venues-admin.js?v=9"></script>
 <script src="studio-templates-core.js?v=4"></script>
 <script src="studio-templates.js?v=13"></script>
-<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script>
+<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script><script src="quote-validity.js?v=1"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
 <script src="trial-demo.js?v=17"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
-<script src="search-catalog.js?v=7"></script>
-<script src="control-split.js?v=21"></script>
+<script src="search-catalog.js?v=8"></script>
+<script src="control-split.js?v=22"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
