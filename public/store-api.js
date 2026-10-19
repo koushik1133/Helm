@@ -10035,7 +10035,14 @@ window.HelmUrl = HelmUrl;
     "@media print{.bpui-toasts,.bpui-offline,.bpui-boot-overlay{display:none!important}}",
     ".bpui-capnote{display:inline-block;margin:0 8px;font-size:12.5px;line-height:1.3;color:var(--bpui-ink-2);vertical-align:middle}",
     ".bpui-caplink{font-weight:700;color:inherit;text-decoration:underline}",
-    ".bpui-capnote.is-full{color:var(--bpui-warn-ink);background:var(--bpui-warn-bg);border:1px solid var(--bpui-warn-line);border-radius:999px;padding:2px 10px}",
+    /* r20 cap note: a quiet line of its own BELOW a button row (never between a split button and its caret) */
+    ".bpui-capnote.is-below{display:block;flex:1 0 100%;width:100%;margin:2px 0 0;font-size:12px;text-align:left;white-space:normal}",
+    ".bpui-capnote.is-full .bpui-caplink{color:var(--bpui-accent);text-decoration:none;white-space:nowrap}",
+    ".bpui-capnote.is-full .bpui-caplink:hover{text-decoration:underline}",
+    /* soft-off at the cap: looks off but still takes the click (to say why); the next-code chip is hidden */
+    "[data-cap-soft=\"1\"][aria-disabled=true]{opacity:.55;cursor:not-allowed;filter:none!important;box-shadow:none!important}",
+    "[data-cap-soft=\"1\"][aria-disabled=true] *{transform:none!important}",
+    "[data-cap-off=\"1\"] #nextName,[data-cap-off=\"1\"] .hd-code{display:none!important}",
   ].join("\n");
   function injectCSS() {
     if (doc.__bpuiStyle) return;
@@ -10851,21 +10858,54 @@ window.HelmUrl = HelmUrl;
     var u = Math.min(c.used, c.cap) + " of " + c.cap + " " + (nouns || "new records") + " used";
     return c.full ? "Free trial: " + u + ". Choose a plan to add more." : "Free trial: " + u + ".";
   }
-  // capGate(buttons, entity, nouns) -> Promise<cap|null>. At the cap the add buttons are switched off (only the ones
-  // this turned off are ever switched back on) and a short note sits after the first one; under it the note says
-  // how many are used. Re-run after every add / load so the state follows the server.
-  function capGate(btns, entity, nouns) {
+  // capGate(buttons, entity, nouns, opts) -> Promise<cap|null>. At the cap the add buttons are switched off (only the
+  // ones this turned off are ever switched back on) and a short note follows the first one; under it the note says how
+  // many are used. Re-run after every add / load so the state follows the server.
+  // r20 cap note (owner): the note never sits inside a split button (between "New quote" and its caret) - in a button
+  // row (.hd-acts) it is a quiet line of its own below the row: "Free trial · 2 of 2 new quotes used · Choose a plan →"
+  // (teammates: "Ask your studio admin to choose a plan"). opts.soft: at the cap the button only LOOKS off
+  // (aria-disabled + data-cap-soft) so its own click handler can show the friendly cap toast; the caller must check
+  // data-cap-off before creating. opts.offTitle: its tooltip at the cap.
+  function capNoteFill(note, c, nouns, full) {
+    var u = "Free trial \u00b7 " + Math.min(c.used, c.cap) + " of " + c.cap + " " + (nouns || "new records") + " used";
+    var role = null;
+    try { role = global.BPStore && global.BPStore.auth && global.BPStore.auth.cachedRole ? global.BPStore.auth.cachedRole() : null; } catch (e) {}
+    if (!full) { note.textContent = u; return; }
+    if (role && role !== "admin") { note.textContent = u + " \u00b7 Ask your studio admin to choose a plan"; return; }
+    note.textContent = u + " \u00b7 ";
+    note.appendChild(h("a", { href: capHref(), class: "bpui-caplink" }, "Choose a plan \u2192"));
+  }
+  function capGate(btns, entity, nouns, opts) {
+    opts = opts || {};
     var list = (Array.isArray(btns) ? btns : [btns]).filter(function (b) { return b && b.nodeType === 1; });
     return trialCap(entity).then(function (c) {
       var full = !!(c && c.full), txt = capText(c, nouns);
       list.forEach(function (b, i) {
-        if (full) { if (!b.disabled) { b.disabled = true; b.setAttribute("data-cap-off", "1"); } b.setAttribute("title", txt); }
-        else if (b.getAttribute("data-cap-off") === "1") { b.disabled = false; b.removeAttribute("data-cap-off"); b.removeAttribute("title"); }
+        if (full && opts.soft) {
+          if (!b.disabled && b.getAttribute("data-cap-off") !== "1") {
+            var t0 = b.getAttribute("title"); if (t0 != null) b.setAttribute("data-cap-title", t0);
+            b.setAttribute("data-cap-off", "1"); b.setAttribute("data-cap-soft", "1"); b.setAttribute("aria-disabled", "true");
+          }
+          b.setAttribute("title", opts.offTitle || txt);
+        }
+        else if (full) { if (!b.disabled) { b.disabled = true; b.setAttribute("data-cap-off", "1"); } b.setAttribute("title", txt); }
+        else if (b.getAttribute("data-cap-off") === "1") {
+          if (b.getAttribute("data-cap-soft") === "1") { b.removeAttribute("data-cap-soft"); b.removeAttribute("aria-disabled"); }
+          else b.disabled = false;
+          b.removeAttribute("data-cap-off");
+          var t1 = b.getAttribute("data-cap-title");
+          if (t1 != null) { b.setAttribute("title", t1); b.removeAttribute("data-cap-title"); } else b.removeAttribute("title");
+        }
         var id = (b.id || entity + "_add" + i) + "_capnote", note = doc.getElementById(id);
         if (i > 0 || !c) { if (note && i === 0) note.remove(); return; }
         injectCSS();
-        if (!note) { note = h("span", { id: id, class: "bpui-capnote", role: "status" }); b.insertAdjacentElement("afterend", note); }
-        note.textContent = txt; note.classList.toggle("is-full", full);
+        var row = b.closest ? b.closest(".hd-acts") : null;
+        var after = (b.closest && b.closest(".hd-split, .hd-create-slot, .hb-split")) || b;
+        if (!note) note = h("span", { id: id, class: "bpui-capnote", role: "status" });
+        if (row) { if (note.parentNode !== row || row.lastElementChild !== note) row.appendChild(note); }
+        else if (note.previousElementSibling !== after) after.insertAdjacentElement("afterend", note);
+        note.classList.toggle("is-below", !!row);
+        capNoteFill(note, c, nouns, full); note.classList.toggle("is-full", full);
       });
       return c;
     });

@@ -327,7 +327,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script><script src="flow-resume.js?v=4" data-mount></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=255"></script><script src="flow-resume.js?v=4" data-mount></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=23"></script>
 <script src="getting-started.js?v=12"></script>
@@ -416,6 +416,9 @@
   }
 
   let canCreate = false, canDelete = false;
+  // r20 cap note: at the free-trial cap New quote only LOOKS off (aria-disabled), so a click says why (cap toast)
+  const CAP_KEEP = "You can still open and edit your quotes and the sample events.";
+  const CAP_OPTS = { soft: true, offTitle: "Free trial limit reached \u2014 choose a plan to add more quotes" };
   async function load() {
     await BPStore.init(); setBadge(BPStore.mode());
     $("#nameEg").textContent = eg() + "-01";
@@ -455,7 +458,7 @@
     try { if ((canCreate || canDelete) && !(await BPStore.auth.canEditArea("quotes"))) { canCreate = false; canDelete = false; } } catch (e) { canCreate = false; canDelete = false; }
     $("#createBtn").hidden = !canCreate;                    // only create-capable roles can start new quotes
     // r20 (0238): free trial "1 of 2 new quotes used" next to the button; off at 2 of 2 (paid studio: nothing)
-    if (canCreate && window.BPUI && BPUI.capGate) BPUI.capGate([$("#createBtn")], "quotes", "new quotes").catch(() => {});
+    if (canCreate && window.BPUI && BPUI.capGate) BPUI.capGate([$("#createBtn")], "quotes", "new quotes", CAP_OPTS).catch(() => {});
     if (listRes.status === "rejected") {
       const err = listRes.reason;
       const box = BPUI.loadError($("#elist"), err, load, { what: "your quotes" });
@@ -719,6 +722,7 @@
   }
   $("#createBtn").addEventListener("click", async () => {
     const btn = $("#createBtn");
+    if (btn.getAttribute("data-cap-off") === "1") { if (window.BPUI && BPUI.capToast) BPUI.capToast({ hint: "trial_cap" }, "new quotes", CAP_KEEP); return; }
     if (btn.disabled) return;
     // r19 (owner): "New quote" opens the quote flow directly - no name / type dialog, no in-progress prompt
     // (the top-bar "New quote" and /dashboard#hb-new also land here). startBlank reuses my untouched blank
@@ -738,7 +742,7 @@
       });
     } catch (err) {
       if (BPUI.capToast && BPUI.capToast(err, "new quotes", "You can still open and edit your quotes and the sample events.")) {
-        if (BPUI.capGate) BPUI.capGate([btn], "quotes", "new quotes").catch(() => {});
+        if (BPUI.capGate) BPUI.capGate([btn], "quotes", "new quotes", CAP_OPTS).catch(() => {});
         return;
       }
       BPUI.toast(BPUI.friendlyError(err, { action: "start a quote" }), { type: "err" });

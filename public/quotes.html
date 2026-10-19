@@ -278,7 +278,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=3"></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=255"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=3"></script>
 <script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
 <script src="tour.js?v=23"></script>
 <script>
@@ -1228,14 +1228,14 @@
   // startBlank reuses MY untouched blank quote (0075), so repeated clicks never pile up empty rows; empty drafts go
   // to the Deleted shelf after a day (0141 / 0208). r20 (owner, 0238): a free trial makes at most 2 new quotes again -
   // the button says "Free trial: 1 of 2 new quotes used" and is off at 2 of 2; a refused 3rd quote says why.
-  function gateQuoteCap(){ if(canCreate && window.BPUI && BPUI.capGate) BPUI.capGate([$("#newBtn")],"quotes","new quotes").catch(()=>{}); }
+  function gateQuoteCap(){ if(canCreate && window.BPUI && BPUI.capGate) BPUI.capGate([$("#newBtn")],"quotes","new quotes",{ soft: true, offTitle: "Free trial limit reached \u2014 choose a plan to add more quotes" }).catch(()=>{}); }
   async function startNewQuote(btn, open){
     if(open==="builder"){
       const cur = (quotes||[]).find(x => x && x.id && x.status==="quote" && !x.archivedAt && !x.deletedAt);
       if(cur){ location.href = "builder.html?quote=" + encodeURIComponent(cur.id) + "&from=flow"; return; }
     }
-    if(btn && btn.disabled){
-      // switched off at the free-trial cap (capGate): say why instead of doing nothing
+    if(btn && (btn.disabled || btn.getAttribute("data-cap-off")==="1")){
+      // switched off at the free-trial cap (capGate, soft: aria-disabled so the click lands here): say why
       if(btn.getAttribute("data-cap-off")==="1" && window.BPUI && BPUI.capToast) BPUI.capToast({ hint: "trial_cap" }, "new quotes", "You can still open and edit your quotes and the sample events.");
       return;
     }
