@@ -152,7 +152,15 @@ await t('4 manual covers what shipped (R22/R23) and marks in-flight features Com
     assert.doesNotMatch(sec.slice(0, 300), /Coming soon/, id + ' is live');
     for (const w of words) assert.ok(sec.includes(w), `${id} mentions ${w}`);
   }
-  for (const id of ['vendor-requests', 'studio-link', 'cancelled-links', 'link-views', 'quote-validity', 'quote-stages', 'payment-schedules', 'crew-shifts', 'notification-inbox']) {
+  // r23 staging: a chapter is live once its branch's docs/manual/r23-*.md is in; the rest stay "Coming soon"
+  const R23_LIVE = { 'link-views': 'r23-link-views.md', 'quote-validity': 'r23-quote-validity.md', 'quote-stages': 'r23-state-machine.md',
+    'payment-schedules': 'r23-payment-schedules.md', 'crew-shifts': 'r23-crew.md', 'notification-inbox': 'r23-inbox.md' };
+  for (const [id, src] of Object.entries(R23_LIVE)) {
+    const at = MARKUP.indexOf(`<h2 id="${id}"`); assert.ok(at > 0, id);
+    assert.doesNotMatch(MARKUP.slice(at, at + 400), /Coming soon/, id + ' is live');
+    assert.ok(MAN.includes(`data-src="${src}"`), id + ' built from ' + src);
+  }
+  for (const id of ['vendor-requests', 'studio-link', 'cancelled-links']) {
     const at = MARKUP.indexOf(`<h2 id="${id}"`); assert.ok(at > 0, id);
     assert.match(MARKUP.slice(at, at + 400), /<span class="soon">Coming soon<\/span><\/h2>\n<div class="note soonbox">/, id);
   }

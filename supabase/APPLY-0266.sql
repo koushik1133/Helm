@@ -1,18 +1,17 @@
--- APPLY-0263.sql - paste into the Supabase SQL editor (STAGING first; production only when the owner says go).
--- Run AFTER APPLY-0254 (already applied). Order-independent of 0256-0262 (other r23 branches).
--- Event stages (r23): ONE stage for every quote / event (Lead, Draft, Sent, Viewed, Approved, Advance paid, Confirmed,
--- In progress, Event day, Completed, Closed + Cancelled, Expired, Lost) worked out from the existing columns, and
--- EVERY stage change recorded (who, when, how, why) by triggers - no existing screen, RPC or row is changed.
--- Out-of-order moves are only LOGGED (warn mode, the default). One "domain event" row per move for future automations.
--- Existing quotes get one "recorded when tracking began" row each (insert-only). Nothing deleted. Safe to run twice.
+-- APPLY-0266.sql - paste into the Supabase SQL editor (STAGING first; production only when the owner says go).
+-- Run AFTER APPLY-0254 (already applied). Order-independent of 0256-0265 (other r23 branches) when run in number order.
+-- Notification inbox (r23): every person gets their OWN read / unread, Done and Snoozed state for each bell notification
+-- (new notification_inbox_state - the shared notifications rows are not changed); the /inbox page (Unread / All /
+-- Snoozed / Done, bulk + keyboard); snoozes come back as unread on time (pg_cron helm_inbox_tick, only if installed);
+-- the bell follows the inbox (bell_feed wrapped once, fail-open); e-mail only for still-unread items (Off / Instant /
+-- Daily digest, queued in helm_notice_outbox kind inbox_digest - dormant until comms-dispatch sends e-mail).
+-- Additive + idempotent: 3 new tables, 1 index, new functions; nothing updated or deleted outside them. Safe to run twice.
 -- OWNER STEPS (staging first, then production):
 --   1  Paste this whole file and Run. Every VERIFY row at the bottom must say ok = true.
---   2  Deploy the site (event.html / flow.html / control.html / stage-history.js / stage-history.css /
---      stage-machine-settings.js / store-api.js). No edge function to deploy.
---   3  Check: open an event -> "Stage history" card shows the current stage pill and its moves. Send a quote / record
---      a payment -> the new move appears ("Moved to Approved by the client - 20/10/2026, 14:05").
---      Control Center -> "Event stages": Warn (default) / Enforce, show history on / off (studio admin only).
---   Kill switch (Helm HQ operator, if ever needed): select public.hq_set_stage_machine(false, null, null);
+--   2  Deploy the site (inbox page, bell, Control Center -> Notifications -> Inbox & e-mail digest, store-api.js).
+--   3  Redeploy the comms-dispatch edge function when e-mail sending goes live (digests stay queued, unsent, until then).
+--   4  Check: open the bell -> "Open inbox"; mark one Done / snooze one "later today" -> it leaves the bell and comes
+--      back as unread after the snooze time.
 begin;
 -- 0266_notification_inbox.sql - CANONICAL forward-only.
 -- REQUIRES 0036 (notification prefs: _notify_hidden_types, notification_type_of, notification_catalog,
