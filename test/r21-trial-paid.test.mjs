@@ -134,7 +134,7 @@ await t('HQ Activate plan: one call to hq_activate_plan with validated arguments
 await t('HQ Requests tab: list + mark contacted / won / lost + open the studio', () => {
   assert.match(HQH, /<button type="button" class="tab" id="tab-requests" aria-pressed="false">Requests<\/button>/);
   assert.match(HQH, /<section id="pane-requests" hidden>/);
-  assert.match(HQ, /var TABS = \["overview", "studios", "billing", "requests", "plans", "people", "activity"\];/);
+  assert.match(HQ, /var TABS = \["overview", "studios", "billing", "requests", "plans", "people", "activity", "staff"\];/);
   assert.match(HQ, /call\("hq_sales_requests", \{ p_status: \$\("#fReq"\)\.value \|\| null \}\)/);
   assert.match(HQ, /call\("hq_set_sales_request_status", \{ p_id: x\.id, p_status: k, p_note: note \|\| null \}\)/);
   assert.match(API, /hq: \(fn, args\) => \(\/\^hq_\[a-z_\]\+\$\/\.test\(fn\)/, 'hq_* names pass the store gate');
