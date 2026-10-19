@@ -82,7 +82,7 @@ await t('server rows -> label, link, "3 of 8", last worked by', () => {
   const fresh = R.fromServer(row({ my_step: null, last_step: null, steps_done: ['client', 'discovery'] }), true);
   assert.equal(fresh.step, 'reqs', 'never opened in the flow: the first step not done');
   assert.equal(R.fromServer(row({ my_step: 'gone', last_step: null, steps_done: [] }), true).step, 'client', 'a step no longer in the flow falls back');
-  assert.equal(R.stepText(R.fromServer(row({ my_step: 'pay' }), true)), 'step 9 · Advance payment');
+  assert.equal(R.stepText(R.fromServer(row({ my_step: 'pay' }), true)), 'step 10 · Advance payment');
   assert.equal(R.firstNotDone(['client', 'discovery', 'reqs', 'venue', 'menu', 'proposal', 'layout', 'quote']), 'quote');
   assert.equal(R.ago(Date.now() - 30e3), 'just now'); assert.equal(R.ago(Date.now() - 864e5), 'yesterday');
 });

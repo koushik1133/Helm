@@ -21,7 +21,7 @@
    ========================================================================= */
 (function (root) {
   "use strict";
-  var STEPS = { client: 1, discovery: 2, reqs: 3, venue: 4, menu: 5, proposal: 6, layout: 7, quote: 8, pay: 9 };
+  var STEPS = { client: 1, discovery: 2, reqs: 3, venue: 4, menu: 5, proposal: 6, layout: 7, quote: 8, pay: 10 };   // r22: step 9 on the quote page is "Share with client & approval" (not tracked), the advance is step 10
   var ORDER = ["client", "discovery", "reqs", "venue", "menu", "proposal", "layout", "quote"];
   var TOTAL = 8;
   var LABELS = { client: "Client", discovery: "Discovery", reqs: "Requirements", venue: "Venue", menu: "Menu", proposal: "Proposal", layout: "Layout", quote: "Quotation", pay: "Advance payment" };
