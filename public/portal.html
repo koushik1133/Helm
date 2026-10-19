@@ -44,7 +44,7 @@
   .totbar{display:flex;justify-content:space-between;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
   .totbar .n{font-family:var(--mono);font-weight:700;font-size:18px}
   .cta{display:block;text-align:center;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;
-    padding:14px;border-radius:12px;font-size:15px;margin-top:6px}
+    padding:14px;border-radius:12px;font-size:15px;margin-top:6px;text-decoration:none}
   .muted{color:var(--ink-3);font-size:13px} .empty{color:var(--ink-3);font-size:13px;padding:8px 0}
   footer{text-align:center;color:var(--ink-3);font-size:12px;margin-top:10px}
   .links{display:flex;flex-wrap:wrap;gap:10px}
@@ -75,6 +75,12 @@
       <a class="cta" id="approveCta" hidden href="#">Review &amp; approve your event →</a>
     </div>
 
+    <!-- r21: the booklet + documents sit right under the event (the approval link "includes the booklet") -->
+    <div class="card" id="docsCard" hidden>
+      <h2><span aria-hidden="true">📘</span> Your documents</h2>
+      <div class="links" id="docLinks"></div>
+    </div>
+
     <div class="card" id="proposalCard" hidden>
       <h2><span aria-hidden="true">🎨</span> Your proposal</h2>
       <div class="theme" id="ptheme"></div>
@@ -91,10 +97,6 @@
       <div class="muted s-d2c171b" id="outstanding"></div>
     </div>
 
-    <div class="card" id="docsCard" hidden>
-      <h2><span aria-hidden="true">📘</span> Your documents</h2>
-      <div class="links" id="docLinks"></div>
-    </div>
     <div class="card" id="receiptsCard" hidden>
       <h2><span aria-hidden="true">🧾</span> Payment receipts</h2>
       <div id="receipts"></div>

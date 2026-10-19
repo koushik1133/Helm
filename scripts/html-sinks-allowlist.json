@@ -469,12 +469,6 @@
   },
   {
    "file": "public/event.html",
-   "expr": "inp",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
-   "max": 2
-  },
-  {
-   "file": "public/event.html",
    "expr": "scan[f.storage_path]===\"pending\"?'<span class=\"muted\" style=\"font-size:12px\" role=\"status\">Scanning…</span>':scan[f.storage_path]===\"rejected\"?'<span style=\"font-size:12px;color:#b42318\" role=\"status\">Blocked — failed the safety check</span>':''",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
   },
