@@ -7782,9 +7782,19 @@ window.HelmUrl = HelmUrl;
   }
   const vbTableMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "42P01" || c === "PGRST205" || /relation .*vendor_(bills|payouts).* does not exist|could not find the table/i.test(m); };
+  // r21 money (0246): the GST part of a bill - empty = unknown; must be 0 or more and below the bill amount
+  function vbGstPart(v, amount) {
+    if (v === null || v === undefined || String(v).trim() === "") return { value: null };
+    const n = Number(v); const a = Number(amount);
+    if (!Number.isFinite(n) || n < 0) return { error: "Enter the GST as an amount of 0 or more (or leave it empty)." };
+    if (Number.isFinite(a) && n >= a) return { error: "The GST must be less than the bill amount (the amount includes the GST)." };
+    return { value: Math.round(n * 100) / 100 };
+  }
+  const vbGstColMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
+    return c === "PGRST204" || c === "42703" || /gst_(amount|claimable)/i.test(m); };
   const vbMissingErr = () => { const er = new Error("Vendor bills need database update 0124 (ask your admin to run APPLY-0124.sql)."); er.code = "vendor_bills_missing"; return er; };
   const vendorBills = {
-    calc: vendorPnlCalc, state: vendorBillState, settle: vendorSettle,
+    calc: vendorPnlCalc, state: vendorBillState, settle: vendorSettle, gstPart: vbGstPart,
     async list(quoteId) {
       if (mode !== "supabase") return [];
       const { data, error } = await supa.from("vendor_bills").select("*, vendor_payouts(*)").eq("quote_id", quoteId).order("bill_date", { ascending: false });
@@ -7804,7 +7814,17 @@ window.HelmUrl = HelmUrl;
         description: clean(b.description, 500), bill_date: day(b.bill_date) || new Date().toISOString().slice(0, 10),
         due_date: day(b.due_date), vendor_id: b.vendor_id || null, booking_id: b.booking_id || null, file_id: fileId };
       if (b.currency) row.currency = String(b.currency).slice(0, 3).toUpperCase();
-      const { data, error } = await supa.from("vendor_bills").insert(row).select().single();
+      // r21 money (0246): optional GST inside the bill amount + whether the input credit can be claimed
+      const gst = vbGstPart(b.gst_amount, row.amount);
+      if (gst.error) throw new Error(gst.error);
+      if (gst.value != null) { row.gst_amount = gst.value; if (typeof b.gst_claimable === "boolean") row.gst_claimable = b.gst_claimable; }
+      let { data, error } = await supa.from("vendor_bills").insert(row).select().single();
+      if (error && gst.value != null && vbGstColMissing(error)) {
+        // database without 0246: keep the bill, drop only the GST split (it is optional)
+        delete row.gst_amount; delete row.gst_claimable;
+        ({ data, error } = await supa.from("vendor_bills").insert(row).select().single());
+        if (!error && data) data.gst_dropped = true;
+      }
       if (error) { if (vbTableMissing(error)) throw vbMissingErr(); throw error; }
       return data;
     },
@@ -7841,6 +7861,49 @@ window.HelmUrl = HelmUrl;
     async business(from, to) {
       if (mode !== "supabase") return null;
       try { return await rpc("business_pnl", { p_from: from || null, p_to: to || null }); } catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+  };
+
+  /* ---------------- r21 money (0246): event cost ledger (Estimated / Committed / Actual) ----------------
+     One server calculation: event_cost_breakdown(quote) = P&L (estimated / expected / actual margin +
+     accuracy %), per-category variance, cost lines and warnings; studio_cost_breakdown(from, to) = the same
+     per confirmed event + totals per currency (Insights / Business). null = database without 0246 (callers
+     keep their older cards). Pure helpers are unit-tested in test/r21-money.test.mjs. */
+  const ML_CATS = [["venue", "Venue"], ["food", "Food & catering"], ["decor", "Décor & flowers"], ["rentals", "Rentals & equipment"],
+    ["vendors", "Other vendors"], ["staff", "Staff & crew wages"], ["misc", "Misc, petty cash & staff expenses"],
+    ["logistics", "Logistics & transport"], ["damages", "Damages & loss"], ["changes", "Change orders"], ["contingency", "Contingency (plan only)"]];
+  const mlCatLabel = (k) => { const f = ML_CATS.find((c) => c[0] === k); return f ? f[1] : String(k || "Other"); };
+  // flag a category row (plan section 3.6): "over" = above the plan by more than pct % OR more than abs
+  // (defaults 10 % / 10,000); a smaller overrun is "watch"; spend with no plan at all is "new"
+  function mlVarianceFlag(row, o) {
+    o = o || {}; const pct = o.pct != null ? Number(o.pct) : 10, abs = o.abs != null ? Number(o.abs) : 10000;
+    const est = vbNum(row && row.estimated), v = vbNum(row && row.variance);
+    if (v <= 0) return v < 0 ? "under" : "";
+    if (est <= 0) return v > abs ? "over" : "new";
+    return (v / est * 100 > pct || v > abs) ? "over" : "watch";
+  }
+  // the stage a line has reached: actual > committed > estimated
+  function mlStage(line) {
+    if (!line) return "estimated";
+    if (line.actual !== null && line.actual !== undefined) return "actual";
+    if (line.committed !== null && line.committed !== undefined) return "committed";
+    return "estimated";
+  }
+  const moneyLedger = {
+    CATS: ML_CATS, catLabel: mlCatLabel, varianceFlag: mlVarianceFlag, stage: mlStage,
+    async breakdown(quoteId) {
+      if (mode !== "supabase") return null;
+      try { return await rpc("event_cost_breakdown", { p_quote: quoteId }); } catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    async studio(from, to) {
+      if (mode !== "supabase") return null;
+      try { return await rpc("studio_cost_breakdown", { p_from: from || null, p_to: to || null }); } catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // a typed staff budget line is replaced by the automatic crew wage lines (or counted again)
+    async setCrewCovered(costId, on) {
+      if (mode !== "supabase") throw new Error("Needs the online database.");
+      const { error } = await supa.from("event_costs").update({ crew_covered: !!on }).eq("id", costId);
+      if (error) throw error; return true;
     },
   };
 
@@ -9332,7 +9395,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, integrations,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.

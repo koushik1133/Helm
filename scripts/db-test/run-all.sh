@@ -194,6 +194,8 @@ run "sample-layouts-0213" "SAMPLE-LAYOUTS-0213: ALL PASS \(16/16\)" psql -q -f t
 run "trial-seed-0222" "TRIAL-SEED-0222: ALL PASS \(18/18\)" psql -q -f tests/db/trial-seed-0222.sql
 # 0239 re-applies itself (the fixture studios are made after the clean install; also proves a re-run is safe)
 run "r20-business-0239" "R20-BUSINESS-0239: ALL PASS \(34/34\)" psql -q -f tests/db/r20-business-0239.sql
+# 0246 re-applies itself (fixture events are made after the clean install; proves a re-run is safe)
+run "r21-money-0246" "R21-MONEY-0246: ALL PASS \(32/32\)" psql -q -f tests/db/r21-money-0246.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
