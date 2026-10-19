@@ -1,0 +1,69 @@
+# supabase/config.toml - r21 security (checklist top-10 #6): the gateway JWT setting of EVERY edge function,
+# declared in code instead of remembered as a deploy flag. `supabase functions deploy <name>` reads this file,
+# so `--no-verify-jwt` is no longer needed on the command line (passing it anyway is harmless).
+# Only the [functions.*] sections are used by Helm; the local-dev stack (supabase start) is not used.
+#
+# verify_jwt = true   the Supabase gateway refuses a request without a valid JWT (a signed-in user's access token,
+#                     or the project's legacy anon JWT that the public approval page sends) BEFORE the code runs.
+# verify_jwt = false  the gateway lets the request in and the function authenticates it itself - every one below
+#                     does, in code (test/r21-security.test.mjs checks each one still does):
+#                       user JWT   -> auth.getUser(jwt) and 401 without a user
+#                       cron       -> constant-time shared secret in x-helm-cron-secret, unset = 401
+#                       webhook    -> HMAC signature over the raw body (Razorpay / Meta), unset secret = refused
+#                       link token -> the token is checked by a service-role RPC (booklet / unsubscribe / invite)
+#                       public     -> csp-report only (browser reports; no data stored, rate-limited, logs redacted)
+# Matches the deploy flags in docs/release/RELEASE-10xx-OWNER-STEPS.md and docs/project/DEPLOYMENT.md (r21 fixes the
+# two places that disagreed: razorpay-webhook and invite-signup are verify_jwt = false).
+project_id = "helm"
+
+# ---- verify_jwt = true: the caller always holds a JWT (signed-in staff, or the anon JWT on public pages) ----
+[functions.create-payment-link]   # public approval page (anon JWT) + approval token checked in the DB; Razorpay off
+verify_jwt = true
+[functions.create-subscription-checkout]   # signed-in studio admin (getUser in code too); dormant
+verify_jwt = true
+[functions.integrations-test]   # signed-in admin (getUser in code too)
+verify_jwt = true
+[functions.render-photo]   # signed-in staff (getUser in code too); owner-only feature
+verify_jwt = true
+[functions.send-otp]   # public approval page (anon JWT) + approval token checked in the DB
+verify_jwt = true
+[functions.send-phone-code]   # signed-in user (getUser in code too)
+verify_jwt = true
+[functions.send-whatsapp]   # signed-in staff (getUser in code too); WhatsApp off
+verify_jwt = true
+[functions.wa-proposal]   # signed-in staff (getUser in code too); WhatsApp off
+verify_jwt = true
+
+# ---- verify_jwt = false: authenticated IN CODE ----
+[functions.captcha-verify]   # user JWT -> getUser (r21; dormant until TURNSTILE_SECRET_KEY is set)
+verify_jwt = false
+[functions.client-mailer]   # user JWT -> getUser
+verify_jwt = false
+[functions.invite-mailer]   # user JWT -> getUser
+verify_jwt = false
+[functions.invite-signup]   # invitation token (48-hex bearer secret) checked with the service role
+verify_jwt = false
+[functions.booklet-snapshot]   # <img src> GET with a booklet token (no header possible); off unless HELM_BOOKLET_SNAPSHOT_ENABLED
+verify_jwt = false
+[functions.email-unsubscribe]   # one-click unsubscribe link token (RFC 8058 POST from mail providers has no JWT)
+verify_jwt = false
+[functions.billing-reminder]   # cron secret HELM_BILLING_CRON_SECRET
+verify_jwt = false
+[functions.comms-dispatch]   # cron secret HELM_COMMS_SECRET
+verify_jwt = false
+[functions.pkg-client-notify]   # cron secret HELM_PKG_NOTIFY_SECRET
+verify_jwt = false
+[functions.security-alert-mailer]   # cron secret HELM_SECURITY_ALERT_SECRET
+verify_jwt = false
+[functions.verify-upload]   # cron / database-webhook secret HELM_UPLOAD_SCAN_SECRET
+verify_jwt = false
+[functions.welcome-mailer]   # cron secret HELM_WELCOME_EMAIL_SECRET
+verify_jwt = false
+[functions.razorpay-webhook]   # Razorpay HMAC (x-razorpay-signature) - Razorpay never sends a JWT
+verify_jwt = false
+[functions.razorpay-subscription-webhook]   # Razorpay HMAC - Razorpay never sends a JWT
+verify_jwt = false
+[functions.wa-webhook]   # Meta HMAC (x-hub-signature-256) + verify token - Meta never sends a JWT
+verify_jwt = false
+[functions.csp-report]   # browser CSP reports (no auth possible); r21 monitoring, nothing stored
+verify_jwt = false

@@ -137,8 +137,11 @@ const SCRIPT_SRC_BUILDER = [...SCRIPT_SRC_BASE,
 const BUILDER_SOURCES = new Set(['/builder', '/builder\\.html', '/builder.html', '/try', '/try.html', '/(builder|try)', '/(builder|try)\\.html', '/capture', '/capture\\.html', '/capture.html', '/(capture|capture\\.html)', '/([a-z0-9-]+)/events/([^/]+)/floor-plan', '/:studio/events/:ref/floor-plan',
   '/([a-z0-9-]+)/(events/[^/]+/floor-plan|builder)', '/:studio/builder']);   // 0067 pretty floor-plan URL serves builder.html; la-1018 /<studio>/builder too
 
-// Sign-in / password-reset pages may also load the Cloudflare Turnstile CAPTCHA
-// widget (a single-purpose origin, not a library CDN).
+// Sign-in / password-reset pages - and (r21) the checkout page's "Contact sales" form - may
+// also load the Cloudflare Turnstile CAPTCHA widget (a single-purpose origin, not a library
+// CDN). Always allowed on those routes (script-src + frame-src only, never connect-src): the
+// widget itself is only loaded when public/config.js has a site key, so with the key empty
+// nothing is fetched and the allowance is inert.
 const AUTH_ROUTE = /(^|\/|\()(login|reset)/;
 const TURNSTILE = /^https:\/\/challenges\.cloudflare\.com(\/[^\s;]*)?$/;
 // The onboarding checkout page (0056) only may load Razorpay Standard Checkout — the
@@ -163,7 +166,7 @@ function scriptSrcProblem(csp, route) {
     return extraS.length ? 'script-src allows ' + extraS.join(' ') : '';
   }
   const allowed = BUILDER_SOURCES.has(route) ? SCRIPT_SRC_BUILDER : SCRIPT_SRC_BASE;
-  const extra = hosts.filter((h) => !allowed.includes(h) && !(AUTH_ROUTE.test(route) && TURNSTILE.test(h)) && !(CHECKOUT_ROUTE.test(route) && h === RAZORPAY_SCRIPT));
+  const extra = hosts.filter((h) => !allowed.includes(h) && !((AUTH_ROUTE.test(route) || CHECKOUT_ROUTE.test(route)) && TURNSTILE.test(h)) && !(CHECKOUT_ROUTE.test(route) && h === RAZORPAY_SCRIPT));
   if (extra.length) return 'script-src allows ' + extra.join(' ') + (BUILDER_SOURCES.has(route) ? '' : ' (CDN sources are builder-only)');
   return '';
 }
@@ -179,7 +182,37 @@ function frameAncestorsProblem(value, route) {
   if (fa === "'self'" && FRAME_SELF_ROUTES.has(route)) return '';
   return "frame-ancestors " + (fa || '(missing)') + " is only allowed ('self') on " + [...FRAME_SELF_ROUTES].join(' ');
 }
+// ---------------------------------------------------------------------------
+// r21 monitoring: CSP violation reports + the Sentry ingest host (production policies only).
+//   report-uri  -> the csp-report Supabase edge function of the PRODUCTION project (logs a
+//                  redacted one-line summary, rate-limited per IP; supabase/functions/csp-report).
+//                  report-uri (not report-to) on purpose: every browser still honours it and it
+//                  needs no extra Reporting-Endpoints header. Off: set CSP_REPORTS = false.
+//   connect-src -> the EXACT Sentry ingest origin of the DSN in public/config.js
+//                  (window.HELM_TELEMETRY.dsn). Empty DSN = nothing added (telemetry dormant).
+//                  Never a wildcard (gen-csp --check refuses https://*.).
+// server.js applies the same helper for production hosts only (localhost dev never reports).
+const CSP_REPORTS = true;
+function cspReportUri(prodRef) { return CSP_REPORTS && /^[a-z0-9]{20}$/.test(prodRef || '') ? 'https://' + prodRef + '.supabase.co/functions/v1/csp-report' : ''; }
+// "https://<key>@o123.ingest.us.sentry.io/456" -> "https://o123.ingest.us.sentry.io" ('' when absent / malformed)
+function sentryIngestOrigin(configSrc) {
+  const m = /HELM_TELEMETRY[\s\S]{0,400}?\bdsn\s*:\s*["'](https:\/\/[0-9A-Za-z]{1,64}@(o\d{1,12}\.ingest(?:\.[a-z]{2})?\.sentry\.io)\/\d{1,12})["']/.exec(String(configSrc || ''));
+  return m ? 'https://' + m[2] : '';
+}
+function withReporting(csp, opts) {
+  const o = opts || {};
+  const out = [];
+  for (const d of String(csp || '').split(';')) {
+    const parts = d.trim().split(/\s+/);
+    if (!parts[0] || parts[0] === 'report-uri') continue;
+    if (parts[0] === 'connect-src' && o.sentryOrigin && !parts.includes(o.sentryOrigin)) parts.push(o.sentryOrigin);
+    out.push(parts.join(' '));
+  }
+  if (o.reportUri) out.push('report-uri ' + o.reportUri);
+  return out.join('; ');
+}
 module.exports = {
+  CSP_REPORTS, cspReportUri, sentryIngestOrigin, withReporting,
   TRUSTED_TYPES_ENFORCE, TT_DIRECTIVES,
   computeHashes, computeStyleHashes, inlineScripts, inlineStyles, htmlFiles, withHashes,
   SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, BUILDER_SOURCES, RAZORPAY_SCRIPT, scriptHosts, scriptSrcProblem, FRAME_SELF_ROUTES, frameAncestorsProblem,

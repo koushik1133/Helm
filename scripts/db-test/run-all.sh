@@ -22,7 +22,7 @@ export PGDATABASE=helm_runall
 # 0164: fixture/setup statements run as a superuser with no API claims, which the DB treats as a
 # direct (system) change and keeps quiet. Suites expect normal sends, so pin the override off;
 # system-quiet-0164.sql clears it to test the real detection.
-export PGOPTIONS="${PGOPTIONS:-} -c helm.maintenance=off"
+export PGOPTIONS="${PGOPTIONS:-} -c helm.maintenance=off -c helm.allow_hq_mfa_lockout=on"   # 0249: fixtures turn hq_require_mfa on with fake operators; r21-security-0249.sql turns the guard back on
 dropdb --if-exists helm_runall >/dev/null 2>&1; createdb helm_runall
 psql -q -v ON_ERROR_STOP=1 -f supabase/test-harness/00-supabase-shim.sql >/dev/null 2>&1
 
@@ -46,6 +46,7 @@ run "wa-proposal-0151"   "WA-PROPOSAL-0151: ALL PASS \(24/24\)" psql -q -f tests
 run "audit-medium-0155"  "AUDIT-MEDIUM-0155: ALL PASS \(37/37\)" psql -q -f tests/db/audit-medium-0155.sql
 run "mfa-verify-hook-0158" "MFA-VERIFY-HOOK-0158: ALL PASS \(15/15\)" psql -q -f tests/db/mfa-verify-hook-0158.sql
 run "r21-reserved-domain-0248" "R21-RESERVED-DOMAIN-0248: ALL PASS \(42/42\)" psql -q -f tests/db/r21-reserved-domain-0248.sql
+run "r21-security-0249" "R21-SECURITY-0249: ALL PASS \(29/29\)" psql -q -f tests/db/r21-security-0249.sql
 run "privacy-pin-0157"   "PRIVACY-PIN-0157: ALL PASS \(30/30\)" psql -q -f tests/db/privacy-pin-0157.sql
 run "direct-studio-0159" "DIRECT-STUDIO-0159: ALL PASS \(30/30\)" psql -q -f tests/db/direct-studio-0159.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql

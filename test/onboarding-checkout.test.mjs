@@ -295,7 +295,7 @@ t('CSP + Trusted Types: Razorpay exact script on /checkout only', () => {
   const require = createRequire(import.meta.url);
   const { CSP, CSP_BY_PAGE } = require('../server.js');
   assert.equal(CSP_BY_PAGE.checkout, 'checkout');
-  assert.match(CSP.checkout, /script-src 'self' https:\/\/checkout\.razorpay\.com\/v1\/checkout\.js /);
+  assert.match(CSP.checkout, /script-src 'self' (https:\/\/challenges\.cloudflare\.com )?https:\/\/checkout\.razorpay\.com\/v1\/checkout\.js /);   // r21: + Turnstile for Contact sales
   assert.match(CSP.checkout, /frame-src [^;]*https:\/\/api\.razorpay\.com/);
   assert.match(CSP.checkout, /connect-src [^;]*https:\/\/api\.razorpay\.com/);
   for (const k of Object.keys(CSP)) if (k !== 'checkout') assert.doesNotMatch(CSP[k], /razorpay/, k);

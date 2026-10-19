@@ -222,7 +222,8 @@
       if (anchor) st.anchor = anchor;
       render();
     }
-    function openDay(day) { st.focusDay = day; go("day", day); var h = $("#evcRange"); if (h && h.focus) { h.setAttribute("tabindex", "-1"); try { h.focus({ preventScroll: true }); } catch (e) {} } }
+    // r21 CodeQL js/xss-through-dom: the day comes from a data-day attribute - only a real yyyy-mm-dd is used
+    function openDay(day) { day = toD(day) ? toS(toD(day)) : null; if (!day) return; st.focusDay = day; go("day", day); var h = $("#evcRange"); if (h && h.focus) { h.setAttribute("tabindex", "-1"); try { h.focus({ preventScroll: true }); } catch (e) {} } }
 
     /* ---- events ---- */
     root.addEventListener("click", function (e) {

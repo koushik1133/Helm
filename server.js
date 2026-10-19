@@ -109,7 +109,8 @@ const MIME = {
    script-src host sources come from SCRIPT_SRC_BASE / SCRIPT_SRC_BUILDER in
    scripts/csp-hashes.cjs (path-scoped; CDNs are builder-only). */
 // Inline-script hashes, recomputed only when a page under public/ changes.
-const { computeHashes, computeStyleHashes, htmlFiles, withHashes, SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, TT_DIRECTIVES } = require('./scripts/csp-hashes.cjs');
+const { computeHashes, computeStyleHashes, htmlFiles, withHashes, SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, TT_DIRECTIVES,
+  cspReportUri, sentryIngestOrigin, withReporting } = require('./scripts/csp-hashes.cjs');
 let hashCache = { sig: null, hashes: [], styles: [] };
 function inlineScriptHashes() {
   let sig = '';
@@ -167,9 +168,10 @@ CSP.auth = buildCsp({
 //  • /checkout may load Razorpay Standard Checkout (exact script URL; its payment form
 //    runs in Razorpay's iframe — Helm never renders card fields) — that page only (0056)
 const RZP_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js';
+//    r21: + the Turnstile widget for "Contact sales" (only loaded when config.js has a site key)
 CSP.checkout = buildCsp({
-  'script-src': baseDirective('script-src').replace(/^'self'/, "'self' " + RZP_SCRIPT),
-  'frame-src': baseDirective('frame-src') + ' https://api.razorpay.com https://checkout.razorpay.com',
+  'script-src': baseDirective('script-src').replace(/^'self'/, "'self' " + TURNSTILE + ' ' + RZP_SCRIPT),
+  'frame-src': baseDirective('frame-src') + ' ' + TURNSTILE + ' https://api.razorpay.com https://checkout.razorpay.com',
   'connect-src': baseDirective('connect-src') + ' https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com',
 });
 const CSP_BY_PAGE = {
@@ -215,6 +217,17 @@ const STAGING_SUPABASE_REF = 'xizehqgeyjcfpzrdymly';
 function isProdHost(req) {
   return PROD_HOSTS.has(String((req && req.headers && req.headers.host) || '').toLowerCase().replace(/:\d+$/, ''));
 }
+// r21 monitoring: production hosts report CSP violations to the prod csp-report edge function and may
+// reach the EXACT Sentry ingest origin of the DSN in public/config.js (same as vercel.json / _headers).
+let reportingCache = null;
+function prodReporting() {
+  if (reportingCache) return reportingCache;
+  let src = '';
+  try { src = fs.readFileSync(path.join(PUBLIC_DIR, 'config.js'), 'utf8'); } catch {}
+  const ref = (/url:\s*"https:\/\/([a-z0-9]{20})\.supabase\.co"/.exec(src) || [])[1] || '';
+  reportingCache = { reportUri: cspReportUri(ref), sentryOrigin: sentryIngestOrigin(src) };
+  return reportingCache;
+}
 function stripStagingCsp(v) {
   return v.split(';').map((d) => d.split(' ').filter((t) => !t.includes(STAGING_SUPABASE_REF)).join(' ')).join(';');
 }
@@ -247,7 +260,7 @@ function securityHeadersFor(req, filePath) {
   }
   h['Content-Security-Policy'] = withHashes(h['Content-Security-Policy'], inlineScriptHashes(), inlineStyleHashes());
   if (isLocalHost(req)) h['Content-Security-Policy'] = h['Content-Security-Policy'].replace(/;\s*upgrade-insecure-requests/, '');
-  if (isProdHost(req)) h['Content-Security-Policy'] = stripStagingCsp(h['Content-Security-Policy']);
+  if (isProdHost(req)) h['Content-Security-Policy'] = withReporting(stripStagingCsp(h['Content-Security-Policy']), prodReporting());
   // Trusted Types report-only pass on a local run (same header the staging site sends):
   //   HELM_TRUSTED_TYPES=report node server.js
   if (process.env.HELM_TRUSTED_TYPES === 'report') h['Content-Security-Policy-Report-Only'] = TT_DIRECTIVES.join('; ');

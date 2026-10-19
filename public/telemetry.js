@@ -17,8 +17,16 @@
  * ========================================================================== */
 (function () {
   'use strict';
-  var CFG = (typeof window !== 'undefined' && window.HELM_TELEMETRY) || {};
-  var ENABLED = !!CFG.dsn;
+  // r21: read LAZILY - config.js (which sets window.HELM_TELEMETRY) loads right AFTER this file on every page,
+  // so the DSN is looked up when a report is sent / at DOMContentLoaded, not only at parse time.
+  var CFG = {}, ENABLED = false;
+  function refresh() {
+    var c = (typeof window !== 'undefined' && window.HELM_TELEMETRY) || {};
+    CFG = (c && typeof c === 'object') ? c : {};
+    ENABLED = typeof CFG.dsn === 'string' && /^https:\/\/[0-9A-Za-z]{1,64}@o\d{1,12}\.ingest(\.[a-z]{2})?\.sentry\.io\/\d{1,12}$/.test(CFG.dsn);
+    return ENABLED;
+  }
+  refresh();
 
   // Redact anything that looks like a token/JWT/OTP/email/phone from a string.
   // Client links carry bearer tokens in the URL itself, so these are scrubbed too
@@ -85,6 +93,7 @@
   }
 
   function report(kind, payload) {
+    refresh();
     var safe = {
       kind: kind,
       env: CFG.env || 'unknown',
@@ -115,8 +124,11 @@
   // server.js CSP_BASE, vercel.json and public/_headers (no wildcard).
   var SENTRY_SRC = 'https://browser.sentry-cdn.com/8.35.0/bundle.min.js';
   var SENTRY_SRI = 'sha384-j1K2/oFJn/QPiNs/Fk58NwXcaEbWzaUEF04vKMBnEprfbZ2hIQrAO0yc0XEfai1E';
+  var sentryArmed = false;
   function loadSentry() {
-    if (!ENABLED || (typeof window === 'undefined') || window.Sentry || CFG.loadSentry === false) return;
+    refresh();
+    if (sentryArmed || !ENABLED || (typeof window === 'undefined') || window.Sentry || CFG.loadSentry === false) return;
+    sentryArmed = true;
     try {
       var sc = document.createElement('script');
       // Pinned CDN bundle WITH Subresource Integrity (audit run-3
@@ -187,7 +199,9 @@
       report('unhandledrejection', r);
       showErrorToast();
     });
-    window.HelmTelemetry = { report: report, redact: redact, redactEvent: redactEvent, redactBreadcrumb: redactBreadcrumb, enabled: ENABLED };
+    window.HelmTelemetry = { report: report, redact: redact, redactEvent: redactEvent, redactBreadcrumb: redactBreadcrumb, enabled: ENABLED,
+      isEnabled: function () { return refresh(); } };
     loadSentry();
+    window.addEventListener('DOMContentLoaded', function () { loadSentry(); try { window.HelmTelemetry.enabled = ENABLED; } catch (e) {} });
   }
 })();

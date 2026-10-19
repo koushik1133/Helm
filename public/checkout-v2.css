@@ -166,6 +166,9 @@ html[data-pt] .plan .pp.req { font-size: 24px; letter-spacing: -.03em; }
 .sdlg .hint { margin: 0 0 16px; font-size: 13.5px; color: var(--ink-3); }
 .sdlg .note { text-align: center; }
 .sdlg-err { margin: 12px 0 0; font-size: 13px; line-height: 1.45; color: var(--bad); }
+/* r21: Turnstile "Contact sales" check (only when config.js has a site key) */
+.sdlg .captcha { margin: 12px 0 0; min-height: 65px; }
+.sdlg .captcha[hidden] { display: none; }
 .sdlg-err:empty { display: none; }
 .sdlg-done { text-align: center; padding: 10px 4px 4px; outline: none; }
 .sdlg-done h2 { margin: 14px 0 6px; font-size: 20px; font-weight: 650; letter-spacing: -.02em; }
