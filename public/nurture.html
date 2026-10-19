@@ -318,7 +318,7 @@
   }
 
   /* ---------------- occasions & automation ---------------- */
-  function autoMsg(k,t){ const m=$("#autoMsg"); m.innerHTML=t?`<div class="msg ${k}">${esc(t)}</div>`:""; if(t) setTimeout(()=>{ m.innerHTML=""; },4000); }
+  function autoMsg(k,t){ const m=$("#autoMsg"); m.innerHTML=t?`<div class="msg ${k}">${esc(t)}</div>`:""; if(t) setTimeout(()=>{ m.innerHTML=""; },Math.max(4000,Math.min(15000,t.length*60))); }
   function setAutoState(on){ const s=$("#autoState"); if(!s) return; s.textContent=on?"Active":"Paused"; s.classList.toggle("greeted",on); s.classList.toggle("paused",!on); }
   // 0203 free trial: no greeting is sent to a client (the server refuses too) - automation off, no Run / Send
   let trialP=null;
@@ -357,7 +357,8 @@
       if(!ok) return;
       return BPUI.guard(b,async()=>{
       try{ const msg=await BPStore.nurture.greet(b.dataset.greet);
-        autoMsg("ok",`Greeting queued: "${(msg&&msg.subject)||""}" ${msg&&msg.photos&&msg.photos.length?("· "+msg.photos.length+" photo(s) attached"):""}`);
+        // r21 email audit: queue_nurture_greeting only LOGS the greeting (no e-mail sender reads it yet) - say so
+        autoMsg("ok",`Greeting prepared and logged: "${(msg&&msg.subject)||""}" ${msg&&msg.photos&&msg.photos.length?("· "+msg.photos.length+" photo(s) attached "):""}— greeting e-mails aren't switched on yet, so nothing was e-mailed. Use the WhatsApp link on the contact to send it yourself.`);
         await renderAuto(); }
       catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"send the greeting"})); } },{busyLabel:"Sending…"}); }));
   }
@@ -467,7 +468,7 @@
   $("#autoDays").addEventListener("change",async()=>{ await toggleAuto(); await renderAuto(); });
   $("#runNow").addEventListener("click",()=>BPUI.guard($("#runNow"),async()=>{
     try{ const n=await BPStore.nurture.runAuto(+$("#autoDays").value||0);
-      autoMsg("ok",n?`Queued ${n} greeting${n===1?"":"s"} ✓`:"Nothing due right now (or automation is off)."); await renderAuto(); }
+      autoMsg("ok",n?`Prepared and logged ${n} greeting${n===1?"":"s"} — greeting e-mails aren't switched on yet, so nothing was e-mailed.`:"Nothing due right now (or automation is off)."); await renderAuto(); }
     catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"run today's greetings"})); } },{busyLabel:"Running…"}));
   $("#tplSave").addEventListener("click",saveTemplate);
 

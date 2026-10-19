@@ -11,6 +11,7 @@
   var TYPES = { invite: 1, magiclink: 1, recovery: 1, signup: 1, email: 1, email_change: 1 };
   var HASH_RE = /^[A-Za-z0-9_-]{8,256}$/;   // GoTrue hashed_token (hex) / pkce_<hex>
   var INVITE_RE = /^[0-9a-f]{16,128}$/i;
+  var HELM_SITE = { "https://helm.events": 1, "https://www.helm.events": 1 };   // the two production origins (same site)
   var DEFAULTS = { invite: "/login", magiclink: "/login", signup: "/login", email: "/login", email_change: "/login", recovery: "/reset-password?via=confirm" };
 
   function dec(s) { try { return decodeURIComponent(String(s).replace(/\+/g, "%20")); } catch (e) { return null; } }
@@ -31,7 +32,9 @@
     if (/[\u0000-\u001f\u007f\\]/.test(v)) return null;          // control chars / backslashes
     if (/^[a-z][a-z0-9+.-]*:/i.test(v)) {                          // absolute: same origin only
       var u; try { u = new URL(v); } catch (e) { return null; }
-      if (!origin || u.origin !== origin) return null;
+      // r21 email audit: helm.events and www.helm.events are one site (the apex 308-redirects to www), so a link
+      // made with APP_URL / Site URL on the apex keeps its invite token instead of falling back to plain /login
+      if (!origin || (u.origin !== origin && !(HELM_SITE[u.origin] && HELM_SITE[origin]))) return null;
       v = u.pathname + u.search;
     }
     if (v.charAt(0) !== "/" || v.charAt(1) === "/") return null;   // relative path only, never "//host"
