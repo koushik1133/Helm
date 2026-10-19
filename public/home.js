@@ -83,16 +83,37 @@
   if (snapMq.addEventListener) snapMq.addEventListener('change', snapA11y);
 
   /* ---------- mobile sticky CTA: shows once the hero is gone, hides over the final CTA ---------- */
+  /* r21 mobile: the bar can be hidden with its X; that choice is remembered on this device for
+     14 days (localStorage; private mode / blocked storage just means it is remembered for this visit). */
   var mcta = $('#mcta'), heroEl = $('.hero'), finEl = $('.final');
+  var MCTA_KEY = 'helm-mcta-hidden', MCTA_DAYS = 14;
+  var mctaHidden = (function () {
+    try { var t = Number(window.localStorage.getItem(MCTA_KEY)); return !!t && (Date.now() - t) < MCTA_DAYS * 864e5; } catch (e) { return false; }
+  })();
+  if (mcta && mctaHidden) { mcta.remove(); mcta = null; document.body.classList.add('mcta-off'); }
+  if (mcta) {
+    var mctaX = $('.mcta-x', mcta);
+    if (mctaX) mctaX.addEventListener('click', function () {
+      try { window.localStorage.setItem(MCTA_KEY, String(Date.now())); } catch (e) { /* storage blocked: hide for this visit */ }
+      mcta.classList.remove('on'); document.body.classList.remove('has-mcta'); document.body.classList.add('mcta-off');
+      var main = $('#main'); if (main) { main.setAttribute('tabindex', '-1'); main.focus({ preventScroll: true }); }
+      setTimeout(function () { if (mcta && mcta.parentNode) mcta.parentNode.removeChild(mcta); mcta = null; }, 400);
+    });
+  }
   if (mcta && heroEl && 'IntersectionObserver' in window) {
     var heroIn = true, finIn = false;
-    var paintCta = function () { var on = !heroIn && !finIn; mcta.classList.toggle('on', on); document.body.classList.toggle('has-mcta', on); };
+    var paintCta = function () { if (!mcta) return; var on = !heroIn && !finIn; mcta.classList.toggle('on', on); document.body.classList.toggle('has-mcta', on); };
     new IntersectionObserver(function (es) { heroIn = es[0].isIntersecting; paintCta(); }).observe(heroEl);
     if (finEl) new IntersectionObserver(function (es) { finIn = es[0].isIntersecting; paintCta(); }).observe(finEl);
   }
 
   /* ---------- lazy, offscreen-paused videos ---------- */
-  var userPaused = reduce;
+  /* r21 mobile: Data Saver / Save-Data or a 2G-class connection = no autoplaying video at all;
+     posters stay, and the hero film starts only when the visitor presses Play. */
+  var netInfo = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
+  var liteData = !!netInfo.saveData || /(^|-)2g$/.test(String(netInfo.effectiveType || ''));
+  var smallScreen = !!(window.matchMedia && window.matchMedia('(max-width: 767px)').matches);
+  var userPaused = reduce || liteData;
   function loadV(v) {
     if (v.dataset.ok) return;
     // same-origin path only: no scheme, no protocol-relative //host, path characters only
@@ -182,7 +203,7 @@
     heroVideo.addEventListener('seeked', syncTime);
 
     /* play / pause */
-    var heroUserPaused = reduce, heroVisible = false;
+    var heroUserPaused = reduce || liteData, heroVisible = false;
     function setBtn() {
       var paused = heroUserPaused;
       btn.setAttribute('aria-pressed', String(paused));
@@ -194,9 +215,10 @@
       if (heroUserPaused) heroVideo.pause(); else { loadV(heroVideo); tryPlay(heroVideo); }
     });
     heroVideo.muted = true;
-    if (!reduce) {
+    if (!reduce && !liteData) {
       heroVideo.addEventListener('loadeddata', function () { if (heroVisible && !heroUserPaused) tryPlay(heroVideo); }, { once: true });
-      loadV(heroVideo);
+      /* phones: fetch the film only once its card scrolls into view (observer below), not on page load */
+      if (!smallScreen) loadV(heroVideo);
     }
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(function (ents) {
