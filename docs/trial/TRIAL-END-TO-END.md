@@ -12,7 +12,7 @@ This is a plain-words brief of the free trial. It covers what a new studio gets,
 - `accept_trial_terms(version)` records it in `trial_terms_acceptances` (studio, person, version, time, short user agent). `my_trial_terms_status()` tells the app whether to ask, so another device asks again until it is agreed. Other studio pages send an owner who has not agreed back to the dashboard (`trial-lock.js`).
 - A trial that finished the welcome before 0207 gets the same terms once as a window. Invited teammates get a short read-only notice instead ("Got it", no agreement). Paid studios and ended trials are never asked.
 - Every number and rule shown comes from `public/trial-facts.js` (also used by the sign-up box). The version there must match `_trial_terms_version()`; a new wording needs a new version.
-- Current version: **`trial-2026-10-19`** (migration 0211: quotes and events are no longer capped). A trial owner who agreed to `trial-2026-10-18` is asked once more (the one-time window); the earlier agreement stays on record.
+- Current version: **`trial-2026-10-20`** (migration 0238: quotes and events are capped at 2 new again; 0211 / 0212 had `trial-2026-10-19` with quotes not capped). A trial owner who agreed to an older version is asked once more (the one-time window); the earlier agreements stay on record.
 
 ## 2. Sample data the trial starts with
 | List | Count |
@@ -61,12 +61,12 @@ Five steps, each ticking itself: **Explore a sample event** (opening any event p
 | Layout templates (your own) | "Save as template" and "My templates" hidden in the builder; Control Center section shows "Not available in the free trial" | `studio_template_save`, `_set_archived`, `_set_default`, `_duplicate` refused (0181) |
 | Templates page (checklist templates) | Page covered with "Templates are not part of the free trial"; "Go to templates" (search) and "Checklist template" (quick create) removed | - |
 
-## 5. Creation cap: 2 created in total per list (quotes and events not capped)
-- **Quotes and events are not capped** (migration 0211): a trial studio can create as many as it likes. "New quote" opens the quote flow straight away (no name / type dialog); an untouched blank quote is reused, and empty drafts move to the Deleted shelf after a day (0141 / 0208).
-- A trial studio can create at most **2 of its own rows in total** in each of these lists: leads (clients), inventory items, vendors, staff and venues.
+## 5. Creation cap: 2 created in total per list (quotes and events included again)
+- **Quotes and events are capped at 2 new again** (migration 0238, owner r20; 0211 had removed the quote cap). "New quote" still opens the quote flow straight away (no name / type dialog); an untouched blank quote is reused (that inserts nothing, so it is never refused), and empty drafts move to the Deleted shelf after a day (0141 / 0208) - they still count, like every own quote. Quotes a trial made while 0211 was live are kept and count. The Quotes page and the dashboard say "Free trial: 1 of 2 new quotes used" next to "New quote"; at 2 of 2 the button is switched off and a refused 3rd quote says so with a "Choose a plan" link.
+- A trial studio can create at most **2 of its own rows in total** in each of these lists: leads (clients), events / quotes, inventory items, vendors, staff and venues.
 - "In total" (0181): every own row the trial adds is remembered in `trial_create_log`, so deleting it does not free a slot. Rows that still exist also count, including removed (inactive), soft-deleted and shelved ones. Restoring a deleted lead brings the same row back and does not use a new slot.
 - Sample (demo) rows do not count. A sample inventory item stays sample data even when the studio renames or re-prices it (migration 0182), so it never counts. For the other lists, a sample row that the studio renames out of the "Demo ·" prefix becomes the studio's own row and does count.
-- The 3rd add is refused with **"Free trial limit reached (2). Upgrade to add more."** `my_trial_limits()` returns the counts so the app can show the limit before the server refuses (quotes are not in `used`; it says `"uncapped": ["quotes"]`).
+- The 3rd add is refused with **"Free trial limit reached (2). Upgrade to add more."** `my_trial_limits()` returns the counts so the app can show the limit before the server refuses (0238: quotes are in `used` again, no `uncapped` key).
 
 ## 6. Messages
 **E-mail works during an active trial (owner decision, migration 0212).** The approval (quote) link e-mail and the booklet link e-mail ("Send by email", client-mailer), the booklet and invitation website "Send to client" by e-mail (comms_outbox -> comms-dispatch) and the approval code by e-mail (send-otp) really reach the client. Caps: **30 client e-mails a day per studio and 5 a day to one address** (rolling 24 hours, counted in `trial_email_sends`, which stores only a sha-256 fingerprint of the address). Sample (demo) events are never e-mailed. The owner can switch trial e-mail off at once: `update public.trial_email_settings set enabled = false where id;` (caps: `per_studio_day`, `per_recipient_day`).

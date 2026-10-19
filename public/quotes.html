@@ -129,7 +129,7 @@
 </style>
 <link rel="stylesheet" href="quotes-polish.css?v=8"><link rel="stylesheet" href="event-group-picker.css?v=2">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=32" id="shellProto"></script>
+<script src="/shell-proto.js?v=33" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -278,7 +278,7 @@
 <script src="config.js?v=103"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=6"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=253"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script><script src="flow-resume.js?v=4" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=2"></script>
 <script src="event-sizing.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script>
 <script src="tour.js?v=22"></script>
 <script>
@@ -481,6 +481,7 @@
       // mark_paid is admin/manager only server-side (SEC-05 F11); offline mode has no roles — server: mark_paid needs has_area(finance,edit)
       BPStore.auth.enabled() ? BPStore.auth.canEditArea("finance") : true]);
     $("#newBtn").hidden = !canCreate;
+    gateQuoteCap();   // r20 (0238): free trial "1 of 2 new quotes used" next to New quote; off at 2 of 2 (paid: nothing)
     runShelfTick();   // 0040: client link expired → Archive / Deleted (rate-limited server-side; never awaited)
     loadInProgressCount();   // 0206: "In progress (N)" tab (never awaited)
     // opened from an event workspace? focus that quote by pre-filling the search
@@ -1188,14 +1189,20 @@
   // R8: "New quote" creates the quote right here and opens its flow — it used to link to
   // the home page, which never created anything (and could surface the dashboard tour).
   // open="builder": reuse my latest open quote (if any) and land in the floor-plan builder.
-  // r19 (owner): "New quote" opens the quote flow directly - no name / type dialog, no in-progress prompt
-  // (quotes are not capped in the free trial any more, 0211). startBlank reuses MY untouched blank quote (0075),
-  // so repeated clicks never pile up empty rows; empty drafts go to the Deleted shelf after a day (0141 / 0208).
+  // r19 (owner): "New quote" opens the quote flow directly - no name / type dialog, no in-progress prompt.
+  // startBlank reuses MY untouched blank quote (0075), so repeated clicks never pile up empty rows; empty drafts go
+  // to the Deleted shelf after a day (0141 / 0208). r20 (owner, 0238): a free trial makes at most 2 new quotes again -
+  // the button says "Free trial: 1 of 2 new quotes used" and is off at 2 of 2; a refused 3rd quote says why.
+  function gateQuoteCap(){ if(canCreate && window.BPUI && BPUI.capGate) BPUI.capGate([$("#newBtn")],"quotes","new quotes").catch(()=>{}); }
   async function startNewQuote(btn, open){
-    if(btn && btn.disabled) return;
     if(open==="builder"){
       const cur = (quotes||[]).find(x => x && x.id && x.status==="quote" && !x.archivedAt && !x.deletedAt);
       if(cur){ location.href = "builder.html?quote=" + encodeURIComponent(cur.id) + "&from=flow"; return; }
+    }
+    if(btn && btn.disabled){
+      // switched off at the free-trial cap (capGate): say why instead of doing nothing
+      if(btn.getAttribute("data-cap-off")==="1" && window.BPUI && BPUI.capToast) BPUI.capToast({ hint: "trial_cap" }, "new quotes", "You can still open and edit your quotes and the sample events.");
+      return;
     }
     try{
       await BPUI.guard(btn, async () => {
@@ -1207,7 +1214,10 @@
         if(q.code && q.code !== q.title){ try{ await BPStore.quotes.updateMeta(q.id, { title: q.code }); }catch(e){} }
         location.href = open==="builder" ? "builder.html?quote=" + encodeURIComponent(q.id) + "&from=flow" : "flow.html?quote=" + encodeURIComponent(q.id);
       }, { busyLabel: "Creating…" });
-    }catch(err){ BPUI.toast(BPUI.friendlyError(err, { action: "create the quote" }), { type: "err", duration: 8000 }); }
+    }catch(err){
+      if(BPUI.capToast && BPUI.capToast(err, "new quotes", "You can still open and edit your quotes and the sample events.")){ gateQuoteCap(); return; }
+      BPUI.toast(BPUI.friendlyError(err, { action: "create the quote" }), { type: "err", duration: 8000 });
+    }
   }
   document.addEventListener("click", (e) => {
     const b = e.target.closest && e.target.closest("[data-newquote]"); if(!b) return;

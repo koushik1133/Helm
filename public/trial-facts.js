@@ -6,18 +6,20 @@
    one-time terms modal (trial-demo.js) can never drift apart.
    Sources: docs/trial/TRIAL-END-TO-END.md, docs/trial/POST-TRIAL-POLICY.md, migrations
    0166-0205 (sample counts verified on a real trial clone of the sample manifest: 0202).
-   VERSION must equal public._trial_terms_version() (0207, now 0211 + 0212): accept_trial_terms() refuses
+   VERSION must equal public._trial_terms_version() (0207, now 0238): accept_trial_terms() refuses
    any other version, so a stale cached page cannot record agreement to old terms.
    0211 (trial-2026-10-19): quotes / events are no longer capped in the trial - the wording changed,
    so the version did too (the trial owner is asked to agree once more).
    0212 (owner decision): e-mail to clients WORKS in the trial (capped: EMAIL_PER_DAY a day per studio,
    EMAIL_PER_RECIPIENT a day to one address); WhatsApp, SMS and online payment links unlock on a paid plan.
    New wording -> new VERSION (= _trial_terms_version() in 0212): trial owners are asked once more.
+   0238 (trial-2026-10-20, owner r20): quotes / events are capped at CREATE_CAP new ones again, like the other
+   lists (sample events never count) - the wording changed back, so the version did too.
    CSP: DOM built with createElement / textContent only; styles in trial-terms.css.
    ========================================================================= */
 (function (global) {
   "use strict";
-  var VERSION = "trial-2026-10-19";
+  var VERSION = "trial-2026-10-20";
   var DAYS = 8, KEEP_DAYS = 60, TEAM_EXTRA = 2, CREATE_CAP = 2, EXTENSION_DAYS = 7;
   var DELETE_WARN_DAYS = [30, 7, 1];
   var EMAIL_PER_DAY = 30, EMAIL_PER_RECIPIENT = 5;   // 0212 trial client e-mail caps (trial_email_settings)
@@ -37,10 +39,12 @@
     { k: "layouts", n: 3, one: "layout template", many: "layout templates", s: "ready-made floor plans for the 2D/3D builder" },
     { k: "coupons", n: 3, one: "coupon", many: "coupons" }
   ];
-  // the lists the server caps at CREATE_CAP new rows each (0173 / 0181: leads, inventory_items, vendors,
-  // crew_members, venues); a lead IS the client record. 0211: quotes / events are NOT capped (UNCAPPED).
-  var CAP_LISTS = ["leads / clients", "inventory items", "vendors", "staff", "venues"];
-  var UNCAPPED = ["events & quotes"];
+  // the lists the server caps at CREATE_CAP new rows each (0173 / 0181 / 0238: leads, quotes, inventory_items,
+  // vendors, crew_members, venues); a lead IS the client record, a quote IS the event. 0238: nothing is uncapped
+  // any more (0211 had left quotes out) - UNCAPPED stays as an empty list for older callers.
+  var CAP_LISTS = ["leads / clients", "events & quotes", "inventory items", "vendors", "staff", "venues"];
+  var UNCAPPED = [];
+  var OTHER_LISTS = CAP_LISTS.filter(function (x) { return x !== "events & quotes"; });
 
   function count(k) { for (var i = 0; i < SAMPLE.length; i++) if (SAMPLE[i].k === k) return SAMPLE[i].n; return 0; }
   function label(x) { return x.n + " " + (x.n === 1 ? x.one : x.many); }
@@ -55,7 +59,7 @@
       foot: "All of it is sample data, marked “Demo ·” and tagged “Sample”. Sample contacts are not real people." },
     { id: "can", icon: "check", title: "What you can do",
       items: [
-        { t: "Create as many quotes and events as you like", s: "New quotes and events are not limited in the trial." },
+        { t: "Create up to " + CREATE_CAP + " new quotes (events)", s: CREATE_CAP + " new quotes in total for the studio; each quote is an event. The " + count("events") + " sample events do not count: open, edit and re-price them freely (one renamed without “Demo ·” becomes your own and counts). Deleting a quote does not free a slot." },
         { t: "Add up to " + CREATE_CAP + " new records in each other list", s: "Leads (clients), inventory items, vendors, staff and venues. " + CREATE_CAP + " in total per list for the studio: sample records do not count, and deleting a record does not free a slot." },
         { t: "Edit the sample data", s: "Open, change and re-price any sample record to try your own way of working." },
         { t: "Change menu prices", s: "Price per plate, chair and plate prices. Dishes and menu packages cannot be added, renamed or removed in the trial." },
@@ -91,7 +95,7 @@
     "This studio is on Helm’s " + DAYS + "-day free trial. It runs on sample data marked “Demo ·” / “Sample”.",
     "E-mail works: approval, booklet and invitation links (and the approval code) e-mailed from this studio really reach clients (up to " + EMAIL_PER_DAY + " a day). WhatsApp, SMS and payment links unlock on a paid plan.",
     "Downloads, prints, imports and photo renders unlock when the studio chooses a plan.",
-    "The studio can create as many quotes and events as it likes, and up to " + CREATE_CAP + " new leads, inventory items, vendors, staff and venues each (shared by the whole team).",
+    "The studio can create up to " + CREATE_CAP + " new quotes (events), and up to " + CREATE_CAP + " new leads, inventory items, vendors, staff and venues each (shared by the whole team). Sample records do not count.",
     "When the trial ends the studio becomes read-only for everyone until it chooses a plan."
   ];
 
@@ -107,7 +111,7 @@
     "Your trial studio is set up for India: prices in " + REGION.symbol + " (" + REGION.currency + "), times in " + REGION.tz + " (" + REGION.timezone + ").",
     "It starts with ready-made sample data: " + joinList(SAMPLE.map(label)) + ". Every sample record is marked “Demo”.",
     "You plus up to " + TEAM_EXTRA + " teammates can use the trial studio (open invitations count).",
-    "You can create as many quotes and events as you like, and add up to " + CREATE_CAP + " new records of each other kind (" + joinList(CAP_LISTS) + "). Sample records do not count, and deleting a record does not free a slot.",
+    "You can create up to " + CREATE_CAP + " new quotes (events), and add up to " + CREATE_CAP + " new records of each other kind (" + joinList(OTHER_LISTS) + "). Sample records (the " + count("events") + " sample events too) do not count, and deleting a record does not free a slot.",
     "Menu prices are editable. New dishes, menu packages, chair or plate types cannot be added during the trial.",
     "E-mail to your clients works during the trial: approval (quote) links, booklet and invitation links and approval codes by e-mail are really sent, up to " + EMAIL_PER_DAY + " e-mails a day per studio and " + EMAIL_PER_RECIPIENT + " a day to one address. Sample (demo) events are never e-mailed.",
     "WhatsApp messages, SMS approval codes and online payment links are not sent during the trial; they unlock on a paid plan.",

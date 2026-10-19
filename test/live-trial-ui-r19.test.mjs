@@ -253,7 +253,7 @@ t('L13 leads / inventory / vendors: wired (cap on a new-record dialog, reset on 
   const S2 = read('public/staff.html');
   assert.match(S2, /BPUI\.capDialog\(\$\("#sm_save"\),\$\("#sm_err"\),"crew_members","staff",/);
   assert.match(S2, /if\(!editingId&&BPUI\.isCapError&&BPUI\.isCapError\(e\)\)\{ BPUI\.capLimit\(\$\("#sm_err"\),null,"staff"\); return; \}/);
-  assert.match(API, /capDialog: capDialog, capDialogReset: capDialogReset, capLimit: capLimit, isCapError: isCapError, clearErrOnEdit: clearErrOnEdit,/);
+  assert.match(API, /capDialog: capDialog, capDialogReset: capDialogReset, capLimit: capLimit, isCapError: isCapError, (?:capToast: capToast, )?clearErrOnEdit: clearErrOnEdit,/);
 });
 
 /* ------------------------------------------------------------------ L14 staff invite */

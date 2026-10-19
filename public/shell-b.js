@@ -735,7 +735,14 @@
           if (!q || !q.id) throw new Error("no quote");
           var meta = (q.code && q.code !== q.title && typeof Q.updateMeta === "function") ? Promise.resolve(Q.updateMeta(q.id, { title: q.code })).catch(function () {}) : null;
           return Promise.resolve(meta).then(function () { var h = "flow.html?quote=" + encodeURIComponent(q.id); try { if (window.HelmUrl && HelmUrl.upgrade) h = HelmUrl.upgrade(h); } catch (e) {} location.href = h.charAt(0) === "/" ? h : "/" + h; });
-        }).catch(function () { creating = false; try { if (window.BPUI && BPUI.toast) BPUI.toast("Could not start a quote. Try again.", { type: "err" }); } catch (e) {} });
+        }).catch(function (err) {
+          creating = false;
+          try {
+            /* r20 (0238): the free trial's 2 new quotes are used - say so, with the "Choose a plan" link */
+            if (window.BPUI && BPUI.capToast && BPUI.capToast(err, "new quotes", "You can still open and edit your quotes and the sample events.")) return;
+            if (window.BPUI && BPUI.toast) BPUI.toast("Could not start a quote. Try again.", { type: "err" });
+          } catch (e) {}
+        });
       });
     })();
   }

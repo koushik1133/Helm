@@ -1,7 +1,8 @@
 // r19-quotes-flow.test.mjs - owner r19 "quotes in the trial and the flow":
 //  1  free trial: quotes / events are NOT capped (0211 drops the 3 cap triggers on public.quotes only; the 2-new cap
-//     stays for leads, inventory items, vendors, staff, venues); my_trial_limits leaves quotes out; terms wording +
-//     version (trial-2026-10-19) match on the server, trial-facts.js, terms.html and TRIAL-END-TO-END.md
+//     stays for leads, inventory items, vendors, staff, venues); my_trial_limits leaves quotes out; version
+//     trial-2026-10-19. r20 (owner): 0238 puts the quote cap back (2 new) - the 0211 file is unchanged (forward-only),
+//     the CURRENT wording / version (trial-2026-10-20) is checked in test/r20-trial-quotes-cap.test.mjs
 //  2  "New quote" opens the flow directly (no pre-create dialog, no in-progress prompt) - see quote-create-guards
 //  3  menu package can be UNSELECTED in the flow ("No package" card / click the chosen card again) and the builder
 //     ("No package…"): clear_menu_template (0211) clears the plan's package + plate price, dishes kept
@@ -39,8 +40,10 @@ await t('0211 SQL: my_trial_limits keeps the 5 capped lists + says quotes are un
   const TF = F.HelmTrialFacts || (F.window && F.window.HelmTrialFacts) || (F.globalThis && F.globalThis.HelmTrialFacts);
   const ver = M.match(/select '(trial-\d{4}-\d{2}-\d{2})'::text;/)[1];
   assert.equal(ver, 'trial-2026-10-19');
-  assert.ok(!TF || TF.VERSION === ver, 'trial-facts VERSION = server version');
-  assert.match(read('public/trial-facts.js'), new RegExp('var VERSION = "' + ver + '";'));
+  // r20: 0238 superseded this version (quotes capped again): trial-facts.js now carries the 0238 version
+  const v238 = read('supabase/migrations/0238_trial_quotes_cap_two.sql').match(/select '(trial-\d{4}-\d{2}-\d{2})'::text;/)[1];
+  assert.ok(!TF || TF.VERSION === v238, 'trial-facts VERSION = the latest server version (0238)');
+  assert.match(read('public/trial-facts.js'), new RegExp('var VERSION = "' + v238 + '";'));
 });
 
 await t('0211 SQL: clear_menu_template = apply_menu_template checks, plan row only, dishes never touched', () => {
@@ -71,21 +74,12 @@ await t('APPLY-0211: migration verbatim in one transaction + a VERIFY grid; MANI
   assert.match(DBT, /\\ir \.\.\/\.\.\/supabase\/migrations\/0211_trial_quotes_uncapped\.sql/, 'the suite re-applies 0211 (earlier suites re-apply 0173 / 0181)');
 });
 
-await t('trial wording: quotes / events unlimited everywhere the trial rules are shown; other lists still 2', () => {
+// r20 (owner): the 0211 "unlimited quotes" wording is gone again - 0238 caps quotes at 2 new; the current wording is
+// asserted in test/r20-trial-quotes-cap.test.mjs. Here: nothing still says quotes are unlimited.
+await t('trial wording: no screen says quotes / events are unlimited any more (0238 superseded 0211)', () => {
   const ctx = {}; ctx.window = ctx; ctx.globalThis = ctx; vm.runInContext(read('public/trial-facts.js'), vm.createContext(ctx));
-  const F = JSON.parse(JSON.stringify(ctx.HelmTrialFacts)); assert.ok(F, 'HelmTrialFacts');
-  assert.deepEqual(F.CAP_LISTS, ['leads / clients', 'inventory items', 'vendors', 'staff', 'venues']);
-  assert.deepEqual(F.UNCAPPED, ['events & quotes']);
-  const can = F.SECTIONS.find((s) => s.id === 'can').items.map((i) => i.t + ' ' + i.s).join('\n');
-  assert.match(can, /Create as many quotes and events as you like/); assert.doesNotMatch(can, /events & quotes, inventory/);
-  assert.match(F.SIGNUP_ALL.join(' '), /create as many quotes and events as you like, and add up to 2 new records of each other kind \(leads \/ clients, inventory items, vendors, staff and venues\)/);
-  assert.match(F.NOTICE.join(' '), /as many quotes and events as it likes/);
-  const terms = read('public/terms.html');
-  assert.match(terms, /<b>Adding records:<\/b> you can create as many quotes and events as you like\. You can add up to 2 new records of each other kind \(leads \/ clients, inventory items, vendors, staff and venues\)/);
-  assert.doesNotMatch(terms, /events &amp; quotes, inventory/);
-  const doc = read('docs/trial/TRIAL-END-TO-END.md');
-  assert.match(doc, /\*\*Quotes and events are not capped\*\* \(migration 0211\)/); assert.match(doc, /`trial-2026-10-19`/);
-  assert.doesNotMatch(doc, /lists: leads \(clients\), events\/quotes/);
+  const all = JSON.stringify(ctx.HelmTrialFacts) + read('public/terms.html');
+  assert.doesNotMatch(all, /as many quotes and events as you like|as many quotes and events as it likes|not limited in the trial/);
 });
 
 // ---- flow step 5: unselect a package (behaviour, extracted from flow.html) ---------------------------------
