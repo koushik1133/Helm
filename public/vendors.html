@@ -225,6 +225,10 @@
     else if(!anyPartners){
       $("#grid").innerHTML=`<div class="empty">No partners yet.${canEdit?` Add your first vendor, freelancer or rental partner.<br><button type="button" class="btn primary" id="emptyAdd">＋ Add your first partner</button>`:""}</div>`;
       const b=$("#emptyAdd"); if(b){ b.addEventListener("click",()=>openForm(null)); gateCap(); }
+    } else if(quoteId && eventOnly && !eventVendors.size){
+      // r20 (live QA): "This event only" with no bookings yet is not a filter miss - say so and point at the
+      // resource plan's External bookings card, where "Book a partner" lives
+      $("#grid").innerHTML=`<div class="empty">No vendors booked for this event yet. <a href="resources.html?quote=${encodeURIComponent(quoteId)}#bookings" style="color:var(--accent);font-weight:600">Book a partner in the resource plan →</a></div>`;
     } else $("#grid").innerHTML='<div class="empty">No partners match this filter. Try another type or clear the search.</div>';
     $("#grid").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openForm(list.find(x=>x.id===b.dataset.edit))));
   }

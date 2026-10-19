@@ -5533,6 +5533,18 @@ window.HelmUrl = HelmUrl;
     return hit(eventType) || hit(title) || "📅";
   }
 
+  /* ---------------- sample-row names (r20) ---------------- */
+  // r20 (live QA): ONE display format for a free-trial sample name everywhere a page shows it as
+  // plain text (lists and drop-downs alike): "Demo \u00b7 PA Speaker" -> "PA Speaker (sample)". A seed
+  // name that already ends in "(sample)" ("Demo \u00b7 Pandit Sharma Ji (sample)") gets it once, never
+  // twice. Any other name is returned unchanged. Display only - the stored name is never touched.
+  function sampleDisplayName(n) {
+    const s = String(n == null ? "" : n), m = /^\s*Demo \u00b7\s*/.exec(s);
+    if (!m) return s;
+    const base = s.slice(m[0].length).replace(/\s*\(sample\)\s*$/i, "");
+    return base ? base + " (sample)" : s;
+  }
+
   /* ---------------- display names (0034) ---------------- */
   // What to call a person: their display name → the part of their e-mail before "@"
   // → their role → "Member". Plain text — callers must still escape it.
@@ -9776,6 +9788,7 @@ window.HelmUrl = HelmUrl;
     },
   };
   global.BPStore = BPStore;
+  BPStore.sampleName = sampleDisplayName;   // r20: shared sample-name display (see sampleDisplayName)
   /* ---- 0067 pretty studio URLs: studio check + ref resolution (HelmUrl.get) ----
      Signed-in pages only. my_studio_route() answers for the caller's OWN studio only:
      another studio's slug (or an unknown one) shows "not your studio" and the page's own

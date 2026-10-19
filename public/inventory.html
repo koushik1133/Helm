@@ -337,7 +337,7 @@
       const p=i.priority||"C";
       const inactive=i.active===false;
       return `<tr data-item="${esc(i.id)}"${inactive?' style="opacity:.55"':''}>
-        <td><b>${esc(i.name)}</b>${(()=>{ const al=typeof HelmImportCore!=="undefined"?HelmImportCore.attrList("inventory",i.attributes,attrDefs):[]; return al.length?`<div class="attrline">${al.slice(0,4).map(a=>`<span title="${esc(a.label)}: ${esc(a.value)}">${esc(a.label)}: ${esc(a.value.slice(0,30))}</span>`).join(" · ")}${al.length>4?` · +${al.length-4} more`:""}</div>`:""; })()}${inactive?' <span class="cat" style="background:var(--line);color:var(--ink-3)">Inactive</span>':''}</td>
+        <td><b>${esc(optName(i.name))}</b>${(()=>{ const al=typeof HelmImportCore!=="undefined"?HelmImportCore.attrList("inventory",i.attributes,attrDefs):[]; return al.length?`<div class="attrline">${al.slice(0,4).map(a=>`<span title="${esc(a.label)}: ${esc(a.value)}">${esc(a.label)}: ${esc(a.value.slice(0,30))}</span>`).join(" · ")}${al.length>4?` · +${al.length-4} more`:""}</div>`:""; })()}${inactive?' <span class="cat" style="background:var(--line);color:var(--ink-3)">Inactive</span>':''}</td>
         <td><span class="pri ${p}" title="Priority ${p}">${p}</span></td>
         <td>${i.category?`<span class="cat">${esc(i.category)}</span>`:""}</td>
         <td class="num">${num(i.total_qty)}</td>
@@ -435,7 +435,7 @@
       const it=byId[r.item_id]||{name:"(item)"};
       const opts=["reserved","allocated","returned","cancelled"].map(s=>`<option value="${s}" ${s===r.status?"selected":""}>${ST[s]}</option>`).join("");
       return `<tr data-item="${esc(r.item_id)}">
-        <td><b>${esc(it.name)}</b>${r.note?`<div class="sub2">${esc(r.note)}</div>`:""}</td>
+        <td><b>${esc(optName(it.name))}</b>${r.note?`<div class="sub2">${esc(r.note)}</div>`:""}</td>
         <td class="num">${num(r.qty)} ${esc(it.unit||"")}</td>
         <td>${canEdit?`<select class="ssel" data-res="${esc(r.id)}" data-prev="${esc(r.status)}" aria-label="Reservation status for ${esc(it.name)}">${opts}</select>`:`<span class="stat ${esc(r.status)}">${ST[r.status]||esc(r.status)}</span>`}</td>
         <td>${canDelete?`<button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(it.name)}" aria-label="Remove reservation for ${esc(it.name)}">Remove</button>`:""}</td>
@@ -468,7 +468,10 @@
 
   // B29: a drop-down can't show the Sample badge trial-upgrade.js puts on "Demo \u00b7 ..." text, so an option reads
   // "PA Speaker (sample)" instead of the raw prefix (the value stays the record's id / name)
-  function optName(n){ const s=String(n==null?"":n), m=/^\s*Demo \u00b7\s*/.exec(s); return m?s.slice(m[0].length)+" (sample)":s; }
+  // r20: the stock list, reservations and check-outs use the SAME format (one shared helper, BPStore.sampleName),
+  // and a seed name already ending in "(sample)" gets the suffix once. Display only.
+  function optName(n){ try{ if(window.BPStore&&typeof BPStore.sampleName==="function") return BPStore.sampleName(n); }catch(e){}
+    const s=String(n==null?"":n), m=/^\s*Demo \u00b7\s*/.exec(s); if(!m) return s; const b=s.slice(m[0].length).replace(/\s*\(sample\)\s*$/i,""); return b?b+" (sample)":s; }
   function openItem(it){
     editingId=it?it.id:null; $("#im_title").textContent=it?"Edit item":"＋ Add item";
     $("#i_name").value=it?it.name||"":""; $("#i_cat").value=it?it.category||"":"";
@@ -582,7 +585,7 @@
       // still out = "left over" → show the outstanding qty in RED so it's obvious
       const goEvent = c.quote_id ? `<a class="btn sm" href="event.html?id=${esc(c.quote_id)}" title="Open the event to check this back in">Go to event →</a>` : "";
       return `<tr>
-        <td><b>${esc(it.name)}</b>${c.note?`<div class="sub2">${esc(c.note)}</div>`:""}${c.status==="partial"?' <span class="miss">partial</span>':""}</td>
+        <td><b>${esc(optName(it.name))}</b>${c.note?`<div class="sub2">${esc(c.note)}</div>`:""}${c.status==="partial"?' <span class="miss">partial</span>':""}</td>
         <td>${eventCell(c)}</td>
         <td><span class="pri ${esc(it.priority||'C')}">${esc(it.priority||'C')}</span></td>
         <td class="num" style="color:#b42318;font-weight:700">${num(c.qty_out)}${c.status==="partial"?` <span style="color:var(--ink-3)">(${num(c.qty_in)} back)</span>`:""}</td>
@@ -593,7 +596,7 @@
     // cancelled check-outs: kept for the record (never deleted), greyed, behind the toggle
     const cxlHtml = (showCancelled && cancelled.length) ? cancelled.map(c=>{ const it=byId[c.item_id]||{name:"(item)"};
       return `<tr class="co-cancelled">
-        <td><b>${esc(it.name)}</b><span class="cxl">cancelled</span>${c.note?`<div class="sub2">${esc(c.note)}</div>`:""}</td>
+        <td><b>${esc(optName(it.name))}</b><span class="cxl">cancelled</span>${c.note?`<div class="sub2">${esc(c.note)}</div>`:""}</td>
         <td>${eventCell(c)}</td>
         <td><span class="pri ${esc(it.priority||'C')}">${esc(it.priority||'C')}</span></td>
         <td class="num">${num(c.qty_out)}</td>
@@ -607,7 +610,7 @@
     const lossRows = closed.map(c=>{ const it=byId[c.item_id]||{name:"(item)"}; const missing=Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
       if(missing<=0) return ""; const val=missing*Number(it.unit_cost||0); lostVal+=val; lostUnits+=missing;
       return `<tr>
-        <td><b>${esc(it.name)}</b> <span class="pri ${esc(it.priority||'C')}">${esc(it.priority||'C')}</span></td>
+        <td><b>${esc(optName(it.name))}</b> <span class="pri ${esc(it.priority||'C')}">${esc(it.priority||'C')}</span></td>
         <td>${eventCell(c)}</td>
         <td class="num">${num(c.qty_out)}</td>
         <td class="num">${num(c.qty_in)}</td>

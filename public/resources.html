@@ -106,18 +106,18 @@
         <div class="fld"><label for="n_qty">Qty</label><input id="n_qty" type="number" min="1" value="1"></div>
         <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="n_add">＋ Add need</button></div>
       </div>
-      <div class="s-d2c171b"><button type="button" class="btn sm" id="pullBtn">↧ Pull from discovery requirements</button> <span class="muted" id="pullMsg" role="status" aria-live="polite"></span></div>
+      <div class="s-d2c171b" id="pullWrap" hidden><button type="button" class="btn sm" id="pullBtn">↧ Pull from discovery requirements</button> <span class="muted" id="pullMsg" role="status" aria-live="polite"></span></div>
     </div>
 
     <div class="card s-8d8d59e">
       <table>
-        <thead><tr><th scope="col">Need</th><th scope="col">Type</th><th scope="col" class="num">Need</th><th scope="col" class="num">In-house</th><th scope="col">Coverage</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <thead><tr><th scope="col">Need</th><th scope="col">Type</th><th scope="col" class="num">Qty needed</th><th scope="col" class="num">In-house</th><th scope="col">Coverage</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="rows"><tr><td colspan="6" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
       </table>
     </div>
     <p class="muted" id="gapHint" hidden></p>
 
-    <div class="card s-1b0f499">
+    <div class="card s-1b0f499" id="bookings">
       <h2>External bookings <span class="muted s-7e3a944">— vendors · freelancers · rentals</span></h2>
       <p class="sub">Book outside partners to cover the gaps. <a class="s-a805525" href="vendors.html">Manage partners →</a></p>
       <div class="s-761d3ad"><button type="button" class="btn sm" id="bookBtn" hidden>＋ Book a partner</button></div>
@@ -165,11 +165,13 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=103"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=254"></script><script src="pick-event.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const num=(n)=>Number(n||0).toLocaleString("en-IN");
+  // r20: a sample (free-trial) name reads "PA Speaker (sample)" in a picker, same as Inventory (BPStore.sampleName)
+  const sn=(n)=>{ try{ if(window.BPStore&&typeof BPStore.sampleName==="function") return BPStore.sampleName(n); }catch(e){} return String(n==null?"":n); };
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const KIND={staff:"Staff",inventory:"Inventory",other:"Other"};
   let canEdit=false, canDelete=false, items=[], checked=[], vendors=[], bookings=[], bookNeed=null;
@@ -245,7 +247,7 @@
     bookNeed=need||null;
     $("#bm_title").textContent = existing ? "Edit booking" : need ? "Book a partner for this gap" : "Book a partner";
     $("#bk_label").value = need ? (need.label||"") : "";
-    $("#bk_vendor").innerHTML = vendors.length ? vendors.map(v=>`<option value="${esc(v.id)}">${esc(v.name)} — ${esc(KIND[v.kind]||v.kind||"")}</option>`).join("") : `<option value="">(add partners in Vendors first)</option>`;
+    $("#bk_vendor").innerHTML = vendors.length ? vendors.map(v=>`<option value="${esc(v.id)}">${esc(sn(v.name))} — ${esc(KIND[v.kind]||v.kind||"")}</option>`).join("") : `<option value="">(add partners in Vendors first)</option>`;
     $("#bk_cost").value=""; $("#bk_adv").value=""; $("#bk_status").value="booked"; $("#bk_contract").checked=false; $("#bk_note").value="";
     if(existing){
       if(!vendors.some(v=>v.id===existing.vendor_id)) $("#bk_vendor").innerHTML+=`<option value="${esc(existing.vendor_id||"")}">(current partner)</option>`;
@@ -305,7 +307,14 @@
     });
   }
 
-  function pullFromRequirements(){ return BPUI.guard($("#pullBtn"),async()=>{
+  async function gatePull(){
+    const b=$("#pullBtn"); if(!b) return;
+    let seeDisc=false; try{ seeDisc=!!(await BPStore.auth.canView("discovery")); }catch(e){ seeDisc=false; }
+    b.hidden=!seeDisc; const w=$("#pullWrap"); if(w) w.hidden=!seeDisc;
+    b.disabled=!canEdit;
+    if(!canEdit) b.title="Your role can view the resource plan but not change it."; else b.removeAttribute("title");
+  }
+  function pullFromRequirements(){ if(!canEdit||$("#pullBtn").hidden) return; return BPUI.guard($("#pullBtn"),async()=>{
     $("#pullMsg").textContent="";
     try{
       const reqs=await BPStore.discovery.listReqs(id);
@@ -335,7 +344,7 @@
   async function load(){
     try{
       items = await BPStore.inventory.items(false).catch(()=>[]);
-      $("#n_item").innerHTML = items.map(i=>`<option value="${esc(i.id)}">${esc(i.name)}</option>`).join("");
+      $("#n_item").innerHTML = items.map(i=>`<option value="${esc(i.id)}">${esc(sn(i.name))}</option>`).join("");
       checked = await BPStore.resources.check(id);
     }catch(e){ BPUI.loadError($("#rows"),e,load,{what:"resource needs"}); $("#gapHint").hidden=true; return; }
     try{ vendors = await BPStore.vendors.listAll(false); }catch{ vendors=[]; }
@@ -347,14 +356,18 @@
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
-    if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("resources"))) return;
+    // r20 (live QA): opened without ?quote= (e.g. /<studio>/resources) -> "Pick an event" list, not "Event not found"
+    if(!id){ if(window.HelmPickEvent) HelmPickEvent.show($("#notfound"),"resources","resource plan"); else $("#notfound").hidden=false; return; }
     canEdit=await BPStore.auth.canEditArea("resources"); canDelete=canEdit && await BPStore.auth.can("delete");
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false; $("#addCard").hidden=!canEdit; $("#bookBtn").hidden=!canEdit; onKind();
+    // r20 (live QA): "Pull from discovery requirements" reads the discovery area - hidden for a role that
+    // can't view discovery, and switched off for a role that can't edit the resource plan.
+    await gatePull();
     await load();
   });
 </script>
