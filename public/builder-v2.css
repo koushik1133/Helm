@@ -112,3 +112,25 @@ header .bp-priv-slot .hbp-btn { height:32px; width:32px; padding:0; display:inli
   border:1px solid var(--line); background:var(--panel-2); color:var(--ink); border-radius:7px; cursor:pointer; }
 header .bp-priv-slot .hbp-btn:hover { border-color:var(--grid-strong); }
 header .bp-priv-slot .hbp-btn.hbp-on { background:var(--accent-soft, var(--panel-2)); color:var(--acc-text, var(--accent)); }
+
+/* r21 builder hover: primary buttons in the header / panels / dialogs keep the solid accent. The calm hairline rule above
+   (:is(header,aside,.modal,...) :is(select,.tbtn,...)) out-ranked ".tbtn.primary", so "Create layout", "Save" and
+   "Save & back to quote" painted like plain buttons and went pale on hover. */
+html[data-hb-theme] :is(header,aside,.modal,.tools3d,.hmenu-pop) .tbtn.primary { background:var(--accent); color:var(--acc-ink); border-color:transparent; font-weight:600; }
+html[data-hb-theme] :is(header,aside,.modal,.tools3d,.hmenu-pop) .tbtn.primary:hover { background:var(--accent-2); color:var(--acc-ink); border-color:transparent; }
+html[data-hb-theme] :is(header,aside,.modal,.tools3d,.hmenu-pop) .tbtn.primary:disabled { background:var(--accent); opacity:.45; }
+
+/* r21 builder hover: a tidier toolbar on laptops / desktops (1280-1440 wraps it to a few rows). One control height
+   (30px: buttons, menus, inputs, the segmented pills and the chips), one gap inside a group and a wider one between
+   groups. The thin group dividers are hidden here: once the toolbar wraps they dangled at the end of a row. */
+@media (min-width:721px){
+  html[data-hb-theme] header { column-gap:16px; row-gap:8px; padding:8px 16px; align-items:center; }
+  html[data-hb-theme] header > .hsep { display:none; }
+  html[data-hb-theme] header .hgroup { gap:6px; }
+  html[data-hb-theme] header :is(select,.tbtn,.nameinput,.capmeter) { height:30px; }
+  html[data-hb-theme] header .tbtn.icon, html[data-hb-theme] header .bp-priv-slot .hbp-btn { width:30px; height:30px; }
+  html[data-hb-theme] header .seg { height:30px; box-sizing:border-box; align-items:center; }
+  html[data-hb-theme] header .seg button { height:24px; padding:0 9px; }
+  html[data-hb-theme] header .wt-field .seg button { padding:0 8px; }
+  html[data-hb-theme] header .savestate, html[data-hb-theme] header .qbadge { line-height:1.4; }
+}
