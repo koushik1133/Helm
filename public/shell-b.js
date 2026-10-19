@@ -119,7 +119,7 @@
     { sel: "#hbRail .hb-group:not(.hb-fav)", side: "right", title: "Your workspace", desc: "Every area of Helm lives in this sidebar: Workspace for daily work, Manage and Admin below it. Scroll the list if it is taller than your screen. Press H (when you are not typing) to jump home to the dashboard." },
     { sel: ".hb-recent .htr-btn", side: "right", title: "Recently viewed", desc: "Jump back to the pages and events you opened last." },
     { sel: "[data-tour='theme']", side: "right", title: "Look and feel", desc: window.HELM_DARK_MODE === true ? "Switch dark mode and pick a colour theme." : "Pick a colour theme: Emerald, Cobalt, Midnight, Graphite or Studio." },
-    { sel: "[data-tour='account']", side: "right", title: "Your account", desc: "Your profile, account settings (password and two-step verification), the user manual and sign out." },
+    { sel: "[data-tour='account']", side: "right", title: "Your account", desc: (window.HELM_FEATURES && window.HELM_FEATURES.manual === true) ? "Your profile, account settings (password and two-step verification), the user manual and sign out." : "Your profile, account settings (password and two-step verification) and sign out." },
     { sel: "[data-tour='search']", title: "Search anything", desc: "Find quotes, leads, clients and pages from one box. Press / or Ctrl+K." },
     /* r20 coord (b): role-aware (tour.js resolves need / uses through BPStore.auth); null alt = this admin wording */
     { sel: "[data-tour='bell']", uses: "finance", alt: function (can) { return can("finance") ? null : { desc: "Approvals, reminders and mentions arrive here." }; }, title: "Notifications", desc: "Approvals, payments and mentions arrive here." },

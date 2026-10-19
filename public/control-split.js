@@ -109,7 +109,8 @@
   var help=el("div","cs-help"); help.appendChild(el("h4","cs-group-h","Help"));
   var hl=el("a","cs-help-a"); hl.id="csHelpManual"; hl.href="manual.html#control"; hl.target="_blank"; hl.rel="noopener noreferrer";
   hl.title="Open the Helm user manual in a new tab";
-  aside.appendChild(help);
+  // r20 coord (e): the user manual is hidden for now - the Help group only appears while config.js HELM_FEATURES.manual is true
+  if(window.HELM_FEATURES && window.HELM_FEATURES.manual===true) aside.appendChild(help);
   // page header, empty state and unsaved-changes bar live in the main column
   var head=el("div","cs-head"), hT=el("h2",null,""), hD=el("p",null,""); head.appendChild(hT); head.appendChild(hD);
   main.insertBefore(head, main.firstChild);

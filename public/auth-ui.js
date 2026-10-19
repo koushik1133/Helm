@@ -1372,8 +1372,8 @@
      Replaces the old "Account" button + role/e-mail/Log out chip on signed-in studio
      pages (never HQ, never client pages). Like GitHub: a round avatar button opens a
      menu (role=menu) with the identity header, Profile, Account settings (profile,
-     password, two-step verification), User manual (opens /manual in a new tab) and
-     Sign out - for every role, free trial included. R19: Control Center, Insights and
+     password, two-step verification), User manual (opens /manual in a new tab; only while
+     config.js HELM_FEATURES.manual is true - hidden for now) and Sign out - for every role, free trial included. R19: Control Center, Insights and
      Customize dashboard left the menu (the sidebar and the dashboard already have them). Keyboard: Enter/Space/ArrowDown open, arrows/Home/End move, Esc closes
      and returns focus, Tab stays inside the open menu. Click outside closes.
      #helm-topbar-search is an empty slot left of the avatar for the studio search. */
@@ -1393,8 +1393,10 @@
     var items = [
       { id: "profile", label: "Profile" },
       { id: "settings", label: "Account settings" },
-      { id: "manual", label: "User manual", href: "manual.html", newTab: true },
     ];
+    // r20 coord (e): the user manual is hidden for now - only when config.js HELM_FEATURES.manual === true
+    if (typeof window !== "undefined" && window.HELM_FEATURES && window.HELM_FEATURES.manual === true)
+      items.push({ id: "manual", label: "User manual", href: "manual.html", newTab: true });
     items.push({ id: "signout", label: "Sign out", sep: true });
     return { name: name || email.split("@")[0] || "Account", email: email, role: label,
       initials: initials(name, email), color: avColorIdx(u.id || email),

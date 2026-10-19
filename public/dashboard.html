@@ -828,7 +828,7 @@
     {sel:['[data-tour="nav-manage"]','[data-tour="tabs-more"]'], side:"right", title:"Manage", desc:"Your people and things: clients, staff, inventory and vendors. (On a phone these sit in the “More” menu.)"},
     {sel:['[data-tour="nav-admin"]','[data-tour="tabs-more"]'], side:"right", uses:["finance","insights","controls"], alt:TOUR_ADMIN_ALT, title:"Admin & Control Center", desc:"Business shows your money and Insights your numbers. Control Center holds your default prices, your team and what each role can see."},
     {sel:['[data-tour="theme"]','[data-tour="tabs-more"]'], side:"right", title:"Colour theme", desc:"Pick a colour theme for the whole app (Emerald is the default). Your choice is remembered on this device. (On a phone it's inside the “More” menu.)"},
-    {sel:['[data-tour="account"]','[data-tour="m-me"]','[data-tour="tabs-more"]'], side:"right", title:"Your profile menu", desc:"Your account, settings, the user manual and sign out live here."},
+    {sel:['[data-tour="account"]','[data-tour="m-me"]','[data-tour="tabs-more"]'], side:"right", title:"Your profile menu", get desc(){ return (window.HELM_FEATURES&&window.HELM_FEATURES.manual===true)?"Your account, settings, the user manual and sign out live here.":"Your account, settings and sign out live here."; }},
     // 2 · top bar, left to right
     {sel:['[data-tour="search"]','[data-tour="search-m"]','[data-tour="m-search"]'], title:"Search anything", desc:"Find a client, quote, lead or page by typing a few letters. Press ⌘K (Ctrl K on Windows) from anywhere to jump straight here."},
     {sel:'[data-tour="privacy"]', title:"Hide the money", desc:"Showing your screen to a client? Tap the eye to hide every amount. Showing them again asks for your PIN, so nobody else can peek."},

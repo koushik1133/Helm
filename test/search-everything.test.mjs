@@ -60,7 +60,10 @@ await t('deep links: control.html?cs=<text>#hash, handled by control-split', () 
 
 await t('pages respect role access; Integrations only when the feature is on', async () => {
   const sales = (await texts(auth('sales', ['quotes', 'leads']))).filter((e) => e.kind === 'page').map((e) => e.key);
-  assert.deepEqual(sales.sort(), ['chat', 'dashboard', 'leads', 'manual', 'quotes']);
+  // r20 coord (e): the user manual is hidden for now (HELM_FEATURES.manual) - back in search once flipped on
+  assert.deepEqual(sales.sort(), ['chat', 'dashboard', 'leads', 'quotes']);
+  const salesManual = (await texts(auth('sales', ['quotes', 'leads']), { manual: true })).filter((e) => e.kind === 'page').map((e) => e.key);
+  assert.deepEqual(salesManual.sort(), ['chat', 'dashboard', 'leads', 'manual', 'quotes']);
   const salesAll = await texts(auth('sales', ['quotes', 'leads']));
   assert.ok(!salesAll.some((e) => e.kind === 'section' || e.kind === 'setting'), 'no Control Center for sales');
   assert.ok(salesAll.some((e) => e.kind === 'account' && e.id === 'mfa'), 'own account items for everyone');
@@ -77,7 +80,7 @@ await t('pages respect role access; Integrations only when the feature is on', a
   for (const e of await texts(auth('admin'), { integrationsPage: true })) if (e.href) assert.match(e.href, /^[a-z-]+\.html([?#].*)?$/);
   // a failing gate check hides the page
   const broken = { role: async () => { throw new Error('x'); }, canView: async () => { throw new Error('x'); } };
-  assert.deepEqual((await texts(broken)).filter((e) => e.kind === 'page').map((e) => e.key).sort(), ['chat', 'dashboard', 'manual']);
+  assert.deepEqual((await texts(broken)).filter((e) => e.kind === 'page').map((e) => e.key).sort(), ['chat', 'dashboard']);   // r20 coord (e): manual hidden for now
 });
 
 await t('synonyms find the right setting', async () => {
