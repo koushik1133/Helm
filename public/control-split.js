@@ -31,6 +31,7 @@
     {key:"privacy",  group:"Workspace",  label:"Hide amounts (privacy PIN)",icon:"lock",hash:"#privacy-pin",desc:"The 4-digit PIN that shows amounts again after you hide them in front of a client. One PIN for the studio; admins change it.", kw:"privacy pin passcode hide amounts money prices mask blur present client eye unlock 0000 change pin reset pin forgot pin"},
     {key:"links",    group:"Workspace",  label:"Client links & packages",icon:"link",  hash:"#client-links",  desc:"How long client links stay open and how clients choose a package.", kw:"expire expiry auto-expire link security package flow booklet"},
     {key:"pricing",  group:"Sales",      label:"Pricing & coupons",      icon:"tag",   hash:"#pricing",       desc:"Default pricing for new quotes, rate cards, builder prices and limits, and coupons.", kw:"price tax gst vat discount rate card coupon promo capacity object service charge"},
+    {key:"payments", group:"Sales",      label:"Payment schedules",      icon:"card",  hash:"#payment-schedules", desc:"Payment plans added when a client approves (30 / 50 / 20, 50 / 50, 100% upfront or your own), overdue alerts and how clients pay.", kw:"payment schedule milestone installment instalment advance balance 30 50 20 upfront deposit due date upi bank overdue plan template"},
     {key:"catalog",  group:"Sales",      label:"Menus & catalog",        icon:"menu",  hash:"#menu",          desc:"Chairs, plates, dishes and the menu packages clients pick from.", kw:"chair plate dish catering menu package standard gold premium"},
     {key:"rules",    group:"Sales",      label:"Layout rules",           icon:"grid",  hash:"#layout-rules",  desc:"What the layout generator uses for each event type.", kw:"seats guests buffet bar generator event type layout reminders"},
     {key:"data",     group:"Sales",      label:"Import & custom fields", icon:"upload",hash:"#data",          desc:"Bring catalogues and clients in from Excel, and add your own fields.", kw:"excel import xlsx csv custom field"},
@@ -47,7 +48,7 @@
   function el(tag,cls,txt){ var e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
   var BYKEY={}, SECHASH={}, HASH={}; SECTIONS.forEach(function(x){ BYKEY[x.key]=x; SECHASH[x.key]=x.hash; HASH[x.hash]=x.key; });
   // legacy deep links (dashboard checklist, old bookmarks) -> section
-  Object.assign(HASH,{"#account":"general","#studio":"general","#team":"users","#notify":"notify","#security":"links","#link-expiry":"links","#pricing-packages":"pricing","#target-margin":"pricing","#catalog":"catalog","#event-reminders":"reminders","#client-reminders":"reminders","#payment-reminders":"reminders","#whatsapp":"reminders","#privacy":"privacy","#hide-amounts":"privacy","#pin":"privacy","#ltemplates":"ltemplates"});
+  Object.assign(HASH,{"#account":"general","#studio":"general","#team":"users","#notify":"notify","#security":"links","#link-expiry":"links","#pricing-packages":"pricing","#target-margin":"pricing","#catalog":"catalog","#event-reminders":"reminders","#client-reminders":"reminders","#payment-reminders":"reminders","#payment-schedule":"payments","#whatsapp":"reminders","#privacy":"privacy","#hide-amounts":"privacy","#pin":"privacy","#ltemplates":"ltemplates"});
   var OLDKEY={studio:"general",team:"users",security:"links"};
   function h3(c){ var h=c.querySelector("h3"); return h?h.textContent.trim():""; }
   function paneKey(c){ var p=c.closest("[id^='pane-']"); return p?p.id.slice(5):""; }
@@ -64,6 +65,7 @@
     if(c.classList.contains("compliance")) return "compliance";
     if(/^access control/.test(t)) return "access";
     if(id==="evrCard"||id==="commsCard") return "reminders";
+    if(id==="pstCard") return "payments";
     if(id==="prCard") return "renders";
     if(pane==="users") return "users";
     if(pane==="notify") return "notify";

@@ -41,6 +41,10 @@ begin
   insert into public.profiles(id, email, full_name, role, org_id, must_change_password, created_at)
     values (u, 'cm_crew@a.test', 'Crew Member', 'crew', a, false, now()) on conflict (id) do update set role = 'crew', org_id = a;
   delete from public.role_access where org_id = a and role = 'crew';
+  -- 0264: payment reminders are ON by default for a studio that never saved this card; this suite starts from two
+  -- studios that saved them OFF (the 0078 starting point: off, e-mail, 3 / 3 / 3), so every step below is unchanged
+  insert into public.comms_settings(org_id, pay_enabled, pay_max_overdue) values (a, false, 3), (b, false, 3)
+    on conflict (org_id) do update set pay_enabled = false, pay_max_overdue = 3;
   select id into st from auth.users where email = 'a_staff@a.test';
   insert into public.member_profiles(user_id, phone, whatsapp, whatsapp_same) values (st, '+919876543210', null, true)
     on conflict (user_id) do update set phone = excluded.phone, whatsapp_same = true;

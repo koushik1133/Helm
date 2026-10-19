@@ -27,7 +27,7 @@ const texts = async (a, feat = {}) => (await CAT.entriesFor(a, feat));
 await t('every control-split section has a catalog section and settings', () => {
   const block = SPLIT.slice(SPLIT.indexOf('var SECTIONS=['), SPLIT.indexOf('];', SPLIT.indexOf('var SECTIONS=[')));
   const keys = [...block.matchAll(/\{key:"(\w+)"/g)].map((m) => m[1]);
-  assert.equal(keys.length, 16, '16 Control Center sections');
+  assert.equal(keys.length, 17, '17 Control Center sections');
   assert.deepEqual(CAT.SECTIONS.map((s) => s.key).sort(), keys.slice().sort());
   const hashes = Object.fromEntries([...block.matchAll(/\{key:"(\w+)".*?hash:"(#[\w-]+)"/g)].map((m) => [m[1], m[2]]));
   for (const s of CAT.SECTIONS) {

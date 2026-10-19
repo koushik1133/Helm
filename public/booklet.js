@@ -398,12 +398,20 @@
     const alloc = msAllocate(ms, p.paid);
     ms.forEach((m, i) => {
       const tr = el("tr"); tr.appendChild(el("td", "", String(m.label || "Payment"))); tr.appendChild(el("td", "", shortDate(m.due_date) || "—"));
-      const a = alloc[i], st = a.status;
+      const a = alloc[i], st = overdueOf(a.status, m.due_date, a.remaining);
       const td = el("td"); td.appendChild(el("span", "st " + st, st.replace(/_/g, " "))); tr.appendChild(td);
       tr.appendChild(el("td", "amt", money(m.amount)));
       tr.appendChild(el("td", "amt", a.paid > 0 ? money(a.paid) : "—"));
       tr.appendChild(el("td", "amt", a.remaining != null ? money(a.remaining) : "—")); tb.appendChild(tr);
     });
+  }
+  // r23 (0264, display only): an open payment past its due date (the studio's day) reads "overdue"
+  function overdueOf(status, due, remaining) {
+    if (status !== "due" && status !== "part_paid" && status !== "invoiced") return status;
+    const d = String(due || "").slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return status;
+    let today = ""; try { today = global.BPStore && global.BPStore.todayLocal ? global.BPStore.todayLocal() : ""; } catch (e) { today = ""; }
+    if (!today) today = new Date().toISOString().slice(0, 10);
+    return d < today && !(Number(remaining) <= 0.5 && remaining != null) ? "overdue" : status;
   }
   // PP1028 #9 (display only): prepend an "Advance" row from the studio's advance % when no milestone is the advance
   // 1029 #2: same default the flow shows (studio advance % from settings, else the flow's 10%) - read side only
