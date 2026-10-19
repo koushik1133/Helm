@@ -91,12 +91,13 @@
   .egp-btns{display:flex;justify-content:flex-end;gap:8px}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="booklet-share.css?v=7">
+<link rel="stylesheet" href="booklet-share.css?v=8">
 <link rel="stylesheet" href="pkg-review.css?v=3">
 <link rel="stylesheet" href="share-checklist.css?v=4">
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
+<link rel="stylesheet" href="event-ui.css?v=1">
 <script src="/shell-proto.js?v=37" id="shellProto"></script>
 </head>
 <body>
@@ -127,17 +128,29 @@
         <button type="button" class="stp-arr r" aria-label="Show later stages" hidden>›</button>
       </div>
     </div></div>
-    <div class="card" id="evHead">
+    <div class="card evhead" id="evHead">
       <div class="ev">
-        <div>
-          <span class="code" id="code"></span> <span id="statusBadge"></span> <span id="apprBadge"></span>
+        <div class="ev-main">
+          <div class="ev-kicker"><span class="code" id="code"></span> <span id="statusBadge"></span> <span id="apprBadge"></span></div>
           <div class="ttl" id="title"></div>
           <div class="meta" id="meta"></div>
-          <a class="client-link" id="clientLink" href="#" hidden>Client page →</a>
-          <button type="button" class="bk-share" id="bkShare" data-booklet-share data-quote-from-url hidden>📖 Share booklet</button>
-          <div class="meta s-fe7b497" id="dateRow"></div>
+          <div class="meta ev-date s-fe7b497" id="dateRow"></div>
         </div>
-        <div class="tot"><div class="muted">Total</div><div class="amt" id="total">—</div></div>
+        <div class="ev-side">
+          <div class="tot"><div class="muted">Total</div><div class="amt" id="total">—</div></div>
+          <!-- r21: secondary actions grouped - the client-facing pair stays visible, the rest sit in the ••• menu -->
+          <div class="ev-tools">
+            <a class="client-link" id="clientLink" href="#" hidden>Client page →</a>
+            <button type="button" class="bk-share" id="bkShare" data-approval data-booklet-share data-quote-from-url hidden>📖 Share booklet</button>
+            <div class="evmenu" id="evMenu" hidden>
+              <button type="button" class="evmenu-btn" id="evMenuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="evMenuPop" aria-label="More event actions" title="More actions">•••</button>
+              <div class="evmenu-pop" id="evMenuPop" hidden>
+                <a class="btn" id="inviteBtn" hidden>✨ Invitation site</a>
+                <button type="button" class="btn evdanger" id="cancelEvBtn" hidden>Cancel event</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="s-766d7d2" id="reapprBanner" role="status" hidden></div>
       <div class="nextbar" id="nextStepBar" hidden><a class="btn primary nextstep" id="nextStepBtn" href="#">Next step →</a><span class="hint" id="nextStepWhy"></span><a class="btn sm paydone" id="nextPayBtn" href="#" hidden></a></div>
@@ -147,11 +160,9 @@
         <button type="button" class="stp-arr r" aria-label="Show later stages" hidden>›</button>
       </div>
       <section class="stagepanel" id="stagePanel" aria-live="polite" hidden></section>
-      <div class="nextbar">
+      <div class="nextbar evfoot">
         <div class="hint" id="nextHint"></div>
         <span class="spacer"></span>
-        <a class="btn" id="inviteBtn" hidden>✨ Invitation site</a>
-        <button type="button" class="btn" id="cancelEvBtn" hidden>Cancel event</button>
         <button type="button" class="btn" id="advBtn" hidden>Advance to next stage →</button>
       </div>
     </div>
@@ -205,7 +216,7 @@
 <script src="tour.js?v=24"></script>
 <script src="booklet.js?v=25"></script>
 <script src="email-send.js?v=5"></script><script src="share-checklist.js?v=13"></script>
-<script src="invite-site-share.js?v=10"></script><script src="booklet-share.js?v=15"></script>
+<script src="invite-site-share.js?v=10"></script><script src="booklet-share.js?v=16"></script>
 <script src="pkg-review.js?v=7"></script>
 <script src="event-group-picker.js?v=4"></script><script src="capacity-shortage.js?v=7"></script><script src="approval-watch.js?v=2"></script>
 <script>
@@ -457,6 +468,10 @@
     const inv=$("#inviteBtn");
     if(canEdit && cur>=stageIndex("confirmed")){ inv.hidden=false; inv.href="invite-studio.html?quote="+encodeURIComponent(id); }
     else inv.hidden=true;
+    syncEvMenu();
+    // r21: ONE share action - "Share with client" (booklet + approval link) until the client approved, then "Share booklet"
+    { const bk=$("#bkShare"); if(bk){ const done=window.HelmBookletShare&&HelmBookletShare.approvalDone ? (HelmBookletShare.approvalDone(ev)||advanceIn()) : true;
+        bk.textContent=done?"📖 Share booklet":"📤 Share with client"; } }
 
     renderMods(STAGES[vis].mods);
     renderStagePanel();
@@ -464,6 +479,28 @@
     renderFiles();
     renderEventGroup();
   }
+  // r21: the header's ••• menu (Invitation site, Cancel event). Shown only when it holds a visible item;
+  // the items keep their own ids, gates and click handlers - the menu only opens and closes.
+  function syncEvMenu(){
+    const m=$("#evMenu"), pop=$("#evMenuPop"); if(!m||!pop) return;
+    const any=[...pop.children].some(c=>!c.hidden);
+    m.hidden=!any; if(!any) evMenuOpen(false);
+  }
+  function evMenuOpen(on){
+    const b=$("#evMenuBtn"), pop=$("#evMenuPop"); if(!b||!pop) return;
+    if(pop.hidden===!on) return;
+    pop.hidden=!on; b.setAttribute("aria-expanded",on?"true":"false");
+    if(on){ const f=[...pop.children].find(c=>!c.hidden); if(f) try{ f.focus(); }catch(_){} }
+  }
+  { const b=$("#evMenuBtn"), pop=$("#evMenuPop");
+    if(b&&pop){
+      b.addEventListener("click",(e)=>{ e.stopPropagation(); evMenuOpen(pop.hidden); });
+      pop.addEventListener("click",()=>evMenuOpen(false));   // an item was picked: close, its own handler runs
+      document.addEventListener("click",(e)=>{ if(!pop.hidden && !$("#evMenu").contains(e.target)) evMenuOpen(false); });
+      document.addEventListener("keydown",(e)=>{ if(e.key==="Escape" && !pop.hidden){ evMenuOpen(false); try{ b.focus(); }catch(_){} } });
+      pop.addEventListener("keydown",(e)=>{ if(e.key!=="ArrowDown"&&e.key!=="ArrowUp") return; const it=[...pop.children].filter(c=>!c.hidden), i=it.indexOf(document.activeElement);
+        if(!it.length) return; e.preventDefault(); const j=(i+(e.key==="ArrowDown"?1:-1)+it.length)%it.length; it[j].focus(); });
+    } }
   // One prominent "Next step" at the top, picked from where the event really is:
   // Send quote → Record advance → Plan the day → Close the event.
   function renderNextStep(cur){
@@ -811,13 +848,13 @@
   function renderDateRow(){
     // the quote's own event date (older quotes only carry it inside the client details)
     const el=$("#dateRow"); const d=ev.eventDate||(ev.client&&ev.client.eventDate)||"", tm=ev.eventTime||"";
-    const inp="height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)";
     // event date & time are decided first — warn while either is missing in the early stages
     const early = ["lead","discovery","proposal","quote"].includes(ev.lifecycleStage||"quote");
     const missing = early && (!d || !tm);
-    const warn = missing ? `<span class="stat q" style="background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn-text);margin-left:8px">⚠️ ${d?"Add a start time":"Set the event date &amp; time first"}</span>` : "";
-    if(canEdit){ el.innerHTML=`📅 Event date: <input type="date" data-min-today id="evDate" aria-label="Event date" value="${esc(d)}" style="${inp}">
-        <span style="margin-left:8px">🕒 Time:</span> <input type="time" id="evTime" aria-label="Event time" value="${esc(evTimeInput(tm))}" style="${inp}">${warn}`;
+    const warn = missing ? `<span class="stat q evd-warn">⚠️ ${d?"Add a start time":"Set the event date &amp; time first"}</span>` : "";
+    // r21: a compact labelled pair (no inline styles) - same inputs, ids and save rules as before
+    if(canEdit){ el.innerHTML=`<label class="evd-f"><span class="evd-l">Event date</span><input type="date" data-min-today id="evDate" aria-label="Event date" value="${esc(d)}" class="evd-in"></label>
+        <label class="evd-f"><span class="evd-l">Time</span><input type="time" id="evTime" aria-label="Event time" value="${esc(evTimeInput(tm))}" class="evd-in"></label>${warn}`;
       const di=$("#evDate"), ti=$("#evTime");
       // Save only a complete, plausible date (a half-typed year like 0002-10-08 or a hardener-cleared
       // value must never be written as null). Clearing on purpose is committed on blur only.
@@ -1072,6 +1109,8 @@
   BPUI.boot(load);
   // qts-1018: Back/Forward restores this page from the bfcache with the total + status it had when you
   // left (before a re-price, change order or client approval elsewhere) - load it fresh instead
+  // r21: an approval link made in the Share with client dialog - re-read the quote so the status label follows
+  window.addEventListener("helm:approval-link",async()=>{ if(!ev) return; try{ const f=await BPStore.quotes.get(id); if(f){ ev=f; render(); } }catch(_){} });
   window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&ev) location.reload(); });
 </script>
 </body>

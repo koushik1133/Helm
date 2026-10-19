@@ -50,6 +50,82 @@
   }
   function errText(e) { try { if (global.BPUI && global.BPUI.friendlyError) return global.BPUI.friendlyError(e, { action: "share the booklet" }); } catch (x) {} return String((e && e.message) || "Something went wrong"); }
 
+  const BOOKLET_SUB = "A private, read-only page for your client: event details, floor plan, 3D view, menu, quotation, payments and terms. Internal costs and notes are never shown.";
+  const SHARE_SUB = "One private link for your client: the event booklet, the quotation and an Approve button. Internal costs and notes are never shown.";
+
+  /* ---- r21: "Share with client" = booklet + approval link in ONE dialog ([data-approval] buttons) ----
+     Before the client approves: an "Ask the client to approve" switch (on by default) with "Send for approval ->",
+     which mints the approval link with the SAME calls as the quote page (approval.generateToken -> links.build
+     "portal") and offers Copy / Open / Send by email (email-send.js, kind "approval"; e-mail only where it is
+     allowed). Once approved / paid (or cancelled / closed) the dialog is plain "Share booklet": no approval step.
+     The server re-checks every permission; nothing new is created here beyond those existing calls. */
+  function approvalDone(q) {
+    if (!q) return true;   // could not read the quote: never offer an approval step on it
+    const ap = String(q.approvalStatus || q.approval_status || "none");
+    if (ap === "approved" || ap === "paid" || q.status === "cancelled" || q.lifecycleStage === "closed" || q.closedAt) return true;
+    try { const B = global.BPStore; if (B && B.quoteStatus && B.quoteStatus(q, {}).confirmed) return true; } catch (e) {}
+    return false;
+  }
+  function setMode(ask) {
+    const t = doc.getElementById("bkDlgTitle"), sub = doc.getElementById("bkDlgSub"), bh = doc.getElementById("bkBookletH");
+    if (t) t.textContent = ask ? "Share with client" : "Share booklet";
+    if (sub) sub.textContent = ask ? SHARE_SUB : BOOKLET_SUB;
+    if (bh) { bh.hidden = !ask; bh.textContent = "Event booklet \u00b7 included on the client's page"; }
+    const b = doc.getElementById("bkApprBody"); if (b) b.hidden = !ask;
+  }
+  async function renderApproval(quoteId, wanted) {
+    const box = doc.getElementById("bkApprBox"); if (!box) return;
+    clear(box); box.hidden = true; setMode(false);
+    if (!wanted) return;
+    const st = global.BPStore; let q = null;
+    try { q = await st.quotes.get(quoteId); } catch (e) { q = null; }
+    if (approvalDone(q) || !st.approval || typeof st.approval.generateToken !== "function") return;
+    const ap = String(q.approvalStatus || q.approval_status || "none");
+    const ask = el("label", "bk-ask"); ask.setAttribute("for", "bkAsk");
+    const cb = el("input"); cb.type = "checkbox"; cb.id = "bkAsk"; cb.checked = true;
+    const txt = el("span"); txt.appendChild(el("b", "", "Ask the client to approve"));
+    txt.appendChild(el("small", "", "Their page gets an Approve button - they confirm with a one-time code. Untick to share the booklet only."));
+    ask.appendChild(cb); ask.appendChild(txt); box.appendChild(ask);
+    const inner = el("div", "bk-appr-body"); inner.id = "bkApprBody";
+    inner.appendChild(el("h3", "bk-part-h", "Approval link"));
+    inner.appendChild(el("p", "bk-meta", (ap === "sent" || ap === "viewed")
+      ? "Already sent - waiting for the client. Create the link again to copy it or e-mail it."
+      : "The client's page shows the booklet, the quotation and the Approve button."));
+    const go = el("button", "bk-btn", "Send for approval \u2192"); go.type = "button"; go.id = "bkApprGo";
+    const out = el("div", "bk-appr-out"); out.id = "bkApprOut";
+    const msg = el("p", "bk-err"); msg.setAttribute("role", "alert");
+    inner.appendChild(go); inner.appendChild(msg); inner.appendChild(out); box.appendChild(inner);
+    cb.addEventListener("change", () => setMode(cb.checked));
+    go.addEventListener("click", async () => {
+      msg.textContent = "";
+      const c = (q && q.client && typeof q.client === "object") ? q.client : {};
+      if (!String(c.email || "").trim() && !String(c.phone || "").trim()) { msg.textContent = "Add the client's email or phone on the quote before sending for approval."; return; }
+      try { if (global.HelmCapacity && !(await global.HelmCapacity.gate({ quoteId: quoteId, quote: q, why: "send" }))) return; } catch (e) {}
+      const total = q && (q.total != null ? q.total : (q.pricing && q.pricing.total));
+      if (!Number(total)) { let ok = true; try { if (global.BPUI && global.BPUI.confirm) ok = await global.BPUI.confirm("No quotation total saved yet. Send anyway?", { title: "Send for approval?", okLabel: "Send anyway" }); } catch (e) {} if (!ok) return; }
+      go.disabled = true;
+      try {
+        const r = await st.approval.generateToken(quoteId);
+        const token = (r && (r.token || r.approval_token)) || r;
+        const link = await st.links.build("portal", token, global.location.origin + "/portal.html?token=" + encodeURIComponent(token));
+        clear(out);
+        const lab = el("label", "bk-lab", "Approval link"); lab.setAttribute("for", "bkApprUrl"); out.appendChild(lab);
+        const row = el("div", "bk-row");
+        const inp = el("input", "bk-url"); inp.id = "bkApprUrl"; inp.type = "text"; inp.readOnly = true; inp.value = link; inp.addEventListener("focus", () => inp.select());
+        const copy = el("button", "bk-btn", "Copy"); copy.type = "button";
+        copy.addEventListener("click", async () => { try { await global.navigator.clipboard.writeText(link); toast("Approval link copied"); } catch (e) { inp.focus(); inp.select(); toast("Press Ctrl/Cmd + C to copy", "info"); } });
+        const open = el("a", "bk-btn ghost", "Preview"); open.setAttribute("href", link); open.setAttribute("target", "_blank"); open.setAttribute("rel", "noopener noreferrer");
+        row.appendChild(inp); row.appendChild(copy); row.appendChild(open); out.appendChild(row);
+        if (global.HelmEmailSend) global.HelmEmailSend.mount(out, { quoteId: quoteId, kind: "approval", allowUnknown: true, getEmail: () => String(c.email || "") });
+        go.textContent = "Create the link again";
+        toast("Approval link ready");
+        try { global.dispatchEvent(new global.CustomEvent("helm:approval-link", { detail: { quoteId: quoteId } })); } catch (e) {}
+      } catch (e) { msg.textContent = (global.BPUI && global.BPUI.friendlyError) ? global.BPUI.friendlyError(e, { action: "create the approval link" }) : String((e && e.message) || "Could not create the approval link"); }
+      go.disabled = false;
+    });
+    box.hidden = false; setMode(true);
+  }
+
   let dlg = null;
   function dialog() {
     if (dlg) return dlg;
@@ -57,7 +133,10 @@
     const head = el("div", "bk-head"); const h = el("h2", "", "Share booklet"); h.id = "bkDlgTitle"; head.appendChild(h);
     const x = el("button", "bk-x", "×"); x.type = "button"; x.setAttribute("aria-label", "Close"); x.addEventListener("click", () => dlg.close()); head.appendChild(x);
     dlg.appendChild(head);
-    dlg.appendChild(el("p", "bk-sub", "A private, read-only page for your client: event details, floor plan, 3D view, menu, quotation, payments and terms. Internal costs and notes are never shown."));
+    const sub = el("p", "bk-sub", BOOKLET_SUB); sub.id = "bkDlgSub"; dlg.appendChild(sub);
+    // r21: "Share with client" - the approval link lives in the same dialog as the booklet (renderApproval)
+    const ap = el("section", "bk-appr"); ap.id = "bkApprBox"; ap.hidden = true; dlg.appendChild(ap);
+    const bh = el("h3", "bk-part-h", "Event booklet"); bh.id = "bkBookletH"; bh.hidden = true; dlg.appendChild(bh);
     const body = el("div", "bk-body"); body.id = "bkDlgBody"; dlg.appendChild(body);
     dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
     doc.body.appendChild(dlg);
@@ -85,7 +164,11 @@
       (cur.expired ? "Expired on " : "Valid until ") + when(cur.expires_at) + " · created " + when(cur.created_at) +
       " · " + versionsNote(cur)));
     mountSections(box, quoteId, cur);
-    mountSend(box, quoteId, cur, url);
+    // r21: while the dialog also makes the approval link, the client's approval page already carries the booklet -
+    // sending the booklet on its own is folded away (one obvious send) but still one click away
+    const ab = doc.getElementById("bkApprBody"), asking = !!(ab && !ab.hidden);
+    if (asking) { const more = el("details", "bk-more"); more.appendChild(el("summary", "", "Send the booklet link on its own")); box.appendChild(more); mountSend(more, quoteId, cur, url); }
+    else mountSend(box, quoteId, cur, url);
     const acts = el("div", "bk-acts");
     const again = el("button", "bk-btn ghost", "Create a new link"); again.type = "button";
     again.addEventListener("click", () => renderForm(body, quoteId, cur));
@@ -241,6 +324,7 @@
     if (!quoteId) { toast("Open an event first to share its booklet.", "info"); return; }
     const d = dialog();
     if (typeof d.showModal === "function") { if (!d.open) d.showModal(); } else d.setAttribute("open", "");
+    await renderApproval(quoteId, btn.hasAttribute("data-approval"));
     await load(quoteId);
   }
 
@@ -260,7 +344,7 @@
   // shown only to quote editors, and (data-wait-quote) only once the page has set data-quote
   function reveal(b) { if (b && b.dataset.bkCan === "1" && (!b.hasAttribute("data-wait-quote") || quoteIdFor(b))) b.hidden = false; }
 
-  global.HelmBookletShare = { quoteIdFor, wire, reveal, DAYS, sendText, istDate, liveSections, LIVE_SECTIONS };
+  global.HelmBookletShare = { quoteIdFor, wire, reveal, DAYS, sendText, istDate, liveSections, LIVE_SECTIONS, approvalDone };
   if (doc && doc.querySelector("[data-booklet-share]")) {
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", wire); else wire();
   }

@@ -1,0 +1,139 @@
+/* event-ui.css - r21 event workspace revision (presentation only; every id, gate and handler is unchanged).
+   Calmer hierarchy: a compact header (code + status, title, meta, date pair | total + share actions + ••• menu),
+   ONE solid primary per area (the Next-step button; a tool card is solid only when it is the stage's "Next"),
+   a stage stepper that fits on one line on desktop (no arrows), equal-height tool cards and quieter group heads.
+   Selectors start at #app / #evHead so they win over the page's inline <style> and the shell's generic .btn / .step rules. */
+
+/* ---------- page width: the cards breathe on wide screens ---------- */
+@media (min-width:1280px){ html[data-shell] .wrap:has(#evHead){max-width:1180px} }
+
+/* ---------- header card ---------- */
+#evHead{padding:20px 22px 16px}
+#evHead .ev{display:flex;align-items:flex-start;gap:18px;flex-wrap:nowrap}
+#evHead .ev-main{flex:1 1 auto;min-width:0}
+#evHead .ev-kicker{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px}
+#evHead .ev-kicker .code{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--ink-3)}
+#evHead .ev-kicker #apprBadge:empty{display:none}
+#evHead .ttl{font-size:21px;font-weight:650;letter-spacing:-.015em;line-height:1.25;margin-top:6px;color:var(--ink);overflow-wrap:anywhere}
+#evHead .meta{font-size:13px;color:var(--ink-3);margin-top:3px}
+#evHead .ev-side{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:10px;margin-left:auto}
+#evHead .tot{margin:0;text-align:right;line-height:1.15}
+#evHead .tot .muted{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+#evHead .tot .amt{font-family:var(--mono);font-weight:700;font-size:22px;color:var(--ink);display:inline-block;min-width:4.5ch;margin-top:2px}
+#evHead .ev-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+#evHead .ev-tools .client-link{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;margin:0;border-radius:999px;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink-2);font-size:12.5px;font-weight:600;text-decoration:none}
+#evHead .ev-tools .client-link:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
+#evHead .ev-tools .bk-share{min-height:34px;padding:0 14px;font-size:12.5px;white-space:nowrap}
+
+/* date + time: one compact labelled pair */
+#evHead .ev-date{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+#evHead .evd-f{display:inline-flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:9px;background:var(--panel-2);overflow:hidden;margin:0}
+#evHead .evd-l{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);padding:0 8px 0 10px;white-space:nowrap}
+#evHead .evd-in{height:30px;border:0;border-left:1px solid var(--line);border-radius:0;background:var(--panel);font-family:inherit;font-size:12.5px;padding:0 8px;color:var(--ink);min-width:0}
+#evHead .evd-in:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+#evHead .evd-warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn-text);text-transform:none;letter-spacing:0;font-size:12px}
+
+/* ••• menu (Invitation site, Cancel event) */
+#evHead .evmenu{position:relative}
+#evHead .evmenu-btn{width:34px;height:34px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink-2);
+  font:700 12px/1 var(--font,system-ui);letter-spacing:1px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0 0 0 1px}
+#evHead .evmenu-btn:hover,#evHead .evmenu-btn[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
+#evHead .evmenu-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#evHead .evmenu-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:200px;padding:6px;border:1px solid var(--line);border-radius:12px;
+  background:var(--panel);box-shadow:0 12px 32px -10px rgba(20,27,46,.28);display:flex;flex-direction:column;gap:2px}
+#evHead .evmenu-pop .btn{width:100%;justify-content:flex-start;height:36px;border:0;background:transparent;border-radius:8px;padding:0 10px;font-size:13px;font-weight:550;color:var(--ink);box-shadow:none;transform:none}
+#evHead .evmenu-pop .btn:hover,#evHead .evmenu-pop .btn:focus-visible{background:var(--panel-2);color:var(--accent)}
+#evHead .evmenu-pop .btn.evdanger{color:#b42318}
+#evHead .evmenu-pop .btn.evdanger:hover{background:color-mix(in srgb,#b42318 8%,var(--panel))}
+
+/* next step: the one solid button in the header; the "advance recorded" chip is quiet */
+#evHead .nextbar{margin-top:14px;gap:10px}
+#evHead #nextStepBar{padding:10px 12px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line-2)}
+#evHead .nextstep{height:38px;padding:0 18px;font-size:13.5px}
+#evHead #nextStepWhy{font-size:13px;color:var(--ink-2);flex:1 1 200px;min-width:0}
+#evHead .nextbar .paydone{height:32px;border-radius:999px;background:transparent;border:1px dashed color-mix(in srgb,var(--accent) 40%,var(--line));
+  color:var(--ink-2);font-weight:550;font-size:12px;box-shadow:none}
+#evHead .nextbar .paydone:hover{border-style:solid;color:var(--accent)}
+#evHead .evfoot{margin-top:10px}
+#evHead .evfoot:not(:has(#advBtn:not([hidden]))):has(#nextHint[hidden]){display:none}
+#evHead #nextHint{font-size:13px;color:var(--ink-2)}
+
+/* ---------- lifecycle stepper: fits on one line on desktop (no arrows), pills + arrows on smaller screens ---------- */
+@media (min-width:1024px){
+  #evHead #stepWrap{margin-top:16px;padding:0}
+  #evHead #stepWrap .steps{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:0;overflow:visible;padding:2px 0 0;-webkit-mask-image:none;mask-image:none;scrollbar-width:none}
+  #evHead #stepWrap .stp-arr{display:none!important}
+  html #evHead #stepWrap .step{position:relative;flex-direction:column;justify-content:flex-start;gap:5px;min-width:0;padding:4px 2px 6px;border:0;border-radius:10px;
+    background:transparent;color:var(--ink-3);font-size:11.5px;font-weight:550;line-height:1.2;white-space:normal;text-align:center;box-shadow:none}
+  html #evHead #stepWrap .step:hover{background:var(--panel-2)}
+  /* the track between the dots */
+  html #evHead #stepWrap .step::before{content:"";position:absolute;top:16px;left:calc(-50% + 15px);right:calc(50% + 15px);height:2px;border-radius:2px;background:var(--line)}
+  html #evHead #stepWrap .step:first-child::before{display:none}
+  html #evHead #stepWrap .step.done::before,html #evHead #stepWrap .step.active::before{background:color-mix(in srgb,var(--accent) 55%,var(--line))}
+  html #evHead #stepWrap .step.skipped::before{background:repeating-linear-gradient(90deg,var(--line) 0 4px,transparent 4px 7px)}
+  html #evHead #stepWrap .step .n{width:24px;height:24px;flex:0 0 auto;font-size:11px;font-weight:700;border:2px solid var(--line);background:var(--panel);color:var(--ink-3);box-sizing:border-box}
+  html #evHead #stepWrap .step.done{color:var(--ink-2)}
+  html #evHead #stepWrap .step.done .n{background:var(--accent);border-color:var(--accent);color:#fff}
+  html #evHead #stepWrap .step.active{color:var(--accent);font-weight:700;background:transparent}
+  html #evHead #stepWrap .step.active .n{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 4px var(--accent-soft)}
+  html #evHead #stepWrap .step.skipped{color:var(--ink-3)}
+  html #evHead #stepWrap .step.skipped .n{border-style:dashed;background:var(--panel)}
+  html[data-theme] #evHead #stepWrap .steps .step.viewing{background:var(--accent-soft);border:0;box-shadow:none;padding:4px 2px 6px;color:var(--accent)}
+  html[data-theme] #evHead #stepWrap .steps .step.viewing .n{border-color:var(--accent);color:var(--accent);background:var(--panel)}
+  html #evHead #stepWrap .step .vtag{font-size:9px;padding:1px 6px;line-height:1.3}
+  /* the compact strip pinned under the top bar also fits on one line */
+  .evstick .steps{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:4px;overflow:visible;-webkit-mask-image:none!important;mask-image:none!important}
+  .evstick .stp-arr{display:none!important}
+  html .evstick .step{min-width:0;justify-content:center;overflow:hidden;text-overflow:ellipsis;padding:3px 4px}
+  html .evstick .step .vtag{display:none}
+}
+
+/* ---------- tool cards ---------- */
+#app #mods{gap:14px}
+#app .mod{padding:16px 18px;gap:10px;border-radius:14px;min-height:172px;box-shadow:0 1px 2px rgba(20,27,46,.05)}
+#app .mod .h{gap:10px;min-height:34px}
+#app .mod .h .ic{width:34px;height:34px;border-radius:10px;background:var(--panel-2);border:1px solid var(--line-2);display:inline-flex;align-items:center;justify-content:center;font-size:17px;line-height:1}
+#app .mod .h b{font-size:14.5px;font-weight:650;letter-spacing:-.005em}
+#app .mod .desc{margin-top:-6px;font-size:12px;color:var(--ink-3)}
+#app .mod .sum{font-size:13px;line-height:1.5}
+#app .mod .act{gap:8px}
+#app .mod .act .btn{height:32px;padding:0 13px;font-size:12.5px;border-radius:9px}
+/* one primary per area: a card's button is solid only on the stage's "Next" cards */
+#app .mod:not(.reco) .act .btn.primary{background:var(--panel);background-image:none;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 32%,var(--line));box-shadow:none}
+#app .mod:not(.reco) .act .btn.primary:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);transform:none}
+#app .mod.reco{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));box-shadow:0 0 0 3px var(--accent-soft)}
+#app .mod.reco .h .ic{background:var(--accent-soft);border-color:transparent}
+/* group heads: a quiet label with a hairline */
+#app .morehead{display:flex;align-items:center;gap:10px;margin:10px 0 -2px;font-size:11px;letter-spacing:.08em}
+#app .morehead::after{content:"";flex:1;height:1px;background:var(--line)}
+#app .moretog button{border-radius:999px;height:32px;font-size:12.5px}
+
+/* ---------- masked money: same height + baseline as the number it replaces ---------- */
+html.hb-priv-on #evHead .tot .amt{min-width:6ch;text-align:center;border-radius:6px}
+html.hb-priv-on #app .mod .sum :is(.hbp-m,[data-money]){display:inline-block;line-height:1.35;vertical-align:baseline;min-width:3.6ch}
+
+/* ---------- smaller screens ---------- */
+@media (max-width:760px){
+  #evHead{padding:16px}
+  #evHead .ev{flex-wrap:wrap;gap:12px}
+  #evHead .ev-side{width:100%;flex-direction:column;align-items:flex-start;margin-left:0;gap:10px}
+  #evHead .ev-tools{width:100%;justify-content:flex-start;flex-wrap:nowrap}
+  #evHead .ev-tools .evmenu{margin-left:auto}
+  #evHead .ev-tools .client-link,#evHead .ev-tools .bk-share{white-space:nowrap;padding:0 10px;font-size:12px;gap:5px}
+  #evHead .tot{text-align:left}
+  #evHead .ttl{font-size:19px}
+  #evHead .evmenu-pop{right:0;left:auto}
+  #app .mod{min-height:0}
+  #evHead #nextStepBar .nextstep{flex:1 1 100%;justify-content:center}
+  #evHead .nextbar .paydone{flex:1 1 100%;justify-content:center;height:auto;min-height:32px;padding:6px 12px;text-align:center}
+}
+@media (max-width:480px){
+  #evHead .ev-date{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:8px}
+  #evHead .evd-f{flex-direction:column;align-items:stretch}
+  #evHead .evd-l{padding:5px 10px 2px;font-size:10px}
+  #evHead .evd-in{border-left:0;border-top:1px solid var(--line);width:100%;height:32px}
+  #evHead .evd-warn{grid-column:1/-1;justify-self:start}
+}
+@media (prefers-reduced-motion:reduce){ #evHead .evmenu-pop{transition:none} }
+@media (max-width:360px){ #evHead .ev-tools{flex-wrap:wrap} }
