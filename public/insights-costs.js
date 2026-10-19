@@ -5,7 +5,8 @@
  * Privacy ("Hide amounts"): charts keep their shapes, but every amount (axis ticks, tooltips, legends, labels) is "••••"
  * while amounts are hidden; percentages stay. The charts re-draw when the eye button is toggled.
  * No HTML-string sinks and no style= attributes: DOM via createElement / textContent, sizes via SVG attributes / CSSOM.
- * Pure helpers (median, benchmarks, trend, totals) are exported for test/insights-costs-r21.test.mjs. */
+ * Pure helpers (median, benchmarks, trend, totals; r22: alignEvents, moneyByCurrency) are exported for
+ * test/insights-costs-r21.test.mjs + test/r22-money.test.mjs. */
 (function (root) {
   "use strict";
   var NS = "http://www.w3.org/2000/svg", MASK = "••••";
@@ -50,6 +51,42 @@
     });
     t.margin = t.revenue > 0 ? Math.round(t.profit / t.revenue * 100) : null;
     return t;
+  }
+  /* r22 money: ONE profit source on Insights. The older per-event table (insights_events) and the Money tiles
+   * (insights_range) left the crew wages of the 0246 ledger out, so they showed e.g. 100% where this card, Benchmarks
+   * and Business showed 98%. These two helpers put the ledger numbers (insights_event_costs = event_pnl) on them. */
+  function inRangeDay(r, from, to) { var d = String((r && r.date) || "").slice(0, 10); return (!from || d >= from) && (!to || d <= to); }
+  // per-event rows (insights_events*) -> same rows with revenue / cost / profit / margin / collected / outstanding
+  // taken from the ledger row of the same event (rows without one are left exactly as they came)
+  function alignEvents(peRows, costRows) {
+    var by = {};
+    (costRows || []).forEach(function (r) { if (r && r.id != null) by[String(r.id)] = r; });
+    return (peRows || []).map(function (p) {
+      var r = p && p.id != null ? by[String(p.id)] : null;
+      if (!r) return p;
+      var o = {}, k; for (k in p) if (Object.prototype.hasOwnProperty.call(p, k)) o[k] = p[k];
+      var m = marginOf(r);
+      o.revenue_ex_tax = num(r.revenue); o.cost = costOf(r); o.profit = num(r.profit); o.profit_ex_tax = num(r.profit);
+      o.margin_pct = m; o.margin_pct_ex_tax = m;
+      if (r.collected != null) o.collected = num(r.collected);
+      if (r.outstanding != null) o.outstanding = num(r.outstanding);
+      o.ledger = true;
+      return o;
+    });
+  }
+  // Money tiles: the ledger totals of the events dated in [from, to], one entry per currency, same keys as
+  // insights_range money (cost = delivery, expenses = expense claims; cost + expenses = the card's Cost)
+  function moneyByCurrency(costRows, from, to) {
+    var g = {};
+    (costRows || []).filter(function (r) { return inRangeDay(r, from, to); }).forEach(function (r) { var c = cur(r); (g[c] = g[c] || []).push(r); });
+    var out = {};
+    Object.keys(g).forEach(function (c) {
+      var t = totals(g[c]), exp = g[c].reduce(function (a, r) { return a + num(r.expense_claims); }, 0);
+      out[c] = { currency: c, events: t.n, revenue_ex_tax: t.revenue, cost: t.cost - exp, expenses: exp,
+        profit: t.profit, profit_ex_tax: t.profit, margin_pct: t.margin, margin_pct_ex_tax: t.margin,
+        collected: t.collected, outstanding: t.outstanding, ledger: true };
+    });
+    return out;
   }
   function badgeFor(margin, target) {
     if (margin == null) return "na";
@@ -485,6 +522,7 @@
   }
 
   var API = { CATS: CATS, DEFAULT_TARGET: DEFAULT_TARGET, median: median, benchmarks: benchmarks, trend: trend, totals: totals, mixOf: mixOf,
+    alignEvents: alignEvents, moneyByCurrency: moneyByCurrency,
     marginOf: marginOf, badgeFor: badgeFor, compact: compact, niceMax: niceMax, ticks: ticks, typeKey: typeKey, typeTitle: typeTitle, mount: mount };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   root.HelmInsightsCosts = API;
