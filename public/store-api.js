@@ -831,14 +831,24 @@ window.HelmUrl = HelmUrl;
     const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "PGRST301" || c === "PGRST303" || (e && e.status === 401) || /jwt expired|invalid jwt/i.test(m);
   }
-  function expireSession() {
+  // r20-coord #33: the auth server REVOKED this browser's session (signed out on another browser / device with
+  // "Sign out other devices", the account was removed or changed) - not a plain timeout. supabase-js reports it as
+  // a 400 from /auth/v1/token?grant_type=refresh_token with one of these error codes.
+  const REVOKED_CODES = /^(refresh_token_not_found|session_not_found|user_not_found)$/;
+  let refreshRevoked = false;
+  function isRevokedRefusal(err) {
+    if (!err) return false;
+    const c = String(err.code || err.error_code || ""), st = Number(err.status) || 0;
+    return REVOKED_CODES.test(c) && (!st || st === 400 || st === 403 || st === 404);
+  }
+  function expireSession(revoked) {
     if (sessionExpired || !shouldRedirectOnExpiry()) return false;
     sessionExpired = true;
     const byLogout = signedOutElsewhere(lsGet(SIGNOUT_KEY), currentUser && currentUser.id, Date.now());
     currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = true;
     let page = "dashboard.html";
     try { page = HelmUrl.here(); } catch (e) {}
-    const url = "login.html?next=" + encodeURIComponent(page) + (byLogout ? "&reason=signout" : "&expired=1");
+    const url = "login.html?next=" + encodeURIComponent(page) + (byLogout ? "&reason=signout" : "&expired=1" + ((revoked || refreshRevoked) ? "&reason=revoked" : ""));
     const UI = global.BPUI;
     // signed out on purpose in another tab: nothing "expired" and nothing to warn about
     if (byLogout) { try { if (UI && UI.allowUnload) UI.allowUnload(); } catch (e) {} try { location.replace(url); } catch (e) {} return true; }
@@ -905,7 +915,7 @@ window.HelmUrl = HelmUrl;
       }
       if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
       if (lastErr && !definiteAuthRefusal(lastErr)) return false;   // transient: stay signed in
-      return expireSession();
+      return expireSession(isRevokedRefusal(lastErr));
     })();
     authFailPromise.then(() => { authFailPromise = null; }, () => { authFailPromise = null; });
     return authFailPromise;
@@ -966,9 +976,14 @@ window.HelmUrl = HelmUrl;
   function authAwareFetch(input, init) {
     return coalescedFetch(input, init).then((res) => {
       try {
+        const u = typeof input === "string" ? input : (input && input.url) || "";
         if (res.status === 401 && currentUser) {
-          const u = typeof input === "string" ? input : (input && input.url) || "";
           if (/\/rest\/v1\//.test(u)) onAuthFailure();
+        }
+        // r20-coord #33: a refused token refresh (supabase-js auto-refresh included) - remember whether the server said
+        // the session was REVOKED, so the sign-in page can say why. Reads a clone; the caller's response is untouched.
+        if (res.status === 400 && /\/auth\/v1\/token\?(?:[^#]*&)?grant_type=refresh_token/.test(u) && res.clone) {
+          res.clone().json().then((b) => { if (b && isRevokedRefusal({ code: b.error_code || b.code, status: 400 })) refreshRevoked = true; }).catch(() => {});
         }
       } catch (e) {}
       return res;
@@ -1110,13 +1125,12 @@ window.HelmUrl = HelmUrl;
     if (limitTimer) { clearInterval(limitTimer); limitTimer = null; }
     explicitSignOut = true;
     if (!fromOtherTab) { try { if (bc) bc.postMessage({ type: "logout", reason: reason }); } catch (e) {} }
-    // Max session age: revoke the refresh token server-side too (global) so it can't outlive
-    // the cap. Only the originating tab does this (the broadcast above tells other tabs, which
-    // just clear locally). If the network call fails, still sign out locally.
+    // Max session age / idle: revoke THIS session's refresh token server-side so it can't outlive the cap
+    // (scope "local" revokes the current session on the server too). r20-coord #33: never "global" - one
+    // browser hitting its cap must not sign the account out on every other browser / device.
+    // If the network call fails, still sign out locally.
     if (supa) {
-      const sc = (reason === "max" && !fromOtherTab) ? "global" : "local";
-      try { await supa.auth.signOut({ scope: sc }); }
-      catch (e) { if (sc !== "local") { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } }
+      try { await supa.auth.signOut({ scope: "local" }); } catch (e) {}
     }
     currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null;
     sessClear(); userLocalClear(); lsDel(SESSION_START_KEY); authRequired = true;
@@ -1931,8 +1945,11 @@ window.HelmUrl = HelmUrl;
       if (error) throw error;
       return data; // browser navigates away to Google
     },
-    // Explicit "Log out" = global sign-out (revokes every device's refresh token).
-    async signOut() { explicitSignOut = true; reauthClear(); if (currentUser && currentUser.id) lsSet(SIGNOUT_KEY, JSON.stringify({ uid: currentUser.id, ts: Date.now() })); if (supa) { try { await supa.auth.signOut(); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); navTrailClear(); studioSlugCache = null;
+    // Explicit "Log out" = THIS browser only (r20-coord #33). scope "local" still revokes this session's refresh
+    // token on the server; it no longer ends the account's sessions on other browsers / devices (supabase-js v2's
+    // bare signOut() defaults to "global", which logged the owner's Safari out when another browser signed out).
+    // "Sign out other devices" (signOutOthers, scope "others") is the explicit way to end the rest.
+    async signOut() { explicitSignOut = true; reauthClear(); if (currentUser && currentUser.id) lsSet(SIGNOUT_KEY, JSON.stringify({ uid: currentUser.id, ts: Date.now() })); if (supa) { try { await supa.auth.signOut({ scope: "local" }); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); navTrailClear(); studioSlugCache = null;
       lsDel(SESSION_START_KEY); lsDel(RECOVERY_KEY);
       if (mode === "supabase") authRequired = true; },
     // End every OTHER session of this account (other browsers / devices); this one stays.

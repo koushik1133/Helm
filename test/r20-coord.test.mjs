@@ -147,6 +147,39 @@ t('30 media page title', () => {
   assert.match(read('public/media.html'), /<title>Media &amp; gallery — Helm Events<\/title>/);
 });
 
+t('33 sign-out ends THIS browser only: no bare supabase signOut() anywhere in public/, no "global" scope', async () => {
+  const { readdirSync, statSync } = await import('node:fs'); const { join } = await import('node:path');
+  const root = new URL('../public/', import.meta.url).pathname, files = [];
+  (function walk(d) { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) { if (!/vendor|node_modules/.test(f)) walk(p); } else if (/\.(js|html)$/.test(f) && !/\.min\.js$/.test(f)) files.push(p); } })(root);
+  for (const f of files) {
+    const src = readFileSync(f, 'utf8'); let m; const re = /([A-Za-z_$][\w$]*(?:\(\))?)\.auth\.signOut\(\s*\)/g;
+    while ((m = re.exec(src))) assert.ok(/^(BPStore|S\(\)|S|st)$/.test(m[1]), f + ': bare ' + m[0] + ' (supabase-js default scope is global)');
+    assert.doesNotMatch(src, /scope:\s*["']global["']|\? "global"/, f + ': no global sign-out');
+  }
+  assert.match(API, /async signOut\(\) \{[^\n]*await supa\.auth\.signOut\(\{ scope: "local" \}\)/);
+  assert.match(API, /const \{ error \} = await supa\.auth\.signOut\(\{ scope: "others" \}\)/);   // signOutOthers unchanged
+});
+
+t('33 revoked session: refresh refusal codes -> &expired=1&reason=revoked; login says why once, then drops it from the URL', () => {
+  assert.match(API, /const REVOKED_CODES = \/\^\(refresh_token_not_found\|session_not_found\|user_not_found\)\$\/;/);
+  assert.match(API, /"&expired=1" \+ \(\(revoked \|\| refreshRevoked\) \? "&reason=revoked" : ""\)/);
+  assert.match(API, /return expireSession\(isRevokedRefusal\(lastErr\)\);/);
+  assert.match(API, /res\.status === 400 && \/\\\/auth\\\/v1\\\/token\\\?\(\?:\[\^#\]\*&\)\?grant_type=refresh_token\/\.test\(u\)/);
+  const f = vm.runInNewContext('(' + fnSrc(API, 'isRevokedRefusal').replace(/^function isRevokedRefusal/, 'function') + ')', { REVOKED_CODES: /^(refresh_token_not_found|session_not_found|user_not_found)$/ });
+  assert.equal(f({ code: 'refresh_token_not_found', status: 400 }), true); assert.equal(f({ code: 'session_not_found' }), true);
+  assert.equal(f({ code: 'refresh_token_already_used', status: 400 }), false); assert.equal(f({ status: 500, code: 'session_not_found' }), false); assert.equal(f(null), false);
+  const L = read('public/login.html');
+  assert.match(L, /else if\(why==="revoked"\) \$\("#expiredMsg"\)\.textContent="You were signed out — this account was signed out on another browser or device, or the account changed\. Sign in again\.";/);
+  assert.match(L, /u\.searchParams\.delete\("expired"\); u\.searchParams\.delete\("reason"\); history\.replaceState\(/);
+});
+
+t('33 login: a failed password sign-in shows the generic Google hint', () => {
+  const L = read('public/login.html');
+  assert.match(L, /<div class="info" id="gHint" role="note" hidden>If you signed up with Google, use Continue with Google\.<\/div>/);
+  assert.match(L, /if\(mode==="signin" && err && err\.code==="invalid_credentials"\)\{ const g=\$\("#googleBtn"\), gh=\$\("#gHint"\); if\(gh && g && !g\.hidden\) gh\.hidden=false; \}/);
+  assert.equal((L.match(/\$\("#err"\)\.hidden=true; \$\("#okmsg"\)\.hidden=true; \$\("#gHint"\)\.hidden=true;/g) || []).length, 3);
+});
+
 let n = 0;
 for (const [name, fn] of tests) { try { await fn(); n++; } catch (e) { console.error('FAIL - ' + name); throw e; } }
 console.log('r20-coord: ' + n + '/' + tests.length + ' passed');
