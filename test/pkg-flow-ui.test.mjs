@@ -391,8 +391,8 @@ await t('final contract: mode selected/hidden, choose error hints, review outcom
   });
   await t('share checklist wired on flow.html + Share booklet dialog', () => {
     const f = read('public/flow.html');
-    // r21: the booklet card lives in the ONE "Share with client" dialog (with the approval link), not in the page flow
-    assert.ok(f.indexOf('id="sec-share"') > f.indexOf('id="shareModal"') && f.indexOf('id="sec-share"') < f.indexOf('id="mPriceBar"'));
+    // r22: the booklet card is back in the page flow (step 9, before the advance); the rail dialog borrows it while open
+    assert.ok(f.indexOf('id="sec-share"') > f.indexOf('id="sec-approve"') && f.indexOf('id="sec-share"') < f.indexOf('id="sec-pay"'));
     assert.match(f, /share-checklist\.js\?v=13/); assert.match(f, /share-checklist\.css\?v=4/);
     for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=13[\s\S]*booklet-share\.js/, p);
     assert.match(read('public/booklet-share.js'), /HelmShareChecklist\.mount\(form/);

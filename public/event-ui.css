@@ -56,7 +56,8 @@
   color:var(--ink-2);font-weight:550;font-size:12px;box-shadow:none}
 #evHead .nextbar .paydone:hover{border-style:solid;color:var(--accent)}
 #evHead .evfoot{margin-top:10px}
-#evHead .evfoot:not(:has(#advBtn:not([hidden]))):has(#nextHint[hidden]){display:none}
+#evHead .evfoot:not(:has(#advBtn:not([hidden]),#inviteBtn:not([hidden]),#cancelEvBtn:not([hidden]))):has(#nextHint[hidden]){display:none}
+#evHead .evfoot .btn{height:34px;padding:0 14px;font-size:12.5px;border-radius:9px}
 #evHead #nextHint{font-size:13px;color:var(--ink-2)}
 
 /* ---------- lifecycle stepper: fits on one line on desktop (no arrows), pills + arrows on smaller screens ---------- */
@@ -90,22 +91,36 @@
 }
 
 /* ---------- tool cards ---------- */
-#app #mods{gap:14px}
-#app .mod{padding:16px 18px;gap:10px;border-radius:14px;min-height:172px;box-shadow:0 1px 2px rgba(20,27,46,.05)}
+/* r22 grid: 3 per row on desktop, 2 on tablet, 1 on phones; equal heights per row; the last row of a section widens
+   (l3-w = half a row, l3-f / l2-f = a full row - set by renderMods) so no card sits alone next to a gap */
+#app #mods{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px;align-items:stretch;grid-auto-flow:row}
+#app #mods > .mod{grid-column:span 2;min-width:0}
+#app #mods > .mod.l3-w{grid-column:span 3}
+#app #mods > .mod.l3-f{grid-column:1/-1;min-height:0}
+@media (max-width:1199px){
+  #app #mods{grid-template-columns:repeat(4,minmax(0,1fr))}
+  #app #mods > .mod,#app #mods > .mod.l3-w,#app #mods > .mod.l3-f{grid-column:span 2}
+  #app #mods > .mod.l2-f{grid-column:1/-1;min-height:0}
+}
+@media (max-width:639px){
+  #app #mods{grid-template-columns:minmax(0,1fr);gap:12px}
+  #app #mods > .mod,#app #mods > .mod.l3-w,#app #mods > .mod.l3-f,#app #mods > .mod.l2-f{grid-column:1/-1}
+}
+#app .mod{padding:18px 20px;gap:10px;border-radius:14px;min-height:180px;box-shadow:0 1px 2px rgba(20,27,46,.05)}
 #app .mod .h{gap:10px;min-height:34px}
 #app .mod .h .ic{width:34px;height:34px;border-radius:10px;background:var(--panel-2);border:1px solid var(--line-2);display:inline-flex;align-items:center;justify-content:center;font-size:17px;line-height:1}
 #app .mod .h b{font-size:14.5px;font-weight:650;letter-spacing:-.005em}
 #app .mod .desc{margin-top:-6px;font-size:12px;color:var(--ink-3)}
 #app .mod .sum{font-size:13px;line-height:1.5}
-#app .mod .act{gap:8px}
-#app .mod .act .btn{height:32px;padding:0 13px;font-size:12.5px;border-radius:9px}
-/* one primary per area: a card's button is solid only on the stage's "Next" cards */
-#app .mod:not(.reco) .act .btn.primary{background:var(--panel);background-image:none;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 32%,var(--line));box-shadow:none}
-#app .mod:not(.reco) .act .btn.primary:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);transform:none}
+/* r22 (owner): every card's action buttons are back as before r21 (solid main action), in one row at the card
+   bottom that wraps neatly */
+#app .mod .sum{flex:1 1 auto}
+#app .mod .act{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:auto;padding-top:4px}
+#app .mod .act .btn{height:34px;padding:0 14px;font-size:12.5px;border-radius:9px;white-space:nowrap}
 #app .mod.reco{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));box-shadow:0 0 0 3px var(--accent-soft)}
 #app .mod.reco .h .ic{background:var(--accent-soft);border-color:transparent}
 /* group heads: a quiet label with a hairline */
-#app .morehead{display:flex;align-items:center;gap:10px;margin:10px 0 -2px;font-size:11px;letter-spacing:.08em}
+#app .morehead{display:flex;align-items:center;gap:10px;margin:12px 0 0;font-size:11px;letter-spacing:.08em;grid-column:1/-1}
 #app .morehead::after{content:"";flex:1;height:1px;background:var(--line)}
 #app .moretog button{border-radius:999px;height:32px;font-size:12.5px}
 
