@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=31"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=32"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -1162,7 +1162,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "41";
+  const AUTH_UI_VERSION = "42";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -4746,7 +4746,8 @@ window.HelmUrl = HelmUrl;
     async current(opts) { if (!supa) return null;
       const oid = await this.id();
       const read = async () => { const { data, error } = await supa.from("organizations").select("*").eq("id", oid).maybeSingle();
-        if (error) throw error; try { if (data && data.timezone && BPStore.rememberStudioTimezone) BPStore.rememberStudioTimezone(data.timezone); } catch (e) {} return data; };
+        if (error) throw error; try { if (data && data.timezone && BPStore.rememberStudioTimezone) BPStore.rememberStudioTimezone(data.timezone); } catch (e) {}
+        studioEmit(data); return data; };
       if (opts && opts.fresh) { try { sessionStorage.removeItem(SWR_PREFIX + "org:" + oid); } catch (e) {} }
       return swr("org:" + oid, read); },
     async save(patch) { if (!supa) throw new Error("Supabase not configured");
@@ -4765,7 +4766,21 @@ window.HelmUrl = HelmUrl;
         const e = new Error("Nothing was changed: only a studio admin (or someone allowed to edit Control Center) can change the studio settings.");
         e.code = "42501"; e.hint = "org_not_updated"; throw e;
       }
+      // r19-studio-name: a rename / new logo shows at once in the rail, top bar, dashboard and profile menu (one fresh read)
+      if (patch && ("name" in patch || "brand" in patch)) Promise.resolve().then(() => org.current({ fresh: true })).catch(() => {});
       return true; },
+    // r19-studio-name: "which studio am I in" for the app shell / dashboard / profile menu. Built from the per-tab cached
+    // studio row (current()) + the cached trial answer (subscription.trial(), memo + swr) - no extra request on a warm tab.
+    // Resolves null when signed out or when there is no studio row. Repaints arrive as the "helm:studio" window event.
+    async identity() {
+      if (!supa || !currentUser) return null;
+      const B = (typeof window !== "undefined" && window.BPStore) || null;
+      const [row, t] = await Promise.all([org.current().catch(() => null),
+        Promise.resolve().then(() => (B && B.subscription && B.subscription.trial ? B.subscription.trial() : null)).catch(() => null)]);
+      if (t !== undefined) studioTrial = t || null;
+      return studioDescribe(row, studioTrial);
+    },
+    describe: (row, trial) => studioDescribe(row, trial),
     createStudio: (name, opts) => rpc("create_studio", { p_name: name, p_email: (opts && opts.email) || null,
       p_currency: (opts && opts.currency) || "INR", p_timezone: (opts && opts.timezone) || "Asia/Kolkata" }),
     // GDPR / DPDP: admin downloads THIS org's data only (server re-scopes to current_org_id)
@@ -4774,6 +4789,40 @@ window.HelmUrl = HelmUrl;
     // gated on has_area('users','view'); every table filtered by current_org_id server-side.
     exportPackage: () => rpc("export_tenant_organization_package", {}),
   };
+
+  /* r19-studio-name (pure): the studio row + my_trial_status() answer -> what the UI shows. Text only (callers use
+     textContent); the logo is used only when it is a plain https URL (same rule as the client booklet, 0065). */
+  let studioTrial = null;
+  function studioDescribe(row, trial) {
+    if (!row || typeof row !== "object") return null;
+    const name = String(row.name == null ? "" : row.name).replace(/\s+/g, " ").trim().slice(0, 120);
+    if (!name) return null;
+    const words = name.split(/[\s\u00b7\u2022|/&,.+_-]+/).filter((w) => /[\p{L}\p{N}]/u.test(w));
+    const first = (w) => (Array.from(w.replace(/[^\p{L}\p{N}]/gu, ""))[0] || "");
+    let initials = words.length > 1 ? first(words[0]) + first(words[1]) : Array.from((words[0] || name).replace(/[^\p{L}\p{N}]/gu, "")).slice(0, 2).join("");
+    initials = (initials || name.charAt(0)).toLocaleUpperCase();
+    const b = row.brand && typeof row.brand === "object" && !Array.isArray(row.brand) ? row.brand : {};
+    const lg = typeof b.logo === "string" ? b.logo.trim() : "";
+    const logo = /^https:\/\/[^\s"'<>()]+$/i.test(lg) && lg.length <= 500 ? lg : null;
+    let plan = null;
+    const tr = trial && typeof trial === "object" ? trial : null;
+    if (tr) {
+      const days = Math.floor(Number(tr.days_left));
+      if (tr.state === "ended") plan = { key: "ended", label: "Trial ended", title: "Your free trial has ended" };
+      else if (tr.state === "trial" || tr.status === "trial") plan = { key: "trial", label: "Free trial",
+        title: isFinite(days) && days >= 0 ? (days === 0 ? "Free trial: ends today" : "Free trial: " + days + (days === 1 ? " day" : " days") + " left") : "Free trial" };
+      else if (tr.status === "active") plan = { key: "paid", label: "Paid plan", title: "Your studio is on a paid Helm plan" };
+      else if (tr.status === "past_due") plan = { key: "due", label: "Payment due", title: "Your Helm subscription payment is due" };
+      else if (tr.status === "suspended") plan = { key: "due", label: "Read-only", title: "Subscription suspended: the studio is read-only" };
+    }
+    return { id: row.id || null, name, initials, logo, plan };
+  }
+  // tell the shell / dashboard / profile menu the studio row changed (fresh read, rename, background refresh). Sent after
+  // the read is cached (setTimeout). Listeners repaint from e.detail only - they must not call org.current() from here.
+  function studioEmit(row) {
+    try { const d = studioDescribe(row, studioTrial); if (d && typeof window !== "undefined" && window.dispatchEvent)
+      setTimeout(() => { try { window.dispatchEvent(new CustomEvent("helm:studio", { detail: d })); } catch (e) {} }, 0); } catch (e) {}
+  }
 
   /* ---------------- branded client links: /<studio>/<kind>/<ref> (0020) ----------------
      The <ref> (token / published invitation slug) is the only secret; <studio> is a
