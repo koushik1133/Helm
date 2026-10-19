@@ -178,3 +178,7 @@ rect.ic-bar { stroke: none; }
 @media (prefers-reduced-motion: reduce) { .ic-seg, .ic-hit { transition: none; } }
 /* r21: the bar rows (event types, vendors, losses, margins) never showed their fill - an inline <span> ignores width */
 .bar .track { display: flex; } .bar .fill { display: block; }
+/* r22: long event titles in the stacked phone cards (per-event profit table) end in "..." instead of being cut */
+@media (max-width: 639.98px) {
+  table.pe.tm-stack > tbody > tr > td.tm-primary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+}

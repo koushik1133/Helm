@@ -72,7 +72,7 @@
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="vendor-bills.css?v=2">
 <link rel="stylesheet" href="money-ledger.css?v=1">
-<script src="/shell-proto.js?v=37" id="shellProto"></script>
+<script src="/shell-proto.js?v=38" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -158,7 +158,7 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=265"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=9"></script><script src="money-ledger-ui.js?v=1"></script><script src="budget-plan.js?v=2"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=266"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=9"></script><script src="money-ledger-ui.js?v=1"></script><script src="budget-plan.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -257,14 +257,16 @@
     $("#addCost").hidden=!canEdit; $("#importBtn").hidden=!canEdit; $("#chgBtn").hidden=!canEdit;
     render();
     // 0196: cost lines grouped by requirement priority (Must-have / Nice-to-have / Optional) + suggested lines
-    try{ await HelmBudgetPlan.render({ el:$("#planMount"), quoteId:id, pricing:evPricing, costs:sum.costs, inr, canEdit, canDelete, reload:load }); }
+    // r22 money: ONE P&L read - the top tiles and the cost lines' "Planned margin" use the same event_pnl (0246 ledger)
+    let pnl=null; try{ pnl=BPStore.vendorBills?await BPStore.vendorBills.pnl(id):null; }catch(_){ pnl=null; }
+    try{ await HelmBudgetPlan.render({ el:$("#planMount"), quoteId:id, pricing:evPricing, costs:sum.costs, inr, canEdit, canDelete, reload:load, pnl }); }
     catch(e){ BPUI.loadError($("#planMount"),e,load,{what:"the cost lines"}); }
-    await pnlTiles();
+    pnlTiles(pnl);
     try{ document.dispatchEvent(new CustomEvent("helm:pnl-refresh")); }catch(_){}
   }
   // dev pass 3: ONE profit number per event - the top tiles show the same Net profit P&L
   // (bills, staff claims, change orders) as the Net profit panel, Settlement and Closure.
-  async function pnlTiles(){ let p=null; try{ p=BPStore.vendorBills&&await BPStore.vendorBills.pnl(id); }catch(_){ return; } if(!p) return;
+  function pnlTiles(p){ if(!p) return;
     const cost=Number(p.vendors||0)+Number(p.other||0)+Number(p.staff||0), n=Number(p.net_profit||0);
     $("#t_est").textContent=inr(cost); const mn=$("#t_mar"); mn.textContent=inr(n); mn.className="n "+(n>=0?"pos":"neg");
     $("#t_marpct").textContent=p.margin_pct!=null?(p.margin_pct+"% margin"):"";

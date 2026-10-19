@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=37"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=38"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -4253,6 +4253,10 @@ window.HelmUrl = HelmUrl;
     if (s && s.profile_id && v == null) return {};
     return { day_rate: v };
   }
+  // r22 money (0252): ONE rule for "staff on the event" - a task that names a crew member counts unless it is
+  // rejected or cancelled (also while its status is still "unassigned"). The server cost ledger (_r21_cost_lines)
+  // uses the same rule, so "N staff assigned" on the workspace / Staff / Readiness = N crew wage lines on Budget.
+  const crewTaskLive = (t) => !!(t && t.crew_id) && t.status !== "rejected" && t.status !== "cancelled";
   const staff = {
     payVisible: staffPayVisible,
     payAttr: staffPayAttr,
@@ -4387,7 +4391,7 @@ window.HelmUrl = HelmUrl;
           .select("crew_id,assignee_name,assignee_phone,status").eq("quote_id", quoteId).not("crew_id", "is", null);
         if (error) throw error;
         const by = {};
-        (data || []).forEach((t) => { const k = t.crew_id;
+        (data || []).filter(crewTaskLive).forEach((t) => { const k = t.crew_id;
           by[k] = by[k] || { crew_id: k, name: t.assignee_name, phone: t.assignee_phone, tasks: 0, done: 0 };
           by[k].tasks++; if (t.status === "completed") by[k].done++; });
         return Object.values(by);
@@ -7308,8 +7312,8 @@ window.HelmUrl = HelmUrl;
         resources.check(quoteId).catch(() => []),
         bookings.list(quoteId).catch(() => []),
         (async () => { if (mode !== "supabase") return [];
-          const { data, error } = await supa.from("event_tasks").select("crew_id").eq("quote_id", quoteId).not("crew_id", "is", null);
-          if (error) throw error; return data; })().catch(() => []),
+          const { data, error } = await supa.from("event_tasks").select("crew_id,status").eq("quote_id", quoteId).not("crew_id", "is", null);
+          if (error) throw error; return (data || []).filter(crewTaskLive); })().catch(() => []),
         canFin ? milestones.list(quoteId).catch(() => []) : Promise.resolve([]),
         runsheet.list(quoteId).catch(() => []),
       ]);
@@ -7403,8 +7407,8 @@ window.HelmUrl = HelmUrl;
       const [team, vends, bk, tasks] = await Promise.all([
         staff.list(true).catch(() => []), vendors.listAll(true).catch(() => []), bookings.list(quoteId).catch(() => []),
         (async () => { if (mode !== "supabase") return [];
-          const { data, error } = await supa.from("event_tasks").select("crew_id").eq("quote_id", quoteId).not("crew_id", "is", null);
-          if (error) throw error; return data; })().catch(() => []),
+          const { data, error } = await supa.from("event_tasks").select("crew_id,status").eq("quote_id", quoteId).not("crew_id", "is", null);
+          if (error) throw error; return (data || []).filter(crewTaskLive); })().catch(() => []),
       ]);
       const staffById = {}; team.forEach((p) => { staffById[p.id] = p; });
       const vById = {}; vends.forEach((v) => { vById[v.id] = v; });
