@@ -58,3 +58,6 @@
 .rsr-tag{background:var(--accent-soft);border-color:transparent;color:var(--accent);font-weight:600;white-space:normal}
 .rsr-tag.rsr-off{background:var(--panel-2);color:var(--ink-3)}
 @media print{.rsr-tag{display:none}}
+/* r24 ui: one plain line under the title that says what a run sheet is */
+.rs-intro{margin:-4px 0 14px;font-size:13px;line-height:1.5;color:var(--ink-2,#4b475f);max-width:72ch}
+@media print{.rs-intro{display:none}}

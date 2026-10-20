@@ -194,7 +194,7 @@
   // =====================================================================================================
   async function mountTimesheet(card) {
     var B = S(), q = quoteId(); if (!B || !B.ops || !B.ops.shifts || !q) return;
-    var t = null;
+    var t = null, siteOpen = null;   // r24 ui: remembers whether the owner opened the check-in location box
     try { t = await B.ops.shifts.timesheet(q); } catch (e) { t = null; }
     if (!t) { card.hidden = true; return; }
     render();
@@ -204,11 +204,15 @@
       var st = t.settings || {};
       card.appendChild(h("h2", { text: "🕒 Crew check-in & hours" }));
       card.appendChild(h("p", { cls: "sub", text: st.selfCheckin === false
-        ? "Self check-in is off (Control Center → Crew). You can still enter times here."
+        ? "Self check-in is off (Control Center → Crew & shifts). You can still enter times here."
         : "Crew check in and out on their own crew link; the time is the server's. Late = more than " + (st.lateGraceMin || 15)
           + " min after their start; \"no-show?\" = no check-in " + (st.noShowAfterMin || 60) + " min after it. Times feed the wages on Budget." }));
       var rows = t.rows || [];
-      if (!rows.length) { card.appendChild(h("p", { cls: "cs-note", text: "Nobody is on this event yet - assign people on Operations." })); }
+      if (!rows.length) {
+        // r24 ui: a plain empty state with the way forward
+        var opsA = h("a", { href: "ops.html?quote=" + encodeURIComponent(q), cls: "cs-link", text: "Tasks & staff" });
+        card.appendChild(h("p", { cls: "cs-empty" }, ["No crew on this event yet - assign people in ", opsA, "."]));
+      }
       else {
         var tbl = h("table", { cls: "cs-table" });
         tbl.appendChild(h("thead", {}, [h("tr", {}, ["Name", "Start", "In", "Out", "Hours", "Status", ""].map(function (x) { return h("th", { scope: "col", text: x }); }))]));
@@ -247,7 +251,7 @@
         });
         card.appendChild(h("div", { cls: "cs-tablewrap" }, [tbl]));
       }
-      if (t.can_edit) card.appendChild(siteForm());
+      if (t.can_edit) card.appendChild(siteForm(rows.length));
     }
     function editRow(tr, r, e) {
       var next = tr.nextSibling; if (next && next.classList && next.classList.contains("cs-editrow")) { next.parentNode.removeChild(next); return; }
@@ -270,12 +274,21 @@
         });
       });
     }
-    function siteForm() {
-      var box = h("div", { cls: "cs-item" });
+    // r24 ui: the check-in location is optional. While the location check is off, or nobody is on the event yet, it is a
+    // small "Set check-in location (optional)" link that opens the box - it no longer dominates the card.
+    function ccLink() { return h("a", { href: "control.html#crew", cls: "cs-link", text: "Control Center → Crew & shifts" }); }
+    function siteForm(nRows) {
       var st = t.settings || {}, site = t.site;
-      box.appendChild(h("div", { cls: "cs-t", text: "📍 Check-in location" }));
-      box.appendChild(h("div", { cls: "cs-m", text: (site ? "Venue point " + site.lat + ", " + site.lng + " · " + site.radius_m + " m. " : "No venue point set. ")
-        + (st.geofence ? "Location check is ON: crew must be within the radius to check in." : "Location check is off (Control Center → Crew) - the point is only used once it is on.") }));
+      var small = !st.geofence || !nRows;
+      var wrap = h("details", { cls: "cs-site" + (small ? " cs-site-small" : "") });
+      if (siteOpen === null ? !small : siteOpen) wrap.open = true;
+      wrap.addEventListener("toggle", function () { siteOpen = wrap.open; });
+      wrap.appendChild(h("summary", { text: site ? "📍 Check-in location: set (" + site.radius_m + " m) - change" : (small ? "📍 Set check-in location (optional)" : "📍 Check-in location") }));
+      var box = h("div", { cls: "cs-item" });
+      wrap.appendChild(box);
+      box.appendChild(h("div", { cls: "cs-m" }, st.geofence
+        ? [(site ? "Venue point " + site.lat + ", " + site.lng + " · " + site.radius_m + " m. " : "No venue point set. ") + "Location check is ON: crew must be within the radius to check in."]
+        : [(site ? "Venue point " + site.lat + ", " + site.lng + " · " + site.radius_m + " m. " : "") + "Location check is off - turn on in ", ccLink(), ". The point is only used once it is on."]));
       var where = h("input", { placeholder: "Paste a Google Maps link or 12.9716, 77.5946", "aria-label": "Venue location", value: site ? site.lat + ", " + site.lng : "" });
       var rad = h("input", { type: "number", min: "50", max: "5000", step: "10", value: String((site && site.radius_m) || st.geofenceRadiusM || 300), "aria-label": "Radius in metres", inputmode: "numeric" });
       var here = h("button", { type: "button", cls: "btn sm", text: "Use my location" });
@@ -299,7 +312,12 @@
       if (off) off.addEventListener("click", function () {
         global.BPUI.guard(off, async function () { try { await B.ops.shifts.setSite(q, null, null, Math.trunc(Number(rad.value)) || 300); toast("Location cleared."); await reload(); } catch (e) { say(m, errText(e, "clear the location"), "err"); } });
       });
-      return box;
+      if (st.geofence) return wrap;
+      // check off: while the box is closed, one quiet line says why it is optional (the open box says it itself)
+      var offNote = h("p", { cls: "cs-note cs-offnote" }, ["Location check is off - turn on in ", ccLink(), "."]);
+      offNote.hidden = wrap.open;
+      wrap.addEventListener("toggle", function () { offNote.hidden = wrap.open; });
+      return h("div", { cls: "cs-sitebar" }, [wrap, offNote]);
     }
   }
 
@@ -369,7 +387,7 @@
     clear(card); card.hidden = false; card.classList.add("cs-card");
     function chk(id, label, on) { var i = h("input", { type: "checkbox", id: id }); i.checked = !!on; return { input: i, el: h("label", { cls: "cs-chk", for: id }, [i, h("span", { text: label })]) }; }
     function num(id, v, min, max, step) { return h("input", { id: id, type: "number", min: String(min), max: String(max), step: String(step || 1), value: String(v), inputmode: "numeric" }); }
-    card.appendChild(h("h3", { text: "Crew: availability, open shifts & check-in" }));
+    card.appendChild(h("h3", { text: "Crew & shifts: availability, open shifts & check-in" }));
     card.appendChild(h("p", { cls: "mnote", text: "How your crew use their crew link: mark days they can't work, take open shifts, and check in / out on the event day. Check-in times become the actual wages on Budget." }));
     var av = chk("cc_av", "Crew can mark days they can't work (Operations warns before you assign them)", cfg.availability);
     var os = chk("cc_os", "Open shifts: post shifts that crew take from their crew link", cfg.openShifts);

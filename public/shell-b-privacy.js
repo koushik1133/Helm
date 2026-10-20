@@ -183,6 +183,10 @@
     if (!moneyInput(i)) return;
     i.classList.add("hbp-in");
     if (i.type !== "search") i.classList.add("hbp-mi");
+    /* r24 ui: the four dots only show on a box that HOLDS a value (CSS :not(:placeholder-shown)). A box with no placeholder
+       never matches :placeholder-shown, so an EMPTY one (Assign vendor "Agreed amount") showed dots too. A blank placeholder
+       makes an empty box read as empty. Display only - the value is never touched. */
+    if (!i.hasAttribute("placeholder")) i.setAttribute("placeholder", " ");
   }
   var MASKED_IN = "input.hbp-mi, input[data-pl-est], input[data-pl-quoted], input[data-pl-act]";
   var selectOnUp = null;

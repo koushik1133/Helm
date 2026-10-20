@@ -65,9 +65,9 @@
   th{position:relative} .table-scroll{position:relative}
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="resources-polish.css?v=4">
+<link rel="stylesheet" href="resources-polish.css?v=5">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=41" id="shellProto"></script>
+<script src="/shell-proto.js?v=42" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -144,9 +144,9 @@
   <div class="sheet rp-sheet">
     <h3 class="s-015a5e7"><span id="bm_title">Assign vendor</span><button type="button" class="close s-af04dd5" id="bm_close" aria-label="Close" data-close>×</button></h3>
     <div class="fld"><label for="bk_label">For</label><input id="bk_label" placeholder="what this vendor brings"></div>
-    <div class="s-0a349e0">
+    <div class="rp-row2 rp-vq">
       <div class="fld"><label for="bk_vendor">Vendor</label><select id="bk_vendor"></select></div>
-      <div class="fld"><label for="vr_qty">Qty</label><input id="vr_qty" type="number" min="0" step="1" placeholder="optional"></div>
+      <div class="fld"><label for="vr_qty">Qty</label><input id="vr_qty" type="number" min="0" step="1" inputmode="numeric" placeholder="optional"></div>
     </div>
     <fieldset class="rp-mode" id="bk_modeWrap">
       <legend class="sr-only">How to assign</legend>
@@ -154,23 +154,24 @@
       <label><input type="radio" name="bk_mode" id="bk_modeNote" value="note"> <span><b>Already agreed</b><small>Just note the vendor and cost (agreed by phone or in person).</small></span></label>
     </fieldset>
     <div id="bk_send">
-      <div class="s-0a349e0">
+      <div class="rp-row2">
         <div class="fld"><label for="vr_date">When - date</label><input id="vr_date" type="date"></div>
         <div class="fld"><label for="vr_time">Time</label><input id="vr_time" type="time" value="10:00"></div>
       </div>
       <div class="fld s-fe7b497"><label for="vr_where">Where</label><input id="vr_where" maxlength="300" placeholder="e.g. Lawn gate 2"></div>
-      <div class="s-0a349e0">
-        <div class="fld"><label for="vr_amt">Agreed amount (₹)</label><input id="vr_amt" type="number" min="0" step="1"></div>
-        <div class="fld"><label class="s-e648473"><input class="s-e210402" type="checkbox" id="vr_mail" checked> E-mail it too</label></div>
+      <div class="rp-row2">
+        <div class="fld"><label for="vr_amt">Agreed amount (₹)</label><input id="vr_amt" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 25000"></div>
+        <div class="fld rp-mail"><label class="rp-chk" for="vr_mail"><input type="checkbox" id="vr_mail" checked aria-describedby="vr_mailHint"> E-mail it too</label><small class="rp-help" id="vr_mailHint">only when email is switched on</small></div>
       </div>
-      <div class="fld s-fe7b497"><label for="vr_det">Details</label><input id="vr_det" maxlength="1000" placeholder="optional - specs, contact on site"></div>
+      <p class="rp-privnote" role="note">Amounts are hidden right now - tap a box to see or type the amount.</p>
+      <div class="fld s-fe7b497"><label for="vr_det">Notes for the vendor (optional)</label><input id="vr_det" maxlength="1000" placeholder="e.g. 2 photographers, candid + stage, contact Ravi 98xxxxxx" aria-describedby="vr_detHint"><small class="rp-help" id="vr_detHint">They see this in their request</small></div>
     </div>
     <div id="bk_noteBox" hidden>
-      <div class="s-0a349e0">
+      <div class="rp-row2">
         <div class="fld"><label for="bk_cost">Cost (₹)</label><input id="bk_cost" type="number" min="0" placeholder="optional"></div>
         <div class="fld"><label for="bk_adv">Advance (₹)</label><input id="bk_adv" type="number" min="0" placeholder="optional"></div>
       </div>
-      <div class="s-0a349e0">
+      <div class="rp-row2">
         <div class="fld"><label for="bk_status">Status</label><select id="bk_status"><option value="enquiry">Asked</option><option value="booked" selected>Booked</option><option value="confirmed">Confirmed</option><option value="delivered">Delivered</option></select></div>
         <div class="fld"><label class="s-e648473"><input class="s-e210402" type="checkbox" id="bk_contract"> Contract signed</label></div>
       </div>
@@ -214,7 +215,7 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=108"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=274"></script><script src="pick-event.js?v=1"></script><script src="delivery-tracker.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=275"></script><script src="pick-event.js?v=1"></script><script src="delivery-tracker.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -275,7 +276,7 @@
       const sub=[];
       if(c.kind==="inventory") sub.push(canEdit?`<select class="rp-item" data-item="${esc(c.id)}" aria-label="Which of our items for ${label}">${rpItemOpts(c.item_id)}</select>`:(c.item_id?"":`<span class="muted">no item picked</span>`));
       if(c.kind==="staff" && c.people && c.people.length) sub.push(`<span class="muted">${esc(c.people.join(", "))}</span>`);
-      if(c.note) sub.push(`<span class="muted">${esc(c.note)}</span>`);
+      if(c.note) sub.push(`<span class="muted rp-note">${esc(c.note)}</span>`);
       const haveTxt = c.kind==="other" ? `<span class="muted">—</span>` : `${num(c.have)}<span class="muted rp-u">${c.kind==="staff"?" assigned":" reserved"}</span>`;
       return `<tr class="${c.covered?"is-ok":"is-gap"}">
         <td class="rp-need"><b>${label}</b><div class="rp-meta">${rpTypeSel(c,label)}${sub.join("")}</div></td>
@@ -422,7 +423,7 @@
     let tz="Asia/Kolkata"; try{ tz=BPStore.studioTimezone()||tz; }catch(_){}
     const iso=window.HelmDelivery&&HelmDelivery.zonedToIso?HelmDelivery.zonedToIso(d,t,tz):new Date(d+"T"+t).toISOString(); if(!iso) return bmErr("Pick the date and time.",$("#vr_date"));
     const av=$("#vr_amt").value; const amt=Number(av); if(av===""||!(amt>=0)) return bmErr("Enter the agreed amount (0 or more).",$("#vr_amt"));
-    const where=$("#vr_where").value.trim(), det=$("#vr_det").value.trim(); if(/[<>]/.test(where+det)) return bmErr("Where / details may not contain < or >.",$("#vr_where"));
+    const where=$("#vr_where").value.trim(), det=$("#vr_det").value.trim(); if(/[<>]/.test(where+det)) return bmErr("Where / notes may not contain < or >.",$("#vr_where"));
     if(!sendBk && bookNeed){ const dup=bookings.find(b=>b.status!=="cancelled" && b.vendor_id===vendor_id && b.need_id===bookNeed.id);
       if(dup) return bmErr("This vendor is already on this event for it. Use Send request on their row below."); }
     await BPUI.guard($("#bm_save"),async()=>{
@@ -483,6 +484,8 @@
       catch(e){ $("#bm_err").textContent=BPUI.friendlyError(e,{action:"save the vendor",setupHint:"phase9-vendors.sql"}); $("#bm_err").hidden=false; }
     },{busyLabel:"Saving…"});
   }
+  // r24 ui: the native date box shows the BROWSER's order (11/23/2026 on an en-US browser) - spell the day under it (Mon, 23 Nov 2026)
+  try{ if(window.BPUI && BPUI.dateHint) BPUI.dateHint($("#vr_date")); }catch(_){}
   $("#bookBtn").addEventListener("click",()=>openBooking(null));
   $("#bm_close").addEventListener("click",requestCloseBooking);
   $("#bm_cancel").addEventListener("click",requestCloseBooking);
