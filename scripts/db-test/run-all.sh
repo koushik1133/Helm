@@ -235,6 +235,8 @@ run "r24-automation-0269" "R24-AUTOMATION-0269: ALL PASS \(66/66\)" psql -q -f t
 run "r21-trial-paid-0244" "R21-TRIAL-PAID-0244: ALL PASS \(56/56\)" psql -q -f tests/db/r21-trial-paid-0244.sql
 # 0271 re-applies itself twice (re-run safe) after 0244 / 0266 (the outbox kind check + claim it extends)
 run "r24-contact-0271" "R24-CONTACT-0271: ALL PASS \(54/54\)" psql -q -f tests/db/r24-contact-0271.sql
+# r25 HQ: read-only numbers, re-applies itself twice (re-run safe), rolled back
+run "r25-hq-metrics-0272" "R25-HQ-METRICS-0272: ALL PASS \(23/23\)" psql -q -f tests/db/r25-hq-metrics-0272.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
