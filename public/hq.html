@@ -13,63 +13,127 @@
 <style>
   :root{--bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
     --line:#e8e3db;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;--safe:#18a558;--warn:#e8912d;--bad:#d64545;
+    --c1:#047857;--c2:#2f6fdb;--c3:#d08a1e;--c4:#8a5cd0;--c5:#c2477a;--c6:#5a8f99;
     --shadow:0 1px 2px rgba(27,25,48,.05),0 8px 24px rgba(27,25,48,.07);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased}
+  html,body{background:var(--bg)}
+  body{margin:0;color:var(--ink);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased}
   [hidden]{display:none!important}
-  .wrap{max-width:1240px;margin:0 auto;padding:20px 16px 56px}
-  header.top{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+  /* ---- shell: sidebar + main ---- */
+  .hq{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+  .side{position:sticky;top:0;height:100vh;align-self:start;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+  .brand{display:flex;align-items:center;gap:10px;padding:2px 8px 16px}
   .mk{width:30px;height:30px;border-radius:9px;background:#0b1f19 !important;display:grid;place-items:center;flex:none}
   .mk .kmk{height:24px;width:auto;display:block}
-  header.top h1{font-size:18px;margin:0;letter-spacing:-.01em}
-  header.top .sub{color:var(--ink-3);font-size:12px}
-  header.top .sp{flex:1}
-  .who{font-size:12px;color:var(--ink-3)}
-  .btn{height:32px;padding:0 12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;font:inherit;font-size:13px;cursor:pointer}
+  .brand b{font-size:15px;letter-spacing:-.01em;display:block}
+  .brand small{font-size:11px;color:var(--ink-3)}
+  .navg{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:600;padding:12px 10px 4px}
+  .navi{position:relative;display:flex}
+  .side .tab{flex:1;display:flex;align-items:center;height:36px;padding:0 12px;border:0;background:transparent;color:var(--ink-2);border-radius:8px;font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;text-align:left;min-width:0}
+  .side .tab:hover{background:var(--panel-2);color:var(--ink)}
+  .side .tab[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-2);font-weight:600}
+  .nbadge{position:absolute;right:8px;top:50%;transform:translateY(-50%);min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--warn);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;pointer-events:none}
+  .side .foot{margin-top:auto;padding:14px 8px 0;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);display:flex;flex-direction:column;gap:8px}
+  .side .foot .who{overflow-wrap:anywhere}
+  .main{min-width:0;padding:0 28px 56px}
+  .topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:16px 0 14px;background:var(--bg);flex-wrap:wrap}
+  .topbar h1{font-size:22px;margin:0;letter-spacing:-.02em}
+  .topbar .sub{color:var(--ink-3);font-size:12px}
+  .topbar .sp{flex:1}
+  .gs{position:relative;width:min(340px,100%)}
+  .gs input{width:100%;height:36px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:0 12px;font:inherit;font-size:13px}
+  .gs input:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  .gres{position:absolute;left:0;right:0;top:40px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:20;max-height:60vh;overflow:auto}
+  .gres h4{margin:6px 8px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+  .gres button{display:flex;width:100%;justify-content:space-between;gap:10px;border:0;background:transparent;padding:8px;border-radius:8px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;text-align:left}
+  .gres button:hover,.gres button:focus{background:var(--panel-2)}
+  .gres .muted{font-size:12px}
+  .btn{height:32px;padding:0 12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
   .btn:hover{border-color:var(--accent)}
   .btn:disabled{opacity:.5;cursor:default}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
-  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
-  .kpi .l{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:600}
-  .kpi .v{font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.danger{color:var(--bad)}
+  .btn.sm{height:28px;padding:0 9px;font-size:12px;margin-right:4px}
+  .btn.ghost{border-color:transparent;background:transparent}
+  a.btn{display:inline-flex;align-items:center;text-decoration:none}
+  /* ---- KPI tiles ---- */
+  .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);min-width:0}
+  .kpi .l{font-size:12px;color:var(--ink-3);font-weight:600}
+  .kpi .v{font-size:26px;font-weight:700;margin-top:6px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
   .kpi .s{font-size:12px;color:var(--ink-3);margin-top:2px}
-  .kpi.warn .v{color:var(--warn)} .kpi.bad .v{color:var(--bad)}
+  .kpi.mail .v{font-size:15px;margin-top:10px}
+  .card .form{margin-top:10px}
+  .kpi.warn .v{color:var(--warn)} .kpi.bad .v{color:var(--bad)} .kpi.good .v{color:var(--accent)}
+  button.kpi{font:inherit;text-align:left;cursor:pointer;color:inherit} button.kpi:hover{border-color:var(--accent)}
+  /* ---- cards / grids ---- */
   .grid{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px}
-  @media (max-width:900px){.grid{grid-template-columns:1fr}}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow);min-width:0}
-  .card h2{font-size:13px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2)}
+  .g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}
+  .g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow);min-width:0}
+  .card h2{font-size:14px;margin:0 0 10px;color:var(--ink);letter-spacing:-.01em}
   .card .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
   .card .hd h2{margin:0;flex:1}
+  .card .hint{font-size:12px;color:var(--ink-3);margin:-6px 0 10px}
   .card input[type=search],.card input[type=date]{height:32px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:8px;padding:0 10px;font:inherit;font-size:13px}
-  .card input[type=search]{width:min(240px,100%)}
-  .chart svg{width:100%;height:150px;display:block}
+  .card input[type=search]{width:min(260px,100%)}
+  /* ---- charts (inline SVG) ---- */
+  .chart svg{width:100%;height:170px;display:block;overflow:visible}
   .chart .ax{fill:var(--ink-3);font-size:10px;font-family:var(--font)}
+  .chart .vl{fill:var(--ink-2);font-size:10px;font-weight:600;font-family:var(--font)}
   .chart .grid-l{stroke:var(--line)}
-  .chart .ln-u{stroke:var(--accent);fill:none;stroke-width:2}
+  .chart .cbar{fill:var(--accent)}
+  .chart .ln-u{stroke:var(--accent);fill:none;stroke-width:2.2}
   .chart .ar-u{fill:var(--accent-soft)}
-  .chart .ln-s{stroke:var(--warn);fill:none;stroke-width:2;stroke-dasharray:4 3}
-  .legend{display:flex;gap:14px;font-size:12px;color:var(--ink-3);margin-top:6px}
-  .legend i{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+  .chart .dot{fill:var(--panel);stroke:var(--accent);stroke-width:2}
+  .chart .ln-s{stroke:var(--c3);fill:none;stroke-width:2;stroke-dasharray:4 3}
+  .chart .empty-c{fill:var(--ink-3);font-size:12px;font-family:var(--font)}
+  .donut{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .donut svg{width:150px;height:150px;flex:none}
+  .donut .ctr{fill:var(--ink);font-size:20px;font-weight:700;font-family:var(--font)}
+  .donut .ctr2{fill:var(--ink-3);font-size:10px;font-family:var(--font)}
+  .dbg{stroke:var(--panel-2)} .d1{stroke:var(--c1)} .d2{stroke:var(--c2)} .d3{stroke:var(--c3)} .d4{stroke:var(--c4)} .d5{stroke:var(--c5)} .d6{stroke:var(--c6)}
+  .s1{fill:var(--c1)} .s2{fill:var(--c2)} .s3{fill:var(--c3)} .s4{fill:var(--c4)} .s5{fill:var(--c5)} .s6{fill:var(--c6)}
+  .legend{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-2);min-width:0;flex:1}
+  .legend.row{flex-direction:row;flex-wrap:wrap;gap:14px;margin-top:6px;color:var(--ink-3)}
+  .legend .li{display:flex;align-items:center;gap:8px}
+  .legend .li b{margin-left:auto;font-variant-numeric:tabular-nums}
+  .sw{width:10px;height:10px;border-radius:3px;flex:none;display:inline-block}
+  .sw.s1{background:var(--c1)} .sw.s2{background:var(--c2)} .sw.s3{background:var(--c3)} .sw.s4{background:var(--c4)} .sw.s5{background:var(--c5)} .sw.s6{background:var(--c6)}
+  .sw.ln{height:3px;border-radius:2px;background:var(--accent)} .sw.lnd{height:3px;border-radius:2px;background:var(--c3)}
+  .funnel{display:flex;flex-direction:column;gap:10px}
+  .fstep .fl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2);margin-bottom:4px}
+  .fstep .fl b{font-variant-numeric:tabular-nums;color:var(--ink)}
+  .bar{height:10px;border-radius:99px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;margin:6px 0}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+  /* ---- lists / tables ---- */
   .scroll{overflow-x:auto}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
-  td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{text-align:left;font-size:11.5px;color:var(--ink-3);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel)}
+  td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
   td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
   td.m{font-family:var(--mono);font-size:12px}
+  td.msg{max-width:340px;overflow-wrap:anywhere}
+  .clip{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   tr.click{cursor:pointer} tr.click:hover td{background:var(--panel-2)}
-  .pill{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-2)}
-  .pill.ok{color:var(--safe);border-color:currentColor} .pill.bad{color:var(--bad);border-color:currentColor} .pill.warn{color:var(--warn);border-color:currentColor}
-  .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px;font-size:12px;color:var(--ink-3)}
+  tr.open td{background:var(--accent-soft)}
+  tr.rowdetail>td{background:var(--panel-2);padding:14px 16px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+  .pill.ok{color:#0d7a3c;background:#e8f6ee;border-color:#bfe3cd} .pill.bad{color:#b42318;background:#fdecec;border-color:#f5c6c6} .pill.warn{color:#9a5b00;background:#fff4e2;border-color:#f3d7a6}
+  .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px;font-size:12px;color:var(--ink-3)}
   .list{list-style:none;margin:0;padding:0}
-  .list li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .list li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
   .list li:last-child{border-bottom:0}
-  .list li{align-items:center} .list li>.m:first-child{flex:1;min-width:0;overflow-wrap:anywhere} .list li>.m+.muted{text-align:right}
+  .list li>.m:first-child{flex:1;min-width:0;overflow-wrap:anywhere} .list li>.m+.muted{text-align:right}
+  .att li{gap:12px}
+  .att .ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none;background:var(--panel-2);color:var(--ink-2)}
+  .att .ic.warn{background:#fff4e2;color:#9a5b00} .att .ic.bad{background:#fdecec;color:#b42318} .att .ic.ok{background:var(--accent-soft);color:var(--accent-2)}
+  .att .tx{flex:1;min-width:0} .att .tx b{display:block;font-weight:600} .att .tx span{font-size:12px;color:var(--ink-3)}
   .muted{color:var(--ink-3)} .empty{color:var(--ink-3);font-size:13px;padding:6px 0}
-  .bar{height:8px;border-radius:99px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;margin:6px 0}
-  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
   .detail{margin-top:10px;padding:12px;border:1px dashed var(--line);border-radius:10px;background:var(--panel-2)}
   .err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:14px}
+  .okm{background:#e9f8ef;color:#126b39;border:1px solid #b8e6c9;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:14px}
   /* not-found look (identical to a missing page — the route never confirms it exists) */
   .nf{min-height:80vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:48px 16px}
   .nf .code{font-size:clamp(64px,14vw,120px);font-weight:700;letter-spacing:-.04em;line-height:1;margin:0 0 8px;color:var(--accent)}
@@ -77,32 +141,87 @@
   .nf p{color:var(--ink-2);max-width:46ch;margin:0 auto 24px}
   .nf a{color:var(--accent)}
   .loading{min-height:60vh}
-  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-  .tab{height:34px;padding:0 14px;border:1px solid var(--line);background:var(--panel);color:var(--ink-2);border-radius:999px;font:inherit;font-size:13px;cursor:pointer}
-  .tab[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+  /* ---- forms ---- */
   .form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
-  .fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-3);min-width:140px}
+  .fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-3);min-width:150px}
   .fld.chk{flex-direction:row;align-items:center;min-width:0}
-  .fld input,.fld select,.card select{height:32px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:8px;padding:0 10px;font:inherit;font-size:13px}
-  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  .btn.danger{color:var(--bad)}
-  .btn.sm{height:26px;padding:0 8px;font-size:12px;margin-right:4px}
-  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-  .detail h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);margin:14px 0 6px}
+  .fld.wide{flex:1 1 260px}
+  .fld input,.fld select,.fld textarea,.card select{height:34px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:8px;padding:0 10px;font:inherit;font-size:13px}
+  .fld textarea{height:auto;padding:8px 10px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .detail h3,.dpane h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);margin:18px 0 8px}
   tr.void td{color:var(--ink-3);text-decoration:line-through}
   tr.void td:last-child,tr.void td:nth-last-child(2){text-decoration:none}
   section[id^="pane-"]>.card+.card{margin-top:14px}
-  @media (max-width:640px){
-    .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-left:-16px;margin-right:-16px;padding:0 16px}
-    .tabs::-webkit-scrollbar{display:none}
-    .tab{flex:none;height:40px}
-    .btn{height:40px} .btn.sm{height:36px}
-    .fld input,.fld select,.card select,.card input[type=search],.card input[type=date]{height:40px}
-    .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .kpi .v{font-size:19px;overflow-wrap:anywhere}
-    .list li{flex-wrap:wrap;row-gap:4px} .list li>.m:first-child{flex-basis:100%}
+  details.more{margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel)}
+  details.more>summary{cursor:pointer;font-weight:600;font-size:13px}
+  /* ---- sub-tabs (Requests) ---- */
+  .subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;border-bottom:1px solid var(--line)}
+  .subtab{height:38px;padding:0 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--ink-2);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;margin-bottom:-1px}
+  .subtab[aria-selected="true"]{border-bottom-color:var(--accent);color:var(--accent-2);font-weight:600}
+  .subtab .cnt{display:inline-block;margin-left:6px;min-width:18px;padding:0 6px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);font-size:11px;line-height:16px}
+  .msgbox{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.5;margin:8px 0}
+  .kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;font-size:13px}
+  .kv dt{color:var(--ink-3)} .kv dd{margin:0;overflow-wrap:anywhere}
+  .notes{list-style:none;margin:8px 0 0;padding:0;font-size:12.5px;color:var(--ink-2)}
+  .notes li{padding:6px 0;border-top:1px dashed var(--line)}
+  /* ---- studio drawer ---- */
+  .scrim{position:fixed;inset:0;background:rgba(20,22,30,.32);z-index:40}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(760px,100vw);background:var(--bg);z-index:41;display:flex;flex-direction:column;box-shadow:-12px 0 40px rgba(20,22,30,.18)}
+  .dhead{background:var(--panel);border-bottom:1px solid var(--line);padding:16px 20px 0}
+  .dhead .row{display:flex;align-items:flex-start;gap:12px}
+  .dhead h2{margin:0;font-size:19px;letter-spacing:-.01em;overflow-wrap:anywhere}
+  .dhead .meta{font-size:12.5px;color:var(--ink-3);margin-top:4px}
+  .dtabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin-top:12px}
+  .dtabs::-webkit-scrollbar{display:none}
+  .dbody{flex:1;overflow-y:auto;padding:18px 20px 40px}
+  .dpane .card{margin-bottom:14px}
+  .facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+  .fact{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+  .fact .l{font-size:11.5px;color:var(--ink-3)} .fact .v{font-size:16px;font-weight:700;margin-top:3px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+  .bigact{display:flex;gap:8px;flex-wrap:wrap}
+  .sp-1{flex:1;min-width:0}
+  .dtabs.subtabs{margin:12px 0 0;border-bottom:0;flex-wrap:nowrap}
+  .subtab{flex:none;white-space:nowrap}
+  .hq-ident .form{margin-top:10px}
+  /* ---- system health ---- */
+  .hrow{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
+  .hrow:last-child{border-bottom:0}
+  .hrow .nums{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  @media (max-width:1180px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:1fr 1fr}}
+  @media (max-width:900px){.grid,.g2,.g3{grid-template-columns:1fr}.facts{grid-template-columns:1fr 1fr}}
+  @media (max-width:860px){
+    .hq{grid-template-columns:1fr}
+    .side{position:sticky;top:0;z-index:10;height:auto;flex-direction:row;align-items:center;gap:4px;padding:8px 12px;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--line);scrollbar-width:none}
+    .side::-webkit-scrollbar{display:none}
+    .brand{padding:0 6px 0 0}.brand div{display:none}
+    .navg{display:none}
+    .side .tabs{display:flex;flex-direction:row;gap:4px;flex:none}
+    .navi{flex:none}
+    .chart svg{height:150px}
+    .topbar .tb-acts .btn{flex:1}
+    .side .tab{flex:none;height:38px;white-space:nowrap}
+    .nbadge{position:static;transform:none;margin-left:-6px;align-self:center}
+    .side .foot{display:none}
+    .main{padding:0 16px 48px}
+    .topbar{position:static}
   }
-  .okm{background:#e9f8ef;color:#126b39;border:1px solid #b8e6c9;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:14px}
+  @media (max-width:640px){
+    .btn{height:40px} .btn.sm{height:36px}
+    .fld{min-width:0;flex:1 1 100%}
+    .fld input,.fld select,.card select,.card input[type=search],.card input[type=date]{height:40px}
+    .kpi .v{font-size:21px}
+    .list li{flex-wrap:wrap;row-gap:4px} .list li>.m:first-child{flex-basis:100%}
+    .gs{width:100%}
+    .topbar .tb-acts{display:flex;gap:8px;width:100%}
+    .facts{grid-template-columns:1fr 1fr}
+    .dhead{padding:12px 14px 0}.dbody{padding:14px 14px 40px}
+    .donut svg{width:120px;height:120px}
+    .subtabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+    .subtabs::-webkit-scrollbar{display:none}
+    .rq tr:not(.rowdetail)>:nth-child(3),.rq tr:not(.rowdetail)>:nth-child(4),.rq tr:not(.rowdetail)>:nth-child(5):not(:last-child){display:none}
+    .msgbox{font-size:13px}
+  }
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="/public-pages-v2.css?v=5">
@@ -120,33 +239,65 @@
   </div>
 </main>
 
-<div id="vApp" class="wrap" hidden>
-  <header class="top">
-    <div class="mk" aria-hidden="true"><img class="kmk" src="/brand/helm-symbol-emerald-on-dark.svg?v=1" alt=""></div>
-    <div><h1>Helm HQ</h1><div class="sub">Studios · people · Helm subscriptions — no studio business data</div></div>
-    <div class="sp"></div>
-    <span class="who" id="who"></span>
-    <button class="btn" id="btnRefresh" type="button">Refresh</button>
-    <button class="btn" id="btnOut" type="button">Sign out</button>
-  </header>
-  <nav class="tabs" aria-label="HQ sections">
-    <button type="button" class="tab" id="tab-overview" aria-pressed="true">Overview</button>
-    <button type="button" class="tab" id="tab-studios" aria-pressed="false">Studios</button>
-    <button type="button" class="tab" id="tab-billing" aria-pressed="false">Billing</button>
-    <button type="button" class="tab" id="tab-requests" aria-pressed="false">Requests</button>
-    <button type="button" class="tab" id="tab-plans" aria-pressed="false">Plans</button>
-    <button type="button" class="tab" id="tab-people" aria-pressed="false">People</button>
-    <button type="button" class="tab" id="tab-activity" aria-pressed="false">Activity log</button>
-    <button type="button" class="tab" id="tab-staff" aria-pressed="false">Staff access</button>
-  </nav>
-  <div id="err" class="err" hidden role="alert"></div>
-  <div id="ok" class="okm" hidden role="status"></div>
+<div id="vApp" class="hq" hidden>
+  <aside class="side" aria-label="HQ menu">
+    <div class="brand">
+      <div class="mk" aria-hidden="true"><img class="kmk" src="/brand/helm-symbol-emerald-on-dark.svg?v=1" alt=""></div>
+      <div><b>Helm HQ</b><small>Helm team only</small></div>
+    </div>
+    <nav class="tabs" aria-label="HQ sections">
+      <div class="navg">Business</div>
+      <div class="navi"><button type="button" class="tab" id="tab-overview" aria-pressed="true">Overview</button></div>
+      <div class="navi"><button type="button" class="tab" id="tab-studios" aria-pressed="false">Studios</button></div>
+      <div class="navi"><button type="button" class="tab" id="tab-requests" aria-pressed="false">Requests</button><span class="nbadge" id="navReqCount" hidden></span></div>
+      <div class="navi"><button type="button" class="tab" id="tab-billing" aria-pressed="false">Billing</button></div>
+      <div class="navi"><button type="button" class="tab" id="tab-plans" aria-pressed="false">Plans</button></div>
+      <div class="navg">Team &amp; safety</div>
+      <div class="navi"><button type="button" class="tab" id="tab-people" aria-pressed="false">People</button></div>
+      <div class="navi"><button type="button" class="tab" id="tab-activity" aria-pressed="false">Activity log</button></div>
+      <div class="navi"><button type="button" class="tab" id="tab-staff" aria-pressed="false">Staff access</button></div>
+    </nav>
+    <div class="foot">
+      <span class="who" id="who"></span>
+      <button class="btn" id="btnOut" type="button">Sign out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div><h1 id="pageTitle">Overview</h1><div class="sub">Studios · people · Helm subscriptions — no studio business data</div></div>
+      <div class="sp"></div>
+      <div class="gs" role="search">
+        <input type="search" id="gSearch" placeholder="Search studios and people" aria-label="Search studios and people" autocomplete="off">
+        <div class="gres" id="gResults" hidden></div>
+      </div>
+      <div class="tb-acts"><button class="btn" id="btnRefresh" type="button">Refresh</button></div>
+    </header>
+    <div id="err" class="err" hidden role="alert"></div>
+    <div id="ok" class="okm" hidden role="status"></div>
 
   <section id="pane-overview">
     <section class="kpis" id="kpis" aria-label="Key numbers"></section>
+    <div class="g2">
+      <section class="card chart" aria-labelledby="hcSign"><div class="hd"><h2 id="hcSign">New studios per week</h2><span class="muted" id="cSignSum"></span></div><div id="cSign"></div></section>
+      <section class="card chart" aria-labelledby="hcMrr"><div class="hd"><h2 id="hcMrr">Monthly recurring income (MRR)</h2><span class="muted" id="cMrrSum"></span></div><div id="cMrr"></div>
+        <div class="legend row"><span><i class="sw ln"></i>MRR (before tax)</span><span><i class="sw lnd"></i>Money received</span></div></section>
+    </div>
+    <div class="g2">
+      <section class="card" aria-labelledby="hcMix"><div class="hd"><h2 id="hcMix">Plan mix</h2><span class="muted">paying studios</span></div><div id="cMix" class="donut"></div></section>
+      <section class="card" aria-labelledby="hcFun"><div class="hd"><h2 id="hcFun">Trial funnel</h2><span class="muted">studios that joined in the last 90 days</span></div><div id="cFun" class="funnel"></div></section>
+    </div>
     <div class="grid">
-      <section class="card"><h2>Studios by subscription status</h2><ul class="list" id="byStatus"></ul></section>
-      <section class="card"><h2>Two-step verification</h2><div id="mfa"></div></section>
+      <section class="card" aria-labelledby="hAtt"><div class="hd"><h2 id="hAtt">Needs attention</h2><span class="muted" id="attCount"></span></div><ul class="list att" id="attList"></ul></section>
+      <section class="card" aria-labelledby="hHealth"><div class="hd"><h2 id="hHealth">System health</h2><span id="healthState"></span></div><div id="health"></div></section>
+    </div>
+    <div class="grid">
+      <section class="card" aria-labelledby="hTop"><div class="hd"><h2 id="hTop">Most active studios</h2><span class="muted">people who signed in, last 30 days</span></div>
+        <div class="scroll"><table><thead><tr><th>Studio</th><th>Plan</th><th class="n">Signed in (30 days)</th><th class="n">Team size</th><th>Last sign-in</th></tr></thead><tbody id="tTop"></tbody></table></div></section>
+      <section class="card"><h2>Studios by plan status</h2><ul class="list" id="byStatus"></ul></section>
+    </div>
+    <div class="g2">
+      <section class="card"><h2>Two-step verification (all users)</h2><div id="mfa"></div></section>
       <!-- r21 (0249): can two-step be REQUIRED for HQ yet? who still needs to set it up; "Set up two-step" for me -->
       <section class="card" aria-labelledby="hMfaR">
         <div class="hd"><h2 id="hMfaR">HQ two-step readiness</h2><span id="mfaRState"></span></div>
@@ -162,11 +313,74 @@
   <section id="pane-studios" hidden>
     <section class="card">
       <div class="hd"><h2>Studios</h2>
-        <select id="fStatus" aria-label="Filter by status"><option value="">All statuses</option><option value="trial">Trial</option><option value="active">Active</option><option value="past_due">Past due</option><option value="suspended">Suspended</option><option value="cancelled">Cancelled</option><option value="none">No plan</option></select>
-        <input type="search" id="qStudios" placeholder="Search name, slug, owner" aria-label="Search studios"></div>
-      <div class="scroll"><table><thead><tr><th>Studio</th><th>Primary contact</th><th>State</th><th>Plan</th><th>Status</th><th>Period ends</th><th class="n">People</th><th class="n">Paid Helm</th><th>Last sign-in</th></tr></thead><tbody id="tStudios"></tbody></table></div>
+        <select id="fStatus" aria-label="Filter by status"><option value="">All statuses</option><option value="trial">Trial</option><option value="active">Paying</option><option value="past_due">Past due</option><option value="suspended">Suspended</option><option value="cancelled">Cancelled</option><option value="none">No plan</option></select>
+        <input type="search" id="qStudios" placeholder="Search name, link, owner" aria-label="Search studios"></div>
+      <p class="hint">Click a studio to open it: plan, people, name &amp; link, activity.</p>
+      <div class="scroll"><table><thead><tr><th>Studio</th><th>Primary contact</th><th>Place</th><th>Plan</th><th>Status</th><th>Period ends</th><th class="n">People</th><th class="n">Paid to Helm</th><th>Last sign-in</th></tr></thead><tbody id="tStudios"></tbody></table></div>
       <div class="pager" id="pStudios"></div>
-      <div id="studioDetail"></div>
+    </section>
+  </section>
+  <div id="studioScrim" class="scrim" hidden></div>
+  <aside id="studioDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="dName" hidden>
+    <div class="dhead">
+      <div class="row">
+        <div class="sp-1"><h2 id="dName">Studio</h2><div class="meta" id="dMeta"></div></div>
+        <span id="dStatus"></span>
+        <button class="btn" id="btnDClose" type="button" aria-label="Close studio">Close</button>
+      </div>
+      <div class="dtabs subtabs" role="tablist" aria-label="Studio sections">
+        <button type="button" class="subtab" role="tab" id="dt-overview" aria-selected="true">Overview</button>
+        <button type="button" class="subtab" role="tab" id="dt-plan" aria-selected="false">Plan &amp; billing</button>
+        <button type="button" class="subtab" role="tab" id="dt-people" aria-selected="false">People</button>
+        <button type="button" class="subtab" role="tab" id="dt-ident" aria-selected="false">Name &amp; link</button>
+        <button type="button" class="subtab" role="tab" id="dt-activity" aria-selected="false">Activity</button>
+      </div>
+    </div>
+    <div class="dbody" id="studioDetail"></div>
+  </aside>
+
+  <!-- r21 (0244) plan requests + r24 (0271) sales enquiries / suggestions: one inbox with tabs -->
+  <section id="pane-requests" hidden>
+    <section class="kpis" id="reqCards" aria-label="Requests waiting"></section>
+    <div class="subtabs" role="tablist" aria-label="Kinds of request">
+      <button type="button" class="subtab" role="tab" id="rt-plan" aria-selected="true">Plan requests <span class="cnt" id="rcPlan">0</span></button>
+      <button type="button" class="subtab" role="tab" id="rt-sales" aria-selected="false">Sales enquiries <span class="cnt" id="rcSales">0</span></button>
+      <button type="button" class="subtab" role="tab" id="rt-sugg" aria-selected="false">Suggestions <span class="cnt" id="rcSugg">0</span></button>
+      <button type="button" class="subtab" role="tab" id="rt-alerts" aria-selected="false">E-mail alerts</button>
+    </div>
+    <section class="card" id="rp-plan" aria-labelledby="hReq">
+      <div class="hd"><h2 id="hReq">Plan requests</h2>
+        <select id="fReq" aria-label="Filter requests"><option value="new">New</option><option value="contacted">Contacted</option><option value="won">Won</option><option value="lost">Lost</option><option value="">All</option></select>
+        <button class="btn" id="btnReq" type="button">Show</button></div>
+      <p class="hint">Studio admins ask for a plan from the plan page or the read-only banner. Click a row to read it and reply. Once they have paid: open the studio &rarr; <b>Plan &amp; billing</b> &rarr; <b>Activate plan</b>.</p>
+      <p class="muted" id="reqCounts"></p>
+      <div class="scroll"><table class="rq"><thead><tr><th>When</th><th>Studio</th><th>Contact</th><th>Plan</th><th>Message</th><th>Status</th></tr></thead><tbody id="tReq"></tbody></table></div>
+    </section>
+    <section class="card" id="rp-sales" aria-labelledby="hSe" hidden>
+      <div class="hd"><h2 id="hSe">Sales enquiries</h2>
+        <select id="fSe" aria-label="Filter sales enquiries"><option value="new">New</option><option value="contacted">Contacted</option><option value="won">Won</option><option value="lost">Lost</option><option value="">All</option></select>
+        <button class="btn" id="btnSe" type="button">Show</button></div>
+      <p class="hint">From the public <b>Contact sales</b> page and the home page contact form (no account needed). Click a row to read it and reply.</p>
+      <p class="muted" id="seCounts"></p>
+      <div class="scroll"><table class="rq"><thead><tr><th>When</th><th>Company</th><th>Contact</th><th>Details</th><th>Message</th><th>Status</th></tr></thead><tbody id="tSe"></tbody></table></div>
+    </section>
+    <section class="card" id="rp-sugg" aria-labelledby="hSg" hidden>
+      <div class="hd"><h2 id="hSg">Suggestions</h2>
+        <select id="fSg" aria-label="Filter suggestions"><option value="new">New</option><option value="reviewed">Reviewed</option><option value="done">Done</option><option value="">All</option></select>
+        <button class="btn" id="btnSg" type="button">Show</button></div>
+      <p class="hint">From “Send a suggestion” in the app (profile menu) and the public /suggest page.</p>
+      <p class="muted" id="sgCounts"></p>
+      <div class="scroll"><table class="rq"><thead><tr><th>When</th><th>From</th><th>Kind</th><th>Suggestion</th><th>Status</th></tr></thead><tbody id="tSg"></tbody></table></div>
+    </section>
+    <section class="card" id="rp-alerts" aria-labelledby="hSeSet" hidden>
+      <h2 id="hSeSet">E-mail alerts for these requests</h2>
+      <div class="form">
+        <label class="fld wide"><span>Send alerts to</span><input type="email" id="seEmail" maxlength="200" placeholder="notifications@helm.events"></label>
+        <label class="fld chk"><input type="checkbox" id="seAck"> <span>Send an automatic “thank you” e-mail to people who contact sales</span></label>
+        <label class="fld chk"><input type="checkbox" id="seOpen"> <span>Contact sales form is open</span></label>
+        <button class="btn primary" id="btnSeSet" type="button">Save</button>
+      </div>
+      <p class="muted">E-mails go out once e-mail sending (SMTP) is switched on for Helm.</p>
     </section>
   </section>
 
@@ -230,44 +444,6 @@
         <button class="btn" id="btnCheckout" type="button">Save checkout settings</button>
       </div>
       <p class="muted" id="coState"></p>
-    </section>
-  </section>
-
-  <!-- r21 (0244): "Contact sales" requests from studios (plan page + read-only banner) -->
-  <section id="pane-requests" hidden>
-    <section class="card">
-      <div class="hd"><h2>Plan requests</h2>
-        <select id="fReq" aria-label="Filter requests"><option value="new">New</option><option value="contacted">Contacted</option><option value="won">Won</option><option value="lost">Lost</option><option value="">All</option></select>
-        <button class="btn" id="btnReq" type="button">Show</button></div>
-      <p class="muted">Studio admins ask for a plan from the plan page or the read-only banner. Call or e-mail them, mark the request, and once they have paid use Studios &rarr; open the studio &rarr; <b>Activate plan</b>.</p>
-      <p class="muted" id="reqCounts"></p>
-      <div class="scroll"><table><thead><tr><th>When</th><th>Studio</th><th>Contact</th><th>Plan</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody id="tReq"></tbody></table></div>
-    </section>
-    <section class="card" aria-labelledby="hSe">
-      <div class="hd"><h2 id="hSe">Sales enquiries</h2>
-        <select id="fSe" aria-label="Filter sales enquiries"><option value="new">New</option><option value="contacted">Contacted</option><option value="won">Won</option><option value="lost">Lost</option><option value="">All</option></select>
-        <button class="btn" id="btnSe" type="button">Show</button></div>
-      <p class="muted">From the public <b>Contact sales</b> page and the home page contact form (no account needed). Reply to them, then mark each one.</p>
-      <p class="muted" id="seCounts"></p>
-      <div class="scroll"><table><thead><tr><th>When</th><th>Company</th><th>Contact</th><th>Details</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody id="tSe"></tbody></table></div>
-    </section>
-    <section class="card" aria-labelledby="hSg">
-      <div class="hd"><h2 id="hSg">Suggestions</h2>
-        <select id="fSg" aria-label="Filter suggestions"><option value="new">New</option><option value="reviewed">Reviewed</option><option value="done">Done</option><option value="">All</option></select>
-        <button class="btn" id="btnSg" type="button">Show</button></div>
-      <p class="muted">From “Send a suggestion” in the app (profile menu) and the public /suggest page.</p>
-      <p class="muted" id="sgCounts"></p>
-      <div class="scroll"><table><thead><tr><th>When</th><th>From</th><th>Kind</th><th>Suggestion</th><th>Status</th><th></th></tr></thead><tbody id="tSg"></tbody></table></div>
-    </section>
-    <section class="card" aria-labelledby="hSeSet">
-      <h2 id="hSeSet">E-mail alerts for these requests</h2>
-      <div class="form">
-        <label class="fld"><span>Send alerts to</span><input type="email" id="seEmail" maxlength="200" placeholder="notifications@helm.events"></label>
-        <label class="fld chk"><input type="checkbox" id="seAck"> <span>Send an automatic “thank you” e-mail to people who contact sales</span></label>
-        <label class="fld chk"><input type="checkbox" id="seOpen"> <span>Contact sales form is open</span></label>
-        <button class="btn" id="btnSeSet" type="button">Save</button>
-      </div>
-      <p class="muted">E-mails go out once e-mail sending (SMTP) is switched on for Helm.</p>
     </section>
   </section>
 
@@ -380,6 +556,7 @@
       <div class="scroll"><table><thead><tr><th>E-mail</th><th>Studio</th><th>Created</th><th>Last sign-in</th><th>Status</th></tr></thead><tbody id="tStAcc"></tbody></table></div>
     </section>
   </section>
+  </div>
 </div>
 
 <script src="/trusted-types.js?v=3"></script>
@@ -391,6 +568,6 @@
 <script src="auth-ui.js?v=51"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="hq-mfa.js?v=1"></script>
-<script src="hq.js?v=19"></script>
+<script src="hq.js?v=20"></script>
 </body>
 </html>
