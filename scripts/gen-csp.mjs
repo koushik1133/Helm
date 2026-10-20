@@ -48,7 +48,7 @@ function unionPolicy(values) {
   for (const v of values) for (const d of v.split(';').map((x) => x.trim()).filter(Boolean)) {
     const [k, ...toks] = d.split(/\s+/);
     if (!m.has(k)) m.set(k, new Set());
-    toks.forEach((t) => { if (!PROD_REF || !t.includes(PROD_REF)) m.get(k).add(t); });   // staging site never allows production
+    toks.forEach((t) => { if ((!PROD_REF || !t.includes(PROD_REF)) && (!CUSTOM_API_HOST || !t.includes(CUSTOM_API_HOST))) m.get(k).add(t); });   // staging site never allows production
   }
   // audit run-3 deploy/vercel/helm-v01-union-csp-overrides-per-page: a union cannot
   // express per-page framing, and merging 'none' + 'self' widened every staging page to
@@ -74,6 +74,25 @@ const STAGING_PATH = join(PUBLIC, 'config.staging.js');
 const STAGING_REF = existsSync(STAGING_PATH)
   ? (/https:\/\/([a-z0-9]{20})\.supabase\.co/.exec(readFileSync(STAGING_PATH, 'utf8')) || [])[1] : '';
 const PROD_REF = (/url:\s*"https:\/\/([a-z0-9]{20})\.supabase\.co"/.exec((existsSync(join(PUBLIC, 'config.js')) ? readFileSync(join(PUBLIC, 'config.js'), 'utf8') : '')) || [])[1] || '';
+// r26: the production project's own API address (Supabase custom domain, HELM_API_DOMAIN.customUrl in
+// public/config.js). Every policy that allows the production project also allows this host (https + wss),
+// so flipping the config switch needs no CSP change and both addresses work during the move.
+const CUSTOM_API_HOST = (/customUrl:\s*"https:\/\/([a-z0-9.-]+\.helm\.events)"/.exec((existsSync(join(PUBLIC, 'config.js')) ? readFileSync(join(PUBLIC, 'config.js'), 'utf8') : '')) || [])[1] || '';
+export function withCustomDomain(v, ref = PROD_REF, host = CUSTOM_API_HOST) {
+  if (!ref || !host) return v;
+  return v.split(';').map((d) => {
+    const toks = d.trim().split(/\s+/).filter(Boolean);
+    if (!toks.length) return d;
+    const out = [];
+    for (const t of toks) {
+      if (t === 'https://' + host || t === 'wss://' + host) continue;   // re-added right after the project origin
+      out.push(t);
+      if (t === 'https://' + ref + '.supabase.co') out.push('https://' + host);
+      if (t === 'wss://' + ref + '.supabase.co') out.push('wss://' + host);
+    }
+    return (d.startsWith(' ') ? ' ' : '') + out.join(' ');
+  }).join(';');
+}
 // r21 monitoring (scripts/csp-hashes.cjs): CSP violation reports -> the prod csp-report edge function, and the
 // EXACT Sentry ingest origin of the DSN in public/config.js (none while telemetry is dormant).
 const CONFIG_SRC = existsSync(join(PUBLIC, 'config.js')) ? readFileSync(join(PUBLIC, 'config.js'), 'utf8') : '';
@@ -112,7 +131,7 @@ vercel.headers = (vercel.headers || []).filter((r) => !r.__prodCsp && !isProdCsp
 for (const rule of vercel.headers || []) {
   for (const h of rule.headers || []) {
     if (h.key.toLowerCase() === 'content-security-policy') {
-      h.value = withReporting(stripStaging(withHashes(h.value, hashes, styleHashes)), REPORTING); cspCount++;
+      h.value = withReporting(stripStaging(withCustomDomain(withHashes(h.value, hashes, styleHashes))), REPORTING); cspCount++;
       const fbad = frameAncestorsProblem(h.value, rule.source);
       if (fbad) { console.error(`  ✗ vercel.json ${rule.source}: ${fbad}`); problems++; }
       const bad = scriptSrcProblem(h.value, rule.source);
@@ -162,7 +181,7 @@ const vNext = JSON.stringify(vercel, null, 2) + '\n';
 // 3) public/_headers (Netlify / Cloudflare Pages format)
 const hPath = join(PUBLIC, '_headers');
 const hRaw = readFileSync(hPath, 'utf8');
-let hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) => k + withReporting(stripStaging(withHashes(v, hashes, styleHashes)), REPORTING));
+let hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) => k + withReporting(stripStaging(withCustomDomain(withHashes(v, hashes, styleHashes))), REPORTING));
 { // r22: Reporting-Endpoints line right after the catch-all (/*) block's CSP
   const val = reportingEndpoints(REPORTING.reportUri);
   hNext = hNext.replace(/^\s+Reporting-Endpoints:.*\n/gm, '');

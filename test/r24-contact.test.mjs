@@ -40,7 +40,7 @@ t('home contact form: no more mailto, posts to submit_sales_enquiry with source 
   const j = rd('public/home.js');
   assert.ok(!/mailto:sales@helm\.events\?subject/.test(j), 'mailto handler removed');
   assert.ok(j.includes("/rest/v1/rpc/submit_sales_enquiry") && j.includes("source: 'home'") && j.includes("name: 'website'"));
-  assert.ok(j.includes("s.src = '/config.js'"), 'config.js loaded on first use');
+  assert.ok(/s\.src = '\/config\.js(\?v=\d+)?'/.test(j), 'config.js loaded on first use');
   assert.ok(j.includes("a.href = '/suggest'"), 'footer suggestion link');
 });
 

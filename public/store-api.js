@@ -201,7 +201,7 @@ window.HelmUrl = HelmUrl;
   // this covers prod / staging / local. No-op when that origin is already preconnected.
   (function preconnectSupabase() {
     try {
-      if (typeof document === "undefined" || !document.head || !CFG.url || !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(CFG.url)) return;
+      if (typeof document === "undefined" || !document.head || !CFG.url || !/^https:\/\/([a-z0-9-]+\.supabase\.co|api\.helm\.events)\/?$/.test(CFG.url)) return;   // r26: own API address too
       const origin = CFG.url.replace(/\/$/, "");
       if (document.querySelector('link[rel="preconnect"][href="' + origin + '"]')) return;
       const l = document.createElement("link");
@@ -1576,7 +1576,9 @@ window.HelmUrl = HelmUrl;
         try { const ok = await loadSupabaseLib();
           if (ok && global.supabase && global.supabase.createClient) {
             supa = global.supabase.createClient(CFG.url, CFG.anonKey,
-              { auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage },
+              { auth: Object.assign({ flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage },
+                  // r26: on the own API address (api.helm.events) keep the session under the project's usual key, so switching signs nobody out
+                  (CFG.authStorageKey && CFG.url && !/\.supabase\.co\/?$/.test(CFG.url) && /^sb-[a-z0-9]{20}-auth-token$/.test(CFG.authStorageKey)) ? { storageKey: CFG.authStorageKey } : {}),
                 global: { fetch: authAwareFetch } });
             if (inviteFragment) {
               // never swap an existing signed-in account for one carried in a link (login-CSRF guard);

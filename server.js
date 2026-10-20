@@ -126,15 +126,15 @@ const CSP_BASE = [
   ['frame-ancestors', "'none'"],
   ['frame-src', "'self'"],                  // the invitation studio previews /invite in a same-origin iframe
   ['form-action', "'self'"],
-  ['img-src', "'self' data: blob: https://nqltzgiwznphugcfhmbm.supabase.co https://xizehqgeyjcfpzrdymly.supabase.co"],
-  ['media-src', "'self' blob: https://nqltzgiwznphugcfhmbm.supabase.co https://xizehqgeyjcfpzrdymly.supabase.co"],
+  ['img-src', "'self' data: blob: https://nqltzgiwznphugcfhmbm.supabase.co https://api.helm.events https://xizehqgeyjcfpzrdymly.supabase.co"],
+  ['media-src', "'self' blob: https://nqltzgiwznphugcfhmbm.supabase.co https://api.helm.events https://xizehqgeyjcfpzrdymly.supabase.co"],
   ['font-src', "'self' https://fonts.gstatic.com"],
   // style-src / style-src-elem: 'self' + fonts + <style> hashes; style-src-attr 'unsafe-inline'
   // (see withHashes in scripts/csp-hashes.cjs — added per request)
   ['style-src', "'self' https://fonts.googleapis.com"],
   // 'self' + the pinned Sentry bundle directory only (no whole-CDN hosts)
   ['script-src', SCRIPT_SRC_BASE.join(' ')],
-  ['connect-src', "'self' https://nqltzgiwznphugcfhmbm.supabase.co https://xizehqgeyjcfpzrdymly.supabase.co wss://nqltzgiwznphugcfhmbm.supabase.co wss://xizehqgeyjcfpzrdymly.supabase.co"],
+  ['connect-src', "'self' https://nqltzgiwznphugcfhmbm.supabase.co https://api.helm.events https://xizehqgeyjcfpzrdymly.supabase.co wss://nqltzgiwznphugcfhmbm.supabase.co wss://api.helm.events wss://xizehqgeyjcfpzrdymly.supabase.co"],
   ['upgrade-insecure-requests', ''],
 ];
 const buildCsp = (over = {}) => CSP_BASE

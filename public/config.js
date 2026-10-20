@@ -99,6 +99,29 @@ window.SUPABASE_CONFIG = {
   }
 };
 
+// ── r26: OWN API ADDRESS (Supabase custom domain) — THE one switch ─────────────────────────────
+// useCustomDomain: false (now) = the app talks to https://nqltzgiwznphugcfhmbm.supabase.co, exactly as before.
+//                  true        = the app talks to https://api.helm.events (same database, same keys).
+// Flip to true ONLY after every step in CUSTOM-DOMAIN-STEPS.md is done and `supabase domains activate` succeeded.
+// Safe fallback: any other address than https://api.helm.events is ignored (stays on supabase.co), and the old
+// supabase.co address keeps working after the switch, so flipping back to false is always safe.
+// Try-before-flip (production sites only, this browser only): in the browser console run
+//   localStorage.setItem('helm.apiDomain', 'custom')   ... and reload;  localStorage.removeItem('helm.apiDomain') to undo.
+// Sign-ins survive the switch: the session is kept under the SAME browser key (authStorageKey) on both addresses.
+window.HELM_API_DOMAIN = Object.assign({ useCustomDomain: false, customUrl: "https://api.helm.events" }, window.HELM_API_DOMAIN || {});
+(function () {
+  try {
+    var C = window.SUPABASE_CONFIG, D = window.HELM_API_DOMAIN;
+    var ref = (/^https:\/\/([a-z0-9]{20})\.supabase\.co$/.exec(C.url) || [])[1];
+    if (!ref) return;
+    C.projectUrl = C.url;                                  // the original address (always works)
+    C.authStorageKey = "sb-" + ref + "-auth-token";        // same key on both addresses → nobody is signed out
+    var h = ""; try { h = String(location.hostname || "").toLowerCase(); } catch (e) {}
+    var trial = false; try { trial = /^(www\.)?helm\.events$/.test(h) && localStorage.getItem("helm.apiDomain") === "custom"; } catch (e) {}
+    if ((D.useCustomDomain === true || trial) && D.customUrl === "https://api.helm.events") C.url = D.customUrl;
+  } catch (e) { /* never break config load: stays on the supabase.co address */ }
+})();
+
 // ---------------------------------------------------------------------------
 // STAGING project config lives in public/config.staging.js (public values only).
 // It is loaded below ONLY on non-production hosts, and vercel.json 404s it on
