@@ -1,10 +1,10 @@
 // r22 pricing CTAs: the public pricing page and the landing page send people into the new /signup flow.
-//   * r24 (owner): every plan card has ONE button "Contact sales" -> /signup?plan=<key>&mode=sales (no Pay now, no
+//   * r24 (owner): every plan card has ONE button "Contact sales" -> /contact-sales?plan=<key> (r24 usd; was /signup?...&mode=sales) (no Pay now, no
 //     per-card Try free); one "Start free trial" block under the cards -> /signup?mode=trial (test/r24-pricing-sales)
 //   * header "Start free trial" -> /signup?mode=trial, "Sign in" -> /login
 //   * plan keys are the ones checkout.js already knows (starter / studio / enterprise) - no new plans, no new prices
 //   * no old trial link (/login?trial=1#signup) and no mailto/#contact sales button left on these two pages
-//   * the home contact form stays; a "Talk to sales" link to the same sales URL sits beside it
+//   * the home contact form stays; a "Talk to sales" link to /contact-sales (no plan) sits beside it
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read = (p) => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
@@ -14,7 +14,7 @@ const PR = read('public/pricing.html'), IDX = read('public/index.html'), CHK = r
 const HCSS = read('public/home.css'), PCSS = read('public/marketing-pricing.css');
 const KEYS = ['starter', 'studio'];
 const hrefs = (h) => [...h.matchAll(/href="([^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, '&'));
-const SALES = '/signup?plan=enterprise&mode=sales';
+const SALES = '/contact-sales';   // r24 usd: general Talk to sales -> the contact form (no plan)
 
 t('plan keys used on the pages are the checkout catalog keys', () => {
   for (const k of [...KEYS, 'enterprise']) assert.match(CHK, new RegExp('code: "' + k + '"'), k);
@@ -26,7 +26,7 @@ t('plan keys used on the pages are the checkout catalog keys', () => {
 
 for (const [name, h] of [['pricing.html', PR], ['index.html', IDX]]) {
   t(name + ': r24 - each plan card has Contact sales only (no Pay now, no per-card trial)', () => {
-    for (const k of [...KEYS, 'enterprise']) assert.ok(h.includes('href="/signup?plan=' + k + '&amp;mode=sales">Contact sales</a>'), k);
+    for (const k of [...KEYS, 'enterprise']) assert.ok(h.includes('href="/contact-sales?plan=' + k + '">Contact sales</a>'), k);
     assert.ok(!/mode=paid|>Pay now|Try free for 8 days/.test(h), 'no Pay now / per-card trial left');
     assert.ok(!/href="\/?#contact">(Talk to|Contact) sales/.test(h));
   });
@@ -39,9 +39,9 @@ for (const [name, h] of [['pricing.html', PR], ['index.html', IDX]]) {
 }
 
 t('pricing.html: cards keep their prices; the only primary button under the cards is Start free trial', () => {
-  for (const k of [...KEYS, 'enterprise']) assert.ok(PR.includes('<div class="pr-ctas"><a class="btn pr-btn" href="/signup?plan=' + k + '&amp;mode=sales">Contact sales</a></div>'), k);
+  for (const k of [...KEYS, 'enterprise']) assert.ok(PR.includes('<div class="pr-ctas"><a class="btn pr-btn" href="/contact-sales?plan=' + k + '">Contact sales</a></div>'), k);
   assert.ok(PR.includes('<a class="btn primary hs-pop pr-trial-btn" href="/signup?mode=trial">Start free trial</a>'));
-  for (const p of ['&#8377;1,999', '&#8377;4,999', '&#8377;19,990', '&#8377;49,990', '<b>Custom</b>']) assert.ok(PR.includes(p), p);
+  for (const p of ['<b>$24</b>', '<b>$59</b>', 'or $240/year proposed (2 months free)', 'or $590/year proposed (2 months free)', '<b>Custom</b>']) assert.ok(PR.includes(p), p);
   assert.match(PCSS, /\.pr-ctas \{ display: grid; gap: 8px; \}/);
 });
 
