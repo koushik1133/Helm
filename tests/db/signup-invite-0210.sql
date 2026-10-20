@@ -146,6 +146,7 @@ do $$ declare r jsonb; o uuid; e text; g jsonb; f0 text; begin
   -- an existing billing key the welcome must keep
   update public.organizations set brand = coalesce(brand, '{}'::jsonb) || jsonb_build_object('billing',
     coalesce(brand -> 'billing', '{}'::jsonb) || '{"legal_name":"Keep Me Pvt Ltd","pin":"500001"}'::jsonb) where id = o;
+  update public.organizations set name = 'Aurora Events' where id = o;   -- r23 (0257): the name typed at sign-up (fixed after)
   perform pg_temp.login('si_owner@si.test');
   f0 := (select md5(to_jsonb(x)::text) from public.organizations x where x.id = o);
   e := pg_temp.try($q$select public.trial_welcome_save('Aurora Events', 'Pune', 'Atlantis', null, 'IN')$q$);
@@ -187,10 +188,12 @@ do $$ declare r jsonb; o uuid; e text; g jsonb; f0 text; begin
     and jsonb_typeof(g -> 'brand' -> 'billing') = 'object' and g -> 'brand' -> 'billing' ->> 'legal_name' = 'Keep Me Pvt Ltd', (g -> 'brand')::text);
   -- the old 3-argument step still works for a cached page (no state)
   perform pg_temp.login('si_owner@si.test');
-  r := public.trial_welcome_setup('Aurora Events Two', 'Pune', null);
+  e := pg_temp.try($q$select public.trial_welcome_setup('Aurora Events Two', 'Pune', null)$q$);   -- r23 (0257): a new name is refused
+  r := public.trial_welcome_setup('Aurora Events', 'Pune', null);
   perform pg_temp.su();
-  perform pg_temp.res('45 old 3-argument step still saves (state kept)', r ->> 'result' = 'ok'
-    and pg_temp.org(o) ->> 'name' = 'Aurora Events Two' and pg_temp.org(o) -> 'brand' -> 'billing' ->> 'state' = 'Maharashtra', r::text);
+  perform pg_temp.res('45 old 3-argument step still saves (state kept); a new name refused (r23 lock)', r ->> 'result' = 'ok'
+    and e like '42501%can''t be changed%'
+    and pg_temp.org(o) ->> 'name' = 'Aurora Events' and pg_temp.org(o) -> 'brand' -> 'billing' ->> 'state' = 'Maharashtra', r::text || ' ' || e);
 exception when others then perform pg_temp.su(); insert into _si values ('3x welcome', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 -- ---- 5x: who may save --------------------------------------------------------------------------------------------

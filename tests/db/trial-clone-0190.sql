@@ -143,6 +143,9 @@ exception when others then perform pg_temp.su(); insert into _uf values ('1x dem
 
 -- welcome step 1 on top (rename) keeps every row
 do $$ declare r jsonb; j jsonb; begin
+  -- r23 (0257): the welcome may only save the studio's own (sign-up) name
+  perform pg_temp.su(); update public.organizations set name = 'Aurora Weddings'
+   where id = (select org_id from public.profiles where email = 'tc90_demo@t.test');
   perform pg_temp.login('tc90_demo@t.test');
   r := public.trial_welcome_setup('Aurora Weddings', 'Hyderabad', null);
   perform pg_temp.su();

@@ -66,7 +66,7 @@ do $$ begin
     and not has_table_privilege('authenticated', 'public.trial_email_settings', 'update'));
   perform pg_temp.res('03 both dispatcher claim bodies ask _tr212_claim_blocked; none keeps the old check; old bodies saved',
     (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'comms\_outbox\_claim%'
-       and position('_tr212_claim_blocked(r.org_id, r.recipient, r.purpose, r.channel, r.payload)' in pg_get_functiondef(p.oid)) > 0) = 2
+       and position('_tr212_claim_blocked(r.org_id, r.recipient, r.purpose, r.channel, r.payload)' in pg_get_functiondef(p.oid)) > 0) >= 2   -- 0261 adds a third wrapper (nudges), same check
     and not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'comms\_outbox\_claim%'
        and position('not public._sample_outbound_blocked(r.org_id, r.recipient)' in pg_get_functiondef(p.oid)) > 0)
     and (select count(*) from public.tr212_saved_defs where fn like 'comms_outbox_claim%') = 2

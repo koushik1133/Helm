@@ -627,10 +627,11 @@
     function stepName() {
       dlg.classList.remove("tw-dlg");
       s.empty(s.extra); s.empty(body); s.empty(row); showErr("");
-      step.textContent = "Step " + (withTerms ? 2 : 1) + " of " + total; h.textContent = "Name your trial studio";
-      body.appendChild(el("p", null, t.trial_mode === "own" ? "Give your trial studio your name — you can change it later." : "Your sample studio is loading with events, leads, menus, staff and inventory. Give it your name — you can change it later."));
-      const fn = field("tdw_name", "Studio name", "text", /^Demo [0-9]+$/.test(t.name || "") ? "" : (t.name || ""));
-      fn.input.required = true; fn.input.maxLength = 120; fn.input.autocomplete = "organization";
+      step.textContent = "Step " + (withTerms ? 2 : 1) + " of " + total; h.textContent = "Your trial studio";
+      body.appendChild(el("p", null, t.trial_mode === "own" ? "Add where your studio is based." : "Your sample studio is loading with events, leads, menus, staff and inventory. Add where your studio is based."));
+      // r23 (0257): the studio name (and its link) were set when the studio was created - shown, never changed here
+      const fn = field("tdw_name", "Studio name", "text", t.name || "", "Set when the studio was created. Contact Helm support to change it.");
+      fn.input.readOnly = true; fn.input.setAttribute("aria-readonly", "true"); fn.input.tabIndex = -1;
       // round 19: City + State (Indian states) + Country (India, fixed for the free trial); phone stays optional
       const fc = field("tdw_city", "City", "text", ""); fc.input.maxLength = 120; fc.input.required = true;
       fc.input.placeholder = "e.g. Hyderabad"; fc.input.autocomplete = "address-level2";
@@ -641,8 +642,8 @@
       const fp = field("tdw_phone", "Phone (optional)", "tel", "", "Shown on your quotes. Leave empty if you like."); fp.input.maxLength = 40;
       body.appendChild(fn.box); body.appendChild(loc); body.appendChild(fk.box); body.appendChild(fp.box);
       const next = btn("Continue", "btn primary", async () => {
-        const name = fn.input.value.trim(), city = fc.input.value.trim(), state = fs.input.value.trim();
-        if (name.length < 2) { showErr("Enter your studio name (at least 2 characters)."); fn.input.focus(); return; }
+        // r23 (0257): the server refuses any other name - always send the studio's own
+        const name = String(t.name || "").trim(), city = fc.input.value.trim(), state = fs.input.value.trim();
         if (city.length < 2) { showErr("Enter your city."); fc.input.focus(); return; }
         if (!state) { showErr("Choose your state."); fs.input.focus(); return; }
         showErr(""); const done = busy(next, "Saving…");
@@ -654,8 +655,8 @@
         step2();
       });
       row.appendChild(next);
-      try { fn.input.focus(); } catch (e) {}
-      return fn.input;
+      try { fc.input.focus(); } catch (e) {}
+      return fc.input;
     }
     // prefill: [{ email, role }] - "Try again" brings back only the invites that failed
     function step2(prefill) {

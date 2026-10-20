@@ -53,6 +53,8 @@ run "r22-mfa-reset-0253" "R22-MFA-RESET-0253: ALL PASS \(30/30\)" psql -q -f tes
 run "privacy-pin-0157"   "PRIVACY-PIN-0157: ALL PASS \(30/30\)" psql -q -f tests/db/privacy-pin-0157.sql
 run "direct-studio-0159" "DIRECT-STUDIO-0159: ALL PASS \(30/30\)" psql -q -f tests/db/direct-studio-0159.sql
 run "r22-create-studio-0255" "R22-CREATE-STUDIO-0255: ALL PASS \(46/46\)" psql -q -f tests/db/r22-create-studio-0255.sql
+# early: later suites re-apply 0032 / 0156 / 0200 over the 0262 verify_and_consent / comms_outbox_claim wrappers
+run "r23-quote-validity-0262" "R23-QUOTE-VALIDITY-0262: ALL PASS \(69/69\)" psql -q -f tests/db/r23-quote-validity-0262.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql
@@ -120,6 +122,7 @@ run "r21-security-notices-0250" "R21-SECURITY-NOTICES-0250: ALL PASS \(35/35\)" 
 run "upload-quarantine"  "UPLOAD-QUARANTINE: ALL PASS \(21/21\)" psql -q -f tests/db/upload-quarantine.sql
 run "chat-rls"           "CHAT-RLS: ALL PASS"              psql -q -f tests/db/chat-rls.sql
 run "studio-links"       "STUDIO-LINKS: ALL PASS"          psql -q -f tests/db/studio-links.sql
+run "r23-studio-name-0257" "R23-STUDIO-NAME-0257: ALL PASS \(41/41\)" psql -q -f tests/db/r23-studio-name-0257.sql
 run "privilege-escalation" "PRIVILEGE-ESCALATION: ALL PASS"  psql -q -f tests/db/privilege-escalation.sql
 run "link-windows"       "LINK-WINDOWS: ALL PASS"          psql -q -f tests/db/link-windows.sql
 run "link-autoexpire"    "LINK-AUTOEXPIRE: ALL PASS \(45/45\)" psql -q -f tests/db/link-autoexpire.sql
@@ -153,7 +156,7 @@ run "client-360"         "CLIENT-360: ALL PASS \(48/48\)"  psql -q -f tests/db/c
 run "saved-views"        "SAVED-VIEWS: ALL PASS \(28/28\)" psql -q -f tests/db/saved-views.sql
 run "system-quiet-0164"  "SYSTEM-QUIET-0164: ALL PASS \(18/18\)" psql -q -f tests/db/system-quiet-0164.sql
 run "trial-sandbox-0166" "TRIAL-SANDBOX-0166: ALL PASS \(51/51\)" psql -q -f tests/db/trial-sandbox-0166.sql
-run "trial-manifest-0167" "TRIAL-MANIFEST-0167: ALL PASS \(50/50\)" psql -q -f tests/db/trial-manifest-0167.sql
+run "trial-manifest-0167" "TRIAL-MANIFEST-0167: ALL PASS \(51/51\)" psql -q -f tests/db/trial-manifest-0167.sql
 run "trial-india-0177"   "TRIAL-INDIA-0177: ALL PASS \(17/17\)" psql -q -f tests/db/trial-india-0177.sql
 run "trial-data-0168" "TRIAL-DATA-0168: ALL PASS \(17/17\)" psql -q -f tests/db/trial-data-0168.sql
 run "trial-data-0169" "TRIAL-DATA-0169: ALL PASS \(24/24\)" psql -q -f tests/db/trial-data-0169.sql
@@ -215,6 +218,15 @@ run "r22-money-0252" "R22-MONEY-0252: ALL PASS \(17/17\)" psql -q -f tests/db/r2
 run "r22-closure-0254" "R22-CLOSURE-0254: ALL PASS \(68/68\)" psql -q -f tests/db/r22-closure-0254.sql
 # 0256 re-applies itself twice (fixture events are made after the clean install; proves a re-run is safe)
 run "r23-vendors-0256" "R23-VENDORS-0256: ALL PASS \(77/77\)" psql -q -f tests/db/r23-vendors-0256.sql
+run "r23-payment-schedules-0264" "R23-PAYMENT-SCHEDULES-0264: ALL PASS \(71/71\)" psql -q -f tests/db/r23-payment-schedules-0264.sql
+# 0265 re-applies itself twice (re-run safe); after every suite that re-applies 0132 / 0246 / 0252 (it replaces the 0252 ledger body)
+run "r23-crew-0265" "R23-CREW-0265: ALL PASS \(60/60\)" psql -q -f tests/db/r23-crew-0265.sql
+# 0261 re-applies itself (after 0254, whose bell_feed / event_activity it wraps; proves a re-run is safe)
+run "r23-link-views-0261" "R23-LINK-VIEWS-0261: ALL PASS \(62/62\)" psql -q -f tests/db/r23-link-views-0261.sql
+# 0266 re-applies itself (after r22-closure, which re-applies 0254 over the bell_feed wrapper)
+run "r23-inbox-0266" "R23-INBOX-0266: ALL PASS \(66/66\)" psql -q -f tests/db/r23-inbox-0266.sql
+# 0263 re-applies itself (fixture quotes are made after the clean install; proves the backfill re-run adds nothing)
+run "r23-state-machine-0263" "R23-STATE-MACHINE-0263: ALL PASS \(48/48\)" psql -q -f tests/db/r23-state-machine-0263.sql
 # 0244 re-applies itself twice (re-run safe) after every suite that re-applies 0045 / 0183 / 0185
 run "r21-trial-paid-0244" "R21-TRIAL-PAID-0244: ALL PASS \(56/56\)" psql -q -f tests/db/r21-trial-paid-0244.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh

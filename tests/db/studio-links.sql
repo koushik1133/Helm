@@ -37,18 +37,21 @@ do $$ declare s text; begin
   insert into _sl values('non-admin direct UPDATE blocked (F8 + guard)', case when s='studio-a' and (select business_email is distinct from 'evil@x.test' from public.organizations where id='a0000000-0000-4000-8000-000000000001') then 'PASS' else 'FAIL: '||s end);
 end $$;
 
--- admin renames; bad names rejected
+-- r23 (0257): the link is fixed at creation - the studio admin can't rename it; Helm support (SQL editor) can,
+-- and the 0020 rules (normalised, reserved / malformed refused, old name kept) still apply to that change
 do $$ declare r text; begin
   execute 'reset role'; perform auth.logout(); execute 'reset role';
   perform auth.login_as((select id from auth.users where email='a_admin@a.test'));
-  r := public.set_studio_link_name('  Aurora-Events ');
-  insert into _sl values('admin rename -> normalised', case when r='aurora-events' then 'PASS' else 'FAIL: '||r end);
-exception when others then insert into _sl values('admin rename -> normalised','FAIL: '||sqlerrm); end $$;
+  begin r := public.set_studio_link_name('aurora-events'); exception when others then r := 'denied'; end;
+  execute 'reset role'; perform auth.logout(); execute 'reset role';
+  update public.organizations set public_slug = '  Aurora-Events ' where id = 'a0000000-0000-4000-8000-000000000001';
+  select public_slug into r from public.organizations where id = 'a0000000-0000-4000-8000-000000000001';
+  insert into _sl values('admin rename refused; support rename -> normalised', case when r='aurora-events' then 'PASS' else 'FAIL: '||r end);
+exception when others then insert into _sl values('admin rename refused; support rename -> normalised','FAIL: '||sqlerrm); end $$;
 do $$ declare bad text; ok int := 0; begin
   execute 'reset role'; perform auth.logout(); execute 'reset role';
-  perform auth.login_as((select id from auth.users where email='a_admin@a.test'));
   foreach bad in array array['dashboard','ab','bad name!','-lead','trail-','dou--ble','i','api', repeat('x',41)] loop
-    begin perform public.set_studio_link_name(bad); exception when others then ok := ok + 1; end;
+    begin update public.organizations set public_slug = bad where id = 'a0000000-0000-4000-8000-000000000001'; exception when others then ok := ok + 1; end;
   end loop;
   insert into _sl values('reserved / malformed names rejected', case when ok=9 then 'PASS: 9/9' else 'FAIL: '||ok||'/9' end);
 end $$;
@@ -60,9 +63,8 @@ end $$;
 -- another studio can't take A's current or retired name
 do $$ declare fails int := 0; t text; begin
   execute 'reset role'; perform auth.logout(); execute 'reset role';
-  perform auth.login_as((select id from auth.users where email='b_admin@b.test'));
-  foreach t in array array['aurora-events','studio-a'] loop
-    begin perform public.set_studio_link_name(t); exception when others then fails := fails + 1; end;
+  foreach t in array array['aurora-events','studio-a'] loop   -- even Helm support can't give B A's current or retired name
+    begin update public.organizations set public_slug = t where id = 'b0000000-0000-4000-8000-000000000001'; exception when others then fails := fails + 1; end;
   end loop;
   insert into _sl values('B cannot take A''s current or retired name', case when fails=2 then 'PASS' else 'FAIL: '||fails||'/2 blocked' end);
 end $$;

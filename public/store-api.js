@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=39"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=40"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -965,7 +965,7 @@ window.HelmUrl = HelmUrl;
   // la-fetch (audit 25): the list below also names the STABLE (read-only) RPCs every page asks while it
   // boots (trial / upgrade status, seat use, prefs, shelf list, mentions, PIN status). Before, each one was
   // treated as a write and dropped every shared read of the page, so the page's own reads ran again.
-  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_terms_status|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|privacy_pin_status|my_unfinished_quotes)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(current_org_id|my_profile|my_profile_status|get_pricing_config|get_item_rate_cards|my_demo_status|my_trial_status|my_subscription|my_auth_info|my_dashboard_prefs|my_getting_started|is_platform_admin|is_platform_operator|chat_directory|dashboard_money|dashboard_due_today|bell_feed|my_pending|admin_get_role_access|my_trial_welcome_pending|my_trial_terms_status|my_trial_org|my_upgrade_status|my_trial_limits|my_trial_access|my_seat_usage|my_notification_prefs|my_notification_mutes|my_studio_route|my_tasks|list_quote_shelf|chat_my_mentions|inbox_feed|inbox_my_settings|admin_get_inbox_settings|privacy_pin_status|my_unfinished_quotes)(\?|$)/;
   const readCache = new Map();
   function hdrOf(init, input, name) {
     try {
@@ -1243,7 +1243,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "12";
+  const STUDIO_SEARCH_VERSION = "13";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";
@@ -2612,7 +2612,7 @@ window.HelmUrl = HelmUrl;
     if (view === "attention") return x.status !== "cancelled" && !!x.eventDate && String(x.eventDate).slice(0, 10) < today;
     return true;   // "active"
   }
-  function sbQuoteView(q, view, today, shelf) {
+  function sbQuoteView(q, view, today, shelf, extraIds) {
     if (view === "deleted") return shelf ? q.not("deleted_at", "is", null) : q.eq("id", "00000000-0000-0000-0000-000000000000");
     if (shelf) q = q.is("deleted_at", null);
     if (view === "cancelled") return q.eq("status", "cancelled");
@@ -2621,7 +2621,9 @@ window.HelmUrl = HelmUrl;
     if (view === "all" || !view) return q;
     q = q.neq("status", "cancelled").or("lifecycle_stage.is.null,lifecycle_stage.neq.closed,status.neq.confirmed");
     if (view === "quote" || view === "confirmed") q = q.eq("status", view);
-    if (view === "attention") q = q.lt("event_date", today);
+    // r23 (0261 + 0262): + quotes the client viewed but has not approved (link_views_attention) and open quotes whose
+    // valid-until date is close / just passed (quotes_expiring_soon) - one uuid-checked id list from page()
+    if (view === "attention") q = (extraIds && extraIds.length) ? q.or("event_date.lt." + today + ",id.in.(" + extraIds.join(",") + ")") : q.lt("event_date", today);
     return q;
   }
   // Supabase tier (RPC-backed; errors surface). Falls back to localStorage when not in supabase mode.
@@ -2664,9 +2666,12 @@ window.HelmUrl = HelmUrl;
     //   o.offset / o.limit
     async page(o) {
       o = o || {}; const today = localISODate();
+      const attnIds = o.view === "attention" ? await linkViews.attentionIds() : null;
+      const soon = o.view === "attention" ? await quoteValidity.expiringSoon().catch(() => []) : null;
+      const extraIds = o.view === "attention" ? [...new Set([...(attnIds || []), ...(soon || [])])].slice(0, 300) : null;
       const build = (cols, shelf) => {
         let q = supa.from("quotes").select(cols);
-        q = sbQuoteView(q, o.view, today, shelf);
+        q = sbQuoteView(q, o.view, today, shelf, extraIds);
         if (o.eventType) q = q.ilike("event_type", likeEscape(o.eventType));
         if (quoteDay(o.dateFrom)) q = q.gte("event_date", o.dateFrom);
         if (quoteDay(o.dateTo)) q = q.lte("event_date", o.dateTo);
@@ -3152,8 +3157,18 @@ window.HelmUrl = HelmUrl;
   const rpcMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "PGRST202" || c === "42883" || /could not find the function|function[^]*does not exist/i.test(m); };
   // 0078: fire-and-forget "the client opened the link" (follow-up timing); never throws, never blocks
-  const linkOpened = (kind, token) => { try { if (supa && /^[0-9a-f-]{36}$/i.test(String(token || "")))
-    Promise.resolve(supa.rpc("public_link_opened", { p_kind: kind, p_token: String(token) })).catch(() => {}); } catch (e) {} };
+  // r23 (0261): which page (portal / quotation / booklet / approve) via public_link_viewed - the server reads the
+  // device from the request and ignores signed-in studio members. "#preview" on a client page (the studio's
+  // Preview buttons) marks this browser tab as a preview: nothing is counted. Older database -> the 0078 RPC.
+  const lvPreview = () => { let h = ""; try { h = String((typeof location !== "undefined" && location.hash) || ""); } catch (e) {}
+    const now = /^#(.*&)?preview(=1)?(&|$)/i.test(h);
+    try { if (now) sessionStorage.setItem("helm.lv.preview", "1"); return now || sessionStorage.getItem("helm.lv.preview") === "1"; } catch (e) { return now; } };
+  const linkOpened = (kind, token, page) => { try { if (supa && /^[0-9a-f-]{36}$/i.test(String(token || ""))) {
+    const pg = page || (kind === "booklet" ? "booklet" : "quotation"), pv = lvPreview();
+    Promise.resolve(supa.rpc("public_link_viewed", { p_page: pg, p_token: String(token), p_preview: pv }))
+      .then((r) => ((r && r.error && rpcMissing(r.error) && pg !== "approve" && !pv) ? supa.rpc("public_link_opened", { p_kind: kind, p_token: String(token) }) : null)).catch(() => {}); } } catch (e) {} };
+  // r23 (0261): the client started approving (asked for the code / test-mode confirm) - a timeline entry, never blocks
+  const lvApprove = (token, p) => { linkOpened("quote", token, "approve"); return p; };
   // Edge Function caller — used only when live channels are enabled in config.js
   // 0069 booklet share checklist keys (server validates the same list)
   const BOOKLET_SECTIONS = ["studio", "client", "venue", "menu", "layout2d", "layout3d", "quotation", "payments", "terms", "note"];
@@ -3254,7 +3269,7 @@ window.HelmUrl = HelmUrl;
     // 0098: paid vs total from the quote_payments ledger (null when the function is not deployed yet)
     paidStatus: (token) => mode === "supabase" ? rpc("public_quote_paid_status", { p_token: token }).catch(() => null) : Promise.resolve(null),
     // simulation → RPC (returns dev OTP); live → MSG91 via Edge Function (sends real SMS, no code returned)
-    requestOtp: (token, phone) => LIVE.sms ? callFn("send-otp", { token, phone }) : rpc("request_otp", { p_token: token, p_phone: phone }),
+    requestOtp: (token, phone) => lvApprove(token, LIVE.sms ? callFn("send-otp", { token, phone }) : rpc("request_otp", { p_token: token, p_phone: phone })),
     verifyConsent: (token, phone, code, agreed, termsVersion, consentText, clientName, ua) =>
       rpc("verify_and_consent", { p_token: token, p_phone: phone, p_code: code, p_agreed: agreed,
         p_terms_version: termsVersion, p_consent_text: consentText, p_client_name: clientName, p_user_agent: ua }),
@@ -3269,8 +3284,8 @@ window.HelmUrl = HelmUrl;
     // ---- 0151: WhatsApp / e-mail approval code (always to the phone / e-mail ON THE QUOTE) ----
     // live (liveChannels.whatsapp) -> send-otp edge function (itself simulated until the Meta /
     // Resend secrets exist); otherwise the simulated RPC (code shown on screen off production).
-    requestChannelOtp: (token, channel) => (channel === "email" ? LIVE.email : LIVE.whatsapp) ? callFn("send-otp", { token, channel })
-      : rpc("wa_request_otp", { p_token: token, p_channel: channel, p_user_agent: (typeof navigator !== "undefined" ? navigator.userAgent : "").slice(0, 400) }),
+    requestChannelOtp: (token, channel) => lvApprove(token, (channel === "email" ? LIVE.email : LIVE.whatsapp) ? callFn("send-otp", { token, channel })
+      : rpc("wa_request_otp", { p_token: token, p_channel: channel, p_user_agent: (typeof navigator !== "undefined" ? navigator.userAgent : "").slice(0, 400) })),
     verifyChannel: (token, channel, code, agreed, termsVersion, consentText, clientName, ua) =>
       rpc("wa_verify_and_consent", { p_token: token, p_channel: channel, p_code: code, p_agreed: agreed,
         p_terms_version: termsVersion, p_consent_text: consentText, p_client_name: clientName, p_user_agent: ua }),
@@ -3289,9 +3304,9 @@ window.HelmUrl = HelmUrl;
     // ---- manager (authenticated) ----
     // 0128 trial test mode (server-gated: active trial studios only; no SMS / email sent)
     trialTestMode: (token) => mode === "supabase" ? rpc("trial_test_mode_for_token", { p_token: token }).catch(() => false) : Promise.resolve(false),
-    trialTestApprove: (token, phone, clientName, termsVersion, consentText, ua) =>
+    trialTestApprove: (token, phone, clientName, termsVersion, consentText, ua) => lvApprove(token,
       rpc("trial_test_approve", { p_token: token, p_phone: phone || null, p_client_name: clientName,
-        p_terms_version: termsVersion, p_consent_text: consentText, p_user_agent: ua }),
+        p_terms_version: termsVersion, p_consent_text: consentText, p_user_agent: ua })),
     generateToken: (quoteId) => rpc("generate_approval_token", { p_quote_id: quoteId }),
     markPaid: (quoteId, ref) => rpc("mark_paid", { p_quote_id: quoteId, p_provider_ref: ref || null }),
     async consents(quoteId) { if (!supa) return []; const { data, error } = await supa.from("quote_consents")
@@ -3300,6 +3315,37 @@ window.HelmUrl = HelmUrl;
       .select("*").eq("quote_id", quoteId).order("created_at", { ascending: false }); if (error) throw error; return data; },
     async notifications(quoteId) { if (!supa) return []; const { data, error } = await supa.from("notifications")
       .select("*").eq("quote_id", quoteId).order("created_at", { ascending: false }); if (error) throw error; return data; },
+  };
+
+  // r23 (0262) quote "Valid until" (PandaDoc / Zoho model). Staff reads need quotes VIEW, changes quotes EDIT
+  // (custom dates only when the studio allows them, admins always); settings = Control Center EDIT; "apply to open
+  // quotes" = admin. The two public calls are the signed-out client pages (token-scoped, rate-limited server-side).
+  // Before 0262 every read answers null / {} / [] (the screens then show nothing) and writes say "needs 0262".
+  const qvMissing = (e) => { if (rpcMissing(e)) { const er = new Error("Quote validity needs database update 0262 (ask your admin to run APPLY-0262.sql)."); er.code = "quote_validity_missing"; return er; } return e; };
+  const qvOn = () => mode === "supabase" && !!supa;
+  const QV_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let qvSoon = null;   // { at, ids } - the Attention tab's "expiring soon" ids, re-read at most once a minute
+  const quoteValidity = {
+    settings: () => qvOn() ? rpc("quote_validity_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null),
+    saveSettings: (o) => qvOn() ? rpc("quote_validity_settings_set", { p: o || {} }).catch((e) => { throw qvMissing(e); }) : Promise.reject(new Error("Settings need a signed-in studio.")),
+    get: (quoteId) => (qvOn() && QV_UUID.test(String(quoteId || ""))) ? rpc("quote_validity_get", { p_quote: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null),
+    list: (ids) => { const l = (ids || []).filter((x) => QV_UUID.test(String(x || ""))).slice(0, 200);
+      return (qvOn() && l.length) ? rpc("quote_validity_list", { p_ids: l }).then((r) => (r && typeof r === "object" ? r : {})).catch(() => ({})) : Promise.resolve({}); },
+    expiringSoon: async () => {
+      if (!qvOn()) return [];
+      if (qvSoon && Date.now() - qvSoon.at < 60000) return qvSoon.ids;
+      const r = await rpc("quotes_expiring_soon", {}).catch(() => null);
+      const ids = Array.isArray(r) ? r.filter((x) => QV_UUID.test(String(x || ""))).slice(0, 200) : [];
+      qvSoon = { at: Date.now(), ids }; return ids;
+    },
+    extend: (quoteId, days) => { qvSoon = null; return rpc("quote_validity_extend", days == null ? { p_quote: quoteId } : { p_quote: quoteId, p_days: Math.round(Number(days)) }).catch((e) => { throw qvMissing(e); }); },
+    setDate: (quoteId, isoDate, note) => { qvSoon = null; return rpc("quote_validity_set", { p_quote: quoteId, p_date: String(isoDate || "").slice(0, 10), p_note: note ? String(note).slice(0, 300) : null }).catch((e) => { throw qvMissing(e); }); },
+    applyOpen: (apply) => rpc("quote_validity_apply_open", { p_apply: !!apply }).catch((e) => { throw qvMissing(e); }),
+    // signed-out client pages: { state: valid|expired|none|done|off, valid_until_label, days_left, locked, studio, requested } or null
+    publicState: (kind, token) => (supa && QV_UUID.test(String(token || "")))
+      ? rpc("public_quote_validity", { p_kind: kind === "booklet" ? "booklet" : "quote", p_token: String(token) }).catch(() => null) : Promise.resolve(null),
+    requestNew: (kind, token, note) => rpc("public_request_new_quote", { p_kind: kind === "booklet" ? "booklet" : "quote", p_token: String(token || ""),
+      p_note: note ? String(note).slice(0, 300) : null }),
   };
 
   /* ---------------- event operations: crew + tasks ---------------- */
@@ -3372,6 +3418,34 @@ window.HelmUrl = HelmUrl;
       respond: (taskId, action) => rpc("crew_task_respond", { p_task: taskId, p_action: action }),
       // crew schedule calendar (0161): schedule fields only; own rows for crew, any org crew for staff/calendar viewers
       schedule: (from, to, staffId) => (supa ? rpc("crew_schedule", { p_from: from, p_to: to, p_staff: staffId || null }).then((r) => r || []) : Promise.resolve([])),
+    },
+    // ---- r23 (0265): crew availability, open shifts, self check-in. Crew link calls take the work-link token
+    // (anon, rate-limited server side); office calls are Staff / Event-day gated in the database. Every read
+    // returns null on a database without 0265 so the pages keep working (the new cards stay hidden).
+    shifts: {
+      missing: (e) => rpcMissing(e),
+      home: (token) => wrpc("crew_link_home", { p_token: token }),
+      setAvailability: (token, day, status, note) => wrpc("crew_set_availability", { p_token: token, p_day: day, p_status: status, p_note: note || null }),
+      claim: (token, shiftId) => wrpc("crew_claim_shift", { p_token: token, p_shift: shiftId }),
+      withdraw: (token, shiftId) => wrpc("crew_withdraw_claim", { p_token: token, p_shift: shiftId }),
+      check: (token, action, loc) => wrpc("crew_check", { p_token: token, p_action: action === "out" ? "out" : "in",
+        p_lat: loc && isFinite(loc.lat) ? loc.lat : null, p_lng: loc && isFinite(loc.lng) ? loc.lng : null,
+        p_accuracy: loc && isFinite(loc.accuracy) ? Math.round(loc.accuracy) : null }),
+      async settings() { if (!supa) return null; try { return await rpc("get_crew_settings", {}); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
+      saveSettings: (patch) => rpc("set_crew_settings", { p: patch || {} }),
+      async forEvent(quoteId) { if (!supa) return null; try { return await rpc("open_shifts_for_event", { p_quote: quoteId }); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
+      post: (quoteId, s) => rpc("open_shift_post", { p_quote: quoteId, p_title: s.title, p_date: s.date, p_start: s.start || null, p_end: s.end || null,
+        p_wage: s.wage == null || s.wage === "" ? null : Number(s.wage), p_basis: s.basis === "hour" ? "hour" : "day", p_needed: Number(s.needed) || 1,
+        p_mode: s.mode || null, p_department: s.department || null, p_category: s.category || null, p_note: s.note || null }),
+      setStatus: (shiftId, action) => rpc("open_shift_set_status", { p_shift: shiftId, p_action: action }),
+      decide: (claimId, approve, reason) => rpc("open_shift_decide", { p_claim: claimId, p_approve: !!approve, p_reason: reason || null }),
+      async timesheet(quoteId) { if (!supa) return null; try { return await rpc("event_timesheet", { p_quote: quoteId }); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
+      setSite: (quoteId, lat, lng, radius) => rpc("event_checkin_site_set", { p_quote: quoteId, p_lat: lat, p_lng: lng, p_radius: radius || 300 }),
+      officeCheck: (quoteId, crewId, day, inAt, outAt, note) => rpc("crew_checkin_office_set", { p_quote: quoteId, p_crew: crewId, p_day: day,
+        p_in: inAt, p_out: outAt || null, p_note: note || null }),
+      async availability(from, to, crewId) { if (!supa) return null; try { return await rpc("crew_availability_range", { p_from: from, p_to: to, p_crew: crewId || null }); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
+      setCrewAvailability: (crewId, day, status, note) => rpc("crew_availability_set", { p_crew: crewId, p_day: day, p_status: status, p_note: note || null }),
+      async dayStatus(date, excludeQuote) { if (!supa || !date) return null; try { return await rpc("crew_day_status", { p_date: date, p_exclude_quote: excludeQuote || null }); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
     },
     // ---- worker (no login; token-scoped) ----
     worker: {
@@ -4501,6 +4575,7 @@ window.HelmUrl = HelmUrl;
             (ts || []).forEach((t) => busy.add(t.crew_id));
           }
         } catch {}
+        try { const st = await ops.shifts.dayStatus(date, excludeQuote); (st || []).forEach((x) => { if (x && x.unavailable) busy.add(x.crew_id); }); } catch {}   // r23: days off count as busy
       }
       const scored = crew.map((c) => {
         const dept = (c.department || "").toLowerCase();
@@ -5064,7 +5139,7 @@ window.HelmUrl = HelmUrl;
     async require(L) {                                 // throw a "link not found" the pages already handle
       if (!(await links.verify(L))) { const e = new Error("invalid link"); e.code = "PGRST116"; throw e; }
     },
-    rename: (slug) => rpc("set_studio_link_name", { p_slug: slug }).then((r) => { studioSlugCache = r || null; if (r) HelmUrl.setStudio(r); return r; }),
+    // r23 (0257): the studio link is fixed at creation - only Helm HQ changes it (hq_set_studio_identity); no app rename
     // optional "links stop working N days after they're sent" (0039) — studio admin only, enforced server-side
     autoExpire: {
       get: () => rpc("admin_get_link_autoexpire", {}),
@@ -6978,6 +7053,10 @@ window.HelmUrl = HelmUrl;
     // event's date collide with another event on the same day? (light, targeted queries)
     async wouldClash({ date, crewId, vendorId, excludeQuote } = {}) {
       if (!date || mode !== "supabase" || !supa) return { clash: false };
+      // r23 (0265): the person marked the day unavailable (their own crew link or the Staff page)
+      if (crewId) { try { const st = await ops.shifts.dayStatus(date, excludeQuote);
+        const me = (st || []).find((x) => x && x.crew_id === crewId && x.unavailable);
+        if (me) return { clash: true, type: "unavailable", detail: "marked unavailable on " + (BPStore.fmtStudioDate ? BPStore.fmtStudioDate(date) : date) + (me.note ? " (" + me.note + ")" : "") }; } catch (e) {} }
       const events = await quotes.list();
       // 0198: a cancelled / closed / archived event on that day holds nobody - never a clash
       const sameDay = events.filter((e) => calEvLive(e) && e.eventDate === date && e.id !== excludeQuote);
@@ -8098,10 +8177,15 @@ window.HelmUrl = HelmUrl;
       return "inventory.html?quote=" + enc(q) + (it ? "&item=" + enc(it) : "");
     }
     if (k.indexOf("chat_") === 0) return "chat.html";
+    if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     if (!q) return "";
     // r22 (0254): a close request / its decision opens the event's Closure page at the request
     if (k === "event_close_request" || k === "event_close_decision") return "closure.html?quote=" + enc(q) + "#close-request";
+    // r23 (0261): "Rahul opened the proposal" / "viewed but not approved" -> the event workspace, views timeline open
+    if (k === "client_link_viewed" || k === "client_view_followup") return "event.html?id=" + enc(q) + "#link-views";
+    // r23 (0262): valid-until reminders / "request a new quote" open the event workspace at the validity line
+    if (k === "quote_expiring" || k === "quote_expired" || k === "quote_renew_request") return "event.html?id=" + enc(q) + "#quote-validity";
     if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
     if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile|pkg_payment)$/.test(k))
       return "settlement.html?quote=" + enc(q) + "#payments";
@@ -8138,7 +8222,8 @@ window.HelmUrl = HelmUrl;
     if (n.__chat) return n.mention ? null : "chat_message";
     const k = String(n.kind || "").toLowerCase().trim();
     if (["approval_link", "otp", "payment_link", "payment_reminder", "payment_receipt", "advance_paid", "payment_reconcile",
-         "task_assigned", "task_reminder", "task_due", "security_alert", "inventory_low_stock", "client_follow_up"].indexOf(k) !== -1) return k;
+         "task_assigned", "task_reminder", "task_due", "security_alert", "inventory_low_stock", "client_follow_up",
+         "client_link_viewed", "client_view_followup"].indexOf(k) !== -1) return k;
     if (k === "payment" || k === "payment_received") return "payment_receipt";
     if (k === "trial_reminder") return "billing_trial";
     if (/^pkg_(selected|accepted|declined|payment)$/.test(k)) return k;
@@ -8156,7 +8241,8 @@ window.HelmUrl = HelmUrl;
     payment_receipt: "Payment receipts", advance_paid: "Payments received", payment_reconcile: "Payments needing attention",
     chat_message: "Chat messages", pkg_selected: "Client package choices", pkg_accepted: "Package choices accepted",
     pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts (Helm HQ only)", billing_trial: "Free trial reminders",
-    inventory_low_stock: "Low stock warnings", client_follow_up: "Client follow-ups", other: "Other updates" };
+    inventory_low_stock: "Low stock warnings", client_follow_up: "Client follow-ups",
+    client_link_viewed: "Client opened their link", client_view_followup: "Viewed but not approved", other: "Other updates" };
   // A4: a chat row's read key carries its newest message time, so marking a conversation read
   // only covers what was there; a later message makes a new key and counts as unread again.
   function bellChatKey(n) { return "c:" + ((n && n.conversation_id) || "") + "@" + ((n && n.created_at) || ""); }
@@ -8197,7 +8283,7 @@ window.HelmUrl = HelmUrl;
     const tabsHtml = tabs.map((t) => `<button type="button" role="tab" class="bpb-tab" id="bpBellTab-${t.id}" data-f="${t.id}" aria-selected="${t.id === filter}" aria-controls="bpBellList" tabindex="${t.id === filter ? 0 : -1}">${t.label}${t.count ? `<span class="bpb-n">${t.count > 99 ? "99+" : t.count}</span>` : ""}</button>`).join("");
     const unread = rows.reduce((s, r) => s + (!r.un ? 0 : r.n.__chat ? (Number(r.n.count) || 1) : 1), 0);
     // relative time + Today / Yesterday / Earlier (local calendar days)
-    const ts = (n) => { const t = new Date(n.created_at).getTime(); return Number.isFinite(t) ? t : NaN; };
+    const ts = (n) => { const t = new Date(n.sort_at || n.created_at).getTime(); return Number.isFinite(t) ? t : NaN; };   // r23: sort_at = back from a snooze
     const rel = (t) => {
       if (!Number.isFinite(t)) return "";
       const s = Math.max(0, (now - t) / 1000);
@@ -8219,6 +8305,7 @@ window.HelmUrl = HelmUrl;
       } else {
         const L = label(n) || {}; icon = esc(L.icon || "🔔"); title = esc(L.text || "Update");
         preview = esc([n.event_code, n.event_title].filter(Boolean).join(" · "));
+        if (n.returned) preview = "⏰ Back from snooze" + (preview ? " · " + preview : "");   // r23 (0266)
         href = notifHref(n); isUnread = r.un; key = r.k;
       }
       const cls = `bpb-item g-${r.g}${isUnread ? " is-unread" : ""}`;
@@ -8227,7 +8314,7 @@ window.HelmUrl = HelmUrl;
         + `<span class="bpb-meta">${Number.isFinite(t) ? `<time datetime="${esc(new Date(t).toISOString())}">${esc(rel(t))}</time>` : ""}`
         + `${isUnread ? '<span class="bpb-u"><span class="sr-only">Unread</span></span>' : ""}</span>`;
       const ty = bellTypeOf(n);
-      const more = `<button type="button" class="bpb-more" data-mk="${esc(key)}" data-ty="${esc(ty || "")}" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">⋯</button>`;
+      const more = `<button type="button" class="bpb-more" data-mk="${esc(key)}" data-ty="${esc(ty || "")}" data-un="${isUnread ? 1 : 0}" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">⋯</button>`;
       return `<div class="bpb-row">` + (href ? `<a class="${cls}" href="${esc(href)}" data-k="${esc(key)}">${inner}</a>`
                   : `<div class="${cls}" tabindex="0" data-k="${esc(key)}">${inner}</div>`) + more + `</div>`;
     };
@@ -8365,7 +8452,8 @@ window.HelmUrl = HelmUrl;
     ".bpb-mline{margin:8px 16px 4px;padding:8px 10px;border-radius:10px;background:var(--bpb-bg2);color:var(--bpb-ink2);font-size:12.5px}",
     ".bpb-mhead{display:flex;align-items:center;gap:8px;padding:10px 12px}.bpb-mlist{list-style:none;margin:0;padding:0 8px}",
     ".bpb-mlist li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border-bottom:1px solid var(--bpb-line)}",
-    ".bpb-foot{border-top:1px solid var(--bpb-line);padding:6px 10px;text-align:right}",
+    ".bpb-foot{border-top:1px solid var(--bpb-line);padding:6px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px}",
+    ".bpb-foot a.bpb-link{text-decoration:none}",
     ".bpb-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
     ".bpb-t{font-size:13.5px;font-weight:650;color:var(--bpb-ink);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}",
     ".bpb-chip{width:36px;height:36px;font-size:16px}",
@@ -8406,6 +8494,12 @@ window.HelmUrl = HelmUrl;
       task_reject: ["⛔", "Task rejected" + (d.worker ? " by " + d.worker : "")],
       task_start: ["▶️", "Task started" + (d.worker ? " by " + d.worker : "")],
       task_complete: ["🎉", "Task completed" + (d.worker ? " by " + d.worker : "")],
+      // r23 (0265): open shifts + self check-in (names only)
+      shift_claimed: ["🙋", (d.worker || "Someone") + " took an open shift" + (d.shift ? ": " + d.shift : "")],
+      shift_claim_pending: ["🕒", (d.worker || "Someone") + " asked for an open shift" + (d.shift ? ": " + d.shift : "") + " - approve on Operations"],
+      shift_filled: ["✅", "Open shift filled" + (d.shift ? ": " + d.shift : "")],
+      crew_late: ["⏰", (d.worker || "A crew member") + " checked in late" + (d.late_min ? " (" + d.late_min + " min)" : "")],
+      crew_unavailable: ["📅", (d.worker || "A crew member") + " marked a booked day unavailable" + (d.day ? " (" + d.day + ")" : "")],
       task_reminder: ["🔔", "Task reminder" + (d.task ? ": " + d.task : "")],
       otp: ["🔐", "Approval OTP sent"],
       approval_link: ["✉️", "Approval link sent"],
@@ -8427,10 +8521,18 @@ window.HelmUrl = HelmUrl;
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
+      // r23 (0257): Helm support changed the studio name / link (old links keep working)
+      studio_identity_changed: ["🏷️", String(d.label || "Helm support changed your studio name or link")],
+      // 0264: a client's scheduled payment is past its due date (money notice - admins + Finance viewers)
+      payment_overdue: ["⏰", String(d.label || "A client payment is overdue")],
       // r22 (0254): "request to close anyway" + the approval (admins / coordinators / managers only - the server decides)
       event_close_request: ["🗄️", "Close request" + (d.actor_name ? " from " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "") + " - waiting for approval"],
       event_close_decision: [d.decision === "declined" ? "↩️" : "✅", (d.decision === "declined" ? "Close request declined" : "Event closed with override")
         + (d.actor_name ? " by " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "")],
+      // r23 (0262): quote valid-until reminders + the client's "Request a new quote" (quote viewers only - server 0153)
+      quote_expiring: ["⏳", String(d.label || "A quote expires soon")],
+      quote_expired: ["⌛", String(d.label || "A quote has expired")],
+      quote_renew_request: ["🔁", String(d.label || "The client asked for an updated quote")],
       // 0205: an invitee whose invitation expired asked for a new link (re-send it from Staff)
       invite_link_request: ["✉️", String(d.label || "A teammate asked for a new invitation link")],
       // 0069 client package flow
@@ -8444,6 +8546,9 @@ window.HelmUrl = HelmUrl;
       inventory_low_stock: ["📦", "Low stock: " + String(d.item || "an item") + (d.date ? " on " + d.date : "")
         + (Number(d.short) > 0 ? " — short by " + Number(d.short) : "")],
       client_follow_up: ["💬", "Follow-up sent to the client" + (d.auto === false ? "" : " (automatic)")],
+      // r23 (0261): the client opened their link (first time / again) + "viewed, not approved" for the owner
+      client_link_viewed: ["👁", String(d.label || "Your client opened their link") + (d.event_code ? " · " + d.event_code : "")],
+      client_view_followup: ["⏳", String(d.label || "Viewed but not approved - send a nudge") + (d.event_code ? " · " + d.event_code : "")],
       // 0195: "Send to client" on the Invitation Studio
       invite_site_link: ["💌", n.status === "suppressed"
         ? "Invitation link not sent" + (d.skipped === "free_trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : d.suppressed_by === "trial_cap" ? " (free trial e-mail limit)" : "")
@@ -8496,6 +8601,43 @@ window.HelmUrl = HelmUrl;
     tick();
   }
   try { if (typeof document !== "undefined") { if (document.readyState !== "loading") setTimeout(deeplinkFocus, 0); else document.addEventListener("DOMContentLoaded", deeplinkFocus); } } catch (e) {}
+
+  /* ---------------- r23 (0266): notification inbox - per-person read / unread / Done / Snooze + the e-mail digest choice ----------------
+     feed() → { tab, items, next_cursor, counts{unread,all,snoozed,done}, groups[{key,label,count,unread}], settings } or null
+     on a database without 0266 (the /inbox page then says so). Every action is checked in the database (own studio, rows the
+     person can see, own marks only). After a change the bell is nudged so its badge follows at once. */
+  const INBOX_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const inboxNudge = () => { try { if (typeof window !== "undefined" && typeof window.__bpBellRefresh === "function") window.__bpBellRefresh(); } catch (e) {} };
+  const inbox = {
+    async feed(opts) {
+      opts = opts || {};
+      if (mode !== "supabase" || !supa) return null;
+      try {
+        return await rpc("inbox_feed", { p_tab: opts.tab || "unread", p_filter: opts.filter || null, p_quote: INBOX_ID.test(String(opts.quote || "")) ? opts.quote : null,
+          p_limit: Math.max(1, Math.min(100, Number(opts.limit) || 50)), p_cursor: opts.cursor || null });
+      } catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // action: read | unread | done | undone | snooze | unsnooze; opts.preset: later_today | tomorrow | next_week, or opts.until (Date / ISO)
+    async act(ids, action, opts) {
+      opts = opts || {};
+      const list = (Array.isArray(ids) ? ids : [ids]).map(String).filter((x) => INBOX_ID.test(x)).slice(0, 500);
+      if (!list.length) return { changed: 0 };
+      const until = opts.until ? new Date(opts.until) : null;
+      const r = await rpc("inbox_act", { p_ids: list, p_action: String(action || ""), p_until: until && !isNaN(until.getTime()) ? until.toISOString() : null, p_preset: opts.preset || null });
+      inboxNudge(); return r;
+    },
+    async readAll(filter, quote) { const r = await rpc("inbox_read_all", { p_filter: filter || null, p_quote: INBOX_ID.test(String(quote || "")) ? quote : null }); inboxNudge(); return r; },
+    async settings() {
+      if (mode !== "supabase" || !supa || !currentUser) return null;
+      try { return await rpc("inbox_my_settings", {}); } catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // off | instant_important | daily | null (= the studio default)
+    setDigest: (m) => rpc("inbox_set_my_digest", { p_mode: m == null ? null : String(m) }),
+    admin: {
+      async get() { if (mode !== "supabase" || !supa) return null; try { return await rpc("admin_get_inbox_settings", {}); } catch (e) { if (rpcMissing(e)) return null; throw e; } },
+      set: (patch) => rpc("admin_set_inbox_settings", { p: patch || {} }),
+    },
+  };
 
   const bell = {
     link: notifLink,
@@ -8552,7 +8694,7 @@ window.HelmUrl = HelmUrl;
             <div id="bpBellTabs" class="bpb-tabs" role="tablist" aria-label="Filter notifications"></div>
           </header>
           <div id="bpBellList" class="bpb-list" role="tabpanel" aria-labelledby="bpBellTitle"><div class="bpb-skel"></div><div class="bpb-skel"></div><div class="bpb-skel"></div></div>
-          <div class="bpb-foot"><button type="button" id="bpBellMuted" class="bpb-link">Muted types</button></div>
+          <div class="bpb-foot"><a id="bpBellInbox" class="bpb-link" href="inbox.html">Open inbox</a><button type="button" id="bpBellMuted" class="bpb-link">Muted types</button></div>
         </section>`;
       document.body.appendChild(root);
       const btn = el.querySelector("#bpBellBtn"), dot = el.querySelector("#bpBellDot");
@@ -8561,6 +8703,9 @@ window.HelmUrl = HelmUrl;
       const reduced = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
       const isPhone = () => { try { return window.matchMedia("(max-width: 640px)").matches; } catch (e) { return false; } };
       let isOpen = false, filter = "all", lastItems = [], loaded = false, closeTimer = null, prevOverflow = "", lastFocus = null;
+      // r23 (0266): the database keeps a per-person inbox (read / Done / Snooze); bell_feed says so in f.inbox
+      let inboxOn = false, openMarksRead = true;
+      const noteInbox = (f) => { if (f && f.inbox && typeof f.inbox === "object") { inboxOn = true; openMarksRead = f.inbox.open_marks_read === true; } };
       // Chat notifications (my unread DMs/groups/broadcast) merged into the same bell.
       let chatItems = [];
       const chatUnread = () => chatItems.reduce((s, c) => s + (c.count || 1), 0);
@@ -8570,7 +8715,7 @@ window.HelmUrl = HelmUrl;
         ? bellPanelView((f.items || []), { muted, read: readKeys }).unread : f.unread;
       const mergedFeed = (serverItems) => (serverItems || []).slice()
         .concat(chatItems.map((c) => Object.assign({ __chat: true }, c)))
-        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+        .sort((a, b) => String(b.sort_at || b.created_at || "").localeCompare(String(a.sort_at || a.created_at || "")));
       // 0036: the studio admin can switch chat off in the bell for a role / person
       // (re-checked every 5 minutes; server-side types are already filtered by bell_feed).
       let hiddenTypes = [], hiddenAt = 0, muted = [];
@@ -8611,7 +8756,7 @@ window.HelmUrl = HelmUrl;
           onOpen: () => { if (x.rk && readKeys.indexOf(x.rk) === -1) { readKeys.push(x.rk); saveRead(); } } }); } catch (e) {} });
       };
       let lastRf = 0;
-      const refreshNow = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
+      const refreshNow = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} noteInbox(f); await loadChat(); setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
         if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
       // r20 planner: refreshes run ONE AT A TIME, in call order. The chat page's "I just read this chat" nudge
@@ -8637,10 +8782,12 @@ window.HelmUrl = HelmUrl;
         void root.offsetWidth; root.classList.add("is-open"); document.documentElement.classList.add("bpb-is-open");     // next frame → CSS transition runs
         try { panel.focus({ preventScroll: true }); } catch (e) { panel.focus(); }
         if (loaded) render();                                       // show the last list at once, then refresh
-        let f = null; try { f = await this.feed(20); } catch {} await loadChat();
+        let f = null; try { f = await this.feed(20); } catch {} noteInbox(f); await loadChat();
         if (!isOpen) return;
         lastItems = mergedFeed(f && f.items); loaded = true; render(); if (f) popToasts(lastItems);   // panel open → just moves the baseline
-        try { await this.markSeen(); } catch {} setDot(0);   // event notifs cleared; any chat unread keeps the dot until that chat is opened
+        // r23 (0266): with the inbox, opening the bell no longer marks everything read (Control Center switch "opening the bell marks read")
+        if (!inboxOn || openMarksRead) { try { await this.markSeen(); } catch {} setDot(0); }   // event notifs cleared; any chat unread keeps the dot until that chat is opened
+        else setDot(serverUnread(f));
       };
       const close = (restore) => {
         if (!isOpen) return; isOpen = false;
@@ -8659,16 +8806,41 @@ window.HelmUrl = HelmUrl;
         catch (x) { say("Could not update muted types. Try again."); return false; }
         await refresh(); if (isOpen) render(); return true;
       };
+      // r23 (0266): opening a row marks it read in the inbox; a plain click waits briefly (max 0.7 s) for that before leaving
+      const inboxOpenRow = (it, e) => {
+        const k = it.getAttribute("data-k") || "";
+        const sid = inboxOn && k.indexOf("n:") === 0 && /^[0-9a-f-]{36}$/i.test(k.slice(2)) ? k.slice(2) : null;
+        if (!sid) return;
+        const p = inbox.act([sid], "read").catch(() => {});
+        if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) return;
+        e.preventDefault(); const href = it.href;
+        Promise.race([p, new Promise((res) => setTimeout(res, 700))]).then(() => { try { location.assign(href); } catch (x) { location.href = href; } });
+      };
       const markRead = (k, on) => { readKeys = readKeys.filter((x) => x !== k); if (on) readKeys.push(k); saveRead(); render(); refresh(); };
+      // r23 (0266): one row's inbox action on the server, with an Undo toast
+      const serverAct = async (id, action, opts, msg, undo) => {
+        try { await inbox.act([id], action, opts); }
+        catch (x) { say((window.BPUI && BPUI.friendlyError) ? BPUI.friendlyError(x, { action: "update this notification" }) : "Could not update this notification. Try again."); return; }
+        await refresh(); if (isOpen) render();
+        say(msg, undo ? () => { inbox.act([id], undo).then(() => refresh()).catch(() => {}); } : null);
+      };
       const openMenu = (btn) => {
         closeMenu();
         const k = btn.getAttribute("data-mk") || "", ty = btn.getAttribute("data-ty") || "";
         const m = document.createElement("div"); m.className = "bpb-menu"; m.setAttribute("role", "menu"); m.__btn = btn;
         const add = (text, fn) => { const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "menuitem"); b.textContent = text;
           b.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); closeMenu(); fn(); }); m.appendChild(b); return b; };
+        const sid = inboxOn && k.indexOf("n:") === 0 && /^[0-9a-f-]{36}$/i.test(k.slice(2)) ? k.slice(2) : null;
+        if (sid) {
+          const un = btn.getAttribute("data-un") === "1";
+          add(un ? "Mark read" : "Mark unread", () => serverAct(sid, un ? "read" : "unread", null, un ? "Marked as read" : "Marked as unread", un ? "unread" : "read"));
+          add("Done", () => serverAct(sid, "done", null, "Marked done - find it under Inbox → Done", "undone"));
+          add("Snooze until tomorrow 9:00 am", () => serverAct(sid, "snooze", { preset: "tomorrow" }, "Snoozed until tomorrow 9:00 am", "unsnooze"));
+          add("Snooze until next week", () => serverAct(sid, "snooze", { preset: "next_week" }, "Snoozed until Monday 9:00 am", "unsnooze"));
+        }
         if (ty) add("Mute this type", async () => { if (await setMuted(ty, true))
           say("Muted: " + (BELL_TYPE_LABELS[ty] || ty.replace(/_/g, " ")), () => { setMuted(ty, false); }); });
-        add("Mark read", () => { markRead(k, true); say("Marked as read", () => markRead(k, false)); });
+        if (!sid) add("Mark read", () => { markRead(k, true); say("Marked as read", () => markRead(k, false)); });
         btn.parentNode.appendChild(m); btn.setAttribute("aria-expanded", "true");
         try { m.querySelector("button").focus(); } catch (x) {}
       };
@@ -8684,9 +8856,10 @@ window.HelmUrl = HelmUrl;
         const tab = e.target.closest && e.target.closest(".bpb-tab"); if (tab) { filter = tab.getAttribute("data-f") || "all"; render(); try { root.querySelector(`[data-f="${filter}"]`).focus(); } catch (x) {} return; }
         const it = e.target.closest && e.target.closest("a.bpb-item");
         if (it) { const k = it.getAttribute("data-k"); if (k && readKeys.indexOf(k) === -1) { readKeys.push(k); saveRead(); } close(false); }   // mark read, navigate away
+        if (it) inboxOpenRow(it, e);
       });
       root.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); const b = e.currentTarget; b.disabled = true;
-        try { await this.markSeen(); } catch {} await refresh(); b.disabled = false; });
+        try { if (inboxOn) await inbox.readAll(); else await this.markSeen(); } catch {} await refresh(); b.disabled = false; });
       // keyboard: Esc closes, Tab is trapped, arrows walk the list, ←/→ switch tabs
       root.addEventListener("keydown", (e) => {
         if (!isOpen) return;
@@ -8753,7 +8926,7 @@ window.HelmUrl = HelmUrl;
   };
 
   /* ---------------- client portal (Phase 53) ---------------- */
-  const portal = { get: (token) => rpc("public_get_portal", { p_token: token }),
+  const portal = { get: (token) => rpc("public_get_portal", { p_token: token }).then((r) => { linkOpened("quote", token, "portal"); return r; }),
     // 0101 (E11): booklet link, published invitation, receipts, studio contact - read-only, same token; null before 0101
     extras: (token) => (mode === "supabase" ? rpc("public_portal_extras", { p_token: token }).catch(() => null) : Promise.resolve(null)) };
 
@@ -9183,7 +9356,8 @@ window.HelmUrl = HelmUrl;
     const fixed = { "booklet.view": "Viewed", "booklet.read": "Viewed", "booklet.share": "Shared", "booklet.revoke": "Link revoked",
       "booklet.snapshot": "Snapshot", "booklet.snap": "Snapshot", "pkg.view": "Viewed", "pkg.choose": "Chose", "pkg.accept": "Accepted",
       "pkg.decline": "Declined", "pkg.adjust": "Adjusted", "quote.moved_to_archive": "Archived", "quote.moved_to_deleted": "Moved to bin",
-      "quote.restored": "Restored", "design.advance": "Stage moved", "upload.rejected": "Rejected" };
+      "quote.restored": "Restored", "design.advance": "Stage moved", "upload.rejected": "Rejected",
+      "studio.renamed": "Studio renamed", "studio.link_renamed": "Link changed", "hq.studio.identity": "Renamed by Helm" };
     if (fixed[a]) return fixed[a];
     const last = a.split(".").pop(); return auditHuman(last) || "—";
   }
@@ -9204,6 +9378,9 @@ window.HelmUrl = HelmUrl;
       case "booklet.view": case "booklet.read": return "Client viewed the booklet" + ev;
       case "booklet.share": return "Booklet shared with the client" + ev + (c.expires_at ? " (link valid until " + String(c.expires_at).slice(0, 10) + ")" : "");
       case "booklet.revoke": return "Booklet link revoked" + ev;
+      // r23 (0257): studio name / link changes (Helm support only; old links keep working)
+      case "studio.renamed": return "Studio renamed" + (c.from || c.to ? " from \u201c" + String(c.from || "").slice(0, 120) + "\u201d to \u201c" + String(c.to || "").slice(0, 120) + "\u201d" : "");
+      case "studio.link_renamed": return "Studio link changed" + (c.from || c.to ? " from " + String(c.from || "").slice(0, 60) + " to " + String(c.to || "").slice(0, 60) + " (old links keep working)" : "");
       case "booklet.link_sent": return "Booklet link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
         + (c.channel === "whatsapp" ? " on WhatsApp" : c.channel === "email" ? " by email" : "") + (c.to ? " to " + String(c.to).slice(0, 80) : "") + ev;
       case "booklet.snapshot": case "booklet.snap": return auditHuman(kindLabel(c.kind)) + (c.set === false ? " removed" : " updated") + " in the booklet" + ev;
@@ -9591,7 +9768,8 @@ window.HelmUrl = HelmUrl;
     return out.slice(0, 1000);
   }
   const COMMS_SAMPLE = { client: "Riya", studio: "your studio", event: "Riya's Wedding", label: "50% advance",
-    amount: "Rs. 50,000", due: "12 Nov 2026", status: "due in 3 days" };
+    amount: "Rs. 50,000", due: "12 Nov 2026", status: "due in 3 days",
+    pay_details: "UPI: yourstudio@okaxis", pay_link: "", upi: "yourstudio@okaxis" };   // 0264 pay-detail placeholders
   const comms = {
     render: commsRender, sample: COMMS_SAMPLE,
     get: () => (supa ? rpc("comms_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
@@ -9605,6 +9783,23 @@ window.HelmUrl = HelmUrl;
     reminderGet: () => (supa ? rpc("event_reminder_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
     reminderSet: (days) => (supa ? rpc("event_reminder_settings_set", { p_days: days }) : Promise.reject(new Error("Needs a signed-in studio."))),
     reminderUpcoming: () => (supa ? rpc("event_reminder_upcoming", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+  };
+
+  // 0264 (r23): payment schedules - templates (Control Center), the per-event schedule with paid / part paid / due /
+  // overdue, apply a template (with preview), pause automatic reminders, the client page. Every rule is in the database;
+  // null = the server is older than 0264.
+  const paySchedule = {
+    settings: () => (supa ? rpc("payment_schedule_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    saveSettings: (patch) => (supa ? rpc("payment_schedule_settings_set", { p: patch || {} }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    saveTemplate: (id, name, lines) => (supa ? rpc("payment_schedule_template_save", { p_id: id || null, p_name: String(name || ""), p_lines: lines || [] })
+      : Promise.reject(new Error("Needs a signed-in studio."))),
+    archiveTemplate: (id) => (supa ? rpc("payment_schedule_template_archive", { p_id: id }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    forQuote: (quoteId) => (supa ? rpc("payment_schedule_for_quote", { p_quote: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    apply: (quoteId, key, preview) => (supa ? rpc("payment_schedule_apply", { p_quote: quoteId, p_template: key || null, p_preview: !!preview })
+      : Promise.reject(new Error("Needs a signed-in studio."))),
+    pause: (quoteId, paused) => (supa ? rpc("payment_schedule_pause", { p_quote: quoteId, p_paused: !!paused }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    // client page (approval token, signed out) - null when unavailable
+    publicGet: (token) => (supa ? rpc("public_payment_schedule", { p_token: token }).catch(() => null) : Promise.resolve(null)),
   };
 
   // 0241 (r21): delivery / arrival reminders. Every call goes through the RPCs (studio + 'deliveries' area checked
@@ -9659,6 +9854,42 @@ window.HelmUrl = HelmUrl;
     linkUrl: (token) => (/^[0-9a-f]{64}$/.test(String(token || "")) ? location.origin + "/vendor-request?t=" + token : ""),
   };
 
+  // r23 (0261): client link views ("Viewed 3x - last 2h ago"), the timeline, "viewed, not approved" follow-ups,
+  // Send a nudge (queued; comms-dispatch sends it) and the Control Center settings. Every check is in the database
+  // (same studio + Quotes view / edit / Control Center edit). null = the server is older than 0261.
+  const LV_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let lvAttn = null, lvAttnAt = 0;
+  const lvNull = (e) => { if (rpcMissing(e)) return null; throw e; };
+  const linkViews = {
+    // { "<quote id>": { views, opens, first_at, last_at, last_page, last_device, approved, followup } }
+    async summary(ids) {
+      if (!supa) return null;
+      const list = [...new Set((ids || []).map(String).filter((x) => LV_UUID.test(x)))];
+      if (!list.length) return {};
+      const out = {};
+      for (let i = 0; i < list.length; i += 200) {
+        const r = await rpc("link_views_summary", { p_quotes: list.slice(i, i + 200) }).catch(lvNull);
+        if (r === null) return null;
+        Object.assign(out, r || {});
+      }
+      return out;
+    },
+    timeline: (quoteId) => (supa && LV_UUID.test(String(quoteId || "")) ? rpc("link_views_timeline", { p_quote: String(quoteId) }).catch(lvNull) : Promise.resolve(null)),
+    // the open "viewed, not approved" follow-ups (Attention tab + dashboard); cached 60 s per page
+    attention(fresh) {
+      if (!supa) return Promise.resolve(null);
+      if (!fresh && lvAttn && Date.now() - lvAttnAt < 60000) return lvAttn;
+      lvAttnAt = Date.now();
+      lvAttn = rpc("link_views_attention", {}).then((r) => (Array.isArray(r) ? r : [])).catch((e) => { lvAttn = null; return lvNull(e); });
+      return lvAttn;
+    },
+    attentionIds: () => linkViews.attention().then((r) => (Array.isArray(r) ? r.map((x) => x && x.quote_id).filter((x) => LV_UUID.test(String(x || ""))).slice(0, 150) : [])).catch(() => []),
+    nudge: (quoteId, channel) => { lvAttn = null; return rpc("link_view_nudge", { p_quote: quoteId, p_channel: channel === "whatsapp" ? "whatsapp" : "email" }); },
+    dismiss: (followupId) => { lvAttn = null; return rpc("link_view_followup_dismiss", { p_followup: followupId }); },
+    settings: () => (supa ? rpc("link_view_settings_get", {}).catch(lvNull) : Promise.resolve(null)),
+    saveSettings: (patch) => (supa ? rpc("link_view_settings_set", { p: patch || {} }) : Promise.reject(new Error("Needs a signed-in studio."))),
+  };
+
   // 0117 studio integration accounts + 0134 read-only overview (Integrations page). null = server too old.
   const integrations = {
     overview: () => (supa ? rpc("integrations_overview", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
@@ -9680,7 +9911,7 @@ window.HelmUrl = HelmUrl;
 
   const BPStore = {
     reservedEmailDomain, RESERVED_EMAIL_MESSAGE,
-    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, deliveries, vendorRequests, integrations,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, inbox, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, paySchedule, deliveries, vendorRequests, linkViews, integrations, quoteValidity,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -10284,6 +10515,32 @@ window.HelmUrl = HelmUrl;
       let max = 0;
       (summaries || []).forEach((s) => { const m = re.exec(s.name || ""); if (m) max = Math.max(max, parseInt(m[1], 10)); });
       return stamp + "-" + String(max + 1).padStart(2, "0");
+    },
+  };
+  // server reads (0263). Every call returns null on a database without 0263 (screens then hide the timeline).
+  BPStore.stages = {
+    async history(quoteId) {
+      if (mode !== "supabase" || !supa || !quoteId) return null;
+      try { return await rpc("quote_stage_history", { p_quote: quoteId }); }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    async list(ids) {
+      const a = (Array.isArray(ids) ? ids : []).filter((x) => /^[0-9a-f-]{36}$/i.test(String(x || ""))).slice(0, 500);
+      if (mode !== "supabase" || !supa || !a.length) return [];
+      try { return (await rpc("quote_stage_list", { p_ids: a })) || []; }
+      catch (e) { if (rpcMissing(e)) return []; throw e; }
+    },
+    async settings() {
+      if (mode !== "supabase" || !supa) return null;
+      try { return await rpc("stage_machine_settings", {}); }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    // studio admin with Control Center edit; guardMode "warn" | "enforce" (null = keep), showHistory boolean (null = keep)
+    async setSettings(guardMode, showHistory) {
+      if (guardMode != null && guardMode !== "warn" && guardMode !== "enforce") throw Object.assign(new Error("Stage rules must be warn or enforce."), { code: "22023" });
+      if (mode !== "supabase" || !supa) throw new Error("Stage rules need a signed-in studio.");
+      try { return await rpc("set_stage_machine_settings", { p_guard_mode: guardMode == null ? null : guardMode, p_show_history: showHistory == null ? null : !!showHistory }); }
+      catch (e) { if (rpcMissing(e)) { const er = new Error("Stage rules need database update 0263 (ask your admin to run APPLY-0263.sql)."); er.code = "stage_machine_missing"; throw er; } throw e; }
     },
   };
   global.BPStore = BPStore;
@@ -11796,6 +12053,45 @@ window.HelmUrl = HelmUrl;
     if (ap === "sent") return mk("sent", "Sent · awaiting client approval", "sent", "The approval link is with the client - it becomes Confirmed when they approve.");
     if (st === "confirmed") return mk("locked", "Locked · not sent yet", "locked", "Priced and locked - send the client the approval link.");
     return mk("quote", "Quote", "draft", "Draft quote - price it, then send it for approval.");
+  };
+  // ---- r23 (0263): ONE canonical stage (the server's helm_quote_stage, line for line; parity-tested on
+  // tests/db/r23-stage-cases.json). shelf: null | "expired" | "lost"; viewed = the client opened the approval link.
+  BPStore.quoteStageRule = function (status, approval, lifecycle, closed, viewed, stale, shelf, tokenExpired) {
+    var st = status || "", ap = approval || "", lc = lifecycle || "quote";
+    if (st === "cancelled") return "cancelled";
+    if (lc === "closed" || closed) return "closed";
+    if (lc === "settlement") return "completed";
+    if (lc === "event_day") return "event_day";
+    if (lc === "planning" || lc === "resources" || lc === "ready") return "in_progress";
+    if (ap === "paid" && lc === "confirmed") return "confirmed";
+    if (ap === "paid") return "advance_paid";
+    if (ap === "approved" && !stale) return "approved";
+    if (lc === "confirmed" && !(stale && (ap === "sent" || ap === "approved"))) return "confirmed";
+    if (shelf === "expired" || shelf === "lost") return shelf;
+    if ((ap === "sent" || ap === "approved") && tokenExpired) return "expired";
+    if ((ap === "sent" || ap === "approved") && viewed) return "viewed";
+    if (ap === "sent" || ap === "approved") return "sent";
+    if (lc === "lead" || lc === "discovery") return "lead";
+    return "draft";
+  };
+  var QS_STAGE_LABELS = { lead: "Lead", draft: "Draft", sent: "Sent", viewed: "Viewed by client", approved: "Approved", advance_paid: "Advance paid",
+    confirmed: "Confirmed", in_progress: "In progress", event_day: "Event day", completed: "Completed", closed: "Closed",
+    cancelled: "Cancelled", expired: "Expired", lost: "Lost" };
+  // tone = the status-pills.css class (one colour language): grey draft, blue sent, amber due, green ok, dark green paid, red bad, outline muted
+  var QS_STAGE_TONES = { lead: "new", draft: "draft", sent: "sent", viewed: "active", approved: "approved", advance_paid: "paid", confirmed: "confirmed",
+    in_progress: "in_progress", event_day: "due", completed: "completed", closed: "closed", cancelled: "cancelled", expired: "overdue", lost: "archived" };
+  BPStore.quoteStageLabel = function (s) { return QS_STAGE_LABELS[s] || String(s || ""); };
+  BPStore.quoteStageTone = function (s) { return QS_STAGE_TONES[s] || "draft"; };
+  // a quote object from any screen (camelCase or snake_case) -> its canonical stage (opts.viewed / opts.closed when known)
+  BPStore.quoteStage = function (q, opts) {
+    q = q && typeof q === "object" ? q : {}; opts = opts || {};
+    var arch = q.archivedAt || q.archived_at, del = q.deletedAt || q.deleted_at;
+    var why = q.deletedReason || q.deleted_reason || q.archivedReason || q.archived_reason || "";
+    var shelf = (arch || del) ? ((why === "link_expired" || q.linkExpiredAt || q.link_expired_at) ? "expired" : "lost") : null;
+    var exp = q.approvalTokenExpiresAt || q.approval_token_expires_at, expired = false;
+    if (exp) { var t = Date.parse(exp); expired = isFinite(t) && t <= Date.now(); }
+    return BPStore.quoteStageRule(q.status, q.approvalStatus || q.approval_status, q.lifecycleStage || q.lifecycle_stage,
+      !!(opts.closed || q.closedAt || q.closed_at), !!(opts.viewed || q.viewed), !!(q.consentStale || q.consent_stale), shelf, expired);
   };
   // The invoice total = the SERVER-priced quote total (pricing.total is stamped by the D8 trigger
   // zz_enforce_pricing_total on every write - never a client-side recompute) + APPROVED change orders.

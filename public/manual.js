@@ -65,8 +65,58 @@
     var host = $("#mDoc");
     while (host.firstChild) host.removeChild(host.firstChild);
     Array.prototype.slice.call(doc.body.childNodes).forEach(function (n) { host.appendChild(document.importNode(n, true)); });
+    try { await filterForRole(host); } catch (e) {}   // per-role chapters; on any error everything stays visible
     $("#mState").hidden = true; host.hidden = false;
     if (location.hash) { var t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); }
+  }
+  // r23: PER-ROLE manual. A chapter heading <h2 data-areas="quotes,leads"> is shown only when the signed-in role can
+  // view at least one of those areas (the same live Roles & access matrix the app uses); "admin" = studio admin only;
+  // no data-areas = everyone. Admins see every chapter. A hidden chapter also drops out of the sidebar + contents.
+  // If the role can't be read, nothing is hidden (the manual is help text, not data - the pages keep their own gates).
+  function chapterRun(h2) {
+    var sec = h2.parentNode && h2.parentNode.classList && h2.parentNode.classList.contains("mch") ? h2.parentNode : null;
+    if (sec) return [sec];
+    var run = [h2], n = h2.nextElementSibling;
+    while (n && n.tagName !== "H2" && !(n.classList && n.classList.contains("mch")) && n.tagName !== "FOOTER") { run.push(n); n = n.nextElementSibling; }
+    return run;
+  }
+  async function filterForRole(host) {
+    var role = null; try { role = await BPStore.auth.role(); } catch (e) { role = null; }
+    if (!role || role === "admin") return 0;
+    var cache = {};
+    async function can(a) {
+      if (a === "admin") return false;
+      if (!Object.prototype.hasOwnProperty.call(cache, a)) { try { cache[a] = !!(await BPStore.auth.canView(a)); } catch (e) { cache[a] = true; } }
+      return cache[a];
+    }
+    var hidden = 0;
+    var heads = Array.prototype.slice.call(host.querySelectorAll("h2[data-areas]"));
+    for (var i = 0; i < heads.length; i++) {
+      var h2 = heads[i], areas = String(h2.getAttribute("data-areas") || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+      var ok = !areas.length;
+      for (var k = 0; k < areas.length && !ok; k++) ok = await can(areas[k]);
+      if (ok) continue;
+      hidden++;
+      chapterRun(h2).forEach(function (el) { el.hidden = true; });
+      if (h2.id) host.querySelectorAll('a[href="#' + h2.id + '"]').forEach(function (a) {
+        var li = a.parentNode && a.parentNode.tagName === "LI" ? a.parentNode : null;
+        if (a.closest("nav")) a.hidden = true; else if (li && li.closest(".toc")) li.hidden = true;
+      });
+    }
+    // a sidebar group heading with no visible link under it goes too
+    host.querySelectorAll("nav .grp").forEach(function (g) {
+      var n = g.nextElementSibling, any = false;
+      while (n && !(n.classList && n.classList.contains("grp"))) { if (n.tagName === "A" && !n.hidden) any = true; n = n.nextElementSibling; }
+      if (!any) g.hidden = true;
+    });
+    var ver = host.querySelector(".ver");
+    if (ver && hidden) {
+      var label = role; try { label = (BPStore.auth.admin && BPStore.auth.admin.roleLabel) ? BPStore.auth.admin.roleLabel(role) : role; } catch (e) {}
+      var note = document.createElement("p"); note.className = "rolenote"; note.id = "mRoleNote";
+      note.textContent = "Showing the chapters for your role (" + label + "). Parts of Helm your role can't open are left out - ask your studio admin if you need more access.";
+      ver.parentNode.insertBefore(note, ver.nextSibling);
+    }
+    return hidden;
   }
   // r20 coord (e): the user manual is hidden for now (config.js HELM_FEATURES.manual). While it is off the page
   // only shows a calm "coming soon" note: no sign-in round trip, no storage fetch (the private bucket used to 400).

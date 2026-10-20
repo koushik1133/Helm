@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="/booklet.css?v=5">
 <link rel="stylesheet" href="/booklet-pkg.css?v=1">
 <link rel="stylesheet" href="/booklet-v2.css?v=7">
+<link rel="stylesheet" href="/quote-validity.css?v=1">
 <script src="/public-theme.js?v=3"></script>
 <script src="/trial-early.js?v=8"></script><!-- 0181: a free-trial studio member: print / download locked before first paint -->
 </head>
@@ -60,6 +61,8 @@
     </nav>
 
     <main id="main" tabindex="-1">
+      <!-- r23 (0262): "This quote is valid until dd/mm/yyyy" / expired + "Request a new quote" (quote-validity.js) -->
+      <div id="qvBanner" class="qv-banner" hidden></div>
       <section class="sec" id="details" aria-labelledby="h_details">
         <h2 id="h_details"><span class="num">01</span>Event details</h2>
         <dl class="facts" id="factList"></dl>
@@ -144,10 +147,10 @@
 
 <script src="/trusted-types.js?v=3"></script>
 <script src="/telemetry.js?v=5"></script>
-<script src="/config.js?v=106"></script>
+<script src="/config.js?v=107"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=272"></script>
-<script src="/booklet-pkg.js?v=5"></script>
-<script src="/booklet.js?v=26"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=273"></script>
+<script src="/booklet-pkg.js?v=5"></script><script src="/quote-validity.js?v=1"></script>
+<script src="/booklet.js?v=27"></script>
 </body>
 </html>

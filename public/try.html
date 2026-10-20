@@ -42,14 +42,16 @@
 <link rel="stylesheet" href="walkthrough.css?v=7">
 <link rel="stylesheet" href="layout-wizard.css?v=5">
 <link rel="stylesheet" href="/builder-v2.css?v=12">
-<link rel="stylesheet" href="/try.css?v=8">
+<link rel="stylesheet" href="/try.css?v=9">
+<link rel="stylesheet" href="/shell-b-privacy.css?v=132"><!-- QA-B27: "Hide amounts" privacy screen (same as the app pages) -->
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="try-top" id="tryTop" role="region" aria-label="Try the planner">
-  <a class="try-logo" href="/" aria-label="Helm Events home"><span class="try-mark" aria-hidden="true"></span><span class="try-word">Helm</span></a>
+  <a class="try-logo" href="/" aria-label="Helm home"><svg class="try-lockup hl-logo" viewBox="-14 -10 1530 660" width="74" height="32" role="img" aria-label="Helm" focusable="false"><mask id="try-hlm-gap" maskUnits="userSpaceOnUse" x="-10" y="-10" width="600" height="660"><rect x="-10" y="-10" width="600" height="660" fill="#fff"/><g fill="#000" stroke="#000" stroke-width="20" stroke-linejoin="round"><path d="M307 5 L256 272 L286 263 L307 102 L333 265 L356 272 Z"/><path d="M6 324 L269 260 L269 280 L114 323 Z"/><path d="M6 324 L269 368 L269 387 Z"/><path d="M280 365 L307 633 L340 365 Z"/></g></mask><g class="hl-ring" fill="none" stroke="currentColor" stroke-width="17" stroke-linecap="round"><path d="M 124.37,175.11 A 235,235 0 0 1 290.61,88.57"/><path d="M 323.39,88.57 A 235,235 0 0 1 481.64,165.75"/><path d="M 494.68,181.57 A 235,235 0 0 1 489.63,470.89"/><path d="M 467.27,494.87 A 235,235 0 0 1 327.48,557.11"/><path d="M 286.52,557.11 A 235,235 0 0 1 140.83,489.17"/><path d="M 119.32,464.43 A 235,235 0 0 1 121.82,178.32"/></g><g class="hl-ring" fill="none" stroke="currentColor" stroke-width="15" stroke-linecap="round"><path d="M 132.9 154.9 L 105.6 128.5"/><path d="M 481.1 154.9 L 508.4 128.5"/><path d="M 481.1 491.1 L 508.4 517.5"/><path d="M 132.9 491.1 L 105.6 517.5"/></g><path class="hl-ink" d="M148 153 H232 V284 H386 V153 H475 V486 H386 V363 H232 V486 H148 Z" fill="currentColor" mask="url(#try-hlm-gap)"/><g class="hl-acc" fill="currentColor" stroke="currentColor" stroke-width="5" stroke-linejoin="round"><path d="M307 5 L256 272 L286 263 L307 102 L333 265 L356 272 Z"/><path d="M6 324 L269 260 L269 280 L114 323 Z"/><path d="M6 324 L269 368 L269 387 Z"/><path d="M280 365 L307 633 L340 365 Z"/></g><g class="hl-ink" fill="currentColor"><path d="M518 153 H790 V220 H607 V290 H765 V357 H607 V416 H792 V486 H518 Z"/><path d="M822 153 H910 V416 H1037 V486 H822 Z"/><path d="M1060 486 V153 H1147 L1272 354 L1397 153 H1505 V486 H1419 V296 L1288 447 H1254 L1146 295 V486 Z"/></g></svg></a>
   <div class="try-title"><h1>Try the planner</h1><p class="try-note"><span class="try-dot" aria-hidden="true"></span>Sandbox — nothing is saved</p></div>
-  <a class="try-cta" href="/login?trial=1#signup"><span class="try-cta-l">Start your 8-day free trial</span><span class="try-cta-s" aria-hidden="true">8-day free trial</span><span class="try-cta-i" aria-hidden="true">→</span></a>
+  <a class="try-signin" href="/login">Sign in</a>
+  <a class="try-cta" href="/signup?mode=trial"><span class="try-cta-l">Start your 8-day free trial</span><span class="try-cta-s" aria-hidden="true">8-day free trial</span><span class="try-cta-i" aria-hidden="true">→</span></a>
 </div>
 <div class="try-modes" id="tryModes" role="radiogroup" aria-label="View">
   <span class="try-pill" aria-hidden="true"></span>
@@ -80,6 +82,7 @@
 </defs></svg>
 
 <header>
+  <!-- r20: the one-row header from before r19 (owner: the two-row header lost Render); groups tagged for the tour -->
   <div class="hgroup drawer-btns">
     <button type="button" class="tbtn" id="toolsToggle" aria-controls="leftPanel" aria-expanded="false">🧰 Tools</button>
     <button type="button" class="tbtn" id="inspToggle" aria-controls="rightPanel" aria-expanded="false">☰ Inspector</button>
@@ -128,13 +131,13 @@
         </optgroup>
       </select>
     </div>
-    <div class="field">
+    <div class="field" id="refField">
       <label for="refEvents">Past events</label>
       <select id="refEvents" title="Load a past event's layout for reference / reuse">
         <option value="">Reference a past layout…</option>
       </select>
     </div>
-    <button class="tbtn primary" id="customBtn" title="Create a layout from your requirements: hall, guests, seating and objects">✨ Create layout</button>
+    <button class="tbtn primary" id="customBtn" title="Build a layout from your hall size, guests and seating">✨ Create layout</button>
   </div>
 
   <div class="hsep"></div>
@@ -160,9 +163,9 @@
 
   <div class="hsep"></div>
 
-  <div class="hgroup">
-    <button class="tbtn icon" id="undoBtn" title="Undo (⌘Z)" aria-label="Undo" disabled>↶</button>
-    <button class="tbtn icon" id="redoBtn" title="Redo (⌘⇧Z)" aria-label="Redo" disabled>↷</button>
+  <div class="hgroup hg-edit">
+    <button class="tbtn icon" id="undoBtn" title="Undo (⌘Z)" aria-label="Undo" disabled><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M6 3.5 2.5 7 6 10.5M3 7h6.5a4 4 0 0 1 0 8H7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="tbtn icon" id="redoBtn" title="Redo (⌘⇧Z)" aria-label="Redo" disabled><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M10 3.5 13.5 7 10 10.5M13 7H6.5a4 4 0 0 0 0 8H9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button class="tbtn danger" id="clearBtn" title="Remove every object">Clear</button>
   </div>
 
@@ -194,7 +197,7 @@
   </div>
 
   <div class="hsep"></div>
-  <div class="hgroup">
+  <div class="hgroup hg-cap">
     <div class="field">
       <label for="capInput">Venue capacity</label>
       <input id="capInput" class="nameinput capinput" type="number" min="0" max="20000" placeholder="e.g. 500" title="The venue's stated max capacity — occupancy is checked against this">
@@ -204,6 +207,7 @@
 
   <div class="s-97445a8"></div>
   <div class="hgroup s-33fcd4c">
+    <span class="hb-tools bp-priv-slot"></span><!-- QA-B27: shell-b-privacy.js mounts the "Hide amounts" eye button here -->
     <details class="hmenu acctmenu" id="acctMenu" hidden>
       <summary class="tbtn icon" title="Account" aria-label="Account menu">👤</summary>
       <div class="hmenu-pop" id="acct"></div>
@@ -482,7 +486,7 @@
     <canvas id="rulerTop"></canvas>
     <canvas id="rulerLeft"></canvas>
     <div class="scroll" id="scroll">
-      <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="svg" class="hbp-skip" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
     <div class="layoutloading" id="layoutLoading" role="status" aria-live="polite" hidden><span class="ll-spin" aria-hidden="true"></span>Loading event…</div>
     <div class="emptystate" id="emptyState" hidden>
@@ -516,8 +520,8 @@
       <div class="hint3d" id="hint3d">Select an object, then use the gizmo to Move / Rotate / Scale · drag empty space to orbit · scroll to zoom</div>
     </div>
     <div class="statusbar" id="status">—</div>
-    <div class="fabstack" id="fabStack">
-      <div class="navpad" id="navPad" role="group" aria-label="Pan the view">
+    <div class="fabstack" id="fabStack" role="toolbar" aria-label="View controls">
+      <div class="navpad" id="navPad" role="group" aria-label="Pan the view" hidden>
       <button type="button" data-pan="up" aria-label="Pan up" title="Pan up">▲</button>
       <button type="button" data-pan="left" aria-label="Pan left" title="Pan left">◀</button>
       <button type="button" data-pan="center" class="np-c" aria-label="Recenter view" title="Recenter / fit">◎</button>
@@ -529,7 +533,11 @@
         <span class="z" id="zoomLbl">100%</span>
         <button id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
         <button id="zoomFit" title="Fit floor to view" aria-label="Fit floor to view" class="zfit">FIT</button>
+        <span class="zsep" aria-hidden="true"></span>
+        <button type="button" id="navPadToggle" aria-controls="navPad" aria-expanded="false" aria-label="Show the pan arrows" title="Pan arrows (or drag with two fingers / scroll)">✥</button>
+        <button type="button" id="dockHide" aria-label="Hide the view controls" title="Hide the view controls">⌄</button>
       </div>
+      <button type="button" class="dock-open" id="dockShow" aria-label="Show the view controls" title="Show zoom, pan and fullscreen">⊕ View</button>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </section>
@@ -552,8 +560,9 @@
   </aside>
 </main>
 
+<script src="/shell-b-privacy.js?v=132"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script>
 <script src="tour.js?v=24"></script>
 <script src="flow-layout-sync.js?v=6"></script>
 <script src="event-sizing.js?v=5"></script>
@@ -573,5 +582,6 @@
 <script src="walkthrough.js?v=7"></script>
 <script src="layout-wizard.js?v=17"></script>
 <script src="fullscreen.js?v=5"></script>
+<script src="builder-tooltip.js?v=2"></script><!-- r21: the builder's own tooltip (replaces the native title box) -->
 </body>
 </html>

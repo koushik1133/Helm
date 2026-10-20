@@ -90,6 +90,19 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0256_vendor_requests_invoices.sql
 -- 0260 (r23 cancel links + restore) adds event_restorations (the restore log) to the purge list on top of 0184
 \ir ../../supabase/migrations/0260_cancel_expires_links.sql
+-- 0261 (r23 link views) adds client_link_views + client_view_followups to the purge list, client_view_settings to keep
+\ir ../../supabase/migrations/0261_client_link_views.sql
+-- 0262 adds quote_validity / quote_validity_log to the purge list (re-applied after the 0184 body above)
+\ir ../../supabase/migrations/0262_quote_validity.sql
+-- 0263 (r23 state machine) adds its four stage / domain-event tables to the purge list on top of 0184
+\ir ../../supabase/migrations/0263_quote_stage_machine.sql
+-- 0264 (r23 payment schedules) adds its templates / per-event prefs / overdue bookkeeping to the purge list and its
+-- studio settings to the keep list on top of 0184
+\ir ../../supabase/migrations/0264_payment_schedules.sql
+-- 0265 (r23 crew) adds its five tables (availability, open shifts + claims, check-ins, check-in sites) to the purge list
+\ir ../../supabase/migrations/0265_crew_availability_shifts_checkin.sql
+-- 0266 (r23 inbox) adds notification_inbox_state to the purge list and inbox_settings + inbox_person_prefs to the keep list
+\ir ../../supabase/migrations/0266_notification_inbox.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin

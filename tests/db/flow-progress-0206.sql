@@ -10,6 +10,8 @@ begin;
 create temp table _fp(name text, result text); grant all on _fp to anon, authenticated;
 -- earlier suites in run-all re-apply older migrations (0141): re-run 0206 (also proves a re-run is safe)
 \i supabase/migrations/0206_flow_progress.sql
+-- 0262 adds quote_validity / quote_validity_log to the 0141 ignore list (re-applied after the 0206 body above)
+\i supabase/migrations/0262_quote_validity.sql
 
 do $$ declare a_admin uuid; a_staff uuid; b_admin uuid;
   org uuid := 'a0000000-0000-4000-8000-000000000001'; orgB uuid := 'b0000000-0000-4000-8000-000000000001';

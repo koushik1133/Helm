@@ -40,6 +40,9 @@
   .prow:first-child{border-top:0} .prow .g{flex:1} .prow .amt{font-family:var(--mono);font-weight:600}
   .prow .due{font-size:12px;color:var(--ink-3)}
   .paybadge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .paybadge.overdue{background:#fdecec;color:#a5281c} .paybadge.part_paid{background:#eef6ff;color:#1d4f91}
+  .payhow{margin-top:12px;padding:10px 12px;border:1px solid var(--line,#e8e3db);border-radius:10px;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+  .payhow b{display:block;margin-bottom:2px} .payhow a{color:var(--accent,#047857);font-weight:600}
   .paybadge.paid{background:#e7f6ee;color:#0f7a43} .paybadge.due{background:#fff7e6;color:#946200} .paybadge.invoiced{background:#eef1f0;color:#2f4a42} .paybadge.waived{background:#eceff3;color:#6b7686}
   .totbar{display:flex;justify-content:space-between;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
   .totbar .n{font-family:var(--mono);font-weight:700;font-size:18px}
@@ -91,10 +94,11 @@
     </div>
 
     <div class="card" id="payCard">
-      <h2><span aria-hidden="true">💳</span> Payments</h2>
+      <h2><span aria-hidden="true">💳</span> Payment schedule</h2>
       <div class="totbar"><span>Event total</span><span class="n" id="total">—</span></div>
       <div id="milestones"></div>
       <div class="muted s-d2c171b" id="outstanding"></div>
+      <div class="payhow" id="payHow" hidden></div>
     </div>
 
     <div class="card" id="receiptsCard" hidden>
@@ -119,9 +123,9 @@
 
 <script src="/trusted-types.js?v=3"></script>
 <script src="/telemetry.js?v=5"></script>
-<script src="/config.js?v=106"></script>
+<script src="/config.js?v=107"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=272"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=273"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -154,7 +158,7 @@
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"your event"}); return; }
     $("#loading").hidden=true;
     if(!d){ $("#bad").hidden=false; return; }
-    $("#app").hidden=false; render(d); ledgerPaid(); extras(d);
+    $("#app").hidden=false; render(d); ledgerPaid().finally(paySchedule); extras(d);
   }
   function render(d){
     const e=d.event||{};
@@ -213,6 +217,29 @@
       if(!ps.full){ const due=ps.balanceDue?" due by "+BPStore.fmtDateIN(ps.balanceDue):" due"; const el=document.createElement("div"); el.className="empty"; el.textContent="Balance "+inr(ps.balance)+due; box.appendChild(el); } }
     $("#outstanding").innerHTML = ps.full ? '<b style="color:var(--safe-text,#0f7a43)">Paid in full ✓</b>'
       : `Received ${inr(ps.paid)}${ps.receipt?" (receipt "+esc(ps.receipt)+")":""} · Balance due: <b style="color:var(--warn-text,#8f5f00)">${inr(ps.balance)}</b>${ps.balanceDue?" by "+esc(BPStore.fmtDateIN(ps.balanceDue)):""}`;
+  }
+  // r23 (0264): the server's schedule - every payment as paid / part paid / due / overdue (studio day) + how to pay
+  // (UPI ID, payment note, the live online link). Older servers / no schedule: the rows above stay as they are.
+  const PS_LBL={paid:"paid",part_paid:"part paid",due:"due",overdue:"overdue",invoiced:"invoiced"};
+  async function paySchedule(){
+    let s=null; try{ s=await BPStore.paySchedule.publicGet(token); }catch(_){ s=null; }
+    if(!s||!Array.isArray(s.rows)) return;
+    if(s.rows.length){ const box=$("#milestones"); box.textContent=""; MS_N=s.rows.length;
+      s.rows.forEach(m=>{ const row=document.createElement("div"); row.className="prow";
+        const g=document.createElement("span"); g.className="g"; g.textContent=String(m.label||"Payment");
+        if(m.due_date){ const due=document.createElement("div"); due.className="due"; due.textContent="due "+BPStore.fmtDateIN(m.due_date)
+          +(m.state==="part_paid"||(m.state==="overdue"&&Number(m.paid)>0)?" · "+inr(m.remaining)+" left":""); g.appendChild(due); }
+        const a=document.createElement("span"); a.className="amt"; a.textContent=inr(m.amount);
+        const b=document.createElement("span"); const st=PS_LBL[m.state]?m.state:"due"; b.className="paybadge "+st; b.textContent=PS_LBL[st];
+        row.appendChild(g); row.appendChild(a); row.appendChild(b); box.appendChild(row); }); }
+    const p=s.pay, how=$("#payHow"); how.textContent="";
+    const open=s.rows.some(m=>m.state!=="paid");
+    if(p && open){ const h=document.createElement("b"); h.textContent="How to pay"; how.appendChild(h);
+      if(p.link && /^https:\/\//.test(p.link)){ const a=document.createElement("a"); a.href=p.link; a.target="_blank"; a.rel="noopener noreferrer"; a.textContent="Pay online"; how.appendChild(a); how.appendChild(document.createElement("br")); }
+      if(p.upi){ const u=document.createElement("div"); u.textContent="UPI: "+p.upi; how.appendChild(u); }
+      if(p.note){ const n=document.createElement("div"); n.textContent=p.note; how.appendChild(n); }
+      how.hidden=false; }
+    else how.hidden=true;
   }
   // E11: booklet, invitation, quotation & terms, floor plan, receipts, planner contact - only what exists
   function lnk(href,label,ext){ const a=document.createElement("a"); a.className="lnk"; a.href=href; a.textContent=label;

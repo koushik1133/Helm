@@ -130,7 +130,7 @@ await t('control.html loads the shared validator + rules before the page script,
   const iFV = ctl.indexOf('<script src="form-validate.js?v='), iCI = ctl.indexOf('<script src="cc-inputs.js?v='), iInline = ctl.indexOf('<script>\n');
   assert.ok(iFV > 0 && iCI > iFV && iInline > iCI, 'form-validate.js, then cc-inputs.js, then the inline script');
   assert.match(ctl, /function ccGen\(\)\{ const CI=window\.HelmCCInputs; return CI&&CI\.bindGeneral\?CI\.bindGeneral\(\{country:\(\)=>BPStore\.tax\.code\(\$\("#o_country"\)\.value\)\}\):null; \}/);
-  assert.match(ctl, /if\(G && window\.HelmCCInputs\.first\(\[G\.name,G\.email,G\.phone,G\.logo,G\.accent,G\.currency,G\.tz,G\.tax\]\)\)\{ saveMsg\("",""\); return; \}/);   // merged with cc-general-billing: the card's message sits next to Save
+  assert.match(ctl, /if\(G && window\.HelmCCInputs\.first\(\[G\.email,G\.phone,G\.logo,G\.accent,G\.currency,G\.tz,G\.tax\]\)\)\{ saveMsg\("",""\); return; \}/);   // merged with cc-general-billing: the card's message sits next to Save
   assert.match(ctl, /const gstRaw=ccv\(G&&G\.tax,"o_gst"\)/);
   assert.match(ctl, /BPStore\.tax\.validateId\(newCountry, gstRaw\)/, 'the country rule stays as the last check');
   assert.match(ctl, /\{ const G=ccGen\(\); if\(G&&G\.tax\) G\.tax\.check\(\); \}/, 'changing country re-checks the tax ID');
@@ -140,12 +140,10 @@ await t('control.html loads the shared validator + rules before the page script,
   assert.doesNotMatch(save.split('try{ await BPStore.org.save(patch)')[0], /\.value\s*=\s*""/);
 });
 
-await t('link name: live tidy, trailing dash dropped on leave, unchanged name not re-saved, server "taken" shown at the field', () => {
-  assert.match(ctl, /c=CI\?CI\.slugLive\(el\.value\)/);
-  assert.match(ctl, /\$\("#o_slug"\)\.addEventListener\("blur",\(\)=>\{ const el=\$\("#o_slug"\), c=el\.value\.replace\(\/-\+\$\/,""\)/);
-  assert.match(ctl, /if\(savedSlug && v===savedSlug\)\{ slugMsg\("ok","That is already your link name/);
-  assert.match(ctl, /if\(why&&G&&G\.slug\)\{ G\.slug\.setError\(why\); G\.slug\.focus\(\); \}/);
-  assert.match(ctl, /<input id="o_slug" autocomplete="off" spellcheck="false" maxlength="80"/);
+await t('studio link: fixed at creation (r23 / 0257) - shown read-only, no editor, no save', () => {
+  assert.doesNotMatch(ctl, /id="o_slug"|o_slug_save|savedSlug/);
+  assert.match(ctl, /<b id="slugUrlVal">helm\.events\/your-studio<\/b>/);
+  assert.match(ctl, /id="slugLock">Set when the studio was created\. Contact Helm support to change it\.<\/p>/);
 });
 
 await t('Users & invites: forms use page messages (novalidate), one submit at a time, role checked, field reset after success', () => {
