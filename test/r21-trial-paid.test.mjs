@@ -102,7 +102,7 @@ await t('checkout: UPI / bank details come only from HELM_PAY_MANUAL; empty / [p
   d = ctx.pay({ upiId: 'helm@okaxis', payeeName: '[FILL ME]', accountNumber: ' 0012 3456 ', ifsc: 'HDFC0000001', note: '' });
   assert.deepEqual(JSON.parse(JSON.stringify(d.rows)), [['UPI ID', 'helm@okaxis'], ['Account number', '0012 3456'], ['IFSC', 'HDFC0000001']]);
   assert.match(d.note, /UTR/);
-  assert.match(CO, /if \(st\.sales\) renderPayDetails\(\);/);
+  assert.match(CO, /if \(st\.sales && payOn\(\)\) renderPayDetails\(\);/);   // r24: only while Pay now is switched on
   assert.match(COH, /<div class="paydet" id="coPayDetails" hidden>/);
   const cfg = read('public/config.js');
   assert.match(cfg, /window\.HELM_PAY_MANUAL = Object\.assign\(\{\s*upiId: "",/);

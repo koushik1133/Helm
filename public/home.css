@@ -1488,3 +1488,8 @@ video.mimg{background:#1a231e}
 }
 /* laptops with short screens (<= 860px tall): the 2D->3D copy column fits under the nav */
 @media (min-width:1024px) and (max-height:860px){.mstages{margin:6px 0 20px}.mstages li{padding:9px 0 9px 18px}.morph .h2{margin-bottom:14px}}
+/* r24 pricing: one free-trial block under the three plan cards (each card has only "Contact sales") */
+.pr-trial{margin-top:44px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
+.pr-trial-h{margin:0;font-size:clamp(20px,2.4vw,26px);font-weight:600;letter-spacing:-.02em;line-height:1.25;color:var(--ink)}
+.pr-trial .btn{margin-top:0}
+@media (max-width:600px){.pr-trial .btn{width:100%;max-width:420px;justify-content:space-between}}

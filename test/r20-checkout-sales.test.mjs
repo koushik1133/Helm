@@ -59,8 +59,8 @@ t('plans: display-only catalog has Starter, Studio and Enterprise ("Price on req
 t('button: "Contact sales" whenever nothing is payable online; the pay path is unchanged when live', () => {
   assert.match(CO, /st\.sales = st\.catalog \|\| \(!st\.live && \(st\.upgrade \|\| st\.pending\)\);/);
   // r22: the button is "Pay now" (UPI / bank details + payment pending) or "Contact sales" for an on-request plan
-  assert.match(CO, /if \(st\.sales\) \{ b\.disabled = false; b\.textContent = onRequest\(planBy\(st\.plan\)\) \|\| st\.catalog && !planBy\(st\.plan\) \? "Contact sales" : "Pay now"; return; \}/);
-  const salesLine = 'if (st.sales) { var sp = planBy(st.plan); if (sp && !onRequest(sp)) cardPay(sp); else cardSales(sp); return; }';
+  assert.match(CO, /if \(st\.sales\) \{ b\.disabled = false; b\.textContent = !payOn\(\) \|\| onRequest\(planBy\(st\.plan\)\) \|\| st\.catalog && !planBy\(st\.plan\) \? "Contact sales" : "Pay now"; return; \}/);   // r24: Pay now switch
+  const salesLine = 'if (st.sales) { var sp = planBy(st.plan); if (sp && !onRequest(sp) && payOn()) cardPay(sp); else cardSales(sp); return; }';
   assert.ok(CO.includes(salesLine));
   assert.ok(CO.indexOf(salesLine) < CO.indexOf('await S.checkout.saveBilling('), 'Contact sales / UPI never saves billing or pays');
   assert.match(CO, /var v = await S\.checkout\.pay\(st\.plan, st\.interval, \{ name: \$\("#f_legal"\)\.value, email: p\.email \|\| "", contact: p\.contact \|\| "" \}\);/);

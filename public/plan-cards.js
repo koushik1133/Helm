@@ -5,6 +5,8 @@
      PRIMARY   "Pay now"                (an on-request plan: "Contact sales" is its primary)
      secondary "Try free for 8 days"    (only where a free trial is still possible)
      link      "Contact sales"
+   r24: "Pay now" follows ONE switch, config.js HELM_FEATURES.payNow (false for now). While it is off no card shows
+   Pay now: "Contact sales" becomes the primary button and "Try free" stays where a trial is possible.
    Prices come from the server (signup_plan_options / my_checkout_options). CATALOG is the display-only
    fallback - the SAME plans and prices as the public pricing page and checkout.js (never payable on its own).
    CSP: DOM via createElement / textContent only; styles in plan-cards.css.
@@ -55,15 +57,22 @@
     return list.some(function (p) { return p.code === w; }) ? w : recommended(list) || (list[0] && list[0].code) || "";
   }
   function interval(v) { return v === "yearly" ? "yearly" : "monthly"; }
+  // r24: the Pay now switch - true only when config.js says HELM_FEATURES.payNow === true (missing = off)
+  function payNowOn(features) {
+    var f = features !== undefined ? features : (typeof global !== "undefined" && global ? global.HELM_FEATURES : null);
+    return !!(f && f.payNow === true);
+  }
   // which buttons a card shows: { pay, trial, sales, primary: "pay" | "sales" }
+  //   opts.payNow (bool) overrides the config switch (tests); with Pay now off "Contact sales" is the primary
   function actionsFor(p, opts) {
     var o = opts || {}, ask = onRequest(p);
-    return { pay: !ask && o.pay !== false && offered(p, o.interval), trial: !!o.trial, sales: o.sales !== false,
-      primary: ask ? "sales" : "pay" };
+    var on = typeof o.payNow === "boolean" ? o.payNow : payNowOn();
+    return { pay: !ask && on && o.pay !== false && offered(p, o.interval), trial: !!o.trial, sales: o.sales !== false || !on,
+      primary: ask || !on ? "sales" : "pay" };
   }
 
   var api = { CATALOG: CATALOG, normalize: normalize, plansOr: plansOr, onRequest: onRequest, offered: offered, money: money,
-    priceText: priceText, recommended: recommended, pickPlan: pickPlan, interval: interval, actionsFor: actionsFor };
+    priceText: priceText, recommended: recommended, pickPlan: pickPlan, interval: interval, actionsFor: actionsFor, payNowOn: payNowOn };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (!global || !global.document) return;
   var doc = global.document;
@@ -112,5 +121,5 @@
     return list;
   }
   global.HelmPlanCards = { CATALOG: CATALOG, normalize: normalize, plansOr: plansOr, onRequest: onRequest, offered: offered, money: money,
-    priceText: priceText, recommended: recommended, pickPlan: pickPlan, interval: interval, actionsFor: actionsFor, actions: actions, render: render };
+    priceText: priceText, recommended: recommended, pickPlan: pickPlan, interval: interval, actionsFor: actionsFor, payNowOn: payNowOn, actions: actions, render: render };
 })(typeof window !== "undefined" ? window : globalThis);
