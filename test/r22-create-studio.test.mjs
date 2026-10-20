@@ -16,13 +16,13 @@ let n = 0;
 const t = (name, fn) => { fn(); n++; console.log('ok - ' + name); };
 
 /* ---------------- plan cards ---------------- */
-t('plan cards: server plans cleaned (no ids / provider ids), catalog only as a fallback, same prices as pricing page', () => {
+t('plan cards: server plans cleaned (no ids / provider ids), catalog only as a fallback, in-app catalog unchanged (public /pricing is USD since r24 usd)', () => {
   const l = PC.normalize([{ id: 'x', code: 'studio', name: 'Studio', monthly: '4999', yearly: 49990, rzp_monthly: 'plan_1', features: ['a'] }, { code: 'BAD CODE' }, null]);
   assert.equal(l.length, 1); assert.equal(l[0].monthly, 4999); assert.equal(l[0].id, undefined); assert.equal(l[0].rzp_monthly, undefined);
   assert.deepEqual(PC.plansOr([]).map((p) => p.code), ['starter', 'studio', 'enterprise']);
   const cat = PC.CATALOG; assert.equal(cat[0].monthly, 1999); assert.equal(cat[0].yearly, 19990); assert.equal(cat[1].monthly, 4999); assert.equal(cat[1].yearly, 49990);
   assert.equal(cat[2].monthly, null);
-  assert.match(read('public/pricing.html'), /&#8377;1,999<\/b>/); assert.match(read('public/pricing.html'), /&#8377;4,999<\/b>/);   // the pricing page shows the same numbers
+  assert.match(read('public/pricing.html'), /<b>\$24<\/b>/); assert.match(read('public/pricing.html'), /<b>\$59<\/b>/);   // r24 usd: the public page shows proposed USD; in-app catalog (INR fallback, DB plans win) untouched
   assert.match(CO, /monthly: 1999, yearly: 19990/); assert.match(CO, /monthly: 4999, yearly: 49990/);
 });
 t('plan cards: Pay now is the primary; an on-request plan gets Contact sales as primary; trial only when offered', () => {

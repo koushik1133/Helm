@@ -1,7 +1,8 @@
 // r24 pricing (owner 2026-10-19): no "Pay now" anywhere for now.
-//   * public pricing (home #pricing + /pricing): every plan card has ONE button "Contact sales" -> /signup?plan=<key>&mode=sales,
+//   * public pricing (home #pricing + /pricing): every plan card has ONE button "Contact sales" -> /contact-sales?plan=<key>
+//     (r24 usd: the contact form; was /signup?plan=<key>&mode=sales),
 //     no per-card "Try free for 8 days"; ONE centred trial block under the cards -> /signup?mode=trial
-//     (home keeps the "All prices ... Compare all plans" line under it). Prices untouched.
+//     (home keeps the "All prices ... Compare all plans" line under it). r24 usd: every public price is USD.
 //   * in-app plan cards (sign-up step 4 + /checkout): Pay now follows ONE switch, config.js HELM_FEATURES.payNow (false):
 //     off = Contact sales is the primary, Try free stays; ?mode=paid reads as sales; no online payment / UPI details.
 import assert from 'node:assert/strict';
@@ -22,13 +23,13 @@ t('config.js: ONE switch HELM_FEATURES.payNow, false for now', () => {
 });
 
 for (const [name, h, start, end] of [['index.html', IDX, '<section class="sec pricing" id="pricing"', '</section>'], ['pricing.html', PR, '<section class="pr-grid"', '<section class="mf-block pr-faq"']]) {
-  t(name + ': three cards, each exactly ONE button "Contact sales" -> /signup?plan=<key>&mode=sales', () => {
+  t(name + ': three cards, each exactly ONE button "Contact sales" -> /contact-sales?plan=<key>', () => {
     const s = section(h, start, end);
     const btns = [...s.matchAll(/<div class="(?:plan|pr)-ctas">(.*?)<\/div>/g)].map((m) => m[1]);
     assert.equal(btns.length, 3);
     btns.forEach((b, i) => {
       assert.equal((b.match(/<a /g) || []).length, 1, KEYS[i] + ': one button');
-      assert.ok(b.includes('href="/signup?plan=' + KEYS[i] + '&amp;mode=sales">Contact sales</a>'), KEYS[i]);
+      assert.ok(b.includes('href="/contact-sales?plan=' + KEYS[i] + '">Contact sales</a>'), KEYS[i]);
     });
     assert.ok(!/Pay now|mode=paid|Try free for|Talk to sales/.test(s), 'no Pay now / per-card trial / old wording');
   });
@@ -51,8 +52,15 @@ t('index.html: the "All prices ... Compare all plans" line stays, under the tria
   assert.match(s, /<a class="btn btn-dark" href="\/signup\?mode=trial">Start free trial <span class="bi">/, 'primary button');
 });
 
-t('pricing.html: prices untouched; trial button is the primary style', () => {
-  for (const p of ['&#8377;1,999', '&#8377;4,999', '&#8377;19,990', '&#8377;49,990', '<b>Custom</b> <span>talk to us</span>']) assert.ok(PR.includes(p), p);
+t('pricing.html: r24 usd - prices in USD (no rupee left); trial button is the primary style', () => {
+  for (const p of ['<b>$24</b>', '<b>$59</b>', 'or $240/year proposed (2 months free)', 'or $590/year proposed (2 months free)', '<b>Custom</b> <span>talk to us</span>']) assert.ok(PR.includes(p), p);
+  assert.ok(!/&#8377;|₹|INR/.test(PR), 'no rupee prices on /pricing');
+  assert.ok(PR.includes('<p class="pr-note" role="note"><b>Proposal:</b> these prices are suggestions for review and are not final.'), 'proposal banner kept');
+  for (const [h, f] of [[IDX, 'index.html'], [PR, 'pricing.html']]) {
+    assert.ok(h.includes('"name": "Starter", "price": "24", "priceCurrency": "USD"'), f + ' JSON-LD Starter');
+    assert.ok(h.includes('"name": "Studio", "price": "59", "priceCurrency": "USD"'), f + ' JSON-LD Studio');
+    assert.ok(!/priceCurrency": "INR/.test(h), f + ' no INR offer');
+  }
   assert.match(PR, /<h2 class="pr-trial-h" id="prTrialH">Start your 8-day free trial — no card needed<\/h2>/);
   assert.match(PR, /<a class="btn primary hs-pop pr-trial-btn" href="\/signup\?mode=trial">Start free trial<\/a>/);
 });

@@ -46,7 +46,7 @@ t('login.html runs applyStep1 after the trial words; chip + sales note built wit
   assert.match(login, /BPTrialSignup\.apply\(m, J\(\)\);\n\s*if\(window\.BPSignupFlow && BPSignupFlow\.applyStep1\) BPSignupFlow\.applyStep1\(m, J\(\)\);/);
   assert.match(login, /\.plan-chip\{/);
   assert.match(js, /a\.href = "\/pricing"/, 'chip "change" goes back to the pricing page');
-  assert.match(js, /l\.href = "\/#contact"/, 'sales: no-account route = the public contact form');
+  assert.match(js, /l\.href = "\/contact-sales" \+ \(\["starter", "studio", "enterprise"\]\.indexOf\(intent\.plan\) >= 0 \? "\?plan=" \+ intent\.plan : ""\);/, 'sales: no-account route = the public /contact-sales form (r24 usd)');
   assert.match(js, /intent\.fromUrl \? payGate\(intent\.mode, payOn\(\)\) : ""/, 'a bare /signup stays neutral (r24: paid reads as sales while Pay now is off)');
   assert.ok(!/innerHTML|insertAdjacentHTML/.test(js));
 });

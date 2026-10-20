@@ -328,7 +328,7 @@
 
   // r23: called by login.html's setMode() after trial-signup.js has laid out step 1. Tailors the heading to
   // ?mode= (paid / trial / sales), shows the chosen plan as a chip with a "change" link back to /pricing, and on
-  // mode=sales offers the no-account route (the home page's contact form, which only opens the visitor's e-mail app).
+  // mode=sales offers the no-account route (the public /contact-sales form, with the chosen plan when there is one).
   function applyStep1(m, joining) {
     var on = m === "signup" && !joining;
     var chip = doc.getElementById("planChip"), note = doc.getElementById("salesNote");
@@ -360,7 +360,7 @@
       if (!note) {
         note = el("p", "sales-note"); note.id = "salesNote";
         note.appendChild(doc.createTextNode("Rather talk first, without an account? "));
-        var l = el("a", "", "Write to our sales team \u2192"); l.href = "/#contact"; note.appendChild(l);
+        var l = el("a", "", "Write to our sales team \u2192"); l.href = "/contact-sales" + (["starter", "studio", "enterprise"].indexOf(intent.plan) >= 0 ? "?plan=" + intent.plan : ""); note.appendChild(l);
         var anchor = chip && !chip.hidden ? chip : sub;
         anchor.parentNode.insertBefore(note, anchor.nextSibling);
       }
