@@ -17,7 +17,7 @@
  * Sources (Markdown, a small safe subset - see md() below):
  *   docs/manual/sections/*.md   live chapters
  *   docs/manual/soon/*.md       "Coming soon" placeholders
- *   docs/manual/r23-*.md        a chapter written by a feature branch. It needs NO front matter: the id comes
+ *   docs/manual/r2N-*.md        a chapter written by a feature branch (r23-*, r24-*, ...). It needs NO front matter: the id comes
  *                               from the file name (r23-quote-validity.md -> quote-validity), the title from its
  *                               first "# " line. If a placeholder lists that file name in "replaced-by", the
  *                               feature chapter takes the placeholder's place (same id, group, order, areas),
@@ -36,7 +36,7 @@
  *   ---
  *
  * Adding a new feature chapter: drop docs/manual/r23-<feature>.md in, run this script, commit both files.
- * --check only compares the chapters the HTML already includes; a NEW r23-*.md that is not built in yet is
+ * --check only compares the chapters the HTML already includes; a NEW r2N-*.md that is not built in yet is
  * reported as a warning (exit 0), so merging a feature branch never breaks CI - run the script to include it.
  * Pure Node, no deps. The output never contains <script>, inline handlers or remote URLs.
  * ========================================================================== */
@@ -147,7 +147,7 @@ export function parse(file, text) {
   }
   const name = basename(file).replace(/\.md$/, '');
   const h1 = /^#\s+(.+)$/m.exec(body);
-  const id = (meta.id || name.replace(/^r23-/, '')).toLowerCase().replace(/[^\w-]+/g, '-');
+  const id = (meta.id || name.replace(/^r2\d-/, '')).toLowerCase().replace(/[^\w-]+/g, '-');
   const title = meta.title || (h1 ? h1[1].trim() : name);
   const list = (v) => String(v || '').split(/[,\s]+/).map((x) => x.trim()).filter(Boolean);
   return { file, name, id, title, nav: meta.nav || title, order: Number(meta.order || 500), areas: list(meta.areas),
@@ -159,7 +159,7 @@ const readDir = (d, re) => existsSync(d) ? readdirSync(d).filter((f) => re.test(
 export function collect({ only, dir = DIR } = {}) {
   const live = readDir(join(dir, 'sections'), /\.md$/).map((f) => ({ ...parse(f, readFileSync(f, 'utf8')), soon: false, src: 'sections/' + basename(f) }));
   const soon = readDir(join(dir, 'soon'), /\.md$/).map((f) => ({ ...parse(f, readFileSync(f, 'utf8')), soon: true, src: 'soon/' + basename(f) }));
-  let feats = readDir(dir, /^r23-[\w-]+\.md$/).map((f) => ({ ...parse(f, readFileSync(f, 'utf8')), soon: false, src: basename(f) }));
+  let feats = readDir(dir, /^r2\d-[\w-]+\.md$/).map((f) => ({ ...parse(f, readFileSync(f, 'utf8')), soon: false, src: basename(f) }));
   const skipped = [];
   if (only) { skipped.push(...feats.filter((f) => !only.has(f.src)).map((f) => f.src)); feats = feats.filter((f) => only.has(f.src)); }
   const soonLeft = [], used = new Set();
@@ -208,7 +208,7 @@ export function build(html, opts) {
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const cur = readFileSync(OUT, 'utf8');
   if (CHECK) {
-    const included = new Set([...cur.matchAll(/data-src="(r23-[\w-]+\.md)"/g)].map((m) => m[1]));
+    const included = new Set([...cur.matchAll(/data-src="(r2\d-[\w-]+\.md)"/g)].map((m) => m[1]));
     const { html, skipped } = build(cur, { only: included });
     for (const s of skipped) console.warn(`build-manual: docs/manual/${s} is not in the manual yet - run node scripts/build-manual.mjs`);
     if (html !== cur) { console.error('build-manual: docs/manual/USER-MANUAL.html is out of date - run node scripts/build-manual.mjs'); process.exit(1); }
