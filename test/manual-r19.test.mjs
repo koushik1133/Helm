@@ -10,6 +10,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+const stripComments = (s) => { let prev; do { prev = s; s = s.replace(/<!--[\s\S]*?-->/g, ''); } while (s !== prev); const open = s.indexOf('<!--'); return open < 0 ? s : s.slice(0, open); };   // repeat until stable; an unterminated "<!--" hides the rest (CodeQL js/incomplete-multi-character-sanitization)
 const root = new URL('..', import.meta.url);
 const read = (p) => readFileSync(new URL(p, root), 'utf8');
 let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('ok -', name); };
@@ -21,7 +22,7 @@ const fnSrc = (src, name) => {
 };
 const TOUR = read('public/tour.js'), DASH = read('public/dashboard.html'), AUI = read('public/auth-ui.js');
 const SHELL = read('public/shell-b.js'), CS = read('public/control-split.js'), CSS_CS = read('public/control-split.css');
-const MJS = read('public/manual.js'), MAN = read('docs/manual/USER-MANUAL.html').replace(/<!--[\s\S]*?-->/g, '');   // markup only (the header comment shows examples)
+const MJS = read('public/manual.js'), MAN = stripComments(read('docs/manual/USER-MANUAL.html'));   // markup only (the header comment shows examples)
 
 // ---------------------------------------------------------------- 1. tour
 await t('tour: rail steps open the slim desktop rail without animation; tuck + end clear it', () => {

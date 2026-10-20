@@ -28,7 +28,7 @@ t('vercel.json redirects the old public URLs to /manual; /manual is noindex + no
 t('/manual page: noindex, no inline script, gated exactly like app pages', () => {
   const html = read('public/manual.html'), js = read('public/manual.js');
   assert.match(html, /<meta name="robots" content="noindex/);
-  assert.ok(!/<script>(?!<\/script>)/.test(html) && !/<script>[\s\S]*?<\/script>/.test(html), 'no inline <script>');
+  assert.ok(!/<script\s*>(?!<\/script\s*>)/i.test(html) && !/<script\s*>[\s\S]*?<\/script[^>]*>/i.test(html), 'no inline <script>');
   assert.match(js, /BPStore\.auth\.required\(\) && !BPStore\.auth\.user\(\)/);
   assert.match(js, /location\.replace\("login\.html\?next=" \+ encodeURIComponent\("manual"\)\)/);
   // the ?next= allowlist moved from login.html into store-api.js safeNext() (auth-gate fix)
