@@ -106,7 +106,7 @@
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
-    <div><h1>Operations</h1><small>Helm Events</small></div>
+    <div><h1>Tasks &amp; staff</h1><small>Helm Events</small></div>
     <nav class="nav"><a href="dashboard.html">Home</a><a href="quotes.html">Quotes</a><a href="/builder">Builder</a><a href="control.html">Control Center</a></nav>
     <span class="spacer"></span>
     <span id="bell"></span>
@@ -121,6 +121,7 @@
 
   <div id="app" hidden>
     <div class="card evhead" id="evhead"></div>
+    <p class="muted flow-next" id="flowNext" hidden></p>
 
     <div class="card">
       <h3>Staff</h3>
@@ -148,8 +149,8 @@
       <div class="assignbar">
         <span class="muted"><b id="selCount">0</b> selected →</span>
         <select class="s-b62dc2d" id="assignKind" aria-label="Assignment type">
-          <option value="in_house">🏠 In-house staff</option>
-          <option value="outsourced">🤝 Outsource</option>
+          <option value="in_house">🏠 Our staff</option>
+          <option value="outsourced">🤝 A vendor</option>
         </select>
         <select class="s-66dbd5d" id="assignCrew" aria-label="Assign to staff"></select>
         <span class="crewwho" id="assignWho" aria-live="polite"></span>
@@ -271,6 +272,8 @@
     $("#app").hidden=false;
     $("#evhead").innerHTML=`<span class="code">${esc(quote.code)}</span><span class="ttl">${esc(quote.title||"")}</span>
       <span class="muted">${esc(quote.eventType||"")} · ${esc(quote.status)}</span>`;
+    // r24: where this page sits in the resources flow (1 stock -> 2 our people -> 3 what's missing -> 4 budget)
+    $("#flowNext").innerHTML=`Step 2 of 4 — assign our people. Done? <a class="s-a805525" href="resources.html?quote=${encodeURIComponent(quote.id||quoteId)}">3 See what's still missing →</a>`; $("#flowNext").hidden=false;
     // sections come from the template catalog (falls back to defaults)
     try{ const cats=await pCats; if(cats && cats.length) CATS=cats; }catch{}
     if(!CATS.includes(activeCat)) activeCat=CATS[0];
@@ -358,12 +361,12 @@
     try{
       if(outsource){
         const vId=$("#assignVendor").value;
-        if(!vId){ setMsg("err","Pick a vendor to outsource to."); return; }
+        if(!vId){ setMsg("err","Pick the vendor."); return; }
         const v=vendors.find(x=>x.id===vId);
         const clash=await BPStore.calendar.wouldClash({date:quote.eventDate, vendorId:vId, excludeQuote:quoteId}).catch(()=>({clash:false}));
-        if(clash.clash && !(await BPUI.confirm(((v&&v.name)||"This vendor")+" is "+clash.detail+". Outsource anyway?",{title:"Scheduling clash",okLabel:"Outsource anyway",danger:true}))){ return; }
+        if(clash.clash && !(await BPUI.confirm(((v&&v.name)||"This vendor")+" is "+clash.detail+". Give it to them anyway?",{title:"Scheduling clash",okLabel:"Assign anyway",danger:true}))){ return; }
         const r=await BPStore.ops.assignTasksVendor(quoteId, activeCat, titles, vId);
-        setMsg("ok", `Outsourced ${r.tasks_created} ${activeCat} task(s) to ${r.vendor||(v&&v.name)}. Checklist sent — their link is below.`);
+        setMsg("ok", `Gave ${r.tasks_created} ${activeCat} task(s) to ${r.vendor||(v&&v.name)}. Checklist sent — their link is below.`);
       } else {
         const crewId=$("#assignCrew").value;
         if(!crewId){ setMsg("err","Pick a crew member."); return; }
@@ -402,7 +405,7 @@
     return `<div class="trow" data-id="${esc(t.id)}">
       <span class="cat">${esc(label||"")}</span><span class="tt">${esc(t.title)}</span>
       <span class="st ${esc(stS)}">${STATUS_LABEL[stS]||esc(stS)}</span>
-      ${t.assignee_kind==='outsourced'?`<span class="qc" style="background:var(--accent-soft);color:var(--accent)" title="Outsourced to ${esc(t.assignee_name||'vendor')}">🤝 vendor</span>`:''}
+      ${t.assignee_kind==='outsourced'?`<span class="qc" style="background:var(--accent-soft);color:var(--accent)" title="Done by the vendor ${esc(t.assignee_name||'')}">🤝 vendor</span>`:''}
       ${t.is_special?'<span class="gate special" title="Special task — recurring reminder">🔔 special</span>':''}
       ${gateChip(t,byId)}
       ${verifyChip(t)}

@@ -121,7 +121,7 @@
     <!-- per-event reservation panel -->
     <div id="eventPanel" class="card" hidden>
       <h2>Reserve for this event</h2>
-      <p class="sub">Hold in-house stock for the event. Reserve now → allocate when it goes out → return when it comes back.</p>
+      <p class="sub">Step 1 of 4 — reserve our own stock for this event. Reserve now → allocate when it goes out → return when it comes back. <a id="rvNextStep" class="s-a805525" href="ops.html">Next: 2 Assign our people →</a></p>
       <div class="reserve-row">
         <div class="fld"><label for="rv_item">Item</label><select id="rv_item"></select></div>
         <div class="fld"><label for="rv_qty">Quantity</label><input id="rv_qty" type="number" min="1" value="1"></div>
@@ -842,7 +842,7 @@
     $("#app").hidden=false; $("#newBtn").hidden=!canEdit;
     if(!canEdit) $("#coCard").querySelectorAll("input,select,button").forEach(el=>el.disabled=true);
     if(quoteId){
-      $("#eventPanel").hidden=false; $("#eventBar").hidden=false;
+      $("#eventPanel").hidden=false; $("#eventBar").hidden=false; $("#rvNextStep").href="ops.html?quote="+encodeURIComponent(quoteId);
       try{ const ev=await BPStore.quotes.get(quoteId); evDateText=ev.eventDate?fmtDate(ev.eventDate):""; $("#eventBar").innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}">← Back to workspace</a> · ${esc(ev.code||"")}${ev.title&&ev.title!==ev.code?(" · "+esc(ev.title)):""}`; }catch{}
       if(!canEdit) $("#eventPanel").querySelectorAll("input,select,button").forEach(el=>el.disabled=true);
     }
