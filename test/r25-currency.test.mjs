@@ -6,6 +6,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import vm from 'node:vm';
 const require = createRequire(import.meta.url);
 const read = (p) => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 let n = 0; const t = (name, fn) => { fn(); n++; console.log('  ok', name); };
@@ -91,6 +92,20 @@ t('SQL 0273: additive, idempotent, fixed prices, fixed currency, ASCII', () => {
   assert.ok(APPLY.includes(SQL.trim().split('\n').slice(-1)[0]), 'APPLY carries the migration');
   assert.match(read('supabase/migrations/MANIFEST'), /forward {2}supabase\/migrations\/0273_billing_currency\.sql/);
   assert.match(read('scripts/db-test/run-all.sh'), /tests\/db\/r25-currency-0273\.sql/);
+});
+
+t('HQ Plans: a USD price next to INR (hq_upsert_plan_price, USD), optional, validated', () => {
+  const JS = read('public/hq.js'), H = read('public/hq.html');
+  const i = JS.indexOf('  function usdPriceArgs('); assert.ok(i > 0);
+  const ctx = {}; vm.createContext(ctx); vm.runInContext(JS.slice(i, JS.indexOf('\n  }\n', i) + 4) + '\nthis.f = usdPriceArgs;', ctx);
+  const f = ctx.f, plain = (v) => JSON.parse(JSON.stringify(v));
+  assert.equal(f('starter', '', ''), null, 'both empty = INR only');
+  assert.deepEqual(plain(f(' Starter ', '24', '240')), { p_plan_code: 'starter', p_currency: 'USD', p_price_monthly: 24, p_price_yearly: 240 });
+  assert.deepEqual(plain(f('studio', '59', '')), { p_plan_code: 'studio', p_currency: 'USD', p_price_monthly: 59, p_price_yearly: null });
+  assert.throws(() => f('studio', '', '590'), /per month/); assert.throws(() => f('studio', '-1', ''), /0 or more/);
+  assert.match(H, /<span>Price \/ month \(\$\)<\/span><input type="number" id="plUsdM"/); assert.match(H, /id="plUsdY"/);
+  assert.match(H, /<th class="n">USD \/ month<\/th>/);
+  assert.match(JS, /\.then\(function \(\) \{ return u \? call\("hq_upsert_plan_price", u\) : null; \}\)/);
 });
 
 console.log(`r25-currency: ${n} checks passed`);
