@@ -129,7 +129,14 @@
     return { kind: "neutral", title: "", sub: "" };
   }
 
-  var api = { KEY: KEY, step1Copy: step1Copy, payGate: payGate, payOn: payOn, planName: planName, TERMS_KEY: TERMS_KEY, EVENT_TYPES: EVENT_TYPES, TEAM_SIZES: TEAM_SIZES, intentFrom: intentFrom, slugify: slugify,
+  // r25: the line under the cards - GST only for rupee prices
+  function currencyNote(cur, pay) {
+    if (cur && cur !== "INR") return "Prices are in US dollars. " + (pay ? "Pay now shows the exact amount before anything is charged."
+      : "Our team confirms the exact amount before anything is charged. Nothing is paid on this page.");
+    return pay ? "Prices are before GST. Pay now shows the exact amount, tax included, before anything is charged. While online payment is being switched on you pay by UPI or bank transfer and your studio opens as soon as our team confirms the payment."
+      : "Prices are before GST. Our team confirms the exact amount, tax included, before anything is charged. Nothing is paid on this page.";
+  }
+  var api = { currencyNote: currencyNote, KEY: KEY, step1Copy: step1Copy, payGate: payGate, payOn: payOn, planName: planName, TERMS_KEY: TERMS_KEY, EVENT_TYPES: EVENT_TYPES, TEAM_SIZES: TEAM_SIZES, intentFrom: intentFrom, slugify: slugify,
     detailsCheck: detailsCheck, agreedEarlier: agreedEarlier, onSignupPath: onSignupPath, firstRun: firstRun, checkoutHref: checkoutHref, startError: startError, mode: mode };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (!global || !global.document) return;
@@ -241,11 +248,14 @@
     $("#stErr").hidden = true; $("#stOk").hidden = true;
     var u = (B.auth.user && B.auth.user()) || {}; $("#stEmail").textContent = u.email || "";
     $("#stStudio").textContent = st.details ? st.details.name : "";
-    var o = null; try { o = B.signup ? await B.signup.planOptions() : null; } catch (e) { o = null; }
+    var P = global.HelmPlanCards, tz = P.browserZone ? P.browserZone() : "";
+    var o = null; try { o = B.signup ? await B.signup.planOptions(tz) : null; } catch (e) { o = null; }
     st.opts = o || {};
     if (st.opts.terms_version && !st.termsVersion) st.termsVersion = String(st.opts.terms_version);
-    var P = global.HelmPlanCards;
-    st.plans = P.plansOr(st.opts.plans);
+    // r25: the server says the currency (India -> INR, elsewhere -> USD); without a server answer, the browser time zone
+    st.currency = P.cur ? (st.opts.currency ? P.cur(st.opts.currency) : P.currencyFor(tz)) : "INR";
+    st.tz = tz;
+    st.plans = P.plansOr(st.opts.plans, st.currency);
     st.plan = P.pickPlan(st.plans, wantPlan());
     var days = Number(st.opts.trial_days) > 0 ? Number(st.opts.trial_days) : ((global.HelmTrialFacts && global.HelmTrialFacts.DAYS) || 8);
     st.trialDays = days;
@@ -253,7 +263,7 @@
     $("#stLead").textContent = pay ? "Pay now to open your studio straight away, or try Helm free for " + days + " days - no payment needed."
       : "Contact sales and our team sets up your plan with you, or try Helm free for " + days + " days - no payment needed.";
     var note = $("#stNote");
-    if (note && !pay) note.textContent = "Prices are before GST. Our team confirms the exact amount, tax included, before anything is charged. Nothing is paid on this page.";
+    if (note) note.textContent = currencyNote(st.currency, pay);
     var m = wantMode();
     if (m === "trial") { $("#stOk").textContent = "Your free trial is one tap away - choose “Try free for " + days + " days” on any plan."; $("#stOk").hidden = false; }
     renderCards();
@@ -277,7 +287,7 @@
   }
   function renderCards() {
     var P = global.HelmPlanCards;
-    P.render($("#stPlans"), { plans: st.plans, interval: st.interval, selected: st.plan, trial: true, trialDays: st.trialDays,
+    P.render($("#stPlans"), { plans: st.plans, currency: st.currency, interval: st.interval, selected: st.plan, trial: true, trialDays: st.trialDays,
       onSelect: function (code) { if (st.busy) return; st.plan = code; renderCards(); },
       onPay: function (p, b) { go("pay", p, b); }, onTrial: function (p, b) { go("trial", p, b); }, onSales: function (p, b) { go("sales", p, b); } });
   }
@@ -298,6 +308,7 @@
         busy(b, "Setting up your free trial…");
         await global.BPTrialSignup.start(d.name);
         try { await B.signup.saveDetails(d); } catch (e) {}
+        try { if (B.signup.initCurrency) await B.signup.initCurrency(st.tz); } catch (e) {}   // r25: billing currency, set once
         lsDel(KEY);
         await ctx.routeSignedIn();
         return;
@@ -306,6 +317,7 @@
       busy(b, kind === "pay" ? "Creating your studio…" : "Opening contact sales…");
       var r = await B.signup.createDirect({ name: d.name, plan: p.code, interval: st.interval, termsVersion: st.termsVersion });
       try { await B.signup.saveDetails(d); } catch (e) {}
+      try { if (B.signup.initCurrency) await B.signup.initCurrency(st.tz); } catch (e) {}   // r25: billing currency, set once (never changes a set one)
       lsDel(KEY);
       try { global.localStorage.setItem("bp_force_tour", "1"); } catch (e) {}
       if (r && r.result === "exists") { await ctx.routeSignedIn(); return; }
