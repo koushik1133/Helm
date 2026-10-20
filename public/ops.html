@@ -98,8 +98,8 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<link rel="stylesheet" href="crew-shifts.css?v=1">
-<script src="/shell-proto.js?v=41" id="shellProto"></script>
+<link rel="stylesheet" href="crew-shifts.css?v=2">
+<script src="/shell-proto.js?v=42" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -228,7 +228,7 @@
 <script src="config.js?v=107"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=274"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=275"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -638,6 +638,6 @@
   setInterval(()=>{ if(document.hidden || $("#app").hidden) return; if(!$("#reassignModal").hidden || !$("#schedModal").hidden || !$("#evModal").hidden) return; if(document.querySelector("#dashboard [data-busy]")) return; refreshDashboard(); }, 7000);
   BPUI.boot(load);
 </script>
-<script src="crew-shifts.js?v=1"></script>
+<script src="crew-shifts.js?v=2"></script>
 </body>
 </html>

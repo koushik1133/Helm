@@ -76,3 +76,13 @@
 @media (prefers-reduced-motion:reduce){.cs-day,.cs-cell{transition:none}}
 /* the Staff page has no generic .card frame */
 #crewAvailCard{background:var(--panel,#fff);border:1px solid var(--line,#e8e3db);border-radius:16px;padding:16px;margin:18px 0 0}
+
+/* r24 ui: event-day check-in card - plain empty state + the optional check-in location as a small link that opens */
+.cs-empty{margin:10px 0 4px;padding:12px 14px;border:1px dashed var(--line,#e8e3db);border-radius:10px;background:var(--panel-2,#faf8f5);font-size:13px;color:var(--ink-2,#4b475f)}
+.cs-link{color:var(--accent,#047857);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.cs-site{margin-top:12px}
+.cs-site>summary{cursor:pointer;font-weight:700;font-size:14px;padding:4px 0;list-style:revert;width:max-content;max-width:100%}
+.cs-site>summary:focus-visible{outline:2px solid var(--accent,#047857);outline-offset:2px;border-radius:4px}
+.cs-site>.cs-item{margin-top:8px}
+.cs-site-small>summary{font-weight:600;font-size:13px;color:var(--accent,#047857)}
+.cs-sitebar .cs-offnote{margin-top:2px}

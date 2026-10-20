@@ -111,3 +111,21 @@
 }
 .rp-table .cov{white-space:nowrap}
 #rows .rp-meta select{height:32px;min-height:32px;padding:0 26px 0 8px;font-size:12px}
+
+/* ---- r24 ui: Assign vendor dialog - every pair of boxes fits inside the sheet (also at 375px) ---- */
+.rp-row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:10px}
+.rp-row2.rp-vq{grid-template-columns:minmax(0,1fr) 96px}
+.rp-sheet .fld{min-width:0}
+.rp-sheet .fld input:not([type=checkbox]):not([type=radio]),.rp-sheet .fld select{width:100%;min-width:0;max-width:100%}
+.rp-sheet .bpui-date-hint{margin-top:2px}
+.rp-mail{justify-content:flex-end}
+.rp-chk{display:flex!important;align-items:center;gap:6px;min-height:38px;margin:0;cursor:pointer}
+.rp-chk input{width:auto;height:auto;margin:0}
+.rp-help{display:block;font-size:12px;line-height:1.35;color:var(--ink-3)}
+.rp-mail .rp-help{margin-top:-6px}
+/* privacy mode ("Hide amounts" on): say why the money boxes look dotted - they show the real number while you type */
+.rp-privnote{display:none;margin:8px 0 0;font-size:12px;color:var(--ink-3)}
+html.hb-priv-on .rp-privnote{display:block}
+/* needs table: the small "from requirements" note never gets clipped */
+.rp-meta .rp-note{white-space:nowrap}
+@media(max-width:420px){ .rp-row2.rp-vq{grid-template-columns:minmax(0,1fr) 84px} }
