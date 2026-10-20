@@ -19,7 +19,7 @@ export const MARK_START = '<!-- site-header: generated from index.html by script
 export const MARK_END = '<!-- /site-header -->';
 /* legal pages keep their fixed glass bar (their hero is padded for it); the marketing pages use a sticky bar */
 export const PAGES = {
-  'pricing.html': 'sticky', 'about.html': 'sticky', 'services.html': 'sticky',
+  'pricing.html': 'sticky', 'about.html': 'sticky', 'services.html': 'sticky', 'contact-sales.html': 'sticky', 'suggest.html': 'sticky',
   'privacy.html': 'fixed', 'terms.html': 'fixed', 'refund-policy.html': 'fixed', 'data-deletion.html': 'fixed',
   'cookie-policy.html': 'fixed', 'dpa.html': 'fixed', 'acceptable-use.html': 'fixed', 'accessibility.html': 'fixed',
   'ai-notice.html': 'fixed', 'copyright.html': 'fixed', 'grievance.html': 'fixed', 'security.html': 'fixed',

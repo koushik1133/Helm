@@ -230,6 +230,26 @@
   ! Cache-Control
   Cache-Control: no-store
 
+/contact-sales
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/contact-sales.html
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/suggest
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/suggest.html
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
 /event
   X-Robots-Tag: noindex, nofollow, noarchive
   ! Cache-Control

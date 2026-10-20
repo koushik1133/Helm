@@ -243,6 +243,32 @@
       <p class="muted" id="reqCounts"></p>
       <div class="scroll"><table><thead><tr><th>When</th><th>Studio</th><th>Contact</th><th>Plan</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody id="tReq"></tbody></table></div>
     </section>
+    <section class="card" aria-labelledby="hSe">
+      <div class="hd"><h2 id="hSe">Sales enquiries</h2>
+        <select id="fSe" aria-label="Filter sales enquiries"><option value="new">New</option><option value="contacted">Contacted</option><option value="won">Won</option><option value="lost">Lost</option><option value="">All</option></select>
+        <button class="btn" id="btnSe" type="button">Show</button></div>
+      <p class="muted">From the public <b>Contact sales</b> page and the home page contact form (no account needed). Reply to them, then mark each one.</p>
+      <p class="muted" id="seCounts"></p>
+      <div class="scroll"><table><thead><tr><th>When</th><th>Company</th><th>Contact</th><th>Details</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody id="tSe"></tbody></table></div>
+    </section>
+    <section class="card" aria-labelledby="hSg">
+      <div class="hd"><h2 id="hSg">Suggestions</h2>
+        <select id="fSg" aria-label="Filter suggestions"><option value="new">New</option><option value="reviewed">Reviewed</option><option value="done">Done</option><option value="">All</option></select>
+        <button class="btn" id="btnSg" type="button">Show</button></div>
+      <p class="muted">From “Send a suggestion” in the app (profile menu) and the public /suggest page.</p>
+      <p class="muted" id="sgCounts"></p>
+      <div class="scroll"><table><thead><tr><th>When</th><th>From</th><th>Kind</th><th>Suggestion</th><th>Status</th><th></th></tr></thead><tbody id="tSg"></tbody></table></div>
+    </section>
+    <section class="card" aria-labelledby="hSeSet">
+      <h2 id="hSeSet">E-mail alerts for these requests</h2>
+      <div class="form">
+        <label class="fld"><span>Send alerts to</span><input type="email" id="seEmail" maxlength="200" placeholder="notifications@helm.events"></label>
+        <label class="fld chk"><input type="checkbox" id="seAck"> <span>Send an automatic “thank you” e-mail to people who contact sales</span></label>
+        <label class="fld chk"><input type="checkbox" id="seOpen"> <span>Contact sales form is open</span></label>
+        <button class="btn" id="btnSeSet" type="button">Save</button>
+      </div>
+      <p class="muted">E-mails go out once e-mail sending (SMTP) is switched on for Helm.</p>
+    </section>
   </section>
 
   <section id="pane-plans" hidden>
@@ -361,10 +387,10 @@
 <script src="config.js?v=108"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=275"></script>
-<script src="auth-ui.js?v=50"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=276"></script>
+<script src="auth-ui.js?v=51"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="hq-mfa.js?v=1"></script>
-<script src="hq.js?v=18"></script>
+<script src="hq.js?v=19"></script>
 </body>
 </html>

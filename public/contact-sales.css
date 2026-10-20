@@ -1,0 +1,47 @@
+/* contact-sales.css - r24 (0271): the public Contact sales page (/contact-sales). Green Helm, light only, no inline styles. */
+:root{--bg:#f5f6f1;--ink:#101511;--mute:#5a6159;--line:rgba(16,21,17,.14);--acc:#0b7d53;--acc-d:#08603f;--acc-s:#e3f5ec;--card:#fff;--bad:#b42318;color-scheme:light}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.6 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--acc)}
+.cs-wrap{max-width:1160px;margin:0 auto;padding:56px 24px 72px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:48px;align-items:start}
+.cs-eyebrow{margin:0 0 10px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc)}
+.cs-intro h1{margin:0 0 14px;font-size:clamp(32px,4vw,46px);line-height:1.1;letter-spacing:-.02em;font-weight:800}
+.cs-lead{margin:0 0 28px;font-size:18px;color:var(--mute);max-width:44ch}
+.cs-next{list-style:none;margin:0 0 28px;padding:0;display:grid;gap:16px}
+.cs-next li{display:grid;gap:2px;padding-left:30px;position:relative}
+.cs-next li::before{content:"";position:absolute;left:0;top:5px;width:18px;height:18px;border-radius:50%;background:var(--acc-s);box-shadow:inset 0 0 0 5px var(--acc-s),inset 0 0 0 9px var(--acc)}
+.cs-next b{font-weight:700}
+.cs-next span{color:var(--mute);font-size:15px}
+.cs-mail{margin:0;color:var(--mute);font-size:15px}
+.cs-card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:32px;box-shadow:0 1px 2px rgba(16,21,17,.04),0 12px 32px -18px rgba(16,21,17,.18)}
+.cs-form-h{margin:0 0 18px;font-size:20px;font-weight:700}
+.cs-form{display:flex;flex-direction:column;gap:12px}
+.cs-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+.cs-full{grid-column:1/-1}
+.cs-form label{display:block;font-size:14px;font-weight:600;margin-bottom:5px}
+.cs-form input,.cs-form select,.cs-form textarea{width:100%;min-height:46px;border:1px solid var(--line);border-radius:12px;padding:10px 14px;font:inherit;font-size:16px;background:#fff;color:var(--ink)}
+.cs-form select{appearance:auto}
+.cs-form textarea{resize:vertical;min-height:110px}
+.cs-form input:focus,.cs-form select:focus,.cs-form textarea:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-s)}
+.cs-form [aria-invalid="true"]{border-color:var(--bad)}
+.cs-consent{display:flex!important;align-items:flex-start;gap:10px;font-weight:500!important;font-size:15px!important;cursor:pointer;margin:2px 0 0}
+.cs-consent input{width:20px;height:20px;min-height:0;margin:3px 0 0;flex:0 0 auto;accent-color:var(--acc);padding:0}
+.cs-trap{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}
+.cs-btn{align-self:flex-start;min-height:50px;padding:12px 28px;border-radius:99px;border:0;background:var(--ink);color:#fff;font:700 16px/1 inherit;font-family:inherit;cursor:pointer;margin-top:4px}
+.cs-btn:hover{background:var(--acc-d)}
+.cs-btn:disabled{opacity:.6;cursor:wait}
+.cs-err{color:var(--bad);font-size:14px;margin:0}
+.cs-done h2{margin:0 0 8px;font-size:26px}
+.cs-done p{margin:0 0 10px;color:var(--mute)}
+.cs-link{font-weight:600}
+.cs-foot{border-top:1px solid var(--line)}
+.cs-foot-in{max-width:1160px;margin:0 auto;padding:22px 24px;display:flex;flex-wrap:wrap;gap:10px 24px;justify-content:space-between;color:var(--mute);font-size:14px}
+.cs-foot nav{display:flex;flex-wrap:wrap;gap:8px 18px}
+.cs-foot a{color:var(--mute);text-decoration:none}
+.cs-foot a:hover{color:var(--ink)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.cs-narrow{grid-template-columns:minmax(0,4fr) minmax(0,6fr)}
+@media(max-width:900px){.cs-wrap{grid-template-columns:1fr;gap:28px;padding:32px 16px 48px}.cs-lead{margin-bottom:20px}}
+@media(max-width:560px){.cs-grid{grid-template-columns:1fr}.cs-card{padding:22px 16px;border-radius:18px}.cs-btn{align-self:stretch}}

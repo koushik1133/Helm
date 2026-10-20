@@ -21,7 +21,7 @@ export function notifLink(n) {
     const k = k0, q = has(n.quote_id) ? n.quote_id : null;
     if (k === "trial_reminder") return "checkout.html";
     // r21 (0250): security notices are Helm HQ only - an HQ notice opens HQ (Activity log -> Security)
-    if (k === "security_alert") return d.hq === true ? "hq.html" : "control.html#users";
+    if (k === "security_alert") return d.hq === true ? (/^(sales_enquiry|suggestion)$/.test(String(d.alert || "")) ? "hq.html#requests" : "hq.html") : "control.html#users";
     // 0078: low stock -> the event's inventory page, the item row highlighted
     if (k === "inventory_low_stock") {
       const it = /^[0-9a-f-]{36}$/i.test(String(d.item_id || "")) ? String(d.item_id) : "";

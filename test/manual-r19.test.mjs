@@ -58,13 +58,13 @@ await t('profile menu: account items only, manual (when HELM_FEATURES.manual is 
   vm.runInNewContext('var AV_COLORS = 8;\n' + ['initials', 'avColorIdx', 'menuModel'].map((f) => fnSrc(AUI, f)).join('\n') + '\nglobalThis.mm=menuModel;', ctx);
   for (const role of ['admin', 'manager', 'sales', 'crew', null]) {
     const m = JSON.parse(JSON.stringify(ctx.mm({ id: 'u', email: 'a@b.test' }, {}, role, true, true)));
-    assert.equal(m.items.map((i) => i.id).join(','), 'profile,settings,manual,signout', String(role));
+    assert.equal(m.items.map((i) => i.id).join(','), 'profile,settings,manual,suggest,signout', String(role));
     const man = m.items.find((i) => i.id === 'manual');
     assert.equal(man.href, 'manual.html'); assert.equal(man.newTab, true); assert.equal(man.label, 'User manual');
   }
   // r20 coord (e): hidden for now - flag off (or missing) = no manual item
   ctx.window = { HELM_FEATURES: { manual: false } };
-  assert.equal(ctx.mm({ id: 'u' }, {}, 'admin', true).items.map((i) => i.id).join(','), 'profile,settings,signout');
+  assert.equal(ctx.mm({ id: 'u' }, {}, 'admin', true).items.map((i) => i.id).join(','), 'profile,settings,suggest,signout');
   const menu = fnSrc(AUI, 'menuModel').replace(/\/\/.*$/gm, '');   // code only, not the comment
   assert.doesNotMatch(menu, /control|insights|customize/i);
   assert.match(fnSrc(AUI, 'buildPop'), /it\.newTab \? \{ href: it\.href, class: "hau-mi", role: "menuitem", tabindex: "-1", target: "_blank", rel: "noopener noreferrer" \}/);

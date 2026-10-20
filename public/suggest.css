@@ -1,0 +1,17 @@
+/* suggest.css - r24 (0271): the in-app "Send a suggestion" dialog (suggest.js) + the public /suggest page. Light, green Helm. */
+.sgd{border:0;border-radius:18px;padding:0;width:min(520px,calc(100vw - 32px));box-shadow:0 24px 64px -16px rgba(16,21,17,.35);color:#101511;background:#fff}
+.sgd::backdrop{background:rgba(16,21,17,.38)}
+.sgd-f{display:flex;flex-direction:column;gap:8px;padding:24px;font:400 15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.sgd-f h2{margin:0;font-size:20px;font-weight:700}
+.sgd-sub{margin:0 0 8px;color:#5a6159}
+.sgd-f label{font-size:14px;font-weight:600;margin-top:4px}
+.sgd-f select,.sgd-f textarea{width:100%;box-sizing:border-box;min-height:44px;border:1px solid rgba(16,21,17,.16);border-radius:10px;padding:8px 12px;font:inherit;font-size:16px;background:#fff;color:#101511}
+.sgd-f textarea{resize:vertical;min-height:120px}
+.sgd-f select:focus,.sgd-f textarea:focus{outline:none;border-color:#0b7d53;box-shadow:0 0 0 3px #e3f5ec}
+.sgd-err{margin:0;color:#b42318;font-size:14px}
+.sgd-row{display:flex;justify-content:flex-end;gap:10px;margin-top:10px}
+.sgd-btn{min-height:44px;padding:8px 20px;border-radius:99px;border:0;background:#0b7d53;color:#fff;font:600 15px/1 inherit;font-family:inherit;cursor:pointer}
+.sgd-btn:hover{background:#08603f}
+.sgd-btn:disabled{opacity:.6;cursor:wait}
+.sgd-ghost{background:transparent;color:#101511;border:1px solid rgba(16,21,17,.16)}
+.sgd-ghost:hover{background:#f5f6f1}
