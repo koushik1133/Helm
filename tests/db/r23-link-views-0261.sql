@@ -46,6 +46,8 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000
   delete from public.notifications where quote_id in (select id from _q261);
   delete from public.client_booklets where quote_id in (select id from _q261);
   delete from public.client_view_settings where org_id in (a, b);
+  -- r25 (0274): the viewed-but-not-approved alert is OFF until the studio switches it on (Control Center -> Automations)
+  insert into public.client_view_settings(org_id, followup_enabled) values (a, true);
   delete from public.auth_rate_hits where bucket in ('link_view', 'lv_sweep');
   select id into u from auth.users where email = 'a_view261@a.test'; if u is null then u := auth.seed_user('a_view261@a.test'); end if;
   insert into public.profiles(id, email, full_name, role, org_id, must_change_password, created_at)

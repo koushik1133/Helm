@@ -381,6 +381,10 @@ do $$ declare r jsonb; t jsonb; c jsonb; v_id uuid; begin
   r := public.vendor_request_save(pg_temp.get('p1')::jsonb || jsonb_build_object('what', 'Lights', 'agreed_amount', 9000, 'vendor_id', pg_temp.get('v2')));
   perform pg_temp.su();
   v_id := (r ->> 'id')::uuid; perform pg_temp.put('r4', v_id::text);
+  -- r25 (0274): vendor request reminders are OFF until the studio switches them on (Control Center -> Automations)
+  insert into public.automation_settings(org_id, vendor_reminders_enabled)
+    select x.org_id, true from public.vendor_requests x where x.id = v_id
+  on conflict (org_id) do update set vendor_reminders_enabled = true;
   -- 25 hours later, not answered
   update public.vendor_requests set created_at = now() - interval '25 hours', respond_by = now() + interval '20 hours' where id = v_id;
   perform pg_temp.svc(); t := public.vendor_requests_tick(); t := public.vendor_requests_tick(); perform pg_temp.su();

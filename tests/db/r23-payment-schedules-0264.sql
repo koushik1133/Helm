@@ -200,6 +200,8 @@ do $$ declare r jsonb; begin
 end $$;
 do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; q uuid; c jsonb; r jsonb; t text; begin
   perform pg_temp.su();
+  -- r25 (0274): the overdue bell is OFF until the studio switches it on (Control Center -> Automations)
+  insert into public.payment_schedule_settings(org_id, overdue_bell) values (a, true) on conflict (org_id) do update set overdue_bell = true;
   c := public._comms_cfg(a);
   perform pg_temp.res('31 a studio that never saved: payment reminders ON, 3 before / on the day / 3 after (once)',
     (c ->> 'pay_enabled')::boolean and (c ->> 'pay_before_days')::int = 3 and (c ->> 'pay_on_due')::boolean

@@ -25,9 +25,11 @@
     started = true;
     var cfg = null; try { cfg = await S.inbox.admin.get(); } catch (e) { cfg = null; }
     if (!cfg) { card.hidden = true; return; }
-    var on = h("input", { type: "checkbox", id: "ibs_on" }); on.checked = cfg.email_enabled !== false;
+    // r25 (0274): inbox e-mails are switched on / off ONLY in Control Center -> Automations ("E-mail of missed notifications")
+    var on = h("p", { cls: "mnote au-onoff", id: "ibs_on" }, ["Inbox e-mails are ", h("b", { text: cfg.email_enabled === true ? "on" : "off" }),
+      " for this studio. Switch them on or off in ", h("a", { href: "#automations", text: "Control Center → Automations" }), "."]);
     var def = h("select", { id: "ibs_def" }, [["daily", "Daily digest of unread items"], ["instant_important", "Instant e-mail, important items only"], ["off", "No e-mails"]]
-      .map(function (o) { return h("option", { value: o[0], text: o[1] }); })); def.value = cfg.digest_default || "daily";
+      .map(function (o) { return h("option", { value: o[0], text: o[1] }); })); def.value = cfg.digest_default || "off";
     var hour = h("select", { id: "ibs_hour" }, Array.from({ length: 24 }, function (_, i) { return h("option", { value: String(i), text: hourLabel(i) }); })); hour.value = String(cfg.digest_hour == null ? 8 : cfg.digest_hour);
     var age = h("select", { id: "ibs_age" }, [[15, "15 minutes"], [30, "30 minutes"], [60, "1 hour"], [120, "2 hours"], [240, "4 hours"], [1440, "1 day"]]
       .map(function (o) { return h("option", { value: String(o[0]), text: o[1] }); })); age.value = String(cfg.digest_min_age_minutes || 60);
@@ -38,7 +40,7 @@
     while (card.firstChild) card.removeChild(card.firstChild);
     card.appendChild(h("h3", { text: "Inbox & e-mail digest" }));
     card.appendChild(h("p", { cls: "mnote", text: "Everyone has their own Inbox (🔔 → Open inbox): mark read, Done or Snooze. Helm only e-mails what is still unread - anything read, Done or snoozed is left out, and an item is never e-mailed twice. People can pick their own setting on their Inbox page; this is the default for everyone who has not." }));
-    card.appendChild(h("label", { cls: "cmchk", for: "ibs_on" }, [on, " Send inbox e-mails from this studio"]));
+    card.appendChild(on);
     card.appendChild(h("div", { cls: "cmgrid" }, [
       h("label", { for: "ibs_def" }, ["Default for the team ", def]),
       h("label", { for: "ibs_hour" }, ["Daily digest at (studio time) ", hour]),
@@ -53,7 +55,7 @@
       msg.textContent = "Only people with Control Center edit rights can change these settings."; return;
     }
     save.addEventListener("click", function () {
-      var patch = { email_enabled: on.checked, digest_default: def.value, digest_hour: Number(hour.value), digest_min_age_minutes: Number(age.value), bell_open_marks_read: bell.checked };
+      var patch = { digest_default: def.value, digest_hour: Number(hour.value), digest_min_age_minutes: Number(age.value), bell_open_marks_read: bell.checked };
       var run = async function () {
         try { await S.inbox.admin.set(patch); msg.textContent = "Saved."; }
         catch (e) { msg.textContent = (global.BPUI && BPUI.friendlyError) ? BPUI.friendlyError(e, { action: "save the inbox settings" }) : String((e && e.message) || e); }

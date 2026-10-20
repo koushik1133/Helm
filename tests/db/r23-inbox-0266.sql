@@ -70,9 +70,11 @@ do $$ declare a uuid := 'c0000000-0000-4000-8000-000000000266'; qa uuid := 'c000
   delete from public.inbox_person_prefs; delete from public.inbox_settings;
   -- every studio's daily-digest window closed now (digest hour 12 h away from the studio's local hour); the digest
   -- checks open Studio C266's window themselves, so the result never depends on the time of day the suite runs
-  insert into public.inbox_settings(org_id, digest_hour, updated_at)
-    select g.id, ((extract(hour from now() at time zone public._r23_tz(g.id))::integer + 12) % 24), now() from public.organizations g
-  on conflict (org_id) do update set digest_hour = excluded.digest_hour;
+  -- r25 (0274): inbox e-mails are OFF ("No e-mails") until a studio switches them on (Control Center -> Automations);
+  -- this suite tests the digest itself, so every studio here has switched them on (daily digest)
+  insert into public.inbox_settings(org_id, email_enabled, digest_default, digest_hour, updated_at)
+    select g.id, true, 'daily', ((extract(hour from now() at time zone public._r23_tz(g.id))::integer + 12) % 24), now() from public.organizations g
+  on conflict (org_id) do update set digest_hour = excluded.digest_hour, email_enabled = true, digest_default = 'daily';
   delete from public.notification_seen where user_id in (select id from auth.users where email in ('c_admin266@c.test', 'c_sales266@c.test', 'c_crew266@c.test', 'b_admin@b.test'));
   delete from public.notification_mutes where user_id in (select id from auth.users where email in ('c_admin266@c.test', 'c_sales266@c.test', 'c_crew266@c.test'));
   delete from public.auth_rate_hits where bucket = 'inbox_act';

@@ -212,6 +212,8 @@ exception when others then perform pg_temp.su(); insert into _uf values ('3x run
 -- low stock
 do $$ declare r jsonb; a uuid := 'a0000000-0000-4000-8000-000000000001'; it uuid := gen_random_uuid(); begin
   perform pg_temp.su();
+  -- r25 (0274): low-stock warnings are OFF until the studio switches them on (Control Center -> Automations)
+  update public.comms_settings set low_stock_enabled = true where org_id = a;
   insert into public.inventory_items(id, name, total_qty, org_id) values (it, 'Gold chairs', 10, a);
   insert into public.inventory_reservations(item_id, quote_id, qty, status, org_id) values
     (it, 'a0000000-0000-4000-8000-0000000078e1', 6, 'reserved', a);

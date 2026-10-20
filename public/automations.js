@@ -1,13 +1,13 @@
-/* automations.js - r24 (0269) Control Center -> Automations.
-   1. One list of everything Helm does by itself, in plain words: what it does, where it acts, on / off, and a
-      "Settings" link to the place that already holds its details. The switches call the SAME settings RPCs as those
-      cards (no logic is copied here); a feature whose SQL is not installed yet shows "Not set up yet".
-   2. "Run-sheet reminders" card: on / off, the default reminder times (each run-sheet line can change its own),
-      e-mail / WhatsApp.
-   3. "Enquiry form" card: on / off, the studio's public link (/<studio>/enquiry) to copy or open, the instant
-      thank-you e-mail and its words, and the bell for new enquiries.
-   Reads / writes only through BPStore (automation, comms, deliveries). Changes need Control Center edit (checked in the
-   database too). DOM API only (no HTML strings). */
+/* automations.js - Control Center -> Automations (r24 0269, r25 0274).
+   1. THE ONE PLACE to switch automations on or off. Every automation that sends something by itself (e-mail /
+      WhatsApp to clients, vendors or crew, an e-mail digest or a scheduled bell reminder for the team) is listed in
+      plain words with a "Sends to" tag and ONE switch. Everything starts OFF (0274); switching one on asks first
+      ("This will e-mail your clients..."). Switching off never asks. The switch calls automation_switch(key, on) -
+      Control Center edit, checked and logged in the database. Each feature's own card keeps its details (times,
+      words, channels) but no longer has its own on / off - it links here.
+   2. "Run-sheet reminders" card: the default reminder times + e-mail / WhatsApp (on / off is in the list).
+   3. "Enquiry form" card: the studio's public link, the instant thank-you e-mail and its words, the bell.
+   Reads / writes only through BPStore.automation. DOM API only (no HTML strings). */
 (function (global) {
   "use strict";
   if (typeof document === "undefined") return;
@@ -28,117 +28,165 @@
     a = (Array.isArray(a) ? a : []).slice().sort(function (x, y) { return y - x; });
     return a.map(function (m) { return m === 0 ? "at the start" : m % 60 === 0 ? (m / 60) + (m === 60 ? " hour" : " hours") + " before" : m + " min before"; }).join(" + ");
   }
+  function daysText(a) {
+    a = (Array.isArray(a) ? a : []).slice().sort(function (x, y) { return y - x; });
+    if (!a.length) return "";
+    return a.map(function (d) { return d === 0 ? "on the last day" : d + (d === 1 ? " day" : " days"); }).join(" and ") + " before";
+  }
+  var SENDS = { clients: "Clients", team: "Team", vendors: "Vendors", crew: "Staff", nothing: "Sends nothing" };
 
-  /* ---- the registry: each automation = how to read its on / off and how to switch it (existing RPCs only) ---- */
-  function registry(S, A) {
-    var C = S.comms, D = S.deliveries;
-    var comms = null;
-    var getComms = function () { if (!comms) comms = C && C.get ? C.get() : Promise.resolve(null); return comms; };
-    // switching a client message on with no channel picked yet: e-mail is chosen (the same field as on its card)
-    var commsSet = function (key, chans) { return function (on, cur) {
-      var p = {}; p[key] = on; if (on && chans && !(cur && Array.isArray(cur[chans]) && cur[chans].length)) p[chans] = ["email"];
-      comms = null; return C.set(p);
-    }; };
-    var opt = function (fn) { return function () { return A.optional(fn, {}); }; };
+  /* ---- the list: key = the database key (automation_switch); sends = who gets something; ask = the confirm text ---- */
+  var GROUPS = [
+    ["clients", "Messages to your clients"],
+    ["team", "Reminders and alerts for your team"],
+    ["outside", "Messages to vendors and staff"],
+    ["nothing", "Helps by itself, sends nothing"]
+  ];
+  function registry() {
     return [
-      { key: "event", name: "Event reminders", what: "Reminds your team before each event.", where: "Bell for the team · dashboard",
-        hash: "#reminders", read: function () { return C && C.reminderGet ? C.reminderGet() : null; },
-        status: function (r) { return r ? { always: true, text: "Always on · " + (r.days || 7) + " days before" } : null; } },
-      { key: "delivery", name: "Delivery & arrival reminders", what: "Reminds a vendor or staff member before a delivery or arrival is due, and tracks their reply.",
-        where: "E-mail to the vendor / staff · event chat · bell", hash: "#notifications",
-        read: function () { return D && D.settings ? D.settings() : null; },
-        status: function (r) { return r ? { on: !!r.enabled } : null; }, set: function (on) { return D.saveSettings({ enabled: on }); } },
-      { key: "runsheet", name: "Run-sheet reminders", what: "Reminds the owner of each run-sheet line before it starts.",
-        where: "Bell + e-mail for team members · WhatsApp + e-mail for staff and vendors · event group (when ticked)", card: "rsrCard",
-        read: function () { return A.settings(); },
-        status: function (r) { return r ? { on: !!r.runsheet_enabled, text: offText(r.runsheet_offsets) } : null; },
-        set: function (on) { return A.save({ runsheet_enabled: on }); } },
-      { key: "pay", name: "Payment reminders", what: "Reminds clients before and after a payment is due.", where: "E-mail / WhatsApp to the client",
-        hash: "#reminders", read: getComms, status: function (r) { return r ? { on: !!r.pay_enabled } : null; }, set: commsSet("pay_enabled", "pay_channels") },
-      { key: "overdue", name: "Overdue payment alert", what: "Tells your team in the bell when a client payment is overdue.", where: "Bell for the team",
-        hash: "#payment-schedules", read: opt("payment_schedule_settings_get"),
-        status: function (r) { return r && typeof r.overdue_bell === "boolean" ? { on: r.overdue_bell } : null; },
-        set: function (on) { return A.optional("payment_schedule_settings_set", { p: { overdue_bell: on } }); } },
-      { key: "followup", name: "Client follow-ups", what: "Follows up when a client opened their quote or booklet but has not approved.", where: "E-mail / WhatsApp to the client",
-        hash: "#reminders", read: getComms, status: function (r) { return r ? { on: !!r.fu_enabled } : null; }, set: commsSet("fu_enabled", "fu_channels") },
-      { key: "viewed", name: "Viewed but not approved", what: "Tells the event owner when a client viewed the quote but has not approved after a few days.",
-        where: "Bell + a task for the event owner", hash: "#notifications", read: opt("link_view_settings_get"),
-        status: function (r) { return r && typeof r.followup_enabled === "boolean" ? { on: r.followup_enabled } : null; },
-        set: function (on) { return A.optional("link_view_settings_set", { p: { followup_enabled: on } }); } },
-      { key: "expiry", name: "Quote expiry", what: "Each quote stays valid for a set number of days; the client and your team are reminded before it ends.",
-        where: "Quote · client link · bell", hash: "#client-links", read: opt("quote_validity_settings_get"),
-        status: function (r) { return r && typeof r.enabled === "boolean" ? { on: r.enabled, text: r.default_days ? r.default_days + " days" : "" } : null; },
-        set: function (on) { return A.optional("quote_validity_settings_set", { p: { enabled: on } }); } },
-      { key: "stock", name: "Low stock warnings", what: "Warns when events on the same date need more of an item than you own.", where: "Bell for the team",
-        hash: "#reminders", read: getComms, status: function (r) { return r ? { on: r.low_stock_enabled !== false } : null; }, set: commsSet("low_stock_enabled") },
-      { key: "digest", name: "E-mail digests", what: "Sends each person one e-mail a day with the notifications they missed.", where: "E-mail to your team",
-        hash: "#notifications", read: opt("admin_get_inbox_settings"),
-        // r23 0266 inbox settings: e-mails go out only while inbox e-mails are on (email_enabled) and the default is not "No e-mails";
-        // switching on turns both on (keeps "Instant, important only" when that was chosen), switching off sets the default to off
-        status: function (r) { return r && typeof r.digest_default === "string" ? { on: r.email_enabled !== false && r.digest_default !== "off", text: r.digest_default === "instant_important" ? "instant, important only" : "" } : null; },
-        set: function (on, cur) { return A.optional("admin_set_inbox_settings", { p: on ? { email_enabled: true, digest_default: cur && cur.digest_default && cur.digest_default !== "off" ? cur.digest_default : "daily" } : { digest_default: "off" } }); } },
-      { key: "enquiry", name: "Enquiry form → Leads", what: "Every enquiry from your public form becomes a lead, with an instant thank-you e-mail.",
-        where: "Your public link · Leads · bell", card: "enqCard", read: function () { return A.settings(); },
-        status: function (r) { return r ? { on: !!r.enquiry_enabled } : null; }, set: function (on) { return A.save({ enquiry_enabled: on }); } },
-      { key: "quoteLead", name: "Quotes → Leads", what: "Every quote with a client name is added to Leads automatically and moves along with it.",
-        where: "Leads", href: "leads.html", read: function () { return Promise.resolve({}); }, status: function () { return { always: true, text: "Always on" }; } }
+      { key: "pay_reminders", group: "clients", name: "Payment reminders", sends: ["clients"], how: "E-mail / WhatsApp",
+        what: "Reminds a client before, on and after each payment is due. Stops as soon as it is paid.", hash: "#reminders",
+        ask: "This will e-mail (or WhatsApp) your clients before, on and after each payment is due.",
+        detail: function (d) { var p = d.pay || {}; if (p.before_days == null) return "";
+          return p.before_days + " days before" + (p.on_due ? " · on the day" : "") + (p.max_overdue ? " · up to " + p.max_overdue + " after" : ""); } },
+      { key: "client_followups", group: "clients", name: "Client follow-ups", sends: ["clients"], how: "E-mail / WhatsApp",
+        what: "Follows up when a client opened their quote or booklet but has not approved yet.", hash: "#reminders",
+        ask: "This will message your clients a few days after they open their quote, until they approve.",
+        detail: function (d) { var f = d.followups || {}; return f.delay_days ? f.delay_days + " days after they open it · up to " + (f.max || 1) : ""; } },
+      { key: "quote_expiry_client", group: "clients", name: "Quote expiry reminder", sends: ["clients"], how: "E-mail",
+        what: "E-mails the client a few days before their quote stops being valid.", hash: "#client-links",
+        ask: "This will e-mail your clients before their quote expires.",
+        detail: function (d) { var q = d.quote_validity || {}; return q.enabled === false ? "Quote validity is off" : daysText(q.reminder_days); } },
+      { key: "enquiry", group: "clients", name: "Enquiry form → Leads", sends: ["clients"], how: "E-mail",
+        what: "Opens your public enquiry form. Every enquiry becomes a lead and gets an instant thank-you e-mail.", card: "enqCard",
+        ask: "This will open your public enquiry form and e-mail a thank-you to everyone who fills it in." },
+      { key: "viewed_alert", group: "team", name: "Viewed but not approved", sends: ["team"], how: "Bell",
+        what: "Tells the event owner when a client opened the quote but has not approved after a few days.", hash: "#notifications",
+        ask: "This will tell the event owner in the bell when a client viewed a quote but has not approved.",
+        detail: function (d) { return d.viewed_days ? d.viewed_days + " days after they open it" : ""; } },
+      { key: "quote_expiry_team", group: "team", name: "Quote expiry alert", sends: ["team"], how: "Bell",
+        what: "Tells your team in the bell before a quote expires, and the day after it expired.", hash: "#client-links",
+        ask: "This will tell your team in the bell before a quote expires." },
+      { key: "overdue_bell", group: "team", name: "Overdue payment alert", sends: ["team"], how: "Bell",
+        what: "Tells your team in the bell when a client payment is overdue.", hash: "#payment-schedules",
+        ask: "This will tell your team in the bell the day after a client payment was due and not paid." },
+      { key: "low_stock", group: "team", name: "Low stock warnings", sends: ["team"], how: "Bell",
+        what: "Warns when events on the same date need more of an item than you own.", hash: "#reminders",
+        ask: "This will warn your team in the bell when events on the same date need more of an item than you own." },
+      { key: "event_reminders", group: "team", name: "Event reminders", sends: ["team"], how: "Bell + event chat",
+        what: "Reminds your team before each confirmed event, and again the day before.", hash: "#reminders",
+        ask: "This will remind your whole team in the bell and the event chat before every confirmed event.",
+        detail: function (d) { return d.event_days ? d.event_days + " days before + the day before" : ""; } },
+      { key: "inbox_email", group: "team", name: "E-mail of missed notifications", sends: ["team"], how: "E-mail",
+        what: "E-mails each team member the notifications they have not read - once a day, or instantly for important ones. Each person can change their own.", hash: "#notifications",
+        ask: "This will e-mail your team members about notifications they have not read (once a day unless they choose otherwise).",
+        detail: function (d) { var i = d.inbox || {}; return i.digest_default === "instant_important" ? "instant, important only" : i.digest_default === "daily" ? "daily at " + (i.digest_hour == null ? 8 : i.digest_hour) + ":00" : ""; } },
+      { key: "wa_forward", group: "team", name: "WhatsApp copies of notifications", sends: ["team"], how: "WhatsApp",
+        what: "Team members who opt in on their profile get their bell notifications on WhatsApp.", hash: "#reminders",
+        ask: "This will send a WhatsApp copy of bell notifications to every team member who opted in.",
+        detail: function (d) { return d.studio_whatsapp ? "" : "add your studio WhatsApp number first"; } },
+      { key: "vendor_reminders", group: "outside", name: "Vendor request reminders", sends: ["vendors"], how: "E-mail / WhatsApp",
+        what: "Reminds a vendor 24 and 48 hours after a request they have not answered yet.",
+        ask: "This will e-mail (or WhatsApp) your vendors again when they have not answered a request." },
+      { key: "delivery", group: "outside", name: "Delivery & arrival reminders", sends: ["vendors", "crew"], how: "E-mail · event chat · bell",
+        what: "Reminds a vendor or staff member before a delivery or arrival is due, and tracks their reply.", hash: "#notifications",
+        ask: "This will e-mail your vendors and staff before each delivery or arrival is due.",
+        detail: function (d) { return offText(d.delivery_offsets); } },
+      { key: "runsheet", group: "outside", name: "Run-sheet reminders", sends: ["team", "crew", "vendors"], how: "Bell · e-mail · WhatsApp",
+        what: "Reminds the person who owns a run-sheet line before it starts.", card: "rsrCard",
+        ask: "This will remind the owner of each run-sheet line before it starts - by bell and e-mail for your team, by WhatsApp and e-mail for staff and vendors.",
+        detail: function (d) { return offText(d.runsheet_offsets); } },
+      { key: "assign_whatsapp", group: "outside", name: "Tell staff about new work", sends: ["crew"], how: "WhatsApp",
+        what: "Sends a WhatsApp to a staff member when they are given a run-sheet line or a task.",
+        ask: "This will WhatsApp your staff each time they are given a run-sheet line or a task." },
+      { key: "crew_shifts", group: "outside", name: "Open shift messages", sends: ["crew"], how: "WhatsApp",
+        what: "Sends a WhatsApp to free staff when you post an open shift.", hash: "#crew",
+        ask: "This will WhatsApp every free staff member each time you post an open shift." },
+      { key: "auto_schedule", group: "nothing", name: "Payment schedule on approval", sends: ["nothing"], how: "",
+        what: "Adds your default payment schedule to an event when the client approves (never changes one you made).", hash: "#payment-schedules" },
+      { key: "quoteLead", group: "nothing", name: "Quotes → Leads", sends: ["nothing"], how: "", always: true,
+        what: "Every quote with a client name is added to Leads and moves along with it.", href: "leads.html" }
     ];
   }
 
-  function rowEl(it, canEdit, refreshAll) {
+  function askFirst(it) {
+    var msg = it.ask + " You can switch it off here at any time.";
+    var opts = { title: "Switch on " + it.name + "?", okLabel: "Switch on" };
+    try {
+      if (global.BPUI && typeof BPUI.confirm === "function") return Promise.resolve(BPUI.confirm(msg, opts));
+      if (global.HelmUI && typeof HelmUI.confirm === "function") return Promise.resolve(HelmUI.confirm({ title: opts.title, body: msg, confirmLabel: opts.okLabel }));
+      if (typeof global.confirm === "function") return Promise.resolve(global.confirm(msg));
+    } catch (e) { return Promise.resolve(false); }
+    return Promise.resolve(false);   // nobody to ask: never switch on silently
+  }
+
+  function rowEl(it, state, A) {
     var sw = h("input", { type: "checkbox", cls: "au-sw", role: "switch", "aria-label": it.name + " on or off" });
-    var state = h("span", { cls: "au-state", text: "Checking…" });
+    var st = h("span", { cls: "au-state" });
+    var tags = h("span", { cls: "au-tags" }, [h("span", { cls: "au-tl", text: it.sends[0] === "nothing" ? "" : "Sends to:" })]
+      .concat(it.sends.map(function (s) { return h("span", { cls: "au-tag au-t-" + s, text: SENDS[s] }); }))
+      .concat(it.how ? [h("span", { cls: "au-how", text: it.how })] : []));
     var link = it.card ? h("button", { type: "button", cls: "btn sm au-go", text: "Settings" })
       : it.href ? h("a", { cls: "btn sm au-go", href: it.href, text: "Open Leads" })
-      : h("a", { cls: "btn sm au-go", href: it.hash, text: "Settings" });
-    if (it.card) link.addEventListener("click", function () { var c = doc.getElementById(it.card); if (c) { try { c.scrollIntoView({ block: "start", behavior: "smooth" }); } catch (e) { c.scrollIntoView(); } } });
+      : it.hash ? h("a", { cls: "btn sm au-go", href: it.hash, text: "Settings" }) : null;
+    if (it.card && link) link.addEventListener("click", function () { var c = doc.getElementById(it.card); if (c) { try { c.scrollIntoView({ block: "start", behavior: "smooth" }); } catch (e) { c.scrollIntoView(); } } });
+    var det = h("span", { cls: "au-det" });
     var row = h("li", { cls: "au-row", "data-auto": it.key }, [
-      h("div", { cls: "au-txt" }, [h("b", { text: it.name }), h("span", { cls: "au-what", text: it.what }), h("span", { cls: "au-where", text: "Where: " + it.where })]),
-      h("div", { cls: "au-ctl" }, [state, sw, link])
+      h("div", { cls: "au-txt" }, [h("b", { text: it.name }), h("span", { cls: "au-what", text: it.what }), tags, det]),
+      h("div", { cls: "au-ctl" }, [st, sw, link])
     ]);
-    sw.hidden = true;
-    var cur = null;
-    function paint(st, raw) {
-      cur = raw;
-      if (!st) { state.textContent = "Not set up yet"; state.className = "au-state au-na"; sw.hidden = true; link.hidden = !!it.hash && it.key !== "event"; row.classList.add("au-dim"); return; }
-      row.classList.remove("au-dim"); link.hidden = false;
-      if (st.always) { state.textContent = st.text || "Always on"; state.className = "au-state au-on"; sw.hidden = true; return; }
-      state.textContent = (st.on ? "On" : "Off") + (st.on && st.text ? " · " + st.text : ""); state.className = "au-state " + (st.on ? "au-on" : "au-off");
-      sw.checked = !!st.on; sw.hidden = !it.set; sw.disabled = !canEdit;
-    }
-    function load() {
-      return Promise.resolve().then(function () { return it.read(); }).then(function (r) { paint(it.status(r), r); }, function () { paint(null, null); });
+    function paint() {
+      var ov = state.ov, on = !!(ov && ov.on && ov.on[it.key]);
+      var d = it.detail && ov ? it.detail(ov.details || {}) : "";
+      det.textContent = d || ""; det.hidden = !d;
+      if (it.always) { st.textContent = "Always on"; st.className = "au-state au-on"; sw.hidden = true; return; }
+      if (!ov) { st.textContent = "Not set up yet"; st.className = "au-state au-na"; sw.hidden = true; row.classList.add("au-dim"); return; }
+      row.classList.remove("au-dim");
+      st.textContent = on ? "On" : "Off"; st.className = "au-state " + (on ? "au-on" : "au-off");
+      sw.hidden = false; sw.checked = on; sw.disabled = !state.canEdit;
     }
     sw.addEventListener("change", function () {
-      var on = sw.checked; sw.disabled = true; state.textContent = "Saving…";
-      Promise.resolve().then(function () { return it.set(on, cur); })
-        .then(function () {
-          var mirror = { runsheet: "au_rs_on", enquiry: "au_eq_on" }[it.key], x = mirror && doc.getElementById(mirror); if (x) x.checked = on;
-          return refreshAll ? refreshAll(it.key) : load();
+      var on = sw.checked;
+      sw.disabled = true;
+      Promise.resolve(on ? askFirst(it) : true).then(function (yes) {
+        if (!yes) { sw.checked = !on; sw.disabled = !state.canEdit; return; }
+        st.textContent = "Saving…";
+        return Promise.resolve().then(function () { return A.switchOn(it.key, on); }).then(function (ov) {
+          if (ov && ov.on) state.ov = ov;
+          state.repaint();
+          if (state.onChange) state.onChange(it.key, on);
         }, function (e) {
-          sw.checked = !on; state.textContent = errText(e, "change this automation"); state.className = "au-state au-err";
-        })
-        .then(function () { sw.disabled = !canEdit; });
+          sw.checked = !on; sw.disabled = !state.canEdit; st.textContent = errText(e, "change this automation"); st.className = "au-state au-err";
+        });
+      });
     });
-    return { el: row, load: load, key: it.key };
+    return { el: row, paint: paint };
   }
 
-  function overview(card, S, A, canEdit) {
-    var rows = registry(S, A).map(function (it) { return rowEl(it, canEdit, null); });
-    var list = h("ul", { cls: "au-list" }, rows.map(function (r) { return r.el; }));
+  function overview(card, A, ov, onChange) {
+    var state = { ov: ov, canEdit: !!(ov && ov.can_edit), onChange: onChange };
+    var items = registry(), rows = [];
     while (card.firstChild) card.removeChild(card.firstChild);
     card.appendChild(h("h3", { text: "Automations" }));
-    card.appendChild(h("p", { cls: "mnote", text: "Everything Helm does by itself, in one list. Switch each one on or off here; “Settings” opens its details. E-mail and WhatsApp messages wait in a queue until sending is switched on for your studio." }));
-    if (!canEdit) card.appendChild(h("p", { cls: "mnote", text: "Only people who can edit Control Center can switch these on or off." }));
-    card.appendChild(list);
+    card.appendChild(h("p", { cls: "mnote", text: "Everything Helm can do by itself, in one place. Each one is off until you switch it on here - nothing is sent to your clients, team, vendors or staff before that." }));
+    if (!ov) card.appendChild(h("p", { cls: "mnote au-warn", text: "These switches need the latest Helm update. Until it is installed, nothing on this list sends anything." }));
+    else if (!state.canEdit) card.appendChild(h("p", { cls: "mnote", text: "Only people who can edit Control Center can switch these on or off." }));
+    if (ov && ov.trial_no_send) card.appendChild(h("p", { cls: "mnote", text: "Free trial: e-mails and WhatsApp messages are not sent during the trial, even when switched on." }));
+    GROUPS.forEach(function (g) {
+      var mine = items.filter(function (it) { return it.group === g[0]; });
+      if (!mine.length) return;
+      var ul = h("ul", { cls: "au-list" });
+      mine.forEach(function (it) { var r = rowEl(it, state, A); rows.push(r); ul.appendChild(r.el); });
+      card.appendChild(h("h4", { cls: "au-grp", text: g[1] }));
+      card.appendChild(ul);
+    });
+    state.repaint = function () { rows.forEach(function (r) { r.paint(); }); };
+    state.repaint();
     card.hidden = false;
-    var refresh = function () { return Promise.all(rows.map(function (r) { return r.load(); })); };
-    rows.forEach(function (r) { r.load(); });
-    return refresh;
+    return state;
   }
 
-  function runsheetCard(card, A, cfg, canEdit, onSaved) {
-    var on = chk("au_rs_on", "Remind the owner of each run-sheet line before it starts", cfg.runsheet_enabled);
+  function runsheetCard(card, A, cfg, canEdit) {
     var picked = (cfg.runsheet_offsets || [15, 0]).slice();
     var chips = h("div", { cls: "au-chips", role: "group", "aria-label": "Default reminder times" });
     TIMES.forEach(function (t) {
@@ -156,29 +204,27 @@
     var save = h("button", { type: "button", cls: "btn", id: "au_rs_save", text: "Save run-sheet reminders" });
     while (card.firstChild) card.removeChild(card.firstChild);
     card.appendChild(h("h3", { text: "Run-sheet reminders" }));
-    card.appendChild(h("p", { cls: "mnote", text: "On the run-sheet, pick a real person as the Owner of a line. Helm reminds them at these times before the line starts: team members in the bell and by e-mail, staff and vendors by WhatsApp (and e-mail when they have one). Each line can choose its own time or switch its reminder off." }));
-    card.appendChild(on.el);
+    card.appendChild(h("p", { cls: "mnote", text: "On the run-sheet, pick a real person as the Owner of a line. Once “Run-sheet reminders” is switched on in the list above, Helm reminds them at these times before the line starts: team members in the bell and by e-mail, staff and vendors by WhatsApp (and e-mail when they have one). Each line can choose its own time or switch its reminder off." }));
     card.appendChild(h("fieldset", { cls: "au-set" }, [h("legend", { text: "Default reminder times" }), chips]));
     card.appendChild(h("fieldset", { cls: "au-set" }, [h("legend", { text: "How" }), em.el, wa.el]));
     if (cfg.trial_no_send) card.appendChild(h("p", { cls: "mnote", text: "Free trial: reminders show in the bell and the event group only (no e-mail or WhatsApp)." }));
     card.appendChild(msg); card.appendChild(save); card.hidden = false;
     if (!canEdit) { Array.prototype.forEach.call(card.querySelectorAll("input,button"), function (x) { x.disabled = true; }); msg.textContent = "Only people who can edit Control Center can change these."; return; }
     save.addEventListener("click", function () {
-      if (on.input.checked && !picked.length) { msg.textContent = "Pick at least one reminder time, or switch run-sheet reminders off."; return; }
-      var patch = { runsheet_enabled: on.input.checked, runsheet_email: em.input.checked, runsheet_whatsapp: wa.input.checked };
-      if (picked.length) patch.runsheet_offsets = picked.slice();
+      if (!picked.length) { msg.textContent = "Pick at least one reminder time."; return; }
+      // on / off is NOT sent from here: it lives in the Automations list (one place)
+      var patch = { runsheet_email: em.input.checked, runsheet_whatsapp: wa.input.checked, runsheet_offsets: picked.slice() };
       var run = async function () {
-        try { await A.save(patch); msg.textContent = "Saved. Default: " + offText(picked) + "."; if (onSaved) onSaved(); }
+        try { await A.save(patch); msg.textContent = "Saved. Default: " + offText(picked) + "."; }
         catch (e) { msg.textContent = errText(e, "save the run-sheet reminders"); }
       };
       return global.BPUI && BPUI.guard ? BPUI.guard(save, run, { busyLabel: "Saving…" }) : run();
     });
   }
 
-  function enquiryCard(card, A, cfg, canEdit, onSaved) {
+  function enquiryCard(card, A, cfg, canEdit) {
     var slug = String(cfg.public_slug || "");
     var url = slug ? (location.origin + "/" + encodeURIComponent(slug) + "/enquiry") : "";
-    var on = chk("au_eq_on", "Open my public enquiry form", cfg.enquiry_enabled);
     var link = h("input", { type: "text", id: "au_eq_link", readonly: true, value: url || "Set your client link name in General first", "aria-label": "Your enquiry form link" });
     var copy = h("button", { type: "button", cls: "btn sm", text: "Copy link" }), open = h("a", { cls: "btn sm", href: url || "#", target: "_blank", rel: "noopener", text: "Open" });
     if (!url) { copy.disabled = true; open.hidden = true; }
@@ -194,8 +240,7 @@
     var save = h("button", { type: "button", cls: "btn", id: "au_eq_save", text: "Save enquiry form" });
     while (card.firstChild) card.removeChild(card.firstChild);
     card.appendChild(h("h3", { text: "Enquiry form" }));
-    card.appendChild(h("p", { cls: "mnote", text: "Share one link and every enquiry lands in Leads by itself (source “Enquiry form”, stage New). The client sees only your studio name and a short form. Off until you switch it on." }));
-    card.appendChild(on.el);
+    card.appendChild(h("p", { cls: "mnote", text: "Share one link and every enquiry lands in Leads by itself (source “Enquiry form”, stage New). The client sees only your studio name and a short form. The form opens when “Enquiry form → Leads” is switched on in the list above." }));
     card.appendChild(h("div", { cls: "au-link" }, [link, copy, open]));
     card.appendChild(h("fieldset", { cls: "au-set" }, [h("legend", { text: "Instant reply" }), rep.el,
       h("label", { cls: "au-lbl", for: "au_eq_text", text: "Your words (leave empty for the default). You can use {name} {studio} {event}." }), txt]));
@@ -207,9 +252,9 @@
     save.addEventListener("click", function () {
       var t = txt.value.trim();
       if (/[<>]/.test(t)) { msg.textContent = "The reply cannot contain < or >."; return; }
-      var patch = { enquiry_enabled: on.input.checked, enquiry_reply: rep.input.checked, enquiry_reply_text: t || null, enquiry_notify: bell.input.checked };
+      var patch = { enquiry_reply: rep.input.checked, enquiry_reply_text: t || null, enquiry_notify: bell.input.checked };
       var run = async function () {
-        try { await A.save(patch); msg.textContent = on.input.checked ? "Saved. Your form is open." : "Saved. Your form is closed."; if (onSaved) onSaved(); }
+        try { await A.save(patch); msg.textContent = "Saved."; }
         catch (e) { msg.textContent = errText(e, "save the enquiry form"); }
       };
       return global.BPUI && BPUI.guard ? BPUI.guard(save, run, { busyLabel: "Saving…" }) : run();
@@ -221,16 +266,13 @@
     var S = global.BPStore, A = S && S.automation;
     var card = doc.getElementById("autoCard"), rs = doc.getElementById("rsrCard"), eq = doc.getElementById("enqCard");
     if (!card || !A) return;
-    var cfg = null;
+    var ov = null, cfg = null;
+    try { ov = A.overview ? await A.overview() : null; } catch (e) { ov = null; }
     try { cfg = await A.settings(); } catch (e) { cfg = null; }
-    var canEdit = !!(cfg && cfg.can_manage);
-    if (!cfg) {
-      // before 0269: the list still shows the automations that exist; the run-sheet / enquiry cards stay hidden
-      try { canEdit = !!(S.auth && S.auth.canEditArea && await S.auth.canEditArea("controls")); } catch (e) { canEdit = false; }
-    }
-    var refresh = overview(card, S, A, canEdit);
-    if (cfg && rs) runsheetCard(rs, A, cfg, canEdit, refresh);
-    if (cfg && eq) enquiryCard(eq, A, cfg, canEdit, refresh);
+    overview(card, A, ov, null);
+    var canEdit = !!(ov && ov.can_edit) || !!(cfg && cfg.can_manage);
+    if (cfg && rs) runsheetCard(rs, A, cfg, canEdit);
+    if (cfg && eq) enquiryCard(eq, A, cfg, canEdit);
   }
-  global.HelmAutomations = { init: init, registry: registry, offText: offText };
+  global.HelmAutomations = { init: init, registry: registry, offText: offText, daysText: daysText, overview: overview, GROUPS: GROUPS };
 })(window);

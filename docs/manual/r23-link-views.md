@@ -45,5 +45,5 @@ Notes:
 - **Track when clients open their links**: on by default.
 - **Bell notification the first time**: on by default.
 - **Also notify on later visits**: off by default; at most once every 12 hours (1 to 168).
-- **"Viewed but not approved" reminder**: on by default, after 2 days (1 to 30).
+- **"Viewed but not approved" reminder**: off until you switch it on in Control Center > Automations; after 2 days (1 to 30).
 - **Automatic nudge to the client**: this is the existing **Client follow-ups** switch in "Automatic client messages" just below. It is **off** by default.

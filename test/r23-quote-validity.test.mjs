@@ -128,7 +128,9 @@ t('page wiring: client pages + staff pages + Control Center', () => {
   assert.match(FL, /id="qvFlow" data-qv-staff/); assert.match(FL, /HelmQuoteValidity\.refreshStaff\(\)/);
   assert.match(EV, /id="quote-validity" data-qv-staff/);
   assert.match(QU, /refreshValidity\(\)/); assert.match(QU, /function paintValidity\(\)/); assert.match(QU, /s\.textContent=p\.text/); assert.match(QU, /quotes that expire soon/);
-  for (const id of ['qvCard', 'qv_on', 'qv_days', 'qv_rem', 'qv_lock', 'qv_over', 'qv_cli', 'qv_stu', 'qv_save', 'qv_apply', 'qv_apply_note', 'qv_msg', 'qv_ro']) assert.match(CC, new RegExp('id="' + id + '"'), id);
+  for (const id of ['qvCard', 'qv_on', 'qv_days', 'qv_rem', 'qv_lock', 'qv_over', 'qv_save', 'qv_apply', 'qv_apply_note', 'qv_msg', 'qv_ro']) assert.match(CC, new RegExp('id="' + id + '"'), id);
+  // r25 (0274): the two reminders are switched on / off only in Control Center -> Automations
+  assert.ok(!/id="qv_cli"|id="qv_stu"/.test(CC), 'no second on / off for the reminders'); assert.match(CC, /au-onoff[^]*#automations/);
   assert.match(SPLIT, /id==="qvCard"\) return "links"/); assert.match(SPLIT, /"#quote-validity":"links"/);
   assert.ok(!/innerHTML/.test(JS), 'quote-validity.js builds the DOM with textContent only');
   assert.match(CSS, /@media \(max-width:480px\)/);

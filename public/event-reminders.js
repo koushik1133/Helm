@@ -28,7 +28,7 @@
       cacheDays(r.days);
       var card = el("div", "card"); card.id = "evrCard";
       card.appendChild(el("h3", null, "Event reminders"));
-      card.appendChild(el("p", "mnote", "Helm reminds your whole team in the bell (and in the event's chat group, when it has one) before every confirmed event, and again the day before. Nothing is sent to clients."));
+      card.appendChild(el("p", "mnote", "Once switched on in Control Center → Automations (“Event reminders”, off until you do), Helm reminds your whole team in the bell (and in the event's chat group, when it has one) before every confirmed event, and again the day before. Nothing is sent to clients."));
       var row = el("div", "evr-row");
       var lab = el("label", null, "Remind the team before each event: "); lab.setAttribute("for", "evr_days");
       // no max/step: the global number hardener would silently clamp 45 -> 30 or turn a pasted "2.5" into 25;

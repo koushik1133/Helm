@@ -63,10 +63,9 @@
     });
   }
   function paint() {
-    $("pst_auto").checked = !!S.auto_apply; $("pst_bell").checked = !!S.overdue_bell;
     $("pst_upi").value = S.upi_id || ""; $("pst_note").value = S.pay_note || "";
     $("pst_rem").textContent = remText(S.reminders);
-    ["pst_auto", "pst_bell", "pst_default", "pst_upi", "pst_note"].forEach(function (id) { $(id).disabled = !S.can_edit; });
+    ["pst_default", "pst_upi", "pst_note"].forEach(function (id) { $(id).disabled = !S.can_edit; });
     $("pst_ro").hidden = !!S.can_edit; $("pst_save").hidden = !S.can_edit; $("pst_new").hidden = !S.can_edit;
     paintDefault(); paintList();
   }
@@ -157,7 +156,7 @@
   async function save() {
     var b = $("pst_save"); b.disabled = true; say("Saving…", "info");
     try {
-      S = await global.BPStore.paySchedule.saveSettings({ auto_apply: $("pst_auto").checked, overdue_bell: $("pst_bell").checked,
+      S = await global.BPStore.paySchedule.saveSettings({   // r25 (0274): auto-apply + overdue bell are switched in Automations only
         default_template: $("pst_default").value, upi_id: $("pst_upi").value.trim() || null, pay_note: $("pst_note").value.trim() || null });
       paint(); say("Saved.", "ok");
     } catch (e) { say(errText(e), "err"); }

@@ -238,8 +238,7 @@
       $("qv_on").checked = !!x.enabled; $("qv_days").value = String(x.default_days || DEFAULT_DAYS);
       $("qv_rem").value = (Array.isArray(x.reminder_days) ? x.reminder_days : []).join(", ");
       $("qv_lock").checked = !!x.auto_lock; $("qv_over").checked = !!x.allow_override;
-      $("qv_cli").checked = !!x.client_reminders; $("qv_stu").checked = !!x.studio_reminders;
-      ["qv_on", "qv_days", "qv_rem", "qv_lock", "qv_over", "qv_cli", "qv_stu", "qv_save"].forEach(function (k) { $(k).disabled = ro; });
+      ["qv_on", "qv_days", "qv_rem", "qv_lock", "qv_over", "qv_save"].forEach(function (k) { $(k).disabled = ro; });
       $("qv_ro").hidden = !ro;
       var ap = $("qv_apply_row"); ap.hidden = !(x.is_admin && x.can_edit && x.enabled);
       $("qv_apply_note").textContent = Number(x.open_without_date) > 0
@@ -256,7 +255,7 @@
       var b = $("qv_save"); b.disabled = true; say("Saving…", "info");
       try {
         var r = await S.saveSettings({ enabled: $("qv_on").checked, default_days: dv.value, reminder_days: rv.value, auto_lock: $("qv_lock").checked,
-          allow_override: $("qv_over").checked, client_reminders: $("qv_cli").checked, studio_reminders: $("qv_stu").checked });
+          allow_override: $("qv_over").checked });   // r25 (0274): the two reminders are switched in Automations only
         paint(r || d); say("Saved. New quotes are valid for " + (r ? r.default_days : dv.value) + " days.", "ok");
       } catch (e) { say(errText(e, "save the settings"), "err"); }
       finally { b.disabled = !d.can_edit; }

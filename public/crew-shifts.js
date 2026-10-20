@@ -391,7 +391,9 @@
     card.appendChild(h("p", { cls: "mnote", text: "How your crew use their crew link: mark days they can't work, take open shifts, and check in / out on the event day. Check-in times become the actual wages on Budget." }));
     var av = chk("cc_av", "Crew can mark days they can't work (Operations warns before you assign them)", cfg.availability);
     var os = chk("cc_os", "Open shifts: post shifts that crew take from their crew link", cfg.openShifts);
-    var nt = chk("cc_nt", "Queue a WhatsApp message to eligible crew when a shift is posted (sent once WhatsApp is switched on)", cfg.notifyShifts);
+    // r25 (0274): the WhatsApp message to crew about a new shift is switched on / off ONLY in Control Center -> Automations
+    var nt = { el: h("p", { cls: "mnote au-onoff", id: "cc_nt" }, ["WhatsApp to free crew when a shift is posted: ", h("b", { text: cfg.notifyShifts ? "on" : "off" }),
+      " - switch it in ", h("a", { href: "#automations", text: "Automations → Open shift messages" }), "."]) };
     var mode = h("select", { id: "cc_mode" }, [h("option", { value: "first_come", text: "First come, first served" }), h("option", { value: "approval", text: "Needs approval" })]);
     mode.value = cfg.claimMode === "approval" ? "approval" : "first_come";
     var ci = chk("cc_ci", "Self check-in / check-out on the crew link on the event day", cfg.selfCheckin);
@@ -414,7 +416,7 @@
     }
     save.addEventListener("click", function () {
       var n = function (el, lo, hi) { var v = Number(el.value); return isFinite(v) && v >= lo && v <= hi ? v : null; };
-      var patch = { availability: av.input.checked, openShifts: os.input.checked, notifyShifts: nt.input.checked, claimMode: mode.value,
+      var patch = { availability: av.input.checked, openShifts: os.input.checked, claimMode: mode.value,
         selfCheckin: ci.input.checked, geofence: gf.input.checked, payBasis: pay.value };
       var r = n(rad, 50, 5000), g = n(grace, 0, 240), s = n(ns, 15, 720), d = n(dh, 1, 24);
       if (r === null) { msg.textContent = "Check-in radius must be 50 to 5000 metres."; rad.focus(); return; }
