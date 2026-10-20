@@ -11,7 +11,7 @@ let n = 0; const t = (name, fn) => { fn(); n++; console.log('  ✓ ' + name); };
 t('every layouts call checks for a signed-in user before any request', () => {
   const sb = api.match(/const sb = \{([\s\S]*?)\n  \};/)[1];
   for (const f of ['list()', 'get(id)', 'create(name, data)', 'update(id, patch)', 'remove(id)'])
-    assert.match(sb, new RegExp('async ' + f.replace(/[()]/g, '\\$&') + ' \\{ needUser\\(\\);'), f + ' must call needUser() first');
+    assert.match(sb, new RegExp('async ' + f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\{ needUser\\(\\);'), f + ' must call needUser() first');
   assert.match(api, /function needUser\(\) \{\s*if \(currentUser\) return;[\s\S]*?onAuthFailure\(\)/, 'needUser routes to the session-expiry flow');
 });
 t('quotes.get refuses a malformed id without calling the database', () => {

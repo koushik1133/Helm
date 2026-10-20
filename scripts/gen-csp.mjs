@@ -166,7 +166,7 @@ let hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) =
 { // r22: Reporting-Endpoints line right after the catch-all (/*) block's CSP
   const val = reportingEndpoints(REPORTING.reportUri);
   hNext = hNext.replace(/^\s+Reporting-Endpoints:.*\n/gm, '');
-  if (val) hNext = hNext.replace(/^(\/\*\n(?:\s+.*\n)*?\s+Content-Security-Policy:.*\n)/m, (b) => b + '  Reporting-Endpoints: ' + val + '\n');
+  if (val) hNext = hNext.replace(/^(\/\*\n(?:[ \t]+.*\n)*?[ \t]+Content-Security-Policy:.*\n)/m, (b) => b + '  Reporting-Endpoints: ' + val + '\n');
 }
 { // script-src host allowlist per _headers block (route = the unindented line above)
   let route = '';

@@ -103,6 +103,7 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0265_crew_availability_shifts_checkin.sql
 -- 0266 (r23 inbox) adds notification_inbox_state to the purge list and inbox_settings + inbox_person_prefs to the keep list
 \ir ../../supabase/migrations/0266_notification_inbox.sql
+\ir ../../supabase/migrations/0270_inbox_visible_speed.sql
 -- 0269 (r24 automation) adds runsheet_reminder_sends + lead_enquiries to the purge list and automation_settings to the keep list
 \ir ../../supabase/migrations/0269_r24_automation.sql
 

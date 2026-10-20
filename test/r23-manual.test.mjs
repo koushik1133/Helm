@@ -19,7 +19,7 @@ let n = 0; const t = async (name, fn) => { await fn(); n++; console.log('ok -', 
 const B = await import(new URL('scripts/build-manual.mjs', root));
 const MAN = read('docs/manual/USER-MANUAL.html'), MJS = read('public/manual.js');
 // strip HTML comments until none are left (a single pass can leave a re-formed "<!--"; CodeQL js/incomplete-multi-character-sanitization)
-const stripComments = (s) => { let prev; do { prev = s; s = s.replace(/<!--[\s\S]*?-->/g, ''); } while (s !== prev); return s.replace(/<!--/g, ''); };
+const stripComments = (s) => { let prev; do { prev = s; s = s.replace(/<!--[\s\S]*?-->/g, ''); } while (s !== prev); const open = s.indexOf('<!--'); return open < 0 ? s : s.slice(0, open); };
 const MARKUP = stripComments(MAN);
 
 await t('1 config.js: HELM_FEATURES.manual is true (declared once) - every signed-in role gets the manual', () => {

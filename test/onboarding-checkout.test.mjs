@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
+const stripComments = (s) => { let prev; do { prev = s; s = s.replace(/<!--[\s\S]*?-->/g, ''); } while (s !== prev); const open = s.indexOf('<!--'); return open < 0 ? s : s.slice(0, open); };   // repeat until stable; an unterminated "<!--" hides the rest (CodeQL js/incomplete-multi-character-sanitization)
 
 const root = new URL('..', import.meta.url);
 const read = (p) => readFileSync(new URL(p, root), 'utf8');
@@ -288,7 +289,7 @@ t('legal pages: draft note only in an HTML comment (never visible)', () => {
   for (const p of ['terms', 'privacy', 'refund-policy']) {
     const h = read('public/' + p + '.html');
     assert.match(h, /<!--[^>]*DRAFT[^>]*lawyer[^>]*-->/i, p);
-    assert.doesNotMatch(h.replace(/<!--[\s\S]*?-->/g, ''), /lawyer|draft/i, p + ' shows no draft text');
+    assert.doesNotMatch(stripComments(h), /lawyer|draft/i, p + ' shows no draft text');
   }
 });
 t('CSP + Trusted Types: Razorpay exact script on /checkout only', () => {

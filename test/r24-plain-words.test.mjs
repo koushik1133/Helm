@@ -23,7 +23,7 @@ const POL = ['budget', 'settlement', 'closure'].map((x) => read('public/' + x + 
 
 t('1 logistics: plain tab names (ids/data-t unchanged) + explainer per tab', () => {
   for (const [k, label] of [['compliance', 'Permits &amp; licences'], ['comms', 'Who tells whom (checklist)'], ['logistics', 'Transport &amp; deliveries'], ['payments', 'Client payments'], ['guests', 'Guest count']])
-    assert.match(LOG, new RegExp('data-t="' + k + '"[^>]*>[^<]*' + label.replace(/[()]/g, '\\$&') + '</button>'));
+    assert.match(LOG, new RegExp('data-t="' + k + '"[^>]*>[^<]*' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '</button>'));
   assert.match(LOG, /const TAB_NAME=\{ compliance:"Permits & licences", comms:"Who tells whom \(checklist\)", logistics:"Transport & deliveries", payments:"Client payments", guests:"Guest count" \};/);
   assert.match(LOG, /<h2>\$\{esc\(TAB_NAME\[tab\]\|\|tab\)\}<\/h2><p class="sub">\$\{CHK_HELP\[tab\]\}<\/p>/);
   for (const k of ['logistics', 'compliance', 'comms']) assert.match(LOG, new RegExp(k + ':"[^"]{20,}"'));

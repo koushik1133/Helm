@@ -48,7 +48,7 @@ t('3 décor: typed value remembered before the builder, wins on return, "Use it"
 });
 
 t('4 list name: QUOTE_PAGE_COLS carries city / venue / address / guests; nameOnly passes guests on', () => {
-  const m = /const QUOTE_PAGE_COLS = ((?:"[^"]*"\s*\+?\s*)+);/.exec(API); assert.ok(m);
+  const m = /const QUOTE_PAGE_COLS = ("[^"]*"(?:\s*\+\s*"[^"]*")*)\s*;/.exec(API); assert.ok(m);
   const cols = vm.runInNewContext(m[1]).split(',');
   for (const k of ['client_city:client->>city', 'client_venue:client->>venue', 'client_address:client->>address', 'client_guests:client->>guests'])
     assert.ok(cols.includes(k), k);

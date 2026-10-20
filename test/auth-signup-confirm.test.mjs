@@ -58,7 +58,8 @@ t('form rules: blur validation, eye toggle, meter, email normalised, name rule',
   assert.match(LOGIN, /class="req"/);
 });
 t('no static style="" in login markup', () => {
-  const markup = LOGIN.replace(/<script[\s\S]*?<\/script>/g, '');
+  let markup = LOGIN, prev; do { prev = markup; markup = markup.replace(/<script\b[\s\S]*?<\/script[^>]*>/gi, ''); } while (markup !== prev);
+  const open = markup.search(/<script\b/i); if (open >= 0) markup = markup.slice(0, open);   // an unclosed <script> hides the rest
   assert.ok(!/\sstyle="/.test(markup));
 });
 
