@@ -55,6 +55,7 @@
     { key: "compliance", label: "Data & compliance",           hash: "#compliance",       gate: "admin", kw: "gdpr dpdp export archive download privacy" },
     { key: "notify",     label: "Notifications",               hash: "#notifications",    gate: "admin", kw: "bell notification sms email override mute alert" },
     { key: "reminders",  label: "Reminders & client messages", hash: "#reminders",        gate: "admin", kw: "event reminder payment reminder client followup whatsapp inventory stock automatic message" },
+    { key: "automations", label: "Automations",                hash: "#automations",      gate: "admin", kw: "automation automatic on off run-sheet reminder owner enquiry form lead website auto reply" },
     { key: "renders",    label: "Photo renders",               hash: "#renders",          gate: "admin", kw: "render photo quota image" },
     { key: "venues",     label: "Venues",                      hash: "#venues",           gate: { all: [CTL, { any: ["admin", { view: "venues" }] }] }, kw: "venue hall space" },
     { key: "ltemplates", label: "Layout templates",            hash: "#layout-templates", gate: { all: [CTL, { any: ["admin", { view: "templates" }] }] }, kw: "template floor layout" }
@@ -154,6 +155,9 @@
     ["notify", "Notifications — who hears about what", "bell alert"],
     ["notify", "Reset to defaults", "notifications reset"],
     ["notify", "Per-person overrides", "notifications override mute"],
+    ["automations", "Automations", "automatic on off everything helm does"],
+    ["automations", "Run-sheet reminders", "run sheet runsheet owner reminder before start"],
+    ["automations", "Enquiry form", "enquiry inquiry form lead website link auto reply thank you"],
     ["reminders", "Event reminders", "reminder event team"],
     ["reminders", "Automatic client messages & WhatsApp", "whatsapp automatic messages"],
     ["reminders", "Payment reminders", "payment reminder overdue"],

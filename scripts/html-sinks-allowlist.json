@@ -840,11 +840,6 @@
    "why": "literal option/status string from a constant list in this function"
   },
   {
-   "file": "public/runsheet.html",
-   "expr": "custom",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-  },
-  {
    "file": "public/store-api.js",
    "expr": "v.html",
    "why": "bellPanelView() escapes every title/body (covered by test/chat-bell-noise.test.mjs)"

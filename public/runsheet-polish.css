@@ -46,3 +46,15 @@
 .grpopt{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer}
 .grpopt[hidden]{display:none}
 .grpopt input{width:16px;height:16px;margin:0}
+
+/* r24 (0269): run-sheet reminder options + the small bell per line */
+.rsr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:10px}
+.rsr[hidden]{display:none}
+.rsr .grpopt{margin-top:0}
+.rsr select{height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 8px;font:inherit;font-size:13px;color:var(--ink);max-width:100%}
+.rsr select:disabled{opacity:.5}
+.sheet .rsr{margin:2px 0 12px}
+#r_owner_other,#e_owner_other{margin-top:6px}
+.rsr-tag{background:var(--accent-soft);border-color:transparent;color:var(--accent);font-weight:600;white-space:normal}
+.rsr-tag.rsr-off{background:var(--panel-2);color:var(--ink-3)}
+@media print{.rsr-tag{display:none}}
