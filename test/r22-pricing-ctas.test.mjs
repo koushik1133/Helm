@@ -1,6 +1,6 @@
 // r22 pricing CTAs: the public pricing page and the landing page send people into the new /signup flow.
-//   * every paid plan card: primary "Pay now" -> /signup?plan=<key>&mode=paid, secondary "Try free for 8 days"
-//     -> /signup?plan=<key>&mode=trial; Enterprise "Talk to sales" -> /signup?plan=enterprise&mode=sales
+//   * r24 (owner): every plan card has ONE button "Contact sales" -> /signup?plan=<key>&mode=sales (no Pay now, no
+//     per-card Try free); one "Start free trial" block under the cards -> /signup?mode=trial (test/r24-pricing-sales)
 //   * header "Start free trial" -> /signup?mode=trial, "Sign in" -> /login
 //   * plan keys are the ones checkout.js already knows (starter / studio / enterprise) - no new plans, no new prices
 //   * no old trial link (/login?trial=1#signup) and no mailto/#contact sales button left on these two pages
@@ -25,16 +25,10 @@ t('plan keys used on the pages are the checkout catalog keys', () => {
 });
 
 for (const [name, h] of [['pricing.html', PR], ['index.html', IDX]]) {
-  t(name + ': each paid plan has Pay now (primary, first) then Try free for 8 days', () => {
-    for (const k of KEYS) {
-      const pay = h.indexOf('href="/signup?plan=' + k + '&amp;mode=paid">Pay now');
-      const trial = h.indexOf('href="/signup?plan=' + k + '&amp;mode=trial">Try free for 8 days</a>');
-      assert.ok(pay > 0, k + ' pay now'); assert.ok(trial > pay, k + ' trial after pay now');
-    }
-  });
-  t(name + ': Enterprise Talk to sales goes to the sales signup URL (no mailto / #contact)', () => {
-    assert.ok(h.includes('href="/signup?plan=enterprise&amp;mode=sales">Talk to sales'));
-    assert.ok(!/href="\/?#contact">Talk to sales/.test(h));
+  t(name + ': r24 - each plan card has Contact sales only (no Pay now, no per-card trial)', () => {
+    for (const k of [...KEYS, 'enterprise']) assert.ok(h.includes('href="/signup?plan=' + k + '&amp;mode=sales">Contact sales</a>'), k);
+    assert.ok(!/mode=paid|>Pay now|Try free for 8 days/.test(h), 'no Pay now / per-card trial left');
+    assert.ok(!/href="\/?#contact">(Talk to|Contact) sales/.test(h));
   });
   t(name + ': header Start free trial -> /signup?mode=trial and Sign in -> /login; no old trial links', () => {
     assert.ok(!h.includes('trial=1#signup'), 'old login?trial=1#signup link left');
@@ -44,14 +38,14 @@ for (const [name, h] of [['pricing.html', PR], ['index.html', IDX]]) {
   });
 }
 
-t('pricing.html: primary class only on Pay now; three cards keep their prices', () => {
-  assert.match(PR, /<a class="btn primary hs-pop pr-btn" href="\/signup\?plan=starter&amp;mode=paid">Pay now<\/a><a class="btn pr-btn pr-btn2" href="\/signup\?plan=starter&amp;mode=trial">/);
-  assert.match(PR, /<a class="btn primary hs-pop pr-btn" href="\/signup\?plan=studio&amp;mode=paid">Pay now<\/a><a class="btn pr-btn pr-btn2" href="\/signup\?plan=studio&amp;mode=trial">/);
+t('pricing.html: cards keep their prices; the only primary button under the cards is Start free trial', () => {
+  for (const k of [...KEYS, 'enterprise']) assert.ok(PR.includes('<div class="pr-ctas"><a class="btn pr-btn" href="/signup?plan=' + k + '&amp;mode=sales">Contact sales</a></div>'), k);
+  assert.ok(PR.includes('<a class="btn primary hs-pop pr-trial-btn" href="/signup?mode=trial">Start free trial</a>'));
   for (const p of ['&#8377;1,999', '&#8377;4,999', '&#8377;19,990', '&#8377;49,990', '<b>Custom</b>']) assert.ok(PR.includes(p), p);
   assert.match(PCSS, /\.pr-ctas \{ display: grid; gap: 8px; \}/);
 });
 
-t('index.html: plan buttons stack full width (fits 375px); hot card secondary readable on dark', () => {
+t('index.html: plan button full width (fits 375px); hot card Contact sales readable on dark', () => {
   assert.equal((IDX.match(/<div class="plan-ctas">/g) || []).length, 3);
   assert.match(HCSS, /\.plan-ctas\{margin-top:auto;display:grid;gap:10px\}\.plan \.plan-ctas \.btn\{margin-top:0;align-self:stretch;width:100%\}/);
   assert.match(HCSS, /\.plan\.hot \.btn-line\{border-color:rgba\(255,255,255,\.4\);background:transparent;color:#fff\}/);
@@ -69,7 +63,7 @@ t('index.html: contact form kept as is, plus a Talk to sales link to the same sa
 
 t('index.html: every trial CTA (hero, menu, sticky phone bar, final) uses /signup?mode=trial', () => {
   const trial = hrefs(IDX).filter((u) => u === '/signup?mode=trial').length;
-  assert.ok(trial >= 13, 'trial CTAs: ' + trial);   // 15 old trial links, 2 became plan-card Try free links
+  assert.ok(trial >= 14, 'trial CTAs: ' + trial);   // r24: the plan-card Try free links became ONE trial block button
   assert.match(IDX, /<div class="mcta" id="mcta"[^>]*><a class="btn btn-dark" href="\/signup\?mode=trial">Start free trial/);
   assert.match(IDX, /<div class="m-cta"><a class="btn btn-line" href="\/login">Sign in<\/a><a class="btn btn-dark" href="\/signup\?mode=trial">/);
 });

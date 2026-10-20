@@ -27,9 +27,9 @@ t('plan cards: server plans cleaned (no ids / provider ids), catalog only as a f
 });
 t('plan cards: Pay now is the primary; an on-request plan gets Contact sales as primary; trial only when offered', () => {
   const studio = PC.plansOr([])[1], ent = PC.plansOr([])[2];
-  assert.deepEqual(PC.actionsFor(studio, { interval: 'monthly', trial: true }), { pay: true, trial: true, sales: true, primary: 'pay' });
+  assert.deepEqual(PC.actionsFor(studio, { interval: 'monthly', trial: true, payNow: true }), { pay: true, trial: true, sales: true, primary: 'pay' });   // r24: with the Pay now switch on
   assert.deepEqual(PC.actionsFor(ent, { interval: 'monthly', trial: false }), { pay: false, trial: false, sales: true, primary: 'sales' });
-  assert.equal(PC.actionsFor({ code: 'm', monthly: 10, yearly: null, features: [] }, { interval: 'yearly' }).pay, false, 'not offered yearly');
+  assert.equal(PC.actionsFor({ code: 'm', monthly: 10, yearly: null, features: [] }, { interval: 'yearly', payNow: true }).pay, false, 'not offered yearly');
   assert.equal(PC.priceText(studio, 'monthly').unit, '/month'); assert.match(PC.priceText(studio, 'yearly').sub, /a month, plus GST/);
   assert.equal(PC.priceText(ent, 'monthly').main, 'Price on request');
   assert.equal(PC.pickPlan(PC.plansOr([]), 'starter'), 'starter'); assert.equal(PC.pickPlan(PC.plansOr([]), 'nope'), 'studio', 'recommended = middle');
@@ -85,7 +85,8 @@ t('first run: a PAID studio opens the setup wizard once (never a trial, never af
 });
 t('server answers in plain words: trial already used (auditor #3), limit, Terms, operator', () => {
   assert.equal(SF.startError({ hint: 'trial_used', message: 'x' }).kind, 'trial_used');
-  assert.match(SF.startError({ message: 'You have already used your free Helm trial with this email.' }).text, /Pay now/);
+  assert.match(SF.startError({ message: 'You have already used your free Helm trial with this email.' }, true).text, /Pay now/);
+  assert.doesNotMatch(SF.startError({ message: 'You have already used your free Helm trial with this email.' }, false).text, /Pay now/);   // r24
   assert.equal(SF.startError({ hint: 'rate_limited' }).kind, 'rate_limited');
   assert.equal(SF.startError({ hint: 'terms_required' }).kind, 'terms');
   assert.equal(SF.startError({ message: "Helm HQ accounts can't create or join a studio." }).kind, 'operator');

@@ -10,6 +10,9 @@
   "use strict";
   var $ = function (s) { return document.querySelector(s); };
   var S = window.BPStore;
+  // r24: config.js HELM_FEATURES.payNow - false = no Pay now on this page (Contact sales / Try free only, no online
+  // payment, no UPI / bank details). plan-cards.js reads the same switch.
+  function payOn() { return !!(window.HelmPlanCards ? window.HelmPlanCards.payNowOn() : (window.HELM_FEATURES && window.HELM_FEATURES.payNow === true)); }
   var COUNTRIES = [["IN", "India"], ["AE", "United Arab Emirates"], ["AU", "Australia"], ["CA", "Canada"], ["DE", "Germany"],
     ["FR", "France"], ["GB", "United Kingdom"], ["MY", "Malaysia"], ["NL", "Netherlands"], ["NZ", "New Zealand"], ["QA", "Qatar"],
     ["SA", "Saudi Arabia"], ["SG", "Singapore"], ["LK", "Sri Lanka"], ["US", "United States"], ["ZA", "South Africa"]];
@@ -199,7 +202,7 @@
   function updateButton() {
     var b = $("#coPay");
     if (st.busy) return;
-    if (st.sales) { b.disabled = false; b.textContent = onRequest(planBy(st.plan)) || st.catalog && !planBy(st.plan) ? "Contact sales" : "Pay now"; return; }   // r20 / r22: online payment not live - Pay now = UPI / bank transfer
+    if (st.sales) { b.disabled = false; b.textContent = !payOn() || onRequest(planBy(st.plan)) || st.catalog && !planBy(st.plan) ? "Contact sales" : "Pay now"; return; }   // r20 / r22: online payment not live - Pay now = UPI / bank transfer
     if (st.catalog || (st.pending && !st.live)) { b.disabled = true; b.textContent = "Online payment coming soon"; return; }
     b.disabled = !st.preview || (st.upgrade && !st.live);
     b.textContent = !st.preview ? "Continue" : st.upgrade && !st.live ? "Online payment coming soon" : st.live ? "Pay " + money(st.preview.total, st.preview.currency) + " securely" : "Start 8-day free trial";
@@ -237,7 +240,7 @@
 
   async function submit(ev) {
     if (ev) ev.preventDefault();
-    if (st.sales) { var sp = planBy(st.plan); if (sp && !onRequest(sp)) cardPay(sp); else cardSales(sp); return; }   // r20 / r22: no online payment yet - the team activates the plan
+    if (st.sales) { var sp = planBy(st.plan); if (sp && !onRequest(sp) && payOn()) cardPay(sp); else cardSales(sp); return; }   // r20 / r22: no online payment yet - the team activates the plan
     if (st.busy || !st.preview || st.catalog || (st.pending && !st.live)) return;
     showErr("");
     if (!validateAll()) { showErr("Please fix the highlighted fields."); return; }
@@ -467,6 +470,7 @@
   function selectPlan(p) { if (p && p.code && st.plan !== p.code) { st.plan = p.code; renderPlans(); refreshPreview(); } }
   async function cardPay(p) {
     if (st.busy) return;
+    if (!payOn()) { cardSales(p); return; }   // r24: Pay now switched off - never a payment path
     selectPlan(p); showErr("");
     if (st.live && !st.catalog) { submit(); return; }   // the normal pay path (validates billing + Terms itself)
     if (!(await recordTerms())) { showErr("Please accept the Terms to continue."); return; }
@@ -556,7 +560,7 @@
     $("#f_city").value = acct.city || "";
     $("#f_state").value = acct.state || "";
     fillCountries($("#f_country"), acct.country || "IN");
-    st.live = S.checkout.payLive(st.opts);
+    st.live = S.checkout.payLive(st.opts) && payOn();   // r24: no online payment while Pay now is switched off
     $("#coDormant").hidden = st.live || st.pending;
     $("#coSecure").hidden = !st.live;
     if (st.pending) {
@@ -582,7 +586,7 @@
     $("#coSwitchWrap").hidden = !(st.pending && !st.live);
     $("#coSwitch").textContent = "Start " + trialDays() + "-day free trial instead";
     if (setupOn) $("#coDormant").hidden = true;
-    if (st.sales) renderPayDetails();   // r21: UPI / bank transfer details while online payment is off
+    if (st.sales && payOn()) renderPayDetails();   // r24: hidden while Pay now is switched off   // r21: UPI / bank transfer details while online payment is off
     $("#coTest").hidden = st.upgrade || !(S.checkout.bypassEnabled() && st.opts.bypass_allowed === true);
     if (st.upgrade) {
       $("#coDormant").hidden = true;
@@ -602,6 +606,7 @@
       $("#ivMonthlyL").classList.remove("on"); $("#ivYearlyL").classList.add("on");
     }
     $("#coPendingNote").hidden = !st.pending;
+    if (st.pending && !payOn()) $("#coPendingNote").textContent = "Your studio is ready. Choose Contact sales on a plan and our team sets it up with you, or start your free trial.";
     // r22: Terms already agreed on the sign-up (recorded for this studio, current version): shown ticked, not asked twice
     if (st.opts.terms_accepted === true) { $("#coTerms").checked = true; st.termsSaved = true; }
     if (st.catalog && !st.upgrade) $("#coTest").hidden = true;

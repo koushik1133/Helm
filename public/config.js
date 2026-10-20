@@ -18,6 +18,12 @@ window.HELM_FEATURES = Object.assign({ integrationsPage: /^(localhost|127\.0\.0\
 // (/manual says "coming soon", no storage fetch).
 window.HELM_FEATURES = Object.assign({ manual: true }, window.HELM_FEATURES);
 window.helmManualFor = function (role) { var f = window.HELM_FEATURES && window.HELM_FEATURES.manual; return f === true || (f === "admin" && String(role || "") === "admin"); };
+// payNow (owner 2026-10-19, r24): ONE switch for every "Pay now" button inside the app - the sign-up "How would you
+// like to start?" plan cards and the /checkout "Choose a plan" cards. false (now) = no Pay now anywhere: each plan
+// offers "Contact sales" (+ "Try free" where a trial is possible), a ?mode=paid link reads as Contact sales, and
+// online payment / the UPI + bank details stay hidden. true = Pay now comes back exactly as before (r22).
+// (The public pricing pages have no Pay now buttons in R24 - put them back there by hand when this goes true.)
+window.HELM_FEATURES = Object.assign({ payNow: false }, window.HELM_FEATURES);
 // r21 (owner fills these in): Helm's OWN bank / UPI details shown on /checkout ("Pay by UPI or bank transfer") while
 // online payment is off. Public on purpose (customers pay to them) - put ONLY the receiving details here, never a
 // password, PIN or API key. An empty value is not shown; with everything empty the page says our team sends the

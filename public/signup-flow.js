@@ -10,6 +10,8 @@
    /login?signup=1 with the query kept), or login?plan=studio&mode=paid#signup; the old
    ?trial=1 / ?direct=1 links still work. The Terms are recorded on the server (accept_account_terms, 0255) at the
    first signed-in step, also when the confirm link is opened in another browser (the account carries the "agreed" note).
+   r24: config.js HELM_FEATURES.payNow (false for now) hides "Pay now" on the plan cards; while it is off a ?mode=paid
+   link reads as Contact sales (payGate) and every word about paying now is swapped for the sales wording.
    Every check that matters is on the server (0159 payment gate, 0186 one trial per e-mail, 0255 Terms + limits).
    CSP: DOM via createElement / textContent only.
    ========================================================================= */
@@ -25,6 +27,9 @@
 
   // ---- pure helpers (unit-tested) ----
   function mode(v) { v = String(v || "").toLowerCase(); return v === "trial" || v === "paid" || v === "sales" ? v : ""; }
+  // r24: with Pay now switched off a "paid" link falls back to the sales framing
+  function payGate(m, payOn) { m = mode(m); return m === "paid" && !payOn ? "sales" : m; }
+  function payOn() { var P = global && global.HelmPlanCards; return !!(P && P.payNowOn ? P.payNowOn() : (global && global.HELM_FEATURES && global.HELM_FEATURES.payNow === true)); }
   // where the visitor came from: ?plan= & ?mode= (or the old ?trial=1 / ?direct=1), else a remembered choice (2 days)
   function intentFrom(search, hash, stored, now) {
     var q = new URLSearchParams(String(search || ""));
@@ -90,10 +95,12 @@
     return "/checkout?" + q.toString();
   }
   // the trial / operator / limit answers the server gives, in plain words
-  function startError(e) {
+  function startError(e, pay) {
+    var on = typeof pay === "boolean" ? pay : payOn();
     var hint = String((e && e.hint) || ""), m = String((e && e.message) || "");
     if (hint === "trial_used" || /already used your free/i.test(m))
-      return { kind: "trial_used", text: "You've already used your free Helm trial with this e-mail. Choose Pay now on a plan to open your studio, or contact sales." };
+      return { kind: "trial_used", text: on ? "You've already used your free Helm trial with this e-mail. Choose Pay now on a plan to open your studio, or contact sales."
+        : "You've already used your free Helm trial with this e-mail. Choose Contact sales on a plan and our team sets up your studio with you." };
     if (hint === "rate_limited" || /too many attempts/i.test(m)) return { kind: "rate_limited", text: "Too many attempts - please wait a few minutes and try again." };
     if (hint === "terms_required" || hint === "terms_outdated" || /Terms/.test(m)) return { kind: "terms", text: "Please agree to the current Terms of Service and Privacy Policy, then try again." };
     if (/HQ accounts|operator/i.test(m)) return { kind: "operator", text: "Helm HQ accounts can't create a studio." };
@@ -122,7 +129,7 @@
     return { kind: "neutral", title: "", sub: "" };
   }
 
-  var api = { KEY: KEY, step1Copy: step1Copy, planName: planName, TERMS_KEY: TERMS_KEY, EVENT_TYPES: EVENT_TYPES, TEAM_SIZES: TEAM_SIZES, intentFrom: intentFrom, slugify: slugify,
+  var api = { KEY: KEY, step1Copy: step1Copy, payGate: payGate, payOn: payOn, planName: planName, TERMS_KEY: TERMS_KEY, EVENT_TYPES: EVENT_TYPES, TEAM_SIZES: TEAM_SIZES, intentFrom: intentFrom, slugify: slugify,
     detailsCheck: detailsCheck, agreedEarlier: agreedEarlier, onSignupPath: onSignupPath, firstRun: firstRun, checkoutHref: checkoutHref, startError: startError, mode: mode };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (!global || !global.document) return;
@@ -146,7 +153,7 @@
 
   function metaOf() { var u = (S() && S().auth.user && S().auth.user()) || {}; return u.user_metadata || {}; }
   function wantPlan() { return intent.plan || String(metaOf().helm_signup_plan || ""); }
-  function wantMode() { return intent.mode || mode(metaOf().helm_signup_mode); }
+  function wantMode() { return payGate(intent.mode || mode(metaOf().helm_signup_mode), payOn()); }
   function stashTerms(src) { lsSet(TERMS_KEY, JSON.stringify({ t: Date.now(), src: src === "google" ? "google" : "signup" })); }
 
   // ---- step 3: your studio ----
@@ -242,7 +249,11 @@
     st.plan = P.pickPlan(st.plans, wantPlan());
     var days = Number(st.opts.trial_days) > 0 ? Number(st.opts.trial_days) : ((global.HelmTrialFacts && global.HelmTrialFacts.DAYS) || 8);
     st.trialDays = days;
-    $("#stLead").textContent = "Pay now to open your studio straight away, or try Helm free for " + days + " days - no payment needed.";
+    var pay = payOn();
+    $("#stLead").textContent = pay ? "Pay now to open your studio straight away, or try Helm free for " + days + " days - no payment needed."
+      : "Contact sales and our team sets up your plan with you, or try Helm free for " + days + " days - no payment needed.";
+    var note = $("#stNote");
+    if (note && !pay) note.textContent = "Prices are before GST. Our team confirms the exact amount, tax included, before anything is charged. Nothing is paid on this page.";
     var m = wantMode();
     if (m === "trial") { $("#stOk").textContent = "Your free trial is one tap away - choose “Try free for " + days + " days” on any plan."; $("#stOk").hidden = false; }
     renderCards();
@@ -291,6 +302,7 @@
         await ctx.routeSignedIn();
         return;
       }
+      if (kind === "pay" && !payOn()) kind = "sales";   // r24: Pay now switched off - never the payment path
       busy(b, kind === "pay" ? "Creating your studio…" : "Opening contact sales…");
       var r = await B.signup.createDirect({ name: d.name, plan: p.code, interval: st.interval, termsVersion: st.termsVersion });
       try { await B.signup.saveDetails(d); } catch (e) {}
@@ -325,7 +337,7 @@
     // only what THIS link says (a bare /signup stays neutral even if an older pricing click is remembered)
     var name = intent.fromUrl ? planName(intent.plan, plans) : "";
     var days = global.HelmTrialFacts && global.HelmTrialFacts.DAYS;
-    var c = step1Copy(intent.fromUrl ? intent.mode : "", name, days);
+    var c = step1Copy(intent.fromUrl ? payGate(intent.mode, payOn()) : "", name, days);
     var sub = $("#formSub");
     if (c.kind !== "neutral") {
       var t = $("#formTitle"); if (t) t.textContent = c.title;
