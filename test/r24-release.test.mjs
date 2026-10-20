@@ -66,37 +66,24 @@ t('DB suites in run-all.sh (R24 after R23); generator --check in npm run ci; tes
   assert.match(pk.ci, /node scripts\/gen-apply-r23-staging\.mjs --check && node scripts\/gen-apply-r24\.mjs --check/);
   for (const f of ['r24-plain-words', 'r24-resources', 'r24-stock-flow', 'r24-automation', 'r24-release']) assert.ok(pk.test.includes(`node test/${f}.test.mjs`), f);
 });
-t('Automations: R23 rows call the real R23 settings RPCs and open the sections holding their cards', async () => {
+t('Automations (r25 0274): R23 rows switch through automation_switch into the R23 settings, and open the sections holding their cards', async () => {
   const win = {};
   vm.runInNewContext(read('public/automations.js'), { window: win, document: {}, location: { origin: 'https://helm.events' } });
-  const calls = [];
-  const R = { link_view_settings_get: { followup_enabled: true, followup_days: 3 }, quote_validity_settings_get: { enabled: true, default_days: 14 },
-    payment_schedule_settings_get: { overdue_bell: false }, admin_get_inbox_settings: { email_enabled: false, digest_default: 'daily' } };
-  const A = { settings: async () => null, save: async () => null, optional: async (fn, args) => { calls.push([fn, JSON.parse(JSON.stringify(args))]); return R[fn] || {}; } };
-  const reg = win.HelmAutomations.registry({ comms: null, deliveries: null }, A);
+  const reg = win.HelmAutomations.registry();
   const by = Object.fromEntries(reg.map((x) => [x.key, x]));
-  const sql = { '0261': read('supabase/migrations/0261_client_link_views.sql'), '0262': read('supabase/migrations/0262_quote_validity.sql'),
-    '0264': read('supabase/migrations/0264_payment_schedules.sql'), '0266': read('supabase/migrations/0266_notification_inbox.sql') };
-  for (const [key, mig, get, set, hash] of [['viewed', '0261', 'link_view_settings_get', 'link_view_settings_set', '#notifications'],
-    ['expiry', '0262', 'quote_validity_settings_get', 'quote_validity_settings_set', '#client-links'],
-    ['overdue', '0264', 'payment_schedule_settings_get', 'payment_schedule_settings_set', '#payment-schedules'],
-    ['digest', '0266', 'admin_get_inbox_settings', 'admin_set_inbox_settings', '#notifications']]) {
-    assert.match(sql[mig], new RegExp('create or replace function public\\.' + get + '\\(\\)'), get + ' exists in ' + mig);
-    assert.match(sql[mig], new RegExp('create or replace function public\\.' + set + '\\(p jsonb\\)'), set + ' exists in ' + mig);
+  const s274 = read('supabase/migrations/0274_automations_optin.sql');
+  for (const [key, store, hash] of [['viewed_alert', 'client_view_settings', '#notifications'], ['quote_expiry_client', 'quote_validity', '#client-links'],
+    ['quote_expiry_team', 'quote_validity', '#client-links'], ['overdue_bell', 'payment_schedule_settings', '#payment-schedules'],
+    ['inbox_email', 'inbox_settings', '#notifications'], ['crew_shifts', "'crew'", '#crew']]) {
     assert.equal(by[key].hash, hash, key + ' settings link');
     assert.match(read('public/control-split.js'), new RegExp('hash:"' + hash + '"'), hash + ' is a Control Center section');
+    assert.ok(s274.includes("'" + key + "'") && s274.includes(store), key + ' is switched where ' + store + ' lives');
   }
-  assert.equal(JSON.stringify(by.viewed.status(await by.viewed.read())), JSON.stringify({ on: true }));
-  assert.equal(JSON.stringify(by.expiry.status(await by.expiry.read())), JSON.stringify({ on: true, text: '14 days' }));
-  assert.equal(JSON.stringify(by.overdue.status(await by.overdue.read())), JSON.stringify({ on: false }));
-  assert.equal(by.digest.status(await by.digest.read()).on, false, 'inbox e-mails switched off -> digest row off');
-  // the keys each switch sends are accepted by the R23 setter (unknown keys are refused there)
-  await by.viewed.set(false); await by.overdue.set(true); await by.digest.set(true, R.admin_get_inbox_settings);
-  const sets = calls.filter((c) => /_set$|admin_set_/.test(c[0]));
-  assert.deepEqual(sets, [['link_view_settings_set', { p: { followup_enabled: false } }], ['payment_schedule_settings_set', { p: { overdue_bell: true } }],
-    ['admin_set_inbox_settings', { p: { email_enabled: true, digest_default: 'daily' } }]]);
-  assert.match(sql['0261'], /'followup_enabled'/); assert.match(sql['0264'], /'overdue_bell'/);
-  assert.match(sql['0266'], /p ->> 'email_enabled'/); assert.match(sql['0266'], /p ->> 'digest_default'/);
+  // the R23 cards keep their details but no second on / off (one place)
+  assert.ok(!/followup_enabled: fe/.test(read('public/link-views.js')), 'link views card: no on / off');
+  assert.ok(!/overdue_bell:/.test(read('public/payment-schedule-settings.js')), 'payment schedules card: no on / off');
+  assert.ok(!/email_enabled: on/.test(read('public/inbox-settings.js')), 'inbox card: no on / off');
+  assert.ok(!/notifyShifts: nt/.test(read('public/crew-shifts.js')), 'crew card: no on / off');
 });
 t('Control Center: 19 sections incl. R23 Payment schedules / Crew and R24 Automations', () => {
   const cs = read('public/control-split.js');

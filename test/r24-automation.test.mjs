@@ -158,38 +158,38 @@ t("Control Center: Automations section + three cards + script, same hash in sear
   assert.match(cat, /key: "automations", label: "Automations",\s+hash: "#automations"/);
 });
 
-t("automations.js: every automation listed in plain words; switches call the existing settings RPCs only", async () => {
+t("automations.js: ONE list, every automation in plain words with who it sends to; each switch = automation_switch (r25 0274)", async () => {
   const calls = [];
   const win = { BPStore: null };
   vm.runInNewContext(r("public/automations.js"), { window: win, document: {}, location: { origin: "https://helm.events" } });
-  const A = { settings: async () => ({ runsheet_enabled: true, runsheet_offsets: [15, 0], enquiry_enabled: false }),
-    save: async (p) => calls.push(["automation_settings_set", p]),
-    optional: async (fn, args) => { calls.push([fn, args]); return fn.endsWith("_get") || fn === "admin_get_inbox_settings" ? null : {}; } };
-  const S = { comms: { get: async () => ({ pay_enabled: false, pay_channels: [], fu_enabled: true, fu_channels: ["whatsapp"], low_stock_enabled: true }),
-      set: async (p) => calls.push(["comms_settings_set", p]), reminderGet: async () => ({ days: 7 }) },
-    deliveries: { settings: async () => ({ enabled: false }), saveSettings: async (p) => calls.push(["delivery_settings_set", p]) } };
-  const reg = win.HelmAutomations.registry(S, A);
+  const reg = win.HelmAutomations.registry();
   const keys = reg.map((x) => x.key);
-  assert.deepEqual(J(keys), ["event", "delivery", "runsheet", "pay", "overdue", "followup", "viewed", "expiry", "stock", "digest", "enquiry", "quoteLead"]);
-  for (const it of reg) { assert.ok(it.name && it.what && it.where, it.key + " has plain words"); assert.ok(!/allocation|outsourc|partner|AXP/i.test(it.name + it.what + it.where), it.key + " no jargon"); }
+  assert.deepEqual(J(keys), ["pay_reminders", "client_followups", "quote_expiry_client", "enquiry", "viewed_alert", "quote_expiry_team", "overdue_bell",
+    "low_stock", "event_reminders", "inbox_email", "wa_forward", "vendor_reminders", "delivery", "runsheet", "assign_whatsapp", "crew_shifts",
+    "auto_schedule", "quoteLead"]);
+  const sql = r("supabase/migrations/0274_automations_optin.sql");
+  for (const it of reg) {
+    assert.ok(it.name && it.what && Array.isArray(it.sends) && it.sends.length, it.key + " has plain words + who it sends to");
+    assert.ok(!/allocation|outsourc|partner|AXP/i.test(it.name + it.what), it.key + " no jargon");
+    if (it.sends[0] !== "nothing") assert.ok(/^This will /.test(it.ask || ""), it.key + " asks before switching on");
+    if (it.key !== "quoteLead") assert.ok(sql.includes("'" + it.key + "'"), it.key + " is a database key of automation_switch");
+  }
+  assert.deepEqual(J(win.HelmAutomations.GROUPS.map((g) => g[0])), ["clients", "team", "outside", "nothing"]);
   const by = Object.fromEntries(reg.map((x) => [x.key, x]));
-  assert.deepEqual(J(by.runsheet.status(await by.runsheet.read())), { on: true, text: "15 min before + at the start" });
-  assert.equal(by.overdue.status(await by.overdue.read()), null, "not installed -> Not set up yet");
-  await by.pay.set(true, await by.pay.read());
-  await by.followup.set(true, await by.followup.read());
-  await by.delivery.set(true);
-  await by.enquiry.set(true);
-  await by.digest.set(false);
-  await by.expiry.set(true);
-  assert.deepEqual(J(calls).filter((c) => !/_get$|admin_get_/.test(c[0])), [
-    ["comms_settings_set", { pay_enabled: true, pay_channels: ["email"] }],   // no channel yet -> e-mail
-    ["comms_settings_set", { fu_enabled: true }],                              // keeps WhatsApp
-    ["delivery_settings_set", { enabled: true }],
-    ["automation_settings_set", { enquiry_enabled: true }],
-    ["admin_set_inbox_settings", { p: { digest_default: "off" } }],
-    ["quote_validity_settings_set", { p: { enabled: true } }]]);
-  assert.equal(by.event.status({ days: 5 }).text, "Always on · 5 days before");
-  assert.ok(!/innerHTML|insertAdjacentHTML/.test(r("public/automations.js")), "DOM API only");
+  assert.equal(by.runsheet.detail({ runsheet_offsets: [15, 0] }), "15 min before + at the start");
+  assert.equal(by.quote_expiry_client.detail({ quote_validity: { enabled: true, reminder_days: [1, 3] } }), "3 days and 1 day before");
+  assert.equal(by.event_reminders.detail({ event_days: 5 }), "5 days before + the day before");
+  assert.equal(by.wa_forward.detail({ studio_whatsapp: false }), "add your studio WhatsApp number first");
+  const js = r("public/automations.js");
+  assert.match(js, /A\.switchOn\(it\.key, on\)/, "the switch is the one RPC");
+  assert.match(js, /on \? askFirst\(it\) : true/, "switching on asks first, switching off never");
+  assert.match(js, /return Promise\.resolve\(false\);   \/\/ nobody to ask: never switch on silently/);
+  assert.ok(!/runsheet_enabled:|enquiry_enabled:/.test(js), "the detail cards never send on / off");
+  const st = r("public/store-api.js");
+  assert.match(st, /overview: \(\) => \(supa \? rpc\("automation_overview", \{\}\)/);
+  assert.match(st, /switchOn: \(key, on\) => \(supa \? rpc\("automation_switch", \{ p_key: String\(key \|\| ""\), p_on: !!on \}\)/);
+  assert.ok(!/innerHTML|insertAdjacentHTML/.test(js), "DOM API only");
+  void calls;
 });
 
 t("public enquiry page: routes, noindex, only the two public RPCs, no HTML sinks", () => {

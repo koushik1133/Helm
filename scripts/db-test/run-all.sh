@@ -239,6 +239,8 @@ run "r24-contact-0271" "R24-CONTACT-0271: ALL PASS \(54/54\)" psql -q -f tests/d
 run "r25-hq-metrics-0272" "R25-HQ-METRICS-0272: ALL PASS \(23/23\)" psql -q -f tests/db/r25-hq-metrics-0272.sql
 # 0273 re-applies itself (after every suite that re-applies 0056's _checkout_currency), rolled back
 run "r25-currency-0273" "R25-CURRENCY-0273: ALL PASS \(35/35\)" psql -q -f tests/db/r25-currency-0273.sql
+# 0274 re-applies itself (twice + twice more: re-run with the marker, then a simulated first run), rolled back
+run "r25-automations-0274" "R25-AUTOMATIONS-0274: ALL PASS \(30/30\)" psql -q -f tests/db/r25-automations-0274.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

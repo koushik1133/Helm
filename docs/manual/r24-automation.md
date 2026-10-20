@@ -34,19 +34,10 @@
 
 ## 2. Control Center → Automations
 
-One page lists everything Helm does by itself. Each row shows what it does, where it acts, and whether it is **On** or **Off**, with a **Settings** button for the details:
-
-- Event reminders (always on; the number of days is under Reminders & client messages)
-- Delivery & arrival reminders
-- Run-sheet reminders
-- Payment reminders and client follow-ups (if you switch one on before choosing how to send it, Helm uses e-mail)
-- Overdue payment alert, Viewed but not approved, Quote expiry and E-mail digests. These show "Not set up yet" until that update is installed.
-- Low stock warnings
-- Enquiry form → Leads
-- Quotes → Leads (always on)
+One page lists everything Helm does by itself, and it is the only place with the on / off switches. Everything is **Off** until you switch it on; see the "Automations" chapter. Each row has a **Settings** button for the details.
 
 The same page also has two settings cards:
-- **Run-sheet reminders**: on / off, the default reminder times (up to 4; the default is 15 minutes before plus at the start), and e-mail / WhatsApp on or off.
+- **Run-sheet reminders**: the default reminder times (up to 4; the default is 15 minutes before plus at the start), and e-mail / WhatsApp on or off.
 - **Enquiry form**: see below.
 
 **Who can do what:** anyone with Control Center view can see this page. Only people with **Control Center edit** (admins) can change it. Every change is saved in the Audit log.

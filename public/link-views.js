@@ -331,13 +331,15 @@
     var bf = chk("lv_bell1", "Bell notification the first time the client opens it", cfg.bell_first);
     var br = chk("lv_bellr", "Also notify on later visits", cfg.bell_repeat);
     var rh = num("lv_rh", "at most once every (hours)", cfg.repeat_hours, 1, 168);
-    var fe = chk("lv_fu", "“Viewed but not approved” reminder for the quote's owner + admins", cfg.followup_enabled);
+    // r25 (0274): the viewed-but-not-approved alert is switched on / off ONLY in Control Center -> Automations
+    var fe = { el: h("span", { cls: "mnote au-onoff", id: "lv_fu" }, ["“Viewed but not approved” alert for the quote's owner + admins: ",
+      h("b", { text: cfg.followup_enabled ? "on" : "off" }), " (switch it in ", h("a", { href: "#automations", text: "Automations" }), ")"]) };
     var fd = num("lv_fd", "after (days)", cfg.followup_days, 1, 30);
     var an = cfg.auto_nudge || {};
     var autoLine = h("p", { cls: "mnote" }, [
       "Automatic nudge to the client: ", h("b", { text: an.enabled ? "on" : "off" }),
       an.enabled ? " (" + (an.delay_days || 3) + " days after opening, up to " + (an.max || 2) + ")" : " (off by default)",
-      " - set it under ", h("a", { href: "#cm_fu_on", cls: "lv-link", text: "Automatic client messages → Client follow-ups" }), "."]);
+      " - switch it in ", h("a", { href: "#automations", cls: "lv-link", text: "Automations → Client follow-ups" }), "."]);
     var msg = h("p", { cls: "mnote", role: "status", "aria-live": "polite" });
     var save = h("button", { type: "button", cls: "btn", id: "lv_save", text: "Save client view settings" });
     while (card.firstChild) card.removeChild(card.firstChild);
@@ -348,8 +350,6 @@
       h("p", { cls: "mnote", text: "Shows in the Attention tab and on the dashboard, with a one-tap “Send a nudge”." }), autoLine]));
     card.appendChild(msg); card.appendChild(save);
     card.hidden = false;
-    var link = card.querySelector(".lv-link");
-    if (link) link.addEventListener("click", function (e) { var t = doc.getElementById("cm_fu_on"); if (t) { e.preventDefault(); try { t.scrollIntoView({ block: "center" }); t.focus(); } catch (x) {} } });
     if (!canEdit) {
       Array.prototype.forEach.call(card.querySelectorAll("input,button"), function (x) { x.disabled = true; });
       msg.textContent = "Only people with Control Center edit rights can change these settings.";
@@ -360,7 +360,7 @@
       if (!Number.isInteger(r) || r < 1 || r > 168) { msg.textContent = "Later-visit alerts: choose 1 to 168 hours."; rh.input.focus(); return; }
       if (!Number.isInteger(d) || d < 1 || d > 30) { msg.textContent = "Viewed but not approved: choose 1 to 30 days."; fd.input.focus(); return; }
       var patch = { track_enabled: tr.input.checked, bell_first: bf.input.checked, bell_repeat: br.input.checked, repeat_hours: r,
-        followup_enabled: fe.input.checked, followup_days: d };
+        followup_days: d };
       var run = async function () {
         try { await st.linkViews.saveSettings(patch); msg.textContent = "Saved."; }
         catch (e) { msg.textContent = friendly(e, "save the client view settings"); }

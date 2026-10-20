@@ -9923,6 +9923,10 @@ window.HelmUrl = HelmUrl;
     runsheetTargets: (quoteId) => (supa ? rpc("runsheet_reminder_targets", { p_quote: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; })
       : Promise.resolve(null)),
     teamOptions: () => (supa ? rpc("runsheet_team_options", {}).then((d) => (Array.isArray(d) ? d : [])).catch(() => []) : Promise.resolve([])),
+    // r25 (0274): every automation's on / off in one read, and ONE switch (Control Center edit, checked + logged in the database).
+    // null from overview() = the server is older than 0274 (the page then falls back to each feature's own settings).
+    overview: () => (supa ? rpc("automation_overview", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    switchOn: (key, on) => (supa ? rpc("automation_switch", { p_key: String(key || ""), p_on: !!on }) : Promise.reject(new Error("Needs a signed-in studio."))),
     optional: (fn, args) => {
       if (!supa || !/^[a-z0-9_]{3,63}$/.test(String(fn || ""))) return Promise.resolve(null);
       return rpc(String(fn), args || {}).catch((e) => { if (rpcMissing(e)) return null; throw e; });

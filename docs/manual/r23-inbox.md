@@ -37,8 +37,8 @@ Helm never e-mails something you already read, finished or snoozed, and never th
 
 ## For admins (Control Center → Notifications → Inbox & e-mail digest)
 People with Control Center **edit** rights can set:
-- **Send inbox e-mails from this studio** (on by default) - off stops all inbox e-mails for everyone.
-- **Default for the team** - Daily digest (default), Instant important only, or No e-mails.
+- Inbox e-mails are **off** until an admin switches on "E-mail of missed notifications" in Control Center > Automations. Off stops all inbox e-mails for everyone.
+- **Default for the team** - Daily digest, Instant important only, or No e-mails (the default). Switching inbox e-mails on in Automations makes it Daily digest.
 - **Daily digest at** - the hour (studio time, default 8:00 am) and **Only items unread for at least** (default 1 hour).
 - **Opening the bell marks everything read** - off by default: an item counts as read when it is opened or marked.
 

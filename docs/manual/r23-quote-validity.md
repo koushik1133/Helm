@@ -38,7 +38,7 @@ Who can change it: studio admins, or anyone whose role can edit Control Center.
   someone keeps an old page open.
 - **Staff may pick a custom date on a quote** (on by default). Off = only admins pick dates; everyone who can
   edit quotes can still press Extend.
-- **Remind the studio in the bell** (on) and **E-mail the client a reminder** (on). Client e-mails are only sent
+- **Quote expiry alert** (bell for the team) and **Quote expiry reminder** (e-mail to the client) are off until you switch them on in Control Center > Automations. Client e-mails are only sent
   once client e-mail is switched on for Helm; until then they wait in the queue. Free-trial and demo studios
   never e-mail clients.
 - **Apply to open quotes...** (admins only): gives every open, never-approved quote that has no date (and whose

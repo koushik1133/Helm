@@ -170,6 +170,13 @@ do $$ declare r jsonb; it jsonb; e text; begin
 end $$;
 
 -- ---- 4) the scheduler -------------------------------------------------------------------------------------------
+-- r25 (0274): run-sheet reminders are OFF until a studio switches them on (Control Center -> Automations); both studios have
+do $$ begin
+  perform pg_temp.su();
+  insert into public.automation_settings(org_id, runsheet_enabled)
+    values ('a0000000-0000-4000-8000-000000000001', true), ('b0000000-0000-4000-8000-000000000001', true)
+  on conflict (org_id) do update set runsheet_enabled = true;
+end $$;
 do $$ declare r jsonb; r2 jsonb; n integer; begin
   perform pg_temp.svc();
   r := public.runsheet_reminders_tick();
@@ -369,6 +376,7 @@ do $$ declare r jsonb; u uuid; t uuid; tq uuid := gen_random_uuid(); c uuid; i u
   perform pg_temp.login('r24_trial@t.test');
   r := public.start_self_serve_trial('T r24', 'Asia/Kolkata', 'INR', 'demo');
   perform pg_temp.su(); t := (r ->> 'org_id')::uuid;
+  insert into public.automation_settings(org_id, runsheet_enabled) values (t, true) on conflict (org_id) do update set runsheet_enabled = true;   -- r25 (0274)
   insert into public.quotes(id, code, title, status, client, pricing, current_version, approval_status, org_id, event_date, created_at, updated_at)
     values (tq, 'T-0269', 'Trial event', 'confirmed', '{}'::jsonb, '{}'::jsonb, 1, 'none', t, loc::date, now(), now());
   insert into public.crew_members(id, name, phone, email, org_id) values (gen_random_uuid(), 'Trial Crew', '9822222222', 'tc@crew.test', t) returning id into c;

@@ -51,19 +51,15 @@
   }
 
   function paint() {
-    $("cm_pay_on").checked = !!S.pay_enabled;
     var pc = S.pay_channels || [], fc = S.fu_channels || [];
     $("cm_pay_email").checked = pc.indexOf("email") !== -1; $("cm_pay_wa").checked = pc.indexOf("whatsapp") !== -1;
     $("cm_pay_before").value = S.pay_before_days; $("cm_pay_every").value = S.pay_every_days; $("cm_pay_max").value = S.pay_max_overdue;
     $("cm_pay_due").checked = !!S.pay_on_due;
     $("cm_pay_tpl").value = S.pay_template || "";
-    $("cm_fu_on").checked = !!S.fu_enabled;
     $("cm_fu_email").checked = fc.indexOf("email") !== -1; $("cm_fu_wa").checked = fc.indexOf("whatsapp") !== -1;
     $("cm_fu_delay").value = S.fu_delay_days; $("cm_fu_max").value = S.fu_max;
     $("cm_fu_tpl").value = S.fu_template || "";
-    $("cm_low_on").checked = S.low_stock_enabled !== false;
     $("cm_wa_num").value = S.studio_whatsapp || "";
-    $("cm_wa_on").checked = !!S.wa_forward_enabled;
     rolesTable(); preview();
     setMsg(S.pending ? S.pending + " message" + (S.pending === 1 ? "" : "s") + " waiting to be sent." : "");
   }
@@ -98,12 +94,13 @@
       if (cb.checked) roles[cb.dataset.role].push(cb.dataset.type);
     });
     Object.assign(patch, {
-      pay_enabled: $("cm_pay_on").checked, pay_channels: chans("cm_pay_email", "cm_pay_wa"), pay_on_due: $("cm_pay_due").checked,
+      // r25 (0274): on / off for payment reminders, follow-ups, low stock and WhatsApp copies is switched ONLY in
+      // Control Center -> Automations (one place) - this card saves the details and never sends those switches
+      pay_channels: chans("cm_pay_email", "cm_pay_wa"), pay_on_due: $("cm_pay_due").checked,
       pay_template: $("cm_pay_tpl").value.trim() || null,
-      fu_enabled: $("cm_fu_on").checked, fu_channels: chans("cm_fu_email", "cm_fu_wa"),
+      fu_channels: chans("cm_fu_email", "cm_fu_wa"),
       fu_template: $("cm_fu_tpl").value.trim() || null,
-      low_stock_enabled: $("cm_low_on").checked,
-      wa_forward_enabled: $("cm_wa_on").checked, wa_forward_roles: roles,
+      wa_forward_roles: roles,
       studio_whatsapp: $("cm_wa_num").value.trim() || null,
     });
     [["pay_template", "cm_pay_tpl", "The payment reminder message"], ["fu_template", "cm_fu_tpl", "The follow-up message"]].forEach(function (p) {
@@ -112,12 +109,12 @@
       var bad = F() ? F().templatePlaceholders(t, PH[p[1]]) : [];
       if (bad.length) errs.push([p[1], "Helm won't fill in " + bad.join(" ") + " - the client would see it as typed. Use " + PH[p[1]].map(function (k) { return "{" + k + "}"; }).join(" ") + " (lower case, no spaces)."]);
     });
-    if (patch.pay_enabled && !patch.pay_channels.length) errs.push(["cm_pay_email", "Pick at least one channel (E-mail or WhatsApp) for payment reminders.", grp("cm_pay_email")]);
-    if (patch.fu_enabled && !patch.fu_channels.length) errs.push(["cm_fu_email", "Pick at least one channel (E-mail or WhatsApp) for follow-ups.", grp("cm_fu_email")]);
+    if (S && S.pay_enabled && !patch.pay_channels.length) errs.push(["cm_pay_email", "Pick at least one channel (E-mail or WhatsApp) for payment reminders.", grp("cm_pay_email")]);
+    if (S && S.fu_enabled && !patch.fu_channels.length) errs.push(["cm_fu_email", "Pick at least one channel (E-mail or WhatsApp) for follow-ups.", grp("cm_fu_email")]);
     if (patch.studio_whatsapp) {
       var wd = patch.studio_whatsapp.replace(/\D/g, "");
       if (!/^\+?[0-9\s().-]+$/.test(patch.studio_whatsapp) || wd.length < 8 || wd.length > 15) errs.push(["cm_wa_num", "Enter the studio WhatsApp number with country code, e.g. +91 98765 43210."]);
-    } else if (patch.wa_forward_enabled) errs.push(["cm_wa_num", "Add the studio WhatsApp number before switching forwarding on."]);
+    } else if (S && S.wa_forward_enabled) errs.push(["cm_wa_num", "WhatsApp copies are switched on (Automations) - keep a studio WhatsApp number, or switch them off there first."]);
     return { patch: patch, errs: errs };
   }
 

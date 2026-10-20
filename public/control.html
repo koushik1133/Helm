@@ -263,7 +263,7 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=3">
 <link rel="stylesheet" href="comms-settings.css?v=2">
-<link rel="stylesheet" href="payment-schedule.css?v=1"><link rel="stylesheet" href="automations.css?v=1">
+<link rel="stylesheet" href="payment-schedule.css?v=1"><link rel="stylesheet" href="automations.css?v=2">
 <link rel="stylesheet" href="delivery-tracker.css?v=1">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
@@ -399,8 +399,7 @@
       </div>
       <label class="qvchk" for="qv_lock"><input type="checkbox" id="qv_lock"> An expired quote can't be approved by the client</label>
       <label class="qvchk" for="qv_over"><input type="checkbox" id="qv_over"> Staff may pick a custom date on a quote (admins always can)</label>
-      <label class="qvchk" for="qv_stu"><input type="checkbox" id="qv_stu"> Remind the studio in the bell</label>
-      <label class="qvchk" for="qv_cli"><input type="checkbox" id="qv_cli"> E-mail the client a reminder (sent once client e-mail is switched on)</label>
+      <p class="mnote au-onoff">The reminders (bell for your team, e-mail to the client) are switched on or off in <a href="#automations">Control Center → Automations</a>.</p>
       <div id="qv_msg" role="status" aria-live="polite"></div>
       <div class="actions"><button type="button" class="btn primary" id="qv_save">Save quote validity</button></div>
       <div class="qvapply" id="qv_apply_row" hidden>
@@ -469,12 +468,11 @@
     <!-- r23 (0264) payment schedules: templates, the default, applied on approval, reminders + how clients pay - payment-schedule-settings.js fills it; hidden until the server answers -->
     <div class="card" id="pstCard" hidden>
       <h3>Payment schedules</h3>
-      <p class="mnote">When a client approves a quote, Helm adds your default payment schedule to the event (only when it has none yet - an existing schedule is never changed) and reminds the client before, on and after each due date. Recording a payment marks every payment it fully covers as paid.</p>
+      <p class="mnote">When a client approves a quote, Helm adds your default payment schedule to the event (only when it has none yet - an existing schedule is never changed). Reminders to the client go out only when “Payment reminders” is switched on in Automations. Recording a payment marks every payment it fully covers as paid.</p>
       <p class="mnote" id="pst_ro" hidden>Read-only: only a studio admin (or someone allowed to edit Control Center) can change these.</p>
       <fieldset class="pst-set">
         <legend>Automatic</legend>
-        <label class="pst-chk" for="pst_auto"><input type="checkbox" id="pst_auto"> Add the default schedule when a client approves a quote</label>
-        <label class="pst-chk" for="pst_bell"><input type="checkbox" id="pst_bell"> Bell notice to the team when a client payment is overdue</label>
+        <p class="mnote au-onoff">Adding the default schedule on approval, the overdue bell for your team and the payment reminders to clients are switched on or off in <a href="#automations">Control Center → Automations</a>.</p>
         <div class="pst-grid"><div class="fld"><label for="pst_default">Default schedule</label><select id="pst_default"></select></div></div>
         <p class="mnote" id="pst_rem"></p>
       </fieldset>
@@ -814,12 +812,12 @@
       <div class="card" id="commsCard" hidden>
         <h3>Automatic client messages &amp; WhatsApp</h3>
         <p class="mnote">Helm can remind clients about payments, follow up on proposals they opened, warn your team about stock clashes and copy notifications to WhatsApp.
-          Payment reminders are <b>on</b> by default (3 days before the due date, on the day and 3 days after); everything else is <b>off</b> until you switch it on. Messages are sent by the server, never twice, and each one is logged on the event.
+          Each one is <b>off</b> until you switch it on in <a href="#automations">Control Center → Automations</a> (the one place for every on / off switch); here you set how they work. Messages are sent by the server, never twice, and each one is logged on the event.
           WhatsApp is used only after you add your studio's WhatsApp number below.</p>
         <div id="cm_err"></div>
         <fieldset class="cmset">
           <legend>Payment reminders</legend>
-          <label class="cmchk" for="cm_pay_on"><input type="checkbox" id="cm_pay_on"> Send automatic payment reminders to clients</label>
+          <p class="mnote au-onoff">On / off: <a href="#automations">Automations → Payment reminders</a></p>
           <div class="cmchans"><span>Send by</span>
             <label class="cmchk" for="cm_pay_email"><input type="checkbox" id="cm_pay_email"> E-mail</label>
             <label class="cmchk" for="cm_pay_wa"><input type="checkbox" id="cm_pay_wa"> WhatsApp</label></div>
@@ -835,7 +833,7 @@
         </fieldset>
         <fieldset class="cmset">
           <legend>Client follow-ups</legend>
-          <label class="cmchk" for="cm_fu_on"><input type="checkbox" id="cm_fu_on"> Follow up when a client opened their booklet or quote but hasn't approved</label>
+          <p class="mnote au-onoff">On / off: <a href="#automations">Automations → Client follow-ups</a> (follow up when a client opened their booklet or quote but hasn't approved)</p>
           <div class="cmchans"><span>Send by</span>
             <label class="cmchk" for="cm_fu_email"><input type="checkbox" id="cm_fu_email"> E-mail</label>
             <label class="cmchk" for="cm_fu_wa"><input type="checkbox" id="cm_fu_wa"> WhatsApp</label></div>
@@ -849,14 +847,14 @@
         </fieldset>
         <fieldset class="cmset">
           <legend>Inventory</legend>
-          <label class="cmchk" for="cm_low_on"><input type="checkbox" id="cm_low_on"> Warn in the 🔔 bell when events on the same date need more of an item than you own</label>
+          <p class="mnote au-onoff">Warn in the 🔔 bell when events on the same date need more of an item than you own. On / off: <a href="#automations">Automations → Low stock warnings</a></p>
         </fieldset>
         <fieldset class="cmset">
           <legend>WhatsApp forwarding</legend>
           <p class="mnote">Team members who opt in on their profile get a WhatsApp copy of their bell notifications, with a link that opens the exact page. Max 30 per person per hour.</p>
           <div class="cmgrid">
             <div class="fld"><label for="cm_wa_num">Studio WhatsApp number</label><input id="cm_wa_num" type="tel" inputmode="tel" autocomplete="off" maxlength="20" placeholder="e.g. 98XXXXXXXX"></div>
-            <div class="fld"><span class="cmlbl">Forwarding</span><label class="cmchk" for="cm_wa_on"><input type="checkbox" id="cm_wa_on"> Forward notifications to WhatsApp</label></div>
+            <div class="fld"><span class="cmlbl">Forwarding</span><p class="mnote au-onoff">On / off: <a href="#automations">Automations → WhatsApp copies of notifications</a></p></div>
           </div>
           <div class="table-scroll"><table class="ntable cmroles" id="cm_roles"><caption class="sr-only">Which notifications each role may receive on WhatsApp</caption></table></div>
         </fieldset>
@@ -911,8 +909,8 @@
 <script src="config.js?v=108"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=277"></script>
-<script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=278"></script>
+<script src="event-reminders.js?v=4"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=5"></script>
@@ -921,12 +919,12 @@
 <script src="pkg-review.js?v=7"></script>
 <script src="onboarding-core.js?v=7"></script>
 <script src="studio-billing-form.js?v=2"></script>
-<script src="comms-settings.js?v=5"></script>
+<script src="comms-settings.js?v=6"></script>
 <script src="delivery-tracker.js?v=1"></script>
-<script src="delivery-settings.js?v=1"></script>
-<script src="inbox-settings.js?v=1"></script><script src="crew-shifts.js?v=2"></script>
-<script src="link-views.js?v=1"></script>
-<script src="automations.js?v=1"></script>
+<script src="delivery-settings.js?v=2"></script>
+<script src="inbox-settings.js?v=2"></script><script src="crew-shifts.js?v=3"></script>
+<script src="link-views.js?v=2"></script>
+<script src="automations.js?v=2"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=3"></script>
 <script src="cc-inputs.js?v=4"></script>
@@ -935,7 +933,7 @@
 <script src="venues-admin.js?v=9"></script>
 <script src="studio-templates-core.js?v=4"></script>
 <script src="studio-templates.js?v=13"></script>
-<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script><script src="quote-validity.js?v=1"></script><script src="stage-machine-settings.js?v=1"></script><script src="payment-schedule.js?v=1"></script><script src="payment-schedule-settings.js?v=1"></script>
+<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script><script src="quote-validity.js?v=2"></script><script src="stage-machine-settings.js?v=1"></script><script src="payment-schedule.js?v=1"></script><script src="payment-schedule-settings.js?v=2"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
 <script src="trial-demo.js?v=18"></script>
 <script src="trial-upgrade.js?v=2"></script>
