@@ -156,10 +156,9 @@ t('L10 no: nothing changes; no linked shortage: nothing is asked', async () => {
   assert.equal(await SH.afterReservationRemoved({ quoteId: Q, itemId: 'i-none' }), 0);
   assert.ok(!calls.some((c) => c[0] === 'ask'), 'not asked');
 });
-t('L10 inventory: Remove (and status Cancelled) on a reservation offer the cancel, after the reservation change', () => {
+t('L10 inventory: Release (status Cancelled, r24 - replaces Remove + the status drop-down) offers the cancel, after the reservation change', () => {
   const inv = read('public/inventory.html');
-  assert.match(inv, /await BPStore\.inventory\.removeRes\(b\.dataset\.del\); BPUI\.toast\("Reservation removed\.",\{type:"ok"\}\); \}\s*catch\(e\)\{[^\n]*return; \}\s*\/\/ L10[^\n]*\n\s*await resLinkedCancel\(b\.closest\("tr"\), b\.dataset\.name\);/);
-  assert.match(inv, /if\(next==="cancelled"\) await resLinkedCancel\(s\.closest\("tr"\)\);/);
+  assert.match(inv, /await BPStore\.inventory\.setResStatus\(rid,"cancelled"\); BPUI\.toast\("Released\.",\{type:"ok"\}\); \}\s*catch\(e\)\{[^\n]*return; \}\s*\/\/ L10[^\n]*\n\s*await resLinkedCancel\(b\.closest\("tr"\), b\.dataset\.name\);/);
   assert.match(inv, /HelmShortage\.afterReservationRemoved\(\{ quoteId, itemId, itemName: name\|\|it\.name\|\|"" \}\)/);
 });
 

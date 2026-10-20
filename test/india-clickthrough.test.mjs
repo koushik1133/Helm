@@ -58,10 +58,10 @@ t('D4 closure lists money owed AND equipment together, with links + admin overri
   const r = ctx.f({ blocked: true, balance_owed: 256800, open_checkouts: 0 }, ['Chair ×5', 'Table ×2']);
   assert.equal(r.lines.length, 2);
   assert.match(r.lines[0], /Balance due from client: ₹256800 \(collect it in Settlement\)/);
-  assert.match(r.lines[1], /2 equipment reservations not marked returned/);
+  assert.match(r.lines[1], /2 items given out with no name recorded and not marked back/);   // r24: one stock story
   const ce = closure.slice(closure.indexOf('async function closeEvent'), closure.indexOf('// Gate 1.5'));
   assert.doesNotMatch(ce, /Equipment still out/, 'no equipment-only dialog any more');
-  assert.match(ce, /settlement\.html\?quote=/); assert.match(ce, /inventory\.html\?quote=/);
+  assert.match(ce, /settlement\.html\?quote=/); assert.match(ce, /teardown\.html\?quote=/);   // r24: mark stock back in Teardown & returns
   assert.match(ce, /Override & close/); assert.match(ce, /overrideReason=t/);
   assert.match(closure, /id="closeBlockers"/); assert.match(closure, /renderCloseSummary\(\);/);
 });

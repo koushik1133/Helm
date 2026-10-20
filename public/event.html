@@ -804,7 +804,7 @@
         sum: resSummary && resSummary.total ? `${resSummary.total} need${resSummary.total===1?"":"s"} · ${resSummary.gaps?`<b class="t-bad">${resSummary.gaps} missing</b>`:(resSummary.outsourced?`<span class="stat ok">all covered</span> · ${resSummary.outsourced} by vendors / client`:'<span class="stat ok">all covered by us</span>')}` : "List what the event needs and see what's still missing.",
         acts:[{t: canEdit?"Open resource plan":"View plan", href:"resources.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"inventory", ic:"📦", title:"Inventory",
-        sum: invSummary && invSummary.total ? `${invSummary.active} item${invSummary.active===1?"":"s"} reserved${invSummary.total>invSummary.active?` · ${invSummary.total-invSummary.active} closed`:""}` : "Reserve our own stock for this event first.",
+        sum: invSummary && invSummary.total ? `${invSummary.active} item${invSummary.active===1?"":"s"} reserved${invSummary.total>invSummary.active?` · ${invSummary.total-invSummary.active} back or released`:""}` : "Reserve our own stock for this event first.",
         acts:[{t: canEdit?"Reserve stock":"View inventory", href:"inventory.html?quote="+encodeURIComponent(id), primary:true}] },
     ];
     // one plain-words line per tool, and the three groups the extra tools are shown in after confirmation

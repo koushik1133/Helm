@@ -73,7 +73,7 @@ t('server: 0105 functions are definer, empty search_path, row-locked, shortage i
 t('client: inventory uses outSmart + shortage panel, partial re-call, sub-rent via stock request, no raw error', () => {
   const inv = read('public/inventory.html'), api = read('public/store-api.js');
   assert.match(api, /rpc\("checkout_equipment_smart"/); assert.match(api, /rpc\("checkout_availability"/);
-  assert.match(inv, /<script src="checkout-shortage\.js\?v=4"><\/script>/);
+  assert.match(inv, /<script src="checkout-shortage\.js\?v=5"><\/script>/);
   assert.match(inv, /outSmart\(itemId, quoteId\|\|null, qty, to, crewId, coPending\.note, false\)/);
   assert.match(inv, /outSmart\(p\.itemId, quoteId\|\|null, p\.qty, p\.to, p\.crewId, p\.note, true\)/);
   assert.match(inv, /BPStore\.stockreq\.add\(quoteId,/);

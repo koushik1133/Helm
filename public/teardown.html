@@ -64,7 +64,8 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=40" id="shellProto"></script>
+<link rel="stylesheet" href="stock-flow.css?v=1">
+<script src="/shell-proto.js?v=39" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -86,18 +87,12 @@
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
 
     <div class="card">
-      <h2>📦 In-house inventory returns <span class="prog" id="invProg"></span></h2>
-      <p class="sub">Return stock to free it for other events. Enter any damaged/lost quantity — it comes off what you own.</p>
-      <div class="table-scroll"><table><thead><tr><th scope="col">Item</th><th scope="col" class="num">Out</th><th scope="col">Status</th><th scope="col" class="num">Damaged/lost</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="invRows"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
-    </div>
-
-    <div class="card">
-      <h2>🔑 Equipment check-out / check-in <span class="prog" id="loanProg"></span></h2>
-      <p class="sub">Gear physically issued for this event. Check items back in as they return — anything short lands in the loss report.</p>
-      <div class="table-scroll"><table><thead><tr><th scope="col">Item</th><th scope="col" class="num">Out</th><th scope="col">Issued to</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="loanRows"><tr><td colspan="4" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
-      <div class="s-56f4356"><a class="btn go" id="ciLink" href="#">🔑 Open Check-out / Check-in →</a></div>
+      <h2>📦 Stock for this event <span class="prog" id="invProg"></span></h2>
+      <p class="sub">Everything that went <b>Out</b> must come <b>Back</b>. Mark it back here — say how many came back OK and how many are damaged; anything not counted is <b>Missing</b>. Missing and damaged come off what you own.</p>
+      <div class="sf-legend" aria-hidden="true"><span><span class="sf-pill reserved">Reserved</span>held, never taken out — nothing to return</span><span><span class="sf-pill out">Out</span>with a person</span><span><span class="sf-pill back">Back</span>returned</span></div>
+      <div class="table-scroll"><table><thead><tr><th scope="col">Item</th><th scope="col" class="num">Reserved</th><th scope="col">Now</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody id="invRows"><tr><td colspan="4" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
+      <div class="s-56f4356"><a class="btn go" id="ciLink" href="#">Open Inventory for this event →</a></div>
     </div>
 
     <div class="card">
@@ -132,11 +127,11 @@
 <script src="config.js?v=107"></script>
 <script src="event-name.js?v=9"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script>
+<script src="stock-flow.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
-  const RES={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
   const BK={enquiry:"Enquiry",booked:"Booked",confirmed:"Confirmed",delivered:"Returned/Exited",cancelled:"Cancelled"};
   const CHK={open:"Open",done:"Done",na:"N/A"};
   let canEdit=false, canDelete=false, ev=null, itemsById={};
@@ -149,57 +144,57 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); } }
 
+  // r24: ONE stock story (stock-flow.js): Reserved -> Out (with a person) -> Back / Missing / Damaged.
+  // Reserved but never taken out = "Reserved - never taken out, nothing to return" and is released automatically.
+  const SF=window.HelmStockFlow;
+  let backOpen=null;   // {key, kind:"co"|"legacy", id, item, out}
+  const fmtWhen=(t)=>{ try{ return BPStore.fmtDateTime?BPStore.fmtDateTime(t):BPStore.fmtDay(t); }catch(_){ return ""; } };
+  function eventDayCome(){ const d=String((ev&&ev.eventDate)||"").slice(0,10); let t=""; try{ t=BPStore.todayLocal(); }catch(_){}
+    return !/^\d{4}-\d{2}-\d{2}$/.test(d) || (t && d<=t); }
   async function renderInventory(){
+    // teardown is after the event: release what was never taken out (server checks the event day itself)
+    if(canEdit && eventDayCome() && BPStore.inventory.releaseUnused){ try{ await BPStore.inventory.releaseUnused(id, true); }catch(_){} }
     const [res, items, cos] = await Promise.all([BPStore.inventory.reservations(id), BPStore.inventory.items(true),
       BPStore.inventory.checkouts.list(id).catch(()=>[])]);
-    // r20: "Return" only for stock that actually went out - an Allocated line, or an item checked out (issued) for this
-    // event. A line still only "Reserved" before the event day was never issued: nothing to bring back yet.
-    // From the event day on, a reserved line can be returned too (that is how the hold is released after the event).
-    const issuedItems=new Set((cos||[]).filter(c=>Number(c.qty_out||0)>0).map(c=>c.item_id));
-    const evDay=String((ev&&ev.eventDate)||"").slice(0,10), today=(()=>{ try{ return BPStore.todayLocal(); }catch(_){ return ""; } })();
-    const eventStarted=!/^\d{4}-\d{2}-\d{2}$/.test(evDay) || (today && evDay<=today);
-    const canReturnRow=(r)=>r.status==="allocated" || (r.status==="reserved" && (issuedItems.has(r.item_id) || eventStarted));
     itemsById={}; items.forEach(i=>itemsById[i.id]=i);
-    const returned=res.filter(r=>r.status==="returned").length;
-    $("#invProg").textContent = res.length?`${returned}/${res.length} returned`:"";
-    $("#invRows").innerHTML = res.length ? res.map(r=>{ const it=itemsById[r.item_id]||{name:"(item)"};
-      const active = (r.status==="reserved"||r.status==="allocated") && canReturnRow(r), notOut=r.status==="reserved" && !active;
-      return `<tr><td><b>${esc(it.name)}</b></td><td class="num">${esc(r.qty)} ${esc(it.unit||"")}</td>
-        <td><span class="st ${esc(r.status)}">${esc(RES[r.status]||r.status)}</span></td>
-        <td class="num">${canEdit&&active?`<input class="dmg" type="number" min="0" step="1" max="${esc(r.qty)}" value="0" data-dmg="${esc(r.id)}" aria-label="Damaged or lost quantity for ${esc(it.name)}">`:"—"}</td>
-        <td>${canEdit&&active?`<button type="button" class="btn go" data-ret="${esc(r.id)}" data-item="${esc(r.item_id)}" data-qty="${esc(r.qty)}" data-name="${esc(it.name)}" aria-label="Return ${esc(it.name)}">Return</button>`:(notOut?'<span class="sub" title="Reserved for this event, not issued yet - nothing to return before the event">Not issued yet</span>':"")}</td></tr>`;
-    }).join("") : '<tr><td colspan="5" class="empty">No inventory was reserved for this event.</td></tr>';
-    $("#invRows").querySelectorAll("[data-ret]").forEach(b=>b.addEventListener("click",async()=>{
-      if(b.disabled) return;
-      const inp=$("#invRows").querySelector(`[data-dmg="${CSS.escape(b.dataset.ret)}"]`);
-      const raw=inp?String(inp.value||"").trim():"";
-      const dr=raw===""?{ok:true,value:0}:BPStore.validate.count(raw,{field:"Damaged/lost"});
-      const dmg=dr.ok?dr.value:NaN;
-      if(!dr.ok || !(dmg>=0&&dmg<=Number(b.dataset.qty))){ BPUI.toast(dr.ok?"Damaged must be between 0 and "+b.dataset.qty+".":dr.error,{type:"err"}); if(inp) inp.focus(); return; }
-      const good=Number(b.dataset.qty)-dmg;
-      // warn (not block) when units of this item are still checked out on loan for this event
-      let loanWarn="";
-      try{ const cos=await BPStore.inventory.checkouts.list(id);
-        const out=cos.filter(c=>c.item_id===b.dataset.item && (c.status==="out"||c.status==="partial")).reduce((a,c)=>a+Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0),0);
-        if(out>0) loanWarn=` ${out} of this item ${out===1?"is":"are"} still checked out on loan for this event; check ${out===1?"it":"them"} in first, or the stock count may be wrong.`;
-      }catch(_){}
-      if(!(await BPUI.confirm(`Return ${b.dataset.name}: ${good} back to stock`+(dmg?`, ${dmg} written off as damaged/lost (this reduces what you own).`:".")+" This can't be undone here."+loanWarn,{title:"Return equipment?",okLabel:"Return",danger:dmg>0}))) return;
-      await act(b,async()=>{ await BPStore.inventory.returnReservation(b.dataset.ret,b.dataset.item,dmg);
-        await section(renderInventory,$("#invRows"),"inventory returns"); },"return the item"); }));
-  }
-
-  async function renderLoans(){
-    const cos=await BPStore.inventory.checkouts.list(id);
-    if(!Object.keys(itemsById).length){ try{ const its=await BPStore.inventory.items(true); its.forEach(i=>itemsById[i.id]=i); }catch(_){} }
-    const remaining=(c)=>Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
-    const open=cos.filter(c=>c.status==="out"||(c.status==="partial"&&remaining(c)>0));
-    $("#loanProg").textContent = cos.length?`${open.length} open`:"";
-    $("#loanRows").innerHTML = open.length ? open.map(c=>{ const it=itemsById[c.item_id]||{name:"(item)"};
-      return `<tr><td><b>${esc(it.name)}</b></td>
-        <td class="num">${esc(remaining(c))} ${esc(it.unit||"")}</td>
-        <td>${esc(c.issued_to||"—")}</td>
-        <td><a class="btn go" href="inventory.html?quote=${encodeURIComponent(id)}&tab=loans">Check in →</a></td></tr>`;
-    }).join("") : '<tr><td colspan="4" class="empty">Nothing on loan for this event. 🎉</td></tr>';
+    const rows=SF.eventItems({ reservations:res, checkouts:cos }).sort((a,b)=>String((itemsById[a.item_id]||{}).name||"").localeCompare(String((itemsById[b.item_id]||{}).name||"")));
+    const outN=rows.filter(r=>r.state==="out").length;
+    $("#invProg").textContent = rows.length ? (outN?`${outN} still out`:"all back") : "";
+    const over=eventDayCome();
+    const formHtml=(k,max)=>`<div class="sf-form" data-bk="${esc(k)}"><label>Came back OK<input data-f="ok" type="number" min="0" step="1" value="${esc(max)}"></label>
+      <label>Damaged<input data-f="dmg" type="number" min="0" step="1" value="0"></label>
+      <button type="button" class="btn go" data-bgo="save">Mark back</button><button type="button" class="btn" data-bgo="close">Cancel</button>
+      <p class="sf-note">${esc(max)} went out. Anything not counted here is Missing.</p></div>`;
+    $("#invRows").innerHTML = rows.length ? rows.map(r=>{ const it=itemsById[r.item_id]||{name:"(item)"}, u=it.unit||"";
+      const det=SF.detail(r,{ fmt:fmtWhen, unit:u, eventOver:over });
+      let acts="", forms="";
+      if(canEdit && r.state==="out"){
+        r.outs.forEach(c=>{ const k="co:"+c.id, left=Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
+          if(backOpen&&backOpen.key===k){ forms+=formHtml(k,left); return; }
+          acts+=`<button type="button" class="btn go" data-bk-open="${esc(k)}" aria-label="Mark ${esc(it.name)} back from ${esc(c.issued_to||"")}">Mark back${r.outs.length>1?" ("+esc(c.issued_to||"")+")":""}</button>`; });
+        if(r.legacyOut) r.legacyIds.forEach(rid=>{ const rr=res.find(x=>x.id===rid)||{}; const k="res:"+rid;
+          if(backOpen&&backOpen.key===k){ forms+=formHtml(k,Number(rr.qty||0)); return; }
+          acts+=`<button type="button" class="btn go" data-bk-open="${esc(k)}" aria-label="Mark ${esc(it.name)} back">Mark back</button>`; });
+      }
+      return `<tr><td><b>${esc(it.name)}</b></td><td class="num">${esc(r.reserved||"—")} ${r.reserved?esc(u):""}</td>
+        <td><span class="sf-pill ${esc(r.state)}">${esc(r.label)}</span>${det?`<span class="sf-detail">${esc(det)}</span>`:""}${forms}</td>
+        <td>${acts?`<div class="sf-acts">${acts}</div>`:""}</td></tr>`;
+    }).join("") : '<tr><td colspan="4" class="empty">No stock was reserved or given out for this event.</td></tr>';
+    const host=$("#invRows"), re=()=>section(renderInventory,host,"stock");
+    host.querySelectorAll("[data-bk-open]").forEach(b=>b.addEventListener("click",()=>{ backOpen={key:b.dataset.bkOpen}; re().then(()=>{ const f=host.querySelector('[data-bk] [data-f="ok"]'); if(f) f.focus(); }); }));
+    host.querySelectorAll("[data-bk]").forEach(f=>f.querySelectorAll("[data-bgo]").forEach(b=>b.addEventListener("click",async()=>{
+      if(b.dataset.bgo==="close"){ backOpen=null; return re(); }
+      const k=f.dataset.bk, isCo=k.indexOf("co:")===0, rid=k.slice(k.indexOf(":")+1);
+      const c=isCo?cos.find(x=>x.id===rid):null, rr=isCo?null:res.find(x=>x.id===rid);
+      const out=isCo?Math.max(Number(c&&c.qty_out||0)-Number(c&&c.qty_in||0),0):Number(rr&&rr.qty||0);
+      const V=BPStore.validate, ok=V.count(f.querySelector('[data-f="ok"]').value,{allowZero:true,field:"Came back OK"}), dm=V.count(f.querySelector('[data-f="dmg"]').value||"0",{allowZero:true,field:"Damaged"});
+      if(!ok.ok){ BPUI.toast(ok.error,{type:"err"}); return; } if(!dm.ok){ BPUI.toast(dm.error,{type:"err"}); return; }
+      const miss=out-ok.value-dm.value; if(miss<0){ BPUI.toast(`Only ${out} went out.`,{type:"err"}); return; }
+      if((miss>0||dm.value>0) && !(await BPUI.confirm(`${miss?miss+" missing":""}${miss&&dm.value?" and ":""}${dm.value?dm.value+" damaged":""} - ${miss+dm.value===1?"it comes":"they come"} off what you own. Continue?`,{title:"Missing or damaged?",okLabel:"Mark back",danger:true}))) return;
+      await act(b,async()=>{
+        if(isCo) await BPStore.inventory.checkouts.back(rid, ok.value, dm.value, null);
+        else await BPStore.inventory.returnReservation(rid, rr.item_id, miss+dm.value);   // given out before names were recorded
+        backOpen=null; BPUI.toast("Marked back.",{type:"ok"}); await re(); },"mark it back"); })));
   }
 
   async function renderBookings(){
@@ -251,9 +246,8 @@
     if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false; $("#tdAdd").hidden=!canEdit;
-    $("#ciLink").href="inventory.html?quote="+encodeURIComponent(id)+"&tab=loans";
-    await section(renderInventory,$("#invRows"),"inventory returns");
-    await section(renderLoans,$("#loanRows"),"equipment loans");
+    $("#ciLink").href="inventory.html?quote="+encodeURIComponent(id);
+    await section(renderInventory,$("#invRows"),"stock");
     await section(renderBookings,$("#bkRows"),"vendor bookings");
     await section(renderTeardown,$("#tdRows"),"teardown items");
   });

@@ -389,11 +389,6 @@
    "max": 3
   },
   {
-   "file": "public/command.html",
-   "expr": "stkPill[r.status]||\"pending\"",
-   "why": "lookup in a local literal map (icon/pill table) with literal fallback"
-  },
-  {
    "file": "public/control.html",
    "expr": "cols",
    "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
@@ -531,21 +526,6 @@
    "expr": "html",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
    "max": 2
-  },
-  {
-   "file": "public/inventory.html",
-   "expr": "lossRows || '<tr><td colspan=\"8\" class=\"empty\">No missing items — everything came back. 🎉</td></tr>'",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-  },
-  {
-   "file": "public/inventory.html",
-   "expr": "opts",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-  },
-  {
-   "file": "public/inventory.html",
-   "expr": "s",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
   },
   {
    "file": "public/invite-studio.html",
@@ -995,6 +975,46 @@
    "file": "public/resources.html",
    "expr": "rqTxt",
    "why": "r24: request status pill built just above the sink: class through esc(), text esc(statusLabel(...)); empty string otherwise"
+  },
+  {
+   "file": "public/command.html",
+   "expr": "personSelect(opts)",
+   "why": "r24 helper defined just above renderStock: optgroup labels are literals, every name / id / kind / role esc()'d"
+  },
+  {
+   "file": "public/command.html",
+   "expr": "det",
+   "why": "r24: built just above from esc()'d issued_to / fmtWhen / coSummary text or a literal"
+  },
+  {
+   "file": "public/command.html",
+   "expr": "acts",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/command.html",
+   "expr": "form",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/inventory.html",
+   "expr": "acts",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/inventory.html",
+   "expr": "lossRows || '<tr><td colspan=\"9\" class=\"empty\">Nothing missing or damaged — everything came back. 🎉</td></tr>'",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink); fallback is a literal"
+  },
+  {
+   "file": "public/teardown.html",
+   "expr": "forms",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/teardown.html",
+   "expr": "acts",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
   }
  ]
 }
