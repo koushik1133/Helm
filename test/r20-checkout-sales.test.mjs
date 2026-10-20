@@ -50,7 +50,7 @@ t('plans: display-only catalog has Starter, Studio and Enterprise ("Price on req
   assert.match(CO, /pp\.textContent = "Price on request";/);
   assert.match(CO, /box\.appendChild\(row\("Price", "On request", "tot"\)\);/);
   assert.doesNotMatch(CO, /No plans are available/);
-  assert.match(CO, /if \(!list\.length\) list = CATALOG;/);
+  assert.match(CO, /if \(!list\.length\) list = catalog\(\);/);   // r25: the catalogue in the studio's currency
   // an options failure still shows the plans (display only) instead of an empty box
   assert.match(CO, /catch \(e\) \{ showErr\(S\.checkout\.classify\(e\)\.message\); st\.opts = \{\}; acct = \{\}; \}/);
 });

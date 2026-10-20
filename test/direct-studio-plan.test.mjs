@@ -73,7 +73,7 @@ t('checkout: waiting studio sees the team-activation note, Contact sales + free-
 });
 t('checkout: never "No plans available" when the server has none - display-only catalog, not payable', () => {
   assert.match(CO, /st\.catalog = !\(Array\.isArray\(st\.opts\.plans\) && st\.opts\.plans\.length\);/);
-  assert.match(CO, /return l\.length \? l : \(st\.catalog \? CATALOG : l\);/);
+  assert.match(CO, /return l\.length \? l : \(st\.catalog \? catalog\(\) : l\);/);   // r25: CATALOG (INR) or the USD list
   assert.match(CO, /if \(st\.catalog \|\| onRequest\(planBy\(st\.plan\)\)\) \{ st\.preview = null; renderSummary\(\); return; \}/, 'no server preview for catalog / on-request plans');
 });
 t('checkout: CSP-safe (no inline handlers / styles / HTML sinks), polished sheet loaded last', () => {

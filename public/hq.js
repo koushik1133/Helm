@@ -1075,13 +1075,33 @@
   }
 
   /* ---------------- plans ---------------- */
+  // r25 (0273): each plan's fixed USD price (studios outside India pay in USD) - {code: {monthly, yearly}}
+  async function usdPrices() {
+    var out = {};
+    try { var r = await call("hq_plan_checkout"); (Array.isArray(r) ? r : []).forEach(function (p) {
+      (Array.isArray(p.prices) ? p.prices : []).forEach(function (x) { if (x.currency === "USD") out[p.code] = { monthly: x.monthly, yearly: x.yearly }; }); }); }
+    catch (e) {}
+    return out;
+  }
+  // pure: validated args for hq_upsert_plan_price in USD, or null when both fields are empty (exported for tests)
+  function usdPriceArgs(code, m, y) {
+    var ms = String(m == null ? "" : m).trim(), ys = String(y == null ? "" : y).trim();
+    if (!ms && !ys) return null;
+    if (!ms) throw new Error("Enter the USD price per month (the yearly price is optional)");
+    var mm = Number(ms), yy = ys ? Number(ys) : null;
+    if (!isFinite(mm) || mm < 0 || (yy != null && (!isFinite(yy) || yy < 0))) throw new Error("USD prices must be 0 or more");
+    return { p_plan_code: String(code || "").trim().toLowerCase(), p_currency: "USD", p_price_monthly: mm, p_price_yearly: yy };
+  }
   async function loadPlans() {
     var r = await call("hq_plans"); plans = Array.isArray(r) ? r : [];
+    var usd = await usdPrices();
     var tb = clear($("#tPlans"));
     plans.forEach(function (p) {
-      var edit = el("button", { cls: "btn sm", type: "button", text: "Edit" });
-      edit.addEventListener("click", function () { $("#plCode").value = p.code; $("#plName").value = p.name; $("#plPrice").value = p.price_monthly; $("#plActive").checked = !!p.active; });
+      var edit = el("button", { cls: "btn sm", type: "button", text: "Edit" }), u = usd[p.code] || {};
+      edit.addEventListener("click", function () { $("#plCode").value = p.code; $("#plName").value = p.name; $("#plPrice").value = p.price_monthly; $("#plActive").checked = !!p.active;
+        $("#plUsdM").value = u.monthly == null ? "" : u.monthly; $("#plUsdY").value = u.yearly == null ? "" : u.yearly; });
       tb.appendChild(el("tr", null, [el("td", { cls: "m", text: p.code }), el("td", { text: p.name }), el("td", { cls: "n", text: money(p.price_monthly, p.currency) }),
+        el("td", { cls: "n", text: u.monthly == null ? "—" : money(u.monthly, "USD") }),
         el("td", null, [el("span", { cls: "pill " + (p.active ? "ok" : ""), text: p.active ? "active" : "hidden" })]), el("td", { cls: "n", text: int(p.studios) }), el("td", null, [edit])]));
     });
     var tr = await call("hq_tax_rules"); tr = Array.isArray(tr) ? tr : [];
@@ -1089,7 +1109,7 @@
     tr.forEach(function (x) { tt.appendChild(el("tr", null, [el("td", { text: x.country + (x.region ? " · " + x.region : "") }), el("td", { cls: "m", text: x.regime }),
       el("td", { cls: "n", text: num(x.rate) + "%" }), el("td", { text: date(x.effective_from) + " – " + (x.effective_to ? date(x.effective_to) : "open") }),
       el("td", null, [el("span", { cls: "pill " + (x.active ? "ok" : ""), text: x.active ? "active" : "off" })]), el("td", { text: x.invoice_note || "" })])); });
-    if (!plans.length) tb.appendChild(el("tr", null, [el("td", { colspan: "6", cls: "empty", text: "No plans yet — add one below." })]));
+    if (!plans.length) tb.appendChild(el("tr", null, [el("td", { colspan: "7", cls: "empty", text: "No plans yet — add one below." })]));
     loadPlanCheckout().catch(showErr);
   }
   function saveTaxRule() {
@@ -1146,7 +1166,9 @@
       .catch(showErr).then(function () { b.disabled = false; });
   }
   function savePlan() {
+    var u; try { u = usdPriceArgs($("#plCode").value, $("#plUsdM").value, $("#plUsdY").value); } catch (e) { showErr(e); return; }
     call("hq_upsert_plan", { p_code: $("#plCode").value, p_name: $("#plName").value, p_price_monthly: Number($("#plPrice").value), p_currency: "INR", p_active: $("#plActive").checked })
+      .then(function () { return u ? call("hq_upsert_plan_price", u) : null; })   // r25: the fixed USD price next to INR
       .then(function () { okMsg("Plan saved."); loadPlans().catch(showErr); }).catch(showErr);
   }
 

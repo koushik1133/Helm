@@ -450,11 +450,13 @@
   <section id="pane-plans" hidden>
     <section class="card">
       <h2>Plans</h2>
-      <div class="scroll"><table><thead><tr><th>Code</th><th>Name</th><th class="n">Per month</th><th>Status</th><th class="n">Studios</th><th></th></tr></thead><tbody id="tPlans"></tbody></table></div>
+      <div class="scroll"><table><thead><tr><th>Code</th><th>Name</th><th class="n">Per month</th><th class="n">USD / month</th><th>Status</th><th class="n">Studios</th><th></th></tr></thead><tbody id="tPlans"></tbody></table></div>
       <div class="form s-56f4356">
         <label class="fld"><span>Code</span><input type="text" id="plCode" maxlength="40" placeholder="pro"></label>
         <label class="fld"><span>Name</span><input type="text" id="plName" maxlength="80" placeholder="Pro"></label>
         <label class="fld"><span>Price / month (₹)</span><input type="number" id="plPrice" min="0" step="1"></label>
+        <label class="fld"><span>Price / month ($)</span><input type="number" id="plUsdM" min="0" step="0.01" placeholder="24"></label>
+        <label class="fld"><span>Price / year ($)</span><input type="number" id="plUsdY" min="0" step="0.01" placeholder="240"></label>
         <label class="fld chk"><input type="checkbox" id="plActive" checked> <span>Offered</span></label>
         <button class="btn primary" id="btnPlan" type="button">Save plan</button>
       </div>
@@ -564,10 +566,10 @@
 <script src="config.js?v=108"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=276"></script>
-<script src="auth-ui.js?v=51"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=277"></script>
+<script src="auth-ui.js?v=52"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="hq-mfa.js?v=1"></script>
-<script src="hq.js?v=20"></script>
+<script src="hq.js?v=21"></script>
 </body>
 </html>

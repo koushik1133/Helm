@@ -2100,7 +2100,7 @@
     ["business_type", "Business type (wedding, corporate, decor, catering, other)"], ["events_per_month_band", "Events per month (0-2, 3-5, 6-10, 11-20, 21+)"],
     ["preferred_contact_method", "Preferred contact (whatsapp, phone, email)"], ["preferred_language", "Preferred language (e.g. en, hi)"],
     ["is_business", "Registered business? (true / false)"], ["tax_id_type", "Tax ID type"],
-    ["tax_id", "Tax ID"], ["pan", "PAN (India only)"], ["billing_currency", "Billing currency (e.g. INR, USD)"], ["referred_by", "Referred by"]];
+    ["tax_id", "Tax ID"], ["pan", "PAN (India only)"], ["billing_currency", "Billing currency (fixed - contact Helm to change)"], ["referred_by", "Referred by"]];
   // B12: human labels for the tax-ID type (stored values unchanged)
   var TAX_ID_TYPES = [["", "-"], ["IN_GSTIN", "India - GSTIN"], ["IN_PAN", "India - PAN"], ["AE_TRN", "UAE - TRN (VAT)"], ["US_EIN", "USA - EIN"],
     ["UK_VAT", "UK - VAT number"], ["EU_VAT", "EU - VAT number"], ["AU_ABN", "Australia - ABN"], ["CA_GST", "Canada - GST/HST number"], ["SG_GST", "Singapore - GST reg. no."], ["OTHER", "Other"]];
@@ -2126,13 +2126,14 @@
           TAX_ID_TYPES.concat(cur && !TAX_ID_TYPES.some(function (t) { return t[0] === cur; }) ? [[cur, cur]] : []).forEach(function (t) { var o = el("option", { value: t[0] }, t[1]); i.appendChild(o); }); }
         else i = el("input", { id: id, class: "hpf-i", type: /_phone$/.test(f[0]) ? "tel" : (/_email$/.test(f[0]) ? "email" : "text") });
         i.value = cur; inputs[f[0]] = i;
+        if (f[0] === "billing_currency") { i.readOnly = true; i.setAttribute("aria-readonly", "true"); }   // r25 (0273): fixed per studio
         w.appendChild(i); grid.appendChild(w);
       });
       var wrap = el("div", { class: "hpf" }); wrap.appendChild(grid); body.appendChild(wrap);
       var msg = el("div", { class: "hau-muted", role: "status" });
       var save = el("button", { type: "button", class: "hau-btn primary" }, "Save account details");
       save.addEventListener("click", function () {
-        var patch = {}; ACC_FIELDS.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (a[f[0]] == null ? "" : String(a[f[0]]))) patch[f[0]] = v; });
+        var patch = {}; ACC_FIELDS.forEach(function (f) { if (f[0] === "billing_currency") return; var v = String(inputs[f[0]].value || "").trim(); if (v !== (a[f[0]] == null ? "" : String(a[f[0]]))) patch[f[0]] = v; });
         save.disabled = true;
         st.subscription.updateAccount(patch).then(function (r) { a = r || a; msg.textContent = "Saved."; },
           function (e) { msg.textContent = errText(e, "save the account details"); }).then(function () { save.disabled = false; });

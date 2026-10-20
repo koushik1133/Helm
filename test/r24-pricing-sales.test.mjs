@@ -46,7 +46,7 @@ for (const [name, h, start, end] of [['index.html', IDX, '<section class="sec pr
 
 t('index.html: the "All prices ... Compare all plans" line stays, under the trial block; prices untouched', () => {
   const s = section(IDX, '<section class="sec pricing" id="pricing"', '</section>');
-  const tr = s.indexOf('pr-trial'), note = s.indexOf('<p class="wrap c note-s rv">All prices in USD, proposed and not final. <a class="link-d" href="/pricing">Compare all plans');
+  const tr = s.indexOf('pr-trial'), note = s.indexOf('<p class="wrap c note-s rv">All prices in USD, proposed and not final. Studios in India are billed in &#8377; incl. GST. <a class="link-d" href="/pricing">Compare all plans');   // r25: + the India line
   assert.ok(tr > 0 && note > tr);
   for (const p of ['<span>$24</span>', '<span>$59</span>', '<p class="price">Custom</p>', 'Plans from <em>$24 a month.</em>']) assert.ok(s.includes(p), p);
   assert.match(s, /<a class="btn btn-dark" href="\/signup\?mode=trial">Start free trial <span class="bi">/, 'primary button');
@@ -54,7 +54,7 @@ t('index.html: the "All prices ... Compare all plans" line stays, under the tria
 
 t('pricing.html: r24 usd - prices in USD (no rupee left); trial button is the primary style', () => {
   for (const p of ['<b>$24</b>', '<b>$59</b>', 'or $240/year proposed (2 months free)', 'or $590/year proposed (2 months free)', '<b>Custom</b> <span>talk to us</span>']) assert.ok(PR.includes(p), p);
-  assert.ok(!/&#8377;|₹|INR/.test(PR), 'no rupee prices on /pricing');
+  assert.ok(!/(&#8377;|₹)\s*\d|INR/.test(PR), 'no rupee prices on /pricing');   // r25: only the line "Studios in India are billed in ₹ incl. GST."
   assert.ok(PR.includes('<p class="pr-note" role="note"><b>Proposal:</b> these prices are suggestions for review and are not final.'), 'proposal banner kept');
   for (const [h, f] of [[IDX, 'index.html'], [PR, 'pricing.html']]) {
     assert.ok(h.includes('"name": "Starter", "price": "24", "priceCurrency": "USD"'), f + ' JSON-LD Starter');
@@ -92,7 +92,8 @@ t('sign-up: ?mode=paid reads as sales while Pay now is off; trial / sales unchan
   assert.match(SFJ, /function wantMode\(\) \{ return payGate\(intent\.mode \|\| mode\(metaOf\(\)\.helm_signup_mode\), payOn\(\)\); \}/);
   assert.match(SFJ, /if \(kind === "pay" && !payOn\(\)\) kind = "sales";/, 'never the payment path');
   assert.match(SFJ, /: "Contact sales and our team sets up your plan with you, or try Helm free for " \+ days \+ " days - no payment needed\.";/);
-  assert.match(SFJ, /if \(note && !pay\) note\.textContent = /);
+  assert.match(SFJ, /if \(note\) note\.textContent = currencyNote\(st\.currency, pay\);/);   // r25: per currency; with Pay now off no UPI wording
+  assert.doesNotMatch(SF.currencyNote('INR', false), /UPI|Pay now/); assert.doesNotMatch(SF.currencyNote('USD', false), /UPI|Pay now|GST/);
   assert.match(read('public/login.html'), /<p class="helper st-note" id="stNote">/);
   assert.match(SF.startError({ hint: 'trial_used' }).text, /Choose Contact sales on a plan/);
   assert.match(TS, /\(payNow \? "pay now" : "contact sales"\)/);

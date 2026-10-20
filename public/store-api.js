@@ -1227,7 +1227,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "51";
+  const AUTH_UI_VERSION = "52";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -10517,7 +10517,14 @@ window.HelmUrl = HelmUrl;
         p_source: /^(signup|google|checkout|studio)$/.test(String(source || "")) ? source : "signup" })
         .catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       // {currency, plans, trial_days, online_payments_live, terms_version} - no studio needed
-      planOptions: () => (supa ? rpc("signup_plan_options", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // r25 (0273): in the currency this person will be billed in (India time -> INR, elsewhere -> USD; a studio's own
+      // fixed currency once it exists). Before 0273: the INR list (signup_plan_options).
+      planOptions: (tz) => (supa ? rpc("signup_plan_options_for", { p_timezone: tz ? String(tz).slice(0, 64) : null })
+        .catch((e) => { if (!rpcMissing(e)) throw e; return rpc("signup_plan_options", {}); })
+        .catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // r25 (0273): fixes the new studio's billing currency ONCE from the browser time zone (never changes a set value);
+      // {currency, set} or null (older server / not the studio admin - best effort, the server default is INR)
+      initCurrency: (tz) => (supa ? rpc("my_billing_currency_init", { p_timezone: tz ? String(tz).slice(0, 64) : null }).catch(() => null) : Promise.resolve(null)),
       // "Pay now" / "Contact sales": the paid studio (payment-gated until its first payment / HQ activation), Terms recorded
       // in the same transaction. Before 0255: create_studio (the 0159 paid path) - the Terms are then taken on /checkout.
       async createDirect(o) {

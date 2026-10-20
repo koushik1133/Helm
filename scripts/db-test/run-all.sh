@@ -237,6 +237,8 @@ run "r21-trial-paid-0244" "R21-TRIAL-PAID-0244: ALL PASS \(56/56\)" psql -q -f t
 run "r24-contact-0271" "R24-CONTACT-0271: ALL PASS \(54/54\)" psql -q -f tests/db/r24-contact-0271.sql
 # r25 HQ: read-only numbers, re-applies itself twice (re-run safe), rolled back
 run "r25-hq-metrics-0272" "R25-HQ-METRICS-0272: ALL PASS \(23/23\)" psql -q -f tests/db/r25-hq-metrics-0272.sql
+# 0273 re-applies itself (after every suite that re-applies 0056's _checkout_currency), rolled back
+run "r25-currency-0273" "R25-CURRENCY-0273: ALL PASS \(35/35\)" psql -q -f tests/db/r25-currency-0273.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

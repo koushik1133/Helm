@@ -131,7 +131,7 @@ t('flow step 9: next-step says confirmed only after an advance', () => {
 });
 t('demo notice: once per session off the dashboard (auth-ui v32)', () => {
   assert.match(r('public/auth-ui.js'), /pageName\(\) !== "dashboard" && sessionStorage\.getItem\("helm_demo_seen"\) === "1"/);
-  assert.match(r('public/store-api.js'), /AUTH_UI_VERSION = "51"/);
+  assert.match(r('public/store-api.js'), /AUTH_UI_VERSION = "52"/);
 });
 
 console.log('manager-1019: ' + n + ' checks passed');

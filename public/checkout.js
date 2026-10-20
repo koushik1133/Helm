@@ -36,7 +36,7 @@
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
   function money(v, cur) {
     var n = Number(v); if (!isFinite(n)) return "—";
-    try { return new Intl.NumberFormat(cur === "INR" ? "en-IN" : undefined, { style: "currency", currency: cur || "INR", maximumFractionDigits: 2 }).format(n); }
+    try { return new Intl.NumberFormat(!cur || cur === "INR" ? "en-IN" : "en-US", { style: "currency", currency: cur || "INR", maximumFractionDigits: 2 }).format(n); }
     catch (e) { return (cur || "") + " " + n.toFixed(2); }
   }
   function showErr(msg, kind) {
@@ -44,11 +44,22 @@
     b.textContent = msg || ""; b.hidden = !msg;
     if (msg) try { b.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (e) {}
   }
+  // r25: the studio's ONE billing currency comes from the server (India -> INR, elsewhere -> USD; fixed at sign-up).
+  //   The display-only catalogue follows it (USD list prices for a USD studio).
+  function curOf() {
+    var c = String((st.opts && st.opts.currency) || "").toUpperCase();
+    return /^[A-Z]{3}$/.test(c) ? c : "INR";
+  }
+  function catalog() {
+    var P = window.HelmPlanCards, c = curOf();
+    return P && P.CATALOGS && P.CATALOGS[c] ? P.CATALOGS[c] : CATALOG;
+  }
+  // r25: GST is named for rupee prices only
+  function taxTail() { var c = curOf(); return c === "INR" ? "plus GST" : c === "USD" ? "in US dollars" : "in " + c; }
   function plansList() {
     var l = (st.opts && Array.isArray(st.opts.plans)) ? st.opts.plans : [];
-    return l.length ? l : (st.catalog ? CATALOG : l);
+    return l.length ? l : (st.catalog ? catalog() : l);
   }
-  function curOf() { return st.catalog ? "INR" : (st.opts && st.opts.currency) || "INR"; }
   function planBy(code) { return plansList().filter(function (p) { return p.code === code; })[0] || null; }
   // the middle-of-range plan gets the "Most studios" badge (only when there are 2+ plans)
   // r20: a plan with no price at all is "Price on request"; offered() = can be picked for this billing period
@@ -60,7 +71,7 @@
   function renderPlans() {
     var box = $("#coPlans"); clear(box);
     var list = plansList();
-    if (!list.length) list = CATALOG;   // r20: never an empty box - the display-only plans instead
+    if (!list.length) list = catalog();   // r20: never an empty box - the display-only plans instead
     var anyYearly = list.some(function (p) { return p.yearly != null; });
     $("#ivYearlyL").hidden = !anyYearly;
     $("#coSave").hidden = !list.some(function (p) { return p.yearly != null && Number(p.yearly) < Number(p.monthly) * 12; });
@@ -83,7 +94,7 @@
       else { pp.textContent = money(price, curOf()); pp.appendChild(el("small", null, st.interval === "yearly" ? "/year" : "/month")); }
       lab.appendChild(pp);
       lab.appendChild(el("div", "px", ask ? "Custom pricing for larger teams. Talk to our team" : off ? "Yearly billing isn't offered for this plan" :
-        st.interval === "yearly" ? "≈ " + money(Number(price) / 12, curOf()) + " a month, plus tax" : "plus applicable tax"));
+        st.interval === "yearly" ? "≈ " + money(Number(price) / 12, curOf()) + " a month, " + taxTail() : curOf() === "INR" ? taxTail() : taxTail().charAt(0).toUpperCase() + taxTail().slice(1)));
       // r22: the same action row as every plan card (plan-cards.js): Pay now (primary) / Try free (waiting studio,
       // payment off) / Contact sales. A button inside the card never toggles the radio by itself.
       if (window.HelmPlanCards && !off) lab.appendChild(window.HelmPlanCards.actions(p, { interval: st.interval,
@@ -123,7 +134,7 @@
     if (!q && st.catalog) {
       if (cp) {
         box.appendChild(row("Plan", cp.name + " · " + (st.interval === "yearly" ? "Yearly" : "Monthly")));
-        box.appendChild(row("Price before tax", money(st.interval === "yearly" ? cp.yearly : cp.monthly, "INR"), "tot"));
+        box.appendChild(row(curOf() === "INR" ? "Price before GST" : "Price", money(st.interval === "yearly" ? cp.yearly : cp.monthly, curOf()), "tot"));
         box.appendChild(el("p", "note", "Proposed price. Tax is worked out from your billing country and state and shown before you pay."));
       }
       updateButton(); return;

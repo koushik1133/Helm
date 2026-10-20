@@ -9,6 +9,9 @@
    Pay now: "Contact sales" becomes the primary button and "Try free" stays where a trial is possible.
    Prices come from the server (signup_plan_options / my_checkout_options). CATALOG is the display-only
    fallback - the SAME plans and prices as the public pricing page and checkout.js (never payable on its own).
+   r25 currency: ONE list currency in public (USD). Each studio is billed in ONE fixed currency: India -> INR (GST added),
+   elsewhere -> USD. Prices are FIXED per currency (never converted); the server says which currency (opts.currency).
+   Before a studio exists the browser time zone picks the fallback catalogue (currencyFor: India time -> INR, else USD).
    CSP: DOM via createElement / textContent only; styles in plan-cards.css.
    ========================================================================= */
 (function (global) {
@@ -21,6 +24,12 @@
     { code: "enterprise", name: "Enterprise", description: "Multi-city teams and corporate studios", monthly: null, yearly: null,
       features: ["Everything in Studio", "Unlimited team members", "Multiple branches and countries, local tax rules", "Priority onboarding and data import help", "Audit log review and custom roles"] }
   ];
+  // r25: the same plans at the fixed USD list prices (public /pricing)
+  var CATALOG_USD = CATALOG.map(function (p) {
+    var usd = { starter: [24, 240], studio: [59, 590] }[p.code];
+    return { code: p.code, name: p.name, description: p.description, monthly: usd ? usd[0] : null, yearly: usd ? usd[1] : null, features: p.features.slice() };
+  });
+  var CATALOGS = { INR: CATALOG, USD: CATALOG_USD };
   var CODE_RE = /^[a-z0-9][a-z0-9_-]{1,39}$/;
 
   // ---- pure helpers (unit-tested) ----
@@ -34,20 +43,34 @@
         features: (Array.isArray(p.features) ? p.features : []).map(function (f) { return String(f).slice(0, 120); }).slice(0, 8) };
     });
   }
-  function plansOr(list) { var l = normalize(list); return l.length ? l : CATALOG.slice(); }
+  // r25: billing currency code ("INR" / "USD" / another ISO code from the server); anything else -> INR
+  function cur(c) { var x = String(c || "").toUpperCase(); return /^[A-Z]{3}$/.test(x) ? x : "INR"; }
+  // r25: the visitor's currency before a studio exists - India time -> INR, any other time zone -> USD, unknown -> INR
+  //   (the server rule _r25_currency_for is the same; a billing country, once known, wins on the server)
+  function currencyFor(tz) {
+    var z = String(tz == null ? "" : tz).trim();
+    if (z === "Asia/Kolkata" || z === "Asia/Calcutta") return "INR";
+    return /^[A-Za-z]+(\/[A-Za-z0-9_+-]+){1,2}$/.test(z) ? "USD" : "INR";
+  }
+  function browserZone() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } }
+  function plansOr(list, currency) { var l = normalize(list); return l.length ? l : (CATALOGS[cur(currency)] || CATALOG).slice(); }
   function onRequest(p) { return !!p && p.monthly == null && p.yearly == null; }
   function offered(p, interval) { return onRequest(p) || (interval === "yearly" ? p.yearly : p.monthly) != null; }
-  function money(v) {
-    var n = Number(v); if (!isFinite(n)) return "";
-    try { return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n); }
-    catch (e) { return "₹" + Math.round(n); }
+  // r25: rupees in the Indian style (₹1,999), dollars in the US style ($24); whole amounts without decimals
+  function money(v, currency) {
+    var n = Number(v), c = cur(currency); if (!isFinite(n)) return "";
+    var whole = Math.round(n * 100) % 100 === 0;
+    try { return new Intl.NumberFormat(c === "INR" ? "en-IN" : "en-US", { style: "currency", currency: c, minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2 }).format(n); }
+    catch (e) { return (c === "INR" ? "₹" : c === "USD" ? "$" : c + " ") + (whole ? Math.round(n) : n.toFixed(2)); }
   }
-  function priceText(p, interval) {
+  // the price lines on a card; GST is mentioned for rupee prices only (r25)
+  function priceText(p, interval, currency) {
     if (onRequest(p)) return { main: "Price on request", unit: "", sub: "Custom pricing for larger teams" };
-    var v = interval === "yearly" ? p.yearly : p.monthly;
+    var v = interval === "yearly" ? p.yearly : p.monthly, c = cur(currency);
     if (v == null) return { main: "—", unit: "monthly only", sub: "Yearly billing isn't offered for this plan" };
-    return { main: money(v), unit: interval === "yearly" ? "/year" : "/month",
-      sub: interval === "yearly" ? "≈ " + money(Number(v) / 12) + " a month, plus GST" : "plus GST" };
+    var tail = c === "INR" ? "plus GST" : c === "USD" ? "in US dollars" : "in " + c;
+    return { main: money(v, c), unit: interval === "yearly" ? "/year" : "/month",
+      sub: interval === "yearly" ? "≈ " + money(c === "INR" ? Math.round(Number(v) / 12) : Math.round(Number(v) / 12 * 100) / 100, c) + " a month, " + tail : c === "INR" ? tail : tail.charAt(0).toUpperCase() + tail.slice(1) };
   }
   // the middle plan of 2+ is "Most studios" (same rule as checkout)
   function recommended(list) { return list.length > 1 ? list[Math.min(1, list.length - 1)].code : ""; }
@@ -71,7 +94,7 @@
       primary: ask || !on ? "sales" : "pay" };
   }
 
-  var api = { CATALOG: CATALOG, normalize: normalize, plansOr: plansOr, onRequest: onRequest, offered: offered, money: money,
+  var api = { CATALOG: CATALOG, CATALOGS: CATALOGS, currencyFor: currencyFor, browserZone: browserZone, cur: cur, normalize: normalize, plansOr: plansOr, onRequest: onRequest, offered: offered, money: money,
     priceText: priceText, recommended: recommended, pickPlan: pickPlan, interval: interval, actionsFor: actionsFor, payNowOn: payNowOn };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (!global || !global.document) return;
@@ -95,9 +118,9 @@
     return box;
   }
   // full card list for pages that have no cards of their own (login.html "How would you like to start?")
-  //   opts: actions() opts + { plans, selected, onSelect(code) }
+  //   opts: actions() opts + { plans, currency, selected, onSelect(code) }
   function render(box, opts) {
-    var o = opts || {}, list = plansOr(o.plans), iv = interval(o.interval), rec = recommended(list);
+    var o = opts || {}, list = plansOr(o.plans, o.currency), iv = interval(o.interval), rec = recommended(list);
     while (box.firstChild) box.removeChild(box.firstChild);
     box.classList.add("plans", "hpc");
     list.forEach(function (p) {
@@ -107,7 +130,7 @@
       if (p.code === rec) { card.classList.add("rec"); pn.appendChild(el("span", "badge", "Most studios")); }
       card.appendChild(pn);
       card.appendChild(el("p", "pd", p.description || ""));
-      var pt = priceText(p, iv), pp = el("p", "pp" + (onRequest(p) ? " req" : ""), pt.main);
+      var pt = priceText(p, iv, o.currency), pp = el("p", "pp" + (onRequest(p) ? " req" : ""), pt.main);
       if (pt.unit) pp.appendChild(el("small", null, pt.unit));
       card.appendChild(pp);
       card.appendChild(el("p", "px", pt.sub));
@@ -120,6 +143,6 @@
     });
     return list;
   }
-  global.HelmPlanCards = { CATALOG: CATALOG, normalize: normalize, plansOr: plansOr, onRequest: onRequest, offered: offered, money: money,
+  global.HelmPlanCards = { CATALOG: CATALOG, CATALOGS: CATALOGS, currencyFor: currencyFor, browserZone: browserZone, cur: cur, normalize: normalize, plansOr: plansOr, onRequest: onRequest, offered: offered, money: money,
     priceText: priceText, recommended: recommended, pickPlan: pickPlan, interval: interval, actionsFor: actionsFor, payNowOn: payNowOn, actions: actions, render: render };
 })(typeof window !== "undefined" ? window : globalThis);
