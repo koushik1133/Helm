@@ -2,9 +2,14 @@
 -- bell's own visibility rules for several roles, bulk actions, snooze presets in IST, snoozes come back by themselves,
 -- e-mail digests only for still-unread items (queued in the Helm notice outbox, re-checked at claim), settings,
 -- studio isolation, grants, trial retention lists and a safe re-run.
+-- Time-independent (r24 CI): the daily-digest window (default 8-10 am studio time) is closed for every studio in the
+-- setup and only opened (digest hour = now) for the digest checks, so the inbox_tick in check 30 never queues today's
+-- digest early - at 08:00-09:59 IST it used to, and check 55 then failed (the digest was already queued + deduped).
+-- 0270 (rules worked out once per call, not per row) is applied after every 0266 re-run.
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
 \i supabase/migrations/0266_notification_inbox.sql
+\i supabase/migrations/0270_inbox_visible_speed.sql
 drop table if exists _g266; create temp table _g266(name text, result text); grant all on _g266 to anon, authenticated;
 
 create or replace function pg_temp.as_try(p_who text, p_sql text) returns text language plpgsql as $$
@@ -63,6 +68,11 @@ do $$ declare a uuid := 'c0000000-0000-4000-8000-000000000266'; qa uuid := 'c000
   delete from public.notification_inbox_state where notification_id::text like 'c0000000-0000-4000-8000-000000266%';
   delete from public.notifications where id::text like 'c0000000-0000-4000-8000-000000266%';
   delete from public.inbox_person_prefs; delete from public.inbox_settings;
+  -- every studio's daily-digest window closed now (digest hour 12 h away from the studio's local hour); the digest
+  -- checks open Studio C266's window themselves, so the result never depends on the time of day the suite runs
+  insert into public.inbox_settings(org_id, digest_hour, updated_at)
+    select g.id, ((extract(hour from now() at time zone public._r23_tz(g.id))::integer + 12) % 24), now() from public.organizations g
+  on conflict (org_id) do update set digest_hour = excluded.digest_hour;
   delete from public.notification_seen where user_id in (select id from auth.users where email in ('c_admin266@c.test', 'c_sales266@c.test', 'c_crew266@c.test', 'b_admin@b.test'));
   delete from public.notification_mutes where user_id in (select id from auth.users where email in ('c_admin266@c.test', 'c_sales266@c.test', 'c_crew266@c.test'));
   delete from public.auth_rate_hits where bucket = 'inbox_act';
@@ -319,6 +329,7 @@ end $$;
 
 -- a second run of the migration changes nothing and the bell still works
 \i supabase/migrations/0266_notification_inbox.sql
+\i supabase/migrations/0270_inbox_visible_speed.sql
 do $$ declare r text; begin
   perform pg_temp.t('65 re-run: one wrapper (no double wrap), one claim branch, bell works',
     to_regprocedure('public.bell_feed__pre0266(integer)') is not null
@@ -327,6 +338,11 @@ do $$ declare r text; begin
          - length(replace(pg_get_functiondef('public.helm_notice_outbox_claim(integer)'::regprocedure), 'r23-inbox-0266', ''))) = length('r23-inbox-0266'), null);
   r := pg_temp.as_try('c_sales266@c.test', $q$select (public.bell_feed(20) ->> 'unread')$q$);
   perform pg_temp.t('66 bell after re-run', r ~ '^ok:\d+$', r);
+  perform pg_temp.t('67 0270: the person''s rules are worked out once per call (materialized), still the 0266 rules, still private',
+    position('r24-ci-0270' in (select prosrc from pg_proc where oid = 'public._r23_visible(uuid,uuid)'::regprocedure)) > 0
+    and position('with me as materialized (' in (select prosrc from pg_proc where oid = 'public._r23_visible(uuid,uuid)'::regprocedure)) > 0
+    and position('r23-inbox-0266' in (select prosrc from pg_proc where oid = 'public._r23_visible(uuid,uuid)'::regprocedure)) > 0
+    and not has_function_privilege('authenticated', 'public._r23_visible(uuid,uuid)', 'execute'), null);
 end $$;
 
 select name, result from _g266 order by name;

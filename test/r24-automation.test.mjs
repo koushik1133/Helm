@@ -203,7 +203,7 @@ t("public enquiry page: routes, noindex, only the two public RPCs, no HTML sinks
   assert.match(html, /<meta name="robots" content="noindex,nofollow,noarchive">/);
   assert.match(html, /id="eq-website" tabindex="-1"/, "honeypot");
   assert.match(html, /id="eq-consent"/, "consent box");
-  assert.ok(!/<script>/.test(html), "no inline script");
+  assert.ok(!/<script\s*>/i.test(html), "no inline script");
 });
 
 t("store-api: automation namespace, lead source label, bell label + links", () => {

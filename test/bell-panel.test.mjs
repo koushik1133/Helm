@@ -140,7 +140,7 @@ t('escaping: server + chat text never becomes markup; ids are URL-encoded', () =
     { __chat: true, conversation_id: 'g', kind: 'group', title: '<u>T</u>', who: '<s>W</s>', preview: 'p', created_at: at(7, 8), count: 1 },
     { kind: '<script>x</script>', detail: {}, created_at: 'not a date' },
   ], 'all', NOW);
-  assert.doesNotMatch(v.html, /<img|<script|<svg|<i>|<u>|<s>|<b>/);
+  assert.doesNotMatch(v.html, /<img|<script|<svg|<i>|<u>|<s>|<b>/i);
   assert.match(v.html, /Task accepted by &lt;img src=x onerror=alert\(1\)&gt;/);
   assert.match(v.html, /&quot;quoted&quot; &amp; &#39;x&#39;/);
   assert.match(v.html, /href="ops\.html\?quote=q%22%2F%3E%3Cscript%3E"/);

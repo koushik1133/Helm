@@ -224,7 +224,7 @@ run "r23-crew-0265" "R23-CREW-0265: ALL PASS \(60/60\)" psql -q -f tests/db/r23-
 # 0261 re-applies itself (after 0254, whose bell_feed / event_activity it wraps; proves a re-run is safe)
 run "r23-link-views-0261" "R23-LINK-VIEWS-0261: ALL PASS \(62/62\)" psql -q -f tests/db/r23-link-views-0261.sql
 # 0266 re-applies itself (after r22-closure, which re-applies 0254 over the bell_feed wrapper)
-run "r23-inbox-0266" "R23-INBOX-0266: ALL PASS \(66/66\)" psql -q -f tests/db/r23-inbox-0266.sql
+run "r23-inbox-0266" "R23-INBOX-0266: ALL PASS \(67/67\)" psql -q -f tests/db/r23-inbox-0266.sql
 # 0263 re-applies itself (fixture quotes are made after the clean install; proves the backfill re-run adds nothing)
 run "r23-state-machine-0263" "R23-STATE-MACHINE-0263: ALL PASS \(48/48\)" psql -q -f tests/db/r23-state-machine-0263.sql
 # r24 stock: re-applies itself twice (after r22-closure-0254, which re-applies the 0254 body), rolled back

@@ -139,7 +139,9 @@
     var pl = doc.getElementById("pathLink"); if (pl) pl.hidden = true;
     if (mode !== "signup") return;
     setText("#formTitle", "Create your Helm account");
-    setText("#formSub", "Step 1 of 4. Next you verify your e-mail, name your studio and choose how to start: pay now, or try Helm free for " + DAYS + " days.");
+    // r24: config.js HELM_FEATURES.payNow off = no "pay now" in the words either (contact sales instead)
+    var payNow = !!(global.HELM_FEATURES && global.HELM_FEATURES.payNow === true);
+    setText("#formSub", "Step 1 of 4. Next you verify your e-mail, name your studio and choose how to start: " + (payNow ? "pay now" : "contact sales") + ", or try Helm free for " + DAYS + " days.");
     var sb = $("#submit"); if (sb) sb.textContent = "Create account →";
   }
 

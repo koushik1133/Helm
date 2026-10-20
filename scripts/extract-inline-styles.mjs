@@ -36,7 +36,7 @@ const rule = (n) => `.${cls(n)}:not(#_):not(#_):not(#_){${n}}`;
 
 // Split a page into [markup, script/style/comment] segments; only markup is touched.
 function segments(src) {
-  const re = /<script\b[\s\S]*?<\/script>|<style\b[\s\S]*?<\/style>|<!--[\s\S]*?-->/gi;
+  const re = /<script\b[\s\S]*?<\/script\b[^>]*>|<style\b[\s\S]*?<\/style\b[^>]*>|<!--[\s\S]*?-->/gi;
   const out = []; let last = 0, m;
   while ((m = re.exec(src))) { out.push([false, src.slice(last, m.index)], [true, m[0]]); last = m.index + m[0].length; }
   out.push([false, src.slice(last)]);

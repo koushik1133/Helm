@@ -12,6 +12,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
 import vm from "node:vm";
+const stripComments = (s) => { let prev; do { prev = s; s = s.replace(/<!--[\s\S]*?-->/g, ''); } while (s !== prev); const open = s.indexOf('<!--'); return open < 0 ? s : s.slice(0, open); };   // repeat until stable; an unterminated "<!--" hides the rest (CodeQL js/incomplete-multi-character-sanitization)
 const require = createRequire(import.meta.url);
 const r = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
 let n = 0; const t = async (name, fn) => { try { await fn(); n++; } catch (e) { console.error("FAIL " + name); throw e; } };
@@ -172,7 +173,7 @@ await t("4a legal pages: no raw [OWNER TO FILL] / [BRACKETED] placeholder; every
   let marks = 0;
   for (const p of pages) {
     const s = r("public/" + p);
-    assert.doesNotMatch(s.replace(/<!--[\s\S]*?-->/g, ""), /OWNER TO FILL/, p);
+    assert.doesNotMatch(stripComments(s), /OWNER TO FILL/, p);
     if (!/class="lg-ph"/.test(s)) continue;
     assert.doesNotMatch(s, /<span class="lg-ph">\[/, p + " has an unconverted placeholder");
     for (const m of s.matchAll(/<span class="lg-ph" data-fact="([^"]+)">([^<]*)<\/span>/g)) {

@@ -33,7 +33,7 @@ t('quoteStage reads camelCase / snake_case quotes, shelves and expiry', () => {
 t('every stage has a label and a status-pill tone', () => {
   for (const s of ['lead', 'draft', 'sent', 'viewed', 'approved', 'advance_paid', 'confirmed', 'in_progress', 'event_day', 'completed', 'closed', 'cancelled', 'expired', 'lost']) {
     assert.notEqual(B.quoteStageLabel(s), s); assert.ok(B.quoteStageTone(s));
-    assert.match(M, new RegExp("when '" + s + "' then '" + B.quoteStageLabel(s).replace(/ /g, ' ') + "'"), 'SQL label for ' + s);
+    assert.match(M, new RegExp("when '" + s + "' then '" + B.quoteStageLabel(s) + "'"), 'SQL label for ' + s);
   }
 });
 

@@ -184,7 +184,7 @@ for (const f of walk(PUB)) {
   const src = readFileSync(f, 'utf8');
   if (f.endsWith('.js')) found.push(...scan(src, rel, 1));
   else {
-    const re = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi; let m;
+    const re = /<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi; let m;
     while ((m = re.exec(src))) {
       if (/\bsrc\s*=/.test(m[1]) || /type\s*=\s*["']?(?:application\/(?:ld\+)?json|text\/template)/i.test(m[1])) continue;
       const line = src.slice(0, m.index + m[0].indexOf('>') + 1).split('\n').length;

@@ -68,7 +68,7 @@ t('client.html: external script/style only, no inline style attrs', () => {
   assert.match(H, /<script src="client\.js\?v=\d+"><\/script>/);
   assert.match(H, /<link rel="stylesheet" href="client\.css\?v=\d+">/);
   assert.doesNotMatch(H, /\sstyle="/);
-  assert.doesNotMatch(H.replace(/<script src=[^>]*><\/script>/g, ''), /<script/);
+  assert.doesNotMatch(H.replace(/<script src=[^>]*><\/script\s*>/gi, ''), /<script/i);
   assert.match(H, /<main id="main">/); assert.match(H, /role="group" aria-label="Filter the timeline"/);
   const css = read('public/client.css');
   assert.match(css, /@media\(max-width:480px\)/); assert.match(css, /html\[data-theme="dark"\]/);
