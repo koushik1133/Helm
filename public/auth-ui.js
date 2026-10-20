@@ -1896,7 +1896,7 @@
     if (id === "settings") return openAccount({ section: "settings" });
     if (id === "suggest") {
       if (window.HelmSuggest) return window.HelmSuggest.open();
-      var sc = doc.createElement("script"); sc.src = "/suggest.js?v=1";
+      var sc = doc.createElement("script"); sc.src = "/suggest.js?v=2";
       sc.onload = function () { if (window.HelmSuggest) window.HelmSuggest.open(); };
       doc.head.appendChild(sc); return;
     }

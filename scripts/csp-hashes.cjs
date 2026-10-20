@@ -137,12 +137,14 @@ const SCRIPT_SRC_BUILDER = [...SCRIPT_SRC_BASE,
 const BUILDER_SOURCES = new Set(['/builder', '/builder\\.html', '/builder.html', '/try', '/try.html', '/(builder|try)', '/(builder|try)\\.html', '/capture', '/capture\\.html', '/capture.html', '/(capture|capture\\.html)', '/([a-z0-9-]+)/events/([^/]+)/floor-plan', '/:studio/events/:ref/floor-plan',
   '/([a-z0-9-]+)/(events/[^/]+/floor-plan|builder)', '/:studio/builder']);   // 0067 pretty floor-plan URL serves builder.html; la-1018 /<studio>/builder too
 
-// Sign-in / password-reset pages - and (r21) the checkout page's "Contact sales" form - may
+// Sign-in / password-reset pages - and (r21) the checkout page's "Contact sales" form, (r26) the public forms - may
 // also load the Cloudflare Turnstile CAPTCHA widget (a single-purpose origin, not a library
 // CDN). Always allowed on those routes (script-src + frame-src only, never connect-src): the
 // widget itself is only loaded when public/config.js has a site key, so with the key empty
 // nothing is fetched and the allowance is inert.
 const AUTH_ROUTE = /(^|\/|\()(login|reset|signup)/;   // r22: /signup = the login page (rewrite)
+// r26: the signed-out public forms (home page Contact form, /contact-sales, /<studio>/enquiry, /suggest) - same allowance
+const PUBLIC_FORM_ROUTE = /^\/((index|contact-sales|suggest|enquiry)(\.html|\\\.html)?|:studio\/enquiry)?$/;
 const TURNSTILE = /^https:\/\/challenges\.cloudflare\.com(\/[^\s;]*)?$/;
 // The onboarding checkout page (0056) only may load Razorpay Standard Checkout — the
 // EXACT script URL, nothing else on that origin. Card / UPI / netbanking fields live
@@ -166,7 +168,7 @@ function scriptSrcProblem(csp, route) {
     return extraS.length ? 'script-src allows ' + extraS.join(' ') : '';
   }
   const allowed = BUILDER_SOURCES.has(route) ? SCRIPT_SRC_BUILDER : SCRIPT_SRC_BASE;
-  const extra = hosts.filter((h) => !allowed.includes(h) && !((AUTH_ROUTE.test(route) || CHECKOUT_ROUTE.test(route)) && TURNSTILE.test(h)) && !(CHECKOUT_ROUTE.test(route) && h === RAZORPAY_SCRIPT));
+  const extra = hosts.filter((h) => !allowed.includes(h) && !((AUTH_ROUTE.test(route) || CHECKOUT_ROUTE.test(route) || PUBLIC_FORM_ROUTE.test(route)) && TURNSTILE.test(h)) && !(CHECKOUT_ROUTE.test(route) && h === RAZORPAY_SCRIPT));
   if (extra.length) return 'script-src allows ' + extra.join(' ') + (BUILDER_SOURCES.has(route) ? '' : ' (CDN sources are builder-only)');
   return '';
 }

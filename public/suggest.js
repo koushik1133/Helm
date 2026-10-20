@@ -3,7 +3,9 @@
    - inside the app: the profile menu's "Send a suggestion" loads this file and calls HelmSuggest.open() -> a small
      dialog; sent through BPStore.suggest (signed in, so Helm records who and which studio - the server decides);
    - the public page /suggest (visitors, optional e-mail): the form #sg-form on that page.
-   Lands in Helm HQ -> Requests -> Suggestions; an e-mail is queued to the HQ address. Text only, no inline script. */
+   Lands in Helm HQ -> Requests -> Suggestions; an e-mail is queued to the HQ address. Text only, no inline script.
+   r26: on the public page, when config.js has a Turnstile site key, a security check shows above the button; its
+   one-use pass (captcha.js -> captcha-verify) goes in the "captcha" field. Signed-in app suggestions need no check. */
 (function () {
   "use strict";
   var KINDS = [["", "Choose\u2026"], ["idea", "Idea"], ["problem", "Problem"], ["other", "Other"]];
@@ -34,6 +36,7 @@
   var form = document.getElementById("sg-form");
   if (form) {
     var $ = function (id) { return document.getElementById(id); };
+    var cap = window.HelmCaptcha ? window.HelmCaptcha.guard($("sg-captcha"), "suggest") : null;
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
       var msg = $("sg-message").value.trim(), email = $("sg-email").value.trim(), e = $("sg-err");
@@ -44,8 +47,13 @@
       var body = { message: msg, category: $("sg-kind").value || null, email: email || null, page: "/suggest" };
       if ($("sg-website").value) body.website = $("sg-website").value;
       var btn = $("sg-send"); btn.disabled = true; btn.textContent = "Sending\u2026";
-      anonRpc(body).then(function (r) {
+      (cap ? cap.pass() : Promise.resolve({ ok: true, pass: null })).then(function (c) {
+        if (!c.ok) return { ok: false, captcha: c.message };
+        if (c.pass) body.captcha = c.pass;
+        return anonRpc(body);
+      }).then(function (r) {
         btn.disabled = false; btn.textContent = "Send suggestion";
+        if (r.captcha) return show(r.captcha);
         if (r.ok && r.data && r.data.ok === true) { form.hidden = true; $("sg-done").hidden = false; return; }
         show(failText(r), r.data && r.data.field === "email" ? $("sg-email") : $("sg-message"));
       });

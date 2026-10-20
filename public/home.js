@@ -389,13 +389,34 @@
       if (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) return Promise.resolve(window.SUPABASE_CONFIG);
       if (cfgP) return cfgP;
       cfgP = new Promise(function (res) {
-        var s = document.createElement('script'); s.src = '/config.js';
+        var s = document.createElement('script'); s.src = '/config.js?v=109';
         s.onload = function () { res(window.SUPABASE_CONFIG || {}); }; s.onerror = function () { cfgP = null; res({}); };
         document.head.appendChild(s);
       });
       return cfgP;
     }
-    form.addEventListener('focusin', function () { loadCfg(); }, { once: true });
+    // r26: the Cloudflare security check - only when config.js has a Turnstile site key (captcha.js loaded on first use;
+    // no key = nothing loaded, the form works exactly as before). Its one-use pass goes in the "captcha" field.
+    var capHost = document.createElement('div'); capHost.className = 'ct-captcha'; capHost.hidden = true;
+    capHost.style.minHeight = '65px'; capHost.style.maxWidth = '100%'; capHost.style.overflow = 'hidden';
+    if (errEl) form.insertBefore(capHost, errEl); else form.appendChild(capHost);
+    var capP = null, CAPTCHA_V = '1';
+    function loadCap() {
+      if (capP) return capP;
+      capP = loadCfg().then(function (cfg) {
+        var c = (cfg && cfg.captcha) || {};
+        if (c.provider !== 'turnstile' || !/^[0-9A-Za-z_-]{8,128}$/.test(String(c.siteKey || '').trim())) return null;
+        return new Promise(function (res) {
+          if (window.HelmCaptcha) return res(window.HelmCaptcha.guard(capHost, 'contact'));
+          var s = document.createElement('script'); s.src = '/captcha.js?v=' + CAPTCHA_V;
+          s.onload = function () { res(window.HelmCaptcha ? window.HelmCaptcha.guard(capHost, 'contact') : null); };
+          s.onerror = function () { capP = null; res(null); };
+          document.head.appendChild(s);
+        });
+      });
+      return capP;
+    }
+    form.addEventListener('focusin', function () { loadCap(); }, { once: true });
     function bad(msg, el) {
       errEl.textContent = msg;
       [form.name, email, phone, form.studio, form.msg, consent].forEach(function (x) { if (x) x.removeAttribute('aria-invalid'); });
@@ -418,7 +439,12 @@
         plan: /enterprise/i.test(topic) ? 'enterprise' : null, consent: true, source: 'home' };
       if (trap.value) body.website = trap.value;
       if (btn) btn.disabled = true;
-      loadCfg().then(function (cfg) {
+      var cfg = {};
+      loadCfg().then(function (c) { cfg = c || {}; return loadCap(); }).then(function (cap) {
+        return cap ? cap.pass() : { ok: true, pass: null };
+      }).then(function (c) {
+        if (!c.ok) return { ok: false, error: 'captcha', captcha: c.message };
+        if (c.pass) body.captcha = c.pass;
         var base = String(cfg.url || '').replace(/\/+$/, '');
         if (!base || !cfg.anonKey) return { ok: false, error: 'config' };
         return fetch(base + '/rest/v1/rpc/submit_sales_enquiry', { method: 'POST', credentials: 'omit',
@@ -428,6 +454,7 @@
           .catch(function () { return { ok: false, error: 'network' }; });
       }).then(function (r) {
         if (btn) btn.disabled = false;
+        if (r.captcha) return bad(r.captcha);
         var d = r.ok ? r.data : null;
         if (d && d.ok === true) {
           form.reset(); bad('');

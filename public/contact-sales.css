@@ -33,6 +33,8 @@ a{color:var(--acc)}
 .cs-btn:hover{background:var(--acc-d)}
 .cs-btn:disabled{opacity:.6;cursor:wait}
 .cs-err{color:var(--bad);font-size:14px;margin:0}
+/* r26: the Cloudflare security check (only when config.js has a Turnstile site key) */
+.cs-captcha{min-height:65px;max-width:100%;overflow:hidden}
 .cs-done h2{margin:0 0 8px;font-size:26px}
 .cs-done p{margin:0 0 10px;color:var(--mute)}
 .cs-link{font-weight:600}

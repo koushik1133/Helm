@@ -22,6 +22,8 @@ h1{margin:0 0 6px;font-size:24px;line-height:1.25;overflow-wrap:anywhere}
 .eq-btn:hover{background:var(--acc-d)}
 .eq-btn:disabled{opacity:.6;cursor:wait}
 .eq-err{color:var(--bad);font-size:14px;margin:2px 0}
+/* r26: the Cloudflare security check (only when config.js has a Turnstile site key) */
+.eq-captcha{min-height:65px;max-width:100%;overflow:hidden}
 .eq-done{background:#eef7f2;border-radius:12px;padding:14px 16px;font-size:16px}
 .eq-foot{margin:22px 0 0;font-size:13px;color:var(--mute)}
 .eq-foot a{color:var(--mute)}

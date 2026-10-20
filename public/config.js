@@ -39,14 +39,27 @@ window.HELM_PAY_MANUAL = Object.assign({
   note: ""            // optional line under the details (default: send us the UTR / reference, same-day activation)
 }, window.HELM_PAY_MANUAL || {});
 // r21 monitoring: front-end error reports (public/telemetry.js -> Sentry). EMPTY dsn = OFF (nothing loaded, nothing
-// sent). To turn on: Sentry -> Projects -> Create project (Browser JavaScript) -> Client Keys (DSN) -> paste it here,
-// then run `node scripts/gen-csp.mjs` (it adds the DSN's EXACT ingest host to connect-src) and deploy. The DSN is
-// public by design (it only allows sending events). Tokens, e-mails and phone numbers are redacted before sending.
+// sent). r26: production-ready - only the DSN is missing.
+//   >>> SENTRY DSN GOES HERE <<<  Sentry -> Settings -> Projects -> (your project) -> Client Keys (DSN). Paste it as
+//   dsn below, then run `node scripts/gen-csp.mjs` (it adds the DSN's EXACT ingest host to connect-src) and deploy.
+//   The DSN is public by design (it can only SEND events) - safe to commit. Steps: SENTRY-TURNSTILE-STEPS.md.
+// environment: "production" on helm.events, "staging" on helm-v01.vercel.app, "development" on localhost (never sent),
+// "preview" anywhere else. release: "helm-web@<this file's asset version>" (the ?v= every page loads config.js with -
+// bumped whenever config.js changes). Errors: every one (100%). Tracing: off (0); at most 0.1 = 10% if ever wanted.
+// Tokens, e-mails, phone numbers, amounts and every query string in URLs are scrubbed before anything is sent.
 window.HELM_TELEMETRY = Object.assign({
-  dsn: "",                // e.g. "https://<key>@o123456.ingest.us.sentry.io/7890123"
-  env: /^(www\.)?helm\.events$/.test(((typeof location !== "undefined" && location.hostname) || "").toLowerCase()) ? "production" : "staging",
-  release: "r21",
-  tracesSampleRate: 0     // errors only, no performance tracing
+  dsn: "",                // >>> PASTE THE SENTRY DSN HERE <<<  e.g. "https://<key>@o123456.ingest.us.sentry.io/7890123"
+  env: (function (h) {
+    if (/^(www\.)?helm\.events$/.test(h)) return "production";
+    if (h === "helm-v01.vercel.app") return "staging";
+    if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(h)) return "development";
+    return "preview";
+  })(((typeof location !== "undefined" && location.hostname) || "").toLowerCase()),
+  release: (function () {
+    try { var m = /[?&]v=(\d{1,9})/.exec((document.currentScript && document.currentScript.src) || ""); return "helm-web@" + (m ? m[1] : "0"); }
+    catch (e) { return "helm-web@0"; }
+  })(),
+  tracesSampleRate: 0     // errors only, no performance tracing (telemetry.js caps any value at 0.1)
 }, window.HELM_TELEMETRY || {});
 window.SUPABASE_CONFIG = {
   url: "https://nqltzgiwznphugcfhmbm.supabase.co",
@@ -63,11 +76,16 @@ window.SUPABASE_CONFIG = {
   },
   // Bot protection on sign-in / sign-up / password reset (Cloudflare Turnstile).
   // siteKey is the PUBLIC site key. EMPTY = off (sign-in works exactly as before).
-  // Turn on only AFTER Supabase → Authentication → Bot protection is enabled with
-  // the Turnstile SECRET key (docs/AUTH-DASHBOARD-SETTINGS.md) — never put the secret here.
+  // r26 safe order: put the site key here and deploy FIRST (Supabase ignores the token while its own CAPTCHA
+  // is off), THEN turn on Supabase → Authentication → Attack Protection → CAPTCHA (Turnstile, SECRET key)
+  // (docs/AUTH-DASHBOARD-SETTINGS.md). The other way round, sign-in fails until this key is live. Never put the secret here.
   // r21: the same key also guards checkout "Contact sales" (captcha-verify edge function + the
   // 0249 database switch) - order of steps: docs/security/OWNER-DASHBOARD-STEPS-R21.md section D.
   // login: invisible unless Cloudflare wants a click; a visible check after 3 wrong passwords in a tab.
+  // r26: the same key also shows the check on the public forms - Contact sales (/contact-sales + the home page form),
+  // the studio enquiry form (/<studio>/enquiry) and /suggest; captcha-verify gives a signed-out visitor a one-use pass.
+  //   >>> TURNSTILE SITE KEY GOES HERE <<<  (public, starts with "0x4AAAA..."; the SECRET key never goes in this file)
+  //   Steps + the safe order: SENTRY-TURNSTILE-STEPS.md. Empty = every form works exactly as today.
   captcha: { provider: "turnstile", siteKey: "", login: { appearance: "interaction-only", alwaysAfterFailures: 3 } },
   // Onboarding checkout (0056). allowPaymentBypass shows the clearly-labelled
   // "Skip payment (testing only)" button on /checkout. The SERVER flag

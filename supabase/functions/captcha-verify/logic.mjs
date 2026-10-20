@@ -2,8 +2,14 @@
 // Cloudflare Turnstile server-side check: https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
 
 export const SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-// the RPC paths that may ask for a pass (0249 captcha_passes.action)
-export const ACTIONS = ["sales"];
+// the RPC paths that may ask for a pass
+//   signed in (0249 captcha_passes, per user):        sales  (checkout "Contact sales")
+//   r26 signed out (0276 captcha_public_passes, by a one-use pass id the form sends back):
+//     contact (submit_sales_enquiry), enquiry (public_enquiry_submit), suggest (submit_suggestion)
+export const USER_ACTIONS = ["sales"];
+export const PUBLIC_ACTIONS = ["contact", "enquiry", "suggest"];
+export const ACTIONS = USER_ACTIONS.concat(PUBLIC_ACTIONS);
+export const isPublicAction = (a) => PUBLIC_ACTIONS.includes(String(a || ""));
 // Turnstile tokens are opaque printable ASCII, at most 2048 characters
 export const TOKEN_RE = /^[\x21-\x7e]{10,2048}$/;
 
