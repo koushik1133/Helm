@@ -233,7 +233,7 @@
     if (!finOk) { box.hidden = true; return; }
     var fmt = await fmtFor(id);
     clear(box); box.classList.add("card", "vb-card");
-    box.appendChild(el("h2", null, "📊 Net profit"));
+    box.appendChild(el("h2", null, box.getAttribute("data-vb-title") || "📊 Net profit"));   // r24: Budget calls it the planned-profit breakdown
     box.appendChild(el("p", "sub", "Revenue (without tax) − vendors − logistics & other − staff expenses."));
     var body = el("div", "vb-pnl"); box.appendChild(body);
     var seq = 0, timer = null;
@@ -340,6 +340,12 @@
       a.appendChild(el("span", "bz-ev-t", t2 || tt)); if (t2 && t2 !== tt) a.appendChild(pill("Sample", "bz-pill-smp"));
       return { neg: [0, 0, 0, Number(e.net_profit || 0) < 0], cells: [a, e.margin_pct != null ? e.margin_pct + "%" : "—", fmt(e.revenue), fmt(e.net_profit)] };
     }), "Top events by profit"));
+    /* r24: the per-event profit list already lives on Insights ("Profit per event") - when this role can open
+       Insights, show it there only (one place) and leave a link here; otherwise keep the card. */
+    try { var IA = B.auth; Promise.resolve(IA && IA.enabled && IA.enabled() ? IA.canView("insights") : true).then(function (v) {
+      if (v !== true) return; cT.hidden = true; grid.classList.remove("bz-grid-even"); grid.classList.add("bz-grid-one");
+      var ln = el("p", "vb-muted bz-caption"), a = el("a", null, "Profit for each event → Insights"); a.href = "insights.html"; ln.appendChild(a); cM.appendChild(ln);
+    }, function () {}); } catch (e) {}
   }
 
   // ---------------- self-mount once the page shows its app ----------------

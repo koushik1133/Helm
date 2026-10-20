@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/event-polish.css?v=8">
+<link rel="stylesheet" href="/event-polish.css?v=9">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -191,13 +191,14 @@
     <section id="stageHistory" class="card r23-sh" data-stage-history data-quote-from-url data-refresh-on="#statusBadge, #apprBadge" aria-label="Stage history" hidden></section>
 
     <section id="filesPanel" class="card s-1b0f499" hidden>
-      <div class="s-145919b">
-        <h3 class="s-62c1a69">📎 Attachments</h3>
+      <div class="s-145919b" id="filesHead">
+        <h3 class="s-62c1a69">📎 Event documents (contracts, permits, layouts)</h3>
         <span class="muted s-6cb285c" id="filesHint"></span>
         <span class="s-97445a8"></span>
         <button type="button" id="fileUploadLabel" class="btn sm" hidden>＋ Add file</button>
         <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.webp" aria-label="Choose a file to attach" hidden>
       </div>
+      <p class="muted files-help" id="filesHelp">Keep this event’s papers in one place — the signed contract, permits, venue layout, vendor quotes. Only your team can open them; the client doesn’t see this list.</p>
       <div id="filesErr" class="muted s-c1d4a25" role="alert" aria-live="polite" hidden></div>
       <div id="filesList"><div class="muted s-5e0faad"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
     </section>

@@ -175,7 +175,9 @@
     var head = el("header", "bz-hero");
     var hl = el("div"); hl.appendChild(el("p", "bz-eyebrow", "Finance overview"));
     hl.appendChild(el("h2", "bz-title", "Business"));
-    var sum = el("p", "bz-sum", "Booked, collected and outstanding money for your studio. Keep this page off the screen when presenting to clients.");
+    /* r24 plain words: Business = money today; Insights = how we're doing over time */
+    var sum = el("p", "bz-sum page-purpose"); sum.appendChild(el("b", null, "Money today:"));
+    sum.appendChild(document.createTextNode(" what's owed, collected and coming. Keep this page off the screen when presenting to clients."));
     hl.appendChild(sum); head.appendChild(hl);
     var acts = el("div", "bz-acts");
     acts.appendChild(link("reports.html", "bz-btn", "Reports & exports"));

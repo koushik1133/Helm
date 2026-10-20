@@ -36,7 +36,7 @@
   .tabs button{border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-2);padding:8px 14px;border-radius:8px;cursor:pointer}
   .tabs button.on{background:var(--accent);color:#fff}
   .open-badge{font-family:var(--mono);font-weight:700;font-size:13px} .open-badge b{color:#b42318}
-  .qlink{font-size:12px;font-weight:600;color:var(--accent)} .spacer2{margin-left:auto}
+  .qlink{font-size:12px;font-weight:600;color:var(--accent)} .chgwrap{display:flex;flex-direction:column;align-items:flex-end;gap:2px;max-width:340px} .qhint{font-size:11.5px;color:var(--ink-3,var(--muted));text-align:right;line-height:1.35} .spacer2{margin-left:auto}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
   .add{display:grid;grid-template-columns:1.8fr .8fr 1fr auto;gap:8px;align-items:end} @media(max-width:640px){.add{grid-template-columns:1fr 1fr}}
@@ -58,7 +58,7 @@
   .mini{border:1px solid var(--line);background:var(--panel);border-radius:7px;min-height:32px;min-width:32px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .mini:hover{border-color:var(--accent);color:var(--accent)}
   .mini.go{color:#0f7a43;border-color:#b6e3ca} .mini.del{color:var(--ink-3)}
   .empty{text-align:center;color:var(--ink-3);padding:30px;font-size:13px}
-  @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap} .add{grid-template-columns:1fr} .issue{flex-wrap:wrap} .issue .acts{margin-left:20px}}
+  @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap} .add{grid-template-columns:1fr} .issue{flex-wrap:wrap} .issue .acts{margin-left:20px} .chgwrap{align-items:flex-start;max-width:none;width:100%} .qhint{text-align:left}}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -97,7 +97,7 @@
       </div>
       <span class="open-badge" id="openBadge"></span>
       <span class="spacer2"></span>
-      <a class="qlink" id="changeLink" href="#">＋ Raise a billable change →</a>
+      <span class="chgwrap"><a class="qlink" id="changeLink" href="#" aria-describedby="changeHint">＋ Charge the client for this (extra) →</a><small class="qhint" id="changeHint">Adds a change request in Budget, so the extra cost goes on the client’s bill.</small></span>
     </div>
 
     <div class="card" id="addCard" hidden>
@@ -202,7 +202,7 @@
     if(!(await BPStore.auth.requireView("issues"))) return;
     canEdit=await BPStore.auth.canEditArea("issues"); canDelete=canEdit && await BPStore.auth.can("delete");
     // r20-coord: the billable-change link opens Budget (finance) - hidden for a role that can't open it
-    { const fin=await BPStore.auth.canView("finance").catch(()=>false), cl=$("#changeLink"); if(cl && !fin) cl.hidden=true; }
+    { const fin=await BPStore.auth.canView("finance").catch(()=>false), cl=$("#changeLink"); if(cl && !fin) cl.hidden=true; if(!fin){ const ch=$("#changeHint"); if(ch) ch.hidden=true; } }
     try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");

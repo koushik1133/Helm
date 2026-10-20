@@ -3,7 +3,7 @@
 <head>
 <base href="/">
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="closure-polish.css?v=2">
+<link rel="stylesheet" href="closure-polish.css?v=3">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Closure &amp; P&amp;L — Helm Events</title>
@@ -85,11 +85,12 @@
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+    <p class="page-purpose" id="pagePurpose"><b>Final result</b> and close the event.</p>
     <div id="closedBanner" class="closed-banner" hidden>✓ Event closed &amp; archived <span class="s-1afaaf4" id="closedWhen"></span></div>
 
     <div class="card" id="closeDash" hidden></div>
 
-    <div data-ml-mount="margin" data-ml-replaces="plCard netProfit" id="moneyLedger" hidden></div>
+    <div data-ml-mount="margin" data-ml-replaces="plCard netProfit" data-ml-tiles="off" id="moneyLedger" hidden></div>
 
     <div class="card" id="plCard">
       <h2>📊 Profit &amp; loss</h2>

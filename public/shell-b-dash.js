@@ -509,7 +509,7 @@
      touched, so a saved layout can't reveal a gated block. Saved on Done (server RPC when 0109 is
      applied, else this device). Mouse = native drag and drop; touch = pointer events on the grip;
      keyboard = grip button (Space/Enter pick up, arrows move, Space drop, Esc cancel). */
-  var CZ_NAMES = { resume: "Continue where you left off", mywork: "My work", mytasks: "My tasks", quotes: "All quotes", roleboard: "Team board" };
+  var CZ_NAMES = { resume: "Continue where you left off", mywork: "My events & tasks", mytasks: "My tasks", quotes: "Quotes pipeline", roleboard: "Team board" };
   var CZ_CACHE = "helm.dash.layout.last";
   function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
   function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
@@ -860,7 +860,7 @@
     adopt(document.getElementById("mytasksSection"), slotTasks, "hd-mt");
     adopt(document.getElementById("myworkSection"), slotWork, "hd-mw");
     if (secQuotes) { adopt(secQuotes, slotQuotes, "hd-quotes"); secQuotes.id = secQuotes.id || "hdQuotes";
-      var qh = secQuotes.querySelector(".head h3"); if (qh) qh.textContent = "All quotes"; tagMoney(elist); }
+      var qh = secQuotes.querySelector(".head h3"); if (qh) qh.textContent = "Quotes pipeline";   /* r24: plain name - every quote, draft to confirmed */ tagMoney(elist); }
     main.insertBefore(wrap, main.firstChild);
     fullTitles(root); masonry(root, wrap);
     // adopted lists: All quotes (first 5; the pager's Load more only shows once expanded), My work events, each My tasks bucket

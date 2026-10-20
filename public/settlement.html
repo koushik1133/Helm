@@ -3,7 +3,7 @@
 <head>
 <base href="/">
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="settlement-polish.css?v=1">
+<link rel="stylesheet" href="settlement-polish.css?v=2">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Payments &amp; invoice — Helm Events</title>
@@ -93,13 +93,14 @@
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+    <p class="page-purpose" id="pagePurpose"><b>Money in and out:</b> collect from the client, pay vendors &amp; staff.</p>
 
     <div id="priceWarn" class="pwarn" role="alert" hidden>This event has no priced invoice — price the quote to settle.</div>
     <div class="tiles">
       <div class="tile"><div class="l">Invoice total</div><div class="n" id="t_rev">—</div></div>
       <div class="tile"><div class="l">Received</div><div class="n" id="t_recv">—</div></div>
       <div class="tile bal"><div class="l" id="t_bal_l">Balance due</div><div class="n" id="t_bal">—</div><div class="sub2" id="t_bal_sub" hidden></div></div>
-      <div class="tile margin"><div class="l">Net profit</div><div class="n" id="t_mar">—</div></div>
+      <div class="tile payout"><div class="l" title="Still owed to vendors plus approved staff claims not paid yet">Still to pay out</div><div class="n" id="t_out" data-money>—</div><div class="sub2" id="t_out_sub">vendors + staff claims</div></div>
     </div>
 
     <div class="card" id="payments">
@@ -117,8 +118,8 @@
 
     <div class="card">
       <h2>🤝 Vendor settlement</h2>
-      <p class="sub">What you owe partners, and what's settled.</p>
-      <div class="table-scroll"><table><thead><tr><th scope="col">Partner</th><th scope="col" class="num">Cost</th><th scope="col" class="num">Advance</th><th scope="col" class="num">Outstanding</th><th scope="col">Settled</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <p class="sub">What you owe vendors, and what's settled.</p>
+      <div class="table-scroll"><table><thead><tr><th scope="col">Vendor</th><th scope="col" class="num">Cost</th><th scope="col" class="num">Advance</th><th scope="col" class="num">Outstanding</th><th scope="col">Settled</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="vendBody"><tr><td colspan="6" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
       <div class="totbar"><span>Owed to vendors: <b id="v_out">₹0</b></span></div>
     </div>
@@ -220,7 +221,9 @@
     bn.textContent=inr(over?-s.balance:s.balance); bn.setAttribute("data-money",""); bn.className="n "+(over?"over":s.balance>0?"due":"clear");
     const bs=$("#t_bal_sub"); bs.textContent=over?"Credit due to client":""; bs.hidden=!over;
     $("#priceWarn").hidden=!(s.pricingMissing && s.received>0);
-    const mn=$("#t_mar"); mn.textContent=inr(s.finalMargin); mn.className="n "+(s.finalMargin>=0?"pos":"neg");
+    // r24: Settlement shows the cash position (profit lives on Budget = planned, Closure = final)
+    { const claimsDue=(s.expenses||[]).filter(e=>e.status==="approved").reduce((a,e)=>a+Number(e.amount||0),0);
+      $("#t_out").textContent=inr(Number(s.vendorOutstanding||0)+claimsDue); }
 
     $("#invBody").innerHTML = `
       <tr><td>Invoice total (quote + approved changes)</td><td class="num">${inr(s.revenue)}</td></tr>
@@ -230,7 +233,7 @@
         ? `<tr><td><b>Overpaid — credit due to client</b></td><td class="num"><b data-money style="color:var(--warn-text,#946200)">${inr(-s.balance)}</b></td></tr>`
         : `<tr><td><b>Balance due from client</b></td><td class="num"><b data-money style="color:${s.balance>0?'var(--neg)':'var(--safe-text,#0f7a43)'}">${inr(s.balance)}</b></td></tr>`}`;
 
-    const byName=(b)=>b.label||"Partner";
+    const byName=(b)=>b.label||"Vendor";
     $("#vendBody").innerHTML = s.bookings.length ? s.bookings.map(b=>{ const out=b._out!=null?b._out:Math.max(0,Number(b.cost||0)-Number(b.advance||0));
       return `<tr><td><b>${esc(byName(b))}</b></td><td class="num">${inr(b._billed?b._cost:b.cost)}</td><td class="num">${inr(b._billed?b._paid:b.advance)}</td>
         <td class="num">${b.settled?'<span class="st yes">settled</span>':inr(out)}</td>
@@ -365,13 +368,10 @@
   $("#e_add").addEventListener("click",addExpense);
   $("#r_add").addEventListener("click",addRefund);
 
-  // dev pass 3: the profit tile uses the same Net profit P&L as Budget / Closure (one number per event)
-  async function pnlTile(){ let p=null; try{ p=BPStore.vendorBills&&await BPStore.vendorBills.pnl(id); }catch(_){ return; } if(!p) return;
-    const n=Number(p.net_profit||0), mn=$("#t_mar"); mn.textContent=inr(n); mn.className="n "+(n>=0?"pos":"neg"); }
   async function load(){
-    try{ s=await BPStore.settlement.summary(id); await overlayBills(s); summaryFailed=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit; render(); await pnlTile(); }
+    try{ s=await BPStore.settlement.summary(id); await overlayBills(s); summaryFailed=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit; render(); }
     catch(e){ summaryFailed=true; $("#payLine").hidden=true; $("#expAdd").hidden=true;
-      ["#t_rev","#t_recv","#t_bal","#t_mar"].forEach(x=>{ $(x).textContent="—"; });
+      ["#t_rev","#t_recv","#t_bal","#t_out"].forEach(x=>{ $(x).textContent="—"; });
       BPUI.loadError($("#invBody"),e,load,{what:"the invoice"});
       BPUI.loadError($("#vendBody"),e,load,{what:"vendor settlement"});
       BPUI.loadError($("#expBody"),e,load,{what:"expense claims"}); }

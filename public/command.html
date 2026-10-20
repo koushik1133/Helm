@@ -107,10 +107,10 @@
 
       <div class="card">
         <h2>👥 Arrivals &amp; attendance <span class="prog" id="arrProg"></span></h2>
-        <p class="sub">Staff &amp; vendors checking in on the day.</p>
+        <p class="sub">Your team and booked vendors for this event are listed automatically — tick them in as they arrive.</p>
         <div id="arrRows"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         <div class="s-d2c171b" id="arrTools" hidden>
-          <button type="button" class="btn" id="pullBtn">↧ Pull team &amp; vendors</button>
+          <button type="button" class="btn" id="pullBtn"title="Add anyone assigned or booked since this page opened">↻ Refresh team &amp; vendors</button>
           <div class="addline"><input id="arr_name" placeholder="Add a name…" aria-label="Name to add"><button type="button" class="btn primary" id="arr_add" aria-label="Add name">＋</button></div>
         </div>
       </div>
@@ -119,18 +119,18 @@
       <div class="card" id="crewTimesheet" hidden></div>
 
       <div class="card">
-        <h2>🔧 Setup &amp; technical checks <span class="prog" id="chkProg"></span></h2>
-        <p class="sub">Go-live checks — stage, sound, lighting, safety…</p>
+        <h2>🔧 Before doors open (checklist) <span class="prog" id="chkProg"></span></h2>
+        <p class="sub">Things to check before guests come in — stage, sound, lights, power, safety exits. Tick each one when done.</p>
         <div id="chkRows"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         <div class="addline" id="chkAdd" hidden><input id="chk_title" placeholder="e.g. Sound check done" aria-label="Check description"><button type="button" class="btn primary" id="chk_addb" aria-label="Add check">＋</button></div>
       </div>
 
       <div class="card">
-        <h2>👥 Guest reception <span class="prog" id="gstProg"></span></h2>
-        <p class="sub">Welcome desk — check guests in as they arrive.</p>
+        <h2>👥 Guests arriving (from Guest count) <span class="prog" id="gstProg"></span></h2>
+        <p class="sub">Groups come in automatically from Logistics → Guest count. Tap “＋ In” as guests arrive at the welcome desk.</p>
         <div id="gstRows"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         <div class="s-d2c171b" id="gstTools" hidden>
-          <button type="button" class="btn" id="gstPull">↧ Pull from guest list</button>
+          <button type="button" class="btn" id="gstPull"title="Add any new groups from Logistics → Guest count">↻ Refresh from Guest count</button>
           <div class="addline"><input id="gst_label" placeholder="Group name…" aria-label="Guest group name"><input class="s-151dcb2 hbp-skip" id="gst_exp" type="number" min="0" placeholder="Exp." aria-label="Expected headcount"><button type="button" class="btn primary" id="gst_add" aria-label="Add guest group">＋</button></div>
         </div>
       </div>
@@ -199,7 +199,7 @@
         <button type="button" class="mini" data-arr="${esc(a.id)}" data-s="left" aria-label="Mark ${esc(a.who)} left">Left</button>
         <button type="button" class="mini no" data-arr="${esc(a.id)}" data-s="no_show" aria-label="Mark ${esc(a.who)} no-show">No-show</button>
         <button type="button" class="mini del" data-del="${esc(a.id)}" data-name="${esc(a.who)}" aria-label="Remove ${esc(a.who)}">✕</button></div>`:""}
-    </div>`).join("") : '<div class="empty">No one added yet. Pull the team &amp; vendors below.</div>';
+    </div>`).join("") : '<div class="empty">No team or vendors on this event yet — assign crew in Operations and book vendors, then press Refresh.</div>';
     $("#arrRows").querySelectorAll("[data-arr]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{
       await BPStore.dayops.setStatus(b.dataset.arr, b.dataset.s); await section(renderArrivals,$("#arrRows"),"arrivals"); },"update attendance")));
     $("#arrRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ if(!(await confirmRemove(b.dataset.name||"this person")))return;
@@ -216,7 +216,7 @@
         <button type="button" class="mini go" data-chk="${esc(c.id)}" data-s="done" aria-label="Mark ${esc(c.who)} done">Done</button>
         <button type="button" class="mini no" data-chk="${esc(c.id)}" data-s="issue" aria-label="Flag issue on ${esc(c.who)}">Issue</button>
         <button type="button" class="mini del" data-cdel="${esc(c.id)}" data-name="${esc(c.who)}" aria-label="Remove check ${esc(c.who)}">✕</button></div>`:""}
-    </div>`).join("") : '<div class="empty">No checks yet. Add your go-live checks.</div>';
+    </div>`).join("") : '<div class="empty">No checks yet. Add what must be ready before guests come in.</div>';
     $("#chkRows").querySelectorAll("[data-chk]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{ await BPStore.dayops.setStatus(b.dataset.chk, b.dataset.s); await section(renderChecks,$("#chkRows"),"checks"); },"update the check")));
     $("#chkRows").querySelectorAll("[data-cdel]").forEach(b=>b.addEventListener("click",async()=>{ if(!(await confirmRemove("the check “"+(b.dataset.name||"")+"”")))return;
       await act(b,async()=>{ await BPStore.dayops.remove(b.dataset.cdel); await section(renderChecks,$("#chkRows"),"checks"); },"remove the check"); }));
@@ -232,7 +232,7 @@
         <button type="button" class="mini" data-gin="${esc(g.id)}" data-d="-1" aria-label="Check out one guest from ${esc(g.label)}">–</button>
         <button type="button" class="mini go" data-gin="${esc(g.id)}" data-d="1" data-full="${Number(g.expected||0)>0&&Number(g.arrived||0)>=Number(g.expected||0)?1:0}" data-exp="${Number(g.expected||0)}" aria-label="Check in one guest to ${esc(g.label)}">＋ In</button>
         <button type="button" class="mini del" data-gdel="${esc(g.id)}" data-name="${esc(g.label)}" aria-label="Remove group ${esc(g.label)}">✕</button></div>`:`<span class="pill arrived">${Number(g.arrived||0)}/${Number(g.expected||0)}</span>`}
-    </div>`).join("") : '<div class="empty">No guest groups yet. Pull from the guest list or add one.</div>';
+    </div>`).join("") : '<div class="empty">No guest groups yet. Add them in Logistics → Guest count, or add one here.</div>';
     $("#gstRows").querySelectorAll("[data-gin]").forEach(b=>b.addEventListener("click",async()=>{
       // dev pass 3: checking in past the expected count is allowed (walk-ins) but asked first
       if(b.dataset.full==="1" && !(await BPUI.confirm(`All ${b.dataset.exp} expected guests in this group are already in. Check in one more as a walk-in?`,{title:"Over the expected count",okLabel:"Check in walk-in"}))) return;
@@ -285,7 +285,7 @@
   $("#gst_add").addEventListener("click",()=>{ const l=$("#gst_label").value.trim(); if(!l) return; const V=BPStore.validate; const er=V.count($("#gst_exp").value,{field:"Expected"}); if(!er.ok){ BPUI.toast(er.error,{type:"err"}); return; }
     act($("#gst_add"),async()=>{ await BPStore.guests.add(id,{label:l, expected:er.value}); $("#gst_label").value=""; $("#gst_exp").value=""; await section(renderGuests,$("#gstRows"),"guest groups"); },"add the group"); });
   $("#gstPull").addEventListener("click",()=>act($("#gstPull"),async()=>{ const n=await BPStore.guests.pullFromLogistics(id); await section(renderGuests,$("#gstRows"),"guest groups");
-    if(!n) BPUI.toast("Nothing to pull — add guest groups in Logistics → Guests first.",{type:"info"}); },"pull the guest list"));
+    if(!n) BPUI.toast("No new groups — add guest groups in Logistics → Guest count first.",{type:"info"}); },"pull the guest list"));
   $("#stk_add").addEventListener("click",()=>{ const sel=$("#stk_item"); const free=$("#stk_label").value.trim();
     let item_id=null,label=free;
     if(!free && sel.value){ item_id=sel.value; label=sel.options[sel.selectedIndex].dataset.name||sel.options[sel.selectedIndex].textContent; }
@@ -307,6 +307,8 @@
     try{ const p=await BPStore.plan.get(id); if(p&&(p.venue_name||p.access_notes)) $("#b_venue").textContent="📍 "+[p.venue_name,p.access_notes].filter(Boolean).join(" — "); }catch{}
     $("#app").hidden=false; $("#arrTools").hidden=!canEdit; $("#chkAdd").hidden=!canEdit; $("#gstTools").hidden=!canEdit; $("#stkTools").hidden=!canEdit;
     if(window.HelmDelivery&&HelmDelivery.mount) HelmDelivery.mount($("#dlvBoard"),{quoteId:id}).catch(()=>{ $("#dlvBoard").hidden=true; });   // 0241
+    // r24: list the team, vendors and guest groups automatically on open (both pulls skip anyone already listed)
+    if(canEdit){ await Promise.all([BPStore.dayops.pullRoster(id).catch(()=>0), BPStore.guests.pullFromLogistics(id).catch(()=>0)]); }
     await section(renderArrivals,$("#arrRows"),"arrivals");
     await section(renderChecks,$("#chkRows"),"checks");
     await section(renderGuests,$("#gstRows"),"guest groups");

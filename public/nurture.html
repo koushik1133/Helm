@@ -149,6 +149,7 @@
 
     <div class="card">
       <h2>Nurture list <span class="s-ded3e35" id="dueCount"></span></h2>
+      <p class="sub nst-legend" id="nstLegend"><span class="st active">Active</span> we keep in touch · <span class="st won">Won</span> became a lead again · <span class="st dormant">Dormant</span> paused. Press <b>Done for this year</b> after you follow up — the next one moves a year ahead.</p>
       <div class="table-scroll"><table>
         <thead><tr><th scope="col">Client</th><th scope="col">Occasion</th><th scope="col">Next follow-up</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="nurBody"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
@@ -221,6 +222,8 @@
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const NST={active:"Active",won:"Won",dormant:"Dormant"};
+  // r24 plain words: what each status means (pill tooltip + the legend above the list)
+  const NST_HELP={active:"Active = we keep in touch (greetings and yearly follow-ups)",won:"Won = became a lead again",dormant:"Dormant = paused, no follow-ups"};
   const today=()=>BPStore.todayLocal();
   /* HelmUI empty state (guarded: falls back to the plain message if the kit isn't loaded) */
   const hEmpty=(host,o,cols)=>{ const H=window.HelmUI; if(!(H&&H.emptyState)||!host) return false; const n=H.emptyState(o); if(cols){ const tr=document.createElement("tr"),td=document.createElement("td"); td.colSpan=cols; td.className="hs-empty-cell"; td.appendChild(n); tr.appendChild(td); host.replaceChildren(tr); } else host.replaceChildren(n); return true; };
@@ -249,16 +252,16 @@
     $("#nurBody").innerHTML = list.length ? list.map(n=>{ const isDue=n.status==="active"&&n.next_followup&&n.next_followup<=td;
       return `<tr>
         <td><b>${esc(n.name)}</b><div class="muted" style="font-size:12px">${[n.phone,n.email].filter(Boolean).map(esc).join(" · ")}</div>${BPStore.staff.phoneInvalid(n)?'<span class="due badphone" title="The saved phone number isn\'t valid (7–15 digits, optional leading +). WhatsApp greetings are skipped until it is fixed.">Invalid phone — please fix</span>':""}</td>
-        <td>${esc(n.occasion||"")}${n.source==="lead"?' <span class="occ fromlead" title="Added automatically from the lead\'s Birthday / Anniversary. Change the date on the lead.">From lead</span>':""}${n.occasion_date?`<div class="muted" style="font-size:12px">${esc(BPStore.fmtDateIN(n.occasion_date))}</div>`:""}</td>
+        <td>${esc(n.occasion||"")}${n.source==="lead"?' <span class="occ fromlead" title="Added automatically from this client\'s Birthday / Anniversary on their lead. Change the date on the lead.">Added from a past client</span>':""}${n.occasion_date?`<div class="muted" style="font-size:12px">${esc(BPStore.fmtDateIN(n.occasion_date))}</div>`:""}</td>
         <td>${n.next_followup?esc(BPStore.fmtDateIN(n.next_followup)):'<span class="muted">—</span>'} ${isDue?'<span class="due">Due</span>':""}</td>
-        <td><span class="st ${esc(n.status)}">${NST[n.status]||esc(n.status)}</span></td>
-        <td>${canEdit?`<button type="button" class="lnk" data-done="${esc(n.id)}" aria-label="Mark ${esc(n.name)} as followed up">Followed up</button> ${canLead?`<button type="button" class="lnk" data-conv="${esc(n.id)}" data-status="${esc(n.status)}" data-name="${esc(n.name)}" aria-label="Convert ${esc(n.name)} to a lead">→ Lead</button> `:""}<button type="button" class="rm" data-del="${esc(n.id)}" data-name="${esc(n.name)}" aria-label="Remove ${esc(n.name)} from nurture">✕</button>`:""}</td>
+        <td><span class="st ${esc(n.status)}" title="${esc(NST_HELP[n.status]||"")}">${NST[n.status]||esc(n.status)}</span></td>
+        <td>${canEdit?`<button type="button" class="lnk" data-done="${esc(n.id)}" title="We followed up — move the next follow-up one year ahead" aria-label="Mark ${esc(n.name)} done for this year">Done for this year</button> ${canLead?`<button type="button" class="lnk" data-conv="${esc(n.id)}" data-status="${esc(n.status)}" data-name="${esc(n.name)}" aria-label="Convert ${esc(n.name)} to a lead">→ Lead</button> `:""}<button type="button" class="rm" data-del="${esc(n.id)}" data-name="${esc(n.name)}" aria-label="Remove ${esc(n.name)} from nurture">✕</button>`:""}</td>
       </tr>`; }).join("") : (canEdit?'<tr><td colspan="5" class="empty">No one on the nurture list yet — add your first client above.</td></tr>':'<tr><td colspan="5" class="empty">No one on the nurture list yet.</td></tr>');
     if(!list.length) hEmpty($("#nurBody"),{icon:"💌",title:"No one on the nurture list yet",text:canEdit?"Add past clients to send them greetings on their occasions.":"Clients added to the nurture list show up here.",actionLabel:canEdit?"Add your first client":"",onAction:()=>{ const i=$("#n_name"); if(i){ i.scrollIntoView({block:"center"}); i.focus(); } }},5);
     $("#nurBody").querySelectorAll("[data-done]").forEach(b=>b.addEventListener("click",()=>BPUI.guard(b,async()=>{
       // followed up → push next follow-up a year out
       const d=new Date(); d.setFullYear(d.getFullYear()+1); const next=BPStore.todayLocal(d);
-      try{ await BPStore.nurture.update(b.dataset.done,{next_followup:next}); BPUI.toast("Next follow-up set for "+next+".",{type:"ok"}); await render(); }
+      try{ await BPStore.nurture.update(b.dataset.done,{next_followup:next}); BPUI.toast("Done for this year — next follow-up on "+BPStore.fmtDateIN(next)+".",{type:"ok"}); await render(); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the follow-up"}),{type:"err"}); } })));
     $("#nurBody").querySelectorAll("[data-conv]").forEach(b=>b.addEventListener("click",async()=>{
       // guard: a double-click (or a click while the first convert is in flight) must not create duplicate leads

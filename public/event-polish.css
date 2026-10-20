@@ -98,3 +98,6 @@ html[data-theme] .steps .step.viewing .n{background:var(--accent-soft);color:var
 
 /* 0256 (r23): vendor request status pills on the Vendors card */
 .vrq-pills-ws{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+
+/* r24: "Event documents" header wraps on phones; helper line under it */
+#filesHead{flex-wrap:wrap} .files-help{margin:-2px 0 10px;font-size:12.5px;line-height:1.45}

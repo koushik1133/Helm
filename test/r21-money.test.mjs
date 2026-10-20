@@ -153,8 +153,8 @@ await t('money-ledger-ui.js: DOM only (no innerHTML / insertAdjacentHTML), every
 });
 
 await t('pages: Budget + Closure mount the card (replacing the older profit cards), load the script + stylesheet', () => {
-  assert.match(CLOSURE, /<div data-ml-mount="margin" data-ml-replaces="plCard netProfit" id="moneyLedger" hidden><\/div>/);
-  assert.match(BUDGET, /<div data-ml-mount="margin" data-ml-replaces="netProfit" id="moneyLedger" hidden><\/div>/);
+  assert.match(CLOSURE, /<div data-ml-mount="margin" data-ml-replaces="plCard netProfit" data-ml-tiles="off" id="moneyLedger" hidden><\/div>/);
+  assert.match(BUDGET, /<div data-ml-mount="margin" data-ml-replaces="netProfit" data-ml-tiles="off" id="moneyLedger" hidden><\/div>/);
   for (const page of [CLOSURE, BUDGET]) {
     assert.match(page, /<script src="money-ledger-ui\.js\?v=\d+"><\/script>/);
     assert.match(page, /<link rel="stylesheet" href="money-ledger\.css\?v=\d+">/);
