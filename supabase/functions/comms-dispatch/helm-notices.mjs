@@ -8,13 +8,16 @@
 //   close_decision (0254) the request was approved (event closed) or declined -> the requester
 //   studio_identity (0257) Helm HQ changed the studio's name and/or link -> the studio's admins
 //   inbox_digest   (0266) a person's still-unread inbox items (daily digest or instant important) -> that person
+//   sales_enquiry  (0271) someone filled in the public Contact sales form -> the HQ address (default notifications@helm.events)
+//   sales_enquiry_ack (0271) the automatic thank-you -> the person who filled it in (once a day per address)
+//   suggestion     (0271) someone sent a suggestion (in the app or on the website) -> the HQ address
 // Pure (no I/O); shared by comms-dispatch (Deno) and the node tests. Anything unexpected -> null and
 // comms-dispatch marks the row skipped (fails closed). Links are always APP_URL + a fixed path.
 const clip = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 const block = (v, n) => String(v == null ? "" : v).replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, n);
 const base = (app) => String(app || "https://www.helm.events").replace(/\/+$/, "");
 
-export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "studio_identity", "inbox_digest"];
+export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "studio_identity", "inbox_digest", "sales_enquiry", "sales_enquiry_ack", "suggestion"];
 // the footer reason for each kind (transactional: a service message about this account)
 export const NOTICE_TX_REASON = {
   sales_request: "a Helm studio asked Helm sales to activate a plan",
@@ -23,7 +26,12 @@ export const NOTICE_TX_REASON = {
   close_decision: "you asked to close an event in your Helm studio",
   studio_identity: "you are an admin of a Helm studio whose name or link was changed by Helm support",
   inbox_digest: "you have unread notifications in your Helm inbox (change how often on your Inbox page)",
+  sales_enquiry: "someone filled in the Contact sales form on the Helm website",
+  sales_enquiry_ack: "you filled in the Contact sales form on the Helm website",
+  suggestion: "someone sent a suggestion to Helm",
 };
+const PLAN_NAME = { starter: "Starter", studio: "Studio", enterprise: "Enterprise", not_sure: "Not sure yet" };
+const TEAM = { "1": "Just me", "2-5": "2-5 people", "6-15": "6-15 people", "16-50": "16-50 people", "51+": "51+ people" };
 const SLUG = /^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const closureLink = (app, q) => app + "/closure.html?quote=" + String(q).toLowerCase() + "#close-request";
@@ -146,6 +154,66 @@ export function helmNoticeEmail(kind, data, appUrl) {
         "Change how often Helm e-mails you (daily, instant for important items, or never): " + app + "/inbox#settings",
         "- The Helm team",
       ].filter(Boolean).join("\n\n"),
+    };
+  }
+  if (kind === "sales_enquiry") {
+    // r24 (0271): the public Contact sales form -> the HQ address; replying goes to the sender
+    const name = clip(d.name, 80), email = clip(d.email, 200), company = clip(d.company, 160);
+    if (!name || !company || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+    const plan = PLAN_NAME[d.plan] || "-";
+    const lines = [
+      "New sales enquiry from the Helm website" + (d.source === "home" ? " (home page)" : " (Contact sales page)") + ".",
+      "",
+      "Name: " + name,
+      "Work e-mail: " + email,
+      "Phone: " + (clip(d.phone, 20) || "-"),
+      "Company / studio: " + company,
+      "City: " + (clip(d.city, 80) || "-"),
+      "Team size: " + (TEAM[d.team_size] || "-"),
+      "Events per year: " + (clip(d.events_per_year, 10) || "-"),
+      "Plan: " + plan,
+      "",
+      "Message:",
+      block(d.message, 2000) || "-",
+      "",
+      "Reply to this e-mail to answer " + name + ". Mark it in Helm HQ -> Requests -> Sales enquiries: " + app + "/hq#requests",
+    ];
+    return { subject: "Sales enquiry: " + company.slice(0, 80) + (plan !== "-" ? " (" + plan + ")" : ""), text: lines.join("\n") };
+  }
+  if (kind === "suggestion") {
+    // r24 (0271): the suggestions box -> the HQ address; replying goes to the sender when we know their e-mail
+    const msg = block(d.message, 2000);
+    if (!msg) return null;
+    const cat = { idea: "Idea", problem: "Problem", other: "Other" }[d.category] || "-";
+    const who = clip(d.who, 80), studio = clip(d.studio, 160), email = clip(d.email, 200);
+    return {
+      subject: "Helm suggestion" + (cat !== "-" ? " (" + cat + ")" : "") + ": " + clip(d.message, 60),
+      text: [
+        "New suggestion " + (d.source === "app" ? "from inside the app" : "from the Helm website") + ".",
+        "",
+        "Kind: " + cat,
+        "From: " + (who || (d.source === "app" ? "a Helm user" : "a visitor")) + (studio ? " (" + studio + ")" : ""),
+        "E-mail: " + (email || "-"),
+        "Page: " + (clip(d.page, 120) || "-"),
+        "",
+        "Suggestion:",
+        msg,
+        "",
+        "Mark it in Helm HQ -> Requests -> Suggestions: " + app + "/hq#requests",
+      ].join("\n"),
+    };
+  }
+  if (kind === "sales_enquiry_ack") {
+    const name = clip(d.name, 80);
+    const plan = PLAN_NAME[d.plan];
+    return {
+      subject: "Thanks for contacting Helm",
+      text: [
+        "Hi " + (name || "there") + ",",
+        "Thank you for writing to Helm" + (plan && d.plan !== "not_sure" ? " about the " + plan + " plan" : "") + ". We have your message and our team will get back to you within one working day.",
+        "In the meantime you can try Helm free for 8 days: " + app + "/signup?mode=trial",
+        "- The Helm team",
+      ].join("\n\n"),
     };
   }
   return null;

@@ -348,16 +348,106 @@
     });
   });
 
-  /* ---------- contact form -> mailto (nothing sent from page) ---------- */
+  /* ---------- contact form -> Helm sales (r24, 0271: submit_sales_enquiry; lands in HQ -> Requests) ----------
+     The home page markup has name / studio / topic / message; the work e-mail, phone, consent tick and a hidden bot
+     trap are added here (createElement only). config.js (the public Supabase URL + anon key) is loaded on first use. */
   var form = $('#ctForm');
-  if (form) form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var n = form.name.value.trim(), m = form.msg.value.trim(), err = $('#cfErr');
-    if (!n || !m) { err.textContent = 'Please add your name and a short message.'; return; }
-    err.textContent = '';
-    var body = 'Name: ' + n + '\nStudio: ' + form.studio.value.trim() + '\n\n' + m;
-    window.location.href = 'mailto:sales@helm.events?subject=' + encodeURIComponent('Helm: ' + form.topic.value) + '&body=' + encodeURIComponent(body);
-  });
+  if (form) (function () {
+    function fld(id, label, input) {
+      var d = document.createElement('div'); d.className = 'fr';
+      var l = document.createElement('label'); l.htmlFor = id; l.textContent = label; d.appendChild(l); d.appendChild(input); return d;
+    }
+    function inp(id, type, attrs) {
+      var i = document.createElement('input'); i.id = id; i.type = type;
+      Object.keys(attrs || {}).forEach(function (k) { i.setAttribute(k, attrs[k]); }); return i;
+    }
+    var studioRow = form.studio ? form.studio.closest('.fr') : null;
+    var email = inp('cf-e', 'email', { name: 'email', autocomplete: 'email', maxlength: '200', required: '', placeholder: 'name@company.com' });
+    var phone = inp('cf-p', 'tel', { name: 'phone', autocomplete: 'tel', inputmode: 'tel', maxlength: '20', placeholder: 'e.g. 98765 43210' });
+    var anchor = studioRow ? studioRow.nextSibling : form.firstChild;
+    form.insertBefore(fld('cf-e', 'Work e-mail', email), anchor);
+    form.insertBefore(fld('cf-p', 'Phone (optional)', phone), anchor);
+    var trap = inp('cf-w', 'text', { name: 'website', tabindex: '-1', autocomplete: 'off' });
+    var trapBox = document.createElement('div'); trapBox.setAttribute('aria-hidden', 'true');
+    trapBox.style.position = 'absolute'; trapBox.style.left = '-10000px'; trapBox.style.width = '1px'; trapBox.style.height = '1px'; trapBox.style.overflow = 'hidden';
+    trapBox.appendChild(trap); form.appendChild(trapBox);
+    var errEl = $('#cfErr');
+    var consentL = document.createElement('label'); consentL.className = 'fr-consent';
+    consentL.style.display = 'flex'; consentL.style.gap = '10px'; consentL.style.alignItems = 'flex-start'; consentL.style.fontSize = '14px';
+    var consent = inp('cf-c', 'checkbox', { name: 'consent' }); consent.style.width = '18px'; consent.style.height = '18px'; consent.style.marginTop = '3px'; consent.style.flex = '0 0 auto';
+    var consentT = document.createElement('span'); consentT.textContent = 'Helm may contact me about this message.';
+    consentL.appendChild(consent); consentL.appendChild(consentT);
+    if (errEl) form.insertBefore(consentL, errEl); else form.appendChild(consentL);
+    var btn = form.querySelector('button[type="submit"]');
+    var fine = form.querySelector('.fine-d');
+    if (fine) fine.textContent = 'Goes straight to our sales team. We reply within one working day.';
+    var btnLabel = btn ? btn.firstChild : null;
+    if (btnLabel && btnLabel.nodeType === 3) btnLabel.nodeValue = 'Send to sales ';
+
+    var cfgP = null;
+    function loadCfg() {
+      if (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) return Promise.resolve(window.SUPABASE_CONFIG);
+      if (cfgP) return cfgP;
+      cfgP = new Promise(function (res) {
+        var s = document.createElement('script'); s.src = '/config.js';
+        s.onload = function () { res(window.SUPABASE_CONFIG || {}); }; s.onerror = function () { cfgP = null; res({}); };
+        document.head.appendChild(s);
+      });
+      return cfgP;
+    }
+    form.addEventListener('focusin', function () { loadCfg(); }, { once: true });
+    function bad(msg, el) {
+      errEl.textContent = msg;
+      [form.name, email, phone, form.studio, form.msg, consent].forEach(function (x) { if (x) x.removeAttribute('aria-invalid'); });
+      if (el) { el.setAttribute('aria-invalid', 'true'); try { el.focus(); } catch (x) {} }
+    }
+    var EMAIL = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
+    var MAP = { name: form.name, email: email, phone: phone, company: form.studio, message: form.msg, consent: consent };
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var n = form.name.value.trim(), m = form.msg.value.trim(), em = email.value.trim(), ph = phone.value.trim(), st = form.studio.value.trim();
+      if (n.length < 2) return bad('Please add your name.', form.name);
+      if (!EMAIL.test(em)) return bad('Please add a valid work e-mail.', email);
+      if (ph && !/^\+?[0-9\s().-]{10,20}$/.test(ph)) return bad('Please enter a valid phone number (10 digits).', phone);
+      if (st.length < 2) return bad('Please add your studio or company name.', form.studio);
+      if (!m) return bad('Please add a short message.', form.msg);
+      if (!consent.checked) return bad('Please tick the box so we may contact you.', consent);
+      bad('');
+      var topic = form.topic ? form.topic.value : '';
+      var body = { name: n, email: em, phone: ph || null, company: st, message: (topic ? "I'd like: " + topic + '\n\n' : '') + m,
+        plan: /enterprise/i.test(topic) ? 'enterprise' : null, consent: true, source: 'home' };
+      if (trap.value) body.website = trap.value;
+      if (btn) btn.disabled = true;
+      loadCfg().then(function (cfg) {
+        var base = String(cfg.url || '').replace(/\/+$/, '');
+        if (!base || !cfg.anonKey) return { ok: false, error: 'config' };
+        return fetch(base + '/rest/v1/rpc/submit_sales_enquiry', { method: 'POST', credentials: 'omit',
+          headers: { 'Content-Type': 'application/json', apikey: cfg.anonKey, Authorization: 'Bearer ' + cfg.anonKey },
+          body: JSON.stringify({ p: body }) })
+          .then(function (r) { return r.json().then(function (j) { return r.ok ? { ok: true, data: j } : { ok: false, error: '' }; }, function () { return { ok: false, error: '' }; }); })
+          .catch(function () { return { ok: false, error: 'network' }; });
+      }).then(function (r) {
+        if (btn) btn.disabled = false;
+        var d = r.ok ? r.data : null;
+        if (d && d.ok === true) {
+          form.reset(); bad('');
+          if (fine) { fine.textContent = 'Thank you! We have your message and will get back to you within one working day.'; fine.classList.add('ok'); fine.setAttribute('role', 'status'); }
+          return;
+        }
+        bad(d && d.message ? String(d.message).slice(0, 200)
+          : (r.error === 'network' ? 'No connection. Check your internet and try again.' : 'Something went wrong. Please try again, or e-mail sales@helm.events.'),
+          d && d.field ? MAP[d.field] : null);
+      });
+    });
+  })();
+
+  /* r24 (0271): the footer's "Send a suggestion" link (public /suggest page) next to Contact */
+  (function () {
+    var c = $('.foot a[href="#contact"]') || $('.foot a[href="/#contact"]');
+    if (!c || $('.foot a[href="/suggest"]')) return;
+    var a = document.createElement('a'); a.href = '/suggest'; a.textContent = 'Send a suggestion';
+    c.parentNode.insertBefore(a, c.nextSibling);
+  })();
 
   /* ---------- converge tiles: ring positions ---------- */
   var field = $('#field'), tiles = $$('.tile'), core = $('.core', field), tilePos = [];

@@ -104,7 +104,8 @@ t('salesMail: mailto sales@helm.events with every detail; subject is one line', 
   assert.ok(!/[\r\n]/.test(q.get('subject')));
   assert.match(CO, /var SALES_TO = \(S && S\.checkout && S\.checkout\.SALES_EMAIL\) \|\| "sales@helm\.events";/);
   assert.match(API, /SALES_EMAIL: "sales@helm\.events",/);
-  assert.match(read('public/home.js'), /mailto:sales@helm\.events\?subject=/, 'same mechanism as the landing contact form');
+  // r24 (0271): the landing contact form now saves to Helm (submit_sales_enquiry -> HQ Requests) instead of mailto
+  assert.match(read('public/home.js'), /\/rest\/v1\/rpc\/submit_sales_enquiry/, 'landing contact form saves to Helm');
 });
 
 /* ---------------- "Choose a plan" links ---------------- */

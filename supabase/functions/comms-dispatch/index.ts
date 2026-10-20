@@ -438,8 +438,8 @@ Deno.serve(async (req) => {
       let res: Res = "skipped";
       if (msg && tos.length) {
         const extra: Extra = { footer: txFooter((NOTICE_TX_REASON as Record<string, string>)[kind] || "you use Helm", { app: origin, address: postalAddress(env) }) };
-        // a sales request: replying goes straight to the studio that asked
-        const ident: Identity = kind === "sales_request" ? { reply_to: String(data.email ?? "") || null } : {};
+        // a sales request / a Contact sales enquiry / a suggestion (0271): replying goes straight to the person who asked
+        const ident: Identity = (kind === "sales_request" || kind === "sales_enquiry" || kind === "suggestion") ? { reply_to: String(data.email ?? "") || null } : {};
         const outs: Res[] = [];
         for (let i = 0; i < tos.length; i++) outs.push(await sendEmail(id + "-" + i, tos[i], msg.subject, msg.text, "Helm", ident, extra));
         res = outs.includes("sent") ? "sent" : outs.includes("failed") ? "failed" : "skipped";

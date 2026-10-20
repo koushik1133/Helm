@@ -1819,6 +1819,8 @@
     var manualFlag = typeof window !== "undefined" && window.HELM_FEATURES ? window.HELM_FEATURES.manual : false;
     if (manualFlag === true || (manualFlag === "admin" && role === "admin"))
       items.push({ id: "manual", label: "User manual", href: "manual.html", newTab: true });
+    // r24 (0271): the suggestions box - every role (goes to Helm HQ -> Requests -> Suggestions)
+    items.push({ id: "suggest", label: "Send a suggestion" });
     items.push({ id: "signout", label: "Sign out", sep: true });
     return { name: name || email.split("@")[0] || "Account", email: email, role: label,
       initials: initials(name, email), color: avColorIdx(u.id || email),
@@ -1852,6 +1854,7 @@
     profile: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5",
     settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4",
     manual: "M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h11M9 8h5",
+    suggest: "M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z",
     signout: "M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10",
   };
   function menuItems() { return menu.pop ? Array.prototype.slice.call(menu.pop.querySelectorAll("[role=menuitem]")) : []; }
@@ -1891,6 +1894,12 @@
     var st = S();
     if (id === "profile") return openAccount({ section: "profile" });
     if (id === "settings") return openAccount({ section: "settings" });
+    if (id === "suggest") {
+      if (window.HelmSuggest) return window.HelmSuggest.open();
+      var sc = doc.createElement("script"); sc.src = "/suggest.js?v=1";
+      sc.onload = function () { if (window.HelmSuggest) window.HelmSuggest.open(); };
+      doc.head.appendChild(sc); return;
+    }
     if (id === "signout") {
       var lo = doc.getElementById("logoutBtn");
       if (lo) { lo.click(); return; }                     // keeps each page's own sign-out (unsaved-changes checks)

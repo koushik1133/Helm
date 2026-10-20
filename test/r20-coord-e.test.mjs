@@ -33,11 +33,11 @@ t('2 profile menu: "User manual" for the admin only ("admin"); everyone with tru
   const ctx = { S: () => ({ auth: { admin: { roleLabel: (r) => r } } }) };
   vm.runInNewContext('var AV_COLORS = 8;\n' + ['initials', 'avColorIdx', 'menuModel'].map((f) => fnSrc(AUI, f)).join('\n') + '\nglobalThis.mm=menuModel;', ctx);
   const ids = (r) => ctx.mm({ id: 'u', email: 'a@b.test' }, {}, r).items.map((i) => i.id).join(',');
-  assert.equal(ids('admin'), 'profile,settings,signout', 'no window / no flag = hidden');
+  assert.equal(ids('admin'), 'profile,settings,suggest,signout', 'no window / no flag = hidden');
   ctx.window = { HELM_FEATURES: { manual: 'admin' } };
-  assert.equal(ids('admin'), 'profile,settings,manual,signout'); assert.equal(ids('coordinator'), 'profile,settings,signout'); assert.equal(ids('manager'), 'profile,settings,signout');
-  ctx.window = { HELM_FEATURES: { manual: false } }; assert.equal(ids('admin'), 'profile,settings,signout');
-  ctx.window = { HELM_FEATURES: { manual: true } }; assert.equal(ids('sales'), 'profile,settings,manual,signout');
+  assert.equal(ids('admin'), 'profile,settings,manual,suggest,signout'); assert.equal(ids('coordinator'), 'profile,settings,suggest,signout'); assert.equal(ids('manager'), 'profile,settings,suggest,signout');
+  ctx.window = { HELM_FEATURES: { manual: false } }; assert.equal(ids('admin'), 'profile,settings,suggest,signout');
+  ctx.window = { HELM_FEATURES: { manual: true } }; assert.equal(ids('sales'), 'profile,settings,manual,suggest,signout');
 });
 
 t('3 Control Center Help -> User manual: flag true = everyone, "admin" = the admin role only', () => {

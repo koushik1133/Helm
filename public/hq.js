@@ -417,6 +417,81 @@
     if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "7", cls: "empty", text: "No requests here." })]));
   }
 
+  /* ---------------- r24 (0271) sales enquiries + suggestions + their e-mail settings ---------------- */
+  var SE_STATUS = { new: ["New", "warn"], contacted: ["Contacted", ""], won: ["Won", "ok"], lost: ["Lost", "bad"] };
+  var SG_STATUS = { new: ["New", "warn"], reviewed: ["Reviewed", ""], done: ["Done", "ok"] };
+  var SE_PLAN = { starter: "Starter", studio: "Studio", enterprise: "Enterprise", not_sure: "Not sure yet" };
+  var SE_TEAM = { "1": "Just me", "2-5": "2–5 people", "6-15": "6–15 people", "16-50": "16–50 people", "51+": "51+ people" };
+  var SG_KIND = { idea: "Idea", problem: "Problem", other: "Other" };
+  function ist(v) { return v ? new Date(v).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }) + " IST" : "—"; }
+  // status buttons + "Note" for one row; fn = the HQ RPC, map = the statuses
+  function rowActions(x, map, fn, reload) {
+    var td = el("td");
+    Object.keys(map).filter(function (k) { return k !== "new" && k !== x.status; }).forEach(function (k) {
+      var b = el("button", { cls: "btn sm", type: "button", text: map[k][0] });
+      b.addEventListener("click", function () {
+        call(fn, { p_id: x.id, p_status: k, p_note: null })
+          .then(function () { okMsg("Marked " + map[k][0].toLowerCase() + "."); reload().catch(showErr); }).catch(showErr);
+      });
+      td.appendChild(b);
+    });
+    var n = el("button", { cls: "btn sm", type: "button", text: x.hq_note ? "Edit note" : "Add note" });
+    n.addEventListener("click", function () {
+      var note = ask("Note (leave empty to remove it):", x.hq_note || "");
+      if (note == null) return;
+      call(fn, { p_id: x.id, p_status: null, p_note: note }).then(function () { okMsg("Note saved."); reload().catch(showErr); }).catch(showErr);
+    });
+    td.appendChild(n);
+    return td;
+  }
+  function statusCell(x, map) {
+    var st = map[x.status] || [x.status || "—", ""];
+    return el("td", null, [el("span", { cls: "pill " + st[1], text: st[0] }), x.hq_note ? el("div", { cls: "muted", text: x.hq_note }) : null]);
+  }
+  async function loadSales() {
+    var r = await call("hq_sales_enquiries", { p_status: $("#fSe").value || null }); r = r && !Array.isArray(r) ? r : {};
+    var c = r.counts || {};
+    $("#seCounts").textContent = Object.keys(SE_STATUS).map(function (k) { return SE_STATUS[k][0] + ": " + int(c[k] || 0); }).join(" · ");
+    var s = r.settings || {};
+    if (s.notify_email != null) { $("#seEmail").value = s.notify_email; $("#seAck").checked = !!s.auto_reply; $("#seOpen").checked = !!s.form_open; }
+    var tb = clear($("#tSe"));
+    (Array.isArray(r.rows) ? r.rows : []).forEach(function (x) {
+      tb.appendChild(el("tr", null, [
+        el("td", { text: ist(x.created_at) }),
+        el("td", null, [el("strong", { text: x.company || "—" }), el("div", { cls: "muted", text: [x.city, x.source === "home" ? "from home page" : "from Contact sales"].filter(Boolean).join(" · ") })]),
+        el("td", null, [x.name || "—", el("div", { cls: "muted", text: [x.email, x.phone].filter(Boolean).join(" · ") })]),
+        el("td", { text: [SE_PLAN[x.plan] ? "Plan: " + SE_PLAN[x.plan] : "", SE_TEAM[x.team_size] ? "Team: " + SE_TEAM[x.team_size] : "", x.events_per_year ? "Events / year: " + x.events_per_year : ""].filter(Boolean).join(" · ") || "—" }),
+        el("td", { text: x.message || "—" }),
+        statusCell(x, SE_STATUS),
+        rowActions(x, SE_STATUS, "hq_set_sales_enquiry", loadSales)]));
+    });
+    if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "7", cls: "empty", text: "No sales enquiries here." })]));
+  }
+  async function loadSuggestions() {
+    var r = await call("hq_suggestions", { p_status: $("#fSg").value || null }); r = r && !Array.isArray(r) ? r : {};
+    var c = r.counts || {};
+    $("#sgCounts").textContent = Object.keys(SG_STATUS).map(function (k) { return SG_STATUS[k][0] + ": " + int(c[k] || 0); }).join(" · ");
+    var tb = clear($("#tSg"));
+    (Array.isArray(r.rows) ? r.rows : []).forEach(function (x) {
+      tb.appendChild(el("tr", null, [
+        el("td", { text: ist(x.created_at) }),
+        el("td", null, [x.who || (x.source === "app" ? "A Helm user" : "A visitor"),
+          el("div", { cls: "muted", text: [x.studio, x.email, x.source === "app" ? "in the app" + (x.page ? " (" + x.page + ")" : "") : "website"].filter(Boolean).join(" · ") })]),
+        el("td", { text: SG_KIND[x.category] || "—" }),
+        el("td", { text: x.message || "—" }),
+        statusCell(x, SG_STATUS),
+        rowActions(x, SG_STATUS, "hq_set_suggestion", loadSuggestions)]));
+    });
+    if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "6", cls: "empty", text: "No suggestions here." })]));
+  }
+  function saveSalesSettings() {
+    var em = $("#seEmail").value.trim();
+    if (!/^[^\s@<>",;:]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/.test(em)) { showErr(new Error("Enter a valid e-mail address")); return; }
+    call("hq_set_sales_enquiry_settings", { p_notify_email: em, p_auto_reply: $("#seAck").checked, p_form_open: $("#seOpen").checked })
+      .then(function () { okMsg("Saved. Alerts go to " + em + "."); }).catch(showErr);
+  }
+  function loadRequestsTab() { loadRequests().catch(showErr); loadSales().catch(showErr); loadSuggestions().catch(showErr); }
+
   /* ---------------- 0186 free-trial extension ---------------- */
   // pure: validated args for hq_extend_trial (exported for tests). The database checks the same.
   function trialExtendArgs(org, days, reason) {
@@ -844,13 +919,14 @@
     document.title = "Helm HQ";
     $("#who").textContent = (BPStore.auth.user() && BPStore.auth.user().email) || "";
     $("#vLoading").hidden = true; $("#vApp").hidden = false;
-    showTab("overview");
+    // r24 (0271): the e-mail alerts link straight to Requests (hq#requests)
+    if (location.hash === "#requests") { showTab("requests"); loadRequestsTab(); } else showTab("overview");
 
     TABS.forEach(function (t) { on("#tab-" + t, "click", function () {
       showTab(t);
       if (t === "activity") { loadAudit().catch(showErr); loadSecurity().catch(showErr); loadOperators().catch(showErr); }
       if (t === "billing") loadSettings().catch(showErr);
-      if (t === "requests") loadRequests().catch(showErr);
+      if (t === "requests") loadRequestsTab();
       if (t === "staff") loadStaff().catch(showErr);
     }); });
     on("#btnRefresh", "click", function () { loadAll().catch(showErr); });
@@ -861,6 +937,11 @@
     on("#btnRecord", "click", recordPayment);
     on("#btnReq", "click", function () { loadRequests().catch(showErr); });
     on("#fReq", "change", function () { loadRequests().catch(showErr); });
+    on("#btnSe", "click", function () { loadSales().catch(showErr); });
+    on("#fSe", "change", function () { loadSales().catch(showErr); });
+    on("#btnSg", "click", function () { loadSuggestions().catch(showErr); });
+    on("#fSg", "change", function () { loadSuggestions().catch(showErr); });
+    on("#btnSeSet", "click", saveSalesSettings);
     on("#btnSettings", "click", saveSettings);
     on("#btnPlan", "click", savePlan);
     on("#btnCheckout", "click", saveCheckoutSettings);

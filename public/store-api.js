@@ -1227,7 +1227,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "50";
+  const AUTH_UI_VERSION = "51";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -8270,7 +8270,7 @@ window.HelmUrl = HelmUrl;
     const k = k0, q = has(n.quote_id) ? n.quote_id : null;
     if (k === "trial_reminder") return "checkout.html";
     // r21 (0250): security notices are Helm HQ only - an HQ notice opens HQ (Activity log -> Security)
-    if (k === "security_alert") return d.hq === true ? "hq.html" : "control.html#users";
+    if (k === "security_alert") return d.hq === true ? (/^(sales_enquiry|suggestion)$/.test(String(d.alert || "")) ? "hq.html#requests" : "hq.html") : "control.html#users";
     // 0078: low stock -> the event's inventory page, the item row highlighted
     if (k === "inventory_low_stock") {
       const it = /^[0-9a-f-]{36}$/i.test(String(d.item_id || "")) ? String(d.item_id) : "";
@@ -8617,7 +8617,11 @@ window.HelmUrl = HelmUrl;
       advance_paid: ["💰", "Payment received"],
       payment_reconcile: ["⚠️", "Payment needs attention"],
       // 0054: names only (who / whom) — never e-mails, links or tokens
-      security_alert: ["🛡️", "Security: " + String(d.label || "security event")
+      // r24 (0271): HQ-only "new sales enquiry / new suggestion" notices ride on the HQ notice lane
+      security_alert: /^(sales_enquiry|suggestion)$/.test(String(d.alert || "")) && d.hq === true
+        ? [d.alert === "suggestion" ? "💡" : "💼", String(d.label || (d.alert === "suggestion" ? "New suggestion" : "New sales enquiry"))
+            + ((Number(d.count) || 1) > 1 ? " ×" + (Number(d.count) || 1) : "") + (d.subject_name ? " · " + d.subject_name : "")]
+        : ["🛡️", "Security: " + String(d.label || "security event")
         + ((Number(d.count) || 1) > 1 ? " ×" + (Number(d.count) || 1) : "")
         + (d.subject_name ? " · " + d.subject_name : d.actor_name ? " · by " + d.actor_name : "")
         + (d.event_code ? " · " + d.event_code : "")
@@ -10061,6 +10065,8 @@ window.HelmUrl = HelmUrl;
     // Inherently personal + org-scoped server-side (my_tasks is SECURITY DEFINER, crew_id = caller).
     // Operator-only read RPCs (0029). The database refuses every non-operator (42501).
     hq: (fn, args) => (/^hq_[a-z_]+$/.test(fn) ? rpc(fn, args || {}) : Promise.reject(new Error("bad call"))),
+    // r24 (0271): "Send a suggestion" (profile menu -> suggest.js). The server records who + their studio.
+    suggest: (p) => rpc("submit_suggestion", { p: p || {} }),
     // 0045 — this studio's Helm subscription (read-only). Every member gets {status, read_only};
     // studio admins also get plan, period and payments. invoice(): admins, own studio only.
     checkout,
