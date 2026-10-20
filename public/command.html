@@ -5,6 +5,7 @@
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <link rel="stylesheet" href="command-polish.css?v=2">
 <link rel="stylesheet" href="delivery-tracker.css?v=1">
+<link rel="stylesheet" href="stock-flow.css?v=1">
 <meta charset="utf-8">
 <base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Event-day command — Helm Events</title>
@@ -133,11 +134,10 @@
 
       <div class="card">
         <h2>📦 Live stock requests <span class="prog" id="stkProg"></span></h2>
-        <p class="sub">Raise, issue or replace stock during the event.</p>
+        <p class="sub">Need something on site? Ask for it here, then <b>Give out</b> to a person — Inventory shows it as <b>Out</b> until you <b>Mark back</b>.</p>
         <div id="stkRows"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         <div class="s-d2c171b" id="stkTools" hidden>
-          <div class="addline"><select class="s-6b751c2" id="stk_item" aria-label="Stock item"></select></div>
-          <div class="addline"><input id="stk_label" placeholder="or type an item…" aria-label="Item name"><input class="s-460bb70" id="stk_qty" type="number" min="1" value="1" aria-label="Quantity"><button type="button" class="btn primary" id="stk_add" aria-label="Add stock request">＋</button></div>
+          <div class="addline stk-addline"><div id="stk_pick" class="stk-pick"></div><input class="s-460bb70" id="stk_qty" type="number" min="1" value="1" aria-label="How many"><button type="button" class="btn primary" id="stk_add" aria-label="Ask for this stock">＋ Ask</button></div>
         </div>
       </div>
     </div>
@@ -160,9 +160,11 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script>
 <script src="tour.js?v=24"></script>
 <script src="delivery-tracker.js?v=1"></script>
+<script src="stock-flow.js?v=1"></script>
+<script src="stock-picker.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -236,28 +238,95 @@
       await act(b,async()=>{ await BPStore.guests.remove(b.dataset.gdel); await section(renderGuests,$("#gstRows"),"guest groups"); },"remove the group"); }));
   }
 
-  const STK={requested:"Requested",issued:"Issued",replaced:"Replaced",cancelled:"Cancelled"};
-  const stkPill={requested:"pending",issued:"done",replaced:"left",cancelled:"no_show"};
+  // r24: ONE stock story (stock-flow.js) - Requested -> Out (a real check-out on Inventory, who + when) -> Back / Missing / Damaged
+  const SF=window.HelmStockFlow;
+  let stkPicker=null, stkItems=[], stkPeople=null, stkOpen=null;   // stkOpen = {id, mode:"give"|"back"} (one small form at a time)
+  const fmtWhen=(t)=>{ try{ return BPStore.fmtDateTime?BPStore.fmtDateTime(t):BPStore.fmtDay(t); }catch(_){ return ""; } };
+  async function peopleOpts(){ if(stkPeople) return stkPeople; try{ stkPeople=await BPStore.people.options(); }catch(_){ stkPeople=[]; } return stkPeople; }
+  function personSelect(opts){ const staff=opts.filter(p=>p.kind==="staff"), ven=opts.filter(p=>p.kind==="vendor");
+    const grp=(l,a)=>a.length?`<optgroup label="${l}">`+a.map(p=>`<option value="${esc(p.name)}" data-id="${esc(p.id)}" data-kind="${esc(p.kind)}">${esc(p.name)}${p.role?" · "+esc(p.role):""}</option>`).join("")+`</optgroup>`:"";
+    return `<select data-f="to" aria-label="Given to"><option value="">Who is it given to?</option>${grp("Staff",staff)}${grp("Vendors",ven)}</select>`; }
   async function renderStock(){
-    const items=await BPStore.stockreq.list(id);
-    const open=items.filter(r=>r.status==="requested").length;
-    $("#stkProg").textContent = items.length? `${open} open` : "";
-    $("#stkRows").innerHTML = items.length ? items.map(r=>`<div class="row">
-      <div><div class="nm">${esc(r.label)} <span class="rl">×${Number(r.qty||1)}</span></div>${r.note?`<div class="rl">${esc(r.note)}</div>`:""}</div>
-      <span class="pill ${stkPill[r.status]||"pending"}">${esc(STK[r.status]||r.status)}</span>
-      ${canEdit?`<div class="acts">
-        <button type="button" class="mini go" data-stk="${esc(r.id)}" data-s="issued" aria-label="Mark ${esc(r.label)} issued">Issued</button>
-        <button type="button" class="mini" data-stk="${esc(r.id)}" data-s="replaced" aria-label="Mark ${esc(r.label)} replaced">Replaced</button>
-        <button type="button" class="mini del" data-sdel="${esc(r.id)}" data-name="${esc(r.label)}" aria-label="Remove request for ${esc(r.label)}">✕</button></div>`:""}
-    </div>`).join("") : '<div class="empty">No stock requests. Raise one if something is needed on site.</div>';
-    $("#stkRows").querySelectorAll("[data-stk]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{ await BPStore.stockreq.setStatus(b.dataset.stk,b.dataset.s); await section(renderStock,$("#stkRows"),"stock requests"); },"update the request")));
-    $("#stkRows").querySelectorAll("[data-sdel]").forEach(b=>b.addEventListener("click",async()=>{ if(!(await confirmRemove("the stock request for “"+(b.dataset.name||"")+"”")))return;
-      await act(b,async()=>{ await BPStore.stockreq.remove(b.dataset.sdel); await section(renderStock,$("#stkRows"),"stock requests"); },"remove the request"); }));
+    const [items, cos] = await Promise.all([BPStore.stockreq.list(id), BPStore.inventory.checkouts.list(id).catch(()=>[])]);
+    const coById=Object.fromEntries((cos||[]).map(c=>[c.id,c]));
+    const open=items.filter(r=>r.status==="requested").length, outN=items.filter(r=>{ const c=r.checkout_id&&coById[r.checkout_id]; return c&&c.status==="out"; }).length;
+    $("#stkProg").textContent = items.length? [open?`${open} to give out`:"", outN?`${outN} out`:""].filter(Boolean).join(" · ") : "";
+    const opts = canEdit ? await peopleOpts() : [];
+    $("#stkRows").innerHTML = items.length ? items.map(r=>{
+      const st=SF.requestState(r, coById), c=st.checkout||null;
+      const det = c ? (st.key==="out" ? `With ${esc(c.issued_to||"someone")}${c.checked_out_at?" since "+esc(fmtWhen(c.checked_out_at)):""}`
+                                      : `${esc(SF.coSummary(c))}${c.checked_in_at?" · "+esc(fmtWhen(c.checked_in_at)):""}`)
+                    : (st.key==="given" ? "Not from stock - nothing to bring back" : "");
+      let acts="";
+      if(canEdit){
+        if(r.status==="requested"){
+          if(r.source) acts+=`<button type="button" class="mini go" data-src="${esc(r.id)}" aria-label="Mark ${esc(r.label)} sourced">Sourced</button>`;
+          else if(r.item_id) acts+=`<button type="button" class="mini go" data-give="${esc(r.id)}" aria-label="Give out ${esc(r.label)}">Give out</button>`;
+          else acts+=`<button type="button" class="mini go" data-given="${esc(r.id)}" aria-label="Mark ${esc(r.label)} given">Given</button>`;
+          acts+=`<button type="button" class="mini" data-stk="${esc(r.id)}" data-s="cancelled" aria-label="${esc(r.label)} not needed">Not needed</button>`;
+          acts+=`<button type="button" class="mini del" data-sdel="${esc(r.id)}" data-name="${esc(r.label)}" aria-label="Remove request for ${esc(r.label)}">✕</button>`;
+        } else if(c && c.status==="out"){
+          acts+=`<button type="button" class="mini go" data-back="${esc(r.id)}" aria-label="Mark ${esc(r.label)} back">Mark back</button>`;
+        }
+      }
+      let form="";
+      if(canEdit && stkOpen && stkOpen.id===r.id){
+        if(stkOpen.mode==="give") form=`<div class="sf-form" data-form="${esc(r.id)}">${personSelect(opts)}<label>How many<input data-f="qty" type="number" min="1" value="${esc(Number(r.qty||1))}" disabled></label>
+          <button type="button" class="btn primary" data-go="give">Give out</button><button type="button" class="btn" data-go="close">Cancel</button>
+          <p class="sf-note">It is taken from Inventory now and shows as Out (with this person) until it is marked back.</p></div>`;
+        else if(stkOpen.mode==="back" && c) form=`<div class="sf-form" data-form="${esc(r.id)}"><label>Came back OK<input data-f="ok" type="number" min="0" step="1" value="${esc(Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0))}"></label>
+          <label>Damaged<input data-f="dmg" type="number" min="0" step="1" value="0"></label>
+          <button type="button" class="btn primary" data-go="back">Mark back</button><button type="button" class="btn" data-go="close">Cancel</button>
+          <p class="sf-note">${esc(Number(c.qty_out||0))} went out. Anything not counted here is <b>Missing</b>. Missing and damaged come off your stock.</p></div>`;
+      }
+      return `<div class="row">
+      <div><div class="nm">${esc(r.label)} <span class="rl">×${Number(r.qty||1)}</span></div>${r.note?`<div class="rl">${esc(r.note)}</div>`:""}${det?`<div class="rl">${det}</div>`:""}</div>
+      <span class="pill ${esc(st.pill)}">${esc(st.label)}</span>
+      ${acts?`<div class="acts">${acts}</div>`:""}${form}
+    </div>`; }).join("") : '<div class="empty">No stock requests. Ask for something if it is needed on site.</div>';
+    const host=$("#stkRows"), re=()=>section(renderStock,host,"stock requests");
+    host.querySelectorAll("[data-stk]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{ await BPStore.stockreq.setStatus(b.dataset.stk,b.dataset.s); await re(); },"update the request")));
+    host.querySelectorAll("[data-src]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{ await BPStore.stockreq.setStatus(b.dataset.src,"issued"); await re(); },"update the request")));
+    host.querySelectorAll("[data-given]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{ await BPStore.stockreq.issue(b.dataset.given,"",null,null,false); await re(); },"mark it given")));
+    host.querySelectorAll("[data-give]").forEach(b=>b.addEventListener("click",()=>{ stkOpen={id:b.dataset.give,mode:"give"}; re().then(()=>{ const f=host.querySelector("[data-form] select"); if(f) f.focus(); }); }));
+    host.querySelectorAll("[data-back]").forEach(b=>b.addEventListener("click",()=>{ stkOpen={id:b.dataset.back,mode:"back"}; re().then(()=>{ const f=host.querySelector('[data-form] [data-f="ok"]'); if(f) f.focus(); }); }));
+    host.querySelectorAll("[data-sdel]").forEach(b=>b.addEventListener("click",async()=>{ if(!(await confirmRemove("the stock request for “"+(b.dataset.name||"")+"”")))return;
+      await act(b,async()=>{ await BPStore.stockreq.remove(b.dataset.sdel); await re(); },"remove the request"); }));
+    host.querySelectorAll("[data-form]").forEach(f=>f.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>stockFormGo(f,b,items,coById))));
+  }
+  async function stockFormGo(f,b,items,coById){
+    const rid=f.dataset.form, r=items.find(x=>x.id===rid), re=()=>section(renderStock,$("#stkRows"),"stock requests");
+    if(b.dataset.go==="close"){ stkOpen=null; return re(); }
+    if(b.dataset.go==="give"){
+      const sel=f.querySelector('[data-f="to"]'), to=(sel.value||"").trim(), o=sel.selectedOptions[0];
+      if(!to){ BPUI.toast("Who is it given to?",{type:"err"}); sel.focus(); return; }
+      const crewId=(o&&o.dataset.kind==="staff")?o.dataset.id:null;
+      return act(b,async()=>{
+        let res=await BPStore.stockreq.issue(rid,to,crewId,null,false);
+        if(res && res.ok===false && res.code==="shortage"){
+          const free=Number(res.available||0);
+          if(free<=0){ BPUI.toast(`None of ${r?r.label:"this item"} is free right now - check Inventory (someone may still have it out).`,{type:"err"}); return; }
+          if(!(await BPUI.confirm(`Only ${free} of ${r?r.label:"this item"} ${free===1?"is":"are"} free (you asked for ${res.requested}). Give out ${free} now? The rest is noted as short.`,{title:"Not enough free",okLabel:`Give out ${free}`}))) return;
+          res=await BPStore.stockreq.issue(rid,to,crewId,null,true);
+        }
+        if(res && res.ok){ stkOpen=null; BPUI.toast(res.from_stock===false?"Marked given.":`Given out to ${to}. Inventory shows it as Out.`,{type:"ok"}); await re(); }
+      },"give it out");
+    }
+    if(b.dataset.go==="back"){
+      const c=r&&r.checkout_id?coById[r.checkout_id]:null; if(!c) return;
+      const V=BPStore.validate, ok=V.count(f.querySelector('[data-f="ok"]').value,{allowZero:true,field:"Came back OK"}), dm=V.count(f.querySelector('[data-f="dmg"]').value||"0",{allowZero:true,field:"Damaged"});
+      if(!ok.ok){ BPUI.toast(ok.error,{type:"err"}); return; } if(!dm.ok){ BPUI.toast(dm.error,{type:"err"}); return; }
+      const out=Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0), miss=out-ok.value-dm.value;
+      if(miss<0){ BPUI.toast(`Only ${out} went out.`,{type:"err"}); return; }
+      if((miss>0||dm.value>0) && !(await BPUI.confirm(`${miss?miss+" missing":""}${miss&&dm.value?" and ":""}${dm.value?dm.value+" damaged":""} - ${miss+dm.value===1?"it comes":"they come"} off your stock. Continue?`,{title:"Missing or damaged?",okLabel:"Mark back",danger:true}))) return;
+      return act(b,async()=>{ await BPStore.inventory.checkouts.back(c.id, ok.value, dm.value, null); stkOpen=null; BPUI.toast("Marked back.",{type:"ok"}); await re(); },"mark it back");
+    }
   }
   async function loadStockItems(){
-    try{ const items=await BPStore.inventory.items(false);
-      $("#stk_item").innerHTML='<option value="">— pick a stock item —</option>'+items.map(i=>`<option value="${esc(i.id)}" data-name="${esc(i.name)}">${esc(i.name)}</option>`).join(""); }
-    catch{ $("#stk_item").innerHTML='<option value="">— pick a stock item —</option>'; }
+    try{ stkItems=await BPStore.inventory.items(false); }catch(_){ stkItems=[]; }
+    if(!stkPicker){ stkPicker=HelmStockPicker.mount($("#stk_pick"),{ items:stkItems, allowFree:true, label:"Stock item", placeholder:"Search stock, or type what you need…",
+      meta:(i)=>[i.category, i.total_qty!=null?(Number(i.total_qty)+" "+(i.unit||"")).trim()+" owned":""].filter(Boolean).join(" · ") }); }
+    else stkPicker.setItems(stkItems);
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
@@ -281,12 +350,11 @@
     act($("#gst_add"),async()=>{ await BPStore.guests.add(id,{label:l, expected:er.value}); $("#gst_label").value=""; $("#gst_exp").value=""; await section(renderGuests,$("#gstRows"),"guest groups"); },"add the group"); });
   $("#gstPull").addEventListener("click",()=>act($("#gstPull"),async()=>{ const n=await BPStore.guests.pullFromLogistics(id); await section(renderGuests,$("#gstRows"),"guest groups");
     if(!n) BPUI.toast("Nothing to pull — add guest groups in Logistics → Guests first.",{type:"info"}); },"pull the guest list"));
-  $("#stk_add").addEventListener("click",()=>{ const sel=$("#stk_item"); const free=$("#stk_label").value.trim();
-    let item_id=null,label=free;
-    if(!free && sel.value){ item_id=sel.value; label=sel.options[sel.selectedIndex].dataset.name||sel.options[sel.selectedIndex].textContent; }
-    if(!label){ BPUI.toast("Pick or type an item.",{type:"err"}); return; }
-    const V=BPStore.validate; const qr=V.count($("#stk_qty").value,{allowZero:false,field:"Quantity"}); if(!qr.ok){ BPUI.toast(qr.error,{type:"err"}); return; }
-    act($("#stk_add"),async()=>{ await BPStore.stockreq.add(id,{item_id,label,qty:qr.value}); $("#stk_label").value=""; $("#stk_qty").value=1; sel.value=""; await section(renderStock,$("#stkRows"),"stock requests"); },"add the request"); });
+  $("#stk_add").addEventListener("click",()=>{ const pick=stkPicker?stkPicker.value():null;
+    if(!pick){ BPUI.toast("Pick a stock item, or type what you need.",{type:"err"}); if(stkPicker) stkPicker.input.focus(); return; }
+    const item_id=pick.item?pick.item.id:null, label=pick.item?(pick.item.name||"Item"):pick.label;
+    const V=BPStore.validate; const qr=V.count($("#stk_qty").value,{allowZero:false,field:"How many"}); if(!qr.ok){ BPUI.toast(qr.error,{type:"err"}); return; }
+    act($("#stk_add"),async()=>{ await BPStore.stockreq.add(id,{item_id,label,qty:qr.value}); stkPicker.clear(); $("#stk_qty").value=1; await section(renderStock,$("#stkRows"),"stock requests"); },"add the request"); });
 
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();

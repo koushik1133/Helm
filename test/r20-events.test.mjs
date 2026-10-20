@@ -199,10 +199,11 @@ t('number boxes: badInput is "Enter a valid number" (shared HelmValidate, leads 
 });
 
 /* ---------------------------------------------------------------- 9: teardown */
-t('teardown: Return only for issued stock (allocated / checked out), or from the event day on', () => {
+t('teardown: Mark back only for stock that went Out (r24: reserved-never-out = nothing to return, released automatically)', () => {
   const T = read('public/teardown.html');
-  assert.match(T, /const canReturnRow=\(r\)=>r\.status==="allocated" \|\| \(r\.status==="reserved" && \(issuedItems\.has\(r\.item_id\) \|\| eventStarted\)\);/);
-  assert.match(T, /Not issued yet/);
+  assert.match(T, /if\(canEdit && r\.state==="out"\)\{/);
+  assert.match(T, /BPStore\.inventory\.releaseUnused\(id, true\)/);
+  assert.doesNotMatch(T, /Not issued yet/);
 });
 
 /* ---------------------------------------------------------------- 10: quotes list Delete */

@@ -51,17 +51,17 @@ t('D1 flow wires re-stamp on open and before the quotation save', () => {
 t('D2 (retired): single Budget field, no min/max inversion check', () => {
   for (const [name, src] of [['flow', flow], ['discovery', disc]]) assert.doesNotMatch(src, /Max should be at least the min/, name);
 });
-t('versions: store-api bumped to 172', () => { for (const f of [flow, closure, disc]) assert.match(f, /store-api\.js\?v=272/); });
+t('versions: store-api bumped to 172', () => { for (const f of [flow, closure, disc]) assert.match(f, /store-api\.js\?v=273/); });
 t('D4 closure lists money owed AND equipment together, with links + admin override', () => {
   const fn = closure.slice(closure.indexOf('function closeBlockerLines('), closure.indexOf('async function renderCloseSummary'));
   const ctx = { evTax: null, BPStore: { studioMoney: (n) => '₹' + n } }; vm.createContext(ctx); vm.runInContext(fn + ';this.f=closeBlockerLines;', ctx);
   const r = ctx.f({ blocked: true, balance_owed: 256800, open_checkouts: 0 }, ['Chair ×5', 'Table ×2']);
   assert.equal(r.lines.length, 2);
   assert.match(r.lines[0], /Balance due from client: ₹256800 \(collect it in Settlement\)/);
-  assert.match(r.lines[1], /2 equipment reservations not marked returned/);
+  assert.match(r.lines[1], /2 items given out with no name recorded and not marked back/);   // r24: one stock story
   const ce = closure.slice(closure.indexOf('async function closeEvent'), closure.indexOf('// Gate 1.5'));
   assert.doesNotMatch(ce, /Equipment still out/, 'no equipment-only dialog any more');
-  assert.match(ce, /settlement\.html\?quote=/); assert.match(ce, /inventory\.html\?quote=/);
+  assert.match(ce, /settlement\.html\?quote=/); assert.match(ce, /teardown\.html\?quote=/);   // r24: mark stock back in Teardown & returns
   assert.match(ce, /Override & close/); assert.match(ce, /overrideReason=t/);
   assert.match(closure, /id="closeBlockers"/); assert.match(closure, /renderCloseSummary\(\);/);
 });

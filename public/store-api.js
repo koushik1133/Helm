@@ -4718,7 +4718,8 @@ window.HelmUrl = HelmUrl;
       const [items, res, cos] = await Promise.all([
         this.items(false), this.reservations(), this.checkouts.list().catch(() => []),
       ]);
-      const stillOut = (c) => Math.max(Number(c.qty_out || 0) - Number(c.qty_in || 0), 0);
+      // r24 (0268): a written-off missing unit is already off the total - do not count it as still out too
+      const stillOut = (c) => Math.max(Number(c.qty_out || 0) - Number(c.qty_in || 0) - Math.max(Number(c.written_off || 0) - Number(c.qty_damaged || 0), 0), 0);
       const openCo = (cos || []).filter((c) => (c.status === "out" || c.status === "partial") && stillOut(c) > 0);
       const liveRes = (res || []).filter((r) => ACTIVE_RES.includes(r.status));
       const meta = await this._quoteMeta([].concat(liveRes.map((r) => r.quote_id), openCo.map((c) => c.quote_id), extraQuoteIds || []));
@@ -4815,6 +4816,31 @@ window.HelmUrl = HelmUrl;
         if (error) throw error; return data;
       },
       remove(id) { return this.cancel(id); },
+      // r24 (0268): Mark back - how many came back OK + how many damaged; the rest is missing. Missing and damaged
+      // both come off what you own (once). Older DB without checkin_stock: the 0073 check-in (shortfall written off).
+      async back(id, ok, damaged, by) {
+        if (mode !== "supabase") throw new Error("Check-in needs Supabase");
+        try { return await rpc("checkin_stock", { p_id: id, p_ok: Number(ok || 0), p_damaged: Number(damaged || 0), p_returned_by: by || null }); }
+        catch (e) { if (!rpcMissing(e)) throw e; }
+        const row = await this.in(id, Number(ok || 0), by, true);
+        return { ok: true, legacy: true, status: row && row.status };
+      },
+      // r24: one item's history across events - which event, given to whom, when out, when back (newest first)
+      async forItem(itemId) {
+        if (mode !== "supabase") return readLs("bp_checkouts").filter((c) => c.item_id === itemId);
+        let r = await supa.from("inventory_checkouts").select("*, quotes(id,code,title,event_date)").eq("item_id", itemId)
+          .order("checked_out_at", { ascending: false }).order("id").limit(200);
+        if (r.error) r = await supa.from("inventory_checkouts").select("*").eq("item_id", itemId).order("checked_out_at", { ascending: false }).order("id").limit(200);
+        if (r.error) throw r.error;
+        return r.data || [];
+      },
+    },
+    // r24 (0268): release this event's reservations that are done - never taken out (after the event day; Teardown
+    // passes includeToday) or everything given out is back. -> number released, or null on an older DB.
+    async releaseUnused(quoteId, includeToday) {
+      if (mode !== "supabase" || !quoteId) return null;
+      try { const r = await rpc("release_unused_stock", { p_quote: quoteId, p_include_today: !!includeToday }); return r ? Number(r.released || 0) : 0; }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
     },
   };
 
@@ -7574,6 +7600,17 @@ window.HelmUrl = HelmUrl;
     async remove(id) {
       if (mode === "supabase") { const { error } = await supa.from("event_stock_requests").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(STOCKREQ_LS, JSON.stringify(readLs(STOCKREQ_LS).filter((r) => r.id !== id))); return true;
+    },
+    // r24 (0268): "Give out" a request - a stock item becomes a real check-out against inventory (who + when), so the
+    // counts on Inventory stay in sync. -> {ok, from_stock, checkout_id, qty_out, shortfall} | {ok:false, code:"shortage",
+    // requested, available}. A typed item (not in stock) is only marked given. Older DB: status only, as before.
+    async issue(id, issuedTo, crewId, note, partial) {
+      if (mode === "supabase") {
+        try { return await rpc("issue_stock_request", { p_request: id, p_issued_to: issuedTo || "", p_issued_to_id: crewId || null, p_note: note || null, p_partial: !!partial }); }
+        catch (e) { if (!rpcMissing(e)) throw e; }
+      }
+      await this.setStatus(id, "issued");
+      return { ok: true, from_stock: false, legacy: true };
     },
   };
 

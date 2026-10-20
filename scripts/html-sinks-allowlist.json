@@ -389,11 +389,6 @@
    "max": 3
   },
   {
-   "file": "public/command.html",
-   "expr": "stkPill[r.status]||\"pending\"",
-   "why": "lookup in a local literal map (icon/pill table) with literal fallback"
-  },
-  {
    "file": "public/control.html",
    "expr": "cols",
    "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
@@ -531,21 +526,6 @@
    "expr": "html",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)",
    "max": 2
-  },
-  {
-   "file": "public/inventory.html",
-   "expr": "lossRows || '<tr><td colspan=\"8\" class=\"empty\">No missing items — everything came back. 🎉</td></tr>'",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-  },
-  {
-   "file": "public/inventory.html",
-   "expr": "opts",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-  },
-  {
-   "file": "public/inventory.html",
-   "expr": "s",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
   },
   {
    "file": "public/invite-studio.html",
@@ -959,6 +939,46 @@
    "file": "public/plan.html",
    "expr": "lines.length ? lines.map(l=>`<div>${l}</div>`).join(\"\") : setOnQuote ? `<div class=\"muted\">${st===\"paid\"?\"Marked approved and paid on the quote\":\"Marked approved on the quote\"} — no online consent or payment record here. Payments recorded by the studio are on the event's Payments &amp; invoice page.</div>` : '<div class=\"muted\">No consent or payment recorded yet.</div>'",
    "why": "r20-coord: plan approval note - every line is built from esc()-escaped values (consent name/phone, payment status, studio-zone dates); the other branches are fixed text with a fixed status choice."
+  },
+  {
+   "file": "public/command.html",
+   "expr": "personSelect(opts)",
+   "why": "r24 helper defined just above renderStock: optgroup labels are literals, every name / id / kind / role esc()'d"
+  },
+  {
+   "file": "public/command.html",
+   "expr": "det",
+   "why": "r24: built just above from esc()'d issued_to / fmtWhen / coSummary text or a literal"
+  },
+  {
+   "file": "public/command.html",
+   "expr": "acts",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/command.html",
+   "expr": "form",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/inventory.html",
+   "expr": "acts",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/inventory.html",
+   "expr": "lossRows || '<tr><td colspan=\"9\" class=\"empty\">Nothing missing or damaged — everything came back. 🎉</td></tr>'",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink); fallback is a literal"
+  },
+  {
+   "file": "public/teardown.html",
+   "expr": "forms",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/teardown.html",
+   "expr": "acts",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
   }
  ]
 }

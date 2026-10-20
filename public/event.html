@@ -219,7 +219,7 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script>
 <script src="flow-resume.js?v=5"></script>
 <script src="event-reminders.js?v=3"></script>
 <script src="tour.js?v=24"></script>
@@ -789,7 +789,7 @@
         sum: resSummary && resSummary.total ? `${resSummary.total} need${resSummary.total===1?"":"s"} · ${resSummary.gaps?`<b class="t-bad">${resSummary.gaps} gap${resSummary.gaps===1?"":"s"}</b>`:(resSummary.outsourced?`<span class="stat ok">all covered</span> · ${resSummary.outsourced} outsourced`:'<span class="stat ok">all in-house</span>')}` : "Map needs and flag what to outsource.",
         acts:[{t: canEdit?"Open resource plan":"View plan", href:"resources.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"inventory", ic:"📦", title:"Inventory",
-        sum: invSummary && invSummary.total ? `${invSummary.active} item${invSummary.active===1?"":"s"} reserved / allocated${invSummary.total>invSummary.active?` · ${invSummary.total-invSummary.active} closed`:""}` : "Reserve in-house stock for this event.",
+        sum: invSummary && invSummary.total ? `${invSummary.active} item${invSummary.active===1?"":"s"} reserved${invSummary.total>invSummary.active?` · ${invSummary.total-invSummary.active} back or released`:""}` : "Reserve in-house stock for this event.",
         acts:[{t: canEdit?"Reserve stock":"View inventory", href:"inventory.html?quote="+encodeURIComponent(id), primary:true}] },
     ];
     // one plain-words line per tool, and the three groups the extra tools are shown in after confirmation

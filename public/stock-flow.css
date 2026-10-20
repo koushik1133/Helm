@@ -1,0 +1,57 @@
+/* r24 stock: ONE look for Reserved -> Out -> Back / Missing / Damaged (Inventory, Teardown, Event-day command, Closure)
+   + the searchable stock picker (stock-picker.js). No inline styles (CSP). */
+.sf-pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;padding:3px 9px;border-radius:20px;white-space:nowrap;line-height:1.4}
+.sf-pill.reserved{background:#eef2ff;color:#3446a8}
+.sf-pill.out{background:#fff4e0;color:#8a5300}
+.sf-pill.back{background:#e7f6ee;color:#0f7a43}
+.sf-pill.missing{background:#fdecec;color:#b42318}
+.sf-pill.damaged{background:#fdf0e6;color:#9a3d0b}
+.sf-pill.released,.sf-pill.cancelled{background:#f1f3f2;color:#5b6461}
+.sf-detail{display:block;font-size:12px;color:var(--ink-3,#6b6577);margin-top:3px;line-height:1.45}
+.sf-legend{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:12px;color:var(--ink-3,#6b6577);margin:4px 0 10px}
+.sf-legend .sf-pill{margin-right:4px}
+.sf-acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.sf-form{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:8px;padding:10px;border:1px solid var(--line,#e8e3db);border-radius:10px;background:var(--panel-2,#faf8f5);width:100%}
+.sf-form label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;font-weight:600;color:var(--ink-3,#6b6577)}
+.sf-form input,.sf-form select{height:36px;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);border-radius:8px;padding:0 10px;font:inherit;font-size:13px;color:var(--ink,#1b1930);min-width:0}
+.sf-form input[type=number]{width:86px}
+.sf-form select{min-width:180px;max-width:100%}
+.sf-form .sf-note{flex-basis:100%;font-size:12px;color:var(--ink-3,#6b6577);margin:0}
+.sf-form .sf-warn{flex-basis:100%;font-size:12.5px;color:#b42318;margin:0}
+.sf-hist{width:100%;border-collapse:collapse;font-size:13px}
+.sf-hist th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3,#6b6577);padding:6px 8px;border-bottom:1px solid var(--line,#e8e3db)}
+.sf-hist td{padding:8px;border-bottom:1px solid var(--line-2,#f1ede7);vertical-align:top}
+.sf-hist .sub2{font-size:12px;color:var(--ink-3,#6b6577)}
+.sf-hist-wrap{max-height:60vh;overflow:auto;-webkit-overflow-scrolling:touch}
+@media (max-width:640px){
+  .sf-hist thead{display:none}
+  .sf-hist tr{display:block;padding:8px 0;border-bottom:1px solid var(--line-2,#f1ede7)}
+  .sf-hist td{display:block;border:0;padding:2px 0;text-align:left}
+  .sf-form select{min-width:0;flex:1 1 100%}
+}
+
+/* searchable stock picker */
+.stkp{position:relative;flex:1;min-width:0}
+.stkp-in{width:100%;height:36px;border:1px solid var(--line,#e8e3db);background:var(--panel-2,#faf8f5);border-radius:8px;padding:0 10px;font:inherit;font-size:13px;color:var(--ink,#1b1930)}
+.stkp-list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;margin:0;padding:4px;list-style:none;background:var(--panel,#fff);border:1px solid var(--line,#e8e3db);border-radius:10px;box-shadow:0 10px 30px rgba(20,27,46,.14);max-height:280px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.stkp-opt{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px;border-radius:7px;cursor:pointer;font-size:13.5px;min-height:40px}
+.stkp-opt[aria-selected=true],.stkp-opt:hover{background:var(--accent-soft,#e3f4ed)}
+.stkp-nm{font-weight:600;color:var(--ink,#1b1930);overflow:hidden;text-overflow:ellipsis}
+.stkp-meta{font-size:12px;color:var(--ink-3,#6b6577);white-space:nowrap}
+.stkp-free{font-style:italic;color:var(--ink-2,#4b475f)}
+.stkp-empty{padding:10px;font-size:13px;color:var(--ink-3,#6b6577)}
+/* phone: the list sits in the page flow (never clipped by the card, scrolls with a finger) */
+@media (max-width:640px){
+  .stkp-list{position:static;margin-top:6px;max-height:50vh;box-shadow:none}
+  .stkp-opt{min-height:44px}
+}
+
+/* Event-day command card */
+#stkRows .row{flex-wrap:wrap}
+.stk-addline{align-items:flex-start}
+.stk-pick{flex:1;min-width:0;display:flex}
+@media (max-width:640px){ .stk-addline{flex-wrap:wrap} .stk-pick{flex-basis:100%} }
+
+/* inventory stock list: History + Edit side by side */
+.s-acts-cell{white-space:nowrap}
+.s-acts-cell .rm+.rm{margin-left:6px}

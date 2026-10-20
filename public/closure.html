@@ -154,7 +154,8 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script><script src="save-back.js?v=2"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=9"></script><script src="money-ledger-ui.js?v=1"></script><script src="closure-checklist.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script><script src="save-back.js?v=2"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=9"></script><script src="money-ledger-ui.js?v=1"></script><script src="stock-flow.js?v=1"></script>
+<script src="closure-checklist.js?v=2"></script>
 <script src="tour.js?v=24"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -254,9 +255,9 @@
     if(nb==="unconfirmed") lines.push("• This is still a quote - the client has not confirmed the booking");
     else if(nb==="unpriced") lines.push("• The quote has no price yet - price it first");
     if(owed>0) lines.push("• Balance due from client: "+money(owed)+" (collect it in Settlement)");
-    if(co>0) lines.push("• "+co+" equipment checkout"+(co>1?"s":"")+" still out: "+(b.checkouts||[]).slice(0,8).map(c=>(c.item||"item")+" ×"+c.qty).join(", "));
-    if(outstanding&&outstanding.length) lines.push("• "+outstanding.length+" equipment reservation"+(outstanding.length>1?"s":"")+" not marked returned: "
-      +outstanding.slice(0,8).join(", ")+(outstanding.length>8?", …":"")+" (return them in Inventory)");
+    if(co>0) lines.push("• "+co+" item"+(co>1?"s":"")+" out and not back yet: "+(b.checkouts||[]).slice(0,8).map(c=>(c.item||"item")+" ×"+c.qty+(c.issued_to?" with "+c.issued_to:"")).join(", ")+" (mark them back in Teardown & returns)");
+    if(outstanding&&outstanding.length) lines.push("• "+outstanding.length+" item"+(outstanding.length>1?"s":"")+" given out with no name recorded and not marked back: "
+      +outstanding.slice(0,8).join(", ")+(outstanding.length>8?", …":"")+" (mark them back in Teardown & returns)");
     return { lines, owed, checkouts:co, early, server:owed>0||co>0||!!nb||nodate };
   }
   // r22 (0254): the live "Before you close" checklist + close requests (null = older database / local mode)
@@ -347,18 +348,20 @@
       if(st.mode==="close") return finishClose(null,false);
       return;
     }
-    // Gate 1 — every piece of equipment booked for this event must be back
-    // (nothing still 'reserved' or 'allocated'). Closing is how the archive is built,
-    // so we never archive an event that still has kit out in the field.
+    // Gate 1 — every piece of stock that went OUT for this event must be back (r24: one story, stock-flow.js).
+    // Reserved but never taken out is not a blocker - there is nothing to return. Closing is how the archive
+    // is built, so we never archive an event that still has stock out with a person.
     let outstanding=[], invUnverified=false;
     try{
-      const [res, items] = await Promise.all([
+      const [res, items, cos] = await Promise.all([
         BPStore.inventory.reservations(id).catch(()=>{ invUnverified=true; return []; }),
-        BPStore.inventory.items(true).catch(()=>[])   // include deactivated items so their names show in the blocker list
+        BPStore.inventory.items(true).catch(()=>[]),   // include deactivated items so their names show in the blocker list
+        BPStore.inventory.checkouts.list(id).catch(()=>{ invUnverified=true; return []; })
       ]);
       const nameOf={}; (items||[]).forEach(it=>{ nameOf[it.id]=it.name||it.label||"item"; });
-      outstanding = (res||[]).filter(r=> r.status==="reserved" || r.status==="allocated")
-        .map(r=> (nameOf[r.item_id]||"item")+(r.qty?(" ×"+r.qty):""));
+      // stock out WITH a name is listed by the server gate (b.checkouts); here: given out before names were recorded
+      outstanding = HelmStockFlow.eventItems({ reservations:res||[], checkouts:cos||[] }).filter(r=>r.legacyOut>0)
+        .map(r=> (nameOf[r.item_id]||"item")+" ×"+Number(r.legacyOut||0));
     }catch(e){ invUnverified=true; /* if inventory is unreadable, fall through to the manual confirmation */ }
     // india-clickthrough D4: ONE list of every blocker - money owed (server gate 0049 /
     // close_event_blockers) AND equipment still out - with a way to Settlement / Inventory.
@@ -376,7 +379,7 @@
         await BPUI.alert("Can't close this event yet:\n\n"+bl.lines.join("\n")
           +(role!=="admin"&&bl.server?"\n\nOnly an admin can close with something outstanding.":""),{title:"Not ready to close"});
         if(bl.owed>0 && await BPUI.confirm("Open Settlement to collect the balance now?",{title:"Go to Settlement?",okLabel:"Open Settlement"})){ location.href="settlement.html?quote="+encodeURIComponent(id); return; }
-        if((outstanding.length||bl.checkouts>0) && await BPUI.confirm("Open Inventory to return the equipment now?",{title:"Go to Inventory?",okLabel:"Open Inventory"})) location.href="inventory.html?quote="+encodeURIComponent(id);
+        if((outstanding.length||bl.checkouts>0) && await BPUI.confirm("Open Teardown & returns to mark the stock back now?",{title:"Go to Teardown & returns?",okLabel:"Open Teardown"})) location.href="teardown.html?quote="+encodeURIComponent(id);
         return;
       }
       if(!(await BPUI.confirm("This event still has:\n\n"+bl.lines.join("\n")

@@ -99,6 +99,7 @@
 </style>
 <link rel="stylesheet" href="inventory-polish.css?v=3">
 <link rel="stylesheet" href="theme.css?v=83">
+<link rel="stylesheet" href="stock-flow.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <script src="/shell-proto.js?v=39" id="shellProto"></script>
 </head>
@@ -120,8 +121,9 @@
 
     <!-- per-event reservation panel -->
     <div id="eventPanel" class="card" hidden>
-      <h2>Reserve for this event</h2>
-      <p class="sub">Hold in-house stock for the event. Reserve now → allocate when it goes out → return when it comes back.</p>
+      <h2>Stock for this event</h2>
+      <p class="sub"><b>Reserve</b> to hold stock for the event → <b>Give out</b> to a person when it leaves the store → <b>Mark back</b> when it returns. Stock that was never taken out needs no return.</p>
+      <div class="sf-legend" aria-hidden="true"><span><span class="sf-pill reserved">Reserved</span>held for the event</span><span><span class="sf-pill out">Out</span>with a person</span><span><span class="sf-pill back">Back</span>returned</span><span><span class="sf-pill missing">Missing</span>did not come back</span><span><span class="sf-pill damaged">Damaged</span>came back broken</span></div>
       <div class="reserve-row">
         <div class="fld"><label for="rv_item">Item</label><select id="rv_item"></select></div>
         <div class="fld"><label for="rv_qty">Quantity</label><input id="rv_qty" type="number" min="1" value="1"></div>
@@ -130,7 +132,7 @@
       </div>
       <div id="rvShort" class="rvs" role="region" aria-label="Not enough stock free" hidden></div>
       <div class="table-scroll"><table class="s-d6f2af6">
-        <thead><tr><th scope="col">Item</th><th scope="col" class="num">Qty</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <thead><tr><th scope="col">Item</th><th scope="col" class="num">Reserved</th><th scope="col">Now</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="resRows"><tr><td colspan="4" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
       </table></div>
       <div id="rvShortList" class="rvs-short-list" hidden></div>
@@ -138,7 +140,7 @@
 
     <div class="tabs" role="group" aria-label="Inventory views">
       <button type="button" class="tab active" data-pane="stock" aria-pressed="true" aria-controls="pane-stock">📦 Stock items</button>
-      <button type="button" class="tab" data-pane="loans" aria-pressed="false" aria-controls="pane-loans">🔑 Check-out / Check-in</button>
+      <button type="button" class="tab" data-pane="loans" aria-pressed="false" aria-controls="pane-loans">🔑 Out &amp; back</button>
     </div>
 
     <!-- ===== STOCK PANE ===== -->
@@ -157,7 +159,7 @@
     </div>
     <div class="card table-scroll s-8d8d59e">
       <table>
-        <thead><tr><th scope="col">Item</th><th scope="col">Pri</th><th scope="col">Category</th><th scope="col" class="num">Total</th><th scope="col" class="num">Committed</th><th scope="col" class="num">Available</th><th scope="col">Unit</th><th scope="col" class="num">Unit cost</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <thead><tr><th scope="col">Item</th><th scope="col">Pri</th><th scope="col">Category</th><th scope="col" class="num">Total</th><th scope="col" class="num" title="Reserved for events or out with a person (busiest day)">Reserved / out</th><th scope="col" class="num">Available</th><th scope="col">Unit</th><th scope="col" class="num">Unit cost</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="stockRows"><tr><td colspan="9" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
       </table>
     </div>
@@ -166,31 +168,31 @@
     <!-- ===== CHECK-OUT / CHECK-IN PANE ===== -->
     <div id="pane-loans" hidden>
       <div class="card" id="coCard">
-        <h2>Check out equipment</h2>
-        <p class="sub">Issue stock to a staff member or coordinator. When it comes back, record how many returned — anything short is flagged in the loss report below. <span id="coEvent" class="onloan" hidden></span></p>
+        <h2>Give out stock</h2>
+        <p class="sub">Give stock to a person — it shows as <b>Out</b> with their name and the time. When it comes back, <b>Mark back</b>: how many came back OK and how many are damaged. Anything not counted is <b>Missing</b>. <span id="coEvent" class="onloan" hidden></span></p>
         <div class="reserve-row co-row">
           <div class="fld"><label for="co_item">Item</label><select id="co_item"></select></div>
-          <div class="fld"><label for="co_qty">Qty out</label><input id="co_qty" type="number" min="1" value="1"></div>
-          <div class="fld"><label for="co_to">Issued to</label><select id="co_to"><option value="">Select person…</option></select></div>
+          <div class="fld"><label for="co_qty">How many</label><input id="co_qty" type="number" min="1" value="1"></div>
+          <div class="fld"><label for="co_to">Given to</label><select id="co_to"><option value="">Select person…</option></select></div>
           <div class="fld"><label for="co_note">Note</label><input id="co_note" placeholder="optional"></div>
-          <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="co_add">Check out</button></div>
+          <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="co_add">Give out</button></div>
         </div>
         <div id="coShort" class="coshort" role="alert" aria-live="assertive" hidden></div>
       </div>
 
       <div class="card table-scroll s-8d8d59e">
-        <div class="s-57844cb"><h2 class="s-62c1a69">Out on loan <span id="loanCount" class="onloan"></span></h2><label class="s-af1acab" title="Check-outs cancelled by mistake are kept for the record; tick to see them."><input type="checkbox" id="showCancelled"> Show cancelled</label></div>
+        <div class="s-57844cb"><h2 class="s-62c1a69">Out now <span id="loanCount" class="onloan"></span></h2><label class="s-af1acab" title="Check-outs cancelled by mistake are kept for the record; tick to see them."><input type="checkbox" id="showCancelled"> Show cancelled</label></div>
         <table>
-          <thead><tr><th scope="col">Item</th><th scope="col">Event</th><th scope="col">Pri</th><th scope="col" class="num">Out</th><th scope="col">Issued to</th><th scope="col">When</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+          <thead><tr><th scope="col">Item</th><th scope="col">Event</th><th scope="col">Pri</th><th scope="col" class="num">Out</th><th scope="col">Given to</th><th scope="col">When out</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="loanRows"><tr><td colspan="7" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
         </table>
       </div>
 
       <div class="card table-scroll s-8d8d59e">
-        <div class="s-f145ee8"><h2 class="s-62c1a69">Loss report</h2><span id="lossTotal"></span></div>
+        <div class="s-f145ee8"><h2 class="s-62c1a69">Missing &amp; damaged</h2><span id="lossTotal"></span></div>
         <table>
-          <thead><tr><th scope="col">Item</th><th scope="col">Event</th><th scope="col" class="num">Out</th><th scope="col" class="num">Back</th><th scope="col" class="num">Missing</th><th scope="col" class="num">Value lost</th><th scope="col">Signed off</th><th scope="col">When</th></tr></thead>
-          <tbody id="lossRows"><tr><td colspan="8" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
+          <thead><tr><th scope="col">Item</th><th scope="col">Event</th><th scope="col" class="num">Out</th><th scope="col" class="num">Back</th><th scope="col" class="num">Missing</th><th scope="col" class="num">Damaged</th><th scope="col" class="num">Value lost</th><th scope="col">Signed off</th><th scope="col">When back</th></tr></thead>
+          <tbody id="lossRows"><tr><td colspan="9" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
         </table>
       </div>
     </div><!-- /pane-loans -->
@@ -229,22 +231,33 @@
   </div>
 </div>
 
+<!-- r24: one item's history -->
+<div id="histModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="hi_title">
+  <div class="sheet">
+    <h3><span id="hi_title">History</span><button type="button" class="close" id="hi_close" aria-label="Close" data-close>×</button></h3>
+    <p class="sub">Every time this item went out: which event, given to whom, when out and when back.</p>
+    <div class="sf-hist-wrap"><table class="sf-hist"><thead><tr><th scope="col">Event</th><th scope="col">Given to</th><th scope="col" class="num">How many</th><th scope="col">Out</th><th scope="col">Back</th></tr></thead>
+      <tbody id="hiRows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table></div>
+  </div>
+</div>
+
 <!-- check-in -->
 <div id="ciModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="ci_title">
   <div class="sheet">
-    <h3><span id="ci_title">🔑 Check in</span><button type="button" class="close" id="ci_close" aria-label="Close" data-close>×</button></h3>
+    <h3><span id="ci_title">🔑 Mark back</span><button type="button" class="close" id="ci_close" aria-label="Close" data-close>×</button></h3>
     <div class="fgrid">
       <div class="fld"><label for="ci_item">Item</label><input id="ci_item" readonly></div>
       <div class="fld"><label for="ci_out">Went out</label><input id="ci_out" readonly></div>
-      <div class="fld"><label for="ci_in">How many came back?</label><input id="ci_in" type="number" min="0" step="1"></div>
-      <div class="fld"><label for="ci_by">Confirmed by (your name)</label><input id="ci_by" placeholder="sign-off name"></div>
+      <div class="fld"><label for="ci_in">Came back OK</label><input id="ci_in" type="number" min="0" step="1"></div>
+      <div class="fld"><label for="ci_dmg">Damaged</label><input id="ci_dmg" type="number" min="0" step="1" value="0"></div>
+      <div class="fld"><label for="ci_by">Your name</label><input id="ci_by" placeholder="who checked it"></div>
     </div>
     <div id="ci_warn" class="err s-e3b81b7" hidden role="status" aria-live="polite"></div>
     <div id="ci_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot">
       <span class="spacer"></span>
       <button type="button" class="btn" id="ci_cancel">Cancel</button>
-      <button type="button" class="btn primary" id="ci_save">Confirm check-in</button>
+      <button type="button" class="btn primary" id="ci_save">Mark back</button>
     </div>
   </div>
 </div>
@@ -263,12 +276,13 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=5"></script>
 <script src="tour.js?v=24"></script>
-<script src="checkout-shortage.js?v=4"></script>
+<script src="checkout-shortage.js?v=5"></script>
+<script src="stock-flow.js?v=1"></script>
 <script src="capacity-shortage.js?v=8"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -280,7 +294,6 @@
     try{ if(BPStore.fmtStudioDate){ const o=BPStore.fmtStudioDate(s,{style:"long"}); if(o&&o!==s) return o; } }catch(e){}
     const dt=new Date(s.length===10?s+"T00:00:00":s); if(isNaN(dt)) return esc(s); return dt.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}); };
   const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
-  const ST={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
   let evDateText="";   // 0197: the event's date for "Only 20 free on 28 Nov 2026"
   let attrDefs=[], attrEd=null, editingItem=null, canEdit=false, canDelete=false, avail={}, items=[], reservations=[], checkouts=[], quotesById={}, editingId=null, filter="", catF="", priF="", showInactive=false, showCancelled=false;
   const PRI={A:"A",B:"B",C:"C"};
@@ -345,7 +358,7 @@
         <td class="num avail ${availClass(a.available,Number(i.total_qty))}">${num(Math.max(Number(a.available)||0,0))}${Number(a.available)<0?`<span class="overc" title="More is reserved than you own - source the rest from the event's Reserve panel">Short by ${num(-Number(a.available))}</span>`:""}</td>
         <td>${esc(i.unit||"")}</td>
         <td class="num">${Number(i.unit_cost||0)?BPStore.studioMoney(i.unit_cost):'<span style="color:var(--ink-3)">—</span>'}</td>
-        <td>${canEdit?(inactive
+        <td class="s-acts-cell"><button type="button" class="rm" data-hist="${esc(i.id)}" aria-label="History of ${esc(i.name)}">History</button>${canEdit?(inactive
             ?`<button type="button" class="rm" data-react="${esc(i.id)}" aria-label="Reactivate ${esc(i.name)}">Reactivate</button>`
             :`<button type="button" class="rm" data-edit="${esc(i.id)}" aria-label="Edit ${esc(i.name)}">Edit</button>`):""}</td>
       </tr>`;
@@ -376,6 +389,7 @@
     }).join("");
     $("#stockRows").innerHTML=html;
     $("#stockRows").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openItem(items.find(x=>x.id===b.dataset.edit))));
+    $("#stockRows").querySelectorAll("[data-hist]").forEach(b=>b.addEventListener("click",()=>openHistory(b.dataset.hist)));
     $("#stockRows").querySelectorAll("[data-react]").forEach(b=>b.addEventListener("click",async()=>{
       const it=items.find(x=>x.id===b.dataset.react)||{};
       if(!(await BPUI.confirm(`Reactivate ${it.name||"this item"}? It will show in stock and be available to reserve again.`,{title:"Reactivate item?",okLabel:"Reactivate"}))) return;
@@ -424,41 +438,51 @@
     const it=items.find(x=>x.id===itemId)||{};
     try{ return await HelmShortage.afterReservationRemoved({ quoteId, itemId, itemName: name||it.name||"" }); }catch(e){ return 0; }
   }
+  // r24: ONE stock story per item on this event (stock-flow.js): Reserved -> Out (with a person) -> Back / Missing / Damaged
+  const SF=window.HelmStockFlow;
+  const fmtWhen=(t)=>{ try{ return BPStore.fmtDateTime?BPStore.fmtDateTime(t):BPStore.fmtDay(t); }catch(_){ return ""; } };
+  let evDate="";
+  function eventDayCome(){ const d=String(evDate||"").slice(0,10); let t=""; try{ t=BPStore.todayLocal(); }catch(_){} return !!(d && t && d<=t); }
   function renderEventPanel(){
     if(!quoteId) return;
     // item dropdown with available qty
     $("#rv_item").innerHTML=items.map(i=>{ const a=avail[i.id]||{available:i.total_qty};
       return `<option value="${esc(i.id)}">${esc(optName(i.name))} — ${esc((()=>{ const f=Number(a.availableOnEvent!=null?a.availableOnEvent:a.available)||0; const u=i.unit||""; return f<0?"0 "+u+" free (short by "+num(-f)+")":num(f)+" "+u+" free"; })())}</option>`; }).join("");
-    const rows=reservations;
     const byId=Object.fromEntries(items.map(i=>[i.id,i]));
+    const rows=SF.eventItems({ reservations, checkouts }).sort((a,b)=>String((byId[a.item_id]||{}).name||"").localeCompare(String((byId[b.item_id]||{}).name||"")));
+    const over=eventDayCome();
     $("#resRows").innerHTML = rows.length ? rows.map(r=>{
-      const it=byId[r.item_id]||{name:"(item)"};
-      const opts=["reserved","allocated","returned","cancelled"].map(s=>`<option value="${s}" ${s===r.status?"selected":""}>${ST[s]}</option>`).join("");
+      const it=byId[r.item_id]||{name:"(item)"}, u=it.unit||"";
+      const det=SF.detail(r,{ fmt:fmtWhen, unit:u, eventOver:over });
+      const notes=reservations.filter(x=>x.item_id===r.item_id&&x.note&&x.status!=="cancelled").map(x=>x.note);
+      let acts="";
+      if(canEdit){
+        if(r.state==="reserved" || (r.unused>0)){ acts+=`<button type="button" class="btn sm" data-give="${esc(r.item_id)}" data-qty="${esc(Math.max(r.unused||r.reserved,1))}" aria-label="Give out ${esc(it.name)}">Give out</button>`;
+          acts+=`<button type="button" class="rm" data-rel="${esc(r.liveIds.join(","))}" data-name="${esc(it.name)}" aria-label="Release the reservation for ${esc(it.name)}">Release</button>`; }
+        if(r.state==="out"){ r.outs.forEach(c=>{ acts+=`<button type="button" class="btn sm" data-in="${esc(c.id)}" aria-label="Mark ${esc(it.name)} back from ${esc(c.issued_to||"")}">Mark back${r.outs.length>1?" ("+esc(c.issued_to||"")+")":""}</button>`; });
+          r.legacyIds.forEach(rid=>{ acts+=`<button type="button" class="btn sm" data-lin="${esc(rid)}" aria-label="Mark ${esc(it.name)} back">Mark back</button>`; }); }
+      }
       return `<tr data-item="${esc(r.item_id)}">
-        <td><b>${esc(optName(it.name))}</b>${r.note?`<div class="sub2">${esc(r.note)}</div>`:""}</td>
-        <td class="num">${num(r.qty)} ${esc(it.unit||"")}</td>
-        <td>${canEdit?`<select class="ssel" data-res="${esc(r.id)}" data-prev="${esc(r.status)}" aria-label="Reservation status for ${esc(it.name)}">${opts}</select>`:`<span class="stat ${esc(r.status)}">${ST[r.status]||esc(r.status)}</span>`}</td>
-        <td>${canDelete?`<button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(it.name)}" aria-label="Remove reservation for ${esc(it.name)}">Remove</button>`:""}</td>
+        <td><b>${esc(optName(it.name))}</b>${notes.length?`<div class="sub2">${esc(notes.join(" · ").slice(0,300))}</div>`:""}</td>
+        <td class="num">${r.reserved?`${num(r.reserved)} ${esc(u)}`:"—"}</td>
+        <td><span class="sf-pill ${esc(r.state)}">${esc(r.label)}</span>${det?`<span class="sf-detail">${esc(det)}</span>`:""}</td>
+        <td>${acts?`<div class="sf-acts">${acts}</div>`:""}</td>
       </tr>`;
-    }).join("") : '<tr><td colspan="4" class="empty">No reservations yet.</td></tr>';
+    }).join("") : '<tr><td colspan="4" class="empty">Nothing reserved or given out for this event yet.</td></tr>';
     // 0197: open shortages of this event (rent / buy / unsourced) with a status per row
     if(window.HelmShortage) HelmShortage.renderList($("#rvShortList"), { quoteId, items, canEdit }).catch(()=>{});
-    // status change: guarded (select locked while saving) and reverted to the previous value if the save fails
-    $("#resRows").querySelectorAll("select[data-res]").forEach(s=>s.addEventListener("change",()=>{
-      const prev=s.dataset.prev, next=s.value; if(next===prev) return;
-      BPUI.guard(s,async()=>{
-        try{ await BPStore.inventory.setResStatus(s.dataset.res, next); s.dataset.prev=next; BPUI.toast("Reservation marked "+(ST[next]||next).toLowerCase()+".",{type:"ok"}); }
-        catch(e){ s.value=prev; BPUI.toast(BPUI.friendlyError(e,{action:"update the reservation"}),{type:"err"}); return; }
-        // L10: a cancelled reservation can also cancel the shortage + vendor booking it came with (asked first)
-        if(next==="cancelled") await resLinkedCancel(s.closest("tr"));
-        await load();
-      });
-    }));
-    $("#resRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
-      if(!(await BPUI.confirm(`Remove the reservation for ${b.dataset.name||"this item"}? The stock goes back to available.`,{title:"Remove reservation?",okLabel:"Remove",danger:true}))) return;
+    const host=$("#resRows");
+    host.querySelectorAll("[data-give]").forEach(b=>b.addEventListener("click",()=>{
+      activatePane("loans"); $("#co_item").value=b.dataset.give; $("#co_qty").value=b.dataset.qty; hideShort();
+      $("#coCard").scrollIntoView({behavior:"smooth",block:"start"}); setTimeout(()=>$("#co_to").focus(),250); }));
+    host.querySelectorAll("[data-in]").forEach(b=>b.addEventListener("click",()=>checkInFlow(b.dataset.in)));
+    host.querySelectorAll("[data-lin]").forEach(b=>b.addEventListener("click",()=>legacyBackFlow(b.dataset.lin)));
+    // Release = the reservation is cancelled (kept for the record, never deleted); stock is free again
+    host.querySelectorAll("[data-rel]").forEach(b=>b.addEventListener("click",async()=>{
+      if(!(await BPUI.confirm(`Release the reservation for ${b.dataset.name||"this item"}? It was never taken out, so there is nothing to return - the stock becomes free for other events.`,{title:"Release reservation?",okLabel:"Release"}))) return;
       await BPUI.guard(b,async()=>{
-        try{ await BPStore.inventory.removeRes(b.dataset.del); BPUI.toast("Reservation removed.",{type:"ok"}); }
-        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove the reservation"}),{type:"err"}); return; }
+        try{ for(const rid of String(b.dataset.rel||"").split(",").filter(Boolean)) await BPStore.inventory.setResStatus(rid,"cancelled"); BPUI.toast("Released.",{type:"ok"}); }
+        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"release the reservation"}),{type:"err"}); return; }
         // L10: "Also cancel the shortage and the vendor booking?" - statuses only, nothing deleted
         await resLinkedCancel(b.closest("tr"), b.dataset.name);
         await load();
@@ -552,6 +576,26 @@
   $("#showInactive").addEventListener("change",e=>{ showInactive=e.target.checked; load(); });   // re-fetch to (not) include deactivated items
   $("#showCancelled").addEventListener("change",e=>{ showCancelled=e.target.checked; renderCheckouts(); });
 
+  /* ---- r24: one item's history - which event, given to whom, when out, when back ---- */
+  async function openHistory(itemId){
+    const it=items.find(x=>x.id===itemId)||{name:"Item"};
+    $("#hi_title").textContent="History — "+optName(it.name);
+    $("#hiRows").innerHTML='<tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr>';
+    $("#histModal").hidden=false; setTimeout(()=>$("#hi_close").focus(),50);
+    try{
+      const rows=SF.history(await BPStore.inventory.checkouts.forItem(itemId), quotesById);
+      $("#hiRows").innerHTML = rows.length ? rows.map(h=>`<tr>
+        <td>${h.quoteId?`<a href="event.html?id=${esc(h.quoteId)}"><b>${esc(h.event)}</b></a>`:`<b>${esc(h.event)}</b>`}${h.eventDate?`<div class="sub2">${esc(fmtDate(h.eventDate))}</div>`:""}</td>
+        <td>${esc(h.to||"—")}</td>
+        <td class="num">${num(h.qty)} ${esc(it.unit||"")}</td>
+        <td>${h.outAt?esc(fmtWhen(h.outAt)):"—"}</td>
+        <td><span class="sf-pill ${esc(h.state)}">${esc(h.state==="out"?"Not back yet":h.label)}</span>${h.backAt?`<div class="sub2">${esc(fmtWhen(h.backAt))}</div>`:""}${h.state!=="out"&&h.state!=="back"?`<div class="sub2">${esc(h.summary)}</div>`:""}</td>
+      </tr>`).join("") : '<tr><td colspan="5" class="empty">This item has not been given out yet.</td></tr>';
+    }catch(e){ BPUI.loadError($("#hiRows"), e, ()=>openHistory(itemId), {what:"the history"}); }
+  }
+  $("#hi_close").addEventListener("click",()=>{ $("#histModal").hidden=true; });
+  $("#histModal").addEventListener("click",e=>{ if(e.target.id==="histModal") $("#histModal").hidden=true; });
+
   /* ---- sub-tab switching ---- */
   function activatePane(pane){
     document.querySelectorAll(".tab").forEach(x=>{ x.classList.toggle("active",x.dataset.pane===pane); x.setAttribute("aria-pressed",String(x.dataset.pane===pane)); });
@@ -572,10 +616,8 @@
       const name=ev.title||ev.code||"(event)"; const d=fmtDate(ev.eventDate);
       return `<div style="font-weight:600">${esc(name)}</div>${d?`<div class="sub2">${esc(d)}</div>`:""}`; };
     $("#co_item").innerHTML=items.map(i=>`<option value="${esc(i.id)}">${esc(optName(i.name))}${i.priority?` (${esc(i.priority)})`:""}</option>`).join("");
-    // open vs closed decided by REMAINING qty, not status alone:
-    //   open = still out ('out', or 'partial' with units outstanding); loss = missing>0 and not open
-    const remainingOut=(c)=>Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
-    const isOpen=(c)=>c.status==="out"||(c.status==="partial"&&remainingOut(c)>0);
+    // r24: one rule everywhere (stock-flow.js) - Out = a check-out still 'out'; once marked back it is Back / Missing / Damaged
+    const isOpen=(c)=>c.status==="out";
     const open=checkouts.filter(isOpen);
     const cancelled=checkouts.filter(c=>c.status==="cancelled");
     const closed=checkouts.filter(c=>!isOpen(c)&&c.status!=="cancelled");   // a cancelled check-out is never a loss
@@ -585,14 +627,14 @@
       // still out = "left over" → show the outstanding qty in RED so it's obvious
       const goEvent = c.quote_id ? `<a class="btn sm" href="event.html?id=${esc(c.quote_id)}" title="Open the event to check this back in">Go to event →</a>` : "";
       return `<tr>
-        <td><b>${esc(optName(it.name))}</b>${c.note?`<div class="sub2">${esc(c.note)}</div>`:""}${c.status==="partial"?' <span class="miss">partial</span>':""}</td>
+        <td><b>${esc(optName(it.name))}</b>${c.note?`<div class="sub2">${esc(c.note)}</div>`:""}</td>
         <td>${eventCell(c)}</td>
         <td><span class="pri ${esc(it.priority||'C')}">${esc(it.priority||'C')}</span></td>
-        <td class="num" style="color:#b42318;font-weight:700">${num(c.qty_out)}${c.status==="partial"?` <span style="color:var(--ink-3)">(${num(c.qty_in)} back)</span>`:""}</td>
+        <td class="num" style="color:#b42318;font-weight:700">${num(c.qty_out)}</td>
         <td>${esc(c.issued_to||"")}</td>
-        <td style="font-size:12px;color:var(--ink-3)">${c.checked_out_at?BPStore.fmtDay(c.checked_out_at):""}</td>
-        <td style="display:flex;gap:6px;flex-wrap:wrap">${goEvent}${canEdit?`<button type="button" class="btn sm" data-in="${esc(c.id)}" aria-label="Check in ${esc(it.name)}">Check in</button>`:""}${canEdit&&c.status==="out"&&!Number(c.qty_in||0)?`<button type="button" class="rm" data-cxl="${esc(c.id)}" data-name="${esc(it.name)}" aria-label="Cancel check-out of ${esc(it.name)}">Cancel</button>`:""}</td>
-      </tr>`; }).join("") : '<tr><td colspan="7" class="empty">Nothing out on loan.</td></tr>';
+        <td style="font-size:12px;color:var(--ink-3)">${c.checked_out_at?esc(fmtWhen(c.checked_out_at)):""}</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">${goEvent}${canEdit?`<button type="button" class="btn sm" data-in="${esc(c.id)}" aria-label="Mark ${esc(it.name)} back">Mark back</button>`:""}${canEdit&&c.status==="out"&&!Number(c.qty_in||0)?`<button type="button" class="rm" data-cxl="${esc(c.id)}" data-name="${esc(it.name)}" aria-label="Cancel check-out of ${esc(it.name)}">Cancel</button>`:""}</td>
+      </tr>`; }).join("") : '<tr><td colspan="7" class="empty">Nothing is out right now.</td></tr>';
     // cancelled check-outs: kept for the record (never deleted), greyed, behind the toggle
     const cxlHtml = (showCancelled && cancelled.length) ? cancelled.map(c=>{ const it=byId[c.item_id]||{name:"(item)"};
       return `<tr class="co-cancelled">
@@ -605,22 +647,23 @@
         <td></td>
       </tr>`; }).join("") : "";
     { const html = (open.length || !cxlHtml) ? openHtml + cxlHtml : cxlHtml; $("#loanRows").innerHTML = html; }
-    // loss report (fully-closed loans with missing>0)
-    let lostVal=0, lostUnits=0;
-    const lossRows = closed.map(c=>{ const it=byId[c.item_id]||{name:"(item)"}; const missing=Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
-      if(missing<=0) return ""; const val=missing*Number(it.unit_cost||0); lostVal+=val; lostUnits+=missing;
+    // missing & damaged (marked back with something short or broken)
+    let lostVal=0, lostUnits=0, dmgUnits=0;
+    const lossRows = closed.map(c=>{ const it=byId[c.item_id]||{name:"(item)"}; const p=SF.coParts(c);
+      if(p.missing<=0 && p.damaged<=0) return ""; const val=(p.missing+p.damaged)*Number(it.unit_cost||0); lostVal+=val; lostUnits+=p.missing; dmgUnits+=p.damaged;
       return `<tr>
         <td><b>${esc(optName(it.name))}</b> <span class="pri ${esc(it.priority||'C')}">${esc(it.priority||'C')}</span></td>
         <td>${eventCell(c)}</td>
         <td class="num">${num(c.qty_out)}</td>
-        <td class="num">${num(c.qty_in)}</td>
-        <td class="num"><span class="miss">${num(missing)}</span></td>
+        <td class="num">${num(p.back)}</td>
+        <td class="num">${p.missing?`<span class="miss">${num(p.missing)}</span>`:"—"}</td>
+        <td class="num">${p.damaged?`<span class="sf-pill damaged">${num(p.damaged)}</span>`:"—"}</td>
         <td class="num">${val?BPStore.studioMoney(val):"—"}</td>
-        <td>${esc(c.confirmed_by||c.returned_by||"—")}</td>
-        <td style="font-size:12px;color:var(--ink-3)">${c.checked_in_at?BPStore.fmtDay(c.checked_in_at):""}</td>
+        <td>${esc(c.returned_by||"—")}</td>
+        <td style="font-size:12px;color:var(--ink-3)">${c.checked_in_at?esc(fmtWhen(c.checked_in_at)):""}</td>
       </tr>`; }).join("");
-    $("#lossRows").innerHTML = lossRows || '<tr><td colspan="8" class="empty">No missing items — everything came back. 🎉</td></tr>';
-    $("#lossTotal").innerHTML = lostUnits? `<span class="miss">${num(lostUnits)} units missing · ${esc(BPStore.studioMoney(lostVal))} lost</span>` : '<span class="backok">All returned</span>';
+    $("#lossRows").innerHTML = lossRows || '<tr><td colspan="9" class="empty">Nothing missing or damaged — everything came back. 🎉</td></tr>';
+    $("#lossTotal").innerHTML = (lostUnits||dmgUnits)? `<span class="miss">${esc([lostUnits?num(lostUnits)+" missing":"", dmgUnits?num(dmgUnits)+" damaged":""].filter(Boolean).join(" · "))} · ${esc(BPStore.studioMoney(lostVal))} lost</span>` : '<span class="backok">All back</span>';
     $("#loanRows").querySelectorAll("[data-in]").forEach(b=>b.addEventListener("click",()=>checkInFlow(b.dataset.in)));
     $("#loanRows").querySelectorAll("[data-cxl]").forEach(b=>b.addEventListener("click",()=>cancelCheckout(b)));
   }
@@ -634,51 +677,57 @@
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"cancel the check-out"}),{type:"err"}); }
     });
   }
-  let checkInId=null;
-  function ciOut(){ const c=checkouts.find(x=>x.id===checkInId)||{}; return Number(c.qty_out||0); }
-  function ciItem(){ const c=checkouts.find(x=>x.id===checkInId)||{}; return items.find(x=>x.id===c.item_id)||{}; }
+  // r24: Mark back = how many came back OK + how many damaged; the rest is missing (missing + damaged come off your stock)
+  let checkInId=null, legacyResId=null;   // legacyResId: an 'allocated' reservation given out before names were recorded
+  function ciOut(){ if(legacyResId){ const r=reservations.find(x=>x.id===legacyResId)||{}; return Number(r.qty||0); }
+    const c=checkouts.find(x=>x.id===checkInId)||{}; return Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0); }
+  function ciItem(){ const iid=legacyResId?(reservations.find(x=>x.id===legacyResId)||{}).item_id:(checkouts.find(x=>x.id===checkInId)||{}).item_id; return items.find(x=>x.id===iid)||{}; }
+  function ciNums(){ let ok=Number($("#ci_in").value), dmg=Number($("#ci_dmg").value||0); if(isNaN(ok)) ok=0; if(isNaN(dmg)) dmg=0; return { ok, dmg, miss:ciOut()-ok-dmg }; }
   function refreshCiWarn(){
-    const out=ciOut(); const it=ciItem();
-    let qtyIn=Number($("#ci_in").value); if(isNaN(qtyIn)) qtyIn=0;
-    const missing=Math.max(out-qtyIn,0);
-    if(missing>0){
-      $("#ci_warn").innerHTML=`<b>${num(missing)}</b> ${esc(it.unit||"unit(s)")} short of ${num(out)} — the missing ${num(missing)} will be written off as loss (stock reduced by ${num(missing)}, ${esc(BPStore.studioMoney(missing*Number(it.unit_cost||0)))}).`;
+    const out=ciOut(), it=ciItem(), n=ciNums();
+    if(n.miss<0){ $("#ci_warn").textContent=`Only ${num(out)} went out.`; $("#ci_warn").hidden=false; return; }
+    if(n.miss>0||n.dmg>0){
+      $("#ci_warn").textContent=[n.miss?`${num(n.miss)} missing`:"", n.dmg?`${num(n.dmg)} damaged`:""].filter(Boolean).join(" and ")+` - taken off your stock (${BPStore.studioMoney((n.miss+n.dmg)*Number(it.unit_cost||0))}).`;
       $("#ci_warn").hidden=false;
     } else { $("#ci_warn").hidden=true; }
+  }
+  function openCi(name,out,unit){
+    $("#ci_item").value=name||"(item)"; $("#ci_out").value=`${num(out)} ${unit||""}`.trim();
+    $("#ci_in").max=out; $("#ci_in").min=0; $("#ci_in").value=out; $("#ci_dmg").value=0; $("#ci_dmg").max=out;
+    $("#ci_by").value=""; $("#ci_err").hidden=true; refreshCiWarn(); ciDirty.clean();
+    $("#ciModal").hidden=false; setTimeout(()=>$("#ci_in").focus(),50);
   }
   function checkInFlow(id){
     const c=checkouts.find(x=>x.id===id); if(!c) return;
     const it=items.find(x=>x.id===c.item_id)||{};
-    checkInId=id;
-    $("#ci_item").value=it.name||"(item)";
-    $("#ci_out").value=`${num(c.qty_out)} ${it.unit||""}`.trim();
-    $("#ci_in").max=Number(c.qty_out||0); $("#ci_in").min=0; $("#ci_in").value=Number(c.qty_out||0);
-    $("#ci_by").value="";
-    $("#ci_err").hidden=true; refreshCiWarn(); ciDirty.clean();
-    $("#ciModal").hidden=false; setTimeout(()=>$("#ci_by").focus(),50);
+    checkInId=id; legacyResId=null; openCi(it.name, Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0), it.unit);
+  }
+  function legacyBackFlow(resId){
+    const r=reservations.find(x=>x.id===resId); if(!r) return;
+    const it=items.find(x=>x.id===r.item_id)||{};
+    checkInId=null; legacyResId=resId; openCi(it.name, Number(r.qty||0), it.unit);
   }
   const ciDirty=BPUI.trackDirty($("#ciModal"));
-  function closeCheckIn(){ $("#ciModal").hidden=true; checkInId=null; ciDirty.clean(); }
+  function closeCheckIn(){ $("#ciModal").hidden=true; checkInId=null; legacyResId=null; ciDirty.clean(); }
   async function requestCloseCheckIn(){ if($("#ciModal").hidden) return; if(!(await BPUI.confirmDiscard(ciDirty))) return; closeCheckIn(); }
   async function confirmCheckIn(){
-    if(!checkInId) return;
-    const c=checkouts.find(x=>x.id===checkInId); if(!c){ closeCheckIn(); return; }
-    const out=Number(c.qty_out||0);
-    const ciV=BPStore.validate.count($("#ci_in").value,{allowZero:true,field:"Units returned"}); if(!ciV.ok){ $("#ci_err").textContent=ciV.error; $("#ci_err").hidden=false; return; }
-    let qtyIn=ciV.value;
-    if(qtyIn>out){ $("#ci_err").textContent=`Only ${num(out)} went out - you can check in at most ${num(out)}.`; $("#ci_err").hidden=false; return; }
+    if(!checkInId && !legacyResId) return;
+    const out=ciOut();
+    const okV=BPStore.validate.count($("#ci_in").value,{allowZero:true,field:"Came back OK"}); if(!okV.ok){ $("#ci_err").textContent=okV.error; $("#ci_err").hidden=false; return; }
+    const dmV=BPStore.validate.count($("#ci_dmg").value||"0",{allowZero:true,field:"Damaged"}); if(!dmV.ok){ $("#ci_err").textContent=dmV.error; $("#ci_err").hidden=false; return; }
+    const miss=out-okV.value-dmV.value;
+    if(miss<0){ $("#ci_err").textContent=`Only ${num(out)} went out - came back OK + damaged can be at most ${num(out)}.`; $("#ci_err").hidden=false; return; }
     const by=($("#ci_by").value||"").trim();
-    // any shortfall is written off as loss
-    const writeoff=(out-qtyIn)>0;
-    if(writeoff){ const it=ciItem();
-      if(!(await BPUI.confirm(`${num(out-qtyIn)} ${it.unit||"unit(s)"} of ${it.name||"this item"} will be written off as lost and removed from stock. Continue?`,{title:"Write off missing stock?",okLabel:"Write off",danger:true}))) return; }
+    if(miss>0||dmV.value>0){ const it=ciItem();
+      if(!(await BPUI.confirm(`${[miss?num(miss)+" missing":"", dmV.value?num(dmV.value)+" damaged":""].filter(Boolean).join(" and ")} ${it.unit||"unit(s)"} of ${it.name||"this item"} will be taken off your stock. Continue?`,{title:"Missing or damaged?",okLabel:"Mark back",danger:true}))) return; }
     $("#ci_err").hidden=true;
     try{
-      await BPStore.inventory.checkouts.in(checkInId, qtyIn, by||null, writeoff);
-    }catch(e){ $("#ci_err").textContent=BPUI.friendlyError(e,{action:"check in"}); $("#ci_err").hidden=false; return; }
-    closeCheckIn(); BPUI.toast("Checked in.",{type:"ok"}); await load();
-    activatePane("loans");
+      if(legacyResId){ const r=reservations.find(x=>x.id===legacyResId)||{}; await BPStore.inventory.returnReservation(legacyResId, r.item_id, miss+dmV.value); }
+      else await BPStore.inventory.checkouts.back(checkInId, okV.value, dmV.value, by||null);
+    }catch(e){ $("#ci_err").textContent=BPUI.friendlyError(e,{action:"mark it back"}); $("#ci_err").hidden=false; return; }
+    closeCheckIn(); BPUI.toast("Marked back.",{type:"ok"}); await load();
   }
+  $("#ci_dmg").addEventListener("input",refreshCiWarn);
   $("#ci_in").addEventListener("input",refreshCiWarn);
   $("#ci_close").addEventListener("click",requestCloseCheckIn);
   $("#ci_cancel").addEventListener("click",requestCloseCheckIn);
@@ -807,7 +856,7 @@
     if(itemsR.status!=="fulfilled" || availR.status!=="fulfilled"){
       const e=(itemsR.reason||availR.reason);
       BPUI.loadError($("#stockRows"), e, load, {what:"inventory"});
-      $("#loanRows").innerHTML='<tr><td colspan="7" class="empty">—</td></tr>'; $("#lossRows").innerHTML='<tr><td colspan="8" class="empty">—</td></tr>';
+      $("#loanRows").innerHTML='<tr><td colspan="7" class="empty">—</td></tr>'; $("#lossRows").innerHTML='<tr><td colspan="9" class="empty">—</td></tr>';
       if(quoteId) $("#resRows").innerHTML='<tr><td colspan="4" class="empty">—</td></tr>';
       // stock-affecting actions stay locked until inventory loads (no reserving / checking out against unknown stock)
       ["#rv_add","#co_add"].forEach(s=>{ $(s).disabled=true; });
@@ -817,7 +866,7 @@
     items=itemsR.value; avail=availR.value; stockLoaded=true;
     renderStock();
     if(coR.status==="fulfilled"){ checkouts=coR.value; quotesById = qlR.status==="fulfilled" ? Object.fromEntries((qlR.value||[]).map(q=>[q.id,q])) : {}; renderCheckouts(); }
-    else { checkouts=[]; renderCheckouts(); BPUI.loadError($("#loanRows"), coR.reason, load, {what:"check-outs"}); $("#lossRows").innerHTML='<tr><td colspan="8" class="empty">—</td></tr>'; $("#lossTotal").innerHTML=""; $("#co_add").disabled=true; }
+    else { checkouts=[]; renderCheckouts(); BPUI.loadError($("#loanRows"), coR.reason, load, {what:"check-outs"}); $("#lossRows").innerHTML='<tr><td colspan="9" class="empty">—</td></tr>'; $("#lossTotal").innerHTML=""; $("#co_add").disabled=true; }
     if(quoteId){
       if(resR.status==="fulfilled"){ reservations=resR.value; renderEventPanel(); }
       else { renderEventPanel(); BPUI.loadError($("#resRows"), resR.reason, load, {what:"this event's reservations"}); }
@@ -843,10 +892,12 @@
     if(!canEdit) $("#coCard").querySelectorAll("input,select,button").forEach(el=>el.disabled=true);
     if(quoteId){
       $("#eventPanel").hidden=false; $("#eventBar").hidden=false;
-      try{ const ev=await BPStore.quotes.get(quoteId); evDateText=ev.eventDate?fmtDate(ev.eventDate):""; $("#eventBar").innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}">← Back to workspace</a> · ${esc(ev.code||"")}${ev.title&&ev.title!==ev.code?(" · "+esc(ev.title)):""}`; }catch{}
+      try{ const ev=await BPStore.quotes.get(quoteId); evDateText=ev.eventDate?fmtDate(ev.eventDate):""; evDate=ev.eventDate||""; $("#eventBar").innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}">← Back to workspace</a> · ${esc(ev.code||"")}${ev.title&&ev.title!==ev.code?(" · "+esc(ev.title)):""}`; }catch{}
       if(!canEdit) $("#eventPanel").querySelectorAll("input,select,button").forEach(el=>el.disabled=true);
     }
     await fillPeople();
+    // r24: reservations that are done (never taken out after the event day, or everything back) are released first
+    if(quoteId && canEdit && BPStore.inventory.releaseUnused){ try{ await BPStore.inventory.releaseUnused(quoteId,false); }catch(_){} }
     await load();
   });
 </script>
