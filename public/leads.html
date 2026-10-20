@@ -138,6 +138,7 @@
     <button id="undoBtn" type="button" class="btn icon" title="Undo (⌘/Ctrl+Z)" aria-label="Undo last stage move" disabled>↶ Undo</button>
     <button id="redoBtn" type="button" class="btn icon" title="Redo (⌘/Ctrl+Shift+Z)" aria-label="Redo stage move" disabled>Redo ↷</button>
     <button id="archBtn" type="button" class="btn" aria-pressed="false" aria-controls="archivedView">Archived</button>
+    <a id="enqBtn" class="btn" href="control.html#automations" title="Your public enquiry form - every enquiry becomes a lead" hidden>🔗 Enquiry form</a>
     <button id="newBtn" type="button" class="btn primary" hidden>＋ New lead</button>
   </div>
   <div class="hintbar" id="boardHint">Drag a card between columns to change its stage (on touch, press and hold a card first) · open a card to view, edit, change its stage or archive it.</div>
@@ -788,6 +789,8 @@
     canCreate=!!e1; canConvertQ=!!(c1&&e1);
     { const hb=$("#boardHint"); if(hb && !canEdit) hb.textContent="Open a card to view it."; }   // r20-coord: view-only roles can't drag or change a lead
     $("#newBtn").hidden=!canCreate;
+    // r24 (0269): admins get a shortcut to the public enquiry form settings (every enquiry lands here by itself)
+    if(BPStore.automation) BPStore.automation.settings().then(c=>{ if(c&&c.can_manage) $("#enqBtn").hidden=false; }).catch(()=>{});
     if(cc1) $("#ccLink").hidden=false;   // QA1017: only roles that can open the Control Center (was: any leads editor)
     await load();
     startRealtime();

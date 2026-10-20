@@ -23,7 +23,8 @@
     pin:"M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
     layout:"M3 3h18v18H3zM3 9h18M9 9v12",
     lock:"M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4",
-    book:"M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h11M9 8h5"
+    book:"M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h11M9 8h5",
+    bolt:"M13 2L4 14h7l-1 8 9-12h-7z"
   };
   var SECTIONS=[
     {key:"general",  group:"Workspace",  label:"General",                icon:"home",  hash:"#general",       desc:"Studio name, country and tax, contact details, billing address and your client link name.", kw:"studio account organization business logo accent currency timezone gst gstin address demo trial slug control center centre admin overview"},
@@ -40,6 +41,7 @@
     {key:"compliance",group:"People",    label:"Data & compliance",      icon:"shield",hash:"#compliance",    desc:"Download a portable archive of your studio's data.", kw:"gdpr dpdp export archive download privacy security"},
     {key:"notify",   group:"Communication",label:"Notifications",        icon:"bell",  hash:"#notifications", desc:"Who on the team hears about what, in the bell and by text or e-mail, plus per-person overrides.", kw:"bell notification sms email override mute alert"},
     {key:"reminders",group:"Communication",label:"Reminders & client messages",icon:"clock",hash:"#reminders",desc:"Event reminders for the team, payment reminders and follow-ups for clients, stock warnings and WhatsApp forwarding.", kw:"event reminder payment reminder client follow-up follow up whatsapp inventory stock automatic message"},
+    {key:"automations",group:"Communication",label:"Automations",       icon:"bolt",  hash:"#automations",   desc:"Everything Helm does by itself in one list - switch each on or off. Run-sheet reminders and your public enquiry form.", kw:"automation automatic auto on off run-sheet runsheet reminder owner enquiry inquiry form lead leads website auto reply first reply"},
     {key:"renders",  group:"Communication",label:"Photo renders",        icon:"image", hash:"#renders",       desc:"Monthly limits for photo-realistic renders from the builder.", kw:"render photo quota image"},
     {key:"crew",     group:"Operations", label:"Crew & shifts",          icon:"users", hash:"#crew",          desc:"Crew availability, open shifts they take from their crew link, and event-day check-in that feeds actual wages.", kw:"crew staff availability unavailable day off open shift claim check in check-in check out timesheet late no-show geofence location wage hourly"},
     {key:"venues",   group:"Operations", label:"Venues",                 icon:"pin",   hash:"#venues",        desc:"Halls and spaces you work in, with usable area and capacity.", kw:"venue hall space"},
@@ -49,7 +51,7 @@
   function el(tag,cls,txt){ var e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
   var BYKEY={}, SECHASH={}, HASH={}; SECTIONS.forEach(function(x){ BYKEY[x.key]=x; SECHASH[x.key]=x.hash; HASH[x.hash]=x.key; });
   // legacy deep links (dashboard checklist, old bookmarks) -> section
-  Object.assign(HASH,{"#account":"general","#studio":"general","#team":"users","#notify":"notify","#security":"links","#link-expiry":"links","#pricing-packages":"pricing","#target-margin":"pricing","#catalog":"catalog","#event-reminders":"reminders","#client-reminders":"reminders","#payment-reminders":"reminders","#payment-schedule":"payments","#quote-validity":"links","#whatsapp":"reminders","#privacy":"privacy","#hide-amounts":"privacy","#pin":"privacy","#ltemplates":"ltemplates"});
+  Object.assign(HASH,{"#account":"general","#studio":"general","#team":"users","#notify":"notify","#security":"links","#link-expiry":"links","#pricing-packages":"pricing","#target-margin":"pricing","#catalog":"catalog","#event-reminders":"reminders","#client-reminders":"reminders","#payment-reminders":"reminders","#payment-schedule":"payments","#quote-validity":"links","#whatsapp":"reminders","#enquiry-form":"automations","#runsheet-reminders":"automations","#privacy":"privacy","#hide-amounts":"privacy","#pin":"privacy","#ltemplates":"ltemplates"});
   var OLDKEY={studio:"general",team:"users",security:"links"};
   function h3(c){ var h=c.querySelector("h3"); return h?h.textContent.trim():""; }
   function paneKey(c){ var p=c.closest("[id^='pane-']"); return p?p.id.slice(5):""; }
@@ -67,6 +69,7 @@
     if(/^access control/.test(t)) return "access";
     if(id==="evrCard"||id==="commsCard") return "reminders";
     if(id==="pstCard") return "payments";
+    if(id==="autoCard"||id==="rsrCard"||id==="enqCard") return "automations";
     if(id==="prCard") return "renders";
     if(id==="crewCfgCard") return "crew";   // r23 (0265)
     if(pane==="users") return "users";
@@ -89,7 +92,7 @@
   PANES.forEach(function(p){ var e=document.getElementById("pane-"+p); if(e) paneEls.push(e); });
   collect();
   // a section's pane is where its cards live (fallbacks for sections whose cards arrive later)
-  SECTIONS.forEach(function(x){ if(!x.pane) x.pane=({reminders:"notify",renders:"notify",crew:"notify",notify:"notify",users:"users",access:"users",compliance:"users",venues:"venues",ltemplates:"ltemplates"})[x.key]||"pricing"; });
+  SECTIONS.forEach(function(x){ if(!x.pane) x.pane=({reminders:"notify",automations:"notify",renders:"notify",crew:"notify",notify:"notify",users:"users",access:"users",compliance:"users",venues:"venues",ltemplates:"ltemplates"})[x.key]||"pricing"; });
 
   // ---- layout: aside + main wrapper (moves nodes; ids/listeners intact) ----
   var main=document.createElement("div"); main.className="cs-main";

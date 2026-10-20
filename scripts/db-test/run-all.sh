@@ -229,6 +229,8 @@ run "r23-inbox-0266" "R23-INBOX-0266: ALL PASS \(66/66\)" psql -q -f tests/db/r2
 run "r23-state-machine-0263" "R23-STATE-MACHINE-0263: ALL PASS \(48/48\)" psql -q -f tests/db/r23-state-machine-0263.sql
 # r24 stock: re-applies itself twice (after r22-closure-0254, which re-applies the 0254 body), rolled back
 run "r24-stock-0268" "R24-STOCK-0268: ALL PASS \(47/47\)" psql -q -f tests/db/r24-stock-0268.sql
+# 0269 re-applies itself twice (fixture events are made after the clean install; proves a re-run is safe)
+run "r24-automation-0269" "R24-AUTOMATION-0269: ALL PASS \(66/66\)" psql -q -f tests/db/r24-automation-0269.sql
 # 0244 re-applies itself twice (re-run safe) after every suite that re-applies 0045 / 0183 / 0185
 run "r21-trial-paid-0244" "R21-TRIAL-PAID-0244: ALL PASS \(56/56\)" psql -q -f tests/db/r21-trial-paid-0244.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh

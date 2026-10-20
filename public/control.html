@@ -263,7 +263,7 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=3">
 <link rel="stylesheet" href="comms-settings.css?v=2">
-<link rel="stylesheet" href="payment-schedule.css?v=1">
+<link rel="stylesheet" href="payment-schedule.css?v=1"><link rel="stylesheet" href="automations.css?v=1">
 <link rel="stylesheet" href="delivery-tracker.css?v=1">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
@@ -795,6 +795,12 @@
         <button type="button" class="btn" id="pr_save">Save photo render settings</button>
       </div>
 
+      <!-- r24 (0269): Automations - one list of everything Helm does by itself + run-sheet reminders + the enquiry form
+           (built + wired by automations.js; the two settings cards stay hidden before 0269) -->
+      <div class="card" id="autoCard" hidden></div>
+      <div class="card" id="rsrCard" hidden></div>
+      <div class="card" id="enqCard" hidden></div>
+
       <!-- 0241: delivery / arrival reminders (built + wired by delivery-settings.js; hidden before 0241) -->
       <div class="card" id="dlvCard" hidden></div>
 
@@ -920,6 +926,7 @@
 <script src="delivery-settings.js?v=1"></script>
 <script src="inbox-settings.js?v=1"></script><script src="crew-shifts.js?v=1"></script>
 <script src="link-views.js?v=1"></script>
+<script src="automations.js?v=1"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=3"></script>
 <script src="cc-inputs.js?v=4"></script>
@@ -2260,6 +2267,7 @@
     if(npStarted) return; npStarted=true;
     if(typeof HelmCommsSettings!=="undefined") HelmCommsSettings.init();   // 0078 (independent of the prefs load)
     if(typeof HelmDeliverySettings!=="undefined") HelmDeliverySettings.init();   // 0241 delivery reminders
+    if(typeof HelmAutomations!=="undefined") HelmAutomations.init();   // r24 (0269) Automations
     await loadNotify(); renderNotify();
     try{ npUsers=(await BPStore.auth.admin.listUsers())||[]; }catch(e){ npUsers=[]; }
     npUsers.sort((a,b)=>String(a.full_name||a.email||"").localeCompare(String(b.full_name||b.email||"")));

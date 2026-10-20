@@ -422,7 +422,7 @@ function serveStatic(req, res) {
 // la-1018: /<studio>/event?id=… and /<studio>/builder?quote=… (a relative event.html / builder.html link opened
 // under a studio path) serve the same page as /event and /builder.
 function prettyPage(rel) {
-  const m = /^\/[a-z0-9-]{3,40}\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|discovery|proposal|budget|closure|runsheet|resources|logistics|teardown|command|ready|ops|issues|flow|event|builder)(?:\/([^/]+)(?:\/(floor-plan|tasks))?)?\/?$/.exec(rel || '');
+  const m = /^\/[a-z0-9-]{3,40}\/(dashboard|quotes|leads|enquiry|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|discovery|proposal|budget|closure|runsheet|resources|logistics|teardown|command|ready|ops|issues|flow|event|builder)(?:\/([^/]+)(?:\/(floor-plan|tasks))?)?\/?$/.exec(rel || '');
   if (!m) return null;
   const sec = m[1], ref = m[2], sub = m[3];
   if (sec === 'events') return ref ? (sub === 'floor-plan' ? 'builder' : sub === 'tasks' ? 'ops' : 'event') : 'quotes';  // /<studio>/events → events list

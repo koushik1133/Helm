@@ -8280,7 +8280,11 @@ window.HelmUrl = HelmUrl;
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
     if (k.indexOf("nurture_") === 0) return "nurture.html";
+    // r24 (0269): a new enquiry from the public form -> the Leads board
+    if (k === "lead_new") return "leads.html";
     if (!q) return "";
+    // r24 (0269): a run-sheet reminder opens that event's run-sheet
+    if (k === "event_reminder" && d.source === "0269") return "runsheet.html?quote=" + enc(q);
     // r22 (0254): a close request / its decision opens the event's Closure page at the request
     if (k === "event_close_request" || k === "event_close_decision") return "closure.html?quote=" + enc(q) + "#close-request";
     // r23 (0261): "Rahul opened the proposal" / "viewed but not approved" -> the event workspace, views timeline open
@@ -8626,6 +8630,8 @@ window.HelmUrl = HelmUrl;
       studio_identity_changed: ["🏷️", String(d.label || "Helm support changed your studio name or link")],
       // 0264: a client's scheduled payment is past its due date (money notice - admins + Finance viewers)
       payment_overdue: ["⏰", String(d.label || "A client payment is overdue")],
+      // 0269: a new lead from the studio's public enquiry form (name + event type only)
+      lead_new: ["📥", String(d.label || "New enquiry")],
       // r22 (0254): "request to close anyway" + the approval (admins / coordinators / managers only - the server decides)
       event_close_request: ["🗄️", "Close request" + (d.actor_name ? " from " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "") + " - waiting for approval"],
       event_close_decision: [d.decision === "declined" ? "↩️" : "✅", (d.decision === "declined" ? "Close request declined" : "Event closed with override")
@@ -9905,6 +9911,19 @@ window.HelmUrl = HelmUrl;
 
   // 0241 (r21): delivery / arrival reminders. Every call goes through the RPCs (studio + 'deliveries' area checked
   // in the database). null from settings() = the server is older than 0241.
+  // r24 (0269): run-sheet reminders + the public enquiry form settings, and a guarded caller for the Automations page.
+  // optional(fn, args) resolves null when that feature's SQL is not installed yet (so the page lists it as "not set up").
+  const automation = {
+    settings: () => (supa ? rpc("automation_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    save: (patch) => (supa ? rpc("automation_settings_set", { p: patch || {} }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    runsheetTargets: (quoteId) => (supa ? rpc("runsheet_reminder_targets", { p_quote: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; })
+      : Promise.resolve(null)),
+    teamOptions: () => (supa ? rpc("runsheet_team_options", {}).then((d) => (Array.isArray(d) ? d : [])).catch(() => []) : Promise.resolve([])),
+    optional: (fn, args) => {
+      if (!supa || !/^[a-z0-9_]{3,63}$/.test(String(fn || ""))) return Promise.resolve(null);
+      return rpc(String(fn), args || {}).catch((e) => { if (rpcMissing(e)) return null; throw e; });
+    },
+  };
   const DLV_STATUS = { scheduled: "Scheduled", reminded: "Reminded", confirmed: "On the way", arrived: "Arrived",
     delayed: "Delayed", issue: "Problem", cancelled: "Cancelled", edited: "Edited", no_response: "No response" };
   const deliveries = {
@@ -10012,7 +10031,7 @@ window.HelmUrl = HelmUrl;
 
   const BPStore = {
     reservedEmailDomain, RESERVED_EMAIL_MESSAGE,
-    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, inbox, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, paySchedule, deliveries, vendorRequests, linkViews, integrations, quoteValidity,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, inbox, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, paySchedule, deliveries, vendorRequests, linkViews, integrations, quoteValidity, automation,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -12352,7 +12371,7 @@ window.HelmUrl = HelmUrl;
     var t = raw.replace(/_/g, " "); return t.charAt(0).toUpperCase() + t.slice(1);
   };
   var SOURCE_LABELS = { "walk_in": "Walk-in", walkin: "Walk-in", google: "Google", instagram: "Instagram", facebook: "Facebook", whatsapp: "WhatsApp",
-    referral: "Referral", website: "Website", social: "Other social", ad: "Ad", phone: "Phone", email: "Email", other: "Other", justdial: "Justdial", wedmegood: "WedMeGood" };
+    referral: "Referral", website: "Website", enquiry_form: "Enquiry form", social: "Other social", ad: "Ad", phone: "Phone", email: "Email", other: "Other", justdial: "Justdial", wedmegood: "WedMeGood" };
   BPStore.sourceLabel = function (v) {
     var raw = String(v == null ? "" : v).trim().replace(/\s+/g, " "); if (!raw) return "";
     var key = raw.toLowerCase().replace(/[\s-]+/g, "_");

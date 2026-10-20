@@ -18,6 +18,11 @@
 //   * vendor requests (0256) a vendor asked to take part in an event (+ reminders 24 h / 48 h later while unanswered),
 //                   e-mail only, each with a fresh link APP_URL/vendor-request?t=<token> (accept / decline / invoice);
 //                   claimed via vendor_request_claim(limit, 'email') (re-checked there; trials / samples never queue)
+//   * run-sheet reminders (0269) the owner of a run-sheet line (team member / staff / vendor with an e-mail), at the
+//                   line's reminder times (studio default 15 / 0 min before), e-mail only (WhatsApp goes through the 0132
+//                   lane above); claimed via runsheet_reminder_claim (re-checked there; trials / samples never queue)
+//   * enquiry replies (0269) the instant thank-you to someone who used a studio's public enquiry form (/<studio>/enquiry),
+//                   the studio's own words; claimed via enquiry_reply_claim (re-checked there; trials never queue)
 //   * Helm notices (0244) a studio's plan request -> sales@helm.events, and "Ask my admin to upgrade" -> the
 //                   studio's admins, claimed from helm_notice_outbox (helm-notices.mjs; transactional footer)
 //   * booklet_link  (0200) "Send to client" in the Share booklet dialog: the live client booklet
@@ -80,6 +85,7 @@ import { quoteExpiryMessage } from "./quote-expiry.mjs";
 import { deliveryMessage } from "./delivery-reminder.mjs";   // 0241: delivery / arrival reminders
 import { vendorRequestMessage, VENDOR_TX_REASON } from "./vendor-request.mjs";   // 0256: vendor requests + reminders
 import { helmNoticeEmail, NOTICE_TX_REASON } from "./helm-notices.mjs";   // 0244: sales requests + "ask my admin"
+import { runsheetReminderMessage, enquiryReplyMessage, RUNSHEET_TX_REASON, ENQUIRY_TX_REASON } from "./r24-automation.mjs";   // 0269: run-sheet reminders + enquiry replies
 import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
 import { brandMode, sendMail, type SmtpSend } from "../_shared/mailer.ts";
@@ -389,6 +395,34 @@ Deno.serve(async (req) => {
       const res: Res = msg.text ? await sendEmail(id, to, msg.subject, msg.text, String(r?.studio ?? ""), ident, extra) : "skipped";
       const { error: mErr } = await admin.rpc("vendor_request_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("comms-dispatch: vendor request mark failed", errTag(mErr)); counts.failed++; continue; }
+      counts[res]++;
+    }
+    // 0269: run-sheet reminders (e-mail lane; a database without 0269 just has nothing to claim)
+    const { data: rsrows, error: rsErr } = await admin.rpc("runsheet_reminder_claim", { p_limit: batch });
+    if (rsErr) console.error("comms-dispatch: run-sheet claim skipped", errTag(rsErr));
+    for (const r of (Array.isArray(rsrows) ? rsrows : [])) {
+      const id = String(r?.id ?? ""), to = String(r?.to ?? "");
+      if (!UUIDISH.test(id)) { counts.invalid++; continue; }
+      const msg = runsheetReminderMessage(r, origin);
+      const ident: Identity = (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {};
+      const extra: Extra = { footer: txFooter(RUNSHEET_TX_REASON, { app: origin, address: postalAddress(env) }) };
+      const res: Res = msg.text && EMAIL.test(to) ? await sendEmail(id, to, msg.subject, msg.text, String(r?.studio ?? ""), ident, extra) : "skipped";
+      const { error: mErr } = await admin.rpc("runsheet_reminder_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
+      if (mErr) { console.error("comms-dispatch: run-sheet mark failed", errTag(mErr)); counts.failed++; continue; }
+      counts[res]++;
+    }
+    // 0269: instant replies to the public enquiry form (a database without 0269 has nothing to claim)
+    const { data: eqrows, error: eqErr } = await admin.rpc("enquiry_reply_claim", { p_limit: batch });
+    if (eqErr) console.error("comms-dispatch: enquiry reply claim skipped", errTag(eqErr));
+    for (const r of (Array.isArray(eqrows) ? eqrows : [])) {
+      const id = String(r?.id ?? ""), to = String(r?.to ?? "");
+      if (!UUIDISH.test(id)) { counts.invalid++; continue; }
+      const msg = enquiryReplyMessage(r);
+      const ident: Identity = (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {};
+      const extra: Extra = { footer: txFooter(ENQUIRY_TX_REASON, { app: origin, address: postalAddress(env) }) };
+      const res: Res = msg.text && EMAIL.test(to) ? await sendEmail(id, to, msg.subject, msg.text, String(r?.studio ?? ""), ident, extra) : "skipped";
+      const { error: mErr } = await admin.rpc("enquiry_reply_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
+      if (mErr) { console.error("comms-dispatch: enquiry reply mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;
     }
     // 0244: Helm's own notices - a plan request to sales@helm.events, "Ask my admin to upgrade" to the studio's
