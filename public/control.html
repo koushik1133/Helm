@@ -266,7 +266,7 @@
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=15">
-<script src="/shell-proto.js?v=39" id="shellProto"></script>
+<script src="/shell-proto.js?v=40" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -803,7 +803,7 @@
       <div class="fld" hidden><label for="mp_emergency_contact_name">Emergency contact name</label><input id="mp_emergency_contact_name" maxlength="80" autocomplete="off" aria-describedby="mp_e_emergency_contact_name"><p class="ferr" id="mp_e_emergency_contact_name" hidden></p></div>
       <div class="fld" hidden><label for="mp_emergency_contact_phone">Emergency contact number</label><input id="mp_emergency_contact_phone" type="tel" autocomplete="off" aria-describedby="mp_e_emergency_contact_phone"><p class="ferr" id="mp_e_emergency_contact_phone" hidden></p></div>
       <div class="mpsec" id="mp_staffsec">Staff record (admins only)</div>
-      <div class="fld" id="mp_rate_fld"><label for="mp_day_rate">Day rate (₹)</label><input id="mp_day_rate" type="number" min="0" step="0.01" placeholder="optional" aria-describedby="mp_h_day_rate mp_e_day_rate"><p class="mphint" id="mp_h_day_rate">Not needed for team logins. Leave empty to keep what is saved.</p><p class="ferr" id="mp_e_day_rate" hidden></p></div>
+      <div class="fld" id="mp_rate_fld"><label for="mp_day_rate" title="What you pay this person for one day of an event (not per hour)">Day rate per event day (₹)</label><input id="mp_day_rate" type="number" min="0" step="0.01" placeholder="optional" aria-describedby="mp_h_day_rate mp_e_day_rate"><p class="mphint" id="mp_h_day_rate">Not needed for team logins. Leave empty to keep what is saved.</p><p class="ferr" id="mp_e_day_rate" hidden></p></div>
       <div class="fld" id="mp_emp_fld"><label for="mp_emp_type">Employment type</label><select id="mp_emp_type" aria-describedby="mp_e_emp_type"><option value="">—</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select><p class="ferr" id="mp_e_emp_type" hidden></p></div>
     </div>
     <div class="lerr s-56f4356" id="mp_err" role="alert" hidden></div>
@@ -827,7 +827,7 @@
 <script src="config.js?v=106"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script>
 <script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>

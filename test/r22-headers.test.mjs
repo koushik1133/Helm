@@ -96,7 +96,7 @@ t('calendar: the month is the card title; "Events calendar" stays for screen rea
 /* ---------------------------------------------------------------- 3. Insights */
 t('insights: the intro line is not capped at 72ch', () => {
   assert.match(INS, /main p\.ins-intro\.sub \{[^}]*max-width: none; \}/);
-  assert.match(read('public/insights.html'), /<p class="sub ins-intro">How the studio is doing for the dates you pick: events, money, costs, the team, and where things slip\.<\/p>/);
+  assert.match(read('public/insights.html'), /<p class="sub ins-intro"><b>How we’re doing over time:<\/b> trends per event &amp; team for the dates you pick — events, money, costs, and where things slip\.<\/p>/);
 });
 
 /* ---------------------------------------------------------------- 4. every page: trail, duplicate titles, top gap */

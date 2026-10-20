@@ -182,3 +182,6 @@ rect.ic-bar { stroke: none; }
 @media (max-width: 639.98px) {
   table.pe.tm-stack > tbody > tr > td.tm-primary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 }
+
+/* r24 plain words: purpose line (bold lead-in) */
+main p.ins-intro.sub b { color: var(--ink); font-weight: 700; }

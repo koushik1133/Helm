@@ -220,3 +220,5 @@ html.hb-priv-on body.bz-body .bz :is(.bz-li, .bz-val) > .bz-num[data-money]::aft
   html.hb-priv-on body.bz-body .bz .bz-tbl .num > [data-money]:not(svg)::after { justify-content: flex-start; }
   .bz-ev-link { flex-wrap: wrap; row-gap: 2px; }
 }
+/* r24: Business keeps only the monthly profit table when Insights shows the per-event list */
+.bz-grid-one { grid-template-columns: minmax(0, 1fr); }

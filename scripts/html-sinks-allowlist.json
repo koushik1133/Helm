@@ -620,11 +620,6 @@
   },
   {
    "file": "public/logistics.html",
-   "expr": "tab[0].toUpperCase()+tab.slice(1)",
-   "why": "tab is one of the fixed tab keys (route whitelist) in this page"
-  },
-  {
-   "file": "public/logistics.html",
    "expr": "total",
    "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
   },

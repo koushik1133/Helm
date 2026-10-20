@@ -76,3 +76,7 @@
 .bp-sugg .sub{margin:8px 0}
 .bp-chips{display:flex;flex-wrap:wrap;gap:8px}
 @media(max-width:480px){.bp-sum>div{min-width:0;flex:1 1 40%}.bp-newrow .bp-newact{width:100%}.bp-newact .btn{flex:1 1 auto;justify-content:center}}
+
+/* r24 plain words: one-line "what this page is for" under the breadcrumb */
+.page-purpose{margin:0 0 14px;font-size:14px;line-height:1.45;color:var(--ink-2,#4b475f);font-weight:500;max-width:72ch}
+.page-purpose b{color:var(--ink,#1b1930);font-weight:700}
