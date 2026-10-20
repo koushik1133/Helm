@@ -91,7 +91,7 @@
   <div id="notfound" class="card" hidden><p class="s-1a1aca0">Event not found, or your role can't open it. Go to <a class="s-dea29d3" href="dashboard.html">your dashboard</a>.</p></div>
 
   <div id="app" hidden>
-    <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+    <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span> · <span class="muted">Step 4 of 4 (after stock, people and vendors)</span> · <a id="flowBack" href="resources.html">3 What's missing</a></div>
 
     <div class="tiles">
       <div class="tile"><div class="l">Revenue (ex-tax)</div><div class="n" id="t_rev">—</div><div class="pct" id="t_revsub"></div></div>
@@ -158,7 +158,7 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=106"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=272"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=9"></script><script src="money-ledger-ui.js?v=1"></script><script src="budget-plan.js?v=3"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=9"></script><script src="money-ledger-ui.js?v=1"></script><script src="budget-plan.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -276,6 +276,7 @@
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    $("#flowBack").href = id?("resources.html?quote="+encodeURIComponent(id)):"resources.html";
     if(!id){ if(window.HelmPickEvent) HelmPickEvent.show($("#notfound"),"budget","budget"); else $("#notfound").hidden=false; return; }   // QA1026 #10
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("finance"))) return;

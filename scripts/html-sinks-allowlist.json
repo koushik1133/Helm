@@ -820,11 +820,6 @@
   },
   {
    "file": "public/resources.html",
-   "expr": "cov",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-  },
-  {
-   "file": "public/resources.html",
    "expr": "label",
    "why": "literal status label chosen by a ternary in this function",
    "max": 5
@@ -959,6 +954,52 @@
    "file": "public/plan.html",
    "expr": "lines.length ? lines.map(l=>`<div>${l}</div>`).join(\"\") : setOnQuote ? `<div class=\"muted\">${st===\"paid\"?\"Marked approved and paid on the quote\":\"Marked approved on the quote\"} — no online consent or payment record here. Payments recorded by the studio are on the event's Payments &amp; invoice page.</div>` : '<div class=\"muted\">No consent or payment recorded yet.</div>'",
    "why": "r20-coord: plan approval note - every line is built from esc()-escaped values (consent name/phone, payment status, studio-zone dates); the other branches are fixed text with a fixed status choice."
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "rpItemOpts(c.item_id)",
+   "why": "r24: <option> list - every item id and name is esc()'d inside rpItemOpts, the first option is a literal"
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "rpTypeSel(c,label)",
+   "why": "r24: <select> of the three fixed KIND options; the need id goes through esc(), label is the esc()'d need label, disabled is a literal"
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "rpActions(c,label)",
+   "why": "r24: action buttons - ids esc()'d, counts through num()/Math.min of numbers, label is the esc()'d need label, the tooltip is esc(OUTSIDE_TIP); everything else is literal markup"
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "rpStatusPill(c)",
+   "why": "r24: status pill - the vendor name and the tooltip are esc()'d, counts through num(), the unit through esc(); the rest is literal markup"
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "sub.join(\"\")",
+   "why": "r24: fragments built just above the sink: the item <select> (rpItemOpts), assigned people names and the need note, each through esc(); literal spans otherwise"
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "haveTxt",
+   "why": "r24: num() of the covered count plus a literal 'assigned' / 'reserved' span, or a literal dash"
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "on?'<em class=\"cov ok\">assigned</em>':!ph?'<em class=\"muted\">no phone - add it in Staff</em>':!p.available?'<em class=\"cov out\">busy that day</em>':p.match?'<em class=\"cov ok\">good match</em>':\"\"",
+   "why": "r24: a ternary that only picks one of four literal tags (no data)"
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "vn",
+   "why": "r24: vendor name, esc()'d where vn is defined (const vn=esc(...)) just above the sink",
+   "max": 5
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "rqTxt",
+   "why": "r24: request status pill built just above the sink: class through esc(), text esc(statusLabel(...)); empty string otherwise"
   }
  ]
 }

@@ -82,8 +82,8 @@ t('21 resources without ?quote shows the shared "Pick an event" list (after sign
   const PE = vm.runInNewContext(read('public/pick-event.js') + ';HelmPickEvent', {});
   assert.equal(PE._href('resources', 'q 1'), 'resources.html?quote=q%201');
 });
-t('22 needs table: the quantity column reads "Qty needed"', () => {
-  assert.match(RES, /<th scope="col">Need<\/th><th scope="col">Type<\/th><th scope="col" class="num">Qty needed<\/th><th scope="col" class="num">In-house<\/th>/);
+t('22 needs table: the quantity column reads "Qty" (r24: Need · Qty · We have · Missing · Action)', () => {
+  assert.match(RES, /<th scope="col">Need<\/th><th scope="col" class="num">Qty<\/th><th scope="col" class="num">We have<\/th><th scope="col">Missing<\/th><th scope="col">Action<\/th>/);
   assert.equal((RES.match(/<th scope="col"[^>]*>Need<\/th>/g) || []).length, 1);
 });
 
@@ -109,7 +109,7 @@ t('27 "Pull from discovery requirements": hidden without discovery view, disable
 t('23 vendors ?quote with no bookings: own empty state + link to the resource plan bookings card', () => {
   assert.match(VEN, /else if\(quoteId && eventOnly && !eventVendors\.size\)\{/);
   assert.match(VEN, /No vendors booked for this event yet\. <a href="resources\.html\?quote=\$\{encodeURIComponent\(quoteId\)\}#bookings"/);
-  assert.match(RES, /<div class="card s-1b0f499" id="bookings">\n      <h2>External bookings/);
+  assert.match(RES, /<section class="card rp-card s-1b0f499" id="bookings" aria-labelledby="bkTitle">[\s\S]{0,80}<h2 id="bkTitle">Vendors for this event<\/h2>/);
   assert.ok(VEN.indexOf('No vendors booked for this event yet') < VEN.indexOf('No partners match this filter'));
 });
 

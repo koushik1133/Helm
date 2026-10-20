@@ -156,3 +156,5 @@ html.hb-priv-on #app .mod .sum :is(.hbp-m,[data-money]){display:inline-block;lin
 }
 @media (prefers-reduced-motion:reduce){ #evHead .evmenu-pop{transition:none} }
 @media (max-width:360px){ #evHead .ev-tools{flex-wrap:wrap} }
+/* r24: the Resources stage numbers its cards in the order the work is done (1 stock, 2 people, 3 missing, 4 money) */
+#app .mod .h .mod-step{flex:0 0 auto;display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
