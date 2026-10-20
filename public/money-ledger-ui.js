@@ -213,7 +213,7 @@
       tiles.appendChild(tile("Planned margin", num(m.margin_estimated), m.margin_estimated_pct, "", fmt, "on estimates"));
       tiles.appendChild(tile("Expected margin", num(m.margin_expected), m.margin_expected_pct, "main", fmt, "actual where known"));
       tiles.appendChild(tile("Actual so far", num(m.margin_actual), m.margin_actual_pct, "", fmt, m.accuracy_pct != null && m.accuracy_pct < 100 ? "not final yet" : "only real costs"));
-      box.appendChild(tiles);
+      if (box.getAttribute("data-ml-tiles") !== "off") box.appendChild(tiles);   // r24: Budget / Closure already show one profit number above
       var cols = el("div", "ml-cols"), left = el("div", "ml-col"), right = el("div", "ml-col");
       left.appendChild(el("h3", null, "Profit & loss"));
       renderPnl(left, m, fmt);

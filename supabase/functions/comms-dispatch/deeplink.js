@@ -31,7 +31,11 @@ export function notifLink(n) {
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
     if (k.indexOf("nurture_") === 0) return "nurture.html";
+    // r24 (0269): a new enquiry from the public form -> the Leads board
+    if (k === "lead_new") return "leads.html";
     if (!q) return "";
+    // r24 (0269): a run-sheet reminder opens that event's run-sheet
+    if (k === "event_reminder" && d.source === "0269") return "runsheet.html?quote=" + enc(q);
     // r22 (0254): a close request / its decision opens the event's Closure page at the request
     if (k === "event_close_request" || k === "event_close_decision") return "closure.html?quote=" + enc(q) + "#close-request";
     // r23 (0261): "Rahul opened the proposal" / "viewed but not approved" -> the event workspace, views timeline open

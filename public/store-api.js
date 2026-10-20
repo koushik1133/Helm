@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=40"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=41"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -1243,7 +1243,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "13";
+  const STUDIO_SEARCH_VERSION = "14";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "6";
@@ -4645,12 +4645,15 @@ window.HelmUrl = HelmUrl;
       const a = readLs(INV_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(INV_LS, JSON.stringify(a)); } return true;
     },
     // all active reservations (for availability math), or one event's reservations
-    async reservations(quoteId) {
+    // r24: optional itemIds = only those items (the resource plan asks for the few items its needs use)
+    async reservations(quoteId, itemIds) {
+      const only = Array.isArray(itemIds) ? [...new Set(itemIds.filter(Boolean))] : null;
+      if (only && !only.length) return [];
       if (mode === "supabase") {
         return sbAll(() => { let q = supa.from("inventory_reservations").select("*").order("created_at").order("id");
-          if (quoteId) q = q.eq("quote_id", quoteId); return q; });
+          if (quoteId) q = q.eq("quote_id", quoteId); if (only) q = q.in("item_id", only); return q; });
       }
-      const a = readLs(RES_LS); return quoteId ? a.filter((r) => r.quote_id === quoteId) : a;
+      const a = readLs(RES_LS).filter((r) => !only || only.includes(r.item_id)); return quoteId ? a.filter((r) => r.quote_id === quoteId) : a;
     },
     async reserve(itemId, quoteId, qty, note, opts) {
       const allowOver = !!(opts && opts.allowOver);   // the user confirmed 'Reserve anyway': a deliberate over-commit is allowed (it shows as a calendar conflict)
@@ -4789,11 +4792,14 @@ window.HelmUrl = HelmUrl;
     // check-outs (out/partial, still-out qty). A checkout against an event that also
     // holds a reservation for the same item is the same physical stock, so per
     // (item, event) the larger of the two counts, not the sum.
-    async _demand(extraQuoteIds) {
-      const [items, res, cos] = await Promise.all([
-        this.items(false), this.reservations(), this.checkouts.list().catch(() => []),
+    async _demand(extraQuoteIds, itemIds) {
+      const only = Array.isArray(itemIds) ? itemIds : null;   // r24: just these items (fewer rows to read)
+      const [allItems, res, cos] = await Promise.all([
+        this.items(false), this.reservations(null, only || undefined), this.checkouts.list(null, only || undefined).catch(() => []),
       ]);
-      const stillOut = (c) => Math.max(Number(c.qty_out || 0) - Number(c.qty_in || 0), 0);
+      const items = only ? allItems.filter((i) => only.includes(i.id)) : allItems;
+      // r24 (0268): a written-off missing unit is already off the total - do not count it as still out too
+      const stillOut = (c) => Math.max(Number(c.qty_out || 0) - Number(c.qty_in || 0) - Math.max(Number(c.written_off || 0) - Number(c.qty_damaged || 0), 0), 0);
       const openCo = (cos || []).filter((c) => (c.status === "out" || c.status === "partial") && stillOut(c) > 0);
       const liveRes = (res || []).filter((r) => ACTIVE_RES.includes(r.status));
       const meta = await this._quoteMeta([].concat(liveRes.map((r) => r.quote_id), openCo.map((c) => c.quote_id), extraQuoteIds || []));
@@ -4824,8 +4830,8 @@ window.HelmUrl = HelmUrl;
     // QA-FR2: optional quoteId adds availableOnEvent = what's free on THAT event's date
     // (other events' same-day demand + undated), so reserving for a December event isn't
     // flagged as an over-commit because of a November event. `available` is unchanged.
-    async availability(quoteId) {
-      const d = await this._demand(quoteId ? [quoteId] : undefined);
+    async availability(quoteId, itemIds) {
+      const d = await this._demand(quoteId ? [quoteId] : undefined, itemIds);
       const qd = quoteId && d.meta[quoteId] && d.meta[quoteId].date;
       const map = {};
       d.items.forEach((i) => {
@@ -4839,10 +4845,12 @@ window.HelmUrl = HelmUrl;
     // ---- Phase 33: check-out / check-in accountability ----
     checkouts: {
       // all checkouts, or just one event's; newest first
-      async list(quoteId) {
-        if (mode !== "supabase") return readLs("bp_checkouts").filter((c) => !quoteId || c.quote_id === quoteId);
+      async list(quoteId, itemIds) {
+        const only = Array.isArray(itemIds) ? [...new Set(itemIds.filter(Boolean))] : null;   // r24: just these items
+        if (only && !only.length) return [];
+        if (mode !== "supabase") return readLs("bp_checkouts").filter((c) => (!quoteId || c.quote_id === quoteId) && (!only || only.includes(c.item_id)));
         return sbAll(() => { let q = supa.from("inventory_checkouts").select("*").order("checked_out_at", { ascending: false }).order("id");
-          if (quoteId) q = q.eq("quote_id", quoteId); return q; });
+          if (quoteId) q = q.eq("quote_id", quoteId); if (only) q = q.in("item_id", only); return q; });
       },
       // issue equipment out
       async out(itemId, quoteId, qty, issuedTo, crewId, note) {
@@ -4890,6 +4898,31 @@ window.HelmUrl = HelmUrl;
         if (error) throw error; return data;
       },
       remove(id) { return this.cancel(id); },
+      // r24 (0268): Mark back - how many came back OK + how many damaged; the rest is missing. Missing and damaged
+      // both come off what you own (once). Older DB without checkin_stock: the 0073 check-in (shortfall written off).
+      async back(id, ok, damaged, by) {
+        if (mode !== "supabase") throw new Error("Check-in needs Supabase");
+        try { return await rpc("checkin_stock", { p_id: id, p_ok: Number(ok || 0), p_damaged: Number(damaged || 0), p_returned_by: by || null }); }
+        catch (e) { if (!rpcMissing(e)) throw e; }
+        const row = await this.in(id, Number(ok || 0), by, true);
+        return { ok: true, legacy: true, status: row && row.status };
+      },
+      // r24: one item's history across events - which event, given to whom, when out, when back (newest first)
+      async forItem(itemId) {
+        if (mode !== "supabase") return readLs("bp_checkouts").filter((c) => c.item_id === itemId);
+        let r = await supa.from("inventory_checkouts").select("*, quotes(id,code,title,event_date)").eq("item_id", itemId)
+          .order("checked_out_at", { ascending: false }).order("id").limit(200);
+        if (r.error) r = await supa.from("inventory_checkouts").select("*").eq("item_id", itemId).order("checked_out_at", { ascending: false }).order("id").limit(200);
+        if (r.error) throw r.error;
+        return r.data || [];
+      },
+    },
+    // r24 (0268): release this event's reservations that are done - never taken out (after the event day; Teardown
+    // passes includeToday) or everything given out is back. -> number released, or null on an older DB.
+    async releaseUnused(quoteId, includeToday) {
+      if (mode !== "supabase" || !quoteId) return null;
+      try { const r = await rpc("release_unused_stock", { p_quote: quoteId, p_include_today: !!includeToday }); return r ? Number(r.released || 0) : 0; }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
     },
   };
 
@@ -6771,36 +6804,93 @@ window.HelmUrl = HelmUrl;
       if (mode === "supabase") { const { error } = await supa.from("event_resource_needs").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(NEED_LS, JSON.stringify(readLs(NEED_LS).filter((n) => n.id !== id))); return true;
     },
-    // Capability check: for each need, work out in-house coverage and the gap.
-    // staff need  -> counts active staff whose skills/role match `skill`
-    // inventory need -> uses inventory availability for item_id
-    // other       -> always a gap (must be outsourced)
-    async check(quoteId) {
-      const [needs, team, avail, ownRes] = await Promise.all([
-        this.listNeeds(quoteId), staff.list(false), inventory.availability(),
-        inventory.reservations(quoteId).catch(() => []),
-      ]);
-      // Stock already reserved/allocated FOR THIS EVENT is covered in-house: availability
-      // subtracts it, so add it back for this event's own needs.
+    // r24: many needs in ONE insert (Pull from discovery requirements) - one round trip, then one reload
+    async addNeeds(quoteId, rows) {
+      const list = (rows || []).filter((n) => n && String(n.label || "").trim()).map((n) => ({ quote_id: quoteId, ...n }));
+      if (!list.length) return [];
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_resource_needs").insert(list).select();
+        if (error) throw error; return data || [];
+      }
+      const a = readLs(NEED_LS); const made = list.map((n) => ({ id: uid(), status: "open", ...n, created_at: now() }));
+      a.push(...made); localStorage.setItem(NEED_LS, JSON.stringify(a)); return made;
+    },
+    // r24: a discovery requirement -> the obvious need type. Our people (catering, security, valet...) -> staff;
+    // equipment (stage & lighting, sound, LED...) -> our stock when an inventory item matches; the rest -> other
+    // (a vendor brings it). The user can change the type on the row.
+    mapRequirement(service, items) {
+      const t = String(service || "").toLowerCase();
+      const has = (re) => re.test(t);
+      if (has(/cater|waiter|server|steward|security|bouncer|guard|valet|usher|host(ess)?|housekeep|cleaning|helper|coordinator|crew/)) {
+        return { kind: "staff", skill: String(service || "").trim().slice(0, 80) };
+      }
+      const STOCK = [
+        [/stage|light/, /stage|light|truss|par\b|spot|wash|beam/],
+        [/sound|\bpa\b|audio|speaker|mic/, /sound|speaker|\bpa\b|audio|mic|mixer|amp/],
+        [/led|screen|projector|display/, /led|screen|projector|display|tv\b/],
+        [/seat|chair|table|furniture/, /chair|table|sofa|seat|furniture/],
+        [/power|generator|\bdg\b/, /generator|\bdg\b|power|cable/],
+        [/d[eé]cor|flower|floral/, /d[eé]cor|flower|floral|backdrop|drape/],
+        [/tent|shamiana|canopy|pandal/, /tent|shamiana|canopy|pandal/],
+        [/cooler|\bac\b|fan|heater/, /cooler|\bac\b|fan|heater/],
+      ];
+      for (const [want, match] of STOCK) {
+        if (!want.test(t)) continue;
+        const hit = (items || []).find((i) => i && i.active !== false && match.test(String(i.name || "").toLowerCase() + " " + String(i.category || "").toLowerCase()));
+        if (hit) return { kind: "inventory", item_id: hit.id };
+        break;
+      }
+      return { kind: "other" };
+    },
+    // r24: in-house coverage, worked out from what is ACTUALLY set aside for this event:
+    //   staff need     -> our people assigned on this event (live tasks whose section or title is the need / its skill)
+    //   inventory need -> our stock reserved / allocated for this event
+    //   other          -> nothing in-house (a vendor, or the client / venue, covers it)
+    // A need marked covered outside us ("outsourced") stays covered - unless every vendor booking for it was cancelled.
+    coverage(needs, o) {
+      o = o || {};
+      const nl = (x) => String(x || "").trim().toLowerCase();
       const mine = {};
-      (ownRes || []).forEach((r) => { if (r && r.quote_id === quoteId && ACTIVE_RES.includes(r.status)) mine[r.item_id] = (mine[r.item_id] || 0) + Number(r.qty || 0); });
-      const matchStaff = (sk) => {
-        const k = String(sk || "").trim().toLowerCase(); if (!k) return 0;
-        return team.filter((p) => {
-          const skills = (Array.isArray(p.skills) ? p.skills : []).map((s) => String(s).toLowerCase());
-          return skills.includes(k) || String(p.role || "").toLowerCase().includes(k) || String(p.department || "").toLowerCase() === k;
-        }).length;
-      };
-      return needs.map((n) => {
-        const qty = Number(n.qty || 0); let have = 0, unit = "", detail = "";
-        if (n.kind === "staff") { have = matchStaff(n.skill); unit = "people"; detail = n.skill || ""; }
-        else if (n.kind === "inventory") { const a = avail[n.item_id]; have = (a ? Math.max(0, Number(a.available) || 0) : 0) + (mine[n.item_id] || 0); unit = a ? (a.unit || "") : ""; detail = a ? a.name : "(item removed)"; }
-        else { have = 0; unit = ""; detail = "external"; }
-        const outsourced = n.status === "outsourced";
-        const covered = outsourced || have >= qty;
-        const gap = outsourced ? 0 : Math.max(0, qty - have);
-        return { ...n, have, unit, detail, covered, gap, outsourced };
+      (o.reservations || []).forEach((r) => { if (r && ACTIVE_RES.includes(r.status)) mine[r.item_id] = (mine[r.item_id] || 0) + Number(r.qty || 0); });
+      const itemById = {}; (o.items || []).forEach((i) => { if (i) itemById[i.id] = i; });
+      const tasks = (o.tasks || []).filter(crewTaskLive);
+      const bk = (o.bookings || []).filter((b) => b && b.need_id);
+      return (needs || []).map((n) => {
+        const qty = Number(n.qty || 0); let have = 0, unit = "", detail = "", people = [];
+        if (n.kind === "staff") {
+          const keys = [nl(n.label), nl(n.skill)].filter(Boolean);
+          const by = {};
+          tasks.forEach((t) => { if (keys.includes(nl(t.category)) || keys.includes(nl(t.title))) by[t.crew_id] = t.assignee_name || by[t.crew_id] || "Staff"; });
+          people = Object.values(by); have = people.length; unit = "people"; detail = n.skill || "";
+        } else if (n.kind === "inventory") {
+          const it = itemById[n.item_id]; have = n.item_id ? (mine[n.item_id] || 0) : 0;
+          unit = it ? (it.unit || "") : ""; detail = n.item_id ? (it ? it.name : (n.label || "(item removed)")) : "";
+        } else { detail = "external"; }
+        const mineBk = bk.filter((b) => b.need_id === n.id);
+        const vendorLost = mineBk.length > 0 && mineBk.every((b) => b.status === "cancelled");
+        const outsourced = n.status === "outsourced" && !vendorLost;
+        const covered = outsourced || (qty > 0 && have >= qty);
+        const gap = covered ? 0 : Math.max(0, qty - have);
+        return { ...n, have, unit, detail, people, covered, gap, outsourced, vendorBooked: mineBk.some((b) => b.status !== "cancelled") };
       });
+    },
+    // One event's tasks with a person on them (light columns) - [] in local mode / when the role can't read tasks
+    async _eventCrewTasks(quoteId) {
+      if (mode !== "supabase") return [];
+      const { data, error } = await supa.from("event_tasks").select("id,crew_id,assignee_name,category,title,status").eq("quote_id", quoteId).not("crew_id", "is", null);
+      if (error) throw error; return data || [];
+    },
+    // Capability check (event workspace, readiness, the resource plan): ONE parallel round of this event's rows only -
+    // no studio-wide stock math. -> needs with { have, gap, covered, outsourced, unit, detail, people }
+    async check(quoteId) {
+      const [needs, ownRes, tasks, bk, items] = await Promise.all([
+        this.listNeeds(quoteId),
+        inventory.reservations(quoteId).catch(() => []),
+        this._eventCrewTasks(quoteId).catch(() => []),
+        bookings.list(quoteId).catch(() => []),
+        inventory.items(true).catch(() => []),
+      ]);
+      return this.coverage(needs, { reservations: ownRes, tasks, bookings: bk, items });
     },
   };
 
@@ -7517,7 +7607,7 @@ window.HelmUrl = HelmUrl;
         { key: "approval", label: "Client approved", critical: true, ok: ["approved", "paid"].includes(ev.approvalStatus), detail: ev.approvalStatus || "none" },
         { key: "menu", label: "Menu & package locked", critical: true, ok: menuLocked && menuHas,
           detail: menuLocked ? (menuHas ? "locked" + (pkgName ? " - " + pkgName : "") : "locked, but no package or dishes yet") : "not locked" },
-        { key: "resources", label: "Resources covered (no gaps)", critical: true, ok: resCheck.length > 0 && gaps === 0, detail: resCheck.length === 0 ? "no needs mapped yet" : (gaps ? (gaps + " gap" + (gaps === 1 ? "" : "s")) : "all covered") },
+        { key: "resources", label: "Resources covered (nothing missing)", critical: true, ok: resCheck.length > 0 && gaps === 0, detail: resCheck.length === 0 ? "no needs listed yet" : (gaps ? (gaps + " missing") : "all covered") },
         { key: "vendors", label: "Vendors confirmed", critical: true, ok: enquiry === 0 && (bk.length > 0 || resCheck.length > 0), detail: enquiry ? (enquiry + " still enquiry") : (bk.length ? "all confirmed" : (resCheck.length ? "in-house — none needed" : "nothing planned")) },
         { key: "staff", label: "Staff assigned", critical: true, ok: crew > 0, detail: crew ? (crew + " assigned") : "none" },
         { key: "runsheet", label: "Run-sheet built", critical: true, ok: rs.length > 0, detail: rs.length ? (rs.length + " items") : "empty" },
@@ -7653,6 +7743,17 @@ window.HelmUrl = HelmUrl;
     async remove(id) {
       if (mode === "supabase") { const { error } = await supa.from("event_stock_requests").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(STOCKREQ_LS, JSON.stringify(readLs(STOCKREQ_LS).filter((r) => r.id !== id))); return true;
+    },
+    // r24 (0268): "Give out" a request - a stock item becomes a real check-out against inventory (who + when), so the
+    // counts on Inventory stay in sync. -> {ok, from_stock, checkout_id, qty_out, shortfall} | {ok:false, code:"shortage",
+    // requested, available}. A typed item (not in stock) is only marked given. Older DB: status only, as before.
+    async issue(id, issuedTo, crewId, note, partial) {
+      if (mode === "supabase") {
+        try { return await rpc("issue_stock_request", { p_request: id, p_issued_to: issuedTo || "", p_issued_to_id: crewId || null, p_note: note || null, p_partial: !!partial }); }
+        catch (e) { if (!rpcMissing(e)) throw e; }
+      }
+      await this.setStatus(id, "issued");
+      return { ok: true, from_stock: false, legacy: true };
     },
   };
 
@@ -8179,7 +8280,11 @@ window.HelmUrl = HelmUrl;
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
     if (k.indexOf("nurture_") === 0) return "nurture.html";
+    // r24 (0269): a new enquiry from the public form -> the Leads board
+    if (k === "lead_new") return "leads.html";
     if (!q) return "";
+    // r24 (0269): a run-sheet reminder opens that event's run-sheet
+    if (k === "event_reminder" && d.source === "0269") return "runsheet.html?quote=" + enc(q);
     // r22 (0254): a close request / its decision opens the event's Closure page at the request
     if (k === "event_close_request" || k === "event_close_decision") return "closure.html?quote=" + enc(q) + "#close-request";
     // r23 (0261): "Rahul opened the proposal" / "viewed but not approved" -> the event workspace, views timeline open
@@ -8525,6 +8630,8 @@ window.HelmUrl = HelmUrl;
       studio_identity_changed: ["🏷️", String(d.label || "Helm support changed your studio name or link")],
       // 0264: a client's scheduled payment is past its due date (money notice - admins + Finance viewers)
       payment_overdue: ["⏰", String(d.label || "A client payment is overdue")],
+      // 0269: a new lead from the studio's public enquiry form (name + event type only)
+      lead_new: ["📥", String(d.label || "New enquiry")],
       // r22 (0254): "request to close anyway" + the approval (admins / coordinators / managers only - the server decides)
       event_close_request: ["🗄️", "Close request" + (d.actor_name ? " from " + d.actor_name : "") + (d.event_code ? " · " + d.event_code : "") + " - waiting for approval"],
       event_close_decision: [d.decision === "declined" ? "↩️" : "✅", (d.decision === "declined" ? "Close request declined" : "Event closed with override")
@@ -9804,6 +9911,19 @@ window.HelmUrl = HelmUrl;
 
   // 0241 (r21): delivery / arrival reminders. Every call goes through the RPCs (studio + 'deliveries' area checked
   // in the database). null from settings() = the server is older than 0241.
+  // r24 (0269): run-sheet reminders + the public enquiry form settings, and a guarded caller for the Automations page.
+  // optional(fn, args) resolves null when that feature's SQL is not installed yet (so the page lists it as "not set up").
+  const automation = {
+    settings: () => (supa ? rpc("automation_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    save: (patch) => (supa ? rpc("automation_settings_set", { p: patch || {} }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    runsheetTargets: (quoteId) => (supa ? rpc("runsheet_reminder_targets", { p_quote: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; })
+      : Promise.resolve(null)),
+    teamOptions: () => (supa ? rpc("runsheet_team_options", {}).then((d) => (Array.isArray(d) ? d : [])).catch(() => []) : Promise.resolve([])),
+    optional: (fn, args) => {
+      if (!supa || !/^[a-z0-9_]{3,63}$/.test(String(fn || ""))) return Promise.resolve(null);
+      return rpc(String(fn), args || {}).catch((e) => { if (rpcMissing(e)) return null; throw e; });
+    },
+  };
   const DLV_STATUS = { scheduled: "Scheduled", reminded: "Reminded", confirmed: "On the way", arrived: "Arrived",
     delayed: "Delayed", issue: "Problem", cancelled: "Cancelled", edited: "Edited", no_response: "No response" };
   const deliveries = {
@@ -9911,7 +10031,7 @@ window.HelmUrl = HelmUrl;
 
   const BPStore = {
     reservedEmailDomain, RESERVED_EMAIL_MESSAGE,
-    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, inbox, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, paySchedule, deliveries, vendorRequests, linkViews, integrations, quoteValidity,
+    activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, inbox, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, paySchedule, deliveries, vendorRequests, linkViews, integrations, quoteValidity, automation,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -12251,7 +12371,7 @@ window.HelmUrl = HelmUrl;
     var t = raw.replace(/_/g, " "); return t.charAt(0).toUpperCase() + t.slice(1);
   };
   var SOURCE_LABELS = { "walk_in": "Walk-in", walkin: "Walk-in", google: "Google", instagram: "Instagram", facebook: "Facebook", whatsapp: "WhatsApp",
-    referral: "Referral", website: "Website", social: "Other social", ad: "Ad", phone: "Phone", email: "Email", other: "Other", justdial: "Justdial", wedmegood: "WedMeGood" };
+    referral: "Referral", website: "Website", enquiry_form: "Enquiry form", social: "Other social", ad: "Ad", phone: "Phone", email: "Email", other: "Other", justdial: "Justdial", wedmegood: "WedMeGood" };
   BPStore.sourceLabel = function (v) {
     var raw = String(v == null ? "" : v).trim().replace(/\s+/g, " "); if (!raw) return "";
     var key = raw.toLowerCase().replace(/[\s-]+/g, "_");

@@ -211,7 +211,7 @@ t('0198: additive, idempotent, ASCII; hard event-day rule + kept balance gate; r
   assert.match(RUNALL, /EVENT-STAGES-0198: ALL PASS \\\(63\/63\\\)/);
 });
 t('pins: event.html loads the bumped event-polish.css', () => {
-  assert.match(EV, /href="\/event-polish\.css\?v=8"/);
+  assert.match(EV, /href="\/event-polish\.css\?v=9"/);
 });
 
 let pass = 0, fail = 0;

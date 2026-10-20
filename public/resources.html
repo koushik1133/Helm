@@ -65,9 +65,9 @@
   th{position:relative} .table-scroll{position:relative}
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="resources-polish.css?v=3">
+<link rel="stylesheet" href="resources-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=40" id="shellProto"></script>
+<script src="/shell-proto.js?v=41" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -88,66 +88,115 @@
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
 
-    <div class="summary">
-      <div class="stt"><div class="n" id="s_total">0</div><div class="l">Resource needs</div></div>
-      <div class="stt ok"><div class="n" id="s_cov">0</div><div class="l">Covered in-house</div></div>
-      <div class="stt gap"><div class="n" id="s_gap">0</div><div class="l">Gaps to outsource</div></div>
-    </div>
+    <!-- r24: the order of the work, in plain words: our stock -> our people -> what is still missing -> money -->
+    <ol class="rp-steps" aria-label="How to cover this event">
+      <li><a id="stepInv" href="inventory.html"><span class="n">1</span>Reserve our stock</a></li>
+      <li><a id="stepOps" href="ops.html"><span class="n">2</span>Assign our people</a></li>
+      <li class="on" aria-current="step"><span class="n">3</span>Get what's missing from vendors</li>
+      <li><a id="stepBudget" href="budget.html"><span class="n">4</span>Check budget &amp; margin</a></li>
+    </ol>
 
-    <div class="card" id="addCard" hidden>
-      <h2>Add a resource need</h2>
-      <p class="sub">List what the event needs. We auto-check your in-house staff &amp; stock and flag the gaps.</p>
-      <div class="addrow">
-        <div class="fld"><label for="n_kind">Type</label>
-          <select id="n_kind"><option value="staff">Staff / skill</option><option value="inventory">Inventory item</option><option value="other">Other</option></select></div>
-        <div class="fld" id="wrap_label"><label for="n_label">What's needed</label><input id="n_label" placeholder="e.g. Sound engineers"></div>
-        <div class="fld" id="wrap_skill" hidden><label for="n_skill">Skill / role</label><input id="n_skill" placeholder="e.g. sound"></div>
-        <div class="fld" id="wrap_item" hidden><label for="n_item">Item</label><select id="n_item"></select></div>
-        <div class="fld"><label for="n_qty">Qty</label><input id="n_qty" type="number" min="1" value="1"></div>
-        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="n_add">＋ Add need</button></div>
+    <section class="card rp-card" aria-labelledby="needsTitle">
+      <div class="rp-head">
+        <h2 id="needsTitle">What this event needs</h2>
+        <p class="rp-sum" role="status" aria-live="polite"><span><b id="s_total">0</b> needs</span><span class="ok"><b id="s_cov">0</b> covered</span><span class="gap"><b id="s_gap">0</b> missing</span></p>
       </div>
-      <div class="s-d2c171b" id="pullWrap" hidden><button type="button" class="btn sm" id="pullBtn">↧ Pull from discovery requirements</button> <span class="muted" id="pullMsg" role="status" aria-live="polite"></span></div>
-    </div>
-
-    <div class="card s-8d8d59e">
-      <table>
-        <thead><tr><th scope="col">Need</th><th scope="col">Type</th><th scope="col" class="num">Qty needed</th><th scope="col" class="num">In-house</th><th scope="col">Coverage</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="rows"><tr><td colspan="6" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
-      </table>
-    </div>
-    <p class="muted" id="gapHint" hidden></p>
-
-    <div class="card s-1b0f499" id="bookings">
-      <h2>External bookings <span class="muted s-7e3a944">— vendors · freelancers · rentals</span></h2>
-      <p class="sub">Book outside partners to cover the gaps. <a class="s-a805525" href="vendors.html">Manage partners →</a></p>
-      <div class="s-761d3ad"><button type="button" class="btn sm" id="bookBtn" hidden>＋ Book a partner</button></div>
       <div class="table-scroll">
-      <table>
-        <thead><tr><th scope="col">Partner</th><th scope="col">For</th><th scope="col" class="num">Cost</th><th scope="col" class="num">Advance</th><th scope="col">Contract</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="bookRows"><tr><td colspan="7" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
+      <table class="rp-table">
+        <thead><tr><th scope="col">Need</th><th scope="col" class="num">Qty</th><th scope="col" class="num">We have</th><th scope="col">Missing</th><th scope="col">Action</th></tr></thead>
+        <tbody id="rows"><tr class="rp-skel" aria-hidden="true"><td colspan="5"><i></i><i></i><i></i></td></tr></tbody>
       </table>
       </div>
-    </div>
+      <p class="muted rp-hint" id="gapHint" hidden></p>
+
+      <div id="addCard" class="rp-add" hidden>
+        <div class="addrow">
+          <div class="fld"><label for="n_kind">Type</label>
+            <select id="n_kind"><option value="staff">Staff</option><option value="inventory">Our stock</option><option value="other">Other</option></select></div>
+          <div class="fld" id="wrap_label"><label for="n_label">What's needed</label><input id="n_label" placeholder="e.g. Security guards"></div>
+          <div class="fld" id="wrap_skill" hidden><label for="n_skill">Skill / role</label><input id="n_skill" placeholder="e.g. security"></div>
+          <div class="fld" id="wrap_item" hidden><label for="n_item">Item</label><select id="n_item"></select></div>
+          <div class="fld"><label for="n_qty">Qty</label><input id="n_qty" type="number" min="1" value="1"></div>
+          <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="n_add">＋ Add need</button></div>
+        </div>
+        <div class="s-d2c171b" id="pullWrap" hidden><button type="button" class="btn sm" id="pullBtn">↧ Pull from discovery requirements</button> <span class="muted" id="pullMsg" role="status" aria-live="polite"></span></div>
+      </div>
+    </section>
+
+    <section class="card rp-card s-1b0f499" id="bookings" aria-labelledby="bkTitle">
+      <div class="rp-head">
+        <h2 id="bkTitle">Vendors for this event</h2>
+        <button type="button" class="btn sm" id="bookBtn" hidden>＋ Assign vendor</button>
+      </div>
+      <p class="sub">Outside vendors who bring what we don't have. <a class="s-a805525" href="vendors.html">All vendors →</a></p>
+      <div class="table-scroll">
+      <table class="rp-table">
+        <thead><tr><th scope="col">Vendor</th><th scope="col">For</th><th scope="col" class="num">Cost</th><th scope="col" class="num">Advance</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody id="bookRows"><tr class="rp-skel" aria-hidden="true"><td colspan="6"><i></i><i></i></td></tr></tbody>
+      </table>
+      </div>
+    </section>
   </div>
   </main>
 </div>
 
 <div id="bookModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="bm_title">
-  <div class="sheet">
-    <h3 class="s-015a5e7"><span id="bm_title">Book a partner</span><button type="button" class="close s-af04dd5" id="bm_close" aria-label="Close" data-close>×</button></h3>
-    <div class="fld"><label for="bk_label">Covers need</label><input id="bk_label" placeholder="what this covers"></div>
-    <div class="fld s-d2c171b"><label for="bk_vendor">Partner</label><select id="bk_vendor"></select></div>
+  <div class="sheet rp-sheet">
+    <h3 class="s-015a5e7"><span id="bm_title">Assign vendor</span><button type="button" class="close s-af04dd5" id="bm_close" aria-label="Close" data-close>×</button></h3>
+    <div class="fld"><label for="bk_label">For</label><input id="bk_label" placeholder="what this vendor brings"></div>
     <div class="s-0a349e0">
-      <div class="fld"><label for="bk_cost">Cost (₹)</label><input id="bk_cost" type="number" min="0" placeholder="optional"></div>
-      <div class="fld"><label for="bk_adv">Advance (₹)</label><input id="bk_adv" type="number" min="0" placeholder="optional"></div>
+      <div class="fld"><label for="bk_vendor">Vendor</label><select id="bk_vendor"></select></div>
+      <div class="fld"><label for="vr_qty">Qty</label><input id="vr_qty" type="number" min="0" step="1" placeholder="optional"></div>
     </div>
-    <div class="s-0a349e0">
-      <div class="fld"><label for="bk_status">Status</label><select id="bk_status"><option value="enquiry">Enquiry</option><option value="booked" selected>Booked</option><option value="confirmed">Confirmed</option><option value="delivered">Delivered</option></select></div>
-      <div class="fld"><label class="s-e648473"><input class="s-e210402" type="checkbox" id="bk_contract"> Contract signed</label></div>
+    <fieldset class="rp-mode" id="bk_modeWrap">
+      <legend class="sr-only">How to assign</legend>
+      <label><input type="radio" name="bk_mode" id="bk_modeSend" value="send" checked> <span><b>Send request to vendor</b><small>They get a link to accept or decline. No sign-in needed.</small></span></label>
+      <label><input type="radio" name="bk_mode" id="bk_modeNote" value="note"> <span><b>Already agreed</b><small>Just note the vendor and cost (agreed by phone or in person).</small></span></label>
+    </fieldset>
+    <div id="bk_send">
+      <div class="s-0a349e0">
+        <div class="fld"><label for="vr_date">When - date</label><input id="vr_date" type="date"></div>
+        <div class="fld"><label for="vr_time">Time</label><input id="vr_time" type="time" value="10:00"></div>
+      </div>
+      <div class="fld s-fe7b497"><label for="vr_where">Where</label><input id="vr_where" maxlength="300" placeholder="e.g. Lawn gate 2"></div>
+      <div class="s-0a349e0">
+        <div class="fld"><label for="vr_amt">Agreed amount (₹)</label><input id="vr_amt" type="number" min="0" step="1"></div>
+        <div class="fld"><label class="s-e648473"><input class="s-e210402" type="checkbox" id="vr_mail" checked> E-mail it too</label></div>
+      </div>
+      <div class="fld s-fe7b497"><label for="vr_det">Details</label><input id="vr_det" maxlength="1000" placeholder="optional - specs, contact on site"></div>
     </div>
-    <div class="fld s-fe7b497"><label for="bk_note">Note</label><input id="bk_note" placeholder="optional"></div>
+    <div id="bk_noteBox" hidden>
+      <div class="s-0a349e0">
+        <div class="fld"><label for="bk_cost">Cost (₹)</label><input id="bk_cost" type="number" min="0" placeholder="optional"></div>
+        <div class="fld"><label for="bk_adv">Advance (₹)</label><input id="bk_adv" type="number" min="0" placeholder="optional"></div>
+      </div>
+      <div class="s-0a349e0">
+        <div class="fld"><label for="bk_status">Status</label><select id="bk_status"><option value="enquiry">Asked</option><option value="booked" selected>Booked</option><option value="confirmed">Confirmed</option><option value="delivered">Delivered</option></select></div>
+        <div class="fld"><label class="s-e648473"><input class="s-e210402" type="checkbox" id="bk_contract"> Contract signed</label></div>
+      </div>
+      <div class="fld s-fe7b497"><label for="bk_note">Note</label><input id="bk_note" placeholder="optional"></div>
+    </div>
     <div id="bm_err" class="err" hidden role="alert" aria-live="assertive"></div>
-    <div class="foot"><button type="button" class="btn" id="bm_cancel">Cancel</button><button class="btn primary" id="bm_save">Save booking</button></div>
+    <div class="foot"><button type="button" class="btn" id="bm_cancel">Cancel</button><button class="btn primary" id="bm_save">Send request</button></div>
+  </div>
+</div>
+
+<div id="sentModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="sm_title">
+  <div class="sheet">
+    <h3 class="s-015a5e7"><span id="sm_title">Request sent</span><button type="button" class="close s-af04dd5" id="sm_close" aria-label="Close">×</button></h3>
+    <p class="muted" id="sm_text"></p>
+    <div class="fld"><label for="sm_link">Request link</label><input id="sm_link" readonly></div>
+    <div class="foot"><a class="btn" id="sm_wa" href="#" target="_blank" rel="noopener noreferrer">Open in WhatsApp</a><button type="button" class="btn primary" id="sm_copy">Copy link</button></div>
+  </div>
+</div>
+
+<div id="personModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="pm_title">
+  <div class="sheet">
+    <h3 class="s-015a5e7"><span id="pm_title">Assign our people</span><button type="button" class="close s-af04dd5" id="pm_close" aria-label="Close">×</button></h3>
+    <p class="muted" id="pm_text"></p>
+    <div id="pm_list" class="rp-people" role="group" aria-labelledby="pm_title"></div>
+    <div id="pm_err" class="err" hidden role="alert" aria-live="assertive"></div>
+    <div class="foot"><a class="btn" id="pm_ops" href="ops.html">Open Tasks &amp; staff</a><button type="button" class="btn primary" id="pm_save">Assign</button></div>
   </div>
 </div>
 
@@ -165,7 +214,7 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=107"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script><script src="pick-event.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=274"></script><script src="pick-event.js?v=1"></script><script src="delivery-tracker.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -173,9 +222,13 @@
   // r20: a sample (free-trial) name reads "PA Speaker (sample)" in a picker, same as Inventory (BPStore.sampleName)
   const sn=(n)=>{ try{ if(window.BPStore&&typeof BPStore.sampleName==="function") return BPStore.sampleName(n); }catch(e){} return String(n==null?"":n); };
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
-  const KIND={staff:"Staff",inventory:"Inventory",other:"Other"};
-  let canEdit=false, canDelete=false, items=[], checked=[], vendors=[], bookings=[], bookNeed=null;
-  const BK={enquiry:"Enquiry",booked:"Booked",confirmed:"Confirmed",delivered:"Delivered",cancelled:"Cancelled"};
+  // r24 plain words: the three need types, said the same way everywhere (event workspace, Tasks, Inventory)
+  const KIND={staff:"Staff",inventory:"Our stock",other:"Other"};
+  const VKIND={vendor:"Vendor",freelancer:"Freelancer",rental:"Rental",supplier:"Supplier",internal:"In-house"};
+  const OUTSIDE_TIP="Covered outside us - the client or the venue arranges it, so there is nothing to book.";
+  let ev=null, canEdit=false, canDelete=false, canInv=false, canStaff=false, canVend=false;
+  let items=[], needs=[], checked=[], vendors=[], bookings=[], ownRes=[], tasks=[], vreqs=[], free={}, bookNeed=null;
+  const BK={enquiry:"Asked",booked:"Booked",confirmed:"Confirmed",delivered:"Delivered",cancelled:"Cancelled"};
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -189,111 +242,255 @@
     $("#wrap_item").hidden  = k!=="inventory";
   }
 
+  const rpItemOpts=(sel)=>`<option value="">Pick our item…</option>`+items.map(i=>`<option value="${esc(i.id)}"${i.id===sel?" selected":""}>${esc(sn(i.name))}</option>`).join("");
+  const rpTypeSel=(c,label)=>`<select class="rp-type" data-type="${esc(c.id)}" aria-label="Type for ${label}"${canEdit?"":" disabled"}>${Object.keys(KIND).map(k=>`<option value="${k}"${k===c.kind?" selected":""}>${KIND[k]}</option>`).join("")}</select>`;
+  function needLabel(c){ return c.label || c.detail || ""; }
+  function vendorFor(c){ const b=bookings.find(x=>x.need_id===c.id && x.status!=="cancelled"); if(!b) return null; const v=vendors.find(x=>x.id===b.vendor_id); return v?sn(v.name):(b.label||"Vendor"); }
+  function rpStatusPill(c){
+    if(c.outsourced){ const v=vendorFor(c); return v?`<span class="cov out">Vendor: ${esc(v)}</span>`:`<span class="cov out" title="${esc(OUTSIDE_TIP)}">Client/venue arranges it</span>`; }
+    if(c.covered) return `<span class="cov ok">✓ Covered</span>`;
+    return `<span class="cov gap">Missing ${num(c.gap)}${c.unit?" "+esc(c.unit):""}</span>`;
+  }
+  function rpActions(c,label){
+    if(!canEdit) return "";
+    if(c.outsourced) return `<button type="button" class="rm" data-reopen="${esc(c.id)}" aria-label="Undo - ${label} is missing again">Undo</button>`;
+    if(c.covered) return canDelete?`<button type="button" class="rm rp-x" data-del="${esc(c.id)}" aria-label="Remove ${label}">Remove</button>`:"";
+    const out=[];
+    if(c.kind==="staff" && canStaff) out.push(`<button type="button" class="btn sm primary" data-person="${esc(c.id)}" aria-label="Assign our people to ${label}">Assign person</button>`);
+    if(c.kind==="inventory" && c.item_id && canInv){ const f=free[c.item_id];
+      if(f==null) out.push(`<span class="muted rp-free">checking stock…</span>`);
+      else if(f>0){ const n=Math.min(c.gap,f); out.push(`<button type="button" class="btn sm primary" data-reserve="${esc(c.id)}" data-n="${n}" aria-label="Reserve ${n} of our ${label}">Reserve ${num(n)}</button>`); }
+      else out.push(`<span class="muted rp-free">none free that day</span>`); }
+    out.push(`<button type="button" class="btn sm" data-book="${esc(c.id)}" aria-label="Assign vendor for ${label}">Assign vendor</button>`);
+    out.push(`<details class="rp-more"><summary aria-label="More for ${label}">⋯</summary><div><button type="button" class="rm" data-out="${esc(c.id)}" title="${esc(OUTSIDE_TIP)}">Client/venue arranges it</button>${canDelete?`<button type="button" class="rm" data-del="${esc(c.id)}" aria-label="Remove ${label}">Remove</button>`:""}</div></details>`);
+    return out.join(" ");
+  }
+
   function render(){
     const total=checked.length, cov=checked.filter(c=>c.covered).length, gaps=checked.filter(c=>!c.covered);
     $("#s_total").textContent=total; $("#s_cov").textContent=cov; $("#s_gap").textContent=gaps.length;
-    if(!total){ $("#rows").innerHTML='<tr><td colspan="6" class="empty">No needs yet. Add what the event requires.</td></tr>'; $("#gapHint").hidden=true; return; }
+    if(!total){ $("#rows").innerHTML='<tr><td colspan="5" class="empty">No needs yet. Add what the event requires below.</td></tr>'; $("#gapHint").hidden=true; return; }
     $("#rows").innerHTML=checked.map(c=>{
-      const cov = c.outsourced ? `<span class="cov out">↗ Outsourced</span>`
-        : c.covered ? `<span class="cov ok">✓ In-house</span>`
-        : `<span class="cov gap">⚠ Gap: short ${num(c.gap)}${c.unit?" "+esc(c.unit):""}</span>`;
-      const label = c.kind==="inventory" ? esc(c.detail) : esc(c.label);
-      return `<tr>
-        <td><b>${label}</b>${c.kind==="staff"&&c.skill?`<div class="muted">skill: ${esc(c.skill)}</div>`:""}${c.note?`<div class="muted">${esc(c.note)}</div>`:""}</td>
-        <td><span class="kind ${esc(c.kind)}">${esc(KIND[c.kind]||c.kind)}</span></td>
-        <td class="num">${num(c.qty)}</td>
-        <td class="num">${c.kind==="other"?"—":num(c.have)}</td>
-        <td>${cov}${canEdit&&!c.covered?` <button type="button" class="rm" data-book="${esc(c.id)}" style="border-color:var(--accent-soft);color:var(--accent)" aria-label="Book partner for ${label}">Book partner</button> <button type="button" class="rm" data-out="${esc(c.id)}" title="Mark this as handled by a vendor/freelancer" aria-label="Mark ${label} outsourced">Mark outsourced</button>`:""}${canEdit&&c.outsourced?` <button type="button" class="rm" data-reopen="${esc(c.id)}" aria-label="Reopen ${label}">Reopen</button>`:""}</td>
-        <td>${canDelete?`<button type="button" class="rm" data-del="${esc(c.id)}" aria-label="Remove ${label}">Remove</button>`:""}</td>
+      const label=esc(needLabel(c));
+      const sub=[];
+      if(c.kind==="inventory") sub.push(canEdit?`<select class="rp-item" data-item="${esc(c.id)}" aria-label="Which of our items for ${label}">${rpItemOpts(c.item_id)}</select>`:(c.item_id?"":`<span class="muted">no item picked</span>`));
+      if(c.kind==="staff" && c.people && c.people.length) sub.push(`<span class="muted">${esc(c.people.join(", "))}</span>`);
+      if(c.note) sub.push(`<span class="muted">${esc(c.note)}</span>`);
+      const haveTxt = c.kind==="other" ? `<span class="muted">—</span>` : `${num(c.have)}<span class="muted rp-u">${c.kind==="staff"?" assigned":" reserved"}</span>`;
+      return `<tr class="${c.covered?"is-ok":"is-gap"}">
+        <td class="rp-need"><b>${label}</b><div class="rp-meta">${rpTypeSel(c,label)}${sub.join("")}</div></td>
+        <td class="num" data-l="Qty">${num(c.qty)}</td>
+        <td class="num" data-l="We have">${haveTxt}</td>
+        <td>${rpStatusPill(c)}</td>
+        <td class="rp-act">${rpActions(c,label)}</td>
       </tr>`;
     }).join("");
     $("#gapHint").hidden = !gaps.length;
-    if(gaps.length) $("#gapHint").textContent = `${gaps.length} gap${gaps.length===1?"":"s"} to cover with vendors, freelancers or rentals.`;
-    $("#rows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
-      if(!(await BPUI.confirm("Remove this resource need?",{title:"Remove need?",danger:true}))) return;
+    if(gaps.length) $("#gapHint").textContent = `${gaps.length} need${gaps.length===1?" is":"s are"} still missing. Reserve our stock or assign our people first; get the rest from a vendor.`;
+    const R=$("#rows");
+    R.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
+      if(!(await BPUI.confirm("Remove this need from the plan?",{title:"Remove need?",danger:true}))) return;
       await BPUI.guard(b,async()=>{ try{ await BPStore.resources.removeNeed(b.dataset.del); BPUI.toast("Need removed.",{type:"ok"}); await load(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove the need"}),{type:"err"}); } }); }));
-    $("#rows").querySelectorAll("[data-out]").forEach(b=>b.addEventListener("click",()=>BPUI.guard(b,async()=>{ try{ await BPStore.resources.updateNeed(b.dataset.out,{status:"outsourced"}); await load(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the need"}),{type:"err"}); } })));
-    $("#rows").querySelectorAll("[data-reopen]").forEach(b=>b.addEventListener("click",()=>BPUI.guard(b,async()=>{ try{ await BPStore.resources.updateNeed(b.dataset.reopen,{status:"open"}); await load(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the need"}),{type:"err"}); } })));
-    $("#rows").querySelectorAll("[data-book]").forEach(b=>b.addEventListener("click",()=>openBooking(checked.find(c=>c.id===b.dataset.book))));
+    R.querySelectorAll("[data-out]").forEach(b=>b.addEventListener("click",()=>BPUI.guard(b,async()=>{ try{ await BPStore.resources.updateNeed(b.dataset.out,{status:"outsourced"}); BPUI.toast("Marked: the client or venue arranges it.",{type:"ok"}); await load(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the need"}),{type:"err"}); } })));
+    R.querySelectorAll("[data-reopen]").forEach(b=>b.addEventListener("click",()=>BPUI.guard(b,async()=>{ try{ await BPStore.resources.updateNeed(b.dataset.reopen,{status:"open"}); await load(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the need"}),{type:"err"}); } })));
+    R.querySelectorAll("[data-book]").forEach(b=>b.addEventListener("click",()=>openBooking(checked.find(c=>c.id===b.dataset.book))));
+    R.querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>openPeople(checked.find(c=>c.id===b.dataset.person))));
+    R.querySelectorAll("[data-reserve]").forEach(b=>b.addEventListener("click",()=>reserveFor(b,checked.find(c=>c.id===b.dataset.reserve),Number(b.dataset.n))));
+    R.querySelectorAll("select[data-type]").forEach(s=>s.addEventListener("change",()=>setType(s,checked.find(c=>c.id===s.dataset.type),s.value)));
+    R.querySelectorAll("select[data-item]").forEach(s=>s.addEventListener("change",()=>BPUI.guard(s,async()=>{
+      const it=items.find(x=>x.id===s.value); try{ await BPStore.resources.updateNeed(s.dataset.item,{item_id:it?it.id:null}); await load(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"pick the item"}),{type:"err"}); } })));
   }
 
+  // r24: set a need's type right on its row; an obvious item / skill is filled in so in-house cover works at once
+  async function setType(sel,c,kind){ if(!c||!canEdit||kind===c.kind) return;
+    const patch={kind};
+    if(kind==="inventory"){ const m=BPStore.resources.mapRequirement(c.label,items); patch.item_id = c.item_id || (m.kind==="inventory"?m.item_id:null); }
+    if(kind==="staff") patch.skill = c.skill || String(c.label||"").slice(0,80);
+    await BPUI.guard(sel,async()=>{ try{ await BPStore.resources.updateNeed(c.id,patch); await load(); }catch(e){ sel.value=c.kind; BPUI.toast(BPUI.friendlyError(e,{action:"change the type"}),{type:"err"}); } });
+  }
+
+  // r24: reserve the free part of our own stock for this event (atomic server reserve; a race shows a clear message)
+  async function reserveFor(btn,c,n){ if(!c||!c.item_id||!(n>0)) return;
+    await BPUI.guard(btn,async()=>{
+      try{ await BPStore.inventory.reserve(c.item_id,id,n,"Resource plan: "+String(c.label||"").slice(0,80)); BPUI.toast(`Reserved ${num(n)} for this event.`,{type:"ok"}); await load(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"reserve the stock"}),{type:"err"}); await load(); }
+    },{busyLabel:"Reserving…"});
+  }
+
+  // r24: assign specific people from our team (creates their task in Tasks & staff, same as Operations)
+  let personNeed=null;
+  async function openPeople(c){ if(!c) return; personNeed=c;
+    $("#pm_title").textContent="Assign our people - "+needLabel(c);
+    $("#pm_text").textContent=`Needed: ${num(c.qty)} · assigned: ${num(c.have)}. Each person gets a "${needLabel(c)}" task in Tasks & staff.`;
+    $("#pm_ops").href="ops.html?quote="+encodeURIComponent(id);
+    $("#pm_err").hidden=true; $("#pm_list").innerHTML='<p class="muted"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading your team…</span></p>';
+    $("#personModal").hidden=false;
+    let list=[]; try{ list=await BPStore.staff.suggest({category:c.skill||c.label, date:ev&&ev.eventDate, excludeQuote:id, limit:200}); }catch(e){ list=null; }
+    if(personNeed!==c) return;
+    if(!list){ $("#pm_list").innerHTML='<p class="err">Could not load your team. Try again.</p>'; return; }
+    const already=new Set(tasks.filter(t=>t.crew_id && t.status!=="rejected" && t.status!=="cancelled").filter(t=>[c.label,c.skill].filter(Boolean).map(x=>String(x).trim().toLowerCase()).some(k=>k===String(t.category||"").trim().toLowerCase()||k===String(t.title||"").trim().toLowerCase())).map(t=>t.crew_id));
+    if(!list.length){ $("#pm_list").innerHTML='<p class="muted">No staff yet. Add your people in <a class="s-a805525" href="staff.html">Staff</a>.</p>'; return; }
+    $("#pm_list").innerHTML=list.map(p=>{ const on=already.has(p.id), ph=!!String(p.phone||"").replace(/\D/g,"");
+      return `<label class="rp-person${on?" on":""}"><input type="checkbox" value="${esc(p.id)}"${on?" checked disabled":""}${!ph&&!on?" disabled":""}>
+        <span><b>${esc(sn(p.name))}</b><small>${esc([p.department,(p.skills||[]).join(", ")].filter(Boolean).join(" · "))}</small></span>
+        ${on?'<em class="cov ok">assigned</em>':!ph?'<em class="muted">no phone - add it in Staff</em>':!p.available?'<em class="cov out">busy that day</em>':p.match?'<em class="cov ok">good match</em>':""}</label>`; }).join("");
+    $("#pm_list")._people=list;
+  }
+  function closePeople(){ $("#personModal").hidden=true; personNeed=null; }
+  async function savePeople(){ const c=personNeed; if(!c) return;
+    const picked=[...$("#pm_list").querySelectorAll("input[type=checkbox]:checked:not(:disabled)")].map(x=>x.value);
+    if(!picked.length){ $("#pm_err").textContent="Tick at least one person."; $("#pm_err").hidden=false; return; }
+    const people=($("#pm_list")._people||[]).filter(p=>picked.includes(p.id));
+    const title=String(needLabel(c)||"Event duty").slice(0,120);
+    await BPUI.guard($("#pm_save"),async()=>{
+      let done=0;
+      try{ for(const p of people){ await BPStore.ops.assignTasks(id,title,[title],p.id,p.name,p.phone); done++; }
+        closePeople(); BPUI.toast(`Assigned ${done} ${done===1?"person":"people"}.`,{type:"ok"}); await load(); }
+      catch(e){ $("#pm_err").textContent=(done?`Assigned ${done}, then stopped: `:"")+BPUI.friendlyError(e,{action:"assign the person"}); $("#pm_err").hidden=false; if(done) await load(); }
+    },{busyLabel:"Assigning…"});
+  }
+  $("#pm_close").addEventListener("click",closePeople);
+  $("#pm_save").addEventListener("click",savePeople);
+  $("#personModal").addEventListener("click",e=>{ if(e.target.id==="personModal") closePeople(); });
+
+  function reqFor(b){ const rs=vreqs.filter(r=>r.booking_id===b.id); return rs.find(r=>r.status==="sent"||r.status==="accepted")||rs[rs.length-1]||null; }
   function renderBookings(){
     const byV=Object.fromEntries(vendors.map(v=>[v.id,v]));
     const byN=Object.fromEntries(checked.map(c=>[c.id,c]));
-    if(!bookings.length){ $("#bookRows").innerHTML='<tr><td colspan="7" class="empty">No external bookings yet.</td></tr>'; return; }
+    if(!bookings.length){ $("#bookRows").innerHTML='<tr><td colspan="6" class="empty">No vendors yet. Use <b>Assign vendor</b> on anything that is missing.</td></tr>'; return; }
     $("#bookRows").innerHTML=bookings.map(b=>{
-      const v=byV[b.vendor_id]; const need=b.need_id?byN[b.need_id]:null;
+      const v=byV[b.vendor_id]; const need=b.need_id?byN[b.need_id]:null; const vn=esc(v?sn(v.name):(b.label||"Vendor"));
       const opts=["enquiry","booked","confirmed","delivered","cancelled"].map(s=>`<option value="${s}" ${s===b.status?"selected":""}>${BK[s]}</option>`).join("");
+      const rq=reqFor(b);
+      const rqTxt=rq?`<div class="rp-req"><span class="cov ${esc(rq.status==="accepted"?"ok":rq.status==="sent"?"out":"gap")}">${esc(BPStore.vendorRequests.statusLabel(rq.status))}</span></div>`:"";
+      const canSend=canVend && BPStore.vendorRequests && b.vendor_id && b.status!=="cancelled" && !(rq&&(rq.status==="sent"||rq.status==="accepted"));
       return `<tr>
-        <td><b>${esc(v?v.name:(b.label||"Partner"))}</b>${v?`<div class="muted">${esc(KIND[v.kind]||v.kind||"")}</div>`:""}</td>
-        <td>${esc(need?need.label:(b.label||""))}</td>
-        <td class="num">${b.cost!=null?esc(BPStore.studioMoney(b.cost)):""}</td>
-        <td class="num">${b.advance!=null?esc(BPStore.studioMoney(b.advance)):""}</td>
-        <td>${b.contract?'<span class="cov ok">✓ Signed</span>':'<span class="muted">—</span>'}</td>
-        <td>${canEdit?`<select class="rm" data-bkstatus="${esc(b.id)}" aria-label="Status for ${esc(v?v.name:(b.label||"partner"))}">${opts}</select>`:esc(BK[b.status]||b.status)}</td>
-        <td>${canEdit?`<button type="button" class="rm" data-bkedit="${esc(b.id)}" aria-label="Edit cost and advance for ${esc(v?v.name:(b.label||"partner"))}">Edit</button> `:""}${canDelete?`<button type="button" class="rm" data-bkdel="${esc(b.id)}" aria-label="Remove booking for ${esc(v?v.name:(b.label||"partner"))}">Remove</button>`:""}</td>
+        <td><b>${vn}</b>${v?`<div class="muted">${esc(VKIND[v.kind]||v.kind||"")}</div>`:""}</td>
+        <td>${esc(need?needLabel(need):(b.label||""))}</td>
+        <td class="num" data-l="Cost">${b.cost!=null?esc(BPStore.studioMoney(b.cost)):""}</td>
+        <td class="num" data-l="Advance">${b.advance!=null?esc(BPStore.studioMoney(b.advance)):""}</td>
+        <td>${canEdit?`<select class="rm" data-bkstatus="${esc(b.id)}" aria-label="Status for ${vn}">${opts}</select>`:esc(BK[b.status]||b.status)}${b.contract?' <span class="cov ok">✓ Contract</span>':""}${rqTxt}</td>
+        <td class="rp-act">${canSend?`<button type="button" class="btn sm" data-bksend="${esc(b.id)}" aria-label="Send request to ${vn}">Send request</button> `:""}${canEdit?`<button type="button" class="rm" data-bkedit="${esc(b.id)}" aria-label="Edit cost and advance for ${vn}">Edit</button> `:""}${canDelete?`<button type="button" class="rm" data-bkdel="${esc(b.id)}" aria-label="Remove ${vn} from this event">Remove</button>`:""}</td>
       </tr>`;
     }).join("");
-    $("#bookRows").querySelectorAll("select[data-bkstatus]").forEach(s=>s.addEventListener("change",()=>BPUI.guard(s,async()=>{ try{ await BPStore.bookings.update(s.dataset.bkstatus,{status:s.value}); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the booking"}),{type:"err"}); } await load(); })));
-    $("#bookRows").querySelectorAll("[data-bkedit]").forEach(b=>b.addEventListener("click",()=>openBooking(null,bookings.find(x=>x.id===b.dataset.bkedit))));
-    $("#bookRows").querySelectorAll("[data-bkdel]").forEach(b=>b.addEventListener("click",async()=>{
-      if(!(await BPUI.confirm("Remove this booking? Its cost and advance will no longer count toward the event.",{title:"Remove booking?",danger:true}))) return;
-      await BPUI.guard(b,async()=>{ try{ await BPStore.bookings.remove(b.dataset.bkdel); BPUI.toast("Booking removed.",{type:"ok"}); await load(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove the booking"}),{type:"err"}); } }); }));
+    const B=$("#bookRows");
+    B.querySelectorAll("select[data-bkstatus]").forEach(s=>s.addEventListener("change",()=>BPUI.guard(s,async()=>{ try{ await BPStore.bookings.update(s.dataset.bkstatus,{status:s.value}); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the vendor"}),{type:"err"}); } await load(); })));
+    B.querySelectorAll("[data-bkedit]").forEach(b=>b.addEventListener("click",()=>openBooking(null,bookings.find(x=>x.id===b.dataset.bkedit))));
+    B.querySelectorAll("[data-bksend]").forEach(b=>b.addEventListener("click",()=>{ const bk=bookings.find(x=>x.id===b.dataset.bksend); openBooking(bk&&bk.need_id?checked.find(c=>c.id===bk.need_id):null,null,bk); }));
+    B.querySelectorAll("[data-bkdel]").forEach(b=>b.addEventListener("click",async()=>{
+      if(!(await BPUI.confirm("Remove this vendor from the event? Their cost and advance will no longer count toward the event.",{title:"Remove vendor?",danger:true}))) return;
+      await BPUI.guard(b,async()=>{ try{ await BPStore.bookings.remove(b.dataset.bkdel); BPUI.toast("Vendor removed from this event.",{type:"ok"}); await load(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove the vendor"}),{type:"err"}); } }); }));
   }
 
-  let editBk=null;
-  function openBooking(need,existing){
-    editBk=existing||null;
-    bookNeed=need||null;
-    $("#bm_title").textContent = existing ? "Edit booking" : need ? "Book a partner for this gap" : "Book a partner";
-    $("#bk_label").value = need ? (need.label||"") : "";
-    $("#bk_vendor").innerHTML = vendors.length ? vendors.map(v=>`<option value="${esc(v.id)}">${esc(sn(v.name))} — ${esc(KIND[v.kind]||v.kind||"")}</option>`).join("") : `<option value="">(add partners in Vendors first)</option>`;
+  // ---- Assign vendor: send them a request (0256 accept / decline link) or just note an agreed vendor ----
+  let editBk=null, sendBk=null;
+  const canRequest=()=> !!(canVend && BPStore.vendorRequests && BPStore.mode()==="supabase");
+  function setMode(m){ const send=m==="send";
+    $("#bk_modeSend").checked=send; $("#bk_modeNote").checked=!send;
+    $("#bk_send").hidden=!send; $("#bk_noteBox").hidden=send;
+    $("#bm_save").textContent = editBk ? "Save" : send ? "Send request" : "Save vendor"; }
+  function openBooking(need,existing,forBooking){
+    editBk=existing||null; sendBk=forBooking||null; bookNeed=need||null;
+    $("#bm_title").textContent = existing ? "Edit vendor" : forBooking ? "Send request to vendor" : need ? "Assign vendor - "+needLabel(need) : "Assign vendor";
+    $("#bk_label").value = need ? needLabel(need) : (forBooking ? (forBooking.label||"") : "");
+    $("#bk_vendor").innerHTML = `<option value="">${vendors.length?"Choose a vendor…":"(add vendors in Vendors first)"}</option>`+vendors.map(v=>`<option value="${esc(v.id)}">${esc(sn(v.name))} — ${esc(VKIND[v.kind]||v.kind||"")}</option>`).join("");
+    $("#vr_qty").value = need ? (need.gap||need.qty||"") : (forBooking&&forBooking.qty!=null ? forBooking.qty : "");
     $("#bk_cost").value=""; $("#bk_adv").value=""; $("#bk_status").value="booked"; $("#bk_contract").checked=false; $("#bk_note").value="";
+    $("#vr_date").value=(ev&&ev.eventDate)?String(ev.eventDate).slice(0,10):""; $("#vr_time").value=(ev&&/^\d{2}:\d{2}/.test(ev.eventTime||""))?ev.eventTime.slice(0,5):"10:00";
+    $("#vr_where").value=(ev&&ev.client&&ev.client.venue)?String(ev.client.venue).slice(0,300):""; $("#vr_amt").value=forBooking&&forBooking.cost!=null?forBooking.cost:""; $("#vr_det").value=""; $("#vr_mail").checked=true;
     if(existing){
-      if(!vendors.some(v=>v.id===existing.vendor_id)) $("#bk_vendor").innerHTML+=`<option value="${esc(existing.vendor_id||"")}">(current partner)</option>`;
+      if(!vendors.some(v=>v.id===existing.vendor_id)) $("#bk_vendor").innerHTML+=`<option value="${esc(existing.vendor_id||"")}">(current vendor)</option>`;
       $("#bk_vendor").value=existing.vendor_id||""; $("#bk_label").value=existing.label||""; $("#bk_cost").value=existing.cost!=null?existing.cost:""; $("#bk_adv").value=existing.advance!=null?existing.advance:"";
       $("#bk_status").value=existing.status||"booked"; $("#bk_contract").checked=!!existing.contract; $("#bk_note").value=existing.note||"";
     }
-    $("#bk_vendor").disabled=!!existing; $("#bk_status").disabled=!!existing;   // partner & status are not edited here (status has its own control)
-    $("#bm_err").hidden=true; $("#bookModal").hidden=false; bookDirty.clean(); setTimeout(()=>$("#bk_label").focus(),50);
+    if(forBooking){ if(!vendors.some(v=>v.id===forBooking.vendor_id)) $("#bk_vendor").innerHTML+=`<option value="${esc(forBooking.vendor_id||"")}">(current vendor)</option>`; $("#bk_vendor").value=forBooking.vendor_id||""; }
+    $("#bk_vendor").disabled=!!(existing||forBooking); $("#bk_status").disabled=!!existing;   // vendor & status are not edited here (status has its own control)
+    // the two ways to assign: only a new assignment offers both; an edit is "already agreed", a re-send is a request
+    $("#bk_modeWrap").hidden = !!(existing||forBooking) || !canRequest();
+    setMode(existing ? "note" : forBooking ? "send" : (canRequest() ? "send" : "note"));
+    $("#bm_err").hidden=true; $("#bookModal").hidden=false; bookDirty.clean(); setTimeout(()=>$(existing?"#bk_label":"#bk_vendor").focus(),50);
   }
   const bookDirty=BPUI.trackDirty($("#bookModal"));
-  function closeBooking(){ $("#bookModal").hidden=true; bookNeed=null; editBk=null; $("#bk_vendor").disabled=false; $("#bk_status").disabled=false; bookDirty.clean(); }
+  function closeBooking(){ $("#bookModal").hidden=true; bookNeed=null; editBk=null; sendBk=null; $("#bk_vendor").disabled=false; $("#bk_status").disabled=false; bookDirty.clean(); }
   async function requestCloseBooking(){ if($("#bookModal").hidden) return; if(!(await BPUI.confirmDiscard(bookDirty))) return; closeBooking(); }
+  const bmErr=(m,el)=>{ $("#bm_err").textContent=m; $("#bm_err").hidden=false; try{ if(el) el.focus(); }catch(_){} };
+  async function sendRequest(){
+    const vendor_id=$("#bk_vendor").value||null; if(!vendor_id) return bmErr("Choose the vendor.",$("#bk_vendor"));
+    const what=$("#bk_label").value.trim(); if(!what||/[<>]/.test(what)) return bmErr("Say what the vendor brings (no < or >).",$("#bk_label"));
+    const qv=$("#vr_qty").value; const qty=qv===""?null:Number(qv); if(qty!==null && !(qty>0)) return bmErr("Quantity must be above 0.",$("#vr_qty"));
+    const d=$("#vr_date").value, t=$("#vr_time").value; if(!d||!t) return bmErr("Pick the date and time.",d?$("#vr_time"):$("#vr_date"));
+    let tz="Asia/Kolkata"; try{ tz=BPStore.studioTimezone()||tz; }catch(_){}
+    const iso=window.HelmDelivery&&HelmDelivery.zonedToIso?HelmDelivery.zonedToIso(d,t,tz):new Date(d+"T"+t).toISOString(); if(!iso) return bmErr("Pick the date and time.",$("#vr_date"));
+    const av=$("#vr_amt").value; const amt=Number(av); if(av===""||!(amt>=0)) return bmErr("Enter the agreed amount (0 or more).",$("#vr_amt"));
+    const where=$("#vr_where").value.trim(), det=$("#vr_det").value.trim(); if(/[<>]/.test(where+det)) return bmErr("Where / details may not contain < or >.",$("#vr_where"));
+    if(!sendBk && bookNeed){ const dup=bookings.find(b=>b.status!=="cancelled" && b.vendor_id===vendor_id && b.need_id===bookNeed.id);
+      if(dup) return bmErr("This vendor is already on this event for it. Use Send request on their row below."); }
+    await BPUI.guard($("#bm_save"),async()=>{
+      try{
+        const row=await BPStore.vendorRequests.save({ quote_id:id, vendor_id, booking_id: sendBk?sendBk.id:undefined, what:what.slice(0,200), qty, when_at:iso,
+          where_text:where||null, details:det||null, agreed_amount:Math.round(amt*100)/100, send:!!$("#vr_mail").checked });
+        // one place, no double entry: the request made the event's vendor row - link it to this need so the need is covered
+        if(!sendBk && bookNeed && row && row.booking_id){
+          try{ await BPStore.bookings.update(row.booking_id,{need_id:bookNeed.id}); await BPStore.resources.updateNeed(bookNeed.id,{status:"outsourced"}); }
+          catch(e){ console.warn("request sent, but couldn't link it to the need:",(e&&e.message)||e); }
+        }
+        closeBooking(); BPUI.toast("Request sent to "+((row&&row.vendor_name)||"the vendor")+".",{type:"ok"}); await load();
+        if(row&&row.link&&row.link.token) showSent(row);
+      }catch(e){ bmErr(BPUI.friendlyError(e,{action:"send the request"})); }
+    },{busyLabel:"Sending…"});
+  }
+  function showSent(row){
+    const url=BPStore.vendorRequests.linkUrl(row.link.token); if(!url) return;
+    $("#sm_text").textContent = row.contact_email ? "The e-mail to "+row.contact_email+" is queued (it goes out when studio e-mail is on). You can also send the link yourself:" : (row.vendor_name||"This vendor")+" has no e-mail saved - send them this link:";
+    $("#sm_link").value=url;
+    $("#sm_wa").href="https://wa.me/"+String(row.contact_phone||"").replace(/\D/g,"")+"?text="+encodeURIComponent("Hello "+(row.vendor_name||"")+", please confirm "+(row.what||"")+" for "+(row.event_title||"our event")+" ("+(row.when_text||"")+"): "+url);
+    $("#sentModal").hidden=false; setTimeout(()=>$("#sm_copy").focus(),50);
+  }
+  $("#sm_close").addEventListener("click",()=>{ $("#sentModal").hidden=true; });
+  $("#sentModal").addEventListener("click",e=>{ if(e.target.id==="sentModal") $("#sentModal").hidden=true; });
+  $("#sm_copy").addEventListener("click",()=>{ try{ navigator.clipboard.writeText($("#sm_link").value).then(()=>BPUI.toast("Link copied.",{type:"ok"})); }catch(_){ $("#sm_link").select(); } });
+  $("#sm_link").addEventListener("focus",e=>e.target.select());
   async function saveBooking(){
+    if(!editBk && $("#bk_modeSend").checked && !$("#bk_modeWrap").hidden) return sendRequest();
+    if(sendBk) return sendRequest();
     const vendor_id=$("#bk_vendor").value||null;
-    const label=$("#bk_label").value.trim() || (vendor_id&&vendors.find(v=>v.id===vendor_id)?vendors.find(v=>v.id===vendor_id).name:"Booking");
+    if(!editBk && !vendor_id) return bmErr("Choose the vendor.",$("#bk_vendor"));
+    const label=$("#bk_label").value.trim() || (vendor_id&&vendors.find(v=>v.id===vendor_id)?vendors.find(v=>v.id===vendor_id).name:"Vendor");
     const v=vendors.find(x=>x.id===vendor_id);
     const V=BPStore.validate;
     let cost=null, advance=null;
     if(($("#bk_cost").value||"").trim()!==""){ const cr=V.money($("#bk_cost").value,{field:"Cost"}); if(!cr.ok){ $("#bm_err").textContent=cr.error; $("#bm_err").hidden=false; return; } cost=cr.value; }
     if(($("#bk_adv").value||"").trim()!==""){ const ar=V.money($("#bk_adv").value,{field:"Advance"}); if(!ar.ok){ $("#bm_err").textContent=ar.error; $("#bm_err").hidden=false; return; } advance=ar.value; }
     if(advance!=null && cost!=null && advance>cost){ $("#bm_err").textContent="Advance can't exceed the cost"; $("#bm_err").hidden=false; return; }
+    const qv=$("#vr_qty").value; const qn=qv===""?null:Number(qv); if(qn!==null && !(qn>0)) return bmErr("Quantity must be above 0.",$("#vr_qty"));
     const rec={ vendor_id, need_id: bookNeed?bookNeed.id:null, kind: v?v.kind:null, label,
-      qty: bookNeed?bookNeed.qty:null,
+      qty: qn!=null ? qn : (bookNeed?bookNeed.qty:null),
       cost, advance,
       contract:$("#bk_contract").checked, status:$("#bk_status").value, note:$("#bk_note").value.trim()||null };
     if(editBk){
       await BPUI.guard($("#bm_save"),async()=>{
-        try{ await BPStore.bookings.update(editBk.id,{ label, cost, advance, contract:rec.contract, note:rec.note }); closeBooking(); BPUI.toast("Booking updated.",{type:"ok"}); await load(); }
-        catch(e){ $("#bm_err").textContent=BPUI.friendlyError(e,{action:"update the booking"}); $("#bm_err").hidden=false; }
+        try{ await BPStore.bookings.update(editBk.id,{ label, cost, advance, contract:rec.contract, note:rec.note }); closeBooking(); BPUI.toast("Vendor updated.",{type:"ok"}); await load(); }
+        catch(e){ $("#bm_err").textContent=BPUI.friendlyError(e,{action:"update the vendor"}); $("#bm_err").hidden=false; }
       },{busyLabel:"Saving…"});
       return;
     }
-    // block booking the same partner for the same need (or same label when no need) twice
+    // block adding the same vendor for the same need (or same label when no need) twice
     const nl=t=>String(t||"").trim().toLowerCase();
     const dupBk=bookings.find(b=>b.status!=="cancelled" && vendor_id && b.vendor_id===vendor_id && (rec.need_id ? b.need_id===rec.need_id : (!b.need_id && nl(b.label)===nl(label))));
-    if(dupBk){ $("#bm_err").textContent=`${v?v.name:"This partner"} is already booked for "${label}" on this event. Edit that booking instead (or cancel it first).`; $("#bm_err").hidden=false; return; }
+    if(dupBk){ $("#bm_err").textContent=`${v?v.name:"This vendor"} is already on this event for "${label}". Edit that row instead (or cancel it first).`; $("#bm_err").hidden=false; return; }
     await BPUI.guard($("#bm_save"),async()=>{
-      try{ const row=await BPStore.bookings.add(id, rec); closeBooking(); BPUI.toast("Booking saved.",{type:"ok"}); await load(); if(row&&row.id&&!bookings.some(b=>b.id===row.id)){ bookings.push(row); renderBookings(); } }
-      catch(e){ $("#bm_err").textContent=BPUI.friendlyError(e,{action:"save the booking",setupHint:"phase9-vendors.sql"}); $("#bm_err").hidden=false; }
+      try{ const row=await BPStore.bookings.add(id, rec); closeBooking(); BPUI.toast("Vendor saved.",{type:"ok"}); await load(); if(row&&row.id&&!bookings.some(b=>b.id===row.id)){ bookings.push(row); renderBookings(); } }
+      catch(e){ $("#bm_err").textContent=BPUI.friendlyError(e,{action:"save the vendor",setupHint:"phase9-vendors.sql"}); $("#bm_err").hidden=false; }
     },{busyLabel:"Saving…"});
   }
   $("#bookBtn").addEventListener("click",()=>openBooking(null));
   $("#bm_close").addEventListener("click",requestCloseBooking);
   $("#bm_cancel").addEventListener("click",requestCloseBooking);
   $("#bm_save").addEventListener("click",saveBooking);
+  $("#bk_modeSend").addEventListener("change",()=>setMode("send"));
+  $("#bk_modeNote").addEventListener("change",()=>setMode("note"));
   $("#bookModal").addEventListener("click",e=>{ if(e.target.id==="bookModal") requestCloseBooking(); });
+  document.addEventListener("keydown",e=>{ if(e.key!=="Escape") return; if(!$("#sentModal").hidden) $("#sentModal").hidden=true; else if(!$("#personModal").hidden) closePeople(); });
 
   async function addNeed(){
     const kind=$("#n_kind").value; const V=BPStore.validate; const qr=V.count($("#n_qty").value,{allowZero:false,field:"Quantity"}); if(!qr.ok){ BPUI.toast(qr.error,{type:"err"}); $("#n_qty").focus(); return; } const qty=qr.value;
@@ -314,17 +511,20 @@
     b.disabled=!canEdit;
     if(!canEdit) b.title="Your role can view the resource plan but not change it."; else b.removeAttribute("title");
   }
+  // r24: every new requirement goes in with ONE insert (type guessed: our people / our stock / other), then one reload
   function pullFromRequirements(){ if(!canEdit||$("#pullBtn").hidden) return; return BPUI.guard($("#pullBtn"),async()=>{
     $("#pullMsg").textContent="";
     try{
       const reqs=await BPStore.discovery.listReqs(id);
       if(!reqs.length){ $("#pullMsg").textContent="No discovery requirements to pull."; return; }
       const nl=t=>String(t||"").trim().toLowerCase();
-      const existing=new Set(checked.map(c=>(c.kind||"other")+"|"+nl(c.kind==="inventory"?c.detail:c.label)));
-      let added=0;
-      for(const r of reqs){ const key="other|"+nl(r.service); if(!nl(r.service)||existing.has(key)) continue; existing.add(key);
-        await BPStore.resources.addNeed(id,{ kind:"other", label:r.service, qty:r.qty||1, note:"from requirements" }); added++; }
-      $("#pullMsg").textContent = added?`Added ${added} need${added===1?"":"s"}.`:"Already up to date.";
+      const existing=new Set(checked.map(c=>nl(c.label)));
+      const rows=[];
+      for(const r of reqs){ const key=nl(r.service); if(!key||existing.has(key)) continue; existing.add(key);
+        const m=BPStore.resources.mapRequirement(r.service,items);
+        rows.push(Object.assign({ kind:"other", label:String(r.service).slice(0,200), qty:Number(r.qty)>0?Number(r.qty):1, note:"from requirements" }, m)); }
+      if(rows.length) await BPStore.resources.addNeeds(id,rows);
+      $("#pullMsg").textContent = rows.length?`Added ${rows.length} need${rows.length===1?"":"s"}. Check the type on each row.`:"Already up to date.";
       await load();
     }catch(e){ $("#pullMsg").textContent=BPUI.friendlyError(e,{action:"pull the requirements"}); }
   }); }
@@ -341,34 +541,67 @@
   $("#n_add").addEventListener("click",addNeed);
   $("#pullBtn").addEventListener("click",pullFromRequirements);
 
-  async function load(){
-    try{
-      items = await BPStore.inventory.items(false).catch(()=>[]);
-      $("#n_item").innerHTML = items.map(i=>`<option value="${esc(i.id)}">${esc(sn(i.name))}</option>`).join("");
-      checked = await BPStore.resources.check(id);
-    }catch(e){ BPUI.loadError($("#rows"),e,load,{what:"resource needs"}); $("#gapHint").hidden=true; return; }
-    try{ vendors = await BPStore.vendors.listAll(false); }catch{ vendors=[]; }
-    let bookErr=null;
-    try{ bookings = await BPStore.bookings.list(id); }catch(e){ bookings=[]; bookErr=e; }
+  // r24 speed: ONE parallel round of this event's rows only (needs, its reservations, its tasks, its vendors, its
+  // requests) + the item / vendor pickers. The table paints from that; "how many are free that day" for the few
+  // stock items the needs use is filled in afterwards (it never blocks the page).
+  function fetchAll(){
+    const soft=(p)=>Promise.resolve().then(()=>p()).catch(()=>[]);
+    return Promise.all([
+      BPStore.resources.listNeeds(id).then(v=>({ok:v}),e=>({err:e})),
+      soft(()=>BPStore.inventory.items(false)),
+      soft(()=>BPStore.inventory.reservations(id)),
+      soft(()=>BPStore.resources._eventCrewTasks(id)),
+      soft(()=>BPStore.vendors.listAll(false)),
+      BPStore.bookings.list(id).then(v=>({ok:v}),e=>({err:e})),
+      soft(()=>BPStore.vendorRequests?BPStore.vendorRequests.list(id,null):[]),
+    ]);
+  }
+  let loadSeq=0;
+  async function load(pre){
+    const seq=++loadSeq;
+    const [nr, it, rs, ts, vs, br, vq]=await (pre||fetchAll());
+    if(seq!==loadSeq) return;
+    if(nr.err){ BPUI.loadError($("#rows"),nr.err,()=>load(),{what:"resource needs"}); $("#gapHint").hidden=true; return; }
+    needs=nr.ok||[]; items=it||[]; ownRes=rs||[]; tasks=ts||[]; vendors=vs||[]; vreqs=Array.isArray(vq)?vq:[];
+    bookings = br.err ? [] : (br.ok||[]);
+    $("#n_item").innerHTML = items.map(i=>`<option value="${esc(i.id)}">${esc(sn(i.name))}</option>`).join("");
+    checked=BPStore.resources.coverage(needs,{reservations:ownRes,tasks,bookings,items});
     render();
-    if(bookErr) BPUI.loadError($("#bookRows"),bookErr,load,{what:"bookings"}); else renderBookings();
+    if(br.err) BPUI.loadError($("#bookRows"),br.err,()=>load(),{what:"vendors"}); else renderBookings();
+    freeStock(seq);
+  }
+  async function freeStock(seq){
+    const ids=[...new Set(checked.filter(c=>c.kind==="inventory"&&c.item_id&&!c.covered).map(c=>c.item_id))];
+    if(!ids.length||!canInv) return;
+    try{ const av=await BPStore.inventory.availability(id,ids); if(seq!==loadSeq) return;
+      ids.forEach(k=>{ const a=av[k]; free[k]=a?Math.max(0,Math.floor(Number(a.availableOnEvent!=null?a.availableOnEvent:a.available)||0)):0; });
+    }catch(e){ ids.forEach(k=>{ if(free[k]==null) free[k]=0; }); }
+    if(seq===loadSeq) render();
   }
   BPUI.boot(async ()=>{
-    await BPStore.init(); await renderAccount();
+    await BPStore.init(); renderAccount().catch(()=>{});
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("resources"))) return;
     // r20 (live QA): opened without ?quote= (e.g. /<studio>/resources) -> "Pick an event" list, not "Event not found"
     if(!id){ if(window.HelmPickEvent) HelmPickEvent.show($("#notfound"),"resources","resource plan"); else $("#notfound").hidden=false; return; }
-    canEdit=await BPStore.auth.canEditArea("resources"); canDelete=canEdit && await BPStore.auth.can("delete");
-    let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
-    if(!ev){ $("#notfound").hidden=false; return; }
+    const pre=fetchAll();   // r24: the data starts loading now, alongside the event + role checks
+    const A=BPStore.auth, ok=(p)=>Promise.resolve().then(p).catch(()=>false);
+    let evErr=null;
+    const [e1, ce, cd, ci, cs, cv]=await Promise.all([
+      BPStore.quotes.get(id).catch(e=>{ evErr=e; return null; }),
+      ok(()=>A.canEditArea("resources")), ok(()=>A.can("delete")), ok(()=>A.canEditArea("inventory")), ok(()=>A.canEditArea("staff")), ok(()=>A.canEditArea("vendors")),
+    ]);
+    if(evErr && !BPUI.isNotFound(evErr)) throw evErr;
+    if(!e1){ $("#notfound").hidden=false; return; }
+    ev=e1; canEdit=!!ce; canDelete=canEdit && !!cd; canInv=canEdit && !!ci; canStaff=canEdit && !!cs; canVend=canEdit && !!cv;
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
+    const q="?quote="+encodeURIComponent(id); $("#stepInv").href="inventory.html"+q; $("#stepOps").href="ops.html"+q; $("#stepBudget").href="budget.html"+q;
     $("#app").hidden=false; $("#addCard").hidden=!canEdit; $("#bookBtn").hidden=!canEdit; onKind();
     // r20 (live QA): "Pull from discovery requirements" reads the discovery area - hidden for a role that
     // can't view discovery, and switched off for a role that can't edit the resource plan.
     await gatePull();
-    await load();
+    load(pre);   // the page is up (skeleton rows); the table fills in as soon as the one round of reads lands
   });
 </script>
 </body>

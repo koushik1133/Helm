@@ -25,6 +25,6 @@ assert.match(mig, /revoke all on function public\._n140_tg_lead_dates[^;]*authen
 assert.ok(!/after (insert or update or )?delete/i.test(mig), "deleting a lead leaves nurture rows");
 const html = readFileSync("public/nurture.html", "utf8");
 assert.match(html, /n\.source==="lead"\?' <span class="occ fromlead"/);
-assert.match(html, />From lead<\/span>/);
+assert.match(html, />Added from a past client<\/span>/);
 assert.match(html, /\.occ\.fromlead\{/);
 console.log("nurture-lead-dates: ok");

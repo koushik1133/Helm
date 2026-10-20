@@ -71,7 +71,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="payment-schedule.css?v=1">
-<script src="/shell-proto.js?v=40" id="shellProto"></script>
+<script src="/shell-proto.js?v=41" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -93,11 +93,11 @@
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
 
     <div class="tabs" id="tabs" role="group" aria-label="Section">
-      <button type="button" data-t="compliance" class="on" aria-pressed="true">📋 Permits</button>
-      <button type="button" data-t="comms" aria-pressed="false">📣 Comms</button>
-      <button type="button" data-t="logistics" aria-pressed="false">🚚 Logistics</button>
-      <button type="button" data-t="payments" aria-pressed="false">💳 Payments</button>
-      <button type="button" data-t="guests" aria-pressed="false">👥 Guests</button>
+      <button type="button" data-t="compliance" class="on" aria-pressed="true">📋 Permits &amp; licences</button>
+      <button type="button" data-t="comms" aria-pressed="false">📣 Who tells whom (checklist)</button>
+      <button type="button" data-t="logistics" aria-pressed="false">🚚 Transport &amp; deliveries</button>
+      <button type="button" data-t="payments" aria-pressed="false">💳 Client payments</button>
+      <button type="button" data-t="guests" aria-pressed="false">👥 Guest count</button>
     </div>
 
     <div id="pane" class="card"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
@@ -120,7 +120,7 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=107"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=274"></script>
 <script src="tour.js?v=24"></script>
 <script src="payment-schedule.js?v=1"></script>
 <script>
@@ -144,9 +144,11 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); } }
 
-  const CHK_HELP={ logistics:"Transport, deliveries, movements — who does what, by when.",
-    compliance:"Permits & compliance — licences, insurance, safety sign-offs.",
-    comms:"Who tells whom what, and when — client, crew, vendors, guests." };
+  // r24: plain tab names + a one-line "what is this" for each tab
+  const TAB_NAME={ compliance:"Permits & licences", comms:"Who tells whom (checklist)", logistics:"Transport & deliveries", payments:"Client payments", guests:"Guest count" };
+  const CHK_HELP={ logistics:"Trucks, pickups and deliveries — what moves where, who handles it, by when.",
+    compliance:"Licences, police / fire permissions, insurance and safety sign-offs this event needs.",
+    comms:"A checklist of who must tell whom what, and when — client, team, vendors, guests." };
 
   function act(btn,fn,action){ return BPUI.guard(btn,async()=>{ try{ await fn(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action}),{type:"err"}); } }); }
   const SPACER='<span aria-hidden="true" style="font-size:12px">&nbsp;</span>';
@@ -160,7 +162,7 @@
     // generic checklist (logistics / compliance / comms)
     const items = await BPStore.checklist.list(id, tab);
     const done = items.filter(i=>i.status==="done").length;
-    $("#pane").innerHTML = `<h2>${tab[0].toUpperCase()+tab.slice(1)}</h2><p class="sub">${CHK_HELP[tab]}</p>
+    $("#pane").innerHTML = `<h2>${esc(TAB_NAME[tab]||tab)}</h2><p class="sub">${CHK_HELP[tab]}</p>
       ${canEdit?`<div class="addrow chk">
         <div class="fld"><label for="a_title">Item *</label><input id="a_title" maxlength="200" required placeholder="what needs doing"></div>
         <div class="fld"><label for="a_owner">Owner</label>${peopleSelectHTML("a_owner","")}</div>
@@ -203,7 +205,7 @@
   async function renderGuests(){
     const items = await BPStore.checklist.list(id,"guests");
     const total = items.reduce((a,g)=>a+Number(g.qty||0),0);
-    $("#pane").innerHTML = `<h2>Guests</h2><p class="sub">Track expected headcount by group (family, company, VIPs…). Totals help you match seating.</p>
+    $("#pane").innerHTML = `<h2>Guest count</h2><p class="sub">How many guests we expect, by group (family, company, VIPs…). The Event-day page shows these groups under “Guests arriving”.</p>
       ${canEdit?`<div class="addrow guest">
         <div class="fld"><label for="g_name">Group *</label><input id="g_name" maxlength="120" required placeholder="e.g. Bride's family"></div>
         <div class="fld"><label for="g_qty">Headcount</label><input id="g_qty" type="number" min="0" max="100000" value="0"></div>
@@ -243,7 +245,7 @@
         const take=Math.min(a,left); left-=take; const rem=Math.round((a-take)*100)/100;
         if(a>0&&rem<=0.005){ covered.add(m.id); alloc.set(m.id,{paid:a,rem:0}); } else alloc.set(m.id,{paid:Math.round(take*100)/100,rem}); });
     const phone=(ev.client&&(ev.client.phone))||"";
-    $("#pane").innerHTML = `<h2>Payment schedule</h2><p class="sub">Milestones the client pays across the event. Recording a payment marks every milestone it fully covers as paid; automatic reminders go to the client before, on and after each due date (Control Center).</p>
+    $("#pane").innerHTML = `<h2>Client payments</h2><p class="sub">When the client pays us, in parts (advance, balance…). Recording a payment marks every part it fully covers as paid; reminders go to the client before, on and after each due date (Control Center).</p>
       <div id="pschCtl" class="psch-ctl" hidden></div>
       ${canEdit?`<div class="addrow pay">
         <div class="fld"><label for="m_label">Milestone *</label><input id="m_label" maxlength="120" required placeholder="e.g. 50% advance"></div>

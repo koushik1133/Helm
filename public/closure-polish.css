@@ -102,3 +102,6 @@ html[data-shell] #closeBtn.cl-anyway,#closeBtn.cl-anyway{background:var(--panel,
   -webkit-text-fill-color:#7a5200;border:1px solid #d4a72c!important;box-shadow:none!important}
 html[data-shell] #closeBtn.cl-anyway:hover,#closeBtn.cl-anyway:hover{background:#fffaf0!important;transform:none}
 @media (min-width:641px){.cl-modal .cl-inv thead th{white-space:normal}.cl-modal .cl-inv th,.cl-modal .cl-inv td{padding:6px}}   /* the dialog table fits without sideways scroll on desktop */
+/* r24 plain words: one-line "what this page is for" under the breadcrumb */
+.page-purpose{margin:0 0 14px;font-size:14px;line-height:1.45;color:var(--ink-2,#4b475f);font-weight:500;max-width:72ch}
+.page-purpose b{color:var(--ink,#1b1930);font-weight:700}

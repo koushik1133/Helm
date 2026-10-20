@@ -66,10 +66,10 @@
   @media print{ header .nav,.account,#addCard,.rowacts,#printBtn,.crumb,footer{display:none!important} .wrap{max-width:100%} body{background:#fff} .card{box-shadow:none;border:none;padding:0} }
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="runsheet-polish.css?v=4">
+<link rel="stylesheet" href="runsheet-polish.css?v=5">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=40" id="shellProto"></script>
+<script src="/shell-proto.js?v=41" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -101,9 +101,14 @@
         <div class="fld"><label for="r_time">Start time</label><input type="time" id="r_time"></div>
         <div class="fld"><label for="r_dur">Mins</label><input type="number" min="1" id="r_dur" aria-describedby="addErr" placeholder="e.g. 30"></div>
         <div class="fld"><label for="r_title">Activity *</label><input id="r_title" maxlength="200" required placeholder="e.g. Guests arrive / Cake cutting"></div>
-        <div class="fld"><label for="r_owner">Owner</label><select id="r_owner"><option value="">Select person…</option></select></div>
+        <div class="fld"><label for="r_owner">Owner</label><select id="r_owner"><option value="">Select person…</option></select><input id="r_owner_other" maxlength="120" placeholder="Type a name" aria-label="Owner name" hidden></div>
         <div class="fld"><label for="r_loc">Location</label><input id="r_loc" maxlength="120" placeholder="e.g. Main hall"></div>
         <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Add item</button></div>
+      </div>
+      <div class="rsr" id="r_remWrap" hidden>
+        <label class="grpopt" for="r_rem"><input type="checkbox" id="r_rem" checked> 🔔 Remind the owner</label>
+        <select id="r_remAt" aria-label="When to remind the owner"></select>
+        <label class="grpopt" for="r_remGrp"><input type="checkbox" id="r_remGrp"> Also post the reminder in the event group</label>
       </div>
       <label class="grpopt" id="r_grpWrap" hidden><input type="checkbox" id="r_grp"> Also post in the event group</label>
       <div id="addErr" class="err s-8a77e5a" hidden role="alert" aria-live="assertive"></div>
@@ -129,7 +134,12 @@
     <div class="fld s-fdf33f2"><label for="e_time">Start time</label><input type="time" id="e_time"></div>
     <div class="fld s-fdf33f2"><label for="e_dur">Duration (mins)</label><input type="number" min="1" id="e_dur" aria-describedby="e_err"></div>
     <div class="fld s-fdf33f2"><label for="e_title">Activity</label><input id="e_title" maxlength="200"></div>
-    <div class="fld s-fdf33f2"><label for="e_owner">Owner</label><select id="e_owner"><option value="">Select person…</option></select></div>
+    <div class="fld s-fdf33f2"><label for="e_owner">Owner</label><select id="e_owner"><option value="">Select person…</option></select><input id="e_owner_other" maxlength="120" placeholder="Type a name" aria-label="Owner name" hidden></div>
+    <div class="rsr" id="e_remWrap" hidden>
+      <label class="grpopt" for="e_rem"><input type="checkbox" id="e_rem" checked> 🔔 Remind the owner</label>
+      <select id="e_remAt" aria-label="When to remind the owner"></select>
+      <label class="grpopt" for="e_remGrp"><input type="checkbox" id="e_remGrp"> Also post the reminder in the event group</label>
+    </div>
     <div class="fld s-fdf33f2"><label for="e_loc">Location</label><input id="e_loc" maxlength="120"></div>
     <div class="fld s-fdf33f2"><label for="e_note">Note</label><input id="e_note"></div>
     <label class="grpopt" id="e_grpWrap" hidden><input type="checkbox" id="e_grp"> Also post in the event group</label>
@@ -152,19 +162,14 @@
 <script src="telemetry.js?v=5"></script>
 <script src="config.js?v=107"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=274"></script>
 <script src="tour.js?v=24"></script>
+<script src="runsheet-remind.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  // shared staff+vendor people picker for the Owner dropdowns
-  let PEOPLE_OPTS=[];
-  function fillOwner(sel, selected){
-    if(!sel) return; selected=selected||"";
-    const grp=(label,kind)=>{ const arr=PEOPLE_OPTS.filter(p=>p.kind===kind); return arr.length?`<optgroup label="${label}">`+arr.map(p=>`<option value="${esc(p.name)}" ${p.name===selected?"selected":""}>${esc(p.name)}${p.role?" · "+esc(p.role):""}</option>`).join("")+`</optgroup>`:""; };
-    const custom=(selected&&!PEOPLE_OPTS.some(p=>p.name===selected))?`<option value="${esc(selected)}" selected>${esc(selected)}</option>`:"";
-    sel.innerHTML=`<option value="">Select person…</option>${custom}${grp("Staff","staff")}${grp("Vendors","vendor")}`;
-  }
+  // r24 (0269): Owner picker (Team / Staff / Vendors / someone else) + the line's reminder - runsheet-remind.js
+  const RR=window.HelmRsRemind;
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const hhmm=(t)=> t? t.slice(0,5) : "";
   const addMin=(t,m)=>{ if(!t||m==null||m==="") return ""; const [h,mi]=t.slice(0,5).split(":").map(Number); const d=new Date(2000,0,1,h,mi+Number(m)); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); };
@@ -199,10 +204,11 @@
       return `<div class="row">
         <div class="time">${esc(start)}${end?`<span class="dur">to ${esc(end)}${i.duration_min?` · ${esc(i.duration_min)} min`:""}</span>`:(i.duration_min?`<span class="dur">${esc(i.duration_min)} min</span>`:"")}</div>
         <div class="what"><b>${esc(i.title)}</b>
-          <div class="sub">${i.owner?`<span class="tag">👤 ${esc(i.owner)}</span>`:""}${i.location?`<span class="tag">📍 ${esc(i.location)}</span>`:""}${i.note?esc(i.note):""}</div></div>
+          <div class="sub">${i.owner?`<span class="tag">👤 ${esc(i.owner)}</span>`:""}${i.location?`<span class="tag">📍 ${esc(i.location)}</span>`:""}${i.note?esc(i.note):""}<span class="rsr-slot" data-rsr="${esc(i.id)}"></span></div></div>
         <div class="rowacts">${canEdit?`<button type="button" class="ic" data-edit="${esc(i.id)}" aria-label="Edit ${esc(i.title)}">Edit</button>`:""}${canDelete?`<button type="button" class="ic del" data-del="${esc(i.id)}" data-name="${esc(i.title)}" aria-label="Remove ${esc(i.title)}">✕</button>`:""}</div>
       </div>`;
     }).join("");
+    $("#rows").querySelectorAll("[data-rsr]").forEach(n=>{ const t=RR&&RR.tag(n.dataset.rsr); if(t) n.replaceWith(t); else n.remove(); });
     $("#rows").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openEdit(items.find(x=>x.id===b.dataset.edit))));
     $("#rows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
       if(!(await BPUI.confirm(`Remove “${b.dataset.name||"this item"}” from the run-sheet?`,{title:"Remove item?",danger:true}))) return;
@@ -216,15 +222,15 @@
     $("#addErr").hidden=true;
     await BPUI.guard($("#r_add"),async()=>{
       try{ const row=await BPStore.runsheet.add(id,{ start_time:$("#r_time").value||null, duration_min:dr.value,
-        title, owner:$("#r_owner").value.trim()||null, location:$("#r_loc").value.trim()||null });
+        title, ...RR.readOwner("r"), ...RR.readRemind("r"), location:$("#r_loc").value.trim()||null });
         if(GROUP.has_group && $("#r_grp").checked && row && row.id) await postGroup(row.id,"added");
-        $("#r_title").value=""; $("#r_owner").value=""; $("#r_loc").value=""; $("#r_dur").value=""; await load(); $("#r_time").focus(); }
+        $("#r_title").value=""; RR.fillOwner("r",null); $("#r_loc").value=""; $("#r_dur").value=""; await load(); $("#r_time").focus(); }
       catch(e){ $("#addErr").textContent=BPUI.friendlyError(e,{action:"add the item",setupHint:"phase11-runsheet.sql"}); $("#addErr").hidden=false; }
     });
   }
   const editDirty=BPUI.trackDirty($("#editModal"));
   function openEdit(i){ if(!i) return; editingId=i.id; $("#e_time").value=hhmm(i.start_time); $("#e_dur").value=i.duration_min!=null?i.duration_min:"";
-    $("#e_title").value=i.title||""; fillOwner($("#e_owner"), i.owner||""); $("#e_loc").value=i.location||""; $("#e_note").value=i.note||""; $("#e_grp").checked=GROUP.has_group&&GROUP.member; $("#e_err").hidden=true; $("#editModal").hidden=false; editDirty.clean(); setTimeout(()=>$("#e_time").focus(),50); }
+    $("#e_title").value=i.title||""; RR.fillOwner("e", i); $("#e_loc").value=i.location||""; $("#e_note").value=i.note||""; $("#e_grp").checked=GROUP.has_group&&GROUP.member; $("#e_err").hidden=true; $("#editModal").hidden=false; editDirty.clean(); setTimeout(()=>$("#e_time").focus(),50); }
   function closeEdit(){ $("#editModal").hidden=true; editingId=null; editDirty.clean(); }
   async function requestCloseEdit(){ if($("#editModal").hidden) return; if(!(await BPUI.confirmDiscard(editDirty))) return; closeEdit(); }
   async function saveEdit(){ const V=BPStore.validate; const fail=(m)=>{ $("#e_err").textContent=m; $("#e_err").hidden=false; };
@@ -233,7 +239,7 @@
     let dr=$("#e_dur").value.trim()===""?{ok:true,value:null}:V.count($("#e_dur").value,{field:"Duration (min)"}); if(dr.ok&&dr.value!=null&&(dr.value<1||dr.value>1440)) dr={ok:false,error:"Duration must be 1–1440 minutes"}; if(!dr.ok){ fail(dr.error); return; }
     await BPUI.guard($("#e_save"),async()=>{
       try{ await BPStore.runsheet.update(editingId,{ start_time:$("#e_time").value||null, duration_min:dr.value,
-        title:$("#e_title").value.trim()||"Untitled", owner:$("#e_owner").value.trim()||null, location:$("#e_loc").value.trim()||null, note:$("#e_note").value.trim()||null });
+        title:$("#e_title").value.trim()||"Untitled", ...RR.readOwner("e"), ...RR.readRemind("e"), location:$("#e_loc").value.trim()||null, note:$("#e_note").value.trim()||null });
         const savedId=editingId, post=GROUP.has_group && $("#e_grp").checked;
         closeEdit(); if(post && savedId) await postGroup(savedId,"updated"); await load(); }catch(e){ fail(BPUI.friendlyError(e,{action:"save the item"})); } },{busyLabel:"Saving…"}); }
 
@@ -266,7 +272,7 @@
         .catch(e=>BPUI.toast(BPUI.friendlyError(e,{action:"update the task"}),{type:"err"})); }));
   }
   async function load(){
-    try{ items=await BPStore.runsheet.list(id); }
+    try{ items=await BPStore.runsheet.list(id); await RR.loadTargets(BPStore,id); }
     catch(e){ BPUI.loadError($("#rows"),e,load,{what:"the run-sheet"}); $("#win").hidden=true; return; }
     render();
   }
@@ -285,8 +291,8 @@
       canEdit=false; canDelete=false; $("#backLink").href="dashboard.html"; $("#backLink").textContent="← Back to dashboard"; renderMyTasks(); }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"")+(ev.eventDate?(" · "+ev.eventDate):"");
     $("#app").hidden=false; $("#addCard").hidden=!canEdit;
-    try{ PEOPLE_OPTS=await BPStore.people.options(); }catch{ PEOPLE_OPTS=[]; }
-    fillOwner($("#r_owner"),"");
+    await RR.init(BPStore);
+    RR.fillOwner("r",null); RR.wire("r"); RR.wire("e");
     GROUP=await BPStore.runsheet.groupStatus(id).catch(()=>({has_group:false,member:false}));
     $("#r_grpWrap").hidden=$("#e_grpWrap").hidden=!GROUP.has_group;
     $("#r_grp").checked=$("#e_grp").checked=GROUP.has_group&&GROUP.member;

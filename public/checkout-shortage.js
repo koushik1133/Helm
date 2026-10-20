@@ -15,7 +15,8 @@
   "use strict";
   var OPEN = { out: 1, partial: 1 };
   function n(x) { var v = Number(x); return isFinite(v) ? v : 0; }
-  function stillOut(c) { return Math.max(n(c.qty_out) - n(c.qty_in), 0); }
+  // r24 (0268): a written-off missing unit is already off the total - not also still out
+  function stillOut(c) { return Math.max(n(c.qty_out) - n(c.qty_in) - Math.max(n(c.written_off) - n(c.qty_damaged), 0), 0); }
   function liveQuote(q) {
     return !!q && !(q.deleted_at || q.archived_at || q.status === "cancelled" || (q.lifecycle_stage === "closed" && q.status === "confirmed"));
   }

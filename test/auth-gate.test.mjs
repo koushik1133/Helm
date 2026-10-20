@@ -16,7 +16,7 @@ const t = (name, fn) => tests.push([name, fn]);
 // Pages anyone may open without a studio session. Everything else is protected
 // (default-deny: a NEW page must either get the gate or be added here on purpose).
 const PUBLIC = ['index', 'about', 'services', 'privacy', 'terms', 'refund-policy', 'data-deletion', 'cookie-policy', 'dpa', 'acceptable-use', 'subprocessors', 'security', 'sla', 'accessibility', 'grievance', 'ai-notice', 'copyright', 'login', 'reset-password',
-  'approve', 'portal', 'booklet', 'proposal-view', 'work', 'invite', 'sim-pay', '404', 'manual', 'hq', 'pricing', 'try', 'demo', 'unsubscribe', 'auth-confirm', 'delivery', 'vendor-request'];   // 0256: one-tap vendor request + invoice link page (public)   // 0241: one-tap delivery status link page (public)   // 0205: /auth/confirm e-mail link page (public)
+  'approve', 'portal', 'booklet', 'proposal-view', 'work', 'invite', 'sim-pay', '404', 'manual', 'hq', 'pricing', 'try', 'demo', 'unsubscribe', 'auth-confirm', 'enquiry', 'delivery', 'vendor-request'];   // 0269: 'enquiry' = public per-studio enquiry form (/<studio>/enquiry)   // 0256: one-tap vendor request + invoice link page (public)   // 0241: one-tap delivery status link page (public)   // 0205: /auth/confirm e-mail link page (public)
 const PAGES = readdirSync(new URL('public/', root)).filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -5));
 const PROTECTED = PAGES.filter((p) => !PUBLIC.includes(p));
 const GATE_CSS = /<style[^>]*>[^<]*html\.auth-pending body[^{]*\{[^}]*visibility:\s*hidden/;

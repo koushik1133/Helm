@@ -263,7 +263,7 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=3">
 <link rel="stylesheet" href="comms-settings.css?v=2">
-<link rel="stylesheet" href="payment-schedule.css?v=1">
+<link rel="stylesheet" href="payment-schedule.css?v=1"><link rel="stylesheet" href="automations.css?v=1">
 <link rel="stylesheet" href="delivery-tracker.css?v=1">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
@@ -273,7 +273,7 @@
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=15">
 <link rel="stylesheet" href="quote-validity.css?v=1"><link rel="stylesheet" href="link-views.css?v=1">
-<script src="/shell-proto.js?v=40" id="shellProto"></script>
+<script src="/shell-proto.js?v=41" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -795,6 +795,12 @@
         <button type="button" class="btn" id="pr_save">Save photo render settings</button>
       </div>
 
+      <!-- r24 (0269): Automations - one list of everything Helm does by itself + run-sheet reminders + the enquiry form
+           (built + wired by automations.js; the two settings cards stay hidden before 0269) -->
+      <div class="card" id="autoCard" hidden></div>
+      <div class="card" id="rsrCard" hidden></div>
+      <div class="card" id="enqCard" hidden></div>
+
       <!-- 0241: delivery / arrival reminders (built + wired by delivery-settings.js; hidden before 0241) -->
       <div class="card" id="dlvCard" hidden></div>
 
@@ -881,7 +887,7 @@
       <div class="fld" hidden><label for="mp_emergency_contact_name">Emergency contact name</label><input id="mp_emergency_contact_name" maxlength="80" autocomplete="off" aria-describedby="mp_e_emergency_contact_name"><p class="ferr" id="mp_e_emergency_contact_name" hidden></p></div>
       <div class="fld" hidden><label for="mp_emergency_contact_phone">Emergency contact number</label><input id="mp_emergency_contact_phone" type="tel" autocomplete="off" aria-describedby="mp_e_emergency_contact_phone"><p class="ferr" id="mp_e_emergency_contact_phone" hidden></p></div>
       <div class="mpsec" id="mp_staffsec">Staff record (admins only)</div>
-      <div class="fld" id="mp_rate_fld"><label for="mp_day_rate">Day rate (₹)</label><input id="mp_day_rate" type="number" min="0" step="0.01" placeholder="optional" aria-describedby="mp_h_day_rate mp_e_day_rate"><p class="mphint" id="mp_h_day_rate">Not needed for team logins. Leave empty to keep what is saved.</p><p class="ferr" id="mp_e_day_rate" hidden></p></div>
+      <div class="fld" id="mp_rate_fld"><label for="mp_day_rate" title="What you pay this person for one day of an event (not per hour)">Day rate per event day (₹)</label><input id="mp_day_rate" type="number" min="0" step="0.01" placeholder="optional" aria-describedby="mp_h_day_rate mp_e_day_rate"><p class="mphint" id="mp_h_day_rate">Not needed for team logins. Leave empty to keep what is saved.</p><p class="ferr" id="mp_e_day_rate" hidden></p></div>
       <div class="fld" id="mp_emp_fld"><label for="mp_emp_type">Employment type</label><select id="mp_emp_type" aria-describedby="mp_e_emp_type"><option value="">—</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select><p class="ferr" id="mp_e_emp_type" hidden></p></div>
     </div>
     <div class="lerr s-56f4356" id="mp_err" role="alert" hidden></div>
@@ -905,7 +911,7 @@
 <script src="config.js?v=107"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=274"></script>
 <script src="event-reminders.js?v=3"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -920,6 +926,7 @@
 <script src="delivery-settings.js?v=1"></script>
 <script src="inbox-settings.js?v=1"></script><script src="crew-shifts.js?v=1"></script>
 <script src="link-views.js?v=1"></script>
+<script src="automations.js?v=1"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=3"></script>
 <script src="cc-inputs.js?v=4"></script>
@@ -933,8 +940,8 @@
 <script src="trial-demo.js?v=18"></script>
 <script src="trial-upgrade.js?v=2"></script>
 <script src="settings-search-core.js?v=1"></script>
-<script src="search-catalog.js?v=8"></script>
-<script src="control-split.js?v=22"></script>
+<script src="search-catalog.js?v=9"></script>
+<script src="control-split.js?v=23"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -2260,6 +2267,7 @@
     if(npStarted) return; npStarted=true;
     if(typeof HelmCommsSettings!=="undefined") HelmCommsSettings.init();   // 0078 (independent of the prefs load)
     if(typeof HelmDeliverySettings!=="undefined") HelmDeliverySettings.init();   // 0241 delivery reminders
+    if(typeof HelmAutomations!=="undefined") HelmAutomations.init();   // r24 (0269) Automations
     await loadNotify(); renderNotify();
     try{ npUsers=(await BPStore.auth.admin.listUsers())||[]; }catch(e){ npUsers=[]; }
     npUsers.sort((a,b)=>String(a.full_name||a.email||"").localeCompare(String(b.full_name||b.email||"")));

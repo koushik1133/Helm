@@ -116,6 +116,10 @@
       <a href="#team-members">Control Center: team members</a>
       <a href="#notification-inbox">Inbox (notifications)</a>
       <a href="#on-your-phone">Helm on your phone</a>
+      <a href="#automation">Automations: run-sheet reminders, one Automations page, leads tracked automatically (R24)</a>
+      <a href="#plain-words">Plain words &amp; cleaner pages (R24)</a>
+      <a href="#resources">Covering an event: stock, people, vendors, budget</a>
+      <a href="#stock">Stock for an event: Reserved → Out → Back</a>
 <!-- /@gen:nav-new -->
       <div class="grp">Win the event</div>
       <a href="#leads">Leads, CRM &amp; nurture</a>
@@ -203,6 +207,10 @@
         <li><a href="#team-members">Control Center: the team members table</a></li>
         <li><a href="#notification-inbox">Inbox (notifications)</a></li>
         <li><a href="#on-your-phone">Using Helm on your phone</a></li>
+        <li><a href="#automation">Automations: run-sheet reminders, one Automations page, leads tracked automatically (R24)</a></li>
+        <li><a href="#plain-words">Plain words &amp; cleaner pages (R24)</a></li>
+        <li><a href="#resources">Covering an event: stock, people, vendors, budget</a></li>
+        <li><a href="#stock">Stock for an event: Reserved → Out → Back</a></li>
       </ol>
       <b>Coming soon</b>
       <ol>
@@ -581,6 +589,93 @@
 <h3>Other phone improvements</h3>
 <ul><li>Bigger buttons in the top bar, easy to tap with a thumb.</li><li>On the event page the current stage sits in the middle between the ‹ › arrows.</li><li>Next to a date box Helm shows the date written out, e.g. &quot;Thu, 29 Oct 2026&quot;, so dd/mm vs mm/dd is never a doubt.</li><li>The <b>All quotes</b> list puts the name on its own line with a short status such as &quot;Awaiting approval&quot;.</li><li><b>Complete your profile</b> only shows on the dashboard, so it never covers chat, menus or the Share pop-up.</li><li>In the Builder the zoom buttons stay on screen and the floor is centred.</li></ul>
 <div class="note">Tip: on Android Chrome or iPhone Safari use <b>Add to Home screen</b> to open Helm like an app.</div>
+</section>
+
+<section class="mch" data-src="r24-automation.md">
+<h2 id="automation">Automations: run-sheet reminders, one Automations page, leads tracked automatically (R24)</h2>
+<h3>1. Run-sheet reminders</h3>
+<p><b>What it does.</b> The person who owns a run-sheet line is reminded before the line starts.</p>
+<p><b>How to set it up on a line</b></p>
+<ol class="steps"><li>Open the event's <b>Run-sheet</b>.</li><li>In <b>Owner</b>, pick a person:<ul><li><b>Team</b>: someone with a Helm login.</li><li><b>Staff</b>: someone from your Staff list.</li><li><b>Vendors</b>: a vendor.</li><li><b>Someone else (type a name)</b>: type any name. This works as before.</li></ul></li><li>Once an owner is picked, <b>🔔 Remind the owner</b> is ticked. Keep the studio default time, or choose 5 / 10 / 15 / 30 minutes, 1 or 2 hours before, or &quot;At the start time&quot;. Untick it if this line needs no reminder.</li><li>Tick <b>Also post the reminder in the event group</b> if the whole team should see it in the event's chat.</li><li>Save. The line now shows a small bell with when the reminder goes and who gets it, for example *🔔 15 min before + at the start → Ravi (bell, e-mail)*.</li></ol>
+<p><b>Who gets what</b></p>
+<div class="tbl"><table><tr><th>Owner</th><th>How they are reminded</th></tr><tr><td>Team member (has a login)</td><td>Bell in Helm, plus e-mail</td></tr><tr><td>Staff member</td><td>WhatsApp with their task link, plus e-mail if they have one (and the bell if they have a login)</td></tr><tr><td>Vendor</td><td>WhatsApp, plus e-mail if they have one</td></tr><tr><td>Typed name</td><td>Only when the name matches one staff member or team member exactly. Otherwise only the event group post, if ticked</td></tr></table></div>
+<p><b>Things to know</b></p>
+<ul><li>A line needs a <b>start time</b>, and the event needs a <b>date</b>. Otherwise the bell says &quot;Add a start time&quot;.</li><li>Each reminder is sent once only and is never late. If Helm misses the time by more than 20 minutes, it skips that reminder.</li><li>Cancelled, closed and sample events are never reminded.</li><li><b>Free trial:</b> reminders go to the bell and the event group only. No e-mail or WhatsApp is sent.</li><li>E-mail and WhatsApp wait in a queue until sending is switched on for your studio.</li></ul>
+<p><b>Who can do what:</b> anyone with <b>Run-sheet edit</b> can set owners and reminders. The default times are set in Control Center (see below).</p>
+<h3>2. Control Center → Automations</h3>
+<p>One page lists everything Helm does by itself. Each row shows what it does, where it acts, and whether it is <b>On</b> or <b>Off</b>, with a <b>Settings</b> button for the details:</p>
+<ul><li>Event reminders (always on; the number of days is under Reminders &amp; client messages)</li><li>Delivery &amp; arrival reminders</li><li>Run-sheet reminders</li><li>Payment reminders and client follow-ups (if you switch one on before choosing how to send it, Helm uses e-mail)</li><li>Overdue payment alert, Viewed but not approved, Quote expiry and E-mail digests. These show &quot;Not set up yet&quot; until that update is installed.</li><li>Low stock warnings</li><li>Enquiry form → Leads</li><li>Quotes → Leads (always on)</li></ul>
+<p>The same page also has two settings cards:</p>
+<ul><li><b>Run-sheet reminders</b>: on / off, the default reminder times (up to 4; the default is 15 minutes before plus at the start), and e-mail / WhatsApp on or off.</li><li><b>Enquiry form</b>: see below.</li></ul>
+<p><b>Who can do what:</b> anyone with Control Center view can see this page. Only people with <b>Control Center edit</b> (admins) can change it. Every change is saved in the Audit log.</p>
+<h3>3. Leads tracked automatically</h3>
+<ul><li><b>From quotes:</b> every quote with a client name already becomes a lead (source &quot;Quote&quot;). The lead moves along with the quote. Nothing new to do.</li><li><b>From your public enquiry form (new):</b><ol><li>Go to Control Center → Automations → <b>Enquiry form</b>.</li><li>Tick <b>Open my public enquiry form</b> and press <b>Save</b>.</li><li>Copy your link, which looks like <code>helm.events/&lt;your-studio&gt;/enquiry</code>. Put it on your website, Instagram bio or WhatsApp.</li><li>The client fills in their name, phone or e-mail, type of event, date, guests and a message, and ticks that you may contact them.</li><li>A new lead appears in <b>Leads</b> under New, with source &quot;Enquiry form&quot;. You also get a bell notice saying &quot;New enquiry from …&quot;.</li><li>If you leave <b>Send an instant thank-you e-mail</b> ticked, the client gets your thank-you note. You can write it yourself using {name} {studio} {event}. It is sent once e-mail is switched on for your studio. Free trials do not send it.</li></ol></li><li>On the Leads page, admins also see a <b>🔗 Enquiry form</b> button that opens these settings.</li></ul>
+<p><b>Safety:</b> the form shows only your studio name. It never shows other data. Limits are 5 enquiries an hour from one network, 30 an hour per studio and 3 a day from the same phone or e-mail. Bots are caught by a hidden field. The form is <b>off</b> until you switch it on.</p>
+<p><b>Not included:</b> the Helm website's own contact form and &quot;Contact sales&quot; are for Helm itself, so they do not create studio leads.</p>
+</section>
+
+<section class="mch" data-src="r24-plain-words.md">
+<h2 id="plain-words">Plain words &amp; cleaner pages (R24)</h2>
+<p>Some pages had names that were hard to follow. They now use plain words, and each money page says in one line what it is for. Nothing about your data changed. Only the names and layout did.</p>
+<h3>Logistics page: what the tabs are called now</h3>
+<div class="tbl"><table><tr><th>Old name</th><th>New name</th><th>What it is for</th></tr><tr><td>Permits</td><td><b>Permits &amp; licences</b></td><td>Licences, police/fire permissions, insurance, safety sign-offs</td></tr><tr><td>Comms</td><td><b>Who tells whom (checklist)</b></td><td>Who must tell whom what, and by when (client, team, vendors, guests)</td></tr><tr><td>Logistics</td><td><b>Transport &amp; deliveries</b></td><td>Trucks, pickups and deliveries: what moves where, who handles it, by when</td></tr><tr><td>Payments</td><td><b>Client payments</b></td><td>When the client pays us, in parts (advance, balance). Reminders go from here</td></tr><tr><td>Guests</td><td><b>Guest count</b></td><td>How many guests we expect, by group (family, company, VIPs)</td></tr></table></div>
+<p>Each tab shows a one-line explanation under its title.</p>
+<h3>Event-day page</h3>
+<ul><li><b>Guests arriving (from Guest count)</b>: the guest groups you entered in Logistics → Guest count show up here on their own. Tap <b>＋ In</b> as guests arrive. <b>↻ Refresh from Guest count</b> adds any group you entered later.</li><li><b>Arrivals &amp; attendance</b>: your team and booked vendors are listed as soon as you open the page. <b>↻ Refresh team &amp; vendors</b> adds anyone assigned or booked after that. Nobody is added twice.</li><li><b>Before doors open (checklist)</b> (was &quot;Setup &amp; technical checks&quot;): what to check before guests come in, like stage, sound, lights, power and safety exits.</li><li>The automatic lists fill in only for people who can edit the Event-day page. Everyone else sees what is already there.</li></ul>
+<h3>Issues &amp; incidents</h3>
+<ul><li><b>Charge the client for this (extra)</b> (was &quot;Raise a billable change&quot;): opens Budget so you can add a <b>change request</b>, which puts the extra cost on the client's bill. Only people who can see money see this link.</li></ul>
+<h3>Budget, Settlement, Closure: what each one is for</h3>
+<ul><li><b>Budget</b>: *Plan: what this event should cost and earn.* The top tiles show the <b>Planned profit</b>. The &quot;Budget &amp; margin&quot; card below shows only the breakdown, so the profit appears once. If your database doesn't have that card yet, the older breakdown card is shown instead, now titled <b>How the planned profit adds up</b>.</li><li><b>Settlement</b>: *Money in and out: collect from the client, pay vendors &amp; staff.* The last tile is now <b>Still to pay out</b>: money owed to vendors plus approved staff claims not yet paid. The profit tile was removed from this page. The vendor table says <b>Vendor</b> where it used to say &quot;Partner&quot;.</li><li><b>Closure</b>: *Final result and close the event.* The <b>Profit</b> in the Closure summary is the one final profit number. The P&amp;L breakdown is still below it.</li></ul>
+<h3>Nurture</h3>
+<ul><li>A short legend sits above the list: <b>Active</b> = we keep in touch, <b>Won</b> = became a lead again, <b>Dormant</b> = paused.</li><li><b>Done for this year</b> (was &quot;Followed up&quot;): press it after you follow up. The next follow-up moves one year ahead.</li><li><b>Added from a past client</b> (was &quot;From lead&quot;): this occasion came from the Birthday/Anniversary saved on the client's lead. Change the date on the lead.</li></ul>
+<h3>Event page</h3>
+<ul><li><b>Event documents (contracts, permits, layouts)</b> (was &quot;Attachments&quot;): keep the signed contract, permits, venue layout and vendor quotes here. Only your team can open them. The client does not see this list.</li></ul>
+<h3>Business and Insights</h3>
+<ul><li><b>Business</b>: *Money today: what's owed, collected and coming.*</li><li><b>Insights</b>: *How we're doing over time: trends per event &amp; team.*</li><li>The &quot;Top events by profit&quot; list is no longer on Business when you can open Insights, because Insights already has <b>Profit per event</b>. Business shows a link to it instead. If your role can't open Insights, the list stays on Business.</li></ul>
+<h3>Dashboard</h3>
+<ul><li><b>My events &amp; tasks</b> (was &quot;Upcoming &amp; my tasks&quot; / &quot;My work&quot;): events you are on, with your tasks for each.</li><li><b>Quotes pipeline</b> (was &quot;All quotes&quot; / &quot;Your quotes&quot;): every quote in the studio, from draft to confirmed.</li></ul>
+<h3>Staff</h3>
+<ul><li><b>Day rate (per event day)</b>: what you pay this person for one day of an event, not per hour. The budget uses it to work out crew wages. The same label is used in Control Center → member profile.</li></ul>
+<h3>Who can do what</h3>
+<p>Nothing changed. Each page keeps its existing access rules.</p>
+</section>
+
+<section class="mch" data-src="r24-resources.md">
+<h2 id="resources">Covering an event: stock, people, vendors, budget</h2>
+<p>Once an event is confirmed, open it and click the <b>Resources</b> stage. You will see four numbered cards. Work through them in order:</p>
+<ol class="steps"><li><b>Inventory</b>: reserve our own stock for this event (chairs, lights, speakers...).</li><li><b>Tasks &amp; staff</b>: assign our people to the event's tasks.</li><li><b>Resource plan</b>: see what is still missing, and get it from vendors.</li><li><b>Budget &amp; margin</b>: check the costs and the margin.</li></ol>
+<p>Each of these pages also says which step it is and links to the next one.</p>
+<h3>The Resource plan</h3>
+<p>The table has five columns: <b>Need · Qty · We have · Missing · Action</b>.</p>
+<ul><li><b>We have</b> counts what is really set aside for this event: our people <b>assigned</b>, or our stock <b>reserved</b>.</li><li><b>Missing</b> shows how many are still not arranged. When everything is arranged it shows <b>✓ Covered</b>.</li></ul>
+<h4>Adding needs</h4>
+<ul><li>Click <b>Pull from discovery requirements</b> to copy the client's requirements in one go. Helm guesses the type: Catering, Security and Valet become <b>Staff</b>; Stage &amp; lighting, Sound, LED and similar become <b>Our stock</b> when you own a matching item; everything else is <b>Other</b>.</li><li>You can also add a need by hand at the bottom of the table.</li><li>To change a need's type, use the small <b>Staff / Our stock / Other</b> box on its row. For <b>Our stock</b>, pick the item in the box next to it.</li></ul>
+<h4>Covering a need</h4>
+<ul><li><b>Assign person</b> (Staff needs): tick the people from your team. Helm shows who is free that day and who is a good match. Each person gets a task in Tasks &amp; staff.</li><li><b>Reserve N</b> (Our stock needs): reserves the stock that is free on the event day. If none is free, the row says so. Get the rest from a vendor.</li><li><b>Assign vendor</b>: choose the vendor, then either:<ul><li><b>Send request to vendor</b>: the vendor gets a link to accept or decline (no sign-in). Enter the date, time, place and agreed amount. After sending you can copy the link or open it in WhatsApp. The answer shows on the vendor's row as *Awaiting reply*, *Accepted* or *Declined*. You can also follow it under Vendors → Requests &amp; invoices.</li><li><b>Already agreed</b>: note the vendor, the cost and the advance, if you agreed by phone or in person.</li></ul></li><li><b>⋯ → Client/venue arranges it</b>: use this when the client or the venue brings it, so there is nothing for us to book. <b>Undo</b> puts it back to missing.</li></ul>
+<p>If a vendor booking for a need is cancelled, the need shows as missing again.</p>
+<h4>Vendors for this event</h4>
+<p>This section lists every vendor on the event with the cost, the advance, the status and the request answer. <b>Send request</b> sends a request to a vendor you noted earlier.</p>
+<h3>Who can do what</h3>
+<ul><li><b>View</b> the plan: anyone whose role can open Resources.</li><li><b>Change needs</b>: roles that can edit Resources.</li><li><b>Reserve stock</b>: roles that can also edit Inventory.</li><li><b>Assign person</b>: roles that can also edit Staff (the person needs a phone number in Staff).</li><li><b>Send request to vendor</b>: roles that can also edit Vendors.</li><li><b>Remove</b> a need or a vendor: roles with delete rights.</li></ul>
+</section>
+
+<section class="mch" data-src="r24-stock.md">
+<h2 id="stock">Stock for an event: Reserved → Out → Back</h2>
+<p>Every item you use for an event goes through the same steps, and Inventory, Teardown &amp; returns, Event-day command and Closure all use the same words.</p>
+<div class="tbl"><table><tr><th>Word</th><th>What it means</th></tr><tr><td><b>Reserved</b></td><td>Held for this event. Nobody has taken it yet.</td></tr><tr><td><b>Out</b></td><td>Given to a person. Helm notes who has it and when it went out.</td></tr><tr><td><b>Back</b></td><td>It came back fine.</td></tr><tr><td><b>Missing</b></td><td>It did not come back. It comes off what you own.</td></tr><tr><td><b>Damaged</b></td><td>It came back broken. It comes off what you own.</td></tr></table></div>
+<p>If you reserved something and nobody ever took it out, there is nothing to return. Teardown shows it as <b>&quot;Reserved — never taken out, nothing to return&quot;</b>, and Helm releases it for you after the event day.</p>
+<h3>Before the event: reserve</h3>
+<ol class="steps"><li>Open the event and go to <b>Inventory</b>.</li><li>Under <b>Stock for this event</b>, pick the item and how many, then press <b>Reserve</b>.</li><li>If you don't need it any more, press <b>Release</b>. The stock is free again. Nothing gets deleted.</li></ol>
+<h3>When stock leaves the store: give it out</h3>
+<ul><li><b>In Inventory:</b> in the event's row press <b>Give out</b>, choose who it goes to (<b>Given to</b>) and press <b>Give out</b>. You can also use the <b>Out &amp; back</b> tab.</li><li><b>On the event day (Event-day command → Live stock requests):</b><ol><li>Type in the search box to find the item. The list scrolls and works on a phone. If you don't keep it in stock, pick <b>Use &quot;…&quot; — not from stock</b>.</li><li>Enter how many and press <b>＋ Ask</b>.</li><li>Press <b>Give out</b> on the request, choose the person and press <b>Give out</b>. This takes the stock out of Inventory, so the numbers match everywhere. If there isn't enough free, Helm says how many are free and offers to give out just those.</li><li><b>Not needed</b> closes the request. <b>Sourced</b> is for shortages you are renting or buying.</li></ol></li></ul>
+<h3>When it comes back: mark it back</h3>
+<ol class="steps"><li>Go to <b>Teardown &amp; returns</b>, the event's Inventory page, or the <b>Out &amp; back</b> tab, and press <b>Mark back</b>.</li><li>Enter <b>Came back OK</b> and <b>Damaged</b>. Whatever you don't count is <b>Missing</b>.</li><li>Confirm. Missing and damaged items come off your stock, once only.</li><li>When everything given out for that item is back, Helm releases the item's reservation automatically.</li></ol>
+<h3>History of an item</h3>
+<p>In <b>Inventory → Stock items</b>, press <b>History</b> on any item. You'll see every time it went out: which event, who it was given to, when it went out and when it came back. If it's still out, it shows <b>Not back yet</b>.</p>
+<h3>Closing the event</h3>
+<p>In the <b>Closure</b> checklist, <b>All stock back</b> only stops you closing when something went <b>Out</b> and hasn't come <b>Back</b>. Stock that was reserved but never taken out doesn't stop you. Missing or damaged stock shows as a warning.</p>
+<h3>Who can do what</h3>
+<ul><li><b>Give out / Mark back on Event-day command:</b> anyone whose role can edit <b>Event-day command</b>, for example a coordinator.</li><li><b>Reserve, Release, Give out and Mark back in Inventory:</b> anyone who can edit <b>Inventory</b>. Event-day editors can also mark back stock that was given out for an event.</li><li><b>See History:</b> anyone who can view Inventory.</li><li>Each studio sees only its own stock.</li></ul>
 </section>
 <!-- /@gen:body-new -->
 

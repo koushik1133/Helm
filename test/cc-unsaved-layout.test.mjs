@@ -89,7 +89,7 @@ t('6. Pricing shows the country read-only; General is the one place to change it
   assert.match(HTML, /\$\("#p_country"\)\.value=newCountry;/);
 });
 t('version pins bumped', () => {
-  assert.match(HTML, /control-split\.js\?v=22/);   // r21 0242: + "#target-margin" deep link
+  assert.match(HTML, /control-split\.js\?v=23/);   // r24 0269: + Automations section (over R23 22)
   assert.match(HTML, /control-split\.css\?v=15/);
   assert.match(HTML, /venues\.css\?v=6/);
 });

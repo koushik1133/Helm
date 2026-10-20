@@ -95,7 +95,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="crew-shifts.css?v=1">
-<script src="/shell-proto.js?v=40" id="shellProto"></script>
+<script src="/shell-proto.js?v=41" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -153,7 +153,7 @@
       <div class="fld"><label for="s_emp">Employment</label><select id="s_emp"><option value="">— Choose employment —</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select><span class="fmsg"></span></div>
       <div class="fld"><label for="s_phone">Phone <span class="req" aria-hidden="true">*</span></label><input id="s_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…" aria-required="true" aria-describedby="s_phone_msg"><span class="fmsg" id="s_phone_msg" aria-live="polite"></span></div>
       <div class="fld"><label for="s_email">Email <span class="req" id="s_email_req" aria-hidden="true" hidden>*</span></label><input id="s_email" type="email" autocomplete="off" placeholder="name@email.com" aria-describedby="s_email_msg"><span class="fmsg" id="s_email_msg" aria-live="polite"></span></div>
-      <div class="fld" id="s_rate_fld"><label for="s_rate">Day rate</label><div class="inpfx"><span class="pfx" id="s_rate_cur" aria-hidden="true">₹</span><input id="s_rate" type="number" min="0" step="any" inputmode="decimal" placeholder="Optional" aria-describedby="s_rate_msg"></div><span class="fmsg fhint" id="s_rate_msg" aria-live="polite"></span></div>
+      <div class="fld" id="s_rate_fld"><label for="s_rate" title="What you pay this person for one day of an event (not per hour). Used to work out crew wages in the budget.">Day rate (per event day)</label><div class="inpfx"><span class="pfx" id="s_rate_cur" aria-hidden="true">₹</span><input id="s_rate" type="number" min="0" step="any" inputmode="decimal" placeholder="Optional" aria-describedby="s_rate_msg"></div><span class="fmsg fhint" id="s_rate_msg" aria-live="polite">Pay for one full event day — used for crew wages in the budget.</span></div>
       <div class="fld"><label for="s_skills">Skills</label><div class="chipbox" id="s_skills_box"><span class="chips" id="s_skills_chips"></span><input id="s_skills" autocomplete="off" placeholder="Add a skill…" aria-describedby="s_skills_msg"></div><span class="fmsg fhint" id="s_skills_msg">Press comma or Enter after each skill.</span></div>
       <div class="fld full"><label for="s_notes">Notes</label><input id="s_notes" placeholder="Optional"></div>
     </div>
@@ -196,7 +196,7 @@
 <script src="config.js?v=107"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=273"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=274"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=5"></script>
@@ -462,7 +462,7 @@
   function setCurrencyPrefix(){
     let sym="\u20b9"; try{ const t=BPStore.studioTax&&BPStore.studioTax(); if(t&&t.symbol) sym=String(t.symbol).trim()||sym; }catch(e){}
     const pfx=$("#s_rate_cur"); pfx.textContent=sym;
-    $("#s_rate").setAttribute("aria-label","Day rate in "+(sym==="\u20b9"?"rupees":sym));
+    $("#s_rate").setAttribute("aria-label","Day rate per event day in "+(sym==="\u20b9"?"rupees":sym));
     requestAnimationFrame(()=>{ const w=pfx.getBoundingClientRect().width; if(w) pfx.parentNode.style.setProperty("--pfx-w",Math.ceil(w)+"px"); });
   }
   // skills: type, then comma / Enter -> a chip; Backspace in the empty box removes the last chip; whatever is still typed is kept on Save

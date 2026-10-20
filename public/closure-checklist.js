@@ -45,10 +45,11 @@
     return { mode: "close", label: "Mark event closed & archived" };
   }
   function invTotals(items) {
-    var t = { items: 0, reserved: 0, out: 0, back: 0, missing: 0, writtenOff: 0, stillOut: 0, reservedOpen: 0, notBack: 0 };
+    var t = { items: 0, reserved: 0, out: 0, back: 0, missing: 0, damaged: 0, writtenOff: 0, stillOut: 0, reservedOpen: 0, notBack: 0 };
     (items || []).forEach(function (i) {
-      t.items++; t.reserved += num(i.reserved); t.out += num(i.checked_out); t.back += num(i.checked_in);
-      t.missing += num(i.missing); t.writtenOff += num(i.written_off); t.stillOut += num(i.still_out); t.reservedOpen += num(i.reserved_open);
+      // r24 (0268): back = came back OK (checked in minus damaged); older servers have no 'back' / 'damaged' keys
+      t.items++; t.reserved += num(i.reserved); t.out += num(i.checked_out); t.back += (i.back != null ? num(i.back) : num(i.checked_in));
+      t.missing += num(i.missing); t.damaged += num(i.damaged); t.writtenOff += num(i.written_off); t.stillOut += num(i.still_out); t.reservedOpen += num(i.reserved_open);
       if (i.status === "fail") t.notBack++;
     });
     return t;
@@ -172,12 +173,12 @@
     l5.appendChild(legendRow("prof", "Crew arrived", num(c.crew_arrived) + " of " + num(c.crew), false)); t5.appendChild(l5); grid.appendChild(t5);
     // inventory movement
     var it = invTotals(r.inventory);
-    var t6 = tile("Equipment", it.items ? it.back + " of " + it.out + " back" : "None booked", null, false);
+    var t6 = tile("Stock", it.items ? (it.out ? it.back + " of " + it.out + " back" : "Nothing went out") : "None booked", null, false);
     if (it.items) {
-      t6.appendChild(meter([{ v: it.back, cls: "prof" }, { v: it.missing, cls: "warn" }, { v: it.stillOut, cls: "loss" }]));
-      var l6 = el("div", "cl-legs"); l6.appendChild(legendRow("prof", "Checked in", fmtQty(it.back), false));
-      l6.appendChild(legendRow("warn", "Missing / written off", fmtQty(Math.max(it.missing, it.writtenOff)), false));
-      l6.appendChild(legendRow("loss", "Still out / not returned", fmtQty(it.stillOut + it.reservedOpen), false)); t6.appendChild(l6);
+      t6.appendChild(meter([{ v: it.back, cls: "prof" }, { v: it.missing + it.damaged, cls: "warn" }, { v: it.stillOut + it.reservedOpen, cls: "loss" }]));
+      var l6 = el("div", "cl-legs"); l6.appendChild(legendRow("prof", "Back", fmtQty(it.back), false));
+      l6.appendChild(legendRow("warn", "Missing / damaged", fmtQty(Math.max(it.missing + it.damaged, it.writtenOff)), false));
+      l6.appendChild(legendRow("loss", "Out, not back yet", fmtQty(it.stillOut + it.reservedOpen), false)); t6.appendChild(l6);
     }
     grid.appendChild(t6);
     // tasks + issues
@@ -195,21 +196,23 @@
   function inventoryTable(items) {
     var wrap = el("div", "cl-inv-wrap"); var t = el("table", "cl-inv");
     t.setAttribute("data-tm", "off");   // keep the real table on phones (scrolls sideways, item column stays put) - not stacked cards
-    var cap = el("caption", null, "Equipment for this event, per item"); t.appendChild(cap);
-    var hr = el("tr"); ["Item", "Reserved", "Checked out", "Checked in", "Missing", "Written off", "Still out", ""].forEach(function (h, i) {
+    var cap = el("caption", null, "Stock for this event, per item"); t.appendChild(cap);
+    var hr = el("tr"); ["Item", "Reserved", "Out", "Back", "Missing", "Damaged", "Not back yet", ""].forEach(function (h, i) {
       var th = el("th", i ? "num" : null, h); th.setAttribute("scope", "col"); if (!h) th.appendChild(el("span", "sr-only", "Status")); hr.appendChild(th); });
     var th0 = el("thead"); th0.appendChild(hr); t.appendChild(th0);
     var tb = el("tbody");
     (items || []).forEach(function (i) {
       var tr = el("tr", "cl-inv-" + (i.status || "ok"));
       var td = el("th", null, i.item || "Item"); td.setAttribute("scope", "row"); tr.appendChild(td);
-      [i.reserved, i.checked_out, i.checked_in, i.missing, i.written_off, num(i.still_out) + num(i.reserved_open)].forEach(function (v) { tr.appendChild(el("td", "num", fmtQty(v))); });
+      // r24 (0268): Back = came back OK; Damaged from the server (older servers: written off beyond missing)
+      var dmg = i.damaged != null ? num(i.damaged) : Math.max(num(i.written_off) - num(i.missing), 0);
+      [i.reserved, i.checked_out, i.back != null ? i.back : i.checked_in, i.missing, dmg, num(i.still_out) + num(i.reserved_open)].forEach(function (v) { tr.appendChild(el("td", "num", fmtQty(v))); });
       var st = el("td", "cl-st"); var ic = el("span", "cl-ic " + (i.status || "ok"), icon(i.status)); ic.setAttribute("aria-hidden", "true"); st.appendChild(ic);
-      st.appendChild(el("span", "sr-only", i.status === "fail" ? "not returned" : i.status === "warn" ? "missing or written off" : "returned"));
+      st.appendChild(el("span", "sr-only", i.status === "fail" ? "not back yet" : i.status === "warn" ? "missing or damaged" : (i.state === "reserved" || i.state === "released") ? "never taken out" : "back"));
       tr.appendChild(st); tb.appendChild(tr);
     });
     t.appendChild(tb); wrap.appendChild(t);
-    wrap.appendChild(el("p", "cl-note", "Still out = checked out and not checked in, plus stock reserved for this event that was never marked returned. Written off = lost or damaged, taken off your stock."));
+    wrap.appendChild(el("p", "cl-note", "Out = given to a person. Not back yet = went out and has not been marked back - only this stops closing. Reserved but never taken out needs no return (it is released automatically). Missing and damaged come off your stock."));
     return wrap;
   }
   // o: { quoteId, fmt, compact (modal), openInventory }
@@ -220,7 +223,7 @@
       var ic = el("span", "cl-ic " + c.status, icon(c.status)); ic.setAttribute("aria-hidden", "true"); li.appendChild(ic);
       var body = el("div", "cl-cbody");
       var top = el("div", "cl-ctop"); top.appendChild(el("span", "sr-only", statusWord(c.status) + ": "));
-      top.appendChild(el("b", null, c.key === "inventory" && c.status === "fail" ? "Equipment not returned" : c.label));
+      top.appendChild(el("b", null, c.key === "inventory" && c.status === "fail" ? "Stock not back yet" : c.label));
       var ow = overrideWord(c.override); if (ow) top.appendChild(el("span", "cl-tag " + (c.override || ""), ow));
       body.appendChild(top);
       var d = el("div", "cl-cdetail", c.detail || "");
@@ -228,7 +231,7 @@
       body.appendChild(d);
       if (c.key === "inventory" && (review.inventory || []).length) {
         var det = el("details", "cl-invd"); if (c.status !== "ok" || o.compact) det.open = true;
-        det.appendChild(el("summary", null, "Per item: checked out, checked in, missing, written off"));
+        det.appendChild(el("summary", null, "Per item: reserved, out, back, missing, damaged"));
         det.appendChild(inventoryTable(review.inventory)); body.appendChild(det);
       }
       li.appendChild(body);
