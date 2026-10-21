@@ -241,6 +241,7 @@ run "r25-hq-metrics-0272" "R25-HQ-METRICS-0272: ALL PASS \(23/23\)" psql -q -f t
 run "r25-currency-0273" "R25-CURRENCY-0273: ALL PASS \(35/35\)" psql -q -f tests/db/r25-currency-0273.sql
 # 0274 re-applies itself (twice + twice more: re-run with the marker, then a simulated first run), rolled back
 run "r25-automations-0274" "R25-AUTOMATIONS-0274: ALL PASS \(30/30\)" psql -q -f tests/db/r25-automations-0274.sql
+run "r26-captcha-0276" "R26-CAPTCHA-0276: ALL PASS \(30/30\)" psql -q -f tests/db/r26-captcha-0276.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

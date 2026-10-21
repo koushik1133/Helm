@@ -2,6 +2,8 @@
    new lead (source "Enquiry form") and, when it switched it on, an instant thank-you e-mail goes to the client.
    Talks only to the public RPCs public_enquiry_info (the studio's NAME, nothing else) and public_enquiry_submit
    (answers ok or a plain-words reason; nothing is ever read back). The hidden "website" field is a bot trap.
+   r26: when config.js has a Turnstile site key, a security check shows above the button; its one-use pass (captcha.js ->
+   captcha-verify) goes in the "captcha" field. No key = the form works exactly as before.
    Text only (textContent), no inline script. */
 (function () {
   "use strict";
@@ -12,6 +14,7 @@
   var m = /^\/([a-z0-9][a-z0-9-]{1,62})\/enquir(?:y|e)\/?$/.exec(location.pathname);
   var slug = (m ? m[1] : String(new URLSearchParams(location.search).get("studio") || "")).trim().toLowerCase();
   var studio = "";
+  var cap = null;   // r26: the security check (null = off), mounted once the form opens
 
   function rpc(fn, body) {
     if (!base || !cfg.anonKey) return Promise.resolve({ ok: false, error: "config" });
@@ -45,6 +48,7 @@
       $("eq-consent-t").textContent = "I agree that " + (studio || "this studio") + " may contact me about my enquiry.";
       $("eq-date").min = today();
       $("eq-form").hidden = false;
+      if (!cap && window.HelmCaptcha) cap = window.HelmCaptcha.guard($("eq-captcha"), "enquiry");
     });
   }
 
@@ -63,7 +67,12 @@
       event_date: $("eq-date").value || null, guests: g || null, message: $("eq-message").value.trim() || null, consent: true };
     var trap = $("eq-website").value; if (trap) body.website = trap;
     var btn = $("eq-send"); btn.disabled = true; btn.textContent = "Sending…";
-    rpc("public_enquiry_submit", { p_slug: slug, p: body }).then(function (r) {
+    (cap ? cap.pass() : Promise.resolve({ ok: true, pass: null })).then(function (c) {
+      if (!c.ok) return { ok: false, captcha: c.message };
+      if (c.pass) body.captcha = c.pass;
+      return rpc("public_enquiry_submit", { p_slug: slug, p: body });
+    }).then(function (r) {
+      if (r.captcha) { btn.disabled = false; btn.textContent = "Send enquiry"; return err(r.captcha); }
       btn.disabled = false; btn.textContent = "Send enquiry";
       var d = r.ok ? r.data : null;
       if (d && d.ok === true) {

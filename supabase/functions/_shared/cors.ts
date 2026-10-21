@@ -20,6 +20,8 @@
 // (e.g. a project literally named "helm-v01-x-vk-hub"), so patterns are never trusted.
 // Server-to-server callers (razorpay-webhook) do not use CORS at all.
 
+import { sentrySend } from "./sentry.mjs";
+
 const DEFAULT_ORIGINS = [
   "https://helm.events",
   "https://www.helm.events",
@@ -66,9 +68,21 @@ export function responders(req: Request) {
   // the caller so internal details (SQL, provider responses) never reach the browser.
   const serverError = (e: unknown) => {
     console.error("internal error:", errTag(e));
+    reportToSentry(req, e);   // r26: optional alert (only with the SENTRY_DSN secret; function name + error tag only)
     return json({ error: "internal error" }, 500);
   };
   return { cors, json, serverError };
+}
+
+// r26: optional Sentry alert for a 500 (OFF unless the SENTRY_DSN secret is set). Carries only the function's
+// name and errTag(e) - never the message, stack, body, headers or caller. Kept alive past the response when the
+// runtime allows (EdgeRuntime.waitUntil); never throws.
+export function reportToSentry(req: Request, e: unknown) {
+  try {
+    const p = sentrySend((k: string) => Deno.env.get(k) || "", globalThis.fetch, req.url, errTag(e));
+    const rt = (globalThis as any).EdgeRuntime;
+    if (p && rt && typeof rt.waitUntil === "function") rt.waitUntil(p);
+  } catch (_) { /* never break the answer */ }
 }
 
 // A log-safe tag for an error: SQLSTATE / name only — never the message body, which

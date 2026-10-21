@@ -40,13 +40,13 @@ t('home contact form: no more mailto, posts to submit_sales_enquiry with source 
   const j = rd('public/home.js');
   assert.ok(!/mailto:sales@helm\.events\?subject/.test(j), 'mailto handler removed');
   assert.ok(j.includes("/rest/v1/rpc/submit_sales_enquiry") && j.includes("source: 'home'") && j.includes("name: 'website'"));
-  assert.ok(j.includes("s.src = '/config.js'"), 'config.js loaded on first use');
+  assert.ok(/s\.src = '\/config\.js(\?v=\d+)?'/.test(j), 'config.js loaded on first use');
   assert.ok(j.includes("a.href = '/suggest'"), 'footer suggestion link');
 });
 
 t('suggestions: profile menu item for every role, lazy dialog, store method, public page', () => {
   const a = rd('public/auth-ui.js');
-  assert.ok(a.includes('{ id: "suggest", label: "Send a suggestion" }') && a.includes('"/suggest.js?v=1"'));
+  assert.ok(a.includes('{ id: "suggest", label: "Send a suggestion" }') && /"\/suggest\.js\?v=\d+"/.test(a));
   assert.ok(rd('public/store-api.js').includes('suggest: (p) => rpc("submit_suggestion", { p: p || {} })'));
   const s = rd('public/suggest.js');
   assert.ok(s.includes('window.HelmSuggest = { open: openDialog }') && s.includes('/rest/v1/rpc/submit_suggestion'));

@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/contact-sales.css?v=1">
+<link rel="stylesheet" href="/contact-sales.css?v=2">
 <link rel="stylesheet" href="/site-header.css?v=1">
 </head>
 <body>
@@ -142,6 +142,7 @@
         <div class="cs-trap" aria-hidden="true"><label for="cs-website">Website</label><input id="cs-website" tabindex="-1" autocomplete="off"></div>
         <label class="cs-consent cs-full" for="cs-consent"><input type="checkbox" id="cs-consent"> <span>Helm may contact me about my enquiry. See our <a href="/privacy">Privacy Policy</a>.</span></label>
       </div>
+      <div class="cs-captcha" id="cs-captcha" hidden></div>
       <p id="cs-err" class="cs-err" role="alert" hidden></p>
       <button type="submit" class="cs-btn" id="cs-send">Send to sales</button>
     </form>
@@ -159,8 +160,9 @@
 </div></footer>
 
 <script src="/trusted-types.js?v=3"></script>
-<script src="/config.js?v=108"></script>
-<script src="/contact-sales.js?v=1"></script>
+<script src="/config.js?v=109"></script>
+<script src="/captcha.js?v=2"></script>
+<script src="/contact-sales.js?v=2"></script>
 <script src="/site-header.js?v=1" defer></script>
 </body>
 </html>

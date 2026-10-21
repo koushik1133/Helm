@@ -94,7 +94,8 @@ What the code now does:
   fails open. A one-use, 10-minute pass is recorded, and the database asks for it only when
   `helm_hq_settings.rpc_captcha_required` is on.
 - CSP: `challenges.cloudflare.com` is allowed in `script-src` and `frame-src` on `/login`, `/reset-password` and `/checkout`
-  only. It is never in `connect-src`. Nothing is fetched while the site key is empty.
+  (r26: also the public forms - `/`, `/contact-sales`, `/<studio>/enquiry`, `/suggest`; full owner steps:
+  SENTRY-TURNSTILE-STEPS.md, migration 0276) only. It is never in `connect-src`. Nothing is fetched while the site key is empty.
 
 Steps:
 1. Cloudflare -> Turnstile -> **Add site**:

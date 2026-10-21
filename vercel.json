@@ -479,7 +479,7 @@
       ]
     },
     {
-      "source": "/(login|reset-password|signup)",
+      "source": "/(login|reset-password|signup|contact-sales|suggest|enquiry|index|[a-z0-9-]+/enquiry)?",
       "headers": [
         {
           "key": "Content-Security-Policy",
@@ -488,7 +488,7 @@
       ]
     },
     {
-      "source": "/(login|reset-password)\\.html",
+      "source": "/(login|reset-password|contact-sales|suggest|enquiry|index)\\.html",
       "headers": [
         {
           "key": "Content-Security-Policy",

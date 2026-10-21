@@ -78,6 +78,83 @@ Deno.test("captcha-verify: configured -> rejected token / wrong action / wrong h
   } finally { console.error = origErr; rF(); rEnv(); delete g.__supaGetUser; }
 });
 
+Deno.test("captcha-verify r26: signed-out public forms - no JWT needed, a one-use pass id comes back; unconfigured = fail open", async () => {
+  resetSupaMock(); let rEnv = setEnv({ ...BASE });
+  const PASS = "22222222-2222-4222-8222-222222222222";
+  let calls = 0;
+  const rF = installFetch(async (url) => { calls++; assertEquals(url, "https://challenges.cloudflare.com/turnstile/v0/siteverify");
+    return jsonResponse({ success: true, hostname: "www.helm.events" }); });
+  g.__supaGetUser = () => { throw new Error("no sign-in check for public forms"); };
+  g.__supaRpc = () => ({ data: PASS, error: null });
+  const anon = { Authorization: "Bearer anon", Origin: "https://www.helm.events", "x-forwarded-for": "7.7.7.7" };
+  try {
+    let h = await loadHandler(F + "captcha-verify/index.ts");
+    let r = await h(post({ action: "contact", token: TOKEN }, anon));
+    assertEquals(r.status, 200); assertEquals(await r.json(), { ok: true, configured: false });
+    assertEquals(calls, 0);
+    rEnv(); rEnv = setEnv({ ...BASE, TURNSTILE_SECRET_KEY: "sec" });
+    h = await loadHandler(F + "captcha-verify/index.ts");
+    for (const action of ["contact", "enquiry", "suggest"]) {
+      r = await h(post({ action, token: TOKEN }, { ...anon, "x-forwarded-for": "7.7.7." + action.length }));
+      assertEquals(r.status, 200, action);
+      assertEquals(await r.json(), { ok: true, configured: true, pass: PASS });
+    }
+    const rec = supaLog().filter((x: any) => x.rpc === "captcha_public_pass_record");
+    assertEquals(rec.map((x: any) => x.args.p_action), ["contact", "enquiry", "suggest"]);
+    assertEquals(rec[0].key, "svc");
+    assert(!supaLog().some((x: any) => x.rpc === "captcha_pass_record"), "no per-user pass for visitors");
+    // "sales" still needs a signed-in user
+    assertEquals((await h(post({ action: "sales", token: TOKEN }, anon))).status, 401);
+    // a database without 0276 -> the form can go on (pass null)
+    g.__supaRpc = () => ({ data: null, error: { code: "PGRST202" } });
+    r = await h(post({ action: "suggest", token: TOKEN }, { ...anon, "x-forwarded-for": "7.7.8.1" }));
+    assertEquals(await r.json(), { ok: true, configured: true, pass: null });
+  } finally { rF(); rEnv(); delete g.__supaGetUser; delete g.__supaRpc; }
+});
+
+Deno.test("captcha-verify r26: visitors - rejected token 403 (nothing recorded); 10 tries / 10 min / network then 429", async () => {
+  resetSupaMock(); const rEnv = setEnv({ ...BASE, TURNSTILE_SECRET_KEY: "sec" });
+  let ok = false;
+  const rF = installFetch(() => jsonResponse(ok ? { success: true, action: "enquiry" } : { success: false, "error-codes": ["invalid-input-response"] }));
+  g.__supaRpc = () => ({ data: "33333333-3333-4333-8333-333333333333", error: null });
+  const anon = { Authorization: "Bearer anon", Origin: "https://www.helm.events", "x-forwarded-for": "8.8.4.4" };
+  try {
+    const h = await loadHandler(F + "captcha-verify/index.ts");
+    assertEquals((await h(post({ action: "enquiry", token: TOKEN }, anon))).status, 403);
+    assert(!supaLog().some((x: any) => x.rpc === "captcha_public_pass_record"));
+    ok = true;
+    let last = 0;
+    for (let i = 0; i < 12; i++) last = (await h(post({ action: "enquiry", token: TOKEN }, anon))).status;
+    assertEquals(last, 429);
+  } finally { rF(); rEnv(); delete g.__supaRpc; }
+});
+
+Deno.test("_shared/sentry.mjs r26: off without SENTRY_DSN; with it one envelope carrying ONLY the function name + error tag", async () => {
+  const S = await import("../../supabase/functions/_shared/sentry.mjs");
+  assertEquals(S.parseDsn(""), null);
+  assertEquals(S.parseDsn("https://abc@evil.example/1"), null);
+  const d = S.parseDsn("https://0123456789abcdef0123456789abcdef@o42.ingest.us.sentry.io/77");
+  assertEquals(d.url, "https://o42.ingest.us.sentry.io/api/77/envelope/");
+  assert(d.auth.includes("sentry_key=0123456789abcdef0123456789abcdef"));
+  assertEquals(S.fnName("https://p.supabase.co/functions/v1/captcha-verify?x=1"), "captcha-verify");
+  const sent: any[] = [];
+  const f = (u: string, init: any) => { sent.push([u, init]); return Promise.resolve(new Response("{}")); };
+  assertEquals(S.sentrySend(() => "", f, "https://x/functions/v1/a", "23505"), null);
+  assertEquals(sent.length, 0);
+  const env = (k: string) => ({ SENTRY_DSN: "https://0123456789abcdef0123456789abcdef@o42.ingest.us.sentry.io/77", SENTRY_ENVIRONMENT: "staging" } as any)[k] || "";
+  await S.sentrySend(env, f, "https://x/functions/v1/comms-dispatch", "23505 priya@x.in");
+  assertEquals(sent.length, 1);
+  const body = String(sent[0][1].body);
+  assert(body.includes('"function":"comms-dispatch"') && body.includes('"type":"error"'), body);
+  sent.length = 0;
+  await S.sentrySend(env, f, "https://x/functions/v1/comms-dispatch", "23505");
+  assert(String(sent[0][1].body).includes('"type":"23505"'));
+  assertEquals(sent[0][1].headers["Content-Type"], "application/x-sentry-envelope");
+  assert(!/priya@|@x\.in/.test(body), "no e-mail in the event: " + body);
+  assert(body.includes('"environment":"staging"'));
+  assertEquals(body.split("\n").length, 4);
+});
+
 Deno.test("csp-report: logs one redacted line per violation, 204, no tokens / query strings; wrong type 415; GET 405", async () => {
   resetSupaMock(); const rEnv = setEnv({}); const rF = installFetch(() => { throw new Error("no fetch expected"); });
   const origLog = console.log; const logs: string[] = []; console.log = (m: string) => logs.push(String(m));

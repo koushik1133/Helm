@@ -158,7 +158,9 @@ const CSP = {
   capture: buildCsp({ 'script-src': SCRIPT_SRC_BUILDER.join(' '), 'frame-ancestors': "'self'" }),
 };
 //  • login / reset-password may load the Cloudflare Turnstile CAPTCHA (script + iframe
-//    from challenges.cloudflare.com) — those two pages only (auth hardening)
+//    from challenges.cloudflare.com) — those two pages (auth hardening) + r26: the signed-out public
+//    forms (home page Contact form, /contact-sales, /<studio>/enquiry, /suggest). Inert while
+//    public/config.js has no Turnstile site key (nothing is loaded).
 const TURNSTILE = 'https://challenges.cloudflare.com';
 const baseDirective = (k) => CSP_BASE.find(([d]) => d === k)[1];
 CSP.auth = buildCsp({
@@ -178,6 +180,7 @@ const CSP_BY_PAGE = {
   portal: 'userImg', booklet: 'userImg', 'proposal-view': 'userImg', proposal: 'userImg', media: 'userImg',
   'invite-studio': 'studio', invite: 'invite', builder: 'builder', try: 'builder', capture: 'capture',
   login: 'auth', 'reset-password': 'auth', checkout: 'checkout',
+  index: 'auth', 'contact-sales': 'auth', enquiry: 'auth', suggest: 'auth',   // r26: Turnstile on the public forms
 };
 const SECURITY_HEADERS = {
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
