@@ -22,10 +22,46 @@
 <meta name="twitter:description" content="Sign in to Helm, or create your studio&#x27;s private workspace to run every event from first enquiry to final bill.">
 <meta name="twitter:image" content="https://www.helm.events/og.png">
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=optional">
 <style>
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:optional;src:url(/fonts/ibm-plex-mono-cyrillic-ext.woff2?v=1) format('woff2');unicode-range:U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:optional;src:url(/fonts/ibm-plex-mono-cyrillic.woff2?v=1) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:optional;src:url(/fonts/ibm-plex-mono-vietnamese.woff2?v=1) format('woff2');unicode-range:U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:optional;src:url(/fonts/ibm-plex-mono-latin-ext.woff2?v=1) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:optional;src:url(/fonts/ibm-plex-mono-latin.woff2?v=1) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:optional;src:url(/fonts/ibm-plex-mono-cyrillic-ext.woff2?v=1) format('woff2');unicode-range:U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:optional;src:url(/fonts/ibm-plex-mono-cyrillic.woff2?v=1) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:optional;src:url(/fonts/ibm-plex-mono-vietnamese.woff2?v=1) format('woff2');unicode-range:U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:optional;src:url(/fonts/ibm-plex-mono-latin-ext.woff2?v=1) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:optional;src:url(/fonts/ibm-plex-mono-latin.woff2?v=1) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:optional;src:url(/fonts/ibm-plex-mono-cyrillic-ext.woff2?v=1) format('woff2');unicode-range:U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:optional;src:url(/fonts/ibm-plex-mono-cyrillic.woff2?v=1) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:optional;src:url(/fonts/ibm-plex-mono-vietnamese.woff2?v=1) format('woff2');unicode-range:U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:optional;src:url(/fonts/ibm-plex-mono-latin-ext.woff2?v=1) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:optional;src:url(/fonts/ibm-plex-mono-latin.woff2?v=1) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-cyrillic-ext.woff2?v=1) format('woff2');unicode-range:U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-cyrillic.woff2?v=1) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-greek.woff2?v=1) format('woff2');unicode-range:U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-vietnamese.woff2?v=1) format('woff2');unicode-range:U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-latin-ext.woff2?v=1) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-latin.woff2?v=1) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-cyrillic-ext.woff2?v=1) format('woff2');unicode-range:U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-cyrillic.woff2?v=1) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-greek.woff2?v=1) format('woff2');unicode-range:U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-vietnamese.woff2?v=1) format('woff2');unicode-range:U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-latin-ext.woff2?v=1) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-latin.woff2?v=1) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-cyrillic-ext.woff2?v=1) format('woff2');unicode-range:U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-cyrillic.woff2?v=1) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-greek.woff2?v=1) format('woff2');unicode-range:U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-vietnamese.woff2?v=1) format('woff2');unicode-range:U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-latin-ext.woff2?v=1) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-latin.woff2?v=1) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-cyrillic-ext.woff2?v=1) format('woff2');unicode-range:U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-cyrillic.woff2?v=1) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-greek.woff2?v=1) format('woff2');unicode-range:U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-vietnamese.woff2?v=1) format('woff2');unicode-range:U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-latin-ext.woff2?v=1) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-stretch:100%;font-display:optional;src:url(/fonts/ibm-plex-sans-latin.woff2?v=1) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
   :root{--bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
     --line:#e8e3db;--accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;
     --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
@@ -164,7 +200,7 @@
   .sales-note{margin:-8px 0 18px;font-size:13px;color:var(--ink-2)} .sales-note a{color:var(--accent);font-weight:700}
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
-<link rel="stylesheet" href="/public-v2.css?v=5">
+<link rel="stylesheet" href="/public-v2.css?v=6">
 <meta name="bp-theme-toggle" content="off">
 <script src="/marketing-theme.js?v=3"></script>
 <link rel="stylesheet" href="/marketing-loader.css?v=1">
@@ -423,15 +459,19 @@
 
 <script src="telemetry.js?v=6"></script>
 <script src="config.js?v=109"></script>
-<script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=279"></script>
-<script src="auth-ui.js?v=53"></script>
-<script src="/auth-visual.js?v=1"></script>
-<script src="/trial-facts.js?v=6"></script>
-<script src="/trial-signup.js?v=14"></script>
-<script src="/plan-cards.js?v=3"></script>
-<script src="/signup-flow.js?v=5"></script>
+<!-- r26 speed: the app scripts are deferred (they download in parallel and run, in this order, once the page has
+     been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
+     runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
+<script src="event-name.js?v=9" defer></script>
+<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=279" defer></script>
+<script src="auth-ui.js?v=53" defer></script>
+<script src="/auth-visual.js?v=1" defer></script>
+<script src="/trial-facts.js?v=6" defer></script>
+<script src="/trial-signup.js?v=14" defer></script>
+<script src="/plan-cards.js?v=3" defer></script>
+<script src="/signup-flow.js?v=5" defer></script>
 <script>
+document.addEventListener("DOMContentLoaded", function(){
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
   // Matches the Supabase Auth password policy + 0030 (min 12 with a lowercase letter,
@@ -1324,6 +1364,7 @@
       }finally{ if(!keepCap) capReset(cap); btn.textContent=submitLabel(); }
     });
   });
+});
 </script>
 </body>
 </html>

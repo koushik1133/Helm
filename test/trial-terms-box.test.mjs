@@ -52,7 +52,7 @@ t('styles: own stylesheet, theme tokens, pinned on the sign-in page', () => {
   assert.match(css, /var\(--accent-soft\)/); assert.match(css, /var\(--acc-text,var\(--accent\)\)/); assert.match(css, /\.tt\[hidden\]\{display:none\}/);
   assert.match(css, /@media\(max-width:420px\)/);
   assert.match(LOGIN, /<link rel="stylesheet" href="\/trial-terms\.css\?v=\d+">/);
-  assert.match(LOGIN, /<script src="\/trial-signup\.js\?v=\d+"><\/script>/);
+  assert.match(LOGIN, /<script src="\/trial-signup\.js\?v=\d+"( defer)?><\/script>/);
 });
 t('no "demo data or own data" choice left anywhere', () => {
   assert.ok(!/Start with my own data|How would you like to start\?|async function own\(/.test(TD), 'dashboard card: one "Load the sample data" action');

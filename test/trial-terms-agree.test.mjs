@@ -117,7 +117,7 @@ await t('one source: the sign-up box uses the same facts objects (numbers never 
   assert.equal(S.TRIAL_KEY, F.SIGNUP_KEY); assert.equal(S.TRIAL_ALL, F.SIGNUP_ALL); assert.equal(S.DAYS, F.DAYS); assert.equal(S.KEEP_DAYS, F.KEEP_DAYS);
   assert.match(TS, /require\("\.\/trial-facts\.js"\) : \(global && global\.HelmTrialFacts\)/);
   assert.ok(!/var TRIAL_KEY = \[|var TRIAL_ALL = \[/.test(TS), 'no second copy of the rules in trial-signup.js');
-  assert.match(LOGIN, /<script src="\/trial-facts\.js\?v=\d+"><\/script>\n<script src="\/trial-signup\.js\?v=\d+"><\/script>/);
+  assert.match(LOGIN, /<script src="\/trial-facts\.js\?v=\d+"( defer)?><\/script>\n<script src="\/trial-signup\.js\?v=\d+"( defer)?><\/script>/);
   for (const x of F.SAMPLE) assert.ok(F.SIGNUP_ALL.join(' ').includes(x.n + ' ' + x.many), 'sign-up lists ' + x.k);
 });
 await t('Terms of Service section 4 states the same facts', () => {
