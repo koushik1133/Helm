@@ -10,6 +10,14 @@
   var vh = window.innerHeight, vw = window.innerWidth;
   window.addEventListener('resize', function () { vh = window.innerHeight; vw = window.innerWidth; layoutTiles(); }, { passive: true });
   requestAnimationFrame(function () { document.body.classList.add('loaded'); });
+  /* r26 speed: the two fonts used only below the first screen (Caveat notes, upright Instrument Serif) load once the
+     page has loaded, so they never compete with the first screen (/fonts/home-late.css; <noscript> copy in index.html).
+     Not later than the load event: adding the stylesheet repaints the page, and a late repaint would count as a late
+     "largest paint" for the hero text. */
+  (function () {
+    function add() { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/fonts/home-late.css?v=1'; document.head.appendChild(l); }
+    if (document.readyState === 'complete') add(); else window.addEventListener('load', add, { once: true });
+  })();
 
   /* ---------- nav: mega menus, mobile sheet, sticky glass ---------- */
   var nav = $('.nav'), burger = $('.burger'), menu = $('#menu');
@@ -178,7 +186,7 @@
   /* HQ film (1920x1080) on >=1024px screens unless Save-Data; light 1600px encode otherwise. */
   var heroConn = navigator.connection || {};
   var heroHQ = !!(window.matchMedia && window.matchMedia('(min-width: 1024px)').matches) && !heroConn.saveData;
-  var heroPosterSrc = heroHQ ? '/home-assets/hero-hq-poster.jpg' : '/home-assets/hero-poster.jpg';
+  var heroPosterSrc = heroHQ ? '/home-assets/hero-hq-poster.webp' : '/home-assets/hero-poster.webp';
   if (heroVideo && heroHQ) {
     $$('source[data-src]', heroVideo).forEach(function (s) {
       s.setAttribute('data-src', s.getAttribute('data-src').replace('/hero.', '/hero-hq.'));
@@ -195,6 +203,8 @@
       if (!m.heroWebm) { var w2 = $('source[type="video/webm"]', heroVideo); if (w2) w2.remove(); }
       heroVidWrap.hidden = false;
       heroFilm();
+    } else if (heroVidWrap) {
+      heroVidWrap.hidden = true;   // r26: the film card is in the page from the first paint (it is the largest thing on screen); no film = no card
     }
   });
 

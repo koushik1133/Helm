@@ -101,7 +101,7 @@ t('login: sign in only - no tab switcher; "New to Helm? Create your studio" link
   assert.match(LOGIN, /New to Helm\? <a href="\/signup" id="createLink">Create your studio &rarr;<\/a>/);
   assert.match(LOGIN, /id="haveAcct" hidden>Already have a Helm account\?/);
   assert.match(LOGIN, /BPSignupFlow\.intent\(\)\.signup\)\)\{ setMode\("signup"\); \}/);
-  assert.match(LOGIN, /<script src="\/plan-cards\.js\?v=\d+"><\/script>\n<script src="\/signup-flow\.js\?v=\d+"><\/script>/);
+  assert.match(LOGIN, /<script src="\/plan-cards\.js\?v=\d+"( defer)?><\/script>\n<script src="\/signup-flow\.js\?v=\d+"( defer)?><\/script>/);
   assert.match(LOGIN, /<link rel="stylesheet" href="\/plan-cards\.css\?v=\d+">/);
   assert.match(TSU, /setText\("#formTitle", "Create your Helm account"\);/);
 });

@@ -284,12 +284,14 @@ function securityHeadersFor(req, filePath) {
 // images / crawler files get an hour.
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 const SHORT = 'public, max-age=3600, must-revalidate';
+const MEDIA = 'public, max-age=86400, stale-while-revalidate=604800';
 function cacheControlFor(filePath, query) {
   const rel = relFromPublic(filePath);
   const ext = path.extname(rel).toLowerCase();
   if (ext === '.html' && !rel.includes('/') && TOKEN_PAGES.has(pageName(rel))) return 'no-store, private';
   if (ext === '.html') return (!rel.includes('/') && !INDEXABLE_PAGES.has(pageName(rel))) ? 'no-store' : 'no-cache';
   if (rel === 'config.js') return 'public, max-age=300, stale-while-revalidate=3600';
+  if (rel.startsWith('home-assets/') && ['.mp4', '.webm', '.jpg'].includes(ext)) return MEDIA;   // r26: landing film + posters
   if (rel.startsWith('vendor/')) return IMMUTABLE;
   if (/[?&]v=/.test(query || '') && ['.js', '.css', '.png', '.webp', '.svg', '.woff2'].includes(ext)) return IMMUTABLE;
   if (['.js', '.css'].includes(ext)) return 'no-cache';   // unversioned script/style: always revalidate locally

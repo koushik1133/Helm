@@ -217,7 +217,11 @@ t('config.js: googleGis ON for helm.events + www only; public client ID; One Tap
   assert.ok(!/client_?secret\s*[:=]\s*["'][^"']/i.test(CONFIG) && !/GOCSPX-/.test(CONFIG), 'never the client secret');
 });
 t('login.html: loads google-gis.js; GIS sign-in reloads into the SAME return address as the redirect flow; classic button kept', () => {
-  assert.match(LOGIN, /<script src="\/google-gis\.js\?v=\d+"><\/script>/);
+  // r26 speed: deferred, AFTER store-api / auth-ui / signup-flow (the page script runs at DOMContentLoaded, after them)
+  assert.match(LOGIN, /<script src="\/google-gis\.js\?v=\d+" defer><\/script>/);
+  const at = (re) => LOGIN.search(re);
+  assert.ok(at(/store-api\.js\?v=\d+" defer/) < at(/<script src="\/google-gis\.js/) && at(/auth-ui\.js\?v=\d+" defer/) < at(/<script src="\/google-gis\.js/) && at(/signup-flow\.js\?v=\d+" defer/) < at(/<script src="\/google-gis\.js/));
+  assert.ok(at(/<script src="\/google-gis\.js/) < at(/document\.addEventListener\("DOMContentLoaded"/));
   assert.match(LOGIN, /GIS = window\.HelmGoogleGis \? HelmGoogleGis\.attach\(\{/);
   assert.match(LOGIN, /await BPStore\.auth\.signInWithGoogleIdToken\(token, rawNonce\)/);
   assert.match(LOGIN, /location\.replace\(location\.origin\+"\/login\.html\?"\+\(tok\?"invite="\+encodeURIComponent\(tok\)\+"&":""\)\+"next="\+encodeURIComponent\(nextUrl\(\)\)\)/);

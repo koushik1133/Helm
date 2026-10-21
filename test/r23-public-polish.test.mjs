@@ -113,7 +113,7 @@ t('/pricing: "Custom" and "talk to us" are two words', () => {
 
 // ---- 5. hero film ----
 t('home hero film: preload=metadata + poster, fetched after load + idle, HQ webm <= 4 MB', () => {
-  assert.match(index, /<video class="hero-video" id="heroVideo" muted loop playsinline preload="metadata" poster="\/home-assets\/hero-poster\.jpg"/);
+  assert.match(index, /<video class="hero-video" id="heroVideo" muted loop playsinline preload="metadata" poster="\/home-assets\/hero-poster\.webp"/);   // r26: webp poster
   const js = read('public/home.js');
   assert.match(js, /function afterLoadIdle\(fn\) \{[\s\S]{0,260}window\.addEventListener\('load', idle, \{ once: true \}\)/);
   assert.match(js, /afterLoadIdle\(heroGo\);/);

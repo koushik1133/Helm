@@ -178,6 +178,12 @@ t('cache policy: versioned assets / vendor immutable, config.js short, marketing
     assert.equal(netlifyHeaders(p)['cache-control'], v, `_headers Cache-Control ≠ vercel.json for ${p}`);
   }
   assert.match(vercelHeaders('/vendor/a.js')['cache-control'], /immutable/);
+  // r26 speed: the landing film + posters are cached for a day on every host
+  for (const p of ['/home-assets/hero-hq.mp4', '/home-assets/hero.webm', '/home-assets/hero-poster.jpg']) {
+    assert.equal(vercelHeaders(p)['cache-control'], 'public, max-age=86400, stale-while-revalidate=604800', p);
+    assert.equal(serverHeaders(p)['cache-control'], vercelHeaders(p)['cache-control'], `server.js Cache-Control ≠ vercel.json for ${p}`);
+    assert.equal(netlifyHeaders(p)['cache-control'], vercelHeaders(p)['cache-control'], `_headers Cache-Control ≠ vercel.json for ${p}`);
+  }
   assert.equal(vercelHeaders('/config.js')['cache-control'], 'public, max-age=300, stale-while-revalidate=3600');
   // auth hardening: signed-in app pages and the login / reset pages must never be stored
   for (const p of PAGES.filter((x) => !MARKETING.includes(x))) {
