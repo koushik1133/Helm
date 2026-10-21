@@ -125,8 +125,8 @@ do $$ begin perform pg_temp.su();
     (select relrowsecurity from pg_class where oid = 'public.platform_admins'::regclass)
     and not has_table_privilege('authenticated','public.platform_admins','SELECT')
     and not has_table_privilege('anon','public.platform_admins','SELECT'), 'exposed');
-  perform pg_temp.res('allowlist seeded with exactly the two operator e-mails',
-    (select array_agg(email order by email) from public.platform_admins) = array['admin@helm.events','security@helm.events'], 'seed differs');
+  perform pg_temp.res('allowlist seeded with exactly the HQ e-mails (0029: admin@ + security@; r27 0277: + k9@ + sales@)',
+    (select array_agg(email order by email) from public.platform_admins) = array['admin@helm.events','k9@helm.events','sales@helm.events','security@helm.events'], 'seed differs');
 end $$;
 
 -- ---- 3) the operator gets correct numbers (0045: no studio business data) --------------------

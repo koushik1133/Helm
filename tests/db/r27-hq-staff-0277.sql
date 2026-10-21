@@ -6,7 +6,11 @@
 set client_min_messages = warning;
 begin;
 create temp table _rs(name text, result text); grant all on _rs to anon, authenticated, service_role;
--- re-apply 0277 inside the test (re-run safe; later suites may have re-applied 0263 / 0271 bodies)
+-- re-apply 0277 inside the test as a simulated FIRST run (re-run safe; later suites may have re-applied 0263 / 0271 bodies
+-- and earlier suites re-created security@ as a plain operator): marker cleared, security@ back to the pre-0277 Admin role
+update public.helm_hq_settings set r27_seeded_at = null where id;
+update public.platform_admins set role = 'admin' where email = 'security@helm.events';
+delete from public.platform_admins where email = 'k9@helm.events';   -- test only (rolled back): the first run adds it
 set client_min_messages = error;
 \ir ../../supabase/migrations/0277_hq_staff_roles.sql
 set client_min_messages = warning;
@@ -31,9 +35,25 @@ begin
   update auth.users set email_confirmed_at = now() where email = p_email;
 end $$;
 
--- ---- setup: Owner admin@, Admin security@ (both from the migration), and one person per other role ----------------
+-- ---- the three HQ accounts set by the migration (owner, r27) ---------------------------------------------------------
 do $$ begin
   perform pg_temp.su();
+  perform pg_temp.res('00a migration: admin@helm.events Owner (active), security@helm.events Security, sales@helm.events Sales (invited until first use)',
+    exists (select 1 from public.platform_admins where email = 'admin@helm.events' and role = 'owner' and status = 'active')
+    and exists (select 1 from public.platform_admins where email = 'security@helm.events' and role = 'security' and status in ('active', 'invited'))
+    and exists (select 1 from public.platform_admins where email = 'sales@helm.events' and role = 'sales' and status in ('invited', 'active'))
+    and exists (select 1 from public.platform_admins where email = 'k9@helm.events' and role = 'owner' and status = 'invited')
+    and (select r27_seeded_at from public.helm_hq_settings where id) is not null,
+    (select string_agg(email || ':' || role || ':' || status, ', ') from public.platform_admins));
+  perform pg_temp.res('00b migration queued the sales@ invitation (log row + e-mail in the outbox)',
+    exists (select 1 from public.hq_staff_events e join public.helm_notice_outbox o on o.ref_id = e.id
+             where e.target_email = 'sales@helm.events' and e.kind = 'invited' and o.kind = 'hq_staff'));
+exception when others then perform pg_temp.su(); insert into _rs values ('00x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
+-- ---- setup: one person per other role; sales@ set aside so the invite flow can be tested end to end ---------------
+do $$ begin
+  perform pg_temp.su();
+  update public.platform_admins set status = 'removed', removed_at = now() where email = 'sales@helm.events';
   insert into public.platform_admins(email, added_by) values ('admin@helm.events', 'test') on conflict do nothing;
   insert into public.platform_admins(email, added_by, role) values
     ('sales1@helm.events', 'test', 'sales'), ('sec1@helm.events', 'test', 'security'),
@@ -47,9 +67,9 @@ exception when others then perform pg_temp.su(); insert into _rs values ('0x set
 -- ---- 1) roles + the matrix in every gate ----------------------------------------------------------------------------
 do $$ declare e text; begin
   perform pg_temp.su();
-  perform pg_temp.res('01 migration: admin@helm.events is Owner, other existing operators are Admin',
+  perform pg_temp.res('01 migration: admin@helm.events is Owner, security@helm.events is Security (not Admin)',
     (select role from public.platform_admins where email = 'admin@helm.events') = 'owner'
-    and not exists (select 1 from public.platform_admins where email = 'security@helm.events' and role <> 'admin'));
+    and (select role from public.platform_admins where email = 'security@helm.events') = 'security');
   perform pg_temp.as_user('admin@helm.events', 'aal1');
   e := pg_temp.try('select public.hq_overview()');
   perform pg_temp.res('02 two-step always: Owner at aal1 refused even with the old switch off', e like '42501%' and not public.is_platform_admin(), e);
@@ -278,6 +298,55 @@ do $$ declare e text; r jsonb; x jsonb; n int; begin
   e := pg_temp.try('select public.hq_stage_machine()') || '|' || pg_temp.try('select public.hq_studio_link_check(gen_random_uuid(), ''abc'')');
   perform pg_temp.res('50 hq_stage_machine / hq_studio_link_check: role checked too', e like '42501%|42501%', e);
 exception when others then perform pg_temp.su(); insert into _rs values ('4x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
+-- ---- 5) the second Owner k9@helm.events: pre-authorised, invited; the guard ignores it until it is active ------------
+do $$ declare e text; r jsonb; begin
+  perform pg_temp.su();
+  e := pg_temp.try('update public.platform_admins set role = ''admin'' where email = ''admin@helm.events''');
+  perform pg_temp.res('52 an INVITED Owner (k9@) does not count: admin@ is still protected as the last active Owner', e like '22023%'
+    and (select role from public.platform_admins where email = 'admin@helm.events') = 'owner', e);
+  perform pg_temp.res('53 k9@helm.events may sign up on helm.events (reserved-domain rules allow pre-authorised HQ e-mails)',
+    not public.email_is_reserved('k9@helm.events') and not public.email_is_reserved('sales@helm.events') and public.email_is_reserved('someone@helm.events')
+    and public.signup_email_preauthorised(' K9@helm.events ') and not public.signup_email_preauthorised('someone@helm.events')
+    and not public.signup_email_preauthorised('a@gmail.com') and has_function_privilege('anon', 'public.signup_email_preauthorised(text)', 'execute'));
+  perform pg_temp.mkuser('k9@helm.events');   -- the auth.users guard (0248) lets it through
+  perform pg_temp.as_user('k9@helm.events', 'aal1');
+  r := public.hq_me();
+  e := pg_temp.try('select public.hq_overview()');
+  perform pg_temp.res('54 k9@ before two-step: hq_me says Owner / invited / needs two-step; HQ refused', r ->> 'role' = 'owner' and r ->> 'status' = 'invited'
+    and (r ->> 'needs_2step')::boolean and e like '42501%', r::text || ' ' || e);
+  perform pg_temp.as_user('k9@helm.events', 'aal2');
+  e := pg_temp.try('select public.hq_overview()') || pg_temp.try('select public.hq_staff_list()');
+  perform pg_temp.su();
+  perform pg_temp.res('55 k9@ first HQ use with two-step: ACTIVE Owner, bound to its login; now two active Owners',
+    e = '' and pg_temp.st('k9@helm.events') = 'active'
+    and (select user_id from public.platform_admins where email = 'k9@helm.events') = (select id from auth.users where email = 'k9@helm.events')
+    and (select count(*) from public.platform_admins where role = 'owner' and status = 'active') = 2, e);
+  e := pg_temp.try('update public.platform_admins set role = ''admin'' where email = ''admin@helm.events''');
+  perform pg_temp.res('56 with two active Owners one may step down (guard allows); the other is then protected', e = ''
+    and pg_temp.try('update public.platform_admins set role = ''admin'' where email = ''k9@helm.events''') like '22023%', e);
+  update public.platform_admins set role = 'owner' where email = 'admin@helm.events';
+exception when others then perform pg_temp.su(); insert into _rs values ('5k9x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
+-- ---- 6) re-running 0277 changes nobody (no duplicates, nobody flipped back) -------------------------------------------
+do $$ begin
+  perform pg_temp.as_user('admin@helm.events', 'aal2');
+  perform public.hq_staff_set_role('security@helm.events', 'support');
+  perform pg_temp.su();
+end $$;
+set client_min_messages = error;
+\ir ../../supabase/migrations/0277_hq_staff_roles.sql
+set client_min_messages = warning;
+do $$ begin
+  perform pg_temp.su();
+  perform pg_temp.res('51 re-run: security@ keeps the role the Owner chose (support), k9@ stays an active Owner, nobody re-added, no duplicate invites',
+    (select role from public.platform_admins where email = 'security@helm.events') = 'support'
+    and (select role from public.platform_admins where email = 'admin@helm.events') = 'owner'
+    and (select count(*) from public.platform_admins where email in ('admin@helm.events', 'k9@helm.events', 'sales@helm.events', 'security@helm.events')) = 4
+    and pg_temp.st('k9@helm.events') = 'active' and (select role from public.platform_admins where email = 'k9@helm.events') = 'owner'
+    and (select count(*) from public.hq_staff_events where target_email = 'sales@helm.events' and kind = 'invited' and detail ? 'by_migration') <= 1,
+    (select string_agg(email || ':' || role || ':' || status, ', ') from public.platform_admins));
+exception when others then perform pg_temp.su(); insert into _rs values ('5x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 select name, result from _rs order by name;
 select case when count(*) filter (where result <> 'PASS') = 0 then 'R27-HQ-STAFF-0277: ALL PASS (' || count(*) || '/' || count(*) || ')'

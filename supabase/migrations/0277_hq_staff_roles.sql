@@ -14,8 +14,13 @@
 --        Support  Overview, Studios (read), Requests, People (read)
 --        Viewer   Overview only (read-only)
 --      Status: invited (added, has not used HQ yet) -> active (first HQ use) ; suspended ; removed (kept, never deleted).
---      Existing rows: admin@helm.events becomes Owner (if no Owner exists yet; else the earliest row), every other
---      existing operator keeps full access as Admin.
+--      THE THREE HQ ACCOUNTS (owner, r27), set ONCE (marker helm_hq_settings.r27_seeded_at - a re-run never flips anyone
+--      back): admin@helm.events -> Owner (active), k9@helm.events -> a SECOND Owner (added as invited: the login does not
+--      exist yet; active at its first HQ sign-in with that exact e-mail + two-step; an invited Owner never counts as the
+--      "last active Owner"), security@helm.events -> Security, sales@helm.events -> Sales (added as invited when missing;
+--      active at its first HQ sign-in with that exact e-mail + two-step). All four may sign up on helm.events (0248). Any OTHER existing
+--      operator keeps full access as Admin and is listed in a NOTICE (and a VERIFY info row) for the owner to review.
+--      Nobody is removed.
 --   2  ENFORCED IN THE DATABASE, in every HQ function: _hq_gate (reads) and _hq_wgate (changes) now look up the
 --      permission each HQ function needs (by the name it already passes) and refuse a role without it. Anything
 --      unknown is Owner-only (fails closed). hq_stage_machine / hq_studio_link_check (no gate before) get one.
@@ -83,18 +88,7 @@ do $$ begin
   end if;
 end $$;
 
--- the first Owner: admin@helm.events (else the earliest row) - only while there is no Owner at all
-do $$ begin
-  if not exists (select 1 from public.platform_admins where role = 'owner') then
-    update public.platform_admins set role = 'owner', updated_at = now()
-     where email = 'admin@helm.events' and status in ('active', 'invited');
-    if not exists (select 1 from public.platform_admins where role = 'owner') then
-      update public.platform_admins set role = 'owner', updated_at = now()
-       where email = (select pa.email from public.platform_admins pa where pa.status in ('active', 'invited')
-                       order by pa.added_at, pa.email limit 1);
-    end if;
-  end if;
-end $$;
+-- (the three HQ accounts - Owner / Security / Sales - are set ONCE at the end of this file, section 13)
 
 -- ---- 2) new private tables (RLS on, no API privilege) --------------------------------------------------------------
 create table if not exists public.hq_staff_events (
@@ -173,6 +167,7 @@ alter table public.helm_hq_settings add column if not exists hq_max_hours intege
 alter table public.helm_hq_settings add column if not exists hq_reauth_minutes integer not null default 15;
 alter table public.helm_hq_settings add column if not exists hq_ip_allowlist_on boolean not null default false;
 alter table public.helm_hq_settings add column if not exists hq_ip_allowlist text[] not null default '{}'::text[];
+alter table public.helm_hq_settings add column if not exists r27_seeded_at timestamptz;   -- the three HQ accounts were set (once)
 do $$ begin
   if not exists (select 1 from pg_constraint where conrelid = 'public.helm_hq_settings'::regclass and conname = 'helm_hq_settings_r27_chk') then
     alter table public.helm_hq_settings add constraint helm_hq_settings_r27_chk
@@ -895,6 +890,24 @@ do $$ declare v_def text; v_old text := 'if not public.is_platform_admin() then 
   execute v_def;
 end $$;
 
+-- ---- 11b) sign-up page: may this helm.events address make a login? (pre-authorised HQ staff: k9@, sales@, security@ ...)
+-- The SAME answer the server gives when the person tries (0248 hook / auth.users guard use email_is_reserved), so it reveals
+-- nothing new. Lets the sign-up form accept a pre-authorised HQ address instead of refusing every @helm.events early.
+create or replace function public.signup_email_preauthorised(p_email text)
+returns boolean language plpgsql stable security definer set search_path = '' as $$
+-- r27-hq-staff-0277
+declare v text := lower(btrim(coalesce(p_email, '')));
+begin
+  if v = '' or length(v) > 254 or position('@' in v) < 2 then return false; end if;
+  if to_regprocedure('public.email_is_reserved(text)') is null or to_regprocedure('public.reserved_email_domain(text)') is null then return false; end if;
+  return public.reserved_email_domain(v) is not null and not public.email_is_reserved(v);
+end $$;
+revoke all on function public.signup_email_preauthorised(text) from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then grant execute on function public.signup_email_preauthorised(text) to anon; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then grant execute on function public.signup_email_preauthorised(text) to authenticated; end if;
+end $$;
+
 -- ---- 12) grants ------------------------------------------------------------------------------------------------------
 do $$ declare f text; begin
   -- internal: nobody calls these through the API
@@ -926,5 +939,61 @@ do $$ declare f text; begin
   end if;
   if exists (select 1 from pg_roles where rolname = 'service_role') then
     grant execute on function public._hq27_staff_mail(uuid) to service_role;
+  end if;
+end $$;
+
+-- ---- 13) the three HQ accounts (owner, r27) - ONCE; a re-run changes nobody ------------------------------------------
+--   admin@helm.events    -> Owner (active)
+--   k9@helm.events       -> Owner (second Owner; invited until its first HQ sign-in with that exact e-mail + two-step)
+--   security@helm.events -> Security (kept active if it already is; added as invited when missing)
+--   sales@helm.events    -> Sales (added as invited when missing; active at the first HQ use: exact e-mail + two-step)
+--   anyone else already on the HQ list -> stays Admin (full access, as before) and is named in a NOTICE for review.
+do $$ declare v_new_sales integer := 0; v_new_sec integer := 0; v_new_k9 integer := 0; v_others text; begin
+  if not exists (select 1 from public.helm_hq_settings s where s.id) then
+    raise notice '0277: helm_hq_settings has no row - the three HQ accounts were not set (run 0047 first)'; return;
+  end if;
+  if (select s.r27_seeded_at from public.helm_hq_settings s where s.id) is null then
+    insert into public.platform_admins(email, added_by, role, status, display_name, updated_at)
+      values ('admin@helm.events', 'migration 0277', 'owner', 'active', 'Helm owner', now())
+      on conflict (email) do update set role = 'owner', status = 'active', removed_at = null, suspended_at = null, updated_at = now();
+    -- the second Owner, pre-authorised by e-mail (its login is created later by signing in with exactly this address)
+    insert into public.platform_admins(email, added_by, role, status, display_name, invited_at, invited_by, updated_at)
+      values ('k9@helm.events', 'migration 0277', 'owner', 'invited', 'Owner (k9)', now(), 'migration 0277', now())
+      on conflict (email) do nothing;
+    get diagnostics v_new_k9 = row_count;
+    update public.platform_admins set role = 'owner', updated_at = now()
+     where email = 'k9@helm.events' and role <> 'owner' and status <> 'removed';
+    insert into public.platform_admins(email, added_by, role, status, display_name, invited_at, invited_by, updated_at)
+      values ('security@helm.events', 'migration 0277', 'security', 'invited', 'Security team', now(), 'migration 0277', now())
+      on conflict (email) do nothing;
+    get diagnostics v_new_sec = row_count;
+    update public.platform_admins set role = 'security', display_name = coalesce(display_name, 'Security team'), updated_at = now()
+     where email = 'security@helm.events' and role <> 'security';
+    insert into public.platform_admins(email, added_by, role, status, display_name, invited_at, invited_by, updated_at)
+      values ('sales@helm.events', 'migration 0277', 'sales', 'invited', 'Sales team', now(), 'migration 0277', now())
+      on conflict (email) do nothing;
+    get diagnostics v_new_sales = row_count;
+    update public.platform_admins set role = 'sales', display_name = coalesce(display_name, 'Sales team'), updated_at = now()
+     where email = 'sales@helm.events' and role <> 'sales';
+    -- their addresses may sign up even with the reserved-domain protection on (0248; HQ people count as allowlisted anyway)
+    if to_regclass('public.staff_email_allowlist') is not null then
+      begin
+        execute $q$insert into public.staff_email_allowlist(email, note, added_by)
+                   values ('sales@helm.events', 'Helm HQ staff (Sales)', 'migration 0277'), ('security@helm.events', 'Helm HQ staff (Security)', 'migration 0277'),
+                          ('k9@helm.events', 'Helm HQ staff (Owner)', 'migration 0277')
+                   on conflict do nothing$q$;
+      exception when others then null;
+      end;
+    end if;
+    -- the log + a queued e-mail for each NEW account (sent only once e-mail sending is on)
+    if v_new_k9 > 0 then perform public._hq27_event('invited', 'k9@helm.events', jsonb_build_object('role', 'owner', 'by_migration', true)); end if;
+    if v_new_sales > 0 then perform public._hq27_event('invited', 'sales@helm.events', jsonb_build_object('role', 'sales', 'by_migration', true)); end if;
+    if v_new_sec > 0 then perform public._hq27_event('invited', 'security@helm.events', jsonb_build_object('role', 'security', 'by_migration', true)); end if;
+    update public.helm_hq_settings set r27_seeded_at = now() where id;
+  end if;
+  select string_agg(pa.email, ', ' order by pa.email) into v_others from public.platform_admins pa
+   where pa.email not in ('admin@helm.events', 'k9@helm.events', 'sales@helm.events', 'security@helm.events') and pa.status <> 'removed';
+  if v_others is not null then
+    raise notice '0277: other HQ operators kept with full access as Admin - please review them in HQ -> Staff access: %', v_others;
   end if;
 end $$;

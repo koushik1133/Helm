@@ -475,7 +475,7 @@
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=281" defer></script>
+<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=282" defer></script>
 <script src="auth-ui.js?v=53" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>
@@ -666,7 +666,8 @@ document.addEventListener("DOMContentLoaded", function(){
   const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   const NAME_RE=/^[\p{L} '\-]{1,50}$/u;
   const normEmail=(v)=>String(v||"").trim().toLowerCase();
-  function emailProblem(v){ const e=normEmail(v); if(!e) return "Please enter your email address."; if(e.length>254||!EMAIL_RE.test(e)) return "That doesn't look like a valid email — check for typos (e.g. name@studio.com)."; if(mode==="signup" && window.BPStore && BPStore.reservedEmailDomain && BPStore.reservedEmailDomain(e)) return BPStore.RESERVED_EMAIL_MESSAGE; return null; }   // r21 0248: Helm's own domains are for the Helm team (the server refuses them too)
+  const HQ_PRE={};   // r27 (0277): helm.events addresses the server says are pre-authorised Helm HQ staff (k9@, sales@ ...)
+  function emailProblem(v){ const e=normEmail(v); if(!e) return "Please enter your email address."; if(e.length>254||!EMAIL_RE.test(e)) return "That doesn't look like a valid email — check for typos (e.g. name@studio.com)."; if(mode==="signup" && window.BPStore && BPStore.reservedEmailDomain && BPStore.reservedEmailDomain(e) && !HQ_PRE[e]) return BPStore.RESERVED_EMAIL_MESSAGE; return null; }   // r21 0248: Helm's own domains are for the Helm team (the server refuses them too)
   function nameProblem(v){ const n=String(v||"").trim(); if(!n) return (mode==="signup" && !J()) ? "Please enter your name." : null; if(n.length>50) return "Please keep your name to 50 characters or fewer."; if(!NAME_RE.test(n)) return "Names can use letters, spaces, hyphens (-) and apostrophes (') only."; return null; }
   function studioProblem(v){ const n=String(v||"").trim(); if(!n && TRIAL()) return null; if(n.length<2) return "Please enter your studio or business name (at least 2 characters)."; if(n.length>80) return "Please keep the studio name to 80 characters or fewer."; return null; }
   function setFieldErr(input, msg){
@@ -684,6 +685,10 @@ document.addEventListener("DOMContentLoaded", function(){
     i.addEventListener("blur", ()=>{ if(id==="email") i.value=normEmail(i.value); if(i.value || i.classList.contains("is-err")) setFieldErr(i, fieldRule[id](i.value)); });
     i.addEventListener("input", ()=>{ if(i.classList.contains("is-err")) setFieldErr(i, fieldRule[id](i.value)); });
   });
+  // r27 (0277): a pre-authorised Helm HQ address may sign up - ask the server once per address (the server decides anyway)
+  $("#email").addEventListener("blur", ()=>{ const e=normEmail($("#email").value);
+    if(mode!=="signup"||!e||HQ_PRE[e]!==undefined||!window.BPStore||!BPStore.reservedEmailDomain||!BPStore.reservedEmailDomain(e)||!BPStore.preauthorisedHqEmail) return;
+    BPStore.preauthorisedHqEmail(e).then(ok=>{ HQ_PRE[e]=!!ok; if(ok && normEmail($("#email").value)===e) setFieldErr($("#email"), emailProblem(e)); }); });
   // show / hide password
   $("#pwEye").addEventListener("click", ()=>{ const i=$("#pw"), show=i.type==="password"; i.type=show?"text":"password";
     $("#pwEye").setAttribute("aria-pressed",show?"true":"false"); $("#pwEye").setAttribute("aria-label",show?"Hide password":"Show password"); i.focus(); });

@@ -443,6 +443,13 @@ window.HelmUrl = HelmUrl;
     return "";
   }
   function reservedEmailError() { const e = new Error(RESERVED_EMAIL_MESSAGE); e.code = "reserved_domain"; return e; }
+  // r27 (0277): a helm.events address pre-authorised for Helm HQ (k9@, sales@, security@ ...) may sign up - the server says
+  // so (signup_email_preauthorised = the same rule its hook / guard apply). Any error -> false (the early refusal stays).
+  async function preauthorisedHqEmail(email) {
+    if (!supa || !reservedEmailDomain(email)) return false;
+    try { const r = await supa.rpc("signup_email_preauthorised", { p_email: String(email).trim().toLowerCase() }); return !r.error && r.data === true; }
+    catch (e) { return false; }
+  }
   // the server's refusal (hook 403 / guard trigger) -> the same friendly error
   function isReservedRefusal(err) { return /reserved for the helm team/i.test(String((err && (err.message || err.msg || err.error_description)) || "")); }
   function passwordProblem(pw) {
@@ -1954,7 +1961,7 @@ window.HelmUrl = HelmUrl;
     // Phase 58 — self-serve sign-up (studio created via create_studio once a session exists)
     async signUp(email, password, opts) {
       if (!supa) throw new Error("Supabase not configured");
-      if (reservedEmailDomain(email)) throw reservedEmailError();   // r21 0248 (the server refuses it too)
+      if (reservedEmailDomain(email) && !(await preauthorisedHqEmail(email))) throw reservedEmailError();   // r21 0248 (the server refuses it too); r27: HQ staff pass
       const bad = passwordProblem(password); if (bad) throw new Error(bad);
       const captchaToken = opts && opts.captchaToken;
       if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
@@ -10083,7 +10090,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    reservedEmailDomain, RESERVED_EMAIL_MESSAGE,
+    reservedEmailDomain, RESERVED_EMAIL_MESSAGE, preauthorisedHqEmail,
     activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, inbox, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, paySchedule, deliveries, vendorRequests, linkViews, integrations, quoteValidity, automation,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }

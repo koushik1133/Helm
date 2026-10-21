@@ -69,7 +69,7 @@ await t('APPLY-0277: migration verbatim between begin / commit + VERIFY rows; MA
   assert.ok(APPLY.includes('begin;\n' + SQL + 'commit;'));
   assert.match(APPLY, /-- VERIFY \(every row must say ok = true\)/);
   assert.ok(rd('supabase/migrations/MANIFEST').includes('forward  supabase/migrations/0277_hq_staff_roles.sql'));
-  assert.match(rd('scripts/db-test/run-all.sh'), /R27-HQ-STAFF-0277: ALL PASS \\\(50\/50\\\)/);
+  assert.match(rd('scripts/db-test/run-all.sh'), /R27-HQ-STAFF-0277: ALL PASS \\\(58\/58\\\)/);
   assert.doesNotMatch(APPLY, /[^\x00-\x7F]/, 'ASCII only');
 });
 await t('hq.js: hq_me first, blocked states, permissions applied, re-auth retry, idle + heartbeat, no innerHTML', () => {
@@ -86,6 +86,35 @@ await t('hq.js: hq_me first, blocked states, permissions applied, re-auth retry,
   for (const f of ['hq_staff_list', 'hq_staff_invite', 'hq_staff_set_role', 'hq_staff_suspend', 'hq_staff_restore', 'hq_staff_remove', 'hq_staff_signout', 'hq_set_staff_settings'])
     assert.ok(J.includes('"' + f + '"'), f);
   assert.doesNotMatch(J, /hq_add_operator|loadOperators/);
+});
+await t('no lockout: an HQ person without two-step sets it up right in HQ (QR + code, same as Account settings), then HQ opens', () => {
+  assert.match(J, /if \(step === "enroll"\) return "enroll";/);
+  assert.match(J, /if \(g === "enroll"\) \{[^\n]*enrollGate\(\); return; \}/);
+  assert.match(J, /window\.HelmAuthUI\.renderEnroll\(box, function \(\) \{[\s\S]*?location\.reload\(\)/);
+  assert.match(J, /if \(ME && ME\.needs_2step && !ME\.has_2step\) \{ enrollGate\(\); return; \}/);
+  assert.ok(H.includes('id="blkEnroll"'));
+});
+await t('sign-up: pre-authorised HQ addresses (k9@, sales@ ...) may sign up; every other helm.events address is still refused', () => {
+  const SA = rd('public/store-api.js'), LG = rd('public/login.html');
+  assert.match(SQL, /function public\.signup_email_preauthorised\(p_email text\)[\s\S]*?reserved_email_domain\(v\) is not null and not public\.email_is_reserved\(v\)/);
+  assert.match(SA, /if \(reservedEmailDomain\(email\) && !\(await preauthorisedHqEmail\(email\)\)\) throw reservedEmailError\(\);/);
+  assert.match(SA, /supa\.rpc\("signup_email_preauthorised"/);
+  assert.match(LG, /BPStore\.reservedEmailDomain\(e\) && !HQ_PRE\[e\]\) return BPStore\.RESERVED_EMAIL_MESSAGE/);
+  assert.match(LG, /BPStore\.preauthorisedHqEmail\(e\)\.then/);
+});
+await t('SQL 0277: the three HQ accounts set ONCE (marker), others kept as Admin + named for review', () => {
+  assert.match(SQL, /add column if not exists r27_seeded_at timestamptz/);
+  assert.match(SQL, /if \(select s\.r27_seeded_at from public\.helm_hq_settings s where s\.id\) is null then/);
+  assert.match(SQL, /values \('admin@helm\.events', 'migration 0277', 'owner', 'active'/);
+  assert.match(SQL, /values \('security@helm\.events', 'migration 0277', 'security', 'invited'/);
+  assert.match(SQL, /set role = 'security'[^;]*where email = 'security@helm\.events'/);
+  assert.match(SQL, /values \('sales@helm\.events', 'migration 0277', 'sales', 'invited'/);
+  assert.match(SQL, /values \('k9@helm\.events', 'migration 0277', 'owner', 'invited'/);
+  assert.match(APPLY, /12b k9@helm\.events = second Owner/);
+  assert.match(SQL, /old\.role = 'owner' and old\.status = 'active'/);   // an invited Owner never counts as the last active Owner
+  assert.match(SQL, /update public\.helm_hq_settings set r27_seeded_at = now\(\) where id;/);
+  assert.match(SQL, /raise notice '0277: other HQ operators kept with full access as Admin/);
+  assert.match(APPLY, /INFO other HQ operators kept as Admin/);
 });
 await t('hq.html: calm layout, blocked view, re-auth dialog, HQ team + matrix + rules, script order, no inline handlers / styles', () => {
   for (const id of ['vBlocked', 'blkTitle', 'reauth', 'raCode', 'tmList', 'tmEmail', 'tmRole', 'btnTmAdd', 'tmMatrix', 'tmIdle', 'tmIpOn', 'tmEvents', 'whoRole', 'crumbTitle', 'pageSub'])

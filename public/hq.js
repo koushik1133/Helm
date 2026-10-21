@@ -108,6 +108,22 @@
     var g = $("#blkGo"); if (goText) { g.textContent = goText; g.setAttribute("href", goHref || "login.html"); g.hidden = false; } else g.hidden = true;
     document.title = "Helm HQ";
   }
+  // r27: an HQ person without two-step sets it up HERE (same QR + code flow as Account settings), then HQ opens.
+  // Nobody is locked out: HQ needs two-step, and this screen is how you get it.
+  function enrollGate() {
+    blocked("Set up two-step first", "Helm HQ needs two-step verification for everyone. Scan the QR code with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…), then type the 6-digit code.", null);
+    var box = $("#blkEnroll"), card = document.querySelector("#vBlocked .box");
+    if (card) card.classList.add("wide");
+    box.hidden = false;
+    if (!window.HelmAuthUI || !window.HelmAuthUI.renderEnroll) {
+      box.textContent = "Two-step set-up couldn't load here. Use the sign-in page instead.";
+      var g = $("#blkGo"); g.textContent = "Set up on the sign-in page"; g.setAttribute("href", "login.html"); g.hidden = false; return;
+    }
+    window.HelmAuthUI.renderEnroll(box, function () {
+      $("#blkTitle").textContent = "Two-step is on"; $("#blkText").textContent = "Opening Helm HQ…";
+      setTimeout(function () { try { location.reload(); } catch (e) {} }, 900);
+    });
+  }
   function signOutThen(href) { Promise.resolve(BPStore.auth.signOut && BPStore.auth.signOut()).catch(function () {}).then(function () { location.replace(href || "login.html"); }); }
   function sessionOver(text) {
     if (blockedNow) return;
@@ -1527,6 +1543,7 @@
     if (BPStore.auth.pendingStep()) return "login";
     var step = BPStore.auth.mfa && BPStore.auth.mfa.operatorStep ? await BPStore.auth.mfa.operatorStep() : "unknown";
     if (step === "none") return "notfound";
+    if (step === "enroll") return "enroll";   // r27: set two-step up right here (no trip to the sign-in page)
     return step === "ok" ? "hq" : "login";
   }
 
@@ -1537,6 +1554,7 @@
     BPStore.auth.required();
     var g = "notfound";
     try { g = await gate(); } catch (e) { g = "notfound"; }
+    if (g === "enroll") { on("#blkOut", "click", function () { signOutThen("login.html"); }); enrollGate(); return; }
     if (g === "login") { location.replace("login.html"); return; }
     if (g !== "hq") { notFound(); return; }
     on("#blkOut", "click", function () { signOutThen("login.html"); });
@@ -1544,6 +1562,7 @@
     try { ME = await BPStore.hq("hq_me"); } catch (e) { ME = null; }
     if (ME && typeof ME !== "object") ME = null;
     if (ME && ME.status === "suspended") { blocked("Your Helm HQ access is paused", "An HQ owner or the security team paused your access. Ask the HQ owner if you think this is a mistake.", null); return; }
+    if (ME && ME.needs_2step && !ME.has_2step) { enrollGate(); return; }
     if (ME && ME.needs_2step) { blocked("Set up two-step first", "Helm HQ needs two-step verification for everyone, on every visit. Sign in again and set it up - it takes a minute.", "Set up two-step", "login.html"); return; }
     applyPerms();
     var today = new Date(), month = new Date(today.getFullYear(), today.getMonth(), 1), past = new Date(Date.now() - 30 * 864e5);

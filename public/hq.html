@@ -164,6 +164,8 @@
   .blk .box h2{margin:var(--s4) 0 var(--s2);font-size:21px;letter-spacing:-.01em}
   .blk .box p{color:var(--ink-2);margin:0 0 var(--s5)}
   .blk .actions{justify-content:center}
+  .blk .box.wide{width:min(620px,100%)}
+  .blk-enroll{text-align:left;margin:0 0 var(--s4)}
   .blk .ico{width:48px;height:48px;border-radius:14px;background:var(--accent-soft);color:var(--accent-2);display:grid;place-items:center;margin:0 auto}
   .blk .ico svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   /* ---- forms ---- */
@@ -305,6 +307,7 @@
     <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
     <h2 id="blkTitle">Set up two-step first</h2>
     <p id="blkText">Helm HQ needs two-step verification for everyone. Set it up on the sign-in page, then come back.</p>
+    <div id="blkEnroll" class="blk-enroll" hidden></div>
     <div class="actions" id="blkActs"><a class="btn primary" id="blkGo" href="login.html">Go to sign-in</a><button class="btn" id="blkOut" type="button">Sign out</button></div>
   </div>
 </main>
@@ -685,7 +688,7 @@
 <script src="config.js?v=110"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=281"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=282"></script>
 <script src="auth-ui.js?v=53"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="hq-mfa.js?v=1"></script>
