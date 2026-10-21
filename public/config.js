@@ -24,6 +24,17 @@ window.helmManualFor = function (role) { var f = window.HELM_FEATURES && window.
 // online payment / the UPI + bank details stay hidden. true = Pay now comes back exactly as before (r22).
 // (The public pricing pages have no Pay now buttons in R24 - put them back there by hand when this goes true.)
 window.HELM_FEATURES = Object.assign({ payNow: false }, window.HELM_FEATURES);
+// googleGis (r26): "Continue with Google" runs ON this site (Google's own button, public/google-gis.js), so Google's
+// account screen says helm.events instead of the supabase.co project address. ON for helm.events + www.helm.events,
+// OFF elsewhere (staging / previews / localhost keep the classic redirect button). Needs, once (owner,
+// GOOGLE-SIGNIN-DIRECT-STEPS.md): Google Cloud -> the Web client -> Authorized JavaScript origins = https://www.helm.events
+// + https://helm.events, and Supabase -> Auth -> Google -> "Client IDs" lists the client ID below. If Google's script
+// can't load, or Supabase refuses the token, the page falls back to the classic redirect button by itself.
+// To switch it off: set googleGis to false here (everything goes back to the redirect flow).
+window.HELM_FEATURES = Object.assign({ googleGis: /^(www\.)?helm\.events$/.test(((typeof location !== "undefined" && location.hostname) || "").toLowerCase()) }, window.HELM_FEATURES);
+// The PUBLIC Google OAuth web client ID (not a secret - it is in every Google sign-in page). Never put the client SECRET here.
+// oneTap: also show Google's "One Tap" account chooser on the sign-in page (off).
+window.HELM_GOOGLE = Object.assign({ clientId: "326378207877-nkcq44qbfh4qavnv438ec6q5kjc6klib.apps.googleusercontent.com", oneTap: false }, window.HELM_GOOGLE || {});
 // r21 (owner fills these in): Helm's OWN bank / UPI details shown on /checkout ("Pay by UPI or bank transfer") while
 // online payment is off. Public on purpose (customers pay to them) - put ONLY the receiving details here, never a
 // password, PIN or API key. An empty value is not shown; with everything empty the page says our team sends the
