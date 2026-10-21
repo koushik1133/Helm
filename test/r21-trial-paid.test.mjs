@@ -128,7 +128,7 @@ await t('HQ Activate plan: one call to hq_activate_plan with validated arguments
   assert.throws(() => hctx.aa(ORG, 'starter', 'monthly', 0, 'upi'), /more than 0/);
   assert.throws(() => hctx.aa(ORG, 'starter', 'monthly', 10, 'paypal'), /how they paid/);
   assert.match(HQ, /call\("hq_activate_plan", a\)/);
-  assert.match(HQ, /if \(sub\.status !== "suspended"\) wrap\.appendChild\(activateBox\(org, d\.name, sub\)\);/);
+  assert.match(HQ, /if \(sub\.status !== "suspended"( && can\("billing\.write"\))?\) wrap\.appendChild\(activateBox\(org, d\.name, sub\)\);/);
   assert.match(HQ, /window\.confirm\("Activate "/);
 });
 await t('HQ Requests tab: list + mark contacted / won / lost + open the studio', () => {

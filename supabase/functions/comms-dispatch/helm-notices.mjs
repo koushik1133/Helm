@@ -11,13 +11,15 @@
 //   sales_enquiry  (0271) someone filled in the public Contact sales form -> the HQ address (default notifications@helm.events)
 //   sales_enquiry_ack (0271) the automatic thank-you -> the person who filled it in (once a day per address)
 //   suggestion     (0271) someone sent a suggestion (in the app or on the website) -> the HQ address
+//   hq_staff       (0277) a Helm HQ team change (added, role changed, paused, access back, removed, signed out
+//                  everywhere, sign-in rules) -> the person it is about + every HQ Owner
 // Pure (no I/O); shared by comms-dispatch (Deno) and the node tests. Anything unexpected -> null and
 // comms-dispatch marks the row skipped (fails closed). Links are always APP_URL + a fixed path.
 const clip = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 const block = (v, n) => String(v == null ? "" : v).replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, n);
 const base = (app) => String(app || "https://www.helm.events").replace(/\/+$/, "");
 
-export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "studio_identity", "inbox_digest", "sales_enquiry", "sales_enquiry_ack", "suggestion"];
+export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "studio_identity", "inbox_digest", "sales_enquiry", "sales_enquiry_ack", "suggestion", "hq_staff"];
 // the footer reason for each kind (transactional: a service message about this account)
 export const NOTICE_TX_REASON = {
   sales_request: "a Helm studio asked Helm sales to activate a plan",
@@ -29,6 +31,7 @@ export const NOTICE_TX_REASON = {
   sales_enquiry: "someone filled in the Contact sales form on the Helm website",
   sales_enquiry_ack: "you filled in the Contact sales form on the Helm website",
   suggestion: "someone sent a suggestion to Helm",
+  hq_staff: "you are on the Helm HQ team, or this change is about your Helm HQ access",
 };
 const PLAN_NAME = { starter: "Starter", studio: "Studio", enterprise: "Enterprise", not_sure: "Not sure yet" };
 const TEAM = { "1": "Just me", "2-5": "2-5 people", "6-15": "6-15 people", "16-50": "16-50 people", "51+": "51+ people" };
@@ -202,6 +205,28 @@ export function helmNoticeEmail(kind, data, appUrl) {
         "Mark it in Helm HQ -> Requests -> Suggestions: " + app + "/hq#requests",
       ].join("\n"),
     };
+  }
+  if (kind === "hq_staff") {
+    // r27 (0277): one neutral text for the person AND the Owners (both get the same e-mail)
+    const email = clip(d.email, 200), role = clip(d.role, 20), by = clip(d.by, 200), reason = clip(d.reason, 300);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+    const who = by ? " by " + by : "";
+    const S = {
+      invited: ["Helm HQ: " + email + " was added as " + (role || "staff"), email + " was added to Helm HQ as " + (role || "staff") + who + ".",
+        ["How to start (for " + email + "):",
+         "1. Open " + app + "/login",
+         "2. Use exactly " + email + ": \"Continue with Google\" if it is a Google account, otherwise sign up with this e-mail and a password (then confirm the e-mail Helm sends).",
+         "3. Set up two-step verification when Helm asks (an authenticator app such as Google Authenticator). It is required for Helm HQ.",
+         "4. Helm HQ opens with only what the " + (role || "staff") + " role allows."].join("\n")],
+      role_changed: ["Helm HQ: " + email + " is now " + (role || "-"), "The Helm HQ role of " + email + " changed" + (d.old_role ? " from " + clip(d.old_role, 20) : "") + " to " + (role || "-") + who + ".", "It applies at once."],
+      suspended: ["Helm HQ: access paused for " + email, "Helm HQ access for " + email + " was paused" + who + ". All HQ sign-ins were ended.", reason ? "Reason: " + reason : ""],
+      restored: ["Helm HQ: access back for " + email, "Helm HQ access for " + email + " was given back" + who + ".", "Sign in again at " + app + "/login (two-step is required)."],
+      removed: ["Helm HQ: " + email + " was removed", email + " was removed from Helm HQ" + who + ". Nothing was deleted; an Owner can add them back.", reason ? "Reason: " + reason : ""],
+      signed_out: ["Helm HQ: " + email + " was signed out everywhere", email + " was signed out of Helm HQ on every device" + who + ".", "If this was not expected, tell the Helm HQ owner."],
+      settings: ["Helm HQ: sign-in rules changed", "The Helm HQ sign-in rules (idle time, longest sign-in, fresh code, IP allowlist) were changed" + who + ".", "See Helm HQ -> Staff access."],
+    }[d.event];
+    if (!S) return null;
+    return { subject: S[0].slice(0, 150), text: [S[1], S[2], "Helm HQ -> Staff access: " + app + "/hq", "If you did not expect this, reply to this e-mail or contact security@helm.events.", "- The Helm team"].filter(Boolean).join("\n\n") };
   }
   if (kind === "sales_enquiry_ack") {
     const name = clip(d.name, 80);

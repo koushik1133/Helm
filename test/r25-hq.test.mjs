@@ -59,7 +59,7 @@ t('studio drawer: tabs, obvious name & link button, identity + activate kept, ac
   for (const d of ['overview', 'plan', 'people', 'ident', 'activity']) assert.ok(H.includes(`id="dt-${d}"`), d);
   assert.match(J, /text: "Change studio name & link"/);
   assert.match(J, /wrap\.appendChild\(identityBox\(org, d\)\);/);
-  assert.match(J, /if \(sub\.status !== "suspended"\) wrap\.appendChild\(activateBox\(org, d\.name, sub\)\);/);
+  assert.match(J, /if \(sub\.status !== "suspended"( && can\("billing\.write"\))?\) wrap\.appendChild\(activateBox\(org, d\.name, sub\)\);/);
   assert.match(J, /call\("hq_studio_usage", \{ p_org: org \}\)/);
   assert.match(J, /if \(e\.key !== "Escape"\) return;/);
 });
