@@ -109,7 +109,9 @@ function withHashes(csp, hashes, styleHashes) {
     } else if (styleHashes && parts[0] === 'style-src') {
       const keep = parts.slice(1).filter((s) => s !== "'unsafe-inline'" && s !== "'unsafe-hashes'" && !isHash(s));
       out.push(['style-src', ...keep, ...styleHashes].join(' '));
-      out.push(['style-src-elem', ...keep, ...styleHashes].join(' '));
+      // r26 hotfix: + the hash of Google's own inline <style> (GIS button), only where its stylesheet is allowed.
+      // Best effort - Google can change it; google-gis.js never shows Google's box before its iframe has loaded.
+      out.push(['style-src-elem', ...keep, ...styleHashes, ...(keep.includes(GIS_STYLE) ? [GIS_INLINE_STYLE_HASH] : [])].join(' '));
       out.push("style-src-attr 'unsafe-inline'");
     } else out.push(d.trim());
   }
@@ -156,6 +158,7 @@ const TURNSTILE = /^https:\/\/challenges\.cloudflare\.com(\/[^\s;]*)?$/;
 const GIS_SCRIPT = 'https://accounts.google.com/gsi/client';
 const GIS_ORIGIN_PATH = 'https://accounts.google.com/gsi/';
 const GIS_STYLE = 'https://accounts.google.com/gsi/style';
+const GIS_INLINE_STYLE_HASH = "'sha256-RU4sU0AaS8IBGZx8XrGt/pa9A5SLA3dQszGeqT5L3Kw='";   // r26 hotfix (from the live CSP report)
 const AUTH_COOP = 'same-origin-allow-popups';
 // The onboarding checkout page (0056) only may load Razorpay Standard Checkout — the
 // EXACT script URL, nothing else on that origin. Card / UPI / netbanking fields live
@@ -234,5 +237,5 @@ module.exports = {
   TRUSTED_TYPES_ENFORCE, TT_DIRECTIVES,
   computeHashes, computeStyleHashes, inlineScripts, inlineStyles, htmlFiles, withHashes,
   SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, BUILDER_SOURCES, RAZORPAY_SCRIPT, scriptHosts, scriptSrcProblem, FRAME_SELF_ROUTES, frameAncestorsProblem,
-  GIS_SCRIPT, GIS_ORIGIN_PATH, GIS_STYLE, AUTH_COOP,
+  GIS_SCRIPT, GIS_ORIGIN_PATH, GIS_STYLE, GIS_INLINE_STYLE_HASH, AUTH_COOP,
 };

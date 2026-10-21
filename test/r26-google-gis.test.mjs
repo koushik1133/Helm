@@ -25,23 +25,34 @@ function el(tag) {
     click() { (this.listeners.click || []).forEach((f) => f()); },
     appendChild(c) { c.parentNode = this; this.children.push(c); if (this.onAppend) this.onAppend(c); return c; },
     insertBefore(c, ref) { c.parentNode = this; const i = this.children.indexOf(ref); this.children.splice(i < 0 ? this.children.length : i, 0, c); return c; },
-    getBoundingClientRect() { return { width: 336 }; } };
+    getBoundingClientRect() { return { width: 336 }; },
+    querySelector(sel) { const walk = (n) => { for (const c of n.children) { if (c.tag === sel) return c; const f = walk(c); if (f) return f; } return null; }; return walk(this); },
+    fire(k) { (this.listeners[k] || []).forEach((f) => f()); } };
   Object.defineProperty(e, 'nextSibling', { get() { const p = e.parentNode; if (!p) return null; return p.children[p.children.indexOf(e) + 1] || null; } });
   return e;
 }
 function gisEnv(o = {}) {
   const calls = [];
+  const observers = [];
   const head = el('head'), body = el('body'), form = el('form'), button = el('button');
   form.appendChild(button);
   const google = { accounts: { id: {
     initialize(cfg) { calls.push(['initialize', cfg]); google._cfg = cfg; },
-    renderButton(node, opts) { calls.push(['renderButton', node.id, opts]); },
+    // like the real GSI: an UNSTYLED placeholder (big svg + text) first, the button iframe a moment later
+    renderButton(node, opts) { calls.push(['renderButton', node.id, opts]);
+      const ph = el('div'); ph.appendChild(el('svg')); node.appendChild(ph); observers.forEach((f) => f());
+      google._iframe = el('iframe');
+      google._addIframe = () => { const w = el('div'); w.appendChild(google._iframe); node.appendChild(w); observers.forEach((f) => f()); };
+      if (o.iframeNow !== false) setImmediate(() => { google._addIframe(); if (o.iframeLoads !== false) setImmediate(() => google._iframe.fire('load')); });
+    },
     prompt() { calls.push(['prompt']); },
   } } };
   const win = {
     HELM_FEATURES: o.features || { googleGis: true }, HELM_GOOGLE: o.google || { clientId: CLIENT_ID },
     crypto: o.noCrypto ? undefined : webcrypto, TextEncoder, btoa: (s) => Buffer.from(s, 'binary').toString('base64'),
-    setTimeout: (fn, ms) => { if (o.fireTimeouts) setImmediate(fn); return 0; }, Uint8Array, Promise, Math, String, Array, Object,
+    setTimeout: (fn, ms) => { if (o.fireTimeouts || (ms === 8000 && o.fireShowTimeout)) setImmediate(fn); return 0; },
+    MutationObserver: o.noMO ? undefined : function (cb) { this.observe = () => observers.push(() => cb([])); this.disconnect = () => { observers.length = 0; }; },
+    setInterval: () => 1, clearInterval() {}, Uint8Array, Promise, Math, String, Array, Object,
     document: { createElement: (tag) => el(tag), head, documentElement: head, body },
   };
   head.onAppend = (s) => { calls.push(['script', s.src, s.async]);
@@ -49,7 +60,7 @@ function gisEnv(o = {}) {
   win.window = win;
   vm.createContext(win);
   vm.runInContext(GIS_SRC, win, { filename: 'google-gis.js' });
-  return { win, G: win.HelmGoogleGis, calls, form, button, google };
+  return { win, G: win.HelmGoogleGis, calls, form, button, google, observers };
 }
 
 t('enabled(): only with the flag ON + a well-formed public client ID + Web Crypto', () => {
@@ -83,6 +94,7 @@ t('attach: loads ONLY https://accounts.google.com/gsi/client, initialises with t
   assert.equal(cfg.auto_select, false); assert.equal(cfg.ux_mode, 'popup');
   const rb = e.calls.find((c) => c[0] === 'renderButton');
   assert.equal(rb[1], 'gisBtn'); assert.equal(rb[2].text, 'continue_with'); assert.equal(rb[2].width, 336);
+  assert.equal(await ctl.shown, true, 'shown once Google\'s iframe has loaded');
   assert.ok(e.form.classList.contains('gis-on'), 'classic button hidden by CSS while Google\'s is shown');
   assert.equal(ctl.active(), true);
   assert.ok(!e.calls.some((c) => c[0] === 'prompt'), 'no One Tap unless asked');
@@ -96,7 +108,7 @@ t('attach: a NEW account must tick the Terms first (shield over Google\'s button
   const e = gisEnv();
   let agreed = false, blocked = 0; const got = [];
   const ctl = e.G.attach({ button: e.button, root: e.form, needsAgree: () => !agreed, onBlocked: () => blocked++, onCredential: async (tok) => got.push(tok) });
-  await ctl.ready;
+  await ctl.ready; await ctl.shown;
   const wrap = e.form.children.find((c) => c.className === 'gis-wrap');
   const shield = wrap.children.find((c) => c.className === 'gis-shield');
   assert.equal(shield.hidden, false, 'shield shown while the box is unticked');
@@ -118,9 +130,59 @@ t('fallback: flag off / script blocked -> the classic redirect button stays; fal
   assert.ok(!bad.form.classList.contains('gis-on')); assert.equal(c1.active(), false);
   const ok = gisEnv();
   const c2 = ok.G.attach({ button: ok.button, root: ok.form, onCredential: async () => {} });
-  await c2.ready; c2.fallback();
+  await c2.ready; await c2.shown; c2.fallback();
   assert.ok(!ok.form.classList.contains('gis-on')); assert.equal(c2.active(), false);
   ok.google._cfg.callback({ credential: 'h.p.s' });   // ignored after fallback
+});
+t('no flash: Google\'s unstyled placeholder is NEVER visible - box stays gis-wait (invisible, classic button shown) until the iframe LOADS', async () => {
+  const e = gisEnv({ iframeNow: false });
+  const ctl = e.G.attach({ button: e.button, root: e.form, needsAgree: () => true, onCredential: async () => {} });
+  assert.equal(await ctl.ready, true);
+  const wrap = e.form.children.find((c) => /gis-wrap/.test(c.className));
+  const slot = wrap.children.find((c) => c.className === 'gis-btn');
+  assert.ok(slot.querySelector('svg'), 'stub drew the unstyled placeholder');
+  assert.equal(wrap.className, 'gis-wrap gis-wait'); assert.equal(wrap.hidden, false, 'laid out (Google measures it) but gis-wait = invisible');
+  assert.ok(!e.form.classList.contains('gis-on'), 'classic (styled) button still showing');
+  assert.equal(ctl.active(), false);
+  const shield = wrap.children.find((c) => c.className === 'gis-shield');
+  assert.equal(shield.hidden, true, 'no shield while waiting');
+  e.google._addIframe(); await flush();
+  assert.equal(wrap.className, 'gis-wrap gis-wait', 'iframe present but not loaded yet: still hidden');
+  e.google._iframe.fire('load');
+  assert.equal(await ctl.shown, true);
+  assert.equal(wrap.className, 'gis-wrap'); assert.ok(e.form.classList.contains('gis-on')); assert.equal(ctl.active(), true);
+  assert.equal(shield.hidden, false, 'Terms shield applies once shown');
+});
+t('no iframe within 8 s -> classic button stays (fallback), a late iframe is ignored', async () => {
+  const e = gisEnv({ iframeNow: false, fireShowTimeout: true });
+  const ctl = e.G.attach({ button: e.button, root: e.form, onCredential: async () => {} });
+  await ctl.ready;
+  assert.equal(await ctl.shown, false);
+  const wrap = e.form.children.find((c) => /gis-wrap/.test(c.className));
+  assert.equal(wrap.hidden, true); assert.ok(!e.form.classList.contains('gis-on')); assert.equal(ctl.active(), false);
+  e.google._addIframe(); e.google._iframe.fire('load'); await flush();
+  assert.ok(!e.form.classList.contains('gis-on'), 'stays on the classic button');
+});
+t('login.html CSS: Google\'s box is fixed 44px + clipped, invisible + click-through while waiting, svg capped at 20px', () => {
+  assert.match(LOGIN, /\.gis-wrap\{position:relative;display:flex;align-items:center;justify-content:center;height:44px;overflow:hidden\}/);
+  assert.match(LOGIN, /\.gis-wrap\.gis-wait\{margin-top:-44px;visibility:hidden;opacity:0;pointer-events:none\}/);
+  assert.match(LOGIN, /\.gis-btn svg\{max-width:20px;max-height:20px\}/);
+  assert.match(LOGIN, /\.gis-btn \*:not\(iframe\):not\(:has\(iframe\)\)\{display:none\}/, 'only Google\'s iframe (and its wrappers) ever show');
+  assert.match(GIS_SRC, /wrap\.className = "gis-wrap gis-wait"; wrap\.hidden = true;/);
+});
+t('CSP: Google\'s inline <style> hash only on the policies that allow its stylesheet (best effort)', () => {
+  const v = JSON.parse(read('vercel.json'));
+  const H = "'sha256-RU4sU0AaS8IBGZx8XrGt/pa9A5SLA3dQszGeqT5L3Kw='";
+  let n = 0;
+  for (const r of v.headers) {
+    const csp = (r.headers || []).find((h) => h.key === 'Content-Security-Policy');
+    if (!csp) continue;
+    const elem = (csp.value.match(/style-src-elem [^;]*/) || [''])[0];
+    assert.equal(elem.includes(H), elem.includes('https://accounts.google.com/gsi/style'), r.source);
+    if (elem.includes(H)) n++;
+    assert.ok(!/style-src-elem [^;]*'unsafe-inline'/.test(csp.value));
+  }
+  assert.ok(n >= 2);
 });
 t('One Tap only when asked AND on plain sign-in', async () => {
   const e = gisEnv();
