@@ -46,7 +46,7 @@ t('calendar.html: items = dated, not-cancelled events (confirmed / tentative) + 
 t('assets pinned: events-calendar.css / .js, store-api bumped', () => {
   assert.match(CAL, /<link rel="stylesheet" href="events-calendar\.css\?v=\d+">/);
   assert.match(CAL, /<script src="events-calendar\.js\?v=\d+"><\/script>/);
-  assert.match(CAL, /store-api\.js\?v=279/);
+  assert.match(CAL, /store-api\.js\?v=280/);
 });
 
 t('events-calendar.js: month / week / day, "+N more", today, clash badge, legend filter, type filter, phone agenda, hover card', () => {
