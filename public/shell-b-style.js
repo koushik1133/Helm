@@ -15,7 +15,19 @@
     money: "M3 6h18v12H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
     chat: "M4 5h16v11H8l-4 4z",
     search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5",
-    gear: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12l2-1-2-4-2 1-2-1V5h-4v2l-2 1-2-1-2 4 2 1v2l-2 1 2 4 2-1 2 1v2h4v-2l2-1 2 1 2-4-2-1z",
+    // r26: the cog is the rail's Control Center icon (one icon set app-wide; the old polygon gear looked off)
+    gear: "M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1",
+    // r26: operations = clipboard with a tick (quotes list "Ops", rail Operations)
+    ops: "M9 3h6a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM8 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2M9 14l2 2 4-4",
+    download: "M12 4v11M7 10l5 5 5-5M5 20h14",
+    venue: "M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6",
+    ticket: "M4 7a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v3a2 2 0 0 0 0 4v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-4zM14 6v12",
+    lifebuoy: "M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6",
+    mic: "M9 5a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0zM5 11a7 7 0 0 0 14 0M12 18v3",
+    sliders: "M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1M15 5v4M9 10v4M17 15v4",
+    card: "M3 6h18v12H3zM3 10h18M7 15h3",
+    puzzle: "M10 4a2 2 0 0 1 4 0v2h4v4h-2a2 2 0 0 0 0 4h2v4h-4v-2a2 2 0 0 0-4 0v2H6v-4h2a2 2 0 0 0 0-4H6V6h4z",
+    gate: "M9 3h6a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM12 7.5h.01M12 12h.01M12 16.5h.01",
     chart: "M4 20V10M10 20V4M16 20v-7M22 20H2",
     mail: "M3 5h18v14H3zM3 6l9 7 9-7",
     phone: "M5 3h4l2 5-3 2a11 11 0 0 0 6 6l2-3 5 2v4a2 2 0 0 1-2 2A17 17 0 0 1 3 5a2 2 0 0 1 2-2z",
@@ -57,7 +69,7 @@
   };
   var MAP = {
     "➕": "plus", "📅": "cal", "🗓": "cal", "📄": "doc", "📝": "edit", "🧾": "doc", "📋": "doc",
-    "👤": "user", "👥": "users", "📦": "box", "💰": "money", "💵": "money", "💳": "money",
+    "👤": "user", "👥": "users", "📦": "box", "💰": "money", "💵": "money", "💳": "card",
     "💬": "chat", "🔍": "search", "🔎": "search", "⚙": "gear", "📊": "chart", "📈": "chart",
     "✉": "mail", "📧": "mail", "📞": "phone", "📍": "pin", "✅": "check", "✔": "check",
     "✏": "edit", "🗑": "trash", "🖨": "print", "🔔": "bell", "🔗": "link", "✨": "sparkle",
@@ -66,10 +78,14 @@
     "📱": "mobile", "💾": "save", "🔒": "lock", "🔑": "key", "📸": "camera", "📷": "camera", "🚚": "truck",
     "🧰": "tool", "📏": "ruler", "📐": "ruler", "📖": "book", "📣": "megaphone", "🖼": "image", "🗄": "folder",
     "⧉": "copy", "↩": "undo", "↶": "undo", "↻": "refresh", "⟳": "refresh", "▶": "play", "⚠": "alert", "✦": "sparkle",
-    "✎": "edit", "✓": "check"
+    "✎": "edit", "✓": "check",
+    // r26: the remaining emoji seen in app buttons, so every button icon comes from this one line set
+    "↺": "undo", "↧": "download", "⬇": "download", "✕": "x", "✗": "x", "💲": "money", "🏛": "venue",
+    "🎫": "ticket", "🛟": "lifebuoy", "🎨": "ruler", "🎙": "mic", "⏱": "clock", "🛠": "tool", "🔧": "tool",
+    "🎛": "sliders", "🧩": "puzzle", "🚦": "gate"
   };
   // leading emoji (+ optional VS16) followed by whitespace or end
-  var RE = /^\s*([\u2190-\u21FF\u25A0-\u27BF\u27F0-\u27FF\u2900-\u29FF]|[\uD83C-\uD83E][\uDC00-\uDFFF])️?(\s+|$)/;
+  var RE = /^\s*([\u2190-\u21FF\u2300-\u23FF\u25A0-\u27BF\u27F0-\u27FF\u2900-\u29FF\u2B00-\u2BFF]|[\uD83C-\uD83E][\uDC00-\uDFFF])️?(\s+|$)/;
 
   function svg(name) {
     var s = document.createElementNS(NS, "svg");
@@ -80,13 +96,16 @@
   // never touch user data
   var UNSAFE = "input, textarea, select, [contenteditable], .msg, .message, .chat-msg, .bubble, .viewport, [data-no-icon]";
   // only known decorative containers
-  var ICON_SEL = ".btn, button, .tab, .gs-ico, .gs-icon, .ico, .icon, .empty, .emptystate, .emptylist, .colempty, .card-ico, .tile-ico, .hss-oi";
+  var ICON_SEL = ".btn, button, .tab, .gs-ico, .gs-icon, .ico, .icon, .empty, .emptystate, .emptylist, .colempty, .card-ico, .tile-ico, .hss-oi, .mod .h > .ic";   /* r26: + event workspace card icons */
   // table cells are user data except for buttons inside them (row actions)
   var BTN = "button, .btn, [role=button], .hss-oi";
 
   function swapIcon(el) {
     if (el.__sbIco || el.closest(UNSAFE)) return;
     if (el.closest("td") && !el.matches(BTN)) return;
+    // r26: an explicit icon (data-ico="ops") for buttons whose meaning has no good emoji
+    var di = el.getAttribute && el.getAttribute("data-ico");
+    if (di && P[di]) { el.__sbIco = 1; el.insertBefore(svg(di), el.firstChild); return; }
     var t = el.firstChild;
     if (!t || t.nodeType !== 3) return;
     var m = RE.exec(t.nodeValue);
