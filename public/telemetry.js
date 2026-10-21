@@ -23,7 +23,9 @@
   function refresh() {
     var c = (typeof window !== 'undefined' && window.HELM_TELEMETRY) || {};
     CFG = (c && typeof c === 'object') ? c : {};
-    ENABLED = typeof CFG.dsn === 'string' && /^https:\/\/[0-9A-Za-z]{1,64}@o\d{1,12}\.ingest(\.[a-z]{2})?\.sentry\.io\/\d{1,12}$/.test(CFG.dsn);
+    ENABLED = typeof CFG.dsn === 'string' && /^https:\/\/[0-9A-Za-z]{1,64}@o\d{1,12}\.ingest(\.[a-z]{2})?\.sentry\.io\/\d{1,12}$/.test(CFG.dsn)
+      // r26: never from a developer's own machine (config.js sets env "development" on localhost) unless asked
+      && !(CFG.env === 'development' && !CFG.allowDev);
     return ENABLED;
   }
   refresh();
@@ -35,7 +37,10 @@
   // any bare UUID (approval / portal / crew / proposal tokens are UUIDs).
   var LINK_PATH = /(\/[a-z0-9-]{1,40}\/(?:invite|quote|proposal|portal|work)\/)[^\/?#\s"'<>]+/gi;
   var INVITE_PATH = /(\/i\/)[^\/?#\s"'<>]+/g;
-  var QUERY_TOKEN = /([?&#;](?:token|t|ref|slug|code|key|access_token|refresh_token|provider_token|provider_refresh_token)=)[^&#\s"'<>]*/gi;
+  // r26: + quote / invite / lead ids, e-mail / phone / OTP / captcha pass values passed in a query
+  var QUERY_TOKEN = /([?&#;](?:token|t|ref|slug|code|key|access_token|refresh_token|provider_token|provider_refresh_token|quote|quote_id|q|invite|lead|lead_id|pass|captcha|otp|email|phone|mobile)=)[^&#\s"'<>]*/gi;
+  // r26: money - an amount with its currency (Rs / INR / USD / AED / symbols) never leaves the browser
+  var MONEY = /(?:\u20b9|\bRs\.?|\bINR|\bUSD|\bAED|\bUS\$|\$|\u20ac|\u00a3)\s?\d[\d,]*(?:\.\d+)?|\b\d[\d,]*(?:\.\d+)?\s?(?:INR|USD|AED|rupees)\b/gi;
   var UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
   function redact(s) {
     if (s == null) return s;
@@ -49,10 +54,22 @@
         .replace(/(access_token|refresh_token|apikey|api_key|authorization|bearer)["':=\s]+[^\s"'&]+/gi, '$1=[REDACTED]')
         .replace(/\b\d{6}\b(?=.*\botp\b)/gi, '[OTP_REDACTED]')
         .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[EMAIL_REDACTED]')
+        .replace(MONEY, '[AMOUNT_REDACTED]')
         .replace(/\b(?:\+?\d[ -]?){9,13}\d\b/g, '[PHONE_REDACTED]');
     } catch (e) { return '[unredactable]'; }
   }
 
+  // r26: a URL FIELD (request url, navigation from/to, fetch/xhr url) loses its whole query string and
+  // fragment - only an asset version "?v=N" is kept (it names the file, not a person). Free text keeps
+  // ordinary queries (redact() above still scrubs token-like values in them).
+  function stripUrl(u) {
+    if (typeof u !== 'string') return u;
+    var m = /^([^?#]*)(\?[^#]*)?(#.*)?$/.exec(u);
+    if (!m) return redact(u);
+    var q = m[2] && /^\?v=\d{1,9}$/.test(m[2]) ? m[2] : '';
+    return redact(m[1]) + q;
+  }
+  var URL_KEYS = /^(url|from|to|href)$/i;
   // Breadcrumbs (navigation from/to, fetch/xhr url, console/ui messages) carry
   // URLs with client-link tokens — scrub every string field of crumb.data.
   function redactBreadcrumb(crumb) {
@@ -61,21 +78,38 @@
       if (crumb.message) crumb.message = redact(crumb.message);
       if (crumb.data && typeof crumb.data === 'object') {
         Object.keys(crumb.data).forEach(function (k) {
-          if (typeof crumb.data[k] === 'string') crumb.data[k] = redact(crumb.data[k]);
+          if (typeof crumb.data[k] === 'string') crumb.data[k] = URL_KEYS.test(k) ? stripUrl(crumb.data[k]) : redact(crumb.data[k]);
         });
       }
     } catch (e) {}
     return crumb;
+  }
+  // r26: errors that come from browser add-ons / injected scripts, never from Helm
+  var EXT_URL = /(chrome|moz|safari|safari-web|ms-browser)-extension:\/\/|webkit-masked-url:|extension:\/\/|^chrome:\/\//i;
+  function fromExtension(ev) {
+    try {
+      var vals = (ev && ev.exception && ev.exception.values) || [];
+      for (var i = 0; i < vals.length; i++) {
+        var fr = (vals[i] && vals[i].stacktrace && vals[i].stacktrace.frames) || [];
+        for (var j = 0; j < fr.length; j++) if (fr[j] && EXT_URL.test(String(fr[j].filename || fr[j].abs_path || ''))) return true;
+      }
+    } catch (e) {}
+    return false;
   }
   // Every URL-bearing field of a Sentry event: message, request url / query /
   // Referer header, transaction name, exception values, breadcrumbs.
   function redactEvent(ev) {
     try {
       if (!ev) return ev;
+      if (fromExtension(ev)) return null;   // r26: drop add-on noise (Sentry: returning null = not sent)
       if (ev.message) ev.message = redact(ev.message);
-      if (ev.transaction) ev.transaction = redact(ev.transaction);
+      if (ev.transaction) ev.transaction = stripUrl(ev.transaction);
+      // r26: no person on an event - at most an opaque id, never e-mail / name / IP
+      if (ev.user) ev.user = ev.user.id ? { id: String(ev.user.id).slice(0, 64) } : undefined;
+      if (ev.extra && typeof ev.extra === 'object') Object.keys(ev.extra).forEach(function (k) { if (typeof ev.extra[k] === 'string') ev.extra[k] = redact(ev.extra[k]); });
       if (ev.request) {
-        if (ev.request.url) ev.request.url = redact(ev.request.url);
+        if (ev.request.url) ev.request.url = stripUrl(ev.request.url);
+        if (ev.request.data) ev.request.data = '[REDACTED]';
         if (ev.request.query_string) ev.request.query_string = '[REDACTED]';
         if (ev.request.cookies) ev.request.cookies = '[REDACTED]';
         if (ev.request.headers) {
@@ -107,11 +141,20 @@
     try {
       if (window.Sentry && typeof window.Sentry.captureException === 'function') {
         window.Sentry.captureException(payload, { extra: safe });
-      } else if (navigator.sendBeacon) {
-        navigator.sendBeacon(CFG.dsn, JSON.stringify(safe));
+      } else if (pending.length < 10) {
+        // r26: the SDK is still loading - keep the first few and send them once it is ready (never a
+        // hand-made beacon to the DSN: that is not Sentry's format and would carry no redaction hooks)
+        pending.push([payload, safe]);
       }
     } catch (e) { /* telemetry must never break the app */ }
   }
+  var pending = [];
+  function flushPending() {
+    var list = pending; pending = [];
+    try { list.forEach(function (p) { window.Sentry.captureException(p[0], { extra: p[1] }); }); } catch (e) {}
+  }
+  // r26: performance tracing is capped at 10% (0 = off, the default; the plain bundle has no tracing anyway)
+  function traceRate(v) { var n = Number(v); return n > 0 ? Math.min(n, 0.1) : 0; }
 
   // When a DSN is configured but no reporter SDK is present yet, lazy-load the Sentry
   // browser SDK and init it (redaction-aware via beforeSend). Completely NO-OP when no
@@ -124,7 +167,7 @@
   // server.js CSP_BASE, vercel.json and public/_headers (no wildcard).
   var SENTRY_SRC = 'https://browser.sentry-cdn.com/8.35.0/bundle.min.js';
   var SENTRY_SRI = 'sha384-j1K2/oFJn/QPiNs/Fk58NwXcaEbWzaUEF04vKMBnEprfbZ2hIQrAO0yc0XEfai1E';
-  var sentryArmed = false;
+  var sentryArmed = false, sentryReady = false;
   function loadSentry() {
     refresh();
     if (sentryArmed || !ENABLED || (typeof window === 'undefined') || window.Sentry || CFG.loadSentry === false) return;
@@ -148,11 +191,21 @@
               dsn: CFG.dsn,
               environment: CFG.env || 'production',
               release: CFG.release || undefined,
-              tracesSampleRate: CFG.tracesSampleRate || 0,
+              sampleRate: 1.0,                                  // every error
+              tracesSampleRate: traceRate(CFG.tracesSampleRate), // 0 .. 0.1
               sendDefaultPii: false,
+              maxBreadcrumbs: 30,
+              // r26: noise that is never a Helm bug (browser quirks, add-ons, the visitor's own network)
+              ignoreErrors: ['ResizeObserver loop limit exceeded', 'ResizeObserver loop completed with undelivered notifications',
+                /^Script error\.?$/, 'Non-Error promise rejection captured', /AbortError/, /The user aborted a request/,
+                'Failed to fetch', 'Load failed', 'NetworkError when attempting to fetch resource.', /^Network request failed/,
+                /webkit-masked-url/, /__gCrWeb/, /instantSearchSDKJSBridgeClearHighlight/],
+              denyUrls: [/extensions\//i, /^chrome:\/\//i, /^chrome-extension:\/\//i, /^moz-extension:\/\//i, /^safari(-web)?-extension:\/\//i, /webkit-masked-url/i],
               beforeSend: redactEvent,
               beforeBreadcrumb: redactBreadcrumb
             });
+            sentryReady = true;
+            flushPending();
           }
         } catch (e) {}
       };
@@ -190,16 +243,16 @@
     window.addEventListener('error', function (e) {
       var err = e && e.error, msg = (e && e.message) || (err && err.message) || '';
       if (isNoise(msg, e && e.filename, err && err.stack, err)) return;
-      report('error', err || { message: msg });
+      if (!sentryReady) report('error', err || { message: msg });   // once Sentry runs it records this itself (no double)
       showErrorToast();
     });
     window.addEventListener('unhandledrejection', function (e) {
       var r = e && e.reason, msg = r && (r.message || (typeof r === 'string' ? r : '')) || '';
       if (isNoise(msg || 'rejection', null, r && r.stack, r)) return;
-      report('unhandledrejection', r);
+      if (!sentryReady) report('unhandledrejection', r);
       showErrorToast();
     });
-    window.HelmTelemetry = { report: report, redact: redact, redactEvent: redactEvent, redactBreadcrumb: redactBreadcrumb, enabled: ENABLED,
+    window.HelmTelemetry = { report: report, redact: redact, stripUrl: stripUrl, redactEvent: redactEvent, redactBreadcrumb: redactBreadcrumb, enabled: ENABLED,
       isEnabled: function () { return refresh(); } };
     loadSentry();
     window.addEventListener('DOMContentLoaded', function () { loadSentry(); try { window.HelmTelemetry.enabled = ENABLED; } catch (e) {} });

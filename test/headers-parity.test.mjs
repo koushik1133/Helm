@@ -196,14 +196,22 @@ t('cache policy: versioned assets / vendor immutable, config.js short, marketing
   for (const p of MARKETING) assert.equal(vercelHeaders('/' + (p === 'index' ? '' : p))['cache-control'], 'no-cache', `${p} keeps no-cache`);
 });
 
-t('CAPTCHA CSP allowance (Turnstile) only on the login / reset pages + checkout (r21: Contact sales)', () => {
+t('CAPTCHA CSP allowance (Turnstile) only on the login / reset pages + checkout (r21: Contact sales) + the public forms (r26)', () => {
+  const TS = new Set(['login', 'reset-password', 'checkout', 'index', 'contact-sales', 'enquiry', 'suggest']);
   for (const p of PAGES) {
     const c = cspMap(vercelHeaders('/' + p)['content-security-policy']);
-    const auth = p === 'login' || p === 'reset-password' || p === 'checkout';
+    const auth = TS.has(p);
     assert.equal(/challenges\.cloudflare\.com/.test(c['script-src']), auth, `/${p} script-src Turnstile allowance`);
     assert.equal(/challenges\.cloudflare\.com/.test(c['frame-src']), auth, `/${p} frame-src Turnstile allowance`);
     assert.ok(!/challenges\.cloudflare\.com/.test(c['connect-src'] || ''), `/${p} connect-src must not gain Turnstile`);
+  }  // r26: the real URLs of the public forms (root, the studio enquiry link) - all three header sources agree
+  for (const u of ['/', '/acme-events/enquiry', '/contact-sales', '/suggest']) {
+    for (const [src, hdr] of [['vercel.json', vercelHeaders(u)], ['_headers', netlifyHeaders(u)]]) {
+      const c = cspMap(hdr['content-security-policy']);
+      assert.ok(/challenges\.cloudflare\.com/.test(c['script-src']) && /challenges\.cloudflare\.com/.test(c['frame-src']), `${src} ${u} Turnstile allowance`);
+    }
   }
+  for (const u of ['/dashboard', '/acme-events/quotes', '/acme-events/proposal/x']) assert.ok(!/challenges\.cloudflare\.com/.test(cspMap(vercelHeaders(u)['content-security-policy'])['script-src']), u + ' no Turnstile');
 });
 
 t('CSP: vercel.json/_headers allow ONLY the prod Supabase project (previews cannot reach staging by design); localhost also allows staging (no *.supabase.co)', () => {

@@ -168,7 +168,7 @@ t('deep links: /signup?plan=<plan>&mode=trial|paid|sales (the pricing / landing 
   const V = JSON.parse(read('vercel.json'));
   assert.ok(V.rewrites.some((r) => r.source === '/signup' && r.destination === '/login'));
   assert.ok(!(V.redirects || []).some((r) => r.source === '/signup'), 'no redirect any more');
-  assert.ok(V.headers.some((h) => h.source === '/(login|reset-password|signup)'), 'the login CSP covers /signup');
+  assert.ok(V.headers.some((h) => h.source === '/(login|reset-password|signup|contact-sales|suggest|enquiry|index|[a-z0-9-]+/enquiry)?'), 'the login CSP covers /signup (r26: + the public forms)');
   assert.match(read('public/_headers'), /\n\/signup\n  ! Content-Security-Policy\n/);
   assert.match(read('server.js'), /if \(rel === '\/signup'\) return serveFile\(res, req, path\.join\(PUBLIC_DIR, 'login\.html'\)\);/);
   assert.match(read('scripts/csp-hashes.cjs'), /const AUTH_ROUTE = \/\(\^\|\\\/\|\\\(\)\(login\|reset\|signup\)\//);

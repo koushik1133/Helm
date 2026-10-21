@@ -2,6 +2,8 @@
    Anyone can write to Helm sales without an account. Talks only to the anonymous RPC submit_sales_enquiry (answers ok or
    a plain-words reason; nothing is ever read back). The enquiry lands in Helm HQ -> Requests -> Sales enquiries and an
    e-mail is queued to the HQ address (default notifications@helm.events). The hidden "website" field is a bot trap.
+   r26: when config.js has a Turnstile site key, a security check shows above the button; its one-use pass (captcha.js ->
+   captcha-verify) goes in the "captcha" field. No key = the form works exactly as before.
    Text only (textContent), no inline script. */
 (function () {
   "use strict";
@@ -27,6 +29,9 @@
     if (field && FIELDS[field]) { var el = $(FIELDS[field]); el.setAttribute("aria-invalid", "true"); try { el.focus(); } catch (x) {} }
   }
 
+  // r26: the security check (null = off)
+  var cap = window.HelmCaptcha ? window.HelmCaptcha.guard($("cs-captcha"), "contact") : null;
+
   // ?plan=starter|studio|enterprise picks the plan
   try {
     var plan = String(new URLSearchParams(location.search).get("plan") || "").trim().toLowerCase();
@@ -48,7 +53,12 @@
       message: $("cs-message").value.trim() || null, consent: true, source: "contact_page" };
     var trap = $("cs-website").value; if (trap) body.website = trap;
     var btn = $("cs-send"); btn.disabled = true; btn.textContent = "Sending…";
-    rpc("submit_sales_enquiry", { p: body }).then(function (r) {
+    (cap ? cap.pass() : Promise.resolve({ ok: true, pass: null })).then(function (c) {
+      if (!c.ok) return { ok: false, captcha: c.message };
+      if (c.pass) body.captcha = c.pass;
+      return rpc("submit_sales_enquiry", { p: body });
+    }).then(function (r) {
+      if (r.captcha) { btn.disabled = false; btn.textContent = "Send to sales"; return err(r.captcha); }
       btn.disabled = false; btn.textContent = "Send to sales";
       var d = r.ok ? r.data : null;
       if (d && d.ok === true) {
