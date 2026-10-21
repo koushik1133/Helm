@@ -163,6 +163,13 @@ html[data-shell="b"] .bub .reply { background: color-mix(in srgb, var(--hb-ink) 
 html[data-shell="b"] .hss-oi { color: var(--hb-ink2); }
 html[data-shell="b"] .hss-oi .sb-ico { width: 15px; height: 15px; }
 html[data-shell="b"] button.ic .sb-ico { width: 15px; height: 15px; }
+/* r26: row-action icons sit centred on the label (no baseline drift) and are drawn in the brand green */
+html[data-shell="b"] button.ic:has(> .sb-ico) { display: inline-flex; align-items: center; gap: 5px; }
+html[data-shell="b"] button.ic:has(> .sb-ico) > .sb-ico { vertical-align: 0; }
+html[data-shell="b"] button.ic:not(.del) > .sb-ico { color: var(--hb-acc-text); }
+/* r26: event workspace card icons = the same line set, brand green, centred on the card title */
+html[data-shell="b"] .mod .h > .ic:has(> .sb-ico) { display: inline-flex; align-items: center; color: var(--hb-acc-text); }
+html[data-shell="b"] .mod .h > .ic > .sb-ico { width: 22px; height: 22px; vertical-align: 0; }
 
 /* 16. Accent polish: non-active tabs hover tint; links in main follow accent */
 html[data-shell="b"] :is(.tab, .rtab, .ptab):not(.active):not([aria-selected="true"]):hover { color: var(--hb-acc-text); }

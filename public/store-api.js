@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=42"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=43"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -9571,14 +9571,18 @@ window.HelmUrl = HelmUrl;
   }
 
   /* ---------------- date ranges for Insights / Reports (pure; local calendar dates) ---------------- */
-  const RANGE_PRESETS = [["this_month", "This month"], ["last_month", "Last month"], ["last_30", "Last 30 days"], ["last_60", "Last 60 days"],
-    ["last_90", "Last 90 days"], ["this_year", "This year"], ["custom", "Custom range"]];
+  // r26 (owner): Last 30/60/90 days removed; "Last day" (= yesterday) + "Today" added. A remembered old key
+  // (last_30/60/90) is not a preset any more → range-bar falls back to This month.
+  const RANGE_PRESETS = [["today", "Today"], ["yesterday", "Last day"], ["this_month", "This month"], ["last_month", "Last month"],
+    ["this_year", "This year"], ["custom", "Custom range"]];
   function rangeFor(key, today) {
     const d0 = (today && typeof today.getFullYear === "function") ? new Date(today.getFullYear(), today.getMonth(), today.getDate()) : new Date();
     const iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const y = d0.getFullYear(), m = d0.getMonth();
     const back = (n) => { const d = new Date(y, m, d0.getDate() - (n - 1)); return { from: iso(d), to: iso(d0) }; };
     switch (key) {
+      case "today": return { from: iso(d0), to: iso(d0) };
+      case "yesterday": { const d = new Date(y, m, d0.getDate() - 1); return { from: iso(d), to: iso(d) }; }
       case "this_month": return { from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)) };
       case "last_month": return { from: iso(new Date(y, m - 1, 1)), to: iso(new Date(y, m, 0)) };
       case "last_30": return back(30);
