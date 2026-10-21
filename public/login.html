@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/trusted-types.js?v=3"></script>
+<script src="/trusted-types.js?v=4"></script>
 <script src="/auth-handoff.js?v=2"></script>
 <title>Sign in · Helm</title>
 <meta name="description" content="Sign in to Helm, or create your studio's private workspace to run every event from first enquiry to final bill.">
@@ -114,6 +114,14 @@
   .gbtn{width:100%;height:46px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
   .gbtn:hover{background:var(--panel-2)} .gbtn svg{width:18px;height:18px}
   .gbtn:disabled{opacity:.6;cursor:default}
+  /* r26: Google's own "Continue with Google" button (google-gis.js) replaces the classic one while it is shown */
+  .gis-on #googleBtn{display:none}
+  .gis-wrap{position:relative;display:flex;justify-content:center;min-height:44px}
+  .gis-wrap[hidden]{display:none}
+  .gis-btn{display:flex;justify-content:center;width:100%;color-scheme:light}
+  .gis-shield{position:absolute;inset:0;width:100%;margin:0;padding:0;border:0;background:transparent;cursor:pointer;z-index:1}
+  .gis-shield[hidden]{display:none}
+  .gis-shield:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
   .info{background:#fff7e6;color:#5c3d00;border:1px solid #f2d492;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:16px}
   .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
   .hint{font-size:12px;color:var(--ink-3);margin:-10px 0 16px}
@@ -458,18 +466,19 @@
   </main>
 
 <script src="telemetry.js?v=6"></script>
-<script src="config.js?v=109"></script>
+<script src="config.js?v=110"></script>
 <!-- r26 speed: the app scripts are deferred (they download in parallel and run, in this order, once the page has
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=280" defer></script>
+<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=281" defer></script>
 <script src="auth-ui.js?v=53" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>
 <script src="/trial-signup.js?v=14" defer></script>
 <script src="/plan-cards.js?v=3" defer></script>
 <script src="/signup-flow.js?v=5" defer></script>
+<script src="/google-gis.js?v=1" defer></script>
 <script>
 document.addEventListener("DOMContentLoaded", function(){
   const $=(s)=>document.querySelector(s);
@@ -614,6 +623,7 @@ document.addEventListener("DOMContentLoaded", function(){
     });
   }
   let mode="signin"; let INVITE_ORG="";
+  let GIS=null;   // r26: Google's own sign-in button (google-gis.js) - null while off
   const J=()=>JOINING && !INVITE_DEAD;
   function submitLabel(){ return mode==="signup" ? (J()?"Create account & join →":"Create account →") : (J()?"Sign in to accept →":"Sign in →"); }
   function setMode(m){ mode=m; $("#err").hidden=true; $("#okmsg").hidden=true; $("#gHint").hidden=true;
@@ -646,6 +656,7 @@ document.addEventListener("DOMContentLoaded", function(){
     if(window.BPTrialSignup) BPTrialSignup.apply(m, J());
     if(window.BPSignupFlow && BPSignupFlow.applyStep1) BPSignupFlow.applyStep1(m, J());   // r23: words + plan chip per ?plan=&mode=
     if(m==="signup" && !J()){ document.title="Create your studio · Helm"; } else { document.title="Sign in · Helm"; }
+    if(GIS) GIS.refresh();   // r26: the Terms shield over Google's button follows the mode
   }
   // ----- field rules (owner form rules): inline errors on blur, polite + specific -----
   const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -1217,6 +1228,33 @@ document.addEventListener("DOMContentLoaded", function(){
       catch(err){ showErr($("#err"),(err&&err.message&&!/TypeError|undefined/.test(err.message))?err.message:"Google sign-in isn’t enabled yet."); }
     });
   });
+  // r26: Google's own button ON helm.events (google-gis.js, HELM_FEATURES.googleGis) - Google's screen names
+  // helm.events, not the supabase.co address. Same rules as the button above (a NEW account ticks the Terms
+  // first; an invite token rides along); after Supabase accepts the Google ID token the page reloads into the
+  // same address the redirect flow returns to, so two-step, invitation, terms, studio set-up and routing
+  // finish exactly as before. Any failure brings the classic redirect button back.
+  GIS = window.HelmGoogleGis ? HelmGoogleGis.attach({
+    button: $("#googleBtn"), root: $("#loginForm"),
+    needsAgree: ()=>mode==="signup" && !J() && !$("#agree").checked,
+    onBlocked: ()=>{ $("#err").hidden=true; agreeOk(); },
+    oneTap: !!(window.HELM_GOOGLE && HELM_GOOGLE.oneTap===true) && !JOINING, isSignin: ()=>mode==="signin",
+    onCredential: async (token, rawNonce)=>{
+      ["#err","#okmsg","#gHint"].forEach((id)=>{ $(id).hidden=true; });
+      if(mode==="signup" && !J()){ if(!agreeOk()) return; if(window.BPSignupFlow) BPSignupFlow.stashTerms("google"); }
+      $("#okmsg").textContent="Signing you in…"; $("#okmsg").hidden=false;
+      try{ await BPStore.auth.signInWithGoogleIdToken(token, rawNonce); }
+      catch(err){
+        $("#okmsg").hidden=true;
+        if(err && err.code==="reserved_domain"){ if(mode!=="signup") setMode("signup"); showErr($("#err"),BPStore.RESERVED_EMAIL_MESSAGE||err.message); return; }
+        if(err && err.code!=="rate_limited" && GIS) GIS.fallback();   // the classic Google button (redirect) is back
+        showErr($("#err"),(err&&err.message)||"Google sign-in didn’t finish. Please try again.");
+        return;
+      }
+      const tok=pendingInvite();
+      location.replace(location.origin+"/login.html?"+(tok?"invite="+encodeURIComponent(tok)+"&":"")+"next="+encodeURIComponent(nextUrl()));
+    }
+  }) : null;
+  if(GIS) $("#agree").addEventListener("change", ()=>GIS.refresh());
 
   // ----- round 19: the sign-up e-mail has an OPEN invitation (pending, not expired) -----
   // Asked BEFORE anything is created (invite-signup { email_lookup }: only the studio name + role come

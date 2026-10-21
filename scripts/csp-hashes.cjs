@@ -146,6 +146,17 @@ const AUTH_ROUTE = /(^|\/|\()(login|reset|signup)/;   // r22: /signup = the logi
 // r26: the signed-out public forms (home page Contact form, /contact-sales, /<studio>/enquiry, /suggest) - same allowance
 const PUBLIC_FORM_ROUTE = /^\/((index|contact-sales|suggest|enquiry)(\.html|\\\.html)?|:studio\/enquiry)?$/;
 const TURNSTILE = /^https:\/\/challenges\.cloudflare\.com(\/[^\s;]*)?$/;
+// r26: "Continue with Google" on helm.events (public/google-gis.js) - Google Identity Services, the EXACT
+// library URL only (script-src), plus its button / pop-up iframe + endpoints under /gsi/ (frame-src,
+// connect-src) and its stylesheet (style-src). Only login.html loads it, but the sign-in pages share ONE
+// vercel.json policy rule with the public forms (home / contact-sales / suggest / enquiry - r26 Turnstile),
+// and a separate login-only CSP rule would push vercel.json over its 200 KB guard, so those routes allow
+// the same exact /gsi/ paths. COOP same-origin-allow-popups (so Google's pop-up can hand the answer back
+// in browsers without FedCM - Safari / Firefox) is set on the sign-in pages ONLY (own small rules).
+const GIS_SCRIPT = 'https://accounts.google.com/gsi/client';
+const GIS_ORIGIN_PATH = 'https://accounts.google.com/gsi/';
+const GIS_STYLE = 'https://accounts.google.com/gsi/style';
+const AUTH_COOP = 'same-origin-allow-popups';
 // The onboarding checkout page (0056) only may load Razorpay Standard Checkout — the
 // EXACT script URL, nothing else on that origin. Card / UPI / netbanking fields live
 // in Razorpay's own iframe (frame-src), never in Helm's DOM.
@@ -164,11 +175,12 @@ function scriptSrcProblem(csp, route) {
   // 'staging-site' = the ONE generated helm-v01.vercel.app (staging) rule: the union of
   // every page policy, so it may carry each page's own allowed sources — nothing more.
   if (route === 'staging-site') {
-    const extraS = hosts.filter((h) => !SCRIPT_SRC_BUILDER.includes(h) && !SCRIPT_SRC_BASE.includes(h) && !TURNSTILE.test(h) && h !== RAZORPAY_SCRIPT);
+    const extraS = hosts.filter((h) => !SCRIPT_SRC_BUILDER.includes(h) && !SCRIPT_SRC_BASE.includes(h) && !TURNSTILE.test(h) && h !== RAZORPAY_SCRIPT && h !== GIS_SCRIPT);
     return extraS.length ? 'script-src allows ' + extraS.join(' ') : '';
   }
   const allowed = BUILDER_SOURCES.has(route) ? SCRIPT_SRC_BUILDER : SCRIPT_SRC_BASE;
-  const extra = hosts.filter((h) => !allowed.includes(h) && !((AUTH_ROUTE.test(route) || CHECKOUT_ROUTE.test(route) || PUBLIC_FORM_ROUTE.test(route)) && TURNSTILE.test(h)) && !(CHECKOUT_ROUTE.test(route) && h === RAZORPAY_SCRIPT));
+  const extra = hosts.filter((h) => !allowed.includes(h) && !((AUTH_ROUTE.test(route) || CHECKOUT_ROUTE.test(route) || PUBLIC_FORM_ROUTE.test(route)) && TURNSTILE.test(h)) && !(CHECKOUT_ROUTE.test(route) && h === RAZORPAY_SCRIPT)
+    && !((AUTH_ROUTE.test(route) || PUBLIC_FORM_ROUTE.test(route)) && h === GIS_SCRIPT));
   if (extra.length) return 'script-src allows ' + extra.join(' ') + (BUILDER_SOURCES.has(route) ? '' : ' (CDN sources are builder-only)');
   return '';
 }
@@ -222,4 +234,5 @@ module.exports = {
   TRUSTED_TYPES_ENFORCE, TT_DIRECTIVES,
   computeHashes, computeStyleHashes, inlineScripts, inlineStyles, htmlFiles, withHashes,
   SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, BUILDER_SOURCES, RAZORPAY_SCRIPT, scriptHosts, scriptSrcProblem, FRAME_SELF_ROUTES, frameAncestorsProblem,
+  GIS_SCRIPT, GIS_ORIGIN_PATH, GIS_STYLE, AUTH_COOP,
 };

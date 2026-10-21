@@ -2014,6 +2014,47 @@ window.HelmUrl = HelmUrl;
       if (error) throw error;
       return data; // browser navigates away to Google
     },
+    // r26: Google sign-in ON helm.events (Google Identity Services button, public/google-gis.js): Google hands
+    // this page a signed ID token for the account picked - Google's screen names helm.events, never the
+    // supabase.co project - and Supabase checks it (signature, audience = our client ID, the nonce) and opens
+    // the session. `nonce` is the RAW nonce; Google got only its SHA-256. No CAPTCHA token: Supabase does not
+    // ask for one on the id_token grant (same as the PKCE return of the redirect flow). Like signIn(): a
+    // previous session in this browser is ended first and per-user browser state is cleared on an account
+    // change. The page then reloads into login.html, which finishes exactly as after the redirect flow
+    // (two-step code, invitation, terms, studio set-up, routeSignedIn).
+    async signInWithGoogleIdToken(token, nonce) {
+      if (!supa) throw new Error("Supabase not configured");
+      token = String(token == null ? "" : token); nonce = String(nonce == null ? "" : nonce);
+      // a Google ID token is a JWT (three base64url parts); the nonce is ours (base64url, 16-128 chars)
+      if (token.length > 8192 || !/^[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}$/.test(token)) { const e = new Error("Google sign-in didn't finish. Please try again."); e.code = "google_token_invalid"; throw e; }
+      if (!/^[A-Za-z0-9_-]{16,128}$/.test(nonce)) { const e = new Error("Google sign-in didn't finish. Please try again."); e.code = "google_nonce_invalid"; throw e; }
+      localAuthOp++;
+      try {
+        const prev = currentUser;
+        if (prev) { explicitSignOut = true; try { await supa.auth.signOut({ scope: "local" }); } catch (e) {} currentUser = null; pendingStep = null; }
+        const { data, error } = await supa.auth.signInWithIdToken({ provider: "google", token, nonce });
+        if (error) {
+          const m = String(error.message || ""), st = Number(error.status) || 0;
+          if (isReservedRefusal(error) || /reserved for the helm team/i.test(m)) throw reservedEmailError();
+          if (st === 429 || /rate limit|too many/i.test(m)) { const e = new Error("Too many requests — please wait a few minutes and try again."); e.code = "rate_limited"; throw e; }
+          // anything else (Google provider off, this client ID not listed in Supabase, nonce refused, network):
+          // the page falls back to the redirect sign-in, which still works
+          const e = new Error("Google sign-in didn't finish here. Please try again."); e.code = "google_idtoken_failed"; e.cause = error; throw e;
+        }
+        const uid = data && data.user && data.user.id;
+        const st = sessionStart();
+        if ((prev && prev.id !== uid) || (st && st.uid !== uid)) userLocalClear();
+        // the user from the stored session (as signIn) - the response itself never flows into web storage
+        const { data: sd } = await supa.auth.getSession();
+        if (!(uid && sd && sd.session && sd.session.user && sd.session.user.id === uid)) { const e = new Error("Google sign-in didn't finish here. Please try again."); e.code = "google_idtoken_failed"; throw e; }
+        currentUser = sd.session.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false;
+        hadSession = true; explicitSignOut = false; sessionExpired = false; limitOut = false;
+        stampSessionStart(currentUser.id, true);
+        lsDel(RECOVERY_KEY);
+        await evaluateGate();
+        return currentUser;
+      } finally { localAuthOp--; }
+    },
     // Explicit "Log out" = THIS browser only (r20-coord #33). scope "local" still revokes this session's refresh
     // token on the server; it no longer ends the account's sessions on other browsers / devices (supabase-js v2's
     // bare signOut() defaults to "global", which logged the owner's Safari out when another browser signed out).

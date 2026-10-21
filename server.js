@@ -110,7 +110,7 @@ const MIME = {
    scripts/csp-hashes.cjs (path-scoped; CDNs are builder-only). */
 // Inline-script hashes, recomputed only when a page under public/ changes.
 const { computeHashes, computeStyleHashes, htmlFiles, withHashes, SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, TT_DIRECTIVES,
-  cspReportUri, sentryIngestOrigin, withReporting, reportingEndpoints } = require('./scripts/csp-hashes.cjs');
+  cspReportUri, sentryIngestOrigin, withReporting, reportingEndpoints, GIS_SCRIPT, GIS_ORIGIN_PATH, GIS_STYLE, AUTH_COOP } = require('./scripts/csp-hashes.cjs');
 let hashCache = { sig: null, hashes: [], styles: [] };
 function inlineScriptHashes() {
   let sig = '';
@@ -163,9 +163,12 @@ const CSP = {
 //    public/config.js has no Turnstile site key (nothing is loaded).
 const TURNSTILE = 'https://challenges.cloudflare.com';
 const baseDirective = (k) => CSP_BASE.find(([d]) => d === k)[1];
+//    r26: + Google Identity Services ("Continue with Google" on helm.events, public/google-gis.js)
 CSP.auth = buildCsp({
-  'script-src': baseDirective('script-src').replace(/^'self'/, "'self' " + TURNSTILE),
-  'frame-src': baseDirective('frame-src') + ' ' + TURNSTILE,
+  'script-src': baseDirective('script-src').replace(/^'self'/, "'self' " + TURNSTILE) + ' ' + GIS_SCRIPT,
+  'frame-src': baseDirective('frame-src') + ' ' + TURNSTILE + ' ' + GIS_ORIGIN_PATH,
+  'connect-src': baseDirective('connect-src') + ' ' + GIS_ORIGIN_PATH,
+  'style-src': baseDirective('style-src') + ' ' + GIS_STYLE,
 });
 //  • /checkout may load Razorpay Standard Checkout (exact script URL; its payment form
 //    runs in Razorpay's iframe — Helm never renders card fields) — that page only (0056)
@@ -253,6 +256,7 @@ function securityHeadersFor(req, filePath) {
   const page = rel.includes('/') ? null : pageName(rel);
   const variant = page && CSP_BY_PAGE[page];
   if (variant) h['Content-Security-Policy'] = CSP[variant];
+  if (page === 'login' || page === 'reset-password') h['Cross-Origin-Opener-Policy'] = AUTH_COOP;   // r26: Google sign-in pop-up, sign-in pages only (same as vercel.json / _headers)
   if (page === 'invite' || page === 'capture') h['X-Frame-Options'] = 'SAMEORIGIN';   // R8b: capture host (same-origin only)   // Invitation Studio preview (same-origin only)
   if (page && MIC_PAGES.has(page)) h['Permissions-Policy'] = CHAT_PERMISSIONS; // voice notes (same rule as vercel.json / _headers)
   // Client-link (bearer token) pages: the token is in the URL, so never send it
