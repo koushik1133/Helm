@@ -232,6 +232,11 @@
       "permanent": false
     },
     {
+      "source": "/r/:code([A-Za-z0-9][A-Za-z0-9_-]{2,23})",
+      "destination": "/signup?ref=:code",
+      "permanent": false
+    },
+    {
       "source": "/sim-pay(\\.html)?",
       "has": [
         {

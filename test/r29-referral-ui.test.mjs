@@ -1,5 +1,5 @@
-// r29 referral program PHASE 1 (UI only, local): the shared rules, the localhost-only demo guard, the pages' wiring,
-// the /r/<code> redirect and the sign-up field. No network, no SQL.
+// r29 referral program: the shared rules, the localhost-only demo guard, the pages' wiring, the /r/<code> redirect and
+// the sign-up field (phase 1 screens, kept honest after phase 2 wired them to SQL 0279 - see r29-referrals-wiring).
 import { readFileSync, existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
@@ -85,7 +85,7 @@ for (const f of ["refer.js", "hq-referrals.js", "referral-signup.js", "refer-boo
 for (const p of ["refer.html", "hq-referrals.html", "referral-terms.html"]) assert.ok(existsSync(new URL("../public/" + p, import.meta.url)), p);
 for (const f of ["refer.js", "hq-referrals.js", "referral-signup.js", "referral-rules.js", "referral-demo.js"]) {
   const src = read("public/" + f);
-  assert.doesNotMatch(src, /\.innerHTML\s*=|insertAdjacentHTML|document\.write|\beval\(|fetch\(|XMLHttpRequest/, f + ": no HTML sinks, no network");
+  assert.doesNotMatch(src, /\.innerHTML\s*=|insertAdjacentHTML|document\.write|\beval\(|fetch\(|XMLHttpRequest/, f + ": no HTML sinks, no raw network (only BPStore RPCs)");
 }
 const refer = read("public/refer.html");
 assert.match(refer, /<html[^>]*class="auth-pending"/, "studio page is behind the sign-in gate");
@@ -93,8 +93,12 @@ assert.ok(refer.indexOf("refer-boot.js") < refer.indexOf("store-api.js"), "demo 
 assert.ok(refer.indexOf("referral-demo.js") < refer.indexOf("refer-boot.js"));
 assert.doesNotMatch(refer, /<script>(?!<\/script>)|\son[a-z]+=/i);
 const hq = read("public/hq-referrals.html");
-assert.doesNotMatch(hq, /store-api\.js|auth-pending/, "HQ preview has no data outside the demo (no session needed)");
-assert.match(read("public/hq-referrals.js"), /if \(!R \|\| !D\) \{ \$\("vSoon"\)\.hidden = false; return; \}/, "non-demo: notice only");
+assert.doesNotMatch(hq, /auth-pending/, "HQ page: its own HQ gate (like /hq), not the studio sign-in gate");
+assert.ok(hq.indexOf("referral-demo.js") < hq.indexOf("store-api.js") && hq.indexOf("hq-staff.js") < hq.indexOf("hq-referrals.js"));
+const hqjs = read("public/hq-referrals.js");
+assert.match(hqjs, /operatorStep\(\)/, "real data only after the HQ two-step check");
+assert.match(hqjs, /if \(step === "none"\) \{ notFound\(\); return; \}/, "not an operator -> page not found");
+assert.match(hqjs, /var D = LOCAL \? window\.HelmReferralDemo \|\| null : null;/, "demo data only on localhost");
 const terms = read("public/referral-terms.html");
 assert.match(terms, /Draft: the program is not live yet/);
 for (const k of ["self-referral", "chargeback", "no cash value", "14 days", "12 free months", "ASCI", "Cookie Policy"]) assert.ok(terms.toLowerCase().includes(k.toLowerCase()), "terms mention " + k);
@@ -108,7 +112,10 @@ assert.match(login, /<input type="checkbox" id="rfsConsent">/, "name-sharing con
 const sig = read("public/referral-signup.js");
 assert.match(sig, /qs\.get\("ref"\)/);
 assert.doesNotMatch(sig, /qs\.get\("code"\)/, "?code= belongs to the auth callback");
-assert.match(sig, /sessionStorage/); assert.doesNotMatch(sig, /localStorage/, "kept for this tab only in phase 1");
+assert.match(sig, /sessionStorage/);
+assert.deepEqual([...new Set([...sig.matchAll(/localStorage\.(?:get|set|remove)Item\(([A-Z]+)/g)].map((m) => m[1]))], ["LINK"], "local storage: only the opened link (60 days)");
+assert.match(sig, /var KEY = "helm\.signup\.ref", LINK = "helm\.ref\.link"/);
+assert.match(sig, /R\.RULES\.linkDays \* DAY/, "the link is forgotten after 60 days");
 assert.match(read("public/referral-signup.css"), /\.rfs-banner\[hidden\]/, "[hidden] wins over display:flex");
 
 // ---- sidebar + routing

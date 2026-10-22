@@ -1,4 +1,4 @@
-/* referral-rules.js - r29 referral program, PHASE 1 (UI only). The plain rules of "refer a studio, both get a month free",
+/* referral-rules.js - r29 referral program (phase 1 screens; phase 2 = SQL 0279 decides on the server). The plain rules of "refer a studio, both get a month free",
    written ONCE so the studio page, the sign-up field, the HQ page and the tests all say the same thing. Pure functions,
    no network, no storage, no DOM. Phase 2 moves the deciding parts to the server (the browser never decides a reward);
    these stay as the display rules + the test oracle. See REFERRAL-PROGRAM-PLAN.md.
@@ -66,7 +66,10 @@
     applied:   { label: "Used",      tone: "good" },
     frozen:    { label: "Frozen (subscription cancelled)", tone: "muted" },
     expired:   { label: "Expired",   tone: "muted" },
-    reversed:  { label: "Reversed",  tone: "bad" }
+    reversed:  { label: "Reversed",  tone: "bad" },
+    written_off: { label: "Reversed (already used - not charged)", tone: "muted" },
+    capped:    { label: "Over the 12-a-year limit", tone: "muted" },
+    forfeited: { label: "Forfeited", tone: "bad" }
   };
 
   /* can this referral be rewarded? Deterministic, from the facts only. Returns { ok, status, reason } */
