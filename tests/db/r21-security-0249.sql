@@ -48,7 +48,7 @@ do $$ declare e text; r jsonb; begin
   perform pg_temp.su(); perform auth.login_anon();
   e := pg_temp.try('select public.hq_mfa_readiness()');
   perform pg_temp.res('02 readiness: anon is refused', e like '42501%', e);
-  perform pg_temp.as_user('admin@helm.events', 'aal1');
+  perform pg_temp.as_user('admin@helm.events', 'aal2');   -- r27 (0277): HQ always needs two-step
   r := public.hq_mfa_readiness();
   perform pg_temp.res('03 readiness: operator sees every operator with login + two-step state',
     r -> 'operators' @> '[{"email":"admin@helm.events","has_login":true,"has_2step":false,"is_me":true}]'::jsonb

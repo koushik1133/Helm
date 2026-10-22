@@ -1,4 +1,5 @@
--- hq-mfa-optional.sql — 0047 one switch decides whether HQ operators need two-step.
+-- hq-mfa-optional.sql — 0047 one switch decided whether HQ operators need two-step; since r27 (0277) two-step is ALWAYS
+-- required for HQ (the switch is kept but ignored) - the 'off' rows below now check that.
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
 drop table if exists _ho; create temp table _ho(name text, result text); grant all on _ho to anon, authenticated, service_role;
@@ -40,9 +41,9 @@ do $$ declare r text; begin
   perform pg_temp.flag(false);
   perform pg_temp.as_user('security@helm.events', 'aal1'); execute 'set role authenticated';
   r := pg_temp.rw();
-  perform pg_temp.res('01 off: operator without two-step at aal1 may read + write HQ', r = '|', r);
-  perform pg_temp.res('02 off: operator_mfa_required() says false', public.operator_mfa_required() = false);
-  perform pg_temp.res('03 off: is_platform_admin() true at aal1 (no factor)', public.is_platform_admin());
+  perform pg_temp.res('01 off: r27 (0277) two-step always - operator without two-step at aal1 refused read + write', r = '42501|42501', r);
+  perform pg_temp.res('02 off: r27 (0277) operator_mfa_required() still says true (the switch is ignored)', public.operator_mfa_required());
+  perform pg_temp.res('03 off: r27 (0277) is_platform_admin() false at aal1 (no factor)', not public.is_platform_admin());
   perform pg_temp.as_user('admin@helm.events', 'aal1'); execute 'set role authenticated';
   r := pg_temp.rw();
   perform pg_temp.res('04 off: operator WITH an authenticator at aal1 is still challenged (refused)', r = '42501|42501', r);
@@ -84,7 +85,7 @@ do $$ declare r text; n int; begin
   perform pg_temp.as_user('admin@helm.events', 'aal2'); execute 'set role authenticated';
   r := pg_temp.try('select public.hq_set_require_mfa(false)');
   perform pg_temp.su(); select count(*) into n from public.audit_log where action = 'hq.settings.require_mfa' and entity = 'helm_hq_settings';
-  perform pg_temp.res('15 operator at aal2 switches it off; audited', r = '' and not public._hq_require_mfa() and n >= 2, r || ' n=' || n);
+  perform pg_temp.res('15 operator at aal2 flips the old switch; audited; r27 (0277): two-step stays required', r = '' and public._hq_require_mfa() and n >= 2, r || ' n=' || n);
   perform pg_temp.as_user('a_admin@a.test', 'aal2'); execute 'set role authenticated';
   r := pg_temp.try('select * from public.helm_hq_settings') || '|' || pg_temp.try('update public.helm_hq_settings set hq_require_mfa = true');
   perform pg_temp.res('16 table not readable / writable by clients', r = '42501|42501', r);

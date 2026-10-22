@@ -7,7 +7,10 @@
    0045: HQ shows NO studio business data — only studios, their people and what
    each studio paid Helm (subscription billing).
    External file — no inline script, so the hash-based CSP needs no change.
-   All values are written with textContent / createElement (never parsed as HTML). */
+   All values are written with textContent / createElement (never parsed as HTML).
+   r27 (0277): HQ STAFF ROLES - hq_me() says who I am (role, permissions, status); pages / buttons a role can't use are
+   hidden (the database refuses them anyway), two-step always, idle sign-out, a fresh code before big changes
+   (HQ_REAUTH), "Staff access" = the HQ team with monitoring + Helm e-mail addresses. */
 (function () {
   "use strict";
   var $ = function (s) { return document.querySelector(s); };
@@ -62,7 +65,96 @@
   }
   function showErr(e) { var b = $("#err"); b.textContent = "Couldn’t complete that: " + ((e && e.message) || "unknown error"); b.hidden = false; }
   function okMsg(t) { var b = $("#ok"); b.textContent = t; b.hidden = false; setTimeout(function () { b.hidden = true; }, 4000); }
-  function call(fn, args) { return BPStore.hq(fn, args); }
+  // r27: who I am in HQ (hq_me, 0277). null = a database without 0277 (everything shown, as before)
+  var ME = null, S = window.HelmHqStaff || null, blockedNow = false;
+  function can(p) { return !ME || !S ? true : S.can(ME.perms, p); }
+  function canTab(t) { return !ME || !S ? true : S.can(ME.perms, S.TAB_PERM[t] || "owner.only"); }
+  // every HQ call: a refusal for a big change asks for a fresh two-step code once and retries; an ended / idle /
+  // expired HQ sign-in shows "sign in again"; a role refusal gets a plain sentence
+  function call(fn, args) {
+    return BPStore.hq(fn, args).catch(function (e) {
+      var k = S ? S.errKind(e) : null;
+      if (k === "reauth") return askCode().then(function () { return BPStore.hq(fn, args); });
+      if (k === "idle" || k === "expired" || k === "ended") { sessionOver(S.friendly(k)); throw new Error(S.friendly(k)); }
+      if (k === "role" || k === "ip") throw new Error(S.friendly(k, ME && ME.role_label));
+      throw e;
+    });
+  }
+  /* ---- r27: fresh two-step code (sudo mode) ---- */
+  var codeWait = null;
+  function askCode() {
+    if (codeWait) return codeWait;
+    codeWait = new Promise(function (resolve, reject) {
+      var box = $("#reauth"), inp = $("#raCode"), er = $("#raErr"), go = $("#raGo"), no = $("#raCancel");
+      if (!box || !BPStore.auth.mfa || !BPStore.auth.mfa.challenge) { reject(new Error("Sign in again to make this change.")); return; }
+      er.textContent = ""; inp.value = ""; box.hidden = false; setTimeout(function () { try { inp.focus(); } catch (e) {} }, 30);
+      var done = function (ok, err) { box.hidden = true; go.onclick = null; no.onclick = null; inp.onkeydown = null; if (ok) resolve(true); else reject(err || new Error("Cancelled - nothing was changed.")); };
+      go.onclick = function () {
+        go.disabled = true; er.textContent = "";
+        Promise.resolve(BPStore.auth.mfa.challenge(String(inp.value || "").trim())).then(function () { done(true); })
+          .catch(function (e) { er.textContent = (e && e.message) || "That code didn't work."; try { inp.select(); } catch (x) {} })
+          .then(function () { go.disabled = false; });
+      };
+      no.onclick = function () { done(false); };
+      inp.onkeydown = function (e) { if (e.key === "Enter") go.onclick(); if (e.key === "Escape") done(false); };
+    }).then(function (v) { codeWait = null; return v; }, function (e) { codeWait = null; throw e; });
+    return codeWait;
+  }
+  /* ---- r27: blocked states (two-step first / paused / session over) ---- */
+  function blocked(title, text, goText, goHref) {
+    blockedNow = true;
+    $("#vLoading").hidden = true; $("#vApp").hidden = true; $("#vNotFound").hidden = true; $("#vBlocked").hidden = false;
+    $("#blkTitle").textContent = title; $("#blkText").textContent = text;
+    var g = $("#blkGo"); if (goText) { g.textContent = goText; g.setAttribute("href", goHref || "login.html"); g.hidden = false; } else g.hidden = true;
+    document.title = "Helm HQ";
+  }
+  // r27: an HQ person without two-step sets it up HERE (same QR + code flow as Account settings), then HQ opens.
+  // Nobody is locked out: HQ needs two-step, and this screen is how you get it.
+  function enrollGate() {
+    blocked("Set up two-step first", "Helm HQ needs two-step verification for everyone. Scan the QR code with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…), then type the 6-digit code.", null);
+    var box = $("#blkEnroll"), card = document.querySelector("#vBlocked .box");
+    if (card) card.classList.add("wide");
+    box.hidden = false;
+    if (!window.HelmAuthUI || !window.HelmAuthUI.renderEnroll) {
+      box.textContent = "Two-step set-up couldn't load here. Use the sign-in page instead.";
+      var g = $("#blkGo"); g.textContent = "Set up on the sign-in page"; g.setAttribute("href", "login.html"); g.hidden = false; return;
+    }
+    window.HelmAuthUI.renderEnroll(box, function () {
+      $("#blkTitle").textContent = "Two-step is on"; $("#blkText").textContent = "Opening Helm HQ…";
+      setTimeout(function () { try { location.reload(); } catch (e) {} }, 900);
+    });
+  }
+  function signOutThen(href) { Promise.resolve(BPStore.auth.signOut && BPStore.auth.signOut()).catch(function () {}).then(function () { location.replace(href || "login.html"); }); }
+  function sessionOver(text) {
+    if (blockedNow) return;
+    blocked("Please sign in again", text || "Your Helm HQ sign-in has ended.", null);
+    setTimeout(function () { signOutThen("login.html"); }, 2500);
+  }
+  /* ---- r27: idle sign-out on this page + throttled "still here" heartbeat (page views, hq_heartbeat) ---- */
+  var lastInput = Date.now(), lastBeat = 0, curTab = "overview";
+  function beat(page, force) {
+    if (!ME || blockedNow) return;
+    var t = Date.now(); if (!force && t - lastBeat < 120000) return; lastBeat = t;
+    BPStore.hq("hq_heartbeat", { p_page: page || curTab }).catch(function (e) { var k = S && S.errKind(e); if (k === "idle" || k === "expired" || k === "ended") sessionOver(S.friendly(k)); });
+  }
+  function startWatch() {
+    ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (ev) { document.addEventListener(ev, function () { lastInput = Date.now(); }, { passive: true }); });
+    setInterval(function () {
+      if (!ME || blockedNow) return;
+      var idleMs = Math.max(5, Number(ME.idle_minutes) || 30) * 60000;
+      if (Date.now() - lastInput > idleMs) { sessionOver(S ? S.friendly("idle") : ""); return; }
+      if (Date.now() - lastInput < 120000 && document.visibilityState === "visible") beat(curTab, false);
+    }, 30000);
+  }
+  // hide every page / control the role can't use (the database refuses them anyway)
+  function applyPerms() {
+    Array.prototype.slice.call(document.querySelectorAll("[data-perm]")).forEach(function (n) { if (!can(n.getAttribute("data-perm"))) n.hidden = true; });
+    TABS.forEach(function (t) { var b = $("#tab-" + t); if (b && b.parentNode) b.parentNode.hidden = !canTab(t); });
+    $("#navgBiz").hidden = !["overview", "studios", "requests", "billing", "plans"].some(canTab);
+    $("#navgTeam").hidden = !["people", "activity", "staff"].some(canTab);
+    if (!can("studios.read") && !can("people.read")) { var gs = document.querySelector(".gs"); if (gs) gs.hidden = true; }
+    var rc = $("#whoRole"); if (rc && ME) { rc.textContent = ME.role_label || ""; rc.hidden = !ME.role_label; }
+  }
   function statusPill(s) {
     var tone = { active: "ok", trial: "", past_due: "warn", suspended: "bad", cancelled: "", none: "" }[s || "none"];
     var words = { active: "Paying", trial: "Trial", past_due: "Past due", suspended: "Suspended", cancelled: "Cancelled", none: "No plan" };
@@ -80,7 +172,16 @@
   var TABS = ["overview", "studios", "billing", "requests", "plans", "people", "activity", "staff"];
   var TITLES = { overview: "Overview", studios: "Studios", billing: "Billing", requests: "Requests", plans: "Plans & prices",
     people: "People", activity: "Activity log", staff: "Staff access" };
+  var SUBS = { overview: "Studios, people and Helm subscriptions. Never a studio’s clients, quotes or prices.",
+    studios: "Every studio on Helm: plan, status, people and what they paid Helm.", billing: "Money studios paid Helm, invoices, past due and settings.",
+    requests: "Plan requests, sales enquiries and suggestions in one inbox.", plans: "The plans studios can buy, their prices and tax rules.",
+    people: "Everyone with a Helm login, their studio and two-step.", activity: "What the HQ team did, and security events across studios.",
+    staff: "Who can use Helm HQ, what they can do, and when they last used it." };
   function showTab(name) {
+    if (!canTab(name)) return;
+    curTab = name; beat(name, true);
+    var cr = $("#crumbTitle"); if (cr) cr.textContent = TITLES[name] || "Helm HQ";
+    var ps = $("#pageSub"); if (ps) ps.textContent = SUBS[name] || "";
     TABS.forEach(function (t) {
       var p = $("#pane-" + t), b = $("#tab-" + t);
       if (p) p.hidden = t !== name;
@@ -192,8 +293,8 @@
     if (go) { k.setAttribute("type", "button"); k.addEventListener("click", go); }
     return k;
   }
-  function goTab(t, after) { return function () { showTab(t); if (after) after(); }; }
-  function goStudios(status) { return function () { showTab("studios"); $("#fStatus").value = status || ""; loadStudios(0).catch(showErr); }; }
+  function goTab(t, after) { return canTab(t) ? function () { showTab(t); if (after) after(); } : null; }
+  function goStudios(status) { return canTab("studios") ? function () { showTab("studios"); $("#fStatus").value = status || ""; loadStudios(0).catch(showErr); } : null; }
   function inrOf(list) { var t = 0; (Array.isArray(list) ? list : []).forEach(function (m) { if ((m.currency || "INR") === "INR") t += num(m.amount); }); return t; }
   function failedEmails(m) { return ((m && m.health && m.health.queues) || []).reduce(function (s, q) { return s + num(q.failed_7d); }, 0); }
   function openRequests(m) { var a = (m && m.attention) || {}; return num(a.new_plan_requests) + num(a.new_sales_enquiries) + num(a.new_suggestions); }
@@ -272,11 +373,11 @@
   }
   function renderAttention(o, m) {
     var ul = clear($("#attList")), a = (m && m.attention) || {}, n = 0, add = function (li) { ul.appendChild(li); n++; };
-    var open = function (id) { return function () { openStudio(id); }; };
+    var open = function (id) { return canTab("studios") ? function () { openStudio(id); } : null; };
     var reqs = [["new_plan_requests", "plan request", "plan requests", "plan"], ["new_sales_enquiries", "sales enquiry", "sales enquiries", "sales"],
       ["new_suggestions", "suggestion", "suggestions", "sugg"]];
     reqs.forEach(function (r) { var c = num(a[r[0]]); if (c > 0) add(attRow("✉", "warn", int(c) + " new " + (c === 1 ? r[1] : r[2]), "waiting for a reply",
-      function () { showTab("requests"); reqTab(r[3]); loadRequestsTab(); }, "Reply")); });
+      canTab("requests") ? function () { showTab("requests"); reqTab(r[3]); loadRequestsTab(); } : null, "Reply")); });
     (a.past_due || []).forEach(function (x) { add(attRow("₹", "bad", (x.name || "Studio") + " — payment pending", "plan period ended " + date(x.period_end), open(x.org_id), "Open")); });
     (a.trials_ending || []).forEach(function (x) { add(attRow("⏳", "warn", (x.name || "Studio") + " — trial ends " + trialDay(x.ends_at), "talk to them before it ends", open(x.org_id), "Open")); });
     var nf = failedEmails(m); if (nf > 0) add(attRow("!", "bad", int(nf) + " e-mail" + (nf === 1 ? "" : "s") + " failed in 7 days", "see System health", null));
@@ -320,7 +421,7 @@
         el("td", null, [statusPill(r.status), r.plan ? " " + r.plan : ""]), el("td", { cls: "n", text: int(r.active_30d) }),
         el("td", { cls: "n", text: int(r.people) }), el("td", { text: ago(r.last_sign_in) })]);
       var go = function () { openStudio(r.org_id); };
-      tr.addEventListener("click", go); tr.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
+      if (canTab("studios")) tr.addEventListener("click", go); tr.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
       tb.appendChild(tr);
     });
     if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "5", cls: "empty", text: m ? "No sign-ins in the last 30 days." : "Appears after SQL 0272 is applied." })]));
@@ -363,7 +464,7 @@
       var inv = el("button", { cls: "btn sm", type: "button", text: "Invoice" });
       inv.addEventListener("click", function () { openInvoice(invoiceFn || "hq_invoice", p.id); });
       var acts = el("td", null, [inv]);
-      if (!p.voided) {
+      if (!p.voided && can("billing.write")) {
         var v = el("button", { cls: "btn sm danger", type: "button", text: "Void" });
         v.addEventListener("click", function () {
           var why = ask("Void payment " + (p.invoice_no || "") + " of " + money(p.amount, p.currency) + "? The row and invoice number are kept. Reason:");
@@ -407,7 +508,7 @@
     $("#studioDrawer").hidden = true; $("#studioScrim").hidden = true; openOrg = null;
     try { if (lastFocus && lastFocus.focus) lastFocus.focus(); } catch (e) {}
   }
-  function openStudio(org, tab) { if (!org) return; loadDetail(org, tab || "overview").catch(showErr); }
+  function openStudio(org, tab) { if (!org || !canTab("studios")) return; loadDetail(org, tab || "overview").catch(showErr); }
   function fact(label, value) { return el("div", { cls: "fact" }, [el("div", { cls: "l", text: label }), el("div", { cls: "v", text: value })]); }
   function kvList(pairs) {
     var dl = el("dl", { cls: "kv" });
@@ -439,7 +540,7 @@
     bPlan.addEventListener("click", function () { dTab("plan"); });
     var bPeople = el("button", { cls: "btn", type: "button", text: "People & 2-step" });
     bPeople.addEventListener("click", function () { dTab("people"); });
-    wrap.appendChild(el("div", { cls: "card" }, [el("h2", { text: "Quick actions" }), el("div", { cls: "bigact" }, [bName, bPlan, bPeople])]));
+    wrap.appendChild(el("div", { cls: "card" }, [el("h2", { text: "Quick actions" }), el("div", { cls: "bigact" }, [can("studios.edit") ? bName : null, bPlan, bPeople])]));
     wrap.appendChild(el("div", { cls: "card" }, [el("h2", { text: "Contact" }), kvList([
       ["Primary contact", acc.primary_contact_name], ["E-mail", acc.primary_contact_email || d.owner_email], ["Phone", acc.primary_contact_phone],
       ["Billing e-mail", acc.billing_contact_email], ["Place", [acc.city, acc.state, acc.country].filter(Boolean).join(", ")],
@@ -462,7 +563,7 @@
       var patch = {}; AF.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (acc[f[0]] == null ? "" : String(acc[f[0]]))) patch[f[0]] = v; });
       call("hq_set_studio_account", { p_org: org, p_account: patch }).then(function () { okMsg("Business details saved."); refreshAfterWrite(org); }).catch(showErr);
     });
-    af.appendChild(asave); more.appendChild(af); wrap.appendChild(more);
+    af.appendChild(asave); more.appendChild(af); if (can("studios.edit")) wrap.appendChild(more);
 
     // ---- Plan & billing: subscription, suspend, activate, free trial, payments
     wrap = panes.plan;
@@ -488,7 +589,7 @@
     });
     var adv = el("details", { cls: "more" }, [el("summary", { text: "Change plan or status by hand" }),
       el("div", { cls: "form" }, [field("Plan", selPlan), field("Status", selSt), field("Period start", ps), field("Period end", pe), field("Trial ends", te), save])]);
-    subCard.appendChild(adv);
+    if (can("billing.write")) subCard.appendChild(adv);
     var sus = el("button", { cls: "btn " + (sub.status === "suspended" ? "primary" : "danger"), type: "button", text: sub.status === "suspended" ? "Reactivate studio" : "Suspend (read-only)…" });
     sus.addEventListener("click", function () {
       if (sub.status === "suspended") {
@@ -500,10 +601,10 @@
         call("hq_suspend_studio", { p_org: org, p_reason: why }).then(function () { okMsg("Studio suspended (read-only)."); refreshAfterWrite(org); }).catch(showErr);
       }
     });
-    subCard.appendChild(el("div", { cls: "actions" }, [sus]));
+    if (can("studios.suspend")) subCard.appendChild(el("div", { cls: "actions" }, [sus]));
 
     // r21 (0244): ONE step from trial (or ended trial) to a paying studio
-    if (sub.status !== "suspended") wrap.appendChild(activateBox(org, d.name, sub));
+    if (sub.status !== "suspended" && can("billing.write")) wrap.appendChild(activateBox(org, d.name, sub));
 
     // 0186: free trial — one extension per studio (1–7 days, reason required)
     var trialCard = el("div", { cls: "card" }, [el("h2", { text: "Free trial" })]); wrap.appendChild(trialCard);
@@ -518,7 +619,7 @@
     payCard.appendChild(el("div", { cls: "scroll" }, [el("table", null, [el("thead", null, [el("tr", null, ["Paid on", "Invoice", "Method", "Period", "Amount", "Status", ""].map(function (h) { return el("th", { text: h }); }))]), pt])]));
     var rec = el("button", { cls: "btn", type: "button", text: "Record a payment for this studio" });
     rec.addEventListener("click", function () { closeDrawer(); showTab("billing"); $("#rOrg").value = org; $("#rOrgName").textContent = d.name || ""; });
-    payCard.appendChild(el("div", { cls: "actions" }, [rec]));
+    if (can("billing.write")) payCard.appendChild(el("div", { cls: "actions" }, [rec]));
 
     // ---- People (no phone, no client data)
     wrap = panes.people;
@@ -536,7 +637,9 @@
     // ---- Name & link: r23 (0257) studio name + link are fixed for the studio; only Helm HQ changes them (two-step,
     // reason, audited, studio admins told by bell + e-mail, the old link keeps working)
     wrap = panes.ident;
-    wrap.appendChild(identityBox(org, d));
+    if (can("studios.edit")) wrap.appendChild(identityBox(org, d));
+    else wrap.appendChild(el("div", { cls: "card" }, [el("h2", { text: "Studio name & link" }), kvList([["Name", d.name], ["Link", d.slug ? "helm.events/" + d.slug : ""]]),
+      el("p", { cls: "muted", text: "Only HQ people who may edit studios can change these." })]));
 
     // ---- Activity: numbers only + what HQ changed on this studio
     wrap = panes.activity;
@@ -755,7 +858,7 @@
         el("td", null, [el("span", { cls: "pill " + st[1], text: st[0] })])]);
       rowWithDetail(tb, tr, 6, function (td) {
         var acts = [];
-        ["contacted", "won", "lost"].filter(function (k) { return k !== x.status; }).forEach(function (k) {
+        ["contacted", "won", "lost"].filter(function (k) { return k !== x.status && can("inbox.write"); }).forEach(function (k) {
           var b = el("button", { cls: "btn", type: "button", text: "Mark " + REQ_STATUS[k][0].toLowerCase() });
           b.addEventListener("click", function () {
             var note = ask("Mark this request " + REQ_STATUS[k][0].toLowerCase() + ". Note (optional):", x.hq_note || "");
@@ -765,7 +868,7 @@
           });
           acts.push(b);
         });
-        if (x.org_id) {
+        if (x.org_id && canTab("studios")) {
           var o = el("button", { cls: "btn", type: "button", text: "Open studio" });
           o.addEventListener("click", function () { openStudio(x.org_id, "plan"); });
           acts.push(o);
@@ -789,6 +892,7 @@
   // status buttons + "Note" for one row; fn = the HQ RPC, map = the statuses
   function rowActions(x, map, fn, reload) {
     var out = [];
+    if (!can("inbox.write")) return out;
     Object.keys(map).filter(function (k) { return k !== "new" && k !== x.status; }).forEach(function (k) {
       var b = el("button", { cls: "btn", type: "button", text: "Mark " + map[k][0].toLowerCase() });
       b.addEventListener("click", function () {
@@ -874,8 +978,8 @@
   function runSearch() {
     var q = String($("#gSearch").value || "").trim(), box = $("#gResults"), my = ++gSeq;
     if (q.length < 2) { closeSearch(); return; }
-    Promise.all([call("hq_studios", { p_search: q, p_status: null, p_limit: 5, p_offset: 0 }).catch(function () { return []; }),
-      call("hq_users", { p_search: q, p_limit: 5, p_offset: 0 }).catch(function () { return []; })]).then(function (r) {
+    Promise.all([can("studios.read") ? call("hq_studios", { p_search: q, p_status: null, p_limit: 5, p_offset: 0 }).catch(function () { return []; }) : [],
+      can("people.read") ? call("hq_users", { p_search: q, p_limit: 5, p_offset: 0 }).catch(function () { return []; }) : []]).then(function (r) {
       if (my !== gSeq) return;
       var st = Array.isArray(r[0]) ? r[0] : [], us = Array.isArray(r[1]) ? r[1] : [];
       clear(box);
@@ -889,7 +993,7 @@
       box.appendChild(el("h4", { text: "People" }));
       us.forEach(function (u) {
         var b = el("button", { type: "button" }, [el("span", { cls: "m", text: u.email || "—" }), el("span", { cls: "muted", text: [u.studio, u.role].filter(Boolean).join(" · ") })]);
-        b.addEventListener("click", function () { closeSearch(); showTab("people"); $("#qUsers").value = u.email || ""; loadUsers(0).catch(showErr); });
+        b.addEventListener("click", function () { closeSearch(); if (!canTab("people")) return; showTab("people"); $("#qUsers").value = u.email || ""; loadUsers(0).catch(showErr); });
         box.appendChild(b);
       });
       if (!us.length) box.appendChild(el("div", { cls: "empty", text: "  Nobody matches." }));
@@ -923,6 +1027,7 @@
       box.appendChild(el("div", { cls: "muted", text: "Only one extension is allowed per studio." }));
       return;
     }
+    if (!can("studios.edit")) { box.appendChild(el("div", { cls: "muted", text: "Trial extensions are done by HQ people who may edit studios." })); return; }
     if (!t.can_extend) { box.appendChild(el("div", { cls: "muted", text: t.why_not || "This studio cannot get a trial extension." })); return; }
     var sel = el("select", { "aria-label": "Extra days" });
     for (var i = 1; i <= 7; i++) { var o = el("option", { value: String(i), text: i + " day" + (i === 1 ? "" : "s") }); if (i === 7) o.selected = true; sel.appendChild(o); }
@@ -947,7 +1052,7 @@
   function mfaCell(email, on, after) {
     var kids = [el("span", { cls: "pill " + (on ? "ok" : ""), text: on ? "on" : "off" })];
     var me = (BPStore.auth.user() && BPStore.auth.user().email) || "";
-    if (on && email && String(email).toLowerCase() !== String(me).toLowerCase()) {
+    if (on && email && can("security.write") && String(email).toLowerCase() !== String(me).toLowerCase()) {
       var b = el("button", { cls: "btn sm danger", type: "button", text: "Reset", title: "Reset two-step for " + email + " (lost phone)" });
       b.addEventListener("click", function () { resetMfa(email, b, after); });
       kids.push(" "); kids.push(b);
@@ -1102,9 +1207,9 @@
         $("#plUsdM").value = u.monthly == null ? "" : u.monthly; $("#plUsdY").value = u.yearly == null ? "" : u.yearly; });
       tb.appendChild(el("tr", null, [el("td", { cls: "m", text: p.code }), el("td", { text: p.name }), el("td", { cls: "n", text: money(p.price_monthly, p.currency) }),
         el("td", { cls: "n", text: u.monthly == null ? "—" : money(u.monthly, "USD") }),
-        el("td", null, [el("span", { cls: "pill " + (p.active ? "ok" : ""), text: p.active ? "active" : "hidden" })]), el("td", { cls: "n", text: int(p.studios) }), el("td", null, [edit])]));
+        el("td", null, [el("span", { cls: "pill " + (p.active ? "ok" : ""), text: p.active ? "active" : "hidden" })]), el("td", { cls: "n", text: int(p.studios) }), el("td", null, [can("billing.write") ? edit : null])]));
     });
-    var tr = await call("hq_tax_rules"); tr = Array.isArray(tr) ? tr : [];
+    var tr = can("billing.read") ? await call("hq_tax_rules") : []; tr = Array.isArray(tr) ? tr : [];
     var tt = clear($("#tTax"));
     tr.forEach(function (x) { tt.appendChild(el("tr", null, [el("td", { text: x.country + (x.region ? " · " + x.region : "") }), el("td", { cls: "m", text: x.regime }),
       el("td", { cls: "n", text: num(x.rate) + "%" }), el("td", { text: date(x.effective_from) + " – " + (x.effective_to ? date(x.effective_to) : "open") }),
@@ -1154,7 +1259,7 @@
       var edit = el("button", { cls: "btn sm", type: "button", text: "Edit" });
       edit.addEventListener("click", function () { fillPlanCoForm(p, "INR"); });
       tb.appendChild(el("tr", null, [el("td", { text: p.name + " (" + p.code + ")" }), el("td", { text: p.description || "—" }),
-        el("td", { cls: "n", text: int((p.features || []).length) + " items" }), el("td", { cls: "m", text: ids }), el("td", null, [edit])]));
+        el("td", { cls: "n", text: int((p.features || []).length) + " items" }), el("td", { cls: "m", text: ids }), el("td", null, [can("billing.write") ? edit : null])]));
     });
     if (!planCo.length) tb.appendChild(el("tr", null, [el("td", { colspan: "5", cls: "empty", text: "No plans yet — add one above." })]));
   }
@@ -1200,27 +1305,127 @@
     });
     if (!tl.firstChild) tl.appendChild(el("tr", null, [el("td", { colspan: "4", cls: "empty", text: "Nothing yet." })]));
   }
-  async function loadOperators() {
-    var r = await call("hq_operators"); r = Array.isArray(r) ? r : [];
-    var ul = clear($("#operators"));
-    r.forEach(function (o) {
-      var right = el("span", { cls: "muted", text: (o.mfa_enabled ? "2-step on" : "2-step off") + " · " + ago(o.last_sign_in_at) + (o.is_me ? " · you" : "") });
-      var li = el("li", null, [el("span", { cls: "m", text: o.email }), right]);
-      if (!o.is_me) {
-        var rm = el("button", { cls: "btn sm danger", type: "button", text: "Remove" });
-        rm.addEventListener("click", function () {
-          if (!window.confirm("Remove " + o.email + " from Helm HQ?")) return;
-          call("hq_remove_operator", { p_email: o.email }).then(function () { okMsg("Operator removed."); loadOperators().catch(showErr); }).catch(showErr);
-        });
-        li.appendChild(rm);
-      }
-      ul.appendChild(li);
+  /* ---------------- r27 (0277): the HQ team - roles, two-step, sessions, monitoring ----------------
+     hq_staff_list (staff.read) gives HQ people only - never studio data. Owners add people / change roles; Owner +
+     Security pause people and sign them out everywhere. The database checks every one of these again. */
+  var ACT_WORDS = { "hq.view": "looked", "hq.staff.invite": "added someone to HQ", "hq.staff.role": "changed a role", "hq.staff.suspend": "paused someone",
+    "hq.staff.restore": "gave access back", "hq.staff.remove": "removed someone", "hq.staff.signout": "signed someone out", "hq.staff.settings": "changed sign-in rules",
+    "hq.studio.suspend": "paused a studio", "hq.studio.reactivate": "restarted a studio", "hq.studio.identity": "changed a studio name / link",
+    "hq.subscription.activate": "activated a plan", "hq.payment.record": "recorded a payment", "hq.payment.void": "voided a payment",
+    "hq.trial.extend": "extended a trial", "hq.mfa.reset": "reset someone's two-step", "hq.sales_request.status": "answered a plan request",
+    "hq.sales_enquiry.update": "answered a sales enquiry", "hq.suggestion.update": "marked a suggestion" };
+  function actWord(a) { return ACT_WORDS[a] || String(a || "").replace(/^hq\./, "").replace(/[._]/g, " "); }
+  function when(v) { return v ? ago2(v) : "never"; }
+  function teamAction(text, cls, fn) { var b = el("button", { cls: "btn sm" + (cls ? " " + cls : ""), type: "button", text: text }); b.addEventListener("click", fn); return b; }
+  function teamRow(x) {
+    var st = S ? S.statusOf(x.status) : [x.status, ""];
+    var nm = el("div", { cls: "nm" }, [el("span", { text: x.name ? x.name + " · " + x.email : x.email }),
+      el("span", { cls: "pill", text: x.role_label || x.role }), el("span", { cls: "pill " + st[1], text: st[0] }),
+      el("span", { cls: "pill " + (x.has_2step ? "ok" : "warn"), text: x.has_2step ? "2-step on" : "2-step not set up" }),
+      x.is_me ? el("span", { cls: "pill", text: "you" }) : null]);
+    var meta = [x.has_login ? "Last sign-in " + when(x.last_sign_in_at) : "No login yet", "Last active in HQ " + when(x.last_active_at),
+      int(x.views_7d) + " page view" + (num(x.views_7d) === 1 ? "" : "s") + " this week"];
+    var body = el("div", { cls: "sp-1" }, [nm, el("div", { cls: "meta", text: meta.join(" · ") })]);
+    if (x.status === "invited") body.appendChild(el("div", { cls: "meta", text: "Added " + date(x.invited_at || x.added_at) + (x.invited_by ? " by " + x.invited_by : "") + " - waiting for their first sign-in." }));
+    if (x.status === "suspended") body.appendChild(el("div", { cls: "meta", text: "Paused " + date(x.suspended_at) + (x.suspended_by ? " by " + x.suspended_by : "") + (x.suspend_reason ? " - " + x.suspend_reason : "") }));
+    var sessions = Array.isArray(x.sessions) ? x.sessions : [], recent = Array.isArray(x.recent) ? x.recent : [];
+    var sl = el("ul", { cls: "mini" });
+    sessions.forEach(function (z) {
+      sl.appendChild(el("li", null, [el("span", { text: (S ? S.deviceName(z.device) : "Device") + (z.current ? " (this one)" : "") }),
+        el("span", { cls: "muted", text: [z.ip, "since " + date(z.since), "seen " + when(z.seen)].filter(Boolean).join(" · ") })]));
     });
+    if (!sl.firstChild) sl.appendChild(el("li", { cls: "muted", text: "Not signed in anywhere right now." }));
+    var rl = el("ul", { cls: "mini" });
+    recent.forEach(function (z) { rl.appendChild(el("li", null, [el("span", { text: actWord(z.action) }), el("span", { cls: "muted", text: when(z.at) })])); });
+    if (!rl.firstChild) rl.appendChild(el("li", { cls: "muted", text: "No changes made in HQ." }));
+    body.appendChild(el("details", null, [el("summary", { text: int(sessions.length) + " sign-in" + (sessions.length === 1 ? "" : "s") + " · recent HQ changes" }),
+      el("div", { cls: "sub2" }, [el("div", null, [el("h4", { text: "Signed in on" }), sl]), el("div", null, [el("h4", { text: "Recent changes in HQ" }), rl])])]));
+    var acts = el("div", { cls: "acts" }), mine = ME && ME.role;
+    if (!x.is_me && x.status !== "removed") {
+      if (can("staff.manage")) {
+        var sel = el("select", { "aria-label": "Role for " + x.email });
+        (S ? S.ROLES : []).forEach(function (r) { var o = el("option", { value: r.key, text: r.label }); if (r.key === x.role) o.selected = true; sel.appendChild(o); });
+        sel.addEventListener("change", function () {
+          var to = sel.value;
+          if (!window.confirm("Change " + x.email + " from " + (x.role_label || x.role) + " to " + (S ? S.roleLabel(to) : to) + "? They and every Owner get an e-mail.")) { sel.value = x.role; return; }
+          call("hq_staff_set_role", { p_email: x.email, p_role: to }).then(function () { okMsg("Role changed."); loadTeam().catch(showErr); }).catch(function (e) { sel.value = x.role; showErr(e); });
+        });
+        acts.appendChild(sel);
+      }
+      if (can("staff.suspend") && (x.role !== "owner" || mine === "owner")) {
+        if (x.status === "active" || x.status === "invited") acts.appendChild(teamAction("Pause access", "danger", function () {
+          var why = ask("Pause Helm HQ access for " + x.email + " now? They are signed out of HQ everywhere. Reason (kept in the HQ log):", "");
+          if (!why) return;
+          call("hq_staff_suspend", { p_email: x.email, p_reason: why }).then(function () { okMsg("Access paused."); loadTeam().catch(showErr); }).catch(showErr);
+        }));
+        if (sessions.length) acts.appendChild(teamAction("Sign out everywhere", "", function () {
+          if (!window.confirm("Sign " + x.email + " out of Helm HQ on every device? They can sign in again.")) return;
+          call("hq_staff_signout", { p_email: x.email }).then(function (r) { okMsg("Signed out of " + int(r && r.sessions_ended) + " sign-in(s)."); loadTeam().catch(showErr); }).catch(showErr);
+        }));
+      }
+      if (can("staff.manage") && x.status === "suspended") acts.appendChild(teamAction("Give access back", "", function () {
+        call("hq_staff_restore", { p_email: x.email }).then(function () { okMsg("Access given back."); loadTeam().catch(showErr); }).catch(showErr);
+      }));
+      if (can("staff.manage")) acts.appendChild(teamAction("Remove", "danger", function () {
+        if (!window.confirm("Remove " + x.email + " from Helm HQ? Their HQ access ends now. Nothing is deleted - you can add them again later.")) return;
+        var why = ask("Reason (optional, kept in the HQ log):", ""); if (why == null) return;
+        call("hq_staff_remove", { p_email: x.email, p_reason: why || null }).then(function () { okMsg("Removed from HQ."); loadTeam().catch(showErr); }).catch(showErr);
+      }));
+    }
+    if (x.status === "removed" && can("staff.manage")) acts.appendChild(teamAction("Add back", "", function () {
+      call("hq_staff_restore", { p_email: x.email }).then(function () { okMsg("Added back - they get access at their next sign-in."); loadTeam().catch(showErr); }).catch(showErr);
+    }));
+    return el("div", { cls: "tm" }, [el("div", { cls: "av", "aria-hidden": "true", text: S ? S.initials(x.name, x.email) : "?" }), body, acts]);
   }
-  function addOperator() {
-    var e = String($("#opEmail").value || "").trim(); if (!e) return;
-    if (!window.confirm("Give " + e + " full Helm HQ access? They must sign in with two-step verification.")) return;
-    call("hq_add_operator", { p_email: e }).then(function () { $("#opEmail").value = ""; okMsg("Operator added."); loadOperators().catch(showErr); }).catch(showErr);
+  function paintMatrix() {
+    var t = clear($("#tmMatrix")); if (!S) return;
+    t.appendChild(el("thead", null, [el("tr", null, [el("th", { text: "Can…" })].concat(S.ROLES.map(function (r) { return el("th", { text: r.label, title: r.blurb }); })))]));
+    var tb = el("tbody");
+    S.MATRIX.forEach(function (row) {
+      tb.appendChild(el("tr", null, [el("td", { text: row[0] })].concat(S.ROLES.map(function (r) {
+        var y = S.can(S.ROLE_PERMS[r.key], row[1]); return el("td", { cls: y ? "yes" : "no", text: y ? "✓" : "–", "aria-label": y ? "yes" : "no" }); }))));
+    });
+    t.appendChild(tb);
+  }
+  function paintTeamSettings(st) {
+    $("#tmIdle").value = st.idle_minutes || 30; $("#tmMax").value = st.max_hours || 12; $("#tmReauth").value = st.reauth_minutes || 15;
+    $("#tmIpOn").checked = !!st.ip_allowlist_on; $("#tmIps").value = (Array.isArray(st.ip_allowlist) ? st.ip_allowlist : []).join("\n");
+    var ro = !can("staff.manage");
+    ["#tmIdle", "#tmMax", "#tmReauth", "#tmIpOn", "#tmIps"].forEach(function (id) { $(id).disabled = ro; });
+    $("#tmSetState").textContent = "Two-step: always required for everyone." + (st.my_ip ? " Your network right now: " + st.my_ip + "." : "") + (ro ? " Only an Owner can change these." : "");
+  }
+  async function loadTeam() {
+    var r = await call("hq_staff_list", { p_include_removed: !!$("#tmRemoved").checked }); r = r && !Array.isArray(r) ? r : {};
+    var list = Array.isArray(r.staff) ? r.staff : [], box = clear($("#tmList"));
+    var on = list.filter(function (x) { return x.status === "active"; }).length, inv = list.filter(function (x) { return x.status === "invited"; }).length;
+    $("#tmCount").textContent = int(on) + " active" + (inv ? " · " + int(inv) + " invited" : "");
+    list.forEach(function (x) { box.appendChild(teamRow(x)); });
+    if (!list.length) box.appendChild(el("div", { cls: "empty", text: "Nobody on the HQ team yet." }));
+    paintTeamSettings(r.settings || {});
+    paintMatrix();
+    var ev = clear($("#tmEvents"));
+    (Array.isArray(r.events) ? r.events : []).forEach(function (e) {
+      if (e.kind === "settings") { ev.appendChild(el("li", null, [el("span", { text: "Sign-in rules changed" + (e.by ? " by " + e.by : "") }), el("span", { cls: "muted", text: when(e.at) })])); return; }
+      var w = (S && S.EVENT_WORDS[e.kind]) || e.kind;
+      ev.appendChild(el("li", null, [el("span", { cls: "m", text: e.email + " - " + w + (e.role && (e.kind === "invited" || e.kind === "role_changed") ? " (" + (S ? S.roleLabel(e.role) : e.role) + ")" : "") }),
+        el("span", { cls: "muted", text: (e.by && e.by !== e.email ? "by " + e.by + " · " : "") + when(e.at) })]));
+    });
+    if (!ev.firstChild) ev.appendChild(el("li", { cls: "empty", text: "No changes yet." }));
+  }
+  function addTeamMember() {
+    var e = String($("#tmEmail").value || "").trim().toLowerCase(), role = $("#tmRole").value, nm = String($("#tmName").value || "").trim();
+    if (!/^[^\s@<>",;:]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/.test(e)) { showErr(new Error("Enter a valid e-mail address.")); return; }
+    if (!window.confirm("Add " + e + " to Helm HQ as " + (S ? S.roleLabel(role) : role) + "?\n\nThey sign in with exactly this address, set up two-step, and see only what this role allows. They and every Owner get an e-mail.")) return;
+    call("hq_staff_invite", { p_email: e, p_role: role, p_name: nm || null }).then(function () {
+      $("#tmEmail").value = ""; $("#tmName").value = "";
+      okMsg("Added. " + e + " can now sign in at helm.events/login with this address and set up two-step."); loadTeam().catch(showErr);
+    }).catch(showErr);
+  }
+  function saveTeamSettings() {
+    var ips = S ? S.ipList($("#tmIps").value) : [];
+    call("hq_set_staff_settings", { p_idle_minutes: Number($("#tmIdle").value) || 30, p_max_hours: Number($("#tmMax").value) || 12,
+      p_reauth_minutes: Number($("#tmReauth").value) || 15, p_ip_allowlist_on: $("#tmIpOn").checked, p_ip_allowlist: ips })
+      .then(function (st) { paintTeamSettings(st || {}); okMsg("Sign-in rules saved."); }).catch(showErr);
   }
 
   /* ---------------- staff access (0248): reserved e-mail domains + staff allowlist ---------------- */
@@ -1234,7 +1439,7 @@
     allow.forEach(function (a) {
       var right = el("span", { cls: "muted", text: (a.is_platform_admin ? "HQ operator · " : "") + (a.has_login ? "has a login" : "no login yet") + (a.note ? " · " + a.note : "") });
       var li = el("li", null, [el("span", { cls: "m", text: a.email }), right]);
-      if (!a.is_platform_admin) {
+      if (!a.is_platform_admin && can("security.write")) {
         var rm = el("button", { cls: "btn sm danger", type: "button", text: "Remove" });
         rm.addEventListener("click", function () {
           if (!window.confirm("Remove " + a.email + " from the staff allowlist? New logins for it will be refused. An existing login is not deleted or signed out.")) return;
@@ -1249,7 +1454,7 @@
     doms.forEach(function (d) {
       var li = el("li", null, [el("span", { cls: "m", text: d.domain + (d.include_subdomains ? " (+ sub-domains)" : "") }),
         el("span", { cls: "muted", text: d.builtin ? "Helm’s own domain" : (d.note || "added " + date(d.added_at)) })]);
-      if (!d.builtin) {
+      if (!d.builtin && can("security.write")) {
         var rm = el("button", { cls: "btn sm danger", type: "button", text: "Remove" });
         rm.addEventListener("click", function () {
           if (!window.confirm("Stop reserving " + d.domain + "? People could sign up with it again.")) return;
@@ -1287,7 +1492,8 @@
     var r = null, ops = null;
     try { r = await call("hq_mfa_readiness"); }
     catch (e) { try { ops = await call("hq_operators"); } catch (e2) { ops = []; } }   // database without 0249
-    var m = M.model(r, ops, undefined);
+    // r27 (0277): two-step is always required for HQ, whatever the old switch says
+    var m = M.model(r ? Object.assign({}, r, { hq_require_mfa: true }) : r, ops, true);
     var st = clear($("#mfaRState")); st.appendChild(el("span", { cls: "pill " + m.state.tone, text: m.state.text }));
     $("#mfaRHint").textContent = m.hint;
     var ul = clear($("#mfaROps"));
@@ -1315,8 +1521,14 @@
   }
   async function loadAll() {
     $("#err").hidden = true;
-    await Promise.all([loadOverview(), loadPlans(), loadStudios(0), loadUsers(0), loadBilling()]);
-    loadMfaReadiness().catch(function () {});
+    var jobs = [];
+    if (canTab("overview")) jobs.push(loadOverview());
+    if (can("plans.read")) jobs.push(loadPlans());
+    if (canTab("studios")) jobs.push(loadStudios(0));
+    if (canTab("people")) jobs.push(loadUsers(0));
+    if (canTab("billing")) jobs.push(loadBilling());
+    await Promise.all(jobs);
+    if (can("security.read")) loadMfaReadiness().catch(function () {});
   }
 
   // Who may see HQ, decided BEFORE any hq_* data is requested:
@@ -1331,6 +1543,7 @@
     if (BPStore.auth.pendingStep()) return "login";
     var step = BPStore.auth.mfa && BPStore.auth.mfa.operatorStep ? await BPStore.auth.mfa.operatorStep() : "unknown";
     if (step === "none") return "notfound";
+    if (step === "enroll") return "enroll";   // r27: set two-step up right here (no trip to the sign-in page)
     return step === "ok" ? "hq" : "login";
   }
 
@@ -1341,8 +1554,17 @@
     BPStore.auth.required();
     var g = "notfound";
     try { g = await gate(); } catch (e) { g = "notfound"; }
+    if (g === "enroll") { on("#blkOut", "click", function () { signOutThen("login.html"); }); enrollGate(); return; }
     if (g === "login") { location.replace("login.html"); return; }
     if (g !== "hq") { notFound(); return; }
+    on("#blkOut", "click", function () { signOutThen("login.html"); });
+    // r27 (0277): who am I in HQ? (a database without 0277: null -> everything shown as before; the gates still decide)
+    try { ME = await BPStore.hq("hq_me"); } catch (e) { ME = null; }
+    if (ME && typeof ME !== "object") ME = null;
+    if (ME && ME.status === "suspended") { blocked("Your Helm HQ access is paused", "An HQ owner or the security team paused your access. Ask the HQ owner if you think this is a mistake.", null); return; }
+    if (ME && ME.needs_2step && !ME.has_2step) { enrollGate(); return; }
+    if (ME && ME.needs_2step) { blocked("Set up two-step first", "Helm HQ needs two-step verification for everyone, on every visit. Sign in again and set it up - it takes a minute.", "Set up two-step", "login.html"); return; }
+    applyPerms();
     var today = new Date(), month = new Date(today.getFullYear(), today.getMonth(), 1), past = new Date(Date.now() - 30 * 864e5);
     $("#bFrom").value = iso(month); $("#bTo").value = iso(today); $("#aFrom").value = iso(past); $("#aTo").value = iso(today); $("#rPaidOn").value = iso(today);
     try { await loadAll(); }
@@ -1351,16 +1573,19 @@
     $("#who").textContent = (BPStore.auth.user() && BPStore.auth.user().email) || "";
     $("#vLoading").hidden = true; $("#vApp").hidden = false;
     // r24 (0271): the e-mail alerts link straight to Requests (hq#requests)
-    if (location.hash === "#requests") { showTab("requests"); reqTab("plan"); loadRequestsTab(); } else showTab("overview");
+    var first = TABS.filter(canTab)[0] || "overview";
+    if (location.hash === "#requests" && canTab("requests")) { showTab("requests"); reqTab("plan"); loadRequestsTab(); }
+    else { showTab(canTab("overview") ? "overview" : first); if (first === "requests" && !canTab("overview")) loadRequestsTab(); if (!canTab("overview") && first === "staff") { loadTeam().catch(showErr); loadStaff().catch(showErr); } }
+    startWatch();
 
     TABS.forEach(function (t) { on("#tab-" + t, "click", function () {
       showTab(t);
-      if (t === "activity") { loadAudit().catch(showErr); loadSecurity().catch(showErr); loadOperators().catch(showErr); }
+      if (t === "activity") { loadAudit().catch(showErr); loadSecurity().catch(showErr); }
       if (t === "billing") loadSettings().catch(showErr);
       if (t === "requests") loadRequestsTab();
-      if (t === "staff") loadStaff().catch(showErr);
+      if (t === "staff") { loadTeam().catch(showErr); loadStaff().catch(showErr); }
     }); });
-    on("#btnRefresh", "click", function () { loadAll().catch(showErr); if (!$("#pane-requests").hidden) loadRequestsTab(); });
+    on("#btnRefresh", "click", function () { loadAll().catch(showErr); if (!$("#pane-requests").hidden) loadRequestsTab(); if (!$("#pane-staff").hidden) { loadTeam().catch(showErr); loadStaff().catch(showErr); } });
     // r25: studio drawer, Requests tabs, search
     on("#btnDClose", "click", closeDrawer);
     on("#studioScrim", "click", closeDrawer);
@@ -1394,7 +1619,9 @@
     on("#btnTax", "click", saveTaxRule);
     on("#btnAudit", "click", function () { loadAudit().catch(showErr); loadSecurity().catch(showErr); });
     on("#aWrites", "change", function () { loadAudit().catch(showErr); });
-    on("#btnOp", "click", addOperator);
+    on("#btnTmAdd", "click", addTeamMember);
+    on("#btnTmSet", "click", saveTeamSettings);
+    on("#tmRemoved", "change", function () { loadTeam().catch(showErr); });
     on("#btnStAdd", "click", addStaff);
     on("#btnStDom", "click", addDomain);
     on("#btnRefreshBilling", "click", function () { call("hq_refresh_billing_status").then(function (r) { okMsg("Billing status refreshed: " + int(r && r.past_due_set) + " now past due, " + int(r && r.reminders_queued) + " reminders queued."); refreshAfterWrite(null); }).catch(showErr); });

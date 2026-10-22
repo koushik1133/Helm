@@ -78,7 +78,7 @@ await t("2d friendlyError shows the reserved message (client check or server ref
 
 await t("3 login.html: inline message only in sign-up mode; link error + direct invite + submit catch show it", () => {
   const ep = fnSrc(LOGIN, "emailProblem");
-  assert.ok(ep.includes('mode==="signup" && window.BPStore && BPStore.reservedEmailDomain && BPStore.reservedEmailDomain(e)) return BPStore.RESERVED_EMAIL_MESSAGE'));
+  assert.ok(ep.includes('mode==="signup" && window.BPStore && BPStore.reservedEmailDomain && BPStore.reservedEmailDomain(e) && !HQ_PRE[e]) return BPStore.RESERVED_EMAIL_MESSAGE'));   // r27: pre-authorised HQ staff pass
   assert.ok(LOGIN.includes('if(le==="reserved_domain"){'));
   assert.ok(LOGIN.includes("bad_email|reserved_domain)$/.test(x.code"));
   assert.ok(LOGIN.includes('err.code==="captcha_failed"||err.code==="reserved_domain"'));

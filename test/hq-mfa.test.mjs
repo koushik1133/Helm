@@ -179,12 +179,13 @@ t('challenge with the right code → aal2 → "ok"', async () => {
 
 /* ------------------------------------------------ 2. hq.js routing */
 const shown = (e, id) => e.els[id] && e.els[id].hidden === false;
-t('hq.js: operator without a factor → sign-in page (forced set-up there); no HQ data requested', async () => {
+t('hq.js: operator without a factor → r27: "Set up two-step first" right in HQ (no lock-out); no HQ data requested', async () => {
   const e = makeEnv({ operator: true });
   e.loadHq(); await flush();
-  assert.deepEqual(e.replaced(), ['login.html']);
+  assert.deepEqual(e.replaced(), []);
   assert.deepEqual(e.hqCalls(), []);
   assert.ok(!shown(e, 'vApp'));
+  assert.ok(shown(e, 'vBlocked'));
 });
 t('hq.js: operator with a factor at aal1 → sign-in page (code step); no HQ data, no factor read', async () => {
   const e = makeEnv({ operator: true, factors: VERIFIED, aal: 'aal1' });

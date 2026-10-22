@@ -74,7 +74,7 @@ do $$ declare e text; begin
   update public.helm_hq_settings set hq_require_mfa = false where id;
   delete from auth.mfa_factors where user_id = (select id from auth.users where email = 'ops2@helm.events');
   perform pg_temp.as_user('ops2@helm.events', 'aal1');
-  perform pg_temp.res('11a switch off: operator without two-step reaches HQ at aal1', public.is_platform_admin());
+  perform pg_temp.res('11a switch off: r27 (0277) operator without two-step still has no HQ at aal1 (two-step always)', not public.is_platform_admin());
   e := pg_temp.try('select public.hq_mfa_reset(''a_staff@a.test'', ''phone lost - verified by call'')');
   perform pg_temp.res('11b ... but cannot reset anyone (aal2 always required)', e like '42501%', e);
   perform pg_temp.su();

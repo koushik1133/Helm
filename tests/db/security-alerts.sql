@@ -186,7 +186,7 @@ do $$ declare r jsonb; s text; begin
   update auth.users set email_confirmed_at = now() where email = 'security@helm.events';
   delete from auth.mfa_factors where user_id in (select id from auth.users where email = 'security@helm.events');
   update public.helm_hq_settings set hq_require_mfa = false where id;
-  perform pg_temp.as_user('security@helm.events', 'aal1');
+  perform pg_temp.as_user('security@helm.events', 'aal2');   -- r27 (0277): HQ always needs two-step
   r := public.hq_security_alerts(current_date - 1, current_date);
   perform pg_temp.t('33 operator gets the cross-studio feed',
     (r ->> 'total')::int >= 30 and jsonb_array_length(r -> 'by_type') >= 9 and jsonb_array_length(r -> 'latest') > 0, left(r::text, 200));

@@ -159,7 +159,7 @@ begin
   r := pg_temp.bell('admin@helm.events');
   perform pg_temp.res('22 HQ operator: opening the bell clears the unread', (r ->> 'unread')::int = 0 and pg_temp.sec(r) = 3, r ->> 'unread');
   -- HQ log (full list) still works for operators
-  perform pg_temp.as_user('admin@helm.events');
+  perform pg_temp.as_user('admin@helm.events', 'aal2');   -- r27 (0277): HQ always needs two-step
   r := public.hq_security_alerts(current_date - 2, current_date + 1);
   perform pg_temp.su();
   perform pg_temp.res('23 HQ Security log lists the removals across studios',

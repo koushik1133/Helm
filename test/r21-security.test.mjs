@@ -61,7 +61,7 @@ await t("1c HQ readiness model: blocking / pending / safe / me-needs-setup; fall
 });
 await t("1d HQ page: readiness card + Set up two-step (auth-ui renderEnroll), loaded after the data; config flag stays OFF", () => {
   assert.match(HQH, /id="hMfaR">HQ two-step readiness</);
-  assert.match(HQH, /<script src="auth-ui\.js\?v=\d+"><\/script>[\s\S]*<script src="hq-mfa\.js\?v=\d+"><\/script>\s*<script src="hq\.js\?v=\d+"><\/script>/);
+  assert.match(HQH, /<script src="auth-ui\.js\?v=\d+"><\/script>[\s\S]*<script src="hq-mfa\.js\?v=\d+"><\/script>\s*(<script src="hq-staff\.js\?v=\d+"><\/script>\s*)?<script src="hq\.js\?v=\d+"><\/script>/);
   assert.match(HQJ, /call\("hq_mfa_readiness"\)/);
   assert.match(HQJ, /window\.HelmAuthUI\.renderEnroll\(box,/);
   assert.match(HQJ, /on\("#btnMfaEnroll", "click", startMfaEnroll\)/);
