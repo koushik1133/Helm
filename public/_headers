@@ -692,6 +692,36 @@
   ! Cache-Control
   Cache-Control: no-store, private
 
+/hq-referrals
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/hq-referrals.html
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/refer
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/refer.html
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/referral-terms
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/referral-terms.html
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
 /vendor-request
   X-Robots-Tag: noindex, nofollow, noarchive
   ! Cache-Control
