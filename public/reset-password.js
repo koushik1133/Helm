@@ -151,7 +151,7 @@
         }
         show("#vDone"); $("#title").textContent = "Password changed";
         sub(""); ok("Your password was changed and your other devices were signed out.");
-      } catch (x) { err(friendly(x, "save your new password")); }
+      } catch (x) { err(friendly(x, "save your new password")); if (x && x.field === "pw") { $("#new_pw").focus(); $("#new_pw").select(); } }   // r29: e.g. a breached password - fields stay filled
       finally { $("#set_cur_pw").value = ""; if (opts) opts.currentPassword = null; }
     });
   });

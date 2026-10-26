@@ -463,9 +463,149 @@ window.HelmUrl = HelmUrl;
     }
     return null;
   }
+  // r29: a light LOCAL "easy to guess" check (Supabase's leaked-password check - HaveIBeenPwned - stays the authority).
+  // "Tharun@123456" passed the 12-char + 4-class rule but Supabase refused it as breached (weak_password, reasons
+  // ["pwned"]). This catches the usual shapes before submit: one word/name + symbol + a digit run, common passwords /
+  // keyboard runs, the person's own name / e-mail, repeated or sequential characters. A warning, never a block.
+  const PW_COMMON = ("password passw0rd passwd welcome admin administrator letmein login qwerty qwertyuiop asdf asdfgh asdfghjkl "
+    + "zxcvbn zxcvbnm azerty iloveyou loveyou lovely love monkey dragon master shadow sunshine princess football baseball "
+    + "basketball soccer cricket hockey superman batman spiderman starwars pokemon naruto michael jennifer jordan charlie "
+    + "hunter killer trustno trustnoone whatever freedom secret secure security changeme default guest test tester testing "
+    + "hello helloworld abc abcd abcdef abcdefg abcdefgh access summer winter spring autumn monday friday january december "
+    + "india bharat mumbai delhi hyderabad bangalore bengaluru chennai pune kolkata dubai london newyork america canada "
+    + "google facebook instagram whatsapp youtube microsoft apple samsung iphone android computer internet laptop "
+    + "event events helm studio wedding party birthday family friends company business office manager welcome1 "
+    + "ganesh krishna rama shiva lakshmi sairam jaishriram omsairam allah jesus christ god angel heaven blessed "
+    + "cookie chocolate banana orange cheese pepper ginger flower rainbow purple yellow silver golden diamond crystal "
+    + "tiger lion eagle falcon panther dolphin pussy sexy money cash dollar rupee bitcoin thunder lightning phoenix "
+    + "matrix ninja samurai warrior legend champion winner soccer1 qazwsx qweasd zaq wsx 1qaz 1q2w3e 1q2w3e4r q1w2e3r4 "
+    + "aa aaa abc123 pass pa55word p4ssword myname mypassword mylove ilove hellohello").split(" ");
+  const PW_LEET = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "9": "g", "@": "a", "$": "s", "!": "i" };
+  const PW_SEQ = "abcdefghijklmnopqrstuvwxyz 01234567890 qwertyuiop asdfghjkl zxcvbnm 1qaz2wsx3edc";
+  function pwRunLen(s) {   // longest run of one repeated character, or of a sequence (either way)
+    let best = 1, rep = 1, seq = 1;
+    for (let i = 1; i < s.length; i++) {
+      rep = s[i] === s[i - 1] ? rep + 1 : 1;
+      const pair = s[i - 1] + s[i], rev = s[i] + s[i - 1];
+      seq = (s[i] !== s[i - 1] && (PW_SEQ.indexOf(pair) !== -1 || PW_SEQ.indexOf(rev) !== -1)) ? seq + 1 : 1;
+      best = Math.max(best, rep, seq);
+    }
+    return best;
+  }
+  // -> "This looks easy to guess - ..." or null. `hints` = strings the person typed (name, e-mail, studio).
+  function passwordGuessable(pw, hints) {
+    pw = String(pw || ""); if (!pw) return null;
+    const MSG = "This looks easy to guess — avoid a single word or name followed by numbers. Try a longer phrase of unrelated words, or use a password manager.";
+    const low = pw.toLowerCase();
+    let leet = ""; for (const ch of low) leet += (PW_LEET[ch] || ch);
+    const letters = leet.replace(/[^a-z]/g, "");
+    // 1. one word / name, then symbols + digits (Tharun@123456, Welcome#2024, Ravi_123456!) or digits first
+    if (/^[^a-z0-9]*[a-z]{2,}[^a-z0-9]*[0-9]{2,}[^a-z0-9]*$/i.test(pw) || /^[^a-z0-9]*[0-9]{2,}[^a-z0-9]*[a-z]{2,}[^a-z0-9]*$/i.test(pw)) return MSG;
+    // 2. built on a common password / word or a keyboard run (with leetspeak undone)
+    for (const w of PW_COMMON) if (w.length >= 4 && (letters === w || (leet.indexOf(w) !== -1 && pw.length - w.length < 8))) return MSG;
+    // 3. the person's own name / e-mail / studio carries most of it
+    for (const hRaw of (hints || [])) {
+      const parts = String(hRaw || "").toLowerCase().split(/[^a-z0-9]+/).filter((x) => x.length >= 3);
+      for (const p of parts) if (leet.indexOf(p) !== -1 && pw.length - p.length < 8) return MSG;
+    }
+    // 4. long repeated / sequential runs (123456, aaaa, qwerty, 987654) leaving little else
+    const run = pwRunLen(low);
+    if (run >= 4 && pw.length - run < 8) return MSG;
+    // 5. very few different characters
+    if (new Set(low).size <= 4) return MSG;
+    return null;
+  }
+  // r29: Supabase Auth errors -> a clear, honest message (never "Something went wrong"), with a short reference
+  // ("Ref: AUTH-weak_password") support can diagnose from. Every documented code
+  // (supabase.com/docs/guides/auth/debugging/error-codes) that a sign-up / sign-in / password / e-mail call can return.
+  // "Already registered" is NOT here: it stays the generic "we've sent a link" answer (no account enumeration), and so
+  // do sign-in credential errors (genericSignInError). Pure: (error, ctx) -> { code, message, field, ref } | null.
+  //   ctx: "signup" | "signin" | "password" (reset / change / set-password / invite) | "email" (reset / resend link)
+  const PW_PWNED_MSG = "This password has appeared in a data breach, so it isn't safe. Please choose a different one — try a longer phrase or use a password manager.";
+  function authErrorCode(error) {
+    const c = String((error && (error.code || error.error_code)) || "").toLowerCase();
+    if (/^[a-z][a-z0-9_]{1,48}$/.test(c)) return c;
+    const m = String((error && (error.message || error.msg || error.error_description)) || "");
+    if (/known to be weak|easy to guess|pwned|data breach|leaked password/i.test(m)) return "weak_password";
+    if (/error sending|sending (the )?(confirmation|magic link|recovery|invite)|smtp|mail (server|delivery)/i.test(m)) return "email_send_failed";
+    if (/signups? not allowed|sign-?ups? (are )?disabled/i.test(m)) return "signup_disabled";
+    if (/email address .*(is )?invalid|invalid email|unable to validate email/i.test(m)) return "email_address_invalid";
+    if (/hook/i.test(m)) return "hook_error";
+    return "";
+  }
+  function authErrorInfo(error, ctx) {
+    if (!error) return null;
+    ctx = ctx || "signup";
+    const code = authErrorCode(error), st = Number(error.status) || 0;
+    const ref = "AUTH-" + (code || (st ? String(st) : "unknown"));
+    const noun = ctx === "signin" ? "sign-in" : ctx === "password" ? "password" : ctx === "email" ? "e-mail" : "sign-up";
+    const doing = ctx === "signin" ? "sign you in" : ctx === "password" ? "save your password" : ctx === "email" ? "send the e-mail" : "create your account";
+    let msg = null, field = null, out = code;
+    switch (code) {
+      case "weak_password": {
+        const rs = [].concat((error.reasons) || (error.weak_password && error.weak_password.reasons) || []).map(String);
+        field = "pw";
+        if (rs.indexOf("pwned") !== -1 || (!rs.length && /known to be weak|easy to guess|pwned|breach|leaked/i.test(String(error.message || "")))) msg = PW_PWNED_MSG;
+        else if (rs.indexOf("length") !== -1) msg = "This password is too short — use at least " + PW_MIN + " characters (a longer phrase is best).";
+        else if (rs.indexOf("characters") !== -1) msg = "This password needs a lowercase letter, an uppercase letter, a number and a symbol (like ! @ # $ %).";
+        else msg = "This password isn't strong enough — choose a longer one that's harder to guess.";
+        break; }
+      case "same_password": msg = "Choose a password that's different from your current one."; field = "pw"; break;
+      case "email_address_invalid": msg = "This e-mail address can't be used — check it or use another."; field = "email"; break;
+      case "email_address_not_authorized": case "email_send_failed":
+        msg = "We couldn't send the " + (ctx === "signup" ? "confirmation " : "") + "e-mail right now — try again in a few minutes or contact support."; break;
+      case "signup_disabled": msg = "Sign-ups are paused right now — please try again later or contact support."; break;
+      case "email_provider_disabled":
+        msg = ctx === "signin" ? "Signing in with e-mail and password is switched off right now — try Google sign-in or contact support."
+                               : "Sign-ups are paused right now — please try again later or contact support."; break;
+      case "provider_disabled": case "oauth_provider_not_supported": msg = "This sign-in option is switched off right now — use your e-mail and password, or contact support."; break;
+      case "over_email_send_rate_limit": msg = "We've sent several e-mails to this address recently — please wait a few minutes before trying again."; out = "rate_limited"; break;
+      case "over_request_rate_limit": case "over_sms_send_rate_limit": msg = "Too many requests — please wait a few minutes and try again."; out = "rate_limited"; break;
+      case "captcha_failed": msg = "The security check failed — please try again."; break;
+      case "hook_timeout": case "hook_timeout_after_retry": case "hook_payload_over_size_limit": case "hook_payload_invalid_content_type": case "hook_error":
+        msg = "Our " + noun + " check had a problem — try again in a minute."; break;
+      case "request_timeout": msg = "The server took too long — please try again."; break;
+      case "conflict": msg = "That clashed with another request — please try again in a moment."; break;
+      case "validation_failed": case "bad_json":
+        msg = ctx === "signup" ? "Some details weren't accepted — check your e-mail address and password and try again." : "Some details weren't accepted — check them and try again."; break;
+      case "reauthentication_needed": case "reauthentication_not_valid": msg = "Please confirm your current password first."; out = "reauth_required"; break;
+      case "session_expired": case "session_not_found": case "no_authorization": case "bad_jwt": case "refresh_token_not_found": case "refresh_token_already_used":
+        msg = "Your session expired — sign in again."; break;
+      case "otp_expired": case "flow_state_expired": case "flow_state_not_found": case "bad_code_verifier": msg = "This link has expired or was already used — request a new one."; break;
+      case "otp_disabled": msg = "E-mail links are switched off right now — sign in with your password, or contact support."; break;
+      case "anonymous_provider_disabled": case "phone_provider_disabled": case "saml_provider_disabled": case "manual_linking_disabled":
+        msg = "This sign-in option is switched off right now — use your e-mail and password, or contact support."; break;
+      case "user_sso_managed": msg = "This account is managed by your organisation's single sign-on — change it there."; break;
+      case "unexpected_failure": case "sms_send_failed":
+        msg = "Our " + noun + " service had a problem — please try again in a few minutes. If it keeps happening, contact support."; break;
+      default:
+        if (st >= 500) msg = "Our " + noun + " service had a problem — please try again in a few minutes. If it keeps happening, contact support.";
+        else msg = "We couldn't " + doing + " right now — please try again in a few minutes. If it keeps happening, contact support.";
+    }
+    return { code: out || "auth_error", authCode: code || "", message: msg + " (Ref: " + ref + ")", field, ref };
+  }
+  // Raw code / status / reasons -> telemetry (Sentry when on). Never the e-mail, the password or the raw message.
+  function reportAuthError(ctx, error, info) {
+    try {
+      const rs = [].concat((error && (error.reasons || (error.weak_password && error.weak_password.reasons))) || []).map(String).filter((r) => /^[a-z_]{1,20}$/.test(r));
+      const e = new Error("auth_error ctx=" + String(ctx || "") + " ref=" + (info ? info.ref : "AUTH-unknown") + " status=" + (Number(error && error.status) || 0) + (rs.length ? " reasons=" + rs.join(",") : ""));
+      e.name = "HelmAuthError";
+      if (global.HelmTelemetry && global.HelmTelemetry.report) global.HelmTelemetry.report("auth_error", e);
+    } catch (x) {}
+  }
+  // the Error a BPStore auth call throws: message for people, .authMapped so every page shows it as-is
+  function authError(error, ctx) {
+    const info = authErrorInfo(error, ctx);
+    reportAuthError(ctx, error, info);
+    const e = new Error(info.message); e.code = info.code; e.authCode = info.authCode; e.authRef = info.ref; e.authMapped = true;
+    if (info.field) e.field = info.field;
+    e.status = Number(error && error.status) || 0;
+    return e;
+  }
   // Live checklist for any "new password" input: renders under `input` (or into
   // `host`) and ticks each requirement as the person types. Pure DOM, no innerHTML.
-  function attachPasswordChecklist(input, host) {
+  // r29: opts.hints() -> [name, e-mail, ...] the person typed (for the "easy to guess" warning line)
+  function attachPasswordChecklist(input, host, opts) {
     if (!input || typeof document === "undefined") return null;
     let box = host;
     if (!box) { box = document.createElement("ul"); input.insertAdjacentElement("afterend", box); }
@@ -485,6 +625,16 @@ window.HelmUrl = HelmUrl;
         li.setAttribute("data-ok", c.ok ? "1" : "0");
         box.appendChild(li);
       });
+      // r29: all rules met but the shape is easy to guess (Supabase may refuse it as breached) - a warning, not a block
+      let hints = []; try { hints = (opts && typeof opts.hints === "function") ? (opts.hints() || []) : []; } catch (e) {}
+      const guess = !passwordProblem(input.value) ? passwordGuessable(input.value, hints) : null;
+      if (guess) {
+        const li = document.createElement("li");
+        li.textContent = "⚠ " + guess;
+        li.style.color = "#b45309"; li.style.fontWeight = "600";
+        li.setAttribute("data-guessable", "1");
+        box.appendChild(li);
+      }
     }
     input.addEventListener("input", render);
     render();
@@ -1517,8 +1667,10 @@ window.HelmUrl = HelmUrl;
     if (LOCKOUT_RE.test(m)) { const e = new Error(m); e.code = "account_locked"; return e; }
     if (st === 429 || /rate limit|too many/i.test(m) || /captcha/i.test(m + " " + c)) return error;
     if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) return error;
-    if (/invalid_credentials|email_not_confirmed|user_not_found|user_banned|invalid login|not confirmed|credentials|user not found/i.test(c + " " + m) || st === 400) {
+    if (/invalid_credentials|email_not_confirmed|user_not_found|user_banned|invalid login|not confirmed|credentials|user not found/i.test(c + " " + m) || (st === 400 && !/^(validation_failed|bad_json|email_provider_disabled|hook_|captcha_failed)/.test(c))) {
       const e = new Error(GENERIC_SIGNIN); e.code = "invalid_credentials"; return e; }
+    // r29: the rest (provider off, hook problem, server trouble, ...) -> a clear message + "Ref: AUTH-<code>"
+    if (error && (c || st)) return authError(error, "signin");
     return error;
   }
 
@@ -1990,12 +2142,16 @@ window.HelmUrl = HelmUrl;
         const { data, error } = await supa.auth.signUp({ email, password, options: so });
         if (error) {
           const c = String(error.code || ""), m = String(error.message || ""), st = Number(error.status) || 0;
+          if (c === "over_email_send_rate_limit") throw authError(error, "signup");   // r29: says it's the e-mails, not the clicks
           if (st === 429 || /rate limit|too many/i.test(m)) { const e = new Error("Too many requests — please wait a few minutes and try again."); e.code = "rate_limited"; throw e; }
           if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
           if (isReservedRefusal(error)) throw reservedEmailError();
           // "already registered" must look exactly like a fresh sign-up awaiting confirmation
           if (/user_already_exists|email_exists|already registered|already exists/i.test(c + " " + m)) return { user: null, session: null, generic: GENERIC_SENT };
-          throw error;
+          if (c === "user_banned") return { user: null, session: null, generic: GENERIC_SENT };   // r29: same - its own message would say the account exists
+          if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
+          // r29: every other Supabase Auth error -> a clear message + "Ref: AUTH-<code>" (was "Something went wrong")
+          throw authError(error, "signup");
         }
         if (!data.session) return { user: null, session: null, generic: GENERIC_SENT };
         if (data.session) { userLocalClear(); currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false; stampSessionStart(currentUser.id, true); await evaluateGate(); }
@@ -2116,7 +2272,8 @@ window.HelmUrl = HelmUrl;
         if (error) {
           if (/different from the old|same_password/i.test(String(error.message || "") + " " + String(error.code || ""))) throw new Error("Choose a password that's different from the temporary one.");
           if (/current.?password|reauthenticat/i.test(String(error.message || "") + " " + String(error.code || ""))) { const e = new Error("The temporary password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
-          throw error;
+          if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
+          throw authError(error, "password");   // r29: e.g. weak_password ["pwned"] -> the breach message
         }
         pwChangedAwaitingClear = true;   // a retry only re-runs the clear below
       }
@@ -2135,7 +2292,9 @@ window.HelmUrl = HelmUrl;
     },
     // ---- self-service password reset / change -----------------------------------
     genericMessages: { signIn: GENERIC_SIGNIN, sent: GENERIC_SENT, resend: GENERIC_RESEND },
-    passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist },
+    passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist, guessable: passwordGuessable, pwnedMessage: PW_PWNED_MSG },
+    // r29: Supabase Auth error -> { code, message, field, ref } (pure; exported for tests and other pages)
+    authErrorInfo: authErrorInfo,
     // Resolves the same way whether or not the email has an account (the caller
     // shows one generic message). Only rate-limit / network / CAPTCHA errors throw.
     async requestPasswordReset(email, opts) {
@@ -2150,7 +2309,9 @@ window.HelmUrl = HelmUrl;
         if (st === 429 || /rate limit|too many/i.test(m)) { const e = new Error("Too many requests — please wait a few minutes and try again."); e.code = "rate_limited"; throw e; }
         if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
         if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
-        // anything else (e.g. "user not found" on older GoTrue builds) is deliberately not shown
+        // anything else (e.g. "user not found" on older GoTrue builds) is deliberately not shown (no enumeration:
+        // a send failure only happens for a real account) - r29: but the code goes to telemetry so support can see it
+        reportAuthError("email", error, authErrorInfo(error, "email"));
       }
       return true;
     },
@@ -2169,6 +2330,7 @@ window.HelmUrl = HelmUrl;
         if (st === 429 || /rate limit|too many|seconds/i.test(m)) { const e = new Error("Too many requests — please wait a minute and try again."); e.code = "rate_limited"; throw e; }
         if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
         if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
+        reportAuthError("email", error, authErrorInfo(error, "email"));   // r29: stays generic on screen (no enumeration)
       }
       return true;
     },
@@ -2217,7 +2379,7 @@ window.HelmUrl = HelmUrl;
       const bad = passwordProblem(newPassword); if (bad) { const e = new Error(bad); e.code = "weak_password"; throw e; }
       const attrs = { password: newPassword, data: { full_name: name } };
       const { data, error } = await supa.auth.updateUser(attrs);   // attrs is local: dropped with this call
-      if (error) throw error;
+      if (error) throw ((global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) ? error : authError(error, "password"));   // r29
       if (data && data.user && currentUser && data.user.id === currentUser.id) currentUser = data.user;
       try { sessionStorage.removeItem(INVITE_SET_PW_KEY); } catch (e) {}
       return true;
@@ -2276,7 +2438,8 @@ window.HelmUrl = HelmUrl;
       if (error) {
         if (/different from the old|same_password/i.test(String(error.message || "") + " " + String(error.code || ""))) throw new Error("Choose a password that's different from your current one.");
         if (/current.?password|reauthenticat/i.test(String(error.message || "") + " " + String(error.code || ""))) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
-        throw error;
+        if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
+        throw authError(error, "password");   // r29: e.g. weak_password ["pwned"] -> the breach message
       }
       reauthClear();
       lsDel(RECOVERY_KEY);
@@ -11114,6 +11277,8 @@ window.HelmUrl = HelmUrl;
     if (e && typeof e.message === "string" && global.HelmDemojibake) { try { e.message = global.HelmDemojibake(e.message); } catch (_) {} }
     var action = o.action ? String(o.action) : "";
     var pre = action ? "Couldn’t " + action + ". " : "";
+    // r29: a Supabase Auth error already turned into words by BPStore.auth (authError) - shown as-is, with its Ref
+    if (e && e.authMapped === true && typeof e.message === "string" && e.message) return e.message;
     if (isAuthError(e)) return "Your session expired — sign in again.";
     if (typeof navigator !== "undefined" && navigator.onLine === false) return "You’re offline — reconnect and try again.";
     if (isNetworkError(e)) return pre + "Couldn’t reach the server — check your connection and try again.";

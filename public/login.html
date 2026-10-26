@@ -144,6 +144,7 @@
   .eye .eye-off{display:none} .eye[aria-pressed="true"] .eye-on{display:none} .eye[aria-pressed="true"] .eye-off{display:block}
   .meter{display:flex;gap:4px;align-items:center;margin:-8px 0 12px} .meter[hidden],#pwRules[hidden],#pwHint[hidden]{display:none} .meter span{flex:1;height:4px;border-radius:4px;background:var(--line)}
   .meter b{font-size:11.5px;font-weight:600;color:var(--ink-3);min-width:72px;text-align:right}
+  .meter[data-server]{flex-wrap:wrap} .meter[data-server] b{flex:1 0 100%;text-align:left;color:#b42318;margin-top:2px}
   .meter[data-level="1"] span:nth-child(-n+1){background:#d92d20} .meter[data-level="2"] span:nth-child(-n+2){background:#f79009}
   .meter[data-level="3"] span:nth-child(-n+3){background:#eab308} .meter[data-level="4"] span:nth-child(-n+4){background:#12b76a}
   .helper{font-size:12.5px;color:var(--ink-3);text-align:center;margin:14px 0 0;line-height:1.5}
@@ -475,7 +476,7 @@
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=282" defer></script>
+<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=283" defer></script>
 <script src="auth-ui.js?v=53" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>
@@ -492,7 +493,10 @@ document.addEventListener("DOMContentLoaded", function(){
   // One rule, from store-api.js.
   const PW_MIN=12;
   const pwProblem=(p)=>(BPStore.auth.passwordRule? BPStore.auth.passwordRule.problem(p) : ((p||"").length<PW_MIN?"Use at least "+PW_MIN+" characters.":null));
-  if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(document.getElementById("pw"), document.getElementById("pwRules"));
+  // r29: what the person typed (name, e-mail) feeds the local "easy to guess" warning
+  const pwHints=()=>[(document.getElementById("fullname")||{}).value||"", (document.getElementById("email")||{}).value||""];
+  const pwGuess=(p)=>(BPStore.auth.passwordRule && BPStore.auth.passwordRule.guessable)? BPStore.auth.passwordRule.guessable(p, pwHints()) : null;
+  if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(document.getElementById("pw"), document.getElementById("pwRules"), {hints:pwHints});
   const QS=new URLSearchParams(location.search);
   // Cloudflare Turnstile — only when config.captcha.siteKey is set (else null = off, sign-in unchanged)
   let cap=null, fgCap=null;
@@ -620,13 +624,15 @@ document.addEventListener("DOMContentLoaded", function(){
           catch(e){
             // the remembered sign-in password was refused → fall back to asking for it
             if(known && e && (e.code==="bad_current_password"||e.code==="current_password_required")){ known=null; showCur(true); er.textContent="Please enter the temporary password you signed in with."; cur.focus(); return; }
-            er.textContent=(e&&/^(bad_current_password|current_password_required|account_locked)$/.test(e.code||""))?e.message:BPUI.friendlyError(e,{action:"set your password"}); }
+            er.textContent=(e&&/^(bad_current_password|current_password_required|account_locked)$/.test(e.code||""))?e.message:BPUI.friendlyError(e,{action:"set your password"});
+            if(e&&e.field==="pw"){ pw.focus(); pw.select(); } }   // r29: e.g. a breached password - fields stay filled
           finally{ opts.currentPassword=null; go.textContent="Set password & continue"; }
         });
       });
     });
   }
   let mode="signin"; let INVITE_ORG="";
+  let pwWarned=null;   // r29: the password the "easy to guess" warning was shown for (a second submit goes ahead)
   let GIS=null;   // r26: Google's own sign-in button (google-gis.js) - null while off
   const J=()=>JOINING && !INVITE_DEAD;
   function submitLabel(){ return mode==="signup" ? (J()?"Create account & join →":"Create account →") : (J()?"Sign in to accept →":"Sign in →"); }
@@ -696,7 +702,18 @@ document.addEventListener("DOMContentLoaded", function(){
   function pwLevel(p){ if(!p) return 0; let n=0; if(/[a-z]/.test(p)) n++; if(/[A-Z]/.test(p)) n++; if(/[0-9]/.test(p)) n++; if(/[^A-Za-z0-9]/.test(p)) n++;
     if(p.length<PW_MIN) return Math.min(n,2)||1; if(pwProblem(p)) return Math.min(n,3); return 4; }
   const PW_WORDS=["","Too weak","Weak","Almost there","Strong"];
-  $("#pw").addEventListener("input", ()=>{ const l=pwLevel($("#pw").value); $("#pwMeter").setAttribute("data-level",String(l)); $("#pwMeterTxt").textContent=PW_WORDS[l]; });
+  // r29: never "Strong" for an easy-to-guess shape (Name@123456 ...) - Supabase's breach check would refuse it
+  $("#pw").addEventListener("input", ()=>{ const v=$("#pw").value, g=v && !pwProblem(v) && pwGuess(v); const l=g?2:pwLevel(v);
+    // r29: the server's "weak" verdict holds until the password changes (this event = it changed)
+    if($("#pwMeter").hasAttribute("data-server")){ $("#pwMeter").removeAttribute("data-server"); if($("#err").dataset.pwSrv==="1"){ $("#err").hidden=true; delete $("#err").dataset.pwSrv; } }
+    $("#pwMeter").setAttribute("data-level",String(l)); $("#pwMeterTxt").textContent=g?"Easy to guess":PW_WORDS[l]; });
+  // r29: Supabase refused the password (weak_password): 1 red bar + the reason, until the password is changed
+  function pwServerWeak(msg){
+    const pwned=!!(BPStore.auth.passwordRule && BPStore.auth.passwordRule.pwnedMessage && String(msg).indexOf(BPStore.auth.passwordRule.pwnedMessage)===0);
+    $("#pwMeter").hidden=false; $("#pwMeter").setAttribute("data-level","1"); $("#pwMeter").setAttribute("data-server","1");
+    $("#pwMeterTxt").textContent=pwned?"Weak — this password appears in data breaches":"Weak — the server refused this password";
+    $("#err").dataset.pwSrv="1";
+  }
 
   // ----- "Check your inbox" (sign-up done, email not confirmed yet) -----
   const COOLDOWN=60;
@@ -708,7 +725,7 @@ document.addEventListener("DOMContentLoaded", function(){
   let inboxAddr="";
   function showInbox(email){
     inboxAddr=normEmail(email);
-    $("#pw").value=""; $("#pw").type="password"; $("#pwEye").setAttribute("aria-pressed","false");   // never carry the password over
+    $("#pw").value=""; $("#pw").type="password"; $("#pwEye").setAttribute("aria-pressed","false"); pwWarned=null;   // never carry the password over
     $("#inboxEmail").textContent=inboxAddr;
     $("#inboxOk").hidden=true; $("#inboxErr").hidden=true;
     showView("#inboxCard");
@@ -997,7 +1014,8 @@ document.addEventListener("DOMContentLoaded", function(){
           const bad=pwProblem(pw); if(bad){ showErr(er,bad); $("#ip_pw").focus(); return; }
           if(String(pw).normalize("NFC")!==String($("#ip_pw2").value).normalize("NFC")){ showErr(er,"Passwords don't match."); $("#ip_pw2").focus(); return; }
           try{ await BPStore.auth.setInvitePassword(pw, name); $("#ip_pw").value=""; $("#ip_pw2").value=""; form.removeEventListener("submit",onSubmit); resolve(true); }
-          catch(x){ showErr(er,(x&&/^(name_required|weak_password|reauth_required)$/.test(x.code||""))?x.message:BPUI.friendlyError(x,{action:"set your password"})); }
+          catch(x){ showErr(er,(x&&/^(name_required|weak_password|reauth_required)$/.test(x.code||""))?x.message:BPUI.friendlyError(x,{action:"set your password"}));
+            if(x&&x.field==="pw"){ $("#ip_pw").focus(); $("#ip_pw").select(); } }   // r29: e.g. a breached password - fields stay filled
         });
       };
       form.addEventListener("submit",onSubmit);
@@ -1326,6 +1344,10 @@ document.addEventListener("DOMContentLoaded", function(){
         if(mode==="signup"){
           const bad=pwProblem(pw); if(bad){ showErr($("#err"),"Choose a stronger password: "+bad); $("#pw").focus(); return; }
           if(String($("#pw2").value).normalize("NFC")!==String(pw).normalize("NFC")){ showErr($("#err"),"The two passwords don't match — type the same password in both boxes."); $("#pw2").focus(); return; }
+          // r29: warn ONCE about an easy-to-guess password before sending it (Supabase's breach check decides);
+          // submitting the same password again goes ahead
+          const guess=pwGuess(pw);
+          if(guess && pwWarned!==pw){ pwWarned=pw; setFieldErr($("#pw"), guess+" Press the button again to use it anyway."); $("#pw").focus(); return; }
           if(!BPStore.auth.user() && capMissing(cap)){ showErr($("#err"),"Please complete the security check."); return; }
           if(joining){
             // invitee creating an account, then accepting the invite (no studio to create)
@@ -1400,11 +1422,18 @@ document.addEventListener("DOMContentLoaded", function(){
             showErr($("#ilErr"),"Signing in can't work yet for "+INV.email+" — it has no password. Use the button below to get a new link."); return; }
         }
         if(err&&err.code==="gate_verify"){ showErr($("#err"),m); return; }
+        // r29: a Supabase Auth refusal turned into words (store-api authError) - next to the field it is about
+        // (password / e-mail), the form stays filled in so only that field needs changing
+        if(err&&err.authMapped&&(err.field==="pw"||err.field==="email")){
+          const fi=$("#"+err.field); showErr($("#err"),m); setFieldErr(fi,m); pwWarned=null;
+          if(err.field==="pw" && err.authCode==="weak_password") pwServerWeak(m);   // the meter follows the server's verdict
+          try{ fi.scrollIntoView({block:"center",behavior:"smooth"}); }catch(x){}
+          fi.focus({preventScroll:true}); if(fi.select) fi.select(); return; }
         if(/captcha/i.test(m)){ showErr($("#err"),"The security check failed or expired — please try again."); return; }
         // credential / policy messages from Supabase Auth are written for users; everything else goes through friendlyError
         // never echo "already registered" / "not confirmed" (account enumeration): one answer
-        const direct=(err&&(err.code==="invalid_credentials"||err.code==="account_locked"||err.code==="rate_limited"||err.code==="captcha_failed"||err.code==="reserved_domain")) || (/^(Use at least|Include at least|Choose a)/.test(m));
-        showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create the studio":"sign you in"}));
+        const direct=(err&&(err.authMapped===true||err.code==="invalid_credentials"||err.code==="account_locked"||err.code==="rate_limited"||err.code==="captcha_failed"||err.code==="reserved_domain")) || (/^(Use at least|Include at least|Choose a)/.test(m));
+        showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create your account":"sign you in"}));
         // r20-coord #33: a wrong password may be an account that signs in with Google - a generic hint, shown for every
         // invalid sign-in (it says nothing about whether this e-mail has an account: no enumeration)
         if(mode==="signin" && err && err.code==="invalid_credentials"){ noteLoginFail(); const g=$("#googleBtn"), gh=$("#gHint"); if(gh && g && !g.hidden) gh.hidden=false; }
