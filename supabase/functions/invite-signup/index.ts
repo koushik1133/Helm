@@ -333,9 +333,9 @@ Deno.serve(async (req) => {
         if (st.account === "unconfirmed") return json({ error: UNCONFIRMED_MSG, code: "needs_link", reason: "unconfirmed" }, 409);
         return json({ error: EXISTS_MSG, code: "account_exists" }, 409);
       }
-      // r29: Supabase's leaked-password check (HaveIBeenPwned) -> say so (same words as the sign-up page)
-      if (/pwned|known to be weak|easy to guess|breach|leaked/i.test(t) || ((cErr as { reasons?: string[] }).reasons || []).includes("pwned"))
-        return json({ error: "This password has appeared in a data breach, so it isn't safe. Please choose a different one — try a longer phrase or use a password manager. (Ref: AUTH-weak_password)", code: "weak_password" }, 400);
+      // r29: Supabase's leaked-password check (HaveIBeenPwned) -> the same plain words as the sign-up page
+      if (/pwned|known to be weak|easy to guess|leaked/i.test(t) || ((cErr as { reasons?: string[] }).reasons || []).includes("pwned"))
+        return json({ error: "This password is too common and easy to guess. Please choose a different one — for example a short phrase like Blue-Garden-Events-48. (Ref: AUTH-weak_password)", code: "weak_password" }, 400);
       if (/password/i.test(t)) return json({ error: "Choose a stronger password.", code: "weak_password" }, 400);
       return serverError(cErr);
     }

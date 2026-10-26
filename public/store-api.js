@@ -463,70 +463,77 @@ window.HelmUrl = HelmUrl;
     }
     return null;
   }
-  // r29: a light LOCAL "easy to guess" check (Supabase's leaked-password check - HaveIBeenPwned - stays the authority).
-  // "Tharun@123456" passed the 12-char + 4-class rule but Supabase refused it as breached (weak_password, reasons
-  // ["pwned"]). This catches the usual shapes before submit: one word/name + symbol + a digit run, common passwords /
-  // keyboard runs, the person's own name / e-mail, repeated or sequential characters. A warning, never a block.
+  // r29: a light LOCAL "easy to guess" check (Supabase's leaked-password check stays the authority).
+  // "Tharun@123456" passed the 12-char + 4-class rule but Supabase refused it as too common (weak_password, reasons
+  // ["pwned"]). This names the specific reason(s) in plain words, before submit - a warning, never a block.
   const PW_COMMON = ("password passw0rd passwd welcome admin administrator letmein login qwerty qwertyuiop asdf asdfgh asdfghjkl "
     + "zxcvbn zxcvbnm azerty iloveyou loveyou lovely love monkey dragon master shadow sunshine princess football baseball "
     + "basketball soccer cricket hockey superman batman spiderman starwars pokemon naruto michael jennifer jordan charlie "
     + "hunter killer trustno trustnoone whatever freedom secret secure security changeme default guest test tester testing "
-    + "hello helloworld abc abcd abcdef abcdefg abcdefgh access summer winter spring autumn monday friday january december "
+    + "hello helloworld abcdef abcdefg abcdefgh access summer winter spring autumn monday friday january december "
     + "india bharat mumbai delhi hyderabad bangalore bengaluru chennai pune kolkata dubai london newyork america canada "
     + "google facebook instagram whatsapp youtube microsoft apple samsung iphone android computer internet laptop "
-    + "event events helm studio wedding party birthday family friends company business office manager welcome1 "
-    + "ganesh krishna rama shiva lakshmi sairam jaishriram omsairam allah jesus christ god angel heaven blessed "
+    + "helm studio wedding party birthday family friends company business office manager "
+    + "ganesh krishna rama shiva lakshmi sairam jaishriram omsairam allah jesus christ angel heaven blessed "
     + "cookie chocolate banana orange cheese pepper ginger flower rainbow purple yellow silver golden diamond crystal "
-    + "tiger lion eagle falcon panther dolphin pussy sexy money cash dollar rupee bitcoin thunder lightning phoenix "
-    + "matrix ninja samurai warrior legend champion winner soccer1 qazwsx qweasd zaq wsx 1qaz 1q2w3e 1q2w3e4r q1w2e3r4 "
-    + "aa aaa abc123 pass pa55word p4ssword myname mypassword mylove ilove hellohello").split(" ");
+    + "tiger lion eagle falcon panther dolphin sexy money cash dollar rupee bitcoin thunder lightning phoenix "
+    + "matrix ninja samurai warrior legend champion winner qazwsx qweasd 1q2w3e 1q2w3e4r q1w2e3r4 "
+    + "abc123 pa55word p4ssword myname mypassword mylove hellohello").split(" ");
   const PW_LEET = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "9": "g", "@": "a", "$": "s", "!": "i" };
-  const PW_SEQ = "abcdefghijklmnopqrstuvwxyz 01234567890 qwertyuiop asdfghjkl zxcvbnm 1qaz2wsx3edc";
-  function pwRunLen(s) {   // longest run of one repeated character, or of a sequence (either way)
-    let best = 1, rep = 1, seq = 1;
+  const PW_KEYS = ["abcdefghijklmnopqrstuvwxyz", "qwertyuiop", "asdfghjkl", "zxcvbnm", "qazwsxedc"];
+  const PW_GUESS = {
+    sequence: "Avoid number sequences like 123456",
+    name: "Avoid using your name or e-mail in the password",
+    repeat: "Avoid repeated characters like aaa or 111",
+    keyboard: "Avoid keyboard patterns like qwerty",
+    common: "This is a very common password",
+    wordnum: "Avoid a single word followed by numbers, like Name@2024",
+  };
+  function pwSeqRun(s, sets) {   // longest run of 3+ characters that follow each other (either way) in one of `sets`
+    let best = 1, run = 1;
     for (let i = 1; i < s.length; i++) {
-      rep = s[i] === s[i - 1] ? rep + 1 : 1;
       const pair = s[i - 1] + s[i], rev = s[i] + s[i - 1];
-      seq = (s[i] !== s[i - 1] && (PW_SEQ.indexOf(pair) !== -1 || PW_SEQ.indexOf(rev) !== -1)) ? seq + 1 : 1;
-      best = Math.max(best, rep, seq);
+      run = (s[i] !== s[i - 1] && sets.some((k) => k.indexOf(pair) !== -1 || k.indexOf(rev) !== -1)) ? run + 1 : 1;
+      if (run > best) best = run;
     }
     return best;
   }
-  // -> "This looks easy to guess - ..." or null. `hints` = strings the person typed (name, e-mail, studio).
-  function passwordGuessable(pw, hints) {
-    pw = String(pw || ""); if (!pw) return null;
-    const MSG = "This looks easy to guess — avoid a single word or name followed by numbers. Try a longer phrase of unrelated words, or use a password manager.";
+  // -> [plain-words reasons] (empty = nothing obvious). `hints` = what the person typed (name, e-mail, studio).
+  function passwordGuessReasons(pw, hints) {
+    pw = String(pw || ""); const out = []; if (!pw) return out;
     const low = pw.toLowerCase();
     let leet = ""; for (const ch of low) leet += (PW_LEET[ch] || ch);
     const letters = leet.replace(/[^a-z]/g, "");
-    // 1. one word / name, then symbols + digits (Tharun@123456, Welcome#2024, Ravi_123456!) or digits first
-    if (/^[^a-z0-9]*[a-z]{2,}[^a-z0-9]*[0-9]{2,}[^a-z0-9]*$/i.test(pw) || /^[^a-z0-9]*[0-9]{2,}[^a-z0-9]*[a-z]{2,}[^a-z0-9]*$/i.test(pw)) return MSG;
-    // 2. built on a common password / word or a keyboard run (with leetspeak undone)
-    for (const w of PW_COMMON) if (w.length >= 4 && (letters === w || (leet.indexOf(w) !== -1 && pw.length - w.length < 8))) return MSG;
-    // 3. the person's own name / e-mail / studio carries most of it
-    for (const hRaw of (hints || [])) {
-      const parts = String(hRaw || "").toLowerCase().split(/[^a-z0-9]+/).filter((x) => x.length >= 3);
-      for (const p of parts) if (leet.indexOf(p) !== -1 && pw.length - p.length < 8) return MSG;
-    }
-    // 4. long repeated / sequential runs (123456, aaaa, qwerty, 987654) leaving little else
-    const run = pwRunLen(low);
-    if (run >= 4 && pw.length - run < 8) return MSG;
-    // 5. very few different characters
-    if (new Set(low).size <= 4) return MSG;
-    return null;
+    // very common password (leetspeak undone): the word IS the password, or it carries most of it
+    if (PW_COMMON.some((w) => w.length >= 4 && (letters === w || (leet.indexOf(w) !== -1 && pw.length - w.length < 8)))) out.push(PW_GUESS.common);
+    // the person's own name / e-mail / studio
+    const parts = [];
+    for (const h of (hints || [])) String(h || "").toLowerCase().split(/[^a-z0-9]+/).forEach((x) => { if (x.length >= 4) parts.push(x); });
+    if (parts.some((p) => leet.indexOf(p) !== -1 || low.indexOf(p) !== -1)) out.push(PW_GUESS.name);
+    // 1234 / 4321 / 123456 ...
+    if (pwSeqRun(low.replace(/[^0-9]/g, " "), ["0123456789"]) >= 4) out.push(PW_GUESS.sequence);
+    // aaa / 111 / !!!
+    if (/(.)\1\1/.test(low)) out.push(PW_GUESS.repeat);
+    // qwerty / asdf / abcd
+    if (pwSeqRun(low.replace(/[^a-z]/g, " "), PW_KEYS) >= 4) out.push(PW_GUESS.keyboard);
+    // one word / name, then symbols + digits (Tharun@123456, Welcome#2024) - or digits first
+    if (/^[^a-z0-9]*[a-z]{2,}[^a-z0-9]*[0-9]{2,}[^a-z0-9]*$/i.test(pw) || /^[^a-z0-9]*[0-9]{2,}[^a-z0-9]*[a-z]{2,}[^a-z0-9]*$/i.test(pw)) out.push(PW_GUESS.wordnum);
+    return out;
   }
+  // -> the reasons, or null when nothing obvious (kept as a truthy/falsy API for callers)
+  function passwordGuessable(pw, hints) { const r = passwordGuessReasons(pw, hints); return r.length ? r : null; }
   // r29: Supabase Auth errors -> a clear, honest message (never "Something went wrong"), with a short reference
   // ("Ref: AUTH-weak_password") support can diagnose from. Every documented code
   // (supabase.com/docs/guides/auth/debugging/error-codes) that a sign-up / sign-in / password / e-mail call can return.
   // "Already registered" is NOT here: it stays the generic "we've sent a link" answer (no account enumeration), and so
   // do sign-in credential errors (genericSignInError). Pure: (error, ctx) -> { code, message, field, ref } | null.
   //   ctx: "signup" | "signin" | "password" (reset / change / set-password / invite) | "email" (reset / resend link)
-  const PW_PWNED_MSG = "This password has appeared in a data breach, so it isn't safe. Please choose a different one — try a longer phrase or use a password manager.";
+  const PW_PWNED_MSG = "This password is too common and easy to guess. Please choose a different one — for example a short phrase like Blue-Garden-Events-48.";
   function authErrorCode(error) {
     const c = String((error && (error.code || error.error_code)) || "").toLowerCase();
     if (/^[a-z][a-z0-9_]{1,48}$/.test(c)) return c;
     const m = String((error && (error.message || error.msg || error.error_description)) || "");
-    if (/known to be weak|easy to guess|pwned|data breach|leaked password/i.test(m)) return "weak_password";
+    if (/known to be weak|easy to guess|pwned|leaked password/i.test(m)) return "weak_password";
     if (/error sending|sending (the )?(confirmation|magic link|recovery|invite)|smtp|mail (server|delivery)/i.test(m)) return "email_send_failed";
     if (/signups? not allowed|sign-?ups? (are )?disabled/i.test(m)) return "signup_disabled";
     if (/email address .*(is )?invalid|invalid email|unable to validate email/i.test(m)) return "email_address_invalid";
@@ -545,7 +552,7 @@ window.HelmUrl = HelmUrl;
       case "weak_password": {
         const rs = [].concat((error.reasons) || (error.weak_password && error.weak_password.reasons) || []).map(String);
         field = "pw";
-        if (rs.indexOf("pwned") !== -1 || (!rs.length && /known to be weak|easy to guess|pwned|breach|leaked/i.test(String(error.message || "")))) msg = PW_PWNED_MSG;
+        if (rs.indexOf("pwned") !== -1 || (!rs.length && /known to be weak|easy to guess|pwned|leaked/i.test(String(error.message || "")))) msg = PW_PWNED_MSG;
         else if (rs.indexOf("length") !== -1) msg = "This password is too short — use at least " + PW_MIN + " characters (a longer phrase is best).";
         else if (rs.indexOf("characters") !== -1) msg = "This password needs a lowercase letter, an uppercase letter, a number and a symbol (like ! @ # $ %).";
         else msg = "This password isn't strong enough — choose a longer one that's harder to guess.";
@@ -625,16 +632,17 @@ window.HelmUrl = HelmUrl;
         li.setAttribute("data-ok", c.ok ? "1" : "0");
         box.appendChild(li);
       });
-      // r29: all rules met but the shape is easy to guess (Supabase may refuse it as breached) - a warning, not a block
+      // r29: all rules met but easy to guess (Supabase may refuse it as too common): each specific reason as its
+      // own line, in plain words - a warning, not a block
       let hints = []; try { hints = (opts && typeof opts.hints === "function") ? (opts.hints() || []) : []; } catch (e) {}
-      const guess = !passwordProblem(input.value) ? passwordGuessable(input.value, hints) : null;
-      if (guess) {
+      const why = input.value ? passwordGuessReasons(input.value, hints) : [];
+      why.forEach((w) => {
         const li = document.createElement("li");
-        li.textContent = "⚠ " + guess;
+        li.textContent = "⚠ " + w;
         li.style.color = "#b45309"; li.style.fontWeight = "600";
         li.setAttribute("data-guessable", "1");
         box.appendChild(li);
-      }
+      });
     }
     input.addEventListener("input", render);
     render();
@@ -2273,7 +2281,7 @@ window.HelmUrl = HelmUrl;
           if (/different from the old|same_password/i.test(String(error.message || "") + " " + String(error.code || ""))) throw new Error("Choose a password that's different from the temporary one.");
           if (/current.?password|reauthenticat/i.test(String(error.message || "") + " " + String(error.code || ""))) { const e = new Error("The temporary password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
           if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
-          throw authError(error, "password");   // r29: e.g. weak_password ["pwned"] -> the breach message
+          throw authError(error, "password");   // r29: e.g. weak_password ["pwned"] -> the 'too common' message
         }
         pwChangedAwaitingClear = true;   // a retry only re-runs the clear below
       }
@@ -2292,7 +2300,7 @@ window.HelmUrl = HelmUrl;
     },
     // ---- self-service password reset / change -----------------------------------
     genericMessages: { signIn: GENERIC_SIGNIN, sent: GENERIC_SENT, resend: GENERIC_RESEND },
-    passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist, guessable: passwordGuessable, pwnedMessage: PW_PWNED_MSG },
+    passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist, guessable: passwordGuessable, guessReasons: passwordGuessReasons, pwnedMessage: PW_PWNED_MSG },
     // r29: Supabase Auth error -> { code, message, field, ref } (pure; exported for tests and other pages)
     authErrorInfo: authErrorInfo,
     // Resolves the same way whether or not the email has an account (the caller
@@ -2439,7 +2447,7 @@ window.HelmUrl = HelmUrl;
         if (/different from the old|same_password/i.test(String(error.message || "") + " " + String(error.code || ""))) throw new Error("Choose a password that's different from your current one.");
         if (/current.?password|reauthenticat/i.test(String(error.message || "") + " " + String(error.code || ""))) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
         if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
-        throw authError(error, "password");   // r29: e.g. weak_password ["pwned"] -> the breach message
+        throw authError(error, "password");   // r29: e.g. weak_password ["pwned"] -> the 'too common' message
       }
       reauthClear();
       lsDel(RECOVERY_KEY);

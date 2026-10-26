@@ -12,7 +12,7 @@ const r = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
 const SA = r("public/store-api.js"), LOGIN = r("public/login.html"), RESET = r("public/reset-password.js"), IS = r("supabase/functions/invite-signup/index.ts");
 const tests = []; const t = (n, f) => tests.push([n, f]);
 const PWNED_BODY = { code: "weak_password", message: "Password is known to be weak and easy to guess, please choose a different one.", weak_password: { reasons: ["pwned"] } };
-const PWNED_MSG = "This password has appeared in a data breach, so it isn't safe. Please choose a different one — try a longer phrase or use a password manager.";
+const PWNED_MSG = "This password is too common and easy to guess. Please choose a different one — for example a short phrase like Blue-Garden-Events-48.";
 
 async function env(o) {
   o = o || {};
@@ -48,7 +48,7 @@ async function env(o) {
   return { S, calls, reports, win };
 }
 
-t("1 the user's exact case: signUp -> 422 weak_password ['pwned'] -> the breach message + Ref, field pw, reported", async () => {
+t("1 the user's exact case: signUp -> 422 weak_password ['pwned'] -> the 'too common' message + Ref, field pw, reported", async () => {
   for (const err of [Object.assign({ status: 422 }, PWNED_BODY), { status: 422, code: "weak_password", message: PWNED_BODY.message, reasons: ["pwned"], name: "AuthWeakPasswordError" }]) {
     const { S, calls, reports, win } = await env({ err });
     const e = await S.auth.signUp("tharun.studios@gmail.com", "Tharun@123456", { fullName: "Tharun studios", termsAgreed: true }).then(() => null, (x) => x);
@@ -129,14 +129,14 @@ t("5 reset / resend stay generic on screen (no enumeration) but report the code"
   assert.equal(await S.auth.resendSignup("a@gmail.com"), true);
   assert.equal(reports.length, 2); for (const [, m] of reports) { assert.match(m, /ref=AUTH-email_address_not_authorized/); assert.ok(!/gmail|@/.test(m)); }
 });
-t("6 password change / reset link / invite set-password: pwned -> the same breach message (field pw)", () => {
+t("6 password change / reset link / invite set-password: pwned -> the same 'too common' message (field pw)", () => {
   const up = SA.slice(SA.indexOf("async updatePassword(newPassword, opts)"), SA.indexOf("recovery: {"));
   assert.ok(up.includes('throw authError(error, "password");'));
   const cp = SA.slice(SA.indexOf("async completePasswordChange(newPassword, opts)"), SA.indexOf("genericMessages:"));
   assert.ok(cp.includes('throw authError(error, "password");'));
   const ip = SA.slice(SA.indexOf("async setInvitePassword(newPassword, fullName)"), SA.indexOf("isRecoverySession: () =>"));
   assert.ok(ip.includes('authError(error, "password")'));
-  assert.ok(IS.includes("This password has appeared in a data breach, so it isn't safe.") && /pwned\|known to be weak/.test(IS), "invite-signup edge function");
+  assert.ok(IS.includes(PWNED_MSG) && /pwned\|known to be weak/.test(IS), "invite-signup edge function");
   assert.ok(RESET.includes('x.field === "pw"') && /\$\("#new_pw"\)\.focus\(\)/.test(RESET), "reset page focuses the password");
   assert.ok(LOGIN.includes('if(x&&x.field==="pw"){ $("#ip_pw").focus()'), "invite form");
   assert.ok(LOGIN.includes('if(e&&e.field==="pw"){ pw.focus(); pw.select(); }'), "temp-password form");
@@ -152,19 +152,23 @@ t("7 the pure mapper: password ctx says 'password', unknown code still has a Ref
   assert.equal(m({ code: "Weird Code <x>" }, "signup").ref, "AUTH-unknown", "only a clean code is echoed");
 });
 
-t("8 local 'easy to guess' check: Name@123456 shapes flagged, real passphrases pass", async () => {
+t("8 local 'easy to guess' check names the specific reason(s) in plain words; real passphrases pass", async () => {
   const { S } = await env({});
-  const g = S.auth.passwordRule.guessable;
-  for (const p of ["Tharun@123456", "Welcome@2024!", "Password@1234", "P@ssw0rd12345", "Summer2024!!xx".slice(0, 12), "123456@Tharun", "Qwerty@123456", "Abcd@12345678", "Aaaaaaaa1!aa", "Ravi_1234567!"])
-    assert.ok(g(p), "should flag " + p);
-  assert.ok(g("Koushik#99xyZ", ["Koushik Goud", "k@x.com"]), "own name");
-  for (const p of ["Zq7!vB2#kLm9Rt", "Correct-Horse-Battery-9", "tram Lamp 47 violet!", "Mango+Kite7+Orbit3", "Gx9$wL2@pQ7!"])
-    assert.equal(g(p), null, "should pass " + p);
-  assert.match(g("Tharun@123456"), /^This looks easy to guess/);
+  const g = S.auth.passwordRule.guessReasons;
+  const SEQ = "Avoid number sequences like 123456", NAME = "Avoid using your name or e-mail in the password", REP = "Avoid repeated characters like aaa or 111",
+    KEY = "Avoid keyboard patterns like qwerty", COMMON = "This is a very common password", WORD = "Avoid a single word followed by numbers, like Name@2024";
+  const has = (p, why, hints) => assert.ok(g(p, hints).includes(why), p + " -> " + why + " (got " + JSON.stringify(g(p, hints)) + ")");
+  has("Tharun@123456", SEQ); has("Tharun@123456", WORD); has("Tharun@123456", NAME, ["Tharun studios", "t@gmail.com"]);
+  has("P@ssw0rd12345", COMMON); has("Welcome@2024!", COMMON); has("Aaaaaaaa1!aa", REP); has("Zz!111Qq#xyW", REP);
+  has("Qwerty@Lamp57", KEY); has("Koushik#99xyZ", NAME, ["Koushik Goud", "k@x.com"]); has("98765#Orbit!Kite", SEQ);
+  assert.ok(!g("Tharun@123456").includes(NAME), "no name reason without hints");
+  for (const p of ["Zq7!vB2#kLm9Rt", "Correct-Horse-Battery-9", "tram Lamp 47 violet!", "Mango+Kite7+Orbit3", "Gx9$wL2@pQ7!", "Blue-Garden-Events-48"])
+    assert.equal(g(p, ["Priya Sharma", "priya@studio.in"]).length, 0, "should pass " + p + " (got " + JSON.stringify(g(p, ["Priya Sharma", "priya@studio.in"])) + ")");
+  assert.equal(S.auth.passwordRule.guessable("Mango+Kite7+Orbit3"), null);
 });
 t("9 login.html: meter never 'Strong' for a guessable password; warn once before submit; checklist gets the hints", () => {
   assert.ok(LOGIN.includes('g?"Easy to guess":PW_WORDS[l]') && LOGIN.includes("const l=g?2:pwLevel(v);"));
-  assert.ok(/if\(guess && pwWarned!==pw\)\{ pwWarned=pw; setFieldErr\(\$\("#pw"\), guess/.test(LOGIN));
+  assert.ok(/if\(guess && pwWarned!==pw\)\{ pwWarned=pw; setFieldErr\(\$\("#pw"\), "This password is easy to guess — see the tips below\./.test(LOGIN));
   assert.ok(LOGIN.includes('attachChecklist(document.getElementById("pw"), document.getElementById("pwRules"), {hints:pwHints})'));
   assert.ok(SA.includes('li.setAttribute("data-guessable", "1")'), "checklist warning line (every set-password form)");
 });
@@ -176,10 +180,14 @@ t("10 login.html: a mapped password / e-mail error -> top + inline, aria-invalid
   assert.ok(!/\.value=""/.test(blk), "nothing cleared");
   assert.ok(LOGIN.includes('input.setAttribute("aria-invalid",msg?"true":"false")'), "setFieldErr marks aria-invalid");
   const w = LOGIN.slice(LOGIN.indexOf("function pwServerWeak("), LOGIN.indexOf("function pwServerWeak(") + 600);
-  assert.ok(w.includes('setAttribute("data-level","1")') && w.includes("Weak — this password appears in data breaches"));
+  assert.ok(w.includes('setAttribute("data-level","1")') && w.includes('"Too common — choose another"'));
   assert.ok(LOGIN.includes('if($("#pwMeter").hasAttribute("data-server")){ $("#pwMeter").removeAttribute("data-server")'), "cleared once the password changes");
   assert.ok(LOGIN.includes('err.authMapped===true||err.code==="invalid_credentials"'), "other mapped errors shown as-is");
   assert.ok(LOGIN.includes('"create your account":"sign you in"') && !LOGIN.includes("create the studio"));
+});
+t("12 no 'breach' wording anywhere a person sees it (sign-up / sign-in / reset / invite)", () => {
+  for (const [n, src] of [["store-api", SA], ["login", LOGIN], ["reset-password", RESET], ["invite-signup", IS], ["auth-ui", r("public/auth-ui.js")]]) assert.ok(!/breach/i.test(src), n);
+  assert.ok(SA.includes('li.setAttribute("data-guessable", "1")') && SA.includes("why.forEach("), "one checklist line per reason");
 });
 t("11 friendlyError shows a mapped auth error as-is (reset page, invite, temp-password)", () => {
   const i = SA.indexOf("function friendlyError(e, o)"); const fe = SA.slice(i, i + 900);
