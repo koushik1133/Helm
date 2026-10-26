@@ -12,7 +12,7 @@ const r = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
 const SA = r("public/store-api.js"), LOGIN = r("public/login.html"), RESET = r("public/reset-password.js"), IS = r("supabase/functions/invite-signup/index.ts");
 const tests = []; const t = (n, f) => tests.push([n, f]);
 const PWNED_BODY = { code: "weak_password", message: "Password is known to be weak and easy to guess, please choose a different one.", weak_password: { reasons: ["pwned"] } };
-const PWNED_MSG = "This password is too common and easy to guess. Please choose a different one — for example a short phrase like Blue-Garden-Events-48.";
+const PWNED_MSG = "This password is too common and easy to guess. Please choose a different password.";
 
 async function env(o) {
   o = o || {};
@@ -162,7 +162,7 @@ t("8 local 'easy to guess' check names the specific reason(s) in plain words; re
   has("P@ssw0rd12345", COMMON); has("Welcome@2024!", COMMON); has("Aaaaaaaa1!aa", REP); has("Zz!111Qq#xyW", REP);
   has("Qwerty@Lamp57", KEY); has("Koushik#99xyZ", NAME, ["Koushik Goud", "k@x.com"]); has("98765#Orbit!Kite", SEQ);
   assert.ok(!g("Tharun@123456").includes(NAME), "no name reason without hints");
-  for (const p of ["Zq7!vB2#kLm9Rt", "Correct-Horse-Battery-9", "tram Lamp 47 violet!", "Mango+Kite7+Orbit3", "Gx9$wL2@pQ7!", "Blue-Garden-Events-48"])
+  for (const p of ["Zq7!vB2#kLm9Rt", "Correct-Horse-Battery-9", "tram Lamp 47 violet!", "Mango+Kite7+Orbit3", "Gx9$wL2@pQ7!", "Teal-Window-Rivers-73"])
     assert.equal(g(p, ["Priya Sharma", "priya@studio.in"]).length, 0, "should pass " + p + " (got " + JSON.stringify(g(p, ["Priya Sharma", "priya@studio.in"])) + ")");
   assert.equal(S.auth.passwordRule.guessable("Mango+Kite7+Orbit3"), null);
 });
@@ -188,6 +188,83 @@ t("10 login.html: a mapped password / e-mail error -> top + inline, aria-invalid
 t("12 no 'breach' wording anywhere a person sees it (sign-up / sign-in / reset / invite)", () => {
   for (const [n, src] of [["store-api", SA], ["login", LOGIN], ["reset-password", RESET], ["invite-signup", IS], ["auth-ui", r("public/auth-ui.js")]]) assert.ok(!/breach/i.test(src), n);
   assert.ok(SA.includes('li.setAttribute("data-guessable", "1")') && SA.includes("why.forEach("), "one checklist line per reason");
+});
+t("13 R29b: the too-common message suggests no example password; no 'breach'/'leak' wording on screen", async () => {
+  const { S } = await env({});
+  assert.equal(S.auth.passwordRule.pwnedMessage, "This password is too common and easy to guess. Please choose a different password.");
+  assert.ok(IS.includes('"This password is too common and easy to guess. Please choose a different password. (Ref: AUTH-weak_password)"'));
+  for (const [n, src] of [["store-api", SA], ["login", LOGIN], ["reset-password", RESET], ["invite-signup", IS]]) {
+    assert.ok(!/Blue-Garden|for example a short phrase|longer phrase/i.test(src), n + ": no example password");
+  }
+  // every reason / hint line a person can see names the problem only
+  const m = S.auth.authErrorInfo;
+  for (const rs of [["pwned"], ["length"], ["characters"], []]) assert.ok(!/breach|leak|phrase like/i.test(m({ code: "weak_password", status: 422, reasons: rs }, "signup").message), rs.join());
+});
+// the attribute value as an HTML attribute (& is written &amp;)
+const attrOf = (src, id) => { const mm = src.match(new RegExp('<input id="' + id + '"[^>]*>')) || src.match(new RegExp("<input id=\"" + id + "\"[^']*'")); return mm ? mm[0] : ""; };
+t("14 R29b: every NEW account-password field has autocomplete=new-password + passwordrules = our policy; a username field sits with it", async () => {
+  const { S } = await env({});
+  const rules = S.auth.passwordRule.rulesAttr;
+  assert.equal(rules, "minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&*+=?@^_~.,:;/]; max-consecutive: 2;");
+  assert.ok(rules.includes("minlength: " + S.auth.passwordRule.min + ";"), "same minimum as PW_MIN");
+  for (const ch of "-!#$%&*+=?@^_~.,:;/") assert.ok(S.auth.passwordRule.symbols.includes(ch), "symbol " + ch + " counts for Supabase");
+  const html = rules.replace(/&/g, "&amp;");
+  const RP = r("public/reset-password.html");
+  for (const [src, id] of [[LOGIN, "pw2"], [LOGIN, "ip_pw"], [LOGIN, "ip_pw2"], [LOGIN, "fpc_pw"], [LOGIN, "fpc_pw2"], [RP, "new_pw"], [RP, "new_pw2"]]) {
+    const tag = attrOf(src, id);
+    assert.ok(tag, id); assert.ok(tag.includes('autocomplete="new-password"'), id + " new-password");
+    assert.ok(tag.includes('passwordrules="' + html + '"'), id + " passwordrules");
+    assert.ok(!/data-lpignore|data-1p-ignore|data-bwignore|onpaste|autocomplete="off"/.test(tag), id + " autofill allowed");
+  }
+  // the main sign-in / sign-up box: sign-in = current-password; sign-up / invite-accept = new-password + the rules
+  assert.ok(attrOf(LOGIN, "pw").includes('autocomplete="current-password"'));
+  assert.ok(LOGIN.includes('$("#pw").setAttribute("autocomplete", m==="signup" ? "new-password" : "current-password");'));
+  assert.ok(LOGIN.includes('if(m==="signup") $("#pw").setAttribute("passwordrules", $("#pw2").getAttribute("passwordrules")||""); else $("#pw").removeAttribute("passwordrules");'));
+  // the e-mail (username) comes BEFORE the password in the same form
+  const lf = LOGIN.slice(LOGIN.indexOf('<form class="card" id="loginForm">'), LOGIN.indexOf("</form>", LOGIN.indexOf('id="loginForm"')));
+  assert.ok(lf.indexOf('<input id="email" type="email" autocomplete="username"') !== -1 && lf.indexOf('<input id="email"') < lf.indexOf('<input id="pw"') && lf.indexOf('<input id="pw"') < lf.indexOf('<input id="pw2"'));
+  // forms without a visible e-mail carry a hidden username field, filled with the account's e-mail
+  const ipf = LOGIN.slice(LOGIN.indexOf('id="invitePwForm"'), LOGIN.indexOf("</form>", LOGIN.indexOf('id="invitePwForm"')));
+  assert.ok(ipf.indexOf('<input type="email" id="ip_user" autocomplete="username" hidden readonly>') !== -1 && ipf.indexOf('id="ip_user"') < ipf.indexOf('id="ip_pw"'));
+  assert.ok(LOGIN.includes('$("#ip_user").value=u.email||"";'));
+  assert.ok(LOGIN.indexOf("<input id=\"fpc_user\" type=\"email\" autocomplete=\"username\" hidden readonly>") !== -1 && LOGIN.indexOf('id="fpc_user"') < LOGIN.indexOf('id="fpc_pw"'));
+  assert.ok(LOGIN.includes('ov.querySelector("#fpc_user").value=((BPStore.auth.user&&BPStore.auth.user())||{}).email||"";'));
+  assert.ok(RP.indexOf('id="acct_email" autocomplete="username"') !== -1 && RP.indexOf('id="acct_email"') < RP.indexOf('id="new_pw"'));
+  assert.ok(RP.indexOf('id="cur_email" autocomplete="username"') !== -1 && RP.indexOf('id="cur_email"') < RP.indexOf('id="cur_pw"'));
+  assert.ok(RESET.includes('$("#acct_email").value = u.email || ""; $("#cur_email").value = u.email || "";'));
+  // nothing blocks paste / autofill on the account password pages
+  for (const [n, src] of [["login", LOGIN], ["reset", RP], ["reset-js", RESET]]) assert.ok(!/onpaste|addEventListener\(\s*["']paste["']|data-lpignore/.test(src), n);
+  // the 4-digit PIN fields are NOT account passwords - no rules there
+  assert.ok(!/id="pp_new"[^>]*passwordrules/.test(r("public/control.html")));
+});
+t("15 R29b: browser-suggested passwords (Safari / Chrome / managers) pass every local check with no warning", async () => {
+  const { S } = await env({});
+  const R = S.auth.passwordRule, hints = ["Priya Sharma", "priya@studio.in"];
+  const ok = (p) => { assert.equal(R.problem(p), null, p + " meets the policy"); assert.deepEqual(Array.from(R.guessReasons(p, hints)), [], p + " no warnings (got " + JSON.stringify(R.guessReasons(p, hints)) + ")"); };
+  // real-format samples: Safari "xxxxxx-xxxxxx-xxxxxx", Chrome 15-char, 1Password / Bitwarden random
+  ["xamtyw-dofwaS-1kicpu", "Hupduq-7bymgo-wirtip", "jeqxuP-gonbe5-sazkoh", "wofkeR-3zuxpa-hidmyb",
+    "Kp7#vQ2mXz9!Lw4", "rT5$hN8qWe2@zXb", "9fG!kL2@pQ7#vB3", "v8!Qm2#Lx7$Rk4z", "Zt4&Nc9*Qs1^Hb6", "u3K=pW8+yD5?mQ1"].forEach(ok);
+  // and 300 more in the same formats from a fixed seed (stable)
+  let a = 20261026; const rnd = () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let x = Math.imul(a ^ (a >>> 15), 1 | a); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+  const pick = (set) => set[Math.floor(rnd() * set.length)];
+  const CONS = "bcdfghjkmnpqrstvwxz", VOW = "aeiouy", LOW = "abcdefghijkmnopqrstuvwxyz", UP = "ABCDEFGHJKLMNPQRSTUVWXYZ", DIG = "23456789", SYM = "-!#$%&*+=?@^_~.,:;/";
+  const noTriple = (gen) => { let p; do p = gen(); while (/(.)\1\1/.test(p)); return p; };   // max-consecutive: 2 in passwordrules
+  for (let i = 0; i < 150; i++) {
+    // Safari: three 6-letter syllable groups, one upper-case letter, one digit, joined by "-"
+    ok(noTriple(() => { const g = [0, 1, 2].map(() => { let w = ""; for (let k = 0; k < 6; k++) w += k % 3 === 1 ? pick(VOW) : pick(CONS); return w.split(""); });
+      g[Math.floor(rnd() * 3)][Math.floor(rnd() * 6)] = pick(DIG); const gi = Math.floor(rnd() * 3), ci = Math.floor(rnd() * 6);
+      if (!/[0-9]/.test(g[gi][ci])) g[gi][ci] = g[gi][ci].toUpperCase(); else g[(gi + 1) % 3][0] = g[(gi + 1) % 3][0].toUpperCase();
+      return g.map((x) => x.join("")).join("-"); }));
+    // Chrome / managers: 15 random characters with every class
+    ok(noTriple(() => { const all = LOW + UP + DIG + SYM; const c = [pick(LOW), pick(UP), pick(DIG), pick(SYM)]; while (c.length < 15) c.push(pick(all));
+      for (let k = c.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [c[k], c[j]] = [c[j], c[k]]; } return c.join(""); }));
+  }
+});
+t("16 R29b: /.well-known/change-password sends password managers to the change-password page", () => {
+  const V = JSON.parse(r("vercel.json"));
+  const rd = V.redirects.find((x) => x.source === "/.well-known/change-password");
+  assert.ok(rd && rd.destination === "/reset-password?mode=change" && rd.statusCode === 302);
+  assert.ok(Buffer.byteLength(r("vercel.json")) < 200 * 1024);
 });
 t("11 friendlyError shows a mapped auth error as-is (reset page, invite, temp-password)", () => {
   const i = SA.indexOf("function friendlyError(e, o)"); const fe = SA.slice(i, i + 900);

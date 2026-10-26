@@ -295,7 +295,7 @@
       <ul id="pwRules" hidden></ul>
       <div id="pw2Row" hidden>
         <label for="pw2">Confirm password</label>
-        <input id="pw2" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" placeholder="Type the password again">
+        <input id="pw2" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" passwordrules="minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&amp;*+=?@^_~.,:;/]; max-consecutive: 2;" placeholder="Type the password again">
       </div>
       <p class="hint" id="inviteHaveAcct" hidden>Already have a Helm account? <button type="button" class="linkbtn" id="inviteSigninBtn">Sign in instead</button></p>
       <p class="hint" id="forgotRow"><button type="button" class="linkbtn" id="forgotBtn">Forgot password?</button></p>
@@ -374,13 +374,14 @@
       <p class="sub" id="ipSub">You've joined your studio. Choose a password so you can sign in to Helm next time.</p>
       <p class="hint" id="ipWho">Set your password for <b id="ipEmail"></b></p>
       <div class="err" id="ipErr" role="alert" hidden></div>
+      <input type="email" id="ip_user" autocomplete="username" hidden readonly>
       <label for="ip_name">Full name</label>
       <input id="ip_name" type="text" autocomplete="name" maxlength="80" placeholder="Your name" required>
       <label for="ip_pw">Password</label>
-      <input id="ip_pw" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" placeholder="••••••••" required>
+      <input id="ip_pw" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" passwordrules="minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&amp;*+=?@^_~.,:;/]; max-consecutive: 2;" placeholder="••••••••" required>
       <ul id="ipRules"></ul>
       <label for="ip_pw2">Confirm password</label>
-      <input id="ip_pw2" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" placeholder="••••••••" required>
+      <input id="ip_pw2" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" passwordrules="minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&amp;*+=?@^_~.,:;/]; max-consecutive: 2;" placeholder="••••••••" required>
       <button class="btn" id="ip_submit" type="submit">Set password &amp; continue →</button>
     </form>
 
@@ -476,7 +477,7 @@
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=283" defer></script>
+<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=284" defer></script>
 <script src="auth-ui.js?v=53" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>
@@ -594,18 +595,20 @@ document.addEventListener("DOMContentLoaded", function(){
         '<h2 id="fpc_title" style="margin:0 0 6px;font-size:1.15rem">Set your password</h2>'+
         '<p style="margin:0 0 14px;color:#555;font-size:.9rem">You signed in with a temporary password. Choose your own to continue.</p>'+
         '<label for="fpc_cur" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">Temporary password</label>'+
+        '<input id="fpc_user" type="email" autocomplete="username" hidden readonly>'+
         '<input id="fpc_cur" type="password" autocomplete="current-password" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
         '<label for="fpc_pw" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">New password</label>'+
         '<p style="margin:0 0 6px;color:#555;font-size:.8rem">At least '+PW_MIN+' characters with a lowercase letter, an uppercase letter, a number and a symbol.</p>'+
-        '<input id="fpc_pw" type="password" autocomplete="new-password" minlength="'+PW_MIN+'" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:4px">'+
+        '<input id="fpc_pw" type="password" autocomplete="new-password" minlength="'+PW_MIN+'" passwordrules="minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&amp;*+=?@^_~.,:;/]; max-consecutive: 2;" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:4px">'+
         '<ul id="fpc_rules"></ul>'+
         '<label for="fpc_pw2" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">Confirm password</label>'+
-        '<input id="fpc_pw2" type="password" autocomplete="new-password" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
+        '<input id="fpc_pw2" type="password" autocomplete="new-password" passwordrules="minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&amp;*+=?@^_~.,:;/]; max-consecutive: 2;" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
         '<div id="fpc_err" role="alert" style="color:#b42318;font-size:.85rem;min-height:18px;margin-bottom:8px"></div>'+
         '<button id="fpc_go" type="submit" style="width:100%;padding:11px;border:0;border-radius:8px;background:#111;color:#fff;font-weight:600;cursor:pointer">Set password &amp; continue</button>'+
         '</form>';
       document.body.appendChild(ov);
       const form=ov.querySelector("#fpc_form"), cur=ov.querySelector("#fpc_cur"), pw=ov.querySelector("#fpc_pw"), pw2=ov.querySelector("#fpc_pw2"), er=ov.querySelector("#fpc_err"), go=ov.querySelector("#fpc_go");
+      ov.querySelector("#fpc_user").value=((BPStore.auth.user&&BPStore.auth.user())||{}).email||"";   // R29b: saved against this account
       if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(pw, ov.querySelector("#fpc_rules"));
       const curLbl=ov.querySelector('label[for="fpc_cur"]');
       const showCur=(on)=>{ cur.hidden=!on; curLbl.hidden=!on; cur.required=on; };
@@ -651,7 +654,10 @@ document.addEventListener("DOMContentLoaded", function(){
     $("#submit").textContent = submitLabel();
     document.body.classList.toggle("invite-join", J() && m==="signup");
     { const sw=document.getElementById("inviteHaveAcct"); if(sw) sw.hidden=!(J() && m==="signup"); }
+    // R29b: sign-up / invite-accept = a NEW password, so Safari / Chrome / password managers offer "Suggest strong password"
+    // (passwordrules = our policy, so the suggestion always passes); sign-in = the saved one
     $("#pw").setAttribute("autocomplete", m==="signup" ? "new-password" : "current-password");
+    if(m==="signup") $("#pw").setAttribute("passwordrules", $("#pw2").getAttribute("passwordrules")||""); else $("#pw").removeAttribute("passwordrules");
     // new passwords must meet the policy; existing ones are checked by the server
     if(m==="signup") $("#pw").setAttribute("minlength", String(PW_MIN)); else $("#pw").removeAttribute("minlength");
     $("#pwHint").hidden = m!=="signup";
@@ -1000,7 +1006,7 @@ document.addEventListener("DOMContentLoaded", function(){
       const st=String(INVITE_ORG||meta.studio||"").slice(0,120), by=String((INV&&INV.inviter)||meta.invited_by||"").slice(0,60), rl=String((INV&&INV.role)||ROLE_NAMES[meta.role]||meta.role||"").slice(0,60);
       $("#ipTitle").textContent="Join "+(st||"your studio")+" on Helm";
       $("#ipSub").textContent=(by||"Your studio admin")+" invited you"+(rl?" as "+rl:"")+". Choose your password to finish joining — you'll use it to sign in next time.";
-      $("#ipEmail").textContent=u.email||"";
+      $("#ipEmail").textContent=u.email||""; $("#ip_user").value=u.email||"";   // R29b: password managers save the new password against this account
       if(!$("#ip_name").value && meta.full_name) $("#ip_name").value=String(meta.full_name).slice(0,80);
       if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist && !$("#ipRules").dataset.on){ $("#ipRules").dataset.on="1"; BPStore.auth.passwordRule.attachChecklist($("#ip_pw"), $("#ipRules"), {hints:()=>[$("#ip_name").value, (BPStore.auth.user()||{}).email||""]}); }
       setTimeout(()=>$($("#ip_name").value?"#ip_pw":"#ip_name").focus(),60);

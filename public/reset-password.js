@@ -73,7 +73,7 @@
       $("#toLogin").setAttribute("href", "login#forgot"); $("#toLogin").textContent = "Request a reset link →";
       return;
     }
-    $("#acct_email").value = u.email || "";
+    $("#acct_email").value = u.email || ""; $("#cur_email").value = u.email || "";   // R29b: password managers match the account
     // "?code=" in the URL is NOT proof (anyone can type it): only a session
     // whose signed token says it came from a reset link skips the current-password step.
     var realRecovery = await BPStore.auth.isRecoverySession();

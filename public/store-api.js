@@ -416,6 +416,10 @@ window.HelmUrl = HelmUrl;
   // policy ("Lowercase, uppercase letters, digits and symbols", min 12) and to
   // public._password_ok in migration 0030. The symbol set is Supabase's exactly.
   const PW_SYMBOLS = "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~";
+  // R29b: the same policy as Apple's "passwordrules" (also read by Chrome / password managers), so "Suggest strong
+  // password" always produces one we accept. Symbols: a subset of PW_SYMBOLS (no space - Supabase doesn't count it).
+  // Every new-password <input> carries exactly this value (test/r29-signup-errors.test.mjs keeps them in step).
+  const PW_RULES_ATTR = "minlength: " + PW_MIN + "; required: lower; required: upper; required: digit; required: [-!#$%&*+=?@^_~.,:;/]; max-consecutive: 2;";
   const PW_HINT = "At least " + PW_MIN + " characters, with a lowercase letter, an uppercase letter, a number and a symbol (like ! @ # $ %).";
   function passwordChecks(pw) {
     pw = String(pw || "");
@@ -489,12 +493,17 @@ window.HelmUrl = HelmUrl;
     common: "This is a very common password",
     wordnum: "Avoid a single word followed by numbers, like Name@2024",
   };
-  function pwSeqRun(s, sets) {   // longest run of 3+ characters that follow each other (either way) in one of `sets`
-    let best = 1, run = 1;
-    for (let i = 1; i < s.length; i++) {
-      const pair = s[i - 1] + s[i], rev = s[i] + s[i - 1];
-      run = (s[i] !== s[i - 1] && sets.some((k) => k.indexOf(pair) !== -1 || k.indexOf(rev) !== -1)) ? run + 1 : 1;
-      if (run > best) best = run;
+  // longest run of 3+ characters that follow each other in ONE direction in one of `sets` ("abcd", "4321", "qwer").
+  // R29b: one direction only - a back-and-forth like "wews" is not a pattern (it used to flag random browser-made passwords)
+  function pwSeqRun(s, sets) {
+    let best = 1;
+    for (const k of sets) for (const d of [1, -1]) {
+      let run = 1;
+      for (let i = 1; i < s.length; i++) {
+        const a = k.indexOf(s[i - 1]), b = k.indexOf(s[i]);
+        run = (a !== -1 && b !== -1 && b === a + d) ? run + 1 : 1;
+        if (run > best) best = run;
+      }
     }
     return best;
   }
@@ -528,7 +537,7 @@ window.HelmUrl = HelmUrl;
   // "Already registered" is NOT here: it stays the generic "we've sent a link" answer (no account enumeration), and so
   // do sign-in credential errors (genericSignInError). Pure: (error, ctx) -> { code, message, field, ref } | null.
   //   ctx: "signup" | "signin" | "password" (reset / change / set-password / invite) | "email" (reset / resend link)
-  const PW_PWNED_MSG = "This password is too common and easy to guess. Please choose a different one — for example a short phrase like Blue-Garden-Events-48.";
+  const PW_PWNED_MSG = "This password is too common and easy to guess. Please choose a different password.";
   function authErrorCode(error) {
     const c = String((error && (error.code || error.error_code)) || "").toLowerCase();
     if (/^[a-z][a-z0-9_]{1,48}$/.test(c)) return c;
@@ -553,7 +562,7 @@ window.HelmUrl = HelmUrl;
         const rs = [].concat((error.reasons) || (error.weak_password && error.weak_password.reasons) || []).map(String);
         field = "pw";
         if (rs.indexOf("pwned") !== -1 || (!rs.length && /known to be weak|easy to guess|pwned|leaked/i.test(String(error.message || "")))) msg = PW_PWNED_MSG;
-        else if (rs.indexOf("length") !== -1) msg = "This password is too short — use at least " + PW_MIN + " characters (a longer phrase is best).";
+        else if (rs.indexOf("length") !== -1) msg = "This password is too short — use at least " + PW_MIN + " characters.";
         else if (rs.indexOf("characters") !== -1) msg = "This password needs a lowercase letter, an uppercase letter, a number and a symbol (like ! @ # $ %).";
         else msg = "This password isn't strong enough — choose a longer one that's harder to guess.";
         break; }
@@ -2300,7 +2309,7 @@ window.HelmUrl = HelmUrl;
     },
     // ---- self-service password reset / change -----------------------------------
     genericMessages: { signIn: GENERIC_SIGNIN, sent: GENERIC_SENT, resend: GENERIC_RESEND },
-    passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist, guessable: passwordGuessable, guessReasons: passwordGuessReasons, pwnedMessage: PW_PWNED_MSG },
+    passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist, guessable: passwordGuessable, guessReasons: passwordGuessReasons, pwnedMessage: PW_PWNED_MSG, rulesAttr: PW_RULES_ATTR },
     // r29: Supabase Auth error -> { code, message, field, ref } (pure; exported for tests and other pages)
     authErrorInfo: authErrorInfo,
     // Resolves the same way whether or not the email has an account (the caller
