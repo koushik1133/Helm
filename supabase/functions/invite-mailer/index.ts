@@ -34,7 +34,7 @@
 //
 // Logs carry only counts, SQLSTATE codes and HTTP status — never an address, a name or a token.
 // Outbound HTTP goes only to a FIXED host allowlist (no URL is ever taken from input).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped, tooMany } from "../_shared/limits.ts";
 import { inviteEmail, joinLink, roleLabel } from "./templates.ts";

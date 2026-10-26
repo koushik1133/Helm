@@ -1460,9 +1460,9 @@ window.HelmUrl = HelmUrl;
   /* ---------------- Supabase tier ---------------- */
   // Pinned supabase-js build — update together with public/vendor/README.md.
   const SUPABASE_JS = {
-    version: "2.117.2",
-    file: "vendor/supabase-js-2.117.2.min.js",
-    integrity: "sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok",
+    version: "2.118.0",
+    file: "vendor/supabase-js-2.118.0.min.js",
+    integrity: "sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK",
   };
   function vendorUrl(rel) {
     try { if (SELF_SRC) return new URL(rel, SELF_SRC).href; } catch (e) {}

@@ -37,14 +37,14 @@
     "check:base": "node scripts/check-base-immutable.mjs"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "license": "MIT",
   "dependencies": {
-    "@supabase/supabase-js": "2.117.3"
+    "@supabase/supabase-js": "2.118.0"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.13.0",
+    "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.64.1"
   }
 }

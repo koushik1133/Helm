@@ -49,7 +49,7 @@
 //   { "quote_id": "<uuid>", "number": "<phone>", "template": "<name>",
 //     "lang": "en_US", "params": ["v1","v2", …], "kind": "<label>" }
 //   { "quote_id": "<uuid>", "number": "<phone>", "text": "<message>" }  (if allowed)
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, durableHit, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { TRIAL_NO_SEND_HINT, TRIAL_NO_SEND_MSG, trialSendBlocked } from "../_shared/trial-guard.ts";

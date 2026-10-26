@@ -168,7 +168,7 @@ await t("4b scripts: the pass goes in the existing \"captcha\" field; no key = t
 });
 await t("4c CSP: Turnstile allowed on the public form routes only (scripts/csp-hashes.cjs + server.js)", () => {
   const H = require("../scripts/csp-hashes.cjs");
-  const csp = "script-src 'self' https://browser.sentry-cdn.com/8.35.0/ https://challenges.cloudflare.com";
+  const csp = "script-src 'self' https://browser.sentry-cdn.com/8.55.2/ https://challenges.cloudflare.com";
   for (const route of ["/", "/contact-sales", "/suggest.html", "/:studio/enquiry", "/(login|reset-password|signup|contact-sales|suggest|enquiry|index|[a-z0-9-]+/enquiry)?"])
     assert.equal(H.scriptSrcProblem(csp, route), "", route);
   for (const route of ["/dashboard", "/quotes", "/(booklet|portal)"]) assert.notEqual(H.scriptSrcProblem(csp, route), "", route);

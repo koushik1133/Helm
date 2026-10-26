@@ -159,7 +159,7 @@ t('base CSP: no CDN hosts (builder-only); pinned Sentry bundle dir kept, NO wild
   const c = cspMap(vercelHeaders('/dashboard')['content-security-policy']);
   assert.ok(!/jsdelivr/.test(c['script-src'] + c['connect-src']), 'jsdelivr back in base CSP (supabase-js is self-hosted in /vendor/)');
   assert.ok(!/cdnjs/.test(c['script-src']), 'cdnjs back in base CSP (three.js is builder-only — scripts/csp-hashes.cjs)');
-  assert.match(c['script-src'], /(^| )https:\/\/browser\.sentry-cdn\.com\/8\.35\.0\/( |$)/);
+  assert.match(c['script-src'], /(^| )https:\/\/browser\.sentry-cdn\.com\/8\.55\.2\/( |$)/);
   // audit run-3 client/csp: any Sentry org's *.ingest host is an exfil channel; the
   // exact ingest host is added only when a DSN is configured (public/telemetry.js).
   assert.ok(!/ingest/.test(c['connect-src']), 'wildcard Sentry ingest back in connect-src (DSN is not set)');

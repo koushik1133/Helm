@@ -36,7 +36,7 @@
 // would text / e-mail the client and take real money. Checked here with the service role
 // (trial_send_blocked) before anything is reserved -> 409 { code: "trial", trial: true }; the database
 // refuses it too (payment_link_begin 42501 / hint trial_no_send).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag, normPhone, responders } from "../_shared/cors.ts";
 import { dialFor, quoteCur, razorpaySupports } from "../_shared/money.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
