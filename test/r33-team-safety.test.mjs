@@ -167,7 +167,7 @@ await t('hq.js: "Studio owner" card + "Recover studio owner" (HQ Owner only, act
   assert.match(HQ, /if \(reason\.length < 20\) \{/);
   assert.match(HQ, /a && a\.active && \(!o \|\| a\.user_id !== o\.user_id\)/);
   assert.match(HQ, /"hq\.studio\.owner_recover": "Studio owner recovered"/);
-  assert.match(rd('public/hq.html'), /<script src="hq\.js\?v=25"><\/script>/);
+  assert.match(rd('public/hq.html'), /<script src="hq\.js\?v=26"><\/script>/);
 });
 
 await t('SQL 0283: registered (MANIFEST, run-all, release lists), APPLY verbatim + VERIFY, ASCII, additive only, STOP guard', () => {

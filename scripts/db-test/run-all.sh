@@ -269,6 +269,8 @@ run "r37-studio-tz-0287" "R37-STUDIO-TZ-0287: ALL PASS \(36/36\)" psql -q -f tes
 # 0290 re-applies itself twice (re-run safe; after every suite that re-applies 0256 vendor_request_claim), turns the hold on
 # (run-all keeps it off for the older suites), checks fixed moments under 6 session zones, rolled back
 run "r41-send-window-0290" "R41-SEND-WINDOW-0290: ALL PASS \(37/37\)" psql -q -f tests/db/r41-send-window-0290.sql
+# r42 HQ v2: 0278 (hq_log_reveal) + 0280 (public prices, my session, studio credits) re-apply themselves twice, rolled back
+run "r42-hq-v2-0278-0280" "R42-HQ-V2: ALL PASS \(38/38\)" psql -q -f tests/db/r42-hq-v2-0278-0280.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

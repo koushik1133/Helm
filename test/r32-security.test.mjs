@@ -25,7 +25,7 @@ await t('hq.js csvCell: formula guard matches reports.html (leading spaces, full
   assert.equal(csvCell(-500), '"-500"', 'a real number is not prefixed');
   assert.equal(csvCell('Studio "A"'), '"Studio ""A"""');
   assert.equal(csvCell(null), '""');
-  assert.match(rd('public/hq.html'), /hq\.js\?v=25/);
+  assert.match(rd('public/hq.html'), /hq\.js\?v=26/);
 });
 
 await t('CLI-01 check-html-sinks: map(cb).join() needs a visibly safe callback', async () => {
