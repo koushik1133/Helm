@@ -92,6 +92,12 @@ do $$ begin
      or to_regprocedure('public._valid_role(text)') is null or to_regprocedure('public.admin_delete_user(uuid)') is null
      or to_regprocedure('public.current_org_id__pre0043()') is null then
     raise exception 'STOP 0283: 0043 / 0072 / 0106 / 0165 or the base admin functions are missing'; end if;
+  if to_regprocedure('public._a42_revoke_links_for_phone(uuid, text, text)') is null or to_regprocedure('public.helm_norm_phone(text)') is null
+     or to_regprocedure('public._r23_queue_digests()') is null or to_regprocedure('public._r23_digest_mail(uuid, uuid, jsonb)') is null
+     or to_regprocedure('public._r22_close_mail(uuid, uuid, text)') is null or to_regprocedure('public.comms_outbox_claim(integer)') is null
+     or to_regprocedure('public.runsheet_reminder_claim(integer)') is null or to_regprocedure('public.assign_notify_claim(integer)') is null
+     or to_regprocedure('public._dl241_send_block(uuid, text, boolean)') is null then
+    raise exception 'STOP 0283: 0042 / 0132 / 0241 / 0254 / 0265 / 0266 / 0269 (links + studio messages) are not applied'; end if;
   if not exists (select 1 from pg_attribute where attrelid = 'public.crew_members'::regclass and attname = 'profile_id' and not attisdropped)
      or not exists (select 1 from pg_attribute where attrelid = 'public.quotes'::regclass and attname = 'manager_id' and not attisdropped) then
     raise exception 'STOP 0283: crew_members.profile_id / quotes.manager_id are missing'; end if;
@@ -239,6 +245,33 @@ returns text language sql stable security definer set search_path = '' as $$
                      from public.profiles p where p.id = p_user), 'A team member');
 $$;
 
+-- a studio message recipient (e-mail / phone) that belongs to a deactivated member of that studio
+create or replace function public._r283_off_email(p_org uuid, p_email text)
+returns boolean language sql stable security definer set search_path = '' as $$
+  -- r33-0283
+  select p_org is not null and nullif(btrim(coalesce(p_email, '')), '') is not null and exists (
+    select 1 from public.profiles p join public.team_member_status s on s.user_id = p.id and s.org_id = p.org_id and s.status = 'deactivated'
+     where p.org_id = p_org and lower(btrim(p.email)) = lower(btrim(p_email)));
+$$;
+create or replace function public._r283_off_phone(p_org uuid, p_phone text)
+returns boolean language sql stable security definer set search_path = '' as $$
+  -- r33-0283: their staff record's phone or their profile mobile / WhatsApp
+  select p_org is not null and nullif(public.helm_norm_phone(p_phone), '') is not null and exists (
+    select 1 from public.team_member_status s
+     where s.org_id = p_org and s.status = 'deactivated'
+       and (exists (select 1 from public.crew_members c where c.org_id = p_org and c.profile_id = s.user_id
+                     and public.helm_norm_phone(c.phone) = public.helm_norm_phone(p_phone))
+            or exists (select 1 from public.member_profiles m where m.user_id = s.user_id
+                        and public.helm_norm_phone(p_phone) in (public.helm_norm_phone(m.phone), public.helm_norm_phone(m.whatsapp)))));
+$$;
+-- a recipient list (jsonb array of e-mails) without the studio's deactivated members
+create or replace function public._r283_drop_off(p_org uuid, p_to jsonb)
+returns jsonb language sql stable security definer set search_path = '' as $$
+  -- r33-0283
+  select case when jsonb_typeof(p_to) <> 'array' then p_to else
+    coalesce((select jsonb_agg(e) from jsonb_array_elements(p_to) e where not public._r283_off_email(p_org, e #>> '{}')), '[]'::jsonb) end;
+$$;
+
 -- record the studio owner when there is none yet (never replaces an owner)
 create or replace function public._r283_ensure_owner(p_org uuid, p_backfill boolean default false)
 returns uuid language plpgsql volatile security definer set search_path = '' as $$
@@ -324,14 +357,14 @@ returns text language sql immutable set search_path = '' as $$
 $$;
 
 -- one team-safety event: the record + (optionally) a bell row for the admins + a queued e-mail
-create or replace function public._r283_notify(p_org uuid, p_event text, p_target uuid, p_detail jsonb, p_mail boolean)
+create or replace function public._r283_notify(p_org uuid, p_event text, p_target uuid, p_detail jsonb, p_mail boolean, p_actor uuid default null)
 returns uuid language plpgsql volatile security definer set search_path = '' as $$
--- r33-0283
-declare v_id uuid; v_email text; v_d jsonb := coalesce(p_detail, '{}'::jsonb);
+-- r33-0283: p_actor = who it is about as the doer (a delayed change: the admin who asked), else the caller
+declare v_id uuid; v_email text; v_d jsonb := coalesce(p_detail, '{}'::jsonb); v_actor uuid := coalesce(p_actor, auth.uid());
 begin
-  select u.email into v_email from auth.users u where u.id = auth.uid();
+  select u.email into v_email from auth.users u where u.id = v_actor;
   insert into public.team_safety_events(org_id, event, target_user, actor_user, actor_email, detail)
-    values (p_org, p_event, p_target, auth.uid(), v_email, v_d) returning id into v_id;
+    values (p_org, p_event, p_target, v_actor, v_email, v_d) returning id into v_id;
   if p_mail then
     insert into public.notifications(quote_id, channel, kind, status, detail, org_id)
       values (null, 'in_app', 'team_safety', 'simulated',
@@ -347,11 +380,12 @@ begin
 end $$;
 
 -- the activity-log row (org-scoped, Control Center -> Activity)
-create or replace function public._r283_audit(p_org uuid, p_action text, p_target uuid, p_changed jsonb)
+create or replace function public._r283_audit(p_org uuid, p_action text, p_target uuid, p_changed jsonb, p_actor uuid default null)
 returns void language sql volatile security definer set search_path = '' as $$
-  -- r33-0283
+  -- r33-0283: p_actor = the person who made the change (a delayed change: the admin who asked), else the caller
   insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
-    select auth.uid(), (select u.email from auth.users u where u.id = auth.uid()), p_action, 'profiles', p_target::text, p_changed, p_org, now();
+    select coalesce(p_actor, auth.uid()), (select u.email from auth.users u where u.id = coalesce(p_actor, auth.uid())),
+           p_action, 'profiles', p_target::text, p_changed, p_org, now();
 $$;
 
 -- switch a login's sign-in off and end its sessions (marks only - nothing is deleted)
@@ -386,13 +420,13 @@ begin
 end $$;
 
 -- deactivate now (the checks are the caller's job)
-create or replace function public._r283_do_deactivate(p_org uuid, p_user uuid, p_reason text)
+create or replace function public._r283_do_deactivate(p_org uuid, p_user uuid, p_reason text, p_by uuid default null)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
--- r33-0283
-declare v_end jsonb;
+-- r33-0283: p_by = the admin who decided (a delayed change: the admin who asked), else the caller
+declare v_end jsonb; v_by uuid := coalesce(p_by, auth.uid()); v_links integer := 0; v_ph text;
 begin
   insert into public.team_member_status as s (user_id, org_id, status, changed_at, changed_by, reason, deactivated_at)
-    values (p_user, p_org, 'deactivated', now(), auth.uid(), left(nullif(btrim(coalesce(p_reason, '')), ''), 500), now())
+    values (p_user, p_org, 'deactivated', now(), v_by, left(nullif(btrim(coalesce(p_reason, '')), ''), 500), now())
   on conflict (user_id, org_id) do update
     set status = 'deactivated', changed_at = now(), changed_by = excluded.changed_by, reason = excluded.reason, deactivated_at = now(),
         ban_set_until = null, ban_prior = null;
@@ -404,10 +438,20 @@ begin
    where org_id = p_org and target_user = p_user and status = 'pending';
   update public.team_owner_transfers set status = 'void', decided_at = now()
    where org_id = p_org and status = 'pending' and (to_user = p_user or from_user = p_user);
-  perform public._r283_notify(p_org, 'member_deactivated', p_user, jsonb_build_object('target', public._r283_name(p_user)), false);
+  -- their crew / work links (WhatsApp task + crew-home links) stop working: marked revoked (never deleted).
+  -- Reactivating does NOT bring old links back; new links are issued as usual.
+  for v_ph in select distinct x from (
+      select c.phone as x from public.crew_members c where c.org_id = p_org and c.profile_id = p_user
+      union select m.phone from public.member_profiles m where m.user_id = p_user
+      union select m.whatsapp from public.member_profiles m where m.user_id = p_user) z
+    where nullif(btrim(coalesce(x, '')), '') is not null loop
+    v_links := v_links + coalesce(public._a42_revoke_links_for_phone(p_org, v_ph, 'member deactivated (0283)'), 0);
+  end loop;
+  perform public._r283_notify(p_org, 'member_deactivated', p_user, jsonb_build_object('target', public._r283_name(p_user)), false, v_by);
   perform public._r283_audit(p_org, 'team.deactivate', p_user,
-    jsonb_build_object('reason', left(p_reason, 500), 'sessions', v_end -> 'sessions', 'tokens_revoked', v_end -> 'tokens_revoked'));
-  return v_end;
+    jsonb_build_object('reason', left(p_reason, 500), 'sessions', v_end -> 'sessions', 'tokens_revoked', v_end -> 'tokens_revoked',
+                       'links_revoked', v_links), v_by);
+  return v_end || jsonb_build_object('links_revoked', v_links);
 end $$;
 
 -- ---- 3) a deactivated member has no studio and no role -----------------------------------------------------------------
@@ -598,7 +642,7 @@ begin
       end if;
       perform set_config('helm.r283_apply', 'on', true);
       if c.kind = 'deactivate' then
-        perform public._r283_do_deactivate(c.org_id, c.target_user, 'Admin change asked by ' || public._r283_name(c.requested_by) || ' (24-hour wait over)');
+        perform public._r283_do_deactivate(c.org_id, c.target_user, 'Admin change asked by ' || public._r283_name(c.requested_by) || ' (24-hour wait over)', c.requested_by);
       else
         update public.profiles set role = c.new_role where id = c.target_user and org_id = c.org_id;
       end if;
@@ -606,7 +650,7 @@ begin
       update public.team_admin_changes set status = 'applied', decided_at = now() where id = c.id;
       v_d := jsonb_build_object('change_id', c.id, 'kind', c.kind, 'target', public._r283_name(c.target_user), 'by', public._r283_name(c.requested_by),
                                 'role_label', case when c.kind = 'demote' then public._a106_role_label(c.new_role) end, 'requested_by', c.requested_by);
-      perform public._r283_notify(c.org_id, 'admin_change_applied', c.target_user, v_d, true);
+      perform public._r283_notify(c.org_id, 'admin_change_applied', c.target_user, v_d, true, c.requested_by);
       insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
         values (c.requested_by, null, 'team.admin_change.applied', 'profiles', c.target_user::text,
                 jsonb_build_object('change_id', c.id, 'kind', c.kind, 'new_role', c.new_role), c.org_id, now());
@@ -637,9 +681,9 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare v_org uuid := public.current_org_id(); v_me uuid := auth.uid(); v_owner uuid; v_admin boolean; v jsonb; t public.team_owner_transfers;
 begin
   if v_me is null or v_org is null then raise exception 'not authorized' using errcode = '42501'; end if;
-  perform public._r283_apply_due(v_org);
-  v_owner := public._r283_ensure_owner(v_org, false);
   v_admin := coalesce(public.is_admin(), false);
+  if v_admin then perform public._r283_apply_due(v_org); end if;   -- only the tick or an admin applies due changes
+  v_owner := public._r283_ensure_owner(v_org, false);
   v := jsonb_build_object('owner_id', v_owner, 'owner_name', case when v_owner is not null then public._r283_name(v_owner) end,
     'me', v_me, 'i_am_owner', v_owner is not null and v_owner = v_me, 'is_admin', v_admin,
     'deactivated', coalesce((select jsonb_agg(jsonb_build_object('user_id', s.user_id, 'deactivated_at', s.deactivated_at) order by s.deactivated_at desc)
@@ -974,6 +1018,7 @@ begin
      where p.email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
        and p.id in (v_owner, e.target_user, nullif(e.detail ->> 'requested_by', '')::uuid)
        and (p.org_id = e.org_id or p.id = e.target_user)
+       and (p.id = e.target_user or not public._r283_is_off(p.id, e.org_id))   -- only the person it is about, if deactivated
        and not public.email_is_opted_out(null, p.email);
   elsif e.event like 'owner\_%' then
     select coalesce(jsonb_agg(distinct lower(p.email)), '[]'::jsonb) into v_to
@@ -1013,7 +1058,10 @@ do $$ declare v_def text; v_old text; v_new text; begin
         || E'      -- r33-team-0283: admin / owner change -> recipients resolved in _r283_mail\n'
         || E'      v_data := public._r283_mail(r.ref_id);\n'
         || E'      v_to := coalesce(v_data -> ''to'', ''[]''::jsonb); v_data := v_data -> ''data'';'
-        || v_old;
+        || E'\n    end if;\n'
+        || E'    -- r33-team-0283: never to a deactivated member of the studio (a team_safety notice about that person still reaches them)\n'
+        || E'    if r.org_id is not null and r.kind <> ''team_safety'' then v_to := public._r283_drop_off(r.org_id, v_to); end if;'
+        || E'\n    if v_data is null or jsonb_array_length(v_to) = 0 then';
   execute replace(v_def, v_old, v_new);
 end $$;
 
@@ -1065,6 +1113,201 @@ returns table(id uuid, full_name text, email text) language sql stable security 
      and not public._tl202_caller_trial()
    order by p.id;
 $$;
+
+-- ---- 11b) a deactivated member gets no studio messages (e-mail digests, close requests, WhatsApp forwards, run-sheet /
+--      delivery reminders, assignment WhatsApps); every other helm_notice_outbox kind is filtered in the claim (section 10) -
+--      bodies re-issued from 0266 / 0254 with one added condition, claims wrapped once (*__pre0283) to skip their rows
+create or replace function public._r23_digest_mail(p_org uuid, p_user uuid, p_payload jsonb)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+-- r23-inbox-0266
+-- r33-0283 B1: never for a deactivated member
+declare v_mode text; v_email text; v_name text; v_ids uuid[]; v_items jsonb; v_more integer; v_tz text := public._r23_tz(p_org);
+begin
+  if p_org is null or p_user is null then return null; end if;
+  if public._r283_is_off(p_user, p_org) then return null; end if;
+  v_mode := public._r23_mode(p_org, p_user);
+  if v_mode = 'off' then return null; end if;
+  if to_regprocedure('public._tb179_no_send(uuid)') is not null and public._tb179_no_send(p_org) then return null; end if;
+  select lower(btrim(p.email)), nullif(btrim(split_part(coalesce(p.full_name, ''), ' ', 1)), '') into v_email, v_name
+    from public.profiles p where p.id = p_user and p.org_id = p_org;
+  if v_email is null or v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then return null; end if;
+  if to_regprocedure('public.email_is_opted_out(uuid,text)') is not null and public.email_is_opted_out(null, v_email) then return null; end if;
+  begin
+    select array_agg(x::uuid) into v_ids from jsonb_array_elements_text(coalesce(p_payload -> 'ids', '[]'::jsonb)) x;
+  exception when others then return null;
+  end;
+  if v_ids is null then return null; end if;
+  with r as materialized (select * from public._r23_rows(p_org, p_user))
+  select coalesce((select jsonb_agg(jsonb_build_object(
+             'title', public._r23_label(r.kind, r.detail),
+             'event', left(q.title, 120), 'code', left(q.code, 40),
+             'at', to_char(r.sort_at at time zone v_tz, 'DD/MM/YYYY HH12:MI am')) order by r.sort_at desc)
+           from r left join public.quotes q on q.id = r.quote_id and q.org_id = p_org
+          where r.is_unread and r.id = any (v_ids)), '[]'::jsonb),
+         (select count(*) from r where r.is_unread and not (r.id = any (v_ids)))
+    into v_items, v_more;
+  if jsonb_array_length(v_items) = 0 then return null; end if;
+  return jsonb_build_object('to', jsonb_build_array(v_email), 'data', jsonb_build_object(
+    'studio', (select o.name from public.organizations o where o.id = p_org),
+    'name', v_name, 'mode', coalesce(p_payload ->> 'mode', v_mode),
+    'items', v_items, 'count', jsonb_array_length(v_items), 'more', v_more));
+end $$;
+
+create or replace function public._r23_queue_digests()
+returns integer language plpgsql volatile security definer set search_path = '' as $$
+-- r23-inbox-0266
+-- r33-0283 B1: a deactivated member is never picked
+declare o record; p record; c jsonb; v_tz text; v_loc timestamp; v_hour integer; v_age integer; v_mode text; v_key text;
+        v_ids uuid[]; v_n integer := 0; v_ins integer;
+begin
+  for o in select g.id from public.organizations g loop
+    begin
+      c := public._r23_cfg(o.id);
+      if not coalesce((c ->> 'email_enabled')::boolean, true) then continue; end if;
+      if to_regprocedure('public._tb179_no_send(uuid)') is not null and public._tb179_no_send(o.id) then continue; end if;
+      v_tz := public._r23_tz(o.id); v_loc := now() at time zone v_tz;
+      v_hour := coalesce((c ->> 'digest_hour')::integer, 8); v_age := coalesce((c ->> 'digest_min_age_minutes')::integer, 60);
+      for p in select pr.id from public.profiles pr
+                where pr.org_id = o.id and pr.role = any (public._notify_roles())
+                  and nullif(btrim(coalesce(pr.email, '')), '') is not null
+                  and not public._r283_is_off(pr.id, o.id) loop
+        v_mode := public._r23_mode(o.id, p.id); v_ids := null; v_key := null;
+        if v_mode = 'daily' and ((extract(hour from v_loc)::integer - v_hour + 24) % 24) < 2 then
+          v_key := 'inbox_digest:' || p.id::text || ':' || to_char(v_loc::date, 'YYYY-MM-DD');
+          if exists (select 1 from public.helm_notice_outbox x where x.dedupe_key = v_key) then continue; end if;
+          select array_agg(z.id order by z.sort_at desc) into v_ids from (
+            select r.id, r.sort_at from public._r23_rows(o.id, p.id) r
+             where r.is_unread and r.digested_at is null
+               and r.sort_at <= now() - make_interval(mins => v_age) and r.sort_at >= now() - interval '2 days'
+             order by r.sort_at desc limit 20) z;
+        elsif v_mode = 'instant_important' then
+          select array_agg(z.id order by z.sort_at desc) into v_ids from (
+            select r.id, r.sort_at from public._r23_rows(o.id, p.id) r
+             where r.is_unread and r.digested_at is null and public._r23_important(r.kind)
+               and r.sort_at <= now() - interval '5 minutes' and r.sort_at >= now() - interval '1 day'
+             order by r.sort_at desc limit 20) z;
+          if v_ids is not null then v_key := 'inbox_instant:' || p.id::text || ':' || md5(array_to_string(v_ids, ',')); end if;
+        end if;
+        if v_ids is null or v_key is null then continue; end if;
+        insert into public.helm_notice_outbox (kind, org_id, ref_id, payload, dedupe_key)
+          values ('inbox_digest', o.id, p.id, jsonb_build_object('user_id', p.id, 'mode', v_mode, 'ids', to_jsonb(v_ids)), v_key)
+        on conflict (dedupe_key) do nothing;
+        get diagnostics v_ins = row_count;
+        if v_ins > 0 then
+          insert into public.notification_inbox_state (user_id, notification_id, org_id, digested_at)
+            select p.id, i, o.id, now() from unnest(v_ids) i
+          on conflict (user_id, notification_id) do update set digested_at = now(), updated_at = now();
+          v_n := v_n + 1;
+        end if;
+      end loop;
+    exception when others then
+      raise warning 'r23-inbox-0266: digest skipped for one studio (%)', sqlstate;
+    end;
+  end loop;
+  return v_n;
+end $$;
+
+create or replace function public._r22_close_mail(p_org uuid, p_req uuid, p_kind text)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+-- r22-closure-0254
+-- r33-0283 B1: never to a deactivated member
+declare x public.event_close_requests; v_to jsonb; v_q record; v_data jsonb;
+begin
+  select * into x from public.event_close_requests r where r.id = p_req and r.org_id = p_org;
+  if x.id is null then return null; end if;
+  if to_regprocedure('public._is_trial_org(uuid)') is not null and public._is_trial_org(p_org) then return null; end if;
+  select q.title, q.code, q.event_date into v_q from public.quotes q where q.id = x.quote_id and q.org_id = p_org;
+  if not found then return null; end if;
+  if p_kind = 'close_request' then
+    if x.status <> 'pending' then return null; end if;
+    select coalesce(jsonb_agg(distinct lower(p.email)), '[]'::jsonb) into v_to
+      from public.profiles p
+     where p.org_id = p_org and p.role in ('admin', 'coordinator', 'manager') and p.email is not null
+       and p.id is distinct from x.requested_by
+       and not public._r283_is_off(p.id, p_org)
+       and (to_regprocedure('public.email_is_opted_out(uuid,text)') is null or not public.email_is_opted_out(null, p.email));
+  elsif p_kind = 'close_decision' then
+    if x.status not in ('approved', 'declined') then return null; end if;
+    select coalesce(jsonb_agg(distinct lower(p.email)), '[]'::jsonb) into v_to
+      from public.profiles p
+     where p.id = x.requested_by and p.org_id = p_org and p.email is not null
+       and not public._r283_is_off(p.id, p_org)
+       and (to_regprocedure('public.email_is_opted_out(uuid,text)') is null or not public.email_is_opted_out(null, p.email));
+  else return null; end if;
+  v_data := jsonb_build_object(
+    'studio', (select o.name from public.organizations o where o.id = p_org),
+    'event', coalesce(nullif(btrim(v_q.title), ''), 'Event'), 'code', v_q.code,
+    'event_date', case when v_q.event_date is not null then to_char(v_q.event_date, 'DD/MM/YYYY') end,
+    'quote_id', x.quote_id, 'status', x.status,
+    'requested_name', coalesce(x.requested_name, 'A teammate'), 'reason', x.reason,
+    'failed', (select coalesce(jsonb_agg(f ->> 'label'), '[]'::jsonb) from jsonb_array_elements(x.failed_checks) f),
+    'decided_name', x.decided_name, 'note', x.decision_note);
+  return jsonb_build_object('to', v_to, 'data', v_data);
+end $$;
+
+-- the per-recipient send check of delivery reminders (0241): a deactivated member (e.g. the creator on cc) is blocked
+do $$ begin
+  if to_regprocedure('public._dl241_send_block__pre0283(uuid, text, boolean)') is null then
+    alter function public._dl241_send_block(uuid, text, boolean) rename to _dl241_send_block__pre0283;
+  end if;
+end $$;
+create or replace function public._dl241_send_block(p_org uuid, p_recipient text, p_take boolean)
+returns text language plpgsql volatile security definer set search_path = '' as $$
+-- r33-0283
+begin
+  if public._r283_off_email(p_org, p_recipient) then return 'deactivated'; end if;
+  return public._dl241_send_block__pre0283(p_org, p_recipient, p_take);
+end $$;
+
+-- the outbox claims: rows waiting for a deactivated member are skipped (never sent), then the claim as before
+do $$ declare f text; begin
+  foreach f in array array['comms_outbox_claim', 'runsheet_reminder_claim', 'assign_notify_claim'] loop
+    if to_regprocedure(format('public.%s(integer)', f || '__pre0283')) is null then
+      execute format('alter function public.%I(integer) rename to %I', f, f || '__pre0283');
+    end if;
+  end loop;
+end $$;
+create or replace function public.comms_outbox_claim(p_limit integer default 25)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r33-0283: staff WhatsApp forwards to a deactivated member are skipped
+begin
+  update public.comms_outbox c set status = 'skipped', sent_at = now()
+   where c.sent_at is null and c.status = 'pending' and c.purpose = 'wa_forward'
+     and c.user_id is not null and public._r283_is_off(c.user_id, c.org_id);
+  return public.comms_outbox_claim__pre0283(p_limit);
+end $$;
+create or replace function public.runsheet_reminder_claim(p_limit integer default 25)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r33-0283: run-sheet reminders to a deactivated member are skipped
+begin
+  update public.runsheet_reminder_sends s set status = 'skipped', reason = 'deactivated', sent_at = now()
+   where s.sent_at is null and s.status = 'pending' and s.channel = 'email' and public._r283_off_email(s.org_id, s.recipient);
+  return public.runsheet_reminder_claim__pre0283(p_limit);
+end $$;
+create or replace function public.assign_notify_claim(p_limit integer default 25)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r33-0283: assignment WhatsApps to a deactivated member's phone are skipped
+begin
+  update public.assign_notify_outbox a set status = 'skipped', sent_at = now()
+   where a.sent_at is null and a.status = 'pending' and public._r283_off_phone(a.org_id, a.phone);
+  return public.assign_notify_claim__pre0283(p_limit);
+end $$;
+do $$ declare f text; begin
+  foreach f in array array['public.comms_outbox_claim(integer)', 'public.runsheet_reminder_claim(integer)', 'public.assign_notify_claim(integer)',
+                           'public.comms_outbox_claim__pre0283(integer)', 'public.runsheet_reminder_claim__pre0283(integer)',
+                           'public.assign_notify_claim__pre0283(integer)', 'public._dl241_send_block(uuid, text, boolean)',
+                           'public._dl241_send_block__pre0283(uuid, text, boolean)', 'public._r23_digest_mail(uuid, uuid, jsonb)',
+                           'public._r23_queue_digests()', 'public._r22_close_mail(uuid, uuid, text)'] loop
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f); end if;
+  end loop;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    execute 'grant execute on function public.comms_outbox_claim(integer) to service_role';
+    execute 'grant execute on function public.runsheet_reminder_claim(integer) to service_role';
+    execute 'grant execute on function public.assign_notify_claim(integer) to service_role';
+  end if;
+end $$;
 
 -- ---- 12) Helm HQ: who owns a studio, the backfill flags, and "Recover studio owner" ----------------------------------------
 create or replace function public.hq_studio_owner_info(p_org uuid)
@@ -1179,8 +1422,9 @@ do $$ declare f text; begin
   foreach f in array array['public._r283_tg_keep()', 'public._r283_is_off(uuid, uuid)', 'public._r283_deactivated(uuid)', 'public._r283_owner(uuid)',
                            'public._r283_active_admin(uuid, uuid)', 'public._r283_name(uuid)', 'public._r283_ensure_owner(uuid, boolean)',
                            'public._r283_fresh_mfa_ok()', 'public._r283_has_mfa(uuid)', 'public._r283_label(text, jsonb)',
-                           'public._r283_notify(uuid, text, uuid, jsonb, boolean)', 'public._r283_audit(uuid, text, uuid, jsonb)',
-                           'public._r283_end_sessions(uuid)', 'public._r283_do_deactivate(uuid, uuid, text)', 'public._r283_apply_due(uuid)',
+                           'public._r283_notify(uuid, text, uuid, jsonb, boolean, uuid)', 'public._r283_audit(uuid, text, uuid, jsonb, uuid)',
+                           'public._r283_end_sessions(uuid)', 'public._r283_do_deactivate(uuid, uuid, text, uuid)', 'public._r283_apply_due(uuid)',
+                           'public._r283_off_email(uuid, text)', 'public._r283_off_phone(uuid, text)', 'public._r283_drop_off(uuid, jsonb)',
                            'public._r283_tg_owner_guard()', 'public._r283_tg_owner_ensure()', 'public._r283_mail(uuid)',
                            'public.team_safety_tick()'] loop
     execute format('revoke all on function %s from public', f);
@@ -1254,7 +1498,7 @@ select item, ok from (values
      and has_function_privilege('authenticated', 'public.team_owner_transfer_start(uuid)', 'execute')
      and not has_function_privilege('anon', 'public.team_safety_overview()', 'execute')),
   ('07 internal helpers + the tick are not callable through the API',
-     not has_function_privilege('authenticated', 'public._r283_do_deactivate(uuid, uuid, text)', 'execute')
+     not has_function_privilege('authenticated', 'public._r283_do_deactivate(uuid, uuid, text, uuid)', 'execute')
      and not has_function_privilege('authenticated', 'public._r283_ensure_owner(uuid, boolean)', 'execute')
      and not has_function_privilege('authenticated', 'public.team_safety_tick()', 'execute')
      and not has_function_privilege('anon', 'public._r283_mail(uuid)', 'execute')),
@@ -1272,6 +1516,16 @@ select item, ok from (values
   ('11 Helm HQ owner recovery in place (signed-in; the HQ gate decides)',
      has_function_privilege('authenticated', 'public.hq_studio_owner_recover(uuid, text, text)', 'execute')
      and has_function_privilege('authenticated', 'public.hq_studio_owner_info(uuid)', 'execute')),
+  ('13 a deactivated member gets no studio messages (digests, close requests, notices, WhatsApp, reminders) and loses crew links',
+     (select position('_r283_is_off' in prosrc) > 0 from pg_proc where oid = 'public._r23_queue_digests()'::regprocedure)
+     and (select position('_r283_is_off' in prosrc) > 0 from pg_proc where oid = 'public._r23_digest_mail(uuid, uuid, jsonb)'::regprocedure)
+     and (select position('_r283_is_off' in prosrc) > 0 from pg_proc where oid = 'public._r22_close_mail(uuid, uuid, text)'::regprocedure)
+     and position('_r283_drop_off' in pg_get_functiondef('public.helm_notice_outbox_claim(integer)'::regprocedure)) > 0
+     and to_regprocedure('public.comms_outbox_claim__pre0283(integer)') is not null
+     and to_regprocedure('public.runsheet_reminder_claim__pre0283(integer)') is not null
+     and to_regprocedure('public.assign_notify_claim__pre0283(integer)') is not null
+     and to_regprocedure('public._dl241_send_block__pre0283(uuid, text, boolean)') is not null
+     and (select position('_a42_revoke_links_for_phone' in prosrc) > 0 from pg_proc where oid = 'public._r283_do_deactivate(uuid, uuid, text, uuid)'::regprocedure)),
   ('12 nothing removed: every login still has its profile rows (counts only grow)',
      (select count(*) from public.profiles) >= 0 and (select count(*) from public.team_owner_log) >= 0)
 ) v(item, ok) order by item;

@@ -87,7 +87,8 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; begin
   perform pg_temp.su();
   perform pg_temp.res('01 0283 re-applied twice: one claim branch, the outbox kind, the keep list, current_org_id + user_role markers',
     (length(pg_get_functiondef('public.helm_notice_outbox_claim(integer)'::regprocedure))
-       - length(replace(pg_get_functiondef('public.helm_notice_outbox_claim(integer)'::regprocedure), 'r33-team-0283', ''))) = length('r33-team-0283')
+       - length(replace(pg_get_functiondef('public.helm_notice_outbox_claim(integer)'::regprocedure), 'elsif r.kind = ''team_safety''', ''))) = length('elsif r.kind = ''team_safety''')
+    and position('_r283_drop_off' in pg_get_functiondef('public.helm_notice_outbox_claim(integer)'::regprocedure)) > 0
     and position('''team_safety''' in pg_get_constraintdef((select oid from pg_constraint where conname = 'helm_notice_outbox_kind_check'))) > 0
     and position('_r283_deactivated' in pg_get_functiondef('public.current_org_id()'::regprocedure)) > 0
     and position('_r282_temp_pw_pending' in pg_get_functiondef('public.current_org_id()'::regprocedure)) > 0
@@ -485,7 +486,7 @@ do $$ declare v text; c jsonb; n_ts int; begin
     and has_function_privilege('authenticated', 'public.hq_studio_owner_recover(uuid, text, text)', 'execute')
     and not has_function_privilege('anon', 'public.team_deactivate_member(uuid, text)', 'execute')
     and not has_function_privilege('anon', 'public.team_owner_transfer_start(uuid)', 'execute')
-    and not has_function_privilege('authenticated', 'public._r283_do_deactivate(uuid, uuid, text)', 'execute')
+    and not has_function_privilege('authenticated', 'public._r283_do_deactivate(uuid, uuid, text, uuid)', 'execute')
     and not has_function_privilege('authenticated', 'public._r283_ensure_owner(uuid, boolean)', 'execute')
     and not has_function_privilege('authenticated', 'public._r283_end_sessions(uuid)', 'execute')
     and not has_function_privilege('authenticated', 'public.team_safety_tick()', 'execute')
@@ -515,6 +516,92 @@ exception when others then perform pg_temp.su(); insert into _rs values ('11x', 
 create or replace function pg_temp.keep(o text[], p_name text, p_ok boolean, p_detail text default '') returns text[] language sql as $$
   select o || array[p_name, case when coalesce(p_ok, false) then 'PASS' else 'FAIL: ' || coalesce(p_detail, '') end] $$;
 grant execute on function pg_temp.keep(text[], text, boolean, text) to anon, authenticated, service_role;
+-- ================================================================================= 14) final-check fixes: no studio messages to a
+-- deactivated member (F1), the right person in the record for a delayed change (F2), crew / work links revoked
+do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; c uuid := pg_temp.uid('r33_crew@a.test'); a2 uuid := pg_temp.uid('r33_adm2@a.test');
+  a3 uuid := pg_temp.uid('r33_adm3@a.test'); tok uuid; v text; r jsonb; n int; x jsonb; ch uuid; begin
+  perform pg_temp.su();
+  -- F1 a) inbox digests: an important unread notice, instant e-mails on - the active admin gets one, the deactivated admin none
+  insert into public.inbox_settings(org_id, email_enabled, digest_default) values (a, true, 'instant_important')
+    on conflict (org_id) do update set email_enabled = true, digest_default = 'instant_important';
+  insert into public.inbox_person_prefs(user_id, org_id, digest) values (a2, a, 'instant_important'), (pg_temp.uid('r33_adm5@a.test'), a, 'instant_important')
+    on conflict (user_id, org_id) do update set digest = excluded.digest;
+  insert into public.notifications(quote_id, channel, kind, status, detail, org_id, created_at)
+    values ('a0000000-0000-4000-8000-00000000da01', 'in_app', 'payment_received', 'simulated', '{"label":"r33 digest"}', a, now() - interval '10 minutes');
+  perform public._r23_queue_digests();
+  perform pg_temp.res('78 F1 digest: queued for an active admin, never for a deactivated one (and the mail builder returns null for them)',
+    exists (select 1 from public.helm_notice_outbox o where o.kind = 'inbox_digest' and o.ref_id = pg_temp.uid('r33_adm5@a.test'))
+    and not exists (select 1 from public.helm_notice_outbox o where o.kind = 'inbox_digest' and o.ref_id = a2)
+    and public._r23_digest_mail(a, a2, jsonb_build_object('ids', (select jsonb_agg(id) from public.notifications where org_id = a))) is null);
+  -- F1 b) every other Helm notice: the claim drops deactivated members (upgrade_ask = every admin of the studio)
+  insert into public.helm_notice_outbox(kind, org_id, ref_id, payload, dedupe_key) values ('upgrade_ask', a, null, '{"who":"Test"}', 'r33-upgrade-ask');
+  perform set_config('request.jwt.claims', '{"role":"service_role"}', false);
+  x := (select e from jsonb_array_elements(public.helm_notice_outbox_claim(100)) e where e ->> 'kind' = 'upgrade_ask' limit 1);
+  perform pg_temp.su();
+  perform pg_temp.res('79 F1 Helm notices (claim): active admins only - deactivated admins are dropped from the recipients',
+    x is not null and x -> 'to' ? 'r33_adm5@a.test' and not (x -> 'to' ? 'r33_adm2@a.test') and not (x -> 'to' ? 'r33_adm4@a.test'), coalesce(x::text, 'none'));
+  -- F1 c) close requests, WhatsApp forwards, delivery reminders
+  perform pg_temp.res('80 F1 close-request e-mail picks no deactivated member; delivery reminders block them',
+    position('_r283_is_off' in (select prosrc from pg_proc where oid = 'public._r22_close_mail(uuid, uuid, text)'::regprocedure)) > 0
+    and public._dl241_send_block(a, 'r33_adm2@a.test', false) = 'deactivated'
+    and public._dl241_send_block(a, 'r33_adm5@a.test', false) is distinct from 'deactivated');
+  insert into public.comms_outbox(org_id, user_id, purpose, channel, recipient, payload, dedupe_key)
+    values (a, a2, 'wa_forward', 'whatsapp', '919800000044', '{"type":"payment_received"}', 'r33-waf');
+  perform set_config('request.jwt.claims', '{"role":"service_role"}', false);
+  perform public.comms_outbox_claim(100);
+  perform pg_temp.su();
+  perform pg_temp.res('81 F1 a staff WhatsApp forward waiting for a deactivated member is skipped, never sent',
+    (select status from public.comms_outbox where dedupe_key = 'r33-waf') = 'skipped');
+  -- crew links: the crew member's work link works, deactivation revokes it (marked, not deleted), reactivation does not restore it
+  insert into public.work_tokens(quote_id, phone, name, org_id, expires_at)
+    values ('a0000000-0000-4000-8000-00000000da01', '+919800000033', 'R33 Crew', a, now() + interval '7 days') returning token into tok;
+  perform auth.login_anon();
+  v := pg_temp.try(format('select public.crew_link_home(%L)', tok));
+  perform pg_temp.res('82 crew link: before, crew_link_home works for their link', v = '', v);
+  perform pg_temp.login('r33_adm5@a.test');
+  r := public.team_deactivate_member(c, 'left');
+  perform pg_temp.su();
+  insert into public.assign_notify_outbox(org_id, quote_id, item_kind, item_id, phone, name, body)
+    values (a, 'a0000000-0000-4000-8000-00000000da01', 'task', gen_random_uuid(), '919800000033', 'R33 Crew', 'r33 task');
+  perform auth.login_anon();
+  v := pg_temp.try(format('select public.crew_link_home(%L)', tok));
+  perform pg_temp.su();
+  perform pg_temp.res('83 crew link: deactivating revokes their work links (revoked_at set, row kept) - crew_link_home refused',
+    v <> '' and (select revoked_at is not null from public.work_tokens where token = tok)
+    and exists (select 1 from public.audit_log where action = 'team.deactivate' and entity_id = c::text and (changed ->> 'links_revoked')::int >= 1), v);
+  perform set_config('request.jwt.claims', '{"role":"service_role"}', false);
+  perform public.assign_notify_claim(100);
+  perform pg_temp.su();
+  perform pg_temp.res('84 F1 an assignment WhatsApp waiting for the deactivated crew member''s phone is skipped',
+    (select status from public.assign_notify_outbox where body = 'r33 task') = 'skipped');
+  perform pg_temp.login('r33_adm5@a.test');
+  perform public.team_reactivate_member(c);
+  perform pg_temp.su();
+  perform pg_temp.res('85 crew link: reactivating does NOT bring the old link back (new links are issued as usual)',
+    (select revoked_at is not null from public.work_tokens where token = tok) and not public._r283_is_off(c, a));
+  -- F2: a due change is applied by the tick or an admin only, and recorded as the admin who ASKED
+  perform pg_temp.login('a_admin@a.test', 'aal2', pg_temp.amr_now());   -- a non-owner admin now (adm5 owns studio A)
+  r := public.team_deactivate_member(a3, 'F2'); ch := (r ->> 'change_id')::uuid;
+  perform pg_temp.su();
+  update public.team_admin_changes set effective_at = now() - interval '1 minute' where id = ch;
+  perform pg_temp.login('a_staff@a.test');
+  perform public.team_safety_overview();
+  perform pg_temp.su();
+  perform pg_temp.res('86 F2 a non-admin opening the Team data never applies a due change', (select status from public.team_admin_changes where id = ch) = 'pending'
+    and not public._r283_is_off(a3, a));
+  perform pg_temp.login('r33_adm5@a.test');
+  perform public.team_safety_overview();
+  perform pg_temp.su();
+  perform pg_temp.res('87 F2 applied by an admin: changed_by, the activity log and the event name the admin who asked (not the one who opened the page)',
+    (select status from public.team_admin_changes where id = ch) = 'applied'
+    and (select changed_by from public.team_member_status where user_id = a3 and org_id = a) = pg_temp.uid('a_admin@a.test')
+    and (select actor from public.audit_log where action = 'team.deactivate' and entity_id = a3::text order by at desc limit 1) = pg_temp.uid('a_admin@a.test')
+    and (select actor_user from public.team_safety_events where event = 'admin_change_applied' and (detail ->> 'change_id')::uuid = ch) = pg_temp.uid('a_admin@a.test'),
+    concat_ws(' / ', pg_temp.uid('a_admin@a.test'), (select changed_by::text from public.team_member_status where user_id = a3 and org_id = a),
+      (select actor::text from public.audit_log where action = 'team.deactivate' and entity_id = a3::text order by at desc limit 1),
+      (select actor_user::text from public.team_safety_events where event = 'admin_change_applied' and target_user = a3 order by at desc limit 1)));
+exception when others then perform pg_temp.su(); insert into _rs values ('13x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
 -- ================================================================================= 13) R32b seat rules still hold after 0283
 -- (0283 re-issues the 0282 seat helpers: joining counts only active members, open invitations count only when an
 -- invitation is created, the plan limit applies in ANY subscription status, admin_create_user answers refusals)
