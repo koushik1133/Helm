@@ -108,6 +108,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0269_r24_automation.sql
 -- 0283 (r33 team safety) adds its five team-safety records (owner log, deactivations, admin changes, hand-overs, events) to the keep list
 \ir ../../supabase/migrations/0283_r33_team_safety.sql
+-- 0285 (r35 payment-details safety) adds pay_detail_changes + studio_security_events + studio_account_flags to the keep list
+\ir ../../supabase/migrations/0285_r35_payment_details_safety.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin

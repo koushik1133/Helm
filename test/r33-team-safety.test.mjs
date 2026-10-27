@@ -132,7 +132,7 @@ await t('store-api: BPStore.team -> team_* RPCs; bell kind team_safety (label + 
   assert.match(API, /team_safety: \["🛡️", String\(d\.label \|\| "Team change"\)\],/);
   assert.match(API, /if \(k === "team_safety"\) return "control\.html#users";/);
   for (const f of readdirSync(new URL('../public/', import.meta.url)).filter((x) => x.endsWith('.html'))) {
-    const m = rd('public/' + f).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '289', f);
+    const m = rd('public/' + f).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '290', f);
   }
 });
 await t('comms-dispatch: the team_safety e-mail for every event (names only, Team link on APP_URL); unknown event -> null', async () => {
@@ -175,7 +175,8 @@ await t('SQL 0283: registered (MANIFEST, run-all, release lists), APPLY verbatim
   const man = rd('supabase/migrations/MANIFEST');
   assert.ok(man.indexOf('0282_r32_security_review.sql') < man.indexOf('0283_r33_team_safety.sql'), '0283 after 0282');
   assert.match(rd('scripts/db-test/run-all.sh'), /run "r33-team-safety-0283" "R33-TEAM-SAFETY-0283: ALL PASS \\\(\d+\/\d+\\\)" psql -q -f tests\/db\/r33-team-safety-0283\.sql/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0282', '0283'\]/, f);
+  // later releases (0284 / 0285 ...) may follow 0283 once merged
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0282', '0283'(, '02\d\d')*\]/, f);
   assert.ok(APPLY.includes(SQL.trimEnd()), 'APPLY carries the migration verbatim');
   assert.match(APPLY, /^begin;$/m); assert.match(APPLY, /^commit;$/m); assert.match(APPLY, /-- VERIFY \(every row must say ok = true\)/);
   assert.ok((APPLY.match(/^  \('\d\d /gm) || []).length >= 10, 'VERIFY rows');

@@ -255,6 +255,8 @@ run "r32-security-0282" "R32-SECURITY-0282: ALL PASS \(51/51\)" psql -q -f tests
 run "r32b-round2-0282" "R32B-ROUND2-0282: ALL PASS \(35/35\)" psql -q -f tests/db/r32b-round2-0282.sql
 # 0283 re-applies itself twice (earlier suites re-apply the 0184 / 0266 / 0282 bodies), rolled back
 run "r33-team-safety-0283" "R33-TEAM-SAFETY-0283: ALL PASS \(87/87\)" psql -q -f tests/db/r33-team-safety-0283.sql
+# 0285 re-applies itself twice (re-run safe; later than every suite that re-applies 0264 / 0150 / 0117), rolled back
+run "r35-paysafe-0285" "R35-PAYSAFE-0285: ALL PASS \(100/100\)" psql -q -f tests/db/r35-paysafe-0285.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

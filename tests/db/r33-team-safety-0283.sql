@@ -40,16 +40,37 @@ set client_min_messages = error;
 \ir ../../supabase/migrations/0282_r32_security_review.sql
 \ir ../../supabase/migrations/0283_r33_team_safety.sql
 \ir ../../supabase/migrations/0283_r33_team_safety.sql
+-- r35 (0285) sits on top of 0283 in every real database: re-applied here so the Team paths below are tested exactly as
+-- they run (0285 wraps them: making / removing / deactivating an admin and the ownership hand-over need two-step)
+\ir ../../supabase/migrations/0285_r35_payment_details_safety.sql
 set client_min_messages = warning;
 
 create or replace function pg_temp.su() returns void language plpgsql as $$
 begin execute 'reset role'; perform auth.logout(); execute 'reset role'; end $$;
--- sign in as p_email (aal + extra token claims such as amr)
-create or replace function pg_temp.login(p_email text, p_aal text default 'aal1', p_extra jsonb default '{}'::jsonb) returns void language plpgsql as $$
-declare u uuid; begin
+-- sign in as p_email (aal + extra token claims such as amr).
+-- r35 (0285): making / removing / deactivating an admin and the ownership hand-over need two-step, so the studio A admins
+-- below have an authenticator and, unless a test says otherwise, sign in the way the app does for them: aal2 with a code
+-- entered just now. An explicit p_aal (e.g. 'aal1', or 'aal2' + an old code) is used exactly as given.
+create or replace function pg_temp.login(p_email text, p_aal text default null, p_extra jsonb default '{}'::jsonb) returns void language plpgsql as $$
+declare u uuid; v_aal text := p_aal; v_extra jsonb := coalesce(p_extra, '{}'::jsonb); begin
   perform pg_temp.su(); select id into u from auth.users where email = p_email;
-  perform set_config('request.jwt.claims', (jsonb_build_object('sub', u, 'role', 'authenticated', 'email', p_email, 'aal', p_aal) || coalesce(p_extra, '{}'::jsonb))::text, false);
+  if v_aal is null then
+    if exists (select 1 from auth.mfa_factors f where f.user_id = u and f.status::text = 'verified') then
+      v_aal := 'aal2';
+      if not (v_extra ? 'amr') then
+        v_extra := v_extra || jsonb_build_object('amr', jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', extract(epoch from now())::bigint)));
+      end if;
+    else v_aal := 'aal1'; end if;
+  end if;
+  perform set_config('request.jwt.claims', (jsonb_build_object('sub', u, 'role', 'authenticated', 'email', p_email, 'aal', v_aal) || v_extra)::text, false);
   perform set_config('role', 'authenticated', false);
+end $$;
+-- r35 (0285): a verified authenticator for a test admin (rolled back with everything else)
+create or replace function pg_temp.factor(p_email text) returns void language plpgsql as $$
+declare u uuid; begin
+  select id into u from auth.users where email = p_email;
+  if u is not null and not exists (select 1 from auth.mfa_factors f where f.user_id = u and f.status::text = 'verified') then
+    insert into auth.mfa_factors(user_id, status) values (u, 'verified'); end if;
 end $$;
 create or replace function pg_temp.res(p_name text, p_ok boolean, p_detail text default '') returns void language plpgsql as $$
 begin insert into _rs values (p_name, case when coalesce(p_ok, false) then 'PASS' else 'FAIL: '||coalesce(p_detail,'') end); end $$;
@@ -131,6 +152,8 @@ do $$ declare c uuid; s uuid; begin
   perform pg_temp.member('r33_old@a.test', 'sales');
   if not exists (select 1 from auth.users where email = 'admin@helm.events') then perform auth.seed_user('admin@helm.events'); end if;
   perform pg_temp.sync();
+  -- r35 (0285): every studio A admin has two-step set up (needed for admin changes since 0285)
+  perform pg_temp.factor(x) from unnest(array['a_admin@a.test', 'r33_adm2@a.test', 'r33_adm3@a.test', 'r33_adm4@a.test', 'r33_adm5@a.test']) x;
 exception when others then perform pg_temp.su(); insert into _rs values ('1x setup', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 -- ================================================================================= 3) B1 deactivate a non-admin

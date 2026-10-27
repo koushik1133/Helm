@@ -32,6 +32,14 @@ export function notifLink(n) {
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
     if (k === "team_safety") return "control.html#users";   // r33 (0283): admin / owner changes -> Control Center -> Team
+    // r35 (0285): payment details / sensitive settings (admins only - the server decides)
+    if (k === "studio_security") {
+      const ev = String(d.event || "");
+      if (/^(pay_details_|flag_cleared|sessions_ended)/.test(ev)) return "control.html#payment-schedules";
+      if (/^(reply_to_|razorpay_)/.test(ev)) return "integrations.html";
+      if (ev === "business_email_changed") return "control.html#general";
+      return "control.html#users";
+    }
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     // r24 (0269): a new enquiry from the public form -> the Leads board
     if (k === "lead_new") return "leads.html";
