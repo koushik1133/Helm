@@ -220,10 +220,32 @@ exception when others then perform pg_temp.su(); insert into _rs values ('4x', '
 
 -- ---- 6) "This wasn't us": cancel keeps the old details, alerts everyone, flags the account -------------------------
 do $$ declare r jsonb; e text; v_ev uuid; m jsonb; begin
+  -- a) an admin WITHOUT two-step: the cancel + alert are instant, but nobody is flagged or signed out
   perform pg_temp.as_user('a_admin2@a.test', 'aal1');
   r := pg_temp.j(format('select public.pay_details_cancel(%L, true)', pg_temp.get('c1')));
-  perform pg_temp.res('26 any admin cancels during the 24 hours - no code needed; the account is flagged + advice to sign out / reset',
-    (r ->> 'cancelled')::boolean and (r ->> 'flagged')::boolean and r ->> 'advice' like '%reset its password%' and r -> 'signed_out' is not null, r::text);
+  perform pg_temp.su();
+  perform pg_temp.res('26a an admin without two-step cancels at once (old details stay, everyone alerted) but cannot flag / sign out',
+    (r ->> 'cancelled')::boolean and not (r ->> 'flagged')::boolean and r -> 'signed_out' = 'null'::jsonb
+    and exists (select 1 from public.pay_detail_changes where id = pg_temp.get('c1')::uuid and status = 'cancelled' and cancel_kind = 'not_us_unverified')
+    and not public._r285_flagged('a0000000-0000-4000-8000-000000000001', pg_temp.uid('a_admin@a.test'))
+    and pg_temp.events('pay_details_cancelled_unverified') = 1 and pg_temp.events('sessions_ended') = 0
+    and pg_temp.live_upi() = 'studioa@okaxis' and pg_temp.client_upi() = 'studioa@okaxis'
+    and exists (select 1 from public.helm_notice_outbox o join public.studio_security_events v on v.id = o.ref_id where v.kind = 'pay_details_cancelled_unverified')
+    and exists (select 1 from public.audit_log where action = 'payment_details.cancelled_without_two_step' and org_id = 'a0000000-0000-4000-8000-000000000001'), r::text);
+  -- b) the same change again; this time the second admin has two-step + a fresh code
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 1);
+  r := pg_temp.j($q$select public.payment_schedule_settings_set('{"upi_id": "thief9@okicici", "pay_note": "SBI A/c 99990000111122223333"}'::jsonb)$q$);
+  perform pg_temp.put('c1', (r -> 'pending' ->> 'id'));
+  perform pg_temp.factor('a_admin2@a.test');
+  perform pg_temp.as_user('a_admin2@a.test', 'aal2', 2);
+  r := pg_temp.j(format('select public.pay_details_cancel(%L, true)', pg_temp.get('c1')));
+  perform pg_temp.res('26 an admin with two-step cancels: the account is flagged, signed out, advice to reset the password',
+    (r ->> 'cancelled')::boolean and (r ->> 'flagged')::boolean and r ->> 'advice' like '%reset its password%' and (r -> 'signed_out') ? 'tokens_revoked', r::text);
+  e := pg_temp.try(format('select public.studio_flagged_sign_out(%L)', pg_temp.uid('a_admin@a.test')));
+  perform pg_temp.res('26b sign-out of the same account again within 10 minutes is refused (one per 10 minutes)', e like '22023%10 minutes%', e);
+  perform pg_temp.su();
+  perform pg_temp.res('26c every sign-out is audited (one row)',
+    (select count(*) from public.audit_log where action = 'studio_security.sessions_ended' and org_id = 'a0000000-0000-4000-8000-000000000001' and at >= now()) = 1);
   perform pg_temp.su();
   select id into v_ev from public.studio_security_events where org_id = 'a0000000-0000-4000-8000-000000000001' and kind = 'pay_details_cancelled' and at >= now();
   m := public._r285_mail(v_ev);
@@ -239,7 +261,9 @@ do $$ declare r jsonb; e text; v_ev uuid; m jsonb; begin
   perform pg_temp.as_user('a_admin@a.test', 'aal2', 1);
   e := pg_temp.try($q$select public.payment_schedule_settings_set('{"upi_id": "thief9@okicici"}'::jsonb)$q$);
   perform pg_temp.res('28 the flagged account can make no further sensitive change (even with two-step)', e like '42501%R35_FLAGGED%', e);
+  perform pg_temp.as_user('a_admin2@a.test', 'aal2', 2);
   e := pg_temp.try(format('select public.pay_details_cancel(%L)', pg_temp.get('c1')));
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 1);
   perform pg_temp.res('29 a cancelled change cannot be cancelled again', e like '22023%no longer waiting%', e);
   r := pg_temp.j($q$select public.payment_schedule_settings_get()$q$);
   perform pg_temp.res('30 admins see the open flag (with who flagged it)', r -> 'flags' -> 0 ->> 'name' = 'Asha Admin' and (r -> 'flags' -> 0 ->> 'is_me')::boolean, r::text);
@@ -249,10 +273,19 @@ exception when others then perform pg_temp.su(); insert into _rs values ('5x', '
 
 -- ---- 7) auto-apply after 24 hours (read at once, tick writes it) -----------------------------------------------------
 do $$ declare r jsonb; e text; begin
-  perform pg_temp.factor('a_admin2@a.test');
   perform pg_temp.as_user('a_admin2@a.test', 'aal2', 3);
   r := pg_temp.j($q$select public.payment_schedule_settings_set('{"upi_id": "studioa.new@okaxis"}'::jsonb)$q$);
   perform pg_temp.put('c2', r -> 'pending' ->> 'id');
+  -- proof: the FLAGGED admin (even with a fresh code) cannot cancel the other admin's change, nor sign them out
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 1);
+  e := pg_temp.try(format('select public.pay_details_cancel(%L, true)', pg_temp.get('c2')));
+  perform pg_temp.res('31a a flagged admin cannot press "This wasn''t us" on another admin''s change', e like '42501%R35_FLAGGED%', e);
+  e := pg_temp.try(format('select public.studio_flagged_sign_out(%L)', pg_temp.uid('a_admin2@a.test')));
+  perform pg_temp.res('31b a flagged admin cannot sign anyone out', e like '42501%R35_FLAGGED%', e);
+  perform pg_temp.su();
+  perform pg_temp.res('31c the refused attempts changed nothing (change still waiting, nobody else flagged / signed out)',
+    pg_temp.pending_id() = pg_temp.get('c2')::uuid and not public._r285_flagged('a0000000-0000-4000-8000-000000000001', pg_temp.uid('a_admin2@a.test'))
+    and pg_temp.events('sessions_ended') = 1);
   perform pg_temp.res('32 a change of the UPI ID only keeps the live note (only the keys given change)',
     r -> 'pending' ->> 'new_upi' = 'studioa.new@okaxis' and r -> 'pending' ->> 'new_note' like 'HDFC%', r::text);
   perform pg_temp.su();
@@ -433,6 +466,43 @@ do $$ declare e text; begin
     pg_temp.try($q$delete from public.pay_detail_changes$q$) like '42501%'
     and pg_temp.try($q$update public.studio_security_events set kind = 'x'$q$) like '42501%');
 exception when others then perform pg_temp.su(); insert into _rs values ('Ax', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
+-- ---- 10) last resort: every admin flagged -> only the Helm HQ Owner (two-step + fresh code, reason, audited) -----------
+do $$ declare e text; begin
+  perform pg_temp.su();
+  if not exists (select 1 from auth.users where email = 'admin@helm.events') then perform auth.seed_user('admin@helm.events'); end if;
+  update auth.users set email_confirmed_at = now() where email = 'admin@helm.events';
+  insert into public.platform_admins(email, added_by) values ('admin@helm.events', 'test') on conflict do nothing;
+  update public.platform_admins set role = 'owner', status = 'active' where email = 'admin@helm.events';
+  insert into _kv select 'uid:' || u.email, u.id::text from auth.users u where u.email = 'admin@helm.events' on conflict (k) do nothing;
+  insert into public.studio_account_flags(org_id, user_id, reason) values
+    ('a0000000-0000-4000-8000-000000000001', pg_temp.uid('a_admin@a.test'), 'test: both admins flagged'),
+    ('a0000000-0000-4000-8000-000000000001', pg_temp.uid('a_admin2@a.test'), 'test: both admins flagged');
+  perform pg_temp.as_user('a_admin2@a.test', 'aal2', 1);
+  e := pg_temp.try(format('select public.studio_flag_clear(%L)', pg_temp.uid('a_admin@a.test')));
+  perform pg_temp.res('71 both admins flagged: neither can clear the other (stuck inside the studio)', e like '42501%R35_FLAGGED%', e);
+  e := pg_temp.try(format('select public.hq_studio_flag_clear(%L, %L, %L)', 'a0000000-0000-4000-8000-000000000001', pg_temp.uid('a_admin2@a.test'), 'video call, ID checked against the signup'));
+  perform pg_temp.res('72 a studio admin cannot use the HQ way out', e like '42501%', e);
+  perform pg_temp.as_user('admin@helm.events', 'aal2', 30);
+  e := pg_temp.try(format('select public.hq_studio_flag_clear(%L, %L, %L)', 'a0000000-0000-4000-8000-000000000001', pg_temp.uid('a_admin2@a.test'), 'video call, ID checked against the signup'));
+  perform pg_temp.res('73 the HQ Owner with an old code is asked for a fresh one', e like '42501%HQ_REAUTH%', e);
+  perform pg_temp.as_user('admin@helm.events', 'aal2', 1);
+  e := pg_temp.try(format('select public.hq_studio_flag_clear(%L, %L, %L)', 'a0000000-0000-4000-8000-000000000001', pg_temp.uid('a_admin2@a.test'), 'too short'));
+  perform pg_temp.res('74 a written reason (20+ characters) is required', e like '22023%20 characters%', e);
+  e := pg_temp.try(format('select public.hq_studio_flag_clear(%L, %L, %L)', 'a0000000-0000-4000-8000-000000000001', pg_temp.uid('a_admin2@a.test'), 'video call, ID checked against the signup'));
+  perform pg_temp.su();
+  perform pg_temp.res('75 the HQ Owner (two-step, fresh code) clears one flag: audited in HQ + the studio, every admin told',
+    e = '' and not public._r285_flagged('a0000000-0000-4000-8000-000000000001', pg_temp.uid('a_admin2@a.test'))
+    and public._r285_flagged('a0000000-0000-4000-8000-000000000001', pg_temp.uid('a_admin@a.test'))
+    and exists (select 1 from public.audit_log where action = 'hq.studio.flag_clear' and at >= now())
+    and exists (select 1 from public.audit_log where action = 'studio_security.flag_cleared_by_hq' and org_id = 'a0000000-0000-4000-8000-000000000001')
+    and exists (select 1 from public.studio_security_events v join public.helm_notice_outbox o on o.ref_id = v.id
+                 where v.kind = 'flag_cleared' and v.detail ->> 'by' = 'Helm support (HQ owner)'), e);
+  perform pg_temp.factor('a_admin2@a.test');
+  perform pg_temp.as_user('a_admin2@a.test', 'aal2', 1);
+  e := pg_temp.try(format('select public.studio_flag_clear(%L)', pg_temp.uid('a_admin@a.test')));
+  perform pg_temp.res('76 then the cleared admin (two-step) can clear the other one inside the studio', e = '', e);
+exception when others then perform pg_temp.su(); insert into _rs values ('Bx', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 select pg_temp.su();
 select name, result from _rs order by name;

@@ -102,7 +102,7 @@ function runCard(S0, actions) {
   const calls = [];
   const P = {
     settings: async () => S0(), saveSettings: async (p) => { calls.push(['save', p]); return actions.afterSave ? actions.afterSave() : S0(); },
-    cancelChange: async (id, so) => { calls.push(['cancel', id, so]); }, approveNow: async (id) => { calls.push(['approve', id]); },
+    cancelChange: async (id, so) => { calls.push(['cancel', id, so]); return { cancelled: true, flagged: actions.flagged !== false }; }, approveNow: async (id) => { calls.push(['approve', id]); },
     clearFlag: async (u) => { calls.push(['clear', u]); }, signOutFlagged: async (u) => { calls.push(['signout', u]); },
   };
   const cx = { console, document: { readyState: 'complete', getElementById: (id) => byId[id] || null, createElement: (tg) => new El(tg), addEventListener() {} },
@@ -141,6 +141,14 @@ await t('B2 "This wasn\'t us": confirm, offer sign-out everywhere, cancel with s
   await find(byId.pst_pending, "This wasn't us").click(); await tick();
   assert.deepEqual(calls.slice(0, 3), [['confirm', 'Cancel the change'], ['confirm', 'Sign out everywhere'], ['cancel', 'c1', true]]);
   assert.ok(calls.some((c) => c[0] === 'alert' && /reset their password/.test(c[1])));
+});
+await t('B2b cancelled by an admin without two-step: the page says the account was NOT flagged / signed out', async () => {
+  const S = Object.assign(base(), { pending: { id: 'c1', requested_by: 'Asha Admin', requested_by_me: false, requested_at: '2026-10-27T10:00:00Z',
+    effective_at: '2026-10-28T10:00:00Z', new_upi: 'x@ok', can_cancel: true, can_approve: false } });
+  const { byId, calls } = runCard(() => S, { flagged: false }); await tick();
+  await find(byId.pst_pending, "This wasn't us").click(); await tick();
+  assert.ok(calls.some((c) => c[0] === 'alert' && /was NOT flagged or signed out: that needs two-step/.test(c[1])));
+  assert.ok(!calls.some((c) => c[0] === 'alert' && /reset their password/.test(c[1])));
 });
 await t('B3 the admin who made the change sees "Withdraw my change" (no flag, no sign-out question), never "Make it live now"', async () => {
   const S = Object.assign(base(), { pending: { id: 'c2', requested_by: 'Asha Admin', requested_by_me: true, requested_at: '2026-10-27T10:00:00Z',
@@ -206,6 +214,7 @@ await t('C1 studio_security e-mail: who / when / from when, old -> new masked; a
   const c = m.helmNoticeEmail('studio_security', { event: 'pay_details_cancelled', studio: 'Studio A', by: 'Ravi', target: 'Asha Admin', old_upi: '****axis', new_upi: '****cici' }, '');
   assert.match(c.text, /Ravi cancelled the payment-details change made by Asha Admin\. Clients keep the old details/);
   assert.match(m.helmNoticeEmail('studio_security', { event: 'reply_to_changed', by: 'Ravi', old: 'none', new: 'pay@thief.example' }, '').text, /none {2}-> {2}\(hidden\)/);
+  assert.match(m.helmNoticeEmail('studio_security', { event: 'pay_details_cancelled_unverified', by: 'Ravi', target: 'Asha' }, '').text, /had no fresh two-step code, so the account was not flagged or signed out/);
   assert.equal(m.helmNoticeEmail('studio_security', { event: 'nope' }, ''), null);
 });
 
@@ -223,6 +232,13 @@ await t('D1 SQL: the two-step gate is enforced in the database on every sensitiv
                     /create trigger zz_r285_invite_gate before insert or update of role on public\.invitations/,
                     /after update of status or delete on auth\.mfa_factors/]) assert.match(SQL, re);
   assert.match(SQL, /c\.requested_by = v_me then\n    raise exception 'Another admin has to approve this/);
+  // R35-01: a flagged admin cannot cancel / sign out; flag + sign-out only with the canceller's own fresh two-step;
+  // one sign-out per account per 10 minutes; the HQ Owner way out goes through the audited HQ write gate
+  assert.match(SQL, /function public\.pay_details_cancel[\s\S]{0,900}if public\._r285_flagged\(v_org, v_me\) then\n    raise exception 'R35_FLAGGED/);
+  assert.match(SQL, /begin perform public\._r285_step_up\(v_org\); v_strong := true;\n    exception when others then v_strong := false;/);
+  assert.match(SQL, /function public\.studio_flagged_sign_out[\s\S]{0,600}if public\._r285_flagged\(v_org, auth\.uid\(\)\) then/);
+  assert.match(SQL, /e\.at > now\(\) - interval '10 minutes'/);
+  assert.match(SQL, /perform public\._hq_wgate\('hq\.studio\.flag_clear', 'studio_account_flags'/);
 });
 await t('D2 SQL: 24-hour wait, first set-up at once, lazy switch on read + tick, clients never see a pending change', () => {
   assert.match(SQL, /v_eff := case when v_first then now\(\) else now\(\) \+ interval '24 hours' end;/);
@@ -245,7 +261,7 @@ await t('D4 APPLY-0285: migration verbatim between begin / commit + VERIFY rows;
   assert.match(APPLY, /-- VERIFY \(every row must say ok = true\)/);
   assert.doesNotMatch(APPLY, /[^\x00-\x7F]/, 'ASCII only'); assert.doesNotMatch(APPLY, /create temp/i);
   assert.ok(rd('supabase/migrations/MANIFEST').includes('forward  supabase/migrations/0285_r35_payment_details_safety.sql'));
-  assert.match(rd('scripts/db-test/run-all.sh'), /R35-PAYSAFE-0285: ALL PASS \\\(71\/71\\\)/);
+  assert.match(rd('scripts/db-test/run-all.sh'), /R35-PAYSAFE-0285: ALL PASS \\\(83\/83\\\)/);
   assert.match(rd('test/release-1019.test.mjs'), /'0277', '0285'\]/); assert.match(rd('test/release-1020.test.mjs'), /'0277', '0285'\]/);
   const owner = new URL('file:///Users/koushikgoudshaganti/Desktop/Agency/Helm/APPLY-0285.sql');
   if (existsSync(owner)) assert.equal(readFileSync(owner, 'utf8'), APPLY);

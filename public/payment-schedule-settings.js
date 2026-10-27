@@ -82,8 +82,10 @@
     if (!mine && U && U.confirm) signOut = await U.confirm("Also sign " + p.requested_by + " out on every device now? Recommended - whoever is using that account has to sign in again.", { title: "Sign out everywhere?", okLabel: "Sign out everywhere", cancelLabel: "Not now" });
     b.disabled = true;
     try {
-      await P.cancelChange(p.id, signOut);
+      var res = await P.cancelChange(p.id, signOut);
       await reload(mine ? "Change withdrawn. Clients keep the current details." : "Change cancelled. Clients keep the current details and every admin was told.");
+      // the server flags / signs out only when YOU confirmed with two-step; without it the cancel + alert still happened
+      if (!mine && res && res.flagged === false) { if (U && U.alert) U.alert("Cancelled - clients keep the current details and every admin was told. " + p.requested_by + "'s account was NOT flagged or signed out: that needs two-step on your own account. Set it up (Account settings), then ask another admin to check the account.", { title: "Change cancelled" }); return; }
       if (!mine && U && U.alert) U.alert("Next steps: ask " + p.requested_by + " to reset their password (\u201cForgot password\u201d on the sign-in page) and to check their two-step set-up" + (signOut ? "." : ", and sign that account out everywhere (button below)."), { title: "Keep the studio safe" });
     } catch (e) { say(errText(e), "err"); b.disabled = false; }
   }

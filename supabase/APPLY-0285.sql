@@ -9,8 +9,11 @@
 --     old vs new MASKED (last 4 characters only - never the full account number).
 --   * The new details WAIT 24 HOURS: clients keep the old ones in every reminder and on the client page, then they
 --     switch by themselves. A studio that never had payment details: the first set-up is live at once (alerts still go).
---   * "This wasn't us": any admin cancels during the 24 hours -> old details stay, everyone is told, the account that
---     made the change is flagged (and can be signed out everywhere). "Make it live now": a DIFFERENT admin, two-step.
+--   * "This wasn't us": any admin cancels during the 24 hours -> old details stay, everyone is told at once. When that
+--     admin has two-step + a fresh code, the account that made the change is also flagged (and can be signed out
+--     everywhere, once per 10 minutes). A flagged account cannot cancel or sign anyone out. Last resort if every
+--     admin is flagged: the Helm HQ Owner clears a flag (two-step, fresh code, written reason, audited).
+--     "Make it live now": a DIFFERENT admin, two-step.
 --   * Everything is in the activity log (masked).
 --   * The same two-step + alert (no wait): reply-to address, a confirmed business e-mail, Razorpay keys / on-off,
 --     money switches (finance / discount_approve / close_owed), admins added / removed; alert when an admin turns
@@ -55,9 +58,12 @@ begin;
 --      every read already shows the new details the moment the 24 hours are over (no job needed for clients to see the
 --      right thing). A studio that has NEVER had payment details: the first set-up is live at once (alerts still go).
 --   4  "THIS WASN'T US". Any admin can cancel a pending change during the 24 hours: the old details stay, everyone is
---      told, and the account that made the change is FLAGGED (NEW studio_account_flags): a flagged account can make no
---      sensitive change until a different admin clears the flag with two-step. The cancel can also sign that account
---      out everywhere (its sign-in refresh tokens are marked revoked - nothing deleted). Any admin can make a pending
+--      told. When the admin who cancels has a fresh two-step code, the account that made the change is also FLAGGED
+--      (NEW studio_account_flags; no sensitive change until a different admin clears it with two-step) and can be
+--      signed out everywhere (refresh tokens marked revoked - nothing deleted; at most once per 10 minutes, audited).
+--      Without two-step the cancel + alert still happen at once ("cancelled by an admin without two-step"). A flagged
+--      account can neither cancel nor sign anyone out. Last resort: the Helm HQ Owner clears a flag
+--      (hq_studio_flag_clear: two-step + fresh code, written reason, audited). Any admin can make a pending
 --      change live early - only with two-step, and only a DIFFERENT admin than the one who made it.
 --   5  EVERYTHING IS LOGGED: audit_log rows (who, when, from -> to masked, request / first set-up / live / early /
 --      cancel) + the append-only studio_security_events list behind the notices.
@@ -98,6 +104,7 @@ do $$ begin
   if to_regclass('public.helm_notice_outbox') is null or to_regprocedure('public.helm_notice_outbox_claim(integer)') is null then
     raise exception 'STOP 0285: 0244 (helm_notice_outbox) is not applied'; end if;
   if to_regprocedure('public._r23_tz(uuid)') is null then raise exception 'STOP 0285: 0266 (notification inbox: _r23_tz) is not applied'; end if;
+  if to_regprocedure('public._hq_wgate(text, text, text, jsonb)') is null then raise exception 'STOP 0285: the HQ write gate (0045 / 0277) is missing'; end if;
   if to_regprocedure('public.studio_email_settings_set(text, text)') is null then raise exception 'STOP 0285: 0150 (studio e-mail settings) is not applied'; end if;
   if to_regprocedure('public.save_org_payment_account(text, text, text)') is null or to_regprocedure('public.set_org_integration_status(text, text)') is null then
     raise exception 'STOP 0285: 0117 (per-studio Razorpay accounts) is not applied'; end if;
@@ -132,7 +139,7 @@ create table if not exists public.pay_detail_changes (
   applied_how   text        check (applied_how is null or applied_how in ('first_setup', 'auto', 'early')),
   cancelled_at  timestamptz,
   cancelled_by  uuid,
-  cancel_kind   text        check (cancel_kind is null or cancel_kind in ('not_us', 'withdrawn'))
+  cancel_kind   text        check (cancel_kind is null or cancel_kind in ('not_us', 'not_us_unverified', 'withdrawn'))
 );
 create unique index if not exists pay_detail_changes_one_pending_r285 on public.pay_detail_changes (org_id) where status = 'pending';
 create index if not exists pay_detail_changes_due_r285 on public.pay_detail_changes (effective_at) where status = 'pending';
@@ -337,6 +344,8 @@ returns text language sql immutable set search_path = '' as $$
          || coalesce(d ->> 'by', 'a team member') || ' at ' || coalesce(d ->> 'at_text', 'just now') || ' (first set-up: live now). If this wasn''t you, tell your admins.'
     when 'pay_details_cancelled' then 'This wasn''t us: ' || coalesce(d ->> 'by', 'an admin') || ' cancelled the payment-details change made by '
          || coalesce(d ->> 'target', 'a team member') || '. Clients keep the old details; that account is flagged.'
+    when 'pay_details_cancelled_unverified' then 'Cancelled: ' || coalesce(d ->> 'by', 'an admin') || ' cancelled the payment-details change made by '
+         || coalesce(d ->> 'target', 'a team member') || ' (without two-step, so the account was not flagged). Clients keep the old details.'
     when 'pay_details_withdrawn' then coalesce(d ->> 'by', 'A team member') || ' withdrew their payment-details change. Clients keep the old details.'
     when 'pay_details_live' then 'The new payment details are now shown to clients (changed by ' || coalesce(d ->> 'target', 'a team member') || ').'
     when 'pay_details_approved_early' then coalesce(d ->> 'by', 'An admin') || ' made the payment-details change by '
@@ -597,13 +606,21 @@ begin
   return public.payment_schedule_settings_get();
 end $$;
 
--- "This wasn't us" (any admin, during the 24 hours). Withdrawing your OWN change does not flag you.
+-- "This wasn't us" (any admin, during the 24 hours). The cancel + the alert are ALWAYS instant (no code needed).
+-- Flagging the account that made the change and signing it out need the canceller's own fresh two-step (so a hijacked
+-- admin account without it cannot flag / sign out the real admins); a flagged account cannot cancel at all.
+-- Withdrawing your OWN change never flags you.
 create or replace function public.pay_details_cancel(p_change uuid, p_sign_out boolean default false)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 -- r35-0285
-declare v_org uuid := public.current_org_id(); v_me uuid := auth.uid(); c public.pay_detail_changes; v_self boolean; v_d jsonb; v_out jsonb := null;
+declare v_org uuid := public.current_org_id(); v_me uuid := auth.uid(); c public.pay_detail_changes; v_self boolean; v_d jsonb;
+  v_out jsonb := null; v_strong boolean := false;
 begin
   if v_me is null or v_org is null or not coalesce(public.is_admin(), false) then raise exception 'not authorized' using errcode = '42501'; end if;
+  if public._r285_flagged(v_org, v_me) then
+    raise exception 'R35_FLAGGED: This account was flagged after a "This wasn''t us". Another admin has to clear the flag before it can change sensitive settings.'
+      using errcode = '42501', hint = 'flagged';
+  end if;
   perform public._r285_apply_due(v_org);
   select * into c from public.pay_detail_changes x where x.id = p_change and x.org_id = v_org for update;
   if c.id is null then raise exception 'change not found' using errcode = '42501'; end if;
@@ -612,22 +629,31 @@ begin
       using errcode = '22023', hint = 'not_pending';
   end if;
   v_self := c.requested_by = v_me;
+  if not v_self then
+    begin perform public._r285_step_up(v_org); v_strong := true;
+    exception when others then v_strong := false;   -- no (fresh) two-step: cancel + alert only
+    end;
+  end if;
   update public.pay_detail_changes x set status = 'cancelled', cancelled_at = now(), cancelled_by = v_me,
-         cancel_kind = case when v_self then 'withdrawn' else 'not_us' end where x.id = c.id;
+         cancel_kind = case when v_self then 'withdrawn' when v_strong then 'not_us' else 'not_us_unverified' end where x.id = c.id;
   v_d := jsonb_build_object('old_upi', public._r285_mask(c.old_upi), 'new_upi', public._r285_mask(c.new_upi),
                             'old_note', public._r285_mask(c.old_note), 'new_note', public._r285_mask(c.new_note),
-                            'target_id', c.requested_by);
+                            'target_id', c.requested_by, 'verified', v_strong);
   if v_self then
     perform public._r285_event(v_org, 'pay_details_withdrawn', c.requested_by, c.id, v_d, true, 'payment_details.withdrawn');
-  else
+  elsif v_strong then
     insert into public.studio_account_flags(org_id, user_id, change_id, reason, flagged_by)
       values (v_org, c.requested_by, c.id, 'Payment-details change cancelled as "This wasn''t us"', v_me)
       on conflict (org_id, user_id) where cleared_at is null do nothing;
     perform public._r285_event(v_org, 'pay_details_cancelled', c.requested_by, c.id, v_d, true, 'payment_details.cancelled');
     if coalesce(p_sign_out, false) then v_out := public._r285_end_sessions(v_org, c.requested_by); end if;
+  else
+    perform public._r285_event(v_org, 'pay_details_cancelled_unverified', c.requested_by, c.id, v_d, true, 'payment_details.cancelled_without_two_step');
   end if;
-  return jsonb_build_object('cancelled', true, 'flagged', not v_self, 'signed_out', v_out,
-    'advice', case when v_self then null else 'Sign that account out everywhere and reset its password. Check its two-step set-up with the person.' end);
+  return jsonb_build_object('cancelled', true, 'flagged', v_strong, 'signed_out', v_out, 'verified', v_self or v_strong,
+    'advice', case when v_self then null
+                   when v_strong then 'Sign that account out everywhere and reset its password. Check its two-step set-up with the person.'
+                   else 'Cancelled. To also flag that account and sign it out, set up two-step on your own account and enter a fresh code.' end);
 end $$;
 
 -- make a pending change live now: an admin, with two-step, never the one who made it
@@ -659,6 +685,11 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare v_ids uuid[] := '{}'::uuid[]; v_n integer := 0;
 begin
   if p_user is null then return '{}'::jsonb; end if;
+  -- at most one sign-out per account per 10 minutes (each one audited)
+  if exists (select 1 from public.studio_security_events e where e.org_id = p_org and e.kind = 'sessions_ended' and e.target_user = p_user
+               and e.at > now() - interval '10 minutes') then
+    return jsonb_build_object('skipped', 'recent');
+  end if;
   if to_regclass('auth.sessions') is not null then
     begin execute 'select coalesce(array_agg(s.id), ''{}''::uuid[]) from auth.sessions s where s.user_id = $1' into v_ids using p_user;
     exception when others then v_ids := '{}'::uuid[]; end;
@@ -683,8 +714,17 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare v_org uuid := public.current_org_id();
 begin
   if auth.uid() is null or v_org is null or not coalesce(public.is_admin(), false) then raise exception 'not authorized' using errcode = '42501'; end if;
+  if public._r285_flagged(v_org, auth.uid()) then
+    raise exception 'R35_FLAGGED: This account was flagged after a "This wasn''t us". Another admin has to clear the flag first.'
+      using errcode = '42501', hint = 'flagged';
+  end if;
+  if p_user = auth.uid() then raise exception 'not authorized' using errcode = '42501'; end if;
   if not public._r285_flagged(v_org, p_user) then
     raise exception 'Only an account flagged by "This wasn''t us" can be signed out here.' using errcode = '22023', hint = 'not_flagged';
+  end if;
+  if exists (select 1 from public.studio_security_events e where e.org_id = v_org and e.kind = 'sessions_ended' and e.target_user = p_user
+               and e.at > now() - interval '10 minutes') then
+    raise exception 'This account was signed out less than 10 minutes ago. Try again later.' using errcode = '22023', hint = 'rate_limited';
   end if;
   return public._r285_end_sessions(v_org, p_user);
 end $$;
@@ -703,6 +743,30 @@ begin
   get diagnostics n = row_count;
   if n = 0 then raise exception 'This account is not flagged.' using errcode = '22023', hint = 'not_flagged'; end if;
   perform public._r285_event(v_org, 'flag_cleared', p_user, null, jsonb_build_object('target_id', p_user), true, 'studio_security.flag_cleared');
+  return jsonb_build_object('cleared', true);
+end $$;
+
+-- last resort (e.g. every admin of a studio flagged): the Helm HQ OWNER clears a flag - two-step + a fresh code
+-- (_hq_wgate, unknown action = Owner only, audited in HQ), a written reason (20+ characters: how identity was checked),
+-- at most 5 a day; the studio's admins are told (bell + e-mail) and the studio's activity log has it.
+create or replace function public.hq_studio_flag_clear(p_org uuid, p_user uuid, p_reason text)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r35-0285
+declare v_reason text := left(btrim(coalesce(p_reason, '')), 300); n integer;
+begin
+  if char_length(v_reason) < 20 then
+    raise exception 'Write how you checked who you are talking to (at least 20 characters).' using errcode = '22023'; end if;
+  perform public._hq_wgate('hq.studio.flag_clear', 'studio_account_flags', p_user::text,
+    jsonb_build_object('org_id', p_org, 'user_id', p_user, 'reason', v_reason));
+  if (select count(*) from public.audit_log a where a.actor = auth.uid() and a.action = 'hq.studio.flag_clear'
+        and a.at > now() - interval '24 hours') > 5 then
+    raise exception 'Too many flags cleared in the last 24 hours.' using errcode = 'P0001'; end if;
+  update public.studio_account_flags f set cleared_at = now(), cleared_by = auth.uid()
+   where f.org_id = p_org and f.user_id = p_user and f.cleared_at is null;
+  get diagnostics n = row_count;
+  if n = 0 then raise exception 'This account is not flagged.' using errcode = '22023', hint = 'not_flagged'; end if;
+  perform public._r285_event(p_org, 'flag_cleared', p_user, null,
+    jsonb_build_object('target_id', p_user, 'by', 'Helm support (HQ owner)', 'hq', true), true, 'studio_security.flag_cleared_by_hq');
   return jsonb_build_object('cleared', true);
 end $$;
 
@@ -1080,6 +1144,7 @@ do $$ declare f text; begin
   foreach f in array array['public.payment_schedule_settings_get()', 'public.payment_schedule_settings_set(jsonb)',
                            'public.pay_details_cancel(uuid, boolean)', 'public.pay_details_approve_now(uuid)',
                            'public.studio_flagged_sign_out(uuid)', 'public.studio_flag_clear(uuid)', 'public.studio_security_events_list(integer)',
+                           'public.hq_studio_flag_clear(uuid, uuid, text)',
                            'public.studio_email_settings_set(text, text)', 'public.save_org_payment_account(text, text, text)',
                            'public.set_org_integration_status(text, text)', 'public.admin_set_role_access(text, text, boolean, boolean)',
                            'public.notification_catalog()', 'public.notification_type_of(text, text)'] loop
