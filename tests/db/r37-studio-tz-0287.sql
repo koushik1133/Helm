@@ -26,6 +26,13 @@ grant execute on function pg_temp.q(text) to anon, authenticated, service_role;
 \ir ../../supabase/migrations/0287_studio_timezone_today.sql
 \ir ../../supabase/migrations/0287_studio_timezone_today.sql
 
+-- test-only probe (rolled back with everything else): the same date rule public_enquiry_submit__pre0276 now applies
+create or replace function public._r37_probe_enquiry_date(p_org uuid, p_date date) returns text language sql stable as $$
+  select case when p_date < public.studio_today(p_org) or p_date > public.studio_today(p_org) + 1100 then 'past' else 'ok' end $$;
+do $$ begin perform pg_temp.res('00 the enquiry form uses exactly this rule',
+  exists (select 1 from pg_proc where proname = 'public_enquiry_submit__pre0276'
+          and prosrc like '%v_date < public.studio_today(v_org) or v_date > public.studio_today(v_org) + 1100%')); end $$;
+
 -- ---- 1) the zone: own setting, then country, then Asia/Kolkata -----------------------------------------------------
 do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000000-0000-4000-8000-000000000001'; begin
   perform pg_temp.su();
@@ -162,6 +169,60 @@ do $$ declare a uuid := 'c0000000-0000-4000-8000-0000000003a7'; b uuid := 'd0000
     then v_ok := v_ok + 1; end if;
   end loop;
   perform pg_temp.res('23 trial: ended yesterday (studio day) -> past due; ends today -> still trial + the 1-day reminder', v_ok = 2, v_ok::text || '/2');
+end $$;
+set timezone = 'America/New_York';
+
+-- ---- 6) follow-ups: the rest of the server "today" checks + HQ on India time ------------------------------------------
+do $$ declare f text; n int := 0; m int := 0; begin
+  perform pg_temp.su();
+  foreach f in array array['_trial_paid', '_r21_event_money', '_r3_price_change_notify', '_assign132_enqueue__pre0274', 'nurture_due__pre0202',
+                           'queue_nurture_greeting__pre0202', '_resolve_tax', 'hq_activate_plan', 'public_enquiry_submit__pre0276'] loop
+    if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
+                 and p.prosrc !~* 'current_date' and p.prosrc ~ 'studio_today') then n := n + 1;
+    else perform pg_temp.res('24 ' || f, false, 'still current_date'); end if;
+  end loop;
+  perform pg_temp.res('24 nine follow-up functions use studio_today and no current_date', n = 9, n::text || '/9');
+  foreach f in array array['hq_overview', 'hq_billing', 'hq_payments', 'hq_audit', 'hq_security_alerts'] loop
+    if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
+                 and p.prosrc !~* 'current_date' and p.prosrc !~* 'now\(\)\)::date' and p.prosrc ~ 'hq_today') then m := m + 1;
+    else perform pg_temp.res('25 ' || f, false, 'not on hq_today'); end if;
+  end loop;
+  perform pg_temp.res('25 five HQ screens use hq_today (India time)', m = 5, m::text || '/5');
+  perform pg_temp.res('26 hq_today: India day flips at 18:30 UTC (any session zone)',
+    public.hq_today('2026-10-27 18:29:59+00') = date '2026-10-27' and public.hq_today('2026-10-27 18:30:00+00') = date '2026-10-28'
+    and public.hq_today() = (now() at time zone 'Asia/Kolkata')::date);
+  perform pg_temp.res('27 _next_occasion(date, today): this year / next year / 29 Feb',
+    public._next_occasion(date '1990-11-05', date '2026-10-28') = date '2026-11-05'
+    and public._next_occasion(date '1990-10-27', date '2026-10-28') = date '2027-10-27'
+    and public._next_occasion(date '1990-10-28', date '2026-10-28') = date '2026-10-28'
+    and public._next_occasion(date '2000-02-29', date '2026-10-28') = date '2027-02-28');
+  perform pg_temp.res('28 hq_today / studio_today are not API-callable; _my_studio_today is for signed-in users only',
+    not has_function_privilege('authenticated', 'public.hq_today(timestamptz)', 'execute')
+    and not has_function_privilege('anon', 'public.hq_today(timestamptz)', 'execute')
+    and not has_function_privilege('anon', 'public._my_studio_today()', 'execute')
+    and has_function_privilege('authenticated', 'public._my_studio_today()', 'execute'));
+end $$;
+set timezone = 'America/Los_Angeles';
+do $$ declare v text; w text; begin
+  -- a signed-in user can still call the one-argument _next_occasion (invoker) and it counts from THEIR studio's day
+  perform pg_temp.login('a_admin@a.test');
+  v := pg_temp.q('select public._next_occasion((public._my_studio_today() - 1))::text');
+  w := pg_temp.q('select public._my_studio_today()::text');
+  perform pg_temp.su();
+  perform pg_temp.res('29 Los Angeles session, signed in: _my_studio_today = the Indian day; yesterday''s date -> next year',
+    w = 'ok:' || ((now() at time zone 'Asia/Kolkata')::date)::text
+    and v = 'ok:' || (public._next_occasion(((now() at time zone 'Asia/Kolkata')::date - 1), (now() at time zone 'Asia/Kolkata')::date))::text, w || ' ' || v);
+end $$;
+set timezone = 'America/New_York';
+do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; r jsonb; z text; v_ok int := 0; begin
+  -- the public enquiry form: today in the studio is accepted, yesterday in the studio is refused, in every session zone
+  perform pg_temp.su();
+  foreach z in array array['Etc/GMT+12', 'Etc/GMT-14'] loop
+    execute format('set timezone = %L', z);
+    if pg_temp.q(format('select public._r37_probe_enquiry_date(%L, %L)', a, public.studio_today(a))) = 'ok:ok'
+       and pg_temp.q(format('select public._r37_probe_enquiry_date(%L, %L)', a, public.studio_today(a) - 1)) = 'ok:past' then v_ok := v_ok + 1; end if;
+  end loop;
+  perform pg_temp.res('30 enquiry date window (the 0287 rule) is the studio day in every session zone', v_ok = 2, v_ok::text || '/2');
 end $$;
 set timezone = 'America/New_York';
 

@@ -252,7 +252,8 @@
   }
 
   /* ---------------- requests panel ---------------- */
-  function when(at) { try { return new Date(at).toLocaleString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } }
+  // r37: shown in the STUDIO's time zone (never the viewer's browser zone)
+  function when(at) { try { return new Date(at).toLocaleString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: (function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })() }); } catch (e) { return ""; } }
   // h: { approve(req), decline(req), withdraw(req) }
   function renderRequests(mount, review, h) {
     if (!mount) return; mount.replaceChildren();

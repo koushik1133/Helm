@@ -56,6 +56,6 @@ t("sample-name helper (display only)", () => {
   assert.equal(plainName("Demo · Sharma Family"), "Sharma Family"); assert.equal(plainName("Priya"), "Priya");
 });
 t("assets bumped", () => {
-  assert.match(H, /business\.css\?v=9"/); assert.match(H, /shell-b-money\.js\?v=10"/); assert.match(H, /vendor-bills-ui\.js\?v=11"/);
+  assert.match(H, /business\.css\?v=9"/); assert.match(H, /shell-b-money\.js\?v=11"/); assert.match(H, /vendor-bills-ui\.js\?v=11"/);
 });
 console.log("r21-business-ui: " + n + " checks passed");

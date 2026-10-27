@@ -20,7 +20,8 @@
     try { return new Intl.NumberFormat("en-IN", { style: "currency", currency: /^[A-Z]{3}$/.test(cur || "") ? cur : "INR", maximumFractionDigits: 0 }).format(v); }
     catch (e) { return String(Math.round(v)); }
   }
-  function when(t) { const d = new Date(t); if (!t || isNaN(d.getTime())) return ""; try { return d.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }); } catch (e) { return d.toISOString().slice(0, 16); } }
+  // r37: shown in the STUDIO's time zone (never the viewer's browser zone)
+  function when(t) { const d = new Date(t); if (!t || isNaN(d.getTime())) return ""; try { return d.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: (function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })() }); } catch (e) { return d.toISOString().slice(0, 16); } }
   function rowView(r) {
     r = r || {};
     const st = STATUS_LABEL[r.status] ? r.status : "pending";

@@ -59,6 +59,7 @@
     if (!isFinite(d)) return "—"; if (d < 1) return "today"; if (d < 2) return "yesterday"; return Math.floor(d) + " days ago";
   }
   function iso(d) { return d.toISOString().slice(0, 10); }
+  function istDay(ms) { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms)); }
   function notFound() {
     document.title = "Page not found — Helm";
     $("#vLoading").hidden = true; $("#vApp").hidden = true; $("#vNotFound").hidden = false;
@@ -751,7 +752,7 @@
     var amt = el("input", { type: "number", min: "1", step: "0.01", "aria-label": "Amount paid incl. tax" });
     var meth = el("select", { "aria-label": "Paid by" });
     [["upi", "UPI"], ["bank", "Bank transfer"], ["card", "Card"], ["cash", "Cash"], ["other", "Other"]].forEach(function (o) { meth.appendChild(el("option", { value: o[0], text: o[1] })); });
-    var today = iso(new Date());
+    var today = istDay(Date.now());
     var start = el("input", { type: "date", "aria-label": "Period start" }); start.value = today;
     var paid = el("input", { type: "date", "aria-label": "Paid on" }); paid.value = today;
     var ref = el("input", { type: "text", maxlength: "120", placeholder: "UTR / reference", "aria-label": "Payment reference" });
@@ -1109,7 +1110,7 @@
       var b = el("button", { cls: "btn sm", type: "button", text: "Mark realised" });
       b.addEventListener("click", function () {
         var ref = ask("FIRA / FIRC reference for " + (p.invoice_no || "") + ":"); if (!ref) return;
-        var on = ask("Realised on (YYYY-MM-DD):", iso(new Date())); if (!on) return;
+        var on = ask("Realised on (YYYY-MM-DD):", istDay(Date.now())); if (!on) return;
         call("hq_record_realisation", { p_id: p.id, p_fira_firc_ref: ref, p_realised_on: on }).then(function () { okMsg("Realisation recorded."); loadBilling().catch(showErr); }).catch(showErr);
       });
       ul.appendChild(el("li", null, [el("span", { text: (p.studio || "—") + " · " + (p.invoice_no || "") + " · " + money(p.amount, p.currency) }), el("span", { cls: "muted", text: (p.tax_regime || "") + " · " + date(p.paid_on) }), b]));
@@ -1137,7 +1138,7 @@
     var amt = Number($("#rAmount").value);
     if (!(amt > 0)) { showErr(new Error("Amount must be more than 0")); return; }
     var b = $("#btnRecord"); b.disabled = true;
-    call("hq_record_payment", { p_org: org, p_amount: amt, p_paid_on: $("#rPaidOn").value || iso(new Date()), p_method: $("#rMethod").value,
+    call("hq_record_payment", { p_org: org, p_amount: amt, p_paid_on: $("#rPaidOn").value || istDay(Date.now()), p_method: $("#rMethod").value,
       p_currency: ($("#rCur").value || "INR").toUpperCase(), p_fx_rate_to_inr: $("#rFx").value ? Number($("#rFx").value) : null, p_period_start: $("#rPs").value || null, p_period_end: $("#rPe").value || null, p_reference: $("#rRef").value || null })
       .then(function (p) { okMsg("Payment recorded" + (p && p.invoice_no ? " — invoice " + p.invoice_no : "") + "."); $("#rAmount").value = ""; $("#rRef").value = ""; refreshAfterWrite(org); })
       .catch(showErr).then(function () { b.disabled = false; });
@@ -1565,8 +1566,9 @@
     if (ME && ME.needs_2step && !ME.has_2step) { enrollGate(); return; }
     if (ME && ME.needs_2step) { blocked("Set up two-step first", "Helm HQ needs two-step verification for everyone, on every visit. Sign in again and set it up - it takes a minute.", "Set up two-step", "login.html"); return; }
     applyPerms();
-    var today = new Date(), month = new Date(today.getFullYear(), today.getMonth(), 1), past = new Date(Date.now() - 30 * 864e5);
-    $("#bFrom").value = iso(month); $("#bTo").value = iso(today); $("#aFrom").value = iso(past); $("#aTo").value = iso(today); $("#rPaidOn").value = iso(today);
+    // r37: Helm HQ runs on India time - default ranges and the paid-on date are IST days (same as the server's hq_today)
+    var tIst = istDay(Date.now()), mIst = tIst.slice(0, 8) + "01", pIst = istDay(Date.now() - 30 * 864e5);
+    $("#bFrom").value = mIst; $("#bTo").value = tIst; $("#aFrom").value = pIst; $("#aTo").value = tIst; $("#rPaidOn").value = tIst;
     try { await loadAll(); }
     catch (e) { notFound(); return; }   // any failure on first load looks like a missing page — never reveal HQ exists
     document.title = "Helm HQ";

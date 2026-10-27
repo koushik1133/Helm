@@ -163,6 +163,42 @@ t('pages: "today" for overdue / past checks is the studio day (quotes, reports, 
   assert.match(r('public/checkout-shortage.js'), /today = o\.today \|\| studioToday\(\);/);
   assert.match(r('public/booklet.js'), /today = H\.todayIn\(FMT\.currency === "AED" \? "Asia\/Dubai" : "Asia\/Kolkata"\)/);
 });
+/* ------------------------------------------------------------------ follow-ups: timestamps shown in the studio zone */
+const AT = '2026-10-27T20:00:00Z';   // 28 Oct 01:30 IST; still 27 Oct (afternoon) in New York / Los Angeles
+function lineFn(file, start, name) {
+  const src = r(file); const i = src.indexOf(start); assert.ok(i >= 0, file + ': ' + start);
+  const j = src.indexOf('\n', i); const code = src.slice(i, j);
+  const ctx = { window: { BPStore: { studioTimezone: () => IST } }, Date, isNaN, dateLocale: () => 'en-GB' }; vm.createContext(ctx);
+  vm.runInContext(code.replace(/^\s*const /, 'var ') + '\nthis.f = ' + name + ';', ctx); return ctx.f;
+}
+t('timestamps: closure checklist, package review, share checklist, issues show the STUDIO day + time', () => {
+  assert.match(lineFn('public/closure-checklist.js', '  function when(at)', 'when')(AT), /28\/10\/2026/);
+  assert.match(lineFn('public/pkg-review.js', '  function when(t)', 'when')(AT), /28 Oct/);
+  assert.match(lineFn('public/share-checklist.js', '  function when(t)', 'when')(AT), /28 Oct 2026/);
+  assert.match(lineFn('public/issues.html', '  const when=(t)=>', 'when')(AT), /28 Oct/);
+  assert.match(lineFn('public/quotes.html', '  const shelfFmt=(iso)=>', 'shelfFmt')(AT), /28 Oct 2026/);
+});
+t('timestamps: the other displays pass the studio zone (no viewer zone)', () => {
+  const Z = /timeZone:\s*\(function \(\) \{ try \{ var B = \(typeof window !== "undefined" && window\.BPStore\) \|\| null, z = B && B\.studioTimezone \? B\.studioTimezone\(\) : ""; if \(z\) return z; \} catch \(e\) \{\} return "Asia\/Kolkata"; \}\)\(\)/;
+  for (const f of ['capacity-shortage.js', 'closure.html', 'flow-resume.js', 'privacy-pin-settings.js', 'client.js', 'auth-ui.js']) assert.match(r('public/' + f), Z, f);
+});
+t('timestamps: link views fallback reads the studio wall clock', () => {
+  const src = r('public/link-views.js'); const a = src.indexOf('  function fmtDate(v) {'), b = src.indexOf('\n  }\n', a);
+  const ctx = { global: { BPStore: { studioTimezone: () => IST }, HelmCountry: H }, Date, isNaN, String }; vm.createContext(ctx);
+  vm.runInContext(src.slice(a, b + 4) + '\nthis.f = fmtDate;', ctx);
+  assert.equal(ctx.f(AT), '28/10/2026, 01:30');
+});
+t('day maths: business month buckets, HQ (IST), vendor dates, public enquiry minimum use the studio / India day', () => {
+  assert.match(r('public/shell-b-money.js'), /var now = \(function \(\) \{ try \{ var c = S\(\) && S\(\)\.studioClock \? S\(\)\.studioClock\(\) : null;/);
+  const hq = r('public/hq.js'); assert.doesNotMatch(hq, /iso\(new Date\(\)\)/); assert.match(hq, /var tIst = istDay\(Date\.now\(\)\)/);
+  const m = /function istDay\(ms\) \{[^\n]*\}/.exec(hq); const ctx = { Intl, Date }; vm.createContext(ctx); vm.runInContext(m[0] + '\nthis.f = istDay;', ctx);
+  assert.equal(ctx.f(Date.parse('2026-10-27T18:30:00Z')), '2026-10-28'); assert.equal(ctx.f(Date.parse('2026-10-27T18:29:00Z')), '2026-10-27');
+  assert.match(r('public/hq-invoice.js'), /timeZone: "Asia\/Kolkata"[^\n]*r37: HQ = India time/);
+  assert.match(r('public/vendor-request.js'), /timeZone: "Asia\/Kolkata"/);
+  assert.match(r('public/vendor-requests-ui.js'), /window\.BPStore\.todayLocal\(\)\) \|\| new Date/);
+  const eh = r('public/enquiry.html'); assert.ok(eh.indexOf('country-profile.js?v=6') > 0 && eh.indexOf('country-profile.js') < eh.indexOf('enquiry.js'), 'enquiry loads the helper first');
+  assert.match(r('public/enquiry.js'), /H\.todayIn\(H\.FALLBACK_TZ \|\| "Asia\/Kolkata"\)/);
+});
 t('no time-zone label on staff screens (owner: just show the studio zone, no "IST")', () => {
   for (const f of ['public/country-profile.js', 'public/store-api.js', 'public/inbox.js']) assert.doesNotMatch(r(f), /zoneLabel|tzLabel|timeZoneName/, f);
 });

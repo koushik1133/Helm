@@ -99,7 +99,7 @@
     var m = Math.round(s / 60); if (m < 60) return m + " min ago";
     var h = Math.round(m / 60); if (h < 24) return h + " h ago";
     var d = Math.round(h / 24); if (d === 1) return "yesterday"; if (d < 7) return d + " days ago";
-    try { return "on " + new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; }
+    try { return "on " + new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: (function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })() }); } catch (e) { return ""; }   // r37: studio zone
   }
   function nameOf(r) {
     var q = { title: r.title, code: r.code, eventType: r.event_type || r.eventType, eventDate: r.event_date || r.eventDate, client: r.client || {} };
