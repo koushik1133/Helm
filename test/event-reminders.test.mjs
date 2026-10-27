@@ -33,7 +33,7 @@ const js = R("public/event-reminders.js");
 ok(!/innerHTML|insertAdjacentHTML|\.style\./.test(js), "DOM-only, no inline style");
 for (const p of ["control", "event", "dashboard"]) {
   const h = R("public/" + p + ".html");
-  ok(h.includes('<script src="event-reminders.js?v=4"></script>') && h.includes('href="event-reminders.css?v=1"'), p + " loads event-reminders");
+  ok(h.includes('<script src="event-reminders.js?v=5"></script>') && h.includes('href="event-reminders.css?v=1"'), p + " loads event-reminders");
 }
 const api = R("public/store-api.js");
 ok(/reminderGet:.*event_reminder_settings_get/.test(api) && /reminderSet:.*event_reminder_settings_set/.test(api) && /reminderUpcoming:.*event_reminder_upcoming/.test(api), "store API");

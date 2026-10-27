@@ -81,3 +81,15 @@
 .psch-ctl{margin:0 0 14px;padding:10px 12px;border:1px solid var(--line-2,#f1ede7);border-radius:10px;background:var(--panel-2,#faf8f5)}
 .psch-ctl .psch-foot{margin-top:0}
 .psch-card{background:var(--panel,#fff);border:1px solid var(--line,#e8e3db);border-radius:14px;padding:16px 18px;margin:0 0 16px}
+/* r35 (0285): payment-details change protection - the change waiting 24 hours + flagged accounts */
+#pstCard .pst-safe{margin-top:6px}
+#pstCard .pst-pending,#pstCard .pst-flags{margin:10px 0 0;padding:10px 12px;border:1px solid var(--warn-line,#e9c46a);border-radius:10px;background:var(--warn-bg,#fff8e6);color:var(--ink)}
+#pstCard .pst-pending h4,#pstCard .pst-flags h4{margin:0 0 4px;font-size:13.5px}
+#pstCard .pst-pending p,#pstCard .pst-flags p{margin:4px 0;font-size:13px}
+#pstCard .pst-pending dl{display:grid;grid-template-columns:max-content 1fr;gap:2px 10px;margin:6px 0;font-size:13px}
+#pstCard .pst-pending dt{color:var(--ink-3)}
+#pstCard .pst-pending dd{margin:0;overflow-wrap:anywhere}
+#pstCard .pst-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+#pstCard .pst-flag{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px}
+#pstCard .pst-flag b{font-size:13px}
+#pstCard .btn.danger{border-color:var(--danger,#c0392b);color:var(--danger,#c0392b)}

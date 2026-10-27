@@ -45,6 +45,9 @@
     return "";
   }
   function friendly(e) {
+    // r35 (0285): Razorpay keys / on-off need a fresh two-step code (the store asks for it once)
+    if (e && e.cancelled) return "Not saved - this change needs your two-step code.";
+    if (e && e.stepUp) return String(e.message || "");
     var m = String((e && (e.message || e.code)) || "");
     if (/vault_unavailable/.test(m)) return "Secure key storage is not switched on for this workspace yet. Ask Helm support.";
     if (/not_allowed|42501/.test(m)) return "Only the studio admin can change this.";

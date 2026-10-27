@@ -354,9 +354,13 @@ do $$ declare r text; begin
     and has_function_privilege('authenticated', 'public.quote_validity_extend(uuid, integer)', 'execute'), null);
   perform pg_temp.t('68 wrappers in place (verify + claim), the 0156 price check still in the chain',
     position('_qv262_verify' in (select prosrc from pg_proc where oid = 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure)) > 0
-    -- the 0262 claim layer is the top wrapper, or sits right under a later one (0264 payment schedules wraps it)
+    -- the 0262 claim layer is the top wrapper, or sits right under a later one (0264 payment schedules wraps it; r33 0283
+    -- wraps that one to skip forwards for deactivated members)
     and (position('_qv262_claim' in (select prosrc from pg_proc where oid = 'public.comms_outbox_claim(integer)'::regprocedure)) > 0
          or (position('comms_outbox_claim__pre0264' in (select prosrc from pg_proc where oid = 'public.comms_outbox_claim(integer)'::regprocedure)) > 0
+             and position('_qv262_claim' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.comms_outbox_claim__pre0264(integer)')), '')) > 0)
+         or (position('comms_outbox_claim__pre0283' in (select prosrc from pg_proc where oid = 'public.comms_outbox_claim(integer)'::regprocedure)) > 0
+             and position('comms_outbox_claim__pre0264' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.comms_outbox_claim__pre0283(integer)')), '')) > 0
              and position('_qv262_claim' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.comms_outbox_claim__pre0264(integer)')), '')) > 0))
     -- the 0156 price check is in a body under the 0262 wrapper (0260 cancel-links may sit between them)
     and exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^verify_and_consent__pre0(1[5-9][0-9]|2[0-5][0-9]|26[0-2])$' and position('price_changed' in p.prosrc) > 0), null);

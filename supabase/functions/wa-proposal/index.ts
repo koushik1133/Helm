@@ -16,7 +16,7 @@
 // role asks trial_send_blocked first and the request runs exactly like the SIMULATED path (prepare with
 // p_simulate = true, nothing sent, answer { simulated: true, trial: true }). The database refuses a real
 // prepare for a trial studio too (42501 / hint trial_no_send).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { isLive, KINDS, templateMessage } from "./logic.mjs";
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
     let msg: unknown;
     try { msg = templateMessage(prep.to, kind, prep.vars, prep.token, LANG); }
     catch (_) { return json({ error: "could not build the message" }, 400); }
-    const r = await fetch(`https://graph.facebook.com/${VER}/${encodeURIComponent(Deno.env.get("WHATSAPP_PHONE_ID")!)}/messages`, {
+    const r = await fetch(`https://graph.facebook.com/${VER}/${encodeURIComponent(Deno.env.get("WHATSAPP_PHONE_ID")!)}/messages`, { redirect: "error",
       method: "POST",
       headers: { "Authorization": "Bearer " + Deno.env.get("WHATSAPP_TOKEN"), "Content-Type": "application/json" },
       body: JSON.stringify(msg),

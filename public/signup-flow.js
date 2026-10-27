@@ -309,6 +309,7 @@
         await global.BPTrialSignup.start(d.name);
         try { await B.signup.saveDetails(d); } catch (e) {}
         try { if (B.signup.initCurrency) await B.signup.initCurrency(st.tz); } catch (e) {}   // r25: billing currency, set once
+        try { if (B.referral && B.referral.attachPending) await B.referral.attachPending(); } catch (e) {}   // r29: the referral / partner code, once
         lsDel(KEY);
         await ctx.routeSignedIn();
         return;
@@ -318,6 +319,7 @@
       var r = await B.signup.createDirect({ name: d.name, plan: p.code, interval: st.interval, termsVersion: st.termsVersion });
       try { await B.signup.saveDetails(d); } catch (e) {}
       try { if (B.signup.initCurrency) await B.signup.initCurrency(st.tz); } catch (e) {}   // r25: billing currency, set once (never changes a set one)
+      try { if (B.referral && B.referral.attachPending) await B.referral.attachPending(); } catch (e) {}   // r29: the referral / partner code, once
       lsDel(KEY);
       try { global.localStorage.setItem("bp_force_tour", "1"); } catch (e) {}
       if (r && r.result === "exists") { await ctx.routeSignedIn(); return; }

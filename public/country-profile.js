@@ -151,10 +151,31 @@
      IN/AE: "Monday, 28 December 2026 · 7:00 PM"; US: "Monday, December 28, 2026 · 7:00 PM". */
   var WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  /* R36: ONE time parser for every stored shape. The old formatters matched only "H:MM" and threw the
+     rest away, so "6:30 PM" became hour 6 = "6:30 AM". Accepts 24h ("18:30", "18:30:00", "18:30:00+05:30")
+     and 12h ("6:30 PM", "6:30pm", "06:30 p.m.", "6 PM"; 12 AM = 00, 12 PM = 12). Returns { h, m } (24h)
+     or null when the value is not a time or is out of range. */
+  var TIME_RE = /^\s*(\d{1,2})(?:[:.](\d{2})(?::\d{2}(?:\.\d+)?)?)?\s*(?:([ap])\.?\s*m\b\.?)?/i;
+  function parseTime(t) {
+    if (t == null || typeof t === "object") return null;
+    var x = TIME_RE.exec(String(t)); if (!x) return null;
+    var h = +x[1], mi = x[2] == null ? 0 : +x[2], ap = x[3] ? x[3].toLowerCase() : "";
+    if (x[2] == null && !ap) return null;                 // a bare number is not a time
+    if (mi > 59) return null;
+    if (ap) {
+      if (h === 0 || h > 23) return null;
+      if (h <= 12) h = ap === "p" ? (h % 12) + 12 : h % 12; // 12 AM -> 0, 12 PM -> 12, 6 PM -> 18
+      else if (ap === "a") return null;                    // "18:30 AM" contradicts itself
+    } else if (h > 23) return null;
+    return { h: h, m: mi };
+  }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  // "HH:MM" 24h (for <input type="time">, sorting, countdowns, conflict maths); "" when not a time
+  function toHHMM(t) { var p = parseTime(t); return p ? pad2(p.h) + ":" + pad2(p.m) : ""; }
+  // client-facing 12h label, same in IN/AE/US ("7:00 PM"); "" when not a time
   function formatTime(t) {
-    var m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); if (!m) return "";
-    var h = +m[1], mi = m[2]; if (h > 23 || +mi > 59) return "";
-    return ((h % 12) || 12) + ":" + mi + " " + (h < 12 ? "AM" : "PM");
+    var p = parseTime(t); if (!p) return "";
+    return ((p.h % 12) || 12) + ":" + pad2(p.m) + " " + (p.h < 12 ? "AM" : "PM");
   }
   function formatDate(cc, iso, opts) {
     opts = opts || {};
@@ -168,7 +189,68 @@
     var dd = formatDate(cc, iso, opts), tt = formatTime(time);
     return dd ? (tt ? dd + " \u00b7 " + tt : dd) : "";
   }
-  return { VERSION: "0089", formMeta: formMeta, formatDate: formatDate, formatTime: formatTime, formatEventDate: formatEventDate, timezone: timezone, isAutoTimezone: isAutoTimezone, COUNTRY_TZS: COUNTRY_TZS, DEFAULT: DEFAULT, get: get, list: list, code: code, findRegion: findRegion, defaultRate: defaultRate,
+  return { VERSION: "0089", formMeta: formMeta, formatDate: formatDate, formatTime: formatTime, parseTime: parseTime, toHHMM: toHHMM, formatEventDate: formatEventDate, timezone: timezone, isAutoTimezone: isAutoTimezone, COUNTRY_TZS: COUNTRY_TZS, DEFAULT: DEFAULT, get: get, list: list, code: code, findRegion: findRegion, defaultRate: defaultRate,
     validateTaxId: validateTaxId, validatePostal: validatePostal, formatMoney: formatMoney, placeOfSupply: placeOfSupply,
     computeTax: computeTax, snapshot: snapshot };
 });
+
+/* R37: the STUDIO's time zone, never the viewer's browser zone (an owner in the US looking at an Indian studio
+ * sees Indian dates, "today", countdowns and day boundaries). Added beside formatTime / formatDate (not a
+ * rewrite of them - R36 owns formatTime / parseTime). Pure functions, Intl only, no DOM / network / storage:
+ *   studioZone(tz, cc)        a valid IANA zone: the studio's own, else its country's (IN Asia/Kolkata,
+ *                             AE Asia/Dubai, US by state...), else Asia/Kolkata
+ *   zonedParts(instant, tz)   wall clock in tz -> { y, mo, d, h, mi, s, wd (0 = Sunday), date "YYYY-MM-DD", min }
+ *   todayIn(tz, now)          the studio's calendar day "YYYY-MM-DD"
+ *   wallDate(tz, now)         a LOCAL Date that reads the studio's date + time (for old local-Date arithmetic)
+ *   addDays(iso, n) / daysBetween(a, b)   pure calendar maths on "YYYY-MM-DD" (no zone, no DST)
+ *   daysUntil(iso, tz, now)   whole studio days from today to iso (0 today, 1 tomorrow, -1 yesterday)
+ *   wallToInstant(iso, hhmm, tz)  the instant (Date) of a studio wall-clock time; dayStart(iso, tz) = 00:00
+ *   viewerZone()              the browser's zone (only to tell whether it differs) */
+(function (H) {
+  "use strict";
+  if (!H || H.todayIn) return;
+  var FALLBACK = "Asia/Kolkata", DAY = /^(\d{4})-(\d{2})-(\d{2})/, fmtCache = {};
+  function validZone(tz) {
+    tz = typeof tz === "string" ? tz.trim() : ""; if (!tz) return "";
+    try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return tz; } catch (e) { return ""; }
+  }
+  function studioZone(tz, cc) { return validZone(tz) || (cc ? validZone(H.timezone(cc)) : "") || FALLBACK; }
+  function toDate(v) {
+    if (v == null) return new Date();
+    var d = (v && typeof v.getTime === "function") ? new Date(v.getTime()) : new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function fmt(tz) {
+    return fmtCache[tz] || (fmtCache[tz] = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric",
+      month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", weekday: "short" }));
+  }
+  var WDX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  function zonedParts(v, tz) {
+    var d = toDate(v); if (!d) return null;
+    var p = {}; fmt(studioZone(tz)).formatToParts(d).forEach(function (x) { p[x.type] = x.value; });
+    var y = +p.year, mo = +p.month, dd = +p.day, h = (+p.hour) % 24, mi = +p.minute, s = +p.second;
+    return { y: y, mo: mo, d: dd, h: h, mi: mi, s: s, wd: WDX[p.weekday], date: y + "-" + pad(mo) + "-" + pad(dd), min: h * 60 + mi };
+  }
+  function todayIn(tz, now) { var p = zonedParts(now == null ? new Date() : now, tz); return p ? p.date : ""; }
+  function wallDate(tz, now) { var p = zonedParts(now == null ? new Date() : now, tz); return p ? new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.s) : new Date(); }
+  function utcDay(iso) { var m = DAY.exec(String(iso || "")); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }
+  function addDays(iso, n) { var t = utcDay(iso); if (!isFinite(t)) return ""; return new Date(t + Math.round(Number(n) || 0) * 86400000).toISOString().slice(0, 10); }
+  function daysBetween(a, b) { var x = utcDay(a), y = utcDay(b); return isFinite(x) && isFinite(y) ? Math.round((y - x) / 86400000) : null; }
+  function daysUntil(iso, tz, now) { return daysBetween(todayIn(tz, now), iso); }
+  function wallToInstant(iso, hhmm, tz) {
+    /* R36 parseTime / toHHMM reads every time form ("06:30 PM", "18:30:00", "6:30pm") */
+    var hm = (hhmm == null || hhmm === "") ? "00:00" : (typeof H.toHHMM === "function" ? H.toHHMM(hhmm) : "");
+    var m = DAY.exec(String(iso || "")), t = /^(\d{2}):(\d{2})$/.exec(hm);
+    if (!m || !t) return null;
+    var want = Date.UTC(+m[1], +m[2] - 1, +m[3], +t[1], +t[2]), at = want;
+    for (var i = 0; i < 3; i++) { var p = zonedParts(at, tz); if (!p) return null; var diff = Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi) - want; if (!diff) break; at -= diff; }
+    return new Date(at);
+  }
+  function dayStart(iso, tz) { return wallToInstant(iso, "00:00", tz); }
+  function viewerZone() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } }
+  H.studioZone = studioZone; H.zonedParts = zonedParts; H.todayIn = todayIn; H.wallDate = wallDate; H.addDays = addDays;
+  H.daysBetween = daysBetween; H.daysUntil = daysUntil; H.wallToInstant = wallToInstant; H.dayStart = dayStart; H.viewerZone = viewerZone;
+  H.FALLBACK_TZ = FALLBACK;
+})(typeof module === "object" && module.exports && module.exports.timezone ? module.exports
+  : (typeof window !== "undefined" ? window.HelmCountry : (typeof globalThis !== "undefined" ? globalThis.HelmCountry : null)));

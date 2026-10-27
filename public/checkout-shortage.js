@@ -25,9 +25,11 @@
     return new Date(t + d * 86400000).toISOString().slice(0, 10);
   }
 
+  // r37: the STUDIO's day (BPStore.todayLocal), else the UTC day as before
+  function studioToday() { try { var B = (typeof window !== "undefined" && window.BPStore) || null, t = B && B.todayLocal ? B.todayLocal() : ""; if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; } catch (e) {} return new Date().toISOString().slice(0, 10); }
   // item {id,name,category,unit,total_qty}; checkouts / reservations rows; quotes {id: {title,event_date,status,...}}
   function compute(o) {
-    var it = o.item || {}, quotes = o.quotes || {}, today = o.today || new Date().toISOString().slice(0, 10);
+    var it = o.item || {}, quotes = o.quotes || {}, today = o.today || studioToday();
     var qid = o.quoteId || null, date = o.eventDate || (qid && quotes[qid] ? quotes[qid].event_date : null) || null;
     var total = n(it.total_qty);
     var open = (o.checkouts || []).filter(function (c) { return c.item_id === it.id && OPEN[c.status] && stillOut(c) > 0; });
