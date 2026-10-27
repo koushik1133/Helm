@@ -905,11 +905,11 @@
 </div>
 
 <script src="/trusted-types.js?v=5"></script>
-<script src="telemetry.js?v=8"></script>
+<script src="telemetry.js?v=9"></script>
 <script src="config.js?v=111"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=5"></script><script src="store-api.js?v=286"></script>
+<script src="country-profile.js?v=5"></script><script src="store-api.js?v=287"></script>
 <script src="event-reminders.js?v=4"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -2046,10 +2046,16 @@
   async function renderSeats(){
     const m=$("#seat_meter"); if(!m||!BPStore.invitations.seats) return;
     let r; try{ r=await BPStore.invitations.seats(); }catch(_){ m.hidden=true; return; }   // older server: no counter
-    const lock=(on)=>{ ["#inv_submit","#um_submit"].forEach(sel=>{ const b=$(sel); if(b){ b.disabled=!!on; if(on) b.title="All seats are in use"; else b.removeAttribute("title"); } }); };
+    const lock=(on)=>{ ["#inv_submit","#um_submit"].forEach(sel=>{ const b=$(sel); if(b){ b.disabled=!!on; if(on) b.title=r&&!r.trial?"Your plan's team invites are all in use":"All seats are in use"; else b.removeAttribute("title"); } }); };
     if(!r||!r.limited){ m.hidden=true; lock(false); return; }
     const extra=Number(r.extra_limit)||0, used=Math.min(Number(r.extra_used)||0, extra), pend=Number(r.pending)||0;
     // B29: grammatical in the singular too ("1 pending invite counts as a seat", "you + 1 person")
+    if(!r.trial){
+      // r32 (0282): a paid plan's limit (Starter: you + 2 team invites) - owner's wording
+      m.textContent=`${used} of ${extra} team invite${extra===1?"":"s"} used`+(pend?(pend===1?" \u00b7 1 pending invite counts":` \u00b7 ${pend} pending invites count`):"")+".";
+      if(r.at_limit) m.textContent+=` Your plan allows ${extra} team invite${extra===1?"":"s"}. Contact sales to add more.`;
+      m.hidden=false; lock(!!r.at_limit); return;
+    }
     m.textContent=`${used} of ${extra} seat${extra===1?"":"s"} used`+(r.trial?" (free trial: you + "+extra+" "+(extra===1?"person":"people")+")":"")+(pend?(pend===1?" \u00b7 1 pending invite counts as a seat":` \u00b7 ${pend} pending invites count as seats`):"")+".";
     if(r.at_limit) m.textContent+=" All seats are in use. To add another person, revoke a pending invite or remove someone, or upgrade for more seats.";
     m.hidden=false; lock(!!r.at_limit);
@@ -2177,6 +2183,14 @@
       byGroup[g].forEach(a=>{
         const cell = locked ? {view:true,edit:true} : ((MTX[selRole]&&MTX[selRole][a.key])||cellDefault(selRole,a.key));
         const lb=esc(a.label);
+        // r32 (0282): a money permission is ONE switch (allowed / not allowed) - no separate view / edit
+        if(a.permission){
+          const on=locked||!!(cell.view&&cell.edit);
+          html+=`<div class="chip perm${on?" on":""}${locked?" locked":""}" data-area="${esc(a.key)}" data-perm="1">
+          <button type="button" class="cview" aria-pressed="${on}" aria-label="${lb}: allowed"${locked?" disabled":""}><span class="ic" aria-hidden="true">${a.icon}</span><span class="lb">${lb}</span></button>
+          <span class="tick" aria-hidden="true">✓</span></div>`;
+          return;
+        }
         html+=`<div class="chip${cell.view?" on":""}${locked?" locked":""}" data-area="${esc(a.key)}">
           <button type="button" class="cview" aria-pressed="${!!cell.view}" aria-label="${lb}: can view"${locked?" disabled":""}><span class="ic" aria-hidden="true">${a.icon}</span><span class="lb">${lb}</span></button>
           <button type="button" class="pen${cell.edit?" on":""}" data-pen="1" title="Allow editing" aria-pressed="${!!cell.edit}" aria-label="${lb}: can edit"${locked?" disabled":""}>✎</button>
@@ -2198,7 +2212,7 @@
     $("#matrix").querySelectorAll(".chip").forEach(chip=>{
       const area=chip.dataset.area;
       // ✎ toggles edit (auto-enables view); the rest of the chip toggles view (off view also clears edit)
-      chip.addEventListener("click", (e)=>{ saveCell(selRole, area, e.target.closest("[data-pen]") ? "edit" : "view"); });
+      chip.addEventListener("click", (e)=>{ saveCell(selRole, area, chip.dataset.perm ? "perm" : (e.target.closest("[data-pen]") ? "edit" : "view")); });
     });
   }
   // Suggested starting access for roles that ship with nothing on. Applied only when an admin
@@ -2236,7 +2250,8 @@
     cellQueue = cellQueue.then(async()=>{
       const cur=(MTX[role]&&MTX[role][area])||cellDefault(role,area);
       let view, edit;
-      if(kind==="edit"){ edit=!cur.edit; view=cur.view||edit; }
+      if(kind==="perm"){ view=edit=!(cur.view&&cur.edit); }   // r32: one switch = view + edit together
+      else if(kind==="edit"){ edit=!cur.edit; view=cur.view||edit; }
       else { view=!cur.view; edit=view?cur.edit:false; }
       let saved=false;
       try{ await BPStore.auth.admin.setAccess(role, area, view, edit); saved=true; }
@@ -2244,7 +2259,7 @@
       // always re-read the live matrix so the grid shows what the server really has
       const ok=await loadMatrix();
       if(!ok && saved){ mtxErr=null; (MTX[role]=MTX[role]||{})[area]={view, edit}; BPUI.toast("Saved, but couldn't refresh access — reload to double-check.",{type:"info"}); }
-      if(saved) BPUI.toast(`${BPStore.auth.admin.roleLabel(role)} · ${(AREAS.find(x=>x.key===area)||{}).label||area}: ${view?(edit?"view + edit":"view only"):"no access"}`,{type:"ok",timeout:2500});
+      if(saved) BPUI.toast(`${BPStore.auth.admin.roleLabel(role)} · ${(AREAS.find(x=>x.key===area)||{}).label||area}: ${kind==="perm"?(edit?"allowed":"not allowed"):(view?(edit?"view + edit":"view only"):"no access")}`,{type:"ok",timeout:2500});
     }).catch(()=>{}).finally(()=>{
       cellPending--;
       if(!cellPending){ $("#matrix").removeAttribute("aria-busy"); }

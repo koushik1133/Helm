@@ -1,4 +1,4 @@
-// 0053: the sign-in page shows the server lockout message (Supabase password hook) verbatim.
+// 0053: the server lockout message (Supabase password hook); R32 AUTH-5: masked on the sign-in form, verbatim when re-checking your own password.
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const api = readFileSync(new URL('../public/store-api.js', import.meta.url), 'utf8');
@@ -8,7 +8,9 @@ const re = eval(m[1]);
 assert.ok(re.test('Too many attempts. Try again in 15 minutes or reset your password.'));
 assert.ok(re.test('Too many attempts. Try again in 1 hour or reset your password.'));
 assert.ok(!re.test('Invalid login credentials'));
-assert.match(api, /LOCKOUT_RE\.test\(m\)\) \{ const e = new Error\(m\); e\.code = "account_locked"/, 'signIn maps lockout before generic masking');
+// R32 AUTH-5: the lockout only ever fires for a REAL account, so on the sign-in form it reads exactly like any other
+// refused sign-in (no "this e-mail is registered" tell); re-checking your OWN password (signed in) keeps the text
+assert.match(api, /LOCKOUT_RE\.test\(m\)\) \{ const e = new Error\(GENERIC_SIGNIN\); e\.code = "invalid_credentials"/, 'signIn masks the lockout like any refused sign-in');
 assert.match(api, /LOCKOUT_RE\.test\(String\(error\.message/, 'reverify keeps the lockout message');
 assert.match(login, /err\.code==="account_locked"/, 'login shows account_locked message directly');
 const sql = readFileSync(new URL('../supabase/migrations/0053_password_lockout.sql', import.meta.url), 'utf8');

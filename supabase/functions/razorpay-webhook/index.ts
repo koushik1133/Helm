@@ -28,7 +28,8 @@
 //     is ignored, never settled). Without ?org= the global RAZORPAY_WEBHOOK_SECRET path
 //     is unchanged.
 //   * payment.failed, payment_link.cancelled, payment_link.expired, refund.processed
-//     are recorded idempotently (razorpay_record_event, unique per x-razorpay-event-id);
+//     are recorded idempotently (razorpay_record_event, unique per SIGNED body hash - R32: the
+//     x-razorpay-event-id header is not covered by the signature, so it is no longer the key);
 //     a cancelled/expired link's open reservation is closed so it is never reused.
 //     Refunds are recorded only - the ledger is never rewritten automatically.
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
@@ -90,8 +91,11 @@ async function sha256Hex(s: string) {
 // deno-lint-ignore no-explicit-any
 async function recordEvent(admin: any, req: Request, raw: string, evt: any, org: string | null): Promise<Response> {
   const type = String(evt.event);
-  const hdrId = req.headers.get("x-razorpay-event-id") || "";
-  const eventId = /^[A-Za-z0-9_-]{6,100}$/.test(hdrId) ? hdrId : "body:" + await sha256Hex(raw);
+  // R32 SRV-2: the de-duplication key comes only from the SIGNED body. The x-razorpay-event-id header
+  // is not signed, so a replayed body with a new header id used to be recorded again. Razorpay
+  // re-sends the identical body on retries, so the body hash is stable per event.
+  void req;
+  const eventId = "body:" + await sha256Hex(raw);
   const link = evt.payload?.payment_link?.entity || {};
   const pay = evt.payload?.payment?.entity || {};
   const rf = evt.payload?.refund?.entity || {};

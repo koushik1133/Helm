@@ -1553,6 +1553,11 @@ window.HelmUrl = HelmUrl;
     // pkg_payments view = package payment alerts
     { key: "pkg_review",   label: "Package selections (review)", icon: "📦", page: null, group: "Finance" },
     { key: "pkg_payments", label: "Package payment alerts",      icon: "💸", page: null, group: "Finance" },
+    // r32 (0282, owner decision): money permissions, admin only until switched on for a role. permission = ONE switch
+    // (saved as view + edit). discount_approve = may approve a change request that LOWERS the price (nobody approves
+    // their own); close_owed = may close an event that still has a balance owed (with a written reason, logged).
+    { key: "discount_approve", label: "Approve discounts (price decreases)", icon: "🏷", page: null, group: "Finance", permission: true },
+    { key: "close_owed",       label: "Close events with money owed",        icon: "🔒", page: null, group: "Finance", permission: true },
     { key: "command",    label: "Event-day command", icon: "🎛", page: null,             group: "Event day" },
     // 0241 (r21): delivery / arrival reminders + the tracker on the event-day page. view = see the tracker,
     // edit = schedule reminders and mark status. No row yet = the role's "Event-day command" switch (defaultFrom).
@@ -1680,8 +1685,10 @@ window.HelmUrl = HelmUrl;
   const LOCKOUT_RE = /^Too many attempts\. Try again in (15 minutes|1 hour) or reset your password\.$/;
   function genericSignInError(error) {
     const c = String((error && error.code) || ""), m = String((error && error.message) || ""), st = Number(error && error.status) || 0;
-    // 0053: the server-side password lockout (Supabase password-verification hook) — show its message as-is
-    if (LOCKOUT_RE.test(m)) { const e = new Error(m); e.code = "account_locked"; return e; }
+    // 0053: the server-side password lockout (Supabase password-verification hook) only ever fires for a REAL
+    // account, so showing its text on the sign-in form told a stranger the e-mail is registered (R32 AUTH-5):
+    // it reads exactly like any other refused sign-in. (Re-checking your own password keeps the lockout text.)
+    if (LOCKOUT_RE.test(m)) { const e = new Error(GENERIC_SIGNIN); e.code = "invalid_credentials"; return e; }
     if (st === 429 || /rate limit|too many/i.test(m) || /captcha/i.test(m + " " + c)) return error;
     if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) return error;
     if (/invalid_credentials|email_not_confirmed|user_not_found|user_banned|invalid login|not confirmed|credentials|user not found/i.test(c + " " + m) || (st === 400 && !/^(validation_failed|bad_json|email_provider_disabled|hook_|captcha_failed)/.test(c))) {
@@ -1694,7 +1701,6 @@ window.HelmUrl = HelmUrl;
   /* ---------------- init: pick the best available backend ---------------- */
   const INVITE_SET_PW_KEY = "bp_invite_set_pw";
   const SIGNUP_MARK_KEY = "bp_signup_email";   // 0205: e-mail of a sign-up started in this browser   // user id of an invitee who arrived by an "Invite user" link and still needs a password
-  let inviteFragment = null;
   function invitePwPending() {
     try { const id = sessionStorage.getItem(INVITE_SET_PW_KEY); return !!(id && currentUser && currentUser.id === id); } catch (e) { return false; }
   }   // { access_token, refresh_token } from a Supabase invite e-mail link (login page only)
@@ -1732,14 +1738,11 @@ window.HelmUrl = HelmUrl;
         // the hook's message in error_description - only a fixed code is kept, never the text itself
         if (/reserved for the helm team/i.test(String(qs.get("error_description") || "") + " " +
             String(new URLSearchParams(String(location.hash || "").replace(/^#/, "")).get("error_description") || ""))) urlAuthError = "reserved_domain";
-        // EXCEPTION (0131 invite e-mails sent by Supabase Auth): a staff invitation link opens
-        // login?invite=<token> with an invite / magic-link fragment. Keep those two tokens in
-        // memory only, ONLY on the login page with an invite token, and hand them to
-        // setSession() below (Supabase re-validates them server-side); everything else is dropped.
+        // R32 AUTH-4: the legacy 0131 path (login?invite=<token>#access_token=...&type=invite|magiclink, handed to
+        // setSession) is gone - a link carrying someone else's session tokens could sign this browser into THAT
+        // account without asking (login CSRF). Every Helm auth e-mail opens /auth/confirm since 0205, which asks
+        // "Continue as <e-mail>?" first. The fragment is read only for its error code and then stripped.
         const hp = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
-        if (pageKey() === "login" && /^[0-9a-f]{16,128}$/i.test(qs.get("invite") || "") && /^(invite|magiclink)$/.test(hp.get("type") || "")
-            && /^[A-Za-z0-9._-]{20,4096}$/.test(hp.get("access_token") || "") && /^[A-Za-z0-9._-]{6,512}$/.test(hp.get("refresh_token") || ""))
-          inviteFragment = { access_token: hp.get("access_token"), refresh_token: hp.get("refresh_token"), type: hp.get("type") };
         // an e-mail link that failed at Supabase (expired / already used) comes back as
         // #error=access_denied&error_code=otp_expired&error_description=… : note the code
         // (short, allow-listed shape only) so the page can say so, then drop the fragment
@@ -1754,22 +1757,6 @@ window.HelmUrl = HelmUrl;
             supa = global.supabase.createClient(CFG.url, CFG.anonKey,
               { auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage },
                 global: { fetch: authAwareFetch } });
-            if (inviteFragment) {
-              // never swap an existing signed-in account for one carried in a link (login-CSRF guard);
-              // accept_invitation still refuses an invite whose e-mail differs from the session's.
-              try { const cur = await supa.auth.getSession(); if (!(cur && cur.data && cur.data.session)) {
-                const isNew = inviteFragment.type === "invite";   // "Invite user" link = brand-new account with no password yet
-                const sr = await supa.auth.setSession({ access_token: inviteFragment.access_token, refresh_token: inviteFragment.refresh_token });
-                // 0205: a NEW link e-mailed from the join page ("Email me a new link") may be a magic link
-                // for a login the invitation made without a password: ask the server (own login only)
-                let needPw = isNew;
-                if (sr && !sr.error && sr.data && sr.data.user) {
-                  try { const np = await supa.rpc("my_needs_password"); if (!np.error && typeof np.data === "boolean") needPw = np.data; } catch (e) {}
-                }
-                try { sessionStorage.setItem("bp_invite_link_session", "1");
-                  if (needPw && sr && !sr.error && sr.data && sr.data.user) sessionStorage.setItem(INVITE_SET_PW_KEY, sr.data.user.id); } catch (e) {} } } catch (e) {}
-              inviteFragment = null;
-            }
             const gs = await supa.auth.getSession();
             const session = gs && gs.data ? gs.data.session : null;
             // a stored session whose refresh hit a NETWORK error is unknown, not signed out
@@ -2650,7 +2637,10 @@ window.HelmUrl = HelmUrl;
         const bad = passwordProblem(password); if (bad) throw new Error(bad);   // same rule as 0028 admin_create_user
         const { data, error } = await supa.rpc("admin_create_user",
           { p_email: email, p_password: password, p_role: role });
-        if (error) throw error; return data;   // new user id
+        if (error) throw error;
+        // R32b (R2-AUTH-02): a refused address answers null (the refusal is counted toward the studio's daily limit)
+        if (!data) { const e = new Error("could not create this user — send them an invitation instead"); e.code = "22023"; throw e; }
+        return data;   // new user id
       },
       // Option A: server generates a one-time temp password + forces a change on
       // first login. Returns { user_id, temp_password } — show temp_password ONCE.
@@ -2659,7 +2649,10 @@ window.HelmUrl = HelmUrl;
         if (reservedEmailDomain(email)) throw reservedEmailError();
         const { data, error } = await supa.rpc("admin_create_user_temp",
           { p_email: email, p_role: role });
-        if (error) throw error; return data;   // { user_id, temp_password }
+        if (error) throw error;
+        // R32b (R2-AUTH-02): { refused: true, error } - the address can't be used (counted toward the daily limit)
+        if (data && data.refused) { const e = new Error(String(data.error || "could not create this user — send them an invitation instead")); e.code = String(data.code || "22023"); throw e; }
+        return data;   // { user_id, temp_password }
       },
       async setRole(id, role) {
         if (!supa) throw new Error("Supabase not configured");
@@ -5514,11 +5507,16 @@ window.HelmUrl = HelmUrl;
     async signupDirect(token, email, password, fullName) {
       if (reservedEmailDomain(email)) throw reservedEmailError();
       if (!supa || !fnUrl("invite-signup")) return { fallback: true };
+      // R32 AUTH-1: the e-mailed invitation link carries a second secret (&k=) that only the mailbox sees -
+      // the studio's "Copy link" never has it. With it the server makes the login already confirmed;
+      // without it the answer is { fallback: true } (the normal confirm-by-e-mail sign-up).
+      let mailKey = "";
+      try { const k = new URLSearchParams(location.search || "").get("k") || ""; if (/^[0-9a-f]{32,128}$/i.test(k)) mailKey = k.toLowerCase(); } catch (e) {}
       let res;
       try {
         res = await fetch(fnUrl("invite-signup"), { method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
-          body: JSON.stringify({ token, email, password, full_name: fullName || "" }) });
+          body: JSON.stringify(Object.assign({ token, email, password, full_name: fullName || "" }, mailKey ? { k: mailKey } : {})) });
       } catch (e) { return { fallback: true }; }          // not deployed / CORS / offline → old path
       const j = await res.json().catch(() => ({}));
       if (res.ok) return j && j.ok ? { ok: true } : { fallback: true };
@@ -11318,6 +11316,12 @@ window.HelmUrl = HelmUrl;
     if (e && (e.code === "reserved_domain" || /reserved for the helm team/i.test(errMsg(e) || "")))
       return (global.BPStore && global.BPStore.RESERVED_EMAIL_MESSAGE) || "Addresses on helm.events are reserved for the Helm team. Please use your own e-mail address.";
     if (e && e.hint === "seat_limit") return pre + "Your free trial includes you + 2 people, and both seats are in use. Revoke an invitation or remove someone to add another person — or upgrade for more seats.";
+    // R32b (BIZ-03): a paid plan's seat limit - the admin-side wording (the DB detail carries the plan's number of people)
+    if (e && e.hint === "plan_seat_limit") {
+      let lim = NaN; try { lim = Number(JSON.parse(String(e.details || e.detail || "{}")).limit); } catch (x) { lim = NaN; }
+      const inv = Number.isFinite(lim) && lim >= 1 ? lim - 1 : null;
+      return pre + "Your plan allows " + (inv == null ? "a limited number of" : inv) + " team invite" + (inv === 1 ? "" : "s") + " and they are all in use (people in the studio plus open invitations). Revoke an open invitation or remove someone to add another person — or contact Helm sales to add more.";
+    }
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
     // 0183 — the free trial ended unpaid: the whole studio is read-only for everyone until it is upgraded
     if (e && e.hint === "trial_ended") return pre + "Your trial has ended. Your data is preserved and available in read-only mode. Upgrade now to continue creating and editing records.";

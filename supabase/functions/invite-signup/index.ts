@@ -17,6 +17,8 @@
 //
 // When it falls back to the normal (confirm-by-e-mail) sign-up — answer { fallback: true }:
 //   * the invitation has no e-mail bound to it
+//   * R32 AUTH-1: the request has no / a wrong mail key (k): only the e-mailed link carries it
+//     (invite-mailer mints it, the DB keeps its SHA-256 in invitations.mail_key_hash, 0282)
 // { token, peek: true }   → { email, account?, studio, inviter, role, role_label } of a valid
 //                           invitation, so EVERY path of the join page reads "Join <studio> on Helm -
 //                           <inviter> invited you as <role>" with the invited e-mail locked.
@@ -60,7 +62,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
-import { clean, inviteEmail, newLinkEmail, roleLabel } from "../invite-mailer/templates.ts";
+import { clean, inviteEmail, MAIL_KEY_RE, mintMailKey, newLinkEmail, roleLabel, sha256Hex } from "../invite-mailer/templates.ts";
 import { mailConfig, sendMail } from "../_shared/mailer.ts";
 import { isReservedEmail, RESERVED_EMAIL_MESSAGE } from "../_shared/reserved-email.mjs";
 
@@ -109,6 +111,17 @@ export function mapAccount(row: unknown): { account: AccountState; confirmed: bo
   if (r.account === "unconfirmed") return { account: "unconfirmed", confirmed: false };   // self sign-up never confirmed
   if (r.account === "existing") return { account: "existing", confirmed: c };
   return { account: "unknown", confirmed: null };
+}
+
+// R32 AUTH-1: constant-time compare of SHA-256(k) with the stored hash
+export async function mailKeyOk(k: unknown, storedHash: unknown): Promise<boolean> {
+  const key = typeof k === "string" ? k.trim().toLowerCase() : "";
+  const want = typeof storedHash === "string" ? storedHash.trim().toLowerCase() : "";
+  if (!MAIL_KEY_RE.test(key) || !/^[0-9a-f]{64}$/.test(want)) return false;
+  const got = await sha256Hex(key);
+  let diff = 0;
+  for (let i = 0; i < 64; i++) diff |= got.charCodeAt(i) ^ want.charCodeAt(i);
+  return diff === 0;
 }
 
 const alreadyRe = /already|registered|exists/i;
@@ -171,7 +184,7 @@ async function byEmail(mode: "lookup" | "send", email: string, ip: string, json:
   }
   const studio = clean(r.studio, 120);
   if (mailConfig().provider) {
-    const mail = inviteEmail({ token, inviter, studio, role: r.role, expires_at: r.expires_at });
+    const mail = inviteEmail({ token, inviter, studio, role: r.role, expires_at: r.expires_at, key: await mintMailKey(admin, token) });
     if (mail) {
       const s = await sendMail({ to: email, subject: mail.subject, html: mail.html, text: mail.text, studio, txReason: "invite" });
       if (s.status === "sent") return json({ ok: true, sent: true });
@@ -224,8 +237,13 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-    const { data: inv, error: iErr } = await admin.from("invitations")
-      .select("id,email,status,expires_at,org_id,role,invited_by").eq("token", token).maybeSingle();
+    // R32 AUTH-1: + mail_key_hash (0282); before 0282 the column is missing -> read without it (no key = fallback)
+    let { data: inv, error: iErr } = await admin.from("invitations")
+      .select("id,email,status,expires_at,org_id,role,invited_by,mail_key_hash").eq("token", token).maybeSingle();
+    if (iErr && /mail_key_hash|42703|PGRST204/i.test(String(iErr.message || "") + " " + String((iErr as { code?: string }).code || ""))) {
+      ({ data: inv, error: iErr } = await admin.from("invitations")
+        .select("id,email,status,expires_at,org_id,role,invited_by").eq("token", token).maybeSingle());
+    }
     if (iErr) return serverError(iErr);
     // studio + inviter display name (no e-mail, no id) for the join page's "Join <studio>" header
     const contextOf = async () => {
@@ -320,7 +338,13 @@ Deno.serve(async (req) => {
       return json({ error: "Use the e-mail address this invitation was sent to.", code: "email_mismatch" }, 403);
     }
 
-    const { error: cErr } = await admin.auth.admin.createUser({
+    // R32 AUTH-1: the token alone is known to the studio admin ("Copy link"), so it no longer makes a
+    // CONFIRMED login with a password the admin could have typed. Only the e-mailed link's mail key (&k=,
+    // SHA-256 in invitations.mail_key_hash) proves the mailbox; anything else -> the normal confirm-by-e-mail
+    // sign-up ({ fallback: true }), so existing invitations and copied links keep working.
+    if (!(await mailKeyOk(body.k, (inv as { mail_key_hash?: unknown }).mail_key_hash))) return json({ fallback: true });
+
+    const { data: made, error: cErr } = await admin.auth.admin.createUser({
       email: bound, password, email_confirm: true,
       user_metadata: fullName ? { full_name: fullName } : {},
     });
@@ -339,6 +363,16 @@ Deno.serve(async (req) => {
       if (/password/i.test(t)) return json({ error: "Choose a stronger password.", code: "weak_password" }, 400);
       return serverError(cErr);
     }
+    // R32 AUTH-1: a login made from an invitation link is recorded like an admin-made one (a155_admin_created,
+    // 0155) - if it ever turns out not to be the mailbox owner's, accepting another studio's invitation
+    // moves it and resets its password. Best effort: never blocks the sign-up.
+    try {
+      const uid = String(made?.user?.id ?? "");
+      if (/^[0-9a-f-]{36}$/i.test(uid)) {
+        const { error: rErr } = await admin.rpc("invite_signup_record", { p_token: token, p_user: uid });
+        if (rErr) console.error("invite-signup: record failed", errTag(rErr));
+      }
+    } catch (_) { /* 0282 not applied */ }
     return json({ ok: true });
   } catch (e) {
     if (e instanceof BodyTooLarge) return json({ error: "payload too large" }, 413);

@@ -32,13 +32,13 @@
 
   // Redact anything that looks like a token/JWT/OTP/email/phone from a string.
   // Client links carry bearer tokens in the URL itself, so these are scrubbed too
-  // (audit Phase 9): the <ref> of /<studio>/<invite|quote|proposal|portal|work>/<ref>,
+  // (audit Phase 9): the <ref> of /<studio>/<invite|quote|proposal|portal|work|booklet>/<ref>,
   // the slug of /i/<slug>, query/fragment tokens (?token= &t= #access_token= …) and
   // any bare UUID (approval / portal / crew / proposal tokens are UUIDs).
-  var LINK_PATH = /(\/[a-z0-9-]{1,40}\/(?:invite|quote|proposal|portal|work)\/)[^\/?#\s"'<>]+/gi;
+  var LINK_PATH = /(\/[a-z0-9-]{1,40}\/(?:invite|quote|proposal|portal|work|booklet)\/)[^\/?#\s"'<>]+/gi;
   var INVITE_PATH = /(\/i\/)[^\/?#\s"'<>]+/g;
   // r26: + quote / invite / lead ids, e-mail / phone / OTP / captcha pass values passed in a query
-  var QUERY_TOKEN = /([?&#;](?:token|t|ref|slug|code|key|access_token|refresh_token|provider_token|provider_refresh_token|quote|quote_id|q|invite|lead|lead_id|pass|captcha|otp|email|phone|mobile)=)[^&#\s"'<>]*/gi;
+  var QUERY_TOKEN = /([?&#;](?:token|t|k|ref|slug|code|key|access_token|refresh_token|provider_token|provider_refresh_token|quote|quote_id|q|invite|lead|lead_id|pass|captcha|otp|email|phone|mobile)=)[^&#\s"'<>]*/gi;
   // r26: money - an amount with its currency (Rs / INR / USD / AED / symbols) never leaves the browser
   var MONEY = /(?:\u20b9|\bRs\.?|\bINR|\bUSD|\bAED|\bUS\$|\$|\u20ac|\u00a3)\s?\d[\d,]*(?:\.\d+)?|\b\d[\d,]*(?:\.\d+)?\s?(?:INR|USD|AED|rupees)\b/gi;
   var UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
@@ -119,7 +119,18 @@
           });
         }
       }
-      if (ev.exception && ev.exception.values) ev.exception.values.forEach(function (v) { if (v && v.value) v.value = redact(v.value); });
+      if (ev.exception && ev.exception.values) ev.exception.values.forEach(function (v) {
+        if (v && v.value) v.value = redact(v.value);
+        // R32 CLI-02: each stack frame names the page it ran on - e.g. approve.html?token=<uuid> - so the
+        // frame file / path loses its query + fragment and link tokens like every other URL field
+        var fr = v && v.stacktrace && v.stacktrace.frames;
+        if (Array.isArray(fr)) fr.forEach(function (f) {
+          if (!f) return;
+          if (typeof f.filename === 'string') f.filename = stripUrl(f.filename);
+          if (typeof f.abs_path === 'string') f.abs_path = stripUrl(f.abs_path);
+          if (typeof f.module === 'string') f.module = redact(f.module);
+        });
+      });
       var crumbs = ev.breadcrumbs && (Array.isArray(ev.breadcrumbs) ? ev.breadcrumbs : ev.breadcrumbs.values);
       if (Array.isArray(crumbs)) crumbs.forEach(redactBreadcrumb);
     } catch (e) {}

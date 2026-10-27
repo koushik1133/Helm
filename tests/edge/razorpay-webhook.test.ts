@@ -155,3 +155,26 @@ Deno.test("webhook (r31): no payment id -> only a FRESH event is settled (a re-s
     assertEquals(supaLog().filter((e) => e.rpc === "razorpay_settle").length, 1, "a fresh event is settled as before");
   } finally { rF(); rEnv(); }
 });
+
+// R32 SRV-2: the same SIGNED body replayed with a fresh (unsigned) x-razorpay-event-id header must map to ONE
+// de-duplication key, so razorpay_record_event answers "replay" instead of recording it twice.
+Deno.test("R32 SRV-2: replayed signed body + new x-razorpay-event-id -> same event key (recorded once)", async () => {
+  const secret = "w";
+  const body = JSON.stringify({ event: "refund.processed", payload: { refund: { entity: { id: "rfnd_R1", payment_id: "pay_P1", amount: 3000, status: "processed" } } } });
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = [...new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body)))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  resetSupaMock();
+  const rEnv = setEnv({ SUPABASE_URL: "https://x.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "srk", RAZORPAY_WEBHOOK_SECRET: secret });
+  const rF = installFetch(() => { throw new Error("no fetch"); });
+  try {
+    const h = await loadHandler(FN);
+    for (const id of ["evt_ORIGINAL1", "evt_REPLAYED2"]) {
+      const res = await h(new Request("https://fn.local/", { method: "POST", headers: { "x-razorpay-signature": sig, "x-razorpay-event-id": id, "content-type": "application/json" }, body }));
+      await res.text();
+    }
+    const ids = supaLog().filter((e: any) => e.rpc === "razorpay_record_event").map((e: any) => e.args.p_event_id);
+    assertEquals(ids.length, 2);
+    assertEquals(new Set(ids).size, 1, "one key for both deliveries: " + JSON.stringify(ids));
+    assert(String(ids[0]).startsWith("body:"));
+  } finally { rF(); rEnv(); }
+});
