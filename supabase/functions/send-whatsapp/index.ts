@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
 
     // ---- credential / connection check (no message sent) ----
     if (body && body.ping === true) {
-      const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}?fields=verified_name,display_phone_number,quality_rating`, {
+      const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}?fields=verified_name,display_phone_number,quality_rating`, { redirect: "error",
         headers: authHeaders(),
       });
       await r.text();
@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
       return r;
     }
 
-    const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}/messages`, {
+    const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}/messages`, { redirect: "error",
       method: "POST",
       headers: authHeaders(),
       body: JSON.stringify({ messaging_product: "whatsapp", to, ...content }),

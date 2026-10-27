@@ -67,7 +67,7 @@ async function sendEmail(to: string, subject: string, html: string, from: string
   if (!to || !EMAIL.test(to)) return "failed";
   const _f = withFooter({ text: "", html }, txFooter("payment", { app: Deno.env.get("APP_URL"), address: postalAddress((k: string) => Deno.env.get(k)) }));
     try {
-    const r = await fetch("https://api.resend.com/emails", {
+    const r = await fetch("https://api.resend.com/emails", { redirect: "error",
       method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
       body: JSON.stringify({ from, to, subject, html: _f.html, ...(replyTo && EMAIL.test(replyTo) ? { reply_to: replyTo } : {}) }),
     });
@@ -149,7 +149,22 @@ Deno.serve(async (req) => {
     // a malformed id would make the RPC throw → 500 → endless Razorpay retries
     const quoteHint = noteQuote && UUID_RE.test(String(noteQuote)) ? String(noteQuote) : null;
     if (!linkId && !quoteHint) return new Response("no quote", { status: 200 });
-    const paidPaise = Number(linkEnt.amount_paid ?? payEnt.amount ?? NaN);
+    // r31: Helm makes payment links in INR only (create-payment-link). A paid event in any other currency is never
+    // settled automatically: the amount is left blank, so razorpay_settle files it under payment reconciliation
+    // (amount_mismatch) for the studio to check by hand - money is never dropped, never counted at the wrong value.
+    const payCur = String(payEnt.currency || linkEnt.currency || "INR").trim().toUpperCase();
+    const paidPaise = payCur === "INR" ? Number(linkEnt.amount_paid ?? payEnt.amount ?? NaN) : NaN;
+    if (payCur !== "INR") console.error("webhook: paid event not in INR - sent to reconciliation", oneLine(payCur).slice(0, 8));
+    // r31: razorpay_settle de-duplicates on the payment id. An event WITHOUT one can't be de-duplicated, so a
+    // re-sent copy would file another reconciliation row and e-mail the studio again: only a fresh one is used.
+    if (!payId) {
+      const maxAge = Math.max(60, Number(Deno.env.get("RAZORPAY_EVENT_MAX_AGE_SEC")) || 86400);
+      const created = Number(evt?.created_at), now = Math.floor(Date.now() / 1000);
+      if (!Number.isFinite(created) || created < now - maxAge || created > now + 300) {
+        console.error("webhook: paid event without a payment id and not fresh - ignored", type);
+        return new Response("stale event", { status: 200 });
+      }
+    }
 
     admin = db();
     const settleArgs = {

@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
 
     let answer: unknown = null;
     try {
-      const r = await fetch(SITEVERIFY_URL, {
+      const r = await fetch(SITEVERIFY_URL, { redirect: "error",
         method: "POST",
         body: verifyForm(secret, v.token, ip, crypto.randomUUID()),
         signal: AbortSignal.timeout(8000),

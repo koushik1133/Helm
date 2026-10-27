@@ -119,3 +119,39 @@ Deno.test("webhook: no quote reference at all -> 200, nothing written", async ()
     assertEquals(supaLog().filter((e) => e.rpc).length, 0);
   } finally { rF(); rEnv(); }
 });
+
+// r31 (2026 webhook review): currency cross-check + no replay of events that carry no payment id
+Deno.test("webhook (r31): a paid event in another currency is never settled at face value -> amount blank (reconcile)", async () => {
+  resetSupaMock(); db({ data: { result: "replay" }, error: null });
+  const rEnv = setEnv(ENV); const rF = installFetch(() => { throw new Error("no fetch"); });
+  try {
+    const h = await loadHandler(FN);
+    const usd = { event: "payment_link.paid", payload: {
+      payment_link: { entity: { id: "plink_U1", amount_paid: 23600000, currency: "USD", notes: { quote_id: QUOTE } } },
+      payment: { entity: { id: "pay_U1", amount: 23600000, currency: "USD" } } } };
+    assertEquals((await h(await signed(usd))).status, 200);
+    const call = supaLog().find((e) => e.rpc === "razorpay_settle");
+    assert(call, "still handed to razorpay_settle so the money lands in reconciliation");
+    assertEquals(call.args.p_paid_paise, null);
+    // INR (stated or omitted) keeps the amount
+    resetSupaMock(); db({ data: { result: "replay" }, error: null });
+    const inr = JSON.parse(JSON.stringify(PAID)); inr.payload.payment.entity.currency = "INR";
+    assertEquals((await h(await signed(inr))).status, 200);
+    assertEquals(supaLog().find((e) => e.rpc === "razorpay_settle").args.p_paid_paise, 23600000);
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("webhook (r31): no payment id -> only a FRESH event is settled (a re-sent old copy can't re-file / re-mail)", async () => {
+  resetSupaMock(); db({ data: { result: "replay" }, error: null });
+  const rEnv = setEnv(ENV); const rF = installFetch(() => { throw new Error("no fetch"); });
+  try {
+    const h = await loadHandler(FN);
+    const base = { event: "payment_link.paid", payload: { payment_link: { entity: { id: "plink_N1", amount_paid: 23600000, notes: { quote_id: QUOTE } } } } };
+    const now = Math.floor(Date.now() / 1000);
+    assertEquals((await h(await signed(base))).status, 200);                                   // no created_at
+    assertEquals((await h(await signed({ ...base, created_at: now - 3 * 86400 }))).status, 200); // 3 days old
+    assertEquals(supaLog().filter((e) => e.rpc === "razorpay_settle").length, 0, "old / undated copies never reach settle");
+    assertEquals((await h(await signed({ ...base, created_at: now - 60 }))).status, 200);
+    assertEquals(supaLog().filter((e) => e.rpc === "razorpay_settle").length, 1, "a fresh event is settled as before");
+  } finally { rF(); rEnv(); }
+});

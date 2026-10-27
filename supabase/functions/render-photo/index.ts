@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
         const timer = setTimeout(() => ac.abort(), timeout);
         let r: Response;
         try {
-          r = await fetch(OPENAI_EDITS, { method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("OPENAI_API_KEY")!.trim() }, body: fd, signal: ac.signal });
+          r = await fetch(OPENAI_EDITS, { method: "POST", redirect: "error", headers: { Authorization: "Bearer " + Deno.env.get("OPENAI_API_KEY")!.trim() }, body: fd, signal: ac.signal });
         } catch (e) {
           clearTimeout(timer);
           const to = (e as Error)?.name === "AbortError";
