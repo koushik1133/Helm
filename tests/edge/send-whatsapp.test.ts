@@ -433,11 +433,21 @@ const R32B_BYPASSES = [
   "_evil.com_", "_pay at evil.ru_", "x_evil.com", "evil​.com", "ev­il.com", "evil.com-",
   // the earlier R32 cases stay refused
   "https://user@evil.example/", "javascript://www.helm.events", "ftp://www.helm.events/x", "go evil.example/login", "see www.evil.example",
+  // the company-name exception is narrow: other words, paths, www, schemes, 3 labels, "@" stay links
+  "evil.ltd", "pay.ltd/x", "pvt.ltd/pay", "www.pvt.ltd", "https://co.ltd", "http://pvt.ltd", "pvt.evil.ltd", "x@pvt.ltd", "pvt.ltd\\@evil.com",
+  // final check N2: a known ending in the MIDDLE of a run, the one-dot leader, and real-looking company pairs
+  "pay at evil.com.x", "pay at evil.com.5", "evil.com.x/pay", "evil.ru.zz", "evil.com.Srinivas", "evil.com.-x", "evil.com\u2024x", "evil\u2024com",
+  "evil.com\u2024\u2024", "evil\ufe52com", "inc.co", "ltd.co", "co.co", "p.co", "co.ltd?x=1", "co.co#x", "co.co:8080", "pvt.ltd:443", "pvt.ltd#x",
+  "www.co.co", "co.co/pay", "https://pvt.ltd", "http:evil.com", "https:/evil.com", "HtTpS://evil.com", "https://[::1]/x", "evil.co.uk",
+  "a@evil.com", "mailto:a@evil.com", "helm.events.evil.com",
 ];
 const R32B_ALLOWED = [
   "https://www.helm.events/pay/abc", "www.helm.events/i/slug", "helm.events", "Pay: https://www.helm.events/q?t=1.", "app.helm.events/x",
   "(https://www.helm.events/p)", "Rs. 5,000.00 due", "v2.0 ready", "Hall No.5 at 6.30pm", "Call K.Srinivas", "Crew: K.Srinivas", "Dr.Rao",
   "Venue: Hotel.Grand", "Rs.5000", "10.30am", "No.5", "Advance Rs. 500 received, thanks", "Starts 5.30 pm", "Priya & Arjun",
+  // company names (R32b): Pvt.Ltd and friends are names, not links
+  "Pvt.Ltd", "Sharma Decor Pvt.Ltd.", "XYZ Co.Ltd", "Sharma Decor Pvt.Ltd,", "ABC P.Ltd", "ABC Inc.Ltd", "PVT.LTD", "Shree Co.Ltd",
+  "Mr.Ravi", "St.Marys", "S.R.Nagar", "Ver.2", "Pay https://www.helm.events./x",
 ];
 
 async function waModule(): Promise<any> {
