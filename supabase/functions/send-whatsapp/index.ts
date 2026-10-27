@@ -10,7 +10,8 @@
 //   WHATSAPP_API_VERSION      — optional, defaults to "v21.0"
 //   WHATSAPP_TEMPLATES        — comma-separated allowlist of approved template names
 //                               (default: the names in DEFAULT_TEMPLATES below)
-//   WHATSAPP_ALLOW_TEXT=1     — optional: also allow free-form text (24h session window)
+//   WHATSAPP_ALLOW_TEXT=1     — optional: also allow free-form text (24h session window);
+//                               links in it must point at the Helm site too (R32)
 //
 // Audit Phase 8 — no open relay on the shared platform number. Every send must:
 //   * come from a signed-in user (their JWT, not the anon key),
@@ -49,10 +50,11 @@
 //   { "quote_id": "<uuid>", "number": "<phone>", "template": "<name>",
 //     "lang": "en_US", "params": ["v1","v2", …], "kind": "<label>" }
 //   { "quote_id": "<uuid>", "number": "<phone>", "text": "<message>" }  (if allowed)
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, durableHit, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { TRIAL_NO_SEND_HINT, TRIAL_NO_SEND_MSG, trialSendBlocked } from "../_shared/trial-guard.ts";
+import { TLDS } from "./tlds.ts";
 
 const TOKEN = Deno.env.get("WHATSAPP_TOKEN") || "";
 const PHONE_ID = Deno.env.get("WHATSAPP_PHONE_ID") || "";
@@ -64,9 +66,16 @@ const LANG = /^[a-z]{2,3}(_[A-Z]{2})?$/;
 
 const DAY_MS = 86_400_000;
 const PARAM_MAX = 200;
-// Things that look like a link: scheme://..., www...., or a bare domain (common TLDs, or any
-// domain followed by a path). Each one must point at the Helm site, never another host.
-const LINK_TOKENS = /[a-z][a-z0-9+.-]*:\/\/[^\s]*|\bwww\.[^\s]*|\b(?:[a-z0-9-]+\.)+(?:com|net|org|io|in|ae|co|ly|me|app|xyz|link|site|online|info|biz|events)\b[^\s]*|\b(?:[a-z0-9-]+\.)+[a-z]{2,24}\/[^\s]*/gi;
+// R32b (R2-INJ-01/02, R2-SRV-01): ONE link rule, see offSiteLink below.
+const SCHEME_URL = /[a-z][a-z0-9+.-]*:\/\/\S*/gi;
+const DOMAIN_RUN = /[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
+const IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
+// R32b: business-name suffixes common in Indian studio names ("Pvt.Ltd", "Co.Ltd", "P.Ltd", "Inc.Ltd").
+// A bare run that is EXACTLY first.last - first one of these short words, last a company-type ending (never "co":
+// co.co / ltd.co are real-looking domains) - is a name, not a link: no scheme, no www, no /path, no "@" or "\",
+// and not followed by ? # : or / (a query, fragment, port or path makes it an address).
+const BIZ_FIRST = new Set(["pvt", "co", "p", "inc", "ltd"]);
+const BIZ_LAST = new Set(["ltd", "inc", "llc", "llp", "pvt"]);
 // Plain text only: Meta also refuses new lines / tabs / >4 spaces in template params.
 // deno-lint-ignore no-control-regex
 const BAD_CHARS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]| {5,}/;
@@ -74,27 +83,75 @@ function siteHost(): string {
   try { return new URL(Deno.env.get("APP_URL") || "https://www.helm.events").hostname.toLowerCase(); }
   catch (_) { return "www.helm.events"; }
 }
-function linkHost(tok: string): string {
-  let t = tok.toLowerCase();
-  const m = /^([a-z][a-z0-9+.-]*):\/\//.exec(t);
-  if (m) {
-    if (m[1] !== "https" && m[1] !== "http") return "";
-    t = t.slice(m[0].length);
-  }
-  t = t.replace(/^[^@\/]*@/, "");            // user@host tricks
-  return t.split(/[\/?#:\s]/)[0].replace(/\.+$/, "");
-}
 export function paramProblem(p: unknown, site = siteHost()): string {
   if (p != null && typeof p !== "string" && typeof p !== "number") return "template parameters must be text";
   const v = String(p ?? "");
   if (v.length > PARAM_MAX) return "a template parameter is too long";
   if (BAD_CHARS.test(v)) return "template parameters must be one line of plain text";
-  const base = site.replace(/^www\./, "");
-  for (const m of v.matchAll(LINK_TOKENS)) {
-    const h = linkHost(m[0]);
-    if (!h || (h !== base && !h.endsWith("." + base))) return "template values may only link to the Helm site";
+  return offSiteLink(v, site) ? "template values may only link to the Helm site" : "";
+}
+// R32 (Strix vuln-0004): the same "links only to the Helm site" rule for ANY text sent from the
+// shared platform number - template values above AND free text (WHATSAPP_ALLOW_TEXT=1).
+// R32b rewrite (R2-INJ-01, R2-INJ-02, R2-SRV-01):
+//   1. the text is normalised first: NFKC (full-width letters / dots), the unicode dots U+3002 / U+FF0E / U+FF61
+//      become ".", and invisible format characters (zero-width space, soft hyphen, ...) are removed;
+//   2. scheme URLs (anything://...): http / https only, host from new URL() (the host a browser would open);
+//   3. every other word.word run counts as a web address when it starts with www., has a /path, is an IPv4
+//      address, or its last label is a real IANA top-level domain (bundled list incl. IDN TLDs) - so names like
+//      "K.Srinivas", "Dr.Rao", "Hotel.Grand" and amounts like "Rs. 5,000.00" are plain text;
+//   4. a link token may not contain "@" or "\\" (userinfo / backslash host tricks);
+//   5. every link host must be the Helm site's domain (helm.events) or a subdomain of it.
+export function normaliseForLinks(v: string): string {
+  return String(v ?? "").normalize("NFKC").replace(/[\u3002\uff0e\uff61\u2024\ufe52]/g, ".").replace(/\p{Cf}/gu, "");
+}
+function hostOk(h: string, base: string): boolean {
+  h = h.toLowerCase().replace(/\.+$/, "");
+  return !!h && (h === base || h.endsWith("." + base));
+}
+function tokenAround(t: string, from: number, to: number): string {
+  let a = from, b = to;
+  while (a > 0 && !/\s/.test(t[a - 1])) a--;
+  while (b < t.length && !/\s/.test(t[b])) b++;
+  return t.slice(a, b);
+}
+export function offSiteLink(v: string, site = siteHost()): boolean {
+  const base = site.toLowerCase().replace(/^www\./, "");
+  let t = normaliseForLinks(v);
+  // (2) scheme URLs, judged whole and then blanked out so their pieces are not judged again
+  for (const m of t.matchAll(SCHEME_URL)) {
+    const tok = m[0];
+    if (/[@\\]/.test(tok)) return true;
+    const scheme = tok.slice(0, tok.indexOf(":")).toLowerCase();
+    if (scheme !== "https" && scheme !== "http") return true;
+    let host = "";
+    try { host = new URL(tok).hostname; } catch (_) { return true; }
+    if (!hostOk(host, base)) return true;
   }
-  return "";
+  t = t.replace(SCHEME_URL, (x) => " ".repeat(x.length));
+  // (3) bare runs
+  for (const m of t.matchAll(DOMAIN_RUN)) {
+    const run = m[0].replace(/^-+|-+$/g, "");
+    if (!run.includes(".")) continue;
+    const labels = run.toLowerCase().split(".");
+    const last = labels[labels.length - 1];
+    const after = t.slice(m.index! + m[0].length);
+    // R32b final check (N2): every PREFIX of the run that ends in a real TLD label is a host too ("evil.com.x",
+    // "evil.com.5", "evil.ru.zz" - a linkifier stops at the known ending); the whole run as before
+    const hosts: string[] = [];
+    for (let k = 2; k <= labels.length; k++) if (TLDS.has(labels[k - 1])) hosts.push(labels.slice(0, k).join("."));
+    const domainLike = labels[0] === "www"
+      || IPV4.test(run)
+      || hosts.length > 0
+      || (/\p{L}/u.test(last) && /^\/[\p{L}\p{N}_~%.-]/u.test(after));
+    if (!domainLike) continue;
+    const tok = tokenAround(t, m.index!, m.index! + m[0].length);
+    if (labels.length === 2 && BIZ_FIRST.has(labels[0]) && BIZ_LAST.has(last) && m[0] === run
+        && !/^[?#:\/]/.test(after) && !/[@\\]/.test(tok)) continue;   // a company name ("Pvt.Ltd")
+    if (/[@\\]/.test(tok)) return true;   // (4)
+    if (!hostOk(run, base)) return true;                                                  // (5)
+    for (const h of hosts) if (!hostOk(h, base)) return true;
+  }
+  return false;
 }
 function envInt(k: string, dflt: number): number {
   const n = Number(Deno.env.get(k) || "");
@@ -150,7 +207,7 @@ Deno.serve(async (req) => {
 
     // ---- credential / connection check (no message sent) ----
     if (body && body.ping === true) {
-      const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}?fields=verified_name,display_phone_number,quality_rating`, {
+      const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}?fields=verified_name,display_phone_number,quality_rating`, { redirect: "error",
         headers: authHeaders(),
       });
       await r.text();
@@ -185,6 +242,7 @@ Deno.serve(async (req) => {
       if (Deno.env.get("WHATSAPP_ALLOW_TEXT") !== "1") return json({ error: "use an approved template" }, 400);
       const text = String(body.text || "").trim().slice(0, 1000);
       if (!text) return json({ error: "text or template is required" }, 400);
+      if (offSiteLink(text)) return json({ error: "messages may only link to the Helm site" }, 400);
       content = { type: "text", text: { preview_url: false, body: text } };
     }
 
@@ -242,7 +300,7 @@ Deno.serve(async (req) => {
       return r;
     }
 
-    const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}/messages`, {
+    const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}/messages`, { redirect: "error",
       method: "POST",
       headers: authHeaders(),
       body: JSON.stringify({ messaging_product: "whatsapp", to, ...content }),

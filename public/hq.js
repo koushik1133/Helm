@@ -72,7 +72,7 @@
   function date(v) {
     if (!v) return "—"; var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v).trim());
     var d = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)) : new Date(v);
-    return isNaN(d) ? "—" : d.toLocaleDateString("en-IN", m ? { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" } : { day: "numeric", month: "short", year: "numeric" });
+    return isNaN(d) ? "—" : d.toLocaleDateString("en-IN", m ? { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" } : { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" });   // r37: HQ = India time
   }
   // L9 (live QA): a studio's trial end is the STUDIO's calendar day of the exact end moment (hq_trial_info 0223 sends
   // the studio's timezone; trial studios are India by default) - the same day the studio sees, never the UTC day or
@@ -92,6 +92,7 @@
     if (!isFinite(d)) return "—"; if (d < 1) return "today"; if (d < 2) return "yesterday"; return Math.floor(d) + " days ago";
   }
   function iso(d) { return d.toISOString().slice(0, 10); }
+  function istDay(ms) { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms)); }
   function notFound() {
     document.title = "Page not found — Helm";
     $("#vLoading").hidden = true; $("#vApp").hidden = true; $("#vNotFound").hidden = false;
@@ -219,7 +220,7 @@
   }
   /* ---- r28 round 2: my HQ session (hq_my_session, 0280): short id, started, ends at; a database without 0280 shows the rules ---- */
   var MYS = null;
-  function hhmm(v) { var d = new Date(v); return isNaN(d) ? "—" : d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }); }
+  function hhmm(v) { var d = new Date(v); return isNaN(d) ? "—" : d.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" }); }   // r37: HQ = India time
   // pure: when an HQ session ends - the earlier of started + max hours and last use + idle minutes (exported for tests)
   function sessionEnds(started, lastUse, idleMin, maxHours) {
     var a = Date.parse(started || ""), b = Date.parse(lastUse || "");
@@ -853,6 +854,11 @@
     wrap.appendChild(el("div", { cls: "card", id: "studioLoginsSoon" }, [el("h2", null, [document.createTextNode("Add or deactivate a studio login "), el("span", { cls: "pill", text: "Coming soon" })]),
       el("p", { cls: "muted", text: "Studio admins add and deactivate their own people in Settings → Team. Doing it from Helm HQ is coming soon: it will be for HQ Owners and Admins only, with two-step, a written reason and a log entry, and it deactivates (never deletes). Until then, ask a studio admin - or reset two-step above for a lost phone." })]));
 
+    // r33 (0283): the studio owner, its history, and "Recover studio owner" (owner gone: HQ Owner role, two-step, reason)
+    var ownBox = el("div"); wrap.appendChild(ownBox);
+    loadOwner(org, ownBox, d.name).catch(function () { clear(ownBox).appendChild(el("div", { cls: "card" }, [el("h2", { text: "Studio owner" }),
+      el("div", { cls: "muted", text: "The studio owner appears after SQL 0283 is applied." })])); });
+
     // ---- Name & link: r23 (0257) studio name + link are fixed for the studio; only Helm HQ changes them (two-step,
     // reason, audited, studio admins told by bell + e-mail, the old link keeps working)
     wrap = panes.ident;
@@ -895,10 +901,47 @@
     });
     box.appendChild(el("div", { cls: "form" }, [field("Kind", kind), field("Months", months), el("label", { cls: "fld wide" }, [el("span", { text: "Reason (required)" }), why]), go]));
   }
+  /* ---------------- r33 (0283) studio owner + "Recover studio owner" (Helm HQ only, never self-serve) ---------------- */
+  var OWNER_SOURCE = { backfill_creator: "Recorded: studio creator", backfill_admin: "Recorded: earliest admin (creator missing)", backfill_none: "No admin found",
+    auto: "First admin of the studio", transfer: "Handed over by the previous owner", hq_recovery: "Recovered by Helm HQ" };
+  async function loadOwner(org, box, studio) {
+    var r = await call("hq_studio_owner_info", { p_org: org }); r = r && !Array.isArray(r) ? r : {};
+    clear(box);
+    var card = el("div", { cls: "card" }, [el("h2", { text: "Studio owner" })]); box.appendChild(card);
+    var o = r.owner || null;
+    card.appendChild(kvList([["Owner", o ? (o.name || "-") + " (" + (o.email || "-") + ")" : "Nobody recorded"],
+      ["Status", r.owner_missing ? "Needs attention: the owner is not an active admin" : "Active admin"]]));
+    var ul = el("ul", { cls: "list" });
+    (r.history || []).forEach(function (h) {
+      ul.appendChild(el("li", null, [el("span", { cls: "m", text: (OWNER_SOURCE[h.source] || h.source || "") + (h.hq_flag ? " - check this" : "") }),
+        el("span", { cls: "muted", text: ist(h.at) + (h.owner_email ? " · " + h.owner_email : "") + (h.by_email ? " · by " + h.by_email : "") + (h.reason ? " · " + h.reason : "") })]));
+    });
+    if (ul.firstChild) card.appendChild(ul);
+    var admins = (r.admins || []).filter(function (a) { return a && a.active && (!o || a.user_id !== o.user_id); });
+    if (!can("owner.only")) { card.appendChild(el("p", { cls: "muted", text: "Only the Helm HQ owner can recover a studio's owner." })); return; }
+    var det = el("details", { cls: "more" }, [el("summary", { text: "Recover studio owner (the owner has left or lost access)" })]);
+    det.appendChild(el("p", { cls: "hint", text: "Only when the studio's owner can't act any more (left, died or lost access) and you have checked who is asking: a call back on the registered number, proof of the business. Never on a call or e-mail alone. Every admin of the studio is told by e-mail and in the bell." }));
+    if (!admins.length) { det.appendChild(el("p", { cls: "muted", text: "This studio has no other active admin. The studio must make someone an admin first." })); card.appendChild(det); return; }
+    var sel = el("select", { "aria-label": "New owner" });
+    admins.forEach(function (a) { sel.appendChild(el("option", { value: a.email, text: (a.name || a.email) + " (" + a.email + ")" + (a.two_step ? "" : " - no two-step") })); });
+    var why = el("textarea", { maxlength: "1000", rows: "3", "aria-label": "Reason", placeholder: "Why, and how you checked who is asking (20+ characters)" });
+    var go = el("button", { cls: "btn danger", type: "button", text: "Make this admin the owner" });
+    go.addEventListener("click", function () {
+      var reason = String(why.value || "").trim();
+      if (reason.length < 20) { showErr({ message: "Write at least 20 characters: why, and how you checked who is asking." }); why.focus(); return; }
+      if (!window.confirm("Make " + sel.value + " the owner of " + (studio || "this studio") + "? Every admin of the studio is told.")) return;
+      go.disabled = true;
+      call("hq_studio_owner_recover", { p_org: org, p_email: sel.value, p_reason: reason })
+        .then(function () { okMsg("Studio owner changed. The studio's admins were told."); return loadOwner(org, box, studio); })
+        .catch(showErr).then(function () { go.disabled = false; });
+    });
+    det.appendChild(el("div", { cls: "form" }, [field("New owner (an active admin)", sel), field("Reason", why), go]));
+    card.appendChild(det);
+  }
   var ACTION_WORDS = { "hq.studio.suspend": "Suspended", "hq.studio.reactivate": "Reactivated", "hq.studio.identity": "Name / link changed",
     "hq.subscription.set": "Subscription changed", "hq.subscription.activate": "Plan activated", "hq.payment.record": "Payment recorded",
     "hq.payment.void": "Payment voided", "hq.trial.extend": "Trial extended", "hq.studio_account.set": "Business details saved", "hq.mfa.reset": "Two-step reset",
-    "hq.reveal": "A masked detail was shown", "hq.credit.grant": "Credit added" };
+    "hq.reveal": "A masked detail was shown", "hq.credit.grant": "Credit added", "hq.studio.owner_recover": "Studio owner recovered" };
   async function loadUsage(org, box, d, useBox) {
     var u = await call("hq_studio_usage", { p_org: org }); u = u && !Array.isArray(u) ? u : {};
     if (useBox) {
@@ -1005,7 +1048,7 @@
     var amt = el("input", { type: "number", min: "1", step: "0.01", "aria-label": "Amount paid incl. tax" });
     var meth = el("select", { "aria-label": "Paid by" });
     [["upi", "UPI"], ["bank", "Bank transfer"], ["card", "Card"], ["cash", "Cash"], ["other", "Other"]].forEach(function (o) { meth.appendChild(el("option", { value: o[0], text: o[1] })); });
-    var today = iso(new Date());
+    var today = istDay(Date.now());
     var start = el("input", { type: "date", "aria-label": "Period start" }); start.value = today;
     var paid = el("input", { type: "date", "aria-label": "Paid on" }); paid.value = today;
     var ref = el("input", { type: "text", maxlength: "120", placeholder: "UTR / reference", "aria-label": "Payment reference" });
@@ -1149,7 +1192,7 @@
   var SE_PLAN = { starter: "Starter", studio: "Studio", enterprise: "Enterprise", not_sure: "Not sure yet" };
   var SE_TEAM = { "1": "Just me", "2-5": "2–5 people", "6-15": "6–15 people", "16-50": "16–50 people", "51+": "51+ people" };
   var SG_KIND = { idea: "Idea", problem: "Problem", other: "Other" };
-  function ist(v) { return v ? new Date(v).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }) + " IST" : "—"; }
+  function ist(v) { return v ? new Date(v).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—"; }   // r37: India time, no zone label (owner)
   // status buttons + "Note" for one row; fn = the HQ RPC, map = the statuses
   function rowActions(x, map, fn, reload) {
     var out = [];
@@ -1372,7 +1415,7 @@
       var b = el("button", { cls: "btn sm", type: "button", text: "Mark realised" });
       b.addEventListener("click", function () {
         var ref = ask("FIRA / FIRC reference for " + (p.invoice_no || "") + ":"); if (!ref) return;
-        var on = ask("Realised on (YYYY-MM-DD):", iso(new Date())); if (!on) return;
+        var on = ask("Realised on (YYYY-MM-DD):", istDay(Date.now())); if (!on) return;
         call("hq_record_realisation", { p_id: p.id, p_fira_firc_ref: ref, p_realised_on: on }).then(function () { okMsg("Realisation recorded."); loadBilling().catch(showErr); }).catch(showErr);
       });
       ul.appendChild(el("li", null, [el("span", { text: (p.studio || "—") + " · " + (p.invoice_no || "") + " · " + money(p.amount, p.currency) }), el("span", { cls: "muted", text: (p.tax_regime || "") + " · " + date(p.paid_on) }), b]));
@@ -1381,7 +1424,9 @@
   }
   function csvCell(v) {
     var s = v == null ? "" : String(v);
-    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;           // spreadsheet formula injection guard
+    // spreadsheet formula injection guard (R32: same rule as reports.html toCSV - leading spaces and the
+    // full-width ＝＋－＠ forms count too; real numbers such as -500 stay numbers)
+    if (typeof v !== "number" && /^[\s\u00a0\u3000]*[=+\-@\t\r\uff1d\uff0b\uff0d\uff20]/.test(s)) s = "'" + s;
     return '"' + s.replace(/"/g, '""') + '"';
   }
   function exportCsv() {
@@ -1401,7 +1446,7 @@
     var amt = Number($("#rAmount").value);
     if (!(amt > 0)) { showErr(new Error("Amount must be more than 0")); return; }
     var b = $("#btnRecord"); b.disabled = true;
-    call("hq_record_payment", { p_org: org, p_amount: amt, p_paid_on: $("#rPaidOn").value || iso(new Date()), p_method: $("#rMethod").value,
+    call("hq_record_payment", { p_org: org, p_amount: amt, p_paid_on: $("#rPaidOn").value || istDay(Date.now()), p_method: $("#rMethod").value,
       p_currency: ($("#rCur").value || "INR").toUpperCase(), p_fx_rate_to_inr: $("#rFx").value ? Number($("#rFx").value) : null, p_period_start: $("#rPs").value || null, p_period_end: $("#rPe").value || null, p_reference: $("#rRef").value || null })
       .then(function (p) { okMsg("Payment recorded" + (p && p.invoice_no ? " — invoice " + p.invoice_no : "") + "."); $("#rAmount").value = ""; $("#rRef").value = ""; refreshAfterWrite(org); })
       .catch(showErr).then(function () { b.disabled = false; });
@@ -1583,13 +1628,13 @@
     var tb = clear($("#tSec"));
     (r.by_studio || []).forEach(function (x) {
       tb.appendChild(el("tr", null, [el("td", { text: "🛡️ " + (x.label || x.type || "") }), el("td", { text: x.studio || "—" }),
-        el("td", { cls: "n", text: int(x.count) }), el("td", { text: x.latest ? new Date(x.latest).toLocaleString("en-IN") : "—" })]));
+        el("td", { cls: "n", text: int(x.count) }), el("td", { text: x.latest ? new Date(x.latest).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" })]));
     });
     if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "4", cls: "empty", text: "No security events in this range." })]));
     var tl = clear($("#tSecLatest"));
     (r.latest || []).slice(0, 100).forEach(function (x) {
       var who = [x.actor_name ? "by " + x.actor_name : "", x.subject_name || ""].filter(Boolean).join(" · ");
-      tl.appendChild(el("tr", null, [el("td", { text: x.at ? new Date(x.at).toLocaleString("en-IN") : "—" }), el("td", { text: x.label || x.type || "" }),
+      tl.appendChild(el("tr", null, [el("td", { text: x.at ? new Date(x.at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" }), el("td", { text: x.label || x.type || "" }),
         el("td", { text: x.studio || "—" }), el("td", { text: who || "—" })]));
     });
     if (!tl.firstChild) tl.appendChild(el("tr", null, [el("td", { colspan: "4", cls: "empty", text: "Nothing yet." })]));
@@ -1876,8 +1921,9 @@
     if (ME && ME.needs_2step && !ME.has_2step) { enrollGate(); return; }
     if (ME && ME.needs_2step) { blocked("Set up two-step first", "Helm HQ needs two-step verification for everyone, on every visit. Sign in again and set it up - it takes a minute.", "Set up two-step", "login.html"); return; }
     applyPerms();
-    var today = new Date(), month = new Date(today.getFullYear(), today.getMonth(), 1), past = new Date(Date.now() - 30 * 864e5);
-    $("#bFrom").value = iso(month); $("#bTo").value = iso(today); $("#aFrom").value = iso(past); $("#aTo").value = iso(today); $("#rPaidOn").value = iso(today);
+    // r37: Helm HQ runs on India time - default ranges and the paid-on date are IST days (same as the server's hq_today)
+    var tIst = istDay(Date.now()), mIst = tIst.slice(0, 8) + "01", pIst = istDay(Date.now() - 30 * 864e5);
+    $("#bFrom").value = mIst; $("#bTo").value = tIst; $("#aFrom").value = pIst; $("#aTo").value = tIst; $("#rPaidOn").value = tIst;
     try { await loadAll(); }
     catch (e) { notFound(); return; }   // any failure on first load looks like a missing page — never reveal HQ exists
     document.title = "Helm HQ";

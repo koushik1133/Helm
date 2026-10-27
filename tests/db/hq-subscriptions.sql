@@ -1,6 +1,9 @@
 -- hq-subscriptions.sql — 0045 Helm HQ subscriptions + read-only suspend + no studio data in HQ.
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
+-- r37 / 0287: the server's "today" is the STUDIO's day (India for these fixtures) and HQ's is India time, so the
+-- fixtures' current_date must be that same day (otherwise this suite fails between 18:30 and 24:00 UTC)
+set timezone = 'Asia/Kolkata';
 drop table if exists _hs; create temp table _hs(name text, result text); grant all on _hs to anon, authenticated, service_role;
 drop table if exists _hv; create temp table _hv(k text primary key, v text); grant all on _hv to anon, authenticated, service_role;
 
@@ -328,8 +331,10 @@ do $$ declare missing text; begin perform pg_temp.su();
                            'helm_sample_template', 'trial_sample_runs',  -- 0166: HQ sample-master config + system seeding log; no client grants
                            'notification_inbox_state', 'inbox_person_prefs',  -- 0266: a person's own inbox marks / e-mail choice (reading + clearing notifications must work for a read-only studio)
                            'sales_requests', 'helm_notice_outbox',  -- 0244: definer-only plan requests + notice queue (asking must work for a read-only studio)
+                           'trial_grants', 'trial_extensions',  -- 0186: one-trial ledger + HQ extension record; definer-only, no client grants (an ended trial must still be extendable)
+                           'team_member_status', 'team_owner_log', 'team_admin_changes', 'team_owner_transfers', 'team_safety_events',  -- 0283: team-safety records, definer-only, no client grants (deactivating a leaver / an owner hand-over must work for a read-only studio)
                            'hq_studio_credits',  -- 0280: HQ-only credit records; definer-only, no client grants (HQ must record a credit for a suspended studio too)
-                           'trial_grants', 'trial_extensions')  -- 0186: one-trial ledger + HQ extension record; definer-only, no client grants (an ended trial must still be extendable)
+                           'pay_detail_changes', 'studio_security_events', 'studio_account_flags')  -- 0285: payment-details safety log + flags; definer-only, no client grants ("This wasn't us" must work for a read-only studio; a change itself touches the guarded payment_schedule_settings)
      and not exists (select 1 from pg_trigger t where t.tgrelid = c.oid and t.tgname = 'zzz_studio_read_only');
   perform pg_temp.res('54 every studio table has the read-only guard', missing is null, missing);
 end $$;

@@ -108,7 +108,7 @@
   }
 
   var SCRIPT_PREFIXES = [
-    'https://browser.sentry-cdn.com/8.35.0/',
+    'https://browser.sentry-cdn.com/8.55.2/',
     'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/',
     'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/',
     'https://challenges.cloudflare.com/turnstile/',

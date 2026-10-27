@@ -47,7 +47,7 @@
     if (B && typeof B.fmtStudioDate === "function") {
       try { const o = B.fmtStudioDate(d, { fmt: { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" } }); if (o) return o; } catch (e) {}
     }
-    try { return d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
+    try { return d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: (function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })() }); }   // r37
     catch (e) { return d.toISOString(); }
   }
   // r20: "YYYY-MM-DD" -> the studio's day format (dd/mm/yyyy for IN)

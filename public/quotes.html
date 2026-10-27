@@ -6,7 +6,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quotes &amp; Confirmations — Helm Events</title>
-<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
+<link rel="preload" href="/vendor/supabase-js-2.118.0.min.js" as="script" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -130,7 +130,7 @@
 <link rel="stylesheet" href="quotes-polish.css?v=9"><link rel="stylesheet" href="quote-validity.css?v=1"><link rel="stylesheet" href="event-group-picker.css?v=2">
 <link rel="stylesheet" href="link-views.css?v=1">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=43" id="shellProto"></script>
+<script src="/shell-proto.js?v=46" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -276,13 +276,13 @@
   <button class="btn" id="egBarNo" type="button">Not now</button>
 </div>
 
-<script src="/trusted-types.js?v=4"></script>
-<script src="telemetry.js?v=6"></script>
-<script src="config.js?v=110"></script>
+<script src="/trusted-types.js?v=5"></script>
+<script src="telemetry.js?v=9"></script>
+<script src="config.js?v=111"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=282"></script><script src="flow-resume.js?v=5" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=2"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=3"></script>
-<script src="event-sizing.js?v=5"></script><script src="quote-smart-filter.js?v=1"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script><script src="link-views.js?v=2"></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=6"></script><script src="store-api.js?v=296"></script><script src="flow-resume.js?v=6" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=2"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=3"></script>
+<script src="event-sizing.js?v=5"></script><script src="quote-smart-filter.js?v=2"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script><script src="link-views.js?v=3"></script>
 <script src="tour.js?v=24"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -316,7 +316,7 @@
   // pages, and the Deleted tab lists only the flagged-deleted. Without 0040 (or offline)
   // shelf.ready stays false and the page works exactly as before.
   const shelf={ready:false, rows:[], byId:{}, archived:0, deleted:0};
-  const shelfFmt=(iso)=>{ try{ const d=new Date(iso); return isNaN(d)?"":d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}); }catch(e){ return ""; } };
+  const shelfFmt=(iso)=>{ try{ const d=new Date(iso); return isNaN(d)?"":d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:(function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })()}); }catch(e){ return ""; } };   // r37: studio zone
   // the quote NAME (custom, or the TYPE_CITY_GUESTS_DATE auto name); the code is only the Ref
   function qName(x){ const H=window.HelmEventName; return H&&H.displayName?H.displayName(x):(x.title||x.code||""); }
   function shelfItem(r){ return { id:r.id, code:r.code, title:r.title, eventType:r.event_type, status:r.status,
@@ -619,7 +619,7 @@
     // Needs attention = the event date has passed but the event isn't wrapped up
     // (not closed / cancelled) — e.g. it happened but equipment isn't returned or
     // it was never settled & closed. Draft quotes with no date are never flagged.
-    const _n=new Date(), todayISO=_n.getFullYear()+"-"+String(_n.getMonth()+1).padStart(2,"0")+"-"+String(_n.getDate()).padStart(2,"0");   // local date, compared as a string like the server view
+    const todayISO=(function(){ try{ const t=BPStore.todayLocal(); if(/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; }catch(e){} const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); })();   // r37: the STUDIO's day (not the viewer's), compared as a string like the server view
     const sh=x=>shelf.byId[x.id];   // flagged Archive / Deleted (0040)
     const needsAttention=x=>{
       if(sh(x) || isArchived(x) || x.status==="cancelled" || !x.eventDate) return false;
@@ -1347,6 +1347,6 @@
   window.addEventListener("pageshow",(e)=>{ if(e&&e.persisted&&pager) reloadQuiet(); });
 </script>
 <script src="saved-filters.js?v=6"></script>
-<script src="capacity-shortage.js?v=8"></script>
+<script src="capacity-shortage.js?v=9"></script>
 </body>
 </html>

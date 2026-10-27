@@ -69,7 +69,7 @@ t('run-all registers the DB suite; MANIFEST + release lists carry 0278 / 0280', 
   assert.match(rd('scripts/db-test/run-all.sh'), /run "r42-hq-v2-0278-0280" "R42-HQ-V2: ALL PASS \\\(\d+\/\d+\\\)" psql -q -f tests\/db\/r42-hq-v2-0278-0280\.sql/);
   const man = rd('supabase/migrations/MANIFEST');
   assert.ok(man.indexOf('0277_hq_staff_roles.sql') < man.indexOf('0278_hq_reveal_log.sql') && man.indexOf('0278_hq_reveal_log.sql') < man.indexOf('0280_hq_v2_round2.sql'));
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0277', '0278', '0280'/);
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0277'(, '\d{4}')*, '0278'(, '\d{4}')*, '0280'/);   // other releases may sit between (merge order)
 });
 t('Needs attention: small line icons (SVG, no emoji / text glyphs), fixed 32px box', () => {
   const i = J.indexOf('function renderAttention('); const body = J.slice(i, J.indexOf('var QUEUE_OK_MIN', i));

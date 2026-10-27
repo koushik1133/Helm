@@ -68,6 +68,28 @@ verify_jwt = false
 [functions.csp-report]   # browser CSP reports (no auth possible); r21 monitoring, nothing stored
 verify_jwt = false
 
+# ---- r30 security (2026-10): auth hardening - LOCAL PARITY ONLY -------------------------------------------------------
+# Same values the owner sets in the hosted dashboards (docs/AUTH-DASHBOARD-SETTINGS.md, SECURITY-AUDIT-2026-10.md):
+# 1-hour access tokens, refresh-token rotation, 12+ char passwords with lower/upper/digit/symbol, sign-in/OTP rate
+# limits, confirmed sign-ups, both-address email change, recent sign-in needed to change a password.
+[auth]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+minimum_password_length = 12
+password_requirements = "lower_upper_letters_digits_symbols"
+
+[auth.rate_limit]
+email_sent = 30
+sign_in_sign_ups = 30
+token_verifications = 30
+token_refresh = 150
+
+[auth.email]
+enable_confirmations = true
+double_confirm_changes = true
+secure_password_change = true
+
 # ---- r22: two-step verification (TOTP) - LOCAL PARITY ONLY -----------------------------------------------------------
 # The hosted projects (staging + production) take this from the dashboard, NOT from this file:
 #   Authentication -> Multi-Factor (Sign In / Providers -> Multi-Factor) -> TOTP (App Authenticator): Enabled.

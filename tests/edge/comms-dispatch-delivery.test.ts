@@ -19,7 +19,7 @@ const RESEND = { RESEND_API_KEY: "re_test", RESEND_FROM: "Helm <hello@helm.event
 type Sent = { from: string; rcpt: string; data: string };
 function installFakeSmtp(): { sent: Sent[]; connects: { hostname: string; port: number }[]; restore: () => void } {
   const sent: Sent[] = [], connects: { hostname: string; port: number }[] = [];
-  const orig = (Deno as any).connect, origTls = (Deno as any).connectTls;
+  const orig = (Deno as any).connect, origTls = (Deno as any).connectTls, origStart = (Deno as any).startTls;
   const enc = new TextEncoder(), dec = new TextDecoder();
   const fake = (o: { hostname: string; port: number }) => {
     connects.push({ hostname: o.hostname, port: o.port });
@@ -33,7 +33,8 @@ function installFakeSmtp(): { sent: Sent[]; connects: { hostname: string; port: 
         }
         const i = inbuf.indexOf("\r\n"); if (i < 0) return;
         const line = inbuf.slice(0, i); inbuf = inbuf.slice(i + 2);
-        if (line.startsWith("EHLO")) out += "250-fake\r\n250 AUTH PLAIN\r\n";
+        if (line.startsWith("EHLO")) out += "250-fake\r\n250-STARTTLS\r\n250 AUTH PLAIN\r\n";   // R32 SRV-1: port 587 upgrades first
+        else if (line === "STARTTLS") out += "220 go ahead\r\n";
         else if (line.startsWith("AUTH")) out += "235 ok\r\n";
         else if (line.startsWith("MAIL FROM:")) { cur.from = line.slice(10); out += "250 ok\r\n"; }
         else if (line.startsWith("RCPT TO:")) { cur.rcpt = line.slice(8); out += "250 ok\r\n"; }
@@ -49,7 +50,8 @@ function installFakeSmtp(): { sent: Sent[]; connects: { hostname: string; port: 
   };
   (Deno as any).connect = (o: any) => Promise.resolve(fake(o));
   (Deno as any).connectTls = (o: any) => Promise.resolve(fake(o));
-  return { sent, connects, restore: () => { (Deno as any).connect = orig; (Deno as any).connectTls = origTls; } };
+  (Deno as any).startTls = (conn: any) => Promise.resolve(conn);   // the in-memory fake is already "secure"
+  return { sent, connects, restore: () => { (Deno as any).connect = orig; (Deno as any).connectTls = origTls; (Deno as any).startTls = origStart; } };
 }
 // decode the base64 text/plain part (+ the raw headers) of a fake-server message
 function partsOf(raw: string): { headers: string; text: string; html: string } {

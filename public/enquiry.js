@@ -31,7 +31,9 @@
     var map = { name: "eq-name", phone: "eq-phone", email: "eq-email", event_date: "eq-date", guests: "eq-guests", consent: "eq-consent" };
     if (field && map[field]) { $(map[field]).setAttribute("aria-invalid", "true"); try { $(map[field]).focus(); } catch (x) {} }
   }
-  function today() { var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; }; return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
+  // r37: the studio's day (India time - the public page only knows the studio's name), not the guest's browser day
+  function today() { try { var H = window.HelmCountry; if (H && H.todayIn) return H.todayIn(H.FALLBACK_TZ || "Asia/Kolkata"); } catch (e) {}
+    var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; }; return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
 
   function start() {
     if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) return closed("Enquiry form not found", "Please check the link the studio gave you.");

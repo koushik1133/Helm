@@ -12,5 +12,7 @@ public/vendor/README.md
 **/.DS_Store
 # How-to for the landing page event gallery (public/landing/events/).
 public/landing/events/README.md
+# r29: the localhost-only referral click-through demo (made-up data; loaded by refer.html / hq-referrals.html / login.html, active only on localhost + ?demo=1).
+public/referral-demo.js
 # r28: the localhost-only HQ click-through demo (made-up data; hq.js loads it only on localhost + ?demo=1).
 public/hq-demo.js

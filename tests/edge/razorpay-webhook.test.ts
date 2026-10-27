@@ -119,3 +119,62 @@ Deno.test("webhook: no quote reference at all -> 200, nothing written", async ()
     assertEquals(supaLog().filter((e) => e.rpc).length, 0);
   } finally { rF(); rEnv(); }
 });
+
+// r31 (2026 webhook review): currency cross-check + no replay of events that carry no payment id
+Deno.test("webhook (r31): a paid event in another currency is never settled at face value -> amount blank (reconcile)", async () => {
+  resetSupaMock(); db({ data: { result: "replay" }, error: null });
+  const rEnv = setEnv(ENV); const rF = installFetch(() => { throw new Error("no fetch"); });
+  try {
+    const h = await loadHandler(FN);
+    const usd = { event: "payment_link.paid", payload: {
+      payment_link: { entity: { id: "plink_U1", amount_paid: 23600000, currency: "USD", notes: { quote_id: QUOTE } } },
+      payment: { entity: { id: "pay_U1", amount: 23600000, currency: "USD" } } } };
+    assertEquals((await h(await signed(usd))).status, 200);
+    const call = supaLog().find((e) => e.rpc === "razorpay_settle");
+    assert(call, "still handed to razorpay_settle so the money lands in reconciliation");
+    assertEquals(call.args.p_paid_paise, null);
+    // INR (stated or omitted) keeps the amount
+    resetSupaMock(); db({ data: { result: "replay" }, error: null });
+    const inr = JSON.parse(JSON.stringify(PAID)); inr.payload.payment.entity.currency = "INR";
+    assertEquals((await h(await signed(inr))).status, 200);
+    assertEquals(supaLog().find((e) => e.rpc === "razorpay_settle").args.p_paid_paise, 23600000);
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("webhook (r31): no payment id -> only a FRESH event is settled (a re-sent old copy can't re-file / re-mail)", async () => {
+  resetSupaMock(); db({ data: { result: "replay" }, error: null });
+  const rEnv = setEnv(ENV); const rF = installFetch(() => { throw new Error("no fetch"); });
+  try {
+    const h = await loadHandler(FN);
+    const base = { event: "payment_link.paid", payload: { payment_link: { entity: { id: "plink_N1", amount_paid: 23600000, notes: { quote_id: QUOTE } } } } };
+    const now = Math.floor(Date.now() / 1000);
+    assertEquals((await h(await signed(base))).status, 200);                                   // no created_at
+    assertEquals((await h(await signed({ ...base, created_at: now - 3 * 86400 }))).status, 200); // 3 days old
+    assertEquals(supaLog().filter((e) => e.rpc === "razorpay_settle").length, 0, "old / undated copies never reach settle");
+    assertEquals((await h(await signed({ ...base, created_at: now - 60 }))).status, 200);
+    assertEquals(supaLog().filter((e) => e.rpc === "razorpay_settle").length, 1, "a fresh event is settled as before");
+  } finally { rF(); rEnv(); }
+});
+
+// R32 SRV-2: the same SIGNED body replayed with a fresh (unsigned) x-razorpay-event-id header must map to ONE
+// de-duplication key, so razorpay_record_event answers "replay" instead of recording it twice.
+Deno.test("R32 SRV-2: replayed signed body + new x-razorpay-event-id -> same event key (recorded once)", async () => {
+  const secret = "w";
+  const body = JSON.stringify({ event: "refund.processed", payload: { refund: { entity: { id: "rfnd_R1", payment_id: "pay_P1", amount: 3000, status: "processed" } } } });
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = [...new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body)))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  resetSupaMock();
+  const rEnv = setEnv({ SUPABASE_URL: "https://x.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "srk", RAZORPAY_WEBHOOK_SECRET: secret });
+  const rF = installFetch(() => { throw new Error("no fetch"); });
+  try {
+    const h = await loadHandler(FN);
+    for (const id of ["evt_ORIGINAL1", "evt_REPLAYED2"]) {
+      const res = await h(new Request("https://fn.local/", { method: "POST", headers: { "x-razorpay-signature": sig, "x-razorpay-event-id": id, "content-type": "application/json" }, body }));
+      await res.text();
+    }
+    const ids = supaLog().filter((e: any) => e.rpc === "razorpay_record_event").map((e: any) => e.args.p_event_id);
+    assertEquals(ids.length, 2);
+    assertEquals(new Set(ids).size, 1, "one key for both deliveries: " + JSON.stringify(ids));
+    assert(String(ids[0]).startsWith("body:"));
+  } finally { rF(); rEnv(); }
+});

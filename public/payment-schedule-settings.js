@@ -2,6 +2,8 @@
    - Add the default schedule automatically when a client approves (default on), overdue bell (default on),
      the default schedule (built-in 30/50/20, 50/50, 100% upfront, or the studio's own),
    - how clients pay (UPI ID + a short payment note, shown on the client page and in every reminder),
+   - r35 (0285): a change of the UPI ID / note needs a fresh two-step code (the store asks for it), waits 24 hours
+     (clients keep the old details), every admin is told; "This wasn't us" / "Make it live now" / flagged accounts,
    - the studio's own schedules: add / change / archive (never deleted), with a live example on Rs 1,00,000.
    Reads / writes ONLY through BPStore.paySchedule (payment_schedule_settings_get / _set / template_save / _archive;
    the server re-checks Control Center EDIT and every rule). Shown to anyone the server answers (Control Center or
@@ -16,6 +18,8 @@
   function PS() { return global.HelmPaySchedule; }
   function say(t, kind) { var m = $("pst_msg"); if (m) { m.textContent = t || ""; m.dataset.kind = kind || ""; } }
   function errText(e) {
+    if (e && e.cancelled) return "Not saved - this change needs your two-step code.";
+    if (e && e.stepUp) return String(e.message || "");
     var s = String((e && (e.message || e.code)) || "");
     if (/not authori[sz]ed|42501/i.test(s)) return "Only a studio admin (or someone allowed to edit Control Center) can change payment schedules.";
     return s || "Couldn't save - please try again.";
@@ -62,12 +66,89 @@
       box.appendChild(it);
     });
   }
+  // ---- r35 (0285): the change waiting 24 hours + flagged accounts --------------------------------------------------
+  function when(iso) {
+    try { var d = new Date(iso); if (!isNaN(d)) return d.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }); } catch (e) {}
+    return String(iso || "");
+  }
+  function btn(label, cls, onClick) { var b = el("button", "btn" + (cls ? " " + cls : ""), label); b.type = "button"; b.addEventListener("click", function () { onClick(b); }); return b; }
+  async function reload(msg, kind) { try { S = await global.BPStore.paySchedule.settings(); paint(); } catch (e) {} if (msg) say(msg, kind || "ok"); }
+  async function notUs(p, b) {
+    var U = global.BPUI, P = global.BPStore.paySchedule, mine = !!p.requested_by_me;
+    var ask = mine ? "Withdraw your change? Clients keep the current payment details. Every admin is told."
+      : "Cancel this change? Clients keep the current payment details, every admin is told, and " + p.requested_by + "'s account is flagged: it can't change sensitive settings until another admin clears the flag.";
+    if (U && U.confirm && !(await U.confirm(ask, { title: mine ? "Withdraw change?" : "This wasn't us?", okLabel: mine ? "Withdraw" : "Cancel the change", danger: true }))) return;
+    var signOut = false;
+    if (!mine && U && U.confirm) signOut = await U.confirm("Also sign " + p.requested_by + " out on every device now? Recommended - whoever is using that account has to sign in again.", { title: "Sign out everywhere?", okLabel: "Sign out everywhere", cancelLabel: "Not now" });
+    b.disabled = true;
+    try {
+      var res = await P.cancelChange(p.id, signOut);
+      await reload(mine ? "Change withdrawn. Clients keep the current details." : "Change cancelled. Clients keep the current details and every admin was told.");
+      // the server flags / signs out only when YOU confirmed with two-step; without it the cancel + alert still happened
+      if (!mine && res && res.flagged === false) { if (U && U.alert) U.alert("Cancelled - clients keep the current details and every admin was told. " + p.requested_by + "'s account was NOT flagged or signed out: that needs two-step on your own account. Set it up (Account settings), then ask another admin to check the account.", { title: "Change cancelled" }); return; }
+      if (!mine && U && U.alert) U.alert("Next steps: ask " + p.requested_by + " to reset their password (\u201cForgot password\u201d on the sign-in page) and to check their two-step set-up" + (signOut ? "." : ", and sign that account out everywhere (button below)."), { title: "Keep the studio safe" });
+    } catch (e) { say(errText(e), "err"); b.disabled = false; }
+  }
+  async function approveNow(p, b) {
+    var U = global.BPUI;
+    if (U && U.confirm && !(await U.confirm("Show the new payment details to clients now instead of at " + when(p.effective_at) + "? Only do this if you checked them with " + p.requested_by + ".", { title: "Make it live now?", okLabel: "Make it live now" }))) return;
+    b.disabled = true;
+    try { await global.BPStore.paySchedule.approveNow(p.id); await reload("The new payment details are live. Every admin was told."); }
+    catch (e) { say(errText(e), "err"); b.disabled = false; }
+  }
+  function paintPending() {
+    var box = $("pst_pending"); if (!box) return;
+    while (box.firstChild) box.removeChild(box.firstChild);
+    var p = S && S.pending;
+    box.hidden = !p; if (!p) return;
+    box.appendChild(el("h4", "", "New payment details are waiting"));
+    box.appendChild(el("p", "", "Changed by " + (p.requested_by_me ? "you" : p.requested_by) + " on " + when(p.requested_at) + ". Clients keep seeing the current details until " + when(p.effective_at) + ", then the new ones switch on by themselves."));
+    var dl = el("dl");
+    [["New UPI ID", p.new_upi], ["New payment note", p.new_note], ["Before", "UPI " + (p.old_upi_masked || "none") + ", note " + (p.old_note_masked || "none")]].forEach(function (r) {
+      dl.appendChild(el("dt", "", r[0])); dl.appendChild(el("dd", "", r[1] == null || r[1] === "" ? "(none)" : String(r[1])));
+    });
+    box.appendChild(dl);
+    if (p.masked) box.appendChild(el("p", "", "Only admins see the new details in full."));
+    var acts = el("div", "pst-acts");
+    if (p.can_cancel) acts.appendChild(btn(p.requested_by_me ? "Withdraw my change" : "This wasn't us", "danger", function (b) { notUs(p, b); }));
+    if (p.can_approve) acts.appendChild(btn("Make it live now", "", function (b) { approveNow(p, b); }));
+    if (acts.firstChild) box.appendChild(acts);
+  }
+  function paintFlags() {
+    var box = $("pst_flags"); if (!box) return;
+    while (box.firstChild) box.removeChild(box.firstChild);
+    var list = (S && S.flags) || [];
+    box.hidden = !list.length; if (!list.length) return;
+    box.appendChild(el("h4", "", "Flagged accounts"));
+    box.appendChild(el("p", "", "A payment-details change by these accounts was cancelled as \u201cThis wasn't us\u201d. They can't change sensitive settings until another admin clears the flag. Ask the person to reset their password and check their two-step set-up first."));
+    list.forEach(function (f) {
+      var row = el("div", "pst-flag");
+      row.appendChild(el("b", "", f.name + (f.is_me ? " (you)" : "")));
+      row.appendChild(el("span", "mnote", "flagged " + when(f.flagged_at) + " by " + f.by));
+      if (!f.is_me) {
+        row.appendChild(btn("Sign out everywhere", "", async function (b) {
+          b.disabled = true;
+          try { await global.BPStore.paySchedule.signOutFlagged(f.user_id); say(f.name + " was signed out on every device.", "ok"); }
+          catch (e) { say(errText(e), "err"); } finally { b.disabled = false; }
+        }));
+        row.appendChild(btn("Clear flag", "", async function (b) {
+          var U = global.BPUI;
+          if (U && U.confirm && !(await U.confirm("Clear the flag on " + f.name + "? Do this only after the password was reset and the account is safe again.", { title: "Clear flag?", okLabel: "Clear flag" }))) return;
+          b.disabled = true;
+          try { await global.BPStore.paySchedule.clearFlag(f.user_id); await reload("Flag cleared. Every admin was told."); }
+          catch (e) { say(errText(e), "err"); b.disabled = false; }
+        }));
+      }
+      box.appendChild(row);
+    });
+  }
+
   function paint() {
     $("pst_upi").value = S.upi_id || ""; $("pst_note").value = S.pay_note || "";
     $("pst_rem").textContent = remText(S.reminders);
     ["pst_default", "pst_upi", "pst_note"].forEach(function (id) { $(id).disabled = !S.can_edit; });
     $("pst_ro").hidden = !!S.can_edit; $("pst_save").hidden = !S.can_edit; $("pst_new").hidden = !S.can_edit;
-    paintDefault(); paintList();
+    paintDefault(); paintList(); paintPending(); paintFlags();
   }
 
   // ---- editor ----------------------------------------------------------------------------------------------------
@@ -156,9 +237,13 @@
   async function save() {
     var b = $("pst_save"); b.disabled = true; say("Saving…", "info");
     try {
+      var before = S && S.pending ? S.pending.id : null;
       S = await global.BPStore.paySchedule.saveSettings({   // r25 (0274): auto-apply + overdue bell are switched in Automations only
         default_template: $("pst_default").value, upi_id: $("pst_upi").value.trim() || null, pay_note: $("pst_note").value.trim() || null });
-      paint(); say("Saved.", "ok");
+      paint();
+      // r35 (0285): a new change waits 24 hours (the fields keep showing what clients see now)
+      if (S && S.pending && S.pending.id !== before) say("Saved. Every admin was told. Clients will see the new payment details from " + when(S.pending.effective_at) + ".", "ok");
+      else say("Saved.", "ok");
     } catch (e) { say(errText(e), "err"); }
     finally { b.disabled = false; }
   }

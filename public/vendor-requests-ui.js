@@ -245,7 +245,7 @@
     var method = h("select", { id: "vrqPayM" }, ["UPI", "Bank transfer", "Cheque", "Cash", "TDS deducted"].map(function (x) { return h("option", { value: x.toLowerCase(), text: x }); }));
     var ref = h("input", { id: "vrqPayRef", maxlength: "120", autocomplete: "off" });
     var day = h("input", { id: "vrqPayDay", type: "date" });
-    try { var d = new Date(); day.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); } catch (e) { /* ignore */ }
+    try { var d = new Date(); day.value = (window.BPStore && window.BPStore.todayLocal && window.BPStore.todayLocal()) || new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); } catch (e) { /* ignore */ }   // r37: the studio's day
     var errEl = h("div", { cls: "err", role: "alert", hidden: true });
     var go = h("button", { type: "button", cls: "btn primary", text: "Record payment" });
     var close = sheet("Pay invoice " + i.invoice_no, [
