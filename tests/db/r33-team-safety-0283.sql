@@ -555,7 +555,7 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; c uuid := pg_tem
   -- crew links: the crew member's work link works, deactivation revokes it (marked, not deleted), reactivation does not restore it
   insert into public.work_tokens(quote_id, phone, name, org_id, expires_at)
     values ('a0000000-0000-4000-8000-00000000da01', '+919800000033', 'R33 Crew', a, now() + interval '7 days') returning token into tok;
-  perform auth.login_anon();
+  perform pg_temp.su();   -- the link token is the key (whatever the caller's grants in this run)
   v := pg_temp.try(format('select public.crew_link_home(%L)', tok));
   perform pg_temp.res('82 crew link: before, crew_link_home works for their link', v = '', v);
   perform pg_temp.login('r33_adm5@a.test');
@@ -563,7 +563,7 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; c uuid := pg_tem
   perform pg_temp.su();
   insert into public.assign_notify_outbox(org_id, quote_id, item_kind, item_id, phone, name, body)
     values (a, 'a0000000-0000-4000-8000-00000000da01', 'task', gen_random_uuid(), '919800000033', 'R33 Crew', 'r33 task');
-  perform auth.login_anon();
+  perform pg_temp.su();   -- the link token is the key (whatever the caller's grants in this run)
   v := pg_temp.try(format('select public.crew_link_home(%L)', tok));
   perform pg_temp.su();
   perform pg_temp.res('83 crew link: deactivating revokes their work links (revoked_at set, row kept) - crew_link_home refused',
