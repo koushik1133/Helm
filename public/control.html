@@ -263,7 +263,7 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=3">
 <link rel="stylesheet" href="comms-settings.css?v=2">
-<link rel="stylesheet" href="payment-schedule.css?v=1"><link rel="stylesheet" href="automations.css?v=2">
+<link rel="stylesheet" href="payment-schedule.css?v=2"><link rel="stylesheet" href="automations.css?v=2">
 <link rel="stylesheet" href="delivery-tracker.css?v=1">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
@@ -483,6 +483,10 @@
           <div class="fld"><label for="pst_note">Payment note (e.g. bank details)</label><input id="pst_note" maxlength="300" placeholder="Bank: HDFC, A/c 1234567890, IFSC HDFC0001234"></div>
         </div>
         <p class="mnote">Shown on the client's page and added to every payment reminder. The online payment link is added on its own once online payments are live.</p>
+        <!-- r35 (0285): payment-details change protection - payment-schedule-settings.js fills these -->
+        <p class="mnote pst-safe" id="pst_safe">For your clients' safety: changing these needs your two-step code, every admin is told at once, and clients see new details only after 24 hours.</p>
+        <div class="pst-pending" id="pst_pending" role="region" aria-label="Payment details change waiting" hidden></div>
+        <div class="pst-flags" id="pst_flags" role="region" aria-label="Flagged accounts" hidden></div>
       </fieldset>
       <fieldset class="pst-set">
         <legend>Schedules</legend>
@@ -909,7 +913,7 @@
 <script src="config.js?v=110"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=282"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=288"></script>
 <script src="event-reminders.js?v=4"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -933,7 +937,7 @@
 <script src="venues-admin.js?v=9"></script>
 <script src="studio-templates-core.js?v=4"></script>
 <script src="studio-templates.js?v=13"></script>
-<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script><script src="quote-validity.js?v=2"></script><script src="stage-machine-settings.js?v=1"></script><script src="payment-schedule.js?v=1"></script><script src="payment-schedule-settings.js?v=2"></script>
+<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script><script src="quote-validity.js?v=2"></script><script src="stage-machine-settings.js?v=1"></script><script src="payment-schedule.js?v=1"></script><script src="payment-schedule-settings.js?v=3"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
 <script src="trial-demo.js?v=18"></script>
 <script src="trial-upgrade.js?v=2"></script>

@@ -71,24 +71,26 @@ do $$ declare a_admin uuid; a_staff uuid; o uuid; t text; v_role text; begin
   select tag into t from _cat;
   select id, org_id into a_admin, o from public.profiles where email='a_admin@a.test';
   select id into a_staff from public.profiles where email='a_staff@a.test';
+  -- r35 (0285): making / removing an admin needs a two-step session with a fresh code (factors removed again below)
+  insert into auth.mfa_factors(user_id, status) values (a_admin, 'verified'), (a_staff, 'verified');
   begin update public.profiles set role='sales' where id=a_admin;
     insert into _ca values('08 last admin cannot be demoted (direct, any caller)','FAIL: allowed');
   exception when others then insert into _ca values('08 last admin cannot be demoted (direct, any caller)', case when sqlstate='42501' then 'PASS' else 'FAIL: '||sqlstate end); end;
   -- a stale pending invite to the admin's own address, at a lower role
   insert into public.invitations(org_id, email, role, token) values (o, 'a_admin@a.test', 'sales', 'ca-tok-'||t);
   update auth.users set email_confirmed_at = coalesce(email_confirmed_at, now()) where id = a_admin;
-  perform auth.login_as(a_admin);
+  perform auth.login_as(a_admin); perform set_config('request.jwt.claims', (auth.jwt() || jsonb_build_object('aal', 'aal2', 'amr', jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', extract(epoch from now())))))::text, false);
   -- 0156: a member of the same studio keeps their role (the stale invite is a no-op, not an error)
   begin perform public.accept_invitation('ca-tok-'||t);
     perform auth.logout(); execute 'reset role';
     insert into _ca values('09 last admin cannot be demoted via accept_invitation',
       case when (select role from public.profiles where id = a_admin) = 'admin' then 'PASS' else 'FAIL: demoted' end);
-    perform auth.login_as(a_admin);
+    perform auth.login_as(a_admin); perform set_config('request.jwt.claims', (auth.jwt() || jsonb_build_object('aal', 'aal2', 'amr', jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', extract(epoch from now())))))::text, false);
   exception when others then insert into _ca values('09 last admin cannot be demoted via accept_invitation', case when sqlstate='42501' then 'PASS' else 'FAIL: '||sqlstate||' '||sqlerrm end); end;
   -- with a second admin, demoting the first via admin_set_role works; demoting the last does not
   perform public.admin_set_role(a_staff, 'admin');
   perform auth.logout(); execute 'reset role';
-  perform auth.login_as(a_staff);
+  perform auth.login_as(a_staff); perform set_config('request.jwt.claims', (auth.jwt() || jsonb_build_object('aal', 'aal2', 'amr', jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', extract(epoch from now())))))::text, false);
   begin perform public.admin_set_role(a_admin, 'sales'); insert into _ca values('10 demote one of two admins works','PASS');
   exception when others then insert into _ca values('10 demote one of two admins works','FAIL: '||sqlerrm); end;
   perform auth.logout(); execute 'reset role';
@@ -97,6 +99,7 @@ do $$ declare a_admin uuid; a_staff uuid; o uuid; t text; v_role text; begin
   exception when others then insert into _ca values('11 remaining admin is protected again', case when sqlstate='42501' then 'PASS' else 'FAIL: '||sqlstate end); end;
   update public.profiles set role='admin' where id=a_admin;
   update public.profiles set role='sales' where id=a_staff;
+  delete from auth.mfa_factors where user_id in (a_admin, a_staff);
   select role into v_role from public.profiles where id=a_admin;
   insert into _ca values('12 fixture roles restored', case when v_role='admin' then 'PASS' else 'FAIL' end);
 exception when others then insert into _ca values('1x last admin setup','FAIL: '||sqlerrm); end $$;

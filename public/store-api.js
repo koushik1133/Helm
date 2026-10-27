@@ -2410,6 +2410,7 @@ window.HelmUrl = HelmUrl;
       currentUser = session ? session.user : null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear();
       if (mode === "supabase") authRequired = !currentUser; if (cb) cb(currentUser); }); },
     // ---- admin user management (RPC guarded by is_admin() at the DB) ----
+    // r35 (0285): making / removing an admin, money switches -> withStepUp (a fresh two-step code when the server asks)
     admin: {
       roles: () => PICK_ROLES.slice(),
       roleLabel,
@@ -2426,9 +2427,9 @@ window.HelmUrl = HelmUrl;
       // set one cell; returns the saved row
       async setAccess(role, area, canView, canEdit) {
         if (!supa) throw new Error("Supabase not configured");
-        const { data, error } = await supa.rpc("admin_set_role_access",
-          { p_role: role, p_area: area, p_view: !!canView, p_edit: !!canEdit });
-        if (error) throw error; accessCache = null; try { sessionStorage.removeItem("bp_sess_access"); } catch (e) {} return data;
+        const data = await withStepUp(async () => { const { data, error } = await supa.rpc("admin_set_role_access",
+          { p_role: role, p_area: area, p_view: !!canView, p_edit: !!canEdit }); if (error) throw error; return data; });
+        accessCache = null; try { sessionStorage.removeItem("bp_sess_access"); } catch (e) {} return data;
       },
       async listUsers() {
         if (!supa) throw new Error("Supabase not configured");
@@ -2468,28 +2469,28 @@ window.HelmUrl = HelmUrl;
       async createUser(email, password, role) {
         if (!supa) throw new Error("Supabase not configured");
         const bad = passwordProblem(password); if (bad) throw new Error(bad);   // same rule as 0028 admin_create_user
-        const { data, error } = await supa.rpc("admin_create_user",
+        return withStepUp(async () => { const { data, error } = await supa.rpc("admin_create_user",
           { p_email: email, p_password: password, p_role: role });
-        if (error) throw error; return data;   // new user id
+        if (error) throw error; return data; });   // new user id
       },
       // Option A: server generates a one-time temp password + forces a change on
       // first login. Returns { user_id, temp_password } — show temp_password ONCE.
       async createUserTemp(email, role) {
         if (!supa) throw new Error("Supabase not configured");
         if (reservedEmailDomain(email)) throw reservedEmailError();
-        const { data, error } = await supa.rpc("admin_create_user_temp",
+        return withStepUp(async () => { const { data, error } = await supa.rpc("admin_create_user_temp",
           { p_email: email, p_role: role });
-        if (error) throw error; return data;   // { user_id, temp_password }
+        if (error) throw error; return data; });   // { user_id, temp_password }
       },
       async setRole(id, role) {
         if (!supa) throw new Error("Supabase not configured");
-        const { error } = await supa.rpc("admin_set_role", { p_id: id, p_role: role });
-        if (error) throw error; return true;
+        return withStepUp(async () => { const { error } = await supa.rpc("admin_set_role", { p_id: id, p_role: role });
+        if (error) throw error; return true; });
       },
       async deleteUser(id) {
         if (!supa) throw new Error("Supabase not configured");
-        const { error } = await supa.rpc("admin_delete_user", { p_id: id });
-        if (error) throw error; return true;
+        return withStepUp(async () => { const { error } = await supa.rpc("admin_delete_user", { p_id: id });
+        if (error) throw error; return true; });
       },
     },
   };
@@ -3184,13 +3185,58 @@ window.HelmUrl = HelmUrl;
   };
   dropInflightOnWrite(quotes, "quotes.list");
 
+  /* ---------------- r35 (0285): two-step for sensitive studio settings ----------------
+     Payment details (UPI / bank), reply-to / business e-mail, Razorpay keys, money switches and admins added /
+     removed need a verified authenticator + a code entered in the last 15 minutes. The DATABASE decides and answers
+     42501 with R35_REAUTH (enter a fresh code), R35_SETUP_2STEP (no authenticator yet) or R35_FLAGGED ("This wasn't
+     us"). Here: R35_REAUTH -> ask for the 6-digit code once (BPUI.prompt), verify it (auth.mfa.challenge = a new
+     aal2 token) and retry the SAME call once; R35_SETUP_2STEP -> offer the two-step set-up. Never retried silently. */
+  const STEPUP_TEXT = {
+    reauth: "Enter a fresh two-step code to confirm this change.",
+    setup: "Set up two-step verification on your account first. Payment details and other sensitive studio settings can only be changed with two-step.",
+    flagged: "This account was flagged after a \u201cThis wasn't us\u201d. Another admin has to clear the flag before it can change sensitive settings.",
+  };
+  function stepUpKind(e) {
+    const m = String((e && e.message) || "") + " " + String((e && e.hint) || "");
+    return /R35_REAUTH/.test(m) ? "reauth" : /R35_SETUP_2STEP/.test(m) ? "setup" : /R35_FLAGGED/.test(m) ? "flagged" : null;
+  }
+  function stepUpError(e, k) {
+    const x = new Error(STEPUP_TEXT[k]); x.code = (e && e.code) || "42501"; x.hint = k; x.stepUp = k; x.cause = e; return x;
+  }
+  async function withStepUp(run) {
+    try { return await run(); }
+    catch (e) {
+      const k = stepUpKind(e);
+      if (!k) throw e;
+      const UI = global.BPUI, S = global.BPStore;
+      if (k === "setup") {
+        try {
+          if (UI && UI.confirm && global.HelmAuthUI && global.HelmAuthUI.openAccount
+              && await UI.confirm(STEPUP_TEXT.setup, { title: "Two-step needed", okLabel: "Set up two-step", cancelLabel: "Not now" })) {
+            global.HelmAuthUI.openAccount();
+          }
+        } catch (x) {}
+        throw stepUpError(e, k);
+      }
+      if (k !== "reauth" || !UI || !UI.prompt || !S || !S.auth || !S.auth.mfa || !S.auth.mfa.challenge) throw stepUpError(e, k);
+      const code = await UI.prompt("Payment details and other sensitive studio settings always ask for a fresh code from your authenticator app.", {
+        title: "Confirm with two-step", label: "6-digit code", required: true, maxLength: 6, okLabel: "Confirm", placeholder: "000000",
+        validate: (v) => (/^\d{6}$/.test(String(v || "").replace(/\s+/g, "")) ? null : "Enter the 6-digit code from your authenticator app.") });
+      if (code == null) { const x = stepUpError(e, k); x.cancelled = true; throw x; }
+      await S.auth.mfa.challenge(String(code).replace(/\s+/g, ""));
+      return await run();
+    }
+  }
+
   /* ---------------- client approval: OTP + consent + payment ---------------- */
-  const rpc = async (fn, args) => {
+  const rpcOnce = async (fn, args) => {
     if (!supa) throw new Error("Supabase not configured");
     const { data, error } = await supa.rpc(fn, args);
     if (error) { if (looksLikeAuthError(error)) onAuthFailure(); throw error; }
     return data;
   };
+  // r35 (0285): a sensitive change the server refused for a fresh two-step code is asked for ONCE and retried
+  const rpc = (fn, args) => withStepUp(() => rpcOnce(fn, args));
   // crew-1020: worker link RPCs take a uuid token; a malformed one gets the same clean
   // "invalid link" as an unknown one instead of the raw Postgres cast error (22P02).
   const WTOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -5106,7 +5152,9 @@ window.HelmUrl = HelmUrl;
       if (!oid) throw new Error("Studio settings aren't available for this workspace yet.");
       // cc-general-billing: ask for the updated row back - an update the database row rules do not
       // allow changes NOTHING and returns no error, so "saved" must only be said when a row changed
-      let { data, error } = await supa.from("organizations").update(patch).eq("id", oid).select("id");
+      // r35 (0285): changing a confirmed business e-mail asks for a fresh two-step code (the database decides)
+      let { data, error } = await withStepUp(async () => { const r = await supa.from("organizations").update(patch).eq("id", oid).select("id");
+        if (r.error && stepUpKind(r.error)) throw r.error; return r; });
       // #16: business_email_confirmed arrives with 0075; on an older database save the rest
       if (error && patch && "business_email_confirmed" in patch && (error.code === "PGRST204" || /business_email_confirmed/.test(error.message || ""))) {
         const rest = Object.assign({}, patch); delete rest.business_email_confirmed;
@@ -8327,6 +8375,14 @@ window.HelmUrl = HelmUrl;
     }
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
+    // r35 (0285): payment details / sensitive settings (admins only - the server decides)
+    if (k === "studio_security") {
+      const ev = String(d.event || "");
+      if (/^(pay_details_|flag_cleared|sessions_ended)/.test(ev)) return "control.html#payment-schedules";
+      if (/^(reply_to_|razorpay_)/.test(ev)) return "integrations.html";
+      if (ev === "business_email_changed") return "control.html#general";
+      return "control.html#users";
+    }
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     // r24 (0269): a new enquiry from the public form -> the Leads board
     if (k === "lead_new") return "leads.html";
@@ -8376,7 +8432,7 @@ window.HelmUrl = HelmUrl;
     const k = String(n.kind || "").toLowerCase().trim();
     if (["approval_link", "otp", "payment_link", "payment_reminder", "payment_receipt", "advance_paid", "payment_reconcile",
          "task_assigned", "task_reminder", "task_due", "security_alert", "inventory_low_stock", "client_follow_up",
-         "client_link_viewed", "client_view_followup"].indexOf(k) !== -1) return k;
+         "client_link_viewed", "client_view_followup", "studio_security"].indexOf(k) !== -1) return k;
     if (k === "payment" || k === "payment_received") return "payment_receipt";
     if (k === "trial_reminder") return "billing_trial";
     if (/^pkg_(selected|accepted|declined|payment)$/.test(k)) return k;
@@ -8519,7 +8575,7 @@ window.HelmUrl = HelmUrl;
     const since = String(seen.t || "");
     const fresh = list.filter((n) => (n.__chat || n.unread) && String(n.created_at || "") > since && ids.indexOf(keyOf(n)) === -1)
       .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))).slice(0, 3);
-    const typeOf = (k) => k === "security_alert" ? "security" : k === "trial_reminder" ? "warning" : /^(payment_received|advance_paid|task_complete|task_accept)$/.test(k) ? "success"
+    const typeOf = (k) => (k === "security_alert" || k === "studio_security") ? "security" : k === "trial_reminder" ? "warning" : /^(payment_received|advance_paid|task_complete|task_accept)$/.test(k) ? "success"
       : /^(payment_reconcile|task_reject|task_due)$/.test(k) ? "warning" : "info";
     const toasts = fresh.map((n) => {
       if (n.__chat) {
@@ -8680,6 +8736,8 @@ window.HelmUrl = HelmUrl;
       event_reminder: ["📅", String(d.label || "An event is coming up")],
       // r23 (0257): Helm support changed the studio name / link (old links keep working)
       studio_identity_changed: ["🏷️", String(d.label || "Helm support changed your studio name or link")],
+      // r35 (0285): payment details / sensitive settings changed (admins only; names + times, never the values)
+      studio_security: ["🛡️", String(d.label || "A sensitive studio setting was changed")],
       // 0264: a client's scheduled payment is past its due date (money notice - admins + Finance viewers)
       payment_overdue: ["⏰", String(d.label || "A client payment is overdue")],
       // 0269: a new lead from the studio's public enquiry form (name + event type only)
@@ -9963,6 +10021,14 @@ window.HelmUrl = HelmUrl;
     pause: (quoteId, paused) => (supa ? rpc("payment_schedule_pause", { p_quote: quoteId, p_paused: !!paused }) : Promise.reject(new Error("Needs a signed-in studio."))),
     // client page (approval token, signed out) - null when unavailable
     publicGet: (token) => (supa ? rpc("public_payment_schedule", { p_token: token }).catch(() => null) : Promise.resolve(null)),
+    // r35 (0285): a payment-details change waits 24 hours. "This wasn't us" (any admin; optionally signs that account out
+    // everywhere), make it live early (a DIFFERENT admin, fresh two-step code), the flagged accounts, the history.
+    cancelChange: (id, signOut) => (supa ? rpc("pay_details_cancel", { p_change: id, p_sign_out: !!signOut }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    approveNow: (id) => (supa ? rpc("pay_details_approve_now", { p_change: id }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    clearFlag: (userId) => (supa ? rpc("studio_flag_clear", { p_user: userId }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    signOutFlagged: (userId) => (supa ? rpc("studio_flagged_sign_out", { p_user: userId }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    securityEvents: (limit) => (supa ? rpc("studio_security_events_list", { p_limit: limit || 50 }).catch((e) => { if (rpcMissing(e)) return []; throw e; }) : Promise.resolve([])),
+    stepUpKind,
   };
 
   // 0241 (r21): delivery / arrival reminders. Every call goes through the RPCs (studio + 'deliveries' area checked
@@ -11121,6 +11187,10 @@ window.HelmUrl = HelmUrl;
     if (e && e.hint === "money_frozen" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
     // 0159: a directly created studio is read-only until its plan is paid (or it switches to the trial)
     if (e && e.hint === "payment_pending") return pre + "Choose a plan and complete payment to start using Helm — or start a free trial instead.";
+    // r35 (0285): payment details / sensitive settings need a fresh two-step code (or two-step set up / a flag cleared)
+    if (e && e.cancelled && e.stepUp) return pre + "This change needs your two-step code.";
+    if (e && e.stepUp && e.message) return pre + endDot(clip(String(e.message), 240));
+    if (e && /R35_(REAUTH|SETUP_2STEP|FLAGGED)/.test(String(e.message || ""))) return pre + endDot(clip(String(e.message).replace(/^R35_[A-Z0-9_]+:\s*/, ""), 240));
     // 0166 — free-trial seat limit (you + 2 people; open invitations count)
     // 0173 — free-trial lock / 2-row creation cap: the DB message is written for people
     if (e && (e.hint === "trial_cap" || e.hint === "trial_locked") && e.message) return pre + endDot(clip(String(e.message), 240));

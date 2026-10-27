@@ -572,8 +572,13 @@ do $$ declare s text; u uuid; u2 uuid; begin perform pg_temp.su();
   perform pg_temp.res('RC7-13 denied: a non-admin can''t invite', s like '42501%', s);
 end $$;
 do $$ declare t1 text; t2 text; r text; n int; begin
+  -- r35 (0285): inviting an ADMIN needs a two-step session with a fresh code (factor removed again right after)
+  perform pg_temp.su(); insert into auth.mfa_factors(user_id, status) select u.id, 'verified' from auth.users u where u.email = 'a_admin@a.test';
   perform pg_temp.login('a_admin@a.test');
+  perform set_config('request.jwt.claims', (auth.jwt() || jsonb_build_object('aal', 'aal2', 'amr',
+    jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', extract(epoch from now())))))::text, false);
   t1 := public.create_invitation('reinv@a.test', 'admin') ->> 'token';
+  perform pg_temp.su(); delete from auth.mfa_factors where user_id = (select u.id from auth.users u where u.email = 'a_admin@a.test');
   perform pg_temp.login('a_admin@a.test');
   t2 := public.create_invitation('reinv@a.test', 'crew') ->> 'token';
   perform pg_temp.su();
