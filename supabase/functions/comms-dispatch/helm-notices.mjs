@@ -13,13 +13,17 @@
 //   suggestion     (0271) someone sent a suggestion (in the app or on the website) -> the HQ address
 //   hq_staff       (0277) a Helm HQ team change (added, role changed, paused, access back, removed, signed out
 //                  everywhere, sign-in rules) -> the person it is about + every HQ Owner
+//   team_safety    (0283) a studio team change: an admin will be deactivated / changed in 24 hours (asked by an
+//                  admin who is not the owner), cancelled, done, done at once by the owner -> the owner + that admin +
+//                  the asker; a studio ownership hand-over / acceptance / cancel / decline, or Helm support recovered the
+//                  owner -> every active admin of the studio
 // Pure (no I/O); shared by comms-dispatch (Deno) and the node tests. Anything unexpected -> null and
 // comms-dispatch marks the row skipped (fails closed). Links are always APP_URL + a fixed path.
 const clip = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 const block = (v, n) => String(v == null ? "" : v).replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, n);
 const base = (app) => String(app || "https://www.helm.events").replace(/\/+$/, "");
 
-export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "studio_identity", "inbox_digest", "sales_enquiry", "sales_enquiry_ack", "suggestion", "hq_staff"];
+export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "studio_identity", "inbox_digest", "sales_enquiry", "sales_enquiry_ack", "suggestion", "hq_staff", "team_safety"];
 // the footer reason for each kind (transactional: a service message about this account)
 export const NOTICE_TX_REASON = {
   sales_request: "a Helm studio asked Helm sales to activate a plan",
@@ -32,6 +36,7 @@ export const NOTICE_TX_REASON = {
   sales_enquiry_ack: "you filled in the Contact sales form on the Helm website",
   suggestion: "someone sent a suggestion to Helm",
   hq_staff: "you are on the Helm HQ team, or this change is about your Helm HQ access",
+  team_safety: "you are an admin of a Helm studio, or this change is about your access to it",
 };
 const PLAN_NAME = { starter: "Starter", studio: "Studio", enterprise: "Enterprise", not_sure: "Not sure yet" };
 const TEAM = { "1": "Just me", "2-5": "2-5 people", "6-15": "6-15 people", "16-50": "16-50 people", "51+": "51+ people" };
@@ -227,6 +232,42 @@ export function helmNoticeEmail(kind, data, appUrl) {
     }[d.event];
     if (!S) return null;
     return { subject: S[0].slice(0, 150), text: [S[1], S[2], "Helm HQ -> Staff access: " + app + "/hq", "If you did not expect this, reply to this e-mail or contact security@helm.events.", "- The Helm team"].filter(Boolean).join("\n\n") };
+  }
+  if (kind === "team_safety") {
+    // r33 (0283): names only (no e-mail addresses of others, no links but Control Center -> Team on APP_URL)
+    const studio = clip(d.studio, 120) || "your Helm studio", target = clip(d.target, 80) || "An admin", by = clip(d.by, 80) || "An admin";
+    const role = clip(d.role_label, 40) || "a non-admin role", when = clip(d.when, 60), from = clip(d.from, 80) || "The owner", to = clip(d.to, 80) || "an admin";
+    const deact = d.kind === "deactivate";
+    const team = "Control Center -> Team: " + app + "/control#users";
+    const S = {
+      admin_change_requested: [
+        "Helm: " + target + (deact ? " will be deactivated" : " will become " + role) + " in 24 hours - " + studio,
+        by + " asked to " + (deact ? "deactivate " + target + " in " + studio + "." : "change " + target + "'s role in " + studio + " from Admin to " + role + ".")
+          + " It happens " + (when ? "on " + when : "in 24 hours") + " unless the studio owner cancels it.",
+        "The studio owner can cancel it in " + team],
+      admin_change_cancelled: ["Helm: the change for " + target + " was cancelled - " + studio,
+        by + " cancelled the waiting change for " + target + " in " + studio + ". Nothing was changed.", team],
+      admin_change_applied: ["Helm: " + target + (deact ? " was deactivated" : " is now " + role) + " - " + studio,
+        deact ? target + " was deactivated in " + studio + " (asked by " + by + " 24 hours ago). Their records are kept; an admin can reactivate them."
+              : target + " is now " + role + " in " + studio + " (asked by " + by + " 24 hours ago).", team],
+      admin_deactivated: ["Helm: " + target + " was deactivated - " + studio,
+        by + " (the studio owner) deactivated " + target + " in " + studio + ". Their records are kept; an admin can reactivate them.", team],
+      admin_demoted: ["Helm: " + target + " is now " + role + " - " + studio,
+        by + " (the studio owner) changed " + target + "'s role in " + studio + " from Admin to " + role + ".", team],
+      owner_transfer_started: ["Helm: " + from + " wants to make " + to + " the owner of " + studio,
+        from + " started handing the ownership of " + studio + " to " + to + ". " + to + " must accept it in Control Center -> Team within 7 days.", team],
+      owner_transfer_accepted: ["Helm: " + to + " is now the owner of " + studio,
+        to + " accepted and is now the owner of " + studio + " (handed over by " + from + "). " + from + " stays an admin.", team],
+      owner_transfer_cancelled: ["Helm: the ownership hand-over was cancelled - " + studio,
+        from + " cancelled handing the ownership of " + studio + " to " + to + ". Nothing changed.", team],
+      owner_transfer_declined: ["Helm: " + to + " declined to become the owner of " + studio,
+        to + " declined to become the owner of " + studio + ". " + from + " stays the owner.", team],
+      owner_recovered: ["Helm: Helm support made " + to + " the owner of " + studio,
+        "Helm support made " + to + " the owner of " + studio + ", after checking who asked. The previous owner was no longer able to act for the studio.",
+        "If this is not what your studio asked for, write to security@helm.events straight away."],
+    }[d.event];
+    if (!S) return null;
+    return { subject: S[0].slice(0, 150), text: ["Hi,", S[1], S[2], "If you did not expect this, contact your studio owner or reply to this e-mail.", "- The Helm team"].join("\n\n") };
   }
   if (kind === "sales_enquiry_ack") {
     const name = clip(d.name, 80);

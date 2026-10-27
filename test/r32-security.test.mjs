@@ -25,7 +25,7 @@ await t('hq.js csvCell: formula guard matches reports.html (leading spaces, full
   assert.equal(csvCell(-500), '"-500"', 'a real number is not prefixed');
   assert.equal(csvCell('Studio "A"'), '"Studio ""A"""');
   assert.equal(csvCell(null), '""');
-  assert.match(rd('public/hq.html'), /hq\.js\?v=23/);
+  assert.match(rd('public/hq.html'), /hq\.js\?v=24/);
 });
 
 await t('CLI-01 check-html-sinks: map(cb).join() needs a visibly safe callback', async () => {
@@ -55,13 +55,13 @@ await t('CLI-02 telemetry: stack frames lose ?token= and link refs; booklet link
   const TOK = '11111111-2222-3333-4444-555555555555';
   const ev = T.redactEvent({ message: 'boom', exception: { values: [{ value: 'TypeError', stacktrace: { frames: [
     { filename: 'https://www.helm.events/approve.html?token=' + TOK, abs_path: 'https://www.helm.events/approve.html?token=' + TOK + '#x', function: 'f' },
-    { filename: 'https://www.helm.events/aurora/booklet/bk_secret123/x', abs_path: 'https://www.helm.events/store-api.js?v=285', module: 'login?invite=abc&k=' + 'ab'.repeat(24) },
+    { filename: 'https://www.helm.events/aurora/booklet/bk_secret123/x', abs_path: 'https://www.helm.events/store-api.js?v=286', module: 'login?invite=abc&k=' + 'ab'.repeat(24) },
   ] } }] } });
   const s = JSON.stringify(ev);
   assert.ok(!s.includes(TOK) && !s.includes('bk_secret123') && !s.includes('ab'.repeat(24)), s);
   const f = ev.exception.values[0].stacktrace.frames;
   assert.equal(f[0].filename, 'https://www.helm.events/approve.html');
-  assert.equal(f[1].abs_path, 'https://www.helm.events/store-api.js?v=285', 'asset version kept');
+  assert.equal(f[1].abs_path, 'https://www.helm.events/store-api.js?v=286', 'asset version kept');
   assert.match(T.redact('/login?invite=abc&k=' + 'cd'.repeat(24)), /k=\[REDACTED\]/);
   for (const p of readdirSync(new URL('../public/', import.meta.url)).filter((x) => x.endsWith('.html'))) {
     const m = rd('public/' + p).match(/telemetry\.js\?v=(\d+)/); if (m) assert.equal(m[1], '7', p);
@@ -103,9 +103,9 @@ await t('AUTH-1 the join page sends the e-mailed mail key (&k=) to invite-signup
   const TPL = rd('supabase/functions/invite-mailer/templates.ts');
   assert.match(TPL, /invite_mail_key_set/); assert.match(TPL, /p_hash: await sha256Hex\(key\)/);
 });
-await t('store-api cache-buster: every page loads store-api.js?v=285', () => {
+await t('store-api cache-buster: every page loads store-api.js?v=286', () => {
   for (const p of readdirSync(new URL('../public/', import.meta.url)).filter((x) => x.endsWith('.html'))) {
-    const m = rd('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '285', p);
+    const m = rd('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '286', p);
   }
 });
 
@@ -142,7 +142,7 @@ await t('SQL 0282: registered (MANIFEST, run-all, release lists), APPLY verbatim
   const SQL = rd('supabase/migrations/0282_r32_security_review.sql'), APPLY = rd('supabase/APPLY-0282.sql');
   assert.match(rd('supabase/migrations/MANIFEST'), /^forward  supabase\/migrations\/0282_r32_security_review\.sql$/m);
   assert.match(rd('scripts/db-test/run-all.sh'), /run "r32-security-0282" "R32-SECURITY-0282: ALL PASS \\\(\d+\/\d+\\\)" psql -q -f tests\/db\/r32-security-0282\.sql/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0277', '0282'\]/, f);
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0277', '0282'[\],]/, f);
   assert.ok(APPLY.includes(SQL.trimEnd()), 'APPLY carries the migration verbatim');
   assert.match(APPLY, /^begin;$/m); assert.match(APPLY, /^commit;$/m); assert.match(APPLY, /-- VERIFY \(every row must say ok = true\)/);
   assert.ok((APPLY.match(/^  \('\d\d /gm) || []).length >= 10, 'VERIFY rows');

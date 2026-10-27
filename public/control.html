@@ -268,6 +268,7 @@
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
 <link rel="stylesheet" href="menu-pkg-editor.css?v=5">
+<link rel="stylesheet" href="team-safety.css?v=1">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
@@ -625,8 +626,10 @@
 
       <div class="card">
         <h3>Team members</h3>
-        <p class="mnote">Add teammates, set the name chat shows for each person, change each person's role, or remove access. Changes apply immediately.</p>
+        <p class="mnote">Add teammates, set the name chat shows for each person, change each person's role, or deactivate someone who has left. Nobody is ever deleted: a deactivated person can't sign in, keeps their records, frees their seat, and can be reactivated. The studio owner can't be removed by other admins.</p>
         <p class="mnote" id="seat_meter" role="status" aria-live="polite" hidden></p>
+        <div id="team_safety" aria-live="polite" hidden></div>
+        <div id="team_work" aria-live="polite" hidden></div>
         <div class="uctools" id="uc_tools" hidden>
           <input id="uc_q" type="search" maxlength="100" placeholder="Search name, email, phone, title…" autocomplete="off" aria-label="Search team members">
           <select id="uc_f" aria-label="Show"><option value="">Everyone</option><option value="incomplete">Incomplete profiles</option><option value="complete">Complete profiles</option></select>
@@ -909,7 +912,7 @@
 <script src="config.js?v=110"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=285"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=286"></script>
 <script src="event-reminders.js?v=4"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -933,6 +936,7 @@
 <script src="venues-admin.js?v=9"></script>
 <script src="studio-templates-core.js?v=4"></script>
 <script src="studio-templates.js?v=13"></script>
+<script src="team-safety.js?v=1"></script>
 <script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script><script src="quote-validity.js?v=2"></script><script src="stage-machine-settings.js?v=1"></script><script src="payment-schedule.js?v=1"></script><script src="payment-schedule-settings.js?v=2"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
 <script src="trial-demo.js?v=18"></script>
@@ -1757,7 +1761,7 @@
     if(typeof renderInvites==="function") renderInvites();
   }
   // ---- User control table (0041 profiles; before 0041 → today's name / email / role list) ----
-  let ucRows=[], ucProfiles=false;
+  let ucRows=[], ucProfiles=false, ucTeam=null;
   const ucId=(u)=>u.user_id||u.id;
   // R20 (live QA): "Joined 18 Oct 2026" in the studio's own date style + timezone (was the browser's "Oct 18, 2026")
   function ucDate(iso){ if(!iso) return ""; try{ if(typeof BPStore!=="undefined"&&BPStore.fmtStudioDate){ const o=BPStore.fmtStudioDate(iso,{style:"long"}); if(o) return o; } return new Date(iso).toLocaleDateString("en-IN", {day:"numeric",month:"short",year:"numeric"}); }catch(e){ return ""; } }
@@ -1791,16 +1795,25 @@
   // → { head, body, shown, total } (pure: everything it shows goes through esc())
   function ucTable(list, o){
     const meId=o.meId, roles=o.roles||[], rl=o.roleLabel||((r)=>r);
+    // r33 (0283): o.team = HelmTeam.view(team_safety_overview) - the owner badge, deactivated rows, a waiting admin change
+    const tm=o.team||null, isOwner=(u)=>!!(tm&&tm.ownerId&&ucId(u)===tm.ownerId), isOff=(u)=>!!(tm&&tm.isOff(ucId(u))), waits=(u)=>!!(tm&&tm.pending[ucId(u)]);
+    const badges=(u)=>(isOwner(u)?' <span class="tag ts-own" title="Studio owner - other admins can&#39;t remove or demote them">Owner</span>':"")
+      +(isOff(u)?' <span class="tag ts-off" title="Can&#39;t sign in or see studio data. Their records are kept.">Deactivated</span>':"")
+      +(waits(u)?' <span class="tag ts-wait" title="An admin change is waiting (24 hours) - see the note above the table">Change waiting</span>':"");
+    const lockTitle=(u,self)=>self?" disabled title=\"You can&#39;t change your own role\"":isOwner(u)?" disabled title=\"The studio owner always stays an admin\"":isOff(u)?" disabled title=\"Reactivate them first\"":"";
     // r21: a user whose role is 'client' (no access) shows "No access" + a blank "Choose a role…" picker, never "Client"
     const noAccess=(u)=>u.role==="client";
-    const roleSel=(u,self)=>`${noAccess(u)?'<span class="tag no-access">No access</span> ':""}<select class="roleSel" data-cs-autosave="1" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${noAccess(u)?'<option value="" selected disabled>Choose a role…</option>':""}${(u.role&&!noAccess(u)&&!roles.includes(u.role)?roles.concat([u.role]):roles).map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
-    const rm=(u,self)=>self?"":`<button type="button" class="rm" title="Remove user" aria-label="Remove user ${esc(u.email||u.full_name||"")}">🗑</button>`;
+    const roleSel=(u,self)=>`${noAccess(u)?'<span class="tag no-access">No access</span> ':""}<select class="roleSel" data-cs-autosave="1" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${typeof lockTitle==="function"?lockTitle(u,self):self?" disabled title=\"You can&#39;t change your own role\"":""}>${noAccess(u)?'<option value="" selected disabled>Choose a role…</option>':""}${(u.role&&!noAccess(u)&&!roles.includes(u.role)?roles.concat([u.role]):roles).map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
+    // r33 (0283): "Remove" is now Deactivate (nothing is deleted); a deactivated row offers Reactivate + their open work
+    const rm=(u,self)=>self||isOwner(u)?"":isOff(u)
+      ?`<button type="button" class="btn sm ucReact" aria-label="Reactivate ${esc(u.email||u.full_name||"")}">Reactivate</button><button type="button" class="btn sm ucWork" aria-label="Open work of ${esc(u.email||u.full_name||"")}">Open work</button>`
+      :`<button type="button" class="rm" title="Deactivate - they can&#39;t sign in any more; their records are kept" aria-label="Deactivate ${esc(u.email||u.full_name||"")}">Deactivate</button>`;
     if(!o.profiles){
       const head=`<tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr>`;
       const rows=list.filter(u=>ucMatches(u,o.q,""));
       const body=rows.map(u=>{ const self=meId&&ucId(u)===meId; const dn=(u.full_name||"").trim(), who=dn||u.email||"user";
         return `<tr data-id="${esc(ucId(u))}">
-        <td class="dn">${ucNameHtml(ucShownName(u,self,o.meName))} <button type="button" class="dnEdit" title="Edit display name" aria-label="Edit display name for ${esc(who)}">✎</button></td>
+        <td class="dn">${ucNameHtml(ucShownName(u,self,o.meName))}${badges(u)} <button type="button" class="dnEdit" title="Edit display name" aria-label="Edit display name for ${esc(who)}">✎</button></td>
         <td class="em">${esc(u.email||"—")}${self?' <span class="me">you</span>':""}</td>
         <td>${roleSel(u,self)}</td>
         <td style="text-align:right">${rm(u,self)}</td>
@@ -1818,8 +1831,8 @@
       const joined=ucDate(u.created_at);
       const st=u.complete?`<span class="ucok" title="${esc(u.profile_completed_at?"Completed "+ucDate(u.profile_completed_at):"Profile complete")}">✓ Complete</span>`:`<span class="ucno" title="No full name or mobile number yet">✗ Incomplete</span>`;
       const mail=u.email||u.email_name||"";
-      return `<tr class="ucr${priv?"":" ucr-np"}" data-id="${esc(ucId(u))}">
-        <td class="dn" data-label="Name"><div class="ucwho">${av}<div class="ucwt"><div class="ucnm">${ucNameHtml(ucShownName(u,self,o.meName))}${self?' <span class="me">you</span>':""}</div><div class="ucsub em"${mail?` title="${esc(mail)}"`:""}>${esc(mail)}</div></div></div></td>
+      return `<tr class="ucr${priv?"":" ucr-np"}${isOff(u)?" ucoff":""}" data-id="${esc(ucId(u))}">
+        <td class="dn" data-label="Name"><div class="ucwho">${av}<div class="ucwt"><div class="ucnm">${ucNameHtml(ucShownName(u,self,o.meName))}${self?' <span class="me">you</span>':""}${badges(u)}</div><div class="ucsub em"${mail?` title="${esc(mail)}"`:""}>${esc(mail)}</div></div></div></td>
         ${priv?`<td class="ucph" data-label="Phone">${esc(u.phone?ucPhone(u.phone):"—")}</td>`:""}
         <td class="ucjob" data-label="Job title">${esc(u.job_title||"—")}${u.department?`<div class="ucsub ucdept">${esc(u.department)}</div>`:""}</td>
         <td class="ucrole" data-label="Role">${roleSel(u,self)}</td>
@@ -1835,6 +1848,8 @@
     try{ res=await BPStore.auth.admin.members(); }
     catch(e){ BPUI.loadError(tb, e, renderUsers, {what:"team members"}); return; }
     ucProfiles=!!res.profiles; ucRows=res.rows||[];
+    // r33 (0283): owner / deactivated / waiting changes (null on a database without 0283 -> the table as before)
+    try{ ucTeam=BPStore.team?await BPStore.team.overview():null; }catch(e){ ucTeam=null; }
     renderSeats();
     if(!ucProfiles) ucRows.sort((a,b)=>(a.email||"").localeCompare(b.email||""));
     $("#uc_tools").hidden=false; $("#uc_f").hidden=!ucProfiles;
@@ -1843,8 +1858,11 @@
   function drawUsers(){
     const tb=$("#um_rows"), me=BPStore.auth.user();
     const meMeta=(me&&me.user_metadata)||{};
+    const team=(typeof HelmTeam!=="undefined"&&ucTeam)?HelmTeam.view(ucTeam):null;
     const t=ucTable(ucRows,{profiles:ucProfiles, meId:me&&me.id, meName:meMeta.full_name||meMeta.name||"", roles:ROLES, roleLabel:BPStore.auth.admin.roleLabel, canEdit:isAdmin,
-      q:$("#uc_q").value, filter:ucProfiles?$("#uc_f").value:""});
+      q:$("#uc_q").value, filter:ucProfiles?$("#uc_f").value:"", team});
+    if(typeof HelmTeam!=="undefined") HelmTeam.paint($("#team_safety"), ucTeam, { store:BPStore.team, guard:BPUI.guard, confirm:BPUI.confirm, prompt:BPUI.prompt,
+      mfa:BPStore.auth.mfa, msg:setUMsg, reload:renderUsers });
     $("#um_head").innerHTML=t.head; tb.innerHTML=t.body;
     const inc=ucProfiles?ucRows.filter(u=>u.complete===false).length:0;
     $("#uc_count").textContent=(t.shown===t.total?t.total+" member"+(t.total===1?"":"s"):t.shown+" of "+t.total)+(inc?" · "+inc+" incomplete":"");
@@ -1853,8 +1871,14 @@
     tb.querySelectorAll(".roleSel").forEach(sel=>sel.addEventListener("change", async (e)=>{
       const tr=e.target.closest("tr"), id=tr.dataset.id, role=e.target.value;
       const prev=[...e.target.options].find(o=>o.defaultSelected);
-      try{ await BPUI.guard(e.target, ()=>BPStore.auth.admin.setRole(id, role)); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); const na=tr.querySelector(".no-access"); if(na) na.remove(); const u=rowOf(tr); if(u) u.role=role; }
-      catch(err){ setUMsg("err",errMsg(err,"change the role")); if(prev) e.target.value=prev.value; }
+      // r33 (0283): another admin's demotion by a non-owner waits 24 hours (team_set_role); the owner's is immediate
+      const u0=rowOf(tr)||{}, delayed=!!(team&&!team.iAmOwner&&u0.role==="admin"&&role!=="admin");
+      if(delayed && !(await BPUI.confirm(`Change ${u0.email||u0.full_name||"this admin"} from Admin? Only the studio owner can do this at once - your request takes effect in 24 hours. The owner and this admin are told now, and the owner can cancel it.`,{title:"Change an admin's role",okLabel:"Ask for the change"}))){ if(prev) e.target.value=prev.value; return; }
+      try{
+        const r=await BPUI.guard(e.target, ()=>team&&BPStore.team?BPStore.team.setRole(id, role):BPStore.auth.admin.setRole(id, role));
+        if(r&&r.scheduled){ if(prev) e.target.value=prev.value; setUMsg("ok","Asked. The change happens in 24 hours unless the owner cancels it."); await renderUsers(); return; }
+        setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); const na=tr.querySelector(".no-access"); if(na) na.remove(); const u=rowOf(tr); if(u) u.role=role; }
+      catch(err){ setUMsg("err",typeof HelmTeam!=="undefined"&&HelmTeam.HINT_TEXT[HelmTeam.hintOf(err)]?HelmTeam.errText(err):errMsg(err,"change the role")); if(prev) e.target.value=prev.value; }
     }));
     tb.querySelectorAll(".dnEdit").forEach(btn=>btn.addEventListener("click", async ()=>{
       const tr=btn.closest("tr"), id=tr.dataset.id, u=rowOf(tr); if(!u) return;
@@ -1867,11 +1891,31 @@
       catch(err){ setUMsg("err",errMsg(err,"change the display name")); }
     }));
     tb.querySelectorAll(".ucEdit").forEach(btn=>btn.addEventListener("click",()=>{ const u=rowOf(btn.closest("tr")); if(u) openMemberEdit(u, btn); }));
+    // r33 (0283): Deactivate - nothing is deleted. A non-owner deactivating an admin waits 24 hours.
     tb.querySelectorAll(".rm").forEach(btn=>btn.addEventListener("click", async ()=>{
       const tr=btn.closest("tr"), id=tr.dataset.id, u=rowOf(tr)||{}, email=u.email||u.full_name||"this user";
-      if(!(await BPUI.confirm(`Remove ${email}? This permanently deletes their account and they lose access immediately.`,{title:"Delete user account?",okLabel:"Delete account",danger:true}))) return;
-      try{ await BPUI.guard(btn, ()=>BPStore.auth.admin.deleteUser(id)); await renderUsers(); setUMsg("ok","User removed."); }
-      catch(err){ setUMsg("err",errMsg(err,"remove the user")); }
+      const delayed=!!(team&&!team.iAmOwner&&u.role==="admin");
+      const text=delayed?`Deactivate ${email}? Only the studio owner can remove an admin at once - your request takes effect in 24 hours. The owner and ${email} are told now, and the owner can cancel it.`
+        :`Deactivate ${email}? They can't sign in or see studio data from now on, and they're signed out everywhere. Everything they made stays, with their name marked "(deactivated)". They no longer use a seat, and you can reactivate them later.`;
+      if(!(await BPUI.confirm(text,{title:delayed?"Deactivate an admin":"Deactivate team member",okLabel:delayed?"Ask to deactivate":"Deactivate",danger:true}))) return;
+      try{
+        const r=await BPUI.guard(btn, ()=>BPStore.team?BPStore.team.deactivate(id, null):BPStore.auth.admin.deleteUser(id));
+        await renderUsers();
+        if(r&&r.scheduled) setUMsg("ok","Asked. "+email+" is deactivated in 24 hours unless the owner cancels it.");
+        else { setUMsg("ok",email+" is deactivated. Their records are kept."); if(r&&r.open_work&&typeof HelmTeam!=="undefined") HelmTeam.paintWork($("#team_work"), u.full_name||email, r.open_work); }
+      }
+      catch(err){ setUMsg("err",typeof HelmTeam!=="undefined"?HelmTeam.errText(err,"Couldn't deactivate them."):errMsg(err,"deactivate the user")); }
+    }));
+    tb.querySelectorAll(".ucReact").forEach(btn=>btn.addEventListener("click", async ()=>{
+      const tr=btn.closest("tr"), id=tr.dataset.id, u=rowOf(tr)||{}, email=u.email||u.full_name||"this user";
+      if(!(await BPUI.confirm(`Reactivate ${email}? They can sign in again with their old role, and they use a seat again.`,{title:"Reactivate team member",okLabel:"Reactivate"}))) return;
+      try{ await BPUI.guard(btn, ()=>BPStore.team.reactivate(id)); await renderUsers(); setUMsg("ok",email+" can sign in again."); }
+      catch(err){ setUMsg("err",HelmTeam.errText(err,"Couldn't reactivate them.")); }
+    }));
+    tb.querySelectorAll(".ucWork").forEach(btn=>btn.addEventListener("click", async ()=>{
+      const tr=btn.closest("tr"), id=tr.dataset.id, u=rowOf(tr)||{};
+      try{ const w=await BPUI.guard(btn, ()=>BPStore.team.openWork(id)); HelmTeam.paintWork($("#team_work"), u.full_name||u.email||"This person", w); }
+      catch(err){ setUMsg("err",HelmTeam.errText(err,"Couldn't load their open work.")); }
     }));
   }
   $("#uc_q").addEventListener("input",BPUI.debounce(drawUsers,150));
