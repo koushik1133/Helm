@@ -246,6 +246,8 @@ run "r26-captcha-0276" "R26-CAPTCHA-0276: ALL PASS \(30/30\)" psql -q -f tests/d
 run "r27-hq-staff-0277" "R27-HQ-STAFF-0277: ALL PASS \(58/58\)" psql -q -f tests/db/r27-hq-staff-0277.sql
 # 0285 re-applies itself twice (re-run safe; later than every suite that re-applies 0264 / 0150 / 0117), rolled back
 run "r35-paysafe-0285" "R35-PAYSAFE-0285: ALL PASS \(83/83\)" psql -q -f tests/db/r35-paysafe-0285.sql
+# 0291 re-applies itself twice (re-run safe), rolled back
+run "r44-two-step-0291" "R44-TWO-STEP-0291: ALL PASS \(22/22\)" psql -q -f tests/db/r44-two-step-0291.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

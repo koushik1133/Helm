@@ -1234,7 +1234,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "53";
+  const AUTH_UI_VERSION = "54";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -2431,6 +2431,15 @@ window.HelmUrl = HelmUrl;
           { p_role: role, p_area: area, p_view: !!canView, p_edit: !!canEdit }); if (error) throw error; return data; });
         accessCache = null; try { sessionStorage.removeItem("bp_sess_access"); } catch (e) {} return data;
       },
+      // r44 (0291): Settings -> Team "Two-step" badge - { user id: true | false } for the members of MY studio only
+      // (studio admins only; the database decides). null when the database does not have 0291 yet (no badge shown).
+      async twoStepStatus() {
+        if (!supa) return null;
+        const { data, error } = await supa.rpc("studio_two_step_status");
+        if (error) { if (error.code === "PGRST202" || error.code === "42883" || error.code === "42501") return null; throw error; }
+        const out = {}; (Array.isArray(data) ? data : []).forEach((r) => { if (r && r.user_id) out[r.user_id] = r.two_step === true; });
+        return out;
+      },
       async listUsers() {
         if (!supa) throw new Error("Supabase not configured");
         const { data, error } = await supa.from("profiles")
@@ -3194,6 +3203,7 @@ window.HelmUrl = HelmUrl;
   const STEPUP_TEXT = {
     reauth: "Enter a fresh two-step code to confirm this change.",
     setup: "Set up two-step verification on your account first. Payment details and other sensitive studio settings can only be changed with two-step.",
+    setupWhy: "This change needs two-step sign-in. Set it up now (about 2 minutes) and Helm carries on with your change.",
     flagged: "This account was flagged after a \u201cThis wasn't us\u201d. Another admin has to clear the flag before it can change sensitive settings.",
   };
   function stepUpKind(e) {
@@ -3206,17 +3216,24 @@ window.HelmUrl = HelmUrl;
   async function withStepUp(run) {
     try { return await run(); }
     catch (e) {
-      const k = stepUpKind(e);
+      let k = stepUpKind(e);
       if (!k) throw e;
       const UI = global.BPUI, S = global.BPStore;
       if (k === "setup") {
+        // r44: "Set up two-step now" opens the guided set-up; once it is on (the session is then at two-step with a
+        // fresh code) the SAME change is tried once more, so the person carries on where they were
+        let on = false;
         try {
-          if (UI && UI.confirm && global.HelmAuthUI && global.HelmAuthUI.openAccount
-              && await UI.confirm(STEPUP_TEXT.setup, { title: "Two-step needed", okLabel: "Set up two-step", cancelLabel: "Not now" })) {
-            global.HelmAuthUI.openAccount();
+          const A = global.HelmAuthUI;
+          if (UI && UI.confirm && A && (A.openTwoStepSetup || A.openAccount)
+              && await UI.confirm(STEPUP_TEXT.setup, { title: "Two-step needed", okLabel: "Set up two-step now", cancelLabel: "Not now" })) {
+            if (A.openTwoStepSetup) on = (await A.openTwoStepSetup({ reason: STEPUP_TEXT.setupWhy, doneLabel: "Continue with my change" })) === true;
+            else A.openAccount({ section: "settings", focus: "mfa" });
           }
-        } catch (x) {}
-        throw stepUpError(e, k);
+        } catch (x) { on = false; }
+        if (!on) throw stepUpError(e, k);
+        try { return await run(); }
+        catch (e2) { const k2 = stepUpKind(e2); if (k2 !== "reauth") throw (k2 ? stepUpError(e2, k2) : e2); e = e2; k = k2; }
       }
       if (k !== "reauth" || !UI || !UI.prompt || !S || !S.auth || !S.auth.mfa || !S.auth.mfa.challenge) throw stepUpError(e, k);
       const code = await UI.prompt("Payment details and other sensitive studio settings always ask for a fresh code from your authenticator app.", {
@@ -8381,6 +8398,7 @@ window.HelmUrl = HelmUrl;
       if (/^(pay_details_|flag_cleared|sessions_ended)/.test(ev)) return "control.html#payment-schedules";
       if (/^(reply_to_|razorpay_)/.test(ev)) return "integrations.html";
       if (ev === "business_email_changed") return "control.html#general";
+      if (ev === "two_step_intro") return "dashboard.html#two-step-setup";   // r44 (0291): opens the guided set-up
       return "control.html#users";
     }
     if (k.indexOf("nurture_") === 0) return "nurture.html";
