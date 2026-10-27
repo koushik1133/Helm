@@ -112,6 +112,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0285_r35_payment_details_safety.sql
 -- 0284 (r34 invitation RSVP + link history) adds event_site_rsvps + event_site_slug_history to the purge list
 \ir ../../supabase/migrations/0284_invite_rsvp_privacy.sql
+-- 0290 (r41 send window) adds its per-studio settings table studio_send_windows to the keep list on top of 0184
+\ir ../../supabase/migrations/0290_send_window.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin
