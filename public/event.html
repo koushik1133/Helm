@@ -99,7 +99,7 @@
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="event-ui.css?v=3">
 <link rel="stylesheet" href="quote-validity.css?v=1"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=1"><link rel="stylesheet" href="payment-schedule.css?v=1">
-<script src="/shell-proto.js?v=43" id="shellProto"></script>
+<script src="/shell-proto.js?v=44" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -228,12 +228,12 @@
 <script src="telemetry.js?v=6"></script>
 <script src="config.js?v=110"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=282"></script>
+<script src="country-profile.js?v=5"></script><script src="store-api.js?v=283"></script>
 <script src="flow-resume.js?v=5"></script>
 <script src="event-reminders.js?v=4"></script>
 <script src="tour.js?v=24"></script>
 <script src="payment-schedule.js?v=1"></script>
-<script src="booklet.js?v=27"></script>
+<script src="booklet.js?v=28"></script>
 <script src="email-send.js?v=5"></script><script src="share-checklist.js?v=13"></script>
 <script src="invite-site-share.js?v=10"></script><script src="booklet-share.js?v=17"></script>
 <script src="pkg-review.js?v=7"></script><script src="quote-validity.js?v=2"></script>
@@ -948,9 +948,12 @@
     try{ const o=BPStore.fmtStudioDate?BPStore.fmtStudioDate(s,{style:"medium", year: !!thisYear && s.slice(0,4)!==thisYear}):""; if(o) return o; }catch(_){}
     return s; }
   // r20-coord: a stored "19:00:00" showed its seconds in the time box (SMP-1004) - the box gets HH:MM like every other event
-  function evTimeInput(t){ const m=/^(\d{1,2}):(\d{2})/.exec(String(t||"")); return m?(m[1].length<2?"0":"")+m[1]+":"+m[2]:""; }
-  function evTimeLabel(t){ const m=/^(\d{1,2}):(\d{2})/.exec(String(t||"")); if(!m) return String(t||""); const h=+m[1];
-    if(h>23||+m[2]>59) return String(t); return ((h%12)||12)+":"+m[2]+" "+(h<12?"am":"pm"); }
+  // R36: "6:30 PM" was read as 6:30 (AM) - parse through HelmCountry.parseTime; a 12h string never guesses without it
+  function evParseTime(t){ if(typeof HelmCountry!=="undefined"&&HelmCountry.parseTime) return HelmCountry.parseTime(t);
+    const m=/^(\d{1,2}):(\d{2})(?!\d|\s*[ap]\.?\s*m)/i.exec(String(t==null?"":t)); return m&&+m[1]<24&&+m[2]<60?{h:+m[1],m:+m[2]}:null; }
+  function evTimeInput(t){ const p=evParseTime(t); return p?(p.h<10?"0":"")+p.h+":"+(p.m<10?"0":"")+p.m:""; }
+  function evTimeLabel(t){ const p=evParseTime(t); if(!p) return String(t||"");
+    return ((p.h%12)||12)+":"+(p.m<10?"0":"")+p.m+" "+(p.h<12?"am":"pm"); }
   // ---- 0198 stage strip: VIEW a stage (always allowed), MOVE the event (gated, explained) ----
   const viewIdx=()=> viewK!=null ? stageIndex(viewK) : stageIndex(effStage());
   const evClosedNow=()=> !!ev && (ev.lifecycleStage==="closed" || !!ev.closedAt || !!(closureSummary&&closureSummary.closed));
