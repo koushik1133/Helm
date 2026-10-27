@@ -172,13 +172,13 @@
 
   // When a DSN is configured but no reporter SDK is present yet, lazy-load the Sentry
   // browser SDK and init it (redaction-aware via beforeSend). Completely NO-OP when no
-  // DSN is set. The CSP already allows the script (https://browser.sentry-cdn.com/8.35.0/,
+  // DSN is set. The CSP already allows the script (https://browser.sentry-cdn.com/8.55.2/,
   // pinned to this version's directory - change both together, see scripts/csp-hashes.cjs).
   // connect-src allows ONLY the DSN's exact ingest host (audit run-3 client/csp: a
   // *.ingest.sentry.io wildcard lets any Sentry org receive data). scripts/gen-csp.mjs reads
   // the DSN from config.js and writes that one host into vercel.json + public/_headers.
-  var SENTRY_SRC = 'https://browser.sentry-cdn.com/8.35.0/bundle.min.js';
-  var SENTRY_SRI = 'sha384-j1K2/oFJn/QPiNs/Fk58NwXcaEbWzaUEF04vKMBnEprfbZ2hIQrAO0yc0XEfai1E';
+  var SENTRY_SRC = 'https://browser.sentry-cdn.com/8.55.2/bundle.min.js';
+  var SENTRY_SRI = 'sha384-lNMClDekFF9oPvouGJqnUSKioEadbe8byR7uGUA0sPP+g9r2x3eiErEJmm/Em+wB';
   var sentryArmed = false, sentryReady = false;
   function loadSentry() {
     refresh();
@@ -189,9 +189,9 @@
       // Pinned CDN bundle WITH Subresource Integrity (audit run-3
       // supply-chain/telemetry/sentry-cdn-script-no-sri): the browser refuses to run
       // the file unless its bytes hash to this value. The sha384 is Sentry's own
-      // published checksum for 8.35.0 bundle.min.js (release-registry.services.sentry.io
-      // sdks/sentry.javascript.browser/8.35.0) and was re-computed from the CDN bytes
-      // on 2026-10-17 - both match. Changing the version means changing src, this
+      // published checksum for 8.55.2 bundle.min.js (release-registry.services.sentry.io
+      // sdks/sentry.javascript.browser/8.55.2) and was re-computed from the CDN bytes
+      // on 2026-10-26 - both match (r30: 8.35.0 -> 8.55.2, latest 8.x patch). Changing the version means changing src, this
       // hash and the CSP script-src directory (scripts/csp-hashes.cjs) together.
       sc.src = SENTRY_SRC;
       sc.integrity = SENTRY_SRI;

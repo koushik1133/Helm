@@ -29,7 +29,7 @@
 //         PHONE_CODE_HOME_COUNTRY_PER_DAY (default 1500),
 //       - optional allowlist          PHONE_CODE_ALLOWED_CC="91,971"   (others refused).
 //     Also set a spend alert in Meta Business Manager (owner action).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 

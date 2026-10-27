@@ -135,7 +135,7 @@ t('REF-01: token routes send Referrer-Policy no-referrer + Cache-Control no-stor
   }
   // static assets keep long-lived caching; app HTML is not marked immutable
   assert.match(vercelHeaders('/store-api.js')['cache-control'], /immutable/);
-  assert.match(vercelHeaders('/vendor/supabase-js-2.117.2.min.js')['cache-control'], /immutable/);
+  assert.match(vercelHeaders('/vendor/supabase-js-2.118.0.min.js')['cache-control'], /immutable/);
   assert.equal(vercelHeaders('/config.js')['cache-control'], 'public, max-age=300, stale-while-revalidate=3600');
   assert.ok(!/immutable/.test(vercelHeaders('/dashboard')['cache-control'] || ''));
 });
@@ -245,7 +245,7 @@ t('FILE-01: internal files are excluded from the Vercel upload and 404/redirecte
     assert.equal((redirectFor(p) || {}).destination, '/manual', p + ' must redirect to /manual');
   // local dev mirrors it
   for (const p of ['/_headers', '/vendor/README.md', '/x.map', '/a/.DS_Store']) assert.ok(server.isInternalFile(p), p);
-  for (const p of ['/dashboard.html', '/store-api.js', '/robots.txt', '/vendor/supabase-js-2.117.2.min.js']) assert.ok(!server.isInternalFile(p), p);
+  for (const p of ['/dashboard.html', '/store-api.js', '/robots.txt', '/vendor/supabase-js-2.118.0.min.js']) assert.ok(!server.isInternalFile(p), p);
   assert.ok(read('.gitignore').split('\n').includes('.DS_Store'));
 });
 

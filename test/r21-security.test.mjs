@@ -247,7 +247,7 @@ await t("5c telemetry: DSN read lazily (config.js loads after telemetry.js) - a 
   assert.equal(captured.script, undefined, "no DSN yet -> nothing loaded");
   w.HELM_TELEMETRY = { dsn: "https://k9@o1.ingest.sentry.io/2", env: "production" };   // what config.js does next
   handlers.DOMContentLoaded.forEach((f) => f());
-  assert.ok(captured.script && /sentry-cdn\.com\/8\.35\.0\/bundle\.min\.js/.test(captured.script.src), "armed after config.js");
+  assert.ok(captured.script && /sentry-cdn\.com\/8\.55\.2\/bundle\.min\.js/.test(captured.script.src), "armed after config.js");
   assert.equal(w.HelmTelemetry.enabled, true);
   assert.match(CFG, /window\.HELM_TELEMETRY = Object\.assign\(\{\n  dsn: "https:\/\/1dc17f49258bac56dd0eb8e778842d7e@o4512062490738688\.ingest\.us\.sentry\.io\/4512328815542272",/, "R45: DSN set");
 });

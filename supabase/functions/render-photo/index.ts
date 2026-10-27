@@ -20,7 +20,7 @@
 // Secrets / env: OPENAI_API_KEY (switches it on), OPENAI_IMAGE_MODEL (default gpt-image-2.5-sunburst),
 //   RENDER_TIMEOUT_MS (default 140000; max 380000 on paid plans), RENDER_COST_USD_LOW / _MEDIUM / _HIGH (per image estimate),
 //   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY (injected).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 

@@ -125,13 +125,13 @@ function withHashes(csp, hashes, styleHashes) {
 // lets an attacker who finds any HTML injection load an old gadget library from
 // the same CDN and run script despite the hash-based policy. So:
 //   • every page: only the pinned Sentry bundle directory (dormant until a DSN is
-//     set — telemetry.js loads https://browser.sentry-cdn.com/8.35.0/bundle.min.js);
+//     set — telemetry.js loads https://browser.sentry-cdn.com/8.55.2/bundle.min.js);
 //   • the 3D builder only: the exact three.js r128 directories it loads
 //     (public/builder-3d.js, every file also SRI-pinned).
 // A source ending in "/" matches by path prefix (CSP3 §6.7.2.12), so nothing
 // else on those CDNs is allowed. server.js builds its policies from these
 // constants; scripts/gen-csp.mjs fails when vercel.json / public/_headers drift.
-const SCRIPT_SRC_BASE = ["'self'", 'https://browser.sentry-cdn.com/8.35.0/'];
+const SCRIPT_SRC_BASE = ["'self'", 'https://browser.sentry-cdn.com/8.55.2/'];
 const SCRIPT_SRC_BUILDER = [...SCRIPT_SRC_BASE,
   'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/',
   'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/'];

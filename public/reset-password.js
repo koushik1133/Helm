@@ -73,7 +73,7 @@
       $("#toLogin").setAttribute("href", "login#forgot"); $("#toLogin").textContent = "Request a reset link →";
       return;
     }
-    $("#acct_email").value = u.email || "";
+    $("#acct_email").value = u.email || ""; $("#cur_email").value = u.email || "";   // R29b: password managers match the account
     // "?code=" in the URL is NOT proof (anyone can type it): only a session
     // whose signed token says it came from a reset link skips the current-password step.
     var realRecovery = await BPStore.auth.isRecoverySession();
@@ -151,7 +151,7 @@
         }
         show("#vDone"); $("#title").textContent = "Password changed";
         sub(""); ok("Your password was changed and your other devices were signed out.");
-      } catch (x) { err(friendly(x, "save your new password")); }
+      } catch (x) { err(friendly(x, "save your new password")); if (x && x.field === "pw") { $("#new_pw").focus(); $("#new_pw").select(); } }   // r29: e.g. a too-common password - fields stay filled
       finally { $("#set_cur_pw").value = ""; if (opts) opts.currentPassword = null; }
     });
   });
