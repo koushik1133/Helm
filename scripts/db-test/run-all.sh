@@ -257,6 +257,8 @@ run "r32b-round2-0282" "R32B-ROUND2-0282: ALL PASS \(35/35\)" psql -q -f tests/d
 run "r33-team-safety-0283" "R33-TEAM-SAFETY-0283: ALL PASS \(87/87\)" psql -q -f tests/db/r33-team-safety-0283.sql
 # 0285 re-applies itself twice (re-run safe; later than every suite that re-applies 0264 / 0150 / 0117), rolled back
 run "r35-paysafe-0285" "R35-PAYSAFE-0285: ALL PASS \(100/100\)" psql -q -f tests/db/r35-paysafe-0285.sql
+# 0291 re-applies itself twice (re-run safe), rolled back
+run "r44-two-step-0291" "R44-TWO-STEP-0291: ALL PASS \(22/22\)" psql -q -f tests/db/r44-two-step-0291.sql
 # r47 (0292): my_pending re-issued (prod 500 = statement timeout); re-applies itself twice (earlier suites re-apply 0036), rolled back
 run "r47-my-pending-0292" "R47-MY-PENDING-0292: ALL PASS \(24/24\)" psql -q -f tests/db/r47-my-pending-0292.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh

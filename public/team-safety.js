@@ -102,7 +102,8 @@
   async function call(fn, deps) {
     try { return await fn(); }
     catch (e) {
-      if (hintOf(e) !== "reauth" || !deps.prompt || !deps.mfa || !deps.mfa.challenge) throw e;
+      // r35 / r44: store-api's withStepUp already asked for the code (or offered the two-step set-up) - never ask twice
+      if (hintOf(e) !== "reauth" || (e && e.stepUp) || !deps.prompt || !deps.mfa || !deps.mfa.challenge) throw e;
       const code = await deps.prompt("Enter the 6-digit code from your authenticator app to confirm this change.",
         { title: "Confirm it's you", label: "6-digit code", required: true, maxLength: 6, okLabel: "Confirm" });
       if (code == null) throw new Error("Cancelled - nothing was changed.");
