@@ -172,7 +172,7 @@ function loadTour(auth) {
   const ctx = { window, document, location: { pathname: '/dashboard.html' }, localStorage: { getItem: () => null, setItem: noop },
     getComputedStyle: () => ({ display: 'block', visibility: 'visible', overflow: 'visible', overflowX: 'visible', overflowY: 'visible', position: 'static' }),
     requestAnimationFrame: noop, setTimeout: noop, matchMedia: () => ({ matches: true }), console };
-  vm.runInNewContext(TSRC, ctx);
+  vm.runInNewContext(read('public/page-tours.js') + '\n' + TSRC, ctx);   // R46: page-tours.js loads just before tour.js
   return { T: window.HelmTour, document };
 }
 const coordAuth = { canView: async (a) => !['finance', 'nurture', 'controls', 'insights'].includes(a),

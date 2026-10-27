@@ -10,5 +10,5 @@ ok(/BPStore\.vendorBills\.pnl\(id\)/.test(c) && /bills_due/.test(c), 'close dial
 ok(/pl\.refunds>0/.test(c), 'closure P&L shows refunds');
 ok(!/<td class="num">\+ \$\{inr\(s\.refundedOut\)\}/.test(s), 'settlement refund row not added to balance');
 console.log('retest-1018 ' + n + '/' + n + ' ok');
-ok(/shell-proto\.js\?v=44/.test(api), 'shell-proto pin bumped so cached browsers pick up SHELL_V 107');
+ok(/shell-proto\.js\?v=45/.test(api), 'shell-proto pin bumped so cached browsers pick up SHELL_V 107');
 console.log('retest-1018 shell pin ok');
