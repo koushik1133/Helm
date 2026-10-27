@@ -29,7 +29,11 @@
   var KHINT = { confirmed: "booked", tentative: "still a quote", lead: "enquiry, no quote yet" };
   var VIEWS = ["month", "week", "day"];
   var MAXSPAN = 31;
-  var hhmm = function (t) { var m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); return m ? pad(+m[1]) + ":" + m[2] : ""; };
+  // R36: "6:30 PM" sorts/labels as 18:30 (HelmCountry.parseTime); without it only plain 24h is trusted
+  var hhmm = function (t) {
+    var HC = window.HelmCountry; if (HC && HC.toHHMM) return HC.toHHMM(t);
+    var m = /^(\d{1,2}):(\d{2})(?!\d|\s*[ap]\.?\s*m)/i.exec(String(t || "")); return m && +m[1] < 24 && +m[2] < 60 ? pad(+m[1]) + ":" + m[2] : "";
+  };
   var numLoc = function () { try { var B = window.BPStore; return B && B.studioLocale ? B.studioLocale() : undefined; } catch (e) { return undefined; } };
   var guestsTxt = function (g) { var n = Math.round(Number(g)); return n > 0 ? n.toLocaleString(numLoc()) + (n === 1 ? " guest" : " guests") : ""; };
 

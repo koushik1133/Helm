@@ -1,7 +1,8 @@
 -- APPLY-0290.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
 -- Run AFTER APPLY-0287 (it uses the studio's time zone from 0287; without it the file stops with "STOP 0290" and
--- changes nothing). Run it after 0279 / 0283 / 0285 / 0288 / 0289 too, whatever their order. If APPLY-0279 (referrals) is
--- applied LATER than this file, run this file once more so the referral e-mails get the send window as well.
+-- changes nothing). Safe before or after 0279 / 0283 / 0284 / 0285 / 0291 / 0292, whatever their order. If APPLY-0279
+-- (referrals) is applied LATER than this file, run this file once more so the referral e-mails get the window as well
+-- (production already has 0279 + SCHEDULE-0279, so one run covers it there).
 -- Send window (R41): automatic e-mails / WhatsApps that the night-time jobs queue just after the studio's midnight
 -- are HELD until a sensible hour in the studio's own time zone - clients, guests and vendors 09:00-20:00, studio staff
 -- 08:00-21:00 - and never dropped. Security alerts, OTP / sign-in / password e-mails, invites and anything a person

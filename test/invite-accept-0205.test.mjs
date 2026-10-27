@@ -111,11 +111,10 @@ t("store-api: peek + resendLink helpers", () => {
   assert.match(api, /invite_link_request: \["/, "bell label for the studio");
 });
 t("store-api: after an e-mail link sign-in, 'Set your password' follows the server (own login), else type=invite", () => {
-  assert.match(api, /let needPw = isNew;/);
+  // R32 AUTH-4: the /auth/confirm path is the only one left (the legacy #access_token fragment is never adopted)
   assert.match(api, /supa\.rpc\("my_needs_password"\)/);
-  assert.match(api, /if \(needPw && sr && !sr\.error && sr\.data && sr\.data\.user\) sessionStorage\.setItem\(INVITE_SET_PW_KEY/);
-  // the link session is still only adopted when nobody is signed in (login-CSRF guard kept)
-  assert.match(api, /if \(!\(cur && cur\.data && cur\.data\.session\)\) \{/);
+  assert.match(api, /if \(needPw && currentUser && currentUser\.id\) sessionStorage\.setItem\(INVITE_SET_PW_KEY/);
+  assert.doesNotMatch(api, /setSession\(\{ access_token: /, "no session from a link fragment (login CSRF)");
 });
 
 // ---- login page ---------------------------------------------------------------------------------
@@ -124,7 +123,8 @@ t("login: new-link card, never 'sign in' for a login without a password", () => 
   assert.ok(login.includes(">Email me a new link to set my password</button>"));
   assert.ok(login.includes("works once and only for 24 hours"));
   assert.match(login, /"#invitePwForm","#inviteLinkCard"\]/);
-  assert.match(login, /if\(x&&x\.code==="needs_link"\)\{ showInviteLink\(email, x\.reason==="unconfirmed"\); return; \}/);
+  // R32b: the Join form's direct sign-up moved into inviteDirectJoin() (returns "done" instead of a bare return)
+  assert.match(login, /if\(x&&x\.code==="needs_link"\)\{ showInviteLink\(email, x\.reason==="unconfirmed"\); return "done"; \}/);
   assert.ok(!login.includes('x.message+" Use the Sign in tab above."'), "old dead-end text gone");
 });
 t("login: invite context on EVERY path - Join <Studio> on Helm + <Inviter> invited you as <Role> + e-mail", () => {

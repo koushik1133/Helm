@@ -15,7 +15,7 @@ assert.match(r("booklet.css"), /\.bp-theme-toggle\{display:none!important\}/);
 const ui = r("auth-ui.js");
 assert.match(ui, /function cropThen\(f, done\)/, "profile photo crop step");
 assert.match(ui, /cropThen\(f, upload\)/);
-assert.match(ui, /hau_mfa_nudge_session/, "2FA nudge once per session");
+assert.match(ui, /noteSnoozed\("twostep"\)/, "2FA notice: dismissed = quiet for 7 days (r44: replaces once per session)");
 assert.match(ui, /tourActive\(\)/, "2FA nudge waits for tour");
 assert.match(ui, /hau-notes-pad/, "mobile bottom padding under notices");
 

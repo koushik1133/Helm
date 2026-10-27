@@ -129,6 +129,11 @@ do $$ declare r timestamptz; begin
   perform pg_temp.res('quote: staff cannot revive a revoked client link', r is not null, 'link revived');
 end $$;
 do $$ declare d date; t numeric; begin
+  -- R32b (0282 R2-BIZ-NEW-1): lowering a confirmed / paid event's price needs the "Approve discounts" switch
+  perform pg_temp.su();
+  insert into public.role_access(org_id, role, area, can_view, can_edit, updated_at)
+    values ('a0000000-0000-4000-8000-000000000001', 'sales', 'discount_approve', true, true, now())
+  on conflict (org_id, role, area) do update set can_view = true, can_edit = true;
   perform pg_temp.login('a_staff@a.test');
   begin
     update public.quotes set event_date = current_date + 50,
@@ -136,6 +141,7 @@ do $$ declare d date; t numeric; begin
   exception when others then perform pg_temp.res('quote: staff can still edit the date and pricing', false, sqlerrm); return; end;
   perform pg_temp.su(); select event_date, (pricing->>'total')::numeric into d, t from public.quotes where id = pg_temp.id('q');
   perform pg_temp.res('quote: staff can still edit the date and pricing', d = current_date + 50 and t = 118000, d||' / '||t);
+  delete from public.role_access where org_id = 'a0000000-0000-4000-8000-000000000001' and role = 'sales' and area = 'discount_approve';   -- R32b: undo the grant
 end $$;
 
 -- ---- invitations ------------------------------------------------------------------

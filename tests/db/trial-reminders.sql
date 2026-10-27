@@ -4,6 +4,9 @@
 -- an ended trial through checkout. Uses its OWN studios (F, G) so no other suite's rows move.
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
+-- r37 / 0287: the server's "today" is the STUDIO's day (India for these fixtures) and HQ's is India time, so the
+-- fixtures' current_date must be that same day (otherwise this suite fails between 18:30 and 24:00 UTC)
+set timezone = 'Asia/Kolkata';
 drop table if exists _tr; create temp table _tr(name text, result text); grant all on _tr to anon, authenticated, service_role;
 drop table if exists _trs; create temp table _trs as select * from public.helm_billing_settings where id;
 

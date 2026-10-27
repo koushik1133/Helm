@@ -19,6 +19,7 @@ export function notifLink(n) {
       if (!has(n.quote_id) && has(d.quote_id)) n = Object.assign({}, n, { quote_id: d.quote_id });
     }
     const k = k0, q = has(n.quote_id) ? n.quote_id : null;
+    if (k === "trial_reminder" && d.source === "r29_referral") return "refer.html";   // r29 (0279): referral notices
     if (k === "trial_reminder") return "checkout.html";
     // r21 (0250): security notices are Helm HQ only - an HQ notice opens HQ (Activity log -> Security)
     if (k === "security_alert") return d.hq === true ? (/^(sales_enquiry|suggestion)$/.test(String(d.alert || "")) ? "hq.html#requests" : "hq.html") : "control.html#users";
@@ -30,6 +31,16 @@ export function notifLink(n) {
     }
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
+    if (k === "team_safety") return "control.html#users";   // r33 (0283): admin / owner changes -> Control Center -> Team
+    // r35 (0285): payment details / sensitive settings (admins only - the server decides)
+    if (k === "studio_security") {
+      const ev = String(d.event || "");
+      if (/^(pay_details_|flag_cleared|sessions_ended)/.test(ev)) return "control.html#payment-schedules";
+      if (/^(reply_to_|razorpay_)/.test(ev)) return "integrations.html";
+      if (ev === "business_email_changed") return "control.html#general";
+      if (ev === "two_step_intro") return "dashboard.html#two-step-setup";   // r44 (0291): opens the guided set-up
+      return "control.html#users";
+    }
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     // r24 (0269): a new enquiry from the public form -> the Leads board
     if (k === "lead_new") return "leads.html";
