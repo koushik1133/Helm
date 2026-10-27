@@ -19,8 +19,8 @@ async function t(name, fn) { try { await fn(); n++; } catch (e) { console.error(
 const CFG = r("public/config.js");
 
 /* ------------------------------------------------------------------ 1. config.js */
-await t("1a config.js: DSN + site key are empty, clearly marked placeholders (no secret anywhere)", () => {
-  assert.match(CFG, /window\.HELM_TELEMETRY = Object\.assign\(\{\n  dsn: "",\s+\/\/ >>> PASTE THE SENTRY DSN HERE <<</);
+await t("1a config.js: R45 Sentry DSN set (public, project helm); site key still an empty, clearly marked placeholder (no secret anywhere)", () => {
+  assert.match(CFG, /window\.HELM_TELEMETRY = Object\.assign\(\{\n  dsn: "https:\/\/1dc17f49258bac56dd0eb8e778842d7e@o4512062490738688\.ingest\.us\.sentry\.io\/4512328815542272",/);
   assert.match(CFG, />>> TURNSTILE SITE KEY GOES HERE <<</);
   assert.match(CFG, /captcha: \{ provider: "turnstile", siteKey: "",/);
   assert.doesNotMatch(CFG, /TURNSTILE_SECRET|secret\s*:/i);
@@ -41,7 +41,8 @@ await t("1b config.js: environment by host, release = helm-web@<config.js ?v=>, 
   assert.equal(run("www.helm.events", "https://www.helm.events/config.js?v=123").release, "helm-web@123");
   assert.equal(run("www.helm.events", "").release, "helm-web@0");
   assert.equal(run("www.helm.events", "/config.js?v=5").tracesSampleRate, 0);
-  assert.equal(run("www.helm.events", "/config.js?v=5").dsn, "");
+  assert.equal(run("www.helm.events", "/config.js?v=5").dsn, "https://1dc17f49258bac56dd0eb8e778842d7e@o4512062490738688.ingest.us.sentry.io/4512328815542272");
+  assert.equal(run("helm-v01.vercel.app", "/config.js?v=5").dsn, run("www.helm.events", "/config.js?v=5").dsn, "one project; env tag splits prod / staging");
 });
 
 /* ------------------------------------------------------------------ 2. telemetry.js */
@@ -168,7 +169,7 @@ await t("4b scripts: the pass goes in the existing \"captcha\" field; no key = t
 });
 await t("4c CSP: Turnstile allowed on the public form routes only (scripts/csp-hashes.cjs + server.js)", () => {
   const H = require("../scripts/csp-hashes.cjs");
-  const csp = "script-src 'self' https://browser.sentry-cdn.com/8.35.0/ https://challenges.cloudflare.com";
+  const csp = "script-src 'self' https://browser.sentry-cdn.com/8.55.2/ https://challenges.cloudflare.com";
   for (const route of ["/", "/contact-sales", "/suggest.html", "/:studio/enquiry", "/(login|reset-password|signup|contact-sales|suggest|enquiry|index|[a-z0-9-]+/enquiry)?"])
     assert.equal(H.scriptSrcProblem(csp, route), "", route);
   for (const route of ["/dashboard", "/quotes", "/(booklet|portal)"]) assert.notEqual(H.scriptSrcProblem(csp, route), "", route);

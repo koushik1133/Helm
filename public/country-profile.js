@@ -151,10 +151,31 @@
      IN/AE: "Monday, 28 December 2026 · 7:00 PM"; US: "Monday, December 28, 2026 · 7:00 PM". */
   var WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  /* R36: ONE time parser for every stored shape. The old formatters matched only "H:MM" and threw the
+     rest away, so "6:30 PM" became hour 6 = "6:30 AM". Accepts 24h ("18:30", "18:30:00", "18:30:00+05:30")
+     and 12h ("6:30 PM", "6:30pm", "06:30 p.m.", "6 PM"; 12 AM = 00, 12 PM = 12). Returns { h, m } (24h)
+     or null when the value is not a time or is out of range. */
+  var TIME_RE = /^\s*(\d{1,2})(?:[:.](\d{2})(?::\d{2}(?:\.\d+)?)?)?\s*(?:([ap])\.?\s*m\b\.?)?/i;
+  function parseTime(t) {
+    if (t == null || typeof t === "object") return null;
+    var x = TIME_RE.exec(String(t)); if (!x) return null;
+    var h = +x[1], mi = x[2] == null ? 0 : +x[2], ap = x[3] ? x[3].toLowerCase() : "";
+    if (x[2] == null && !ap) return null;                 // a bare number is not a time
+    if (mi > 59) return null;
+    if (ap) {
+      if (h === 0 || h > 23) return null;
+      if (h <= 12) h = ap === "p" ? (h % 12) + 12 : h % 12; // 12 AM -> 0, 12 PM -> 12, 6 PM -> 18
+      else if (ap === "a") return null;                    // "18:30 AM" contradicts itself
+    } else if (h > 23) return null;
+    return { h: h, m: mi };
+  }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  // "HH:MM" 24h (for <input type="time">, sorting, countdowns, conflict maths); "" when not a time
+  function toHHMM(t) { var p = parseTime(t); return p ? pad2(p.h) + ":" + pad2(p.m) : ""; }
+  // client-facing 12h label, same in IN/AE/US ("7:00 PM"); "" when not a time
   function formatTime(t) {
-    var m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); if (!m) return "";
-    var h = +m[1], mi = m[2]; if (h > 23 || +mi > 59) return "";
-    return ((h % 12) || 12) + ":" + mi + " " + (h < 12 ? "AM" : "PM");
+    var p = parseTime(t); if (!p) return "";
+    return ((p.h % 12) || 12) + ":" + pad2(p.m) + " " + (p.h < 12 ? "AM" : "PM");
   }
   function formatDate(cc, iso, opts) {
     opts = opts || {};
@@ -168,7 +189,7 @@
     var dd = formatDate(cc, iso, opts), tt = formatTime(time);
     return dd ? (tt ? dd + " \u00b7 " + tt : dd) : "";
   }
-  return { VERSION: "0089", formMeta: formMeta, formatDate: formatDate, formatTime: formatTime, formatEventDate: formatEventDate, timezone: timezone, isAutoTimezone: isAutoTimezone, COUNTRY_TZS: COUNTRY_TZS, DEFAULT: DEFAULT, get: get, list: list, code: code, findRegion: findRegion, defaultRate: defaultRate,
+  return { VERSION: "0089", formMeta: formMeta, formatDate: formatDate, formatTime: formatTime, parseTime: parseTime, toHHMM: toHHMM, formatEventDate: formatEventDate, timezone: timezone, isAutoTimezone: isAutoTimezone, COUNTRY_TZS: COUNTRY_TZS, DEFAULT: DEFAULT, get: get, list: list, code: code, findRegion: findRegion, defaultRate: defaultRate,
     validateTaxId: validateTaxId, validatePostal: validatePostal, formatMoney: formatMoney, placeOfSupply: placeOfSupply,
     computeTax: computeTax, snapshot: snapshot };
 });

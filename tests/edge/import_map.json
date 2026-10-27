@@ -1,5 +1,5 @@
 {
   "imports": {
-    "npm:@supabase/supabase-js@2.117.2": "./mocks/supabase-js.ts"
+    "npm:@supabase/supabase-js@2.118.0": "./mocks/supabase-js.ts"
   }
 }

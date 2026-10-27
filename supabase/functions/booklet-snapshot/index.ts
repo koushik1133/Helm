@@ -13,7 +13,7 @@
 // Responses are private, short-cached and never sniffed. Logs carry no token.
 //
 // Secrets / env: HELM_BOOKLET_SNAPSHOT_ENABLED, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (injected).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag, UUID_RE } from "../_shared/cors.ts";
 import { clientIp, checkLimits } from "../_shared/limits.ts";
 

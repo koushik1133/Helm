@@ -4,10 +4,10 @@
  * The app is a static site talking directly to Supabase, so there is no server
  * to collect errors. This module is the INTEGRATION POINT for a browser error
  * reporter (e.g. Sentry) plus a global error/rejection capture. It is a NO-OP
- * until a DSN is provided at runtime — NO secret/DSN is committed here.
+ * without a DSN (the DSN lives in config.js - public by design, no secret here).
  *
- * STATUS: code-ready, NOT live. Monitoring is not "on" until an operator sets a
- * DSN (see docs/RUNBOOK.md). Do not claim monitoring is active without it.
+ * STATUS: R45 - LIVE (errors only): public/config.js carries the DSN of the Sentry
+ * project "helm"; no tracing, no replay, no profiling (plain bundle.min.js).
  *
  * Enable by setting BEFORE this script loads:
  *     window.HELM_TELEMETRY = { dsn: 'https://…', env: 'production', release: 'YYYY-MM-DD' };
@@ -23,7 +23,7 @@
   function refresh() {
     var c = (typeof window !== 'undefined' && window.HELM_TELEMETRY) || {};
     CFG = (c && typeof c === 'object') ? c : {};
-    ENABLED = typeof CFG.dsn === 'string' && /^https:\/\/[0-9A-Za-z]{1,64}@o\d{1,12}\.ingest(\.[a-z]{2})?\.sentry\.io\/\d{1,12}$/.test(CFG.dsn)
+    ENABLED = typeof CFG.dsn === 'string' && /^https:\/\/[0-9A-Za-z]{1,64}@o\d{1,20}\.ingest(\.[a-z]{2})?\.sentry\.io\/\d{1,20}$/.test(CFG.dsn)
       // r26: never from a developer's own machine (config.js sets env "development" on localhost) unless asked
       && !(CFG.env === 'development' && !CFG.allowDev);
     return ENABLED;
@@ -164,20 +164,32 @@
     var list = pending; pending = [];
     try { list.forEach(function (p) { window.Sentry.captureException(p[0], { extra: p[1] }); }); } catch (e) {}
   }
+  // R45: the owner's one-click check that monitoring works - STAGING ONLY. Open the staging site with ?sentry_test=1
+  // and, once Sentry is running, ONE test error is thrown (once per browser tab); it shows in Sentry -> Issues with
+  // environment "staging". Does nothing on helm.events (production), previews, localhost, or without the flag.
+  var STAGING_TEST_HOST = 'helm-v01.vercel.app', testErrorDone = false;
+  function stagingTestError() {
+    try {
+      var h = String((typeof location !== 'undefined' && location.hostname) || '').toLowerCase();
+      if (testErrorDone || CFG.env !== 'staging' || h !== STAGING_TEST_HOST) return;
+      if (!/[?&]sentry_test=1(?:&|$)/.test(String(location.search || ''))) return;
+      testErrorDone = true;
+      try { if (window.sessionStorage.getItem('helm_sentry_test')) return; window.sessionStorage.setItem('helm_sentry_test', '1'); } catch (e) {}
+      setTimeout(function () { throw new Error('Helm Sentry test error (staging, ?sentry_test=1) - safe to ignore'); }, 0);
+    } catch (e) {}
+  }
   // r26: performance tracing is capped at 10% (0 = off, the default; the plain bundle has no tracing anyway)
   function traceRate(v) { var n = Number(v); return n > 0 ? Math.min(n, 0.1) : 0; }
 
   // When a DSN is configured but no reporter SDK is present yet, lazy-load the Sentry
   // browser SDK and init it (redaction-aware via beforeSend). Completely NO-OP when no
-  // DSN is set. The CSP already allows the script (https://browser.sentry-cdn.com/8.35.0/,
+  // DSN is set. The CSP already allows the script (https://browser.sentry-cdn.com/8.55.2/,
   // pinned to this version's directory - change both together, see scripts/csp-hashes.cjs).
-  // connect-src deliberately has NO Sentry ingest host while telemetry is dormant (audit
-  // run-3 client/csp: a *.ingest.sentry.io wildcard lets any Sentry org receive data).
-  // To enable: set window.HELM_TELEMETRY = { dsn, env, release } in config.js AND add the
-  // DSN's EXACT ingest host (e.g. https://o123456.ingest.us.sentry.io) to connect-src in
-  // server.js CSP_BASE, vercel.json and public/_headers (no wildcard).
-  var SENTRY_SRC = 'https://browser.sentry-cdn.com/8.35.0/bundle.min.js';
-  var SENTRY_SRI = 'sha384-j1K2/oFJn/QPiNs/Fk58NwXcaEbWzaUEF04vKMBnEprfbZ2hIQrAO0yc0XEfai1E';
+  // connect-src allows ONLY the DSN's exact ingest host (audit run-3 client/csp: a
+  // *.ingest.sentry.io wildcard lets any Sentry org receive data). scripts/gen-csp.mjs reads
+  // the DSN from config.js and writes that one host into vercel.json + public/_headers.
+  var SENTRY_SRC = 'https://browser.sentry-cdn.com/8.55.2/bundle.min.js';
+  var SENTRY_SRI = 'sha384-lNMClDekFF9oPvouGJqnUSKioEadbe8byR7uGUA0sPP+g9r2x3eiErEJmm/Em+wB';
   var sentryArmed = false, sentryReady = false;
   function loadSentry() {
     refresh();
@@ -188,9 +200,9 @@
       // Pinned CDN bundle WITH Subresource Integrity (audit run-3
       // supply-chain/telemetry/sentry-cdn-script-no-sri): the browser refuses to run
       // the file unless its bytes hash to this value. The sha384 is Sentry's own
-      // published checksum for 8.35.0 bundle.min.js (release-registry.services.sentry.io
-      // sdks/sentry.javascript.browser/8.35.0) and was re-computed from the CDN bytes
-      // on 2026-10-17 - both match. Changing the version means changing src, this
+      // published checksum for 8.55.2 bundle.min.js (release-registry.services.sentry.io
+      // sdks/sentry.javascript.browser/8.55.2) and was re-computed from the CDN bytes
+      // on 2026-10-26 - both match (r30: 8.35.0 -> 8.55.2, latest 8.x patch). Changing the version means changing src, this
       // hash and the CSP script-src directory (scripts/csp-hashes.cjs) together.
       sc.src = SENTRY_SRC;
       sc.integrity = SENTRY_SRI;
@@ -217,6 +229,7 @@
             });
             sentryReady = true;
             flushPending();
+            stagingTestError();
           }
         } catch (e) {}
       };

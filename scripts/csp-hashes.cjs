@@ -125,13 +125,13 @@ function withHashes(csp, hashes, styleHashes) {
 // lets an attacker who finds any HTML injection load an old gadget library from
 // the same CDN and run script despite the hash-based policy. So:
 //   • every page: only the pinned Sentry bundle directory (dormant until a DSN is
-//     set — telemetry.js loads https://browser.sentry-cdn.com/8.35.0/bundle.min.js);
+//     set — telemetry.js loads https://browser.sentry-cdn.com/8.55.2/bundle.min.js);
 //   • the 3D builder only: the exact three.js r128 directories it loads
 //     (public/builder-3d.js, every file also SRI-pinned).
 // A source ending in "/" matches by path prefix (CSP3 §6.7.2.12), so nothing
 // else on those CDNs is allowed. server.js builds its policies from these
 // constants; scripts/gen-csp.mjs fails when vercel.json / public/_headers drift.
-const SCRIPT_SRC_BASE = ["'self'", 'https://browser.sentry-cdn.com/8.35.0/'];
+const SCRIPT_SRC_BASE = ["'self'", 'https://browser.sentry-cdn.com/8.55.2/'];
 const SCRIPT_SRC_BUILDER = [...SCRIPT_SRC_BASE,
   'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/',
   'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/'];
@@ -214,7 +214,7 @@ const CSP_REPORTS = true;
 function cspReportUri(prodRef) { return CSP_REPORTS && /^[a-z0-9]{20}$/.test(prodRef || '') ? 'https://' + prodRef + '.supabase.co/functions/v1/csp-report' : ''; }
 // "https://<key>@o123.ingest.us.sentry.io/456" -> "https://o123.ingest.us.sentry.io" ('' when absent / malformed)
 function sentryIngestOrigin(configSrc) {
-  const m = /HELM_TELEMETRY[\s\S]{0,400}?\bdsn\s*:\s*["'](https:\/\/[0-9A-Za-z]{1,64}@(o\d{1,12}\.ingest(?:\.[a-z]{2})?\.sentry\.io)\/\d{1,12})["']/.exec(String(configSrc || ''));
+  const m = /HELM_TELEMETRY[\s\S]{0,400}?\bdsn\s*:\s*["'](https:\/\/[0-9A-Za-z]{1,64}@(o\d{1,20}\.ingest(?:\.[a-z]{2})?\.sentry\.io)\/\d{1,20})["']/.exec(String(configSrc || ''));
   return m ? 'https://' + m[2] : '';
 }
 const REPORT_GROUP = 'csp-endpoint';
