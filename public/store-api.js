@@ -5687,6 +5687,32 @@ window.HelmUrl = HelmUrl;
       if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.rpc("public_event_site", { p_slug: slug });
       if (error) throw error; return (data && data[0]) || null; },
+    // r34 (0284) guest side: what to say about a link {state: live (+ studio name) | off | moved | none}; the RSVP form
+    // (-> {ok, token, reveal?} | {ok:false, reason, message}); the reveal on a device that already replied (guest token)
+    async publicInfo(slug) {
+      if (!supa) { try { await BPStore.init(); } catch (e) {} }
+      if (!supa) return null;
+      const { data, error } = await supa.rpc("public_invite_info", { p_slug: String(slug || "").slice(0, 200) });
+      if (error) { if (global.BPUI && global.BPUI.isMissingFunction && global.BPUI.isMissingFunction(error)) return null; throw error; }
+      return data || null; },
+    async rsvp(slug, form) {
+      if (!supa) { try { await BPStore.init(); } catch (e) {} }
+      if (!supa) throw new Error("Supabase not configured");
+      const f = form || {};
+      const { data, error } = await supa.rpc("public_invite_rsvp", { p_slug: String(slug || "").slice(0, 200), p: {
+        name: String(f.name || "").slice(0, 200), attending: String(f.attending || ""), guests: String(f.guests == null ? "" : f.guests).slice(0, 4),
+        message: String(f.message || "").slice(0, 2000), token: String(f.token || "").slice(0, 64), website: String(f.website || "").slice(0, 200) } });
+      if (error) throw error; return data || { ok: false }; },
+    async reveal(slug, token) {
+      if (!supa) { try { await BPStore.init(); } catch (e) {} }
+      if (!supa || !/^[0-9a-f]{64}$/.test(String(token || ""))) return { ok: false };
+      const { data, error } = await supa.rpc("public_invite_reveal", { p_slug: String(slug || "").slice(0, 200), p_token: String(token) });
+      if (error) return { ok: false }; return data || { ok: false }; },
+    // r34 (0284) studio side: guest replies (Quotes view), a new random link (Quotes edit; the old one says "moved"),
+    // the site's retired links
+    rsvpList: (siteId) => rpc("event_site_rsvp_list", { p_site: siteId }),
+    newLink: (siteId) => rpc("event_site_new_link", { p_site: siteId }),
+    oldLinks: (siteId) => rpc("event_site_old_links", { p_site: siteId }).then((r) => (Array.isArray(r) ? r : [])),
   };
 
   /* ---------------- Build 4: event files (private bucket 'event-docs') ---------------- */
@@ -9558,6 +9584,7 @@ window.HelmUrl = HelmUrl;
       case "upload.rejected": return "Uploaded file rejected" + (c.reason ? " — " + String(c.reason).slice(0, 80) : "");
       case "work_links.revoked": return "Work links revoked" + ev;
       case "event_site.reslugged": return "Invitation site address changed" + ev;
+      case "event_site.new_link": return "Invitation site: new link made (the old link now says it has moved)" + ev;
       case "event_site.link_sent": return "Invitation website link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
         + (c.channel === "whatsapp" ? " on WhatsApp" : c.channel === "email" ? " by email" : "") + (c.to ? " to " + String(c.to).slice(0, 80) : "") + ev;
       case "chat.event_group.create": return "Event chat group created" + ev;

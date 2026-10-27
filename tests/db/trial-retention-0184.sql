@@ -106,6 +106,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0270_inbox_visible_speed.sql
 -- 0269 (r24 automation) adds runsheet_reminder_sends + lead_enquiries to the purge list and automation_settings to the keep list
 \ir ../../supabase/migrations/0269_r24_automation.sql
+-- 0284 (r34 invitation RSVP + link history) adds event_site_rsvps + event_site_slug_history to the purge list
+\ir ../../supabase/migrations/0284_invite_rsvp_privacy.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin
