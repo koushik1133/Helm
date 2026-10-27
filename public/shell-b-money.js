@@ -170,7 +170,8 @@
   async function mount(host) {
     if (!host || host.__bz) return; host.__bz = 1;
     var root = el("div", "bz"); clear(host).appendChild(root);
-    var now = new Date(), today = iso(now), todayD = dOf(today);
+    // r37: "now" reads the STUDIO's date + time (month buckets, this month, today), not the viewer's browser
+    var now = (function () { try { var c = S() && S().studioClock ? S().studioClock() : null; if (c) return new Date(c.y, c.mo - 1, c.d, c.h, c.mi, c.s); } catch (e) {} return new Date(); })(), today = iso(now), todayD = dOf(today);
 
     var head = el("header", "bz-hero");
     var hl = el("div"); hl.appendChild(el("p", "bz-eyebrow", "Finance overview"));

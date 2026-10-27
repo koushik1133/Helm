@@ -70,7 +70,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=45" id="shellProto"></script>
+<script src="/shell-proto.js?v=47" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -129,7 +129,7 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=111"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=5"></script><script src="store-api.js?v=288"></script>
+<script src="country-profile.js?v=6"></script><script src="store-api.js?v=297"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -145,7 +145,7 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); } }
 
-  const when=(t)=>{ if(!t) return ""; return new Date(t).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}); };
+  const when=(t)=>{ if(!t) return ""; return new Date(t).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",timeZone:(function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })()}); };   // r37: studio zone
 
   async function render(){
     $("#titleLbl").textContent = tab==="incident"?"Incident":"Issue";

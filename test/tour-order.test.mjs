@@ -37,7 +37,7 @@ t('dashboard tour follows the on-screen reading order exactly', () => {
     '(card)',                                                     // welcome
     'pin', 'rail:dashboard', 'rail:quotes', 'rail:leads', 'rail:calendar', 'rail:chat', 'nav-manage', 'nav-admin', 'theme', 'account',   // sidebar
     'search', 'privacy', 'chat', 'bell', 'new',                   // top bar, left to right
-    'today', 'hero', 'customize', 'kpis',                         // main content, top to bottom
+    'today', 'hero', 'customize', 'kpis', '#myworkSection',                      // main content, top to bottom
     'setup',                                                      // getting-started checklist
     '(card)',                                                     // wrap-up
   ]);
@@ -53,7 +53,7 @@ t('welcome step: trial wording for a free-trial studio, studio wording for a pai
   assert.doesNotMatch(tr, /8-day|Demo ·/);
   assert.match(pd, /^Welcome to Helm — here's a quick look around your studio\./);
   assert.doesNotMatch(pd, /trial|sample data|Demo/i);
-  assert.equal(TOUR.length, 22, 'still 22 steps');
+  assert.equal(TOUR.length, 23, 'still 23 steps (r47: + My events & tasks)');
 });
 
 t('sidebar steps sit beside the rail (side:"right"), top-bar / content steps do not', () => {

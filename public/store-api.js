@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=45"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=47"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -735,7 +735,7 @@ window.HelmUrl = HelmUrl;
   // ?next= may only name one of the app's own pages (fixed list — the page string is
   // never taken from the URL); only its query string is carried over, re-encoded.
   // Anything else (//host, https://…, /\host, javascript:, encoded tricks) → dashboard.
-  const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "integrations", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "onboarding", "ops", "plan", "proposal", "quotes", "ready", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
+  const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "integrations", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "onboarding", "ops", "plan", "proposal", "quotes", "ready", "refer", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
   function safeNext(raw) {
     // 0067: a pretty studio path (/<slug>/<section>…) is re-built from its parsed parts
     if (typeof raw === "string" && raw.charAt(0) === "/" && raw.charAt(1) !== "/" && raw.charAt(1) !== "\\") {
@@ -1401,7 +1401,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "53";
+  const AUTH_UI_VERSION = "55";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1425,7 +1425,7 @@ window.HelmUrl = HelmUrl;
     global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
   }
   function navTrailClear() { try { const del = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf("helm_trail_") === 0) del.push(k); } del.forEach((k) => localStorage.removeItem(k)); } catch (e) {} }
-  const NO_SEARCH_PAGES = { hq: 1, login: 1, "reset-password": 1, "profile-setup": 1 };
+  const NO_SEARCH_PAGES = { hq: 1, "hq-referrals": 1, login: 1, "reset-password": 1, "profile-setup": 1 };
   let studioSearchLoading = false;
   function loadStudioSearch() {
     if (studioSearchLoading || typeof document === "undefined" || global.HelmStudioSearch) return;
@@ -2140,6 +2140,16 @@ window.HelmUrl = HelmUrl;
         if (opts && opts.termsAgreed === true) so.data = Object.assign({}, so.data || {}, { helm_terms_agreed_at: new Date().toISOString() });
         if (opts && /^[a-z0-9][a-z0-9_-]{1,39}$/.test(String(opts.plan || ""))) so.data = Object.assign({}, so.data || {}, { helm_signup_plan: String(opts.plan) });
         if (opts && /^(trial|paid|sales)$/.test(String(opts.mode || ""))) so.data = Object.assign({}, so.data || {}, { helm_signup_mode: String(opts.mode) });
+        // r29 (0279): the referral / partner code on the sign-up form (referral-signup.js) travels with the account, so a
+        // confirm link opened in another browser still attaches it once the studio exists (the SERVER decides if it counts)
+        try {
+          const rf = JSON.parse(global.sessionStorage.getItem("helm.signup.ref") || "null");
+          if (rf && /^[A-Z0-9][A-Z0-9_-]{2,23}$/.test(String(rf.code || ""))) {
+            const lk = JSON.parse(global.localStorage.getItem("helm.ref.link") || "null");
+            so.data = Object.assign({}, so.data || {}, { helm_signup_ref: { code: String(rf.code), via: rf.via === "link" ? "link" : "typed",
+              consent: rf.consent === true, link_at: lk && lk.code === rf.code && typeof lk.at === "number" ? new Date(lk.at).toISOString() : null } });
+          }
+        } catch (e) {}
         // 0205: this browser started a sign-up for this address - /auth/confirm keeps the confirm link's
         // session only then (a link someone else made for THEIR account never signs this browser in)
         try { localStorage.setItem(SIGNUP_MARK_KEY, String(email || "").trim().toLowerCase().slice(0, 254)); } catch (e) {}
@@ -2577,6 +2587,7 @@ window.HelmUrl = HelmUrl;
       currentUser = session ? session.user : null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear();
       if (mode === "supabase") authRequired = !currentUser; if (cb) cb(currentUser); }); },
     // ---- admin user management (RPC guarded by is_admin() at the DB) ----
+    // r35 (0285): making / removing an admin, money switches -> withStepUp (a fresh two-step code when the server asks)
     admin: {
       roles: () => PICK_ROLES.slice(),
       roleLabel,
@@ -2593,9 +2604,18 @@ window.HelmUrl = HelmUrl;
       // set one cell; returns the saved row
       async setAccess(role, area, canView, canEdit) {
         if (!supa) throw new Error("Supabase not configured");
-        const { data, error } = await supa.rpc("admin_set_role_access",
-          { p_role: role, p_area: area, p_view: !!canView, p_edit: !!canEdit });
-        if (error) throw error; accessCache = null; try { sessionStorage.removeItem("bp_sess_access"); } catch (e) {} return data;
+        const data = await withStepUp(async () => { const { data, error } = await supa.rpc("admin_set_role_access",
+          { p_role: role, p_area: area, p_view: !!canView, p_edit: !!canEdit }); if (error) throw error; return data; });
+        accessCache = null; try { sessionStorage.removeItem("bp_sess_access"); } catch (e) {} return data;
+      },
+      // r44 (0291): Settings -> Team "Two-step" badge - { user id: true | false } for the members of MY studio only
+      // (studio admins only; the database decides). null when the database does not have 0291 yet (no badge shown).
+      async twoStepStatus() {
+        if (!supa) return null;
+        const { data, error } = await supa.rpc("studio_two_step_status");
+        if (error) { if (error.code === "PGRST202" || error.code === "42883" || error.code === "42501") return null; throw error; }
+        const out = {}; (Array.isArray(data) ? data : []).forEach((r) => { if (r && r.user_id) out[r.user_id] = r.two_step === true; });
+        return out;
       },
       async listUsers() {
         if (!supa) throw new Error("Supabase not configured");
@@ -2635,34 +2655,34 @@ window.HelmUrl = HelmUrl;
       async createUser(email, password, role) {
         if (!supa) throw new Error("Supabase not configured");
         const bad = passwordProblem(password); if (bad) throw new Error(bad);   // same rule as 0028 admin_create_user
-        const { data, error } = await supa.rpc("admin_create_user",
+        return withStepUp(async () => { const { data, error } = await supa.rpc("admin_create_user",
           { p_email: email, p_password: password, p_role: role });
         if (error) throw error;
         // R32b (R2-AUTH-02): a refused address answers null (the refusal is counted toward the studio's daily limit)
         if (!data) { const e = new Error("could not create this user — send them an invitation instead"); e.code = "22023"; throw e; }
-        return data;   // new user id
+        return data; });   // new user id
       },
       // Option A: server generates a one-time temp password + forces a change on
       // first login. Returns { user_id, temp_password } — show temp_password ONCE.
       async createUserTemp(email, role) {
         if (!supa) throw new Error("Supabase not configured");
         if (reservedEmailDomain(email)) throw reservedEmailError();
-        const { data, error } = await supa.rpc("admin_create_user_temp",
+        return withStepUp(async () => { const { data, error } = await supa.rpc("admin_create_user_temp",
           { p_email: email, p_role: role });
         if (error) throw error;
         // R32b (R2-AUTH-02): { refused: true, error } - the address can't be used (counted toward the daily limit)
         if (data && data.refused) { const e = new Error(String(data.error || "could not create this user — send them an invitation instead")); e.code = String(data.code || "22023"); throw e; }
-        return data;   // { user_id, temp_password }
+        return data; });   // { user_id, temp_password }
       },
       async setRole(id, role) {
         if (!supa) throw new Error("Supabase not configured");
-        const { error } = await supa.rpc("admin_set_role", { p_id: id, p_role: role });
-        if (error) throw error; return true;
+        return withStepUp(async () => { const { error } = await supa.rpc("admin_set_role", { p_id: id, p_role: role });
+        if (error) throw error; return true; });
       },
       async deleteUser(id) {
         if (!supa) throw new Error("Supabase not configured");
-        const { error } = await supa.rpc("admin_delete_user", { p_id: id });
-        if (error) throw error; return true;
+        return withStepUp(async () => { const { error } = await supa.rpc("admin_delete_user", { p_id: id });
+        if (error) throw error; return true; });
       },
     },
   };
@@ -2742,7 +2762,8 @@ window.HelmUrl = HelmUrl;
     const d = date || new Date();
     return String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + d.getFullYear();
   };
-  const localISODate = (d) => { const x = d || new Date(); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
+  const localISODate = (d) => { if (!d) { try { const t = BPStore.todayLocal(); if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; } catch (e) {} }   // r37: no date = the STUDIO's today
+    const x = d || new Date(); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
 
   /* ---------------- quotes + versions ---------------- */
   // What a quotes LIST shows — never the full pricing JSON (line items, computed
@@ -3357,13 +3378,66 @@ window.HelmUrl = HelmUrl;
   };
   dropInflightOnWrite(quotes, "quotes.list");
 
+  /* ---------------- r35 (0285): two-step for sensitive studio settings ----------------
+     Payment details (UPI / bank), reply-to / business e-mail, Razorpay keys, money switches and admins added /
+     removed need a verified authenticator + a code entered in the last 15 minutes. The DATABASE decides and answers
+     42501 with R35_REAUTH (enter a fresh code), R35_SETUP_2STEP (no authenticator yet) or R35_FLAGGED ("This wasn't
+     us"). Here: R35_REAUTH -> ask for the 6-digit code once (BPUI.prompt), verify it (auth.mfa.challenge = a new
+     aal2 token) and retry the SAME call once; R35_SETUP_2STEP -> offer the two-step set-up. Never retried silently. */
+  const STEPUP_TEXT = {
+    reauth: "Enter a fresh two-step code to confirm this change.",
+    setup: "Set up two-step verification on your account first. Payment details and other sensitive studio settings can only be changed with two-step.",
+    setupWhy: "This change needs two-step sign-in. Set it up now (about 2 minutes) and Helm carries on with your change.",
+    flagged: "This account was flagged after a \u201cThis wasn't us\u201d. Another admin has to clear the flag before it can change sensitive settings.",
+  };
+  function stepUpKind(e) {
+    const m = String((e && e.message) || "") + " " + String((e && e.hint) || "");
+    return /R35_REAUTH/.test(m) ? "reauth" : /R35_SETUP_2STEP/.test(m) ? "setup" : /R35_FLAGGED/.test(m) ? "flagged" : null;
+  }
+  function stepUpError(e, k) {
+    const x = new Error(STEPUP_TEXT[k]); x.code = (e && e.code) || "42501"; x.hint = k; x.stepUp = k; x.cause = e; return x;
+  }
+  async function withStepUp(run) {
+    try { return await run(); }
+    catch (e) {
+      let k = stepUpKind(e);
+      if (!k) throw e;
+      const UI = global.BPUI, S = global.BPStore;
+      if (k === "setup") {
+        // r44: "Set up two-step now" opens the guided set-up; once it is on (the session is then at two-step with a
+        // fresh code) the SAME change is tried once more, so the person carries on where they were
+        let on = false;
+        try {
+          const A = global.HelmAuthUI;
+          if (UI && UI.confirm && A && (A.openTwoStepSetup || A.openAccount)
+              && await UI.confirm(STEPUP_TEXT.setup, { title: "Two-step needed", okLabel: "Set up two-step now", cancelLabel: "Not now" })) {
+            if (A.openTwoStepSetup) on = (await A.openTwoStepSetup({ reason: STEPUP_TEXT.setupWhy, doneLabel: "Continue with my change" })) === true;
+            else A.openAccount({ section: "settings", focus: "mfa" });
+          }
+        } catch (x) { on = false; }
+        if (!on) throw stepUpError(e, k);
+        try { return await run(); }
+        catch (e2) { const k2 = stepUpKind(e2); if (k2 !== "reauth") throw (k2 ? stepUpError(e2, k2) : e2); e = e2; k = k2; }
+      }
+      if (k !== "reauth" || !UI || !UI.prompt || !S || !S.auth || !S.auth.mfa || !S.auth.mfa.challenge) throw stepUpError(e, k);
+      const code = await UI.prompt("Payment details and other sensitive studio settings always ask for a fresh code from your authenticator app.", {
+        title: "Confirm with two-step", label: "6-digit code", required: true, maxLength: 6, okLabel: "Confirm", placeholder: "000000",
+        validate: (v) => (/^\d{6}$/.test(String(v || "").replace(/\s+/g, "")) ? null : "Enter the 6-digit code from your authenticator app.") });
+      if (code == null) { const x = stepUpError(e, k); x.cancelled = true; throw x; }
+      await S.auth.mfa.challenge(String(code).replace(/\s+/g, ""));
+      return await run();
+    }
+  }
+
   /* ---------------- client approval: OTP + consent + payment ---------------- */
-  const rpc = async (fn, args) => {
+  const rpcOnce = async (fn, args) => {
     if (!supa) throw new Error("Supabase not configured");
     const { data, error } = await supa.rpc(fn, args);
     if (error) { if (looksLikeAuthError(error)) onAuthFailure(); throw error; }
     return data;
   };
+  // r35 (0285): a sensitive change the server refused for a fresh two-step code is asked for ONCE and retried
+  const rpc = (fn, args) => withStepUp(() => rpcOnce(fn, args));
   // crew-1020: worker link RPCs take a uuid token; a malformed one gets the same clean
   // "invalid link" as an unknown one instead of the raw Postgres cast error (22P02).
   const WTOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -5279,7 +5353,9 @@ window.HelmUrl = HelmUrl;
       if (!oid) throw new Error("Studio settings aren't available for this workspace yet.");
       // cc-general-billing: ask for the updated row back - an update the database row rules do not
       // allow changes NOTHING and returns no error, so "saved" must only be said when a row changed
-      let { data, error } = await supa.from("organizations").update(patch).eq("id", oid).select("id");
+      // r35 (0285): changing a confirmed business e-mail asks for a fresh two-step code (the database decides)
+      let { data, error } = await withStepUp(async () => { const r = await supa.from("organizations").update(patch).eq("id", oid).select("id");
+        if (r.error && stepUpKind(r.error)) throw r.error; return r; });
       // #16: business_email_confirmed arrives with 0075; on an older database save the rest
       if (error && patch && "business_email_confirmed" in patch && (error.code === "PGRST204" || /business_email_confirmed/.test(error.message || ""))) {
         const rest = Object.assign({}, patch); delete rest.business_email_confirmed;
@@ -5865,6 +5941,32 @@ window.HelmUrl = HelmUrl;
       if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.rpc("public_event_site", { p_slug: slug });
       if (error) throw error; return (data && data[0]) || null; },
+    // r34 (0284) guest side: what to say about a link {state: live (+ studio name) | off | moved | none}; the RSVP form
+    // (-> {ok, token, reveal?} | {ok:false, reason, message}); the reveal on a device that already replied (guest token)
+    async publicInfo(slug) {
+      if (!supa) { try { await BPStore.init(); } catch (e) {} }
+      if (!supa) return null;
+      const { data, error } = await supa.rpc("public_invite_info", { p_slug: String(slug || "").slice(0, 200) });
+      if (error) { if (global.BPUI && global.BPUI.isMissingFunction && global.BPUI.isMissingFunction(error)) return null; throw error; }
+      return data || null; },
+    async rsvp(slug, form) {
+      if (!supa) { try { await BPStore.init(); } catch (e) {} }
+      if (!supa) throw new Error("Supabase not configured");
+      const f = form || {};
+      const { data, error } = await supa.rpc("public_invite_rsvp", { p_slug: String(slug || "").slice(0, 200), p: {
+        name: String(f.name || "").slice(0, 200), attending: String(f.attending || ""), guests: String(f.guests == null ? "" : f.guests).slice(0, 4),
+        message: String(f.message || "").slice(0, 2000), token: String(f.token || "").slice(0, 64), website: String(f.website || "").slice(0, 200) } });
+      if (error) throw error; return data || { ok: false }; },
+    async reveal(slug, token) {
+      if (!supa) { try { await BPStore.init(); } catch (e) {} }
+      if (!supa || !/^[0-9a-f]{64}$/.test(String(token || ""))) return { ok: false };
+      const { data, error } = await supa.rpc("public_invite_reveal", { p_slug: String(slug || "").slice(0, 200), p_token: String(token) });
+      if (error) return { ok: false }; return data || { ok: false }; },
+    // r34 (0284) studio side: guest replies (Quotes view), a new random link (Quotes edit; the old one says "moved"),
+    // the site's retired links
+    rsvpList: (siteId) => rpc("event_site_rsvp_list", { p_site: siteId }),
+    newLink: (siteId) => rpc("event_site_new_link", { p_site: siteId }),
+    oldLinks: (siteId) => rpc("event_site_old_links", { p_site: siteId }).then((r) => (Array.isArray(r) ? r : [])),
   };
 
   /* ---------------- Build 4: event files (private bucket 'event-docs') ---------------- */
@@ -8313,7 +8415,7 @@ window.HelmUrl = HelmUrl;
     if (bill.status === "void") return "void";
     const paid = (bill.vendor_payouts || []).reduce((a, p) => a + vbNum(p.amount), 0);
     if (paid >= vbNum(bill.amount) - 0.005) return "paid";
-    const t = today || new Date().toISOString().slice(0, 10);
+    const t = today || BPStore.todayLocal();   // r37: overdue from the studio's day (was the UTC day)
     if (bill.due_date && String(bill.due_date) < t) return "overdue";
     return paid > 0 ? "part" : "unpaid";
   }
@@ -8377,7 +8479,7 @@ window.HelmUrl = HelmUrl;
       const clean = (v, n) => { const t = String(v == null ? "" : v).trim(); return t ? t.slice(0, n) : null; };
       const day = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : null;
       const row = { quote_id: quoteId, amount: Math.round(amt * 100) / 100, bill_no: clean(b.bill_no, 80),
-        description: clean(b.description, 500), bill_date: day(b.bill_date) || new Date().toISOString().slice(0, 10),
+        description: clean(b.description, 500), bill_date: day(b.bill_date) || BPStore.todayLocal(),   // r37: the studio's day
         due_date: day(b.due_date), vendor_id: b.vendor_id || null, booking_id: b.booking_id || null, file_id: fileId };
       if (b.currency) row.currency = String(b.currency).slice(0, 3).toUpperCase();
       // r21 money (0246): optional GST inside the bill amount + whether the input credit can be claimed
@@ -8497,6 +8599,7 @@ window.HelmUrl = HelmUrl;
       if (!has(n.quote_id) && has(d.quote_id)) n = Object.assign({}, n, { quote_id: d.quote_id });
     }
     const k = k0, q = has(n.quote_id) ? n.quote_id : null;
+    if (k === "trial_reminder" && d.source === "r29_referral") return "refer.html";   // r29 (0279): referral notices
     if (k === "trial_reminder") return "checkout.html";
     // r21 (0250): security notices are Helm HQ only - an HQ notice opens HQ (Activity log -> Security)
     if (k === "security_alert") return d.hq === true ? (/^(sales_enquiry|suggestion)$/.test(String(d.alert || "")) ? "hq.html#requests" : "hq.html") : "control.html#users";
@@ -8508,6 +8611,16 @@ window.HelmUrl = HelmUrl;
     }
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
+    if (k === "team_safety") return "control.html#users";   // r33 (0283): admin / owner changes -> Control Center -> Team
+    // r35 (0285): payment details / sensitive settings (admins only - the server decides)
+    if (k === "studio_security") {
+      const ev = String(d.event || "");
+      if (/^(pay_details_|flag_cleared|sessions_ended)/.test(ev)) return "control.html#payment-schedules";
+      if (/^(reply_to_|razorpay_)/.test(ev)) return "integrations.html";
+      if (ev === "business_email_changed") return "control.html#general";
+      if (ev === "two_step_intro") return "dashboard.html#two-step-setup";   // r44 (0291): opens the guided set-up
+      return "control.html#users";
+    }
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     // r24 (0269): a new enquiry from the public form -> the Leads board
     if (k === "lead_new") return "leads.html";
@@ -8557,7 +8670,7 @@ window.HelmUrl = HelmUrl;
     const k = String(n.kind || "").toLowerCase().trim();
     if (["approval_link", "otp", "payment_link", "payment_reminder", "payment_receipt", "advance_paid", "payment_reconcile",
          "task_assigned", "task_reminder", "task_due", "security_alert", "inventory_low_stock", "client_follow_up",
-         "client_link_viewed", "client_view_followup"].indexOf(k) !== -1) return k;
+         "client_link_viewed", "client_view_followup", "studio_security"].indexOf(k) !== -1) return k;
     if (k === "payment" || k === "payment_received") return "payment_receipt";
     if (k === "trial_reminder") return "billing_trial";
     if (/^pkg_(selected|accepted|declined|payment)$/.test(k)) return k;
@@ -8623,10 +8736,15 @@ window.HelmUrl = HelmUrl;
       const s = Math.max(0, (now - t) / 1000);
       if (s < 60) return "now"; if (s < 3600) return Math.floor(s / 60) + "m"; if (s < 86400) return Math.floor(s / 3600) + "h";
       if (s < 7 * 86400) return Math.floor(s / 86400) + "d";
+      try { const o = BPStore.fmtStudioDate(new Date(t), { fmt: { day: "numeric", month: "short" } }); if (o) return o; } catch (e) {}
       try { return new Date(t).toLocaleDateString([], { day: "numeric", month: "short" }); } catch (e) { return Math.floor(s / 86400) + "d"; }
     };
-    const sod = new Date(now); sod.setHours(0, 0, 0, 0); const today0 = sod.getTime();
-    const yd = new Date(today0); yd.setDate(yd.getDate() - 1); const yest0 = yd.getTime();
+    // r37: Today / Yesterday are the STUDIO's days (an owner abroad sees the studio's midnight, not the browser's)
+    let today0, yest0;
+    try { const H = window.HelmCountry, tz = BPStore.studioTimezone(), td = BPStore.todayLocal(new Date(now));
+      today0 = H.dayStart(td, tz).getTime(); yest0 = H.dayStart(H.addDays(td, -1), tz).getTime(); } catch (e) { today0 = NaN; }
+    if (!Number.isFinite(today0) || !Number.isFinite(yest0)) { const sod = new Date(now); sod.setHours(0, 0, 0, 0); today0 = sod.getTime();
+      const yd = new Date(today0); yd.setDate(yd.getDate() - 1); yest0 = yd.getTime(); }
     const bucket = (t) => !Number.isFinite(t) ? "Earlier" : t >= today0 ? "Today" : t >= yest0 ? "Yesterday" : "Earlier";
     const item = (r) => {
       const n = r.n, t = ts(n); let icon, title, preview, href, isUnread, key;
@@ -8700,7 +8818,7 @@ window.HelmUrl = HelmUrl;
     const since = String(seen.t || "");
     const fresh = list.filter((n) => (n.__chat || n.unread) && String(n.created_at || "") > since && ids.indexOf(keyOf(n)) === -1)
       .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))).slice(0, 3);
-    const typeOf = (k) => k === "security_alert" ? "security" : k === "trial_reminder" ? "warning" : /^(payment_received|advance_paid|task_complete|task_accept)$/.test(k) ? "success"
+    const typeOf = (k) => (k === "security_alert" || k === "studio_security") ? "security" : k === "trial_reminder" ? "warning" : /^(payment_received|advance_paid|task_complete|task_accept)$/.test(k) ? "success"
       : /^(payment_reconcile|task_reject|task_due)$/.test(k) ? "warning" : "info";
     const toasts = fresh.map((n) => {
       if (n.__chat) {
@@ -8711,7 +8829,7 @@ window.HelmUrl = HelmUrl;
       }
       const L = label(n) || {}, k = String(n.kind || "").toLowerCase();
       return { key: keyOf(n), type: typeOf(k), icon: L.icon || "🔔", title: String(L.text || "Update"),
-        message: k === "trial_reminder" ? "Choose a plan to keep using Helm" : [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
+        message: k === "trial_reminder" ? ((n.detail && n.detail.source === "r29_referral") ? "Open Refer a studio" : "Choose a plan to keep using Helm") : [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
         href: notifHref(n), rk: "n:" + (n.id || "") };
     });
     return { toasts, seen: { t: newest, ids: ids.concat(fresh.map(keyOf)).slice(-60) } };
@@ -8856,13 +8974,17 @@ window.HelmUrl = HelmUrl;
         + (d.event_code ? " · " + d.event_code : "")
         + (d.hq === true && d.studio ? " · " + d.studio : "")],
       // 0058: free-trial reminders (admins only — the server decides)
-      trial_reminder: ["⏳", String(d.label || "Free trial update")],
+      trial_reminder: [d.source === "r29_referral" ? "🎁" : "⏳", String(d.label || (d.source === "r29_referral" ? "Referral update" : "Free trial update"))],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
       // r23 (0257): Helm support changed the studio name / link (old links keep working)
       studio_identity_changed: ["🏷️", String(d.label || "Helm support changed your studio name or link")],
+      // r35 (0285): payment details / sensitive settings changed (admins only; names + times, never the values)
+      studio_security: ["🛡️", String(d.label || "A sensitive studio setting was changed")],
       // 0264: a client's scheduled payment is past its due date (money notice - admins + Finance viewers)
       payment_overdue: ["⏰", String(d.label || "A client payment is overdue")],
+      // r33 (0283): an admin change waiting 24 hours / cancelled / done, a studio ownership change (admins only - the server decides)
+      team_safety: ["🛡️", String(d.label || "Team change")],
       // 0269: a new lead from the studio's public enquiry form (name + event type only)
       lead_new: ["📥", String(d.label || "New enquiry")],
       // r22 (0254): "request to close anyway" + the approval (admins / coordinators / managers only - the server decides)
@@ -9739,6 +9861,7 @@ window.HelmUrl = HelmUrl;
       case "upload.rejected": return "Uploaded file rejected" + (c.reason ? " — " + String(c.reason).slice(0, 80) : "");
       case "work_links.revoked": return "Work links revoked" + ev;
       case "event_site.reslugged": return "Invitation site address changed" + ev;
+      case "event_site.new_link": return "Invitation site: new link made (the old link now says it has moved)" + ev;
       case "event_site.link_sent": return "Invitation website link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
         + (c.channel === "whatsapp" ? " on WhatsApp" : c.channel === "email" ? " by email" : "") + (c.to ? " to " + String(c.to).slice(0, 80) : "") + ev;
       case "chat.event_group.create": return "Event chat group created" + ev;
@@ -9805,7 +9928,9 @@ window.HelmUrl = HelmUrl;
   const RANGE_PRESETS = [["today", "Today"], ["yesterday", "Last day"], ["this_month", "This month"], ["last_month", "Last month"],
     ["this_year", "This year"], ["custom", "Custom range"]];
   function rangeFor(key, today) {
-    const d0 = (today && typeof today.getFullYear === "function") ? new Date(today.getFullYear(), today.getMonth(), today.getDate()) : new Date();
+    // r37: no date given = the STUDIO's today (a local Date that reads the studio's calendar day)
+    let wall = null; if (!(today && typeof today.getFullYear === "function")) { try { const c = BPStore.studioClock(); if (c) wall = new Date(c.y, c.mo - 1, c.d); } catch (e) {} }
+    const d0 = (today && typeof today.getFullYear === "function") ? new Date(today.getFullYear(), today.getMonth(), today.getDate()) : (wall || new Date());
     const iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const y = d0.getFullYear(), m = d0.getMonth();
     const back = (n) => { const d = new Date(y, m, d0.getDate() - (n - 1)); return { from: iso(d), to: iso(d0) }; };
@@ -9832,7 +9957,8 @@ window.HelmUrl = HelmUrl;
   // day — 2026-09-30T20:00Z is 1 Oct in IST and belongs to October, not September.
   function inRange(date, r) { if (!r) return true; const s = String(date || ""); let d = s.slice(0, 10);
     if (s.length > 10 && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s) && /(Z|[+-]\d{2}:?\d{2})$/.test(s)) { const t = new Date(s.replace(" ", "T"));
-      if (!isNaN(t.getTime())) d = t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0"); }
+      if (!isNaN(t.getTime())) { let sd = ""; try { sd = BPStore.todayLocal(t); } catch (e) {}   // r37: the STUDIO's calendar day of that moment
+        d = /^\d{4}-\d{2}-\d{2}$/.test(sd) ? sd : t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0"); } }
     if (!d) return false; return d >= r.from && d <= r.to; }
 
   /* ---------------- audit log (Phase 47) ---------------- */
@@ -10144,6 +10270,14 @@ window.HelmUrl = HelmUrl;
     pause: (quoteId, paused) => (supa ? rpc("payment_schedule_pause", { p_quote: quoteId, p_paused: !!paused }) : Promise.reject(new Error("Needs a signed-in studio."))),
     // client page (approval token, signed out) - null when unavailable
     publicGet: (token) => (supa ? rpc("public_payment_schedule", { p_token: token }).catch(() => null) : Promise.resolve(null)),
+    // r35 (0285): a payment-details change waits 24 hours. "This wasn't us" (any admin; optionally signs that account out
+    // everywhere), make it live early (a DIFFERENT admin, fresh two-step code), the flagged accounts, the history.
+    cancelChange: (id, signOut) => (supa ? rpc("pay_details_cancel", { p_change: id, p_sign_out: !!signOut }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    approveNow: (id) => (supa ? rpc("pay_details_approve_now", { p_change: id }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    clearFlag: (userId) => (supa ? rpc("studio_flag_clear", { p_user: userId }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    signOutFlagged: (userId) => (supa ? rpc("studio_flagged_sign_out", { p_user: userId }) : Promise.reject(new Error("Needs a signed-in studio."))),
+    securityEvents: (limit) => (supa ? rpc("studio_security_events_list", { p_limit: limit || 50 }).catch((e) => { if (rpcMissing(e)) return []; throw e; }) : Promise.resolve([])),
+    stepUpKind,
   };
 
   // 0241 (r21): delivery / arrival reminders. Every call goes through the RPCs (studio + 'deliveries' area checked
@@ -10304,6 +10438,22 @@ window.HelmUrl = HelmUrl;
     hq: (fn, args) => (/^hq_[a-z_]+$/.test(fn) ? rpc(fn, args || {}) : Promise.reject(new Error("bad call"))),
     // r24 (0271): "Send a suggestion" (profile menu -> suggest.js). The server records who + their studio.
     suggest: (p) => rpc("submit_suggestion", { p: p || {} }),
+    // r33 (0283): Control Center -> Team safety. Deactivate (never delete), Reactivate (counts against the seat limit),
+    // the protected Studio owner, 24-hour admin changes by non-owners (+ Cancel), ownership hand-over (owner + fresh
+    // two-step code; an active admin accepts). The database decides who may do what; overview() is null before 0283.
+    team: {
+      overview: () => (supa ? rpc("team_safety_overview").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      deactivate: (userId, reason) => rpc("team_deactivate_member", { p_user: userId, p_reason: reason || null }),
+      reactivate: (userId) => rpc("team_reactivate_member", { p_user: userId }),
+      setRole: (userId, role) => rpc("team_set_role", { p_user: userId, p_role: role }),
+      cancelChange: (changeId) => rpc("team_change_cancel", { p_change: changeId }),
+      openWork: (userId) => rpc("team_member_open_work", { p_user: userId }),
+      transferStart: (toUserId) => rpc("team_owner_transfer_start", { p_to: toUserId }),
+      transferAccept: (transferId) => rpc("team_owner_transfer_accept", { p_transfer: transferId }),
+      transferCancel: (transferId) => rpc("team_owner_transfer_cancel", { p_transfer: transferId }),
+      // the server's hint for a refusal ("owner_protected", "admin_change_delay", "reauth", "change_pending", ...) or ""
+      hintOf: (e) => String((e && (e.hint || (e.cause && e.cause.hint))) || ""),
+    },
     // 0045 — this studio's Helm subscription (read-only). Every member gets {status, read_only};
     // studio admins also get plan, period and payments. invoice(): admins, own studio only.
     checkout,
@@ -10741,6 +10891,48 @@ window.HelmUrl = HelmUrl;
           try { await BPStore.demo.seed(); } catch (x) {}
           return { result: "started", org_id: id, name: name, mode: mode, legacy: true };
         }
+      },
+    },
+    // r29 (0279) - referral program. The SERVER decides everything (codes, fraud checks, rewards); these only call it.
+    //   mine()       -> the studio admin's own code, referred studios (names only with their consent), free months
+    //   lookup(code) -> {ok, kind, offer, reason} for the sign-up page (works signed out; never says who owns a code)
+    //   click(code)  -> counts one opened link (a number per day; nothing about the person)
+    //   attachPending() -> once, right after the new studio is created: typed code beats the last link (60 days)
+    referral: {
+      deviceId() {
+        try {
+          let d = global.localStorage.getItem("helm.device.id");
+          if (!/^[A-Za-z0-9_-]{8,64}$/.test(String(d || ""))) {
+            const a = new Uint8Array(16); (global.crypto || {}).getRandomValues ? global.crypto.getRandomValues(a) : a.forEach((_, i) => { a[i] = Math.floor(Math.random() * 256); });
+            d = "d" + Array.prototype.map.call(a, (b) => ("0" + b.toString(16)).slice(-2)).join("");
+            global.localStorage.setItem("helm.device.id", d);
+          }
+          return d;
+        } catch (e) { return null; }
+      },
+      mine: () => rpc("my_referral", { p_device: BPStore.referral.deviceId() }),
+      lookup: (code) => (supa ? rpc("referral_lookup", { p_code: String(code || "").slice(0, 24) })
+        .catch((e) => { if (rpcMissing(e)) return { ok: false, reason: "pending" }; throw e; }) : Promise.resolve({ ok: false, reason: "pending" })),
+      click: (code) => (supa ? rpc("referral_click", { p_code: String(code || "").slice(0, 24) }).catch(() => null) : Promise.resolve(null)),
+      async attachPending() {
+        if (!supa) return null;
+        let s = null, lk = null, m = null;
+        try { s = JSON.parse(global.sessionStorage.getItem("helm.signup.ref") || "null"); } catch (e) {}
+        try { lk = JSON.parse(global.localStorage.getItem("helm.ref.link") || "null"); } catch (e) {}
+        try { m = ((currentUser && currentUser.user_metadata) || {}).helm_signup_ref || null; } catch (e) {}
+        const ok = (c) => /^[A-Z0-9][A-Z0-9_-]{2,23}$/.test(String(c || ""));
+        const typed = s && s.via === "typed" && ok(s.code) ? s.code : (!s && m && m.via === "typed" && ok(m.code) ? m.code : "");
+        let link = "", linkAt = null;
+        if (lk && ok(lk.code) && typeof lk.at === "number" && Date.now() - lk.at < 60 * 864e5) { link = lk.code; linkAt = new Date(lk.at).toISOString(); }
+        else if (m && m.via === "link" && ok(m.code) && m.link_at) { link = m.code; linkAt = m.link_at; }
+        if (!typed && !link) return null;
+        const consent = s ? s.consent === true : !!(m && m.consent === true);
+        let r = null;
+        try {
+          r = await rpc("referral_attach", { p_typed: typed || null, p_link: link || null, p_link_at: linkAt, p_consent: consent, p_device: BPStore.referral.deviceId() });
+        } catch (e) { if (rpcMissing(e)) return null; throw e; }
+        try { global.sessionStorage.removeItem("helm.signup.ref"); global.localStorage.removeItem("helm.ref.link"); } catch (e) {}
+        return r;
       },
     },
     // r22 (0255) - ONE sign-up flow: account + Terms -> verify e-mail -> create studio -> Pay now / Try free / Contact sales.
@@ -11304,6 +11496,10 @@ window.HelmUrl = HelmUrl;
     if (e && e.hint === "money_frozen" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
     // 0159: a directly created studio is read-only until its plan is paid (or it switches to the trial)
     if (e && e.hint === "payment_pending") return pre + "Choose a plan and complete payment to start using Helm — or start a free trial instead.";
+    // r35 (0285): payment details / sensitive settings need a fresh two-step code (or two-step set up / a flag cleared)
+    if (e && e.cancelled && e.stepUp) return pre + "This change needs your two-step code.";
+    if (e && e.stepUp && e.message) return pre + endDot(clip(String(e.message), 240));
+    if (e && /R35_(REAUTH|SETUP_2STEP|FLAGGED)/.test(String(e.message || ""))) return pre + endDot(clip(String(e.message).replace(/^R35_[A-Z0-9_]+:\s*/, ""), 240));
     // 0166 — free-trial seat limit (you + 2 people; open invitations count)
     // 0173 — free-trial lock / 2-row creation cap: the DB message is written for people
     if (e && (e.hint === "trial_cap" || e.hint === "trial_locked") && e.message) return pre + endDot(clip(String(e.message), 240));
@@ -12591,7 +12787,7 @@ window.HelmUrl = HelmUrl;
     if (!tz) { try { tz = localStorage.getItem(STUDIO_TZ_KEY) || ""; } catch (e) {} }
     if (!tz) { try { var H = (typeof window !== "undefined" && window.HelmCountry) || null, cc = (BPStore.studioTax() || {}).country; tz = H && H.timezone ? H.timezone(cc) : ""; } catch (e) {} }
     if (tz) { try { new Intl.DateTimeFormat("en", { timeZone: tz }); } catch (e) { tz = ""; } }
-    return tz || undefined;
+    return tz || "Asia/Kolkata";   // r37: an unknown studio zone is India's (never the viewer's browser zone)
   };
   BPStore.studioLocale = function () {
     var r = null; try { r = BPStore.studioTax(); } catch (e) {}

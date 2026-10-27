@@ -148,8 +148,9 @@ await t('R2-AUTH-02 store-api: an "Add user" refusal answered { refused: true } 
   const b = API.indexOf('      async setRole(id, role) {');
   assert.ok(a > 0 && b > a);
   const src = API.slice(a, b).replace(/^\s*async createUserTemp/, 'async function createUserTemp').trim().replace(/,\s*$/, '');
+  // r35 (0285): Add user runs inside withStepUp (asks for a fresh two-step code when the server says so) - pass-through here
   const mk = (data) => { const ctx = { reservedEmailDomain: () => false, reservedEmailError: () => new Error('r'),
-    supa: { rpc: async () => ({ data, error: null }) } }; vm.createContext(ctx); vm.runInContext(src + '\nthis.f = createUserTemp;', ctx); return ctx.f; };
+    withStepUp: (run) => run(), supa: { rpc: async () => ({ data, error: null }) } }; vm.createContext(ctx); vm.runInContext(src + '\nthis.f = createUserTemp;', ctx); return ctx.f; };
   await assert.rejects(mk({ refused: true, code: '22023', error: 'could not create this user - send them an invitation instead' })('x@example.test', 'sales'),
     (e) => /send them an invitation instead/.test(e.message) && e.code === '22023');
   assert.deepEqual(await mk({ user_id: 'u1', temp_password: 'Hm-x' })('x@example.test', 'sales'), { user_id: 'u1', temp_password: 'Hm-x' });

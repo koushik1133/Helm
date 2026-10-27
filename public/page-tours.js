@@ -200,7 +200,9 @@
         users: [
           { sel: "#seat_meter", title: "Seats on your plan", desc: "How many team logins you use and how many your plan allows." },
           { sel: "#uc_q", title: "Find a teammate", desc: "Search the team, or filter by role." },
+          { sel: "#hauMfaNudge", title: "Set up two-step", desc: "Until you turn on two-step sign-in, a calm reminder sits here. Set up now (2 min) walks you through it; Later hides it for 7 days." },
           { sel: "#um_rows", title: "Team members", desc: "Everyone with a login and their role. Change a role or remove someone here." },
+          { sel: "#um_rows .ts-badge", title: "Two-step badge", desc: "Next to each admin: “Two-step: on”, or “not set up”. Admins need two-step to change payment details and other sensitive settings." },
           { sel: "#inv_email", title: "Invite by e-mail link", desc: "Type their e-mail and pick a role. Helm sends a join link that works once." },
           { sel: "#inv_rows", title: "Pending invites", desc: "Links not used yet. Copy one again, or cancel it." },
         ],
@@ -456,14 +458,27 @@
       { sel: "#queueWrap", title: "Events to design", desc: "Confirmed events waiting for a design. Pick one to work on." },
       { sel: "#singleCard", title: "One event", desc: "The design of the event you opened: theme, colours and notes." },
     ],
+    // r29 (#264): Refer a studio - the referral link, free months, referred studios and the rules
+    "refer.html": [
+      { sel: "#rfSoon", title: "Coming soon", desc: "Referrals are not switched on for your studio yet. This page fills in once they are." },
+      { sel: "#rfLink", title: "Your referral link", desc: "Copy your link, or give another studio your code to type at sign-up." },
+      { sel: ".rf-acts", title: "Share it yourself", desc: "Send it from your own WhatsApp or e-mail, or copy a ready message. Helm never contacts people for you." },
+      { sel: ".rf-next", title: "Your free months", desc: "When a studio you referred pays (after the 14-day refund wait), your next billing month is free. Your upcoming free months are listed here." },
+      { sel: "#rfStats", title: "Your numbers", desc: "How many studios you referred, how many are in progress and how many earned you a month." },
+      { sel: "#rfTable", title: "Studios you referred", desc: "Each studio's status and what it means. Filter by In progress, Earned or Not qualified." },
+      { sel: "#rfLedger", title: "Free month history", desc: "Every free month you earned and when it was used." },
+      { sel: "#rfRules", title: "The rules", desc: "The main referral rules, with a link to the full terms." },
+    ],
     "invite-studio.html": [
-      { sel: "#tpls", title: "Pick a design", desc: "Choose a template for the invitation website." },
+      // r34 (#270): 11 themes, the "RSVP & privacy" card (how guests reply, address privacy, footer brand) and guest replies
+      { sel: "#tpls", title: "Pick a design", desc: "Choose one of the 11 themes for the invitation website. A sangeet or mehendi event starts on the Mehndi theme." },
       { sel: "#f_names", title: "The details", desc: "Names, headline, date, time and venue. The preview updates as you type." },
-      { sel: "#photos", title: "Photos", desc: "Add photos and choose how the background looks." },
-      { sel: "#f_musicPick", title: "Music", desc: "Pick a song that plays on the site, or add your own link." },
-      { sel: "#sched", title: "Schedule", desc: "Add the day's programme: ceremony, dinner, dancing." },
-      { sel: ["#pvToggle", "#pubBtn"], title: "Preview & publish", desc: "Check the live preview, then publish and copy the link for the client." },
+      { sel: "#rsvpModeGroup", title: "How guests reply", desc: "Phone & WhatsApp buttons (the default), an RSVP form where guests say Yes / Maybe / No and how many are coming, or both. With the form only, your number stays private." },
+      { sel: "#addrGroup", title: "Address privacy", desc: "Show the full address and map to everyone with the link (the default), or only the venue name and city until a guest replies Yes or Maybe. This needs the RSVP form. Below it you choose whether the footer says “Made with Helm Studios”." },
+      { sel: "#photos", title: "Photos, music & schedule", desc: "Add photos and choose how the background looks. Further down: a song for the site and the day's programme (ceremony, dinner, dancing)." },
       { sel: "#shareCard", title: "Send to client", desc: "Share the site link with the client." },
+      { sel: "#repliesCard", title: "Guest replies", desc: "With the RSVP form on, every reply lands here: who is coming, how many, and a CSV download. Shown once the site is published." },
+      { sel: ["#pvToggle", "#pubBtn"], title: "Preview & publish", desc: "Check the live preview, then publish and copy the link for the client. Turn off link takes the site down again." },
     ],
     /* ---------------- pages with their own layout (no app shell) ---------------- */
     "hq.html": [

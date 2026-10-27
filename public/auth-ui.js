@@ -28,7 +28,7 @@
     if (!ts) return "—";
     // R20 (live QA): sign-in activity in the studio's date style + timezone ("18 Oct 2026, 10:30 am"), not the browser's US style
     try { var S = window.BPStore; if (S && S.fmtStudioDate) { var o = S.fmtStudioDate(ts, { style: "long", time: true }); if (o) return o; } } catch (e) {}
-    try { return new Date(ts).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }); } catch (e) { return String(ts); }
+    try { return new Date(ts).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: (function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })() }); } catch (e) { return String(ts); }   // r37: studio zone
   }
   function uaLabel(ua) {
     ua = String(ua || "");
@@ -338,6 +338,32 @@
       ".hau-acc-bd>.hau-sec{padding:14px}.hau-facts{grid-template-columns:minmax(0,1fr)}.hau-enr{grid-template-columns:minmax(0,1fr);justify-items:center;gap:14px}.hau-enr-side{width:100%}",
       ".hau-coderow .hau-input.hau-otp{flex:1 1 100%;width:100%}.hau-coderow .hau-btn{flex:1 1 100%}.hau-acc .hau-foot .hau-btn{flex:1 1 auto}}",
       "@media (max-width:360px){.hau-qrbox{width:188px;height:188px}.hau-qr{width:172px;height:172px}.hau-key{flex-wrap:wrap}.hau-copy{flex:1 1 100%}}",
+      /* r44: guided two-step set-up (install -> scan -> code -> done) - the Account dialog's look, one column on phones */
+      ".bpui-dialog.hau-acc.hau-ts{width:min(560px,100%)}",
+      ".hau-ts-prog{display:flex;gap:8px;list-style:none;margin:0;padding:14px 20px 0;background:var(--ha-bg2)}",
+      ".hau-ts-prog li{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:8px;padding:0 0 10px;border-bottom:3px solid var(--ha-line);color:var(--ha-ink3);font-size:12.5px;font-weight:600}",
+      ".hau-ts-prog li.is-on{border-color:var(--ha-acc);color:var(--ha-ink)}",
+      ".hau-ts-prog li.is-done{border-color:color-mix(in srgb,var(--ha-acc) 50%,transparent);color:var(--ha-ink2)}",
+      ".hau-ts-dot{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--ha-line);color:var(--ha-ink2);font-size:12px;font-weight:700}",
+      ".hau-ts-prog li.is-on .hau-ts-dot,.hau-ts-prog li.is-done .hau-ts-dot{background:var(--ha-acc);color:#fff}",
+      ".hau-ts-lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".hau-ts-card{padding:18px;border:1px solid var(--ha-line);border-radius:14px;background:var(--ha-bg);box-shadow:0 1px 2px rgba(20,27,46,.04)}",
+      ".bpui-dialog .hau-ts-card h3{margin:0 0 6px;font-size:16.5px;font-weight:700;letter-spacing:-.005em;color:var(--ha-ink)}",
+      ".bpui-dialog .hau-ts-card p{margin:0 0 8px;font-size:14px;line-height:1.55;color:var(--ha-ink2)}",
+      ".hau-ts-apps{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 6px;padding:0;list-style:none}",
+      ".hau-ts-apps li{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--ha-line);border-radius:12px;background:var(--ha-bg2);font-weight:650;font-size:14px;color:var(--ha-ink)}",
+      ".hau-ts-apps svg{width:18px;height:18px;color:var(--ha-acc)}",
+      ".hau-ts-why{display:flex;gap:10px;align-items:flex-start;margin:0 0 4px;padding:12px 14px;border-radius:12px;background:var(--ha-soft);color:var(--ha-ink)}",
+      ".bpui-dialog .hau-ts-why p{margin:0;color:var(--ha-ink);font-size:13.5px}",
+      ".hau-ts-why svg{flex:0 0 auto;width:18px;height:18px;margin-top:1px;color:var(--ha-acc)}",
+      ".bpui-dialog p.hau-ts-rec{margin:12px 0 0;font-size:12.5px}",
+      ".hau-ts .hau-ts-foot{justify-content:space-between;gap:10px}",
+      ".hau-ts-sp{flex:1 1 auto}",
+      ".hau-ts .hau-enr{margin-top:6px}",
+      ".hau-ts-done{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:8px 4px}",
+      ".hau-ts-done .hau-done-ic{width:44px;height:44px;padding:10px;box-sizing:border-box;border-radius:50%;background:var(--ha-soft);color:var(--ha-acc)}",
+      "@media (max-width:560px){.hau-ts-prog{padding:10px 12px 0;gap:6px}.hau-ts-prog li{justify-content:center}.hau-ts-lbl{display:none}",
+      ".hau-ts-card{padding:14px}.hau-ts .hau-ts-foot .hau-btn{flex:1 1 auto}.hau-ts-sp{display:none}}",
       ".hau-lbl{display:block;margin:6px 0 4px;font-weight:600;font-size:13.5px}",
       ".hau-input.hau-text{font-size:15px;letter-spacing:normal}",
       /* profile menu (top-right avatar) — page tokens first, BPUI/bell fallbacks */
@@ -472,6 +498,48 @@
     try { if (global.navigator && global.navigator.clipboard && global.navigator.clipboard.writeText) return global.navigator.clipboard.writeText(txt); } catch (e) {}
     return Promise.reject(new Error("no clipboard"));
   }
+  // r44: the QR code beside the typed key (Copy + "Open in authenticator app") - shared by the Account panel set-up
+  // (renderEnroll) and the guided set-up (openTwoStepSetup). pfx keeps the element ids unique per place.
+  function qrGrid(r, pfx) {
+    var grid = el("div", { class: "hau-enr" });
+    var qrBox = el("div", { class: "hau-qrbox" });
+    var qrMissing = function () {
+      qrBox.textContent = "";
+      qrBox.appendChild(el("p", { class: "hau-qr-miss", role: "status" }, "The QR code couldn't be shown here. Type the key into your app instead."));
+    };
+    var src = safeQr(r.qr);
+    if (src) {
+      var img = el("img", { class: "hau-qr", src: src, alt: "QR code for your authenticator app", width: "200", height: "200", decoding: "async" });
+      img.addEventListener("error", qrMissing);
+      qrBox.appendChild(img);
+    } else qrMissing();
+    grid.appendChild(qrBox);
+    var side = el("div", { class: "hau-enr-side" });
+    side.appendChild(el("p", { class: "hau-lbl2", id: pfx + "KeyLbl" }, "Can't scan? Type this key into the app instead:"));
+    var keyRow = el("div", { class: "hau-key" });
+    keyRow.appendChild(el("code", { class: "hau-code", id: pfx + "Key", "aria-labelledby": pfx + "KeyLbl" }, r.secret || ""));
+    var copy = el("button", { type: "button", class: "hau-btn hau-copy", "aria-label": "Copy the set-up key" }, "Copy");
+    var copied = el("span", { class: "hau-sr", role: "status", "aria-live": "polite" });
+    copy.addEventListener("click", function () {
+      copyText(r.secret || "").then(function () {
+        copy.textContent = "Copied ✓"; copied.textContent = "Key copied.";
+        setTimeout(function () { copy.textContent = "Copy"; copied.textContent = ""; }, 2000);
+      }, function () {
+        // no clipboard (older browser / not allowed): select the key so it can be copied by hand
+        try { var rg = doc.createRange(), sel = global.getSelection(); rg.selectNodeContents(keyRow.firstChild); sel.removeAllRanges(); sel.addRange(rg); } catch (e) {}
+        copied.textContent = "Key selected - copy it with your keyboard.";
+      });
+    });
+    keyRow.appendChild(copy); side.appendChild(keyRow); side.appendChild(copied);
+    side.appendChild(el("p", { class: "hau-muted hau-small" }, "Choose “time-based” if the app asks. The key works only for this set-up."));
+    var uri = safeOtpUri(r.uri);
+    if (uri) {
+      side.appendChild(el("a", { class: "hau-btn hau-open", href: uri }, "Open in authenticator app"));
+      side.appendChild(el("p", { class: "hau-muted hau-small" }, "Setting up on this phone? Tap to add Helm to your authenticator app."));
+    }
+    grid.appendChild(side);
+    return grid;
+  }
   // Renders the set-up steps into `box`; calls onDone() once the code verifies. r22: onFail(e) (optional) when
   // set-up could not even start; a "Try again" button is always offered then.
   function renderEnroll(box, onDone, onFail) {
@@ -484,43 +552,7 @@
       // step 1 - QR beside the key
       var s1 = el("div", { class: "hau-step" });
       s1.appendChild(stepHead(1, "Scan this QR code", "Open an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy…) and scan the code."));
-      var grid = el("div", { class: "hau-enr" });
-      var qrBox = el("div", { class: "hau-qrbox" });
-      var qrMissing = function () {
-        qrBox.textContent = "";
-        qrBox.appendChild(el("p", { class: "hau-qr-miss", role: "status" }, "The QR code couldn't be shown here. Type the key into your app instead."));
-      };
-      var src = safeQr(r.qr);
-      if (src) {
-        var img = el("img", { class: "hau-qr", src: src, alt: "QR code for your authenticator app", width: "200", height: "200", decoding: "async" });
-        img.addEventListener("error", qrMissing);
-        qrBox.appendChild(img);
-      } else qrMissing();
-      grid.appendChild(qrBox);
-      var side = el("div", { class: "hau-enr-side" });
-      side.appendChild(el("p", { class: "hau-lbl2", id: "hauKeyLbl" }, "Can't scan? Type this key into the app instead:"));
-      var keyRow = el("div", { class: "hau-key" });
-      keyRow.appendChild(el("code", { class: "hau-code", id: "hauEnrollKey", "aria-labelledby": "hauKeyLbl" }, r.secret || ""));
-      var copy = el("button", { type: "button", class: "hau-btn hau-copy", "aria-label": "Copy the set-up key" }, "Copy");
-      var copied = el("span", { class: "hau-sr", role: "status", "aria-live": "polite" });
-      copy.addEventListener("click", function () {
-        copyText(r.secret || "").then(function () {
-          copy.textContent = "Copied ✓"; copied.textContent = "Key copied.";
-          setTimeout(function () { copy.textContent = "Copy"; copied.textContent = ""; }, 2000);
-        }, function () {
-          // no clipboard (older browser / not allowed): select the key so it can be copied by hand
-          try { var rg = doc.createRange(), sel = global.getSelection(); rg.selectNodeContents(keyRow.firstChild); sel.removeAllRanges(); sel.addRange(rg); } catch (e) {}
-          copied.textContent = "Key selected - copy it with your keyboard.";
-        });
-      });
-      keyRow.appendChild(copy); side.appendChild(keyRow); side.appendChild(copied);
-      side.appendChild(el("p", { class: "hau-muted hau-small" }, "Choose “time-based” if the app asks. The key works only for this set-up."));
-      var uri = safeOtpUri(r.uri);
-      if (uri) {
-        side.appendChild(el("a", { class: "hau-btn hau-open", href: uri }, "Open in authenticator app"));
-        side.appendChild(el("p", { class: "hau-muted hau-small" }, "Setting up on this phone? Tap to add Helm to your authenticator app."));
-      }
-      grid.appendChild(side); s1.appendChild(grid); steps.appendChild(s1);
+      s1.appendChild(qrGrid(r, "hauEnroll")); steps.appendChild(s1);
       // step 2 - the code
       var s2 = el("div", { class: "hau-step" });
       s2.appendChild(stepHead(2, "Enter the 6-digit code", null));
@@ -560,6 +592,142 @@
       var rr = el("div", { class: "hau-row" }); rr.appendChild(again); box.appendChild(rr);
       if (onFail) try { onFail(e); } catch (x) {}
     });
+  }
+
+  /* ------------------------------------------ r44: guided two-step set-up --
+     Owner (r44): studio admins need two-step for sensitive changes (0285), so make setting it up easy BEFORE they hit
+     the block. Four screens: 1 install an authenticator app, 2 scan the QR code (or type the key), 3 enter the 6-digit
+     code, done. Same Supabase enrolment (BPStore.auth.mfa.enrollTotp / verify) and the same QR + key block as the
+     Account panel. Phone width: one column (the Account dialog styles + .hau-ts). Two-step is NOT made mandatory for
+     sign-in here (an open owner decision): this only helps people turn it on.
+     openTwoStepSetup({ reason, doneLabel }) -> Promise: true once two-step is on (or already was), false when closed. */
+  var TS_RECOVERY = "Lose your phone later? Another admin in your studio or Helm support (security@helm.events) can help you get back in.";
+  var IC_PHONE = "M8 3h8v18H8zM11 18h2";
+  var tsCur = null;
+  function openTwoStepSetup(opts) {
+    if (opts && opts.type) opts = null;                 // called as a click handler
+    opts = opts || {};
+    if (tsCur) return tsCur;
+    var st = S(); if (!st || !st.auth || !st.auth.user || !st.auth.user() || !st.auth.mfa) return Promise.resolve(false);
+    css();
+    var resolveFn = null;
+    tsCur = new Promise(function (res) { resolveFn = res; });
+    var returnFocus = doc.activeElement;
+    var ov = el("div", { class: "bpui-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "hauTsTitle", id: "hauTwoStep" });
+    var dlg = el("div", { class: "bpui-dialog hau-acc hau-ts", "data-step": "0" }); ov.appendChild(dlg);
+    var hd = el("div", { class: "hau-acc-hd" }), hdT = el("div", { class: "hau-acc-ttl" });
+    hdT.appendChild(el("h2", { id: "hauTsTitle" }, "Set up two-step sign-in"));
+    var sub = el("p", { class: "hau-muted", id: "hauTsSub" }, "About 2 minutes"); hdT.appendChild(sub); hd.appendChild(hdT);
+    var x = el("button", { type: "button", class: "hau-x", "aria-label": "Close" }); x.appendChild(pathIcon("M6 6l12 12M18 6L6 18")); hd.appendChild(x);
+    dlg.appendChild(hd);
+    var prog = el("ol", { class: "hau-ts-prog", "aria-hidden": "true" });
+    ["Install the app", "Scan the code", "Enter the code"].forEach(function (t, i) {
+      var li = el("li", { "data-i": String(i + 1) }); li.appendChild(el("span", { class: "hau-ts-dot" }, String(i + 1)));
+      li.appendChild(el("span", { class: "hau-ts-lbl" }, t)); prog.appendChild(li);
+    });
+    dlg.appendChild(prog);
+    var body = el("div", { class: "hau-acc-bd hau-ts-bd" }); dlg.appendChild(body);
+    var foot = el("div", { class: "hau-row hau-foot hau-ts-foot" }); dlg.appendChild(foot);
+    var state = { enr: null, on: false };
+    function finish() {
+      var ok = state.on;
+      try { ov.remove(); } catch (e) {}
+      var r = resolveFn; tsCur = null; resolveFn = null;
+      if (returnFocus && returnFocus.isConnected && returnFocus.focus) try { returnFocus.focus(); } catch (e) {}
+      if (r) r(ok);
+    }
+    function setStep(n) {
+      dlg.setAttribute("data-step", String(n));
+      Array.prototype.forEach.call(prog.children, function (li, i) { li.className = i + 1 < n || n === 4 ? "is-done" : i + 1 === n ? "is-on" : ""; });
+      sub.textContent = n === 4 ? "All set" : "Step " + n + " of 3 · about 2 minutes";
+      prog.hidden = n === 0;
+    }
+    function btn(label, cls, fn) { var b = el("button", { type: "button", class: "hau-btn" + (cls ? " " + cls : "") }, label); b.addEventListener("click", fn); return b; }
+    function footer(list) { foot.textContent = ""; list.forEach(function (b) { foot.appendChild(b || el("span", { class: "hau-ts-sp" })); }); }
+    function card(title, h) {
+      body.textContent = "";
+      var c = el("section", { class: "hau-ts-card", "aria-labelledby": "hauTsH" });
+      var hh = el("h3", { id: "hauTsH", tabindex: "-1" }); hh.appendChild(el("span", { class: "hau-sr" }, h)); hh.appendChild(doc.createTextNode(title));
+      c.appendChild(hh); body.appendChild(c);
+      setTimeout(function () { try { hh.focus({ preventScroll: true }); } catch (e) {} }, 30);
+      return c;
+    }
+    function step1() {
+      setStep(1);
+      var c = card("Install an authenticator app", "Step 1 of 3: ");
+      if (opts.reason) {
+        var why = el("div", { class: "hau-ts-why", role: "note" }); why.appendChild(pathIcon(SEC_IC.shield)); why.appendChild(el("p", null, String(opts.reason))); c.appendChild(why);
+      }
+      c.appendChild(el("p", null, "On your phone, install a free authenticator app from the App Store or Google Play:"));
+      var ul = el("ul", { class: "hau-ts-apps" });
+      ["Google Authenticator", "Microsoft Authenticator"].forEach(function (a) { var li = el("li"); li.appendChild(pathIcon(IC_PHONE)); li.appendChild(doc.createTextNode(a)); ul.appendChild(li); });
+      c.appendChild(ul);
+      c.appendChild(el("p", { class: "hau-muted hau-small" }, "Already use one (1Password, Authy…)? That works too - go to the next step."));
+      c.appendChild(el("p", { class: "hau-muted hau-small hau-note2 hau-ts-rec" }, TS_RECOVERY));
+      footer([btn("Not now", "", finish), null, btn("I have the app", "primary", step2)]);
+    }
+    function step2() {
+      setStep(2);
+      var c = card("Scan the QR code", "Step 2 of 3: ");
+      c.appendChild(el("p", null, "In the app, tap + (Add a code), then scan this QR code. Can't scan? Type the key instead."));
+      var area = el("div", null); c.appendChild(area);
+      var next = btn("Next: enter the code", "primary", step3);
+      footer([btn("Back", "", step1), null, next]);
+      var draw = function (r) { area.textContent = ""; area.appendChild(qrGrid(r, "hauTs")); next.disabled = false; };
+      if (state.enr) { draw(state.enr); return; }
+      next.disabled = true;
+      area.appendChild(el("p", { class: "hau-muted", role: "status" }, "Getting your code ready…"));
+      st.auth.mfa.enrollTotp().then(function (r) { state.enr = r; if (area.isConnected) draw(r); }, function (e) {
+        if (!area.isConnected) return;
+        area.textContent = "";
+        area.appendChild(el("p", { class: "hau-err", role: "alert" }, errText(e, "set up two-step verification")));
+        var again = btn("Try again", "", function () { step2(); });
+        var rr = el("div", { class: "hau-row" }); rr.appendChild(again); area.appendChild(rr);
+      });
+    }
+    function step3() {
+      if (!state.enr) { step2(); return; }
+      setStep(3);
+      var c = card("Enter the 6-digit code", "Step 3 of 3: ");
+      c.appendChild(el("p", null, "Your app now shows a 6-digit code for Helm. Type it here."));
+      var lab = el("label", { for: "hauTsCode", class: "hau-sr" }, "6-digit code from your authenticator app");
+      var inp = otpInput("hauTsCode", "hauTsHint");
+      var hint = el("p", { id: "hauTsHint", class: "hau-muted hau-small" }, "Codes change every 30 seconds - enter the newest one.");
+      var er = el("div", { class: "hau-err", role: "alert" });
+      var row = el("div", { class: "hau-coderow" }); row.appendChild(inp);
+      c.appendChild(lab); c.appendChild(row); c.appendChild(hint); c.appendChild(er);
+      var go = btn("Verify & turn on", "primary", function () { submit(); });
+      footer([btn("Back", "", step2), null, go]);
+      var submit = function () {
+        if (go.disabled) return;
+        er.textContent = ""; go.disabled = true;
+        st.auth.mfa.verify(state.enr.factorId, inp.value).then(function () { state.on = true; doneStep(false); }, function (e) {
+          er.textContent = errText(e, "verify the code"); try { inp.focus(); } catch (x) {}
+          if (e && e.code === "mfa_locked" && e.retryAfter > 0) setTimeout(function () { go.disabled = false; er.textContent = ""; }, e.retryAfter * 1000);
+          else go.disabled = false;
+        });
+      };
+      inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); submit(); } });
+      setTimeout(function () { try { inp.focus(); } catch (e) {} }, 60);
+    }
+    function doneStep(already) {
+      setStep(4); state.on = true;
+      var c = card(already ? "Two-step sign-in is already on" : "Two-step sign-in is on", "");
+      var d = el("div", { class: "hau-ts-done", role: "status" }); d.appendChild(pathIcon(IC_CHECK, "hau-done-ic"));
+      d.appendChild(el("p", null, "Helm now asks for a code from your authenticator app when you sign in, and before payment details or other sensitive studio settings are changed."));
+      c.appendChild(d);
+      c.appendChild(el("p", { class: "hau-muted hau-small hau-note2 hau-ts-rec" }, TS_RECOVERY));
+      footer([null, btn(opts.doneLabel || "Done", "primary", finish)]);
+      hideBanner();
+      try { doc.dispatchEvent(new global.CustomEvent("helm:two-step-on")); } catch (e) {}
+    }
+    x.addEventListener("click", finish);
+    ov.addEventListener("keydown", function (e) { if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); finish(); } });
+    doc.body.appendChild(ov);
+    setStep(0);
+    body.appendChild(el("p", { class: "hau-muted", role: "status" }, "Loading…"));
+    Promise.resolve(st.auth.mfa.verifiedTotp()).then(function (fs) { if (fs && fs.length) doneStep(true); else step1(); }, function () { step1(); });
+    return tsCur;
   }
 
   /* ----------------------------------------------------- account panel */
@@ -1703,7 +1871,7 @@
         }, function () {});
         var on = el("button", { type: "button", class: "hau-btn primary" }, "Turn on");
         var area = el("div", { class: "hau-enroll-area" });
-        on.addEventListener("click", function () { on.hidden = true; renderEnroll(area, function () { hideBanner(); setPill(true); try { offP.remove(); } catch (e) {} setTimeout(function () { renderMfaSection(box, pill); }, 1500); }); });
+        on.addEventListener("click", function () { on.hidden = true; renderEnroll(area, function () { hideBanner(); setPill(true); try { doc.dispatchEvent(new global.CustomEvent("helm:two-step-on")); } catch (e) {} try { offP.remove(); } catch (e) {} setTimeout(function () { renderMfaSection(box, pill); }, 1500); }); });
         var r2 = el("div", { class: "hau-row" }); r2.appendChild(on); box.appendChild(r2); box.appendChild(area);
       }
     }, function (e) { box.textContent = ""; box.appendChild(el("p", { class: "hau-err" }, errText(e, "load two-step settings"))); });
@@ -1720,13 +1888,10 @@
         if (fs.length) return;
         // r22: a studio on its free trial is never made to set up two-step (and never nudged, below)
         if (st.auth.mfa.requiredForAdmins()) return inTrialStudio().then(function (t) { if (!t) forceEnroll(); });
-        var dismissed = noteSnoozed("mfa");
-        if (dismissed || banner) return;
+        // r44 (owner): a calm notice on the dashboard and Settings only, until dismissed (then 7 days quiet)
+        if (noteSnoozed("twostep") || banner || !onTwoStepPage()) return;
         // 0203: never in the free trial (the trial studio is sample data; the strip is the only notice)
         if (doc.documentElement.classList.contains("helm-trial")) return;
-        // at most once per browser session, and never on top of a tour step
-        var SK = "hau_mfa_nudge_session";
-        try { if (global.sessionStorage && sessionStorage.getItem(SK)) return; } catch (e) {}
         var tries = 0;
         function waitTour() {
           if (banner) return;
@@ -1734,13 +1899,18 @@
           if (tourActive()) return;
           inTrialStudio().then(function (t) {
             if (t || banner) return;
-            try { if (global.sessionStorage) sessionStorage.setItem(SK, "1"); } catch (e) {}
             showMfaNudge();
           });
         }
-        setTimeout(waitTour, 2500);
+        setTimeout(waitTour, 1200);
       });
     }).catch(function () {});
+  }
+  // r44: the dashboard and Settings (Control Center; pretty URL /<studio>/settings)
+  function onTwoStepPage() {
+    var p = ""; try { p = String((global.HelmUrl && global.HelmUrl.page && global.HelmUrl.page()) || ""); } catch (e) {}
+    p = (p || pageName()).replace(/\.html$/, "");
+    return p === "dashboard" || p === "control" || p === "settings";
   }
   // 0203: is the signed-in studio on its free trial? (the server's answer via trial-lock.js; false when unknown)
   function inTrialStudio() {
@@ -1753,14 +1923,14 @@
     return Promise.resolve(false);
   }
   function showMfaNudge() {
-        // 0203: compact and non-blocking - it stays in the notice stack (never over the page's own docked notices),
-        // shows once per browser session and folds away by itself after 20 s
-        banner = showNote({ id: "hauMfaNudge", priority: 2, icon: "shield", compact: true, dock: false, autoHideMs: 20000,
-          onAutoHide: function () { banner = null; }, title: "Turn on two-step verification",
-          body: "Admins control every user and setting — protect your studio with a code from your phone.",
-          primary: { label: "Set up now", onClick: function () { openAccount(); } },
-          secondary: { label: "Later", onClick: function () { snoozeNote("mfa", 3); banner = null; } },
-          onDismiss: function () { snoozeNote("mfa", 3); banner = null; }, dismissLabel: "Dismiss — remind me in 3 days" });
+        // r44 (owner): calm and in the page (the dashboard's notice slot; Settings: the notice stack), no time-out;
+        // "Set up now (2 min)" opens the guided set-up; dismissed -> quiet for 7 days. Gone once two-step is on.
+        banner = showNote({ id: "hauMfaNudge", priority: 2, icon: "shield", inline: true,
+          title: "Protect your studio: set up two-step sign-in.",
+          body: "You'll need it to change payment details and other sensitive settings.",
+          primary: { label: "Set up now (2 min)", onClick: function () { openTwoStepSetup(); } },
+          secondary: { label: "Later", onClick: function () { snoozeNote("twostep", 7); banner = null; } },
+          onDismiss: function () { snoozeNote("twostep", 7); banner = null; }, dismissLabel: "Dismiss - remind me in 7 days" });
   }
   // MFA_REQUIRED_FOR_ADMINS: a blocking set-up screen (no close button).
   function forceEnroll() {
@@ -2034,7 +2204,7 @@
     try {
       if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)).toLocaleDateString("en-IN", Object.assign({ timeZone: "UTC" }, f));
       var d = new Date(s); if (isNaN(d.getTime())) return String(v);
-      return d.toLocaleDateString("en-IN", f);
+      return d.toLocaleDateString("en-IN", Object.assign({ timeZone: (function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })() }, f));   // r37: studio zone
     } catch (e) { return String(v); }
   }
   // L9 (live QA): the trial end on Plan & billing is the STUDIO's calendar day of the exact end moment - the same day
@@ -2266,6 +2436,13 @@
     if (mfaReq) adminTwoStep();
     else { var idle2 = function () { if (global.requestIdleCallback) global.requestIdleCallback(adminTwoStep, { timeout: 5000 }); else setTimeout(adminTwoStep, 2000); };
       if (doc.readyState === "complete") setTimeout(idle2, 2000); else global.addEventListener("load", function () { setTimeout(idle2, 2000); }, { once: true }); }
+    // r44: the bell notice "New: two-step protects your payment details" links to <page>#two-step-setup
+    try {
+      if (global.location && global.location.hash === "#two-step-setup") {
+        try { global.history.replaceState(null, "", global.location.pathname + global.location.search); } catch (e) {}
+        setTimeout(function () { openTwoStepSetup(); }, 400);
+      }
+    } catch (e) {}
     profileNudge();
     subscriptionStatus();
     trialStatus();
@@ -2275,6 +2452,7 @@
   global.HelmAuthUI = {
     mountAppChrome: mountAppChrome,
     openAccount: openAccount,
+    openTwoStepSetup: openTwoStepSetup,   // r44: guided set-up (banner, the R35_SETUP_2STEP refusal, the bell notice)
     mountCaptcha: mountCaptcha,
     renderEnroll: renderEnroll,
     profileForm: profileForm,

@@ -68,6 +68,34 @@
   .sw.eternal{background:#f7f3ec;color:#9a7b4f}.sw.promise{background:#fdf2f4;color:#c05b83}
   .sw.confetti{background:#fff8ef;color:#e0533b}.sw.summit{background:#f6f7fb;color:#4f46e5;font-family:system-ui}
   .sw.soiree{background:radial-gradient(120px 60px at 50% 0,#241a35,#141019);color:#a78bfa}
+  /* r34 themes */
+  .sw.shubh{background:radial-gradient(circle at 50% 0,#8c1d2f 0 7px,#c9973f 7px 8px,transparent 9px) 0 0/20px 14px repeat-x,#fbf4e8;color:#8c1d2f}
+  .sw.mehndi{background:radial-gradient(rgba(227,154,18,.35) 1.4px,transparent 1.8px) 0 0/12px 12px,#fff9e8;color:#2f5a22;font-style:italic}
+  .sw.solitaire{background:linear-gradient(180deg,#f6e6df,#fbf6f2);color:#7f5d39;font-weight:400}
+  .sw.jubilee{background:radial-gradient(circle at 20% 30%,#fbbf24 0 3px,transparent 4px),radial-gradient(circle at 80% 70%,#ec4899 0 3px,transparent 4px),#fff7fb;color:#6d28d9}
+  .sw.gala{background:repeating-radial-gradient(circle at 50% 130%,rgba(212,175,106,.18) 0 1px,transparent 1px 9px),#0c0c0e;color:#d4af6a;letter-spacing:.1em}
+  .sw.linen{background:#f4f2ee;color:#1d1d1b;font-family:system-ui;font-weight:500}
+  /* r34 RSVP & privacy + guest replies */
+  .opt-group{border:0;padding:0;margin:0 0 14px;display:grid;gap:8px;min-width:0}
+  .opt-group legend{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);padding:0;margin:0 0 6px}
+  .opt{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;
+    font-size:13.5px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink);margin:0;background:var(--panel-2)}
+  .opt input{width:18px;height:18px;margin:2px 0 0;accent-color:var(--accent)}
+  .opt small{display:block;font-weight:400;color:var(--ink-3);font-size:12.5px;margin-top:2px}
+  .opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+  .opt:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+  .opt:has(input:disabled){opacity:.6;cursor:not-allowed}
+  .rp-sum{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+  .rp-chip{border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--panel-2)}
+  .rp-chip b{color:var(--ink)}
+  .rp-wrap{max-height:420px;overflow:auto;border:1px solid var(--line-2);border-radius:10px}
+  .rp-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .rp-tbl th{position:sticky;top:0;background:var(--panel-2);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);padding:8px 10px;border-bottom:1px solid var(--line)}
+  .rp-tbl td{padding:8px 10px;border-bottom:1px solid var(--line-2);vertical-align:top;overflow-wrap:anywhere}
+  .rp-tbl td.msg-c{color:var(--ink-2);white-space:pre-line;max-width:260px}
+  .rp-a{font-weight:600;font-size:12px;padding:2px 8px;border-radius:999px;background:#f4f4f5;color:#52525b;white-space:nowrap}
+  .rp-a.yes{background:#ecfdf5;color:#047857}.rp-a.maybe{background:#fff7e6;color:#8a5300}.rp-a.no{background:#fdecec;color:#b42318}
+  .rp-empty{padding:14px;color:var(--ink-3);font-size:13px;margin:0}
   /* preview */
   /* R23 scroll fix. Desktop: the preview column is sticky BELOW the shell's top bar (--hb-top) and exactly fills
      the rest of the viewport; the iframe takes the free height, so there is one page scroll (the form) and no
@@ -176,7 +204,7 @@
   .lsheet h2{color:var(--ink);text-transform:none;letter-spacing:0;font-size:18px;margin:0 0 12px}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:13px;margin-bottom:12px}
 </style>
-<script src="/shell-proto.js?v=45" id="shellProto"></script>
+<script src="/shell-proto.js?v=47" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -251,6 +279,22 @@
           </div>
         </div>
 
+        <div class="card" id="rsvpCard">
+          <h2>RSVP &amp; privacy</h2>
+          <fieldset class="opt-group" id="rsvpModeGroup"><legend>How guests reply</legend>
+            <label class="opt"><input type="radio" name="f_rsvpMode" id="f_rsvpMode_contact" value="contact"><span>Phone &amp; WhatsApp (default)<small>Guests see the contact number with “RSVP on WhatsApp” and “Call” buttons - the same as before.</small></span></label>
+            <label class="opt"><input type="radio" name="f_rsvpMode" id="f_rsvpMode_form" value="form"><span>RSVP form (optional)<small>Guests tell you if they're coming (Yes / Maybe / No) and how many people. The contact number stays private; replies show below.</small></span></label>
+            <label class="opt"><input type="radio" name="f_rsvpMode" id="f_rsvpMode_both" value="both"><span>Both (optional)<small>The RSVP form, with the phone / WhatsApp buttons under it.</small></span></label>
+          </fieldset>
+          <p class="mnote" id="rsvpPhoneNote" hidden>Add a phone number in “Contact” above - without one guests only see the form.</p>
+          <fieldset class="opt-group" id="addrGroup"><legend>Address on the invitation</legend>
+            <label class="opt"><input type="radio" name="f_addrMode" id="f_addrMode_full" value="full"><span>Full address and map (default)<small>Everyone with the link sees the venue, the street address and the map link - the same as before.</small></span></label>
+            <label class="opt"><input type="radio" name="f_addrMode" id="f_addrMode_after" value="after_rsvp"><span>Hide the address until the guest replies Yes or Maybe (optional)<small>Guests see the venue name + city; after replying Yes or Maybe on the RSVP form they see the full address and map (on that phone). Guests who reply No do not.</small><small id="addrNeedsForm">Turn on the RSVP form above to use this.</small></span></label>
+          </fieldset>
+          <div class="fld" id="cityWrap" hidden><label for="f_city">City (shown to everyone)</label><input id="f_city" maxlength="60" placeholder="e.g. Hyderabad"></div>
+          <label class="ish-opt"><input type="checkbox" id="f_helmBrand" checked> Show “Made with Helm Studios” in the footer (your studio name is always shown)</label>
+        </div>
+
         <div class="card">
           <h2>3 · Photos (optional)</h2>
           <p class="mnote">Pick where each photo shows. <b>Cover</b>, <b>Full background</b> and <b>Behind names</b> take one photo each; any number can go in the <b>Gallery</b> or <b>After a section</b>.</p>
@@ -294,6 +338,14 @@
           <h2 id="shareTitle">Send to client</h2>
           <div id="shareHost"></div>
         </section>
+
+        <section class="card" id="repliesCard" aria-labelledby="repliesTitle" hidden>
+          <div class="pv-head"><h2 id="repliesTitle">Guest replies</h2><span class="spacer"></span>
+            <button class="btn" id="repliesRefresh" type="button" data-ro-keep>Refresh</button>
+            <button class="btn" id="repliesCsv" type="button" data-ro-keep disabled>Download CSV</button></div>
+          <div class="rp-sum" id="repliesSum" role="status"></div>
+          <div id="repliesList"></div>
+        </section>
       </div>
 
       <div class="preview-wrap" id="pvSheet" role="region" aria-labelledby="pvTitle">
@@ -304,7 +356,8 @@
           <div class="s-1dc0525">
             <button class="btn" id="saveBtn" type="button">Save draft</button>
             <button class="btn primary" id="pubBtn" type="button">Publish</button>
-            <button class="btn" id="unpubBtn" type="button" hidden>Unpublish</button>
+            <button class="btn" id="unpubBtn" type="button" hidden>Turn off link</button>
+            <button class="btn" id="newLinkBtn" type="button" hidden>Make new link</button>
           </div>
           <div id="linkWrap" hidden>
             <label class="s-d6f2af6" for="pubLink">Public link (share with your client)</label>
@@ -314,6 +367,7 @@
               <a class="btn" id="openBtn" target="_blank" rel="noopener noreferrer">Open site</a>
             </div>
             <p class="mnote s-84f4c59" id="liveUntil" hidden></p>
+            <p class="mnote s-84f4c59" id="oldLinks" hidden></p>
           </div>
         </div>
       </div>
@@ -346,9 +400,9 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=111"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=5"></script><script src="store-api.js?v=288"></script>
+<script src="country-profile.js?v=6"></script><script src="store-api.js?v=297"></script>
 <script src="invite-site-share.js?v=10"></script>
-<script src="invite-music.js?v=1"></script><script src="invite-placement.js?v=1"></script>
+<script src="invite-music.js?v=1"></script><script src="invite-placement.js?v=1"></script><script src="invite-extras.js?v=1"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -356,7 +410,9 @@
   const cssUrl=u=>esc(String(u==null?"":u).replace(/['"()\\\s]/g,c=>"%"+c.charCodeAt(0).toString(16).padStart(2,"0")));
   const qid=new URLSearchParams(location.search).get("quote");
   const CONFIRMED_ORDER=["confirmed","planning","resources","ready","event_day","settlement","closed"]; // confirmed or beyond
-  const TEMPLATES=[
+  // r34: 11 themes (the 5 originals first, then the 6 new ones) - the list lives in invite-extras.js, shared with the guest page
+  const HX=window.HelmInviteX;
+  const TEMPLATES=(HX&&HX.THEMES)?HX.THEMES.slice():[
     {k:"eternal", n:"Eternal",  d:"Elegant · wedding"},
     {k:"promise", n:"Promise",  d:"Romantic · engagement"},
     {k:"confetti",n:"Confetti", d:"Festive · birthday"},
@@ -508,6 +564,7 @@
     if(!ev) return; const c=ev.client&&typeof ev.client==="object"?ev.client:{};
     const k=String(ev.eventType||"").trim().toLowerCase(); const st=SITE_TYPES[k]||SITE_TYPES[k.split(/[^a-z]+/)[0]]||"general";
     const d=TYPE_DEFAULTS[st]||TYPE_DEFAULTS.general; $("#f_type").value=st; tpl=d.tpl; $("#f_headline").value=d.headline;
+    if(/^(sangeet|mehendi|mehndi|haldi)/.test(k)) tpl="mehndi";   // r34: a sangeet / mehendi event starts on the Mehndi theme
     // B30: a free-trial sample event is stored as "Demo · Kapoor Family Sangeet": the guest-facing invitation
     // never starts with the "Demo ·" prefix (names, host, venue). Only the prefill is changed, never the event.
     const noDemo=(v)=>{ const t=String(v==null?"":v).trim(), o=t.replace(/^Demo\s*[\u00b7\u2022]\s*/,"").trim(); return o||t; };
@@ -535,6 +592,9 @@
         venue:$("#f_venue").value.trim(), address:$("#f_address").value.trim(), mapUrl:$("#f_mapUrl").value.trim(),
         message:$("#f_message").value.trim(), host:$("#f_host").value.trim(), hostPhone:$("#f_hostPhone").value.trim(),
         dressCode:$("#f_dressCode").value.trim(), rsvpBy:$("#f_rsvpBy").value,
+        // r34: how guests reply (form / phone + WhatsApp / both), address privacy, footer brand
+        rsvpForm:rsvpMode()!=="contact", rsvpContact:rsvpMode()!=="form", addressMode:addrMode(), city:$("#f_city").value.trim(),
+        hideHelmBrand:!$("#f_helmBrand").checked,
         country:studioCC(),   // E8: guests see dates in the studio's country style
         photos:PHOTOS.slice(), photoPlaces:PL.normalize(PHOTOS.length,PLACES),
         bgDim:PL.dim($("#f_bgDim").value), bgBlur:PL.blur($("#f_bgBlur").value),
@@ -546,7 +606,7 @@
   function preview(){
     const g=gather();
     const frame=$("#pv");
-    try{ frame.contentWindow.postMessage({type:"helm-preview",site:{template:g.template,event_type:g.event_type,title:g.title,data:g.data}},location.origin); }catch(e){}
+    try{ frame.contentWindow.postMessage({type:"helm-preview",site:{template:g.template,event_type:g.event_type,title:g.title,data:g.data,studio:STUDIO_NAME}},location.origin); }catch(e){}
     if(share) share.refresh();
   }
 
@@ -558,7 +618,10 @@
   // ---- load existing site into the form ----
   function fill(s){
     site=s; tpl=s.template||tpl; $("#f_type").value=s.event_type||"general"; applyTypeLabels();
-    const d=s.data||{};
+    // r34: the phone / address kept private (0284 private_data) come back into the form; a site saved before r34 has no
+    // settings = phone + WhatsApp, full address, Helm footer (exactly today's page)
+    const d=Object.assign({}, s.data||{}, (s.private_data&&typeof s.private_data==="object")?s.private_data:{});
+    applySettings(d);
     $("#f_names").value=d.names||""; $("#f_headline").value=d.headline||"";
     $("#f_date").value=d.date||""; $("#f_time").value=d.time||"";
     $("#f_venue").value=d.venue||""; $("#f_address").value=d.address||""; $("#f_mapUrl").value=d.mapUrl||"";
@@ -588,6 +651,8 @@
     const pub = site && site.status==="published";
     $("#statePill").className="pill "+(pub?"pub":"draft"); $("#statePill").textContent=pub?"Published":"Draft";
     $("#pubBtn").hidden=pub; $("#unpubBtn").hidden=!pub;
+    $("#pubBtn").textContent=(!pub&&site&&site.published_at)?"Turn link back on":"Publish";   // r34: a turned-off link comes back unchanged
+    $("#newLinkBtn").hidden=!(site&&site.published_at);
     if(site && site.slug){
       const link=BPStore.links.url("invite", site.slug, location.origin+"/i/"+site.slug);
       $("#pubLink").value=link; $("#openBtn").href=link; $("#linkWrap").hidden=!pub;
@@ -621,7 +686,7 @@
   }
   // Save / Publish / Unpublish share one busy state: the clicked button is guarded
   // (disabled + aria-busy) and its siblings are disabled until it settles.
-  const ACTION_BTNS=["#saveBtn","#pubBtn","#unpubBtn"];
+  const ACTION_BTNS=["#saveBtn","#pubBtn","#unpubBtn","#newLinkBtn"];
   function runAction(btn, fn){
     return BPUI.guard(btn, async()=>{
       const others=ACTION_BTNS.map(sel=>$(sel)).filter(b=>b!==btn && !b.disabled);
@@ -643,6 +708,7 @@
   function inputProblem(g){
     if(g.data&&g.data.mapUrl && !(MAP_RE.test(g.data.mapUrl)&&g.data.mapUrl.length<=500)){ mapUrlOk(); return "Map link must start with https:// (or leave it blank)."; }
     if(g.data&&g.data.rsvpBy && g.data.date && g.data.rsvpBy>g.data.date) return "\u201cReply by\u201d can't be after the event date.";
+    if(g.data&&g.data.addressMode==="after_rsvp" && !g.data.rsvpForm) return "\u201cVenue name + city only\u201d needs the RSVP form - otherwise guests can never see the address.";
     return "";
   }
   function doSave(){
@@ -657,12 +723,13 @@
   async function doPublish(publish){
     if(blockedBySiteLoad()) return;
     if(publish){ const bad=inputProblem(gather()); if(bad){ setMsg(bad,"err"); return; } }
-    if(!publish && !(await BPUI.confirm("Guests with the link will no longer be able to open the invitation.",{title:"Unpublish this invitation?",okLabel:"Unpublish",danger:true}))) return;
+    if(!publish && !(await BPUI.confirm("Guests with the link will see that this invitation is not available. You can turn the same link back on any time.",{title:"Turn off this link?",okLabel:"Turn off link",danger:true}))) return;
     return runAction($(publish?"#pubBtn":"#unpubBtn"), async()=>{ setMsg("");
       try{ await ensureSite(); await netRetry(()=>BPStore.sites.save(site.id,gather()));
         const r=await netRetry(()=>publish?BPStore.sites.publish(site.id):BPStore.sites.unpublish(site.id));
         site=Object.assign({},site,(Array.isArray(r)?r[0]:r)||{},{status:publish?"published":"unpublished"}); paintState();
-        setMsg(publish?"Published! Share the link below.":"Unpublished.","ok"); if(dirty) dirty.clean();
+        setMsg(publish?"Published! Share the link below.":"Link turned off. Guests now see that the invitation is not available.","ok"); if(dirty) dirty.clean();
+        loadReplies(); loadOldLinks();
         const f=$(publish?"#unpubBtn":"#pubBtn"); if(f && !f.hidden) f.focus();
       }catch(e){ setMsg(msgOf(e,publish?"publish the invitation":"unpublish the invitation"),"err"); }
     });
@@ -682,10 +749,97 @@
       return;
     }
     siteLoadFailed=false; paintActions(); $("#loadErrTop").hidden=true; $("#loadErrTop").innerHTML="";
-    if(existing){ fill(existing); }
-    else { await prefillFromPlan(); prefillFromQuote(); applyTypeLabels(); paintTpls(); paintState(); }
+    if(existing){ fill(existing); paintSettings(); }
+    else { await prefillFromPlan(); prefillFromQuote(); applySettings({}); applyTypeLabels(); paintTpls(); paintState(); }   // r34: a NEW site starts exactly like before (phone + WhatsApp, full address); the new options are opt-in
     if(dirty) dirty.clean();
     preview();
+    loadReplies(); loadOldLinks();
+  }
+
+  // ---- r34: RSVP & privacy settings ----
+  let STUDIO_NAME="";
+  function rsvpMode(){ const r=document.querySelector('input[name="f_rsvpMode"]:checked'); return r?r.value:"contact"; }
+  function addrMode(){ const r=document.querySelector('input[name="f_addrMode"]:checked'); return r&&r.value==="after_rsvp"?"after_rsvp":"full"; }
+  function applySettings(d){
+    const S=HX?HX.settings(d):{rsvpForm:false,rsvpContact:true,addressMode:"full",helmBrand:true};
+    const mode=S.rsvpForm&&S.rsvpContact?"both":S.rsvpForm?"form":"contact";
+    $("#f_rsvpMode_"+mode).checked=true;
+    $(S.addressMode==="after_rsvp"?"#f_addrMode_after":"#f_addrMode_full").checked=true;
+    $("#f_city").value=typeof d.city==="string"?d.city:"";
+    $("#f_helmBrand").checked=S.helmBrand;
+    paintSettings();
+  }
+  function paintSettings(){
+    const m=rsvpMode();
+    // "Hide the address until Yes / Maybe" only works with the RSVP form: off (and back to the default) without it
+    const noForm=m==="contact", hide=$("#f_addrMode_after");
+    hide.disabled=noForm||readOnly; $("#addrNeedsForm").hidden=!noForm;
+    if(noForm && hide.checked) $("#f_addrMode_full").checked=true;
+    const after=addrMode()==="after_rsvp";
+    const noPhone=$("#f_hostPhone").value.replace(/\D/g,"").length<7;
+    $("#rsvpPhoneNote").hidden=!(m!=="form" && noPhone);
+    $("#rsvpPhoneNote").textContent=m==="contact"?"Add a phone number in \u201cContact\u201d above - without one guests have no way to reply.":"Add a phone number in \u201cContact\u201d above - without one guests only see the form.";
+    $("#cityWrap").hidden=!after;
+    if(after && !$("#f_city").value.trim() && HX){ const c=HX.cityOf($("#f_address").value); if(c) $("#f_city").value=c; }
+  }
+  // ---- r34: guest replies (dashboard + CSV) ----
+  let REPLIES=null;
+  const ATT_TXT={yes:"Attending",maybe:"Maybe",no:"Can't come"};
+  function cellEl(tag,text,cls){ const n=document.createElement(tag); n.textContent=text==null?"":String(text); if(cls) n.className=cls; return n; }
+  function whenTxt(t){ const d=t?new Date(t):null; if(!d||isNaN(d)) return ""; try{ return d.toLocaleString(undefined,{day:"numeric",month:"short",hour:"numeric",minute:"2-digit"}); }catch(_){ return d.toISOString().slice(0,16).replace("T"," "); } }
+  function paintReplies(){
+    const card=$("#repliesCard"), sum=$("#repliesSum"), list=$("#repliesList");
+    const on=!!(site&&site.id); card.hidden=!on; if(!on) return;
+    sum.replaceChildren(); list.replaceChildren();
+    if(REPLIES==="missing"){ list.appendChild(cellEl("p","Guest replies appear here once the latest Helm update is installed on your studio's database.","rp-empty")); $("#repliesCsv").disabled=true; return; }
+    if(REPLIES==="error"){ list.appendChild(cellEl("p","Replies couldn't be loaded - try Refresh.","rp-empty")); $("#repliesCsv").disabled=true; return; }
+    const r=REPLIES||{rows:[]}, rows=Array.isArray(r.rows)?r.rows:[];
+    const chip=(label,val)=>{ const c=cellEl("span","","rp-chip"); c.appendChild(cellEl("b",String(Number(val)||0))); c.appendChild(document.createTextNode(" "+label)); sum.appendChild(c); };
+    chip(Number(r.replies)===1?"reply":"replies", r.replies); chip("attending ("+(Number(r.guests_yes)||0)+" guests)", r.yes); chip("maybe", r.maybe); chip("can't come", r.no);
+    $("#repliesCsv").disabled=!rows.length;
+    if(!rows.length){ list.appendChild(cellEl("p",rsvpMode()==="contact"?"Turn on the RSVP form (above) to collect replies here.":"No replies yet. They appear here as guests reply on the invitation.","rp-empty")); return; }
+    const wrap=cellEl("div","","rp-wrap"), tbl=cellEl("table","","rp-tbl"), thead=document.createElement("thead"), htr=document.createElement("tr");
+    ["Name","Reply","Guests","Message","When"].forEach(h=>{ const th=cellEl("th",h); th.scope="col"; htr.appendChild(th); });
+    thead.appendChild(htr); tbl.appendChild(thead);
+    const tb=document.createElement("tbody");
+    rows.forEach(x=>{ const tr=document.createElement("tr");
+      tr.appendChild(cellEl("td",x.name));
+      const a=document.createElement("td"); a.appendChild(cellEl("span",ATT_TXT[x.attending]||"",["yes","maybe","no"].indexOf(x.attending)>=0?"rp-a "+x.attending:"rp-a")); tr.appendChild(a);
+      tr.appendChild(cellEl("td",x.attending==="no"?"-":String(Number(x.guests)||0)));
+      tr.appendChild(cellEl("td",x.message||"","msg-c"));
+      tr.appendChild(cellEl("td",whenTxt(x.updated_at||x.created_at)));
+      tb.appendChild(tr); });
+    tbl.appendChild(tb); wrap.appendChild(tbl); list.appendChild(wrap);
+  }
+  async function loadReplies(){
+    if(!(site&&site.id)){ paintReplies(); return; }
+    try{ REPLIES=await BPStore.sites.rsvpList(site.id); }
+    catch(e){ REPLIES=(BPUI.isMissingFunction&&BPUI.isMissingFunction(e))?"missing":"error"; }
+    paintReplies();
+  }
+  function downloadCsv(){
+    const rows=(REPLIES&&Array.isArray(REPLIES.rows))?REPLIES.rows:[]; if(!rows.length||!HX) return;
+    const out=[["Name","Reply","Guests","Message","Replied at","Last changed"]].concat(rows.map(x=>[x.name, ATT_TXT[x.attending]||x.attending, x.attending==="no"?0:(Number(x.guests)||0), x.message||"", x.created_at||"", x.updated_at||""]));
+    const url=URL.createObjectURL(new Blob(["\ufeff"+HX.toCsv(out)],{type:"text/csv;charset=utf-8"}));
+    const a=document.createElement("a"); a.href=url; a.download="guest-replies-"+String((site&&site.slug)||"invitation").replace(/[^a-z0-9-]/gi,"").slice(0,60)+".csv";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+  }
+  // ---- r34: old links (after "Make new link" or a name change) ----
+  async function loadOldLinks(){
+    const el=$("#oldLinks"); if(!el) return; if(!(site&&site.id)){ el.hidden=true; return; }
+    let list=[]; try{ list=await BPStore.sites.oldLinks(site.id); }catch(_){ list=[]; }
+    el.textContent=list.length?(list.length===1?"1 old link now shows":list.length+" old links now show")+" \u201cThis invitation has moved\u201d.":"";
+    el.hidden=!list.length;
+  }
+  async function doNewLink(){
+    if(blockedBySiteLoad()) return; if(!(site&&site.id)) return;
+    if(!(await BPUI.confirm("Anyone who opens the current link will see \u201cThis invitation has moved \u2014 ask the host for the new link\u201d. Share the new link with your client afterwards.",{title:"Make a new link?",okLabel:"Make new link",danger:true}))) return;
+    return runAction($("#newLinkBtn"), async()=>{ setMsg("");
+      try{ const r=await netRetry(()=>BPStore.sites.newLink(site.id));
+        site=Object.assign({},site,(Array.isArray(r)?r[0]:r)||{}); paintState(); loadOldLinks();
+        setMsg("New link made - copy it below and share it. The old link now says the invitation has moved.","ok");
+      }catch(e){ setMsg(msgOf(e,"make a new link"),"err"); }
+    });
   }
 
   async function load(){
@@ -717,6 +871,7 @@
     try{ if(BPUI.dateHint){ BPUI.dateHint($("#f_date")); BPUI.dateHint($("#f_rsvpBy")); } }catch(_){}
     if(studioCC()==="US") $("#dateFmtNote").textContent="Dates read month / day / year (mm/dd/yyyy). The line under each date box spells the day out.";
     if(!dirty) dirty=BPUI.trackDirty($(".layout"));
+    BPStore.org.current().then(o=>{ STUDIO_NAME=String((o&&o.name)||"").slice(0,80); preview(); }).catch(()=>{});   // r34: footer "Designed by <studio>"
     if(!share && !readOnly && window.HelmInviteShare) share=HelmInviteShare.mount($("#shareHost"),{
       getSite:()=>site, getQuote:()=>ev, getLink:()=>(site&&site.status==="published"&&site.slug)?$("#pubLink").value:"",
       country:studioCC, isDirty:()=>!!(dirty&&dirty.isDirty()), trial:trialOnce() });
@@ -729,6 +884,12 @@
   ["f_names","f_headline","f_date","f_time","f_venue","f_address","f_mapUrl","f_message","f_host","f_hostPhone","f_dressCode","f_rsvpBy"]
     .forEach(id=>document.getElementById(id).addEventListener("input",preview));
   $("#f_mapUrl").addEventListener("input",()=>{ if(!$("#f_mapUrlErr").hidden) mapUrlOk(); });
+  // r34: RSVP & privacy
+  document.querySelectorAll('input[name="f_rsvpMode"],input[name="f_addrMode"],#f_helmBrand').forEach(n=>n.addEventListener("change",()=>{ if(dirty) dirty.mark(); paintSettings(); preview(); if(REPLIES) paintReplies(); }));
+  ["f_city","f_hostPhone"].forEach(id=>$("#"+id).addEventListener("input",()=>{ paintSettings(); preview(); }));
+  $("#repliesRefresh").addEventListener("click",()=>BPUI.guard($("#repliesRefresh"),loadReplies));
+  $("#repliesCsv").addEventListener("click",downloadCsv);
+  $("#newLinkBtn").addEventListener("click",doNewLink);
   $("#f_mapUrl").addEventListener("blur",mapUrlOk);
   $("#f_type").addEventListener("change",()=>{
     const d=TYPE_DEFAULTS[$("#f_type").value]; if(d){ tpl=d.tpl; if(!$("#f_headline").value) $("#f_headline").value=d.headline; }

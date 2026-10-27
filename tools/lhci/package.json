@@ -6,7 +6,13 @@
   "devDependencies": {
     "@lhci/cli": "0.15.1"
   },
+  "//overrides": "R51 (2026-10-27): @lhci/cli 0.15.1 is the newest release and still pulls vulnerable transitive deps. These overrides (each published 7+ days before pinning) clear npm audit: basic-ftp (GHSA-c475-qrg2-pj4r), tmp (GHSA-52f5-9888-hmc6, GHSA-ph9p-34f9-6g65), uuid (GHSA-w5hq-g745-h8pq), zod (GHSA-mrhx-c7xc-m3w5), and @puppeteer/browsers 3.x, which drops extract-zip (GHSA-jmr9-qjv8-65gv, GHSA-7pqw-9j4j-h8q3; no fixed extract-zip exists). Verified with a real lhci collect + assert run. Drop them when @lhci/cli ships fixed deps.",
   "overrides": {
-    "body-parser": "1.20.9"
+    "body-parser": "1.20.9",
+    "basic-ftp": "6.2.3",
+    "tmp": "0.2.7",
+    "uuid": "11.1.1",
+    "zod": "4.6.7",
+    "@puppeteer/browsers": "3.2.5"
   }
 }

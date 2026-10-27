@@ -193,3 +193,64 @@
     validateTaxId: validateTaxId, validatePostal: validatePostal, formatMoney: formatMoney, placeOfSupply: placeOfSupply,
     computeTax: computeTax, snapshot: snapshot };
 });
+
+/* R37: the STUDIO's time zone, never the viewer's browser zone (an owner in the US looking at an Indian studio
+ * sees Indian dates, "today", countdowns and day boundaries). Added beside formatTime / formatDate (not a
+ * rewrite of them - R36 owns formatTime / parseTime). Pure functions, Intl only, no DOM / network / storage:
+ *   studioZone(tz, cc)        a valid IANA zone: the studio's own, else its country's (IN Asia/Kolkata,
+ *                             AE Asia/Dubai, US by state...), else Asia/Kolkata
+ *   zonedParts(instant, tz)   wall clock in tz -> { y, mo, d, h, mi, s, wd (0 = Sunday), date "YYYY-MM-DD", min }
+ *   todayIn(tz, now)          the studio's calendar day "YYYY-MM-DD"
+ *   wallDate(tz, now)         a LOCAL Date that reads the studio's date + time (for old local-Date arithmetic)
+ *   addDays(iso, n) / daysBetween(a, b)   pure calendar maths on "YYYY-MM-DD" (no zone, no DST)
+ *   daysUntil(iso, tz, now)   whole studio days from today to iso (0 today, 1 tomorrow, -1 yesterday)
+ *   wallToInstant(iso, hhmm, tz)  the instant (Date) of a studio wall-clock time; dayStart(iso, tz) = 00:00
+ *   viewerZone()              the browser's zone (only to tell whether it differs) */
+(function (H) {
+  "use strict";
+  if (!H || H.todayIn) return;
+  var FALLBACK = "Asia/Kolkata", DAY = /^(\d{4})-(\d{2})-(\d{2})/, fmtCache = {};
+  function validZone(tz) {
+    tz = typeof tz === "string" ? tz.trim() : ""; if (!tz) return "";
+    try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return tz; } catch (e) { return ""; }
+  }
+  function studioZone(tz, cc) { return validZone(tz) || (cc ? validZone(H.timezone(cc)) : "") || FALLBACK; }
+  function toDate(v) {
+    if (v == null) return new Date();
+    var d = (v && typeof v.getTime === "function") ? new Date(v.getTime()) : new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function fmt(tz) {
+    return fmtCache[tz] || (fmtCache[tz] = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric",
+      month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", weekday: "short" }));
+  }
+  var WDX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  function zonedParts(v, tz) {
+    var d = toDate(v); if (!d) return null;
+    var p = {}; fmt(studioZone(tz)).formatToParts(d).forEach(function (x) { p[x.type] = x.value; });
+    var y = +p.year, mo = +p.month, dd = +p.day, h = (+p.hour) % 24, mi = +p.minute, s = +p.second;
+    return { y: y, mo: mo, d: dd, h: h, mi: mi, s: s, wd: WDX[p.weekday], date: y + "-" + pad(mo) + "-" + pad(dd), min: h * 60 + mi };
+  }
+  function todayIn(tz, now) { var p = zonedParts(now == null ? new Date() : now, tz); return p ? p.date : ""; }
+  function wallDate(tz, now) { var p = zonedParts(now == null ? new Date() : now, tz); return p ? new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.s) : new Date(); }
+  function utcDay(iso) { var m = DAY.exec(String(iso || "")); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }
+  function addDays(iso, n) { var t = utcDay(iso); if (!isFinite(t)) return ""; return new Date(t + Math.round(Number(n) || 0) * 86400000).toISOString().slice(0, 10); }
+  function daysBetween(a, b) { var x = utcDay(a), y = utcDay(b); return isFinite(x) && isFinite(y) ? Math.round((y - x) / 86400000) : null; }
+  function daysUntil(iso, tz, now) { return daysBetween(todayIn(tz, now), iso); }
+  function wallToInstant(iso, hhmm, tz) {
+    /* R36 parseTime / toHHMM reads every time form ("06:30 PM", "18:30:00", "6:30pm") */
+    var hm = (hhmm == null || hhmm === "") ? "00:00" : (typeof H.toHHMM === "function" ? H.toHHMM(hhmm) : "");
+    var m = DAY.exec(String(iso || "")), t = /^(\d{2}):(\d{2})$/.exec(hm);
+    if (!m || !t) return null;
+    var want = Date.UTC(+m[1], +m[2] - 1, +m[3], +t[1], +t[2]), at = want;
+    for (var i = 0; i < 3; i++) { var p = zonedParts(at, tz); if (!p) return null; var diff = Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi) - want; if (!diff) break; at -= diff; }
+    return new Date(at);
+  }
+  function dayStart(iso, tz) { return wallToInstant(iso, "00:00", tz); }
+  function viewerZone() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } }
+  H.studioZone = studioZone; H.zonedParts = zonedParts; H.todayIn = todayIn; H.wallDate = wallDate; H.addDays = addDays;
+  H.daysBetween = daysBetween; H.daysUntil = daysUntil; H.wallToInstant = wallToInstant; H.dayStart = dayStart; H.viewerZone = viewerZone;
+  H.FALLBACK_TZ = FALLBACK;
+})(typeof module === "object" && module.exports && module.exports.timezone ? module.exports
+  : (typeof window !== "undefined" ? window.HelmCountry : (typeof globalThis !== "undefined" ? globalThis.HelmCountry : null)));

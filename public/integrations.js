@@ -97,6 +97,9 @@
     if (m) m.textContent = st.meta || "";
   }
   function friendly(e) {
+    // r35 (0285): the reply-to address needs a fresh two-step code (the store asks for it once)
+    if (e && e.cancelled) return "Not saved - this change needs your two-step code.";
+    if (e && e.stepUp) return String(e.message || "");
     var U = global.BPUI;
     if (U && typeof U.friendlyError === "function") { try { return U.friendlyError(e, { action: "save" }); } catch (x) {} }
     return String((e && e.message) || "Something went wrong. Try again.");

@@ -12,7 +12,8 @@
   function money(node) { node.setAttribute("data-money", ""); return node; }
   function qid() { var p = new URLSearchParams(location.search); return p.get("quote") || p.get("id") || ""; }
   function ymd(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
-  function today() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  // r37: the STUDIO's day (bill dates, overdue, "this month"), the device day only without a studio store
+  function today() { try { var B = typeof window !== "undefined" ? window.BPStore : null, t = B && B.todayLocal ? B.todayLocal() : ""; if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; } catch (e) {} var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function key() { try { if (self.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {} return String(Date.now()) + "-" + Math.random().toString(16).slice(2); }
   function errText(e) { return (e && e.message) ? String(e.message).slice(0, 240) : "Something went wrong - try again."; }
   function missingNote(box, what) {

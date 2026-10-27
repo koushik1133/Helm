@@ -78,7 +78,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=45" id="shellProto"></script>
+<script src="/shell-proto.js?v=47" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -131,7 +131,7 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=111"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=5"></script><script src="store-api.js?v=288"></script>
+<script src="country-profile.js?v=6"></script><script src="store-api.js?v=297"></script>
 <script src="range-bar.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -150,7 +150,7 @@
     return out;
   }
   const dmy=(iso)=>{ const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||"")); return m?m[3]+"/"+m[2]+"/"+m[1]:""; };   // print: Indian DD/MM/YYYY
-  const today=()=>{ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };   // r9: local (IST) day, not UTC
+  const today=()=>(function(){ try{ const t=BPStore.todayLocal(); if(/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; }catch(e){} const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); })();   // r37: the STUDIO's day (IST for an Indian studio), not UTC and not the viewer's zone
   let canFin=false, range=null;
   const evDay=(e)=>e.eventDate||String(e.createdAt||"").slice(0,10);
   const inR=(d)=>BPStore.insights.inRange(d, range);

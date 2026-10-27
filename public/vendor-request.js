@@ -151,7 +151,8 @@
     replaces = prev && prev.status === "queried" ? prev.id : null;
     $("vr-inv-title").textContent = replaces ? "Send a corrected invoice" : "Send your invoice";
     $("vi-no").value = prev ? prev.invoice_no : "";
-    var today = new Date(), iso = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    // r37: the studio's day (India time; the vendor link does not carry the studio zone), not the vendor's browser day
+    var iso = (function () { try { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); } catch (e) { var t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10); } })();
     $("vi-date").value = prev && prev.invoice_date_iso ? String(prev.invoice_date_iso).slice(0, 10) : iso;
     $("vi-taxable").value = prev ? prev.taxable_amount : "";
     $("vi-gst").value = prev ? (Number(prev.igst) > 0 ? "inter" : Number(prev.cgst) > 0 ? "intra" : "none") : "none";
