@@ -393,7 +393,7 @@
     const when=whenText(d);
     if(when) items.push(`<div class="fact"><p class="k">When</p><p class="v">${esc(when)}</p></div>`);
     if(d._addrHidden&&(d.venue||d.city)){   // r34: venue + city only until the guest replies
-      items.push(`<div class="fact"><p class="k">Where</p><p class="v">${esc(d.venue||"")}${d.venue&&d.city?"<br>":""}<span class="sub">${esc(d.city||"")}</span><span class="addr-note">The full address and map are shared once you reply below.</span></p></div>`);
+      items.push(`<div class="fact"><p class="k">Where</p><p class="v">${esc(d.venue||"")}${d.venue&&d.city?"<br>":""}<span class="sub">${esc(d.city||"")}</span><span class="addr-note">The full address and map are shared once you reply Yes or Maybe below.</span></p></div>`);
     } else if(d.venue||d.address){
       const mh=mapHref(d), map=mh?` <a href="${esc(mh)}" target="_blank" rel="noopener noreferrer">${/^https:\/\/www\.google\.com\/maps\/search\//.test(mh)&&mh!==d.mapUrl?"Open in Maps":"View map"}</a>`:"";
       items.push(`<div class="fact"><p class="k">Where</p><p class="v">${esc(d.venue||"")}${d.venue&&d.address?"<br>":""}<span style="font-weight:400;color:var(--soft)">${esc(d.address||"")}</span>${map}</p></div>`);
@@ -580,7 +580,7 @@
         if(!r||!r.ok){ st.className="rsvp-st err"; st.textContent=String((r&&r.message)||"Your reply couldn't be sent. Please try again.").slice(0,200); send.disabled=false; return; }
         if(r.token) saveTok(r.token);
         REPLY={name:f.name,attending:f.attending,guests:f.attending==="no"?0:Number(f.guests),message:f.message};
-        if(r.reveal&&typeof r.reveal==="object") REVEAL=r.reveal;
+        REVEAL=(r.reveal&&typeof r.reveal==="object")?r.reveal:null;   // a "No" reply gets no address (0284)
         rerender();
       }catch(err){ st.className="rsvp-st err"; st.textContent="Network problem - please check your connection and try again."; send.disabled=false; }
     });

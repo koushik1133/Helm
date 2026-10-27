@@ -53,8 +53,10 @@ t('guest page: phone buttons only when the site allows them; the form is a slot 
 });
 t('address privacy: venue + city until the guest replies; the reveal comes only from the server answer', () => {
   assert.match(invite, /if\(S\.addressMode==="after_rsvp"\)\{\s*delete d\.address; delete d\.mapUrl;/);
-  assert.match(invite, /The full address and map are shared once you reply below\./);
-  assert.match(invite, /if\(r\.reveal&&typeof r\.reveal==="object"\) REVEAL=r\.reveal;/);
+  assert.match(invite, /The full address and map are shared once you reply Yes or Maybe below\./);
+  assert.match(invite, /REVEAL=\(r\.reveal&&typeof r\.reveal==="object"\)\?r\.reveal:null;/);
+  assert.match(studio, /Guests who reply Yes or Maybe on the RSVP form then see the full address and map link/);
+  assert.match(sql, /and p_attending in \('yes', 'maybe'\)/, "a No reply never gets the address");
   assert.match(invite, /const r=await BPStore\.sites\.reveal\(slug,tok\); if\(r&&r\.ok\)\{ REVEAL=r\.reveal\|\|null; REPLY=r\.reply\|\|null; \}/);
   assert.match(invite, /localStorage\.setItem\(tokKey\(\),t\)/);
   assert.equal(X.cityOf('12 Lake Road, Banjara Hills, Hyderabad 500034'), 'Hyderabad');
@@ -111,7 +113,8 @@ t('SQL 0284: additive, re-runnable, ASCII; anon RPCs rate-limited via cf-connect
   assert.doesNotMatch(sql, /^\s*(drop\s+(table|trigger|function|policy)|truncate|delete\s+from)\b/im);
   assert.doesNotMatch(sql, /create\s+(temp|temporary)\s+table/i);
   assert.match(sql, /public\._lv261_req\(\) ->> 'ip'/);
-  assert.match(sql, /rate_hit\('inv_rsvp\.ip', v_ip, 3600, 10\)/);
+  assert.match(sql, /rate_hit\(case when v_ip is null then 'inv_rsvp\.noip' else 'inv_rsvp\.ip' end, coalesce\(v_ip, 'noip'\), 3600,\s*case when v_ip is null then 20 else 30 end\)/);
+  assert.ok(sql.indexOf("'inv_rsvp.noip'") > sql.indexOf("field', 'guests'"), 'network limit only after validation');
   assert.match(sql, /rate_hit\('inv_rsvp\.site', s\.id::text, 86400, 400\)/);
   assert.match(sql, /perform 1 from public\.public_event_site\(p_slug\);/, 'same gates as opening the invitation');
   assert.match(read('supabase/migrations/MANIFEST'), /^forward  supabase\/migrations\/0284_invite_rsvp_privacy\.sql$/m);

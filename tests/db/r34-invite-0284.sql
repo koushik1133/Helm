@@ -71,7 +71,7 @@ do $$ begin
     and has_function_privilege('authenticated', 'public.event_site_rsvp_list(uuid)', 'execute')
     and has_function_privilege('authenticated', 'public.event_site_new_link(uuid)', 'execute')
     and not has_function_privilege('anon', 'public._r34_ip_hash()', 'execute')
-    and not has_function_privilege('authenticated', 'public._r34_reveal(public.event_sites)', 'execute')
+    and not has_function_privilege('authenticated', 'public._r34_reveal(public.event_sites, text)', 'execute')
     and not has_function_privilege('authenticated', 'public._r34_text(text, boolean)', 'execute'));
   perform pg_temp.res('03 trial clean-up (0184) also empties the new tables',
     to_regprocedure('public._tr184_purge_tables()') is null
@@ -193,17 +193,42 @@ do $$ declare r jsonb; r2 jsonb; row public.event_site_rsvps; n bigint; begin
   perform pg_temp.res('26 change of reply with the token: same row, "no" = 0 guests, edits counted',
     (r ->> 'updated')::boolean and r ->> 'token' = pg_temp.get('TOK') and n = 1 and row.attending = 'no' and row.party_size = 0
     and row.guest_name = 'Ravi K' and row.edits = 1, r::text || ' ' || row_to_json(row)::text);
+  perform pg_temp.res('26b a "No" reply gets no address back (R34-02)', not (r ? 'reveal') and position('Lake Road' in r::text) = 0, r::text);
+  perform pg_temp.guest('203.0.113.11');
+  r := public.public_invite_reveal(pg_temp.get('SLUG_A'), pg_temp.get('TOK'));
+  perform pg_temp.res('26c reveal for a device whose reply is "No": the reply, never the address',
+    (r ->> 'ok')::boolean and r #>> '{reply,attending}' = 'no' and not (r ? 'reveal') and position('Lake Road' in r::text) = 0, r::text);
+  r := public.public_invite_rsvp(pg_temp.get('SLUG_A'), pg_temp.form('No-first guest', 'no', '0'));
+  perform pg_temp.res('26d a first reply of "No" gets no address', (r ->> 'ok')::boolean and not (r ? 'reveal'), r::text);
+  r := public.public_invite_rsvp(pg_temp.get('SLUG_A'), pg_temp.form('No-first guest', 'maybe', '2', jsonb_build_object('token', r ->> 'token')));
+  perform pg_temp.res('26e changing that reply to "Maybe" reveals the address', r #>> '{reveal,address}' = '14 Lake Road, Hyderabad', r::text);
+  r := public.public_invite_rsvp(pg_temp.get('SLUG_A'), pg_temp.form('Ravi K', 'yes', '2', jsonb_build_object('token', pg_temp.get('TOK'))));
+  perform pg_temp.res('26f back to "Yes": the address again', r #>> '{reveal,address}' = '14 Lake Road, Hyderabad', r::text);
+  perform pg_temp.su();
 end $$;
 
 -- ---- 7) rate limits: per network (cf-connecting-ip) and per site per day ------------------------------------------------------------
 do $$ declare r jsonb; i int; v_ok int := 0; begin
   perform pg_temp.guest('203.0.113.50');
-  for i in 1..10 loop
+  for i in 1..5 loop   -- typos are refused BEFORE the network limit: they use up nothing (R34-03)
+    r := public.public_invite_rsvp(pg_temp.get('SLUG_A'), pg_temp.form('', 'maybe', '1'));
+  end loop;
+  for i in 1..30 loop
     r := public.public_invite_rsvp(pg_temp.get('SLUG_A'), pg_temp.form('Guest ' || i, 'maybe', '1'));
     if (r ->> 'ok')::boolean then v_ok := v_ok + 1; end if;
   end loop;
-  r := public.public_invite_rsvp(pg_temp.get('SLUG_A'), pg_temp.form('Guest 11', 'maybe', '1'));
-  perform pg_temp.res('27 per network: 10 replies an hour, the 11th refused', v_ok = 10 and r ->> 'reason' = 'rate', v_ok || ' ' || r::text);
+  r := public.public_invite_rsvp(pg_temp.get('SLUG_A'), pg_temp.form('Guest 31', 'maybe', '1'));
+  perform pg_temp.res('27 per network: 30 replies an hour (invalid tries not counted), the 31st refused', v_ok = 30 and r ->> 'reason' = 'rate', v_ok || ' ' || r::text);
+  -- no readable network: one shared low bucket (never skipped) (R34-01)
+  perform pg_temp.su(); perform auth.login_anon(); v_ok := 0;
+  for i in 1..20 loop
+    r := public.public_invite_rsvp(pg_temp.get('SLUG_B'), pg_temp.form('No-IP guest ' || i, 'yes', '1'));
+    if (r ->> 'ok')::boolean then v_ok := v_ok + 1; end if;
+  end loop;
+  r := public.public_invite_rsvp(pg_temp.get('SLUG_B'), pg_temp.form('No-IP guest 21', 'yes', '1'));
+  perform pg_temp.res('27b no IP header: a shared noip bucket, 20 an hour, then refused', v_ok = 20 and r ->> 'reason' = 'rate', v_ok || ' ' || r::text);
+  perform pg_temp.su();
+  perform pg_temp.res('27c no IP: rows stored without a network hash', exists (select 1 from public.event_site_rsvps where guest_name = 'No-IP guest 1' and ip_hash is null));
   -- same x-forwarded-for, different cf-connecting-ip = a different network (Cloudflare's header wins)
   perform pg_temp.guest('203.0.113.51');
   r := public.public_invite_rsvp(pg_temp.get('SLUG_A'), pg_temp.form('Other network', 'yes', '1'));
@@ -223,8 +248,8 @@ do $$ declare r jsonb; e text; begin
   perform pg_temp.login('a_admin@a.test');
   r := public.event_site_rsvp_list(pg_temp.get('SA')::uuid);
   perform pg_temp.res('31 studio list: counts + rows (no token / network)',
-    (r ->> 'replies')::int = 12 and (r ->> 'yes')::int = 1 and (r ->> 'maybe')::int = 10 and (r ->> 'no')::int = 1
-    and (r ->> 'guests_yes')::int = 1 and jsonb_array_length(r -> 'rows') = 12
+    (r ->> 'replies')::int = 33 and (r ->> 'yes')::int = 2 and (r ->> 'maybe')::int = 31 and (r ->> 'no')::int = 0
+    and (r ->> 'guests_yes')::int = 3 and jsonb_array_length(r -> 'rows') = 33
     and position('token' in r::text) = 0 and position('ip_hash' in r::text) = 0, left(r::text, 300));
   perform pg_temp.login('b_admin@b.test');
   e := pg_temp.try(format('select public.event_site_rsvp_list(%L::uuid)', pg_temp.get('SA')));
@@ -325,7 +350,9 @@ do $$ declare r jsonb; n bigint; begin
   update public.quotes set archived_at = null where id = 'b0000000-0000-4000-8000-00000000da01';
   perform pg_temp.login('b_admin@b.test'); perform public.publish_event_site(pg_temp.get('SB')::uuid, true); perform pg_temp.su();
   perform pg_temp.put('NB', (select count(*) from public.event_site_rsvps where site_id = pg_temp.get('SB')::uuid)::text);
-  update public.studio_subscriptions set status = 'suspended' where org_id = 'b0000000-0000-4000-8000-000000000001';
+  -- the test makes its own subscription row (does not rely on another suite) (R34-04)
+  insert into public.studio_subscriptions(org_id, status) values ('b0000000-0000-4000-8000-000000000001', 'suspended')
+    on conflict (org_id) do update set status = 'suspended';
   perform pg_temp.guest('203.0.113.70');
   r := public.public_invite_rsvp(pg_temp.get('SLUG_B'), pg_temp.form('Guest of a paused studio', 'yes', '1'));
   perform pg_temp.su();

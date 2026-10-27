@@ -2,7 +2,7 @@
 -- Run AFTER APPLY-0260 (cancelled events close links) and APPLY-0261 (link views: the IP helper). Order-independent of
 -- 0262-0277 and of the parallel 0279 / 0281 / 0282 / 0283 work.
 -- R34 invitation sites: RSVP form for guests (replies on the Invitation Studio page + CSV), a per-site choice of
--- "RSVP form only" / "Phone & WhatsApp" / "Both", address privacy (venue + city until the guest replies), "Make new
+-- "RSVP form only" / "Phone & WhatsApp" / "Both", address privacy (venue + city until the guest replies Yes or Maybe), "Make new
 -- link" (old links say "This invitation has moved"), and 6 new themes. 2 NEW private tables (RLS on, no API access),
 -- 1 NEW column (event_sites.private_data, default empty), 2 small triggers, 7 new functions, the template check widened
 -- to a superset. No existing row, column or function changed or deleted; every existing invitation looks and behaves
@@ -19,8 +19,9 @@ begin;
 --      optional message. Replies go to NEW private table event_site_rsvps (RLS on, no API privilege) through NEW anon
 --      public_invite_rsvp(slug, form): only for a PUBLISHED site whose studio switched the form on (data.rsvpForm),
 --      only while public_event_site itself answers (so an ended / cancelled / shelved invitation refuses too);
---      rate-limited per network (the caller's IP from cf-connecting-ip via _lv261_req, hashed, never stored in clear:
---      10 / hour) + per site (400 / day, 3000 replies in total) + everyone (3000 / hour); name 1-80, message 0-500,
+--      rate-limited AFTER validation per network (the caller's IP from cf-connecting-ip via _lv261_req, hashed, never
+--      stored in clear: 30 / hour - families share mobile / venue Wi-Fi addresses; no readable network = one shared
+--      'noip' bucket, 20 / hour) + per site (400 / day, 3000 replies in total) + everyone (3000 / hour); name 1-80, message 0-500,
 --      no < or > (no HTML) and no control characters; a honeypot field. The answer carries a random guest token
 --      (only its sha256 is stored) so the same phone can change its reply later (up to 20 times).
 --      Studio side: NEW event_site_rsvp_list(site) (Quotes view + own studio): counts + the list, for the dashboard
@@ -31,7 +32,8 @@ begin;
 --      guests) by trigger ad_r34_site_private - so it cannot leak even through an old cached page.
 --   3  ADDRESS PRIVACY (per site, data.addressMode): 'full' (default = today) or 'after_rsvp' = guests see only the
 --      venue name + city; the street address and map link live in private_data (same trigger) and are handed out only
---      in the answer to a guest's own RSVP, or later by NEW anon public_invite_reveal(slug, guest token) on that device.
+--      to a guest whose reply is Yes or Maybe (never "No"): in the answer to their own RSVP, or later by NEW anon
+--      public_invite_reveal(slug, guest token) on that device.
 --   4  TURN OFF LINK / MAKE NEW LINK. Turn off = the existing unpublish. NEW event_site_new_link(site) (Quotes edit +
 --      own studio, published at least once) gives the site a new random link (same name-based form as publish:
 --      <name>-<16 hex>). EVERY retired public link - a new link here, or a re-publish after a name change - is kept in
@@ -188,11 +190,12 @@ returns text language sql immutable set search_path = '' as $$
       else regexp_replace(regexp_replace(coalesce(p, ''), E'[\\x01-\\x1f\\x7f]', ' ', 'g'), '\s+', ' ', 'g') end), '');
 $$;
 
--- the reveal for one site: only the private address bits, only in 'after_rsvp' mode
-create or replace function public._r34_reveal(p_site public.event_sites)
+-- the reveal for one site: only the private address bits, only in 'after_rsvp' mode, only to a guest whose reply is
+-- Yes or Maybe (a "No" reply never gets the address)
+create or replace function public._r34_reveal(p_site public.event_sites, p_attending text)
 returns jsonb language sql stable set search_path = '' as $$
   -- r34-invite-0284
-  select case when (p_site.data ->> 'addressMode') = 'after_rsvp'
+  select case when (p_site.data ->> 'addressMode') = 'after_rsvp' and p_attending in ('yes', 'maybe')
     then jsonb_strip_nulls(jsonb_build_object(
            'address', nullif(left(coalesce(p_site.private_data ->> 'address', ''), 300), ''),
            'mapUrl', case when coalesce(p_site.private_data ->> 'mapUrl', '') ~* '^https://[^\s"''<>\\]+$'
@@ -214,10 +217,6 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'not_found', 'message', 'This invitation was not found.'); end if;
   -- honeypot: a bot filled the hidden field - answer as if saved, store nothing
   if coalesce(p ->> 'website', '') <> '' then return jsonb_build_object('ok', true, 'token', null); end if;
-  if v_ip is not null and public.rate_hit('inv_rsvp.ip', v_ip, 3600, 10) > 0 then
-    return jsonb_build_object('ok', false, 'reason', 'rate', 'message', 'Too many replies from this network. Please try again in an hour.'); end if;
-  if public.rate_hit('inv_rsvp.all', 'all', 3600, 3000) > 0 then
-    return jsonb_build_object('ok', false, 'reason', 'rate', 'message', 'Many guests are replying right now. Please try again in a few minutes.'); end if;
   -- the same gates as opening the invitation (published, live window, not shelved / cancelled)
   begin
     perform 1 from public.public_event_site(p_slug);
@@ -247,6 +246,15 @@ begin
   elsif coalesce(p ->> 'guests', '') ~ '^[0-9]{1,2}$' and (p ->> 'guests')::integer between 1 and 20 then v_n := (p ->> 'guests')::integer;
   else return jsonb_build_object('ok', false, 'reason', 'invalid', 'field', 'guests', 'message', 'Please choose how many are coming (1 to 20).');
   end if;
+
+  -- rate limits AFTER validation (a typo does not use up a family's allowance): per network 30 / hour (many guests share
+  -- one mobile / venue Wi-Fi address); a request with no readable network shares ONE low 'noip' bucket (never unlimited);
+  -- everyone together 3000 / hour; then per site per day (below)
+  if public.rate_hit(case when v_ip is null then 'inv_rsvp.noip' else 'inv_rsvp.ip' end, coalesce(v_ip, 'noip'), 3600,
+                     case when v_ip is null then 20 else 30 end) > 0 then
+    return jsonb_build_object('ok', false, 'reason', 'rate', 'message', 'Too many replies from this network. Please try again in an hour.'); end if;
+  if public.rate_hit('inv_rsvp.all', 'all', 3600, 3000) > 0 then
+    return jsonb_build_object('ok', false, 'reason', 'rate', 'message', 'Many guests are replying right now. Please try again in a few minutes.'); end if;
 
   perform pg_advisory_xact_lock(hashtext('helm_r34_rsvp:' || s.id::text));
   if public.rate_hit('inv_rsvp.site', s.id::text, 86400, 400) > 0 then
@@ -279,7 +287,7 @@ begin
   exception when read_only_sql_transaction then
     return jsonb_build_object('ok', false, 'reason', 'closed', 'message', 'Replies are not being taken right now. Please contact the host.');
   end;
-  return jsonb_strip_nulls(jsonb_build_object('ok', true, 'token', v_tok, 'updated', v_updated, 'reveal', public._r34_reveal(s)));
+  return jsonb_strip_nulls(jsonb_build_object('ok', true, 'token', v_tok, 'updated', v_updated, 'reveal', public._r34_reveal(s, v_att)));
 end $$;
 
 -- ---- 6) the reveal on a device that already replied ----------------------------------------------------------------------
@@ -290,7 +298,8 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare s public.event_sites; v_ip text := public._r34_ip_hash(); r public.event_site_rsvps; v_tok text := lower(coalesce(p_token, ''));
 begin
   if p_slug is null or char_length(p_slug) not between 1 and 200 or v_tok !~ '^[0-9a-f]{64}$' then return jsonb_build_object('ok', false); end if;
-  if v_ip is not null and public.rate_hit('inv_reveal.ip', v_ip, 3600, 120) > 0 then return jsonb_build_object('ok', false, 'reason', 'rate'); end if;
+  if public.rate_hit(case when v_ip is null then 'inv_reveal.noip' else 'inv_reveal.ip' end, coalesce(v_ip, 'noip'), 3600,
+                     case when v_ip is null then 60 else 120 end) > 0 then return jsonb_build_object('ok', false, 'reason', 'rate'); end if;
   begin
     perform 1 from public.public_event_site(p_slug);
   exception when others then return jsonb_build_object('ok', false);
@@ -300,7 +309,7 @@ begin
   select * into r from public.event_site_rsvps x
    where x.site_id = s.id and x.token_hash = encode(pg_catalog.sha256(convert_to(v_tok, 'UTF8')), 'hex');
   if not found then return jsonb_build_object('ok', false); end if;
-  return jsonb_strip_nulls(jsonb_build_object('ok', true, 'reveal', public._r34_reveal(s),
+  return jsonb_strip_nulls(jsonb_build_object('ok', true, 'reveal', public._r34_reveal(s, r.attending),
     'reply', jsonb_strip_nulls(jsonb_build_object('name', r.guest_name, 'attending', r.attending, 'guests', r.party_size, 'message', r.message))));
 end $$;
 
@@ -411,7 +420,7 @@ end $$;
 -- ---- 10) grants ------------------------------------------------------------------------------------------------------------------
 do $$ declare f text; begin
   foreach f in array array['public.tg_r34_site_private()', 'public.tg_r34_slug_history()', 'public._r34_ip_hash()',
-      'public._r34_text(text, boolean)', 'public._r34_reveal(public.event_sites)', 'public.public_invite_rsvp(text, jsonb)',
+      'public._r34_text(text, boolean)', 'public._r34_reveal(public.event_sites, text)', 'public.public_invite_rsvp(text, jsonb)',
       'public.public_invite_reveal(text, text)', 'public.public_invite_info(text)', 'public.event_site_rsvp_list(uuid)',
       'public.event_site_new_link(uuid)', 'public.event_site_old_links(uuid)'] loop
     execute format('revoke all on function %s from public', f);
