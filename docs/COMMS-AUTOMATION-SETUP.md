@@ -88,3 +88,37 @@ Free trial: reminder e-mails share the trial e-mail limits (30 a day per studio,
 trial, the sample studio and sample (demo) events never send. Check: 
 `select status, reason, count(*) from public.delivery_reminder_sends group by 1, 2;` and
 `select public.delivery_reminders_tick();` (runs the scheduler once by hand).
+
+## Send window: sensible hours only (0290, R41)
+
+The date-based jobs work out "today" in the studio's time zone (0287), so they queue their messages just after the
+studio's midnight. Since 0290 a message queued **outside the studio's send window** is **held**, never dropped: it stays
+queued (`status = pending`) with `not_before` = the next window opening, and every claim hands it out from then on.
+
+| Who receives it | Default window (studio time) | Held messages |
+|---|---|---|
+| Clients, guests, vendors | 09:00 - 20:00 | automatic payment reminders, automatic follow-ups, "quote expires in N days" e-mails, automatic vendor reminders (24 h / 48 h) |
+| Studio staff / owner | 08:00 - 21:00 | trial day 5 / 7 / 8 e-mails (never held past the trial end), "trial ended" / deletion warnings, the daily "missed notifications" digest, Helm plan reminders (`billing-reminder`), referral notices, WhatsApp copies of date-based bells (event / trial reminders, payment overdue, quote expiring / expired, low stock, "viewed but not approved") |
+
+**Never held:** security alerts (two-step, payment-detail changes, admin / team changes, HQ staff, studio name),
+OTP / sign-in / password e-mails, invites, welcome e-mails, package accept / decline, anything a person clicked
+("Send now", "Send a nudge", invitation site / booklet send, assignment and open-shift WhatsApps, closure requests,
+contact forms), instant notification e-mails, and run-sheet / delivery reminders (they follow a clock time the studio
+chose). Any kind the window does not know is never held.
+
+**Per-studio setting (no UI yet).** One optional row per studio in `public.studio_send_windows` (no row = the
+defaults). SQL editor only:
+
+```sql
+insert into public.studio_send_windows(org_id, client_start, client_end, staff_start, staff_end)
+  values ('<studio id>', '10:00', '19:00', '08:00', '21:00')
+on conflict (org_id) do update set client_start = excluded.client_start, client_end = excluded.client_end,
+  staff_start = excluded.staff_start, staff_end = excluded.staff_end, updated_at = now();
+-- switch the hold off for one studio (insert the row first if it does not exist):
+update public.studio_send_windows set enabled = false where org_id = '<studio id>';
+```
+
+Times are the studio's local time (`organizations.timezone`, see 0287). A window must be at least one hour long. A new
+setting applies to messages queued afterwards. `public.send_window_next(org, 'client' | 'staff', at)` (service role)
+answers "when would a message queued at `at` go out?". The test harness (`scripts/db-test/run-all.sh`) sets
+`helm.send_window=off` so older suites keep their timing; `tests/db/r41-send-window-0290.sql` turns it on.

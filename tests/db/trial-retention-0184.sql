@@ -106,6 +106,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0270_inbox_visible_speed.sql
 -- 0269 (r24 automation) adds runsheet_reminder_sends + lead_enquiries to the purge list and automation_settings to the keep list
 \ir ../../supabase/migrations/0269_r24_automation.sql
+-- 0290 (r41 send window) adds its per-studio settings table studio_send_windows to the keep list on top of 0184
+\ir ../../supabase/migrations/0290_send_window.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin
