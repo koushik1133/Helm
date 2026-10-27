@@ -54,6 +54,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, durableHit, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { TRIAL_NO_SEND_HINT, TRIAL_NO_SEND_MSG, trialSendBlocked } from "../_shared/trial-guard.ts";
+import { TLDS } from "./tlds.ts";
 
 const TOKEN = Deno.env.get("WHATSAPP_TOKEN") || "";
 const PHONE_ID = Deno.env.get("WHATSAPP_PHONE_ID") || "";
@@ -65,26 +66,16 @@ const LANG = /^[a-z]{2,3}(_[A-Z]{2})?$/;
 
 const DAY_MS = 86_400_000;
 const PARAM_MAX = 200;
-// Things that look like a link: scheme://..., www...., or ANY bare domain (label.label with a
-// 2-24 letter ending - R32 SRV-3: not just a list of common endings, so evil.ru / helm-pay.shop
-// count too). Each one must point at the Helm site, never another host.
-const LINK_TOKENS = /[a-z][a-z0-9+.-]*:\/\/[^\s]*|\bwww\.[^\s]*|\b(?:[a-z0-9-]+\.)+[a-z]{2,24}\b[^\s]*/gi;
+// R32b (R2-INJ-01/02, R2-SRV-01): ONE link rule, see offSiteLink below.
+const SCHEME_URL = /[a-z][a-z0-9+.-]*:\/\/\S*/gi;
+const DOMAIN_RUN = /[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
+const IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 // Plain text only: Meta also refuses new lines / tabs / >4 spaces in template params.
 // deno-lint-ignore no-control-regex
 const BAD_CHARS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]| {5,}/;
 function siteHost(): string {
   try { return new URL(Deno.env.get("APP_URL") || "https://www.helm.events").hostname.toLowerCase(); }
   catch (_) { return "www.helm.events"; }
-}
-function linkHost(tok: string): string {
-  let t = tok.toLowerCase();
-  const m = /^([a-z][a-z0-9+.-]*):\/\//.exec(t);
-  if (m) {
-    if (m[1] !== "https" && m[1] !== "http") return "";
-    t = t.slice(m[0].length);
-  }
-  t = t.replace(/^[^@\/]*@/, "");            // user@host tricks
-  return t.split(/[\/?#:\s]/)[0].replace(/\.+$/, "");
 }
 export function paramProblem(p: unknown, site = siteHost()): string {
   if (p != null && typeof p !== "string" && typeof p !== "number") return "template parameters must be text";
@@ -95,11 +86,56 @@ export function paramProblem(p: unknown, site = siteHost()): string {
 }
 // R32 (Strix vuln-0004): the same "links only to the Helm site" rule for ANY text sent from the
 // shared platform number - template values above AND free text (WHATSAPP_ALLOW_TEXT=1).
+// R32b rewrite (R2-INJ-01, R2-INJ-02, R2-SRV-01):
+//   1. the text is normalised first: NFKC (full-width letters / dots), the unicode dots U+3002 / U+FF0E / U+FF61
+//      become ".", and invisible format characters (zero-width space, soft hyphen, ...) are removed;
+//   2. scheme URLs (anything://...): http / https only, host from new URL() (the host a browser would open);
+//   3. every other word.word run counts as a web address when it starts with www., has a /path, is an IPv4
+//      address, or its last label is a real IANA top-level domain (bundled list incl. IDN TLDs) - so names like
+//      "K.Srinivas", "Dr.Rao", "Hotel.Grand" and amounts like "Rs. 5,000.00" are plain text;
+//   4. a link token may not contain "@" or "\\" (userinfo / backslash host tricks);
+//   5. every link host must be the Helm site's domain (helm.events) or a subdomain of it.
+export function normaliseForLinks(v: string): string {
+  return String(v ?? "").normalize("NFKC").replace(/[\u3002\uff0e\uff61]/g, ".").replace(/\p{Cf}/gu, "");
+}
+function hostOk(h: string, base: string): boolean {
+  h = h.toLowerCase().replace(/\.+$/, "");
+  return !!h && (h === base || h.endsWith("." + base));
+}
+function tokenAround(t: string, from: number, to: number): string {
+  let a = from, b = to;
+  while (a > 0 && !/\s/.test(t[a - 1])) a--;
+  while (b < t.length && !/\s/.test(t[b])) b++;
+  return t.slice(a, b);
+}
 export function offSiteLink(v: string, site = siteHost()): boolean {
-  const base = site.replace(/^www\./, "");
-  for (const m of String(v ?? "").matchAll(LINK_TOKENS)) {
-    const h = linkHost(m[0]);
-    if (!h || (h !== base && !h.endsWith("." + base))) return true;
+  const base = site.toLowerCase().replace(/^www\./, "");
+  let t = normaliseForLinks(v);
+  // (2) scheme URLs, judged whole and then blanked out so their pieces are not judged again
+  for (const m of t.matchAll(SCHEME_URL)) {
+    const tok = m[0];
+    if (/[@\\]/.test(tok)) return true;
+    const scheme = tok.slice(0, tok.indexOf(":")).toLowerCase();
+    if (scheme !== "https" && scheme !== "http") return true;
+    let host = "";
+    try { host = new URL(tok).hostname; } catch (_) { return true; }
+    if (!hostOk(host, base)) return true;
+  }
+  t = t.replace(SCHEME_URL, (x) => " ".repeat(x.length));
+  // (3) bare runs
+  for (const m of t.matchAll(DOMAIN_RUN)) {
+    const run = m[0].replace(/^-+|-+$/g, "");
+    if (!run.includes(".")) continue;
+    const labels = run.toLowerCase().split(".");
+    const last = labels[labels.length - 1];
+    const after = t.slice(m.index! + m[0].length);
+    const domainLike = labels[0] === "www"
+      || IPV4.test(run)
+      || TLDS.has(last)
+      || (/\p{L}/u.test(last) && /^\/[\p{L}\p{N}_~%.-]/u.test(after));
+    if (!domainLike) continue;
+    if (/[@\\]/.test(tokenAround(t, m.index!, m.index! + m[0].length))) return true;   // (4)
+    if (!hostOk(run, base)) return true;                                                  // (5)
   }
   return false;
 }

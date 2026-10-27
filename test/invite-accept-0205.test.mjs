@@ -123,7 +123,8 @@ t("login: new-link card, never 'sign in' for a login without a password", () => 
   assert.ok(login.includes(">Email me a new link to set my password</button>"));
   assert.ok(login.includes("works once and only for 24 hours"));
   assert.match(login, /"#invitePwForm","#inviteLinkCard"\]/);
-  assert.match(login, /if\(x&&x\.code==="needs_link"\)\{ showInviteLink\(email, x\.reason==="unconfirmed"\); return; \}/);
+  // R32b: the Join form's direct sign-up moved into inviteDirectJoin() (returns "done" instead of a bare return)
+  assert.match(login, /if\(x&&x\.code==="needs_link"\)\{ showInviteLink\(email, x\.reason==="unconfirmed"\); return "done"; \}/);
   assert.ok(!login.includes('x.message+" Use the Sign in tab above."'), "old dead-end text gone");
 });
 t("login: invite context on EVERY path - Join <Studio> on Helm + <Inviter> invited you as <Role> + e-mail", () => {

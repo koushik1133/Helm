@@ -933,6 +933,54 @@ document.addEventListener("DOMContentLoaded", function(){
   // The invite belongs to someone else's e-mail (the browser is signed in as another account,
   // e.g. the owner opening a link they made for a teammate). That's correct - an invite only
   // works for its own e-mail - so say so plainly and offer "Sign out & accept" (keeps the token).
+  // R32b (R2-AUTH-REG-1): the reload keeps the e-mailed link's second secret (&k=, a hex key) - without it
+  // the join form could only fall back. Anything that is not a plain hex key is dropped.
+  function inviteReloadUrl(tok, search){
+    if(!tok) return "login.html";
+    let k=""; try{ k=new URLSearchParams(search||"").get("k")||""; }catch(e){ k=""; }
+    return "login.html?invite="+encodeURIComponent(tok)+(/^[0-9a-f]{32,128}$/i.test(k)?"&k="+k.toLowerCase():"");
+  }
+  // R32b (R2-AUTH-REG-1): the server could not make a ready-to-use login from THIS link (the studio's
+  // "Copy link", an invitation e-mail sent before R32, or a link whose key a newer e-mail replaced). Instead
+  // of a dead end, e-mail the invited address a FRESH invitation (it carries a new &k= key) and say so.
+  // true = handled (sent, or a message is shown); false = nothing sent (the caller shows its own error).
+  async function inviteFinishByEmail(email){
+    const ok=$("#okmsg"), er=$("#err");
+    try{
+      const r=await BPStore.invitations.emailInviteLink(email);
+      if(r && r.sent){
+        ok.textContent="We've e-mailed you a link to finish joining "+(INVITE_ORG||"your studio")+". Open the new e-mail in "+email
+          +" (check spam or promotions too) and choose your password there - older invitation links stop working.";
+        ok.hidden=false; er.hidden=true; return true;
+      }
+    }catch(x){
+      if(x && /^(rate_limited|send_failed)$/.test(x.code||"")){ showErr(er, x.message); return true; }
+    }
+    return false;
+  }
+  // the invitee's "Create account" on the Join form: the server (invite-signup) makes the login for the
+  // invitation's own e-mail. "done" = handled (signed in, or a message is on screen); "none" = no direct
+  // sign-up happened (the caller shows "couldn't create your account").
+  async function inviteDirectJoin(inviteTok0, email, pw, fullName){
+    let d=null;
+    try{ d=await BPStore.invitations.signupDirect(inviteTok0, email, pw, fullName); }
+    catch(x){
+      if(x&&x.code==="needs_link"){ showInviteLink(email, x.reason==="unconfirmed"); return "done"; }   // 0205: no password yet → new link, never "sign in"
+      if(x&&x.code==="account_exists"){ showSignInForInvite(email); return "done"; }
+      if(x&&/^(email_mismatch|invalid_invite|weak_password|bad_email|reserved_domain)$/.test(x.code||"")){ showErr($("#err"),x.message); return "done"; }
+      throw x;
+    }
+    if(d&&d.ok){
+      $("#submit").textContent="Joining…";
+      await BPStore.auth.signIn(email, pw, {captchaToken:capToken(cap)});
+      justPw=pw;
+      try{ if(!(await finishGate())) return "done"; } finally { justPw=null; }
+      await acceptPendingInvite(); await routeSignedIn(); return "done";
+    }
+    // R32b: { fallback: true } - send a fresh keyed invitation e-mail instead of a dead end
+    if(d&&d.fallback && await inviteFinishByEmail(email)) return "done";
+    return "none";
+  }
   function inviteWrongAccount(err){ const m=String((err&&err.message)||"").toLowerCase(); return /different email|operator account can.t join/.test(m); }
   // r20 (owner: "I logged in ... but couldn't accept"): the accept RPC's refusals are short lowercase
   // messages ("invitation has expired", "you already belong to an organization"), which friendlyError
@@ -971,7 +1019,7 @@ document.addEventListener("DOMContentLoaded", function(){
     box.appendChild(document.createTextNode((/operator/i.test(String((err&&err.message)||""))?"Helm operator accounts can't join a studio. ":"This invitation is for a different e-mail address"+(want?" ("+want+")":"")+". ")+"You're signed in as "+(u.email||"another account")+". Sign out, then sign in (or create the account) with the e-mail the invitation was sent to. "));
     // label: "Sign out & accept invite" (kept), with the invited address when the page knows it
     const b=inviteBtn("inviteSwitch", want?"Sign out & accept invite as "+want:"Sign out & accept invite", async ()=>{ try{ await BPStore.auth.signOut(); }catch(e){}
-      location.replace(tok?"login.html?invite="+encodeURIComponent(tok):"login.html"); });
+      location.replace(inviteReloadUrl(tok, location.search)); });
     box.appendChild(b); box.hidden=false;
   }
   // A NEW invitee (Supabase "Invite user" link → account without a password) sets a password
@@ -1336,21 +1384,7 @@ document.addEventListener("DOMContentLoaded", function(){
             // invite bound to this e-mail → the server creates the account already confirmed
             // and we sign straight in (no inbox step). Other cases fall back to the confirm e-mail.
             if(!existing && BPStore.invitations.signupDirect){
-              let d=null;
-              try{ d=await BPStore.invitations.signupDirect(inviteTok0, email, pw, fullName); }
-              catch(x){
-                if(x&&x.code==="needs_link"){ showInviteLink(email, x.reason==="unconfirmed"); return; }   // 0205: no password yet → new link, never "sign in"
-                if(x&&x.code==="account_exists"){ showSignInForInvite(email); return; }
-                if(x&&/^(email_mismatch|invalid_invite|weak_password|bad_email|reserved_domain)$/.test(x.code||"")){ showErr($("#err"),x.message); return; }
-                throw x;
-              }
-              if(d&&d.ok){
-                btn.textContent="Joining…";
-                await BPStore.auth.signIn(email, pw, {captchaToken:capToken(cap)});
-                justPw=pw;
-                try{ if(!(await finishGate())) return; } finally { justPw=null; }
-                await acceptPendingInvite(); await routeSignedIn(); return;
-              }
+              if((await inviteDirectJoin(inviteTok0, email, pw, fullName))==="done") return;
             }
             // 0205: an invitee NEVER goes through the self sign-up (no "Confirm your email" e-mail, no
             // second login): the invitation is always bound to its e-mail, so the server (invite-signup)

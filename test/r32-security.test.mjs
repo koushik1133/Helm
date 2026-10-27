@@ -37,7 +37,9 @@ await t('CLI-01 check-html-sinks: map(cb).join() needs a visibly safe callback',
   assert.equal(S.safeExpr('rows.map(r => esc(r.name)).join(", ")'), true, 'arrow -> esc()');
   assert.equal(S.safeExpr('rows.map(function (r) { if (!r) return ""; return `<b>${esc(r)}</b>`; }).join("")'), true, 'every return checked');
   assert.equal(S.safeExpr('rows.map(function (r) { if (!r) return r.x; return ""; }).join("")'), false, 'one unsafe return is enough');
+  S.setFile('public/staff.html');   // R32b: a reviewed helper is accepted only in the file it was reviewed in
   assert.equal(S.safeExpr('people.map(personCard).join("")'), true, 'reviewed SAFE_HELPERS name');
+  S.setFile(null);
   const allow = JSON.parse(rd('scripts/html-sinks-allowlist.json'));
   for (const h of ['cardHtml', 'card', 'rowChk', 'rowGuest', 'rowPay', 'tab', 'opt', 'crewOption', 'taskRow', 'personCard']) {
     const e = allow.safeHelpers.find((x) => x.name === h); assert.ok(e && /R32 CLI-01 review/.test(e.why), h);
@@ -142,11 +144,13 @@ await t('SQL 0282: registered (MANIFEST, run-all, release lists), APPLY verbatim
   const SQL = rd('supabase/migrations/0282_r32_security_review.sql'), APPLY = rd('supabase/APPLY-0282.sql');
   assert.match(rd('supabase/migrations/MANIFEST'), /^forward  supabase\/migrations\/0282_r32_security_review\.sql$/m);
   assert.match(rd('scripts/db-test/run-all.sh'), /run "r32-security-0282" "R32-SECURITY-0282: ALL PASS \\\(\d+\/\d+\\\)" psql -q -f tests\/db\/r32-security-0282\.sql/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0277', '0282'\]/, f);
+  // 0279 / 0281 (other PRs) may sit between 0277 and 0282 once merged
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0277', ('0279', )?('0281', )?'0282'\]/, f);
+  assert.match(rd('scripts/db-test/run-all.sh'), /run "r32b-round2-0282" "R32B-ROUND2-0282: ALL PASS \\\(\d+\/\d+\\\)" psql -q -f tests\/db\/r32b-round2-0282\.sql/);
   assert.ok(APPLY.includes(SQL.trimEnd()), 'APPLY carries the migration verbatim');
   assert.match(APPLY, /^begin;$/m); assert.match(APPLY, /^commit;$/m); assert.match(APPLY, /-- VERIFY \(every row must say ok = true\)/);
   assert.ok((APPLY.match(/^  \('\d\d /gm) || []).length >= 10, 'VERIFY rows');
-  for (const s of [SQL, APPLY, rd('tests/db/r32-security-0282.sql')]) assert.ok(/^[\x00-\x7f]*$/.test(s), 'ASCII only');
+  for (const s of [SQL, APPLY, rd('tests/db/r32-security-0282.sql'), rd('tests/db/r32b-round2-0282.sql')]) assert.ok(/^[\x00-\x7f]*$/.test(s), 'ASCII only');
   const code = SQL.split('\n').filter((l) => !/^\s*--/.test(l)).join('\n');
   assert.doesNotMatch(code, /\bdrop\s+(table|column|function|policy|schema|view)\b/i, 'no drops (triggers are re-created only)');
   assert.doesNotMatch(code, /\bdelete\s+from\b|\btruncate\b/i, 'no data deleted');

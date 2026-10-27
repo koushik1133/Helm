@@ -77,13 +77,14 @@ export function buildMessage(m: RawMail, opts: { date?: Date; boundary?: string;
 
 class Reader {
   buf = ""; constructor(private c: Conn) {}
-  async reply(stage: SmtpStage, timeoutMs: number): Promise<{ code: number; text: string }> {
+  // R32b (R2-INJ-03): every reply line is kept (lines[]); text is the short version for error messages
+  async reply(stage: SmtpStage, timeoutMs: number): Promise<{ code: number; text: string; lines: string[] }> {
     const deadline = Date.now() + timeoutMs; const lines: string[] = [];
     for (;;) {
       let i: number;
       while ((i = this.buf.indexOf("\r\n")) >= 0) {
         const line = this.buf.slice(0, i); this.buf = this.buf.slice(i + 2); lines.push(line);
-        if (/^\d{3} /.test(line) || /^\d{3}$/.test(line)) return { code: Number(line.slice(0, 3)), text: lines.join(" | ").slice(0, 300) };
+        if (/^\d{3} /.test(line) || /^\d{3}$/.test(line)) return { code: Number(line.slice(0, 3)), text: lines.join(" | ").slice(0, 300), lines };
       }
       const left = deadline - Date.now();
       if (left <= 0) throw new SmtpError(stage, "timed out waiting for the server");
@@ -131,12 +132,17 @@ export async function smtpSend(cfg: SmtpConn["cfg"], mail: RawMail, opts: { time
     const hello = await cmd("ehlo", "EHLO helm.events", [250], "EHLO");
     if (!cfg.tls) {
       // R32 SRV-1: STARTTLS (RFC 3207) before AUTH on any non-implicit-TLS port
-      const offers = /(^|\|)\s*250[- ]STARTTLS\b/i.test(hello.text);
+      // R32b (R2-INJ-03): look at EVERY EHLO line, not a 300-character summary (a long EHLO lists STARTTLS late)
+      const offers = hello.lines.some((l) => /^250[- ]STARTTLS\b/i.test(l));
       if (offers) {
         await cmd("tls", "STARTTLS", [220], "STARTTLS");
         try {
           conn = opts.startTls ? await opts.startTls(conn, cfg.host)
             : await Deno.startTls(conn as Deno.TcpConn, { hostname: cfg.host });
+          // R32b (SRV-1 info): finish the TLS handshake HERE so a bad certificate is reported as stage "tls"
+          // (Deno otherwise handshakes lazily on the first write - the EHLO - and it would read as "ehlo")
+          const hs = (conn as Deno.TlsConn).handshake;
+          if (typeof hs === "function") await hs.call(conn);
         } catch (e) {
           throw new SmtpError("tls", "secure upgrade failed: " + String((e as Error)?.message || e).slice(0, 200));
         }
