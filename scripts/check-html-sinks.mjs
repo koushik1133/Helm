@@ -16,7 +16,9 @@
  *   - numeric by construction  (.length, .toFixed(), Number(), Math.*, parseInt…)
  *   - a ternary / || / && / ?? whose result branches are all accepted
  *   - a call to a reviewed HTML-returning helper listed in SAFE_HELPERS
- *   - a .map(…).join(…) (the templates inside the callback are checked)
+ *   - a .map(cb).join(…) whose callback is an arrow / function returning an accepted
+ *     value (every `return` checked) or a SAFE_HELPERS name (R32 CLI-01); the
+ *     templates inside the callback are checked as usual
  * Anything else must be listed in scripts/html-sinks-allowlist.json with a
  * written justification ("why"). Stale allowlist entries are reported so the
  * list cannot silently rot.
@@ -32,10 +34,29 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUB = join(ROOT, 'public');
 const ALLOW_PATH = join(ROOT, 'scripts', 'html-sinks-allowlist.json');
 const LIST = process.argv.includes('--list');
+const HELPERS = process.argv.includes('--helpers');   // R32b: print where each reviewed helper is accepted
 
 // Helpers reviewed to return escaped HTML / fixed markup. Each was read and
 // confirmed to esc() every caller-controlled value it emits.
-export const SAFE_HELPERS = new Set(JSON.parse(readFileSync(ALLOW_PATH, 'utf8')).safeHelpers.map((h) => h.name));
+// R32b (R2-CLI-01): an entry may name the files it was reviewed in ("files": [...]); the same helper NAME in any
+// other file (card / tab / opt / cardHtml are different functions in different files) is then not accepted.
+const HELPER_FILES = new Map();
+for (const h of JSON.parse(readFileSync(ALLOW_PATH, 'utf8')).safeHelpers) {
+  const prev = HELPER_FILES.get(h.name);
+  const files = Array.isArray(h.files) ? h.files : null;
+  HELPER_FILES.set(h.name, prev === undefined ? files : (prev === null || files === null ? null : prev.concat(files)));
+}
+export const SAFE_HELPERS = { has: (name) => helperOk(name) };
+let CUR_FILE = null;                       // the file being scanned (set by scan(); tests may set it with setFile)
+export function setFile(f) { CUR_FILE = f; }
+export const HELPER_USE = new Map();       // name -> Set(files) where the scan accepted it (for --helpers)
+function helperOk(name) {
+  if (!HELPER_FILES.has(name)) return false;
+  const files = HELPER_FILES.get(name);
+  const ok = files === null || (CUR_FILE != null && files.includes(CUR_FILE));
+  if (ok && CUR_FILE) { if (!HELPER_USE.has(name)) HELPER_USE.set(name, new Set()); HELPER_USE.get(name).add(CUR_FILE); }
+  return ok;
+}
 const ESCAPERS = /^(?:esc|escapeHtml|escHtml|escAttr|encodeURIComponent|encodeURI|Number|parseInt|parseFloat|Math\.[a-z]+|Boolean|String\(Number|safeLink|safeQr)$/;
 
 // Exact directory names only (a substring test also skipped e.g. public/vendors-*/).
@@ -105,9 +126,11 @@ function splitTop(e, ops) {
 const strip = (e) => { e = e.trim(); while (e.startsWith('(') && skipBalanced(e, 1, ')') === e.length - 1) e = e.slice(1, -1).trim(); return e; };
 
 // Is expression e accepted? (Its nested templates are checked separately.)
-function safeExpr(e) {
+export function safeExpr(e) {
   e = strip(e);
   if (!e) return true;
+  // R32b (R2-CLI-01): the comma operator - `(n > 0, evil)` is the value of its LAST operand only
+  const cm = splitTop(e, [',']); if (cm) return safeExpr(cm[cm.length - 1]);
   if (/^(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|-?\d[\d_.e]*|true|false|null|undefined|""|'')$/.test(e)) return true;
   if (e[0] === '`' && skipTpl(e, 0, null) === e.length) return true; // template: own ${} checked elsewhere
   // ternary c ? a : b  → a, b
@@ -128,12 +151,52 @@ function safeExpr(e) {
     const fn = call[1];
     if (ESCAPERS.test(fn) || SAFE_HELPERS.has(fn) || SAFE_HELPERS.has(fn.split('.').pop())) return true;
   }
-  // x.map(...).join(...)  (callback templates are checked as nested templates)
-  if (/\.map\s*\(/.test(e) && /\.join\s*\([^()]*\)$/.test(e)) {
-    // block-bodied callbacks that return a variable are not visible — require arrow → template/escaped call
-    return true;
+  // x.map(cb).join(...)  (callback templates are checked as nested templates). R32 CLI-01: the callback
+  // itself must be visibly safe too - an arrow returning an accepted expression, a block whose every
+  // `return` is accepted, or a reviewed helper name from SAFE_HELPERS. `x => x.name` is NOT accepted.
+  if (/\.map\s*\(/.test(e) && /\.join\s*\([^()]*\)$/.test(e)) return mapJoinSafe(e);
+  { const hj = /^([\w$.]+)\.join\(([^()]*)\)$/.exec(e); if (hj && SAFE_HELPERS.has(hj[1]) && safeExpr(hj[2])) return true; }
+  return false;
+}
+
+// R32 CLI-01: is the callback of a trailing .map(cb).join(sep) visibly safe?
+function blockReturnsSafe(b) {
+  const re = /\breturn\b/g; let m, n = 0;
+  while ((m = re.exec(b))) {
+    const st = m.index + m[0].length; let en = skipBalanced(b, st, null);
+    while (b[en] === ',') en = skipBalanced(b, en + 1, null);   // R32b: `return a, evil` returns evil (comma operator)
+    const ex = b.slice(st, en).trim();
+    if (!safeExpr(ex)) return false;
+    n++; re.lastIndex = Math.max(en, st);
   }
-  if (/^[\w$.]+\.join\([^()]*\)$/.test(e) && SAFE_HELPERS.has(e.replace(/\.join.*/, ''))) return true;
+  return n > 0;
+}
+export function mapCallbackSafe(cb) {
+  cb = strip(cb);
+  if (/^[\w$.]+$/.test(cb)) return SAFE_HELPERS.has(cb) || SAFE_HELPERS.has(cb.split('.').pop()) || ESCAPERS.test(cb);
+  let m = /^(?:async\s*)?(?:\([^()]*\)|[\w$]+)\s*=>\s*/.exec(cb);
+  if (m) {
+    const body = cb.slice(m[0].length).trim();
+    if (body[0] === '{') return blockReturnsSafe(body.slice(1, skipBalanced(body, 1, '}')));
+    return safeExpr(body);
+  }
+  m = /^function\s*[\w$]*\s*\([^()]*\)\s*\{/.exec(cb);
+  if (m) return blockReturnsSafe(cb.slice(m[0].length, skipBalanced(cb, m[0].length, '}')));
+  return false;
+}
+function mapJoinSafe(e) {
+  const re = /\.map\s*\(/g; let m;
+  while ((m = re.exec(e))) {
+    const st = m.index + m[0].length, en = skipBalanced(e, st, ')');
+    const j = /^\s*\.join\s*\(([^()]*)\)$/.exec(e.slice(en + 1));
+    if (j) {
+      // R32b (R2-CLI-01): the separator goes into the markup too - it must be accepted like any value
+      if (!safeExpr(j[1])) return false;
+      // the callback is the first argument (a 2nd thisArg is never used for HTML)
+      const cbEnd = skipBalanced(e, st, null);
+      return mapCallbackSafe(e.slice(st, Math.min(cbEnd, en)));
+    }
+  }
   return false;
 }
 
@@ -156,6 +219,7 @@ function valuesOf(rhs) {
 const SINK = /(?:\.(innerHTML|outerHTML|srcdoc)\s*(\+?=)(?!=)|\.insertAdjacentHTML\s*\(|\bdocument\.write(?:ln)?\s*\(|\.parseFromString\s*\(|\.createContextualFragment\s*\()/g;
 function scan(code, file, baseLine) {
   const hits = [];
+  CUR_FILE = file;
   let m;
   SINK.lastIndex = 0;
   while ((m = SINK.exec(code))) {
@@ -167,12 +231,16 @@ function scan(code, file, baseLine) {
     const line = baseLine + code.slice(0, m.index).split('\n').length - 1;
     for (const v of valuesOf(rhs)) {
       const n = v.replace(/\s+/g, ' ').trim();
-      if (!safeExpr(n)) hits.push({ file, line, expr: n });
+      if (!safeExpr(v)) hits.push({ file, line, expr: n });
     }
   }
   return hits;
 }
 
+// R32: the scan only runs as a script, so tests can import safeExpr / mapCallbackSafe
+const IS_MAIN = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (IS_MAIN) main();
+function main() {
 const allow = JSON.parse(readFileSync(ALLOW_PATH, 'utf8'));
 const allowMap = new Map(allow.sites.map((s) => [s.file + ' :: ' + s.expr, s]));
 for (const s of allow.sites) if (!s.why || s.why.length < 12) { console.error('  ✗ allowlist entry without a real justification: ' + s.file + ' :: ' + s.expr); process.exitCode = 1; }
@@ -207,9 +275,11 @@ for (const h of found) {
   const max = Number(allowMap.get(k).max || 1);
   if (n > max) bad.push({ ...h, extra: ` (allowlisted for ${max} site(s); this is site #${n} - review it, then raise "max")` });
 }
+if (HELPERS) { for (const [k, v] of [...HELPER_USE.entries()].sort()) console.log(k + '\t' + [...v].sort().join(' ')); process.exit(0); }
 if (LIST) { for (const h of bad) console.log(`${h.file}:${h.line}\t${h.expr}`); console.log(bad.length + ' unaccepted'); process.exit(0); }
 for (const h of bad) console.error(`  ✗ ${h.file}:${h.line} unescaped value into HTML sink: \${${h.expr}}${h.extra || ''}  → wrap in esc(), or allowlist with a reason`);
 const stale = [...allowMap.keys()].filter((k) => !used.has(k));
 for (const k of stale) console.error('  ✗ stale allowlist entry (site no longer exists — remove it): ' + k);
 if (bad.length || stale.length || process.exitCode) { console.error(`check-html-sinks: ${bad.length} unescaped, ${stale.length} stale`); process.exit(1); }
 console.log(`  ✓ HTML sinks: every interpolated value is escaped/constant or one of ${used.size} reviewed allowlist entries`);
+}

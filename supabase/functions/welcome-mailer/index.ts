@@ -14,7 +14,7 @@
 // The database decides WHO gets mail (one row per person per kind, queued by triggers).
 // Logs carry only counts, SQLSTATE codes and HTTP status — never an address or a name.
 // Outbound HTTP goes only to a FIXED host allowlist (no URL is ever taken from input).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { render } from "./templates.ts";

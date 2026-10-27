@@ -62,7 +62,8 @@ t('5 event page: stage strip keeps arrow gutters + snap on phones; read-only dat
   assert.match(POL, /@media \(max-width:899px\)\{\n  \.stepwrap\.ov\{padding:0 34px\}/);
   assert.match(POL, /\.stepwrap\.ov \.steps\{scroll-snap-type:x proximity/);
   assert.match(EV, /"📅 "\+esc\(evDateLabel\(d\)\)\+\(tm\?\(" · 🕒 "\+esc\(evTimeLabel\(tm\)\)\):""\)/);
-  const tl = vm.runInNewContext('(' + fnSrc(EV, 'evTimeLabel').replace(/^function evTimeLabel/, 'function') + ')');
+  const evParseTime = vm.runInNewContext('(' + fnSrc(EV, 'evParseTime').replace(/^function evParseTime/, 'function') + ')');   // R36
+  const tl = vm.runInNewContext('(' + fnSrc(EV, 'evTimeLabel').replace(/^function evTimeLabel/, 'function') + ')', { evParseTime });
   assert.equal(tl('19:00'), '7:00 pm'); assert.equal(tl('19:00:00'), '7:00 pm'); assert.equal(tl('00:30'), '12:30 am'); assert.equal(tl('12:05'), '12:05 pm');
   const BPStore = { todayLocal: () => '2026-10-18', fmtStudioDate: (s, o) => 'X:' + s + ':' + o.style + ':' + !!o.year };
   const dl = vm.runInNewContext('(' + fnSrc(EV, 'evDateLabel').replace(/^function evDateLabel/, 'function') + ')', { BPStore });
@@ -71,7 +72,8 @@ t('5 event page: stage strip keeps arrow gutters + snap on phones; read-only dat
 
 t('28 event page time box: HH:MM (no seconds); child events list uses the studio time label', () => {
   assert.match(EV, /id="evTime" aria-label="Event time" value="\$\{esc\(evTimeInput\(tm\)\)\}"/);
-  const ti = vm.runInNewContext('(' + fnSrc(EV, 'evTimeInput').replace(/^function evTimeInput/, 'function') + ')');
+  const evParseTime = vm.runInNewContext('(' + fnSrc(EV, 'evParseTime').replace(/^function evParseTime/, 'function') + ')');   // R36
+  const ti = vm.runInNewContext('(' + fnSrc(EV, 'evTimeInput').replace(/^function evTimeInput/, 'function') + ')', { evParseTime });
   assert.equal(ti('19:00:00'), '19:00'); assert.equal(ti('9:05'), '09:05'); assert.equal(ti(''), ''); assert.equal(ti(null), '');
   assert.match(EV, /\(e\.eventTime\?" \("\+evTimeLabel\(e\.eventTime\)\+"\)":/);
 });

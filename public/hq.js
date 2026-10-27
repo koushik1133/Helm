@@ -1118,7 +1118,9 @@
   }
   function csvCell(v) {
     var s = v == null ? "" : String(v);
-    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;           // spreadsheet formula injection guard
+    // spreadsheet formula injection guard (R32: same rule as reports.html toCSV - leading spaces and the
+    // full-width ＝＋－＠ forms count too; real numbers such as -500 stay numbers)
+    if (typeof v !== "number" && /^[\s\u00a0\u3000]*[=+\-@\t\r\uff1d\uff0b\uff0d\uff20]/.test(s)) s = "'" + s;
     return '"' + s.replace(/"/g, '""') + '"';
   }
   function exportCsv() {
