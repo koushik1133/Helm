@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=44"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=45"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -735,7 +735,7 @@ window.HelmUrl = HelmUrl;
   // ?next= may only name one of the app's own pages (fixed list — the page string is
   // never taken from the URL); only its query string is carried over, re-encoded.
   // Anything else (//host, https://…, /\host, javascript:, encoded tricks) → dashboard.
-  const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "integrations", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "onboarding", "ops", "plan", "proposal", "quotes", "ready", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
+  const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "integrations", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "onboarding", "ops", "plan", "proposal", "quotes", "ready", "refer", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
   function safeNext(raw) {
     // 0067: a pretty studio path (/<slug>/<section>…) is re-built from its parsed parts
     if (typeof raw === "string" && raw.charAt(0) === "/" && raw.charAt(1) !== "/" && raw.charAt(1) !== "\\") {
@@ -1425,7 +1425,7 @@ window.HelmUrl = HelmUrl;
     global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
   }
   function navTrailClear() { try { const del = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf("helm_trail_") === 0) del.push(k); } del.forEach((k) => localStorage.removeItem(k)); } catch (e) {} }
-  const NO_SEARCH_PAGES = { hq: 1, login: 1, "reset-password": 1, "profile-setup": 1 };
+  const NO_SEARCH_PAGES = { hq: 1, "hq-referrals": 1, login: 1, "reset-password": 1, "profile-setup": 1 };
   let studioSearchLoading = false;
   function loadStudioSearch() {
     if (studioSearchLoading || typeof document === "undefined" || global.HelmStudioSearch) return;
@@ -2140,6 +2140,16 @@ window.HelmUrl = HelmUrl;
         if (opts && opts.termsAgreed === true) so.data = Object.assign({}, so.data || {}, { helm_terms_agreed_at: new Date().toISOString() });
         if (opts && /^[a-z0-9][a-z0-9_-]{1,39}$/.test(String(opts.plan || ""))) so.data = Object.assign({}, so.data || {}, { helm_signup_plan: String(opts.plan) });
         if (opts && /^(trial|paid|sales)$/.test(String(opts.mode || ""))) so.data = Object.assign({}, so.data || {}, { helm_signup_mode: String(opts.mode) });
+        // r29 (0279): the referral / partner code on the sign-up form (referral-signup.js) travels with the account, so a
+        // confirm link opened in another browser still attaches it once the studio exists (the SERVER decides if it counts)
+        try {
+          const rf = JSON.parse(global.sessionStorage.getItem("helm.signup.ref") || "null");
+          if (rf && /^[A-Z0-9][A-Z0-9_-]{2,23}$/.test(String(rf.code || ""))) {
+            const lk = JSON.parse(global.localStorage.getItem("helm.ref.link") || "null");
+            so.data = Object.assign({}, so.data || {}, { helm_signup_ref: { code: String(rf.code), via: rf.via === "link" ? "link" : "typed",
+              consent: rf.consent === true, link_at: lk && lk.code === rf.code && typeof lk.at === "number" ? new Date(lk.at).toISOString() : null } });
+          }
+        } catch (e) {}
         // 0205: this browser started a sign-up for this address - /auth/confirm keeps the confirm link's
         // session only then (a link someone else made for THEIR account never signs this browser in)
         try { localStorage.setItem(SIGNUP_MARK_KEY, String(email || "").trim().toLowerCase().slice(0, 254)); } catch (e) {}
@@ -8497,6 +8507,7 @@ window.HelmUrl = HelmUrl;
       if (!has(n.quote_id) && has(d.quote_id)) n = Object.assign({}, n, { quote_id: d.quote_id });
     }
     const k = k0, q = has(n.quote_id) ? n.quote_id : null;
+    if (k === "trial_reminder" && d.source === "r29_referral") return "refer.html";   // r29 (0279): referral notices
     if (k === "trial_reminder") return "checkout.html";
     // r21 (0250): security notices are Helm HQ only - an HQ notice opens HQ (Activity log -> Security)
     if (k === "security_alert") return d.hq === true ? (/^(sales_enquiry|suggestion)$/.test(String(d.alert || "")) ? "hq.html#requests" : "hq.html") : "control.html#users";
@@ -8711,7 +8722,7 @@ window.HelmUrl = HelmUrl;
       }
       const L = label(n) || {}, k = String(n.kind || "").toLowerCase();
       return { key: keyOf(n), type: typeOf(k), icon: L.icon || "🔔", title: String(L.text || "Update"),
-        message: k === "trial_reminder" ? "Choose a plan to keep using Helm" : [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
+        message: k === "trial_reminder" ? ((n.detail && n.detail.source === "r29_referral") ? "Open Refer a studio" : "Choose a plan to keep using Helm") : [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
         href: notifHref(n), rk: "n:" + (n.id || "") };
     });
     return { toasts, seen: { t: newest, ids: ids.concat(fresh.map(keyOf)).slice(-60) } };
@@ -8856,7 +8867,7 @@ window.HelmUrl = HelmUrl;
         + (d.event_code ? " · " + d.event_code : "")
         + (d.hq === true && d.studio ? " · " + d.studio : "")],
       // 0058: free-trial reminders (admins only — the server decides)
-      trial_reminder: ["⏳", String(d.label || "Free trial update")],
+      trial_reminder: [d.source === "r29_referral" ? "🎁" : "⏳", String(d.label || (d.source === "r29_referral" ? "Referral update" : "Free trial update"))],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
       // r23 (0257): Helm support changed the studio name / link (old links keep working)
@@ -10741,6 +10752,48 @@ window.HelmUrl = HelmUrl;
           try { await BPStore.demo.seed(); } catch (x) {}
           return { result: "started", org_id: id, name: name, mode: mode, legacy: true };
         }
+      },
+    },
+    // r29 (0279) - referral program. The SERVER decides everything (codes, fraud checks, rewards); these only call it.
+    //   mine()       -> the studio admin's own code, referred studios (names only with their consent), free months
+    //   lookup(code) -> {ok, kind, offer, reason} for the sign-up page (works signed out; never says who owns a code)
+    //   click(code)  -> counts one opened link (a number per day; nothing about the person)
+    //   attachPending() -> once, right after the new studio is created: typed code beats the last link (60 days)
+    referral: {
+      deviceId() {
+        try {
+          let d = global.localStorage.getItem("helm.device.id");
+          if (!/^[A-Za-z0-9_-]{8,64}$/.test(String(d || ""))) {
+            const a = new Uint8Array(16); (global.crypto || {}).getRandomValues ? global.crypto.getRandomValues(a) : a.forEach((_, i) => { a[i] = Math.floor(Math.random() * 256); });
+            d = "d" + Array.prototype.map.call(a, (b) => ("0" + b.toString(16)).slice(-2)).join("");
+            global.localStorage.setItem("helm.device.id", d);
+          }
+          return d;
+        } catch (e) { return null; }
+      },
+      mine: () => rpc("my_referral", { p_device: BPStore.referral.deviceId() }),
+      lookup: (code) => (supa ? rpc("referral_lookup", { p_code: String(code || "").slice(0, 24) })
+        .catch((e) => { if (rpcMissing(e)) return { ok: false, reason: "pending" }; throw e; }) : Promise.resolve({ ok: false, reason: "pending" })),
+      click: (code) => (supa ? rpc("referral_click", { p_code: String(code || "").slice(0, 24) }).catch(() => null) : Promise.resolve(null)),
+      async attachPending() {
+        if (!supa) return null;
+        let s = null, lk = null, m = null;
+        try { s = JSON.parse(global.sessionStorage.getItem("helm.signup.ref") || "null"); } catch (e) {}
+        try { lk = JSON.parse(global.localStorage.getItem("helm.ref.link") || "null"); } catch (e) {}
+        try { m = ((currentUser && currentUser.user_metadata) || {}).helm_signup_ref || null; } catch (e) {}
+        const ok = (c) => /^[A-Z0-9][A-Z0-9_-]{2,23}$/.test(String(c || ""));
+        const typed = s && s.via === "typed" && ok(s.code) ? s.code : (!s && m && m.via === "typed" && ok(m.code) ? m.code : "");
+        let link = "", linkAt = null;
+        if (lk && ok(lk.code) && typeof lk.at === "number" && Date.now() - lk.at < 60 * 864e5) { link = lk.code; linkAt = new Date(lk.at).toISOString(); }
+        else if (m && m.via === "link" && ok(m.code) && m.link_at) { link = m.code; linkAt = m.link_at; }
+        if (!typed && !link) return null;
+        const consent = s ? s.consent === true : !!(m && m.consent === true);
+        let r = null;
+        try {
+          r = await rpc("referral_attach", { p_typed: typed || null, p_link: link || null, p_link_at: linkAt, p_consent: consent, p_device: BPStore.referral.deviceId() });
+        } catch (e) { if (rpcMissing(e)) return null; throw e; }
+        try { global.sessionStorage.removeItem("helm.signup.ref"); global.localStorage.removeItem("helm.ref.link"); } catch (e) {}
+        return r;
       },
     },
     // r22 (0255) - ONE sign-up flow: account + Terms -> verify e-mail -> create studio -> Pay now / Try free / Contact sales.

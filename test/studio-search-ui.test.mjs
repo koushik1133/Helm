@@ -299,7 +299,7 @@ t('store-api: BPStore.search → studio_search, {} before 0061 and for short que
   assert.match(STORE, /abortSignal\(sig\)/);
 });
 t('store-api: loader skips HQ, sign-in and public client pages', () => {
-  assert.match(STORE, /NO_SEARCH_PAGES = \{ hq: 1, login: 1, "reset-password": 1, "profile-setup": 1 \}/);
+  assert.match(STORE, /NO_SEARCH_PAGES = \{ hq: 1, "hq-referrals": 1, login: 1, "reset-password": 1, "profile-setup": 1 \}/);   // r29: the HQ referrals page too
   assert.match(STORE, /PUBLIC_PAGES\[pageKey\(\)\] \|\| publicLinkPath\(\)/);
   assert.match(STORE, /studio-search\.js\?v=/);
 });
