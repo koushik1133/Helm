@@ -4,6 +4,7 @@
 //     errors only - no tracing, no replay, no profiling
 //  3. CSP: connect-src carries exactly the DSN ingest host (vercel.json + public/_headers), no wildcard, no other Sentry host
 //  4. ?sentry_test=1 throws ONE test error on the staging host only (never helm.events / previews / localhost)
+//  5. edge functions' _shared/sentry.mjs parses the same 16-digit DSN (if the owner sets the SENTRY_DSN secret)
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
@@ -108,6 +109,19 @@ t("4b ?sentry_test=1 does nothing on production, previews, localhost, or without
   assert.equal(loadTel(Object.assign({}, cfgFor("localhost"), { allowDev: true }), { hostname: "localhost", search: "?sentry_test=1" }).timers.length, 0);
   for (const q of ["", "?sentry_test=0", "?sentry_test=11", "?xsentry_test=1"])
     assert.equal(loadTel(cfgFor("helm-v01.vercel.app"), { hostname: "helm-v01.vercel.app", search: q }).timers.length, 0, q);
+});
+
+/* 5 */
+const EDGE = await import("../supabase/functions/_shared/sentry.mjs");
+t("5 edge _shared/sentry.mjs: accepts the 16-digit org / project ids (SENTRY_DSN secret), still only sentry.io ingest", () => {
+  const d = EDGE.parseDsn(DSN);
+  assert.ok(d, "the project helm DSN parses");
+  assert.equal(d.url, HOST + "/api/4512328815542272/envelope/");
+  assert.match(d.auth, /sentry_key=1dc17f49258bac56dd0eb8e778842d7e,/);
+  assert.ok(EDGE.parseDsn("https://0123456789abcdef0123456789abcdef@o9.ingest.de.sentry.io/5"), "short ids still fine");
+  assert.equal(EDGE.parseDsn("https://0123456789abcdef0123456789abcdef@o" + "1".repeat(21) + ".ingest.us.sentry.io/5"), null, "over 20 digits refused");
+  assert.equal(EDGE.parseDsn("https://0123456789abcdef0123456789abcdef@o1.ingest.us.sentry.io/" + "1".repeat(21)), null);
+  assert.equal(EDGE.parseDsn("https://0123456789abcdef0123456789abcdef@evil.example/1"), null, "only a sentry.io ingest host");
 });
 
 console.log(`✓ r45-sentry-dsn: ${n} checks passed`);
