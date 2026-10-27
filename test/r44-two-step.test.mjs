@@ -250,7 +250,7 @@ t('B4 store-api: Team status RPC (null when 0291 is missing / not allowed), bell
   assert.match(API, /out\[r\.user_id\] = r\.two_step === true/);
   assert.match(API, /if \(ev === "two_step_intro"\) return "dashboard\.html#two-step-setup";/);
   assert.match(API, /const AUTH_UI_VERSION = "54";/);
-  assert.match(read('public/dashboard.html'), /store-api\.js\?v=294/); assert.match(CC, /store-api\.js\?v=294/);
+  assert.match(read('public/dashboard.html'), /store-api\.js\?v=295/); assert.match(CC, /store-api\.js\?v=295/);
 });
 
 /* ------------------------------------------------------------------ C. Settings -> Team badge */
@@ -326,7 +326,7 @@ t('D2 APPLY-0291: migration verbatim between begin / commit + VERIFY rows; MANIF
   assert.doesNotMatch(APPLY, /[^\x00-\x7F]/, 'ASCII only'); assert.doesNotMatch(APPLY, /create temp/i);
   assert.ok(read('supabase/migrations/MANIFEST').includes('forward  supabase/migrations/0291_r44_admin_two_step.sql'));
   assert.match(read('scripts/db-test/run-all.sh'), /R44-TWO-STEP-0291: ALL PASS \\\(22\/22\\\)/);
-  assert.match(read('test/release-1019.test.mjs'), /'0285', '0291'\]/); assert.match(read('test/release-1020.test.mjs'), /'0285', '0291'\]/);
+  assert.match(read('test/release-1019.test.mjs'), /'0285', '0291'[,\]]/); assert.match(read('test/release-1020.test.mjs'), /'0285', '0291'[,\]]/);
   const owner = new URL('file:///Users/koushikgoudshaganti/Desktop/Agency/Helm/APPLY-0291.sql');
   if (existsSync(owner)) assert.equal(readFileSync(owner, 'utf8'), APPLY);
 });
