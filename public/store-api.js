@@ -8519,6 +8519,7 @@ window.HelmUrl = HelmUrl;
     }
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
+    if (k === "team_safety") return "control.html#users";   // r33 (0283): admin / owner changes -> Control Center -> Team
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     // r24 (0269): a new enquiry from the public form -> the Leads board
     if (k === "lead_new") return "leads.html";
@@ -8874,6 +8875,8 @@ window.HelmUrl = HelmUrl;
       studio_identity_changed: ["🏷️", String(d.label || "Helm support changed your studio name or link")],
       // 0264: a client's scheduled payment is past its due date (money notice - admins + Finance viewers)
       payment_overdue: ["⏰", String(d.label || "A client payment is overdue")],
+      // r33 (0283): an admin change waiting 24 hours / cancelled / done, a studio ownership change (admins only - the server decides)
+      team_safety: ["🛡️", String(d.label || "Team change")],
       // 0269: a new lead from the studio's public enquiry form (name + event type only)
       lead_new: ["📥", String(d.label || "New enquiry")],
       // r22 (0254): "request to close anyway" + the approval (admins / coordinators / managers only - the server decides)
@@ -10315,6 +10318,22 @@ window.HelmUrl = HelmUrl;
     hq: (fn, args) => (/^hq_[a-z_]+$/.test(fn) ? rpc(fn, args || {}) : Promise.reject(new Error("bad call"))),
     // r24 (0271): "Send a suggestion" (profile menu -> suggest.js). The server records who + their studio.
     suggest: (p) => rpc("submit_suggestion", { p: p || {} }),
+    // r33 (0283): Control Center -> Team safety. Deactivate (never delete), Reactivate (counts against the seat limit),
+    // the protected Studio owner, 24-hour admin changes by non-owners (+ Cancel), ownership hand-over (owner + fresh
+    // two-step code; an active admin accepts). The database decides who may do what; overview() is null before 0283.
+    team: {
+      overview: () => (supa ? rpc("team_safety_overview").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      deactivate: (userId, reason) => rpc("team_deactivate_member", { p_user: userId, p_reason: reason || null }),
+      reactivate: (userId) => rpc("team_reactivate_member", { p_user: userId }),
+      setRole: (userId, role) => rpc("team_set_role", { p_user: userId, p_role: role }),
+      cancelChange: (changeId) => rpc("team_change_cancel", { p_change: changeId }),
+      openWork: (userId) => rpc("team_member_open_work", { p_user: userId }),
+      transferStart: (toUserId) => rpc("team_owner_transfer_start", { p_to: toUserId }),
+      transferAccept: (transferId) => rpc("team_owner_transfer_accept", { p_transfer: transferId }),
+      transferCancel: (transferId) => rpc("team_owner_transfer_cancel", { p_transfer: transferId }),
+      // the server's hint for a refusal ("owner_protected", "admin_change_delay", "reauth", "change_pending", ...) or ""
+      hintOf: (e) => String((e && (e.hint || (e.cause && e.cause.hint))) || ""),
+    },
     // 0045 — this studio's Helm subscription (read-only). Every member gets {status, read_only};
     // studio admins also get plan, period and payments. invoice(): admins, own studio only.
     checkout,
