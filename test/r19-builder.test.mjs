@@ -101,8 +101,8 @@ t('header: the r19 two-row header is gone again (r20 owner revert)', () => {
 
 /* ---------------- 5) first-run tour ---------------- */
 t('tour: every toolbar control in screen order, auto-started once', () => {
-  const tour = read('public/tour.js');
-  const blk = tour.slice(tour.indexOf('"builder.html": ['), tour.indexOf('"quotes.html": ['));
+  const tour = read('public/tour.js'), pt = read('public/page-tours.js');   // R46: the steps live in page-tours.js
+  const blk = pt.slice(pt.indexOf('"builder.html": ['), pt.indexOf('"quotes.html": ['));
   const sels = [...blk.matchAll(/sel: (\[[^\]]*\]|"[^"]*")/g)].map((m) => m[1]);
   assert.ok(sels.length >= 20, 'steps ' + sels.length);
   for (const s of ['"#projName"', '"#saveBtn"', '"#loadBtn"', '"#moreMenu"', '".hg-edit"', '".hg-cap"', '"#preset"', '"#refField"', '"#customBtn"', '"#viewSeg"', '"#measureBtn"', '"#unitSel"', '"#toolbox"', '"#fabStack"', '"#rightPanel"'])
