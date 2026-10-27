@@ -333,6 +333,7 @@ do $$ declare missing text; begin perform pg_temp.su();
                            'sales_requests', 'helm_notice_outbox',  -- 0244: definer-only plan requests + notice queue (asking must work for a read-only studio)
                            'trial_grants', 'trial_extensions',  -- 0186: one-trial ledger + HQ extension record; definer-only, no client grants (an ended trial must still be extendable)
                            'team_member_status', 'team_owner_log', 'team_admin_changes', 'team_owner_transfers', 'team_safety_events',  -- 0283: team-safety records, definer-only, no client grants (deactivating a leaver / an owner hand-over must work for a read-only studio)
+                           'hq_studio_credits',  -- 0280: HQ-only credit records; definer-only, no client grants (HQ must record a credit for a suspended studio too)
                            'pay_detail_changes', 'studio_security_events', 'studio_account_flags')  -- 0285: payment-details safety log + flags; definer-only, no client grants ("This wasn't us" must work for a read-only studio; a change itself touches the guarded payment_schedule_settings)
      and not exists (select 1 from pg_trigger t where t.tgrelid = c.oid and t.tgname = 'zzz_studio_read_only');
   perform pg_temp.res('54 every studio table has the read-only guard', missing is null, missing);

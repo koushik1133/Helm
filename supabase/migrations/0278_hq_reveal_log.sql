@@ -1,0 +1,51 @@
+-- 0278_hq_reveal_log.sql - CANONICAL forward-only. Not applied anywhere yet (R42 PR: staging first when the owner says go).
+-- REQUIRES 0277 (_hq27_require, HQ staff roles) + audit_log.
+--
+-- In plain words (owner, r28 HQ v2: "mask e-mails / phones by default, reveal on click, and log every reveal"):
+--   Helm HQ now shows contact e-mails, phone numbers, PAN / GSTIN and tax ids MASKED (pr***@studio.in, +91 ******10).
+--   When an HQ person clicks "Show", the page first calls hq_log_reveal(entity, id, field). The database checks the
+--   person is HQ staff with two-step and the role may read that kind of record, then writes ONE audit_log row
+--   (action 'hq.reveal', entity, entity id, {field}) - visible in HQ -> Security & activity and on the HQ team page.
+--   The value itself is NEVER written to the log. Nothing else changes.
+-- Additive + idempotent: one new function (create or replace), grants. No table change, no row changed or deleted.
+-- Safe to run twice. ASCII only.
+-- ROLLBACK (manual, only if ever needed): revoke execute on function public.hq_log_reveal(text, text, text) from authenticated;
+--   (the page then falls back to a throttled hq_heartbeat('reveal') tick).
+
+do $$ begin
+  if to_regprocedure('public._hq27_require(text,boolean)') is null then raise exception 'STOP 0278: 0277 (_hq27_require) is not applied'; end if;
+  if to_regclass('public.audit_log') is null then raise exception 'STOP 0278: audit_log missing'; end if;
+end $$;
+
+create or replace function public.hq_log_reveal(p_entity text, p_entity_id text default null, p_field text default null)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare
+  -- r28-hq-reveal-0278
+  v_entity text := lower(btrim(coalesce(p_entity, '')));
+  v_field text := lower(btrim(coalesce(p_field, 'value')));
+  v_id text := left(btrim(coalesce(p_entity_id, '')), 120);
+  v_perm text;
+begin
+  v_perm := case
+    when v_entity in ('studio', 'member') then 'studios.read'
+    when v_entity in ('person') then 'people.read'
+    when v_entity in ('request', 'enquiry', 'suggestion') then 'inbox.read'
+    when v_entity in ('billing') then 'billing.read'
+    else null end;
+  if v_perm is null then raise exception 'bad entity' using errcode = '22023'; end if;
+  if v_field !~ '^[a-z][a-z0-9_]{0,39}$' then raise exception 'bad field' using errcode = '22023'; end if;
+  if v_id !~ '^[A-Za-z0-9@._+:-]{0,120}$' then v_id := ''; end if;
+  perform public._hq27_require(v_perm, false);
+  insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
+    select auth.uid(), u.email, 'hq.reveal', v_entity, nullif(v_id, ''), jsonb_build_object('field', v_field), null, now()
+      from auth.users u where u.id = auth.uid();
+  return jsonb_build_object('ok', true);
+end $$;
+
+do $$ begin
+  revoke all on function public.hq_log_reveal(text, text, text) from public;
+  if exists (select 1 from pg_roles where rolname = 'anon') then revoke all on function public.hq_log_reveal(text, text, text) from anon; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then grant execute on function public.hq_log_reveal(text, text, text) to authenticated; end if;
+end $$;
+
+notify pgrst, 'reload schema';
