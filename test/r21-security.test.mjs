@@ -223,6 +223,8 @@ await t("5a CSP report-uri on every production policy (vercel + _headers + serve
   assert.equal(sentryIngestOrigin('window.HELM_TELEMETRY = Object.assign({\n  dsn: "",'), "", "no DSN -> no connect-src host");
   assert.equal(sentryIngestOrigin('window.HELM_TELEMETRY = Object.assign({ dsn: "https://abc123@o42.ingest.us.sentry.io/77" }'), "https://o42.ingest.us.sentry.io");
   assert.equal(sentryIngestOrigin('window.HELM_TELEMETRY = { dsn: "https://abc@evil.example/1" }'), "", "only a sentry.io ingest host");
+  assert.equal(sentryIngestOrigin('window.HELM_TELEMETRY = { dsn: "https://1dc17f49258bac56dd0eb8e778842d7e@o4512062490738688.ingest.us.sentry.io/4512328815542272" }'),
+    "https://o4512062490738688.ingest.us.sentry.io", "R45: 16-digit org / project ids (current Sentry format)");
   assert.equal(withReporting("connect-src 'self'; report-uri x", { reportUri: "https://r", sentryOrigin: "https://s" }), "connect-src 'self' https://s; report-uri https://r; report-to csp-endpoint");
 });
 await t("5b csp-report logic: redacted one-line summaries for both report formats", async () => {
@@ -247,7 +249,7 @@ await t("5c telemetry: DSN read lazily (config.js loads after telemetry.js) - a 
   handlers.DOMContentLoaded.forEach((f) => f());
   assert.ok(captured.script && /sentry-cdn\.com\/8\.55\.2\/bundle\.min\.js/.test(captured.script.src), "armed after config.js");
   assert.equal(w.HelmTelemetry.enabled, true);
-  assert.match(CFG, /window\.HELM_TELEMETRY = Object\.assign\(\{\n  dsn: "",/);
+  assert.match(CFG, /window\.HELM_TELEMETRY = Object\.assign\(\{\n  dsn: "https:\/\/1dc17f49258bac56dd0eb8e778842d7e@o4512062490738688\.ingest\.us\.sentry\.io\/4512328815542272",/, "R45: DSN set");
 });
 
 /* ------------------------------------------------------------------ 6. CodeQL fixes */

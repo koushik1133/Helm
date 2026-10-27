@@ -214,7 +214,7 @@ const CSP_REPORTS = true;
 function cspReportUri(prodRef) { return CSP_REPORTS && /^[a-z0-9]{20}$/.test(prodRef || '') ? 'https://' + prodRef + '.supabase.co/functions/v1/csp-report' : ''; }
 // "https://<key>@o123.ingest.us.sentry.io/456" -> "https://o123.ingest.us.sentry.io" ('' when absent / malformed)
 function sentryIngestOrigin(configSrc) {
-  const m = /HELM_TELEMETRY[\s\S]{0,400}?\bdsn\s*:\s*["'](https:\/\/[0-9A-Za-z]{1,64}@(o\d{1,12}\.ingest(?:\.[a-z]{2})?\.sentry\.io)\/\d{1,12})["']/.exec(String(configSrc || ''));
+  const m = /HELM_TELEMETRY[\s\S]{0,400}?\bdsn\s*:\s*["'](https:\/\/[0-9A-Za-z]{1,64}@(o\d{1,20}\.ingest(?:\.[a-z]{2})?\.sentry\.io)\/\d{1,20})["']/.exec(String(configSrc || ''));
   return m ? 'https://' + m[2] : '';
 }
 const REPORT_GROUP = 'csp-endpoint';
