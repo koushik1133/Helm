@@ -431,6 +431,15 @@ html[data-shell="b"] .hb-tourbtn { width: 100%; border: 0; background: none; fon
 html[data-shell="b"] #helpBtn:not(.hb-item), html[data-shell="b"] body > .htour-fab { display: none !important; }   /* the rail's tour button replaces them */
 /* r20: the top bar's "?" tour button (shell-b.js); phones keep the tour in the "More" menu */
 @media (max-width: 819px) { html[data-shell="b"] .hb-ttour { display: none !important; } }
+/* R46: the "?" is the help menu (Tour this page / Keyboard shortcuts); its menu reuses .hb-menu / .hb-mi */
+html[data-shell="b"] .hb-hwrap { position: relative; display: inline-flex; }
+@media (max-width: 819px) { html[data-shell="b"] .hb-hwrap { display: none !important; } }
+html[data-shell="b"] .hb-hmenu { min-width: 210px; }
+html[data-shell="b"] .hb-mi-new { margin-left: auto; padding: 1px 7px; border-radius: 9px; font-size: 10.5px; font-weight: 650; background: var(--hb-acc-soft); color: var(--hb-acc-text); }
+html[data-shell="b"] .hb-mi-new[hidden] { display: none; }
+html[data-shell="b"] .hb-mi-kbd { margin-left: auto; min-width: 18px; padding: 0 5px; border: 1px solid var(--hb-line); border-radius: 5px; font: 600 11px/18px 'IBM Plex Sans', system-ui, sans-serif; text-align: center; color: var(--hb-ink3, var(--hb-ink2)); }
+html[data-shell="b"] .hb-help-tour { margin-left: 6px; border: 1px solid var(--hb-line); border-radius: 8px; background: var(--hb-bg); color: var(--hb-acc-text); font: 600 12px 'IBM Plex Sans', system-ui, sans-serif; padding: 4px 10px; cursor: pointer; }
+html[data-shell="b"] .hb-help-tour:focus-visible { outline: 2px solid var(--hb-acc); outline-offset: 2px; }
 @media (max-height: 640px) { html[data-shell="b"] .hb-ftools .hb-recent, html[data-shell="b"] .hb-ftools .hb-tour { display: flex; } }
 /* scroll cues: a soft fade where more nav items are hidden above / below */
 html[data-shell="b"] .hb-scroll { position: relative; }
