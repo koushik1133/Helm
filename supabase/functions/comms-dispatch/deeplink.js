@@ -38,6 +38,7 @@ export function notifLink(n) {
       if (/^(pay_details_|flag_cleared|sessions_ended)/.test(ev)) return "control.html#payment-schedules";
       if (/^(reply_to_|razorpay_)/.test(ev)) return "integrations.html";
       if (ev === "business_email_changed") return "control.html#general";
+      if (ev === "two_step_intro") return "dashboard.html#two-step-setup";   // r44 (0291): opens the guided set-up
       return "control.html#users";
     }
     if (k.indexOf("nurture_") === 0) return "nurture.html";

@@ -119,8 +119,8 @@ await t('Control Center: Deactivate wording + flow (never "permanently deletes")
   assert.match(C, /try\{ ucTeam=BPStore\.team\?await BPStore\.team\.overview\(\):null; \}catch\(e\)\{ ucTeam=null; \}/);
   assert.match(C, /HelmTeam\.paint\(\$\("#team_safety"\), ucTeam, \{ store:BPStore\.team, guard:BPUI\.guard, confirm:BPUI\.confirm, prompt:BPUI\.prompt,/);
   assert.match(C, /<div id="team_safety" aria-live="polite" hidden><\/div>\s*<div id="team_work" aria-live="polite" hidden><\/div>/);
-  assert.match(C, /<script src="team-safety\.js\?v=1"><\/script>/); assert.match(C, /<link rel="stylesheet" href="team-safety\.css\?v=1">/);
-  assert.ok(C.indexOf('team-safety.js?v=1') < C.indexOf('async function renderUsers()'), 'loaded before the page script');
+  assert.match(C, /<script src="team-safety\.js\?v=2"><\/script>/); assert.match(C, /<link rel="stylesheet" href="team-safety\.css\?v=1">/);
+  assert.ok(C.indexOf('team-safety.js?v=2') < C.indexOf('async function renderUsers()'), 'loaded before the page script');
 });
 
 await t('store-api: BPStore.team -> team_* RPCs; bell kind team_safety (label + Control Center link); v286 on every page', () => {
@@ -132,7 +132,7 @@ await t('store-api: BPStore.team -> team_* RPCs; bell kind team_safety (label + 
   assert.match(API, /team_safety: \["🛡️", String\(d\.label \|\| "Team change"\)\],/);
   assert.match(API, /if \(k === "team_safety"\) return "control\.html#users";/);
   for (const f of readdirSync(new URL('../public/', import.meta.url)).filter((x) => x.endsWith('.html'))) {
-    const m = rd('public/' + f).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '290', f);
+    const m = rd('public/' + f).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '295', f);
   }
 });
 await t('comms-dispatch: the team_safety e-mail for every event (names only, Team link on APP_URL); unknown event -> null', async () => {

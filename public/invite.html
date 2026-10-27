@@ -6,11 +6,20 @@
 <title>You're invited · Helm</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
+<!-- r34 link preview (WhatsApp / social card): a static page cannot vary these per invitation without a server step, so
+     they are deliberately GENERIC - never names, address, phone, date or time (crawlers do not run the page script) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="You're invited">
+<meta property="og:description" content="Tap to open your invitation.">
+<meta property="og:image" content="https://www.helm.events/invite-og.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="You're invited">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
 <link rel="preload" href="/vendor/supabase-js-2.118.0.min.js" as="script" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Poppins:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Poppins:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Marcellus&family=Great+Vibes&family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Josefin+Sans:wght@400;600&family=Fredoka:wght@400;500;600&family=Cinzel:wght@400;500;600&family=DM+Serif+Display&family=Inter:wght@300;400;600&display=swap">
 <style>
   *{box-sizing:border-box}
   [hidden]{display:none!important}
@@ -164,6 +173,117 @@
     --display:"Fraunces",serif;--serif:"Cormorant Garamond",serif}
   body.t-soiree{background:radial-gradient(1200px 600px at 50% -10%,#241a35,#141019 60%)}
 
+  /* ---------- r34: RSVP form, address privacy, footer ---------- */
+  .rsvp-form{display:grid;gap:16px;text-align:left;max-width:460px;margin:8px auto 0}
+  .rsvp-form .fl{display:block;font-family:var(--sans);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin:0 0 7px;font-weight:600}
+  .rsvp-form input[type=text],.rsvp-form select,.rsvp-form textarea{width:100%;font-family:var(--sans);font-size:16px;color:var(--ink);background:var(--card);
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-height:48px;line-height:1.4}
+  .rsvp-form textarea{min-height:92px;resize:vertical}
+  .rsvp-form input:focus-visible,.rsvp-form select:focus-visible,.rsvp-form textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-color:var(--accent)}
+  .att{border:0;padding:0;margin:0;min-width:0}
+  .att legend{padding:0}
+  .att-opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .att label{position:relative;display:flex;align-items:center;justify-content:center;min-height:48px;border:1px solid var(--line);border-radius:12px;
+    cursor:pointer;font-family:var(--sans);font-weight:600;font-size:15px;background:var(--card);color:var(--ink);transition:background .15s ease,color .15s ease}
+  .att input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
+  .att label:has(input:checked){background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}
+  .att label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+  .hp{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}
+  .rsvp-send{width:100%;border:0;cursor:pointer;font-family:var(--sans);font-size:15px}
+  .rsvp-send[disabled]{opacity:.6;cursor:default}
+  .rsvp-st{min-height:1.3em;font-family:var(--sans);font-size:14px;color:var(--soft);text-align:center;margin:0}
+  .rsvp-st.err{color:var(--err,#b42318);font-weight:600}
+  .rsvp-done{text-align:center;font-family:var(--sans)}
+  .rsvp-done .big{font-family:var(--display);font-size:clamp(24px,5vw,30px);color:var(--ink);margin:4px 0 6px}
+  .rsvp-done p{margin:0 0 12px;color:var(--soft)}
+  .rsvp-or{margin:18px 0 10px;font-family:var(--sans);font-size:13px;color:var(--soft)}
+  .addr-note{display:block;margin-top:6px;font-size:13px;font-weight:400;font-style:italic;color:var(--soft)}
+  .fact .sub{font-weight:400;color:var(--soft)}
+  .foot .madeby b{font-weight:600;color:var(--ink)}
+  .foot .madeby .sep{margin:0 .5em;opacity:.6}
+  .rsvp-b,.open-btn,.share-btm{color:var(--on-accent,#fff)}
+
+  /* ---------- r34 themes (CSS only: no images, no extra requests beyond the font stylesheet) ---------- */
+  /* Shubh Vivah: Indian wedding - maroon + gold, toran scallops, mandala rays, double gold frames */
+  body.t-shubh{--accent:#8c1d2f;--accent-2:#c9973f;--bg:#fbf4e8;--ink:#3a1018;--soft:#704436;--line:#ead6b0;--card:#fffaf1;
+    --display:"Marcellus","Cormorant Garamond",Georgia,serif;--serif:"Cormorant Garamond","Hoefler Text",Georgia,serif;
+    background:radial-gradient(900px 520px at 50% 0,rgba(201,151,63,.16),transparent 70%),#fbf4e8}
+  body.t-shubh .hero::before,body.t-shubh #cover::before{content:"";position:absolute;left:0;right:0;top:0;height:30px;z-index:2;pointer-events:none;
+    background:radial-gradient(circle at 50% 0,#8c1d2f 0 10px,#c9973f 10px 12px,transparent 13px) 0 4px/30px 26px repeat-x,linear-gradient(#c9973f,#c9973f) 0 0/100% 4px no-repeat}
+  body.t-shubh .hero:not(.haspic){background:repeating-conic-gradient(from 0deg at 50% 52%,rgba(201,151,63,.11) 0 6deg,transparent 6deg 12deg);padding-top:104px}
+  body.t-shubh .hero .inner{z-index:3}
+  body.t-shubh .names{color:#7a1628;letter-spacing:.01em}
+  body.t-shubh .hero.haspic .names,body.t-shubh .nframe .names{color:#fff}
+  body.t-shubh .card{border:1px solid #e0bf86;box-shadow:inset 0 0 0 5px var(--card),inset 0 0 0 6px #ecd3a4,0 30px 60px -44px rgba(90,20,30,.45)}
+  body.t-shubh .divider .dot{color:var(--accent-2)}
+  body.t-shubh .seal{background:radial-gradient(circle at 35% 30%,#a8323f,#6e1121)}
+  body.t-shubh .seal::after{border-color:rgba(232,196,128,.8)}
+  /* Mehndi: sangeet / mehendi - marigold, henna green, magenta, bunting + dotted ground, script names */
+  body.t-mehndi{--accent:#b02a63;--accent-2:#e39a12;--bg:#fff9e8;--ink:#28331a;--soft:#56603a;--line:#efdca2;--card:#fffdf4;
+    --display:"Great Vibes","Snell Roundhand","Apple Chancery",cursive;--serif:"Cormorant Garamond",Georgia,serif;
+    background:radial-gradient(rgba(227,154,18,.22) 1.4px,transparent 1.8px) 0 0/22px 22px,#fff9e8}
+  body.t-mehndi .hero::before,body.t-mehndi #cover::before{content:"";position:absolute;left:0;right:0;top:0;height:24px;z-index:2;pointer-events:none;
+    background:linear-gradient(135deg,#e39a12 25%,transparent 25%) -12px 0/24px 22px repeat-x,linear-gradient(225deg,#e39a12 25%,transparent 25%) -12px 0/24px 22px repeat-x,
+      linear-gradient(135deg,#b02a63 25%,transparent 25%) 0 0/24px 14px repeat-x,linear-gradient(225deg,#b02a63 25%,transparent 25%) 0 0/24px 14px repeat-x}
+  body.t-mehndi .hero:not(.haspic){padding-top:100px}
+  body.t-mehndi .hero .inner{z-index:3}
+  body.t-mehndi .names,body.t-mehndi .cover-names{font-weight:400;letter-spacing:0;line-height:1.15;font-size:clamp(48px,12vw,92px);color:#2f5a22}
+  body.t-mehndi .hero.haspic .names,body.t-mehndi .nframe .names{color:#fff}
+  body.t-mehndi .card{border:1.5px dashed #e7c46a;box-shadow:0 26px 50px -40px rgba(120,60,0,.45)}
+  body.t-mehndi .fact{background:color-mix(in srgb,#2f5a22 5%,var(--card))}
+  body.t-mehndi .seal{background:radial-gradient(circle at 35% 30%,#f2b437,#c97f05)}
+  body.t-mehndi .divider .dot{color:var(--accent)}
+  /* Solitaire: engagement - champagne + blush, Bodoni, interlocking rings divider, hairline cards */
+  body.t-solitaire{--accent:#7f5d39;--accent-2:#c9a57a;--bg:#fbf6f2;--ink:#2e2622;--soft:#695d55;--line:#e9ddd3;--card:#fffdfb;
+    --display:"Bodoni Moda","Bodoni 72","Didot",Georgia,serif;--serif:"Cormorant Garamond",Georgia,serif;--sans:"Josefin Sans","Avenir Next",system-ui,sans-serif;
+    background:linear-gradient(180deg,#f6e6df 0,#fbf6f2 420px)}
+  body.t-solitaire .names{font-weight:400;letter-spacing:.005em}
+  body.t-solitaire .card{border-radius:4px;box-shadow:none;border-color:#e3d3c5}
+  body.t-solitaire .fact{border-radius:4px;background:#fdf8f4}
+  body.t-solitaire .sec-t{letter-spacing:.34em}
+  body.t-solitaire .divider .dot{font-size:0;width:36px;height:20px;position:relative;flex:0 0 36px}
+  body.t-solitaire .divider .dot::before,body.t-solitaire .divider .dot::after{content:"";position:absolute;top:1px;width:18px;height:18px;border:1.5px solid var(--accent-2);border-radius:50%}
+  body.t-solitaire .divider .dot::before{left:2px}body.t-solitaire .divider .dot::after{right:2px}
+  body.t-solitaire .open-btn,body.t-solitaire .rsvp-b,body.t-solitaire .share-btm{border-radius:2px;letter-spacing:.18em}
+  body.t-solitaire .rsvp-b.alt{color:var(--accent)}
+  /* Jubilee: birthday - violet + pink + sunshine, confetti ground, rounded and playful */
+  body.t-jubilee{--accent:#6d28d9;--accent-2:#db2777;--bg:#fff7fb;--ink:#2a1840;--soft:#5f5373;--line:#f1d9ec;--card:#fff;
+    --display:"Fredoka","Avenir Next Rounded","Arial Rounded MT Bold",system-ui,sans-serif;--serif:"Fredoka","Avenir Next",system-ui,sans-serif;
+    background:radial-gradient(circle at 12% 18%,#fbbf24 0 4px,transparent 5px) 0 0/360px 360px,radial-gradient(circle at 82% 12%,#ec4899 0 5px,transparent 6px) 0 0/360px 360px,
+      radial-gradient(circle at 70% 64%,#22c3ee 0 4px,transparent 5px) 0 0/360px 360px,radial-gradient(circle at 26% 80%,#8b5cf6 0 3px,transparent 4px) 0 0/360px 360px,
+      radial-gradient(circle at 50% 42%,#34d399 0 3px,transparent 4px) 0 0/360px 360px,#fff7fb}
+  body.t-jubilee .names{font-weight:600;background:linear-gradient(100deg,#6d28d9,#db2777 60%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
+  body.t-jubilee .hero.haspic .names,body.t-jubilee .nframe .names{background:none;color:#fff}
+  body.t-jubilee .headline,body.t-jubilee .whenwhere,body.t-jubilee .msg{font-style:normal}
+  body.t-jubilee .card{border-radius:28px;border:2px solid #f3e1f1;box-shadow:0 24px 50px -36px rgba(109,40,217,.45)}
+  body.t-jubilee .fact{border-radius:18px;background:#fbf5ff}
+  body.t-jubilee .seal{background:conic-gradient(#6d28d9,#db2777,#f59e0b,#22c3ee,#6d28d9)}
+  /* Gala Noir: corporate gala - black + gold, Cinzel capitals, art-deco fan */
+  body.t-gala{--accent:#d4af6a;--accent-2:#f0d9a6;--bg:#0c0c0e;--ink:#f5efe3;--soft:#c2b8a6;--line:#2f2c27;--card:#141417;--on-accent:#1a1406;--err:#ff9b8f;
+    --display:"Cinzel","Trajan Pro",Georgia,serif;--serif:"Cormorant Garamond",Georgia,serif;--sans:"Josefin Sans","Avenir Next",system-ui,sans-serif;
+    background:radial-gradient(1000px 560px at 50% -8%,#1f1b14,#0c0c0e 65%)}
+  body.t-gala .hero:not(.haspic){background:repeating-radial-gradient(circle at 50% 118%,rgba(212,175,106,.12) 0 1.5px,transparent 1.5px 24px);border-bottom:1px solid rgba(212,175,106,.3)}
+  body.t-gala .names{text-transform:uppercase;letter-spacing:.08em;font-weight:500;font-size:clamp(32px,7.6vw,62px);color:var(--accent-2)}
+  body.t-gala .hero.haspic .names,body.t-gala .nframe .names{color:#fff}
+  body.t-gala .eyebrow,body.t-gala .cover-eyebrow{letter-spacing:.42em}
+  body.t-gala .card{border:1px solid rgba(212,175,106,.42);border-radius:6px;box-shadow:none;outline:1px solid rgba(212,175,106,.16);outline-offset:-9px}
+  body.t-gala .fact{border-radius:4px;border-color:rgba(212,175,106,.28);background:#18181c}
+  body.t-gala .seal{background:radial-gradient(circle at 35% 30%,#f0d9a6,#a9853f);color:#1a1406}
+  body.t-gala .toast{color:#0c0c0e}
+  body.t-gala .rsvp-b.alt{color:var(--accent)}
+  /* Linen: minimal modern - warm paper, ink, one sage accent, no shadows */
+  body.t-linen{--accent:#3f4a3c;--accent-2:#6f7d64;--bg:#f4f2ee;--ink:#1d1d1b;--soft:#5c5b56;--line:#dcd8cf;--card:#fbfaf7;
+    --display:"DM Serif Display",Georgia,serif;--serif:"DM Serif Display",Georgia,serif;--sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif}
+  body.t-linen .headline,body.t-linen .whenwhere,body.t-linen .msg{font-style:normal}
+  body.t-linen .headline{font-family:var(--sans);font-weight:300;letter-spacing:.02em}
+  body.t-linen .card{border-radius:4px;box-shadow:none}
+  body.t-linen .fact{border-radius:2px;background:transparent}
+  body.t-linen .divider{max-width:64px}body.t-linen .divider .dot{display:none}
+  body.t-linen .seal{border-radius:4px;background:var(--ink)}body.t-linen .seal::after{border-radius:2px}
+  body.t-linen .open-btn,body.t-linen .share-btm{background:var(--ink);border-radius:4px}
+  body.t-linen .rsvp-b,body.t-linen .att label{border-radius:4px}
+  body.t-linen .gal .ph{border-radius:2px;box-shadow:none}
+
 /* BEGIN generated: inline-style classes (scripts/extract-inline-styles.mjs) */
 .s-925e0a3:not(#_):not(#_):not(#_){height:5px}
 /* END generated: inline-style classes */
@@ -180,6 +300,14 @@
   <div id="ended" class="state" hidden><div>
     <h1>This invitation has ended</h1>
     <p>Thank you for celebrating with us. This invitation link is no longer active.</p>
+  </div></div>
+  <div id="moved" class="state" hidden><div>
+    <h1>This invitation has moved</h1>
+    <p>The host made a new link for this invitation. Please ask the host for the new link.</p>
+  </div></div>
+  <div id="turnedOff" class="state" hidden><div>
+    <h1>This invitation is not available</h1>
+    <p>The host has turned this invitation link off for now.</p>
   </div></div>
   <div id="loadErr" class="state" hidden></div>
 
@@ -214,8 +342,8 @@
 <script src="/telemetry.js?v=9"></script>
 <script src="/config.js?v=111"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=5"></script><script src="/store-api.js?v=290"></script>
-<script src="/invite-music.js?v=1"></script><script src="/invite-placement.js?v=1"></script>
+<script src="/country-profile.js?v=5"></script><script src="/store-api.js?v=295"></script>
+<script src="/invite-music.js?v=1"></script><script src="/invite-placement.js?v=1"></script><script src="/invite-extras.js?v=1"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -242,15 +370,21 @@
     return q?"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q):"";
   }
   // E10: a real way to reply - WhatsApp (prefilled) + Call when the host phone is set
-  function rsvpHtml(d, names){
-    const raw=typeof d.hostPhone==="string"?d.hostPhone:"", digits=raw.replace(/[^\d+]/g,"");
-    if(digits.replace(/\D/g,"").length<7) return "";
-    const wa=(window.BPStore&&BPStore.waNumber)?BPStore.waNumber(digits,CC):digits.replace(/\D/g,"");
+  // r34: per site the studio picks the RSVP form (a slot filled by mountRsvp), the phone / WhatsApp buttons, or both.
+  // S = HelmInviteX.settings(data): a site saved before r34 has no setting = the buttons only (today's behaviour).
+  function rsvpHtml(d, names, S){
+    S=S||{rsvpForm:false,rsvpContact:true};
+    const raw=S.rsvpContact&&typeof d.hostPhone==="string"?d.hostPhone:"", digits=raw.replace(/[^\d+]/g,"");
+    const phone=digits.replace(/\D/g,"").length>=7;
+    if(!phone&&!S.rsvpForm) return "";
+    const wa=!phone?"":(window.BPStore&&BPStore.waNumber)?BPStore.waNumber(digits,CC):digits.replace(/\D/g,"");
     const txt="Hi"+(d.host?" "+String(d.host).slice(0,60):"")+", I'll attend "+String(names||"the event").slice(0,80)+(d.date?" on "+fmtDate(d.date):"")+". Guests: ";
     const by=d.rsvpBy?`<p class="note">Kindly reply by ${esc(fmtDate(d.rsvpBy))}</p>`:"";
-    return `<section class="blk rv"><div class="card rsvp"><h2 class="sec-t">RSVP</h2>${by}<div class="rsvp-btns">`
+    return `<section class="blk rv"><div class="card rsvp"><h2 class="sec-t">RSVP</h2>${by}`
+      +(S.rsvpForm?`<div id="rsvpSlot"></div>`+(phone?`<p class="rsvp-or">Or reach the host directly</p>`:""):"")
+      +(phone?`<div class="rsvp-btns">`
       +(wa?`<a class="rsvp-b" href="https://wa.me/${esc(wa)}?text=${esc(encodeURIComponent(txt))}" target="_blank" rel="noopener noreferrer">RSVP on WhatsApp</a>`:"")
-      +`<a class="rsvp-b alt" href="${esc("tel:"+digits)}">Call</a></div></div></section>`;
+      +`<a class="rsvp-b alt" href="${esc("tel:"+digits)}">Call</a></div>`:"")+`</div></section>`;
   }
   const initials=n=>{ const p=String(n||"").trim().split(/\s+|&/).filter(Boolean); return p.slice(0,2).map(x=>x[0]).join("").toUpperCase()||"♥"; };
 
@@ -258,7 +392,9 @@
     const items=[];
     const when=whenText(d);
     if(when) items.push(`<div class="fact"><p class="k">When</p><p class="v">${esc(when)}</p></div>`);
-    if(d.venue||d.address){
+    if(d._addrHidden&&(d.venue||d.city)){   // r34: venue + city only until the guest replies
+      items.push(`<div class="fact"><p class="k">Where</p><p class="v">${esc(d.venue||"")}${d.venue&&d.city?"<br>":""}<span class="sub">${esc(d.city||"")}</span><span class="addr-note">The full address and map are shared once you reply Yes or Maybe below.</span></p></div>`);
+    } else if(d.venue||d.address){
       const mh=mapHref(d), map=mh?` <a href="${esc(mh)}" target="_blank" rel="noopener noreferrer">${/^https:\/\/www\.google\.com\/maps\/search\//.test(mh)&&mh!==d.mapUrl?"Open in Maps":"View map"}</a>`:"";
       items.push(`<div class="fact"><p class="k">Where</p><p class="v">${esc(d.venue||"")}${d.venue&&d.address?"<br>":""}<span style="font-weight:400;color:var(--soft)">${esc(d.address||"")}</span>${map}</p></div>`);
     }
@@ -289,11 +425,26 @@
   // R23: a built-in track (data.musicTrack = a library KEY -> its fixed same-origin file) wins; else the https link
   const siteMusic=d=>(d&&window.HelmInviteMusic&&HelmInviteMusic.src(d.musicTrack))||safeMusic(d&&d.music);
   let SITE=null;
+  // r34: the per-site settings, what a guest who replied may see (REVEAL: the private address; REPLY: their answer),
+  // and the link's state from the server (INFO: {state, studio}) for the footer
+  const HX=window.HelmInviteX, PREVIEW=new URLSearchParams(location.search).get("preview")==="1";
+  let REVEAL=null, REPLY=null, INFO=null;
+  function guestView(d0,S){
+    const d=Object.assign({},d0);
+    if(!S.rsvpContact) delete d.hostPhone;
+    if(S.addressMode==="after_rsvp"){
+      delete d.address; delete d.mapUrl;
+      if(REVEAL&&typeof REVEAL==="object"){ d.address=typeof REVEAL.address==="string"?REVEAL.address:""; d.mapUrl=typeof REVEAL.mapUrl==="string"?REVEAL.mapUrl:""; }
+      else d._addrHidden=true;
+    }
+    return d;
+  }
   function render(site){
     SITE=site;
-    const d=site.data||{};
-    { const c=String(d.country||site.country||"").toUpperCase(); CC=/^(IN|AE|US)$/.test(c)?c:(/^\+1\b/.test(String(d.hostPhone||""))?"US":/^\+971/.test(String(d.hostPhone||""))?"AE":"IN"); }
-    document.body.className="t-"+(["eternal","promise","confetti","summit","soiree"].includes(site.template)?site.template:"soiree");
+    const d0=site.data||{}, S=HX?HX.settings(d0):{rsvpForm:false,rsvpContact:true,addressMode:"full",helmBrand:true}, d=guestView(d0,S);
+    { const c=String(d0.country||site.country||"").toUpperCase(); CC=/^(IN|AE|US)$/.test(c)?c:(/^\+1\b/.test(String(d0.hostPhone||""))?"US":/^\+971/.test(String(d0.hostPhone||""))?"AE":"IN"); }
+    document.body.className="t-"+((HX?HX.has(site.template):["eternal","promise","confetti","summit","soiree"].includes(site.template))?site.template:"soiree");
+    const studio=String(site.studio||(INFO&&INFO.studio)||"").trim().slice(0,80), brand=S.helmBrand;
     const type=site.event_type||"general";
     // E4: an auto event code (WED_HYD_300_28DEC26) is never shown to guests
     const HEN=window.HelmEventName, tOk=site.title&&!(HEN&&HEN.isAuto(String(site.title)))?String(site.title):"";
@@ -360,11 +511,12 @@
       ${inlineHtml(LY.after.details,"details")}
       ${scheduleHtml(d.schedule)}
       ${inlineHtml(LY.after.schedule,"schedule")}
-      ${rsvpHtml(d, names)}
+      ${rsvpHtml(d, names, S)}
       ${inlineHtml(LY.after.rsvp,"RSVP")}
       <div class="foot rv">With love &amp; joy
-        <span class="madeby">Made with <a href="/" target="_blank" rel="noopener">Helm Events</a></span>
+        ${(studio||brand)?`<span class="madeby">${studio?`Designed by <b>${esc(studio)}</b>`:""}${studio&&brand?`<span class="sep" aria-hidden="true">·</span>`:""}${brand?`Made with <a href="/" target="_blank" rel="noopener">Helm Studios</a>`:""}</span>`:""}
       </div>`;
+    mountRsvp(false);
 
     // music — https:// only (same rule as the Invitation Studio's song preview);
     // anything else (http:, data:, javascript:, relative) is ignored.
@@ -378,6 +530,73 @@
     $("#loading").hidden=true; $("#cover").hidden=false;
     if(music) $("#coverNote").hidden=false;
     $("#page").hidden=false;                 // behind the cover; revealed on open
+  }
+
+  // ---- r34: the RSVP form (built with DOM nodes + textContent - never HTML from a guest) ----
+  const tokKey=()=>"helm-rsvp:"+getSlug();
+  function readTok(){ try{ const v=localStorage.getItem(tokKey())||""; return /^[0-9a-f]{64}$/.test(v)?v:""; }catch(_){ return ""; } }
+  function saveTok(t){ try{ if(/^[0-9a-f]{64}$/.test(t||"")) localStorage.setItem(tokKey(),t); }catch(_){} }
+  function el(tag,attrs,kids){ const n=document.createElement(tag);
+    if(attrs) Object.keys(attrs).forEach(k=>{ if(k==="text") n.textContent=attrs[k]; else if(k==="cls") n.className=attrs[k]; else n.setAttribute(k,attrs[k]); });
+    (kids||[]).forEach(c=>{ if(c) n.appendChild(typeof c==="string"?document.createTextNode(c):c); }); return n; }
+  function mountRsvp(editing){
+    const slot=document.getElementById("rsvpSlot"); if(!slot) return;
+    slot.replaceChildren();
+    if(REPLY&&!editing){
+      const n=Number(REPLY.guests)||0;
+      const line=REPLY.attending==="yes"?(n>1?"You're coming - "+n+" of you.":"You're coming.")
+        :REPLY.attending==="maybe"?"You said maybe.":"You let the host know you can't make it.";
+      const again=el("button",{type:"button",cls:"rsvp-b alt"},["Change my reply"]);
+      again.addEventListener("click",()=>{ mountRsvp(true); const f=slot.querySelector("#rsvp_name"); if(f) f.focus(); });
+      slot.appendChild(el("div",{cls:"rsvp-done",role:"status"},[el("p",{cls:"big",text:"Thank you"+(REPLY.name?", "+String(REPLY.name).slice(0,80):"")+"!"}),
+        el("p",{text:line+" Your reply is with the host."}),again]));
+      return;
+    }
+    const L=(HX&&HX.LIMITS)||{name:80,message:500,guestsMax:20};
+    const name=el("input",{type:"text",id:"rsvp_name",maxlength:String(L.name),autocomplete:"name",required:""}); name.value=(REPLY&&REPLY.name)||"";
+    const opts=el("div",{cls:"att-opts"}), att=el("fieldset",{cls:"att"},[el("legend",{cls:"fl",text:"Will you attend?"}),opts]);
+    [["yes","Yes"],["maybe","Maybe"],["no","No"]].forEach(([v,t])=>{ const i=el("input",{type:"radio",name:"rsvpAtt",value:v}); if(REPLY&&REPLY.attending===v) i.checked=true; opts.appendChild(el("label",null,[i,t])); });
+    const guests=el("select",{id:"rsvp_guests"}); for(let i=1;i<=L.guestsMax;i++) guests.appendChild(el("option",{value:String(i),text:String(i)}));
+    guests.value=String((REPLY&&Number(REPLY.guests)>0&&Number(REPLY.guests))||1);
+    const gWrap=el("div",null,[el("label",{cls:"fl",for:"rsvp_guests",text:"How many of you are coming?"}),guests]);
+    const msg=el("textarea",{id:"rsvp_msg",maxlength:String(L.message),rows:"3"}); msg.value=(REPLY&&REPLY.message)||"";
+    const hp=el("input",{type:"text",id:"rsvp_web",tabindex:"-1",autocomplete:"off"});
+    const st=el("p",{cls:"rsvp-st",role:"status","aria-live":"polite"});
+    const send=el("button",{type:"submit",cls:"rsvp-b rsvp-send"},[REPLY?"Update my reply":"Send my reply"]);
+    const form=el("form",{cls:"rsvp-form",novalidate:""},[
+      el("div",null,[el("label",{cls:"fl",for:"rsvp_name",text:"Your name"}),name]), att, gWrap,
+      el("div",null,[el("label",{cls:"fl",for:"rsvp_msg",text:"A message for the hosts (optional)"}),msg]),
+      el("div",{cls:"hp","aria-hidden":"true"},[el("label",{for:"rsvp_web",text:"Leave this empty"}),hp]), send, st]);
+    const sync=()=>{ const a=form.querySelector("input[name=rsvpAtt]:checked"); gWrap.hidden=!!(a&&a.value==="no"); };
+    att.addEventListener("change",sync); sync();
+    form.addEventListener("submit",async(e)=>{ e.preventDefault();
+      const a=form.querySelector("input[name=rsvpAtt]:checked");
+      const f={name:name.value.trim(),attending:a?a.value:"",guests:guests.value,message:msg.value.trim(),website:hp.value,token:readTok()};
+      const bad=HX?HX.formProblem(f):""; if(bad){ st.className="rsvp-st err"; st.textContent=bad; return; }
+      if(PREVIEW){ st.className="rsvp-st"; st.textContent="This is the preview - guests send their replies from the published invitation."; return; }
+      send.disabled=true; st.className="rsvp-st"; st.textContent="Sending…";
+      try{
+        const r=await BPStore.sites.rsvp(getSlug(),f);
+        if(!r||!r.ok){ st.className="rsvp-st err"; st.textContent=String((r&&r.message)||"Your reply couldn't be sent. Please try again.").slice(0,200); send.disabled=false; return; }
+        if(r.token) saveTok(r.token);
+        REPLY={name:f.name,attending:f.attending,guests:f.attending==="no"?0:Number(f.guests),message:f.message};
+        REVEAL=(r.reveal&&typeof r.reveal==="object")?r.reveal:null;   // a "No" reply gets no address (0284)
+        rerender();
+      }catch(err){ st.className="rsvp-st err"; st.textContent="Network problem - please check your connection and try again."; send.disabled=false; }
+    });
+    slot.appendChild(form);
+  }
+  // re-draw after a reply (the address may now be shown) without the cover, keeping the guest's place
+  function rerender(){
+    if(!SITE) return; const y=window.scrollY;
+    render(SITE); $("#cover").hidden=true; $("#fabs").hidden=false; if(!PREVIEW) $("#shareBtm").hidden=false;
+    document.querySelectorAll(".rv").forEach(e=>e.classList.add("in")); window.scrollTo(0,y);
+    const done=document.querySelector("#rsvpSlot .rsvp-done"); if(done){ done.setAttribute("tabindex","-1"); done.focus({preventScroll:true}); }
+  }
+  // a link that does not open: an old link after "Make new link" (moved), a link the host turned off, or unknown
+  async function showMissing(slug){
+    let st=""; try{ const i=slug?await BPStore.sites.publicInfo(slug):null; st=(i&&i.state)||""; }catch(_){ st=""; }
+    $(st==="moved"?"#moved":st==="off"?"#turnedOff":"#missing").hidden=false;
   }
 
   // reveal on scroll
@@ -450,7 +669,7 @@
     try{ await BPStore.init(); await BPStore.links.require(LINK); site=await BPStore.sites.public(slug); }
     catch(e){
       $("#loading").hidden=true;
-      if(BPUI.isNotFound(e)){ $("#missing").hidden=false; return; }
+      if(BPUI.isNotFound(e)){ await showMissing(slug); return; }
       if(/has been cancelled/i.test((e&&e.message)||"")){   // r23-0260: the event was cancelled - no details
         $("#ended").querySelector("h1").textContent="This event has been cancelled";
         $("#ended").querySelector("p").textContent="This invitation link is no longer active.";
@@ -459,7 +678,9 @@
       // a network / server failure is not "invitation not found" — offer a retry
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"this invitation"}); return;
     }
-    if(!site){ $("#loading").hidden=true; $("#missing").hidden=false; return; }
+    if(!site){ $("#loading").hidden=true; await showMissing(slug); return; }
+    try{ INFO=await BPStore.sites.publicInfo(slug); }catch(_){ INFO=null; }   // r34: the studio's name for the footer
+    { const tok=readTok(); if(tok){ try{ const r=await BPStore.sites.reveal(slug,tok); if(r&&r.ok){ REVEAL=r.reveal||null; REPLY=r.reply||null; } }catch(_){} } }
     try{ site=await signPhotos(site); }catch(e){}
     render(site);
   }

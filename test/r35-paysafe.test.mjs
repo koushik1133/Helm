@@ -51,11 +51,11 @@ await t('A3 withStepUp: cancelling the code prompt -> not saved, error marked ca
   await assert.rejects(cx.withStepUp(async () => { throw r35err('R35_REAUTH'); }),
     (e) => e.cancelled === true && e.stepUp === 'reauth' && /fresh two-step code/.test(e.message));
 });
-await t('A4 withStepUp: R35_SETUP_2STEP -> offers the set-up (Account panel), never prompts for a code, never retries', async () => {
+await t('A4 withStepUp: R35_SETUP_2STEP -> "Set up two-step now" (r44 guided set-up), never a code prompt; not set up -> not retried', async () => {
   const cx = stepUpEnv({ confirm: true }); let calls = 0;
   await assert.rejects(cx.withStepUp(async () => { calls++; throw r35err('R35_SETUP_2STEP'); }),
     (e) => e.stepUp === 'setup' && /Set up two-step verification/.test(e.message));
-  assert.equal(calls, 1); assert.deepEqual(cx.log, [['confirm', 'Set up two-step'], ['openAccount']]);
+  assert.equal(calls, 1); assert.deepEqual(cx.log, [['confirm', 'Set up two-step now'], ['openAccount']]);
 });
 await t('A5 withStepUp: R35_FLAGGED -> plain refusal; other errors pass through untouched', async () => {
   const cx = stepUpEnv({});
@@ -197,7 +197,7 @@ await t('B8 the card: no innerHTML, the safety note + both regions in control.ht
   assert.match(CC, /id="pst_safe"[^>]*>For your clients' safety: changing these needs your two-step code, every admin is told at once, and clients see new details only after 24 hours\./);
   assert.match(CC, /id="pst_pending" role="region"/); assert.match(CC, /id="pst_flags" role="region"/);
   assert.match(CC, /payment-schedule-settings\.js\?v=3/); assert.match(CC, /payment-schedule\.css\?v=2/);
-  assert.match(CC, /store-api\.js\?v=290/);
+  assert.match(CC, /store-api\.js\?v=295/);
 });
 
 // ---- C. e-mail (comms-dispatch) ----------------------------------------------------------------------------------------
