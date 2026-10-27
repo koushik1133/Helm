@@ -138,6 +138,20 @@ t('delivery "new expected time" prompt: "5:30 pm truck stuck" is 17:30 + reason 
   assert.deepEqual(parse('5:30 pmx'), ['05:30', 'pmx']);   // not a meridiem -> left in the reason, as before
 });
 
+t('resources: vendor-request time box reads "06:30 PM" as 18:30 (country-profile loaded first)', () => {
+  const R = read('public/resources.html');
+  const line = /\$\("#vr_time"\)\.value=(\(window\.HelmCountry && HelmCountry\.toHHMM\(ev && ev\.eventTime\)\) \|\| "10:00");/.exec(R);
+  assert.ok(line, 'vr_time uses HelmCountry.toHHMM');
+  assert.doesNotMatch(R, /\/\^\\d\{2\}:\\d\{2\}\/\.test\(ev\.eventTime/);
+  assert.ok(R.indexOf('country-profile.js?v=') > 0 && R.indexOf('country-profile.js?v=') < R.indexOf('$("#vr_time")'), 'country-profile.js loaded before use');
+  const box = (ev, win) => vm.runInNewContext(line[1], { window: win, HelmCountry: win.HelmCountry, ev });
+  const W = { HelmCountry: H };
+  for (const [tm, want] of [['06:30 PM', '18:30'], ['6:30pm', '18:30'], ['06:30 p.m.', '18:30'], ['18:30:00', '18:30'], ['12:00 AM', '00:00'], ['12:00 PM', '12:00'], ['09:15', '09:15']])
+    assert.equal(box({ eventTime: tm }, W), want, tm);
+  assert.equal(box({ eventTime: '' }, W), '10:00'); assert.equal(box({ eventTime: 'tbd' }, W), '10:00');
+  assert.equal(box(null, W), '10:00'); assert.equal(box({ eventTime: '18:30' }, {}), '10:00');
+});
+
 t('no H:MM-only time match left in the fixed formatters', () => {
   const bare = /\/\^\(\\d\{1,2\}\):\(\\d\{2\}\)\/\.exec/;
   for (const f of ['public/country-profile.js', 'public/booklet.js', 'public/shell-b-dash.js', 'public/events-calendar.js', 'public/store-api.js']) assert.doesNotMatch(read(f), bare, f);

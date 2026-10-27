@@ -397,7 +397,7 @@
     $("#bk_vendor").innerHTML = `<option value="">${vendors.length?"Choose a vendor…":"(add vendors in Vendors first)"}</option>`+vendors.map(v=>`<option value="${esc(v.id)}">${esc(sn(v.name))} — ${esc(VKIND[v.kind]||v.kind||"")}</option>`).join("");
     $("#vr_qty").value = need ? (need.gap||need.qty||"") : (forBooking&&forBooking.qty!=null ? forBooking.qty : "");
     $("#bk_cost").value=""; $("#bk_adv").value=""; $("#bk_status").value="booked"; $("#bk_contract").checked=false; $("#bk_note").value="";
-    $("#vr_date").value=(ev&&ev.eventDate)?String(ev.eventDate).slice(0,10):""; $("#vr_time").value=(ev&&/^\d{2}:\d{2}/.test(ev.eventTime||""))?ev.eventTime.slice(0,5):"10:00";
+    $("#vr_date").value=(ev&&ev.eventDate)?String(ev.eventDate).slice(0,10):""; $("#vr_time").value=(window.HelmCountry && HelmCountry.toHHMM(ev && ev.eventTime)) || "10:00";   /* R36: "06:30 PM" -> 18:30, not 06:30 */
     $("#vr_where").value=(ev&&ev.client&&ev.client.venue)?String(ev.client.venue).slice(0,300):""; $("#vr_amt").value=forBooking&&forBooking.cost!=null?forBooking.cost:""; $("#vr_det").value=""; $("#vr_mail").checked=true;
     if(existing){
       if(!vendors.some(v=>v.id===existing.vendor_id)) $("#bk_vendor").innerHTML+=`<option value="${esc(existing.vendor_id||"")}">(current vendor)</option>`;
