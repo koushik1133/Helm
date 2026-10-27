@@ -14,7 +14,7 @@ jobs:
           fetch-depth: 0            # full history so the secret scan can inspect all commits
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version-file: .nvmrc   # R51: exact Node pin lives in .nvmrc (22.23.4)
       - name: Secret scan (gitleaks) — fail on any committed credential
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:

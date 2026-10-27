@@ -113,10 +113,10 @@ t('store: vendor bill overdue + default bill date + bell Today/Yesterday use the
   assert.match(store, /today0 = H\.dayStart\(td, tz\)\.getTime\(\); yest0 = H\.dayStart\(H\.addDays\(td, -1\), tz\)\.getTime\(\);/);
   assert.match(store, /const localISODate = \(d\) => \{ if \(!d\) \{ try \{ const t = BPStore\.todayLocal\(\);/);
 });
-t('store: every page loads the new store-api.js (v290) and country-profile.js (v6)', () => {
+t('store: every page loads the new store-api.js (v296) and country-profile.js (v6)', () => {
   for (const f of ['calendar.html', 'quotes.html', 'reports.html', 'inbox.html', 'flow.html', 'dashboard.html']) {
     const h = r('public/' + f);
-    assert.match(h, /store-api\.js\?v=290/, f); assert.match(h, /country-profile\.js\?v=6/, f);
+    assert.match(h, /store-api\.js\?v=296/, f); assert.match(h, /country-profile\.js\?v=6/, f);
     assert.ok(h.indexOf('country-profile.js') < h.indexOf('store-api.js'), f + ': helper before the store');
   }
 });

@@ -106,3 +106,32 @@ Deno.test("invite-mailer: no provider + 0205 not applied -> magic link still sen
     assertEquals(marks()[0].args.p_status, "sent");
   } finally { f(); r(); }
 });
+
+// R32 AUTH-1: the branded e-mail's join link carries a fresh mail key (&k=); the database stores only its
+// SHA-256 (invite_mail_key_set). Without 0282 (RPC missing / not true) the e-mail goes out without &k=.
+Deno.test("R32 AUTH-1: branded invitation link carries &k=<key>; only SHA-256(key) is stored", async () => {
+  resetSupaMock();
+  const stored: Record<string, string> = {};
+  g.__supaRpc = (name: string, args: any) => name === "invite_email_outbox_claim" ? { data: rows(), error: null }
+    : name === "invite_mail_key_set" ? (stored[args.p_token] = args.p_hash, { data: true, error: null }) : { data: "ok", error: null };
+  const r = setEnv(RESEND);
+  const f = installFetch((url) => { if (url === "https://api.resend.com/emails") return jsonResponse({ id: "x" }); throw new Error("unexpected " + url); });
+  try {
+    const h = await loadHandler(FN);
+    await h(req());
+    const sent = fetchLog().map((c) => JSON.parse(String(c.init?.body)));
+    assertEquals(sent.length, 2);
+    const keys: string[] = [];
+    for (const [i, m] of sent.entries()) {
+      const tok = i === 0 ? T_NEW : T_OLD;
+      const mm = new RegExp("/login\\?invite=" + tok + "&(?:amp;)?k=([0-9a-f]{48})").exec(m.html);
+      assert(mm, "join link has the mail key");
+      assert(m.text.includes("/login?invite=" + tok + "&k=" + mm![1]));
+      const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(mm![1])))].map((b) => b.toString(16).padStart(2, "0")).join("");
+      assertEquals(stored[tok], hash, "DB keeps the hash, never the key");
+      assert(!Object.values(stored).includes(mm![1]));
+      keys.push(mm![1]);
+    }
+    assert(keys[0] !== keys[1], "a fresh key per e-mail");
+  } finally { f(); r(); }
+});

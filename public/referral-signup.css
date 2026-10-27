@@ -1,0 +1,17 @@
+/* referral-signup.css - r29 referrals (phase 1): the sign-up page's referral banner + optional code field (login.html). */
+.rfs-banner{display:flex;gap:12px;align-items:flex-start;margin:-6px 0 18px;padding:12px 14px;border:1px solid #bfe6cd;border-radius:12px;background:linear-gradient(135deg,#e7f6ee,#f4fbf7);color:#0d4f30;font-size:13.5px;line-height:1.45}
+.rfs-banner b{display:block;font-size:14px;color:#0b3d25}
+.rfs-gift{flex:none;width:32px;height:32px;border-radius:9px;background:#047857 center/18px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9h16v4H4zM5 13v7h14v-7M12 9v11M12 9c-1.5-3-5-3.5-5-1.2C7 9 9 9 12 9zM12 9c1.5-3 5-3.5 5-1.2C17 9 15 9 12 9z'/%3E%3C/svg%3E")}
+.rfs-row{margin:0 0 14px}
+.rfs-in{position:relative;display:flex;align-items:center}
+.rfs-in input{text-transform:uppercase;font-family:var(--mono,ui-monospace,Menlo,monospace);letter-spacing:.03em;margin-bottom:0!important;padding-right:72px}
+.rfs-in input::placeholder{text-transform:none;letter-spacing:0}
+.rfs-in .linkbtn{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:13px;min-height:32px}
+.rfs-msg{margin:6px 0 0;min-height:0;font-size:12.5px;line-height:1.45;color:var(--ink-3,#6b6577)}
+.rfs-msg:empty{display:none}
+.rfs-msg.good{color:#0f7a43;font-weight:600}
+.rfs-msg.bad{color:#b42318}
+.rfs-consent{display:flex;gap:10px;align-items:flex-start;margin:10px 0 0;font-size:12.5px;line-height:1.45;color:var(--ink-2,#4b475f);text-transform:none;letter-spacing:0;font-weight:500;cursor:pointer}
+.rfs-consent input{width:18px;height:18px;min-width:18px;margin:1px 0 0;accent-color:var(--accent,#047857)}
+.rfs-consent a{color:var(--accent,#047857);font-weight:600}
+.rfs-banner[hidden],.rfs-row[hidden],.rfs-consent[hidden],.rfs-in .linkbtn[hidden]{display:none!important}

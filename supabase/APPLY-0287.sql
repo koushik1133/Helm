@@ -10,10 +10,32 @@
 --
 -- OWNER STEPS (staging first, then production):
 --   1  Paste this whole file and Run. Every VERIFY row at the end must say ok = true.
---   2  Deploy the site (same branch: country-profile.js + store-api.js v290 + pages).
+--   2  Deploy the site (same branch: country-profile.js + store-api.js v296 + pages).
 --   3  Check (any time between 00:00 and 05:30 IST is the interesting window): Business -> vendor bills due
 --      yesterday (India date) show as overdue; Settings -> a reminder for a milestone due today says "due today".
 begin;
+-- ---- STOP guard: the pieces this builds on (all on production through 0292; 0117 NOT needed) --------------------
+do $$ declare v_missing text; begin
+  if to_regclass('public.organizations') is null or to_regclass('public.studio_subscriptions') is null
+     or to_regclass('public.vendor_bills') is null then
+    raise exception 'STOP 0287: organizations / studio_subscriptions (0045) / vendor_bills (0124) missing'; end if;
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'organizations' and column_name = 'timezone')
+     or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'organizations' and column_name = 'country')
+     or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'organizations' and column_name = 'brand') then
+    raise exception 'STOP 0287: organizations.timezone / country / brand missing'; end if;
+  if to_regprocedure('public.has_area(text, text)') is null or to_regprocedure('public.current_org_id()') is null then
+    raise exception 'STOP 0287: has_area / current_org_id missing'; end if;
+  select string_agg(x, ', ' order by x) into v_missing from unnest(array[
+      '_assign132_enqueue__pre0274', '_checkout_quote', '_demo_seed_ae', '_next_occasion', '_pkg_lock_reason',
+      '_r21_event_money', '_r3_price_change_notify', '_resolve_tax', '_sub_record_payment', '_trial_paid',
+      '_trial_refresh', 'checkout_attach_subscription', 'checkout_availability', 'hq_activate_plan', 'hq_audit',
+      'hq_billing', 'hq_extend_trial', 'hq_overview', 'hq_payments', 'hq_record_realisation',
+      'hq_security_alerts', 'hq_settle_provider_payment', 'hq_upsert_tax_rule', 'nurture_due__pre0202', 'payment_reminder_send_now__pre0181',
+      'public_enquiry_submit__pre0276', 'queue_nurture_greeting__pre0202', 'studio_cost_breakdown', 'vendor_payables_summary__pre0239']) x
+   where not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = x);
+  if v_missing is not null then raise exception 'STOP 0287: run the earlier APPLY files first - missing: %', v_missing; end if;
+end $$;
+
 -- 0287_studio_timezone_today.sql - CANONICAL forward-only.
 -- REQUIRES 0045 (studio_subscriptions), 0058/0120 (_trial_refresh), 0124/0239 (vendor_payables_summary__pre0239),
 --          0181 (payment_reminder_send_now__pre0181), 0069 (_pkg_lock_reason), 0268 (checkout_availability).

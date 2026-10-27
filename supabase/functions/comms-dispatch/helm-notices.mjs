@@ -13,13 +13,21 @@
 //   suggestion     (0271) someone sent a suggestion (in the app or on the website) -> the HQ address
 //   hq_staff       (0277) a Helm HQ team change (added, role changed, paused, access back, removed, signed out
 //                  everywhere, sign-in rules) -> the person it is about + every HQ Owner
+//   team_safety    (0283) a studio team change: an admin will be deactivated / changed in 24 hours (asked by an
+//                  admin who is not the owner), cancelled, done, done at once by the owner -> the owner + that admin +
+//                  the asker; a studio ownership hand-over / acceptance / cancel / decline, or Helm support recovered the
+//                  owner -> every active admin of the studio
+//   studio_security (0285) payment details (UPI / bank) changed / set up / cancelled ("This wasn't us") / made live
+//                  early, reply-to or business e-mail, Razorpay keys / on-off, money access, admins added / removed,
+//                  two-step off, flags -> every studio admin (+ the owner). MASKED values only (last 4 characters):
+//                  the database never hands the full UPI ID / account number to this lane.
 // Pure (no I/O); shared by comms-dispatch (Deno) and the node tests. Anything unexpected -> null and
 // comms-dispatch marks the row skipped (fails closed). Links are always APP_URL + a fixed path.
 const clip = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 const block = (v, n) => String(v == null ? "" : v).replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, n);
 const base = (app) => String(app || "https://www.helm.events").replace(/\/+$/, "");
 
-export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "studio_identity", "inbox_digest", "sales_enquiry", "sales_enquiry_ack", "suggestion", "hq_staff"];
+export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "studio_identity", "inbox_digest", "sales_enquiry", "sales_enquiry_ack", "suggestion", "hq_staff", "team_safety", "studio_security"];
 // the footer reason for each kind (transactional: a service message about this account)
 export const NOTICE_TX_REASON = {
   sales_request: "a Helm studio asked Helm sales to activate a plan",
@@ -32,6 +40,8 @@ export const NOTICE_TX_REASON = {
   sales_enquiry_ack: "you filled in the Contact sales form on the Helm website",
   suggestion: "someone sent a suggestion to Helm",
   hq_staff: "you are on the Helm HQ team, or this change is about your Helm HQ access",
+  team_safety: "you are an admin of a Helm studio, or this change is about your access to it",
+  studio_security: "you are an admin of a Helm studio and a sensitive setting (payment details, e-mail, payments, money access or admins) changed",
 };
 const PLAN_NAME = { starter: "Starter", studio: "Studio", enterprise: "Enterprise", not_sure: "Not sure yet" };
 const TEAM = { "1": "Just me", "2-5": "2-5 people", "6-15": "6-15 people", "16-50": "16-50 people", "51+": "51+ people" };
@@ -227,6 +237,82 @@ export function helmNoticeEmail(kind, data, appUrl) {
     }[d.event];
     if (!S) return null;
     return { subject: S[0].slice(0, 150), text: [S[1], S[2], "Helm HQ -> Staff access: " + app + "/hq", "If you did not expect this, reply to this e-mail or contact security@helm.events.", "- The Helm team"].filter(Boolean).join("\n\n") };
+  }
+  if (kind === "team_safety") {
+    // r33 (0283): names only (no e-mail addresses of others, no links but Control Center -> Team on APP_URL)
+    const studio = clip(d.studio, 120) || "your Helm studio", target = clip(d.target, 80) || "An admin", by = clip(d.by, 80) || "An admin";
+    const role = clip(d.role_label, 40) || "a non-admin role", when = clip(d.when, 60), from = clip(d.from, 80) || "The owner", to = clip(d.to, 80) || "an admin";
+    const deact = d.kind === "deactivate";
+    const team = "Control Center -> Team: " + app + "/control#users";
+    const S = {
+      admin_change_requested: [
+        "Helm: " + target + (deact ? " will be deactivated" : " will become " + role) + " in 24 hours - " + studio,
+        by + " asked to " + (deact ? "deactivate " + target + " in " + studio + "." : "change " + target + "'s role in " + studio + " from Admin to " + role + ".")
+          + " It happens " + (when ? "on " + when : "in 24 hours") + " unless the studio owner cancels it.",
+        "The studio owner can cancel it in " + team],
+      admin_change_cancelled: ["Helm: the change for " + target + " was cancelled - " + studio,
+        by + " cancelled the waiting change for " + target + " in " + studio + ". Nothing was changed.", team],
+      admin_change_applied: ["Helm: " + target + (deact ? " was deactivated" : " is now " + role) + " - " + studio,
+        deact ? target + " was deactivated in " + studio + " (asked by " + by + " 24 hours ago). Their records are kept; an admin can reactivate them."
+              : target + " is now " + role + " in " + studio + " (asked by " + by + " 24 hours ago).", team],
+      admin_deactivated: ["Helm: " + target + " was deactivated - " + studio,
+        by + " (the studio owner) deactivated " + target + " in " + studio + ". Their records are kept; an admin can reactivate them.", team],
+      admin_demoted: ["Helm: " + target + " is now " + role + " - " + studio,
+        by + " (the studio owner) changed " + target + "'s role in " + studio + " from Admin to " + role + ".", team],
+      owner_transfer_started: ["Helm: " + from + " wants to make " + to + " the owner of " + studio,
+        from + " started handing the ownership of " + studio + " to " + to + ". " + to + " must accept it in Control Center -> Team within 7 days.", team],
+      owner_transfer_accepted: ["Helm: " + to + " is now the owner of " + studio,
+        to + " accepted and is now the owner of " + studio + " (handed over by " + from + "). " + from + " stays an admin.", team],
+      owner_transfer_cancelled: ["Helm: the ownership hand-over was cancelled - " + studio,
+        from + " cancelled handing the ownership of " + studio + " to " + to + ". Nothing changed.", team],
+      owner_transfer_declined: ["Helm: " + to + " declined to become the owner of " + studio,
+        to + " declined to become the owner of " + studio + ". " + from + " stays the owner.", team],
+      owner_recovered: ["Helm: Helm support made " + to + " the owner of " + studio,
+        "Helm support made " + to + " the owner of " + studio + ", after checking who asked. The previous owner was no longer able to act for the studio.",
+        "If this is not what your studio asked for, write to security@helm.events straight away."],
+    }[d.event];
+    if (!S) return null;
+    return { subject: S[0].slice(0, 150), text: ["Hi,", S[1], S[2], "If you did not expect this, contact your studio owner or reply to this e-mail.", "- The Helm team"].join("\n\n") };
+  }
+  if (kind === "studio_security") {
+    // r35 (0285): masked values only - anything that does not look masked is dropped (fails closed)
+    const m = (v) => { const t = clip(v, 40); return /^(none|\*{4}[^\s]{0,4})$/.test(t) ? t : (t ? "****" : "none"); };
+    const em = (v) => { const t = clip(v, 120); return /^(none|[^\s@]\*\*\*@[A-Za-z0-9.-]{1,100}|\*{4}[^\s]{0,4})$/.test(t) ? t : "(hidden)"; };
+    const studio = clip(d.studio, 120) || "your studio", by = clip(d.by, 80) || "a team member", target = clip(d.target, 80) || "a team member";
+    const at = clip(d.at_text, 60), eff = clip(d.effective_text, 60);
+    const payLines = ["UPI ID:       " + m(d.old_upi) + "  ->  " + m(d.new_upi), "Payment note: " + m(d.old_note) + "  ->  " + m(d.new_note),
+      "(only the last 4 characters are shown - never the full account number)"].join("\n");
+    const notUs = "If this wasn't you, open Control Center -> Payment schedules and press \"This wasn't us\" before " + (eff || "the 24 hours are over") + ": " + app + "/control.html#payment-schedules";
+    const S = {
+      pay_details_requested: ["Payment details for " + studio + " were changed",
+        "Payment details for " + studio + " were changed by " + by + (at ? " at " + at : "") + ". Clients will see the new details from " + (eff || "24 hours from now") + ".", payLines, notUs],
+      pay_details_first_set: ["Payment details for " + studio + " were set up",
+        "Payment details for " + studio + " were set up by " + by + (at ? " at " + at : "") + ". This is the studio's first set-up, so clients see them now.", payLines,
+        "If this wasn't you, tell your admins and change them in Control Center -> Payment schedules: " + app + "/control.html#payment-schedules"],
+      pay_details_cancelled: ["\"This wasn't us\": a payment-details change for " + studio + " was cancelled",
+        by + " cancelled the payment-details change made by " + target + ". Clients keep the old details. " + target + "'s account is flagged and can't change sensitive settings until another admin clears it.", payLines,
+        "Recommended now: sign that account out everywhere, reset its password and check its two-step set-up (Control Center -> Payment schedules)."],
+      pay_details_cancelled_unverified: ["A payment-details change for " + studio + " was cancelled",
+        by + " cancelled the payment-details change made by " + target + ". Clients keep the old details. " + by + " had no fresh two-step code, so the account was not flagged or signed out.", payLines,
+        "If the change was not genuine, an admin with two-step should check " + target + "'s account (password reset, two-step set-up): " + app + "/control.html#payment-schedules"],
+      pay_details_withdrawn: ["A payment-details change for " + studio + " was withdrawn", by + " withdrew their own payment-details change. Clients keep the old details.", payLines, ""],
+      pay_details_approved_early: ["New payment details for " + studio + " are live", by + " made the payment-details change by " + target + " live early. Clients see the new details now.", payLines,
+        "If this wasn't expected, check Control Center -> Payment schedules now: " + app + "/control.html#payment-schedules"],
+      reply_to_changed: ["The reply-to e-mail for " + studio + " was changed", "The studio reply-to address was changed by " + by + (at ? " at " + at : "") + ": " + em(d.old) + "  ->  " + em(d.new) + ". Client replies now go there.", "", "Check it on the Integrations page: " + app + "/integrations.html"],
+      business_email_changed: ["The business e-mail for " + studio + " was changed", "The studio business e-mail was changed by " + by + (at ? " at " + at : "") + ": " + em(d.old) + "  ->  " + em(d.new) + ".", "", "Check it in Control Center -> General: " + app + "/control.html#general"],
+      razorpay_keys_saved: ["Online payment keys for " + studio + " were changed", "The Razorpay keys were changed by " + by + (at ? " at " + at : "") + ": key " + m(d.old_key) + "  ->  " + m(d.new_key) + ".", "", "Check it on the Integrations page: " + app + "/integrations.html"],
+      razorpay_status_changed: ["Online payments for " + studio + " were switched " + (d.status === "disabled" ? "off" : "back on"), "Online payments (Razorpay) were switched " + (d.status === "disabled" ? "off" : "back on") + " by " + by + ".", "", "Integrations page: " + app + "/integrations.html"],
+      money_access_changed: ["Money access changed in " + studio, by + " changed \"" + (clip(d.area_label, 60) || "money access") + "\" for the role " + (clip(d.role, 40) || "-") + ": view " + (d.view === true ? "on" : "off") + ", edit " + (d.edit === true ? "on" : "off") + ".", "", "Control Center -> Roles: " + app + "/control.html"],
+      admin_invited: ["A new admin was invited to " + studio, by + " invited " + em(d.target_email) + " as an admin of " + studio + ".", "", "Control Center -> Users: " + app + "/control.html#users"],
+      admin_added: [target + " is now an admin of " + studio, target + " is now an admin of " + studio + (d.self === true ? "" : " (by " + by + ")") + ".", "", "Control Center -> Users: " + app + "/control.html#users"],
+      admin_removed: [target + " is no longer an admin of " + studio, target + " is no longer an admin of " + studio + (d.self === true ? "" : " (by " + by + ")") + ".", "", "Control Center -> Users: " + app + "/control.html#users"],
+      two_step_off: ["Two-step was turned off for an admin of " + studio, "Two-step verification was turned off for the admin " + target + ".", "", "Ask them to turn it back on: payment details and other sensitive settings can only be changed with two-step."],
+      flag_cleared: ["A flagged account in " + studio + " was cleared", by + " cleared the \"This wasn't us\" flag on " + target + ".", "", ""],
+      sessions_ended: [target + " was signed out everywhere", by + " signed " + target + " out of Helm on every device.", "", "They need their password (and two-step) to sign in again."],
+    }[d.event];
+    if (!S) return null;
+    return { subject: ("Helm security: " + S[0]).slice(0, 150),
+      text: [S[1], S[2], S[3], "If you did not expect this, reply to this e-mail or contact security@helm.events.", "- The Helm team"].filter(Boolean).join("\n\n") };
   }
   if (kind === "sales_enquiry_ack") {
     const name = clip(d.name, 80);

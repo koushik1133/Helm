@@ -193,7 +193,7 @@ do $$ declare r text; q uuid := 'a0000000-0000-4000-8000-00000000da01'; rf uuid;
   insert into public.vendor_bills(org_id, quote_id, amount) values ('a0000000-0000-4000-8000-000000000001', q, 500) returning id into bill;
   update public.event_closure set closed_at = now() where quote_id = q;
   r := pg_temp.as_try('a_staff@a.test', format('update public.event_refunds set amount = 150 where id = %L', rf));
-  perform pg_temp.t('refund edit: refused on a closed event', r like 'err:23514%closed%', r);
+  perform pg_temp.t('refund edit: refused on a closed event', (r like 'err:23514%closed%' or r like 'err:42501%closed%'), r);   -- r32 0282: the closed-event freeze may answer first
   r := pg_temp.as_try('a_staff@a.test', format('update public.vendor_bills set amount = 600 where id = %L', bill));
   perform pg_temp.t('vendor bill edit: refused on a closed event', r like 'err:23514%closed%', r);
   r := pg_temp.as_try('a_staff@a.test', format($q$select public.record_vendor_payout(%L, 100, null, 'cash', null, null)$q$, bill));

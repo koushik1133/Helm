@@ -119,7 +119,8 @@ function makeOrg(updateRows, opts) {
   };
   const supa = { from: builder };
   const ctx = vm.createContext({ supa, sessionStorage, SWR_PREFIX: 'bp_swr:', swr: (k, f) => f(), orgIdStrict: async () => (o.noOrg ? null : 'o1'),
-    rpc: async () => null, Promise, Object, Array, Error, console });
+    rpc: async () => null, Promise, Object, Array, Error, console,
+    withStepUp: (run) => run(), stepUpKind: () => null });   // r35 (0285): the two-step retry wrapper (tested in r35-paysafe)
   vm.runInContext(orgSlice() + '\nthis.org = org;', ctx);
   return { org: ctx.org, calls, ss };
 }

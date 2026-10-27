@@ -6,24 +6,24 @@ changed file is refused by the browser.
 
 | File | Source package | Version | Source path in package | sha384 (SRI) |
 |---|---|---|---|---|
-| `supabase-js-2.117.2.min.js` | `@supabase/supabase-js` (npm) | 2.117.2 | `dist/umd/supabase.js` (the minified UMD build; exposes `window.supabase`) | `sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok` |
+| `supabase-js-2.118.0.min.js` | `@supabase/supabase-js` (npm) | 2.118.0 | `dist/umd/supabase.js` (the minified UMD build; exposes `window.supabase`) | `sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK` |
 
-npm tarball integrity for 2.117.2:
-`sha512-eSG2VKnHR+Clp1PmidZ1/weJ8PJwoybjva3L2GgKqFG4YDS1Iqmc61psKGZP5xw6OMT2O7ZorPR42PY6q1BOXg==`.
+npm tarball integrity for 2.118.0 (r30, verified against the registry 2026-10-26):
+`sha512-FxI8UXMVC2UG7IkeiI8fuQZqq2oI3JeSuN8MPIC2RLVaoEAxKS0nqE6kii9Ewpq8f9gNPM6git1Y8f0vN/QLFw==`.
 
 Loaded by `public/store-api.js` → `loadSupabaseLib()`. The version, file name
 and integrity are in the `SUPABASE_JS` constant there.
 
 ## Sentry (CDN, SRI-pinned, not vendored)
 
-`public/telemetry.js` loads `https://browser.sentry-cdn.com/8.35.0/bundle.min.js`
+`public/telemetry.js` loads `https://browser.sentry-cdn.com/8.55.2/bundle.min.js`
 only when a DSN is configured, and sets `sc.integrity` to
-`sha384-j1K2/oFJn/QPiNs/Fk58NwXcaEbWzaUEF04vKMBnEprfbZ2hIQrAO0yc0XEfai1E`
+`sha384-lNMClDekFF9oPvouGJqnUSKioEadbe8byR7uGUA0sPP+g9r2x3eiErEJmm/Em+wB`
 (audit run-3 supply-chain/telemetry/sentry-cdn-script-no-sri). That value is the
 checksum Sentry publishes in its release registry
-(`release-registry.services.sentry.io/sdks/sentry.javascript.browser/8.35.0`, file
+(`release-registry.services.sentry.io/sdks/sentry.javascript.browser/8.55.2`, file
 `bundle.min.js`, `sha384-base64`) and it matched a hash of the CDN bytes on
-2026-10-17. A tampered file is refused by the browser. To change version, update
+2026-10-26 (r30 bump from 8.35.0). A tampered file is refused by the browser. To change version, update
 `SENTRY_SRC`, `SENTRY_SRI` and the CSP `script-src` directory in
 `scripts/csp-hashes.cjs` together.
 

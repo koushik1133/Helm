@@ -47,7 +47,8 @@
     star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z",
     help: "M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01",
     plus: "M12 5v14M5 12h14",
-    sliders: "M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1M15 5v4M9 10v4M17 15v4"
+    sliders: "M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1M15 5v4M9 10v4M17 15v4",
+    gift: "M4 9h16v4H4zM5 13v7h14v-7M12 9v11M12 9c-1.5-3-5-3.5-5-1.2C7 9 9 9 12 9zM12 9c1.5-3 5-3.5 5-1.2C17 9 15 9 12 9z"   /* r29: Refer a studio */
   };
   var NS = "http://www.w3.org/2000/svg";
   function icon(name) {
@@ -645,6 +646,8 @@
             if (fin && !document.querySelector('#hbRail .hb-group:not(.hb-fav) [data-key="business"]')) { /* planner-1023: the first item may sit inside an .hb-row wrapper — insert before the admin group's own child, never a grandchild (that threw and left Manage hidden) */
               var ref = admin.querySelector(".hb-item"); while (ref && ref.parentNode !== admin) ref = ref.parentNode;
               admin.insertBefore(item("business", "Business", "business.html", "business"), ref || null); }
+            /* r29 referrals (phase 1, UI only): "Refer a studio" for the people who see the studio's money (same gate as Business) */
+            if (fin && !document.querySelector('#hbRail .hb-group:not(.hb-fav) [data-key="refer"]')) admin.appendChild(item("gift", "Refer a studio", "refer.html", "refer"));
             manage.hidden = !manage.querySelector(".hb-item");
             admin.hidden = !admin.querySelector(".hb-item");
             if (done) done();
