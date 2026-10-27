@@ -197,7 +197,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="trial-terms.css?v=4">
-<script src="/shell-proto.js?v=46" id="shellProto"></script>
+<script src="/shell-proto.js?v=47" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -329,9 +329,10 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=111"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=6"></script><script src="store-api.js?v=296"></script><script src="flow-resume.js?v=6" data-mount></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=6"></script><script src="store-api.js?v=297"></script><script src="flow-resume.js?v=6" data-mount></script>
 <script src="event-reminders.js?v=5"></script>
-<script src="tour.js?v=24"></script>
+<script src="page-tours.js?v=1"></script>
+<script src="tour.js?v=25"></script>
 <script src="getting-started.js?v=12"></script>
 <script src="onboarding-wizard.js?v=11"></script>
 <script src="trial-facts.js?v=6"></script>
@@ -855,9 +856,11 @@
     {sel:['[data-tour="hero"]','#hdDash'], title:"Your day at a glance", desc:"A greeting with a summary of your day and, on the right, a countdown to your next event."},
     {sel:'[data-tour="customize"]', title:"Make the dashboard yours", desc:"Click Customize to arrange your dashboard. Drag any card by its ⋮⋮ handle to change the order, tap the eye on a card to hide it, and use Reset to bring back the default layout. Press Done to save it — your layout follows your account to any computer."},
     {sel:'[data-tour="kpis"]', uses:"finance", alt:(can)=>can("finance")?null:{desc:"Your headline counts at a glance. The cards below cover your month, what needs attention and the pipeline."}, title:"Key numbers", desc:"Your headline counts at a glance. The cards below cover your month, what needs attention, revenue and the pipeline."},
+    // r47 (#286): "My events & tasks" (my_pending) - best-effort; hidden (and this step skipped) when it cannot load
+    {sel:'#myworkSection', title:"My events & tasks", desc:"The events you are on, with your tasks for each and a badge for anything new. If it can't load for a moment it simply stays hidden - the rest of the dashboard carries on."},
     // 4 · checklist (not in a free trial: its studio is ready-made), then wrap-up
     {sel:['[data-tour="setup"]','[data-tour="checklist"]','#hdGetSet'], trial:false, title:"Getting started checklist", desc:"A short list of first steps, like adding your logo and sending your first quote. Click it to see what's left; it ticks itself off as you go."},
-    {title:"You're all set 🎉", desc:"Want this tour again? Click the ? button in the top bar, or “Take a guided tour” in the sidebar (the “More” menu on a phone), any time."},
+    {title:"You're all set 🎉", desc:"Every page has its own tour. Click the ? button in the top bar and pick “Tour this page”, or “Tour this page” in the sidebar (the “More” menu on a phone), any time."},
   ];
   // The spotlight engine lives in tour.js (shared with every page): it re-glues the
   // ring on scroll/resize/orientation/layout changes, flips + clamps the tip inside

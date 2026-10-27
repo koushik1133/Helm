@@ -17,7 +17,7 @@ assert.match(trialW, /Your free trial/); assert.match(trialW, /TOUR_DAYS/); asse
 assert.doesNotMatch(trialW, /8-day|Demo ·/);
 assert.match(paidW, /quick look around your studio/);
 assert.doesNotMatch(paidW, /trial|sample data|Demo ·/i);
-assert.match(steps[steps.length - 1], /Take a guided tour/);
+assert.match(steps[steps.length - 1], /Tour this page/);
 const anchors = [...block.matchAll(/\[data-tour="([\w-]+)"\]/g)].map((m) => m[1]);
 for (const a of new Set(anchors)) {
   const tagged = SRC.includes('"data-tour", "' + a + '"') || SRC.includes('data-tour="' + a + '"') || SRC.includes('"data-tour": "' + a + '"')
