@@ -453,12 +453,18 @@
     run(); try { new MutationObserver(run).observe(host, { childList: true, subtree: true }); } catch (e) {}
   }
 
+  /* R36: event times are stored as "18:30" or "6:30 PM" - one parser (HelmCountry.parseTime) so PM never reads as AM.
+     Without country-profile.js only plain 24h is trusted. Returns { h, m } or null. */
+  function parseHM(t) {
+    var HC = window.HelmCountry; if (HC && HC.parseTime) return HC.parseTime(t);
+    var m = /^(\d{1,2}):(\d{2})(?!\d|\s*[ap]\.?\s*m)/i.exec(String(t == null ? "" : t)); return m && +m[1] < 24 && +m[2] < 60 ? { h: +m[1], m: +m[2] } : null;
+  }
   /* ---------- countdown to the next event (interval paused while the tab is hidden) ---------- */
   function countdown(panel, ev, label) {
     var timer = null, last = {};
-    var tm = ev.time && /^(\d{1,2}):(\d{2})/.exec(String(ev.time));
+    var tm = ev.time && parseHM(ev.time);                  // R36: "6:30 PM" counts down to 18:30, not 06:30
     var target = dOf(ev.date); if (!target) return;
-    if (tm) target.setHours(+tm[1], +tm[2], 0, 0);
+    if (tm) target.setHours(tm.h, tm.m, 0, 0);
     clear(panel);
     panel.appendChild(el("p", "hd-eyebrow", label));
     var nm = link(evHref(ev.id), "hd-next-name", ev.name); panel.appendChild(nm);
@@ -1234,7 +1240,7 @@
       return s;
     }
     function metaI(ic, text, cls) { var m = el("span", "hd-mi" + (cls ? " " + cls : "")); m.appendChild(icon(ic)); m.appendChild(el("span", null, text)); return m; }
-    function hhmm(t) { var m = t && /^(\d{1,2}):(\d{2})/.exec(String(t)); return m ? (m[1].length < 2 ? "0" : "") + m[1] + ":" + m[2] : ""; }
+    function hhmm(t) { var p = t && parseHM(t); return p ? (p.h < 10 ? "0" : "") + p.h + ":" + (p.m < 10 ? "0" : "") + p.m : ""; }
     function ring(done, total) {                                             // readiness ring: tasks done / total
       var f = total ? done / total : 0, C = 2 * Math.PI * 15, w = el("span", "hd-ring" + (f >= 1 ? " hd-ring-ok" : ""));
       w.setAttribute("role", "img"); w.setAttribute("aria-label", done + " of " + total + " tasks done"); w.title = "Readiness: " + done + "/" + total + " tasks done";

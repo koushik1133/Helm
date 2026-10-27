@@ -155,14 +155,16 @@ t('noindex covers every non-marketing page; marketing pages stay indexable', () 
   assert.equal(vercelHeaders('/')['x-robots-tag'], undefined, '/ must stay indexable');
 });
 
-t('base CSP: no CDN hosts (builder-only); pinned Sentry bundle dir kept, NO wildcard Sentry ingest (dormant, audit run-3); img/media locked', () => {
+t('base CSP: no CDN hosts (builder-only); pinned Sentry bundle dir kept, ONLY the exact Sentry ingest host (R45, audit run-3); img/media locked', () => {
   const c = cspMap(vercelHeaders('/dashboard')['content-security-policy']);
   assert.ok(!/jsdelivr/.test(c['script-src'] + c['connect-src']), 'jsdelivr back in base CSP (supabase-js is self-hosted in /vendor/)');
   assert.ok(!/cdnjs/.test(c['script-src']), 'cdnjs back in base CSP (three.js is builder-only — scripts/csp-hashes.cjs)');
-  assert.match(c['script-src'], /(^| )https:\/\/browser\.sentry-cdn\.com\/8\.35\.0\/( |$)/);
-  // audit run-3 client/csp: any Sentry org's *.ingest host is an exfil channel; the
-  // exact ingest host is added only when a DSN is configured (public/telemetry.js).
-  assert.ok(!/ingest/.test(c['connect-src']), 'wildcard Sentry ingest back in connect-src (DSN is not set)');
+  assert.match(c['script-src'], /(^| )https:\/\/browser\.sentry-cdn\.com\/8\.55\.2\/( |$)/);
+  // audit run-3 client/csp: any Sentry org's *.ingest host is an exfil channel; only the
+  // EXACT ingest host of the DSN in public/config.js is allowed (R45: project "helm").
+  const ingest = c['connect-src'].split(' ').filter((x) => /sentry/.test(x));
+  assert.deepEqual(ingest, ['https://o4512062490738688.ingest.us.sentry.io'], 'connect-src must carry exactly the DSN ingest host');
+  assert.ok(!/\*/.test(c['connect-src']), 'no wildcard host in connect-src');
   assert.ok(!/(^| )https:( |$)/.test(c['img-src']) && !/(^| )https:( |$)/.test(c['media-src']), 'base img/media-src must not allow any https: host');
   // Hash-based CSP: inline scripts are allowed only by their sha256 hash.
   assert.ok(!/'unsafe-inline'/.test(c['script-src']), "script-src must not allow 'unsafe-inline'");

@@ -60,7 +60,7 @@ t('edge function: dormant unless HELM_COMMS_ENABLED, shared-secret gated, fixed 
   assert.match(fn, /new Set\(\["api\.resend\.com", "graph\.facebook\.com"\]\)/);
   assert.match(fn, /redirect: "error"/);
   assert.match(fn, /"Idempotency-Key": "comms-" \+ id/);
-  assert.match(fn, /from "npm:@supabase\/supabase-js@2\.117\.2"/);
+  assert.match(fn, /from "npm:@supabase\/supabase-js@2\.118\.0"/);
   for (const m of fn.matchAll(/console\.(?:log|error)\(([^;]*)\);/g)) assert.doesNotMatch(m[1], /\bto\b|text|payload|recipient|subject/, 'PII in log: ' + m[1]);
   assert.match(fn, /p_status: res === "failed" \? "retry" : res/);
 });

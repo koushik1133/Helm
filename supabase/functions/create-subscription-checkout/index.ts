@@ -29,7 +29,7 @@
 // Error contract (JSON {error, kind}): kind = "validation" (400, message is safe to
 // show), "declined" (402/502, provider refused), "security" (401/403/429, generic
 // message only), "dormant" (503), "server" (500).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped } from "../_shared/limits.ts";
 
@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
 
     const auth = "Basic " + btoa(keyId + ":" + keySecret);
     const rzp = (path: string, init: RequestInit = {}) =>
-      fetch("https://api.razorpay.com/v1/" + path, { ...init, headers: { "Authorization": auth, "Content-Type": "application/json" } });
+      fetch("https://api.razorpay.com/v1/" + path, { ...init, redirect: "error", headers: { "Authorization": auth, "Content-Type": "application/json" } });
 
     // the Razorpay plan must charge exactly what the page showed
     const pr = await rzp("plans/" + rzpPlan);
