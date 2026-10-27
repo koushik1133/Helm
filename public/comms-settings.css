@@ -1,4 +1,4 @@
-/* 0078 Control Center: automatic client messages + WhatsApp forwarding */
+/* 0078 Settings: automatic client messages + WhatsApp forwarding */
 #commsCard .cmset{border:1px solid var(--line);border-radius:10px;padding:10px 14px 12px;margin:12px 0 0;min-width:0}
 #commsCard .cmset legend{font-weight:700;font-size:13px;padding:0 6px;color:var(--ink)}
 #commsCard .cmchk{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);margin:4px 14px 4px 0;text-transform:none;letter-spacing:normal;font-weight:500}

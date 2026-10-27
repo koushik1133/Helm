@@ -113,7 +113,7 @@
       if (/42501|not authorized/i.test(c)) denied = true;
     }
     if (!denied && !ov) {
-      // server older than 0134: still show the guides, gate on Control Center view
+      // server older than 0134: still show the guides, gate on Settings view
       try { denied = !(await S.auth.canView("controls")); } catch (e) { denied = false; }
     }
     if (denied) { doc.getElementById("noaccess").hidden = false; return; }
@@ -209,7 +209,7 @@
   function wireWhatsapp(doc, S, state, repaint) {
     var form = doc.getElementById("itgWaForm"), ro = doc.getElementById("itgWaRo");
     if (!form) return;
-    // same edit right as comms_settings_set (Control Center edit); es.can_edit carries it (0150),
+    // same edit right as comms_settings_set (Settings edit); es.can_edit carries it (0150),
     // else ask the auth helper
     var canEdit = state.es ? state.es.can_edit === true : null;
     var go = function (ok) {

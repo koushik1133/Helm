@@ -98,6 +98,7 @@ var HelmUrl = (function (global) {
   }
   function page() {
     if (route) return route.page;
+    try { if (/^\/settings\/?$/.test(global.location.pathname)) return "control"; } catch (e) {}   // R38: bare /settings = control.html
     try { return (global.location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "") || "index"; } catch (e) { return "index"; }
   }
   // where am I, for login ?next= (pretty path kept; legacy: page + query)
@@ -1234,7 +1235,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "53";
+  const AUTH_UI_VERSION = "54";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1250,10 +1251,10 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "14";
+  const STUDIO_SEARCH_VERSION = "15";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
-  const NAV_TRAIL_VERSION = "6";
+  const NAV_TRAIL_VERSION = "7";
   if (typeof global.HelmTrail === "undefined") {
     global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
   }
@@ -1276,7 +1277,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0185 — the "Sample" badge on sample rows (every studio page) + the upgrade data choice cards.
   // trial-upgrade.js asks my_demo_status() / my_upgrade_status() itself and does nothing without sample data.
-  const TRIAL_UPGRADE_VERSION = "2";
+  const TRIAL_UPGRADE_VERSION = "3";
   let trialUpgradeLoading = false;
   function loadTrialUpgrade() {
     if (trialUpgradeLoading || typeof document === "undefined" || global.HelmTrialUpgrade) return;
@@ -1326,7 +1327,7 @@ window.HelmUrl = HelmUrl;
   // manager/planner/sales per their "quote_create" matrix switch (default ON). can() checks it too.
   const ROLE_CAPS = {
     admin:       ["view", "create", "edit", "delete", "manage"],
-    manager:     ["view", "create", "edit"],   // manager-1019: "manage" was never checked; Control Center access comes from role_access "controls"
+    manager:     ["view", "create", "edit"],   // manager-1019: "manage" was never checked; Settings access comes from role_access "controls"
     planner:     ["view", "create", "edit", "delete"],
     sales:       ["view", "create", "edit"],
     coordinator: ["view", "edit"],
@@ -1351,7 +1352,7 @@ window.HelmUrl = HelmUrl;
   const roleLabel = (r) => ROLE_LABELS[r] || r;
 
   // Fine-grained AREAS the access matrix governs (key must match role_access.area
-  // and phase29-role-access.sql). label/icon/page power the Control Center editor
+  // and phase29-role-access.sql). label/icon/page power Settings editor
   // and the dashboard nav. page=null → area is a workspace card, not its own nav link.
   const AREAS = [
     { key: "leads",      label: "Leads",             icon: "🎯", page: "leads.html",     group: "Pipeline" },
@@ -1372,7 +1373,7 @@ window.HelmUrl = HelmUrl;
     { key: "vendors",    label: "Vendors",           icon: "🤝", page: "vendors.html",   group: "Resources" },
     { key: "calendar",   label: "Calendar",          icon: "📅", page: "calendar.html",  group: "Resources" },
     { key: "templates",  label: "Templates",         icon: "🧩", page: "templates.html", group: "Resources" },
-    // 0085: studio venue list (Control Center -> Venues; picker in the quote flow + builder)
+    // 0085: studio venue list (Settings -> Venues; picker in the quote flow + builder)
     { key: "venues",     label: "Venues",            icon: "🏛", page: null,             group: "Resources" },
     { key: "resources",  label: "Resource plan",     icon: "🧮", page: null,             group: "Planning" },
     { key: "runsheet",   label: "Run-sheet",         icon: "🗓", page: null,             group: "Planning" },
@@ -1392,7 +1393,7 @@ window.HelmUrl = HelmUrl;
     { key: "deliveries", label: "Deliveries & arrivals (reminders)", icon: "🚚", page: null, group: "Event day", defaultFrom: "command" },
     { key: "issues",     label: "Issues & incidents",icon: "🚨", page: null,             group: "Event day" },
     { key: "media",      label: "Media & gallery",   icon: "📸", page: null,             group: "Event day" },
-    { key: "controls",   label: "Control Center",    icon: "⚙", page: "control.html",   group: "Admin" },
+    { key: "controls",   label: "Settings",    icon: "⚙", page: "control.html",   group: "Admin" },
     // 0239 (r20): the Business page (studio money: P&L, vendor payables). Its own switch, separate from
     // "Budget & finance" (planners keep finance for payments / settlement / closure on events). No row = off:
     // admin only until a studio switches it on for a role here.
@@ -1400,7 +1401,7 @@ window.HelmUrl = HelmUrl;
     // 0076: date-ranged Insights page (insights_range). Money inside it also needs "finance".
     { key: "insights",   label: "Insights",          icon: "📊", page: null,             group: "Admin" },
     { key: "codes",      label: "Coupons & codes",   icon: "🔑", page: null,             group: "Admin" },
-    // 0086: item rate cards (Control Center -> Item pricing). view = see rates, edit = change them.
+    // 0086: item rate cards (Settings -> Item pricing). view = see rates, edit = change them.
     // Adjusting an item's spec on a quote stays with quotes edit rights.
     { key: "item_pricing", label: "Item pricing (rate cards)", icon: "🏷", page: null, group: "Admin" },
     { key: "users",      label: "Users & access",    icon: "👥", page: "control.html",   group: "Admin" },
@@ -3188,7 +3189,9 @@ window.HelmUrl = HelmUrl;
   const rpc = async (fn, args) => {
     if (!supa) throw new Error("Supabase not configured");
     const { data, error } = await supa.rpc(fn, args);
-    if (error) { if (looksLikeAuthError(error)) onAuthFailure(); throw error; }
+    if (error) { if (looksLikeAuthError(error)) onAuthFailure();
+      try { if (typeof error.message === "string" && global.HelmSettingsName) error.message = global.HelmSettingsName(error.message); } catch (_) {}   // R38
+      throw error; }
     return data;
   };
   // crew-1020: worker link RPCs take a uuid token; a malformed one gets the same clean
@@ -3366,7 +3369,7 @@ window.HelmUrl = HelmUrl;
   };
 
   // r23 (0262) quote "Valid until" (PandaDoc / Zoho model). Staff reads need quotes VIEW, changes quotes EDIT
-  // (custom dates only when the studio allows them, admins always); settings = Control Center EDIT; "apply to open
+  // (custom dates only when the studio allows them, admins always); settings = Settings EDIT; "apply to open
   // quotes" = admin. The two public calls are the signed-out client pages (token-scoped, rate-limited server-side).
   // Before 0262 every read answers null / {} / [] (the screens then show nothing) and writes say "needs 0262".
   const qvMissing = (e) => { if (rpcMissing(e)) { const er = new Error("Quote validity needs database update 0262 (ask your admin to run APPLY-0262.sql)."); er.code = "quote_validity_missing"; return er; } return e; };
@@ -3541,7 +3544,7 @@ window.HelmUrl = HelmUrl;
 
   /* ---------------- control center: pricing config, vendors, coupons ---------------- */
   const PRICING_DEFAULTS = { chairPrice:200, platePrice:500, gstPct:18, serviceChargePct:0, currency:"INR", conflictBufferHours:3,
-    // Capacity ceilings (editable in Control Center). They keep the layout builder from
+    // Capacity ceilings (editable in Settings). They keep the layout builder from
     // being asked to render absurd counts (which froze the app), and drive the inline
     // "Maximum is N" hints. Additive config keys — old blobs fall back to these.
     maxGuests:20000, maxChairs:20000, maxPlates:20000, maxRoundTables:2000, maxBars:200,
@@ -3585,7 +3588,7 @@ window.HelmUrl = HelmUrl;
      so the number is always the same everywhere. Inputs come from the layout
      (chairs + objects), the guest count, and the applied menu package's
      per-plate price. Object prices fall back to a category default, then to
-     Control-Centre overrides (rates.assetPrices).                         */
+     Settings overrides (rates.assetPrices).                         */
   const OBJECT_CAT_PRICE = { structure:15000, seating:2500, av:9000, security:2000, logistics:4000, safety:1500, decor:12000 };
   const OBJECT_PRICE = {
     stage:45000, tent:35000, canopy:25000, mandap:75000, arch:9000, floralarch:15000,
@@ -3612,7 +3615,7 @@ window.HelmUrl = HelmUrl;
      An item placed on the floor (item.properties.spec) can carry a SPEC — e.g. a stage's
      length x width x height, a generator's kVA and days, a DJ's power connection. When it
      does, its price comes from the studio's RATE CARD for that item type (editable in
-     Control Center -> Item pricing, stored per studio in item_rate_cards, 0086). Items
+     Settings -> Item pricing, stored per studio in item_rate_cards, 0086). Items
      WITHOUT a spec keep the old flat catalog price, so existing quotes never change.
      A missing / zero-length rate falls back to the catalog price with a "rate not set" note;
      a bad spec (negative, absurd, not a number) falls back the same way ("spec invalid").
@@ -3634,7 +3637,7 @@ window.HelmUrl = HelmUrl;
       smoke:     { perUnit: { cold_pyro: 2500, low_fog: 6000, dry_ice: 5000 } },
       dancers:   { perDancerShow: 3500, perDancerHour: 1500 },
     };
-    // option labels for the Adjust popup + the Control Center card (keys = rate keys)
+    // option labels for the Adjust popup + Settings card (keys = rate keys)
     const LABELS = {
       pin2: "2-pin (single phase, small)", pin3: "3-pin (single phase, earthed)", pin4: "4-pin (3-phase)",
       console: "DJ + console", speakers2: "DJ + console + 2 speakers", speakers4: "DJ + console + 4 speakers",
@@ -3784,7 +3787,7 @@ window.HelmUrl = HelmUrl;
       if(OBJECT_PRICE[t]!=null) return OBJECT_PRICE[t];
       return OBJECT_CAT_PRICE[it.category] || 3000; },
     // chairs + itemised object lines from a layout items array
-    // 0086: the studio's item rate cards (Control Center -> Item pricing). Loaded by
+    // 0086: the studio's item rate cards (Settings -> Item pricing). Loaded by
     // config.getPricing(); until then the shipped defaults (same as the DB seed) apply.
     ITEM_SPEC, itemRates: null,
     setItemRates(r){ this.itemRates = (r && typeof r === "object") ? r : null; },
@@ -4524,7 +4527,7 @@ window.HelmUrl = HelmUrl;
     },
     async setActive(id, active) { return this.update(id, { active: !!active }); },
     // 0041: a row with profile_id is LINKED to a Helm account — its name / phone / e-mail /
-    // department / title follow the member's profile (edited in Control Center → User control).
+    // department / title follow the member's profile (edited in Settings → User control).
     isLinked: (s) => !!(s && s.profile_id),
     normPhone: memberNormPhone,
     phoneE164: memberPhoneE164,
@@ -4974,7 +4977,7 @@ window.HelmUrl = HelmUrl;
     },
   };
 
-  /* ---------------- chair types (Control Center catalog, Phase 33) ---------------- */
+  /* ---------------- chair types (Settings catalog, Phase 33) ---------------- */
   const chairTypes = {
     async list(includeInactive) {
       if (mode !== "supabase") return readLs("bp_chair_types");
@@ -5114,7 +5117,7 @@ window.HelmUrl = HelmUrl;
       }
       if (error) throw error;
       if (Array.isArray(data) && data.length === 0) {
-        const e = new Error("Nothing was changed: only a studio admin (or someone allowed to edit Control Center) can change the studio settings.");
+        const e = new Error("Nothing was changed: only a studio admin (or someone allowed to edit Settings) can change the studio settings.");
         e.code = "42501"; e.hint = "org_not_updated"; throw e;
       }
       // r19-studio-name: a rename / new logo shows at once in the rail, top bar, dashboard and profile menu (one fresh read)
@@ -5246,7 +5249,7 @@ window.HelmUrl = HelmUrl;
     move: (quoteId, shelf) => rpc("move_quote_to_shelf", { p_quote_id: quoteId, p_shelf: shelf }),
     restore: (quoteId) => rpc("restore_quote_from_shelf", { p_quote_id: quoteId }),
     // opening Quotes / Dashboard: moves quotes whose client link expired, per the studio's
-    // Control Center choice — the server runs it at most once per 10 minutes per studio
+    // Settings choice — the server runs it at most once per 10 minutes per studio
     // la-fetch (audit 44): once per 10 minutes per tab (the server's own per-studio limit), not on every
     // open of Quotes / Dashboard - a write on page open also dropped every shared read of that page
     // (coalescedFetch), so the page's start-up reads ran twice. pg_cron (0040 helm_link_expiry_shelf,
@@ -7085,7 +7088,7 @@ window.HelmUrl = HelmUrl;
       //    A venue can host back-to-back events if there's enough of a gap between their
       //    start times (e.g. one at 3pm, the next at 6pm). So we only flag a clash when two
       //    different events at the SAME venue on the SAME day start CLOSER together than the
-      //    buffer. The buffer (hours) is set in Control Center → Pricing (conflictBufferHours,
+      //    buffer. The buffer (hours) is set in Settings → Pricing (conflictBufferHours,
       //    default 3). If an event has no start time we can't measure the gap, so we flag it
       //    to review rather than silently miss it. Venue identity matches on name, or address
       //    when the name is blank (no longer requires BOTH to be filled).
@@ -8698,7 +8701,7 @@ window.HelmUrl = HelmUrl;
       pkg_selected: ["📦", "Client chose a package" + (d.package ? ": " + d.package : "") + (d.event_code ? " · " + d.event_code : "")],
       pkg_accepted: ["✅", "Package choice accepted" + (d.event_code ? " · " + d.event_code : "")],
       pkg_declined: ["↩️", "Package choice declined" + (d.event_code ? " · " + d.event_code : "")],
-      // 0077: Control Center prices changed after this future quote was priced (quote editors only — server-gated)
+      // 0077: Settings prices changed after this future quote was priced (quote editors only — server-gated)
       price_change: ["🏷️", "Prices changed — review & re-price" + (d.event_code ? " · " + d.event_code : "")],
       pkg_payment: ["💸", "Package payment received" + (d.event_code ? " · " + d.event_code : "")],
       // 0078: low stock on an event date / automatic client follow-up
@@ -8814,7 +8817,7 @@ window.HelmUrl = HelmUrl;
         catch (e) { return { hidden: [] }; }
       },
       // studio admin only (the DB refuses anyone else): catalog + effective matrix
-      // r22: the Control Center list names security alerts "(Helm HQ only)" even before the database catalog says so
+      // r22: Settings list names security alerts "(Helm HQ only)" even before the database catalog says so
       get: async () => { const r = await rpc("admin_get_notification_prefs", {});
         try { (r && Array.isArray(r.catalog) ? r.catalog : []).forEach((c) => { if (c && c.type === "security_alert") c.label = BELL_TYPE_LABELS.security_alert; }); } catch (e) {}
         return r; },
@@ -8944,7 +8947,7 @@ window.HelmUrl = HelmUrl;
         let f = null; try { f = await this.feed(20); } catch {} noteInbox(f); await loadChat();
         if (!isOpen) return;
         lastItems = mergedFeed(f && f.items); loaded = true; render(); if (f) popToasts(lastItems);   // panel open → just moves the baseline
-        // r23 (0266): with the inbox, opening the bell no longer marks everything read (Control Center switch "opening the bell marks read")
+        // r23 (0266): with the inbox, opening the bell no longer marks everything read (Settings switch "opening the bell marks read")
         if (!inboxOn || openMarksRead) { try { await this.markSeen(); } catch {} setDot(0); }   // event notifs cleared; any chat unread keeps the dot until that chat is opened
         else setDot(serverUnread(f));
       };
@@ -9215,7 +9218,7 @@ window.HelmUrl = HelmUrl;
       try { return await rpc("get_studio_target_margin", {}); }
       catch (e) { if (rpcMissing(e)) return null; throw e; }
     },
-    // Control Center edit / admins only (server re-checks has_area('controls','edit')); 0 to 90, kept to 1 decimal
+    // Settings edit / admins only (server re-checks has_area('controls','edit')); 0 to 90, kept to 1 decimal
     async setTargetMargin(pct) {
       const raw = String(pct == null ? "" : pct).trim(), n = Number(raw);
       if (raw === "" || !isFinite(n) || n < 0 || n > 90) throw Object.assign(new Error("Target margin must be a number from 0 to 90."), { code: "22023" });
@@ -9293,7 +9296,7 @@ window.HelmUrl = HelmUrl;
   };
 
   /* ---------------- member profiles (0041) — where profiles show up ----------------
-     Shared by Control Center → User control, the Staff directory, task pickers, chat and
+     Shared by Settings → User control, the Staff directory, task pickers, chat and
      the audit log. The DB decides who sees what (member_profile_list hides phone / city /
      emergency contact from colleagues); nothing here assumes a field is present.
      Client checks mirror 0041's SQL validators so mistakes show inline, before a round trip. */
@@ -9321,6 +9324,12 @@ window.HelmUrl = HelmUrl;
     ["\u00e2\u20ac\u201d", "\u2014"], ["\u00e2\u20ac\u201c", "\u2013"], ["\u00e2\u20ac\u2122", "\u2019"], ["\u00e2\u20ac\u00a6", "\u2026"]];
   function demojibake(t) { let s = String(t == null ? "" : t); MOJI.forEach(([a, b]) => { s = s.split(a).join(b); }); return s; }
   global.HelmDemojibake = demojibake;
+  // R38: the studio admin area is now called "Settings". Texts written by older database code (error messages,
+  // the notification catalog) can still carry the old name; they are shown with the new one. Display only. r38-keep
+  const SETTINGS_NAME = [[/\b[Tt]he Control[ -]Cent(?:er|re)'s\b/g, "the Settings page's"], [/\bControl[ -]Cent(?:er|re)'s\b/g, "the Settings page's"],   // r38-keep
+    [/\b[Tt]he Control[ -]Cent(?:er|re)\b/g, "Settings"], [/\bControl[ -]Cent(?:er|re)\b/g, "Settings"], [/\bCONTROL[ -]CENT(?:ER|RE)\b/g, "SETTINGS"]];   // r38-keep
+  function settingsName(t) { let s = String(t == null ? "" : t); SETTINGS_NAME.forEach(([a, b]) => { s = s.replace(a, b); }); return s; }
+  global.HelmSettingsName = settingsName;
   // r7: a phone for staff / nurture → { ok, value: E.164 | null, error }. Digits with an optional
   // leading +, 7–15 digits; spaces . - ( ) ignored; a bare 10-digit (or 0 + 10) number is India (+91).
   function memberPhoneE164(raw, required) {
@@ -9411,7 +9420,7 @@ window.HelmUrl = HelmUrl;
   // a DB business message from 0041 (validation / duplicate number / linked staff row) that is
   // safe to show as-is → that text; anything else → null (the caller uses BPUI.friendlyError)
   function memberErrorText(e) {
-    const c = (e && e.code) || "", m = String((e && e.message) || "").trim();
+    const c = (e && e.code) || "", m = settingsName(String((e && e.message) || "").trim());   // R38
     if (!m || m.length > 300 || /violates|constraint|duplicate key|column|relation|syntax|PGRST|SQLSTATE/i.test(m)) return null;
     if (c === "22023" || c === "23505") return m;
     if (c === "42501" && /linked to (a Helm|an) account|Only a studio admin/i.test(m)) return m;
@@ -9922,7 +9931,7 @@ window.HelmUrl = HelmUrl;
   };
 
   /* ---------------- 0078 automatic client messages + WhatsApp forwarding ----------------
-     Settings live server-side (comms_settings, Control Center admins). Sending is done ONLY by the
+     Settings live server-side (comms_settings, Settings admins). Sending is done ONLY by the
      server (cron + the dormant comms-dispatch edge function); the browser never sends. */
   // {placeholder} preview — mirrors public._comms_render (unknown placeholders stay as typed)
   function commsRender(tpl, vars) {
@@ -9948,7 +9957,7 @@ window.HelmUrl = HelmUrl;
     reminderUpcoming: () => (supa ? rpc("event_reminder_upcoming", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
   };
 
-  // 0264 (r23): payment schedules - templates (Control Center), the per-event schedule with paid / part paid / due /
+  // 0264 (r23): payment schedules - templates (Settings), the per-event schedule with paid / part paid / due /
   // overdue, apply a template (with preview), pause automatic reminders, the client page. Every rule is in the database;
   // null = the server is older than 0264.
   const paySchedule = {
@@ -9975,7 +9984,7 @@ window.HelmUrl = HelmUrl;
     runsheetTargets: (quoteId) => (supa ? rpc("runsheet_reminder_targets", { p_quote: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; })
       : Promise.resolve(null)),
     teamOptions: () => (supa ? rpc("runsheet_team_options", {}).then((d) => (Array.isArray(d) ? d : [])).catch(() => []) : Promise.resolve([])),
-    // r25 (0274): every automation's on / off in one read, and ONE switch (Control Center edit, checked + logged in the database).
+    // r25 (0274): every automation's on / off in one read, and ONE switch (Settings edit, checked + logged in the database).
     // null from overview() = the server is older than 0274 (the page then falls back to each feature's own settings).
     overview: () => (supa ? rpc("automation_overview", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
     switchOn: (key, on) => (supa ? rpc("automation_switch", { p_key: String(key || ""), p_on: !!on }) : Promise.reject(new Error("Needs a signed-in studio."))),
@@ -10035,8 +10044,8 @@ window.HelmUrl = HelmUrl;
   };
 
   // r23 (0261): client link views ("Viewed 3x - last 2h ago"), the timeline, "viewed, not approved" follow-ups,
-  // Send a nudge (queued; comms-dispatch sends it) and the Control Center settings. Every check is in the database
-  // (same studio + Quotes view / edit / Control Center edit). null = the server is older than 0261.
+  // Send a nudge (queued; comms-dispatch sends it) and Settings. Every check is in the database
+  // (same studio + Quotes view / edit / Settings edit). null = the server is older than 0261.
   const LV_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   let lvAttn = null, lvAttnAt = 0;
   const lvNull = (e) => { if (rpcMissing(e)) return null; throw e; };
@@ -10475,7 +10484,7 @@ window.HelmUrl = HelmUrl;
       setMode: (mode) => rpc("set_trial_mode", { p_mode: mode === "demo" ? "demo" : "own" }),
       seed: () => rpc("seed_demo_data"),
       clear: () => rpc("clear_demo_data"),
-      // 0166 — Control Center "Clear sample data": admin of a trial / ex-trial studio; removes ONLY is_demo rows.
+      // 0166 — Settings "Clear sample data": admin of a trial / ex-trial studio; removes ONLY is_demo rows.
       clearSample: () => rpc("clear_sample_data"),
       reset: () => rpc("reset_demo_data"),
       // 0127 — after subscribing: "fresh" removes ONLY this studio's is_demo rows, "keep" keeps them.
@@ -10489,7 +10498,7 @@ window.HelmUrl = HelmUrl;
       choose: (choice, confirm) => rpc("upgrade_data_choice", {
         p_choice: choice === "clean" || choice === "remove_sample" ? choice : "keep",
         p_confirm: confirm == null ? null : String(confirm).slice(0, 40) }),
-      // Control Center "Delete all sample data": is_demo rows only (own records never touched)
+      // Settings "Delete all sample data": is_demo rows only (own records never touched)
       deleteSample: () => rpc("delete_all_sample_data"),
       // undo of "Start completely clean": every archived record back in the lists
       restore: () => rpc("restore_clean_start"),
@@ -10724,7 +10733,7 @@ window.HelmUrl = HelmUrl;
       try { return await rpc("stage_machine_settings", {}); }
       catch (e) { if (rpcMissing(e)) return null; throw e; }
     },
-    // studio admin with Control Center edit; guardMode "warn" | "enforce" (null = keep), showHistory boolean (null = keep)
+    // studio admin with Settings edit; guardMode "warn" | "enforce" (null = keep), showHistory boolean (null = keep)
     async setSettings(guardMode, showHistory) {
       if (guardMode != null && guardMode !== "warn" && guardMode !== "enforce") throw Object.assign(new Error("Stage rules must be warn or enforce."), { code: "22023" });
       if (mode !== "supabase" || !supa) throw new Error("Stage rules need a signed-in studio.");
@@ -11112,6 +11121,7 @@ window.HelmUrl = HelmUrl;
   function friendlyError(e, o) {
     o = o || {};
     if (e && typeof e.message === "string" && global.HelmDemojibake) { try { e.message = global.HelmDemojibake(e.message); } catch (_) {} }
+    if (e && typeof e.message === "string" && global.HelmSettingsName) { try { e.message = global.HelmSettingsName(e.message); } catch (_) {} }   // R38
     var action = o.action ? String(o.action) : "";
     var pre = action ? "Couldn’t " + action + ". " : "";
     if (isAuthError(e)) return "Your session expired — sign in again.";
@@ -12617,7 +12627,7 @@ window.HelmUrl = HelmUrl;
   var NEG_HINT = "Negative numbers aren\u2019t allowed here";
   function negHint(el, text, ms) {
     try {
-      // B29: a field with its own message under it (data-own-msg, e.g. Control Center > Default pricing) says it once
+      // B29: a field with its own message under it (data-own-msg, e.g. Settings > Default pricing) says it once
       if (el.hasAttribute && el.hasAttribute("data-own-msg")) return;
       var h = el.__negHint;
       if (!h || !h.isConnected) {
@@ -12703,7 +12713,7 @@ window.HelmUrl = HelmUrl;
   // A country dropdown + number field that STORES E.164 (+<dial><national>). The input
   // itself always holds the full E.164 string, so the ~40 pages that read $("#x_phone").value
   // and run BPStore.validate.phone keep working unchanged. The dropdown just sets/replaces
-  // the leading +dial; the default country comes from Control Center (org settings), India
+  // the leading +dial; the default country comes from Settings (org settings), India
   // fallback. [name, iso2, dial]; India first; US/CA share +1 (display picks the first).
   var COUNTRIES = [
     ["India","IN","91"],["UAE","AE","971"],["United Kingdom","GB","44"],["USA","US","1"],
@@ -12734,7 +12744,7 @@ window.HelmUrl = HelmUrl;
   // Every phone field becomes the HelmPhone component (phone-input.js: flag + searchable
   // country list + as-you-type format; .value stays E.164). Pages that don't include the
   // script get it loaded on demand; if it can't load, the legacy hardener below is used.
-  var PHONE_LIB_V = "7", phoneLib = null;
+  var PHONE_LIB_V = "8", phoneLib = null;
   function loadPhoneLib() {
     if (window.HelmPhone && window.HelmPhone.attach) return Promise.resolve(true);
     if (phoneLib) return phoneLib;

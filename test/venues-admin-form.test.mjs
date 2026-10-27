@@ -1,4 +1,4 @@
-// 1018 (owner, prod, Control Center > Venues): (1) "Sound curfew time" / "Setup time window" showed with their
+// 1018 (owner, prod, Settings > Venues): (1) "Sound curfew time" / "Setup time window" showed with their
 // restriction unticked; (2) "Enter the venue length. Enter the venue breadth." showed at the bottom near Notes;
 // (3) the Metres / Feet toggle looked clipped; (4) list filters hid venues (1 of 4 shown) with no hint.
 // Drives public/venues-admin.js with a tiny fake DOM (no browser needed).

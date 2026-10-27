@@ -30,7 +30,7 @@
 const PX_PER_FT = 12;
 const DEFAULT_WORLD = { w: 200, h: 140 };
 const WORLD = { w: 200, h: 140 };            // floor size in feet
-// Capacity ceilings, loaded from Control Center (config.getPricing). Defaults keep the
+// Capacity ceilings, loaded from Settings (config.getPricing). Defaults keep the
 // builder from being asked to render absurd counts (which used to freeze the app).
 let CAPS = { guests:20000, chairs:20000, plates:20000, tables:2000, bars:200, trucks:200, booths:1000, rest:200, exits:200, hall:1000 };
 const FT_PER_M = 3.280839895;
@@ -307,7 +307,7 @@ if(typeof window!=='undefined') window.HelmCatalog = Object.freeze({
 /* ---------------------------------------------------------------- pricing
    Live price breakdown. Chairs/seats are priced per-seat from the Control
    Centre chair rate; every other object is priced per-unit. Prices fall back
-   to a sensible in-code default and can be overridden from the Control Centre
+   to a sensible in-code default and can be overridden from Settings
    pricing config (config.assetPrices / config.layoutBase).  All INR.        */
 const CAT_BASE_PRICE = {          // per-unit fallback by category (₹)
   structure:15000, seating:2500, av:9000, security:2000,
@@ -353,7 +353,7 @@ function unitPrice(type){
   if(DEFAULT_PRICES[type]!=null) return DEFAULT_PRICES[type];
   const a=ASSETS[type]; return (a && CAT_BASE_PRICE[a.category]) || 3000;
 }
-// Past layouts are always re-priced from the CURRENT Control Center catalog:
+// Past layouts are always re-priced from the CURRENT Settings catalog:
 // strip any price-like fields an old layout may carry so nothing stale can
 // leak into the breakdown (pricing is computed by type from PRICING.assetPrices).
 const STALE_PRICE_KEYS = ['price','unitPrice','unit_price','cost','rate','amount'];
@@ -367,9 +367,9 @@ function stripStalePrices(items){
     return c;
   });
 }
-// true when the Control Center catalog has a live rate for this object type
+// true when Settings catalog has a live rate for this object type
 function inCatalog(type, assetPrices){ return !!(assetPrices && assetPrices[type]!=null); }
-// runtime pricing config (loaded from Control Centre in init)
+// runtime pricing config (loaded from Settings in init)
 // chairPrice/platePrice/gstPct/layoutBase/serviceChargePct/assetPrices = rates;
 // menuPlatePrice/menuPackageName/guests = the current event's menu + headcount.
 const PRICING = { chairPrice:200, platePrice:500, gstPct:18, layoutBase:0, serviceChargePct:0,
@@ -655,7 +655,7 @@ function renderPrice(){
     // 0086: a spec-priced item reads like "Stage 8 × 5 m (40 m²) @ ₹450/m² = ₹18,000"
     if(l.spec && l.label){ rows+=`<div class="prow"><span><span class="q">${esc(l.label)}</span></span><span class="amt">${inr(l.cost)}</span></div>`; return; }
     const flag = l.note ? ' <span class="q nocat" title="This item\'s adjusted spec could not be priced from Item pricing — using the catalog price">'+esc(l.note)+'</span>'
-      : (PRICING.assetPrices && !inCatalog(l.type, PRICING.assetPrices) && DEFAULT_PRICES[l.type]==null) ? ' <span class="q nocat" title="No rate for this item in Control Center — using a default price">price not in catalog</span>' : '';
+      : (PRICING.assetPrices && !inCatalog(l.type, PRICING.assetPrices) && DEFAULT_PRICES[l.type]==null) ? ' <span class="q nocat" title="No rate for this item in Settings — using a default price">price not in catalog</span>' : '';
     rows+=`<div class="prow"><span>${esc(label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span>${flag}</span><span class="amt">${inr(l.cost)}</span></div>`;
   });
   if(otherSet==null && m.layoutBase>0) rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
@@ -3123,7 +3123,7 @@ function updateDimsLabel(){ const el=$('#dimsLabel'); if(!el) return;
   el.textContent = `${dU(WORLD.w)} × ${dU(WORLD.h)} ${u?'m':'ft'}${vref?' usable':''}`; el.title = 'Hall size · '+full; }
 function runCustomGenerate(){
   const o=readCustomForm();
-  // Enforce the Control-Center capacity ceilings so generation stays fast and honest
+  // Enforce Settings capacity ceilings so generation stays fast and honest
   // even if a field wasn't blurred (the blur clamp hadn't run yet).
   o.guests=clampCap(o.guests,CAPS.guests); o.chairs=clampCap(o.chairs,CAPS.chairs); o.tables=clampCap(o.tables,CAPS.tables);
   if(!chairsOk(o.chairs)) return;   // R9: 0 chairs is rejected (min 1), never a silent "natural seats" layout
@@ -3165,7 +3165,7 @@ function runCustomGenerate(){
 }
 const clampCap=(v,max)=> (v==null?null:Math.min(v, max));
 // Show a live red "Maximum is N" note under each capped field, set its max to the
-// Control-Center value, and resize the floor the moment the hall size is typed.
+// Settings value, and resize the floor the moment the hall size is typed.
 function applyCapHints(){
   const map=[['c_guests','guests'],['c_chairs','chairs'],['c_tables','tables'],['c_bars','bars'],
     ['c_trucks','trucks'],['c_booths','booths'],['c_rest','rest'],['c_exits','exits'],['c_len','hall'],['c_wid','hall']];
@@ -4758,7 +4758,7 @@ async function init(){
     renderRulers(); }).observe(scrollEl); }catch(_){} }
   await initStore();
   initPanelToggles();   // after initStore so the saved state is per signed-in user
-  // load pricing rates from the Control Centre (fallbacks stay if unavailable)
+  // load pricing rates from Settings (fallbacks stay if unavailable)
   try{
     const pc = await BPStore.config.getPricing();
     if(pc){
@@ -5078,7 +5078,7 @@ function specAdjustMount(it, box){
     }
   }
   function preview(){
-    if(!rates){ prev.textContent='Rate not set for this item in Control Center → Item pricing — the flat catalog price applies.'; apply.disabled=true; return; }
+    if(!rates){ prev.textContent='Rate not set for this item in Settings → Item pricing — the flat catalog price applies.'; apply.disabled=true; return; }
     try{ const r=S.compute(it.type, draft, rates); prev.textContent=r.label; apply.disabled=!!RO; }
     catch(e){ prev.textContent=(e&&e.rateNotSet?'Rate not set — ':'Check the values: ')+((e&&e.message)||e); apply.disabled=true; }
   }

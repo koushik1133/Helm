@@ -71,7 +71,7 @@ t("L5 the masking never changes an input's value", () => {
   const body = pj.slice(pj.indexOf("function moneyInput"), pj.indexOf("function onMouseUp"));
   assert.doesNotMatch(body, /\.value\s*=[^=]/);
 });
-t("L5 lead Budget, Control Center default prices and item prices carry hbp-mi in their markup", () => {
+t("L5 lead Budget, Settings default prices and item prices carry hbp-mi in their markup", () => {
   assert.match(r("leads.html"), /<input id="f_budget" type="number" min="0" max="10000000000"[^>]* class="hbp-mi">/);
   const cc = r("control.html");
   for (const id of ["p_chair", "p_plate", "p_layout"]) assert.match(cc, new RegExp('<input id="' + id + '" type="number" min="0" step="0\\.01"[^>]* class="hbp-mi">'), id);

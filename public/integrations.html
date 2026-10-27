@@ -20,11 +20,11 @@
   <header>
     <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Integrations</h1><small>Helm Events</small></div>
-    <nav class="nav" aria-label="Integrations"><a href="dashboard.html">Home</a><a href="onboarding.html">Studio setup</a><a href="control.html">Control Center</a></nav>
+    <nav class="nav" aria-label="Integrations"><a href="dashboard.html">Home</a><a href="onboarding.html">Studio setup</a><a href="control.html">Settings</a></nav>
   </header>
   <main id="main">
   <div id="boot" aria-busy="true"></div>
-  <div id="noaccess" class="card" hidden><p class="muted">Only people who can open Control Center can see integrations. Ask your studio admin.</p></div>
+  <div id="noaccess" class="card" hidden><p class="muted">Only people who can open Settings can see integrations. Ask your studio admin.</p></div>
 
   <div id="app" hidden>
     <p class="sub">Email, WhatsApp and online payments. Each card shows its status &ndash; <b>Not connected</b>, <b>Simulated</b> (saved, but nothing is really sent yet) or <b>Live</b> &ndash; your settings, a <b>Send test</b> button and, step by step, how to switch it on.</p>
@@ -59,12 +59,12 @@
         </div>
         <p class="itg-result" id="itgEmailResult" role="status" aria-live="polite"></p>
       </form>
-      <p class="itg-note" id="itgEmailRo" hidden>Only people who can edit Control Center can change these settings.</p>
+      <p class="itg-note" id="itgEmailRo" hidden>Only people who can edit Settings can change these settings.</p>
       <details class="itg-guide">
         <summary>How email works and how to set it up</summary>
         <h4>For your studio (nothing to set up)</h4>
         <ol>
-          <li>Open <a href="control.html#users">Control Center → User control</a> (or the Staff page) and invite someone by e-mail.</li>
+          <li>Open <a href="control.html#users">Settings → User control</a> (or the Staff page) and invite someone by e-mail.</li>
           <li>Helm e-mails the invite within about 2 minutes. If it does not arrive, ask them to check spam, then press <b>Resend email</b> (once every 10 minutes).</li>
           <li>The e-mail says which studio and role it is for. Client e-mails show your <b>Sender name</b>; replies go to your <b>Reply-to e-mail</b> (set both above, then press <b>Send test e-mail to me</b>).</li>
         </ol>
@@ -103,7 +103,7 @@
         </div>
         <p class="itg-result" id="itgWaResult" role="status" aria-live="polite"></p>
       </form>
-      <p class="itg-note" id="itgWaRo" hidden>Only people who can edit Control Center can change the number. <a href="control.html#notify">Control Center &rarr; Notifications</a></p>
+      <p class="itg-note" id="itgWaRo" hidden>Only people who can edit Settings can change the number. <a href="control.html#notify">Settings &rarr; Notifications</a></p>
       <details class="itg-guide">
         <summary>Step-by-step: connect WhatsApp</summary>
         <h4>A. Meta (about 1–3 days, mostly waiting for verification)</h4>
@@ -135,7 +135,7 @@
         <h4>D. In Helm</h4>
         <ol>
           <li>Enter your <b>studio WhatsApp number</b> with country code in the form above (e.g. +91 98765 43210) and press <b>Save number</b>, then <b>Send test WhatsApp</b>. It says <b>Simulated</b> until Helm has switched WhatsApp on, and <b>Live</b> after.</li>
-          <li>In <a href="control.html#notify">Control Center → Notifications → Automatic client messages &amp; WhatsApp</a>, switch on the messages you want (payment reminders, follow-ups, WhatsApp copies of notifications).</li>
+          <li>In <a href="control.html#notify">Settings → Notifications → Automatic client messages &amp; WhatsApp</a>, switch on the messages you want (payment reminders, follow-ups, WhatsApp copies of notifications).</li>
           <li>Each crew member opens their profile and ticks <b>Also send my Helm notifications to my WhatsApp</b>.</li>
           <li>Test with one number first. Anyone who replies <b>STOP</b> is never messaged again until they reply START.</li>
         </ol>
@@ -169,9 +169,9 @@
 
 <script src="/trusted-types.js?v=4"></script>
 <script src="telemetry.js?v=6"></script>
-<script src="config.js?v=110"></script>
+<script src="config.js?v=111"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=282"></script>
-<script src="integrations.js?v=3"></script>
+<script src="country-profile.js?v=5"></script><script src="store-api.js?v=289"></script>
+<script src="integrations.js?v=4"></script>
 </body>
 </html>

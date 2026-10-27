@@ -1,4 +1,4 @@
-// 0040 — "client link expired → Keep | Archive | Deleted quotes". Pins: the Control Center
+// 0040 — "client link expired → Keep | Archive | Deleted quotes". Pins: Settings
 // card is an explicit Enabled/Disabled switch with the new sub-option (default Keep); store-api
 // calls the 0040 RPCs with the migration's argument names; Quotes has Archive + Deleted tabs
 // with counts, the "moved automatically" note and Restore (quotes editors only); Delete is
@@ -90,7 +90,7 @@ await t('0040: additive, soft, admin-only setting, rate limit, pg_cron only if p
   assert.match(apply, /select item, case when ok then 'ok' else 'FAIL' end as status/);
 });
 
-// ---- behaviour: the Control Center card -----------------------------------------
+// ---- behaviour: Settings card -----------------------------------------
 const cardSrc = ctl.slice(ctl.indexOf('/* ---------------- CLIENT LINK AUTO-EXPIRE (0039'), ctl.indexOf('  let dishCache=[];'));
 const FIXED = Date.UTC(2026, 9, 7, 6, 0, 0);
 function card({ get = async () => ({ enabled: false, days: 10, timezone: 'Asia/Kolkata' }),

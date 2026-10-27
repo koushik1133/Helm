@@ -1,10 +1,10 @@
-/* payment-schedule-settings.js - Control Center "Payment schedules" card (r23, 0264).
+/* payment-schedule-settings.js - Settings "Payment schedules" card (r23, 0264).
    - Add the default schedule automatically when a client approves (default on), overdue bell (default on),
      the default schedule (built-in 30/50/20, 50/50, 100% upfront, or the studio's own),
    - how clients pay (UPI ID + a short payment note, shown on the client page and in every reminder),
    - the studio's own schedules: add / change / archive (never deleted), with a live example on Rs 1,00,000.
    Reads / writes ONLY through BPStore.paySchedule (payment_schedule_settings_get / _set / template_save / _archive;
-   the server re-checks Control Center EDIT and every rule). Shown to anyone the server answers (Control Center or
+   the server re-checks Settings EDIT and every rule). Shown to anyone the server answers (Settings or
    Finance view); read-only unless can_edit. Hidden when the server is older than 0264. DOM API only. */
 (function (global) {
   "use strict";
@@ -17,7 +17,7 @@
   function say(t, kind) { var m = $("pst_msg"); if (m) { m.textContent = t || ""; m.dataset.kind = kind || ""; } }
   function errText(e) {
     var s = String((e && (e.message || e.code)) || "");
-    if (/not authori[sz]ed|42501/i.test(s)) return "Only a studio admin (or someone allowed to edit Control Center) can change payment schedules.";
+    if (/not authori[sz]ed|42501/i.test(s)) return "Only a studio admin (or someone allowed to edit Settings) can change payment schedules.";
     return s || "Couldn't save - please try again.";
   }
   function money(n) { var B = global.BPStore; try { if (B && B.studioMoney) return B.studioMoney(n); } catch (e) {} return "₹" + Math.round(Number(n) || 0).toLocaleString("en-IN"); }

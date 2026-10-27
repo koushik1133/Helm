@@ -2,7 +2,7 @@
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
    One engine, many pages. Each page's steps live in STEPS keyed by filename.
-   A page opts in simply by including  <script src="tour.js?v=24"></script>.
+   A page opts in simply by including  <script src="tour.js?v=25"></script>.
 
    • Injects its own spotlight CSS (pages need no markup).
    • Renders a floating "? Tour" button, or wires an existing #helpBtn.
@@ -65,7 +65,7 @@
     ],
     "logistics.html": [
       { sel: "#tabs", title: "Event logistics", desc: "Everything that has to happen for this event, organised by section (stage, lighting, catering…)." },
-      { sel: "#tplBar", trial: false, title: "Apply a template", desc: "Drop a saved checklist into this event in one click — no retyping the same tasks every time. (You build templates in Control Center.)" },
+      { sel: "#tplBar", trial: false, title: "Apply a template", desc: "Drop a saved checklist into this event in one click — no retyping the same tasks every time. (You build templates in Settings.)" },
       { sel: "#a_title", title: "Add a one-off task", desc: "Need something the template didn't cover? Add your own task right here." },
       { sel: "#pane", title: "Assign & track", desc: "Assign staff to each task and tick off progress as the event comes together." },
     ],
@@ -260,7 +260,7 @@
   }
   function allowed(step) { return !!step && !(step.trial === false && inTrial()) && needOk(step); }
   // step.alt(can) may return { title?, desc? } for a role that lacks something the admin wording names
-  // (payments, revenue, Control Center...); null / nothing = the step's own (admin) wording.
+  // (payments, revenue, Settings...); null / nothing = the step's own (admin) wording.
   function wording(step) {
     let o = null;
     try { o = typeof step.alt === "function" ? step.alt(can) : null; } catch (_) { o = null; }

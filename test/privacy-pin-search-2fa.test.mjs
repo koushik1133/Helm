@@ -1,6 +1,6 @@
 // Owner requests Oct 2026 (0157):
 //  (1) "Hide amounts" PIN: one per studio, kept on the server as a bcrypt hash, default 0000, only admins change it.
-//  (2) Universal smart settings search in Control Center (synonyms, typos, roles, pages, account items, keyboard).
+//  (2) Universal smart settings search in Settings (synonyms, typos, roles, pages, account items, keyboard).
 //  (3) Two-step sign-in: optional for every role from Account settings; only admins are ever reminded.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -63,11 +63,11 @@ t('shell-b-privacy: unlock is checked on the server; no PIN in the browser; defa
 t('shell-b-privacy: only admins are sent to change the PIN; others are told to ask their admin', () => {
   assert.match(PRIV, /var PIN_PAGE = "\/control\.html#privacy-pin";/);
   assert.match(PRIV, /Only a studio admin can change or reset it/);
-  assert.match(PRIV, /ok\.textContent = canChangePin\(\) \? "Open Control Center" : "Back";/);
+  assert.match(PRIV, /ok\.textContent = canChangePin\(\) \? "Open Settings" : "Back";/);
   assert.match(PRIV, /\{ id: "hbp-pin", label: "Change studio privacy PIN", [^\n]*need: \[\["view", "controls"\]\]/);
   assert.doesNotMatch(PRIV, /step === "set"|step === "confirm"|step === "change-old"|step === "reset"/, 'no local set / reset flow any more');
 });
-t('Control Center card: admin form, everyone else read-only; CSP-safe markup', () => {
+t('Settings card: admin form, everyone else read-only; CSP-safe markup', () => {
   const h = r('public/control.html');
   const card = h.match(/<div class="card" id="privPinCard" hidden>[\s\S]*?\n    <\/div>\n/)[0];
   assert.doesNotMatch(card, /style=|\son[a-z]+=/i, 'no inline styles / handlers');

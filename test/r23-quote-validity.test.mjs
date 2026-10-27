@@ -1,5 +1,5 @@
 // r23 (0262): quote "Valid until" - pure helpers (dd/mm/yyyy, pill, client words, settings parsing), the client
-// banner + "Request a new quote", the staff line (Extend / Change date), the Control Center card, page wiring
+// banner + "Request a new quote", the staff line (Extend / Change date), Settings card, page wiring
 // (approve / booklet / flow / event / quotes / control), store-api calls + the Attention tab, the dispatcher
 // message (fails closed), and the SQL shape (additive, wrapped once, self-check rows, ASCII).
 import { readFileSync } from 'node:fs';
@@ -118,7 +118,7 @@ t('staff line: picker range today..+1 year; hidden for approved / no permission 
   X = load({ get: async () => ({ state: 'none', can_edit: true, default_days: 14, log: [] }) }); el = new El('div'); await X.mountStaff(el);
   assert.equal(el.hidden, false); assert.match(el.textContent, /No valid-until date/); assert.match(el.textContent, /Set valid until \(\+14 days\)/);
 });
-t('page wiring: client pages + staff pages + Control Center', () => {
+t('page wiring: client pages + staff pages + Settings', () => {
   for (const [name, html] of [['approve', AP], ['booklet', BK], ['flow', FL], ['event', EV], ['quotes', QU], ['control', CC]]) {
     assert.match(html, /quote-validity\.js\?v=\d+/, name + ' loads quote-validity.js'); assert.match(html, /quote-validity\.css\?v=\d+/, name + ' loads quote-validity.css');
   }
@@ -129,7 +129,7 @@ t('page wiring: client pages + staff pages + Control Center', () => {
   assert.match(EV, /id="quote-validity" data-qv-staff/);
   assert.match(QU, /refreshValidity\(\)/); assert.match(QU, /function paintValidity\(\)/); assert.match(QU, /s\.textContent=p\.text/); assert.match(QU, /quotes that expire soon/);
   for (const id of ['qvCard', 'qv_on', 'qv_days', 'qv_rem', 'qv_lock', 'qv_over', 'qv_save', 'qv_apply', 'qv_apply_note', 'qv_msg', 'qv_ro']) assert.match(CC, new RegExp('id="' + id + '"'), id);
-  // r25 (0274): the two reminders are switched on / off only in Control Center -> Automations
+  // r25 (0274): the two reminders are switched on / off only in Settings -> Automations
   assert.ok(!/id="qv_cli"|id="qv_stu"/.test(CC), 'no second on / off for the reminders'); assert.match(CC, /au-onoff[^]*#automations/);
   assert.match(SPLIT, /id==="qvCard"\) return "links"/); assert.match(SPLIT, /"#quote-validity":"links"/);
   assert.ok(!/innerHTML/.test(JS), 'quote-validity.js builds the DOM with textContent only');
@@ -177,7 +177,7 @@ t('SQL: additive side table, wrapped once, server lock, superset CHECK, cron onl
   assert.match(MAN, /^forward  supabase\/migrations\/0262_quote_validity\.sql$/m);
 });
 t('manual section for the docs agent', () => {
-  assert.match(DOC, /Valid until/); assert.match(DOC, /Control Center/); assert.match(DOC, /Request a new quote/);
+  assert.match(DOC, /Valid until/); assert.match(DOC, /Settings/); assert.match(DOC, /Request a new quote/);
 });
 
 await Promise.all(pending);

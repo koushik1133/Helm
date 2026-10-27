@@ -35,7 +35,7 @@ t('#16: signup never seeds the business email with the login email', () => {
   assert.match(sf, /B\.signup\.createDirect\(\{ name: d\.name, plan: p\.code, interval: st\.interval, termsVersion: st\.termsVersion \}\)/);
   assert.match(sf, /await global\.BPTrialSignup\.start\(d\.name\);/);
 });
-t('#16: Control Center save confirms the business email + keeps brand keys + saves a phone', () => {
+t('#16: Settings save confirms the business email + keeps brand keys + saves a phone', () => {
   assert.match(ctrl, /<input id="o_phone" type="tel"/);
   assert.match(ctrl, /business_email_confirmed:!!email/);
   assert.match(ctrl, /brand:Object\.assign\(\{\}, orgBrand, \{ logo:logo\|\|null, accent:accent\|\|null, phone:/);

@@ -1,8 +1,8 @@
-/* delivery-settings.js - Control Center card (0241): delivery / arrival reminders for the studio.
+/* delivery-settings.js - Settings card (0241): delivery / arrival reminders for the studio.
    On / off, the default reminder times (each assignment can change its own), which kinds of people may be
    e-mailed, a copy to the person who scheduled it, and where replies are posted (the event's team chat group
    or a studio group) + the bell + the "no response" alert. Reads through BPStore.deliveries.settings(), writes
-   through saveSettings() (delivery_settings_set: Control Center EDIT, checked in the database).
+   through saveSettings() (delivery_settings_set: Settings EDIT, checked in the database).
    DOM API only (no HTML strings). Hidden when the server is older than 0241. Needs delivery-tracker.js. */
 (function (global) {
   "use strict";
@@ -27,9 +27,9 @@
     try { cfg = await S.deliveries.settings(); } catch (e) { cfg = null; }
     if (!cfg) { card.hidden = true; return; }
     var canEdit = !!cfg.can_manage;
-    // r25 (0274): delivery & arrival reminders are switched on / off ONLY in Control Center -> Automations
+    // r25 (0274): delivery & arrival reminders are switched on / off ONLY in Settings -> Automations
     var on = { el: h("p", { cls: "mnote au-onoff", id: "dl_on" }, ["Automatic delivery & arrival reminders are ", h("b", { text: cfg.enabled ? "on" : "off" }),
-      " - switch them in ", h("a", { href: "#automations", text: "Control Center → Automations" }), "."]) };
+      " - switch them in ", h("a", { href: "#automations", text: "Settings → Automations" }), "."]) };
     var ed = D.offsetsEditor(cfg.offsets || [60, 30, 0], { emptyText: "No default reminders" });
     var kinds = cfg.ping_kinds || [];
     var kv = chk("dl_k_vendor", "Vendors", kinds.indexOf("vendor") >= 0), ks = chk("dl_k_staff", "Staff members", kinds.indexOf("staff") >= 0),
@@ -58,7 +58,7 @@
     card.hidden = false;
     if (!canEdit) {
       Array.prototype.forEach.call(card.querySelectorAll("input,select,button"), function (x) { x.disabled = true; });
-      msg.textContent = "Only people with Control Center edit rights can change these settings.";
+      msg.textContent = "Only people with Settings edit rights can change these settings.";
       return;
     }
     save.addEventListener("click", function () {

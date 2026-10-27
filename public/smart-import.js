@@ -348,7 +348,7 @@
       const inp = h("input", { id, type: "text", class: "hi-in", maxlength: "500", value: a[k] == null ? "" : String(a[k]), readonly: readOnly ? "readonly" : null });
       inputs.push([k, inp]);
       return h("div", { class: "fld" }, [h("label", { for: id, text: label }), inp]);
-    }) : [h("p", { class: "hi-note", text: "No custom fields yet. Import a sheet or ask an admin to add fields in Control Center." })]);
+    }) : [h("p", { class: "hi-note", text: "No custom fields yet. Import a sheet or ask an admin to add fields in Settings." })]);
     return {
       el,
       read() { const out = Object.assign({}, a); inputs.forEach(([k, inp]) => { const v = String(inp.value || "").trim().slice(0, 500); if (v) out[k] = v; else delete out[k]; }); return out; },

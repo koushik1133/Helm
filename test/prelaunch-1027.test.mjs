@@ -1,5 +1,5 @@
 // Pre-launch fixes 1027: flow discount kept on save, approval wording, studio route, CRM restore label,
-// booklet versions note, Control Center search entry.
+// booklet versions note, Settings search entry.
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
@@ -57,7 +57,7 @@ t('#5 booklet: 0 extra versions reads "Current quotation (Version 1)"', () => {
   assert.equal(vn({ shared_versions: [1, 2] }), '2 quote versions shown');
   assert.doesNotMatch(B, /quote version\(s\) shown/);
 });
-t('#6 Control Center search finds "control center"', () => {
+t('#6 Settings search finds "control center"', () => {
   const S = require('../public/settings-search-core.js');
   assert.match(read('public/control-split.js'), /control center centre admin/);
   const kw = /key:"general"[^\n]*kw:"([^"]+)"/.exec(read('public/control-split.js'))[1];

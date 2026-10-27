@@ -1,5 +1,5 @@
 // 0185 — after a free trial upgrades: keep (default) / remove sample data / start completely clean
-// (archive, never delete, asked twice + typed START CLEAN), Control Center "Delete all sample data"
+// (archive, never delete, asked twice + typed START CLEAN), Settings "Delete all sample data"
 // (is_demo only) + restore, and the "Sample" badge that keeps the text intact.
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -63,7 +63,7 @@ t('typed confirmation: START CLEAN only (spaces / case forgiven)', () => {
   assert.equal(U.PHRASE, 'START CLEAN');
   assert.match(code, /upper\(btrim\(coalesce\(p_confirm, ''\)\)\) <> 'START CLEAN'/, 'the server checks the phrase too');
 });
-t('which card: choose (admin, pending) / manage (Control Center after upgrading) / nothing', () => {
+t('which card: choose (admin, pending) / manage (Settings after upgrading) / nothing', () => {
   assert.equal(U.cardView({ is_admin: true, pending: true }, 'dashboard'), 'choose');
   assert.equal(U.cardView({ is_admin: false, pending: true }, 'dashboard'), null, 'members never choose');
   assert.equal(U.cardView({ is_admin: true, pending: false, has_sample: true, in_trial: false }, 'dashboard'), null);

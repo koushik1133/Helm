@@ -4,7 +4,7 @@
 //  * markup: every step has icon/title/why/Start, done steps show "Done", no style=""
 //    attributes, values are escaped, ring offset is numeric, celebratory state
 //  * wiring: dashboard has the card + script, store-api calls the two RPCs,
-//    Control Center deep-link anchors exist, CSS goes through __helmAdoptCss
+//    Settings deep-link anchors exist, CSS goes through __helmAdoptCss
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -115,7 +115,7 @@ t('store-api: get + dismiss call the 0059 RPCs; missing RPC → null', () => {
   assert.match(s, /rpc\("my_getting_started"\)\.catch\(\(e\) => \{ if \(rpcMissing\(e\)\) return null/);
   assert.match(s, /rpc\("my_getting_started_dismiss", \{ p_dismissed: on !== false \}\)/);
 });
-t('Control Center: deep-link anchors exist', () => {
+t('Settings: deep-link anchors exist', () => {
   const c = read('public/control.html');
   for (const id of ['accCard', 'pricingCard', 'menuCard']) assert.match(c, new RegExp(`id="${id}"`));
   assert.match(c, /"#account":"accCard"/); assert.match(c, /focusHashCard\(\);/);

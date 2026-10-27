@@ -1,4 +1,4 @@
-// Control Center > Layout templates (fix/cc-layout-templates):
+// Settings > Layout templates (fix/cc-layout-templates):
 //   1 cards without a stored picture draw a preview from the layout JSON (core previewShapes + SVG)
 //   2 "Edit layout" -> builder tplEdit uses the template's own hall (scale.worldFt on SQL-seeded samples),
 //     "Done" returns to the Layout templates section (control-split #ltemplates alias)

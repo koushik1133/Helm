@@ -1,4 +1,4 @@
-/* menu-pkg-editor.css - Control Center menu packages: dishes as chips by category + add-dish dropdowns */
+/* menu-pkg-editor.css - Settings menu packages: dishes as chips by category + add-dish dropdowns */
 .mpk{border:1px solid var(--line,#e2e6e3);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--panel,#fff);min-width:0}
 .mpk.mpk-dirty{border-color:var(--accent,#1f7a4d);box-shadow:0 0 0 2px var(--accent-soft,rgba(31,122,77,.12))}
 .mpk-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}

@@ -161,7 +161,7 @@ function uiStrings(src) {   // quoted string literals in the UI code that read l
 }
 const stripComments = (s) => { let prev; do { prev = s; s = s.replace(/<!--[\s\S]*?-->/g, ''); } while (s !== prev); const open = s.indexOf('<!--'); return open < 0 ? s : s.slice(0, open); };   // repeat until stable; an unterminated "<!--" hides the rest (CodeQL js/incomplete-multi-character-sanitization)
 const visible = (h) => stripComments(h).replace(/<[^>]+>/g, ' ');
-t('no technical words in the dialog, the Control Center card, or the render UI / settings messages', () => {
+t('no technical words in the dialog, Settings card, or the render UI / settings messages', () => {
   assert.doesNotMatch(visible(dlg), BAD);
   const ctl = rd('public/control.html'), card = ctl.slice(ctl.indexOf('<div class="card" id="prCard"'), ctl.indexOf('</div>', ctl.indexOf('id="pr_save"')));
   assert.doesNotMatch(visible(card), BAD);

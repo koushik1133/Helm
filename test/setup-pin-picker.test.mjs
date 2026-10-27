@@ -76,13 +76,13 @@ t('empty PIN stays empty - never "0"; 0 / "000000" is no PIN (required error, no
   assert.equal(O.validateBilling({ ...good, country: 'AE', pin: '0', phone: '+971 50 123 4567' }).errors.pin, undefined, 'UAE P.O. box 0 = blank (optional)');
   assert.ok(O.validateBilling({ ...good, country: 'GB', pin: '00000', phone: '+44 20 7946 0958' }).errors.pin);
 });
-t('setup and Control Center read/write the SAME billing fields', () => {
+t('setup and Settings read/write the SAME billing fields', () => {
   const r = O.validateBilling({ ...good, gstin: '36ABCDE1234F1Z5' }); const org = Object.assign({ name: 'x' }, O.billingPatch({ name: 'x' }, r.data));
   const back = O.billingFromOrg(org);
   for (const k of ['legal_name', 'line1', 'city', 'state', 'pin', 'location', 'gstin']) assert.equal(back[k], r.data[k], k);
   const cc = read('public/control.html');
   assert.match(cc, /const BILL_IDS=\{country:"o_country",legal_name:"o_legal",line1:"o_line1",line2:"o_line2",city:"o_city",state:"o_state",pin:"o_pin",phone:"o_phone",location:"o_location",gstin:"o_gst"\}/);
-  assert.match(cc, /const v=OB\.billingFromOrg\(o\);/, 'Control Center paints billing through the same reader');
+  assert.match(cc, /const v=OB\.billingFromOrg\(o\);/, 'Settings paints billing through the same reader');
 });
 t('pricing: a cleared catering GST is blocked like the main rate (no silent 0 %)', () => {
   // merged with fix/cc-pricing-validation: the rule now lives in pricing-form-core.js (one message per field)

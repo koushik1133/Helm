@@ -24,7 +24,7 @@
   generated HTML, then run: node scripts/build-manual.mjs   (CI: --check). After merging, the owner uploads this
   file to the helm-manual bucket again.
   Per role: a chapter heading with data-areas="quotes,leads" is shown only to roles that can view one of those areas
-  (Control Center -> Roles & access); data-areas="admin" = studio admin only; no data-areas = everyone. Admins see all.
+  (Settings -> Roles & access); data-areas="admin" = studio admin only; no data-areas = everyone. Admins see all.
 -->
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;--line:#e8e3db;
@@ -113,14 +113,14 @@
       <a href="#payment-schedules">Payment schedules</a>
       <a href="#profit-wages">Profit now includes wages</a>
       <a href="#crew-shifts">Crew: availability, open shifts and event-day check-in</a>
-      <a href="#team-members">Control Center: team members</a>
+      <a href="#team-members">Settings: team members</a>
       <a href="#notification-inbox">Inbox (notifications)</a>
       <a href="#on-your-phone">Helm on your phone</a>
       <a href="#automation">Automations: run-sheet reminders, one Automations page, leads tracked automatically (R24)</a>
       <a href="#plain-words">Plain words &amp; cleaner pages (R24)</a>
       <a href="#resources">Covering an event: stock, people, vendors, budget</a>
       <a href="#stock">Stock for an event: Reserved → Out → Back</a>
-      <a href="#automations">Automations (Control Center &gt; Automations)</a>
+      <a href="#automations">Automations (Settings &gt; Automations)</a>
 <!-- /@gen:nav-new -->
       <div class="grp">Win the event</div>
       <a href="#leads">Leads, CRM &amp; nurture</a>
@@ -140,7 +140,7 @@
       <a href="#budget">Budget &amp; margin</a>
       <a href="#settle">Settlement &amp; closure</a>
       <div class="grp">Admin</div>
-      <a href="#control">Control Center</a>
+      <a href="#control">Settings</a>
       <a href="#roles">Roles &amp; invites</a>
       <a href="#billing">Plans &amp; billing</a>
       <a href="#after">After the trial</a>
@@ -182,7 +182,7 @@
         <li><a href="#eventday">Event day</a></li>
         <li><a href="#budget">Budget &amp; margin</a></li>
         <li><a href="#settle">Settlement &amp; closure</a></li>
-        <li><a href="#control">Control Center (every section)</a></li>
+        <li><a href="#control">Settings (every section)</a></li>
         <li><a href="#roles">Roles &amp; invites</a></li>
         <li><a href="#billing">Plans &amp; billing</a></li>
         <li><a href="#after">After the trial</a></li>
@@ -205,14 +205,14 @@
         <li><a href="#payment-schedules">Payment schedules</a></li>
         <li><a href="#profit-wages">Profit and margin: one number everywhere (staff wages included)</a></li>
         <li><a href="#crew-shifts">Crew: availability, open shifts and event-day check-in</a></li>
-        <li><a href="#team-members">Control Center: the team members table</a></li>
+        <li><a href="#team-members">Settings: the team members table</a></li>
         <li><a href="#notification-inbox">Inbox (notifications)</a></li>
         <li><a href="#on-your-phone">Using Helm on your phone</a></li>
         <li><a href="#automation">Automations: run-sheet reminders, one Automations page, leads tracked automatically (R24)</a></li>
         <li><a href="#plain-words">Plain words &amp; cleaner pages (R24)</a></li>
         <li><a href="#resources">Covering an event: stock, people, vendors, budget</a></li>
         <li><a href="#stock">Stock for an event: Reserved → Out → Back</a></li>
-        <li><a href="#automations">Automations (Control Center &gt; Automations)</a></li>
+        <li><a href="#automations">Automations (Settings &gt; Automations)</a></li>
       </ol>
       <b>Coming soon</b>
       <ol>
@@ -276,7 +276,7 @@
     <ul>
       <li><b>Workspace</b> — Dashboard, Quotes, Leads, Calendar, Chat.</li>
       <li><b>Manage</b> — CRM archive, Nurture, Staff, Inventory, Vendors (each only if your role has it).</li>
-      <li><b>Admin</b> — Business, Control Center, Insights, Reports, Audit log, Studio setup (by role; some are not part of the free trial).</li>
+      <li><b>Admin</b> — Business, Settings, Insights, Reports, Audit log, Studio setup (by role; some are not part of the free trial).</li>
       <li><b>Pin</b> — the small pin button at the top keeps the sidebar open with labels. Unpinned, it tucks away to icons and opens when you hover.</li>
       <li><b>Pinned pages</b> — star a page to keep it at the top of the sidebar.</li>
       <li>At the bottom: <b>Take a guided tour</b>, <b>Colour theme</b> (Emerald is the default) and your <b>profile menu</b>.</li>
@@ -285,7 +285,7 @@
 
     <h3>The top bar</h3>
     <ul>
-      <li><b>Search</b> — press <span class="kbd">⌘ K</span> (Mac) or <span class="kbd">Ctrl K</span> (Windows) on any page. Finds clients, quotes, leads, pages your role can open, Control Center settings, your account items and quick actions like <b>New quote</b> or <b>Invite user</b>.</li>
+      <li><b>Search</b> — press <span class="kbd">⌘ K</span> (Mac) or <span class="kbd">Ctrl K</span> (Windows) on any page. Finds clients, quotes, leads, pages your role can open, Settings, your account items and quick actions like <b>New quote</b> or <b>Invite user</b>.</li>
       <li><b>Hide amounts</b> (eye) — hides every amount on screen while you present to a client. Showing them again asks for the studio's 4-digit PIN.</li>
       <li><b>Chat</b> — team chat, with a badge for unread messages.</li>
       <li><b>Bell</b> — reminders, approvals waiting on you and trial reminders. Click one to jump to it; <b>Mark all read</b> clears the list.</li>
@@ -300,7 +300,7 @@
       <li><b>User manual</b> — opens this manual in a new tab.</li>
       <li><b>Sign out</b>.</li>
     </ul>
-    <p>Control Center and Insights are in the sidebar's <b>Admin</b> group; <b>Customize</b> is a button on the dashboard.</p>
+    <p>Settings and Insights are in the sidebar's <b>Admin</b> group; <b>Customize</b> is a button on the dashboard.</p>
     <div class="shot-todo" data-shot="m-profile-menu.png" data-alt="The profile menu open over the sidebar"><b>Screenshot to add</b>The profile menu: Profile, Account settings, User manual, Sign out</div>
     <p class="cap">The profile menu keeps to your own account. Admin pages live in the sidebar.</p>
 
@@ -348,7 +348,7 @@
 <p>Helm's own team (HQ) confirms the payment, records it with a GST invoice and switches your plan on in one step. When that happens:</p>
 <ul><li>your trial limits and any read-only mode are lifted straight away;</li><li>if you were on a trial, you choose what happens to the sample data: keep it, remove it, or start clean;</li><li>the next time you sign in, the studio setup wizard opens once so you can add your logo, prices and team.</li></ul>
 <h3>Who can do what</h3>
-<div class="tbl"><table><tr><th>Action</th><th>Who</th></tr><tr><td>Create a studio, pick a plan, pay</td><td>The person signing up (becomes the studio admin)</td></tr><tr><td>Change plan or billing details later</td><td>Studio admin (Control Center → Plan &amp; billing)</td></tr><tr><td>Confirm a payment and activate a plan</td><td>Helm HQ only</td></tr><tr><td>Join an existing studio</td><td>Teammates, from an invite link — never by creating a studio</td></tr></table></div>
+<div class="tbl"><table><tr><th>Action</th><th>Who</th></tr><tr><td>Create a studio, pick a plan, pay</td><td>The person signing up (becomes the studio admin)</td></tr><tr><td>Change plan or billing details later</td><td>Studio admin (Settings → Plan &amp; billing)</td></tr><tr><td>Confirm a payment and activate a plan</td><td>Helm HQ only</td></tr><tr><td>Join an existing studio</td><td>Teammates, from an invite link — never by creating a studio</td></tr></table></div>
 </section>
 
 <section class="mch" data-src="sections/20-two-step.md">
@@ -400,11 +400,11 @@
 <p>If the client opened their link <b>2 days ago</b> (you can change this) and still hasn't approved:</p>
 <ol class="steps"><li>The quote's owner (the event manager, otherwise the person who made the quote) and the admins get a bell reminder.</li><li>The quote shows in the <b>⚠ Attention</b> tab on Quotes and under <b>Needs attention</b> on the dashboard.</li><li>Open it and tap <b>Send a nudge by e-mail</b> (or <b>Nudge on WhatsApp</b>). Helm sends your studio's own follow-up message to the client's e-mail / WhatsApp saved on the event. Or tap <b>Dismiss</b> if you have already spoken to them.</li></ol>
 <p>Notes:</p>
-<ul><li>A nudge is queued and goes out with Helm's scheduled messages. In a free trial or on a demo event it is recorded but not sent.</li><li>WhatsApp needs the client's mobile number, their WhatsApp opt-in, and your studio's WhatsApp number (Control Center → Notifications).</li><li>Up to 3 nudges per client per day. A new reminder only comes after the client opens the link again.</li><li>When the client approves, the reminder disappears by itself.</li></ul>
+<ul><li>A nudge is queued and goes out with Helm's scheduled messages. In a free trial or on a demo event it is recorded but not sent.</li><li>WhatsApp needs the client's mobile number, their WhatsApp opt-in, and your studio's WhatsApp number (Settings → Notifications).</li><li>Up to 3 nudges per client per day. A new reminder only comes after the client opens the link again.</li><li>When the client approves, the reminder disappears by itself.</li></ul>
 <h3>Who can do what</h3>
-<div class="tbl"><table><tr><th></th><th>See views and the timeline</th><th>Send a nudge / Dismiss</th><th>See the client's IP address</th><th>Change the settings</th></tr><tr><td>Admin</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>Roles with Quotes <b>view</b></td><td>✓</td><td>–</td><td>–</td><td>–</td></tr><tr><td>Roles with Quotes <b>edit</b></td><td>✓</td><td>✓</td><td>–</td><td>–</td></tr><tr><td>Roles with Control Center <b>edit</b></td><td>–</td><td>–</td><td>–</td><td>✓</td></tr></table></div>
-<h3>Settings (Control Center → 🔔 Notifications → &quot;Client link views&quot;)</h3>
-<ul><li><b>Track when clients open their links</b>: on by default.</li><li><b>Bell notification the first time</b>: on by default.</li><li><b>Also notify on later visits</b>: off by default; at most once every 12 hours (1 to 168).</li><li><b>&quot;Viewed but not approved&quot; reminder</b>: off until you switch it on in Control Center &gt; Automations; after 2 days (1 to 30).</li><li><b>Automatic nudge to the client</b>: this is the existing <b>Client follow-ups</b> switch in &quot;Automatic client messages&quot; just below. It is <b>off</b> by default.</li></ul>
+<div class="tbl"><table><tr><th></th><th>See views and the timeline</th><th>Send a nudge / Dismiss</th><th>See the client's IP address</th><th>Change the settings</th></tr><tr><td>Admin</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>Roles with Quotes <b>view</b></td><td>✓</td><td>–</td><td>–</td><td>–</td></tr><tr><td>Roles with Quotes <b>edit</b></td><td>✓</td><td>✓</td><td>–</td><td>–</td></tr><tr><td>Roles with Settings <b>edit</b></td><td>–</td><td>–</td><td>–</td><td>✓</td></tr></table></div>
+<h3>Settings (Settings → 🔔 Notifications → &quot;Client link views&quot;)</h3>
+<ul><li><b>Track when clients open their links</b>: on by default.</li><li><b>Bell notification the first time</b>: on by default.</li><li><b>Also notify on later visits</b>: off by default; at most once every 12 hours (1 to 168).</li><li><b>&quot;Viewed but not approved&quot; reminder</b>: off until you switch it on in Settings &gt; Automations; after 2 days (1 to 30).</li><li><b>Automatic nudge to the client</b>: this is the existing <b>Client follow-ups</b> switch in &quot;Automatic client messages&quot; just below. It is <b>off</b> by default.</li></ul>
 </section>
 
 <section class="mch" data-src="sections/40-share-approval.md">
@@ -437,11 +437,11 @@
 <ul><li><b>Quote flow, step 9 (Share with client &amp; approval)</b> and the <b>event workspace</b>: &quot;Valid until 03/11/2026 · Expires in 14 days&quot;.<ul><li><b>Extend +14 days</b> — one click. It adds the studio's default number of days (from today if the quote has already expired).</li><li><b>Change date</b> — pick any date from today up to one year ahead (only if your studio allows custom dates; admins always can).</li><li><b>History</b> — every change, who made it and when.</li></ul></li><li><b>Quotes list</b>: a small pill — grey &quot;Expires in 10 days&quot;, amber &quot;Expires in 2 days&quot;, red &quot;Expired yesterday&quot;. The <b>Attention</b> tab also lists quotes that expire soon or have just expired.</li><li><b>Bell</b>: &quot;Quote A-1234 expires in 3 days&quot; (and 1 day), &quot;Quote A-1234 expired — extend it or send an updated quote&quot;, and &quot;The client asked for an updated quote&quot;. Only people who can see quotes get these.</li></ul>
 <h3>When the date is set</h3>
 <ul><li>A new quote gets today + the default (14 days).</li><li>When you send the approval link for the first time, an automatic date is counted again from that day, so the client always gets the full time. A date someone picked by hand is never moved.</li><li>Quotes made <b>before</b> this feature have no date and never expire. An admin can give them one (see below).</li></ul>
-<h3>Control Center → Client links &amp; packages → Quote validity</h3>
-<p>Who can change it: studio admins, or anyone whose role can edit Control Center.</p>
-<ul><li><b>Give new quotes a valid-until date</b> (on by default). Off = no dates anywhere, nothing expires or locks.</li><li><b>Quotes are valid for (days)</b>: 1 to 365 (default 14).</li><li><b>Remind before it ends (days)</b>: e.g. &quot;3, 1&quot; (default). 0 means on the last day. Up to 5 values.</li><li><b>An expired quote can't be approved by the client</b> (on by default). The server refuses the approval even if someone keeps an old page open.</li><li><b>Staff may pick a custom date on a quote</b> (on by default). Off = only admins pick dates; everyone who can edit quotes can still press Extend.</li><li><b>Quote expiry alert</b> (bell for the team) and <b>Quote expiry reminder</b> (e-mail to the client) are off until you switch them on in Control Center &gt; Automations. Client e-mails are only sent once client e-mail is switched on for Helm; until then they wait in the queue. Free-trial and demo studios never e-mail clients.</li><li><b>Apply to open quotes...</b> (admins only): gives every open, never-approved quote that has no date (and whose event is not in the past) today + the default. It shows how many quotes first and asks before changing anything. Quotes that already have a date are never changed.</li></ul>
+<h3>Settings → Client links &amp; packages → Quote validity</h3>
+<p>Who can change it: studio admins, or anyone whose role can edit Settings.</p>
+<ul><li><b>Give new quotes a valid-until date</b> (on by default). Off = no dates anywhere, nothing expires or locks.</li><li><b>Quotes are valid for (days)</b>: 1 to 365 (default 14).</li><li><b>Remind before it ends (days)</b>: e.g. &quot;3, 1&quot; (default). 0 means on the last day. Up to 5 values.</li><li><b>An expired quote can't be approved by the client</b> (on by default). The server refuses the approval even if someone keeps an old page open.</li><li><b>Staff may pick a custom date on a quote</b> (on by default). Off = only admins pick dates; everyone who can edit quotes can still press Extend.</li><li><b>Quote expiry alert</b> (bell for the team) and <b>Quote expiry reminder</b> (e-mail to the client) are off until you switch them on in Settings &gt; Automations. Client e-mails are only sent once client e-mail is switched on for Helm; until then they wait in the queue. Free-trial and demo studios never e-mail clients.</li><li><b>Apply to open quotes...</b> (admins only): gives every open, never-approved quote that has no date (and whose event is not in the past) today + the default. It shows how many quotes first and asks before changing anything. Quotes that already have a date are never changed.</li></ul>
 <h3>Who can do what</h3>
-<div class="tbl"><table><tr><th>Action</th><th>Who</th></tr><tr><td>See the date, pill and bell notes</td><td>Anyone who can view quotes</td></tr><tr><td>Extend +default days</td><td>Anyone who can edit quotes</td></tr><tr><td>Pick a custom date</td><td>Anyone who can edit quotes, when the studio allows it; admins always</td></tr><tr><td>Change the studio settings</td><td>Admins / roles that can edit Control Center</td></tr><tr><td>Apply to open quotes</td><td>Admins only</td></tr><tr><td>Request a new quote</td><td>The client, from their link, after the quote expired</td></tr></table></div>
+<div class="tbl"><table><tr><th>Action</th><th>Who</th></tr><tr><td>See the date, pill and bell notes</td><td>Anyone who can view quotes</td></tr><tr><td>Extend +default days</td><td>Anyone who can edit quotes</td></tr><tr><td>Pick a custom date</td><td>Anyone who can edit quotes, when the studio allows it; admins always</td></tr><tr><td>Change the studio settings</td><td>Admins / roles that can edit Settings</td></tr><tr><td>Apply to open quotes</td><td>Admins only</td></tr><tr><td>Request a new quote</td><td>The client, from their link, after the quote expired</td></tr></table></div>
 </section>
 
 <section class="mch" data-src="sections/50-invitation-studio.md">
@@ -472,7 +472,7 @@
 <h3>Out-of-order moves</h3>
 <p>Helm has a list of the usual moves (for example Sent → Approved, or Closed → Completed when an event is re-opened). A move outside that list is marked <b>Out of the usual order</b>.</p>
 <ul><li><b>Warn (default):</b> the move goes through as before and is logged.</li><li><b>Enforce:</b> a team member's out-of-order move is refused with a clear message. Client links, payments and automatic jobs are never blocked.</li></ul>
-<h3>Control Center → Event stages (studio admin only)</h3>
+<h3>Settings → Event stages (studio admin only)</h3>
 <ul><li><b>Stage rules:</b> Warn (recommended) or Enforce.</li><li><b>Show the stage history</b> on the event page and quote flow: on (default) or off.</li><li>The card also shows how many out-of-order moves were logged in the last 30 days.</li></ul>
 <p>Other roles see these settings read-only.</p>
 </section>
@@ -501,16 +501,16 @@
 <h2 id="payment-schedules" data-areas="finance">Payment schedules</h2>
 <p>Helm splits what the client pays into a few payments (for example 30% now, 50% before the event, 20% on the day), reminds the client before each one is due, and marks each payment as paid when the money comes in.</p>
 <h3>What happens on its own</h3>
-<ul><li><b>When the client approves a quote</b>, Helm adds your default payment schedule to the event. It only does this when the event has no payments planned yet. A schedule that is already there is never changed.</li><li>The amounts come from the quote total, including GST and any approved change orders. They are rounded to whole rupees, and the last payment takes the small difference so the schedule always adds up to the total.</li><li><b>Reminders to the client</b> (off until you switch on &quot;Payment reminders&quot; in Control Center &gt; Automations): 3 days before the due date, on the due date, and 3 days after if it is still unpaid. Each reminder includes your UPI ID, your payment note and the online payment link, if one is open.</li><li><b>When a payment is overdue</b> (once &quot;Overdue payment alert&quot; is switched on in Automations), the team gets one bell notice (&quot;Client payment overdue&quot;). Admins and roles that can see Finance get it.</li><li><b>When you record a payment</b>, every planned payment it fully covers is marked Paid. A part payment shows as &quot;Part paid&quot; with the amount still left.</li></ul>
-<h3>Set it up (Control Center &gt; Payment schedules)</h3>
-<ol class="steps"><li>Pick the <b>Default schedule</b>. Built in: 30 / 50 / 20 (the default), 50 / 50, and 100% upfront.</li><li>To make your own, click <b>+ New schedule</b>. Add 1 to 10 payments. Each payment has a name, an amount (a % of the total, a fixed amount, or &quot;Balance&quot; = whatever is left) and a due date (days after approval, or days before / after the event). An example on ₹1,00,000 shows as you type. Click <b>Add schedule</b>.</li><li>Enter your <b>UPI ID</b> and a short <b>payment note</b> (for example bank details). Clients see these on their page and in reminders.</li><li><b>Payment schedule on approval</b> (on) and <b>Overdue payment alert</b> (off) are switched in Control Center &gt; Automations.</li><li>Click <b>Save payment settings</b>.</li></ol>
+<ul><li><b>When the client approves a quote</b>, Helm adds your default payment schedule to the event. It only does this when the event has no payments planned yet. A schedule that is already there is never changed.</li><li>The amounts come from the quote total, including GST and any approved change orders. They are rounded to whole rupees, and the last payment takes the small difference so the schedule always adds up to the total.</li><li><b>Reminders to the client</b> (off until you switch on &quot;Payment reminders&quot; in Settings &gt; Automations): 3 days before the due date, on the due date, and 3 days after if it is still unpaid. Each reminder includes your UPI ID, your payment note and the online payment link, if one is open.</li><li><b>When a payment is overdue</b> (once &quot;Overdue payment alert&quot; is switched on in Automations), the team gets one bell notice (&quot;Client payment overdue&quot;). Admins and roles that can see Finance get it.</li><li><b>When you record a payment</b>, every planned payment it fully covers is marked Paid. A part payment shows as &quot;Part paid&quot; with the amount still left.</li></ul>
+<h3>Set it up (Settings &gt; Payment schedules)</h3>
+<ol class="steps"><li>Pick the <b>Default schedule</b>. Built in: 30 / 50 / 20 (the default), 50 / 50, and 100% upfront.</li><li>To make your own, click <b>+ New schedule</b>. Add 1 to 10 payments. Each payment has a name, an amount (a % of the total, a fixed amount, or &quot;Balance&quot; = whatever is left) and a due date (days after approval, or days before / after the event). An example on ₹1,00,000 shows as you type. Click <b>Add schedule</b>.</li><li>Enter your <b>UPI ID</b> and a short <b>payment note</b> (for example bank details). Clients see these on their page and in reminders.</li><li><b>Payment schedule on approval</b> (on) and <b>Overdue payment alert</b> (off) are switched in Settings &gt; Automations.</li><li>Click <b>Save payment settings</b>.</li></ol>
 <ul><li>You change reminder timing and wording in <b>Reminders &amp; client messages</b>.</li><li>Archiving a schedule hides it. Events that already use it keep their payments.</li></ul>
 <h3>On an event</h3>
 <ul><li>The <b>Payment schedule</b> card shows on the quote's payment step, the event workspace and Budget. Each payment shows as Paid, Part paid, Due or Overdue, with Total / Paid / Outstanding.</li><li>If an event has no schedule, pick a template, check the preview and click <b>Add this schedule</b>.</li><li><b>Pause automatic reminders for this event</b> stops automatic reminders for that one event. &quot;Send reminder now&quot; in Logistics &gt; Payments still works.</li><li>To change or remove a payment, go to <b>Logistics &gt; Payments</b>.</li></ul>
 <h3>The client's page</h3>
 <p>The client sees &quot;Payment schedule&quot; with each payment marked paid, part paid, due or overdue, plus a &quot;How to pay&quot; box with your UPI ID, note and online link.</p>
 <h3>Who can do what</h3>
-<ul><li>Change Control Center settings and schedules: admins, or roles that can edit Control Center.</li><li>See an event's schedule: roles with Finance view. Add a schedule: Finance edit. Pause reminders: Finance or Quotes edit.</li><li>Messages to clients are only queued. Nothing is sent until the studio's e-mail / WhatsApp sending is switched on. Free-trial studios never send them.</li></ul>
+<ul><li>Change Settings and schedules: admins, or roles that can edit Settings.</li><li>See an event's schedule: roles with Finance view. Add a schedule: Finance edit. Pause reminders: Finance or Quotes edit.</li><li>Messages to clients are only queued. Nothing is sent until the studio's e-mail / WhatsApp sending is switched on. Free-trial studios never send them.</li></ul>
 </section>
 
 <section class="mch" data-src="sections/70-profit.md">
@@ -540,15 +540,15 @@
 <ul><li><b>Crew:</b> on the event day your crew link shows <b>Check in now</b>. Tap it when you reach the venue, and <b>Check out</b> when you leave. The time is taken from Helm's server, not your phone. Check-in opens 3 hours before your start time.</li><li>If the studio switched on the <b>location check</b>, your phone asks for your location and you must be near the venue. Only the distance is saved, never where you are.</li><li><b>Office:</b> <b>Event day</b> page → <b>Crew check-in &amp; hours</b> shows start time, in / out times, hours, and flags: <b>Late</b> (more than the grace minutes after the start) and <b>No-show?</b> (no check-in long after the start). The office is told in the bell when someone checks in late.</li><li><b>Enter times / Edit:</b> people with Event-day or Staff edit rights can enter times for someone who couldn't check in, or correct times. Changing times the crew recorded needs a reason; the crew's own times are kept and shown.</li><li><b>Check-in location:</b> on the same card paste a Google Maps link (or &quot;12.97, 77.59&quot;), or tap <b>Use my location</b> at the venue, and set the radius.</li><li>Check-ins also update the <b>Arrivals &amp; attendance</b> list (Arrived / Left).</li></ul>
 <h3>Wages</h3>
 <p>On <b>Budget</b>, a crew member's <b>Actual</b> wage now comes from their check-in:</p>
-<ul><li><b>Per day</b> (default): day rate x days they checked in.</li><li><b>Per hour</b> (Control Center): hours checked in x (day rate / hours in a working day).</li><li>A wage posted on an open shift replaces their usual day rate for that event (per hour shifts are always paid by the hour).</li><li>No check-in: the Arrivals list counts as before (Arrived or Left = one day, No-show = nothing).</li></ul>
+<ul><li><b>Per day</b> (default): day rate x days they checked in.</li><li><b>Per hour</b> (Settings): hours checked in x (day rate / hours in a working day).</li><li>A wage posted on an open shift replaces their usual day rate for that event (per hour shifts are always paid by the hour).</li><li>No check-in: the Arrivals list counts as before (Arrived or Left = one day, No-show = nothing).</li></ul>
 <p>Per-person pay is still visible to admins only.</p>
-<h3>Control Center → Crew &amp; shifts (admins / Control Center edit)</h3>
+<h3>Settings → Crew &amp; shifts (admins / Settings edit)</h3>
 <p>Switch each part on or off: availability, open shifts (and the default: first come or needs approval), WhatsApp notices for new shifts, self check-in, location check and its radius, &quot;late after&quot; minutes, &quot;no-show? after&quot; minutes, pay per day or per hour, hours in a working day.</p>
 </section>
 
 <section class="mch" data-src="sections/80-team-members.md">
-<h2 id="team-members" data-areas="admin">Control Center: the team members table</h2>
-<p><b>Control Center → Users &amp; invites</b> lists everyone in your studio. Only admins see this section.</p>
+<h2 id="team-members" data-areas="admin">Settings: the team members table</h2>
+<p><b>Settings → Users &amp; invites</b> lists everyone in your studio. Only admins see this section.</p>
 <h3>The table</h3>
 <p>Each row shows <b>Name</b> (photo, name, e-mail), <b>Phone</b>, <b>Job title</b> and department, <b>Role</b>, <b>Profile</b> (✓ Complete or ✗ Incomplete, and when they joined) and actions. Use <b>Search name, email, phone, title…</b> or the <b>Everyone / Incomplete profiles / Complete profiles</b> picker to narrow it down. On a phone each person is a card.</p>
 <h3>What you can do</h3>
@@ -575,9 +575,9 @@
 <p>Click <b>E-mail: …</b> at the top of the Inbox and pick:</p>
 <ul><li><b>Studio default</b> (what your admin chose),</li><li><b>Daily digest</b> — one e-mail each morning (8:00 am by default) listing what has been unread for at least an hour,</li><li><b>Instant, important only</b> — a short e-mail a few minutes after a payment, client approval, close request, rejected task or low-stock warning, if you still have not read it,</li><li><b>No e-mails</b>.</li></ul>
 <p>Helm never e-mails something you already read, finished or snoozed, and never the same item twice. Free-trial studios do not send these e-mails.</p>
-<h3>For admins (Control Center → Notifications → Inbox &amp; e-mail digest)</h3>
-<p>People with Control Center <b>edit</b> rights can set:</p>
-<ul><li>Inbox e-mails are <b>off</b> until an admin switches on &quot;E-mail of missed notifications&quot; in Control Center &gt; Automations. Off stops all inbox e-mails for everyone.</li><li><b>Default for the team</b> — Daily digest, Instant important only, or No e-mails (the default). Switching inbox e-mails on in Automations makes it Daily digest.</li><li><b>Daily digest at</b> — the hour (studio time, default 8:00 am) and <b>Only items unread for at least</b> (default 1 hour).</li><li><b>Opening the bell marks everything read</b> — off by default: an item counts as read when it is opened or marked.</li></ul>
+<h3>For admins (Settings → Notifications → Inbox &amp; e-mail digest)</h3>
+<p>People with Settings <b>edit</b> rights can set:</p>
+<ul><li>Inbox e-mails are <b>off</b> until an admin switches on &quot;E-mail of missed notifications&quot; in Settings &gt; Automations. Off stops all inbox e-mails for everyone.</li><li><b>Default for the team</b> — Daily digest, Instant important only, or No e-mails (the default). Switching inbox e-mails on in Automations makes it Daily digest.</li><li><b>Daily digest at</b> — the hour (studio time, default 8:00 am) and <b>Only items unread for at least</b> (default 1 hour).</li><li><b>Opening the bell marks everything read</b> — off by default: an item counts as read when it is opened or marked.</li></ul>
 <p>Who sees which notification is still decided by <b>Notifications - who hears about what</b> (per role) and each person's muted types; the inbox follows exactly the same rules as the bell.</p>
 </section>
 
@@ -603,14 +603,14 @@
 <div class="tbl"><table><tr><th>Owner</th><th>How they are reminded</th></tr><tr><td>Team member (has a login)</td><td>Bell in Helm, plus e-mail</td></tr><tr><td>Staff member</td><td>WhatsApp with their task link, plus e-mail if they have one (and the bell if they have a login)</td></tr><tr><td>Vendor</td><td>WhatsApp, plus e-mail if they have one</td></tr><tr><td>Typed name</td><td>Only when the name matches one staff member or team member exactly. Otherwise only the event group post, if ticked</td></tr></table></div>
 <p><b>Things to know</b></p>
 <ul><li>A line needs a <b>start time</b>, and the event needs a <b>date</b>. Otherwise the bell says &quot;Add a start time&quot;.</li><li>Each reminder is sent once only and is never late. If Helm misses the time by more than 20 minutes, it skips that reminder.</li><li>Cancelled, closed and sample events are never reminded.</li><li><b>Free trial:</b> reminders go to the bell and the event group only. No e-mail or WhatsApp is sent.</li><li>E-mail and WhatsApp wait in a queue until sending is switched on for your studio.</li></ul>
-<p><b>Who can do what:</b> anyone with <b>Run-sheet edit</b> can set owners and reminders. The default times are set in Control Center (see below).</p>
-<h3>2. Control Center → Automations</h3>
+<p><b>Who can do what:</b> anyone with <b>Run-sheet edit</b> can set owners and reminders. The default times are set in Settings (see below).</p>
+<h3>2. Settings → Automations</h3>
 <p>One page lists everything Helm does by itself, and it is the only place with the on / off switches. Everything is <b>Off</b> until you switch it on; see the &quot;Automations&quot; chapter. Each row has a <b>Settings</b> button for the details.</p>
 <p>The same page also has two settings cards:</p>
 <ul><li><b>Run-sheet reminders</b>: the default reminder times (up to 4; the default is 15 minutes before plus at the start), and e-mail / WhatsApp on or off.</li><li><b>Enquiry form</b>: see below.</li></ul>
-<p><b>Who can do what:</b> anyone with Control Center view can see this page. Only people with <b>Control Center edit</b> (admins) can change it. Every change is saved in the Audit log.</p>
+<p><b>Who can do what:</b> anyone with Settings view can see this page. Only people with <b>Settings edit</b> (admins) can change it. Every change is saved in the Audit log.</p>
 <h3>3. Leads tracked automatically</h3>
-<ul><li><b>From quotes:</b> every quote with a client name already becomes a lead (source &quot;Quote&quot;). The lead moves along with the quote. Nothing new to do.</li><li><b>From your public enquiry form (new):</b><ol><li>Go to Control Center → Automations → <b>Enquiry form</b>.</li><li>Tick <b>Open my public enquiry form</b> and press <b>Save</b>.</li><li>Copy your link, which looks like <code>helm.events/&lt;your-studio&gt;/enquiry</code>. Put it on your website, Instagram bio or WhatsApp.</li><li>The client fills in their name, phone or e-mail, type of event, date, guests and a message, and ticks that you may contact them.</li><li>A new lead appears in <b>Leads</b> under New, with source &quot;Enquiry form&quot;. You also get a bell notice saying &quot;New enquiry from …&quot;.</li><li>If you leave <b>Send an instant thank-you e-mail</b> ticked, the client gets your thank-you note. You can write it yourself using {name} {studio} {event}. It is sent once e-mail is switched on for your studio. Free trials do not send it.</li></ol></li><li>On the Leads page, admins also see a <b>🔗 Enquiry form</b> button that opens these settings.</li></ul>
+<ul><li><b>From quotes:</b> every quote with a client name already becomes a lead (source &quot;Quote&quot;). The lead moves along with the quote. Nothing new to do.</li><li><b>From your public enquiry form (new):</b><ol><li>Go to Settings → Automations → <b>Enquiry form</b>.</li><li>Tick <b>Open my public enquiry form</b> and press <b>Save</b>.</li><li>Copy your link, which looks like <code>helm.events/&lt;your-studio&gt;/enquiry</code>. Put it on your website, Instagram bio or WhatsApp.</li><li>The client fills in their name, phone or e-mail, type of event, date, guests and a message, and ticks that you may contact them.</li><li>A new lead appears in <b>Leads</b> under New, with source &quot;Enquiry form&quot;. You also get a bell notice saying &quot;New enquiry from …&quot;.</li><li>If you leave <b>Send an instant thank-you e-mail</b> ticked, the client gets your thank-you note. You can write it yourself using {name} {studio} {event}. It is sent once e-mail is switched on for your studio. Free trials do not send it.</li></ol></li><li>On the Leads page, admins also see a <b>🔗 Enquiry form</b> button that opens these settings.</li></ul>
 <p><b>Safety:</b> the form shows only your studio name. It never shows other data. Limits are 5 enquiries an hour from one network, 30 an hour per studio and 3 a day from the same phone or e-mail. Bots are caught by a hidden field. The form is <b>off</b> until you switch it on.</p>
 <p><b>Not included:</b> the Helm website's own contact form and &quot;Contact sales&quot; are for Helm itself, so they do not create studio leads.</p>
 </section>
@@ -636,7 +636,7 @@
 <h3>Dashboard</h3>
 <ul><li><b>My events &amp; tasks</b> (was &quot;Upcoming &amp; my tasks&quot; / &quot;My work&quot;): events you are on, with your tasks for each.</li><li><b>Quotes pipeline</b> (was &quot;All quotes&quot; / &quot;Your quotes&quot;): every quote in the studio, from draft to confirmed.</li></ul>
 <h3>Staff</h3>
-<ul><li><b>Day rate (per event day)</b>: what you pay this person for one day of an event, not per hour. The budget uses it to work out crew wages. The same label is used in Control Center → member profile.</li></ul>
+<ul><li><b>Day rate (per event day)</b>: what you pay this person for one day of an event, not per hour. The budget uses it to work out crew wages. The same label is used in Settings → member profile.</li></ul>
 <h3>Who can do what</h3>
 <p>Nothing changed. Each page keeps its existing access rules.</p>
 </section>
@@ -680,12 +680,12 @@
 </section>
 
 <section class="mch" data-src="r25-automations.md">
-<h2 id="automations">Automations (Control Center &gt; Automations)</h2>
+<h2 id="automations">Automations (Settings &gt; Automations)</h2>
 <p>Helm can do some things by itself: remind clients about payments, follow up on quotes, remind your team before events, e-mail people the notifications they missed, message vendors and staff. <b>Every one of these is off until you switch it on.</b> Nothing is sent to your clients, team, vendors or staff before that.</p>
 <h3>Switch one on or off</h3>
-<ol class="steps"><li>Open <b>Control Center &gt; Automations</b>. Everything Helm can do by itself is in one list, grouped by who it sends to:<ul><li><b>Messages to your clients</b>: payment reminders, client follow-ups, quote expiry reminder, enquiry form thank-you.</li><li><b>Reminders and alerts for your team</b>: viewed but not approved, quote expiry alert, overdue payment alert, low stock warnings, event reminders, e-mail of missed notifications, WhatsApp copies of notifications.</li><li><b>Messages to vendors and staff</b>: vendor request reminders, delivery &amp; arrival reminders, run-sheet reminders, tell staff about new work, open shift messages.</li><li><b>Helps by itself, sends nothing</b>: payment schedule on approval, quotes to leads.</li></ul></li><li>Each row says what it does, <b>who it sends to</b> (Clients / Team / Vendors / Staff) and how (e-mail, WhatsApp, bell).</li><li>Tap the switch. Switching <b>on</b> asks you first (for example &quot;This will e-mail your clients before, on and after each payment is due&quot;). Tap <b>Switch on</b> to confirm. Switching <b>off</b> happens at once.</li><li><b>Settings</b> opens the place where you set the details (times, words, channels). The on / off switch is only here.</li></ol>
+<ol class="steps"><li>Open <b>Settings &gt; Automations</b>. Everything Helm can do by itself is in one list, grouped by who it sends to:<ul><li><b>Messages to your clients</b>: payment reminders, client follow-ups, quote expiry reminder, enquiry form thank-you.</li><li><b>Reminders and alerts for your team</b>: viewed but not approved, quote expiry alert, overdue payment alert, low stock warnings, event reminders, e-mail of missed notifications, WhatsApp copies of notifications.</li><li><b>Messages to vendors and staff</b>: vendor request reminders, delivery &amp; arrival reminders, run-sheet reminders, tell staff about new work, open shift messages.</li><li><b>Helps by itself, sends nothing</b>: payment schedule on approval, quotes to leads.</li></ul></li><li>Each row says what it does, <b>who it sends to</b> (Clients / Team / Vendors / Staff) and how (e-mail, WhatsApp, bell).</li><li>Tap the switch. Switching <b>on</b> asks you first (for example &quot;This will e-mail your clients before, on and after each payment is due&quot;). Tap <b>Switch on</b> to confirm. Switching <b>off</b> happens at once.</li><li><b>Settings</b> opens the place where you set the details (times, words, channels). The on / off switch is only here.</li></ol>
 <h3>Who can do it</h3>
-<ul><li>Only people who can <b>edit Control Center</b> can switch automations on or off. Others can see the list.</li><li>Every switch is recorded in the <b>Audit log</b>.</li><li>In a <b>free trial</b>, e-mails and WhatsApp messages are not sent even when switched on.</li></ul>
+<ul><li>Only people who can <b>edit Settings</b> can switch automations on or off. Others can see the list.</li><li>Every switch is recorded in the <b>Audit log</b>.</li><li>In a <b>free trial</b>, e-mails and WhatsApp messages are not sent even when switched on.</li></ul>
 <h3>Good to know</h3>
 <ul><li>The <b>daily digest</b> (e-mail of missed notifications) is off for every studio. Switch on &quot;E-mail of missed notifications&quot; to start it; each person can still change their own choice on their Inbox page.</li><li>Messages already waiting to be sent for an automation that is off are not sent.</li><li>&quot;Send reminder now&quot;, &quot;Send a nudge&quot; and vendor requests you send yourself always go out — they are not automations.</li></ul>
 </section>
@@ -754,7 +754,7 @@
     </table></div>
     <ul>
       <li><b>Sending:</b> copy the link, or send it by e-mail or WhatsApp from the share box (WhatsApp needs the client's opt-in, which Helm records). In the free trial, nothing is really sent.</li>
-      <li><b>Link windows:</b> client links can expire automatically after a time you choose in Control Center → Client links &amp; packages.</li>
+      <li><b>Link windows:</b> client links can expire automatically after a time you choose in Settings → Client links &amp; packages.</li>
       <li><b>Offline approval:</b> staff can record an approval received in person.</li>
     </ul>
     <div class="shot-todo" data-shot="m-booklet-share.png" data-alt="The Share booklet dialog with its checklist"><b>Screenshot to add</b>The Share booklet dialog: readiness checklist and send box</div>
@@ -814,9 +814,9 @@
     <ul>
       <li><b>Capacity meter</b> — seats placed against the venue's capacity; it flags any block packed tighter than a walkable aisle. If a hall is genuinely too small, Helm tells you how much more space you'd need instead of overpacking.</li>
       <li><b>Versions</b> — each save is a layout version linked to the quote version.</li>
-      <li><b>Layout templates</b> — save a good layout as a studio template (Control Center → Layout templates). Templates fit themselves to each event's hall size and are archived, never deleted.</li>
+      <li><b>Layout templates</b> — save a good layout as a studio template (Settings → Layout templates). Templates fit themselves to each event's hall size and are archived, never deleted.</li>
       <li><b>Checklist templates</b> — reusable to-do lists (for example “Wedding logistics”). Create them on the <b>Checklist templates</b> page; apply one from an event's Logistics page and all its tasks drop in.</li>
-      <li><b>Photo render</b> — turns the plan into a photo-real picture of the room. Renders use paid credits and are limited per month (Control Center → Photo renders); not part of the free trial.</li>
+      <li><b>Photo render</b> — turns the plan into a photo-real picture of the room. Renders use paid credits and are limited per month (Settings → Photo renders); not part of the free trial.</li>
     </ul>
     <img class="screen" src="screenshots/templates.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Checklist templates management">
     <p class="cap">Checklist templates — build once, apply to any event from its Logistics page.</p>
@@ -859,7 +859,7 @@
 
     <!-- ============================================================ 13 -->
     <h2 id="venues" data-areas="venues,controls">13 · Venues</h2>
-    <p>Keep the halls and spaces you work in, once, in <b>Control Center → Venues</b>: name, address, usable length × width, seated and standing capacity, access notes and contacts.</p>
+    <p>Keep the halls and spaces you work in, once, in <b>Settings → Venues</b>: name, address, usable length × width, seated and standing capacity, access notes and contacts.</p>
     <ul>
       <li>Pick a venue in step 4 of a quote or in the builder, and the hall size fills in for you.</li>
       <li>When the guest count is more than the venue holds, Helm asks you to decide before the quote is sent (see <a class="inl" href="#quote">Quotes</a>).</li>
@@ -932,10 +932,10 @@
     <p>Across all events: <b>Business</b> shows the studio-wide P&amp;L, what you still owe vendors and cash received by month; <b>Reports</b> exports lists (not in the trial); <b>Insights</b> shows conversion rate, average event value and profit by event type.</p>
 
     <!-- ============================================================ 19 -->
-    <h2 id="control" data-areas="controls">19 · Control Center</h2>
-    <p>The admin hub (sidebar → Admin → <b>Control Center</b>). Sections are listed on the left; the search box at the top finds any setting, role or page (try <em>gst</em>, <em>invite</em>, <em>2fa</em> or <em>logo</em>) and jumps straight to the field. <b>Help → User manual</b> under the section list opens this manual. A dot marks a section with unsaved changes.</p>
-    <img class="screen" src="screenshots/control.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Control Center">
-    <p class="cap">Control Center — sections on the left, search at the top.</p>
+    <h2 id="control" data-areas="controls">19 · Settings</h2>
+    <p>The admin hub (sidebar → Admin → <b>Settings</b>). Sections are listed on the left; the search box at the top finds any setting, role or page (try <em>gst</em>, <em>invite</em>, <em>2fa</em> or <em>logo</em>) and jumps straight to the field. <b>Help → User manual</b> under the section list opens this manual. A dot marks a section with unsaved changes.</p>
+    <img class="screen" src="screenshots/control.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Settings">
+    <p class="cap">Settings — sections on the left, search at the top.</p>
     <div class="tbl"><table>
       <tr><th>Group</th><th>Section</th><th>What you set there</th></tr>
       <tr><td rowspan="4">Workspace</td><td>General</td><td>Studio name, country (sets tax and currency), contact details, billing address, logo and accent colour, timezone, and your <b>client link name</b> (the start of every link you send).</td></tr>
@@ -955,7 +955,7 @@
       <tr><td rowspan="2">Operations</td><td>Venues</td><td>Halls and spaces with usable area and capacity (see <a class="inl" href="#venues">Venues</a>).</td></tr>
       <tr><td>Layout templates</td><td>Your studio's reusable floor layouts.</td></tr>
     </table></div>
-    <p>In the free trial, General, Client links, Import, Data &amp; compliance, Notifications, Reminders, Photo renders, Hide amounts and Layout templates are locked; Control Center opens on the first section the trial includes.</p>
+    <p>In the free trial, General, Client links, Import, Data &amp; compliance, Notifications, Reminders, Photo renders, Hide amounts and Layout templates are locked; Settings opens on the first section the trial includes.</p>
 
     <!-- ============================================================ 20 -->
     <h2 id="roles" data-areas="controls">20 · Roles &amp; invites</h2>
@@ -969,10 +969,10 @@
       <tr><td>Event coordinator · Supervisor · Quality engineer · Operations</td><td>On-ground leads</td><td>Operations areas; no finance unless you allow it.</td></tr>
       <tr><td>Crew</td><td>Decorators, helpers</td><td>Only their own tasks and schedule.</td></tr>
     </table></div>
-    <p>Change exactly what each role can see in <b>Control Center → Roles &amp; access</b>: pick a role, tap an area to allow <b>view</b> (green tick), tap ✎ to also allow <b>edit</b>. Admin always has full access. Pages and sidebar items follow the matrix.</p>
+    <p>Change exactly what each role can see in <b>Settings → Roles &amp; access</b>: pick a role, tap an area to allow <b>view</b> (green tick), tap ✎ to also allow <b>edit</b>. Admin always has full access. Pages and sidebar items follow the matrix.</p>
     <h3>Invite your team</h3>
     <ol class="steps">
-      <li>Go to <b>Control Center → Users &amp; invites</b> (or <b>Invite user</b> from search). The team members table is explained in <a class="inl" href="#team-members">Control Center: the team members table</a>.</li>
+      <li>Go to <b>Settings → Users &amp; invites</b> (or <b>Invite user</b> from search). The team members table is explained in <a class="inl" href="#team-members">Settings: the team members table</a>.</li>
       <li><b>Invite by email link</b> — enter their e-mail and role, then <b>Create invite link</b>. Helm e-mails the invitation; the link is also shown for you to copy. It expires in 7 days and nothing is charged.</li>
       <li>They click <b>Join</b>, create their login with that e-mail and land straight in your studio with the role you picked. Pending invites are listed until accepted.</li>
     </ol>
@@ -981,9 +981,9 @@
       <li>From <b>Staff</b>, <b>Save and invite to sign in</b> sends the same kind of invitation to a staff member.</li>
       <li>In the free trial you can invite up to 2 teammates (open invitations count).</li>
     </ul>
-    <div class="shot-todo" data-shot="m-cc-users.png" data-alt="Control Center Users and invites with the invite form"><b>Screenshot to add</b>Control Center → Users &amp; invites</div>
+    <div class="shot-todo" data-shot="m-cc-users.png" data-alt="Settings Users and invites with the invite form"><b>Screenshot to add</b>Settings → Users &amp; invites</div>
     <p class="cap">Users &amp; invites — add, invite, change role.</p>
-    <div class="shot-todo" data-shot="m-cc-access.png" data-alt="Control Center Roles and access matrix"><b>Screenshot to add</b>Control Center → Roles &amp; access (the access matrix)</div>
+    <div class="shot-todo" data-shot="m-cc-access.png" data-alt="Settings Roles and access matrix"><b>Screenshot to add</b>Settings → Roles &amp; access (the access matrix)</div>
     <p class="cap">Roles &amp; access — view and edit, per role and area.</p>
 
     <!-- ============================================================ 21 -->
@@ -996,7 +996,7 @@
     </table></div>
     <p>Prices on the Pricing page are proposals and may change; the plan and price shown at checkout are the ones that apply. Prices are shown before tax; checkout shows the exact tax for your billing details. Monthly or yearly (2 months free).</p>
     <ol class="steps">
-      <li>Open <b>Control Center → Plan &amp; billing</b> (or <b>Choose a plan</b> from a trial notice).</li>
+      <li>Open <b>Settings → Plan &amp; billing</b> (or <b>Choose a plan</b> from a trial notice).</li>
       <li>Pick the plan and monthly / yearly, fill in the billing details shown on your invoices (legal name, address, state, GSTIN optional) and accept the terms.</li>
       <li>Pay securely through Razorpay — Helm never sees or stores your card. While online payment is being switched on, the page says so and you can contact <b>sales@helm.events</b> to activate your plan.</li>
     </ol>
@@ -1010,7 +1010,7 @@
       <li><b>Reminders</b> — 3 days before, 1 day before, on the last day, and 7 days after the trial ends (bell, banner and e-mail).</li>
       <li><b>Read-only after 8 days</b> — for everyone, including invited teammates. You can sign in and look, but nobody can add, change or delete anything until you choose a plan.</li>
       <li><b>Data kept 60 days</b> after the trial ends, then permanently deleted. Helm e-mails you 30, 7 and 1 day before the deletion date.</li>
-      <li><b>Choose a plan any time</b> — when you upgrade you choose: keep the sample data, remove the sample data and keep your own records, or start completely clean. Later, Control Center offers <b>Delete all sample data</b>.</li>
+      <li><b>Choose a plan any time</b> — when you upgrade you choose: keep the sample data, remove the sample data and keep your own records, or start completely clean. Later, Settings offers <b>Delete all sample data</b>.</li>
       <li>One free trial per person; Helm may approve one extension of up to 7 days.</li>
     </ul>
 
@@ -1047,7 +1047,7 @@
     <h3>My password is refused</h3>
     <p>It needs 12+ characters with an uppercase and a lowercase letter, a number and a symbol. Repeated wrong attempts lock the account for a short while.</p>
     <h3>A teammate can't see something</h3>
-    <p>Their role doesn't have that area. An admin can allow it in <b>Control Center → Roles &amp; access</b>.</p>
+    <p>Their role doesn't have that area. An admin can allow it in <b>Settings → Roles &amp; access</b>.</p>
     <h3>Operations staff can see prices</h3>
     <p>Remove <b>finance</b> from their role in the access matrix.</p>
     <h3>The total differs from my calculator</h3>
@@ -1057,12 +1057,12 @@
     <h3>Stock shows a shortage</h3>
     <p>Another event on the same date has reserved it. Check the calendar, then cover the gap with a vendor.</p>
     <h3>A client link has expired</h3>
-    <p>Send a fresh link from the event. Link windows are set in Control Center → Client links &amp; packages.</p>
+    <p>Send a fresh link from the event. Link windows are set in Settings → Client links &amp; packages.</p>
     <h3>I entered a wrong vendor bill</h3>
     <p>Void it with a reason and add the correct one.</p>
     <h3>I'm showing my screen to a client</h3>
     <p>Click the eye in the top bar to hide every amount; showing them again needs the studio PIN.</p>
-    <h3>Where is Control Center / Insights?</h3>
+    <h3>Where is Settings / Insights?</h3>
     <p>In the sidebar under <b>Admin</b> (on a phone: <b>More</b>). The profile menu only holds your own account.</p>
     <h3>I created a studio by mistake</h3>
     <p>Teammates should join through an invite link, not by creating a studio. Ask your admin to invite you.</p>

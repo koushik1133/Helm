@@ -1,7 +1,7 @@
 // qmodal-1018: quotes.html Confirm / Re-price dialog - layering above the app chrome, client prefill from every place
 // the quote keeps it, and the EFFECTIVE chair / plate rates (package price wins; studio default; locked price labelled).
 // Owner case (prod trial studio, quote 10182026-01): dialog said "Rs150/chair - Rs400/plate (package: Standard - Vegetarian)"
-// while Control Center showed 200 / 500 and the package costs 450; client name + email were empty.
+// while Settings showed 200 / 500 and the package costs 450; client name + email were empty.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -19,7 +19,7 @@ const TRIAL_CFG = { gstPct: 18, placeOfSupply: 'intra', taxState: 'Telangana', t
 const PLAN = { menu_template: 'Standard — Vegetarian', menu_plate_price: 400, venue_name: 'DEMO 2' };
 const SAVED = { chairs: 35000, chairPrice: 150, guests: 50000, platePrice: 400, gstPct: 18, total: 123, taxCountry: 'IN' };
 
-t('trial config without rate keys: studio defaults are 200 / 500 (what Control Center shows), never 0', () => {
+t('trial config without rate keys: studio defaults are 200 / 500 (what Settings shows), never 0', () => {
   const s = R.studioRates(TRIAL_CFG);
   assert.equal(s.chairPrice, 200); assert.equal(s.platePrice, 500); assert.equal(s.chairDefaulted, true);
   assert.equal(R.studioRates(null).chairPrice, 200);

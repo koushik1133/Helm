@@ -27,7 +27,7 @@ If the client opened their link **2 days ago** (you can change this) and still h
 
 Notes:
 - A nudge is queued and goes out with Helm's scheduled messages. In a free trial or on a demo event it is recorded but not sent.
-- WhatsApp needs the client's mobile number, their WhatsApp opt-in, and your studio's WhatsApp number (Control Center → Notifications).
+- WhatsApp needs the client's mobile number, their WhatsApp opt-in, and your studio's WhatsApp number (Settings → Notifications).
 - Up to 3 nudges per client per day. A new reminder only comes after the client opens the link again.
 - When the client approves, the reminder disappears by itself.
 
@@ -38,12 +38,12 @@ Notes:
 | Admin | ✓ | ✓ | ✓ | ✓ |
 | Roles with Quotes **view** | ✓ | – | – | – |
 | Roles with Quotes **edit** | ✓ | ✓ | – | – |
-| Roles with Control Center **edit** | – | – | – | ✓ |
+| Roles with Settings **edit** | – | – | – | ✓ |
 
-## Settings (Control Center → 🔔 Notifications → "Client link views")
+## Settings (Settings → 🔔 Notifications → "Client link views")
 
 - **Track when clients open their links**: on by default.
 - **Bell notification the first time**: on by default.
 - **Also notify on later visits**: off by default; at most once every 12 hours (1 to 168).
-- **"Viewed but not approved" reminder**: off until you switch it on in Control Center > Automations; after 2 days (1 to 30).
+- **"Viewed but not approved" reminder**: off until you switch it on in Settings > Automations; after 2 days (1 to 30).
 - **Automatic nudge to the client**: this is the existing **Client follow-ups** switch in "Automatic client messages" just below. It is **off** by default.

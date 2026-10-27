@@ -44,7 +44,7 @@ A move outside that list is marked **Out of the usual order**.
 - **Enforce:** a team member's out-of-order move is refused with a clear message. Client links, payments and
   automatic jobs are never blocked.
 
-## Control Center → Event stages (studio admin only)
+## Settings → Event stages (studio admin only)
 
 - **Stage rules:** Warn (recommended) or Enforce.
 - **Show the stage history** on the event page and quote flow: on (default) or off.

@@ -1,5 +1,5 @@
 /* business.js — Business page bootstrap: auth gate (r20 / 0239: the "business" area VIEW - admin only by
-   default, a studio can switch it on per role in Control Center -> Roles & access; planners keep "finance"
+   default, a studio can switch it on per role in Settings -> Roles & access; planners keep "finance"
    for payments on events without seeing this page) then HelmMoney.mount. Read-only. */
 (function () {
   "use strict";

@@ -98,7 +98,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<link rel="stylesheet" href="crew-shifts.css?v=2">
+<link rel="stylesheet" href="crew-shifts.css?v=3">
 <script src="/shell-proto.js?v=43" id="shellProto"></script>
 </head>
 <body>
@@ -107,7 +107,7 @@
   <header>
     <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Tasks &amp; staff</h1><small>Helm Events</small></div>
-    <nav class="nav"><a href="dashboard.html">Home</a><a href="quotes.html">Quotes</a><a href="/builder">Builder</a><a href="control.html">Control Center</a></nav>
+    <nav class="nav"><a href="dashboard.html">Home</a><a href="quotes.html">Quotes</a><a href="/builder">Builder</a><a href="control.html">Settings</a></nav>
     <span class="spacer"></span>
     <span id="bell"></span>
     <span id="account" class="account" hidden></span>
@@ -225,10 +225,10 @@
 
 <script src="/trusted-types.js?v=4"></script>
 <script src="telemetry.js?v=6"></script>
-<script src="config.js?v=110"></script>
-<script src="phone-input.js?v=7"></script>
+<script src="config.js?v=111"></script>
+<script src="phone-input.js?v=8"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=282"></script>
+<script src="country-profile.js?v=5"></script><script src="store-api.js?v=289"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -638,6 +638,6 @@
   setInterval(()=>{ if(document.hidden || $("#app").hidden) return; if(!$("#reassignModal").hidden || !$("#schedModal").hidden || !$("#evModal").hidden) return; if(document.querySelector("#dashboard [data-busy]")) return; refreshDashboard(); }, 7000);
   BPUI.boot(load);
 </script>
-<script src="crew-shifts.js?v=3"></script>
+<script src="crew-shifts.js?v=4"></script>
 </body>
 </html>

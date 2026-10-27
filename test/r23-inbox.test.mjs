@@ -1,5 +1,5 @@
 /* r23-inbox.test.mjs - 0266 notification inbox: the pure page logic (sections, snooze menu in IST, keyboard map),
-   the store-api surface, the bell's inbox wiring, the page / Control Center card / digest e-mail and the migration's
+   the store-api surface, the bell's inbox wiring, the page / Settings card / digest e-mail and the migration's
    safety shape. */
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -71,7 +71,7 @@ t('shell + routes: inbox is an app page (sidebar layout, G I, noindex / no-store
   assert.match(read('vercel.json'), /\|hq\|inbox\|insights\|/);
   assert.match(read('public/_headers'), /\n\/inbox\n  X-Robots-Tag: noindex/);
 });
-t('Control Center card: studio defaults, edit gate, hidden before 0266', () => {
+t('Settings card: studio defaults, edit gate, hidden before 0266', () => {
   const cc = read('public/inbox-settings.js'), ctl = read('public/control.html');
   assert.match(ctl, /<div class="card" id="inboxCard" hidden><\/div>/); assert.match(ctl, /inbox-settings\.js\?v=/);
   assert.match(cc, /S\.inbox\.admin\.set\(patch\)/); assert.match(cc, /if \(!cfg\.can_manage\)/); assert.match(cc, /if \(!cfg\) \{ card\.hidden = true; return; \}/);

@@ -1,7 +1,7 @@
-/* inbox-settings.js - Control Center card (0266): the studio's notification inbox + e-mail digest defaults.
+/* inbox-settings.js - Settings card (0266): the studio's notification inbox + e-mail digest defaults.
    Inbox e-mails on / off (studio switch), the default for people who have not chosen (Daily digest / Instant, important
    only / No e-mails), the digest hour (studio time) and how long an item must stay unread, and whether opening the bell
-   marks everything read (off = Linear style: read when opened). Reads BPStore.inbox.admin.get() (Control Center VIEW),
+   marks everything read (off = Linear style: read when opened). Reads BPStore.inbox.admin.get() (Settings VIEW),
    saves with .set() (EDIT, checked in the database, audit logged). Hidden before 0266. Starts itself the first time the
    Notifications tab is shown. DOM API only. */
 (function (global) {
@@ -25,9 +25,9 @@
     started = true;
     var cfg = null; try { cfg = await S.inbox.admin.get(); } catch (e) { cfg = null; }
     if (!cfg) { card.hidden = true; return; }
-    // r25 (0274): inbox e-mails are switched on / off ONLY in Control Center -> Automations ("E-mail of missed notifications")
+    // r25 (0274): inbox e-mails are switched on / off ONLY in Settings -> Automations ("E-mail of missed notifications")
     var on = h("p", { cls: "mnote au-onoff", id: "ibs_on" }, ["Inbox e-mails are ", h("b", { text: cfg.email_enabled === true ? "on" : "off" }),
-      " for this studio. Switch them on or off in ", h("a", { href: "#automations", text: "Control Center → Automations" }), "."]);
+      " for this studio. Switch them on or off in ", h("a", { href: "#automations", text: "Settings → Automations" }), "."]);
     var def = h("select", { id: "ibs_def" }, [["daily", "Daily digest of unread items"], ["instant_important", "Instant e-mail, important items only"], ["off", "No e-mails"]]
       .map(function (o) { return h("option", { value: o[0], text: o[1] }); })); def.value = cfg.digest_default || "off";
     var hour = h("select", { id: "ibs_hour" }, Array.from({ length: 24 }, function (_, i) { return h("option", { value: String(i), text: hourLabel(i) }); })); hour.value = String(cfg.digest_hour == null ? 8 : cfg.digest_hour);
@@ -52,7 +52,7 @@
     card.hidden = false;
     if (!cfg.can_manage) {
       Array.prototype.forEach.call(card.querySelectorAll("input,select,button"), function (x) { x.disabled = true; });
-      msg.textContent = "Only people with Control Center edit rights can change these settings."; return;
+      msg.textContent = "Only people with Settings edit rights can change these settings."; return;
     }
     save.addEventListener("click", function () {
       var patch = { digest_default: def.value, digest_hour: Number(hour.value), digest_min_age_minutes: Number(age.value), bell_open_marks_read: bell.checked };

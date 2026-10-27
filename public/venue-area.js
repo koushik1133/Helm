@@ -1,5 +1,5 @@
 /* venue-area.js (0096) - venue length x breadth vs the USABLE area actually laid out.
- * The venue's full size (from Control Center -> Venues) is kept for reference on the quote's
+ * The venue's full size (from Settings -> Venues) is kept for reference on the quote's
  * client JSON as venueLen / venueWid (ft). The hall fields #g_len / #g_wid stay the usable
  * area = client.hallLen / hallWid, which is what the builder WORLD and the layout wizard use.
  *   calc({ venueLen, venueWid, len, wid, cap })  -> { errors, warnings, label, full }

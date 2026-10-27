@@ -1,4 +1,4 @@
-/* venues.css (0085) - Control Center Venues tab + "Pick a saved venue" box (flow, builder) */
+/* venues.css (0085) - Settings Venues tab + "Pick a saved venue" box (flow, builder) */
 .vn-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 12px}
 .vn-tools input[type=search]{flex:1 1 200px;min-width:0}
 .vn-tools select{max-width:100%}

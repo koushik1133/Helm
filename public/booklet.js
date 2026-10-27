@@ -169,7 +169,7 @@
       img.addEventListener("error", () => { img.hidden = true; $("#s_mark").classList.remove("has-logo"); }); }
     const ct = clear($("#s_contact"));
     // #16 studio contact, first that exists: (1) the event coordinator's name + phone,
-    // (2) the studio business phone (Control Center > Studio details), (3) the business email -
+    // (2) the studio business phone (Settings > Studio details), (3) the business email -
     // the server sends it only when an admin saved it there (0075), never the signup login email.
     const co = (d.coordinator && typeof d.coordinator === "object") ? d.coordinator : { name: e.coordinator_name, phone: e.coordinator_phone };
     const tel = (p) => { const a = el("a", "", String(p).slice(0, 32)); a.setAttribute("href", "tel:" + String(p).replace(/[^\d+]/g, "")); return a; };

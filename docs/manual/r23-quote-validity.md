@@ -29,8 +29,8 @@ ends, and stops an old price from being approved by mistake.
   client always gets the full time. A date someone picked by hand is never moved.
 - Quotes made **before** this feature have no date and never expire. An admin can give them one (see below).
 
-## Control Center -> Client links & packages -> Quote validity
-Who can change it: studio admins, or anyone whose role can edit Control Center.
+## Settings -> Client links & packages -> Quote validity
+Who can change it: studio admins, or anyone whose role can edit Settings.
 - **Give new quotes a valid-until date** (on by default). Off = no dates anywhere, nothing expires or locks.
 - **Quotes are valid for (days)**: 1 to 365 (default 14).
 - **Remind before it ends (days)**: e.g. "3, 1" (default). 0 means on the last day. Up to 5 values.
@@ -38,7 +38,7 @@ Who can change it: studio admins, or anyone whose role can edit Control Center.
   someone keeps an old page open.
 - **Staff may pick a custom date on a quote** (on by default). Off = only admins pick dates; everyone who can
   edit quotes can still press Extend.
-- **Quote expiry alert** (bell for the team) and **Quote expiry reminder** (e-mail to the client) are off until you switch them on in Control Center > Automations. Client e-mails are only sent
+- **Quote expiry alert** (bell for the team) and **Quote expiry reminder** (e-mail to the client) are off until you switch them on in Settings > Automations. Client e-mails are only sent
   once client e-mail is switched on for Helm; until then they wait in the queue. Free-trial and demo studios
   never e-mail clients.
 - **Apply to open quotes...** (admins only): gives every open, never-approved quote that has no date (and whose
@@ -51,6 +51,6 @@ Who can change it: studio admins, or anyone whose role can edit Control Center.
 | See the date, pill and bell notes | Anyone who can view quotes |
 | Extend +default days | Anyone who can edit quotes |
 | Pick a custom date | Anyone who can edit quotes, when the studio allows it; admins always |
-| Change the studio settings | Admins / roles that can edit Control Center |
+| Change the studio settings | Admins / roles that can edit Settings |
 | Apply to open quotes | Admins only |
 | Request a new quote | The client, from their link, after the quote expired |

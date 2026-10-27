@@ -1,5 +1,5 @@
 /* crew-shifts.css - r23 (0265): crew availability, open shifts, self check-in.
-   Crew link (work.html, crew-self.js) + office cards (crew-shifts.js on Operations / Event day / Staff / Control Center).
+   Crew link (work.html, crew-self.js) + office cards (crew-shifts.js on Operations / Event day / Staff / Settings).
    Uses the page tokens (--accent, --line, --ink-*) with safe fallbacks; 375 px first. */
 
 /* ---- crew link ---- */

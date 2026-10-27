@@ -1,4 +1,4 @@
-/* Control Center split (preview): groups the existing cards into sub-pages with a left
+/* Settings split (preview): groups the existing cards into sub-pages with a left
  * sub-nav, a universal smart settings search (settings-search-core.js), and #section deep links. Layout-only: it never changes
  * a setting, never removes an element, and never touches the `hidden` attribute that
  * the page's own JS uses for permissions. It drives the existing tab buttons. */
@@ -112,7 +112,7 @@
   var msel=el("select","cs-mnav"); msel.id="csMnav";
   var nv=el("nav","cs-nav"); nv.id="csNav"; nv.setAttribute("aria-label","Settings");
   aside.appendChild(sw); aside.appendChild(mlab); aside.appendChild(msel); aside.appendChild(nv);
-  // R19 help: the signed-in user manual (/manual, its Control Center chapter) in a new tab - also on phones
+  // R19 help: the signed-in user manual (/manual, its Settings chapter) in a new tab - also on phones
   var help=el("div","cs-help"); help.appendChild(el("h4","cs-group-h","Help"));
   var hl=el("a","cs-help-a"); hl.id="csHelpManual"; hl.href="manual.html#control"; hl.target="_blank"; hl.rel="noopener noreferrer";
   hl.title="Open the Helm user manual in a new tab";

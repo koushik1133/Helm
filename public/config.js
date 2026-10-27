@@ -13,7 +13,7 @@
 // Local preview (owner 2026-10-17): the WhatsApp number + e-mail setup is ON on localhost only, still off on live sites.
 window.HELM_FEATURES = Object.assign({ integrationsPage: /^(localhost|127\.0\.0\.1)$/.test(location.hostname) }, window.HELM_FEATURES || {});
 // manual (owner 2026-10-18, r20 coord; r23 2026-10-19: back on for everyone): ONE flag for the user manual.
-// true = every signed-in studio role sees "User manual" (profile menu, Control Center Help, search) and /manual shows
+// true = every signed-in studio role sees "User manual" (profile menu, Settings Help, search) and /manual shows
 // the chapters for their role (manual.js data-areas filter). "admin" = only the studio admin; false = nobody
 // (/manual says "coming soon", no storage fetch).
 window.HELM_FEATURES = Object.assign({ manual: true }, window.HELM_FEATURES);

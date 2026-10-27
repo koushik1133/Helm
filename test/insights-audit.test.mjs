@@ -88,7 +88,7 @@ t('reports: same range bar; exports filtered; inventory unfiltered', () => {
   assert.match(REP, /async events\(\)\{ const a=\(await BPStore\.quotes\.list\(\)\)\.filter\(e=>inR\(evDay\(e\)\)\)/);
   assert.doesNotMatch(REP, /\.style\.display/);
 });
-t('R19: Insights left the profile menu (sidebar Admin group, gated on insights); Reports/Audit stay in Control Center', () => {
+t('R19: Insights left the profile menu (sidebar Admin group, gated on insights); Reports/Audit stay in Settings', () => {
   assert.doesNotMatch(fnSrc(AUI, 'menuModel'), /insights/);
   assert.match(read('public/shell-b.js'), /\[ins, "insights", "Insights", "insights\.html", "insights"\]/);
   assert.match(read('public/control.html'), /<a href="reports\.html">Reports<\/a><a href="audit\.html">Audit log<\/a>/);

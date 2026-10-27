@@ -1,8 +1,8 @@
-/* target-margin-settings.js - Control Center "Target margin" card (r21, 0242). ONE studio-wide target margin %
+/* target-margin-settings.js - Settings "Target margin" card (r21, 0242). ONE studio-wide target margin %
    that the Insights "Benchmarks" card uses to colour events green / amber / red (was saved per device).
    Reads / writes ONLY through BPStore.insights.targetMargin / setTargetMargin (get_studio_target_margin /
-   set_studio_target_margin - the server re-checks Control Center EDIT and the 0 to 90 range). Shown to anyone the
-   server answers (Insights or Control Center view); read-only unless can_edit. Hidden when the server is older
+   set_studio_target_margin - the server re-checks Settings EDIT and the 0 to 90 range). Shown to anyone the
+   server answers (Insights or Settings view); read-only unless can_edit. Hidden when the server is older
    than 0242. DOM via textContent only (no HTML strings). validate() is pure and unit-tested. */
 (function (global) {
   "use strict";
@@ -28,7 +28,7 @@
   }
   function errText(e) {
     var s = String((e && (e.message || e.code)) || "");
-    if (/not authori[sz]ed|42501|Only a studio admin/i.test(s)) return "Only a studio admin (or someone allowed to edit Control Center) can change the target margin.";
+    if (/not authori[sz]ed|42501|Only a studio admin/i.test(s)) return "Only a studio admin (or someone allowed to edit Settings) can change the target margin.";
     if (e && e.code === "target_margin_missing") return e.message;
     if (/0 to 90|22023/.test(s)) return "The target margin must be from 0 to 90.";
     return "Couldn't save the target margin: " + (s || "please try again.");

@@ -1,4 +1,4 @@
-/* r23 (0264) payment schedule card (payment-schedule.js) + Control Center "Payment schedules" (payment-schedule-settings.js) */
+/* r23 (0264) payment schedule card (payment-schedule.js) + Settings "Payment schedules" (payment-schedule-settings.js) */
 .psch{min-width:0}
 .psch[hidden]{display:none!important}
 .psch-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;margin:0 0 8px}
@@ -49,7 +49,7 @@
   .psch-prow .psch-due{grid-column:1;font-size:11.5px}
 }
 
-/* Control Center card */
+/* Settings card */
 #pstCard .pst-set{border:1px solid var(--line);border-radius:10px;padding:10px 14px 12px;margin:12px 0 0;min-width:0}
 #pstCard .pst-set legend{font-weight:700;font-size:13px;padding:0 6px;color:var(--ink)}
 #pstCard .pst-chk{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--ink);margin:6px 0;font-weight:500;text-transform:none;letter-spacing:normal}

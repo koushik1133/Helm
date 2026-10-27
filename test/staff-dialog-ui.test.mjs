@@ -25,7 +25,7 @@ ok(modal.indexOf('id="sm_err"') > modal.indexOf('class="sm-foot"') && /id="sm_sa
 ok((modal.match(/class="acc-card"/g) || []).length === 2 && /class="acc-t">Save as a record only</.test(modal) && /class="acc-t">Save and invite to sign in</.test(modal), 'two option cards with bold titles');
 ok(/name="s_access" value="record" checked/.test(modal) && /name="s_access" value="invite"/.test(modal), 'radio values unchanged');
 ok(/<option value="">— Choose employment —<\/option>/.test(modal), 'Employment placeholder');
-ok(/id="s_role_hint">Roles come from Control Center → Users &amp; access\./.test(modal) && /class="fmsg fhint" id="s_role_hint"/.test(modal), 'role helper on the reserved message line');
+ok(/id="s_role_hint">Roles come from Settings → Users &amp; access\./.test(modal) && /class="fmsg fhint" id="s_role_hint"/.test(modal), 'role helper on the reserved message line');
 ok(/id="s_email_req"[^>]*hidden>\*/.test(modal), 'email asterisk hidden by default');
 ok(/class="inpfx"><span class="pfx" id="s_rate_cur"/.test(modal) && /id="s_rate" type="number" min="0"/.test(modal), 'day rate: currency prefix, numeric, min 0');
 ok(/id="s_skills_box"/.test(modal) && /id="s_skills_chips"/.test(modal), 'skills chip box');

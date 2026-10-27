@@ -1,7 +1,7 @@
-// Local QA of the release build (catalog forms + Control Center), Oct 2026:
+// Local QA of the release build (catalog forms + Settings), Oct 2026:
 //  B14  duplicate checks missed the trial's "Demo · " sample rows; venues had no duplicate check
 //  B15  a short Indian number: staff save said "Something went wrong", vendors saved +9112345
-//  B24  Control Center "Dismiss" on the unsaved bar kept the bad values and dropped the leave-page guard
+//  B24  Settings "Dismiss" on the unsaved bar kept the bad values and dropped the leave-page guard
 //  B29  free-trial cap said up front, settings polish (seat text, coupon note, PIN copy, Roles matrix, pickers)
 // Pure logic is executed (sliced out of the shipped files, like audit-1017); wiring is checked in the source.
 import assert from 'node:assert/strict';
@@ -176,7 +176,7 @@ t('B29 every catalog add button + new-record dialog reads the cap (inventory, ve
   assert.match(VEN, /formDirty\.clean\(\); if\(!v\) capHint\(\);/); assert.match(STAFF, /formDirty\.clean\(\); if\(!s\) capHint\(\);/);
   assert.match(VA, /BPUI\.capGate\(\[addB\], "venues", "venues"\)/); assert.match(VA, /BPUI\.trialCap\("venues"\)/);
 });
-t('B29 Control Center polish: seat grammar, coupon note cleared on remove, one negative message on pricing', () => {
+t('B29 Settings polish: seat grammar, coupon note cleared on remove, one negative message on pricing', () => {
   assert.match(CTL, /pend===1\?" \\u00b7 1 pending invite counts as a seat"/); assert.match(CTL, /\(extra===1\?"person":"people"\)/);
   assert.match(CTL, /\(\)=>BPStore\.coupons\.remove\(b\.dataset\.id\),\(\)=>\{ coStatus\(""\); return renderCoupons\(\); \}/);
   assert.match(CTL, /function pfErrEl\(inp\)\{ inp\.setAttribute\("data-own-msg","1"\);/);

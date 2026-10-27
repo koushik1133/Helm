@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/insights-polish.css?v=5">
+<link rel="stylesheet" href="/insights-polish.css?v=6">
 <base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Insights — Helm Events</title>
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
@@ -92,7 +92,7 @@
   <header>
     <a href="dashboard.html" class="mark" title="Home"></a>
     <div><h1>Insights</h1><small>Helm Events</small></div>
-    <nav class="nav"><a href="dashboard.html">Home</a><a href="calendar.html">Calendar</a><a href="control.html">Control Center</a></nav>
+    <nav class="nav"><a href="dashboard.html">Home</a><a href="calendar.html">Calendar</a><a href="control.html">Settings</a></nav>
     <span class="spacer"></span>
     <span id="bell"></span>
     <span id="account" class="account" hidden></span>
@@ -195,11 +195,11 @@
 
 <script src="/trusted-types.js?v=4"></script>
 <script src="telemetry.js?v=6"></script>
-<script src="config.js?v=110"></script>
+<script src="config.js?v=111"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=282"></script>
+<script src="country-profile.js?v=5"></script><script src="store-api.js?v=289"></script>
 <script src="range-bar.js?v=3"></script>
-<script src="insights-costs.js?v=3"></script>
+<script src="insights-costs.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -242,7 +242,7 @@
     if(!canFin) $("#marginCard").hidden=true;
     if(canFin && window.HelmInsightsCosts) costsUI=HelmInsightsCosts.mount($("#costsBody"),$("#benchBody"),{ money:(n,c)=>curM(n,c), studioCurrency:()=>BPStore.studioCurrency(),
       hidden:()=>!!(window.HelmPrivacy&&HelmPrivacy.isHidden&&HelmPrivacy.isHidden()), fmtDate:(d)=>BPStore.fmtDateIN(d), href:(id)=>"event.html?id="+encodeURIComponent(id||""),
-      // r21 (0242): ONE studio-wide target margin (Control Center); Insights reads it, an editor may adopt this device's old value once
+      // r21 (0242): ONE studio-wide target margin (Settings); Insights reads it, an editor may adopt this device's old value once
       targetMargin:()=>BPStore.insights.targetMargin(), saveTargetMargin:(v)=>BPStore.insights.setTargetMargin(v) });
     HelmRange.mount($("#rangeBar"),{ storeKey:"helm_range_insights", defaultKey:"this_month", onChange:(r)=>{ range=r; refresh(); } });
   }

@@ -1,9 +1,9 @@
-# Automations (Control Center > Automations)
+# Automations (Settings > Automations)
 
 Helm can do some things by itself: remind clients about payments, follow up on quotes, remind your team before events, e-mail people the notifications they missed, message vendors and staff. **Every one of these is off until you switch it on.** Nothing is sent to your clients, team, vendors or staff before that.
 
 ## Switch one on or off
-1. Open **Control Center > Automations**. Everything Helm can do by itself is in one list, grouped by who it sends to:
+1. Open **Settings > Automations**. Everything Helm can do by itself is in one list, grouped by who it sends to:
    - **Messages to your clients**: payment reminders, client follow-ups, quote expiry reminder, enquiry form thank-you.
    - **Reminders and alerts for your team**: viewed but not approved, quote expiry alert, overdue payment alert, low stock warnings, event reminders, e-mail of missed notifications, WhatsApp copies of notifications.
    - **Messages to vendors and staff**: vendor request reminders, delivery & arrival reminders, run-sheet reminders, tell staff about new work, open shift messages.
@@ -13,7 +13,7 @@ Helm can do some things by itself: remind clients about payments, follow up on q
 4. **Settings** opens the place where you set the details (times, words, channels). The on / off switch is only here.
 
 ## Who can do it
-- Only people who can **edit Control Center** can switch automations on or off. Others can see the list.
+- Only people who can **edit Settings** can switch automations on or off. Others can see the list.
 - Every switch is recorded in the **Audit log**.
 - In a **free trial**, e-mails and WhatsApp messages are not sent even when switched on.
 

@@ -275,7 +275,7 @@
     <a href="quotes.html">Quotes</a>
     <a href="leads.html">Leads</a>
     <a href="crm.html">CRM</a>
-    <a href="control.html" id="ccLink" hidden>Control Center</a>
+    <a href="control.html" id="ccLink" hidden>Settings</a>
   </nav>
   <span class="spacer"></span>
   <button class="themebtn" id="themeBtn" type="button" title="Toggle light / dark" aria-label="Toggle light or dark theme">☾</button>
@@ -379,9 +379,9 @@
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
 <script src="/trusted-types.js?v=4"></script>
 <script src="telemetry.js?v=6"></script>
-<script src="config.js?v=110"></script>
+<script src="config.js?v=111"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=282"></script><script src="event-group-picker.js?v=4"></script>
+<script src="country-profile.js?v=5"></script><script src="store-api.js?v=289"></script><script src="event-group-picker.js?v=4"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
 (function(){
@@ -1038,8 +1038,8 @@
     if(o) setTimeout(()=>{ const ae=document.activeElement; if((!ae||ae===document.body)&&o.isConnected&&o.getClientRects().length&&!o.closest("[inert]")){ try{ o.focus(); }catch(e){} } },0); }
   const INVITE_HREF="control.html#users";
   function inviteHint(){ return canInvite
-    ? 'Only people with a Helm login show here. <a href="'+INVITE_HREF+'">Invite a teammate</a> from Control Center → Users &amp; access.'
-    : 'Only people with a Helm login show here. Ask your studio admin to invite teammates (Control Center → Users &amp; access).'; }
+    ? 'Only people with a Helm login show here. <a href="'+INVITE_HREF+'">Invite a teammate</a> from Settings → Users &amp; access.'
+    : 'Only people with a Helm login show here. Ask your studio admin to invite teammates (Settings → Users &amp; access).'; }
   const GROUP_NAME_MAX=80;
   function groupCheck(rawName,ids){ const name=String(rawName||"").replace(/\s+/g," ").trim(), count=(ids||[]).length;
     if(!name) return {ok:false,field:"name",msg:"Give the group a name.",name,count};

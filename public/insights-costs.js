@@ -15,7 +15,7 @@
     { k: "rentals", label: "Rentals & inventory" }, { k: "expense_claims", label: "Expense claims" },
     { k: "change_orders", label: "Change orders" }, { k: "other_costs", label: "Miscellaneous" }, { k: "refunds", label: "Refunds to client" }
   ];
-  var DEFAULT_TARGET = 30;           // target margin % until the studio sets one (Control Center, 0242)
+  var DEFAULT_TARGET = 30;           // target margin % until the studio sets one (Settings, 0242)
   var TARGET_KEY = "helm_ins_target_margin";   // retired per-device value (before 0242): offered once to the studio, then removed
 
   /* ---------------- pure helpers ---------------- */
@@ -187,8 +187,8 @@
   /* ---------------- DOM helpers ---------------- */
   function H(tag, cls, text, parent) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
   function S(tag, attrs, parent) { var e = document.createElementNS(NS, tag); for (var k in attrs) if (attrs[k] != null) e.setAttribute(k, String(attrs[k])); if (parent) parent.appendChild(e); return e; }
-  /* r21 (0242): the target margin is ONE studio-wide value (Control Center). The old per-device value is only read
-   * to offer it once to someone who can edit Control Center, then removed. */
+  /* r21 (0242): the target margin is ONE studio-wide value (Settings). The old per-device value is only read
+   * to offer it once to someone who can edit Settings, then removed. */
   function readDeviceTarget() { try { var raw = String(localStorage.getItem(TARGET_KEY) || "").trim(), v = Number(raw); if (raw !== "" && isFinite(v)) return Math.round(v); } catch (e) {} return null; }
   function forgetDeviceTarget() { try { localStorage.removeItem(TARGET_KEY); } catch (e) {} }
 
@@ -468,14 +468,14 @@
     function renderBench(host, period, bmBy, c) {
       var top = H("div", "ic-tools", null, host);
       /* hbp-skip: a percent, not money - the privacy screen leaves it readable. Read-only here: the ONE studio-wide
-       * target is set in Control Center -> Pricing (0242), so everyone in the studio sees the same colours. */
+       * target is set in Settings -> Pricing (0242), so everyone in the studio sees the same colours. */
       var fl = H("div", "ic-f ic-target hbp-skip", null, top); H("span", null, "Target margin", fl);
       var tv = H("b", "ic-tval", fmtPct(st.target), fl); tv.id = "icTarget";
       var nt = H("span", "ic-note", null, top); nt.id = "icTargetNote";
       nt.appendChild(document.createTextNode(st.tm.missing ? "Default " + DEFAULT_TARGET + "% - a studio-wide target needs database update 0242. "
         : (st.tm.studio == null ? "Studio default (" + DEFAULT_TARGET + "%), the same for everyone. " : "Set for the whole studio, the same for everyone. ")));
-      if (!st.tm.missing && st.tm.canEdit) { var cl = H("a", "ic-tlink", "Change in Control Center", nt); cl.href = "control.html#target-margin"; nt.appendChild(document.createTextNode(". ")); }
-      else if (!st.tm.missing) nt.appendChild(document.createTextNode("An admin can change it in Control Center. "));
+      if (!st.tm.missing && st.tm.canEdit) { var cl = H("a", "ic-tlink", "Change in Settings", nt); cl.href = "control.html#target-margin"; nt.appendChild(document.createTextNode(". ")); }
+      else if (!st.tm.missing) nt.appendChild(document.createTextNode("An admin can change it in Settings. "));
       nt.appendChild(document.createTextNode("Typical = your own median for the same event type over the last 12 months."));
       if (st.tm.offer != null) renderOffer(host);
       if (!period.length) { H("div", "ic-empty", "No confirmed events in this period.", host); return; }

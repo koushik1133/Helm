@@ -97,7 +97,7 @@ t('dark CSS is kept (only never applied)', () => {
   assert.match(r('public/shell-b.css'), /\[data-theme="dark"\]\[data-hb-theme="graphite"\]/);
   assert.match(r('public/public-pages-v2.css'), /html\[data-pt="emerald"\]\[data-theme="dark"\]/);
 });
-t("Control Center search: soft iPad-style field, accent focus ring, highlighted matches, keyboard nav kept", () => {
+t("Settings search: soft iPad-style field, accent focus ring, highlighted matches, keyboard nav kept", () => {
   const c = r("public/control-split.css"), j = r("public/control-split.js");
   assert.match(c, /\.cs-search\{[^}]*-apple-system/);
   assert.match(c, /\.cs-search input:focus\{[^}]*color-mix\(in srgb,var\(--cs-acc\) 18%/);
@@ -105,6 +105,6 @@ t("Control Center search: soft iPad-style field, accent focus ring, highlighted 
   assert.match(c, /border-radius:12px/);
   assert.match(j, /e\.key==="ArrowDown"/);
   assert.match(j, /role","combobox"/);
-  assert.match(r("public/control.html"), /control-split\.css\?v=15/);
+  assert.match(r("public/control.html"), /control-split\.css\?v=16/);
 });
 console.log(`theme-green-light: ${n} passed`);

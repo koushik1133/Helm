@@ -1,4 +1,4 @@
-// Control Center shell UX (owner report, prod, trial studio, Windows Chrome ~1280px):
+// Settings shell UX (owner report, prod, trial studio, Windows Chrome ~1280px):
 //  1. the "Unsaved changes in <card>" bar followed the user to other sections and appeared on Layout rules
 //     without an edit -> per-section, value-compared dirty tracking (baseline = value when first touched)
 //  2. "Package saved." (Menus) showed on Layout rules -> status messages are tagged with their section
@@ -62,7 +62,7 @@ t('2. status messages are scoped to the section that caused them', () => {
   assert.match(JS, /if\(leaving && !m\.querySelector\("\.err,\[role=alert\]"\)\)\{ m\.textContent="";/, 'a success note is dropped on leaving; an error waits on its section');
   assert.match(JS, /m\.classList\.add\("cs-off"\);/);
 });
-t('3. the auto-expire switch keeps its 42px size inside the Control Center cards', () => {
+t('3. the auto-expire switch keeps its 42px size inside Settings cards', () => {
   assert.match(CSS, /#app\.cs-on \.cs-main \.card \.lxtoggle input\[type=checkbox\]\[role=switch\]\{width:42px;height:24px;min-width:42px;min-height:24px;flex:0 0 42px/);
   assert.match(CSS, /\.lxstate small\{[^}]*border-radius:999px/);
   assert.match(HTML, /' <small>Not saved yet<\/small>'/);
@@ -89,8 +89,8 @@ t('6. Pricing shows the country read-only; General is the one place to change it
   assert.match(HTML, /\$\("#p_country"\)\.value=newCountry;/);
 });
 t('version pins bumped', () => {
-  assert.match(HTML, /control-split\.js\?v=23/);   // r24 0269: + Automations section (over R23 22)
-  assert.match(HTML, /control-split\.css\?v=15/);
-  assert.match(HTML, /venues\.css\?v=6/);
+  assert.match(HTML, /control-split\.js\?v=24/);   // r24 0269: + Automations section (over R23 22)
+  assert.match(HTML, /control-split\.css\?v=16/);
+  assert.match(HTML, /venues\.css\?v=7/);
 });
 console.log(`cc-unsaved-layout: ${n} passed`);

@@ -8,7 +8,7 @@
    • Switching to own data (openSwitch): keep the demo data, or clear it. Clearing
      asks twice and calls clear_demo_data(), which removes ONLY this studio's rows
      flagged is_demo inside one database transaction — real rows are never touched.
-   • Control Center (#tdControl[data-td-control]): the same actions in a card, plus
+   • Settings (#tdControl[data-td-control]): the same actions in a card, plus
      "Clear sample data" (0166 clear_sample_data: admin, trial / ex-trial, is_demo rows only).
    • The persistent banner lives in auth-ui.js (demoNotice), on every page.
    • CSP: DOM built with createElement/textContent only; runtime CSS via __helmAdoptCss.
@@ -128,7 +128,7 @@
     if (then) global.location.assign(then); else global.location.reload();
     return true;
   }
-  // 0166 — Control Center "Clear sample data" (admin; trial or converted studio; is_demo rows only)
+  // 0166 — Settings "Clear sample data" (admin; trial or converted studio; is_demo rows only)
   async function clearSample(b) {
     if (b && b.disabled) return false;
     if (await trialNow()) { toast(TRIAL_KEEP, "info"); return false; }   // QA B3
@@ -287,7 +287,7 @@
       host.appendChild(row);
     }
   }
-  // Control Center: also offer "Load demo data" to an admin with no demo rows during the trial
+  // Settings: also offer "Load demo data" to an admin with no demo rows during the trial
   function renderControlEmpty(host, d, t) {
     if (!(d && d.is_admin === true && !d.has_demo && t && t.state === "trial")) { host.hidden = true; return; }
     css(); host.hidden = false;
@@ -311,7 +311,7 @@
     if (t && t.state === "none" && global.HelmTrialUpgrade) { if (dash) dash.hidden = true; if (ctl) ctl.hidden = true; return; }
     const v = view(d, t);
     // 0180: during the free trial the trial strip + the 2-step welcome are the whole trial UI: no
-    // sample-data card on the dashboard and no "Start my own studio" (Control Center keeps Reset / Clear)
+    // sample-data card on the dashboard and no "Start my own studio" (Settings keeps Reset / Clear)
     // QA B3: the subscription's answer (status / state 'trial'), the same rule as trial-lock.js / html.helm-trial
     const inTrial = trialOn(t);
     if (dash) render(dash, inTrial && v === "demo" ? null : v, d, "dashboard", inTrial);
@@ -663,7 +663,7 @@
       step.textContent = "Step " + total + " of " + total + " (optional)"; h.textContent = "Invite your team (up to 2)";
       s.empty(body); s.empty(row);
       showErr("");
-      body.appendChild(el("p", null, "Your free trial includes you + 2 people. They get an email with a join link. You can also do this later in Control Center → Users & invites."));
+      body.appendChild(el("p", null, "Your free trial includes you + 2 people. They get an email with a join link. You can also do this later in Settings → Users & invites."));
       const roles = (st.auth && st.auth.admin && st.auth.admin.roles) ? st.auth.admin.roles().filter((r) => r !== "client") : ["manager", "coordinator", "sales"];
       const lines = [];
       for (let n = 1; n <= 2; n++) {
@@ -718,7 +718,7 @@
           ul.appendChild(li);
         });
         body.appendChild(ul);
-        if (okRows.length && !mailed) body.appendChild(el("p", "td-hint", "The invitations are saved, but we couldn't confirm their e-mails were sent. If they don't arrive in 10 minutes, re-send them or copy each link in Control Center → Users & invites."));
+        if (okRows.length && !mailed) body.appendChild(el("p", "td-hint", "The invitations are saved, but we couldn't confirm their e-mails were sent. If they don't arrive in 10 minutes, re-send them or copy each link in Settings → Users & invites."));
         if (bad.length) row.appendChild(btn("Try again", "btn", () => step2(bad.map((r) => ({ email: r.email, role: r.roleKey })))));
         const fin = btn(okRows.length ? "Continue to your studio" : "Skip for now", "btn primary", () => finishWelcome(dlg));
         row.appendChild(fin);

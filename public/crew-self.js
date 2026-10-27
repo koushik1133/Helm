@@ -1,5 +1,5 @@
 /* crew-self.js - r23 (0265): the crew member's own side of the crew link (work.html).
-   Three cards, each shown only when the studio switched it on (Control Center -> Crew) and the database has 0265:
+   Three cards, each shown only when the studio switched it on (Settings -> Crew) and the database has 0265:
      #crewCheck  - event-day Check in / Check out (server time; the phone's location only when the studio asks for it,
                    and then only the distance to the venue is saved)
      #crewShifts - open shifts of the studio this person may take (one tap; first come or "needs approval")

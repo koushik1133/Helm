@@ -11,6 +11,7 @@
   var page = (location.pathname.split("/").pop() || "dashboard.html").toLowerCase();
   if (page === "" || page === "index.html" || page === "dashboard") page = "dashboard.html";
   if (!/\.html$/.test(page)) page += ".html";
+  if (page === "settings.html") page = "control.html";   /* R38: bare /settings serves control.html */
   try { if (window.HelmUrl && HelmUrl.route && HelmUrl.route()) page = HelmUrl.page() + ".html"; } catch (e) {}   /* pretty URLs: /<studio>/settings → control.html */
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
@@ -625,7 +626,7 @@
     waitAuth(function () {
       var skip = { dashboard: 1, quotes: 1, leads: 1, calendar: 1, chat: 1, users: 1 }, seen = {};
       /* FLAG (Oct 2026, trial-data-v3): the "Templates" rail item is hidden for now. The page (templates.html) stays
-       * reachable from its own links (Control Center, search, "Checklist template" quick action). Turn the rail item
+       * reachable from its own links (Settings, search, "Checklist template" quick action). Turn the rail item
        * back on with window.HELM_FLAGS = { navTemplates: true } before shell-b.js. */
       if (!(window.HELM_FLAGS && window.HELM_FLAGS.navTemplates === true)) skip.templates = 1;
       var areas = BPStore.auth.areas().filter(function (a) {
@@ -636,11 +637,11 @@
           areas.forEach(function (a, i) {
             if (!vis[i] || document.querySelector('#hbRail .hb-group:not(.hb-fav) [data-key="' + a.key + '"]')) return;
             var isAdmin = a.group === "Admin" || a.key === "controls";
-            var label = a.key === "controls" ? "Control Center" : a.label;
+            var label = a.key === "controls" ? "Settings" : a.label;
             (isAdmin ? admin : manage).appendChild(item(KEY_ICON[a.key] || "dot", label, a.page, a.key));
           });
           /* Business: the studio's money, moved off the client-facing dashboard. r20 / 0239: its own "business" area
-             (admin only by default; Control Center -> Roles & access), no longer every role with finance */
+             (admin only by default; Settings -> Roles & access), no longer every role with finance */
           Promise.resolve(BPStore.auth.canView("business")).catch(function () { return false; }).then(function (fin) {
             if (fin && !document.querySelector('#hbRail .hb-group:not(.hb-fav) [data-key="business"]')) { /* planner-1023: the first item may sit inside an .hb-row wrapper — insert before the admin group's own child, never a grandchild (that threw and left Manage hidden) */
               var ref = admin.querySelector(".hb-item"); while (ref && ref.parentNode !== admin) ref = ref.parentNode;

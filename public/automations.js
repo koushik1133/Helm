@@ -1,9 +1,9 @@
-/* automations.js - Control Center -> Automations (r24 0269, r25 0274).
+/* automations.js - Settings -> Automations (r24 0269, r25 0274).
    1. THE ONE PLACE to switch automations on or off. Every automation that sends something by itself (e-mail /
       WhatsApp to clients, vendors or crew, an e-mail digest or a scheduled bell reminder for the team) is listed in
       plain words with a "Sends to" tag and ONE switch. Everything starts OFF (0274); switching one on asks first
       ("This will e-mail your clients..."). Switching off never asks. The switch calls automation_switch(key, on) -
-      Control Center edit, checked and logged in the database. Each feature's own card keeps its details (times,
+      Settings edit, checked and logged in the database. Each feature's own card keeps its details (times,
       words, channels) but no longer has its own on / off - it links here.
    2. "Run-sheet reminders" card: the default reminder times + e-mail / WhatsApp (on / off is in the list).
    3. "Enquiry form" card: the studio's public link, the instant thank-you e-mail and its words, the bell.
@@ -170,7 +170,7 @@
     card.appendChild(h("h3", { text: "Automations" }));
     card.appendChild(h("p", { cls: "mnote", text: "Everything Helm can do by itself, in one place. Each one is off until you switch it on here - nothing is sent to your clients, team, vendors or staff before that." }));
     if (!ov) card.appendChild(h("p", { cls: "mnote au-warn", text: "These switches need the latest Helm update. Until it is installed, nothing on this list sends anything." }));
-    else if (!state.canEdit) card.appendChild(h("p", { cls: "mnote", text: "Only people who can edit Control Center can switch these on or off." }));
+    else if (!state.canEdit) card.appendChild(h("p", { cls: "mnote", text: "Only people who can edit Settings can switch these on or off." }));
     if (ov && ov.trial_no_send) card.appendChild(h("p", { cls: "mnote", text: "Free trial: e-mails and WhatsApp messages are not sent during the trial, even when switched on." }));
     GROUPS.forEach(function (g) {
       var mine = items.filter(function (it) { return it.group === g[0]; });
@@ -209,7 +209,7 @@
     card.appendChild(h("fieldset", { cls: "au-set" }, [h("legend", { text: "How" }), em.el, wa.el]));
     if (cfg.trial_no_send) card.appendChild(h("p", { cls: "mnote", text: "Free trial: reminders show in the bell and the event group only (no e-mail or WhatsApp)." }));
     card.appendChild(msg); card.appendChild(save); card.hidden = false;
-    if (!canEdit) { Array.prototype.forEach.call(card.querySelectorAll("input,button"), function (x) { x.disabled = true; }); msg.textContent = "Only people who can edit Control Center can change these."; return; }
+    if (!canEdit) { Array.prototype.forEach.call(card.querySelectorAll("input,button"), function (x) { x.disabled = true; }); msg.textContent = "Only people who can edit Settings can change these."; return; }
     save.addEventListener("click", function () {
       if (!picked.length) { msg.textContent = "Pick at least one reminder time."; return; }
       // on / off is NOT sent from here: it lives in the Automations list (one place)
@@ -248,7 +248,7 @@
     if (typeof cfg.enquiries_7d === "number") card.appendChild(h("p", { cls: "mnote", text: "Enquiries in the last 7 days: " + cfg.enquiries_7d }));
     if (cfg.trial_no_send) card.appendChild(h("p", { cls: "mnote", text: "Free trial: enquiries become leads, but the thank-you e-mail is not sent." }));
     card.appendChild(msg); card.appendChild(save); card.hidden = false;
-    if (!canEdit) { Array.prototype.forEach.call(card.querySelectorAll("input:not([readonly]),textarea,button:not(.btn.sm)"), function (x) { x.disabled = true; }); save.disabled = true; msg.textContent = "Only people who can edit Control Center can change these."; return; }
+    if (!canEdit) { Array.prototype.forEach.call(card.querySelectorAll("input:not([readonly]),textarea,button:not(.btn.sm)"), function (x) { x.disabled = true; }); save.disabled = true; msg.textContent = "Only people who can edit Settings can change these."; return; }
     save.addEventListener("click", function () {
       var t = txt.value.trim();
       if (/[<>]/.test(t)) { msg.textContent = "The reply cannot contain < or >."; return; }

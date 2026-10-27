@@ -629,7 +629,7 @@
   // openAccount({section:"profile"|"settings"}) shows just that half (profile menu);
   // no section = everything (older callers, the profile / two-step notices).
   // openAccount({section:"settings", focus:"mfa"|"password"|"devices"}) scrolls to that part and focuses
-  // its heading (Control Center search: "Two-step sign-in", "Change password", "Sign out other devices").
+  // its heading (Settings search: "Two-step sign-in", "Change password", "Sign out other devices").
   function openAccount(opts) {
     if (opts && opts.type) opts = null;                 // called as a click handler
     var section = (opts && opts.section) || "all";
@@ -861,7 +861,7 @@
     ]).then(function (r) { return r[0] && r[1]; });
     return libsP;
   }
-  var FORM_LIB_V = "3", PHONE_LIB_V = "7";
+  var FORM_LIB_V = "3", PHONE_LIB_V = "8";
   function pathIcon(path, cls) {
     var ns = "http://www.w3.org/2000/svg", s = doc.createElementNS(ns, "svg");
     s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", "16"); s.setAttribute("height", "16"); s.setAttribute("aria-hidden", "true"); if (cls) s.setAttribute("class", cls);
@@ -1790,7 +1790,7 @@
      pages (never HQ, never client pages). Like GitHub: a round avatar button opens a
      menu (role=menu) with the identity header, Profile, Account settings (profile,
      password, two-step verification), User manual (opens /manual in a new tab; only while
-     config.js HELM_FEATURES.manual is true - hidden for now) and Sign out - for every role, free trial included. R19: Control Center, Insights and
+     config.js HELM_FEATURES.manual is true - hidden for now) and Sign out - for every role, free trial included. R19: Settings, Insights and
      Customize dashboard left the menu (the sidebar and the dashboard already have them). Keyboard: Enter/Space/ArrowDown open, arrows/Home/End move, Esc closes
      and returns focus, Tab stays inside the open menu. Click outside closes.
      #helm-topbar-search is an empty slot left of the avatar for the studio search. */
@@ -1810,7 +1810,7 @@
     var name = String(prof.full_name || prof.name || meta.full_name || meta.name || "").replace(/\s+/g, " ").trim();
     var email = String(u.email || prof.email || "");
     var st = S(), label = role && st && st.auth && st.auth.admin && st.auth.admin.roleLabel ? st.auth.admin.roleLabel(role) : (role || "");
-    // R19: only account items - Control Center + Insights live in the sidebar (Admin), Customize on the dashboard
+    // R19: only account items - Settings + Insights live in the sidebar (Admin), Customize on the dashboard
     var items = [
       { id: "profile", label: "Profile" },
       { id: "settings", label: "Account settings" },
@@ -2014,7 +2014,7 @@
     host.insertBefore(root, lo);
     refreshMenuIdentity();
   }
-  /* ------------------------------- Helm subscription (0045): read-only banner + Control Center card */
+  /* ------------------------------- Helm subscription (0045): read-only banner + Settings card */
   var subBanner = null;
   function money2(v, cur) {
     try { return new Intl.NumberFormat("en-IN", { style: "currency", currency: cur || "INR", maximumFractionDigits: 2 }).format(Number(v) || 0); }

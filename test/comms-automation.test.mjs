@@ -82,11 +82,11 @@ t('migration: additive, idempotent, tenant-scoped, ASCII, no temp tables, regist
   assert.match(ap, /select item, ok from \(values/);
   assert.match(ap, /\('10 [^']+', /);
 });
-t('UI: Control Center card is DOM-built, admin tab only, hidden until the server answers', () => {
+t('UI: Settings card is DOM-built, admin tab only, hidden until the server answers', () => {
   const js = read('public/comms-settings.js'), cc = read('public/control.html');
   assert.doesNotMatch(js, /innerHTML|insertAdjacentHTML|outerHTML|\.style\./);
   assert.match(cc, /<div class="card" id="commsCard" hidden>/);
-  assert.match(cc, /<script src="comms-settings\.js\?v=6"><\/script>/);
+  assert.match(cc, /<script src="comms-settings\.js\?v=7"><\/script>/);
   assert.match(cc, /HelmCommsSettings\.init\(\)/);
   assert.match(js, /if \(!S\) return;/);
 });

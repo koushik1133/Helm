@@ -1,6 +1,6 @@
 /* runsheet-remind.js - r24 (0269) run-sheet reminders on runsheet.html.
    - Owner picker: Team (people with a Helm login) / Staff / Vendors, or "Someone else" with a typed name (kept as before).
-   - Per line: "Remind" (on by default once an owner is picked), when (studio default from Control Center, or a fixed
+   - Per line: "Remind" (on by default once an owner is picked), when (studio default from Settings, or a fixed
      time before), and "Also post the reminder in the event group".
    - The list shows a small bell per line with when + who gets it (bell / e-mail / WhatsApp / event group), read from
      runsheet_reminder_targets (no contact details ever reach the page).
@@ -153,7 +153,7 @@
     var ways = (t.ways || []).map(function (w) { return WAYS[w] || w; });
     if (!ways.length) { span.textContent = "🔔 No one to remind — pick a person from the list"; span.classList.add("rsr-off"); return span; }
     span.textContent = "🔔 " + offsetsText(t.offsets) + " → " + (t.name || "event group") + " (" + ways.join(", ") + ")";
-    span.title = "Helm reminds the owner automatically. Change the default times in Control Center → Automations.";
+    span.title = "Helm reminds the owner automatically. Change the default times in Settings → Automations.";
     return span;
   }
 

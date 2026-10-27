@@ -1,4 +1,4 @@
-// Control Center → "Client links — auto-expire" card (0039). Pins: the card is hidden
+// Settings → "Client links — auto-expire" card (0039). Pins: the card is hidden
 // and only revealed inside the isAdmin branch; store-api calls the 0039 RPCs with the
 // migration's argument names; 0039 wraps (never rewrites) every public entry point and
 // is in the MANIFEST after 0037; and the card script, run against a stub DOM, shows the

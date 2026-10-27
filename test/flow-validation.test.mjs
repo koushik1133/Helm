@@ -118,7 +118,7 @@ t('discovery / venue / menu / proposal / layout / quote limits', () => {
   assert.match(F.quote({ q_chairs: '0' }).errors.q_chairs, /at least 1/);
   assert.match(F.quote({ q_guests: '10.5' }).errors.q_guests, /whole number/);
   assert.match(F.quote({ q_other: '-1' }).errors.q_other, /negative/);
-  assert.match(F.quote({}, { pkgNoPrice: 'Standard — Vegetarian' }).errors.q_platePrice, /has no price set — set it in Control Center › Menus/);
+  assert.match(F.quote({}, { pkgNoPrice: 'Standard — Vegetarian' }).errors.q_platePrice, /has no price set — set it in Settings › Menus/);
 });
 t('requirements: no duplicates (case / spaces / accents / & vs and), note <= 200', () => {
   const list = [{ service: 'Décor & flowers' }, { service: 'Catering' }];
@@ -183,7 +183,7 @@ t('flow.html: quotation save - bound engine, inline checks, never silent', () =>
 });
 t('flow.html: package with no price is a visible warning, never a fallback rate', () => {
   assert.match(flow, /const platePrice = pkgNoPrice\(\) \? 0 :/);
-  assert.match(flow, /has no price set — set it in Control Center › Menus\. Catering is not priced until then\./);
+  assert.match(flow, /has no price set — set it in Settings › Menus\. Catering is not priced until then\./);
   assert.match(flow, /chairsManual\?"\(set by hand\)":\(\$\("#c_guests"\)\.value!==""\?"\(70% of guests\)":""\)/);
 });
 t('live price rail sticks below the app header; phones get a bottom summary bar', () => {
@@ -229,7 +229,7 @@ t('new quotes elsewhere: lead Convert + quote modal refuse a past event date (st
   assert.match(Q, /if\(\(dv && dv<today && dv!==sv\) \|\| \(!dv && de\.getAttribute\("data-date-rejected"\)==="past"\)\)\{ errEl\.textContent="Event date can't be in the past\.";/);
 });
 t('pins', () => {
-  assert.match(flow, /flow-validate\.js\?v=4/); assert.match(flow, /flow-resume\.js\?v=5/);
+  assert.match(flow, /flow-validate\.js\?v=5/); assert.match(flow, /flow-resume\.js\?v=5/);
   assert.match(flow, /flow-autosave\.js\?v=5/); assert.match(flow, /flow-polish\.css\?v=8/);
 });
 console.log(`flow-validation: ${n} passed`);

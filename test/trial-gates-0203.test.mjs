@@ -1,6 +1,6 @@
 // trial-gates-0203: free-trial studios only. Server (migration + paste file, static) and the screens:
 // - trial-lock.js sends a trial away from /:slug/onboarding, /:slug/audit, /:slug/templates (cover + redirect)
-// - Control Center: a deep link to a trial-hidden section goes to the first section the trial has
+// - Settings: a deep link to a trial-hidden section goes to the first section the trial has
 // - store-api.js: photo renders, templates and the activity log are never "allowed" for a trial (admins too)
 // - nurture.html: automation off, no Run / Send greeting, "Greetings are sent once you choose a plan"
 // - auth-ui.js: the two-step card never shows in the trial; compact, once per session, folds away by itself
@@ -78,7 +78,7 @@ assert.match(tl, /#seedBtn, #firstSeed, #btn-export-gdpr/, "starter items + stud
 for (const sel of ["#seedBtn", "#firstSeed", "#btn-export-gdpr", "#runNow", "#occBody [data-greet]", ".hd-act-card", "a[href$=\"/templates\"]", "a[href$=\"/audit\"]", "a[href*=\"tplEdit=\"]", "#tplAddRow"]) assert.ok(css.includes(sel), "css hides " + sel);
 assert.match(read("public/shell-b.js"), /\[\(ctl \|\| rl === "admin"\) && !inTrial, "audit"/, "no Audit log nav item in the trial");
 
-// ---- Control Center deep link to a trial-hidden section -------------------------------------------------
+// ---- Settings deep link to a trial-hidden section -------------------------------------------------
 { const split = read("public/control-split.js");
   const at = split.indexOf("function show(key, opts){"), body = split.slice(at, split.indexOf("// empty state", at));
   assert.ok(body.indexOf("var to=firstOpen();") > body.indexOf("if(locked(key)){"), "locked section -> first open section");

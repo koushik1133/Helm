@@ -60,7 +60,7 @@ t('CSP-safe: no innerHTML / inline styles in trial-demo.js; clearing always conf
   assert.match(TD, /__helmAdoptCss/);
   assert.match(fnSrc(TD, 'clearDemo'), /confirmDlg\([\s\S]*danger: true/);
 });
-t('0166: Control Center "Clear sample data" confirms, then calls clear_sample_data()', () => {
+t('0166: Settings "Clear sample data" confirms, then calls clear_sample_data()', () => {
   assert.match(fnSrc(TD, 'clearSample'), /confirmDlg\([\s\S]*danger: true/);
   assert.match(fnSrc(TD, 'clearSample'), /demo\.clearSample\(\)/);
   assert.match(TD, /"Clear sample data"/);
@@ -91,7 +91,7 @@ t('0097: admin-gated entry points, flag guard, gate wrappers', () => {
 t('MANIFEST + run-all + versions', () => {
   assert.match(read('supabase/migrations/MANIFEST'), /^forward {2}supabase\/migrations\/0097_trial_demo\.sql$/m);
   assert.match(read('scripts/db-test/run-all.sh'), /tests\/db\/trial-demo-0097\.sql/);
-  assert.match(API, /const AUTH_UI_VERSION = "53";/);
+  assert.match(API, /const AUTH_UI_VERSION = "54";/);
 });
 t('0100: seed / reset / load errors are shown (friendlyError toast) with a busy button state', () => {
   assert.match(TD, /BPUI\.friendlyError\(e, \{ action: action \|\| "load the demo data" \}\)/);

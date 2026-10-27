@@ -1,4 +1,4 @@
-// Control Center → Notifications (0036). Pins: the admin-only tab + pane exist and are
+// Settings → Notifications (0036). Pins: the admin-only tab + pane exist and are
 // wired into switchTab; store-api's bell.prefs calls the 0036 RPCs with the argument
 // names the migration declares; and the matrix script, run against a stub DOM, renders
 // one column per staff role, groups rows, shows REQUIRED client channels as locked

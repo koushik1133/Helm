@@ -471,7 +471,7 @@ html[data-shell="b"]:not([data-hb-theme="luxe"]):not([data-hb-theme="studio"]) .
     radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--hb-ink) 14%, transparent), transparent) center top / 100% 10px no-repeat scroll,
     radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--hb-ink) 14%, transparent), transparent) center bottom / 100% 10px no-repeat scroll;
   background-color: var(--hb-bg); }
-/* short windows (a 13" laptop with the browser bar, ~680px): tighter rows so Business, Control Center and Insights fit with less scrolling */
+/* short windows (a 13" laptop with the browser bar, ~680px): tighter rows so Business, Settings and Insights fit with less scrolling */
 @media (max-height: 760px) and (min-width: 820px) {
   html[data-shell="b"] .hb-scroll .hb-item { height: 34px; }
   html[data-shell="b"] .hb-scroll { padding-top: 4px; padding-bottom: 4px; }

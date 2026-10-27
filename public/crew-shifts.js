@@ -5,7 +5,7 @@
      #crewTimesheet (Event day)       check-in / out times, hours, late + no-show? flags, office correction,
                                       the event's check-in location (for the optional location check)
      #crewAvailCard (Staff)           month grid: who can't work which day (+ who is working), tap to mark
-     #crewCfgCard   (Control Center)  the studio's crew settings
+     #crewCfgCard   (Settings)  the studio's crew settings
    DOM API only (no HTML strings). Amounts carry data-money (privacy mode masks them). dd/mm/yyyy, studio time zone. */
 (function (global) {
   "use strict";
@@ -204,7 +204,7 @@
       var st = t.settings || {};
       card.appendChild(h("h2", { text: "🕒 Crew check-in & hours" }));
       card.appendChild(h("p", { cls: "sub", text: st.selfCheckin === false
-        ? "Self check-in is off (Control Center → Crew & shifts). You can still enter times here."
+        ? "Self check-in is off (Settings → Crew & shifts). You can still enter times here."
         : "Crew check in and out on their own crew link; the time is the server's. Late = more than " + (st.lateGraceMin || 15)
           + " min after their start; \"no-show?\" = no check-in " + (st.noShowAfterMin || 60) + " min after it. Times feed the wages on Budget." }));
       var rows = t.rows || [];
@@ -276,7 +276,7 @@
     }
     // r24 ui: the check-in location is optional. While the location check is off, or nobody is on the event yet, it is a
     // small "Set check-in location (optional)" link that opens the box - it no longer dominates the card.
-    function ccLink() { return h("a", { href: "control.html#crew", cls: "cs-link", text: "Control Center → Crew & shifts" }); }
+    function ccLink() { return h("a", { href: "control.html#crew", cls: "cs-link", text: "Settings → Crew & shifts" }); }
     function siteForm(nRows) {
       var st = t.settings || {}, site = t.site;
       var small = !st.geofence || !nRows;
@@ -378,7 +378,7 @@
   }
 
   // =====================================================================================================
-  // Control Center: crew settings
+  // Settings: crew settings
   // =====================================================================================================
   async function mountSettings(card) {
     var B = S(); if (!B || !B.ops || !B.ops.shifts) return;
@@ -391,7 +391,7 @@
     card.appendChild(h("p", { cls: "mnote", text: "How your crew use their crew link: mark days they can't work, take open shifts, and check in / out on the event day. Check-in times become the actual wages on Budget." }));
     var av = chk("cc_av", "Crew can mark days they can't work (Operations warns before you assign them)", cfg.availability);
     var os = chk("cc_os", "Open shifts: post shifts that crew take from their crew link", cfg.openShifts);
-    // r25 (0274): the WhatsApp message to crew about a new shift is switched on / off ONLY in Control Center -> Automations
+    // r25 (0274): the WhatsApp message to crew about a new shift is switched on / off ONLY in Settings -> Automations
     var nt = { el: h("p", { cls: "mnote au-onoff", id: "cc_nt" }, ["WhatsApp to free crew when a shift is posted: ", h("b", { text: cfg.notifyShifts ? "on" : "off" }),
       " - switch it in ", h("a", { href: "#automations", text: "Automations → Open shift messages" }), "."]) };
     var mode = h("select", { id: "cc_mode" }, [h("option", { value: "first_come", text: "First come, first served" }), h("option", { value: "approval", text: "Needs approval" })]);
@@ -412,7 +412,7 @@
     card.appendChild(msg); card.appendChild(save);
     if (!cfg.can_edit) {
       Array.prototype.forEach.call(card.querySelectorAll("input,select,button"), function (x) { x.disabled = true; });
-      msg.textContent = "Only people with Control Center edit rights can change these settings."; return;
+      msg.textContent = "Only people with Settings edit rights can change these settings."; return;
     }
     save.addEventListener("click", function () {
       var n = function (el, lo, hi) { var v = Number(el.value); return isFinite(v) && v >= lo && v <= hi ? v : null; };

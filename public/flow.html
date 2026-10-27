@@ -122,10 +122,10 @@
 <link rel="stylesheet" href="flow-polish.css?v=8">
 <link rel="stylesheet" href="share-checklist.css?v=4">
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
-<link rel="stylesheet" href="venues.css?v=6">
+<link rel="stylesheet" href="venues.css?v=7">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
-<link rel="stylesheet" href="quote-validity.css?v=1"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=1"><link rel="stylesheet" href="payment-schedule.css?v=1">
+<link rel="stylesheet" href="quote-validity.css?v=2"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=2"><link rel="stylesheet" href="payment-schedule.css?v=2">
 <script src="/shell-proto.js?v=43" id="shellProto"></script>
 </head>
 <body>
@@ -285,8 +285,8 @@
             <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests — drives chairs pricing)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="1" max="100000" step="1"><p class="hint" id="q_chairsLayout" hidden><span id="q_chairsLayoutTxt"></span> <button type="button" class="btn ghost" id="q_chairsUseLayout">Use layout count</button></p><p class="hint qty-diff" id="q_chairsDiff" hidden></p></div>
             <div class="fld"><label for="q_guestsRo">Guests <a href="#sec-client" class="edit-step1">edit in step 1</a></label><input class="s-10bfcec" id="q_guestsRo" type="number" readonly title="Guests are set once in step 1"></div>
             <div class="fld"><label for="q_guests">Plates <small>(catering quantity — drives plate pricing)</small></label><input id="q_guests" type="number" min="0" max="100000" step="1"><p class="hint qty-diff" id="q_platesDiff" hidden></p></div>
-            <div class="fld"><label for="q_chairPrice">Chair rate (<span class="cur-sym">₹</span>) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
-            <div class="fld"><label for="q_platePrice">Plate price (<span class="cur-sym">₹</span>) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
+            <div class="fld"><label for="q_chairPrice">Chair rate (<span class="cur-sym">₹</span>) <span class="s-c78b388">· set in Settings</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Settings → Pricing"></div>
+            <div class="fld"><label for="q_platePrice">Plate price (<span class="cur-sym">₹</span>) <span class="s-c78b388">· from package / Settings</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Settings → Pricing"></div>
             <div class="fld"><label for="q_other">Décor / equipment &amp; setup (<span class="cur-sym">₹</span>)</label><input id="q_other" type="number" min="0"><p class="hint" id="q_otherLayout" role="status" hidden><span id="q_otherLayoutTxt"></span> <button type="button" class="btn ghost" id="q_otherUseLayout">Use it</button></p></div>
             <div class="fld"><label for="q_discount">Discount (<span class="cur-sym">₹</span>)</label><input id="q_discount" type="number" min="0" aria-describedby="q_discount_err"><span class="hint" id="q_discount_err" role="alert" hidden></span><span class="hint" id="q_discountPctHint" hidden></span></div>
             <div class="fld"><label for="q_discountPct">Discount (%)</label><input id="q_discountPct" type="number" min="0" max="100" step="0.5" aria-describedby="q_discount_err"></div>
@@ -458,24 +458,24 @@
 
 <script src="/trusted-types.js?v=4"></script>
 <script src="telemetry.js?v=6"></script>
-<script src="config.js?v=110"></script>
-<script src="phone-input.js?v=7"></script>
+<script src="config.js?v=111"></script>
+<script src="phone-input.js?v=8"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=282"></script>
-<script src="tour.js?v=24"></script>
-<script src="payment-schedule.js?v=1"></script>
-<script src="booklet.js?v=27"></script>
+<script src="country-profile.js?v=5"></script><script src="store-api.js?v=289"></script>
+<script src="tour.js?v=25"></script>
+<script src="payment-schedule.js?v=2"></script>
+<script src="booklet.js?v=28"></script>
 <script src="share-checklist.js?v=13"></script>
 <script src="flow-layout-sync.js?v=6"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=5"></script>
-<script src="flow-validate.js?v=4"></script>
+<script src="flow-validate.js?v=5"></script>
 <script src="flow-resume.js?v=5"></script>
-<script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=2"></script>
-<script src="flow-dish-editor.js?v=2"></script>
-<script src="venues-core.js?v=10"></script>
+<script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=3"></script>
+<script src="flow-dish-editor.js?v=3"></script>
+<script src="venues-core.js?v=11"></script>
 <script src="venue-picker.js?v=7"></script>
-<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=5"></script><script src="email-send.js?v=5"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=4"></script><script src="approval-watch.js?v=2"></script><script src="stage-history.js?v=1"></script><script src="link-views.js?v=2"></script>
+<script src="venue-area.js?v=2"></script><script src="wa-proposal.js?v=5"></script><script src="email-send.js?v=5"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=4"></script><script src="approval-watch.js?v=2"></script><script src="stage-history.js?v=2"></script><script src="link-views.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   // owner 2026-10 (flow validation): every field rule lives in flow-validate.js. Event dates follow the
@@ -763,7 +763,7 @@
     const chairRule=chairsManual?"(set by hand)":($("#c_guests").value!==""?"(70% of guests)":"");
     if(p.chairs>0) rows+=`<div class="prow"><span>Chairs${chairRule?' <span class="q">'+chairRule+'</span>':''} <span class="q">${cnt(p.chairs)} × ${inr(p.chairPrice)}</span></span><span class="amt">${inr(p.chairs*p.chairPrice)}</span></div>`;
     const np=pkgNoPrice();
-    if(np && p.guests>0) rows+=`<div class="prow warnrow" role="status"><span>⚠ ${esc(np)} has no price set — set it in Control Center › Menus. Catering is not priced until then.</span></div>`;
+    if(np && p.guests>0) rows+=`<div class="prow warnrow" role="status"><span>⚠ ${esc(np)} has no price set — set it in Settings › Menus. Catering is not priced until then.</span></div>`;
     else if(p.guests>0) rows+=`<div class="prow"><span>Catering${p._packageName?' <span class="q">'+esc(p._packageName)+'</span>':''} <span class="q">${cnt(p.guests)} × ${inr(p.platePrice)}</span></span><span class="amt">${inr(p.guests*p.platePrice)}</span></div>`;
     if(p.other>0) rows+=`<div class="prow"><span>Décor / setup</span><span class="amt">${inr(p.other)}</span></div>`;
     rows+=`<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`;
@@ -1110,7 +1110,7 @@
   }
 
   /* ---------- re-pricing alert (R3) ----------
-     A saved quote keeps the rates it was priced at; Control Center prices are read live. When
+     A saved quote keeps the rates it was priced at; Settings prices are read live. When
      they now differ on a FUTURE, open quote, show old -> new per line. Re-pricing is never
      automatic: the button goes through saveQuotation() (the normal save path, D8 server
      pricing authority) after the same stale-approval confirmation the builder uses. */
@@ -1169,7 +1169,7 @@
     const d=canEdit ? repriceDiff() : null;
     let dismissed=""; try{ dismissed=sessionStorage.getItem(dismissKey())||""; }catch(_){}
     if(!d || dismissed===d.sig){ b.hidden=true; return; }
-    $("#repriceMeta").textContent="Control Center prices changed after this quote was saved. Total "+inr(d.oldTotal)+" → "+inr(d.newTotal)+" at today's prices. Nothing changes until you re-price.";
+    $("#repriceMeta").textContent="Settings prices changed after this quote was saved. Total "+inr(d.oldTotal)+" → "+inr(d.newTotal)+" at today's prices. Nothing changes until you re-price.";
     const ul=$("#repriceLines"); ul.textContent="";
     d.lines.forEach(l=>{ const li=document.createElement("li");
       li.textContent=l.label+": "+(l.flag ? ((l.from?"yes":"no")+" → "+(l.to?"yes":"no")) : l.pct ? (l.from+"% → "+l.to+"%") : (inr(l.from)+" → "+inr(l.to)+(l.a!=null && l.label.indexOf("·")>0 ? " ("+inr(l.a)+" → "+inr(l.b)+")" : "")));
@@ -1181,7 +1181,7 @@
     const approved = ev.status==="confirmed" || (ev.approvalStatus && ev.approvalStatus!=="none");
     const msg = approved
       ? "This quote is already confirmed/approved. Re-pricing changes the total from "+inr(d.oldTotal)+" to "+inr(d.newTotal)+", so the client’s approval will go stale and they will need to approve again (payments pause until then). Re-price anyway?"
-      : "Re-price this quote at today’s Control Center prices? The total changes from "+inr(d.oldTotal)+" to "+inr(d.newTotal)+". A new quotation version is saved; earlier versions stay on record.";
+      : "Re-price this quote at today’s Settings prices? The total changes from "+inr(d.oldTotal)+" to "+inr(d.newTotal)+". A new quotation version is saved; earlier versions stay on record.";
     if(!(await BPUI.confirm(msg,{ title: approved ? "Client approval will go stale" : "Re-price this quote?", okLabel:"Save and re-price" }))) return;
     const wasLoading=loading; loading=true;
     if(d.next.chairPrice!=null) $("#q_chairPrice").value=d.next.chairPrice;
@@ -1302,7 +1302,7 @@
       return `<button type="button" class="pkgcard ${on?'on':''}" data-id="${esc(p.id)}" aria-pressed="${!!on}"${on?' title="Selected - click again to remove the package"':''}>
         <b>${esc(p.name)}</b><div class="m">${esc(p.diet||'')} · ${Array.isArray(p.dishes)?p.dishes.length:0} dishes</div>
         <div class="p">${inr(p.price_per_plate)} / plate</div></button>`;
-    }).join("")}` : '<div class="meta">No menu packages set up yet — <a href="control.html#menu">add them in Control Center</a>.</div>';
+    }).join("")}` : '<div class="meta">No menu packages set up yet — <a href="control.html#menu">add them in Settings</a>.</div>';
     $("#pkgCards").querySelectorAll(".pkgcard").forEach(b=>b.addEventListener("click",()=>{
       if(b.dataset.none==="1" || (appliedPkg && String(appliedPkg.id)===String(b.dataset.id))) clearPackage(b);
       else applyPackage(b.dataset.id,b); }));

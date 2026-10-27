@@ -5,7 +5,7 @@
    plan.html (BPStore.eventMenu.list/add/remove/setQty, BPStore.dishCatalog),
    so both pages always show the same list.
    - Add: course + name. A name already in the studio's dish catalog is reused;
-     a new name is added to the catalog first (needs Control Center edit rights).
+     a new name is added to the catalog first (needs Settings edit rights).
    - Rename: adds the new dish first, copies the quantity, then removes the old
      row, so a failure part-way never loses the dish.
    No innerHTML, no inline styles or handlers (CSP). window.HelmDishEditor / require().

@@ -1,6 +1,6 @@
 // Profile menu (top-right avatar) + Account settings split + 0060 studio_avatars — front end.
 //  * menuModel (auth-ui.js, pure): name / initials / role / items; R19: account items only
-//    (Profile, Account settings, [User manual - hidden for now, HELM_FEATURES.manual], Sign out) - Control Center is in the sidebar
+//    (Profile, Account settings, [User manual - hidden for now, HELM_FEATURES.manual], Sign out) - Settings is in the sidebar
 //  * menu a11y wiring: aria-haspopup=menu, aria-expanded, role=menu/menuitem, Esc/arrows/Home/End/Tab
 //  * #helm-topbar-search slot left of the avatar; not on HQ / client pages
 //  * openAccount sections (profile / settings) reuse profileForm + MFA + sign-out-others; e-mail change
@@ -32,7 +32,7 @@ t('no name → e-mail local part, 2-letter initials', () => {
   const m = mm({ id: 'u1', email: 'koushik@x.test' }, null, null, false);
   assert.equal(m.name, 'koushik'); assert.equal(m.initials, 'KO'); assert.equal(m.role, '');
 });
-t('R19: account items only for every role (Control Center / Insights live in the sidebar)', () => {
+t('R19: account items only for every role (Settings / Insights live in the sidebar)', () => {
   // r20 coord (e): the user manual is hidden for now (config.js HELM_FEATURES.manual false / absent)
   assert.equal(ids(mm({ id: 'a' }, {}, 'admin', true)), 'profile,settings,suggest,signout');
   assert.equal(ids(mm({ id: 'a' }, {}, 'admin', false)), 'profile,settings,suggest,signout');
@@ -109,9 +109,9 @@ t('CSP: new CSS goes through __helmAdoptCss; no style= in the menu code', () => 
   assert.match(AUI, /\.hau-menu\{/); assert.match(AUI, /html\[data-theme=dark\] \.hau-menu/);
 });
 t('versions bumped: AUTH_UI_VERSION 19, every page on store-api v=158', () => {
-  assert.match(API, /const AUTH_UI_VERSION = "53";/);
+  assert.match(API, /const AUTH_UI_VERSION = "54";/);
   const pages = readdirSync(new URL('../public/', import.meta.url)).filter((f) => f.endsWith('.html'));
-  pages.forEach((p) => { const h = read('public/' + p); const m = h.match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '282', p); });
+  pages.forEach((p) => { const h = read('public/' + p); const m = h.match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '289', p); });
 });
 t('migration 0060 + APPLY are additive, ASCII, verified', () => {
   const mig = read('supabase/migrations/0060_studio_avatars.sql'), ap = read('supabase/APPLY-0060.sql');

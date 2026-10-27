@@ -4,7 +4,7 @@
    Mounts on every [data-stage-history] element; the quote id comes from data-quote or the page URL (?id= / ?quote=).
    Reads ONLY through BPStore.stages.history (quote_stage_history - the server re-checks studio + Quotes view and
    self-heals a stage that fell behind). Hidden on a database without 0263, when the studio switched the history off
-   in Control Center, or when the user may not see it. DOM via textContent only. describe() / when() / pillSpec() are
+   in Settings, or when the user may not see it. DOM via textContent only. describe() / when() / pillSpec() are
    pure and unit-tested (test/r23-state-machine.test.mjs). */
 (function (global) {
   "use strict";

@@ -1,4 +1,4 @@
-// Control Center > Menus & catalog > Menu packages: chips by category + category / dish dropdowns
+// Settings > Menus & catalog > Menu packages: chips by category + category / dish dropdowns
 // (public/menu-pkg-editor.js). Pure helpers run in Node; the page wiring is checked statically.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -83,7 +83,7 @@ assert.match(src, /var pr = checkPrice\(price\.value, \{ active: on, base: st\.b
 assert.match(src, /el\("summary", null, "Paste as text \(bulk\)"\)/);
 assert.match(src, /dishIn\.setAttribute\("list", dl\.id\)/, "searchable dish list");
 
-// ---- Control Center wiring ---------------------------------------------------------------------------
+// ---- Settings wiring ---------------------------------------------------------------------------
 const cc = r("public/control.html");
 assert.match(cc, /<script src="menu-pkg-editor\.js\?v=\d+"><\/script>/);
 assert.match(cc, /<link rel="stylesheet" href="menu-pkg-editor\.css\?v=\d+">/);

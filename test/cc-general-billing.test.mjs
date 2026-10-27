@@ -1,4 +1,4 @@
-// Control Center > General: billing details persist, one message after save, inline field errors,
+// Settings > General: billing details persist, one message after save, inline field errors,
 // PIN digits-only (6) + Indian state dropdown, obvious empty business-phone field.
 // Pure helpers + store-api org/swr slices run in a VM with a stub client; a headless-Chromium
 // check of the DOM helpers runs when Playwright is installed (skipped, not failed, otherwise).
@@ -58,7 +58,7 @@ t('control.html markup: PIN 6 digits + numeric keypad, state select, phone place
   assert.match(ph, /placeholder="Enter business phone"/); assert.match(ph, /data-ph-own="1"/); assert.doesNotMatch(ph, /placeholder="[^"]*\d/);
   assert.match(CTL, /<label for="o_phone">Business phone \*<\/label>/);
   assert.match(CTL, /id="o_save">Save studio settings<\/button><\/div>\n\s*<div id="orgSaveMsg" role="status" aria-live="polite"><\/div>/);
-  assert.match(CTL, /<script src="onboarding-core\.js\?v=7"><\/script>\n<script src="studio-billing-form\.js\?v=2"><\/script>/);
+  assert.match(CTL, /<script src="onboarding-core\.js\?v=8"><\/script>\n<script src="studio-billing-form\.js\?v=3"><\/script>/);
   assert.match(CTL, /\.fld \.hp\.is-invalid\{border-color:#d92d20!important/);
 });
 t('control.html save: inline errors (all fields, first focused), fresh-row merge, read-back, one message', () => {
