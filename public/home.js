@@ -507,7 +507,7 @@
       var j = isOut ? 1 : 0.55;
       var tw = t.offsetWidth / 2, th = t.offsetHeight / 2;
       var x = clamp(Math.cos(a) * rx * j, -w / 2 + tw + 4, w / 2 - tw - 4);
-      var y = clamp(Math.sin(a) * ry * j, -h / 2 + th + 10, h / 2 - th - 16);   // r27: rotated tiles stay fully on screen
+      var y = clamp(Math.sin(a) * ry * j, -h / 2 + th, h / 2 - th);
       return { x: x, y: y, r: (i % 5 - 2) * 3 };
     });
   }
@@ -898,7 +898,7 @@
     var evMan = Promise.resolve(window.DEMO9_MANIFEST || {});
     /* r21 landing photos: owner-supplied photos in /landing/events/ (1600w + 800w WebP).
        Data Saver / Save-Data or a 2G-class connection keeps the gradient only (no photo requests). */
-    var CEL_PHOTOS = { wedding: 'wedding', corporate: 'product-launch', birthday: 'birthday', concert: 'sangeet-2', gala: 'corporate-gala-2', cultural: 'mehendi-2' };
+    var CEL_PHOTOS = { wedding: 'wedding', corporate: 'product-launch', birthday: 'birthday', concert: 'sangeet', gala: 'corporate-gala', cultural: 'mehendi' };
     var celNet = navigator.connection || {};
     var celLite = !!celNet.saveData || /(^|-)2g$/.test(String(celNet.effectiveType || ''));
     var celLoad = function (bg) {   /* sets the src only when the slide is shown (or next), so later photos never load early */
@@ -1279,7 +1279,6 @@
     var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.addEventListener('resize', function () { vh = window.innerHeight; }, { passive: true });
     var line = $('[data-fill]'), cur = $('.curtain'), ws = null;
-    var fitMq = window.matchMedia('(min-width: 768px) and (min-height: 560px)');
     if (line) {
       var words = line.textContent.trim().split(/\s+/); line.textContent = '';
       var sr = el('span', 'sr', words.join(' ')); line.appendChild(sr);
@@ -1290,8 +1289,7 @@
     function frame() {
       raf = 0;
       if (line && live.has(line)) {
-        /* r27/r28: when the page snaps one screen per section, the line is complete (to the last word) before it reaches the centre of the screen */
-        var r = line.getBoundingClientRect(), k = fitMq.matches ? clamp((vh * .95 - (r.top + r.height / 2)) / (vh * .36), 0, 1) : clamp((vh * .85 - r.top) / (r.height + vh * .45), 0, 1), n = Math.round(k * ws.length);
+        var r = line.getBoundingClientRect(), k = clamp((vh * .85 - r.top) / (r.height + vh * .45), 0, 1), n = Math.round(k * ws.length);
         ws.forEach(function (w, i) { w.classList.toggle('on', i < n); });
       }
       if (cur && live.has(cur)) {
@@ -1329,12 +1327,6 @@
   var str = function (v, max) { return typeof v === 'string' ? v.trim().slice(0, max) : ''; };
   var num = function (v) { v = Number(v); return v > 0 && v < 10000 ? Math.round(v) : 0; };
 
-  /* R43 speed: the strip is far below the first screen, so its list is fetched once the page has loaded and the
-     browser is idle - it no longer competes with the first screen for the network or the main thread */
-  var idle = window.requestIdleCallback || function (f) { return setTimeout(f, 200); };
-  var start = function () { idle(loadStrip, { timeout: 2000 }); };
-  if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true });
-  function loadStrip() {
   fetch('/landing/events/events.json', { cache: 'no-cache', credentials: 'same-origin' })
     .then(function (r) { return r.ok ? r.json() : []; })
     .then(function (list) {
@@ -1349,7 +1341,6 @@
       build(items);
     })
     .catch(function () { /* no list = no section */ });
-  }
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
 
@@ -1407,7 +1398,6 @@
     sec.hidden = false;
     lightbox(items);
     if (!reduce) motion();
-    window.dispatchEvent(new Event('helm:relayout'));   // R43: the section appeared - fit + snap points are recomputed
   }
 
   /* ---- seamless marquee: [set][copy]...[copy] where copies cover the band; x wraps every segW ---- */
@@ -1547,226 +1537,4 @@
       box.querySelector('.ev-close').focus();
     };
   }
-})();
-
-/* ================= r27 landing fit: one section = one screen, clean snapping =================
-   Nothing is removed, hidden or recoloured. On laptops / desktops / tablets (>= 768 x 560):
-   1. fit: a section whose content is taller than the screen is scaled down as a whole (CSS zoom on its
-      content blocks), so every section shows completely in one screen; pinned scenes likewise.
-   2. snap (home.css, motion allowed): plain sections snap at their top; the pinned, scroll-driven scenes
-      (hero film, converge, film, 2D->3D, story, celebrations) are taller on purpose, so an invisible snap
-      point is added at every chapter they already step to (same positions as their own buttons / stepper).
-      They get no section-level snap: a snap box taller than the screen would let the page rest inside it. */
-(function () {
-  'use strict';
-  var fitMq = window.matchMedia('(min-width: 768px) and (min-height: 560px)');
-  var snapMq = window.matchMedia('(min-width: 768px) and (min-height: 560px) and (prefers-reduced-motion: no-preference)');
-  var $ = function (s) { return document.querySelector(s); };
-  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
-  var NAVH = 72;
-  function px(v) { return parseFloat(v) || 0; }
-  function flowKids(box) {
-    return Array.prototype.filter.call(box.children, function (c) {
-      var cs = getComputedStyle(c);
-      return cs.position !== 'absolute' && cs.position !== 'fixed' && cs.display !== 'none' && !c.classList.contains('snap-pt');
-    });
-  }
-  function contentH(kids) {
-    if (!kids.length) return 0;
-    var top = Infinity, bot = -Infinity;
-    kids.forEach(function (k) { var r = k.getBoundingClientRect(), cs = getComputedStyle(k); top = Math.min(top, r.top - px(cs.marginTop)); bot = Math.max(bot, r.bottom + px(cs.marginBottom)); });
-    return bot - top;
-  }
-  /* box: the element that must fit; avail: its usable height; kids: the blocks that get scaled.
-     R43 speed: all boxes are measured together and scaled together (read, then write), so each pass costs one
-     layout of the page instead of one per section - same zoom values as before. */
-  function fitBoxes(jobs) {
-    jobs.forEach(function (j) { j.z = 1; j.kids.forEach(function (k) { k.style.removeProperty('zoom'); }); });
-    var open = jobs;
-    for (var pass = 0; pass < 3 && open.length; pass++) {
-      var hs = open.map(function (j) { return contentH(j.kids); });   // reads only
-      var next = [];
-      open.forEach(function (j, i) {                                   // writes only
-        if (hs[i] <= j.avail + 1) return;
-        j.z = Math.max(0.2, j.z * (j.avail - 2) / hs[i]);
-        j.kids.forEach(function (k) { k.style.setProperty('zoom', j.z.toFixed(3)); });
-        next.push(j);
-      });
-      open = next;
-    }
-  }
-  var zoomed = false;   // R43 speed: phones never zoom, so they skip the per-block style reads entirely
-  function fitAll() {
-    if (!fitMq.matches && !zoomed) return;
-    var all = $$('main > .sec, main > .fillsec').concat($$('.apps-pin, .film-pin, .morph-pin, .story-pin, .cel-in'));
-    all.forEach(function (b) { flowKids(b).forEach(function (k) { k.style.removeProperty('zoom'); }); });
-    zoomed = false;
-    if (!fitMq.matches) return;
-    zoomed = true;
-    var vh = window.innerHeight, jobs = [];
-    $$('main > .sec, main > .fillsec').forEach(function (sec) {
-      if (sec.hidden) return;
-      var cs = getComputedStyle(sec);
-      jobs.push({ kids: flowKids(sec), avail: vh - px(cs.paddingTop) - px(cs.paddingBottom) });
-    });
-    $$('.film-pin, .morph-pin, .story-pin, .cel-in').forEach(function (pin) {
-      var cs = getComputedStyle(pin);
-      jobs.push({ kids: flowKids(pin), avail: pin.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) });
-    });
-    fitBoxes(jobs);
-  }
-  function frac(n) { var a = []; for (var i = 0; i < n; i++) a.push((i + 0.5) / n); return a; }
-  function plan() {
-    var vh = window.innerHeight, out = [];
-    function spanOf(sec) { return Math.max(0, sec.offsetHeight - vh); }
-    var hero = $('.hero'), hv = $('#heroVidWrap');
-    if (hero && hv) out.push([hero, [0, hv.offsetTop - NAVH]]);   // hero copy, then the film fully open
-    var cv = $('#converge'); if (cv) out.push([cv, [0, spanOf(cv)]]);
-    var film = $('#film'); if (film) out.push([film, frac($$('#film .fc').length).map(function (f) { return f * spanOf(film); })]);
-    var morph = $('#morph'); if (morph) out.push([morph, [0.04, 0.38, 0.66, 0.96].map(function (f) { return f * spanOf(morph); })]);
-    var story = $('#story'); if (story) out.push([story, frac($$('#story .sl').length).map(function (f) { return f * spanOf(story); })]);
-    var cel = $('#solutions'); if (cel) out.push([cel, frac($$('#solutions .cel-s').length).map(function (f) { return f * spanOf(cel); })]);
-    return out;
-  }
-  var made = [];
-  /* R43: the new snap points are measured and added before the old ones go. Removing them first left the page,
-     for one layout, with no snap point in the hero, and mandatory snapping then slid a freshly opened page down
-     to the next section. */
-  function build() {
-    fitAll();
-    var next = snapMq.matches ? plan() : [];
-    var old = made; made = [];
-    next.forEach(function (e) {
-      e[1].forEach(function (y) {
-        var i = document.createElement('i');
-        i.className = 'snap-pt'; i.setAttribute('aria-hidden', 'true');
-        i.style.setProperty('top', Math.round(y) + 'px');
-        e[0].appendChild(i); made.push(i);
-      });
-    });
-    old.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
-  }
-  var t = 0;
-  function later() { clearTimeout(t); t = setTimeout(build, 150); }
-  /* R43 speed: the first fit + snap set-up waits until the first screen has painted (the hero needs neither);
-     the hero keeps its first snap point in the markup, so snapping is right before this runs */
-  requestAnimationFrame(function () { setTimeout(build, 0); });
-  window.addEventListener('load', build);
-  window.addEventListener('resize', later, { passive: true });
-  window.addEventListener('helm:relayout', later);
-  if (snapMq.addEventListener) { snapMq.addEventListener('change', build); fitMq.addEventListener('change', build); }
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(build);
-  /* a screen that has snapped into view shows all of its fade-in blocks (the page-wide reveal waits until a
-     block is 8% above the bottom edge, which a block at the foot of a fitted screen never reaches) */
-  if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    var rio = new IntersectionObserver(function (es) {
-      es.forEach(function (e) { if (e.isIntersecting && fitMq.matches) $$('.rv', e.target).forEach(function (r) { r.classList.add('in'); }); });
-    }, { threshold: 0.6 });
-    $$('main > .sec, main > .fillsec').forEach(function (s) { rio.observe(s); });
-  }
-  /* version C: sideways rows on wide screens (tools, and r28: modules), with previous / next buttons */
-  var rowReduce = window.matchMedia('(prefers-reduced-motion: reduce)');
-  function rowNav(box, what) {
-    var nav = document.createElement('div'); nav.className = 'flip-nav';
-    var mk = function (dir, label) {
-      var b = document.createElement('button'); b.type = 'button'; b.className = 'flip-go ' + dir; b.setAttribute('aria-label', label); b.setAttribute('aria-controls', box.id);
-      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('aria-hidden', 'true');
-      var u = document.createElementNS('http://www.w3.org/2000/svg', 'use'); u.setAttribute('href', '#i-chev'); svg.appendChild(u); b.appendChild(svg);
-      b.addEventListener('click', function () { box.scrollBy({ left: (dir === 'prev' ? -1 : 1) * Math.max(240, box.clientWidth * 0.8), behavior: rowReduce.matches ? 'auto' : 'smooth' }); });
-      nav.appendChild(b); return b;
-    };
-    var prev = mk('prev', 'Previous ' + what), next = mk('next', 'Next ' + what);
-    var paint = function () {
-      prev.disabled = box.scrollLeft < 4;
-      next.disabled = box.scrollLeft + box.clientWidth >= box.scrollWidth - 4;
-    };
-    box.addEventListener('scroll', paint, { passive: true });
-    window.addEventListener('resize', paint, { passive: true });
-    if ('MutationObserver' in window) new MutationObserver(paint).observe(box, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-    return { nav: nav, paint: paint };
-  }
-  var flips = $('#flips'), tabs = $('#ftabs');
-  if (flips && tabs) {
-    var fn = rowNav(flips, 'tools');
-    /* the buttons sit beside the filter pills (not inside them: a click inside #ftabs resets the row) */
-    var row = document.createElement('div'); row.className = 'ftabs-row';
-    tabs.parentNode.insertBefore(row, tabs); row.appendChild(tabs); row.appendChild(fn.nav);
-    tabs.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-f]')) { flips.scrollLeft = 0; setTimeout(fn.paint, 60); } });
-    fn.paint();
-  }
-  var modRow = $('#modRow');
-  if (modRow) {
-    var mn = rowNav(modRow, 'modules');
-    var mbar = document.createElement('div'); mbar.className = 'row-bar';
-    mbar.appendChild(mn.nav); modRow.parentNode.insertBefore(mbar, modRow);
-    mn.paint();
-  }
-  /* r28: the HELM logo in the header (and footer) glides back to the very top of the landing page */
-  $$('a.brand[href="#top"]').forEach(function (a) {
-    a.addEventListener('click', function (e) {
-      if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      var nav = $('.nav'), bg = $('.burger'); if (nav && bg && nav.classList.contains('menu-open')) bg.click();
-      window.scrollTo({ top: 0, behavior: rowReduce.matches ? 'auto' : 'smooth' });
-      if (location.hash) history.replaceState(null, '', location.pathname + location.search);
-    });
-  });
-
-  /* content that changes height after load (contact form fields, tool cards, event strip) */
-  setTimeout(build, 1500);
-})();
-
-/* ================= R43: in-page links land exactly on their section =================
-   Sections further down skip rendering until they come near (content-visibility:auto) and the photo strip
-   appears after load, so from a fresh load the page above a target could change height while the smooth
-   scroll was running and the link stopped short. Now, on a tap: (1) the sections between the screen and the
-   target render first, so the browser's own anchor scroll (smooth, or instant with reduced motion; the URL
-   hash and focus behave as before) aims at the real position; (2) when the scroll settles, if the target
-   has moved meanwhile, a second short scroll corrects it (up to three times). */
-(function () {
-  'use strict';
-  var reduceMq = window.matchMedia('(prefers-reduced-motion: reduce)');
-  var CV = '.crew,.modules,.repeat,.why,.compare,.security,.about,.voices,.pricing,.faq,.contact,.final,body>footer';
-  var job = 0, forced = [];
-  function px(v) { return parseFloat(v) || 0; }
-  function docTop(el) { return el.getBoundingClientRect().top + window.scrollY; }
-  function release() { forced.forEach(function (s) { s.style.removeProperty('content-visibility'); }); forced = []; }
-  function settle(cb) {   // calls back once the page has stopped scrolling for a few frames
-    var last = -1, still = 0, n = 0;
-    (function tick() {
-      var y = window.scrollY;
-      if (Math.abs(y - last) < 0.5) still++; else { still = 0; last = y; }
-      if (still >= 8 || ++n > 900) cb(); else requestAnimationFrame(tick);
-    })();
-  }
-  document.addEventListener('click', function (e) {
-    if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    var a = e.target.closest && e.target.closest('a[href^="#"]');
-    if (!a) return;
-    var id = a.getAttribute('href').slice(1), target = id && document.getElementById(id);
-    if (!target || id === 'top' || id === 'main' || !target.closest('main')) return;   // logo + skip link keep their own behaviour
-    var my = ++job;
-    release();
-    var tTop = target.getBoundingClientRect().top, lo = Math.min(0, tTop), hi = Math.max(0, tTop) + window.innerHeight;
-    Array.prototype.forEach.call(document.querySelectorAll(CV), function (s) {
-      var r = s.getBoundingClientRect();
-      if (r.bottom >= lo && r.top <= hi) { s.style.setProperty('content-visibility', 'visible'); forced.push(s); }
-    });
-    var before = docTop(target);   // real position (forces the layout the anchor scroll will use)
-    var pass = 0;
-    setTimeout(function check() {
-      settle(function () {
-        if (my !== job) return;
-        var now = docTop(target), root = document.documentElement;
-        var want = px(getComputedStyle(root).scrollPaddingTop) + px(getComputedStyle(target).scrollMarginTop);
-        var atEnd = window.scrollY >= root.scrollHeight - window.innerHeight - 1;
-        var off = target.getBoundingClientRect().top - want;
-        if (Math.abs(now - before) > 1 && Math.abs(off) > 1 && !atEnd && pass++ < 3) {
-          before = now;
-          window.scrollTo({ top: window.scrollY + off, behavior: reduceMq.matches ? 'auto' : 'smooth' });
-          setTimeout(check, 50);
-        } else release();
-      });
-    }, 60);
-  });
 })();
