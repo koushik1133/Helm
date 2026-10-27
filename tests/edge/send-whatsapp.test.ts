@@ -433,11 +433,15 @@ const R32B_BYPASSES = [
   "_evil.com_", "_pay at evil.ru_", "x_evil.com", "evil​.com", "ev­il.com", "evil.com-",
   // the earlier R32 cases stay refused
   "https://user@evil.example/", "javascript://www.helm.events", "ftp://www.helm.events/x", "go evil.example/login", "see www.evil.example",
+  // the company-name exception is narrow: other words, paths, www, schemes, 3 labels, "@" stay links
+  "evil.ltd", "pay.ltd/x", "pvt.ltd/pay", "www.pvt.ltd", "https://co.ltd", "http://pvt.ltd", "pvt.evil.ltd", "x@pvt.ltd", "pvt.ltd\\@evil.com",
 ];
 const R32B_ALLOWED = [
   "https://www.helm.events/pay/abc", "www.helm.events/i/slug", "helm.events", "Pay: https://www.helm.events/q?t=1.", "app.helm.events/x",
   "(https://www.helm.events/p)", "Rs. 5,000.00 due", "v2.0 ready", "Hall No.5 at 6.30pm", "Call K.Srinivas", "Crew: K.Srinivas", "Dr.Rao",
   "Venue: Hotel.Grand", "Rs.5000", "10.30am", "No.5", "Advance Rs. 500 received, thanks", "Starts 5.30 pm", "Priya & Arjun",
+  // company names (R32b): Pvt.Ltd and friends are names, not links
+  "Pvt.Ltd", "Sharma Decor Pvt.Ltd.", "XYZ Co.Ltd", "Sharma Decor Pvt.Ltd,", "ABC P.Ltd", "ABC Ltd.Co", "ABC Inc.Ltd", "PVT.LTD",
 ];
 
 async function waModule(): Promise<any> {

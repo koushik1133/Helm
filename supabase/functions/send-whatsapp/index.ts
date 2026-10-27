@@ -70,6 +70,11 @@ const PARAM_MAX = 200;
 const SCHEME_URL = /[a-z][a-z0-9+.-]*:\/\/\S*/gi;
 const DOMAIN_RUN = /[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
 const IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
+// R32b: business-name suffixes common in Indian studio names ("Pvt.Ltd", "Co.Ltd", "P.Ltd", "Ltd.Co", "Inc.Ltd").
+// A bare two-label token whose FIRST label is one of these short words and whose LAST label is a company-type
+// ending is a name, not a link - but only with no scheme, no www, no /path and no "@" or "\" in it.
+const BIZ_FIRST = new Set(["pvt", "co", "p", "inc", "ltd"]);
+const BIZ_LAST = new Set(["ltd", "inc", "co", "llc", "llp", "pvt"]);
 // Plain text only: Meta also refuses new lines / tabs / >4 spaces in template params.
 // deno-lint-ignore no-control-regex
 const BAD_CHARS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]| {5,}/;
@@ -134,7 +139,9 @@ export function offSiteLink(v: string, site = siteHost()): boolean {
       || TLDS.has(last)
       || (/\p{L}/u.test(last) && /^\/[\p{L}\p{N}_~%.-]/u.test(after));
     if (!domainLike) continue;
-    if (/[@\\]/.test(tokenAround(t, m.index!, m.index! + m[0].length))) return true;   // (4)
+    const tok = tokenAround(t, m.index!, m.index! + m[0].length);
+    if (labels.length === 2 && BIZ_FIRST.has(labels[0]) && BIZ_LAST.has(last) && !/^\//.test(after) && !/[@\\]/.test(tok)) continue;   // a company name
+    if (/[@\\]/.test(tok)) return true;   // (4)
     if (!hostOk(run, base)) return true;                                                  // (5)
   }
   return false;
