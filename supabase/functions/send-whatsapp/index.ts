@@ -70,11 +70,12 @@ const PARAM_MAX = 200;
 const SCHEME_URL = /[a-z][a-z0-9+.-]*:\/\/\S*/gi;
 const DOMAIN_RUN = /[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
 const IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
-// R32b: business-name suffixes common in Indian studio names ("Pvt.Ltd", "Co.Ltd", "P.Ltd", "Ltd.Co", "Inc.Ltd").
-// A bare two-label token whose FIRST label is one of these short words and whose LAST label is a company-type
-// ending is a name, not a link - but only with no scheme, no www, no /path and no "@" or "\" in it.
+// R32b: business-name suffixes common in Indian studio names ("Pvt.Ltd", "Co.Ltd", "P.Ltd", "Inc.Ltd").
+// A bare run that is EXACTLY first.last - first one of these short words, last a company-type ending (never "co":
+// co.co / ltd.co are real-looking domains) - is a name, not a link: no scheme, no www, no /path, no "@" or "\",
+// and not followed by ? # : or / (a query, fragment, port or path makes it an address).
 const BIZ_FIRST = new Set(["pvt", "co", "p", "inc", "ltd"]);
-const BIZ_LAST = new Set(["ltd", "inc", "co", "llc", "llp", "pvt"]);
+const BIZ_LAST = new Set(["ltd", "inc", "llc", "llp", "pvt"]);
 // Plain text only: Meta also refuses new lines / tabs / >4 spaces in template params.
 // deno-lint-ignore no-control-regex
 const BAD_CHARS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]| {5,}/;
@@ -101,7 +102,7 @@ export function paramProblem(p: unknown, site = siteHost()): string {
 //   4. a link token may not contain "@" or "\\" (userinfo / backslash host tricks);
 //   5. every link host must be the Helm site's domain (helm.events) or a subdomain of it.
 export function normaliseForLinks(v: string): string {
-  return String(v ?? "").normalize("NFKC").replace(/[\u3002\uff0e\uff61]/g, ".").replace(/\p{Cf}/gu, "");
+  return String(v ?? "").normalize("NFKC").replace(/[\u3002\uff0e\uff61\u2024\ufe52]/g, ".").replace(/\p{Cf}/gu, "");
 }
 function hostOk(h: string, base: string): boolean {
   h = h.toLowerCase().replace(/\.+$/, "");
@@ -134,15 +135,21 @@ export function offSiteLink(v: string, site = siteHost()): boolean {
     const labels = run.toLowerCase().split(".");
     const last = labels[labels.length - 1];
     const after = t.slice(m.index! + m[0].length);
+    // R32b final check (N2): every PREFIX of the run that ends in a real TLD label is a host too ("evil.com.x",
+    // "evil.com.5", "evil.ru.zz" - a linkifier stops at the known ending); the whole run as before
+    const hosts: string[] = [];
+    for (let k = 2; k <= labels.length; k++) if (TLDS.has(labels[k - 1])) hosts.push(labels.slice(0, k).join("."));
     const domainLike = labels[0] === "www"
       || IPV4.test(run)
-      || TLDS.has(last)
+      || hosts.length > 0
       || (/\p{L}/u.test(last) && /^\/[\p{L}\p{N}_~%.-]/u.test(after));
     if (!domainLike) continue;
     const tok = tokenAround(t, m.index!, m.index! + m[0].length);
-    if (labels.length === 2 && BIZ_FIRST.has(labels[0]) && BIZ_LAST.has(last) && !/^\//.test(after) && !/[@\\]/.test(tok)) continue;   // a company name
+    if (labels.length === 2 && BIZ_FIRST.has(labels[0]) && BIZ_LAST.has(last) && m[0] === run
+        && !/^[?#:\/]/.test(after) && !/[@\\]/.test(tok)) continue;   // a company name ("Pvt.Ltd")
     if (/[@\\]/.test(tok)) return true;   // (4)
     if (!hostOk(run, base)) return true;                                                  // (5)
+    for (const h of hosts) if (!hostOk(h, base)) return true;
   }
   return false;
 }

@@ -112,6 +112,36 @@ do $$ declare o text[] := '{}'; v text; t0 numeric; begin
   perform pg_temp.flush(o);
 end $$;
 
+-- N1 (final check): a pending client package choice must not let a member's save_quotation_version skip the switch
+do $$ declare o text[] := '{}'; v text; t0 numeric; begin
+  begin
+    perform pg_temp.paid_event();
+    perform pg_temp.su();
+    insert into public.menu_templates(id, org_id, name, tier, diet) values ('a0000000-0000-4000-8000-0000000000f1', 'a0000000-0000-4000-8000-000000000001', 'Gold', 'gold', 'veg')
+      on conflict do nothing;
+    delete from public.package_selections where quote_id = 'a0000000-0000-4000-8000-00000000da01';
+    insert into public.package_selections(org_id, quote_id, package_id, guests, status)
+      values ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-00000000da01', 'a0000000-0000-4000-8000-0000000000f1', 100, 'pending');
+    select (pricing ->> 'total')::numeric into t0 from public.quotes where id = 'a0000000-0000-4000-8000-00000000da01';
+    perform pg_temp.login('a_staff@a.test');
+    v := pg_temp.try($q$select public.save_quotation_version('a0000000-0000-4000-8000-00000000da01', (select pricing from public.quotes where id = 'a0000000-0000-4000-8000-00000000da01') || '{"discount":30000,"discountPct":0}')$q$);
+    perform pg_temp.su();
+    o := pg_temp.keep(o, '33 N1 a pending package choice does not exempt a member''s save_quotation_version price cut',
+      v like '42501%lower the price%' and (select (pricing ->> 'total')::numeric from public.quotes where id = 'a0000000-0000-4000-8000-00000000da01') = t0, v);
+    perform pg_temp.login('a_staff@a.test');
+    v := pg_temp.try($q$select set_config('helm.r282_pkg', 'a0000000-0000-4000-8000-0000000000ff', true); update public.quotes set pricing = pricing || '{"discount":30000}' where id = 'a0000000-0000-4000-8000-00000000da01'$q$);
+    o := pg_temp.keep(o, '34 N1 a flag naming no pending selection of this event is ignored', v like '42501%lower the price%', v);
+    perform pg_temp.su();
+    o := pg_temp.keep(o, '35 N1 pkg_selection_review keeps its API grant; the original body is not callable',
+      has_function_privilege('authenticated', 'public.pkg_selection_review(uuid, text, numeric, text)', 'execute')
+      and not has_function_privilege('authenticated', 'public.pkg_selection_review__pre0282(uuid, text, numeric, text)', 'execute')
+      and not has_function_privilege('anon', 'public.pkg_selection_review(uuid, text, numeric, text)', 'execute'));
+    raise exception 'r32b-undo';
+  exception when others then if sqlerrm <> 'r32b-undo' then o := pg_temp.keep(o, '0z', false, sqlstate || ' ' || sqlerrm); end if;
+  end;
+  perform pg_temp.flush(o);
+end $$;
+
 -- ================================================================================= R2-BIZ change request below paid
 do $$ declare o text[] := '{}'; v text; cr uuid; begin
   begin

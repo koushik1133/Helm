@@ -631,10 +631,40 @@ create trigger ab_mass_assign_guard_r282 before update on public.organizations
 --     "Approve discounts" (discount_approve, edit; admin always) and is logged. Editing before confirmation is unchanged,
 --     and a client's package choice accepted by the studio (pkg_selection_review: the price comes from the package, with
 --     its own maker-checker for adjusted prices) is not held to it. Runs after the server recomputes the total.
+--     The package exemption is recognised ONLY by a transaction-local flag (helm.r282_pkg = the selection id) that the
+--     pkg_selection_review wrapper below sets around its own call - never by "a version saved in this transaction"
+--     (a member's save_quotation_version must not ride on a pending package choice).
+do $$ begin
+  if to_regprocedure('public.pkg_selection_review__pre0282(uuid, text, numeric, text)') is null then
+    alter function public.pkg_selection_review(uuid, text, numeric, text) rename to pkg_selection_review__pre0282;
+  end if;
+end $$;
+revoke all on function public.pkg_selection_review__pre0282(uuid, text, numeric, text) from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function public.pkg_selection_review__pre0282(uuid, text, numeric, text) from anon'; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function public.pkg_selection_review__pre0282(uuid, text, numeric, text) from authenticated'; end if;
+end $$;
+create or replace function public.pkg_selection_review(p_id uuid, p_action text, p_price_override numeric default null, p_reason text default null)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r32-0282 R32b: the 0069 body (pkg_selection_review__pre0282) runs unchanged; this only marks, for this transaction,
+-- that the quote's new pricing comes from THIS package selection (checked by _r282_tg_price_decrease)
+declare v_out jsonb;
+begin
+  perform set_config('helm.r282_pkg', coalesce(p_id::text, ''), true);
+  v_out := public.pkg_selection_review__pre0282(p_id, p_action, p_price_override, p_reason);
+  perform set_config('helm.r282_pkg', '', true);
+  return v_out;
+end $$;
+revoke all on function public.pkg_selection_review(uuid, text, numeric, text) from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function public.pkg_selection_review(uuid, text, numeric, text) from anon'; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'grant execute on function public.pkg_selection_review(uuid, text, numeric, text) to authenticated'; end if;
+end $$;
+
 create or replace function public._r282_tg_price_decrease()
 returns trigger language plpgsql security definer set search_path = '' as $$
 -- r32-0282 R32b R2-BIZ-NEW-1
-declare v_old numeric; v_new numeric; v_paid boolean; v_pkg boolean;
+declare v_old numeric; v_new numeric; v_paid boolean; v_pkg boolean; v_flag text := nullif(current_setting('helm.r282_pkg', true), '');
 begin
   if not public._r282_api_caller() then return new; end if;
   if new.pricing is not distinct from old.pricing then return new; end if;
@@ -644,11 +674,10 @@ begin
   if v_new is not null and v_new >= v_old - 0.005 then return new; end if;  -- same or higher
   v_paid := exists (select 1 from public.quote_payments p where p.quote_id = new.id and p.status = 'paid');
   if not (coalesce(old.status, '') = 'confirmed' or coalesce(old.approval_status, '') = 'paid' or v_paid) then return new; end if;
-  v_pkg := exists (select 1 from public.package_selections s
-                     join public.quotation_versions v on v.quote_id = s.quote_id
-                    where s.quote_id = new.id and s.status = 'pending'
-                      and (v.id = s.draft_version_id or v.created_at = now())
-                      and abs(coalesce(public.helm_quote_total(v.pricing), -1) - coalesce(v_new, -2)) < 0.5);
+  -- only inside pkg_selection_review (flag = that selection, pending, of THIS event)
+  v_pkg := v_flag is not null and v_flag ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+           and exists (select 1 from public.package_selections s
+                        where s.id = v_flag::uuid and s.quote_id = new.id and s.status = 'pending');
   if not v_pkg and not public.has_area('discount_approve', 'edit') then
     raise exception 'Only an admin (or a role allowed to approve discounts) can lower the price of a confirmed or paid event.'
       using errcode = '42501', hint = 'discount_approval';
