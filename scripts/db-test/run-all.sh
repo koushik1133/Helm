@@ -22,7 +22,8 @@ export PGDATABASE=helm_runall
 # 0164: fixture/setup statements run as a superuser with no API claims, which the DB treats as a
 # direct (system) change and keeps quiet. Suites expect normal sends, so pin the override off;
 # system-quiet-0164.sql clears it to test the real detection.
-export PGOPTIONS="${PGOPTIONS:-} -c helm.maintenance=off -c helm.allow_hq_mfa_lockout=on"   # 0249: fixtures turn hq_require_mfa on with fake operators; r21-security-0249.sql turns the guard back on
+# 0290: the older suites run as if every message were inside the studio send window; r41-send-window-0290.sql turns it on
+export PGOPTIONS="${PGOPTIONS:-} -c helm.maintenance=off -c helm.allow_hq_mfa_lockout=on -c helm.send_window=off"   # 0249: fixtures turn hq_require_mfa on with fake operators; r21-security-0249.sql turns the guard back on
 dropdb --if-exists helm_runall >/dev/null 2>&1; createdb helm_runall
 psql -q -v ON_ERROR_STOP=1 -f supabase/test-harness/00-supabase-shim.sql >/dev/null 2>&1
 
@@ -265,6 +266,9 @@ run "r34-invite-0284" "R34-INVITE-0284: ALL PASS \(59/59\)" psql -q -f tests/db/
 run "r47-my-pending-0292" "R47-MY-PENDING-0292: ALL PASS \(24/24\)" psql -q -f tests/db/r47-my-pending-0292.sql
 # 0287 re-applies itself twice (re-run safe; after every suite that re-applies 0069 / 0120 / 0181 / 0239 / 0268), rolled back
 run "r37-studio-tz-0287" "R37-STUDIO-TZ-0287: ALL PASS \(36/36\)" psql -q -f tests/db/r37-studio-tz-0287.sql
+# 0290 re-applies itself twice (re-run safe; after every suite that re-applies 0256 vendor_request_claim), turns the hold on
+# (run-all keeps it off for the older suites), checks fixed moments under 6 session zones, rolled back
+run "r41-send-window-0290" "R41-SEND-WINDOW-0290: ALL PASS \(37/37\)" psql -q -f tests/db/r41-send-window-0290.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

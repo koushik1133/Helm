@@ -115,8 +115,14 @@ Deno.serve(async (req) => {
     const batch = Math.min(200, Math.max(1, Number(Deno.env.get("BILLING_REMINDER_BATCH")) || 50));
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
-    const { data: rows, error } = await admin.from("billing_reminders")
-      .select("id, org_id, kind, period_end").is("sent_at", null).order("period_end", { ascending: true }).limit(batch);
+    // r41-sendwin-0290: a reminder queued outside the studio's send window waits until not_before (studio time).
+    // Before 0290 is applied the column does not exist (42703): the old query is used, so nothing is ever stuck.
+    const due = () => admin.from("billing_reminders").select("id, org_id, kind, period_end").is("sent_at", null);
+    let { data: rows, error } = await due().or(`not_before.is.null,not_before.lte."${new Date().toISOString()}"`)
+      .order("period_end", { ascending: true }).limit(batch);
+    if (error && String((error as { code?: string }).code || "") === "42703") {
+      ({ data: rows, error } = await due().order("period_end", { ascending: true }).limit(batch));
+    }
     if (error) { console.error("billing-reminder: load failed", errTag(error)); return json({ error: "internal error" }, 500); }
 
     const counts = { sent: 0, skipped: 0, failed: 0, invalid: 0 };
