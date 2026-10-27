@@ -136,8 +136,8 @@ t('builder: Render dialog markup with style / camera / theme / quality / count, 
   assert.match(html, /<option value="4">4<\/option>/);
   assert.match(html, /Photo renders aren’t switched on for your studio yet\./);
   assert.doesNotMatch(html, /OPENAI_API_KEY/);
-  assert.match(html, /builder-3d\.js\?v=25"><\/script>\n<script src="photo-render-prompt\.js\?v=8"><\/script>\n<script src="photo-render-ui\.js\?v=8"><\/script>/);
-  assert.match(cap, /photo-render-ui\.js\?v=8/);
+  assert.match(html, /builder-3d\.js\?v=26"><\/script>\n<script src="photo-render-prompt\.js\?v=8"><\/script>\n<script src="photo-render-ui\.js\?v=9"><\/script>/);
+  assert.match(cap, /photo-render-ui\.js\?v=9/);
   assert.doesNotMatch(html, /style="/);
 });
 t('dialog: three captures (clean 3D labels none, plan plain, plan names + measure), ≤1536 px, render via BPStore', () => {

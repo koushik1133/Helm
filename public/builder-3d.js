@@ -1531,10 +1531,12 @@
     card.appendChild(ol);
   }
   /* walkthrough: temporarily hide name tags + badges at eye level without touching the saved mode */
-  let labelsHidden=false;
+  let labelsHidden=false, labelFocus=null;   // R49: at a walkaround stop only the subject's own name tags show
+  const tagVisible=id=>(!labelsHidden && liveLabels==='names') || !!(labelFocus && labelFocus.has(id));
+  function setLabelFocus(ids){ labelFocus = ids && ids.length ? new Set(ids) : null; setLabelsHidden(labelsHidden); }
   function setLabelsHidden(h){
     labelsHidden=!!h; if(!scene) return;
-    scene.traverse(o=>{ if(o.userData && o.userData.nameTag) o.visible=!labelsHidden && liveLabels==='names';
+    scene.traverse(o=>{ if(o.userData && o.userData.nameTag) o.visible=tagVisible(o.userData.itemId);
       else if(o.userData && o.userData.badge && o.userData.itemId!=null) o.visible=!labelsHidden; });
   }
   function setLiveLabels(m){
@@ -1611,6 +1613,7 @@
       new THREE.LineBasicMaterial({color:col(themeVar('--grid-strong','#9fb4d8'))})); edge.position.y=0.05; scene.add(edge);
     if(sun){ const sc=sun.shadow.camera, hw=floorW, hh=floorH;   // same generous frustum as before (±W, ±H), now live
       sc.left=-hw; sc.right=hw; sc.top=hh; sc.bottom=-hh; sc.far=Math.max(600, Math.max(floorW,floorH)*3); sc.updateProjectionMatrix(); }
+    if(camera){ camera.far=Math.max(3000, Math.max(floorW,floorH)*5); camera.updateProjectionMatrix(); }   // R49: huge halls never clip
     if(camera && controls) syncZoomLimits();
     if(R) applyProfile();                           // re-apply Render-mode material tweaks to the new ground
   }
@@ -1628,7 +1631,7 @@
   }
   function updateGizmo(){
     if(!transform) return; const it=curItem();
-    if(!it || !active){ transform.detach(); return; }
+    if(!it || !active || walkKeep){ transform.detach(); return; }
     gizmo.position.set(sx(it.x+it.width/2),0,sz(it.y+it.height/2));
     gizmo.rotation.set(0,-(it.rotation||0)*Math.PI/180,0); gizmo.scale.set(1,1,1);
     if(transform.object!==gizmo) transform.attach(gizmo);
@@ -1660,7 +1663,7 @@
   function build(){
     if(!built) initScene();
     markShadows();
-    clearRoot(); chairMap=[];
+    clearRoot(); chairMap=[]; groupById=new Map(); boundsCache=new Map();
     syncFloor();
     if(labelCache.size>LABEL_CACHE_MAX){ flushLabelCache(); flushBadgeCache(); }   // no clones are in the scene right now
     const num=window.HelmCaptureFrame.numberItems(store.items);
@@ -1669,9 +1672,9 @@
     for(const it of store.items){
       const g=buildFurniture(it, chairs);
       if(g){ g.position.set(sx(it.x+it.width/2),0,sz(it.y+it.height/2)); g.rotation.y=-(it.rotation||0)*Math.PI/180;
-        g.userData.itemId=it.id; root.add(g);
+        g.userData.itemId=it.id; root.add(g); groupById.set(it.id,g); if(roofsHidden && ROOF_T[it.type]) g.visible=false;
         if(['seatblock','chairrow'].indexOf(it.type)===-1){ const lp=label(window.HelmCaptureFrame&&HelmCaptureFrame.displayName?HelmCaptureFrame.displayName(it):it.label);
-          lp.position.set(sx(it.x+it.width/2), objTopY(it)+3, sz(it.y+it.height/2)); lp.userData.itemId=it.id; lp.userData.nameTag=true; lp.visible=liveLabels==='names'&&!labelsHidden; root.add(lp);
+          lp.position.set(sx(it.x+it.width/2), objTopY(it)+3, sz(it.y+it.height/2)); lp.userData.itemId=it.id; lp.userData.nameTag=true; lp.visible=tagVisible(it.id); root.add(lp);
           const n=liveLabels==='numbers' ? num.byId.get(it.id) : null;
           if(n){ const bp=badgeSprite(n); bp.position.copy(lp.position); bp.userData.itemId=it.id; bp.visible=!labelsHidden; root.add(bp); } } }
     }
@@ -1680,15 +1683,8 @@
     if(!transform || !transform.dragging){ syncGizmoSnap(); updateGizmo(); }
     needsBuild=false;
   }
-  function objTopY(it){ const t={stage:4,press:4,dj:3.2,podium:3.6,booth:8,truck:7,exit:7,table:2.6,desk:3.2,dancefloor:.3,barricade:3.4,fence:6,
-    canopy:13,tent:14,arch:9,bar:5,buffet:4,photobooth:8,checkpoint:8,restroom:8,lounge:2,longtable:3,headtable:3,cocktail:4,gifttable:3,caketable:4,
-    ledscreen:10,truss:16,speaker:6,coatcheck:5,firstaid:8,planter:3.5,redcarpet:3,parking:1,
-    sofa:3,loveseat:3,armchair:3,ottoman:1.6,bench:2,coffeetable:1.8,floral:3.4,floralarch:9,mandap:13,pillar:8.5,drape:10.5,chandelier:11,fountain:3.5,uplight:2,heater:8,easel:5,
-    chiavari:2.5,barstool:2.6,piano:3.4,bleacher:4.5,linearray:17,subwoofer:3,monitor:1.4,foh:3,movinghead:5.2,videowall:15,generator:6,distro:2.4,cableramp:1,greenroom:8.5,viprisers:2.2,stagebarrier:3.2,lighting:17,led:12,brandwall:8.5,chocolatefountain:4.6,chariot:7,smoke:1.5,dancers:4.3,walkway:2.8,
-    phoolchadar:7.6,jhoola:9,haldi:10,mehendi:8.2,selfieframe:6.5,welcomeboard:5,entrancegate:14,kidszone:8,aircooler:4.5,fairylights:13.5,livecounter:8.4,couplesofa:4.5,
-    backdrop:8.5,floralstand:4.8,decorbox:3.5,signage:7,recttable:3,stageroof:28,varmala:2,micstand:5.3,teleprompter:1.4,projector:13,tvstand:6.6,interpreter:7.6,pyro:3,
-    towerlight:25,gaddi:1.2,urli:1.2,umbrellas:10.8,doli:7,kalash:1.9,altar:7,shoerack:3.2,dessert:4,coffee:4,stall:10,counter:3.8,plinth:5,kiosk:5,ticketbooth:9,stanchion:3.3,
-    watchtower:21,extinguisher:4.7,ambulance:8}; return t[it.type]||2.6; }
+  // R49: one height table for the 3D build, the walkaround solids and the capture host (public/capture-frame.js ITEM_TOP)
+  function objTopY(it){ return window.HelmCaptureFrame.itemTop(it); }
 
   function buildChairs(chairs){
     if(chairMesh){ root.remove(chairMesh); chairMesh.geometry.dispose(); chairMesh.material.dispose(); chairMesh=null; }
@@ -1711,6 +1707,7 @@
   /* ---------------- selection ---------------- */
   let ray, ndc;   // created lazily once THREE is loaded (module parses before the 3D libs)
   function doPick(e){
+    if(walkKeep) return;                           // R49: the walkaround is look-only: no click-select / move handles
     if(!ray){ ray=new THREE.Raycaster(); ndc=new THREE.Vector2(); }
     const r=cv.getBoundingClientRect(); ndc.x=((e.clientX-r.left)/r.width)*2-1; ndc.y=-((e.clientY-r.top)/r.height)*2+1;
     ray.setFromCamera(ndc,camera);
@@ -1730,7 +1727,7 @@
   // (shadowDirty) instead of every frame — halves the draw calls on big layouts. Every other render (captures,
   // exports) runs with autoUpdate on, exactly as before.
   function loop(){ if(!active) return; raf=requestAnimationFrame(loop);   // schedule first: a throwing frame (lost context) must not kill the loop
-    try{ stepZoom(); controls.update(); refreshSel();
+    try{ stepZoom(); controls.update(); walkGuardStep(); refreshSel();
       R.shadowMap.autoUpdate=false; if(shadowDirty>0 || (transform && transform.dragging)){ R.shadowMap.needsUpdate=true; if(shadowDirty>0) shadowDirty--; }
       R.render(scene,camera); }catch(e){ /* skip this frame */ }
     finally{ if(R) R.shadowMap.autoUpdate=true; } }
@@ -1912,7 +1909,37 @@
     }
     return !!evening;
   }
-  let flyKeep=null, walkKeep=null;
+  let flyKeep=null, walkKeep=null, walkGuard=null, walkGood=null, prKeep=null, roofsHidden=false, hlGroup=null, groupById=new Map(), boundsCache=new Map();
+  const ROOF_T={tent:1,canopy:1,stageroof:1,umbrellas:1,fairylights:1,hangingfloral:1};
+  // R49 orbit guard at a walkaround stop: a drag / wheel never takes the camera under the floor or into an object
+  function walkGuardStep(){
+    if(!walkGuard || !controls.enabled) return;
+    const p=camera.position;
+    if(walkGuard([p.x,p.y,p.z])){ walkGood={p:p.toArray(), t:controls.target.toArray()}; return; }
+    if(walkGood){ camera.position.fromArray(walkGood.p); controls.target.fromArray(walkGood.t); controls.update(); }
+  }
+  // R49: world AABB of an item's real 3D model (+ its ring chairs), from cached geometry bounds
+  function boundsOf(id){
+    if(boundsCache.has(id)) return boundsCache.get(id);
+    const g=groupById.get(id); let out=null;
+    if(g){ const b=new THREE.Box3(), tmp=new THREE.Box3(); g.updateWorldMatrix(true,true);
+      g.traverse(o=>{ if(!o.isMesh || o.isSprite || !o.geometry) return; if(!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+        tmp.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); b.union(tmp); });
+      if(chairMesh && chairMap.length){ const m=new THREE.Matrix4(), v=new THREE.Vector3();
+        for(let i=0;i<chairMap.length;i++) if(chairMap[i]===id){ chairMesh.getMatrixAt(i,m); v.setFromMatrixPosition(m); b.expandByPoint(v.clone().add(new THREE.Vector3(-0.9,0,-0.9))); b.expandByPoint(v.add(new THREE.Vector3(0.9,3,0.9))); } }
+      if(!b.isEmpty()) out={min:b.min.toArray(), max:b.max.toArray()}; }
+    boundsCache.set(id,out); return out;
+  }
+  function setHighlight(ids){
+    if(hlGroup){ scene.remove(hlGroup); hlGroup.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); hlGroup=null; }
+    if(!scene || !ids || !ids.length) return;
+    hlGroup=new THREE.Group(); const want=new Set(ids); let n=0;
+    for(const it of store.items){ if(!want.has(it.id) || n++>=80) continue;
+      const hy=objTopY(it)+1, bg=new THREE.BoxGeometry(it.width+1.2, hy, it.height+1.2);
+      const ln=new THREE.LineSegments(new THREE.EdgesGeometry(bg), new THREE.LineBasicMaterial({color:col(themeVar('--accent','#047857')), transparent:true, opacity:0.85}));
+      bg.dispose(); ln.position.set(sx(it.x+it.width/2), hy/2, sz(it.y+it.height/2)); ln.rotation.y=-(it.rotation||0)*Math.PI/180; hlGroup.add(ln); }
+    scene.add(hlGroup);
+  }
   window.__helm3D={
     isActive:()=>active,
     getView:()=> camera&&controls ? {pos:camera.position.toArray(), target:controls.target.toArray(), minD:controls.minDistance, fov:camera.fov, aspect:camera.aspect} : null,
@@ -1922,16 +1949,26 @@
       if(minD!=null) controls.minDistance=minD; controls.update(); },
     // walkthrough glide: pause user input and flush OrbitControls damping inertia so nothing fights the
     // tween (update() with damping off zeroes the leftover rotate / pan deltas); restored on landing.
+    // R49: the glide also relaxes the orbit clamps (setView's controls.update() must never bend a flight frame)
+    // and drops the pixel ratio to 1 on touch devices while moving.
     setFlying(on){ if(!controls) return;
-      if(on){ zoomGoal=null; zoomAnchor=null; zoomFit=null; if(!flyKeep) flyKeep={enabled:controls.enabled, damping:controls.enableDamping};
-        controls.enabled=false; controls.enableDamping=false; controls.update(); }
-      else if(flyKeep){ controls.enableDamping=flyKeep.damping; controls.enabled=flyKeep.enabled; flyKeep=null; } },
-    // whole walkthrough: eye stops may look slightly up and sit < 20 ft from their target - relax the
-    // polar clamp + min distance once so controls.update() never snaps / pushes the camera at a stop.
+      if(on){ zoomGoal=null; zoomAnchor=null; zoomFit=null; if(!flyKeep) flyKeep={enabled:controls.enabled, damping:controls.enableDamping, minD:controls.minDistance, maxD:controls.maxDistance, polar:controls.maxPolarAngle};
+        controls.enabled=false; controls.enableDamping=false; controls.minDistance=0.5; controls.maxDistance=Infinity; controls.maxPolarAngle=Math.PI-0.05; controls.update();
+        try{ if(R && !prKeep && window.matchMedia && matchMedia('(pointer: coarse)').matches){ prKeep=R.getPixelRatio(); R.setPixelRatio(1); } }catch(_){} }
+      else if(flyKeep){ controls.minDistance=flyKeep.minD; controls.maxDistance=flyKeep.maxD; controls.maxPolarAngle=flyKeep.polar;
+        controls.enableDamping=flyKeep.damping; controls.enabled=flyKeep.enabled; flyKeep=null; walkGood=null;
+        if(R && prKeep){ R.setPixelRatio(prKeep); prKeep=null; } } },
+    // R49 walkaround: the NORMAL polar limit stays (no stop looks up, so nothing snaps and nobody orbits under
+    // the floor); the zoom limits are set per stop on landing; selection, gizmo and click-select are off.
     setWalkMode(on){ if(!controls) return;
-      if(on){ if(!walkKeep) walkKeep={maxPolar:controls.maxPolarAngle, minD:controls.minDistance};
-        controls.maxPolarAngle=Math.PI-0.05; controls.minDistance=1; }
-      else if(walkKeep){ controls.maxPolarAngle=walkKeep.maxPolar; controls.minDistance=walkKeep.minD; walkKeep=null; syncZoomLimits(); } },
+      if(on){ if(!walkKeep) walkKeep={maxPolar:controls.maxPolarAngle, minD:controls.minDistance, maxD:controls.maxDistance}; if(transform) transform.detach(); }
+      else if(walkKeep){ controls.maxPolarAngle=walkKeep.maxPolar; controls.minDistance=walkKeep.minD; controls.maxDistance=walkKeep.maxD; walkKeep=null; walkGuard=null; walkGood=null; syncZoomLimits(); updateGizmo(); } },
+    setStopLimits(L){ if(!controls || !walkKeep || !L) return; controls.minDistance=Math.max(0.5, +L.minD||4); controls.maxDistance=Math.max(controls.minDistance+1, +L.maxD||400); },
+    setWalkGuard(fn){ walkGuard=typeof fn==='function' ? fn : null; walkGood=null; },
+    setRoofsHidden(on){ roofsHidden=!!on; if(!root) return; for(const it of store.items){ if(!ROOF_T[it.type]) continue; const g=groupById.get(it.id); if(g) g.visible=!roofsHidden; } },
+    setHighlight, setLabelFocus, boundsOf:(id)=> (built ? boundsOf(id) : null),
+    // test hook (visual walkaround harness only): the live camera + scene, independent of the three.js version
+    inspect:()=> (window.__HELM_WALK_TEST__ ? {camera, scene, root, chairMesh, chairMap} : null),
     setLabelsHidden,
     setEvening, isEvening:()=>!!evening,
   };
@@ -1939,7 +1976,8 @@
     try{ return await capture3D(maxW,opts); } finally{ if(ev) setEvening(true); } };
 
   // public hooks
-  window.__on3DStateChange=function(){ if(active && !transform?.dragging) requestBuild(); };
+  window.__on3DStateChange=function(){ if(active && !transform?.dragging) requestBuild();
+    const w=window.HelmWalkthrough && window.HelmWalkthrough._ui; if(w && w.layoutChanged) w.layoutChanged(); };   // R49: the walkaround re-plans
   window.__on3DSnapChange=function(){ syncGizmoSnap(); if(scene) syncFloor(); };
   window.__on3DGridChange=function(){ if(grid) grid.visible=store.grid.show!==false; };
   window.__is3DDragging=function(){ return !!(transform && transform.dragging); };
@@ -1986,7 +2024,7 @@
     const hit=new THREE.Vector3(); return ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0), hit) ? hit : null; }
   function zoomBy(scale, anchor){
     if(!active || !camera || !controls || !controls.enabled || (transform && transform.dragging)) return;
-    const L=zoomLimits(), cur=zoomGoal!=null ? zoomGoal : camera.position.distanceTo(controls.target);
+    const L=walkKeep ? {min:controls.minDistance, max:controls.maxDistance} : zoomLimits(), cur=zoomGoal!=null ? zoomGoal : camera.position.distanceTo(controls.target);   // R49: per-stop limits during the walkaround
     zoomGoal=Math.max(L.min, Math.min(L.max, cur*scale)); zoomFit=null;
     zoomAnchor = anchor && anchor.distanceTo(controls.target) < Math.max(floorW,floorH) ? anchor : null;
   }
