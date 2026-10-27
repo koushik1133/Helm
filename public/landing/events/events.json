@@ -18,18 +18,18 @@
     "height": 1067
   },
   {
-    "src": "/landing/events/mehendi-2.webp",
-    "small": "/landing/events/mehendi-2-800.webp",
-    "alt": "Daytime mehendi garden with marigold strings, pastel parasols, floor cushions and artists applying henna to guests in yellow and green outfits",
+    "src": "/landing/events/mehendi.webp",
+    "small": "/landing/events/mehendi-800.webp",
+    "alt": "Daytime mehendi garden with yellow marigold strings, colourful parasols and floor cushions where artists apply henna to guests",
     "caption": "Marigold mehendi garden",
     "type": "Mehendi",
     "width": 1600,
     "height": 1067
   },
   {
-    "src": "/landing/events/sangeet-2.webp",
-    "small": "/landing/events/sangeet-2-800.webp",
-    "alt": "Sangeet night under white and green drapes: guests dancing in front of a stage with a live band and emerald LED panels, lounge seating with white florals",
+    "src": "/landing/events/sangeet.webp",
+    "small": "/landing/events/sangeet-800.webp",
+    "alt": "Sangeet night: guests dancing on a lit dance floor in front of a stage with a live band, green LED panels and draped ceiling florals",
     "caption": "Sangeet dance night",
     "type": "Sangeet",
     "width": 1600,
@@ -45,9 +45,9 @@
     "height": 901
   },
   {
-    "src": "/landing/events/corporate-gala-2.webp",
-    "small": "/landing/events/corporate-gala-2-800.webp",
-    "alt": "Corporate gala in a chandeliered ballroom: round tables with white florals and green napkins facing a stage with an emerald LED screen and a lectern",
+    "src": "/landing/events/corporate-gala.webp",
+    "small": "/landing/events/corporate-gala-800.webp",
+    "alt": "Corporate gala dinner in a grand ballroom: round tables with candles and white florals facing a stage with a lectern, LED screen and lighting rig",
     "caption": "Awards gala dinner",
     "type": "Gala",
     "width": 1600,
