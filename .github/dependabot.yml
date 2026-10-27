@@ -1,4 +1,9 @@
 version: 2
+# r30 security (2026-10): every ecosystem has a `cooldown` - Dependabot waits a few days
+# before proposing a brand-new release. Most 2025-2026 npm supply-chain compromises
+# (Shai-Hulud waves, axios, @redhat-cloud-services, AsyncAPI, jscrambler) were caught and
+# unpublished within hours to a couple of days, so a short wait keeps us off poisoned
+# versions. Security updates (Dependabot alerts) are NOT delayed by cooldown.
 updates:
   # Keep GitHub Actions current (and surface SHA-pin opportunities) — the release
   # audit found all actions floating on major tags. Weekly PRs, grouped.
@@ -6,6 +11,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns: ["*"]
@@ -15,6 +22,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
     groups:
       npm:
         patterns: ["*"]
@@ -25,4 +35,6 @@ updates:
     directory: "/tools/lhci"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 2

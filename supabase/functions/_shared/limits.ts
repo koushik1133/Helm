@@ -24,7 +24,7 @@
 //                                 that is a set-up gap, not an attack, and every live project has 0050.
 // Every DB error is logged (no key / IP in the log line).
 
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
 export const DEFAULT_BODY_LIMIT = 16 * 1024;     // browser-called functions
 export const WEBHOOK_BODY_LIMIT = 64 * 1024;     // provider webhooks (Razorpay payloads are a few KB)

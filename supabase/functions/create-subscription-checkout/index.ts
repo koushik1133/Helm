@@ -29,7 +29,7 @@
 // Error contract (JSON {error, kind}): kind = "validation" (400, message is safe to
 // show), "declined" (402/502, provider refused), "security" (401/403/429, generic
 // message only), "dormant" (503), "server" (500).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped } from "../_shared/limits.ts";
 

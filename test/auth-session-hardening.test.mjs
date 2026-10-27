@@ -155,7 +155,7 @@ t('every "set a password" screen shows the new rule text + a live checklist', ()
     assert.match(s, /lowercase letter, an uppercase letter, a number and a symbol/, n + ' helper text');
     assert.ok(!/with a letter and a number/.test(s), n + ' still shows the old rule');
   }
-  assert.match(L, /attachChecklist\(document\.getElementById\("pw"\), document\.getElementById\("pwRules"\)\)/, 'sign-up checklist');
+  assert.match(L, /attachChecklist\(document\.getElementById\("pw"\), document\.getElementById\("pwRules"\)(, \{hints:pwHints\})?\)/, 'sign-up checklist');   // r29: + name/e-mail hints
   assert.match(L, /attachChecklist\(pw, ov\.querySelector\("#fpc_rules"\)\)/, 'temp-password checklist');
   assert.match(RJ, /attachChecklist\(\$\("#new_pw"\), \$\("#newRules"\)\)/, 'reset / change checklist');
 });

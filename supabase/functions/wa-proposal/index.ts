@@ -16,7 +16,7 @@
 // role asks trial_send_blocked first and the request runs exactly like the SIMULATED path (prepare with
 // p_simulate = true, nothing sent, answer { simulated: true, trial: true }). The database refuses a real
 // prepare for a trial studio too (42501 / hint trial_no_send).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { isLive, KINDS, templateMessage } from "./logic.mjs";
