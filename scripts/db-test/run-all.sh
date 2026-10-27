@@ -246,6 +246,9 @@ run "r26-captcha-0276" "R26-CAPTCHA-0276: ALL PASS \(30/30\)" psql -q -f tests/d
 run "r27-hq-staff-0277" "R27-HQ-STAFF-0277: ALL PASS \(58/58\)" psql -q -f tests/db/r27-hq-staff-0277.sql
 # 0282 re-applies itself twice (earlier suites re-apply the 0049 / 0126 / 0155 / 0166 / 0264 bodies), rolled back
 run "r32-security-0282" "R32-SECURITY-0282: ALL PASS \(51/51\)" psql -q -f tests/db/r32-security-0282.sql
+# R32b (review round 2): price decrease after confirmation, change request below paid, close requests + close_owed,
+# payments after closing, seats (joining / lapsed subscriptions), admin_create_user refusals counted
+run "r32b-round2-0282" "R32B-ROUND2-0282: ALL PASS \(32/32\)" psql -q -f tests/db/r32b-round2-0282.sql
 # 0283 re-applies itself twice (earlier suites re-apply the 0184 / 0266 / 0282 bodies), rolled back
 run "r33-team-safety-0283" "R33-TEAM-SAFETY-0283: ALL PASS \(70/70\)" psql -q -f tests/db/r33-team-safety-0283.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh

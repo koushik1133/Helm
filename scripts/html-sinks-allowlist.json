@@ -1,233 +1,400 @@
 {
- "_doc": "Reviewed exceptions for scripts/check-html-sinks.mjs. safeHelpers: functions read and confirmed to return escaped/fixed markup. sites: a specific interpolated value at a sink (file :: expression) with the reason it cannot carry attacker HTML. max: how many sites with that exact file + expression the entry approves (default 1); a new site reusing a reviewed name fails until reviewed and max is raised (audit run-3 ci/check-html-sinks).",
+ "_doc": "Reviewed exceptions for scripts/check-html-sinks.mjs. safeHelpers: functions read and confirmed to return escaped/fixed markup. sites: a specific interpolated value at a sink (file :: expression) with the reason it cannot carry attacker HTML. max: how many sites with that exact file + expression the entry approves (default 1); a new site reusing a reviewed name fails until reviewed and max is raised (audit run-3 ci/check-html-sinks). R32b (R2-CLI-01): every safeHelper names the files it was reviewed in (\"files\"); the same helper name in any other file is NOT accepted (card / tab / opt / cardHtml are different functions in different files). The lists were set to the files where the scan already accepted each reviewed helper (node scripts/check-html-sinks.mjs --helpers); an empty list = the helper is no longer used at a sink (or is a duplicate entry). A new file needs its own review before it is added.",
  "safeHelpers": [
   {
    "name": "gsMarkup",
-   "why": "getting-started.js (0059): every step title/why/icon/href is a fixed constant from STEPS and is still esc()'d; counts go through Number(); ring values are numeric"
+   "why": "getting-started.js (0059): every step title/why/icon/href is a fixed constant from STEPS and is still esc()'d; counts go through Number(); ring values are numeric",
+   "files": [
+    "public/getting-started.js"
+   ]
   },
   {
    "name": "inr",
-   "why": "number → '₹'+Number(n).toLocaleString(); digits/commas only"
+   "why": "number → '₹'+Number(n).toLocaleString(); digits/commas only",
+   "files": [
+    "public/budget-plan.js",
+    "public/budget.html",
+    "public/builder.js",
+    "public/closure.html",
+    "public/flow.html",
+    "public/logistics.html",
+    "public/plan.html",
+    "public/portal.html",
+    "public/quotes.html",
+    "public/settlement.html"
+   ]
   },
   {
    "name": "num",
-   "why": "Number(...).toLocaleString / numAttr: always a finite number"
+   "why": "Number(...).toLocaleString / numAttr: always a finite number",
+   "files": [
+    "public/control.html",
+    "public/inventory.html",
+    "public/resources.html"
+   ]
   },
   {
    "name": "fmt",
-   "why": "leads/crm: '₹'+Number(n).toLocaleString(); auth-ui fmt formats a timestamp"
+   "why": "leads/crm: '₹'+Number(n).toLocaleString(); auth-ui fmt formats a timestamp",
+   "files": [
+    "public/crm.html"
+   ]
   },
   {
    "name": "fmtU",
-   "why": "builder.js: Math.round(...).toString() — a number"
+   "why": "builder.js: Math.round(...).toString() — a number",
+   "files": [
+    "public/builder.js"
+   ]
   },
   {
    "name": "fmtDate",
-   "why": "toLocaleDateString of a parsed date; inventory/calendar esc() fallback; invite.html result is esc()'d by caller"
+   "why": "toLocaleDateString of a parsed date; inventory/calendar esc() fallback; invite.html result is esc()'d by caller",
+   "files": [
+    "public/quotes.html"
+   ]
   },
   {
    "name": "grp",
-   "why": "optgroup builder: label args are string constants at every call site; every name/role/id esc()'d"
+   "why": "optgroup builder: label args are string constants at every call site; every name/role/id esc()'d",
+   "files": [
+    "public/inventory.html"
+   ]
   },
   {
    "name": "bucket",
-   "why": "dashboard: key/label/cls are literals at call sites; rows rendered by row() which esc()s"
+   "why": "dashboard: key/label/cls are literals at call sites; rows rendered by row() which esc()s",
+   "files": [
+    "public/dashboard.html"
+   ]
   },
   {
    "name": "prowAvatar",
-   "why": "chat: colorFor() palette constant + esc(avatar_path) + esc(initials)"
+   "why": "chat: colorFor() palette constant + esc(avatar_path) + esc(initials)",
+   "files": [
+    "public/chat.html"
+   ]
   },
   {
    "name": "inviteHint",
-   "why": "chat.html (chatfix-1018): returns one of two fixed sentences; the only interpolation is the constant INVITE_HREF (\"control.html#users\") - no caller or user data"
+   "why": "chat.html (chatfix-1018): returns one of two fixed sentences; the only interpolation is the constant INVITE_HREF (\"control.html#users\") - no caller or user data",
+   "files": [
+    "public/chat.html"
+   ]
   },
   {
    "name": "statBadge",
-   "why": "returns one of three fixed badge strings"
+   "why": "returns one of three fixed badge strings",
+   "files": [
+    "public/dashboard.html"
+   ]
   },
   {
    "name": "apprBadge",
-   "why": "returns one of fixed badge strings"
+   "why": "returns one of fixed badge strings",
+   "files": []
   },
   {
    "name": "stageOptions",
-   "why": "STAGES constant keys + esc(label)"
+   "why": "STAGES constant keys + esc(label)",
+   "files": [
+    "public/leads.html"
+   ]
   },
   {
    "name": "crewAv",
-   "why": "ops: esc(avatar_path) + esc(initials)"
+   "why": "ops: esc(avatar_path) + esc(initials)",
+   "files": [
+    "public/ops.html"
+   ]
   },
   {
    "name": "catColor",
-   "why": "builder.js: CSS custom property value from our own stylesheet"
+   "why": "builder.js: CSS custom property value from our own stylesheet",
+   "files": []
   },
   {
    "name": "whoCell",
-   "why": "audit: esc(title)/esc(text)"
+   "why": "audit: esc(title)/esc(text)",
+   "files": [
+    "public/audit.html"
+   ]
   },
   {
    "name": "toHexColor",
-   "why": "builder.js: HEXRE-validated hex or '#cccccc'"
+   "why": "builder.js: HEXRE-validated hex or '#cccccc'",
+   "files": []
   },
   {
    "name": "scheduleHtml",
-   "why": "invite: every time/label esc()'d"
+   "why": "invite: every time/label esc()'d",
+   "files": [
+    "public/invite.html"
+   ]
   },
   {
    "name": "galleryHtml",
-   "why": "invite: cssUrl() percent-encodes quotes/parens then esc()"
+   "why": "invite: cssUrl() percent-encodes quotes/parens then esc()",
+   "files": [
+    "public/invite.html"
+   ]
   },
   {
    "name": "inlineHtml",
-   "why": "invite (r23): photos placed after a section - each url through cssUrl() (percent-encodes quotes/parens, then esc()); the section name esc()'d"
+   "why": "invite (r23): photos placed after a section - each url through cssUrl() (percent-encodes quotes/parens, then esc()); the section name esc()'d",
+   "files": [
+    "public/invite.html"
+   ]
   },
   {
    "name": "rsvpHtml",
-   "why": "invite E10: host name / date esc()'d; wa.me number digits only + esc; text encodeURIComponent + esc; tel digits only + esc"
+   "why": "invite E10: host name / date esc()'d; wa.me number digits only + esc; text encodeURIComponent + esc; tel digits only + esc",
+   "files": [
+    "public/invite.html"
+   ]
   },
   {
    "name": "factsHtml",
-   "why": "invite: every field esc()'d; map URL https-only + esc"
+   "why": "invite: every field esc()'d; map URL https-only + esc",
+   "files": [
+    "public/invite.html"
+   ]
   },
   {
    "name": "renderPricing",
-   "why": "approve: labels esc()'d, amounts via inr()"
+   "why": "approve: labels esc()'d, amounts via inr()",
+   "files": [
+    "public/approve.html"
+   ]
   },
   {
    "name": "renderChange",
-   "why": "audit: every key/value esc()'d"
+   "why": "audit: every key/value esc()'d",
+   "files": []
   },
   {
    "name": "refCls",
-   "why": "returns one of four fixed class names"
+   "why": "returns one of four fixed class names",
+   "files": [
+    "public/settlement.html"
+   ]
   },
   {
    "name": "railHtml",
-   "why": "design: esc(revision), esc(LABEL)"
+   "why": "design: esc(revision), esc(LABEL)",
+   "files": [
+    "public/design.html"
+   ]
   },
   {
    "name": "advanceControls",
-   "why": "design: every id/label esc()'d"
+   "why": "design: every id/label esc()'d",
+   "files": [
+    "public/design.html"
+   ]
   },
   {
    "name": "photoAttr",
-   "why": "chat: esc(avatar path) attribute or ''"
+   "why": "chat: esc(avatar path) attribute or ''",
+   "files": [
+    "public/chat.html"
+   ]
   },
   {
    "name": "peopleSelectHTML",
-   "why": "logistics: elId is a literal at call sites; names esc()'d; grp labels constant"
+   "why": "logistics: elId is a literal at call sites; names esc()'d; grp labels constant",
+   "files": [
+    "public/logistics.html"
+   ]
   },
   {
    "name": "numAttr",
-   "why": "control: Number.isFinite(n)?n:default"
+   "why": "control: Number.isFinite(n)?n:default",
+   "files": []
   },
   {
    "name": "lastPreview",
-   "why": "chat: esc(name)/esc(body)/esc(cardLabel), ticksHtml fixed svg"
+   "why": "chat: esc(name)/esc(body)/esc(cardLabel), ticksHtml fixed svg",
+   "files": [
+    "public/chat.html"
+   ]
   },
   {
    "name": "isArchived",
-   "why": "returns a boolean (true/false text only)"
+   "why": "returns a boolean (true/false text only)",
+   "files": []
   },
   {
    "name": "highlight",
-   "why": "chat: esc() on every slice, only <mark> added"
+   "why": "chat: esc() on every slice, only <mark> added",
+   "files": [
+    "public/chat.html"
+   ]
   },
   {
    "name": "eventCell",
-   "why": "inventory: esc(name), esc(date)"
+   "why": "inventory: esc(name), esc(date)",
+   "files": [
+    "public/audit.html"
+   ]
   },
   {
    "name": "cssUrl",
-   "why": "percent-encodes quotes/parens/backslash/space then esc()"
+   "why": "percent-encodes quotes/parens/backslash/space then esc()",
+   "files": [
+    "public/invite-studio.html"
+   ]
   },
   {
    "name": "colorFor",
-   "why": "chat: picks from NAME_COLORS constant palette"
+   "why": "chat: picks from NAME_COLORS constant palette",
+   "files": [
+    "public/chat.html"
+   ]
   },
   {
    "name": "assetGlyph",
-   "why": "builder.js: fixed SVG per asset type"
+   "why": "builder.js: fixed SVG per asset type",
+   "files": [
+    "public/builder.js"
+   ]
   },
   {
    "name": "personAv",
-   "why": "chat: colorFor palette + photoAttr + esc(initials); style arg literal"
+   "why": "chat: colorFor palette + photoAttr + esc(initials); style arg literal",
+   "files": [
+    "public/chat.html"
+   ]
   },
   {
    "name": "avHtml",
-   "why": "chat: a.bg from palette, esc(a.txt); id arg literal"
+   "why": "chat: a.bg from palette, esc(a.txt); id arg literal",
+   "files": [
+    "public/chat.html"
+   ]
   },
   {
    "name": "clampStars",
-   "why": "integer 0..5"
+   "why": "integer 0..5",
+   "files": []
   },
   {
    "name": "kpi",
-   "why": "insights (0076): n / l / h / cls are each esc()'d inside the template"
+   "why": "insights (0076): n / l / h / cls are each esc()'d inside the template",
+   "files": [
+    "public/insights.html"
+   ]
   },
   {
    "name": "changeCell",
-   "why": "audit (0076): esc(describe(...)) or renderChange (itself a reviewed helper)"
+   "why": "audit (0076): esc(describe(...)) or renderChange (itself a reviewed helper)",
+   "files": [
+    "public/audit.html"
+   ]
   },
   {
    "name": "eventCell",
-   "why": "audit (0076): encodeURIComponent(quote_id), esc(code/title)"
+   "why": "audit (0076): encodeURIComponent(quote_id), esc(code/title)",
+   "files": []
   },
   {
    "name": "restoreCell",
-   "why": "crm.html (0139): returns '' or fixed markup; every data value (archive id, name, restored_at) goes through esc()"
+   "why": "crm.html (0139): returns '' or fixed markup; every data value (archive id, name, restored_at) goes through esc()",
+   "files": [
+    "public/crm.html"
+   ]
   },
   {
    "name": "workerLinksBlock",
-   "why": "ops.html (1017): returns '' or fixed markup; every data value (assignee name, worker link) goes through esc()"
+   "why": "ops.html (1017): returns '' or fixed markup; every data value (assignee name, worker link) goes through esc()",
+   "files": [
+    "public/ops.html"
+   ]
   },
   {
    "name": "statusBadge",
-   "why": "event.html (qts-1018): <span class=stat ...> with STAT_CLS constant class and esc()'d key / title / label from BPStore.quoteStatus"
+   "why": "event.html (qts-1018): <span class=stat ...> with STAT_CLS constant class and esc()'d key / title / label from BPStore.quoteStatus",
+   "files": [
+    "public/event.html"
+   ]
   },
   {
    "name": "statusPill",
-   "why": "quotes.html (qts-1018): <span class=stat hs-pill ...> with PILL constant class and esc()'d key / title / label from BPStore.quoteStatus"
+   "why": "quotes.html (qts-1018): <span class=stat hs-pill ...> with PILL constant class and esc()'d key / title / label from BPStore.quoteStatus",
+   "files": [
+    "public/quotes.html"
+   ]
   },
   {
    "name": "cardHtml",
-   "why": "event.html (R32 CLI-01 review): module card - c.ic / c.title are constant module labels, c.sum is markup built in the module table from esc()'d values and counts, every action label / href / act goes through esc()"
+   "why": "event.html (R32 CLI-01 review): module card - c.ic / c.title are constant module labels, c.sum is markup built in the module table from esc()'d values and counts, every action label / href / act goes through esc()",
+   "files": [
+    "public/event.html"
+   ]
   },
   {
    "name": "card",
-   "why": "leads.html + vendors.html (R32 CLI-01 review): lead / partner card - every name, phone, e-mail, date, source, service, history line and id goes through esc(); amounts through fmt(); counts are numbers"
+   "why": "leads.html + vendors.html (R32 CLI-01 review): lead / partner card - every name, phone, e-mail, date, source, service, history line and id goes through esc(); amounts through fmt(); counts are numbers",
+   "files": [
+    "public/leads.html",
+    "public/vendors.html"
+   ]
   },
   {
    "name": "rowChk",
-   "why": "logistics.html (R32 CLI-01 review): checklist row - title / detail / owner / date / id / status esc()'d; status options are the fixed CHK_ST labels"
+   "why": "logistics.html (R32 CLI-01 review): checklist row - title / detail / owner / date / id / status esc()'d; status options are the fixed CHK_ST labels",
+   "files": [
+    "public/logistics.html"
+   ]
   },
   {
    "name": "rowGuest",
-   "why": "logistics.html (R32 CLI-01 review): guest-group row - title / qty / id / status esc()'d; options are fixed labels"
+   "why": "logistics.html (R32 CLI-01 review): guest-group row - title / qty / id / status esc()'d; options are fixed labels",
+   "files": [
+    "public/logistics.html"
+   ]
   },
   {
    "name": "rowPay",
-   "why": "logistics.html (R32 CLI-01 review): payment milestone row - label / date esc()'d, amount via inr(), status options are the fixed PAY_ST labels, payCells() emits numbers only"
+   "why": "logistics.html (R32 CLI-01 review): payment milestone row - label / date esc()'d, amount via inr(), status options are the fixed PAY_ST labels, payCells() emits numbers only",
+   "files": [
+    "public/logistics.html"
+   ]
   },
   {
    "name": "tab",
-   "why": "nurture.html (R32 CLI-01 review): template tab button - occasion_type and its label esc()'d; aria-pressed is a boolean"
+   "why": "nurture.html (R32 CLI-01 review): template tab button - occasion_type and its label esc()'d; aria-pressed is a boolean",
+   "files": [
+    "public/nurture.html"
+   ]
   },
   {
    "name": "opt",
-   "why": "nurture.html (R32 CLI-01 review): template <option> - key and emoji+label esc()'d"
+   "why": "nurture.html (R32 CLI-01 review): template <option> - key and emoji+label esc()'d",
+   "files": [
+    "public/nurture.html"
+   ]
   },
   {
    "name": "crewOption",
-   "why": "ops.html (R32 CLI-01 review): crew <option> - id, name, department, phone esc()'d; the link mark is a constant"
+   "why": "ops.html (R32 CLI-01 review): crew <option> - id, name, department, phone esc()'d; the link mark is a constant",
+   "files": [
+    "public/ops.html"
+   ]
   },
   {
    "name": "taskRow",
-   "why": "ops.html (R32 CLI-01 review): task row - title / label / id / status / vendor name esc()'d; status label from the fixed STATUS_LABEL table; chips come from reviewed helpers"
+   "why": "ops.html (R32 CLI-01 review): task row - title / label / id / status / vendor name esc()'d; status label from the fixed STATUS_LABEL table; chips come from reviewed helpers",
+   "files": [
+    "public/ops.html"
+   ]
   },
   {
    "name": "personCard",
-   "why": "staff.html (R32 CLI-01 review): staff card - name, initials, department, type, skills, attributes, phone, e-mail, avatar path, id esc()'d; money via studioMoney(); links encodeURIComponent()"
+   "why": "staff.html (R32 CLI-01 review): staff card - name, initials, department, type, skills, attributes, phone, e-mail, avatar path, id esc()'d; money via studioMoney(); links encodeURIComponent()",
+   "files": [
+    "public/staff.html"
+   ]
   }
  ],
  "sites": [

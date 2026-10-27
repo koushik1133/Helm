@@ -3,7 +3,8 @@
 --          0043 + 0126 (current_org_id chain), 0046 (_a46_tg_money_freeze), 0049 + 0148 + 0198 (_a49_close_gate),
 --          0052 (consent_stale columns), 0097 + 0182 (_a97_tg_demo_flag_guard), 0131 (invitations e-mail trigger),
 --          0155 (a155_admin_created, admin_create_user wrapper), 0166 + 0179 (seat triggers, _trial_seat_limit),
---          0173 + 0181 + 0236 (trial lock + 2-row caps), 0264 (record_payment wrapper).
+--          0173 + 0181 + 0236 (trial lock + 2-row caps), 0264 (record_payment / record_settlement_payment wrappers),
+--          0027 (settle_milestone), 0069 (package selections), 0254 (close requests: decide_event_close, _r22_close_checks).
 --
 -- In plain words (r32 security review, owner-authorised):
 --   ACL-01  QC sign-off (verify_task) also needs the role's "Staff" area in the Control Center matrix (view), and it
@@ -30,10 +31,24 @@
 --   BIZ-04  a quote's currency can't change once a payment is recorded; changed after approval = client must
 --           approve again (consent_stale), same as a price change.
 --   BIZ-05  in a locked free trial, renaming a sample ("adopting" it) counts against the 2-row limit like a new row.
---   BIZ-06  is_sample_master / seat_limit / sample_source_org / sample_batch_id can't be changed through the API.
+--   BIZ-06  is_sample_master / seat_limit / sample_source_org / sample_batch_id / sample_version / sample_cloned_at
+--           can't be changed through the API.
+-- R32b (review round 2):
+--   - lowering the price of a CONFIRMED or PAID event (discount, tax, any pricing field) needs "Approve discounts"
+--     (admin always) and is logged; editing before confirmation and the client's package choice are unchanged;
+--   - approving a change request that would leave the invoice below what was paid: "record a refund first";
+--   - "Mark milestone paid" and Settlement payments after closing work (milestones marked) and are logged;
+--   - approving a close request respects "Close events with money owed"; the failed balance check reads
+--     "Client balance still due";
+--   - seats: joining counts only the people already in the studio (open invitations count when an invitation is
+--     made); a studio with ANY subscription row (also cancelled / suspended) keeps its plan's limit - no limit only
+--     with no subscription row and no per-studio number (HQ-created studios);
+--   - admin_create_user: "send them an invitation instead" refusals are counted per studio (new private table
+--     r282_acu_refusals, 20 a day) and answered (null / { refused: true }) instead of raised, so the count is kept.
 -- Changes: 2 nullable columns added (invitations.mail_key_hash, helm_plans.seat_limit; seat_limit filled for the two
--- plans only where empty), new helper functions / triggers, functions re-issued in place with the same names,
--- arguments and answers. No table, column, row or policy is dropped; no data is deleted. Safe to run twice. ASCII only.
+-- plans only where empty), 1 new private table (r282_acu_refusals), new helper functions / triggers, functions
+-- re-issued in place with the same names and arguments (settle_milestone / _r22_close_checks: bodies kept as
+-- *__pre0282). No table, column, row or policy is dropped; no data is deleted. Safe to run twice. ASCII only.
 
 -- ---- STOP guard: the pieces this builds on ----------------------------------------------------------------------
 do $$ begin
@@ -174,11 +189,15 @@ update public.helm_plans set seat_limit = 15 where code = 'studio'  and seat_lim
 create or replace function public._trial_seat_limit(p_org uuid)
 returns integer language sql stable security definer set search_path = '' as $$
   -- trial-sandbox-0166: null = no limit
-  -- r32-0282 BIZ-03: a paid studio (active / past_due) gets its plan's seat_limit; HQ's per-studio number still wins
+  -- r32-0282 BIZ-03: a studio with a subscription row gets its plan's seat_limit in ANY status (active, past_due,
+  -- cancelled, suspended, ...), so a lapsed studio can't stack invitations and keep them on re-subscribing (R32b).
+  -- HQ's per-studio number still wins; NULL (no limit) only with no subscription row and no per-studio number
+  -- (HQ-created studios). Existing members are never removed.
   select case when public._is_trial_org(p_org) then coalesce(o.seat_limit, 3)
               else coalesce(o.seat_limit, (select p.seat_limit from public.studio_subscriptions s
                                              join public.helm_plans p on p.id = s.plan_id
-                                            where s.org_id = p_org and s.status in ('active', 'past_due'))) end
+                                            where s.org_id = p_org
+                                            order by (s.status in ('active', 'past_due')) desc limit 1)) end
     from public.organizations o where o.id = p_org;
 $$;
 
@@ -253,6 +272,9 @@ returns trigger language plpgsql security definer set search_path = '' as $$
 -- tb-msg-0179: a role change client -> staff role inside the studio counts as a new seat, and the
 -- studio's other open staff invitations count too (admin + 2 = members + pending invitations)
 -- r32-0282 BIZ-03: paid plans too (_trial_seat_limit); plan wording. Existing members (same studio) are never checked.
+-- R32b BIZ-03: JOINING (accepting an invitation, any join path) counts only the people already in the studio + this one;
+-- open invitations count only when an invitation is CREATED (_ts166_tg_invite_seat), so old pending invitations never
+-- stop a person from joining while a seat is free.
 declare v_lim integer; v_used integer;
 begin
   if new.org_id is null or coalesce(new.role, '') = 'client' then return new; end if;
@@ -263,26 +285,44 @@ begin
   if not public._is_trial_org(new.org_id) and not public._r282_api_caller()
      and (select o.seat_limit from public.organizations o where o.id = new.org_id) is null then return new; end if;
   perform pg_advisory_xact_lock(hashtextextended('helm:seat:' || new.org_id::text, 0));
-  select (select count(*) from public.profiles p
-           where p.org_id = new.org_id and p.id <> new.id and coalesce(p.role, '') <> 'client')
-       + (select count(*) from public.invitations i
-           where i.org_id = new.org_id and i.status = 'pending' and coalesce(i.role, '') <> 'client'
-             and (i.expires_at is null or i.expires_at > now())
-             and lower(i.email) is distinct from lower(coalesce(new.email, ''))
-             and not exists (select 1 from public.profiles p
-                              where p.org_id = new.org_id and p.id <> new.id and lower(p.email) = lower(i.email)))
+  select count(*) from public.profiles p
+   where p.org_id = new.org_id and p.id <> new.id and coalesce(p.role, '') <> 'client'
     into v_used;
   if v_used >= v_lim then perform public._r282_seat_refuse(new.org_id, v_lim, false); end if;
   return new;
 end $$;
 
 -- ---- 4) AUTH-2: admin_create_user - seat limit first, then the address --------------------------------------------
+-- R32b (R2-AUTH-02): an address that can't be used ("send them an invitation instead": it has a login elsewhere or is
+-- a Helm operator) is a REFUSAL that is now counted per studio, so the answer can't be used to test address after
+-- address: 20 refusals in 24 hours (or 100 new accounts + refusals) and the studio's "Add user" waits until tomorrow.
+-- To keep the count, a refusal is ANSWERED (admin_create_user -> null, admin_create_user_temp -> { refused: true,
+-- error }) instead of raised (a raised error would roll the count back). Only a fingerprint of the address is kept.
+-- (column studio_id, not org_id: an anti-abuse counter, not studio data - trial retention / read-only guards don't apply)
+create table if not exists public.r282_acu_refusals (
+  id bigserial primary key,
+  studio_id uuid not null,
+  actor uuid,
+  email_hash text,
+  created_at timestamptz not null default now()
+);
+create index if not exists r282_acu_refusals_org_idx on public.r282_acu_refusals (studio_id, created_at);
+alter table public.r282_acu_refusals enable row level security;
+revoke all on table public.r282_acu_refusals from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on table public.r282_acu_refusals from anon'; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on table public.r282_acu_refusals from authenticated'; end if;
+  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on sequence public.r282_acu_refusals_id_seq from anon'; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on sequence public.r282_acu_refusals_id_seq from authenticated'; end if;
+end $$;
+
 create or replace function public.admin_create_user(p_email text, p_password text, p_role text)
 returns uuid language plpgsql volatile security definer set search_path = '' as $$
 -- audit-p1-0155 wrapper over the audit-run2-0042 / auth-hardening-0028 chain (admin_create_user__pre0155):
 -- unpaid trial studios add people by invitation; paid studios max 100 new accounts a day; recorded.
 -- r32-0282 AUTH-2: a studio with no free seat gets the seat answer BEFORE any e-mail lookup (same answer for every address)
-declare v_org uuid := public.current_org_id(); v_uid uuid; v_n int; v_lim int;
+-- R32b R2-AUTH-02: "send them an invitation instead" refusals are counted (r282_acu_refusals) and answered with null
+declare v_org uuid := public.current_org_id(); v_uid uuid; v_n int; v_lim int; v_ref int; v_state text; v_msg text;
 begin
   if v_org is null or not public.is_admin() then raise exception 'not authorized' using errcode = '42501'; end if;
   if public._a155_unpaid_trial(v_org) then
@@ -295,14 +335,49 @@ begin
     if v_lim is not null and public._r282_seats_used(v_org) >= v_lim then perform public._r282_seat_refuse(v_org, v_lim, false); end if;
   end if;
   select count(*) into v_n from public.a155_admin_created a where a.org_id = v_org and a.created_at > now() - interval '24 hours';
-  if v_n >= 100 then
+  select count(*) into v_ref from public.r282_acu_refusals r where r.studio_id = v_org and r.created_at > now() - interval '24 hours';
+  if v_n + v_ref >= 100 or v_ref >= 20 then
     raise exception 'too many new accounts today - try again tomorrow, or send invitations instead' using errcode = '54000';
   end if;
-  v_uid := public.admin_create_user__pre0155(p_email, p_password, p_role);
+  begin
+    v_uid := public.admin_create_user__pre0155(p_email, p_password, p_role);
+  exception when invalid_parameter_value then
+    get stacked diagnostics v_state = returned_sqlstate, v_msg = message_text;
+    if position('send them an invitation instead' in v_msg) = 0 then raise; end if;
+    insert into public.r282_acu_refusals(studio_id, actor, email_hash)
+      values (v_org, auth.uid(), encode(extensions.digest(lower(btrim(coalesce(p_email, ''))), 'sha256'), 'hex'));
+    return null;
+  end;
   insert into public.a155_admin_created(user_id, org_id, created_by, pw_hash)
     select v_uid, v_org, auth.uid(), u.encrypted_password from auth.users u where u.id = v_uid
   on conflict (user_id) do nothing;
   return v_uid;
+end $$;
+
+-- auth-hardening-0028 / password-rule-0030 body, unchanged except: a refused address (null from admin_create_user,
+-- R32b R2-AUTH-02) answers { refused: true, error } - nothing is created and no temporary password is made
+create or replace function public.admin_create_user_temp(p_email text, p_role text)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+-- auth-hardening-0028 / password-rule-0030
+-- R32b R2-AUTH-02: refusal answered, not raised (so the per-studio refusal count is kept)
+declare v_uid uuid; v_temp text; v_sym text := '!#%*-_+=?';
+begin
+  if not public.is_admin() then raise exception 'not authorized' using errcode = '42501'; end if;
+  -- 'H' (upper) + 'm' (lower) + 16 random base64 chars (96 bits) + one random digit
+  -- + one random symbol: always >= 12 chars with all four kinds.
+  v_temp := 'Hm' || translate(encode(extensions.gen_random_bytes(12), 'base64'), '+/=', 'xy9')
+         || (get_byte(extensions.gen_random_bytes(1), 0) % 10)::text
+         || substr(v_sym, 1 + get_byte(extensions.gen_random_bytes(1), 0) % length(v_sym), 1);
+  v_uid  := public.admin_create_user(p_email, v_temp, p_role);
+  if v_uid is null then
+    return jsonb_build_object('refused', true, 'code', '22023',
+                              'error', 'could not create this user - send them an invitation instead');
+  end if;
+  update public.profiles set must_change_password = true where id = v_uid;
+  insert into public.auth_temp_passwords (user_id, pw_hash)
+    select u.id, u.encrypted_password from auth.users u where u.id = v_uid
+  on conflict (user_id) do update set pw_hash = excluded.pw_hash, created_at = now();
+  return jsonb_build_object('user_id', v_uid, 'temp_password', v_temp);
 end $$;
 
 -- ---- 5) AUTH-3: no studio while the admin-given temporary password is still in use ---------------------------------
@@ -335,7 +410,10 @@ create or replace function public._r282_tg_cr_approval()
 returns trigger language plpgsql security definer set search_path = '' as $$
 -- r32-0282 BIZ-01: no self-approval (an admin only when the studio has no other admin); a price decrease needs
 -- "Approve discounts" (matrix area discount_approve, edit; admin always); every approval is logged
+-- R32b (R2-BIZ low): an approval that would leave the invoice (quote total + approved changes) below what the client
+-- has already paid (net of refunds) is refused - "record a refund first", the same rule as a quote's own total
 declare v_me uuid := auth.uid(); v_role text := coalesce(public.user_role(), ''); v_self boolean;
+        v_inv numeric; v_paid numeric;
 begin
   if not public._r282_api_caller() then return new; end if;
   if new.status is not distinct from old.status or new.status <> 'approved' then return new; end if;
@@ -347,6 +425,17 @@ begin
   if coalesce(new.price_delta, 0) < 0 and not public.has_area('discount_approve', 'edit') then
     raise exception 'Only an admin (or a role allowed to approve discounts) can approve a change that lowers the price.'
       using errcode = '42501', hint = 'discount_approval';
+  end if;
+  if coalesce(new.price_delta, 0) < 0 then
+    perform pg_advisory_xact_lock(hashtextextended('helm:pay:quote:' || old.quote_id::text, 0));
+    v_inv := public.helm_invoice_total(old.quote_id) + coalesce(new.price_delta, 0);
+    v_paid := public.helm_total_paid(old.quote_id, null, null)
+              - coalesce((select sum(r.amount) from public.event_refunds r
+                           where r.quote_id = old.quote_id and r.kind = 'refund' and r.status in ('approved', 'processed')), 0);
+    if v_paid > 0 and v_inv < v_paid - 0.5 then
+      raise exception 'Approving this change would make the invoice (%) lower than what the client has already paid (%) - record a refund first.',
+        round(v_inv, 2), round(v_paid, 2) using errcode = '23514', hint = 'below_paid';
+    end if;
   end if;
   insert into public.audit_log(actor, actor_email, action, entity, entity_id, quote_id, changed, org_id)
     values (v_me, (select u.email from auth.users u where u.id = v_me), 'change_request_approved', 'change_requests',
@@ -534,14 +623,227 @@ end $$;
 -- ---- 10) BIZ-06: Helm-owned studio settings can't be changed through the API ----------------------------------------
 drop trigger if exists ab_mass_assign_guard_r282 on public.organizations;
 create trigger ab_mass_assign_guard_r282 before update on public.organizations
-  for each row execute function public.tg_mass_assign_guard('is_sample_master', 'seat_limit', 'sample_source_org', 'sample_batch_id');
+  for each row execute function public.tg_mass_assign_guard('is_sample_master', 'seat_limit', 'sample_source_org', 'sample_batch_id',
+                                                           'sample_version', 'sample_cloned_at');
+
+-- ---- 12) R32b round-2 fixes -----------------------------------------------------------------------------------------
+-- 12a R2-BIZ-NEW-1: lowering the price of a CONFIRMED or PAID event (any pricing field: discount, tax, items, ...) needs
+--     "Approve discounts" (discount_approve, edit; admin always) and is logged. Editing before confirmation is unchanged,
+--     and a client's package choice accepted by the studio (pkg_selection_review: the price comes from the package, with
+--     its own maker-checker for adjusted prices) is not held to it. Runs after the server recomputes the total.
+create or replace function public._r282_tg_price_decrease()
+returns trigger language plpgsql security definer set search_path = '' as $$
+-- r32-0282 R32b R2-BIZ-NEW-1
+declare v_old numeric; v_new numeric; v_paid boolean; v_pkg boolean;
+begin
+  if not public._r282_api_caller() then return new; end if;
+  if new.pricing is not distinct from old.pricing then return new; end if;
+  v_old := case when jsonb_typeof(old.pricing) = 'object' then public.helm_pricing_num(old.pricing -> 'total') end;
+  v_new := case when jsonb_typeof(new.pricing) = 'object' then public.helm_pricing_num(new.pricing -> 'total') end;
+  if v_old is null or v_old <= 0 then return new; end if;                 -- not priced before: nothing to protect
+  if v_new is not null and v_new >= v_old - 0.005 then return new; end if;  -- same or higher
+  v_paid := exists (select 1 from public.quote_payments p where p.quote_id = new.id and p.status = 'paid');
+  if not (coalesce(old.status, '') = 'confirmed' or coalesce(old.approval_status, '') = 'paid' or v_paid) then return new; end if;
+  v_pkg := exists (select 1 from public.package_selections s
+                     join public.quotation_versions v on v.quote_id = s.quote_id
+                    where s.quote_id = new.id and s.status = 'pending'
+                      and (v.id = s.draft_version_id or v.created_at = now())
+                      and abs(coalesce(public.helm_quote_total(v.pricing), -1) - coalesce(v_new, -2)) < 0.5);
+  if not v_pkg and not public.has_area('discount_approve', 'edit') then
+    raise exception 'Only an admin (or a role allowed to approve discounts) can lower the price of a confirmed or paid event.'
+      using errcode = '42501', hint = 'discount_approval';
+  end if;
+  insert into public.audit_log(actor, actor_email, action, entity, entity_id, quote_id, changed, org_id)
+    values (auth.uid(), (select u.email from auth.users u where u.id = auth.uid()), 'price_decrease', 'quotes', new.id::text, new.id,
+            jsonb_build_object('from', v_old, 'to', v_new, 'role', public.user_role(), 'package_choice', v_pkg,
+                               'discount', new.pricing -> 'discount', 'discountPct', new.pricing -> 'discountPct', 'gstPct', new.pricing -> 'gstPct'),
+            new.org_id);
+  return new;
+end $$;
+drop trigger if exists zzzz_a52d_r282_price_down on public.quotes;
+create trigger zzzz_a52d_r282_price_down before update on public.quotes
+  for each row execute function public._r282_tg_price_decrease();
+
+-- 12b R2-BIZ-NEW-2: settle_milestone ("mark this milestone paid") works after closing (the closed-event freeze lets it
+--     mark the milestone) and is logged as payment_after_close - the same as record_payment. Body kept as __pre0282.
+do $$ begin
+  if to_regprocedure('public.settle_milestone__pre0282(uuid, text, text)') is null then
+    alter function public.settle_milestone(uuid, text, text) rename to settle_milestone__pre0282;
+  end if;
+end $$;
+revoke all on function public.settle_milestone__pre0282(uuid, text, text) from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function public.settle_milestone__pre0282(uuid, text, text) from anon'; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function public.settle_milestone__pre0282(uuid, text, text) from authenticated'; end if;
+end $$;
+create or replace function public.settle_milestone(p_milestone uuid, p_method text default 'cash', p_idempotency_key text default null)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+-- r32-0282 R32b R2-BIZ-NEW-2: allowed after closing (logged); every check of the original (settle_milestone__pre0282) runs
+declare v_q uuid; v_closed boolean := false; v_out jsonb;
+begin
+  select m.quote_id into v_q from public.payment_milestones m where m.id = p_milestone and m.org_id = public.current_org_id();
+  v_closed := v_q is not null and public._r282_event_closed(v_q);
+  if v_closed then perform set_config('helm.r282_pay', v_q::text, true); end if;
+  v_out := public.settle_milestone__pre0282(p_milestone, p_method, p_idempotency_key);
+  if v_closed and not coalesce((v_out ->> 'idempotent_replay')::boolean, false) then
+    insert into public.audit_log(actor, actor_email, action, entity, entity_id, quote_id, changed, org_id)
+      select auth.uid(), (select u.email from auth.users u where u.id = auth.uid()), 'payment_after_close', 'quote_payments',
+             v_q::text, v_q, jsonb_build_object('amount', v_out -> 'amount', 'method', v_out -> 'method', 'receipt_no', v_out -> 'receipt_no',
+                                                'milestone', p_milestone, 'via', 'settle_milestone'), q.org_id
+        from public.quotes q where q.id = v_q;
+  end if;
+  if v_closed then perform set_config('helm.r282_pay', '', true); end if;
+  return v_out;
+end $$;
+revoke all on function public.settle_milestone(uuid, text, text) from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function public.settle_milestone(uuid, text, text) from anon'; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'grant execute on function public.settle_milestone(uuid, text, text) to authenticated'; end if;
+end $$;
+
+-- 12c R2-BIZ-NEW-3: record_settlement_payment (Settlement page) after closing: its milestone match works and it is logged
+create or replace function public.record_settlement_payment(p_quote uuid, p_amount numeric, p_method text default 'cash', p_receipt_no text default null,
+                                                            p_milestone uuid default null, p_note text default null, p_idempotency_key text default null)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+-- pay-schedule-0264: the receipt row is written to quote_payments by record_settlement_payment__pre0264 (ledger + caps
+-- unchanged), then every milestone the money now fully covers is paid
+-- r32-0282 R32b R2-BIZ-NEW-3: allowed after closing (the closed-event freeze lets this call mark milestones) and logged
+declare v_out jsonb; v_n integer := 0; v_closed boolean := public._r282_event_closed(p_quote);
+begin
+  if v_closed then perform set_config('helm.r282_pay', p_quote::text, true); end if;
+  v_out := public.record_settlement_payment__pre0264(p_quote, p_amount, p_method, p_receipt_no, p_milestone, p_note, p_idempotency_key);
+  if not coalesce((v_out ->> 'idempotent_replay')::boolean, false) then
+    begin v_n := public._pst_allocate(p_quote);
+    exception when others then v_n := 0; raise warning 'pay-schedule-0264: milestone cover skipped (%)', sqlstate;
+    end;
+    if v_n > 0 then v_out := v_out || jsonb_build_object('milestones_covered', v_n); end if;
+    if v_closed then
+      insert into public.audit_log(actor, actor_email, action, entity, entity_id, quote_id, changed, org_id)
+        select auth.uid(), (select u.email from auth.users u where u.id = auth.uid()), 'payment_after_close', 'quote_payments',
+               p_quote::text, p_quote, jsonb_build_object('amount', p_amount, 'method', p_method, 'receipt_no', p_receipt_no,
+                                                          'milestone', p_milestone, 'via', 'record_settlement_payment'), q.org_id
+          from public.quotes q where q.id = p_quote;
+    end if;
+  end if;
+  if v_closed then perform set_config('helm.r282_pay', '', true); end if;
+  return v_out;
+end $$;
+
+-- 12d decide_event_close: the closure checklist's balance line reads as the problem when it fails ("Client balance still
+--     due", not "Client balance is 0"); the original checklist body is kept as _r22_close_checks__pre0282
+do $$ begin
+  if to_regprocedure('public._r22_close_checks__pre0282(uuid, uuid)') is null then
+    alter function public._r22_close_checks(uuid, uuid) rename to _r22_close_checks__pre0282;
+  end if;
+end $$;
+create or replace function public._r22_close_checks(p_quote uuid, p_org uuid)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+-- r22-closure-0254 body in _r22_close_checks__pre0282; r32-0282 R32b: a FAILED balance check is labelled as the problem
+declare r jsonb;
+begin
+  r := public._r22_close_checks__pre0282(p_quote, p_org);
+  if r is null then return null; end if;
+  return r || jsonb_build_object(
+    'checks', (select coalesce(jsonb_agg(case when c ->> 'key' = 'balance' and c ->> 'status' = 'fail'
+                                              then c || jsonb_build_object('label', 'Client balance still due') else c end order by o), '[]'::jsonb)
+                 from jsonb_array_elements(coalesce(r -> 'checks', '[]'::jsonb)) with ordinality e(c, o)),
+    'failed', (select coalesce(jsonb_agg(case when c ->> 'key' = 'balance'
+                                              then c || jsonb_build_object('label', 'Client balance still due') else c end order by o), '[]'::jsonb)
+                 from jsonb_array_elements(coalesce(r -> 'failed', '[]'::jsonb)) with ordinality e(c, o)));
+end $$;
+do $$ declare f text; begin
+  foreach f in array array['_r22_close_checks(uuid, uuid)', '_r22_close_checks__pre0282(uuid, uuid)'] loop
+    execute 'revoke all on function public.' || f || ' from public';
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function public.' || f || ' from anon'; end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function public.' || f || ' from authenticated'; end if;
+    if exists (select 1 from pg_roles where rolname = 'service_role') then execute 'grant execute on function public.' || f || ' to service_role'; end if;
+  end loop;
+end $$;
+
+-- ... and approving a close request respects "Close events with money owed": when the client balance is the ONLY
+--     server blocker, an approver whose role has close_owed (edit) may approve (the close gate checks it again)
+create or replace function public.decide_event_close(p_request_id uuid, p_approve boolean, p_note text default null)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r22-closure-0254: approve (closes through close_event - every gate still runs) or decline (note required)
+-- r32-0282 R32b: money owed only + close_owed (edit) may approve past the server gate (not only an admin)
+declare
+  v_org uuid := public.current_org_id(); v_uid uuid := auth.uid(); v_admin boolean := coalesce(public.user_role(), '') = 'admin';
+  q public.event_close_requests; r jsonb; v_server boolean; v_email text; v_name text; v_note text := nullif(btrim(coalesce(p_note, '')), '');
+  v_admin_only text; v_txt text; b jsonb; v_owed_only boolean;
+begin
+  if v_uid is null or v_org is null or not public._r22_can_approve() then
+    raise exception 'Only an admin, or a coordinator / manager who can close events, can approve or decline a close request.' using errcode = '42501'; end if;
+  select * into q from public.event_close_requests x where x.id = p_request_id and x.org_id = v_org for update;
+  if q.id is null then raise exception 'not authorized for this request' using errcode = '42501'; end if;
+  if q.status <> 'pending' then raise exception 'This request was already %.', q.status using errcode = '22023'; end if;
+  if q.requested_by = v_uid and not v_admin then
+    raise exception 'You can''t decide your own close request - ask an admin or a coordinator.' using errcode = '42501'; end if;
+  if p_approve is null then raise exception 'approve or decline?' using errcode = '22023'; end if;
+  if v_note is not null and length(v_note) > 1000 then raise exception 'Keep the note under 1000 characters.' using errcode = '22023'; end if;
+  select u.email into v_email from auth.users u where u.id = v_uid;
+  v_name := coalesce(public._sa54_name(v_uid), v_email, 'Someone');
+
+  if not p_approve then
+    if v_note is null or length(v_note) < 3 then
+      raise exception 'Say why you are declining (at least 3 characters) - the requester sees it.' using errcode = '22023'; end if;
+    update public.event_close_requests set status = 'declined', decided_by = v_uid, decided_email = v_email, decided_name = v_name,
+           decided_role = public.user_role(), decided_at = now(), decision_note = v_note
+     where id = q.id;
+    insert into public.audit_log(actor, actor_email, action, entity, entity_id, quote_id, changed, org_id)
+      values (v_uid, v_email, 'close_request_declined', 'event_closure', q.quote_id::text, q.quote_id,
+              jsonb_build_object('request_id', q.id, 'note', v_note, 'requested_by', q.requested_by), v_org);
+    perform public._r22_announce(v_org, q.quote_id, q.id, 'event_close_decision',
+      left(chr(10006) || ' Close request declined by ' || v_name || ': ' || v_note || ' (requested by ' || coalesce(q.requested_name, 'someone') || ')', 600),
+      case when q.requested_by is not null then jsonb_build_array(to_jsonb(q.requested_by)) else '[]'::jsonb end,
+      jsonb_build_object('decision', 'declined', 'actor_name', v_name));
+    perform public._r22_mail_enqueue(v_org, q.id, 'close_decision');
+    return jsonb_build_object('request_id', q.id, 'status', 'declined', 'closed', false);
+  end if;
+
+  -- approve: the checklist is re-computed now; past a 0049 server blocker only an admin may approve - or, when the
+  -- client balance is the only server blocker, a role with "Close events with money owed" (R32b)
+  perform pg_advisory_xact_lock(hashtextextended('helm:pay:quote:' || q.quote_id::text, 0));
+  perform 1 from public.quotes x where x.id = q.quote_id for update;
+  r := public._r22_close_checks(q.quote_id, v_org);
+  v_server := coalesce((r ->> 'server_blocked')::boolean, false);
+  if v_server and not v_admin then
+    b := public._a49_close_blockers(q.quote_id);
+    v_owed_only := coalesce((b ->> 'balance_owed')::numeric, 0) > 0 and coalesce((b ->> 'open_checkouts')::int, 0) = 0
+                   and (b ->> 'not_booked') is null and not coalesce((b ->> 'no_event_date')::boolean, false)
+                   and not coalesce((b ->> 'too_early')::boolean, false);
+    if not (v_owed_only and public.has_area('close_owed', 'edit')) then
+      select string_agg(f ->> 'label', ', ') into v_admin_only from jsonb_array_elements(r -> 'failed') f where f ->> 'override' in ('admin', 'none');
+      raise exception 'Only an admin can approve closing past: %.', coalesce(v_admin_only, 'a server check') using errcode = '42501';
+    end if;
+  end if;
+  if v_server then perform public.close_event(q.quote_id, true,
+      left('Close request approved by ' || v_name || ' (requested by ' || coalesce(q.requested_name, 'someone') || '): ' || q.reason, 1000));
+  else perform public.close_event(q.quote_id, true); end if;
+  update public.event_close_requests set status = 'approved', decided_by = v_uid, decided_email = v_email, decided_name = v_name,
+         decided_role = public.user_role(), decided_at = now(), decision_note = v_note,
+         decided_checks = coalesce(r -> 'checks', '[]'::jsonb), server_override = v_server
+   where id = q.id;
+  insert into public.audit_log(actor, actor_email, action, entity, entity_id, quote_id, changed, org_id)
+    values (v_uid, v_email, 'close_request_approved', 'event_closure', q.quote_id::text, q.quote_id,
+            jsonb_build_object('request_id', q.id, 'reason', q.reason, 'note', v_note, 'requested_by', q.requested_by,
+                               'server_override', v_server,
+                               'failed_checks', (select jsonb_agg(f ->> 'key') from jsonb_array_elements(r -> 'failed') f)), v_org);
+  v_txt := left(chr(9989) || ' Closed with override approved by ' || v_name || '; requested by ' || coalesce(q.requested_name, 'someone')
+                || ': ' || q.reason || coalesce(' - ' || v_note, ''), 600);
+  perform public._r22_announce(v_org, q.quote_id, q.id, 'event_close_decision', v_txt,
+    (select coalesce(jsonb_agg(distinct e), '[]'::jsonb) from jsonb_array_elements(public._r22_approver_ids(v_org)
+       || case when q.requested_by is not null then jsonb_build_array(to_jsonb(q.requested_by)) else '[]'::jsonb end) e),
+    jsonb_build_object('decision', 'approved', 'actor_name', v_name));
+  perform public._r22_mail_enqueue(v_org, q.id, 'close_decision');
+  return jsonb_build_object('request_id', q.id, 'status', 'approved', 'closed', true, 'server_override', v_server);
+end $$;
 
 -- ---- 11) trigger functions are never called directly ------------------------------------------------------------------
 do $$
 declare f text;
 begin
   foreach f in array array['public._r282_tg_invite_key_guard()', 'public._r282_tg_cr_approval()', 'public._r282_tg_closed_freeze()',
-                           'public._r282_tg_quote_currency()', 'public._r282_tg_adopt_cap()'] loop
+                           'public._r282_tg_quote_currency()', 'public._r282_tg_adopt_cap()', 'public._r282_tg_price_decrease()'] loop
     execute format('revoke all on function %s from public', f);
     if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
     if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f); end if;

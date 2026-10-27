@@ -34,10 +34,29 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUB = join(ROOT, 'public');
 const ALLOW_PATH = join(ROOT, 'scripts', 'html-sinks-allowlist.json');
 const LIST = process.argv.includes('--list');
+const HELPERS = process.argv.includes('--helpers');   // R32b: print where each reviewed helper is accepted
 
 // Helpers reviewed to return escaped HTML / fixed markup. Each was read and
 // confirmed to esc() every caller-controlled value it emits.
-export const SAFE_HELPERS = new Set(JSON.parse(readFileSync(ALLOW_PATH, 'utf8')).safeHelpers.map((h) => h.name));
+// R32b (R2-CLI-01): an entry may name the files it was reviewed in ("files": [...]); the same helper NAME in any
+// other file (card / tab / opt / cardHtml are different functions in different files) is then not accepted.
+const HELPER_FILES = new Map();
+for (const h of JSON.parse(readFileSync(ALLOW_PATH, 'utf8')).safeHelpers) {
+  const prev = HELPER_FILES.get(h.name);
+  const files = Array.isArray(h.files) ? h.files : null;
+  HELPER_FILES.set(h.name, prev === undefined ? files : (prev === null || files === null ? null : prev.concat(files)));
+}
+export const SAFE_HELPERS = { has: (name) => helperOk(name) };
+let CUR_FILE = null;                       // the file being scanned (set by scan(); tests may set it with setFile)
+export function setFile(f) { CUR_FILE = f; }
+export const HELPER_USE = new Map();       // name -> Set(files) where the scan accepted it (for --helpers)
+function helperOk(name) {
+  if (!HELPER_FILES.has(name)) return false;
+  const files = HELPER_FILES.get(name);
+  const ok = files === null || (CUR_FILE != null && files.includes(CUR_FILE));
+  if (ok && CUR_FILE) { if (!HELPER_USE.has(name)) HELPER_USE.set(name, new Set()); HELPER_USE.get(name).add(CUR_FILE); }
+  return ok;
+}
 const ESCAPERS = /^(?:esc|escapeHtml|escHtml|escAttr|encodeURIComponent|encodeURI|Number|parseInt|parseFloat|Math\.[a-z]+|Boolean|String\(Number|safeLink|safeQr)$/;
 
 // Exact directory names only (a substring test also skipped e.g. public/vendors-*/).
@@ -110,6 +129,8 @@ const strip = (e) => { e = e.trim(); while (e.startsWith('(') && skipBalanced(e,
 export function safeExpr(e) {
   e = strip(e);
   if (!e) return true;
+  // R32b (R2-CLI-01): the comma operator - `(n > 0, evil)` is the value of its LAST operand only
+  const cm = splitTop(e, [',']); if (cm) return safeExpr(cm[cm.length - 1]);
   if (/^(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|-?\d[\d_.e]*|true|false|null|undefined|""|'')$/.test(e)) return true;
   if (e[0] === '`' && skipTpl(e, 0, null) === e.length) return true; // template: own ${} checked elsewhere
   // ternary c ? a : b  → a, b
@@ -134,7 +155,7 @@ export function safeExpr(e) {
   // itself must be visibly safe too - an arrow returning an accepted expression, a block whose every
   // `return` is accepted, or a reviewed helper name from SAFE_HELPERS. `x => x.name` is NOT accepted.
   if (/\.map\s*\(/.test(e) && /\.join\s*\([^()]*\)$/.test(e)) return mapJoinSafe(e);
-  if (/^[\w$.]+\.join\([^()]*\)$/.test(e) && SAFE_HELPERS.has(e.replace(/\.join.*/, ''))) return true;
+  { const hj = /^([\w$.]+)\.join\(([^()]*)\)$/.exec(e); if (hj && SAFE_HELPERS.has(hj[1]) && safeExpr(hj[2])) return true; }
   return false;
 }
 
@@ -142,7 +163,8 @@ export function safeExpr(e) {
 function blockReturnsSafe(b) {
   const re = /\breturn\b/g; let m, n = 0;
   while ((m = re.exec(b))) {
-    const st = m.index + m[0].length, en = skipBalanced(b, st, null);
+    const st = m.index + m[0].length; let en = skipBalanced(b, st, null);
+    while (b[en] === ',') en = skipBalanced(b, en + 1, null);   // R32b: `return a, evil` returns evil (comma operator)
     const ex = b.slice(st, en).trim();
     if (!safeExpr(ex)) return false;
     n++; re.lastIndex = Math.max(en, st);
@@ -166,7 +188,10 @@ function mapJoinSafe(e) {
   const re = /\.map\s*\(/g; let m;
   while ((m = re.exec(e))) {
     const st = m.index + m[0].length, en = skipBalanced(e, st, ')');
-    if (/^\s*\.join\s*\([^()]*\)$/.test(e.slice(en + 1))) {
+    const j = /^\s*\.join\s*\(([^()]*)\)$/.exec(e.slice(en + 1));
+    if (j) {
+      // R32b (R2-CLI-01): the separator goes into the markup too - it must be accepted like any value
+      if (!safeExpr(j[1])) return false;
       // the callback is the first argument (a 2nd thisArg is never used for HTML)
       const cbEnd = skipBalanced(e, st, null);
       return mapCallbackSafe(e.slice(st, Math.min(cbEnd, en)));
@@ -194,6 +219,7 @@ function valuesOf(rhs) {
 const SINK = /(?:\.(innerHTML|outerHTML|srcdoc)\s*(\+?=)(?!=)|\.insertAdjacentHTML\s*\(|\bdocument\.write(?:ln)?\s*\(|\.parseFromString\s*\(|\.createContextualFragment\s*\()/g;
 function scan(code, file, baseLine) {
   const hits = [];
+  CUR_FILE = file;
   let m;
   SINK.lastIndex = 0;
   while ((m = SINK.exec(code))) {
@@ -249,6 +275,7 @@ for (const h of found) {
   const max = Number(allowMap.get(k).max || 1);
   if (n > max) bad.push({ ...h, extra: ` (allowlisted for ${max} site(s); this is site #${n} - review it, then raise "max")` });
 }
+if (HELPERS) { for (const [k, v] of [...HELPER_USE.entries()].sort()) console.log(k + '\t' + [...v].sort().join(' ')); process.exit(0); }
 if (LIST) { for (const h of bad) console.log(`${h.file}:${h.line}\t${h.expr}`); console.log(bad.length + ' unaccepted'); process.exit(0); }
 for (const h of bad) console.error(`  ✗ ${h.file}:${h.line} unescaped value into HTML sink: \${${h.expr}}${h.extra || ''}  → wrap in esc(), or allowlist with a reason`);
 const stale = [...allowMap.keys()].filter((k) => !used.has(k));

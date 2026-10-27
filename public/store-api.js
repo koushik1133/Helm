@@ -2457,7 +2457,10 @@ window.HelmUrl = HelmUrl;
         const bad = passwordProblem(password); if (bad) throw new Error(bad);   // same rule as 0028 admin_create_user
         const { data, error } = await supa.rpc("admin_create_user",
           { p_email: email, p_password: password, p_role: role });
-        if (error) throw error; return data;   // new user id
+        if (error) throw error;
+        // R32b (R2-AUTH-02): a refused address answers null (the refusal is counted toward the studio's daily limit)
+        if (!data) { const e = new Error("could not create this user — send them an invitation instead"); e.code = "22023"; throw e; }
+        return data;   // new user id
       },
       // Option A: server generates a one-time temp password + forces a change on
       // first login. Returns { user_id, temp_password } — show temp_password ONCE.
@@ -2466,7 +2469,10 @@ window.HelmUrl = HelmUrl;
         if (reservedEmailDomain(email)) throw reservedEmailError();
         const { data, error } = await supa.rpc("admin_create_user_temp",
           { p_email: email, p_role: role });
-        if (error) throw error; return data;   // { user_id, temp_password }
+        if (error) throw error;
+        // R32b (R2-AUTH-02): { refused: true, error } - the address can't be used (counted toward the daily limit)
+        if (data && data.refused) { const e = new Error(String(data.error || "could not create this user — send them an invitation instead")); e.code = String(data.code || "22023"); throw e; }
+        return data;   // { user_id, temp_password }
       },
       async setRole(id, role) {
         if (!supa) throw new Error("Supabase not configured");
@@ -11144,6 +11150,12 @@ window.HelmUrl = HelmUrl;
     if (e && (e.code === "reserved_domain" || /reserved for the helm team/i.test(errMsg(e) || "")))
       return (global.BPStore && global.BPStore.RESERVED_EMAIL_MESSAGE) || "Addresses on helm.events are reserved for the Helm team. Please use your own e-mail address.";
     if (e && e.hint === "seat_limit") return pre + "Your free trial includes you + 2 people, and both seats are in use. Revoke an invitation or remove someone to add another person — or upgrade for more seats.";
+    // R32b (BIZ-03): a paid plan's seat limit - the admin-side wording (the DB detail carries the plan's number of people)
+    if (e && e.hint === "plan_seat_limit") {
+      let lim = NaN; try { lim = Number(JSON.parse(String(e.details || e.detail || "{}")).limit); } catch (x) { lim = NaN; }
+      const inv = Number.isFinite(lim) && lim >= 1 ? lim - 1 : null;
+      return pre + "Your plan allows " + (inv == null ? "a limited number of" : inv) + " team invite" + (inv === 1 ? "" : "s") + " and they are all in use (people in the studio plus open invitations). Revoke an open invitation or remove someone to add another person — or contact Helm sales to add more.";
+    }
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
     // 0183 — the free trial ended unpaid: the whole studio is read-only for everyone until it is upgraded
     if (e && e.hint === "trial_ended") return pre + "Your trial has ended. Your data is preserved and available in read-only mode. Upgrade now to continue creating and editing records.";
