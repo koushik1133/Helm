@@ -35,6 +35,9 @@ begin;
 --        - (follow-up) plan payment still running (_trial_paid), the attendance warning on event money, price-change
 --          notices for upcoming events, crew WhatsApp for past events, nurture greetings (next birthday / anniversary,
 --          "greeted this year"), the public enquiry form's date check, the default tax / payment date of a plan payment.
+--      Plan billing (checkout tax date, payment date check, checkout trial end, cost breakdown range): the studio's day.
+--      HQ actions (extend trial, realisation, provider settlement, tax rule start) and the HQ audit range (IST day
+--      edges): India time. The UAE sample studio's dates: Dubai time.
 --      Helm HQ screens (overview, billing, payments, HQ audit, security alerts): "today" / "this month" is INDIA time (NEW hq_today).
 --      Each function keeps its name, arguments, answers and grants; only "current_date" is replaced.
 --      _next_occasion(date) (called by signed-in users) now counts from the caller's own studio day (NEW internal
@@ -925,7 +928,8 @@ begin
      select jsonb_build_object('at', a.at, 'actor_email', a.actor_email, 'action', a.action, 'entity', a.entity,
               'entity_id', a.entity_id, 'changed', a.changed) x
        from public.audit_log a
-      where a.action like 'hq.%' and a.org_id is null and a.at >= f and a.at < t + 1
+      where a.action like 'hq.%' and a.org_id is null
+        and a.at >= (f::timestamp at time zone 'Asia/Kolkata') and a.at < ((t + 1)::timestamp at time zone 'Asia/Kolkata')   -- r37: IST day edges
       order by a.at desc limit 1000) z), '[]'::jsonb));
 end $function$;
 
@@ -964,6 +968,474 @@ begin
 end $function$
 ;
 
+-- ---- 5) the last "today" spots: plan billing on the studio day; HQ actions on India time; HQ audit range on IST
+--         day edges; the UAE sample data on Dubai time -------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public._checkout_quote(p_org uuid, p_plan text, p_interval text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_cur text := public._checkout_currency(p_org); pr jsonb; v_net numeric; tx jsonb; v_rate numeric;
+  v_tax numeric; v_half numeric; v_comp jsonb := '[]'::jsonb; c jsonb;
+begin
+  if p_interval is null or p_interval not in ('monthly','yearly') then
+    raise exception 'choose monthly or yearly billing' using errcode = '22023'; end if;
+  if p_plan is null or p_plan !~ '^[a-z0-9][a-z0-9_-]{1,39}$' then raise exception 'choose a plan' using errcode = '22023'; end if;
+  pr := public._checkout_plan_price(p_plan, v_cur);
+  if pr is null then raise exception 'that plan is not available' using errcode = '22023'; end if;
+  v_net := (pr ->> p_interval)::numeric;
+  if v_net is null then raise exception 'that plan has no % price', p_interval using errcode = '22023'; end if;
+  tx := public._resolve_tax(p_org, public.studio_today(p_org), null);
+  v_rate := coalesce((tx ->> 'rate')::numeric, 0);
+  v_tax := round(v_net * v_rate / 100, 2);
+  if tx ->> 'regime' = 'IN_GST_INTRA' then
+    v_half := round(v_tax / 2, 2);
+    v_comp := jsonb_build_array(jsonb_build_object('name', 'CGST', 'rate', round(v_rate / 2, 2), 'amount', v_half),
+                                jsonb_build_object('name', 'SGST', 'rate', round(v_rate / 2, 2), 'amount', v_tax - v_half));
+  else
+    for c in select value from jsonb_array_elements(coalesce(tx -> 'components', '[]'::jsonb)) loop
+      v_comp := v_comp || jsonb_build_array(c || jsonb_build_object('amount', v_tax));
+    end loop;
+  end if;
+  return jsonb_build_object('plan', pr ->> 'code', 'plan_name', pr ->> 'name', 'interval', p_interval, 'currency', v_cur,
+    'net', round(v_net, 2), 'tax', v_tax, 'total', round(v_net, 2) + v_tax, 'rate', v_rate,
+    'regime', tx ->> 'regime', 'components', v_comp, 'note', tx ->> 'note',
+    'reverse_charge', coalesce((tx ->> 'reverse_charge')::boolean, false),
+    'place_of_supply', tx ->> 'place_of_supply',
+    'razorpay_plan_id', pr ->> case p_interval when 'monthly' then 'rzp_monthly' else 'rzp_yearly' end);
+end $function$;
+CREATE OR REPLACE FUNCTION public._sub_record_payment(p_org uuid, p_amount numeric, p_currency text, p_paid_on date, p_period_start date, p_period_end date, p_method text, p_reference text, p_actor uuid, p_provider text, p_provider_payment_id text, p_provider_subscription_id text, p_fx_rate_to_inr numeric)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_id uuid; v_seq bigint; b record; a public.studio_account; o public.organizations; v_plan text; tx jsonb;
+  v_cur text := upper(coalesce(nullif(btrim(p_currency), ''), 'INR')); v_fx numeric;
+begin
+  select * into o from public.organizations where id = p_org;
+  if not found then raise exception 'unknown studio' using errcode = '22023'; end if;
+  if p_amount is null or p_amount <= 0 or p_amount > 100000000 then raise exception 'amount must be more than 0' using errcode = '22023'; end if;
+  if p_paid_on is null or p_paid_on > public.studio_today(p_org) + 1 or p_paid_on < date '2020-01-01' then
+    raise exception 'paid on date is not valid' using errcode = '22023'; end if;
+  if coalesce(p_method, '') not in ('upi','bank','cash','card','other') then raise exception 'method must be upi, bank, cash, card or other' using errcode = '22023'; end if;
+  if p_period_start is not null and p_period_end is not null and p_period_end < p_period_start then
+    raise exception 'period end is before period start' using errcode = '22023'; end if;
+  if v_cur !~ '^[A-Z]{3}$' then raise exception 'currency must be a 3-letter ISO code' using errcode = '22023'; end if;
+  if v_cur = 'INR' then v_fx := 1;
+  elsif p_fx_rate_to_inr is null or p_fx_rate_to_inr <= 0 or p_fx_rate_to_inr > 100000 then
+    raise exception 'an exchange rate to INR is required for % payments', v_cur using errcode = '22023';
+  else v_fx := p_fx_rate_to_inr; end if;
+  select * into b from public.helm_billing_settings where id;
+  select * into a from public.studio_account where org_id = p_org;
+  select p.code into v_plan from public.studio_subscriptions s join public.helm_plans p on p.id = s.plan_id where s.org_id = p_org;
+  tx := public._resolve_tax(p_org, p_paid_on, p_amount);
+  v_seq := nextval('public.helm_invoice_seq');
+  insert into public.subscription_payments(org_id, amount, currency, paid_on, period_start, period_end, method, reference,
+      recorded_by, invoice_seq, invoice_no, gst_rate, net_amount, gst_amount, seller, plan_code,
+      provider, provider_payment_id, provider_subscription_id,
+      tax_regime, tax_components, tax_note, tax_refundable, buyer, place_of_supply, fx_rate_to_inr, inr_equivalent)
+    values (p_org, round(p_amount, 2), v_cur, p_paid_on, p_period_start, p_period_end,
+      p_method, nullif(left(btrim(coalesce(p_reference, '')), 120), ''), p_actor, v_seq,
+      coalesce(b.invoice_prefix, 'HELM-') || lpad(v_seq::text, 6, '0'), (tx ->> 'rate')::numeric, (tx ->> 'net')::numeric, (tx ->> 'tax')::numeric,
+      jsonb_build_object('legal_name', b.legal_name, 'gstin', b.gstin, 'address', b.address, 'state', b.seller_state,
+                         'country', coalesce(b.seller_country, 'IN'), 'lut_number', tx ->> 'lut_number'),
+      v_plan, p_provider, p_provider_payment_id, p_provider_subscription_id,
+      tx ->> 'regime', tx -> 'components', tx ->> 'note', coalesce((tx ->> 'refundable')::boolean, false),
+      jsonb_build_object('org_id', o.id, 'legal_name', coalesce(a.legal_business_name, o.name), 'name', o.name,
+        'country', coalesce(a.country, coalesce(b.seller_country, 'IN')), 'state', a.state,
+        'tax_id_type', coalesce(a.tax_id_type, case when coalesce(a.gstin, o.gst_number) is not null then 'IN_GSTIN' end),
+        'tax_id', coalesce(a.tax_id, a.gstin, o.gst_number), 'gstin', coalesce(a.gstin, o.gst_number),
+        'is_business', coalesce(a.is_business, true), 'address', coalesce(a.billing_address, o.location),
+        'email', coalesce(a.billing_contact_email, o.business_email), 'reverse_charge', coalesce((tx ->> 'reverse_charge')::boolean, false)),
+      tx ->> 'place_of_supply', v_fx, round(round(p_amount, 2) * v_fx, 2))
+    returning id into v_id;
+  return v_id;
+end $function$;
+CREATE OR REPLACE FUNCTION public.checkout_attach_subscription(p_org uuid, p_subscription_id text, p_plan text, p_interval text)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+-- unified-trial-0119
+declare v_plan uuid; v_n int;
+begin
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then raise exception 'not authorized' using errcode = '42501'; end if;
+  if p_subscription_id is null or p_subscription_id !~ '^sub_[A-Za-z0-9]{6,40}$' then
+    raise exception 'bad subscription id' using errcode = '22023'; end if;
+  if p_interval not in ('monthly','yearly') then raise exception 'bad interval' using errcode = '22023'; end if;
+  select hp.id into v_plan from public.helm_plans hp where hp.code = p_plan;
+  if v_plan is null or not exists (select 1 from public.organizations o where o.id = p_org) then
+    raise exception 'unknown studio or plan' using errcode = '22023'; end if;
+  insert into public.studio_subscriptions(org_id, plan_id, status, trial_ends_at, trial_source, billing_interval,
+                                          provider, provider_subscription_id, updated_at)
+    values (p_org, v_plan, 'trial', public.studio_today(p_org) + public._trial_days(), 'checkout', p_interval, 'razorpay', p_subscription_id, now())
+  on conflict (org_id) do update set plan_id = excluded.plan_id, billing_interval = excluded.billing_interval,
+      provider = 'razorpay', provider_subscription_id = excluded.provider_subscription_id, updated_at = now()
+    where public.studio_subscriptions.status not in ('active','past_due','suspended')
+       or (public.studio_subscriptions.status = 'past_due' and public.studio_subscriptions.trial_ends_at is not null
+           and public.studio_subscriptions.current_period_end is null
+           and not exists (select 1 from public.subscription_payments p where p.org_id = excluded.org_id and p.voided_at is null));
+  get diagnostics v_n = row_count;
+  if v_n > 0 then
+    insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
+      values (null, null, 'subscription.checkout_created', 'studio_subscriptions', p_org::text,
+              jsonb_build_object('plan', p_plan, 'interval', p_interval, 'provider_subscription_id', p_subscription_id), p_org, now());
+  end if;
+  return v_n > 0;
+end $function$;
+CREATE OR REPLACE FUNCTION public.studio_cost_breakdown(p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+-- r21-money-0246: read-only
+declare v_org uuid := public.current_org_id(); v_from date := coalesce(p_from, public.studio_today(public.current_org_id()) - 365);
+        v_to date := coalesce(p_to, public.studio_today(public.current_org_id()) + 365); v_rows jsonb := '[]'::jsonb; x record; m jsonb; v_tot jsonb;
+begin
+  if auth.uid() is null or v_org is null or not public.has_area('finance', 'view')
+     or not (public.has_area('business', 'view') or public.has_area('insights', 'view')) then
+    raise exception 'not authorized' using errcode = '42501'; end if;
+  if v_to < v_from then raise exception 'the end date is before the start date' using errcode = '22023'; end if;
+  if v_to - v_from > 1100 then raise exception 'range too long (max 3 years)' using errcode = '22023'; end if;
+  for x in select q.id from public.quotes q
+            where q.org_id = v_org and q.deleted_at is null and q.status = 'confirmed'
+              and coalesce(q.lifecycle_stage, 'quote') not in ('lead', 'discovery', 'proposal')
+              and q.event_date between v_from and v_to
+            order by q.event_date, q.id limit 2000 loop
+    m := public._r21_event_money(x.id, v_org, false);
+    if m is not null then
+      v_rows := v_rows || jsonb_build_array(jsonb_build_object(
+        'quote_id', m -> 'quote_id', 'code', m -> 'code', 'title', m -> 'title', 'date', m -> 'date', 'currency', m -> 'currency',
+        'rules', m -> 'rules', 'revenue', m -> 'revenue', 'net_revenue', m -> 'net_revenue',
+        'cost_estimated', m -> 'cost_estimated', 'cost_committed', m -> 'cost_committed', 'cost_expected', m -> 'cost_expected',
+        'cost_actual', m -> 'cost_actual', 'margin_estimated', m -> 'margin_estimated', 'margin_expected', m -> 'margin_expected',
+        'margin_actual', m -> 'margin_actual', 'margin_expected_pct', m -> 'margin_expected_pct', 'accuracy_pct', m -> 'accuracy_pct',
+        'recorded_net_profit', case when m ->> 'rules' = 'legacy' then m -> 'legacy' -> 'net_profit' else m -> 'margin_expected' end,
+        'by_category', (select coalesce(jsonb_object_agg(c ->> 'key', jsonb_build_object('estimated', c -> 'estimated',
+                          'committed', c -> 'committed', 'actual', c -> 'actual', 'expected', c -> 'expected')), '{}'::jsonb)
+                          from jsonb_array_elements(m -> 'by_category') c)));
+    end if;
+  end loop;
+  with ev as (select e from jsonb_array_elements(v_rows) e),
+  cur as (select e ->> 'currency' as c, count(*) as n, sum((e ->> 'revenue')::numeric) as rev, sum((e ->> 'net_revenue')::numeric) as nrev,
+                 sum((e ->> 'cost_estimated')::numeric) as est, sum((e ->> 'cost_expected')::numeric) as fc,
+                 sum((e ->> 'cost_actual')::numeric) as act, sum((e ->> 'margin_expected')::numeric) as mar
+            from ev group by 1),
+  cat as (select e ->> 'currency' as c, ce.key as k, sum((ce.value ->> 'estimated')::numeric) as est,
+                 sum((ce.value ->> 'actual')::numeric) as act, sum((ce.value ->> 'expected')::numeric) as fc
+            from ev cross join lateral jsonb_each(e -> 'by_category') ce group by 1, 2),
+  catj as (select c, jsonb_object_agg(k, jsonb_build_object('estimated', est, 'actual', act, 'expected', fc)) as j from cat group by c)
+  select coalesce(jsonb_object_agg(cur.c, jsonb_build_object('events', cur.n, 'revenue', cur.rev, 'net_revenue', cur.nrev,
+           'cost_estimated', cur.est, 'cost_expected', cur.fc, 'cost_actual', cur.act, 'margin_expected', cur.mar,
+           'by_category', coalesce(catj.j, '{}'::jsonb))), '{}'::jsonb)
+    into v_tot from cur left join catj on catj.c = cur.c;
+  return jsonb_build_object('from', v_from, 'to', v_to, 'events', v_rows, 'totals', v_tot,
+    'categories', (select jsonb_agg(jsonb_build_object('key', o.k, 'label', public._r21_category_label(o.k)) order by o.ord)
+                     from (values ('venue', 1), ('food', 2), ('decor', 3), ('rentals', 4), ('vendors', 5), ('staff', 6), ('misc', 7),
+                                  ('logistics', 8), ('damages', 9), ('changes', 10), ('contingency', 11)) o(k, ord)));
+end $function$;
+CREATE OR REPLACE FUNCTION public.hq_extend_trial(p_org uuid, p_days integer, p_reason text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+-- one-trial-0186: one extension per studio, 1 to 7 days, reason required, Helm HQ only
+declare
+  v_reason text := btrim(regexp_replace(coalesce(p_reason, ''), '[[:space:]]+', ' ', 'g'));
+  o public.organizations; s public.studio_subscriptions; v_block text; v_n integer;
+  v_old timestamptz; v_new timestamptz; v_new_date date;
+begin
+  perform public._hq_wgate('hq.trial.extend', 'organizations', p_org::text,
+    jsonb_build_object('days', p_days, 'reason', left(v_reason, 500)));
+  if p_org is null then raise exception 'Unknown studio.' using errcode = '22023'; end if;
+  if p_days is null or p_days < 1 or p_days > 7 then
+    raise exception 'An extension is 1 to 7 days.' using errcode = '22023'; end if;
+  if char_length(v_reason) < 5 then
+    raise exception 'Write the reason for the extension (at least 5 characters).' using errcode = '22023'; end if;
+  if char_length(v_reason) > 500 then
+    raise exception 'The reason can be up to 500 characters.' using errcode = '22023'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('helm:trial_extend:' || p_org::text, 0));
+  select * into s from public.studio_subscriptions x where x.org_id = p_org for update;
+  v_block := public._trial_extend_block(p_org);
+  if v_block is not null then raise exception '%', v_block using errcode = '22023', hint = 'trial_extend_refused'; end if;
+  select * into o from public.organizations x where x.id = p_org for update;
+
+  if o.trial_ends_at is not null then
+    v_old := o.trial_ends_at;
+    v_new := greatest(o.trial_ends_at, now()) + make_interval(days => p_days);
+    v_new_date := (v_new at time zone 'UTC')::date;
+  else
+    v_old := (s.trial_ends_at::timestamp at time zone 'UTC');
+    v_new_date := greatest(s.trial_ends_at, public.hq_today()) + p_days;
+    v_new := (v_new_date::timestamp at time zone 'UTC');
+  end if;
+
+  insert into public.trial_extensions(org_id, days, reason, previous_status, previous_ends_at, new_ends_at,
+                                      granted_by, granted_by_email, granted_at)
+    select p_org, p_days, v_reason, s.status, v_old, v_new, auth.uid(), u.email, now()
+      from (select 1) one left join auth.users u on u.id = auth.uid()
+  on conflict (org_id) do nothing;
+  get diagnostics v_n = row_count;
+  if v_n = 0 then
+    raise exception 'This studio already had its one trial extension.' using errcode = '22023', hint = 'trial_extend_refused'; end if;
+
+  update public.studio_subscriptions
+     set status = 'trial', trial_ends_at = v_new_date, updated_at = now(), updated_by = auth.uid()
+   where org_id = p_org;
+  if o.trial_ends_at is not null then
+    update public.organizations set trial_ends_at = v_new where id = p_org;
+  end if;
+
+  insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
+    values (null, 'Helm', 'subscription.trial_extended', 'organizations', p_org::text,
+            jsonb_build_object('days', p_days, 'previous_ends_at', v_old, 'new_ends_at', v_new,
+                               'previous_status', s.status, 'by', 'Helm'), p_org, now());
+  return jsonb_build_object('org_id', p_org, 'days', p_days, 'status', 'trial',
+                            'previous_ends_at', v_old, 'new_ends_at', v_new, 'trial_ends_on', v_new_date);
+end $function$;
+CREATE OR REPLACE FUNCTION public.hq_record_realisation(p_id uuid, p_fira_firc_ref text, p_realised_on date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare n int;
+begin
+  perform public._hq_wgate('hq.payment.realised', 'subscription_payments', p_id::text,
+    jsonb_build_object('fira_firc_ref', p_fira_firc_ref, 'realised_on', p_realised_on));
+  if length(btrim(coalesce(p_fira_firc_ref, ''))) < 3 or p_realised_on is null or p_realised_on > public.hq_today() + 1 then
+    raise exception 'FIRA / FIRC reference and realised date are required' using errcode = '22023'; end if;
+  update public.subscription_payments set fira_firc_ref = left(btrim(p_fira_firc_ref), 80), realised_on = p_realised_on
+   where id = p_id and realised_on is null and voided_at is null;
+  get diagnostics n = row_count;
+  if n = 0 then raise exception 'payment not found, void, or already realised' using errcode = '22023'; end if;
+  return (select public._sub_payment_json(sp) from public.subscription_payments sp where sp.id = p_id);
+end $function$;
+CREATE OR REPLACE FUNCTION public.hq_settle_provider_payment(p_provider_payment_id text, p_org uuid, p_amount numeric, p_paid_on date, p_period_start date DEFAULT NULL::date, p_period_end date DEFAULT NULL::date, p_currency text DEFAULT 'INR'::text, p_provider text DEFAULT 'razorpay'::text, p_provider_subscription_id text DEFAULT NULL::text, p_fx_rate_to_inr numeric DEFAULT NULL::numeric)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+-- r21-trial-paid-0244: settle (0045 body, idempotent on the provider payment id), then activate the plan when the
+-- payment belongs to the provider subscription Helm attached to THIS studio
+declare v_out jsonb; s public.studio_subscriptions; v_start date; v_end date; v_act jsonb;
+begin
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then raise exception 'not authorized' using errcode = '42501'; end if;
+  v_out := public.hq_settle_provider_payment__pre0244(p_provider_payment_id, p_org, p_amount, p_paid_on, p_period_start, p_period_end,
+             p_currency, p_provider, p_provider_subscription_id, p_fx_rate_to_inr);
+  if nullif(btrim(coalesce(p_provider_subscription_id, '')), '') is null then return v_out; end if;
+  select * into s from public.studio_subscriptions where org_id = p_org;
+  if not found or s.provider_subscription_id is distinct from btrim(p_provider_subscription_id) or s.plan_id is null
+     or s.billing_interval is null or s.status = 'suspended' then
+    return v_out || jsonb_build_object('activation', 'skipped');
+  end if;
+  v_start := coalesce(p_period_start, p_paid_on, public.hq_today());
+  v_end := coalesce(p_period_end, public._sub_period_end(v_start, s.billing_interval));
+  if v_end < v_start then v_end := public._sub_period_end(v_start, s.billing_interval); end if;
+  v_act := public._sub_activate(p_org, s.plan_id, s.billing_interval, v_start, v_end, null, 'provider');
+  return v_out || jsonb_build_object('activation', v_act ->> 'result');
+end $function$;
+CREATE OR REPLACE FUNCTION public.hq_upsert_tax_rule(p_country text, p_region text, p_regime text, p_rate numeric, p_invoice_note text DEFAULT NULL::text, p_effective_from date DEFAULT NULL::date, p_effective_to date DEFAULT NULL::date, p_active boolean DEFAULT true)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_id uuid; v_c text := upper(btrim(coalesce(p_country, ''))); v_r text := nullif(btrim(coalesce(p_region, '')), '');
+  v_f date := coalesce(p_effective_from, public.hq_today());
+begin
+  perform public._hq_wgate('hq.tax_rule.upsert', 'tax_rules', v_c || ':' || coalesce(v_r, '') || ':' || coalesce(p_regime, ''),
+    jsonb_build_object('rate', p_rate, 'note', p_invoice_note, 'from', v_f, 'to', p_effective_to, 'active', p_active));
+  if v_c !~ '^[A-Z]{2}$' then raise exception 'country must be a 2-letter ISO code' using errcode = '22023'; end if;
+  if coalesce(p_regime, '') not in ('IN_GST_INTRA','IN_GST_INTER','EXPORT_LUT_ZERO','EXPORT_IGST_PAID','REVERSE_CHARGE','LOCAL_REGISTERED','NO_TAX') then
+    raise exception 'unknown regime' using errcode = '22023'; end if;
+  if p_rate is null or p_rate < 0 or p_rate > 50 then raise exception 'rate must be 0-50' using errcode = '22023'; end if;
+  if p_effective_to is not null and p_effective_to < v_f then raise exception 'effective to is before effective from' using errcode = '22023'; end if;
+  select id into v_id from public.tax_rules where country = v_c and coalesce(region, '') = coalesce(v_r, '') and regime = p_regime and effective_from = v_f;
+  if v_id is null then
+    insert into public.tax_rules(country, region, regime, rate, invoice_note, effective_from, effective_to, active, updated_by)
+      values (v_c, v_r, p_regime, p_rate, nullif(left(btrim(coalesce(p_invoice_note, '')), 300), ''), v_f, p_effective_to, coalesce(p_active, true), auth.uid())
+      returning id into v_id;
+  else
+    update public.tax_rules set rate = p_rate, invoice_note = nullif(left(btrim(coalesce(p_invoice_note, '')), 300), ''),
+           effective_to = p_effective_to, active = coalesce(p_active, true), updated_at = now(), updated_by = auth.uid() where id = v_id;
+  end if;
+  return v_id;
+end $function$;
+CREATE OR REPLACE FUNCTION public._demo_seed_ae(p_org uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+-- demo-seed-0102-ae: Dubai sample studio data, AED + VAT 5%, only is_demo rows
+declare
+  d date := (now() at time zone 'Asia/Dubai')::date;   -- r37: the UAE sample studio's day
+  q1 uuid := gen_random_uuid(); q2 uuid := gen_random_uuid(); q3 uuid := gen_random_uuid(); q4 uuid := gen_random_uuid();
+  m1 uuid := gen_random_uuid(); m2 uuid := gen_random_uuid();
+  v_total numeric; v_a1 numeric; v_a2 numeric; v_a3 numeric;
+begin
+  if p_org is null then raise exception 'no studio' using errcode = '42501'; end if;
+  if exists (select 1 from public.quotes where org_id = p_org and is_demo) then
+    return jsonb_build_object('seeded', false, 'reason', 'already_seeded');
+  end if;
+
+  if exists (select 1 from public.venues where org_id = p_org and is_demo) then
+    update public.venues set active = true where org_id = p_org and is_demo and not active;
+  else
+    insert into public.venues(org_id, name, venue_type, ac_type, setting, seated_capacity, floating_capacity, length_m, width_m, dim_unit,
+                              event_types, restrictions, cost_min, cost_max, cost_basis, parking_spaces, rooms, power_backup_kw,
+                              green_rooms, washrooms, address, city, contact_name, notes, is_demo)
+    values
+      (p_org, E'Demo \u00b7 Al Noor Grand Ballroom', 'banquet_hall', 'ac', 'indoor', 500, 800, 45, 28, 'm',
+       array['wedding','corporate','conference','product_launch'], array['no_outside_catering','sound_curfew'], 45000, 90000, 'per_day',
+       300, 2, 500, 2, 10, E'Demo \u00b7 Sheikh Zayed Road, P.O. Box 00000', 'Dubai', E'Demo \u00b7 Banquet manager',
+       E'Demo venue \u2014 sample data. In-house halal catering; alcohol only under the hotel licence.', true),
+      (p_org, E'Demo \u00b7 Desert Pearl Camp', 'lawn', 'non_ac', 'outdoor', 300, 600, 60, 40, 'm',
+       array['wedding','corporate','other'], array['generator_required','no_fireworks'], 30000, 60000, 'per_day',
+       120, 1, 0, 1, 6, E'Demo \u00b7 Al Qudra Road, P.O. Box 00000', 'Dubai', E'Demo \u00b7 Camp manager',
+       E'Demo venue \u2014 sample data. Majlis seating; best October to April.', true);
+  end if;
+
+  update public.dish_catalog x set active = true where x.org_id = p_org and x.is_demo and not x.active
+     and not exists (select 1 from public.dish_catalog y where y.org_id = p_org and y.active and y.id <> x.id
+                     and lower(btrim(y.category)) = lower(btrim(x.category)) and lower(btrim(y.name)) = lower(btrim(x.name)));
+  update public.menu_templates x set active = true where x.org_id = p_org and x.is_demo and not x.active;
+  update public.inventory_items x set active = true where x.org_id = p_org and x.is_demo and not x.active
+     and not exists (select 1 from public.inventory_items y where y.org_id = p_org and y.active and y.id <> x.id
+                     and lower(btrim(y.name)) = lower(btrim(x.name)));
+  update public.crew_members set active = true where org_id = p_org and is_demo and not active;
+  update public.vendors x set active = true where x.org_id = p_org and x.is_demo and not x.active
+     and not exists (select 1 from public.vendors y where y.org_id = p_org and y.active and y.id <> x.id
+                     and lower(btrim(y.name)) = lower(btrim(x.name)));
+
+  -- halal menu (all meat halal; no pork, no alcohol in the packages)
+  insert into public.dish_catalog(org_id, category, name, kind, is_demo) values
+    (p_org, 'Cold mezze', E'Demo \u00b7 Hummus & moutabal', 'veg', true),
+    (p_org, 'Cold mezze', E'Demo \u00b7 Fattoush', 'veg', true),
+    (p_org, 'Hot mezze', E'Demo \u00b7 Lamb kibbeh (halal)', 'nonveg', true),
+    (p_org, 'Main course', E'Demo \u00b7 Lamb ouzi with oriental rice (halal)', 'nonveg', true),
+    (p_org, 'Main course', E'Demo \u00b7 Chicken machboos (halal)', 'nonveg', true),
+    (p_org, 'Main course', E'Demo \u00b7 Hammour fillet, saffron sauce', 'nonveg', true),
+    (p_org, 'Desserts', E'Demo \u00b7 Luqaimat with date syrup', 'veg', true),
+    (p_org, 'Desserts', E'Demo \u00b7 Umm Ali', 'veg', true)
+  on conflict do nothing;
+  insert into public.menu_templates(id, org_id, tier, diet, name, price_per_plate, dishes, active, seq, description, min_guests, max_guests, is_demo)
+  select x.* from (values
+    (m1, p_org, 'gold', 'nonveg', E'Demo \u00b7 Arabic Mezze & Grill', 295::numeric,
+     E'[{"n":"Demo \u00b7 Hummus & moutabal","c":"Cold mezze","k":"veg"},{"n":"Demo \u00b7 Fattoush","c":"Cold mezze","k":"veg"},{"n":"Demo \u00b7 Chicken machboos (halal)","c":"Main course","k":"nonveg"},{"n":"Demo \u00b7 Luqaimat with date syrup","c":"Desserts","k":"veg"}]'::jsonb,
+     true, 901, E'Demo package \u2014 sample data. AED per person, halal, no pork / alcohol.', 50, 800, true),
+    (m2, p_org, 'premium', 'nonveg', E'Demo \u00b7 Emirati Royal Feast', 425::numeric,
+     E'[{"n":"Demo \u00b7 Lamb kibbeh (halal)","c":"Hot mezze","k":"nonveg"},{"n":"Demo \u00b7 Lamb ouzi with oriental rice (halal)","c":"Main course","k":"nonveg"},{"n":"Demo \u00b7 Hammour fillet, saffron sauce","c":"Main course","k":"nonveg"},{"n":"Demo \u00b7 Umm Ali","c":"Desserts","k":"veg"}]'::jsonb,
+     true, 902, E'Demo package \u2014 sample data. AED per person, halal, no pork / alcohol.', 80, 1000, true)
+  ) as x(id, org_id, tier, diet, name, price_per_plate, dishes, active, seq, description, min_guests, max_guests, is_demo)
+  where not exists (select 1 from public.menu_templates t where t.org_id = p_org and t.tier = x.tier and t.diet = x.diet);
+
+  insert into public.inventory_items(org_id, name, category, total_qty, unit, priority, unit_cost, notes, active, is_demo) values
+    (p_org, E'Demo \u00b7 Chiavari chairs (gold)', 'Furniture', 500, 'pcs', 'A', 15, E'Demo item \u2014 sample data. AED.', true, true),
+    (p_org, E'Demo \u00b7 Round tables (1.8 m)', 'Furniture', 60, 'pcs', 'A', 60, E'Demo item \u2014 sample data. AED.', true, true),
+    (p_org, E'Demo \u00b7 Majlis floor seating set', 'Furniture', 10, 'sets', 'A', 900, E'Demo item \u2014 sample data. AED.', true, true),
+    (p_org, E'Demo \u00b7 LED par lights', 'Lighting', 48, 'pcs', 'B', 120, E'Demo item \u2014 sample data. AED.', true, true),
+    (p_org, E'Demo \u00b7 Stage platforms (2.4 x 1.2 m)', 'Staging', 24, 'pcs', 'A', 250, E'Demo item \u2014 sample data. AED.', true, true),
+    (p_org, E'Demo \u00b7 Ramadan lantern set', 'Decor', 40, 'pcs', 'B', 80, E'Demo item \u2014 sample data. AED.', true, true)
+  on conflict do nothing;
+
+  insert into public.crew_members(org_id, name, phone, department, role, emp_type, day_rate, notes, active, is_demo)
+  select * from (values
+    (p_org, E'Demo \u00b7 Omar Al Mansoori', '+971 00 000 0101', 'Operations', 'Event manager', 'full_time', 900, E'Demo staff \u2014 sample data. Day rate in AED.', true, true),
+    (p_org, E'Demo \u00b7 Maria Santos', '+971 00 000 0102', 'Decor', 'Decor lead', 'full_time', 700, E'Demo staff \u2014 sample data. Day rate in AED.', true, true),
+    (p_org, E'Demo \u00b7 Rahul Menon', '+971 00 000 0103', 'Logistics', 'Logistics supervisor', 'part_time', 550, E'Demo staff \u2014 sample data. Day rate in AED.', true, true),
+    (p_org, E'Demo \u00b7 Layla Haddad', '+971 00 000 0104', 'Hospitality', 'Guest coordinator', 'on_call', 450::numeric, E'Demo staff \u2014 sample data. Day rate in AED.', true, true)
+  ) as x(org_id, name, phone, department, role, emp_type, day_rate, notes, active, is_demo)
+  where not exists (select 1 from public.crew_members c where c.org_id = p_org and c.name = x.name);
+  insert into public.vendors(org_id, name, category, kind, phone, email, notes, active, is_demo) values
+    (p_org, E'Demo \u00b7 Jumeirah Blooms', 'Florist', 'vendor', '+971 00 000 0201', 'demo.florist@example.com', E'Demo vendor \u2014 sample data.', true, true),
+    (p_org, E'Demo \u00b7 Gulf Sound & Lights', 'Sound & lights', 'rental', '+971 00 000 0202', 'demo.sound@example.com', E'Demo vendor \u2014 sample data.', true, true),
+    (p_org, E'Demo \u00b7 Marina Lens Studio', 'Photography', 'freelancer', '+971 00 000 0203', 'demo.photo@example.com', E'Demo vendor \u2014 sample data.', true, true)
+  on conflict do nothing;
+
+  insert into public.leads(org_id, name, phone, email, source, event_type, event_date, budget, guest_count, notes, status, is_demo) values
+    (p_org, E'Demo \u00b7 Noura Al Hashimi', '+971 00 000 0301', 'demo.noura@example.com', 'Instagram', 'Wedding', d + 45, 350000, 400, E'Demo lead \u2014 sample data.', 'won', true),
+    (p_org, E'Demo \u00b7 Khalid Rahman', '+971 00 000 0302', 'demo.khalid@example.com', 'Referral', 'Engagement', d + 30, 120000, 150, E'Demo lead \u2014 sample data.', 'quoted', true),
+    (p_org, E'Demo \u00b7 Falcon Tech FZ-LLC', '+971 00 000 0303', 'demo.falcon@example.com', 'Website', 'Gala dinner', d + 60, 250000, 300, E'Demo lead \u2014 sample data. B2B client, VAT registered.', 'quoted', true),
+    (p_org, E'Demo \u00b7 Sara Khan', '+971 00 000 0304', 'demo.sara@example.com', 'Walk-in', 'Iftar', d + 20, 60000, 120, E'Demo lead \u2014 sample data.', 'discovery', true),
+    (p_org, E'Demo \u00b7 Daniel Wright', '+971 00 000 0305', 'demo.daniel@example.com', 'Google', 'Product launch', d + 90, 180000, 250, E'Demo lead \u2014 sample data. Just enquired.', 'new', true),
+    (p_org, E'Demo \u00b7 Aisha Siddiqui', '+971 00 000 0306', 'demo.aisha@example.com', 'Instagram', 'Wedding', d + 75, 300000, 350, E'Demo lead \u2014 sample data. Went with another planner.', 'lost', true);
+
+  insert into public.quotes(id, org_id, code, title, event_type, status, approval_status, lifecycle_stage, event_date, event_time,
+                            client, pricing, confirmed_at, is_demo) values
+    (q1, p_org, 'DEMO-101', E'Demo \u00b7 Noura & Saeed Wedding', 'Wedding', 'confirmed', 'paid', 'planning', d + 45, '20:00',
+     E'{"name":"Demo \u00b7 Noura Al Hashimi","phone":"+971 00 000 0301","email":"demo.noura@example.com","city":"Dubai","state":"Dubai"}',
+     '{"guests":400,"platePrice":425,"chairs":400,"chairPrice":15,"other":60000,"discount":0,"gstPct":5,"currency":"AED","taxCountry":"AE","taxRegion":"Dubai"}', now(), true),
+    (q2, p_org, 'DEMO-102', E'Demo \u00b7 Khalid & Huda Engagement', 'Engagement', 'quote', 'none', 'proposal', d + 30, '19:30',
+     E'{"name":"Demo \u00b7 Khalid Rahman","phone":"+971 00 000 0302","email":"demo.khalid@example.com","city":"Sharjah","state":"Sharjah"}',
+     '{"guests":150,"platePrice":295,"chairs":150,"chairPrice":15,"other":25000,"discount":3000,"gstPct":5,"currency":"AED","taxCountry":"AE","taxRegion":"Dubai"}', null, true),
+    (q3, p_org, 'DEMO-103', E'Demo \u00b7 Falcon Tech Annual Gala', 'Gala dinner', 'quote', 'none', 'quote', d + 60, '19:00',
+     E'{"name":"Demo \u00b7 Falcon Tech FZ-LLC","company":"Falcon Tech FZ-LLC","trn":"100000000000003","phone":"+971 00 000 0303","email":"demo.falcon@example.com","city":"Dubai","state":"Dubai"}',
+     '{"guests":300,"platePrice":295,"chairs":300,"chairPrice":15,"other":45000,"discount":0,"gstPct":5,"currency":"AED","taxCountry":"AE","taxRegion":"Dubai"}', null, true),
+    (q4, p_org, 'DEMO-104', E'Demo \u00b7 Ramadan Iftar Majlis', 'Iftar', 'quote', 'none', 'discovery', d + 20, '18:15',
+     E'{"name":"Demo \u00b7 Sara Khan","phone":"+971 00 000 0304","email":"demo.sara@example.com","city":"Dubai","state":"Dubai"}',
+     '{"guests":120,"platePrice":295,"chairs":0,"chairPrice":0,"other":12000,"discount":0,"gstPct":5,"currency":"AED","taxCountry":"AE","taxRegion":"Dubai"}', null, true);
+  update public.leads set is_demo = true where org_id = p_org and not is_demo and quote_id in (q1, q2, q3, q4)
+     and name like E'Demo \u00b7 %';
+
+  select case when (q.pricing ->> 'total') ~ '^[0-9]+(\.[0-9]+)?$' then (q.pricing ->> 'total')::numeric else 0 end
+    into v_total from public.quotes q where q.id = q1;
+  v_total := coalesce(v_total, 0);
+  v_a1 := round(v_total * 0.5); v_a2 := round(v_total * 0.3); v_a3 := v_total - v_a1 - v_a2;
+  insert into public.payment_milestones(quote_id, org_id, label, due_date, amount, status, paid_at, note, seq, is_demo)
+  select q1, p_org, x.label, x.due, x.amt, x.st, x.pa, E'Demo \u2014 sample data.', x.seq, true
+    from (values
+      (E'Demo \u00b7 Booking deposit (50%)', d - 5, v_a1, 'paid', now() - interval '5 days', 1),
+      (E'Demo \u00b7 Second payment (30%)', d + 15, v_a2, 'invoiced', null::timestamptz, 2),
+      (E'Demo \u00b7 Balance (20%)', d + 38, v_a3, 'due', null::timestamptz, 3)
+    ) as x(label, due, amt, st, pa, seq)
+   where x.amt > 0;
+  if v_a1 > 0 then
+    insert into public.quote_payments(quote_id, org_id, provider, amount, currency, status, simulated, paid_at, method, receipt_no, note, is_demo)
+      values (q1, p_org, 'bank', v_a1, 'AED', 'paid', true, now() - interval '5 days', 'bank', 'DEMO-R-0001',
+              E'Demo payment \u2014 sample data (bank transfer), no money moved.', true);
+  end if;
+
+  insert into public.event_checklist(quote_id, org_id, section, title, detail, owner, due_date, status, seq, is_demo) values
+    (q1, p_org, 'logistics', E'Demo \u00b7 Confirm ballroom booking with Al Noor', 'Deposit receipt filed.', E'Demo \u00b7 Omar Al Mansoori', d - 3, 'done', 1, true),
+    (q1, p_org, 'compliance', E'Demo \u00b7 DET event permit + civil defence approval', 'Apply 3 weeks before.', E'Demo \u00b7 Omar Al Mansoori', d + 20, 'open', 2, true),
+    (q1, p_org, 'guests', E'Demo \u00b7 Separate ladies majlis seating plan', null, E'Demo \u00b7 Layla Haddad', d + 10, 'open', 3, true),
+    (q1, p_org, 'comms', E'Demo \u00b7 Send final halal menu to client', null, E'Demo \u00b7 Maria Santos', d + 25, 'open', 4, true),
+    (q1, p_org, 'teardown', E'Demo \u00b7 Return rental lights to Gulf Sound', null, E'Demo \u00b7 Rahul Menon', d + 46, 'open', 5, true);
+
+  insert into public.layouts(name, data, org_id, is_demo) values
+    (E'Demo \u00b7 Noura & Saeed Wedding \u2014 Al Noor Ballroom', jsonb_build_object(
+      'items', jsonb_build_array(
+        jsonb_build_object('id','demo-stage','type','stage','category','structure','x',80,'y',6,'width',40,'height',16,'rotation',0,'label',E'Demo \u00b7 Kosha stage','properties','{}'::jsonb),
+        jsonb_build_object('id','demo-dance','type','dancefloor','category','structure','x',88,'y',30,'width',24,'height',24,'rotation',0,'label',E'Demo \u00b7 Zaffa walkway floor','properties','{}'::jsonb),
+        jsonb_build_object('id','demo-t1','type','table','category','seating','x',30,'y',40,'width',6,'height',6,'rotation',0,'label','Table 1','properties',jsonb_build_object('seats',10)),
+        jsonb_build_object('id','demo-t2','type','table','category','seating','x',44,'y',40,'width',6,'height',6,'rotation',0,'label','Table 2','properties',jsonb_build_object('seats',10)),
+        jsonb_build_object('id','demo-t3','type','table','category','seating','x',58,'y',40,'width',6,'height',6,'rotation',0,'label','Table 3','properties',jsonb_build_object('seats',10)),
+        jsonb_build_object('id','demo-t4','type','table','category','seating','x',136,'y',40,'width',6,'height',6,'rotation',0,'label','Table 4','properties',jsonb_build_object('seats',10)),
+        jsonb_build_object('id','demo-t5','type','table','category','seating','x',150,'y',40,'width',6,'height',6,'rotation',0,'label','Table 5','properties',jsonb_build_object('seats',10)),
+        jsonb_build_object('id','demo-t6','type','table','category','seating','x',164,'y',40,'width',6,'height',6,'rotation',0,'label','Table 6','properties',jsonb_build_object('seats',10)),
+        jsonb_build_object('id','demo-buffet1','type','buffet','category','logistics','x',20,'y',100,'width',18,'height',3,'rotation',0,'label',E'Demo \u00b7 Halal buffet','properties','{}'::jsonb),
+        jsonb_build_object('id','demo-buffet2','type','buffet','category','logistics','x',162,'y',100,'width',18,'height',3,'rotation',0,'label',E'Demo \u00b7 Arabic coffee & dates','properties','{}'::jsonb),
+        jsonb_build_object('id','demo-exit1','type','exit','category','safety','x',0,'y',128,'width',12,'height',6,'rotation',0,'label','Exit','properties','{}'::jsonb),
+        jsonb_build_object('id','demo-exit2','type','exit','category','safety','x',188,'y',128,'width',12,'height',6,'rotation',0,'label','Exit','properties','{}'::jsonb)),
+      'grid', jsonb_build_object('snap', true, 'show', true, 'unit', 'm', 'sizeFt', 2),
+      'margins', jsonb_build_object('left', 0, 'right', 0, 'top', 0, 'bottom', 0),
+      'venue', jsonb_build_object('capacity', 500),
+      'scale', jsonb_build_object('pxPerFt', 12, 'worldFt', jsonb_build_object('w', 200, 'h', 140)),
+      'demo', true), p_org, true);
+
+  update public.organizations set trial_mode = 'demo' where id = p_org;
+  return jsonb_build_object('seeded', true, 'country', 'AE', 'quotes', 4, 'leads', 6, 'staff', 4, 'vendors', 3, 'inventory', 6,
+                            'venues', 2, 'packages', 2, 'dishes', 8, 'layouts', 1);
+end $function$;
+
 commit;
 
 -- VERIFY (every row must say ok = true)
@@ -997,6 +1469,12 @@ select item, ok from (values
      and not has_function_privilege('authenticated', 'public.hq_today(timestamptz)', 'execute')
      and has_function_privilege('authenticated', 'public._my_studio_today()', 'execute')
      and has_function_privilege('authenticated', 'public._next_occasion(date)', 'execute')),
+  ('04e plan billing on the studio day; HQ actions + HQ audit on India time; UAE sample on Dubai time',
+     (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosrc !~* 'current_date'
+        and ((p.proname in ('_checkout_quote', '_sub_record_payment', 'checkout_attach_subscription', 'studio_cost_breakdown') and p.prosrc ~ 'studio_today')
+          or (p.proname in ('hq_extend_trial', 'hq_record_realisation', 'hq_settle_provider_payment', 'hq_upsert_tax_rule') and p.prosrc ~ 'hq_today'))) = 8
+     and exists (select 1 from pg_proc where proname = 'hq_audit' and prosrc like '%(f::timestamp at time zone ''Asia/Kolkata'')%')
+     and exists (select 1 from pg_proc where proname = '_demo_seed_ae' and prosrc !~* 'current_date')),
   ('05 checkout_availability still callable by signed-in users (grant kept)',
      has_function_privilege('authenticated', 'public.checkout_availability(uuid, uuid)', 'execute')),
   ('06 every studio zone name is valid or falls back (no studio without a zone)',

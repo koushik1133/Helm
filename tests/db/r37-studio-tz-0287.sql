@@ -226,6 +226,38 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; r jsonb; z text;
 end $$;
 set timezone = 'America/New_York';
 
+-- ---- 7) the last spots: plan billing on the studio day, HQ actions on India time, HQ audit IST edges, UAE sample ---
+do $$ declare f text; n int := 0; m int := 0; begin
+  perform pg_temp.su();
+  foreach f in array array['_checkout_quote', '_sub_record_payment', 'checkout_attach_subscription', 'studio_cost_breakdown'] loop
+    if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
+                 and p.prosrc !~* 'current_date' and p.prosrc ~ 'studio_today') then n := n + 1;
+    else perform pg_temp.res('31 ' || f, false, 'not on studio_today'); end if;
+  end loop;
+  perform pg_temp.res('31 plan billing functions use studio_today', n = 4, n::text || '/4');
+  foreach f in array array['hq_extend_trial', 'hq_record_realisation', 'hq_settle_provider_payment', 'hq_upsert_tax_rule'] loop
+    if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
+                 and p.prosrc !~* 'current_date' and p.prosrc ~ 'hq_today') then m := m + 1;
+    else perform pg_temp.res('32 ' || f, false, 'not on hq_today'); end if;
+  end loop;
+  perform pg_temp.res('32 HQ actions use hq_today (India time)', m = 4, m::text || '/4');
+  perform pg_temp.res('33 HQ audit range uses IST day edges',
+    exists (select 1 from pg_proc where proname = 'hq_audit' and prosrc like '%a.at >= (f::timestamp at time zone ''Asia/Kolkata'')%'
+            and prosrc like '%a.at < ((t + 1)::timestamp at time zone ''Asia/Kolkata'')%'));
+  perform pg_temp.res('34 UAE sample data dates are Dubai days',
+    exists (select 1 from pg_proc where proname = '_demo_seed_ae' and prosrc !~* 'current_date' and prosrc like '%now() at time zone ''Asia/Dubai''%'));
+end $$;
+-- the IST day edges themselves, under a US session zone: 27 Oct IST = 26 Oct 18:30 UTC .. 27 Oct 18:30 UTC
+set timezone = 'America/Los_Angeles';
+do $$ declare f date := date '2026-10-27'; t date := date '2026-10-27'; begin
+  perform pg_temp.res('35 Los Angeles session: the IST day 27 Oct covers 26 Oct 18:30 UTC up to (not incl.) 27 Oct 18:30 UTC',
+    (f::timestamp at time zone 'Asia/Kolkata') = timestamptz '2026-10-26 18:30:00+00'
+    and ((t + 1)::timestamp at time zone 'Asia/Kolkata') = timestamptz '2026-10-27 18:30:00+00'
+    and timestamptz '2026-10-27 18:29:00+00' < ((t + 1)::timestamp at time zone 'Asia/Kolkata')
+    and not (timestamptz '2026-10-27 18:31:00+00' < ((t + 1)::timestamp at time zone 'Asia/Kolkata')));
+end $$;
+set timezone = 'America/New_York';
+
 select name, result from _tc where result <> 'PASS';
 select case when count(*) filter (where result <> 'PASS') = 0
             then 'R37-STUDIO-TZ-0287: ALL PASS (' || count(*) || '/' || count(*) || ')'
