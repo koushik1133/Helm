@@ -281,8 +281,8 @@
 <script src="config.js?v=110"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=4"></script><script src="store-api.js?v=282"></script><script src="flow-resume.js?v=5" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=2"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=3"></script>
-<script src="event-sizing.js?v=5"></script><script src="quote-smart-filter.js?v=1"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script><script src="link-views.js?v=2"></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=6"></script><script src="store-api.js?v=290"></script><script src="flow-resume.js?v=5" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=2"></script><script src="quote-rates.js?v=3"></script><script src="venue-suggest.js?v=3"></script>
+<script src="event-sizing.js?v=5"></script><script src="quote-smart-filter.js?v=2"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=4"></script><script src="link-views.js?v=2"></script>
 <script src="tour.js?v=24"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -619,7 +619,7 @@
     // Needs attention = the event date has passed but the event isn't wrapped up
     // (not closed / cancelled) — e.g. it happened but equipment isn't returned or
     // it was never settled & closed. Draft quotes with no date are never flagged.
-    const _n=new Date(), todayISO=_n.getFullYear()+"-"+String(_n.getMonth()+1).padStart(2,"0")+"-"+String(_n.getDate()).padStart(2,"0");   // local date, compared as a string like the server view
+    const todayISO=(function(){ try{ const t=BPStore.todayLocal(); if(/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; }catch(e){} const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); })();   // r37: the STUDIO's day (not the viewer's), compared as a string like the server view
     const sh=x=>shelf.byId[x.id];   // flagged Archive / Deleted (0040)
     const needsAttention=x=>{
       if(sh(x) || isArchived(x) || x.status==="cancelled" || !x.eventDate) return false;
