@@ -12,3 +12,5 @@ public/vendor/README.md
 **/.DS_Store
 # How-to for the landing page event gallery (public/landing/events/).
 public/landing/events/README.md
+# r28: the localhost-only HQ click-through demo (made-up data; hq.js loads it only on localhost + ?demo=1).
+public/hq-demo.js
