@@ -1,10 +1,14 @@
 -- 0285_r35_payment_details_safety.sql - CANONICAL forward-only.
 -- REQUIRES 0264 (payment_schedule_settings: upi_id + pay_note, _pst_pay_details, payment_schedule_settings_get / _set,
 --          comms_tick wrapper), 0244 (helm_notice_outbox + helm_notice_outbox_claim), 0266 (_r23_tz), 0150
---          (studio_email_settings_set: reply-to), 0117 (save_org_payment_account / set_org_integration_status: per-studio
---          Razorpay), 0156 (create_invitation), 0075 (organizations.business_email_confirmed), phase29 / phase57
---          (role_access, admin_set_role_access, has_area, is_admin, current_org_id), the notification catalog (0036 / 0058),
+--          (studio_email_settings_set: reply-to), 0156 (create_invitation), phase29 / phase57 (role_access, has_area,
+--          is_admin, current_org_id), the notification catalog (0036 / 0058),
 --          0283 (r33 team safety: studio owner, deactivated members, the Team RPCs; it already requires 0282 + R32b).
+-- OPTIONAL (each piece is added only when its objects exist; otherwise skipped with a NOTICE - re-run this file after
+--          applying the missing migration and the piece is added then; safe to run again any time):
+--          0117 (save_org_payment_account / set_org_integration_status: per-studio Razorpay keys - 5c),
+--          phase57 admin_set_role_access (Control Center money switches - 5d),
+--          0075 (organizations.business_email + business_email_confirmed: the business e-mail gate - 5b).
 --
 -- In plain words (r35, owner-approved: "if someone takes over one admin account they must not be able to quietly swap
 -- the UPI ID / bank details our clients pay to"):
@@ -75,18 +79,15 @@ do $$ begin
   if to_regprocedure('public._r23_tz(uuid)') is null then raise exception 'STOP 0285: 0266 (notification inbox: _r23_tz) is not applied'; end if;
   if to_regprocedure('public._hq_wgate(text, text, text, jsonb)') is null then raise exception 'STOP 0285: the HQ write gate (0045 / 0277) is missing'; end if;
   if to_regprocedure('public.studio_email_settings_set(text, text)') is null then raise exception 'STOP 0285: 0150 (studio e-mail settings) is not applied'; end if;
-  if to_regprocedure('public.save_org_payment_account(text, text, text)') is null or to_regprocedure('public.set_org_integration_status(text, text)') is null then
-    raise exception 'STOP 0285: 0117 (per-studio Razorpay accounts) is not applied'; end if;
-  if to_regprocedure('public.admin_set_role_access(text, text, boolean, boolean)') is null or to_regprocedure('public.has_area(text, text)') is null
+  -- 0117 (per-studio Razorpay), admin_set_role_access and 0075 (business e-mail) are OPTIONAL: see 5b / 5c / 5d
+  if to_regprocedure('public.has_area(text, text)') is null
      or to_regprocedure('public.is_admin()') is null or to_regprocedure('public.current_org_id()') is null then
-    raise exception 'STOP 0285: phase29 / phase57 (role_access, admin_set_role_access, has_area, is_admin) is not applied'; end if;
+    raise exception 'STOP 0285: phase29 / phase57 (role_access, has_area, is_admin) is not applied'; end if;
   if to_regprocedure('public.notification_catalog()') is null or to_regprocedure('public.notification_type_of(text, text)') is null
      or to_regprocedure('public.notify_default(uuid, text, text, text)') is null then
     raise exception 'STOP 0285: the notification catalog (0036 / 0058) is missing'; end if;
   if to_regclass('public.invitations') is null or to_regclass('public.audit_log') is null or to_regclass('public.notifications') is null then
     raise exception 'STOP 0285: invitations / audit_log / notifications are missing'; end if;
-  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'organizations'
-                   and column_name = 'business_email_confirmed') then raise exception 'STOP 0285: apply 0075 first (business_email_confirmed)'; end if;
   -- 0283 (r33 team safety; it already stops without 0282 + its R32b amendment): the Team RPCs this file wraps
   if to_regclass('public.team_admin_changes') is null or to_regprocedure('public._r283_owner(uuid)') is null
      or to_regprocedure('public._r283_is_off(uuid, uuid)') is null or to_regprocedure('public.notification_catalog__pre0283()') is null
@@ -768,12 +769,6 @@ end $$;
 do $$ begin
   if to_regprocedure('public.studio_email_settings_set__pre0285(text, text)') is null then
     alter function public.studio_email_settings_set(text, text) rename to studio_email_settings_set__pre0285; end if;
-  if to_regprocedure('public.save_org_payment_account__pre0285(text, text, text)') is null then
-    alter function public.save_org_payment_account(text, text, text) rename to save_org_payment_account__pre0285; end if;
-  if to_regprocedure('public.set_org_integration_status__pre0285(text, text)') is null then
-    alter function public.set_org_integration_status(text, text) rename to set_org_integration_status__pre0285; end if;
-  if to_regprocedure('public.admin_set_role_access__pre0285(text, text, boolean, boolean)') is null then
-    alter function public.admin_set_role_access(text, text, boolean, boolean) rename to admin_set_role_access__pre0285; end if;
 end $$;
 
 -- a) reply-to address: a CHANGE of the address needs two-step (the sender name alone does not)
@@ -794,9 +789,22 @@ begin
   return v;
 end $$;
 
--- c) per-studio Razorpay keys and on / off (admins, 0117) - always two-step
+-- c) per-studio Razorpay keys and on / off (admins, 0117) - always two-step. OPTIONAL: only when 0117 is applied (its two
+--    functions exist). Created through EXECUTE so nothing here refers to 0117 objects on a database without them.
+--    Re-running this file after 0117 is applied adds the protection then (wrapped once; safe to run again).
+do $r285c$ declare f text; begin
+  if to_regprocedure('public.save_org_payment_account(text, text, text)') is null
+     or to_regprocedure('public.set_org_integration_status(text, text)') is null then
+    raise notice '0117 not applied - Razorpay key protection will be added when 0117 is applied; re-run APPLY-0285 after it.';
+    return;
+  end if;
+  if to_regprocedure('public.save_org_payment_account__pre0285(text, text, text)') is null then
+    alter function public.save_org_payment_account(text, text, text) rename to save_org_payment_account__pre0285; end if;
+  if to_regprocedure('public.set_org_integration_status__pre0285(text, text)') is null then
+    alter function public.set_org_integration_status(text, text) rename to set_org_integration_status__pre0285; end if;
+  execute $f$
 create or replace function public.save_org_payment_account(p_key_id text, p_key_secret text, p_webhook_secret text)
-returns jsonb language plpgsql security definer set search_path = '' as $$
+returns jsonb language plpgsql security definer set search_path = '' as $b$
 -- r35-0285
 declare v_org uuid := public.current_org_id(); v_old text; v jsonb;
 begin
@@ -807,10 +815,11 @@ begin
   perform public._r285_event(v_org, 'razorpay_keys_saved', null, null,
     jsonb_build_object('old_key', public._r285_mask(v_old), 'new_key', public._r285_mask(btrim(coalesce(p_key_id, '')))), true, 'studio_security.razorpay_keys');
   return v;
-end $$;
-
+end $b$
+$f$;
+  execute $f$
 create or replace function public.set_org_integration_status(p_kind text, p_status text)
-returns jsonb language plpgsql security definer set search_path = '' as $$
+returns jsonb language plpgsql security definer set search_path = '' as $b$
 -- r35-0285: Razorpay on / off needs two-step + alert; WhatsApp on / off is unchanged
 declare v_org uuid := public.current_org_id(); v jsonb;
 begin
@@ -821,11 +830,34 @@ begin
     perform public._r285_event(v_org, 'razorpay_status_changed', null, null, jsonb_build_object('status', p_status), true, 'studio_security.razorpay_status');
   end if;
   return v;
-end $$;
+end $b$
+$f$;
+  -- privileges: the kept 0117 bodies are internal; the wrappers are for signed-in admins (+ the service role, as before)
+  foreach f in array array['public.save_org_payment_account__pre0285(text, text, text)', 'public.set_org_integration_status__pre0285(text, text)'] loop
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f); end if;
+  end loop;
+  foreach f in array array['public.save_org_payment_account(text, text, text)', 'public.set_org_integration_status(text, text)'] loop
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('grant execute on function %s to authenticated', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'service_role') then execute format('grant execute on function %s to service_role', f); end if;
+  end loop;
+end $r285c$;
 
--- d) Control Center money switches (finance / discount_approve / close_owed): only a REAL change needs two-step
+-- d) Control Center money switches (finance / discount_approve / close_owed): only a REAL change needs two-step.
+--    OPTIONAL in the same way: only when admin_set_role_access (phase57) exists.
+do $r285d$ declare f text; begin
+  if to_regprocedure('public.admin_set_role_access(text, text, boolean, boolean)') is null or to_regclass('public.role_access') is null then
+    raise notice 'admin_set_role_access not found - money-switch protection will be added when it exists; re-run APPLY-0285 after it.';
+    return;
+  end if;
+  if to_regprocedure('public.admin_set_role_access__pre0285(text, text, boolean, boolean)') is null then
+    alter function public.admin_set_role_access(text, text, boolean, boolean) rename to admin_set_role_access__pre0285; end if;
+  execute $f$
 create or replace function public.admin_set_role_access(p_role text, p_area text, p_view boolean, p_edit boolean)
-returns public.role_access language plpgsql security definer set search_path = '' as $$
+returns public.role_access language plpgsql security definer set search_path = '' as $b$
 -- r35-0285
 declare v_org uuid := public.current_org_id(); r public.role_access; v_money boolean := p_area in ('finance', 'discount_approve', 'close_owed');
   v_v boolean := coalesce(p_view, false); v_e boolean := coalesce(p_edit, false) and coalesce(p_view, false); v_changed boolean := false;
@@ -844,7 +876,17 @@ begin
                                                    else 'Close with balance owed' end), true, 'studio_security.money_access');
   end if;
   return r;
-end $$;
+end $b$
+$f$;
+  f := 'public.admin_set_role_access__pre0285(text, text, boolean, boolean)';
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f); end if;
+  f := 'public.admin_set_role_access(text, text, boolean, boolean)';
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('grant execute on function %s to authenticated', f); end if;
+end $r285d$;
 
 -- b) business e-mail: changing / clearing a CONFIRMED address needs two-step; every change by a person is alerted
 create or replace function public._r285_tg_org_email_gate()
@@ -869,12 +911,20 @@ begin
   end if;
   return null;
 end $$;
-drop trigger if exists zz_r285_email_gate on public.organizations;
-create trigger zz_r285_email_gate before update of business_email, business_email_confirmed on public.organizations
-  for each row execute function public._r285_tg_org_email_gate();
-drop trigger if exists zz_r285_email_alert on public.organizations;
-create trigger zz_r285_email_alert after update of business_email on public.organizations
-  for each row execute function public._r285_tg_org_email_alert();
+-- OPTIONAL: the triggers need 0075's columns (organizations.business_email + business_email_confirmed)
+do $r285b$ begin
+  if (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'organizations'
+        and column_name in ('business_email', 'business_email_confirmed')) <> 2 then
+    raise notice '0075 not applied - business e-mail protection will be added when 0075 is applied; re-run APPLY-0285 after it.';
+    return;
+  end if;
+  execute 'drop trigger if exists zz_r285_email_gate on public.organizations';
+  execute 'create trigger zz_r285_email_gate before update of business_email, business_email_confirmed on public.organizations '
+       || 'for each row execute function public._r285_tg_org_email_gate()';
+  execute 'drop trigger if exists zz_r285_email_alert on public.organizations';
+  execute 'create trigger zz_r285_email_alert after update of business_email on public.organizations '
+       || 'for each row execute function public._r285_tg_org_email_alert()';
+end $r285b$;
 
 -- f) admins added / removed by SOMEONE ELSE: two-step + alert. Self-service (accept an invitation, create a studio): alert only.
 create or replace function public._r285_tg_profile_admin()
@@ -1217,9 +1267,7 @@ do $$ declare f text; begin
                            'public._r285_tg_invite_admin()', 'public._r285_tg_mfa_off()', 'public._r285_mail(uuid)',
                            'public.pay_details_tick()', 'public.comms_tick()', 'public.comms_tick__pre0285()',
                            'public.payment_schedule_settings_get__pre0285()', 'public.payment_schedule_settings_set__pre0285(jsonb)',
-                           'public.studio_email_settings_set__pre0285(text, text)', 'public.save_org_payment_account__pre0285(text, text, text)',
-                           'public.set_org_integration_status__pre0285(text, text)',
-                           'public.admin_set_role_access__pre0285(text, text, boolean, boolean)',
+                           'public.studio_email_settings_set__pre0285(text, text)',
                            'public.notification_catalog__pre0285()', 'public.notification_type_of__pre0285(text, text)',
                            'public.notify_default__pre0285(uuid, text, text, text)', 'public.notify_default(uuid, text, text, text)',
                            'public._r285_team_gate(uuid)', 'public.team_set_role__pre0285(uuid, text)',
@@ -1233,16 +1281,13 @@ do $$ declare f text; begin
     execute 'grant execute on function public.pay_details_tick() to service_role';
     execute 'grant execute on function public.comms_tick() to service_role';
     execute 'grant execute on function public._r285_mail(uuid) to service_role';
-    execute 'grant execute on function public.save_org_payment_account(text, text, text) to service_role';
-    execute 'grant execute on function public.set_org_integration_status(text, text) to service_role';
   end if;
   -- the app: signed-in people only (each function checks who may do what)
   foreach f in array array['public.payment_schedule_settings_get()', 'public.payment_schedule_settings_set(jsonb)',
                            'public.pay_details_cancel(uuid, boolean)', 'public.pay_details_approve_now(uuid)',
                            'public.studio_flagged_sign_out(uuid)', 'public.studio_flag_clear(uuid)', 'public.studio_security_events_list(integer)',
                            'public.hq_studio_flag_clear(uuid, uuid, text)',
-                           'public.studio_email_settings_set(text, text)', 'public.save_org_payment_account(text, text, text)',
-                           'public.set_org_integration_status(text, text)', 'public.admin_set_role_access(text, text, boolean, boolean)',
+                           'public.studio_email_settings_set(text, text)',
                            'public.notification_catalog()', 'public.notification_type_of(text, text)',
                            'public.team_set_role(uuid, text)', 'public.team_deactivate_member(uuid, text)', 'public.team_reactivate_member(uuid)',
                            'public.team_owner_transfer_start(uuid)', 'public.team_owner_transfer_accept(uuid)'] loop
