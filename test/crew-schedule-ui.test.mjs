@@ -42,7 +42,7 @@ t('0161: returns schedule fields only - no money, no client contact', () => {
 t('store: BPStore.ops.crew.schedule calls crew_schedule; store-api bumped everywhere', () => {
   const s = r('public/store-api.js');
   assert.match(s, /schedule: \(from, to, staffId\) => \(supa \? rpc\("crew_schedule", \{ p_from: from, p_to: to, p_staff: staffId \|\| null \}\)/);
-  for (const p of ['calendar.html', 'staff.html', 'dashboard.html']) assert.match(r('public/' + p), /store-api\.js\?v=283/, p);
+  for (const p of ['calendar.html', 'staff.html', 'dashboard.html']) assert.match(r('public/' + p), /store-api\.js\?v=285/, p);
 });
 
 t('calendar: schedule section, assets, crew vs team mode, deep link from staff', () => {
