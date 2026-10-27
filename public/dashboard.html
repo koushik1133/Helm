@@ -343,7 +343,7 @@
   const fmtDate = (iso) => { try { return BPStore.fmtDateTime(iso) || "—"; } catch { return "—"; } };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;","'":"&#39;" }[c]));
   // Structured internal diagnostic: console + telemetry only, never rendered to the DOM.
-  const DIAG = { DASH_FALLBACK: "HELM-DASH-FALLBACK" };
+  const DIAG = { DASH_FALLBACK: "HELM-DASH-FALLBACK", PENDING_FAILED: "HELM-DASH-PENDING-FAILED" };
   function diag(code, err) { try { console.error("[Helm] " + code, err); } catch (_) {}
     try { if (window.HelmTelemetry && HelmTelemetry.report) HelmTelemetry.report(code, err); } catch (_) {} }
 
@@ -582,9 +582,10 @@
       // widget. We do NOT substitute a client-side quotes query (that would bypass the
       // server-side org/area scoping my_pending enforces). Log a diagnostic, show nothing raw.
       if (softFail(e)) { if (BPUI.isRpcMissing(e)) diag(DIAG.DASH_FALLBACK, e); sec.hidden = true; return; }
-      sec.hidden = false;
-      BPUI.loadError(host, e, () => { clearFeed(); return renderPending(); }, { what: "upcoming events" });
-      const card = host.firstElementChild; if (card) card.style.gridColumn = "1/-1";
+      // r47: a server error / time-out on my_pending (production 500, 26 Oct 2026) is best-effort too - the widget
+      // is hidden quietly (no error card, no stale badge) and the rest of the dashboard carries on.
+      diag(DIAG.PENDING_FAILED, e); sec.hidden = true;
+      { const ub0 = $("#unreadBadge"); if (ub0) ub0.hidden = true; }
       return;
     }
     const up = ((res && res.upcoming) || []).filter((e) => e && e.event_date), unread = (res && res.unread) || 0, ub = $("#unreadBadge");
@@ -639,7 +640,8 @@
     // Retry; a feed this role can't use shows "—".
     let pend = { upcoming: [], unread: 0 }, tasks = { counts:{} }, dq = [], hardErr = null;
     let pendOk = true, tasksOk = true, dqOk = true;
-    try { pend = (await getPending()) || pend; } catch(e){ pendOk = false; if (!softFail(e)) hardErr = hardErr || e; }
+    // r47: my_pending is best-effort - a failure shows "—" on the Upcoming card, never an error over the whole board
+    try { pend = (await getPending()) || pend; } catch(e){ pendOk = false; }
     try { tasks = (await getMyTasks()) || tasks; } catch(e){ tasksOk = false; if (!softFail(e)) hardErr = hardErr || e; }
     // only manager + designer boards actually use the design queue — don't fetch it otherwise
     if (["manager","designer"].includes(role)) { try { dq = (await getQueue()) || []; } catch(e){ dqOk = false; if (!softFail(e)) hardErr = hardErr || e; } }

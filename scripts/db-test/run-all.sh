@@ -261,6 +261,8 @@ run "r35-paysafe-0285" "R35-PAYSAFE-0285: ALL PASS \(100/100\)" psql -q -f tests
 run "r44-two-step-0291" "R44-TWO-STEP-0291: ALL PASS \(22/22\)" psql -q -f tests/db/r44-two-step-0291.sql
 # 0284 re-applies itself twice + once more at the end (re-run safe; after rescore2, which resets anon EXECUTE), rolled back
 run "r34-invite-0284" "R34-INVITE-0284: ALL PASS \(59/59\)" psql -q -f tests/db/r34-invite-0284.sql
+# r47 (0292): my_pending re-issued (prod 500 = statement timeout); re-applies itself twice (earlier suites re-apply 0036), rolled back
+run "r47-my-pending-0292" "R47-MY-PENDING-0292: ALL PASS \(24/24\)" psql -q -f tests/db/r47-my-pending-0292.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
