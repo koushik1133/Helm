@@ -17,8 +17,10 @@
 
   function iso(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function day(y, m, dd) { return new Date(y, m, dd, 12, 0, 0); }   // noon: no DST edge
+  // r37: no "now" given = a local Date that reads the STUDIO's date + time (Today / This week follow the studio's calendar)
+  function studioNow() { try { var B = (typeof window !== "undefined" && window.BPStore) || null, c = B && B.studioClock ? B.studioClock() : null; if (c) return new Date(c.y, c.mo - 1, c.d, c.h, c.mi, c.s); } catch (e) {} return new Date(); }
   function range(key, now) {
-    var n = now instanceof Date && !isNaN(now) ? now : new Date();
+    var n = now instanceof Date && !isNaN(now) ? now : studioNow();
     var y = n.getFullYear(), m = n.getMonth(), d = n.getDate();
     switch (key) {
       case "today": return { from: iso(day(y, m, d)), to: iso(day(y, m, d)) };

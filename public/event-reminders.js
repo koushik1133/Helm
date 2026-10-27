@@ -16,6 +16,8 @@
   function daysUntil(ymd, now) {
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ymd || "")); if (!m) return null;
     var t = now || new Date();
+    // r37: count from the STUDIO's today (Asia/Kolkata for an Indian studio), not the viewer's browser day
+    if (!now) { try { var c = global.BPStore && global.BPStore.studioClock ? global.BPStore.studioClock() : null; if (c) t = new Date(c.y, c.mo - 1, c.d); } catch (e) {} }
     return Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(t.getFullYear(), t.getMonth(), t.getDate())) / 86400000);
   }
   function chipText(n) { return n === 0 ? "Today" : n === 1 ? "Tomorrow" : "Upcoming in " + n + " days"; }

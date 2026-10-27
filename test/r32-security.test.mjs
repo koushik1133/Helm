@@ -25,7 +25,7 @@ await t('hq.js csvCell: formula guard matches reports.html (leading spaces, full
   assert.equal(csvCell(-500), '"-500"', 'a real number is not prefixed');
   assert.equal(csvCell('Studio "A"'), '"Studio ""A"""');
   assert.equal(csvCell(null), '""');
-  assert.match(rd('public/hq.html'), /hq\.js\?v=24/);
+  assert.match(rd('public/hq.html'), /hq\.js\?v=25/);
 });
 
 await t('CLI-01 check-html-sinks: map(cb).join() needs a visibly safe callback', async () => {
@@ -105,9 +105,9 @@ await t('AUTH-1 the join page sends the e-mailed mail key (&k=) to invite-signup
   const TPL = rd('supabase/functions/invite-mailer/templates.ts');
   assert.match(TPL, /invite_mail_key_set/); assert.match(TPL, /p_hash: await sha256Hex\(key\)/);
 });
-await t('store-api cache-buster: every page loads store-api.js?v=295', () => {
+await t('store-api cache-buster: every page loads store-api.js?v=297', () => {
   for (const p of readdirSync(new URL('../public/', import.meta.url)).filter((x) => x.endsWith('.html'))) {
-    const m = rd('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '295', p);
+    const m = rd('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '297', p);
   }
 });
 

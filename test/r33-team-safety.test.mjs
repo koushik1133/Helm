@@ -132,7 +132,7 @@ await t('store-api: BPStore.team -> team_* RPCs; bell kind team_safety (label + 
   assert.match(API, /team_safety: \["🛡️", String\(d\.label \|\| "Team change"\)\],/);
   assert.match(API, /if \(k === "team_safety"\) return "control\.html#users";/);
   for (const f of readdirSync(new URL('../public/', import.meta.url)).filter((x) => x.endsWith('.html'))) {
-    const m = rd('public/' + f).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '295', f);
+    const m = rd('public/' + f).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '297', f);
   }
 });
 await t('comms-dispatch: the team_safety e-mail for every event (names only, Team link on APP_URL); unknown event -> null', async () => {
@@ -167,7 +167,7 @@ await t('hq.js: "Studio owner" card + "Recover studio owner" (HQ Owner only, act
   assert.match(HQ, /if \(reason\.length < 20\) \{/);
   assert.match(HQ, /a && a\.active && \(!o \|\| a\.user_id !== o\.user_id\)/);
   assert.match(HQ, /"hq\.studio\.owner_recover": "Studio owner recovered"/);
-  assert.match(rd('public/hq.html'), /<script src="hq\.js\?v=24"><\/script>/);
+  assert.match(rd('public/hq.html'), /<script src="hq\.js\?v=25"><\/script>/);
 });
 
 await t('SQL 0283: registered (MANIFEST, run-all, release lists), APPLY verbatim + VERIFY, ASCII, additive only, STOP guard', () => {

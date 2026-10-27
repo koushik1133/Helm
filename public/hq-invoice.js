@@ -171,7 +171,7 @@
     }
     var lines = Array.isArray(d.lines) ? d.lines.filter(function (l) { return l && typeof l === 'object'; })
       .map(function (l) { return { description: str(l.description) || '—', amount: formatMoney(l.amount, currency) }; }) : [];
-    var today = new Date().toISOString().slice(0, 10);
+    var today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());   // r37: HQ = India time
     return {
       invoiceNo: str(pick(d.invoice_no, d.number)) || '—',
       date: formatDate(pick(d.issued_on, d.paid_on, today)),

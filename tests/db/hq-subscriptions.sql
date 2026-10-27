@@ -1,6 +1,9 @@
 -- hq-subscriptions.sql — 0045 Helm HQ subscriptions + read-only suspend + no studio data in HQ.
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
+-- r37 / 0287: the server's "today" is the STUDIO's day (India for these fixtures) and HQ's is India time, so the
+-- fixtures' current_date must be that same day (otherwise this suite fails between 18:30 and 24:00 UTC)
+set timezone = 'Asia/Kolkata';
 drop table if exists _hs; create temp table _hs(name text, result text); grant all on _hs to anon, authenticated, service_role;
 drop table if exists _hv; create temp table _hv(k text primary key, v text); grant all on _hv to anon, authenticated, service_role;
 

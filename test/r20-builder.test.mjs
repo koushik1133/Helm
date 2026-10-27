@@ -86,7 +86,8 @@ t('tours: H and the hide controls are explained (dashboard, shell, builder)', ()
   assert.match(D, /title:"Hide the money"/, 'hide: amounts');
   assert.match(D, /tap the eye on a card to hide it/, 'hide: dashboard cards');
   assert.match(sh, /Press H \(when you are not typing\) to jump home to the dashboard\./);
-  const blk = tour.slice(tour.indexOf('"builder.html": ['), tour.indexOf('"quotes.html": ['));
+  const pt = read('public/page-tours.js');   // R46: the steps live in page-tours.js
+  const blk = pt.slice(pt.indexOf('"builder.html": ['), pt.indexOf('"quotes.html": ['));
   assert.match(blk, /\{ sel: "header \.brand", title: "Back home", desc: "[^"]*press H \(when you are not typing\) to jump home to the dashboard/);
   assert.match(blk, /To hide them, press the down arrow \(⌄\); the small “⊕ View” button brings them back\./, 'hide: the view dock');
   assert.match(blk, /title: "Hide amounts"/);
@@ -102,13 +103,15 @@ t('tours: H and the hide controls are explained (dashboard, shell, builder)', ()
 });
 
 /* ---------------- 4) live QA ---------------- */
-t('tour is easy to find: a "?" button in the top bar (desktop) that starts the same tour as the rail button', () => {
+t('tour is easy to find: a "?" button in the top bar (desktop) whose menu starts the same tour as the rail button', () => {
   const sh = read('public/shell-b.js'), sc = read('public/shell-b.css');
-  assert.match(sh, /var tourTop = el\("button", "hb-ibtn hb-ttour"\); tourTop\.type = "button"; tourTop\.title = "Take the guided tour";/);
-  assert.match(sh, /tourTop\.addEventListener\("click", function \(\) \{ safe\(startTour\); \}\);\n\s*tools\.insertBefore\(tourTop, bellSlot\);/);
+  // R46: the "?" opens the shared help menu; its "Tour this page" item runs startTour (same as the rail button)
+  assert.match(sh, /var tourTop = el\("button", "hb-ibtn hb-ttour"\); tourTop\.type = "button"; tourTop\.title = "Help: tour this page, keyboard shortcuts";/);
+  assert.match(sh, /safe\(function \(\) \{ helpMenu\(helpWrap, tourTop\); \}\);\n\s*tools\.insertBefore\(helpWrap, bellSlot\);/);
+  assert.match(sh, /tourMi\.addEventListener\("click", function \(\) \{ close\(true\); safe\(startTour\); \}\);/);
   assert.match(sc, /@media \(max-width: 819px\) \{ html\[data-shell="b"\] \.hb-ttour \{ display: none !important; \} \}/);
   const D = read('public/dashboard.html');
-  assert.match(D, /Click the \? button in the top bar, or “Take a guided tour” in the sidebar/);
+  assert.match(D, /Click the \? button in the top bar and pick “Tour this page”, or “Tour this page” in the sidebar/);
   assert.match(D, /title:"Admin & Control Center", desc:"Business shows your money and Insights your numbers\./, 'no Reports item named');
 });
 t('tour: a target clipped inside a scrolled box is brought fully into it before the ring is drawn', () => {

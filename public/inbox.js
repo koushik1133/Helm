@@ -258,12 +258,21 @@
     if (n.quote_id) { items.push("-"); items.push({ label: "Only this event", run: function () { S.quote = n.quote_id; S.cursor = null; writeUrl(); load(false); } }); }
     openMenu(btn, items);
   }
+  // r37: studio wall clock <-> instant for the datetime-local snooze picker
+  function studioTz() { try { return BPStore.studioTimezone(); } catch (e) { return ""; } }
+  function studioWall(ms) { var H = window.HelmCountry, tz = studioTz(); try { if (H && H.wallDate && tz) return H.wallDate(tz, new Date(ms)); } catch (e) {} return new Date(ms); }
+  function fromStudioWall(v) {
+    var m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(String(v || "")), H = window.HelmCountry, tz = studioTz();
+    try { if (m && H && H.wallToInstant && tz) return H.wallToInstant(m[1], m[2], tz); } catch (e) {}
+    return new Date(v);
+  }
   function customSnooze(ids) {
     var dlg = $("#ibxSnoozeDlg"), inp = $("#ibxSnoozeAt"), msg = $("#ibxSnoozeMsg");
-    var d = new Date(Date.now() + 86400000); d.setMinutes(0, 0, 0);
+    // r37: the picker shows + reads the STUDIO's wall clock (studioWall / fromStudioWall), not the browser's
+    var d = studioWall(Date.now() + 86400000); d.setMinutes(0, 0, 0);
     var pad = function (x) { return ("0" + x).slice(-2); };
     inp.value = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":00";
-    var now = new Date(Date.now() + 120000), max = new Date(Date.now() + 180 * 86400000);
+    var now = studioWall(Date.now() + 120000), max = studioWall(Date.now() + 180 * 86400000);
     inp.min = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate()) + "T" + pad(now.getHours()) + ":" + pad(now.getMinutes());
     inp.max = max.getFullYear() + "-" + pad(max.getMonth() + 1) + "-" + pad(max.getDate()) + "T23:59";
     msg.textContent = "";
@@ -329,7 +338,7 @@
     $("#ibxMailCancel").addEventListener("click", function () { $("#ibxMailDlg").close(); });
     $("#ibxSnoozeCancel").addEventListener("click", function () { $("#ibxSnoozeDlg").close(); });
     $("#ibxSnoozeOk").addEventListener("click", function () {
-      var dlg = $("#ibxSnoozeDlg"), v = $("#ibxSnoozeAt").value, t = v ? new Date(v) : null;
+      var dlg = $("#ibxSnoozeDlg"), v = $("#ibxSnoozeAt").value, t = v ? fromStudioWall(v) : null;
       if (!t || isNaN(t.getTime()) || t.getTime() < Date.now() + 60000) { $("#ibxSnoozeMsg").textContent = "Pick a time in the future."; return; }
       if (t.getTime() > Date.now() + 180 * 86400000) { $("#ibxSnoozeMsg").textContent = "Pick a time within the next 6 months."; return; }
       dlg.close(); act(dlg.__ids || [], "snooze", { until: t });
