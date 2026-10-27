@@ -623,6 +623,28 @@ do $$ declare a uuid := pg_temp.get('A')::uuid; v_pe date; n int; f jsonb; e tex
   perform pg_temp.res('45 HQ forfeits an unused month (rule breaking); a used month can not be forfeited', f ->> 'state' = 'forfeited' and e like '22023%', e);
 exception when others then perform pg_temp.su(); insert into _rr values ('42x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
+-- ---- 46-48 r29c hardening (R32 review): attach rate limit, no shared look-up counter, old rate counters cleared -------------
+do $$ declare o uuid; r jsonb; i int; l jsonb; c text := pg_temp.get('codeA'); begin
+  o := pg_temp.trial('rrate@r29rate.test');
+  perform pg_temp.login('rrate@r29rate.test');
+  for i in 1..11 loop r := public.referral_attach('NOPE-' || i || 'ZZ', null, null, false, null); end loop;
+  perform pg_temp.su();
+  perform pg_temp.res('46 REF-02 referral_attach: at most 10 tries an hour per person (11th -> rate), nothing attached',
+    r ->> 'reason' = 'rate' and not exists (select 1 from public.referrals where referred_org = o), r::text);
+  insert into public.referral_rate_buckets(bucket, n, window_start) values ('lk:all', 999999, now())
+    on conflict (bucket) do update set n = 999999, window_start = now();
+  perform pg_temp.anon('198.51.100.77');
+  l := public.referral_lookup(c);
+  perform pg_temp.su();
+  perform pg_temp.res('47 REF-03 a used-up shared counter no longer blocks the look-up for a new visitor', l ->> 'ok' = 'true', l::text);
+  insert into public.referral_rate_buckets(bucket, n, window_start) values ('lk:old-r29c', 5, now() - interval '3 hours'), ('lk:new-r29c', 5, now())
+    on conflict (bucket) do nothing;
+  r := pg_temp.tick();
+  perform pg_temp.res('48 REF-03 the daily job clears rate counters older than 2 hours (fresh ones stay)',
+    not exists (select 1 from public.referral_rate_buckets where bucket = 'lk:old-r29c')
+    and exists (select 1 from public.referral_rate_buckets where bucket = 'lk:new-r29c') and (r ->> 'rate_buckets_cleared')::int >= 1, r::text);
+exception when others then perform pg_temp.su(); insert into _rr values ('46x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
 select name, result from _rr order by name;
 select case when count(*) filter (where result <> 'PASS') = 0 then 'R29-REFERRALS-0279: ALL PASS (' || count(*) || '/' || count(*) || ')'
             else 'R29-REFERRALS-0279: ' || count(*) filter (where result <> 'PASS') || ' FAILED of ' || count(*) end as summary from _rr;

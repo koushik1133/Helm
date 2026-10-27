@@ -88,7 +88,7 @@
     var RL = (D.rules && D.rules.hold_days != null) ? { holdDays: D.rules.hold_days, capPerYear: D.rules.cap_per_year, heldMonths: D.rules.held_months } : R.RULES;
     $("rfLink").value = link;
     $("rfCode").textContent = me.code;
-    var msg = "I run " + me.studio + " on Helm for quotes, layouts and our team. Try it with my link: you get 8 days free, then your first paid month free. " + link;
+    var msg = "I run " + me.studio + " on Helm for quotes, layouts and our team. Try it with my link: you get 8 days free, then 1 free month after your first payment. " + link;
     $("rfWa").href = "https://wa.me/?text=" + encodeURIComponent(msg);
     $("rfMail").href = "mailto:?subject=" + encodeURIComponent("A month of Helm free, from " + me.studio) + "&body=" + encodeURIComponent(msg);
     $("rfCopyLink").addEventListener("click", function () { copy(link, "Link copied."); });

@@ -22,7 +22,10 @@ t("the APPLY file is the migration, wrapped in begin / commit, with VERIFY rows"
 t("ASCII only, additive only: no delete / drop table / truncate / drop column / drop function", () => {
   for (const [f, src] of [["0279", sql], ["APPLY", apply], ["SCHEDULE", sched]]) {
     assert.doesNotMatch(src, /[^\x00-\x7f]/, f + " is ASCII");
-    const code = src.split("\n").filter((l) => !/^\s*--/.test(l)).join("\n").replace(/'[^'\n]*'/g, "''");
+    // r29c REF-03: the ONE allowed delete - expired hour-window rate counters (nothing about a person), in referral_tick
+    const RB = /delete from public\.referral_rate_buckets where window_start < now\(\) - interval '2 hours';/g;
+    assert.ok((src.match(RB) || []).length <= 1, f + ": the rate-counter cleanup appears at most once");
+    const code = src.replace(RB, "").split("\n").filter((l) => !/^\s*--/.test(l)).join("\n").replace(/'[^'\n]*'/g, "''");
     assert.doesNotMatch(code, /\bdelete\s+from\b|\btruncate\b|\bdrop\s+table\b|\bdrop\s+column\b|\bdrop\s+function\b|\bdrop\s+schema\b/i, f + ": nothing removed");
   }
 });
@@ -114,5 +117,31 @@ t("terms stay a draft; no cash; write-off promise matches the server", () => {
   assert.match(terms, /Draft: the program is not live yet/);
   assert.match(terms, /we will not charge you for it/);
   assert.doesNotMatch(terms, /we may charge for that month/);
+});
+// r29c (R32 review of PR #264)
+t("REF-01 the pages promise what the server gives: 8 days free, then 1 free month after the first payment", () => {
+  const signup = read("public/referral-signup.js"), refer = read("public/refer.html"), referJs = read("public/refer.js");
+  for (const [f, src] of [["referral-signup.js", signup], ["refer.html", refer], ["refer.js", referJs]]) {
+    assert.doesNotMatch(src, /first paid month (is )?free/i, f + ": no 'first paid month free' promise");
+  }
+  assert.match(signup, /8 days free, then 1 free month after your first payment\./);
+  assert.match(refer, /then 1 free month after their first payment/);
+  assert.match(referJs, /8 days free, then 1 free month after your first payment\./);
+  assert.match(read("public/login.html"), /referral-signup\.js\?v=2/); assert.match(refer, /refer\.js\?v=2/);
+});
+t("REF-02 / REF-03 in 0279 + APPLY-0279 + APPLY-0279b (for a database that already ran 0279)", () => {
+  assert.match(sql, /if not public\._r29_rate\('at:' \|\| auth\.uid\(\)::text, 10\) then return jsonb_build_object\('ok', false, 'reason', 'rate'\); end if;/);
+  assert.doesNotMatch(sql, /lk:all/);
+  assert.match(sql, /delete from public\.referral_rate_buckets where window_start < now\(\) - interval '2 hours';/);
+  assert.ok(apply.includes(sql), "APPLY-0279 still carries 0279 verbatim");
+  const b = read("supabase/APPLY-0279b-referral-hardening.sql");
+  assert.doesNotMatch(b, /[^\x00-\x7f]/, "ASCII");
+  assert.match(b, /^begin;$/m); assert.match(b, /^commit;$/m); assert.match(b, /STOP 0279b:/); assert.match(b, /-- VERIFY \(every row must say ok = true\)/);
+  for (const fn of ["referral_attach", "referral_lookup", "referral_tick"]) {
+    const re = (src) => { const i = src.indexOf("create or replace function public." + fn + "("); return src.slice(i, src.indexOf("end $$;", i)); };
+    assert.equal(re(b), re(sql), fn + " body in 0279b = 0279");
+  }
+  assert.equal((b.match(/create or replace function/g) || []).length, 3, "only the 3 functions");
+  assert.doesNotMatch(b.replace(/delete from public\.referral_rate_buckets where window_start < now\(\) - interval '2 hours';/, ""), /\bdelete\s+from\b|\bdrop\s+(table|column|function)\b|\btruncate\b/i);
 });
 console.log("r29-referrals-wiring: ok (" + n + " checks)");

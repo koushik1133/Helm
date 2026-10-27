@@ -59,7 +59,8 @@ begin;
 --   no write privilege for any API role (definer RPCs only); a studio admin may READ its own code and rewards.
 --   New triggers (AFTER, never block a payment / subscription change - errors are logged, not raised):
 --   r29_payment on subscription_payments (first payment / void), r29_subscription on studio_subscriptions (status).
---   Nothing existing is deleted or rewritten; no existing function is replaced. Columns written on existing rows:
+--   Nothing existing is deleted or rewritten; no existing function is replaced (r29c: the daily job clears only its OWN
+--   expired rate-limit counters, referral_rate_buckets older than 2 hours). Columns written on existing rows:
 --   studio_subscriptions.current_period_end (+1 month per free month; past_due -> active when that covers today) and
 --   billing_reminders.sent_at / channel ('skipped') for a due-soon reminder of a renewal that became free.
 --   Additive + idempotent: safe to run twice. ASCII only. The daily schedule is in SCHEDULE-0279.sql (pg_cron only).
@@ -612,6 +613,8 @@ begin
   if auth.uid() is null or v_org is null or not public.is_admin() then raise exception 'not authorized' using errcode = '42501'; end if;
   if public.is_platform_operator() then return jsonb_build_object('ok', false, 'reason', 'existing'); end if;
   if not s.program_on then return jsonb_build_object('ok', false, 'reason', 'off'); end if;
+  -- r29c REF-02: at most 10 tries an hour per person (a sign-up attaches once; this stops code guessing)
+  if not public._r29_rate('at:' || auth.uid()::text, 10) then return jsonb_build_object('ok', false, 'reason', 'rate'); end if;
   select x.created_at, x.created_by into o from public.organizations x where x.id = v_org;
   -- only the person who created the studio, and only while it is new (team members who join never attach a code)
   if o.created_by is distinct from auth.uid() or o.created_at < now() - make_interval(hours => s.self_attach_hours) then
@@ -647,7 +650,8 @@ declare v text := upper(btrim(coalesce(p_code, ''))); c public.referral_codes; v
   v_net text := coalesce(public._r29_hash('ip', public._hq27_client_ip()), 'none');
 begin
   if v !~ '^[A-Z0-9][A-Z0-9_-]{2,23}$' then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
-  if not public._r29_rate('lk:' || left(v_net, 32), 60) or not public._r29_rate('lk:all', 5000) then
+  -- r29c REF-03: per network only - a shared "everyone" counter let one sender block the look-up for all visitors
+  if not public._r29_rate('lk:' || left(v_net, 32), 60) then
     return jsonb_build_object('ok', false, 'reason', 'rate'); end if;
   select * into c from public.referral_codes where code = v;
   v_prob := public._r29_code_problem(c);
@@ -891,7 +895,11 @@ create or replace function public.referral_tick()
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 -- r29-referrals-0279
 declare s public.referral_settings := public._r29_cfg(); r record; v text; n_q int := 0; n_np int := 0; n_x int := 0; n_a int := 0; n_e int := 0; n int;
+  n_rb int := 0;
 begin
+  -- 0) r29c REF-03: expired rate-limit counters (hour windows, nothing about a person) are cleared after 2 hours
+  delete from public.referral_rate_buckets where window_start < now() - interval '2 hours';
+  get diagnostics n_rb = row_count;
   -- 1) holds that are over -> confirmed (or refunded / cancelled)
   for r in select x.id from public.referrals x where x.status = 'hold' and x.hold_until <= now() order by x.hold_until limit 2000 loop
     begin v := public._r29_qualify(r.id); if v = 'qualified' then n_q := n_q + 1; end if;
@@ -930,7 +938,8 @@ begin
         values (null, null, 'referral.error', 'studio_subscriptions', r.studio_id::text, jsonb_build_object('step', 'apply', 'error', left(sqlstate || ' ' || sqlerrm, 300)), null, now());
     end;
   end loop;
-  return jsonb_build_object('qualified', n_q, 'not_paid', n_np, 'expired', n_x, 'applied', n_a, 'errors', n_e, 'at', now());
+  return jsonb_build_object('qualified', n_q, 'not_paid', n_np, 'expired', n_x, 'applied', n_a, 'errors', n_e,
+                            'rate_buckets_cleared', n_rb, 'at', now());
 end $$;
 
 -- ---- 6) the studio page (owner / admin only) ----------------------------------------------------------------------------
@@ -1383,5 +1392,9 @@ select item, ok from (values
   ('06 the reward event log is append-only',
      exists (select 1 from pg_trigger where tgname = 'r29_events_append_only' and tgrelid = 'public.referral_reward_events'::regclass)),
   ('07 marker r29-referrals-0279 on the job',
-     position('r29-referrals-0279' in pg_get_functiondef('public.referral_tick()'::regprocedure)) > 0)
+     position('r29-referrals-0279' in pg_get_functiondef('public.referral_tick()'::regprocedure)) > 0),
+  ('08 r29c hardening: sign-up attach rate-limited, no shared look-up counter, daily job clears old rate counters',
+     position('r29c REF-02' in pg_get_functiondef('public.referral_attach(text,text,timestamptz,boolean,text)'::regprocedure)) > 0
+     and position('lk:all' in pg_get_functiondef('public.referral_lookup(text)'::regprocedure)) = 0
+     and position('referral_rate_buckets where window_start' in pg_get_functiondef('public.referral_tick()'::regprocedure)) > 0)
 ) v(item, ok) order by item;

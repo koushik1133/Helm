@@ -109,9 +109,9 @@
     if (!banner) return;
     var signup = !agree.hidden;
     if (!signup || !hit || !code || hit.kind === "unknown" || hit.kind === "refused") { banner.hidden = true; return; }
-    if (hit.kind === "referral") { bT.textContent = "A Helm studio invited you"; bS.textContent = "8 days free, then your first paid month free."; }
+    if (hit.kind === "referral") { bT.textContent = "A Helm studio invited you"; bS.textContent = "8 days free, then 1 free month after your first payment."; }
     else if (hit.kind === "partner") { bT.textContent = "Partner offer: " + code; bS.textContent = hit.offer ? hit.offer.charAt(0).toUpperCase() + hit.offer.slice(1) + "." : "Thanks for coming via this partner."; }
-    else { bT.textContent = "Signing up with code " + code; bS.textContent = "If it is valid: 8 days free, then your first paid month free."; }
+    else { bT.textContent = "Signing up with code " + code; bS.textContent = "If it is valid: 8 days free, then 1 free month after your first payment."; }
     banner.hidden = false;
   }
   function sync() {   /* show only in owner sign-up mode (agreeRow visible) */
