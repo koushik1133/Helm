@@ -37,7 +37,7 @@
     "check:base": "node scripts/check-base-immutable.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.23.4 <23"
   },
   "license": "MIT",
   "dependencies": {
