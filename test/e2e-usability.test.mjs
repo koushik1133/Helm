@@ -99,7 +99,7 @@ t('E6 booklet: balance due by dd/mm/yyyy from terms + event date; paid in full',
 t('E7 a new invitation is prefilled from the quote (date, time, venue, address, host, names)', () => {
   assert.match(studio, /function prefillFromQuote\(\)/);
   for (const f of ['f_date', 'f_time', 'f_venue', 'f_address', 'f_host', 'f_hostPhone', 'f_names']) assert.match(studio, new RegExp('set\\("' + f + '"'));
-  assert.match(studio, /else \{ (?:await prefillFromPlan\(\); )?prefillFromQuote\(\); applyTypeLabels\(\);/);
+  assert.match(studio, /else \{ (?:await prefillFromPlan\(\); )?prefillFromQuote\(\); (?:applySettings\(\{\}\); )?applyTypeLabels\(\);/);   // r34: a new site starts with the defaults (= today)
 });
 
 // ---- E8 dates in the studio's country style
@@ -130,7 +130,8 @@ t('E9 public page: https only, else "Open in Maps" from venue + address', () => 
 t('E10 RSVP on WhatsApp + Call when a host phone exists; no "reply by" promise without one', () => {
   assert.match(invite, /RSVP on WhatsApp/); assert.match(invite, /https:\/\/wa\.me\/\$\{esc\(wa\)\}\?text=/);
   assert.match(invite, /BPStore\.waNumber/); assert.match(invite, /I'll attend /);
-  assert.match(invite, /if\(digits\.replace\(\/\\D\/g,""\)\.length<7\) return "";/);
+  // r34: no phone (or the studio chose "RSVP form only") and no form -> no RSVP section at all
+  assert.match(invite, /const phone=digits\.replace\(\/\\D\/g,""\)\.length>=7;\s*if\(!phone&&!S\.rsvpForm\) return "";/);
   assert.doesNotMatch(invite, /\$\{d\.rsvpBy\?`<p class="note rv">Kindly reply by/);
 });
 
@@ -195,7 +196,7 @@ t('APPLY-0101.sql: ASCII, one transaction, verify rows', () => {
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0101_e2e_usability\.sql/);
 });
 t('versions bumped', () => {
-  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=294/); assert.match(f, /event-name\.js\?v=9/); assert.match(f, /country-profile\.js\?v=5/); }
+  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=295/); assert.match(f, /event-name\.js\?v=9/); assert.match(f, /country-profile\.js\?v=5/); }
   assert.match(read('public/booklet.html'), /booklet\.js\?v=28/); assert.match(flow, /booklet\.js\?v=28/);
 });
 
