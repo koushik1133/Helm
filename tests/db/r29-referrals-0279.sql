@@ -645,6 +645,76 @@ do $$ declare o uuid; r jsonb; i int; l jsonb; c text := pg_temp.get('codeA'); b
     and exists (select 1 from public.referral_rate_buckets where bucket = 'lk:new-r29c') and (r ->> 'rate_buckets_cleared')::int >= 1, r::text);
 exception when others then perform pg_temp.su(); insert into _rr values ('46x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
+-- ---- 49-53 r29d REF-04: per-network keys - cf-connecting-ip first, IPv6 grouped by its /64, IPv4 unchanged ----------------
+create or replace function pg_temp.net(p_h jsonb) returns text language plpgsql as $$
+begin perform pg_temp.su(); perform set_config('request.headers', coalesce(p_h::text, ''), false); return public._r29_net(); end $$;
+create or replace function pg_temp.anonh(p_h jsonb) returns void language plpgsql as $$
+begin perform pg_temp.su(); perform set_config('request.jwt.claims', '{"role":"anon"}', false);
+  perform set_config('request.headers', p_h::text, false); perform set_config('role', 'anon', false); end $$;
+do $$ declare c text := pg_temp.get('codeA'); i int; v jsonb; w jsonb; n0 int; n1 int; e text; begin
+  perform pg_temp.res('49 REF-04 IPv6: two addresses in one /64 give the same key, another /64 a different one',
+    pg_temp.net('{"cf-connecting-ip":"2001:db8:4ab:1::5"}') = '2001:db8:4ab:1::/64'
+    and pg_temp.net('{"cf-connecting-ip":"2001:db8:4ab:1:ffff:eeee:dddd:9"}') = '2001:db8:4ab:1::/64'
+    and pg_temp.net('{"cf-connecting-ip":"2001:DB8:4AB:1:0:0:0:77"}') = '2001:db8:4ab:1::/64'
+    and pg_temp.net('{"cf-connecting-ip":"2001:db8:4ab:2::5"}') = '2001:db8:4ab:2::/64',
+    coalesce(pg_temp.net('{"cf-connecting-ip":"2001:db8:4ab:1::5"}'), 'null'));
+  perform pg_temp.res('50 REF-04 IPv4 keyed by its full address as before (same value the old helper gave); ::ffff:a.b.c.d is not lumped together',
+    pg_temp.net('{"cf-connecting-ip":"203.0.113.42"}') = '203.0.113.42'
+    and pg_temp.net('{"cf-connecting-ip":"203.0.113.43"}') = '203.0.113.43'
+    and pg_temp.net('{"x-forwarded-for":"203.0.113.44"}') = '203.0.113.44'
+    and pg_temp.net('{"cf-connecting-ip":"::ffff:203.0.113.42"}') <> pg_temp.net('{"cf-connecting-ip":"::ffff:203.0.113.43"}'),
+    coalesce(pg_temp.net('{"cf-connecting-ip":"::ffff:203.0.113.42"}'), 'null'));
+  perform pg_temp.res('51 REF-04 cf-connecting-ip beats a typed x-forwarded-for; empty / junk / no headers -> no key',
+    pg_temp.net('{"cf-connecting-ip":"198.51.100.21","x-forwarded-for":"10.9.9.9, 198.51.100.21"}') = '198.51.100.21'
+    and pg_temp.net('{"cf-connecting-ip":"","x-forwarded-for":"198.51.100.22"}') = '198.51.100.22'
+    and pg_temp.net('{"x-real-ip":"198.51.100.23"}') = '198.51.100.23'
+    and pg_temp.net('{"cf-connecting-ip":"not-an-ip"}') is null and pg_temp.net('[1,2]') is null and pg_temp.net(null) is null);
+  perform pg_temp.su();
+  -- 52 one IPv6 machine rotating through its /64: 61 look-ups from 61 addresses -> the 61st is refused; another /64 is fine
+  for i in 1..61 loop
+    perform pg_temp.anonh(jsonb_build_object('cf-connecting-ip', '2001:db8:52:7:' || to_hex(i) || '::' || to_hex(i * 7)));
+    v := public.referral_lookup(c);
+  end loop;
+  perform pg_temp.anonh('{"cf-connecting-ip":"2001:db8:52:8::1"}'); w := public.referral_lookup(c);
+  perform pg_temp.su();
+  perform pg_temp.res('52 REF-04 look-up: 61 addresses in one IPv6 /64 share one limit (61st -> rate); the next /64 still works',
+    v ->> 'reason' = 'rate' and w ->> 'ok' = 'true', v::text || ' / ' || w::text);
+  -- 53 clicks: 10 addresses in one /64 count as one network (3 an hour); the network helper is internal only
+  select coalesce(sum(clicks), 0) into n0 from public.referral_click_days where code = c;
+  for i in 1..10 loop
+    perform pg_temp.anonh(jsonb_build_object('cf-connecting-ip', '2001:db8:53:9::' || to_hex(i))); perform public.referral_click(c);
+  end loop;
+  perform pg_temp.su(); select coalesce(sum(clicks), 0) into n1 from public.referral_click_days where code = c;
+  perform pg_temp.anonh('{"cf-connecting-ip":"2001:db8:53:9::1"}');
+  e := pg_temp.try('select public._r29_net()');
+  perform pg_temp.su();
+  perform pg_temp.res('53 REF-04 clicks: one IPv6 /64 counts 3 an hour, not 10; anon cannot call the network helper',
+    n1 - n0 = 3 and e like '42501%' and not has_function_privilege('authenticated', 'public._r29_net()', 'execute'),
+    (n1 - n0)::text || ' ' || e);
+exception when others then perform pg_temp.su(); insert into _rr values ('49x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
+-- ---- 54 r29d zero data loss: deleting a studio / a code never deletes referral history -----------------------------------
+do $$ declare a uuid := gen_random_uuid(); c text := 'R29D-KEEP'; nf int; nc int; e1 text; e2 text; begin
+  perform pg_temp.su();
+  -- a bare studio with only a referral fingerprint (no other rows point at it), so only the referral key can refuse
+  insert into public.organizations(id, name, currency, timezone, brand, plan, created_at) values (a, 'R29d bare', 'INR', 'Asia/Kolkata', '{}'::jsonb, 'pro', now());
+  perform public._r29_fp(a, 'email', 'r29d-keep@r29d.test');
+  -- a partner code with only click counts (no referral uses it)
+  insert into public.referral_codes(code, kind, partner_name) values (c, 'partner', 'R29d keep');
+  insert into public.referral_click_days(code, day, clicks) values (c, current_date, 4);
+  select count(*) into nf from public.referral_fingerprints where studio_id = a;
+  select count(*) into nc from public.referral_click_days where code = c;
+  e1 := pg_temp.try(format('delete from public.organizations where id = %L', a));
+  e2 := pg_temp.try(format('delete from public.referral_codes where code = %L', c));
+  perform pg_temp.res('54 r29d no cascade: a studio / code delete is refused, its fingerprints + click counts stay',
+    not exists (select 1 from pg_constraint k join pg_class t on t.oid = k.conrelid where k.contype = 'f' and k.confdeltype = 'c'
+                 and t.relnamespace = 'public'::regnamespace and t.relname like 'referral\_%')
+    and e1 like '23503%referral_fingerprints%' and e2 like '23503%referral_click_days%' and nf >= 1 and nc >= 1
+    and (select count(*) from public.referral_fingerprints where studio_id = a) = nf
+    and (select count(*) from public.referral_click_days where code = c) = nc
+    and exists (select 1 from public.organizations where id = a), e1 || ' / ' || e2 || ' nf=' || nf || ' nc=' || nc);
+exception when others then perform pg_temp.su(); insert into _rr values ('54x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
 select name, result from _rr order by name;
 select case when count(*) filter (where result <> 'PASS') = 0 then 'R29-REFERRALS-0279: ALL PASS (' || count(*) || '/' || count(*) || ')'
             else 'R29-REFERRALS-0279: ' || count(*) filter (where result <> 'PASS') || ' FAILED of ' || count(*) end as summary from _rr;

@@ -42,6 +42,9 @@
 --   expired rate-limit counters, referral_rate_buckets older than 2 hours). Columns written on existing rows:
 --   studio_subscriptions.current_period_end (+1 month per free month; past_due -> active when that covers today) and
 --   billing_reminders.sent_at / channel ('skipped') for a due-soon reminder of a renewal that became free.
+--   r29d REF-04: the public look-up / click limits count per network via _r29_net() - Cloudflare's cf-connecting-ip
+--   first; IPv4 by its full address (unchanged), IPv6 by its /64 (one machine can no longer make endless new keys).
+--   r29d: no referral table deletes on cascade - fingerprints -> studio and click counts -> code are ON DELETE RESTRICT.
 --   Additive + idempotent: safe to run twice. ASCII only. The daily schedule is in SCHEDULE-0279.sql (pg_cron only).
 -- ROLLBACK (manual, only if ever needed): drop trigger r29_payment on public.subscription_payments; drop trigger
 --   r29_subscription on public.studio_subscriptions; select cron.unschedule('helm_referral_tick') (if scheduled);
@@ -116,7 +119,7 @@ create unique index if not exists referral_codes_one_per_studio on public.referr
 
 -- clicks: a count per code per day only (no address, no person, nothing to clean up)
 create table if not exists public.referral_click_days (
-  code   text not null references public.referral_codes(code) on delete cascade,
+  code   text not null references public.referral_codes(code) on delete restrict,
   day    date not null,
   clicks integer not null default 0 check (clicks >= 0),
   primary key (code, day)
@@ -207,7 +210,7 @@ create index if not exists referral_reward_events_reward_idx on public.referral_
 
 -- hashed signals per studio (salted sha256; never a raw e-mail / phone / card / address)
 create table if not exists public.referral_fingerprints (
-  studio_id uuid not null references public.organizations(id) on delete cascade,
+  studio_id uuid not null references public.organizations(id) on delete restrict,
   kind      text not null check (kind in ('email', 'domain', 'phone', 'gstin', 'pan', 'card', 'upi', 'device', 'ip')),
   hash      text not null check (hash ~ '^[0-9a-f]{64}$'),
   at        timestamptz not null default now(),
@@ -259,6 +262,20 @@ end $$;
 drop trigger if exists r29_events_append_only on public.referral_reward_events;
 create trigger r29_events_append_only before update or delete on public.referral_reward_events
   for each row execute function public.tg_r29_events_append_only();
+
+-- r29d (zero data loss): deleting a studio or a code must never delete referral history. The two foreign keys that were
+-- "on delete cascade" (referral_fingerprints -> the studio, referral_click_days -> the code) are "on delete restrict":
+-- the delete is refused instead. Only the rule on the key changes (same name, same columns); no row is touched.
+-- Re-runnable: does nothing once no cascade key is left on a referral table. (Nothing in Helm deletes a studio or a code.)
+do $$ declare r record; begin
+  for r in select c.conname, c.conrelid::regclass::text as tbl, pg_get_constraintdef(c.oid) as def
+             from pg_constraint c join pg_class t on t.oid = c.conrelid
+            where c.contype = 'f' and c.confdeltype = 'c' and t.relnamespace = 'public'::regnamespace and t.relname like 'referral\_%'
+  loop
+    execute format('alter table %s drop constraint %I', r.tbl, r.conname);
+    execute format('alter table %s add constraint %I %s', r.tbl, r.conname, replace(r.def, 'ON DELETE CASCADE', 'ON DELETE RESTRICT'));
+  end loop;
+end $$;
 
 -- ---- 2) small helpers (nobody may call them directly) ----------------------------------------------------------------
 create or replace function public._r29_cfg()
@@ -622,11 +639,31 @@ begin
   return v_n <= p_max;
 end $$;
 
+-- r29d REF-04: the caller's network for the per-network limits (look-up, click). Cloudflare's cf-connecting-ip first (a
+-- visitor can't fake it), then the first x-forwarded-for entry / x-real-ip (local tests only). IPv4 = the full address
+-- (same key as before). IPv6 = its /64: one home or phone line is given a whole /64, so keying by the full address let
+-- one machine make endless new keys. An IPv4 address written as IPv6 (::ffff:a.b.c.d) is keyed like IPv4 (full address).
+create or replace function public._r29_net()
+returns text language plpgsql stable set search_path = '' as $$
+-- r29-referrals-0279 r29d REF-04
+declare h jsonb; v text; a inet;
+begin
+  begin h := nullif(current_setting('request.headers', true), '')::jsonb; exception when others then h := null; end;
+  if h is null or jsonb_typeof(h) <> 'object' then return null; end if;
+  v := coalesce(nullif(btrim(coalesce(h ->> 'cf-connecting-ip', '')), ''),
+                nullif(btrim(split_part(coalesce(h ->> 'x-forwarded-for', ''), ',', 1)), ''),
+                nullif(btrim(coalesce(h ->> 'x-real-ip', '')), ''));
+  if v is null then return null; end if;
+  begin a := left(v, 64)::inet; exception when others then return null; end;
+  if family(a) = 6 and not (a <<= '::ffff:0:0/96'::inet) then return network(set_masklen(a, 64))::text; end if;
+  return host(a);
+end $$;
+
 create or replace function public.referral_lookup(p_code text)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 -- r29-referrals-0279
 declare v text := upper(btrim(coalesce(p_code, ''))); c public.referral_codes; v_prob text;
-  v_net text := coalesce(public._r29_hash('ip', public._hq27_client_ip()), 'none');
+  v_net text := coalesce(public._r29_hash('ip', public._r29_net()), 'none');
 begin
   if v !~ '^[A-Z0-9][A-Z0-9_-]{2,23}$' then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
   -- r29c REF-03: per network only - a shared "everyone" counter let one sender block the look-up for all visitors
@@ -644,7 +681,7 @@ end $$;
 create or replace function public.referral_click(p_code text)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 -- r29-referrals-0279
-declare v text := upper(btrim(coalesce(p_code, ''))); v_net text := coalesce(public._r29_hash('ip', public._hq27_client_ip()), 'none');
+declare v text := upper(btrim(coalesce(p_code, ''))); v_net text := coalesce(public._r29_hash('ip', public._r29_net()), 'none');
 begin
   if v !~ '^[A-Z0-9][A-Z0-9_-]{2,23}$' or not exists (select 1 from public.referral_codes c where c.code = v) then
     return jsonb_build_object('ok', false); end if;
@@ -1327,7 +1364,7 @@ begin
       'public._r29_value(uuid)', 'public._r29_notify(uuid,text,uuid,text,text)', 'public._r29_set_state(uuid,text,text,uuid)',
       'public._r29_add_reward(uuid,uuid,text,text,text,text,integer,integer)', 'public._r29_earned_12m(uuid)', 'public._r29_studio_code(uuid)',
       'public._r29_label(uuid)', 'public._r29_offer(public.referral_codes)', 'public._r29_code_problem(public.referral_codes)',
-      'public._r29_attach(uuid,text,text,boolean,text,timestamptz,uuid)', 'public._r29_rate(text,integer)',
+      'public._r29_attach(uuid,text,text,boolean,text,timestamptz,uuid)', 'public._r29_rate(text,integer)', 'public._r29_net()',
       'public._r29_on_payment(uuid,uuid)', 'public._r29_reverse(uuid,text,uuid)', 'public._r29_on_void(uuid,uuid)',
       'public.tg_r29_payment()', 'public.tg_r29_subscription()', 'public.tg_r29_events_append_only()',
       'public._r29_qualify(uuid,uuid)', 'public._r29_apply(uuid)', 'public.referral_tick()',

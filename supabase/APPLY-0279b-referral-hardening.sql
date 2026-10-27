@@ -6,8 +6,16 @@
 --   REF-03  the public code look-up no longer has a shared "everyone" counter (one sender could use it up and block the
 --           look-up for every visitor); the per-network limit (60 an hour) stays. The daily job now clears its own expired
 --           rate-limit counters (referral_rate_buckets older than 2 hours - hour windows, nothing about a person).
--- 3 functions re-issued in place (same names, arguments, answers, grants). No table, column, policy or referral row is
--- changed. Safe to run twice. ASCII only.
+-- R29d (same review):
+--   REF-04  the public code look-up and the link-click counter limit per network. They keyed on the full internet
+--           address, so one IPv6 machine (every home / phone line gets a whole /64 block) could make endless new keys.
+--           A new internal helper _r29_net() now reads Cloudflare's cf-connecting-ip first (a visitor can't fake it)
+--           and keys IPv6 by its /64; IPv4 stays keyed by its full address (same key as before).
+--   zero data loss: two referral keys were "on delete cascade" (deleting a studio or a code would have deleted its
+--           fingerprints / click counts). They become "on delete restrict" (same name and columns; no row touched).
+-- 1 new internal helper + 4 functions re-issued in place (same names, arguments, answers, grants) + 2 key rules changed
+-- from cascade to restrict. No table, column, policy or referral row is changed or removed. Safe to run twice (also safe on a database that already ran an earlier 0279b).
+-- ASCII only.
 --
 -- OWNER STEPS (staging first, then production):
 --   1  Paste this whole file and Run. If it says STOP, run APPLY-0279.sql instead (0279 is not on this database yet).
@@ -19,7 +27,8 @@ do $$ begin
      or to_regprocedure('public._r29_rate(text, integer)') is null
      or to_regprocedure('public._r29_attach(uuid, text, text, boolean, text, timestamptz, uuid)') is null
      or to_regprocedure('public.referral_attach(text, text, timestamptz, boolean, text)') is null
-     or to_regprocedure('public.referral_lookup(text)') is null or to_regprocedure('public.referral_tick()') is null then
+     or to_regprocedure('public.referral_lookup(text)') is null or to_regprocedure('public.referral_click(text)') is null
+     or to_regprocedure('public.referral_tick()') is null then
     raise exception 'STOP 0279b: 0279 (referral program) is not applied here - run APPLY-0279.sql instead (it already has these fixes)';
   end if;
 end $$;
@@ -50,11 +59,31 @@ begin
   return jsonb_build_object('ok', false, 'reason', case when v_t <> '' or btrim(coalesce(p_typed, '')) <> '' then 'unknown' else 'none' end);
 end $$;
 
+-- r29d REF-04: the caller's network for the per-network limits (look-up, click). Cloudflare's cf-connecting-ip first (a
+-- visitor can't fake it), then the first x-forwarded-for entry / x-real-ip (local tests only). IPv4 = the full address
+-- (same key as before). IPv6 = its /64: one home or phone line is given a whole /64, so keying by the full address let
+-- one machine make endless new keys. An IPv4 address written as IPv6 (::ffff:a.b.c.d) is keyed like IPv4 (full address).
+create or replace function public._r29_net()
+returns text language plpgsql stable set search_path = '' as $$
+-- r29-referrals-0279 r29d REF-04
+declare h jsonb; v text; a inet;
+begin
+  begin h := nullif(current_setting('request.headers', true), '')::jsonb; exception when others then h := null; end;
+  if h is null or jsonb_typeof(h) <> 'object' then return null; end if;
+  v := coalesce(nullif(btrim(coalesce(h ->> 'cf-connecting-ip', '')), ''),
+                nullif(btrim(split_part(coalesce(h ->> 'x-forwarded-for', ''), ',', 1)), ''),
+                nullif(btrim(coalesce(h ->> 'x-real-ip', '')), ''));
+  if v is null then return null; end if;
+  begin a := left(v, 64)::inet; exception when others then return null; end;
+  if family(a) = 6 and not (a <<= '::ffff:0:0/96'::inet) then return network(set_masklen(a, 64))::text; end if;
+  return host(a);
+end $$;
+
 create or replace function public.referral_lookup(p_code text)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 -- r29-referrals-0279
 declare v text := upper(btrim(coalesce(p_code, ''))); c public.referral_codes; v_prob text;
-  v_net text := coalesce(public._r29_hash('ip', public._hq27_client_ip()), 'none');
+  v_net text := coalesce(public._r29_hash('ip', public._r29_net()), 'none');
 begin
   if v !~ '^[A-Z0-9][A-Z0-9_-]{2,23}$' then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
   -- r29c REF-03: per network only - a shared "everyone" counter let one sender block the look-up for all visitors
@@ -66,6 +95,20 @@ begin
   return jsonb_build_object('ok', true, 'code', c.code, 'kind', case when c.kind = 'studio' then 'referral' else 'partner' end,
     'offer', public._r29_offer(c), 'offer_type', c.offer_type, 'months', c.offer_months, 'percent', c.offer_percent,
     'for_months', c.offer_for_months, 'ends_at', c.ends_at, 'terms', c.terms);
+end $$;
+
+create or replace function public.referral_click(p_code text)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r29-referrals-0279
+declare v text := upper(btrim(coalesce(p_code, ''))); v_net text := coalesce(public._r29_hash('ip', public._r29_net()), 'none');
+begin
+  if v !~ '^[A-Z0-9][A-Z0-9_-]{2,23}$' or not exists (select 1 from public.referral_codes c where c.code = v) then
+    return jsonb_build_object('ok', false); end if;
+  if not public._r29_rate('ck:' || left(v_net, 32) || ':' || v, 3) or not public._r29_rate('ck:all', 20000) then
+    return jsonb_build_object('ok', true); end if;
+  insert into public.referral_click_days(code, day, clicks) values (v, (now() at time zone 'Asia/Kolkata')::date, 1)
+  on conflict (code, day) do update set clicks = public.referral_click_days.clicks + 1;
+  return jsonb_build_object('ok', true);
 end $$;
 
 create or replace function public.referral_tick()
@@ -119,6 +162,27 @@ begin
                             'rate_buckets_cleared', n_rb, 'at', now());
 end $$;
 
+-- r29d (zero data loss): deleting a studio or a code must never delete referral history. The two foreign keys that were
+-- "on delete cascade" (referral_fingerprints -> the studio, referral_click_days -> the code) are "on delete restrict":
+-- the delete is refused instead. Only the rule on the key changes (same name, same columns); no row is touched.
+-- Re-runnable: does nothing once no cascade key is left on a referral table. (Nothing in Helm deletes a studio or a code.)
+do $$ declare r record; begin
+  for r in select c.conname, c.conrelid::regclass::text as tbl, pg_get_constraintdef(c.oid) as def
+             from pg_constraint c join pg_class t on t.oid = c.conrelid
+            where c.contype = 'f' and c.confdeltype = 'c' and t.relnamespace = 'public'::regnamespace and t.relname like 'referral\_%'
+  loop
+    execute format('alter table %s drop constraint %I', r.tbl, r.conname);
+    execute format('alter table %s add constraint %I %s', r.tbl, r.conname, replace(r.def, 'ON DELETE CASCADE', 'ON DELETE RESTRICT'));
+  end loop;
+end $$;
+
+-- r29d: the network helper is internal only (the two public RPCs keep their grants)
+do $$ begin
+  execute 'revoke all on function public._r29_net() from public';
+  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function public._r29_net() from anon'; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function public._r29_net() from authenticated'; end if;
+end $$;
+
 notify pgrst, 'reload schema';
 commit;
 
@@ -138,5 +202,22 @@ select item, ok from (values
   ('05 nothing removed: every referral table still there',
      (select count(*) from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r'
         and c.relname in ('referral_settings', 'referral_codes', 'referral_click_days', 'referral_rate_buckets', 'referrals',
-                          'referral_rewards', 'referral_reward_events', 'referral_fingerprints', 'referral_notice_queue')) = 9)
+                          'referral_rewards', 'referral_reward_events', 'referral_fingerprints', 'referral_notice_queue')) = 9),
+  ('06 r29d REF-04: look-up + click limits count per network (cf-connecting-ip first; IPv6 by its /64, IPv4 unchanged)',
+     to_regprocedure('public._r29_net()') is not null
+     and position('set_masklen(a, 64)' in pg_get_functiondef('public._r29_net()'::regprocedure)) > 0
+     and position('cf-connecting-ip' in pg_get_functiondef('public._r29_net()'::regprocedure)) > 0
+     and position('public._r29_net()' in pg_get_functiondef('public.referral_lookup(text)'::regprocedure)) > 0
+     and position('public._r29_net()' in pg_get_functiondef('public.referral_click(text)'::regprocedure)) > 0
+     and position('_hq27_client_ip' in pg_get_functiondef('public.referral_lookup(text)'::regprocedure)) = 0
+     and position('_hq27_client_ip' in pg_get_functiondef('public.referral_click(text)'::regprocedure)) = 0),
+  ('07 r29d the network helper is internal only; look-up + click stay public',
+     not has_function_privilege('anon', 'public._r29_net()', 'execute')
+     and not has_function_privilege('authenticated', 'public._r29_net()', 'execute')
+     and has_function_privilege('anon', 'public.referral_click(text)', 'execute')),
+  ('08 r29d zero data loss: no referral table deletes on cascade (fingerprints + click counts are on delete restrict)',
+     not exists (select 1 from pg_constraint c join pg_class t on t.oid = c.conrelid where c.contype = 'f' and c.confdeltype = 'c'
+                  and t.relnamespace = 'public'::regnamespace and t.relname like 'referral\_%')
+     and (select count(*) from pg_constraint c where c.contype = 'f' and c.confdeltype = 'r'
+            and c.conrelid in ('public.referral_fingerprints'::regclass, 'public.referral_click_days'::regclass)) = 2)
 ) v(item, ok) order by item;

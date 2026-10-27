@@ -137,11 +137,57 @@ t("REF-02 / REF-03 in 0279 + APPLY-0279 + APPLY-0279b (for a database that alrea
   const b = read("supabase/APPLY-0279b-referral-hardening.sql");
   assert.doesNotMatch(b, /[^\x00-\x7f]/, "ASCII");
   assert.match(b, /^begin;$/m); assert.match(b, /^commit;$/m); assert.match(b, /STOP 0279b:/); assert.match(b, /-- VERIFY \(every row must say ok = true\)/);
-  for (const fn of ["referral_attach", "referral_lookup", "referral_tick"]) {
+  for (const fn of ["referral_attach", "referral_lookup", "referral_tick", "referral_click", "_r29_net"]) {
     const re = (src) => { const i = src.indexOf("create or replace function public." + fn + "("); return src.slice(i, src.indexOf("end $$;", i)); };
     assert.equal(re(b), re(sql), fn + " body in 0279b = 0279");
   }
-  assert.equal((b.match(/create or replace function/g) || []).length, 3, "only the 3 functions");
+  assert.equal((b.match(/create or replace function/g) || []).length, 5, "only the 3 r29c functions + the r29d helper + referral_click");
   assert.doesNotMatch(b.replace(/delete from public\.referral_rate_buckets where window_start < now\(\) - interval '2 hours';/, ""), /\bdelete\s+from\b|\bdrop\s+(table|column|function)\b|\btruncate\b/i);
+});
+// r29d
+t("REF-01 leftover: the funnel step and the HQ demo notes say what the server gives (free month after the first payment)", () => {
+  const rules = read("public/referral-rules.js"), demo = read("public/referral-demo.js");
+  assert.match(rules, /help: "Picked a plan\. They get 1 free month after their first payment\." \}/);
+  for (const f of ["referral-rules.js", "referral-demo.js", "referral-signup.js", "refer.js", "refer.html", "hq-referrals.js", "hq-referrals.html", "login.html"]) {
+    assert.doesNotMatch(read("public/" + f), /first (paid )?month (is )?(free|billed)|paid month is free|payment is after it/i, f + ": no 'first paid month free' wording");
+  }
+  assert.equal((demo.match(/note: "Renewal after the first payment billed \$0"/g) || []).length, 3);
+  for (const f of ["login.html", "refer.html", "hq-referrals.html"]) {
+    const src = read("public/" + f);
+    assert.match(src, /\/referral-rules\.js\?v=2/, f + " loads the new rules"); assert.doesNotMatch(src, /referral-rules\.js\?v=1\b/);
+    assert.match(src, /\/referral-demo\.js\?v=2/, f + " loads the new demo notes");
+  }
+});
+t("REF-04 per-network keys: cf-connecting-ip first, IPv6 by its /64, IPv4 unchanged; in 0279, APPLY-0279 and APPLY-0279b", () => {
+  const net = (src) => { const i = src.indexOf("create or replace function public._r29_net()"); assert.ok(i > 0); return src.slice(i, src.indexOf("end $$;", i)); };
+  const h = net(sql);
+  assert.ok(h.indexOf("cf-connecting-ip") > 0 && h.indexOf("cf-connecting-ip") < h.indexOf("x-forwarded-for"), "Cloudflare header first");
+  assert.match(h, /if family\(a\) = 6 and not \(a <<= '::ffff:0:0\/96'::inet\) then return network\(set_masklen\(a, 64\)\)::text; end if;/);
+  assert.match(h, /return host\(a\);/); assert.doesNotMatch(h, /security definer/);
+  for (const fn of ["referral_lookup", "referral_click"]) {
+    const i = sql.indexOf("create or replace function public." + fn + "("), body = sql.slice(i, sql.indexOf("end $$;", i));
+    assert.match(body, /coalesce\(public\._r29_hash\('ip', public\._r29_net\(\)\), 'none'\)/, fn + " keys by network");
+    assert.doesNotMatch(body, /_hq27_client_ip/, fn);
+  }
+  assert.match(sql, /'public\._r29_rate\(text,integer\)', 'public\._r29_net\(\)',/, "helper in the internal-only revoke list");
+  assert.ok(apply.includes(sql), "APPLY-0279 carries 0279 verbatim");
+  assert.match(apply, /'09 r29d REF-04/); assert.match(apply, /'10 r29d the network helper is internal only/);
+  const b = read("supabase/APPLY-0279b-referral-hardening.sql");
+  assert.equal(net(b), h, "0279b helper = 0279 helper");
+  assert.match(b, /revoke all on function public\._r29_net\(\) from anon/); assert.match(b, /'06 r29d REF-04/); assert.match(b, /'07 r29d/);
+  for (const f of ["supabase/migrations/0279_referral_program.sql", "supabase/APPLY-0279.sql", "supabase/APPLY-0279b-referral-hardening.sql"]) {
+    assert.doesNotMatch(read(f), /[^\x00-\x7f]/, f + " ASCII");
+  }
+});
+t("r29d zero data loss: no referral key deletes on cascade (0279 + APPLY-0279 + APPLY-0279b)", () => {
+  assert.doesNotMatch(sql.replace(/^--.*$/gm, "").replace(/'ON DELETE CASCADE'/g, ""), /on delete cascade/i, "0279 tables: no cascade");
+  assert.match(sql, /referral_click_days \(\n  code   text not null references public\.referral_codes\(code\) on delete restrict,/);
+  assert.match(sql, /studio_id uuid not null references public\.organizations\(id\) on delete restrict,/);
+  const fix = /c\.contype = 'f' and c\.confdeltype = 'c' and t\.relnamespace = 'public'::regnamespace and t\.relname like 'referral\\_%'/;
+  const b = read("supabase/APPLY-0279b-referral-hardening.sql");
+  for (const [f, src] of [["0279", sql], ["APPLY-0279", apply], ["APPLY-0279b", b]]) {
+    assert.match(src, fix, f + " converts an existing cascade key"); assert.match(src, /replace\(r\.def, 'ON DELETE CASCADE', 'ON DELETE RESTRICT'\)/, f);
+  }
+  assert.match(apply, /'11 r29d zero data loss/); assert.match(b, /'08 r29d zero data loss/);
 });
 console.log("r29-referrals-wiring: ok (" + n + " checks)");

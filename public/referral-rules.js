@@ -43,7 +43,7 @@
     clicked:       { label: "Clicked",                 tone: "muted", step: 1, help: "Opened your link. Nothing is saved about them until they sign up." },
     signed_up:     { label: "Signed up",               tone: "info",  step: 2, help: "Created a Helm account with your code." },
     trial:         { label: "On free trial",           tone: "info",  step: 2, help: "Trying Helm for 8 days." },
-    first_month:   { label: "Paid plan, free month",   tone: "info",  step: 3, help: "Picked a plan. Their first paid month is free; their first payment is after it." },
+    first_month:   { label: "Paid plan, free month",   tone: "info",  step: 3, help: "Picked a plan. They get 1 free month after their first payment." },
     hold:          { label: "Paid, checking",          tone: "warn",  step: 3, help: "Paid their first bill. We wait 14 days for refunds or disputes, then your month is confirmed." },
     review:        { label: "Under review",            tone: "warn",  step: 3, help: "Our team is checking this one by hand. Nothing is wrong yet." },
     qualified:     { label: "Paid ✓ reward earned", tone: "good",  step: 4, help: "They are a paying studio. You earned 1 free month." },

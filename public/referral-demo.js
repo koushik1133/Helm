@@ -74,14 +74,14 @@
   /* rewards ledger (HQ): one line per free month, both sides */
   var ledger = [
     { id: "RW-301", studio: "Shaadi Squad Events", side: "Referrer", from: "RF-1042", plan: "studio", state: "applied", when: ago(20), note: "September renewal billed $0" },
-    { id: "RW-302", studio: "Marigold Moments", side: "New studio", from: "RF-1042", plan: "starter", state: "applied", when: ago(63), note: "First paid month billed $0" },
+    { id: "RW-302", studio: "Marigold Moments", side: "New studio", from: "RF-1042", plan: "starter", state: "applied", when: ago(63), note: "Renewal after the first payment billed $0" },
     { id: "RW-303", studio: "Shaadi Squad Events", side: "Referrer", from: "RF-1051", plan: "studio", state: "scheduled", when: ahead(9), note: "Next renewal" },
-    { id: "RW-304", studio: "Royal Mandap", side: "New studio", from: "RF-1051", plan: "studio", state: "applied", when: ago(49), note: "First paid month billed $0" },
+    { id: "RW-304", studio: "Royal Mandap", side: "New studio", from: "RF-1051", plan: "studio", state: "applied", when: ago(49), note: "Renewal after the first payment billed $0" },
     { id: "RW-305", studio: "Shaadi Squad Events", side: "Referrer", from: "RF-1058", plan: "studio", state: "scheduled", when: ahead(39), note: "Stacked after the next free month" },
     { id: "RW-306", studio: "Gulmohar Weddings", side: "Referrer", from: "RF-1072", plan: "studio", state: "held", when: 0, note: "Referrer still on trial: waits for their first payment (up to 6 months)" },
     { id: "RW-307", studio: "Baraat Bureau", side: "Referrer", from: "RF-1075", plan: "studio", state: "frozen", when: 0, note: "Referrer cancelled: back if they return within 6 months" },
     { id: "RW-308", studio: "Shaadi Squad Events", side: "Referrer", from: "RF-1083", plan: "studio", state: "reversed", when: ago(36), note: "New studio refunded inside 14 days: never applied" },
-    { id: "RW-309", studio: "Lotus Lane Events", side: "New studio", from: "RF-1072", plan: "starter", state: "applied", when: ago(25), note: "First paid month billed $0" }
+    { id: "RW-309", studio: "Lotus Lane Events", side: "New studio", from: "RF-1072", plan: "starter", state: "applied", when: ago(25), note: "Renewal after the first payment billed $0" }
   ];
 
   /* codes the sign-up page recognises in the demo */
