@@ -533,8 +533,23 @@
         { label: "Added a teammate", value: f.added_team, pct: p(f.added_team, f.signed_up) }, { label: "Paid Helm", value: f.paid, pct: p(f.paid, f.signed_up) }]);
     } else clear($("#cFun")).appendChild(el("div", { cls: "empty", text: "Appears after SQL 0272 is applied." }));
   }
+  // r42: small line icons for "Needs attention" (same 24-grid stroke style as the side menu; no emoji / text glyphs)
+  var ATT_ICONS = {
+    mail: "M4 6h16v12H4zM4 7l8 6 8-6",
+    payment: "M3 7h18v10H3zM3 11h18M7 15h3",
+    clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 7v5l3 2",
+    alert: "M12 3l9.5 17h-19zM12 10v4M12 17.5h.01",
+    quiet: "M3 6l6 6 4-4 8 8M21 11v5h-5",
+    check: "M5 12.5l4.5 4.5L19 7.5"
+  };
+  function attIcon(name) {
+    var NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"), path = document.createElementNS(NS, "path");
+    svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("aria-hidden", "true"); svg.setAttribute("focusable", "false");
+    path.setAttribute("d", ATT_ICONS[name] || ATT_ICONS.alert); svg.appendChild(path);
+    return svg;
+  }
   function attRow(icon, tone, title, sub, go, btnText) {
-    var li = el("li", null, [el("span", { cls: "ic " + tone, text: icon, "aria-hidden": "true" }), el("div", { cls: "tx" }, [el("b", { text: title }), el("span", { text: sub })])]);
+    var li = el("li", null, [el("span", { cls: "ic " + tone, "aria-hidden": "true" }, [attIcon(icon)]), el("div", { cls: "tx" }, [el("b", { text: title }), el("span", { text: sub })])]);
     if (go) { var b = el("button", { cls: "btn sm", type: "button", text: btnText || "Open" }); b.addEventListener("click", go); li.appendChild(b); }
     return li;
   }
@@ -543,14 +558,14 @@
     var open = function (id) { return canTab("studios") ? function () { openStudio(id); } : null; };
     var reqs = [["new_plan_requests", "plan request", "plan requests", "plan"], ["new_sales_enquiries", "sales enquiry", "sales enquiries", "sales"],
       ["new_suggestions", "suggestion", "suggestions", "sugg"]];
-    reqs.forEach(function (r) { var c = num(a[r[0]]); if (c > 0) add(attRow("✉", "warn", int(c) + " new " + (c === 1 ? r[1] : r[2]), "waiting for a reply",
+    reqs.forEach(function (r) { var c = num(a[r[0]]); if (c > 0) add(attRow("mail", "warn", int(c) + " new " + (c === 1 ? r[1] : r[2]), "waiting for a reply",
       canTab("requests") ? function () { showTab("requests"); reqTab(r[3]); loadRequestsTab(); } : null, "Reply")); });
-    (a.past_due || []).forEach(function (x) { add(attRow("₹", "bad", (x.name || "Studio") + " — payment pending", "plan period ended " + date(x.period_end), open(x.org_id), "Open")); });
-    (a.trials_ending || []).forEach(function (x) { add(attRow("⏳", "warn", (x.name || "Studio") + " — trial ends " + trialDay(x.ends_at), "talk to them before it ends", open(x.org_id), "Open")); });
-    var nf = failedEmails(m); if (nf > 0) add(attRow("!", "bad", int(nf) + " e-mail" + (nf === 1 ? "" : "s") + " failed in 7 days", "see System health", null));
-    (a.at_risk || []).forEach(function (x) { add(attRow("↓", "", (x.name || "Studio") + " — paying, quiet", "no sign-in " + (x.last_sign_in ? "since " + date(x.last_sign_in) : "yet"), open(x.org_id), "Open")); });
-    if (!m) { var pd = num((o.billing || {}).past_due_count); if (pd) add(attRow("₹", "bad", int(pd) + " studio" + (pd === 1 ? "" : "s") + " past due", "see Billing", goTab("billing"))); }
-    if (!n) ul.appendChild(attRow("✓", "ok", "All clear", "nothing needs you right now", null));
+    (a.past_due || []).forEach(function (x) { add(attRow("payment", "bad", (x.name || "Studio") + " — payment pending", "plan period ended " + date(x.period_end), open(x.org_id), "Open")); });
+    (a.trials_ending || []).forEach(function (x) { add(attRow("clock", "warn", (x.name || "Studio") + " — trial ends " + trialDay(x.ends_at), "talk to them before it ends", open(x.org_id), "Open")); });
+    var nf = failedEmails(m); if (nf > 0) add(attRow("alert", "bad", int(nf) + " e-mail" + (nf === 1 ? "" : "s") + " failed in 7 days", "see System health", null));
+    (a.at_risk || []).forEach(function (x) { add(attRow("quiet", "", (x.name || "Studio") + " — paying, quiet", "no sign-in " + (x.last_sign_in ? "since " + date(x.last_sign_in) : "yet"), open(x.org_id), "Open")); });
+    if (!m) { var pd = num((o.billing || {}).past_due_count); if (pd) add(attRow("payment", "bad", int(pd) + " studio" + (pd === 1 ? "" : "s") + " past due", "see Billing", goTab("billing"))); }
+    if (!n) ul.appendChild(attRow("check", "ok", "All clear", "nothing needs you right now", null));
     $("#attCount").textContent = n ? int(n) + " item" + (n === 1 ? "" : "s") : "";
   }
   var QUEUE_OK_MIN = 60;   // a waiting e-mail older than this many minutes = the sender is probably not running

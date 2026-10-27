@@ -71,4 +71,13 @@ t('run-all registers the DB suite; MANIFEST + release lists carry 0278 / 0280', 
   assert.ok(man.indexOf('0277_hq_staff_roles.sql') < man.indexOf('0278_hq_reveal_log.sql') && man.indexOf('0278_hq_reveal_log.sql') < man.indexOf('0280_hq_v2_round2.sql'));
   for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0277', '0278', '0280'/);
 });
+t('Needs attention: small line icons (SVG, no emoji / text glyphs), fixed 32px box', () => {
+  const i = J.indexOf('function renderAttention('); const body = J.slice(i, J.indexOf('var QUEUE_OK_MIN', i));
+  const icons = [...body.matchAll(/attRow\("([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(icons.length >= 6);
+  for (const k of icons) assert.match(k, /^(mail|payment|clock|alert|quiet|check)$/, 'icon key ' + k);
+  assert.match(J, /document\.createElementNS\(NS, "svg"\)/);
+  assert.doesNotMatch(body, /[\u2190-\u21ff\u2300-\u23ff\u2600-\u27bf\u20b9]|\p{Extended_Pictographic}/u);
+  assert.match(H, /\.list\.att li>\.ic:first-child\{flex:0 0 32px;width:32px\}/);
+});
 console.log(process.exitCode ? 'r42-hq-v2: FAILED' : `r42-hq-v2: ${n} passed`);
