@@ -148,7 +148,7 @@ for (const [evt, payload, expect] of [
       const call = supaLog().find((e) => e.rpc === "razorpay_record_event");
       assert(call, "record rpc called");
       const a = call!.args as any;
-      assertEquals(a.p_event_id, "evt_ABC123"); assertEquals(a.p_type, evt); assertEquals(a.p_org, null);
+      assert(String(a.p_event_id).startsWith("body:"), "R32 SRV-2: key from the signed body, not the unsigned header"); assertEquals(a.p_type, evt); assertEquals(a.p_org, null);
       for (const [k, v] of Object.entries(expect)) assertEquals(a[k], v, k);
       assert(!supaLog().some((e) => e.rpc === "razorpay_settle" || e.rpc === "razorpay_settle_for_org"));
     } finally { rF(); rEnv(); }

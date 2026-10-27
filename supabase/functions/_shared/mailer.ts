@@ -96,7 +96,7 @@ export async function sendMail(msg: MailMsg, opts: { env?: EnvGet; smtp?: SmtpSe
   if (cfg.provider === "resend") {
     try {
       const env = opts.env || envOf();
-      const r = await fetch("https://api.resend.com/emails", {
+      const r = await fetch("https://api.resend.com/emails", { redirect: "error",
         method: "POST",
         headers: { "Authorization": "Bearer " + env("RESEND_API_KEY"), "Content-Type": "application/json" },
         body: JSON.stringify({ from, to: [to], subject, text: body.text, ...(body.html ? { html: body.html } : {}), ...(headers ? { headers } : {}), ...(replyTo ? { reply_to: replyTo } : {}) }),

@@ -20,7 +20,7 @@
 // Secrets / env: OPENAI_API_KEY (switches it on), OPENAI_IMAGE_MODEL (default gpt-image-2.5-sunburst),
 //   RENDER_TIMEOUT_MS (default 140000; max 380000 on paid plans), RENDER_COST_USD_LOW / _MEDIUM / _HIGH (per image estimate),
 //   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY (injected).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 
@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
         const timer = setTimeout(() => ac.abort(), timeout);
         let r: Response;
         try {
-          r = await fetch(OPENAI_EDITS, { method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("OPENAI_API_KEY")!.trim() }, body: fd, signal: ac.signal });
+          r = await fetch(OPENAI_EDITS, { method: "POST", redirect: "error", headers: { Authorization: "Bearer " + Deno.env.get("OPENAI_API_KEY")!.trim() }, body: fd, signal: ac.signal });
         } catch (e) {
           clearTimeout(timer);
           const to = (e as Error)?.name === "AbortError";

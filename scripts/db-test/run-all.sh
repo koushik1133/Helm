@@ -244,8 +244,19 @@ run "r25-automations-0274" "R25-AUTOMATIONS-0274: ALL PASS \(30/30\)" psql -q -f
 run "r26-captcha-0276" "R26-CAPTCHA-0276: ALL PASS \(30/30\)" psql -q -f tests/db/r26-captcha-0276.sql
 # 0277 re-applies itself (later suites may re-apply 0263 / 0271 bodies), rolled back
 run "r27-hq-staff-0277" "R27-HQ-STAFF-0277: ALL PASS \(58/58\)" psql -q -f tests/db/r27-hq-staff-0277.sql
+# 0279 re-applies itself twice (re-run safe), after every suite that re-applies 0045 / 0244 / 0273 / 0277, rolled back
+run "r29-referrals-0279" "R29-REFERRALS-0279: ALL PASS \(91/91\)" psql -q -f tests/db/r29-referrals-0279.sql
+# 0281 re-applies itself (earlier suites re-apply the 0026 / 0069 / 0269 / 0271 bodies), rolled back
+run "r31-client-ip-0281" "R31-CLIENT-IP-0281: ALL PASS \(16/16\)" psql -q -f tests/db/r31-client-ip-0281.sql
+# 0282 re-applies itself twice (earlier suites re-apply the 0049 / 0126 / 0155 / 0166 / 0264 bodies), rolled back
+run "r32-security-0282" "R32-SECURITY-0282: ALL PASS \(51/51\)" psql -q -f tests/db/r32-security-0282.sql
+# R32b (review round 2): price decrease after confirmation, change request below paid, close requests + close_owed,
+# payments after closing, seats (joining / lapsed subscriptions), admin_create_user refusals counted
+run "r32b-round2-0282" "R32B-ROUND2-0282: ALL PASS \(35/35\)" psql -q -f tests/db/r32b-round2-0282.sql
+# 0283 re-applies itself twice (earlier suites re-apply the 0184 / 0266 / 0282 bodies), rolled back
+run "r33-team-safety-0283" "R33-TEAM-SAFETY-0283: ALL PASS \(87/87\)" psql -q -f tests/db/r33-team-safety-0283.sql
 # 0285 re-applies itself twice (re-run safe; later than every suite that re-applies 0264 / 0150 / 0117), rolled back
-run "r35-paysafe-0285" "R35-PAYSAFE-0285: ALL PASS \(83/83\)" psql -q -f tests/db/r35-paysafe-0285.sql
+run "r35-paysafe-0285" "R35-PAYSAFE-0285: ALL PASS \(100/100\)" psql -q -f tests/db/r35-paysafe-0285.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

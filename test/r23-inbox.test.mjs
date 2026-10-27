@@ -68,7 +68,7 @@ t('page: tabs, bulk bar, e-mail dialog, custom snooze, no inline scripts / handl
 t('shell + routes: inbox is an app page (sidebar layout, G I, noindex / no-store)', () => {
   assert.match(read('public/shell-proto.js'), /inbox: 1,/);
   assert.match(read('public/shell-b.js'), /i: \["inbox\.html", "Inbox \(notifications\)"\]/);
-  assert.match(read('vercel.json'), /\|hq\|inbox\|insights\|/);
+  assert.match(read('vercel.json'), /\|hq\|hq-referrals\|inbox\|insights\|/);
   assert.match(read('public/_headers'), /\n\/inbox\n  X-Robots-Tag: noindex/);
 });
 t('Control Center card: studio defaults, edit gate, hidden before 0266', () => {

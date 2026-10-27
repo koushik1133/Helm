@@ -261,12 +261,15 @@
       var tz = (state.cfg && state.cfg.timezone) || "Asia/Kolkata";
       var ans = await U().prompt("New expected time (hh:mm, " + tz + ") - and a short reason after a space, e.g. 17:30 truck stuck", { title: "Delayed" });
       if (ans == null) return;
-      var m = /^\s*(\d{1,2}):(\d{2})\s*(.*)$/.exec(String(ans));
+      // R36: "5:30 pm truck stuck" is 17:30 (the am/pm used to be dropped into the reason and the time read as 05:30)
+      var m = /^\s*(\d{1,2}):(\d{2})\s*(?:([ap])\.?\s*m\b\.?)?\s*(.*)$/i.exec(String(ans)), H = m ? +m[1] : -1;
+      if (m && m[3]) { var pm = m[3].toLowerCase() === "p"; H = H < 1 || H > 12 ? -1 : (H % 12) + (pm ? 12 : 0); }
+      if (m && (H < 0 || H > 23 || +m[2] > 59)) m = null;
       if (m) {
-        var due = isoToZoned(row.eta_at || row.due_at, tz), hh = ("0" + m[1]).slice(-2);
+        var due = isoToZoned(row.eta_at || row.due_at, tz), hh = ("0" + H).slice(-2);
         var iso = zonedToIso(due.date, hh + ":" + m[2], tz);
         if (iso && Date.parse(iso) < Date.now() - 3600000) iso = zonedToIso(isoToZoned(new Date().toISOString(), tz).date, hh + ":" + m[2], tz);
-        eta = iso || null; note = m[3] || null;
+        eta = iso || null; note = m[4] || null;
       } else note = String(ans).trim() || null;
     } else if (status === "issue") {
       note = await U().prompt("What is the problem?", { title: "Problem" }); if (note == null || !String(note).trim()) return;

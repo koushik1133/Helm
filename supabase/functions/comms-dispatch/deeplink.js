@@ -19,6 +19,7 @@ export function notifLink(n) {
       if (!has(n.quote_id) && has(d.quote_id)) n = Object.assign({}, n, { quote_id: d.quote_id });
     }
     const k = k0, q = has(n.quote_id) ? n.quote_id : null;
+    if (k === "trial_reminder" && d.source === "r29_referral") return "refer.html";   // r29 (0279): referral notices
     if (k === "trial_reminder") return "checkout.html";
     // r21 (0250): security notices are Helm HQ only - an HQ notice opens HQ (Activity log -> Security)
     if (k === "security_alert") return d.hq === true ? (/^(sales_enquiry|suggestion)$/.test(String(d.alert || "")) ? "hq.html#requests" : "hq.html") : "control.html#users";
@@ -30,6 +31,7 @@ export function notifLink(n) {
     }
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k === "studio_identity_changed") return "control.html#general";   // r23 (0257): Helm changed the studio name / link
+    if (k === "team_safety") return "control.html#users";   // r33 (0283): admin / owner changes -> Control Center -> Team
     // r35 (0285): payment details / sensitive settings (admins only - the server decides)
     if (k === "studio_security") {
       const ev = String(d.event || "");

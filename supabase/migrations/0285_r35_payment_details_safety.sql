@@ -3,8 +3,8 @@
 --          comms_tick wrapper), 0244 (helm_notice_outbox + helm_notice_outbox_claim), 0266 (_r23_tz), 0150
 --          (studio_email_settings_set: reply-to), 0117 (save_org_payment_account / set_org_integration_status: per-studio
 --          Razorpay), 0156 (create_invitation), 0075 (organizations.business_email_confirmed), phase29 / phase57
---          (role_access, admin_set_role_access, has_area, is_admin, current_org_id), the notification catalog (0036 / 0058).
--- OPTIONAL: 0283 (r33 team safety: studio owner, deactivated members) - read when present, never required.
+--          (role_access, admin_set_role_access, has_area, is_admin, current_org_id), the notification catalog (0036 / 0058),
+--          0283 (r33 team safety: studio owner, deactivated members, the Team RPCs; it already requires 0282 + R32b).
 --
 -- In plain words (r35, owner-approved: "if someone takes over one admin account they must not be able to quietly swap
 -- the UPI ID / bank details our clients pay to"):
@@ -43,10 +43,16 @@
 --           (profiles.role), an admin account created or deleted by another admin (profiles insert / delete).
 --           Self-service steps (accepting an invitation, creating your own studio) are not blocked - alerted only.
 --           0283 (r33) applies its own 24-hour admin changes under its 'helm.r283_apply' marker: not blocked twice.
+--        g  the 0283 (r33) Control Center -> Team paths: making / removing an admin (team_set_role, incl. the 24-hour
+--           demotion request), deactivating / reactivating an admin, starting / accepting an ownership hand-over.
+--           The 0283 bodies are wrapped (all r33 rules unchanged). An admin removed through Team already gets the r33
+--           notice (bell for admins + e-mail to the owner, that admin and the asker): r35 keeps its record + log but
+--           adds no second bell and e-mails only the admins r33 did not - one alert per person.
 -- Changes: 3 NEW tables (RLS on, no API privilege; read through RPCs), new functions; wrapped ONCE (body kept as
 -- *__pre0285, not callable by the app): payment_schedule_settings_get / _set, studio_email_settings_set,
 -- save_org_payment_account, set_org_integration_status, admin_set_role_access, comms_tick, notification_catalog,
--- notification_type_of, notify_default; _pst_pay_details re-issued (same answer, plus the 24-hour rule); triggers on
+-- notification_type_of, notify_default (each wraps the 0283 body, so team_safety stays), team_set_role,
+-- team_deactivate_member, team_reactivate_member, team_owner_transfer_start / _accept (the 0283 bodies); _pst_pay_details re-issued (same answer, plus the 24-hour rule); triggers on
 -- organizations, profiles, invitations, auth.mfa_factors (the last one skipped with a NOTICE when not allowed);
 -- 3 restrictive policies on notifications (kind studio_security: admins read, app never writes); helm_notice_outbox
 -- kind check widened ONCE to a superset + one claim branch; trial retention keeps the new tables.
@@ -81,6 +87,15 @@ do $$ begin
     raise exception 'STOP 0285: invitations / audit_log / notifications are missing'; end if;
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'organizations'
                    and column_name = 'business_email_confirmed') then raise exception 'STOP 0285: apply 0075 first (business_email_confirmed)'; end if;
+  -- 0283 (r33 team safety; it already stops without 0282 + its R32b amendment): the Team RPCs this file wraps
+  if to_regclass('public.team_admin_changes') is null or to_regprocedure('public._r283_owner(uuid)') is null
+     or to_regprocedure('public._r283_is_off(uuid, uuid)') is null or to_regprocedure('public.notification_catalog__pre0283()') is null
+     or to_regprocedure('public.team_set_role(uuid, text)') is null or to_regprocedure('public.team_deactivate_member(uuid, text)') is null
+     or to_regprocedure('public.team_reactivate_member(uuid)') is null or to_regprocedure('public.team_owner_transfer_start(uuid)') is null
+     or to_regprocedure('public.team_owner_transfer_accept(uuid)') is null
+     or position('r33-0283' in pg_get_functiondef(coalesce(to_regprocedure('public.team_set_role__pre0285(uuid, text)'),
+                                                           to_regprocedure('public.team_set_role(uuid, text)')))) = 0 then
+    raise exception 'STOP 0285: 0283 (r33 team safety) is not applied - run APPLY-0283.sql first'; end if;
 end $$;
 
 -- ---- 1) the new tables (private: RLS on, no API privilege, read through the RPCs below) ----------------------------
@@ -343,6 +358,8 @@ begin
   if p_target is not null and not (v_d ? 'target') then v_d := v_d || jsonb_build_object('target', public._r285_name(p_target)); end if;
   insert into public.studio_security_events(org_id, kind, actor, actor_name, target_user, change_id, detail)
     values (p_org, p_kind, auth.uid(), v_by, p_target, p_change, v_d) returning id into v_id;
+  -- an admin removed through Control Center -> Team (0283): the r33 bell already tells the admins - no second bell
+  if not coalesce((v_d ->> 'via_r33')::boolean, false) then
   begin
     insert into public.notifications(quote_id, channel, kind, status, detail, org_id)
       values (null, 'in_app', 'studio_security', 'simulated',
@@ -350,6 +367,7 @@ begin
                                  'change_id', p_change), p_org);
   exception when others then raise warning 'r35-0285: bell row skipped (%)', sqlstate;
   end;
+  end if;
   if p_mail then
     begin
       insert into public.helm_notice_outbox(kind, org_id, ref_id, payload, dedupe_key)
@@ -867,6 +885,7 @@ declare
   v_is boolean := tg_op in ('UPDATE', 'INSERT') and coalesce(new.role, '') = 'admin';
   v_id uuid := case when tg_op = 'DELETE' then old.id else new.id end;
   v_org uuid := case when tg_op = 'DELETE' then old.org_id else coalesce(new.org_id, case when tg_op = 'UPDATE' then old.org_id end) end;
+  v_r33 boolean; v_asker uuid; v_d jsonb;
 begin
   if v_was = v_is or v_org is null then return case when tg_op = 'DELETE' then old else new end; end if;
   if tg_when = 'BEFORE' then
@@ -876,8 +895,19 @@ begin
   -- a brand-new studio's own first admin (creating your studio) is not news for anyone
   if auth.uid() is not null and not (auth.uid() = v_id and v_is
        and not exists (select 1 from public.profiles p where p.org_id = v_org and p.role = 'admin' and p.id <> v_id)) then
-    perform public._r285_event(v_org, case when v_is then 'admin_added' else 'admin_removed' end, v_id, null,
-      jsonb_build_object('target_id', v_id, 'self', auth.uid() = v_id), true,
+    v_d := jsonb_build_object('target_id', v_id, 'self', auth.uid() = v_id);
+    -- an admin removed through Control Center -> Team (0283: the owner at once, or a 24-hour change applied): r33 already
+    -- sends its notice (bell for the admins + e-mail to the owner, that admin and the asker) - no second bell, and the
+    -- r35 e-mail goes only to the other admins (see _r285_mail)
+    v_r33 := not v_is and (coalesce(current_setting('helm.r285_via_r33', true), '') = 'on'
+                           or coalesce(current_setting('helm.r283_apply', true), '') = 'on');
+    if v_r33 then
+      select c.requested_by into v_asker from public.team_admin_changes c
+       where c.org_id = v_org and c.target_user = v_id and c.status = 'pending' and c.kind = 'demote'
+       order by c.effective_at limit 1;
+      v_d := v_d || jsonb_build_object('via_r33', true, 'r33_asker', coalesce(v_asker, auth.uid()));
+    end if;
+    perform public._r285_event(v_org, case when v_is then 'admin_added' else 'admin_removed' end, v_id, null, v_d, true,
       case when v_is then 'studio_security.admin_added' else 'studio_security.admin_removed' end);
   end if;
   return null;
@@ -910,6 +940,96 @@ create trigger zz_r285_invite_gate before insert or update of role on public.inv
 drop trigger if exists zz_r285_invite_alert on public.invitations;
 create trigger zz_r285_invite_alert after insert or update of role on public.invitations
   for each row execute function public._r285_tg_invite_admin();
+
+-- g) the 0283 (r33) Control Center -> Team paths: two-step for anything that makes, removes or hands over admin power.
+--    Wrapped ONCE (the 0283 bodies kept as *__pre0285, not callable by the app); every r33 rule (owner protected,
+--    24-hour wait for a non-owner, notices) runs exactly as before, after the two-step check. The check runs for an
+--    admin caller only (anyone else still gets the r33 "not authorized"), and never for the database itself, the
+--    service role or a Helm HQ operator (_r285_user_call). Taking your OWN admin role away is not gated (as in f).
+do $$ begin
+  if to_regprocedure('public.team_set_role__pre0285(uuid, text)') is null then
+    alter function public.team_set_role(uuid, text) rename to team_set_role__pre0285; end if;
+  if to_regprocedure('public.team_deactivate_member__pre0285(uuid, text)') is null then
+    alter function public.team_deactivate_member(uuid, text) rename to team_deactivate_member__pre0285; end if;
+  if to_regprocedure('public.team_reactivate_member__pre0285(uuid)') is null then
+    alter function public.team_reactivate_member(uuid) rename to team_reactivate_member__pre0285; end if;
+  if to_regprocedure('public.team_owner_transfer_start__pre0285(uuid)') is null then
+    alter function public.team_owner_transfer_start(uuid) rename to team_owner_transfer_start__pre0285; end if;
+  if to_regprocedure('public.team_owner_transfer_accept__pre0285(uuid)') is null then
+    alter function public.team_owner_transfer_accept(uuid) rename to team_owner_transfer_accept__pre0285; end if;
+end $$;
+
+-- is the caller a studio admin whose own action this is (and so must pass two-step)?
+create or replace function public._r285_team_gate(p_org uuid)
+returns boolean language plpgsql stable security definer set search_path = '' as $$
+-- r35-0285
+begin
+  return p_org is not null and coalesce(public.is_admin(), false) and public._r285_user_call();
+end $$;
+
+-- making someone an admin, or removing an admin (at once by the owner, or the 24-hour request by another admin)
+create or replace function public.team_set_role(p_user uuid, p_role text)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r35-0285: the r33-0283 body (team_set_role__pre0285) after two-step for an admin change
+declare v_org uuid := public.current_org_id(); v_old text; v jsonb;
+begin
+  select p.role into v_old from public.profiles p where p.id = p_user and p.org_id = v_org;
+  if v_old is not null and p_user is distinct from auth.uid()
+     and (coalesce(v_old, '') = 'admin') <> (coalesce(p_role, '') = 'admin') and public._r285_team_gate(v_org) then
+    perform public._r285_step_up(v_org);
+  end if;
+  perform set_config('helm.r285_via_r33', 'on', true);    -- r33 sends the notice for an admin removed here (see f)
+  v := public.team_set_role__pre0285(p_user, p_role);
+  perform set_config('helm.r285_via_r33', 'off', true);
+  return v;
+end $$;
+
+-- deactivating an ADMIN (at once by the owner, or the 24-hour request by another admin); other members as before
+create or replace function public.team_deactivate_member(p_user uuid, p_reason text default null)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r35-0285: the r33-0283 body (team_deactivate_member__pre0285) after two-step when the person is an admin
+declare v_org uuid := public.current_org_id();
+begin
+  if p_user is distinct from auth.uid() and public._r285_team_gate(v_org)
+     and exists (select 1 from public.profiles p where p.id = p_user and p.org_id = v_org and p.role = 'admin')
+     and not public._r283_is_off(p_user, v_org) then
+    perform public._r285_step_up(v_org);
+  end if;
+  return public.team_deactivate_member__pre0285(p_user, p_reason);
+end $$;
+
+-- reactivating an ADMIN gives admin power back
+create or replace function public.team_reactivate_member(p_user uuid)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r35-0285: the r33-0283 body (team_reactivate_member__pre0285) after two-step when the person is an admin
+declare v_org uuid := public.current_org_id();
+begin
+  if public._r285_team_gate(v_org)
+     and exists (select 1 from public.profiles p where p.id = p_user and p.org_id = v_org and p.role = 'admin')
+     and public._r283_is_off(p_user, v_org) then
+    perform public._r285_step_up(v_org);
+  end if;
+  return public.team_reactivate_member__pre0285(p_user);
+end $$;
+
+-- the studio ownership hand-over: the owner starting it and the admin accepting it both pass two-step
+create or replace function public.team_owner_transfer_start(p_to uuid)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r35-0285: the r33-0283 body (team_owner_transfer_start__pre0285) after two-step
+declare v_org uuid := public.current_org_id();
+begin
+  if public._r285_team_gate(v_org) then perform public._r285_step_up(v_org); end if;
+  return public.team_owner_transfer_start__pre0285(p_to);
+end $$;
+
+create or replace function public.team_owner_transfer_accept(p_transfer uuid)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- r35-0285: the r33-0283 body (team_owner_transfer_accept__pre0285) after two-step
+declare v_org uuid := public.current_org_id();
+begin
+  if public._r285_team_gate(v_org) then perform public._r285_step_up(v_org); end if;
+  return public.team_owner_transfer_accept__pre0285(p_transfer);
+end $$;
 
 -- e) two-step turned off for an admin: alert every admin (never blocks Supabase Auth; any error is swallowed)
 create or replace function public._r285_tg_mfa_off()
@@ -991,16 +1111,23 @@ end $$;
 create or replace function public._r285_mail(p_id uuid)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 -- r35-0285
-declare e public.studio_security_events; v_to jsonb; v_extra uuid;
+declare e public.studio_security_events; v_to jsonb; v_extra uuid; v_skip uuid[] := '{}';
 begin
   select * into e from public.studio_security_events x where x.id = p_id;
   if e.id is null or exists (select 1 from public.organizations o where o.id = e.org_id and coalesce(o.is_sample_master, false)) then return null; end if;
   v_extra := case when e.kind in ('admin_removed', 'admin_added', 'sessions_ended', 'flag_cleared') then e.target_user end;
+  -- an admin removed through Control Center -> Team (0283): the owner, that admin and the asker already get the r33
+  -- e-mail - this one goes to the other admins only (one e-mail per person)
+  if coalesce((e.detail ->> 'via_r33')::boolean, false) then
+    v_skip := array_remove(array[public._r283_owner(e.org_id), e.target_user, nullif(e.detail ->> 'r33_asker', '')::uuid], null);
+    v_extra := null;
+  end if;
   select coalesce(jsonb_agg(distinct lower(p.email)), '[]'::jsonb) into v_to
     from public.profiles p
    where p.email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
-     and (p.id in (select a from public._r285_admins(e.org_id) a) or (v_extra is not null and p.id = v_extra));
-  return jsonb_build_object('to', v_to, 'data', (e.detail - 'target_id' - 'effective_at') || jsonb_build_object('event', e.kind,
+     and (p.id in (select a from public._r285_admins(e.org_id) a) or (v_extra is not null and p.id = v_extra))
+     and not (p.id = any (v_skip));
+  return jsonb_build_object('to', v_to, 'data', (e.detail - 'target_id' - 'effective_at' - 'via_r33' - 'r33_asker') || jsonb_build_object('event', e.kind,
     'by', coalesce(e.detail ->> 'by', e.actor_name), 'target', e.detail ->> 'target'));
 end $$;
 
@@ -1022,7 +1149,10 @@ end $$;
 do $$ declare v_def text; v_old text; v_new text; begin
   v_def := pg_get_functiondef('public.helm_notice_outbox_claim(integer)'::regprocedure);
   if position('r35-paysafe-0285' in v_def) > 0 then return; end if;
-  v_old := E'\n    end if;\n    if v_data is null or jsonb_array_length(v_to) = 0 then';
+  -- the branch goes at the end of the kind list: since 0283 that list is followed by its "never to a deactivated member"
+  -- filter (which then also covers these e-mails); before 0283 it was followed directly by the empty-recipient check
+  v_old := E'\n    end if;\n    -- r33-team-0283: never to a deactivated member';
+  if position(v_old in v_def) = 0 then v_old := E'\n    end if;\n    if v_data is null or jsonb_array_length(v_to) = 0 then'; end if;
   if (length(v_def) - length(replace(v_def, v_old, ''))) <> length(v_old) then
     raise notice '0285: helm_notice_outbox_claim has an unexpected body - left unchanged (security e-mails are skipped)'; return; end if;
   v_new := E'\n    elsif r.kind = ''studio_security'' and r.ref_id is not null then\n'
@@ -1091,7 +1221,10 @@ do $$ declare f text; begin
                            'public.set_org_integration_status__pre0285(text, text)',
                            'public.admin_set_role_access__pre0285(text, text, boolean, boolean)',
                            'public.notification_catalog__pre0285()', 'public.notification_type_of__pre0285(text, text)',
-                           'public.notify_default__pre0285(uuid, text, text, text)', 'public.notify_default(uuid, text, text, text)'] loop
+                           'public.notify_default__pre0285(uuid, text, text, text)', 'public.notify_default(uuid, text, text, text)',
+                           'public._r285_team_gate(uuid)', 'public.team_set_role__pre0285(uuid, text)',
+                           'public.team_deactivate_member__pre0285(uuid, text)', 'public.team_reactivate_member__pre0285(uuid)',
+                           'public.team_owner_transfer_start__pre0285(uuid)', 'public.team_owner_transfer_accept__pre0285(uuid)'] loop
     execute format('revoke all on function %s from public', f);
     if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
     if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f); end if;
@@ -1110,7 +1243,9 @@ do $$ declare f text; begin
                            'public.hq_studio_flag_clear(uuid, uuid, text)',
                            'public.studio_email_settings_set(text, text)', 'public.save_org_payment_account(text, text, text)',
                            'public.set_org_integration_status(text, text)', 'public.admin_set_role_access(text, text, boolean, boolean)',
-                           'public.notification_catalog()', 'public.notification_type_of(text, text)'] loop
+                           'public.notification_catalog()', 'public.notification_type_of(text, text)',
+                           'public.team_set_role(uuid, text)', 'public.team_deactivate_member(uuid, text)', 'public.team_reactivate_member(uuid)',
+                           'public.team_owner_transfer_start(uuid)', 'public.team_owner_transfer_accept(uuid)'] loop
     execute format('revoke all on function %s from public', f);
     if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
     if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('grant execute on function %s to authenticated', f); end if;

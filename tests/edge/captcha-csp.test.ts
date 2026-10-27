@@ -81,9 +81,9 @@ Deno.test("captcha-verify: configured -> rejected token / wrong action / wrong h
 Deno.test("captcha-verify r26: signed-out public forms - no JWT needed, a one-use pass id comes back; unconfigured = fail open", async () => {
   resetSupaMock(); let rEnv = setEnv({ ...BASE });
   const PASS = "22222222-2222-4222-8222-222222222222";
-  let calls = 0;
+  let calls = 0, cur = "";
   const rF = installFetch(async (url) => { calls++; assertEquals(url, "https://challenges.cloudflare.com/turnstile/v0/siteverify");
-    return jsonResponse({ success: true, hostname: "www.helm.events" }); });
+    return jsonResponse({ success: true, action: cur, hostname: "www.helm.events" }); });
   g.__supaGetUser = () => { throw new Error("no sign-in check for public forms"); };
   g.__supaRpc = () => ({ data: PASS, error: null });
   const anon = { Authorization: "Bearer anon", Origin: "https://www.helm.events", "x-forwarded-for": "7.7.7.7" };
@@ -95,6 +95,7 @@ Deno.test("captcha-verify r26: signed-out public forms - no JWT needed, a one-us
     rEnv(); rEnv = setEnv({ ...BASE, TURNSTILE_SECRET_KEY: "sec" });
     h = await loadHandler(F + "captcha-verify/index.ts");
     for (const action of ["contact", "enquiry", "suggest"]) {
+      cur = action;
       r = await h(post({ action, token: TOKEN }, { ...anon, "x-forwarded-for": "7.7.7." + action.length }));
       assertEquals(r.status, 200, action);
       assertEquals(await r.json(), { ok: true, configured: true, pass: PASS });

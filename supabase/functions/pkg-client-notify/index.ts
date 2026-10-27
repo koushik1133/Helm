@@ -21,7 +21,7 @@
 // codes - never an address, a phone number, a name or a code. Outbound HTTP goes only to a
 // FIXED host allowlist; no URL is ever taken from the database except the approval path,
 // which must match /approve?token=<uuid> and is joined to the fixed site origin.
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { render } from "./templates.ts";

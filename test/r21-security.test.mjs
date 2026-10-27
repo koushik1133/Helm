@@ -109,6 +109,10 @@ await t("2e captcha-verify logic: request validation, verdict fails closed, host
   assert.equal(L.judge({ success: "true" }).ok, false);
   assert.equal(L.judge({ success: false, "error-codes": ["timeout-or-duplicate"] }).reason, "rejected:timeout-or-duplicate");
   assert.equal(L.judge({ success: true, action: "login" }, { action: "sales" }).ok, false);
+  // R32: an expected action must be echoed exactly - a token with no action (or an empty one) fails
+  assert.equal(L.judge({ success: true, hostname: "www.helm.events" }, { action: "sales", hostnames: [] }).ok, false);
+  assert.equal(L.judge({ success: true, action: "", hostname: "evil.example" }, { action: "sales", hostnames: [] }).reason, "action-mismatch");
+  assert.equal(L.judge({ success: true, hostname: "www.helm.events" }, { hostnames: [] }).ok, true);
   assert.equal(L.judge({ success: true, hostname: "x.test" }, { hostnames: ["www.helm.events"] }).ok, false);
   assert.equal(L.judge({ success: true, action: "sales", hostname: "www.helm.events" }, { action: "sales", hostnames: L.hostList(" WWW.helm.events , helm.events") }).ok, true);
   const f = L.verifyForm("s", "tok", "1.2.3.4", "k");
@@ -223,6 +227,8 @@ await t("5a CSP report-uri on every production policy (vercel + _headers + serve
   assert.equal(sentryIngestOrigin('window.HELM_TELEMETRY = Object.assign({\n  dsn: "",'), "", "no DSN -> no connect-src host");
   assert.equal(sentryIngestOrigin('window.HELM_TELEMETRY = Object.assign({ dsn: "https://abc123@o42.ingest.us.sentry.io/77" }'), "https://o42.ingest.us.sentry.io");
   assert.equal(sentryIngestOrigin('window.HELM_TELEMETRY = { dsn: "https://abc@evil.example/1" }'), "", "only a sentry.io ingest host");
+  assert.equal(sentryIngestOrigin('window.HELM_TELEMETRY = { dsn: "https://1dc17f49258bac56dd0eb8e778842d7e@o4512062490738688.ingest.us.sentry.io/4512328815542272" }'),
+    "https://o4512062490738688.ingest.us.sentry.io", "R45: 16-digit org / project ids (current Sentry format)");
   assert.equal(withReporting("connect-src 'self'; report-uri x", { reportUri: "https://r", sentryOrigin: "https://s" }), "connect-src 'self' https://s; report-uri https://r; report-to csp-endpoint");
 });
 await t("5b csp-report logic: redacted one-line summaries for both report formats", async () => {
@@ -245,9 +251,9 @@ await t("5c telemetry: DSN read lazily (config.js loads after telemetry.js) - a 
   assert.equal(captured.script, undefined, "no DSN yet -> nothing loaded");
   w.HELM_TELEMETRY = { dsn: "https://k9@o1.ingest.sentry.io/2", env: "production" };   // what config.js does next
   handlers.DOMContentLoaded.forEach((f) => f());
-  assert.ok(captured.script && /sentry-cdn\.com\/8\.35\.0\/bundle\.min\.js/.test(captured.script.src), "armed after config.js");
+  assert.ok(captured.script && /sentry-cdn\.com\/8\.55\.2\/bundle\.min\.js/.test(captured.script.src), "armed after config.js");
   assert.equal(w.HelmTelemetry.enabled, true);
-  assert.match(CFG, /window\.HELM_TELEMETRY = Object\.assign\(\{\n  dsn: "",/);
+  assert.match(CFG, /window\.HELM_TELEMETRY = Object\.assign\(\{\n  dsn: "https:\/\/1dc17f49258bac56dd0eb8e778842d7e@o4512062490738688\.ingest\.us\.sentry\.io\/4512328815542272",/, "R45: DSN set");
 });
 
 /* ------------------------------------------------------------------ 6. CodeQL fixes */
