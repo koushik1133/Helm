@@ -5592,21 +5592,30 @@ window.HelmUrl = HelmUrl;
   }
 
   // one anon client per invitation slug; no session is stored or read (guests never sign in here)
+  // r40 (0289): + the invitation's passcode proof (x-helm-invite-pass) when the site asks for a passcode - the server
+  // checks it on every guest call (the invitation, link state, RSVP, reveal and the photo signing)
+  const INVITE_PASS_RE = /^p1\.[0-9]{9,11}\.[0-9a-f]{64}$/;
   const guestMediaClients = new Map();
-  function guestMediaClient(slug) {
+  function guestMediaClient(slug, pass) {
     slug = String(slug || "").trim();
     if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/.test(slug)) return null;
-    if (guestMediaClients.has(slug)) return guestMediaClients.get(slug);
+    pass = INVITE_PASS_RE.test(String(pass || "")) ? String(pass) : "";
+    const key = slug + (pass ? "|" + pass : "");
+    if (guestMediaClients.has(key)) return guestMediaClients.get(key);
     if (!(global.supabase && global.supabase.createClient) || !supaConfigured()) return null;
+    const headers = { "x-helm-site-slug": slug };
+    if (pass) headers["x-helm-invite-pass"] = pass;
     let c = null;
     try {
       c = global.supabase.createClient(CFG.url, CFG.anonKey, {
         auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "helm-guest-media" },
-        global: { headers: { "x-helm-site-slug": slug } } });
+        global: { headers } });
     } catch (e) { c = null; }
-    if (c) guestMediaClients.set(slug, c);
+    if (c) guestMediaClients.set(key, c);
     return c;
   }
+  // the client for a guest call: the passcode-proof client when the page holds a proof, else the shared one
+  function guestRpcClient(slug, pass) { return (pass && INVITE_PASS_RE.test(String(pass)) && guestMediaClient(slug, pass)) || supa; }
 
   const sites = {
     INVITE_IMG_LABEL: "PNG, JPG, WEBP or GIF, up to 8 MB",
@@ -5661,7 +5670,7 @@ window.HelmUrl = HelmUrl;
     // original reference (still works on a DB whose bucket hasn't been made private yet).
     // slug (guest invitation page): 0048 binds a guest's read to the invitation it holds —
     // the signing request carries x-helm-site-slug on its own session-less client.
-    async mediaUrls(urls, seconds, slug) {
+    async mediaUrls(urls, seconds, slug, pass) {
       const list = Array.isArray(urls) ? urls.slice() : [];
       if (!supa) { try { await BPStore.init(); } catch (e) {} }
       if (!supa || !list.length) return list;
@@ -5670,7 +5679,7 @@ window.HelmUrl = HelmUrl;
       list.forEach((u, i) => { const m = re.exec(String(u || "")); if (m) { idx.push(i); paths.push(decodeURIComponent(m[1])); } });
       if (!paths.length) return list;
       try {
-        const client = slug ? (guestMediaClient(slug) || supa) : supa;
+        const client = slug ? (guestMediaClient(slug, pass) || supa) : supa;
         const { data, error } = await client.storage.from("invite-media").createSignedUrls(paths, seconds || 3600);
         if (error || !Array.isArray(data)) return list;
         data.forEach((r, k) => { if (r && r.signedUrl && !r.error) list[idx[k]] = r.signedUrl; });
@@ -5682,37 +5691,50 @@ window.HelmUrl = HelmUrl;
     async liveUntil(siteId) { if (!supa) return null;
       const { data, error } = await supa.rpc("event_site_live_until", { p_site_id: siteId });
       if (error) throw error; return data ? new Date(data) : null; },
-    async public(slug) {                                                                  // display fields of a PUBLISHED site only
+    async public(slug, pass) {                                                            // display fields of a PUBLISHED site only
       if (!supa) { try { await BPStore.init(); } catch (e) {} }
       if (!supa) throw new Error("Supabase not configured");
-      const { data, error } = await supa.rpc("public_event_site", { p_slug: slug });
+      const { data, error } = await guestRpcClient(slug, pass).rpc("public_event_site", { p_slug: slug });
       if (error) throw error; return (data && data[0]) || null; },
+    // r40 (0289): the invitation asks for a passcode -> {ok:true, token, expires_at} (a server-signed proof for this
+    // device) | {ok:true, open:true} (no passcode needed) | {ok:false, reason: wrong | rate | closed | not_found, message}
+    async unlock(slug, code) {
+      if (!supa) { try { await BPStore.init(); } catch (e) {} }
+      if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.rpc("public_invite_unlock", { p_slug: String(slug || "").slice(0, 200), p_code: String(code == null ? "" : code).slice(0, 100) });
+      if (error) throw error; return data || { ok: false }; },
+    isPasscodeError: (e) => /needs a passcode/i.test(String((e && e.message) || "")),
     // r34 (0284) guest side: what to say about a link {state: live (+ studio name) | off | moved | none}; the RSVP form
     // (-> {ok, token, reveal?} | {ok:false, reason, message}); the reveal on a device that already replied (guest token)
-    async publicInfo(slug) {
+    async publicInfo(slug, pass) {
       if (!supa) { try { await BPStore.init(); } catch (e) {} }
       if (!supa) return null;
-      const { data, error } = await supa.rpc("public_invite_info", { p_slug: String(slug || "").slice(0, 200) });
+      const { data, error } = await guestRpcClient(slug, pass).rpc("public_invite_info", { p_slug: String(slug || "").slice(0, 200) });
       if (error) { if (global.BPUI && global.BPUI.isMissingFunction && global.BPUI.isMissingFunction(error)) return null; throw error; }
       return data || null; },
-    async rsvp(slug, form) {
+    async rsvp(slug, form, pass) {
       if (!supa) { try { await BPStore.init(); } catch (e) {} }
       if (!supa) throw new Error("Supabase not configured");
       const f = form || {};
-      const { data, error } = await supa.rpc("public_invite_rsvp", { p_slug: String(slug || "").slice(0, 200), p: {
+      const { data, error } = await guestRpcClient(slug, pass).rpc("public_invite_rsvp", { p_slug: String(slug || "").slice(0, 200), p: {
         name: String(f.name || "").slice(0, 200), attending: String(f.attending || ""), guests: String(f.guests == null ? "" : f.guests).slice(0, 4),
         message: String(f.message || "").slice(0, 2000), token: String(f.token || "").slice(0, 64), website: String(f.website || "").slice(0, 200) } });
       if (error) throw error; return data || { ok: false }; },
-    async reveal(slug, token) {
+    async reveal(slug, token, pass) {
       if (!supa) { try { await BPStore.init(); } catch (e) {} }
       if (!supa || !/^[0-9a-f]{64}$/.test(String(token || ""))) return { ok: false };
-      const { data, error } = await supa.rpc("public_invite_reveal", { p_slug: String(slug || "").slice(0, 200), p_token: String(token) });
+      const { data, error } = await guestRpcClient(slug, pass).rpc("public_invite_reveal", { p_slug: String(slug || "").slice(0, 200), p_token: String(token) });
       if (error) return { ok: false }; return data || { ok: false }; },
     // r34 (0284) studio side: guest replies (Quotes view), a new random link (Quotes edit; the old one says "moved"),
     // the site's retired links
     rsvpList: (siteId) => rpc("event_site_rsvp_list", { p_site: siteId }),
     newLink: (siteId) => rpc("event_site_new_link", { p_site: siteId }),
     oldLinks: (siteId) => rpc("event_site_old_links", { p_site: siteId }).then((r) => (Array.isArray(r) ? r : [])),
+    // r40 (0289) studio side: is the optional passcode on ({on, set, changed_at} - never the passcode; Quotes view) and
+    // switch it on (a new passcode, or null = the one saved before) / off (Quotes edit). Only a hash is ever stored.
+    passcodeState: (siteId) => rpc("event_site_passcode_state", { p_site: siteId }),
+    setPasscode: (siteId, on, code) => rpc("event_site_set_passcode", { p_site: siteId, p_on: !!on,
+      p_code: (code == null || String(code).trim() === "") ? null : String(code).slice(0, 100) }),
   };
 
   /* ---------------- Build 4: event files (private bucket 'event-docs') ---------------- */

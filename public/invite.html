@@ -55,6 +55,17 @@
   .open-btn:hover{transform:translateY(-2px);box-shadow:0 18px 38px -12px color-mix(in srgb,var(--accent) 70%, transparent)}
   .open-btn:active{transform:translateY(0)}
   .cover-note{margin-top:16px;font-size:12px;color:var(--soft);opacity:.8}
+  /* r40: the optional passcode on the cover (theme colours only, so it works on all 11 themes, light and dark) */
+  .pass-form{display:grid;gap:12px;width:min(340px,100%);margin:4px auto 0;text-align:left}
+  .pass-form .fl{display:block;font-family:var(--sans);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);font-weight:600;margin:0 0 7px}
+  .pass-form input{width:100%;font-family:var(--sans);font-size:18px;letter-spacing:.06em;text-align:center;color:var(--ink);background:var(--card);
+    border:1px solid var(--line);border-radius:14px;padding:13px 14px;min-height:52px}
+  .pass-form input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-color:var(--accent)}
+  .pass-form .open-btn{width:100%}
+  .pass-form .open-btn[disabled]{opacity:.6;cursor:default;transform:none}
+  .pass-st{min-height:1.4em;margin:0;font-family:var(--sans);font-size:14px;text-align:center;color:var(--soft)}
+  .pass-st.err{color:var(--err,#b42318);font-weight:600}
+  .pass-hint{margin:2px 0 0;font-size:12.5px;text-align:center;color:var(--soft)}
 
   /* ---------- reveal ---------- */
   .rv{opacity:0;transform:translateY(22px);transition:opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)}
@@ -319,6 +330,14 @@
     <h1 id="coverNames" class="cover-names"></h1>
     <p id="coverSub" class="cover-sub"></p>
     <button id="openBtn" class="open-btn" type="button">Open Invitation</button>
+    <!-- r40: shown only when the host asked for a passcode; nothing private is on the page until it is right -->
+    <form id="passForm" class="pass-form" novalidate hidden>
+      <div><label class="fl" for="passIn">Passcode</label>
+        <input id="passIn" type="text" maxlength="40" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-describedby="passHint passSt"></div>
+      <button id="passBtn" class="open-btn" type="submit">Open Invitation</button>
+      <p id="passSt" class="pass-st" role="status" aria-live="polite"></p>
+      <p id="passHint" class="pass-hint">Capital letters don't matter.</p>
+    </form>
     <p id="coverNote" class="cover-note" hidden>♪ Turn on your sound for the full experience</p>
   </div></div>
 
@@ -342,7 +361,7 @@
 <script src="/telemetry.js?v=6"></script>
 <script src="/config.js?v=110"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=287"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=292"></script>
 <script src="/invite-music.js?v=1"></script><script src="/invite-placement.js?v=1"></script><script src="/invite-extras.js?v=1"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -429,6 +448,14 @@
   // and the link's state from the server (INFO: {state, studio}) for the footer
   const HX=window.HelmInviteX, PREVIEW=new URLSearchParams(location.search).get("preview")==="1";
   let REVEAL=null, REPLY=null, INFO=null;
+  // r40: the passcode proof for this invitation on this device (server-signed, expires with the invitation's live
+  // window; a new passcode from the host makes it stop working). Sent with every guest call; never the passcode itself.
+  let PASS="";
+  const passKey=()=>"helm-pass:"+getSlug();
+  function readPass(){ try{ const o=JSON.parse(localStorage.getItem(passKey())||"null");
+    if(o&&/^p1\.[0-9]{9,11}\.[0-9a-f]{64}$/.test(o.t||"")&&Number(String(o.t).split(".")[1])*1000>Date.now()) return o.t; }catch(_){} return ""; }
+  function savePass(t){ try{ if(/^p1\.[0-9]{9,11}\.[0-9a-f]{64}$/.test(t||"")) localStorage.setItem(passKey(),JSON.stringify({t})); }catch(_){} }
+  function clearPass(){ PASS=""; try{ localStorage.removeItem(passKey()); }catch(_){} }
   function guestView(d0,S){
     const d=Object.assign({},d0);
     if(!S.rsvpContact) delete d.hostPhone;
@@ -527,6 +554,7 @@
     $("#musicFab").hidden=!music;
 
     // show gate
+    $("#passForm").hidden=true; $("#openBtn").hidden=false;   // r40: the passcode box only while locked
     $("#loading").hidden=true; $("#cover").hidden=false;
     if(music) $("#coverNote").hidden=false;
     $("#page").hidden=false;                 // behind the cover; revealed on open
@@ -576,7 +604,8 @@
       if(PREVIEW){ st.className="rsvp-st"; st.textContent="This is the preview - guests send their replies from the published invitation."; return; }
       send.disabled=true; st.className="rsvp-st"; st.textContent="Sending…";
       try{
-        const r=await BPStore.sites.rsvp(getSlug(),f);
+        const r=await BPStore.sites.rsvp(getSlug(),f,PASS);
+        if(r&&r.reason==="passcode"){ clearPass(); showLocked(getSlug(),""); return; }   // r40: the host changed the passcode
         if(!r||!r.ok){ st.className="rsvp-st err"; st.textContent=String((r&&r.message)||"Your reply couldn't be sent. Please try again.").slice(0,200); send.disabled=false; return; }
         if(r.token) saveTok(r.token);
         REPLY={name:f.name,attending:f.attending,guests:f.attending==="no"?0:Number(f.guests),message:f.message};
@@ -598,6 +627,44 @@
     let st=""; try{ const i=slug?await BPStore.sites.publicInfo(slug):null; st=(i&&i.state)||""; }catch(_){ st=""; }
     $(st==="moved"?"#moved":st==="off"?"#turnedOff":"#missing").hidden=false;
   }
+
+  // ---- r40: the passcode gate. Before the passcode is right the page has ONLY the theme and "You're invited" - the
+  // server sends nothing else (no names, date, venue, photos, phone); the theme comes from public_invite_info. ----
+  let unlocking=false, openAfterUnlock=false;
+  async function showLocked(slug, note){
+    let tpl=""; try{ const i=await BPStore.sites.publicInfo(slug); tpl=(i&&typeof i.template==="string")?i.template:""; }catch(_){ tpl=""; }
+    document.body.className="t-"+((HX?HX.has(tpl):false)?tpl:"soiree");
+    document.title="You're invited";
+    SITE=null; $("#page").hidden=true; $("#page").replaceChildren(); $("#fabs").hidden=true; $("#shareBtm").hidden=true;
+    $("#loading").hidden=true;
+    $("#coverEyebrow").textContent="A private invitation";
+    $("#coverSeal").textContent="\u2665";
+    $("#coverNames").textContent="You're invited";
+    $("#coverSub").textContent="Please enter the passcode your host shared with you.";
+    $("#openBtn").hidden=true; $("#coverNote").hidden=true;
+    $("#passForm").hidden=false; const st=$("#passSt"); st.className="pass-st"+(note?" err":""); st.textContent=note||"";
+    const c=$("#cover"); c.classList.remove("gone"); c.hidden=false;
+    try{ $("#passIn").focus({preventScroll:true}); }catch(_){}
+  }
+  async function submitPass(e){
+    e.preventDefault(); if(unlocking) return;
+    const code=$("#passIn").value.trim(), st=$("#passSt"), btn=$("#passBtn");
+    if(!code){ st.className="pass-st err"; st.textContent="Please type the passcode."; $("#passIn").focus(); return; }
+    unlocking=true; btn.disabled=true; st.className="pass-st"; st.textContent="Checking…";
+    try{
+      const r=await BPStore.sites.unlock(getSlug(),code);
+      if(r&&r.ok){
+        if(r.token){ PASS=r.token; savePass(r.token); }
+        $("#passIn").value=""; st.textContent="";
+        openAfterUnlock=true; await load(); return;
+      }
+      st.className="pass-st err";
+      st.textContent=String((r&&r.message)||"That passcode didn't work. Please check it and try again.").slice(0,200);
+      $("#passIn").select();
+    }catch(err){ st.className="pass-st err"; st.textContent="Network problem - please check your connection and try again."; }
+    finally{ unlocking=false; btn.disabled=false; }
+  }
+  $("#passForm").addEventListener("submit",submitPass);
 
   // reveal on scroll
   function armReveal(){
@@ -647,7 +714,7 @@
   async function signPhotos(site){
     const d=site&&site.data; if(!d||!Array.isArray(d.photos)||!d.photos.length) return site;
     const now=Date.now(), need=d.photos.filter(u=>{ const c=SIGNED.get(u); return !c||now-c.t>3e6; });
-    if(need.length){ const out=await BPStore.sites.mediaUrls(need,undefined,(site&&site.slug)||getSlug()); need.forEach((u,i)=>SIGNED.set(u,{url:out[i]||u,t:now})); }
+    if(need.length){ const out=await BPStore.sites.mediaUrls(need,undefined,(site&&site.slug)||getSlug(),PASS); need.forEach((u,i)=>SIGNED.set(u,{url:out[i]||u,t:now})); }
     return Object.assign({},site,{data:Object.assign({},d,{photos:d.photos.map(u=>(SIGNED.get(u)||{}).url||u)})});
   }
   let pvSeq=0;
@@ -666,9 +733,12 @@
     if(!slug){ $("#loading").hidden=true; $("#missing").hidden=false; return; }
     $("#loadErr").hidden=true;
     let site;
-    try{ await BPStore.init(); await BPStore.links.require(LINK); site=await BPStore.sites.public(slug); }
+    PASS=readPass();
+    try{ await BPStore.init(); await BPStore.links.require(LINK); site=await BPStore.sites.public(slug,PASS); }
     catch(e){
       $("#loading").hidden=true;
+      if(BPStore.sites.isPasscodeError&&BPStore.sites.isPasscodeError(e)){   // r40: the host asked for a passcode
+        const had=!!PASS; clearPass(); await showLocked(slug, had?"Please enter the passcode again - the host changed it.":""); return; }
       if(BPUI.isNotFound(e)){ await showMissing(slug); return; }
       if(/has been cancelled/i.test((e&&e.message)||"")){   // r23-0260: the event was cancelled - no details
         $("#ended").querySelector("h1").textContent="This event has been cancelled";
@@ -679,10 +749,11 @@
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"this invitation"}); return;
     }
     if(!site){ $("#loading").hidden=true; await showMissing(slug); return; }
-    try{ INFO=await BPStore.sites.publicInfo(slug); }catch(_){ INFO=null; }   // r34: the studio's name for the footer
-    { const tok=readTok(); if(tok){ try{ const r=await BPStore.sites.reveal(slug,tok); if(r&&r.ok){ REVEAL=r.reveal||null; REPLY=r.reply||null; } }catch(_){} } }
+    try{ INFO=await BPStore.sites.publicInfo(slug,PASS); }catch(_){ INFO=null; }   // r34: the studio's name for the footer
+    { const tok=readTok(); if(tok){ try{ const r=await BPStore.sites.reveal(slug,tok,PASS); if(r&&r.ok){ REVEAL=r.reveal||null; REPLY=r.reply||null; } }catch(_){} } }
     try{ site=await signPhotos(site); }catch(e){}
     render(site);
+    if(openAfterUnlock){ openAfterUnlock=false; openInvite(); }   // r40: the passcode tap opens the invitation straight away
   }
   BPUI.boot(load);
 </script>

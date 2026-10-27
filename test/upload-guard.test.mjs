@@ -209,7 +209,7 @@ t('guest invitation signing: session-less client with x-helm-site-slug; staff pa
   assert.equal(e.signs[2].tag, 'main', 'malformed slug never becomes a header');
   await e.S.sites.mediaUrls([ref], 600);
   assert.equal(e.signs[3].tag, 'main');
-  assert.match(invite, /BPStore\.sites\.mediaUrls\(need,undefined,\(site&&site\.slug\)\|\|getSlug\(\)\)/);
+  assert.match(invite, /BPStore\.sites\.mediaUrls\(need,undefined,\(site&&site\.slug\)\|\|getSlug\(\),PASS\)/);
 });
 t('0048 SQL: slug-bound guest read, restrictive guards, bucket caps', () => {
   assert.match(mig, /create policy "invite_media_published_read"[\s\S]*invite_media_guest_read_ok\(name\)/);

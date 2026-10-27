@@ -77,6 +77,12 @@
   .sw.linen{background:#f4f2ee;color:#1d1d1b;font-family:system-ui;font-weight:500}
   /* r34 RSVP & privacy + guest replies */
   .opt-group{border:0;padding:0;margin:0 0 14px;display:grid;gap:8px;min-width:0}
+  .pass-box{border-top:1px solid var(--line-2);margin:4px 0 14px;padding-top:14px}
+  .pass-box .ish-opt{margin:0 0 6px}
+  .pass-wrap{border:1px dashed var(--line);border-radius:12px;padding:12px;background:var(--panel-2);margin-top:8px}
+  .pass-wrap .fld{margin-bottom:8px}
+  .pass-wrap input{max-width:280px;letter-spacing:.04em}
+  .pass-state{font-size:12.5px;color:var(--ink-2);margin:0}
   .opt-group legend{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);padding:0;margin:0 0 6px}
   .opt{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;
     font-size:13.5px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink);margin:0;background:var(--panel-2)}
@@ -292,6 +298,17 @@
             <label class="opt"><input type="radio" name="f_addrMode" id="f_addrMode_after" value="after_rsvp"><span>Hide the address until the guest replies Yes or Maybe (optional)<small>Guests see the venue name + city; after replying Yes or Maybe on the RSVP form they see the full address and map (on that phone). Guests who reply No do not.</small><small id="addrNeedsForm">Turn on the RSVP form above to use this.</small></span></label>
           </fieldset>
           <div class="fld" id="cityWrap" hidden><label for="f_city">City (shown to everyone)</label><input id="f_city" maxlength="60" placeholder="e.g. Hyderabad"></div>
+          <!-- r40: OPTIONAL passcode (off by default). Applied when you Save / Publish; only a hash is kept on the server -->
+          <div class="pass-box" id="passBox" hidden>
+            <label class="ish-opt"><input type="checkbox" id="f_passOn"> Ask guests for a passcode (optional)</label>
+            <p class="mnote">Guests see only “You’re invited” until they type it - no names, date, venue, photos or phone.</p>
+            <div class="pass-wrap" id="passWrap" hidden>
+              <div class="fld"><label for="f_pass" id="l_pass">Passcode (4–20 characters)</label>
+                <input id="f_pass" type="text" maxlength="20" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="e.g. rose2026" aria-describedby="passHelp passState"></div>
+              <p class="mnote" id="passHelp">Share it with your guests along with the link. Capital letters don’t matter.</p>
+              <p class="pass-state" id="passState" role="status" hidden></p>
+            </div>
+          </div>
           <label class="ish-opt"><input type="checkbox" id="f_helmBrand" checked> Show “Made with Helm Studios” in the footer (your studio name is always shown)</label>
         </div>
 
@@ -400,7 +417,7 @@
 <script src="telemetry.js?v=6"></script>
 <script src="config.js?v=110"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=287"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=292"></script>
 <script src="invite-site-share.js?v=10"></script>
 <script src="invite-music.js?v=1"></script><script src="invite-placement.js?v=1"></script><script src="invite-extras.js?v=1"></script>
 <script>
@@ -713,22 +730,24 @@
   }
   function doSave(){
     if(blockedBySiteLoad()) return;
-    { const bad=inputProblem(gather()); if(bad){ setMsg(bad,"err"); return; } }
+    { const bad=inputProblem(gather())||passProblem(); if(bad){ setMsg(bad,"err"); return; } }
     return runAction($("#saveBtn"), async()=>{ setMsg("");
       try{ await ensureSite(); const g=gather(); await netRetry(()=>BPStore.sites.save(site.id,g));
-        site=Object.assign({},site,g); paintState(); setMsg("Saved.","ok"); if(dirty) dirty.clean();
+        const pc=await applyPass();
+        site=Object.assign({},site,g); paintState(); setMsg("Saved."+passSavedNote(pc),"ok"); if(dirty) dirty.clean();
       }catch(e){ setMsg(msgOf(e,"save the invitation"),"err"); }
     });
   }
   async function doPublish(publish){
     if(blockedBySiteLoad()) return;
-    if(publish){ const bad=inputProblem(gather()); if(bad){ setMsg(bad,"err"); return; } }
+    if(publish){ const bad=inputProblem(gather())||passProblem(); if(bad){ setMsg(bad,"err"); return; } }
     if(!publish && !(await BPUI.confirm("Guests with the link will see that this invitation is not available. You can turn the same link back on any time.",{title:"Turn off this link?",okLabel:"Turn off link",danger:true}))) return;
     return runAction($(publish?"#pubBtn":"#unpubBtn"), async()=>{ setMsg("");
       try{ await ensureSite(); await netRetry(()=>BPStore.sites.save(site.id,gather()));
+        const pc=publish?await applyPass():"";   // r40: the passcode is in place before the link goes live
         const r=await netRetry(()=>publish?BPStore.sites.publish(site.id):BPStore.sites.unpublish(site.id));
         site=Object.assign({},site,(Array.isArray(r)?r[0]:r)||{},{status:publish?"published":"unpublished"}); paintState();
-        setMsg(publish?"Published! Share the link below.":"Link turned off. Guests now see that the invitation is not available.","ok"); if(dirty) dirty.clean();
+        setMsg(publish?"Published! Share the link below."+passSavedNote(pc):"Link turned off. Guests now see that the invitation is not available.","ok"); if(dirty) dirty.clean();
         loadReplies(); loadOldLinks();
         const f=$(publish?"#unpubBtn":"#pubBtn"); if(f && !f.hidden) f.focus();
       }catch(e){ setMsg(msgOf(e,publish?"publish the invitation":"unpublish the invitation"),"err"); }
@@ -751,6 +770,7 @@
     siteLoadFailed=false; paintActions(); $("#loadErrTop").hidden=true; $("#loadErrTop").innerHTML="";
     if(existing){ fill(existing); paintSettings(); }
     else { await prefillFromPlan(); prefillFromQuote(); applySettings({}); applyTypeLabels(); paintTpls(); paintState(); }   // r34: a NEW site starts exactly like before (phone + WhatsApp, full address); the new options are opt-in
+    await loadPass();
     if(dirty) dirty.clean();
     preview();
     loadReplies(); loadOldLinks();
@@ -782,6 +802,60 @@
     $("#cityWrap").hidden=!after;
     if(after && !$("#f_city").value.trim() && HX){ const c=HX.cityOf($("#f_address").value); if(c) $("#f_city").value=c; }
   }
+  // ---- r40: the optional passcode (off by default). The server keeps only a hash, so the studio can switch it on / off
+  // and type a NEW one, but can never read it back. PASS_STATE: {on, set, changed_at} | "missing" (0289 not installed).
+  let PASS_STATE=null;
+  async function loadPass(){
+    if(!(site&&site.id)){ PASS_STATE={on:false,set:false}; paintPass(true); return; }
+    try{ PASS_STATE=await BPStore.sites.passcodeState(site.id); }
+    catch(e){ PASS_STATE=(BPUI.isMissingFunction&&BPUI.isMissingFunction(e))?"missing":{on:false,set:false,err:true}; }
+    paintPass(true);
+  }
+  function paintPass(fromServer){
+    const box=$("#passBox"); if(!box) return;
+    if(PASS_STATE==="missing"){ box.hidden=true; return; }   // the database does not have 0289 yet: the option is not offered
+    box.hidden=false;
+    const S=PASS_STATE||{on:false,set:false};
+    if(fromServer) $("#f_passOn").checked=!!S.on;
+    const on=$("#f_passOn").checked;
+    $("#passWrap").hidden=!on;
+    $("#l_pass").textContent=S.set?"New passcode (optional, 4\u201320 characters)":"Passcode (4\u201320 characters)";
+    const st=$("#passState"); let t="";
+    if(on&&S.on) t="A passcode is on. Guests who already typed it stay in. For safety Helm never shows it again - type a new one only to change it (guests will then need the new one).";
+    else if(on&&S.set) t="Your earlier passcode will be used again - or type a new one.";
+    else if(on) t="The passcode is switched on when you save or publish.";
+    else if(S.on) t="";
+    st.textContent=t; st.hidden=!t;
+    if(!on&&S.on){ st.textContent="The passcode will be switched off when you save - anyone with the link can open the invitation again."; st.hidden=false; $("#passWrap").hidden=false; $("#f_pass").closest(".fld").hidden=true; $("#passHelp").hidden=true; }
+    else { $("#f_pass").closest(".fld").hidden=false; $("#passHelp").hidden=false; }
+  }
+  function passProblem(){
+    if(PASS_STATE==="missing"||!$("#passBox")||$("#passBox").hidden) return "";
+    const on=$("#f_passOn").checked, code=$("#f_pass").value.trim(), S=PASS_STATE||{};
+    if(!on) return "";
+    if(code&&(code.length<4||code.length>20)) return "The passcode must be 4 to 20 characters.";
+    if(!code&&!S.set) return "Type a passcode (4 to 20 characters) - or switch \u201cAsk guests for a passcode\u201d off.";
+    return "";
+  }
+  // after the site is saved: switch on / change / switch off on the server -> "on" | "changed" | "off" | ""
+  async function applyPass(){
+    if(PASS_STATE==="missing"||!(site&&site.id)||$("#passBox").hidden) return "";
+    const on=$("#f_passOn").checked, code=$("#f_pass").value.trim(), S=PASS_STATE||{on:false,set:false};
+    if(!on&&!S.on) return "";
+    if(on&&!code&&S.on) return "";
+    const before=!!S.on;
+    try{ PASS_STATE=await netRetry(()=>BPStore.sites.setPasscode(site.id,on,code||null)); }
+    catch(e){ if(BPUI.isMissingFunction&&BPUI.isMissingFunction(e)){ PASS_STATE="missing"; paintPass(true); return "missing"; } throw e; }
+    $("#f_pass").value=""; paintPass(true);
+    return !on?"off":(before?(code?"changed":""):"on");
+  }
+  function passSavedNote(pc){
+    return pc==="on"?" The passcode is on - share it with your guests along with the link."
+      :pc==="changed"?" New passcode saved - guests need the new one."
+      :pc==="off"?" The passcode is off - anyone with the link can open it."
+      :pc==="missing"?" The passcode needs the latest Helm update on your studio's database - it was not switched on.":"";
+  }
+
   // ---- r34: guest replies (dashboard + CSV) ----
   let REPLIES=null;
   const ATT_TXT={yes:"Attending",maybe:"Maybe",no:"Can't come"};
@@ -887,6 +961,8 @@
   // r34: RSVP & privacy
   document.querySelectorAll('input[name="f_rsvpMode"],input[name="f_addrMode"],#f_helmBrand').forEach(n=>n.addEventListener("change",()=>{ if(dirty) dirty.mark(); paintSettings(); preview(); if(REPLIES) paintReplies(); }));
   ["f_city","f_hostPhone"].forEach(id=>$("#"+id).addEventListener("input",()=>{ paintSettings(); preview(); }));
+  // r40: the passcode switch (the live preview never asks for it)
+  $("#f_passOn").addEventListener("change",()=>{ if(dirty) dirty.mark(); paintPass(false); if($("#f_passOn").checked&&!$("#passWrap").hidden){ try{ $("#f_pass").focus(); }catch(_){} } });
   $("#repliesRefresh").addEventListener("click",()=>BPUI.guard($("#repliesRefresh"),loadReplies));
   $("#repliesCsv").addEventListener("click",downloadCsv);
   $("#newLinkBtn").addEventListener("click",doNewLink);

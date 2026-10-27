@@ -108,6 +108,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0269_r24_automation.sql
 -- 0284 (r34 invitation RSVP + link history) adds event_site_rsvps + event_site_slug_history to the purge list
 \ir ../../supabase/migrations/0284_invite_rsvp_privacy.sql
+-- 0289 (r40 invitation passcode) adds event_site_passcodes to the purge list
+\ir ../../supabase/migrations/0289_invite_passcode.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin

@@ -64,7 +64,7 @@ t('address privacy: venue + city until the guest replies; the reveal comes only 
   assert.match(invite, /REVEAL=\(r\.reveal&&typeof r\.reveal==="object"\)\?r\.reveal:null;/);
   assert.match(studio, /after replying Yes or Maybe on the RSVP form they see the full address and map/);
   assert.match(sql, /and p_attending in \('yes', 'maybe'\)/, "a No reply never gets the address");
-  assert.match(invite, /const r=await BPStore\.sites\.reveal\(slug,tok\); if\(r&&r\.ok\)\{ REVEAL=r\.reveal\|\|null; REPLY=r\.reply\|\|null; \}/);
+  assert.match(invite, /const r=await BPStore\.sites\.reveal\(slug,tok,PASS\); if\(r&&r\.ok\)\{ REVEAL=r\.reveal\|\|null; REPLY=r\.reply\|\|null; \}/);
   assert.match(invite, /localStorage\.setItem\(tokKey\(\),t\)/);
   assert.equal(X.cityOf('12 Lake Road, Banjara Hills, Hyderabad 500034'), 'Hyderabad');
   assert.equal(X.cityOf('Hyderabad'), '');
@@ -96,7 +96,7 @@ t('links: Turn off link (unpublish) + Make new link; old links say "moved", off 
   assert.match(invite, /Please ask the host for the new link\./);
   assert.match(invite, /\$\(st==="moved"\?"#moved":st==="off"\?"#turnedOff":"#missing"\)\.hidden=false;/);
   assert.match(store, /rpc\("event_site_new_link", \{ p_site: siteId \}\)/);
-  assert.match(store, /supa\.rpc\("public_invite_info", \{ p_slug:/);
+  assert.match(store, /guestRpcClient\(slug, pass\)\.rpc\("public_invite_info", \{ p_slug:/);
 });
 t('link preview: generic OG tags only (no names / address / phone / date), image present', () => {
   const head = invite.slice(0, invite.indexOf('</head>'));
@@ -112,8 +112,8 @@ t('footer: "Designed by <studio> · Made with Helm Studios", studio name escaped
   assert.match(invite, /\$\{brand\?`Made with <a href="\/" target="_blank" rel="noopener">Helm Studios<\/a>`:""\}/);
   assert.match(studio, /hideHelmBrand:!\$\("#f_helmBrand"\)\.checked/);
 });
-t('scripts: shared helper loaded on both pages; store-api v287', () => {
-  for (const h of [invite, studio]) { assert.match(h, /invite-extras\.js\?v=1"><\/script>/); assert.match(h, /store-api\.js\?v=287/); }
+t('scripts: shared helper loaded on both pages; store-api v292 (r40)', () => {
+  for (const h of [invite, studio]) { assert.match(h, /invite-extras\.js\?v=1"><\/script>/); assert.match(h, /store-api\.js\?v=292/); }
 });
 t('SQL 0284: additive, re-runnable, ASCII; anon RPCs rate-limited via cf-connecting-ip helpers', () => {
   assert.ok(!/[^\x09\x0a\x0d\x20-\x7e]/.test(sql), 'ASCII');

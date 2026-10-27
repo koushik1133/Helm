@@ -246,6 +246,8 @@ run "r26-captcha-0276" "R26-CAPTCHA-0276: ALL PASS \(30/30\)" psql -q -f tests/d
 run "r27-hq-staff-0277" "R27-HQ-STAFF-0277: ALL PASS \(58/58\)" psql -q -f tests/db/r27-hq-staff-0277.sql
 # 0284 re-applies itself twice + once more at the end (re-run safe; after rescore2, which resets anon EXECUTE), rolled back
 run "r34-invite-0284" "R34-INVITE-0284: ALL PASS \(59/59\)" psql -q -f tests/db/r34-invite-0284.sql
+# 0289 re-applies itself twice, then re-runs 0284 + 0289 (re-wrap check), rolled back
+run "r40-invite-passcode-0289" "R40-INVITE-PASSCODE-0289: ALL PASS \(67/67\)" psql -q -f tests/db/r40-invite-passcode-0289.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
