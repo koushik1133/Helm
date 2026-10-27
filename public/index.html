@@ -53,7 +53,7 @@
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Organization", "@id": "https://www.helm.events/#org", "name": "Helm Events", "alternateName": ["Helm", "HELM", "helm.events"], "url": "https://www.helm.events/", "logo": {"@type": "ImageObject", "url": "https://www.helm.events/icon-512.png", "width": 512, "height": 512}, "image": "https://www.helm.events/og/helm-og.png", "email": "info@helm.events", "sameAs": [], "contactPoint": [{"@type": "ContactPoint", "contactType": "sales", "email": "sales@helm.events"}, {"@type": "ContactPoint", "contactType": "customer support", "email": "support@helm.events"}]}, {"@type": "WebSite", "@id": "https://www.helm.events/#website", "name": "Helm Events", "alternateName": "Helm", "url": "https://www.helm.events/", "publisher": {"@id": "https://www.helm.events/#org"}, "inLanguage": "en"}, {"@type": "SoftwareApplication", "@id": "https://www.helm.events/#app", "name": "Helm Events", "alternateName": "Helm", "applicationCategory": "BusinessApplication", "applicationSubCategory": "Event management software", "operatingSystem": "Web", "url": "https://www.helm.events/", "image": "https://www.helm.events/og/helm-og.png", "description": "Helm Events is event management software for event studios, wedding planners, decorators and corporate event teams: leads and CRM, 2D/3D venue layouts, instant quotes and client approvals, bookings and payments, crew, inventory and vendors, event-day run-sheets, and settlement with profit and loss — in one web workspace.", "publisher": {"@id": "https://www.helm.events/#org"}, "featureList": ["Leads and CRM", "2D venue layout builder with 3D view", "Instant pricing and versioned quotes", "Client proposals and online approval", "Bookings, advance payments and receipts", "Staff and crew scheduling", "Inventory and vendor tracking", "Event-day run-sheets and checklists", "Settlement with profit and loss"], "offers": [{"@type": "Offer", "name": "Starter", "price": "24", "priceCurrency": "USD", "url": "https://www.helm.events/pricing", "category": "subscription"}, {"@type": "Offer", "name": "Studio", "price": "59", "priceCurrency": "USD", "url": "https://www.helm.events/pricing", "category": "subscription"}, {"@type": "Offer", "name": "Enterprise", "url": "https://www.helm.events/pricing", "description": "Custom pricing", "category": "subscription"}]}, {"@type": "FAQPage", "@id": "https://www.helm.events/#faq", "mainEntity": [{"@type": "Question", "name": "What exactly is Helm?", "acceptedAnswer": {"@type": "Answer", "text": "A workspace for event studios, planners and decorators. It holds your leads, venue layouts (2D to exact measurements, plus 3D views and photo renders), quotes, tasks, crew, stock, vendors, payments and profit — in one place."}}, {"@type": "Question", "name": "How long is the free trial?", "acceptedAnswer": {"@type": "Answer", "text": "8 days, no card needed. Your trial studio is set up for India (prices in rupees, times in IST) and comes with ready-made sample events, leads, menus, inventory and more, all marked Demo. You and up to 2 teammates can use it, e-mail to your clients works (WhatsApp and SMS unlock on a paid plan), and downloads, imports and photo renders unlock on a paid plan. After 8 days the studio becomes read-only; your data is kept for 60 days, so you can choose a plan and keep everything. One free trial per email."}}, {"@type": "Question", "name": "Who is Helm for?", "acceptedAnswer": {"@type": "Answer", "text": "Event businesses anywhere: wedding planners, decorators, corporate and conference teams, festival organisers and studios running private, cultural and public events — from one person to multi-city teams."}}, {"@type": "Question", "name": "Does it work in my country and currency?", "acceptedAnswer": {"@type": "Answer", "text": "Helm lets each studio set its currency, tax lines and time zone, and layouts work in metres or feet. Talk to us about local requirements for Enterprise."}}, {"@type": "Question", "name": "Do I still need a separate CAD tool?", "acceptedAnswer": {"@type": "Answer", "text": "For event layouts, no. Helm's builder draws the venue to exact measurements and shows the same plan in 3D, and the items on the plan feed the quote."}}, {"@type": "Question", "name": "Can clients and crew use it without installing anything?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Clients open a link to view the booklet and approve; crew open their own link to see only their tasks. It runs in the browser on laptop and phone."}}, {"@type": "Question", "name": "Can Helm handle many events at once?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Each event keeps its own layout, quote, tasks and payments, and you can see all of a client's events side by side."}}, {"@type": "Question", "name": "How is my data kept safe?", "acceptedAnswer": {"@type": "Answer", "text": "Each studio's workspace is kept separate by database rules, connections use HTTPS, access follows the roles you set, and key changes are logged. See our Privacy Policy."}}, {"@type": "Question", "name": "Are prices inclusive of tax?", "acceptedAnswer": {"@type": "Answer", "text": "Proposed prices are shown before tax. Checkout shows the exact tax for your billing details."}}, {"@type": "Question", "name": "Can I change plans later?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Your events, layouts and records stay with your workspace when you move between plans."}}]}]}</script>
 <head>
 <script src="/marketing-theme.js?v=3"></script>
-<link rel="stylesheet" href="/home.css?v=31">
+<link rel="stylesheet" href="/home.css?v=34">
 <link rel="stylesheet" href="/home-guide.css?v=3">
 <noscript><link rel="stylesheet" href="/fonts/home-late.css?v=1"></noscript>
 </head>
@@ -234,6 +234,12 @@
    <div class="note b n8 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">80 chairs promised,<br>62 in the store</p><small>Stock nobody checked</small></div>
    <div class="note p n9 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Client changed the<br>menu — kitchen knows?</p><small>Change not passed on</small></div>
   </div>
+ </div>
+</section>
+
+<!-- PROBLEM (2), version C: the four ways + the try-the-planner button on a screen of their own (same content as live) -->
+<section class="sec problem problem-ways" id="ways" aria-label="Four ways event work gets lost">
+ <div class="wrap">
   <div class="ways scraps-ways snap" aria-label="Four ways event work gets lost">
    <article class="way rv" data-way="paper">
     <div class="way-top"><svg><use href="#i-book"/></svg><b>Paper &amp; diary</b><span>01</span></div>
@@ -607,21 +613,21 @@
     <p class="cr r3"><span class="av a2">AK</span>Reminders scheduled<em>Auto</em></p>
     <p class="cr r4 good"><span class="av a2">AK</span>Arun checked in<em>13:24</em></p>
    </div>
+   <div class="facts crew-facts">
+    <div class="rv"><b data-count="1">1</b><span>event record from enquiry to close</span></div>
+    <div class="rv"><b>Every</b><span>role with access you control</span></div>
+    <div class="rv"><b data-count="8">8</b><span>days free to run a real event through it</span></div>
+   </div>
    <blockquote class="cquote sr" id="crewMsg">“Hi Sana — you're on Florals for the Garden wedding, Sat 14 Dec at Lakeside lawn. Call time 13:30, finish 17:00. Task: dress the entrance arch and the table centrepieces. Please accept or decline by 6 pm today.”</blockquote>
   </div>
  </div>
-  <div class="wrap facts">
-   <div class="rv"><b data-count="1">1</b><span>event record from enquiry to close</span></div>
-   <div class="rv"><b>Every</b><span>role with access you control</span></div>
-   <div class="rv"><b data-count="8">8</b><span>days free to run a real event through it</span></div>
-  </div>
 </section>
 
 <!-- MODULES -->
 <section class="sec modules" id="modules" aria-labelledby="mo-h">
  <div class="wrap">
   <div class="head-split"><div><p class="eyebrow rv">What you get</p><h2 id="mo-h" class="h2 rv">Every part of your business,<br><em>one connected platform.</em></h2></div><p class="lead rv">Each area works on its own — and gets more useful because it shares data with the others. From the first enquiry to the final profit figure.</p></div>
-  <div class="mods snap" aria-label="Helm modules">
+  <div class="mods snap" id="modRow" role="region" tabindex="0" aria-label="Helm modules">
    <article class="mod m-wide rv"><div class="mod-t"><span class="ic"><svg><use href="#i-layout"/></svg></span><h3>Layout design</h3><p>Plan the venue to the centimetre, then show the client exactly how it will look.</p><ul><li>2D builder with exact measurements</li><li>3D view and photoreal render</li><li>Layout wizard for a quick first draft</li><li>A wide décor library: arches, stages, canopies</li><li>Client booklet from the design</li></ul></div></article>
    <article class="mod rv"><div class="mod-t"><span class="ic"><svg><use href="#i-lead"/></svg></span><h3>CRM &amp; leads</h3><p>Every enquiry captured and followed through, with the full client history.</p><ul><li>Leads pipeline from enquiry to booking</li><li>Nurture messages and discovery calls</li><li>Follow-up reminders</li><li>Client history and archive</li><li>Resource calendar across events</li></ul></div></article>
    <article class="mod rv"><div class="mod-t"><span class="ic"><svg><use href="#i-quote"/></svg></span><h3>Quotes &amp; approvals</h3><p>The price updates as you design, and the client approves online.</p><ul><li>Live pricing while you build</li><li>Quote versions you can compare</li><li>Clean, shareable proposals</li><li>Client e-approval</li></ul></div></article>
@@ -848,12 +854,12 @@
  <div><h4>Product</h4><a href="#modules">Features</a><a href="#solutions">Solutions</a><a href="/services">All services</a><a href="/pricing">Pricing</a><a href="/try">Try the planner</a><a href="#faq">FAQ</a></div>
  <div><h4>Company</h4><a href="/about">About us</a><a href="#security">Security</a><a href="#contact">Contact</a><a href="/login">Sign in</a></div>
  <div><h4>Legal</h4><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/refund-policy">Refund Policy</a><a href="/data-deletion">Data Deletion</a><a href="/cookie-policy">Cookie Policy</a><a href="/dpa">Data Processing</a><a href="/acceptable-use">Acceptable Use</a></div>
- <div><h4>Contact</h4><a href="mailto:sales@helm.events">sales@helm.events</a><a href="mailto:support@helm.events">support@helm.events</a></div>
+ <div><h4>Contact</h4><a href="mailto:sales@helm.events">sales@helm.events</a><a href="mailto:support@helm.events">support@helm.events</a><address class="f-addr">Mindspace IT Park, Madhapur, Hyderabad 500081</address></div>
 </div><div class="wrap copy"><span>© 2026 Helm. Amateurs panic. Professionals go for Helm.</span><span class="big-word" aria-hidden="true">Helm</span></div></footer>
 <script src="/trusted-types.js?v=4"></script>
 <script src="/telemetry.js?v=6" defer></script>
 <script src="/home-assets/manifest.js?v=3" defer></script>
-<script src="/home.js?v=30" defer></script>
+<script src="/home.js?v=34" defer></script>
 <script src="/home-guide.js?v=2" defer></script>
 </body>
 </html>

@@ -507,7 +507,7 @@
       var j = isOut ? 1 : 0.55;
       var tw = t.offsetWidth / 2, th = t.offsetHeight / 2;
       var x = clamp(Math.cos(a) * rx * j, -w / 2 + tw + 4, w / 2 - tw - 4);
-      var y = clamp(Math.sin(a) * ry * j, -h / 2 + th, h / 2 - th);
+      var y = clamp(Math.sin(a) * ry * j, -h / 2 + th + 10, h / 2 - th - 16);   // r27: rotated tiles stay fully on screen
       return { x: x, y: y, r: (i % 5 - 2) * 3 };
     });
   }
@@ -898,7 +898,7 @@
     var evMan = Promise.resolve(window.DEMO9_MANIFEST || {});
     /* r21 landing photos: owner-supplied photos in /landing/events/ (1600w + 800w WebP).
        Data Saver / Save-Data or a 2G-class connection keeps the gradient only (no photo requests). */
-    var CEL_PHOTOS = { wedding: 'wedding', corporate: 'product-launch', birthday: 'birthday', concert: 'sangeet', gala: 'corporate-gala', cultural: 'mehendi' };
+    var CEL_PHOTOS = { wedding: 'wedding', corporate: 'product-launch', birthday: 'birthday', concert: 'sangeet-2', gala: 'corporate-gala-2', cultural: 'mehendi-2' };
     var celNet = navigator.connection || {};
     var celLite = !!celNet.saveData || /(^|-)2g$/.test(String(celNet.effectiveType || ''));
     var celLoad = function (bg) {   /* sets the src only when the slide is shown (or next), so later photos never load early */
@@ -1279,6 +1279,7 @@
     var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.addEventListener('resize', function () { vh = window.innerHeight; }, { passive: true });
     var line = $('[data-fill]'), cur = $('.curtain'), ws = null;
+    var fitMq = window.matchMedia('(min-width: 768px) and (min-height: 560px)');
     if (line) {
       var words = line.textContent.trim().split(/\s+/); line.textContent = '';
       var sr = el('span', 'sr', words.join(' ')); line.appendChild(sr);
@@ -1289,7 +1290,8 @@
     function frame() {
       raf = 0;
       if (line && live.has(line)) {
-        var r = line.getBoundingClientRect(), k = clamp((vh * .85 - r.top) / (r.height + vh * .45), 0, 1), n = Math.round(k * ws.length);
+        /* r27/r28: when the page snaps one screen per section, the line is complete (to the last word) before it reaches the centre of the screen */
+        var r = line.getBoundingClientRect(), k = fitMq.matches ? clamp((vh * .95 - (r.top + r.height / 2)) / (vh * .36), 0, 1) : clamp((vh * .85 - r.top) / (r.height + vh * .45), 0, 1), n = Math.round(k * ws.length);
         ws.forEach(function (w, i) { w.classList.toggle('on', i < n); });
       }
       if (cur && live.has(cur)) {
@@ -1537,4 +1539,152 @@
       box.querySelector('.ev-close').focus();
     };
   }
+})();
+
+/* ================= r27 landing fit: one section = one screen, clean snapping =================
+   Nothing is removed, hidden or recoloured. On laptops / desktops / tablets (>= 768 x 560):
+   1. fit: a section whose content is taller than the screen is scaled down as a whole (CSS zoom on its
+      content blocks), so every section shows completely in one screen; pinned scenes likewise.
+   2. snap (home.css, motion allowed): plain sections snap at their top; the pinned, scroll-driven scenes
+      (hero film, converge, film, 2D->3D, story, celebrations) are taller on purpose, so an invisible snap
+      point is added at every chapter they already step to (same positions as their own buttons / stepper).
+      They get no section-level snap: a snap box taller than the screen would let the page rest inside it. */
+(function () {
+  'use strict';
+  var fitMq = window.matchMedia('(min-width: 768px) and (min-height: 560px)');
+  var snapMq = window.matchMedia('(min-width: 768px) and (min-height: 560px) and (prefers-reduced-motion: no-preference)');
+  var $ = function (s) { return document.querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var NAVH = 72;
+  function px(v) { return parseFloat(v) || 0; }
+  function flowKids(box) {
+    return Array.prototype.filter.call(box.children, function (c) {
+      var cs = getComputedStyle(c);
+      return cs.position !== 'absolute' && cs.position !== 'fixed' && cs.display !== 'none' && !c.classList.contains('snap-pt');
+    });
+  }
+  function contentH(kids) {
+    if (!kids.length) return 0;
+    var top = Infinity, bot = -Infinity;
+    kids.forEach(function (k) { var r = k.getBoundingClientRect(), cs = getComputedStyle(k); top = Math.min(top, r.top - px(cs.marginTop)); bot = Math.max(bot, r.bottom + px(cs.marginBottom)); });
+    return bot - top;
+  }
+  /* box: the element that must fit; avail: its usable height; kids: the blocks that get scaled */
+  function fitBox(kids, avail) {
+    kids.forEach(function (k) { k.style.removeProperty('zoom'); });
+    var z = 1;
+    for (var pass = 0; pass < 3; pass++) {
+      var h = contentH(kids);
+      if (h <= avail + 1) break;
+      z = Math.max(0.2, z * (avail - 2) / h);
+      kids.forEach(function (k) { k.style.setProperty('zoom', z.toFixed(3)); });
+    }
+  }
+  function fitAll() {
+    var all = $$('main > .sec, main > .fillsec').concat($$('.apps-pin, .film-pin, .morph-pin, .story-pin, .cel-in'));
+    all.forEach(function (b) { flowKids(b).forEach(function (k) { k.style.removeProperty('zoom'); }); });
+    if (!fitMq.matches) return;
+    var vh = window.innerHeight;
+    $$('main > .sec, main > .fillsec').forEach(function (sec) {
+      if (sec.hidden) return;
+      var cs = getComputedStyle(sec);
+      fitBox(flowKids(sec), vh - px(cs.paddingTop) - px(cs.paddingBottom));
+    });
+    $$('.film-pin, .morph-pin, .story-pin, .cel-in').forEach(function (pin) {
+      var cs = getComputedStyle(pin);
+      fitBox(flowKids(pin), pin.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom));
+    });
+  }
+  function frac(n) { var a = []; for (var i = 0; i < n; i++) a.push((i + 0.5) / n); return a; }
+  function plan() {
+    var vh = window.innerHeight, out = [];
+    function spanOf(sec) { return Math.max(0, sec.offsetHeight - vh); }
+    var hero = $('.hero'), hv = $('#heroVidWrap');
+    if (hero && hv) out.push([hero, [0, hv.offsetTop - NAVH]]);   // hero copy, then the film fully open
+    var cv = $('#converge'); if (cv) out.push([cv, [0, spanOf(cv)]]);
+    var film = $('#film'); if (film) out.push([film, frac($$('#film .fc').length).map(function (f) { return f * spanOf(film); })]);
+    var morph = $('#morph'); if (morph) out.push([morph, [0.04, 0.38, 0.66, 0.96].map(function (f) { return f * spanOf(morph); })]);
+    var story = $('#story'); if (story) out.push([story, frac($$('#story .sl').length).map(function (f) { return f * spanOf(story); })]);
+    var cel = $('#solutions'); if (cel) out.push([cel, frac($$('#solutions .cel-s').length).map(function (f) { return f * spanOf(cel); })]);
+    return out;
+  }
+  var made = [];
+  function build() {
+    fitAll();
+    made.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); }); made = [];
+    if (!snapMq.matches) return;
+    plan().forEach(function (e) {
+      e[1].forEach(function (y) {
+        var i = document.createElement('i');
+        i.className = 'snap-pt'; i.setAttribute('aria-hidden', 'true');
+        i.style.setProperty('top', Math.round(y) + 'px');
+        e[0].appendChild(i); made.push(i);
+      });
+    });
+  }
+  var t = 0;
+  function later() { clearTimeout(t); t = setTimeout(build, 150); }
+  build();
+  window.addEventListener('load', build);
+  window.addEventListener('resize', later, { passive: true });
+  if (snapMq.addEventListener) { snapMq.addEventListener('change', build); fitMq.addEventListener('change', build); }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(build);
+  /* a screen that has snapped into view shows all of its fade-in blocks (the page-wide reveal waits until a
+     block is 8% above the bottom edge, which a block at the foot of a fitted screen never reaches) */
+  if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    var rio = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting && fitMq.matches) $$('.rv', e.target).forEach(function (r) { r.classList.add('in'); }); });
+    }, { threshold: 0.6 });
+    $$('main > .sec, main > .fillsec').forEach(function (s) { rio.observe(s); });
+  }
+  /* version C: sideways rows on wide screens (tools, and r28: modules), with previous / next buttons */
+  var rowReduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function rowNav(box, what) {
+    var nav = document.createElement('div'); nav.className = 'flip-nav';
+    var mk = function (dir, label) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'flip-go ' + dir; b.setAttribute('aria-label', label); b.setAttribute('aria-controls', box.id);
+      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('aria-hidden', 'true');
+      var u = document.createElementNS('http://www.w3.org/2000/svg', 'use'); u.setAttribute('href', '#i-chev'); svg.appendChild(u); b.appendChild(svg);
+      b.addEventListener('click', function () { box.scrollBy({ left: (dir === 'prev' ? -1 : 1) * Math.max(240, box.clientWidth * 0.8), behavior: rowReduce.matches ? 'auto' : 'smooth' }); });
+      nav.appendChild(b); return b;
+    };
+    var prev = mk('prev', 'Previous ' + what), next = mk('next', 'Next ' + what);
+    var paint = function () {
+      prev.disabled = box.scrollLeft < 4;
+      next.disabled = box.scrollLeft + box.clientWidth >= box.scrollWidth - 4;
+    };
+    box.addEventListener('scroll', paint, { passive: true });
+    window.addEventListener('resize', paint, { passive: true });
+    if ('MutationObserver' in window) new MutationObserver(paint).observe(box, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    return { nav: nav, paint: paint };
+  }
+  var flips = $('#flips'), tabs = $('#ftabs');
+  if (flips && tabs) {
+    var fn = rowNav(flips, 'tools');
+    /* the buttons sit beside the filter pills (not inside them: a click inside #ftabs resets the row) */
+    var row = document.createElement('div'); row.className = 'ftabs-row';
+    tabs.parentNode.insertBefore(row, tabs); row.appendChild(tabs); row.appendChild(fn.nav);
+    tabs.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-f]')) { flips.scrollLeft = 0; setTimeout(fn.paint, 60); } });
+    fn.paint();
+  }
+  var modRow = $('#modRow');
+  if (modRow) {
+    var mn = rowNav(modRow, 'modules');
+    var mbar = document.createElement('div'); mbar.className = 'row-bar';
+    mbar.appendChild(mn.nav); modRow.parentNode.insertBefore(mbar, modRow);
+    mn.paint();
+  }
+  /* r28: the HELM logo in the header (and footer) glides back to the very top of the landing page */
+  $$('a.brand[href="#top"]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      var nav = $('.nav'), bg = $('.burger'); if (nav && bg && nav.classList.contains('menu-open')) bg.click();
+      window.scrollTo({ top: 0, behavior: rowReduce.matches ? 'auto' : 'smooth' });
+      if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+    });
+  });
+
+  /* content that changes height after load (contact form fields, tool cards, event strip) */
+  setTimeout(build, 1500);
 })();
