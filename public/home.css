@@ -1526,6 +1526,7 @@ video.mimg{background:#1a231e}
    down as a whole (zoom) when it would not fit, and adds snap points for the pinned scenes' chapters.
    Phones keep the natural flow; reduced motion: no snapping. */
 .snap-pt{position:absolute;left:0;width:1px;height:1px;pointer-events:none;visibility:hidden}
+.snap-top{top:0}   /* R43: the hero's first snap point is in the markup, so snapping never lacks a point at the top */
 @media (min-width:768px) and (min-height:560px){
  :root{--fp:clamp(10px,3vh,44px);--fg:clamp(8px,2.2vh,28px)}
  html{scroll-padding-top:0}
@@ -1533,8 +1534,11 @@ video.mimg{background:#1a231e}
  main>.sec>*,main>.fillsec>*{width:100%;flex:none}
  main>.final{padding-left:12px;padding-right:12px}
  main>.final>.final-in{flex:1 1 auto;min-height:0}
- /* snap positions must not move while sections render (phones keep content-visibility) */
- .crew,.modules,.repeat,.why,.compare,.security,.about,.voices,.pricing,.faq,.contact,.final,body>footer{content-visibility:visible}
+ /* R43 speed: sections below the first screen still skip rendering until they come near (content-visibility:auto),
+    but their placeholder makes them exactly one screen (placeholder content height + padding) - the height every fitted
+    section has here - so snap positions and in-page links never move while sections render. The footer (not one screen tall) always renders. */
+ .crew,.modules,.repeat,.why,.compare,.security,.about,.voices,.pricing,.faq,.contact,.final{contain-intrinsic-size:none calc(100vh - var(--navh) - 2 * var(--fp));contain-intrinsic-size:none calc(100dvh - var(--navh) - 2 * var(--fp))}
+ body>footer{content-visibility:visible}
  /* vertical rhythm scales with the screen height */
  .h2{font-size:clamp(28px,min(5vw,6.6vh),68px);margin-bottom:var(--fg)}
  .eyebrow{margin-bottom:clamp(8px,1.8vh,22px)}

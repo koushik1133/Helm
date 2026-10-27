@@ -1329,6 +1329,12 @@
   var str = function (v, max) { return typeof v === 'string' ? v.trim().slice(0, max) : ''; };
   var num = function (v) { v = Number(v); return v > 0 && v < 10000 ? Math.round(v) : 0; };
 
+  /* R43 speed: the strip is far below the first screen, so its list is fetched once the page has loaded and the
+     browser is idle - it no longer competes with the first screen for the network or the main thread */
+  var idle = window.requestIdleCallback || function (f) { return setTimeout(f, 200); };
+  var start = function () { idle(loadStrip, { timeout: 2000 }); };
+  if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true });
+  function loadStrip() {
   fetch('/landing/events/events.json', { cache: 'no-cache', credentials: 'same-origin' })
     .then(function (r) { return r.ok ? r.json() : []; })
     .then(function (list) {
@@ -1343,6 +1349,7 @@
       build(items);
     })
     .catch(function () { /* no list = no section */ });
+  }
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
 
@@ -1400,6 +1407,7 @@
     sec.hidden = false;
     lightbox(items);
     if (!reduce) motion();
+    window.dispatchEvent(new Event('helm:relayout'));   // R43: the section appeared - fit + snap points are recomputed
   }
 
   /* ---- seamless marquee: [set][copy]...[copy] where copies cover the band; x wraps every segW ---- */
@@ -1569,31 +1577,43 @@
     kids.forEach(function (k) { var r = k.getBoundingClientRect(), cs = getComputedStyle(k); top = Math.min(top, r.top - px(cs.marginTop)); bot = Math.max(bot, r.bottom + px(cs.marginBottom)); });
     return bot - top;
   }
-  /* box: the element that must fit; avail: its usable height; kids: the blocks that get scaled */
-  function fitBox(kids, avail) {
-    kids.forEach(function (k) { k.style.removeProperty('zoom'); });
-    var z = 1;
-    for (var pass = 0; pass < 3; pass++) {
-      var h = contentH(kids);
-      if (h <= avail + 1) break;
-      z = Math.max(0.2, z * (avail - 2) / h);
-      kids.forEach(function (k) { k.style.setProperty('zoom', z.toFixed(3)); });
+  /* box: the element that must fit; avail: its usable height; kids: the blocks that get scaled.
+     R43 speed: all boxes are measured together and scaled together (read, then write), so each pass costs one
+     layout of the page instead of one per section - same zoom values as before. */
+  function fitBoxes(jobs) {
+    jobs.forEach(function (j) { j.z = 1; j.kids.forEach(function (k) { k.style.removeProperty('zoom'); }); });
+    var open = jobs;
+    for (var pass = 0; pass < 3 && open.length; pass++) {
+      var hs = open.map(function (j) { return contentH(j.kids); });   // reads only
+      var next = [];
+      open.forEach(function (j, i) {                                   // writes only
+        if (hs[i] <= j.avail + 1) return;
+        j.z = Math.max(0.2, j.z * (j.avail - 2) / hs[i]);
+        j.kids.forEach(function (k) { k.style.setProperty('zoom', j.z.toFixed(3)); });
+        next.push(j);
+      });
+      open = next;
     }
   }
+  var zoomed = false;   // R43 speed: phones never zoom, so they skip the per-block style reads entirely
   function fitAll() {
+    if (!fitMq.matches && !zoomed) return;
     var all = $$('main > .sec, main > .fillsec').concat($$('.apps-pin, .film-pin, .morph-pin, .story-pin, .cel-in'));
     all.forEach(function (b) { flowKids(b).forEach(function (k) { k.style.removeProperty('zoom'); }); });
+    zoomed = false;
     if (!fitMq.matches) return;
-    var vh = window.innerHeight;
+    zoomed = true;
+    var vh = window.innerHeight, jobs = [];
     $$('main > .sec, main > .fillsec').forEach(function (sec) {
       if (sec.hidden) return;
       var cs = getComputedStyle(sec);
-      fitBox(flowKids(sec), vh - px(cs.paddingTop) - px(cs.paddingBottom));
+      jobs.push({ kids: flowKids(sec), avail: vh - px(cs.paddingTop) - px(cs.paddingBottom) });
     });
     $$('.film-pin, .morph-pin, .story-pin, .cel-in').forEach(function (pin) {
       var cs = getComputedStyle(pin);
-      fitBox(flowKids(pin), pin.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom));
+      jobs.push({ kids: flowKids(pin), avail: pin.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) });
     });
+    fitBoxes(jobs);
   }
   function frac(n) { var a = []; for (var i = 0; i < n; i++) a.push((i + 0.5) / n); return a; }
   function plan() {
@@ -1609,11 +1629,14 @@
     return out;
   }
   var made = [];
+  /* R43: the new snap points are measured and added before the old ones go. Removing them first left the page,
+     for one layout, with no snap point in the hero, and mandatory snapping then slid a freshly opened page down
+     to the next section. */
   function build() {
     fitAll();
-    made.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); }); made = [];
-    if (!snapMq.matches) return;
-    plan().forEach(function (e) {
+    var next = snapMq.matches ? plan() : [];
+    var old = made; made = [];
+    next.forEach(function (e) {
       e[1].forEach(function (y) {
         var i = document.createElement('i');
         i.className = 'snap-pt'; i.setAttribute('aria-hidden', 'true');
@@ -1621,12 +1644,16 @@
         e[0].appendChild(i); made.push(i);
       });
     });
+    old.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
   }
   var t = 0;
   function later() { clearTimeout(t); t = setTimeout(build, 150); }
-  build();
+  /* R43 speed: the first fit + snap set-up waits until the first screen has painted (the hero needs neither);
+     the hero keeps its first snap point in the markup, so snapping is right before this runs */
+  requestAnimationFrame(function () { setTimeout(build, 0); });
   window.addEventListener('load', build);
   window.addEventListener('resize', later, { passive: true });
+  window.addEventListener('helm:relayout', later);
   if (snapMq.addEventListener) { snapMq.addEventListener('change', build); fitMq.addEventListener('change', build); }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(build);
   /* a screen that has snapped into view shows all of its fade-in blocks (the page-wide reveal waits until a
