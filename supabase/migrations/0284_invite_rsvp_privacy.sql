@@ -15,8 +15,9 @@
 --      (only its sha256 is stored) so the same phone can change its reply later (up to 20 times).
 --      Studio side: NEW event_site_rsvp_list(site) (Quotes view + own studio): counts + the list, for the dashboard
 --      and the CSV download on the Invitation Studio page.
---   2  HOST PHONE PRIVACY. "RSVP on WhatsApp / Call" becomes a per-site switch (data.rsvpContact). New sites start with
---      it OFF (set by the studio page); an existing site has no switch saved and keeps today's buttons. When it is OFF
+--   2  HOST PHONE PRIVACY. "RSVP on WhatsApp / Call" becomes a per-site switch (data.rsvpContact). The default for every
+--      site, new or existing, is today's behaviour (buttons shown; no setting saved = shown); the RSVP form (data.rsvpForm)
+--      is OPTIONAL, off unless the studio picks "RSVP form" or "Both". When the buttons are switched OFF
 --      the contact number is moved out of the public data into NEW column event_sites.private_data (never returned to
 --      guests) by trigger ad_r34_site_private - so it cannot leak even through an old cached page.
 --   3  ADDRESS PRIVACY (per site, data.addressMode): 'full' (default = today) or 'after_rsvp' = guests see only the

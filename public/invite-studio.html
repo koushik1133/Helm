@@ -282,14 +282,14 @@
         <div class="card" id="rsvpCard">
           <h2>RSVP &amp; privacy</h2>
           <fieldset class="opt-group" id="rsvpModeGroup"><legend>How guests reply</legend>
-            <label class="opt"><input type="radio" name="f_rsvpMode" id="f_rsvpMode_form" value="form"><span>RSVP form only<small>Guests reply on the invitation (name, how many, yes / no / maybe, a message). The contact number stays private. You see every reply below.</small></span></label>
-            <label class="opt"><input type="radio" name="f_rsvpMode" id="f_rsvpMode_contact" value="contact"><span>Phone &amp; WhatsApp<small>Guests see the contact number with “RSVP on WhatsApp” and “Call” buttons.</small></span></label>
-            <label class="opt"><input type="radio" name="f_rsvpMode" id="f_rsvpMode_both" value="both"><span>Both<small>The RSVP form, and the phone / WhatsApp buttons under it.</small></span></label>
+            <label class="opt"><input type="radio" name="f_rsvpMode" id="f_rsvpMode_contact" value="contact"><span>Phone &amp; WhatsApp (default)<small>Guests see the contact number with “RSVP on WhatsApp” and “Call” buttons - the same as before.</small></span></label>
+            <label class="opt"><input type="radio" name="f_rsvpMode" id="f_rsvpMode_form" value="form"><span>RSVP form (optional)<small>Guests tell you if they're coming (Yes / Maybe / No) and how many people. The contact number stays private; replies show below.</small></span></label>
+            <label class="opt"><input type="radio" name="f_rsvpMode" id="f_rsvpMode_both" value="both"><span>Both (optional)<small>The RSVP form, with the phone / WhatsApp buttons under it.</small></span></label>
           </fieldset>
           <p class="mnote" id="rsvpPhoneNote" hidden>Add a phone number in “Contact” above - without one guests only see the form.</p>
           <fieldset class="opt-group" id="addrGroup"><legend>Address on the invitation</legend>
-            <label class="opt"><input type="radio" name="f_addrMode" id="f_addrMode_full" value="full"><span>Show the full address and map<small>Everyone with the link sees the venue, the street address and the map link.</small></span></label>
-            <label class="opt"><input type="radio" name="f_addrMode" id="f_addrMode_after" value="after_rsvp"><span>Venue name + city only, until the guest replies<small>Guests who reply Yes or Maybe on the RSVP form then see the full address and map link (on that phone); a guest who replies No does not. Needs the RSVP form.</small></span></label>
+            <label class="opt"><input type="radio" name="f_addrMode" id="f_addrMode_full" value="full"><span>Full address and map (default)<small>Everyone with the link sees the venue, the street address and the map link - the same as before.</small></span></label>
+            <label class="opt"><input type="radio" name="f_addrMode" id="f_addrMode_after" value="after_rsvp"><span>Hide the address until the guest replies Yes or Maybe (optional)<small>Guests see the venue name + city; after replying Yes or Maybe on the RSVP form they see the full address and map (on that phone). Guests who reply No do not.</small><small id="addrNeedsForm">Turn on the RSVP form above to use this.</small></span></label>
           </fieldset>
           <div class="fld" id="cityWrap" hidden><label for="f_city">City (shown to everyone)</label><input id="f_city" maxlength="60" placeholder="e.g. Hyderabad"></div>
           <label class="ish-opt"><input type="checkbox" id="f_helmBrand" checked> Show “Made with Helm Studios” in the footer (your studio name is always shown)</label>
@@ -750,7 +750,7 @@
     }
     siteLoadFailed=false; paintActions(); $("#loadErrTop").hidden=true; $("#loadErrTop").innerHTML="";
     if(existing){ fill(existing); paintSettings(); }
-    else { await prefillFromPlan(); prefillFromQuote(); applySettings({rsvpForm:true,rsvpContact:false}); applyTypeLabels(); paintTpls(); paintState(); }   // r34: a NEW site starts with the RSVP form only
+    else { await prefillFromPlan(); prefillFromQuote(); applySettings({}); applyTypeLabels(); paintTpls(); paintState(); }   // r34: a NEW site starts exactly like before (phone + WhatsApp, full address); the new options are opt-in
     if(dirty) dirty.clean();
     preview();
     loadReplies(); loadOldLinks();
@@ -770,8 +770,15 @@
     paintSettings();
   }
   function paintSettings(){
-    const m=rsvpMode(), after=addrMode()==="after_rsvp";
-    $("#rsvpPhoneNote").hidden=!(m!=="form" && $("#f_hostPhone").value.replace(/\D/g,"").length<7);
+    const m=rsvpMode();
+    // "Hide the address until Yes / Maybe" only works with the RSVP form: off (and back to the default) without it
+    const noForm=m==="contact", hide=$("#f_addrMode_after");
+    hide.disabled=noForm||readOnly; $("#addrNeedsForm").hidden=!noForm;
+    if(noForm && hide.checked) $("#f_addrMode_full").checked=true;
+    const after=addrMode()==="after_rsvp";
+    const noPhone=$("#f_hostPhone").value.replace(/\D/g,"").length<7;
+    $("#rsvpPhoneNote").hidden=!(m!=="form" && noPhone);
+    $("#rsvpPhoneNote").textContent=m==="contact"?"Add a phone number in \u201cContact\u201d above - without one guests have no way to reply.":"Add a phone number in \u201cContact\u201d above - without one guests only see the form.";
     $("#cityWrap").hidden=!after;
     if(after && !$("#f_city").value.trim() && HX){ const c=HX.cityOf($("#f_address").value); if(c) $("#f_city").value=c; }
   }

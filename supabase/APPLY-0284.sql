@@ -1,12 +1,14 @@
 -- APPLY-0284.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
 -- Run AFTER APPLY-0260 (cancelled events close links) and APPLY-0261 (link views: the IP helper). Order-independent of
 -- 0262-0277 and of the parallel 0279 / 0281 / 0282 / 0283 work.
--- R34 invitation sites: RSVP form for guests (replies on the Invitation Studio page + CSV), a per-site choice of
--- "RSVP form only" / "Phone & WhatsApp" / "Both", address privacy (venue + city until the guest replies Yes or Maybe), "Make new
+-- R34 invitation sites. DEFAULTS STAY AS TODAY for every site, new or existing (phone + WhatsApp buttons, full address);
+-- everything new is optional per site: an RSVP form ("RSVP form" or "Both"; replies on the Invitation Studio page + CSV),
+-- hiding the address until the guest replies Yes or Maybe (needs the form), "Make new
 -- link" (old links say "This invitation has moved"), and 6 new themes. 2 NEW private tables (RLS on, no API access),
 -- 1 NEW column (event_sites.private_data, default empty), 2 small triggers, 7 new functions, the template check widened
 -- to a superset. No existing row, column or function changed or deleted; every existing invitation looks and behaves
--- exactly as today until its studio changes a setting. Safe to run twice. ASCII only.
+-- exactly as today until its studio changes a setting (one visible change on every site, owner request: the footer
+-- reads "Designed by <Studio> . Made with Helm Studios"). Safe to run twice. ASCII only.
 -- After this: deploy the site (invite.html, invite-studio.html, invite-extras.js, store-api.js v287, invite-og.png).
 begin;
 -- 0284_invite_rsvp_privacy.sql - CANONICAL forward-only.
@@ -26,8 +28,9 @@ begin;
 --      (only its sha256 is stored) so the same phone can change its reply later (up to 20 times).
 --      Studio side: NEW event_site_rsvp_list(site) (Quotes view + own studio): counts + the list, for the dashboard
 --      and the CSV download on the Invitation Studio page.
---   2  HOST PHONE PRIVACY. "RSVP on WhatsApp / Call" becomes a per-site switch (data.rsvpContact). New sites start with
---      it OFF (set by the studio page); an existing site has no switch saved and keeps today's buttons. When it is OFF
+--   2  HOST PHONE PRIVACY. "RSVP on WhatsApp / Call" becomes a per-site switch (data.rsvpContact). The default for every
+--      site, new or existing, is today's behaviour (buttons shown; no setting saved = shown); the RSVP form (data.rsvpForm)
+--      is OPTIONAL, off unless the studio picks "RSVP form" or "Both". When the buttons are switched OFF
 --      the contact number is moved out of the public data into NEW column event_sites.private_data (never returned to
 --      guests) by trigger ad_r34_site_private - so it cannot leak even through an old cached page.
 --   3  ADDRESS PRIVACY (per site, data.addressMode): 'full' (default = today) or 'after_rsvp' = guests see only the

@@ -99,7 +99,7 @@ t('E6 booklet: balance due by dd/mm/yyyy from terms + event date; paid in full',
 t('E7 a new invitation is prefilled from the quote (date, time, venue, address, host, names)', () => {
   assert.match(studio, /function prefillFromQuote\(\)/);
   for (const f of ['f_date', 'f_time', 'f_venue', 'f_address', 'f_host', 'f_hostPhone', 'f_names']) assert.match(studio, new RegExp('set\\("' + f + '"'));
-  assert.match(studio, /else \{ (?:await prefillFromPlan\(\); )?prefillFromQuote\(\); (?:applySettings\(\{rsvpForm:true,rsvpContact:false\}\); )?applyTypeLabels\(\);/);   // r34: a new site starts on the RSVP form
+  assert.match(studio, /else \{ (?:await prefillFromPlan\(\); )?prefillFromQuote\(\); (?:applySettings\(\{\}\); )?applyTypeLabels\(\);/);   // r34: a new site starts with the defaults (= today)
 });
 
 // ---- E8 dates in the studio's country style

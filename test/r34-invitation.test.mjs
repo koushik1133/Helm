@@ -33,10 +33,17 @@ t('settings: a site saved before r34 keeps today\'s page (phone buttons, full ad
   assert.equal(X.settings({ addressMode: 'weird' }).addressMode, 'full');
   assert.equal(X.settings(null).rsvpContact, true);
 });
-t('studio: one clear setting - form only / phone & WhatsApp / both; NEW sites start on the form', () => {
+t('studio: one clear setting - phone & WhatsApp (default) / RSVP form / both; NEW sites start exactly like before', () => {
   for (const v of ['form', 'contact', 'both']) assert.match(studio, new RegExp('name="f_rsvpMode" id="f_rsvpMode_' + v + '" value="' + v + '"'));
   assert.match(studio, /rsvpForm:rsvpMode\(\)!=="contact", rsvpContact:rsvpMode\(\)!=="form", addressMode:addrMode\(\)/);
-  assert.match(studio, /applySettings\(\{rsvpForm:true,rsvpContact:false\}\);/);
+  assert.match(studio, /prefillFromQuote\(\); applySettings\(\{\}\);/, 'a new site gets the defaults (= today)');
+  assert.doesNotMatch(studio, /applySettings\(\{rsvpForm:true/);
+  assert.match(studio, /id="f_rsvpMode_contact" value="contact"><span>Phone &amp; WhatsApp \(default\)/);
+  assert.match(studio, /id="f_addrMode_full" value="full"><span>Full address and map \(default\)/);
+  assert.match(studio, /<span>RSVP form \(optional\)<small>Guests tell you if they're coming \(Yes \/ Maybe \/ No\) and how many people\./);
+  assert.match(studio, /hide\.disabled=noForm\|\|readOnly;/, 'hiding the address is only offered with the RSVP form');
+  assert.ok(studio.indexOf('id="f_rsvpMode_contact"') < studio.indexOf('id="f_rsvpMode_form"'), 'default listed first');
+  const d = X.settings({}); assert.equal(d.rsvpForm, false); assert.equal(d.rsvpContact, true); assert.equal(d.addressMode, 'full');
   assert.match(studio, /const mode=S\.rsvpForm&&S\.rsvpContact\?"both":S\.rsvpForm\?"form":"contact";/);
   assert.match(studio, /Object\.assign\(\{\}, s\.data\|\|\{\}, \(s\.private_data&&typeof s\.private_data==="object"\)\?s\.private_data:\{\}\)/, 'private phone / address come back into the form');
   assert.match(studio, /needs the RSVP form - otherwise guests can never see the address/);
@@ -55,7 +62,7 @@ t('address privacy: venue + city until the guest replies; the reveal comes only 
   assert.match(invite, /if\(S\.addressMode==="after_rsvp"\)\{\s*delete d\.address; delete d\.mapUrl;/);
   assert.match(invite, /The full address and map are shared once you reply Yes or Maybe below\./);
   assert.match(invite, /REVEAL=\(r\.reveal&&typeof r\.reveal==="object"\)\?r\.reveal:null;/);
-  assert.match(studio, /Guests who reply Yes or Maybe on the RSVP form then see the full address and map link/);
+  assert.match(studio, /after replying Yes or Maybe on the RSVP form they see the full address and map/);
   assert.match(sql, /and p_attending in \('yes', 'maybe'\)/, "a No reply never gets the address");
   assert.match(invite, /const r=await BPStore\.sites\.reveal\(slug,tok\); if\(r&&r\.ok\)\{ REVEAL=r\.reveal\|\|null; REPLY=r\.reply\|\|null; \}/);
   assert.match(invite, /localStorage\.setItem\(tokKey\(\),t\)/);

@@ -2,8 +2,8 @@
  * published site agree), all plain data + pure functions (no DOM, no network):
  *   THEMES / KEYS     the 11 invitation themes (phase87's 5 + r34's 6). The database CHECK (0284) has the same keys.
  *   settings(data)    the per-site switches with the defaults an EXISTING site keeps (missing = today's behaviour):
- *                       rsvpForm     false  (new sites: the studio page saves true)
- *                       rsvpContact  true   (new sites: the studio page saves false) -> "RSVP on WhatsApp" + "Call"
+ *                       rsvpForm     false  (optional: the studio turns the RSVP form on)
+ *                       rsvpContact  true   -> "RSVP on WhatsApp" + "Call" (the default for new sites too)
  *                       addressMode  "full" | "after_rsvp" (venue + city until the guest replies)
  *                       helmBrand    true   ("Made with Helm Studios" in the footer; data.hideHelmBrand hides it)
  *   cityOf(address)   the last part of "Street, area, City" (a suggestion for the City field)
