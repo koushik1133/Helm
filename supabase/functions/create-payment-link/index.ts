@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
 
     const auth = "Basic " + btoa(keyId + ":" + keySecret);
     const rzp = (path: string, init: RequestInit = {}) =>
-      fetch("https://api.razorpay.com/v1/" + path, { ...init, headers: { "Authorization": auth, "Content-Type": "application/json" } });
+      fetch("https://api.razorpay.com/v1/" + path, { ...init, redirect: "error", headers: { "Authorization": auth, "Content-Type": "application/json" } });
 
     // cancel links superseded by a changed total (best effort; the webhook records any
     // payment that still arrives on one for reconciliation)

@@ -86,7 +86,7 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
   if (channel === "whatsapp") {
     live = isLive({ WHATSAPP_TOKEN: Deno.env.get("WHATSAPP_TOKEN"), WHATSAPP_PHONE_ID: Deno.env.get("WHATSAPP_PHONE_ID") });
     if (live) {
-      const r = await fetch(`https://graph.facebook.com/${Deno.env.get("WHATSAPP_API_VERSION") || "v21.0"}/${encodeURIComponent(Deno.env.get("WHATSAPP_PHONE_ID")!)}/messages`, {
+      const r = await fetch(`https://graph.facebook.com/${Deno.env.get("WHATSAPP_API_VERSION") || "v21.0"}/${encodeURIComponent(Deno.env.get("WHATSAPP_PHONE_ID")!)}/messages`, { redirect: "error",
         method: "POST", headers: { "Authorization": "Bearer " + Deno.env.get("WHATSAPP_TOKEN"), "Content-Type": "application/json" },
         body: JSON.stringify(otpMessage(String(dest.to), code, Deno.env.get("WHATSAPP_TPL_LANG") || "en")),
       });
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
         mobiles: String(dest.mobile),
         OTP: code,
       };
-      const r = await fetch("https://control.msg91.com/api/v5/flow/", {
+      const r = await fetch("https://control.msg91.com/api/v5/flow/", { redirect: "error",
         method: "POST",
         headers: { "authkey": authkey, "Content-Type": "application/json" },
         body: JSON.stringify(body),

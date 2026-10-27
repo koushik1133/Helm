@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
 
     const auth = "Basic " + btoa(keyId + ":" + keySecret);
     const rzp = (path: string, init: RequestInit = {}) =>
-      fetch("https://api.razorpay.com/v1/" + path, { ...init, headers: { "Authorization": auth, "Content-Type": "application/json" } });
+      fetch("https://api.razorpay.com/v1/" + path, { ...init, redirect: "error", headers: { "Authorization": auth, "Content-Type": "application/json" } });
 
     // the Razorpay plan must charge exactly what the page showed
     const pr = await rzp("plans/" + rzpPlan);

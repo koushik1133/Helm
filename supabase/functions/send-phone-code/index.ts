@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
     }
     const to = String(issued.phone).replace(/^\+/, "");
     // Meta AUTHENTICATION template: the code goes in the body AND the copy-code button.
-    const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}/messages`, {
+    const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}/messages`, { redirect: "error",
       method: "POST",
       headers: { "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" },
       body: JSON.stringify({

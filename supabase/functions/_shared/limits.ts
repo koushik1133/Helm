@@ -58,11 +58,16 @@ export async function readJsonCapped(req: Request, max = DEFAULT_BODY_LIMIT): Pr
   try { const v = JSON.parse(raw); return v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch { return {}; }
 }
 
-// Caller IP as seen by the Supabase edge (first x-forwarded-for hop), or "unknown".
+// Caller IP for rate limits, or "unknown".
+// r31: Supabase sits behind Cloudflare. Cloudflare SETS cf-connecting-ip itself (a value the caller sends is
+// replaced), but it only APPENDS to an x-forwarded-for the caller already sent - so the first x-forwarded-for
+// hop is whatever the caller typed, and a new fake value per request used to give a fresh rate-limit bucket
+// every time. Trust cf-connecting-ip first; x-forwarded-for / x-real-ip stay only as a fallback (local / tests).
 export function clientIp(req: Request): string {
+  const cf = (req.headers.get("cf-connecting-ip") || "").trim();
   const xff = req.headers.get("x-forwarded-for") || "";
   const first = xff.split(",")[0].trim();
-  return (first || req.headers.get("x-real-ip") || req.headers.get("cf-connecting-ip") || "unknown").slice(0, 64);
+  return (cf || first || req.headers.get("x-real-ip") || "unknown").slice(0, 64);
 }
 
 type Bucket = { n: number; reset: number };

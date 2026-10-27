@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
     let msg: unknown;
     try { msg = templateMessage(prep.to, kind, prep.vars, prep.token, LANG); }
     catch (_) { return json({ error: "could not build the message" }, 400); }
-    const r = await fetch(`https://graph.facebook.com/${VER}/${encodeURIComponent(Deno.env.get("WHATSAPP_PHONE_ID")!)}/messages`, {
+    const r = await fetch(`https://graph.facebook.com/${VER}/${encodeURIComponent(Deno.env.get("WHATSAPP_PHONE_ID")!)}/messages`, { redirect: "error",
       method: "POST",
       headers: { "Authorization": "Bearer " + Deno.env.get("WHATSAPP_TOKEN"), "Content-Type": "application/json" },
       body: JSON.stringify(msg),
