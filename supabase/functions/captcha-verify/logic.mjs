@@ -28,7 +28,7 @@ export function hostList(v) {
 }
 
 // The siteverify answer -> { ok, reason }. Fails CLOSED on anything unexpected.
-//   expect.action    the widget action the page used ("sales"); checked when Cloudflare returns one
+//   expect.action    the widget action the page used ("sales"); when set, Cloudflare must return exactly it
 //   expect.hostnames allowed hostnames (empty = not checked)
 export function judge(res, expect) {
   const r = res && typeof res === "object" ? res : null;
@@ -38,7 +38,9 @@ export function judge(res, expect) {
     const codes = Array.isArray(r["error-codes"]) ? r["error-codes"].map((c) => String(c).slice(0, 40)).slice(0, 5) : [];
     return { ok: false, reason: "rejected" + (codes.length ? ":" + codes.join(",") : "") };
   }
-  if (e.action && r.action && String(r.action) !== String(e.action)) return { ok: false, reason: "action-mismatch" };
+  // R32: when an action is expected Cloudflare must echo exactly it - a token minted without an
+  // action (or for another widget) no longer passes an action-bound check.
+  if (e.action && String(r.action ?? "") !== String(e.action)) return { ok: false, reason: "action-mismatch" };
   const hosts = Array.isArray(e.hostnames) ? e.hostnames : [];
   if (hosts.length && !hosts.includes(String(r.hostname || "").toLowerCase())) return { ok: false, reason: "hostname-mismatch" };
   return { ok: true, reason: "ok" };

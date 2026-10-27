@@ -30,9 +30,31 @@ export function appUrl(): string {
   return "https://www.helm.events";
 }
 
-export function joinLink(token: string): string | null {
+// R32 AUTH-1: `key` = the invitation's mail key (hex, minted per e-mail - mintMailKey). It rides ONLY in the
+// e-mailed link (&k=), so opening the e-mail - not holding the token the studio can copy - is what lets
+// invite-signup make the login already confirmed.
+export const MAIL_KEY_RE = /^[0-9a-f]{32,128}$/;
+export function joinLink(token: string, key?: string): string | null {
   if (!TOKEN_RE.test(token)) return null;
-  return `${appUrl()}/login?invite=${encodeURIComponent(token)}`;
+  const k = key && MAIL_KEY_RE.test(key) ? `&k=${key}` : "";
+  return `${appUrl()}/login?invite=${encodeURIComponent(token)}${k}`;
+}
+export async function sha256Hex(s: string): Promise<string> {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+// a fresh mail key for one invitation e-mail: the e-mail gets the key, the database only its SHA-256
+// (invite_mail_key_set, 0282, service role). "" = not stored (0282 not applied / error) - the e-mail then
+// goes out without &k= and invite-signup answers { fallback: true } (normal confirm-by-e-mail sign-up).
+// deno-lint-ignore no-explicit-any
+export async function mintMailKey(admin: any, token: string): Promise<string> {
+  try {
+    if (!TOKEN_RE.test(token)) return "";
+    const b = crypto.getRandomValues(new Uint8Array(24));
+    const key = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+    const { data, error } = await admin.rpc("invite_mail_key_set", { p_token: token, p_hash: await sha256Hex(key) });
+    return !error && data === true ? key : "";
+  } catch (_) { return ""; }
 }
 
 function fmtDate(iso: unknown): string {
@@ -51,8 +73,8 @@ export function roleLabel(role: unknown): string {
 // 0205: the SAME invitation for every invitee (brand-new address, existing account, re-invite):
 // "Join <Studio> on Helm" - "<Inviter> invited you as <Role>" - [Accept invitation] -> /login?invite=<token>.
 // The Supabase Auth fallback templates (docs/ops/email-templates invite-user + magic-link) use the same words.
-export function inviteEmail(opts: { token: unknown; inviter?: unknown; studio?: unknown; role?: unknown; expires_at?: unknown }): Mail | null {
-  const link = joinLink(String(opts.token ?? ""));
+export function inviteEmail(opts: { token: unknown; inviter?: unknown; studio?: unknown; role?: unknown; expires_at?: unknown; key?: string }): Mail | null {
+  const link = joinLink(String(opts.token ?? ""), opts.key);
   if (!link) return null;
   const studio = clean(opts.studio) || "your studio";
   const inviter = clean(opts.inviter, 60) || "Your studio admin";

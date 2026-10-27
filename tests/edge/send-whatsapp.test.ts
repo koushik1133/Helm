@@ -357,6 +357,25 @@ Deno.test("send-whatsapp: R32 free text (WHATSAPP_ALLOW_TEXT=1) may link only to
   } finally { rF(); rEnv(); }
 });
 
+Deno.test("send-whatsapp: R32 SRV-3 bare domains with ANY ending (evil.ru, helm-pay.shop) are links too", async () => {
+  resetSupaMock();
+  allowAll();
+  const rEnv = setEnv({ ...CONFIGURED, WHATSAPP_ALLOW_TEXT: "1" });
+  let calls = 0;
+  const rF = installFetch(() => { calls++; return jsonResponse({ messages: [{ id: "wamid.t" }] }); });
+  try {
+    const h = await loadHandler(FN);
+    for (const bad of ["see evil.ru", "pay at helm-pay.shop", "evil.tk", "evil.ru/x", "verify on secure-login.top today"]) {
+      assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", text: bad }, AUTH))).status, 400, "text: " + bad);
+      assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update", params: [bad] }, AUTH))).status, 400, "param: " + bad);
+    }
+    assertEquals(calls, 0, "Meta never called");
+    for (const ok of ["Hi Priya, see helm.events", "open app.helm.events/x", "Advance Rs. 500 received, thanks", "Starts 5.30 pm"]) {
+      assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", text: ok }, AUTH))).status, 200, ok);
+    }
+  } finally { rF(); rEnv(); }
+});
+
 Deno.test("send-whatsapp: a Helm proposal link is allowed; control characters are rejected, not cleaned", async () => {
   resetSupaMock();
   allowAll();

@@ -469,13 +469,13 @@
     </section>
   </main>
 
-<script src="telemetry.js?v=6"></script>
+<script src="telemetry.js?v=7"></script>
 <script src="config.js?v=110"></script>
 <!-- r26 speed: the app scripts are deferred (they download in parallel and run, in this order, once the page has
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=282" defer></script>
+<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=285" defer></script>
 <script src="auth-ui.js?v=53" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>
@@ -942,6 +942,7 @@ document.addEventListener("DOMContentLoaded", function(){
     const raw=String((err&&err.message)||""), m=raw.toLowerCase(), who=INVITE_ORG||"the studio";
     if(err&&err.inviteMsg) return err.inviteMsg;
     if(err&&err.hint==="seat_limit") return who+"'s free trial already has all its seats in use (the admin + 2 people). Ask the studio admin to free a seat or choose a plan, then open this invitation again.";
+    if(err&&err.hint==="plan_seat_limit") return who+" has used all the team invites its plan allows. Ask the studio admin to free a seat or contact Helm sales to add more, then open this invitation again.";
     if(/invitation is revoked/.test(m)) return "This invitation was cancelled — ask "+who+" if you should still join.";
     if(/invitation is accepted/.test(m)) return "This invitation was already used. If you joined with it, just sign in with that e-mail — otherwise ask "+who+" to send you a new invitation.";
     if(/invitation is expired|invitation has expired/.test(m)) return "This invitation has expired — ask "+who+" to send you a new one.";

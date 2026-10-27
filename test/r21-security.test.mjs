@@ -109,6 +109,10 @@ await t("2e captcha-verify logic: request validation, verdict fails closed, host
   assert.equal(L.judge({ success: "true" }).ok, false);
   assert.equal(L.judge({ success: false, "error-codes": ["timeout-or-duplicate"] }).reason, "rejected:timeout-or-duplicate");
   assert.equal(L.judge({ success: true, action: "login" }, { action: "sales" }).ok, false);
+  // R32: an expected action must be echoed exactly - a token with no action (or an empty one) fails
+  assert.equal(L.judge({ success: true, hostname: "www.helm.events" }, { action: "sales", hostnames: [] }).ok, false);
+  assert.equal(L.judge({ success: true, action: "", hostname: "evil.example" }, { action: "sales", hostnames: [] }).reason, "action-mismatch");
+  assert.equal(L.judge({ success: true, hostname: "www.helm.events" }, { hostnames: [] }).ok, true);
   assert.equal(L.judge({ success: true, hostname: "x.test" }, { hostnames: ["www.helm.events"] }).ok, false);
   assert.equal(L.judge({ success: true, action: "sales", hostname: "www.helm.events" }, { action: "sales", hostnames: L.hostList(" WWW.helm.events , helm.events") }).ok, true);
   const f = L.verifyForm("s", "tok", "1.2.3.4", "k");

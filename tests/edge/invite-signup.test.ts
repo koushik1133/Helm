@@ -12,11 +12,15 @@ const RESEND = { ...ENV, RESEND_API_KEY: "re_test", RESEND_FROM: "Helm <notifica
 const ORG = "a0000000-0000-4000-8000-000000000201", ADMIN = "b0000000-0000-4000-8000-000000000201";
 const future = () => new Date(Date.now() + 86400000).toISOString();
 const PW = "Str0ng!Password#1";
+// R32 AUTH-1: the e-mailed link's mail key; the DB row keeps only its SHA-256
+const KEY = "ab".repeat(24);
+const KEY_HASH = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(KEY)))].map((b) => b.toString(16).padStart(2, "0")).join("");
 const auth = () => supaLog().filter((l) => l.auth);
 const noFetch = () => installFetch(() => { throw new Error("no fetch expected"); });
 
-function db(o: { status?: string; expires_at?: string; state?: unknown; email?: string; stateErr?: boolean; relink?: unknown } = {}) {
-  const inv = { id: "i1", email: o.email ?? "Shagantikoushik+test@gmail.com", status: o.status ?? "pending", expires_at: o.expires_at ?? future(), org_id: ORG, role: "coordinator", invited_by: ADMIN };
+function db(o: { status?: string; expires_at?: string; state?: unknown; email?: string; stateErr?: boolean; relink?: unknown; keyHash?: string | null } = {}) {
+  const inv = { id: "i1", email: o.email ?? "Shagantikoushik+test@gmail.com", status: o.status ?? "pending", expires_at: o.expires_at ?? future(), org_id: ORG, role: "coordinator", invited_by: ADMIN,
+    mail_key_hash: o.keyHash === undefined ? KEY_HASH : o.keyHash };
   g.__supaResolver = (table: string) => table === "invitations" ? { data: inv, error: null }
     : table === "organizations" ? { data: { name: "ABCD" }, error: null }
     : table === "profiles" ? { data: { full_name: "Priya Shah" }, error: null } : { data: null, error: null };
@@ -69,7 +73,7 @@ Deno.test("invite-signup: new e-mail -> account created confirmed for the invite
   const r = setEnv(ENV); const f = noFetch();
   try {
     const h = await loadHandler(FN);
-    const res = await h(post({ token: TOK, email: "shagantikoushik+test@gmail.com", password: PW, full_name: "Koushik" }));
+    const res = await h(post({ token: TOK, email: "shagantikoushik+test@gmail.com", password: PW, full_name: "Koushik", k: KEY }));
     assertEquals(res.status, 200);
     const c = auth().find((a) => a.auth === "createUser");
     assertEquals(c?.args.email, "shagantikoushik+test@gmail.com"); assertEquals(c?.args.email_confirm, true);
@@ -82,7 +86,7 @@ Deno.test("invite-signup: login made by the invite e-mail (no password) -> 409 n
   const r = setEnv(ENV); const f = noFetch();
   try {
     const h = await loadHandler(FN);
-    const res = await h(post({ token: TOK, email: "shagantikoushik+test@gmail.com", password: PW }));
+    const res = await h(post({ token: TOK, email: "shagantikoushik+test@gmail.com", password: PW, k: KEY }));
     assertEquals(res.status, 409);
     const j = await res.json();
     assertEquals(j.code, "needs_link");
@@ -96,7 +100,7 @@ Deno.test("invite-signup: real account with a password -> 409 account_exists (si
   const r = setEnv(ENV); const f = noFetch();
   try {
     const h = await loadHandler(FN);
-    const res = await h(post({ token: TOK, email: "shagantikoushik+test@gmail.com", password: PW }));
+    const res = await h(post({ token: TOK, email: "shagantikoushik+test@gmail.com", password: PW, k: KEY }));
     assertEquals(res.status, 409); assertEquals((await res.json()).code, "account_exists");
   } finally { f(); r(); }
 });
@@ -220,7 +224,7 @@ Deno.test("invite-signup: self sign-up never confirmed -> 409 needs_link (reason
   const r = setEnv(ENV); const f = noFetch();
   try {
     const h = await loadHandler(FN);
-    const res = await h(post({ token: TOK, email: "shagantikoushik+test@gmail.com", password: PW }));
+    const res = await h(post({ token: TOK, email: "shagantikoushik+test@gmail.com", password: PW, k: KEY }));
     assertEquals(res.status, 409);
     const j = await res.json();
     assertEquals([j.code, j.reason], ["needs_link", "unconfirmed"]);
@@ -253,7 +257,7 @@ Deno.test("invite-signup: the database allowlist wins (email_is_reserved = false
   const r = setEnv(ENV); const f = noFetch();
   try {
     const h = await loadHandler(FN);
-    const res = await h(post({ token: TOK, email: "newhire@helm.events", password: PW }));
+    const res = await h(post({ token: TOK, email: "newhire@helm.events", password: PW, k: KEY }));
     assertEquals(res.status, 200);
     assert(auth().some((a) => a.auth === "createUser"));
   } finally { f(); r(); }
@@ -268,5 +272,57 @@ Deno.test("invite-signup email_send: a reserved address is refused (403), email_
     const l = await h(post({ email_lookup: true, email: "x@helm.com" }));
     assertEquals(await l.json(), { invited: false });
     assertEquals(auth().length, 0);
+  } finally { f(); r(); }
+});
+
+// ---- R32 AUTH-1: the token alone (the studio's "Copy link") never makes a CONFIRMED login --------------------
+Deno.test("R32 AUTH-1: token without the e-mailed mail key -> { fallback: true }, no createUser (admin can't pre-make a confirmed login)", async () => {
+  for (const [label, body, keyHash] of [
+    ["no k", { token: TOK, email: "shagantikoushik+test@gmail.com", password: PW }, KEY_HASH],
+    ["wrong k", { token: TOK, email: "shagantikoushik+test@gmail.com", password: PW, k: "cd".repeat(24) }, KEY_HASH],
+    ["k not hex", { token: TOK, email: "shagantikoushik+test@gmail.com", password: PW, k: KEY + "'" }, KEY_HASH],
+    ["old invitation (no key stored)", { token: TOK, email: "shagantikoushik+test@gmail.com", password: PW, k: KEY }, null],
+  ] as const) {
+    resetSupaMock(); db({ keyHash: keyHash as string | null });
+    const r = setEnv(ENV); const f = noFetch();
+    try {
+      const h = await loadHandler(FN);
+      const res = await h(post(body));
+      assertEquals(res.status, 200, label);
+      assertEquals(await res.json(), { fallback: true }, label);
+      assertEquals(auth().filter((a) => a.auth === "createUser").length, 0, label + ": no login made");
+    } finally { f(); r(); }
+  }
+});
+
+Deno.test("R32 AUTH-1: e-mailed key -> confirmed login + recorded in a155_admin_created (invite_signup_record)", async () => {
+  resetSupaMock(); db();
+  const rec: unknown[] = [];
+  const base = g.__supaRpc;
+  g.__supaRpc = (name: string, args: unknown) => { if (name === "invite_signup_record") { rec.push(args); return { data: true, error: null }; } return base(name, args); };
+  g.__supaAuth = (op: string) => op === "createUser" ? { data: { user: { id: "c0000000-0000-4000-8000-000000000301" } }, error: null } : { data: {}, error: null };
+  const r = setEnv(ENV); const f = noFetch();
+  try {
+    const h = await loadHandler(FN);
+    const res = await h(post({ token: TOK, email: "shagantikoushik+test@gmail.com", password: PW, k: KEY.toUpperCase() }));
+    assertEquals(res.status, 200); assertEquals(await res.json(), { ok: true });
+    assertEquals(auth().find((a) => a.auth === "createUser")?.args.email_confirm, true);
+    assertEquals(rec, [{ p_token: TOK, p_user: "c0000000-0000-4000-8000-000000000301" }]);
+  } finally { f(); r(); }
+});
+
+Deno.test("R32 AUTH-1: 0282 not applied (no mail_key_hash column) -> fallback, never a confirmed login", async () => {
+  resetSupaMock(); db();
+  const inv = { id: "i1", email: "a@b.co", status: "pending", expires_at: future(), org_id: ORG, role: "coordinator", invited_by: ADMIN };
+  let calls = 0;
+  g.__supaResolver = (table: string) => table === "invitations"
+    ? (++calls === 1 ? { data: null, error: { code: "42703", message: "column invitations.mail_key_hash does not exist" } } : { data: inv, error: null })
+    : { data: null, error: null };
+  const r = setEnv(ENV); const f = noFetch();
+  try {
+    const h = await loadHandler(FN);
+    const res = await h(post({ token: TOK, email: "a@b.co", password: PW, k: KEY }));
+    assertEquals(await res.json(), { fallback: true });
+    assertEquals(auth().filter((a) => a.auth === "createUser").length, 0);
   } finally { f(); r(); }
 });

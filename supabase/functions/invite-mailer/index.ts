@@ -37,7 +37,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped, tooMany } from "../_shared/limits.ts";
-import { inviteEmail, joinLink, roleLabel } from "./templates.ts";
+import { inviteEmail, joinLink, mintMailKey, roleLabel } from "./templates.ts";
 import { mailConfig, sendMail } from "../_shared/mailer.ts";
 import { isReservedEmail } from "../_shared/reserved-email.mjs";
 
@@ -149,7 +149,9 @@ Deno.serve(async (req) => {
     for (const r of (Array.isArray(rows) ? rows : [])) {
       const id = String(r?.id ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
-      const mail = inviteEmail({ token: r?.token, inviter: r?.inviter, studio: r?.studio, role: r?.role, expires_at: r?.expires_at });
+      // R32 AUTH-1: the branded e-mail carries a fresh mail key (&k=) - only its SHA-256 is stored
+      const key = branded ? await mintMailKey(admin, String(r?.token ?? "")) : "";
+      const mail = inviteEmail({ token: r?.token, inviter: r?.inviter, studio: r?.studio, role: r?.role, expires_at: r?.expires_at, key });
       const to = String(r?.to ?? "");
       let res: SendResult = "skipped";
       if (mail && branded) res = await sendBranded(to, mail, String(r?.studio ?? "").slice(0, 120));

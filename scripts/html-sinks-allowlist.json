@@ -188,6 +188,46 @@
   {
    "name": "statusPill",
    "why": "quotes.html (qts-1018): <span class=stat hs-pill ...> with PILL constant class and esc()'d key / title / label from BPStore.quoteStatus"
+  },
+  {
+   "name": "cardHtml",
+   "why": "event.html (R32 CLI-01 review): module card - c.ic / c.title are constant module labels, c.sum is markup built in the module table from esc()'d values and counts, every action label / href / act goes through esc()"
+  },
+  {
+   "name": "card",
+   "why": "leads.html + vendors.html (R32 CLI-01 review): lead / partner card - every name, phone, e-mail, date, source, service, history line and id goes through esc(); amounts through fmt(); counts are numbers"
+  },
+  {
+   "name": "rowChk",
+   "why": "logistics.html (R32 CLI-01 review): checklist row - title / detail / owner / date / id / status esc()'d; status options are the fixed CHK_ST labels"
+  },
+  {
+   "name": "rowGuest",
+   "why": "logistics.html (R32 CLI-01 review): guest-group row - title / qty / id / status esc()'d; options are fixed labels"
+  },
+  {
+   "name": "rowPay",
+   "why": "logistics.html (R32 CLI-01 review): payment milestone row - label / date esc()'d, amount via inr(), status options are the fixed PAY_ST labels, payCells() emits numbers only"
+  },
+  {
+   "name": "tab",
+   "why": "nurture.html (R32 CLI-01 review): template tab button - occasion_type and its label esc()'d; aria-pressed is a boolean"
+  },
+  {
+   "name": "opt",
+   "why": "nurture.html (R32 CLI-01 review): template <option> - key and emoji+label esc()'d"
+  },
+  {
+   "name": "crewOption",
+   "why": "ops.html (R32 CLI-01 review): crew <option> - id, name, department, phone esc()'d; the link mark is a constant"
+  },
+  {
+   "name": "taskRow",
+   "why": "ops.html (R32 CLI-01 review): task row - title / label / id / status / vendor name esc()'d; status label from the fixed STATUS_LABEL table; chips come from reviewed helpers"
+  },
+  {
+   "name": "personCard",
+   "why": "staff.html (R32 CLI-01 review): staff card - name, initials, department, type, skills, attributes, phone, e-mail, avatar path, id esc()'d; money via studioMoney(); links encodeURIComponent()"
   }
  ],
  "sites": [
@@ -1010,6 +1050,16 @@
    "file": "public/teardown.html",
    "expr": "acts",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/events-calendar.js",
+   "expr": "VIEWS.map(function (v) { return '<button type=\"button\" data-v=\"' + v + '\">' + v.charAt(0).toUpperCase() + v.slice(1) + \"</button>\"; }).join(\"\")",
+   "why": "R32 CLI-01 review: v iterates the constant VIEWS array (day / week / month / ...); no data value reaches the markup"
+  },
+  {
+   "file": "public/events-calendar.js",
+   "expr": "kinds.map(function (k) { return '<button type=\"button\" class=\"evc-lg evc-k-' + k + '\" data-k=\"' + k + '\" aria-pressed=\"true\" title=\"' + esc(KLABEL[k] + \": \" + KHINT[k] + \" (click to show / hide)\") + '\"><i aria-hidden=\"true\"></i>' + KLABEL[k] + ' <span class=\"evc-cnt\" data-cnt=\"' + k + '\"></span></button>'; }).join(\"\")",
+   "why": "R32 CLI-01 review: k iterates the calendar's fixed kind keys (KLABEL / KHINT tables); the title text is esc()'d; no data value reaches the markup"
   }
  ]
 }

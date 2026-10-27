@@ -16,7 +16,9 @@
  *   - numeric by construction  (.length, .toFixed(), Number(), Math.*, parseInt…)
  *   - a ternary / || / && / ?? whose result branches are all accepted
  *   - a call to a reviewed HTML-returning helper listed in SAFE_HELPERS
- *   - a .map(…).join(…) (the templates inside the callback are checked)
+ *   - a .map(cb).join(…) whose callback is an arrow / function returning an accepted
+ *     value (every `return` checked) or a SAFE_HELPERS name (R32 CLI-01); the
+ *     templates inside the callback are checked as usual
  * Anything else must be listed in scripts/html-sinks-allowlist.json with a
  * written justification ("why"). Stale allowlist entries are reported so the
  * list cannot silently rot.
@@ -105,7 +107,7 @@ function splitTop(e, ops) {
 const strip = (e) => { e = e.trim(); while (e.startsWith('(') && skipBalanced(e, 1, ')') === e.length - 1) e = e.slice(1, -1).trim(); return e; };
 
 // Is expression e accepted? (Its nested templates are checked separately.)
-function safeExpr(e) {
+export function safeExpr(e) {
   e = strip(e);
   if (!e) return true;
   if (/^(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|-?\d[\d_.e]*|true|false|null|undefined|""|'')$/.test(e)) return true;
@@ -128,12 +130,48 @@ function safeExpr(e) {
     const fn = call[1];
     if (ESCAPERS.test(fn) || SAFE_HELPERS.has(fn) || SAFE_HELPERS.has(fn.split('.').pop())) return true;
   }
-  // x.map(...).join(...)  (callback templates are checked as nested templates)
-  if (/\.map\s*\(/.test(e) && /\.join\s*\([^()]*\)$/.test(e)) {
-    // block-bodied callbacks that return a variable are not visible — require arrow → template/escaped call
-    return true;
-  }
+  // x.map(cb).join(...)  (callback templates are checked as nested templates). R32 CLI-01: the callback
+  // itself must be visibly safe too - an arrow returning an accepted expression, a block whose every
+  // `return` is accepted, or a reviewed helper name from SAFE_HELPERS. `x => x.name` is NOT accepted.
+  if (/\.map\s*\(/.test(e) && /\.join\s*\([^()]*\)$/.test(e)) return mapJoinSafe(e);
   if (/^[\w$.]+\.join\([^()]*\)$/.test(e) && SAFE_HELPERS.has(e.replace(/\.join.*/, ''))) return true;
+  return false;
+}
+
+// R32 CLI-01: is the callback of a trailing .map(cb).join(sep) visibly safe?
+function blockReturnsSafe(b) {
+  const re = /\breturn\b/g; let m, n = 0;
+  while ((m = re.exec(b))) {
+    const st = m.index + m[0].length, en = skipBalanced(b, st, null);
+    const ex = b.slice(st, en).trim();
+    if (!safeExpr(ex)) return false;
+    n++; re.lastIndex = Math.max(en, st);
+  }
+  return n > 0;
+}
+export function mapCallbackSafe(cb) {
+  cb = strip(cb);
+  if (/^[\w$.]+$/.test(cb)) return SAFE_HELPERS.has(cb) || SAFE_HELPERS.has(cb.split('.').pop()) || ESCAPERS.test(cb);
+  let m = /^(?:async\s*)?(?:\([^()]*\)|[\w$]+)\s*=>\s*/.exec(cb);
+  if (m) {
+    const body = cb.slice(m[0].length).trim();
+    if (body[0] === '{') return blockReturnsSafe(body.slice(1, skipBalanced(body, 1, '}')));
+    return safeExpr(body);
+  }
+  m = /^function\s*[\w$]*\s*\([^()]*\)\s*\{/.exec(cb);
+  if (m) return blockReturnsSafe(cb.slice(m[0].length, skipBalanced(cb, m[0].length, '}')));
+  return false;
+}
+function mapJoinSafe(e) {
+  const re = /\.map\s*\(/g; let m;
+  while ((m = re.exec(e))) {
+    const st = m.index + m[0].length, en = skipBalanced(e, st, ')');
+    if (/^\s*\.join\s*\([^()]*\)$/.test(e.slice(en + 1))) {
+      // the callback is the first argument (a 2nd thisArg is never used for HTML)
+      const cbEnd = skipBalanced(e, st, null);
+      return mapCallbackSafe(e.slice(st, Math.min(cbEnd, en)));
+    }
+  }
   return false;
 }
 
@@ -167,12 +205,16 @@ function scan(code, file, baseLine) {
     const line = baseLine + code.slice(0, m.index).split('\n').length - 1;
     for (const v of valuesOf(rhs)) {
       const n = v.replace(/\s+/g, ' ').trim();
-      if (!safeExpr(n)) hits.push({ file, line, expr: n });
+      if (!safeExpr(v)) hits.push({ file, line, expr: n });
     }
   }
   return hits;
 }
 
+// R32: the scan only runs as a script, so tests can import safeExpr / mapCallbackSafe
+const IS_MAIN = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (IS_MAIN) main();
+function main() {
 const allow = JSON.parse(readFileSync(ALLOW_PATH, 'utf8'));
 const allowMap = new Map(allow.sites.map((s) => [s.file + ' :: ' + s.expr, s]));
 for (const s of allow.sites) if (!s.why || s.why.length < 12) { console.error('  ✗ allowlist entry without a real justification: ' + s.file + ' :: ' + s.expr); process.exitCode = 1; }
@@ -213,3 +255,4 @@ const stale = [...allowMap.keys()].filter((k) => !used.has(k));
 for (const k of stale) console.error('  ✗ stale allowlist entry (site no longer exists — remove it): ' + k);
 if (bad.length || stale.length || process.exitCode) { console.error(`check-html-sinks: ${bad.length} unescaped, ${stale.length} stale`); process.exit(1); }
 console.log(`  ✓ HTML sinks: every interpolated value is escaped/constant or one of ${used.size} reviewed allowlist entries`);
+}

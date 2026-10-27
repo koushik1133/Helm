@@ -1,10 +1,11 @@
-// Minimal SMTP client (implicit TLS on 465, plain TCP only when tls=false e.g. local tests).
+// Minimal SMTP client (implicit TLS on 465; any other port must upgrade with STARTTLS before AUTH -
+// R32 SRV-1: the password is never sent over a plain connection, except to a loopback test server).
 // Replaces denomailer@1.6.0, whose header/body encoding (quoted-printable bugs with non-ASCII
 // like the "·" in our footer, unencoded custom headers) and opaque errors made Gmail failures
 // undiagnosable. Bodies are base64 UTF-8; non-ASCII headers are RFC 2047 encoded.
 // Errors carry a stage + SMTP reply code; the password is never logged or echoed.
 
-export type SmtpStage = "connect" | "greeting" | "ehlo" | "auth" | "mail_from" | "rcpt" | "data" | "send";
+export type SmtpStage = "connect" | "greeting" | "ehlo" | "tls" | "auth" | "mail_from" | "rcpt" | "data" | "send";
 export class SmtpError extends Error {
   stage: SmtpStage; code: number | null;
   constructor(stage: SmtpStage, message: string, code: number | null = null) {
@@ -104,7 +105,10 @@ async function writeAll(c: Conn, s: string) {
   while (off < data.length) off += await c.write(data.subarray(off));
 }
 
-export async function smtpSend(cfg: SmtpConn["cfg"], mail: RawMail, opts: { timeoutMs?: number; connect?: () => Promise<Conn> } = {}): Promise<void> {
+// R32 SRV-1: a plain (non-465) connection may skip STARTTLS only when the server is this machine
+// (local fake servers in tests); everywhere else no STARTTLS = no login.
+const isLoopback = (h: string) => /^(127\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|::1|\[::1\])$/i.test(String(h || "").trim());
+export async function smtpSend(cfg: SmtpConn["cfg"], mail: RawMail, opts: { timeoutMs?: number; connect?: () => Promise<Conn>; startTls?: (c: Conn, host: string) => Promise<Conn> } = {}): Promise<void> {
   const T = opts.timeoutMs ?? 15000;
   let conn: Conn;
   try {
@@ -114,7 +118,7 @@ export async function smtpSend(cfg: SmtpConn["cfg"], mail: RawMail, opts: { time
   } catch (e) {
     throw new SmtpError("connect", (e as Error)?.name + ": " + String((e as Error)?.message || e).slice(0, 200));
   }
-  const r = new Reader(conn);
+  let r = new Reader(conn);
   const cmd = async (stage: SmtpStage, line: string, ok: number[], shown?: string) => {
     try { await writeAll(conn, line + "\r\n"); } catch (e) { throw new SmtpError(stage, "write failed: " + String((e as Error)?.message || e).slice(0, 200)); }
     const rep = await r.reply(stage, T);
@@ -124,7 +128,24 @@ export async function smtpSend(cfg: SmtpConn["cfg"], mail: RawMail, opts: { time
   try {
     const g = await r.reply("greeting", T);
     if (g.code !== 220) throw new SmtpError("greeting", g.text, g.code);
-    await cmd("ehlo", "EHLO helm.events", [250], "EHLO");
+    const hello = await cmd("ehlo", "EHLO helm.events", [250], "EHLO");
+    if (!cfg.tls) {
+      // R32 SRV-1: STARTTLS (RFC 3207) before AUTH on any non-implicit-TLS port
+      const offers = /(^|\|)\s*250[- ]STARTTLS\b/i.test(hello.text);
+      if (offers) {
+        await cmd("tls", "STARTTLS", [220], "STARTTLS");
+        try {
+          conn = opts.startTls ? await opts.startTls(conn, cfg.host)
+            : await Deno.startTls(conn as Deno.TcpConn, { hostname: cfg.host });
+        } catch (e) {
+          throw new SmtpError("tls", "secure upgrade failed: " + String((e as Error)?.message || e).slice(0, 200));
+        }
+        r = new Reader(conn);
+        await cmd("ehlo", "EHLO helm.events", [250], "EHLO");
+      } else if (!isLoopback(cfg.host)) {
+        throw new SmtpError("tls", "the server does not offer STARTTLS - refusing to send the login over a plain connection");
+      }
+    }
     const auth = b64("\0" + cfg.user + "\0" + cfg.pass);
     await cmd("auth", "AUTH PLAIN " + auth, [235], "AUTH PLAIN [redacted]");
     await cmd("mail_from", "MAIL FROM:<" + parseAddr(mail.from).addr + ">", [250]);
@@ -143,6 +164,7 @@ export function smtpReason(e: unknown): string {
   switch (err?.stage) {
     case "connect": return "could not connect to the mail server (check SMTP_HOST / SMTP_PORT; use 465)";
     case "greeting": case "ehlo": return "the mail server did not accept the connection";
+    case "tls": return "the mail server did not offer a secure connection (use SMTP_PORT 465, or a server with STARTTLS)";
     case "auth": return code === 535 || code === 534
       ? "login rejected (check SMTP_USER and the app password)"
       : "login failed at the mail server (check SMTP_USER and the app password)";

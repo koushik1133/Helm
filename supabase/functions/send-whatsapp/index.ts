@@ -65,9 +65,10 @@ const LANG = /^[a-z]{2,3}(_[A-Z]{2})?$/;
 
 const DAY_MS = 86_400_000;
 const PARAM_MAX = 200;
-// Things that look like a link: scheme://..., www...., or a bare domain (common TLDs, or any
-// domain followed by a path). Each one must point at the Helm site, never another host.
-const LINK_TOKENS = /[a-z][a-z0-9+.-]*:\/\/[^\s]*|\bwww\.[^\s]*|\b(?:[a-z0-9-]+\.)+(?:com|net|org|io|in|ae|co|ly|me|app|xyz|link|site|online|info|biz|events)\b[^\s]*|\b(?:[a-z0-9-]+\.)+[a-z]{2,24}\/[^\s]*/gi;
+// Things that look like a link: scheme://..., www...., or ANY bare domain (label.label with a
+// 2-24 letter ending - R32 SRV-3: not just a list of common endings, so evil.ru / helm-pay.shop
+// count too). Each one must point at the Helm site, never another host.
+const LINK_TOKENS = /[a-z][a-z0-9+.-]*:\/\/[^\s]*|\bwww\.[^\s]*|\b(?:[a-z0-9-]+\.)+[a-z]{2,24}\b[^\s]*/gi;
 // Plain text only: Meta also refuses new lines / tabs / >4 spaces in template params.
 // deno-lint-ignore no-control-regex
 const BAD_CHARS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]| {5,}/;
