@@ -25,7 +25,7 @@
 //
 // Limits: 20 status / 5 tests per user per 10 minutes, 60 per IP per minute.
 // Logs carry only status codes - never an address, a phone number or a key.
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { postalAddress, txFooter, withFooter } from "../_shared/email-compliance.mjs";

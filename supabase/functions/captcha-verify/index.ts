@@ -25,7 +25,7 @@
 //   Supabase Attack Protection), HELM_TURNSTILE_HOSTNAMES (optional, e.g. "www.helm.events,helm.events").
 // Deploy: supabase functions deploy captcha-verify --no-verify-jwt   (the user JWT is verified here with getUser)
 // Logs never carry the token, the secret, an IP or an e-mail.
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { bearer, errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { hostList, isPublicAction, judge, SITEVERIFY_URL, validRequest, verifyForm } from "./logic.mjs";

@@ -192,7 +192,7 @@ const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'X-Frame-Options': 'DENY',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=(), browsing-topics=()',
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Resource-Policy': 'same-origin',
   'Content-Security-Policy': CSP.base,
@@ -200,7 +200,7 @@ const SECURITY_HEADERS = {
 // Chat and the crew work link (/work, /<studio>/work/<ref>: voice note on a rejected
 // task, 0038) record voice notes, so only those pages may use this site's own
 // microphone. Camera stays off: photo buttons are plain file pickers / capture inputs.
-const CHAT_PERMISSIONS = 'camera=(), microphone=(self), geolocation=(), payment=()';
+const CHAT_PERMISSIONS = 'camera=(), microphone=(self), geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=(), browsing-topics=()';
 const MIC_PAGES = new Set(['chat', 'work']);
 
 // Search-engine policy: only the marketing pages are indexable. Every other

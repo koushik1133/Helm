@@ -32,7 +32,7 @@
 //   HELM_AV_TIMEOUT_MS                    1000..60000 (default 15000)
 //
 // Logs carry only counts, reasons and HTTP status — never object paths, owners or tokens.
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, rateLimit, readBodyCapped, WEBHOOK_BODY_LIMIT } from "../_shared/limits.ts";
 import { BUCKETS, verdict } from "./sniff.ts";

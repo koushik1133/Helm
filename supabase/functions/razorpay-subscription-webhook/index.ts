@@ -34,7 +34,7 @@
 //
 // Responses: 401 bad/missing signature · 400 stale or malformed · 200 ignored/unmatched/ok ·
 // 500 DB error (Razorpay retries). Logs never contain payload contents.
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped, WEBHOOK_BODY_LIMIT } from "../_shared/limits.ts";
 
