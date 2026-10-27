@@ -334,6 +334,29 @@ Deno.test("send-whatsapp: a template value linking to another site -> 400, Meta 
   } finally { rF(); rEnv(); }
 });
 
+Deno.test("send-whatsapp: R32 free text (WHATSAPP_ALLOW_TEXT=1) may link only to the Helm site", async () => {
+  resetSupaMock();
+  allowAll();
+  const rEnv = setEnv({ ...CONFIGURED, WHATSAPP_ALLOW_TEXT: "1" });
+  let sent: any = null, calls = 0;
+  const rF = installFetch((_url, init) => { calls++; sent = JSON.parse(String(init?.body)); return jsonResponse({ messages: [{ id: "wamid.t" }] }); });
+  try {
+    const h = await loadHandler(FN);
+    for (const bad of ["Urgent: verify at https://evil-phishing.example/login", "see www.evil.example", "go evil.example/login",
+                       "HTTPS://helm.events.evil.example/x", "https://user@evil.example/", "ftp://www.helm.events/x"]) {
+      const res = await h(post({ quote_id: QUOTE, number: "919800000001", text: bad }, AUTH));
+      assertEquals(res.status, 400, bad);
+    }
+    assertEquals(calls, 0, "Meta never called for an off-site link");
+    const ok = await h(post({ quote_id: QUOTE, number: "919800000001",
+      text: "Hi Priya,\nyour proposal: https://www.helm.events/p/abc\nSee you Saturday" }, AUTH));
+    assertEquals(ok.status, 200);
+    assertEquals(sent.type, "text");
+    assertEquals(sent.text.body, "Hi Priya,\nyour proposal: https://www.helm.events/p/abc\nSee you Saturday");
+    assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", text: "Thanks, confirmed for 5 pm" }, AUTH))).status, 200);
+  } finally { rF(); rEnv(); }
+});
+
 Deno.test("send-whatsapp: a Helm proposal link is allowed; control characters are rejected, not cleaned", async () => {
   resetSupaMock();
   allowAll();

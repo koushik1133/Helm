@@ -10,7 +10,8 @@
 //   WHATSAPP_API_VERSION      — optional, defaults to "v21.0"
 //   WHATSAPP_TEMPLATES        — comma-separated allowlist of approved template names
 //                               (default: the names in DEFAULT_TEMPLATES below)
-//   WHATSAPP_ALLOW_TEXT=1     — optional: also allow free-form text (24h session window)
+//   WHATSAPP_ALLOW_TEXT=1     — optional: also allow free-form text (24h session window);
+//                               links in it must point at the Helm site too (R32)
 //
 // Audit Phase 8 — no open relay on the shared platform number. Every send must:
 //   * come from a signed-in user (their JWT, not the anon key),
@@ -89,12 +90,17 @@ export function paramProblem(p: unknown, site = siteHost()): string {
   const v = String(p ?? "");
   if (v.length > PARAM_MAX) return "a template parameter is too long";
   if (BAD_CHARS.test(v)) return "template parameters must be one line of plain text";
+  return offSiteLink(v, site) ? "template values may only link to the Helm site" : "";
+}
+// R32 (Strix vuln-0004): the same "links only to the Helm site" rule for ANY text sent from the
+// shared platform number - template values above AND free text (WHATSAPP_ALLOW_TEXT=1).
+export function offSiteLink(v: string, site = siteHost()): boolean {
   const base = site.replace(/^www\./, "");
-  for (const m of v.matchAll(LINK_TOKENS)) {
+  for (const m of String(v ?? "").matchAll(LINK_TOKENS)) {
     const h = linkHost(m[0]);
-    if (!h || (h !== base && !h.endsWith("." + base))) return "template values may only link to the Helm site";
+    if (!h || (h !== base && !h.endsWith("." + base))) return true;
   }
-  return "";
+  return false;
 }
 function envInt(k: string, dflt: number): number {
   const n = Number(Deno.env.get(k) || "");
@@ -185,6 +191,7 @@ Deno.serve(async (req) => {
       if (Deno.env.get("WHATSAPP_ALLOW_TEXT") !== "1") return json({ error: "use an approved template" }, 400);
       const text = String(body.text || "").trim().slice(0, 1000);
       if (!text) return json({ error: "text or template is required" }, 400);
+      if (offSiteLink(text)) return json({ error: "messages may only link to the Helm site" }, 400);
       content = { type: "text", text: { preview_url: false, body: text } };
     }
 
