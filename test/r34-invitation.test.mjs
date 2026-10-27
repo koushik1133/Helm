@@ -112,8 +112,8 @@ t('footer: "Designed by <studio> · Made with Helm Studios", studio name escaped
   assert.match(invite, /\$\{brand\?`Made with <a href="\/" target="_blank" rel="noopener">Helm Studios<\/a>`:""\}/);
   assert.match(studio, /hideHelmBrand:!\$\("#f_helmBrand"\)\.checked/);
 });
-t('scripts: shared helper loaded on both pages; store-api v295', () => {
-  for (const h of [invite, studio]) { assert.match(h, /invite-extras\.js\?v=1"><\/script>/); assert.match(h, /store-api\.js\?v=295/); }
+t('scripts: shared helper loaded on both pages; store-api v296', () => {
+  for (const h of [invite, studio]) { assert.match(h, /invite-extras\.js\?v=1"><\/script>/); assert.match(h, /store-api\.js\?v=296/); }
 });
 t('SQL 0284: additive, re-runnable, ASCII; anon RPCs rate-limited via cf-connecting-ip helpers', () => {
   assert.ok(!/[^\x09\x0a\x0d\x20-\x7e]/.test(sql), 'ASCII');

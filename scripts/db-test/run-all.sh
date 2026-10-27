@@ -263,6 +263,8 @@ run "r44-two-step-0291" "R44-TWO-STEP-0291: ALL PASS \(22/22\)" psql -q -f tests
 run "r34-invite-0284" "R34-INVITE-0284: ALL PASS \(59/59\)" psql -q -f tests/db/r34-invite-0284.sql
 # r47 (0292): my_pending re-issued (prod 500 = statement timeout); re-applies itself twice (earlier suites re-apply 0036), rolled back
 run "r47-my-pending-0292" "R47-MY-PENDING-0292: ALL PASS \(24/24\)" psql -q -f tests/db/r47-my-pending-0292.sql
+# 0287 re-applies itself twice (re-run safe; after every suite that re-applies 0069 / 0120 / 0181 / 0239 / 0268), rolled back
+run "r37-studio-tz-0287" "R37-STUDIO-TZ-0287: ALL PASS \(36/36\)" psql -q -f tests/db/r37-studio-tz-0287.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

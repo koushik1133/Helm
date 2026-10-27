@@ -5,6 +5,9 @@
 -- Paid studio: unchanged. Rolled back. Local disposable PG only.
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
+-- r37 / 0287: the server's "today" is the STUDIO's day (India for these fixtures) and HQ's is India time, so the
+-- fixtures' current_date must be that same day (otherwise this suite fails between 18:30 and 24:00 UTC)
+set timezone = 'Asia/Kolkata';
 begin;
 create temp table _uf(name text, result text); grant all on _uf to anon, authenticated, service_role;
 create temp table _ukv(k text primary key, v text); grant all on _ukv to anon, authenticated, service_role;

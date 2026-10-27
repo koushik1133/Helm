@@ -331,7 +331,7 @@
           h("span", { cls: "capi-d", text: "It holds " + capText(st) + "; this event has " + fmt(st.guests) + " guests. Change venue, reduce guests, extend the space or proceed with a note." }), h("span", { cls: "capi-a" }, acts)]));
       } else {
         var d = st.decision || {};
-        var when = d.decided_at ? new Date(d.decided_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "";
+        var when = d.decided_at ? new Date(d.decided_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: (function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })() }) : "";   // r37: studio zone
         host.appendChild(h("div", { cls: "capi capi-ok", role: "status" }, [h("b", { text: "Over capacity, resolved" }),
           h("span", { cls: "capi-d", text: d.choice === "extend"
             ? "Extended: " + ((d.line && d.line.label) || "extra space") + " for +" + fmt(d.extra_capacity) + " guests (" + fmt(st.guests) + " vs " + fmt(st.total) + ")" + (when ? " · " + when : "")

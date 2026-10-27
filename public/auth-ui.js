@@ -28,7 +28,7 @@
     if (!ts) return "—";
     // R20 (live QA): sign-in activity in the studio's date style + timezone ("18 Oct 2026, 10:30 am"), not the browser's US style
     try { var S = window.BPStore; if (S && S.fmtStudioDate) { var o = S.fmtStudioDate(ts, { style: "long", time: true }); if (o) return o; } } catch (e) {}
-    try { return new Date(ts).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }); } catch (e) { return String(ts); }
+    try { return new Date(ts).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: (function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })() }); } catch (e) { return String(ts); }   // r37: studio zone
   }
   function uaLabel(ua) {
     ua = String(ua || "");
@@ -2204,7 +2204,7 @@
     try {
       if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)).toLocaleDateString("en-IN", Object.assign({ timeZone: "UTC" }, f));
       var d = new Date(s); if (isNaN(d.getTime())) return String(v);
-      return d.toLocaleDateString("en-IN", f);
+      return d.toLocaleDateString("en-IN", Object.assign({ timeZone: (function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })() }, f));   // r37: studio zone
     } catch (e) { return String(v); }
   }
   // L9 (live QA): the trial end on Plan & billing is the STUDIO's calendar day of the exact end moment - the same day

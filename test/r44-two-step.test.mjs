@@ -249,8 +249,8 @@ t('B4 store-api: Team status RPC (null when 0291 is missing / not allowed), bell
   assert.match(API, /if \(error\.code === "PGRST202" \|\| error\.code === "42883" \|\| error\.code === "42501"\) return null;/);
   assert.match(API, /out\[r\.user_id\] = r\.two_step === true/);
   assert.match(API, /if \(ev === "two_step_intro"\) return "dashboard\.html#two-step-setup";/);
-  assert.match(API, /const AUTH_UI_VERSION = "54";/);
-  assert.match(read('public/dashboard.html'), /store-api\.js\?v=295/); assert.match(CC, /store-api\.js\?v=295/);
+  assert.match(API, /const AUTH_UI_VERSION = "55";/);
+  assert.match(read('public/dashboard.html'), /store-api\.js\?v=296/); assert.match(CC, /store-api\.js\?v=296/);
 });
 
 /* ------------------------------------------------------------------ C. Settings -> Team badge */

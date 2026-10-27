@@ -417,6 +417,7 @@
     if (status !== "due" && status !== "part_paid" && status !== "invoiced") return status;
     const d = String(due || "").slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return status;
     let today = ""; try { today = global.BPStore && global.BPStore.todayLocal ? global.BPStore.todayLocal() : ""; } catch (e) { today = ""; }
+    if (!today) { try { var H = global.HelmCountry; if (H && H.todayIn) today = H.todayIn(FMT.currency === "AED" ? "Asia/Dubai" : "Asia/Kolkata"); } catch (e) {} }   // r37: the studio's day
     if (!today) today = new Date().toISOString().slice(0, 10);
     return d < today && !(Number(remaining) <= 0.5 && remaining != null) ? "overdue" : status;
   }

@@ -76,7 +76,8 @@
   function errText(e) { try { if (global.BPUI && global.BPUI.friendlyError) return global.BPUI.friendlyError(e, { action: "share the booklet" }); } catch (x) {} return String((e && e.message) || "Something went wrong"); }
   // 0092: studio date order - "12 Oct 2026" (India / UAE) or "Oct 12, 2026" (USA)
   function dateLocale() { try { const B = (typeof window !== "undefined" && window.BPStore) || null; return B && B.studioTax && B.studioTax().country === "US" ? "en-US" : "en-IN"; } catch (e) { return "en-IN"; } }
-  function when(t) { const d = new Date(t); if (!t || isNaN(d.getTime())) return ""; try { return d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return d.toISOString().slice(0, 10); } }
+  // r37: shown in the STUDIO's time zone (never the viewer's browser zone)
+  function when(t) { const d = new Date(t); if (!t || isNaN(d.getTime())) return ""; try { return d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric", timeZone: (function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })() }); } catch (e) { return d.toISOString().slice(0, 10); } }
 
   async function hasSelectedPackage(quoteId) {
     // only a package actually APPLIED to this quote (event_plan.menu_template naming a real package) counts -

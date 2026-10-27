@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=45"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=46"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -1401,7 +1401,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "54";
+  const AUTH_UI_VERSION = "55";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -2762,7 +2762,8 @@ window.HelmUrl = HelmUrl;
     const d = date || new Date();
     return String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + d.getFullYear();
   };
-  const localISODate = (d) => { const x = d || new Date(); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
+  const localISODate = (d) => { if (!d) { try { const t = BPStore.todayLocal(); if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; } catch (e) {} }   // r37: no date = the STUDIO's today
+    const x = d || new Date(); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
 
   /* ---------------- quotes + versions ---------------- */
   // What a quotes LIST shows — never the full pricing JSON (line items, computed
@@ -8414,7 +8415,7 @@ window.HelmUrl = HelmUrl;
     if (bill.status === "void") return "void";
     const paid = (bill.vendor_payouts || []).reduce((a, p) => a + vbNum(p.amount), 0);
     if (paid >= vbNum(bill.amount) - 0.005) return "paid";
-    const t = today || new Date().toISOString().slice(0, 10);
+    const t = today || BPStore.todayLocal();   // r37: overdue from the studio's day (was the UTC day)
     if (bill.due_date && String(bill.due_date) < t) return "overdue";
     return paid > 0 ? "part" : "unpaid";
   }
@@ -8478,7 +8479,7 @@ window.HelmUrl = HelmUrl;
       const clean = (v, n) => { const t = String(v == null ? "" : v).trim(); return t ? t.slice(0, n) : null; };
       const day = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : null;
       const row = { quote_id: quoteId, amount: Math.round(amt * 100) / 100, bill_no: clean(b.bill_no, 80),
-        description: clean(b.description, 500), bill_date: day(b.bill_date) || new Date().toISOString().slice(0, 10),
+        description: clean(b.description, 500), bill_date: day(b.bill_date) || BPStore.todayLocal(),   // r37: the studio's day
         due_date: day(b.due_date), vendor_id: b.vendor_id || null, booking_id: b.booking_id || null, file_id: fileId };
       if (b.currency) row.currency = String(b.currency).slice(0, 3).toUpperCase();
       // r21 money (0246): optional GST inside the bill amount + whether the input credit can be claimed
@@ -8735,10 +8736,15 @@ window.HelmUrl = HelmUrl;
       const s = Math.max(0, (now - t) / 1000);
       if (s < 60) return "now"; if (s < 3600) return Math.floor(s / 60) + "m"; if (s < 86400) return Math.floor(s / 3600) + "h";
       if (s < 7 * 86400) return Math.floor(s / 86400) + "d";
+      try { const o = BPStore.fmtStudioDate(new Date(t), { fmt: { day: "numeric", month: "short" } }); if (o) return o; } catch (e) {}
       try { return new Date(t).toLocaleDateString([], { day: "numeric", month: "short" }); } catch (e) { return Math.floor(s / 86400) + "d"; }
     };
-    const sod = new Date(now); sod.setHours(0, 0, 0, 0); const today0 = sod.getTime();
-    const yd = new Date(today0); yd.setDate(yd.getDate() - 1); const yest0 = yd.getTime();
+    // r37: Today / Yesterday are the STUDIO's days (an owner abroad sees the studio's midnight, not the browser's)
+    let today0, yest0;
+    try { const H = window.HelmCountry, tz = BPStore.studioTimezone(), td = BPStore.todayLocal(new Date(now));
+      today0 = H.dayStart(td, tz).getTime(); yest0 = H.dayStart(H.addDays(td, -1), tz).getTime(); } catch (e) { today0 = NaN; }
+    if (!Number.isFinite(today0) || !Number.isFinite(yest0)) { const sod = new Date(now); sod.setHours(0, 0, 0, 0); today0 = sod.getTime();
+      const yd = new Date(today0); yd.setDate(yd.getDate() - 1); yest0 = yd.getTime(); }
     const bucket = (t) => !Number.isFinite(t) ? "Earlier" : t >= today0 ? "Today" : t >= yest0 ? "Yesterday" : "Earlier";
     const item = (r) => {
       const n = r.n, t = ts(n); let icon, title, preview, href, isUnread, key;
@@ -9922,7 +9928,9 @@ window.HelmUrl = HelmUrl;
   const RANGE_PRESETS = [["today", "Today"], ["yesterday", "Last day"], ["this_month", "This month"], ["last_month", "Last month"],
     ["this_year", "This year"], ["custom", "Custom range"]];
   function rangeFor(key, today) {
-    const d0 = (today && typeof today.getFullYear === "function") ? new Date(today.getFullYear(), today.getMonth(), today.getDate()) : new Date();
+    // r37: no date given = the STUDIO's today (a local Date that reads the studio's calendar day)
+    let wall = null; if (!(today && typeof today.getFullYear === "function")) { try { const c = BPStore.studioClock(); if (c) wall = new Date(c.y, c.mo - 1, c.d); } catch (e) {} }
+    const d0 = (today && typeof today.getFullYear === "function") ? new Date(today.getFullYear(), today.getMonth(), today.getDate()) : (wall || new Date());
     const iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const y = d0.getFullYear(), m = d0.getMonth();
     const back = (n) => { const d = new Date(y, m, d0.getDate() - (n - 1)); return { from: iso(d), to: iso(d0) }; };
@@ -9949,7 +9957,8 @@ window.HelmUrl = HelmUrl;
   // day — 2026-09-30T20:00Z is 1 Oct in IST and belongs to October, not September.
   function inRange(date, r) { if (!r) return true; const s = String(date || ""); let d = s.slice(0, 10);
     if (s.length > 10 && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s) && /(Z|[+-]\d{2}:?\d{2})$/.test(s)) { const t = new Date(s.replace(" ", "T"));
-      if (!isNaN(t.getTime())) d = t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0"); }
+      if (!isNaN(t.getTime())) { let sd = ""; try { sd = BPStore.todayLocal(t); } catch (e) {}   // r37: the STUDIO's calendar day of that moment
+        d = /^\d{4}-\d{2}-\d{2}$/.test(sd) ? sd : t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0"); } }
     if (!d) return false; return d >= r.from && d <= r.to; }
 
   /* ---------------- audit log (Phase 47) ---------------- */
@@ -12778,7 +12787,7 @@ window.HelmUrl = HelmUrl;
     if (!tz) { try { tz = localStorage.getItem(STUDIO_TZ_KEY) || ""; } catch (e) {} }
     if (!tz) { try { var H = (typeof window !== "undefined" && window.HelmCountry) || null, cc = (BPStore.studioTax() || {}).country; tz = H && H.timezone ? H.timezone(cc) : ""; } catch (e) {} }
     if (tz) { try { new Intl.DateTimeFormat("en", { timeZone: tz }); } catch (e) { tz = ""; } }
-    return tz || undefined;
+    return tz || "Asia/Kolkata";   // r37: an unknown studio zone is India's (never the viewer's browser zone)
   };
   BPStore.studioLocale = function () {
     var r = null; try { r = BPStore.studioTax(); } catch (e) {}

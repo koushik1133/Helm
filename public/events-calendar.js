@@ -57,7 +57,8 @@
   function mount(root, opts) {
     opts = opts || {};
     var itemsFn = opts.items || function () { return []; };
-    var todayFn = opts.today || function () { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
+    // r37: default "today" = the STUDIO's day (BPStore.todayLocal), the device day only without a studio store
+    var todayFn = opts.today || function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, t = B && B.todayLocal ? B.todayLocal() : ""; if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; } catch (e) {} var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
     var fmt = opts.fmt || function (s, o) { var d = toD(s); return d ? d.toLocaleDateString(undefined, Object.assign({ timeZone: "UTC" }, o)) : ""; };
     var kinds = (opts.kinds || KINDS).filter(function (k) { return KINDS.indexOf(k) >= 0; });
     var st = { view: VIEWS.indexOf(opts.view) >= 0 ? opts.view : "month", anchor: todayFn(), show: {}, type: "", focusDay: null };
