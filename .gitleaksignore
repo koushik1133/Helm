@@ -11,3 +11,11 @@
 24b861b39dda2d703bdc2816a3eb8391807ce2a7:security/REPORT.md:helm-doc-password-plain:44
 0a62c543ba2064fe98a80061342c61fa977faba4:docs/OWNER-ACTIONS-SECURITY.md:helm-doc-password-plain:17
 2e5a0f0f5ed60235bdd0a46a2554eee575ebfb06:docs/tester-guide/index.html:helm-published-password:48
+# r30 (2026-10-26): test-fixture literals (dummy UUID tokens, "0.abc..." captcha tokens, a fake 32-hex sentry_key)
+# flagged by generic-api-key; they made the weekly full-history scan fail. Exact fingerprints only.
+209c011c5aae01c2a1ff5553533b46fd7f6cdf39:test/r26-sentry-turnstile.test.mjs:generic-api-key:182
+209c011c5aae01c2a1ff5553533b46fd7f6cdf39:tests/edge/captcha-csp.test.ts:generic-api-key:138
+9ba747782c0c1845f2bec09f1c9488813d8c3ebd:test/r23-quote-validity.test.mjs:generic-api-key:157
+c2be905a1b2df8af207a29aa6937114313483c43:tests/edge/comms-dispatch-email.test.ts:generic-api-key:14
+cf35bcde0cccdcfc581d9f5bf7a04cfe61bdf0b5:test/r21-security.test.mjs:generic-api-key:103
+cf35bcde0cccdcfc581d9f5bf7a04cfe61bdf0b5:test/r21-security.test.mjs:generic-api-key:104

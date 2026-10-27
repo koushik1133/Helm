@@ -5,7 +5,7 @@
 // environment - never the error message, a stack, a request body, a header, an IP, an e-mail, a phone or an amount.
 // No SDK, no dependency: one POST of Sentry's envelope format (https://develop.sentry.dev/sdk/envelopes/).
 
-const DSN_RE = /^https:\/\/([0-9a-f]{16,64})@(o\d{1,12}\.ingest(?:\.[a-z]{2})?\.sentry\.io)\/(\d{1,12})$/;
+const DSN_RE = /^https:\/\/([0-9a-f]{16,64})@(o\d{1,20}\.ingest(?:\.[a-z]{2})?\.sentry\.io)\/(\d{1,20})$/;
 
 // "https://<key>@o1.ingest.us.sentry.io/7" -> { url, auth } | null (only a sentry.io ingest host)
 export function parseDsn(dsn) {

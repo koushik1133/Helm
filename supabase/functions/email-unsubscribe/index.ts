@@ -8,7 +8,7 @@
 //                    scanners / previews cannot unsubscribe anyone)
 // The token names one recipient + one sender (a studio, or Helm itself). A malformed or forged
 // token gets { ok: false }. Logs never carry the token or the address.
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped, tooMany } from "../_shared/limits.ts";
 import { appBase, UNSUB_TOKEN_RE } from "../_shared/email-compliance.mjs";

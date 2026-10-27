@@ -261,8 +261,9 @@ await t('D4 APPLY-0285: migration verbatim between begin / commit + VERIFY rows;
   assert.match(APPLY, /-- VERIFY \(every row must say ok = true\)/);
   assert.doesNotMatch(APPLY, /[^\x00-\x7F]/, 'ASCII only'); assert.doesNotMatch(APPLY, /create temp/i);
   assert.ok(rd('supabase/migrations/MANIFEST').includes('forward  supabase/migrations/0285_r35_payment_details_safety.sql'));
-  assert.match(rd('scripts/db-test/run-all.sh'), /R35-PAYSAFE-0285: ALL PASS \\\(83\/83\\\)/);
-  assert.match(rd('test/release-1019.test.mjs'), /'0277', '0285', '0291'\]/); assert.match(rd('test/release-1020.test.mjs'), /'0277', '0285', '0291'\]/);
+  assert.match(rd('scripts/db-test/run-all.sh'), /R35-PAYSAFE-0285: ALL PASS \\\(100\/100\\\)/);
+  // 0285 sits after 0283 (it requires it) and before any later release
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0282', '0283', '0285'(, '02\d\d')*\]/, f);
   const owner = new URL('file:///Users/koushikgoudshaganti/Desktop/Agency/Helm/APPLY-0285.sql');
   if (existsSync(owner)) assert.equal(readFileSync(owner, 'utf8'), APPLY);
 });

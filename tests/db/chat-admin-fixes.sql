@@ -87,14 +87,14 @@ do $$ declare a_admin uuid; a_staff uuid; o uuid; t text; v_role text; begin
       case when (select role from public.profiles where id = a_admin) = 'admin' then 'PASS' else 'FAIL: demoted' end);
     perform auth.login_as(a_admin); perform set_config('request.jwt.claims', (auth.jwt() || jsonb_build_object('aal', 'aal2', 'amr', jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', extract(epoch from now())))))::text, false);
   exception when others then insert into _ca values('09 last admin cannot be demoted via accept_invitation', case when sqlstate='42501' then 'PASS' else 'FAIL: '||sqlstate||' '||sqlerrm end); end;
-  -- with a second admin, demoting the first via admin_set_role works; demoting the last does not
+  -- with a second admin, demoting one of them via admin_set_role works; demoting the last does not
+  -- r33 0283: a_admin is the studio OWNER (first admin) - only the owner demotes another admin at once, and the
+  -- owner is never demoted, so the owner demotes the second admin here and the owner is the "last admin" below
   perform public.admin_set_role(a_staff, 'admin');
-  perform auth.logout(); execute 'reset role';
-  perform auth.login_as(a_staff); perform set_config('request.jwt.claims', (auth.jwt() || jsonb_build_object('aal', 'aal2', 'amr', jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', extract(epoch from now())))))::text, false);
-  begin perform public.admin_set_role(a_admin, 'sales'); insert into _ca values('10 demote one of two admins works','PASS');
+  begin perform public.admin_set_role(a_staff, 'sales'); insert into _ca values('10 demote one of two admins works','PASS');
   exception when others then insert into _ca values('10 demote one of two admins works','FAIL: '||sqlerrm); end;
   perform auth.logout(); execute 'reset role';
-  begin update public.profiles set role='sales' where id=a_staff;
+  begin update public.profiles set role='sales' where id=a_admin;
     insert into _ca values('11 remaining admin is protected again','FAIL: allowed');
   exception when others then insert into _ca values('11 remaining admin is protected again', case when sqlstate='42501' then 'PASS' else 'FAIL: '||sqlstate end); end;
   update public.profiles set role='admin' where id=a_admin;

@@ -28,7 +28,7 @@
 // the quote, 30 s cooldown, 4 per 30 min, demo, studio daily cap) and takes one trial e-mail slot (30 a day per
 // studio, 5 a day per address) -> over the cap 429. SMS and WhatsApp codes stay refused in the trial (403
 // { trial: true }); an ended trial / the sample master / a database without 0212: e-mail refused too (403).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { isLive, otpEmail, otpMessage } from "../wa-proposal/logic.mjs";
@@ -86,7 +86,7 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
   if (channel === "whatsapp") {
     live = isLive({ WHATSAPP_TOKEN: Deno.env.get("WHATSAPP_TOKEN"), WHATSAPP_PHONE_ID: Deno.env.get("WHATSAPP_PHONE_ID") });
     if (live) {
-      const r = await fetch(`https://graph.facebook.com/${Deno.env.get("WHATSAPP_API_VERSION") || "v21.0"}/${encodeURIComponent(Deno.env.get("WHATSAPP_PHONE_ID")!)}/messages`, {
+      const r = await fetch(`https://graph.facebook.com/${Deno.env.get("WHATSAPP_API_VERSION") || "v21.0"}/${encodeURIComponent(Deno.env.get("WHATSAPP_PHONE_ID")!)}/messages`, { redirect: "error",
         method: "POST", headers: { "Authorization": "Bearer " + Deno.env.get("WHATSAPP_TOKEN"), "Content-Type": "application/json" },
         body: JSON.stringify(otpMessage(String(dest.to), code, Deno.env.get("WHATSAPP_TPL_LANG") || "en")),
       });
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
         mobiles: String(dest.mobile),
         OTP: code,
       };
-      const r = await fetch("https://control.msg91.com/api/v5/flow/", {
+      const r = await fetch("https://control.msg91.com/api/v5/flow/", { redirect: "error",
         method: "POST",
         headers: { "authkey": authkey, "Content-Type": "application/json" },
         body: JSON.stringify(body),

@@ -426,10 +426,12 @@ do $$ declare e text; begin
   perform pg_temp.res('61 making someone an admin with two-step: done + every admin alerted (incl. the new one)', e = ''
     and (select role from public.profiles where id = pg_temp.uid('a_staff@a.test')) = 'admin' and pg_temp.events('admin_added') = 1
     and public._r285_mail((select id from public.studio_security_events where kind = 'admin_added' and org_id = 'a0000000-0000-4000-8000-000000000001' and at >= now())) -> 'to' ? 'a_staff@a.test', e);
-  perform pg_temp.as_user('a_admin2@a.test', 'aal2', 300);
+  -- since 0283 only the studio owner (a_admin, the first admin) removes another admin at once; anyone else asks from
+  -- Control Center -> Team (24 hours, section 11 below). The owner still needs two-step + a fresh code (0285).
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 300);
   e := pg_temp.try(format('select public.admin_set_role(%L, ''sales'')', pg_temp.uid('a_staff@a.test')));
   perform pg_temp.res('62 removing an admin with an old code: refused', e like '42501%R35_REAUTH%', e);
-  perform pg_temp.as_user('a_admin2@a.test', 'aal2', 1);
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 1);
   e := pg_temp.try(format('select public.admin_set_role(%L, ''sales'')', pg_temp.uid('a_staff@a.test')));
   perform pg_temp.su();
   perform pg_temp.res('63 removing an admin with two-step: done + alerted (the removed person is told too)', e = '' and pg_temp.events('admin_removed') = 1
@@ -503,6 +505,136 @@ do $$ declare e text; begin
   e := pg_temp.try(format('select public.studio_flag_clear(%L)', pg_temp.uid('a_admin@a.test')));
   perform pg_temp.res('76 then the cleared admin (two-step) can clear the other one inside the studio', e = '', e);
 exception when others then perform pg_temp.su(); insert into _rs values ('Bx', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
+-- ---- 11) with 0283 (r33): the Control Center -> Team paths need two-step too; one alert per person -----------------------
+-- studio A: a_admin is the owner (first admin), a_admin2 a second admin, a_staff made an admin for these checks
+create or replace function pg_temp.sec_bells() returns integer language sql as $$
+  select count(*)::int from public.notifications where org_id = 'a0000000-0000-4000-8000-000000000001' and kind = 'studio_security' $$;
+create or replace function pg_temp.team_bells(p_event text) returns integer language sql as $$
+  select count(*)::int from public.notifications where org_id = 'a0000000-0000-4000-8000-000000000001' and kind = 'team_safety'
+     and detail ->> 'event' = p_event $$;
+-- the r33-routed removal asked by p_asker in this test (one transaction: every row has the same now(), so not by time)
+create or replace function pg_temp.removed_by(p_asker text) returns uuid language sql as $$
+  select id from public.studio_security_events where org_id = 'a0000000-0000-4000-8000-000000000001' and kind = 'admin_removed'
+     and at >= now() and detail ->> 'r33_asker' = pg_temp.uid(p_asker)::text limit 1 $$;
+do $$ declare e text; r jsonb; s uuid; ch uuid; n_sec int; n_ev int; m jsonb; t uuid; begin
+  perform pg_temp.su();
+  s := pg_temp.uid('a_staff@a.test');
+  perform pg_temp.factor('a_admin@a.test'); perform pg_temp.factor('a_admin2@a.test');
+  update public.studio_account_flags set cleared_at = now(), cleared_by = pg_temp.uid('a_admin@a.test') where org_id = 'a0000000-0000-4000-8000-000000000001' and cleared_at is null;
+  update public.profiles set role = 'admin' where id = s;   -- the database itself: not gated, not alerted
+  -- a) a non-owner admin's 24-hour removal request (team_set_role)
+  perform pg_temp.as_user('a_admin2@a.test', 'aal2', 300);
+  e := pg_temp.try(format('select public.team_set_role(%L, ''sales'')', s));
+  perform pg_temp.su();
+  perform pg_temp.res('77 r33 24-hour removal request by a non-owner admin with an old code: refused, nothing scheduled',
+    e like '42501%R35_REAUTH%' and not exists (select 1 from public.team_admin_changes where target_user = s and status = 'pending'), e);
+  perform pg_temp.as_user('a_admin2@a.test', 'aal2', 1);
+  r := pg_temp.j(format('select public.team_set_role(%L, ''sales'')', s));
+  perform pg_temp.su();
+  ch := (r ->> 'change_id')::uuid;
+  perform pg_temp.res('78 ... with two-step: scheduled for 24 hours (r33 rules unchanged), still an admin now',
+    (r ->> 'scheduled')::boolean and (select role from public.profiles where id = s) = 'admin'
+    and (select requested_by from public.team_admin_changes where id = ch) = pg_temp.uid('a_admin2@a.test'), r::text);
+  -- b) the 24 hours pass and the Team page applies it: r33 tells the owner / that admin / the asker; r35 adds no second bell
+  update public.team_admin_changes set effective_at = now() - interval '1 minute' where id = ch;
+  n_sec := pg_temp.sec_bells(); n_ev := pg_temp.events('admin_removed');
+  perform pg_temp.as_user('a_admin2@a.test', 'aal2', 1);
+  perform public.team_safety_overview();
+  perform pg_temp.su();
+  m := public._r285_mail(pg_temp.removed_by('a_admin2@a.test'));
+  perform pg_temp.res('79 applied after 24 hours: demoted; r35 records it (marked r33) but rings no second bell and e-mails nobody r33 already told',
+    (select role from public.profiles where id = s) = 'sales' and (select status from public.team_admin_changes where id = ch) = 'applied'
+    and pg_temp.events('admin_removed') = n_ev + 1 and pg_temp.sec_bells() = n_sec
+    and (select (detail ->> 'via_r33')::boolean from public.studio_security_events where id = pg_temp.removed_by('a_admin2@a.test'))
+    and jsonb_array_length(m -> 'to') = 0 and not (m -> 'data' ? 'via_r33')
+    and exists (select 1 from public.team_safety_events x where x.event = 'admin_change_applied' and (x.detail ->> 'change_id')::uuid = ch),
+    coalesce(m::text, 'no mail'));
+  -- c) the owner removes an admin at once through Team
+  update public.profiles set role = 'admin' where id = s;
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 300);
+  e := pg_temp.try(format('select public.team_set_role(%L, ''sales'')', s));
+  perform pg_temp.res('80 the owner removing an admin through Team with an old code: refused', e like '42501%R35_REAUTH%', e);
+  n_sec := pg_temp.sec_bells();
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 1);
+  e := pg_temp.try(format('select public.team_set_role(%L, ''sales'')', s));
+  perform pg_temp.su();
+  m := public._r285_mail(pg_temp.removed_by('a_admin@a.test'));
+  perform pg_temp.res('81 ... with two-step: done at once; ONE bell (r33 admin_demoted), r35 e-mails only the admins r33 did not (a_admin2)',
+    e = '' and (select role from public.profiles where id = s) = 'sales' and pg_temp.team_bells('admin_demoted') >= 1 and pg_temp.sec_bells() = n_sec
+    and m -> 'to' = '["a_admin2@a.test"]'::jsonb, e || ' ' || coalesce(m::text, 'no mail'));
+  -- d) making someone an admin through Team: r33 sends nothing for it, so the r35 alert (bell + e-mail) still goes
+  n_sec := pg_temp.sec_bells();
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 300);
+  e := pg_temp.try(format('select public.team_set_role(%L, ''admin'')', s));
+  perform pg_temp.res('82 making an admin through Team with an old code: refused', e like '42501%R35_REAUTH%', e);
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 1);
+  e := pg_temp.try(format('select public.team_set_role(%L, ''admin'')', s));
+  perform pg_temp.su();
+  perform pg_temp.res('83 ... with two-step: done + the r35 admin_added bell (no r33 notice for a promotion)',
+    e = '' and (select role from public.profiles where id = s) = 'admin' and pg_temp.sec_bells() = n_sec + 1, e);
+  -- e) deactivating / reactivating an admin; a non-admin is not gated
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 300);
+  e := pg_temp.try(format('select public.team_deactivate_member(%L)', s));
+  perform pg_temp.su();
+  perform pg_temp.res('84 deactivating an admin with an old code: refused (still active)',
+    e like '42501%R35_REAUTH%' and not public._r283_is_off(s, 'a0000000-0000-4000-8000-000000000001'), e);
+  perform pg_temp.su(); delete from auth.mfa_factors where user_id = pg_temp.uid('a_admin2@a.test');
+  perform pg_temp.as_user('a_admin2@a.test', 'aal1');
+  e := pg_temp.try(format('select public.team_deactivate_member(%L)', s));
+  perform pg_temp.res('85 an admin with no two-step at all is told to set it up (deactivating an admin)', e like '42501%R35_SETUP_2STEP%', e);
+  perform pg_temp.factor('a_admin2@a.test');
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 1);
+  e := pg_temp.try(format('select public.team_deactivate_member(%L)', s));
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 300);
+  t := pg_temp.member('r35_crew@a.test', 'crew', 'a0000000-0000-4000-8000-000000000001');
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 300);
+  e := e || pg_temp.try(format('select public.team_deactivate_member(%L)', t));
+  perform pg_temp.su();
+  perform pg_temp.res('86 ... with two-step the owner deactivates the admin at once; a non-admin needs no fresh code',
+    e = '' and public._r283_is_off(s, 'a0000000-0000-4000-8000-000000000001') and public._r283_is_off(t, 'a0000000-0000-4000-8000-000000000001'), e);
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 300);
+  e := pg_temp.try(format('select public.team_reactivate_member(%L)', s));
+  perform pg_temp.res('87 reactivating an admin with an old code: refused', e like '42501%R35_REAUTH%', e);
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 1);
+  e := pg_temp.try(format('select public.team_reactivate_member(%L)', s));
+  perform pg_temp.su();
+  perform pg_temp.res('88 ... with two-step: reactivated', e = '' and not public._r283_is_off(s, 'a0000000-0000-4000-8000-000000000001'), e);
+  -- f) the ownership hand-over: starting and accepting both need two-step
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 300);
+  e := pg_temp.try(format('select public.team_owner_transfer_start(%L)', pg_temp.uid('a_admin2@a.test')));
+  perform pg_temp.res('89 starting an ownership hand-over with an old code: refused', e like '42501%R35_REAUTH%', e);
+  perform pg_temp.as_user('a_admin@a.test', 'aal2', 1);
+  r := pg_temp.j(format('select public.team_owner_transfer_start(%L)', pg_temp.uid('a_admin2@a.test')));
+  perform pg_temp.as_user('a_admin2@a.test', 'aal2', 300);
+  e := pg_temp.try(format('select public.team_owner_transfer_accept(%L)', r ->> 'transfer_id'));
+  perform pg_temp.su();
+  perform pg_temp.res('90 accepting it with an old code: refused (the owner is unchanged)',
+    e like '42501%R35_REAUTH%' and public._r283_owner('a0000000-0000-4000-8000-000000000001') = pg_temp.uid('a_admin@a.test'), e || ' ' || r::text);
+  perform pg_temp.as_user('a_admin2@a.test', 'aal2', 1);
+  e := pg_temp.try(format('select public.team_owner_transfer_accept(%L)', r ->> 'transfer_id'));
+  perform pg_temp.su();
+  perform pg_temp.res('91 ... with two-step on both sides: a_admin2 is the owner',
+    e = '' and public._r283_owner('a0000000-0000-4000-8000-000000000001') = pg_temp.uid('a_admin2@a.test'), e);
+  -- g) one notification catalog with both types; the r33 bodies kept underneath, not callable by the app
+  perform pg_temp.res('92 the bell catalog keeps team_safety (0283) AND studio_security (0285); both admin-only by default',
+    (select count(*) from jsonb_array_elements(public.notification_catalog()) x where x ->> 'type' in ('team_safety', 'studio_security')) = 2
+    and public.notification_type_of('team_safety', 'in_app') = 'team_safety' and public.notification_type_of('studio_security', 'in_app') = 'studio_security'
+    and public.notify_default('a0000000-0000-4000-8000-000000000001', 'admin', 'studio_security', 'in_app')
+    and public.notify_default('a0000000-0000-4000-8000-000000000001', 'admin', 'team_safety', 'in_app')
+    and not public.notify_default('a0000000-0000-4000-8000-000000000001', 'sales', 'studio_security', 'in_app')
+    and not public.notify_default('a0000000-0000-4000-8000-000000000001', 'sales', 'team_safety', 'in_app'));
+  perform pg_temp.res('93 one e-mail lane each: team_safety + studio_security in the outbox kinds and the claim; the r33 Team bodies kept, not callable',
+    position('''team_safety''' in pg_get_constraintdef((select oid from pg_constraint where conname = 'helm_notice_outbox_kind_check'))) > 0
+    and position('''studio_security''' in pg_get_constraintdef((select oid from pg_constraint where conname = 'helm_notice_outbox_kind_check'))) > 0
+    and position('''team_safety''' in pg_get_functiondef('public.helm_notice_outbox_claim(integer)'::regprocedure)) > 0
+    and position('''studio_security''' in pg_get_functiondef('public.helm_notice_outbox_claim(integer)'::regprocedure)) > 0
+    and position('r33-0283' in pg_get_functiondef('public.team_set_role__pre0285(uuid, text)'::regprocedure)) > 0
+    and position('r33-0283' in pg_get_functiondef('public.team_owner_transfer_start__pre0285(uuid)'::regprocedure)) > 0
+    and not has_function_privilege('authenticated', 'public.team_set_role__pre0285(uuid, text)', 'execute')
+    and not has_function_privilege('authenticated', 'public.team_deactivate_member__pre0285(uuid, text)', 'execute')
+    and has_function_privilege('authenticated', 'public.team_set_role(uuid, text)', 'execute'));
+exception when others then perform pg_temp.su(); insert into _rs values ('Cx', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 select pg_temp.su();
 select name, result from _rs order by name;

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Referrals &amp; partners · Helm HQ</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="preload" href="/vendor/supabase-js-2.118.0.min.js" as="script" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/hq-referrals.css?v=1">
+</head>
+<body>
+<!-- r29 referrals: Helm HQ "Referrals & partners". Real data (SQL 0279) only for a signed-in Helm HQ person with two-step
+     (the same sign-in as /hq; every hq_* RPC checks the HQ role and writes the audit log). Demo data ONLY on localhost
+     with ?demo=1. Signed out / not HQ -> an ordinary "page not found" (the page never confirms HQ exists). -->
+<main id="vSoon" class="gate" hidden>
+  <div class="card">
+    <h2 id="soonH">Page not found</h2>
+    <p class="hint" id="soonP">The page you asked for isn't here.</p>
+    <p id="soonA" hidden><a class="btn" data-hq="1">Open Helm HQ</a></p>
+  </div>
+</main>
+
+<div id="vApp" class="hq" hidden>
+  <aside class="side" id="side" aria-label="HQ menu">
+    <div class="brand">
+      <div class="mk" aria-hidden="true"><img src="/brand/helm-symbol-emerald-on-dark.svg?v=1" alt=""></div>
+      <div><b>Helm HQ</b><small>Helm team only</small></div>
+    </div>
+    <nav aria-label="HQ sections">
+      <div class="navg">Business</div>
+      <a class="navi" data-hq="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM14 4v4h6V4zM4 20h6v-3H4z"/></svg>Overview</a>
+      <a class="navi" data-hq="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>Studios</a>
+      <a class="navi" data-hq="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v10H3zM3 11h18M7 15h3"/></svg>Billing</a>
+      <a class="navi" href="/hq-referrals?demo=1" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16v4H4zM5 13v7h14v-7M12 9v11M12 9c-1.5-3-5-3.5-5-1.2C7 9 9 9 12 9zM12 9c1.5-3 5-3.5 5-1.2C17 9 15 9 12 9z"/></svg>Referrals &amp; partners</a>
+      <a class="navi" data-hq="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12l-8 8-8-8V4h8zM8 8h.01"/></svg>Plans</a>
+      <div class="navg">Team &amp; safety</div>
+      <a class="navi" data-hq="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4"/></svg>Security &amp; activity</a>
+    </nav>
+    <div class="foot" id="who"></div>
+  </aside>
+  <div id="navScrim" class="navscrim" hidden></div>
+
+  <div class="main">
+    <div class="demobar" id="demobar" role="status" hidden>Demo mode on this computer only: made-up sample data. Nothing is saved and nothing is sent.</div>
+    <header class="topbar">
+      <button class="iconbtn" id="btnMenu" type="button" aria-label="Open the HQ menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <span class="crumb"><span class="pre">Helm HQ / </span><b>Referrals &amp; partners</b></span>
+      <a class="btn" href="/referral-terms" target="_blank" rel="noopener">Terms</a>
+    </header>
+    <div class="content">
+      <div class="phead">
+        <div><h1>Referrals &amp; partners</h1>
+          <div class="sub">Studio-to-studio referrals (both get 1 month free) and partner / campaign codes. Rewards are months of Helm, never cash. Values in USD at list price, for reporting only.</div></div>
+        <button class="btn primary" id="btnNewCode" type="button">Create marketing link</button>
+      </div>
+      <div class="errbar" id="errbar" role="alert" hidden></div>
+      <section class="kpis" id="kpis" aria-label="Referral numbers"></section>
+
+      <div class="subtabs" role="tablist" aria-label="Referral views">
+        <button class="subtab" role="tab" id="t-ref" aria-controls="p-ref" aria-selected="true">Referrals<span class="cnt" id="cRef"></span></button>
+        <button class="subtab" role="tab" id="t-rev" aria-controls="p-ref" aria-selected="false" data-review="1">Needs review<span class="cnt warn" id="cRev"></span></button>
+        <button class="subtab" role="tab" id="t-led" aria-controls="p-led" aria-selected="false">Rewards ledger<span class="cnt" id="cLed"></span></button>
+        <button class="subtab" role="tab" id="t-par" aria-controls="p-par" aria-selected="false">Partner codes<span class="cnt" id="cPar"></span></button>
+        <button class="subtab" role="tab" id="t-set" aria-controls="p-set" aria-selected="false">Program rules</button>
+      </div>
+
+      <section id="p-ref" role="tabpanel" aria-labelledby="t-ref" class="card">
+        <div class="hd"><h2 id="refH">All referrals</h2>
+          <input type="search" id="refQ" placeholder="Search studio, code or e-mail" aria-label="Search referrals">
+        </div>
+        <div class="chips" role="group" aria-label="Status" id="refChips"></div>
+        <div class="scroll"><table class="rt" id="refTable">
+          <thead><tr><th>Referral</th><th>Referrer</th><th>New studio</th><th>Signed up</th><th>Status</th><th>Fraud checks</th><th class="n">Actions</th></tr></thead>
+          <tbody id="refRows"></tbody></table></div>
+        <p class="foot-note">E-mails are shown to the Helm team only. A referrer never sees the new studio's e-mail; they see its name only if the studio agreed at sign-up.</p>
+      </section>
+
+      <section id="p-led" role="tabpanel" aria-labelledby="t-led" class="card" hidden>
+        <div class="hd"><h2>Rewards ledger</h2></div>
+        <p class="hint">One line per free month. Applied = that invoice was billed $0 (or the yearly renewal moved a month). Nothing here is ever paid out as money.</p>
+        <div class="tot" id="ledTot"></div>
+        <div class="scroll"><table class="rt" id="ledTable">
+          <thead><tr><th>Reward</th><th>Studio</th><th>Side</th><th>From</th><th class="n">Value (USD)</th><th>State</th><th>Date</th><th>Note</th></tr></thead>
+          <tbody id="ledRows"></tbody></table></div>
+      </section>
+
+      <section id="p-par" role="tabpanel" aria-labelledby="t-par" class="card" hidden>
+        <div class="hd"><h2>Partner &amp; campaign codes</h2><button class="btn" id="btnNewCode2" type="button">Create marketing link</button></div>
+        <p class="hint">Influencer, event and campaign codes with their own offer. Influencer codes need the partner's promise to label posts (#ad / Collaboration) before they go live.</p>
+        <div class="scroll"><table class="rt" id="parTable">
+          <thead><tr><th>Code</th><th>Partner</th><th>New studio gets</th><th class="n">Uses</th><th class="n">Sign-ups</th><th class="n">Paid</th><th class="n">Conversion</th><th>Ends</th><th>Status</th><th class="n">Actions</th></tr></thead>
+          <tbody id="parRows"></tbody></table></div>
+      </section>
+
+      <section id="p-set" role="tabpanel" aria-labelledby="t-set" class="card" hidden>
+        <div class="hd"><h2>Program rules</h2></div>
+        <p class="hint" id="rulesHint">The program's numbers live in one server table. Only the HQ Owner / Admin can change them (a fresh two-step code, every change logged).</p>
+        <dl class="kv" id="rulesKv"></dl>
+        <form id="fSet" class="setform" novalidate hidden>
+          <label class="fld chk full"><input type="checkbox" id="st_on"><span><b>Referral program on</b> - studios see their link, sign-ups can use codes. Switching it off never takes back months already earned.</span></label>
+          <label class="fld">Hold after the first payment (days)<input id="st_hold" type="number" min="0" max="90" inputmode="numeric"></label>
+          <label class="fld">New studio must pay within (days)<input id="st_pay" type="number" min="7" max="365" inputmode="numeric"></label>
+          <label class="fld">Link remembered for (days)<input id="st_link" type="number" min="1" max="180" inputmode="numeric"></label>
+          <label class="fld">Support can add a code within (days)<input id="st_late" type="number" min="0" max="60" inputmode="numeric"></label>
+          <label class="fld">Most free months per 12 months<input id="st_cap" type="number" min="0" max="24" inputmode="numeric"></label>
+          <label class="fld">Held for a trial referrer (months)<input id="st_held" type="number" min="1" max="24" inputmode="numeric"></label>
+          <label class="fld">Frozen after cancelling (months)<input id="st_frozen" type="number" min="1" max="24" inputmode="numeric"></label>
+          <label class="fld">Unused months expire after (months)<input id="st_exp" type="number" min="1" max="60" inputmode="numeric"></label>
+          <label class="fld">Review above (sign-ups per code in 24 h)<input id="st_vel" type="number" min="1" max="1000" inputmode="numeric"></label>
+          <div class="setbar full"><button type="submit" class="btn primary" id="st_save">Save program rules</button>
+            <button type="button" class="btn" id="st_tick">Run the daily job now</button><span class="hint" id="st_msg"></span></div>
+        </form>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="mScrim" hidden></div>
+<div class="modal" id="mCode" role="dialog" aria-modal="true" aria-labelledby="mCodeH" hidden>
+  <h2 id="mCodeH">New partner code</h2>
+  <p class="hint">Demo mode: the code is added to this page only. Nothing is saved.</p>
+  <form id="fCode" class="form" novalidate>
+    <label class="fld">Partner or campaign name<input id="fc_name" maxlength="80" placeholder="Priya - Instagram, Diwali expo" required></label>
+    <label class="fld">Code (blank = made from the name)<input id="fc_code" maxlength="24" autocomplete="off" spellcheck="false" placeholder="INSTA_PRIYA"><span class="ferr" id="fc_code_err" hidden></span></label>
+    <label class="fld">Type<select id="fc_kind"><option value="Influencer">Influencer</option><option value="Campaign">Campaign</option><option value="Event">Event</option><option value="Reseller">Reseller</option><option value="Other">Other</option></select></label>
+    <label class="fld">New studio gets<select id="fc_reward"><option value="months">Free months after first payment</option><option value="percent">% off for some months</option><option value="none">Nothing (tracking only)</option></select></label>
+    <label class="fld" id="fc_months_l">Free months<input id="fc_months" type="number" min="1" max="3" value="1" inputmode="numeric"></label>
+    <label class="fld" id="fc_pct_l" hidden>% off<input id="fc_pct" type="number" min="5" max="50" step="5" value="20" inputmode="numeric"></label>
+    <label class="fld" id="fc_for_l" hidden>For how many months<input id="fc_for" type="number" min="1" max="12" value="3" inputmode="numeric"></label>
+    <label class="fld">Partner gets<select id="fc_preward"><option value="tracking">Tracking only</option><option value="months">1 free month per paying studio (if they are a Helm studio)</option><option value="none">Nothing</option></select></label>
+    <label class="fld" id="fc_ps_l" hidden>Partner's Helm studio ID<input id="fc_ps" maxlength="36" autocomplete="off" spellcheck="false" placeholder="from HQ -> Studios"></label>
+    <label class="fld">Most uses (0 = no limit)<input id="fc_max" type="number" min="0" max="100000" value="0" inputmode="numeric"></label>
+    <label class="fld">Ends on<input id="fc_end" type="date"></label>
+    <label class="fld full">Terms shown on the sign-up page (optional)<textarea id="fc_terms" maxlength="1000" placeholder="New studios only. One code per studio."></textarea></label>
+    <label class="fld chk full" id="fc_disc_l"><input type="checkbox" id="fc_disc"><span>The partner agreed in writing to label every post with this code as an ad (ASCI: "Ad" / "Collaboration" / "#ad", at the start, not hidden in hashtags).</span></label>
+    <p class="preview full" id="fc_prev"></p>
+    <div class="mact full"><button type="button" class="btn" id="fc_cancel">Cancel</button><button type="submit" class="btn primary" id="fc_save">Add code</button></div>
+  </form>
+</div>
+<div class="modal" id="mSign" role="dialog" aria-modal="true" aria-labelledby="mSignH" hidden>
+  <h2 id="mSignH">Sign-ups</h2>
+  <p class="hint">Helm team only. Share with the partner only the numbers below and the names of studios that agreed to be named.</p>
+  <div class="share" id="signShare"></div>
+  <div class="scroll"><table class="rt"><thead><tr><th>Studio</th><th>Signed up</th><th>Status</th><th>Paid</th><th>Name may be shared</th></tr></thead><tbody id="signRows"></tbody></table></div>
+  <div class="mact"><button type="button" class="btn" id="signClose">Close</button></div>
+</div>
+<div class="modal" id="mCodeOk" role="dialog" aria-modal="true" aria-labelledby="mReH" hidden>
+  <h2 id="mReH">Enter a fresh two-step code</h2>
+  <p class="hint">This change needs a two-step code from the last few minutes.</p>
+  <form id="fRe" class="form" novalidate>
+    <label class="fld full">6-digit code<input id="reCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>
+    <p class="ferr full" id="reErr"></p>
+    <div class="mact full"><button type="button" class="btn" id="reNo">Cancel</button><button type="submit" class="btn primary">Confirm</button></div>
+  </form>
+</div>
+<div class="ok-toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/trusted-types.js?v=5"></script>
+<script src="/referral-rules.js?v=2"></script>
+<script src="/referral-demo.js?v=2"></script>
+<script src="telemetry.js?v=9"></script>
+<script src="config.js?v=111"></script>
+<script src="event-name.js?v=9"></script>
+<script src="country-profile.js?v=5"></script><script src="store-api.js?v=294"></script>
+<script src="hq-staff.js?v=1"></script>
+<script src="/hq-referrals.js?v=1"></script>
+</body>
+</html>

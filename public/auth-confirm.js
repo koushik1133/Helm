@@ -52,14 +52,18 @@
   function dropSessionNow() {
     try { for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i); if (k && /^sb-[a-z0-9]+-auth-token$/.test(k)) localStorage.removeItem(k); } } catch (e) {}
   }
-  function askContinue(email) {
+  // R32 AUTH-4: also used for invite / magic links - opened from an e-mail, a link can carry ANOTHER person's
+  // sign-in, so this browser never continues as that account without one click on "Continue as <e-mail>".
+  function askContinue(email, opts) {
+    var o = opts || {};
     var chosen = false;
     window.addEventListener("pagehide", function () { if (!chosen) dropSessionNow(); });
-    say("Your e-mail is confirmed", "Continue as " + (email || "this account") + " to start your free trial. Not you? Sign out and sign in with your own account.");
+    if (o.title) say(o.title, o.sub || "");
+    else say("Your e-mail is confirmed", "Continue as " + (email || "this account") + " to start your free trial. Not you? Sign out and sign in with your own account.");
     var b0 = $("#switchBtn"), b = b0.cloneNode(false);   // a fresh button: no "Sign out and continue" listener left on it
     b0.parentNode.replaceChild(b, b0); b.hidden = false; b.disabled = false;
     b.textContent = "Continue as " + (email || "this account") + " →";
-    b.addEventListener("click", function () { chosen = true; b.disabled = true; b.textContent = "Opening…"; handoff(); go(link.next); });
+    b.addEventListener("click", function () { chosen = true; b.disabled = true; b.textContent = "Opening…"; if (o.onContinue) o.onContinue(); else handoff(); go(link.next); });
     var l = $("#toLogin"); l.textContent = "Not you? Sign out"; l.setAttribute("href", "/login?confirmed=1");
     l.addEventListener("click", async function (ev) {
       ev.preventDefault(); chosen = true;
@@ -89,8 +93,10 @@
         var need = link.type === "invite";
         var np = await BPStore.auth.needsPassword();
         if (np !== null) need = np;
-        BPStore.auth.markInviteLinkSession(need);
-        go(link.next);
+        // R32 AUTH-4: never silently - "Continue as <e-mail>" (one click) or sign out
+        askContinue(user.email, { title: "Join your studio on Helm",
+          sub: "Continue as " + (user.email || "this account") + " to accept the invitation. Not you? Sign out - this browser keeps nothing.",
+          onContinue: function () { BPStore.auth.markInviteLinkSession(need); } });
         return;
       }
       // a sign-in link with no invitation behind it: never keep a session someone else could have made

@@ -284,6 +284,24 @@ t('C3 Team wiring: fetched with the list for admins only (never blocks it); refr
   assert.match(CC, /document\.addEventListener\("helm:two-step-on"/);
   assert.match(CC, /\.ts-badge\.off\{/);
 });
+t('C4 with r33 (0283): the badge sits next to the Team view (owner / deactivated / Deactivate buttons) in the same table', () => {
+  assert.match(CC, /canEdit:isAdmin, twoStep:ucTwoStep,\s*\n\s*q:\$\("#uc_q"\)\.value, filter:ucProfiles\?\$\("#uc_f"\)\.value:"", team\}\);/);
+  assert.match(CC, /let ucRows=\[\], ucProfiles=false, ucTeam=null, ucTwoStep=null;/);
+  assert.match(CC, /\$\{roleSel\(u,self\)\}\$\{ts\(u\)\}/);
+  assert.match(CC, /\/\/ r33 \(0283\): "Remove" is now Deactivate/);
+});
+t('C5 r33 Team actions + two-step: withStepUp asks once; team-safety.js never asks a second time (cancel = refused)', async () => {
+  const src = read('public/team-safety.js');
+  const cx = { window: {}, console }; cx.window = cx; vm.createContext(cx); vm.runInContext(src, cx);
+  const T = cx.HelmTeam; let prompts = 0; const deps = { prompt: async () => { prompts++; return '123456'; }, mfa: { challenge: async () => {} } };
+  // withStepUp already handled it (the person cancelled its prompt / the set-up): refused at once, no second prompt
+  const handled = Object.assign(new Error('Enter a fresh two-step code'), { hint: 'reauth', stepUp: 'reauth', cancelled: true });
+  await assert.rejects(T.call(async () => { throw handled; }, deps), (e) => e === handled);
+  assert.equal(prompts, 0);
+  // a plain r33 "reauth" refusal (no withStepUp in between) is still asked for once and retried
+  let n = 0; const r = await T.call(async () => { if (n++ === 0) throw Object.assign(new Error('x'), { hint: 'reauth' }); return 'ok'; }, deps);
+  assert.equal(r, 'ok'); assert.equal(prompts, 1);
+});
 
 /* ------------------------------------------------------------------ D. SQL + paste file */
 t('D1 SQL 0291: own studio + admins only; yes / no only; notice owner-run, once, bell only; additive; ASCII', () => {

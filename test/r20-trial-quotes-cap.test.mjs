@@ -164,7 +164,8 @@ await t('invite: a refusal after a password sign-in / sign-up shows the invitati
   assert.match(show, /inviteBtn\("inviteMyStudio","Go to my studio"/); assert.match(show, /inviteBtn\("inviteSignOut","Sign out"/);
   // a different account signed in: "Sign out & accept invite as <invited e-mail>"
   assert.match(show, /want\?"Sign out & accept invite as "\+want:"Sign out & accept invite"/);
-  assert.match(show, /location\.replace\(tok\?"login\.html\?invite="\+encodeURIComponent\(tok\):"login\.html"\)/);
+  // R32b: the reload keeps the mail key (&k=) - inviteReloadUrl() builds the same login.html?invite=<tok> address
+  assert.match(show, /location\.replace\(inviteReloadUrl\(tok, location\.search\)\)/);
   // DOM only (textContent / createTextNode), no HTML strings
   assert.doesNotMatch(show + fnSrc(LOGIN, 'inviteBtn'), /innerHTML|insertAdjacentHTML/);
   // the accept RPC is untouched by this change (front-end only)
