@@ -1921,6 +1921,7 @@
   // R49: world AABB of an item's real 3D model (+ its ring chairs), from cached geometry bounds
   function boundsOf(id){
     if(boundsCache.has(id)) return boundsCache.get(id);
+    if(!groupById.size) return null;                 // not built yet: never cache a miss
     const g=groupById.get(id); let out=null;
     if(g){ const b=new THREE.Box3(), tmp=new THREE.Box3(); g.updateWorldMatrix(true,true);
       g.traverse(o=>{ if(!o.isMesh || o.isSprite || !o.geometry) return; if(!o.geometry.boundingBox) o.geometry.computeBoundingBox();

@@ -106,7 +106,7 @@ for (const s of RS) {
 assert.equal(WT.stopShowsLabels(RS[1], true), true); assert.equal(WT.stopShowsLabels(RS[0], false), false, 'user toggle wins');
 // entrance: from the exit opposite the stage, at eye height, looking (near-)level toward the stage
 const en = RS.find((s) => s.key === 'entrance');
-assert.ok(en.pos[2] > 15, 'entrance near the far edge'); assert.equal(en.pos[1], WT.EYE);
+assert.ok(en.pos[2] > 15, 'entrance near the far edge'); assert.ok(en.pos[1] >= WT.EYE && en.pos[1] <= 12, 'eye height, or a raised view right at the entry when tables crowd it');
 const pitch = Math.atan2(en.target[1] - en.pos[1], Math.hypot(en.target[0] - en.pos[0], en.target[2] - en.pos[2])) * 180 / Math.PI;
 assert.ok(pitch < -1.75 && pitch > -6, 'near-level, inside the normal orbit limit: ' + pitch);
 assert.ok(en.target[2] < en.pos[2], 'faces the stage');

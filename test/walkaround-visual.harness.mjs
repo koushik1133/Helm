@@ -15,7 +15,8 @@
 //                 stop card does not cover;
 //     (b) fill  : the projected box spans 25-80% of the screen on its binding axis;
 //     (c) seen  : >= 50% of ray samples inside the box reach it first (not occluded).
-//   plus: reduced-motion auto-play advances, layout-editing keys do nothing during the tour, and a drag on the 3D
+//   (framing pass with reduced motion: instant cuts; flights are proven leg by leg in walkthrough-r49.test.mjs) plus:
+//   reduced-motion auto-play advances, layout-editing keys do nothing during the tour, and a drag on the 3D
 //   view pauses ("Paused — exploring"). Screenshots of every stop (subject box dashed) go to OUT.
 // Exit code 1 when any check fails. Not part of `npm test` (needs Chromium + a three.js build).
 // =============================================================================
@@ -106,16 +107,21 @@ function measureInPage(opt) {
     return new T.Box3(new T.Vector3(cx - ex, 0, cz - ez), new T.Vector3(cx + ex, 2.6, cz + ez)); };
   const boxOf = (x) => { const g = groupOf.get(x.id), b = new T.Box3(); if (g && g.visible) b.setFromObject(g); const f = footBox(x); if (b.isEmpty()) return f;
     if (/seatblock|chairrow|table/.test(x.type)) b.union(f); return b; };
-  const ownerOf = (hit) => { if (hit.object.isInstancedMesh && hit.instanceId != null && ins.chairMap) return ins.chairMap[hit.instanceId];
+  const ownerOf = (hit) => { if (hit.object === ins.chairMesh && hit.instanceId != null && ins.chairMap) return ins.chairMap[hit.instanceId];   // only the shared chair mesh; a dance floor's tiles are instanced too
     let p = hit.object; while (p && !(p.userData && p.userData.itemId != null)) p = p.parent; return p ? p.userData.itemId : null; };
   const project = (p) => { const c = p.clone().applyMatrix4(viewM); const front = c.z < -cam.near; const n = c.clone().applyMatrix4(projM); return { x: n.x, y: n.y, front }; };
   const v = window.__helm3D.getView(), landErr = Math.hypot(v.pos[0] - stop.pos[0], v.pos[1] - stop.pos[1], v.pos[2] - stop.pos[2]);
   const res = { key: stop.key, title: stop.title, desc: stop.desc, i: WTs.i, n: WTs.stops.length, view: stop.view, landErr: +landErr.toFixed(3), fov: +cam.fov.toFixed(1), aspect: +cam.aspect.toFixed(3),
     cam: v.pos.map((x) => +x.toFixed(1)), targets: targets.map((x) => x.id), camY: +cam.position.y.toFixed(2) };
   res.camInside = items.filter((x) => { const g = groupOf.get(x.id); if (!g || !g.visible || /dancefloor|redcarpet|walkway|exit|arch|checkpoint|rug|carpet|aisle|tent|canopy|stageroof|umbrellas|fairylights|hangingfloral|chandelier/.test(x.type)) return false;
-    return boxOf(x).expandByScalar(0.3).containsPoint(cam.position); }).map((x) => x.id);
+    let inside = false; g.traverse((o) => { if (!inside && o.isMesh && !o.isSprite && new T.Box3().setFromObject(o).expandByScalar(0.3).containsPoint(cam.position)) inside = true; });   // per mesh, not the group's hull
+    return inside; }).map((x) => x.id);
   if (!targets.length) { res.na = true; return res; }
-  const ub = new T.Box3(); targets.forEach((x) => ub.union(boxOf(x)));
+  // under a tent / canopy roof (a cone as wide as the longer side, from 8 ft) only the part below the roof can be seen
+  const roofs = items.filter((x) => x.type === 'tent' || x.type === 'canopy').map((x) => ({ cx: x.x + x.width / 2 - W / 2, cz: x.y + x.height / 2 - H / 2, h: 0.51 * Math.max(x.width, x.height) }));
+  const clipRoof = (x, b) => { const cx = x.x + x.width / 2 - W / 2, cz = x.y + x.height / 2 - H / 2;
+    if (stop.view !== 'overview' && x.type !== 'tent' && x.type !== 'canopy' && roofs.some((r) => Math.abs(cx - r.cx) <= r.h && Math.abs(cz - r.cz) <= r.h)) b.max.y = Math.min(b.max.y, 7.7); return b; };
+  const ub = new T.Box3(); targets.forEach((x) => ub.union(clipRoof(x, boxOf(x))));
   const cs = []; for (const X of [ub.min.x, ub.max.x]) for (const Y of [ub.min.y, ub.max.y]) for (const Z of [ub.min.z, ub.max.z]) cs.push(project(new T.Vector3(X, Y, Z)));
   const tol = 0.03;
   res.cornersIn = cs.filter((c) => c.front && Math.abs(c.x) <= 1 + tol && c.y <= 1 + tol && c.y >= (stop.view === 'overview' ? -1 : bandBottom) - tol).length;
@@ -124,9 +130,9 @@ function measureInPage(opt) {
   res.fill = cs.some((c) => !c.front) ? Infinity : +Math.max((x1 - x0) / 2, (y1 - y0) / 2).toFixed(3);
   res.fillOk = stop.view === 'overview' ? res.fill <= 1 : res.fill >= opt.FILL_MIN && res.fill <= opt.FILL_MAX;
   // occlusion: rays to a 3x3x3 inset grid inside each target's box (up to 40 targets)
-  const ids = new Set(targets.map((x) => x.id)), ray = new T.Raycaster(); ray.camera = cam; let on = 0, vis = 0; const blockers = {};
+  const ids = new Set([...targets.map((x) => x.id), ...(stop.owns || [])]), ray = new T.Raycaster(); ray.camera = cam; let on = 0, vis = 0; const blockers = {};
   const step = Math.max(1, Math.ceil(targets.length / 40));
-  for (let k = 0; k < targets.length; k += step) { const b = boxOf(targets[k]), s = b.getSize(new T.Vector3()), mn = b.min;
+  for (let k = 0; k < targets.length; k += step) { const b = clipRoof(targets[k], boxOf(targets[k])), s = b.getSize(new T.Vector3()), mn = b.min;
     for (const fx of [0.15, 0.5, 0.85]) for (const fy of [0.15, 0.5, 0.85]) for (const fz of [0.15, 0.5, 0.85]) {
       const q = new T.Vector3(mn.x + s.x * fx, mn.y + s.y * fy, mn.z + s.z * fz), pr = project(q);
       if (!pr.front || Math.abs(pr.x) > 1 || Math.abs(pr.y) > 1) continue;
@@ -173,18 +179,21 @@ for (const [vpName, vp] of [['desktop', { width: 1440, height: 900 }], ['phone',
   for (const L of layouts) {
     if (process.env.ONLY && process.env.ONLY !== L.name) continue;
     if (vpName === 'phone' && !LAYOUTS.includes(L)) continue;   // phone: the 3 harness layouts
-    const { ctx, page, errs } = await openBuilder(vp, vpName === 'phone' ? { isMobile: true, hasTouch: true } : null);
+    // framing pass: reduced motion = an instant cut to each stop, so SwiftShader's slow frames never decide the result
+    // (the flights themselves are proven leg by leg in test/walkthrough-r49.test.mjs; the motion extras run below)
+    const { ctx, page, errs } = await openBuilder(vp, Object.assign({ reducedMotion: 'reduce' }, vpName === 'phone' ? { isMobile: true, hasTouch: true } : null));
     await load(page, L);
     await page.evaluate(() => window.HelmWalkthrough._ui.start());
     await page.waitForFunction(() => window.__helm3D.isActive() && window.HelmWalkthrough._ui.state() && window.__helm3D.inspect(), null, { timeout: 30000 });
     await page.evaluate(() => window.HelmWalkthrough._ui.setAuto(false));
+    await page.waitForTimeout(900);   // the one-time re-plan with the real mesh bounds
     const n = await page.evaluate(() => window.HelmWalkthrough._ui.state().stops.length), rows = [];
     for (let k = 0; k < n; k++) {
       if (k > 0) await page.evaluate((j) => window.HelmWalkthrough._ui.go(j), k);
       await landed(page).catch(() => {}); await page.waitForTimeout(150);
       const r = await page.evaluate(measureInPage, { FILL_MIN, FILL_MAX, VIS_MIN });
       const shot = `${vpName}-${L.name}-${String(k + 1).padStart(2, '0')}-${r.key}.png`.replace(/[^A-Za-z0-9._-]+/g, '_');
-      await page.screenshot({ path: path.join(OUT, shot) }); r.shot = shot; rows.push(r);
+      await page.screenshot({ path: path.join(OUT, shot), timeout: 120000 }).catch(() => page.screenshot({ path: path.join(OUT, shot), timeout: 120000 })); r.shot = shot; rows.push(r);
       const bad = r.na ? [] : [!r.frame && 'frame ' + r.cornersIn + '/8', !r.fillOk && 'fill ' + r.fill, !r.visOk && 'seen ' + r.visFrac].filter(Boolean);
       if (r.landErr > 0.05) bad.push('did not land (' + r.landErr + ')');
       if (r.camInside.length) bad.push('camera inside ' + r.camInside.join(','));

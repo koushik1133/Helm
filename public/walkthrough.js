@@ -29,6 +29,9 @@
  */
 (function (G) {
   'use strict';
+  // hot built-ins as locals: one scope lookup instead of a global one per call (much faster in node's vm sandbox, free in browsers)
+  const Math = globalThis.Math, Map = globalThis.Map, Set = globalThis.Set, Float64Array = globalThis.Float64Array, Int32Array = globalThis.Int32Array, Number = globalThis.Number,
+    Array = globalThis.Array, Object = globalThis.Object, String = globalThis.String, isFinite = globalThis.isFinite, Infinity = globalThis.Infinity;
   const DEG = Math.PI / 180;
   const EYE = 5.25;                 // 1.6 m in feet
   const EYE_MIN = 4;                // the camera never flies lower than this
@@ -36,7 +39,7 @@
   const PITCH_MIN = -80 * DEG, PITCH_MAX = 35 * DEG;
   const OVERVIEW_FOV = 48, BASE_FOV = 55, HMIN_FOV = 42, MAX_FOV = 78;
   const WALK_FOV = BASE_FOV, EYE_FOV = BASE_FOV;
-  const FILL = 0.8;
+  const FILL = 0.72;   // of the clear band: a little margin for the real meshes (chairs, drapes) beyond the footprint
   const LIN_FTPS = 28, ANG_DPS = 70, MIN_MS = 900, MAX_MS = 4200;
   const NAV_GAP_MS = 120, DWELL_MS = 4500;
   const DEFAULT_BAND = { t: 0.07, b: 0.24, l: 0, r: 0 };   // typical desktop: top tool bar + bottom stop card
@@ -146,27 +149,30 @@
     const mark = new Int32Array(list.length); let stamp = 0;
     return { near(b, pad, fn) { const st = ++stamp;
       for (let i = Math.floor((b.x0 - pad) / cell); i <= Math.floor((b.x1 + pad) / cell); i++) for (let j = Math.floor((b.y0 - pad) / cell); j <= Math.floor((b.y1 + pad) / cell); j++) {
-        const a = m.get(key(i, j)); if (a) for (const n of a) if (mark[n] !== st) { mark[n] = st; fn(list[n], n); } } } };
+        const a = m.get(key(i, j)); if (a) for (const n of a) if (mark[n] !== st) { mark[n] = st; if (fn(list[n], n) === true) return; } } } };   // fn returns true = stop
   }
 
   // ---------------- solids (scene ft) ----------------
   /* Oriented boxes {id,type,x,z,hw,hd,c,s,R,y0,y1,roof} for collisions + line of sight. Floor items are 0.3 ft
      slabs (never block), hanging items float (free underneath), roofs are posts + a slab, the stage is a deck +
      its backdrop wall, a mandap is posts + plinth + canopy (see-through below). */
-  function solidsOf(items, W, H) {
+  function solidsOf(items, W, H, ringed) {
     const out = [];
     for (const it of items) {
       const X = it.cx - W / 2, Z = it.cy - H / 2, w = it.width, d = it.height, t = it.rotation * DEG, C = Math.cos(t), S = Math.sin(t), ty = it.type;
       const add = (ox, oz, hw, hd, y0, y1, roof) => out.push({ id: it.id, type: ty, x: X + ox * C - oz * S, z: Z + ox * S + oz * C, hw, hd, c: Math.cos(-t), s: Math.sin(-t), R: Math.hypot(hw, hd), y0, y1, roof: !!roof });
       const posts = (inset, half, y1) => { for (const [px, pz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) add(px * Math.max(0, w / 2 - inset), pz * Math.max(0, d / 2 - inset), half, half, 0, y1); };
       if (HANG[ty]) { add(0, 0, w / 2, d / 2, HANG[ty][0], HANG[ty][1]); continue; }
-      if (ROOF[ty]) { const top = topOf(ty), y0 = ty === 'stageroof' ? top - 3 : ty === 'umbrellas' ? 7.5 : 8.6;
-        if (ty === 'umbrellas') add(0, 0, 0.3, 0.3, 0, top); else posts(1, 0.3, y0 + 0.4);
-        add(0, 0, w / 2, d / 2, y0, top, true); continue; }
+      if (ROOF[ty]) {   // matches builder-3d: tent / canopy roofs are 4-sided cones as wide as the LONGER side; the stage roof skin sits on 24 ft towers
+        const top = topOf(ty), y0 = ty === 'stageroof' ? 23.4 : ty === 'umbrellas' ? 7.5 : 8;
+        const cone = ty === 'tent' || ty === 'canopy', rh = cone ? 0.51 * Math.max(w, d) : w / 2, rd = cone ? 0.51 * Math.max(w, d) : d / 2;
+        if (ty === 'umbrellas') posts(0, 0.1, 10.5); else posts(1, ty === 'stageroof' ? 0.6 : 0.3, y0 + 0.6);
+        add(0, 0, rh, rd, y0, top, true); continue; }
       if (FLOOR[ty]) { add(0, 0, w / 2, d / 2, 0, 0.3); continue; }
       if (ty === 'stage') { add(0, 0, w / 2, d / 2, 0, 3); if (!it.properties.nobackdrop) add(0, -d / 2 + 0.5, w / 2, 0.5, 0, 3 + clamp(0.8 * d, 8, 14) + 2); continue; }
       if (ty === 'mandap') { posts(1.2, 0.6, 11); add(0, 0, w / 2, d / 2, 0, 1); add(0, 0, w / 2, d / 2, 10, 13); continue; }
       if (ty === 'lighting') { add(-(w / 2 - 0.5), 0, 0.5, Math.min(0.5, d / 2), 0, 17); add(w / 2 - 0.5, 0, 0.5, Math.min(0.5, d / 2), 0, 17); add(0, 0, w / 2, Math.min(0.5, d / 2), 14, 17); continue; }
+      if (TABLES[ty] && (seatsOf(it) > 0 || (ringed && ringed.has(it.id)))) { add(0, 0, w / 2 + 2, d / 2 + 2, 0, 3.2); continue; }   // the ring of chairs round a seated table
       add(0, 0, w / 2, d / 2, 0, topOf(ty));
     }
     return out;
@@ -190,7 +196,7 @@
   // segment a -> b vs one oriented box (slab test in the box's frame, then the height overlap)
   function segHit(a, b, s) {
     const dx = b[0] - a[0], dz = b[2] - a[2], L2 = dx * dx + dz * dz;
-    const u = L2 > 1e-9 ? clamp(((s.x - a[0]) * dx + (s.z - a[2]) * dz) / L2, 0, 1) : 0;
+    let u = L2 > 1e-9 ? ((s.x - a[0]) * dx + (s.z - a[2]) * dz) / L2 : 0; u = u < 0 ? 0 : u > 1 ? 1 : u;
     const px = a[0] + dx * u - s.x, pz = a[2] + dz * u - s.z; if (px * px + pz * pz > s.R * s.R) return false;
     const la = [(a[0] - s.x) * s.c - (a[2] - s.z) * s.s, (a[0] - s.x) * s.s + (a[2] - s.z) * s.c];
     const lb = [(b[0] - s.x) * s.c - (b[2] - s.z) * s.s, (b[0] - s.x) * s.s + (b[2] - s.z) * s.c];
@@ -216,19 +222,19 @@
     const standing = p[1] <= EYE + 0.6;
     return !idx.each(p[0] - CLEAR - 1, p[2] - CLEAR - 1, p[0] + CLEAR + 1, p[2] + CLEAR + 1, (s) => {
       if ((ignore && ignore.has(s.id)) || s.y1 <= 0.35) return false;
-      if (s.roof && p[1] >= s.y0 - 0.5) { const dx = p[0] - s.x, dz = p[2] - s.z;   // never on / above a roof: it hides the view and traps the flight
+      if (s.roof && p[1] >= s.y0 - 1) { const dx = p[0] - s.x, dz = p[2] - s.z;   // never on / above a roof: it hides the view and traps the flight
         if (Math.abs(dx * s.c - dz * s.s) < s.hw + CLEAR && Math.abs(dx * s.s + dz * s.c) < s.hd + CLEAR) return true; }
-      if (standing ? s.y0 >= p[1] + 0.75 : (s.y0 >= p[1] + 1.5 || s.y1 <= p[1] - 2)) return false;
+      if (standing ? s.y0 >= p[1] + 0.75 : (s.y0 >= p[1] + 1 || s.y1 <= p[1] - 2)) return false;
       const dx = p[0] - s.x, dz = p[2] - s.z; if (dx * dx + dz * dz > (s.R + CLEAR) * (s.R + CLEAR)) return false;
       const lx = dx * s.c - dz * s.s, lz = dx * s.s + dz * s.c;
       return Math.abs(lx) < s.hw + CLEAR && Math.abs(lz) < s.hd + CLEAR;
     });
   }
   // the orbit guard at a stop: the camera may go anywhere above the floor except inside a solid
-  function insideSolid(p, idx, pad) {
+  function insideSolid(p, idx, pad, ignore) {
     const g = pad == null ? 0.5 : pad;
     return idx.each(p[0] - g - 1, p[2] - g - 1, p[0] + g + 1, p[2] + g + 1, (s) => {
-      if (s.y1 <= 0.35 || p[1] < s.y0 - g || p[1] > s.y1 + g) return false;
+      if ((ignore && ignore.has(s.id)) || s.y1 <= 0.35 || p[1] < s.y0 - g || p[1] > s.y1 + g) return false;
       const dx = p[0] - s.x, dz = p[2] - s.z, lx = dx * s.c - dz * s.s, lz = dx * s.s + dz * s.c;
       return Math.abs(lx) < s.hw + g && Math.abs(lz) < s.hd + g;
     });
@@ -268,11 +274,16 @@
   }
   /* closed-form distance, then refine: pan so the projected box is centred in the CLEAR band and dolly so its
      binding axis spans `fill` of the band (frameBox's loop, generalised to a band) */
-  function solveFrame(pts, c, B, o) {
+  function closedD(pts, c, B, o) {   // conservative closed-form distance (every point inside the band, no pan)
     const tanV = Math.tan(o.fov * DEG / 2), a = o.aspect, band = o.band, fx = o.fill * (1 - band.l - band.r), fy = o.fill * (1 - band.t - band.b);
     let d = o.dMin;
     for (const p0 of pts) { const p = sub(p0, c), pd = p[0] * B.dir[0] + p[1] * B.dir[1] + p[2] * B.dir[2];
       d = Math.max(d, pd + Math.abs(p[0] * B.r[0] + p[2] * B.r[2]) / (tanV * a * fx), pd + Math.abs(p[0] * B.u[0] + p[1] * B.u[1] + p[2] * B.u[2]) / (tanV * fy)); }
+    return d;
+  }
+  function solveFrame(pts, c, B, o) {
+    const tanV = Math.tan(o.fov * DEG / 2), a = o.aspect, band = o.band, fx = o.fill * (1 - band.l - band.r), fy = o.fill * (1 - band.t - band.b);
+    let d = closedD(pts, c, B, o);
     const want = [band.l - band.r, band.b - band.t];
     let t = c.slice();
     const measure = () => {
@@ -336,8 +347,8 @@
   }
   // candidate headings / elevations, cheapest first (rotate a little before craning a lot; "low" = under roofs)
   const CANDS = (() => { const out = [];
-    for (const da of [0, 15, -15, 30, -30, 45, -45, 60, -60, 90, -90, 130, -130, 180]) for (const de of [0, 10, 20, 'low'])
-      out.push({ da, de, base: Math.abs(da) / 90 + (de === 'low' ? 0.6 : de / 40) });
+    for (const da of [0, 15, -15, 30, -30, 45, -45, 60, -60, 90, -90, 130, -130, 180]) for (const de of [0, 10, 20, 32, 'low', 'low2'])
+      out.push({ da, de, base: Math.abs(da) / 90 + (de === 'low' ? 0.6 : de === 'low2' ? 0.7 : de / 40) });
     return out.sort((a, b) => a.base - b.base); })();
   /* placeCamera: the cheapest candidate whose camera is in the hall, clear of every solid, sees the subject
      with all 3 rays and frames it in the clear band. Never returns an unchecked spot: if nothing passes, the
@@ -349,20 +360,28 @@
     const c = [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2];
     const Rh = Math.hypot(b.max[0] - b.min[0], b.max[2] - b.min[2]) / 2, top = b.max[1];
     const el0 = o.kind === 'flat' ? 35 : o.kind === 'tall' ? 20 : 28;
-    const spread = clamp(0.35 * Math.max(b.max[0] - b.min[0], b.max[2] - b.min[2]) / 2, 1.5, 3);
+    const spread = clamp(0.35 * Math.min(bx.max[0] - bx.min[0], bx.max[2] - bx.min[2]) / 2, 0.5, 3);   // side rays stay on the subject (a 4 ft carpet)
     const hw = ctx.W / 2, hh = ctx.H / 2, out = 0.15 * Math.max(ctx.W, ctx.H) + 6;
-    let best = null, lowEl = null, bestOut = null, legFails = 0;
+    let best = null, lowEl = null, bestOut = null, bestRoof = null, legFails = 0;
     for (const cd of CANDS) {
-      if (cd.de === 'low' && lowEl == null) continue;
-      let el = cd.de === 'low' ? lowEl : Math.min(el0 + cd.de, 55), s = null;
+      const low = cd.de === 'low' || cd.de === 'low2', camY = cd.de === 'low2' ? 6.5 : EYE + 0.4;   // low2: a raised camera still under a tent roof
+      if (low && lowEl == null) continue;
+      let el = low ? lowEl : Math.min(el0 + cd.de, 62), s = null;   // up to a near top-down look (a carpet or a table in a packed hall)
       const az = o.heading + cd.da * DEG;
-      for (let it = 0; it < (cd.de === 'low' ? 3 : 1); it++) {   // "low": settle the elevation so the camera sits at eye height
+      if (!low && best) {   // cheap pre-check on the closed-form spot: skip the full solve where the camera clearly cannot stand
+        const B0 = basis(az, el * DEG), d0 = closedD(use, c, B0, { aspect: ctx.aspect, fov: ctx.fov, band: ctx.band, fill: ctx.fill, dMin: Math.max(o.dMin || 8, (Rh + 3) / Math.cos(el * DEG)) });
+        const q = [c[0] + B0.dir[0] * d0, c[1] + B0.dir[1] * d0, c[2] + B0.dir[2] * d0];
+        const qIn = Math.abs(q[0]) <= hw + 4 && Math.abs(q[2]) <= hh + 4, qOut = q[1] >= 12 && Math.abs(q[0]) <= hw + out && Math.abs(q[2]) <= hh + out;
+        if (!qIn && !qOut) continue;
+        if (qIn && !camOK(q, ctx.idx, hw + 6, hh + 6, null, false) && !camOK([q[0] * 0.97, q[1], q[2] * 0.97], ctx.idx, hw + 6, hh + 6, null, false)) continue;
+      }
+      for (let it = 0; it < (low ? 3 : 1); it++) {   // "low": settle the elevation so the camera sits at eye height
         const B = basis(az, el * DEG), dMin = Math.max(o.dMin || 8, (Rh + 3) / Math.cos(el * DEG));
         s = solveFrame(use, c, B, { aspect: ctx.aspect, fov: ctx.fov, band: ctx.band, fill: ctx.fill, dMin, dMax: ctx.dMax });
-        if (cd.de === 'low') { const e2 = clamp(Math.asin(clamp((EYE + 0.4 - s.target[1]) / Math.max(1, s.d), -1, 1)) / DEG, 3, 15); if (Math.abs(e2 - el) < 0.2) break; el = e2; }
+        if (low) { const e2 = clamp(Math.asin(clamp((camY - s.target[1]) / Math.max(1, s.d), -1, 1)) / DEG, 3, cd.de === 'low2' ? 40 : 20); if (Math.abs(e2 - el) < 0.2) break; el = e2; }
       }
       if (lowEl == null && cd.de === 0 && cd.da === 0) lowEl = clamp(Math.asin(clamp((EYE + 0.4 - c[1]) / Math.max(1, s.d), -1, 1)) / DEG, 4, 15);
-      const pos = s.pos, inHall = Math.abs(pos[0]) <= hw - 1 && Math.abs(pos[2]) <= hh - 1;
+      const pos = s.pos.map(r2), inHall = Math.abs(pos[0]) <= hw - 1 && Math.abs(pos[2]) <= hh - 1;
       const outOK = !inHall && pos[1] >= 12 && Math.abs(pos[0]) <= hw + out && Math.abs(pos[2]) <= hh + out;
       let pen = cd.base;
       if (o.avoid && o.avoid.some((v) => close2(v, pos, s.target))) pen += 60;
@@ -371,9 +390,23 @@
       if (pen < 50) { if (outOK) pen += 3;
         const tgt = pivotTo(pos, s.target, clamp(c[1], 0, top));
         const rayT = o.kind === 'flat' ? [tgt[0], Math.max(tgt[1], bx.max[1] - 0.2), tgt[2]] : tgt;   // a floor item is seen by its top surface
-        const vis = visibility(pos, rayT, spread, ctx.idx, o.ignore); pen += 10 * (1 - vis);
+        let vis = visibility(pos, rayT, spread, ctx.idx, o.ignore);
+        if (vis === 1 && o.kind === 'flat') {   // ...and by its near edge, which tables / chairs in front would hide first
+          const hx = pos[0] - c[0], hz = pos[2] - c[2], hl = Math.hypot(hx, hz) || 1, ex = (bx.max[0] - bx.min[0]) / 2 * 0.8, ez = (bx.max[2] - bx.min[2]) / 2 * 0.8;
+          const k = Math.min(ex / Math.max(1e-6, Math.abs(hx / hl)), ez / Math.max(1e-6, Math.abs(hz / hl)));
+          const q = [c[0] + hx / hl * k, rayT[1], c[2] + hz / hl * k];
+          if (!insideSolid(q, ctx.idx, 0, o.ignore) && !segClear(pos, q, ctx.idx, o.ignore)) vis = 2 / 3; }
+        if (vis === 1 && (Math.max(bx.max[0] - bx.min[0], bx.max[2] - bx.min[2]) > 14 || o.underRoof)) {   // and the far / near corners of the subject (a roof or a front row must not hide part of it)
+          const ym = clamp((bx.min[1] + bx.max[1]) / 2, 0.3, Math.max(0.3, bx.max[1] - 0.2)), ix = (bx.max[0] - bx.min[0]) * 0.3, iz = (bx.max[2] - bx.min[2]) * 0.3;
+          let blocked = 0;
+          for (const [qx, qz] of [[bx.min[0] + ix, bx.min[2] + iz], [bx.max[0] - ix, bx.min[2] + iz], [bx.min[0] + ix, bx.max[2] - iz], [bx.max[0] - ix, bx.max[2] - iz]])
+            if (!insideSolid([qx, ym, qz], ctx.idx, 0, o.ignore) && !segClear(pos, [qx, ym, qz], ctx.idx, o.ignore)) blocked++;   // a point buried in a neighbour is not "the subject"
+          if (blocked >= 2) vis = 1 - blocked / 8; }   // one clipped corner is fine; two or more means a real part is hidden
+        pen += 10 * (1 - vis);
+        if (low && o.splittable) pen += 8;   // an eye-height shot of a whole block hides its back rows: split it instead
         if (o.legible && !o.legible(pos)) { pen += 8; legFails++; }   // too far to read: try another side before the group is split
         const cand = { pos, target: tgt, aim: rayT, d: s.d, el, az, vis, cost: pen, ok: vis === 1 && !outOK && pen < 8 };
+        if (low && !o.splittable && vis >= 2 / 3 - 1e-9 && pen < 15 && !outOK && (!bestRoof || pen < bestRoof.cost)) bestRoof = cand;   // packed under a roof: most of it is the best there is
         if (vis === 1 && pen < 11 && outOK && (!bestOut || pen < bestOut.cost)) bestOut = cand;   // a crane shot from beyond a small hall's edge (no walls are drawn)
         if (!best || pen < best.cost) best = cand;
         if (cand.ok || clock() > ctx.deadline || (o.splittable && legFails >= 4)) break;   // a big group: splitting beats searching
@@ -381,6 +414,7 @@
       if (best && clock() > ctx.deadline && cd.da === 0 && cd.de === 0) break;   // pathological layout: stay responsive, flag it
     }
     if (!best.ok && bestOut) { best = bestOut; best.ok = true; }
+    if (!best.ok && bestRoof) { best = bestRoof; best.ok = true; best.partial = true; }
     best.box = b; best.c = c;
     return best;
   }
@@ -468,6 +502,23 @@
     return { view: 'overview', fov: ctx.fov, pos: s.pos.map(r2), target: target.map(r2), hideRoofs, frame: { box: b, az: az * DEG, el, pivot: 0 }, d: s.d };
   }
 
+  // overlap merge: subjects whose boxes overlap >= 50% of the smaller one are one place (one stop). A tight typed-array
+  // loop in its own small function, so a hall packed with thousands of items never freezes the page.
+  function mergeOverlaps(bx, ar, findI, ufa) {
+      const NS = bx.length;
+      const X0 = new Float64Array(NS), Y0 = new Float64Array(NS), X1 = new Float64Array(NS), Y1 = new Float64Array(NS);
+      bx.forEach((b, i) => { X0[i] = b.x0; Y0[i] = b.y0; X1[i] = b.x1; Y1[i] = b.y1; });
+      const CELL = 24, cells = new Map(), key = (i, j) => i * 100003 + j;
+      for (let n = 0; n < NS; n++) for (let i = Math.floor(X0[n] / CELL); i <= Math.floor(X1[n] / CELL); i++) for (let j = Math.floor(Y0[n] / CELL); j <= Math.floor(Y1[n] / CELL); j++) {
+        const k = key(i, j); let l = cells.get(k); if (!l) cells.set(k, l = []); l.push(n); }
+      for (const l of cells.values()) {
+        for (let p = 0; p < l.length; p++) { const a = l[p]; let budget = 150;
+          for (let q = p + 1; q < l.length && budget > 0; q++) { const b = l[q];
+            const ox = Math.min(X1[a], X1[b]) - Math.max(X0[a], X0[b]); if (ox <= 0) continue;
+            const oy = Math.min(Y1[a], Y1[b]) - Math.max(Y0[a], Y0[b]); if (oy <= 0) continue;
+            budget--; const m = ar[a] < ar[b] ? ar[a] : ar[b];
+            if (m > 0 && ox * oy / m >= 0.5) { const ra = findI(a), rb = findI(b); if (ra !== rb) ufa[ra] = rb; } } } }
+  }
   // ---------------- the planner ----------------
   function walkthroughStops(itemsIn, hall, opts) {
     const o = opts || {};
@@ -475,21 +526,6 @@
     const aspect = num(o.aspect, 16 / 9) > 0.2 ? num(o.aspect, 16 / 9) : 16 / 9;
     const { items, skipped } = normItems(itemsIn, W, H);
     const byId = new Map(items.map((i) => [i.id, i]));
-    const solids = solidsOf(items, W, H), idx = solidIndex(solids);
-    const sf = stageFrame(items, W, H);
-    const ctx = { W, H, aspect, fov: num(o.fov, walkFov(aspect)), band: bandOf(o.band), fill: num(o.fill, FILL), idx, bounds: typeof o.bounds === 'function' ? o.bounds : null,
-      dMax: Math.max(400, Math.max(W, H) * 2.6 + 60), stageFront: sf.front, deadline: clock() + num(o.budgetMs, 600) };
-    const S = (x, y, h) => [r2(x - W / 2), r2(h), r2(y - H / 2)];
-    const ptsCache = new Map(), boxCache = new Map();
-    // under a tent / canopy the camera stays below the roof, so what pokes through it is framed up to the roof
-    const roofs = solids.filter((x) => x.roof);
-    const roofCap = (it) => { if (ROOF[it.type]) return Infinity; let cap = Infinity; const X = it.cx - W / 2, Z = it.cy - H / 2;
-      for (const r of roofs) { const dx = X - r.x, dz = Z - r.z; if (Math.abs(dx * r.c - dz * r.s) <= r.hw && Math.abs(dx * r.s + dz * r.c) <= r.hd) cap = Math.min(cap, r.y0 - 0.3); } return cap; };
-    const ptsOf = (it) => { let v = ptsCache.get(it.id); if (!v) { v = itemPts(it, W, H, ctx.bounds); const cap = roofCap(it); if (cap < Infinity) v = v.map((q) => [q[0], Math.min(q[1], cap), q[2]]); ptsCache.set(it.id, v); } return v; };
-    const box3Of = ctx.box3 = (it) => { let v = boxCache.get(it.id); if (!v) { v = boxOfPts(ptsOf(it)); boxCache.set(it.id, v); } return v; };
-    const stops = [];
-    const finish = () => { stops.rootOf = (id) => byId.get(root(id)); stops.skipped = skipped; stops.solids = solids; stops.index = idx; stops.items = items; stops.hall = { w: W, h: H }; stops.ctx = ctx; return stops; };
-
     // ---- 1. ownership: nested items belong to their host, chairs to their table, accessories to a neighbour ----
     const parent = new Map();
     const hosts = items.filter((i) => HOST[i.type]), hostGrid = boxGrid(hosts, (h) => h.fp, 24);
@@ -498,8 +534,8 @@
     const stages = items.filter((i) => i.type === 'stage');
     for (const it of items) {
       if (ENVELOPE[it.type]) continue;
-      let best = null;
-      hostGrid.near(it.fp, 0, (h) => { if (h === it || h.area <= it.area) return;
+      let best = null, budget = 400;
+      hostGrid.near(it.fp, 0, (h) => { if (budget-- <= 0) return true; if (h === it || h.area <= it.area) return;
         if (fpOver(it.fp, h.fp) / Math.max(1e-6, fpArea(it.fp)) >= 0.6 && (!best || h.area < best.area)) best = h; });
       if (!best && it.type === 'chiavari') { let d0 = 3; tableGrid.near(it.fp, 3, (h) => { if (h.type === 'caketable') return; const d = fpGap(it.fp, h.fp); if (d <= d0) { d0 = d; best = h; } }); }
       if (!best && ACCESSORY[it.type]) { let d0 = 6; solidGrid.near(it.fp, 6, (h) => { if (h === it || MARKER[h.type]) return; const d = fpGap(it.fp, h.fp); if (d <= d0) { d0 = d; best = h; } }); }
@@ -510,6 +546,29 @@
     const kids = new Map();
     for (const it of items) { const r = root(it.id); if (r !== it.id) { if (!kids.has(r)) kids.set(r, []); kids.get(r).push(it.id); } }
     const ownBox = (id) => { let b = byId.get(id).fp; for (const k of kids.get(id) || []) b = fpUnion(b, byId.get(k).fp); return b; };
+    // solids: a chair or centrepiece on a seated table is already inside the table's chair ring
+    const ringed = new Set(); for (const it of items) { const pid = parent.get(it.id); if (pid && it.type === 'chiavari' && TABLES[byId.get(pid).type]) ringed.add(pid); }
+    const solids = solidsOf(items.filter((i) => { const pid = parent.get(i.id), p = pid && byId.get(pid); return !(p && TABLES[p.type] && (i.type === 'chiavari' || ACCESSORY[i.type])); }), W, H, ringed), idx = solidIndex(solids);
+    const sf = stageFrame(items, W, H);
+    const ctx = { W, H, aspect, fov: num(o.fov, walkFov(aspect)), band: bandOf(o.band), fill: num(o.fill, FILL), idx, bounds: typeof o.bounds === 'function' ? o.bounds : null,
+      dMax: Math.max(400, Math.max(W, H) * 2.6 + 60), stageFront: sf.front, deadline: clock() + num(o.budgetMs, 600) };
+    const S = (x, y, h) => [r2(x - W / 2), r2(h), r2(y - H / 2)];
+    const ptsCache = new Map(), boxCache = new Map();
+    // under a tent / canopy the camera stays below the roof, so what pokes through it is framed up to the roof
+    const roofs = solids.filter((x) => x.roof);
+    const roofCap = (it) => { if (ROOF[it.type]) return Infinity; let cap = Infinity; const X = it.cx - W / 2, Z = it.cy - H / 2;
+      for (const r of roofs) { const dx = X - r.x, dz = Z - r.z; if (Math.abs(dx * r.c - dz * r.s) <= r.hw && Math.abs(dx * r.s + dz * r.c) <= r.hd) cap = Math.min(cap, r.y0 - 0.3); } return cap; };
+    const ptsOf = (it) => { let v = ptsCache.get(it.id); if (!v) { v = itemPts(it, W, H, ctx.bounds); const cap = roofCap(it); if (cap < Infinity) v = v.map((q) => [q[0], Math.min(q[1], cap), q[2]]); ptsCache.set(it.id, v); } return v; };
+    const box3Of = ctx.box3 = (it) => { let v = boxCache.get(it.id); if (!v) { v = ptsCache.has(it.id) || ctx.bounds ? boxOfPts(ptsOf(it)) : quickBox(it); boxCache.set(it.id, v); } return v; };
+    // the same box as boxOfPts(itemPts(...)) without building 16 points per item (the overview loops over every item)
+    const quickBox = (it) => { let y0 = 0, y1 = topOf(it.type);
+      if (HANG[it.type]) { y0 = HANG[it.type][0]; y1 = HANG[it.type][1]; } else if (it.type === 'stage') y1 = it.properties.nobackdrop ? 3 : 3 + clamp(0.8 * it.height, 8, 14) + 2; else if (FLOOR[it.type]) y1 = 0.3;
+      const pad = TABLES[it.type] && seatsOf(it) > 0 ? 2.2 : 0.4, t = it.rotation * DEG, c = Math.abs(Math.cos(t)), sn = Math.abs(Math.sin(t));
+      const ex = (it.width / 2 + pad) * c + (it.height / 2 + pad) * sn, ez = (it.width / 2 + pad) * sn + (it.height / 2 + pad) * c, X = it.cx - W / 2, Z = it.cy - H / 2, cap = roofCap(it);
+      return { min: [X - ex, y0, Z - ez], max: [X + ex, Math.min(y1, cap < Infinity ? cap : y1), Z + ez] }; };
+    const stops = [];
+    const finish = () => { stops.rootOf = (id) => byId.get(root(id)); stops.skipped = skipped; stops.solids = solids; stops.index = idx; stops.items = items; stops.hall = { w: W, h: H }; stops.ctx = ctx; return stops; };
+
 
     // ---- 2. entrance (the chosen entry; it owns the entry item it stands in) ----
     const cands = entryCands(items, W, H), want = o.entry;
@@ -531,13 +590,12 @@
     }
 
     // ---- 4. groups: overlapping subjects merge (one place, one stop), then same-family clusters by gap ----
-    const uf = new Map(); const find = (x) => { while (uf.get(x) !== x) { uf.set(x, uf.get(uf.get(x))); x = uf.get(x); } return x; };
-    subjects.forEach((s) => uf.set(s.id, s.id));
     const boxes = new Map(subjects.map((s) => [s.id, ownBox(s.id)]));
-    const sGrid = boxGrid(subjects, (s) => boxes.get(s.id), 24);
-    for (const a of subjects) sGrid.near(boxes.get(a.id), 0, (b) => { if (b.id <= a.id) return;
-      const A = boxes.get(a.id), Bx = boxes.get(b.id), m = Math.min(fpArea(A), fpArea(Bx));
-      if (m > 0 && fpOver(A, Bx) / m >= 0.5) uf.set(find(a.id), find(b.id)); });
+    const NS = subjects.length, ufa = new Int32Array(NS).map((_, i) => i), bx = subjects.map((x) => boxes.get(x.id)), ar = bx.map(fpArea);
+    const findI = (x) => { while (ufa[x] !== x) { ufa[x] = ufa[ufa[x]]; x = ufa[x]; } return x; };
+    mergeOverlaps(bx, ar, findI, ufa);   // (its own function: V8 optimizes small functions, not this big one)
+    const rootOfS = new Map(subjects.map((x, i) => [x.id, i]));
+    const find = (id) => subjects[findI(rootOfS.get(id))].id;
     let groups = new Map();
     for (const s of subjects) { const r = find(s.id); if (!groups.has(r)) groups.set(r, { subj: [], box: null, fam: null, big: null }); const g = groups.get(r);
       g.subj.push(s.id); g.box = g.box ? fpUnion(g.box, boxes.get(s.id)) : boxes.get(s.id); if (!g.big || s.area > g.big.area) g.big = s; }
@@ -545,8 +603,8 @@
     // Kruskal single-link within a family: ascending gaps, merge while the union span stays under the cap
     { const n = groups.length, par = groups.map((_, i) => i), f2 = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
       const gb = groups.map((g) => g.box), edges = [], gg = boxGrid(groups.map((g, i) => i), (i) => gb[i], 40);
-      for (let i = 0; i < n; i++) { const lim = MERGE_GAP[groups[i].fam] != null ? MERGE_GAP[groups[i].fam] : 12; if (lim <= 0) continue;
-        gg.near(gb[i], lim, (j) => { if (j <= i || groups[j].fam !== groups[i].fam) return; const g = fpGap(gb[i], gb[j]); if (g <= lim) edges.push([g, i, j]); }); }
+      for (let i = 0; i < n; i++) { const lim = MERGE_GAP[groups[i].fam] != null ? MERGE_GAP[groups[i].fam] : 12; if (lim <= 0) continue; let budget = 300;
+        gg.near(gb[i], lim, (j) => { if (budget-- <= 0) return true; if (j <= i || groups[j].fam !== groups[i].fam) return; const g = fpGap(gb[i], gb[j]); if (g <= lim) edges.push([g, i, j]); }); }
       edges.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
       const cur = gb.slice();
       for (const [, i, j] of edges) { const a = f2(i), b = f2(j); if (a === b) continue; const u = fpUnion(cur[a], cur[b]);
@@ -558,7 +616,7 @@
     // ---- 5. frame each group (split when it cannot be framed legibly) ----
     const center = { x: W / 2, y: H / 2 };
     const ownedBy = (subj) => subj.flatMap((k) => [k, ...(kids.get(k) || [])]);
-    const legible = (pos, its) => its.every((i) => Math.hypot(i.cx - W / 2 - pos[0], (FLOOR[i.type] ? 0 : topOf(i.type) / 2) - pos[1], i.cy - H / 2 - pos[2]) <= readLimit(i, byId.get(root(i.id))));
+    const legible = (pos, its) => its.every((i) => Math.hypot(i.cx - W / 2 - pos[0], (FLOOR[i.type] ? 0 : topOf(i.type) / 2) - pos[1], i.cy - H / 2 - pos[2]) <= readLimit(i, byId.get(root(i.id))) - (TABLES[i.type] ? 7 : 0));
     function headingFor(g, its) {
       const subj = g.subj.map((k) => byId.get(k)), lead = subj.slice().sort((a, b) => b.area - a.area)[0];
       const gx = (g.box.x0 + g.box.x1) / 2, gy = (g.box.y0 + g.box.y1) / 2;
@@ -586,8 +644,9 @@
         for (const i of its) { const b = box3Of(i); for (let k = 0; k < 3; k++) { if (b.min[k] < bb.min[k]) bb.min[k] = b.min[k]; if (b.max[k] > bb.max[k]) bb.max[k] = b.max[k]; } }
         pts = boxCorners(bb); }
       const subjIts = g.subj.map((k) => byId.get(k));
-      const readable = its.filter((i) => !ACCESSORY[i.type]);
-      const best = placeCamera(pts, ctx, { kind: pathKind(subjIts), heading: headingFor(g, its), ignore: new Set(ids), avoid, legible: (pos) => legible(pos, readable), splittable: g.subj.length > 1 && depth < 10 });
+      // legible distance: the subjects and what they hold; a chair is read with its table (7 ft of slack covers the ring / a chair pulled up 3 ft away)
+      const readable = its.filter((i) => !ACCESSORY[i.type] && !(i.type === 'chiavari' && parent.has(i.id)));
+      const best = placeCamera(pts, ctx, { kind: pathKind(subjIts), heading: headingFor(g, its), ignore: new Set(ids.filter((k) => !HANG[byId.get(k).type] || g.subj.includes(k))), avoid, underRoof: its.some((i) => roofCap(i) < Infinity), legible: (pos) => legible(pos, readable), splittable: g.subj.length > 1 && depth < 10 });
       const okLegible = legible(best.pos, readable);
       if ((!best.ok || !okLegible) && g.subj.length > 1 && depth < 10 && clock() <= ctx.deadline) {   // bisect along the long axis at the largest gap
         const ax = g.box.x1 - g.box.x0 >= g.box.y1 - g.box.y0 ? 'cx' : 'cy';
@@ -615,15 +674,15 @@
     // (if the merged group cannot be framed, the second stop is re-placed away from the first instead)
     const close = (a, b, dp, dt) => Math.hypot(a.pos[0] - b.pos[0], a.pos[2] - b.pos[2]) < dp && Math.hypot(a.target[0] - b.target[0], a.target[2] - b.target[2]) < dt;
     const tried = new Set();
-    for (let guard = 0; guard < 2 * framed.length + 4; guard++) {
+    for (let guard = 0; guard < 2 * framed.length + 4 && clock() <= ctx.deadline; guard++) {
       let pair = null;
       for (let i = 0; i < framed.length && !pair; i++) for (let j = i + 1; j < framed.length; j++) {
         if (close(framed[i].best, framed[j].best, 8, 12) && !tried.has(framed[i].g.subj[0] + '|' + framed[j].g.subj[0])) { pair = [i, j]; break; } }
       if (!pair) break;
       const [i, j] = pair, a = framed[i], b = framed[j]; tried.add(a.g.subj[0] + '|' + b.g.subj[0]);
-      const m = []; frameGroup({ subj: a.g.subj.concat(b.g.subj), box: fpUnion(a.g.box, b.g.box), fam: a.g.subj.length >= b.g.subj.length ? a.g.fam : b.g.fam }, 10, m);
+      const m = []; if (a.g.fam === b.g.fam) frameGroup({ subj: a.g.subj.concat(b.g.subj), box: fpUnion(a.g.box, b.g.box), fam: a.g.fam }, 10, m);   // a stage never swallows a table
       if (m.length === 1 && !m[0].unproven) { framed.splice(j, 1); framed[i] = m[0]; continue; }
-      const r = []; frameGroup(b.g, 10, r, framed.filter((x) => x !== b).map((x) => x.best));
+      const r = []; frameGroup(b.g, 10, r, framed.filter((x) => x !== b && Math.hypot(x.best.pos[0] - b.best.pos[0], x.best.pos[2] - b.best.pos[2]) < 40).map((x) => x.best));
       if (r.length === 1 && !r[0].unproven) framed[j] = r[0];
     }
 
@@ -632,15 +691,23 @@
     let entPos = null;
     { const dx = look.x - ent.x, dy = look.y - ent.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, step = ent.type === 'edge' ? 0 : Math.min(6, L * 0.15);
       const ign = new Set(entOwn), tries = [];
-      for (const fwd of [step, step + 4, step + 8, step + 14, step + 20]) for (const lat of [0, 5, -5, 10, -10, 15, -15, 25, -25]) tries.push([fwd, lat]);
-      for (const [fwd, lat] of tries) { const x = clamp(ent.x + ux * fwd - uy * lat, MARGIN + 0.1, W - MARGIN - 0.1), y = clamp(ent.y + uy * fwd + ux * lat, MARGIN + 0.1, H - MARGIN - 0.1);
-        const p = S(x, y, EYE); if (camOK(p, idx, W / 2, H / 2, ign)) { entPos = p; break; } }
-      if (!entPos) for (const h of [9, 14, 20]) { const p = S(clamp(ent.x + ux * step, MARGIN + 0.1, W - MARGIN - 0.1), clamp(ent.y + uy * step, MARGIN + 0.1, H - MARGIN - 0.1), h);
+      // near the entry first (a few steps in / along the wall), then a raised view right at the entry, and only
+      // then deeper into the room - the entrance is the guest's first view, not a spot halfway down the hall
+      for (const fwd of [step, step + 4]) for (const lat of [0, 5, -5, 10, -10, 15, -15]) tries.push([fwd, lat, EYE]);
+      for (const h of [9, 12]) for (const lat of [0, 5, -5]) tries.push([step, lat, h]);
+      for (const fwd of [step + 8, step + 14, step + 20]) for (const lat of [0, 5, -5, 10, -10, 15, -15, 25, -25]) tries.push([fwd, lat, EYE]);
+      for (const [fwd, lat, hh] of tries) { const x = clamp(ent.x + ux * fwd - uy * lat, MARGIN + 0.1, W - MARGIN - 0.1), y = clamp(ent.y + uy * fwd + ux * lat, MARGIN + 0.1, H - MARGIN - 0.1);
+        const p = S(x, y, hh); if (camOK(p, idx, W / 2, H / 2, ign)) { entPos = p; break; } }
+      if (!entPos) for (const h of [14, 20]) { const p = S(clamp(ent.x + ux * step, MARGIN + 0.1, W - MARGIN - 0.1), clamp(ent.y + uy * step, MARGIN + 0.1, H - MARGIN - 0.1), h);
         if (camOK(p, idx, W / 2, H / 2, ign)) { entPos = p; break; } }
       if (!entPos) entPos = S(clamp(ent.x, MARGIN, W - MARGIN), clamp(ent.y, MARGIN, H - MARGIN), 24);   // checked above: 24 ft clears every standing object but tall roofs
     }
     const entTarget = (() => { const lx = look.x - W / 2, lz = look.y - H / 2, L = Math.hypot(lx - entPos[0], lz - entPos[2]) || 1;
       return [r2(lx), r2(entPos[1] - Math.max(0.6, 0.045 * L)), r2(lz)]; })();   // ~2.5 deg below level: inside the normal orbit limit
+
+    // a zone stop must not repeat the entrance view: re-place it away from the entrance pose
+    { const ev = { pos: entPos, target: entTarget };
+      for (let i = 0; i < framed.length; i++) if (close(framed[i].best, ev, 8, 12)) { const r = []; frameGroup(framed[i].g, 10, r, [ev]); if (r.length === 1 && !r[0].unproven) framed[i] = r[0]; } }
 
     // ---- 8. route: entrance -> nearest neighbour -> 2-opt (open path, start fixed) ----
     const pts2 = [[entPos[0], entPos[2]], ...framed.map((f) => [f.best.pos[0], f.best.pos[2]])];
@@ -658,7 +725,9 @@
     stops.push(Object.assign(ov, { key: 'overview', title: 'Venue overview', desc: hallDesc(W, H, items.length), owns: overviewOwn, subject: [] }));
     const entDesc = ent.type === 'edge' ? 'Walking in from the hall entrance' + (sf.stage ? ' facing the stage' : '')
       : 'Arriving through the ' + ent.label.replace(/ \(.*\)$/, '').toLowerCase() + ' — the first view of the venue';
-    stops.push({ key: 'entrance', title: 'Entrance', desc: entDesc, view: 'eye', fov: ctx.fov, pos: entPos, target: entTarget, entry: ent.id, owns: entOwn, subject: entOwn.map((k) => byId.get(k).rid) });
+    const entD = len(sub(entTarget, entPos));
+    stops.push({ key: 'entrance', title: 'Entrance', desc: entDesc, view: 'eye', fov: ctx.fov, pos: entPos, target: entTarget, entry: ent.id, owns: entOwn, subject: entOwn.map((k) => byId.get(k).rid),
+      d: entD, minD: r2(Math.min(4, entD * 0.5)), maxD: r2(Math.max(60, entD * 1.6)) });
     const routed = order.slice(1).map((oi) => framed[oi - 1]);
     const titled = routed.map((f) => describe(f, byId, sf.where, kids, parent));
     const tcount = Object.create(null), keyN = Object.create(null);
@@ -670,8 +739,8 @@
       const base = FAM_KEY[f.g.fam] || f.g.fam.replace(/^solo:/, ''); keyN[base] = (keyN[base] || 0) + 1;
       const b = f.best;
       stops.push({ key: keyN[base] > 1 ? base + '-' + keyN[base] : base, title, desc: t.desc, view: 'frame', fov: ctx.fov, pos: b.pos.map(r2), target: b.target.map(r2),
-        aim: (b.aim || b.target).map(r2), owns: f.ids, subject: f.g.subj.map((k) => byId.get(k).rid), guests: t.guests, unproven: f.unproven, why: f.why,
-        frame: { box: b.box, az: b.az, el: b.el, pivot: clamp(b.c[1], 0, b.box.max[1]) }, d: b.d, minD: r2(Math.max(4, 0.4 * b.d)), maxD: r2(Math.max(2 * b.d, 60)) });
+        aim: (b.aim || b.target).map(r2), partial: b.partial || undefined, owns: f.ids, subject: f.g.subj.map((k) => byId.get(k).rid), guests: t.guests, unproven: f.unproven, why: f.why,
+        frame: { box: b.box, az: b.az, el: b.el, pivot: clamp(b.c[1], 0, b.box.max[1]) }, d: len(sub(b.target, b.pos)), minD: r2(Math.min(0.9 * len(sub(b.target, b.pos)), Math.max(4, 0.4 * len(sub(b.target, b.pos))))), maxD: r2(Math.max(2 * len(sub(b.target, b.pos)), 60)) });
     });
     const fin = overviewStop(ctx, items, 'final');
     stops.push(Object.assign(fin, { key: 'final', title: fin.hideRoofs ? 'Inside view' : 'Final overview',
@@ -787,6 +856,9 @@
     for (const low of [EYE + 0.5, EYE_MIN + 0.5]) {   // under a roof: duck to eye height for the crossing
       const p1 = lerp3(a, b, 0.33), p2 = lerp3(a, b, 0.67); p1[1] = low; p2[1] = low;
       if (clear([a, p1, p2, b])) return mk('duck', [a, p1, p2, b]);
+      // leave / enter a roofed area at eye height, climbing only once clear of it (or dropping in from outside)
+      if (clear([a, p1, [b[0], low, b[2]], b])) return mk('duck', [a, p1, [b[0], low, b[2]], b]);
+      if (clear([a, [a[0], low, a[2]], p2, b])) return mk('duck', [a, [a[0], low, a[2]], p2, b]);
       for (let k = 1; k <= 6; k++) for (const sg of [1, -1]) { const ox = -dz / L * k * 8 * sg, oz = dx / L * k * 8 * sg;
         const q1 = [p1[0] + ox, low, p1[2] + oz], q2 = [p2[0] + ox, low, p2[2] + oz];
         if (clear([a, q1, q2, b])) return mk('duck', [a, q1, q2, b]); } }
@@ -1010,13 +1082,15 @@
       const t = tb && !tb.hidden && tb.getBoundingClientRect().height > 0 ? Math.max(0, tb.getBoundingClientRect().bottom - sr.top + 6) / sr.height : 0.04;
       const b = cr.height > 0 ? Math.max(0, sr.bottom - cr.top + 8) / sr.height : DEFAULT_BAND.b;
       const lr = !list.hidden ? list.getBoundingClientRect() : null, l = lr && lr.width > 0 ? Math.max(0, lr.right - sr.left + 8) / sr.width : 0;
-      out.band = { t: clamp(t, 0, 0.3), b: clamp(b, 0, 0.45), l: clamp(l, 0, 0.4), r: 0 };
+      out.band = { t: clamp(t, 0, 0.3), b: clamp(b + 0.04, 0, 0.45), l: clamp(l, 0, 0.4), r: 0.01 };   // + room for a two-line caption
     } catch (_) {}
     return out;
   }
   function plan(entry) {
-    const m = measure(), h = H3();
-    return walkthroughStops(itemsNow(), hallNow(), { aspect: m.aspect, band: m.band, entry, bounds: h && h.boundsOf ? (id) => h.boundsOf(id) : null });
+    const m = measure(), h = H3(); let hits = 0;
+    const S = walkthroughStops(itemsNow(), hallNow(), { aspect: m.aspect, band: m.band, entry, bounds: h && h.boundsOf ? (id) => { const b = h.boundsOf(id); if (b) hits++; return b; } : null });
+    S.realBounds = hits > 0;
+    return S;
   }
   // re-plan (layout changed, resized, rotated, fullscreen, new entry): keep the stop the user is on
   function rebuild(reason) {
@@ -1025,7 +1099,7 @@
     W.stops = plan(W.entry); W.aspectAt = measure().aspect; W.sig = layoutSig();
     const k = reason === 'entrance' ? W.stops.findIndex((s) => s.key === 'entrance') : W.stops.findIndex((s) => s.key === cur);
     W.i = k >= 0 ? k : Math.min(W.i, W.stops.length - 1);
-    useGuard(); paintList(); show({ quiet: reason === 'resize' });
+    useGuard(); paintList(); show({ quiet: reason === 'resize' || reason === 'bounds' });
     if (keepAuto && !W.auto) setAuto(true);
   }
   function useGuard() {
@@ -1051,7 +1125,8 @@
   }
   function arrived() {
     if (!W) return; const s = W.stops[W.i], h = H3();
-    if (h && h.setStopLimits) h.setStopLimits(s.view === 'overview' ? { minD: 10, maxD: Math.max(1.6 * (s.d || 300), 400) } : { minD: s.minD || 4, maxD: s.maxD || 120 });
+    const dd = len(sub(s.target, s.pos));   // limits always contain the stop's own distance, so landing never gets clamped
+    if (h && h.setStopLimits) h.setStopLimits(s.view === 'overview' ? { minD: Math.min(10, 0.5 * dd), maxD: Math.max(1.6 * dd, 400) } : { minD: Math.min(s.minD || 4, 0.9 * dd), maxD: Math.max(s.maxD || 120, 1.2 * dd) });
     if (h && h.setHighlight) h.setHighlight(s.view === 'overview' ? null : (s.subject || []));
     if (W.auto && !W.exploring) dwellStart();
   }
@@ -1126,6 +1201,7 @@
     W.stops = plan(entry); W.aspectAt = measure().aspect; W.sig = layoutSig();
     if (h.setWalkMode) h.setWalkMode(true);
     useGuard(); paintList(); show(); syncStatus();
+    if (!W.stops.realBounds && itemsNow().length) setTimeout(() => { if (W && !W.stops.realBounds) rebuild('bounds'); }, 600);   // the 3D meshes were not built yet
     try { bPlay.focus({ preventScroll: true }); } catch (_) { bPlay.focus(); }
   }
   function exit() {
