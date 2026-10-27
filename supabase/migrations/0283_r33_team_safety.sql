@@ -1,5 +1,6 @@
 -- 0283_r33_team_safety.sql - CANONICAL forward-only.
--- REQUIRES 0282 (_r282_api_caller, _r282_seats_used, _r282_seat_refuse, the 0282 current_org_id / seat bodies),
+-- REQUIRES 0282 incl. R32b (_r282_api_caller, _r282_seats_used, _r282_seat_refuse, the 0282 current_org_id / seat bodies:
+--          joining counts active members only, _trial_seat_limit in any subscription status - kept untouched here),
 --          0277 (_hq27_require, _hq27_mfa_at, _hq_wgate, helm_notice_outbox kind 'hq_staff' branch), 0266 (_r23_tz),
 --          0244 (helm_notice_outbox + helm_notice_outbox_claim), 0167 (my_seat_usage), 0166 (_trial_seat_limit),
 --          0165 (email_is_opted_out), 0106 (_a106_role_label), 0074 (profiles_last_admin_guard), 0072 (_valid_role),
@@ -47,6 +48,9 @@ do $$ begin
      or to_regprocedure('public._r282_seat_refuse(uuid, integer, boolean)') is null
      or to_regprocedure('public._r282_temp_pw_pending()') is null then
     raise exception 'STOP 0283: 0282 (r32 security review: seat limits, admin_create_user) is not applied - run APPLY-0282.sql first'; end if;
+  if to_regclass('public.r282_acu_refusals') is null
+     or position('R32b' in (select prosrc from pg_proc where oid = 'public._ts166_tg_profile_seat()'::regprocedure)) = 0 then
+    raise exception 'STOP 0283: 0282 is applied without its R32b amendment - run the current APPLY-0282.sql first'; end if;
   if position('_r282_temp_pw_pending' in (select prosrc from pg_proc where oid = 'public.current_org_id()'::regprocedure)) = 0 then
     raise exception 'STOP 0283: current_org_id() does not carry the 0282 body - run APPLY-0282.sql first'; end if;
   if to_regprocedure('public._hq27_require(text, boolean)') is null or to_regprocedure('public._hq27_mfa_at()') is null
@@ -452,7 +456,10 @@ returns trigger language plpgsql security definer set search_path = '' as $$
 -- tb-msg-0179: a role change client -> staff role inside the studio counts as a new seat, and the
 -- studio's other open staff invitations count too (admin + 2 = members + pending invitations)
 -- r32-0282 BIZ-03: paid plans too (_trial_seat_limit); plan wording. Existing members (same studio) are never checked.
--- r33-0283 B1: deactivated members do not count
+-- R32b BIZ-03: JOINING (accepting an invitation, any join path) counts only the people already in the studio + this one;
+-- open invitations count only when an invitation is CREATED (_ts166_tg_invite_seat), so old pending invitations never
+-- stop a person from joining while a seat is free.
+-- r33-0283 B1: deactivated members do not count (R32b body above kept as it is)
 declare v_lim integer; v_used integer;
 begin
   if new.org_id is null or coalesce(new.role, '') = 'client' then return new; end if;
@@ -463,15 +470,9 @@ begin
   if not public._is_trial_org(new.org_id) and not public._r282_api_caller()
      and (select o.seat_limit from public.organizations o where o.id = new.org_id) is null then return new; end if;
   perform pg_advisory_xact_lock(hashtextextended('helm:seat:' || new.org_id::text, 0));
-  select (select count(*) from public.profiles p
-           where p.org_id = new.org_id and p.id <> new.id and coalesce(p.role, '') <> 'client'
-             and not public._r283_is_off(p.id, new.org_id))
-       + (select count(*) from public.invitations i
-           where i.org_id = new.org_id and i.status = 'pending' and coalesce(i.role, '') <> 'client'
-             and (i.expires_at is null or i.expires_at > now())
-             and lower(i.email) is distinct from lower(coalesce(new.email, ''))
-             and not exists (select 1 from public.profiles p
-                              where p.org_id = new.org_id and p.id <> new.id and lower(p.email) = lower(i.email)))
+  select count(*) from public.profiles p
+   where p.org_id = new.org_id and p.id <> new.id and coalesce(p.role, '') <> 'client'
+     and not public._r283_is_off(p.id, new.org_id)
     into v_used;
   if v_used >= v_lim then perform public._r282_seat_refuse(new.org_id, v_lim, false); end if;
   return new;
@@ -726,7 +727,11 @@ begin
   if coalesce(t.role, '') <> 'client' then
     perform pg_advisory_xact_lock(hashtextextended('helm:seat:' || v_org::text, 0));
     v_lim := public._trial_seat_limit(v_org);
-    if v_lim is not null and public._r282_seats_used(v_org) >= v_lim then perform public._r282_seat_refuse(v_org, v_lim, false); end if;
+    -- like joining (R32b): only the active members count, never open invitations
+    if v_lim is not null and (select count(*) from public.profiles p where p.org_id = v_org and p.id <> p_user
+                               and coalesce(p.role, '') <> 'client' and not public._r283_is_off(p.id, v_org)) >= v_lim then
+      perform public._r282_seat_refuse(v_org, v_lim, false);
+    end if;
   end if;
   update public.team_member_status set status = 'active', changed_at = now(), changed_by = v_me, reason = null
    where user_id = p_user and org_id = v_org;

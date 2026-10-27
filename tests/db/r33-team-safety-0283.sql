@@ -34,8 +34,10 @@ end $$;
 select count(*) as n into temp _users_before from auth.users;
 select count(*) as n into temp _profiles_before from public.profiles;
 
--- re-apply 0283 twice inside the test (later suites re-apply 0184 / 0266 / 0282 bodies; proves a re-run is safe)
+-- re-apply 0282 (with its R32b amendment) and then 0283 twice, the real order: earlier suites re-apply older seat /
+-- admin_create_user bodies; proves 0283 sits on top of R32b without undoing it, and that a re-run is safe
 set client_min_messages = error;
+\ir ../../supabase/migrations/0282_r32_security_review.sql
 \ir ../../supabase/migrations/0283_r33_team_safety.sql
 \ir ../../supabase/migrations/0283_r33_team_safety.sql
 set client_min_messages = warning;
@@ -508,6 +510,70 @@ do $$ declare v text; c jsonb; n_ts int; begin
     and jsonb_array_length(public.team_safety_overview() -> 'deactivated') = 0
     and jsonb_array_length(public.team_safety_overview() -> 'pending') = 0);
 exception when others then perform pg_temp.su(); insert into _rs values ('11x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
+
+-- results kept in a variable (the section undoes its own changes with an exception)
+create or replace function pg_temp.keep(o text[], p_name text, p_ok boolean, p_detail text default '') returns text[] language sql as $$
+  select o || array[p_name, case when coalesce(p_ok, false) then 'PASS' else 'FAIL: ' || coalesce(p_detail, '') end] $$;
+grant execute on function pg_temp.keep(text[], text, boolean, text) to anon, authenticated, service_role;
+-- ================================================================================= 13) R32b seat rules still hold after 0283
+-- (0283 re-issues the 0282 seat helpers: joining counts only active members, open invitations count only when an
+-- invitation is created, the plan limit applies in ANY subscription status, admin_create_user answers refusals)
+do $$ declare o text[] := '{}'; t1 text; t2 text; t3 text; outs text := ''; i int; b uuid := 'b0000000-0000-4000-8000-000000000001'; begin
+  begin
+    perform pg_temp.su();
+    update public.organizations set seat_limit = null where id = b;
+    update public.invitations set status = 'revoked' where org_id = b and status = 'pending';
+    insert into public.studio_subscriptions(org_id, plan_id, status, current_period_end, updated_at)
+      select b, id, 'active', current_date + 30, now() from public.helm_plans where code = 'starter'
+    on conflict (org_id) do update set plan_id = excluded.plan_id, status = 'active';
+    -- B = b_admin + b_staff (2 people) + 3 OLD open invitations (made as the service, before the plan limit)
+    insert into public.invitations(org_id, email, role, token, status, invited_by, expires_at)
+      select b, 'r33_j' || g || '@b.test', 'sales', md5('r33j' || g), 'pending', pg_temp.uid('b_admin@b.test'), now() + interval '7 days'
+        from generate_series(1, 3) g;
+    perform auth.seed_user('r33_j1@b.test'); perform auth.seed_user('r33_j2@b.test'); perform auth.seed_user('r33_j3@b.test');
+    perform pg_temp.sync();
+    perform pg_temp.login('r33_j1@b.test');
+    t1 := pg_temp.try(format('select public.accept_invitation(%L)', md5('r33j1')));
+    perform pg_temp.login('r33_j2@b.test');
+    t2 := pg_temp.try(format('select public.accept_invitation(%L)', md5('r33j2')));
+    perform pg_temp.su();
+    o := pg_temp.keep(o, '71 R32b after 0283: joining counts only the people in the studio (old open invitations never block a free seat)',
+      t1 = '' and (select org_id from public.profiles where email = 'r33_j1@b.test') = b, t1);
+    o := pg_temp.keep(o, '72 R32b after 0283: with the plan''s 3 people in, the next join is refused with the plan wording',
+      t2 like '42501%Your plan allows 2 team invites%', t2);
+    -- 0283: a deactivated member frees the seat for the next person to join
+    perform pg_temp.login('b_admin@b.test');
+    perform public.team_deactivate_member(pg_temp.uid('b_staff@b.test'));
+    perform pg_temp.login('r33_j2@b.test');
+    t3 := pg_temp.try(format('select public.accept_invitation(%L)', md5('r33j2')));
+    perform pg_temp.su();
+    o := pg_temp.keep(o, '73 0283 on top of R32b: once a member is deactivated, the waiting invitee can join (deactivated do not count)',
+      t3 = '' and (select org_id from public.profiles where email = 'r33_j2@b.test') = b, t3);
+    perform pg_temp.login('b_admin@b.test');
+    t3 := pg_temp.try(format('select public.team_reactivate_member(%L)', pg_temp.uid('b_staff@b.test')));
+    o := pg_temp.keep(o, '74 ... and reactivating them now needs a free seat again (studio full: refused, plan wording)',
+      t3 like '42501%Your plan allows 2 team invites%', t3);
+    perform pg_temp.su();
+    update public.studio_subscriptions set status = 'cancelled' where org_id = b;
+    o := pg_temp.keep(o, '75 R32b after 0283: a cancelled / suspended Starter studio keeps the plan limit (3)',
+      public._trial_seat_limit(b) = 3, coalesce(public._trial_seat_limit(b)::text, 'null'));
+    update public.invitations set status = 'revoked' where org_id = b and status = 'pending';
+    update public.profiles set org_id = null where email in ('r33_j1@b.test', 'r33_j2@b.test');
+    perform pg_temp.login('b_admin@b.test');
+    for i in 1..3 loop outs := outs || '|' || pg_temp.try(format('select public.create_invitation(%L, %L)', 'r33_c' || i || '@b.test', 'sales')); end loop;
+    perform pg_temp.su();
+    o := pg_temp.keep(o, '76 R32b after 0283: invitations count when CREATED - cancelled studio: b_admin + 1 invite fits, the next refused (b_staff deactivated)',
+      outs like '|||42501 Your plan allows 2 team invites%' or outs like '||42501 Your plan allows 2 team invites%', outs);
+    o := pg_temp.keep(o, '77 R32b admin_create_user (refusals answered + counted) is untouched by 0283',
+      (select position('r282_acu_refusals' in prosrc) > 0 from pg_proc where oid = 'public.admin_create_user(text, text, text)'::regprocedure)
+      and (select position('refused' in prosrc) > 0 from pg_proc where oid = 'public.admin_create_user_temp(text, text)'::regprocedure)
+      and (select position('seat_limit in any status' in lower(prosrc)) > 0 from pg_proc where oid = 'public._trial_seat_limit(uuid)'::regprocedure));
+    raise exception 'r33-undo';
+  exception when others then if sqlerrm <> 'r33-undo' then o := pg_temp.keep(o, '12x', false, sqlstate || ' ' || sqlerrm); end if;
+  end;
+  perform pg_temp.su();
+  insert into _rs select o[k], o[k + 1] from generate_subscripts(o, 1) k where k % 2 = 1;
+end $$;
 
 select name, result from _rs order by name;
 select case when count(*) filter (where result <> 'PASS') = 0 then 'R33-TEAM-SAFETY-0283: ALL PASS (' || count(*) || '/' || count(*) || ')'

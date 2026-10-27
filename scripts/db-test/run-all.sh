@@ -250,7 +250,7 @@ run "r32-security-0282" "R32-SECURITY-0282: ALL PASS \(51/51\)" psql -q -f tests
 # payments after closing, seats (joining / lapsed subscriptions), admin_create_user refusals counted
 run "r32b-round2-0282" "R32B-ROUND2-0282: ALL PASS \(32/32\)" psql -q -f tests/db/r32b-round2-0282.sql
 # 0283 re-applies itself twice (earlier suites re-apply the 0184 / 0266 / 0282 bodies), rolled back
-run "r33-team-safety-0283" "R33-TEAM-SAFETY-0283: ALL PASS \(70/70\)" psql -q -f tests/db/r33-team-safety-0283.sql
+run "r33-team-safety-0283" "R33-TEAM-SAFETY-0283: ALL PASS \(77/77\)" psql -q -f tests/db/r33-team-safety-0283.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
