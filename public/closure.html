@@ -7,7 +7,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Closure &amp; P&amp;L — Helm Events</title>
-<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
+<link rel="preload" href="/vendor/supabase-js-2.118.0.min.js" as="script" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -65,7 +65,7 @@
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="vendor-bills.css?v=2">
 <link rel="stylesheet" href="money-ledger.css?v=1">
-<script src="/shell-proto.js?v=43" id="shellProto"></script>
+<script src="/shell-proto.js?v=46" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -151,12 +151,12 @@
   </div>
 </div>
 
-<script src="/trusted-types.js?v=4"></script>
-<script src="telemetry.js?v=6"></script>
-<script src="config.js?v=110"></script>
+<script src="/trusted-types.js?v=5"></script>
+<script src="telemetry.js?v=9"></script>
+<script src="config.js?v=111"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=291"></script><script src="save-back.js?v=2"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=10"></script><script src="money-ledger-ui.js?v=2"></script><script src="stock-flow.js?v=1"></script>
-<script src="closure-checklist.js?v=2"></script>
+<script src="country-profile.js?v=6"></script><script src="store-api.js?v=297"></script><script src="save-back.js?v=2"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=11"></script><script src="money-ledger-ui.js?v=2"></script><script src="stock-flow.js?v=1"></script>
+<script src="closure-checklist.js?v=3"></script>
 <script src="tour.js?v=24"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -260,6 +260,10 @@
     if(outstanding&&outstanding.length) lines.push("• "+outstanding.length+" item"+(outstanding.length>1?"s":"")+" given out with no name recorded and not marked back: "
       +outstanding.slice(0,8).join(", ")+(outstanding.length>8?", …":"")+" (mark them back in Teardown & returns)");
     return { lines, owed, checkouts:co, early, server:owed>0||co>0||!!nb||nodate };
+  }
+  // R32b (R2-ACL-01): true when the client balance is the only blocker (no stock out, booked, dated, day over)
+  function owedOnlyBlocker(bl, outstanding){
+    return !!bl && bl.owed>0 && !bl.checkouts && !bl.early && !(outstanding&&outstanding.length) && bl.lines.length===1;
   }
   // r22 (0254): the live "Before you close" checklist + close requests (null = older database / local mode)
   let review=null, blockersCache=null;
@@ -376,7 +380,11 @@
     const bl=closeBlockerLines(b, outstanding);
     if(bl.lines.length){
       const role=await BPStore.auth.role().catch(()=>"");
-      if(outstanding.length || role!=="admin"){
+      // R32b (R2-ACL-01): when money owed is the ONLY thing outstanding, a role with the Control Center switch
+      // "Close events with money owed" (close_owed, edit) may close with a written reason too (the server checks it again)
+      const owedOnly=owedOnlyBlocker(bl, outstanding);
+      const owedOk=role!=="admin" && owedOnly && await BPStore.auth.canEditArea("close_owed").catch(()=>false);
+      if(outstanding.length || (role!=="admin" && !owedOk)){
         await BPUI.alert("Can't close this event yet:\n\n"+bl.lines.join("\n")
           +(role!=="admin"&&bl.server?"\n\nOnly an admin can close with something outstanding.":""),{title:"Not ready to close"});
         if(bl.owed>0 && await BPUI.confirm("Open Settlement to collect the balance now?",{title:"Go to Settlement?",okLabel:"Open Settlement"})){ location.href="settlement.html?quote="+encodeURIComponent(id); return; }
@@ -384,7 +392,7 @@
         return;
       }
       if(!(await BPUI.confirm("This event still has:\n\n"+bl.lines.join("\n")
-        +"\n\nAs an admin you can close it anyway. You'll be asked for a reason, which is saved in the audit log.",
+        +(role==="admin"?"\n\nAs an admin you can close it anyway.":"\n\nYour role may close an event with money still owed.")+" You'll be asked for a reason, which is saved in the audit log.",
         {title:"Close with an override?",okLabel:"Override & close",danger:true}))) return;
       for(;;){
         const r=await BPUI.prompt("Why is it OK to close with this outstanding? (5–1000 characters — saved in the audit log)",{title:"Override reason",label:"Reason"});
@@ -465,7 +473,7 @@
       closureFailed=false; $("#closureErr").hidden=true;
       if(c){ rating=clampStars(c.client_rating); $("#c_feedback").value=c.feedback||""; $("#c_testi").value=c.testimonial||"";
       $("#c_consent").checked=!!c.media_consent; $("#c_lessons").value=c.lessons||""; closedAt=c.closed_at;
-      if(c.closed_at){ $("#closedBanner").hidden=false; $("#closedWhen").textContent="· Closed on "+new Date(c.closed_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}); } }
+      if(c.closed_at){ $("#closedBanner").hidden=false; $("#closedWhen").textContent="· Closed on "+new Date(c.closed_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric",timeZone:(function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })()}); } }   // r37: studio zone
       syncCloseButtons();
       dirty.clean(); }
     catch(e){ closureFailed=true;

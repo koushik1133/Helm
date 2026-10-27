@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/trusted-types.js?v=4"></script>
+<script src="/trusted-types.js?v=5"></script>
 <script src="/auth-handoff.js?v=2"></script>
 <title>Sign in · Helm</title>
 <meta name="description" content="Sign in to Helm, or create your studio's private workspace to run every event from first enquiry to final bill.">
@@ -21,7 +21,7 @@
 <meta name="twitter:title" content="Sign in · Helm">
 <meta name="twitter:description" content="Sign in to Helm, or create your studio&#x27;s private workspace to run every event from first enquiry to final bill.">
 <meta name="twitter:image" content="https://www.helm.events/og.png">
-<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
+<link rel="preload" href="/vendor/supabase-js-2.118.0.min.js" as="script" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous">
 <style>
 @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:optional;src:url(/fonts/ibm-plex-mono-cyrillic-ext.woff2?v=1) format('woff2');unicode-range:U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;}
 @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:optional;src:url(/fonts/ibm-plex-mono-cyrillic.woff2?v=1) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;}
@@ -145,6 +145,7 @@
   .eye .eye-off{display:none} .eye[aria-pressed="true"] .eye-on{display:none} .eye[aria-pressed="true"] .eye-off{display:block}
   .meter{display:flex;gap:4px;align-items:center;margin:-8px 0 12px} .meter[hidden],#pwRules[hidden],#pwHint[hidden]{display:none} .meter span{flex:1;height:4px;border-radius:4px;background:var(--line)}
   .meter b{font-size:11.5px;font-weight:600;color:var(--ink-3);min-width:72px;text-align:right}
+  .meter[data-server]{flex-wrap:wrap} .meter[data-server] b{flex:1 0 100%;text-align:left;color:#b42318;margin-top:2px}
   .meter[data-level="1"] span:nth-child(-n+1){background:#d92d20} .meter[data-level="2"] span:nth-child(-n+2){background:#f79009}
   .meter[data-level="3"] span:nth-child(-n+3){background:#eab308} .meter[data-level="4"] span:nth-child(-n+4){background:#12b76a}
   .helper{font-size:12.5px;color:var(--ink-3);text-align:center;margin:14px 0 0;line-height:1.5}
@@ -219,6 +220,7 @@
 <link rel="stylesheet" href="/marketing-loader.css?v=1">
 <link rel="stylesheet" href="/trial-terms.css?v=4">
 <link rel="stylesheet" href="/plan-cards.css?v=1">
+<link rel="stylesheet" href="/referral-signup.css?v=1">
 <script src="/marketing-loader.js?v=3"></script>
 <style>
   /* emerald auth polish + mode toggle (login/reset only) */
@@ -264,6 +266,8 @@
       <div class="mmk"></div>
       <h1 id="formTitle">Welcome back</h1>
       <p class="sub" id="formSub">Sign in with your Helm account.</p>
+      <!-- r29 referrals (phase 1, UI only): shown on sign-up when the link carries ?ref= (referral-signup.js) -->
+      <div class="rfs-banner" id="rfsBanner" role="status" hidden><span class="rfs-gift" aria-hidden="true"></span><div><b id="rfsBannerT"></b><span id="rfsBannerS"></span></div></div>
       <div class="info" id="expiredMsg" role="status" hidden>Your session expired — sign in again.</div>
       <div class="err" id="err" role="alert" hidden></div>
       <div class="info" id="gHint" role="note" hidden>If you signed up with Google, use Continue with Google.</div>
@@ -296,10 +300,17 @@
       <ul id="pwRules" hidden></ul>
       <div id="pw2Row" hidden>
         <label for="pw2">Confirm password</label>
-        <input id="pw2" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" placeholder="Type the password again">
+        <input id="pw2" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" passwordrules="minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&amp;*+=?@^_~.,:;/]; max-consecutive: 2;" placeholder="Type the password again">
       </div>
       <p class="hint" id="inviteHaveAcct" hidden>Already have a Helm account? <button type="button" class="linkbtn" id="inviteSigninBtn">Sign in instead</button></p>
       <p class="hint" id="forgotRow"><button type="button" class="linkbtn" id="forgotBtn">Forgot password?</button></p>
+      <!-- r29 referrals (phase 1, UI only): optional referral / partner code; checked by the server in phase 2 -->
+      <div id="rfsRow" class="rfs-row" hidden>
+        <label for="rfsCode">Referral or partner code <span class="opt">(optional)</span></label>
+        <div class="rfs-in"><input id="rfsCode" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="24" placeholder="e.g. SHAADISQ-7K2Q" aria-describedby="rfsMsg"><button type="button" class="linkbtn" id="rfsClear" hidden>Remove</button></div>
+        <p class="rfs-msg" id="rfsMsg" aria-live="polite"></p>
+        <label class="rfs-consent" id="rfsConsentRow" for="rfsConsent" hidden><input type="checkbox" id="rfsConsent"><span>Let the studio that referred me see my studio's name (otherwise they only see my city). <a href="/referral-terms" target="_blank" rel="noopener">Referral terms</a></span></label>
+      </div>
       <!-- r22: step 1 of the ONE sign-up flow - the Terms are agreed here and recorded on the server (0255) -->
       <div id="agreeRow" hidden>
         <label class="agree" for="agree"><input type="checkbox" id="agree" aria-describedby="agree_err"><span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> <span class="req" aria-hidden="true">*</span></span></label>
@@ -375,13 +386,14 @@
       <p class="sub" id="ipSub">You've joined your studio. Choose a password so you can sign in to Helm next time.</p>
       <p class="hint" id="ipWho">Set your password for <b id="ipEmail"></b></p>
       <div class="err" id="ipErr" role="alert" hidden></div>
+      <input type="email" id="ip_user" autocomplete="username" hidden readonly>
       <label for="ip_name">Full name</label>
       <input id="ip_name" type="text" autocomplete="name" maxlength="80" placeholder="Your name" required>
       <label for="ip_pw">Password</label>
-      <input id="ip_pw" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" placeholder="••••••••" required>
+      <input id="ip_pw" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" passwordrules="minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&amp;*+=?@^_~.,:;/]; max-consecutive: 2;" placeholder="••••••••" required>
       <ul id="ipRules"></ul>
       <label for="ip_pw2">Confirm password</label>
-      <input id="ip_pw2" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" placeholder="••••••••" required>
+      <input id="ip_pw2" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" passwordrules="minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&amp;*+=?@^_~.,:;/]; max-consecutive: 2;" placeholder="••••••••" required>
       <button class="btn" id="ip_submit" type="submit">Set password &amp; continue →</button>
     </form>
 
@@ -471,19 +483,22 @@
     </section>
   </main>
 
-<script src="telemetry.js?v=6"></script>
-<script src="config.js?v=110"></script>
+<script src="telemetry.js?v=9"></script>
+<script src="config.js?v=111"></script>
 <!-- r26 speed: the app scripts are deferred (they download in parallel and run, in this order, once the page has
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=4" defer></script><script src="store-api.js?v=291" defer></script>
-<script src="auth-ui.js?v=53" defer></script>
+<script src="country-profile.js?v=6" defer></script><script src="store-api.js?v=297" defer></script>
+<script src="auth-ui.js?v=55" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>
 <script src="/trial-signup.js?v=14" defer></script>
 <script src="/plan-cards.js?v=3" defer></script>
-<script src="/signup-flow.js?v=5" defer></script>
+<script src="/signup-flow.js?v=6" defer></script>
+<script src="/referral-rules.js?v=2" defer></script>
+<script src="/referral-demo.js?v=2" defer></script>
+<script src="/referral-signup.js?v=2" defer></script>
 <script src="/google-gis.js?v=2" defer></script>
 <script>
 document.addEventListener("DOMContentLoaded", function(){
@@ -494,7 +509,10 @@ document.addEventListener("DOMContentLoaded", function(){
   // One rule, from store-api.js.
   const PW_MIN=12;
   const pwProblem=(p)=>(BPStore.auth.passwordRule? BPStore.auth.passwordRule.problem(p) : ((p||"").length<PW_MIN?"Use at least "+PW_MIN+" characters.":null));
-  if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(document.getElementById("pw"), document.getElementById("pwRules"));
+  // r29: what the person typed (name, e-mail) feeds the local "easy to guess" warning
+  const pwHints=()=>[(document.getElementById("fullname")||{}).value||"", (document.getElementById("email")||{}).value||""];
+  const pwGuess=(p)=>(BPStore.auth.passwordRule && BPStore.auth.passwordRule.guessable)? BPStore.auth.passwordRule.guessable(p, pwHints()) : null;
+  if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(document.getElementById("pw"), document.getElementById("pwRules"), {hints:pwHints});
   const QS=new URLSearchParams(location.search);
   // Cloudflare Turnstile — only when config.captcha.siteKey is set (else null = off, sign-in unchanged)
   let cap=null, fgCap=null;
@@ -592,18 +610,20 @@ document.addEventListener("DOMContentLoaded", function(){
         '<h2 id="fpc_title" style="margin:0 0 6px;font-size:1.15rem">Set your password</h2>'+
         '<p style="margin:0 0 14px;color:#555;font-size:.9rem">You signed in with a temporary password. Choose your own to continue.</p>'+
         '<label for="fpc_cur" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">Temporary password</label>'+
+        '<input id="fpc_user" type="email" autocomplete="username" hidden readonly>'+
         '<input id="fpc_cur" type="password" autocomplete="current-password" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
         '<label for="fpc_pw" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">New password</label>'+
         '<p style="margin:0 0 6px;color:#555;font-size:.8rem">At least '+PW_MIN+' characters with a lowercase letter, an uppercase letter, a number and a symbol.</p>'+
-        '<input id="fpc_pw" type="password" autocomplete="new-password" minlength="'+PW_MIN+'" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:4px">'+
+        '<input id="fpc_pw" type="password" autocomplete="new-password" minlength="'+PW_MIN+'" passwordrules="minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&amp;*+=?@^_~.,:;/]; max-consecutive: 2;" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:4px">'+
         '<ul id="fpc_rules"></ul>'+
         '<label for="fpc_pw2" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">Confirm password</label>'+
-        '<input id="fpc_pw2" type="password" autocomplete="new-password" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
+        '<input id="fpc_pw2" type="password" autocomplete="new-password" passwordrules="minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&amp;*+=?@^_~.,:;/]; max-consecutive: 2;" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
         '<div id="fpc_err" role="alert" style="color:#b42318;font-size:.85rem;min-height:18px;margin-bottom:8px"></div>'+
         '<button id="fpc_go" type="submit" style="width:100%;padding:11px;border:0;border-radius:8px;background:#111;color:#fff;font-weight:600;cursor:pointer">Set password &amp; continue</button>'+
         '</form>';
       document.body.appendChild(ov);
       const form=ov.querySelector("#fpc_form"), cur=ov.querySelector("#fpc_cur"), pw=ov.querySelector("#fpc_pw"), pw2=ov.querySelector("#fpc_pw2"), er=ov.querySelector("#fpc_err"), go=ov.querySelector("#fpc_go");
+      ov.querySelector("#fpc_user").value=((BPStore.auth.user&&BPStore.auth.user())||{}).email||"";   // R29b: saved against this account
       if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(pw, ov.querySelector("#fpc_rules"));
       const curLbl=ov.querySelector('label[for="fpc_cur"]');
       const showCur=(on)=>{ cur.hidden=!on; curLbl.hidden=!on; cur.required=on; };
@@ -622,13 +642,15 @@ document.addEventListener("DOMContentLoaded", function(){
           catch(e){
             // the remembered sign-in password was refused → fall back to asking for it
             if(known && e && (e.code==="bad_current_password"||e.code==="current_password_required")){ known=null; showCur(true); er.textContent="Please enter the temporary password you signed in with."; cur.focus(); return; }
-            er.textContent=(e&&/^(bad_current_password|current_password_required|account_locked)$/.test(e.code||""))?e.message:BPUI.friendlyError(e,{action:"set your password"}); }
+            er.textContent=(e&&/^(bad_current_password|current_password_required|account_locked)$/.test(e.code||""))?e.message:BPUI.friendlyError(e,{action:"set your password"});
+            if(e&&e.field==="pw"){ pw.focus(); pw.select(); } }   // r29: e.g. a too-common password - fields stay filled
           finally{ opts.currentPassword=null; go.textContent="Set password & continue"; }
         });
       });
     });
   }
   let mode="signin"; let INVITE_ORG="";
+  let pwWarned=null;   // r29: the password the "easy to guess" warning was shown for (a second submit goes ahead)
   let GIS=null;   // r26: Google's own sign-in button (google-gis.js) - null while off
   const J=()=>JOINING && !INVITE_DEAD;
   function submitLabel(){ return mode==="signup" ? (J()?"Create account & join →":"Create account →") : (J()?"Sign in to accept →":"Sign in →"); }
@@ -647,7 +669,10 @@ document.addEventListener("DOMContentLoaded", function(){
     $("#submit").textContent = submitLabel();
     document.body.classList.toggle("invite-join", J() && m==="signup");
     { const sw=document.getElementById("inviteHaveAcct"); if(sw) sw.hidden=!(J() && m==="signup"); }
+    // R29b: sign-up / invite-accept = a NEW password, so Safari / Chrome / password managers offer "Suggest strong password"
+    // (passwordrules = our policy, so the suggestion always passes); sign-in = the saved one
     $("#pw").setAttribute("autocomplete", m==="signup" ? "new-password" : "current-password");
+    if(m==="signup") $("#pw").setAttribute("passwordrules", $("#pw2").getAttribute("passwordrules")||""); else $("#pw").removeAttribute("passwordrules");
     // new passwords must meet the policy; existing ones are checked by the server
     if(m==="signup") $("#pw").setAttribute("minlength", String(PW_MIN)); else $("#pw").removeAttribute("minlength");
     $("#pwHint").hidden = m!=="signup";
@@ -720,7 +745,18 @@ document.addEventListener("DOMContentLoaded", function(){
   function pwLevel(p){ if(!p) return 0; let n=0; if(/[a-z]/.test(p)) n++; if(/[A-Z]/.test(p)) n++; if(/[0-9]/.test(p)) n++; if(/[^A-Za-z0-9]/.test(p)) n++;
     if(p.length<PW_MIN) return Math.min(n,2)||1; if(pwProblem(p)) return Math.min(n,3); return 4; }
   const PW_WORDS=["","Too weak","Weak","Almost there","Strong"];
-  $("#pw").addEventListener("input", ()=>{ const l=pwLevel($("#pw").value); $("#pwMeter").setAttribute("data-level",String(l)); $("#pwMeterTxt").textContent=PW_WORDS[l]; });
+  // r29: never "Strong" for an easy-to-guess shape (Name@123456 ...) - Supabase's too-common check would refuse it
+  $("#pw").addEventListener("input", ()=>{ const v=$("#pw").value, g=v && !pwProblem(v) && pwGuess(v); const l=g?2:pwLevel(v);
+    // r29: the server's "weak" verdict holds until the password changes (this event = it changed)
+    if($("#pwMeter").hasAttribute("data-server")){ $("#pwMeter").removeAttribute("data-server"); if($("#err").dataset.pwSrv==="1"){ $("#err").hidden=true; delete $("#err").dataset.pwSrv; } }
+    $("#pwMeter").setAttribute("data-level",String(l)); $("#pwMeterTxt").textContent=g?"Easy to guess":PW_WORDS[l]; });
+  // r29: Supabase refused the password (weak_password): 1 red bar + the reason, until the password is changed
+  function pwServerWeak(msg){
+    const pwned=!!(BPStore.auth.passwordRule && BPStore.auth.passwordRule.pwnedMessage && String(msg).indexOf(BPStore.auth.passwordRule.pwnedMessage)===0);
+    $("#pwMeter").hidden=false; $("#pwMeter").setAttribute("data-level","1"); $("#pwMeter").setAttribute("data-server","1");
+    $("#pwMeterTxt").textContent=pwned?"Too common — choose another":"Weak — choose another password";
+    $("#err").dataset.pwSrv="1";
+  }
 
   // ----- "Check your inbox" (sign-up done, email not confirmed yet) -----
   const COOLDOWN=60;
@@ -732,7 +768,7 @@ document.addEventListener("DOMContentLoaded", function(){
   let inboxAddr="";
   function showInbox(email){
     inboxAddr=normEmail(email);
-    $("#pw").value=""; $("#pw").type="password"; $("#pwEye").setAttribute("aria-pressed","false");   // never carry the password over
+    $("#pw").value=""; $("#pw").type="password"; $("#pwEye").setAttribute("aria-pressed","false"); pwWarned=null;   // never carry the password over
     $("#inboxEmail").textContent=inboxAddr;
     $("#inboxOk").hidden=true; $("#inboxErr").hidden=true;
     showView("#inboxCard");
@@ -957,6 +993,54 @@ document.addEventListener("DOMContentLoaded", function(){
   // The invite belongs to someone else's e-mail (the browser is signed in as another account,
   // e.g. the owner opening a link they made for a teammate). That's correct - an invite only
   // works for its own e-mail - so say so plainly and offer "Sign out & accept" (keeps the token).
+  // R32b (R2-AUTH-REG-1): the reload keeps the e-mailed link's second secret (&k=, a hex key) - without it
+  // the join form could only fall back. Anything that is not a plain hex key is dropped.
+  function inviteReloadUrl(tok, search){
+    if(!tok) return "login.html";
+    let k=""; try{ k=new URLSearchParams(search||"").get("k")||""; }catch(e){ k=""; }
+    return "login.html?invite="+encodeURIComponent(tok)+(/^[0-9a-f]{32,128}$/i.test(k)?"&k="+k.toLowerCase():"");
+  }
+  // R32b (R2-AUTH-REG-1): the server could not make a ready-to-use login from THIS link (the studio's
+  // "Copy link", an invitation e-mail sent before R32, or a link whose key a newer e-mail replaced). Instead
+  // of a dead end, e-mail the invited address a FRESH invitation (it carries a new &k= key) and say so.
+  // true = handled (sent, or a message is shown); false = nothing sent (the caller shows its own error).
+  async function inviteFinishByEmail(email){
+    const ok=$("#okmsg"), er=$("#err");
+    try{
+      const r=await BPStore.invitations.emailInviteLink(email);
+      if(r && r.sent){
+        ok.textContent="We've e-mailed you a link to finish joining "+(INVITE_ORG||"your studio")+". Open the new e-mail in "+email
+          +" (check spam or promotions too) and choose your password there - older invitation links stop working.";
+        ok.hidden=false; er.hidden=true; return true;
+      }
+    }catch(x){
+      if(x && /^(rate_limited|send_failed)$/.test(x.code||"")){ showErr(er, x.message); return true; }
+    }
+    return false;
+  }
+  // the invitee's "Create account" on the Join form: the server (invite-signup) makes the login for the
+  // invitation's own e-mail. "done" = handled (signed in, or a message is on screen); "none" = no direct
+  // sign-up happened (the caller shows "couldn't create your account").
+  async function inviteDirectJoin(inviteTok0, email, pw, fullName){
+    let d=null;
+    try{ d=await BPStore.invitations.signupDirect(inviteTok0, email, pw, fullName); }
+    catch(x){
+      if(x&&x.code==="needs_link"){ showInviteLink(email, x.reason==="unconfirmed"); return "done"; }   // 0205: no password yet → new link, never "sign in"
+      if(x&&x.code==="account_exists"){ showSignInForInvite(email); return "done"; }
+      if(x&&/^(email_mismatch|invalid_invite|weak_password|bad_email|reserved_domain)$/.test(x.code||"")){ showErr($("#err"),x.message); return "done"; }
+      throw x;
+    }
+    if(d&&d.ok){
+      $("#submit").textContent="Joining…";
+      await BPStore.auth.signIn(email, pw, {captchaToken:capToken(cap)});
+      justPw=pw;
+      try{ if(!(await finishGate())) return "done"; } finally { justPw=null; }
+      await acceptPendingInvite(); await routeSignedIn(); return "done";
+    }
+    // R32b: { fallback: true } - send a fresh keyed invitation e-mail instead of a dead end
+    if(d&&d.fallback && await inviteFinishByEmail(email)) return "done";
+    return "none";
+  }
   function inviteWrongAccount(err){ const m=String((err&&err.message)||"").toLowerCase(); return /different email|operator account can.t join/.test(m); }
   // r20 (owner: "I logged in ... but couldn't accept"): the accept RPC's refusals are short lowercase
   // messages ("invitation has expired", "you already belong to an organization"), which friendlyError
@@ -966,6 +1050,7 @@ document.addEventListener("DOMContentLoaded", function(){
     const raw=String((err&&err.message)||""), m=raw.toLowerCase(), who=INVITE_ORG||"the studio";
     if(err&&err.inviteMsg) return err.inviteMsg;
     if(err&&err.hint==="seat_limit") return who+"'s free trial already has all its seats in use (the admin + 2 people). Ask the studio admin to free a seat or choose a plan, then open this invitation again.";
+    if(err&&err.hint==="plan_seat_limit") return who+" has used all the team invites its plan allows. Ask the studio admin to free a seat or contact Helm sales to add more, then open this invitation again.";
     if(/invitation is revoked/.test(m)) return "This invitation was cancelled — ask "+who+" if you should still join.";
     if(/invitation is accepted/.test(m)) return "This invitation was already used. If you joined with it, just sign in with that e-mail — otherwise ask "+who+" to send you a new invitation.";
     if(/invitation is expired|invitation has expired/.test(m)) return "This invitation has expired — ask "+who+" to send you a new one.";
@@ -994,7 +1079,7 @@ document.addEventListener("DOMContentLoaded", function(){
     box.appendChild(document.createTextNode((/operator/i.test(String((err&&err.message)||""))?"Helm operator accounts can't join a studio. ":"This invitation is for a different e-mail address"+(want?" ("+want+")":"")+". ")+"You're signed in as "+(u.email||"another account")+". Sign out, then sign in (or create the account) with the e-mail the invitation was sent to. "));
     // label: "Sign out & accept invite" (kept), with the invited address when the page knows it
     const b=inviteBtn("inviteSwitch", want?"Sign out & accept invite as "+want:"Sign out & accept invite", async ()=>{ try{ await BPStore.auth.signOut(); }catch(e){}
-      location.replace(tok?"login.html?invite="+encodeURIComponent(tok):"login.html"); });
+      location.replace(inviteReloadUrl(tok, location.search)); });
     box.appendChild(b); box.hidden=false;
   }
   // A NEW invitee (Supabase "Invite user" link → account without a password) sets a password
@@ -1007,9 +1092,9 @@ document.addEventListener("DOMContentLoaded", function(){
       const st=String(INVITE_ORG||meta.studio||"").slice(0,120), by=String((INV&&INV.inviter)||meta.invited_by||"").slice(0,60), rl=String((INV&&INV.role)||ROLE_NAMES[meta.role]||meta.role||"").slice(0,60);
       $("#ipTitle").textContent="Join "+(st||"your studio")+" on Helm";
       $("#ipSub").textContent=(by||"Your studio admin")+" invited you"+(rl?" as "+rl:"")+". Choose your password to finish joining — you'll use it to sign in next time.";
-      $("#ipEmail").textContent=u.email||"";
+      $("#ipEmail").textContent=u.email||""; $("#ip_user").value=u.email||"";   // R29b: password managers save the new password against this account
       if(!$("#ip_name").value && meta.full_name) $("#ip_name").value=String(meta.full_name).slice(0,80);
-      if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist && !$("#ipRules").dataset.on){ $("#ipRules").dataset.on="1"; BPStore.auth.passwordRule.attachChecklist($("#ip_pw"), $("#ipRules")); }
+      if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist && !$("#ipRules").dataset.on){ $("#ipRules").dataset.on="1"; BPStore.auth.passwordRule.attachChecklist($("#ip_pw"), $("#ipRules"), {hints:()=>[$("#ip_name").value, (BPStore.auth.user()||{}).email||""]}); }
       setTimeout(()=>$($("#ip_name").value?"#ip_pw":"#ip_name").focus(),60);
       const form=$("#invitePwForm");
       const onSubmit=(e)=>{
@@ -1021,7 +1106,8 @@ document.addEventListener("DOMContentLoaded", function(){
           const bad=pwProblem(pw); if(bad){ showErr(er,bad); $("#ip_pw").focus(); return; }
           if(String(pw).normalize("NFC")!==String($("#ip_pw2").value).normalize("NFC")){ showErr(er,"Passwords don't match."); $("#ip_pw2").focus(); return; }
           try{ await BPStore.auth.setInvitePassword(pw, name); $("#ip_pw").value=""; $("#ip_pw2").value=""; form.removeEventListener("submit",onSubmit); resolve(true); }
-          catch(x){ showErr(er,(x&&/^(name_required|weak_password|reauth_required)$/.test(x.code||""))?x.message:BPUI.friendlyError(x,{action:"set your password"})); }
+          catch(x){ showErr(er,(x&&/^(name_required|weak_password|reauth_required)$/.test(x.code||""))?x.message:BPUI.friendlyError(x,{action:"set your password"}));
+            if(x&&x.field==="pw"){ $("#ip_pw").focus(); $("#ip_pw").select(); } }   // r29: e.g. a too-common password - fields stay filled
         });
       };
       form.addEventListener("submit",onSubmit);
@@ -1352,6 +1438,10 @@ document.addEventListener("DOMContentLoaded", function(){
         if(mode==="signup"){
           const bad=pwProblem(pw); if(bad){ showErr($("#err"),"Choose a stronger password: "+bad); $("#pw").focus(); return; }
           if(String($("#pw2").value).normalize("NFC")!==String(pw).normalize("NFC")){ showErr($("#err"),"The two passwords don't match — type the same password in both boxes."); $("#pw2").focus(); return; }
+          // r29: warn ONCE about an easy-to-guess password before sending it (Supabase's too-common check decides);
+          // submitting the same password again goes ahead
+          const guess=pwGuess(pw);
+          if(guess && pwWarned!==pw){ pwWarned=pw; setFieldErr($("#pw"), "This password is easy to guess — see the tips below. Press the button again to use it anyway."); $("#pw").focus(); return; }
           if(!BPStore.auth.user() && capMissing(cap)){ showErr($("#err"),"Please complete the security check."); return; }
           if(joining){
             // invitee creating an account, then accepting the invite (no studio to create)
@@ -1361,21 +1451,7 @@ document.addEventListener("DOMContentLoaded", function(){
             // invite bound to this e-mail → the server creates the account already confirmed
             // and we sign straight in (no inbox step). Other cases fall back to the confirm e-mail.
             if(!existing && BPStore.invitations.signupDirect){
-              let d=null;
-              try{ d=await BPStore.invitations.signupDirect(inviteTok0, email, pw, fullName); }
-              catch(x){
-                if(x&&x.code==="needs_link"){ showInviteLink(email, x.reason==="unconfirmed"); return; }   // 0205: no password yet → new link, never "sign in"
-                if(x&&x.code==="account_exists"){ showSignInForInvite(email); return; }
-                if(x&&/^(email_mismatch|invalid_invite|weak_password|bad_email|reserved_domain)$/.test(x.code||"")){ showErr($("#err"),x.message); return; }
-                throw x;
-              }
-              if(d&&d.ok){
-                btn.textContent="Joining…";
-                await BPStore.auth.signIn(email, pw, {captchaToken:capToken(cap)});
-                justPw=pw;
-                try{ if(!(await finishGate())) return; } finally { justPw=null; }
-                await acceptPendingInvite(); await routeSignedIn(); return;
-              }
+              if((await inviteDirectJoin(inviteTok0, email, pw, fullName))==="done") return;
             }
             // 0205: an invitee NEVER goes through the self sign-up (no "Confirm your email" e-mail, no
             // second login): the invitation is always bound to its e-mail, so the server (invite-signup)
@@ -1426,11 +1502,18 @@ document.addEventListener("DOMContentLoaded", function(){
             showErr($("#ilErr"),"Signing in can't work yet for "+INV.email+" — it has no password. Use the button below to get a new link."); return; }
         }
         if(err&&err.code==="gate_verify"){ showErr($("#err"),m); return; }
+        // r29: a Supabase Auth refusal turned into words (store-api authError) - next to the field it is about
+        // (password / e-mail), the form stays filled in so only that field needs changing
+        if(err&&err.authMapped&&(err.field==="pw"||err.field==="email")){
+          const fi=$("#"+err.field); showErr($("#err"),m); setFieldErr(fi,m); pwWarned=null;
+          if(err.field==="pw" && err.authCode==="weak_password") pwServerWeak(m);   // the meter follows the server's verdict
+          try{ fi.scrollIntoView({block:"center",behavior:"smooth"}); }catch(x){}
+          fi.focus({preventScroll:true}); if(fi.select) fi.select(); return; }
         if(/captcha/i.test(m)){ showErr($("#err"),"The security check failed or expired — please try again."); return; }
         // credential / policy messages from Supabase Auth are written for users; everything else goes through friendlyError
         // never echo "already registered" / "not confirmed" (account enumeration): one answer
-        const direct=(err&&(err.code==="invalid_credentials"||err.code==="account_locked"||err.code==="rate_limited"||err.code==="captcha_failed"||err.code==="reserved_domain"||err.code==="staff_google_only")) || (/^(Use at least|Include at least|Choose a)/.test(m));
-        showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create the studio":"sign you in"}));
+        const direct=(err&&(err.authMapped===true||err.code==="invalid_credentials"||err.code==="account_locked"||err.code==="rate_limited"||err.code==="captcha_failed"||err.code==="reserved_domain"||err.code==="staff_google_only")) || (/^(Use at least|Include at least|Choose a)/.test(m));
+        showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create your account":"sign you in"}));
         // r20-coord #33: a wrong password may be an account that signs in with Google - a generic hint, shown for every
         // invalid sign-in (it says nothing about whether this e-mail has an account: no enumeration)
         if(mode==="signin" && err && err.code==="invalid_credentials"){ noteLoginFail(); const g=$("#googleBtn"), gh=$("#gHint"); if(gh && g && !g.hidden) gh.hidden=false; }

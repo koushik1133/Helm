@@ -363,7 +363,10 @@ do $$ declare r jsonb; n int; begin
   r := public.assign_notify_claim(100);
   select count(*) into n from public.assign_notify_outbox where item_kind = 'open_shift' and status = 'pending';
   perform pg_temp.res('31 the dispatcher knows open_shift (studio WhatsApp off -> skipped, never sent)',
-    position('when ''open_shift'' then' in (select prosrc from pg_proc where oid = 'public.assign_notify_claim(integer)'::regprocedure)) > 0
+    -- the 0265 claim body is the top function, or sits right under the r33 0283 wrapper (skips rows for deactivated members)
+    (position('when ''open_shift'' then' in (select prosrc from pg_proc where oid = 'public.assign_notify_claim(integer)'::regprocedure)) > 0
+     or (position('assign_notify_claim__pre0283' in (select prosrc from pg_proc where oid = 'public.assign_notify_claim(integer)'::regprocedure)) > 0
+         and position('when ''open_shift'' then' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.assign_notify_claim__pre0283(integer)')), '')) > 0))
     and position('open_shift' in coalesce(r::text, '')) = 0, coalesce(r::text, '') || ' pending=' || n);
 end $$;
 do $$ begin

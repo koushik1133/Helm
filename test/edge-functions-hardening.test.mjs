@@ -135,8 +135,8 @@ t('edge functions: no raw provider bodies / PII in logs; pinned supabase-js matc
     assert.doesNotMatch(src, /esm\.sh\/@supabase/);
   }
   const vendor = /supabase-js-(\d+\.\d+\.\d+)\.min\.js/.exec(read('public/index.html') + read('public/login.html'));
-  for (const src of [wa, otp, pay, hook]) assert.match(src, /from "npm:@supabase\/supabase-js@2\.117\.2"/);
-  if (vendor) assert.equal(vendor[1], '2.117.2');
+  for (const src of [wa, otp, pay, hook]) assert.match(src, /from "npm:@supabase\/supabase-js@2\.118\.0"/);
+  if (vendor) assert.equal(vendor[1], '2.118.0');
 });
 
 // ---- sim-pay ------------------------------------------------------------------

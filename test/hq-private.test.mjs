@@ -69,7 +69,7 @@ t('0045: HQ UI shows no studio business data; invoice + read-only banner wired',
   const j = rd('public/hq.js'), h = rd('public/hq.html');
   assert(!/recent_events|open_milestones|revenue|events_count|confirmed_count|milestone/i.test(j + h), 'client/event/revenue UI remains');
   assert(/window\.HelmInvoice && typeof window\.HelmInvoice\.open === "function"/.test(j) && /hq_invoice/.test(j), 'invoice call');
-  assert(/<script src="hq-invoice\.js\?v=1"><\/script>/.test(h), 'hq-invoice.js not loaded');
+  assert(/<script src="hq-invoice\.js\?v=2"><\/script>/.test(h), 'hq-invoice.js not loaded');
   const a = rd('public/auth-ui.js');
   assert(/Read-only: subscription suspended — contact Helm/.test(a) && !/Helm HQ/.test(a.split('Helm subscription (0045)')[1] || 'Helm HQ'), 'banner');
   assert(/forward\s+supabase\/migrations\/0045_hq_subscriptions\.sql/.test(rd('supabase/migrations/MANIFEST')), 'manifest 0045');

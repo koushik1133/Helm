@@ -197,11 +197,17 @@ do $$ declare t text; begin
   perform pg_temp.res('money: the quote total cannot be lowered below the 50,000 already paid', t = '118000', 'total '||coalesce(t,'null'));
 end $$;
 do $$ declare t text; begin
+  -- R32b (0282 R2-BIZ-NEW-1): lowering a confirmed / paid event's price needs the "Approve discounts" switch
+  perform pg_temp.su();
+  insert into public.role_access(org_id, role, area, can_view, can_edit, updated_at)
+    values ('a0000000-0000-4000-8000-000000000001', 'sales', 'discount_approve', true, true, now())
+  on conflict (org_id, role, area) do update set can_view = true, can_edit = true;
   perform pg_temp.login('a_staff@a.test');
   begin update public.quotes set pricing = '{"subtotal":50000,"discount":0,"gstPct":18}'::jsonb where id = pg_temp.id('paid');
   exception when others then perform pg_temp.res('money: lowering the total but staying above what was paid still works (legit)', false, sqlerrm); return; end;
   perform pg_temp.su(); t := pg_temp.total(pg_temp.id('paid'));
   perform pg_temp.res('money: lowering the total but staying above what was paid still works (legit)', t = '59000', 'total '||coalesce(t,'null'));
+  delete from public.role_access where org_id = 'a0000000-0000-4000-8000-000000000001' and role = 'sales' and area = 'discount_approve';   -- R32b: undo the grant
 end $$;
 
 -- ================= 3c) no money recorded against a 0 / missing total =============

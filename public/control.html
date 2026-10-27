@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Control Center — Helm Events</title>
-<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
+<link rel="preload" href="/vendor/supabase-js-2.118.0.min.js" as="script" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -79,6 +79,10 @@
   .utable td.ucph{white-space:nowrap;font-family:var(--mono);font-size:12px}
   .ucok{display:inline-block;font-size:11.5px;font-weight:700;color:#0f7a43;background:#e7f6ee;border-radius:10px;padding:2px 8px;white-space:nowrap}
   .ucno{display:inline-block;font-size:11.5px;font-weight:700;color:#8a5a00;background:#fff4dc;border-radius:10px;padding:2px 8px;white-space:nowrap}
+  .ts-badge{display:inline-flex;align-items:center;gap:4px;margin:6px 0 0 6px;font-size:11.5px;font-weight:700;border-radius:10px;padding:2px 8px;white-space:nowrap;vertical-align:middle}
+  .ts-badge.on{color:#0f7a43;background:#e7f6ee}.ts-badge.on::before{content:"\2713"}
+  .ts-badge.off{color:#8a5a00;background:#fff4dc}
+  @media (max-width:760px){.utable.ucm td.ucrole{white-space:normal}.utable.ucm td.ucrole .ts-badge{display:flex;width:fit-content;margin:8px 0 0 auto}}
   .utable td.ucact{text-align:right;white-space:nowrap}
   /* r22 members table: photo + name + "you" on ONE line, e-mail under it (ellipsis, full address on hover); the name
      column can't be squeezed to a few letters any more, the role picker has a real width and Edit / remove never clip.
@@ -126,6 +130,7 @@
     }
   }
   html[data-theme="dark"] .ucok{background:rgba(46,184,114,.14);color:#6ee7a8}
+  html[data-theme="dark"] .ts-badge.on{background:rgba(46,184,114,.14);color:#6ee7a8}html[data-theme="dark"] .ts-badge.off{background:rgba(232,145,45,.16);color:#f5c37a}
   html[data-theme="dark"] .ucno{background:rgba(245,158,11,.15);color:#fbbf24}
   /* profile edit dialog */
   .lsheet.mpsheet{width:min(640px,96vw);max-height:92vh;overflow:auto;text-align:left}
@@ -263,17 +268,18 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=3">
 <link rel="stylesheet" href="comms-settings.css?v=2">
-<link rel="stylesheet" href="payment-schedule.css?v=1"><link rel="stylesheet" href="automations.css?v=2">
+<link rel="stylesheet" href="payment-schedule.css?v=2"><link rel="stylesheet" href="automations.css?v=2">
 <link rel="stylesheet" href="delivery-tracker.css?v=1">
 <link rel="stylesheet" href="venues.css?v=6">
 <link rel="stylesheet" href="studio-templates.css?v=4"><link rel="stylesheet" href="asset-price-grid.css?v=2">
 <link rel="stylesheet" href="menu-pkg-editor.css?v=5">
+<link rel="stylesheet" href="team-safety.css?v=1">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=15">
 <link rel="stylesheet" href="quote-validity.css?v=1"><link rel="stylesheet" href="link-views.css?v=1">
-<script src="/shell-proto.js?v=43" id="shellProto"></script>
+<script src="/shell-proto.js?v=46" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -483,6 +489,10 @@
           <div class="fld"><label for="pst_note">Payment note (e.g. bank details)</label><input id="pst_note" maxlength="300" placeholder="Bank: HDFC, A/c 1234567890, IFSC HDFC0001234"></div>
         </div>
         <p class="mnote">Shown on the client's page and added to every payment reminder. The online payment link is added on its own once online payments are live.</p>
+        <!-- r35 (0285): payment-details change protection - payment-schedule-settings.js fills these -->
+        <p class="mnote pst-safe" id="pst_safe">For your clients' safety: changing these needs your two-step code, every admin is told at once, and clients see new details only after 24 hours.</p>
+        <div class="pst-pending" id="pst_pending" role="region" aria-label="Payment details change waiting" hidden></div>
+        <div class="pst-flags" id="pst_flags" role="region" aria-label="Flagged accounts" hidden></div>
       </fieldset>
       <fieldset class="pst-set">
         <legend>Schedules</legend>
@@ -625,8 +635,10 @@
 
       <div class="card">
         <h3>Team members</h3>
-        <p class="mnote">Add teammates, set the name chat shows for each person, change each person's role, or remove access. Changes apply immediately.</p>
+        <p class="mnote">Add teammates, set the name chat shows for each person, change each person's role, or deactivate someone who has left. Nobody is ever deleted: a deactivated person can't sign in, keeps their records, frees their seat, and can be reactivated. The studio owner can't be removed by other admins.</p>
         <p class="mnote" id="seat_meter" role="status" aria-live="polite" hidden></p>
+        <div id="team_safety" aria-live="polite" hidden></div>
+        <div id="team_work" aria-live="polite" hidden></div>
         <div class="uctools" id="uc_tools" hidden>
           <input id="uc_q" type="search" maxlength="100" placeholder="Search name, email, phone, title…" autocomplete="off" aria-label="Search team members">
           <select id="uc_f" aria-label="Show"><option value="">Everyone</option><option value="incomplete">Incomplete profiles</option><option value="complete">Complete profiles</option></select>
@@ -904,36 +916,37 @@
   </form>
 </div>
 
-<script src="/trusted-types.js?v=4"></script>
-<script src="telemetry.js?v=6"></script>
-<script src="config.js?v=110"></script>
+<script src="/trusted-types.js?v=5"></script>
+<script src="telemetry.js?v=9"></script>
+<script src="config.js?v=111"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=291"></script>
-<script src="event-reminders.js?v=4"></script><script src="cc-field-rules.js?v=2"></script>
+<script src="country-profile.js?v=6"></script><script src="store-api.js?v=297"></script>
+<script src="event-reminders.js?v=5"></script><script src="cc-field-rules.js?v=2"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=5"></script>
-<script src="hq-invoice.js?v=1"></script>
+<script src="hq-invoice.js?v=2"></script>
 <script src="tour.js?v=24"></script>
-<script src="pkg-review.js?v=7"></script>
+<script src="pkg-review.js?v=8"></script>
 <script src="onboarding-core.js?v=7"></script>
 <script src="studio-billing-form.js?v=2"></script>
 <script src="comms-settings.js?v=6"></script>
-<script src="delivery-tracker.js?v=1"></script>
+<script src="delivery-tracker.js?v=2"></script>
 <script src="delivery-settings.js?v=2"></script>
 <script src="inbox-settings.js?v=2"></script><script src="crew-shifts.js?v=3"></script>
-<script src="link-views.js?v=2"></script>
+<script src="link-views.js?v=3"></script>
 <script src="automations.js?v=2"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="form-validate.js?v=3"></script>
 <script src="cc-inputs.js?v=4"></script>
-<script src="privacy-pin-settings.js?v=4"></script>
+<script src="privacy-pin-settings.js?v=5"></script>
 <script src="venues-core.js?v=10"></script>
 <script src="venues-admin.js?v=9"></script>
 <script src="studio-templates-core.js?v=4"></script>
 <script src="studio-templates.js?v=13"></script>
-<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script><script src="quote-validity.js?v=2"></script><script src="stage-machine-settings.js?v=1"></script><script src="payment-schedule.js?v=1"></script><script src="payment-schedule-settings.js?v=2"></script>
+<script src="team-safety.js?v=2"></script>
+<script src="item-pricing.js?v=1"></script><script src="target-margin-settings.js?v=1"></script><script src="quote-validity.js?v=2"></script><script src="stage-machine-settings.js?v=1"></script><script src="payment-schedule.js?v=1"></script><script src="payment-schedule-settings.js?v=3"></script>
 <script src="asset-price-grid.js?v=4"></script><script src="pricing-form-core.js?v=2"></script><script src="menu-pkg-editor.js?v=4"></script>
 <script src="trial-demo.js?v=18"></script>
 <script src="trial-upgrade.js?v=2"></script>
@@ -1757,7 +1770,7 @@
     if(typeof renderInvites==="function") renderInvites();
   }
   // ---- User control table (0041 profiles; before 0041 → today's name / email / role list) ----
-  let ucRows=[], ucProfiles=false;
+  let ucRows=[], ucProfiles=false, ucTeam=null, ucTwoStep=null;   // r44 (0291): { user id: two-step on? } for the admins' badge (null = not known)
   const ucId=(u)=>u.user_id||u.id;
   // R20 (live QA): "Joined 18 Oct 2026" in the studio's own date style + timezone (was the browser's "Oct 18, 2026")
   function ucDate(iso){ if(!iso) return ""; try{ if(typeof BPStore!=="undefined"&&BPStore.fmtStudioDate){ const o=BPStore.fmtStudioDate(iso,{style:"long"}); if(o) return o; } return new Date(iso).toLocaleDateString("en-IN", {day:"numeric",month:"short",year:"numeric"}); }catch(e){ return ""; } }
@@ -1791,18 +1804,31 @@
   // → { head, body, shown, total } (pure: everything it shows goes through esc())
   function ucTable(list, o){
     const meId=o.meId, roles=o.roles||[], rl=o.roleLabel||((r)=>r);
+    // r33 (0283): o.team = HelmTeam.view(team_safety_overview) - the owner badge, deactivated rows, a waiting admin change
+    const tm=o.team||null, isOwner=(u)=>!!(tm&&tm.ownerId&&ucId(u)===tm.ownerId), isOff=(u)=>!!(tm&&tm.isOff(ucId(u))), waits=(u)=>!!(tm&&tm.pending[ucId(u)]);
+    const badges=(u)=>(isOwner(u)?' <span class="tag ts-own" title="Studio owner - other admins can&#39;t remove or demote them">Owner</span>':"")
+      +(isOff(u)?' <span class="tag ts-off" title="Can&#39;t sign in or see studio data. Their records are kept.">Deactivated</span>':"")
+      +(waits(u)?' <span class="tag ts-wait" title="An admin change is waiting (24 hours) - see the note above the table">Change waiting</span>':"");
+    const lockTitle=(u,self)=>self?" disabled title=\"You can&#39;t change your own role\"":isOwner(u)?" disabled title=\"The studio owner always stays an admin\"":isOff(u)?" disabled title=\"Reactivate them first\"":"";
     // r21: a user whose role is 'client' (no access) shows "No access" + a blank "Choose a role…" picker, never "Client"
     const noAccess=(u)=>u.role==="client";
-    const roleSel=(u,self)=>`${noAccess(u)?'<span class="tag no-access">No access</span> ':""}<select class="roleSel" data-cs-autosave="1" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${noAccess(u)?'<option value="" selected disabled>Choose a role…</option>':""}${(u.role&&!noAccess(u)&&!roles.includes(u.role)?roles.concat([u.role]):roles).map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
-    const rm=(u,self)=>self?"":`<button type="button" class="rm" title="Remove user" aria-label="Remove user ${esc(u.email||u.full_name||"")}">🗑</button>`;
+    const roleSel=(u,self)=>`${noAccess(u)?'<span class="tag no-access">No access</span> ':""}<select class="roleSel" data-cs-autosave="1" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${typeof lockTitle==="function"?lockTitle(u,self):self?" disabled title=\"You can&#39;t change your own role\"":""}>${noAccess(u)?'<option value="" selected disabled>Choose a role…</option>':""}${(u.role&&!noAccess(u)&&!roles.includes(u.role)?roles.concat([u.role]):roles).map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
+    // r44 (0291): a small "Two-step" badge next to each ADMIN (on / not set up), so the Owner sees who still needs it
+    const ts=(u)=>{ if(u.role!=="admin"||!o.twoStep||!(ucId(u) in o.twoStep)) return "";
+      return o.twoStep[ucId(u)]?'<span class="ts-badge on" title="This admin signs in with two-step">Two-step: on</span>'
+        :'<span class="ts-badge off" title="Needed to change payment details and other sensitive settings">Two-step: not set up</span>'; };
+    // r33 (0283): "Remove" is now Deactivate (nothing is deleted); a deactivated row offers Reactivate + their open work
+    const rm=(u,self)=>self||isOwner(u)?"":isOff(u)
+      ?`<button type="button" class="btn sm ucReact" aria-label="Reactivate ${esc(u.email||u.full_name||"")}">Reactivate</button><button type="button" class="btn sm ucWork" aria-label="Open work of ${esc(u.email||u.full_name||"")}">Open work</button>`
+      :`<button type="button" class="rm" title="Deactivate - they can&#39;t sign in any more; their records are kept" aria-label="Deactivate ${esc(u.email||u.full_name||"")}">Deactivate</button>`;
     if(!o.profiles){
       const head=`<tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr>`;
       const rows=list.filter(u=>ucMatches(u,o.q,""));
       const body=rows.map(u=>{ const self=meId&&ucId(u)===meId; const dn=(u.full_name||"").trim(), who=dn||u.email||"user";
         return `<tr data-id="${esc(ucId(u))}">
-        <td class="dn">${ucNameHtml(ucShownName(u,self,o.meName))} <button type="button" class="dnEdit" title="Edit display name" aria-label="Edit display name for ${esc(who)}">✎</button></td>
+        <td class="dn">${ucNameHtml(ucShownName(u,self,o.meName))}${badges(u)} <button type="button" class="dnEdit" title="Edit display name" aria-label="Edit display name for ${esc(who)}">✎</button></td>
         <td class="em">${esc(u.email||"—")}${self?' <span class="me">you</span>':""}</td>
-        <td>${roleSel(u,self)}</td>
+        <td>${roleSel(u,self)}${ts(u)}</td>
         <td style="text-align:right">${rm(u,self)}</td>
       </tr>`; }).join("") || `<tr><td colspan="4" style="color:var(--ink-3)">${list.length?"No one matches.":"No users."}</td></tr>`;
       return { head, body, shown:rows.length, total:list.length };
@@ -1818,11 +1844,11 @@
       const joined=ucDate(u.created_at);
       const st=u.complete?`<span class="ucok" title="${esc(u.profile_completed_at?"Completed "+ucDate(u.profile_completed_at):"Profile complete")}">✓ Complete</span>`:`<span class="ucno" title="No full name or mobile number yet">✗ Incomplete</span>`;
       const mail=u.email||u.email_name||"";
-      return `<tr class="ucr${priv?"":" ucr-np"}" data-id="${esc(ucId(u))}">
-        <td class="dn" data-label="Name"><div class="ucwho">${av}<div class="ucwt"><div class="ucnm">${ucNameHtml(ucShownName(u,self,o.meName))}${self?' <span class="me">you</span>':""}</div><div class="ucsub em"${mail?` title="${esc(mail)}"`:""}>${esc(mail)}</div></div></div></td>
+      return `<tr class="ucr${priv?"":" ucr-np"}${isOff(u)?" ucoff":""}" data-id="${esc(ucId(u))}">
+        <td class="dn" data-label="Name"><div class="ucwho">${av}<div class="ucwt"><div class="ucnm">${ucNameHtml(ucShownName(u,self,o.meName))}${self?' <span class="me">you</span>':""}${badges(u)}</div><div class="ucsub em"${mail?` title="${esc(mail)}"`:""}>${esc(mail)}</div></div></div></td>
         ${priv?`<td class="ucph" data-label="Phone">${esc(u.phone?ucPhone(u.phone):"—")}</td>`:""}
         <td class="ucjob" data-label="Job title">${esc(u.job_title||"—")}${u.department?`<div class="ucsub ucdept">${esc(u.department)}</div>`:""}</td>
-        <td class="ucrole" data-label="Role">${roleSel(u,self)}</td>
+        <td class="ucrole" data-label="Role">${roleSel(u,self)}${ts(u)}</td>
         <td class="ucprof" data-label="Profile">${st}${joined?`<div class="ucsub">Joined ${esc(joined)}</div>`:""}</td>
         <td class="ucact">${o.canEdit?`<button type="button" class="btn sm ucEdit" aria-label="Edit profile for ${esc(who)}">Edit</button>`:""}${rm(u,self)}</td>
       </tr>`; }).join("") || `<tr><td colspan="${cols}" style="color:var(--ink-3)">${list.length?"No one matches these filters.":"No users."}</td></tr>`;
@@ -1832,9 +1858,14 @@
     const tb=$("#um_rows");
     tb.innerHTML=`<tr><td colspan="4" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr>`;
     let res;
+    // r44 (0291): who has two-step (admins only; yes / no per member of this studio) - never blocks the list
+    const tsP=isAdmin&&BPStore.auth.admin.twoStepStatus?BPStore.auth.admin.twoStepStatus().catch(()=>null):Promise.resolve(null);
     try{ res=await BPStore.auth.admin.members(); }
     catch(e){ BPUI.loadError(tb, e, renderUsers, {what:"team members"}); return; }
+    ucTwoStep=await tsP;
     ucProfiles=!!res.profiles; ucRows=res.rows||[];
+    // r33 (0283): owner / deactivated / waiting changes (null on a database without 0283 -> the table as before)
+    try{ ucTeam=BPStore.team?await BPStore.team.overview():null; }catch(e){ ucTeam=null; }
     renderSeats();
     if(!ucProfiles) ucRows.sort((a,b)=>(a.email||"").localeCompare(b.email||""));
     $("#uc_tools").hidden=false; $("#uc_f").hidden=!ucProfiles;
@@ -1843,8 +1874,11 @@
   function drawUsers(){
     const tb=$("#um_rows"), me=BPStore.auth.user();
     const meMeta=(me&&me.user_metadata)||{};
-    const t=ucTable(ucRows,{profiles:ucProfiles, meId:me&&me.id, meName:meMeta.full_name||meMeta.name||"", roles:ROLES, roleLabel:BPStore.auth.admin.roleLabel, canEdit:isAdmin,
-      q:$("#uc_q").value, filter:ucProfiles?$("#uc_f").value:""});
+    const team=(typeof HelmTeam!=="undefined"&&ucTeam)?HelmTeam.view(ucTeam):null;
+    const t=ucTable(ucRows,{profiles:ucProfiles, meId:me&&me.id, meName:meMeta.full_name||meMeta.name||"", roles:ROLES, roleLabel:BPStore.auth.admin.roleLabel, canEdit:isAdmin, twoStep:ucTwoStep,
+      q:$("#uc_q").value, filter:ucProfiles?$("#uc_f").value:"", team});
+    if(typeof HelmTeam!=="undefined") HelmTeam.paint($("#team_safety"), ucTeam, { store:BPStore.team, guard:BPUI.guard, confirm:BPUI.confirm, prompt:BPUI.prompt,
+      mfa:BPStore.auth.mfa, msg:setUMsg, reload:renderUsers });
     $("#um_head").innerHTML=t.head; tb.innerHTML=t.body;
     const inc=ucProfiles?ucRows.filter(u=>u.complete===false).length:0;
     $("#uc_count").textContent=(t.shown===t.total?t.total+" member"+(t.total===1?"":"s"):t.shown+" of "+t.total)+(inc?" · "+inc+" incomplete":"");
@@ -1853,8 +1887,14 @@
     tb.querySelectorAll(".roleSel").forEach(sel=>sel.addEventListener("change", async (e)=>{
       const tr=e.target.closest("tr"), id=tr.dataset.id, role=e.target.value;
       const prev=[...e.target.options].find(o=>o.defaultSelected);
-      try{ await BPUI.guard(e.target, ()=>BPStore.auth.admin.setRole(id, role)); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); const na=tr.querySelector(".no-access"); if(na) na.remove(); const u=rowOf(tr); if(u) u.role=role; }
-      catch(err){ setUMsg("err",errMsg(err,"change the role")); if(prev) e.target.value=prev.value; }
+      // r33 (0283): another admin's demotion by a non-owner waits 24 hours (team_set_role); the owner's is immediate
+      const u0=rowOf(tr)||{}, delayed=!!(team&&!team.iAmOwner&&u0.role==="admin"&&role!=="admin");
+      if(delayed && !(await BPUI.confirm(`Change ${u0.email||u0.full_name||"this admin"} from Admin? Only the studio owner can do this at once - your request takes effect in 24 hours. The owner and this admin are told now, and the owner can cancel it.`,{title:"Change an admin's role",okLabel:"Ask for the change"}))){ if(prev) e.target.value=prev.value; return; }
+      try{
+        const r=await BPUI.guard(e.target, ()=>team&&BPStore.team?BPStore.team.setRole(id, role):BPStore.auth.admin.setRole(id, role));
+        if(r&&r.scheduled){ if(prev) e.target.value=prev.value; setUMsg("ok","Asked. The change happens in 24 hours unless the owner cancels it."); await renderUsers(); return; }
+        setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); const na=tr.querySelector(".no-access"); if(na) na.remove(); const u=rowOf(tr); if(u) u.role=role; }
+      catch(err){ setUMsg("err",typeof HelmTeam!=="undefined"&&HelmTeam.HINT_TEXT[HelmTeam.hintOf(err)]?HelmTeam.errText(err):errMsg(err,"change the role")); if(prev) e.target.value=prev.value; }
     }));
     tb.querySelectorAll(".dnEdit").forEach(btn=>btn.addEventListener("click", async ()=>{
       const tr=btn.closest("tr"), id=tr.dataset.id, u=rowOf(tr); if(!u) return;
@@ -1867,14 +1907,36 @@
       catch(err){ setUMsg("err",errMsg(err,"change the display name")); }
     }));
     tb.querySelectorAll(".ucEdit").forEach(btn=>btn.addEventListener("click",()=>{ const u=rowOf(btn.closest("tr")); if(u) openMemberEdit(u, btn); }));
+    // r33 (0283): Deactivate - nothing is deleted. A non-owner deactivating an admin waits 24 hours.
     tb.querySelectorAll(".rm").forEach(btn=>btn.addEventListener("click", async ()=>{
       const tr=btn.closest("tr"), id=tr.dataset.id, u=rowOf(tr)||{}, email=u.email||u.full_name||"this user";
-      if(!(await BPUI.confirm(`Remove ${email}? This permanently deletes their account and they lose access immediately.`,{title:"Delete user account?",okLabel:"Delete account",danger:true}))) return;
-      try{ await BPUI.guard(btn, ()=>BPStore.auth.admin.deleteUser(id)); await renderUsers(); setUMsg("ok","User removed."); }
-      catch(err){ setUMsg("err",errMsg(err,"remove the user")); }
+      const delayed=!!(team&&!team.iAmOwner&&u.role==="admin");
+      const text=delayed?`Deactivate ${email}? Only the studio owner can remove an admin at once - your request takes effect in 24 hours. The owner and ${email} are told now, and the owner can cancel it.`
+        :`Deactivate ${email}? They can't sign in or see studio data from now on, and they're signed out everywhere. Everything they made stays, with their name marked "(deactivated)". They no longer use a seat, and you can reactivate them later.`;
+      if(!(await BPUI.confirm(text,{title:delayed?"Deactivate an admin":"Deactivate team member",okLabel:delayed?"Ask to deactivate":"Deactivate",danger:true}))) return;
+      try{
+        const r=await BPUI.guard(btn, ()=>BPStore.team?BPStore.team.deactivate(id, null):BPStore.auth.admin.deleteUser(id));
+        await renderUsers();
+        if(r&&r.scheduled) setUMsg("ok","Asked. "+email+" is deactivated in 24 hours unless the owner cancels it.");
+        else { setUMsg("ok",email+" is deactivated. Their records are kept."); if(r&&r.open_work&&typeof HelmTeam!=="undefined") HelmTeam.paintWork($("#team_work"), u.full_name||email, r.open_work); }
+      }
+      catch(err){ setUMsg("err",typeof HelmTeam!=="undefined"?HelmTeam.errText(err,"Couldn't deactivate them."):errMsg(err,"deactivate the user")); }
+    }));
+    tb.querySelectorAll(".ucReact").forEach(btn=>btn.addEventListener("click", async ()=>{
+      const tr=btn.closest("tr"), id=tr.dataset.id, u=rowOf(tr)||{}, email=u.email||u.full_name||"this user";
+      if(!(await BPUI.confirm(`Reactivate ${email}? They can sign in again with their old role, and they use a seat again.`,{title:"Reactivate team member",okLabel:"Reactivate"}))) return;
+      try{ await BPUI.guard(btn, ()=>BPStore.team.reactivate(id)); await renderUsers(); setUMsg("ok",email+" can sign in again."); }
+      catch(err){ setUMsg("err",HelmTeam.errText(err,"Couldn't reactivate them.")); }
+    }));
+    tb.querySelectorAll(".ucWork").forEach(btn=>btn.addEventListener("click", async ()=>{
+      const tr=btn.closest("tr"), id=tr.dataset.id, u=rowOf(tr)||{};
+      try{ const w=await BPUI.guard(btn, ()=>BPStore.team.openWork(id)); HelmTeam.paintWork($("#team_work"), u.full_name||u.email||"This person", w); }
+      catch(err){ setUMsg("err",HelmTeam.errText(err,"Couldn't load their open work.")); }
     }));
   }
   $("#uc_q").addEventListener("input",BPUI.debounce(drawUsers,150));
+  // r44: someone turned two-step on in this tab (guided set-up / Account) -> refresh the badges
+  document.addEventListener("helm:two-step-on",()=>{ if(!isAdmin||!BPStore.auth.admin.twoStepStatus) return; BPStore.auth.admin.twoStepStatus().then(m=>{ if(m){ ucTwoStep=m; if(ucRows.length) drawUsers(); } }).catch(()=>{}); });
   $("#uc_f").addEventListener("change",drawUsers);
 
   // ---- admin: edit a member's profile (admin_update_member_profile) ----
@@ -2046,10 +2108,16 @@
   async function renderSeats(){
     const m=$("#seat_meter"); if(!m||!BPStore.invitations.seats) return;
     let r; try{ r=await BPStore.invitations.seats(); }catch(_){ m.hidden=true; return; }   // older server: no counter
-    const lock=(on)=>{ ["#inv_submit","#um_submit"].forEach(sel=>{ const b=$(sel); if(b){ b.disabled=!!on; if(on) b.title="All seats are in use"; else b.removeAttribute("title"); } }); };
+    const lock=(on)=>{ ["#inv_submit","#um_submit"].forEach(sel=>{ const b=$(sel); if(b){ b.disabled=!!on; if(on) b.title=r&&!r.trial?"Your plan's team invites are all in use":"All seats are in use"; else b.removeAttribute("title"); } }); };
     if(!r||!r.limited){ m.hidden=true; lock(false); return; }
     const extra=Number(r.extra_limit)||0, used=Math.min(Number(r.extra_used)||0, extra), pend=Number(r.pending)||0;
     // B29: grammatical in the singular too ("1 pending invite counts as a seat", "you + 1 person")
+    if(!r.trial){
+      // r32 (0282): a paid plan's limit (Starter: you + 2 team invites) - owner's wording
+      m.textContent=`${used} of ${extra} team invite${extra===1?"":"s"} used`+(pend?(pend===1?" \u00b7 1 pending invite counts":` \u00b7 ${pend} pending invites count`):"")+".";
+      if(r.at_limit) m.textContent+=` Your plan allows ${extra} team invite${extra===1?"":"s"}. Contact sales to add more.`;
+      m.hidden=false; lock(!!r.at_limit); return;
+    }
     m.textContent=`${used} of ${extra} seat${extra===1?"":"s"} used`+(r.trial?" (free trial: you + "+extra+" "+(extra===1?"person":"people")+")":"")+(pend?(pend===1?" \u00b7 1 pending invite counts as a seat":` \u00b7 ${pend} pending invites count as seats`):"")+".";
     if(r.at_limit) m.textContent+=" All seats are in use. To add another person, revoke a pending invite or remove someone, or upgrade for more seats.";
     m.hidden=false; lock(!!r.at_limit);
@@ -2177,6 +2245,14 @@
       byGroup[g].forEach(a=>{
         const cell = locked ? {view:true,edit:true} : ((MTX[selRole]&&MTX[selRole][a.key])||cellDefault(selRole,a.key));
         const lb=esc(a.label);
+        // r32 (0282): a money permission is ONE switch (allowed / not allowed) - no separate view / edit
+        if(a.permission){
+          const on=locked||!!(cell.view&&cell.edit);
+          html+=`<div class="chip perm${on?" on":""}${locked?" locked":""}" data-area="${esc(a.key)}" data-perm="1">
+          <button type="button" class="cview" aria-pressed="${on}" aria-label="${lb}: allowed"${locked?" disabled":""}><span class="ic" aria-hidden="true">${a.icon}</span><span class="lb">${lb}</span></button>
+          <span class="tick" aria-hidden="true">✓</span></div>`;
+          return;
+        }
         html+=`<div class="chip${cell.view?" on":""}${locked?" locked":""}" data-area="${esc(a.key)}">
           <button type="button" class="cview" aria-pressed="${!!cell.view}" aria-label="${lb}: can view"${locked?" disabled":""}><span class="ic" aria-hidden="true">${a.icon}</span><span class="lb">${lb}</span></button>
           <button type="button" class="pen${cell.edit?" on":""}" data-pen="1" title="Allow editing" aria-pressed="${!!cell.edit}" aria-label="${lb}: can edit"${locked?" disabled":""}>✎</button>
@@ -2198,7 +2274,7 @@
     $("#matrix").querySelectorAll(".chip").forEach(chip=>{
       const area=chip.dataset.area;
       // ✎ toggles edit (auto-enables view); the rest of the chip toggles view (off view also clears edit)
-      chip.addEventListener("click", (e)=>{ saveCell(selRole, area, e.target.closest("[data-pen]") ? "edit" : "view"); });
+      chip.addEventListener("click", (e)=>{ saveCell(selRole, area, chip.dataset.perm ? "perm" : (e.target.closest("[data-pen]") ? "edit" : "view")); });
     });
   }
   // Suggested starting access for roles that ship with nothing on. Applied only when an admin
@@ -2236,7 +2312,8 @@
     cellQueue = cellQueue.then(async()=>{
       const cur=(MTX[role]&&MTX[role][area])||cellDefault(role,area);
       let view, edit;
-      if(kind==="edit"){ edit=!cur.edit; view=cur.view||edit; }
+      if(kind==="perm"){ view=edit=!(cur.view&&cur.edit); }   // r32: one switch = view + edit together
+      else if(kind==="edit"){ edit=!cur.edit; view=cur.view||edit; }
       else { view=!cur.view; edit=view?cur.edit:false; }
       let saved=false;
       try{ await BPStore.auth.admin.setAccess(role, area, view, edit); saved=true; }
@@ -2244,7 +2321,7 @@
       // always re-read the live matrix so the grid shows what the server really has
       const ok=await loadMatrix();
       if(!ok && saved){ mtxErr=null; (MTX[role]=MTX[role]||{})[area]={view, edit}; BPUI.toast("Saved, but couldn't refresh access — reload to double-check.",{type:"info"}); }
-      if(saved) BPUI.toast(`${BPStore.auth.admin.roleLabel(role)} · ${(AREAS.find(x=>x.key===area)||{}).label||area}: ${view?(edit?"view + edit":"view only"):"no access"}`,{type:"ok",timeout:2500});
+      if(saved) BPUI.toast(`${BPStore.auth.admin.roleLabel(role)} · ${(AREAS.find(x=>x.key===area)||{}).label||area}: ${kind==="perm"?(edit?"allowed":"not allowed"):(view?(edit?"view + edit":"view only"):"no access")}`,{type:"ok",timeout:2500});
     }).catch(()=>{}).finally(()=>{
       cellPending--;
       if(!cellPending){ $("#matrix").removeAttribute("aria-busy"); }

@@ -1,5 +1,5 @@
 -- APPLY-0288.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
--- Run AFTER every earlier APPLY file (needs 0047 / 0053 / 0248 / 0277; 0279-0287 are not needed by this file).
+-- Run AFTER every earlier APPLY file (needs 0047 / 0053 / 0248 / 0277; 0279-0292 are not needed by this file).
 -- R39 Google-only sign-in for Helm staff (@helm.events). Adds ONE switch, helm_hq_settings.staff_google_only, which is OFF.
 -- While it is OFF nothing changes for anybody. When the HQ Owner turns it ON (HQ -> Staff access, after testing):
 --   * password sign-in for any @helm.events address is refused: "Helm staff sign in with Google. Use 'Continue with Google'."
