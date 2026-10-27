@@ -126,6 +126,9 @@ em{font-family:var(--serif);font-style:italic;font-weight:400}
 .fine{font-size:13px;color:var(--mute);margin:18px 0 0}
 .up{animation:fadeup .9s var(--out) .1s both}.lede.up{animation-delay:.2s}.cta-row.up{animation-delay:.3s}.fine.up{animation-delay:.4s}
 @keyframes fadeup{from{opacity:0;transform:translateY(18px)}}
+/* R43: phones show the hero intro text at once (it is the largest thing on the first screen): same rise, no fade, no delay */
+@keyframes riseup{from{transform:translateY(18px)}}
+@media (max-width:767px){.lede.up{animation-name:riseup;animation-delay:0s}}
 
 .hero-stage{position:relative;margin-top:clamp(40px,6vw,72px)}
 .stage-frame{position:relative;border-radius:32px;padding:clamp(28px,5vw,64px) clamp(16px,6vw,90px) clamp(36px,5vw,70px);background:linear-gradient(160deg,#0f6e4a 0%,#0d8a5c 45%,#41b68a 100%);overflow:hidden;box-shadow:var(--sh);isolation:isolate}

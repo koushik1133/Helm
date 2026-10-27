@@ -47,8 +47,27 @@ t('film strip list is fetched after load, when idle (not during the first screen
   assert.equal((js.match(/function fill\(/g) || []).length, 1, 'no second function named fill in the strip scope');
 });
 
+t('phones: the hero intro text shows at once (rise only, no fade, no delay); wide screens keep the fade', () => {
+  assert.match(css, /@keyframes riseup\{from\{transform:translateY\(18px\)\}\}/);
+  assert.match(css, /@media \(max-width:767px\)\{\.lede\.up\{animation-name:riseup;animation-delay:0s\}\}/);
+  assert.match(css, /\.lede\.up\{animation-delay:\.2s\}/);
+  assert.match(css, /@keyframes fadeup\{from\{opacity:0;transform:translateY\(18px\)\}\}/);
+});
+
+t('in-page links: sections on the way render first, then a settle-and-correct pass (smooth unless reduced motion)', () => {
+  const a = js.slice(js.indexOf('R43: in-page links land exactly on their section'));
+  assert.ok(a.length > 500);
+  assert.match(a, /if \(e\.defaultPrevented \|\| e\.button \|\| e\.metaKey \|\| e\.ctrlKey \|\| e\.shiftKey \|\| e\.altKey\) return;/);
+  assert.match(a, /s\.style\.setProperty\('content-visibility', 'visible'\)/);
+  assert.match(a, /s\.style\.removeProperty\('content-visibility'\)/);
+  assert.match(a, /behavior: reduceMq\.matches \? 'auto' : 'smooth'/);
+  assert.match(a, /pass\+\+ < 3/);
+  assert.doesNotMatch(a, /preventDefault/);   // the browser's own anchor scroll, hash and focus stay as they were
+  assert.match(a, /id === 'top' \|\| id === 'main'/);
+});
+
 t('cache-busters bumped', () => {
-  assert.match(html, /\/home\.css\?v=35"/);
-  assert.match(html, /\/home\.js\?v=35"/);
+  assert.match(html, /\/home\.css\?v=36"/);
+  assert.match(html, /\/home\.js\?v=36"/);
 });
 console.log(`r43-landing-speed: ${n} passed`);

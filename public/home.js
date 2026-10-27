@@ -1715,3 +1715,58 @@
   /* content that changes height after load (contact form fields, tool cards, event strip) */
   setTimeout(build, 1500);
 })();
+
+/* ================= R43: in-page links land exactly on their section =================
+   Sections further down skip rendering until they come near (content-visibility:auto) and the photo strip
+   appears after load, so from a fresh load the page above a target could change height while the smooth
+   scroll was running and the link stopped short. Now, on a tap: (1) the sections between the screen and the
+   target render first, so the browser's own anchor scroll (smooth, or instant with reduced motion; the URL
+   hash and focus behave as before) aims at the real position; (2) when the scroll settles, if the target
+   has moved meanwhile, a second short scroll corrects it (up to three times). */
+(function () {
+  'use strict';
+  var reduceMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var CV = '.crew,.modules,.repeat,.why,.compare,.security,.about,.voices,.pricing,.faq,.contact,.final,body>footer';
+  var job = 0, forced = [];
+  function px(v) { return parseFloat(v) || 0; }
+  function docTop(el) { return el.getBoundingClientRect().top + window.scrollY; }
+  function release() { forced.forEach(function (s) { s.style.removeProperty('content-visibility'); }); forced = []; }
+  function settle(cb) {   // calls back once the page has stopped scrolling for a few frames
+    var last = -1, still = 0, n = 0;
+    (function tick() {
+      var y = window.scrollY;
+      if (Math.abs(y - last) < 0.5) still++; else { still = 0; last = y; }
+      if (still >= 8 || ++n > 900) cb(); else requestAnimationFrame(tick);
+    })();
+  }
+  document.addEventListener('click', function (e) {
+    if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a) return;
+    var id = a.getAttribute('href').slice(1), target = id && document.getElementById(id);
+    if (!target || id === 'top' || id === 'main' || !target.closest('main')) return;   // logo + skip link keep their own behaviour
+    var my = ++job;
+    release();
+    var tTop = target.getBoundingClientRect().top, lo = Math.min(0, tTop), hi = Math.max(0, tTop) + window.innerHeight;
+    Array.prototype.forEach.call(document.querySelectorAll(CV), function (s) {
+      var r = s.getBoundingClientRect();
+      if (r.bottom >= lo && r.top <= hi) { s.style.setProperty('content-visibility', 'visible'); forced.push(s); }
+    });
+    var before = docTop(target);   // real position (forces the layout the anchor scroll will use)
+    var pass = 0;
+    setTimeout(function check() {
+      settle(function () {
+        if (my !== job) return;
+        var now = docTop(target), root = document.documentElement;
+        var want = px(getComputedStyle(root).scrollPaddingTop) + px(getComputedStyle(target).scrollMarginTop);
+        var atEnd = window.scrollY >= root.scrollHeight - window.innerHeight - 1;
+        var off = target.getBoundingClientRect().top - want;
+        if (Math.abs(now - before) > 1 && Math.abs(off) > 1 && !atEnd && pass++ < 3) {
+          before = now;
+          window.scrollTo({ top: window.scrollY + off, behavior: reduceMq.matches ? 'auto' : 'smooth' });
+          setTimeout(check, 50);
+        } else release();
+      });
+    }, 60);
+  });
+})();
