@@ -74,7 +74,7 @@ t("2d edge function: e-mail modes branch BEFORE the token limits, own rate limit
   assert.match(FN, /admin\.rpc\("invite_open_for_email", \{ p_email: email \}\)/);
   assert.match(FN, /if \(mode === "lookup"\) return json\(ans\);/);
   // send: the same invitation e-mail (Join link /login?invite=<token>) to that address only
-  assert.match(FN, /inviteEmail\(\{ token, inviter, studio, role: r\.role, expires_at: r\.expires_at \}\)/);
+  assert.match(FN, /inviteEmail\(\{ token, inviter, studio, role: r\.role, expires_at: r\.expires_at, key: await mintMailKey\(admin, token\) \}\)/);   // R32 AUTH-1: + the mail key
   assert.match(FN, /signInWithOtp\(\{ email, options: \{ shouldCreateUser: false, emailRedirectTo: link \} \}\)/);
   assert.ok(!/console\.(log|error)\([^)]*(email|password|token|bound)\b/.test(FN), "no PII in logs");
 });
@@ -230,7 +230,7 @@ t("SQL 0210: ASCII, additive (no drop / delete / truncate), MANIFEST in numeric 
 });
 t("pins: the changed files are re-pinned on the pages that load them", () => {
   assert.match(LOGIN, /<script src="\/auth-handoff\.js\?v=2"><\/script>/);
-  assert.match(ACH, /<script src="\/auth-confirm\.js\?v=6"><\/script>/);
+  assert.match(ACH, /<script src="\/auth-confirm\.js\?v=7"><\/script>/);
   assert.match(r("public/dashboard.html"), /<script src="trial-demo\.js\?v=(?:1[5-9]|[2-9][0-9])"><\/script>/);
 });
 console.log(`signup-auth-r19: ${n} checks passed`);

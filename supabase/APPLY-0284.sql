@@ -1,6 +1,6 @@
 -- APPLY-0284.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
 -- Run AFTER APPLY-0260 (cancelled events close links) and APPLY-0261 (link views: the IP helper). Order-independent of
--- 0262-0277 and of the parallel 0279 / 0281 / 0282 / 0283 work.
+-- 0262-0277 and of the parallel 0279 / 0281 / 0282 / 0283 / 0285 / 0291 work.
 -- R34 invitation sites. DEFAULTS STAY AS TODAY for every site, new or existing (phone + WhatsApp buttons, full address);
 -- everything new is optional per site: an RSVP form ("RSVP form" or "Both"; replies on the Invitation Studio page + CSV),
 -- hiding the address until the guest replies Yes or Maybe (needs the form), "Make new
@@ -9,7 +9,7 @@
 -- to a superset. No existing row, column or function changed or deleted; every existing invitation looks and behaves
 -- exactly as today until its studio changes a setting (one visible change on every site, owner request: the footer
 -- reads "Designed by <Studio> . Made with Helm Studios"). Safe to run twice. ASCII only.
--- After this: deploy the site (invite.html, invite-studio.html, invite-extras.js, store-api.js v287, invite-og.png).
+-- After this: deploy the site (invite.html, invite-studio.html, invite-extras.js, store-api.js v295, invite-og.png).
 begin;
 -- 0284_invite_rsvp_privacy.sql - CANONICAL forward-only.
 -- REQUIRES phase87 (event_sites, create / publish_event_site), 0022 + 0156 + 0260 (public_event_site and its gates:

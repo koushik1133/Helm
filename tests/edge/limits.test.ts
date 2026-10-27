@@ -42,6 +42,19 @@ Deno.test("limits: rateLimit fixed window, Retry-After, independent keys, reset 
   assert(await rateLimitAll([["a", 5, 1000], ["k", 1, 60_000]], t0 + 60_001) > 0);
   assertEquals(clientIp(new Request("https://x/", { headers: { "x-forwarded-for": "1.2.3.4, 10.0.0.1" } })), "1.2.3.4");
 });
+Deno.test("limits (r31): a faked x-forwarded-for can't buy a fresh rate-limit bucket behind Cloudflare", async () => {
+  _resetRateLimits();
+  // Cloudflare sets cf-connecting-ip itself; the caller's own x-forwarded-for value stays first in the list
+  const req = (fake: string) => new Request("https://x/", { headers: { "cf-connecting-ip": "203.0.113.7", "x-forwarded-for": fake + ", 203.0.113.7" } });
+  assertEquals(clientIp(req("1.1.1.1")), "203.0.113.7");
+  assertEquals(clientIp(req("9.9.9.9")), "203.0.113.7");
+  const t0 = 2_000_000;
+  for (let i = 0; i < 3; i++) assertEquals(await rateLimit("ip:" + clientIp(req("10.0.0." + i)), 3, 60_000, t0), 0);
+  assert(await rateLimit("ip:" + clientIp(req("10.0.0.99")), 3, 60_000, t0) > 0, "a 4th call with yet another fake hop is still limited");
+  // no Cloudflare header (local dev / tests): unchanged fallback order
+  assertEquals(clientIp(new Request("https://x/", { headers: { "x-real-ip": "5.6.7.8" } })), "5.6.7.8");
+  assertEquals(clientIp(new Request("https://x/")), "unknown");
+});
 
 const JSON_FNS: Array<[string, Record<string, string>]> = [
   ["send-otp", { SUPABASE_URL: "https://p.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "s" }],

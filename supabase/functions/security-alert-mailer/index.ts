@@ -18,7 +18,7 @@
 // The e-mail carries the alert name, count and studio name only — no links, tokens,
 // file names or reasons. Logs carry only counts, SQLSTATE codes and HTTP status.
 // Outbound HTTP goes only to a FIXED host allowlist (no URL is ever taken from input).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag, escHtml } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { postalAddress, txFooter, withFooter } from "../_shared/email-compliance.mjs";

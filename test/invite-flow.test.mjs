@@ -9,11 +9,15 @@ const login = r("public/login.html"), store = r("public/store-api.js"), reset = 
 const mailer = r("supabase/functions/invite-mailer/index.ts");
 
 t("store records a new-invitee flag for type=invite links (or a login without a password, 0205)", () => {
-  assert.match(store, /const isNew = inviteFragment\.type === "invite"/);
-  // 0205: the server (own login, my_needs_password) decides when it is available; type=invite otherwise
-  assert.match(store, /let needPw = isNew;/);
-  assert.match(store, /sessionStorage\.setItem\(INVITE_SET_PW_KEY, sr\.data\.user\.id\)/);
+  // R32 AUTH-4: only the /auth/confirm path (asks "Continue as <e-mail>" first) marks it; the legacy
+  // #access_token fragment path is gone. 0205: the server (my_needs_password) decides; type=invite otherwise.
+  const ac = r("public/auth-confirm.js");
+  assert.match(ac, /var need = link\.type === "invite";/);
+  assert.match(ac, /var np = await BPStore\.auth\.needsPassword\(\);/);
+  assert.match(ac, /BPStore\.auth\.markInviteLinkSession\(need\);/);
+  assert.match(store, /markInviteLinkSession\(needPw\) \{/);
   assert.match(store, /inviteSetPasswordPending: \(\) => invitePwPending\(\)/);
+  assert.doesNotMatch(store, /inviteFragment/);
 });
 t("setInvitePassword uses updateUser({password, data:{full_name}}) behind the flag + password rule", () => {
   const m = store.match(/async setInvitePassword\([\s\S]*?\n    \},/); assert.ok(m);

@@ -8,7 +8,7 @@ or network calls, no deploy, no DB, no git.**
 - `_shared/cors.ts` is imported directly (pure functions).
 - The 4 functions call `Deno.serve(handler)` at module top level. `harness.ts`
   stubs `Deno.serve` to **capture the handler**, then invokes it with crafted `Request`s.
-- `import_map.json` redirects `npm:@supabase/supabase-js@2.117.2` to a
+- `import_map.json` redirects `npm:@supabase/supabase-js@2.118.0` to a
   local programmable mock (`mocks/supabase-js.ts`) — the real SDK is **never fetched**.
 - `Deno.env`, `fetch` (MSG91 / Meta Graph / Razorpay / Resend) are all stubbed.
   The mock `fetch` **throws** on any URL a test did not explicitly allow.
