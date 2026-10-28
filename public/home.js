@@ -513,6 +513,37 @@
   }
   layoutTiles();
 
+  /* R43b: "every tool in, one Helm out" is scrubbed by the scroll position. Each chip travels inward on a soft
+     spiral, shrinks and fades into the Helm centre (outer ring first, a short stagger between chips); scrolling
+     back up plays it in reverse. The centre grows a little as chips arrive and its rings swell. transform +
+     opacity only; called from the rAF loop with an eased progress, never with layout reads. */
+  var cvRings = core ? $$('.ring', core) : [];
+  var sstep = function (a, b, x) { var t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  function cvPaint(p) {
+    var n = tiles.length, arrived = 0;
+    tiles.forEach(function (t, i) {
+      var tp = tilePos[i]; if (!tp) return;
+      var st = 0.04 + (i / Math.max(1, n - 1)) * 0.26;               // chip i starts a little after chip i-1
+      var d = sstep(st, st + 0.64, p);                                // 0 = in orbit, 1 = inside the centre
+      var sp = 1 - d;                                                 // straight in, reaching the centre at the end
+      var ang = d * 0.5 * (i % 2 ? 1 : -1);                          // a gentle swirl on the way in
+      var x = tp.x * Math.cos(ang) - tp.y * Math.sin(ang), y = tp.x * Math.sin(ang) + tp.y * Math.cos(ang);
+      t.style.setProperty('transform', 'translate(-50%,-50%) translate3d(' + (x * sp).toFixed(1) + 'px,' + (y * sp).toFixed(1) + 'px,0) rotate(' + (tp.r * (1 - d)).toFixed(2) + 'deg) scale(' + (1 - d * 0.78).toFixed(3) + ')');
+      t.style.setProperty('opacity', (1 - sstep(0.72, 0.98, d)).toFixed(3));
+      arrived += sstep(0.8, 1, d);
+    });
+    var a = n ? arrived / n : 0;
+    var pulse = Math.sin(Math.PI * a) * 0.05;                        // a soft swell while chips are landing
+    core.style.setProperty('transform', 'scale(' + (0.72 + 0.28 * sstep(0, 0.9, p) + pulse).toFixed(3) + ')');
+    core.style.setProperty('opacity', '1');
+    cvRings.forEach(function (r, k) {
+      r.style.setProperty('transform', 'scale(' + (1 + a * (0.12 + k * 0.1)).toFixed(3) + ')');
+      r.style.setProperty('opacity', (0.55 + 0.45 * a).toFixed(3));
+    });
+  }
+  /* reduced motion on wide screens: one still picture of the start state (every tool around the centre) */
+  if (reduce && field && core && vw >= 768) cvPaint(0);
+
   /* ---------- one rAF loop: nav state, converge, morph, lerped parallax ---------- */
   var apps = $('#converge'), morph = $('#morph'), mimgs = [$('.mx0'), $('.mx1'), $('.mx2'), $('.mx3')], mstages = $$('#mstages li'), mframe = $('#morph .mframe');
   var mbar = $('#mbar'), mtag = $('#mtag'), mNames = ['2D plan', '3D view', 'Photo render', 'Measure'];
@@ -583,15 +614,7 @@
         var p = appsCur;
         if (Math.abs(p - appsP) > 0.0005) {
           appsP = p;
-          var e = ease(clamp((p - 0.08) / 0.72, 0, 1));
-          tiles.forEach(function (t, i) {
-            var tp = tilePos[i]; if (!tp) return;
-            var d = clamp(e * 1.15 - i * 0.012, 0, 1);
-            t.style.setProperty('transform', 'translate(-50%,-50%) translate3d(' + (tp.x * (1 - d)).toFixed(1) + 'px,' + (tp.y * (1 - d)).toFixed(1) + 'px,0) rotate(' + (tp.r * (1 - d)).toFixed(2) + 'deg) scale(' + (1 - d * 0.7).toFixed(3) + ')');
-            t.style.setProperty('opacity', (1 - clamp((d - 0.75) / 0.25, 0, 1)).toFixed(3));
-          });
-          core.style.setProperty('transform', 'scale(' + (0.6 + e * 0.55).toFixed(3) + ')');
-          core.style.setProperty('opacity', vw < 640 ? clamp(e * 2.2, 0, 1).toFixed(3) : '1');
+          cvPaint(p);
         }
       }
       /* morph 2D -> 3D -> photo render -> measure */
@@ -1279,7 +1302,7 @@
   var cfI = 0, cfTimer = null;
   function cfRun(on) {
     clearInterval(cfTimer); cfTimer = null;
-    if (on) cfTimer = setInterval(function () { cfI = (cfI + 1) % 5; setCrew(cfI); }, 2600);
+    if (on) cfTimer = setInterval(function () { cfI = (cfI + 1) % 5; setCrew(cfI); }, 1950);   // R43b: ~25% quicker per step, still readable
   }
   if (cflow) {
     if (reduce) setCrew(1);
@@ -1741,7 +1764,7 @@
     function spanOf(sec) { return Math.max(0, sec.offsetHeight - vh); }
     var hero = $('.hero'), hv = $('#heroVidWrap');
     if (hero && hv) out.push([hero, [0, hv.offsetTop - NAVH]]);   // hero copy, then the film fully open
-    var cv = $('#converge'); if (cv) out.push([cv, [0, spanOf(cv)]]);
+    var cv = $('#converge'); if (cv) out.push([cv, [0, 0.25, 0.5, 0.75, 1].map(function (f) { return f * spanOf(cv); })]);   // R43b: the merge is scrubbed in quarter steps
     var film = $('#film'); if (film) out.push([film, frac($$('#film .fc').length).map(function (f) { return f * spanOf(film); })]);
     var morph = $('#morph'); if (morph) out.push([morph, [0.04, 0.38, 0.66, 0.96].map(function (f) { return f * spanOf(morph); })]);
     var story = $('#story'); if (story) out.push([story, frac($$('#story .sl').length).map(function (f) { return f * spanOf(story); })]);
