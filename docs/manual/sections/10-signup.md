@@ -53,6 +53,6 @@ Helm's own team (HQ) confirms the payment, records it with a GST invoice and swi
 | Action | Who |
 | --- | --- |
 | Create a studio, pick a plan, pay | The person signing up (becomes the studio admin) |
-| Change plan or billing details later | Studio admin (Control Center → Plan & billing) |
+| Change plan or billing details later | Studio admin (Settings → Plan & billing) |
 | Confirm a payment and activate a plan | Helm HQ only |
 | Join an existing studio | Teammates, from an invite link - never by creating a studio |

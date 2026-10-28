@@ -6,7 +6,7 @@ const s = readFileSync(new URL("../public/flow.html", import.meta.url), "utf8");
 assert.match(s, /packages:\s*\["#err-menu","menu packages",loadPackages\]/, "packages section must use its own error slot");
 assert.doesNotMatch(s, /packages:\s*\["#pkgCards"/, "pkgCards must not be the loadSection slot (it gets wiped)");
 assert.match(s, /id="err-menu"/, "error slot present");
-assert.match(s, /No menu packages set up yet — <a href="control.html#menu">/, "empty state links to Control Center");
+assert.match(s, /No menu packages set up yet — <a href="control.html#menu">/, "empty state links to Settings");
 // Dishes now go to the per-course dish editor (event_menu_items), not into the notes box
 assert.match(s, /appliedPkg=t; if\(dishEd\) await dishEd\.reload\(\);/, "apply reloads the dish editor");
 assert.doesNotMatch(s, /packageDishText|fillPackageDishes/, "dishes are no longer dumped into the notes textarea");

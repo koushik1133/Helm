@@ -501,7 +501,7 @@
     } catch (e) { return null; }
   }
 
-  /* ---------- studio billing details (onboarding + Control Center) ----------
+  /* ---------- studio billing details (onboarding + Settings) ----------
      Stored on organizations: name (studio), location (primary city), gst_number, and
      brand.phone + brand.billing {legal_name,line1,line2,city,state,pin}. brand.billing is
      never exposed by the public booklet RPCs (they pick brand keys one by one). */

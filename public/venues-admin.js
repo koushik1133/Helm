@@ -1,4 +1,4 @@
-/* venues-admin.js (0085) - Control Center -> Venues tab. List + search / filters, add / edit,
+/* venues-admin.js (0085) - Settings -> Venues tab. List + search / filters, add / edit,
  * deactivate / re-activate (never delete), m / ft toggle, admin "Load sample venues" (adds only missing samples).
  * DOM nodes only (no HTML strings). Server enforces everything again (venue_save etc.). */
 (function () {

@@ -1,4 +1,4 @@
-/* asset-price-grid.js — Control Center "Object & item prices (layout builder)" grid.
+/* asset-price-grid.js — Settings "Object & item prices (layout builder)" grid.
    The per-unit price of every object placed on the floor plan (pricingCfg.assetPrices).
 
    Layout (Oct 2026 fix): the old 3-column grid put "(default ₹1,500)" inside each label, so a long

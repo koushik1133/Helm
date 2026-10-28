@@ -2,7 +2,7 @@
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
    One engine, many pages. Each page's steps live in page-tours.js (R46: the
-   single source of truth, keyed by page and Control Center section).
+   single source of truth, keyed by page and Settings section).
    A page opts in by including page-tours.js then tour.js; the app shell's
    "Tour this page" (the "?" menu, the sidebar) loads both on demand.
 
@@ -19,11 +19,11 @@
   "use strict";
 
   /* ---- per-page steps live in page-tours.js (window.HelmPageTours) ------
-     R46: ONE data file holds every page's tour (and one per Control Center
+     R46: ONE data file holds every page's tour (and one per Settings
      section). This engine reads it; it never keeps steps of its own. Pages that
      include tour.js include page-tours.js just before it; anything else (the
      app shell's "Tour this page") loads it on demand (ensureData below). */
-  const PT_V = "3";
+  const PT_V = "4";
   function PT() { return window.HelmPageTours || null; }
   function ensureData(cb) {
     if (PT()) { cb(); return; }
@@ -62,7 +62,7 @@
   const page = base || "index";
   // Pages without steps of their own (e.g. the dashboard, which passes its own list to
   // HelmTour.start) still get the engine, just no "? Tour" button of our own.
-  // A sectioned page (Control Center) picks the section on screen at the moment the tour starts.
+  // A sectioned page (Settings) picks the section on screen at the moment the tour starts.
   function pageEntry() { const P = PT(); return P ? P.entry(page) : null; }
   function pageSection() { const P = PT(); return P ? P.sectionOf(page) : null; }
   function pageSteps() { const P = PT(); return P ? P.stepsFor(page) : []; }
@@ -173,7 +173,7 @@
   }
   function allowed(step) { return !!step && !(step.trial === false && inTrial()) && needOk(step); }
   // step.alt(can) may return { title?, desc? } for a role that lacks something the admin wording names
-  // (payments, revenue, Control Center...); null / nothing = the step's own (admin) wording.
+  // (payments, revenue, Settings...); null / nothing = the step's own (admin) wording.
   function wording(step) {
     let o = null;
     try { o = typeof step.alt === "function" ? step.alt(can) : null; } catch (_) { o = null; }
@@ -417,7 +417,7 @@
     return true;
   }
 
-  // R46 "Tour this page": this page's tour (the section on screen for Control Center). When the page has
+  // R46 "Tour this page": this page's tour (the section on screen for Settings). When the page has
   // none, or nothing of it is on screen for this role / plan right now, the fallback list runs instead
   // (the app shell passes its generic tour), so the button never does nothing.
   function startPage(fallback, fallbackKey) {

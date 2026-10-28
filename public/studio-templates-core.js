@@ -1,5 +1,5 @@
 /* studio-templates-core.js (0096) - pure helpers for a studio's OWN floor-layout templates.
- * No DOM. Used by studio-templates.js (builder + Control Center + layout wizard) and the tests.
+ * No DOM. Used by studio-templates.js (builder + Settings + layout wizard) and the tests.
  *   validate(meta)            name / event type / description checks (same limits as the DB)
  *   payload(meta, items, room, thumb)  the jsonb sent to studio_template_save (size-limited)
  *   fitToHall(data, hall, cap) template objects scaled / clamped to the CURRENT hall (ft)

@@ -2,8 +2,8 @@
 // R19 (fix/r19-tour-menu-manual): product tour pin step, trimmed profile menu, rebuilt user manual.
 //  1. tour: a sidebar step opens a slim desktop rail (html.htour-rail) so the "Keep the sidebar open" ring sits on
 //     the PIN, not on the logo the invisible pin overlapped; cleared on non-rail steps and when the tour ends.
-//  2. profile menu: Profile, Account settings, User manual (new tab), Sign out - no Control Center / Insights /
-//     Customize dashboard (the sidebar and the dashboard have them). Control Center links the manual under Help.
+//  2. profile menu: Profile, Account settings, User manual (new tab), Sign out - no Settings / Insights /
+//     Customize dashboard (the sidebar and the dashboard have them). Settings links the manual under Help.
 //  3. manual source docs/manual/USER-MANUAL.html covers every feature chapter with a contents list; every
 //     "Screenshot to add" box is in the capture TODO list (scripts/manual-capture.mjs SHOTS); /manual swaps a box
 //     for the picture once it is uploaded. Pure Node, no deps.
@@ -73,15 +73,15 @@ await t('profile menu: account items only, manual (when HELM_FEATURES.manual is 
 await t('profile menu: no "Customize dashboard" injection; the dashboard keeps its own Customize button', () => {
   assert.doesNotMatch(SHELL, /function customizeItem|customizeItem\(|hb-customize/);
   assert.match(read('public/shell-b-dash.js'), /czBtn\.setAttribute\("data-tour", "customize"\)/);
-  // Control Center + Insights are still reachable from the sidebar
+  // Settings + Insights are still reachable from the sidebar
   assert.match(SHELL, /\[ins, "insights", "Insights", "insights\.html", "insights"\]/);
-  assert.match(read('public/store-api.js'), /\{ key: "controls",\s+label: "Control Center",\s+icon: "⚙", page: "control\.html"/);
+  assert.match(read('public/store-api.js'), /\{ key: "controls",\s+label: "Settings",\s+icon: "⚙", page: "control\.html"/);
 });
 await t('Account settings stay for everyone (no trial gate on the menu items)', () => {
   assert.doesNotMatch(fnSrc(AUI, 'menuModel').replace(/\/\/.*$/gm, ''), /trial/i);
   assert.match(fnSrc(AUI, 'runItem'), /if \(id === "settings"\) return openAccount\(\{ section: "settings" \}\);/);
 });
-await t('Control Center: Help -> User manual (new tab, #control), visible on phones too', () => {
+await t('Settings: Help -> User manual (new tab, #control), visible on phones too', () => {
   assert.match(CS, /var help=el\("div","cs-help"\); help\.appendChild\(el\("h4","cs-group-h","Help"\)\);/);
   assert.match(CS, /hl\.href="manual\.html#control"; hl\.target="_blank"; hl\.rel="noopener noreferrer";/);
   // r20 coord (e): the Help group is only added while HELM_FEATURES.manual is true (hidden for now)
@@ -107,7 +107,7 @@ await t('manual: every chapter exists once and is in the contents list and the s
 await t('manual: covers the R19 feature list in plain words', () => {
   for (const s of ['8 days free', 'up to <b>2 new records in each list</b>', 'Invite <b>up to 2 teammates</b>', 'Test mode', 'one extension of up to 7 days',
     'Continue where you left off', '1 · Client &amp; event', '8 · Quotation', 'Send for approval', 'Record advance', 'In progress',
-    'Lead · Discovery', 'Event Day', 'Only 20 free, short by 10', 'Vendor bills &amp; payouts', 'Save and invite to sign in', 'Control Center → Venues',
+    'Lead · Discovery', 'Event Day', 'Only 20 free, short by 10', 'Vendor bills &amp; payouts', 'Save and invite to sign in', 'Settings → Venues',
     '<b>Events</b> — which event is on when', '<b>Team</b> — who is working when', 'Create event group', 'Suggested', 'Close &amp; archive',
     'Users &amp; invites', 'Roles &amp; access', 'Hide amounts (privacy PIN)', 'Layout templates', 'Starter', 'Studio', 'Enterprise',
     'Read-only after 8 days', 'Data kept 60 days', 'Account settings', '<b>User manual</b> — opens this manual in a new tab', 'Help → User manual'])

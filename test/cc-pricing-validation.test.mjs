@@ -1,4 +1,4 @@
-// Control Center > Pricing & coupons: every edge case of the Default pricing fields and the coupon form.
+// Settings > Pricing & coupons: every edge case of the Default pricing fields and the coupon form.
 // Owner report (Oct 2026): clearing or changing the chair price said "update the price of the chair and
 // plates" as if both were zero. Now each field has its own rule and its own message under it.
 import { readFileSync } from "node:fs";

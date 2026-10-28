@@ -30,8 +30,8 @@ export const SHOTS = [
   { name: 'm-chat.png', path: '/chat', caption: 'Team chat with an event group open' },
   { name: 'm-budget.png', path: '/budget?id={E}', caption: 'Budget & margin: requirement lines, suggested lines and totals' },
   { name: 'm-settlement.png', path: '/settlement?id={E}', caption: 'Settlement: client balance, vendors and vendor bills' },
-  { name: 'm-cc-users.png', path: '/control#users', caption: 'Control Center - Users & invites' },
-  { name: 'm-cc-access.png', path: '/control#access', caption: 'Control Center - Roles & access (the access matrix)' },
+  { name: 'm-cc-users.png', path: '/control#users', caption: 'Settings - Users & invites' },
+  { name: 'm-cc-access.png', path: '/control#access', caption: 'Settings - Roles & access (the access matrix)' },
   { name: 'm-checkout.png', path: '/checkout', caption: 'Choose your Helm plan' },
 ];
 

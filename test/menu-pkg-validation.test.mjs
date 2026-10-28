@@ -1,4 +1,4 @@
-// 0192: every edge case of "Save package" in Control Center > Menus & catalog > Menu packages.
+// 0192: every edge case of "Save package" in Settings > Menus & catalog > Menu packages.
 // Pure checks (price / dish list / bulk text) run in Node; the card is driven through a tiny fake DOM:
 // cleared price -> inline "Enter a price per plate" and NOTHING is sent; 0 / negative / text / > 1,00,000 /
 // 3 decimals blocked; active package with no dishes blocked; inactive keeps its last price, never cleared;

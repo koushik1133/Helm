@@ -260,7 +260,7 @@ and the HQ "Security" panel work without it.
    ```
 4. Schedule a POST every 5 minutes with header `x-helm-cron-secret: <secret>`.
 5. Turn it on: `supabase secrets set HELM_SECURITY_ALERTS_ENABLED=true`.
-Studios can switch security e-mails off in Control Center → Notifications → Security.
+Studios can switch security e-mails off in Settings → Notifications → Security.
 
 ## Welcome e-mails (LATER — owner only, DORMANT)
 `welcome-mailer` e-mails the welcomes queued by migration 0057 (`welcome_email_outbox`):
@@ -301,7 +301,7 @@ and `tests/db/welcome-email.sql` (enqueue once, no duplicates, org isolation, cl
 `invite-mailer` e-mails staff invitations: "<Admin> invited you to join <Studio> on Helm as <Role>"
 with a **Join** button to `<APP_URL>/login?invite=<token>`, the expiry date and a plain-text copy.
 Queue: `invite_email_outbox` (one row per invitation, so each invite is e-mailed once). A new invite
-(or a re-tokened one) is queued by a trigger; **Resend email** (Staff page / Control Center → Users)
+(or a re-tokened one) is queued by a trigger; **Resend email** (Staff page / Settings → Users)
 re-queues it, at most once per 10 minutes per invite. Copy link keeps working as a backup.
 
 **0205 (2026-10-18): one invitation for every invitee.** With an e-mail provider for the edge

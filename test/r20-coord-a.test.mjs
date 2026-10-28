@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// R20 (fix/r20-coord-a): live-QA fixes seen as an "Event coordinator" (Quotes view-only, no Control Center).
+// R20 (fix/r20-coord-a): live-QA fixes seen as an "Event coordinator" (Quotes view-only, no Settings).
 //  9. Invitation Studio: gated on the SAME area the server uses (Quotes & workspace): no view -> "No access";
 //     view only -> read-only editor (Save draft / Publish / every write control disabled + a "View only" banner)
-// 18. Control Center / Settings: pkg_settings_get is only asked when the role passes the server's own check
+// 18. Settings / Settings: pkg_settings_get is only asked when the role passes the server's own check
 //     (controls view OR pkg_review view) - no 403 in the console for a coordinator
 // 20. Audit log / checkout: a ROLE block lands on the dashboard with a one-time "Your role can't open that page."
 //     notice (same bp_flash mechanism as the trial notice; the trial case keeps its trial wording)

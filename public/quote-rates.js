@@ -9,11 +9,11 @@
             with no package: the quote's own price when the quote keeps its own currency, else the studio default.
      chair  the studio default; the quote's own price only when the quote keeps its own currency / tax
             snapshot (shown as "locked at quote time").
-   Studio default = Control Center > Pricing. A pricing config without chairPrice / platePrice (a free-trial studio's
-   config only carries tax + terms keys) falls back to 200 / 500 - the same numbers Control Center shows for it. */
+   Studio default = Settings > Pricing. A pricing config without chairPrice / platePrice (a free-trial studio's
+   config only carries tax + terms keys) falls back to 200 / 500 - the same numbers Settings shows for it. */
 (function (global) {
   "use strict";
-  var DEFAULTS = { chairPrice: 200, platePrice: 500 };   // = store-api.js PRICING_DEFAULTS / Control Center's fallback
+  var DEFAULTS = { chairPrice: 200, platePrice: 500 };   // = store-api.js PRICING_DEFAULTS / the Settings page's fallback
 
   // a usable money value (0 is a real price), else null
   function num(v) {
@@ -87,7 +87,7 @@
     money = typeof money === "function" ? money : function (n) { return String(n); };
     var s = "· " + money(r.chairPrice) + "/chair (" + chairLabel(r) + ") · " + money(r.platePrice) + "/plate (" + plateLabel(r) + ")";
     if (tax && tax.name) s += " · " + tax.name + " " + tax.rate + "%" + (tax.inclusive ? " (included in prices)" : "");
-    return s + "  (edit in Control Center)";
+    return s + "  (edit in Settings)";
   }
   // "Saved on this quote: ..." - only when a save would change the stored rates
   function savedNote(r, money) {

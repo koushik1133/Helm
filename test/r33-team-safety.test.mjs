@@ -1,9 +1,9 @@
 // r33-team-safety.test.mjs - r33 team safety (SQL 0283, owner-approved EDGE-CASES-PLAN B1 / B4 / B5), the browser / repo side:
 //  * team-safety.js: the overview -> table view, the waiting-change / hand-over banner lines, open-work links, refusals in
 //    plain words (by the server's hint), the fresh two-step retry; DOM by createElement only (no innerHTML)
-//  * Control Center (control.html): "Remove" is Deactivate (never "permanently deletes"), Owner badge, no Deactivate on the
+//  * Settings (control.html): "Remove" is Deactivate (never "permanently deletes"), Owner badge, no Deactivate on the
 //    owner, deactivated rows offer Reactivate + Open work, a non-owner's admin change says "24 hours", banner box wired
-//  * store-api: BPStore.team.* -> the team_* RPCs; bell kind team_safety (label + Control Center link); v286 everywhere
+//  * store-api: BPStore.team.* -> the team_* RPCs; bell kind team_safety (label + Settings link); v286 everywhere
 //  * comms-dispatch: the team_safety e-mail for every event (names only), unknown event -> null
 //  * hq.js: "Studio owner" card + "Recover studio owner" (Owner role only, written reason 20+)
 //  * SQL 0283: MANIFEST + run-all + release lists, APPLY verbatim + VERIFY, ASCII, additive only, STOP guard
@@ -87,7 +87,7 @@ await t('team-safety.js: no innerHTML / insertAdjacentHTML / document.write (tex
   assert.doesNotMatch(code, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
 });
 
-await t('Control Center: members table - Owner badge, no Deactivate on the owner, Deactivate (class rm) on others, deactivated rows', () => {
+await t('Settings: members table - Owner badge, no Deactivate on the owner, Deactivate (class rm) on others, deactivated rows', () => {
   const T = ucTable(), H = loadTeam();
   const rows = [ROW(1, { role: 'admin' }), ROW(2, { role: 'admin' }), ROW(3, { role: 'admin' }), ROW(4)];
   const r = T(rows, { profiles: true, meId: 'u2', roles: ['admin', 'crew'], roleLabel: (x) => x, canEdit: true, q: '', filter: '', team: H.view(OV) });
@@ -105,7 +105,7 @@ await t('Control Center: members table - Owner badge, no Deactivate on the owner
   const old = T(rows, { profiles: true, meId: 'u2', roles: ['admin', 'crew'], q: '', filter: '' });
   assert.equal((old.body.match(/class="rm"/g) || []).length, 3); assert.doesNotMatch(old.body, /ts-own|ucoff/);
 });
-await t('Control Center: Deactivate wording + flow (never "permanently deletes"), 24-hour wording for a non-owner, Reactivate / Open work', () => {
+await t('Settings: Deactivate wording + flow (never "permanently deletes"), 24-hour wording for a non-owner, Reactivate / Open work', () => {
   assert.doesNotMatch(C, /permanently deletes their account/);
   assert.doesNotMatch(C, /Delete user account\?/);
   assert.match(C, /BPStore\.team\?BPStore\.team\.deactivate\(id, null\):BPStore\.auth\.admin\.deleteUser\(id\)/);
@@ -119,11 +119,11 @@ await t('Control Center: Deactivate wording + flow (never "permanently deletes")
   assert.match(C, /try\{ ucTeam=BPStore\.team\?await BPStore\.team\.overview\(\):null; \}catch\(e\)\{ ucTeam=null; \}/);
   assert.match(C, /HelmTeam\.paint\(\$\("#team_safety"\), ucTeam, \{ store:BPStore\.team, guard:BPUI\.guard, confirm:BPUI\.confirm, prompt:BPUI\.prompt,/);
   assert.match(C, /<div id="team_safety" aria-live="polite" hidden><\/div>\s*<div id="team_work" aria-live="polite" hidden><\/div>/);
-  assert.match(C, /<script src="team-safety\.js\?v=2"><\/script>/); assert.match(C, /<link rel="stylesheet" href="team-safety\.css\?v=1">/);
-  assert.ok(C.indexOf('team-safety.js?v=2') < C.indexOf('async function renderUsers()'), 'loaded before the page script');
+  assert.match(C, /<script src="team-safety\.js\?v=3"><\/script>/); assert.match(C, /<link rel="stylesheet" href="team-safety\.css\?v=2">/);
+  assert.ok(C.indexOf('team-safety.js?v=3') < C.indexOf('async function renderUsers()'), 'loaded before the page script');
 });
 
-await t('store-api: BPStore.team -> team_* RPCs; bell kind team_safety (label + Control Center link); v286 on every page', () => {
+await t('store-api: BPStore.team -> team_* RPCs; bell kind team_safety (label + Settings link); v286 on every page', () => {
   for (const [fn, rpc] of [['overview', 'team_safety_overview'], ['deactivate', 'team_deactivate_member'], ['reactivate', 'team_reactivate_member'],
     ['setRole', 'team_set_role'], ['cancelChange', 'team_change_cancel'], ['openWork', 'team_member_open_work'], ['transferStart', 'team_owner_transfer_start'],
     ['transferAccept', 'team_owner_transfer_accept'], ['transferCancel', 'team_owner_transfer_cancel']]) {
@@ -132,7 +132,7 @@ await t('store-api: BPStore.team -> team_* RPCs; bell kind team_safety (label + 
   assert.match(API, /team_safety: \["🛡️", String\(d\.label \|\| "Team change"\)\],/);
   assert.match(API, /if \(k === "team_safety"\) return "control\.html#users";/);
   for (const f of readdirSync(new URL('../public/', import.meta.url)).filter((x) => x.endsWith('.html'))) {
-    const m = rd('public/' + f).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '299', f);
+    const m = rd('public/' + f).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '300', f);
   }
 });
 await t('comms-dispatch: the team_safety e-mail for every event (names only, Team link on APP_URL); unknown event -> null', async () => {
@@ -145,7 +145,7 @@ await t('comms-dispatch: the team_safety e-mail for every event (names only, Tea
     admin_change_applied: [/Meera was deactivated - Aurora Events/, /Their records are kept; an admin can reactivate them\./],
     admin_deactivated: [/Meera was deactivated/, /Ravi \(the studio owner\) deactivated Meera/],
     admin_demoted: [/Meera is now Event manager/, /from Admin to Event manager/],
-    owner_transfer_started: [/Anil wants to make Ravi the owner of Aurora Events/, /must accept it in Control Center -> Team within 7 days/],
+    owner_transfer_started: [/Anil wants to make Ravi the owner of Aurora Events/, /must accept it in Settings -> Team within 7 days/],
     owner_transfer_accepted: [/Ravi is now the owner of Aurora Events/, /Anil stays an admin/],
     owner_transfer_cancelled: [/hand-over was cancelled/, /Nothing changed\./],
     owner_transfer_declined: [/Ravi declined/, /Anil stays the owner/],
@@ -187,7 +187,7 @@ await t('SQL 0283: registered (MANIFEST, run-all, release lists), APPLY verbatim
   assert.doesNotMatch(code, /delete from auth\.users|create\s+temp|pg_temp/i, 'no login deleted, no temp tables / session state');
   assert.match(code, /STOP 0283:/, 'STOP guard when 0282 is missing');
   assert.match(code, /create table if not exists public\.team_member_status/);
-  assert.match(code, /perform public\.team_deactivate_member\(p_id, 'Removed in Control Center'\);/, 'admin_delete_user deactivates');
+  assert.match(code, /perform public\.team_deactivate_member\(p_id, 'Removed in Control Center'\);/, 'admin_delete_user deactivates');   // r38-keep: applied SQL 0283 text (immutable)
   assert.match(code, /grant execute on function %s to authenticated/);
   assert.match(code, /alter table public\.%I enable row level security/);
   assert.match(rd('package.json'), /node test\/r33-team-safety\.test\.mjs/);

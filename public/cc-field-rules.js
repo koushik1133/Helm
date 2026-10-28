@@ -1,4 +1,4 @@
-/* cc-field-rules.js - Control Center input rules + inline field errors (Oct 2026 sweep B).
+/* cc-field-rules.js - Settings input rules + inline field errors (Oct 2026 sweep B).
  * Sections: Menus & catalog (dish add + dish filter), Layout rules, Reminders & client messages,
  * Layout templates (rename) and the Venues list filters.
  *
@@ -13,7 +13,7 @@
  *   templatePlaceholders(text, allowed)     -> unknown {placeholders} (they would reach clients as typed)
  *   tokens(q) / matches(hay, tokens) / key(s)   list-filter helpers (venues search + city filter)
  * DOM helpers (browser only): fieldError(input, msg, anchor), clearErrors(root), showErrors(list).
- * An error message is a NEW <p class="fv-msg" role="alert"> each time, so the Control Center's
+ * An error message is a NEW <p class="fv-msg" role="alert"> each time, so the Settings page's
  * "unsaved changes" bar sees a failed save. Text only - never HTML. */
 (function (G) {
   "use strict";

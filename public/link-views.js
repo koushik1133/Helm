@@ -4,7 +4,7 @@
      the same chip (+ a one-line summary in the panel); #link-views in the address opens the timeline.
    - The timeline dialog: every visit (first / last open, device, which pages), the IP address for admins only,
      "Viewed but not approved" with a one-tap Send a nudge (e-mail / WhatsApp, queued) and Dismiss.
-   - Control Center card (#lvCard[data-link-views-settings]): the studio's switches.
+   - Settings card (#lvCard[data-link-views-settings]): the studio's switches.
    Reads / writes ONLY through BPStore.linkViews (every rule is checked in the database). DOM API only (no HTML
    strings). Hidden when the server is older than 0261, signed out, or without Quotes view. */
 (function (global) {
@@ -267,7 +267,7 @@
         };
         acts.appendChild(mk("email", "Send a nudge by e-mail", !!ch.email, "Add the client's e-mail to the event first."));
         acts.appendChild(mk("whatsapp", "Nudge on WhatsApp", !!ch.whatsapp,
-          "Needs the client's mobile number, their WhatsApp opt-in and your studio's WhatsApp number (Control Center → Notifications)."));
+          "Needs the client's mobile number, their WhatsApp opt-in and your studio's WhatsApp number (Settings → Notifications)."));
         if (f && f.status === "open") {
           var dm = h("button", { type: "button", cls: "lv-btn ghost", text: "Dismiss" });
           dm.addEventListener("click", function () {
@@ -281,7 +281,7 @@
           acts.appendChild(dm);
         }
         box.appendChild(acts);
-        box.appendChild(h("p", { cls: "lv-muted lv-small", text: "The nudge uses your studio's follow-up message (Control Center → Notifications → Client follow-ups) and goes to the client's e-mail / WhatsApp on the event. It is queued and sent by Helm's messaging service." }));
+        box.appendChild(h("p", { cls: "lv-muted lv-small", text: "The nudge uses your studio's follow-up message (Settings → Notifications → Client follow-ups) and goes to the client's e-mail / WhatsApp on the event. It is queued and sent by Helm's messaging service." }));
       }
       box.appendChild(msg);
       body.appendChild(box);
@@ -316,7 +316,7 @@
     body.appendChild(h("p", { cls: "lv-muted lv-small", text: "Opens by your own team (signed in) and the Preview buttons are never counted. Pages opened on one device within 30 minutes count as one visit." }));
   }
 
-  /* Control Center card */
+  /* Settings card */
   async function settingsCard(card) {
     if (!card || card.__lv) return; card.__lv = true;
     var st = S(); if (!st || !st.linkViews) return;
@@ -333,7 +333,7 @@
     var bf = chk("lv_bell1", "Bell notification the first time the client opens it", cfg.bell_first);
     var br = chk("lv_bellr", "Also notify on later visits", cfg.bell_repeat);
     var rh = num("lv_rh", "at most once every (hours)", cfg.repeat_hours, 1, 168);
-    // r25 (0274): the viewed-but-not-approved alert is switched on / off ONLY in Control Center -> Automations
+    // r25 (0274): the viewed-but-not-approved alert is switched on / off ONLY in Settings -> Automations
     var fe = { el: h("span", { cls: "mnote au-onoff", id: "lv_fu" }, ["“Viewed but not approved” alert for the quote's owner + admins: ",
       h("b", { text: cfg.followup_enabled ? "on" : "off" }), " (switch it in ", h("a", { href: "#automations", text: "Automations" }), ")"]) };
     var fd = num("lv_fd", "after (days)", cfg.followup_days, 1, 30);
@@ -354,7 +354,7 @@
     card.hidden = false;
     if (!canEdit) {
       Array.prototype.forEach.call(card.querySelectorAll("input,button"), function (x) { x.disabled = true; });
-      msg.textContent = "Only people with Control Center edit rights can change these settings.";
+      msg.textContent = "Only people with Settings edit rights can change these settings.";
       return;
     }
     save.addEventListener("click", function () {

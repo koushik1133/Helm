@@ -1,4 +1,4 @@
-/* menu-pkg-editor.js - Control Center > Menus & catalog > Menu packages.
+/* menu-pkg-editor.js - Settings > Menus & catalog > Menu packages.
  *
  * Each package used to be one textarea of "Category | Dish name | veg|nonveg|special" lines.
  * Now every package shows its dishes grouped by category as removable chips, and dishes are

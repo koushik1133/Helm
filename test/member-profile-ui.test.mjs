@@ -1,7 +1,7 @@
 // "Complete your profile" (0041) — PART B: where profiles show up.
 // Pins, with store-api.js running in a vm sandbox against a stubbed Supabase client and the
 // page render functions run against stub data:
-//  * Control Center → User control lists member_profile_list rows (photo, phone ONLY when the
+//  * Settings → User control lists member_profile_list rows (photo, phone ONLY when the
 //    DB returned it, job title, department, complete ✓/✗ + joined date), falls back to the old
 //    list before 0041, filters / searches, escapes everything
 //  * the admin edit dialog validates like 0041 (Indian mobile, text <= 80 / no < >, <= 20
@@ -210,7 +210,7 @@ t('DB business messages from 0041 are shown as-is; technical ones are not', asyn
   assert.equal(T({ code: '22023', message: 'Add a full name and mobile number first — day rate and employment type live on the staff record.' }),
     'Add a full name and mobile number first — day rate and employment type live on the staff record.');
   assert.match(T({ code: '23505', message: "That mobile number is already on another team member's profile in your studio." }), /already on another/);
-  assert.match(e.S.staff.linkErrorText({ code: '42501', message: 'This staff record is linked to a Helm account — change name, phone, email, department and title in Control Center → User control (or the member edits their own profile).' }), /linked to a Helm account/);
+  assert.match(e.S.staff.linkErrorText({ code: '42501', message: 'This staff record is linked to a Helm account — change name, phone, email, department and title in Settings → User control (or the member edits their own profile).' }), /linked to a Helm account/);
   assert.equal(T({ code: '42501', message: 'not authorized' }), null);
   assert.equal(T({ code: '23505', message: 'duplicate key value violates unique constraint "crew_members_org_profile_uidx"' }), null);
   assert.equal(T(null), null);

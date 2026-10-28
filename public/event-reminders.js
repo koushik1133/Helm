@@ -1,5 +1,5 @@
 /* event-reminders.js - 0129 "event is coming up" reminders (client side).
-   - Control Center: "Remind the team before each event: [7] days" (admins edit; others read-only).
+   - Settings: "Remind the team before each event: [7] days" (admins edit; others read-only).
    - Event page: "Upcoming in N days" banner for a confirmed event inside the window.
    - Dashboard: caches the studio window so shell-b-dash.js "Needs attention" can list events inside it.
    Reads/writes ONLY via BPStore.comms.reminderGet / reminderSet / reminderUpcoming. DOM API only. */
@@ -30,7 +30,7 @@
       cacheDays(r.days);
       var card = el("div", "card"); card.id = "evrCard";
       card.appendChild(el("h3", null, "Event reminders"));
-      card.appendChild(el("p", "mnote", "Once switched on in Control Center → Automations (“Event reminders”, off until you do), Helm reminds your whole team in the bell (and in the event's chat group, when it has one) before every confirmed event, and again the day before. Nothing is sent to clients."));
+      card.appendChild(el("p", "mnote", "Once switched on in Settings → Automations (“Event reminders”, off until you do), Helm reminds your whole team in the bell (and in the event's chat group, when it has one) before every confirmed event, and again the day before. Nothing is sent to clients."));
       var row = el("div", "evr-row");
       var lab = el("label", null, "Remind the team before each event: "); lab.setAttribute("for", "evr_days");
       // no max/step: the global number hardener would silently clamp 45 -> 30 or turn a pasted "2.5" into 25;

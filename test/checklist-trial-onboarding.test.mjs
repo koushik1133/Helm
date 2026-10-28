@@ -205,7 +205,7 @@ t('onboarding: step numbers match "Step N of M"; typed teammate e-mail is invite
   assert.match(s, /if \(!invites\.length\) \{ setVals\.team = \{\}; setErr\.team = \{\}; if \(!st\.done\) st\.skipped = true; go\(S\.step \+ 1\); return; \}/);
   // review: a resumed setup whose team step was already done (invites sent earlier) must not flip to "skipped"
   assert.doesNotMatch(s, /st\.done = false; st\.skipped = true; go\(S\.step \+ 1\)/);
-  assert.doesNotMatch(s, /Control Center → Studio details/);
+  assert.doesNotMatch(s, /Settings → Studio details/);
 });
 
 let fail = 0;

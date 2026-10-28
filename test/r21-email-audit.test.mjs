@@ -1,5 +1,5 @@
 // Round 21 - e-mail + outgoing link audit (EMAIL-AND-LINKS-AUDIT.md):
-//  1. Staff "Invite to log in" / Control Center "Users & invites": only a real send says "sent"; queued-but-not-sent,
+//  1. Staff "Invite to log in" / Settings "Users & invites": only a real send says "sent"; queued-but-not-sent,
 //     skipped and failed say plainly that nothing has gone out (no "Helm will retry automatically" promise - there is
 //     no guaranteed retry unless the owner scheduled the invite-mailer cron)
 //  2. trial welcome invite step: "Invites sent" only when the mailer really sent (sent > 0, no failed / skipped)
@@ -37,7 +37,7 @@ t("1a Staff page invite e-mail line: sent / failed / skipped / queued / dormant 
   assert.match(f(null), /couldn't confirm the email/);
   for (const x of [{ status: "ok", sent: 0, failed: 1 }, { status: "ok", sent: 0 }, null]) assert.doesNotMatch(f(x), /on its way|retry automatically|email sent/i);
 });
-t("1b Control Center invite message: same rules, [kind, text]", () => {
+t("1b Settings invite message: same rules, [kind, text]", () => {
   const ctx = {}; vm.runInNewContext(fnSrc(CC, "inviteMailMsg") + "\nglobalThis.f=inviteMailMsg;", ctx);
   assert.deepEqual(ctx.f({ status: "ok", sent: 1 }, "a@x.com")[0], "ok");
   assert.equal(ctx.f({ status: "ok", sent: 1, failed: 1 }, "a@x.com")[0], "err");

@@ -1,7 +1,7 @@
 /* delivery-tracker.js (0241, owner r21) - "Deliveries & arrivals" on the event-day page.
  * A planner assigns a delivery / arrival ("120 chairs from Deccan Rentals by 4:30 pm") and, at the bottom of the
  * same form, picks how many reminders and when (e.g. 1 hour before, 30 minutes before, at the time - defaults
- * from Control Center). Helm e-mails the responsible person at those times with a one-tap status link; every
+ * from Settings). Helm e-mails the responsible person at those times with a one-tap status link; every
  * reply (on the way / arrived / delayed + new time / problem) shows here live, is kept in the history and is
  * posted by Helm into the event's team chat. Late items are red.
  * Reads / writes only through BPStore.deliveries (RPCs; studio + 'deliveries' area checked in the database).
@@ -111,7 +111,7 @@
 
   var state = { host: null, quoteId: null, canEdit: false, cfg: null, rows: [], open: {} };
 
-  // ---- the reminders editor (assignment form bottom + Control Center defaults) ----
+  // ---- the reminders editor (assignment form bottom + Settings defaults) ----
   function offsetsEditor(initial, o) {
     o = o || {};
     var list = cleanOffsets(initial);
@@ -184,8 +184,8 @@
     var hint = h("p", { cls: "dlv-hint" });
     function paintHint() {
       var k = kindSel.value;
-      hint.textContent = off ? "Reminders are switched off for the studio (Control Center → Notifications). The delivery is still tracked here."
-        : kinds.indexOf(k) < 0 ? "Your studio does not e-mail this kind of person (Control Center). The delivery is still tracked here."
+      hint.textContent = off ? "Reminders are switched off for the studio (Settings → Notifications). The delivery is still tracked here."
+        : kinds.indexOf(k) < 0 ? "Your studio does not e-mail this kind of person (Settings). The delivery is still tracked here."
         : "Each reminder e-mails a one-tap link to reply On the way / Arrived / Delayed / Problem - no sign-in. Replies show here and in the event's team chat.";
     }
     async function paintPick() {
@@ -343,7 +343,7 @@
     prog.textContent = summary(state.rows);
     var c = state.cfg || {};
     sub.textContent = c.enabled ? "Helm e-mails each person at their reminder times and posts every reply in the event's team chat. Late items turn red."
-      : "Track who is bringing what and when. Automatic e-mail reminders are off - an admin can switch them on in Control Center → Notifications.";
+      : "Track who is bringing what and when. Automatic e-mail reminders are off - an admin can switch them on in Settings → Notifications.";
     clear(list);
     if (!state.rows.length) { list.appendChild(h("div", { cls: "empty", text: state.canEdit ? "Nothing scheduled yet. Add deliveries and arrivals with their due time." : "Nothing scheduled yet." })); return; }
     state.rows.forEach(function (r) { list.appendChild(rowEl(r)); });

@@ -70,8 +70,8 @@
 <link rel="stylesheet" href="logistics-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<link rel="stylesheet" href="payment-schedule.css?v=2">
-<script src="/shell-proto.js?v=49" id="shellProto"></script>
+<link rel="stylesheet" href="payment-schedule.css?v=3">
+<script src="/shell-proto.js?v=50" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -118,12 +118,12 @@
 
 <script src="/trusted-types.js?v=5"></script>
 <script src="telemetry.js?v=9"></script>
-<script src="config.js?v=111"></script>
+<script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=6"></script><script src="store-api.js?v=299"></script>
-<script src="page-tours.js?v=3"></script>
-<script src="tour.js?v=27"></script>
-<script src="payment-schedule.js?v=1"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=300"></script>
+<script src="page-tours.js?v=4"></script>
+<script src="tour.js?v=28"></script>
+<script src="payment-schedule.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -246,7 +246,7 @@
         const take=Math.min(a,left); left-=take; const rem=Math.round((a-take)*100)/100;
         if(a>0&&rem<=0.005){ covered.add(m.id); alloc.set(m.id,{paid:a,rem:0}); } else alloc.set(m.id,{paid:Math.round(take*100)/100,rem}); });
     const phone=(ev.client&&(ev.client.phone))||"";
-    $("#pane").innerHTML = `<h2>Client payments</h2><p class="sub">When the client pays us, in parts (advance, balance…). Recording a payment marks every part it fully covers as paid; reminders go to the client before, on and after each due date (Control Center).</p>
+    $("#pane").innerHTML = `<h2>Client payments</h2><p class="sub">When the client pays us, in parts (advance, balance…). Recording a payment marks every part it fully covers as paid; reminders go to the client before, on and after each due date (Settings).</p>
       <div id="pschCtl" class="psch-ctl" hidden></div>
       ${canEdit?`<div class="addrow pay">
         <div class="fld"><label for="m_label">Milestone *</label><input id="m_label" maxlength="120" required placeholder="e.g. 50% advance"></div>
@@ -270,7 +270,7 @@
     document.querySelectorAll("#pane [data-remind]").forEach(b=>b.addEventListener("click",()=>{
       const m=ms.find(x=>x.id===b.dataset.remind);
       act(b,async()=>{
-        // 0078: the server sends it (e-mail / WhatsApp per Control Center), deduped + logged on the event
+        // 0078: the server sends it (e-mail / WhatsApp per Settings), deduped + logged on the event
         const r=await BPStore.comms.remindNow(m.id);
         if(r){ BPUI.toast(r.queued?"Reminder queued — it goes out on the next send run.":"A reminder for this milestone was just queued.",{type:r.queued?"ok":"info"}); return; }
         if(!phone){ BPUI.toast("No client phone on this event.",{type:"err"}); return; }

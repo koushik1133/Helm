@@ -4,7 +4,7 @@
 //           reads milestones or the ledger (RLS-blocked) - it gets the quote's own status and no "Fix" link.
 //           "Guests fit the venue" also matches a saved venue by NAME when the quote has no venue id.
 //  17       the dashboard tour, the shell tour and the "Welcome to Helm Events" sheet skip / reword steps about
-//           areas the role can't open (new quote, lead convert, payments, revenue, Nurture, Control Center);
+//           areas the role can't open (new quote, lead convert, payments, revenue, Nurture, Settings);
 //           admins keep the exact admin wording.
 // store-api.js runs in a vm sandbox with a stubbed supabase client; tour.js in a small stubbed DOM.
 import assert from 'node:assert/strict';
@@ -227,12 +227,12 @@ t('dashboard tour: admins get exactly the admin wording; the coordinator gets no
   assert.equal(admin.length, 23);   // r47: + My events & tasks
   const co = shownFor(coordCan), text = co.map((s) => s.title + ' ' + s.desc).join('\n');
   { const cs = co.find((s) => s.title === 'Create something new'); assert.ok(!cs || !/New quote/.test(cs.desc), 'no New quote wording without quote create'); }   // r20 planner: the plain "New" menu step
-  for (const bad of [/payments/i, /revenue/i, /P&L/, /Nurture/, /Control Center/, /into a quote in one click/, /Business shows/]) assert.doesNotMatch(text, bad, String(bad));
+  for (const bad of [/payments/i, /revenue/i, /P&L/, /Nurture/, /Settings/, /into a quote in one click/, /Business shows/]) assert.doesNotMatch(text, bad, String(bad));
   assert.match(text, /Open a lead to see its details/);
   assert.match(co[0].desc, /quotes, leads, the calendar, staff and stock\./);
   assert.equal(co.find((s) => /^Admin/.test(s.title)).title, 'Admin');
-  // admin step with finance + insights but no Control Center
-  const mgr = TOUR.find((s) => s.title === 'Admin & Control Center').alt((tok) => tok !== 'controls');
+  // admin step with finance + insights but no Settings
+  const mgr = TOUR.find((s) => s.title === 'Admin & Settings').alt((tok) => tok !== 'controls');
   assert.deepEqual(J(mgr), { title: 'Admin', desc: 'Business shows your money and Insights your numbers.' });
 });
 
@@ -248,7 +248,7 @@ t('"Welcome to Helm Events" sheet: every area part is gated; nothing admin-only 
   // drop every part gated on finance / nurture / controls / lead convert: no admin-only wording may remain
   let rest = sheet;
   for (let k = 0; k < 4; k++) rest = rest.replace(/<span data-need="[^"]*(finance|nurture|controls|create)[^"]*">(?:[^<]|<b>[^<]*<\/b>)*<\/span>/g, '');
-  for (const bad of [/Nurture/, /P&amp;L/, /Control Center/, /Settle payments/, /budget vs actuals/, /Convert/]) assert.doesNotMatch(rest, bad, String(bad));
+  for (const bad of [/Nurture/, /P&amp;L/, /Settings/, /Settle payments/, /budget vs actuals/, /Convert/]) assert.doesNotMatch(rest, bad, String(bad));
   // each view-only alternative starts hidden and is shown only when the access is missing
   assert.match(sheet, /<span data-unless="edit:leads create" hidden>Every enquiry sits on the pipeline by stage; open a lead to see its details\.<\/span>/);
   assert.match(sheet, /<span data-unless="controls" hidden>/);

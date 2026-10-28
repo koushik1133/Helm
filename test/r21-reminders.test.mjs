@@ -1,9 +1,9 @@
 // r21-reminders.test.mjs - owner r21: automatic reminders for vendors / staff about deliveries and arrivals.
 //  * per assignment: what / qty / who (+ e-mail) / due time + ITS OWN reminder times picked at the bottom of the form
-//    (defaults from Control Center 60 / 30 / 0 min); e-mail only, one-tap status link /delivery?t=<64 hex>
+//    (defaults from Settings 60 / 30 / 0 min); e-mail only, one-tap status link /delivery?t=<64 hex>
 //  * replies (on the way / arrived / delayed + new time / problem) tracked on the assignment, shown on the event-day
 //    page (late = red) and posted by Helm into the event's team chat + the bell; "No response from X" alert
-//  * Control Center switch per studio + the 'deliveries' access area (falls back to Event-day command)
+//  * Settings switch per studio + the 'deliveries' access area (falls back to Event-day command)
 //  * 0241 SQL additive, ASCII, in the MANIFEST + DB suite; comms-dispatch sends the claimed rows (no URL from the DB)
 import { readFileSync, existsSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -143,7 +143,7 @@ await t('store-api: deliveries API through the RPCs + the "deliveries" area (Eve
   assert.match(STORE, /if \(!acc\.map\[area\] && AREA_FALLBACK\[area\]\) return !!\(acc\.map\[AREA_FALLBACK\[area\]\] && acc\.map\[AREA_FALLBACK\[area\]\]\.view\)/);
   assert.match(STORE, /if \(!acc\.map\[area\] && AREA_FALLBACK\[area\]\) return !!\(acc\.map\[AREA_FALLBACK\[area\]\] && acc\.map\[AREA_FALLBACK\[area\]\]\.edit\)/);
 });
-await t('Control Center: matrix cell follows defaultFrom; reminder settings card + scripts', () => {
+await t('Settings: matrix cell follows defaultFrom; reminder settings card + scripts', () => {
   const c = read('public/control.html');
   assert.match(c, /if\(a&&a\.defaultFrom\)\{ const f=MTX\[role\]&&MTX\[role\]\[a\.defaultFrom\]/);
   assert.match(c, /<div class="card" id="dlvCard" hidden><\/div>/);

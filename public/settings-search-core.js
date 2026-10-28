@@ -1,4 +1,4 @@
-/* settings-search-core.js - the matching brain of the Control Center settings search.
+/* settings-search-core.js - the matching brain of Settings search.
  * Pure functions, no DOM: works in the browser (window.HelmSettingsSearch) and in Node tests.
  * "Smart" means, per word the user types:
  *   exact word > start of a word > inside a word > a synonym ("hide money" finds "Hide amounts",

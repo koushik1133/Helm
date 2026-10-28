@@ -1,4 +1,4 @@
-// @coverage — control.html (Control Center; previously uncovered screen).
+// @coverage — control.html (Settings; previously uncovered screen).
 import { test, expect } from '@playwright/test';
 import { requireStagingEnv } from '../helpers/env.mjs';
 import { openScreen, assertNotRedirectedToLogin, assertScreenRendered, assertNoConsoleErrors } from './_coverage-utils.mjs';

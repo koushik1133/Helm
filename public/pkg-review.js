@@ -194,7 +194,7 @@
       p.dataset.pkrEdit = edit ? "1" : "0"; build(p); p.hidden = false; load(p, q, null);
     }
     if (sets.length) {
-      // R20 (live QA): pkg_settings_get (0069) answers only a role with Control Center OR Package selections VIEW
+      // R20 (live QA): pkg_settings_get (0069) answers only a role with Settings OR Package selections VIEW
       // (has_area('controls','view') or has_area('pkg_review','view')); any other role got a 403 in the console.
       // Same check here BEFORE the call: no access -> the card stays hidden and nothing is asked.
       let read = false, can = false;
@@ -203,7 +203,7 @@
     }
   }
 
-  /* ---- Control Center card ---- */
+  /* ---- Settings card ---- */
   function radios(name, opts, cur, legend) {
     const fs = el("fieldset", "pkr-fs"); fs.appendChild(el("legend", "", legend));
     opts.forEach((o) => {
@@ -240,7 +240,7 @@
     const msg = el("p", "pkr-err"); msg.setAttribute("role", "status"); msg.setAttribute("aria-live", "polite");
     const acts = el("div", "actions"); const save = btn("btn primary", "Save package flow"); acts.appendChild(save);
     body.appendChild(acts); body.appendChild(msg);
-    if (!can) { Array.from(body.querySelectorAll("input,button")).forEach((x) => { x.disabled = true; }); msg.textContent = "View only — editing needs Control Center edit access."; }
+    if (!can) { Array.from(body.querySelectorAll("input,button")).forEach((x) => { x.disabled = true; }); msg.textContent = "View only — editing needs Settings edit access."; }
     save.addEventListener("click", async () => {
       const pick = (n) => { const r = body.querySelector('input[name="' + n + '"]:checked'); return r ? r.value : null; };
       if (save.disabled) return;   // already saving

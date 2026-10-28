@@ -1,5 +1,5 @@
-/* team-safety.css - r33 (SQL 0283): Control Center -> Team members: Owner badge, deactivated rows, the waiting-change
-   banner, Transfer ownership and the "open work" panel. Same look as the rest of Control Center (tokens from theme.css). */
+/* team-safety.css - r33 (SQL 0283): Settings -> Team members: Owner badge, deactivated rows, the waiting-change
+   banner, Transfer ownership and the "open work" panel. Same look as the rest of Settings (tokens from theme.css). */
 #pane-users .utable .tag.ts-own,#pane-users .utable .tag.ts-off,#pane-users .utable .tag.ts-wait{display:inline-block;font-size:12px;font-weight:600;line-height:1.3;padding:2px 7px;border-radius:10px;margin-left:6px;white-space:nowrap}
 #pane-users .utable .tag.ts-own{color:var(--accent);background:var(--accent-soft)}
 #pane-users .utable .tag.ts-off{color:var(--ink-2,#4a5673);background:var(--panel-2,#f1eee9);border:1px solid var(--line,#e8e3db)}

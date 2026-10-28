@@ -1,4 +1,4 @@
-/* privacy-pin-settings.js - Control Center card (0157): the studio's "Hide amounts" privacy PIN.
+/* privacy-pin-settings.js - Settings card (0157): the studio's "Hide amounts" privacy PIN.
    One PIN per studio, kept on the server as a bcrypt hash (never the plain PIN). Default 0000
    until an admin changes it. Reads / writes ONLY through BPStore.privacyPin (privacy_pin_status /
    privacy_pin_set / privacy_pin_reset). Only studio admins get the form; other roles see who can

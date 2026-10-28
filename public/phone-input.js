@@ -13,7 +13,7 @@
      • a leading "+code" (or "00code") picks the country automatically;
      • 7–15 digits including the country code (E.164); per-country lengths for the
        countries in FORMATS; India mobile = 10 digits starting 6–9.
-   Default country: opts.country → data-country → studio country (Control Center,
+   Default country: opts.country → data-country → studio country (Settings,
    cached in localStorage helm_org_country) → India.
    Builds DOM with createElement + textContent only. CSS lives in theme.css.
    ========================================================================= */
@@ -760,7 +760,7 @@
     };
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", go); else go();
   })();
-  // studio country arrived (Control Center): untouched empty fields follow it
+  // studio country arrived (Settings): untouched empty fields follow it
   API.setDefaultCountry = function (iso) { setDefaultCountry(iso); insts.forEach(function (i) { i.setDefault(defaultIso); }); };
   global.HelmPhone = API;
 })(typeof window !== "undefined" ? window : globalThis);

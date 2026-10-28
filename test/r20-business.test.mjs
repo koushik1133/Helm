@@ -1,6 +1,6 @@
 // r20-business.test.mjs - owner r20: "By default the Business page should be seen only by the admin, not by
 // anyone else. Insights too - admin only. Later studios can adjust it."
-//  * a NEW matrix area 'business' (Control Center -> Roles & access), no defaultOn -> admin only until switched on
+//  * a NEW matrix area 'business' (Settings -> Roles & access), no defaultOn -> admin only until switched on
 //  * the Business nav item, the page gate (business.js), the search entries and the dashboard payment strip
 //    follow 'business', not 'finance' (planners keep finance for payments / settlement / closure)
 //  * 0239: existing studios get the rows insert-only, new studios via the 0049 default matrix, the two Business-only
@@ -30,7 +30,7 @@ function canView(role, rows, area) {
   if (fine) return fine.some((k) => rows[k] && rows[k].view);
   return !!(rows[area] && rows[area].view);
 }
-// Control Center: a cell with no saved row shows the area's defaultOn (control.html cellDefault)
+// Settings: a cell with no saved row shows the area's defaultOn (control.html cellDefault)
 const cellDefault = (role, key) => { const a = AREAS.find((x) => x.key === key); const on = !!(a && a.defaultOn && a.defaultOn.includes(role)); return { view: on, edit: on }; };
 // a planner as the server default matrix (0049) sets it: finance / settlement / closure / quotes on
 const PLANNER = { finance: { view: true, edit: true }, settlement: { view: true, edit: true }, closure: { view: true, edit: true }, quotes: { view: true, edit: true } };
@@ -40,7 +40,7 @@ await t('AREAS: a separate "business" area in the Admin group, no page link, no 
   assert.ok(b, 'business area listed'); assert.equal(b.group, 'Admin'); assert.equal(b.page, null);
   assert.match(b.label, /Business overview/); assert.ok(!b.defaultOn, 'no role on by default');
   assert.ok(!Object.values(COARSE).some((l) => l.includes('business')), 'not folded into a coarse key (finance stays separate)');
-  for (const r of ROLES) if (r !== 'admin') assert.equal(cellDefault(r, 'business').view, false, r + ' off by default in Control Center');
+  for (const r of ROLES) if (r !== 'admin') assert.equal(cellDefault(r, 'business').view, false, r + ' off by default in Settings');
 });
 
 await t('defaults: admin sees Business; planner (finance on) / coordinator / manager do not; the switch grants it', () => {
@@ -50,7 +50,7 @@ await t('defaults: admin sees Business; planner (finance on) / coordinator / man
   assert.equal(canView('planner', PLANNER, 'business'), false, 'planner: no Business page');
   assert.equal(canView('coordinator', { quotes: { view: true } }, 'business'), false);
   assert.equal(canView('manager', Object.assign({}, PLANNER, { controls: { view: true, edit: true } }), 'business'), false);
-  assert.equal(canView('planner', Object.assign({}, PLANNER, { business: { view: true, edit: false } }), 'business'), true, 'switched on in Control Center');
+  assert.equal(canView('planner', Object.assign({}, PLANNER, { business: { view: true, edit: false } }), 'business'), true, 'switched on in Settings');
   // the 0239 seed row for a non-admin is off: same as no row
   assert.equal(canView('planner', Object.assign({}, PLANNER, { business: { view: false, edit: false } }), 'business'), false);
 });

@@ -1,4 +1,4 @@
-/* team-safety.js - r33 (SQL 0283): Control Center -> Users & access -> Team members.
+/* team-safety.js - r33 (SQL 0283): Settings -> Users & access -> Team members.
    Deactivate instead of delete, Reactivate (counts against the seat limit again), the protected Studio owner (badge),
    24-hour admin changes by a non-owner admin (banner + Cancel for the owner / the asker), ownership hand-over (owner +
    a fresh two-step code when set up; the new owner accepts), and "what they still have open" after a deactivation.

@@ -1,4 +1,4 @@
-// Control Center > Pricing > "Object & item prices (layout builder)" grid (asset-price-grid.js):
+// Settings > Pricing > "Object & item prices (layout builder)" grid (asset-price-grid.js):
 // aligned subgrid layout, default under the input, categories + search, Reset, and rate validation
 // (empty = default, negative / unreadable blocked, unlisted stored prices kept).
 import assert from 'node:assert/strict';

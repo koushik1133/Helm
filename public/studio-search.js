@@ -50,13 +50,13 @@
     { id: "go-inv",     label: "Go to inventory",    icon: "📦", href: "inventory.html",            need: [["view", "inventory"]], kw: "stock" },
     { id: "go-vendors", label: "Go to vendors",      icon: "🤝", href: "vendors.html",              need: [["view", "vendors"]], kw: "partners" },
     { id: "go-chat",    label: "Open team chat",     icon: "💬", href: "chat.html",                 need: [],                   kw: "messages" },
-    { id: "go-control", label: "Open Control Center", icon: "⚙", href: "control.html",              need: [["ctl"]], kw: "settings access control center" },
+    { id: "go-control", label: "Open Settings", icon: "⚙", href: "control.html",              need: [["ctl"]], kw: "settings access control center" },
   ];
 
   const doc = global.document;
-  // search-catalog.js (pages, Control Center sections + settings, account items) and the smart matcher
+  // search-catalog.js (pages, Settings sections + settings, account items) and the smart matcher
   // settings-search-core.js load next to this file on first open (loader constants: bumped with the files)
-  const CATALOG_V = "9", SSC_V = "1";
+  const CATALOG_V = "10", SSC_V = "2";
   const SELF = (() => { try { return doc && doc.currentScript && doc.currentScript.src || ""; } catch (e) { return ""; } })();
   const isMac = (() => { try { return /Mac|iPhone|iPad/.test(global.navigator.platform || global.navigator.userAgent || ""); } catch (e) { return false; } })();
 
@@ -274,7 +274,7 @@
     return localP;
   }
   const LOCAL_ICON = { page: "📄", section: "⚙", setting: "🔧", account: "👤" };
-  const LOCAL_SUB = { page: "Page", section: "Control Center", account: "Your account" };
+  const LOCAL_SUB = { page: "Page", section: "Settings", account: "Your account" };
   // QA B5: a studio on its free trial never sees the pages / actions the trial does not include (studio set-up and
   // import, checklist templates, the activity log, Reports & exports) - html.helm-trial is set by trial-lock.js
   const TRIAL_OUT = /(^|\/)(onboarding|templates|audit|reports)(\.html)?([?#\/]|$)/;

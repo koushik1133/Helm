@@ -5,7 +5,7 @@
 //  * store-api: a lockout reads like any refused sign-in (AUTH-5); no session from a #access_token fragment (AUTH-4);
 //    the e-mailed invitation link's mail key (&k=) is passed to invite-signup (AUTH-1); cache-buster v285 everywhere
 //  * auth-confirm: invite / magic links ask "Continue as <e-mail>" before keeping the session (AUTH-4)
-//  * Control Center: "Approve discounts" + "Close events with money owed" are one-switch money permissions (BIZ-01);
+//  * Settings: "Approve discounts" + "Close events with money owed" are one-switch money permissions (BIZ-01);
 //    paid plan seat wording (BIZ-03); the Join page explains a full plan
 //  * SQL 0282: MANIFEST + run-all + APPLY-0282 (verbatim, VERIFY, ASCII, begin/commit, additive only)
 import { readFileSync, readdirSync } from 'node:fs';
@@ -105,13 +105,13 @@ await t('AUTH-1 the join page sends the e-mailed mail key (&k=) to invite-signup
   const TPL = rd('supabase/functions/invite-mailer/templates.ts');
   assert.match(TPL, /invite_mail_key_set/); assert.match(TPL, /p_hash: await sha256Hex\(key\)/);
 });
-await t('store-api cache-buster: every page loads store-api.js?v=299', () => {
+await t('store-api cache-buster: every page loads store-api.js?v=300', () => {
   for (const p of readdirSync(new URL('../public/', import.meta.url)).filter((x) => x.endsWith('.html'))) {
-    const m = rd('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '299', p);
+    const m = rd('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '300', p);
   }
 });
 
-await t('BIZ-01 Control Center: "Approve discounts" + "Close events with money owed" are one-switch permissions (admin only by default)', () => {
+await t('BIZ-01 Settings: "Approve discounts" + "Close events with money owed" are one-switch permissions (admin only by default)', () => {
   for (const [k, lbl] of [['discount_approve', 'Approve discounts'], ['close_owed', 'Close events with money owed']]) {
     const m = new RegExp(`\\{ key: "${k}",\\s+label: "([^"]+)"[^}]*group: "Finance", permission: true \\}`).exec(API);
     assert.ok(m && m[1].startsWith(lbl), k);

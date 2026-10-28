@@ -1,4 +1,4 @@
-// Control Center input sweep A (Oct 2026): General (business e-mail, phone, GSTIN / tax ID,
+// Settings input sweep A (Oct 2026): General (business e-mail, phone, GSTIN / tax ID,
 // accent colour, logo URL, client link name), Hide amounts (privacy PIN), Client links &
 // packages (auto-expire days, package lock days), Users & invites (e-mail, role, self /
 // member / duplicate invite), Roles & access (suggested access queued with single toggles).

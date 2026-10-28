@@ -239,11 +239,11 @@ export function helmNoticeEmail(kind, data, appUrl) {
     return { subject: S[0].slice(0, 150), text: [S[1], S[2], "Helm HQ -> Staff access: " + app + "/hq", "If you did not expect this, reply to this e-mail or contact security@helm.events.", "- The Helm team"].filter(Boolean).join("\n\n") };
   }
   if (kind === "team_safety") {
-    // r33 (0283): names only (no e-mail addresses of others, no links but Control Center -> Team on APP_URL)
+    // r33 (0283): names only (no e-mail addresses of others, no links but Settings -> Team on APP_URL)
     const studio = clip(d.studio, 120) || "your Helm studio", target = clip(d.target, 80) || "An admin", by = clip(d.by, 80) || "An admin";
     const role = clip(d.role_label, 40) || "a non-admin role", when = clip(d.when, 60), from = clip(d.from, 80) || "The owner", to = clip(d.to, 80) || "an admin";
     const deact = d.kind === "deactivate";
-    const team = "Control Center -> Team: " + app + "/control#users";
+    const team = "Settings -> Team: " + app + "/control#users";
     const S = {
       admin_change_requested: [
         "Helm: " + target + (deact ? " will be deactivated" : " will become " + role) + " in 24 hours - " + studio,
@@ -260,7 +260,7 @@ export function helmNoticeEmail(kind, data, appUrl) {
       admin_demoted: ["Helm: " + target + " is now " + role + " - " + studio,
         by + " (the studio owner) changed " + target + "'s role in " + studio + " from Admin to " + role + ".", team],
       owner_transfer_started: ["Helm: " + from + " wants to make " + to + " the owner of " + studio,
-        from + " started handing the ownership of " + studio + " to " + to + ". " + to + " must accept it in Control Center -> Team within 7 days.", team],
+        from + " started handing the ownership of " + studio + " to " + to + ". " + to + " must accept it in Settings -> Team within 7 days.", team],
       owner_transfer_accepted: ["Helm: " + to + " is now the owner of " + studio,
         to + " accepted and is now the owner of " + studio + " (handed over by " + from + "). " + from + " stays an admin.", team],
       owner_transfer_cancelled: ["Helm: the ownership hand-over was cancelled - " + studio,
@@ -282,30 +282,30 @@ export function helmNoticeEmail(kind, data, appUrl) {
     const at = clip(d.at_text, 60), eff = clip(d.effective_text, 60);
     const payLines = ["UPI ID:       " + m(d.old_upi) + "  ->  " + m(d.new_upi), "Payment note: " + m(d.old_note) + "  ->  " + m(d.new_note),
       "(only the last 4 characters are shown - never the full account number)"].join("\n");
-    const notUs = "If this wasn't you, open Control Center -> Payment schedules and press \"This wasn't us\" before " + (eff || "the 24 hours are over") + ": " + app + "/control.html#payment-schedules";
+    const notUs = "If this wasn't you, open Settings -> Payment schedules and press \"This wasn't us\" before " + (eff || "the 24 hours are over") + ": " + app + "/control.html#payment-schedules";
     const S = {
       pay_details_requested: ["Payment details for " + studio + " were changed",
         "Payment details for " + studio + " were changed by " + by + (at ? " at " + at : "") + ". Clients will see the new details from " + (eff || "24 hours from now") + ".", payLines, notUs],
       pay_details_first_set: ["Payment details for " + studio + " were set up",
         "Payment details for " + studio + " were set up by " + by + (at ? " at " + at : "") + ". This is the studio's first set-up, so clients see them now.", payLines,
-        "If this wasn't you, tell your admins and change them in Control Center -> Payment schedules: " + app + "/control.html#payment-schedules"],
+        "If this wasn't you, tell your admins and change them in Settings -> Payment schedules: " + app + "/control.html#payment-schedules"],
       pay_details_cancelled: ["\"This wasn't us\": a payment-details change for " + studio + " was cancelled",
         by + " cancelled the payment-details change made by " + target + ". Clients keep the old details. " + target + "'s account is flagged and can't change sensitive settings until another admin clears it.", payLines,
-        "Recommended now: sign that account out everywhere, reset its password and check its two-step set-up (Control Center -> Payment schedules)."],
+        "Recommended now: sign that account out everywhere, reset its password and check its two-step set-up (Settings -> Payment schedules)."],
       pay_details_cancelled_unverified: ["A payment-details change for " + studio + " was cancelled",
         by + " cancelled the payment-details change made by " + target + ". Clients keep the old details. " + by + " had no fresh two-step code, so the account was not flagged or signed out.", payLines,
         "If the change was not genuine, an admin with two-step should check " + target + "'s account (password reset, two-step set-up): " + app + "/control.html#payment-schedules"],
       pay_details_withdrawn: ["A payment-details change for " + studio + " was withdrawn", by + " withdrew their own payment-details change. Clients keep the old details.", payLines, ""],
       pay_details_approved_early: ["New payment details for " + studio + " are live", by + " made the payment-details change by " + target + " live early. Clients see the new details now.", payLines,
-        "If this wasn't expected, check Control Center -> Payment schedules now: " + app + "/control.html#payment-schedules"],
+        "If this wasn't expected, check Settings -> Payment schedules now: " + app + "/control.html#payment-schedules"],
       reply_to_changed: ["The reply-to e-mail for " + studio + " was changed", "The studio reply-to address was changed by " + by + (at ? " at " + at : "") + ": " + em(d.old) + "  ->  " + em(d.new) + ". Client replies now go there.", "", "Check it on the Integrations page: " + app + "/integrations.html"],
-      business_email_changed: ["The business e-mail for " + studio + " was changed", "The studio business e-mail was changed by " + by + (at ? " at " + at : "") + ": " + em(d.old) + "  ->  " + em(d.new) + ".", "", "Check it in Control Center -> General: " + app + "/control.html#general"],
+      business_email_changed: ["The business e-mail for " + studio + " was changed", "The studio business e-mail was changed by " + by + (at ? " at " + at : "") + ": " + em(d.old) + "  ->  " + em(d.new) + ".", "", "Check it in Settings -> General: " + app + "/control.html#general"],
       razorpay_keys_saved: ["Online payment keys for " + studio + " were changed", "The Razorpay keys were changed by " + by + (at ? " at " + at : "") + ": key " + m(d.old_key) + "  ->  " + m(d.new_key) + ".", "", "Check it on the Integrations page: " + app + "/integrations.html"],
       razorpay_status_changed: ["Online payments for " + studio + " were switched " + (d.status === "disabled" ? "off" : "back on"), "Online payments (Razorpay) were switched " + (d.status === "disabled" ? "off" : "back on") + " by " + by + ".", "", "Integrations page: " + app + "/integrations.html"],
-      money_access_changed: ["Money access changed in " + studio, by + " changed \"" + (clip(d.area_label, 60) || "money access") + "\" for the role " + (clip(d.role, 40) || "-") + ": view " + (d.view === true ? "on" : "off") + ", edit " + (d.edit === true ? "on" : "off") + ".", "", "Control Center -> Roles: " + app + "/control.html"],
-      admin_invited: ["A new admin was invited to " + studio, by + " invited " + em(d.target_email) + " as an admin of " + studio + ".", "", "Control Center -> Users: " + app + "/control.html#users"],
-      admin_added: [target + " is now an admin of " + studio, target + " is now an admin of " + studio + (d.self === true ? "" : " (by " + by + ")") + ".", "", "Control Center -> Users: " + app + "/control.html#users"],
-      admin_removed: [target + " is no longer an admin of " + studio, target + " is no longer an admin of " + studio + (d.self === true ? "" : " (by " + by + ")") + ".", "", "Control Center -> Users: " + app + "/control.html#users"],
+      money_access_changed: ["Money access changed in " + studio, by + " changed \"" + (clip(d.area_label, 60) || "money access") + "\" for the role " + (clip(d.role, 40) || "-") + ": view " + (d.view === true ? "on" : "off") + ", edit " + (d.edit === true ? "on" : "off") + ".", "", "Settings -> Roles: " + app + "/control.html"],
+      admin_invited: ["A new admin was invited to " + studio, by + " invited " + em(d.target_email) + " as an admin of " + studio + ".", "", "Settings -> Users: " + app + "/control.html#users"],
+      admin_added: [target + " is now an admin of " + studio, target + " is now an admin of " + studio + (d.self === true ? "" : " (by " + by + ")") + ".", "", "Settings -> Users: " + app + "/control.html#users"],
+      admin_removed: [target + " is no longer an admin of " + studio, target + " is no longer an admin of " + studio + (d.self === true ? "" : " (by " + by + ")") + ".", "", "Settings -> Users: " + app + "/control.html#users"],
       two_step_off: ["Two-step was turned off for an admin of " + studio, "Two-step verification was turned off for the admin " + target + ".", "", "Ask them to turn it back on: payment details and other sensitive settings can only be changed with two-step."],
       flag_cleared: ["A flagged account in " + studio + " was cleared", by + " cleared the \"This wasn't us\" flag on " + target + ".", "", ""],
       sessions_ended: [target + " was signed out everywhere", by + " signed " + target + " out of Helm on every device.", "", "They need their password (and two-step) to sign in again."],

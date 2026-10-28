@@ -29,7 +29,7 @@
     venues: "Optional. The halls and venues you work with. Pick one on a quote to fill in the hall details. Venues are never deleted, only deactivated.",
     payment: "Optional. Your default advance and when the balance is due. Shown as your standard terms; you can still change them per event.",
     connect: "Optional. Check your e-mail sender name and reply-to, and save your studio WhatsApp number. Each has a Send test button on the Integrations page.",
-    templates: "Optional. Menu packages and checklist templates speed up every quote. Review them now or later in Control Center.",
+    templates: "Optional. Menu packages and checklist templates speed up every quote. Review them now or later in Settings.",
     menu: "Add the dishes you serve. They appear in the menu picker on every quote. Dishes with the same name as an existing one are skipped by default.",
     pricing: "Your per-chair and per-plate rates. These feed live quote pricing. Existing rates are never changed here; duplicates are skipped by default.",
     inventory: "Your stock: item, quantity and (optionally) unit cost. If an item already exists you can add the quantity to it instead of skipping.",
@@ -104,7 +104,7 @@
       if (k === "templates") { perms[k] = true; continue; }                     // review-only step (links out)
       if (k === "venues") { perms[k] = await BPStore.auth.canEditArea("venues"); continue; }
       if (isSet(k)) { perms[k] = false; continue; }                             // studio row, invites, pricing config: admin only
-      if (k === "menu" || k === "pricing") { perms[k] = false; continue; }       // company-wide config: admin only (matches Control Center)
+      if (k === "menu" || k === "pricing") { perms[k] = false; continue; }       // company-wide config: admin only (matches Settings)
       perms[k] = await BPStore.auth.canEditArea(O.KINDS[k].area);
     }
   }
@@ -267,11 +267,11 @@
     const own = ti ? `<ul class="ob-check"><li>${c && c.layouts > 0 ? "✓" : "○"} <a href="${esc(ti.href)}">${esc(ti.label)}</a> <span class="ob-note">${esc(ti.why)}</span></li></ul>` : "";
     return form(`${line}${own}<div class="ob-row"><a class="btn" href="control.html#pricing">Edit menu packages</a><a class="btn" href="templates.html">Open checklist templates</a>${ti ? `<a class="btn" href="${esc(ti.href)}">${esc(ti.label)}</a>` : ""}</div>`, "Looks good — continue");
   }
-  // reuse Control Center's venues manager (venues-admin.js): its pane is parked off-screen and moved in/out
+  // reuse the Settings page's venues manager (venues-admin.js): its pane is parked off-screen and moved in/out
   function parkVenues() { const pane = $("#pane-venues"), park = $("#obPark"); if (pane && park && pane.parentNode !== park) { park.appendChild(pane); pane.hidden = true; } }
   function mountVenues() {
     const slot = $("#obVenuesSlot"), pane = $("#pane-venues"); if (!slot) return;
-    if (!pane || !window.HelmVenuesAdmin) { slot.innerHTML = '<div class="ob-lock">Venues can be added in <a href="control.html#venues">Control Center → Venues</a>.</div>'; return; }
+    if (!pane || !window.HelmVenuesAdmin) { slot.innerHTML = '<div class="ob-lock">Venues can be added in <a href="control.html#venues">Settings → Venues</a>.</div>'; return; }
     slot.appendChild(pane); pane.hidden = false;
     if (!venuesOpened) { venuesOpened = true; try { window.HelmVenuesAdmin.reload(); } catch (e) {} }
   }
@@ -288,7 +288,7 @@
     const live = $("#obLive"); if (live) live.textContent = "Please fix " + Object.keys(r.errors).length + " field(s).";
   }
   // cc-general-billing: every org write merges into the SAVED row (fresh read), never a tab-cached copy that
-  // could pre-date a Control Center save in another tab - that would write the old brand (no billing) back
+  // could pre-date a Settings save in another tab - that would write the old brand (no billing) back
   async function saveSetting(kind) {
     const vals = readSet(); const st = S.steps[kind];
     if (kind === "team") {
@@ -338,7 +338,7 @@
     }, complete ? 0 : 400);
   }
 
-  // B1: one source for the country-dependent billing labels (same HelmCountry.formMeta as Control Center)
+  // B1: one source for the country-dependent billing labels (same HelmCountry.formMeta as Settings)
   function billMeta(cc) {
     const H = window.HelmCountry, tid = O.taxIdOf(cc);
     const m = H && H.formMeta ? H.formMeta(cc, tid.label) : { taxIdLabel: tid.label, taxIdExample: tid.eg, regionLabel: cc === "IN" ? "State" : "State / region", regions: [], postalLabel: cc === "IN" ? "PIN code" : "Postal code", postalPlaceholder: "", timezone: "" };
@@ -363,7 +363,7 @@
     if (orgErr) return `<div class="ob-card"><h2>Business details</h2><div class="ob-warn">Could not load your studio details. Reload the page to try again.</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn" data-act="goto" data-i="0">Continue</button></div></div>`;
     if (!org) return `<div class="ob-card"><h2>Business details</h2><p class="ob-note">Studio details aren't available for this workspace.</p><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
     const v = Object.assign(O.billingFromOrg(org), bill.values); const e = bill.errors || {};
-    if (!canBill) return `<div class="ob-card"><h2>Business details</h2><div class="ob-lock">Only an admin can enter the studio's billing details${billingOk() ? " (already complete)." : ". Ask your admin to complete them in Control Center → General."}</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
+    if (!canBill) return `<div class="ob-card"><h2>Business details</h2><div class="ob-lock">Only an admin can enter the studio's billing details${billingOk() ? " (already complete)." : ". Ask your admin to complete them in Settings → General."}</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
     const full = { legal_name: 1, line1: 1, line2: 1 };
     const ac = { legal_name: "organization", line1: "address-line1", line2: "address-line2", city: "address-level2", state: "address-level1", pin: "postal-code", phone: "tel", location: "off", gstin: "off" };
     const cc = O.countryCode(v.country), india = cc === "IN", tid = O.taxIdOf(cc), meta = billMeta(cc);
@@ -387,7 +387,7 @@
         + (f.key === "state" ? `<datalist id="ob_b_state_list">${meta.regions.map((r) => `<option value="${esc(r.name)}"></option>`).join("")}</datalist>` : "")
         + `<div class="ob-err" id="${esc(eid)}">${esc(e[f.key] || "")}</div></div>`;
     }).join("");
-    return `<div class="ob-card"><h2>Business details</h2><p class="sub">Used on your quotations and invoices. Fields marked * are required to finish setup; <span data-taxid="1">${esc(tid.label)}</span> is optional. You can edit these later in Control Center → General.</p>`
+    return `<div class="ob-card"><h2>Business details</h2><p class="sub">Used on your quotations and invoices. Fields marked * are required to finish setup; <span data-taxid="1">${esc(tid.label)}</span> is optional. You can edit these later in Settings → General.</p>`
       + `<form id="obBill" novalidate><div class="ob-bf">${fields}</div><div id="obErr" class="ob-err" role="alert"></div>`
       + `<div class="ob-row"><span class="ob-grow"></span><button type="submit" class="btn primary" data-act="billsave">Save &amp; continue</button></div></form></div>`;
   }
@@ -420,7 +420,7 @@
       const next = Object.assign({}, cfg, { taxCountry: cc, currency: p.known ? p.currency : (cfg.currency || "INR") });
       if (p.rate != null) next.gstPct = p.rate;
       await BPStore.config.setPricing(next);
-    } catch (x) { /* pricing is admin-only; the studio can set the tax in Control Center */ }
+    } catch (x) { /* pricing is admin-only; the studio can set the tax in Settings */ }
   }
   function header(kind) { return `<h2>${esc(O.KINDS[kind].label)}</h2><p class="sub">${esc(INTRO[kind])}</p>`; }
 
@@ -522,8 +522,8 @@
     if (org && !studioOk()) return `<div class="ob-card"><h2>Almost there</h2><div class="ob-warn" role="alert">Your studio details (name, currency, timezone) are required to finish setup.</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="${idxOf("studio")}">${canBill ? "Complete studio details" : "View studio details"}</button></div></div>`;
     const lines = KEYS.map((k) => { const c = counts(k); const st = S.steps[k]; const st2 = st.skipped && !st.done ? "skipped" : (st.done ? (isSet(k) ? "saved" : !st.batchKey ? "imported" : `${Number(c.ok)} added${undoneCount(st, k) ? " (" + undoneCount(st, k) + " undone)" : ""}, ${Number(c.merged)} merged`) : "not done");
       return `<li><b>${esc(lbl(k))}</b> — ${esc(st2)}</li>`; }).join("");
-    return `<div class="ob-card"><h2>🎉 You're set up</h2><p class="sub">Here is what you set up. Skipped steps can be finished any time from Control Center.</p><ul>${lines}</ul>`
-      + `<div class="ob-row"><a class="btn" href="inventory.html">Open Inventory</a><a class="btn" href="vendors.html">Open Vendors</a><a class="btn" href="staff.html">Open Staff</a><a class="btn" href="control.html#pricing">Open Control Center</a>`
+    return `<div class="ob-card"><h2>🎉 You're set up</h2><p class="sub">Here is what you set up. Skipped steps can be finished any time from Settings.</p><ul>${lines}</ul>`
+      + `<div class="ob-row"><a class="btn" href="inventory.html">Open Inventory</a><a class="btn" href="vendors.html">Open Vendors</a><a class="btn" href="staff.html">Open Staff</a><a class="btn" href="control.html#pricing">Open Settings</a>`
       + `<span class="ob-grow"></span><button type="button" class="btn" data-act="reset">Clear saved draft</button><a class="btn primary" href="dashboard.html">Go to dashboard</a></div></div>`;
   }
 

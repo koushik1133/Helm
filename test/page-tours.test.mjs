@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* page-tours.test.mjs — R46 "Tour this page" on every page.
- *  1. page-tours.js: section-aware lookup (Control Center section on screen > URL #hash > Pricing), seen keys.
+ *  1. page-tours.js: section-aware lookup (Settings section on screen > URL #hash > Pricing), seen keys.
  *  2. tour.js runs the page's (section's) tour from page-tours.js: role / plan skipping, "seen" remembered
  *     per page + section, the shell fallback when nothing of the page is on screen, never auto-starts.
  *  3. The entry points: the top-bar "?" is a help menu with "Tour this page"; the sidebar item; the shortcuts
@@ -56,7 +56,7 @@ const tick = () => new Promise((res) => setImmediate(res));
 function capture(document) { const box = {}; const ce = document.createElement; document.createElement = () => (box.root = ce()); return box; }
 
 /* ---------------------------------------------------------------- 1. data */
-t('Control Center: the tour follows the section on screen, then the URL #hash, then Pricing', () => {
+t('Settings: the tour follows the section on screen, then the URL #hash, then Pricing', () => {
   const titles = (P) => Array.from(P.stepsFor('control'), (s) => s.title);
   assert.equal(load({ cur: 'access' }).P.sectionOf('control.html'), 'access');
   assert.match(titles(load({ cur: 'access' }).P)[0], /Pick a role/);
@@ -68,7 +68,7 @@ t('Control Center: the tour follows the section on screen, then the URL #hash, t
   assert.equal(load().P.sectionOf('quotes'), null, 'pages without sections');
 });
 
-t('seen keys: one per page, one per Control Center section (builder key unchanged)', () => {
+t('seen keys: one per page, one per Settings section (builder key unchanged)', () => {
   const { P } = load();
   assert.equal(P.seenKey('builder'), 'helm_tour_seen_builder');
   assert.equal(P.seenKey('builder.html'), 'helm_tour_seen_builder');

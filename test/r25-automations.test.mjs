@@ -1,8 +1,8 @@
 // r25 automations opt-in (owner 2026-10-20, safety: "production e-mail is on - every automation that sends anything must
-// be OFF unless the studio admin turns it on in Control Center -> Automations; the daily digest off now"):
+// be OFF unless the studio admin turns it on in Settings -> Automations; the daily digest off now"):
 //   * 0274: OFF defaults (readers + column defaults), gates on the ledgers the jobs write first, the switch-off step runs
 //     once with a backup, queued rows of automations that are off marked skipped (never deleted), one RPC pair.
-//   * Control Center: the Automations list is the ONE place with on / off switches; the feature cards only link to it.
+//   * Settings: the Automations list is the ONE place with on / off switches; the feature cards only link to it.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -65,7 +65,7 @@ t('queued rows: only status -> skipped, only for automations that are off, never
   assert.match(tail, /v\.kind = 'reminder' and v\.status = 'pending'/);
 });
 
-t('one RPC pair: automation_overview (Control Center view) + automation_switch (edit, read-only refused, audit)', () => {
+t('one RPC pair: automation_overview (Settings view) + automation_switch (edit, read-only refused, audit)', () => {
   assert.match(SQL, /create or replace function public\.automation_switch\(p_key text, p_on boolean\)/);
   assert.match(SQL, /not public\.has_area\('controls', 'edit'\) then\s+raise exception 'Only a studio admin/);
   assert.match(SQL, /if coalesce\(public\._trial_locked\(v_org\), false\) then raise exception 'This studio is read-only' using errcode = '25006'/);
@@ -73,7 +73,7 @@ t('one RPC pair: automation_overview (Control Center view) + automation_switch (
   assert.match(SQL, /'Add your studio WhatsApp number first/);
 });
 
-t('Control Center: no second on / off switch on the feature cards - each links to Automations', () => {
+t('Settings: no second on / off switch on the feature cards - each links to Automations', () => {
   for (const id of ['cm_pay_on', 'cm_fu_on', 'cm_low_on', 'cm_wa_on', 'qv_cli', 'qv_stu', 'pst_auto', 'pst_bell']) assert.ok(!CC.includes('id="' + id + '"'), id + ' removed');
   assert.ok((CC.match(/class="mnote au-onoff"/g) || []).length >= 6, 'on / off notes link to Automations');
   for (const f of ['link-views.js', 'inbox-settings.js', 'crew-shifts.js', 'delivery-settings.js']) assert.match(read('public/' + f), /href: "#automations"/, f);

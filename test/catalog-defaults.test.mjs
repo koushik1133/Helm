@@ -1,5 +1,5 @@
 // Default catalog prices for every builder item (2026-10). Code-level defaults only:
-// a studio's own Control Center price (config.assetPrices) always wins, nothing is written.
+// a studio's own Settings price (config.assetPrices) always wins, nothing is written.
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
@@ -11,10 +11,10 @@ const CAT = new Function('return ' + cc.match(/const ITEM_CATALOG = (\[[\s\S]*?\
 // builder and the shared pricing engine agree
 for (const [k, v] of Object.entries(OBJ)) assert.equal(DEF[k], v, 'builder default for ' + k);
 for (const [k, v] of Object.entries(DEF)) if (k !== 'mandap_decor') assert.equal(OBJ[k], v, 'store-api default for ' + k);
-// Control Center lists every priced item with the same default, so admins can edit it
+// Settings lists every priced item with the same default, so admins can edit it
 const catMap = Object.fromEntries(CAT.map(([t, , p]) => [t, p]));
-for (const [k, v] of Object.entries(OBJ)) assert.equal(catMap[k], v, 'Control Center item ' + k);
-assert.equal(new Set(CAT.map((c) => c[0])).size, CAT.length, 'no duplicate Control Center rows');
+for (const [k, v] of Object.entries(OBJ)) assert.equal(catMap[k], v, 'Settings item ' + k);
+assert.equal(new Set(CAT.map((c) => c[0])).size, CAT.length, 'no duplicate Settings rows');
 // every non-seat builder asset has a shipped default (no more "price not in catalog")
 const a0 = b.indexOf('const ASSETS = {'), a1 = b.indexOf('\n};', a0);
 const assets = [...b.slice(a0, a1).matchAll(/^\s*([a-z_0-9]+):\s*\{\s*label:'[^']*',\s*category:'[a-z]+'(.*)$/gm)].map((m) => ({ t: m[1], seat: /props:\{(rows|seats)/.test(m[2]) || /^(chiavari|barstool)$/.test(m[1]) }));
@@ -30,7 +30,7 @@ assert.equal(engine.unitPrice({ type: 'led' }, {}), 18000, 'default when studio 
 assert.equal(engine.unitPrice({ type: 'led' }, null), 18000);
 // badge only for items with neither a studio price nor a shipped default
 assert.match(b, /!inCatalog\(l\.type, PRICING\.assetPrices\) && DEFAULT_PRICES\[l\.type\]==null/);
-// Control Center save keeps only typed values (blank = use default), never writes defaults
+// Settings save keeps only typed values (blank = use default), never writes defaults
 // (asset-price-grid.js since the Oct 2026 grid fix: an empty box is value null and mergePrices skips nulls)
 { const g = read('public/asset-price-grid.js');
   assert.match(g, /if \(s === ""\) \{[\s\S]{0,200}?return \{ ok: true, value: null \};/);

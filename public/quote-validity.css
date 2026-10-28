@@ -1,5 +1,5 @@
 /* quote-validity.css - r23 (0262) "Valid until" banner (client pages), staff line (quote flow / event workspace),
-   list pill (Quotes) and the Control Center card. Theme tokens with safe fallbacks; 375 px friendly. */
+   list pill (Quotes) and Settings card. Theme tokens with safe fallbacks; 375 px friendly. */
 .qv-banner,.qv-staff{--qv-ok-bg:var(--sp-ok-bg,#e3f6ea);--qv-ok-fg:var(--safe-text,#0f7a43);
   --qv-due-bg:var(--sp-due-bg,#fff4dc);--qv-due-fg:var(--warn-text,#8a5a00);
   --qv-bad-bg:var(--sp-bad-bg,#fdeaea);--qv-bad-fg:var(--bad-text,#b42318);
@@ -25,7 +25,7 @@
 /* Quotes list pill: amber "expires soon" (red expired + grey use the shared .hs-overdue / .hs-draft tones) */
 .hs-pill.qv-due{background:var(--sp-due-bg,#fff4dc);color:var(--sp-due-fg,#8a5a00)}
 .qv-pillwrap{display:block;margin-top:4px}
-/* Control Center card */
+/* Settings card */
 #qvCard .qvchk{display:flex;align-items:center;gap:8px;min-height:32px;font-size:13.5px;color:var(--ink,#1c2230);margin:2px 0;text-transform:none;letter-spacing:normal;font-weight:500}
 #qvCard .qvchk input{width:16px;height:16px;margin:0;accent-color:var(--accent,#0f7a43)}
 #qvCard .qvapply{margin-top:12px;padding-top:12px;border-top:1px solid var(--line,#e3e8f2)}

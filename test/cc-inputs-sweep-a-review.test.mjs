@@ -1,4 +1,4 @@
-// Review of Control Center input sweep A (Oct 2026): the rest of the General boxes (studio name,
+// Review of Settings input sweep A (Oct 2026): the rest of the General boxes (studio name,
 // currency, timezone), a logo host with an empty label, the suggested-access button never
 // downgrading an existing edit grant, the PIN "paste would overflow" message and the link-expiry
 // save message.

@@ -162,7 +162,7 @@ t('store-api: render goes to the render-photo edge function only; area + RPCs', 
   assert.match(s, /key: "photo_render"/);
   for (const r of ['photo_render_list', 'photo_render_image', 'photo_render_use_in_booklet', 'photo_render_settings_get', 'photo_render_settings_set']) assert.match(s, new RegExp('"' + r + '"'));
   assert.match(rd('public/control.html'), /id="prCard"/);
-  assert.match(rd('public/control.html'), /photo-render-settings\.js\?v=2/);
+  assert.match(rd('public/control.html'), /photo-render-settings\.js\?v=3/);
 });
 
 // ---- no key in client code; OpenAI only server-side ----

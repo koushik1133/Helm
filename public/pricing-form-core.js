@@ -1,4 +1,4 @@
-/* pricing-form-core.js - pure rules for Control Center > Pricing & coupons.
+/* pricing-form-core.js - pure rules for Settings > Pricing & coupons.
  * Default pricing (chair / plate price, tax rates, service charge, layout fee, venue gap)
  * and coupons. No DOM, no network: control.html shows each message under its own field,
  * and the node tests run every edge case against these same functions.

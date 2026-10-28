@@ -1,5 +1,5 @@
 // Template editor UI (fix/template-editor-ui):
-//   1 Control Center > Layout templates cards: one even grid of same-height actions, "Edit layout" first + primary,
+//   1 Settings > Layout templates cards: one even grid of same-height actions, "Edit layout" first + primary,
 //     names / descriptions clamped (full text in the title)
 //   2 builder template-edit bar: labelled one-row fields (description = single-line input), Save template + Done
 //     grouped and always visible, green theme tokens (the bar and the trial strip were on the violet :root accent)

@@ -195,9 +195,9 @@
   }
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
-<link rel="stylesheet" href="event-reminders.css?v=1">
+<link rel="stylesheet" href="event-reminders.css?v=2">
 <link rel="stylesheet" href="trial-terms.css?v=4">
-<script src="/shell-proto.js?v=49" id="shellProto"></script>
+<script src="/shell-proto.js?v=50" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -318,26 +318,26 @@
     <div class="hstep" data-need="inventory"><div class="ic">📦</div><div class="tx"><b>Inventory &amp; accountability</b><p>Items are graded A/B/C by value. Check equipment OUT to a person and back IN with a count + sign-off — anything missing shows in the loss report (chairs, mics, walkie-talkies).</p></div></div>
     <div class="hstep" data-need="plan"><div class="ic">🗓</div><div class="tx"><b>Plan &amp; tasks</b><p>Run-sheet, venue &amp; menu<span data-need="finance">, budget vs actuals</span>. Tasks are organised by section (stage, carpets, lighting…); set start times &amp; dependencies (carpet waits for stage), and flag special tasks for reminders.</p></div></div>
     <div class="hstep" data-need="ready"><div class="ic">✅</div><div class="tx"><b>Readiness → Event day<span data-need="finance"> → Close</span></b><p>The Readiness gate goes green only when everything's set. On the day, the Command centre tracks arrivals &amp; checks and a Quality engineer passes/rejects each task.<span data-need="finance"> Then Settle payments and Close with the P&amp;L.</span></p></div></div>
-    <div class="hstep"><div class="ic">👥</div><div class="tx"><b>Who sees what</b><p><span data-need="controls">Admins set each role's access in <b>Control Center → User control</b> — green tick = allowed.</span><span data-unless="controls" hidden>Your admin decides what each role can open, so you only see the areas your role uses.</span> So a salesperson sees only Leads &amp; CRM, crew only their own tasks, and so on.</p></div></div>
+    <div class="hstep"><div class="ic">👥</div><div class="tx"><b>Who sees what</b><p><span data-need="controls">Admins set each role's access in <b>Settings → User control</b> — green tick = allowed.</span><span data-unless="controls" hidden>Your admin decides what each role can open, so you only see the areas your role uses.</span> So a salesperson sees only Leads &amp; CRM, crew only their own tasks, and so on.</p></div></div>
     <div class="hclose"><button type="button" class="btn primary" id="helpClose" data-close>Got it — let's go</button></div>
   </div>
 </div>
 
-<!-- Team members + access control now live in the Control Center (control.html#users). -->
+<!-- Team members + access control now live in Settings (control.html#users). -->
 
 <script src="/trusted-types.js?v=5"></script>
 <script src="telemetry.js?v=9"></script>
-<script src="config.js?v=111"></script>
+<script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=6"></script><script src="store-api.js?v=299"></script><script src="flow-resume.js?v=6" data-mount></script>
-<script src="event-reminders.js?v=5"></script>
-<script src="page-tours.js?v=3"></script>
-<script src="tour.js?v=27"></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=7"></script><script src="store-api.js?v=300"></script><script src="flow-resume.js?v=6" data-mount></script>
+<script src="event-reminders.js?v=6"></script>
+<script src="page-tours.js?v=4"></script>
+<script src="tour.js?v=28"></script>
 <script src="getting-started.js?v=12"></script>
 <script src="onboarding-wizard.js?v=11"></script>
 <script src="trial-facts.js?v=6"></script>
-<script src="trial-demo.js?v=18"></script>
-<script src="trial-upgrade.js?v=2"></script>
+<script src="trial-demo.js?v=19"></script>
+<script src="trial-upgrade.js?v=3"></script>
 <script src="dash-prompts.js?v=1"></script>
 <script>
   const $ = (s) => document.querySelector(s);
@@ -378,7 +378,7 @@
       const role = await BPStore.auth.role();
       const isAdmin = role === "admin";
       // Each nav link is gated by its own AREA in the live access matrix, so the
-      // Control Center's per-role toggles decide exactly what each person sees.
+      // the Settings page's per-role toggles decide exactly what each person sees.
       // account chip: identity + logout only
       el.innerHTML = `<span class="role">${esc(BPStore.auth.admin.roleLabel(role)||"")}</span><span class="who">${esc(user.email)}</span>`
         + `<button type="button" id="logoutBtn">Log out</button>`;
@@ -430,7 +430,7 @@
 
     // Supabase enforces login and nobody's signed in → go to the full sign-in page
     if (mustLogin) { location.replace("/login?next=dashboard"); return; }
-    // 0040: client link expired → Archive / Deleted, per the studio's Control Center choice.
+    // 0040: client link expired → Archive / Deleted, per the studio's Settings choice.
     // The server runs it at most once per 10 minutes per studio; never awaited, never blocks.
     if (BPStore.mode() === "supabase" && BPStore.quoteShelf) BPStore.quoteShelf.tick().catch(() => {});
     // "Signed in but no studio" (→ onboarding, or /hq for a platform operator) is
@@ -790,7 +790,7 @@
   /* ---- interactive spotlight tour ---- */
   // First-run tour of the app shell + dashboard, in the order you read the screen:
   //   1. the left sidebar, top to bottom (pin, Dashboard, Quotes, Leads, Calendar, Chat,
-  //      Manage, Admin / Control Center, then the theme + profile at its foot),
+  //      Manage, Admin / Settings, then the theme + profile at its foot),
   //   2. the top bar, left to right (search, hide amounts, chat, notifications, New quote),
   //   3. the dashboard itself, top to bottom (Today, greeting + next event, Customize, KPI tiles),
   //   4. the getting-started checklist, then a short wrap-up.
@@ -804,11 +804,11 @@
   // alt(can) gives role-appropriate wording (null = the admin wording below, unchanged). tour.js resolves every
   // need / uses token through BPStore.auth (canView / canEditArea / can) before the tour starts.
   const TOUR_NOPAY=(s)=>String(s).replace("staff, stock and payments","staff and stock");
-  // the Admin step names only what this role has: Business (finance), Insights, Control Center (controls)
+  // the Admin step names only what this role has: Business (finance), Insights, Settings (controls)
   const TOUR_ADMIN_ALT=(can)=>{ const f=can("finance"), i=can("insights"), c=can("controls"); if(f&&i&&c) return null;
     const a=[]; if(f) a.push("Business shows your money"); if(i) a.push(f?"Insights your numbers":"Insights shows your numbers");
-    const d=(a.length?a.join(" and ")+". ":"")+(c?"Control Center holds your default prices, your team and what each role can see.":"");
-    return {title:c?"Admin & Control Center":"Admin", desc:d.trim()||"The admin pages your role can open."}; };
+    const d=(a.length?a.join(" and ")+". ":"")+(c?"Settings holds your default prices, your team and what each role can see.":"");
+    return {title:c?"Admin & Settings":"Admin", desc:d.trim()||"The admin pages your role can open."}; };
   const TOUR_TRIAL=()=>{ try{ return document.documentElement.classList.contains("helm-trial"); }catch{ return false; } };
   // B30: the trial welcome reads the trial length from the server (days left) and names the label the
   // screens actually show on sample rows ("Sample" badge, trial-upgrade.js) - not a hard-coded "8-day" / "Demo ·"
@@ -842,7 +842,7 @@
     {sel:RAIL+'[data-nav="calendar"]', side:"right", title:"Calendar", desc:"Everything that's booked, by date, so two events never clash."},
     {sel:[RAIL+'[data-nav="chat"]','#hbTabs [data-key="chat"]'], side:"right", title:"Chat", desc:"Your team's message room, inside Helm."},
     {sel:['[data-tour="nav-manage"]','[data-tour="tabs-more"]'], side:"right", title:"Manage", desc:"Your people and things: clients, staff, inventory and vendors. (On a phone these sit in the “More” menu.)"},
-    {sel:['[data-tour="nav-admin"]','[data-tour="tabs-more"]'], side:"right", uses:["finance","insights","controls"], alt:TOUR_ADMIN_ALT, title:"Admin & Control Center", desc:"Business shows your money and Insights your numbers. Control Center holds your default prices, your team and what each role can see."},
+    {sel:['[data-tour="nav-admin"]','[data-tour="tabs-more"]'], side:"right", uses:["finance","insights","controls"], alt:TOUR_ADMIN_ALT, title:"Admin & Settings", desc:"Business shows your money and Insights your numbers. Settings holds your default prices, your team and what each role can see."},
     {sel:['[data-tour="theme"]','[data-tour="tabs-more"]'], side:"right", title:"Colour theme", desc:"Pick a colour theme for the whole app (Emerald is the default). Your choice is remembered on this device. (On a phone it's inside the “More” menu.)"},
     {sel:['[data-tour="account"]','[data-tour="m-me"]','[data-tour="tabs-more"]'], side:"right", title:"Your profile menu", get desc(){ return (window.HELM_FEATURES&&window.HELM_FEATURES.manual===true)?"Your account, settings, the user manual and sign out live here.":"Your account, settings and sign out live here."; }},
     // 2 · top bar, left to right

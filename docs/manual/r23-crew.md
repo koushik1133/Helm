@@ -26,10 +26,10 @@ Your crew use the same link they already get for their tasks (the crew link). Th
 ## Wages
 On **Budget**, a crew member's **Actual** wage now comes from their check-in:
 - **Per day** (default): day rate x days they checked in.
-- **Per hour** (Control Center): hours checked in x (day rate / hours in a working day).
+- **Per hour** (Settings): hours checked in x (day rate / hours in a working day).
 - A wage posted on an open shift replaces their usual day rate for that event (per hour shifts are always paid by the hour).
 - No check-in: the Arrivals list counts as before (Arrived or Left = one day, No-show = nothing).
 Per-person pay is still visible to admins only.
 
-## Control Center -> Crew & shifts (admins / Control Center edit)
+## Settings -> Crew & shifts (admins / Settings edit)
 Switch each part on or off: availability, open shifts (and the default: first come or needs approval), WhatsApp notices for new shifts, self check-in, location check and its radius, "late after" minutes, "no-show? after" minutes, pay per day or per hour, hours in a working day.

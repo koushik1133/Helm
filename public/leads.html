@@ -108,7 +108,7 @@
 </style>
 <link rel="stylesheet" href="leads-polish.css?v=5">
 <link rel="stylesheet" href="theme.css?v=83">
-<script src="/shell-proto.js?v=49" id="shellProto"></script>
+<script src="/shell-proto.js?v=50" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -122,7 +122,7 @@
       <a href="quotes.html">Quotes</a>
       <a href="leads.html" class="on">Leads</a>
       <a href="crm.html">CRM archive</a>
-      <a href="control.html" id="ccLink" hidden>Control Center</a>
+      <a href="control.html" id="ccLink" hidden>Settings</a>
     </nav>
     <span class="spacer"></span>
     <span id="bell"></span>
@@ -227,12 +227,12 @@
 
 <script src="/trusted-types.js?v=5"></script>
 <script src="telemetry.js?v=9"></script>
-<script src="config.js?v=111"></script>
-<script src="phone-input.js?v=7"></script><script src="form-validate.js?v=3"></script>
+<script src="config.js?v=112"></script>
+<script src="phone-input.js?v=8"></script><script src="form-validate.js?v=3"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=6"></script><script src="store-api.js?v=299"></script>
-<script src="page-tours.js?v=3"></script>
-<script src="tour.js?v=27"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=300"></script>
+<script src="page-tours.js?v=4"></script>
+<script src="tour.js?v=28"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   // shared event-type list (event-name.js): same options as the quote flow; saved spelling is canonical
@@ -792,7 +792,7 @@
     $("#newBtn").hidden=!canCreate;
     // r24 (0269): admins get a shortcut to the public enquiry form settings (every enquiry lands here by itself)
     if(BPStore.automation) BPStore.automation.settings().then(c=>{ if(c&&c.can_manage) $("#enqBtn").hidden=false; }).catch(()=>{});
-    if(cc1) $("#ccLink").hidden=false;   // QA1017: only roles that can open the Control Center (was: any leads editor)
+    if(cc1) $("#ccLink").hidden=false;   // QA1017: only roles that can open Settings (was: any leads editor)
     await load();
     startRealtime();
   });

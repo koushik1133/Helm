@@ -1,4 +1,4 @@
-/* Control Center settings layout (preview). Linear/Stripe/Vercel-style: grouped left nav,
+/* Settings layout (preview). Linear/Stripe/Vercel-style: grouped left nav,
    page header, labelled cards, sticky unsaved-changes bar, ⌘K search. Uses theme tokens
    only, so it follows light/dark and every data-hb-theme. Pure layout layer. */
 #app.cs-on:not([hidden]){display:grid;grid-template-columns:232px minmax(0,1fr);gap:var(--sp-6,32px);align-items:start;max-width:1180px;margin-inline:auto}

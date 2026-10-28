@@ -4,7 +4,7 @@
  * Fails the build when
  *   1. an app page that gets the shared header (the APP allowlist in public/shell-proto.js) has no
  *      entry in public/page-tours.js, or a page that includes tour.js (its own "? Tour" button) has none;
- *   2. Control Center has a section (control-split.js SECTIONS) without its own tour;
+ *   2. Settings has a section (control-split.js SECTIONS) without its own tour;
  *   3. a step's selector no longer exists in that page's HTML / JS: every #id, .class and [attr="value"]
  *      it names must still appear in the page's HTML (inline scripts included), the local scripts that
  *      page loads, or the shared app-shell scripts that build the header and sidebar.
@@ -58,14 +58,14 @@ t('every page with its own tour button (tour.js) has a tour entry, and includes 
   for (const f of ['hq.html', 'builder.html', 'booklet.html']) assert.ok(withTourJs.includes(f), f + ' has a "? Tour" button');
 });
 
-/* ---- Control Center: one tour per section ---- */
+/* ---- Settings: one tour per section ---- */
 const SPLIT = r('control-split.js');
 const SECTIONS = [...SPLIT.slice(SPLIT.indexOf('var SECTIONS=['), SPLIT.indexOf('];', SPLIT.indexOf('var SECTIONS=['))).matchAll(/\{key:"([\w-]+)"[^}]*hash:"(#[\w-]+)"/g)].map((m) => ({ key: m[1], hash: m[2] }));
-t('Control Center: every section has its own tour, and its #hash picks it (' + SECTIONS.length + ' sections)', () => {
+t('Settings: every section has its own tour, and its #hash picks it (' + SECTIONS.length + ' sections)', () => {
   assert.ok(SECTIONS.length >= 15, 'sections parsed');
   const C = PT.entry('control.html');
   for (const s of SECTIONS) {
-    assert.ok(Array.isArray(C.sections[s.key]) && C.sections[s.key].length, 'no tour for Control Center section "' + s.key + '"');
+    assert.ok(Array.isArray(C.sections[s.key]) && C.sections[s.key].length, 'no tour for Settings section "' + s.key + '"');
     assert.equal(PT.HASH[s.hash], s.key, 'hash ' + s.hash + ' -> ' + s.key);
   }
   for (const k of Object.keys(C.sections)) assert.ok(SECTIONS.some((s) => s.key === k), 'tour for a section that no longer exists: ' + k);

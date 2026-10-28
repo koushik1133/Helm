@@ -1,6 +1,6 @@
 // r24 ui (owner screenshots, live site): Assign vendor dialog (Qty fits, dd/mm hint, amounts visible while typing in
 // privacy mode, plain "Notes for the vendor", e-mail hint), event-day crew check-in card (plain empty state, the optional
-// check-in location as a small link, location-check-off line with a Control Center link), run sheet one-line intro.
+// check-in location as a small link, location-check-off line with a Settings link), run sheet one-line intro.
 // Pages and scripts are checked as text.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -56,7 +56,7 @@ t('crew card: check-in location is a small optional link while the check is off 
   assert.match(CREW, /h\("details", \{ cls: "cs-site" \+ \(small \? " cs-site-small" : ""\) \}\)/);
   assert.match(CREW, /"📍 Set check-in location \(optional\)"/);
   assert.match(CREW, /"Location check is off - turn on in ", ccLink\(\)/);
-  assert.match(CREW, /href: "control\.html#crew", cls: "cs-link", text: "Control Center → Crew & shifts"/);
+  assert.match(CREW, /href: "control\.html#crew", cls: "cs-link", text: "Settings → Crew & shifts"/);
   assert.match(CCSS, /\.cs-site>summary\{/);
 });
 t('control center: #crew opens the Notifications tab at the crew settings card (admins only)', () => {

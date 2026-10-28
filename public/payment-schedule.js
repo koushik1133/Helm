@@ -91,7 +91,7 @@
   // "Automatic reminders: 3 days before, on the due day, 3 days after" | "... off" | "... paused for this event"
   function reminderLine(rem, paused) {
     if (!rem) return "";
-    if (!rem.enabled) return "Automatic client reminders are off (Control Center > Reminders & client messages).";
+    if (!rem.enabled) return "Automatic client reminders are off (Settings > Reminders & client messages).";
     if (paused) return "Automatic client reminders are paused for this event.";
     var parts = [];
     if (rem.before_days > 0) parts.push(plural(rem.before_days, "day") + " before");

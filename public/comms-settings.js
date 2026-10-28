@@ -1,4 +1,4 @@
-/* comms-settings.js — Control Center card (0078): automatic payment reminders, client
+/* comms-settings.js — Settings card (0078): automatic payment reminders, client
    follow-ups, low-stock bell warnings and WhatsApp forwarding. Reads / writes ONLY through
    BPStore.comms (comms_settings_get / comms_settings_set — studio admins). Builds every
    element with the DOM API (never from HTML strings). Hidden when the server is older than 0078. */
@@ -95,7 +95,7 @@
     });
     Object.assign(patch, {
       // r25 (0274): on / off for payment reminders, follow-ups, low stock and WhatsApp copies is switched ONLY in
-      // Control Center -> Automations (one place) - this card saves the details and never sends those switches
+      // Settings -> Automations (one place) - this card saves the details and never sends those switches
       pay_channels: chans("cm_pay_email", "cm_pay_wa"), pay_on_due: $("cm_pay_due").checked,
       pay_template: $("cm_pay_tpl").value.trim() || null,
       fu_channels: chans("cm_fu_email", "cm_fu_wa"),

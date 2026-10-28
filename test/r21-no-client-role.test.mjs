@@ -9,7 +9,7 @@ let n = 0; const t = (name, fn) => { fn(); n++; console.log('  ok ' + name); };
 t('client stays a server-side role (ALL_ROLES untouched)', () => {
   assert.match(API, /const ALL_ROLES\s*=\s*\[[^\]]*"client"\]/);
 });
-t('Control Center ROLES (add user, invite link, change role, Roles & access tabs) drop client + worker', () => {
+t('Settings ROLES (add user, invite link, change role, Roles & access tabs) drop client + worker', () => {
   assert.match(CC, /const ROLES = BPStore\.auth\.admin\.roles\(\)\.filter\(r=>r!=="client"&&r!=="worker"\);/);
   for (const use of ['#um_role', '#inv_role', '#roleTabs']) assert.ok(CC.includes(use), use);
   assert.match(CC, /\$\("#roleTabs"\)\.innerHTML = ROLES\.map/);

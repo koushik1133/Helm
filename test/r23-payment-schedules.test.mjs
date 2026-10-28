@@ -62,7 +62,7 @@ await t('SQL: additive, never overwrites a schedule, reminders on by default, wr
   assert.ok(!/[^\x00-\x7F]/.test(SQL) && !/[^\x00-\x7F]/.test(APPLY), 'ASCII only');
 });
 
-await t('UI: store-api, Control Center card + section, pages mount the card, client page, bell label', () => {
+await t('UI: store-api, Settings card + section, pages mount the card, client page, bell label', () => {
   for (const r of ['payment_schedule_settings_get', 'payment_schedule_settings_set', 'payment_schedule_template_save', 'payment_schedule_template_archive',
     'payment_schedule_for_quote', 'payment_schedule_apply', 'payment_schedule_pause', 'public_payment_schedule']) {
     assert.ok(API.includes('rpc("' + r + '"'), r); assert.ok(SQL.includes('function public.' + r + '('), r + ' in SQL');

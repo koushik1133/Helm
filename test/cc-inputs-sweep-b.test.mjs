@@ -1,4 +1,4 @@
-// Control Center input sweep B: Menus & catalog (dish add / filter), Layout rules, Reminders & client
+// Settings input sweep B: Menus & catalog (dish add / filter), Layout rules, Reminders & client
 // messages, Layout templates (rename) and Venues list filters. Pure rules + static wiring checks.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

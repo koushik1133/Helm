@@ -23,7 +23,7 @@ t('validation: positive + cap are errors; larger than the venue is only a warnin
   assert.equal(w.errors.length, 0); assert.equal(w.warnings[0].code, 'over_venue');
   assert.equal(A.calc({ venueLen: 100, venueWid: 80, len: 90, wid: 70 }).warnings.length, 0);
 });
-t('venues: length + breadth are required in Control Center', () => {
+t('venues: length + breadth are required in Settings', () => {
   assert.ok(!V.validate({ name: 'X', seated_capacity: 10 }).ok);
   const e = V.validate({ name: 'X', seated_capacity: 10, length: '80' }).errors;
   assert.equal(e[0].field, 'width');
@@ -46,7 +46,7 @@ t('flow: full venue size kept on the client JSON; hall fields stay the usable ar
   assert.match(f, /venueLen:vfl, venueWid:vfw/);
   assert.match(f, /hallLen:\$\("#g_len"\)\.value, hallWid:\$\("#g_wid"\)\.value/, 'hallLen/hallWid contract kept');
   assert.match(f, /\$\("#v_vlen"\)\.value=\+cl\.venueLen>0/);
-  assert.match(f, /<script src="venue-picker\.js\?v=7"><\/script>\s*<script src="venue-area\.js\?v=1"><\/script>/);
+  assert.match(f, /<script src="venue-picker\.js\?v=7"><\/script>\s*<script src="venue-area\.js\?v=2"><\/script>/);
   const a = read('public/venue-area.js');
   assert.match(a, /Reset to full venue/); assert.doesNotMatch(a, /innerHTML/);
 });

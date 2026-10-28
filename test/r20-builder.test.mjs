@@ -112,7 +112,7 @@ t('tour is easy to find: a "?" button in the top bar (desktop) whose menu starts
   assert.match(sc, /@media \(max-width: 819px\) \{ html\[data-shell="b"\] \.hb-ttour \{ display: none !important; \} \}/);
   const D = read('public/dashboard.html');
   assert.match(D, /Click the \? button in the top bar and pick “Tour this page”, or “Tour this page” in the sidebar/);
-  assert.match(D, /title:"Admin & Control Center", desc:"Business shows your money and Insights your numbers\./, 'no Reports item named');
+  assert.match(D, /title:"Admin & Settings", desc:"Business shows your money and Insights your numbers\./, 'no Reports item named');
 });
 t('tour: a target clipped inside a scrolled box is brought fully into it before the ring is drawn', () => {
   const tour = read('public/tour.js');
