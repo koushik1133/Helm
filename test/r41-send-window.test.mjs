@@ -17,11 +17,12 @@ t('migration: ASCII only, additive (no drop table / delete / truncate), needs 02
   assert.match(MIG, /STOP 0290: 0287 \(studio_timezone\) is not applied/);
   assert.match(MIG, /add column if not exists not_before timestamptz/);
 });
-t('migration: registered in MANIFEST in numeric order, right after 0287', () => {
+t('migration: registered in MANIFEST in numeric order (after 0287)', () => {
   const lines = r('supabase/migrations/MANIFEST').split('\n').filter((l) => l.startsWith('forward')).map((l) => l.trim());
   const i = lines.indexOf('forward  supabase/migrations/0290_send_window.sql');
   assert.ok(i > 0, '0290 registered');
-  assert.equal(lines[i - 1], 'forward  supabase/migrations/0287_studio_timezone_today.sql');
+  assert.ok(lines.indexOf('forward  supabase/migrations/0287_studio_timezone_today.sql') >= 0 && lines.indexOf('forward  supabase/migrations/0287_studio_timezone_today.sql') < i, '0287 before 0290');   // loosened like r44 / r47: other numbers (0288) may sit between
+  assert.ok(+lines[i - 1].match(/\/(\d{4})_/)[1] < 290, 'numeric order before 0290');
   if (i + 1 < lines.length) assert.ok(+lines[i + 1].match(/\/(\d{4})_/)[1] > 290, 'numeric order after 0290');
 });
 t('defaults: clients / guests 09:00-20:00, staff 08:00-21:00, per studio, at least one hour', () => {

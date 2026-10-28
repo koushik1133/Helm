@@ -489,6 +489,8 @@
       { sel: "#attList", title: "Needs attention", desc: "Studios and requests waiting on HQ." },
       { sel: "#tab-requests", side: "right", title: "Requests", desc: "Plan requests, sales enquiries and suggestions from studios." },
       { sel: "#tab-staff", side: "right", title: "Staff access", desc: "Who on the Helm team can use HQ, and with which rights." },
+      // r39 (0288): owner-only card on the Staff access tab (shown there only)
+      { sel: "#sgCard", title: "Google-only sign-in", desc: "Owner only: make every Helm staff member sign in to HQ with their helm.events Google account. Read the warning first and keep the emergency undo handy." },
     ],
     "booklet.html": {
       signedIn: true,   // client-facing link: the tour button only shows for a signed-in studio member

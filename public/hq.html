@@ -214,6 +214,10 @@
   .kv dt{color:var(--ink-3)} .kv dd{margin:0;overflow-wrap:anywhere;min-width:0}
   .notes{list-style:none;margin:var(--s2) 0 0;padding:0;font-size:13px;color:var(--ink-2)}
   .notes li{padding:var(--s2) 0;border-top:1px dashed var(--line)}
+  /* r39 (0288): Google-only sign-in for Helm staff */
+  .gwarn{border-left:4px solid var(--bad);background:#fdeceb;color:#5c140e;border-radius:var(--r);padding:var(--s3) var(--s4);font-size:14px;line-height:1.55;margin:var(--s3) 0}
+  .sgsteps{margin:var(--s2) 0 var(--s3);padding-left:22px;font-size:14px;line-height:1.6;color:var(--ink-2)}
+  #sgCard[hidden],#sgTestedRow[hidden]{display:none}
   /* ---- studio drawer ---- */
   .scrim{position:fixed;inset:0;background:rgba(15,23,20,.32);z-index:40}
   .drawer{position:fixed;top:0;right:0;bottom:0;width:min(800px,100vw);background:var(--bg);z-index:41;display:flex;flex-direction:column;box-shadow:-16px 0 48px rgba(15,23,20,.16)}
@@ -716,6 +720,22 @@
         <p class="muted" id="tmSetState"></p>
       </section>
     </div>
+    <section class="card" id="sgCard" aria-labelledby="sgH" data-perm="staff.manage" hidden>
+      <div class="hd"><h2 id="sgH">Google-only sign-in for Helm staff</h2><span class="pill" id="sgState">Off</span></div>
+      <p class="hint">When this is on, everyone with a helm.events address signs in ONLY with their helm.events Google Workspace account. Passwords, magic links and password-reset links stop working for them. Two-step stays required for HQ. Studio customers are not affected.</p>
+      <div class="gwarn" role="note"><b>Careful.</b> If Google sign-in does not work for you, you are locked out of HQ. HQ people whose address is not on helm.events lose HQ access while this is on. The only way back is the emergency SQL in STAFF-GOOGLE-ONLY-STEPS.md, run in the Supabase SQL editor.</div>
+      <h3>Test my Google sign-in first</h3>
+      <ol class="sgsteps">
+        <li>Sign out. On helm.events/login use <b>Continue with Google</b> with your helm.events account, then enter your two-step code.</li>
+        <li>Come back here. &ldquo;Your sign-in right now&rdquo; must say <b>Google &#10003;</b>.</li>
+        <li>Ask every HQ person to do the same. Their row below must say <b>Google &#10003;</b>.</li>
+        <li>Keep STAFF-GOOGLE-ONLY-STEPS.md open: it has the emergency undo.</li>
+      </ol>
+      <p class="muted" id="sgMe"></p>
+      <ul class="list" id="sgList"></ul>
+      <label class="fld chk" id="sgTestedRow"><input type="checkbox" id="sgTested"> <span>I have tested Google sign-in for me and the team</span></label>
+      <div class="actions"><button class="btn danger" id="btnSgOn" type="button">Turn on Google-only</button><button class="btn" id="btnSgOff" type="button" hidden>Turn off Google-only</button></div>
+    </section>
     <section class="card" aria-labelledby="tmRolesH">
       <h2 id="tmRolesH">What each role can do</h2>
       <div class="scroll"><table class="rmx" id="tmMatrix"></table></div>
@@ -869,13 +889,13 @@
 <script src="config.js?v=111"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=6"></script><script src="store-api.js?v=298"></script>
+<script src="country-profile.js?v=6"></script><script src="store-api.js?v=299"></script>
 <script src="auth-ui.js?v=55"></script>
 <script src="hq-invoice.js?v=2"></script>
 <script src="hq-mfa.js?v=1"></script>
 <script src="hq-staff.js?v=2"></script>
-<script src="hq.js?v=26"></script>
-<script src="page-tours.js?v=2"></script>
-<script src="tour.js?v=26"></script>
+<script src="hq.js?v=27"></script>
+<script src="page-tours.js?v=3"></script>
+<script src="tour.js?v=27"></script>
 </body>
 </html>

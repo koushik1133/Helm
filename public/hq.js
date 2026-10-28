@@ -210,6 +210,16 @@
       setTimeout(function () { try { location.reload(); } catch (e) {} }, 900);
     });
   }
+  // r39 (0288): while HQ's Google-only switch is on, a Helm staff person on a password / link sign-in is sent to Google
+  async function needsGoogle() {
+    if (!BPStore.staffGoogleSessionCheck) return false;
+    var r = await BPStore.staffGoogleSessionCheck();
+    return !!(r && r.needs_google);
+  }
+  function googleGate() {
+    blocked("Sign in with Google", "Helm staff sign in to HQ with their helm.events Google Workspace account. Sign out, then use Continue with Google on the sign-in page.", "Sign out and use Google", "login.html");
+    var g = $("#blkGo"); g.addEventListener("click", function (e) { e.preventDefault(); signOutThen("login.html"); });
+  }
   function signOutThen(href) { Promise.resolve(BPStore.auth.signOut && BPStore.auth.signOut()).catch(function () {}).then(function () { location.replace(href || "login.html"); }); }
   // r28 round 2: a clear "Session expired" screen; the sign-in is ended here (nothing left open), the button goes to sign-in
   function sessionOver(text) {
@@ -1758,6 +1768,41 @@
       okMsg("Added. " + e + " can now sign in at helm.events/login with this address and set up two-step."); loadTeam().catch(showErr);
     }).catch(showErr);
   }
+  /* ---- r39 (0288): Google-only sign-in for Helm staff (Owner). The database decides; this shows the switch + checklist ---- */
+  var sgData = null;
+  async function loadGoogleOnly() {
+    var card = $("#sgCard"); if (!card) return;
+    if (!ME || ME.role !== "owner") { card.hidden = true; return; }
+    var r;
+    try { r = await call("hq_staff_google_only"); } catch (e) { card.hidden = true; return; }   // a database without 0288
+    sgData = r && typeof r === "object" ? r : {}; card.hidden = false;
+    var on = !!sgData.on, st = $("#sgState");
+    st.textContent = on ? "On" : "Off"; st.className = "pill" + (on ? " ok" : "");
+    $("#sgMe").textContent = "Your sign-in right now: " + (sgData.my_session_google ? "Google \u2713" : "not Google - sign out and use Continue with Google first")
+      + (sgData.changed_at ? " · last changed " + when(sgData.changed_at) + (sgData.changed_by ? " by " + sgData.changed_by : "") : "");
+    var ul = clear($("#sgList"));
+    (Array.isArray(sgData.staff) ? sgData.staff : []).forEach(function (x) {
+      var p = !x.on_domain ? ["not on helm.events - loses HQ while this is on", "bad"] : x.google_ok ? ["Google \u2713" + (x.google_last_sign_in ? " · " + when(x.google_last_sign_in) : ""), "ok"]
+        : !x.has_login ? ["no login yet - first sign-in with Google", "warn"] : ["has not signed in with Google yet", "warn"];
+      ul.appendChild(el("li", null, [el("span", { cls: "m", text: x.email + " (" + (S ? S.roleLabel(x.role) : x.role) + ")" }), el("span", { cls: "pill " + p[1], text: p[0] })]));
+    });
+    if (!ul.firstChild) ul.appendChild(el("li", { cls: "empty", text: "Nobody on the HQ team yet." }));
+    $("#btnSgOn").hidden = on; $("#btnSgOff").hidden = !on; $("#sgTestedRow").hidden = on;
+    $("#btnSgOn").disabled = !sgData.my_session_google;
+  }
+  function setGoogleOnly(want) {
+    if (want) {
+      if (!$("#sgTested").checked) { showErr(new Error("Tick \u201cI have tested Google sign-in\u201d first.")); return; }
+      var notYet = (sgData && Array.isArray(sgData.staff) ? sgData.staff : []).filter(function (x) { return !x.google_ok; }).map(function (x) { return x.email; });
+      if (!window.confirm("Turn on Google-only sign-in for Helm staff?\n\n" + (notYet.length ? "These HQ people have NOT signed in with Google yet and cannot use HQ until they do: " + notYet.join(", ") + "\n\n" : "")
+        + "Passwords, magic links and reset links stop working for helm.events addresses. You will be asked for a fresh two-step code.")) return;
+    } else if (!window.confirm("Turn off Google-only sign-in? Helm staff can use a password again.")) return;
+    call("hq_set_staff_google_only", { p_on: !!want }).then(function (r) {
+      $("#sgTested").checked = false;
+      okMsg(r && r.on ? "Google-only sign-in for Helm staff is ON." : "Google-only sign-in for Helm staff is OFF.");
+      loadGoogleOnly().catch(showErr); loadTeam().catch(showErr);
+    }).catch(showErr);
+  }
   function saveTeamSettings() {
     var ips = S ? S.ipList($("#tmIps").value) : [];
     call("hq_set_staff_settings", { p_idle_minutes: Number($("#tmIdle").value) || 30, p_max_hours: Number($("#tmMax").value) || 12,
@@ -1910,6 +1955,7 @@
     BPStore.auth.required();
     var g = "notfound";
     try { g = await gate(); } catch (e) { g = "notfound"; }
+    if ((g === "enroll" || g === "hq") && await needsGoogle().catch(function () { return false; })) { on("#blkOut", "click", function () { signOutThen("login.html"); }); googleGate(); return; }
     if (g === "enroll") { on("#blkOut", "click", function () { signOutThen("login.html"); }); enrollGate(); return; }
     if (g === "login") { location.replace("login.html"); return; }
     if (g !== "hq") { notFound(); return; }
@@ -1932,7 +1978,7 @@
     // r24 (0271): the e-mail alerts link straight to Requests (hq#requests)
     var first = TABS.filter(canTab)[0] || "overview";
     if (location.hash === "#requests" && canTab("requests")) { showTab("requests"); reqTab("plan"); loadRequestsTab(); }
-    else { showTab(canTab("overview") ? "overview" : first); if (first === "requests" && !canTab("overview")) loadRequestsTab(); if (!canTab("overview") && first === "staff") { loadTeam().catch(showErr); loadStaff().catch(showErr); } }
+    else { showTab(canTab("overview") ? "overview" : first); if (first === "requests" && !canTab("overview")) loadRequestsTab(); if (!canTab("overview") && first === "staff") { loadTeam().catch(showErr); loadStaff().catch(showErr); loadGoogleOnly().catch(showErr); } }
     startWatch();
 
     TABS.forEach(function (t) { on("#tab-" + t, "click", function () {
@@ -1940,9 +1986,9 @@
       if (t === "activity") { loadAudit().catch(showErr); loadSecurity().catch(showErr); }
       if (t === "settings" && can("billing.read")) loadSettings().catch(showErr);
       if (t === "requests") loadRequestsTab();
-      if (t === "staff") { loadTeam().catch(showErr); loadStaff().catch(showErr); }
+      if (t === "staff") { loadTeam().catch(showErr); loadStaff().catch(showErr); loadGoogleOnly().catch(showErr); }
     }); });
-    on("#btnRefresh", "click", function () { loadAll().catch(showErr); if (!$("#pane-requests").hidden) loadRequestsTab(); if (!$("#pane-staff").hidden) { loadTeam().catch(showErr); loadStaff().catch(showErr); }
+    on("#btnRefresh", "click", function () { loadAll().catch(showErr); if (!$("#pane-requests").hidden) loadRequestsTab(); if (!$("#pane-staff").hidden) { loadTeam().catch(showErr); loadStaff().catch(showErr); loadGoogleOnly().catch(showErr); }
       if (!$("#pane-activity").hidden) { loadAudit().catch(showErr); loadSecurity().catch(showErr); } if (!$("#pane-settings").hidden && can("billing.read")) loadSettings().catch(showErr); });
     // r28: phone menu + bottom bar + Settings shortcuts
     on("#btnMenu", "click", function () { var va = $("#vApp"); navOpen(!(va && va.classList && va.classList.contains("nav-open"))); });
@@ -1998,6 +2044,8 @@
     on("#aWrites", "change", function () { loadAudit().catch(showErr); });
     on("#btnTmAdd", "click", addTeamMember);
     on("#btnTmSet", "click", saveTeamSettings);
+    on("#btnSgOn", "click", function () { setGoogleOnly(true); });
+    on("#btnSgOff", "click", function () { setGoogleOnly(false); });
     on("#tmRemoved", "change", function () { loadTeam().catch(showErr); });
     on("#btnStAdd", "click", addStaff);
     on("#btnStDom", "click", addDomain);

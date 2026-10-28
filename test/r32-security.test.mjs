@@ -25,7 +25,7 @@ await t('hq.js csvCell: formula guard matches reports.html (leading spaces, full
   assert.equal(csvCell(-500), '"-500"', 'a real number is not prefixed');
   assert.equal(csvCell('Studio "A"'), '"Studio ""A"""');
   assert.equal(csvCell(null), '""');
-  assert.match(rd('public/hq.html'), /hq\.js\?v=26/);
+  assert.match(rd('public/hq.html'), /hq\.js\?v=27/);
 });
 
 await t('CLI-01 check-html-sinks: map(cb).join() needs a visibly safe callback', async () => {
@@ -74,7 +74,7 @@ const API = rd('public/store-api.js');
 await t('AUTH-5 a server lockout on the sign-in form reads exactly like any refused sign-in (no "real account" tell)', () => {
   const m = /const LOCKOUT_RE = (\/.+\/);/.exec(API); const LOCKOUT_RE = eval(m[1]);
   const g = /function genericSignInError\(error\) \{[\s\S]*?\n  \}/.exec(API)[0];
-  const fn = vm.runInNewContext(`(function(){ const GENERIC_SIGNIN = "Invalid email or password."; const LOCKOUT_RE = ${m[1]}; const global = {}; return ${g}; })()`);
+  const fn = vm.runInNewContext(`(function(){ const GENERIC_SIGNIN = "Invalid email or password."; const LOCKOUT_RE = ${m[1]}; const STAFF_GOOGLE_RE = /Helm staff sign in with Google/i; function staffGoogleError() { const e = new Error("staff"); e.code = "staff_google_only"; return e; } const global = {}; return ${g}; })()`);   // r39 (0288) mapping lives in the same function
   const locked = fn({ message: 'Too many attempts. Try again in 15 minutes or reset your password.', status: 400 });
   const wrong = fn({ message: 'Invalid login credentials', code: 'invalid_credentials', status: 400 });
   assert.equal(locked.message, wrong.message); assert.equal(locked.code, wrong.code);
@@ -105,9 +105,9 @@ await t('AUTH-1 the join page sends the e-mailed mail key (&k=) to invite-signup
   const TPL = rd('supabase/functions/invite-mailer/templates.ts');
   assert.match(TPL, /invite_mail_key_set/); assert.match(TPL, /p_hash: await sha256Hex\(key\)/);
 });
-await t('store-api cache-buster: every page loads store-api.js?v=298', () => {
+await t('store-api cache-buster: every page loads store-api.js?v=299', () => {
   for (const p of readdirSync(new URL('../public/', import.meta.url)).filter((x) => x.endsWith('.html'))) {
-    const m = rd('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '298', p);
+    const m = rd('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '299', p);
   }
 });
 

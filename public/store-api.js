@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=48"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=49"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -453,6 +453,27 @@ window.HelmUrl = HelmUrl;
     if (!supa || !reservedEmailDomain(email)) return false;
     try { const r = await supa.rpc("signup_email_preauthorised", { p_email: String(email).trim().toLowerCase() }); return !r.error && r.data === true; }
     catch (e) { return false; }
+  }
+  // r39 (0288): while HQ's "Google-only for Helm staff" switch is on, an address on helm.events signs in ONLY with Google.
+  // The DATABASE decides (password hook, HQ gate, link / identity guards); this is the early, friendly check. It asks only
+  // "is the switch on and is this a helm.events address?" - never whether the address has a login. Any error -> false.
+  const STAFF_GOOGLE_MESSAGE = "Helm staff sign in with Google. Use 'Continue with Google'.";
+  const STAFF_GOOGLE_RE = /Helm staff sign in with Google/i;
+  function isStaffEmail(email) {
+    const e = String(email == null ? "" : email).trim().toLowerCase().replace(/\.+$/, "");
+    const at = e.indexOf("@"); return at > 0 && e.indexOf("@", at + 1) < 0 && e.slice(at + 1) === "helm.events";
+  }
+  function staffGoogleError() { const e = new Error(STAFF_GOOGLE_MESSAGE); e.code = "staff_google_only"; return e; }
+  async function staffGoogleOnlyFor(email) {
+    if (!supa || !isStaffEmail(email)) return false;
+    try { const r = await supa.rpc("staff_google_only_for", { p_email: String(email).trim().toLowerCase() }); return !r.error && r.data === true; }
+    catch (e) { return false; }
+  }
+  // HQ page: does THIS sign-in need to be a Google one? (null = a database without 0288 / not answerable)
+  async function staffGoogleSessionCheck() {
+    if (!supa || !currentUser) return null;
+    try { const r = await supa.rpc("staff_google_session_check"); return r.error || !r.data || typeof r.data !== "object" ? null : r.data; }
+    catch (e) { return null; }
   }
   // the server's refusal (hook 403 / guard trigger) -> the same friendly error
   function isReservedRefusal(err) { return /reserved for the helm team/i.test(String((err && (err.message || err.msg || err.error_description)) || "")); }
@@ -1689,6 +1710,8 @@ window.HelmUrl = HelmUrl;
     // account, so showing its text on the sign-in form told a stranger the e-mail is registered (R32 AUTH-5):
     // it reads exactly like any other refused sign-in. (Re-checking your own password keeps the lockout text.)
     if (LOCKOUT_RE.test(m)) { const e = new Error(GENERIC_SIGNIN); e.code = "invalid_credentials"; return e; }
+    // r39 (0288): Helm staff on helm.events sign in with Google (the password / token hook says so)
+    if (STAFF_GOOGLE_RE.test(m)) return staffGoogleError();
     if (st === 429 || /rate limit|too many/i.test(m) || /captcha/i.test(m + " " + c)) return error;
     if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) return error;
     if (/invalid_credentials|email_not_confirmed|user_not_found|user_banned|invalid login|not confirmed|credentials|user not found/i.test(c + " " + m) || (st === 400 && !/^(validation_failed|bad_json|email_provider_disabled|hook_|captcha_failed)/.test(c))) {
@@ -2094,6 +2117,7 @@ window.HelmUrl = HelmUrl;
         if (pageKey() !== "login") { try { location.href = "login.html?next=" + encodeURIComponent(HelmUrl.here()); } catch (x) {} }
         throw e;
       }
+      if (await staffGoogleOnlyFor(email)) throw staffGoogleError();   // r39 (0288): the server refuses it too
       localAuthOp++;
       try {
         const prev = currentUser;
@@ -2118,6 +2142,7 @@ window.HelmUrl = HelmUrl;
     async signUp(email, password, opts) {
       if (!supa) throw new Error("Supabase not configured");
       if (reservedEmailDomain(email) && !(await preauthorisedHqEmail(email))) throw reservedEmailError();   // r21 0248 (the server refuses it too); r27: HQ staff pass
+      if (await staffGoogleOnlyFor(email)) throw staffGoogleError();   // r39 (0288): new Helm staff logins are made with Google
       const bad = passwordProblem(password); if (bad) throw new Error(bad);
       const captchaToken = opts && opts.captchaToken;
       if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
@@ -2315,6 +2340,7 @@ window.HelmUrl = HelmUrl;
       if (!supa) throw new Error("Supabase not configured");
       const captchaToken = opts && opts.captchaToken;
       if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
+      if (await staffGoogleOnlyFor(email)) throw staffGoogleError();   // r39 (0288): no reset link for Helm staff (the server never stores one)
       const o = { redirectTo: (opts && opts.redirectTo) || (location.origin + "/reset-password") };
       if (captchaToken) o.captchaToken = captchaToken;
       const { error } = await supa.auth.resetPasswordForEmail(String(email || "").trim(), o);
@@ -10406,6 +10432,7 @@ window.HelmUrl = HelmUrl;
 
   const BPStore = {
     reservedEmailDomain, RESERVED_EMAIL_MESSAGE, preauthorisedHqEmail,
+    isStaffEmail, STAFF_GOOGLE_MESSAGE, staffGoogleOnlyFor, staffGoogleSessionCheck,
     activityText, init, mode: () => mode, capacityStatus, shortageText, advanceIn, venueForQuote, auth, quotes, flowProgress, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, vendorBills, moneyLedger, bell, inbox, audit, insights, dashboard, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms, paySchedule, deliveries, vendorRequests, linkViews, integrations, quoteValidity, automation,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }

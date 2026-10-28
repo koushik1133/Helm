@@ -135,6 +135,7 @@
   input.is-err{border-color:#d92d20;box-shadow:0 0 0 3px rgba(217,45,32,.12)}
   input.is-ok{border-color:#12b76a}
   .pwwrap{position:relative} .pwwrap input{padding-right:46px}
+  #pwLabel[hidden],.pwwrap[hidden],#submit[hidden],#staffGoogleNote[hidden],#pw2Row[hidden]{display:none}   /* r39: Helm staff sign in with Google only */
   .eye{position:absolute;right:4px;top:4px;width:36px;height:36px;border:0;background:transparent;border-radius:8px;cursor:pointer;color:var(--ink-3);display:flex;align-items:center;justify-content:center}
   /* invite join: only e-mail (locked), name, password, confirm, one button */
   body.invite-join .modetabs, body.invite-join #pwMeter, body.invite-join #confirmHelp{display:none!important}
@@ -284,7 +285,8 @@
       <label for="email">Email <span class="req" aria-hidden="true">*</span></label>
       <input id="email" type="email" autocomplete="username" placeholder="you@studio.com" required maxlength="254" aria-describedby="email_err">
       <p class="ferr" id="email_err" hidden></p>
-      <label for="pw">Password <span class="req" aria-hidden="true">*</span></label>
+      <div class="info" id="staffGoogleNote" role="status" hidden>Helm staff: please use <b>Continue with Google</b>.</div>
+      <label for="pw" id="pwLabel">Password <span class="req" aria-hidden="true">*</span></label>
       <div class="pwwrap">
         <input id="pw" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="current-password" placeholder="••••••••" required aria-describedby="pwHint pw_err">
         <button type="button" class="eye" id="pwEye" aria-label="Show password" aria-pressed="false">
@@ -487,7 +489,7 @@
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=6" defer></script><script src="store-api.js?v=298" defer></script>
+<script src="country-profile.js?v=6" defer></script><script src="store-api.js?v=299" defer></script>
 <script src="auth-ui.js?v=55" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>
@@ -686,6 +688,7 @@ document.addEventListener("DOMContentLoaded", function(){
     if(window.BPSignupFlow && BPSignupFlow.applyStep1) BPSignupFlow.applyStep1(m, J());   // r23: words + plan chip per ?plan=&mode=
     if(m==="signup" && !J()){ document.title="Create your studio · Helm"; } else { document.title="Sign in · Helm"; }
     if(GIS) GIS.refresh();   // r26: the Terms shield over Google's button follows the mode
+    if(staffG) applyStaffGoogle(true);   // r39: a Helm staff address keeps the password box hidden in every mode
   }
   // ----- field rules (owner form rules): inline errors on blur, polite + specific -----
   const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -714,6 +717,27 @@ document.addEventListener("DOMContentLoaded", function(){
   $("#email").addEventListener("blur", ()=>{ const e=normEmail($("#email").value);
     if(mode!=="signup"||!e||HQ_PRE[e]!==undefined||!window.BPStore||!BPStore.reservedEmailDomain||!BPStore.reservedEmailDomain(e)||!BPStore.preauthorisedHqEmail) return;
     BPStore.preauthorisedHqEmail(e).then(ok=>{ HQ_PRE[e]=!!ok; if(ok && normEmail($("#email").value)===e) setFieldErr($("#email"), emailProblem(e)); }); });
+  // r39 (0288): while HQ's "Google-only for Helm staff" switch is on, a helm.events address signs in ONLY with Google.
+  // The server says whether the switch is on (it never says whether the address has a login); the server refuses a
+  // password / reset link anyway - this only hides the password box early and points to Continue with Google.
+  var staffG=false, sgTimer=null; const STAFF_G={};
+  function applyStaffGoogle(on){
+    staffG=!!on;
+    $("#staffGoogleNote").hidden=!staffG;
+    $("#pwLabel").hidden=staffG; document.querySelector("#loginForm .pwwrap").hidden=staffG;
+    $("#submit").hidden=staffG;
+    $("#forgotRow").hidden=staffG || mode==="signup";
+    ["#pwHint","#pwRules","#pw2Row","#pwMeter"].forEach(id=>{ $(id).hidden=staffG || mode!=="signup"; });
+    if(staffG){ $("#pw").value=""; $("#pw2").value=""; setFieldErr($("#pw"), null); }
+  }
+  function checkStaffGoogle(){
+    const e=normEmail($("#email").value);
+    if(!window.BPStore||!BPStore.isStaffEmail||!BPStore.staffGoogleOnlyFor||!BPStore.isStaffEmail(e)){ if(staffG) applyStaffGoogle(false); return; }
+    if(STAFF_G[e]!==undefined){ if(STAFF_G[e]!==staffG) applyStaffGoogle(STAFF_G[e]); return; }
+    BPStore.staffGoogleOnlyFor(e).then(ok=>{ STAFF_G[e]=!!ok; if(normEmail($("#email").value)===e) applyStaffGoogle(!!ok); });
+  }
+  $("#email").addEventListener("input", ()=>{ clearTimeout(sgTimer); sgTimer=setTimeout(checkStaffGoogle,300); });
+  $("#email").addEventListener("blur", checkStaffGoogle);
   // show / hide password
   $("#pwEye").addEventListener("click", ()=>{ const i=$("#pw"), show=i.type==="password"; i.type=show?"text":"password";
     $("#pwEye").setAttribute("aria-pressed",show?"true":"false"); $("#pwEye").setAttribute("aria-label",show?"Hide password":"Show password"); i.focus(); });
@@ -817,7 +841,7 @@ document.addEventListener("DOMContentLoaded", function(){
         $("#fgOk").hidden=false;
       }catch(err){
         const c=(err&&err.code)||"";
-        showErr($("#fgErr"), /^(rate_limited|captcha_)/.test(c) ? err.message : BPUI.friendlyError(err,{action:"send the reset link"}));
+        showErr($("#fgErr"), /^(rate_limited|captcha_|staff_google_only)/.test(c) ? err.message : BPUI.friendlyError(err,{action:"send the reset link"}));
       }finally{ capReset(fgCap); btn.textContent="Send reset link →"; }
     });
   });
@@ -1401,6 +1425,8 @@ document.addEventListener("DOMContentLoaded", function(){
       $("#email").value=normEmail($("#email").value);
       const email=$("#email").value, pw=$("#pw").value;
       $("#err").hidden=true; $("#okmsg").hidden=true; $("#gHint").hidden=true;
+      // r39 (0288): Helm staff sign in with Google only (the server refuses a password anyway)
+      if(staffG){ showErr($("#err"), BPStore.STAFF_GOOGLE_MESSAGE||"Helm staff sign in with Google. Use 'Continue with Google'."); return; }
       // inline field checks first (first invalid field gets focus)
       const ids = mode==="signup" ? ["fullname","email","pw"] : ["email","pw"];   // r22: the studio is named in step 3
       let firstBad=null; ids.forEach(id=>{ const i=document.getElementById(id); if(!setFieldErr(i, fieldRule[id](i.value)) && !firstBad) firstBad=i; });
@@ -1486,7 +1512,7 @@ document.addEventListener("DOMContentLoaded", function(){
         if(/captcha/i.test(m)){ showErr($("#err"),"The security check failed or expired — please try again."); return; }
         // credential / policy messages from Supabase Auth are written for users; everything else goes through friendlyError
         // never echo "already registered" / "not confirmed" (account enumeration): one answer
-        const direct=(err&&(err.authMapped===true||err.code==="invalid_credentials"||err.code==="account_locked"||err.code==="rate_limited"||err.code==="captcha_failed"||err.code==="reserved_domain")) || (/^(Use at least|Include at least|Choose a)/.test(m));
+        const direct=(err&&(err.authMapped===true||err.code==="invalid_credentials"||err.code==="account_locked"||err.code==="rate_limited"||err.code==="captcha_failed"||err.code==="reserved_domain"||err.code==="staff_google_only")) || (/^(Use at least|Include at least|Choose a)/.test(m));
         showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create your account":"sign you in"}));
         // r20-coord #33: a wrong password may be an account that signs in with Google - a generic hint, shown for every
         // invalid sign-in (it says nothing about whether this e-mail has an account: no enumeration)
