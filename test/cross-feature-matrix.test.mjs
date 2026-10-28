@@ -73,10 +73,12 @@ for (const [w, h] of HALLS) for (const type of TYPES) for (const N of SEATS) {
   const stops = WT.walkthroughStops(items, { w, h });
   assert.ok(stops.length >= 3, tag + ' stops');
   for (const sp of stops) { assert.ok([...sp.pos, ...sp.target].every(Number.isFinite), tag + ' NaN stop ' + sp.key);
-    if (sp.key === 'overview' || sp.key === 'final') continue;
-    assert.ok(Math.abs(sp.pos[1] - WT.EYE) < 1e-9 && Math.abs(sp.pos[0]) <= w / 2 && Math.abs(sp.pos[2]) <= h / 2, tag + ' eye inside ' + sp.key); }
-  const seatStop = stops.find((x) => x.key === 'seating');
-  assert.ok(seatStop && new RegExp('^' + N + ' seats?\\b').test(seatStop.desc), `${tag}: walkthrough seats "${seatStop && seatStop.desc}"`);
+    if (sp.view === 'overview') continue;
+    assert.ok(sp.pos[1] >= WT.EYE_MIN && ((Math.abs(sp.pos[0]) <= w / 2 && Math.abs(sp.pos[2]) <= h / 2) || sp.pos[1] >= 12), tag + ' camera inside ' + sp.key); }
+  // R49: every item is shown by exactly one stop; guests across the seating stops add up to N
+  const pr = WT.proveCoverage(stops); assert.ok(pr.ok, tag + ' walkaround coverage: ' + pr.errors.slice(0, 3).join(' | '));
+  const seatStops = stops.filter((x) => x.key.startsWith('seating') || (x.guests > 0));
+  assert.equal(seatStops.reduce((n2, x) => n2 + (x.guests || 0), 0), N, `${tag}: walkaround guests ${seatStops.map((x) => x.desc).join(' | ')}`);
   // legend: friendly names, no raw type keys, grouped counts add up
   const { legend, byId } = CF.numberItems(items);
   for (const L of legend) { assert.ok(L.name && !/^[a-z]+$/.test(L.name), `${tag}: raw legend name ${L.name}`); assert.ok(L.count >= 1); }
@@ -173,7 +175,7 @@ assert.match(js, /layout: \(\) => \(\{ items: \(store && store\.items\) \|\| \[\
 // ======== walkthrough edges ========
 const it = (type, x, y, w, h, extra) => Object.assign({ id: type + x + y, type, x, y, width: w, height: h, rotation: 0, properties: {} }, extra || {});
 const finite = (stops, hall, tag) => { for (const sp of stops) { assert.ok([...sp.pos, ...sp.target].every(Number.isFinite), tag + ' ' + sp.key);
-  if (sp.key !== 'overview' && sp.key !== 'final') assert.ok(Math.abs(sp.pos[0]) <= hall.w / 2 && Math.abs(sp.pos[2]) <= hall.h / 2, tag + ' inside ' + sp.key); } };
+  if (sp.view !== 'overview' && sp.pos[1] < 12) assert.ok(Math.abs(sp.pos[0]) <= hall.w / 2 && Math.abs(sp.pos[2]) <= hall.h / 2, tag + ' inside ' + sp.key); } };
 const hall = { w: 200, h: 140 };
 finite(WT.walkthroughStops([], hall), hall, 'empty');
 finite(WT.walkthroughStops([it('seatblock', 20, 20, 60, 40, { properties: { rows: 10, cols: 12 } })], hall), hall, 'only seating');
