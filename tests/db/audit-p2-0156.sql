@@ -348,7 +348,8 @@ do $$ declare r text; begin
   update public.role_access set can_view = false, can_edit = false
    where org_id = 'a0000000-0000-4000-8000-000000000001' and role = 'sales' and area = 'quotes';
   r := pg_temp.as_val('a_staff@a.test', $q$select (public.export_tenant_organization_package() ? 'quotes')::text$q$);
-  perform pg_temp.t('export: users-view without quotes access gets no quotes', r = 'false', r);
+  -- r54 (0295): the export is for the studio owner / admins only, so a users-view member is now refused outright
+  perform pg_temp.t('export: users-view without quotes access gets no quotes', r = 'false' or r like 'err:42501:Only the studio owner or an admin%', r);
   r := pg_temp.as_val('a_admin@a.test', $q$select (public.export_tenant_organization_package() ? 'quotes')::text$q$);
   perform pg_temp.t('export: an admin still gets quotes', r = 'true', r);
   update public.role_access set can_view = true, can_edit = true
