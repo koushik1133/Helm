@@ -507,11 +507,42 @@
       var j = isOut ? 1 : 0.55;
       var tw = t.offsetWidth / 2, th = t.offsetHeight / 2;
       var x = clamp(Math.cos(a) * rx * j, -w / 2 + tw + 4, w / 2 - tw - 4);
-      var y = clamp(Math.sin(a) * ry * j, -h / 2 + th, h / 2 - th);
+      var y = clamp(Math.sin(a) * ry * j, -h / 2 + th + 10, h / 2 - th - 16);   // r27: rotated tiles stay fully on screen
       return { x: x, y: y, r: (i % 5 - 2) * 3 };
     });
   }
   layoutTiles();
+
+  /* R43b: "every tool in, one Helm out" is scrubbed by the scroll position. Each chip travels inward on a soft
+     spiral, shrinks and fades into the Helm centre (outer ring first, a short stagger between chips); scrolling
+     back up plays it in reverse. The centre grows a little as chips arrive and its rings swell. transform +
+     opacity only; called from the rAF loop with an eased progress, never with layout reads. */
+  var cvRings = core ? $$('.ring', core) : [];
+  var sstep = function (a, b, x) { var t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  function cvPaint(p) {
+    var n = tiles.length, arrived = 0;
+    tiles.forEach(function (t, i) {
+      var tp = tilePos[i]; if (!tp) return;
+      var st = 0.04 + (i / Math.max(1, n - 1)) * 0.26;               // chip i starts a little after chip i-1
+      var d = sstep(st, st + 0.64, p);                                // 0 = in orbit, 1 = inside the centre
+      var sp = 1 - d;                                                 // straight in, reaching the centre at the end
+      var ang = d * 0.5 * (i % 2 ? 1 : -1);                          // a gentle swirl on the way in
+      var x = tp.x * Math.cos(ang) - tp.y * Math.sin(ang), y = tp.x * Math.sin(ang) + tp.y * Math.cos(ang);
+      t.style.setProperty('transform', 'translate(-50%,-50%) translate3d(' + (x * sp).toFixed(1) + 'px,' + (y * sp).toFixed(1) + 'px,0) rotate(' + (tp.r * (1 - d)).toFixed(2) + 'deg) scale(' + (1 - d * 0.78).toFixed(3) + ')');
+      t.style.setProperty('opacity', (1 - sstep(0.72, 0.98, d)).toFixed(3));
+      arrived += sstep(0.8, 1, d);
+    });
+    var a = n ? arrived / n : 0;
+    var pulse = Math.sin(Math.PI * a) * 0.05;                        // a soft swell while chips are landing
+    core.style.setProperty('transform', 'scale(' + (0.72 + 0.28 * sstep(0, 0.9, p) + pulse).toFixed(3) + ')');
+    core.style.setProperty('opacity', '1');
+    cvRings.forEach(function (r, k) {
+      r.style.setProperty('transform', 'scale(' + (1 + a * (0.12 + k * 0.1)).toFixed(3) + ')');
+      r.style.setProperty('opacity', (0.55 + 0.45 * a).toFixed(3));
+    });
+  }
+  /* reduced motion on wide screens: one still picture of the start state (every tool around the centre) */
+  if (reduce && field && core && vw >= 768) cvPaint(0);
 
   /* ---------- one rAF loop: nav state, converge, morph, lerped parallax ---------- */
   var apps = $('#converge'), morph = $('#morph'), mimgs = [$('.mx0'), $('.mx1'), $('.mx2'), $('.mx3')], mstages = $$('#mstages li'), mframe = $('#morph .mframe');
@@ -553,9 +584,14 @@
   window.addEventListener('resize', function () { lastY = -1; appsP = -1; morphP = -1; kick(); }, { passive: true });
   if (phStage && 'IntersectionObserver' in window) new IntersectionObserver(function (es) { phVis = es[0].isIntersecting; if (phVis) kick(); }, { rootMargin: '200px 0px' }).observe(phStage);
   else phVis = true;
-  function frame() {
+  var appsCur = -1, appsT = 0;
+  function frame(now) {
     var y = window.scrollY, moved = y !== lastY;
     busy = false;
+    /* R43b: converge reads its geometry before any style is written this frame (no forced layout), and eases
+       toward the scroll position, so a snap that jumps the page by a screen still plays as a smooth fold-in */
+    var appsTgt = (apps && core && vw >= 768 && !reduce) ? progress(apps) : -1;
+    var dtA = Math.min(64, Math.max(1, (now || 0) - appsT || 16.7)); appsT = now || 0;
     if (moved) {
       nav.classList.toggle('scrolled', y > 10);
       lastY = y;
@@ -571,19 +607,14 @@
           tiles.forEach(function (t) { t.style.removeProperty('transform'); t.style.removeProperty('opacity'); });
           core.style.removeProperty('transform'); core.style.removeProperty('opacity');
         }
-      } else if (apps && core && (moved || appsP < 0)) {
-        var p = progress(apps);
+      } else if (apps && core && appsTgt >= 0) {
+        if (appsCur < 0 || appsP < 0) appsCur = appsTgt;
+        else appsCur += (appsTgt - appsCur) * (1 - Math.pow(1 - 0.16, dtA / 16.7));
+        if (Math.abs(appsTgt - appsCur) < 0.0008) appsCur = appsTgt; else busy = true;
+        var p = appsCur;
         if (Math.abs(p - appsP) > 0.0005) {
           appsP = p;
-          var e = ease(clamp((p - 0.08) / 0.72, 0, 1));
-          tiles.forEach(function (t, i) {
-            var tp = tilePos[i]; if (!tp) return;
-            var d = clamp(e * 1.15 - i * 0.012, 0, 1);
-            t.style.setProperty('transform', 'translate(-50%,-50%) translate3d(' + (tp.x * (1 - d)).toFixed(1) + 'px,' + (tp.y * (1 - d)).toFixed(1) + 'px,0) rotate(' + (tp.r * (1 - d)).toFixed(2) + 'deg) scale(' + (1 - d * 0.7).toFixed(3) + ')');
-            t.style.setProperty('opacity', (1 - clamp((d - 0.75) / 0.25, 0, 1)).toFixed(3));
-          });
-          core.style.setProperty('transform', 'scale(' + (0.6 + e * 0.55).toFixed(3) + ')');
-          core.style.setProperty('opacity', vw < 640 ? clamp(e * 2.2, 0, 1).toFixed(3) : '1');
+          cvPaint(p);
         }
       }
       /* morph 2D -> 3D -> photo render -> measure */
@@ -898,7 +929,7 @@
     var evMan = Promise.resolve(window.DEMO9_MANIFEST || {});
     /* r21 landing photos: owner-supplied photos in /landing/events/ (1600w + 800w WebP).
        Data Saver / Save-Data or a 2G-class connection keeps the gradient only (no photo requests). */
-    var CEL_PHOTOS = { wedding: 'wedding', corporate: 'product-launch', birthday: 'birthday', concert: 'sangeet', gala: 'corporate-gala', cultural: 'mehendi' };
+    var CEL_PHOTOS = { wedding: 'wedding', corporate: 'product-launch', birthday: 'birthday', concert: 'sangeet-2', gala: 'corporate-gala-2', cultural: 'mehendi-2' };
     var celNet = navigator.connection || {};
     var celLite = !!celNet.saveData || /(^|-)2g$/.test(String(celNet.effectiveType || ''));
     var celLoad = function (bg) {   /* sets the src only when the slide is shown (or next), so later photos never load early */
@@ -1096,10 +1127,25 @@
     var film = $('#film'), story = $('#story');
     if (film) Stepper(film, $$('#film .fc').length);
     if (story) Stepper(story, $$('#story .sl').length);
-    window.addEventListener('wheel', onWheel, { passive: false });
+    /* R43b (Safari lag): a non-passive wheel / touchmove listener on the window makes Safari (and iOS) run every
+       scroll of the whole page through the main thread. They are now attached only while a chaptered scene
+       (film, story) is within a screen of the viewport; everywhere else the page scrolls on the compositor. */
+    var armed = false, nearSet = [];
+    var arm = function (v) {
+      if (v === armed) return; armed = v;
+      var f = v ? 'addEventListener' : 'removeEventListener';
+      window[f]('wheel', onWheel, { passive: false });
+      window[f]('touchmove', onTouchMove, { passive: false });
+    };
+    if ('IntersectionObserver' in window) {
+      var nio = new IntersectionObserver(function (es) {
+        es.forEach(function (en) { var i = nearSet.indexOf(en.target); if (en.isIntersecting && i < 0) nearSet.push(en.target); else if (!en.isIntersecting && i >= 0) nearSet.splice(i, 1); });
+        arm(nearSet.length > 0);
+      }, { rootMargin: '100% 0px 100% 0px' });
+      steppers.forEach(function (st) { nio.observe(st.sec); });
+    } else arm(true);
     window.addEventListener('keydown', onKey);
     window.addEventListener('touchstart', onTouchStart, { passive: true });
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
     window.addEventListener('touchend', onTouchEnd, { passive: true });
     /* touch momentum can still land mid-way: settle on the chapter we are in once scrolling stops */
     var settleT = null;
@@ -1256,7 +1302,7 @@
   var cfI = 0, cfTimer = null;
   function cfRun(on) {
     clearInterval(cfTimer); cfTimer = null;
-    if (on) cfTimer = setInterval(function () { cfI = (cfI + 1) % 5; setCrew(cfI); }, 2600);
+    if (on) cfTimer = setInterval(function () { cfI = (cfI + 1) % 5; setCrew(cfI); }, 1950);   // R43b: ~25% quicker per step, still readable
   }
   if (cflow) {
     if (reduce) setCrew(1);
@@ -1279,6 +1325,7 @@
     var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.addEventListener('resize', function () { vh = window.innerHeight; }, { passive: true });
     var line = $('[data-fill]'), cur = $('.curtain'), ws = null;
+    var fitMq = window.matchMedia('(min-width: 768px) and (min-height: 560px)');
     if (line) {
       var words = line.textContent.trim().split(/\s+/); line.textContent = '';
       var sr = el('span', 'sr', words.join(' ')); line.appendChild(sr);
@@ -1289,7 +1336,8 @@
     function frame() {
       raf = 0;
       if (line && live.has(line)) {
-        var r = line.getBoundingClientRect(), k = clamp((vh * .85 - r.top) / (r.height + vh * .45), 0, 1), n = Math.round(k * ws.length);
+        /* r27/r28: when the page snaps one screen per section, the line is complete (to the last word) before it reaches the centre of the screen */
+        var r = line.getBoundingClientRect(), k = fitMq.matches ? clamp((vh * .95 - (r.top + r.height / 2)) / (vh * .36), 0, 1) : clamp((vh * .85 - r.top) / (r.height + vh * .45), 0, 1), n = Math.round(k * ws.length);
         ws.forEach(function (w, i) { w.classList.toggle('on', i < n); });
       }
       if (cur && live.has(cur)) {
@@ -1327,6 +1375,12 @@
   var str = function (v, max) { return typeof v === 'string' ? v.trim().slice(0, max) : ''; };
   var num = function (v) { v = Number(v); return v > 0 && v < 10000 ? Math.round(v) : 0; };
 
+  /* R43 speed: the strip is far below the first screen, so its list is fetched once the page has loaded and the
+     browser is idle - it no longer competes with the first screen for the network or the main thread */
+  var idle = window.requestIdleCallback || function (f) { return setTimeout(f, 200); };
+  var start = function () { idle(loadStrip, { timeout: 2000 }); };
+  if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true });
+  function loadStrip() {
   fetch('/landing/events/events.json', { cache: 'no-cache', credentials: 'same-origin' })
     .then(function (r) { return r.ok ? r.json() : []; })
     .then(function (list) {
@@ -1341,6 +1395,7 @@
       build(items);
     })
     .catch(function () { /* no list = no section */ });
+  }
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
 
@@ -1398,6 +1453,7 @@
     sec.hidden = false;
     lightbox(items);
     if (!reduce) motion();
+    window.dispatchEvent(new Event('helm:relayout'));   // R43: the section appeared - fit + snap points are recomputed
   }
 
   /* ---- seamless marquee: [set][copy]...[copy] where copies cover the band; x wraps every segW ---- */
@@ -1537,4 +1593,342 @@
       box.querySelector('.ev-close').focus();
     };
   }
+})();
+
+/* ================= r27 landing fit: one section = one screen, clean snapping =================
+   Nothing is removed, hidden or recoloured. On laptops / desktops / tablets (>= 768 x 560):
+   1. fit: a section whose content is taller than the screen is scaled down as a whole (CSS zoom on its
+      content blocks), so every section shows completely in one screen; pinned scenes likewise.
+   2. snap (home.css, motion allowed): plain sections snap at their top; the pinned, scroll-driven scenes
+      (hero film, converge, film, 2D->3D, story, celebrations) are taller on purpose, so an invisible snap
+      point is added at every chapter they already step to (same positions as their own buttons / stepper).
+      They get no section-level snap: a snap box taller than the screen would let the page rest inside it. */
+(function () {
+  'use strict';
+  var fitMq = window.matchMedia('(min-width: 768px) and (min-height: 560px)');
+  var snapMq = window.matchMedia('(min-width: 768px) and (min-height: 560px) and (prefers-reduced-motion: no-preference)');
+  var $ = function (s) { return document.querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var NAVH = 72;
+  function px(v) { return parseFloat(v) || 0; }
+  function flowKids(box) {
+    return Array.prototype.filter.call(box.children, function (c) {
+      var cs = getComputedStyle(c);
+      return c.tagName !== 'NOSCRIPT' && cs.position !== 'absolute' && cs.position !== 'fixed' && cs.display !== 'none' && !c.classList.contains('snap-pt');
+    });
+  }
+  function contentH(kids) {
+    if (!kids.length) return 0;
+    var top = Infinity, bot = -Infinity;
+    kids.forEach(function (k) { var r = k.getBoundingClientRect(), cs = getComputedStyle(k); top = Math.min(top, r.top - px(cs.marginTop)); bot = Math.max(bot, r.bottom + px(cs.marginBottom)); });
+    return bot - top;
+  }
+  /* box: the element that must fit; avail: its usable height; kids: the blocks that get scaled.
+     R43 speed: all boxes are measured together and scaled together (read, then write), so each pass costs one
+     layout of the page instead of one per section - same zoom values as before. */
+  function fitBoxes(jobs) {
+    jobs.forEach(function (j) { j.z = 1; j.kids.forEach(function (k) { k.style.removeProperty('zoom'); }); });
+    var open = jobs;
+    for (var pass = 0; pass < 3 && open.length; pass++) {
+      var hs = open.map(function (j) { return contentH(j.kids); });   // reads only
+      var next = [];
+      open.forEach(function (j, i) {                                   // writes only
+        if (hs[i] <= j.avail + 1) return;
+        j.z = Math.max(0.2, j.z * (j.avail - 2) / hs[i]);
+        j.kids.forEach(function (k) { k.style.setProperty('zoom', j.z.toFixed(3)); });
+        next.push(j);
+      });
+      open = next;
+    }
+  }
+  /* ===== R43b: rows that move sideways as the page scrolls (tools, modules) =====
+     Wide screens with motion allowed: the section becomes one screen tall plus the row's sideways distance; its
+     content is pinned (position: sticky) and the row is moved with translate3d only. The page keeps a snap point
+     per page of whole cards. Reduced motion, phones and no-JS keep the plain sideways-scrolling row. */
+  var hpins = [], hRaf = 0, hReduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function hItems(h) { return Array.prototype.filter.call(h.box.children, function (c) { return c.offsetParent !== null; }); }
+  function hMode(h) {
+    var on = snapMq.matches && !hReduce.matches;
+    if (on !== h.on) {
+      h.on = on; h.sec.classList.toggle('hpin', on);
+      if (!on) { h.box.style.removeProperty('transform'); h.sec.style.removeProperty('--hlen'); h.len = 0; h.cur = 0; }
+    }
+  }
+  function hMeasure(h) {
+    if (!h.on) return;
+    h.box.style.setProperty('transform', 'none');
+    var items = hItems(h), cr = h.clip.getBoundingClientRect(), bw = h.box.offsetWidth || 1;
+    h.z = cr.width / bw || 1;                                   // fit zoom on the pinned screen (visual / layout px)
+    var last = items[items.length - 1], first = items[0];
+    var dist = last ? Math.max(0, last.getBoundingClientRect().right - cr.right) : 0;
+    var step = (first && items[1]) ? items[1].getBoundingClientRect().left - first.getBoundingClientRect().left : cr.width;
+    var per = Math.max(1, Math.round((cr.width + 1) / (step || cr.width)));   // whole cards per view
+    var page = per * step;
+    h.dist = dist; h.len = Math.round(dist);
+    h.stops = [0];
+    for (var x = page; x < dist - 2; x += page) h.stops.push(x / dist);
+    if (dist > 2) h.stops.push(1);
+    h.sec.style.setProperty('--hlen', h.len + 'px');
+    hApply(h, true);
+  }
+  function hProgress(h) {
+    if (!h.len) return 0;
+    return Math.min(1, Math.max(0, -h.sec.getBoundingClientRect().top / h.len));
+  }
+  function hApply(h, now) {
+    var t = hProgress(h) * h.dist / (h.z || 1);
+    if (now || h.cur == null) h.cur = t;
+    h.tgt = t;
+    h.box.style.setProperty('transform', 'translate3d(' + (-h.cur).toFixed(1) + 'px,0,0)');
+    if (h.paint) h.paint();
+  }
+  var hLast = 0;
+  function hFrame(ts) {
+    hRaf = 0;
+    var dt = Math.min(64, Math.max(1, hLast ? ts - hLast : 16.7)); hLast = ts;
+    var more = false;
+    hpins.forEach(function (h) {
+      if (!h.on || !h.near) return;
+      var t = hProgress(h) * h.dist / (h.z || 1);                 // read
+      h.tgt = t;
+      var k = 1 - Math.pow(1 - 0.2, dt / 16.7);
+      var c = h.cur + (t - h.cur) * k;
+      if (Math.abs(t - c) < 0.4) c = t; else more = true;
+      if (c !== h.cur) { h.cur = c; h.box.style.setProperty('transform', 'translate3d(' + (-c).toFixed(1) + 'px,0,0)'); if (h.paint) h.paint(); }   // write
+    });
+    if (more) hRaf = requestAnimationFrame(hFrame); else hLast = 0;
+  }
+  function hKick() { if (!hRaf) hRaf = requestAnimationFrame(hFrame); }
+  window.addEventListener('scroll', function () { if (hpins.some(function (h) { return h.on && h.near; })) hKick(); }, { passive: true });
+  function hScrollTo(h, f, smooth) {
+    var y = window.scrollY + h.sec.getBoundingClientRect().top + f * h.len;
+    window.scrollTo({ top: Math.round(y), behavior: smooth && !hReduce.matches ? 'smooth' : 'auto' });
+  }
+  function HPin(sec, box) {
+    if (!sec || !box) return null;
+    var clip = document.createElement('div'); clip.className = 'hclip';
+    box.parentNode.insertBefore(clip, box); clip.appendChild(box);
+    var h = { sec: sec, box: box, clip: clip, on: false, near: false, len: 0, dist: 0, cur: 0, tgt: 0, z: 1, stops: [0] };
+    clip.addEventListener('scroll', function () { clip.scrollLeft = 0; }, { passive: true });   // overflow:hidden fallback
+    /* keyboard: a focused card that is off to the side brings the page to the stop that shows it */
+    box.addEventListener('focusin', function (e) {
+      if (!h.on || !h.len) return;
+      var it = e.target.closest ? e.target.closest('.flip, .mod') : null; if (!it || it.parentNode !== box) return;
+      var cr = clip.getBoundingClientRect(), r = it.getBoundingClientRect();
+      if (r.left >= cr.left - 1 && r.right <= cr.right + 1) return;
+      var want = h.cur * h.z + (r.right > cr.right ? r.right - cr.right : r.left - cr.left);
+      var f = Math.min(1, Math.max(0, want / h.dist)), best = 0;
+      h.stops.forEach(function (s, i) { if (Math.abs(s - f) < Math.abs(h.stops[best] - f)) best = i; });
+      hScrollTo(h, h.stops[best], false);
+    });
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { h.near = es[0].isIntersecting; if (h.near) { hApply(h, true); } }, { rootMargin: '50% 0px' }).observe(sec);
+    else h.near = true;
+    box._hpin = h; hpins.push(h);
+    return h;
+  }
+  /* prev / next buttons on a scroll-driven row move the page to the previous / next stop */
+  function hStep(h, dir) {
+    var f = h.len ? h.cur * h.z / h.dist : 0, i, n = h.stops.length;
+    if (dir > 0) { for (i = 0; i < n; i++) if (h.stops[i] > f + 0.01) break; i = Math.min(i, n - 1); }
+    else { for (i = n - 1; i >= 0; i--) if (h.stops[i] < f - 0.01) break; i = Math.max(i, 0); }
+    hScrollTo(h, h.stops[i], true);
+  }
+  var zoomed = false;   // R43 speed: phones never zoom, so they skip the per-block style reads entirely
+  function fitAll() {
+    if (!fitMq.matches && !zoomed) return;
+    var all = $$('main > .sec, main > .fillsec').concat($$('.apps-pin, .film-pin, .morph-pin, .story-pin, .cel-in, .hpin > .wrap'));
+    all.forEach(function (b) { flowKids(b).forEach(function (k) { k.style.removeProperty('zoom'); }); });
+    zoomed = false;
+    if (!fitMq.matches) return;
+    zoomed = true;
+    var vh = window.innerHeight, jobs = [];
+    $$('main > .sec, main > .fillsec').forEach(function (sec) {
+      if (sec.hidden) return;
+      if (sec.classList.contains('hpin')) {   // R43b: a scroll-driven row fits its pinned (sticky) screen
+        var pin = sec.firstElementChild, pcs = getComputedStyle(pin);
+        jobs.push({ kids: flowKids(pin), avail: pin.clientHeight - px(pcs.paddingTop) - px(pcs.paddingBottom) });
+        return;
+      }
+      var cs = getComputedStyle(sec);
+      jobs.push({ kids: flowKids(sec), avail: vh - px(cs.paddingTop) - px(cs.paddingBottom) });
+    });
+    $$('.film-pin, .morph-pin, .story-pin, .cel-in').forEach(function (pin) {
+      var cs = getComputedStyle(pin);
+      jobs.push({ kids: flowKids(pin), avail: pin.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) });
+    });
+    fitBoxes(jobs);
+  }
+  function frac(n) { var a = []; for (var i = 0; i < n; i++) a.push((i + 0.5) / n); return a; }
+  function plan() {
+    var vh = window.innerHeight, out = [];
+    function spanOf(sec) { return Math.max(0, sec.offsetHeight - vh); }
+    var hero = $('.hero'), hv = $('#heroVidWrap');
+    if (hero && hv) out.push([hero, [0, hv.offsetTop - NAVH]]);   // hero copy, then the film fully open
+    var cv = $('#converge'); if (cv) out.push([cv, [0, 0.25, 0.5, 0.75, 1].map(function (f) { return f * spanOf(cv); })]);   // R43b: the merge is scrubbed in quarter steps
+    var film = $('#film'); if (film) out.push([film, frac($$('#film .fc').length).map(function (f) { return f * spanOf(film); })]);
+    var morph = $('#morph'); if (morph) out.push([morph, [0.04, 0.38, 0.66, 0.96].map(function (f) { return f * spanOf(morph); })]);
+    var story = $('#story'); if (story) out.push([story, frac($$('#story .sl').length).map(function (f) { return f * spanOf(story); })]);
+    var cel = $('#solutions'); if (cel) out.push([cel, frac($$('#solutions .cel-s').length).map(function (f) { return f * spanOf(cel); })]);
+    hpins.forEach(function (h) { if (h.on && h.len > 0) out.push([h.sec, h.stops.map(function (f) { return f * h.len; })]); });
+    return out;
+  }
+  var made = [];
+  /* R43: the new snap points are measured and added before the old ones go. Removing them first left the page,
+     for one layout, with no snap point in the hero, and mandatory snapping then slid a freshly opened page down
+     to the next section. */
+  function build() {
+    hpins.forEach(hMode);
+    fitAll();
+    hpins.forEach(hMeasure);
+    var next = snapMq.matches ? plan() : [];
+    var old = made; made = [];
+    next.forEach(function (e) {
+      e[1].forEach(function (y) {
+        var i = document.createElement('i');
+        i.className = 'snap-pt'; i.setAttribute('aria-hidden', 'true');
+        i.style.setProperty('top', Math.round(y) + 'px');
+        e[0].appendChild(i); made.push(i);
+      });
+    });
+    old.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
+  }
+  var t = 0;
+  function later() { clearTimeout(t); t = setTimeout(build, 150); }
+  /* R43 speed: the first fit + snap set-up waits until the first screen has painted (the hero needs neither);
+     the hero keeps its first snap point in the markup, so snapping is right before this runs */
+  requestAnimationFrame(function () { setTimeout(build, 0); });
+  window.addEventListener('load', build);
+  window.addEventListener('resize', later, { passive: true });
+  window.addEventListener('helm:relayout', later);
+  if (snapMq.addEventListener) { snapMq.addEventListener('change', build); fitMq.addEventListener('change', build); }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(build);
+  /* a screen that has snapped into view shows all of its fade-in blocks (the page-wide reveal waits until a
+     block is 8% above the bottom edge, which a block at the foot of a fitted screen never reaches) */
+  if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    var rio = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting && fitMq.matches) $$('.rv', e.target).forEach(function (r) { r.classList.add('in'); }); });
+    }, { threshold: 0.6 });
+    $$('main > .sec, main > .fillsec').forEach(function (s) { rio.observe(s); });
+    $$('#apps > .wrap, #modules > .wrap').forEach(function (w) { rio.observe(w); });   // R43b: a tall scroll-driven section is never 60% on screen; its pinned screen is
+  }
+  /* version C: sideways rows on wide screens (tools, and r28: modules), with previous / next buttons */
+  var rowReduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function rowNav(box, what) {
+    var nav = document.createElement('div'); nav.className = 'flip-nav';
+    var mk = function (dir, label) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'flip-go ' + dir; b.setAttribute('aria-label', label); b.setAttribute('aria-controls', box.id);
+      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('aria-hidden', 'true');
+      var u = document.createElementNS('http://www.w3.org/2000/svg', 'use'); u.setAttribute('href', '#i-chev'); svg.appendChild(u); b.appendChild(svg);
+      b.addEventListener('click', function () {
+        if (box._hpin && box._hpin.on && box._hpin.len) { hStep(box._hpin, dir === 'prev' ? -1 : 1); return; }
+        box.scrollBy({ left: (dir === 'prev' ? -1 : 1) * Math.max(240, box.clientWidth * 0.8), behavior: rowReduce.matches ? 'auto' : 'smooth' });
+      });
+      nav.appendChild(b); return b;
+    };
+    var prev = mk('prev', 'Previous ' + what), next = mk('next', 'Next ' + what);
+    var paint = function () {
+      var h = box._hpin;
+      if (h && h.on) { var f = h.len ? h.cur * h.z / h.dist : 0; prev.disabled = !h.len || f < 0.01; next.disabled = !h.len || f > 0.99; return; }
+      prev.disabled = box.scrollLeft < 4;
+      next.disabled = box.scrollLeft + box.clientWidth >= box.scrollWidth - 4;
+    };
+    box.addEventListener('scroll', paint, { passive: true });
+    window.addEventListener('resize', paint, { passive: true });
+    if ('MutationObserver' in window) new MutationObserver(paint).observe(box, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    return { nav: nav, paint: paint };
+  }
+  var flips = $('#flips'), tabs = $('#ftabs');
+  if (flips && tabs) {
+    var fn = rowNav(flips, 'tools');
+    /* the buttons sit beside the filter pills (not inside them: a click inside #ftabs resets the row) */
+    var row = document.createElement('div'); row.className = 'ftabs-row';
+    tabs.parentNode.insertBefore(row, tabs); row.appendChild(tabs); row.appendChild(fn.nav);
+    tabs.addEventListener('click', function (e) {
+      if (!(e.target.closest && e.target.closest('[data-f]'))) return;
+      flips.scrollLeft = 0; setTimeout(fn.paint, 60);
+      var h = flips._hpin;
+      if (h && h.on) {   // R43b: a new filter starts the row from its first card and re-measures its length
+        if (h.len && h.sec.getBoundingClientRect().top < -1) hScrollTo(h, 0, false);
+        setTimeout(build, 260);
+      }
+    });
+    var fh = HPin($('#apps'), flips); if (fh) fh.paint = fn.paint;
+    fn.paint();
+  }
+  var modRow = $('#modRow');
+  if (modRow) {
+    var mn = rowNav(modRow, 'modules');
+    var mbar = document.createElement('div'); mbar.className = 'row-bar';
+    mbar.appendChild(mn.nav); modRow.parentNode.insertBefore(mbar, modRow);
+    var mh = HPin($('#modules'), modRow); if (mh) mh.paint = mn.paint;
+    mn.paint();
+  }
+  /* r28: the HELM logo in the header (and footer) glides back to the very top of the landing page */
+  $$('a.brand[href="#top"]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      var nav = $('.nav'), bg = $('.burger'); if (nav && bg && nav.classList.contains('menu-open')) bg.click();
+      window.scrollTo({ top: 0, behavior: rowReduce.matches ? 'auto' : 'smooth' });
+      if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+    });
+  });
+
+  /* content that changes height after load (contact form fields, tool cards, event strip) */
+  setTimeout(build, 1500);
+})();
+
+/* ================= R43: in-page links land exactly on their section =================
+   Sections further down skip rendering until they come near (content-visibility:auto) and the photo strip
+   appears after load, so from a fresh load the page above a target could change height while the smooth
+   scroll was running and the link stopped short. Now, on a tap: (1) the sections between the screen and the
+   target render first, so the browser's own anchor scroll (smooth, or instant with reduced motion; the URL
+   hash and focus behave as before) aims at the real position; (2) when the scroll settles, if the target
+   has moved meanwhile, a second short scroll corrects it (up to three times). */
+(function () {
+  'use strict';
+  var reduceMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var CV = '.crew,.modules,.repeat,.why,.compare,.security,.about,.voices,.pricing,.faq,.contact,.final,body>footer';
+  var job = 0, forced = [];
+  function px(v) { return parseFloat(v) || 0; }
+  function docTop(el) { return el.getBoundingClientRect().top + window.scrollY; }
+  function release() { forced.forEach(function (s) { s.style.removeProperty('content-visibility'); }); forced = []; }
+  function settle(cb) {   // calls back once the page has stopped scrolling for a few frames
+    var last = -1, still = 0, n = 0;
+    (function tick() {
+      var y = window.scrollY;
+      if (Math.abs(y - last) < 0.5) still++; else { still = 0; last = y; }
+      if (still >= 8 || ++n > 900) cb(); else requestAnimationFrame(tick);
+    })();
+  }
+  document.addEventListener('click', function (e) {
+    if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a) return;
+    var id = a.getAttribute('href').slice(1), target = id && document.getElementById(id);
+    if (!target || id === 'top' || id === 'main' || !target.closest('main')) return;   // logo + skip link keep their own behaviour
+    var my = ++job;
+    release();
+    var tTop = target.getBoundingClientRect().top, lo = Math.min(0, tTop), hi = Math.max(0, tTop) + window.innerHeight;
+    Array.prototype.forEach.call(document.querySelectorAll(CV), function (s) {
+      var r = s.getBoundingClientRect();
+      if (r.bottom >= lo && r.top <= hi) { s.style.setProperty('content-visibility', 'visible'); forced.push(s); }
+    });
+    var before = docTop(target);   // real position (forces the layout the anchor scroll will use)
+    var pass = 0;
+    setTimeout(function check() {
+      settle(function () {
+        if (my !== job) return;
+        var now = docTop(target), root = document.documentElement;
+        var want = px(getComputedStyle(root).scrollPaddingTop) + px(getComputedStyle(target).scrollMarginTop);
+        var atEnd = window.scrollY >= root.scrollHeight - window.innerHeight - 1;
+        var off = target.getBoundingClientRect().top - want;
+        if (Math.abs(now - before) > 1 && Math.abs(off) > 1 && !atEnd && pass++ < 3) {
+          before = now;
+          window.scrollTo({ top: window.scrollY + off, behavior: reduceMq.matches ? 'auto' : 'smooth' });
+          setTimeout(check, 50);
+        } else release();
+      });
+    }, 60);
+  });
 })();
