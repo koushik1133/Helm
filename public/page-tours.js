@@ -54,7 +54,8 @@
       { sel: "#viewSeg", title: "2D, 3D and Render", get desc() { return inTrial()
         ? "Edit in the 2D plan, walk around it in 3D, or press Render for a realistic 3D look of the same floor. AI photos of the plan come with a paid plan."
         : "Edit in the 2D plan, walk around it in 3D, or press Render to make a photo-like picture of the plan. All three show the same floor."; } },
-      { sel: [".wt-field", "#wtStart"], title: "Explore in 3D", desc: "Walkthrough takes a guided 3D walk through the venue. In the 3D view you also get Overview, Floor plan and Evening lighting." },
+      { sel: [".wt-field", "#wtStart"], title: "Explore in 3D", desc: "Quick 3D views of the venue: Overview, Floor plan and Evening lighting, plus the guided Walkthrough." },
+      { sel: ["#wtStart", ".wt-fab"], title: "3D walkaround", desc: "Walkthrough (in Explore, next to the view switch) flies the 3D camera past every item on your floor, one stop at a time. Drag, scroll or pinch the view to look around - that pauses the tour. Esc exits." },
       { sel: "#measureBtn", title: "Measure", desc: "Turn on Measure, then select an object to see its distance from all four walls and its nearest neighbour on every side." },
       { sel: ".hg-edit", title: "Undo, Redo, Clear", desc: "Step back or forward through your changes (⌘Z / ⌘⇧Z). Clear removes every object - you can still Undo it." },
       { sel: "#projName", title: "Name this layout", desc: "The event or quote name. Saved with every version of the floor." },
@@ -488,6 +489,8 @@
       { sel: "#attList", title: "Needs attention", desc: "Studios and requests waiting on HQ." },
       { sel: "#tab-requests", side: "right", title: "Requests", desc: "Plan requests, sales enquiries and suggestions from studios." },
       { sel: "#tab-staff", side: "right", title: "Staff access", desc: "Who on the Helm team can use HQ, and with which rights." },
+      // r39 (0288): owner-only card on the Staff access tab (shown there only)
+      { sel: "#sgCard", title: "Google-only sign-in", desc: "Owner only: make every Helm staff member sign in to HQ with their helm.events Google account. Read the warning first and keep the emergency undo handy." },
     ],
     "booklet.html": {
       signedIn: true,   // client-facing link: the tour button only shows for a signed-in studio member

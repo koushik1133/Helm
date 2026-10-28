@@ -26,13 +26,13 @@ await t('matrix in hq-staff.js is exactly the database matrix (_hq27_role_perms)
   }
 });
 await t('roles: Sales cannot touch billing or staff; Security can suspend but not add staff; Viewer only Overview', () => {
-  assert.deepEqual(S.allowedTabs(S.ROLE_PERMS.sales), ['overview', 'studios', 'requests', 'plans']);
+  assert.deepEqual(S.allowedTabs(S.ROLE_PERMS.sales), ['overview', 'studios', 'requests', 'plans', 'privacy']);
   assert.ok(!S.can(S.ROLE_PERMS.sales, 'billing.write') && !S.can(S.ROLE_PERMS.sales, 'billing.read'));
   assert.ok(S.can(S.ROLE_PERMS.security, 'staff.suspend') && !S.can(S.ROLE_PERMS.security, 'staff.manage'));
-  assert.deepEqual(S.allowedTabs(S.ROLE_PERMS.viewer), ['overview']);
+  assert.deepEqual(S.allowedTabs(S.ROLE_PERMS.viewer), ['overview', 'privacy']);
   assert.deepEqual(S.allowedTabs(S.ROLE_PERMS.owner), Object.keys(S.TAB_PERM));
   assert.ok(!S.can(S.ROLE_PERMS.admin, 'staff.manage') && S.can(S.ROLE_PERMS.owner, 'staff.manage'));
-  assert.deepEqual(S.allowedTabs(S.ROLE_PERMS.support), ['overview', 'studios', 'requests', 'people']);
+  assert.deepEqual(S.allowedTabs(S.ROLE_PERMS.support), ['overview', 'studios', 'requests', 'people', 'privacy']);
 });
 await t('refusal kinds + plain sentences; devices; IP list cleaning', () => {
   assert.equal(S.errKind({ message: 'not authorized: HQ_REAUTH enter a fresh two-step code' }), 'reauth');

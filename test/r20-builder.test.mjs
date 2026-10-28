@@ -97,7 +97,7 @@ t('tours: H and the hide controls are explained (dashboard, shell, builder)', ()
   for (const m of blk.matchAll(/sel: (\[[^\]]*\]|"[^"]*")/g)) {
     const first = JSON.parse(m[1].startsWith('[') ? m[1] : '[' + m[1] + ']')[0];
     const id = /#([\w-]+)/.exec(first), cls = /\.([\w-]+)/.exec(first);
-    if (first === '.wt-field' || first.startsWith('.bp-priv-slot')) continue;   // mounted at runtime (walkthrough.js / shell-b-privacy.js)
+    if (first === '.wt-field' || first === '#wtStart' || first.startsWith('.bp-priv-slot')) continue;   // mounted at runtime (walkthrough.js / shell-b-privacy.js)
     assert.ok(id ? html.includes('id="' + id[1] + '"') : html.includes(cls[1]), 'target on the page: ' + first);
   }
 });

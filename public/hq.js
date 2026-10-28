@@ -10,7 +10,12 @@
    All values are written with textContent / createElement (never parsed as HTML).
    r27 (0277): HQ STAFF ROLES - hq_me() says who I am (role, permissions, status); pages / buttons a role can't use are
    hidden (the database refuses them anyway), two-step always, idle sign-out, a fresh code before big changes
-   (HQ_REAUTH), "Staff access" = the HQ team with monitoring + Helm e-mail addresses. */
+   (HQ_REAUTH), "Staff access" = the HQ team with monitoring + Helm e-mail addresses.
+   r28 (HQ v2): Overview · Studios · Billing · Requests · Plans · People · Security & activity · HQ team · Settings;
+   e-mails / phones / PAN / GSTIN are MASKED by default and "Show" is logged first (hq_log_reveal, 0278; a database
+   without 0278 logs a throttled hq_heartbeat('reveal') tick instead); phones get a slide-in menu + bottom bar and
+   tables turn into cards (data-label from the column headings). ?demo=1 on localhost only = made-up data in the
+   browser (hq-demo.js, never deployed - .vercelignore). */
 (function () {
   "use strict";
   var $ = function (s) { return document.querySelector(s); };
@@ -27,19 +32,47 @@
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
   function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
   function int(v) { return num(v).toLocaleString("en-IN"); }
-  function money(v, cur) {
+  // the exact amount in its own currency (forms, confirmations, plan prices, invoices)
+  function moneyRaw(v, cur) {
     try { return new Intl.NumberFormat("en-IN", { style: "currency", currency: cur || "INR", maximumFractionDigits: 2 }).format(num(v)); }
     catch (e) { return (cur || "INR") + " " + num(v).toFixed(2); }
   }
-  function moneyList(list) {
-    list = Array.isArray(list) ? list : [];
-    return list.length ? list.map(function (m) { return money(m.amount, m.currency); }).join(" + ") : money(0);
+  /* r28 (owner): HQ shows money in US dollars by default. Rupee amounts are converted with a rate the HQ person sets
+     in Settings (this browser only; default 84) and marked "≈"; a hover shows the exact rupee amount. "Original"
+     shows every amount in its own currency. Nothing stored on the server changes. */
+  var DISP = { cur: "USD", rate: 84 };
+  try { var dc = localStorage.getItem("helm.hq.dispCur"), dr = Number(localStorage.getItem("helm.hq.inrPerUsd"));
+    if (dc === "USD" || dc === "ORIG") DISP.cur = dc; if (dr >= 1 && dr <= 1000) DISP.rate = dr; } catch (e) {}
+  // pure: an amount in display dollars, or null when it stays as it is (exported for tests)
+  function toUsd(v, cur, disp) {
+    disp = disp || DISP; cur = cur || "INR";
+    if (disp.cur !== "USD") return null;
+    if (cur === "USD") return { usd: num(v), approx: false };
+    if (cur === "INR" && disp.rate > 0) return { usd: num(v) / disp.rate, approx: true };
+    return null;
+  }
+  function usdText(u) { return (u.approx ? "≈ " : "") + new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: u.usd >= 1000 ? 0 : 2 }).format(u.usd); }
+  function money(v, cur) { var u = toUsd(v, cur); return u ? usdText(u) : moneyRaw(v, cur); }
+  // confirmations: the dollar view plus the exact amount ("≈ $47.62 (₹3,999.00)")
+  function moneyBoth(v, cur) { var u = toUsd(v, cur); return u && u.approx ? usdText(u) + " (" + moneyRaw(v, cur) + ")" : moneyRaw(v, cur); }
+  function moneyList(list, times) {
+    list = Array.isArray(list) ? list : []; times = times || 1;
+    if (DISP.cur === "USD" && list.length && list.every(function (m) { return toUsd(m.amount, m.currency); })) {
+      var t = 0, ap = false; list.forEach(function (m) { var u = toUsd(m.amount, m.currency); t += u.usd; ap = ap || u.approx; });
+      return usdText({ usd: t * times, approx: ap });
+    }
+    return list.length ? list.map(function (m) { return money(num(m.amount) * times, m.currency); }).join(" + ") : money(0);
+  }
+  function shortMoney(v) {
+    var u = toUsd(v, "INR"); if (!u) return shortInr(v);
+    var a = Math.abs(u.usd), s = a >= 1e6 ? (a / 1e6).toFixed(1).replace(/\.0$/, "") + "M" : a >= 1e3 ? (a / 1e3).toFixed(a >= 1e4 ? 0 : 1).replace(/\.0$/, "") + "K" : String(Math.round(a));
+    return "$" + s;
   }
   // a bare day ("2026-10-26") is shown as that day (new Date("YYYY-MM-DD") is UTC midnight: the day before west of UTC)
   function date(v) {
     if (!v) return "—"; var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v).trim());
     var d = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)) : new Date(v);
-    return isNaN(d) ? "—" : d.toLocaleDateString("en-IN", m ? { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" } : { day: "numeric", month: "short", year: "numeric" });
+    return isNaN(d) ? "—" : d.toLocaleDateString("en-IN", m ? { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" } : { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" });   // r37: HQ = India time
   }
   // L9 (live QA): a studio's trial end is the STUDIO's calendar day of the exact end moment (hq_trial_info 0223 sends
   // the studio's timezone; trial studios are India by default) - the same day the studio sees, never the UTC day or
@@ -66,6 +99,58 @@
   }
   function showErr(e) { var b = $("#err"); b.textContent = "Couldn’t complete that: " + ((e && e.message) || "unknown error"); b.hidden = false; }
   function okMsg(t) { var b = $("#ok"); b.textContent = t; b.hidden = false; setTimeout(function () { b.hidden = true; }, 4000); }
+  /* ---------------- r28: data minimisation - masked by default, "Show" is logged first ----------------
+     pure maskers (exported for tests): never more than a hint of the value */
+  var DOT = "\u2022";
+  function maskEmail(v) {
+    var s = String(v == null ? "" : v).trim(), at = s.lastIndexOf("@");
+    if (!s) return "";
+    if (at < 1) return s.charAt(0) + DOT + DOT + DOT;
+    var local = s.slice(0, at), keep = local.length > 3 ? 2 : 1;
+    return local.slice(0, keep) + DOT + DOT + DOT + s.slice(at);
+  }
+  function maskPhone(v) {
+    var s = String(v == null ? "" : v).trim(), d = s.replace(/\D/g, "");
+    if (!d) return "";
+    var cc = /^\+(\d{1,3})[\s-]/.exec(s), rest = cc ? d.slice(cc[1].length) : d;
+    return (cc ? "+" + cc[1] + " " : "") + new Array(Math.max(2, rest.length - 2) + 1).join(DOT) + rest.slice(-2);
+  }
+  function maskId(v) {
+    var s = String(v == null ? "" : v).replace(/\s+/g, "");
+    if (!s) return "";
+    if (s.length <= 4) return new Array(s.length + 1).join(DOT);
+    return s.slice(0, 2) + new Array(s.length - 3).join(DOT) + s.slice(-2);
+  }
+  var MASKERS = { email: maskEmail, phone: maskPhone, id: maskId };
+  // one audit row per reveal (0278 hq_log_reveal: which field, never the value). Older database: a throttled
+  // hq_heartbeat("reveal") tick, so it still shows as HQ use. A role refusal / ended sign-in = nothing is shown.
+  function logReveal(entity, id, field) {
+    return call("hq_log_reveal", { p_entity: entity, p_entity_id: id == null ? null : String(id), p_field: field || "value" }).catch(function (e) {
+      if (S && S.errKind(e)) throw e;
+      if (/hq_log_reveal|PGRST202|does not exist|schema cache|not find the function/i.test(String((e && e.message) || ""))) return BPStore.hq("hq_heartbeat", { p_page: "reveal" }).catch(function () { return null; });
+      throw e;
+    });
+  }
+  // a masked value with a small "Show" button; null for an empty value (kvList / joins skip it)
+  function masked(value, kind, entity, id, field) {
+    var v = String(value == null ? "" : value).trim(); if (!v) return null;
+    var hid = (MASKERS[kind] || maskId)(v);
+    var t = el("span", { cls: "mv hid", text: hid, title: "Masked - press Show to see it (recorded)" });
+    var b = el("button", { cls: "rv", type: "button", text: "Show", "aria-label": "Show " + (field || kind).replace(/_/g, " ") + " (recorded in the HQ log)" });
+    var w = el("span", { cls: "mask" }, [t, b]);
+    b.addEventListener("click", function (e) {
+      if (e) e.stopPropagation();
+      b.disabled = true;
+      logReveal(entity, id, field || kind).then(function () { t.textContent = v; t.classList.remove("hid"); t.removeAttribute("title"); b.remove(); })
+        .catch(function (er) { b.disabled = false; showErr(er); });
+    });
+    return w;
+  }
+  // "name, masked e-mail · masked phone" under a row heading
+  function contactLine(email, phone, entity, id) {
+    var me = masked(email, "email", entity, id, "email"), mp = masked(phone, "phone", entity, id, "phone");
+    return el("div", { cls: "muted cline" }, [me ? el("div", null, [me]) : null, mp ? el("div", null, [mp]) : null]);
+  }
   // r27: who I am in HQ (hq_me, 0277). null = a database without 0277 (everything shown, as before)
   var ME = null, S = window.HelmHqStaff || null, blockedNow = false;
   function can(p) { return !ME || !S ? true : S.can(ME.perms, p); }
@@ -136,10 +221,34 @@
     var g = $("#blkGo"); g.addEventListener("click", function (e) { e.preventDefault(); signOutThen("login.html"); });
   }
   function signOutThen(href) { Promise.resolve(BPStore.auth.signOut && BPStore.auth.signOut()).catch(function () {}).then(function () { location.replace(href || "login.html"); }); }
+  // r28 round 2: a clear "Session expired" screen; the sign-in is ended here (nothing left open), the button goes to sign-in
   function sessionOver(text) {
     if (blockedNow) return;
-    blocked("Please sign in again", text || "Your Helm HQ sign-in has ended.", null);
-    setTimeout(function () { signOutThen("login.html"); }, 2500);
+    blocked("Session expired — sign in again", text || "Your Helm HQ sign-in has ended.", "Sign in again", "login.html");
+    try { var bo = $("#blkOut"); if (bo) bo.hidden = true; } catch (e) {}
+    Promise.resolve(BPStore.auth.signOut && BPStore.auth.signOut()).catch(function () {});
+  }
+  /* ---- r28 round 2: my HQ session (hq_my_session, 0280): short id, started, ends at; a database without 0280 shows the rules ---- */
+  var MYS = null;
+  function hhmm(v) { var d = new Date(v); return isNaN(d) ? "—" : d.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" }); }   // r37: HQ = India time
+  // pure: when an HQ session ends - the earlier of started + max hours and last use + idle minutes (exported for tests)
+  function sessionEnds(started, lastUse, idleMin, maxHours) {
+    var a = Date.parse(started || ""), b = Date.parse(lastUse || "");
+    var hard = isFinite(a) ? a + Math.max(1, Number(maxHours) || 12) * 3600000 : Infinity, soft = isFinite(b) ? b + Math.max(5, Number(idleMin) || 30) * 60000 : Infinity;
+    var e = Math.min(hard, soft); return isFinite(e) ? new Date(e).toISOString() : null;
+  }
+  function paintSession() {
+    var box = $("#sessInfo"); if (!box || !ME) return;
+    clear(box); box.hidden = false;
+    var idle = Number(ME.idle_minutes) || 30, max = Number(ME.max_hours) || 12;
+    if (MYS && MYS.started_at) {
+      var ends = sessionEnds(MYS.started_at, new Date(lastInput).toISOString(), idle, max);
+      box.appendChild(el("span", null, [el("b", { text: "Session " + (MYS.sid || "") }), el("br"), "started " + hhmm(MYS.started_at) + " · ends by " + hhmm(MYS.hard_end_at || sessionEnds(MYS.started_at, null, idle, max)),
+        el("br"), "sign-out after " + idle + " min idle" + (ends ? " (" + hhmm(ends) + ")" : "")]));
+    } else box.appendChild(el("span", null, ["Sign-out after " + idle + " min idle; sign-ins end after " + max + " h."]));
+  }
+  function loadMySession() {
+    return BPStore.hq("hq_my_session").then(function (r) { MYS = r && !Array.isArray(r) ? r : null; paintSession(); }).catch(function () { MYS = null; paintSession(); });
   }
   /* ---- r27: idle sign-out on this page + throttled "still here" heartbeat (page views, hq_heartbeat) ---- */
   var lastInput = Date.now(), lastBeat = 0, curTab = "overview";
@@ -154,6 +263,8 @@
       if (!ME || blockedNow) return;
       var idleMs = Math.max(5, Number(ME.idle_minutes) || 30) * 60000;
       if (Date.now() - lastInput > idleMs) { sessionOver(S ? S.friendly("idle") : ""); return; }
+      if (MYS && MYS.hard_end_at && Date.now() > Date.parse(MYS.hard_end_at)) { sessionOver(S ? S.friendly("expired") : ""); return; }
+      paintSession();
       if (Date.now() - lastInput < 120000 && document.visibilityState === "visible") beat(curTab, false);
     }, 30000);
   }
@@ -162,7 +273,7 @@
     Array.prototype.slice.call(document.querySelectorAll("[data-perm]")).forEach(function (n) { if (!can(n.getAttribute("data-perm"))) n.hidden = true; });
     TABS.forEach(function (t) { var b = $("#tab-" + t); if (b && b.parentNode) b.parentNode.hidden = !canTab(t); });
     $("#navgBiz").hidden = !["overview", "studios", "requests", "billing", "plans"].some(canTab);
-    $("#navgTeam").hidden = !["people", "activity", "staff"].some(canTab);
+    $("#navgTeam").hidden = !["people", "activity", "staff", "settings", "privacy"].some(canTab);
     if (!can("studios.read") && !can("people.read")) { var gs = document.querySelector(".gs"); if (gs) gs.hidden = true; }
     var rc = $("#whoRole"); if (rc && ME) { rc.textContent = ME.role_label || ""; rc.hidden = !ME.role_label; }
   }
@@ -180,14 +291,16 @@
   }
 
   /* ---------------- tabs ---------------- */
-  var TABS = ["overview", "studios", "billing", "requests", "plans", "people", "activity", "staff"];
+  var TABS = ["overview", "studios", "billing", "requests", "plans", "people", "activity", "staff", "settings", "privacy"];
   var TITLES = { overview: "Overview", studios: "Studios", billing: "Billing", requests: "Requests", plans: "Plans & prices",
-    people: "People", activity: "Activity log", staff: "Staff access" };
+    people: "People", activity: "Security & activity", staff: "HQ team", settings: "Settings", privacy: "Data & privacy" };
   var SUBS = { overview: "Studios, people and Helm subscriptions. Never a studio’s clients, quotes or prices.",
     studios: "Every studio on Helm: plan, status, people and what they paid Helm.", billing: "Money studios paid Helm, invoices, past due and settings.",
     requests: "Plan requests, sales enquiries and suggestions in one inbox.", plans: "The plans studios can buy, their prices and tax rules.",
     people: "Everyone with a Helm login, their studio and two-step.", activity: "What the HQ team did, and security events across studios.",
-    staff: "Who can use Helm HQ, what they can do, and when they last used it." };
+    staff: "Who can use Helm HQ, what they can do, and when they last used it.",
+    settings: "Money display, Helm addresses, invoice and checkout settings.",
+    privacy: "What HQ stores and shows about studios and people, why, for how long, and who can see it." };
   function showTab(name) {
     if (!canTab(name)) return;
     curTab = name; beat(name, true);
@@ -199,7 +312,60 @@
       if (b) b.setAttribute("aria-pressed", t === name ? "true" : "false");
     });
     var h = $("#pageTitle"); if (h) h.textContent = TITLES[name] || "Helm HQ";
+    navOpen(false); paintBnav();
+    var dr = $("#studioDrawer"); if (dr && !dr.hidden) closeDrawer();
     try { window.scrollTo(0, 0); } catch (e) {}
+  }
+  /* ---------------- r28: phone / tablet menu (slide-in sidebar) + bottom bar ---------------- */
+  function navOpen(on) {
+    var app = $("#vApp"), sc = $("#navScrim"), b = $("#btnMenu"); if (!app || !app.classList || typeof app.classList.toggle !== "function") return;
+    app.classList.toggle("nav-open", !!on); if (sc) sc.hidden = !on; if (b) b.setAttribute("aria-expanded", on ? "true" : "false");
+    if (on) { var cur = document.querySelector('.side .tab[aria-pressed="true"]'); try { (cur || $("#btnOut")).focus(); } catch (e) {} }
+  }
+  var BNAV_ICON = { overview: "M4 13h6V4H4zM14 20h6v-9h-6zM14 4v4h6V4zM4 20h6v-3H4z", studios: "M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6",
+    requests: "M4 6h16v12H4zM4 7l8 6 8-6", billing: "M3 7h18v10H3zM3 11h18M7 15h3", people: "M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
+    plans: "M20 12l-8 8-8-8V4h8zM8 8h.01", activity: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z", staff: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1",
+    more: "M5 12h.01M12 12h.01M19 12h.01" };
+  var BNAV_WORD = { overview: "Overview", studios: "Studios", requests: "Requests", billing: "Billing", people: "People", plans: "Plans", activity: "Security", staff: "Team" };
+  function bnavIcon(k) { var g = svg("svg", { viewBox: "0 0 24 24", "aria-hidden": "true" }); g.appendChild(svg("path", { d: BNAV_ICON[k] || BNAV_ICON.more })); return g; }
+  function buildBnav() {
+    var nav = $("#bnav"); if (!nav || typeof document.querySelectorAll !== "function") return; clear(nav);
+    ["overview", "studios", "requests", "billing", "people", "plans", "activity", "staff"].filter(canTab).slice(0, 4).forEach(function (t) {
+      var b = el("button", { type: "button", "data-tab": t }, [bnavIcon(t), el("span", { text: BNAV_WORD[t] })]);
+      if (t === "requests") b.appendChild(el("span", { cls: "bb", id: "bnReq", hidden: "hidden" }));
+      b.addEventListener("click", function () { var tb = $("#tab-" + t); if (tb) tb.click(); });
+      nav.appendChild(b);
+    });
+    var more = el("button", { type: "button", "aria-label": "More - open the HQ menu" }, [bnavIcon("more"), el("span", { text: "More" })]);
+    more.addEventListener("click", function () { navOpen(true); });
+    nav.appendChild(more);
+    paintBnav();
+  }
+  function paintBnav() {
+    if (typeof document.querySelectorAll !== "function") return;
+    Array.prototype.slice.call(document.querySelectorAll("#bnav button[data-tab]")).forEach(function (b) {
+      if (b.getAttribute("data-tab") === curTab) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+    });
+    var nb = $("#navReqCount"), bb = $("#bnReq"); if (nb && bb) { bb.textContent = nb.textContent; bb.hidden = nb.hidden; }
+  }
+  /* ---------------- r28: tables -> cards on phones (each cell carries its column heading) ---------------- */
+  function labelTables(root) {
+    Array.prototype.slice.call((root || document).querySelectorAll("table.rt")).forEach(function (t) {
+      var heads = Array.prototype.slice.call(t.querySelectorAll("thead th")).map(function (th) { return String(th.textContent || "").trim(); });
+      if (!heads.length) return;
+      Array.prototype.slice.call(t.querySelectorAll("tbody > tr:not(.rowdetail)")).forEach(function (tr) {
+        Array.prototype.slice.call(tr.children).forEach(function (td, i) { if (!td.hasAttribute("data-label")) td.setAttribute("data-label", heads[i] || ""); });
+      });
+    });
+  }
+  var labelQueued = false;
+  function watchTables() {
+    if (typeof MutationObserver !== "function" || !document.body || typeof document.querySelectorAll !== "function") return;
+    new MutationObserver(function () {
+      if (labelQueued) return; labelQueued = true;
+      (window.requestAnimationFrame || setTimeout)(function () { labelQueued = false; labelTables(document); });
+    }).observe(document.body, { childList: true, subtree: true });
+    labelTables(document);
   }
 
   /* ---------------- r25: small inline-SVG charts (no library; textContent / attributes only) ---------------- */
@@ -319,7 +485,7 @@
       k.appendChild(kpi("Studios", int(ms.total), int(ms.active_30d) + " signed in within 30 days", "", goStudios("")));
       k.appendChild(kpi("Paying studios", int(ms.paying), int(ms.past_due) + " past due · " + int(ms.suspended) + " suspended", "good", goStudios("active")));
       k.appendChild(kpi("On free trial", int(ms.trial), int((m.attention || {}).trials_ending_count) + " end within 7 days", "", goStudios("trial")));
-      k.appendChild(kpi("MRR", moneyList(b.mrr), "ARR " + money(mrr * 12) + " · from active plans"));
+      k.appendChild(kpi("MRR", moneyList(b.mrr), "ARR " + moneyList(b.mrr, 12) + " · from active plans"));
       k.appendChild(kpi("New studios (30 days)", int(ms.new_30d), (growth >= 0 ? "+" : "") + int(growth) + " vs the 30 days before"));
       k.appendChild(kpi("Trial → paid", conv.pct == null ? "—" : num(conv.pct) + "%", int(conv.converted) + " of " + int(conv.trials_ended) + " ended trials paid"));
       k.appendChild(kpi("Open requests", int(nReq), "plan requests, sales, suggestions", nReq > 0 ? "warn" : "", goTab("requests", loadRequestsTab)));
@@ -349,6 +515,7 @@
     } else mf.appendChild(el("div", { cls: "empty", text: "Not available on this database." }));
     var nb = $("#navReqCount"), nr = openRequests(m);
     if (nb) { nb.textContent = nr > 99 ? "99+" : String(nr); nb.hidden = !(nr > 0); }
+    paintBnav();
   }
   function renderCharts(o, m) {
     var sw = (m && m.signups_weekly) || null;
@@ -363,8 +530,8 @@
     var mm = (m && m.mrr_monthly) || [];
     if (mm.length) {
       var last = mm[mm.length - 1] || {};
-      $("#cMrrSum").textContent = "this month " + shortInr(last.mrr);
-      lineChart($("#cMrr"), mm.map(function (r) { return { label: monthLabel(r.month), a: r.mrr, b: r.collected }; }), shortInr, "MRR and money received per month");
+      $("#cMrrSum").textContent = "this month " + shortMoney(last.mrr);
+      lineChart($("#cMrr"), mm.map(function (r) { return { label: monthLabel(r.month), a: r.mrr, b: r.collected }; }), shortMoney, "MRR and money received per month");
     } else { $("#cMrrSum").textContent = ""; emptyChart($("#cMrr"), "Appears after SQL 0272 is applied"); }
     var mix = (m && m.plan_mix) || null;
     if (mix) { var paying = mix.reduce(function (a, r) { return a + num(r.studios); }, 0);
@@ -377,8 +544,23 @@
         { label: "Added a teammate", value: f.added_team, pct: p(f.added_team, f.signed_up) }, { label: "Paid Helm", value: f.paid, pct: p(f.paid, f.signed_up) }]);
     } else clear($("#cFun")).appendChild(el("div", { cls: "empty", text: "Appears after SQL 0272 is applied." }));
   }
+  // r42: small line icons for "Needs attention" (same 24-grid stroke style as the side menu; no emoji / text glyphs)
+  var ATT_ICONS = {
+    mail: "M4 6h16v12H4zM4 7l8 6 8-6",
+    payment: "M3 7h18v10H3zM3 11h18M7 15h3",
+    clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 7v5l3 2",
+    alert: "M12 3l9.5 17h-19zM12 10v4M12 17.5h.01",
+    quiet: "M3 6l6 6 4-4 8 8M21 11v5h-5",
+    check: "M5 12.5l4.5 4.5L19 7.5"
+  };
+  function attIcon(name) {
+    var NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"), path = document.createElementNS(NS, "path");
+    svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("aria-hidden", "true"); svg.setAttribute("focusable", "false");
+    path.setAttribute("d", ATT_ICONS[name] || ATT_ICONS.alert); svg.appendChild(path);
+    return svg;
+  }
   function attRow(icon, tone, title, sub, go, btnText) {
-    var li = el("li", null, [el("span", { cls: "ic " + tone, text: icon, "aria-hidden": "true" }), el("div", { cls: "tx" }, [el("b", { text: title }), el("span", { text: sub })])]);
+    var li = el("li", null, [el("span", { cls: "ic " + tone, "aria-hidden": "true" }, [attIcon(icon)]), el("div", { cls: "tx" }, [el("b", { text: title }), el("span", { text: sub })])]);
     if (go) { var b = el("button", { cls: "btn sm", type: "button", text: btnText || "Open" }); b.addEventListener("click", go); li.appendChild(b); }
     return li;
   }
@@ -387,14 +569,14 @@
     var open = function (id) { return canTab("studios") ? function () { openStudio(id); } : null; };
     var reqs = [["new_plan_requests", "plan request", "plan requests", "plan"], ["new_sales_enquiries", "sales enquiry", "sales enquiries", "sales"],
       ["new_suggestions", "suggestion", "suggestions", "sugg"]];
-    reqs.forEach(function (r) { var c = num(a[r[0]]); if (c > 0) add(attRow("✉", "warn", int(c) + " new " + (c === 1 ? r[1] : r[2]), "waiting for a reply",
+    reqs.forEach(function (r) { var c = num(a[r[0]]); if (c > 0) add(attRow("mail", "warn", int(c) + " new " + (c === 1 ? r[1] : r[2]), "waiting for a reply",
       canTab("requests") ? function () { showTab("requests"); reqTab(r[3]); loadRequestsTab(); } : null, "Reply")); });
-    (a.past_due || []).forEach(function (x) { add(attRow("₹", "bad", (x.name || "Studio") + " — payment pending", "plan period ended " + date(x.period_end), open(x.org_id), "Open")); });
-    (a.trials_ending || []).forEach(function (x) { add(attRow("⏳", "warn", (x.name || "Studio") + " — trial ends " + trialDay(x.ends_at), "talk to them before it ends", open(x.org_id), "Open")); });
-    var nf = failedEmails(m); if (nf > 0) add(attRow("!", "bad", int(nf) + " e-mail" + (nf === 1 ? "" : "s") + " failed in 7 days", "see System health", null));
-    (a.at_risk || []).forEach(function (x) { add(attRow("↓", "", (x.name || "Studio") + " — paying, quiet", "no sign-in " + (x.last_sign_in ? "since " + date(x.last_sign_in) : "yet"), open(x.org_id), "Open")); });
-    if (!m) { var pd = num((o.billing || {}).past_due_count); if (pd) add(attRow("₹", "bad", int(pd) + " studio" + (pd === 1 ? "" : "s") + " past due", "see Billing", goTab("billing"))); }
-    if (!n) ul.appendChild(attRow("✓", "ok", "All clear", "nothing needs you right now", null));
+    (a.past_due || []).forEach(function (x) { add(attRow("payment", "bad", (x.name || "Studio") + " — payment pending", "plan period ended " + date(x.period_end), open(x.org_id), "Open")); });
+    (a.trials_ending || []).forEach(function (x) { add(attRow("clock", "warn", (x.name || "Studio") + " — trial ends " + trialDay(x.ends_at), "talk to them before it ends", open(x.org_id), "Open")); });
+    var nf = failedEmails(m); if (nf > 0) add(attRow("alert", "bad", int(nf) + " e-mail" + (nf === 1 ? "" : "s") + " failed in 7 days", "see System health", null));
+    (a.at_risk || []).forEach(function (x) { add(attRow("quiet", "", (x.name || "Studio") + " — paying, quiet", "no sign-in " + (x.last_sign_in ? "since " + date(x.last_sign_in) : "yet"), open(x.org_id), "Open")); });
+    if (!m) { var pd = num((o.billing || {}).past_due_count); if (pd) add(attRow("payment", "bad", int(pd) + " studio" + (pd === 1 ? "" : "s") + " past due", "see Billing", goTab("billing"))); }
+    if (!n) ul.appendChild(attRow("check", "ok", "All clear", "nothing needs you right now", null));
     $("#attCount").textContent = n ? int(n) + " item" + (n === 1 ? "" : "s") : "";
   }
   var QUEUE_OK_MIN = 60;   // a waiting e-mail older than this many minutes = the sender is probably not running
@@ -456,10 +638,12 @@
     rows.forEach(function (r) {
       var tr = el("tr", { cls: "click", tabindex: "0" }, [
         el("td", null, [el("strong", { text: r.name || "—" }), r.slug ? el("div", { cls: "muted", text: "helm.events/" + r.slug }) : null]),
-        el("td", null, [r.primary_contact_name || r.owner_email || "—", el("div", { cls: "muted", text: [r.primary_contact_email, r.primary_contact_phone].filter(Boolean).join(" · ") })]),
-        el("td", { text: [r.state, r.country].filter(Boolean).join(", ") || "—" }), el("td", { text: r.plan_name || "—" }), el("td", null, [statusPill(r.status)]),
-        el("td", { text: date(r.current_period_end) }), el("td", { cls: "n", text: int(r.users_count) }),
-        el("td", { cls: "n", text: money(r.total_paid) }), el("td", { text: ago(r.last_activity) })]);
+        el("td", null, [r.primary_contact_name || (r.owner_email ? masked(r.owner_email, "email", "studio", r.org_id, "owner_email") : null) || "—",
+          contactLine(r.primary_contact_email, r.primary_contact_phone, "studio", r.org_id)]),
+        el("td", { text: [r.state, r.country].filter(Boolean).join(", ") || "—" }),
+        el("td", null, [r.plan_name || "No plan", el("div", { cls: "muted", text: "billed in " + billCur(r) })]), el("td", null, [statusPill(r.status)]),
+        el("td", { text: date(r.created_at) }), el("td", { cls: "n", text: int(r.users_count) }),
+        el("td", { cls: "n", text: num(r.total_paid) > 0 ? money(r.total_paid, r.paid_currency || "INR") : "—", title: moneyRaw(r.total_paid, r.paid_currency || "INR") }), el("td", { text: ago(r.last_activity) })]);
       var open = function () { openStudio(r.org_id); };
       tr.addEventListener("click", open);
       tr.addEventListener("keydown", function (e) { if (e.key === "Enter") open(); });
@@ -468,6 +652,8 @@
     if (!rows.length) tb.appendChild(el("tr", null, [el("td", { colspan: "9", cls: "empty", text: "No studios match." })]));
     pager($("#pStudios"), sOff, rows.length ? num(rows[0].total_count) : 0, function (o) { loadStudios(o).catch(showErr); });
   }
+  function billCur(r) { var c = String((r && (r.billing_currency || (r.account && r.account.billing_currency))) || "").toUpperCase(); return /^[A-Z]{3}$/.test(c) ? c : (r && r.country && r.country !== "IN" ? "USD" : "INR"); }
+  function daysSince(v) { var t = Date.parse(v || ""); return isFinite(t) ? Math.max(0, Math.floor((Date.now() - t) / 864e5)) : null; }
   function field(label, input) { return el("label", { cls: "fld" }, [el("span", { text: label }), input]); }
   function paymentRows(tbody, list, withStudio, invoiceFn) {
     clear(tbody);
@@ -478,7 +664,7 @@
       if (!p.voided && can("billing.write")) {
         var v = el("button", { cls: "btn sm danger", type: "button", text: "Void" });
         v.addEventListener("click", function () {
-          var why = ask("Void payment " + (p.invoice_no || "") + " of " + money(p.amount, p.currency) + "? The row and invoice number are kept. Reason:");
+          var why = ask("Void payment " + (p.invoice_no || "") + " of " + moneyBoth(p.amount, p.currency) + "? The row and invoice number are kept. Reason:");
           if (!why) return;
           call("hq_void_payment", { p_id: p.id, p_reason: why }).then(function () { okMsg("Payment voided."); refreshAfterWrite(p.org_id); }).catch(showErr);
         });
@@ -488,7 +674,7 @@
         el("td", { text: date(p.paid_on) }), withStudio ? el("td", { text: p.studio || "—" }) : null,
         el("td", { cls: "m", text: p.invoice_no || "—" }), el("td", { text: p.method || "—" }),
         el("td", { text: (p.period_start ? date(p.period_start) + " – " + date(p.period_end) : "—") }),
-        el("td", { cls: "n", text: money(p.amount, p.currency) }),
+        el("td", { cls: "n", text: money(p.amount, p.currency), title: moneyRaw(p.amount, p.currency) }),
         el("td", null, [p.voided ? el("span", { cls: "pill bad", text: "void" }) : el("span", { cls: "pill ok", text: "paid" })]), acts]));
     });
     if (!tbody.firstChild) tbody.appendChild(el("tr", null, [el("td", { colspan: withStudio ? "8" : "7", cls: "empty", text: "No payments." })]));
@@ -523,7 +709,8 @@
   function fact(label, value) { return el("div", { cls: "fact" }, [el("div", { cls: "l", text: label }), el("div", { cls: "v", text: value })]); }
   function kvList(pairs) {
     var dl = el("dl", { cls: "kv" });
-    pairs.filter(function (p) { return p[1] != null && String(p[1]).trim() !== ""; }).forEach(function (p) { dl.appendChild(el("dt", { text: p[0] })); dl.appendChild(el("dd", { text: String(p[1]) })); });
+    pairs.filter(function (p) { return p[1] != null && (typeof p[1] === "object" || String(p[1]).trim() !== ""); }).forEach(function (p) {
+      dl.appendChild(el("dt", { text: p[0] })); dl.appendChild(typeof p[1] === "object" ? el("dd", null, [p[1]]) : el("dd", { text: String(p[1]) })); });
     if (!dl.firstChild) dl.appendChild(el("dd", { cls: "muted", text: "Not filled in yet." }));
     return dl;
   }
@@ -540,11 +727,17 @@
 
     // ---- Overview: the key facts, contacts, the big buttons, business details
     var wrap = panes.overview;
+    var since = daysSince(d.created_at);
     wrap.appendChild(el("div", { cls: "facts" }, [
-      fact("Plan", sub.plan_name || "No plan"),
+      fact("Plan", (sub.plan_name || "No plan") + " · billed in " + billCur({ billing_currency: acc.billing_currency || d.billing_currency, country: acc.country })),
       fact(sub.status === "trial" ? "Trial ends" : "Period ends", sub.status === "trial" ? date(sub.trial_ends_at) : date(sub.current_period_end)),
-      fact("Paid to Helm", money(d.total_paid)),
-      fact("People", int(d.users_count)), fact("Last sign-in", ago(lastIn)), fact("Joined", date(d.created_at))]));
+      fact("Paid to Helm", money(d.total_paid, d.paid_currency || "INR")),
+      fact("Team size", int(d.users_count) + " user" + (num(d.users_count) === 1 ? "" : "s")), fact("Last active", ago(d.last_active_at || lastIn)),
+      fact("Created", date(d.created_at))]));
+    // r28 (owner): use of Helm - numbers only (hq_studio_usage), filled when it answers
+    var useBox = el("div", { cls: "facts" }, [fact("Using Helm", since == null ? "—" : int(since) + " day" + (since === 1 ? "" : "s"))]);
+    wrap.appendChild(useBox);
+
     var bName = el("button", { cls: "btn primary", type: "button", text: "Change studio name & link" });
     bName.addEventListener("click", function () { dTab("ident"); });
     var bPlan = el("button", { cls: "btn", type: "button", text: sub.status === "active" ? "Plan & payments" : "Activate plan" });
@@ -553,12 +746,14 @@
     bPeople.addEventListener("click", function () { dTab("people"); });
     wrap.appendChild(el("div", { cls: "card" }, [el("h2", { text: "Quick actions" }), el("div", { cls: "bigact" }, [can("studios.edit") ? bName : null, bPlan, bPeople])]));
     wrap.appendChild(el("div", { cls: "card" }, [el("h2", { text: "Contact" }), kvList([
-      ["Primary contact", acc.primary_contact_name], ["E-mail", acc.primary_contact_email || d.owner_email], ["Phone", acc.primary_contact_phone],
-      ["Billing e-mail", acc.billing_contact_email], ["Place", [acc.city, acc.state, acc.country].filter(Boolean).join(", ")],
-      ["Legal name", acc.legal_business_name], ["GSTIN", acc.gstin], ["Website", acc.website]])]));
+      ["Primary contact", acc.primary_contact_name], ["E-mail", masked(acc.primary_contact_email || d.owner_email, "email", "studio", org, "email")],
+      ["Phone", masked(acc.primary_contact_phone, "phone", "studio", org, "phone")],
+      ["Billing e-mail", masked(acc.billing_contact_email, "email", "studio", org, "billing_email")], ["Place", [acc.city, acc.state, acc.country].filter(Boolean).join(", ")],
+      ["Legal name", acc.legal_business_name], ["GSTIN", masked(acc.gstin, "id", "studio", org, "gstin")], ["PAN", masked(acc.pan, "id", "studio", org, "pan")],
+      ["Website", acc.website]]), el("p", { cls: "muted", text: "Masked details: press Show to see one. Each Show is recorded in Security & activity." })]));
 
     // account profile (business account data only)
-    var more = el("details", { cls: "more" }, [el("summary", { text: "Edit business details" })]);
+    var more = el("details", { cls: "more" }, [el("summary", { text: "Edit business details (shows every detail - recorded)" })]);
     var AF = [["legal_business_name", "Legal name"], ["gstin", "GSTIN"], ["country", "Country (ISO-2)"], ["state", "State"], ["city", "City"],
       ["billing_address", "Billing address"], ["website", "Website"], ["timezone", "Timezone"], ["primary_contact_name", "Primary contact"],
       ["primary_contact_email", "Primary e-mail"], ["primary_contact_phone", "Primary phone"], ["secondary_contact_name", "Secondary contact"],
@@ -574,7 +769,15 @@
       var patch = {}; AF.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (acc[f[0]] == null ? "" : String(acc[f[0]]))) patch[f[0]] = v; });
       call("hq_set_studio_account", { p_org: org, p_account: patch }).then(function () { okMsg("Business details saved."); refreshAfterWrite(org); }).catch(showErr);
     });
-    af.appendChild(asave); more.appendChild(af); if (can("studios.edit")) wrap.appendChild(more);
+    af.appendChild(asave);
+    // r28: the form shows every value unmasked, so it fills only after the reveal is logged
+    var filled = false;
+    more.addEventListener("toggle", function () {
+      if (!more.open || filled) return;
+      logReveal("studio", org, "business_details").then(function () { filled = true; more.appendChild(af); })
+        .catch(function (e) { more.open = false; showErr(e); });
+    });
+    if (can("studios.edit")) wrap.appendChild(more);
 
     // ---- Plan & billing: subscription, suspend, activate, free trial, payments
     wrap = panes.plan;
@@ -587,7 +790,7 @@
       sub.trial_ends_at ? el("span", { id: "subTrialEnd", text: " · trial ends " + date(sub.trial_ends_at) }) : ""]));
     if (sub.status === "suspended") subCard.appendChild(el("div", { cls: "muted", text: "Suspended " + date(sub.suspended_at) + " — " + (sub.suspend_reason || "") }));
     var selPlan = el("select", { "aria-label": "Plan" }); selPlan.appendChild(el("option", { value: "", text: "(keep plan)" }));
-    plans.filter(function (p) { return p.active; }).forEach(function (p) { selPlan.appendChild(el("option", { value: p.code, text: p.name + " · " + money(p.price_monthly, p.currency) })); });
+    plans.filter(function (p) { return p.active; }).forEach(function (p) { selPlan.appendChild(el("option", { value: p.code, text: p.name + " · " + moneyBoth(p.price_monthly, p.currency) })); });
     var selSt = el("select", { "aria-label": "Status" });
     [["", "(keep status)"], ["trial", "trial"], ["active", "active"], ["past_due", "past due"], ["cancelled", "cancelled"]].forEach(function (o) { selSt.appendChild(el("option", { value: o[0], text: o[1] })); });
     var ps = el("input", { type: "date" }), pe = el("input", { type: "date" }), te = el("input", { type: "date" });
@@ -624,10 +827,18 @@
       clear(trialBox).appendChild(el("div", { cls: "muted", text: "Trial details appear after migration 0186 is applied." }));
     });
 
+    // r28 (owner): referral info + credits (e.g. referral free months) - records kept by Helm HQ only
+    var rf = d.referral || {};
+    wrap.appendChild(el("div", { cls: "card" }, [el("h2", { text: "Referrals" }), kvList([["Their referral code", rf.code || acc.referral_code],
+      ["Referred by", rf.referred_by || acc.referred_by], ["Studios they referred", rf.referred_count != null ? int(rf.referred_count) : null],
+      ["Credits earned", rf.credits != null ? money(rf.credits, rf.credits_currency || "INR") : null]])]));
+    var credBox = el("div", { cls: "card" }, [el("h2", { text: "Credits & free months" })]); wrap.appendChild(credBox);
+    loadCredits(org, d.name, credBox).catch(function () { credBox.appendChild(el("p", { cls: "muted", text: "Credits appear after SQL 0280 is applied." })); });
+
     // payments
     var payCard = el("div", { cls: "card" }, [el("h2", { text: "Payments to Helm" })]); wrap.appendChild(payCard);
     var pt = el("tbody"); paymentRows(pt, d.payments, false);
-    payCard.appendChild(el("div", { cls: "scroll" }, [el("table", null, [el("thead", null, [el("tr", null, ["Paid on", "Invoice", "Method", "Period", "Amount", "Status", ""].map(function (h) { return el("th", { text: h }); }))]), pt])]));
+    payCard.appendChild(el("div", { cls: "scroll" }, [el("table", { cls: "rt" }, [el("thead", null, [el("tr", null, ["Paid on", "Invoice", "Method", "Period", "Amount", "Status", ""].map(function (h) { return el("th", { text: h }); }))]), pt])]));
     var rec = el("button", { cls: "btn", type: "button", text: "Record a payment for this studio" });
     rec.addEventListener("click", function () { closeDrawer(); showTab("billing"); $("#rOrg").value = org; $("#rOrgName").textContent = d.name || ""; });
     if (can("billing.write")) payCard.appendChild(el("div", { cls: "actions" }, [rec]));
@@ -636,14 +847,22 @@
     wrap = panes.people;
     var mt = el("tbody");
     (d.members || []).forEach(function (m) {
-      mt.appendChild(el("tr", null, [el("td", { text: m.display_name || "—" }), el("td", { cls: "m", text: m.email || "—" }), el("td", { text: m.role || "—" }),
+      mt.appendChild(el("tr", null, [el("td", { text: m.display_name || "—" }), el("td", null, [masked(m.email, "email", "member", org, "member_email") || "—"]), el("td", { text: m.role || "—" }),
         el("td", null, [el("span", { cls: "pill " + (m.active ? "ok" : "bad"), text: m.active ? "active" : "inactive" })]),
         el("td", { text: ago(m.last_sign_in_at) }), el("td", null, mfaCell(m.email, m.mfa_enabled, function () { refreshAfterWrite(org); }))]));
     });
     if (!mt.firstChild) mt.appendChild(el("tr", null, [el("td", { colspan: "6", cls: "empty", text: "Nobody yet." })]));
+    wrap.appendChild(el("div", { cls: "facts" }, [fact("Team size", int(d.users_count) + " user" + (num(d.users_count) === 1 ? "" : "s")),
+      fact("With two-step", int((d.members || []).filter(function (m) { return m.mfa_enabled; }).length) + " of " + int((d.members || []).length)),
+      fact("Last sign-in", ago(lastIn))]));
     wrap.appendChild(el("div", { cls: "card" }, [el("h2", { text: "People" }),
-      el("p", { cls: "hint", text: "Reset two-step only after you have confirmed who is asking (lost phone)." }),
-      el("div", { cls: "scroll" }, [el("table", null, [el("thead", null, [el("tr", null, ["Name", "E-mail", "Role", "Status", "Last sign-in", "2-step"].map(function (h) { return el("th", { text: h }); }))]), mt])])]));
+      el("p", { cls: "hint", text: "E-mails are masked - Show is recorded. Reset two-step only after you have confirmed who is asking (lost phone)." }),
+      el("div", { cls: "scroll" }, [el("table", { cls: "rt" }, [el("thead", null, [el("tr", null, ["Name", "E-mail", "Role", "Status", "Last sign-in", "2-step"].map(function (h) { return el("th", { text: h }); }))]), mt])])]));
+
+    // r42: adding / deactivating a studio's logins from HQ is COMING SOON - it waits for PR #271 (r33 team safety:
+    // Deactivate, never delete) and will be HQ Owner / Admin only, two-step + a fresh code, a written reason, logged.
+    wrap.appendChild(el("div", { cls: "card", id: "studioLoginsSoon" }, [el("h2", null, [document.createTextNode("Add or deactivate a studio login "), el("span", { cls: "pill", text: "Coming soon" })]),
+      el("p", { cls: "muted", text: "Studio admins add and deactivate their own people in Settings → Team. Doing it from Helm HQ is coming soon: it will be for HQ Owners and Admins only, with two-step, a written reason and a log entry, and it deactivates (never deletes). Until then, ask a studio admin - or reset two-step above for a lost phone." })]));
 
     // r33 (0283): the studio owner, its history, and "Recover studio owner" (owner gone: HQ Owner role, two-step, reason)
     var ownBox = el("div"); wrap.appendChild(ownBox);
@@ -660,10 +879,37 @@
     // ---- Activity: numbers only + what HQ changed on this studio
     wrap = panes.activity;
     var actBox = el("div"); wrap.appendChild(actBox);
-    loadUsage(org, actBox, d).catch(function () { clear(actBox).appendChild(el("div", { cls: "card" }, [el("div", { cls: "empty", text: "Activity appears after SQL 0272 is applied." })])); });
+    loadUsage(org, actBox, d, useBox).catch(function () { clear(actBox).appendChild(el("div", { cls: "card" }, [el("div", { cls: "empty", text: "Activity appears after SQL 0272 is applied." })])); });
 
     dTab(tab || curDTab || "overview");
     openDrawer();
+  }
+  /* ---------------- r28 round 2 (0280): studio credits (referral free months etc.) - records only ---------------- */
+  var CREDIT_KIND = { referral: "Referral free month", goodwill: "Goodwill", promo: "Promotion" };
+  async function loadCredits(org, name, box) {
+    var r = await call("hq_studio_credits", { p_org: org }); r = r && !Array.isArray(r) ? r : {};
+    while (box.childNodes.length > 1) box.removeChild(box.lastChild);
+    var list = Array.isArray(r.credits) ? r.credits : [];
+    box.appendChild(el("p", { cls: "hint", text: int(r.months_total) + " free month" + (num(r.months_total) === 1 ? "" : "s") + " on record. A credit is a record for HQ: apply it when you activate or renew the plan (it never changes an invoice by itself)." }));
+    var ul = el("ul", { cls: "list" });
+    list.forEach(function (c) { ul.appendChild(el("li", null, [el("span", null, [el("b", { text: (CREDIT_KIND[c.kind] || c.kind) + " · " + int(c.months) + " month" + (num(c.months) === 1 ? "" : "s") }),
+      el("div", { cls: "muted", text: c.reason || "" })]), el("span", { cls: "muted", text: date(c.granted_at) + (c.granted_by ? " · " + c.granted_by : "") + (c.voided_at ? " · voided" : "") })])); });
+    if (!ul.firstChild) ul.appendChild(el("li", { cls: "empty", text: "No credits yet." }));
+    box.appendChild(ul);
+    if (!can("billing.write")) return;
+    var kind = el("select", { "aria-label": "Kind of credit" }); Object.keys(CREDIT_KIND).forEach(function (k) { kind.appendChild(el("option", { value: k, text: CREDIT_KIND[k] })); });
+    var months = el("select", { "aria-label": "Months" }); for (var i = 1; i <= 12; i++) months.appendChild(el("option", { value: String(i), text: i + " month" + (i === 1 ? "" : "s") }));
+    var why = el("input", { type: "text", maxlength: "500", placeholder: "e.g. referred Mehndi & Co. (paid 14 Oct)", "aria-label": "Reason" });
+    var go = el("button", { cls: "btn primary", type: "button", text: "Add credit…" });
+    go.addEventListener("click", function () {
+      var rs = String(why.value || "").trim();
+      if (rs.length < 5) { showErr(new Error("Write the reason (at least 5 characters).")); return; }
+      if (!window.confirm("Add " + months.value + " free month(s) (" + CREDIT_KIND[kind.value] + ") to " + (name || "this studio") + "? It is recorded in the HQ log and can't be deleted (only voided).")) return;
+      go.disabled = true;
+      call("hq_grant_studio_credit", { p_org: org, p_kind: kind.value, p_months: Number(months.value), p_reason: rs })
+        .then(function () { okMsg("Credit added."); loadCredits(org, name, box).catch(showErr); }).catch(showErr).then(function () { go.disabled = false; });
+    });
+    box.appendChild(el("div", { cls: "form" }, [field("Kind", kind), field("Months", months), el("label", { cls: "fld wide" }, [el("span", { text: "Reason (required)" }), why]), go]));
   }
   /* ---------------- r33 (0283) studio owner + "Recover studio owner" (Helm HQ only, never self-serve) ---------------- */
   var OWNER_SOURCE = { backfill_creator: "Recorded: studio creator", backfill_admin: "Recorded: earliest admin (creator missing)", backfill_none: "No admin found",
@@ -705,9 +951,16 @@
   var ACTION_WORDS = { "hq.studio.suspend": "Suspended", "hq.studio.reactivate": "Reactivated", "hq.studio.identity": "Name / link changed",
     "hq.subscription.set": "Subscription changed", "hq.subscription.activate": "Plan activated", "hq.payment.record": "Payment recorded",
     "hq.payment.void": "Payment voided", "hq.trial.extend": "Trial extended", "hq.studio_account.set": "Business details saved", "hq.mfa.reset": "Two-step reset",
-    "hq.studio.owner_recover": "Studio owner recovered" };
-  async function loadUsage(org, box, d) {
+    "hq.reveal": "A masked detail was shown", "hq.credit.grant": "Credit added", "hq.studio.owner_recover": "Studio owner recovered" };
+  async function loadUsage(org, box, d, useBox) {
     var u = await call("hq_studio_usage", { p_org: org }); u = u && !Array.isArray(u) ? u : {};
+    if (useBox) {
+      var since = daysSince(d && d.created_at);
+      clear(useBox);
+      [fact("Using Helm", since == null ? "—" : int(since) + " day" + (since === 1 ? "" : "s")),
+        fact("Active days (last 30)", u.active_days_30d != null ? int(u.active_days_30d) + " of 30" : "—"),
+        fact("Sign-ins (last 30 days)", u.sign_ins_30d != null ? int(u.sign_ins_30d) : int(u.people_active_30d) + " people")].forEach(function (f) { useBox.appendChild(f); });
+    }
     clear(box);
     box.appendChild(el("div", { cls: "facts" }, [fact("People", int(u.people)), fact("Signed in (7 days)", int(u.people_active_7d)),
       fact("Signed in (30 days)", int(u.people_active_30d)), fact("Last sign-in", ago(u.last_sign_in)),
@@ -796,7 +1049,7 @@
     box.appendChild(el("div", { cls: "muted", text: "When the studio has paid (UPI / bank transfer): records the payment with a GST invoice, makes the plan active for the period and lifts the trial limits and read-only - in one step. The studio admin then chooses what happens to the sample data." }));
     var selPlan = el("select", { "aria-label": "Plan to activate" });
     plans.filter(function (p) { return p.active; }).forEach(function (p) {
-      var o = el("option", { value: p.code, text: p.name + " · " + money(p.price_monthly, p.currency) + "/month" });
+      var o = el("option", { value: p.code, text: p.name + " · " + moneyBoth(p.price_monthly, p.currency) + "/month" });
       if (sub.plan_code === p.code || sub.plan_name === p.name) o.selected = true;
       selPlan.appendChild(o);
     });
@@ -818,7 +1071,7 @@
       var a; try { a = activateArgs(org, selPlan.value, selIv.value, amt.value, meth.value, start.value, paid.value, ref.value); } catch (e) { showErr(e); return; }
       var pe = periodEnd(a.p_period_start || today, a.p_interval);
       if (!window.confirm("Activate " + (selPlan.options[selPlan.selectedIndex] ? selPlan.options[selPlan.selectedIndex].text.split(" · ")[0] : a.p_plan_code) +
-        " (" + a.p_interval + ") for " + (name || "this studio") + "?\n\nPayment " + money(a.p_amount) + " by " + a.p_method + (a.p_reference ? " (" + a.p_reference + ")" : "") +
+        " (" + a.p_interval + ") for " + (name || "this studio") + "?\n\nPayment " + moneyBoth(a.p_amount) + " by " + a.p_method + (a.p_reference ? " (" + a.p_reference + ")" : "") +
         "\nPeriod " + date(a.p_period_start || today) + " – " + date(pe) + "\n\nThis records the payment with a GST invoice and makes the plan active now.")) return;
       go.disabled = true;
       call("hq_activate_plan", a).then(function (r) {
@@ -852,6 +1105,7 @@
     k.appendChild(kpi("Alerts go to", ALERT_TO || "—", "change in E-mail alerts", "mail", function () { reqTab("alerts"); }));
     var nb = $("#navReqCount"), n = REQ_NEW.plan + REQ_NEW.sales + REQ_NEW.sugg;
     if (nb) { nb.textContent = n > 99 ? "99+" : String(n); nb.hidden = !(n > 0); }
+    paintBnav();
   }
   // pure: a safe "Reply by email" link (only a plain address; subject + greeting encoded) - exported for tests
   function mailtoHref(email, subject, name) {
@@ -882,11 +1136,16 @@
     else ul.appendChild(el("li", { cls: "muted", text: "No note yet." }));
     return ul;
   }
-  function detailBox(td, pairs, message, reply, actions) {
+  function detailBox(td, pairs, message, reply, actions, rec) {
     td.appendChild(kvList(pairs));
     td.appendChild(el("div", { cls: "msgbox", text: message || "(no message)" }));
     var acts = el("div", { cls: "actions" });
-    if (reply) acts.appendChild(el("a", { cls: "btn primary", href: reply, rel: "noopener", text: "Reply by email" }));
+    if (reply) {
+      var ra = el("a", { cls: "btn primary", href: reply, rel: "noopener", text: "Reply by email" });
+      // r28: the reply opens the mail app with the full address = a reveal (logged, never blocks the reply)
+      if (rec) ra.addEventListener("click", function () { logReveal(rec[0], rec[1], "reply_email").catch(function () {}); });
+      acts.appendChild(ra);
+    }
     (actions || []).forEach(function (a) { if (a) acts.appendChild(a); });
     td.appendChild(acts);
   }
@@ -906,7 +1165,7 @@
         el("td", { text: ist(x.created_at) }),
         el("td", null, [el("strong", { text: x.studio || x.studio_name || "—" }), el("div", { cls: "muted",
           text: [x.subscription_status ? "now: " + String(x.subscription_status).replace("_", " ") : "", x.source === "read_only_banner" ? "from read-only banner" : "from plan page"].filter(Boolean).join(" · ") })]),
-        el("td", null, [x.contact_name || "—", el("div", { cls: "muted", text: [x.contact_email, x.contact_phone].filter(Boolean).join(" · ") })]),
+        el("td", null, [x.contact_name || "—", contactLine(x.contact_email, x.contact_phone, "request", x.id)]),
         el("td", { text: (x.plan_name || x.plan_code || "—") + " · " + (x.billing_interval === "yearly" ? "Yearly" : "Monthly") }),
         msgCell(x.message),
         el("td", null, [el("span", { cls: "pill " + st[1], text: st[0] })])]);
@@ -927,9 +1186,10 @@
           o.addEventListener("click", function () { openStudio(x.org_id, "plan"); });
           acts.push(o);
         }
-        detailBox(td, [["Studio", x.studio || x.studio_name], ["Contact", x.contact_name], ["E-mail", x.contact_email], ["Phone", x.contact_phone],
+        detailBox(td, [["Studio", x.studio || x.studio_name], ["Contact", x.contact_name], ["E-mail", masked(x.contact_email, "email", "request", x.id, "email")],
+          ["Phone", masked(x.contact_phone, "phone", "request", x.id, "phone")],
           ["Plan", (x.plan_name || x.plan_code || "—") + " · " + (x.billing_interval === "yearly" ? "Yearly" : "Monthly")], ["Sent", ist(x.created_at)]],
-          x.message, mailtoHref(x.contact_email, "Your Helm plan request", x.contact_name), acts);
+          x.message, mailtoHref(x.contact_email, "Your Helm plan request", x.contact_name), acts, ["request", x.id]);
         td.appendChild(noteBlock(x));
       });
     });
@@ -942,7 +1202,7 @@
   var SE_PLAN = { starter: "Starter", studio: "Studio", enterprise: "Enterprise", not_sure: "Not sure yet" };
   var SE_TEAM = { "1": "Just me", "2-5": "2–5 people", "6-15": "6–15 people", "16-50": "16–50 people", "51+": "51+ people" };
   var SG_KIND = { idea: "Idea", problem: "Problem", other: "Other" };
-  function ist(v) { return v ? new Date(v).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }) + " IST" : "—"; }
+  function ist(v) { return v ? new Date(v).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—"; }   // r37: India time, no zone label (owner)
   // status buttons + "Note" for one row; fn = the HQ RPC, map = the statuses
   function rowActions(x, map, fn, reload) {
     var out = [];
@@ -982,14 +1242,15 @@
       var tr = el("tr", null, [
         el("td", { text: ist(x.created_at) }),
         el("td", null, [el("strong", { text: x.company || "—" }), el("div", { cls: "muted", text: [x.city, x.source === "home" ? "from home page" : "from Contact sales"].filter(Boolean).join(" · ") })]),
-        el("td", null, [x.name || "—", el("div", { cls: "muted", text: [x.email, x.phone].filter(Boolean).join(" · ") })]),
+        el("td", null, [x.name || "—", contactLine(x.email, x.phone, "enquiry", x.id)]),
         el("td", { text: det.join(" · ") || "—" }),
         msgCell(x.message),
         statusCell(x, SE_STATUS)]);
       rowWithDetail(tb, tr, 6, function (td) {
-        detailBox(td, [["Company", x.company], ["City", x.city], ["Name", x.name], ["E-mail", x.email], ["Phone", x.phone],
+        detailBox(td, [["Company", x.company], ["City", x.city], ["Name", x.name], ["E-mail", masked(x.email, "email", "enquiry", x.id, "email")],
+          ["Phone", masked(x.phone, "phone", "enquiry", x.id, "phone")],
           ["Plan", SE_PLAN[x.plan]], ["Team", SE_TEAM[x.team_size]], ["Events / year", x.events_per_year], ["Sent", ist(x.created_at)]],
-          x.message, mailtoHref(x.email, "Helm — your enquiry", x.name), rowActions(x, SE_STATUS, "hq_set_sales_enquiry", loadSales));
+          x.message, mailtoHref(x.email, "Helm — your enquiry", x.name), rowActions(x, SE_STATUS, "hq_set_sales_enquiry", loadSales), ["enquiry", x.id]);
         td.appendChild(noteBlock(x));
       });
     });
@@ -1005,14 +1266,15 @@
       var who = x.who || (x.source === "app" ? "A Helm user" : "A visitor");
       var tr = el("tr", null, [
         el("td", { text: ist(x.created_at) }),
-        el("td", null, [who, el("div", { cls: "muted", text: [x.studio, x.email, x.source === "app" ? "in the app" + (x.page ? " (" + x.page + ")" : "") : "website"].filter(Boolean).join(" · ") })]),
+        el("td", null, [who, el("div", { cls: "muted", text: [x.studio, x.source === "app" ? "in the app" + (x.page ? " (" + x.page + ")" : "") : "website"].filter(Boolean).join(" · ") }),
+          x.email ? el("div", null, [masked(x.email, "email", "suggestion", x.id, "email")]) : null]),
         el("td", { text: SG_KIND[x.category] || "—" }),
         msgCell(x.message),
         statusCell(x, SG_STATUS)]);
       rowWithDetail(tb, tr, 5, function (td) {
-        detailBox(td, [["From", who], ["Studio", x.studio], ["E-mail", x.email], ["Kind", SG_KIND[x.category]],
+        detailBox(td, [["From", who], ["Studio", x.studio], ["E-mail", masked(x.email, "email", "suggestion", x.id, "email")], ["Kind", SG_KIND[x.category]],
           ["Where", x.source === "app" ? "in the app" + (x.page ? " (" + x.page + ")" : "") : "website"], ["Sent", ist(x.created_at)]],
-          x.message, mailtoHref(x.email, "Thanks for your Helm suggestion", x.who), rowActions(x, SG_STATUS, "hq_set_suggestion", loadSuggestions));
+          x.message, mailtoHref(x.email, "Thanks for your Helm suggestion", x.who), rowActions(x, SG_STATUS, "hq_set_suggestion", loadSuggestions), ["suggestion", x.id]);
         td.appendChild(noteBlock(x));
       });
     });
@@ -1046,7 +1308,7 @@
       if (!st.length) box.appendChild(el("div", { cls: "empty", text: "  No studio matches." }));
       box.appendChild(el("h4", { text: "People" }));
       us.forEach(function (u) {
-        var b = el("button", { type: "button" }, [el("span", { cls: "m", text: u.email || "—" }), el("span", { cls: "muted", text: [u.studio, u.role].filter(Boolean).join(" · ") })]);
+        var b = el("button", { type: "button" }, [el("span", { text: maskEmail(u.email) || "—" }), el("span", { cls: "muted", text: [u.studio, u.role].filter(Boolean).join(" · ") })]);
         b.addEventListener("click", function () { closeSearch(); if (!canTab("people")) return; showTab("people"); $("#qUsers").value = u.email || ""; loadUsers(0).catch(showErr); });
         box.appendChild(b);
       });
@@ -1133,7 +1395,7 @@
     var rows = await call("hq_users", { p_search: $("#qUsers").value || null, p_limit: PAGE, p_offset: uOff });
     var tb = clear($("#tUsers")); rows = Array.isArray(rows) ? rows : [];
     rows.forEach(function (r) {
-      tb.appendChild(el("tr", null, [el("td", { cls: "m", text: r.email || "—" }), el("td", { text: r.studio || "—" }), el("td", { text: r.role || "—" }),
+      tb.appendChild(el("tr", null, [el("td", null, [masked(r.email, "email", "person", r.user_id || null, "email") || "—"]), el("td", { text: r.studio || "—" }), el("td", { text: r.role || "—" }),
         el("td", { text: date(r.created_at) }), el("td", { text: ago(r.last_sign_in_at) }),
         el("td", null, [el("span", { cls: "pill " + (r.email_confirmed ? "ok" : "warn"), text: r.email_confirmed ? "yes" : "no" })]),
         el("td", null, mfaCell(r.email, r.mfa_enabled, function () { loadUsers(uOff).catch(showErr); }))]));
@@ -1178,6 +1440,7 @@
     return '"' + s.replace(/"/g, '""') + '"';
   }
   function exportCsv() {
+    logReveal("billing", "payments", "csv_export").catch(function () {});   // r28: an export is recorded like a reveal
     var r = lastBilling || {}, rows = [["paid_on", "studio", "invoice_no", "amount", "currency", "net_amount", "gst_amount", "method", "reference", "period_start", "period_end", "status", "void_reason"]];
     (r.payments || []).forEach(function (p) {
       rows.push([p.paid_on, p.studio, p.invoice_no, p.amount, p.currency, p.net_amount, p.gst_amount, p.method, p.reference, p.period_start, p.period_end, p.voided ? "void" : "paid", p.void_reason]);
@@ -1237,12 +1500,26 @@
 
   /* ---------------- plans ---------------- */
   // r25 (0273): each plan's fixed USD price (studios outside India pay in USD) - {code: {monthly, yearly}}
+  var PLAN_INR = {};
   async function usdPrices() {
-    var out = {};
+    var out = {}; PLAN_INR = {};
     try { var r = await call("hq_plan_checkout"); (Array.isArray(r) ? r : []).forEach(function (p) {
-      (Array.isArray(p.prices) ? p.prices : []).forEach(function (x) { if (x.currency === "USD") out[p.code] = { monthly: x.monthly, yearly: x.yearly }; }); }); }
+      (Array.isArray(p.prices) ? p.prices : []).forEach(function (x) { if (x.currency === "USD") out[p.code] = { monthly: x.monthly, yearly: x.yearly };
+        if (x.currency === "INR") PLAN_INR[p.code] = { monthly: x.monthly, yearly: x.yearly }; }); }); }
     catch (e) {}
     return out;
+  }
+  // r28 round 2: one "Edit plan" card - name, visible, prices ($ and ₹, monthly / yearly), website + checkout text
+  function openPlanEditor(p, u, ir) {
+    var ed = $("#planEditor"); if (!ed) return;
+    p = p || {}; u = u || {}; ir = ir || {};
+    $("#peH").textContent = p.code ? "Edit plan - " + (p.name || p.code) : "New plan";
+    $("#plCode").value = p.code || ""; $("#plCode").readOnly = !!p.code; $("#plName").value = p.name || ""; $("#plActive").checked = p.code ? !!p.active : true;
+    $("#plPrice").value = p.price_monthly == null ? "" : p.price_monthly; $("#plInrY").value = ir.yearly == null ? "" : ir.yearly;
+    $("#plUsdM").value = u.monthly == null ? "" : u.monthly; $("#plUsdY").value = u.yearly == null ? "" : u.yearly;
+    var co = planCo.filter(function (x) { return x.code === p.code; })[0];
+    if (co) fillPlanCoForm(co, "INR"); else { $("#pcCode").value = p.code || ""; $("#pcDesc").value = ""; $("#pcFeat").value = ""; $("#pcRzpM").value = ""; $("#pcRzpY").value = ""; clear($("#pcCur")).appendChild(el("option", { value: "INR", text: "INR" })); }
+    ed.hidden = false; try { ed.scrollIntoView({ behavior: "smooth", block: "start" }); $("#plName").focus(); } catch (e) {}
   }
   // pure: validated args for hq_upsert_plan_price in USD, or null when both fields are empty (exported for tests)
   function usdPriceArgs(code, m, y) {
@@ -1255,15 +1532,15 @@
   }
   async function loadPlans() {
     var r = await call("hq_plans"); plans = Array.isArray(r) ? r : [];
-    var usd = await usdPrices();
+    var usd = await usdPrices(), inr = PLAN_INR;
     var tb = clear($("#tPlans"));
     plans.forEach(function (p) {
       var edit = el("button", { cls: "btn sm", type: "button", text: "Edit" }), u = usd[p.code] || {};
-      edit.addEventListener("click", function () { $("#plCode").value = p.code; $("#plName").value = p.name; $("#plPrice").value = p.price_monthly; $("#plActive").checked = !!p.active;
-        $("#plUsdM").value = u.monthly == null ? "" : u.monthly; $("#plUsdY").value = u.yearly == null ? "" : u.yearly; });
-      tb.appendChild(el("tr", null, [el("td", { cls: "m", text: p.code }), el("td", { text: p.name }), el("td", { cls: "n", text: money(p.price_monthly, p.currency) }),
-        el("td", { cls: "n", text: u.monthly == null ? "—" : money(u.monthly, "USD") }),
-        el("td", null, [el("span", { cls: "pill " + (p.active ? "ok" : ""), text: p.active ? "active" : "hidden" })]), el("td", { cls: "n", text: int(p.studios) }), el("td", null, [can("billing.write") ? edit : null])]));
+      edit.addEventListener("click", function () { openPlanEditor(p, u, inr[p.code] || {}); });
+      tb.appendChild(el("tr", null, [el("td", null, [el("strong", { text: p.name }), el("div", { cls: "muted m", text: p.code })]),
+        el("td", { cls: "n", text: money(p.price_monthly, p.currency), title: moneyRaw(p.price_monthly, p.currency) }),
+        el("td", { cls: "n", text: u.monthly == null ? "—" : moneyRaw(u.monthly, "USD") }), el("td", { cls: "n", text: u.yearly == null ? "—" : moneyRaw(u.yearly, "USD") }),
+        el("td", null, [el("span", { cls: "pill " + (p.active ? "ok" : ""), text: p.active ? "visible" : "hidden" })]), el("td", { cls: "n", text: int(p.studios) }), el("td", null, [can("billing.write") ? edit : null])]));
     });
     var tr = can("billing.read") ? await call("hq_tax_rules") : []; tr = Array.isArray(tr) ? tr : [];
     var tt = clear($("#tTax"));
@@ -1303,7 +1580,7 @@
     $("#pcCode").value = p.code; $("#pcDesc").value = p.description || "";
     $("#pcFeat").value = (Array.isArray(p.features) ? p.features : []).join("\n");
     $("#pcRzpM").value = pr.razorpay_plan_id_monthly || ""; $("#pcRzpY").value = pr.razorpay_plan_id_yearly || "";
-    $("#pcForm").hidden = false; $("#pcDesc").focus();
+    $("#pcForm").hidden = false;
   }
   async function loadPlanCheckout() {
     var tb = clear($("#tPlanCo"));
@@ -1313,7 +1590,8 @@
       var ids = (Array.isArray(p.prices) ? p.prices : []).map(function (x) {
         return x.currency + ": " + (x.razorpay_plan_id_monthly || "— monthly") + " / " + (x.razorpay_plan_id_yearly || "— yearly"); }).join("; ") || "no prices yet";
       var edit = el("button", { cls: "btn sm", type: "button", text: "Edit" });
-      edit.addEventListener("click", function () { fillPlanCoForm(p, "INR"); });
+      edit.addEventListener("click", function () { var hp = plans.filter(function (x) { return x.code === p.code; })[0] || { code: p.code, name: p.name, active: true };
+        var u2 = {}; (Array.isArray(p.prices) ? p.prices : []).forEach(function (x) { if (x.currency === "USD") u2 = x; }); openPlanEditor(hp, u2, PLAN_INR[p.code]); });
       tb.appendChild(el("tr", null, [el("td", { text: p.name + " (" + p.code + ")" }), el("td", { text: p.description || "—" }),
         el("td", { cls: "n", text: int((p.features || []).length) + " items" }), el("td", { cls: "m", text: ids }), el("td", null, [can("billing.write") ? edit : null])]));
     });
@@ -1328,9 +1606,17 @@
   }
   function savePlan() {
     var u; try { u = usdPriceArgs($("#plCode").value, $("#plUsdM").value, $("#plUsdY").value); } catch (e) { showErr(e); return; }
+    var code = String($("#plCode").value || "").trim().toLowerCase(), iy = String($("#plInrY").value || "").trim(), co = null;
+    if (iy && !(Number(iy) >= 0)) { showErr(new Error("₹ price per year must be 0 or more")); return; }
+    // r28 round 2: the website + checkout text is saved in the same step when it was filled in
+    if (String($("#pcDesc").value || "").trim() || String($("#pcFeat").value || "").trim() || $("#pcRzpM").value || $("#pcRzpY").value) {
+      try { co = planCheckoutArgs(code, "INR", $("#pcDesc").value, $("#pcFeat").value, $("#pcRzpM").value, $("#pcRzpY").value); } catch (e) { showErr(e); return; }
+    }
     call("hq_upsert_plan", { p_code: $("#plCode").value, p_name: $("#plName").value, p_price_monthly: Number($("#plPrice").value), p_currency: "INR", p_active: $("#plActive").checked })
       .then(function () { return u ? call("hq_upsert_plan_price", u) : null; })   // r25: the fixed USD price next to INR
-      .then(function () { okMsg("Plan saved."); loadPlans().catch(showErr); }).catch(showErr);
+      .then(function () { return iy ? call("hq_upsert_plan_price", { p_plan_code: code, p_currency: "INR", p_price_monthly: Number($("#plPrice").value), p_price_yearly: Number(iy) }) : null; })
+      .then(function () { return co ? call("hq_set_plan_checkout", co) : null; })
+      .then(function () { okMsg("Plan saved. Visible plans show on the website pricing page."); $("#planEditor").hidden = true; loadPlans().catch(showErr); }).catch(showErr);
   }
 
   /* ---------------- activity + operators ---------------- */
@@ -1338,8 +1624,10 @@
     var r = await call("hq_audit", { p_from: $("#aFrom").value || null, p_to: $("#aTo").value || null }); r = r && !Array.isArray(r) ? r : {};
     var tb = clear($("#tAudit")), writesOnly = $("#aWrites").checked;
     (r.rows || []).filter(function (x) { return !writesOnly || x.action !== "hq.view"; }).slice(0, 500).forEach(function (x) {
-      tb.appendChild(el("tr", null, [el("td", { text: x.at ? new Date(x.at).toLocaleString("en-IN") : "—" }), el("td", { cls: "m", text: x.actor_email || "system" }),
-        el("td", { cls: "m", text: x.action || "" }), el("td", { text: (x.entity || "") + (x.entity_id ? " · " + x.entity_id : "") })]));
+      var what = (x.entity || "") + (x.entity_id ? " · " + x.entity_id : "") + (x.action === "hq.reveal" && x.changed && x.changed.field ? " · " + String(x.changed.field).replace(/_/g, " ") : "");
+      tb.appendChild(el("tr", null, [el("td", { text: x.at ? ist(x.at) : "—" }), el("td", { cls: "m", text: x.actor_email || "system" }),
+        el("td", null, [el("span", { cls: "pill " + (x.action === "hq.reveal" ? "warn" : x.action === "hq.view" ? "" : "ok"), text: actWord(x.action) }), el("div", { cls: "muted m", text: x.action || "" })]),
+        el("td", { text: what })]));
     });
     if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "4", cls: "empty", text: "No HQ activity in this range." })]));
   }
@@ -1350,13 +1638,13 @@
     var tb = clear($("#tSec"));
     (r.by_studio || []).forEach(function (x) {
       tb.appendChild(el("tr", null, [el("td", { text: "🛡️ " + (x.label || x.type || "") }), el("td", { text: x.studio || "—" }),
-        el("td", { cls: "n", text: int(x.count) }), el("td", { text: x.latest ? new Date(x.latest).toLocaleString("en-IN") : "—" })]));
+        el("td", { cls: "n", text: int(x.count) }), el("td", { text: x.latest ? new Date(x.latest).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" })]));
     });
     if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "4", cls: "empty", text: "No security events in this range." })]));
     var tl = clear($("#tSecLatest"));
     (r.latest || []).slice(0, 100).forEach(function (x) {
       var who = [x.actor_name ? "by " + x.actor_name : "", x.subject_name || ""].filter(Boolean).join(" · ");
-      tl.appendChild(el("tr", null, [el("td", { text: x.at ? new Date(x.at).toLocaleString("en-IN") : "—" }), el("td", { text: x.label || x.type || "" }),
+      tl.appendChild(el("tr", null, [el("td", { text: x.at ? new Date(x.at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" }), el("td", { text: x.label || x.type || "" }),
         el("td", { text: x.studio || "—" }), el("td", { text: who || "—" })]));
     });
     if (!tl.firstChild) tl.appendChild(el("tr", null, [el("td", { colspan: "4", cls: "empty", text: "Nothing yet." })]));
@@ -1369,7 +1657,7 @@
     "hq.studio.suspend": "paused a studio", "hq.studio.reactivate": "restarted a studio", "hq.studio.identity": "changed a studio name / link",
     "hq.subscription.activate": "activated a plan", "hq.payment.record": "recorded a payment", "hq.payment.void": "voided a payment",
     "hq.trial.extend": "extended a trial", "hq.mfa.reset": "reset someone's two-step", "hq.sales_request.status": "answered a plan request",
-    "hq.sales_enquiry.update": "answered a sales enquiry", "hq.suggestion.update": "marked a suggestion" };
+    "hq.sales_enquiry.update": "answered a sales enquiry", "hq.suggestion.update": "marked a suggestion", "hq.reveal": "showed a masked detail", "hq.credit.grant": "added a studio credit" };
   function actWord(a) { return ACT_WORDS[a] || String(a || "").replace(/^hq\./, "").replace(/[._]/g, " "); }
   function when(v) { return v ? ago2(v) : "never"; }
   function teamAction(text, cls, fn) { var b = el("button", { cls: "btn sm" + (cls ? " " + cls : ""), type: "button", text: text }); b.addEventListener("click", fn); return b; }
@@ -1387,8 +1675,9 @@
     var sessions = Array.isArray(x.sessions) ? x.sessions : [], recent = Array.isArray(x.recent) ? x.recent : [];
     var sl = el("ul", { cls: "mini" });
     sessions.forEach(function (z) {
-      sl.appendChild(el("li", null, [el("span", { text: (S ? S.deviceName(z.device) : "Device") + (z.current ? " (this one)" : "") }),
-        el("span", { cls: "muted", text: [z.ip, "since " + date(z.since), "seen " + when(z.seen)].filter(Boolean).join(" · ") })]));
+      var tset = TEAM_SET || {}, ends = sessionEnds(z.since, z.hq_last || z.seen, tset.idle_minutes, tset.max_hours);
+      sl.appendChild(el("li", null, [el("span", null, [z.sid ? el("span", { cls: "m", text: z.sid + " " }) : null, (S ? S.deviceName(z.device) : "Device") + (z.current ? " (this one)" : "")]),
+        el("span", { cls: "muted", text: [z.ip, "started " + date(z.since) + " " + hhmm(z.since), "seen " + when(z.seen), ends ? (Date.parse(ends) < Date.now() ? "expired" : "ends " + hhmm(ends)) : ""].filter(Boolean).join(" · ") })]));
     });
     if (!sl.firstChild) sl.appendChild(el("li", { cls: "muted", text: "Not signed in anywhere right now." }));
     var rl = el("ul", { cls: "mini" });
@@ -1450,8 +1739,10 @@
     ["#tmIdle", "#tmMax", "#tmReauth", "#tmIpOn", "#tmIps"].forEach(function (id) { $(id).disabled = ro; });
     $("#tmSetState").textContent = "Two-step: always required for everyone." + (st.my_ip ? " Your network right now: " + st.my_ip + "." : "") + (ro ? " Only an Owner can change these." : "");
   }
+  var TEAM_SET = null;
   async function loadTeam() {
     var r = await call("hq_staff_list", { p_include_removed: !!$("#tmRemoved").checked }); r = r && !Array.isArray(r) ? r : {};
+    TEAM_SET = r.settings || null;
     var list = Array.isArray(r.staff) ? r.staff : [], box = clear($("#tmList"));
     var on = list.filter(function (x) { return x.status === "active"; }).length, inv = list.filter(function (x) { return x.status === "invited"; }).length;
     $("#tmCount").textContent = int(on) + " active" + (inv ? " · " + int(inv) + " invited" : "");
@@ -1639,7 +1930,26 @@
   }
 
   function on(id, ev, fn) { var n = $(id); if (n) n.addEventListener(ev, fn); }
+  // r28: ?demo=1 ONLY on this computer (localhost / 127.0.0.1 / [::1]): hq-demo.js swaps BPStore for made-up data held in
+  // the browser. Any other host ignores ?demo=1 (and hq-demo.js is never deployed - .vercelignore). Pure - exported for tests.
+  function demoWanted(host, search) {
+    return /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(String(host || "")) && /(^|[?&])demo=1(&|$)/.test(String(search || "").replace(/^\?/, ""));
+  }
+  function loadDemo() {
+    return new Promise(function (resolve, reject) {
+      var sc = document.createElement("script"); sc.src = "hq-demo.js?v=1";
+      sc.addEventListener("load", resolve); sc.addEventListener("error", reject); document.head.appendChild(sc);
+    });
+  }
   async function start() {
+    var dm = false; try { dm = demoWanted(location.hostname, location.search); } catch (e) { dm = false; }
+    if (dm) {
+      // r42: demo = made-up data ONLY. If the demo did not install itself, stop here - never fall through to the real
+      // database under a "demo" address (the real HQ is reached only without ?demo=1, through sign-in + the HQ gates).
+      try { await loadDemo(); } catch (e) {}
+      if (!window.HelmHqDemo || !window.BPStore || window.BPStore.__helmHqDemo !== true) { notFound(); return; }
+      var db = $("#demoBar"); if (db) db.hidden = false;
+    }
     try { await BPStore.init(); } catch (e) { notFound(); return; }
     if (!BPStore.auth.enabled()) { notFound(); return; }
     BPStore.auth.required();
@@ -1674,11 +1984,30 @@
     TABS.forEach(function (t) { on("#tab-" + t, "click", function () {
       showTab(t);
       if (t === "activity") { loadAudit().catch(showErr); loadSecurity().catch(showErr); }
-      if (t === "billing") loadSettings().catch(showErr);
+      if (t === "settings" && can("billing.read")) loadSettings().catch(showErr);
       if (t === "requests") loadRequestsTab();
       if (t === "staff") { loadTeam().catch(showErr); loadStaff().catch(showErr); loadGoogleOnly().catch(showErr); }
     }); });
-    on("#btnRefresh", "click", function () { loadAll().catch(showErr); if (!$("#pane-requests").hidden) loadRequestsTab(); if (!$("#pane-staff").hidden) { loadTeam().catch(showErr); loadStaff().catch(showErr); loadGoogleOnly().catch(showErr); } });
+    on("#btnRefresh", "click", function () { loadAll().catch(showErr); if (!$("#pane-requests").hidden) loadRequestsTab(); if (!$("#pane-staff").hidden) { loadTeam().catch(showErr); loadStaff().catch(showErr); loadGoogleOnly().catch(showErr); }
+      if (!$("#pane-activity").hidden) { loadAudit().catch(showErr); loadSecurity().catch(showErr); } if (!$("#pane-settings").hidden && can("billing.read")) loadSettings().catch(showErr); });
+    // r28: phone menu + bottom bar + Settings shortcuts
+    on("#btnMenu", "click", function () { var va = $("#vApp"); navOpen(!(va && va.classList && va.classList.contains("nav-open"))); });
+    on("#navScrim", "click", function () { navOpen(false); });
+    on("#btnGoAlerts", "click", function () { showTab("requests"); reqTab("alerts"); loadRequestsTab(); });
+    on("#btnPlanNew", "click", function () { openPlanEditor(null); });
+    on("#btnPlanCancel", "click", function () { $("#planEditor").hidden = true; });
+    loadMySession();
+    on("#btnGoLog", "click", function () { var b = $("#tab-activity"); if (b) b.click(); });
+    buildBnav(); watchTables();
+    // r28 (owner): money display (US dollars by default; this browser only)
+    $("#dispCur").value = DISP.cur; $("#dispRate").value = DISP.rate;
+    on("#btnDisp", "click", function () {
+      var c = $("#dispCur").value === "ORIG" ? "ORIG" : "USD", r = Number($("#dispRate").value);
+      if (!(r >= 1 && r <= 1000)) { showErr(new Error("Rupees per US dollar: a number from 1 to 1000")); return; }
+      DISP.cur = c; DISP.rate = r;
+      try { localStorage.setItem("helm.hq.dispCur", c); localStorage.setItem("helm.hq.inrPerUsd", String(r)); } catch (e) {}
+      okMsg("Money display saved for this browser."); loadAll().catch(showErr);
+    });
     // r25: studio drawer, Requests tabs, search
     on("#btnDClose", "click", closeDrawer);
     on("#studioScrim", "click", closeDrawer);
@@ -1687,6 +2016,7 @@
     document.addEventListener("keydown", function (e) {
       if (e.key !== "Escape") return;
       if (!$("#gResults").hidden) { closeSearch(); return; }
+      var va = $("#vApp"); if (va && va.classList && va.classList.contains("nav-open")) { navOpen(false); return; }
       if (!$("#studioDrawer").hidden) closeDrawer();
     });
     on("#gSearch", "input", function () { clearTimeout(gTimer); gTimer = setTimeout(runSearch, 250); });

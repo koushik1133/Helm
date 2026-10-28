@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en" data-theme="light">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Helm</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -9,89 +9,98 @@
 <link rel="preload" href="/vendor/supabase-js-2.118.0.min.js" as="script" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-  /* r27: calm, spacious console (Stripe / Linear / Vercel cues): one spacing scale, hairlines, few shadows,
-     larger readable type, sticky slim top bar, refined tables. Colours come from the theme tokens. */
-  :root{--bg:#f6f7f6;--panel:#ffffff;--panel-2:#f8faf9;--line:#e6ebe8;--line-2:#eff3f1;--ink:#0b2a22;--ink-2:#2f4a42;--ink-3:#5a7068;
-    --accent:#047857;--accent-2:#036b4d;--accent-soft:#e3f4ed;--safe:#0d7a3c;--warn:#b26a00;--bad:#c0362c;
+  /* r28 HQ v2: a calm, Stripe / Linear-grade console. One 4px spacing scale, hairlines instead of shadows, one accent,
+     tabular numbers, quiet labels. Sidebar on desktop; a slide-in menu + bottom bar on phones; tables become cards
+     under 720px (labels come from the column headings). Colours are the theme tokens (emerald light). */
+  :root{--bg:#f7f8f7;--panel:#ffffff;--panel-2:#f6f8f7;--line:#e6eae8;--line-2:#eff2f0;--ink:#0d1a16;--ink-2:#36443f;--ink-3:#66746f;
+    --accent:#047857;--accent-2:#036b4d;--accent-soft:#e6f4ee;--safe:#0d7a3c;--warn:#a35f00;--bad:#b42318;
     --c1:#047857;--c2:#2f6fdb;--c3:#d08a1e;--c4:#8a5cd0;--c5:#c2477a;--c6:#5a8f99;
     --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
-    --r-sm:8px;--r:12px;--r-lg:16px;
-    --hq-shadow:0 1px 2px rgba(16,24,20,.04);--shadow-pop:0 12px 32px -12px rgba(16,24,20,.22),0 2px 6px rgba(16,24,20,.06);
-    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+    --r-sm:8px;--r:12px;--r-lg:16px;--side:256px;--top:64px;
+    --hq-shadow:0 1px 2px rgba(16,24,20,.04);--shadow-pop:0 16px 40px -16px rgba(16,24,20,.24),0 2px 8px rgba(16,24,20,.06);
+    --font:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace}
   *{box-sizing:border-box}
   html,body{background:var(--bg)}
-  body{margin:0;color:var(--ink);font-family:var(--font);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  body{margin:0;color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss01";text-rendering:optimizeLegibility}
   [hidden]{display:none!important}
   :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  /* ---- shell: sidebar + main ---- */
-  .hq{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh;background:linear-gradient(to right,var(--panel) 247px,var(--line) 247px,var(--line) 248px,transparent 248px)}
-  .side{position:sticky;top:0;height:100vh;align-self:start;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:var(--s5) var(--s3);display:flex;flex-direction:column;gap:2px}
-  .brand{display:flex;align-items:center;gap:var(--s3);padding:0 var(--s2) var(--s5)}
-  .mk{width:32px;height:32px;border-radius:9px;background:#0b1f19 !important;display:grid;place-items:center;flex:none}
-  .mk .kmk{height:24px;width:auto;display:block}
-  .brand b{font-size:15px;letter-spacing:-.01em;display:block;line-height:1.2}
+  button{font-family:inherit}
+  /* ---- shell ---- */
+  .hq{display:grid;grid-template-columns:var(--side) minmax(0,1fr);min-height:100vh;background:linear-gradient(to right,var(--panel) calc(var(--side) - 1px),var(--line) calc(var(--side) - 1px),var(--line) var(--side),transparent var(--side))}
+  .side{position:sticky;top:0;height:100vh;align-self:start;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:var(--s5) var(--s3) var(--s4);display:flex;flex-direction:column;gap:2px;z-index:30}
+  .brand{display:flex;align-items:center;gap:var(--s3);padding:0 var(--s3) var(--s5)}
+  #vApp .mk{width:32px;height:32px;border-radius:9px;background:#0b1f19;display:grid;place-items:center;flex:none}
+  .mk .kmk{height:22px;width:auto;display:block}
+  .brand b{font-size:15px;letter-spacing:-.01em;display:block;line-height:1.2;font-weight:650}
   .brand small{font-size:12px;color:var(--ink-3)}
-  .navg{font-size:11.5px;letter-spacing:.04em;color:var(--ink-3);font-weight:600;padding:var(--s4) var(--s3) var(--s1)}
+  .tabs{display:flex;flex-direction:column;gap:2px}
+  .navg{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:var(--s5) var(--s3) var(--s2)}
+  .navg:first-child{padding-top:0}
   .navi{position:relative;display:flex}
   .ni{position:absolute;left:12px;top:50%;width:18px;height:18px;margin-top:-9px;pointer-events:none;color:var(--ink-3);fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-  .side .tab{flex:1;display:flex;align-items:center;height:38px;padding:0 var(--s3) 0 40px;border:0;background:transparent;color:var(--ink-2);border-radius:var(--r-sm);font:inherit;font-size:14px;font-weight:500;cursor:pointer;text-align:left;min-width:0}
-  .side .tab:hover{background:var(--panel-2);color:var(--ink)}
-  .side .tab[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-2);font-weight:600}
+  #vApp .side .tab{flex:1;display:flex;align-items:center;height:36px;min-height:36px;padding:0 var(--s3) 0 40px;border:0;background:transparent;color:var(--ink-2);border-radius:var(--r-sm);font:inherit;font-size:14px;font-weight:500;cursor:pointer;text-align:left;min-width:0;letter-spacing:0}
+  #vApp .side .tab:hover{background:var(--panel-2);color:var(--ink)}
+  #vApp .side .tab[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-2);font-weight:600}
   .navi:has(.tab[aria-pressed="true"]) .ni{color:var(--accent-2)}
   .nbadge{position:absolute;right:10px;top:50%;transform:translateY(-50%);min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;pointer-events:none}
-  .side .foot{margin-top:auto;padding:var(--s4) var(--s2) 0;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3);display:flex;flex-direction:column;gap:var(--s2)}
+  .side .foot{margin-top:auto;padding:var(--s4) var(--s3) 0;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3);display:flex;flex-direction:column;gap:var(--s2)}
   .side .foot .who{overflow-wrap:anywhere;color:var(--ink-2);font-weight:500}
   .rolechip{display:inline-flex;align-self:flex-start;padding:2px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent-2);font-size:12px;font-weight:600}
   .main{min-width:0;display:flex;flex-direction:column}
-  .topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:var(--s3);height:60px;padding:0 var(--s6);background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line)}
-  .topbar .crumb{font-size:13px;color:var(--ink-3);white-space:nowrap}
+  .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:var(--s3);height:var(--top);padding:0 var(--s6);background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid var(--line)}
+  .topbar .crumb{font-size:13px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .topbar .crumb b{color:var(--ink);font-weight:600}
   .topbar .sp{flex:1}
-  .content{width:100%;max-width:1280px;margin:0 auto;padding:var(--s6) var(--s6) 72px}
-  .phead{display:flex;align-items:flex-end;gap:var(--s4);margin-bottom:var(--s5);flex-wrap:wrap}
-  .phead h1{font-size:28px;line-height:1.2;margin:0;letter-spacing:-.025em;font-weight:650}
-  .phead .sub{color:var(--ink-3);font-size:14px;margin-top:6px}
-  .gs{position:relative;width:min(380px,100%)}
-  .gs input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:0 var(--s3) 0 36px;font:inherit;font-size:14px}
+  .iconbtn{width:40px;height:40px;display:none;place-items:center;border:1px solid var(--line);background:var(--panel);border-radius:10px;color:var(--ink);cursor:pointer;flex:none}
+  .iconbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+  .demobar{background:#fff7e6;color:#7a4b00;border-bottom:1px solid #f3dfb5;font-size:13px;padding:8px var(--s6);text-align:center}
+  .content{width:100%;max-width:1280px;margin:0 auto;padding:var(--s6) var(--s6) 80px}
+  .phead{display:flex;align-items:flex-end;gap:var(--s4);margin-bottom:var(--s6);flex-wrap:wrap}
+  .phead h1{font-size:26px;line-height:1.2;margin:0;letter-spacing:-.022em;font-weight:650}
+  .phead .sub{color:var(--ink-3);font-size:14px;margin-top:6px;max-width:72ch}
+  .gs{position:relative;width:min(400px,100%)}
+  #vApp .gs input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:0 var(--s3) 0 36px;font:inherit;font-size:14px}
   .gs .gi{position:absolute;left:12px;top:11px;width:16px;height:16px;fill:none;stroke:var(--ink-3);stroke-width:1.8;pointer-events:none}
   .gs input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-  .gres{position:absolute;left:0;right:0;top:44px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-pop);padding:var(--s2);z-index:20;max-height:60vh;overflow:auto}
-  .gres h4{margin:var(--s2) var(--s2) var(--s1);font-size:11.5px;letter-spacing:.04em;color:var(--ink-3)}
+  .gres{position:absolute;left:0;right:0;top:44px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-pop);padding:var(--s2);z-index:25;max-height:60vh;overflow:auto}
+  .gres h4{margin:var(--s2) var(--s2) var(--s1);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
   .gres button{display:flex;width:100%;justify-content:space-between;gap:10px;border:0;background:transparent;padding:10px;border-radius:var(--r-sm);font:inherit;font-size:14px;color:var(--ink);cursor:pointer;text-align:left}
   .gres button:hover,.gres button:focus{background:var(--panel-2)}
-  .btn{height:36px;padding:0 14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:var(--r-sm);font:inherit;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;transition:border-color .12s,background .12s}
-  .btn:hover{border-color:color-mix(in srgb,var(--ink-3) 45%,var(--line));background:var(--panel-2)}
-  .btn:disabled{opacity:.5;cursor:default}
-  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  .btn.primary:hover{background:var(--accent-2)}
-  .btn.danger{color:var(--bad)}
-  .btn.sm{height:30px;padding:0 10px;font-size:13px;margin-right:6px}
-  .btn.ghost{border-color:transparent;background:transparent}
-  a.btn{display:inline-flex;align-items:center;text-decoration:none}
+  #vApp .btn,.blk .btn,.modal .btn{height:36px;padding:0 14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:var(--r-sm);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap;transition:border-color .12s,background .12s;display:inline-flex;align-items:center;justify-content:center;gap:6px;letter-spacing:0}
+  #vApp .btn:hover,.blk .btn:hover,.modal .btn:hover{border-color:color-mix(in srgb,var(--ink-3) 40%,var(--line));background:var(--panel-2)}
+  #vApp .btn:disabled{opacity:.5;cursor:default}
+  #vApp .btn.primary,.blk .btn.primary,.modal .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  #vApp .btn.primary:hover,.blk .btn.primary:hover,.modal .btn.primary:hover{background:var(--accent-2)}
+  #vApp .btn.danger{color:var(--bad)}
+  #vApp .btn.sm{height:30px;padding:0 10px;font-size:12.5px;margin-right:6px}
+  #vApp .btn.ghost{border-color:transparent;background:transparent}
+  a.btn{text-decoration:none}
   /* ---- KPI tiles ---- */
   .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s4);margin-bottom:var(--s5)}
-  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:var(--s5) var(--s5) 20px;box-shadow:var(--hq-shadow);min-width:0}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px var(--s5);min-width:0}
   .kpi .l{font-size:13px;color:var(--ink-3);font-weight:500}
-  .kpi .v{font-size:28px;font-weight:650;margin-top:var(--s2);letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;line-height:1.15}
-  .kpi .s{font-size:13px;color:var(--ink-3);margin-top:6px}
-  .kpi.mail .v{font-size:16px;margin-top:12px}
+  .kpi .v{font-size:26px;font-weight:650;margin-top:var(--s2);letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;line-height:1.15}
+  .kpi .s{font-size:12.5px;color:var(--ink-3);margin-top:6px}
+  .kpi.mail .v{font-size:15px;margin-top:12px;font-weight:600}
   .kpi.warn .v{color:var(--warn)} .kpi.bad .v{color:var(--bad)} .kpi.good .v{color:var(--accent)}
-  button.kpi{font:inherit;text-align:left;cursor:pointer;color:inherit;transition:border-color .12s} button.kpi:hover{border-color:var(--accent)}
+  button.kpi{display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;font:inherit;text-align:left;cursor:pointer;color:inherit;transition:border-color .12s,background .12s} button.kpi:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line));background:color-mix(in srgb,var(--accent-soft) 35%,var(--panel))}
   /* ---- cards / grids ---- */
-  .grid{display:grid;grid-template-columns:2fr 1fr;gap:var(--s5);margin-bottom:var(--s5)}
+  .grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:var(--s5);margin-bottom:var(--s5)}
   .g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s5);margin-bottom:var(--s5)}
   .g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s5);margin-bottom:var(--s5)}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:var(--s5);box-shadow:var(--hq-shadow);min-width:0}
-  .card h2{font-size:16px;margin:0 0 var(--s3);color:var(--ink);letter-spacing:-.01em;font-weight:600}
+  .stack{display:flex;flex-direction:column;gap:var(--s5);min-width:0}
+  #vApp .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:var(--s5);box-shadow:none;min-width:0;overflow:visible}
+  .card h2{font-size:15px;margin:0 0 var(--s3);color:var(--ink);letter-spacing:-.01em;font-weight:600}
   .card .hd{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s4)}
-  .card .hd h2{margin:0;flex:1}
-  .card .hint,.card>p.muted{font-size:13.5px;color:var(--ink-3);margin:calc(-1 * var(--s2)) 0 var(--s4);max-width:78ch}
+  .card .hd h2{margin:0;flex:1;min-width:160px}
+  .card .hint,.card>p.muted{font-size:13.5px;color:var(--ink-3);margin:calc(-1 * var(--s1)) 0 var(--s4);max-width:78ch}
   .card .form{margin-top:var(--s4)}
-  .card input[type=search],.card input[type=date],.card select{height:36px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:var(--r-sm);padding:0 var(--s3);font:inherit;font-size:14px}
+  #vApp .card input[type=search],#vApp .card input[type=date],#vApp .card select{height:36px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:var(--r-sm);padding:0 var(--s3);font:inherit;font-size:13.5px}
   .card input[type=search]{width:min(280px,100%)}
-  section[id^="pane-"]>.card+.card,section[id^="pane-"]>.card+.grid,section[id^="pane-"]>.grid+.card{margin-top:var(--s5)}
+  section[id^="pane-"]>.card+.card,section[id^="pane-"]>.card+.grid,section[id^="pane-"]>.grid+.card,section[id^="pane-"]>.card+.g2,section[id^="pane-"]>.g2+.card{margin-top:var(--s5)}
+  .gap-t{margin-top:var(--s5)}
   /* ---- charts (inline SVG) ---- */
   .chart svg{width:100%;height:190px;display:block;overflow:visible}
   .chart .ax{fill:var(--ink-3);font-size:10.5px;font-family:var(--font)}
@@ -104,7 +113,7 @@
   .chart .ln-s{stroke:var(--c3);fill:none;stroke-width:2;stroke-dasharray:4 3}
   .chart .empty-c{fill:var(--ink-3);font-size:12.5px;font-family:var(--font)}
   .donut{display:flex;gap:var(--s5);align-items:center;flex-wrap:wrap}
-  .donut svg{width:156px;height:156px;flex:none}
+  .donut svg{width:150px;height:150px;flex:none}
   .donut .ctr{fill:var(--ink);font-size:20px;font-weight:700;font-family:var(--font)}
   .donut .ctr2{fill:var(--ink-3);font-size:10px;font-family:var(--font)}
   .dbg{stroke:var(--panel-2)} .d1{stroke:var(--c1)} .d2{stroke:var(--c2)} .d3{stroke:var(--c3)} .d4{stroke:var(--c4)} .d5{stroke:var(--c5)} .d6{stroke:var(--c6)}
@@ -121,36 +130,47 @@
   .fstep .fl b{font-variant-numeric:tabular-nums;color:var(--ink)}
   .bar{height:8px;border-radius:99px;background:var(--line-2);overflow:hidden;margin:var(--s2) 0}
   .bar>i{display:block;height:100%;background:var(--accent);border-radius:99px}
-  /* ---- tables: no zebra, hairlines, generous rows, hover ---- */
+  /* ---- tables: hairlines, generous rows, hover; cards on phones ---- */
   .scroll{overflow-x:auto;margin:0 calc(-1 * var(--s5));padding:0 var(--s5)}
-  table{width:100%;border-collapse:collapse;font-size:14px}
-  th{text-align:left;font-size:12.5px;color:var(--ink-3);font-weight:500;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel)}
-  td{padding:14px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  #vApp th{text-align:left;font-size:12px;color:var(--ink-3);font-weight:500;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel);letter-spacing:.01em}
+  #vApp td{padding:13px 14px;border-bottom:1px solid var(--line-2);vertical-align:top}
   tbody tr:last-child>td{border-bottom:0}
-  th:first-child,td:first-child{padding-left:0} th:last-child,td:last-child{padding-right:0}
+  #vApp th:first-child,#vApp td:first-child{padding-left:0} #vApp th:last-child,#vApp td:last-child{padding-right:0}
   td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-  td.m{font-family:var(--mono);font-size:13px}
+  td.m,.m{font-family:var(--mono);font-size:12.5px}
   td.msg{max-width:360px;overflow-wrap:anywhere}
   .clip{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   tr.click{cursor:pointer} tr.click:hover>td{background:var(--panel-2)}
   tr.open>td{background:var(--accent-soft)}
-  tr.rowdetail>td{background:var(--panel-2);padding:var(--s4) var(--s5)}
-  .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:999px;font-size:12.5px;font-weight:500;background:var(--line-2);color:var(--ink-2);white-space:nowrap;line-height:1.6}
-  .pill.ok{color:#0d6b37;background:#e6f5ec} .pill.bad{color:#a8261b;background:#fdeceb} .pill.warn{color:#8a5300;background:#fdf3e1}
-  .pager{display:flex;gap:var(--s2);align-items:center;justify-content:flex-end;margin-top:var(--s4);font-size:13px;color:var(--ink-3)}
+  #vApp tr.rowdetail>td{background:var(--panel-2);padding:var(--s4) var(--s5)}
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:500;background:var(--line-2);color:var(--ink-2);white-space:nowrap;line-height:1.7}
+  .pill.ok{color:#0b6a36;background:#e5f5ec} .pill.bad{color:#a8261b;background:#fdeceb} .pill.warn{color:#8a5300;background:#fdf3e1}
+  .pager{display:flex;gap:var(--s2);align-items:center;justify-content:flex-end;margin-top:var(--s4);font-size:13px;color:var(--ink-3);flex-wrap:wrap}
   .list{list-style:none;margin:0;padding:0}
-  .list li{display:flex;justify-content:space-between;gap:var(--s3);padding:12px 0;border-bottom:1px solid var(--line-2);font-size:14px;align-items:center}
+  .list li{display:flex;justify-content:space-between;gap:var(--s3);padding:12px 0;border-bottom:1px solid var(--line-2);font-size:13.5px;align-items:center}
   .list li:last-child{border-bottom:0}
   .list li>.m:first-child{flex:1;min-width:0;overflow-wrap:anywhere} .list li>.m+.muted{text-align:right}
   .att li{gap:var(--s3)}
   .att .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:14px;font-weight:700;flex:none;background:var(--line-2);color:var(--ink-2)}
+  .list.att li>.ic:first-child{flex:0 0 32px;width:32px}
+  .att .ic svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .att .ic.warn{background:#fdf3e1;color:#8a5300} .att .ic.bad{background:#fdeceb;color:#a8261b} .att .ic.ok{background:var(--accent-soft);color:var(--accent-2)}
   .att .tx{flex:1;min-width:0} .att .tx b{display:block;font-weight:600} .att .tx span{font-size:13px;color:var(--ink-3)}
-  .muted{color:var(--ink-3)} .empty{color:var(--ink-3);font-size:14px;padding:var(--s5) 0;text-align:center}
-  td.empty{padding:var(--s6) 0}
+  .muted{color:var(--ink-3)} .empty{color:var(--ink-3);font-size:13.5px;padding:var(--s5) 0;text-align:center}
+  #vApp td.empty{padding:var(--s6) 0}
   .detail{margin-top:var(--s3);padding:var(--s4);border:1px dashed var(--line);border-radius:var(--r);background:var(--panel-2)}
   .err{background:#fdeceb;color:#a8261b;border:1px solid #f5c9c5;border-radius:var(--r);padding:12px 16px;font-size:14px;margin-bottom:var(--s5)}
   .okm{background:#e6f5ec;color:#0d6b37;border:1px solid #bfe3cd;border-radius:var(--r);padding:12px 16px;font-size:14px;margin-bottom:var(--s5)}
+  /* r28: masked personal details - "Show" is logged (hq_log_reveal) */
+  .mask{display:inline-flex;align-items:center;gap:6px;max-width:100%;flex-wrap:nowrap;white-space:nowrap}
+  .mask .mv{min-width:0}
+  .kv .mask,.msgbox .mask{white-space:normal;flex-wrap:wrap}
+  .kv .mask .mv{overflow-wrap:anywhere}
+  .mask .mv.hid{color:var(--ink-2);letter-spacing:.02em}
+  .mask .rv{border:0;background:transparent;color:var(--accent-2);font-size:12px;font-weight:600;cursor:pointer;padding:2px 6px;border-radius:6px;min-width:0;min-height:0;line-height:1.4}
+  .mask .rv:hover{background:var(--accent-soft)}
+  .mask .rv:disabled{opacity:.5;cursor:default}
   /* not-found look (identical to a missing page - the route never confirms it exists) */
   .nf{min-height:80vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:48px 16px}
   .nf .code{font-size:clamp(64px,14vw,120px);font-weight:700;letter-spacing:-.04em;line-height:1;margin:0 0 8px;color:var(--accent)}
@@ -170,27 +190,28 @@
   .blk .ico svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   /* ---- forms ---- */
   .form{display:flex;flex-wrap:wrap;gap:var(--s3) var(--s4);align-items:flex-end}
-  .fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink-3);min-width:170px}
-  .fld.chk{flex-direction:row;align-items:center;min-width:0;gap:var(--s2);color:var(--ink-2)}
+  .fld{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--ink-3);min-width:170px;font-weight:500}
+  .fld.chk{flex-direction:row;align-items:flex-start;min-width:0;gap:var(--s2);color:var(--ink-2);font-weight:400;font-size:13.5px;flex:1 1 100%}
+  .fld.chk input{margin-top:3px}
   .fld.wide{flex:1 1 280px}
-  .fld input,.fld select,.fld textarea{height:38px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:var(--r-sm);padding:0 var(--s3);font:inherit;font-size:14px}
-  .fld textarea{height:auto;padding:10px var(--s3)}
+  #vApp .fld input:not([type=checkbox]),#vApp .fld select,#vApp .fld textarea{height:38px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:var(--r-sm);padding:0 var(--s3);font:inherit;font-size:14px;font-weight:400}
+  #vApp .fld textarea{height:auto;padding:10px var(--s3)}
   .fld input:focus,.fld select:focus,.fld textarea:focus,.card select:focus,.card input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .actions{display:flex;gap:var(--s2);flex-wrap:wrap;margin-top:var(--s4)}
-  .detail h3,.dpane h3,.card h3{font-size:13px;letter-spacing:.02em;color:var(--ink-2);margin:var(--s5) 0 var(--s2);font-weight:600}
+  .detail h3,.dpane h3,.card h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:var(--s5) 0 var(--s2);font-weight:600}
   tr.void td{color:var(--ink-3);text-decoration:line-through}
   tr.void td:last-child,tr.void td:nth-last-child(2){text-decoration:none}
   details.more{margin-top:var(--s4);border:1px solid var(--line);border-radius:var(--r);padding:var(--s3) var(--s4);background:var(--panel)}
   details.more>summary{cursor:pointer;font-weight:600;font-size:14px}
   /* ---- sub-tabs ---- */
   .subtabs{display:flex;gap:var(--s1);flex-wrap:wrap;margin:0 0 var(--s5);border-bottom:1px solid var(--line)}
-  .subtab{height:42px;padding:0 var(--s4);border:0;border-bottom:2px solid transparent;background:transparent;color:var(--ink-3);font:inherit;font-size:14px;font-weight:500;cursor:pointer;margin-bottom:-1px}
-  .subtab:hover{color:var(--ink)}
-  .subtab[aria-selected="true"]{border-bottom-color:var(--accent);color:var(--ink);font-weight:600}
+  #vApp .subtab{height:42px;padding:0 var(--s4);border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--ink-3);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;margin-bottom:-1px;flex:none;white-space:nowrap}
+  #vApp .subtab:hover{color:var(--ink)}
+  #vApp .subtab[aria-selected="true"]{border-bottom-color:var(--accent);color:var(--ink);font-weight:600}
   .subtab .cnt{display:inline-block;margin-left:6px;min-width:20px;padding:0 6px;border-radius:999px;background:var(--line-2);font-size:11.5px;line-height:18px}
   .msgbox{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:var(--s3) var(--s4);font-size:14px;line-height:1.6;margin:var(--s3) 0}
-  .kv{display:grid;grid-template-columns:max-content 1fr;gap:var(--s2) var(--s5);font-size:14px}
-  .kv dt{color:var(--ink-3)} .kv dd{margin:0;overflow-wrap:anywhere}
+  .kv{display:grid;grid-template-columns:max-content 1fr;gap:var(--s2) var(--s5);font-size:13.5px;margin:0}
+  .kv dt{color:var(--ink-3)} .kv dd{margin:0;overflow-wrap:anywhere;min-width:0}
   .notes{list-style:none;margin:var(--s2) 0 0;padding:0;font-size:13px;color:var(--ink-2)}
   .notes li{padding:var(--s2) 0;border-top:1px dashed var(--line)}
   /* r39 (0288): Google-only sign-in for Helm staff */
@@ -198,25 +219,53 @@
   .sgsteps{margin:var(--s2) 0 var(--s3);padding-left:22px;font-size:14px;line-height:1.6;color:var(--ink-2)}
   #sgCard[hidden],#sgTestedRow[hidden]{display:none}
   /* ---- studio drawer ---- */
-  .scrim{position:fixed;inset:0;background:rgba(15,23,20,.28);z-index:40}
-  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(780px,100vw);background:var(--bg);z-index:41;display:flex;flex-direction:column;box-shadow:-16px 0 48px rgba(15,23,20,.16)}
+  .scrim{position:fixed;inset:0;background:rgba(15,23,20,.32);z-index:40}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(800px,100vw);background:var(--bg);z-index:41;display:flex;flex-direction:column;box-shadow:-16px 0 48px rgba(15,23,20,.16)}
   .dhead{background:var(--panel);border-bottom:1px solid var(--line);padding:var(--s5) var(--s5) 0}
+  /* r28 round 2: the studio opens as a full page beside the menu */
+  .drawer.full{left:var(--side);width:auto;box-shadow:none;border-left:1px solid var(--line)}
+  .drawer.full .dhead,.drawer.full .dbody{padding-left:max(var(--s6),calc((100% - 1160px) / 2));padding-right:max(var(--s6),calc((100% - 1160px) / 2))}
+  .dback{margin:calc(-1 * var(--s2)) 0 var(--s3) calc(-1 * var(--s3))}
+  .sess{font-size:12px;color:var(--ink-3);line-height:1.45}
+  @media (min-width:1024px){#studioScrim{display:none!important}}
+  .sess b{color:var(--ink-2);font-weight:600}
   .dhead .row{display:flex;align-items:flex-start;gap:var(--s3)}
-  .dhead h2{margin:0;font-size:21px;letter-spacing:-.015em;overflow-wrap:anywhere}
+  .dhead h2{margin:0;font-size:20px;letter-spacing:-.015em;overflow-wrap:anywhere;font-weight:650}
   .dhead .meta{font-size:13px;color:var(--ink-3);margin-top:var(--s1)}
   .dtabs{display:flex;gap:var(--s1);overflow-x:auto;scrollbar-width:none;margin-top:var(--s4)}
   .dtabs::-webkit-scrollbar{display:none}
-  .dbody{flex:1;overflow-y:auto;padding:var(--s5) var(--s5) var(--s7)}
-  .dpane .card{margin-bottom:var(--s4)}
+  .dbody{flex:1;overflow-y:auto;padding:var(--s5) var(--s5) var(--s7);overscroll-behavior:contain}
+  .dpane .card{margin-bottom:var(--s5)}
+  .dpane .facts{margin-bottom:var(--s5)}
+  .card .hd>h2+.muted{margin-left:auto}
+  .card h2+.form,.card h2+.list,.card h2+.kv,.card h2+ul{margin-top:var(--s3)}
+  .card>h3:first-of-type{margin-top:var(--s4)}
+  .card .kpis{margin:var(--s4) 0 var(--s5)}
+  .card .hd label.muted{font-size:12.5px}
+  .card .actions:last-child{margin-bottom:0}
+  .list li .btn.sm{margin-right:0}
+  /* r28 round 2 spacing audit: nothing touches - text after a form, row actions, narrow side lists */
+  .form+*,.form+p.muted,.form+div.muted{margin-top:var(--s4)}
+  .card>div.muted+.form,.card>.hint+.form{margin-top:var(--s3)}
+  .grid,.g2{align-items:start}
+  .card>.scroll+p.muted,.card>.scroll+.hint{margin:var(--s5) 0 0}
+  #vApp td.m{white-space:nowrap}
+  #vApp td:has(>.btn.sm){white-space:nowrap}
+  .list li>span:first-child{flex:1;min-width:0}
+  .list li>span.muted:not(:first-child){text-align:right}
+  .stack .list li{flex-direction:column;align-items:flex-start;gap:4px}
+  .stack .list li>span{flex:none;width:100%;text-align:left!important}
+  .stack .list li>.btn{align-self:flex-start}
+  .card>div:not([class])+div.muted,.card>div.muted+div.muted{margin-top:var(--s2)}
+  .card>div:not([class])>.pill+*,.card>div:not([class])>.pill{vertical-align:middle}
   .facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3);margin-bottom:var(--s4)}
   .fact{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:var(--s3) var(--s4);min-width:0}
-  .fact .l{font-size:12.5px;color:var(--ink-3)} .fact .v{font-size:17px;font-weight:600;margin-top:2px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+  .fact .l{font-size:12.5px;color:var(--ink-3)} .fact .v{font-size:16px;font-weight:600;margin-top:2px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
   .bigact{display:flex;gap:var(--s2);flex-wrap:wrap}
   .sp-1{flex:1;min-width:0}
   .dtabs.subtabs{margin:var(--s4) 0 0;border-bottom:0;flex-wrap:nowrap}
-  .subtab{flex:none;white-space:nowrap}
   /* ---- system health ---- */
-  .hrow{display:flex;justify-content:space-between;gap:var(--s3);padding:10px 0;border-bottom:1px solid var(--line-2);font-size:14px;align-items:center}
+  .hrow{display:flex;justify-content:space-between;gap:var(--s3);padding:10px 0;border-bottom:1px solid var(--line-2);font-size:13.5px;align-items:center;flex-wrap:wrap}
   .hrow:last-child{border-bottom:0}
   .hrow .nums{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
   /* ---- r27: HQ team (staff access) ---- */
@@ -233,11 +282,16 @@
   .tm .sub2{margin-top:var(--s3);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s4)}
   .tm .sub2 h4{margin:0 0 var(--s2);font-size:12.5px;color:var(--ink-3);font-weight:600}
   .mini{list-style:none;margin:0;padding:0;font-size:13px}
-  .mini li{padding:6px 0;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;gap:var(--s3)}
+  .mini li{padding:6px 0;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;gap:var(--s3);flex-wrap:wrap}
   .mini li:last-child{border-bottom:0}
-  .rmx th,.rmx td{text-align:center;padding:10px 8px;font-size:13px}
-  .rmx th:first-child,.rmx td:first-child{text-align:left}
+  #vApp .rmx th,#vApp .rmx td{text-align:center;padding:10px 8px;font-size:13px}
+  #vApp .rmx th:first-child,#vApp .rmx td:first-child{text-align:left}
   .yes{color:var(--accent-2);font-weight:700} .no{color:var(--ink-3)}
+  /* r28: Settings -> data handling */
+  .rules{list-style:none;margin:0;padding:0;display:grid;gap:var(--s3)}
+  .rules li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:var(--s3);align-items:start;font-size:13.5px;color:var(--ink-2)}
+  .rules li b{color:var(--ink);font-weight:600;display:block}
+  .rules .dotk{width:28px;height:28px;border-radius:8px;background:var(--accent-soft);color:var(--accent-2);display:grid;place-items:center;font-weight:700;font-size:13px}
   /* r27: fresh two-step code before a sensitive change */
   .modal{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:rgba(15,23,20,.32);padding:var(--s4)}
   .modal .box{width:min(400px,100%);background:var(--panel);border-radius:var(--r-lg);padding:var(--s6) var(--s5) var(--s5);box-shadow:var(--shadow-pop)}
@@ -245,49 +299,90 @@
   .modal p{margin:0 0 var(--s4);color:var(--ink-2);font-size:14px}
   .modal input{width:100%;height:46px;font:inherit;font-size:22px;letter-spacing:.3em;text-align:center;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel);color:var(--ink)}
   .modal .actions{justify-content:flex-end}
-  @media (max-width:1240px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:1fr 1fr}.content{padding:var(--s5) var(--s5) 64px}.topbar{padding:0 var(--s5)}}
-  @media (max-width:960px){.grid,.g2,.g3{grid-template-columns:1fr}.facts{grid-template-columns:1fr 1fr}.tm .sub2{grid-template-columns:1fr}}
-  @media (max-width:860px){
+  /* ---- r28: bottom bar (phones) ---- */
+  .bnav{display:none}
+  .navscrim{position:fixed;inset:0;background:rgba(15,23,20,.32);z-index:29}
+  /* ---- big screens: more room, same calm ---- */
+  @media (min-width:1700px){.content{max-width:1440px;padding-left:var(--s7);padding-right:var(--s7)} .topbar{padding:0 var(--s7)} .kpi .v{font-size:28px}}
+  @media (min-width:2200px){:root{--side:288px} body{font-size:15px} .content{max-width:1640px} .chart svg{height:220px}}
+  @media (min-width:720px) and (max-width:1679px){#vApp .st th:nth-child(3),#vApp .st td:nth-child(3){display:none}}
+  .kv+p.muted{margin:var(--s4) 0 0;font-size:12.5px}
+  @media (max-width:1279px){.content{padding:var(--s5) var(--s5) 72px}.topbar{padding:0 var(--s5)}.g3{grid-template-columns:1fr 1fr}}
+  @media (max-width:1180px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}}
+  @media (max-width:1023px){
     .hq{grid-template-columns:1fr;background:none}
-    .side{position:sticky;top:0;z-index:10;height:auto;flex-direction:row;align-items:center;gap:var(--s1);padding:var(--s2) var(--s3);overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--line);scrollbar-width:none}
-    .side::-webkit-scrollbar{display:none}
-    .brand{padding:0 var(--s2) 0 0}.brand div{display:none}
-    .navg,.ni{display:none}
-    .side .tabs{display:flex;flex-direction:row;gap:var(--s1);flex:none}
-    .navi{flex:none}
-    .side .tab{flex:none;height:38px;white-space:nowrap;padding:0 var(--s3)}
-    .nbadge{position:static;transform:none;margin-left:-6px;align-self:center}
-    .side .foot{display:none}
-    .topbar{position:static;height:auto;padding:var(--s3) var(--s4);flex-wrap:wrap;background:var(--bg)}
-    .topbar .crumb{display:none}
-    .content{padding:var(--s5) var(--s4) var(--s7)}
-    .chart svg{height:160px}
+    .side{position:fixed;left:0;top:0;bottom:0;height:100%;width:min(300px,86vw);transform:translateX(-102%);visibility:hidden;transition:transform .22s ease,visibility 0s linear .22s;box-shadow:none;z-index:50;padding-top:var(--s5)}
+    .hq.nav-open .side{transform:none;visibility:visible;transition:transform .22s ease;box-shadow:16px 0 48px rgba(15,23,20,.16)}
+    .navscrim{z-index:49}
+    .iconbtn{display:grid}
+    .g2,.g3{grid-template-columns:1fr}
+    .facts{grid-template-columns:1fr 1fr}
+    .tm .sub2{grid-template-columns:1fr}
+    .drawer.full{left:0;border-left:0}
   }
-  @media (max-width:640px){
+  @media (max-width:719px){
     body{font-size:14px}
-    .btn{height:40px} .btn.sm{height:36px}
+    :root{--top:56px}
+    .topbar{flex-wrap:wrap;height:auto;padding:var(--s2) var(--s4);gap:var(--s2);min-height:var(--top)}
+    .topbar .crumb{flex:1;font-size:15px}
+    .topbar .crumb .pre{display:none}
+    .topbar .sp{display:none}
+    .gs{order:5;width:100%;padding-bottom:var(--s1)}
+    .tb-acts .btn{height:40px}
+    .demobar{padding:8px var(--s4)}
+    .content{padding:var(--s4) var(--s4) calc(96px + env(safe-area-inset-bottom))}
+    .phead{margin-bottom:var(--s5)}
+    .phead h1{font-size:22px}
+    #vApp .btn{height:40px} #vApp .btn.sm{height:34px}
     .fld{min-width:0;flex:1 1 100%}
-    .fld input,.fld select,.card select,.card input[type=search],.card input[type=date]{height:42px}
+    #vApp .fld input:not([type=checkbox]),#vApp .fld select,#vApp .card select,#vApp .card input[type=search],#vApp .card input[type=date]{height:44px;font-size:16px}
+    .card input[type=search]{width:100%}
     .kpis{gap:var(--s3)}
     .kpi{padding:var(--s4)}
-    .kpi .v{font-size:22px}
-    .card{padding:var(--s4);border-radius:var(--r)}
-    .scroll{margin:0 calc(-1 * var(--s4));padding:0 var(--s4)}
-    .phead h1{font-size:23px}
+    .kpi .v{font-size:21px}
+    #vApp .card{padding:var(--s4)}
+    .scroll{margin:0;padding:0;overflow:visible}
+    .chart svg{height:160px}
     .list li{flex-wrap:wrap;row-gap:4px} .list li>.m:first-child{flex-basis:100%}
-    .gs{width:100%}
-    .topbar .tb-acts{display:flex;gap:var(--s2);width:100%}
-    .topbar .tb-acts .btn{flex:1}
     .facts{grid-template-columns:1fr 1fr}
     .dhead{padding:var(--s3) var(--s4) 0}.dbody{padding:var(--s4) var(--s4) var(--s7)}
     .donut svg{width:124px;height:124px}
     .subtabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
     .subtabs::-webkit-scrollbar{display:none}
-    .rq tr:not(.rowdetail)>:nth-child(3),.rq tr:not(.rowdetail)>:nth-child(4),.rq tr:not(.rowdetail)>:nth-child(5):not(:last-child){display:none}
     .tm{grid-template-columns:36px minmax(0,1fr)}
     .tm .acts{grid-column:1 / -1;justify-content:flex-start}
     .av{width:36px;height:36px}
+    .kv{grid-template-columns:1fr;gap:2px} .kv dd{margin-bottom:var(--s2)}
+    /* tables become cards; each cell shows its column name (data-label, set by hq.js) */
+    .rt thead{display:none}
+    .rt,.rt tbody{display:block;width:100%}
+    #vApp .rt tr{display:block;padding:var(--s3) 0;border-bottom:1px solid var(--line-2)}
+    #vApp .rt tbody tr:last-child{border-bottom:0}
+    #vApp .rt td{display:block;position:relative;padding:4px 0 4px 40%;min-height:26px;border:0;text-align:right;max-width:none;overflow-wrap:anywhere}
+    #vApp .rt td::before{content:attr(data-label);position:absolute;left:0;top:4px;width:38%;color:var(--ink-3);font-size:12.5px;text-align:left;overflow-wrap:normal}
+    #vApp .rt td:first-child{padding:0 0 6px;text-align:left;font-size:14.5px}
+    #vApp .rt td:first-child>.muted{text-align:left}
+    #vApp .rt td:first-child::before,#vApp .rt td.empty::before,#vApp .rt tr.rowdetail td::before{display:none}
+    #vApp .rt td[data-label=""]{padding-left:0}
+    #vApp .rt td[data-label=""]::before{display:none}
+    #vApp .rt td.empty{padding:var(--s5) 0;text-align:center}
+    #vApp .rt tr.rowdetail td{padding:var(--s4);text-align:left;border-radius:var(--r)}
+    #vApp .rt td.msg .clip{-webkit-line-clamp:3}
+    #vApp .rt .mask{white-space:normal;flex-wrap:wrap;justify-content:flex-end}
+    #vApp .rt .mask .mv{overflow-wrap:anywhere}
+    #vApp .rt .btn.sm{margin:4px 0 0 6px}
+    .rt tr.click:hover>td{background:transparent}
+    /* bottom bar */
+    .bnav{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;position:fixed;left:0;right:0;bottom:0;z-index:35;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+    .bnav button{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:transparent;color:var(--ink-3);font:inherit;font-size:11px;font-weight:500;padding:6px 2px;border-radius:10px;cursor:pointer;min-width:0}
+    .bnav button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+    .bnav button[aria-current="page"]{color:var(--accent-2);font-weight:600}
+    .bnav .bb{position:absolute;top:2px;left:calc(50% + 6px);min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center}
+    .drawer,.drawer.full{left:0;width:100vw;border-left:0}
+    .drawer.full .dhead,.drawer.full .dbody{padding-left:var(--s4);padding-right:var(--s4)}
   }
+  @media (max-width:400px){.kpis{grid-template-columns:1fr 1fr}.kpi .v{font-size:19px}.fact .v{font-size:15px}}
+  @media (prefers-reduced-motion:reduce){.side{transition:none}}
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="/public-pages-v2.css?v=5">
@@ -326,25 +421,31 @@
       <div class="navg" id="navgBiz">Business</div>
       <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM14 4v4h6V4zM4 20h6v-3H4z"/></svg><button type="button" class="tab" id="tab-overview" aria-pressed="true">Overview</button></div>
       <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg><button type="button" class="tab" id="tab-studios" aria-pressed="false">Studios</button></div>
-      <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4zM4 7l8 6 8-6"/></svg><button type="button" class="tab" id="tab-requests" aria-pressed="false">Requests</button><span class="nbadge" id="navReqCount" hidden></span></div>
       <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v10H3zM3 11h18M7 15h3"/></svg><button type="button" class="tab" id="tab-billing" aria-pressed="false">Billing</button></div>
+      <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4zM4 7l8 6 8-6"/></svg><button type="button" class="tab" id="tab-requests" aria-pressed="false">Requests</button><span class="nbadge" id="navReqCount" hidden></span></div>
       <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12l-8 8-8-8V4h8zM8 8h.01"/></svg><button type="button" class="tab" id="tab-plans" aria-pressed="false">Plans</button></div>
       <div class="navi" data-perm="inbox.read"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16v4H4zM5 13v7h14v-7M12 9v11M12 9c-1.5-3-5-3.5-5-1.2C7 9 9 9 12 9zM12 9c1.5-3 5-3.5 5-1.2C17 9 15 9 12 9z"/></svg><a class="tab" id="navReferrals" href="/hq-referrals">Referrals &amp; partners</a></div>
       <div class="navg" id="navgTeam">Team &amp; safety</div>
       <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 20v-1a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg><button type="button" class="tab" id="tab-people" aria-pressed="false">People</button></div>
-      <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0"/></svg><button type="button" class="tab" id="tab-activity" aria-pressed="false">Activity log</button></div>
-      <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg><button type="button" class="tab" id="tab-staff" aria-pressed="false">Staff access</button></div>
+      <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4"/></svg><button type="button" class="tab" id="tab-activity" aria-pressed="false">Security &amp; activity</button></div>
+      <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg><button type="button" class="tab" id="tab-staff" aria-pressed="false">HQ team</button></div>
+      <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1"/></svg><button type="button" class="tab" id="tab-settings" aria-pressed="false">Settings</button></div>
+      <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4"/></svg><button type="button" class="tab" id="tab-privacy" aria-pressed="false">Data &amp; privacy</button></div>
     </nav>
     <div class="foot">
       <span class="who" id="who"></span>
       <span class="rolechip" id="whoRole" hidden></span>
+      <span class="sess" id="sessInfo" hidden></span>
       <button class="btn" id="btnOut" type="button">Sign out</button>
     </div>
   </aside>
+  <div id="navScrim" class="navscrim" hidden></div>
 
   <div class="main">
+    <div class="demobar" id="demoBar" hidden role="status">Demo mode on this computer only: made-up sample data. Nothing is saved and nothing is sent.</div>
     <header class="topbar">
-      <span class="crumb">Helm HQ / <b id="crumbTitle">Overview</b></span>
+      <button class="iconbtn" id="btnMenu" type="button" aria-label="Open the HQ menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <span class="crumb"><span class="pre">Helm HQ / </span><b id="crumbTitle">Overview</b></span>
       <div class="sp"></div>
       <div class="gs" role="search">
         <svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
@@ -365,17 +466,17 @@
       <section class="card chart" aria-labelledby="hcMrr"><div class="hd"><h2 id="hcMrr">Monthly recurring income (MRR)</h2><span class="muted" id="cMrrSum"></span></div><div id="cMrr"></div>
         <div class="legend row"><span><i class="sw ln"></i>MRR (before tax)</span><span><i class="sw lnd"></i>Money received</span></div></section>
     </div>
+    <div class="grid">
+      <section class="card" aria-labelledby="hAtt"><div class="hd"><h2 id="hAtt">Needs attention</h2><span class="muted" id="attCount"></span></div><ul class="list att" id="attList"></ul></section>
+      <section class="card" aria-labelledby="hHealth"><div class="hd"><h2 id="hHealth">System health</h2><span id="healthState"></span></div><div id="health"></div></section>
+    </div>
     <div class="g2">
       <section class="card" aria-labelledby="hcMix"><div class="hd"><h2 id="hcMix">Plan mix</h2><span class="muted">paying studios</span></div><div id="cMix" class="donut"></div></section>
       <section class="card" aria-labelledby="hcFun"><div class="hd"><h2 id="hcFun">Trial funnel</h2><span class="muted">joined in the last 90 days</span></div><div id="cFun" class="funnel"></div></section>
     </div>
     <div class="grid">
-      <section class="card" aria-labelledby="hAtt"><div class="hd"><h2 id="hAtt">Needs attention</h2><span class="muted" id="attCount"></span></div><ul class="list att" id="attList"></ul></section>
-      <section class="card" aria-labelledby="hHealth"><div class="hd"><h2 id="hHealth">System health</h2><span id="healthState"></span></div><div id="health"></div></section>
-    </div>
-    <div class="grid">
       <section class="card" aria-labelledby="hTop"><div class="hd"><h2 id="hTop">Most active studios</h2><span class="muted">people who signed in, last 30 days</span></div>
-        <div class="scroll"><table><thead><tr><th>Studio</th><th>Plan</th><th class="n">Signed in (30 days)</th><th class="n">Team size</th><th>Last sign-in</th></tr></thead><tbody id="tTop"></tbody></table></div></section>
+        <div class="scroll"><table class="rt"><thead><tr><th>Studio</th><th>Plan</th><th class="n">Signed in (30 days)</th><th class="n">Team size</th><th>Last sign-in</th></tr></thead><tbody id="tTop"></tbody></table></div></section>
       <section class="card"><h2>Studios by plan status</h2><ul class="list" id="byStatus"></ul></section>
     </div>
     <div class="g2">
@@ -397,23 +498,23 @@
       <div class="hd"><h2>All studios</h2>
         <select id="fStatus" aria-label="Filter by status"><option value="">All statuses</option><option value="trial">Trial</option><option value="active">Paying</option><option value="past_due">Past due</option><option value="suspended">Suspended</option><option value="cancelled">Cancelled</option><option value="none">No plan</option></select>
         <input type="search" id="qStudios" placeholder="Search name, link, owner" aria-label="Search studios"></div>
-      <p class="hint">Click a studio to open it: plan, people, name &amp; link, activity.</p>
-      <div class="scroll"><table><thead><tr><th>Studio</th><th>Primary contact</th><th>Place</th><th>Plan</th><th>Status</th><th>Period ends</th><th class="n">People</th><th class="n">Paid to Helm</th><th>Last sign-in</th></tr></thead><tbody id="tStudios"></tbody></table></div>
+      <p class="hint">Click a studio to open it: plan, people, name &amp; link, activity. Contact details are masked &mdash; “Show” is recorded in Security &amp; activity.</p>
+      <div class="scroll"><table class="rt st"><thead><tr><th>Studio</th><th>Primary contact</th><th>Place</th><th>Plan &amp; currency</th><th>Status</th><th>Created</th><th class="n">Team</th><th class="n">Paid to Helm</th><th>Last active</th></tr></thead><tbody id="tStudios"></tbody></table></div>
       <div class="pager" id="pStudios"></div>
     </section>
   </section>
   <div id="studioScrim" class="scrim" hidden></div>
-  <aside id="studioDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="dName" hidden>
+  <aside id="studioDrawer" class="drawer full" role="dialog" aria-modal="true" aria-labelledby="dName" hidden>
     <div class="dhead">
+      <div class="dback"><button class="btn ghost" id="btnDClose" type="button" aria-label="Close studio">&larr; All studios</button></div>
       <div class="row">
         <div class="sp-1"><h2 id="dName">Studio</h2><div class="meta" id="dMeta"></div></div>
         <span id="dStatus"></span>
-        <button class="btn" id="btnDClose" type="button" aria-label="Close studio">Close</button>
       </div>
       <div class="dtabs subtabs" role="tablist" aria-label="Studio sections">
         <button type="button" class="subtab" role="tab" id="dt-overview" aria-selected="true">Overview</button>
-        <button type="button" class="subtab" role="tab" id="dt-plan" aria-selected="false">Plan &amp; billing</button>
         <button type="button" class="subtab" role="tab" id="dt-people" aria-selected="false">People</button>
+        <button type="button" class="subtab" role="tab" id="dt-plan" aria-selected="false">Billing &amp; plan</button>
         <button type="button" class="subtab" role="tab" id="dt-ident" aria-selected="false">Name &amp; link</button>
         <button type="button" class="subtab" role="tab" id="dt-activity" aria-selected="false">Activity</button>
       </div>
@@ -436,7 +537,7 @@
         <button class="btn" id="btnReq" type="button">Show</button></div>
       <p class="hint">Studio admins ask for a plan from the plan page or the read-only banner. Click a row to read it and reply. Once they have paid: open the studio &rarr; <b>Plan &amp; billing</b> &rarr; <b>Activate plan</b>.</p>
       <p class="muted" id="reqCounts"></p>
-      <div class="scroll"><table class="rq"><thead><tr><th>When</th><th>Studio</th><th>Contact</th><th>Plan</th><th>Message</th><th>Status</th></tr></thead><tbody id="tReq"></tbody></table></div>
+      <div class="scroll"><table class="rq rt"><thead><tr><th>When</th><th>Studio</th><th>Contact</th><th>Plan</th><th>Message</th><th>Status</th></tr></thead><tbody id="tReq"></tbody></table></div>
     </section>
     <section class="card" id="rp-sales" aria-labelledby="hSe" hidden>
       <div class="hd"><h2 id="hSe">Sales enquiries</h2>
@@ -444,7 +545,7 @@
         <button class="btn" id="btnSe" type="button">Show</button></div>
       <p class="hint">From the public <b>Contact sales</b> page and the home page contact form (no account needed). Click a row to read it and reply.</p>
       <p class="muted" id="seCounts"></p>
-      <div class="scroll"><table class="rq"><thead><tr><th>When</th><th>Company</th><th>Contact</th><th>Details</th><th>Message</th><th>Status</th></tr></thead><tbody id="tSe"></tbody></table></div>
+      <div class="scroll"><table class="rq rt"><thead><tr><th>When</th><th>Company</th><th>Contact</th><th>Details</th><th>Message</th><th>Status</th></tr></thead><tbody id="tSe"></tbody></table></div>
     </section>
     <section class="card" id="rp-sugg" aria-labelledby="hSg" hidden>
       <div class="hd"><h2 id="hSg">Suggestions</h2>
@@ -452,22 +553,23 @@
         <button class="btn" id="btnSg" type="button">Show</button></div>
       <p class="hint">From “Send a suggestion” in the app (profile menu) and the public /suggest page.</p>
       <p class="muted" id="sgCounts"></p>
-      <div class="scroll"><table class="rq"><thead><tr><th>When</th><th>From</th><th>Kind</th><th>Suggestion</th><th>Status</th></tr></thead><tbody id="tSg"></tbody></table></div>
+      <div class="scroll"><table class="rq rt"><thead><tr><th>When</th><th>From</th><th>Kind</th><th>Suggestion</th><th>Status</th></tr></thead><tbody id="tSg"></tbody></table></div>
     </section>
     <section class="card" id="rp-alerts" aria-labelledby="hSeSet" hidden>
       <h2 id="hSeSet">E-mail alerts for these requests</h2>
       <div class="form">
-        <label class="fld wide"><span>Send alerts to</span><input type="email" id="seEmail" maxlength="200" placeholder="notifications@helm.events"></label>
+        <label class="fld wide"><span>Send alerts to</span><input type="email" id="seEmail" maxlength="200" placeholder="notifications@helm.events" list="seEmailList"></label>
+        <datalist id="seEmailList"><option value="notifications@helm.events"><option value="info@helm.events"><option value="sales@helm.events"></datalist>
         <label class="fld chk"><input type="checkbox" id="seAck"> <span>Send an automatic “thank you” e-mail to people who contact sales</span></label>
         <label class="fld chk"><input type="checkbox" id="seOpen"> <span>Contact sales form is open</span></label>
         <button class="btn primary" id="btnSeSet" type="button">Save</button>
       </div>
-      <p class="muted">E-mails go out once e-mail sending (SMTP) is switched on for Helm.</p>
+      <p class="muted">Pick a Helm address (notifications@ for alerts, info@ = the public general-contact address) or type another. E-mails go out once e-mail sending (SMTP) is switched on for Helm.</p>
     </section>
   </section>
 
   <section id="pane-billing" hidden>
-    <section class="card s-2b583d7">
+    <section class="card">
       <div class="hd"><h2>Payments to Helm</h2>
         <label class="muted" for="bFrom">From</label><input type="date" id="bFrom">
         <label class="muted" for="bTo">To</label><input type="date" id="bTo">
@@ -475,9 +577,9 @@
         <button class="btn" id="btnCsv" type="button">Export CSV</button>
         <button class="btn" id="btnRefreshBilling" type="button" data-perm="billing.write">Refresh past-due</button></div>
       <div class="kpis" id="bKpis"></div>
-      <div class="scroll"><table><thead><tr><th>Paid on</th><th>Studio</th><th>Invoice</th><th>Method</th><th>Period</th><th class="n">Amount</th><th>Status</th><th></th></tr></thead><tbody id="tPay"></tbody></table></div>
+      <div class="scroll"><table class="rt"><thead><tr><th>Paid on</th><th>Studio</th><th>Invoice</th><th>Method</th><th>Period</th><th class="n">Amount</th><th>Status</th><th></th></tr></thead><tbody id="tPay"></tbody></table></div>
     </section>
-    <div class="grid">
+    <div class="grid gap-t">
       <section class="card" data-perm="billing.write">
         <h2>Record a payment</h2>
         <p class="muted">Studio: <strong id="rOrgName">open a studio and choose “Record a payment”</strong></p>
@@ -493,75 +595,57 @@
           <label class="fld"><span>Reference (UTR / note)</span><input type="text" id="rRef" maxlength="120"></label>
           <button class="btn primary" id="btnRecord" type="button">Record payment</button>
         </div>
+        <p class="muted">Never type card numbers, CVV or bank passwords anywhere in HQ. A UTR / UPI reference is enough.</p>
       </section>
-      <div>
-        <section class="card s-2b583d7"><h2>Past due</h2><ul class="list" id="pastDue"></ul></section>
-        <section class="card s-2b583d7"><h2>Reminder queue</h2><ul class="list" id="reminders"></ul></section>
+      <div class="stack">
+        <section class="card"><h2>Past due</h2><ul class="list" id="pastDue"></ul></section>
+        <section class="card"><h2>Reminder queue</h2><ul class="list" id="reminders"></ul></section>
         <section class="card"><h2>Export payments not yet realised (FIRA / FIRC)</h2><ul class="list" id="unrealised"></ul></section>
       </div>
     </div>
-    <section class="card" data-perm="billing.write">
-      <h2>Invoice settings</h2>
-      <div class="form">
-        <label class="fld"><span>Legal name</span><input type="text" id="sName" maxlength="160"></label>
-        <label class="fld"><span>GSTIN</span><input type="text" id="sGstin" maxlength="15"></label>
-        <label class="fld"><span>Address</span><input type="text" id="sAddr" maxlength="500"></label>
-        <label class="fld"><span>Seller country</span><input type="text" id="sCountry" maxlength="2"></label>
-        <label class="fld"><span>Seller state</span><input type="text" id="sState" maxlength="80"></label>
-        <label class="fld"><span>LUT number</span><input type="text" id="sLut" maxlength="40"></label>
-        <label class="fld"><span>LUT valid from</span><input type="date" id="sLutFrom"></label>
-        <label class="fld"><span>LUT valid to</span><input type="date" id="sLutTo"></label>
-        <label class="fld"><span>Default GST % (legacy)</span><input type="number" id="sRate" min="0" max="50" step="0.01"></label>
-        <label class="fld"><span>Invoice prefix</span><input type="text" id="sPrefix" maxlength="16"></label>
-        <button class="btn" id="btnSettings" type="button">Save invoice settings</button>
-      </div>
-    </section>
-    <section class="card" aria-labelledby="coSetH" data-perm="billing.write">
-      <h2 id="coSetH">Studio checkout (new studios)</h2>
-      <p class="muted">Controls the plan page new studio owners see after sign-up (/checkout). Saved switches apply immediately.</p>
-      <div class="form">
-        <label class="fld chk"><input type="checkbox" id="coLive"> <span><b>Online payment is live</b> — new studios pay by Razorpay. Turn on only after the payment function is deployed with its keys and every plan has its Razorpay plan ids. Off = new studios start an 8-day free trial.</span></label>
-        <label class="fld chk"><input type="checkbox" id="coBypass"> <span><b>Testing bypass: show “Skip payment (testing only)”</b> — lets a new studio start a free trial without paying. For internal testing only. <b>Turn OFF before launch.</b></span></label>
-        <label class="fld"><span>Terms version new studios accept</span><input type="text" id="coTermsV" maxlength="32" pattern="[A-Za-z0-9._-]{1,32}"></label>
-        <button class="btn" id="btnCheckout" type="button">Save checkout settings</button>
-      </div>
-      <p class="muted" id="coState"></p>
-    </section>
   </section>
 
   <section id="pane-plans" hidden>
     <section class="card">
-      <h2>Plans</h2>
-      <div class="scroll"><table><thead><tr><th>Code</th><th>Name</th><th class="n">Per month</th><th class="n">USD / month</th><th>Status</th><th class="n">Studios</th><th></th></tr></thead><tbody id="tPlans"></tbody></table></div>
-      <div class="form s-56f4356" data-perm="billing.write">
+      <div class="hd"><h2>Plans</h2><span class="muted">prices shown in US dollars</span><button class="btn primary" id="btnPlanNew" type="button" data-perm="billing.write">New plan</button></div>
+      <p class="hint">“Visible” plans appear on the website pricing page (/pricing) and at checkout. Edits here show on /pricing automatically once SQL 0280 is applied (until then it keeps its built-in prices). The home page’s pricing section still shows its fixed prices - live prices there are coming soon.</p>
+      <div class="scroll"><table class="rt"><thead><tr><th>Plan</th><th class="n">₹ price / month (≈ $)</th><th class="n">USD / month</th><th class="n">USD / year</th><th>Visible</th><th class="n">Studios</th><th></th></tr></thead><tbody id="tPlans"></tbody></table></div>
+    </section>
+    <section class="card" id="planEditor" aria-labelledby="peH" data-perm="billing.write" hidden>
+      <div class="hd"><h2 id="peH">Edit plan</h2><button class="btn ghost" id="btnPlanCancel" type="button">Cancel</button></div>
+      <h3>Name &amp; visibility</h3>
+      <div class="form">
         <label class="fld"><span>Code</span><input type="text" id="plCode" maxlength="40" placeholder="pro"></label>
         <label class="fld"><span>Name</span><input type="text" id="plName" maxlength="80" placeholder="Pro"></label>
-        <label class="fld"><span>Price / month (₹)</span><input type="number" id="plPrice" min="0" step="1"></label>
+        <label class="fld chk"><input type="checkbox" id="plActive" checked> <span>Visible (website pricing + checkout)</span></label>
+      </div>
+      <h3>Prices</h3>
+      <div class="form">
         <label class="fld"><span>Price / month ($)</span><input type="number" id="plUsdM" min="0" step="0.01" placeholder="24"></label>
         <label class="fld"><span>Price / year ($)</span><input type="number" id="plUsdY" min="0" step="0.01" placeholder="240"></label>
-        <label class="fld chk"><input type="checkbox" id="plActive" checked> <span>Offered</span></label>
-        <button class="btn primary" id="btnPlan" type="button">Save plan</button>
+        <label class="fld"><span>Price / month (₹)</span><input type="number" id="plPrice" min="0" step="1"></label>
+        <label class="fld"><span>Price / year (₹)</span><input type="number" id="plInrY" min="0" step="1"></label>
       </div>
+      <h3>Website &amp; checkout text</h3>
+      <div class="form" id="pcForm">
+        <input type="hidden" id="pcCode"><select id="pcCur" hidden aria-hidden="true"></select>
+        <label class="fld wide"><span>Description</span><input type="text" id="pcDesc" maxlength="300"></label>
+        <label class="fld wide"><span>What's included (one per line, up to 20)</span><textarea id="pcFeat" rows="6" maxlength="2600"></textarea></label>
+        <label class="fld"><span>Razorpay plan id — monthly (₹)</span><input type="text" id="pcRzpM" maxlength="45" placeholder="plan_XXXXXXXXXXXX" spellcheck="false"></label>
+        <label class="fld"><span>Razorpay plan id — yearly (₹)</span><input type="text" id="pcRzpY" maxlength="45" placeholder="plan_XXXXXXXXXXXX" spellcheck="false"></label>
+      </div>
+      <div class="actions"><button class="btn primary" id="btnPlan" type="button">Save plan</button><button class="btn" id="btnPlanCo" type="button">Save text only</button></div>
     </section>
     <section class="card" aria-labelledby="pcH">
-      <h2 id="pcH">Checkout details per plan</h2>
+      <h2 id="pcH">Website &amp; checkout text per plan</h2>
       <p class="muted">What new studios see on the plan cards, and the Razorpay plan ids used for payment (create the plans in the Razorpay dashboard, then paste the ids — they look like plan_XXXXXXXXXXXX). Each Razorpay plan must charge the price including tax.</p>
-      <div class="scroll"><table><thead><tr><th>Plan</th><th>Description</th><th>Included</th><th>Razorpay ids</th><th></th></tr></thead><tbody id="tPlanCo"></tbody></table></div>
-      <div class="form s-56f4356" id="pcForm" hidden>
-        <label class="fld"><span>Plan</span><input type="text" id="pcCode" readonly></label>
-        <label class="fld"><span>Price currency</span><select id="pcCur"></select></label>
-        <label class="fld"><span>Description</span><input type="text" id="pcDesc" maxlength="300"></label>
-        <label class="fld"><span>What's included (one per line, up to 20)</span><textarea id="pcFeat" rows="5" maxlength="2600"></textarea></label>
-        <label class="fld"><span>Razorpay plan id — monthly</span><input type="text" id="pcRzpM" maxlength="45" placeholder="plan_XXXXXXXXXXXX" spellcheck="false"></label>
-        <label class="fld"><span>Razorpay plan id — yearly</span><input type="text" id="pcRzpY" maxlength="45" placeholder="plan_XXXXXXXXXXXX" spellcheck="false"></label>
-        <button class="btn primary" id="btnPlanCo" type="button">Save checkout details</button>
-      </div>
+      <div class="scroll"><table class="rt"><thead><tr><th>Plan</th><th>Description</th><th>Included</th><th>Razorpay ids</th><th></th></tr></thead><tbody id="tPlanCo"></tbody></table></div>
     </section>
-    <section class="card s-d6f2af6" data-perm="billing.read">
+    <section class="card" data-perm="billing.read">
       <h2>Tax rules</h2>
       <p class="muted">Defaults only — rates, regimes and wording must be confirmed by your Chartered Accountant. Changes apply to new payments; recorded invoices never change.</p>
-      <div class="scroll"><table><thead><tr><th>Country</th><th>Regime</th><th class="n">Rate</th><th>Effective</th><th>Status</th><th>Invoice note</th></tr></thead><tbody id="tTax"></tbody></table></div>
-      <div class="form s-56f4356" data-perm="billing.write">
+      <div class="scroll"><table class="rt"><thead><tr><th>Country</th><th>Regime</th><th class="n">Rate</th><th>Effective</th><th>Status</th><th>Invoice note</th></tr></thead><tbody id="tTax"></tbody></table></div>
+      <div class="form" data-perm="billing.write">
         <label class="fld"><span>Country</span><input type="text" id="txCountry" maxlength="2" placeholder="SG"></label>
         <label class="fld"><span>Region (optional)</span><input type="text" id="txRegion" maxlength="80"></label>
         <label class="fld"><span>Regime</span><select id="txRegime"><option>LOCAL_REGISTERED</option><option>NO_TAX</option><option>IN_GST_INTRA</option><option>IN_GST_INTER</option></select></label>
@@ -578,26 +662,28 @@
   <section id="pane-people" hidden>
     <section class="card">
       <div class="hd"><h2>Everyone with a Helm login</h2><input type="search" id="qUsers" placeholder="Search e-mail or studio" aria-label="Search users"></div>
-      <div class="scroll"><table><thead><tr><th>E-mail</th><th>Studio</th><th>Role</th><th>Joined</th><th>Last sign-in</th><th>Confirmed</th><th>2-step</th></tr></thead><tbody id="tUsers"></tbody></table></div>
+      <p class="hint">E-mail addresses are masked. Search works with the full address; “Show” is recorded.</p>
+      <div class="scroll"><table class="rt"><thead><tr><th>E-mail</th><th>Studio</th><th>Role</th><th>Joined</th><th>Last sign-in</th><th>Confirmed</th><th>2-step</th></tr></thead><tbody id="tUsers"></tbody></table></div>
       <div class="pager" id="pUsers"></div>
     </section>
   </section>
 
   <section id="pane-activity" hidden>
-    <section class="card s-2b583d7">
+    <section class="card">
       <div class="hd"><h2>HQ activity log</h2>
         <label class="muted" for="aFrom">From</label><input type="date" id="aFrom">
         <label class="muted" for="aTo">To</label><input type="date" id="aTo">
-        <label class="muted"><input type="checkbox" id="aWrites" checked> changes only</label>
+        <label class="muted"><input type="checkbox" id="aWrites" checked> changes + reveals only</label>
         <button class="btn" id="btnAudit" type="button">Show</button></div>
-      <div class="scroll"><table><thead><tr><th>When</th><th>HQ person</th><th>Action</th><th>What</th></tr></thead><tbody id="tAudit"></tbody></table></div>
+      <p class="hint">Every HQ page view, change and “Show” of a masked detail is recorded with who and when. The revealed value itself is never written to the log.</p>
+      <div class="scroll"><table class="rt"><thead><tr><th>When</th><th>HQ person</th><th>Action</th><th>What</th></tr></thead><tbody id="tAudit"></tbody></table></div>
     </section>
-    <section class="card s-2b583d7" aria-labelledby="hSec">
+    <section class="card" aria-labelledby="hSec">
       <div class="hd"><h2 id="hSec">Security</h2><span class="muted" id="secTotal"></span></div>
       <p class="muted">Security events across all studios for the dates above: admin overrides, sign-in lockouts, rejected uploads, suspensions, role changes, removed members and HQ team changes.</p>
-      <div class="scroll"><table><thead><tr><th>Alert</th><th>Studio</th><th class="n">Count</th><th>Latest</th></tr></thead><tbody id="tSec"></tbody></table></div>
-      <h3 class="s-56f4356">Latest</h3>
-      <div class="scroll"><table><thead><tr><th>When</th><th>Alert</th><th>Studio</th><th>Who</th></tr></thead><tbody id="tSecLatest"></tbody></table></div>
+      <div class="scroll"><table class="rt"><thead><tr><th>Alert</th><th>Studio</th><th class="n">Count</th><th>Latest</th></tr></thead><tbody id="tSec"></tbody></table></div>
+      <h3>Latest</h3>
+      <div class="scroll"><table class="rt"><thead><tr><th>When</th><th>Alert</th><th>Studio</th><th>Who</th></tr></thead><tbody id="tSecLatest"></tbody></table></div>
     </section>
   </section>
 
@@ -609,7 +695,7 @@
       <p class="hint">Who can open Helm HQ, what their role allows, and when they last used it. Everyone signs in with two-step verification. Only an Owner can add people or change roles.</p>
       <div class="team" id="tmList"></div>
     </section>
-    <div class="grid">
+    <div class="grid gap-t">
       <section class="card" id="tmAddCard" aria-labelledby="tmAddH" data-perm="staff.manage">
         <h2 id="tmAddH">Add a person</h2>
         <p class="hint">They get an e-mail. They sign in with exactly this address (Google or e-mail + password), set up two-step, and HQ opens with only what their role allows.</p>
@@ -663,34 +749,128 @@
       <p class="muted">E-mail addresses on Helm&rsquo;s own domains are reserved for the Helm team. Nobody can sign up, be invited or be given a login with one &mdash; unless the exact address is on the staff allowlist below. Everyone on the HQ team always counts as allowlisted. Every change here is recorded in the HQ activity log.</p>
       <p class="muted" id="stState"></p>
     </section>
-    <section class="card" aria-labelledby="stAllowH">
-      <h2 id="stAllowH">Staff allowlist</h2>
-      <p class="muted">Add a Helm team member&rsquo;s exact address here BEFORE you create their login. &ldquo;Remove&rdquo; stops new logins for that address (it does not delete or sign out an existing login).</p>
-      <ul class="list" id="stAllow"></ul>
-      <div class="form s-d2c171b" data-perm="security.write">
-        <label class="fld"><span>Team e-mail</span><input type="email" id="stEmail" maxlength="254" placeholder="name@helm.events" autocomplete="off"></label>
-        <label class="fld"><span>Note (optional)</span><input type="text" id="stNote" maxlength="200" placeholder="e.g. support team"></label>
-        <button class="btn" id="btnStAdd" type="button">Add to allowlist</button>
-      </div>
-    </section>
-    <section class="card" aria-labelledby="stDomH">
-      <h2 id="stDomH">Reserved domains</h2>
-      <p class="muted">Sub-domains are included (team.helm.events). Add look-alike domains someone could use to pretend to be Helm. Helm&rsquo;s own domains can&rsquo;t be removed.</p>
-      <ul class="list" id="stDomains"></ul>
-      <div class="form s-d2c171b" data-perm="security.write">
-        <label class="fld"><span>Domain</span><input type="text" id="stDomain" maxlength="253" placeholder="helm-events.com" autocomplete="off"></label>
-        <label class="fld"><span>Note (optional)</span><input type="text" id="stDomNote" maxlength="200" placeholder="e.g. look-alike"></label>
-        <button class="btn" id="btnStDom" type="button">Reserve domain</button>
-      </div>
-    </section>
+    <div class="g2 gap-t">
+      <section class="card" aria-labelledby="stAllowH">
+        <h2 id="stAllowH">Staff allowlist</h2>
+        <p class="muted">Add a Helm team member&rsquo;s exact address here BEFORE you create their login. &ldquo;Remove&rdquo; stops new logins for that address (it does not delete or sign out an existing login).</p>
+        <ul class="list" id="stAllow"></ul>
+        <div class="form" data-perm="security.write">
+          <label class="fld"><span>Team e-mail</span><input type="email" id="stEmail" maxlength="254" placeholder="name@helm.events" autocomplete="off"></label>
+          <label class="fld"><span>Note (optional)</span><input type="text" id="stNote" maxlength="200" placeholder="e.g. support team"></label>
+          <button class="btn" id="btnStAdd" type="button">Add to allowlist</button>
+        </div>
+      </section>
+      <section class="card" aria-labelledby="stDomH">
+        <h2 id="stDomH">Reserved domains</h2>
+        <p class="muted">Sub-domains are included (team.helm.events). Add look-alike domains someone could use to pretend to be Helm. Helm&rsquo;s own domains can&rsquo;t be removed.</p>
+        <ul class="list" id="stDomains"></ul>
+        <div class="form" data-perm="security.write">
+          <label class="fld"><span>Domain</span><input type="text" id="stDomain" maxlength="253" placeholder="helm-events.com" autocomplete="off"></label>
+          <label class="fld"><span>Note (optional)</span><input type="text" id="stDomNote" maxlength="200" placeholder="e.g. look-alike"></label>
+          <button class="btn" id="btnStDom" type="button">Reserve domain</button>
+        </div>
+      </section>
+    </div>
     <section class="card" aria-labelledby="stAccH">
       <h2 id="stAccH">Existing logins on reserved domains</h2>
       <p class="muted">Read-only. Logins made before this protection existed are not changed automatically. To turn one off, review it here, then use R21-RESERVED-DOMAIN-DISABLE.sql (reversible, nothing is deleted).</p>
-      <div class="scroll"><table><thead><tr><th>E-mail</th><th>Studio</th><th>Created</th><th>Last sign-in</th><th>Status</th></tr></thead><tbody id="tStAcc"></tbody></table></div>
+      <div class="scroll"><table class="rt"><thead><tr><th>E-mail</th><th>Studio</th><th>Created</th><th>Last sign-in</th><th>Status</th></tr></thead><tbody id="tStAcc"></tbody></table></div>
+    </section>
+  </section>
+
+  <!-- r28: Settings - invoice + checkout (moved from Billing) and how HQ handles personal data -->
+  <section id="pane-settings" hidden>
+    <section class="card" aria-labelledby="adrH">
+      <h2 id="adrH">Helm e-mail addresses</h2>
+      <p class="hint">The addresses Helm uses in public. Where each one should appear is listed in the HQ v2 report (legal pages are changed only by the owner).</p>
+      <dl class="kv">
+        <dt>General contact (public)</dt><dd><b>info@helm.events</b></dd>
+        <dt>Sales</dt><dd>sales@helm.events</dd>
+        <dt>Support</dt><dd>support@helm.events</dd>
+        <dt>Alerts to the HQ team</dt><dd>notifications@helm.events</dd>
+        <dt>Security reports</dt><dd>security@helm.events</dd>
+      </dl>
+      <div class="actions"><button class="btn" id="btnGoAlerts" type="button" data-perm="settings.write">Choose the alert address for requests</button></div>
+    </section>
+    <section class="card" aria-labelledby="dispH">
+      <h2 id="dispH">Money display</h2>
+      <p class="hint">How amounts look in HQ on this browser. Invoices, payments and prices are never changed: rupee amounts are converted only for display, marked “≈”, and the exact amount shows when you point at it.</p>
+      <div class="form">
+        <label class="fld"><span>Show amounts in</span><select id="dispCur"><option value="USD">US dollars ($)</option><option value="ORIG">Their own currency (₹, $ …)</option></select></label>
+        <label class="fld"><span>Rupees per US dollar (for display)</span><input type="number" id="dispRate" min="1" max="1000" step="0.01"></label>
+        <button class="btn" id="btnDisp" type="button">Save display</button>
+      </div>
+    </section>
+    <section class="card" data-perm="billing.write">
+      <h2>Invoice settings</h2>
+      <div class="form">
+        <label class="fld"><span>Legal name</span><input type="text" id="sName" maxlength="160"></label>
+        <label class="fld"><span>GSTIN</span><input type="text" id="sGstin" maxlength="15"></label>
+        <label class="fld"><span>Address</span><input type="text" id="sAddr" maxlength="500"></label>
+        <label class="fld"><span>Seller country</span><input type="text" id="sCountry" maxlength="2"></label>
+        <label class="fld"><span>Seller state</span><input type="text" id="sState" maxlength="80"></label>
+        <label class="fld"><span>LUT number</span><input type="text" id="sLut" maxlength="40"></label>
+        <label class="fld"><span>LUT valid from</span><input type="date" id="sLutFrom"></label>
+        <label class="fld"><span>LUT valid to</span><input type="date" id="sLutTo"></label>
+        <label class="fld"><span>Default GST % (legacy)</span><input type="number" id="sRate" min="0" max="50" step="0.01"></label>
+        <label class="fld"><span>Invoice prefix</span><input type="text" id="sPrefix" maxlength="16"></label>
+        <button class="btn" id="btnSettings" type="button">Save invoice settings</button>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="coSetH" data-perm="billing.write">
+      <h2 id="coSetH">Studio checkout (new studios)</h2>
+      <p class="muted">Controls the plan page new studio owners see after sign-up (/checkout). Saved switches apply immediately.</p>
+      <div class="form">
+        <label class="fld chk"><input type="checkbox" id="coLive"> <span><b>Online payment is live</b> — new studios pay by Razorpay. Turn on only after the payment function is deployed with its keys and every plan has its Razorpay plan ids. Off = new studios start an 8-day free trial.</span></label>
+        <label class="fld chk"><input type="checkbox" id="coBypass"> <span><b>Testing bypass: show “Skip payment (testing only)”</b> — lets a new studio start a free trial without paying. For internal testing only. <b>Turn OFF before launch.</b></span></label>
+        <label class="fld"><span>Terms version new studios accept</span><input type="text" id="coTermsV" maxlength="32" pattern="[A-Za-z0-9._-]{1,32}"></label>
+        <button class="btn" id="btnCheckout" type="button">Save checkout settings</button>
+      </div>
+      <p class="muted" id="coState"></p>
+    </section>
+  </section>
+
+  <!-- r28 round 2: Data & privacy - what HQ stores / shows and why (for HQ staff; informational) -->
+  <section id="pane-privacy" hidden>
+    <section class="card" aria-labelledby="dhH">
+      <h2 id="dhH">The rules HQ follows</h2>
+      <ul class="rules">
+        <li><span class="dotk" aria-hidden="true">1</span><span><b>No studio business data</b>HQ shows studios, their people and what they paid Helm. Never a studio’s clients, quotes, prices, events or messages. For that data Helm only processes it for the studio, so HQ staff see it only if the studio asks (none today).</span></li>
+        <li><span class="dotk" aria-hidden="true">2</span><span><b>Masked by default</b>E-mails, phone numbers, PAN, GSTIN and tax ids show as ka•••@studio.in / +91 ••••••••23. “Show” reveals one value and records who, when and which field &mdash; never the value.</span></li>
+        <li><span class="dotk" aria-hidden="true">3</span><span><b>Only what your role needs</b>Each HQ role sees only its pages; the database refuses everything else. Two-step always, sign-out after 30 minutes idle, sign-ins end after 12 hours, a fresh code for big changes.</span></li>
+        <li><span class="dotk" aria-hidden="true">4</span><span><b>Never stored</b>Passwords (only hashes, kept by Supabase Auth), card numbers or CVV (Razorpay holds them), Aadhaar numbers.</span></li>
+        <li><span class="dotk" aria-hidden="true">5</span><span><b>Everything is logged</b>Page views, changes, reveals and exports are in Security &amp; activity, with who and when.</span></li>
+      </ul>
+      <div class="actions"><button class="btn" id="btnGoLog" type="button" data-perm="security.read">Open the activity log</button></div>
+    </section>
+    <section class="card" aria-labelledby="dsH">
+      <h2 id="dsH">What HQ stores and shows, and why</h2>
+      <div class="scroll"><table class="rt"><thead><tr><th>Data</th><th>Why HQ has it</th><th>Who in HQ can see it</th><th>Kept for (suggested)</th></tr></thead><tbody>
+        <tr><td><b>Studio name, link, plan, status</b></td><td>Running the subscription and support</td><td>Every role with Studios</td><td>While the account exists</td></tr>
+        <tr><td><b>Contact name, e-mail, phone</b></td><td>Billing and account contact</td><td>Studios roles &mdash; masked, “Show” logged</td><td>While the account exists</td></tr>
+        <tr><td><b>Legal name, GSTIN, PAN, address</b></td><td>GST invoices (tax law)</td><td>Studios roles &mdash; masked, “Show” logged</td><td>About 8 years with invoices (confirm with the CA)</td></tr>
+        <tr><td><b>Payments to Helm, invoices, UTR</b></td><td>Accounts and GST returns</td><td>Owner, Admin (Billing)</td><td>About 8 years (confirm with the CA)</td></tr>
+        <tr><td><b>Logins: e-mail, role, last sign-in, two-step on/off</b></td><td>Security and support</td><td>People roles &mdash; e-mail masked</td><td>While the account exists</td></tr>
+        <tr><td><b>Sales enquiries and suggestions</b></td><td>Answering the person</td><td>Requests roles &mdash; contact masked</td><td>24 months</td></tr>
+        <tr><td><b>HQ staff sessions, devices, short IP</b></td><td>Protecting HQ</td><td>Owner, Security</td><td>12&ndash;18 months</td></tr>
+        <tr><td><b>HQ activity log (views, changes, reveals)</b></td><td>Accountability (DPDP Rules: logs at least 1 year)</td><td>Owner, Admin, Security</td><td>At least 1 year, better 2&ndash;3 years</td></tr>
+      </tbody></table></div>
+      <p class="muted gap-t">Breaches: tell the Data Protection Board and each affected person without delay, with a detailed report to the Board within 72 hours; certain cyber incidents go to CERT-In within 6 hours. Details and sources: HQ-SUPERADMIN-RESEARCH.md.</p>
+    </section>
+    <section class="card" aria-labelledby="dlH">
+      <h2 id="dlH">Helm’s legal pages</h2>
+      <p class="hint">What customers are told. Changes to these pages are made by the owner only (suggested wording is in the research note).</p>
+      <div class="actions">
+        <a class="btn" href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>
+        <a class="btn" href="/terms" target="_blank" rel="noopener">Terms of Service</a>
+        <a class="btn" href="/dpa" target="_blank" rel="noopener">Data Processing Agreement</a>
+        <a class="btn" href="/subprocessors" target="_blank" rel="noopener">Sub-processors</a>
+      </div>
     </section>
   </section>
     </div>
   </div>
+  <nav class="bnav" id="bnav" aria-label="HQ quick menu"></nav>
 </div>
 
 <!-- r27: a fresh two-step code before a sensitive change (the database asks for it: HQ_REAUTH) -->
@@ -709,13 +889,13 @@
 <script src="config.js?v=111"></script>
 <script src="phone-input.js?v=7"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=6"></script><script src="store-api.js?v=298"></script>
+<script src="country-profile.js?v=6"></script><script src="store-api.js?v=299"></script>
 <script src="auth-ui.js?v=55"></script>
 <script src="hq-invoice.js?v=2"></script>
 <script src="hq-mfa.js?v=1"></script>
-<script src="hq-staff.js?v=1"></script>
-<script src="hq.js?v=26"></script>
-<script src="page-tours.js?v=1"></script>
-<script src="tour.js?v=25"></script>
+<script src="hq-staff.js?v=2"></script>
+<script src="hq.js?v=27"></script>
+<script src="page-tours.js?v=3"></script>
+<script src="tour.js?v=27"></script>
 </body>
 </html>
