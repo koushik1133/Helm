@@ -1649,3 +1649,67 @@ body[data-tone=mint],body[data-tone=cream]{background:var(--bg)}
  .snap-pt{scroll-snap-stop:normal}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+/* ===== R43b (Safari + owner round): full first screen, scroll-driven rows, phone frame, why spacing =====
+   Only transform / opacity move per frame; every rule here is plain CSS that Safari 15+ and Chrome share. */
+/* 1. hero: on laptops and desktops the intro (copy + trust strip) fills the first screen exactly again;
+   the film starts on the second screen. Phones keep the compact stack. */
+@media (min-width:768px) and (min-height:560px){
+ .hero-first{display:flex;flex-direction:column;min-height:calc(100vh - var(--navh) - clamp(10px,4.4vh,80px) - 16px);min-height:calc(100dvh - var(--navh) - clamp(10px,4.4vh,80px) - 16px)}
+ .hero-first>.hero-copy{margin-top:auto;margin-bottom:auto}
+ .hero-first>.trust{flex:none;margin-top:clamp(8px,2.6vh,48px)}
+}
+/* 2. sideways rows (tools, modules): whole cards only, no clipped shadow band behind them */
+.hclip{position:relative}
+@media (min-width:768px) and (min-height:560px){
+ .flips,.mods{--k:2;--g:16px}
+ .mods{--g:18px}
+ .flips>.flip,.mods>.mod{flex:0 0 calc((100% - (var(--k) - 1) * var(--g)) / var(--k))}
+ .flips{gap:var(--g);padding:8px 0 40px;margin:-8px 0 -32px;background:none;box-shadow:none}
+ .mods{gap:var(--g);padding:8px 0 40px;margin:-8px 0 -32px;scroll-padding-inline:0}
+}
+@media (min-width:900px) and (min-height:560px){.flips,.mods{--k:3}}
+@media (min-width:1200px) and (min-height:560px){.flips{--k:4}}
+@media (min-width:1280px) and (min-height:560px){.mods{--k:4}}
+/* the row moves with the page: the section is as tall as one screen plus the sideways distance, its content
+   stays pinned (sticky) and the row slides (translate3d) - no scrollbars, no layout work per frame */
+main>.sec.hpin{position:relative;display:block;padding:0;min-height:0;height:calc(100vh + var(--hlen,0px));height:calc(100dvh + var(--hlen,0px));content-visibility:visible;contain-intrinsic-size:none}
+.hpin>.wrap{position:-webkit-sticky;position:sticky;top:0;height:100vh;height:100dvh;padding-top:calc(var(--navh) + var(--fp));padding-bottom:var(--fp);display:flex;flex-direction:column;justify-content:center}
+.hpin .hclip{overflow:hidden;overflow:clip;padding:8px 0 40px;margin:-8px 0 -32px}
+.hpin .flips,.hpin .mods{overflow:visible;scroll-snap-type:none;padding:0;margin:0;will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden}
+.hpin .snap-dots{display:none}
+.hpin .mods:focus-visible{outline:none}
+/* 3. phone mockups: a modern Pro-Max style frame - thin titanium rim, slim black bezel, Dynamic Island,
+   side buttons (all CSS, no images) */
+.phone,.cphone{background:#0a0a0b;padding:6px;border-radius:56px;box-shadow:0 0 0 1.5px #b9b4ab,0 0 0 3px #57534d,0 0 0 4px rgba(255,255,255,.18),0 50px 90px -30px rgba(0,0,0,.45),0 18px 36px -18px rgba(0,0,0,.35)}
+.phone::before,.cphone::before{content:"";position:absolute;z-index:5;left:50%;top:15px;width:96px;height:28px;margin-left:-48px;border-radius:20px;background:#000;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);pointer-events:none}
+.phone::after,.cphone::after{content:"";position:absolute;z-index:0;left:-5px;top:118px;width:3px;height:30px;border-radius:2px 0 0 2px;background:#6d6962;box-shadow:0 52px 0 0 #6d6962,0 112px 0 0 #6d6962;pointer-events:none}
+.phone .pscr{border-radius:50px}
+.phone .pscr.rl::before{height:58px}
+.cphone{position:relative}
+.cp-scr{border-radius:50px}
+@media (max-width:767px){
+ .phone,.cphone{border-radius:48px;padding:5px}
+ .phone .pscr,.cp-scr{border-radius:43px}
+ .phone::before,.cphone::before{top:12px;width:80px;height:24px;margin-left:-40px}
+ .phone::after,.cphone::after{top:96px;height:24px;box-shadow:0 42px 0 0 #6d6962,0 92px 0 0 #6d6962}
+}
+@media (min-width:1024px){.cphone{border-radius:56px;padding:6px}.cp-scr{border-radius:50px}}
+/* 4. "No more guessed distances": as much room under the cards as above the heading; a little more air
+   before the comparison table */
+@media (min-width:768px) and (min-height:560px){
+ main>.why{padding-bottom:calc(var(--navh) + var(--fp))}
+ main>.compare{padding-top:calc(var(--navh) + var(--fp) + clamp(8px,2.4vh,28px));padding-bottom:calc(var(--fp) + clamp(8px,2.4vh,28px))}
+}
+/* 5. modules: every card the same build - icon, one-line title, a two-line description, four one-line bullets -
+   equal heights, bullets starting on the same line, a light card on a transparent shell */
+.mods{align-items:stretch}
+.mods>.mod{display:flex;padding:6px;background:transparent;border:1px solid var(--line);border-radius:28px}
+.mods .mod-t{display:flex;flex-direction:column;width:100%;height:auto;padding:24px 22px 22px;border-radius:22px;background:rgba(255,255,255,.62);box-shadow:inset 0 1px 1px rgba(255,255,255,.9)}
+.mods .mod h3{margin:16px 0 6px;font-size:19px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mods .mod p{margin:0;font-size:14px;line-height:1.5;min-height:3em;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.mods .mod ul{margin:16px 0 0;padding:16px 0 0;list-style:none;border-top:1px solid var(--line);font-size:14px;line-height:1.5}
+.mods .mod li{position:relative;margin:0 0 6px;padding-left:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mods .mod li::before{content:"";position:absolute;left:2px;top:.62em;width:6px;height:6px;border-radius:50%;background:var(--acc)}
+.mods .mod li:last-child{margin-bottom:0}
+.modules .cta-row{margin-top:clamp(28px,5vh,56px)}
+.modules .row-bar{margin-bottom:16px}
