@@ -240,7 +240,7 @@ do $$ declare v uuid := pg_temp.getv('conv')::uuid; n int; s text; begin
   perform pg_temp.res('31 a group member adds a studio member later (existing chat_add_members)',
     s = '' and exists (select 1 from public.chat_members where conversation_id = v and user_id = pg_temp.uid('a_crew@a.test')), s);
 end $$;
-do $$ declare v uuid := pg_temp.getv('conv')::uuid; s text; r uuid; begin perform pg_temp.su();
+do $$ declare v uuid := pg_temp.getv('conv')::uuid; s text; r uuid; pm text; begin perform pg_temp.su();
   update public.quotes set status = 'cancelled' where id = 'a0000000-0000-4000-8000-0000000e0001';
   perform pg_temp.login('a_staff@a.test');
   s := pg_temp.try(format('select public.refresh_event_group(%L::uuid)', v));
@@ -248,12 +248,15 @@ do $$ declare v uuid := pg_temp.getv('conv')::uuid; s text; r uuid; begin perfor
   perform pg_temp.su();
   perform pg_temp.res('32 cancelled event: group stays, refresh refused (22023), create returns the same group',
     s = '22023' and r = v and exists (select 1 from public.chat_conversations where id = v), s);
-  -- the app deletes a quote with a direct API delete — since 0042 only from the Deleted shelf
+  -- since 0296 a quote is never hard-deleted through the API (the app only shelves it); a server-side purge (trial purge /
+  -- future studio closure, run as the owner with the purge mark) still can - the group must survive that
   update public.quotes set deleted_at = now() where id = 'a0000000-0000-4000-8000-0000000e0001';
-  perform pg_temp.login('a_admin@a.test');
-  s := pg_temp.try($q$delete from public.quotes where id = 'a0000000-0000-4000-8000-0000000e0001'$q$);
   perform pg_temp.su();
-  perform pg_temp.res('33 deleting the quote (as the app does) keeps the group and its history (link cleared)',
+  pm := coalesce(current_setting('helm.allow_purge', true), '');
+  perform set_config('helm.allow_purge', 'a0000000-0000-4000-8000-000000000001', true);
+  s := pg_temp.try($q$delete from public.quotes where id = 'a0000000-0000-4000-8000-0000000e0001'$q$);
+  perform set_config('helm.allow_purge', pm, true);
+  perform pg_temp.res('33 deleting the quote (server-side purge) keeps the group and its history (link cleared)',
     s = '' and not exists (select 1 from public.quotes where id = 'a0000000-0000-4000-8000-0000000e0001') and exists (select 1 from public.chat_conversations where id = v and quote_id is null)
     and (select count(*) from public.chat_messages where conversation_id = v) >= 2, s);
   perform pg_temp.login('a_staff@a.test');
