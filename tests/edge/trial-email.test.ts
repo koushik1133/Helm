@@ -25,6 +25,7 @@ const DEST = { quote_id: QUOTE, phone_key: "9800000001", to: "919800000001", ema
 function db(gate: unknown, trialOtp: { data?: unknown; error?: unknown } = { data: DEST, error: null }) {
   g.__supaGetUser = (jwt: string) => ({ data: { user: jwt === "user-jwt" ? { id: "u1" } : null } });
   g.__supaRpc = (name: string) => {
+    if (name === "client_mailer_check") return { data: { ok: true, link_live: true }, error: null };   // r56 (0297)
     if (name === "trial_email_gate") return { data: gate, error: null };
     if (name === "trial_send_blocked") return { data: true, error: null };
     if (name === "_sample_outbound_blocked") return { data: true, error: null };

@@ -273,6 +273,9 @@ run "r41-send-window-0290" "R41-SEND-WINDOW-0290: ALL PASS \(37/37\)" psql -q -f
 run "r42-hq-v2-0278-0280" "R42-HQ-V2: ALL PASS \(38/38\)" psql -q -f tests/db/r42-hq-v2-0278-0280.sql
 # 0288 re-applies itself twice + after a 0053 re-run (the hook wrapper goes back on top), rolled back; after r27 (it re-applies 0277)
 run "r39-staff-google-0288" "R39-STAFF-GOOGLE-0288: ALL PASS \(49/49\)" psql -q -f tests/db/r39-staff-google-0288.sql
+# r56 (0297): client links answer an allow-list, no rate rows for random tokens, purge, client_mailer_check; re-applies itself twice
+# (earlier suites re-apply 0042 / 0052 / 0090 / 0095 / 0260 / 0262 over these wrappers), rolled back
+run "r56-client-links-0297" "R56-CLIENT-LINKS-0297: ALL PASS \(40/40\)" psql -q -f tests/db/r56-client-links-0297.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
