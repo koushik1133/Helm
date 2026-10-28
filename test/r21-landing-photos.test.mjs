@@ -6,7 +6,8 @@ const size = (p) => fs.statSync(new URL('../' + p, import.meta.url)).size;
 let n = 0; const t = (name, fn) => { fn(); n++; console.log('  ok', name); };
 const html = read('public/index.html'), css = read('public/home.css'), js = read('public/home.js');
 const list = JSON.parse(read('public/landing/events/events.json'));
-const NAMES = ['wedding', 'engagement', 'mehendi', 'sangeet', 'product-launch', 'corporate-gala', 'birthday', 'event-setup'];
+// R43 (landing version C): Mehendi, Sangeet and Corporate gala use the owner's newer "-2" photos.
+const NAMES = ['wedding', 'engagement', 'mehendi-2', 'sangeet-2', 'product-launch', 'corporate-gala-2', 'birthday', 'event-setup'];
 
 t('every gallery image ships as 1600w + 800w WebP, within the weight budget', () => {
   let total = 0;
@@ -68,7 +69,7 @@ t('film strip: full-width band, equal frames, seamless loop, pause, drag, keyboa
 });
 
 t('celebration slider: photo per slide, 800w/1600w srcset, lazy + current/next only, Save-Data keeps gradient', () => {
-  assert.match(js, /var CEL_PHOTOS = \{ wedding: 'wedding', corporate: 'product-launch', birthday: 'birthday', concert: 'sangeet', gala: 'corporate-gala', cultural: 'mehendi' \};/);
+  assert.match(js, /var CEL_PHOTOS = \{ wedding: 'wedding', corporate: 'product-launch', birthday: 'birthday', concert: 'sangeet-2', gala: 'corporate-gala-2', cultural: 'mehendi-2' \};/);
   assert.match(js, /var celLite = !!celNet\.saveData \|\| /);
   assert.match(js, /\} else if \(CEL_PHOTOS\[name\] && !celLite\) \{/);
   assert.match(js, /bg\._im\.srcset = f \+ '-800\.webp 800w, ' \+ f \+ '\.webp 1600w';/);
