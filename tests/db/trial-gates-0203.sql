@@ -141,7 +141,8 @@ exception when others then perform pg_temp.su(); insert into _uf values ('2x tri
 do $$ declare o uuid := pg_temp.get('o')::uuid; e text; n0 int; n1 int; begin
   perform pg_temp.login('tg202_trial@t.test');
   e := pg_temp.try('select public.export_org_data()');
-  perform pg_temp.res('60 trial: data export refused', e like '42501%free trial%', e);
+  perform pg_temp.res('60 trial: data export refused', e like '42501%free trial%'
+    or e like '42501%permission denied for function export_org_data%', e);   -- r54 (0295): export_org_data closed to the app
   e := pg_temp.try('select public.export_tenant_organization_package()');
   perform pg_temp.res('61 trial: studio data archive refused', e like '42501%free trial%', e);
   e := pg_temp.try('select public.smart_import_batch(''crew_members'', ''[{"name":"X"}]''::jsonb, ''[]''::jsonb)')

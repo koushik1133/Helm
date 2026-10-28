@@ -217,7 +217,7 @@
           { sel: "#matrix", title: "Saved straight away", desc: "Each tap saves at once. People see the change the next time they open a page." },
         ],
         compliance: [
-          { sel: "#btn-export-gdpr", title: "Download your data", desc: "Makes a portable archive of everything your studio has in Helm." },
+          { sel: "#btn-export-gdpr", title: "Download your data", desc: "Owner and admins only. Makes a file of your studio's data. It has personal details, so keep it private. Every download is logged." },
           { sel: "#exp_status", title: "Progress", desc: "Shows when the archive is ready to download." },
         ],
         notify: [
