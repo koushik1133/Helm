@@ -48,7 +48,8 @@
     star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z",
     help: "M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01",
     plus: "M12 5v14M5 12h14",
-    sliders: "M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1M15 5v4M9 10v4M17 15v4"
+    sliders: "M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1M15 5v4M9 10v4M17 15v4",
+    gift: "M4 9h16v4H4zM5 13v7h14v-7M12 9v11M12 9c-1.5-3-5-3.5-5-1.2C7 9 9 9 12 9zM12 9c1.5-3 5-3.5 5-1.2C17 9 15 9 12 9z"   /* r29: Refer a studio */
   };
   var NS = "http://www.w3.org/2000/svg";
   function icon(name) {
@@ -126,12 +127,16 @@
     { sel: "[data-tour='bell']", uses: "finance", alt: function (can) { return can("finance") ? null : { desc: "Approvals, reminders and mentions arrive here." }; }, title: "Notifications", desc: "Approvals, payments and mentions arrive here." },
     { sel: "[data-tour='new']", need: ["create", "edit:quotes"], title: "Create", desc: "Start a new quote, lead or event from any page." }
   ];
+  /* R46 "Tour this page": this page's tour from page-tours.js (the section on screen for Settings); the generic
+   * shell tour only when the page has none or none of it is on screen for this role. tour.js loads page-tours.js itself. */
   function startTour() {
     var hb = document.getElementById("helpBtn");
     if (hb && !hb.closest("#hbRail")) { hb.click(); return; }   /* the page's own tour (dashboard) */
     function go() {
       var T = window.HelmTour; if (!T || typeof T.start !== "function") return;
-      if (T.hasSteps) T.start(); else T.start(SHELL_TOUR.filter(function (st) { return !/hb-recent/.test(st.sel) || document.querySelector(".hb-recent .htr-btn"); }), "helm_tour_shell");
+      var shell = SHELL_TOUR.filter(function (st) { return !/hb-recent/.test(st.sel) || document.querySelector(".hb-recent .htr-btn"); });
+      if (typeof T.startPage === "function") T.startPage(shell, "helm_tour_shell");
+      else if (T.hasSteps) T.start(); else T.start(shell, "helm_tour_shell");
     }
     if (window.HelmTour) { go(); return; }
     var sc = document.createElement("script"); sc.src = "/tour.js?v=" + (window.HELM_SHELL_V || "1"); sc.onload = go; document.head.appendChild(sc);
@@ -231,8 +236,8 @@
      * a page's own #helpBtn (e.g. the dashboard's custom tour) wins; else tour.js steps for this page; else a generic shell tour.
      * tour.js is loaded on demand when the page does not include it. */
     var tourBtn = el("button", "hb-item hb-tourbtn"); tourBtn.type = "button";
-    var ti = el("span", "hb-ic"); ti.appendChild(icon("help")); tourBtn.appendChild(ti); tourBtn.appendChild(el("span", "hb-lb", "Take a guided tour"));
-    tourBtn.title = "Guided product tour: a quick walkthrough of this page"; tourBtn.setAttribute("aria-label", "Start guided product tour");
+    var ti = el("span", "hb-ic"); ti.appendChild(icon("help")); tourBtn.appendChild(ti); tourBtn.appendChild(el("span", "hb-lb", "Tour this page"));
+    tourBtn.title = "Tour this page: a quick walk through what is on it"; tourBtn.setAttribute("aria-label", "Tour this page");
     tourBtn.addEventListener("click", function () { safe(startTour); });
     tourSlot.appendChild(tourBtn);
     /* accent theme picker: swatch button beside the dark-mode toggle, popover floats beside the rail */
@@ -348,11 +353,13 @@
       split.appendChild(nq);
       tools.appendChild(searchSlot); tools.appendChild(chat); tools.appendChild(bellSlot); tools.appendChild(split);
       /* r20 (owner QA): the tour is easy to find - a "?" button in the top bar beside the bell (the sidebar's
-       * "Take a guided tour" sits at the foot of the rail and needed scrolling at 1440 x 900). Same start as the rail button. */
-      var tourTop = el("button", "hb-ibtn hb-ttour"); tourTop.type = "button"; tourTop.title = "Take the guided tour";
-      tourTop.setAttribute("aria-label", "Take the guided tour"); tourTop.setAttribute("data-tour", "tour-top"); tourTop.appendChild(icon("help"));
-      tourTop.addEventListener("click", function () { safe(startTour); });
-      tools.insertBefore(tourTop, bellSlot);
+       * tour item sits at the foot of the rail and needed scrolling at 1440 x 900).
+       * R46: the "?" is the shared help menu - "Tour this page" (same start as the rail button) and "Keyboard shortcuts". */
+      var tourTop = el("button", "hb-ibtn hb-ttour"); tourTop.type = "button"; tourTop.title = "Help: tour this page, keyboard shortcuts";
+      tourTop.setAttribute("aria-label", "Help"); tourTop.setAttribute("data-tour", "tour-top"); tourTop.appendChild(icon("help"));
+      var helpWrap = el("div", "hb-hwrap"); helpWrap.appendChild(tourTop);
+      safe(function () { helpMenu(helpWrap, tourTop); });
+      tools.insertBefore(helpWrap, bellSlot);
       header.appendChild(tools);
       adopt(function () { return document.getElementById("helm-topbar-search"); }, searchSlot);
       (function hint(n) {   /* subtle "jump to" hint + ⌘K chip in the header search field */
@@ -452,6 +459,47 @@
     if (target === page && /#hb-new$/.test(href)) { var b = document.getElementById("newBtn"); if (b && !b.hidden) { b.click(); return; } }
     location.href = abs(href);
   }
+  /* R46: the "?" help menu in the top bar. Tour this page (marked "New" until this page's / section's tour was seen on
+   * this device) and Keyboard shortcuts. Arrow keys move, Esc closes and returns focus to the "?". */
+  function helpMenu(wrap, btn) {
+    var menu = el("div", "hb-menu hb-hmenu"); menu.setAttribute("role", "menu"); menu.hidden = true; menu.id = "hbHelpMenu";
+    menu.setAttribute("aria-label", "Help");
+    btn.setAttribute("aria-haspopup", "menu"); btn.setAttribute("aria-expanded", "false"); btn.setAttribute("aria-controls", menu.id);
+    var tourMi = el("button", "hb-mi"); tourMi.type = "button"; tourMi.setAttribute("role", "menuitem"); tourMi.tabIndex = -1; tourMi.id = "hbTourPage";
+    tourMi.appendChild(icon("help")); tourMi.appendChild(el("span", null, "Tour this page"));
+    var nw = el("span", "hb-mi-new", "New"); nw.hidden = true; tourMi.appendChild(nw);
+    var keysMi = el("button", "hb-mi"); keysMi.type = "button"; keysMi.setAttribute("role", "menuitem"); keysMi.tabIndex = -1;
+    keysMi.appendChild(icon("sliders")); keysMi.appendChild(el("span", null, "Keyboard shortcuts")); keysMi.appendChild(el("kbd", "hb-mi-kbd", "?"));
+    menu.appendChild(tourMi); menu.appendChild(keysMi); wrap.appendChild(menu);
+    function mis() { return [tourMi, keysMi]; }
+    function open(idx) {
+      try { var T = window.HelmTour; nw.hidden = !(T && typeof T.pageSeen === "function" && !T.pageSeen()); } catch (e) { nw.hidden = true; }
+      try { var hc = document.querySelector(".hbp-hint"); if (hc && hc.parentNode) hc.parentNode.removeChild(hc); } catch (e) {}   /* the one-time "Amounts hidden" chip sits right where this menu opens */
+      menu.hidden = false; btn.setAttribute("aria-expanded", "true"); document.documentElement.classList.add("hb-pop-open");
+      mis()[idx < 0 ? 1 : 0].focus();
+    }
+    function close(restore) {
+      if (menu.hidden) return;
+      menu.hidden = true; btn.setAttribute("aria-expanded", "false"); document.documentElement.classList.remove("hb-pop-open");
+      if (restore) btn.focus();
+    }
+    btn.addEventListener("click", function (e) { e.stopPropagation(); if (menu.hidden) open(0); else close(true); });
+    btn.addEventListener("keydown", function (e) { if (e.key === "ArrowDown") { e.preventDefault(); open(0); } else if (e.key === "ArrowUp") { e.preventDefault(); open(-1); } });
+    tourMi.addEventListener("click", function () { close(true); safe(startTour); });
+    keysMi.addEventListener("click", function () { close(true); safe(helpOpen); });
+    menu.addEventListener("keydown", function (e) {
+      var l = mis(), i = l.indexOf(document.activeElement);
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); l[(i + 1) % l.length].focus(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); l[(i - 1 + l.length) % l.length].focus(); }
+      else if (e.key === "Home") { e.preventDefault(); l[0].focus(); }
+      else if (e.key === "End") { e.preventDefault(); l[l.length - 1].focus(); }
+      else if (e.key === "Tab") close(false);
+    });
+    document.addEventListener("click", function (e) { if (!menu.hidden && !wrap.contains(e.target)) close(false); });
+    try { window.HelmHelpMenu = { open: function () { open(0); }, close: close, tour: function () { safe(startTour); } }; } catch (e) {}
+  }
+
   function quickCreate(split, nq) {
     waitAuth(function () {
       Promise.all(CREATE.map(function (c) { return c.cap ? Promise.all([can(c.area, c.edit), capOk(c.cap)]).then(function (r) { return r[0] && r[1]; }) : can(c.area, c.edit); })).then(function (ok) {
@@ -646,6 +694,8 @@
             if (fin && !document.querySelector('#hbRail .hb-group:not(.hb-fav) [data-key="business"]')) { /* planner-1023: the first item may sit inside an .hb-row wrapper — insert before the admin group's own child, never a grandchild (that threw and left Manage hidden) */
               var ref = admin.querySelector(".hb-item"); while (ref && ref.parentNode !== admin) ref = ref.parentNode;
               admin.insertBefore(item("business", "Business", "business.html", "business"), ref || null); }
+            /* r29 referrals (phase 1, UI only): "Refer a studio" for the people who see the studio's money (same gate as Business) */
+            if (fin && !document.querySelector('#hbRail .hb-group:not(.hb-fav) [data-key="refer"]')) admin.appendChild(item("gift", "Refer a studio", "refer.html", "refer"));
             manage.hidden = !manage.querySelector(".hb-item");
             admin.hidden = !admin.querySelector(".hb-item");
             if (done) done();
@@ -964,7 +1014,7 @@
     if (!t || !t.tagName) return false;
     var tag = t.tagName; return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || !!t.isContentEditable;
   }
-  var helpEl = null, helpPrev = null;
+  var helpEl = null, helpPrev = null, helpAt = 0;   /* helpAt: when "?" opened the sheet (for "? then T") */
   var MAC = /Mac|iPhone|iPad/.test(navigator.platform || ""), MOD = MAC ? "⌘" : "Ctrl";
   function helpGroups() {
     var go = Object.keys(GO).map(function (k) { return ["G " + k.toUpperCase(), "Go to " + GO[k][1]]; });
@@ -972,7 +1022,7 @@
       ["Search", [[MOD + " K", "Open search and commands"], ["/", "Open search (when not typing)"]]],
       ["Navigate", [["H", "Go home (Dashboard)"]].concat(go)],
       ["Create", [["N", "New quote / create menu"]]],
-      ["General", [["?", "Show keyboard shortcuts"], ["Esc", "Close dialogs and menus"]]]
+      ["General", [["?", "Show keyboard shortcuts"], ["? T", "Tour this page"], ["Esc", "Close dialogs and menus"]]]
     ];
   }
   function helpSheet() {
@@ -990,7 +1040,7 @@
       var dl = el("dl", "hb-help-list");
       g[1].forEach(function (r) {
         var row = el("div", "hb-help-row"), dt = el("dt");
-        r[0].split(" ").forEach(function (k, i) { if (i && r[0].charAt(0) === "G") dt.appendChild(el("span", "hb-help-then", "then")); dt.appendChild(el("kbd", null, k)); });
+        r[0].split(" ").forEach(function (k, i) { if (i && /^[G?]/.test(r[0])) dt.appendChild(el("span", "hb-help-then", "then")); dt.appendChild(el("kbd", null, k)); });
         row.appendChild(el("dd", null, r[1])); row.appendChild(dt); dl.appendChild(row);
         rows.push({ n: row, t: (r[0] + " " + r[1] + " " + g[0]).toLowerCase(), s: sec });
       });
@@ -1005,12 +1055,21 @@
       none.hidden = any;
     });
     var ft = el("p", "hb-help-ft"); ft.appendChild(document.createTextNode("Press ")); ft.appendChild(el("kbd", null, "?")); ft.appendChild(document.createTextNode(" anywhere to open this sheet."));
+    /* R46: the same "Tour this page" item as the "?" menu, here too */
+    var tb = el("button", "hb-help-tour", "Tour this page"); tb.type = "button"; tb.id = "hbHelpTour";
+    tb.addEventListener("click", function () { helpClose(); safe(startTour); });
+    ft.appendChild(document.createTextNode(" ")); ft.appendChild(tb);
     dlg.appendChild(ft);
     ov.appendChild(dlg);
     ov.addEventListener("click", function (e) { if (e.target === ov) helpClose(); });
     dlg.addEventListener("keydown", function (e) {
+      /* R46: "?" then "T" (within 1.5 s, filter still empty) starts this page's tour instead of filtering */
+      if ((e.key === "t" || e.key === "T") && !e.metaKey && !e.ctrlKey && !e.altKey && !q.value && helpAt && Date.now() - helpAt < 1500) {
+        e.preventDefault(); e.stopPropagation(); helpAt = 0; helpClose(); safe(startTour); return;
+      }
+      helpAt = 0;
       if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); if (q.value) { q.value = ""; q.dispatchEvent(new Event("input")); } else helpClose(); }
-      else if (e.key === "Tab") { e.preventDefault(); (document.activeElement === q ? x : q).focus(); }
+      else if (e.key === "Tab") { e.preventDefault(); var ring = [q, x, tb], k = ring.indexOf(document.activeElement); ring[(k + (e.shiftKey ? ring.length - 1 : 1) + ring.length) % ring.length].focus(); }
     });
     document.body.appendChild(ov); helpEl = ov; return ov;
   }
@@ -1033,7 +1092,7 @@
         if (k === "g" && !e.shiftKey) { gAt = Date.now(); return; }
         /* r20: H = home (the dashboard) from any app page - never while typing, in a dialog or with a modifier key */
         if (k === "h" && !e.shiftKey) { e.preventDefault(); if (!/^dashboard(\.html)?$/.test(page)) location.href = abs("dashboard.html"); return; }
-        if (e.key === "?") { e.preventDefault(); helpOpen(); return; }
+        if (e.key === "?") { e.preventDefault(); helpOpen(); helpAt = Date.now(); return; }
         if (k === "n" && !e.shiftKey) {
           var chev = document.querySelector(".hb-split:not([hidden]) .hb-chev"), nq = document.querySelector(".hb-split:not([hidden]) .hb-new:not(.hb-chev):not([hidden])");
           if (chev) { e.preventDefault(); chev.click(); } else if (nq) { e.preventDefault(); nq.click(); }

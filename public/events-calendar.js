@@ -29,7 +29,11 @@
   var KHINT = { confirmed: "booked", tentative: "still a quote", lead: "enquiry, no quote yet" };
   var VIEWS = ["month", "week", "day"];
   var MAXSPAN = 31;
-  var hhmm = function (t) { var m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); return m ? pad(+m[1]) + ":" + m[2] : ""; };
+  // R36: "6:30 PM" sorts/labels as 18:30 (HelmCountry.parseTime); without it only plain 24h is trusted
+  var hhmm = function (t) {
+    var HC = window.HelmCountry; if (HC && HC.toHHMM) return HC.toHHMM(t);
+    var m = /^(\d{1,2}):(\d{2})(?!\d|\s*[ap]\.?\s*m)/i.exec(String(t || "")); return m && +m[1] < 24 && +m[2] < 60 ? pad(+m[1]) + ":" + m[2] : "";
+  };
   var numLoc = function () { try { var B = window.BPStore; return B && B.studioLocale ? B.studioLocale() : undefined; } catch (e) { return undefined; } };
   var guestsTxt = function (g) { var n = Math.round(Number(g)); return n > 0 ? n.toLocaleString(numLoc()) + (n === 1 ? " guest" : " guests") : ""; };
 
@@ -53,7 +57,8 @@
   function mount(root, opts) {
     opts = opts || {};
     var itemsFn = opts.items || function () { return []; };
-    var todayFn = opts.today || function () { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
+    // r37: default "today" = the STUDIO's day (BPStore.todayLocal), the device day only without a studio store
+    var todayFn = opts.today || function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, t = B && B.todayLocal ? B.todayLocal() : ""; if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; } catch (e) {} var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
     var fmt = opts.fmt || function (s, o) { var d = toD(s); return d ? d.toLocaleDateString(undefined, Object.assign({ timeZone: "UTC" }, o)) : ""; };
     var kinds = (opts.kinds || KINDS).filter(function (k) { return KINDS.indexOf(k) >= 0; });
     var st = { view: VIEWS.indexOf(opts.view) >= 0 ? opts.view : "month", anchor: todayFn(), show: {}, type: "", focusDay: null };

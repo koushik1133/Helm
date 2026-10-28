@@ -172,7 +172,7 @@ function loadTour(auth) {
   const ctx = { window, document, location: { pathname: '/dashboard.html' }, localStorage: { getItem: () => null, setItem: noop },
     getComputedStyle: () => ({ display: 'block', visibility: 'visible', overflow: 'visible', overflowX: 'visible', overflowY: 'visible', position: 'static' }),
     requestAnimationFrame: noop, setTimeout: noop, matchMedia: () => ({ matches: true }), console };
-  vm.runInNewContext(TSRC, ctx);
+  vm.runInNewContext(read('public/page-tours.js') + '\n' + TSRC, ctx);   // R46: page-tours.js loads just before tour.js
   return { T: window.HelmTour, document };
 }
 const coordAuth = { canView: async (a) => !['finance', 'nurture', 'controls', 'insights'].includes(a),
@@ -224,7 +224,7 @@ const shownFor = (can) => Array.from(TOUR).filter((st) => [].concat(st.need || [
 t('dashboard tour: admins get exactly the admin wording; the coordinator gets no admin-only wording', () => {
   const admin = shownFor(() => true), plain = Array.from(TOUR, (st) => ({ title: st.title, desc: st.desc }));
   assert.deepEqual(J(admin), J(plain), 'admin / owner wording unchanged');
-  assert.equal(admin.length, 22);
+  assert.equal(admin.length, 23);   // r47: + My events & tasks
   const co = shownFor(coordCan), text = co.map((s) => s.title + ' ' + s.desc).join('\n');
   { const cs = co.find((s) => s.title === 'Create something new'); assert.ok(!cs || !/New quote/.test(cs.desc), 'no New quote wording without quote create'); }   // r20 planner: the plain "New" menu step
   for (const bad of [/payments/i, /revenue/i, /P&L/, /Nurture/, /Settings/, /into a quote in one click/, /Business shows/]) assert.doesNotMatch(text, bad, String(bad));

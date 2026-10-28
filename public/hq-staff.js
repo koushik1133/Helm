@@ -23,7 +23,7 @@
   ];
   // which permission opens which HQ page
   var TAB_PERM = { overview: "overview.read", studios: "studios.read", requests: "inbox.read", billing: "billing.read", plans: "plans.read",
-    people: "people.read", activity: "security.read", staff: "staff.read" };
+    people: "people.read", activity: "security.read", staff: "staff.read", settings: "settings.read", privacy: "self" };   // r28: Data & privacy (every HQ person)   // r28: Settings (invoice, checkout, data handling)
   // the rows of "What each role can do" (plain words)
   var MATRIX = [
     ["Overview numbers", "overview.read"], ["See studios", "studios.read"], ["Change a studio's name, details, trial", "studios.edit"],

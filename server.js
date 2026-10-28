@@ -192,7 +192,7 @@ const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'X-Frame-Options': 'DENY',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=(), browsing-topics=()',
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Resource-Policy': 'same-origin',
   'Content-Security-Policy': CSP.base,
@@ -200,7 +200,7 @@ const SECURITY_HEADERS = {
 // Chat and the crew work link (/work, /<studio>/work/<ref>: voice note on a rejected
 // task, 0038) record voice notes, so only those pages may use this site's own
 // microphone. Camera stays off: photo buttons are plain file pickers / capture inputs.
-const CHAT_PERMISSIONS = 'camera=(), microphone=(self), geolocation=(), payment=()';
+const CHAT_PERMISSIONS = 'camera=(), microphone=(self), geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=(), browsing-topics=()';
 const MIC_PAGES = new Set(['chat', 'work']);
 
 // Search-engine policy: only the marketing pages are indexable. Every other
@@ -384,6 +384,19 @@ function serveStatic(req, res) {
   if (rel === '/signup') return serveFile(res, req, path.join(PUBLIC_DIR, 'login.html'));
   // R38: /settings is the studio Settings page (parity with the vercel.json rewrite); /control keeps working.
   if (rel === '/settings') return serveFile(res, req, path.join(PUBLIC_DIR, 'control.html'));
+  // r29 referrals (phase 1): a personal link /r/<CODE> → /signup?ref=<CODE>. The code is re-checked against the strict
+  // shape (A-Z 0-9 - _, 3-24 chars) and re-encoded, so the Location is always same-site; anything else → plain /signup.
+  // ?demo=1 is carried over for the localhost click-through demo only (the demo files ignore it on other hosts).
+  {
+    const rm = /^\/r\/([^/]{1,40})\/?$/.exec(rel);
+    if (rm) {
+      const code = String(rm[1]).trim().toUpperCase();
+      const ok = /^[A-Z0-9][A-Z0-9_-]{2,23}$/.test(code);
+      const demo = /(^|[?&])demo=1(&|$)/.test(query.replace(/^\?/, '')) ? '&demo=1' : '';
+      res.writeHead(302, { Location: ok ? '/signup?ref=' + encodeURIComponent(code) + demo : '/signup', 'Cache-Control': 'no-store', ...securityHeadersFor(req, path.join(PUBLIC_DIR, 'login.html')) });
+      return res.end();
+    }
+  }
 
   // Public digital-invitation sites: /i/<slug> is served by invite.html, which
   // reads the slug from the path and fetches ONLY the published display fields.

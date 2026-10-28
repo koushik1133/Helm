@@ -68,6 +68,8 @@
   function cameraOpts(camera, c, focus) {
     var o = { labels: 'none' }, P = window.HelmPhotoPrompt;
     if (camera === 'current') {
+      // R49: during the walkaround the current stop is re-framed for the render's own 16:9 picture (no stop card in it)
+      try { var wt = window.HelmWalkthrough && window.HelmWalkthrough._ui && window.HelmWalkthrough._ui.viewFor ? window.HelmWalkthrough._ui.viewFor(16 / 9) : null; if (wt) { o.view = wt; return o; } } catch (e) {}
       try { var h = window.__helm3D; if (h && h.isActive && h.isActive() && h.getView) { var g = h.getView(); if (g) { o.view = { pos: g.pos, target: g.target, fov: g.fov }; return o; } } } catch (e) {}
       camera = 'auto';   // 3D view not open: fall back to the best angle
     }

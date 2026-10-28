@@ -9,7 +9,7 @@
    * HQ console, booklet, checkout/sim-pay, onboarding, auth pages, 2D builder and floor plan keep their own layout. */
   var APP = { audit: 1, budget: 1, business: 1, calendar: 1, chat: 1, client: 1, closure: 1, command: 1, control: 1, crm: 1, dashboard: 1, design: 1,
     discovery: 1, event: 1, flow: 1, inbox: 1, insights: 1, integrations: 1, inventory: 1, "invite-studio": 1, issues: 1, leads: 1, logistics: 1, media: 1, nurture: 1,
-    ops: 1, plan: 1, proposal: 1, quotes: 1, ready: 1, reports: 1, resources: 1, runsheet: 1, settlement: 1, staff: 1, teardown: 1,
+    ops: 1, plan: 1, proposal: 1, quotes: 1, ready: 1, refer: 1, reports: 1, resources: 1, runsheet: 1, settlement: 1, staff: 1, teardown: 1,
     templates: 1, vendors: 1 };
   var PRETTY = { dashboard: "dashboard", quotes: "quotes", leads: "leads", chat: "chat", settings: "control", events: "event", clients: "client" };
   function appPage(path) {
@@ -25,7 +25,7 @@
   try { localStorage.removeItem("helm.dash.v"); } catch (e) {}
   {
     /* SHELL_V: bump this whenever any shell-* file changes, so browsers refetch (was Date.now(), which defeated caching) */
-    var SHELL_V = "144", root = document.documentElement, head = document.head;
+    var SHELL_V = "150", root = document.documentElement, head = document.head;
     window.HELM_SHELL_V = SHELL_V;
     root.setAttribute("data-shell", v);
     /* 0181 free trial: a studio last seen in its trial is locked before first paint (cached flag, same as trial-early.js);

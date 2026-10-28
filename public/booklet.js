@@ -41,10 +41,17 @@
     const v = num(n); if (v == null) return "—";
     try { return new Intl.NumberFormat(FMT.locale, { style: "currency", currency: FMT.currency, maximumFractionDigits: 0 }).format(v); } catch (e) { return String(Math.round(v)); }
   }
+  // R36: parse with HelmCountry.parseTime so "6:30 PM" stays PM (the old H:MM-only match made it 6:30 AM).
+  // Without country-profile.js a 12h string is shown as typed rather than guessed.
+  function parseTime(t) {
+    const HC = global.HelmCountry; if (HC && HC.parseTime) return HC.parseTime(t);
+    const m = /^(\d{1,2}):(\d{2})(?!\d|\s*[ap]\.?\s*m)/i.exec(String(t == null ? "" : t));
+    return m && +m[1] < 24 && +m[2] < 60 ? { h: +m[1], m: +m[2] } : null;
+  }
   function fmtTime(t) {
-    const m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); if (!m) return t ? String(t).slice(0, 40) : "";
-    const dt = new Date(2000, 0, 1, Number(m[1]), Number(m[2]));
-    try { return dt.toLocaleTimeString(FMT.locale, { hour: "numeric", minute: "2-digit" }); } catch (e) { return m[1] + ":" + m[2]; }
+    const p = parseTime(t); if (!p) return t ? String(t).slice(0, 40) : "";
+    const dt = new Date(2000, 0, 1, p.h, p.m);
+    try { return dt.toLocaleTimeString(FMT.locale, { hour: "numeric", minute: "2-digit" }); } catch (e) { return p.h + ":" + (p.m < 10 ? "0" : "") + p.m; }
   }
   // a maps search link for the venue (external, no app links); only https and a text query
   function mapLink(e) {
@@ -410,6 +417,7 @@
     if (status !== "due" && status !== "part_paid" && status !== "invoiced") return status;
     const d = String(due || "").slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return status;
     let today = ""; try { today = global.BPStore && global.BPStore.todayLocal ? global.BPStore.todayLocal() : ""; } catch (e) { today = ""; }
+    if (!today) { try { var H = global.HelmCountry; if (H && H.todayIn) today = H.todayIn(FMT.currency === "AED" ? "Asia/Dubai" : "Asia/Kolkata"); } catch (e) {} }   // r37: the studio's day
     if (!today) today = new Date().toISOString().slice(0, 10);
     return d < today && !(Number(remaining) <= 0.5 && remaining != null) ? "overdue" : status;
   }

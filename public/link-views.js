@@ -20,6 +20,8 @@
     var S = global.BPStore;
     if (S && S.fmtStudioDate) { try { var o = S.fmtStudioDate(v, { time: true }); if (o) return o; } catch (e) {} }
     var d = new Date(v); if (isNaN(d.getTime())) return "";
+    // r37: the fallback reads the STUDIO's wall clock too (never the viewer's browser zone)
+    try { var H = global.HelmCountry, tz = S && S.studioTimezone ? S.studioTimezone() : "Asia/Kolkata"; if (H && H.wallDate) d = H.wallDate(tz, d); } catch (e) {}
     var p = function (n) { return String(n).padStart(2, "0"); };
     return p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear() + ", " + p(d.getHours()) + ":" + p(d.getMinutes());
   }

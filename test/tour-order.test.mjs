@@ -37,11 +37,11 @@ t('dashboard tour follows the on-screen reading order exactly', () => {
     '(card)',                                                     // welcome
     'pin', 'rail:dashboard', 'rail:quotes', 'rail:leads', 'rail:calendar', 'rail:chat', 'nav-manage', 'nav-admin', 'theme', 'account',   // sidebar
     'search', 'privacy', 'chat', 'bell', 'new',                   // top bar, left to right
-    'today', 'hero', 'customize', 'kpis',                         // main content, top to bottom
+    'today', 'hero', 'customize', 'kpis', '#myworkSection',                      // main content, top to bottom
     'setup',                                                      // getting-started checklist
     '(card)',                                                     // wrap-up
   ]);
-  assert.match(TOUR[TOUR.length - 1].desc, /Take a guided tour/);
+  assert.match(TOUR[TOUR.length - 1].desc, /Tour this page/);
 });
 
 t('welcome step: trial wording for a free-trial studio, studio wording for a paid one', () => {
@@ -53,7 +53,7 @@ t('welcome step: trial wording for a free-trial studio, studio wording for a pai
   assert.doesNotMatch(tr, /8-day|Demo ·/);
   assert.match(pd, /^Welcome to Helm — here's a quick look around your studio\./);
   assert.doesNotMatch(pd, /trial|sample data|Demo/i);
-  assert.equal(TOUR.length, 22, 'still 22 steps');
+  assert.equal(TOUR.length, 23, 'still 23 steps (r47: + My events & tasks)');
 });
 
 t('sidebar steps sit beside the rail (side:"right"), top-bar / content steps do not', () => {
@@ -89,17 +89,18 @@ t('the generic shell tour (pages without their own steps) also goes sidebar firs
 t('per-page steps follow each toolbar left to right, then the content below', () => {
   const T = loadTour().T;
   const sels = (pg) => Array.from(T._steps[pg], (s) => (Array.isArray(s.sel) ? s.sel[0] : s.sel));
-  assert.deepEqual(sels('quotes.html'), ['#tabs', '#search', '#newBtn', '#rows']);
-  assert.deepEqual(sels('leads.html'), ['#search', '#newBtn', '#board']);
-  assert.deepEqual(sels('staff.html'), ['#search', '#newBtn', '#grid']);
-  assert.deepEqual(sels('inventory.html'), ['#eventPanel', '#pane-loans', '#newBtn']);
+  // R46: every page tour has 4-8 steps (page-tours.js), still in on-screen order
+  assert.deepEqual(sels('quotes.html'), ['#tabs', '#search', '#typeFilter', '#newBtn', '#rows']);
+  assert.deepEqual(sels('leads.html'), ['#search', '#archBtn', '#enqBtn', '#newBtn', '#board']);
+  assert.deepEqual(sels('staff.html'), ['#search', '#deptFilter', '#importBtn', '#newBtn', '#grid']);
+  assert.deepEqual(sels('inventory.html'), ['#eventPanel', '#search', '#seedBtn', '#newBtn', '#pane-loans', '#lossRows']);
   // r20: the builder's first-run tour walks the one-row header left to right (the r19 two-row header was reverted), then the panels
   assert.deepEqual(sels('builder.html'), ['header .brand', '#preset', '#refField', '#customBtn', '#unitSel', '.seg:has(#snapBtn)', '#viewSeg',
-    '.wt-field', '#measureBtn', '.hg-edit', '#projName', '#verSel', '#designChip', '#backToFlowBtn', '#saveBtn', '#loadBtn', '#clientImgBtn',
+    '.wt-field', '#wtStart', '#measureBtn', '.hg-edit', '#projName', '#verSel', '#designChip', '#backToFlowBtn', '#saveBtn', '#loadBtn', '#clientImgBtn',
     '#moreMenu', '.hg-cap', '.bp-priv-slot .hbp-btn', '#toolbox', '#fabStack', '#rightPanel']);
   // and that is the DOM order of those elements on the page
-  for (const [pg, ids] of [['quotes.html', ['tabs', 'search', 'newBtn', 'rows']], ['leads.html', ['search', 'newBtn', 'board']],
-    ['staff.html', ['search', 'newBtn', 'grid']], ['builder.html', ['preset', 'refField', 'customBtn', 'unitSel', 'snapBtn', 'viewSeg', 'measureBtn', 'undoBtn',
+  for (const [pg, ids] of [['quotes.html', ['tabs', 'search', 'typeFilter', 'newBtn', 'rows']], ['leads.html', ['search', 'archBtn', 'enqBtn', 'newBtn', 'board']],
+    ['staff.html', ['search', 'deptFilter', 'importBtn', 'newBtn', 'grid']], ['inventory.html', ['eventPanel', 'search', 'seedBtn', 'newBtn', 'pane-loans', 'lossRows']], ['builder.html', ['preset', 'refField', 'customBtn', 'unitSel', 'snapBtn', 'viewSeg', 'measureBtn', 'undoBtn',
       'projName', 'verSel', 'designChip', 'backToFlowBtn', 'saveBtn', 'loadBtn', 'clientImgBtn', 'moreMenu', 'capInput', 'toolbox',
       'fabStack', 'rightPanel']]]) {
     const H = r(pg), pos = ids.map((id) => H.indexOf('id="' + id + '"'));
@@ -144,7 +145,7 @@ function loadTour({ els = {}, trial = false, vw = 1280, vh = 800 } = {}) {
   const ctx = { window, document, location: { pathname: '/dashboard.html' }, localStorage: { getItem: () => null, setItem: noop },
     getComputedStyle: (el) => (el && el._cs) || { display: 'block', visibility: 'visible', overflow: 'visible', overflowX: 'visible', overflowY: 'visible', position: 'static' },
     requestAnimationFrame: noop, setTimeout: noop, matchMedia: () => ({ matches: true }), console };
-  vm.runInNewContext(SRC, ctx);
+  vm.runInNewContext(r('page-tours.js') + '\n' + SRC, ctx);   // R46: page-tours.js loads just before tour.js
   return { T: window.HelmTour, document };
 }
 const S = (sel, title, extra) => Object.assign({ sel, title, desc: title }, extra);

@@ -1,135 +1,42 @@
 /* =========================================================================
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
-   One engine, many pages. Each page's steps live in STEPS keyed by filename.
-   A page opts in simply by including  <script src="tour.js?v=25"></script>.
+   One engine, many pages. Each page's steps live in page-tours.js (R46: the
+   single source of truth, keyed by page and Settings section).
+   A page opts in by including page-tours.js then tour.js; the app shell's
+   "Tour this page" (the "?" menu, the sidebar) loads both on demand.
 
    • Injects its own spotlight CSS (pages need no markup).
    • Renders a floating "? Tour" button, or wires an existing #helpBtn.
-   • Auto-starts once per page for signed-in first-time visitors.
+   • Never auto-starts by itself (only the dashboard / builder first-run tours
+     call start() once); remembers "seen" per page / section; always replayable.
+   • Next / Back / Skip, arrow keys, Esc closes, focus stays in the card and
+     returns to where it was; respects prefers-reduced-motion.
    • Robust: a step whose target is missing is SKIPPED, not fatal — this is
      the fix for the old "tour jumps straight to the end" bug.
    ========================================================================= */
 (function () {
   "use strict";
 
-  /* ---- per-page steps: { selector, title, desc } --------------------- */
-  const STEPS = {
-    // Steps follow the on-screen reading order: the top bar left to right, then the
-    // panels below it (the old order jumped between the bar and the toolbox).
-    "builder.html": [
-      // r20: the header is the one-row header again (left to right: logo, start a floor, units / grid / view /
-      // measure, undo / redo / clear, this layout, capacity, hide amounts), then the toolbox, the view dock and the
-      // price panel. Controls that are hidden here (outside a quote, in a free trial, for this role or screen) are skipped.
-      { sel: "header .brand", title: "Back home", desc: "The Helm logo takes you back to your events. Tip: press H (when you are not typing) to jump home to the dashboard from any screen." },
-      { sel: "#preset", title: "Start from a template", desc: "Want a head start? Pick a ready-made layout (wedding, conference, concert...) or one of your own templates, then tweak it." },
-      { sel: "#refField", title: "Reuse a past event", desc: "Copies the floor of one of your earlier events onto this canvas, at today's prices." },
-      { sel: "#customBtn", title: "...or create your own floor", desc: "Type your hall length x breadth and guest count; Helm sizes the canvas to your hall and arranges the seating." },
-      { sel: "#unitSel", title: "Units", desc: "Work in feet or metres." },
-      { sel: [".seg:has(#snapBtn)", "#snapBtn"], title: "Snap and Grid", desc: "Snap makes objects jump to the grid lines when you move them; Grid shows or hides the lines." },
-      { sel: "#viewSeg", title: "2D, 3D and Render", get desc() { return inTrial()
-        ? "Edit in the 2D plan, walk around it in 3D, or press Render for a realistic 3D look of the same floor. AI photos of the plan come with a paid plan."
-        : "Edit in the 2D plan, walk around it in 3D, or press Render to make a photo-like picture of the plan. All three show the same floor."; } },
-      { sel: [".wt-field", "#wtStart"], title: "Explore in 3D", desc: "Walkthrough takes a guided 3D walk through the venue. In the 3D view you also get Overview, Floor plan and Evening lighting." },
-      { sel: "#measureBtn", title: "Measure", desc: "Turn on Measure, then select an object to see its distance from all four walls and its nearest neighbour on every side." },
-      { sel: ".hg-edit", title: "Undo, Redo, Clear", desc: "Step back or forward through your changes (⌘Z / ⌘⇧Z). Clear removes every object - you can still Undo it." },
-      { sel: "#projName", title: "Name this layout", desc: "The event or quote name. Saved with every version of the floor." },
-      { sel: "#verSel", title: "Versions", desc: "Every Save keeps a numbered version. Pick an older one to look at it; saved versions are never changed." },
-      { sel: "#designChip", title: "Design stage", desc: "Opens the Design Studio for this event." },
-      { sel: "#backToFlowBtn", title: "Save & back to the quote", desc: "Saves this floor as a new version and takes you back to the quotation, re-priced from the chairs you placed." },
-      { sel: "#saveBtn", title: "Save", desc: "Saves a new version of this floor (⌘S / Ctrl+S). The chair count flows straight into the price breakdown on the right." },
-      { sel: "#loadBtn", title: "Open", desc: "Open another saved layout." },
-      { sel: "#clientImgBtn", trial: false, title: "Client images", desc: "Captures a clean 2D plan and 3D view of this floor for the client booklet." },
-      { sel: "#moreMenu", title: "More", desc: "Download the floor as a PNG picture or a JSON file, or import a JSON layout." },
-      { sel: ".hg-cap", title: "Capacity & seats", desc: "Type the venue's capacity; the chip shows the seats placed against it and warns when a block is packed too tight to walk through." },
-      { sel: [".bp-priv-slot .hbp-btn", ".bp-priv-slot"], title: "Hide amounts", desc: "The eye hides every price on the screen - handy when a client is looking over your shoulder. Showing them again asks for your PIN." },
-      { sel: "#toolbox", side: "right", title: "Drag any asset", desc: "Drag stages, chairs, tables, bars, exits - anything - onto the floor. Every object can be moved, resized and rotated." },
-      { sel: "#fabStack", title: "Zoom & move around", desc: "Zoom out / in, FIT the whole floor, the arrows to pan and fullscreen. These sit under the floor so they never cover it. To hide them, press the down arrow (⌄); the small “⊕ View” button brings them back." },
-      { sel: "#rightPanel", side: "left", title: "Price & inspector", desc: "The menu package, guests and live price for this floor. Select an object to edit its size, position, rotation and colour here." },
-    ],
-    "quotes.html": [
-      { sel: "#tabs", title: "Find confirmed fast", desc: "Active · Quotes · Confirmed · Archive · Deleted. Confirmed events rise to the top and are highlighted so you never scroll to find them." },
-      { sel: "#search", title: "Search", desc: "Jump to any quote by client name or quote code." },
-      { sel: "#newBtn", need: ["create", "edit:quotes"], title: "Start a new quote", desc: "Price a fresh event here. It becomes the event everything else hangs off." },
-      { sel: "#rows", uses: "edit:quotes", alt: (can) => can("edit:quotes") ? null : { desc: "Click a row to open the event and see its details." },
-        title: "Your quotes", desc: "Click a row to open it, confirm it, re-price it, or take client approval by OTP / consent / payment link." },
-    ],
-    "flow.html": [
-      { sel: "#code", title: "The event workspace", desc: "Every stage of this one event lives here, top to bottom — fill it in order and nothing gets missed." },
-      { sel: "#sec-client", title: "1 · Client", desc: "Who the event is for. Saved here, reused everywhere." },
-      { sel: "#sec-discovery", title: "2 · Discovery", desc: "Capture requirements and the budget range before you price." },
-      { sel: "#sec-proposal", title: "3 · Proposal", desc: "Your pitch to the client — it sits above the floor layout so you sell first, then plan." },
-      { sel: "#sec-layout", title: "4 · Floor layout", desc: "Open the builder. The chairs you place here feed straight back into the quotation." },
-      { sel: "#sec-quote", title: "5 · Quote", desc: "Final pricing and confirmation. Confirming sets the event live." },
-      { sel: "#sec-pay", need: "finance", title: "6 · Payment", desc: "Send the client an approval + payment link and track what's paid." },
-    ],
-    "logistics.html": [
-      { sel: "#tabs", title: "Event logistics", desc: "Everything that has to happen for this event, organised by section (stage, lighting, catering…)." },
-      { sel: "#tplBar", trial: false, title: "Apply a template", desc: "Drop a saved checklist into this event in one click — no retyping the same tasks every time. (You build templates in Settings.)" },
-      { sel: "#a_title", title: "Add a one-off task", desc: "Need something the template didn't cover? Add your own task right here." },
-      { sel: "#pane", title: "Assign & track", desc: "Assign staff to each task and tick off progress as the event comes together." },
-    ],
-    "leads.html": [
-      { sel: "#search", title: "Find anyone fast", desc: "Search by name, phone or event type across every column." },
-      { sel: "#newBtn", need: "edit:leads", title: "Capture a lead", desc: "Every enquiry starts here. Click + New lead to open the form and record who got in touch." },
-      { sel: "#board", uses: "edit:leads", alt: (can) => can("edit:leads") ? null : { desc: "Leads sit in columns by stage — New, Qualified, Discovery, Quoted, Won, Lost. Open a lead to see its details." },
-        title: "The pipeline board", desc: "Leads sit in columns by stage — New, Qualified, Discovery, Quoted, Won, Lost. Drag a card between columns to move it along." },
-    ],
-    "staff.html": [
-      { sel: "#search", title: "Find a person", desc: "Search by name or role to quickly pull someone up." },
-      { sel: "#newBtn", title: "Add your team", desc: "Add an in-house team member with their name, phone and department (stage, lighting, catering…)." },
-      { sel: "#grid", title: "Your people", desc: "Everyone on the team, by department. You assign them to event tasks from an event's Logistics page." },
-    ],
-    "inventory.html": [
-      { sel: "#eventPanel", title: "Reserve for an event", desc: "Book items to a specific event — this is what the close-out later checks is returned." },
-      { sel: ["#pane-loans", '[aria-controls="pane-loans"]'], title: "Check out & back in", desc: "Issue stock to a person and record how much comes back. Anything short is flagged with its rupee value." },
-      { sel: "#newBtn", title: "Add stock", desc: "Add equipment to your inventory, graded A / B / C by value so losses are easy to price." },
-    ],
-    "vendors.html": [
-      { sel: "#kindTabs", title: "Vendor categories", desc: "Outside partners grouped by what they provide — catering, sound, décor, transport and more." },
-      { sel: "#newBtn", title: "Add a vendor", desc: "Record a partner once (contact + rates) and reuse them across events." },
-      { sel: "#grid", title: "Your partner list", desc: "Everyone you work with. Book them for the gaps your in-house team can't cover." },
-    ],
-    "calendar.html": [
-      { sel: "#agenda", title: "Every event, dated", desc: "A running schedule of all your events so nothing collides." },
-      { sel: "#conflicts", title: "Clash detection", desc: "Helm flags staff or stock booked on two events at once — before it becomes a problem on the day." },
-    ],
-    "control.html": [
-      { sel: "#tab-pricing", title: "Default pricing", desc: "Set chair price, plate price, GST % and service charge once — every new quote uses these." },
-      { sel: "#tab-users", title: "Team & roles", desc: "Invite teammates by email link and tick exactly which areas each role can view or edit." },
-    ],
-    "crm.html": [
-      { sel: "#rows", title: "Client history", desc: "Every past client and enquiry, snapshotted automatically from Leads — nothing is ever lost." },
-      { sel: "#search", title: "Search the archive", desc: "Find any past client by name, phone or event type for follow-up or a repeat booking." },
-    ],
-    "nurture.html": [
-      { sel: "#addCard", title: "Add a relationship", desc: "Keep past clients warm — record birthdays and anniversaries to greet them automatically." },
-      { sel: "#tplTabs", title: "Message templates", desc: "Set the greeting messages Helm sends, so repeat business comes to you." },
-    ],
-    "plan.html": [
-      { sel: "#dishSearch", title: "Build the menu", desc: "Search the dish catalog and add items to this event's menu." },
-      { sel: "#lockBtn", title: "Lock the plan", desc: "Once the menu and details are final, lock the plan so numbers don't drift before the event." },
-    ],
-    "runsheet.html": [
-      { sel: "#r_add", title: "Add a run-sheet item", desc: "Build a timed schedule of the day — each moment, who owns it and when." },
-      { sel: "#printBtn", trial: false, title: "Print / share", desc: "Print the run-sheet or share it so everyone runs to the same timeline." },
-    ],
-    "command.html": [
-      { sel: "#pullBtn", title: "Pull the roster", desc: "Load the assigned staff for the day so you can check them in as they arrive." },
-      { sel: "#chkAdd", title: "Day-of checklist", desc: "Tick tasks off live as the event runs." },
-      { sel: "#gst_add", title: "Guests & stock", desc: "Check in guests and track stock used through the day." },
-    ],
-    "closure.html": [
-      { sel: "#c_feedback", title: "Capture feedback", desc: "Record the client's feedback and a quotable testimonial for your marketing." },
-      { sel: "#rateAdd", title: "Rate vendors & staff", desc: "Score who worked well so you know who to rebook next time." },
-      { sel: "#closeBtn", title: "Close & archive", desc: "Once all equipment is returned, close the event. It moves to the Archive tab with a clean P&L." },
-    ],
-    "event.html": [
-      { sel: "#steps", title: "The event lifecycle", desc: "Every stage of this event, from proposal to settlement. Click a step to jump straight to it." },
-      { sel: "#inviteBtn", title: "Invitation website", desc: "Once confirmed, build a public invitation site for the client to share with guests." },
-      { sel: "#advBtn", title: "Advance the stage", desc: "Move the event forward — discovery → proposal → quote → confirmed → planning, and on." },
-    ],
-  };
+  /* ---- per-page steps live in page-tours.js (window.HelmPageTours) ------
+     R46: ONE data file holds every page's tour (and one per Settings
+     section). This engine reads it; it never keeps steps of its own. Pages that
+     include tour.js include page-tours.js just before it; anything else (the
+     app shell's "Tour this page") loads it on demand (ensureData below). */
+  const PT_V = "4";
+  function PT() { return window.HelmPageTours || null; }
+  function ensureData(cb) {
+    if (PT()) { cb(); return; }
+    try {
+      let s = document.querySelector('script[data-helm-page-tours]');
+      if (!s) {
+        s = document.createElement("script"); s.src = "/page-tours.js?v=" + PT_V; s.async = true;
+        s.setAttribute("data-helm-page-tours", "1"); document.head.appendChild(s);
+      }
+      s.addEventListener("load", () => cb());
+      s.addEventListener("error", () => cb());
+    } catch (_) { cb(); }
+  }
 
   /* ---- optional form coaching: runs once when a page's create-modal opens -- */
   const FORMS = {
@@ -153,9 +60,13 @@
   try { const H = window.HelmUrl; routed = H && typeof H.route === "function" && H.route() && typeof H.page === "function" ? H.page() : null; } catch (_) { routed = null; }
   const base = (routed || location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "");
   const page = base || "index";
-  // Pages without built-in steps (e.g. the dashboard, which passes its own list to
+  // Pages without steps of their own (e.g. the dashboard, which passes its own list to
   // HelmTour.start) still get the engine, just no "? Tour" button of our own.
-  const steps = STEPS[page + ".html"] || STEPS[page] || [];
+  // A sectioned page (Settings) picks the section on screen at the moment the tour starts.
+  function pageEntry() { const P = PT(); return P ? P.entry(page) : null; }
+  function pageSection() { const P = PT(); return P ? P.sectionOf(page) : null; }
+  function pageSteps() { const P = PT(); return P ? P.stepsFor(page) : []; }
+  function pageKey() { const P = PT(); return P ? P.seenKey(page, pageSection()) : "helm_tour_seen_" + page; }
 
   /* ---- inject spotlight styles once ---------------------------------- */
   const css = `
@@ -165,6 +76,7 @@
   .htour .arrow{position:absolute;color:var(--hb-acc,var(--accent,#2450f0));font-size:28px;line-height:1;
     filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));animation:htbob 1s ease-in-out infinite}
   @keyframes htbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @media (prefers-reduced-motion:reduce){.htour .arrow{animation:none}.htour .tip{transition:none}}
   .htour .tip{position:absolute;max-width:calc(100vw - 24px);box-sizing:border-box;max-height:calc(100vh - 24px);overflow:auto;background:var(--hb-bg,var(--panel,#fff));color:var(--hb-ink,var(--ink,#1b1930));
     border:1px solid var(--hb-line,var(--line,#e8e3db));border-radius:14px;box-shadow:0 10px 30px rgba(20,18,40,.22);
     padding:16px 18px;pointer-events:auto}
@@ -183,6 +95,7 @@
   .htour-fab{position:fixed;left:16px;bottom:16px;z-index:8000;height:34px;padding:0 14px;border-radius:20px;
     border:1px solid var(--hb-line,var(--line,#e8e3db));background:var(--hb-bg,var(--panel,#fff));color:var(--hb-acc-text,var(--accent,#047857));font-family:inherit;
     font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 14px rgba(20,18,40,.14);display:inline-flex;align-items:center;gap:5px}
+  @media print{.htour,.htour-fab{display:none!important}}
   .htour-fab:hover{border-color:var(--hb-acc-text,var(--accent,#047857));background:var(--hb-acc-soft,var(--accent-soft,#e3f4ed))}
   @media (max-width:767.98px){body.hmn-on:not(.hmn-kb) .htour-fab{bottom:calc(72px + env(safe-area-inset-bottom,0px))}}
   @media (min-width:820px){html.htour-tuck:not(.hb-pinned) .hb-rail{width:var(--hb-w)!important;box-shadow:none!important}
@@ -194,7 +107,7 @@
 
   /* ---- engine -------------------------------------------------------- */
   let list = [], i = 0, root = null, endKey = "helm_tour_seen_" + page;
-  const seenKey = "helm_tour_seen_" + page;
+  const seenKey = "helm_tour_seen_" + page;   // form coaching / custom lists; page tours use pageKey()
 
   // A target counts as "present" when it exists, isn't [hidden], isn't inside a
   // display:none / visibility:hidden / collapsed ancestor, and actually occupies
@@ -415,7 +328,7 @@
     window.removeEventListener("orientationchange", onView);
     if (window.visualViewport) { visualViewport.removeEventListener("resize", onView); visualViewport.removeEventListener("scroll", onView); }
     if (ro) { ro.disconnect(); ro = null; }
-    try { localStorage.setItem(endKey, "1"); } catch (_) {}
+    if (had) { try { localStorage.setItem(endKey, "1"); } catch (_) {} }   // R46: only a tour that really ran is "seen"
     if (had && opener && opener.isConnected) { try { opener.focus({ preventScroll: true }); } catch (_) {} }
     opener = null;
   }
@@ -463,7 +376,9 @@
 
   // role-aware steps (need / uses) resolve their access first; plain steps start right away
   function start(customSteps, key) {
-    const src = customSteps || steps;
+    if (!customSteps && !PT()) { ensureData(() => { if (PT()) start(null, key); }); return; }
+    if (!customSteps) key = key || pageKey();
+    const src = customSteps || pageSteps();
     const pending = (src || []).some((st) => st && toks(st.need).concat(toks(st.uses)).some((t) => !(t in access)));
     if (pending) { const seq = ++startSeq; prepare(src).then(() => { if (seq === startSeq) startNow(customSteps, key); }); return; }
     startSeq++; startNow(customSteps, key);
@@ -475,10 +390,10 @@
     // Keep every step this studio's plan allows; whether its target is on screen
     // is decided step by step as the tour moves (shown()), so an element that
     // renders a moment later is still visited and a hidden one is skipped.
-    list = (customSteps || steps).filter(allowed);
+    list = (customSteps || pageSteps()).filter(allowed);
     visCache = null;
     const first = nextShown(-1, 1);
-    if (first < 0) { list = []; return; }
+    if (first < 0) { list = []; return false; }
     opener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
     i = first;
     root = document.createElement("div");
@@ -499,7 +414,23 @@
     if (typeof ResizeObserver === "function") ro = new ResizeObserver(onView);
     place();
     try { root.querySelector(".next").focus({ preventScroll: true }); } catch (e) {}
+    return true;
   }
+
+  // R46 "Tour this page": this page's tour (the section on screen for Settings). When the page has
+  // none, or nothing of it is on screen for this role / plan right now, the fallback list runs instead
+  // (the app shell passes its generic tour), so the button never does nothing.
+  function startPage(fallback, fallbackKey) {
+    ensureData(() => {
+      const src = pageSteps(), key = pageKey();
+      const run = (s, k) => { const seq = ++startSeq; return prepare(s).then(() => seq === startSeq ? startNow(s, k) : true); };
+      (src.length ? run(src, key) : Promise.resolve(false)).then((ok) => {
+        if (!ok && fallback && fallback.length) run(fallback, fallbackKey || "helm_tour_shell");
+      });
+    });
+  }
+  // has this page's (section's) tour been seen on this device?
+  function pageSeen() { try { return !!localStorage.getItem(pageKey()); } catch (_) { return false; } }
 
   // Pure positioning from the target's CURRENT rect — no scrolling. Safe to call
   // on every scroll/resize frame.
@@ -616,13 +547,28 @@
 
   /* ---- mount: reuse #helpBtn if present, else a floating button ------- */
   function mount() {
-    if (!steps.length) return;   // engine-only page: the page wires its own button
+    if (!PT()) return;   // page-tours.js is included just before tour.js wherever a page has its own button
+    if (!pageSteps().length) return;   // engine-only page: the page wires its own button
+    const ent = pageEntry();
+    if (ent && ent.signedIn) {   // client-facing page (the booklet): the button only for a signed-in studio member
+      let n = 0;
+      (function wait() {
+        let u = null; try { const A = window.BPStore && window.BPStore.auth; u = A && typeof A.user === "function" ? A.user() : null; } catch (_) { u = null; }
+        if (u) { mountButton(); return; }
+        if (++n < 40) setTimeout(wait, 250);
+      })();
+      return;
+    }
+    mountButton();
+  }
+  function mountButton() {
     const existing = document.getElementById("helpBtn");
     if (existing) { existing.addEventListener("click", () => start()); }
     else {
       const fab = document.createElement("button");
       fab.className = "htour-fab"; fab.type = "button";
-      fab.textContent = "? Tour"; fab.title = "Take a guided tour of this page";
+      fab.textContent = "? Tour"; fab.title = "Tour this page: a quick walk through what is on it";
+      fab.setAttribute("aria-label", "Tour this page");
       fab.addEventListener("click", () => start());
       document.body.appendChild(fab);
     }
@@ -655,7 +601,9 @@
     // for the form-coaching hints above, which remain click-triggered.)
   }
 
-  window.HelmTour = { start, end, can, prepare, wording, hasSteps: steps.length > 0, _layout: layout, _present: present, _pick: pick, _steps: STEPS,
+  window.HelmTour = { start, startPage, pageSeen, end, can, prepare, wording, get hasSteps() { return pageSteps().length > 0; },
+    get page() { return page; }, get section() { return pageSection(); }, get seenKey() { return pageKey(); },
+    _layout: layout, _present: present, _pick: pick, get _steps() { const P = PT(); return P ? P.TOURS : {}; },
     _shown: (stepsList) => { const keep = list; list = stepsList || []; try { return shown(); } finally { list = keep; } },
     _state: () => ({ i, list }) };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);

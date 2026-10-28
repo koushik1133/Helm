@@ -334,6 +334,48 @@ Deno.test("send-whatsapp: a template value linking to another site -> 400, Meta 
   } finally { rF(); rEnv(); }
 });
 
+Deno.test("send-whatsapp: R32 free text (WHATSAPP_ALLOW_TEXT=1) may link only to the Helm site", async () => {
+  resetSupaMock();
+  allowAll();
+  const rEnv = setEnv({ ...CONFIGURED, WHATSAPP_ALLOW_TEXT: "1" });
+  let sent: any = null, calls = 0;
+  const rF = installFetch((_url, init) => { calls++; sent = JSON.parse(String(init?.body)); return jsonResponse({ messages: [{ id: "wamid.t" }] }); });
+  try {
+    const h = await loadHandler(FN);
+    for (const bad of ["Urgent: verify at https://evil-phishing.example/login", "see www.evil.example", "go evil.example/login",
+                       "HTTPS://helm.events.evil.example/x", "https://user@evil.example/", "ftp://www.helm.events/x"]) {
+      const res = await h(post({ quote_id: QUOTE, number: "919800000001", text: bad }, AUTH));
+      assertEquals(res.status, 400, bad);
+    }
+    assertEquals(calls, 0, "Meta never called for an off-site link");
+    const ok = await h(post({ quote_id: QUOTE, number: "919800000001",
+      text: "Hi Priya,\nyour proposal: https://www.helm.events/p/abc\nSee you Saturday" }, AUTH));
+    assertEquals(ok.status, 200);
+    assertEquals(sent.type, "text");
+    assertEquals(sent.text.body, "Hi Priya,\nyour proposal: https://www.helm.events/p/abc\nSee you Saturday");
+    assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", text: "Thanks, confirmed for 5 pm" }, AUTH))).status, 200);
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("send-whatsapp: R32 SRV-3 bare domains with ANY ending (evil.ru, helm-pay.shop) are links too", async () => {
+  resetSupaMock();
+  allowAll();
+  const rEnv = setEnv({ ...CONFIGURED, WHATSAPP_ALLOW_TEXT: "1" });
+  let calls = 0;
+  const rF = installFetch(() => { calls++; return jsonResponse({ messages: [{ id: "wamid.t" }] }); });
+  try {
+    const h = await loadHandler(FN);
+    for (const bad of ["see evil.ru", "pay at helm-pay.shop", "evil.tk", "evil.ru/x", "verify on secure-login.top today"]) {
+      assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", text: bad }, AUTH))).status, 400, "text: " + bad);
+      assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update", params: [bad] }, AUTH))).status, 400, "param: " + bad);
+    }
+    assertEquals(calls, 0, "Meta never called");
+    for (const ok of ["Hi Priya, see helm.events", "open app.helm.events/x", "Advance Rs. 500 received, thanks", "Starts 5.30 pm"]) {
+      assertEquals((await h(post({ quote_id: QUOTE, number: "919800000001", text: ok }, AUTH))).status, 200, ok);
+    }
+  } finally { rF(); rEnv(); }
+});
+
 Deno.test("send-whatsapp: a Helm proposal link is allowed; control characters are rejected, not cleaned", async () => {
   resetSupaMock();
   allowAll();
@@ -369,5 +411,81 @@ Deno.test("send-whatsapp: unpaid default is 3 new numbers a day; a current payme
     const base = g.__supaResolver;
     g.__supaResolver = (t: string, c: any, k: any) => t === "subscription_payments" ? { data: { id: 1 }, error: null } : base(t, c, k);
     assertEquals((await h(post({ quote_id: QUOTE, number: "919800000015", template: "event_update" }, AUTH))).status, 200);
+  } finally { rF(); rEnv(); }
+});
+
+// ---- R32b: ONE link rule (R2-INJ-01 userinfo / backslash, R2-INJ-02 names, R2-SRV-01 separators / IDN / unicode dots) ----
+// Every bypass string from both round-2 reports. Each must be refused - as a template value AND as free text.
+const R32B_BYPASSES = [
+  // R2-INJ-01: "@" after ?, #, \ - the old rule took the host after the first "@"
+  "https://evil.com?@helm.events", "https://evil.com?@helm.events/pay", "https://evil.com#@helm.events", "https://evil.com#@www.helm.events",
+  "https://evil.com\\@helm.events", "https://evil.com\\@helm.events/x", "http://evil.com\\@www.helm.events", "evil.com?@helm.events",
+  "evil.ru", "helm-pay.shop", "evil.xn--p1ai", "evil。com", "https://1.2.3.4/x", "1.2.3.4/x", "1.2.3.4", "//evil.com", "hxxps://evil.com", "ftp://evil.com",
+  // R2-SRV-01: round-1 originals, upper case, punctuation, userinfo
+  "see evil.com", "see evil.ru", "pay at helm-pay.shop", "evil.tk", "https://evil.com", "evil.ru/x",
+  "PAY AT EVIL.RU", "HTTPS://EVIL.COM/x", "evil.com.", "(evil.com)", "evil.com,", "*evil.com*", "~evil.com~",
+  "helm.events@evil.com", "https://helm.events:443@evil.com/p", "https://helm.events.evil.com", "evilhelm.events",
+  // unicode dots / IDN / homographs
+  "evil。com", "evil．com", "evil｡com", "еvil.com", "һelm.events", "xn--e1afmkfd.xn--p1ai",
+  "пример.рф", "evil.онлайн", "helm.events.рф",
+  // separator tricks: a linkifier stops earlier than the old whitespace-token rule
+  "evil.com,x@helm.events", "evil.com|x@helm.events", "evil.com)@helm.events", "evil.com\\@helm.events",
+  "_evil.com_", "_pay at evil.ru_", "x_evil.com", "evil​.com", "ev­il.com", "evil.com-",
+  // the earlier R32 cases stay refused
+  "https://user@evil.example/", "javascript://www.helm.events", "ftp://www.helm.events/x", "go evil.example/login", "see www.evil.example",
+  // the company-name exception is narrow: other words, paths, www, schemes, 3 labels, "@" stay links
+  "evil.ltd", "pay.ltd/x", "pvt.ltd/pay", "www.pvt.ltd", "https://co.ltd", "http://pvt.ltd", "pvt.evil.ltd", "x@pvt.ltd", "pvt.ltd\\@evil.com",
+  // final check N2: a known ending in the MIDDLE of a run, the one-dot leader, and real-looking company pairs
+  "pay at evil.com.x", "pay at evil.com.5", "evil.com.x/pay", "evil.ru.zz", "evil.com.Srinivas", "evil.com.-x", "evil.com\u2024x", "evil\u2024com",
+  "evil.com\u2024\u2024", "evil\ufe52com", "inc.co", "ltd.co", "co.co", "p.co", "co.ltd?x=1", "co.co#x", "co.co:8080", "pvt.ltd:443", "pvt.ltd#x",
+  "www.co.co", "co.co/pay", "https://pvt.ltd", "http:evil.com", "https:/evil.com", "HtTpS://evil.com", "https://[::1]/x", "evil.co.uk",
+  "a@evil.com", "mailto:a@evil.com", "helm.events.evil.com",
+];
+const R32B_ALLOWED = [
+  "https://www.helm.events/pay/abc", "www.helm.events/i/slug", "helm.events", "Pay: https://www.helm.events/q?t=1.", "app.helm.events/x",
+  "(https://www.helm.events/p)", "Rs. 5,000.00 due", "v2.0 ready", "Hall No.5 at 6.30pm", "Call K.Srinivas", "Crew: K.Srinivas", "Dr.Rao",
+  "Venue: Hotel.Grand", "Rs.5000", "10.30am", "No.5", "Advance Rs. 500 received, thanks", "Starts 5.30 pm", "Priya & Arjun",
+  // company names (R32b): Pvt.Ltd and friends are names, not links
+  "Pvt.Ltd", "Sharma Decor Pvt.Ltd.", "XYZ Co.Ltd", "Sharma Decor Pvt.Ltd,", "ABC P.Ltd", "ABC Inc.Ltd", "PVT.LTD", "Shree Co.Ltd",
+  "Mr.Ravi", "St.Marys", "S.R.Nagar", "Ver.2", "Pay https://www.helm.events./x",
+];
+
+async function waModule(): Promise<any> {
+  const orig = (Deno as any).serve;
+  (Deno as any).serve = () => ({ finished: Promise.resolve(), shutdown() {}, ref() {}, unref() {} });
+  try { return await import(`${FN}?v=${crypto.randomUUID()}`); } finally { (Deno as any).serve = orig; }
+}
+
+Deno.test("send-whatsapp: R32b every round-2 link bypass is refused; names / amounts / versions pass (unit)", async () => {
+  const rEnv = setEnv(CONFIGURED);
+  try {
+    const m = await waModule();
+    const missed = R32B_BYPASSES.filter((v) => !m.offSiteLink(v, "www.helm.events") || !m.paramProblem(v, "www.helm.events"));
+    assertEquals(missed, [], "bypasses not refused");
+    const blocked = R32B_ALLOWED.filter((v) => m.offSiteLink(v, "www.helm.events") || m.paramProblem(v, "www.helm.events"));
+    assertEquals(blocked, [], "plain text wrongly refused");
+  } finally { rEnv(); }
+});
+
+Deno.test("send-whatsapp: R32b bypasses refused end-to-end (free text + template value, Meta never called); names send", async () => {
+  resetSupaMock();
+  allowAll();
+  const rEnv = setEnv({ ...CONFIGURED, WHATSAPP_ALLOW_TEXT: "1" });
+  let calls = 0;
+  const rF = installFetch(() => { calls++; return jsonResponse({ messages: [{ id: "wamid.t" }] }); });
+  try {
+    let h = await loadHandler(FN), n = 0;
+    const send = async (body: Record<string, unknown>) => {
+      if (++n % 12 === 0) h = await loadHandler(FN);   // stay under the per-user limit of 30 a minute
+      return (await h(post({ quote_id: QUOTE, number: "919800000001", ...body }, AUTH))).status;
+    };
+    for (const bad of R32B_BYPASSES) {
+      assertEquals(await send({ text: "Hi " + bad }), 400, "text: " + JSON.stringify(bad));
+      assertEquals(await send({ template: "event_update", params: ["Priya", bad] }), 400, "param: " + JSON.stringify(bad));
+    }
+    assertEquals(calls, 0, "Meta never called");
+    for (const ok of R32B_ALLOWED) {
+      assertEquals(await send({ template: "event_update", params: [ok] }), 200, "param: " + ok);
+    }
   } finally { rF(); rEnv(); }
 });

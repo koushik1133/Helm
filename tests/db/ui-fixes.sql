@@ -162,8 +162,11 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; qa uuid := 'a000
   r := public.public_get_booklet(pg_temp.get('tok')::uuid);
   perform pg_temp.res('25 booklet shows the confirmed business e-mail', r #>> '{studio,email}' = 'hello@studio-a.test', (r -> 'studio')::text);
 
-  -- clearing the e-mail clears the confirmation
+  -- clearing the e-mail clears the confirmation (r35 / 0285: clearing a CONFIRMED address needs a fresh two-step code)
+  perform pg_temp.su(); insert into auth.mfa_factors(user_id, status) select u.id, 'verified' from auth.users u where u.email = 'a_admin@a.test';
   perform pg_temp.login('a_admin@a.test');
+  perform set_config('request.jwt.claims', (auth.jwt() || jsonb_build_object('aal', 'aal2', 'amr',
+    jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', extract(epoch from now())))))::text, false);
   update public.organizations set business_email = null, business_email_confirmed = true where id = a;
   perform pg_temp.su();
   select business_email_confirmed into v from public.organizations where id = a;

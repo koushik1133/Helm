@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en" data-theme="light" class="auth-pending">
+<head>
+<style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<meta charset="utf-8">
+<base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refer a studio — Helm Events</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preload" href="/vendor/supabase-js-2.118.0.min.js" as="script" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="theme.css?v=83">
+<link rel="stylesheet" href="pages-polish-admin.css?v=1">
+<link rel="stylesheet" href="refer.css?v=1">
+<script src="/shell-proto.js?v=50" id="shellProto"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="wrap rf">
+  <header>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
+    <div><h1>Refer a studio</h1><small>Helm Events</small></div>
+    <nav class="nav" aria-label="Refer a studio"><a href="dashboard.html">Home</a><a href="control.html">Settings</a></nav>
+  </header>
+  <main id="main">
+    <div id="boot" aria-busy="true"></div>
+    <div id="rfDemo" class="rf-demobar" role="note" hidden>Demo mode on this computer: made-up studios and numbers. Nothing is saved or sent.</div>
+
+    <!-- shown until the referral program is switched on (phase 2: the server says whether it is on) -->
+    <section id="rfSoon" class="card rf-soon" hidden aria-labelledby="rfSoonH">
+      <h2 id="rfSoonH">Referrals are coming soon</h2>
+      <p class="muted">Soon every paying studio gets a personal link. When a studio you refer becomes a paying customer, you both get one month of Helm free.</p>
+      <p><a class="rf-link" href="/referral-terms" target="_blank" rel="noopener">Read the draft referral rules</a></p>
+    </section>
+
+    <div id="rfApp" class="hbp-skip" hidden><!-- hbp-skip: only public list prices here, nothing private to hide -->
+      <div class="rf-head">
+        <div>
+          <p class="rf-kick">Refer &amp; earn</p>
+          <h2 class="rf-title">Give a studio a month free. Get a month free.</h2>
+          <p class="rf-sub">Share your link with another event studio. When they become a paying Helm customer, your next billing month is free - and they get 1 free month after their first payment too.</p>
+        </div>
+      </div>
+
+      <section class="rf-hero card" aria-labelledby="rfShareH">
+        <div class="rf-share">
+          <h3 id="rfShareH">Your referral link</h3>
+          <div class="rf-linkrow">
+            <label class="sr-only" for="rfLink">Your referral link</label>
+            <input id="rfLink" type="text" readonly spellcheck="false">
+            <button class="rf-btn primary" id="rfCopyLink" type="button">Copy link</button>
+          </div>
+          <p class="rf-code">Or they can type your code at sign-up: <b id="rfCode" class="rf-codechip"></b> <button class="rf-btn ghost sm" id="rfCopyCode" type="button">Copy code</button></p>
+          <div class="rf-acts" role="group" aria-label="Share">
+            <a class="rf-btn wa" id="rfWa" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/><path d="M9 9.5c.4 2.2 2.3 4.1 4.5 4.5l1.2-1.2 1.8.8-.4 1.6c-3.9.3-7.6-3.4-7.3-7.3l1.6-.4.8 1.8z"/></svg>Share on WhatsApp</a>
+            <a class="rf-btn" id="rfMail"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/></svg>Share by e-mail</a>
+            <button class="rf-btn" id="rfCopyMsg" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Copy message</button>
+          </div>
+          <p class="rf-fine">You send it yourself, from your own WhatsApp or e-mail. Helm never e-mails people you have not met, and keeps nothing about them until they sign up.</p>
+          <p class="rf-toast" id="rfToast" role="status" aria-live="polite"></p>
+        </div>
+        <aside class="rf-next" aria-labelledby="rfNextH">
+          <h3 id="rfNextH">Your free months</h3>
+          <p class="rf-big" id="rfNextBig"></p>
+          <p class="rf-nextline" id="rfNextLine"></p>
+          <ol class="rf-sched" id="rfSched"></ol>
+        </aside>
+      </section>
+
+      <section class="rf-stats" aria-label="Your referral numbers" id="rfStats"></section>
+
+      <section class="card" aria-labelledby="rfHowH">
+        <h3 id="rfHowH">How it works</h3>
+        <ol class="rf-steps">
+          <li><span class="rf-n">1</span><div><b>Share your link</b><p>Send it to a studio owner you know, on WhatsApp or e-mail, or tell them your code.</p></div></li>
+          <li><span class="rf-n">2</span><div><b>They try Helm free</b><p>They get the 8-day free trial, then 1 free month after their first payment.</p></div></li>
+          <li><span class="rf-n">3</span><div><b>You both get a month free</b><p>After their first real payment clears (we wait 14 days for refunds), your next billing month is free.</p></div></li>
+        </ol>
+      </section>
+
+      <section class="card" aria-labelledby="rfListH">
+        <div class="rf-cardhd"><h3 id="rfListH">Studios you referred</h3>
+          <div class="rf-filter" role="group" aria-label="Show">
+            <button type="button" class="rf-chip" data-f="all" aria-pressed="true">All</button>
+            <button type="button" class="rf-chip" data-f="progress" aria-pressed="false">In progress</button>
+            <button type="button" class="rf-chip" data-f="qualified" aria-pressed="false">Earned</button>
+            <button type="button" class="rf-chip" data-f="not_qualified" aria-pressed="false">Not qualified</button>
+          </div>
+        </div>
+        <div class="rf-tablewrap"><table class="rf-table" id="rfTable">
+          <thead><tr><th scope="col">Studio</th><th scope="col">Date</th><th scope="col">Status</th><th scope="col">What it means</th></tr></thead>
+          <tbody id="rfRows"></tbody>
+        </table></div>
+        <p class="rf-fine">A studio's name shows only if they agreed at sign-up; otherwise you see their city.</p>
+      </section>
+
+      <section class="card" aria-labelledby="rfLedH">
+        <h3 id="rfLedH">Free month history</h3>
+        <ul class="rf-ledger" id="rfLedger"></ul>
+      </section>
+
+      <section class="card rf-rules" aria-labelledby="rfRulesH">
+        <h3 id="rfRulesH">The main rules</h3>
+        <ul id="rfRules"></ul>
+        <p><a class="rf-link" href="/referral-terms" target="_blank" rel="noopener">Full referral terms</a></p>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script src="/trusted-types.js?v=5"></script>
+<script src="/referral-rules.js?v=2"></script>
+<script src="/referral-demo.js?v=3"></script>
+<script src="/refer-boot.js?v=1"></script>
+<script src="telemetry.js?v=9"></script>
+<script src="config.js?v=112"></script>
+<script src="event-name.js?v=9"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=300"></script>
+<script src="refer.js?v=2"></script>
+</body>
+</html>

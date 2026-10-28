@@ -558,7 +558,11 @@ do $$ declare s text; u uuid; u2 uuid; begin perform pg_temp.su();
   perform pg_temp.res('RC7-09 denied: an operator profile can''t get a studio even by a direct write', s like '42501%', s);
   perform pg_temp.login('a_admin@a.test');
   s := pg_temp.try($q$select public.admin_create_user('ops@helm.test', 'Abcdefghij1!xy', 'sales')$q$);
-  perform pg_temp.res('RC7-10 denied: admin_create_user with a platform operator e-mail', s like '22023%', s);
+  -- R32b (0282 R2-AUTH-02): the refusal may be ANSWERED (null, counted per studio) instead of raised - either way nothing is made
+  perform pg_temp.su();
+  perform pg_temp.res('RC7-10 denied: admin_create_user with a platform operator e-mail',
+    s like '22023%' or (s = '' and (select org_id from public.profiles where id = pg_temp.uid('ops@helm.test')) is distinct from 'a0000000-0000-4000-8000-000000000001'), s);
+  perform pg_temp.login('a_admin@a.test');
   perform pg_temp.login('a_admin@a.test');
   s := pg_temp.try($q$select public.create_invitation('OPS@helm.test', 'sales')$q$);
   -- 0156 (admin_first): an operator e-mail is refused with the same 42501 'not authorized' as any
@@ -572,8 +576,13 @@ do $$ declare s text; u uuid; u2 uuid; begin perform pg_temp.su();
   perform pg_temp.res('RC7-13 denied: a non-admin can''t invite', s like '42501%', s);
 end $$;
 do $$ declare t1 text; t2 text; r text; n int; begin
+  -- r35 (0285): inviting an ADMIN needs a two-step session with a fresh code (factor removed again right after)
+  perform pg_temp.su(); insert into auth.mfa_factors(user_id, status) select u.id, 'verified' from auth.users u where u.email = 'a_admin@a.test';
   perform pg_temp.login('a_admin@a.test');
+  perform set_config('request.jwt.claims', (auth.jwt() || jsonb_build_object('aal', 'aal2', 'amr',
+    jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', extract(epoch from now())))))::text, false);
   t1 := public.create_invitation('reinv@a.test', 'admin') ->> 'token';
+  perform pg_temp.su(); delete from auth.mfa_factors where user_id = (select u.id from auth.users u where u.email = 'a_admin@a.test');
   perform pg_temp.login('a_admin@a.test');
   t2 := public.create_invitation('reinv@a.test', 'crew') ->> 'token';
   perform pg_temp.su();

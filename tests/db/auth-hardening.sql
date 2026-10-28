@@ -97,10 +97,13 @@ do $$ begin
   perform auth.logout();
 end $$;
 -- 14) OTHER studio's email: generic message, no "exists" oracle
-do $$ begin
+do $$ declare v uuid; begin
   perform auth.login_as((select id from auth.users where email='a_admin@a.test'));
-  begin perform public.admin_create_user('b_staff@b.test','Helm-good-pass-2026','sales');
-        insert into _ah values (14,'other-studio email: generic error, no existence oracle','FAIL: created');
+  -- R32b (0282 R2-AUTH-02): the refusal may be ANSWERED with null (counted per studio, so the answer can't be used to
+  -- test address after address) instead of raised; either way nothing is created and nothing names the address
+  begin v := public.admin_create_user('b_staff@b.test','Helm-good-pass-2026','sales');
+        insert into _ah values (14,'other-studio email: generic error, no existence oracle',
+          case when v is null then 'PASS' else 'FAIL: created' end);
   exception when others then insert into _ah values (14,'other-studio email: generic error, no existence oracle',
         case when sqlerrm like 'could not create this user%' and sqlerrm not ilike '%exist%' and sqlerrm not ilike '%b_staff%'
              then 'PASS' else 'FAIL: '||sqlerrm end); end;

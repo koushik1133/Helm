@@ -73,7 +73,7 @@
 // codes - never an address, a phone number, a name or message text. Outbound HTTP goes only
 // to a FIXED host allowlist; no URL is ever taken from the database (deep links are built
 // from ids by the same rule as the in-app bell and joined to APP_URL).
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag, escHtml } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { absoluteLink } from "./deeplink.js";

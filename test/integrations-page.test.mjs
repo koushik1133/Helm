@@ -13,7 +13,7 @@ t('page: CSP-safe (no inline script, no style attrs, no on* handlers)', () => {
   assert.ok(!/<script(?![^>]*\bsrc=)[^>]*>/i.test(html), 'no inline <script>');
   assert.ok(!/\sstyle=/i.test(html)); assert.ok(!/\son[a-z]+=/i.test(html));
   assert.ok(!/innerHTML|insertAdjacentHTML|outerHTML/.test(js), 'status painted with textContent only');
-  assert.match(html, /class="auth-pending"/); assert.match(html, /integrations\.js\?v=4/);
+  assert.match(html, /class="auth-pending"/); assert.match(html, /integrations\.js\?v=5/);
 });
 t('page: three cards + WhatsApp guide names both templates and Settings number field', () => {
   for (const id of ['itgEmail', 'itgWa', 'itgPay']) assert.match(html, new RegExp('id="' + id + '"'));

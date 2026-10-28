@@ -100,8 +100,8 @@ assert.match(read("public/shell-b.js"), /\[\(ctl \|\| rl === "admin"\) && !inTri
   const at = a.indexOf("function adminTwoStep()"), body = a.slice(at, a.indexOf("function showMfaNudge()", at));
   assert.match(body, /classList\.contains\("helm-trial"\)\) return;/, "never in the trial (cached class)");
   assert.match(body, /inTrialStudio\(\)\.then\(function \(t\) \{\s*if \(t \|\| banner\) return;/, "never in the trial (server answer)");
-  assert.match(body, /sessionStorage\.getItem\(SK\)/, "once per browser session");
-  assert.match(a, /id: "hauMfaNudge", priority: 2, icon: "shield", compact: true, dock: false, autoHideMs: 20000/, "compact, stays in the stack, folds away");
+  assert.match(body, /noteSnoozed\("twostep"\) \|\| banner \|\| !onTwoStepPage\(\)/, "r44: dashboard + Settings only; dismissed = 7 days quiet");
+  assert.match(a, /id: "hauMfaNudge", priority: 2, icon: "shield", inline: true,/, "r44: calm, in the page, no time-out");
   assert.match(a, /" compact" \+ \(o\.dock === false \? "" : " dock-left"\)/, "dock option (other compact notices keep dock-left)"); }
 
 // ---- store-api.js: trial-off areas (run in a sandbox) ---------------------------------------------------

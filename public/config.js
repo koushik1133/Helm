@@ -50,16 +50,20 @@ window.HELM_PAY_MANUAL = Object.assign({
   note: ""            // optional line under the details (default: send us the UTR / reference, same-day activation)
 }, window.HELM_PAY_MANUAL || {});
 // r21 monitoring: front-end error reports (public/telemetry.js -> Sentry). EMPTY dsn = OFF (nothing loaded, nothing
-// sent). r26: production-ready - only the DSN is missing.
-//   >>> SENTRY DSN GOES HERE <<<  Sentry -> Settings -> Projects -> (your project) -> Client Keys (DSN). Paste it as
-//   dsn below, then run `node scripts/gen-csp.mjs` (it adds the DSN's EXACT ingest host to connect-src) and deploy.
+// sent). R45 (owner 2026-10-27): ON - the DSN of the owner's Sentry project "helm" (free plan), ERRORS ONLY
+// (no tracing, no session replay, no profiling). One project for every site; the environment tag below tells
+// production and staging apart. Changing the DSN: Sentry -> Settings -> Projects -> helm -> Client Keys (DSN),
+//   then run `node scripts/gen-csp.mjs` (it puts the DSN's EXACT ingest host in connect-src) and deploy.
 //   The DSN is public by design (it can only SEND events) - safe to commit. Steps: SENTRY-TURNSTILE-STEPS.md.
+//   To switch monitoring off again: set dsn to "" and re-run gen-csp.
+// Test (staging only): open https://helm-v01.vercel.app/?sentry_test=1 - telemetry.js throws ONE test error per tab
+// (Sentry -> Issues, tag environment:staging). Ignored on helm.events, previews and localhost.
 // environment: "production" on helm.events, "staging" on helm-v01.vercel.app, "development" on localhost (never sent),
 // "preview" anywhere else. release: "helm-web@<this file's asset version>" (the ?v= every page loads config.js with -
 // bumped whenever config.js changes). Errors: every one (100%). Tracing: off (0); at most 0.1 = 10% if ever wanted.
 // Tokens, e-mails, phone numbers, amounts and every query string in URLs are scrubbed before anything is sent.
 window.HELM_TELEMETRY = Object.assign({
-  dsn: "",                // >>> PASTE THE SENTRY DSN HERE <<<  e.g. "https://<key>@o123456.ingest.us.sentry.io/7890123"
+  dsn: "https://1dc17f49258bac56dd0eb8e778842d7e@o4512062490738688.ingest.us.sentry.io/4512328815542272",   // Sentry project "helm" (public DSN)
   env: (function (h) {
     if (/^(www\.)?helm\.events$/.test(h)) return "production";
     if (h === "helm-v01.vercel.app") return "staging";
@@ -70,7 +74,7 @@ window.HELM_TELEMETRY = Object.assign({
     try { var m = /[?&]v=(\d{1,9})/.exec((document.currentScript && document.currentScript.src) || ""); return "helm-web@" + (m ? m[1] : "0"); }
     catch (e) { return "helm-web@0"; }
   })(),
-  tracesSampleRate: 0     // errors only, no performance tracing (telemetry.js caps any value at 0.1)
+  tracesSampleRate: 0     // errors only, no performance tracing - keep 0 (free plan; telemetry.js caps any value at 0.1)
 }, window.HELM_TELEMETRY || {});
 window.SUPABASE_CONFIG = {
   url: "https://nqltzgiwznphugcfhmbm.supabase.co",

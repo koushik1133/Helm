@@ -23,7 +23,7 @@
     var who = s.can_change ? "" : " Only a studio admin can change it.";
     if (s.is_default) return "Current PIN: the default (0000). Change it so only your team can show amounts." + who;
     var when = "";
-    try { if (s.updated_at) when = " on " + new Date(s.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); } catch (e) {}
+    try { if (s.updated_at) when = " on " + new Date(s.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric", timeZone: (function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })() }); } catch (e) {}   // r37: studio zone
     return "A studio PIN is set" + when + "." + (s.can_change ? "" : " Ask your studio admin for it.") + who;
   }
   function errText(e, what) {
