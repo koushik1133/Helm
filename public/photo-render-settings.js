@@ -1,6 +1,6 @@
-/* photo-render-settings.js - Control Center card (0095): photo renders on / off, photos per month,
+/* photo-render-settings.js - Settings card (0095): photo renders on / off, photos per month,
    render requests per hour, this month's usage + cost estimate. Reads / writes ONLY through
-   BPStore.photoRender.settings / setSettings (photo_render_settings_get / _set; Control Center EDIT).
+   BPStore.photoRender.settings / setSettings (photo_render_settings_get / _set; Settings EDIT).
    DOM API only. Hidden for people who can't manage it and on servers older than 0095. */
 (function (global) {
   "use strict";

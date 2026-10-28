@@ -19,7 +19,7 @@ const fnSrc = (src, name) => {
 };
 const constSrc = (src, name) => { const at = src.indexOf(`const ${name} =`); assert.ok(at >= 0, name); return src.slice(at, src.indexOf(';\n', at) + 1); };
 
-await t('Control Center: studio name read-only with a lock + support note; the link is shown, never edited', () => {
+await t('Settings: studio name read-only with a lock + support note; the link is shown, never edited', () => {
   assert.match(CTL, /<input id="o_name" maxlength="120" autocomplete="organization" placeholder="e\.g\. Aurora Events" readonly aria-readonly="true" aria-describedby="o_name_lock">/);
   assert.match(CTL, /id="o_name_lock">Set when the studio was created\. Contact Helm support to change it\.<\/p>/);
   assert.match(CTL, /<h3 class="s-58d955e">Studio link <svg class="lock-ico"/);
@@ -27,7 +27,7 @@ await t('Control Center: studio name read-only with a lock + support note; the l
   assert.doesNotMatch(CTL, /id="o_slug"|o_slug_save|links\.rename|set_studio_link_name/, 'no link editor left');
 });
 
-await t('Control Center: the General save never sends the studio name', () => {
+await t('Settings: the General save never sends the studio name', () => {
   const save = CTL.slice(CTL.indexOf('$("#o_save").addEventListener("click"'));
   assert.match(save, /const patch=\{ business_email:/);
   assert.doesNotMatch(save.slice(0, save.indexOf('BPStore.org.save(patch)')), /name:ccv\(|patch\.name=/);

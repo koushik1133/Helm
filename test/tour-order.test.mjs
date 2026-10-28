@@ -5,7 +5,7 @@
  * Owner complaint: after onboarding (paid "Create studio" and the free-trial welcome) the
  * tour went sidebar -> search -> somewhere else -> back. It must go:
  *   1. the left sidebar top to bottom (pin, Dashboard, Quotes, Leads, Calendar, Chat,
- *      Manage, Admin / Control Center, theme, profile),
+ *      Manage, Admin / Settings, theme, profile),
  *   2. the top bar left to right (search, hide amounts, chat, notifications, New quote),
  *   3. the dashboard top to bottom (Today, greeting + next event, Customize, KPI tiles),
  *   4. the getting-started checklist, then a wrap-up card.

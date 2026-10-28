@@ -382,6 +382,8 @@ function serveStatic(req, res) {
   // r22: /signup is a real page (parity with the vercel.json rewrite): the sign-in page's ONE sign-up flow, with the
   // same headers / CSP as /login; ?plan=&mode=trial|paid|sales stay in the address bar.
   if (rel === '/signup') return serveFile(res, req, path.join(PUBLIC_DIR, 'login.html'));
+  // R38: /settings is the studio Settings page (parity with the vercel.json rewrite); /control keeps working.
+  if (rel === '/settings') return serveFile(res, req, path.join(PUBLIC_DIR, 'control.html'));
   // r29 referrals (phase 1): a personal link /r/<CODE> → /signup?ref=<CODE>. The code is re-checked against the strict
   // shape (A-Z 0-9 - _, 3-24 chars) and re-encoded, so the Location is always same-site; anything else → plain /signup.
   // ?demo=1 is carried over for the localhost click-through demo only (the demo files ignore it on other hosts).

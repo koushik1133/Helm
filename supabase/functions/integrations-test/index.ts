@@ -3,11 +3,11 @@
 //
 // Requests:
 //   { "action": "status" }                        -> which channels can really send (booleans
-//                                                    only, never a key). Needs Control Center VIEW
+//                                                    only, never a key). Needs Settings VIEW
 //                                                    (checked by integrations_overview as the caller).
 //   { "action": "test", "channel": "email" }      -> a test e-mail to the CALLER'S OWN login e-mail
 //   { "action": "test", "channel": "whatsapp" }   -> a test WhatsApp to the studio's OWN saved number
-//   Both tests need Control Center EDIT; the recipient comes from integrations_test_target()
+//   Both tests need Settings EDIT; the recipient comes from integrations_test_target()
 //   (the database, as the caller) - never from the request, so this is not a relay.
 //
 // Result: { mode: "live", sent: true, to: "<masked>" } when the secrets are set and the
@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       const w = await checkLimits([["itest:status:" + user.id, 20, 600_000]]);
       if (w) return tooMany(json, w);
       const { error } = await asCaller.rpc("integrations_overview", {});
-      if (error) return json({ error: "only people who can open Control Center can see this" }, 403);
+      if (error) return json({ error: "only people who can open Settings can see this" }, 403);
       return json({ email: st.email, whatsapp: st.whatsapp });
     }
     if (action !== "test") return json({ error: "unknown action" }, 400);
@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     if (w) return tooMany(json, w);
     const { data: t, error: tErr } = await asCaller.rpc("integrations_test_target", {});
     if (tErr || !t) {
-      if (String(tErr?.code || "") === "42501") return json({ error: "only people who can edit Control Center can send a test" }, 403);
+      if (String(tErr?.code || "") === "42501") return json({ error: "only people who can edit Settings can send a test" }, 403);
       console.error("integrations-test: target failed", errTag(tErr));
       return json({ error: "apply APPLY-0150.sql first" }, 503);
     }

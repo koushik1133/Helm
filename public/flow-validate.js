@@ -241,7 +241,7 @@
     put(r, "q_guests", count(v.q_guests, { label: "Plates", min: 0 }));
     put(r, "q_other", money(v.q_other, { label: "Décor / setup" }));
     put(r, "q_coupon", text(v.q_coupon, { label: "Coupon code", max: 40 }));
-    if (ctx.pkgNoPrice) r.errors.q_platePrice = "“" + ctx.pkgNoPrice + "” has no price set — set it in Control Center › Menus.";
+    if (ctx.pkgNoPrice) r.errors.q_platePrice = "“" + ctx.pkgNoPrice + "” has no price set — set it in Settings › Menus.";
     return done(r);
   }
 

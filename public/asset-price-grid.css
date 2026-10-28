@@ -1,4 +1,4 @@
-/* asset-price-grid.css — Control Center "Object & item prices (layout builder)" grid (asset-price-grid.js).
+/* asset-price-grid.css — Settings "Object & item prices (layout builder)" grid (asset-price-grid.js).
    Every item is name / input / helper on a subgrid, so inputs in a row line up even when a name wraps.
    Rules are #itemPriceList-scoped so the shell's generic input rule cannot win. Theme tokens only. */
 #itemPriceList{--apg-acc:var(--hb-acc,var(--accent,#059669));--apg-line:var(--hb-line,var(--line,#e3e0da));--apg-bg:var(--hb-bg,var(--panel,#fff));--apg-ink:var(--hb-ink,var(--ink,#1b1930));--apg-ink2:var(--ink-2,#4b475f);--apg-ink3:var(--ink-3,#6b6577);--apg-bad:var(--danger,#b42318)}

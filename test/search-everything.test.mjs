@@ -1,5 +1,5 @@
 // search-everything.test.mjs - both searches are complete and never show a dead link.
-//  * search-catalog.js covers every Control Center section in control-split.js, and every card
+//  * search-catalog.js covers every Settings section in control-split.js, and every card
 //    title in control.html (plus the cards other scripts add), with deep links (?cs=<text>#hash)
 //  * pages respect role access; the Integrations page only appears when HELM_FEATURES.integrationsPage
 //  * synonyms: users / team / staff login / invite / 2fa / otp / pin / privacy / theme / gst / tax /
@@ -27,7 +27,7 @@ const texts = async (a, feat = {}) => (await CAT.entriesFor(a, feat));
 await t('every control-split section has a catalog section and settings', () => {
   const block = SPLIT.slice(SPLIT.indexOf('var SECTIONS=['), SPLIT.indexOf('];', SPLIT.indexOf('var SECTIONS=[')));
   const keys = [...block.matchAll(/\{key:"(\w+)"/g)].map((m) => m[1]);
-  assert.equal(keys.length, 19, '19 Control Center sections (r23 0264: + Payment schedules; r23 0265: + Crew & shifts; r24 0269: + Automations)');
+  assert.equal(keys.length, 19, '19 Settings sections (r23 0264: + Payment schedules; r23 0265: + Crew & shifts; r24 0269: + Automations)');
   assert.deepEqual(CAT.SECTIONS.map((s) => s.key).sort(), keys.slice().sort());
   const hashes = Object.fromEntries([...block.matchAll(/\{key:"(\w+)".*?hash:"(#[\w-]+)"/g)].map((m) => [m[1], m[2]]));
   for (const s of CAT.SECTIONS) {
@@ -65,7 +65,7 @@ await t('pages respect role access; Integrations only when the feature is on', a
   const salesManual = (await texts(auth('sales', ['quotes', 'leads']), { manual: true })).filter((e) => e.kind === 'page').map((e) => e.key);
   assert.deepEqual(salesManual.sort(), ['chat', 'dashboard', 'leads', 'manual', 'quotes']);
   const salesAll = await texts(auth('sales', ['quotes', 'leads']));
-  assert.ok(!salesAll.some((e) => e.kind === 'section' || e.kind === 'setting'), 'no Control Center for sales');
+  assert.ok(!salesAll.some((e) => e.kind === 'section' || e.kind === 'setting'), 'no Settings for sales');
   assert.ok(salesAll.some((e) => e.kind === 'account' && e.id === 'mfa'), 'own account items for everyone');
   const admin = (await texts(auth('admin'))).filter((e) => e.kind === 'page').map((e) => e.key);
   assert.ok(admin.includes('control') && admin.includes('audit'));
@@ -89,11 +89,11 @@ await t('synonyms find the right setting', async () => {
   const expect = {
     users: /Users & invites|Team members/, team: /Team members|Users & invites/, 'staff login': /Team members|Add user|Users/,
     invite: /Invite/, '2fa': /Two-step/, otp: /Two-step/, pin: /PIN/, privacy: /privacy PIN|Hide amounts/, theme: /Accent colour|Logo/,
-    gst: /GST/, tax: /Tax|GST/, coupon: /coupon/i, logo: /Logo/, 'user details': /Users & invites|Team members/, 'control center': /Control Center/,
+    gst: /GST/, tax: /Tax|GST/, coupon: /coupon/i, logo: /Logo/, 'user details': /Users & invites|Team members/, 'control center': /Settings/,
     password: /password/i, whatsapp: /WhatsApp/, 'sign out other devices': /Sign out other devices/,
   };
   for (const [q, re] of Object.entries(expect)) assert.ok(top(q).some((x) => re.test(x)), q + ' -> ' + top(q).join(' | '));
-  assert.equal(top('control center', 1)[0], 'Control Center');
+  assert.equal(top('control center', 1)[0], 'Settings');
   assert.match(top('user details', 1)[0], /Users & invites/);
   // plain fallback (no core) still works
   assert.ok(CAT.rank('coupon', list, null, 5).some((e) => /Coupons/.test(e.text)));

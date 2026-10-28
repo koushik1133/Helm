@@ -22,7 +22,7 @@ html.hb-priv-on svg .hbp-m, html.hb-priv-on svg [data-money] { fill: transparent
 html.hb-priv-on svg[data-money] { filter: blur(7px); -webkit-user-select: none; user-select: none; }
 /* inputs the user types into always show what they type (QA: #pay_amt). Read-only values stay masked via .hbp-m/[data-money]. */
 html.hb-priv-on :is(input, textarea, select) { color: var(--hb-ink, inherit) !important; -webkit-text-fill-color: var(--hb-ink, currentColor) !important; }
-/* qa-quote-flow B28 + r19 L5: EVERY money input (lead Budget, budget-plan cost lines, Control Center pricing / item prices;
+/* qa-quote-flow B28 + r19 L5: EVERY money input (lead Budget, budget-plan cost lines, Settings pricing / item prices;
    shell-b-privacy.js adds .hbp-mi) keeps its saved amount hidden until it is focused. On focus the real value shows and is
    selected (.hbp-rv), so typing replaces it - never typing into transparent text, never appending to a hidden "0". */
 html.hb-priv-on :is(input.hbp-mi, input[data-pl-est], input[data-pl-quoted], input[data-pl-act]):not(:focus):not(.hbp-rv) {

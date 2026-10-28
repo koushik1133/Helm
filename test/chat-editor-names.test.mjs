@@ -86,7 +86,7 @@ t('chat, bell and pickers use the helper; roster reads chat_directory with a fal
   assert.match(chat, /function personName\(id\)\{ const p=roster\[id\]; return p\?pname\(p\)/);
   assert.equal((chat.match(/esc\(pname\(p\)\)/g) || []).length, 3);
 });
-t('Control Center and the account panel can set a display name', () => {
+t('Settings and the account panel can set a display name', () => {
   assert.match(ctl, /BPStore\.profile\.setName\(id, name\)/);
   assert.match(ctl, /validate:\(v\)=>BPStore\.profile\.problem\(v\)/);
   assert.match(api, /rpc\("admin_set_display_name", \{ p_user: userId, p_name: cleanDisplayName\(name\) \}\)/);

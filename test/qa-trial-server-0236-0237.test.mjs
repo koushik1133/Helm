@@ -5,7 +5,7 @@
 //   B11 sample data complete: layout v1 for every sample event, floor plans seat the guests, event plans, layout rules,
 //       chair / plate types, clone list, my_demo_status counts the sample templates, insert-only for existing trials
 //   B12 pkg_settings_set + comms_settings_set + sample clear / reset / switch wrapped with the trial guard; the
-//       Control Center sample card offers no Reset / Clear during the trial
+//       Settings sample card offers no Reset / Clear during the trial
 //   B13 the staff cap does not count a crew_members row linked to a login (the admin's own row)
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -55,7 +55,7 @@ t('B12: 8 RPCs wrapped with the 0173 guard, originals kept as __pre0236 without 
   assert.match(M36, /perform public\._tl173_guard\(\);\n  return public\.%I\(%s\);/);
   assert.match(M36, /revoke all on function public\.%I\(%s\) from authenticated', v_name \|\| '__pre0236'/);
 });
-t('B12: Control Center sample card: no Reset / Clear during the trial; no ?demo=switch clear in the trial', () => {
+t('B12: Settings sample card: no Reset / Clear during the trial; no ?demo=switch clear in the trial', () => {
   const td = read('public/trial-demo.js');
   assert.match(td, /if \(admin && inTrial\) \{ host\.appendChild\(el\("p", "td-safe", TRIAL_KEEP\)\); return; \}/);
   assert.match(td, /if \(inTrial\) \{ host\.appendChild\(el\("p", "td-safe", TRIAL_KEEP\)\); return; \}/);

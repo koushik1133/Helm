@@ -155,7 +155,7 @@ t("REF-01 leftover: the funnel step and the HQ demo notes say what the server gi
   for (const f of ["login.html", "refer.html", "hq-referrals.html"]) {
     const src = read("public/" + f);
     assert.match(src, /\/referral-rules\.js\?v=2/, f + " loads the new rules"); assert.doesNotMatch(src, /referral-rules\.js\?v=1\b/);
-    assert.match(src, /\/referral-demo\.js\?v=2/, f + " loads the new demo notes");
+    assert.match(src, /\/referral-demo\.js\?v=3/, f + " loads the new demo notes");
   }
 });
 t("REF-04 per-network keys: cf-connecting-ip first, IPv6 by its /64, IPv4 unchanged; in 0279, APPLY-0279 and APPLY-0279b", () => {

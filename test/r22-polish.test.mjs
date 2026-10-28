@@ -10,7 +10,7 @@
 //  9  /flow?quote=<event number> resolves within the caller's studio (resolve_event_ref); a UUID still works
 // 10  quote page receipt dates use the studio formatter's default (dd/mm/yyyy)
 // 11  /manual: no inline <style> (stylesheet); imported manual <style> elements are stripped (CSS adopted)
-// 12  notification types: "Security alerts (Helm HQ only)" (bell muted list + Control Center catalog)
+// 12  notification types: "Security alerts (Helm HQ only)" (bell muted list + Settings catalog)
 // 13  staff sheet: only one button reads "Cancel" (the department row says "Discard")
 // 14  landing phone-reel thumbnails use small webp variants with srcset / sizes
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -169,7 +169,7 @@ await t('11 /manual: shell CSS in manual.css; parsed manual <style> elements str
   assert.match(M, /if \(css\) __helmAdoptCss\(document, css\);/);
 });
 
-await t('12 notification types: "Security alerts (Helm HQ only)" in the bell map and the Control Center catalog', async () => {
+await t('12 notification types: "Security alerts (Helm HQ only)" in the bell map and Settings catalog', async () => {
   assert.match(API, /security_alert: "Security alerts \(Helm HQ only\)"/);
   const at = API.indexOf('get: async () => { const r = await rpc("admin_get_notification_prefs", {});');
   assert.ok(at > 0);

@@ -91,7 +91,7 @@
     ],
     "logistics.html": [
       { sel: "#tabs", title: "Event logistics", desc: "Everything that has to happen for this event, organised by section (stage, lighting, catering…)." },
-      { sel: "#tplBar", trial: false, title: "Apply a template", desc: "Drop a saved checklist into this event in one click — no retyping the same tasks every time. (You build templates in Control Center.)" },
+      { sel: "#tplBar", trial: false, title: "Apply a template", desc: "Drop a saved checklist into this event in one click — no retyping the same tasks every time. (You build templates in Settings.)" },
       { sel: "#a_title", title: "Add a one-off task", desc: "Need something the template didn't cover? Add your own task right here." },
       { sel: "#pane", title: "Assign & track", desc: "Assign staff to each task and tick off progress as the event comes together." },
     ],
@@ -133,7 +133,7 @@
       { sel: "#nodateWrap", title: "No date yet", desc: "Quotes without an event date wait here. Give them a date to put them on the calendar." },
     ],
     "control.html": {
-      // One tour per Control Center section (control-split.js). The section on screen is the
+      // One tour per Settings section (control-split.js). The section on screen is the
       // .cs-main[data-cs-cur] attribute; before the split loads, the URL #hash; else Pricing.
       section: function () {
         try {
@@ -252,7 +252,7 @@
           { sel: 'label[for="cc_os"]', title: "Open shifts", desc: "Post a shift; crew take it from their crew link, first come or with your approval." },
           { sel: 'label[for="cc_ci"]', title: "Check in and out", desc: "Crew check in on the event day. You can ask that they are near the venue." },
           { sel: "#cc_pay", title: "Wages from check-in", desc: "Actual wages on the Budget page come from the hours or days crew checked in." },
-          { sel: "#cc_save", title: "Save", desc: "Saves the crew settings. Only people who can edit Control Center can change them." },
+          { sel: "#cc_save", title: "Save", desc: "Saves the crew settings. Only people who can edit Settings can change them." },
         ],
         venues: [
           { sel: "#venuesCard", title: "Your venues", desc: "Halls and spaces you work in, ready to pick when you make a quote or a floor plan." },
@@ -455,7 +455,7 @@
     ],
     "design.html": [
       { sel: "#dsPurpose", title: "Design studio", desc: "Plan the look of an event: theme, colours, décor." },
-      { sel: "#dsRelated", title: "What it is not", desc: "Floor templates live in Control Center; this page is only for an event's look." },
+      { sel: "#dsRelated", title: "What it is not", desc: "Floor templates live in Settings; this page is only for an event's look." },
       { sel: "#queueWrap", title: "Events to design", desc: "Confirmed events waiting for a design. Pick one to work on." },
       { sel: "#singleCard", title: "One event", desc: "The design of the event you opened: theme, colours and notes." },
     ],
@@ -505,7 +505,7 @@
     },
   };
 
-  // Control Center hash -> section (same names control-split.js uses)
+  // Settings hash -> section (same names control-split.js uses)
   const HASH = { "#general": "general", "#account": "general", "#studio": "general", "#billing": "billing", "#privacy-pin": "privacy", "#privacy": "privacy",
     "#client-links": "links", "#pricing": "pricing", "#payment-schedules": "payments", "#payment-schedule": "payments", "#menu": "catalog", "#catalog": "catalog",
     "#layout-rules": "rules", "#data": "data", "#users": "users", "#team": "users", "#access": "access", "#compliance": "compliance",

@@ -1,7 +1,7 @@
-/* stage-machine-settings.js - Control Center "Event stages" card (r23, 0263). Stage rules (warn = default / enforce)
+/* stage-machine-settings.js - Settings "Event stages" card (r23, 0263). Stage rules (warn = default / enforce)
    and whether the stage history shows on the event page + quote flow. Reads / writes ONLY through
    BPStore.stages.settings / setSettings (stage_machine_settings / set_stage_machine_settings - the server re-checks
-   studio admin + Control Center edit). Hidden on a database without 0263. DOM via textContent only.
+   studio admin + Settings edit). Hidden on a database without 0263. DOM via textContent only.
    model() is pure and unit-tested. */
 (function (global) {
   "use strict";

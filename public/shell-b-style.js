@@ -15,7 +15,7 @@
     money: "M3 6h18v12H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
     chat: "M4 5h16v11H8l-4 4z",
     search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5",
-    // r26: the cog is the rail's Control Center icon (one icon set app-wide; the old polygon gear looked off)
+    // r26: the cog is the rail's Settings icon (one icon set app-wide; the old polygon gear looked off)
     gear: "M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1",
     // r26: operations = clipboard with a tick (quotes list "Ops", rail Operations)
     ops: "M9 3h6a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM8 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2M9 14l2 2 4-4",

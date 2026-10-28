@@ -8,8 +8,8 @@
                                  deleted). Asked twice: a confirm, then the typed phrase
                                  START CLEAN (the server checks the phrase too).
      Shown on the checkout page right after a verified payment (offer()), on the
-     dashboard ([data-tu-auto]) and in Control Center ([data-tu-control]) until made.
-   * Control Center after upgrading: "Delete all sample data" (delete_all_sample_data:
+     dashboard ([data-tu-auto]) and in Settings ([data-tu-control]) until made.
+   * Settings after upgrading: "Delete all sample data" (delete_all_sample_data:
      is_demo rows only) and "Restore archived records" (restore_clean_start).
    * "Sample" badge: on any signed-in studio page of a studio that still has sample
      rows, text that starts with the sample prefix "Demo · " gets a Sample badge.
@@ -72,11 +72,11 @@
   /* ---- pure model (exported for tests) ------------------------------------------------------ */
   const CHOICES = [
     { id: "keep", title: "Keep the sample data", def: true,
-      body: "Sample records stay in your studio next to your own, tagged “Sample”. You can delete them any time in Control Center." },
+      body: "Sample records stay in your studio next to your own, tagged “Sample”. You can delete them any time in Settings." },
     { id: "remove_sample", title: "Remove the sample data",
       body: "Only the sample records go. Everything you added yourself stays exactly as it is." },
     { id: "clean", title: "Start completely clean",
-      body: "The sample records go, and every record of your own (events, leads, inventory, vendors, staff, venues, menus, layouts, follow-ups) is archived, not deleted, so your lists start empty. Settings, team, plan and templates stay. You can restore the archive in Control Center." },
+      body: "The sample records go, and every record of your own (events, leads, inventory, vendors, staff, venues, menus, layouts, follow-ups) is archived, not deleted, so your lists start empty. Settings, team, plan and templates stay. You can restore the archive in Settings." },
   ];
   // the 3 options for a status (remove_sample needs sample rows; keep is always the default)
   function options(st) {
@@ -85,7 +85,7 @@
       disabled: c.id === "remove_sample" && !hasSample, checked: c.id === "keep" }));
   }
   function phraseOk(v) { return String(v == null ? "" : v).trim().replace(/\s+/g, " ").toUpperCase() === PHRASE; }
-  // which card: 'choose' (admin, plan active, not chosen yet) | 'manage' (Control Center after upgrading) | null
+  // which card: 'choose' (admin, plan active, not chosen yet) | 'manage' (Settings after upgrading) | null
   function cardView(st, place) {
     if (!st || typeof st !== "object" || st.is_admin !== true) return null;
     if (st.pending === true) return "choose";
@@ -105,9 +105,9 @@
   function resultText(choice, r) {
     const kept = r && Number(r.kept_in_use) > 0 ? " " + Number(r.kept_in_use) + (Number(r.kept_in_use) === 1 ? " sample event was" : " sample events were") + " kept as yours because it has your own payments, approval or files." : "";
     if (r && r.result === "already") return "This choice was already made for your studio.";
-    if (choice === "keep") return "Sample data kept. It stays tagged “Sample”; delete it any time in Control Center.";
+    if (choice === "keep") return "Sample data kept. It stays tagged “Sample”; delete it any time in Settings.";
     if (choice === "remove_sample") return "Sample data removed. Your own records are untouched." + kept;
-    if (choice === "clean") return "Your studio starts clean. Your own records are archived, not deleted - restore them in Control Center." + kept;
+    if (choice === "clean") return "Your studio starts clean. Your own records are archived, not deleted - restore them in Settings." + kept;
     return "Done.";
   }
   // the text node starts with the sample prefix (leading spaces allowed)
@@ -175,7 +175,7 @@
     const ok = await confirmBox("Start completely clean?", {
       p: [own.length ? "These records of your own are archived, so your lists start empty:" : "Your lists start empty."],
       list: own, after: st && st.has_sample ? ["All " + st.sample_total + " sample records are removed."] : [] },
-      "Nothing of yours is deleted: it is archived and can be restored from Control Center.", "Continue", true);
+      "Nothing of yours is deleted: it is archived and can be restored from Settings.", "Continue", true);
     if (!ok) return null;
     return await phraseBox();
   }
@@ -218,7 +218,7 @@
     row.appendChild(go); host.appendChild(row); host.appendChild(msg);
   }
 
-  /* ---- Control Center after upgrading: delete sample data / restore archive -------------------- */
+  /* ---- Settings after upgrading: delete sample data / restore archive -------------------- */
   function renderManage(host, st) {
     css(); clear(host); host.hidden = false; host.classList.add("tu");
     if (st.has_sample) {
@@ -337,7 +337,7 @@
 
   /* ---- mount ------------------------------------------------------------------------------------- */
   async function mount() {
-    css();                     // the Sample badge style is also used by pages (packages / dishes in Control Center)
+    css();                     // the Sample badge style is also used by pages (packages / dishes in Settings)
     startBadges();
     const dash = doc.querySelector("[data-tu-auto]"), ctl = doc.querySelector("[data-tu-control]");
     if (!dash && !ctl) return;

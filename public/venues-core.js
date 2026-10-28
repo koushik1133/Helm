@@ -1,4 +1,4 @@
-/* venues-core.js (0085) - pure venue logic shared by Control Center, the quote flow and the
+/* venues-core.js (0085) - pure venue logic shared by Settings, the quote flow and the
  * builder: option lists + labels, metre/foot conversion, form validation, and the warnings
  * shown when a saved venue is picked for an event. No DOM, no network. */
 (function (global) {

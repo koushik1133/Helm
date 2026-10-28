@@ -1,7 +1,7 @@
 // Live production QA round 19 - free-trial sample data (one guard per bug):
 //   L6  a new trial got 6 "Prices changed - review & re-price" alerts + a chair-rate drift banner on its confirmed
 //       sample events: 0222 makes the re-pricing alert skip sample data / confirmed / client-approved / paid quotes
-//       and prices the sample master's open quotes at its own Control Center chair rate (one new manifest)
+//       and prices the sample master's open quotes at its own Settings chair rate (one new manifest)
 //   L7  sample vendors / staff ("+91 00000 00211", the reserved never-deliverable sample number) were shown as
 //       "+91 211" and could not be saved ("That number looks too short"): HelmPhone keeps the stored placeholder
 //       as it is (display + validate), anything typed is checked exactly as before. Fake numbers only.

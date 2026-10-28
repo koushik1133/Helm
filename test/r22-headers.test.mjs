@@ -1,7 +1,7 @@
 // r22 headers: page chrome clean-up (presentation only, no data calls changed).
-//  1. Control Center → Users & invites: the members table no longer squeezes the name to a few letters (photo + name +
+//  1. Settings → Users & invites: the members table no longer squeezes the name to a few letters (photo + name +
 //     "you" on one line, e-mail under it with ellipsis), Department sits under the job title, Edit / remove never clip,
-//     two-line rows on a narrow card, cards on phones; every Control Center card title has one style; room under the bar.
+//     two-line rows on a narrow card, cards on phones; every Settings card title has one style; room under the bar.
 //  2. Calendar: "Calendar" once (top bar). The lonely breadcrumb row is gone and the card title is the month.
 //  3. Insights: the intro spans the content width.
 //  4. Every app page: a breadcrumb row that only repeats the page title is hidden (kept when it shows an open record),
@@ -31,7 +31,7 @@ function ucTable() {
 const ROW = (i, o) => Object.assign({ id: 'u' + i, email: 'person' + i + '@studio.test', full_name: 'Person ' + i, role: 'crew', phone: '+919876543210',
   job_title: 'Rigger', department: 'Production', complete: true, created_at: '2026-09-01', whatsapp_same: true }, o || {});
 
-/* ---------------------------------------------------------------- 1. Control Center members table */
+/* ---------------------------------------------------------------- 1. Settings members table */
 t('members table: name cell = photo + (name + "you") line + e-mail line with a full-address tooltip', () => {
   const T = ucTable();
   const r = T([ROW(1, { full_name: 'S Koushik', email: 'shagantikoushik@gmail.com', role: 'admin' }), ROW(2)],
@@ -70,13 +70,13 @@ t('members table CSS: no per-letter wrapping, sensible widths, compact rows on a
   assert.doesNotMatch(CSPL, /#app\.cs-on \.cs-main \.utable td\.ucact\{white-space:normal\}/);
   assert.doesNotMatch(CSPL, /#app\.cs-on \.cs-main \.utable td\.em\{overflow-wrap:anywhere/);
 });
-t('Control Center: wider settings layout, one card-title style, page gap under the top bar', () => {
+t('Settings: wider settings layout, one card-title style, page gap under the top bar', () => {
   assert.match(CTL, /\.wrap\{max-width:1240px;margin:0 auto;padding:0 24px 60px\}/);
   assert.match(CSPL, /#app\.cs-on:not\(\[hidden\]\)\{display:grid;grid-template-columns:232px minmax\(0,1fr\);[^}]*max-width:1180px/);
   assert.match(CSPL, /#app\.cs-on \.cs-main \.card > h3,#app\.cs-on \.cs-main \.card > \.cx-head h3\{[^}]*text-transform:none;letter-spacing:-\.005em/);
   assert.match(SBP, /html\[data-shell="b"\]:not\(\[data-dash\]\) body > \.wrap > main#main \{ padding-top: 20px; \}/);
 });
-t('Control Center: ids and wiring the page script uses are unchanged', () => {
+t('Settings: ids and wiring the page script uses are unchanged', () => {
   for (const id of ['um_head', 'um_rows', 'uc_q', 'uc_f', 'uc_count', 'uc_tools', 'um_add', 'um_email', 'um_role', 'inv_rows'])
     assert.equal((CTL.match(new RegExp('id="' + id + '"', 'g')) || []).length, 1, id);
   assert.match(CTL, /tb\.querySelectorAll\("\.ucEdit"\)\.forEach/);

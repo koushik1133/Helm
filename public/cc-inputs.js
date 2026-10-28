@@ -1,5 +1,5 @@
 /* =========================================================================
-   HelmCCInputs - Control Center field rules (Oct 2026 input sweep A).
+   HelmCCInputs - Settings field rules (Oct 2026 input sweep A).
    Sections: General (business e-mail, phone, tax ID / GSTIN, accent colour, logo URL,
    client link name), Hide amounts (privacy PIN), Client links & packages (day counts),
    Users & invites (e-mail, role, self / member / duplicate-invite checks).

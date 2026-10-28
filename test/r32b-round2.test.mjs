@@ -154,7 +154,7 @@ await t('R2-AUTH-02 store-api: an "Add user" refusal answered { refused: true } 
   await assert.rejects(mk({ refused: true, code: '22023', error: 'could not create this user - send them an invitation instead' })('x@example.test', 'sales'),
     (e) => /send them an invitation instead/.test(e.message) && e.code === '22023');
   assert.deepEqual(await mk({ user_id: 'u1', temp_password: 'Hm-x' })('x@example.test', 'sales'), { user_id: 'u1', temp_password: 'Hm-x' });
-  // the Control Center already words this refusal ("This e-mail already has a Helm account ... send them an invitation")
+  // Settings already words this refusal ("This e-mail already has a Helm account ... send them an invitation")
   assert.match(rd('public/control.html'), /if\(\/send them an invitation instead\/i\.test\(m\)\)/);
 });
 

@@ -293,7 +293,7 @@
     var hr = Number(st.digest_hour); var hrs = isFinite(hr) ? ((hr % 12) || 12) + ":00 " + (hr < 12 ? "am" : "pm") : "8:00 am";
     $("#ibxModeDaily").textContent = "Every morning around " + hrs + " (studio time), the items unread for " + (Number(st.digest_min_age_minutes) || 60) + "+ minutes. Never an item twice.";
     var warn = $("#ibxMailWarn"), w = [];
-    if (st.email_enabled === false) w.push("Your studio has inbox e-mails switched off in Control Center → Notifications, so nothing is sent right now.");
+    if (st.email_enabled === false) w.push("Your studio has inbox e-mails switched off in Settings → Notifications, so nothing is sent right now.");
     if (st.has_email === false) w.push("Your profile has no e-mail address.");
     warn.textContent = w.join(" "); warn.hidden = !w.length;
     $("#ibxMailMsg").textContent = "";

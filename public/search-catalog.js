@@ -1,7 +1,7 @@
 /* search-catalog.js - the static "what can I search for" list shared by the global palette
- * (studio-search.js, Cmd/Ctrl+K) and the Control Center settings search (control-split.js).
+ * (studio-search.js, Cmd/Ctrl+K) and Settings search (control-split.js).
  *   PAGES     every studio page, each with the same access gate its sidebar entry uses
- *   SECTIONS  every Control Center section (keys = control-split.js SECTIONS keys)
+ *   SECTIONS  every Settings section (keys = control-split.js SECTIONS keys)
  *   SETTINGS  every card title, field, toggle and button in those sections
  *   ACCOUNT   the signed-in person's own account items (2FA, password, profile, devices)
  * Pure data + helpers, no DOM, no network. Works in the browser (window.HelmSearchCatalog)
@@ -28,7 +28,7 @@
     { key: "inventory",  label: "Inventory",        href: "inventory.html",  gate: { view: "inventory" }, kw: "stock items equipment warehouse" },
     { key: "vendors",    label: "Vendors",          href: "vendors.html",    gate: { view: "vendors" }, kw: "partners suppliers" },
     { key: "templates",  label: "Templates",        href: "templates.html",  gate: { view: "templates" }, kw: "proposal templates layouts" },
-    { key: "control",    label: "Control Center",   href: "control.html",    gate: CTL, kw: "control center settings preferences configuration admin", alias: ["control center", "control centre", "settings", "control"] },
+    { key: "control",    label: "Settings",   href: "control.html",    gate: CTL, kw: "control center settings preferences configuration admin", alias: ["control center", "control centre", "settings", "control"] },
     { key: "business",   label: "Business",         href: "business.html",   gate: { view: "business" }, kw: "money revenue collected outstanding payments finance" },
     { key: "insights",   label: "Insights",         href: "insights.html",   gate: { view: "insights" }, kw: "insights analytics numbers trends" },
     { key: "reports",    label: "Reports",          href: "reports.html",    gate: { any: [CTL, { role: /^(admin|manager|planner)$/ }] }, kw: "reports export summary analytics" },
@@ -64,7 +64,7 @@
   ];
 
   /* [section, text, extra keywords]. text = the card title / label exactly as on the page, so the
-     Control Center deep link (control.html?cs=<text>) lands on that very field. */
+     Settings deep link (control.html?cs=<text>) lands on that very field. */
   var SETTINGS = [
     ["general", "Studio account", "account owner"],
     ["general", "Organization / studio", "studio business"],
@@ -204,7 +204,7 @@
     { id: "password", text: "Change password",        kw: "password signin security reset", open: { section: "settings", focus: "password" } },
     { id: "profile",  text: "Your profile (name, mobile, photo)", kw: "profile name phone mobile avatar photo my details", open: { section: "profile" } },
     { id: "devices",  text: "Sign out other devices", kw: "devices sessions security signout logout", open: { section: "settings", focus: "devices" } },
-    // QA1026 #4: the rail's colour theme picker (shell-b.js), per device - not a Control Center field
+    // QA1026 #4: the rail's colour theme picker (shell-b.js), per device - not a Settings field
     { id: "theme",    text: "Colour theme",           kw: "theme colour color accent appearance look emerald cobalt midnight graphite studio", open: { theme: true } }
   ];
 
@@ -291,11 +291,11 @@
       PAGES.forEach(function (p, i) { if (r[0][i]) out.push({ kind: "page", key: p.key, text: p.label, context: "Page", keywords: p.kw, href: p.href, alias: p.alias, boost: 0.05 }); });
       SECTIONS.forEach(function (s, i) {
         if (!r[1][i]) return; okSec[s.key] = 1;
-        out.push({ kind: "section", sec: s.key, text: s.label, context: "Control Center", keywords: s.kw, href: settingHref(s.key, ""), alias: s.alias, boost: 0.03 });
+        out.push({ kind: "section", sec: s.key, text: s.label, context: "Settings", keywords: s.kw, href: settingHref(s.key, ""), alias: s.alias, boost: 0.03 });
       });
       SETTINGS.forEach(function (x) {
         if (!okSec[x[0]]) return;
-        out.push({ kind: "setting", sec: x[0], text: x[1], context: "Control Center " + SECBY[x[0]].label, keywords: x[2] + " " + SECBY[x[0]].kw, href: settingHref(x[0], x[1]) });
+        out.push({ kind: "setting", sec: x[0], text: x[1], context: "Settings " + SECBY[x[0]].label, keywords: x[2] + " " + SECBY[x[0]].kw, href: settingHref(x[0], x[1]) });
       });
       ACCOUNT.forEach(function (a) { out.push({ kind: "account", id: a.id, text: a.text, context: "Your account", keywords: a.kw, open: a.open, boost: 0.2 }); });
       return forTrial(out, trial);   // QA B5: no trial-off pages / sections / settings in a free trial

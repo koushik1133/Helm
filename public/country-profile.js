@@ -120,7 +120,7 @@
       rate: opts.exempt ? 0 : defaultRate(p.code, opts.region, opts.rate), exempt: !!opts.exempt, inclusive: !!opts.inclusive,
       placeOfSupply: opts.placeOfSupply || null, invoiceTitle: p.invoiceTitle };
   }
-  // ---- shared form metadata (live-round1 B1/B2): onboarding + Control Center read the SAME
+  // ---- shared form metadata (live-round1 B1/B2): onboarding + Settings read the SAME
   // labels / placeholders / region list / phone code / timezone for a country.
   var POSTAL_PH = { IN: "500001", AE: "12345", US: "10001" };
   var CC_TZ = { IN: "Asia/Kolkata", AE: "Asia/Dubai", US: "America/New_York", GB: "Europe/London", SG: "Asia/Singapore", AU: "Australia/Sydney", CA: "America/Toronto" };

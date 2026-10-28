@@ -62,7 +62,7 @@ function match(x, sel) {
   const m = /^a\[href="(#[\w-]+)"\]$/.exec(sel); if (m) return x.tagName === 'A' && x.attrs.href === m[1];
   return false;
 }
-await t('2b filterForRole (vm): sales sees quotes chapters, not Control Center / admin-only; sidebar + contents follow', async () => {
+await t('2b filterForRole (vm): sales sees quotes chapters, not Settings / admin-only; sidebar + contents follow', async () => {
   const mk = (role, viewable) => {
     const nav = el('nav', {}, [el('div', { class: 'grp' }), el('a', { href: '#intro' }), el('div', { class: 'grp' }), el('a', { href: '#control' }), el('a', { href: '#signup-flow' }),
       el('div', { class: 'grp' }), el('a', { href: '#quotes-list' })]);

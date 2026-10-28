@@ -1,5 +1,5 @@
 // r23 (0263): ONE canonical quote / event stage + stage history. JS rule = SQL rule (same case file as the DB suite),
-// timeline wording, Control Center card model, page wiring, SQL shape (additive, guarded, no quote_id column).
+// timeline wording, Settings card model, page wiring, SQL shape (additive, guarded, no quote_id column).
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -59,10 +59,10 @@ t('timeline: textContent only, reads only through BPStore.stages.history', () =>
   assert.match(SH, /b\.stages\.history\(id\)/); assert.match(SH, /show_history === false/);
 });
 
-// Control Center model
+// Settings model
 const cctx = { window: {}, console }; cctx.globalThis = cctx; vm.createContext(cctx); vm.runInContext(SMS, cctx);
 const S = cctx.window.HelmStageMachineSettings;
-t('Control Center card model: warn default, history on, read-only for non-admins, HQ notes', () => {
+t('Settings card model: warn default, history on, read-only for non-admins, HQ notes', () => {
   const m = S.model({}); assert.equal(m.mode, 'warn'); assert.equal(m.history, true); assert.equal(m.canEdit, false);
   assert.equal(S.model({ guard_mode: 'enforce', can_edit: true }).mode, 'enforce');
   assert.match(S.model({ hq_guard_mode: 'off' }).stats, /paused/);

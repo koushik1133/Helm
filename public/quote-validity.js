@@ -9,7 +9,7 @@
        (when the studio allows custom dates; admins always) + a short history. Hidden for an approved / cancelled
        quote, when the feature is off, or before 0262.
      * Quotes list: pill(entry) -> { cls, text, title } for the "Expires in N days" pill (quotes.html renders it).
-     * Control Center (#qvCard): the studio settings + "Apply to open quotes" (admin, dry run first).
+     * Settings (#qvCard): the studio settings + "Apply to open quotes" (admin, dry run first).
    Reads / writes ONLY through BPStore.quoteValidity (the server re-checks every permission and range).
    DOM via textContent / createElement only (no HTML strings). The pure helpers are unit-tested. */
 (function (global) {
@@ -180,7 +180,7 @@
       line.appendChild(h("span", { cls: "qv-k", text: "Valid until " }));
       line.appendChild(h("b", { text: d.valid_until_label || fmtDMY(d.valid_until) }));
       line.appendChild(document.createTextNode(" · " + relText(d.days_left)));
-      if (d.state === "expired") line.appendChild(document.createTextNode(d.locked ? " - the client can't approve it until you extend it." : " - the client can still approve it (the lock is off in Control Center)."));
+      if (d.state === "expired") line.appendChild(document.createTextNode(d.locked ? " - the client can't approve it until you extend it." : " - the client can still approve it (the lock is off in Settings)."));
     }
     el.appendChild(line);
     var msg = h("p", { cls: "qv-msg", role: "status", "aria-live": "polite" });
@@ -227,7 +227,7 @@
     el.hidden = false;
   }
 
-  // ---- Control Center ---------------------------------------------------------------------------------------------
+  // ---- Settings ---------------------------------------------------------------------------------------------
   async function mountSettings(card) {
     var S = store(); if (!card || !S) return;
     var d = null; try { d = await S.settings(); } catch (e) { d = null; }

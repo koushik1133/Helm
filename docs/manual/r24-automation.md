@@ -30,9 +30,9 @@
 - **Free trial:** reminders go to the bell and the event group only. No e-mail or WhatsApp is sent.
 - E-mail and WhatsApp wait in a queue until sending is switched on for your studio.
 
-**Who can do what:** anyone with **Run-sheet edit** can set owners and reminders. The default times are set in Control Center (see below).
+**Who can do what:** anyone with **Run-sheet edit** can set owners and reminders. The default times are set in Settings (see below).
 
-## 2. Control Center → Automations
+## 2. Settings → Automations
 
 One page lists everything Helm does by itself, and it is the only place with the on / off switches. Everything is **Off** until you switch it on; see the "Automations" chapter. Each row has a **Settings** button for the details.
 
@@ -40,13 +40,13 @@ The same page also has two settings cards:
 - **Run-sheet reminders**: the default reminder times (up to 4; the default is 15 minutes before plus at the start), and e-mail / WhatsApp on or off.
 - **Enquiry form**: see below.
 
-**Who can do what:** anyone with Control Center view can see this page. Only people with **Control Center edit** (admins) can change it. Every change is saved in the Audit log.
+**Who can do what:** anyone with Settings view can see this page. Only people with **Settings edit** (admins) can change it. Every change is saved in the Audit log.
 
 ## 3. Leads tracked automatically
 
 - **From quotes:** every quote with a client name already becomes a lead (source "Quote"). The lead moves along with the quote. Nothing new to do.
 - **From your public enquiry form (new):**
-  1. Go to Control Center → Automations → **Enquiry form**.
+  1. Go to Settings → Automations → **Enquiry form**.
   2. Tick **Open my public enquiry form** and press **Save**.
   3. Copy your link, which looks like `helm.events/<your-studio>/enquiry`. Put it on your website, Instagram bio or WhatsApp.
   4. The client fills in their name, phone or e-mail, type of event, date, guests and a message, and ticks that you may contact them.

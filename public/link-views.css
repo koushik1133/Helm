@@ -1,4 +1,4 @@
-/* link-views.css - r23 (0261) client link views: the "Viewed 3x" chip, the timeline dialog, the Control Center card. */
+/* link-views.css - r23 (0261) client link views: the "Viewed 3x" chip, the timeline dialog, Settings card. */
 .lv-chip{display:inline-flex;align-items:center;gap:5px;max-width:100%;min-height:26px;padding:3px 10px;border-radius:999px;
   border:1px solid var(--line,#e8e3db);background:var(--panel-2,#faf8f5);color:var(--ink-2,#4b475f);
   font:600 12px/1.2 var(--font,system-ui,sans-serif);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
@@ -45,7 +45,7 @@
 .lv-nudges{margin:0;padding-left:18px;font-size:13px;display:grid;gap:4px}
 .lv-muted{color:var(--ink-3,#6b6577)}
 .lv-small{font-size:12px;margin:6px 0 0}
-/* Control Center card */
+/* Settings card */
 .lv-set{border:1px solid var(--line,#e8e3db);border-radius:12px;padding:10px 12px;margin:10px 0}
 .lv-set legend{font-weight:700;font-size:13px;padding:0 4px}
 .lv-chk{display:flex;align-items:center;gap:8px;min-height:36px;font-size:14px}

@@ -127,7 +127,7 @@ await t('flow step 5: clearing calls clear_menu_template, prices at the default 
   assert.equal(st.appliedPkg, null); assert.equal(h.els.p_menu.dataset.pkg, undefined); assert.equal(h.els.p_menu.value, 'notes', 'menu notes untouched');
   assert.deepEqual([st.plan.menu_template, st.plan.package, st.plan.menu_plate_price, st.plan.menu], [null, null, null, 'notes']);
   assert.equal(st.planRow.package, null); assert.equal(st.planRow.menu, 'notes');
-  assert.equal(h.els.q_platePrice.value, 450, 'default plate price (Control Center)');
+  assert.equal(h.els.q_platePrice.value, 450, 'default plate price (Settings)');
   assert.equal(st.dirty, true, 'the saved quotation still has the package price -> unsaved');
   assert.deepEqual(h.calls.filter((c) => !/^toast/.test(c)), ['clear:Q1', 'price', 'saved:menu']);
   assert.match(h.calls.find((c) => /^toast:ok:/.test(c)), /No package for now\. Catering uses your default plate price; the dishes below stay/);

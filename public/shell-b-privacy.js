@@ -9,7 +9,7 @@
  *   - inputs that hold money get a CSS class: the value is masked until the input is focused, then shown + selected
  *     so typing replaces it (r19 L5; the value itself is untouched)
  * The PIN is ONE per studio and is checked on the server (0157): the server keeps only a bcrypt hash, counts wrong tries
- * per person, and only a studio admin can change or reset it (Control Center > Hide amounts). Default 0000 until changed.
+ * per person, and only a studio admin can change or reset it (Settings > Hide amounts). Default 0000 until changed.
  * Before 0157 / in local mode the default 0000 applies. The PIN is never stored in this browser.
  * This is a privacy screen, NOT security: the numbers are still in the page and in the user's account. */
 (function () {
@@ -149,7 +149,7 @@
     e.setAttribute("data-hbp-title", tt); e.removeAttribute("title");
   }
   function stashSvgTitle(t) { if (t.hasAttribute("data-hbp-t")) return; t.setAttribute("data-hbp-t", t.textContent); selfMut = true; t.textContent = "Amount hidden"; selfMut = false; }
-  /* r19 L5: ONE rule for every money input while amounts are hidden (lead Budget, budget-plan cost lines, Control Center
+  /* r19 L5: ONE rule for every money input while amounts are hidden (lead Budget, budget-plan cost lines, Settings
    * pricing + item prices, ...): its value is masked ("hbp-mi") until the user focuses it to edit; on focus the real value
    * shows and is selected, so what they type REPLACES it (typing into a hidden "0" made 50000 -> 500000) and nobody ever
    * types into transparent text. The value itself is never changed. */
@@ -164,7 +164,7 @@
     } catch (e) {}
     return t;
   }
-  function curBeside(i) {   /* a currency sign drawn next to the box (Control Center item prices: <span>₹</span><input>) */
+  function curBeside(i) {   /* a currency sign drawn next to the box (Settings item prices: <span>₹</span><input>) */
     var p = i.parentElement; if (!p) return false;
     for (var c = p.firstElementChild; c; c = c.nextElementSibling) if (c !== i && c.tagName !== "INPUT" && CUR_ONLY.test((c.textContent || "").trim())) return true;
     return false;
@@ -304,7 +304,7 @@
    * Before 0157 (or in local mode) it returns null and the default PIN 0000 applies, with a local try counter. */
   function pinApi() { var s = window.BPStore; return s && s.privacyPin ? s.privacyPin : null; }
   var pinStatus = null, pinStatusErr = false, pinTrial = false;
-  // B29: a FREE-TRIAL studio cannot change the PIN (0181 refuses privacy_pin_set / _reset and Control Center >
+  // B29: a FREE-TRIAL studio cannot change the PIN (0181 refuses privacy_pin_set / _reset and Settings >
   // Hide amounts is locked), so the prompt never sends anyone there: it says the trial PIN is 0000.
   function loadTrial() {
     var s = window.BPStore; if (!s || !s.subscription || typeof s.subscription.trial !== "function") return Promise.resolve(false);
@@ -365,7 +365,7 @@
       // says the PIN is still the default; other roles never see it.
       var hint = pinTrial ? " (Free trial: the studio PIN is 0000.)"
         : !pinStatusErr && pinStatus && pinStatus.is_default === true && canChangePin()
-        ? " (Default PIN 0000 — change it in Control Center.)" : "";
+        ? " (Default PIN 0000 — change it in Settings.)" : "";
       return "Amounts are hidden while you present. Enter your studio's privacy PIN to show them." + hint;
     }
     function paint() {
@@ -373,11 +373,11 @@
       if (step === "forgot") {
         ttl.textContent = "Forgot the PIN?";
         desc.textContent = pinTrial
-          ? "In the free trial the studio privacy PIN is always 0000. You can set your own PIN in Control Center after you choose a plan."
+          ? "In the free trial the studio privacy PIN is always 0000. You can set your own PIN in Settings after you choose a plan."
           : canChangePin()
-          ? "The privacy PIN is one PIN for the whole studio. As an admin you can change it, or put it back to 0000, in Control Center › Hide amounts."
+          ? "The privacy PIN is one PIN for the whole studio. As an admin you can change it, or put it back to 0000, in Settings › Hide amounts."
           : "The privacy PIN is one PIN for the whole studio. Only a studio admin can change or reset it — ask your admin for the PIN.";
-        ok.textContent = canChangePin() ? "Open Control Center" : "Back";
+        ok.textContent = canChangePin() ? "Open Settings" : "Back";
       } else { ttl.textContent = "Show amounts"; desc.textContent = unlockDesc(); ok.textContent = "Unlock"; }
       dots.hidden = inp.hidden = pad.hidden = step === "forgot";
       foot.appendChild(cancel);
@@ -442,7 +442,7 @@
     if (!hidden()) return;
     openModal("unlock", function () { setHidden(false); });
   }
-  /* the studio PIN is changed by an admin in Control Center (server-side, 0157) */
+  /* the studio PIN is changed by an admin in Settings (server-side, 0157) */
   function changePin() { location.href = PIN_PAGE; }
   function toggle() { if (hidden()) requestShow(); else setHidden(true); }
 
@@ -496,7 +496,7 @@
     var api = window.HelmStudioSearch; if (!api || !Array.isArray(api.ACTIONS)) return false;
     var here = location.pathname + location.search;
     [{ id: "hbp-toggle", label: "Hide / show amounts", icon: "\u{1F441}", href: here + "#hbp-act-toggle", need: [], kw: "privacy money prices present client mask blur" },
-     /* 0157: one studio PIN, changed by an admin in Control Center (the card tells other roles who can change it) */
+     /* 0157: one studio PIN, changed by an admin in Settings (the card tells other roles who can change it) */
      { id: "hbp-pin", label: "Change studio privacy PIN", icon: "\u{1F512}", href: PIN_PAGE, need: [["view", "controls"]], kw: "privacy pin passcode hide amounts money reset 0000" }]
       .forEach(function (a) { if (!api.ACTIONS.some(function (x) { return x.id === a.id; })) api.ACTIONS.push(a); });
     return true;

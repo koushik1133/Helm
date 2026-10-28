@@ -1,6 +1,6 @@
 // r23 link views (migration 0261): "Viewed 3x - last 2h ago" on quote rows / the event workspace / quote flow step 9,
 // the timeline dialog (IP admin only), first-open bell, "viewed but not approved" follow-ups with Send a nudge,
-// the Attention tab + dashboard, Control Center settings, preview links never counted.
+// the Attention tab + dashboard, Settings, preview links never counted.
 // Behaviour of the SQL: tests/db/r23-link-views-0261.sql (local PG).
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -61,7 +61,7 @@ await t('link-views.js: DOM API only, accessible dialog, IP only when the server
   assert.ok(/min-height:44px/.test(CSS) && /@media \(max-width:480px\)/.test(CSS), 'touch targets + phone layout');
 });
 
-await t('pages: quotes rows, event workspace chip, flow step 9 panel, Control Center card', () => {
+await t('pages: quotes rows, event workspace chip, flow step 9 panel, Settings card', () => {
   assert.ok(QUOTES.includes('<tbody id="rows" aria-busy="true" data-link-views-rows>'));
   for (const p of [QUOTES, EVENT, FLOW, CONTROL]) {
     assert.match(p, /<script src="link-views\.js\?v=\d+"><\/script>/);

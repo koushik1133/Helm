@@ -54,7 +54,7 @@ Each tab shows a one-line explanation under its title.
 
 ## Staff
 
-- **Day rate (per event day)**: what you pay this person for one day of an event, not per hour. The budget uses it to work out crew wages. The same label is used in Control Center → member profile.
+- **Day rate (per event day)**: what you pay this person for one day of an event, not per hour. The budget uses it to work out crew wages. The same label is used in Settings → member profile.
 
 ## Who can do what
 

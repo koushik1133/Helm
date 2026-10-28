@@ -58,7 +58,7 @@ t('store-api bookletDataUrl: only jpeg/png/webp + base64 characters', () => {
 t('builder: Labels None | Numbers | Names control in the 3D toolbar + legend card', () => {
   const h = read('public/builder.html');
   assert.match(h, /<span class="labels3d" id="labels3d" role="group" aria-label="Labels">[\s\S]*data-l="none"[\s\S]*data-l="numbers"[\s\S]*data-l="names"[\s\S]*<\/span>\s*<\/div>\s*<div class="legend3d" id="legend3d" hidden/);
-  assert.match(h, /builder\.js\?v=79/); assert.match(h, /builder-3d\.js\?v=26/); assert.match(h, /capture-frame\.js\?v=13/); assert.match(h, /builder\.css\?v=34/);
+  assert.match(h, /builder\.js\?v=80/); assert.match(h, /builder-3d\.js\?v=26/); assert.match(h, /capture-frame\.js\?v=13/); assert.match(h, /builder\.css\?v=34/);
   assert.match(read('public/builder.css'), /\.legend3d\[hidden\]\{display:none\}/);
 });
 t('builder-3d: live mode remembered (try/catch), badges + legend in Numbers, capture honours opts.labels', () => {
@@ -155,7 +155,7 @@ t('booklet: render wiring, versions bumped, print hides toggle, CSP allows data:
   const j = read('public/booklet.js');
   assert.match(j, /dbFigure\(fig, d, "2d", dbImages\(d, "layout2d"\)/); assert.match(j, /dbFigure\(fig, d, "3d", dbImages\(d, "layout3d"\)/);
   assert.ok(!/innerHTML/.test(j.slice(j.indexOf("function dbImages"), j.indexOf("function openLightbox"))));
-  for (const p of ['public/booklet.html', 'public/event.html', 'public/client.html', 'public/flow.html']) assert.match(read(p), /booklet\.js\?v=29/, p);
+  for (const p of ['public/booklet.html', 'public/event.html', 'public/client.html', 'public/flow.html']) assert.match(read(p), /booklet\.js\?v=30/, p);
   assert.match(read('public/booklet.html'), /booklet\.css\?v=5/);
   assert.match(read('public/booklet.css'), /\.snap-labels\{display:none\}/); assert.match(read('public/booklet.css'), /\.snap-zoom\[hidden\]\{display:none\}/);
   const v = JSON.parse(read('vercel.json'));

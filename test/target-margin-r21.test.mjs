@@ -1,6 +1,6 @@
-// r21 (0242): ONE studio-wide target margin for the Insights benchmarks, set in Control Center.
+// r21 (0242): ONE studio-wide target margin for the Insights benchmarks, set in Settings.
 // Insights reads the studio value (fallback 30), the per-device value is retired (offered once to an editor),
-// Control Center field with validation, store-api wiring, SQL shape (additive, guarded, self-check rows).
+// Settings field with validation, store-api wiring, SQL shape (additive, guarded, self-check rows).
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -52,7 +52,7 @@ t('insights: studio value is used for everyone (28% margin vs 25 target = on tar
   assert.equal(ui.target(), 25);
   assert.match(bench.textContent, /Target margin25%/);
   assert.match(bench.textContent, /Set for the whole studio/);
-  assert.match(bench.textContent, /An admin can change it in Control Center/);
+  assert.match(bench.textContent, /An admin can change it in Settings/);
   assert.equal(bench.all((e) => e.tagName === 'INPUT').length, 0);
   assert.match(bench.textContent, /1 on target/);
 });
@@ -106,7 +106,7 @@ t('store-api: get / set wiring, client-side 0..90 check, friendly 0242 message',
   assert.match(API, /n < 0 \|\| n > 90/);
   assert.match(API, /APPLY-0242\.sql/);
 });
-t('Control Center: card in Pricing, label + help text, validation, editors only', () => {
+t('Settings: card in Pricing, label + help text, validation, editors only', () => {
   assert.match(CC, /<div class="card" id="tmCard" hidden>\s*<h3>Target margin<\/h3>/);
   assert.match(CC, /<label for="tm_pct">Target margin %<\/label><input id="tm_pct" type="number" min="0" max="90"/);
   assert.match(CC, /Used by Insights benchmarks to colour events green\/amber\/red\./);

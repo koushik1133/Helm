@@ -1,12 +1,12 @@
 ---
 id: team-members
-nav: Control Center: team members
+nav: Settings: team members
 order: 80
 areas: admin
 ---
-# Control Center: the team members table
+# Settings: the team members table
 
-**Control Center → Users & invites** lists everyone in your studio. Only admins see this section.
+**Settings → Users & invites** lists everyone in your studio. Only admins see this section.
 
 ## The table
 Each row shows **Name** (photo, name, e-mail), **Phone**, **Job title** and department, **Role**, **Profile** (✓ Complete or ✗ Incomplete, and when they joined) and actions. Use **Search name, email, phone, title…** or the **Everyone / Incomplete profiles / Complete profiles** picker to narrow it down. On a phone each person is a card.

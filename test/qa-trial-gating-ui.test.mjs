@@ -140,7 +140,7 @@ t('B5: palette - filtered at search time, trial-off actions dropped, footer coun
   for (const h of ['/audit.html', '/reports.html', '/onboarding.html', '/templates.html']) assert.ok(re.test(h), h);
   assert.ok(!re.test('/insights.html') && !re.test('/business.html'));
 });
-t('B5: Control Center settings search - no trial-off page hits; dropdown fits the settings column', () => {
+t('B5: Settings search - no trial-off page hits; dropdown fits the settings column', () => {
   assert.match(CS, /PAGES\.forEach\(function\(p\)\{ if\(trial\(\) && CAT && CAT\.trialOff && CAT\.trialOff\(\{kind:"page",key:p\.key,href:p\.href\}\)\) return;/);
   assert.match(CS, /return \{key:e\.key,text:e\.text,href:e\.href,kw:e\.keywords\};/);
   assert.match(CSC, /\.cs-results\{position:absolute;left:0;top:100%;margin-top:8px;z-index:40;width:100%;/);

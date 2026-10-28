@@ -4,7 +4,7 @@
 // ON BY DEFAULT: kill switch HELM_INVITE_EMAILS_ENABLED="false" → every request is a
 // no-op 200 {status:"dormant"}.
 // Delivery (0205: ONE invitation for every invitee - brand-new address, existing account,
-// re-invite / resend, bulk invite, Staff "Invite to log in", Control Center "Users & invites"):
+// re-invite / resend, bulk invite, Staff "Invite to log in", Settings "Users & invites"):
 //   * an e-mail provider is set for the edge functions (RESEND_API_KEY + RESEND_FROM, else
 //     SMTP_HOST / SMTP_USER / SMTP_PASS [/ SMTP_PORT / SMTP_FROM] - _shared/mailer.ts, the same
 //     secrets client-mailer uses) → the branded templates.ts invitation "Join <Studio> on Helm -

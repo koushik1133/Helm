@@ -1,7 +1,7 @@
 /* item-specs.test.mjs — 0086 item specifications + spec-based pricing (BPStore.pricing / ITEM_SPEC).
    Every formula, m<->ft, rounding, bad inputs rejected, missing rate -> catalog fallback with a note,
    items without specs priced exactly as before, and the static wiring (builder Adjust popup,
-   Control Center card, RBAC area, migration, versions). */
+   Settings card, RBAC area, migration, versions). */
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -116,13 +116,13 @@ t('defaults: client mirror == SQL _a86_default_rates()', () => {
   assert.deepEqual(j, JSON.parse(JSON.stringify(R)));
   assert.deepEqual(Object.keys(j).sort(), [...S.TYPES].sort());
 });
-t('wiring: RBAC area, Control Center card, builder Adjust popup, versions', () => {
+t('wiring: RBAC area, Settings card, builder Adjust popup, versions', () => {
   const s = read('public/store-api.js'), cc = read('public/control.html'), bj = read('public/builder.js'), bh = read('public/builder.html');
   assert.match(s, /key: "item_pricing"/);
   assert.match(s, /rpc\("set_item_rate_card"/); assert.match(s, /rpc\("get_item_rate_cards"\)/);
-  assert.match(cc, /id="itemPricingCard"/); assert.match(cc, /<script src="item-pricing\.js\?v=1"><\/script>/); assert.match(read('public/item-pricing.js'), /setItemRate\(/); assert.ok(!/innerHTML/.test(read('public/item-pricing.js')));
+  assert.match(cc, /id="itemPricingCard"/); assert.match(cc, /<script src="item-pricing\.js\?v=2"><\/script>/); assert.match(read('public/item-pricing.js'), /setItemRate\(/); assert.ok(!/innerHTML/.test(read('public/item-pricing.js')));
   assert.match(bj, /ITEM-SPEC ADJUST: BEGIN/); assert.match(bj, /ITEM-SPEC ADJUST: END/);
-  assert.match(bh, /builder\.js\?v=79/); assert.match(bh, /store-api\.js\?v=299/);
+  assert.match(bh, /builder\.js\?v=80/); assert.match(bh, /store-api\.js\?v=300/);
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0086_item_specs\.sql/);
   const ap = read('supabase/APPLY-0086.sql'); assert.ok(!/[^\x00-\x7f]/.test(ap), 'APPLY-0086 must be pure ASCII');
   assert.match(read('docs/ITEM-PRICING-DEFAULTS.md'), /Generator/);

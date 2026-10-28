@@ -5,7 +5,7 @@
 //  * pasteable: ASCII, no psql meta-command, no temp table, no DROP TABLE / TRUNCATE / DELETE FROM
 //  * R24 DB suites in run-all.sh after the R23 ones; generator --check in npm run ci
 //  * Automations page: the R23 rows call the real R23 settings RPCs (which exist in 0261 / 0262 / 0264 / 0266) and link
-//    to the Control Center sections that hold those cards
+//    to Settings sections that hold those cards
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import vm from 'node:vm';
@@ -76,7 +76,7 @@ t('Automations (r25 0274): R23 rows switch through automation_switch into the R2
     ['quote_expiry_team', 'quote_validity', '#client-links'], ['overdue_bell', 'payment_schedule_settings', '#payment-schedules'],
     ['inbox_email', 'inbox_settings', '#notifications'], ['crew_shifts', "'crew'", '#crew']]) {
     assert.equal(by[key].hash, hash, key + ' settings link');
-    assert.match(read('public/control-split.js'), new RegExp('hash:"' + hash + '"'), hash + ' is a Control Center section');
+    assert.match(read('public/control-split.js'), new RegExp('hash:"' + hash + '"'), hash + ' is a Settings section');
     assert.ok(s274.includes("'" + key + "'") && s274.includes(store), key + ' is switched where ' + store + ' lives');
   }
   // the R23 cards keep their details but no second on / off (one place)
@@ -85,7 +85,7 @@ t('Automations (r25 0274): R23 rows switch through automation_switch into the R2
   assert.ok(!/email_enabled: on/.test(read('public/inbox-settings.js')), 'inbox card: no on / off');
   assert.ok(!/notifyShifts: nt/.test(read('public/crew-shifts.js')), 'crew card: no on / off');
 });
-t('Control Center: 19 sections incl. R23 Payment schedules / Crew and R24 Automations', () => {
+t('Settings: 19 sections incl. R23 Payment schedules / Crew and R24 Automations', () => {
   const cs = read('public/control-split.js');
   for (const k of ['payments', 'crew', 'automations']) assert.match(cs, new RegExp('\\{key:"' + k + '"'), k);
   assert.match(cs, /if\(id==="pstCard"\) return "payments";\s*if\(id==="autoCard"\|\|id==="rsrCard"\|\|id==="enqCard"\) return "automations";/);

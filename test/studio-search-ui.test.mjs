@@ -181,7 +181,7 @@ t('empty query shows quick actions filtered by role access', async () => {
   assert.ok(labels.some((l) => l.includes('Go to quotes')));
   assert.ok(!labels.some((l) => l.includes('New quote')), 'needs create capability');
   assert.ok(!labels.some((l) => l.includes('Go to calendar')), 'no calendar view');
-  assert.ok(!labels.some((l) => l.includes('Control Center')), 'no controls view');
+  assert.ok(!labels.some((l) => l.includes('Settings')), 'no controls view');
 });
 t('1 character: no request', async () => {
   const env = load(); await env.api.boot(); await env.api.open();

@@ -1,4 +1,4 @@
-/* item-pricing.js — Control Center "Item pricing" card (0086). The studio's rate cards for
+/* item-pricing.js — Settings "Item pricing" card (0086). The studio's rate cards for
    spec-priced items (DJ, generator, stage, lighting, LED wall, chandelier, photo booth,
    chocolate fountain, chariot, smoke effects, dancers). Reads / writes ONLY through
    BPStore.config.itemRates / setItemRate (get_item_rate_cards / set_item_rate_card — the

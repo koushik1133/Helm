@@ -116,7 +116,7 @@ t('store: vendor bill overdue + default bill date + bell Today/Yesterday use the
 t('store: every page loads the new store-api.js (v296) and country-profile.js (v6)', () => {
   for (const f of ['calendar.html', 'quotes.html', 'reports.html', 'inbox.html', 'flow.html', 'dashboard.html']) {
     const h = r('public/' + f);
-    assert.match(h, /store-api\.js\?v=299/, f); assert.match(h, /country-profile\.js\?v=6/, f);
+    assert.match(h, /store-api\.js\?v=300/, f); assert.match(h, /country-profile\.js\?v=7/, f);
     assert.ok(h.indexOf('country-profile.js') < h.indexOf('store-api.js'), f + ': helper before the store');
   }
 });
@@ -196,7 +196,7 @@ t('day maths: business month buckets, HQ (IST), vendor dates, public enquiry min
   assert.match(r('public/hq-invoice.js'), /timeZone: "Asia\/Kolkata"[^\n]*r37: HQ = India time/);
   assert.match(r('public/vendor-request.js'), /timeZone: "Asia\/Kolkata"/);
   assert.match(r('public/vendor-requests-ui.js'), /window\.BPStore\.todayLocal\(\)\) \|\| new Date/);
-  const eh = r('public/enquiry.html'); assert.ok(eh.indexOf('country-profile.js?v=6') > 0 && eh.indexOf('country-profile.js') < eh.indexOf('enquiry.js'), 'enquiry loads the helper first');
+  const eh = r('public/enquiry.html'); assert.ok(eh.indexOf('country-profile.js?v=7') > 0 && eh.indexOf('country-profile.js') < eh.indexOf('enquiry.js'), 'enquiry loads the helper first');
   assert.match(r('public/enquiry.js'), /H\.todayIn\(H\.FALLBACK_TZ \|\| "Asia\/Kolkata"\)/);
 });
 t('no time-zone label on staff screens (owner: just show the studio zone, no "IST")', () => {

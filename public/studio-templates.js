@@ -6,7 +6,7 @@
  *             Applying a template scales / clamps it to the CURRENT hall and re-applies the exact
  *             seat count (exactSeats) when a quote is open.
  *   Layout wizard: "Start from my template" opens the picker (studio templates first).
- *   Control Center: "Layout templates" tab (#pane-ltemplates) with the same manager.
+ *   Settings: "Layout templates" tab (#pane-ltemplates) with the same manager.
  *   Cards without a stored picture draw a preview from the layout itself (core previewShapes).
  *   Free-trial studio (subscription status "trial"): templates can only be USED - no new / edit /
  *   rename / duplicate / archive / default, no "Save as template", archived ones never listed.
@@ -205,7 +205,7 @@
       opts.map(function (o) { return h("option", { value: "ref:" + o.value, text: o.textContent }); })));
   }
 
-  /* ---------------- manager (builder modal + Control Center pane) ---------------- */
+  /* ---------------- manager (builder modal + Settings pane) ---------------- */
   // a card preview drawn from the layout JSON when the template has no stored picture (SQL-seeded samples,
   // or a browser that could not capture one). DOM nodes only; never written back to the template.
   var SVGNS = "http://www.w3.org/2000/svg";
@@ -271,7 +271,7 @@
     // Rename: name trimmed + inner spaces / control characters collapsed, 1-120 characters, no < >.
     // A bad name or a failed save shows the message under the box and KEEPS what was typed; the Save
     // button is disabled while the save runs (no double submit); an unchanged name just closes the box.
-    // -> true when shown inline (Control Center); elsewhere the message goes to the manager's error line
+    // -> true when shown inline (Settings); elsewhere the message goes to the manager's error line
     function renameErr(inp, msg) {
       var F = G.HelmCCFields;
       if (F && F.fieldError && inp.parentNode) { F.fieldError(inp, msg || "", inp.parentNode.lastChild); return true; }
@@ -327,7 +327,7 @@
         } else nameNode = h("b", { cls: "st-name", text: trial ? trialName(r.name) : r.name, title: trial ? trialName(r.name) : r.name });
         var badges = h("div", { cls: "st-badges" }, [h("span", { cls: "st-badge", text: C.label(r.event_type) }),
           r.is_default ? h("span", { cls: "st-badge st-def", text: "★ Default" }) : null, r.archived ? h("span", { cls: "st-badge st-arc", text: "Archived" }) : null]);
-        // one primary action per card: Use (builder) / Edit layout (Control Center) / Open in builder (trial or no edit)
+        // one primary action per card: Use (builder) / Edit layout (Settings) / Open in builder (trial or no edit)
         var canEdit = !!(M && opts.editHref);
         var acts = h("div", { cls: "st-acts" }, [
           opts.onUse && !r.archived ? h("button", { type: "button", cls: "btn sm primary", text: "Use", onclick: function () { opts.onUse(r); } }) : null,
@@ -453,7 +453,7 @@
     var f = metaForm(editing || {}, true);
     var err = h("p", { cls: "st-err", role: "alert", hidden: true });
     var btn = h("button", { type: "button", cls: "tbtn primary", id: "st_edit_save", text: "Save template" });
-    var done = h("a", { cls: "tbtn", id: "st_edit_done", href: "control.html#layout-templates", text: "Done", title: "Back to Control Center - Layout templates" });
+    var done = h("a", { cls: "tbtn", id: "st_edit_done", href: "control.html#layout-templates", text: "Done", title: "Back to Settings - Layout templates" });
     var title = h("b", { text: loadErr ? "Could not open this template" : (editing ? "Editing studio template" : "New studio template") });
     var bar = h("div", { cls: "st-editbar", id: "st_editbar", role: "region", "aria-label": "Template editing" }, [
       h("div", { cls: "st-eb-head" }, [title, h("p", { cls: "mnote", text: loadErr ? "Nothing was changed." : "Arrange the floor, name it, then Save template." })]),
@@ -530,7 +530,7 @@
     if (G.addEventListener) G.addEventListener("helm:trial", function () { perm.trial = true; perm.manage = false; bSave.hidden = true; fillPreset(); });
   }
 
-  // Control Center "Open in builder" (?new=1&useTpl=<id>): load the template onto the new floor once the builder is ready
+  // Settings "Open in builder" (?new=1&useTpl=<id>): load the template onto the new floor once the builder is ready
   function useOnArrival(id) {
     var tries = 0;
     (function go() {

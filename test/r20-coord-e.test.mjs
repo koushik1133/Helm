@@ -1,6 +1,6 @@
 // r20 coord (e) (owner decision 2026-10-18, updated): the user manual is for the studio ADMIN only for now.
 // ONE flag - config.js window.HELM_FEATURES.manual ("admin"; true = everyone, false = nobody) - every entry point checks it:
-// profile menu item, Control Center Help link, search catalog page, both tour texts (dashboard + shell),
+// profile menu item, Settings Help link, search catalog page, both tour texts (dashboard + shell),
 // and /manual itself, which shows "The user manual is coming soon." with NO storage fetch while off.
 // The manual code + docs/manual stay so flipping the flag to true brings everything back.
 // Static source checks + pure helpers run in a vm. No network, no DB.
@@ -40,7 +40,7 @@ t('2 profile menu: "User manual" for the admin only ("admin"); everyone with tru
   ctx.window = { HELM_FEATURES: { manual: true } }; assert.equal(ids('sales'), 'profile,settings,manual,suggest,signout');
 });
 
-t('3 Control Center Help -> User manual: flag true = everyone, "admin" = the admin role only', () => {
+t('3 Settings Help -> User manual: flag true = everyone, "admin" = the admin role only', () => {
   assert.match(CS, /if\(f===true\)\{ aside\.appendChild\(help\); return; \} if\(f!=="admin"\) return;/);
   assert.match(CS, /\.then\(function\(r\)\{ if\(r==="admin" && !help\.parentNode\) aside\.appendChild\(help\); \}\)/);
   assert.equal((CS.match(/aside\.appendChild\(help\)/g) || []).length, 2, 'no ungated append');

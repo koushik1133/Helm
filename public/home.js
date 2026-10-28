@@ -399,7 +399,7 @@
       if (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) return Promise.resolve(window.SUPABASE_CONFIG);
       if (cfgP) return cfgP;
       cfgP = new Promise(function (res) {
-        var s = document.createElement('script'); s.src = '/config.js?v=111';
+        var s = document.createElement('script'); s.src = '/config.js?v=112';
         s.onload = function () { res(window.SUPABASE_CONFIG || {}); }; s.onerror = function () { cfgP = null; res({}); };
         document.head.appendChild(s);
       });

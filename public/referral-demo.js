@@ -98,7 +98,7 @@
     var AREAS = [
       { key: "crm", label: "Clients", page: "crm.html", group: "Manage" }, { key: "staff", label: "Staff", page: "staff.html", group: "Manage" },
       { key: "inventory", label: "Inventory", page: "inventory.html", group: "Manage" }, { key: "vendors", label: "Vendors", page: "vendors.html", group: "Manage" },
-      { key: "controls", label: "Control Center", page: "control.html", group: "Admin" }, { key: "reports", label: "Reports", page: "reports.html", group: "Admin" }];
+      { key: "controls", label: "Settings", page: "control.html", group: "Admin" }, { key: "reports", label: "Reports", page: "reports.html", group: "Admin" }];
     window.HelmReferralDemo.store = { demo: true, auth: {
       areas: function () { return AREAS; }, canView: function () { return Promise.resolve(true); }, canEditArea: function () { return Promise.resolve(false); },
       user: function () { return { email: "kavya@shaadisquad.in", user_metadata: { full_name: me.owner } }; },

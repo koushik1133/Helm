@@ -29,7 +29,7 @@
  *   title: Closing an event        default = the first "# " heading
  *   nav: Closing an event          shorter sidebar label (default = title)
  *   order: 30                      sort key inside its group (default 500)
- *   areas: closure, finance        role areas (Control Center -> Roles & access). A signed-in user whose role
+ *   areas: closure, finance        role areas (Settings -> Roles & access). A signed-in user whose role
  *                                  can view NONE of them does not see the chapter; admins see everything;
  *                                  no "areas" = everyone. Use "admin" for admin-only chapters.
  *   replaced-by: r23-quote-validity.md, r23-validity.md    (placeholders only)

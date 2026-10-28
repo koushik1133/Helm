@@ -1,5 +1,5 @@
 // r24-automation.test.mjs - 0269: run-sheet reminders (owner picker + per-line reminder + bell tag), one Automations
-// page in Control Center, the public enquiry form (/<studio>/enquiry) and the comms-dispatch e-mail lanes.
+// page in Settings, the public enquiry form (/<studio>/enquiry) and the comms-dispatch e-mail lanes.
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
@@ -148,7 +148,7 @@ t("runsheet-remind.js before 0269: old Staff + Vendors picker, no new fields sen
   assert.equal(doc.getElementById("r_remWrap").hidden, true);
 });
 
-t("Control Center: Automations section + three cards + script, same hash in search", () => {
+t("Settings: Automations section + three cards + script, same hash in search", () => {
   const c = r("public/control.html"), s = r("public/control-split.js"), cat = r("public/search-catalog.js");
   for (const id of ["autoCard", "rsrCard", "enqCard"]) assert.match(c, new RegExp('<div class="card" id="' + id + '" hidden></div>'));
   assert.match(c, /<script src="automations\.js\?v=\d+"><\/script>/);

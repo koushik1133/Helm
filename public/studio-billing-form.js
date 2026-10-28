@@ -1,4 +1,4 @@
-/* studio-billing-form.js - Control Center > General: billing-details form helpers.
+/* studio-billing-form.js - Settings > General: billing-details form helpers.
  *
  * In plain words:
  *  - PIN / postal code: India takes digits only, at most 6 (numeric keypad on phones);
