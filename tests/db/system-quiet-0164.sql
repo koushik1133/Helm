@@ -80,7 +80,8 @@ do $$ declare n int; begin
   select count(*) into n from public.audit_log where org_id = 'a0000000-0000-4000-8000-000000000001';
   perform auth.logout();
   perform auth.login_anon();
-  select n + count(*) into n from public.audit_log;
+  -- r60 (0301): anon holds no table privilege on audit_log any more - a refusal counts as "nothing read"
+  begin select n + count(*) into n from public.audit_log; exception when insufficient_privilege then null; end;
   perform auth.logout();
   perform pg_temp.t('18 no cross-studio / anon audit read', n = 0, n::text);
 end $$;

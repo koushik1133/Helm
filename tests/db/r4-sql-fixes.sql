@@ -196,9 +196,8 @@ begin
   get diagnostics n = row_count;
   perform pg_temp.res('40 non-admin member cannot change billing details', n = 0, n::text);
   perform pg_temp.anon();
-  update public.organizations set gst_number = 'x' where id = a;
-  get diagnostics n = row_count;
-  perform pg_temp.res('41 anon cannot change billing details', n = 0, n::text);
+  -- r60 (0301): anon holds no table privilege on organizations any more, so the write is refused outright (42501)
+  perform pg_temp.res('41 anon cannot change billing details', pg_temp.try($q$update public.organizations set gst_number = 'x' where id = 'a0000000-0000-4000-8000-000000000001'$q$) like '42501%');
   perform pg_temp.su();
   perform pg_temp.res('42 no anon-callable function reads brand / billing',
     not exists (select 1 from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace

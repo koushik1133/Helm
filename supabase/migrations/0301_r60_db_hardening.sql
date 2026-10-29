@@ -27,7 +27,7 @@
 --         fills in the caller's own, exactly as before.
 --         A layout written by a direct database / service session (no signed-in caller) now keeps the studio it
 --         names instead of being set to "no studio" (the old trigger always used the caller's studio, which for
---         such a session is none - that is how quarantined layouts were made).
+--         such a session is none, so such a write failed on the required studio column).
 -- The previous bodies are kept once as _layouts_stamp_org__pre0301, tg_saved_views_guard__pre0301 and
 -- layouts_quarantined_count__pre0301 (not callable by the app).
 -- ZERO DATA LOSS: privileges narrowed + 3 functions re-issued in place (same names, arguments, results; the two
@@ -126,7 +126,7 @@ create or replace function public._layouts_stamp_org()
 returns trigger language plpgsql security definer set search_path = '' as $$
 -- r60-db-0301: an app caller (signed in / anon) may only save in its own studio: no studio given -> its own studio
 -- (as before); its own studio -> kept; another studio -> 42501 (was: silently rewritten). A direct database /
--- service session keeps the studio it names (was: set to the caller's studio, i.e. none -> a quarantined layout).
+-- service session keeps the studio it names (was: set to the caller's studio, i.e. none -> refused as no studio).
 declare v_org uuid := public.current_org_id();
 begin
   if coalesce(auth.jwt() ->> 'role', '') in ('authenticated', 'anon') then
