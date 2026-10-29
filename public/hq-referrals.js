@@ -5,7 +5,7 @@
    a fresh two-step code asks for it here and retries once. Signed out / not HQ -> "page not found" (never confirms HQ).
    DEMO: localhost + ?demo=1 only (referral-demo.js) - in-memory, nothing saved.
    DOM via createElement / textContent only. Money: USD at list price, for reporting only (rewards are months, never cash). */
-(function () {
+(function (run) { var g = window.HelmReferralDemoGate; if (g && g.wanted) g.ready.then(run); else run(); })(function () {
   "use strict";
   var R = window.HelmReferral;
   var LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(String(location.hostname || ""));
@@ -453,4 +453,4 @@
     hqLinks(); $("vApp").hidden = false;
     wire();
   })();
-})();
+});
