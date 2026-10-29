@@ -41,3 +41,6 @@ supabase/staging-seed-admin.sql
 # iCloud Desktop-sync conflict copies ("name 2.ext") — never commit these
 * 2.*
 * 2
+
+# Internal audit/comparison reports — keep local, never commit
+AUDIT-CURRENT-STATE-*

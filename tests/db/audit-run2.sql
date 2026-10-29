@@ -448,10 +448,11 @@ do $$ declare n int; s text; begin perform pg_temp.su();
   delete from public.quotes where id = 'b0000000-0000-4000-8000-0000004200f1';
   perform pg_temp.su(); select count(*) into n from public.quotes where id = 'b0000000-0000-4000-8000-0000004200f1';
   perform pg_temp.res('RC4-18 denied: Org A admin can''t delete an Org B shelved quote', n = 1, n::text);
+  -- 0296 (r55 zero data loss): the app only shelves; a hard delete through the API is refused even from the shelf
   perform pg_temp.login('a_admin@a.test');
-  delete from public.quotes where id = 'a0000000-0000-4000-8000-0000004200f1';
+  s := pg_temp.try($q$delete from public.quotes where id = 'a0000000-0000-4000-8000-0000004200f1'$q$);
   perform pg_temp.su(); select count(*) into n from public.quotes where id = 'a0000000-0000-4000-8000-0000004200f1';
-  perform pg_temp.res('RC4-19 allowed: admin deletes an Org A quote from the Deleted shelf', n = 0, n::text);
+  perform pg_temp.res('RC4-19 denied (0296): even an admin can''t hard-delete an Org A quote from the Deleted shelf', n = 1 and s like '42501%', s);
   update public.profiles set role = 'operations' where email = 'a_staff@a.test';   -- quotes edit, outside can_create
   perform pg_temp.login('a_staff@a.test');
   s := pg_temp.try($q$insert into public.quotes(code, title, status, client, pricing, current_version, approval_status) values ('A-0432', 'x', 'quote', '{}', '{"subtotal":0,"discount":0,"gstPct":18,"total":0}', 1, 'none')$q$);
