@@ -144,7 +144,7 @@ run "checkout-overissue" "CHECKOUT-OVERISSUE: ALL PASS"    psql -q -f tests/db/c
 run "rescore2-fixes"     "RESCORE2-FIXES: ALL PASS \(33/33\)" psql -q -f tests/db/rescore2-fixes.sql
 run "rescore3-fixes"     "RESCORE3-FIXES: ALL PASS \(26/26\)" psql -q -f tests/db/rescore3-fixes.sql
 run "display-names"      "DISPLAY-NAMES: ALL PASS \(38/38\)" psql -q -f tests/db/display-names.sql
-run "event-groups"       "EVENT-GROUPS: ALL PASS \(36/36\)" psql -q -f tests/db/event-groups.sql
+run "event-groups"       "EVENT-GROUPS: ALL PASS \(37/37\)" psql -q -f tests/db/event-groups.sql
 run "event-groups-race"  "EVENT-GROUP-RACE: PASS"          bash tests/db/event-groups-race.sh
 run "event-group-people-0194" "EVENT-GROUP-PEOPLE-0194: ALL PASS \(23/23\)" psql -q -f tests/db/event-group-people-0194.sql
 run "notification-prefs" "NOTIFICATION-PREFS: ALL PASS \(47/47\)" psql -q -f tests/db/notification-prefs.sql
@@ -282,6 +282,10 @@ run "r39-staff-google-0288" "R39-STAFF-GOOGLE-0288: ALL PASS \(49/49\)" psql -q 
 run "r55-no-hard-delete-0296" "R55-NO-HARD-DELETE-0296: ALL PASS \(33/33\)" psql -q -f tests/db/r55-no-hard-delete-0296.sql
 # r55: the real 0184 trial purge again, with the 0296 guard live and NO purge mark (it deletes with its own helm.trial_purge_org)
 run "trial-retention-0184-r55-guard" "TRIAL-RETENTION-0184: ALL PASS \(50/50\)" env PGOPTIONS="$PGOPTIONS -c helm.allow_purge=off" psql -q -f tests/db/trial-retention-0184.sql
+# r58 (0299): staff pay / crew-link tokens / inventory cost columns, crew-link task rules, greeting studio name, crew-link shifts,
+# run-sheet person match + crew scope, event-group card + members, inbox event names; re-applies itself 3x (earlier suites
+# re-apply 0012 / 0035 / 0132 / 0265 / 0266 bodies), rolled back; last so no later suite re-grants the table columns
+run "r58-crew-events-0299" "R58-CREW-EVENTS-0299: ALL PASS \(70/70\)" psql -q -f tests/db/r58-crew-events-0299.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

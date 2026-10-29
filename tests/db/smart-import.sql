@@ -40,7 +40,9 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000
     '[{"key":"ifsc","label":"IFSC code"},{"key":"joining_date","label":"Joining date","type":"date"},{"key":"blood_group","label":"Blood Group"}]');
   sid := (j -> 0 ->> 'id')::uuid; perform pg_temp.put('sid', sid::text);
   perform pg_temp.res('01 admin creates 2 staff rows', j -> 0 ->> 'status' = 'created' and j -> 1 ->> 'status' = 'created', j::text);
+  perform pg_temp.su();   -- r58 (0299): attributes / day_rate are read through staff_pay_fields, not the table, by signed-in users
   select count(*) into n from public.crew_members where id = sid and org_id = a and attributes ->> 'ifsc' = 'HDFC0001234' and day_rate = 1500 and skills = '["sound","light"]';
+  perform pg_temp.login('a_admin@a.test');
   perform pg_temp.res('02 row is in own studio with attributes + standard fields', n = 1, n::text);
   select count(*) into n from public.custom_field_defs where org_id = a and entity = 'staff';
   perform pg_temp.res('03 custom field labels registered', n = 3, n::text);
@@ -48,8 +50,10 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000
   -- update merges, keeps unmentioned fields + attributes
   j := public.smart_import_batch('staff', format('[{"i":5,"action":"update","id":"%s","fields":{"department":"Production"},"attributes":{"ifsc":"SBIN0000001","shoe":"9"}}]', sid)::jsonb,
     '[{"key":"ifsc","label":"RENAMED"}]');
+  perform pg_temp.su();
   select count(*) into n from public.crew_members where id = sid and department = 'Production' and role = 'Lead' and phone = '+91 98765 43210'
     and attributes ->> 'ifsc' = 'SBIN0000001' and attributes ->> 'blood_group' = 'O+' and attributes ->> 'shoe' = '9';
+  perform pg_temp.login('a_admin@a.test');
   perform pg_temp.res('04 update only touches supplied fields; attributes merged', j -> 0 ->> 'status' = 'updated' and n = 1, j::text);
   perform pg_temp.res('05 existing custom field label never renamed by import',
     (select label from public.custom_field_defs where org_id = a and entity = 'staff' and key = 'ifsc') = 'IFSC code');

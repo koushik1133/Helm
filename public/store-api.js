@@ -3480,6 +3480,42 @@ window.HelmUrl = HelmUrl;
   // so callers can fall back to an older path; every other error must still surface.
   const rpcMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "PGRST202" || c === "42883" || /could not find the function|function[^]*does not exist/i.test(m); };
+  // r58 (0299): three columns are no longer readable straight from their tables; role-checked RPCs answer them:
+  // crew_members.day_rate / attributes -> staff_pay_fields (a team login's pay = the studio admin's only, plain crew as before),
+  // inventory_items.unit_cost -> inventory_costs (Budget & finance view or Inventory edit; others get no cost),
+  // work_tokens.token -> work_links_for_event (Staff edit). Before 0299 the RPCs are missing and the columns are still
+  // readable: read them from the table exactly as before. Rows are filled in place (a list keeps .truncated).
+  const CREW_COLS = "id,name,phone,department,active,created_at,role,skills,email,emp_type,notes,org_id,profile_id,is_demo";
+  const INV_COLS = "id,name,category,total_qty,unit,notes,active,created_at,priority,org_id,attributes,is_demo";
+  const r58Rpc = { pay: null, cost: null };   // null = untried, false = not installed yet (pre-0299)
+  const r58Chunks = (a, n) => { const out = []; for (let i = 0; i < a.length; i += n) out.push(a.slice(i, i + n)); return out; };
+  async function r58Fill(rows, o) {
+    const list = Array.isArray(rows) ? rows : (rows ? [rows] : []);
+    const ids = [...new Set(list.map((r) => r && r.id).filter(Boolean))];
+    if (!ids.length || !supa) return rows;
+    const by = {};
+    for (const part of r58Chunks(ids, 1000)) {
+      let data = null;
+      if (r58Rpc[o.key] !== false) {
+        const r = await supa.rpc(o.rpc, { p_ids: part });
+        if (!r.error) { r58Rpc[o.key] = true; data = r.data || []; }
+        else if (rpcMissing(r.error)) r58Rpc[o.key] = false; else throw r.error;
+      }
+      if (data == null) {
+        data = [];
+        for (const p of r58Chunks(part, 150)) { const r = await supa.from(o.table).select(o.cols).in("id", p); if (r.error) throw r.error; data = data.concat(r.data || []); }
+      }
+      data.forEach((d) => { if (d && d.id) by[d.id] = d; });
+    }
+    list.forEach((r) => { if (r && r.id) o.apply(r, by[r.id] || null); });
+    return rows;
+  }
+  const crewWithPay = (rows) => r58Fill(rows, { key: "pay", rpc: "staff_pay_fields", table: "crew_members", cols: "id,day_rate,attributes",
+    apply: (r, d) => { r.day_rate = d && d.day_rate != null ? d.day_rate : null;
+      r.attributes = d && d.attributes && typeof d.attributes === "object" && !Array.isArray(d.attributes) ? d.attributes : {};
+      if (d && d.pay_hidden === true) r.pay_hidden = true; else delete r.pay_hidden; } });
+  const invWithCost = (rows) => r58Fill(rows, { key: "cost", rpc: "inventory_costs", table: "inventory_items", cols: "id,unit_cost",
+    apply: (r, d) => { r.unit_cost = d && d.unit_cost != null ? d.unit_cost : null; } });
   // 0078: fire-and-forget "the client opened the link" (follow-up timing); never throws, never blocks
   // r23 (0261): which page (portal / quotation / booklet / approve) via public_link_viewed - the server reads the
   // device from the request and ignores signed-in studio members. "#preview" on a client page (the studio's
@@ -3690,17 +3726,21 @@ window.HelmUrl = HelmUrl;
       if (error) throw error; return data; },
     async categories() { const t = await this.templates(); return [...new Set(t.map((x) => x.category))]; },
     async listCrew() { if (!supa) throw new Error("Supabase not configured");
-      const { data, error } = await supa.from("crew_members").select("*").eq("active", true).order("name");
-      if (error) throw error; return data; },
+      const { data, error } = await supa.from("crew_members").select(CREW_COLS).eq("active", true).order("name");
+      if (error) throw error; return crewWithPay(data || []); },
     async addCrew(name, phone, department) { if (!supa) throw new Error("Supabase not configured");
       phone = phoneOrThrow(phone, true);
-      const { data, error } = await supa.from("crew_members").insert({ name, phone, department }).select().single();
-      if (error) throw error; return data; },
+      const { data, error } = await supa.from("crew_members").insert({ name, phone, department }).select(CREW_COLS).single();
+      if (error) throw error; return crewWithPay(data); },
     async deactivateCrew(id) { const { error } = await supa.from("crew_members").update({ active: false }).eq("id", id); if (error) throw error; return true; },
     async listTasks(quoteId) { if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.from("event_tasks").select("*").eq("quote_id", quoteId).order("category").order("seq");
       if (error) throw error; return data; },
+    // r58 (0299): the links come from work_links_for_event (Staff edit only; view roles get none). Before 0299: the table.
     async listTokens(quoteId) { if (!supa) throw new Error("Supabase not configured");
+      const r = await supa.rpc("work_links_for_event", { p_quote: quoteId });
+      if (!r.error) return r.data || [];
+      if (!rpcMissing(r.error)) throw r.error;
       const { data, error } = await supa.from("work_tokens").select("token,phone,name").eq("quote_id", quoteId);
       if (error) throw error; return data; },
     assignTasks: (quoteId, category, titles, crewId, name, phone) => rpc("assign_tasks",
@@ -4723,7 +4763,8 @@ window.HelmUrl = HelmUrl;
   // r20 coord (d), owner decision: pay on a staff row LINKED to a team login (profile_id) is the
   // studio admin's business only. Everyone else - including that person on their own record -
   // never sees the day rate or a pay-like custom field of a linked row. Plain crew (no login) as before.
-  function staffPayVisible(s, isAdmin) { return isAdmin === true || !(s && s.profile_id); }
+  // r58 (0299): the database enforces the same rule (staff_pay_fields marks such a row pay_hidden: never shown).
+  function staffPayVisible(s, isAdmin) { if (s && s.pay_hidden === true) return false; return isAdmin === true || !(s && s.profile_id); }
   // a custom field that is pay (monthly salary, wage, CTC, ...): hidden with the day rate
   function staffPayAttr(key, label) {
     const re = /(salary|wage|ctc|stipend|remuneration|compensation|payout|day_?rate|daily_?rate|per_?day|(^|[^a-z])pay([^a-z]|$))/i;
@@ -4748,8 +4789,8 @@ window.HelmUrl = HelmUrl;
     payPatch: staffPayPatch,
     async list(includeInactive) {
       if (mode === "supabase") {
-        return sbAll(() => { let q = supa.from("crew_members").select("*").order("name").order("id");
-          if (!includeInactive) q = q.eq("active", true); return q; });
+        return crewWithPay(await sbAll(() => { let q = supa.from("crew_members").select(CREW_COLS).order("name").order("id");
+          if (!includeInactive) q = q.eq("active", true); return q; }));
       }
       const a = readLs(STAFF_LS); return includeInactive ? a : a.filter((s) => s.active !== false);
     },
@@ -4759,14 +4800,14 @@ window.HelmUrl = HelmUrl;
     async page(o) {
       o = o || {};
       if (mode === "supabase") {
-        let q = supa.from("crew_members").select("*", o.count ? { count: "exact" } : undefined);
+        let q = supa.from("crew_members").select(CREW_COLS, o.count ? { count: "exact" } : undefined);
         if (!o.includeInactive) q = q.eq("active", true);
         if (o.dept) q = q.eq("department", o.dept);
         if (o.skill) q = q.filter("skills", "cs", JSON.stringify([o.skill]));   // skills is a jsonb array
         if (o.ids) q = q.in("id", o.ids.length ? o.ids : ["00000000-0000-0000-0000-000000000000"]);
         let s = orIlike(["name", "role", "department", "email", "phone"], o.search);
         if (s) { s += ",skills.cs." + pgQuote(JSON.stringify([String(o.search).trim()])); q = q.or(s); }   // + an exact skill
-        return sbPage(q.order("name").order("id"), o);
+        const pg = await sbPage(q.order("name").order("id"), o); await crewWithPay(pg.rows); return pg;
       }
       const ids = o.ids ? new Set(o.ids) : null;
       const rows = readLs(STAFF_LS).filter((p) => (o.includeInactive || p.active !== false) && (!o.dept || p.department === o.dept) &&
@@ -4787,8 +4828,8 @@ window.HelmUrl = HelmUrl;
     async add(s) {
       if (s && !s.profile_id) s = { ...s, phone: phoneOrThrow(s.phone, true) };
       if (mode === "supabase") {
-        const { data, error } = await supa.from("crew_members").insert(s).select().single();
-        if (error) throw error; return data;
+        const { data, error } = await supa.from("crew_members").insert(s).select(CREW_COLS).single();
+        if (error) throw error; return crewWithPay(data);
       }
       const a = readLs(STAFF_LS); const row = { id: uid(), active: true, skills: [], ...s, created_at: now() };
       a.push(row); localStorage.setItem(STAFF_LS, JSON.stringify(a)); return row;
@@ -4922,8 +4963,8 @@ window.HelmUrl = HelmUrl;
   const inventory = {
     async items(includeInactive) {
       if (mode === "supabase") {
-        return sbAll(() => { let q = supa.from("inventory_items").select("*").order("name").order("id");
-          if (!includeInactive) q = q.eq("active", true); return q; });
+        return invWithCost(await sbAll(() => { let q = supa.from("inventory_items").select(INV_COLS).order("name").order("id");
+          if (!includeInactive) q = q.eq("active", true); return q; }));
       }
       const a = readLs(INV_LS); return includeInactive ? a : a.filter((i) => i.active !== false);
     },
@@ -4939,7 +4980,7 @@ window.HelmUrl = HelmUrl;
     },
     async addItem(it) {
       it = this._sanitize(it);
-      if (mode === "supabase") { const { data, error } = await supa.from("inventory_items").insert(it).select().single(); if (error) throw dupError(error, "item", it.name); return data; }
+      if (mode === "supabase") { const { data, error } = await supa.from("inventory_items").insert(it).select(INV_COLS).single(); if (error) throw dupError(error, "item", it.name); return invWithCost(data); }
       const a = readLs(INV_LS); const row = { id: uid(), active: true, total_qty: 0, ...it, created_at: now() }; a.push(row); localStorage.setItem(INV_LS, JSON.stringify(a)); return row;
     },
     // Bulk insert (one round-trip) — used by "Load starter items" so seeding ~20 rows
@@ -4950,16 +4991,16 @@ window.HelmUrl = HelmUrl;
       const rows = (list || []).map((it) => this._sanitize(it));
       if (!rows.length) return [];
       if (mode === "supabase") {
-        const { data, error } = await supa.from("inventory_items").insert(rows).select();
-        if (!error) return data;
+        const { data, error } = await supa.from("inventory_items").insert(rows).select(INV_COLS);
+        if (!error) return invWithCost(data || []);
         if (!(o && o.skipDuplicates) || error.code !== "23505") throw dupError(error, "item", rows.length === 1 ? rows[0].name : null);
         const made = []; made.skipped = [];
         for (const r of rows) {
-          const x = await supa.from("inventory_items").insert(r).select().single();
+          const x = await supa.from("inventory_items").insert(r).select(INV_COLS).single();
           if (x.error) { if (x.error.code !== "23505") throw x.error; made.skipped.push({ name: r.name, error: dupError(x.error, "item", r.name).message }); }
           else made.push(x.data);
         }
-        return made;
+        return invWithCost(made);
       }
       const a = readLs(INV_LS); const made = rows.map((it) => ({ id: uid(), active: true, total_qty: 0, ...it, created_at: now() })); a.push(...made); localStorage.setItem(INV_LS, JSON.stringify(a)); return made;
     },
@@ -7011,6 +7052,12 @@ window.HelmUrl = HelmUrl;
     // Event groups (0035): one chat group per confirmed quote, opened with an event card the
     // SERVER builds (client contact, date, venue, guests, layout, menu, notes — never money).
     eventGroups: {
+      // r58 (0299): the client's phone / e-mail for an event card - Quotes view only; null otherwise / before 0299
+      async contact(quoteId) {
+        if (mode !== "supabase" || !supa || !quoteId) return null;
+        try { const { data, error } = await supa.rpc("event_group_contact", { p_quote: quoteId }); return error ? null : (data || null); }
+        catch (e) { return null; }
+      },
       // { [quoteId]: { conversation_id, is_member } } for my studio (quotes-view access)
       async index() {
         if (mode !== "supabase") {
@@ -12977,7 +13024,11 @@ window.HelmUrl = HelmUrl;
   BPStore.mergeAttributes = async function (table, id, ch) {
     if (["crew_members", "inventory_items"].indexOf(table) < 0) throw new Error("Unknown list.");
     var base = {};
-    if (mode === "supabase" && supa && id) {
+    if (mode === "supabase" && supa && id && table === "crew_members") {
+      // r58 (0299): staff attributes come through staff_pay_fields (pay fields of a team login: admin only; a field
+      // left out here is kept by the database, never lost)
+      var one = await crewWithPay([{ id: id }]); base = (one[0] && one[0].attributes) || {};
+    } else if (mode === "supabase" && supa && id) {
       var r = await supa.from(table).select("attributes").eq("id", id).maybeSingle(); if (r.error) throw r.error;
       base = (r.data && r.data.attributes) || {};
     } else if (ch && ch.base) base = ch.base;

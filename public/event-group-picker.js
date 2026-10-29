@@ -80,6 +80,9 @@
     if (u) parts.push(u + " teammate" + (u === 1 ? "" : "s"));
     if (c) parts.push(c + " contact" + (c === 1 ? "" : "s") + " (staff / vendors / client)");
     var head = parts.length ? "Added " + parts.join(" and ") + "." : "Everyone you picked is already in the group.";
+    // r58 (0299): a team login whose role can't open this event (and has no task on it) is not added
+    var na = +r.not_allowed || 0;
+    if (na) head = (parts.length ? head + " " : "") + na + (na === 1 ? " person" : " people") + " not added: their role can't open this event (Settings \u2192 Users & access).";
     return head + (r.trial ? " Free trial: no WhatsApp message is sent - they are added in Helm only." : (c ? " Contacts are listed in the group; Helm does not message them." : ""));
   }
   async function save() {
