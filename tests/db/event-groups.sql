@@ -99,9 +99,10 @@ do $$ declare v uuid := pg_temp.getv('conv')::uuid; n int; m record; bad text; b
   select * into m from public.chat_messages where conversation_id = v order by created_at limit 1;
   perform pg_temp.res('04 one system event card is posted (sender null, kind card, meta.kind event)',
     n = 1 and m.sender_id is null and m.kind = 'card' and m.meta ->> 'kind' = 'event', 'n='||n);
-  perform pg_temp.res('05 card has the non-money details (client, phone, email, type, date/time, venue, guests, layout, menu, notes)',
-    m.meta -> 'client' ->> 'name' = 'Priya Sharma' and m.meta -> 'client' ->> 'phone' = '+91 98765 43210'
-    and m.meta -> 'client' ->> 'email' = 'priya@example.com' and m.meta ->> 'event_type' = 'Wedding'
+  -- r58 (0299, BS-01): the card no longer carries the client's phone / e-mail (Quotes viewers get them via event_group_contact)
+  perform pg_temp.res('05 card has the non-money details (client name, type, date/time, venue, guests, layout, menu, notes), no client phone / e-mail',
+    m.meta -> 'client' ->> 'name' = 'Priya Sharma' and not (m.meta -> 'client' ? 'phone')
+    and not (m.meta -> 'client' ? 'email') and m.meta ->> 'event_type' = 'Wedding'
     and m.meta ->> 'event_date' = '2026-12-10' and m.meta ->> 'event_time' = '18:30'
     and m.meta ->> 'venue' = 'Lotus Lawns (main)' and m.meta ->> 'venue_address' = 'MG Road, Pune'
     and (m.meta ->> 'guests')::int = 200 and (m.meta -> 'layout' ->> 'object_count')::int = 42
@@ -237,10 +238,20 @@ do $$ declare v uuid := pg_temp.getv('conv')::uuid; n int; s text; begin
   perform pg_temp.login('a_admin@a.test');
   s := pg_temp.try(format('select public.chat_add_members(%L::uuid, array[%L::uuid])', v, pg_temp.uid('a_crew@a.test')));
   perform pg_temp.su();
+  -- r58 (0299, BS-01): an event group takes only people who may open the event (crew with no task: refused)
+  perform pg_temp.res('31a crew with no task on the event and no Quotes view cannot be added (42501)', s = '42501'
+    and not exists (select 1 from public.chat_members where conversation_id = v and user_id = pg_temp.uid('a_crew@a.test')), s);
+  insert into public.role_access(org_id, role, area, can_view, can_edit, updated_at)
+    values ('a0000000-0000-4000-8000-000000000001', 'crew', 'quotes', true, false, now())
+    on conflict (role, area, org_id) do update set can_view = true;
+  perform pg_temp.login('a_admin@a.test');
+  s := pg_temp.try(format('select public.chat_add_members(%L::uuid, array[%L::uuid])', v, pg_temp.uid('a_crew@a.test')));
+  perform pg_temp.su();
   perform pg_temp.res('31 a group member adds a studio member later (existing chat_add_members)',
     s = '' and exists (select 1 from public.chat_members where conversation_id = v and user_id = pg_temp.uid('a_crew@a.test')), s);
+  update public.role_access set can_view = false where org_id = 'a0000000-0000-4000-8000-000000000001' and role = 'crew' and area = 'quotes';
 end $$;
-do $$ declare v uuid := pg_temp.getv('conv')::uuid; s text; r uuid; begin perform pg_temp.su();
+do $$ declare v uuid := pg_temp.getv('conv')::uuid; s text; r uuid; pm text; begin perform pg_temp.su();
   update public.quotes set status = 'cancelled' where id = 'a0000000-0000-4000-8000-0000000e0001';
   perform pg_temp.login('a_staff@a.test');
   s := pg_temp.try(format('select public.refresh_event_group(%L::uuid)', v));
@@ -248,12 +259,15 @@ do $$ declare v uuid := pg_temp.getv('conv')::uuid; s text; r uuid; begin perfor
   perform pg_temp.su();
   perform pg_temp.res('32 cancelled event: group stays, refresh refused (22023), create returns the same group',
     s = '22023' and r = v and exists (select 1 from public.chat_conversations where id = v), s);
-  -- the app deletes a quote with a direct API delete — since 0042 only from the Deleted shelf
+  -- since 0296 a quote is never hard-deleted through the API (the app only shelves it); a server-side purge (trial purge /
+  -- future studio closure, run as the owner with the purge mark) still can - the group must survive that
   update public.quotes set deleted_at = now() where id = 'a0000000-0000-4000-8000-0000000e0001';
-  perform pg_temp.login('a_admin@a.test');
-  s := pg_temp.try($q$delete from public.quotes where id = 'a0000000-0000-4000-8000-0000000e0001'$q$);
   perform pg_temp.su();
-  perform pg_temp.res('33 deleting the quote (as the app does) keeps the group and its history (link cleared)',
+  pm := coalesce(current_setting('helm.allow_purge', true), '');
+  perform set_config('helm.allow_purge', 'a0000000-0000-4000-8000-000000000001', true);
+  s := pg_temp.try($q$delete from public.quotes where id = 'a0000000-0000-4000-8000-0000000e0001'$q$);
+  perform set_config('helm.allow_purge', pm, true);
+  perform pg_temp.res('33 deleting the quote (server-side purge) keeps the group and its history (link cleared)',
     s = '' and not exists (select 1 from public.quotes where id = 'a0000000-0000-4000-8000-0000000e0001') and exists (select 1 from public.chat_conversations where id = v and quote_id is null)
     and (select count(*) from public.chat_messages where conversation_id = v) >= 2, s);
   perform pg_temp.login('a_staff@a.test');
@@ -297,5 +311,5 @@ do $$ declare c uuid := pg_temp.uid('a_crew@a.test'); begin perform pg_temp.su_a
   delete from auth.users where id = c;
 end $$;
 select name, result from _eg order by name;
-select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 36 then 'EVENT-GROUPS: ALL PASS (36/36)'
-            else 'EVENT-GROUPS: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/36 ran' end from _eg;
+select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 37 then 'EVENT-GROUPS: ALL PASS (37/37)'
+            else 'EVENT-GROUPS: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/37 ran' end from _eg;

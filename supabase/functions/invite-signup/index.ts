@@ -34,10 +34,10 @@
 //                           On an EXPIRED invitation it never renews anything: it asks the studio
 //                           (invite_request_new_link, 0205: one bell note per 24 h) → { requested: true }.
 // 0210 (round 19, free-trial sign-up) - no token, an e-mail only, BEFORE a trial creates anything:
-// { email_lookup: true, email } → { invited: false } | { invited: true, studio, role, role_label }:
-//                           only the studio name + role of the newest OPEN (pending, unexpired) invitation
-//                           of exactly that e-mail (invite_open_for_email, 0210, service role only) - never
-//                           the token, the inviter, the expiry or anything about a login. Every other
+// { email_lookup: true, email } → { invited: false } | { invited: true }: r57 (A-4) only whether exactly that
+//                           e-mail has an OPEN (pending, unexpired) invitation (invite_open_for_email, 0210,
+//                           service role only) - never the studio, the role, the token, the inviter, the expiry
+//                           or anything about a login (the studio + role arrive in the e-mail). Every other
 //                           e-mail gets the same { invited: false }. Rate limited (20 / 10 min per IP,
 //                           5 / 10 min per e-mail).
 // { email_send: true, email } → e-mails THAT address its invitation again (the same "Join <Studio>" e-mail
@@ -137,11 +137,14 @@ const UNCONFIRMED_MSG = "This e-mail already started a Helm sign-up that was nev
   "We can e-mail you a link: open it to confirm your e-mail and join the studio.";
 const EXISTS_MSG = "This e-mail already has a Helm account — sign in instead to accept the invitation.";
 
-// 0210: what the sign-up page may learn about an e-mail's open invitation (studio + role, nothing else)
-export function lookupAnswer(row: unknown): { invited: boolean; studio?: string; role?: string; role_label?: string } {
+// 0210: what the sign-up page may learn about an e-mail's open invitation.
+// r57 (audit A-4): a signed-out visitor can type ANY e-mail here, so the answer is only yes / no - never which studio
+// or which role (that tied a named person to another studio's team). The studio name + role go inside the invitation
+// e-mail ({ email_send }), which only the mailbox owner reads.
+export function lookupAnswer(row: unknown): { invited: boolean } {
   const r = (row && typeof row === "object") ? row as Record<string, unknown> : null;
   if (!r || r.found !== true || typeof r.token !== "string" || !TOKEN.test(r.token)) return { invited: false };
-  return { invited: true, studio: clean(r.studio, 120), role: clean(r.role, 40), role_label: roleLabel(r.role) };
+  return { invited: true };
 }
 
 // 0210: { email_lookup } / { email_send } - see the header. `email` is already trimmed + lower case.

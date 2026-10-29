@@ -6,7 +6,10 @@
        approval anyway - verify_and_consent, 0262).
      * staff (flow.html step 9, event.html): any element with [data-qv-staff] (quote id from data-quote-id, else
        ?id= / ?quote=) - "Valid until dd/mm/yyyy - expires in N days" + "Extend +N days" (one click) + "Change date"
-       (when the studio allows custom dates; admins always) + a short history. Hidden for an approved / cancelled
+       (when the studio allows custom dates; admins always; typed / shown as dd/mm/yyyy) + a short history.
+       r61 (0302): after Extend / Save date an "Undo" button (10 s, also in the toast) puts the previous date back through
+       quote_validity_undo (logged as "Undone" in the history, never erased); a heads-up when the approval link itself
+       stops before the valid-until date. Hidden for an approved / cancelled
        quote, when the feature is off, or before 0262.
      * Quotes list: pill(entry) -> { cls, text, title } for the "Expires in N days" pill (quotes.html renders it).
      * Settings (#qvCard): the studio settings + "Apply to open quotes" (admin, dry run first).
@@ -78,6 +81,27 @@
     var n = Number(t);
     if (n < 1 || n > 365) return { ok: false, value: null, error: "Quotes stay valid for 1 to 365 days." };
     return { ok: true, value: n, error: "" };
+  }
+  // r61: "23/12/2026" (also 23-12-2026 / 23.12.2026 / 1/2/2027) -> "2026-12-23"; anything else (or a date that does not
+  // exist, e.g. 31/02) -> ""
+  function parseDMY(raw) {
+    var m = /^\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})\s*$/.exec(String(raw == null ? "" : raw));
+    if (!m) return "";
+    var d = +m[1], mo = +m[2], y = +m[3], t = new Date(Date.UTC(y, mo - 1, d));
+    if (t.getUTCFullYear() !== y || t.getUTCMonth() !== mo - 1 || t.getUTCDate() !== d) return "";
+    return y + "-" + String(mo).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+  }
+  var UNDO_MS = 10000;   // r61: how long the Undo button stays after Extend / Save date (the server allows 10 minutes)
+  // r61: the server's undo offer (quote_validity_get / extend / set answer, 0302) -> { logId, label } or null
+  function undoOffer(d) {
+    var u = d && d.undo;
+    if (!u || typeof u !== "object" || !/^[0-9a-f-]{36}$/i.test(String(u.log_id || ""))) return null;
+    return { logId: String(u.log_id), label: String(u.back_to_label || fmtDMY(u.back_to) || "") };
+  }
+  // r61: the approval link itself stops before the valid-until date -> "dd/mm/yyyy" (the last day it opens), else ""
+  function linkWarn(d) {
+    if (!d || d.state !== "valid" || !/^\d{4}-\d{2}-\d{2}$/.test(String(d.link_until || "")) || !d.valid_until) return "";
+    return String(d.link_until) < String(d.valid_until) ? (d.link_until_label || fmtDMY(d.link_until)) : "";
   }
   function addDaysISO(iso, n) {
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || "")); if (!m) return "";
@@ -166,8 +190,9 @@
     try { if (!el.hidden && global.location && global.location.hash === "#" + el.id) el.scrollIntoView({ block: "center" }); } catch (e) {}
     return d;
   }
-  function paintStaff(el, id, d) {
+  function paintStaff(el, id, d, justDone) {
     clear(el);
+    if (el.__qvUndoTimer) { clearInterval(el.__qvUndoTimer); el.__qvUndoTimer = null; }
     if (!d || !(d.state === "valid" || d.state === "expired" || (d.state === "none" && d.can_edit))) { el.hidden = true; return; }
     var days = Number(d.default_days) || DEFAULT_DAYS;
     el.className = "qv-staff qv-" + (d.state === "expired" ? "bad" : d.state === "valid" && Number(d.days_left) <= 3 ? "due" : "ok");
@@ -183,31 +208,86 @@
       if (d.state === "expired") line.appendChild(document.createTextNode(d.locked ? " - the client can't approve it until you extend it." : " - the client can still approve it (the lock is off in Settings)."));
     }
     el.appendChild(line);
+    var lw = linkWarn(d);
+    if (lw) el.appendChild(h("p", { cls: "qv-warn", text: "Heads-up: the client's approval link itself only opens until " + lw + " - before this date." }));
     var msg = h("p", { cls: "qv-msg", role: "status", "aria-live": "polite" });
+    // r61: one change at a time; after Extend / Save date the answer carries the server's undo offer
+    function changed(r, what) {
+      paintStaff(el, id, r, true);
+      var u = undoOffer(r), label = r && r.valid_until_label ? r.valid_until_label : "updated";
+      if (!u) { toast("Valid until " + label + ".", "ok"); return; }
+      var tt = null;
+      try { if (global.BPUI && global.BPUI.toast) tt = global.BPUI.toast(what + " - valid until " + label + ".", { type: "ok", timeout: UNDO_MS,
+        action: { label: "Undo", onClick: function () { undo(u); } } }); } catch (e) {}
+      el.__qvToast = tt;
+    }
+    async function undo(u) {
+      if (el.__qvBusy) return; el.__qvBusy = true;
+      try { if (el.__qvToast && el.__qvToast.close) el.__qvToast.close(); } catch (e) {}
+      var b = el.querySelector(".qv-undo"); if (b) { b.disabled = true; b.textContent = "Undoing…"; }
+      try {
+        var r = await store().undo(id, u.logId);
+        paintStaff(el, id, r); toast("Undone - valid until " + (r && r.valid_until_label ? r.valid_until_label : u.label) + " again.", "ok");
+      } catch (e) {
+        if (b) { b.disabled = false; b.textContent = "Undo"; }
+        var m = el.querySelector(".qv-msg"); if (m) m.textContent = errText(e, "undo it");
+      } finally { el.__qvBusy = false; }
+    }
     if (d.can_edit) {
       var row = h("div", { cls: "qv-actions" });
       var ext = h("button", { type: "button", cls: "btn sm", text: d.state === "none" ? "Set valid until (+" + days + " days)" : "Extend +" + days + " days" });
       ext.addEventListener("click", async function () {
-        ext.disabled = true;
-        try { var r = await store().extend(id); paintStaff(el, id, r); toast("Valid until " + (r && r.valid_until_label ? r.valid_until_label : "updated") + ".", "ok"); }
-        catch (e) { ext.disabled = false; msg.textContent = errText(e, "extend it"); }
+        if (el.__qvBusy) return; el.__qvBusy = true; ext.disabled = true;
+        try { var r = await store().extend(id); el.__qvBusy = false; changed(r, "Extended"); }
+        catch (e) { el.__qvBusy = false; ext.disabled = false; msg.textContent = errText(e, "extend it"); }
       });
       row.appendChild(ext);
       if (d.can_override) {
-        var lbl = h("label", { cls: "qv-date", text: "Change date " });
-        var inp = h("input", { type: "date", min: d.today || "", max: d.today ? addDaysISO(d.today, 365) : "", "aria-label": "New valid-until date" });
-        if (d.valid_until && d.valid_until >= (d.today || "")) inp.value = d.valid_until;
-        lbl.appendChild(inp);
+        // r61: the date is typed / shown as dd/mm/yyyy (India) like the label above - a native date box shows the
+        // browser's own order (12/23/2026 on a US-English browser). The calendar button still opens the native picker.
+        var dmyId = "qv_dmy_" + String(id).slice(0, 8);
+        var lbl = h("label", { cls: "qv-date-lbl", "for": dmyId, text: "Change date" });
+        var wrap = h("span", { cls: "qv-date" });
+        var inp = h("input", { type: "text", id: dmyId, cls: "qv-dmy", inputmode: "numeric", autocomplete: "off", maxlength: "10",
+          placeholder: "dd/mm/yyyy", "aria-label": "New valid-until date (dd/mm/yyyy)", spellcheck: "false" });
+        var nat = h("input", { type: "date", cls: "qv-native", tabindex: "-1", "aria-hidden": "true", min: d.today || "", max: d.today ? addDaysISO(d.today, 365) : "" });
+        var cal = h("button", { type: "button", cls: "qv-cal", "aria-label": "Pick the date from a calendar", title: "Pick from a calendar" });
+        cal.appendChild(h("span", { cls: "qv-cal-ic", "aria-hidden": "true" }));
+        if (d.valid_until && d.valid_until >= (d.today || "")) { inp.value = fmtDMY(d.valid_until); nat.value = d.valid_until; }
+        nat.addEventListener("change", function () { if (nat.value) { inp.value = fmtDMY(nat.value); msg.textContent = ""; } });
+        inp.addEventListener("input", function () { var v = parseDMY(inp.value); if (v) nat.value = v; inp.removeAttribute("aria-invalid"); });
+        cal.addEventListener("click", function () {
+          var v = parseDMY(inp.value); if (v) nat.value = v;
+          try { if (typeof nat.showPicker === "function") { nat.showPicker(); return; } } catch (e) {}
+          nat.classList.add("qv-native-open"); try { nat.focus(); nat.click(); } catch (e) {}
+        });
+        nat.addEventListener("blur", function () { nat.classList.remove("qv-native-open"); });
+        wrap.appendChild(inp); wrap.appendChild(cal); wrap.appendChild(nat);
         var save = h("button", { type: "button", cls: "btn sm", text: "Save date" });
         save.addEventListener("click", async function () {
-          var v = String(inp.value || "");
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { msg.textContent = "Pick a date first."; inp.focus(); return; }
-          if (d.today && (v < d.today || v > addDaysISO(d.today, 365))) { msg.textContent = "Pick a date from today to one year ahead."; inp.focus(); return; }
-          save.disabled = true;
-          try { var r = await store().setDate(id, v, null); paintStaff(el, id, r); toast("Valid until " + fmtDMY(v) + ".", "ok"); }
-          catch (e) { save.disabled = false; msg.textContent = errText(e, "save the date"); }
+          var v = parseDMY(inp.value);
+          if (!v) { msg.textContent = String(inp.value || "").trim() ? "Type the date as dd/mm/yyyy, e.g. " + (fmtDMY(d.today ? addDaysISO(d.today, days) : "") || "23/12/2026") + "." : "Pick a date first."; inp.setAttribute("aria-invalid", "true"); inp.focus(); return; }
+          if (d.today && (v < d.today || v > addDaysISO(d.today, 365))) { msg.textContent = "Pick a date from today (" + fmtDMY(d.today) + ") to one year ahead."; inp.setAttribute("aria-invalid", "true"); inp.focus(); return; }
+          if (el.__qvBusy) return; el.__qvBusy = true; save.disabled = true;
+          try { var r = await store().setDate(id, v, null); el.__qvBusy = false; changed(r, "Date saved"); }
+          catch (e) { el.__qvBusy = false; save.disabled = false; msg.textContent = errText(e, "save the date"); }
         });
-        row.appendChild(lbl); row.appendChild(save);
+        inp.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); save.click(); } });
+        row.appendChild(lbl); row.appendChild(wrap); row.appendChild(save);
+      }
+      // r61: Undo for 10 seconds right after Extend / Save date (the same server path, logged in History)
+      var uo = justDone ? undoOffer(d) : null;
+      if (uo) {
+        var ub = h("button", { type: "button", cls: "btn sm qv-undo", text: "Undo", title: "Back to " + uo.label });
+        var left = Math.round(UNDO_MS / 1000), cnt = h("span", { cls: "qv-undo-left", "aria-hidden": "true", text: left + " s" });
+        ub.addEventListener("click", function () { undo(uo); });
+        var ubox = h("span", { cls: "qv-undo-box" }, [ub, cnt]);
+        row.appendChild(ubox);
+        el.__qvUndoTimer = setInterval(function () {
+          left -= 1;
+          if (left <= 0 || !ubox.isConnected) { clearInterval(el.__qvUndoTimer); el.__qvUndoTimer = null; if (ubox.parentNode && !el.__qvBusy) ubox.parentNode.removeChild(ubox); return; }
+          cnt.textContent = left + " s";
+        }, 1000);
       }
       el.appendChild(row);
     }
@@ -216,7 +296,7 @@
       var det = h("details", { cls: "qv-log" }, [h("summary", { text: "History" })]);
       var ul = h("ul");
       var WORD = { auto: "Set automatically", set: "Date changed", extended: "Extended", bulk: "Applied to open quotes", renew_request: "Client asked for an updated quote",
-                   reminder_studio: "Reminder to the studio", reminder_client: "Reminder e-mail queued for the client", expired_studio: "Expired", approve_refused: "Client tried to approve after expiry" };
+                   reminder_studio: "Reminder to the studio", reminder_client: "Reminder e-mail queued for the client", expired_studio: "Expired", approve_refused: "Client tried to approve after expiry", undo: "Undone" };
       d.log.forEach(function (x) {
         var when = ""; try { when = global.BPStore && global.BPStore.fmtDateTime ? global.BPStore.fmtDateTime(x.at) : String(x.at || "").slice(0, 10); } catch (e) { when = ""; }
         var txt = (WORD[x.action] || x.action) + (x.new ? " - valid until " + x.new : "") + (x.who ? " - " + x.who : "") + (when ? " (" + when + ")" : "");
@@ -297,7 +377,7 @@
   }
 
   var API = { refreshStaff: refreshStaff, fmtDMY: fmtDMY, relText: relText, pill: pill, clientView: clientView, parseReminderDays: parseReminderDays,
-              validateDays: validateDays, addDaysISO: addDaysISO, mountClient: mountClient, refreshClient: refreshClient,
+              validateDays: validateDays, addDaysISO: addDaysISO, parseDMY: parseDMY, undoOffer: undoOffer, linkWarn: linkWarn, UNDO_MS: UNDO_MS, mountClient: mountClient, refreshClient: refreshClient,
               mountStaff: mountStaff, mountSettings: mountSettings, DEFAULT_DAYS: DEFAULT_DAYS };
   global.HelmQuoteValidity = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;

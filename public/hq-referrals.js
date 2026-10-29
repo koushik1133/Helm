@@ -1,6 +1,6 @@
 /* hq-referrals.js - r29 Helm HQ "Referrals & partners".
    REAL (SQL 0279): a signed-in Helm HQ person with two-step (the same sign-in as /hq). The DATABASE decides every call:
-   reads need billing.read or inbox.read, marketing links billing.write or inbox.write, Approve / Reject + reward actions
+   reads need billing.read or inbox.read, marketing links billing.write + a fresh code (r57 0298; was also inbox.write), Approve / Reject + reward actions
    billing.write, program rules settings.write (0277 roles); every call is written to the HQ audit log. A change that needs
    a fresh two-step code asks for it here and retries once. Signed out / not HQ -> "page not found" (never confirms HQ).
    DEMO: localhost + ?demo=1 only (referral-demo.js) - in-memory, nothing saved.
@@ -243,7 +243,7 @@
       tr.appendChild(td("Ends", null, p.expiresAt ? fmt(p.expiresAt) : "No end date"));
       var label = use.ok ? "Active" : !p.active ? "Disabled" : (p.problem === "off" ? "Program off" : (p.expiresAt && D.now > p.expiresAt) || p.problem === "expired" ? "Expired" : "Limit reached");
       tr.appendChild(td("Status", null, h("span", "pill " + (use.ok ? "good" : p.active ? "warn" : ""), label)));
-      var acts = h("div", "acts"), mayEdit = can("billing.write") || can("inbox.write");
+      var acts = h("div", "acts"), mayEdit = can("billing.write");   // r57 (0298): partner codes = Owner / Admin (billing) only
       var cp = act("Copy link", function () { copyLink(p.code); }); acts.appendChild(cp);
       if (REAL) acts.appendChild(act("Sign-ups", function () { signups(p); }));
       if (mayEdit) {
@@ -416,7 +416,7 @@
     $("fCode").addEventListener("submit", save);
     $("fSet").addEventListener("submit", saveRules);
     $("st_tick").addEventListener("click", runTick);
-    if (REAL && !(can("billing.write") || can("inbox.write"))) { $("btnNewCode").hidden = true; $("btnNewCode2").hidden = true; }
+    if (REAL && !can("billing.write")) { $("btnNewCode").hidden = true; $("btnNewCode2").hidden = true; }
     var tabs = ["t-ref", "t-rev", "t-led", "t-par", "t-set"], panes = { "t-ref": "p-ref", "t-rev": "p-ref", "t-led": "p-led", "t-par": "p-par", "t-set": "p-set" };
     tabs.forEach(function (id) {
       $(id).addEventListener("click", function () {

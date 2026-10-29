@@ -59,15 +59,74 @@ export async function readJsonCapped(req: Request, max = DEFAULT_BODY_LIMIT): Pr
 }
 
 // Caller IP for rate limits, or "unknown".
-// r31: Supabase sits behind Cloudflare. Cloudflare SETS cf-connecting-ip itself (a value the caller sends is
-// replaced), but it only APPENDS to an x-forwarded-for the caller already sent - so the first x-forwarded-for
-// hop is whatever the caller typed, and a new fake value per request used to give a fresh rate-limit bucket
-// every time. Trust cf-connecting-ip first; x-forwarded-for / x-real-ip stay only as a fallback (local / tests).
+// r31: Supabase sits behind Cloudflare. Cloudflare SETS cf-connecting-ip itself at its edge, but it only APPENDS to
+// an x-forwarded-for the caller already sent - so the first x-forwarded-for hop is whatever the caller typed, and a
+// new fake value per request used to give a fresh rate-limit bucket every time.
+// r57 (audit E-02 / BS-02 / G-HQ-5): never the first x-forwarded-for entry. Order: cf-connecting-ip (a real IP
+// address) -> the LAST x-forwarded-for hop that is not an internal address (the one a proxy appended) -> x-real-ip.
+// A value that is not an IP address is ignored. IPv6 addresses are counted per /64 network (one home / server).
+// Same rule as the database helper public._r57_trusted_ip (migration 0298).
+const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+function expandV6(s: string): number[] | null {
+  let v = s.toLowerCase();
+  if (v.startsWith("[") && v.endsWith("]")) v = v.slice(1, -1);
+  if (!/^[0-9a-f:.]{2,45}$/.test(v) || (v.match(/::/g) || []).length > 1) return null;
+  // an embedded IPv4 tail (::ffff:1.2.3.4) becomes its two hex groups
+  const m4 = /(\d+\.\d+\.\d+\.\d+)$/.exec(v);
+  if (m4) {
+    if (!IPV4.test(m4[1])) return null;
+    const o = m4[1].split(".").map(Number);
+    v = v.slice(0, v.length - m4[1].length) + ((o[0] << 8) | o[1]).toString(16) + ":" + ((o[2] << 8) | o[3]).toString(16);
+  }
+  const halves = v.split("::");
+  const parse = (p: string) => (p ? p.split(":") : []).map((g) => (/^[0-9a-f]{1,4}$/.test(g) ? parseInt(g, 16) : NaN));
+  const left = parse(halves[0]), right = halves.length > 1 ? parse(halves[1]) : [];
+  if ([...left, ...right].some((n) => Number.isNaN(n))) return null;
+  if (halves.length > 1) {
+    const fill = 8 - left.length - right.length;
+    return fill < 1 ? null : [...left, ...Array(fill).fill(0), ...right];
+  }
+  return left.length === 8 ? left : null;
+}
+function ipv4Internal(s: string): boolean {
+  const o = s.split(".").map(Number);
+  return o[0] === 10 || o[0] === 127 || o[0] === 0 || (o[0] === 172 && o[1] >= 16 && o[1] <= 31) || (o[0] === 192 && o[1] === 168)
+    || (o[0] === 169 && o[1] === 254) || (o[0] === 100 && o[1] >= 64 && o[1] <= 127);
+}
+function ipv6Internal(g: number[]): boolean {
+  return g.every((x, i) => (i < 7 ? x === 0 : x <= 1)) || (g[0] & 0xfe00) === 0xfc00 || (g[0] & 0xffc0) === 0xfe80;
+}
+// "v4" / "v6" (with groups) / null for anything that is not a single IP address
+function parseIp(raw: string): { v: 4; s: string } | { v: 6; g: number[] } | null {
+  const s = String(raw || "").trim();
+  if (!s || s.length > 64) return null;
+  if (IPV4.test(s)) return { v: 4, s };
+  const g = expandV6(s);
+  return g ? { v: 6, g } : null;
+}
+function keyOf(p: { v: 4; s: string } | { v: 6; g: number[] }): string {
+  if (p.v === 4) return p.s;
+  const g = p.g;
+  if (g.slice(0, 5).every((x) => x === 0) && g[5] === 0xffff) return [g[6] >> 8, g[6] & 255, g[7] >> 8, g[7] & 255].join(".");   // ::ffff:a.b.c.d
+  return g.slice(0, 4).map((x) => x.toString(16)).join(":") + "::/64";
+}
 export function clientIp(req: Request): string {
-  const cf = (req.headers.get("cf-connecting-ip") || "").trim();
-  const xff = req.headers.get("x-forwarded-for") || "";
-  const first = xff.split(",")[0].trim();
-  return (cf || first || req.headers.get("x-real-ip") || "unknown").slice(0, 64);
+  const cf = parseIp(req.headers.get("cf-connecting-ip") || "");
+  if (cf) return keyOf(cf);
+  const hops = (req.headers.get("x-forwarded-for") || "").slice(0, 2000).split(",");
+  let platformHop: ReturnType<typeof parseIp> = null;
+  for (let i = hops.length - 1; i >= 0; i--) {
+    const raw = hops[i].trim();
+    if (!raw) continue;
+    const p = parseIp(raw);
+    if (!p) break;                                            // a garbage entry: nothing left of it is trusted
+    const internal = p.v === 4 ? ipv4Internal(p.s) : ipv6Internal(p.g);
+    if (!internal) return keyOf(p);
+    if (!platformHop) platformHop = p;                        // the platform's own hop (local tests: the only one)
+  }
+  if (platformHop) return keyOf(platformHop);
+  const real = parseIp(req.headers.get("x-real-ip") || "");
+  return real ? keyOf(real) : "unknown";
 }
 
 type Bucket = { n: number; reset: number };

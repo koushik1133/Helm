@@ -88,6 +88,16 @@
     return "Due";
   }
   function plural(n, w) { return n + " " + w + (n === 1 ? "" : "s"); }
+  // r61: "30%" / "12.5%"
+  function pctText(n) { var v = Math.round(Number(n) * 10) / 10; return (isFinite(v) ? v : 0) + "%"; }
+  // r61: when a template payment is due, in words ("On approval", "15 days before the event", ...)
+  function dueWhen(l) {
+    var n = Number(l && l.offset_days) || 0, ev = l && l.anchor === "event";
+    if (!ev) return n > 0 ? plural(n, "day") + " after approval" : "On approval";
+    if (n === 0) return "On the event day";
+    return n < 0 ? plural(-n, "day") + " before the event" : plural(n, "day") + " after the event";
+  }
+  function builtin(key) { for (var i = 0; i < BUILTINS.length; i++) if (BUILTINS[i].key === key) return BUILTINS[i]; return null; }
   // "Automatic reminders: 3 days before, on the due day, 3 days after" | "... off" | "... paused for this event"
   function reminderLine(rem, paused) {
     if (!rem) return "";
@@ -198,30 +208,71 @@
       }
       box.appendChild(foot);
     }
+    // r61: template + "Add this schedule" on one aligned line, then the split (bar + one row per payment: percent, name,
+    // when it is due, amount - or "-" until the quote is priced) and a soft note instead of the server's red error
     function applyForm(d) {
       var f = el("div", "psch-apply"), sel = el("select", "psch-sel"), id = "psch_tpl_" + String(quoteId).replace(/[^A-Za-z0-9_-]/g, "");
       sel.id = id;
-      var lab = el("label", "psch-sel-lbl", "Template"); lab.htmlFor = id;
+      var fld = el("div", "psch-fld"), lab = el("label", "psch-sel-lbl", "Template"); lab.htmlFor = id;
       (d.templates || []).forEach(function (t) { var o = el("option", "", t.name); o.value = t.key; if (t.key === d.default_template) o.selected = true; sel.appendChild(o); });
-      var prev = el("div", "psch-prev"), go = el("button", "btn primary psch-go", "Add this schedule"); go.type = "button";
-      async function preview() {
+      fld.appendChild(lab); fld.appendChild(sel);
+      var go = el("button", "btn primary psch-go", "Add this schedule"); go.type = "button";
+      var row = el("div", "psch-apply-row"); row.appendChild(fld); row.appendChild(go);
+      var bar = el("div", "psch-bar"); bar.setAttribute("aria-hidden", "true");
+      var prev = el("div", "psch-prev"); prev.setAttribute("role", "list"); prev.setAttribute("aria-label", "How the payments split");
+      var note = el("p", "psch-soft"); note.hidden = true; note.setAttribute("role", "status");
+      var priced = Number(d.total) > 0, seq = 0;
+      function soft(t) { note.textContent = t || ""; note.hidden = !t; }
+      function draw(rows) {
         while (prev.firstChild) prev.removeChild(prev.firstChild);
+        while (bar.firstChild) bar.removeChild(bar.firstChild);
+        rows.forEach(function (x) {
+          var r = el("div", "psch-prow"); r.setAttribute("role", "listitem");
+          r.appendChild(el("span", "psch-pct", x.pct != null ? pctText(x.pct) : "-"));
+          var pl = el("span", "psch-pl"); pl.appendChild(el("b", "", x.label || "Payment")); if (x.when) pl.appendChild(el("span", "", x.when)); r.appendChild(pl);
+          if (x.amount != null && priced) r.appendChild(moneyEl("span", "psch-amt", x.amount, d.currency));
+          else { var a = el("span", "psch-amt is-blank", "-"); a.title = "Worked out once the quote is priced"; r.appendChild(a); }
+          prev.appendChild(r);
+          if (x.pct != null && x.pct > 0) bar.appendChild(el("span", "psch-w" + Math.min(100, Math.max(5, Math.round(x.pct / 5) * 5))));   // width class in 5% steps (no inline style - CSP)
+        });
+        bar.hidden = !bar.firstChild;
+      }
+      function fromTemplate(key) {
+        var b = builtin(key); if (!b) return [];
+        return b.lines.map(function (l) { return { label: l.label, pct: l.kind === "percent" ? Number(l.value) : null, when: dueWhen(l), amount: null }; });
+      }
+      async function preview() {
+        var my = ++seq, key = sel.value, local = fromTemplate(key);
+        if (!priced) {
+          draw(local.length ? local : [{ label: "Payments from this template", when: "Amounts and dates are worked out once the quote is priced" }]);
+          soft("Price the quote first (step 8) - the amounts are worked out from its total. You can still pick the template now.");
+          go.disabled = true; return;
+        }
+        draw(local); soft(""); go.disabled = false;
         try {
-          var r = await B.paySchedule.apply(quoteId, sel.value, true);
-          (r && r.schedule || []).forEach(function (x) {
-            var row = el("div", "psch-prow"); row.appendChild(el("span", "", x.label)); row.appendChild(el("span", "psch-due", fmtDate(x.due_date)));
-            row.appendChild(moneyEl("b", "", x.amount, d.currency)); prev.appendChild(row);
-          });
-        } catch (e) { prev.appendChild(el("p", "psch-err", errText(e))); }
+          var r = await B.paySchedule.apply(quoteId, key, true);
+          if (my !== seq) return;
+          var tot = Number(d.total) || 0, rows = (r && r.schedule) || [];
+          draw(rows.map(function (x, i) {
+            var l = local[i], amt = Number(x.amount);
+            return { label: x.label, amount: x.amount, pct: l && l.pct != null ? l.pct : (tot > 0 && isFinite(amt) ? Math.round(amt / tot * 1000) / 10 : null),
+                     when: (x.due_date ? fmtDate(x.due_date) : "") + (l && l.when ? (x.due_date ? " · " : "") + l.when : "") };
+          }));
+        } catch (e) {
+          if (my !== seq) return;
+          var t = errText(e);
+          if (/price the quote/i.test(t)) { priced = false; return preview(); }
+          soft(t); go.disabled = true;
+        }
       }
       sel.addEventListener("change", preview);
       go.addEventListener("click", async function () {
-        if (state.busy) return; state.busy = true; go.disabled = true;
+        if (state.busy || go.disabled) return; state.busy = true; go.disabled = true;
         try { await B.paySchedule.apply(quoteId, sel.value, false); toast("Payment schedule added."); await load(); if (typeof opts.onChange === "function") opts.onChange(); }
-        catch (e) { toast(errText(e), "err"); }
-        finally { state.busy = false; go.disabled = false; }
+        catch (e) { var t = errText(e); if (/price the quote/i.test(t)) { priced = false; preview(); } else toast(t, "err"); }
+        finally { state.busy = false; if (go.isConnected && note.hidden) go.disabled = false; }
       });
-      f.appendChild(lab); f.appendChild(sel); f.appendChild(go); f.appendChild(prev);
+      f.appendChild(row); f.appendChild(bar); f.appendChild(prev); f.appendChild(note);
       setTimeout(preview, 0);
       return f;
     }
@@ -229,7 +280,8 @@
     return { reload: load, get data() { return state.data; } };
   }
 
-  var api = { mount: mount, compute: compute, cleanLines: cleanLines, stateLabel: stateLabel, reminderLine: reminderLine, BUILTINS: BUILTINS, addDays: addDays };
+  var api = { mount: mount, compute: compute, cleanLines: cleanLines, stateLabel: stateLabel, reminderLine: reminderLine, BUILTINS: BUILTINS, addDays: addDays,
+              dueWhen: dueWhen, pctText: pctText };
   global.HelmPaySchedule = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -69,9 +69,9 @@ t('pages wire the venue scripts (no inline), store-api v=157', () => {
   assert.match(cc, /<script src="venues-core\.js\?v=11"><\/script>\s*<script src="venues-admin\.js\?v=10"><\/script>/);
   for (const p of ['flow.html', 'builder.html']) {
     const h = read('public/' + p);
-    assert.match(h, /<script src="venues-core\.js\?v=11"><\/script>\s*<script src="venue-picker\.js\?v=7"><\/script>/, p);
-    assert.match(h, /venues\.css\?v=7/, p);
-    assert.match(h, /store-api\.js\?v=302/, p);
+    assert.match(h, /<script src="venues-core\.js\?v=11"><\/script>\s*<script src="venue-picker\.js\?v=8"><\/script>/, p);
+    assert.match(h, /venues\.css\?v=8/, p);
+    assert.match(h, /store-api\.js\?v=306/, p);
   }
   for (const f of ['venues-core.js', 'venue-picker.js', 'venues-admin.js']) {
     const js = read('public/' + f);

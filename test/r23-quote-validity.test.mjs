@@ -110,7 +110,7 @@ t('staff line: Extend +14 days (one click) and Change date only when allowed', a
 t('staff line: picker range today..+1 year; hidden for approved / no permission / before 0262', async () => {
   let X = load({ get: async () => ({ state: 'expired', days_left: -1, valid_until: '2026-10-19', valid_until_label: '19/10/2026', locked: true, can_edit: true, can_override: true, default_days: 14, today: '2026-10-20', log: [] }) });
   let el = new El('div'); await X.mountStaff(el);
-  const inp = find(el, (c) => c.tagName === 'INPUT'); assert.equal(inp.attrs.min, '2026-10-20'); assert.equal(inp.attrs.max, '2027-10-20');
+  const inp = find(el, (c) => c.tagName === 'INPUT' && c.attrs.type === 'date'); /* r61: the visible box is a dd/mm/yyyy text input; the calendar is the native picker */ assert.equal(find(el, (c) => c.tagName === 'INPUT' && c.attrs.placeholder === 'dd/mm/yyyy').attrs.type, 'text'); assert.equal(inp.attrs.min, '2026-10-20'); assert.equal(inp.attrs.max, '2027-10-20');
   assert.match(el.textContent, /can't approve it until you extend it/);
   X = load({ get: async () => ({ state: 'done' }) }); el = new El('div'); await X.mountStaff(el); assert.equal(el.hidden, true);
   X = load({ get: async () => ({ state: 'none', can_edit: false }) }); el = new El('div'); await X.mountStaff(el); assert.equal(el.hidden, true);
