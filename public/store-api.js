@@ -12221,6 +12221,40 @@ window.HelmUrl = HelmUrl;
       { title: o.title || "Discard changes?", okLabel: "Discard", cancelLabel: "Keep editing", danger: true });
   }
 
+  // r80: Enter in a single-line field of an open page modal presses that modal's ONE primary button
+  // (pages' modals are type=button outside a <form>). Skipped: textarea / select / buttons, a field inside a
+  // real <form> (the browser submits it), combobox / autocomplete fields, IME composition, key repeat, modifier
+  // keys, a handler that already took the key, BPUI's own dialogs, a modal with data-no-enter, and a modal with
+  // zero or several primary buttons. A busy (BPUI.guard-disabled) button is not pressed, so no double submit.
+  var ENTER_SKIP_TYPES = /^(button|submit|reset|checkbox|radio|file|image|color|range|hidden)$/;
+  function enterTarget(e) {
+    if (e.key !== "Enter" || e.defaultPrevented || e.isComposing || e.repeat || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return null;
+    var t = e.target;
+    if (!t || t.tagName !== "INPUT" || ENTER_SKIP_TYPES.test(t.type || "") || t.form) return null;
+    if (t.getAttribute("role") === "combobox" || t.hasAttribute("aria-autocomplete") || t.hasAttribute("list") || t.hasAttribute("data-no-enter")) return null;
+    var top = stack.length ? topEntry() : null;
+    if (!top || top.own || !top.el.contains(t) || top.el.hasAttribute("data-no-enter")) return null;
+    var prim = Array.prototype.filter.call(top.el.querySelectorAll("button.primary, button[data-enter]"), visibleEl);
+    var marked = prim.filter(function (b) { return b.hasAttribute("data-enter"); });
+    if (marked.length) prim = marked;
+    if (prim.length !== 1 || prim[0].disabled || prim[0].getAttribute("aria-busy") === "true") return null;
+    return prim[0];
+  }
+  function onEnterSubmit(e) { var b = enterTarget(e); if (!b) return; e.preventDefault(); b.click(); }
+
+  // r80: an app link clicked while a tracked form is dirty asks in-app first (the browser's own beforeunload
+  // prompt stays as the fallback for reload / typed URL / tab close). Same-tab, same-origin, plain left clicks only.
+  function onGuardedLink(e) {
+    if (e.defaultPrevented || e.button !== 0 || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey || unloadBypass || !anyDirty()) return;
+    var a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+    if (!a || a.hasAttribute("download") || (a.target && a.target !== "_self")) return;
+    var u; try { u = new URL(a.href, global.location.href); } catch (x) { return; }
+    if (u.origin !== global.location.origin) return;
+    if (u.pathname === global.location.pathname && u.search === global.location.search) return;   // in-page hash link
+    e.preventDefault();
+    confirmDiscard(anyDirty).then(function (ok) { if (!ok) return; unloadBypass = true; global.location.assign(u.href); });
+  }
+
   /* ------------------------------------------------------ offline banner */
   var offlineEl = null, offlineInstalled = false;
   function installOffline() {
@@ -12344,6 +12378,8 @@ window.HelmUrl = HelmUrl;
   /* --------------------------------------------------------------- wire */
   global.addEventListener("keydown", onKeydown, true);
   doc.addEventListener("focusin", onFocusin, true);
+  doc.addEventListener("keydown", onEnterSubmit, false);   // r80: bubble phase, so a field's own Enter handler wins
+  doc.addEventListener("click", onGuardedLink, false);     // r80: in-app "Discard changes?" before an app link leaves a dirty form
   // one-shot "flash" toast carried across a location.replace (e.g. "Email confirmed")
   function showFlash() {
     var f = null;

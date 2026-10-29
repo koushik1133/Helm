@@ -196,7 +196,7 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=8"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=307"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=308"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=6"></script>
@@ -602,16 +602,18 @@
              await BPStore.staff.setLoginRole(editingId, loginRoleChange); }
            let added=null;
            if(editingId) await BPStore.staff.update(editingId,rec); else added=await BPStore.staff.add(rec); closeForm();
-           if(loginRoleChange) await loadLoginInfo(); BPUI.toast("Staff saved.",{type:"ok"}); await load();
+           if(loginRoleChange) await loadLoginInfo(); BPUI.toast("Staff saved.",{type:"ok"}); await load(); staffChanged();
            if(wantInvite && added) await inviteStaff(Object.assign({}, rec, added), $("#newBtn")); }
       catch(e){ if(!editingId&&BPUI.isCapError&&BPUI.isCapError(e)){ BPUI.capLimit($("#sm_err"),null,"staff"); return; } fail(BPStore.staff.linkErrorText(e)||BPUI.friendlyError(e,{action:"save the staff member",setupHint:"phase6-staff.sql"})); }
     },{busyLabel:"Saving…"});
   }
+  // r80: tell the availability grid (crew-shifts.js) to redraw - a deactivated person's row goes away without a reload
+  function staffChanged(){ try{ document.dispatchEvent(new CustomEvent("helm:staff-changed")); }catch(_){} }
   async function toggleActive(s,btn){
     const reactivate=s.active===false;
     if(!reactivate && !(await BPUI.confirm(`Deactivate ${s.name}? Any tasks already assigned to them stay assigned (check the event workspaces before relying on them). They'll be hidden from the directory and crew pickers until reactivated.`,{title:"Deactivate staff member?",okLabel:"Deactivate"}))) return;
     await BPUI.guard(btn,async()=>{
-      try{ await BPStore.staff.setActive(s.id, reactivate); BPUI.toast(reactivate?"Reactivated.":"Deactivated.",{type:"ok"}); await load(); }
+      try{ await BPStore.staff.setActive(s.id, reactivate); BPUI.toast(reactivate?"Reactivated.":"Deactivated.",{type:"ok"}); await load(); staffChanged(); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:reactivate?"reactivate the staff member":"deactivate the staff member"}),{type:"err"}); }
     });
   }
@@ -700,6 +702,6 @@
   });
 </script>
 <script src="saved-filters.js?v=6"></script>
-<script src="crew-shifts.js?v=4"></script>
+<script src="crew-shifts.js?v=5"></script>
 </body>
 </html>
