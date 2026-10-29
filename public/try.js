@@ -58,8 +58,8 @@
     { t: 'lightingtree',  x: 58, y: 5,  o: { label: 'Light' } },
     { t: 'dancefloor',    x: 30, y: 19, o: { width: 20, height: 15, label: 'Dance floor' } },
     { t: 'buffet',        x: 3,  y: 49, o: { width: 16, label: 'Buffet' } },
-    { t: 'sofa',          x: 61, y: 49, o: { label: 'Lounge' } },
-    { t: 'sofa',          x: 70, y: 49, o: { label: 'Lounge' } },
+    { t: 'sofa',          x: 61, y: 49, o: { label: 'Lounge', rotation: 180 } },   // R72: face INTO the room (toward the dance floor / stage), not the south wall
+    { t: 'sofa',          x: 70, y: 49, o: { label: 'Lounge', rotation: 180 } },
     { t: 'floralentrance',x: 33, y: 49, o: { label: 'Entrance arch' } },
     { t: 'lightingtree',  x: 28, y: 50, o: { label: 'Light' } },
     { t: 'lightingtree',  x: 49, y: 50, o: { label: 'Light' } }
