@@ -106,7 +106,7 @@ await t('SQL 0292: registered (MANIFEST, run-all, release lists), APPLY verbatim
   assert.match(man, /^forward  supabase\/migrations\/0292_r47_my_pending_speed\.sql$/m);
   assert.ok(man.indexOf('0283_r33_team_safety.sql') < man.indexOf('0292_r47_my_pending_speed.sql'), '0292 after 0283');
   assert.match(rd('scripts/db-test/run-all.sh'), /run "r47-my-pending-0292" "R47-MY-PENDING-0292: ALL PASS \\\(\d+\/\d+\\\)" psql -q -f tests\/db\/r47-my-pending-0292\.sql/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0283'(, '02\d\d')*, '0292'(, '02\d\d')*\]/, f);
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0283'(, '0\d{3}')*, '0292'(, '0\d{3}')*\]/, f);   // r60: loosened, later releases (0301+) may append
   assert.ok(APPLY.includes(SQL.trimEnd()), 'APPLY carries the migration verbatim');
   assert.match(APPLY, /^begin;$/m); assert.match(APPLY, /^commit;$/m); assert.match(APPLY, /-- VERIFY \(every row must say ok = true\)/);
   assert.ok((APPLY.match(/^  \('\d\d /gm) || []).length >= 10, 'VERIFY rows');

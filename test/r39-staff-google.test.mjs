@@ -58,7 +58,7 @@ await t('APPLY-0288: migration verbatim between begin / commit, VERIFY rows, eme
   assert.doesNotMatch(APPLY, /temp(orary)? table|^\\/im);
   assert.ok(rd('supabase/migrations/MANIFEST').includes('forward  supabase/migrations/0288_staff_google_only.sql'));
   assert.match(rd('scripts/db-test/run-all.sh'), /R39-STAFF-GOOGLE-0288: ALL PASS \\\(49\/49\\\)/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0287'(, '02\d\d')*, '0288'(, '02\d\d')*\]/, f);   // loosened like r44 / r47: later releases may append after 0288
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0287'(, '0\d{3}')*, '0288'(, '0\d{3}')*\]/, f);   // loosened like r44 / r47: later releases may append after 0288   // r60: loosened, later releases (0301+) may append
 });
 await t('store-api (v298): exactly helm.events; password, sign-up and reset refused early; the server refusal mapped', () => {
   const src = /function isStaffEmail\(email\) \{[\s\S]*?\n  \}/.exec(SA)[0];
