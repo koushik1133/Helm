@@ -235,7 +235,7 @@ function fakeEnv(reducedMotion) {
   ok(/flight = f\.active \? f : null;/.test(src), 'no dead flight stub after an instant cut');
   ok(/visibilitychange/.test(src) && /flight\.pause\(\)/.test(src) && /dwellPause\(\)/.test(src), 'hidden tab pauses the flight + dwell');
   ok(/if\(walkKeep\) return;\s+\/\/ R49/.test(b3), 'click-select is off during the walkaround');
-  ok(/if\(!it \|\| !active \|\| walkKeep\)\{ transform\.detach\(\); return; \}/.test(b3), 'no move handles during the walkaround');
+  ok(/if\(!it \|\| !active \|\| walkKeep( \|\| \(typeof RO!=='undefined' && RO\))?\)\{ transform\.detach\(\); return; \}/.test(b3), 'no move handles during the walkaround');   // R62 adds: nor for view-only roles
   ok(/const L=walkKeep \? \{min:controls\.minDistance, max:controls\.maxDistance\}/.test(b3), 'wheel respects the per-stop zoom limits');
   ok(!/controls\.maxPolarAngle=Math\.PI-0\.05; controls\.minDistance=1;/.test(b3), 'walk mode no longer lets the camera under the floor');
   ok(/camera\.far=Math\.max\(3000, Math\.max\(floorW,floorH\)\*5\)/.test(b3), 'far plane follows huge halls');

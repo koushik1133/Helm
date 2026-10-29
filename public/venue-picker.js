@@ -60,8 +60,10 @@
   var linked = h("p", { cls: "vp-linked", id: "vp_linked", hidden: "" }, [document.createTextNode("Linked to saved venue: "), linkName, document.createTextNode(" ("),
     h("button", { type: "button", cls: "vp-a", id: "vp_change", text: "change" }), document.createTextNode(" / "),
     h("button", { type: "button", cls: "vp-a", id: "vp_unlink", text: "unlink" }), document.createTextNode(")")]);
+  // r61: label + select sit in a .fld like every other field, so the select gets the page's own field size / radius /
+  // padding (it was a bare, thinner browser select)
   var box = h("div", { cls: "vp-box", id: "vp_box", hidden: "" }, [
-    h("label", { "for": "vp_pick", cls: "vp-lbl", text: "Pick a saved venue" }), linked, sel, sum, warn]);
+    h("div", { cls: "fld vp-fld" }, [h("label", { "for": "vp_pick", cls: "vp-lbl", text: "Pick a saved venue" }), linked, sel]), sum, warn]);
   ctx.anchor.parentNode.insertBefore(box, ctx.anchor);
 
   function picked() { var id = sel.value; for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }

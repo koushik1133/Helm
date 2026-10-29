@@ -101,7 +101,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="stock-flow.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=51" id="shellProto"></script>
+<script src="/shell-proto.js?v=52" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -276,12 +276,12 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=301"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=305"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=6"></script>
-<script src="page-tours.js?v=5"></script>
-<script src="tour.js?v=29"></script>
+<script src="page-tours.js?v=7"></script>
+<script src="tour.js?v=30"></script>
 <script src="checkout-shortage.js?v=6"></script>
 <script src="stock-flow.js?v=1"></script>
 <script src="capacity-shortage.js?v=9"></script>
@@ -664,7 +664,7 @@
         <td style="font-size:12px;color:var(--ink-3)">${c.checked_in_at?esc(fmtWhen(c.checked_in_at)):""}</td>
       </tr>`; }).join("");
     $("#lossRows").innerHTML = lossRows || '<tr><td colspan="9" class="empty">Nothing missing or damaged — everything came back. 🎉</td></tr>';
-    $("#lossTotal").innerHTML = (lostUnits||dmgUnits)? `<span class="miss">${esc([lostUnits?num(lostUnits)+" missing":"", dmgUnits?num(dmgUnits)+" damaged":""].filter(Boolean).join(" · "))} · ${esc(BPStore.studioMoney(lostVal))} lost</span>` : '<span class="backok">All back</span>';
+    $("#lossTotal").innerHTML = (lostUnits||dmgUnits)? `<span class="miss">${esc([lostUnits?num(lostUnits)+" missing":"", dmgUnits?num(dmgUnits)+" damaged":""].filter(Boolean).join(" · "))}${lostVal?" · "+esc(BPStore.studioMoney(lostVal))+" lost":""}</span>` : '<span class="backok">All back</span>';
     $("#loanRows").querySelectorAll("[data-in]").forEach(b=>b.addEventListener("click",()=>checkInFlow(b.dataset.in)));
     $("#loanRows").querySelectorAll("[data-cxl]").forEach(b=>b.addEventListener("click",()=>cancelCheckout(b)));
   }
@@ -688,7 +688,7 @@
     const out=ciOut(), it=ciItem(), n=ciNums();
     if(n.miss<0){ $("#ci_warn").textContent=`Only ${num(out)} went out.`; $("#ci_warn").hidden=false; return; }
     if(n.miss>0||n.dmg>0){
-      $("#ci_warn").textContent=[n.miss?`${num(n.miss)} missing`:"", n.dmg?`${num(n.dmg)} damaged`:""].filter(Boolean).join(" and ")+` - taken off your stock (${BPStore.studioMoney((n.miss+n.dmg)*Number(it.unit_cost||0))}).`;
+      $("#ci_warn").textContent=[n.miss?`${num(n.miss)} missing`:"", n.dmg?`${num(n.dmg)} damaged`:""].filter(Boolean).join(" and ")+(it.unit_cost!=null?` - taken off your stock (${BPStore.studioMoney((n.miss+n.dmg)*Number(it.unit_cost||0))}).`:" - taken off your stock.");
       $("#ci_warn").hidden=false;
     } else { $("#ci_warn").hidden=true; }
   }

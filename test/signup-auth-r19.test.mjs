@@ -46,7 +46,8 @@ t("2a sign-up asks about an open invitation BEFORE signUp, only for a new (not j
 });
 t("2b the choice card: 'You've been invited to join <Studio> as <role>' - Join <Studio> / Start my own trial", () => {
   assert.match(LOGIN, /<section class="card" id="invitedCard" hidden aria-labelledby="ivTitle">/);
-  assert.match(LOGIN, /\$\("#ivTitle"\)\.textContent="You've been invited to join "\+ivStudio\+\(role\?" as "\+role:""\);/);
+  // r57 (A-4): the look-up no longer names the studio / role - the title says so plainly (the e-mail carries them)
+  assert.match(LOGIN, /\$\("#ivTitle"\)\.textContent=\(iv&&iv\.studio\)\?"You've been invited to join "\+ivStudio\+\(role\?" as "\+role:""\):"This e-mail has an invitation to join a studio on Helm";/);
   assert.match(LOGIN, /jb\.textContent="Join "\+ivStudio;/);
   assert.match(LOGIN, /\$\("#ivOwn"\)\.textContent="Create my own studio";/);
   assert.match(LOGIN, /ivSkip=ivEmail; showView\("#loginForm"\);/);
@@ -61,7 +62,7 @@ t("2c store-api: openForEmail / emailInviteLink post only the e-mail (no token),
   const look = API.slice(a, b), send = API.slice(b, c);
   assert.match(look, /body: JSON\.stringify\(\{ email_lookup: true, email: em \}\)/);
   assert.match(look, /ctl\.abort\(\)/); assert.match(look, /catch \(e\) \{ return null; \}/);
-  assert.match(look, /return \{ invited: true, studio: str\(j\.studio, 120\), role: str\(j\.role, 40\), role_label: str\(j\.role_label, 60\) \};/);
+  assert.match(look, /return \{ invited: true \};/);   // r57 (A-4): yes / no only - studio + role arrive in the e-mail
   assert.ok(!/token/.test(look.replace(/\/\/.*$/gm, "")), "the lookup never handles a token");
   assert.match(send, /body: JSON\.stringify\(\{ email_send: true, email: em \}\)/);
   assert.ok(!/token/.test(send.replace(/\/\/.*$/gm, "")), "the browser never gets the token");
@@ -78,7 +79,7 @@ t("2d edge function: e-mail modes branch BEFORE the token limits, own rate limit
   assert.match(FN, /signInWithOtp\(\{ email, options: \{ shouldCreateUser: false, emailRedirectTo: link \} \}\)/);
   assert.ok(!/console\.(log|error)\([^)]*(email|password|token|bound)\b/.test(FN), "no PII in logs");
 });
-t("2e edge function lookupAnswer: studio + role (+ label) only, never the token / inviter / expiry", () => {
+t("2e edge function lookupAnswer: r57 (A-4) yes / no only - never the studio, role, token, inviter or expiry", () => {
   const strip = nodeModule.stripTypeScriptTypes;
   if (typeof strip !== "function") return;   // older Node: the static checks above still ran
   const a = FN.indexOf("export function lookupAnswer"), b = FN.indexOf("\n}\n", a);
@@ -88,7 +89,7 @@ t("2e edge function lookupAnswer: studio + role (+ label) only, never the token 
   const lookupAnswer = new Function(src)();
   const tok = "ab".repeat(24);
   const got = lookupAnswer({ found: true, studio: " Aurora\nEvents ", role: "planner", token: tok, expires_at: "2026-10-30", invited_by: "u1" });
-  assert.deepEqual(got, { invited: true, studio: "Aurora Events", role: "planner", role_label: "Planner" });
+  assert.deepEqual(got, { invited: true });
   assert.deepEqual(lookupAnswer({ found: false }), { invited: false });
   assert.deepEqual(lookupAnswer(null), { invited: false });
   assert.deepEqual(lookupAnswer({ found: true, studio: "X", role: "planner", token: "short" }), { invited: false });

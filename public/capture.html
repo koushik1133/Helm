@@ -27,7 +27,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="builder.css?v=34">
-<link rel="stylesheet" href="venues.css?v=7">
+<link rel="stylesheet" href="venues.css?v=8">
 <link rel="stylesheet" href="studio-templates.css?v=4">
 <link rel="stylesheet" href="/builder-v2.css?v=12">
 </head>
@@ -459,9 +459,9 @@
     <div class="stage3d" id="stage3d" hidden>
       <canvas id="scene3d"></canvas>
       <div class="tools3d" id="tools3d">
-        <button data-m="translate" class="on" title="Move (G)">✥ Move</button>
-        <button data-m="rotate" title="Rotate (T)">⟳ Rotate</button>
-        <button data-m="scale" title="Resize (Y)">⤢ Scale</button>
+        <button type="button" data-m="translate" class="on" aria-pressed="true" title="Move (G)">✥ Move</button>
+        <button type="button" data-m="rotate" aria-pressed="false" title="Rotate (T)">⟳ Rotate</button>
+        <button type="button" data-m="scale" aria-pressed="false" title="Resize (Y)">⤢ Scale</button>
         <span class="labels3d" id="labels3d" role="group" aria-label="Labels">
           <span class="l3-lbl">Labels:</span>
           <button type="button" data-l="none" aria-pressed="false" title="Plain 3D model">None</button>
@@ -516,8 +516,8 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=301"></script>
-<script src="page-tours.js?v=5"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=305"></script>
+<script src="page-tours.js?v=7"></script>
 <script src="flow-layout-sync.js?v=6"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="builder-tools.js?v=5"></script>
@@ -525,14 +525,14 @@
 <script src="builder.js?v=80"></script>
 <script src="builder-back.js?v=1" defer></script>
 <script src="venues-core.js?v=11"></script>
-<script src="venue-picker.js?v=7"></script>
+<script src="venue-picker.js?v=8"></script>
 <script src="studio-templates-core.js?v=5"></script>
 <script src="studio-templates.js?v=14"></script>
 <script src="load-fit.js?v=1"></script>
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
 <script src="capture-frame.js?v=13"></script>
-<script src="builder-3d.js?v=26"></script>
+<script src="builder-3d.js?v=27"></script>
 <script src="photo-render-prompt.js?v=8"></script>
 <script src="photo-render-ui.js?v=9"></script>
 <script src="builder-tooltip.js?v=2"></script><!-- r21: the builder's own tooltip (replaces the native title box) -->

@@ -223,6 +223,7 @@ do $$ declare s text; begin
   perform pg_temp.res('41 linked staff row: phone can''t be changed from the Staff page', s = '42501', s);
   perform pg_temp.login('a_admin@a.test');
   s := pg_temp.try($q$update public.crew_members set notes = 'admin note', day_rate = 2500 where id = 'a0000000-0000-4000-8000-0000000c0001'$q$);
+  perform pg_temp.su();   -- r58 (0299): day_rate is no longer readable from the table by signed-in users (staff_pay_fields)
   perform pg_temp.res('42 linked staff row: notes / day rate still editable on the Staff page',
     s = '' and (select day_rate from public.crew_members where id = 'a0000000-0000-4000-8000-0000000c0001') = 2500, s);
   perform pg_temp.login('a_admin@a.test');

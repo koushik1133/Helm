@@ -78,7 +78,6 @@ Deno.serve(async (req) => {
     const ipWait = await checkLimits([["pv:ip:" + clientIp(req), 20, 60_000]]);
     if (ipWait) return tooMany(json, ipWait);
     const body: any = await readJsonCapped(req);
-    if (!TOKEN || !PHONE_ID) return json({ error: "phone verification is not available yet" }, 503);
     const url = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const jwt = bearer(req);
@@ -89,6 +88,11 @@ Deno.serve(async (req) => {
     });
     const { data: { user } } = await asCaller.auth.getUser(jwt);
     if (!user) return json({ error: "sign in first" }, 401);
+    // r57 (audit A-10): a sign-in is checked BEFORE saying whether the feature is configured (no config disclosure)
+    // and a banned login (0283 deactivation sets banned_until) can't ask for codes with a still-valid token
+    const banned = Date.parse(String((user as any).banned_until || ""));
+    if (Number.isFinite(banned) && banned > Date.now()) return json({ error: "sign in first" }, 401);
+    if (!TOKEN || !PHONE_ID) return json({ error: "phone verification is not available yet" }, 503);
     const userWait = await checkLimits([["pv:user:" + user.id, 5, 60_000]]);
     if (userWait) return tooMany(json, userWait);
 
@@ -107,6 +111,15 @@ Deno.serve(async (req) => {
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
     const { data: prof, error: pErr } = await admin.from("profiles").select("org_id").eq("id", user.id).maybeSingle();
     if (pErr) { console.error("profile lookup failed", errTag(pErr)); return json({ error: "could not send a code — please try again later" }, 500); }
+    // r57 (A-10): a member deactivated by their studio (0283 team_member_status) gets no codes either
+    if ((prof as any)?.org_id) {
+      const { data: tms, error: tErr } = await admin.from("team_member_status").select("status")
+        .eq("user_id", user.id).eq("org_id", (prof as any).org_id).maybeSingle();
+      if (tErr && !/team_member_status|PGRST205|42P01/i.test(String(tErr.message || "") + " " + String((tErr as any).code || ""))) {
+        console.error("member status lookup failed", errTag(tErr)); return json({ error: "could not send a code — please try again later" }, 500);
+      }
+      if ((tms as any)?.status === "deactivated") return json({ error: "sign in first" }, 401);
+    }
     const orgKey = String((prof as any)?.org_id || "none:" + user.id);
     const home = ccList("PHONE_CODE_HOME_CC", "91,971").includes(cc);
     const capWait = await checkLimits([

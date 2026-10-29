@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=51"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=52"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -3480,6 +3480,42 @@ window.HelmUrl = HelmUrl;
   // so callers can fall back to an older path; every other error must still surface.
   const rpcMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "PGRST202" || c === "42883" || /could not find the function|function[^]*does not exist/i.test(m); };
+  // r58 (0299): three columns are no longer readable straight from their tables; role-checked RPCs answer them:
+  // crew_members.day_rate / attributes -> staff_pay_fields (a team login's pay = the studio admin's only, plain crew as before),
+  // inventory_items.unit_cost -> inventory_costs (Budget & finance view or Inventory edit; others get no cost),
+  // work_tokens.token -> work_links_for_event (Staff edit). Before 0299 the RPCs are missing and the columns are still
+  // readable: read them from the table exactly as before. Rows are filled in place (a list keeps .truncated).
+  const CREW_COLS = "id,name,phone,department,active,created_at,role,skills,email,emp_type,notes,org_id,profile_id,is_demo";
+  const INV_COLS = "id,name,category,total_qty,unit,notes,active,created_at,priority,org_id,attributes,is_demo";
+  const r58Rpc = { pay: null, cost: null };   // null = untried, false = not installed yet (pre-0299)
+  const r58Chunks = (a, n) => { const out = []; for (let i = 0; i < a.length; i += n) out.push(a.slice(i, i + n)); return out; };
+  async function r58Fill(rows, o) {
+    const list = Array.isArray(rows) ? rows : (rows ? [rows] : []);
+    const ids = [...new Set(list.map((r) => r && r.id).filter(Boolean))];
+    if (!ids.length || !supa) return rows;
+    const by = {};
+    for (const part of r58Chunks(ids, 1000)) {
+      let data = null;
+      if (r58Rpc[o.key] !== false) {
+        const r = await supa.rpc(o.rpc, { p_ids: part });
+        if (!r.error) { r58Rpc[o.key] = true; data = r.data || []; }
+        else if (rpcMissing(r.error)) r58Rpc[o.key] = false; else throw r.error;
+      }
+      if (data == null) {
+        data = [];
+        for (const p of r58Chunks(part, 150)) { const r = await supa.from(o.table).select(o.cols).in("id", p); if (r.error) throw r.error; data = data.concat(r.data || []); }
+      }
+      data.forEach((d) => { if (d && d.id) by[d.id] = d; });
+    }
+    list.forEach((r) => { if (r && r.id) o.apply(r, by[r.id] || null); });
+    return rows;
+  }
+  const crewWithPay = (rows) => r58Fill(rows, { key: "pay", rpc: "staff_pay_fields", table: "crew_members", cols: "id,day_rate,attributes",
+    apply: (r, d) => { r.day_rate = d && d.day_rate != null ? d.day_rate : null;
+      r.attributes = d && d.attributes && typeof d.attributes === "object" && !Array.isArray(d.attributes) ? d.attributes : {};
+      if (d && d.pay_hidden === true) r.pay_hidden = true; else delete r.pay_hidden; } });
+  const invWithCost = (rows) => r58Fill(rows, { key: "cost", rpc: "inventory_costs", table: "inventory_items", cols: "id,unit_cost",
+    apply: (r, d) => { r.unit_cost = d && d.unit_cost != null ? d.unit_cost : null; } });
   // 0078: fire-and-forget "the client opened the link" (follow-up timing); never throws, never blocks
   // r23 (0261): which page (portal / quotation / booklet / approve) via public_link_viewed - the server reads the
   // device from the request and ignores signed-in studio members. "#preview" on a client page (the studio's
@@ -3664,6 +3700,8 @@ window.HelmUrl = HelmUrl;
     },
     extend: (quoteId, days) => { qvSoon = null; return rpc("quote_validity_extend", days == null ? { p_quote: quoteId } : { p_quote: quoteId, p_days: Math.round(Number(days)) }).catch((e) => { throw qvMissing(e); }); },
     setDate: (quoteId, isoDate, note) => { qvSoon = null; return rpc("quote_validity_set", { p_quote: quoteId, p_date: String(isoDate || "").slice(0, 10), p_note: note ? String(note).slice(0, 300) : null }).catch((e) => { throw qvMissing(e); }); },
+    // r61 (0302): undo the caller's own latest Extend / Save date (logged as "Undone"; the server re-checks everything)
+    undo: (quoteId, logId) => { qvSoon = null; return rpc("quote_validity_undo", { p_quote: quoteId, p_log: logId }).catch((e) => { throw qvMissing(e); }); },
     applyOpen: (apply) => rpc("quote_validity_apply_open", { p_apply: !!apply }).catch((e) => { throw qvMissing(e); }),
     // signed-out client pages: { state: valid|expired|none|done|off, valid_until_label, days_left, locked, studio, requested } or null
     publicState: (kind, token) => (supa && QV_UUID.test(String(token || "")))
@@ -3690,17 +3728,21 @@ window.HelmUrl = HelmUrl;
       if (error) throw error; return data; },
     async categories() { const t = await this.templates(); return [...new Set(t.map((x) => x.category))]; },
     async listCrew() { if (!supa) throw new Error("Supabase not configured");
-      const { data, error } = await supa.from("crew_members").select("*").eq("active", true).order("name");
-      if (error) throw error; return data; },
+      const { data, error } = await supa.from("crew_members").select(CREW_COLS).eq("active", true).order("name");
+      if (error) throw error; return crewWithPay(data || []); },
     async addCrew(name, phone, department) { if (!supa) throw new Error("Supabase not configured");
       phone = phoneOrThrow(phone, true);
-      const { data, error } = await supa.from("crew_members").insert({ name, phone, department }).select().single();
-      if (error) throw error; return data; },
+      const { data, error } = await supa.from("crew_members").insert({ name, phone, department }).select(CREW_COLS).single();
+      if (error) throw error; return crewWithPay(data); },
     async deactivateCrew(id) { const { error } = await supa.from("crew_members").update({ active: false }).eq("id", id); if (error) throw error; return true; },
     async listTasks(quoteId) { if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.from("event_tasks").select("*").eq("quote_id", quoteId).order("category").order("seq");
       if (error) throw error; return data; },
+    // r58 (0299): the links come from work_links_for_event (Staff edit only; view roles get none). Before 0299: the table.
     async listTokens(quoteId) { if (!supa) throw new Error("Supabase not configured");
+      const r = await supa.rpc("work_links_for_event", { p_quote: quoteId });
+      if (!r.error) return r.data || [];
+      if (!rpcMissing(r.error)) throw r.error;
       const { data, error } = await supa.from("work_tokens").select("token,phone,name").eq("quote_id", quoteId);
       if (error) throw error; return data; },
     assignTasks: (quoteId, category, titles, crewId, name, phone) => rpc("assign_tasks",
@@ -4723,7 +4765,8 @@ window.HelmUrl = HelmUrl;
   // r20 coord (d), owner decision: pay on a staff row LINKED to a team login (profile_id) is the
   // studio admin's business only. Everyone else - including that person on their own record -
   // never sees the day rate or a pay-like custom field of a linked row. Plain crew (no login) as before.
-  function staffPayVisible(s, isAdmin) { return isAdmin === true || !(s && s.profile_id); }
+  // r58 (0299): the database enforces the same rule (staff_pay_fields marks such a row pay_hidden: never shown).
+  function staffPayVisible(s, isAdmin) { if (s && s.pay_hidden === true) return false; return isAdmin === true || !(s && s.profile_id); }
   // a custom field that is pay (monthly salary, wage, CTC, ...): hidden with the day rate
   function staffPayAttr(key, label) {
     const re = /(salary|wage|ctc|stipend|remuneration|compensation|payout|day_?rate|daily_?rate|per_?day|(^|[^a-z])pay([^a-z]|$))/i;
@@ -4748,8 +4791,8 @@ window.HelmUrl = HelmUrl;
     payPatch: staffPayPatch,
     async list(includeInactive) {
       if (mode === "supabase") {
-        return sbAll(() => { let q = supa.from("crew_members").select("*").order("name").order("id");
-          if (!includeInactive) q = q.eq("active", true); return q; });
+        return crewWithPay(await sbAll(() => { let q = supa.from("crew_members").select(CREW_COLS).order("name").order("id");
+          if (!includeInactive) q = q.eq("active", true); return q; }));
       }
       const a = readLs(STAFF_LS); return includeInactive ? a : a.filter((s) => s.active !== false);
     },
@@ -4759,14 +4802,14 @@ window.HelmUrl = HelmUrl;
     async page(o) {
       o = o || {};
       if (mode === "supabase") {
-        let q = supa.from("crew_members").select("*", o.count ? { count: "exact" } : undefined);
+        let q = supa.from("crew_members").select(CREW_COLS, o.count ? { count: "exact" } : undefined);
         if (!o.includeInactive) q = q.eq("active", true);
         if (o.dept) q = q.eq("department", o.dept);
         if (o.skill) q = q.filter("skills", "cs", JSON.stringify([o.skill]));   // skills is a jsonb array
         if (o.ids) q = q.in("id", o.ids.length ? o.ids : ["00000000-0000-0000-0000-000000000000"]);
         let s = orIlike(["name", "role", "department", "email", "phone"], o.search);
         if (s) { s += ",skills.cs." + pgQuote(JSON.stringify([String(o.search).trim()])); q = q.or(s); }   // + an exact skill
-        return sbPage(q.order("name").order("id"), o);
+        const pg = await sbPage(q.order("name").order("id"), o); await crewWithPay(pg.rows); return pg;
       }
       const ids = o.ids ? new Set(o.ids) : null;
       const rows = readLs(STAFF_LS).filter((p) => (o.includeInactive || p.active !== false) && (!o.dept || p.department === o.dept) &&
@@ -4787,8 +4830,8 @@ window.HelmUrl = HelmUrl;
     async add(s) {
       if (s && !s.profile_id) s = { ...s, phone: phoneOrThrow(s.phone, true) };
       if (mode === "supabase") {
-        const { data, error } = await supa.from("crew_members").insert(s).select().single();
-        if (error) throw error; return data;
+        const { data, error } = await supa.from("crew_members").insert(s).select(CREW_COLS).single();
+        if (error) throw error; return crewWithPay(data);
       }
       const a = readLs(STAFF_LS); const row = { id: uid(), active: true, skills: [], ...s, created_at: now() };
       a.push(row); localStorage.setItem(STAFF_LS, JSON.stringify(a)); return row;
@@ -4922,8 +4965,8 @@ window.HelmUrl = HelmUrl;
   const inventory = {
     async items(includeInactive) {
       if (mode === "supabase") {
-        return sbAll(() => { let q = supa.from("inventory_items").select("*").order("name").order("id");
-          if (!includeInactive) q = q.eq("active", true); return q; });
+        return invWithCost(await sbAll(() => { let q = supa.from("inventory_items").select(INV_COLS).order("name").order("id");
+          if (!includeInactive) q = q.eq("active", true); return q; }));
       }
       const a = readLs(INV_LS); return includeInactive ? a : a.filter((i) => i.active !== false);
     },
@@ -4939,7 +4982,7 @@ window.HelmUrl = HelmUrl;
     },
     async addItem(it) {
       it = this._sanitize(it);
-      if (mode === "supabase") { const { data, error } = await supa.from("inventory_items").insert(it).select().single(); if (error) throw dupError(error, "item", it.name); return data; }
+      if (mode === "supabase") { const { data, error } = await supa.from("inventory_items").insert(it).select(INV_COLS).single(); if (error) throw dupError(error, "item", it.name); return invWithCost(data); }
       const a = readLs(INV_LS); const row = { id: uid(), active: true, total_qty: 0, ...it, created_at: now() }; a.push(row); localStorage.setItem(INV_LS, JSON.stringify(a)); return row;
     },
     // Bulk insert (one round-trip) — used by "Load starter items" so seeding ~20 rows
@@ -4950,16 +4993,16 @@ window.HelmUrl = HelmUrl;
       const rows = (list || []).map((it) => this._sanitize(it));
       if (!rows.length) return [];
       if (mode === "supabase") {
-        const { data, error } = await supa.from("inventory_items").insert(rows).select();
-        if (!error) return data;
+        const { data, error } = await supa.from("inventory_items").insert(rows).select(INV_COLS);
+        if (!error) return invWithCost(data || []);
         if (!(o && o.skipDuplicates) || error.code !== "23505") throw dupError(error, "item", rows.length === 1 ? rows[0].name : null);
         const made = []; made.skipped = [];
         for (const r of rows) {
-          const x = await supa.from("inventory_items").insert(r).select().single();
+          const x = await supa.from("inventory_items").insert(r).select(INV_COLS).single();
           if (x.error) { if (x.error.code !== "23505") throw x.error; made.skipped.push({ name: r.name, error: dupError(x.error, "item", r.name).message }); }
           else made.push(x.data);
         }
-        return made;
+        return invWithCost(made);
       }
       const a = readLs(INV_LS); const made = rows.map((it) => ({ id: uid(), active: true, total_qty: 0, ...it, created_at: now() })); a.push(...made); localStorage.setItem(INV_LS, JSON.stringify(a)); return made;
     },
@@ -5545,7 +5588,8 @@ window.HelmUrl = HelmUrl;
     create: (email, role) => (reservedEmailDomain(email) ? Promise.reject(reservedEmailError())   // r21 0248 (server-checked too)
       : rpc("create_invitation", { p_email: email, p_role: role })),   // admin only (server-checked)
     async list() { if (!supa) return [];                                                     // RLS returns only this org's invites
-      const { data, error } = await supa.from("invitations").select("*").order("created_at", { ascending: false });
+      // r57 (A-5 / I-04, 0298): explicit columns - the browser never reads token / mail_key_hash ("Copy link" uses create())
+      const { data, error } = await supa.from("invitations").select("id,org_id,email,role,status,invited_by,expires_at,accepted_at,accepted_by,created_at").order("created_at", { ascending: false });
       if (error) throw error; return data || []; },
     // 0131: invitation e-mails. resendEmail re-queues (admin, same studio, once per 10 min);
     // sendNow asks the invite-mailer to flush THIS studio's queue right away. Never throws:
@@ -5616,7 +5660,9 @@ window.HelmUrl = HelmUrl;
       // the studio's "Copy link" never has it. With it the server makes the login already confirmed;
       // without it the answer is { fallback: true } (the normal confirm-by-e-mail sign-up).
       let mailKey = "";
-      try { const k = new URLSearchParams(location.search || "").get("k") || ""; if (/^[0-9a-f]{32,128}$/i.test(k)) mailKey = k.toLowerCase(); } catch (e) {}
+      try { let k = new URLSearchParams(location.search || "").get("k") || "";
+        if (!k) { try { k = sessionStorage.getItem("bp_pending_invite_k") || ""; } catch (e) { k = ""; } }   // r57 (A-7): kept in this tab, gone from the URL
+        if (/^[0-9a-f]{32,128}$/i.test(k)) mailKey = k.toLowerCase(); } catch (e) {}
       let res;
       try {
         res = await fetch(fnUrl("invite-signup"), { method: "POST",
@@ -5629,8 +5675,8 @@ window.HelmUrl = HelmUrl;
       const e = new Error(String(j.error || "Couldn't create the account.")); e.code = j.code; e.status = res.status; if (j.reason) e.reason = String(j.reason).slice(0, 20); throw e;
     },
     // 0210 (free-trial sign-up, before anything is created): does this e-mail have an OPEN invitation?
-    // → { invited: true, studio, role, role_label } | { invited: false } | null (function not deployed,
-    // rate limited, offline, slow - the sign-up then simply carries on). Only studio + role ever come back.
+    // → { invited: true } | { invited: false } | null (function not deployed, rate limited, offline, slow - the
+    // sign-up then simply carries on). r57 (A-4): never which studio or role (a stranger can type any e-mail).
     async openForEmail(email, opts) {
       const em = String(email || "").trim().toLowerCase();
       if (!supa || !fnUrl("invite-signup") || !em) return null;
@@ -5644,8 +5690,8 @@ window.HelmUrl = HelmUrl;
         const j = await res.json().catch(() => ({}));
         if (!res.ok || !j || typeof j !== "object") return null;
         if (j.invited !== true) return j.invited === false ? { invited: false } : null;
-        const str = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, n);
-        return { invited: true, studio: str(j.studio, 120), role: str(j.role, 40), role_label: str(j.role_label, 60) };
+        // r57 (A-4): the server answers yes / no only - the studio + role arrive in the invitation e-mail
+        return { invited: true };
       } catch (e) { return null; }
       finally { if (timer) clearTimeout(timer); }
     },
@@ -6927,9 +6973,10 @@ window.HelmUrl = HelmUrl;
       }
       return rpc("chat_react", { p_message: messageId, p_emoji: emoji, p_on: on !== false });
     },
-    async markRead(convId) {
+    // r52: opts.strict → a failure is thrown (the bell's "Mark all read" says so); the chat page keeps the quiet form
+    async markRead(convId, opts) {
       if (mode !== "supabase") { const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); const me = chatLocalUid(); if (c) { c.members = c.members || []; let m = c.members.find((x) => x.user_id === me); if (!m) { m = { user_id: me }; c.members.push(m); } m.last_read_at = now(); chatWriteLs(CHAT_LS_C, convs); } return; }
-      try { return await rpc("chat_mark_read", { p_conversation: convId }); } catch (e) {}
+      try { return await rpc("chat_mark_read", { p_conversation: convId }); } catch (e) { if (opts && opts.strict) throw e; }
     },
     // Unread messages FROM OTHERS in MY conversations, one row per conversation
     // (latest first), for the notification bell. RLS scopes every read to the
@@ -7011,6 +7058,12 @@ window.HelmUrl = HelmUrl;
     // Event groups (0035): one chat group per confirmed quote, opened with an event card the
     // SERVER builds (client contact, date, venue, guests, layout, menu, notes — never money).
     eventGroups: {
+      // r58 (0299): the client's phone / e-mail for an event card - Quotes view only; null otherwise / before 0299
+      async contact(quoteId) {
+        if (mode !== "supabase" || !supa || !quoteId) return null;
+        try { const { data, error } = await supa.rpc("event_group_contact", { p_quote: quoteId }); return error ? null : (data || null); }
+        catch (e) { return null; }
+      },
       // { [quoteId]: { conversation_id, is_member } } for my studio (quotes-view access)
       async index() {
         if (mode !== "supabase") {
@@ -8829,6 +8882,29 @@ window.HelmUrl = HelmUrl;
     }
     return { filter, tabs, tabsHtml, html, unread };
   }
+  /* ---------------- r52: "Mark all read" + one shared unread count (pure parts unit-tested in test/r52-notif-clear.test.mjs) ----------------
+     bellAllReadPatch(items, chats) → { items, chatKeys, convs }: the bell list as it looks once everything is read (server
+     rows unread:false - shown at once, before the server answers), the chat keys to mark read in this browser and the
+     conversations to mark read on the server. "Mark all read" used to leave every unread CHAT in the dot and in "N new",
+     so the badge never reached 0 while a team chat had unread messages. */
+  function bellAllReadPatch(items, chats) {
+    const list = Array.isArray(items) ? items : [], cs = (Array.isArray(chats) ? chats : []).filter((c) => c && typeof c === "object");
+    const chatRows = list.filter((n) => n && n.__chat).concat(cs);
+    const keys = [], convs = [];
+    chatRows.forEach((c) => { const k = bellChatKey(c); if (keys.indexOf(k) === -1) keys.push(k);
+      const id = String(c.conversation_id || ""); if (/^[0-9a-f-]{36}$/i.test(id) && convs.indexOf(id) === -1) convs.push(id); });
+    return { items: list.map((n) => (n && !n.__chat && n.unread) ? Object.assign({}, n, { unread: false, returned: false }) : n), chatKeys: keys, convs };
+  }
+  // the bell's count for the rest of the page (dashboard "N unread", chat badges): window.__bpBellCount + a helm:bell-count event
+  function bellPublish(c) {
+    try { const v = Object.assign({ at: Date.now() }, c || {}); global.__bpBellCount = v;
+      if (typeof CustomEvent === "function" && global.dispatchEvent) global.dispatchEvent(new CustomEvent("helm:bell-count", { detail: v })); } catch (e) {}
+  }
+  // a bell change the server refused is never silent any more: console + Sentry (telemetry redacts), the caller shows a toast
+  function bellWarn(what, e) {
+    try { console.warn("[bell] could not " + what + ":", (e && (e.code || e.status)) || "", (e && e.message) || e); } catch (x) {}
+    try { if (global.HelmTelemetry && global.HelmTelemetry.report) global.HelmTelemetry.report("bell_" + String(what).replace(/\W+/g, "_"), e); } catch (x) {}
+  }
   /* ---------------- notification toasts: which feed rows pop up (pure — unit-tested in test/toast.test.mjs) ----------------
      bellToastPick(items, seen, { label }) → { toasts:[{ key, title, message, href, type, icon }], seen }
      seen = { t: newest created_at already handled (ISO), ids: [recent keys] } or null.
@@ -9221,9 +9297,12 @@ window.HelmUrl = HelmUrl;
         try { chatItems = (chat && chat.notifications) ? (await chat.notifications(20)) : []; } catch (e) { chatItems = []; }
         if (chatOff) chatItems = chatItems.filter((c) => c && c.mention);
         if (muted.indexOf("chat_message") !== -1) chatItems = chatItems.filter((c) => c && c.mention); };
-      const setDot = (serverUnread) => { const total = (serverUnread || 0) + chatUnread() - chatReadCount();
+      const setDot = (serverUnread) => { const chatN = Math.max(0, chatUnread() - chatReadCount()), total = (serverUnread || 0) + chatN;
         if (total > 0) { dot.hidden = false; dot.textContent = total > 9 ? "9+" : total; } else dot.hidden = true;
-        btn.setAttribute("aria-label", total > 0 ? `Notifications, ${total} unread` : "Notifications"); btn.title = total > 0 ? `${total} unread notification${total === 1 ? "" : "s"}` : "Notifications"; };
+        btn.setAttribute("aria-label", total > 0 ? `Notifications, ${total} unread` : "Notifications"); btn.title = total > 0 ? `${total} unread notification${total === 1 ? "" : "s"}` : "Notifications";
+        // r52: one count for every badge on the page - the dashboard "N unread" follows the bell (it used to keep its own,
+        // older number from my_pending, which never dropped when a row was read) and the chat badges re-check at once
+        bellPublish({ server: Math.max(0, serverUnread || 0), chat: chatN, total: Math.max(0, total) }); };
       // render the open panel, keeping keyboard focus on the same row / tab across live refreshes
       const render = () => {
         const ae = document.activeElement, keepKey = ae && root.contains(ae) && ae.getAttribute ? (ae.getAttribute("data-k") || (ae.getAttribute("data-f") ? "tab:" + ae.getAttribute("data-f") : null)) : null;
@@ -9240,14 +9319,23 @@ window.HelmUrl = HelmUrl;
       const seenKey = "bpBellToastSeen:" + ((auth.user() && auth.user().id) || "anon");
       const readSeen = () => { try { const v = JSON.parse(localStorage.getItem(seenKey) || "null"); return v && typeof v === "object" ? v : null; } catch (e) { return null; } };
       const writeSeen = (v) => { try { localStorage.setItem(seenKey, JSON.stringify(v)); } catch (e) {} };
+      // r52: "n:<uuid>" → the inbox row id (inbox on), else null
+      const serverIdOf = (k) => (inboxOn && typeof k === "string" && k.indexOf("n:") === 0 && /^[0-9a-f-]{36}$/i.test(k.slice(2)) ? k.slice(2) : null);
       const popToasts = (merged) => {
         const r = bellToastPick(merged, readSeen(), { label: bellLabel, muted }); writeSeen(r.seen);
         if (isOpen || !window.BPUI || !window.BPUI.toast) return;
         r.toasts.slice().reverse().forEach((x) => { try { window.BPUI.toast(x.message, { title: x.title, type: x.type, icon: x.icon, href: x.href || null, linkLabel: "View", timeout: 5000,
-          onOpen: () => { if (x.rk && readKeys.indexOf(x.rk) === -1) { readKeys.push(x.rk); saveRead(); } } }); } catch (e) {} });
+          onOpen: () => { if (x.rk && readKeys.indexOf(x.rk) === -1) { readKeys.push(x.rk); saveRead(); }
+            const sid = serverIdOf(x.rk); if (sid) inbox.act([sid], "read").catch((er) => bellWarn("mark read", er)); } }); } catch (e) {} });   // r52: the inbox learns it too
       };
       let lastRf = 0;
-      const refreshNow = async () => { lastRf = Date.now(); let f = null; try { f = await this.feed(20); } catch {} noteInbox(f); await loadChat(); setDot(serverUnread(f));
+      // r52: mutGen moves on every local "read" (Mark all read, a row, the bell opening). A refresh that started BEFORE it
+      // may carry the server's older answer: it is not drawn (the refresh queued after the change draws the new one), so a
+      // cleared badge never flickers back to the old number.
+      let mutGen = 0;
+      const refreshNow = async () => { lastRf = Date.now(); const g = mutGen; let f = null; try { f = await this.feed(20); } catch {} noteInbox(f); await loadChat();
+        if (g !== mutGen) return f;
+        setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
         if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
       // r20 planner: refreshes run ONE AT A TIME, in call order. The chat page's "I just read this chat" nudge
@@ -9277,7 +9365,8 @@ window.HelmUrl = HelmUrl;
         if (!isOpen) return;
         lastItems = mergedFeed(f && f.items); loaded = true; render(); if (f) popToasts(lastItems);   // panel open → just moves the baseline
         // r23 (0266): with the inbox, opening the bell no longer marks everything read (Settings switch "opening the bell marks read")
-        if (!inboxOn || openMarksRead) { try { await this.markSeen(); } catch {} setDot(0); }   // event notifs cleared; any chat unread keeps the dot until that chat is opened
+        if (!inboxOn || openMarksRead) { try { await this.markSeen(); mutGen++; setDot(0); }   // event notifs cleared; any chat unread keeps the dot until that chat is opened
+          catch (x) { bellWarn("mark seen", x); setDot(serverUnread(f)); } }   // r52: refused (e.g. two-step / time-out) - keep the real count, never a 0 that comes back
         else setDot(serverUnread(f));
       };
       const close = (restore) => {
@@ -9307,12 +9396,21 @@ window.HelmUrl = HelmUrl;
         e.preventDefault(); const href = it.href;
         Promise.race([p, new Promise((res) => setTimeout(res, 700))]).then(() => { try { location.assign(href); } catch (x) { location.href = href; } });
       };
-      const markRead = (k, on) => { readKeys = readKeys.filter((x) => x !== k); if (on) readKeys.push(k); saveRead(); render(); refresh(); };
+      const markRead = (k, on) => { readKeys = readKeys.filter((x) => x !== k); if (on) readKeys.push(k); saveRead(); mutGen++; render(); setDot(serverUnread({ items: lastItems.filter((n) => !n.__chat), unread: 0 })); refresh(); };
+      // r52: a row with nowhere to go (no event / page) used to do nothing when clicked - it could only be cleared from ⋯
+      const rowRead = (k) => {
+        if (!k) return; const sid = serverIdOf(k);
+        if (readKeys.indexOf(k) === -1) markRead(k, true);
+        if (sid) inbox.act([sid], "read").catch((x) => { bellWarn("mark read", x); readKeys = readKeys.filter((y) => y !== k); saveRead(); refresh();
+          say((window.BPUI && BPUI.friendlyError) ? BPUI.friendlyError(x, { action: "mark this notification read" }) : "Could not mark this notification read. Try again."); });
+      };
       // r23 (0266): one row's inbox action on the server, with an Undo toast
       const serverAct = async (id, action, opts, msg, undo) => {
         try { await inbox.act([id], action, opts); }
-        catch (x) { say((window.BPUI && BPUI.friendlyError) ? BPUI.friendlyError(x, { action: "update this notification" }) : "Could not update this notification. Try again."); return; }
-        await refresh(); if (isOpen) render();
+        catch (x) { bellWarn(action, x); say((window.BPUI && BPUI.friendlyError) ? BPUI.friendlyError(x, { action: "update this notification" }) : "Could not update this notification. Try again."); return; }
+        // r52: "Mark unread" must win over this browser's own earlier read mark for the row
+        if (action === "unread" || action === "undone" || action === "unsnooze") { readKeys = readKeys.filter((x) => x !== "n:" + id); saveRead(); }
+        mutGen++; await refresh(); if (isOpen) render();
         say(msg, undo ? () => { inbox.act([id], undo).then(() => refresh()).catch(() => {}); } : null);
       };
       const openMenu = (btn) => {
@@ -9348,15 +9446,33 @@ window.HelmUrl = HelmUrl;
         const it = e.target.closest && e.target.closest("a.bpb-item");
         if (it) { const k = it.getAttribute("data-k"); if (k && readKeys.indexOf(k) === -1) { readKeys.push(k); saveRead(); } close(false); }   // mark read, navigate away
         if (it) inboxOpenRow(it, e);
+        const dv = !it && e.target.closest && e.target.closest("div.bpb-item[data-k]");
+        if (dv) rowRead(dv.getAttribute("data-k"));
       });
+      /* r52 ("notifications are not clearing"): Mark all read now (1) clears the list + badge at once, (2) also marks the
+         unread team chats shown in the bell read (they kept the dot and "N new" up, so it never reached 0), and (3) says
+         so when the server refuses (two-step needed, rate limit, time-out) instead of failing silently; the refresh after
+         it then shows the real count again. */
       root.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); const b = e.currentTarget; b.disabled = true;
-        try { if (inboxOn) await inbox.readAll(); else await this.markSeen(); } catch {} await refresh(); b.disabled = false; });
+        const patch = bellAllReadPatch(lastItems, chatItems); mutGen++;
+        lastItems = patch.items; patch.chatKeys.forEach((k) => { if (readKeys.indexOf(k) === -1) readKeys.push(k); }); saveRead();
+        if (isOpen) render(); setDot(0);
+        let err = null;
+        try { if (inboxOn) await inbox.readAll(); else await this.markSeen(); } catch (x) { err = x; bellWarn("mark all read", x); }
+        if (chat && chat.markRead && patch.convs.length) {
+          const rs = await Promise.all(patch.convs.map((id) => Promise.resolve().then(() => chat.markRead(id, { strict: true })).then(() => null, (x) => x)));
+          const cx = rs.find(Boolean); if (cx) { bellWarn("mark chat read", cx); if (!err) err = cx;
+            readKeys = readKeys.filter((k) => patch.chatKeys.indexOf(k) === -1); saveRead(); }   // the chats stay unread, like on the server
+        }
+        if (err) say((window.BPUI && BPUI.friendlyError) ? BPUI.friendlyError(err, { action: "mark these notifications read" }) : "Could not mark everything read. Try again.");
+        mutGen++; await refresh(); b.disabled = false; });
       // keyboard: Esc closes, Tab is trapped, arrows walk the list, ←/→ switch tabs
       root.addEventListener("keydown", (e) => {
         if (!isOpen) return;
         if ((e.key === "Escape" || e.key === "Esc") && root.querySelector(".bpb-menu")) { e.preventDefault(); e.stopPropagation(); const b = closeMenu(); try { b && b.focus(); } catch (x) {} return; }
         if (e.key === "Escape" || e.key === "Esc") { e.preventDefault(); e.stopPropagation(); close(); return; }
         const ae = document.activeElement;
+        if ((e.key === "Enter" || e.key === " ") && ae && ae.matches && ae.matches("div.bpb-item[data-k]")) { e.preventDefault(); rowRead(ae.getAttribute("data-k")); return; }
         if (e.key === "Tab") {
           const f = focusables(); if (!f.length) { e.preventDefault(); return; }
           const first = f[0], last = f[f.length - 1];
@@ -12977,7 +13093,11 @@ window.HelmUrl = HelmUrl;
   BPStore.mergeAttributes = async function (table, id, ch) {
     if (["crew_members", "inventory_items"].indexOf(table) < 0) throw new Error("Unknown list.");
     var base = {};
-    if (mode === "supabase" && supa && id) {
+    if (mode === "supabase" && supa && id && table === "crew_members") {
+      // r58 (0299): staff attributes come through staff_pay_fields (pay fields of a team login: admin only; a field
+      // left out here is kept by the database, never lost)
+      var one = await crewWithPay([{ id: id }]); base = (one[0] && one[0].attributes) || {};
+    } else if (mode === "supabase" && supa && id) {
       var r = await supa.from(table).select("attributes").eq("id", id).maybeSingle(); if (r.error) throw r.error;
       base = (r.data && r.data.attributes) || {};
     } else if (ch && ch.base) base = ch.base;
