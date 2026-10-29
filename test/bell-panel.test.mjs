@@ -189,7 +189,7 @@ t('mount: dialog semantics, own focus trap (BPUI skip), Esc closes, arrows walk 
 t('mount keeps the data flow: feed + chat merge, 0036 hidden chat, markSeen on open, live refresh', () => {
   assert.match(api, /const chatOff = hiddenTypes\.indexOf\("chat_message"\) !== -1;/);
   assert.match(api, /if \(chatOff\) chatItems = chatItems\.filter\(\(c\) => c && c\.mention\);/);
-  assert.match(api, /lastItems = mergedFeed\(f && f\.items\); loaded = true; render\(\); if \(f\) popToasts\(lastItems\);[^\n]*\n[^\n]*\n\s*if \(!inboxOn \|\| openMarksRead\) \{ try \{ await this\.markSeen\(\); \} catch \{\} setDot\(0\); \}/);   // r23: inbox studios keep items unread on open (setting)
+  assert.match(api, /lastItems = mergedFeed\(f && f\.items\); loaded = true; render\(\); if \(f\) popToasts\(lastItems\);[^\n]*\n[^\n]*\n\s*if \(!inboxOn \|\| openMarksRead\) \{ try \{ await this\.markSeen\(\); mutGen\+\+; setDot\(0\); \}/);   // r23: inbox studios keep items unread on open (setting); r52: 0 only once the mark worked
   assert.match(api, /chat\.subscribe\(function \(\) \{ liveRefresh\(\); \}, function \(\) \{\}, "chat-rt-bell"\)/);
   assert.match(api, /window\.__bpBellRefresh = refresh;/);
   assert.match(api, /label: bellLabel,/);
