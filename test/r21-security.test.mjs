@@ -128,8 +128,11 @@ await t("2f CSP: Turnstile on /login, /reset-password and /checkout only (script
     if (h.key !== "Content-Security-Policy" || rule.has) continue;
     const d = Object.fromEntries(h.value.split(";").map((x) => x.trim().split(/\s+/)).map((p) => [p[0], p.slice(1)]));
     const allowed = /(login|reset|checkout)/.test(rule.source);
+    // codeql[js/incomplete-url-substring-sanitization] -- false positive: Array.prototype.includes on parsed CSP token arrays (exact membership), not a URL substring check.
     assert.equal((d["script-src"] || []).includes(TS), allowed, rule.source + " script-src");
+    // codeql[js/incomplete-url-substring-sanitization] -- false positive: Array.prototype.includes on parsed CSP token arrays (exact membership), not a URL substring check.
     assert.equal((d["frame-src"] || []).includes(TS), allowed, rule.source + " frame-src");
+    // codeql[js/incomplete-url-substring-sanitization] -- false positive: Array.prototype.includes on parsed CSP token arrays (exact membership), not a URL substring check.
     assert.ok(!(d["connect-src"] || []).includes(TS), rule.source + " connect-src");
     assert.equal(scriptSrcProblem(h.value, rule.source), "", rule.source);
   }

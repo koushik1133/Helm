@@ -125,7 +125,8 @@ await t('hq.html: calm layout, blocked view, re-auth dialog, HQ team + matrix + 
   assert.match(H, /<section class="card" id="tmAddCard"[^>]*data-perm="staff\.manage">/);
   assert.match(H, /<script src="hq-mfa\.js\?v=\d+"><\/script>\s*<script src="hq-staff\.js\?v=\d+"><\/script>\s*<script src="hq\.js\?v=\d+"><\/script>/);
   assert.doesNotMatch(H, /\son[a-z]+=/i); assert.doesNotMatch(H, /\sstyle="/);
-  assert.doesNotMatch(H.replace(/<script src=[^>]*><\/script>/g, ''), /<script/i);
+  // codeql[js/bad-tag-filter] -- false positive: not a runtime HTML sanitizer; a build-time assertion that the repo's own static HTML has no inline <script>. The trailing assert.doesNotMatch(/<script/i) catches any tag the strip misses. Strip made whitespace-tolerant (</script\s*>) for robustness.
+  assert.doesNotMatch(H.replace(/<script src=[^>]*><\/script\s*>/gi, ''), /<script/i);
   assert.doesNotMatch(H, /id="operators"|id="btnOp"/);
 });
 await t('comms-dispatch: hq_staff e-mail - neutral, steps for a new person, refuses junk', async () => {

@@ -68,6 +68,7 @@ t('client.html: external script/style only, no inline style attrs', () => {
   assert.match(H, /<script src="client\.js\?v=\d+"><\/script>/);
   assert.match(H, /<link rel="stylesheet" href="client\.css\?v=\d+">/);
   assert.doesNotMatch(H, /\sstyle="/);
+  // codeql[js/bad-tag-filter] -- false positive: not a runtime HTML sanitizer; a build-time assertion that the repo's own static client.html contains no inline <script>. The following assert.doesNotMatch(/<script/i) catches any tag the strip misses, so a crafted end tag cannot slip through.
   assert.doesNotMatch(H.replace(/<script src=[^>]*><\/script\s*>/gi, ''), /<script/i);
   assert.match(H, /<main id="main">/); assert.match(H, /role="group" aria-label="Filter the timeline"/);
   const css = read('public/client.css');
