@@ -28,6 +28,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag, escHtml } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { isTrialKind, trialMessage } from "./trial-email.ts";
+import { studioBillingEmail } from "../_shared/billing-email.ts";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
 
 const enc = new TextEncoder();
@@ -129,10 +130,13 @@ Deno.serve(async (req) => {
     for (const r of (Array.isArray(rows) ? rows : [])) {
       const id = String(r?.id ?? ""), kind = String(r?.kind ?? "");
       if (!UUIDISH.test(id) || !(["due_soon", "past_due"].includes(kind) || isTrialKind(kind))) { counts.invalid++; continue; }
-      const { data: org, error: oErr } = await admin.from("organizations").select("name, business_email").eq("id", r.org_id).maybeSingle();
+      const { data: org, error: oErr } = await admin.from("organizations").select("name").eq("id", r.org_id).maybeSingle();
       if (oErr) { console.error("billing-reminder: studio load failed", errTag(oErr)); counts.failed++; continue; }
       const msg = message(kind, String(org?.name || "there"), String(r.period_end ?? ""));
-      const to = String(org?.business_email || "");
+      // r59 (audit E-03): the studio e-mail only once confirmed, else the studio owner's login e-mail
+      const billTo = await studioBillingEmail(admin, String(r.org_id));
+      if (billTo === null) { console.error("billing-reminder: studio e-mail lookup failed"); counts.failed++; continue; }
+      const to = billTo;
       let res: SendResult;
       if (isTrialKind(kind)) {
         // Helm's own trial nudge = non-transactional: skip an opted-out address; no token (0165 not

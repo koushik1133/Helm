@@ -40,6 +40,8 @@ export const BUCKETS: Record<string, { mimes: string[]; max: number }> = {
   "invite-media": { mimes: ["image/png", "image/jpeg", "image/webp", "image/gif"], max: 8388608 },
   "chat-media": { mimes: ["image/png", "image/jpeg", "image/webp", "image/gif", "audio/webm", "audio/ogg", "audio/mpeg", "audio/mp4"], max: 16777216 },
   "task-proof": { mimes: ["image/jpeg", "image/png", "image/webp", "audio/webm", "audio/ogg", "audio/mp4"], max: 8388608 },
+  // r59 (0300, audit E-05): public vendor-link invoices (0256 bucket: PDF / JPEG / PNG / WebP, 10 MB)
+  "vendor-invoices": { mimes: ["application/pdf", "image/jpeg", "image/png", "image/webp"], max: 10485760 },
 };
 
 export type Verdict = { ok: true; mime: string } | { ok: false; reason: string };

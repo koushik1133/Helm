@@ -74,3 +74,22 @@ export function testEmail(studio) {
     text: "This is a test e-mail from Helm for " + s + ".\nIf you can read this, studio e-mails (invites, payment reminders, follow-ups) are set up correctly.\nReplies to this e-mail go to the reply-to address saved on the Integrations page.",
   };
 }
+
+// r59 (0300, audit F-1): what integrations_wa_test_target answered -> a refusal for the page, or "" to go on
+export function waTargetRefusal(t) {
+  if (!t || typeof t !== "object") return "could not check the number - try again";
+  if (t.ok === true) return "";
+  if (t.reason === "no_number") return "save your studio WhatsApp number first";
+  if (t.reason === "not_team_number") return "the test goes only to a team member's own mobile - use the mobile number saved in your (or a teammate's) Helm profile as the studio WhatsApp number";
+  return "could not check the number - try again";
+}
+// the STOP list lives in 0117 (not applied everywhere yet): a missing table is not an error, anything else is
+export function optOutTableMissing(e) {
+  const c = String((e && e.code) || "");
+  return c === "42P01" || c === "PGRST205" || c === "PGRST106";
+}
+// test WhatsApps per studio per day (WA_TEST_PER_DAY, 1-20, default 5)
+export function waTestPerDay(env) {
+  const n = Number(String(env("WA_TEST_PER_DAY") || "").trim());
+  return Number.isFinite(n) && n >= 1 ? Math.min(20, Math.floor(n)) : 5;
+}
