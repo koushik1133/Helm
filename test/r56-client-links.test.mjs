@@ -85,7 +85,7 @@ await t('SQL 0297: registered (MANIFEST, run-all, release lists), APPLY verbatim
   assert.match(man, /^forward  supabase\/migrations\/0297_r56_client_link_payloads\.sql$/m);
   assert.ok(man.indexOf('0262_quote_validity.sql') < man.indexOf('0297_r56_client_link_payloads.sql'), '0297 after 0262');
   assert.match(rd('scripts/db-test/run-all.sh'), /run "r56-client-links-0297" "R56-CLIENT-LINKS-0297: ALL PASS \\\(\d+\/\d+\\\)" psql -q -f tests\/db\/r56-client-links-0297\.sql/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0292'(, '02\d\d')*, '0297'(, '02\d\d')*\]/, f);
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0292'(, '0[23]\d\d')*, '0297'(, '0[23]\d\d')*\]/, f);
   assert.ok(APPLY.includes(SQL.trimEnd()), 'APPLY carries the migration verbatim');
   assert.match(APPLY, /^begin;$/m); assert.match(APPLY, /^commit;$/m); assert.match(APPLY, /-- VERIFY \(every row must say ok = true\)/);
   assert.ok((APPLY.match(/^  \('\d\d /gm) || []).length >= 10, 'VERIFY rows');

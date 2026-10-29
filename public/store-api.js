@@ -3664,6 +3664,8 @@ window.HelmUrl = HelmUrl;
     },
     extend: (quoteId, days) => { qvSoon = null; return rpc("quote_validity_extend", days == null ? { p_quote: quoteId } : { p_quote: quoteId, p_days: Math.round(Number(days)) }).catch((e) => { throw qvMissing(e); }); },
     setDate: (quoteId, isoDate, note) => { qvSoon = null; return rpc("quote_validity_set", { p_quote: quoteId, p_date: String(isoDate || "").slice(0, 10), p_note: note ? String(note).slice(0, 300) : null }).catch((e) => { throw qvMissing(e); }); },
+    // r61 (0302): undo the caller's own latest Extend / Save date (logged as "Undone"; the server re-checks everything)
+    undo: (quoteId, logId) => { qvSoon = null; return rpc("quote_validity_undo", { p_quote: quoteId, p_log: logId }).catch((e) => { throw qvMissing(e); }); },
     applyOpen: (apply) => rpc("quote_validity_apply_open", { p_apply: !!apply }).catch((e) => { throw qvMissing(e); }),
     // signed-out client pages: { state: valid|expired|none|done|off, valid_until_label, days_left, locked, studio, requested } or null
     publicState: (kind, token) => (supa && QV_UUID.test(String(token || "")))

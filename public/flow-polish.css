@@ -176,3 +176,17 @@ html.hb-priv-on #app .price .prow :is(.hbp-m,[data-money]){display:inline-block;
 .cs-approved[hidden],.cs-apst[hidden],.cs-away[hidden]{display:none}
 .cs-away{margin:0;padding:10px 12px;border-radius:10px;background:var(--panel-2);border:1px dashed var(--line);color:var(--ink-3);font-size:13px}
 #csApprove #apprLinks:empty{display:none}
+/* r61: step 10 advance payment - one aligned grid (advance %, amount, method, receipt no., button); 2 columns on phones */
+#sec-pay .pay-adv{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:12px;align-items:end;margin:4px 0 12px}
+#sec-pay .pay-adv .pay-f-go{grid-column:1 / -1;justify-self:end}
+#sec-pay .pay-adv>.fld{margin:0;min-width:0}
+#sec-pay .pay-adv .fld input,#sec-pay .pay-adv .fld select{width:100%;min-width:0;box-sizing:border-box}
+#sec-pay .pay-adv .fld label small{font-weight:500;color:var(--ink-3)}
+#sec-pay .pay-adv .pay-f-go .btn{min-width:220px;white-space:nowrap;justify-content:center;min-height:38px}
+#sec-pay .pay-adv>[hidden],#sec-pay .pay-adv>[style*="none"]{display:none}
+@media (max-width:620px){
+  #sec-pay .pay-adv{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  #sec-pay .pay-adv .pay-f-rcpt{grid-column:1 / -1}
+  #sec-pay .pay-adv .pay-f-go{justify-self:stretch}
+  #sec-pay .pay-adv .pay-f-go .btn{width:100%}
+}

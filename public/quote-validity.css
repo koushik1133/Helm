@@ -15,8 +15,21 @@
 .qv-staff .qv-k{color:var(--ink-2,#3d4555)}
 .qv-staff .qv-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}
 .qv-staff .qv-actions .btn{min-height:36px}
-.qv-staff .qv-date{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2,#3d4555)}
-.qv-staff .qv-date input{min-height:36px;padding:0 8px;border:1px solid var(--line-strong,#cfd6e4);border-radius:8px;background:var(--panel,#fff);color:var(--ink,#1c2230);font:inherit}
+/* r61: "Change date" = a dd/mm/yyyy text box (same order as the label) + a calendar button over a hidden native picker */
+.qv-staff .qv-date-lbl{font-size:13px;color:var(--ink-2,#3d4555);margin-left:4px}
+.qv-staff .qv-date{position:relative;display:inline-flex;align-items:stretch;min-height:36px;border:1px solid var(--line-strong,#cfd6e4);border-radius:8px;background:var(--panel,#fff);overflow:visible}
+.qv-staff .qv-date:focus-within{border-color:var(--accent,#0f7a43);box-shadow:0 0 0 3px var(--accent-soft,rgba(15,122,67,.15))}
+.qv-staff .qv-dmy{width:8.6em;min-height:34px;padding:0 4px 0 10px;border:0!important;border-radius:8px 0 0 8px;background:transparent;color:var(--ink,#1c2230);font:inherit;font-size:14px;font-variant-numeric:tabular-nums;box-shadow:none!important;outline:none}
+.qv-staff .qv-dmy[aria-invalid="true"]{color:var(--qv-bad-fg)}
+.qv-staff .qv-cal{display:inline-flex;align-items:center;justify-content:center;width:34px;min-height:34px;min-width:34px;padding:0;border:0;border-left:1px solid var(--line,#e3e8f2);border-radius:0 8px 8px 0;background:transparent;color:var(--ink-2,#3d4555);cursor:pointer}
+.qv-staff .qv-cal:hover{background:var(--panel-2,#f6f7f9)}
+.qv-staff .qv-cal-ic{width:15px;height:15px;border:1.6px solid currentColor;border-radius:3px;border-top-width:4px;box-sizing:border-box}
+.qv-staff .qv-native{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
+.qv-staff .qv-native.qv-native-open{width:100%;height:100%;opacity:.01;pointer-events:auto}
+.qv-staff .qv-undo-box{display:inline-flex;align-items:center;gap:6px;padding-left:4px}
+.qv-staff .qv-undo{border-color:var(--accent,#0f7a43);color:var(--accent,#0f7a43);font-weight:700}
+.qv-staff .qv-undo-left{font-size:12px;color:var(--ink-3,#6b7280);font-variant-numeric:tabular-nums;min-width:2.2em}
+.qv-staff .qv-warn{margin:6px 0 0;font-size:13px;color:var(--qv-due-fg)}
 .qv-staff .qv-msg{margin:6px 0 0;font-size:13px;color:var(--qv-bad-fg)}
 .qv-staff .qv-msg:empty{display:none}
 .qv-staff .qv-log{margin-top:8px;font-size:12.5px;color:var(--ink-2,#3d4555)}
@@ -31,7 +44,11 @@
 #qvCard .qvapply{margin-top:12px;padding-top:12px;border-top:1px solid var(--line,#e3e8f2)}
 @media (max-width:480px){
   .qv-staff .qv-actions{flex-direction:column;align-items:stretch}
-  .qv-staff .qv-date{justify-content:space-between}
+  .qv-staff .qv-date{width:100%}
+  .qv-staff .qv-dmy{flex:1 1 auto;width:auto;min-height:42px}
+  .qv-staff .qv-cal{min-height:42px;width:44px}
+  .qv-staff .qv-date-lbl{margin:4px 0 -4px}
+  .qv-staff .qv-undo-box{margin-left:0;justify-content:space-between}
   .qv-banner .qv-req{width:100%}
 }
 @media print{.qv-banner .qv-req{display:none}}

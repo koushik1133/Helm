@@ -43,7 +43,7 @@ await t('SQL 0293: registered (MANIFEST, run-all, release lists), APPLY verbatim
   assert.match(man, /^forward  supabase\/migrations\/0293_r52_notifications_clear\.sql$/m);
   assert.ok(man.indexOf('0292_r47_my_pending_speed.sql') < man.indexOf('0293_r52_notifications_clear.sql'), '0293 after 0292');
   assert.match(rd('scripts/db-test/run-all.sh'), /run "r52-notif-clear-0293" "R52-NOTIF-CLEAR-0293: ALL PASS \\\(\d+\/\d+\\\)" psql -q -f tests\/db\/r52-notif-clear-0293\.sql/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0292'(, '02\d\d')*, '0293'(, '02\d\d')*\]/, f);
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0292'(, '0[23]\d\d')*, '0293'(, '0[23]\d\d')*\]/, f);
   assert.ok(APPLY.includes(SQL.trimEnd()), 'APPLY carries the migration verbatim');
   assert.match(APPLY, /^begin;$/m); assert.match(APPLY, /^commit;$/m); assert.match(APPLY, /-- VERIFY \(every row must say ok = true\)/);
   assert.ok((APPLY.match(/^  \('\d\d /gm) || []).length >= 16, 'VERIFY rows');

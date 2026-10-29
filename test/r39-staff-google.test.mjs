@@ -58,7 +58,7 @@ await t('APPLY-0288: migration verbatim between begin / commit, VERIFY rows, eme
   assert.doesNotMatch(APPLY, /temp(orary)? table|^\\/im);
   assert.ok(rd('supabase/migrations/MANIFEST').includes('forward  supabase/migrations/0288_staff_google_only.sql'));
   assert.match(rd('scripts/db-test/run-all.sh'), /R39-STAFF-GOOGLE-0288: ALL PASS \\\(49\/49\\\)/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0287'(, '02\d\d')*, '0288'(, '02\d\d')*\]/, f);   // loosened like r44 / r47: later releases may append after 0288
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0287'(, '0[23]\d\d')*, '0288'(, '0[23]\d\d')*\]/, f);   // loosened like r44 / r47: later releases may append after 0288
 });
 await t('store-api (v298): exactly helm.events; password, sign-up and reset refused early; the server refusal mapped', () => {
   const src = /function isStaffEmail\(email\) \{[\s\S]*?\n  \}/.exec(SA)[0];
@@ -72,7 +72,7 @@ await t('store-api (v298): exactly helm.events; password, sign-up and reset refu
   assert.match(SA, /if \(await staffGoogleOnlyFor\(email\)\) throw staffGoogleError\(\);   \/\/ r39 \(0288\): no reset link/);
   assert.match(SA, /if \(STAFF_GOOGLE_RE\.test\(m\)\) return staffGoogleError\(\);/);
   assert.match(SA, /isStaffEmail, STAFF_GOOGLE_MESSAGE, staffGoogleOnlyFor, staffGoogleSessionCheck,/);
-  assert.match(LG, /store-api\.js\?v=302/);
+  assert.match(LG, /store-api\.js\?v=303/);
 });
 
 // ---- login.html behaviour: the r39 block run against a tiny fake DOM ----
