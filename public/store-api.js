@@ -9755,21 +9755,14 @@ window.HelmUrl = HelmUrl;
   const MEMBER_AVATAR_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp)$/;
   const MEMBER_EMP_TYPES = ["full_time", "part_time", "on_call"];
   let memberListMissing = false;   // member_profile_list not deployed (pre-0041) → plain profiles list
-  // Indian mobile → "+91XXXXXXXXXX" (accepts 98765 43210, 098765…, +91 98765…, 91 98765…), else null
-  function memberMobile(v) {
-    const s = String(v == null ? "" : v).trim(); if (!s || !/^\+?[0-9 ().-]{6,24}$/.test(s)) return null;
-    let d = s.replace(/\D/g, "");
-    if (s.charAt(0) === "+" && d.slice(0, 2) !== "91") return /^[1-9]\d{6,14}$/.test(d) ? "+" + d : null;   // 0055: international
-    if (d.length === 12 && d.slice(0, 2) === "91") d = d.slice(2); else if (d.length === 11 && d[0] === "0") d = d.slice(1);
-    return /^[6-9]\d{9}$/.test(d) ? "+91" + d : null;
-  }
-  // emergency contact: an Indian mobile, or an international number written with a leading +
-  function memberAnyPhone(v) {
-    const s = String(v == null ? "" : v).trim(); if (!s) return null;
-    const m = memberMobile(s); if (m) return m;
-    const d = s.replace(/\D/g, "");
-    return /^\+[0-9 ().-]{6,24}$/.test(s) && /^[1-9]\d{7,14}$/.test(d) ? "+" + d : null;
-  }
+  // Indian mobile → "+91XXXXXXXXXX" (accepts 98765 43210, 098765…, +91 98765…, 91 98765…), else null.
+  // R69 (A5): single source of truth — the member-portal validator mpMobile (above) holds the rule;
+  // here we only drop its {val/err} wrapper to the string|null shape this code path uses. Proven
+  // byte-identical to the former inline copy (see phone-validation.test.mjs cross-check).
+  function memberMobile(v) { const r = mpMobile(v, ""); return r.err ? null : r.val; }
+  // emergency contact: an Indian mobile, or an international number written with a leading +.
+  // R69 (A5): delegates to mpAnyPhone (single source) — same string|null mapping.
+  function memberAnyPhone(v) { const r = mpAnyPhone(v, ""); return r.err ? null : r.val; }
   // same digits rule as the DB's helm_norm_phone (used to spot "the same number written differently")
   // r7: repair UTF-8 text that was decoded as MacRoman / Windows-1252 ("long dash" garbage)
   const MOJI = [["\u201a\u00c4\u00ee", "\u2014"], ["\u201a\u00c4\u00ec", "\u2013"], ["\u201a\u00c4\u00f4", "\u2019"], ["\u201a\u00c4\u00b6", "\u2026"],
