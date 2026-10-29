@@ -13,8 +13,11 @@ const BASE = { SUPABASE_URL: "https://proj.supabase.co", SUPABASE_ANON_KEY: "ano
 const RESEND = { ...BASE, RESEND_API_KEY: "re_test", RESEND_FROM: "Helm <mail@helm.events>" };
 const auth = { Authorization: "Bearer user-jwt", Origin: "https://helm.events" };
 
+// r56 (0297): client_mailer_check (quotes EDIT, asked as the caller) answers ok for these tests
+const CHK = { data: { ok: true, link_live: true }, error: null };
 function db(quote: any, booklet: any = null) {
   g.__supaGetUser = (jwt: string) => ({ data: { user: jwt === "user-jwt" ? { id: "u1" } : null } });
+  g.__supaRpc = (name: string) => name === "client_mailer_check" ? CHK : { data: null, error: null };
   g.__supaResolver = (table: string, _c: unknown, key: string) => {
     if (table === "quotes") return { data: key === "anon" ? quote : null, error: null };
     if (table === "client_booklets") return { data: booklet, error: null };
@@ -141,9 +144,48 @@ Deno.test("client-mailer: booklet needs a live booklet link; no approval token -
   } finally { rF(); rEnv(); }
 });
 
+Deno.test("client-mailer r56 (C-02): no quotes EDIT -> 403 before anything is read or sent; check asked AS THE CALLER", async () => {
+  resetSupaMock(); db(Q, { token: TOKEN, expires_at: new Date(Date.now() + 864e5).toISOString(), revoked_at: null });
+  const rEnv = setEnv(RESEND); const rF = installFetch((url) => { throw new Error("must not send: " + url); });
+  try {
+    const h = await loadHandler(FN);
+    g.__supaRpc = (name: string) => name === "client_mailer_check" ? { data: null, error: { code: "42501", message: "not authorized" } } : { data: null, error: null };
+    for (const kind of ["approval", "booklet"]) {
+      const r = await h(post({ quote_id: QUOTE, kind }, auth));
+      assertEquals(r.status, 403); assert(/permission to edit quotes/.test((await r.json()).error));
+    }
+    // a database without 0297 (function missing) or an odd answer also refuses - nothing is sent
+    g.__supaRpc = (name: string) => name === "client_mailer_check" ? { data: null, error: { code: "PGRST202", message: "not found" } } : { data: null, error: null };
+    assertEquals((await h(post({ quote_id: QUOTE, kind: "approval" }, auth))).status, 403);
+    g.__supaRpc = (name: string) => name === "client_mailer_check" ? { data: { stored: true }, error: null } : { data: null, error: null };
+    assertEquals((await h(post({ quote_id: QUOTE, kind: "approval" }, auth))).status, 403);
+    assertEquals(fetchLog().length, 0);
+    assert(!supaLog().some((x) => x.table === "notifications"), "no log row");
+    const calls = supaLog().filter((x) => x.rpc === "client_mailer_check");
+    assert(calls.length > 0 && calls.every((x) => x.key === "anon"), "asked with the caller's client (anon key + user JWT), never the service role");
+    assertEquals(calls[0].args, { p_quote: QUOTE, p_kind: "approval" });
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("client-mailer r56 (C-03): an expired / not-live approval link is never e-mailed -> 409", async () => {
+  resetSupaMock(); db({ ...Q, approval_token_expires_at: new Date(Date.now() - 60_000).toISOString() });
+  const rEnv = setEnv(RESEND); const rF = installFetch((url) => { throw new Error("must not send: " + url); });
+  try {
+    const h = await loadHandler(FN);
+    let r = await h(post({ quote_id: QUOTE, kind: "approval" }, auth));
+    assertEquals(r.status, 409); assertEquals((await r.json()).error, "create the approval link first");
+    // stored expiry in the future, but the server says the link is no longer live (auto-expired / paused / cancelled)
+    db({ ...Q, approval_token_expires_at: new Date(Date.now() + 864e5).toISOString() });
+    g.__supaRpc = (name: string) => name === "client_mailer_check" ? { data: { ok: true, link_live: false }, error: null } : { data: null, error: null };
+    r = await h(post({ quote_id: QUOTE, kind: "approval" }, auth));
+    assertEquals(r.status, 409);
+    assertEquals(fetchLog().length, 0);
+  } finally { rF(); rEnv(); }
+});
+
 Deno.test("client-mailer: FREE TRIAL studio -> test_mode, NOTHING sent, row logged suppressed", async () => {
   resetSupaMock(); db(Q, { token: TOKEN, expires_at: new Date(Date.now() + 864e5).toISOString(), revoked_at: null });
-  g.__supaRpc = (name: string) => name === "_sample_outbound_blocked" ? { data: true, error: null } : { data: null, error: null };
+  g.__supaRpc = (name: string) => name === "client_mailer_check" ? CHK : name === "_sample_outbound_blocked" ? { data: true, error: null } : { data: null, error: null };
   const rEnv = setEnv(RESEND); const rF = installFetch((url) => { throw new Error("must not send: " + url); });
   try {
     const h = await loadHandler(FN);
@@ -162,7 +204,7 @@ Deno.test("client-mailer: trial check falls back to studio_subscriptions, fails 
   resetSupaMock();
   const B = { token: TOKEN, expires_at: new Date(Date.now() + 864e5).toISOString(), revoked_at: null };
   g.__supaGetUser = () => ({ data: { user: { id: "u1" } } });
-  g.__supaRpc = () => ({ data: null, error: { code: "42501", message: "permission denied" } });
+  g.__supaRpc = (name: string) => name === "client_mailer_check" ? CHK : ({ data: null, error: { code: "42501", message: "permission denied" } });
   let subs: any = { data: { status: "trial" }, error: null };
   g.__supaResolver = (table: string) => table === "quotes" ? { data: Q, error: null } : table === "client_booklets" ? { data: B, error: null }
     : table === "organizations" ? { data: { name: "Sparkle" }, error: null } : table === "studio_subscriptions" ? subs : { data: null, error: null };
