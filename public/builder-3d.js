@@ -1633,6 +1633,13 @@
     // constrain to the floor plane: no vertical translate, yaw-only rotate, planar scale
     if(m==='rotate'){ transform.showX=false; transform.showY=true; transform.showZ=false; }
     else { transform.showX=true; transform.showY=false; transform.showZ=true; }
+    // r186: the gizmo's handles, hit-test pickers and drag plane only re-evaluate the new mode inside
+    // the helper's updateMatrixWorld, which runs on the NEXT render frame. Force that refresh now so the
+    // correct Move/Rotate/Scale handles are shown AND pickable on the very first pointer-down after the
+    // switch (otherwise a fast drag in the same frame hits the stale translate picker). No-op until the
+    // helper is in the scene (skips the init call, which runs before scene.add(helper)).
+    const _h = transform.getHelper && transform.getHelper();
+    if(_h && _h.parent){ try{ _h.updateMatrixWorld(true); }catch(_){} }
     document.querySelectorAll('#tools3d [data-m]').forEach(b=>{ const on=b.dataset.m===m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on?'true':'false'); });
   }
   function syncGizmoSnap(){ if(!transform) return;
