@@ -346,10 +346,6 @@
           "value": "max-age=63072000; includeSubDomains; preload"
         },
         {
-          "key": "Access-Control-Allow-Origin",
-          "value": "https://www.helm.events"
-        },
-        {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
         },
@@ -384,6 +380,15 @@
         {
           "key": "Cache-Control",
           "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(js|mjs|css|map|json|webmanifest|woff|woff2|ttf|otf|eot|svg|png|jpg|jpeg|gif|webp|avif|ico|bmp|mp4|webm|ogg|mp3|wav|m4a|wasm)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://www.helm.events"
         }
       ]
     },
