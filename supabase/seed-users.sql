@@ -12,7 +12,7 @@ end $a42guard$;
 -- every later statement fails too ("current transaction is aborted") and nothing is applied.
 -- ═════════════════════════════════════════════════════════════════════════════
 -- =========================================================================
--- Blueprint Stage — seed team users (one per role), password "helm"
+-- Blueprint Stage — seed team users (one per role)
 -- Run order in the Supabase SQL editor:
 --   1) schema.sql        (layouts table)
 --   2) auth-rbac.sql     (profiles + roles + RLS)
@@ -21,7 +21,10 @@ end $a42guard$;
 -- Creates confirmed email/password users directly in the auth schema and
 -- assigns each an RBAC role. Idempotent — safe to re-run.
 --
--- Accounts (all password: helm):
+-- Credentials are set out-of-band; see the owner. Default demo passwords were
+-- removed from this file. This file now seeds a RANDOM password per account (see
+-- the calls below) — set each one from the Supabase dashboard before any use.
+-- Accounts (role per account):
 --   admin@helm.com       → admin       (full access + user management)
 --   planner@helm.com     → planner     (full create/edit/delete)
 --   sales@helm.com       → sales       (create/edit)
