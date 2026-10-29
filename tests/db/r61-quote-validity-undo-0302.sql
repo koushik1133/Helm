@@ -105,7 +105,7 @@ begin
   j := pg_temp.as_j('a_admin@a.test', format('select public.quote_validity_extend(%L)', q1));
   perform pg_temp.t('05 Extend: date + 14, source extended, answer says so', (pg_temp.qv(q1)).valid_until = pg_temp.today() + 34
     and (pg_temp.qv(q1)).source = 'extended' and j ->> 'valid_until' = to_char(pg_temp.today() + 34, 'YYYY-MM-DD') and (j ->> 'days_left')::int = 34, j::text);
-  pub := pg_temp.as_j('anon', 'select public.public_quote_validity(''quote'', ''c0000000-0000-4000-8000-0000000302c1'')');
+  pub := public.public_quote_validity('quote', 'c0000000-0000-4000-8000-0000000302c1');   -- what the client page reads (grants are the 0262 / 0297 suites' job; earlier suites may change them)
   perform pg_temp.t('06 the client page at the link shows the NEW date', pub ->> 'valid_until' = to_char(pg_temp.today() + 34, 'YYYY-MM-DD') and pub ->> 'state' = 'valid', pub::text);
   perform pg_temp.t('07 the answer offers Undo back to the old date, newest History row first with its id',
     j -> 'undo' ->> 'back_to' = to_char(pg_temp.today() + 20, 'YYYY-MM-DD') and j -> 'undo' ->> 'log_id' = j -> 'log' -> 0 ->> 'id'
@@ -135,7 +135,7 @@ begin
     and (select count(*) from public.quote_validity_log where quote_id = q1 and action in ('extended', 'undo')) = 2
     and (select count(*) from public.audit_log where quote_id = q1 and action like 'quote_validity.%') = n0 + 1
     and exists (select 1 from public.audit_log where quote_id = q1 and action = 'quote_validity.undo'), k::text);
-  pub := pg_temp.as_j('anon', 'select public.public_quote_validity(''quote'', ''c0000000-0000-4000-8000-0000000302c1'')');
+  pub := public.public_quote_validity('quote', 'c0000000-0000-4000-8000-0000000302c1');   -- what the client page reads (grants are the 0262 / 0297 suites' job; earlier suites may change them)
   perform pg_temp.t('15 the client page follows the undo', pub ->> 'valid_until' = to_char(pg_temp.today() + 20, 'YYYY-MM-DD'), pub::text);
   k := pg_temp.as_j('a_admin@a.test', format('select public.quote_validity_undo(%L, %L)', q1, lid));
   perform pg_temp.t('16 the same undo twice is refused (no offer after an undo)', k ->> 'error' = '22023' and (pg_temp.qv(q1)).valid_until = pg_temp.today() + 20, k::text);
