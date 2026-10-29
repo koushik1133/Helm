@@ -8,27 +8,31 @@
 (function(){
   // Three.js loads lazily on first 3D/Render use → the 2D builder stays fast to load
   let libsReady = false, libsPromise = null;
-  const loadScript = (src,integrity)=> new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; if(integrity){ s.integrity=integrity; s.crossOrigin='anonymous'; } s.onload=res; s.onerror=()=>rej(new Error('load '+src)); document.head.appendChild(s); });
+  // three.js r186, self-hosted (public/vendor/three-0.186.1, sha384s in scripts/three-vendor.SHA384SUMS) and loaded as ES
+  // modules through public/three-boot.js, which hands back an r128-shaped namespace (THREE.OrbitControls,
+  // THREE.BufferGeometryUtils, ...). Same-origin, so CSP script-src 'self' covers it - no CDN, no SRI drift.
+  const THREE_BOOT='/three-boot.js?v=1';
   function ensure3DLibs(){
     if(libsReady || typeof THREE!=='undefined'){ libsReady=true; return Promise.resolve(true); }
-    // memoise: concurrent activations (e.g. 3D then Render before scripts finish) share ONE load, never double-inject
+    // memoise: concurrent activations (e.g. 3D then Render before the modules finish) share ONE load
     if(libsPromise) return libsPromise;
     libsPromise = (async()=>{
       try{
-        // SRI-pinned (sha384) — CDN scripts are integrity-checked; a tampered/altered
-        // file is rejected by the browser. Versions are pinned (r128 / 0.128.0).
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
-          'sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu');
-        await Promise.all([
-          ['https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',      'sha384-wagZhIFgY4hD+7awjQjR4e2E294y6J2HSnd8eTNc15ZubTeQeVRZwhQJ+W6hnBsf'],
-          ['https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js',   'sha384-B6xO4Jgg0u+mU5RCidCjX9gGXVfcKQqaO289hQ0Vx+dM15uhh+Bt81X49IGCFU1s'],
-          ['https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js',    'sha384-uODMim89BXiZh5nBix93duPujeInVvBbLHhqzNTebL4d10Kwpv21B1jYO9M3uOji'],
-          ['https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',           'sha384-fljlqkjWlmSFjkESkQvm77heIZpoWmXEOzlCA7kOpGUH+95Zk0yGfQieWM2q136E'],
-        ].map(([u,i])=>loadScript(u,i)));
+        const mod = await import(THREE_BOOT);
+        window.THREE = mod.default;
         libsReady=true; return true;
       }catch(e){ console.warn('[3D] library load failed', e && e.message); libsPromise=null; return false; }  // allow a retry after failure
     })();
     return libsPromise;
+  }
+  // r155+ physical light units: r128's lights were π× brighter for the same number (see three-boot.js)
+  const LI = ()=> (THREE.LEGACY_LIGHT_SCALE || 1);
+  // r128 PointLight(decay 2) used a linear cut-off window, r155+ uses inverse-power falloff. Return the
+  // r186 intensity that lights the floor point straight below the lamp (distance dRef) exactly as r128 did.
+  function legacyPointIntensity(k, range, dRef, decay){
+    const legacy=Math.PI*Math.pow(Math.max(0,1-dRef/range),2);
+    const phys=(1/Math.max(Math.pow(dRef,decay),0.01))*Math.pow(Math.max(0,1-Math.pow(dRef/range,4)),2);
+    return phys>0 ? k*legacy/phys : k;
   }
   let R, scene, camera, controls, root, chairMesh, ground, grid, edge, sun, hemi, floorW=0, floorH=0, floorCell=0, raf=null;
   const MAX_CHAIRS_3D=6000;
@@ -67,7 +71,7 @@
     for(const x of [-0.28,0,0.28]) rod(0.03,0.03,0.7, x,2.0,lz);           // spindles
     box(1.12,0.05,0.05, 0,0.55,-lz); box(1.12,0.05,0.05, 0,0.55,lz);      // stretchers
     box(0.05,0.05,1.08, lx,0.4,0); box(0.05,0.05,1.08,-lx,0.4,0);
-    const merged = THREE.BufferGeometryUtils.mergeBufferGeometries(parts, false);
+    const merged = THREE.BufferGeometryUtils.mergeGeometries(parts, false);
     parts.forEach(g=>g.dispose());
     return merged;
   }
@@ -184,18 +188,18 @@
         const parts=[], n=kind==='hydrangea'?26:34, ps=kind==='hydrangea'?0.32:0.26;
         for(let i=0;i<n;i++){ const t=Math.acos(1-2*(i+0.5)/n), ph=i*2.399963, p=new THREE.SphereGeometry(ps,6,4);
           p.translate(Math.sin(t)*Math.cos(ph)*0.72, Math.cos(t)*0.72*0.85+0.1, Math.sin(t)*Math.sin(ph)*0.72); parts.push(p); }
-        const m=THREE.BufferGeometryUtils.mergeBufferGeometries(parts,false); parts.forEach(q=>q.dispose()); if(m) return m; }
+        const m=THREE.BufferGeometryUtils.mergeGeometries(parts,false); parts.forEach(q=>q.dispose()); if(m) return m; }
       if(kind==='orchid'||kind==='lily'){   // open star of 5–6 long flat petals + a small throat
         const parts=[], n=kind==='lily'?6:5, ctr=new THREE.SphereGeometry(0.2,8,6); ctr.translate(0,0.12,0); parts.push(ctr);
         for(let i=0;i<n;i++){ const p=new THREE.SphereGeometry(0.5,8,6); p.scale(0.45,0.08,kind==='lily'?1.25:0.95); p.translate(0,0,0.55);
           p.rotateX(kind==='lily'?-0.55:-0.15); p.rotateY(i/n*Math.PI*2); parts.push(p); }
-        const m=THREE.BufferGeometryUtils.mergeBufferGeometries(parts,false); parts.forEach(q=>q.dispose()); if(m) return m; }
+        const m=THREE.BufferGeometryUtils.mergeGeometries(parts,false); parts.forEach(q=>q.dispose()); if(m) return m; }
       if(kind==='jasmine') return new THREE.OctahedronGeometry(0.9,1);
       const parts=[], ctr=new THREE.SphereGeometry(0.42,10,8); ctr.scale(1,0.8,1); ctr.translate(0,0.18,0); parts.push(ctr);
       const ring=(n,len,tilt,lift,off)=>{ for(let i=0;i<n;i++){ const p=new THREE.SphereGeometry(0.5,8,6); p.scale(len*0.75,0.16,len); p.translate(0,0,len*0.55);
         p.rotateX(-tilt); p.rotateY(i/n*Math.PI*2+off); p.translate(0,lift,0); parts.push(p); } };
       ring(5,0.95,0.85,0.12,0); ring(7,1.15,0.35,-0.05,0.4);
-      const merged=THREE.BufferGeometryUtils.mergeBufferGeometries(parts,false); parts.forEach(q=>q.dispose());
+      const merged=THREE.BufferGeometryUtils.mergeGeometries(parts,false); parts.forEach(q=>q.dispose());
       if(merged) return merged;
     }catch(_){}
     return new THREE.IcosahedronGeometry(1,1);
@@ -1549,8 +1553,9 @@
 
   /* ---------------- scene assembly ---------------- */
   function initScene(){
-    R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
-    R.setPixelRatio(Math.min(devicePixelRatio,2)); R.shadowMap.enabled=true; R.shadowMap.type=THREE.PCFSoftShadowMap;
+    R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});   // r163+: WebGL 2 only (throws without it -> activate() falls back to 2D)
+    R.setPixelRatio(Math.min(devicePixelRatio,2)); R.shadowMap.enabled=true; R.shadowMap.type=THREE.PCFShadowMap;   // PCFSoftShadowMap was removed in r180
+    R.outputColorSpace=THREE.LinearSRGBColorSpace;   // r128 live view = LinearEncoding output (re-set by applyProfile)
     scene=new THREE.Scene();
     camera=new THREE.PerspectiveCamera(48,1,0.5,3000);
     camera.position.set(0,140,180);
@@ -1563,8 +1568,8 @@
     cv.addEventListener('wheel', onWheel3D, {passive:false});
     syncZoomLimits();
 
-    hemi=new THREE.HemisphereLight(0xffffff,0x9fb0c8,0.75); scene.add(hemi);
-    sun=new THREE.DirectionalLight(0xffffff,0.85); sun.position.set(70,160,60); sun.castShadow=true;
+    hemi=new THREE.HemisphereLight(0xffffff,0x9fb0c8,0.75*LI()); scene.add(hemi);
+    sun=new THREE.DirectionalLight(0xffffff,0.85*LI()); sun.position.set(70,160,60); sun.castShadow=true;
     sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.near=1; sun.shadow.camera.far=600;
     scene.add(sun);
     syncFloor();
@@ -1574,15 +1579,17 @@
     // ---- TransformControls: drag / rotate / scale the selected object in 3D ----
     gizmo=new THREE.Object3D(); scene.add(gizmo);
     transform=new THREE.TransformControls(camera, cv); transform.setSize(1.1);
+    const transformHelper=transform.getHelper();   // r169+: TransformControls is no longer an Object3D - its gizmo is the helper (traverse/add/visible go through this)
     // R62: the handles are drawn LAST (after the name tags / badges, which are depth-test-free sprites too) - the
     // tags used to paint over a small gizmo sitting at the item's base, so Move / Rotate / Scale looked dead
+    transform.traverse = transformHelper.traverse.bind(transformHelper);   // r186: TransformControls isn't an Object3D anymore, so route traverse through its helper
     transform.traverse(o=>{ o.renderOrder=999; });
     transform.addEventListener('dragging-changed', e=>{ controls.enabled=!e.value;
       if(e.value){ const it=curItem(); gizmoBase = it?{x:it.x,y:it.y,width:it.width,height:it.height,cx:it.x+it.width/2,cy:it.y+it.height/2}:null; }
       else { gizmoBase=null; if(store.selectedId){ commit(); } renderAll(); } });
     transform.addEventListener('objectChange', onGizmoChange);
     setTMode(tmode); syncGizmoSnap();
-    scene.add(transform);
+    scene.add(transformHelper);
 
     // select on a click, not when the drag was really an orbit
     let down=null;
@@ -1774,13 +1781,13 @@
     if(!R||!scene) return;
     if(renderMode){
       try{ if(!envTex) envTex=buildEnvTexture(); scene.environment=envTex; }catch(e){ scene.environment=null; }
-      R.toneMapping=THREE.ACESFilmicToneMapping; R.toneMappingExposure=1.05; R.outputEncoding=THREE.sRGBEncoding;
+      R.toneMapping=THREE.ACESFilmicToneMapping; R.toneMappingExposure=1.05; R.outputColorSpace=THREE.SRGBColorSpace;
       scene.background=new THREE.Color(themeVar('--panel-2','#f2efe9'));
       scene.fog=new THREE.Fog(new THREE.Color(themeVar('--panel-2','#f2efe9')), 300, 760);
       if(ground){ ground.material.roughness=0.5; ground.material.metalness=0.15; ground.material.envMapIntensity=0.6; ground.material.needsUpdate=true; }
     } else {
       scene.environment=null; scene.background=null; scene.fog=null;
-      R.toneMapping=THREE.NoToneMapping; R.outputEncoding=THREE.LinearEncoding;
+      R.toneMapping=THREE.NoToneMapping; R.outputColorSpace=THREE.LinearSRGBColorSpace;
       if(ground){ ground.material.roughness=1; ground.material.metalness=0; ground.material.needsUpdate=true; }
     }
   }
@@ -1818,11 +1825,11 @@
     const RW=mode==='numbers' ? CF.legendSplit(W).renderW : W;   // R5: numbers = 3D render on the left, legend panel on the right
     const sc=sun.shadow.camera;
     const keep={ pr:R.getPixelRatio(), size:R.getSize(new THREE.Vector2()), cam:camera.position.clone(), tgt:controls.target.clone(),
-      aspect:camera.aspect, far:camera.far, render:renderMode, grid:grid?grid.visible:null, edge:edge?edge.visible:null, tr:transform?transform.visible:null,
+      aspect:camera.aspect, far:camera.far, render:renderMode, grid:grid?grid.visible:null, edge:edge?edge.visible:null, tr:transform?transform.getHelper().visible:null,
       sel:selHelper?selHelper.visible:null, sunI:sun.intensity, sunPos:sun.position.clone(), sunTgt:sun.target.position.clone(), sunR:sun.shadow.radius,
       sc:[sc.left,sc.right,sc.top,sc.bottom,sc.far], hemiI:hemi?hemi.intensity:null, groundCol:ground?ground.material.color.clone():null, labels:[] };
     try{
-      if(grid) grid.visible=false; if(edge) edge.visible=false; if(transform){ transform.detach(); transform.visible=false; } if(selHelper) selHelper.visible=false;
+      if(grid) grid.visible=false; if(edge) edge.visible=false; if(transform){ transform.detach(); transform.getHelper().visible=false; } if(selHelper) selHelper.visible=false;
       // client look = the live interactive 3D view: same profile (NoToneMapping, linear output, no IBL,
       // same hemi 0.75 + sun 0.85, untouched material/floor colours); only the backdrop is a soft neutral
       renderMode=false; applyProfile();
@@ -1881,7 +1888,7 @@
       keep.labels.forEach(([o,s,v])=>{ o.scale.copy(s); o.visible=v; });
       if(ground && keep.groundScale) ground.scale.copy(keep.groundScale);
       if(grid && keep.grid!=null) grid.visible=keep.grid; if(edge && keep.edge!=null) edge.visible=keep.edge;
-      if(transform){ transform.visible=keep.tr!==false; }
+      if(transform){ transform.getHelper().visible=keep.tr!==false; }
       if(selHelper && keep.sel!=null) selHelper.visible=keep.sel;
       if(ground && keep.groundCol) ground.material.color.copy(keep.groundCol);
       sun.intensity=keep.sunI; sun.position.copy(keep.sunPos); sun.target.position.copy(keep.sunTgt); sun.target.updateMatrixWorld(); sun.shadow.radius=keep.sunR;
@@ -1897,14 +1904,16 @@
   /* Walkthrough hook (public/walkthrough.js): camera get/set + Evening lighting. Evening is
      switched off around a client capture so the pictures are unaffected. */
   let evening=null;
+  const EVE_DECAY=1;   // decay 1 + legacyPointIntensity() tracks r128's (1 - d/range)^2 pool shape closely across the floor
   function setEvening(on){
     markShadows();
     if(!scene) return false;
     if(on && !evening){
       evening={hemi:hemi.intensity, sun:sun.intensity, bg:scene.background, lights:[]};
-      hemi.intensity=0.22; sun.intensity=0.12; scene.background=new THREE.Color('#0d1020');
+      hemi.intensity=0.22*LI(); sun.intensity=0.12*LI(); scene.background=new THREE.Color('#0d1020');
       const pts=(window.HelmWalkthrough && window.HelmWalkthrough.eveningLightPoints(store.items, WORLD))||[];
-      for(const p of pts){ const L=new THREE.PointLight(0xffc27a, p.k||1.1, p.r||60, 2); L.position.set(p.x,p.y,p.z); scene.add(L); evening.lights.push(L); }
+      for(const p of pts){ const r=p.r||60, D=EVE_DECAY;
+        const L=new THREE.PointLight(0xffc27a, legacyPointIntensity(p.k||1.1, r, Math.max(1,p.y||10), D), r, D); L.position.set(p.x,p.y,p.z); scene.add(L); evening.lights.push(L); }
     } else if(!on && evening){
       hemi.intensity=evening.hemi; sun.intensity=evening.sun; scene.background=evening.bg;
       evening.lights.forEach(L=>{ scene.remove(L); L.dispose&&L.dispose(); }); evening=null;

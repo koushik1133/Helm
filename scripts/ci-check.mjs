@@ -32,8 +32,13 @@ function walk(dir, out = []) {
   }
   return out;
 }
+// ES modules served to the browser (three.js r186 + its loader): package.json is "commonjs", so parse them as modules
+const ES_MODULE = /\/public\/(three-boot\.js|vendor\/three-[\d.]+\/.+\.js)$/;
 function nodeCheck(file) {
-  try { execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' }); return true; }
+  try {
+    if (ES_MODULE.test(file)) execFileSync(process.execPath, ['--input-type=module', '--check'], { input: readFileSync(file), stdio: ['pipe', 'pipe', 'pipe'] });
+    else execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' });
+    return true; }
   catch (e) { fail(`${file.replace(ROOT + '/', '')} — ${String(e.stderr || e).split('\n').find(Boolean)}`); return false; }
 }
 

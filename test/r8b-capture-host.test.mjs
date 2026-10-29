@@ -130,7 +130,7 @@ await t('capture.html is generated from builder.html (same drawing code), marked
 await t('CSP: frame-ancestors \'self\' only on the capture route (+ invite); builder stays none', () => {
   const v = JSON.parse(R('vercel.json'));
   const last = (p) => { let csp = null, xfo = null; for (const r of v.headers) { if (r.has) continue; if (new RegExp('^' + r.source + '$').test(p)) for (const h of r.headers) { if (h.key === 'Content-Security-Policy') csp = h.value; if (h.key === 'X-Frame-Options') xfo = h.value; } } return { csp, xfo }; };
-  for (const p of ['/capture', '/capture.html']) { const h = last(p); assert.match(h.csp, /frame-ancestors 'self'/); assert.equal(h.xfo, 'SAMEORIGIN'); assert.match(h.csp, /cdnjs|jsdelivr/, 'builder 3D sources'); }
+  for (const p of ['/capture', '/capture.html']) { const h = last(p); assert.match(h.csp, /frame-ancestors 'self'/); assert.equal(h.xfo, 'SAMEORIGIN'); assert.doesNotMatch(h.csp, /cdnjs|jsdelivr/, 'three.js is self-hosted: no CDN source'); }
   for (const p of ['/builder', '/builder.html', '/flow', '/event.html', '/client', '/dashboard']) { const h = last(p); assert.match(h.csp, /frame-ancestors 'none'/, p); assert.equal(h.xfo, 'DENY', p); }
   const hd = R('public/_headers');
   assert.match(hd, /\n\/capture\.html\n  ! X-Frame-Options\n  X-Frame-Options: SAMEORIGIN\n  ! Content-Security-Policy\n  Content-Security-Policy: [^\n]*frame-ancestors 'self'/);

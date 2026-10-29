@@ -62,21 +62,23 @@ t('try.js blanks the Supabase config (store-api falls back to localStorage) and 
   try { win.SUPABASE_CONFIG = { url: 'https://x.supabase.co', anonKey: 'k' }; } catch (e) { /* read-only */ }
   assert.equal(win.SUPABASE_CONFIG.url, '', 'config cannot be replaced later');
 });
-t('network guard: only same-origin static GETs and the three.js CDN', () => {
+t('network guard: only same-origin static GETs (three.js is self-hosted)', () => {
   const { win } = runTry();
   const ok = win.__trySandboxOk;
   assert.equal(ok('/builder.js?v=70', 'GET'), true);
-  assert.equal(ok('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', 'GET'), true);
+  assert.equal(ok('/vendor/three-0.186.1/three.module.min.js', 'GET'), true);
+  assert.equal(ok('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', 'GET'), false, 'no CDN any more');
   for (const [u, m] of [['/api/health', 'GET'], ['/api/layouts', 'POST'], ['/builder.js', 'POST'],
     ['https://nqltzgiwznphugcfhmbm.supabase.co/rest/v1/quotes', 'GET'], ['https://evil.test/x', 'GET'], ['/functions/v1/render-photo', 'GET']])
     assert.equal(ok(u, m), false, m + ' ' + u);
   let blocked = false; win.fetch('/api/health').catch(() => { blocked = true; }).then(() => assert.ok(blocked, 'fetch /api/health must reject'));
 });
-t('/try is a public marketing page: indexable, builder CSP (3D libs), robots + sitemap', () => {
+t('/try is a public marketing page: indexable, builder CSP (self-hosted 3D libs), robots + sitemap', () => {
   const server = require('../server.js');
   assert.ok(server.INDEXABLE_PAGES.has('try'));
   const h = server.securityHeadersFor({ headers: { host: 'www.helm.events' } }, 'try.html');
-  assert.match(h['Content-Security-Policy'], /cdnjs\.cloudflare\.com\/ajax\/libs\/three\.js/);
+  assert.match(h['Content-Security-Policy'], /script-src 'self'/);
+  assert.doesNotMatch(h['Content-Security-Policy'], /cdnjs|jsdelivr/);
   assert.ok(!h['X-Robots-Tag']);
   assert.match(read('public/robots.txt'), /^Allow: \/try\$$/m);
   assert.match(read('public/sitemap.xml'), /<loc>https:\/\/www\.helm\.events\/try<\/loc>/);

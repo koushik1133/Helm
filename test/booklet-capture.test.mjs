@@ -12,7 +12,7 @@ t('builder has the capture button + clean 2D / 3D capture hooks', () => {
   assert.match(b, /putImage\(qid,k,v,pics\[v\]\)/); assert.match(b, /\['3d',p3\]/);
   const d = read('public/builder-3d.js');
   assert.match(d, /window\.__capture3D=capture3D/);
-  assert.match(d, /grid\.visible=false/); assert.match(d, /transform\.visible=false/); assert.match(d, /selHelper\.visible=false/);
+  assert.match(d, /grid\.visible=false/); assert.match(d, /transform\.getHelper\(\)\.visible=false/); assert.match(d, /selHelper\.visible=false/);
 });
 t('freshEnough: stored image must be at/after the newest version', () => {
   globalThis.window = globalThis; globalThis.document = { querySelector: () => null };

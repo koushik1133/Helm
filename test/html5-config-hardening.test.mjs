@@ -87,11 +87,15 @@ t('CSP-01: no whole-CDN host source anywhere; no unsafe-eval / unsafe-inline in 
   }
 });
 
-t('CSP-01: CDN script paths only on the builder; the builder loads exactly what it needs', () => {
+t('CSP-01: three.js is self-hosted - the builder loads no CDN script at all', () => {
   const b3d = read('public/builder-3d.js');
-  const urls = [...b3d.matchAll(/'(https:\/\/[^']+\.js)'/g)].map((m) => m[1]);
-  assert.ok(urls.length >= 5, 'builder-3d.js CDN URLs not found');
-  for (const u of urls) assert.match(b3d, new RegExp(u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "',?\\s*'sha384-"), `SRI missing for ${u}`);
+  assert.deepEqual([...b3d.matchAll(/'(https:\/\/[^']+\.js)'/g)].map((m) => m[1]), [], 'builder-3d.js must not load a CDN script');
+  assert.match(b3d, /import\(THREE_BOOT\)/, 'builder-3d.js loads /three-boot.js');
+  const boot = read('public/three-boot.js');
+  const imports = [...boot.matchAll(/from '(\.\/vendor\/three-[\d.]+\/[^']+)'/g)].map((m) => m[1]);
+  assert.ok(imports.length >= 5, 'three-boot.js vendored imports');
+  for (const p of imports) assert.ok(existsSync(new URL('../public/' + p.slice(2), import.meta.url)), 'vendored file missing: ' + p);
+  const urls = [];
   const builder = vercelHeaders('/builder')['content-security-policy'];
   const dash = vercelHeaders('/dashboard')['content-security-policy'];
   for (const u of urls) {
@@ -112,7 +116,7 @@ t('CSP-01: CDN script paths only on the builder; the builder loads exactly what 
 t('CSP-01: gen-csp rejects a whole-CDN host on a non-builder route', () => {
   assert.notEqual(scriptSrcProblem("script-src 'self' https://cdnjs.cloudflare.com", '/(.*)'), '');
   assert.notEqual(scriptSrcProblem("script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/", '/dashboard'), '');
-  assert.equal(scriptSrcProblem("script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/", '/builder'), '');
+  assert.notEqual(scriptSrcProblem("script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/", '/builder'), '', 'three.js is self-hosted: no CDN even on the builder');
   assert.notEqual(scriptSrcProblem("script-src 'self' 'unsafe-eval'", '/builder'), '');
   // Turnstile CAPTCHA is permitted on sign-in / reset pages only
   assert.equal(scriptSrcProblem("script-src 'self' https://challenges.cloudflare.com", '/login'), '');

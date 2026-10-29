@@ -109,8 +109,6 @@
 
   var SCRIPT_PREFIXES = [
     'https://browser.sentry-cdn.com/8.55.2/',
-    'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/',
     'https://challenges.cloudflare.com/turnstile/',
     'https://checkout.razorpay.com/v1/checkout.js',  // /checkout only (CSP limits it to that page)
     'https://accounts.google.com/gsi/client'         // r26: Sign in with Google on /login + /signup only (CSP limits it)

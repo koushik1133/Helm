@@ -144,8 +144,8 @@ const buildCsp = (over = {}) => CSP_BASE
 //  • portal / proposal-view / proposal / media render user-pasted image URLs → img-src https:
 //  • invite-studio also plays external music URLs → + media-src https:
 //  • invite (/invite, /i/<slug>) = studio policy + same-origin framing for the studio preview
-//  • builder lazy-loads three.js r128 + example modules (SRI-pinned) from the exact
-//    cdnjs / jsdelivr directories in SCRIPT_SRC_BUILDER
+//  • builder lazy-loads three.js r186 as same-origin ES modules (/three-boot.js ->
+//    /vendor/three-0.186.1/), so SCRIPT_SRC_BUILDER is just the base list now
 const USER_IMG = "'self' data: blob: https:";
 const USER_MEDIA = "'self' blob: https:";
 const CSP = {
