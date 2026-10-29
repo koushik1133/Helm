@@ -24,6 +24,7 @@ const AUTH = { Authorization: "Bearer user-jwt", Origin: "https://helm.events" }
 function db(trial: boolean) {
   g.__supaGetUser = (jwt: string) => ({ data: { user: jwt === "user-jwt" ? { id: "u1" } : null } });
   g.__supaRpc = (name: string) => {
+    if (name === "client_mailer_check") return { data: { ok: true, link_live: true }, error: null };   // r56 (0297)
     if (name === "trial_send_blocked") return { data: trial, error: null };
     if (name === "otp_send_authorize") return { data: { quote_id: QUOTE, org_id: ORG, mobile: "919800000001" }, error: null };
     if (name === "wa_otp_begin") return { data: { quote_id: QUOTE, phone_key: "9800000001", to: "919800000001", email: "c@example.com", masked: "x" }, error: null };

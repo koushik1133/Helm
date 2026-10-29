@@ -284,6 +284,9 @@ run "r39-staff-google-0288" "R39-STAFF-GOOGLE-0288: ALL PASS \(49/49\)" psql -q 
 run "r55-no-hard-delete-0296" "R55-NO-HARD-DELETE-0296: ALL PASS \(33/33\)" psql -q -f tests/db/r55-no-hard-delete-0296.sql
 # r55: the real 0184 trial purge again, with the 0296 guard live and NO purge mark (it deletes with its own helm.trial_purge_org)
 run "trial-retention-0184-r55-guard" "TRIAL-RETENTION-0184: ALL PASS \(50/50\)" env PGOPTIONS="$PGOPTIONS -c helm.allow_purge=off" psql -q -f tests/db/trial-retention-0184.sql
+# r56 (0297): client links answer an allow-list, no rate rows for random tokens, purge, client_mailer_check; re-applies itself twice
+# (earlier suites re-apply 0042 / 0052 / 0090 / 0095 / 0260 / 0262 over these wrappers), rolled back
+run "r56-client-links-0297" "R56-CLIENT-LINKS-0297: ALL PASS \(40/40\)" psql -q -f tests/db/r56-client-links-0297.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

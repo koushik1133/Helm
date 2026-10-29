@@ -3,10 +3,11 @@
 // SAVED ON THE QUOTE. The recipient is never taken from the request.
 //
 // Request (signed-in staff JWT): { quote_id, kind: "approval" | "booklet" }
-// Auth: the JWT is verified here (deploy with --no-verify-jwt). The quote is read AS THE
-// CALLER, so row-level security limits it to the caller's own studio; the approval link
-// must already exist (generate_approval_token needs quotes EDIT) and a booklet link must be
-// live (not revoked / expired). The service role is used only to read the studio name /
+// Auth: the JWT is verified here (deploy with --no-verify-jwt). r56 (0297): the caller must be
+// allowed to EDIT quotes (client_mailer_check, asked as the caller - same rule as WhatsApp).
+// The quote is read AS THE CALLER, so row-level security limits it to the caller's own studio;
+// the approval link must exist and still be live (not expired / paused / cancelled - r56 C-03)
+// and a booklet link must be live (not revoked / expired). The service role is used only to read the studio name /
 // business e-mail and to write the notifications log row (no message body, no token).
 //
 // Delivery: _shared/mailer.ts (Resend, else SMTP_* e.g. Gmail, else not_configured).
@@ -71,9 +72,18 @@ Deno.serve(async (req) => {
     const wait = await checkLimits([["cm:user:" + user.id, 10, 60_000], ["cm:q:" + quoteId + ":" + kind, 3, 600_000]]);
     if (wait) return tooMany(json, wait);
 
+    // r56 (0297, C-02): only people who may EDIT quotes send client links (same rule as WhatsApp). Asked AS THE
+    // CALLER: signed in, own studio, has_area('quotes','edit'), quote not deleted. Any error (incl. a database
+    // without 0297) refuses - nothing is sent.
+    const { data: chk, error: cErr } = await asCaller.rpc("client_mailer_check", { p_quote: quoteId, p_kind: kind });
+    if (cErr || !chk || chk.ok !== true) {
+      const noEdit = String(cErr?.code || "") === "42501";
+      return json({ error: noEdit ? "you need permission to edit quotes to send this e-mail" : "you can't send e-mail for this event" }, 403);
+    }
+
     // read AS THE CALLER: RLS = own studio only
     const { data: q, error: qErr } = await asCaller.from("quotes")
-      .select("id, org_id, client, approval_token").eq("id", quoteId).maybeSingle();
+      .select("id, org_id, client, approval_token, approval_token_expires_at").eq("id", quoteId).maybeSingle();
     if (qErr || !q) return json({ error: "you can't send e-mail for this event" }, 403);
     const to = String((q.client && q.client.email) || "").trim();
     if (!EMAIL_RE.test(to)) return json({ status: "failed", error: "add a valid client e-mail in step 1 first", reason: "add a valid client e-mail in step 1 first" }, 400);
@@ -81,7 +91,11 @@ Deno.serve(async (req) => {
     let token = "";
     if (kind === "approval") {
       token = String(q.approval_token || "");
-      if (!UUID_RE.test(token)) return json({ status: "failed", error: "create the approval link first", reason: "create the approval link first" }, 409);
+      // r56 (C-03): never e-mail an expired / auto-expired / paused / cancelled approval link
+      const expired = !!(q.approval_token_expires_at && Date.parse(q.approval_token_expires_at) <= Date.now());
+      if (!UUID_RE.test(token) || expired || chk.link_live === false) {
+        return json({ status: "failed", error: "create the approval link first", reason: "create the approval link first" }, 409);
+      }
     } else {
       const { data: b } = await asCaller.from("client_booklets").select("token, expires_at, revoked_at")
         .eq("quote_id", quoteId).is("revoked_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
