@@ -297,6 +297,8 @@ run "r56-client-links-0297" "R56-CLIENT-LINKS-0297: ALL PASS \(40/40\)" psql -q 
 # run-sheet person match + crew scope, event-group card + members, inbox event names; re-applies itself 3x (earlier suites
 # re-apply 0012 / 0035 / 0132 / 0265 / 0266 bodies), rolled back; last so no later suite re-grants the table columns
 run "r58-crew-events-0299" "R58-CREW-EVENTS-0299: ALL PASS \(70/70\)" psql -q -f tests/db/r58-crew-events-0299.sql
+# r60 (0301): anon table privileges on 60 studio tables, kept upload-guard copies, layouts_quarantined_count HQ only, forged studio / owner on layouts + saved_views refused; re-creates the prod grants, re-applies itself twice, rolled back
+run "r60-db-hardening-0301" "R60-DB-HARDENING-0301: ALL PASS \(49/49\)" psql -q -f tests/db/r60-db-hardening-0301.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

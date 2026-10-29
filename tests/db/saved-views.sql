@@ -96,7 +96,7 @@ do $$ declare e text; n int; r record; begin
   e := pg_temp.try('insert into public.saved_views(org_id, user_id, page, name) values (''b0000000-0000-4000-8000-000000000001'', '''
        || pg_temp.uid('b_staff@b.test') || ''', ''leads'', ''forged'')');
   perform pg_temp.su(); select count(*) into n from public.saved_views where name = 'forged' and org_id = 'a0000000-0000-4000-8000-000000000001' and user_id = pg_temp.uid('a_staff@a.test');
-  perform pg_temp.res('16 forged org/user on insert are overwritten with caller', e = '' and n = 1, e || n);
+  perform pg_temp.res('16 forged org/user on insert are refused (0301; was: overwritten with caller)', e like '42501%' and n = 0, e || n);
 
   perform pg_temp.login('a_staff@a.test');
   e := pg_temp.try('insert into public.saved_views(page, name, state) values (''leads'', ''big'', jsonb_build_object(''q'', repeat(''x'', 5000)))');
