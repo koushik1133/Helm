@@ -101,7 +101,7 @@ window.SUPABASE_CONFIG = {
   // the studio enquiry form (/<studio>/enquiry) and /suggest; captcha-verify gives a signed-out visitor a one-use pass.
   //   >>> TURNSTILE SITE KEY GOES HERE <<<  (public, starts with "0x4AAAA..."; the SECRET key never goes in this file)
   //   Steps + the safe order: SENTRY-TURNSTILE-STEPS.md. Empty = every form works exactly as today.
-  captcha: { provider: "turnstile", siteKey: "", login: { appearance: "interaction-only", alwaysAfterFailures: 3 } },
+  captcha: { provider: "turnstile", siteKey: "0x4AAAAAAFrWlqalV7jrd4IF", login: { appearance: "interaction-only", alwaysAfterFailures: 3 } },
   // Onboarding checkout (0056). allowPaymentBypass shows the clearly-labelled
   // "Skip payment (testing only)" button on /checkout. The SERVER flag
   // helm_billing_settings.allow_trial_bypass is the real gate — set BOTH to false

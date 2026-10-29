@@ -69,8 +69,8 @@ await t("1d HQ page: readiness card + Set up two-step (auth-ui renderEnroll), lo
 });
 
 /* ------------------------------------------------------------------ 2. Turnstile */
-await t("2a config: site key EMPTY (off); login options; store-api only turns on with a well-formed key", () => {
-  assert.match(CFG, /captcha: \{ provider: "turnstile", siteKey: "", login: \{ appearance: "interaction-only", alwaysAfterFailures: 3 \} \}/);
+await t("2a config: site key PRESENT (dormant — widget renders, server does not enforce until owner flips rpc_captcha_required + Supabase CAPTCHA); login options; store-api only turns on with a well-formed key", () => {
+  assert.match(CFG, /captcha: \{ provider: "turnstile", siteKey: "0x4AAAAAAFrWlqalV7jrd4IF", login: \{ appearance: "interaction-only", alwaysAfterFailures: 3 \} \}/);
   assert.match(SA, /return \(c\.provider === "turnstile" && \/\^\[0-9A-Za-z_-\]\{8,128\}\$\/\.test\(key\)\) \? \{ provider: "turnstile", siteKey: key, login \} : null;/);
   assert.match(SA, /login: \(\) => \(CAPTCHA \? CAPTCHA\.login : \{ appearance: "interaction-only", alwaysAfterFailures: 3 \}\)/);
 });

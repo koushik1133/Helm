@@ -19,10 +19,10 @@ async function t(name, fn) { try { await fn(); n++; } catch (e) { console.error(
 const CFG = r("public/config.js");
 
 /* ------------------------------------------------------------------ 1. config.js */
-await t("1a config.js: R45 Sentry DSN set (public, project helm); site key still an empty, clearly marked placeholder (no secret anywhere)", () => {
+await t("1a config.js: R45 Sentry DSN set (public, project helm); public site key present (dormant — no secret anywhere)", () => {
   assert.match(CFG, /window\.HELM_TELEMETRY = Object\.assign\(\{\n  dsn: "https:\/\/1dc17f49258bac56dd0eb8e778842d7e@o4512062490738688\.ingest\.us\.sentry\.io\/4512328815542272",/);
   assert.match(CFG, />>> TURNSTILE SITE KEY GOES HERE <<</);
-  assert.match(CFG, /captcha: \{ provider: "turnstile", siteKey: "",/);
+  assert.match(CFG, /captcha: \{ provider: "turnstile", siteKey: "0x4AAAAAAFrWlqalV7jrd4IF",/);
   assert.doesNotMatch(CFG, /TURNSTILE_SECRET|secret\s*:/i);
   assert.match(CFG, /put the site key here and deploy FIRST/, "safe order documented");
 });
