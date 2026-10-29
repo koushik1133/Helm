@@ -858,3 +858,8 @@ header #clientImgBtn.trial-off,html.helm-trial header #clientImgBtn{display:none
 .btip-k[hidden]{display:none}
 @media (hover:none){ .btip{display:none!important} }
 @media (prefers-reduced-motion:reduce){ .btip{transition:none} }
+/* r77: tablet (721-1279px) - the Units/Grid/View/Work group was one unbreakable row (~1040px) and pushed the PAGE
+   sideways at 768/1024. Let header groups wrap inside the toolbar; >=1280 is untouched. */
+@media (min-width:721px) and (max-width:1279.98px){
+  header .hgroup{flex-wrap:wrap;row-gap:6px;min-width:0;max-width:100%}
+}
