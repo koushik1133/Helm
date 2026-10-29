@@ -73,3 +73,128 @@ regexes = [
   '''^[A-Z0-9]+(?:_[A-Z0-9]+)+$''',
   '''(?i)example|placeholder|changeme|your|xxxx|redacted''',
 ]
+
+# ===========================================================================
+# chore/secret-scan-hardening (2026-10-29): close the HUMAN-PASSWORD gap.
+# The credential that slipped into git history was a short, human-chosen
+# shared password (not a key-shaped secret), committed in a .sql seed, an HTML
+# tester guide, and markdown login tables. The rules above only fire on md/html/
+# txt/csv with the value wrapped in <code>/backtick/bold/quotes AND >= 8 chars,
+# so a 4-char word like a shared test password, a bare `password: <word>`, or a
+# plaintext value in a .sql seed all passed. The five rules below catch those
+# shapes while keeping false positives low (env-var NAMES, hashed /
+# gen_random_bytes / crypt values, emails, filenames, identifiers and
+# placeholders are allowlisted). Pre-existing, already-known occurrences at HEAD
+# (the historical shared "helm" password — fix is OWNER ROTATION per
+# docs/OWNER-ACTIONS-SECURITY.md, not hiding — and local/test-only auth-fixture
+# passwords in tests/db + supabase SQL) are fingerprinted in .gitleaksignore so
+# the weekly full-history job stays green and only a NEW leak turns it red.
+# All five were verified against reconstructed copies of the historical leak.
+# ---------------------------------------------------------------------------
+
+# A value assigned to a password-like key:  password: <value>   pwd = "<value>"
+[[rules]]
+id = "helm-password-assignment"
+description = "Plaintext value assigned to a password-like key (password:/=, passwd, pwd)"
+regex = '''(?i)\b(?:passwords?|passwd|passphrase|pwd)\b\s*[:=]\s*["'\x60]?([A-Za-z0-9][A-Za-z0-9!#$%&+?^_~.@/-]{2,63})["'\x60]?\s*(?:$|[\r\n);,<])'''
+secretGroup = 1
+keywords = ["password", "passwd", "passphrase", "pwd"]
+path = '''(?i)\.(?:md|markdown|txt|html?|csv|tsv|sql|jsonc?|ya?ml|env|ini|conf|cfg|properties|sh)$'''
+[[rules.allowlists]]
+regexTarget = "secret"
+description = "Not a real credential: env-var NAMES, identifiers, hashes, emails, filenames, placeholders"
+regexes = [
+  '''^[A-Z0-9]+(?:_[A-Z0-9]+)*$''',
+  '''^[a-z0-9]+(?:[_-][a-z0-9]+)+$''',
+  '''^[0-9a-fA-F]{7,64}$''',
+  '''^[0-9]+$''',
+  '''^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$''',
+  '''(?i)\.(?:sql|md|markdown|js|mjs|cjs|ts|tsx|html?|json|jsonc|ya?ml|env|txt|sh|csv|tsv|png|svg)$''',
+  '''(?i)gen_random|gen_salt|crypt|digest|encode|sha\d|md5|pbkdf|argon|bcrypt|scrypt|\$2[aby]\$|\$argon''',
+  '''(?i)^(?:null|nil|none|undefined|string|text|varchar|not|changeme|example|placeholder|redacted|xxx+|todo|tbd|p_password|new_password|old_password|current_password|always|never|required|optional|empty|blank|here|above|below|value|field|input|hash|hashed|reset|forced|strong|stronger|strength|weak|same|unknown|minimum|maximum|length|postgres|authenticator)$''',
+  '''[${}%]''',
+  '''^\.''',
+]
+
+# A password keyword immediately before a quoted literal:  password "<value>"   -- password: '<value>'
+[[rules]]
+id = "helm-password-quoted-adjacent"
+description = "Password keyword immediately followed by a quoted credential literal (SQL comments, docs)"
+regex = '''(?i)\b(?:passwords?|passwd|passphrase|pwd)\b[\s:=]{1,4}["'\x60]([A-Za-z0-9][A-Za-z0-9!#$%&+?^_~.@/-]{2,63})["'\x60]'''
+secretGroup = 1
+keywords = ["password", "passwd", "passphrase", "pwd"]
+path = '''(?i)\.(?:md|markdown|txt|html?|csv|tsv|sql|jsonc?|ya?ml|env|ini|conf|cfg|properties|sh)$'''
+[[rules.allowlists]]
+regexTarget = "secret"
+description = "Not a real credential"
+regexes = [
+  '''^[A-Z0-9]+(?:_[A-Z0-9]+)*$''',
+  '''^[a-z0-9]+(?:[_-][a-z0-9]+)+$''',
+  '''^[0-9a-fA-F]{7,64}$''',
+  '''^[0-9]+$''',
+  '''^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$''',
+  '''(?i)\.(?:sql|md|markdown|js|mjs|cjs|ts|tsx|html?|json|jsonc|ya?ml|env|txt|sh|csv|tsv|png|svg)$''',
+  '''(?i)gen_random|gen_salt|crypt|digest|encode|sha\d|md5|pbkdf|argon|bcrypt|scrypt|\$2[aby]\$|\$argon''',
+  '''(?i)^(?:null|nil|none|undefined|string|text|varchar|not|changeme|example|placeholder|redacted|xxx+|todo|tbd|p_password|new_password|old_password|current_password|postgres|authenticator)$''',
+  '''[${}%]''',
+]
+
+# A SQL seed-user call pairing an email with a plaintext password and a role:
+#   create_helm_user('a@studio.example', '<password>', 'admin')
+[[rules]]
+id = "helm-seed-account-credential"
+description = "SQL *_user(...) seed pairing an email with a plaintext password and a role"
+regex = '''(?i)[a-z_]*user\s*\(\s*'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'\s*,\s*'([A-Za-z0-9][A-Za-z0-9!#$%&+?^_~./-]{2,63})'\s*,\s*'(?:admin|planner|sales|operations|crew|client|manager|coordinator|quality|supervisor|worker|owner|staff|hq|superadmin)''''
+secretGroup = 1
+keywords = ["user("]
+path = '''(?i)\.sql$'''
+[[rules.allowlists]]
+regexTarget = "secret"
+description = "Generated / hashed values are not plaintext credentials"
+regexes = [
+  '''(?i)gen_random|gen_salt|crypt|digest|encode|decode|concat|format|substr|md5''',
+  '''[${}%(]''',
+]
+
+# A tester login account paired with a credential (the dedicated synthetic domain):
+#   | admin.a@synthetic.helm | <password> |    admin.a@synthetic.helm,<password>
+[[rules]]
+id = "helm-test-login-table"
+description = "Tester login account (@synthetic.helm) paired with a credential value"
+regex = '''(?i)[A-Za-z0-9._%+-]+@synthetic\.helm["'\x60]?\s*[,|:=\t]+\s*["'\x60]?([A-Za-z0-9][A-Za-z0-9!#$%&+?^_~./-]{2,63})["'\x60]?'''
+secretGroup = 1
+keywords = ["synthetic.helm"]
+[[rules.allowlists]]
+regexTarget = "secret"
+description = "Role words / generated values are not the shared password"
+regexes = [
+  '''^[0-9a-fA-F]{7,64}$''',
+  '''(?i)gen_random|gen_salt|crypt|encode''',
+  '''(?i)^(?:admin|planner|sales|operations|crew|client|manager|coordinator|quality|supervisor|worker|role|owner|staff|user|member|guest|email|name|true|false|text|string|null|view|edit|full|a|b|c)$''',
+  '''[${}%]''',
+]
+
+# A shared/default/common/temporary password published next to its value:
+#   The default password is `<value>`.   All testers share one login: **<value>**
+[[rules]]
+id = "helm-shared-default-password"
+description = "Shared/default/common/temporary password published with its value (short values too)"
+regex = '''(?i)\b(?:shared|default|common|temporary|temp|demo|universal|same)\b[^\r\n`*"']{0,30}\b(?:passwords?|passwd|login|credentials?|passcode|pin)\b[^\r\n`*"']{0,24}["'\x60*]{1,2}([A-Za-z0-9][A-Za-z0-9!#$%&+?^_~./-]{2,63})["'\x60*]{1,2}'''
+secretGroup = 1
+keywords = ["password", "passwd", "login", "credential", "passcode", "pin"]
+path = '''(?i)\.(?:md|markdown|txt|html?|csv|tsv|sql|jsonc?|ya?ml|env|ini|conf|cfg)$'''
+[[rules.allowlists]]
+regexTarget = "secret"
+description = "Paths, emails, filenames, identifiers and generic words are not the password"
+regexes = [
+  '''^[A-Z0-9]+(?:_[A-Z0-9]+)*$''',
+  '''^[a-z0-9]+(?:[_-][a-z0-9]+)+$''',
+  '''^[0-9a-fA-F]{7,64}$''',
+  '''^[0-9]+$''',
+  '''/''',
+  '''^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$''',
+  '''(?i)\.(?:sql|md|markdown|js|mjs|ts|html?|json|ya?ml|env|txt|sh|csv)$''',
+  '''(?i)gen_random|gen_salt|crypt|encode''',
+  '''(?i)^(?:changeme|example|placeholder|redacted|your|xxx+|todo|tbd|value|above|below|field|null|none|string|text|the|each|all|every|reset|forced|minimum|maximum|length|prefer|do)$''',
+  '''[${}%]''',
+]

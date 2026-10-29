@@ -409,7 +409,12 @@ curl -X POST http://localhost:4173/api/layouts \
   AI crawlers marketing pages only. `llms.txt` summarises the product. **New pages are noindex by
   default in server.js, but must be added to the lists in `vercel.json` / `_headers`** — the parity
   test fails until they are.
-- **Secrets**: `.gitleaks.toml` allowlists only the two exact committed anon keys;
+- **Secrets**: `.gitleaks.toml` allowlists only the two exact committed anon keys and now also
+  blocks **human passwords** (`password: <word>`, plaintext `.sql` seed passwords,
+  shared/default-password tables, email+password pairings) — not just key-shaped secrets.
+  gitleaks runs on every push/PR (`.github/workflows/secret-scan.yml`, a required gate) and weekly
+  over all history. Enable the local pre-commit block with `git config core.hooksPath .githooks`.
+  Never commit a real or shared password, even in docs — see `docs/security/SECRETS-AND-CREDENTIALS.md`.
   `scripts/check-jwt-roles.mjs` (in `npm run ci`) fails on any non-anon / `service_role` JWT.
 - **Lighthouse** (`lighthouserc.json`, `.github/workflows/lighthouse.yml`) is blocking on
   performance, accessibility, FCP, LCP, TBT and CLS for `/`, `/login` and `/builder`.
