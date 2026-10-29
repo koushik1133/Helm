@@ -381,7 +381,7 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=304"></script><script src="event-group-picker.js?v=4"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=305"></script><script src="event-group-picker.js?v=5"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
 (function(){
@@ -498,12 +498,19 @@
   /* event group card (0035): built by the server from a whitelist (no money); every value escaped here */
   function isEventCard(m){ return !!(m&&m.kind==="card"&&m.sender_id==null&&m.meta&&m.meta.kind==="event"); }
   function fmtEvDate(d){ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(d||""))) return ""; try{ const o=BPStore.fmtStudioDate(String(d),{fmt:{weekday:"short",day:"numeric",month:"short",year:"numeric"}}); if(o) return o; }catch(e){} try{ return new Date(d+"T00:00:00").toLocaleDateString("en-IN", {weekday:"short",day:"numeric",month:"short",year:"numeric"}); }catch(e){ return String(d); } }
+  /* r58 (0299): the card no longer carries the client's phone / e-mail; people with Quotes view get them from the
+     server (event_group_contact), once per event, and the card is drawn again when they arrive */
+  const evContact={};
+  function evContactFor(qid){ if(!qid) return null; if(Object.prototype.hasOwnProperty.call(evContact,qid)) return evContact[qid]; evContact[qid]=null;
+    const eg=BPStore.chat&&BPStore.chat.eventGroups; if(!eg||!eg.contact) return null;
+    eg.contact(qid).then(v=>{ if(v&&(v.phone||v.email)){ evContact[qid]=v; try{ renderMessages({keepFromBottom:(()=>{ const h=$("#msgs"); return h?h.scrollHeight-h.scrollTop:0; })()}); }catch(_){} } }).catch(()=>{});
+    return null; }
   function eventCardHtml(mt){ mt=mt||{}; const cl=(mt.client&&typeof mt.client==="object")?mt.client:{}; const menu=(mt.menu&&typeof mt.menu==="object")?mt.menu:{};
-    const qid=String(mt.quote_id||""); const rows=[];
+    const qid=String(mt.quote_id||""); const rows=[]; const ct=(typeof evContactFor==="function"?evContactFor(qid):null)||{}; const ph=ct.phone||cl.phone, em=ct.email||cl.email;
     const row=(k,vHtml)=>{ if(vHtml) rows.push(`<div class="ev-r"><span class="ev-k">${esc(k)}</span><span class="ev-v">${vHtml}</span></div>`); };
     row("Client", esc([cl.name,cl.company].filter(Boolean).join(" · ")));
-    if(cl.phone) row("Phone", `<a href="tel:${esc(String(cl.phone).replace(/[^0-9+]/g,""))}">${esc(cl.phone)}</a>`);
-    if(cl.email) row("Email", `<a href="mailto:${esc(encodeURIComponent(String(cl.email)).replace(/%40/g,"@"))}">${esc(cl.email)}</a>`);
+    if(ph) row("Phone", `<a href="tel:${esc(String(ph).replace(/[^0-9+]/g,""))}">${esc(ph)}</a>`);
+    if(em) row("Email", `<a href="mailto:${esc(encodeURIComponent(String(em)).replace(/%40/g,"@"))}">${esc(em)}</a>`);
     row("Event", esc(mt.event_type||""));
     row("Date", esc([fmtEvDate(mt.event_date),mt.event_time].filter(Boolean).join(" · ")));
     row("Venue", esc([mt.venue,mt.venue_address].filter(Boolean).join(", ")));
