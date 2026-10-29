@@ -257,10 +257,10 @@ begin
   perform pg_temp.res('28 every kept catalog layer that reads the one below does it once (offset 0 marker)',
     not exists (select 1 from pg_proc p where p.proname ~ '^notification_catalog__pre\d{4}$' and p.proname <> 'notification_catalog__pre0293'
                  and p.prosrc ~ 'select\s+public\.notification_catalog__pre\d{4}\(\)\s+as\s+c\s*\)'));
-  c0 := coalesce(pg_stat_get_xact_function_calls('public.notification_catalog__pre0054()'::regprocedure), 0);
-  perform public.notification_catalog();
-  c1 := coalesce(pg_stat_get_xact_function_calls('public.notification_catalog__pre0054()'::regprocedure), 0);
-  perform pg_temp.res('29 one catalog read runs the oldest list once (was 81 times)', c1 - c0 = 1, 'calls=' || (c1 - c0));
+  c0 := coalesce(pg_stat_get_xact_function_calls('public.notification_catalog__pre0261()'::regprocedure), 0);
+  perform public.notification_catalog__pre0285();   -- a fresh statement (the plpgsql catalog itself is folded once per session)
+  c1 := coalesce(pg_stat_get_xact_function_calls('public.notification_catalog__pre0261()'::regprocedure), 0);
+  perform pg_temp.res('29 one read of the kept 0285 layer reads the 0250 layer once (was 27 times; the oldest list 81 times)', c1 - c0 = 1, 'calls=' || (c1 - c0));
   perform pg_temp.res('30 grants: catalog for signed-in users; kept body + the two 0078 bodies (audit I-06) not callable by the app',
     has_function_privilege('authenticated', 'public.notification_catalog()', 'execute')
     and not has_function_privilege('anon', 'public.notification_catalog()', 'execute')
