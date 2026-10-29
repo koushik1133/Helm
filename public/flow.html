@@ -119,14 +119,14 @@
   .egp-rl{margin-left:auto;color:var(--ink-3);font-size:12px} .egp-empty{padding:14px}
   .egp-btns{display:flex;justify-content:flex-end;gap:8px}
 </style>
-<link rel="stylesheet" href="flow-polish.css?v=8">
+<link rel="stylesheet" href="flow-polish.css?v=9">
 <link rel="stylesheet" href="share-checklist.css?v=4">
 <link rel="stylesheet" href="event-group-picker.css?v=2"><link rel="stylesheet" href="theme.css?v=83">
-<link rel="stylesheet" href="venues.css?v=7">
+<link rel="stylesheet" href="venues.css?v=8">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
-<link rel="stylesheet" href="quote-validity.css?v=2"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=2"><link rel="stylesheet" href="payment-schedule.css?v=3">
-<script src="/shell-proto.js?v=51" id="shellProto"></script>
+<link rel="stylesheet" href="quote-validity.css?v=3"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=2"><link rel="stylesheet" href="payment-schedule.css?v=4">
+<script src="/shell-proto.js?v=52" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -347,15 +347,16 @@
         <section class="card" id="sec-pay">
           <h2><span class="step-n">10</span> Advance payment &amp; booking <span class="pill" id="bookingBadge" hidden>Confirmed</span></h2>
           <p class="sub">Accepting the quote isn't a confirmed booking — recording the advance is. <span id="pay_how">Send an online link or record cash.</span> A receipt is issued and both sides are notified.</p>
-          <div class="row4 s-761d3ad">
-            <div class="fld s-1169661"><label for="pay_pct">Advance %</label><input id="pay_pct" type="number" min="0" max="100" value="10"></div>
-            <div class="fld s-1169661"><label for="pay_amount">Advance amount (<span class="cur-sym">₹</span>)</label><input id="pay_amount" type="number" min="0"></div>
-            <div class="fld s-1169661"><label for="pay_method">Method</label><select id="pay_method"><option value="cash">Cash / offline</option><option value="online">Online link</option></select></div>
-            <button type="button" class="btn primary" id="pay_record">Record advance payment</button>
+          <!-- r61: one aligned grid - advance %, amount, method, receipt no. and the button (the schedule card below uses the same look) -->
+          <div class="pay-adv" id="payAdv">
+            <div class="fld pay-f-pct"><label for="pay_pct">Advance %</label><input id="pay_pct" type="number" min="0" max="100" value="10"></div>
+            <div class="fld pay-f-amt"><label for="pay_amount">Advance amount (<span class="cur-sym">₹</span>)</label><input id="pay_amount" type="number" min="0"></div>
+            <div class="fld pay-f-method"><label for="pay_method">Method</label><select id="pay_method"><option value="cash">Cash / offline</option><option value="online">Online link</option></select></div>
+            <div class="fld pay-f-rcpt" id="pay_receiptWrap"><label for="pay_receipt">Receipt no.</label><input id="pay_receipt" placeholder="Blank = automatic" title="Offline payments: your receipt / cash memo no. (e.g. RCP-001). Leave blank to number it automatically."></div>
+            <div class="pay-f-go"><button type="button" class="btn primary" id="pay_record">Record advance payment</button></div>
           </div>
           <p class="hint" id="pay_terms" hidden></p>
           <p class="hint" id="pay_adv_note" role="status" hidden></p>
-          <div class="fld" id="pay_receiptWrap"><label for="pay_receipt">Receipt no. (offline — blank to auto‑generate)</label><input id="pay_receipt" placeholder="e.g. RCP‑001 / cash memo no."></div>
           <div class="s-4856645" id="pay_online" hidden></div>
           <div class="s-56f4356" id="pay_receipts"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
           <!-- r23 (0264): the event's payment schedule (paid / due / overdue), reminders + pause - payment-schedule.js; hidden without Finance view -->
@@ -461,10 +462,10 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=8"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=301"></script>
-<script src="page-tours.js?v=6"></script>
-<script src="tour.js?v=29"></script>
-<script src="payment-schedule.js?v=2"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=303"></script>
+<script src="page-tours.js?v=7"></script>
+<script src="tour.js?v=30"></script>
+<script src="payment-schedule.js?v=3"></script>
 <script src="booklet.js?v=30"></script>
 <script src="share-checklist.js?v=14"></script>
 <script src="flow-layout-sync.js?v=6"></script>
@@ -472,10 +473,10 @@
 <script src="flow-autosave.js?v=5"></script>
 <script src="flow-validate.js?v=5"></script>
 <script src="flow-resume.js?v=6"></script>
-<script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=3"></script>
+<script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=4"></script>
 <script src="flow-dish-editor.js?v=3"></script>
 <script src="venues-core.js?v=11"></script>
-<script src="venue-picker.js?v=7"></script>
+<script src="venue-picker.js?v=8"></script>
 <script src="venue-area.js?v=2"></script><script src="wa-proposal.js?v=5"></script><script src="email-send.js?v=5"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=4"></script><script src="approval-watch.js?v=2"></script><script src="stage-history.js?v=2"></script><script src="link-views.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);

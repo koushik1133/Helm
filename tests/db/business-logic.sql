@@ -200,13 +200,17 @@ do $$ declare n int; r int; begin
   perform pg_temp.res('delete: an event with refunds cannot be deleted', n = 1 and r = 1, 'event '||n||', refund '||r);
 end $$;
 do $$ declare n int; begin
-  -- 0042: hard delete only from the Deleted shelf, by a can_delete() role (admin / planner)
+  -- 0042: Delete moves an event to the Deleted shelf; 0296 (r55 zero data loss): a hard delete through the API is
+  -- refused even from the shelf (only server-side purges with the purge mark remove an event)
   perform pg_temp.su(); update public.quotes set deleted_at = now() where id = pg_temp.id('del4');
   perform pg_temp.login('a_admin@a.test');
   begin delete from public.quotes where id = pg_temp.id('del4');
-  exception when others then perform pg_temp.res('delete: an unpaid draft still deletes', false, sqlerrm); return; end;
+  exception when others then
+    perform pg_temp.su(); select count(*) into n from public.quotes where id = pg_temp.id('del4');
+    perform pg_temp.res('delete: an unpaid shelved draft is kept (API hard delete refused, 0296)', n = 1 and sqlstate = '42501', sqlstate || ' ' || sqlerrm);
+    return; end;
   perform pg_temp.su(); select count(*) into n from public.quotes where id = pg_temp.id('del4');
-  perform pg_temp.res('delete: an unpaid draft still deletes', n = 0, 'still there');
+  perform pg_temp.res('delete: an unpaid shelved draft is kept (API hard delete refused, 0296)', false, 'deleted: ' || (n = 0)::text);
 end $$;
 
 -- ================= 3) OTP lockout persists ========================================

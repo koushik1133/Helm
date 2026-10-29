@@ -91,6 +91,6 @@ t('6. Pricing shows the country read-only; General is the one place to change it
 t('version pins bumped', () => {
   assert.match(HTML, /control-split\.js\?v=24/);   // r24 0269: + Automations section (over R23 22)
   assert.match(HTML, /control-split\.css\?v=16/);
-  assert.match(HTML, /venues\.css\?v=7/);
+  assert.match(HTML, /venues\.css\?v=8/);
 });
 console.log(`cc-unsaved-layout: ${n} passed`);
