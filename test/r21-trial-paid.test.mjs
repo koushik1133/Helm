@@ -164,6 +164,7 @@ await t('comms-dispatch: Helm notices lane (claim -> send -> mark), recipients n
   assert.equal(m.helmNoticeEmail('sales_request', { studio: 'S', plan: '' }, ''), null, 'incomplete -> skipped');
   const u = m.helmNoticeEmail('upgrade_ask', { who: 'Ravi', studio: 'Demo 7' }, 'https://app.example.com/');
   assert.equal(u.subject, 'Ravi asked you to choose a Helm plan');
+  // codeql[js/incomplete-url-substring-sanitization] -- false positive: test asserts a generated e-mail body contains an expected URL; not a security sanitizer on untrusted input.
   assert.ok(u.text.includes('https://app.example.com/checkout')); assert.ok(u.text.includes(PROMISE));
   assert.equal(m.helmNoticeEmail('other', {}, ''), null);
 });

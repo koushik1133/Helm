@@ -129,6 +129,7 @@ Deno.test("create-payment-link: total changed -> superseded plinks cancelled at 
     const h = await loadHandler(FN);
     assertEquals((await h(post({ token: TOKEN }))).status, 200);
     const urls = fetchLog().map((f) => f.url);
+    // codeql[js/incomplete-url-substring-sanitization] -- false positive: Array.prototype.includes (exact match) over captured request URLs; not a URL substring sanitizer.
     assert(urls.includes("https://api.razorpay.com/v1/payment_links/plink_Old1/cancel"));
     assert(!urls.some((u) => u.includes("not-a-plink")));
   } finally { rF(); rEnv(); }

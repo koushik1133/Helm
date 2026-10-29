@@ -188,6 +188,7 @@ Deno.test("AV: host not allowlisted / http → never called, object stays pendin
       const h = await loadHandler(FN);
       await h(req());
       assertEquals(marks[0].p_status, "retry");
+      // codeql[js/incomplete-url-substring-sanitization] -- false positive: asserts the captured fetch log made no call to the AV host; not a security sanitizer on untrusted input.
       assert(!fetchLog().some((f) => f.url.includes("av.example.com")));
     } finally { restoreFetch(); restoreEnv(); }
   }

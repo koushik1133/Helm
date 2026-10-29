@@ -53,6 +53,7 @@ t('robots + sitemap + llms', () => {
   const s = rd('public/sitemap.xml');
   for (const p of ['/', '/pricing', '/services', '/about', '/try', '/demo']) assert.ok(s.includes(`<loc>https://www.helm.events${p}</loc>`), p);
   const l = rd('public/llms.txt');
+  // codeql[js/incomplete-url-substring-sanitization] -- false positive: test asserts the repo's own llms.txt contains expected URLs; not a security sanitizer on untrusted input.
   assert.match(l, /^# Helm Events/); assert.ok(l.includes('https://www.helm.events/pricing') && l.includes('sales@helm.events'));
 });
 console.log(`seo-geo: ${n} checks passed`);

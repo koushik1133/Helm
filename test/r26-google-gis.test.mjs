@@ -178,6 +178,7 @@ t('CSP: Google\'s inline <style> hash only on the policies that allow its styles
     const csp = (r.headers || []).find((h) => h.key === 'Content-Security-Policy');
     if (!csp) continue;
     const elem = (csp.value.match(/style-src-elem [^;]*/) || [''])[0];
+    // codeql[js/incomplete-url-substring-sanitization] -- false positive: test assertion comparing the repo's own CSP directive text, not a runtime sanitizer on untrusted input.
     assert.equal(elem.includes(H), elem.includes('https://accounts.google.com/gsi/style'), r.source);
     if (elem.includes(H)) n++;
     assert.ok(!/style-src-elem [^;]*'unsafe-inline'/.test(csp.value));

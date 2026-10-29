@@ -111,6 +111,7 @@ function withHashes(csp, hashes, styleHashes) {
       out.push(['style-src', ...keep, ...styleHashes].join(' '));
       // r26 hotfix: + the hash of Google's own inline <style> (GIS button), only where its stylesheet is allowed.
       // Best effort - Google can change it; google-gis.js never shows Google's box before its iframe has loaded.
+      // codeql[js/incomplete-url-substring-sanitization] -- false positive: `keep` is an array of CSP tokens, so this is Array.prototype.includes (exact membership), not a URL substring check on untrusted input.
       out.push(['style-src-elem', ...keep, ...styleHashes, ...(keep.includes(GIS_STYLE) ? [GIS_INLINE_STYLE_HASH] : [])].join(' '));
       out.push("style-src-attr 'unsafe-inline'");
     } else out.push(d.trim());

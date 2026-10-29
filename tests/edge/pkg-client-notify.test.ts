@@ -62,6 +62,7 @@ Deno.test("pkg-client-notify: e-mail + WhatsApp sent to fixed hosts, marked sent
     assert(b.html.includes("Studio &lt;A&gt;") && !b.html.includes("Studio <A>"));
     assert(!/prefers-color-scheme/.test(b.html), "light-only");
     assertEquals((mail.init?.headers as Record<string, string>)["Idempotency-Key"], "pkg-" + ID1);
+    // codeql[js/incomplete-url-substring-sanitization] -- false positive: filters a captured fetch log by expected host; not a security sanitizer on untrusted input.
     const wa = fetchLog().filter((x) => x.url.includes("graph.facebook.com")).map((x) => JSON.parse(String(x.init?.body)));
     assertEquals(wa.length, 2);
     assert(wa.every((w) => w.type === "template" && w.template.name === "helm_update"));

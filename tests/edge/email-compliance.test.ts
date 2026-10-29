@@ -29,6 +29,7 @@ Deno.test("links: page + one-click endpoint; malformed token -> null", () => {
 
 Deno.test("footers: transactional has reason + privacy + postal, no unsubscribe; marketing has unsubscribe", () => {
   const t = txFooter("otp", { app: "https://www.helm.events" });
+  // codeql[js/incomplete-url-substring-sanitization] -- false positive: test asserts the footer text contains an expected URL; not a security sanitizer on untrusted input.
   assert(t.text.includes("You received this because") && t.text.includes("https://www.helm.events/privacy") && t.text.includes(POSTAL_PLACEHOLDER));
   assertEquals(DEFAULT_POSTAL_ADDRESS, "Mindspace IT Park, Madhapur, Hyderabad, Telangana 500081"); assertEquals(postalAddress(() => undefined), DEFAULT_POSTAL_ADDRESS);
   assert(!/unsubscribe/i.test(t.html + t.text));

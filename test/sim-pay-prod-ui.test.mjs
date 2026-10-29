@@ -10,6 +10,7 @@ let passed = 0; const t = (n, fn) => { fn(); passed++; console.log('  ✓ ' + n)
 
 const store = read('public/store-api.js');
 const m = /onlinePayAvailable: (\(\) => [^\n]+),\n    createPayment: ([\s\S]+?: rpc\("create_payment", \{ p_token: token \}\)),/.exec(store);
+// codeql[js/bad-code-sanitization] -- false positive: m[1]/m[2] are two expressions extracted by a fixed regex from the repo's own committed public/store-api.js (trusted build input), evaluated in a locked-down vm sandbox to unit-test pricing logic. No untrusted/user input reaches the constructed code.
 const evalIn = (win, live) => vm.runInNewContext(`(function(){ const LIVE=${JSON.stringify(live)}; const rpc=()=>"rpc"; const callFn=()=>"fn"; const window=W; return { avail: ${m[1]}, create: ${m[2]} }; })()`, { W: win, Promise, Error });
 
 t('store-api: onlinePayAvailable false only on a prod host with pay not live', () => {

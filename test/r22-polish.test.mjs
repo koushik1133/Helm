@@ -68,7 +68,8 @@ await t('3 CSP report-to + Reporting-Endpoints on production policies only; verc
   assert.equal(re.value, 'csp-endpoint="' + URI + '"');
   const HDR = read('public/_headers');
   assert.equal((HDR.match(/^\s+Reporting-Endpoints: /gm) || []).length, 1);
-  assert.match(HDR, /^\/\*\n(?:[ \t]+.*\n)*?[ \t]+Content-Security-Policy:.*\n[ \t]+Reporting-Endpoints: csp-endpoint="https:\/\/nqltzgiwznphugcfhmbm\.supabase\.co\/functions\/v1\/csp-report"\n/m);
+  // R65: single leading [ \t] per line (not [ \t]+.*) avoids ReDoS (js/redos); matches the same _headers block.
+  assert.match(HDR, /^\/\*\n(?:[ \t][^\n]*\n)*?[ \t]+Content-Security-Policy:.*\n[ \t]+Reporting-Endpoints: csp-endpoint="https:\/\/nqltzgiwznphugcfhmbm\.supabase\.co\/functions\/v1\/csp-report"\n/m);
   assert.equal((HDR.match(/report-to csp-endpoint/g) || []).length, (HDR.match(/report-uri https:\/\/nqltzgiwznphugcfhmbm/g) || []).length);
   const SRV = read('server.js');
   assert.match(SRV, /const re = reportingEndpoints\(prodReporting\(\)\.reportUri\);[^\n]*\n\s*if \(re\) h\['Reporting-Endpoints'\] = re;/);
