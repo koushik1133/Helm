@@ -27,7 +27,7 @@ const PAID = {
   },
 };
 function db(settle: unknown, opts: { orgErr?: boolean } = {}) {
-  g.__supaRpc = (name: string) => name === "razorpay_settle" ? settle : ({ data: null, error: null });
+  g.__supaRpc = (name: string) => name === "razorpay_settle" ? settle : name === "studio_billing_email" ? { data: "owner@studio-a.in", error: null } : ({ data: null, error: null });   // r59: confirmed studio e-mail
   g.__supaResolver = (table: string) => {
     if (table === "quotes") return { data: { id: QUOTE, code: "A-0001", title: "Wedding A", client: { email: "alice@example.com" }, pricing: { total: 236000 }, org_id: "org-a" }, error: null };
     if (table === "organizations") return opts.orgErr ? { data: null, error: { code: "57014" } } : { data: { name: "Studio A", business_email: "owner@studio-a.in" }, error: null };

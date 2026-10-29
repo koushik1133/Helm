@@ -97,7 +97,7 @@
   }
   async function reset() {
     var ask = global.BPUI && global.BPUI.confirm
-      ? global.BPUI.confirm("Put the studio's privacy PIN back to 0000? Everyone will use 0000 to show amounts until you choose a new PIN.", { title: "Reset privacy PIN", okLabel: "Reset to 0000", danger: true })
+      ? global.BPUI.confirm("Put the studio's privacy PIN back to 0000? Everyone will use 0000 to show amounts until you choose a new PIN. You will be asked for a code from your two-step app.", { title: "Reset privacy PIN", okLabel: "Reset to 0000", danger: true })
       : Promise.resolve(global.confirm("Put the studio's privacy PIN back to 0000?"));
     if (!(await ask)) return;
     var b = $("pp_reset"); b.disabled = true; say("Resetting…", "info");
