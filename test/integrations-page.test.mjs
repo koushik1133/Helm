@@ -13,12 +13,14 @@ t('page: CSP-safe (no inline script, no style attrs, no on* handlers)', () => {
   assert.ok(!/<script(?![^>]*\bsrc=)[^>]*>/i.test(html), 'no inline <script>');
   assert.ok(!/\sstyle=/i.test(html)); assert.ok(!/\son[a-z]+=/i.test(html));
   assert.ok(!/innerHTML|insertAdjacentHTML|outerHTML/.test(js), 'status painted with textContent only');
-  assert.match(html, /class="auth-pending"/); assert.match(html, /integrations\.js\?v=5/);
+  assert.match(html, /class="auth-pending"/); assert.match(html, /integrations\.js\?v=6/);
 });
 t('page: three cards + WhatsApp guide names both templates and Settings number field', () => {
   for (const id of ['itgEmail', 'itgWa', 'itgPay']) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /helm_task_assigned/); assert.match(html, /helm_event_reminder/); assert.match(html, /\{\{1\}\}/);
-  assert.match(html, /control\.html#notify/); assert.match(html, /WHATSAPP_TPL_TASK_ASSIGNED=helm_task_assigned/);
+  // r59 (audit F-6): the Helm-owner secret names left the studio page; they live in docs/ops/WHATSAPP-SETUP.md
+  assert.match(html, /control\.html#notify/); assert.doesNotMatch(html, /WHATSAPP_TPL_TASK_ASSIGNED/);
+  assert.match(readFileSync(new URL('../docs/ops/WHATSAPP-SETUP.md', import.meta.url), 'utf8'), /WHATSAPP_TPL_TASK_ASSIGNED=helm_task_assigned/);
 });
 t('pure status helpers', () => {
   globalThis.window = undefined;
