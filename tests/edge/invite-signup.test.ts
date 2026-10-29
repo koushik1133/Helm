@@ -275,6 +275,23 @@ Deno.test("invite-signup email_send: a reserved address is refused (403), email_
   } finally { f(); r(); }
 });
 
+// ---- r57 (audit A-4): the signed-out e-mail look-up says only yes / no - never the studio or the role ----------------
+Deno.test("r57 A-4: email_lookup for an invited e-mail answers { invited: true } only (no studio, role or token)", async () => {
+  resetSupaMock(); db();
+  const prevRpc = g.__supaRpc;
+  g.__supaRpc = (name: string, args: unknown) => name === "invite_open_for_email"
+    ? { data: { found: true, token: TOK, studio: "Secret Studio", role: "coordinator", invited_by: ADMIN, expires_at: future() }, error: null }
+    : prevRpc(name, args);
+  const r = setEnv(ENV); const f = noFetch();
+  try {
+    const h = await loadHandler(FN);
+    const l = await h(post({ email_lookup: true, email: "someone@corp.test" }));
+    const body = await l.json();
+    assertEquals(body, { invited: true });
+    assert(!JSON.stringify(body).includes("Secret Studio") && !JSON.stringify(body).includes(TOK));
+  } finally { f(); r(); }
+});
+
 // ---- R32 AUTH-1: the token alone (the studio's "Copy link") never makes a CONFIRMED login --------------------
 Deno.test("R32 AUTH-1: token without the e-mailed mail key -> { fallback: true }, no createUser (admin can't pre-make a confirmed login)", async () => {
   for (const [label, body, keyHash] of [

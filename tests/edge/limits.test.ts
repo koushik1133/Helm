@@ -55,6 +55,24 @@ Deno.test("limits (r31): a faked x-forwarded-for can't buy a fresh rate-limit bu
   assertEquals(clientIp(new Request("https://x/", { headers: { "x-real-ip": "5.6.7.8" } })), "5.6.7.8");
   assertEquals(clientIp(new Request("https://x/")), "unknown");
 });
+Deno.test("limits (r57): never the caller-typed first x-forwarded-for hop; junk ignored; IPv6 per /64", () => {
+  const xff = (v: string, extra: Record<string, string> = {}) => clientIp(new Request("https://x/", { headers: { "x-forwarded-for": v, ...extra } }));
+  // no cf-connecting-ip: the LAST public hop (the one a proxy appended), whatever the caller put first
+  assertEquals(xff("1.1.1.1, 203.0.113.9"), "203.0.113.9");
+  assertEquals(xff("9.9.9.9, 203.0.113.9"), "203.0.113.9");
+  assertEquals(xff("8.8.8.8, 203.0.113.9, 10.0.0.3"), "203.0.113.9", "internal hops are skipped from the right");
+  assertEquals(xff("10.0.0.3"), "10.0.0.3", "only an internal hop: that hop (local tests)");
+  assertEquals(xff("junk"), "unknown");
+  assertEquals(xff("1.1.1.1, junk, 203.0.113.9"), "203.0.113.9");
+  // a cf-connecting-ip that is not an IP address is ignored
+  assertEquals(xff("7.7.7.7, 203.0.113.60", { "cf-connecting-ip": "not-an-ip" }), "203.0.113.60");
+  // IPv6: one /64 network = one bucket; IPv4-mapped = the IPv4 address
+  const cf = (v: string) => clientIp(new Request("https://x/", { headers: { "cf-connecting-ip": v } }));
+  assertEquals(cf("2001:db8:aa:bb:1:2:3:4"), "2001:db8:aa:bb::/64");
+  assertEquals(cf("2001:db8:aa:bb:ffff::9"), "2001:db8:aa:bb::/64");
+  assertEquals(cf("::ffff:198.51.100.4"), "198.51.100.4");
+  assertEquals(cf("2001:db8::zz"), "unknown");
+});
 
 const JSON_FNS: Array<[string, Record<string, string>]> = [
   ["send-otp", { SUPABASE_URL: "https://p.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "s" }],

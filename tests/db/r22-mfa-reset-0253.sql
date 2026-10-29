@@ -124,7 +124,13 @@ do $$ declare r jsonb; e text; n0 int; v uuid; begin
   perform pg_temp.su(); perform auth.login_anon();
   e := pg_temp.try('select public.my_mfa_reset_info()');
   perform pg_temp.res('24 my_mfa_reset_info closed to anon', e like '42501%', e);
-  -- ops2 may reset admin@ (another operator), and the operator then has to set it up again (switch on)
+  -- r57 (0298, G-HQ-3): an HQ team member's two-step is reset only by the HQ Owner - an HQ Admin is refused
+  perform pg_temp.as_user('ops2@helm.events', 'aal2');
+  e := pg_temp.try('select public.hq_mfa_reset(''admin@helm.events'', ''operator phone lost - checked in person'')');
+  if to_regprocedure('public.hq_mfa_reset__pre0298(text,text)') is not null and e not like '42501%Only the Helm HQ Owner%' then
+    raise exception 'r57: an HQ Admin was not refused: %', e; end if;
+  perform pg_temp.su(); update public.platform_admins set role = 'owner' where email = 'ops2@helm.events';
+  -- the Owner (ops2 now) may reset admin@ (another operator), and the operator then has to set it up again (switch on)
   perform pg_temp.as_user('ops2@helm.events', 'aal2');
   r := public.hq_mfa_reset('admin@helm.events', 'operator phone lost - checked in person');
   perform pg_temp.as_user('admin@helm.events', 'aal1');
