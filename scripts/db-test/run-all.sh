@@ -299,6 +299,8 @@ run "r56-client-links-0297" "R56-CLIENT-LINKS-0297: ALL PASS \(40/40\)" psql -q 
 run "r58-crew-events-0299" "R58-CREW-EVENTS-0299: ALL PASS \(70/70\)" psql -q -f tests/db/r58-crew-events-0299.sql
 # r60 (0301): anon table privileges on 60 studio tables, kept upload-guard copies, layouts_quarantined_count HQ only, forged studio / owner on layouts + saved_views refused; re-creates the prod grants, re-applies itself twice, rolled back
 run "r60-db-hardening-0301" "R60-DB-HARDENING-0301: ALL PASS \(49/49\)" psql -q -f tests/db/r60-db-hardening-0301.sql
+# r67 (0304): two SECURITY DEFINER functions hardened to an EMPTY search_path (save_quotation_version, password_change_required); behavior proven identical to the kept *__pre0304 copies; re-applies itself twice (re-run safe), rolled back
+run "r67-definer-searchpath-0304" "R67-DEFINER-SEARCHPATH-0304: ALL PASS \(11/11\)" psql -q -f tests/db/r67-definer-searchpath-0304.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
