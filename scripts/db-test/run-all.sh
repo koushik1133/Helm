@@ -266,6 +266,8 @@ run "r34-invite-0284" "R34-INVITE-0284: ALL PASS \(59/59\)" psql -q -f tests/db/
 run "r47-my-pending-0292" "R47-MY-PENDING-0292: ALL PASS \(24/24\)" psql -q -f tests/db/r47-my-pending-0292.sql
 # r52 (0293): dashboard unread = bell badge = inbox per person (row read / Done / snooze / mutes / role rules / 0261 link-view rule) + the catalog read once per layer; re-applies itself twice, rolled back
 run "r52-notif-clear-0293" "R52-NOTIF-CLEAR-0293: ALL PASS \(35/35\)" psql -q -f tests/db/r52-notif-clear-0293.sql
+# r54 (0295): studio data export owner / admin only, no secret-like keys at any depth, audited, export_org_data closed; re-applies itself twice (earlier suites re-apply 0033 / 0173), rolled back
+run "r54-export-lockdown-0295" "R54-EXPORT-LOCKDOWN-0295: ALL PASS \(24/24\)" psql -q -f tests/db/r54-export-lockdown-0295.sql
 # 0287 re-applies itself twice (re-run safe; after every suite that re-applies 0069 / 0120 / 0181 / 0239 / 0268), rolled back
 run "r37-studio-tz-0287" "R37-STUDIO-TZ-0287: ALL PASS \(36/36\)" psql -q -f tests/db/r37-studio-tz-0287.sql
 # 0290 re-applies itself twice (re-run safe; after every suite that re-applies 0256 vendor_request_claim), turns the hold on

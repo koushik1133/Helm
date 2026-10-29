@@ -23,7 +23,7 @@
      section). This engine reads it; it never keeps steps of its own. Pages that
      include tour.js include page-tours.js just before it; anything else (the
      app shell's "Tour this page") loads it on demand (ensureData below). */
-  const PT_V = "4";
+  const PT_V = "5";
   function PT() { return window.HelmPageTours || null; }
   function ensureData(cb) {
     if (PT()) { cb(); return; }

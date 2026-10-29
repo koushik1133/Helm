@@ -279,7 +279,7 @@
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=16">
 <link rel="stylesheet" href="quote-validity.css?v=2"><link rel="stylesheet" href="link-views.css?v=2">
-<script src="/shell-proto.js?v=50" id="shellProto"></script>
+<script src="/shell-proto.js?v=52" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -687,7 +687,7 @@
           </span>
           <h3 class="cx-title">Data Portability &amp; Compliance Archive</h3>
         </div>
-        <p class="cx-sub">Download a single, portable <b>JSON archive</b> of your studio's data — organisation profile, team members, events, attendees and invitations. This is a read-only export: <b>nothing is changed or deleted</b>. Available to admins only.</p>
+        <p class="cx-sub">Download a single, portable <b>JSON archive</b> of your studio's data — organisation profile, team members, events, attendees and invitations. This is a read-only export: <b>nothing is changed or deleted</b>. Only the studio owner or an admin can download it, and every download is recorded in the activity log.</p>
         <div class="cx-trust">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
           <span>Data is collected directly from your secure tenant partition and compiled on-the-fly.</span>
@@ -699,6 +699,7 @@
           </button>
           <span id="exp_status" class="cx-status" role="status" aria-live="polite"></span>
         </div>
+        <p class="mnote" id="exp_gate" hidden>Only the studio owner or an admin can download studio data.</p>
       </div>
     </div>
 
@@ -921,14 +922,14 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=8"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=301"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=302"></script>
 <script src="event-reminders.js?v=6"></script><script src="cc-field-rules.js?v=3"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=6"></script>
 <script src="hq-invoice.js?v=2"></script>
-<script src="page-tours.js?v=4"></script>
-<script src="tour.js?v=28"></script>
+<script src="page-tours.js?v=5"></script>
+<script src="tour.js?v=29"></script>
 <script src="pkg-review.js?v=9"></script>
 <script src="onboarding-core.js?v=8"></script>
 <script src="studio-billing-form.js?v=3"></script>
@@ -1025,6 +1026,7 @@
     // each card keeps its own error UI. The first failure is still re-thrown once every card has settled.
     const settle=async(list)=>{ let first=null; await Promise.all(list.map(f=>Promise.resolve().then(f).catch(e=>{ if(!first) first=e; }))); if(first) throw first; };
     const cards=[loadPricing, renderCoupons, renderChairs, renderPlates, renderDishes, initCustomFields, renderMenuTemplates, renderLayoutRules, renderOrg];
+    expGate();   // r54: the data export button is for the studio owner / admins only (the server checks again)
     // Only admins get the User-control tab (add/remove users + access matrix).
     if(isAdmin){
       $("#tab-users").hidden=false;
@@ -2158,9 +2160,25 @@
     }));
     renderSeats();
   }
-  // ---- GDPR / data portability export (Phase 85) ----
+  // ---- GDPR / data portability export (Phase 85; r54: owner / admin only, confirm first, audited server-side) ----
+  const EXP_WARN="This file contains your clients' and team's personal details. Keep it private and don't share it. You are responsible for this copy.";
+  function expGate(){
+    const btn=$("#btn-export-gdpr"), gate=$("#exp_gate"); if(!btn) return;
+    btn.disabled=!isAdmin; btn.setAttribute("aria-disabled", String(!isAdmin));
+    if(gate) gate.hidden=isAdmin;
+  }
+  // r54: helm-export-<studio slug or id>-<YYYY-MM-DD in India time>.json (the payload has organizations + org_id)
+  function expFileName(pkg, now){
+    const o=(pkg&&pkg.organizations)||{};
+    const raw=String(o.slug||pkg&&pkg.org_id||o.id||"studio").toLowerCase().replace(/[^a-z0-9-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60)||"studio";
+    let day; try{ day=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(now||new Date()); }
+    catch(_){ day=new Date((now||new Date()).getTime()+330*60000).toISOString().slice(0,10); }
+    return `helm-export-${raw}-${day}.json`;
+  }
   $("#btn-export-gdpr").addEventListener("click", async ()=>{
     const btn=$("#btn-export-gdpr"), st=$("#exp_status");
+    if(!isAdmin){ expGate(); return; }
+    if(!(await BPUI.confirm(EXP_WARN,{title:"Download studio data",okLabel:"I understand, download"}))) return;
     const ICONS={
       processing:'<span class="cx-dot"></span>',
       success:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>',
@@ -2173,22 +2191,21 @@
     try{
       const pkg = await BPStore.org.exportPackage();
       if(!pkg){ throw new Error("No data returned."); }
-      // RPC is org-scoped server-side; derive a filename from the returned org id (fallback keeps it safe).
-      const orgId = (pkg.organization && pkg.organization.id) || (pkg.org && pkg.org.id) || "studio";
-      const stamp = new Date().toISOString().split("T")[0];
+      // RPC is org-scoped server-side; the filename comes from the studio's slug / id and the India date.
       const blob = new Blob([JSON.stringify(pkg, null, 2)], { type:"application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `helm-export-${orgId}-${stamp}.json`;
+      a.href = url; a.download = expFileName(pkg);
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=>URL.revokeObjectURL(url), 1500);
       setSt("success","Archive downloaded");
       setTimeout(clearSt, 5000);
     }catch(err){
       const m=(err&&err.message)||"";
-      const denied = /permission|denied|not allowed|forbidden|admin|row-level|policy/i.test(m);
-      setSt("error", denied ? "Admins only — you don't have permission to export studio data." : "Couldn't build the export"+(m?": "+m:"."));
-    }finally{ btn.disabled=false; btn.innerHTML=label; }
+      const trial = /free trial/i.test(m);
+      const denied = !trial && /permission|denied|not allowed|forbidden|owner|admin|row-level|policy|organization context/i.test(m);
+      setSt("error", trial ? "Not available in the free trial." : denied ? "Only the studio owner or an admin can download studio data." : "Couldn't build the export"+(m?": "+m:"."));
+    }finally{ btn.innerHTML=label; expGate(); }
   });
 
   $("#inv_copy").addEventListener("click", async ()=>{
