@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Helm pre-commit secret scan (opt-in).
+# Blocks a commit if gitleaks finds a secret or plaintext credential in the
+# STAGED changes, using the repo's .gitleaks.toml (the same rules CI enforces).
+#
+# Enable once per clone (one command):
+#     git config core.hooksPath .githooks
+# Disable:
+#     git config --unset core.hooksPath
+#
+# Requires gitleaks (https://github.com/gitleaks/gitleaks):
+#     macOS:  brew install gitleaks
+#     Linux:  see releases; or `go install github.com/gitleaks/gitleaks/v8@latest`
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+CONFIG="$REPO_ROOT/.gitleaks.toml"
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks is not installed, cannot scan staged changes for secrets." >&2
+  echo "            Install it (brew install gitleaks) or unset the hook:" >&2
+  echo "            git config --unset core.hooksPath" >&2
+  exit 1
+fi
+
+# Scan only what is staged. --redact keeps any secret out of the terminal/logs.
+if ! gitleaks git -c "$CONFIG" --staged --redact --no-banner --exit-code 1 "$REPO_ROOT"; then
+  echo "" >&2
+  echo "pre-commit: BLOCKED - a secret or plaintext credential was found in your staged changes." >&2
+  echo "            Never commit real or shared passwords, even in docs/tester guides." >&2
+  echo "            Put them in the gitignored .staging.env or share them out-of-band (see docs/security/SECRETS-AND-CREDENTIALS.md)." >&2
+  echo "            If this is a genuine false positive, add a fingerprint to .gitleaksignore (value NOT included)." >&2
+  exit 1
+fi

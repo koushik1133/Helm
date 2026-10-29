@@ -19,3 +19,91 @@
 c2be905a1b2df8af207a29aa6937114313483c43:tests/edge/comms-dispatch-email.test.ts:generic-api-key:14
 cf35bcde0cccdcfc581d9f5bf7a04cfe61bdf0b5:test/r21-security.test.mjs:generic-api-key:103
 cf35bcde0cccdcfc581d9f5bf7a04cfe61bdf0b5:test/r21-security.test.mjs:generic-api-key:104
+
+# chore/secret-scan-hardening (2026-10-29): the new human-password rules
+# (helm-password-assignment / helm-password-quoted-adjacent /
+# helm-seed-account-credential / helm-test-login-table / helm-shared-default-password
+# in .gitleaks.toml) match pre-existing, ALREADY-KNOWN occurrences in history.
+# Fingerprints only (no secret values). Two groups:
+#  (A) the historical shared "helm" password (seed comments, tester guide, audit
+#      script, security reports). FIX = OWNER ROTATION (docs/OWNER-ACTIONS-SECURITY.md
+#      + MEMORY deferred-user-reset) — NOT hiding. Do not add new entries here without
+#      a matching rotation note.
+#  (B) local/TEST-ONLY auth-fixture passwords in tests/db/*.sql and supabase SQL that
+#      exist to exercise the password-strength policy; never used by prod accounts.
+# Baselining these keeps the weekly full-history scan green so a NEW leak turns it red.
+0046fd9921efbcd241245c7e7fc3aa3e3495d946:tests/db/audit-medium-0155.sql:helm-seed-account-credential:108
+0046fd9921efbcd241245c7e7fc3aa3e3495d946:tests/db/audit-medium-0155.sql:helm-seed-account-credential:111
+0046fd9921efbcd241245c7e7fc3aa3e3495d946:tests/db/audit-medium-0155.sql:helm-seed-account-credential:57
+0046fd9921efbcd241245c7e7fc3aa3e3495d946:tests/db/audit-medium-0155.sql:helm-seed-account-credential:61
+24b861b39dda2d703bdc2816a3eb8391807ce2a7:security/REPORT.md:helm-shared-default-password:44
+26931cbdc88712572e4ae9a92679c0ee3127c2bd:tests/db/audit-run2.sql:helm-seed-account-credential:548
+26931cbdc88712572e4ae9a92679c0ee3127c2bd:tests/db/audit-run2.sql:helm-seed-account-credential:554
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/01-core-auth-quotes.sql:helm-seed-account-credential:286
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/01-core-auth-quotes.sql:helm-seed-account-credential:287
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/01-core-auth-quotes.sql:helm-seed-account-credential:288
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/01-core-auth-quotes.sql:helm-seed-account-credential:289
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/01-core-auth-quotes.sql:helm-seed-account-credential:290
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/01-core-auth-quotes.sql:helm-seed-account-credential:291
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/README.md:helm-password-quoted-adjacent:15
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/README.md:helm-password-quoted-adjacent:52
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-password-assignment:1472
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-password-quoted-adjacent:1459
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-password-quoted-adjacent:1463
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:1522
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:1523
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:1524
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:1525
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:1526
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:1527
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:300
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:301
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:302
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:303
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:304
+324ccb3e4fa43a7a7a29cb97a03536ac4aaba82e:supabase/full-schema/complete-setup.sql:helm-seed-account-credential:305
+3b6c7f85638a7b5e5e560473444d3c92b1a44081:tests/db/auth-matrix.sql:helm-seed-account-credential:20
+3b6c7f85638a7b5e5e560473444d3c92b1a44081:tests/db/auth-matrix.sql:helm-seed-account-credential:31
+3b6c7f85638a7b5e5e560473444d3c92b1a44081:tests/db/auth-matrix.sql:helm-seed-account-credential:42
+3b6c7f85638a7b5e5e560473444d3c92b1a44081:tests/db/auth-matrix.sql:helm-seed-account-credential:54
+3b6c7f85638a7b5e5e560473444d3c92b1a44081:tests/db/auth-matrix.sql:helm-seed-account-credential:79
+3e77d3c3ad32c61e8884fdc595014d6bf5a7742c:WALKTHROUGH.md:helm-password-quoted-adjacent:15
+56475537b080ca3f625ad6f2b2cb1155eada6eef:supabase/audit/P3-CHECK-default-passwords 2.sql:helm-password-quoted-adjacent:4
+65892bd4942205a1adefcccf96653edf45696063:supabase/audit/P3-CHECK-default-passwords.sql:helm-password-quoted-adjacent:4
+a82b766dd35736dc1668a207b98030d9503920b1:tests/db/auth-hardening.sql:helm-seed-account-credential:106
+a82b766dd35736dc1668a207b98030d9503920b1:tests/db/auth-hardening.sql:helm-seed-account-credential:46
+a82b766dd35736dc1668a207b98030d9503920b1:tests/db/auth-hardening.sql:helm-seed-account-credential:55
+a82b766dd35736dc1668a207b98030d9503920b1:tests/db/auth-hardening.sql:helm-seed-account-credential:65
+a82b766dd35736dc1668a207b98030d9503920b1:tests/db/auth-hardening.sql:helm-seed-account-credential:83
+a82b766dd35736dc1668a207b98030d9503920b1:tests/db/auth-hardening.sql:helm-seed-account-credential:92
+a82b766dd35736dc1668a207b98030d9503920b1:tests/db/auth-matrix.sql:helm-seed-account-credential:54
+a82b766dd35736dc1668a207b98030d9503920b1:tests/db/auth-matrix.sql:helm-seed-account-credential:79
+d43798641a7ee99b514cc47256e4198b497877b0:tests/db/audit-medium-0155.sql:helm-seed-account-credential:104
+d43798641a7ee99b514cc47256e4198b497877b0:tests/db/audit-medium-0155.sql:helm-seed-account-credential:107
+d43798641a7ee99b514cc47256e4198b497877b0:tests/db/audit-medium-0155.sql:helm-seed-account-credential:57
+d43798641a7ee99b514cc47256e4198b497877b0:tests/db/audit-medium-0155.sql:helm-seed-account-credential:61
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/seed-users.sql:helm-password-assignment:11
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/seed-users.sql:helm-password-quoted-adjacent:2
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/seed-users.sql:helm-seed-account-credential:61
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/seed-users.sql:helm-seed-account-credential:62
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/seed-users.sql:helm-seed-account-credential:63
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/seed-users.sql:helm-seed-account-credential:64
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/seed-users.sql:helm-seed-account-credential:65
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/seed-users.sql:helm-seed-account-credential:66
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-all.sql:helm-password-quoted-adjacent:4
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-all.sql:helm-password-quoted-adjacent:84
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-all.sql:helm-seed-account-credential:129
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-all.sql:helm-seed-account-credential:130
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-all.sql:helm-seed-account-credential:131
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-all.sql:helm-seed-account-credential:132
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-all.sql:helm-seed-account-credential:133
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-all.sql:helm-seed-account-credential:134
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-complete.sql:helm-seed-account-credential:286
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-complete.sql:helm-seed-account-credential:287
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-complete.sql:helm-seed-account-credential:288
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-complete.sql:helm-seed-account-credential:289
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-complete.sql:helm-seed-account-credential:290
+e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-complete.sql:helm-seed-account-credential:291
+f6d0b766b24155e68a79c3b52a90c283e2e2afed:tests/db/auth-hardening.sql:helm-seed-account-credential:104
+f6d0b766b24155e68a79c3b52a90c283e2e2afed:tests/db/r32b-round2-0282.sql:helm-seed-account-credential:300
+f6d0b766b24155e68a79c3b52a90c283e2e2afed:tests/db/r32b-round2-0282.sql:helm-seed-account-credential:305
