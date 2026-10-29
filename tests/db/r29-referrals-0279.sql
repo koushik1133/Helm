@@ -704,7 +704,10 @@ do $$ declare a uuid := gen_random_uuid(); c text := 'R29D-KEEP'; nf int; nc int
   insert into public.referral_click_days(code, day, clicks) values (c, current_date, 4);
   select count(*) into nf from public.referral_fingerprints where studio_id = a;
   select count(*) into nc from public.referral_click_days where code = c;
+  -- 0296 skips every studio delete without the purge mark; mark this one so the foreign keys themselves are tested
+  perform set_config('helm.allow_org_purge', a::text, true);
   e1 := pg_temp.try(format('delete from public.organizations where id = %L', a));
+  perform set_config('helm.allow_org_purge', '', true);
   e2 := pg_temp.try(format('delete from public.referral_codes where code = %L', c));
   perform pg_temp.res('54 r29d no cascade: a studio / code delete is refused, its fingerprints + click counts stay',
     not exists (select 1 from pg_constraint k join pg_class t on t.oid = k.conrelid where k.contype = 'f' and k.confdeltype = 'c'

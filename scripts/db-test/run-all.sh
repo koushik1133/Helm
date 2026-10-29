@@ -23,7 +23,9 @@ export PGDATABASE=helm_runall
 # direct (system) change and keeps quiet. Suites expect normal sends, so pin the override off;
 # system-quiet-0164.sql clears it to test the real detection.
 # 0290: the older suites run as if every message were inside the studio send window; r41-send-window-0290.sql turns it on
-export PGOPTIONS="${PGOPTIONS:-} -c helm.maintenance=off -c helm.allow_hq_mfa_lockout=on -c helm.send_window=off"   # 0249: fixtures turn hq_require_mfa on with fake operators; r21-security-0249.sql turns the guard back on
+# 0296: fixtures / cleanups delete events and vendors as the superuser; the older suites run with the purge mark on
+# (it never helps a delete made AS anon / authenticated). r55-no-hard-delete-0296.sql + the 0184 re-run below turn it off.
+export PGOPTIONS="${PGOPTIONS:-} -c helm.maintenance=off -c helm.allow_hq_mfa_lockout=on -c helm.send_window=off -c helm.allow_purge=on"   # 0249: fixtures turn hq_require_mfa on with fake operators; r21-security-0249.sql turns the guard back on
 dropdb --if-exists helm_runall >/dev/null 2>&1; createdb helm_runall
 psql -q -v ON_ERROR_STOP=1 -f supabase/test-harness/00-supabase-shim.sql >/dev/null 2>&1
 
@@ -277,6 +279,11 @@ run "r41-send-window-0290" "R41-SEND-WINDOW-0290: ALL PASS \(37/37\)" psql -q -f
 run "r42-hq-v2-0278-0280" "R42-HQ-V2: ALL PASS \(38/38\)" psql -q -f tests/db/r42-hq-v2-0278-0280.sql
 # 0288 re-applies itself twice + after a 0053 re-run (the hook wrapper goes back on top), rolled back; after r27 (it re-applies 0277)
 run "r39-staff-google-0288" "R39-STAFF-GOOGLE-0288: ALL PASS \(49/49\)" psql -q -f tests/db/r39-staff-google-0288.sql
+# r55 (0296): no accidental hard deletes (events, versions, invitation sites, crew tasks, vendors, staff, stock, packages; studios
+# skipped + logged; TRUNCATE refused); re-applies itself twice, purge mark off, rolled back
+run "r55-no-hard-delete-0296" "R55-NO-HARD-DELETE-0296: ALL PASS \(33/33\)" psql -q -f tests/db/r55-no-hard-delete-0296.sql
+# r55: the real 0184 trial purge again, with the 0296 guard live and NO purge mark (it deletes with its own helm.trial_purge_org)
+run "trial-retention-0184-r55-guard" "TRIAL-RETENTION-0184: ALL PASS \(50/50\)" env PGOPTIONS="$PGOPTIONS -c helm.allow_purge=off" psql -q -f tests/db/trial-retention-0184.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
