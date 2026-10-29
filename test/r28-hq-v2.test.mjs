@@ -41,14 +41,20 @@ t('reveal: logged FIRST (hq_log_reveal, fallback heartbeat tick), role refusal =
   assert.match(lr, /if \(S && S\.errKind\(e\)\) throw e;/);
   assert.match(lr, /BPStore\.hq\("hq_heartbeat", \{ p_page: "reveal" \}\)/);
   const m = fnSrc(J, 'masked');
-  assert.match(m, /logReveal\(entity, id, field \|\| kind\)\.then\(function \(\) \{ t\.textContent = v;/);
-  assert.doesNotMatch(m, /p_value|value: v/);
-  // business-details form (every value unmasked) is filled only after the reveal is logged
-  assert.match(J, /logReveal\("studio", org, "business_details"\)\.then\(function \(\) \{ filled = true; more\.appendChild\(af\); \}\)/);
+  // r57 (0298): the value comes back from hq_reveal (role check + log + value in one call); an older database falls
+  // back to "log first, then show the value the page already has"
+  assert.match(m, /revealValue\(entity, id, field \|\| kind, v\)\.then\(function \(r\) \{/);
+  const rv = fnSrc(J, 'revealValue');
+  assert.match(rv, /call\("hq_reveal", \{ p_entity: entity, p_entity_id: id == null \? null : String\(id\), p_field: field \|\| "value" \}\)/);
+  assert.match(rv, /!isMasked\(shown\)\) \{\s*return logReveal\(entity, id, field\)/);
+  assert.doesNotMatch(m, /p_value/);
+  // business-details form (every value unmasked) is filled only after the reveal (hq_reveal business_details, logged)
+  assert.match(J, /call\("hq_reveal", \{ p_entity: "studio", p_entity_id: String\(org\), p_field: "business_details" \}\)/);
+  assert.match(J, /\.then\(function \(\) \{ fillForm\(\); filled = true; more\.appendChild\(af\); \}\)/);
   assert.match(J, /logReveal\("billing", "payments", "csv_export"\)/);
   // masked places: studios list, drawer contact (email, phone, billing e-mail, GSTIN, PAN), members, people, requests
   for (const s of ['contactLine(r.primary_contact_email, r.primary_contact_phone, "studio", r.org_id)', 'masked(acc.gstin, "id", "studio", org, "gstin")',
-    'masked(acc.pan, "id", "studio", org, "pan")', 'masked(m.email, "email", "member", org, "member_email")', 'masked(r.email, "email", "person", r.user_id || null, "email")',
+    'masked(acc.pan, "id", "studio", org, "pan")', 'masked(m.email, "email", "member", m.user_id || org, m.user_id ? "email" : "member_email")', 'masked(r.email, "email", "person", r.user_id || null, "email")',
     'contactLine(x.contact_email, x.contact_phone, "request", x.id)', 'contactLine(x.email, x.phone, "enquiry", x.id)', 'masked(x.email, "email", "suggestion", x.id, "email")'])
     assert.ok(J.includes(s), s);
   assert.doesNotMatch(J, /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(/);

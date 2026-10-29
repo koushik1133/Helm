@@ -272,6 +272,8 @@ run "r52-notif-clear-0293" "R52-NOTIF-CLEAR-0293: ALL PASS \(35/35\)" psql -q -f
 run "r54-export-lockdown-0295" "R54-EXPORT-LOCKDOWN-0295: ALL PASS \(24/24\)" psql -q -f tests/db/r54-export-lockdown-0295.sql
 # r61 (0302): quote "Valid until" Undo (same checks as Extend, logged, exact date + source back) + link_until; re-applies itself twice (the 0262 suite re-applies 0262 over it), rolled back
 run "r61-qv-undo-0302" "R61-QV-UNDO-0302: ALL PASS \(30/30\)" psql -q -f tests/db/r61-quote-validity-undo-0302.sql
+# r57 (0298): HQ masking + hq_reveal, partner codes billing.write, mfa reset role-first, referral oracle, credit cap, trusted caller address, sign-up staff check, team list, invitations token columns; re-applies itself twice (earlier suites re-apply 0271 / 0276 / 0279 / 0280), rolled back
+run "r57-hq-auth-0298" "R57-HQ-AUTH-0298: ALL PASS \(56/56\)" psql -q -f tests/db/r57-hq-auth-0298.sql
 # 0287 re-applies itself twice (re-run safe; after every suite that re-applies 0069 / 0120 / 0181 / 0239 / 0268), rolled back
 run "r37-studio-tz-0287" "R37-STUDIO-TZ-0287: ALL PASS \(36/36\)" psql -q -f tests/db/r37-studio-tz-0287.sql
 # 0290 re-applies itself twice (re-run safe; after every suite that re-applies 0256 vendor_request_claim), turns the hold on

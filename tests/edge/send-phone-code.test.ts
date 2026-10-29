@@ -119,3 +119,35 @@ Deno.test("send-phone-code: callingCode buckets E.164 numbers by country", async
   assertEquals(callingCode("+2348012345678"), "234");
   assertEquals(callingCode("12"), "");
 });
+
+// ---- r57 (audit A-10): sign-in checked before the "not configured" answer; banned / deactivated logins get no codes ----
+Deno.test("r57 A-10: not configured -> signed out still 401 (no config disclosure); signed in 503", async () => {
+  resetSupaMock(); signedIn();
+  const { WHATSAPP_TOKEN: _t, WHATSAPP_PHONE_ID: _p, ...unconfigured } = CONFIGURED;
+  const rEnv = setEnv({ ...unconfigured, WHATSAPP_TOKEN: "", WHATSAPP_PHONE_ID: "" }); const m = meta();
+  try {
+    const h = await loadHandler(FN);
+    assertEquals((await h(post({ phone: "+919800000001" }))).status, 401);
+    assertEquals((await h(post({ phone: "+919800000001" }, AUTH))).status, 503);
+    assertEquals(m.sent.length, 0);
+  } finally { m.restore(); rEnv(); }
+});
+Deno.test("r57 A-10: a banned login or a deactivated studio member gets no code (401), nothing minted", async () => {
+  for (const kind of ["banned", "deactivated"]) {
+    resetSupaMock(); signedIn();
+    if (kind === "banned") {
+      g.__supaGetUser = (jwt: string) => jwt === "user-jwt"
+        ? ({ data: { user: { id: "u1", email_confirmed_at: "2026-10-01T00:00:00Z", banned_until: "2999-01-01T00:00:00Z" } } }) : ({ data: { user: null } });
+    } else {
+      g.__supaResolver = (table: string) => table === "profiles" ? ({ data: { org_id: ORG }, error: null })
+        : table === "team_member_status" ? ({ data: { status: "deactivated" }, error: null }) : ({ data: null, error: null });
+    }
+    const rEnv = setEnv(CONFIGURED); const m = meta();
+    try {
+      const h = await loadHandler(FN);
+      assertEquals((await h(post({ phone: "+919800000001" }, AUTH))).status, 401, kind);
+      assertEquals(m.sent.length, 0, kind);
+      assert(!supaLog().some((e) => e.rpc === "phone_verify_request"), kind);
+    } finally { m.restore(); rEnv(); }
+  }
+});

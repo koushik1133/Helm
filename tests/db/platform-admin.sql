@@ -152,7 +152,7 @@ do $$ declare rec record; n int; begin
   select * into rec from public.hq_studios('Studio A', null, 25, 0) limit 1;
   select count(*) into n from public.hq_studios('Studio A', null, 25, 0);
   perform pg_temp.res('hq_studios: search finds Studio A with users + owner (no revenue columns)',
-    n = 1 and rec.name = 'Studio A' and rec.users_count >= 2 and rec.owner_email = 'a_admin@a.test' and rec.total_count = 1
+    n = 1 and rec.name = 'Studio A' and rec.users_count >= 2 and (rec.owner_email = 'a_admin@a.test' or rec.owner_email = 'a_' || repeat(chr(8226), 3) || '@a.test') and rec.total_count = 1   -- r57 (0298): masked
     and not (to_jsonb(rec) ? 'revenue') and not (to_jsonb(rec) ? 'events_count'), coalesce(row_to_json(rec)::text, 'none'));
   perform pg_temp.login_x('admin@helm.events', '{"aal":"aal2"}');   -- 0253: switch on => aal2 for HQ reads too
   select count(*) into n from public.hq_studios(null, null, 1, 0);

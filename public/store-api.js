@@ -5547,7 +5547,8 @@ window.HelmUrl = HelmUrl;
     create: (email, role) => (reservedEmailDomain(email) ? Promise.reject(reservedEmailError())   // r21 0248 (server-checked too)
       : rpc("create_invitation", { p_email: email, p_role: role })),   // admin only (server-checked)
     async list() { if (!supa) return [];                                                     // RLS returns only this org's invites
-      const { data, error } = await supa.from("invitations").select("*").order("created_at", { ascending: false });
+      // r57 (A-5 / I-04, 0298): explicit columns - the browser never reads token / mail_key_hash ("Copy link" uses create())
+      const { data, error } = await supa.from("invitations").select("id,org_id,email,role,status,invited_by,expires_at,accepted_at,accepted_by,created_at").order("created_at", { ascending: false });
       if (error) throw error; return data || []; },
     // 0131: invitation e-mails. resendEmail re-queues (admin, same studio, once per 10 min);
     // sendNow asks the invite-mailer to flush THIS studio's queue right away. Never throws:
@@ -5618,7 +5619,9 @@ window.HelmUrl = HelmUrl;
       // the studio's "Copy link" never has it. With it the server makes the login already confirmed;
       // without it the answer is { fallback: true } (the normal confirm-by-e-mail sign-up).
       let mailKey = "";
-      try { const k = new URLSearchParams(location.search || "").get("k") || ""; if (/^[0-9a-f]{32,128}$/i.test(k)) mailKey = k.toLowerCase(); } catch (e) {}
+      try { let k = new URLSearchParams(location.search || "").get("k") || "";
+        if (!k) { try { k = sessionStorage.getItem("bp_pending_invite_k") || ""; } catch (e) { k = ""; } }   // r57 (A-7): kept in this tab, gone from the URL
+        if (/^[0-9a-f]{32,128}$/i.test(k)) mailKey = k.toLowerCase(); } catch (e) {}
       let res;
       try {
         res = await fetch(fnUrl("invite-signup"), { method: "POST",
@@ -5631,8 +5634,8 @@ window.HelmUrl = HelmUrl;
       const e = new Error(String(j.error || "Couldn't create the account.")); e.code = j.code; e.status = res.status; if (j.reason) e.reason = String(j.reason).slice(0, 20); throw e;
     },
     // 0210 (free-trial sign-up, before anything is created): does this e-mail have an OPEN invitation?
-    // → { invited: true, studio, role, role_label } | { invited: false } | null (function not deployed,
-    // rate limited, offline, slow - the sign-up then simply carries on). Only studio + role ever come back.
+    // → { invited: true } | { invited: false } | null (function not deployed, rate limited, offline, slow - the
+    // sign-up then simply carries on). r57 (A-4): never which studio or role (a stranger can type any e-mail).
     async openForEmail(email, opts) {
       const em = String(email || "").trim().toLowerCase();
       if (!supa || !fnUrl("invite-signup") || !em) return null;
@@ -5646,8 +5649,8 @@ window.HelmUrl = HelmUrl;
         const j = await res.json().catch(() => ({}));
         if (!res.ok || !j || typeof j !== "object") return null;
         if (j.invited !== true) return j.invited === false ? { invited: false } : null;
-        const str = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, n);
-        return { invited: true, studio: str(j.studio, 120), role: str(j.role, 40), role_label: str(j.role_label, 60) };
+        // r57 (A-4): the server answers yes / no only - the studio + role arrive in the invitation e-mail
+        return { invited: true };
       } catch (e) { return null; }
       finally { if (timer) clearTimeout(timer); }
     },

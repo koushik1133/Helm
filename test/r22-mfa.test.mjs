@@ -360,9 +360,10 @@ t('C1 login.html: aal1 -> code step (finishGate "mfa" -> askMfaCode -> mfa.chall
 });
 t('C2 hq.js: Reset button only for 2-step "on" rows, never your own; reason + e-mail retype; calls hq_mfa_reset', () => {
   const H = read('public/hq.js');
-  assert.match(H, /function mfaCell\(email, on, after\)/);
-  assert.match(H, /if \(on && email && (can\("security\.write"\) && )?String\(email\)\.toLowerCase\(\) !== String\(me\)\.toLowerCase\(\)\)/);
-  assert.match(H, /call\("hq_mfa_reset", \{ p_email: email, p_reason: why \}\)/);
+  // r57 (0298): the list address is masked - same checks against the masked / revealed address (sameAddr, hq_reveal)
+  assert.match(H, /function mfaCell\(email, on, after(, rec)?\)/);
+  assert.match(H, /if \(on && email && (can\("security\.write"\) && )?(String\(email\)\.toLowerCase\(\) !== String\(me\)\.toLowerCase\(\)|!sameAddr\(email, me\))\)/);
+  assert.match(H, /call\("hq_mfa_reset", \{ p_email: (email|isMasked\(email\) \? again : email), p_reason: why \}\)/);
   assert.match(H, /Type the person's e-mail address to confirm/);
   assert.match(H, /mfaCell\(r\.email, r\.mfa_enabled/);
   assert.match(H, /mfaCell\(m\.email, m\.mfa_enabled/);

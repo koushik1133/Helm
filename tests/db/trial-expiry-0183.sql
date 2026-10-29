@@ -155,8 +155,10 @@ do $$ declare o uuid := pg_temp.get('o')::uuid; m uuid := pg_temp.get('m')::uuid
   perform pg_temp.login('te_owner@t.test');
   e := pg_temp.try('select public.create_invitation(''te_later@t.test'', ''sales'')');
   perform pg_temp.res('43 owner: new invitation refused while read-only', pg_temp.ro(e), e);
+  -- r57 (0298): the browser can't read invitations.token any more - the e-mailed link carries it; read it as the owner
+  perform pg_temp.su(); perform set_config('r57.tok', (select token from public.invitations where org_id = o and email = 'te_late@t.test'), false);
   perform pg_temp.newuser('te_late@t.test'); perform pg_temp.login('te_late@t.test');
-  e := pg_temp.try(format('select public.accept_invitation(%L)', (select token from public.invitations where org_id = o and email = 'te_late@t.test')));
+  e := pg_temp.try(format('select public.accept_invitation(%L)', current_setting('r57.tok', true)));
   perform pg_temp.su();
   perform pg_temp.res('44 an invitation sent during the trial cannot be accepted while read-only (nothing changed)', e <> ''
     and (select org_id is null from public.profiles where email = 'te_late@t.test')

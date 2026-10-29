@@ -131,18 +131,35 @@
       throw e;
     });
   }
+  // r57 (0298): the database now sends these values ALREADY masked; the real one comes only from hq_reveal, which
+  // checks the HQ role, writes the hq.reveal log row and returns the value in one step. A value that is not masked
+  // (older database) is masked here and "Show" logs first (hq_log_reveal), as before.
+  function isMasked(v) { return String(v == null ? "" : v).indexOf(DOT) >= 0; }
+  function revealValue(entity, id, field, shown) {
+    return call("hq_reveal", { p_entity: entity, p_entity_id: id == null ? null : String(id), p_field: field || "value" }).then(function (r) {
+      return r && typeof r === "object" ? r : { value: null };
+    }, function (e) {
+      if (S && S.errKind(e)) throw e;
+      if (/hq_reveal|PGRST202|does not exist|schema cache|not find the function/i.test(String((e && e.message) || "")) && !isMasked(shown)) {
+        return logReveal(entity, id, field).then(function () { return { value: shown }; });
+      }
+      throw e;
+    });
+  }
   // a masked value with a small "Show" button; null for an empty value (kvList / joins skip it)
   function masked(value, kind, entity, id, field) {
     var v = String(value == null ? "" : value).trim(); if (!v) return null;
-    var hid = (MASKERS[kind] || maskId)(v);
+    var hid = isMasked(v) ? v : (MASKERS[kind] || maskId)(v);
     var t = el("span", { cls: "mv hid", text: hid, title: "Masked - press Show to see it (recorded)" });
     var b = el("button", { cls: "rv", type: "button", text: "Show", "aria-label": "Show " + (field || kind).replace(/_/g, " ") + " (recorded in the HQ log)" });
     var w = el("span", { cls: "mask" }, [t, b]);
     b.addEventListener("click", function (e) {
       if (e) e.stopPropagation();
       b.disabled = true;
-      logReveal(entity, id, field || kind).then(function () { t.textContent = v; t.classList.remove("hid"); t.removeAttribute("title"); b.remove(); })
-        .catch(function (er) { b.disabled = false; showErr(er); });
+      revealValue(entity, id, field || kind, v).then(function (r) {
+        var real = r.value == null ? "" : String(r.value);
+        t.textContent = real || "\u2014"; t.classList.remove("hid"); t.removeAttribute("title"); b.remove();
+      }).catch(function (er) { b.disabled = false; showErr(er); });
     });
     return w;
   }
@@ -761,20 +778,31 @@
       ["team_size_band", "Team size (1, 2-5, 6-15, 16-50, 51+)"], ["signup_source", "Signup source"],
       ["business_type", "Business type"], ["is_business", "Business (true/false)"], ["tax_id_type", "Tax ID type"], ["tax_id", "Tax ID"], ["pan", "PAN (India)"],
       ["billing_currency", "Billing currency"], ["payment_mandate_ref", "Mandate reference"], ["referral_code", "Referral code"], ["referred_by", "Referred by"]];
-    var inputs = {};
+    var inputs = {}, real = acc;   // r57: `real` = the unmasked account from hq_reveal('business_details') once the form opens
     var af = el("div", { cls: "form" });
-    AF.forEach(function (f) { var i = el("input", { type: /_phone$/.test(f[0]) ? "tel" : (/_email$/.test(f[0]) ? "email" : "text") }); i.value = acc[f[0]] == null ? "" : String(acc[f[0]]); inputs[f[0]] = i; af.appendChild(field(f[1], i)); });
+    AF.forEach(function (f) { var i = el("input", { type: /_phone$/.test(f[0]) ? "tel" : (/_email$/.test(f[0]) ? "email" : "text") }); inputs[f[0]] = i; af.appendChild(field(f[1], i)); });
+    var fillForm = function () { AF.forEach(function (f) { inputs[f[0]].value = real[f[0]] == null ? "" : String(real[f[0]]); }); };
     var asave = el("button", { cls: "btn primary", type: "button", text: "Save business details" });
     asave.addEventListener("click", function () {
-      var patch = {}; AF.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (acc[f[0]] == null ? "" : String(acc[f[0]]))) patch[f[0]] = v; });
+      if (Object.keys(real).some(function (k) { return isMasked(real[k]); })) { showErr(new Error("Open the form again to load the details.")); return; }
+      var patch = {}; AF.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (real[f[0]] == null ? "" : String(real[f[0]]))) patch[f[0]] = v; });
       call("hq_set_studio_account", { p_org: org, p_account: patch }).then(function () { okMsg("Business details saved."); refreshAfterWrite(org); }).catch(showErr);
     });
     af.appendChild(asave);
     // r28: the form shows every value unmasked, so it fills only after the reveal is logged
+    // r57 (0298): the real values come from hq_reveal('studio', org, 'business_details') - logged in the same step
     var filled = false;
     more.addEventListener("toggle", function () {
       if (!more.open || filled) return;
-      logReveal("studio", org, "business_details").then(function () { filled = true; more.appendChild(af); })
+      call("hq_reveal", { p_entity: "studio", p_entity_id: String(org), p_field: "business_details" }).then(function (r) {
+        real = (r && r.account && typeof r.account === "object") ? r.account : {};
+      }, function (e) {
+        if (S && S.errKind(e)) throw e;
+        if (/hq_reveal|PGRST202|does not exist|schema cache|not find the function/i.test(String((e && e.message) || ""))) {
+          return logReveal("studio", org, "business_details").then(function () { real = acc; });   // older database: acc is unmasked
+        }
+        throw e;
+      }).then(function () { fillForm(); filled = true; more.appendChild(af); })
         .catch(function (e) { more.open = false; showErr(e); });
     });
     if (can("studios.edit")) wrap.appendChild(more);
@@ -847,9 +875,9 @@
     wrap = panes.people;
     var mt = el("tbody");
     (d.members || []).forEach(function (m) {
-      mt.appendChild(el("tr", null, [el("td", { text: m.display_name || "—" }), el("td", null, [masked(m.email, "email", "member", org, "member_email") || "—"]), el("td", { text: m.role || "—" }),
+      mt.appendChild(el("tr", null, [el("td", { text: m.display_name || "—" }), el("td", null, [masked(m.email, "email", "member", m.user_id || org, m.user_id ? "email" : "member_email") || "—"]), el("td", { text: m.role || "—" }),
         el("td", null, [el("span", { cls: "pill " + (m.active ? "ok" : "bad"), text: m.active ? "active" : "inactive" })]),
-        el("td", { text: ago(m.last_sign_in_at) }), el("td", null, mfaCell(m.email, m.mfa_enabled, function () { refreshAfterWrite(org); }))]));
+        el("td", { text: ago(m.last_sign_in_at) }), el("td", null, mfaCell(m.email, m.mfa_enabled, function () { refreshAfterWrite(org); }, m.user_id ? ["member", m.user_id] : null))]));
     });
     if (!mt.firstChild) mt.appendChild(el("tr", null, [el("td", { colspan: "6", cls: "empty", text: "Nobody yet." })]));
     wrap.appendChild(el("div", { cls: "facts" }, [fact("Team size", int(d.users_count) + " user" + (num(d.users_count) === 1 ? "" : "s")),
@@ -1110,9 +1138,17 @@
   // pure: a safe "Reply by email" link (only a plain address; subject + greeting encoded) - exported for tests
   function mailtoHref(email, subject, name) {
     var e = String(email || "").trim();
+    if (e.indexOf("\u2022") >= 0) return null;   // r57: a masked address is never a mailto target (self-contained for tests)
     if (!/^[^\s@<>",;:?&]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/.test(e)) return null;
-    var body = "Hi " + (String(name || "").trim().split(/\s+/)[0] || "there") + ",\n\n";
+    var nm = /[@\u2022]/.test(String(name || "")) ? "" : String(name || "").trim();
+    var body = "Hi " + (nm.split(/\s+/)[0] || "there") + ",\n\n";
     return "mailto:" + e + "?subject=" + encodeURIComponent(subject || "Helm") + "&body=" + encodeURIComponent(body);
+  }
+  // r57: the "Reply by email" target - a plain mailto link for a clear address (older database), else an object the
+  // button turns into one after hq_reveal
+  function replyTo(email, subject, name) {
+    var e = String(email || "").trim(); if (!e) return null;
+    return isMasked(e) ? { email: e, subject: subject, name: name } : mailtoHref(e, subject, name);
   }
   // click a row: a detail row opens under it (one at a time); build(td) fills it
   function rowWithDetail(tb, tr, cols, build) {
@@ -1140,7 +1176,19 @@
     td.appendChild(kvList(pairs));
     td.appendChild(el("div", { cls: "msgbox", text: message || "(no message)" }));
     var acts = el("div", { cls: "actions" });
-    if (reply) {
+    if (reply && typeof reply === "object") {
+      // r57 (0298): the address is masked here - the button asks hq_reveal for it (logged) and then opens the mail app
+      var rb = el("button", { cls: "btn primary", type: "button", text: "Reply by email" });
+      rb.addEventListener("click", function () {
+        rb.disabled = true;
+        revealValue(rec ? rec[0] : "", rec ? rec[1] : null, "reply_email", reply.email).then(function (r) {
+          var href = mailtoHref(r.value, reply.subject, reply.name);
+          if (!href) throw new Error("No e-mail address to reply to.");
+          window.location.href = href;
+        }).catch(showErr).then(function () { rb.disabled = false; });
+      });
+      acts.appendChild(rb);
+    } else if (reply) {
       var ra = el("a", { cls: "btn primary", href: reply, rel: "noopener", text: "Reply by email" });
       // r28: the reply opens the mail app with the full address = a reveal (logged, never blocks the reply)
       if (rec) ra.addEventListener("click", function () { logReveal(rec[0], rec[1], "reply_email").catch(function () {}); });
@@ -1189,7 +1237,7 @@
         detailBox(td, [["Studio", x.studio || x.studio_name], ["Contact", x.contact_name], ["E-mail", masked(x.contact_email, "email", "request", x.id, "email")],
           ["Phone", masked(x.contact_phone, "phone", "request", x.id, "phone")],
           ["Plan", (x.plan_name || x.plan_code || "—") + " · " + (x.billing_interval === "yearly" ? "Yearly" : "Monthly")], ["Sent", ist(x.created_at)]],
-          x.message, mailtoHref(x.contact_email, "Your Helm plan request", x.contact_name), acts, ["request", x.id]);
+          x.message, replyTo(x.contact_email, "Your Helm plan request", x.contact_name), acts, ["request", x.id]);
         td.appendChild(noteBlock(x));
       });
     });
@@ -1250,7 +1298,7 @@
         detailBox(td, [["Company", x.company], ["City", x.city], ["Name", x.name], ["E-mail", masked(x.email, "email", "enquiry", x.id, "email")],
           ["Phone", masked(x.phone, "phone", "enquiry", x.id, "phone")],
           ["Plan", SE_PLAN[x.plan]], ["Team", SE_TEAM[x.team_size]], ["Events / year", x.events_per_year], ["Sent", ist(x.created_at)]],
-          x.message, mailtoHref(x.email, "Helm — your enquiry", x.name), rowActions(x, SE_STATUS, "hq_set_sales_enquiry", loadSales), ["enquiry", x.id]);
+          x.message, replyTo(x.email, "Helm — your enquiry", x.name), rowActions(x, SE_STATUS, "hq_set_sales_enquiry", loadSales), ["enquiry", x.id]);
         td.appendChild(noteBlock(x));
       });
     });
@@ -1274,7 +1322,7 @@
       rowWithDetail(tb, tr, 5, function (td) {
         detailBox(td, [["From", who], ["Studio", x.studio], ["E-mail", masked(x.email, "email", "suggestion", x.id, "email")], ["Kind", SG_KIND[x.category]],
           ["Where", x.source === "app" ? "in the app" + (x.page ? " (" + x.page + ")" : "") : "website"], ["Sent", ist(x.created_at)]],
-          x.message, mailtoHref(x.email, "Thanks for your Helm suggestion", x.who), rowActions(x, SG_STATUS, "hq_set_suggestion", loadSuggestions), ["suggestion", x.id]);
+          x.message, replyTo(x.email, "Thanks for your Helm suggestion", x.who), rowActions(x, SG_STATUS, "hq_set_suggestion", loadSuggestions), ["suggestion", x.id]);
         td.appendChild(noteBlock(x));
       });
     });
@@ -1365,26 +1413,38 @@
      The database decides (hq_mfa_reset): HQ operator signed in WITH two-step (aal2), never your own account, a reason,
      at most 10 a day, audited (HQ Activity) + kept in an append-only log. The person's authenticator is marked
      unverified (never deleted); at their next sign-in Helm asks them to set it up again. */
-  function mfaCell(email, on, after) {
+  // r57: is this (possibly masked) address the same as a typed / my own address?
+  function sameAddr(shown, typed) {
+    var a = String(shown || "").trim().toLowerCase(), b = String(typed || "").trim().toLowerCase();
+    if (!a || !b) return false;
+    return isMasked(a) ? maskEmail(b).toLowerCase() === a : a === b;
+  }
+  function mfaCell(email, on, after, rec) {
     var kids = [el("span", { cls: "pill " + (on ? "ok" : ""), text: on ? "on" : "off" })];
     var me = (BPStore.auth.user() && BPStore.auth.user().email) || "";
-    if (on && email && can("security.write") && String(email).toLowerCase() !== String(me).toLowerCase()) {
+    if (on && email && can("security.write") && !sameAddr(email, me)) {
       var b = el("button", { cls: "btn sm danger", type: "button", text: "Reset", title: "Reset two-step for " + email + " (lost phone)" });
-      b.addEventListener("click", function () { resetMfa(email, b, after); });
+      b.addEventListener("click", function () { resetMfa(email, b, after, rec); });
       kids.push(" "); kids.push(b);
     }
     return kids;
   }
-  function resetMfa(email, btn, after) {
+  function resetMfa(email, btn, after, rec) {
     if (!window.confirm("Reset two-step verification for " + email + "?\n\nOnly do this after you have confirmed who they are (for example a call to the number you already have, or an e-mail from this address). Their next sign-in needs only their password or Google, and Helm then asks them to set two-step up again.")) return;
     var why = ask("Reason (kept in the HQ log) - how did you confirm who they are?", "");
     if (why == null) return;
     if (why.length < 10) { showErr(new Error("Give a reason of at least 10 characters.")); return; }
     var again = ask("Type the person's e-mail address to confirm:", "");
     if (again == null) return;
-    if (again.toLowerCase() !== String(email).toLowerCase()) { showErr(new Error("The e-mail address didn't match - nothing was reset.")); return; }
+    again = String(again).trim();
+    if (!sameAddr(email, again)) { showErr(new Error("The e-mail address didn't match - nothing was reset.")); return; }
     btn.disabled = true;
-    call("hq_mfa_reset", { p_email: email, p_reason: why }).then(function (r) {
+    // r57 (0298): the list shows a masked address - check the typed one against the real one (hq_reveal, logged)
+    // so a look-alike address can never reset someone else; the reset itself goes to the address typed
+    var check = (isMasked(email) && rec) ? revealValue(rec[0], rec[1], "email", email).then(function (r) {
+      if (String((r && r.value) || "").toLowerCase() !== again.toLowerCase()) throw new Error("The e-mail address didn't match - nothing was reset.");
+    }) : Promise.resolve();
+    check.then(function () { return call("hq_mfa_reset", { p_email: isMasked(email) ? again : email, p_reason: why }); }).then(function (r) {
       okMsg((r && r.message) || "Two-step reset."); if (after) after();
     }).catch(showErr).then(function () { btn.disabled = false; });
   }
@@ -1398,7 +1458,7 @@
       tb.appendChild(el("tr", null, [el("td", null, [masked(r.email, "email", "person", r.user_id || null, "email") || "—"]), el("td", { text: r.studio || "—" }), el("td", { text: r.role || "—" }),
         el("td", { text: date(r.created_at) }), el("td", { text: ago(r.last_sign_in_at) }),
         el("td", null, [el("span", { cls: "pill " + (r.email_confirmed ? "ok" : "warn"), text: r.email_confirmed ? "yes" : "no" })]),
-        el("td", null, mfaCell(r.email, r.mfa_enabled, function () { loadUsers(uOff).catch(showErr); }))]));
+        el("td", null, mfaCell(r.email, r.mfa_enabled, function () { loadUsers(uOff).catch(showErr); }, r.user_id ? ["person", r.user_id] : null))]));
     });
     if (!rows.length) tb.appendChild(el("tr", null, [el("td", { colspan: "7", cls: "empty", text: "No users match." })]));
     pager($("#pUsers"), uOff, rows.length ? num(rows[0].total_count) : 0, function (o) { loadUsers(o).catch(showErr); });
