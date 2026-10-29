@@ -9,6 +9,11 @@
  *             exits and loose decor belong to the overview. Everything else is a subject: subjects of one
  *             family (seating, food, bar...) are clustered by gap with a span cap, unknown types get their own
  *             stop, and a group that cannot be framed legibly is split. proveCoverage() checks the contract.
+ *             R62 (owner: "too many stops"): aisles / walkways / ramps / red carpets are never a stop of their own
+ *             (a ramp rides with the stage it touches, the rest belong to the overview), screens beside the stage
+ *             ride with the stage (a side screen right beside the seats rides with them), a DJ booth rides with its dance floor, photo spots are one family, queue
+ *             stanchions / desks / kiosks at an entry ride with that entry, and seat blocks group wider.
+ *             The entrance stop stands on the entry item's own centre line, just inside it, facing into the hall.
  *  FRAMING    one FOV per walk from the aspect (walkFov); a real 3D box per stop (rotated footprints x heights,
  *             or the live meshes via opts.bounds); heading rules (stage / screen front, long side square-on,
  *             carpets along their length); pitch by kind; closed-form distance refined into the CLEAR band
@@ -87,11 +92,17 @@
     restroom: 'service', coatcheck: 'service', firstaid: 'service', gifttable: 'service', desk: 'service', shoerack: 'service', ticketbooth: 'service',
     foh: 'production', dj: 'production', generator: 'production', towerlight: 'production', interpreter: 'production',
     ledscreen: 'screen', videowall: 'screen', led: 'screen', projector: 'screen', tvstand: 'screen',
+    photobooth: 'photo', selfieframe: 'photo', backdrop: 'photo', flowerwall: 'photo', neonsign: 'photo', balloonarch: 'photo',
   });
-  const MERGE_GAP = map({ seating: 40, food: 30, bar: 20, expo: 20, service: 15, production: 15, lounge: 25, cocktail: 25, screen: 0, bleacher: 12, headtable: 0, stage: 0, dancefloor: 0, aisle: 0 });
-  const MAXSPAN = 64, MAXSPAN_SEAT = 100;
+  const MERGE_GAP = map({ seating: 40, food: 30, bar: 20, expo: 20, service: 15, production: 15, lounge: 25, cocktail: 25, screen: 30, photo: 80, bleacher: 12, headtable: 0, stage: 0, dancefloor: 0, aisle: 0 });
+  const MAXSPAN = 64, MAXSPAN_SEAT = 100, MAXSPAN_FAM = map({ seating: MAXSPAN_SEAT, photo: 100, screen: 100 });
+  // R62: what rides with something else instead of getting a stop of its own
+  const SCREEN = bag('ledscreen videowall led projector tvstand');                     // beside the stage -> the stage stop
+  const COMPANION = map({ dj: bag('dancefloor stage') });                             // a DJ booth -> its dance floor
+  const ENTRY_KIT = bag('desk kiosk ticketbooth shoerack stanchion welcomeboard signage coatcheck');   // at an entry -> the entry
+  const ENTRY_ITEM = bag('checkpoint arch floralarch entrancegate floralentrance');
   const FAM_TITLE = map({ seating: 'Guest seating', food: 'Food & buffet', bar: 'Bar', lounge: 'Lounge', cocktail: 'Cocktail tables', expo: 'Stalls & booths',
-    service: 'Guest services', production: 'Production & AV', screen: 'Screens', bleacher: 'Bleachers', headtable: 'Head table', stage: 'Stage', dancefloor: 'Dance floor', aisle: 'Aisle walk' });
+    service: 'Guest services', production: 'Production & AV', screen: 'Screens', photo: 'Photo spots', bleacher: 'Bleachers', headtable: 'Head table', stage: 'Stage', dancefloor: 'Dance floor', aisle: 'Aisle walk' });
   const FAM_KEY = map({ food: 'dining' });
   const NOUN = map({ table: ['round table'], longtable: ['long table'], headtable: ['head table'], recttable: ['rectangular table'], cocktail: ['cocktail table'],
     seatblock: ['seat block'], chairrow: ['chair row'], chiavari: ['chair'], bench: ['bench', 'benches'], sofa: ['sofa'], loveseat: ['loveseat'], armchair: ['armchair'],
@@ -532,14 +543,26 @@
     const tables = items.filter((i) => TABLES[i.type]), tableGrid = boxGrid(tables, (h) => h.fp, 24);
     const solidsList = items.filter((i) => !ACCESSORY[i.type] && !ENVELOPE[i.type]), solidGrid = boxGrid(solidsList, (h) => h.fp, 24);
     const stages = items.filter((i) => i.type === 'stage');
+    const seatGrid = boxGrid(items.filter((i) => SEATS[i.type] || TABLES[i.type]), (h) => h.fp, 24);
+    const entries = items.filter((i) => ENTRY_ITEM[i.type]), hostsBig = items.filter((i) => HOST[i.type] && !TABLES[i.type]);
     for (const it of items) {
       if (ENVELOPE[it.type]) continue;
       let best = null, budget = 400;
       hostGrid.near(it.fp, 0, (h) => { if (budget-- <= 0) return true; if (h === it || h.area <= it.area) return;
         if (fpOver(it.fp, h.fp) / Math.max(1e-6, fpArea(it.fp)) >= 0.6 && (!best || h.area < best.area)) best = h; });
+      // R62: queue stanchions / a welcome desk / kiosks right at an entry ride with that entry
+      if (!best && ENTRY_KIT[it.type]) { let d0 = 15; for (const h of entries) { const d = fpGap(it.fp, h.fp); if (d <= d0) { d0 = d; best = h; } } }
+      // R62: a ramp / walkway touching the stage (or another platform) is part of it, not a stop of its own
+      if (!best && PATH[it.type]) for (const h of hostsBig) { if (h === it || h.area <= it.area || (best && best.area >= h.area)) continue;   // the biggest platform it touches
+        if (fpGap(it.fp, h.fp) <= 1.5 && fpSpan(fpUnion(it.fp, h.fp)) <= Math.max(MAXSPAN, fpSpan(h.fp) * 1.15)) best = h; }
+      // R62: a DJ booth next to the dance floor is shown with it
+      if (!best && COMPANION[it.type]) { let d0 = 8; for (const h of hostsBig) { if (!COMPANION[it.type][h.type]) continue; const d = fpGap(it.fp, h.fp);
+        if (d <= d0 && fpSpan(fpUnion(it.fp, h.fp)) <= Math.max(MAXSPAN, fpSpan(h.fp) * 1.3)) { d0 = d; best = h; } } }
       if (!best && it.type === 'chiavari') { let d0 = 3; tableGrid.near(it.fp, 3, (h) => { if (h.type === 'caketable') return; const d = fpGap(it.fp, h.fp); if (d <= d0) { d0 = d; best = h; } }); }
       if (!best && ACCESSORY[it.type]) { let d0 = 6; solidGrid.near(it.fp, 6, (h) => { if (h === it || MARKER[h.type]) return; const d = fpGap(it.fp, h.fp); if (d <= d0) { d0 = d; best = h; } }); }
-      if (!best && SATELLITE[it.type]) for (const h of stages) if (fpGap(it.fp, h.fp) <= 25 && fpSpan(fpUnion(it.fp, h.fp)) <= Math.max(MAXSPAN, fpSpan(h.fp) * 1.15)) { best = h; break; }
+      if (!best && SATELLITE[it.type]) for (const h of stages) if (fpGap(it.fp, h.fp) <= 25 && fpSpan(fpUnion(it.fp, h.fp)) <= Math.max(MAXSPAN, fpSpan(h.fp) * (SCREEN[it.type] ? 1.6 : 1.15))) { best = h; break; }
+      // R62: a side screen right beside the seats is watched from them: shown with that seating
+      if (!best && SCREEN[it.type]) { let d0 = 4; seatGrid.near(it.fp, 4, (h) => { const d = fpGap(it.fp, h.fp); if (d <= d0) { d0 = d; best = h; } }); }
       if (best) parent.set(it.id, best.id);
     }
     const root = (id) => { let r = id, n = 0; while (parent.has(r) && n++ < 64) r = parent.get(r); return r; };
@@ -578,9 +601,10 @@
     const entSet = new Set(entOwn);
 
     // ---- 3. subjects: roots that are real things ----
-    const isSubject = (it) => !parent.has(it.id) && !ACCESSORY[it.type] && !ENVELOPE[it.type] && !MARKER[it.type] && !entSet.has(it.id);
+    const isSubject = (it) => !parent.has(it.id) && !ACCESSORY[it.type] && !ENVELOPE[it.type] && !MARKER[it.type] && !PATH[it.type] && !ENTRY_ITEM[it.type] && !entSet.has(it.id);
     const subjects = items.filter(isSubject);
-    const overviewOwn = items.filter((it) => !parent.has(it.id) && !entSet.has(it.id) && !isSubject(it)).map((it) => it.id);
+    // the overview owns every loose root that is not a subject (exits, roofs, aisles, other entries) and what rides with it
+    const overviewOwn = items.filter((it) => !parent.has(it.id) && !entSet.has(it.id) && !isSubject(it)).flatMap((it) => [it.id, ...(kids.get(it.id) || [])]);
 
     if (!subjects.length) {   // empty (or markers / roofs only): one overview, nothing else to visit
       const ov = overviewStop(ctx, items, 'first');
@@ -608,7 +632,7 @@
       edges.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
       const cur = gb.slice();
       for (const [, i, j] of edges) { const a = f2(i), b = f2(j); if (a === b) continue; const u = fpUnion(cur[a], cur[b]);
-        if (fpSpan(u) > (groups[i].fam === 'seating' ? MAXSPAN_SEAT : MAXSPAN)) continue; par[b] = a; cur[a] = u; }
+        if (fpSpan(u) > (MAXSPAN_FAM[groups[i].fam] || MAXSPAN)) continue; par[b] = a; cur[a] = u; }
       const merged = new Map();
       groups.forEach((g, i) => { const r = f2(i); if (!merged.has(r)) merged.set(r, { subj: [], box: cur[r], fam: g.fam }); merged.get(r).subj.push(...g.subj); });
       groups = [...merged.values()]; }
@@ -686,24 +710,53 @@
       if (r.length === 1 && !r[0].unproven) framed[j] = r[0];
     }
 
-    // ---- 7. entrance camera: just inside the entry, eye level, looking (near-)level into the venue ----
+    // ---- 7. entrance camera: on the entry's own centre line, just inside it, eye level, facing into the venue ----
+    /* R62 (owner: "the camera lands a little to the left of the entrance"): the camera used to stand on the line
+       from the entry to the stage, so a corner entry put it off to one side of the arch. Now it stands on the
+       entry item's own axis (through its opening: across its thinner side, from its rotation, pointing into the
+       hall), centred on it, a step past its inner face, and looks along that axis - turned toward the stage only
+       as far as needed to keep the stage in view. The edge entry ("Back centre") keeps the old rule. */
     const look = sf.stage ? sf.sc : center;
-    let entPos = null;
-    { const dx = look.x - ent.x, dy = look.y - ent.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, step = ent.type === 'edge' ? 0 : Math.min(6, L * 0.15);
-      const ign = new Set(entOwn), tries = [];
-      // near the entry first (a few steps in / along the wall), then a raised view right at the entry, and only
-      // then deeper into the room - the entrance is the guest's first view, not a spot halfway down the hall
-      for (const fwd of [step, step + 4]) for (const lat of [0, 5, -5, 10, -10, 15, -15]) tries.push([fwd, lat, EYE]);
-      for (const h of [9, 12]) for (const lat of [0, 5, -5]) tries.push([step, lat, h]);
-      for (const fwd of [step + 8, step + 14, step + 20]) for (const lat of [0, 5, -5, 10, -10, 15, -15, 25, -25]) tries.push([fwd, lat, EYE]);
-      for (const [fwd, lat, hh] of tries) { const x = clamp(ent.x + ux * fwd - uy * lat, MARGIN + 0.1, W - MARGIN - 0.1), y = clamp(ent.y + uy * fwd + ux * lat, MARGIN + 0.1, H - MARGIN - 0.1);
-        const p = S(x, y, hh); if (camOK(p, idx, W / 2, H / 2, ign)) { entPos = p; break; } }
-      if (!entPos) for (const h of [14, 20]) { const p = S(clamp(ent.x + ux * step, MARGIN + 0.1, W - MARGIN - 0.1), clamp(ent.y + uy * step, MARGIN + 0.1, H - MARGIN - 0.1), h);
-        if (camOK(p, idx, W / 2, H / 2, ign)) { entPos = p; break; } }
-      if (!entPos) entPos = S(clamp(ent.x, MARGIN, W - MARGIN), clamp(ent.y, MARGIN, H - MARGIN), 24);   // checked above: 24 ft clears every standing object but tall roofs
+    let entPos = null, entDir = null;
+    { const dx = look.x - ent.x, dy = look.y - ent.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, ign = new Set(entOwn);
+      const at = (x, y, hh) => S(clamp(x, MARGIN + 0.1, W - MARGIN - 0.1), clamp(y, MARGIN + 0.1, H - MARGIN - 0.1), hh);
+      if (entItem) {
+        const ex = entItem.width, ey = entItem.height, wall = [[entItem.cx, [1, 0]], [W - entItem.cx, [-1, 0]], [entItem.cy, [0, 1]], [H - entItem.cy, [0, -1]]].sort((p, q) => p[0] - q[0])[0][1];
+        let ax = Math.abs(ex - ey) < 0.5 ? null : ex > ey ? rot(0, 1, entItem.rotation) : rot(1, 0, entItem.rotation);
+        if (!ax) { const a1 = rot(0, 1, entItem.rotation), a2 = rot(1, 0, entItem.rotation); ax = Math.abs(a1[0] * wall[0] + a1[1] * wall[1]) >= Math.abs(a2[0] * wall[0] + a2[1] * wall[1]) ? a1 : a2; }
+        // into the hall: away from the nearest wall when it hugs one, else toward the stage / hall centre
+        const nearWall = Math.min(entItem.cx, W - entItem.cx, entItem.cy, H - entItem.cy) <= Math.max(ex, ey) + 6;
+        const want = nearWall ? wall : [ux, uy];
+        if (ax[0] * want[0] + ax[1] * want[1] < 0) ax = [-ax[0], -ax[1]];
+        const half = (ex > ey ? ey : ex) / 2;
+        for (const fwd of [half + 1.5, half + 4, half + 7, half + 11]) { const p = at(entItem.cx + ax[0] * fwd, entItem.cy + ax[1] * fwd, EYE); if (camOK(p, idx, W / 2, H / 2, ign)) { entPos = p; break; } }
+        if (!entPos) for (const h of [9, 12]) { const p = at(entItem.cx + ax[0] * (half + 1.5), entItem.cy + ax[1] * (half + 1.5), h); if (camOK(p, idx, W / 2, H / 2, ign)) { entPos = p; break; } }
+        if (entPos) entDir = ax;
+      }
+      if (!entPos) {   // the edge entry, or nothing free on the entry's axis: the old search toward the stage
+        const step = ent.type === 'edge' ? 0 : Math.min(6, L * 0.15), tries = [];
+        for (const fwd of [step, step + 4]) for (const lat of [0, 5, -5, 10, -10, 15, -15]) tries.push([fwd, lat, EYE]);
+        for (const h of [9, 12]) for (const lat of [0, 5, -5]) tries.push([step, lat, h]);
+        for (const fwd of [step + 8, step + 14, step + 20]) for (const lat of [0, 5, -5, 10, -10, 15, -15, 25, -25]) tries.push([fwd, lat, EYE]);
+        for (const [fwd, lat, hh] of tries) { const p = at(ent.x + ux * fwd - uy * lat, ent.y + uy * fwd + ux * lat, hh); if (camOK(p, idx, W / 2, H / 2, ign)) { entPos = p; break; } }
+        if (!entPos) for (const h of [14, 20]) { const p = at(ent.x + ux * step, ent.y + uy * step, h); if (camOK(p, idx, W / 2, H / 2, ign)) { entPos = p; break; } }
+        if (!entPos) entPos = S(clamp(ent.x, MARGIN, W - MARGIN), clamp(ent.y, MARGIN, H - MARGIN), 24);   // checked above: 24 ft clears every standing object but tall roofs
+      }
     }
-    const entTarget = (() => { const lx = look.x - W / 2, lz = look.y - H / 2, L = Math.hypot(lx - entPos[0], lz - entPos[2]) || 1;
-      return [r2(lx), r2(entPos[1] - Math.max(0.6, 0.045 * L)), r2(lz)]; })();   // ~2.5 deg below level: inside the normal orbit limit
+    const entTarget = (() => {
+      const px = entPos[0] + W / 2, py = entPos[2] + H / 2, lx = look.x - px, ly = look.y - py, Ls = Math.hypot(lx, ly) || 1;
+      let dir = entDir || [lx / Ls, ly / Ls];
+      if (entDir) {   // keep the stage (or the hall centre) inside the view: turn only as far as needed
+        const hfov = 2 * Math.atan(Math.tan(ctx.fov * DEG / 2) * aspect), lim = Math.max(0, hfov / 2 - 12 * DEG);
+        const a0 = Math.atan2(dir[1], dir[0]), off = wrap(Math.atan2(ly, lx) - a0);
+        if (Math.abs(off) > lim) { const a = a0 + off - Math.sign(off) * lim; dir = [Math.cos(a), Math.sin(a)]; }
+      }
+      // look as far as the stage / hall centre along that direction (the orbit pivot stays inside the hall)
+      const D = clamp(Math.max(30, lx * dir[0] + ly * dir[1]), 30, Math.max(W, H));
+      let tx = px + dir[0] * D, ty = py + dir[1] * D; tx = clamp(tx, 1, W - 1); ty = clamp(ty, 1, H - 1);
+      const L = Math.hypot(tx - px, ty - py) || 1;
+      return [r2(tx - W / 2), r2(entPos[1] - Math.max(0.6, 0.045 * L)), r2(ty - H / 2)];   // ~2.5 deg below level: inside the normal orbit limit
+    })();
 
     // a zone stop must not repeat the entrance view: re-place it away from the entrance pose
     { const ev = { pos: entPos, target: entTarget };

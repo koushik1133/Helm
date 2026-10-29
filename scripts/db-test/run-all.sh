@@ -266,8 +266,14 @@ run "r44-two-step-0291" "R44-TWO-STEP-0291: ALL PASS \(22/22\)" psql -q -f tests
 run "r34-invite-0284" "R34-INVITE-0284: ALL PASS \(59/59\)" psql -q -f tests/db/r34-invite-0284.sql
 # r47 (0292): my_pending re-issued (prod 500 = statement timeout); re-applies itself twice (earlier suites re-apply 0036), rolled back
 run "r47-my-pending-0292" "R47-MY-PENDING-0292: ALL PASS \(24/24\)" psql -q -f tests/db/r47-my-pending-0292.sql
+# r52 (0293): dashboard unread = bell badge = inbox per person (row read / Done / snooze / mutes / role rules / 0261 link-view rule) + the catalog read once per layer; re-applies itself twice, rolled back
+run "r52-notif-clear-0293" "R52-NOTIF-CLEAR-0293: ALL PASS \(35/35\)" psql -q -f tests/db/r52-notif-clear-0293.sql
 # r54 (0295): studio data export owner / admin only, no secret-like keys at any depth, audited, export_org_data closed; re-applies itself twice (earlier suites re-apply 0033 / 0173), rolled back
 run "r54-export-lockdown-0295" "R54-EXPORT-LOCKDOWN-0295: ALL PASS \(24/24\)" psql -q -f tests/db/r54-export-lockdown-0295.sql
+# r61 (0302): quote "Valid until" Undo (same checks as Extend, logged, exact date + source back) + link_until; re-applies itself twice (the 0262 suite re-applies 0262 over it), rolled back
+run "r61-qv-undo-0302" "R61-QV-UNDO-0302: ALL PASS \(30/30\)" psql -q -f tests/db/r61-quote-validity-undo-0302.sql
+# r57 (0298): HQ masking + hq_reveal, partner codes billing.write, mfa reset role-first, referral oracle, credit cap, trusted caller address, sign-up staff check, team list, invitations token columns; re-applies itself twice (earlier suites re-apply 0271 / 0276 / 0279 / 0280), rolled back
+run "r57-hq-auth-0298" "R57-HQ-AUTH-0298: ALL PASS \(56/56\)" psql -q -f tests/db/r57-hq-auth-0298.sql
 # 0287 re-applies itself twice (re-run safe; after every suite that re-applies 0069 / 0120 / 0181 / 0239 / 0268), rolled back
 run "r37-studio-tz-0287" "R37-STUDIO-TZ-0287: ALL PASS \(36/36\)" psql -q -f tests/db/r37-studio-tz-0287.sql
 # 0290 re-applies itself twice (re-run safe; after every suite that re-applies 0256 vendor_request_claim), turns the hold on
@@ -282,6 +288,9 @@ run "r39-staff-google-0288" "R39-STAFF-GOOGLE-0288: ALL PASS \(49/49\)" psql -q 
 run "r55-no-hard-delete-0296" "R55-NO-HARD-DELETE-0296: ALL PASS \(33/33\)" psql -q -f tests/db/r55-no-hard-delete-0296.sql
 # r55: the real 0184 trial purge again, with the 0296 guard live and NO purge mark (it deletes with its own helm.trial_purge_org)
 run "trial-retention-0184-r55-guard" "TRIAL-RETENTION-0184: ALL PASS \(50/50\)" env PGOPTIONS="$PGOPTIONS -c helm.allow_purge=off" psql -q -f tests/db/trial-retention-0184.sql
+# r56 (0297): client links answer an allow-list, no rate rows for random tokens, purge, client_mailer_check; re-applies itself twice
+# (earlier suites re-apply 0042 / 0052 / 0090 / 0095 / 0260 / 0262 over these wrappers), rolled back
+run "r56-client-links-0297" "R56-CLIENT-LINKS-0297: ALL PASS \(40/40\)" psql -q -f tests/db/r56-client-links-0297.sql
 # r58 (0299): staff pay / crew-link tokens / inventory cost columns, crew-link task rules, greeting studio name, crew-link shifts,
 # run-sheet person match + crew scope, event-group card + members, inbox event names; re-applies itself 3x (earlier suites
 # re-apply 0012 / 0035 / 0132 / 0265 / 0266 bodies), rolled back; last so no later suite re-grants the table columns

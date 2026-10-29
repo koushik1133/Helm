@@ -27,12 +27,32 @@
 .psch-pause input{width:18px;height:18px;margin:0;accent-color:var(--accent,#047857)}
 .psch-link{font-size:13px;font-weight:600;color:var(--accent,#047857);text-decoration:none;min-height:36px;display:inline-flex;align-items:center}
 .psch-link:hover{text-decoration:underline}
-.psch-apply{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:4px 0 6px}
+/* r61: "Add a payment schedule" - a soft panel: template + button on one line, then the split as a bar + one row per
+   payment (percent, name + when it is due, amount or "-" until the quote is priced) and a soft note instead of red text */
+.psch-apply{display:grid;gap:12px;margin:6px 0 4px;padding:14px;border:1px solid var(--line-2,#f1ede7);border-radius:12px;background:var(--panel-2,#faf8f5)}
+.psch-apply-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 12px}
+.psch-fld{display:flex;flex-direction:column;gap:4px;flex:1 1 220px;max-width:340px;min-width:0}
 .psch-sel-lbl{font-size:12px;font-weight:600;color:var(--ink-2,#4b475f)}
-.psch-sel{min-height:36px;border:1px solid var(--line,#e8e3db);background:var(--panel-2,#faf8f5);border-radius:9px;padding:0 10px;font:inherit;font-size:13px;color:var(--ink,#1b1930);max-width:100%}
-.psch-prev{flex:1 0 100%;display:grid;gap:4px;margin-top:4px}
-.psch-prow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;font-size:12.5px;color:var(--ink-2,#4b475f);padding:5px 8px;background:var(--panel-2,#faf8f5);border-radius:8px}
-.psch-prow b{color:var(--ink,#1b1930);font-variant-numeric:tabular-nums}
+.psch-sel{width:100%;height:38px;min-height:38px;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);border-radius:var(--r-ctl,9px);padding:0 12px;font:inherit;font-size:13px;color:var(--ink,#1b1930);max-width:100%;box-sizing:border-box}
+.psch-go{min-height:38px;white-space:nowrap}
+.psch-go[disabled]{opacity:.55;cursor:not-allowed;box-shadow:none}
+.psch-bar{display:flex;height:8px;border-radius:999px;overflow:hidden;background:var(--line-2,#f1ede7);gap:2px}
+.psch-bar span{display:block;height:100%;background:var(--accent,#047857)}
+.psch-bar .psch-w5{flex:5 1 0}.psch-bar .psch-w10{flex:10 1 0}.psch-bar .psch-w15{flex:15 1 0}.psch-bar .psch-w20{flex:20 1 0}.psch-bar .psch-w25{flex:25 1 0}.psch-bar .psch-w30{flex:30 1 0}.psch-bar .psch-w35{flex:35 1 0}.psch-bar .psch-w40{flex:40 1 0}.psch-bar .psch-w45{flex:45 1 0}.psch-bar .psch-w50{flex:50 1 0}.psch-bar .psch-w55{flex:55 1 0}.psch-bar .psch-w60{flex:60 1 0}.psch-bar .psch-w65{flex:65 1 0}.psch-bar .psch-w70{flex:70 1 0}.psch-bar .psch-w75{flex:75 1 0}.psch-bar .psch-w80{flex:80 1 0}.psch-bar .psch-w85{flex:85 1 0}.psch-bar .psch-w90{flex:90 1 0}.psch-bar .psch-w95{flex:95 1 0}.psch-bar .psch-w100{flex:100 1 0}
+.psch-bar span:nth-child(2){opacity:.7}
+.psch-bar span:nth-child(3){opacity:.45}
+.psch-bar span:nth-child(n+4){opacity:.3}
+.psch-prev{display:grid;gap:6px}
+.psch-prow{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:12px;padding:9px 12px;background:var(--panel,#fff);border:1px solid var(--line-2,#f1ede7);border-radius:10px;font-size:13px}
+.psch-pct{display:inline-flex;justify-content:center;align-items:center;min-height:24px;border-radius:999px;background:var(--accent-soft,#e7f6ee);color:var(--accent,#047857);font-weight:700;font-size:12.5px;font-variant-numeric:tabular-nums}
+.psch-pl{display:flex;flex-direction:column;min-width:0}
+.psch-pl b{font-size:13.5px;color:var(--ink,#1b1930);font-weight:600;overflow-wrap:anywhere}
+.psch-pl span{font-size:12px;color:var(--ink-3,#6b6577)}
+.psch-amt{font-weight:700;color:var(--ink,#1b1930);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.psch-amt.is-blank{color:var(--ink-3,#6b6577);font-weight:500}
+.psch-soft{display:flex;gap:8px;align-items:flex-start;margin:0;padding:9px 12px;border-radius:10px;border:1px solid var(--warn-line,#efd9a6);background:var(--warn-bg,#fff8e6);color:var(--ink-2,#4b475f);font-size:13px;line-height:1.45}
+.psch-soft::before{content:"i";flex:0 0 18px;height:18px;border-radius:50%;background:var(--warn-text,#8a5a00);color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-top:1px}
+.psch-soft[hidden]{display:none}
 .psch-err{color:var(--danger,#c0392b);font-size:13px;margin:4px 0}
 @media (max-width:640px){
   .psch-table{min-width:0}
@@ -45,8 +65,9 @@
   .psch-table td:nth-child(4){grid-column:2;grid-row:2;font-size:12px;color:var(--ink-3,#6b6577)}
   .psch-table td:nth-child(5){grid-column:1 / -1;margin-top:4px}
   .psch-table td:nth-child(4)::before{content:"Paid "}
-  .psch-prow{grid-template-columns:minmax(0,1fr) auto}
-  .psch-prow .psch-due{grid-column:1;font-size:11.5px}
+  .psch-prow{grid-template-columns:48px minmax(0,1fr) auto;gap:10px;padding:8px 10px}
+  .psch-fld{max-width:none;flex-basis:100%}
+  .psch-go{flex:1 1 100%}
 }
 
 /* Settings card */

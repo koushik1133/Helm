@@ -170,7 +170,7 @@ do $$ declare r jsonb; begin
   perform pg_temp.res('41 0276 again: wrapper on top, the inner is the re-run 0271 body, one of each',
     position('r26-captcha-0276' in (select prosrc from pg_proc where oid = 'public.submit_sales_enquiry(jsonb)'::regprocedure)) > 0
     and position('r24-contact-0271' in (select prosrc from pg_proc where oid = 'public.submit_sales_enquiry__pre0276(jsonb)'::regprocedure)) > 0
-    and (select count(*) from pg_proc where proname like 'submit_sales_enquiry%') = 2
+    and (select count(*) from pg_proc where proname like 'submit_sales_enquiry%' and proname not like '%\_\_pre0298') = 2   -- r57: + its kept 0298 copy
     and not has_function_privilege('anon', 'public.submit_sales_enquiry__pre0276(jsonb)', 'execute'));
   perform pg_temp.switch(true);
   perform pg_temp.anon('198.51.100.41');

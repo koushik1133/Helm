@@ -25,7 +25,7 @@
   try { localStorage.removeItem("helm.dash.v"); } catch (e) {}
   {
     /* SHELL_V: bump this whenever any shell-* file changes, so browsers refetch (was Date.now(), which defeated caching) */
-    var SHELL_V = "151", root = document.documentElement, head = document.head;
+    var SHELL_V = "153", root = document.documentElement, head = document.head;
     window.HELM_SHELL_V = SHELL_V;
     root.setAttribute("data-shell", v);
     /* 0181 free trial: a studio last seen in its trial is locked before first paint (cached flag, same as trial-early.js);

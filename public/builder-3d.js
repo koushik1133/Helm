@@ -1573,7 +1573,10 @@
 
     // ---- TransformControls: drag / rotate / scale the selected object in 3D ----
     gizmo=new THREE.Object3D(); scene.add(gizmo);
-    transform=new THREE.TransformControls(camera, cv); transform.setSize(0.85);
+    transform=new THREE.TransformControls(camera, cv); transform.setSize(1.1);
+    // R62: the handles are drawn LAST (after the name tags / badges, which are depth-test-free sprites too) - the
+    // tags used to paint over a small gizmo sitting at the item's base, so Move / Rotate / Scale looked dead
+    transform.traverse(o=>{ o.renderOrder=999; });
     transform.addEventListener('dragging-changed', e=>{ controls.enabled=!e.value;
       if(e.value){ const it=curItem(); gizmoBase = it?{x:it.x,y:it.y,width:it.width,height:it.height,cx:it.x+it.width/2,cy:it.y+it.height/2}:null; }
       else { gizmoBase=null; if(store.selectedId){ commit(); } renderAll(); } });
@@ -1623,7 +1626,7 @@
     // constrain to the floor plane: no vertical translate, yaw-only rotate, planar scale
     if(m==='rotate'){ transform.showX=false; transform.showY=true; transform.showZ=false; }
     else { transform.showX=true; transform.showY=false; transform.showZ=true; }
-    document.querySelectorAll('#tools3d [data-m]').forEach(b=>b.classList.toggle('on', b.dataset.m===m));
+    document.querySelectorAll('#tools3d [data-m]').forEach(b=>{ const on=b.dataset.m===m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on?'true':'false'); });
   }
   function syncGizmoSnap(){ if(!transform) return;
     transform.translationSnap = null;   // the item's TOP-LEFT is snapped in onGizmoChange (centre snapping put odd-sized items / odd halls off-grid)
@@ -1631,7 +1634,7 @@
   }
   function updateGizmo(){
     if(!transform) return; const it=curItem();
-    if(!it || !active || walkKeep){ transform.detach(); return; }
+    if(!it || !active || walkKeep || (typeof RO!=='undefined' && RO)){ transform.detach(); return; }   // R62: view-only roles get no edit handles
     gizmo.position.set(sx(it.x+it.width/2),0,sz(it.y+it.height/2));
     gizmo.rotation.set(0,-(it.rotation||0)*Math.PI/180,0); gizmo.scale.set(1,1,1);
     if(transform.object!==gizmo) transform.attach(gizmo);
@@ -2052,7 +2055,9 @@
   window.__recenter3D=recenter3D;
 
   /* ---------------- wire the transform-mode toolbar + shortcuts ---------------- */
-  document.querySelectorAll('#tools3d [data-m]').forEach(b=>b.addEventListener('click',()=>setTMode(b.dataset.m)));
+  // R62: a mode button with nothing selected says what to do (it used to look like the button did nothing)
+  const needPick=()=>{ if(active && !curItem() && typeof toast==='function') toast('Select an object first, then drag its handles'); };
+  document.querySelectorAll('#tools3d [data-m]').forEach(b=>b.addEventListener('click',()=>{ setTMode(b.dataset.m); needPick(); }));
   window.addEventListener('keydown',e=>{ if(!active) return;
     if(typeof anyModalOpen==='function' && anyModalOpen()) return;
     if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;

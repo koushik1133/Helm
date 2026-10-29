@@ -136,7 +136,7 @@ await t('SQL 0295: registered (MANIFEST, run-all, release lists), APPLY verbatim
   for (const a of ['0173_trial_lockdown.sql', '0283_r33_team_safety.sql', '0292_r47_my_pending_speed.sql'])
     assert.ok(man.indexOf(a) < man.indexOf('0295_r54_export_lockdown.sql'), '0295 after ' + a);
   assert.match(rd('scripts/db-test/run-all.sh'), /run "r54-export-lockdown-0295" "R54-EXPORT-LOCKDOWN-0295: ALL PASS \\\(24\/24\\\)" psql -q -f tests\/db\/r54-export-lockdown-0295\.sql/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0292'(, '02\d\d')*, '0295'(, '02\d\d')*\]/, f);
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0292'(, '0[23]\d\d')*, '0295'(, '0[23]\d\d')*\]/, f);
   assert.ok(APPLY.includes(SQL.trimEnd()), 'APPLY carries the migration verbatim');
   assert.match(APPLY, /^begin;$/m); assert.match(APPLY, /^commit;$/m); assert.match(APPLY, /-- VERIFY \(every row must say ok = true\)/);
   assert.ok((APPLY.match(/^  \('\d\d /gm) || []).length >= 12, 'VERIFY rows');

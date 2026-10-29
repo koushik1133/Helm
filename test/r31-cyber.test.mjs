@@ -14,9 +14,11 @@ const t = (name, fn) => { fn(); n++; console.log('  ✓ ' + name); };
 
 t('edge clientIp trusts cf-connecting-ip before x-forwarded-for', () => {
   const s = read('supabase/functions/_shared/limits.ts');
-  const body = s.slice(s.indexOf('export function clientIp'), s.indexOf('}', s.indexOf('export function clientIp')));
-  assert.match(body, /const cf = \(req\.headers\.get\("cf-connecting-ip"\)/);
-  assert.match(body, /\(cf \|\| first \|\| req\.headers\.get\("x-real-ip"\)/);
+  const i = s.indexOf('export function clientIp'), body = s.slice(i, s.indexOf('\n}\n', i));
+  // r57 (0298): cf-connecting-ip (a real IP) first, then the LAST x-forwarded-for hop - never the first one
+  assert.ok(body.indexOf('cf-connecting-ip') > 0 && body.indexOf('cf-connecting-ip') < body.indexOf('x-forwarded-for'));
+  assert.match(body, /for \(let i = hops\.length - 1; i >= 0; i--\)/);
+  assert.ok(!/split\(","\)\[0\]/.test(body), 'never the first x-forwarded-for entry');
 });
 
 t('no edge function reads x-forwarded-for on its own (one helper only)', () => {

@@ -489,7 +489,7 @@
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=7" defer></script><script src="store-api.js?v=302" defer></script>
+<script src="country-profile.js?v=7" defer></script><script src="store-api.js?v=305" defer></script>
 <script src="auth-ui.js?v=56" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>
@@ -524,17 +524,26 @@ document.addEventListener("DOMContentLoaded", function(){
   // never in long-lived localStorage. The legacy localStorage copy is read once, then removed.
   const INVITE_KEY="bp_pending_invite";
   const inviteTok=new URLSearchParams(location.search).get("invite");
+  // r57 (A-7): the e-mailed link's second secret (&k=, a hex key) is kept for this tab too
+  const INVITE_K_KEY="bp_pending_invite_k";
+  const inviteK=(function(){ const k=new URLSearchParams(location.search).get("k")||""; return /^[0-9a-f]{32,128}$/i.test(k)?k.toLowerCase():""; })();
   (function migrateInvite(){
     let legacy=null;
     try{ legacy=localStorage.getItem(INVITE_KEY); localStorage.removeItem(INVITE_KEY); }catch(e){}
     try{
       if(inviteTok) sessionStorage.setItem(INVITE_KEY, inviteTok);
       else if(legacy && !sessionStorage.getItem(INVITE_KEY)) sessionStorage.setItem(INVITE_KEY, legacy);
+      if(inviteTok) { if(inviteK) sessionStorage.setItem(INVITE_K_KEY, inviteK); else sessionStorage.removeItem(INVITE_K_KEY); }
     }catch(e){}
+    // r57 (A-7): once read, the invitation token and its mail key leave the address bar / history (kept in this tab only)
+    if(inviteTok||new URLSearchParams(location.search).has("k")){
+      try{ const u=new URL(location.href); u.searchParams.delete("invite"); u.searchParams.delete("k"); history.replaceState(history.state, "", u.pathname+(u.search||"")+(u.hash||"")); }catch(_){}
+    }
   })();
+  const pendingInviteK=()=>{ try{ return sessionStorage.getItem(INVITE_K_KEY)||inviteK; }catch(e){ return inviteK; } };
   let INVITE_DEAD=false;   // 0205: the token is known to be expired / used / cancelled → plain sign-in from here
   const pendingInvite=()=>{ if(INVITE_DEAD) return null; try{ return inviteTok||sessionStorage.getItem(INVITE_KEY)||null; }catch(e){ return inviteTok||null; } };
-  const clearInvite=()=>{ try{ sessionStorage.removeItem(INVITE_KEY); }catch(e){} try{ localStorage.removeItem(INVITE_KEY); }catch(e){} };
+  const clearInvite=()=>{ try{ sessionStorage.removeItem(INVITE_KEY); sessionStorage.removeItem(INVITE_K_KEY); }catch(e){} try{ localStorage.removeItem(INVITE_KEY); }catch(e){} };
   const JOINING=!!pendingInvite();   // an invitee joins a studio; they never create one
   // 0119 ONE free trial for every self-serve studio: start_self_serve_trial() creates the studio
   // (own name, or "Demo N" when left empty). 0180: always with the sample data on INR / Asia/Kolkata
@@ -998,6 +1007,7 @@ document.addEventListener("DOMContentLoaded", function(){
   function inviteReloadUrl(tok, search){
     if(!tok) return "login.html";
     let k=""; try{ k=new URLSearchParams(search||"").get("k")||""; }catch(e){ k=""; }
+    if(!k && typeof pendingInviteK==="function") k=pendingInviteK();   // r57 (A-7): the key left the address bar; this tab still has it
     return "login.html?invite="+encodeURIComponent(tok)+(/^[0-9a-f]{32,128}$/i.test(k)?"&k="+k.toLowerCase():"");
   }
   // R32b (R2-AUTH-REG-1): the server could not make a ready-to-use login from THIS link (the studio's
@@ -1376,17 +1386,18 @@ document.addEventListener("DOMContentLoaded", function(){
   if(GIS) $("#agree").addEventListener("change", ()=>GIS.refresh());
 
   // ----- round 19: the sign-up e-mail has an OPEN invitation (pending, not expired) -----
-  // Asked BEFORE anything is created (invite-signup { email_lookup }: only the studio name + role come
+  // Asked BEFORE anything is created (invite-signup { email_lookup }: r57 only yes / no comes
   // back, rate limited; any other e-mail gets the same "no"). "Join <Studio>" e-mails that address its
   // invitation again - the Join page link /login?invite=<token> (the token never comes to this browser:
   // opening the e-mail proves the address). "Start my own trial" carries on with the sign-up as typed.
   let ivSkip="";   // the e-mail the person chose "Start my own trial" for (asked once per e-mail)
   let ivEmail="", ivStudio="";
   function showInvited(iv, email){
-    ivEmail=normEmail(email); ivStudio=String((iv&&iv.studio)||"").slice(0,120)||"a studio";
+    // r57 (A-4): the server says only "this e-mail has an invitation" - the studio + role are in the invitation e-mail
+    ivEmail=normEmail(email); ivStudio=String((iv&&iv.studio)||"").slice(0,120)||"the studio";
     const role=String((iv&&(iv.role_label||iv.role))||"").slice(0,60);
     showView("#invitedCard");
-    $("#ivTitle").textContent="You've been invited to join "+ivStudio+(role?" as "+role:"");
+    $("#ivTitle").textContent=(iv&&iv.studio)?"You've been invited to join "+ivStudio+(role?" as "+role:""):"This e-mail has an invitation to join a studio on Helm";
     $("#ivEmail").textContent=ivEmail;
     { const jb=$("#ivJoin"); if(jb._cd){ clearInterval(jb._cd); jb._cd=null; } jb.textContent="Join "+ivStudio; jb.hidden=false; jb.disabled=false; }
     $("#ivOwn").textContent="Create my own studio";
