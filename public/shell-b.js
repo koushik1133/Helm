@@ -580,6 +580,9 @@
       else if (document.readyState === "complete") setTimeout(idle, 1500); else window.addEventListener("load", function () { setTimeout(idle, 1500); }, { once: true });
     });
     setInterval(poll, 45000);
+    /* r52: the bell's chat count changed (a chat opened, "Mark all read") - re-check now, not up to 45 s later */
+    var lastBellChat = null;
+    window.addEventListener("helm:bell-count", function (e) { var c = e && e.detail ? e.detail.chat : null; if (c === lastBellChat) return; var first = lastBellChat === null; lastBellChat = c; if (!first) poll(); });
     // manager-1019: a quick hide/show (tab switch) re-polled every time - at most once per 30s now
     var lastVis = 0;
     document.addEventListener("visibilitychange", function () { if (!document.hidden && Date.now() - lastVis > 30000) { lastVis = Date.now(); poll(); } });

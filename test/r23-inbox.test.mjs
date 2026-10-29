@@ -55,7 +55,7 @@ t('store-api: BPStore.inbox (feed / act / readAll / settings / setDigest / admin
 t('bell: Done / Snooze / read-unread through the inbox, opening the bell keeps unread (setting), "Open inbox" link', () => {
   assert.match(api, /add\("Done", \(\) => serverAct\(sid, "done"/);
   assert.match(api, /add\("Snooze until tomorrow 9:00 am", \(\) => serverAct\(sid, "snooze", \{ preset: "tomorrow" \}/);
-  assert.match(api, /if \(!inboxOn \|\| openMarksRead\) \{ try \{ await this\.markSeen\(\); \}/);
+  assert.match(api, /if \(!inboxOn \|\| openMarksRead\) \{ try \{ await this\.markSeen\(\); mutGen\+\+; setDot\(0\); \}/);
   assert.match(api, /<a id="bpBellInbox" class="bpb-link" href="inbox\.html">Open inbox<\/a>/);
   assert.match(api, /if \(it\) inboxOpenRow\(it, e\);/);
 });

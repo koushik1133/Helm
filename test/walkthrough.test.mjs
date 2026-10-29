@@ -19,7 +19,10 @@ const S = WT.walkthroughStops(full, hall, { aspect: 16 / 9 });
 const keys = S.map((s) => s.key);
 // overview -> entrance -> a spatial route over every zone -> a final overview; every item shown exactly once
 assert.equal(keys[0], 'overview'); assert.equal(keys[1], 'entrance'); assert.equal(keys[keys.length - 1], 'final');
-for (const k of ['stage', 'dancefloor', 'dining', 'bar', 'photobooth', 'fountain', 'screen', 'aisle', 'seating']) assert.ok(keys.includes(k), 'has a ' + k + ' stop: ' + keys);
+for (const k of ['stage', 'dancefloor', 'dining', 'bar', 'photo', 'fountain', 'screen', 'seating']) assert.ok(keys.includes(k), 'has a ' + k + ' stop: ' + keys);
+// R62: a red carpet / aisle is never a stop of its own - the overview shows it
+assert.ok(!keys.some((k) => /^aisle/.test(k)), 'no aisle stop: ' + keys);
+assert.ok(S[0].owns.includes(full[2].id), 'the overview owns the red carpet');
 assert.equal(new Set(keys).size, keys.length, 'no stop twice');
 const proof = WT.proveCoverage(S); assert.ok(proof.ok, proof.errors.join('\n')); assert.equal(proof.owned, full.length);
 // count-first seating captions; guests add up to the seats once

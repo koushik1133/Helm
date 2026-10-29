@@ -197,7 +197,7 @@
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="event-reminders.css?v=2">
 <link rel="stylesheet" href="trial-terms.css?v=4">
-<script src="/shell-proto.js?v=51" id="shellProto"></script>
+<script src="/shell-proto.js?v=52" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -329,10 +329,10 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=7"></script><script src="store-api.js?v=302"></script><script src="flow-resume.js?v=6" data-mount></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=7"></script><script src="store-api.js?v=303"></script><script src="flow-resume.js?v=6" data-mount></script>
 <script src="event-reminders.js?v=6"></script>
-<script src="page-tours.js?v=5"></script>
-<script src="tour.js?v=29"></script>
+<script src="page-tours.js?v=7"></script>
+<script src="tour.js?v=30"></script>
 <script src="getting-started.js?v=12"></script>
 <script src="onboarding-wizard.js?v=11"></script>
 <script src="trial-facts.js?v=6"></script>
@@ -574,6 +574,9 @@
   // A feed this role simply can't use (no access / not installed) is "not available",
   // not a load failure. Anything else (network, server) is a real error to surface.
   const softFail = (e) => BPUI.isPermissionError(e) || BPUI.isMissingFunction(e) || BPUI.isMissingTable(e) || BPUI.isAuthError(e);
+  // r52: the "N unread" badge follows the bell live (Mark all read / a row read anywhere on this page clears it at once)
+  try { window.addEventListener("helm:bell-count", (e) => { const ub = $("#unreadBadge"), n = Number(e && e.detail && e.detail.server) || 0;
+    if (!ub) return; if (n > 0) { ub.textContent = n + " unread"; ub.hidden = false; } else ub.hidden = true; }); } catch (e) {}
   // Phase 3 — "Upcoming & my tasks": server-scoped feed (my_pending). Best-effort; never blocks the page.
   async function renderPending() {
     const sec = $("#myworkSection"), host = $("#mywork"); if (!sec || !host) return;
@@ -589,7 +592,10 @@
       { const ub0 = $("#unreadBadge"); if (ub0) ub0.hidden = true; }
       return;
     }
-    const up = ((res && res.upcoming) || []).filter((e) => e && e.event_date), unread = (res && res.unread) || 0, ub = $("#unreadBadge");
+    // r52: once the bell has counted (it follows the per-person inbox: rows read one by one, Done, snoozed, muted), the
+    // badge shows THAT number - my_pending's own count only knew the last "Mark all read" and never dropped otherwise
+    const bc = (typeof window !== "undefined" && window.__bpBellCount) || null;
+    const up = ((res && res.upcoming) || []).filter((e) => e && e.event_date), unread = bc ? (Number(bc.server) || 0) : ((res && res.unread) || 0), ub = $("#unreadBadge");
     if (ub) { if (unread > 0) { ub.textContent = unread + " unread"; ub.hidden = false; } else ub.hidden = true; }
     if (!up.length) { sec.hidden = true; return; }          // role without quotes access / nothing active
     sec.hidden = false;
