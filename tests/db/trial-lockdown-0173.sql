@@ -84,7 +84,8 @@ do $$ declare o uuid; e text; A uuid := 'a0000000-0000-4000-8000-000000000001'; 
   e := pg_temp.try(format('update public.organizations set name = ''Renamed'' where id = %L', o));
   perform pg_temp.res('30 trial: studio / branding edit refused', (e like '42501%Studio settings are fixed%' or e like '42501%can''t be changed%'), e);   -- r23: the name lock may answer first
   e := pg_temp.try('select public.export_org_data()');
-  perform pg_temp.res('31 trial: data export refused', e like '42501%Not available in the free trial%', e);
+  perform pg_temp.res('31 trial: data export refused', e like '42501%Not available in the free trial%'
+    or e like '42501%permission denied for function export_org_data%', e);   -- r54 (0295): export_org_data closed to the app
   e := pg_temp.try('select public.export_tenant_organization_package()');
   perform pg_temp.res('32 trial: data archive refused', e like '42501%free trial%', e);
   e := pg_temp.try('select public.set_studio_link_name(''tl-link'')');
@@ -143,8 +144,9 @@ do $$ begin
   perform pg_temp.res('60 originals kept, not callable by the app', to_regprocedure('public.export_org_data__pre0173()') is not null
     and not has_function_privilege('authenticated', 'public.export_org_data__pre0173()', 'execute')
     and not has_function_privilege('anon', 'public.export_org_data__pre0173()', 'execute'));
-  perform pg_temp.res('61 wrappers keep the original grants', has_function_privilege('authenticated', 'public.export_org_data()', 'execute')
-    and not has_function_privilege('anon', 'public.export_org_data()', 'execute'));
+  perform pg_temp.res('61 wrappers keep the original grants', has_function_privilege('authenticated', 'public.export_tenant_organization_package()', 'execute')
+    and not has_function_privilege('anon', 'public.export_org_data()', 'execute')
+    and not has_function_privilege('authenticated', 'public.export_org_data()', 'execute'));   -- r54 (0295): export_org_data closed to the app
   perform pg_temp.res('62 cap trigger on 6 tables', (select count(*) from pg_trigger where tgname = 'zzzz_tl173_cap') = 6);
 end $$;
 
