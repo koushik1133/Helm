@@ -46,7 +46,7 @@
 // and this function also asks trial_send_blocked with the service role right before the Meta call.
 //
 // Requests:
-//   { "ping": true }                                     → credential check, no send
+//   { "ping": true }                                     → credential check, no send (r59: Settings view only)
 //   { "quote_id": "<uuid>", "number": "<phone>", "template": "<name>",
 //     "lang": "en_US", "params": ["v1","v2", …], "kind": "<label>" }
 //   { "quote_id": "<uuid>", "number": "<phone>", "text": "<message>" }  (if allowed)
@@ -207,6 +207,9 @@ Deno.serve(async (req) => {
 
     // ---- credential / connection check (no message sent) ----
     if (body && body.ping === true) {
+      // r59 (audit F-8): only people who can open Settings may run the Meta connection check (it costs Meta quota)
+      const { data: canSee, error: csErr } = await asCaller.rpc("has_area", { p_area: "controls", p_need: "view" });
+      if (csErr || canSee !== true) return json({ error: "only people who can open Settings can check the WhatsApp connection" }, 403);
       const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}?fields=verified_name,display_phone_number,quality_rating`, { redirect: "error",
         headers: authHeaders(),
       });

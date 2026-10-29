@@ -130,7 +130,8 @@ do $$ declare t uuid; r numeric; begin
     (select string_agg(code || '=' || coalesce(pricing ->> 'chairPrice', '-'), ',' order by code) from public.quotes where org_id = t));
   -- the owner changes the Control Center chair rate in the trial: the sample quotes stay quiet
   perform pg_temp.login('ts222_new@t.test');
-  update public.app_config set value = value || '{"chairPrice":130}'::jsonb where key = 'pricing';
+  -- r59 (0300): the pricing row is changed through set_pricing_config (a direct API write is refused)
+  perform public.set_pricing_config((select value from public.app_config where key = 'pricing' and org_id = t) || '{"chairPrice":130}'::jsonb);
   perform pg_temp.su();
   perform pg_temp.res('13 new trial: a chair-rate change alerts no sample quote',
     pg_temp.pc(t) = 0, pg_temp.pc(t)::text);

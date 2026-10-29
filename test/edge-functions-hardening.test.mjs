@@ -123,7 +123,9 @@ t('razorpay-webhook: a payment that cannot settle is RECORDED (reconcile), not d
 });
 t('razorpay-webhook: per-studio branding/recipients; MANAGER_EMAIL gets no tenant data', () => {
   assert.doesNotMatch(hook, /Blueprint Stage/);
-  assert.match(hook, /from\("organizations"\)\.select\("name, business_email"\)\.eq\("id", q\.org_id\)/);
+  // r59 (E-03): the studio name from the paying studio; its e-mail via studioBillingEmail (confirmed address, else the owner)
+  assert.match(hook, /from\("organizations"\)\.select\("name"\)\.eq\("id", q\.org_id\)/);
+  assert.match(hook, /studioBillingEmail\(admin, String\(q\.org_id\)\)/);
   const opsLine = hook.slice(hook.indexOf('const ops = Deno.env.get("MANAGER_EMAIL")'));
   const opsSend = opsLine.slice(0, opsLine.indexOf('\n', opsLine.indexOf('if (ops)')));
   assert.doesNotMatch(opsSend, /[,(]\s*(html|studio|studioEmail|total|subjCode|clientEmail)\s*[,)]|\bq\.|\borg\?\.|\$\{/, 'ops copy carries tenant data: ' + opsSend);

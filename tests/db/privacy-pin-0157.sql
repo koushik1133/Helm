@@ -96,15 +96,18 @@ begin
   for i in 1..5 loop r := public.privacy_pin_check('1111'); end loop;
   perform pg_temp.res('24 next lock doubles (60 s)', (r ->> 'locked_seconds')::int = 60, r::text);
 
-  -- reset (forgot PIN): only within 15 minutes of signing in
+  -- reset (forgot PIN): 0157 = only within 15 minutes of signing in; r59 (0300) = a fresh two-step code instead
   perform pg_temp.login('a_admin@a.test');
-  r := public.privacy_pin_reset();
-  perform pg_temp.res('25 reset refused on an old sign-in', not (r ->> 'ok')::boolean and r ->> 'reason' = 'sign_in_again', r::text);
+  e := pg_temp.try($q$select public.privacy_pin_reset()$q$);
+  perform pg_temp.res('25 reset refused without a fresh two-step code (0300; was: an old sign-in)', e like '42501%R35_%', e);
   perform pg_temp.su();
   update auth.users set last_sign_in_at = now() - interval '2 minutes' where email = 'a_admin@a.test';
+  insert into auth.mfa_factors(user_id, status) select id, 'verified' from auth.users where email = 'a_admin@a.test';
   perform pg_temp.login('a_admin@a.test');
+  perform set_config('request.jwt.claims', (auth.jwt() || jsonb_build_object('aal', 'aal2', 'amr',
+    jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', extract(epoch from now())))))::text, false);
   r := public.privacy_pin_reset();
-  perform pg_temp.res('26 reset right after sign-in -> default', (r ->> 'ok')::boolean, r::text);
+  perform pg_temp.res('26 reset with a fresh two-step code -> default', (r ->> 'ok')::boolean, r::text);
   r := public.privacy_pin_check('0000');
   perform pg_temp.res('27 default 0000 works again', (r ->> 'ok')::boolean, r::text);
   perform pg_temp.su();

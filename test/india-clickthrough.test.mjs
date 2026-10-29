@@ -51,7 +51,7 @@ t('D1 flow wires re-stamp on open and before the quotation save', () => {
 t('D2 (retired): single Budget field, no min/max inversion check', () => {
   for (const [name, src] of [['flow', flow], ['discovery', disc]]) assert.doesNotMatch(src, /Max should be at least the min/, name);
 });
-t('versions: store-api bumped to 172', () => { for (const f of [flow, closure, disc]) assert.match(f, /store-api\.js\?v=305/); });
+t('versions: store-api bumped to 172', () => { for (const f of [flow, closure, disc]) assert.match(f, /store-api\.js\?v=306/); });
 t('D4 closure lists money owed AND equipment together, with links + admin override', () => {
   const fn = closure.slice(closure.indexOf('function closeBlockerLines('), closure.indexOf('async function renderCloseSummary'));
   const ctx = { evTax: null, BPStore: { studioMoney: (n) => '₹' + n } }; vm.createContext(ctx); vm.runInContext(fn + ';this.f=closeBlockerLines;', ctx);

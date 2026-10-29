@@ -89,10 +89,10 @@ t("outside India the tax is called VAT and the catering box may be empty (one ra
   assert.equal(r.ok, true); assert.equal(r.values.cateringGstPct, null, "null = follow the main rate (control.html uses gstPct)");
   assert.match(one("chairPrice", "", AE).errors.chairPrice, /Enter a price per chair \(AED 0 or more\)\./);
 });
-t("service charge is optional and 0 to 50 %", () => {
+t("service charge is optional and 0 to 25 % (r59: the server limit, 0300)", () => {
   assert.equal(one("serviceChargePct", "").values.serviceChargePct, 0);
-  assert.equal(one("serviceChargePct", "50").ok, true);
-  assert.equal(one("serviceChargePct", "50.5").errors.serviceChargePct, "Service charge can be 0 to 50%.");
+  assert.equal(one("serviceChargePct", "25").ok, true);
+  assert.equal(one("serviceChargePct", "25.5").errors.serviceChargePct, "Service charge can be 0 to 25%.");
 });
 t("layout & setup fee is optional (empty = 0) and capped at Rs 10 crore", () => {
   assert.equal(one("layoutBase", "").values.layoutBase, 0);

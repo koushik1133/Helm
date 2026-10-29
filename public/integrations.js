@@ -169,11 +169,28 @@
     try { r = await S.integrations.sendTest(channel); }
     catch (e) {
       var m = String((e && e.message) || "");
-      // function not deployed yet (network error / 404) -> say so, as a simulation
-      if (/Failed to fetch|NetworkError|HTTP 404|HTTP 5\d\d|Load failed/i.test(m) || !m) r = localSimulation(channel, ctx);
-      else { showResult(doc, resultId, { state: "off", text: "Not sent – " + m.replace(/\.$/, "") + "." }); return; }
+      // r59 (audit F-7): only "not deployed" (HTTP 404) is shown as a simulation. A server error or a dropped
+      // connection is a real failure in live mode and must never read as a successful (simulated) test.
+      var k = testFailureKind(m);
+      if (k === "simulate") r = localSimulation(channel, ctx);
+      else { showResult(doc, resultId, { state: "off", text: testFailureText(k, m) }); return; }
     }
     showResult(doc, resultId, testResultText(channel, r));
+  }
+
+  // r59: what a failed "Send test" call means -> "simulate" (function not deployed: 404) | "server" (5xx) |
+  // "network" (no answer) | "refused" (the function said why)
+  function testFailureKind(m) {
+    m = String(m || "");
+    if (/HTTP 404\b/.test(m)) return "simulate";
+    if (/HTTP 5\d\d\b/.test(m)) return "server";
+    if (!m || /Failed to fetch|NetworkError|Load failed|network/i.test(m)) return "network";
+    return "refused";
+  }
+  function testFailureText(kind, m) {
+    if (kind === "server") return "Not sent – Helm had a problem sending the test. Nothing was sent; try again in a minute.";
+    if (kind === "network") return "Not sent – couldn't reach Helm (check your connection, or the test service may not be switched on yet). Nothing was sent.";
+    return "Not sent – " + String(m || "").replace(/\.$/, "") + ".";
   }
 
   function wireEmail(doc, S, state, repaint) {
@@ -246,7 +263,8 @@
   }
 
   var api = { emailStatus: emailStatus, whatsappStatus: whatsappStatus, razorpayStatus: razorpayStatus, showPhone: showPhone,
-    parseE164: parseE164, validEmail: validEmail, validFromName: validFromName, testResultText: testResultText, localSimulation: localSimulation };
+    parseE164: parseE164, validEmail: validEmail, validFromName: validFromName, testResultText: testResultText, localSimulation: localSimulation,
+    testFailureKind: testFailureKind, testFailureText: testFailureText };
   global.HelmIntegrations = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (typeof document === "undefined") return;

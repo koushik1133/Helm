@@ -337,7 +337,14 @@ window.HelmUrl = HelmUrl;
   // Per-USER browser state that must not carry over to the next person who signs in
   // on a shared computer (audit Phase 4). Device prefs (theme, tours) are kept.
   const USER_LOCAL_KEYS = ["bps.clip", "wa_pin", "wa_mute", "wa_fav", "bp_chat_ping", "helm_org_country", "helm_ev_showall", "helm.trial", "helm.studioTax", "helm.studioTz"];   // 0181: helm.trial = the cached free-trial flag
-  function userLocalClear() { USER_LOCAL_KEYS.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} }); }
+  // r59 (audit BS-07): + every per-user "recent searches" list (helm_ss_recent_<user id>) and this tab's search hand-off
+  const USER_LOCAL_PREFIXES = ["helm_ss_recent_"];
+  function userLocalClear() {
+    USER_LOCAL_KEYS.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} });
+    try { const del = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && USER_LOCAL_PREFIXES.some((p) => k.indexOf(p) === 0)) del.push(k); }
+      del.forEach((k) => localStorage.removeItem(k)); } catch (e) {}
+    try { sessionStorage.removeItem("helm_ss_hs"); } catch (e) {}
+  }
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
 
   /* ---- sign-in steps, session limits, CAPTCHA (audit Phase 3-4 follow-up) ----
@@ -1439,7 +1446,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "15";
+  const STUDIO_SEARCH_VERSION = "16";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "7";
