@@ -59,7 +59,11 @@ declare
 begin
   -- fixture: quote A with a realistic staff-written pricing (client copied in, internal keys), a published proposal,
   -- a live booklet, and a studio brand with more than the accent
-  update public.quotes set pricing = P where id = qA;
+  -- earlier suites may leave quote A with a rotated / expired / paused link: put the fixture link back first
+  update public.quotes set pricing = P, status = 'quote', approval_token = tokA, approval_token_revoked_at = null,
+         approval_token_expires_at = now() + interval '7 days', client_links_paused_at = null, deleted_at = null where id = qA;
+  update public.quotes set status = 'quote', approval_token = 'b0000000-0000-4000-8000-0000000000bb', approval_token_revoked_at = null,
+         approval_token_expires_at = now() + interval '7 days', client_links_paused_at = null, deleted_at = null where id = qB;
   update public.organizations set brand = '{"accent": "#0f7a43", "logo": "l.png", "onboarding": {"step": 3}, "billing": {"gstin": "X"}}'::jsonb
    where id = orgA;
   insert into public.event_proposal(quote_id, org_id, share_token, published, concept, theme)
