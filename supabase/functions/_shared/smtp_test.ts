@@ -1,6 +1,6 @@
 // Deno tests for the built-in SMTP client against a fake local SMTP server (no real sends).
 // Run: deno test --allow-net supabase/functions/_shared/smtp_test.ts
-import { assert, assertEquals, assertMatch, assertStringIncludes } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertMatch, assertStringIncludes } from "jsr:@std/assert@1.0.19";
 import { buildMessage, encodeWord, smtpReason, smtpSend, SmtpError } from "./smtp.ts";
 import { sendMail } from "./mailer.ts";
 
