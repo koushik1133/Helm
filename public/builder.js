@@ -941,6 +941,11 @@ function makeItem(type, x, y, overrides={}){
   };
   return it;
 }
+// R72: a freshly-dropped sofa/lounge should open INTO the room (toward the stage, conventionally the top
+// of the plan), not have its back to it. rotation 180 = the seat faces "north" (-z) in the 3D model's
+// convention. NEW placements only: this is applied at the drop sites (addAsset / sandbox add), never in
+// makeItem, so loaded/saved layouts and hand-tuned templates keep their own stored rotation untouched.
+const NEW_ITEM_FACING = { sofa:180, loveseat:180, armchair:180, lounge:180 };
 // Items most events only want ONE of — adding a second is usually a slip, so we ask first.
 const SINGULAR_ASSETS = new Set(['stage','dancefloor','dj','mandap','caketable','headtable','foh','videowall','piano','redcarpet','fountain']);
 async function addAsset(type, atFt, opts){
@@ -956,6 +961,7 @@ async function addAsset(type, atFt, opts){
   let y = clamp(snapFt(cy - a.h/2), 0, WORLD.h-a.h);
   // the Entrance marker gets its own blue (exits stay green); still editable in the Inspector
   const it = makeItem(type, x, y, lbl ? Object.assign({label:lbl}, type==='exit' && /entr/i.test(lbl) ? {color:'#2563eb', colorCustom:true} : {}) : undefined);
+  if(NEW_ITEM_FACING[type]!=null) it.rotation = NEW_ITEM_FACING[type];   // R72: new sofa/lounge faces into the room
   store.items.push(it);
   setSelection([it.id]);
   commit(); renderAll();
@@ -5132,6 +5138,7 @@ if(window.HELM_SANDBOX===true && !window.__helmSandbox) window.__helmSandbox = O
   add(type, o){
     if(!ASSETS[type]) return null;
     const a=ASSETS[type], it=makeItem(type, WORLD.w/2-a.w/2, WORLD.h/2-a.h/2, (o&&typeof o.color==='string')?{color:o.color,colorCustom:true}:{});
+    if(NEW_ITEM_FACING[type]!=null) it.rotation = NEW_ITEM_FACING[type];   // R72: new sofa/lounge faces into the room
     store.items.push(clampItem(it)); setSelection([it.id]); commit(); renderAll(); return it.id;
   },
   rotate(){ const sel=selectedItems(); if(!sel.length) return false; sel.forEach(it=>it.rotation=(it.rotation+15)%360); commit(); renderAll(); return true; },

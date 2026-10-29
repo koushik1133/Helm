@@ -301,7 +301,9 @@
     const lbl = (k, i, n) => OBJECTS[k].label.replace(/s$/, '') + (n > 1 ? ' ' + (i + 1) : '');
     // drawn rect (dw×dh at rx,ry) → item; rot 90 swaps the item's own width/height
     function mk(type, r, rot, label, props, overlay) {
-      const q = rot ? 90 : 0, w = q ? r.h : r.w, h = q ? r.w : r.h;
+      // rot may be 0 / 90 (legacy truthy) or a quarter-turn 180 / 270 (R72). Only 90 & 270 swap w/h.
+      const q = rot === true ? 90 : (((Math.round((+rot || 0) / 90) * 90) % 360) + 360) % 360;
+      const swap = q === 90 || q === 270, w = swap ? r.h : r.w, h = swap ? r.w : r.h;
       const it = D.makeItem(type, r.x + r.w / 2 - w / 2, r.y + r.h / 2 - h / 2, { width: r1(w), height: r1(h), rotation: q, label });
       if (props) it.properties = Object.assign({}, it.properties || {}, props);
       items.push(it); if (!overlay) placed.push({ x: r.x, y: r.y, w: r.w, h: r.h });
@@ -439,7 +441,8 @@
       vipUnits.forEach((u, i) => { const left = i % 2 === 0;
         let px = left ? xL - u.w : xR, py = left ? yL : yR;
         if ((left && px < 2) || (!left && px + u.w > W - 2)) { if (left) { yL += u.h + 2; xL = cx - aisle / 2; px = xL - u.w; py = yL; } else { yR += u.h + 2; xR = cx + aisle / 2; px = xR; py = yR; } }
-        const it = place(u.type, u.w, u.h, px, py, { label: u.label, props: u.props, gap: 0.8, region: [frontBottom, H * 0.8] });
+        // R72: VIP sofas sit behind the front zone and should FACE the stage (up / toward the top of the plan), not have their backs to it
+        const it = place(u.type, u.w, u.h, px, py, { label: u.label, props: u.props, gap: 0.8, region: [frontBottom, H * 0.8], rot: u.type === 'sofa' ? 180 : 0 });
         if (it) { const p = placed[placed.length - 1]; vipBottom = Math.max(vipBottom, p.y + p.h);
           if (Math.abs(p.y - py) < 0.01) { if (left) xL = p.x - 1.5; else xR = p.x + p.w + 1.5; } } });
     }
