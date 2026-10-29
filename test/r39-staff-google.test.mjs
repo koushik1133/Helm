@@ -122,7 +122,7 @@ await t('hq.html: Owner-only switch card with a strong warning, the "Test my Goo
   assert.match(H, /<div class="gwarn" role="note"><b>Careful\.<\/b> If Google sign-in does not work for you, you are locked out of HQ\./);
   assert.match(H, /<h3>Test my Google sign-in first<\/h3>/);
   assert.match(H, /id="sgTested"/); assert.match(H, /id="btnSgOn"/); assert.match(H, /id="btnSgOff"/);
-  assert.match(H, /hq\.js\?v=29/);
+  assert.match(H, /hq\.js\?v=30/);
   assert.doesNotMatch(H.slice(H.indexOf('id="sgCard"'), H.indexOf('id="tmRolesH"')), /\son[a-z]+=|style=/);
 });
 await t('hq.js: switch needs the tick box + confirm (fresh code via call()), Owner-only card, Google gate before two-step set-up, textContent only', () => {

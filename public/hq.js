@@ -890,7 +890,7 @@
     // r42: adding / deactivating a studio's logins from HQ is COMING SOON - it waits for PR #271 (r33 team safety:
     // Deactivate, never delete) and will be HQ Owner / Admin only, two-step + a fresh code, a written reason, logged.
     wrap.appendChild(el("div", { cls: "card", id: "studioLoginsSoon" }, [el("h2", null, [document.createTextNode("Add or deactivate a studio login "), el("span", { cls: "pill", text: "Coming soon" })]),
-      el("p", { cls: "muted", text: "Studio admins add and deactivate their own people in Control Center → Team. Doing it from Helm HQ is coming soon: it will be for HQ Owners and Admins only, with two-step, a written reason and a log entry, and it deactivates (never deletes). Until then, ask a studio admin - or reset two-step above for a lost phone." })]));
+      el("p", { cls: "muted", text: "Studio admins add and deactivate their own people in Settings → Team. Doing it from Helm HQ is coming soon: it will be for HQ Owners and Admins only, with two-step, a written reason and a log entry, and it deactivates (never deletes). Until then, ask a studio admin - or reset two-step above for a lost phone." })]));
 
     // r33 (0283): the studio owner, its history, and "Recover studio owner" (owner gone: HQ Owner role, two-step, reason)
     var ownBox = el("div"); wrap.appendChild(ownBox);

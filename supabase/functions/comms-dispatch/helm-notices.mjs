@@ -239,11 +239,11 @@ export function helmNoticeEmail(kind, data, appUrl) {
     return { subject: S[0].slice(0, 150), text: [S[1], S[2], "Helm HQ -> Staff access: " + app + "/hq", "If you did not expect this, reply to this e-mail or contact security@helm.events.", "- The Helm team"].filter(Boolean).join("\n\n") };
   }
   if (kind === "team_safety") {
-    // r33 (0283): names only (no e-mail addresses of others, no links but Control Center -> Team on APP_URL)
+    // r33 (0283): names only (no e-mail addresses of others, no links but Settings -> Team on APP_URL)
     const studio = clip(d.studio, 120) || "your Helm studio", target = clip(d.target, 80) || "An admin", by = clip(d.by, 80) || "An admin";
     const role = clip(d.role_label, 40) || "a non-admin role", when = clip(d.when, 60), from = clip(d.from, 80) || "The owner", to = clip(d.to, 80) || "an admin";
     const deact = d.kind === "deactivate";
-    const team = "Control Center -> Team: " + app + "/control#users";
+    const team = "Settings -> Team: " + app + "/control#users";
     const S = {
       admin_change_requested: [
         "Helm: " + target + (deact ? " will be deactivated" : " will become " + role) + " in 24 hours - " + studio,
@@ -260,7 +260,7 @@ export function helmNoticeEmail(kind, data, appUrl) {
       admin_demoted: ["Helm: " + target + " is now " + role + " - " + studio,
         by + " (the studio owner) changed " + target + "'s role in " + studio + " from Admin to " + role + ".", team],
       owner_transfer_started: ["Helm: " + from + " wants to make " + to + " the owner of " + studio,
-        from + " started handing the ownership of " + studio + " to " + to + ". " + to + " must accept it in Control Center -> Team within 7 days.", team],
+        from + " started handing the ownership of " + studio + " to " + to + ". " + to + " must accept it in Settings -> Team within 7 days.", team],
       owner_transfer_accepted: ["Helm: " + to + " is now the owner of " + studio,
         to + " accepted and is now the owner of " + studio + " (handed over by " + from + "). " + from + " stays an admin.", team],
       owner_transfer_cancelled: ["Helm: the ownership hand-over was cancelled - " + studio,
