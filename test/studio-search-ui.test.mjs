@@ -65,11 +65,13 @@ function load({ role = 'admin', view = () => true, edit = () => true, can = () =
   const ls = storageThrows
     ? { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); }, removeItem() { throw new Error('blocked'); } }
     : { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+  const sstore = {};   // r59: this tab's search hand-off (never the URL)
+  const ss = { getItem: (k) => (k in sstore ? sstore[k] : null), setItem: (k, v) => { sstore[k] = String(v); }, removeItem: (k) => { delete sstore[k]; } };
   const calls = [];
   const timers = [];
   const ctx = {
     module: { exports: {} }, console, Promise, URLSearchParams, encodeURIComponent, AbortController, JSON, Math, String, Array, Object, Set, Error,
-    document: doc, localStorage: ls, navigator: { platform: 'MacIntel', userAgent: 'x' },
+    document: doc, localStorage: ls, sessionStorage: ss, navigator: { platform: 'MacIntel', userAgent: 'x' },
     location: { pathname, search: search_qs, hash: '', href: '' },
     history: { state: null, replaceState() {} },
     Event: class { constructor(t, o) { this.type = t; Object.assign(this, o); } },
@@ -112,10 +114,12 @@ t('cleanQuery trims, collapses spaces, caps at 80', () => {
   assert.equal(api.cleanQuery('x'.repeat(200)).length, 80);
   assert.equal(api.cleanQuery(null), '');
 });
-t('safeLink: own pages only; ?hs= gets the encoded title', () => {
-  const { api } = load();
+t('safeLink: own pages only; ?hs= hands the title over by a key, never in the URL (r59 BS-05)', () => {
+  const { api, ctx } = load();
   assert.equal(api.safeLink('event.html?id=abc-1', 't'), 'event.html?id=abc-1');
-  assert.equal(api.safeLink('leads.html?hs=', 'Ravi & <Co>'), 'leads.html?hs=Ravi%20%26%20%3CCo%3E');
+  const l = api.safeLink('leads.html?hs=', 'Ravi & <Co>');
+  assert.match(l, /^leads\.html\?hs_k=[a-z0-9]{1,12}$/); assert.ok(!/Ravi/.test(l));
+  assert.equal(JSON.parse(ctx.sessionStorage.getItem('helm_ss_hs'))[l.split('=')[1]], 'Ravi & <Co>');
   assert.equal(api.safeLink('control.html#users', 'x'), 'control.html#users');
   for (const bad of ['javascript:alert(1)', 'https://evil.test/x.html', '//evil.test/a.html', '/abs.html', 'x.html?a=<b>', 'event.html?id="x"', '', null]) {
     assert.equal(api.safeLink(bad, 't'), null, String(bad));
@@ -236,7 +240,8 @@ t('Enter opens the active result and records a recent search', async () => {
   const env = load({ search: async () => SAMPLE }); await env.api.boot(); await env.api.open();
   await typeQ(env, 'ravi');
   key(env, 'ArrowDown'); key(env, 'Enter');
-  assert.equal(env.ctx.location.href, 'leads.html?hs=Ravi%20Kumar');
+  assert.match(env.ctx.location.href, /^leads\.html\?hs_k=[a-z0-9]+$/);   // r59: no client name in the URL
+  assert.equal(JSON.parse(env.ctx.sessionStorage.getItem('helm_ss_hs'))[env.ctx.location.href.split('=')[1]], 'Ravi Kumar');
   assert.equal(env.doc.getElementById('hssInput'), null, 'closed');
   assert.deepEqual(J(env.api.recentGet()), ['ravi']);
 });

@@ -37,6 +37,8 @@ import { errTag, escHtml, UUID_RE } from "../_shared/cors.ts";
 import { quoteCur, symMoney } from "../_shared/money.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped, WEBHOOK_BODY_LIMIT } from "../_shared/limits.ts";
 import { postalAddress, txFooter, withFooter } from "../_shared/email-compliance.mjs";
+import { isMissingRpc } from "../_shared/limits.ts";
+import { studioBillingEmail } from "../_shared/billing-email.ts";
 
 const enc = new TextEncoder();
 async function hmacHex(secret: string, body: string) {
@@ -110,7 +112,16 @@ async function recordEvent(admin: any, req: Request, raw: string, evt: any, org:
     p_amount_paise: Number.isFinite(amount) ? Math.round(amount) : null, p_status: status,
     p_quote_hint: hint && UUID_RE.test(String(hint)) ? String(hint) : null,
   });
-  if (recErr) { console.error("razorpay_record_event failed", errTag(recErr)); return new Response("error", { status: 500 }); }
+  if (recErr) {
+    // r59 (audit E-01): razorpay_record_event comes with 0117, which production does not have yet. These events are
+    // only RECORDED (never settled), so a missing function answers 200 "ignored" - a 500 here made Razorpay retry and
+    // then switch the whole webhook off, which would also stop the real payment_link.paid deliveries.
+    if (isMissingRpc(recErr)) {
+      console.error("razorpay_record_event missing (0117 not applied) - event ignored", type);
+      return new Response(JSON.stringify({ ignored: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    console.error("razorpay_record_event failed", errTag(recErr)); return new Response("error", { status: 500 });
+  }
   if (data?.result === "replay") return new Response("already recorded (idempotent)", { status: 200 });
   if (data?.result === "org_mismatch") return new Response("ignored", { status: 200 });
   return new Response("recorded", { status: 200 });
@@ -196,10 +207,13 @@ Deno.serve(async (req) => {
     const { data: q, error: qErr } = await admin.from("quotes").select("id, code, title, client, pricing, org_id, currency, tax_snapshot").eq("id", out.quote_id).maybeSingle();
     if (qErr) { console.error("quote load failed", errTag(qErr)); return new Response("error", { status: 500 }); }
     if (!q) return new Response("ok", { status: 200 });
-    const { data: org, error: oErr } = await admin.from("organizations").select("name, business_email").eq("id", q.org_id).maybeSingle();
+    const { data: org, error: oErr } = await admin.from("organizations").select("name").eq("id", q.org_id).maybeSingle();
     if (oErr) { console.error("studio load failed", errTag(oErr)); return new Response("error", { status: 500 }); }
     const studio = String(org?.name || "Your event studio");
-    const studioEmail = String(org?.business_email || "");
+    // r59 (audit E-03): the studio e-mail only once confirmed, else the studio owner's login e-mail
+    const billTo = await studioBillingEmail(admin, String(q.org_id));
+    if (billTo === null) { console.error("studio e-mail lookup failed"); return new Response("error", { status: 500 }); }
+    const studioEmail = billTo;
     const from = fromHeader(studio);
     const subjCode = oneLine(q.code);
 

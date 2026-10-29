@@ -8,13 +8,13 @@
  *     never one message about both chair and plate;
  *   - 0 is allowed for chair / plate, but changing a price TO 0 asks "Chairs free?" first;
  *   - negative, not-a-number, more than 2 decimal places and out-of-range values are refused;
- *   - GST 0-28 %, service charge 0-50 %, venue booking gap 0-48 hours;
+ *   - GST 0-28 %, service charge 0-25 % (r59: same limit as the server, 0300), venue booking gap 0-48 hours;
  *   - coupons: code 3-20 letters / numbers / - / _, % off 0.01-100, flat off more than 0. */
 (function (global) {
   "use strict";
   var MONEY_MAX = 10000000;      // Rs 1,00,00,000 per chair / per plate / flat coupon
   var FEE_MAX = 100000000;       // Rs 10,00,00,000 layout & setup fee
-  var GST_MAX = 28, SVC_MAX = 50, HOURS_MAX = 48;
+  var GST_MAX = 28, SVC_MAX = 25, HOURS_MAX = 48;
   var CODE_MIN = 3, CODE_MAX = 20;
 
   function fmt(n, symbol) {

@@ -118,8 +118,10 @@ do $$ declare n int; nb int; nm text; en text; begin
   select count(*), count(*) filter (where id in (pg_temp.uid('b_admin@b.test'), pg_temp.uid('b_staff@b.test')))
     into n, nb from public.chat_directory();
   select full_name, email_name into nm, en from public.chat_directory() where id = pg_temp.uid('a_admin@a.test');
-  perform pg_temp.res('20 chat_directory lists my studio (names + e-mail local part), never another studio',
-    n >= 2 and nb = 0 and nm = 'Asha Admin' and en = 'a_admin', n||'/'||nb||'/'||coalesce(nm,'∅')||'/'||coalesce(en,'∅'));
+  -- r59 (0300, audit BS-06): the e-mail local part only for admins / Users view - a sales member gets null
+  perform pg_temp.res('20 chat_directory lists my studio (names; e-mail local part only for admins / Users view), never another studio',
+    n >= 2 and nb = 0 and nm = 'Asha Admin'
+    and (en is null or to_regprocedure('public.integrations_wa_test_target()') is null and en = 'a_admin'), n||'/'||nb||'/'||coalesce(nm,'∅')||'/'||coalesce(en,'∅'));
   perform pg_temp.login('b_admin@b.test');
   select count(*) filter (where id in (pg_temp.uid('a_admin@a.test'), pg_temp.uid('a_staff@a.test'))) into nb from public.chat_directory();
   perform pg_temp.res('21 studio B sees no studio A people', nb = 0, nb::text);

@@ -68,15 +68,6 @@
           <li>Helm e-mails the invite within about 2 minutes. If it does not arrive, ask them to check spam, then press <b>Resend email</b> (once every 10 minutes).</li>
           <li>The e-mail says which studio and role it is for. Client e-mails show your <b>Sender name</b>; replies go to your <b>Reply-to e-mail</b> (set both above, then press <b>Send test e-mail to me</b>).</li>
         </ol>
-        <h4>For the Helm owner (one-time, platform-wide)</h4>
-        <ol>
-          <li>Apply <code>supabase/APPLY-0131.sql</code> on staging, then production. Every check row must say <code>true</code>.</li>
-          <li>Apply <code>supabase/APPLY-0150.sql</code> (sender name + reply-to). Deploy: <code>supabase functions deploy invite-mailer --no-verify-jwt --project-ref &lt;ref&gt;</code>, then <code>comms-dispatch</code> (also <code>--no-verify-jwt</code>) and <code>integrations-test</code>.</li>
-          <li><b>Today (no Resend account):</b> leave <code>RESEND_API_KEY</code> unset. Invites go out through Supabase's own sign-in e-mail. In Supabase → Authentication → URL Configuration, add <code>https://www.helm.events/login*</code> to Redirect URLs. Supabase's built-in mailer only sends a few e-mails an hour, so add custom SMTP (Authentication → SMTP, e.g. a Google Workspace app password) for real use.</li>
-          <li><b>Later (branded e-mail):</b> create a Resend account, verify the domain <code>helm.events</code> (add the SPF and DKIM DNS records Resend shows), create an API key, then set the secrets <code>RESEND_API_KEY</code>, <code>RESEND_FROM="Helm &lt;hello@helm.events&gt;"</code> and <code>APP_URL</code>. Nothing else changes.</li>
-          <li>Set <code>HELM_INVITE_EMAIL_SECRET</code> and schedule the 2-minute safety-net job (exact SQL in <code>docs/ops/EMAIL-SETUP.md</code>).</li>
-          <li>Emergency stop: secret <code>HELM_INVITE_EMAILS_ENABLED=false</code>. No data is touched.</li>
-        </ol>
       </details>
     </section>
 
@@ -93,7 +84,7 @@
         <div class="itg-f">
           <label for="itgWaNum">Studio WhatsApp number</label>
           <input id="itgWaNum" name="studio_whatsapp" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="+91 98765 43210">
-          <small class="itg-hint">Pick the country, then type the number (saved in international format, e.g. +91 98765 43210). Test messages go to this number.</small>
+          <small class="itg-hint">Pick the country, then type the number (saved in international format, e.g. +91 98765 43210). Test messages go to this number. Only a studio admin can send one, and the number must be the mobile saved in your (or a teammate's) Helm profile.</small>
           <div class="itg-err" id="itgWaNumErr" role="alert"></div>
         </div>
         <div class="itg-row">
@@ -130,7 +121,7 @@
         <h4>C. Give the details to Helm</h4>
         <ol>
           <li>Send these to Helm support (never by e-mail in plain text – use a password-manager share): the <b>Phone number ID</b>, the <b>permanent token</b>, the <b>App secret</b> (App → Settings → Basic) and the WhatsApp Business Account ID.</li>
-          <li>Helm (the owner) stores them as Supabase secrets – the full commands are in <code>docs/ops/WHATSAPP-SETUP.md</code>: <code>WHATSAPP_TOKEN</code>, <code>WHATSAPP_PHONE_ID</code>, <code>WHATSAPP_APP_SECRET</code>, <code>WHATSAPP_WEBHOOK_VERIFY_TOKEN</code>, <code>WHATSAPP_TPL_TASK_ASSIGNED=helm_task_assigned</code>, <code>WHATSAPP_TPL_EVENT_REMINDER=helm_event_reminder</code>, <code>COMMS_WHATSAPP_TEMPLATE=helm_notice</code>. Then it deploys the WhatsApp functions (<code>send-whatsapp</code>, <code>comms-dispatch</code>, <code>wa-webhook</code>, <code>send-phone-code</code>, <code>integrations-test</code>) and sets the webhook in Meta.</li>
+          <li>Helm sets them up on its side and switches WhatsApp on for your studio. You do not need to do anything else here.</li>
         </ol>
         <h4>D. In Helm</h4>
         <ol>
@@ -171,7 +162,7 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=305"></script>
-<script src="integrations.js?v=5"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=306"></script>
+<script src="integrations.js?v=6"></script>
 </body>
 </html>

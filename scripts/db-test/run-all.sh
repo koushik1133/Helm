@@ -270,6 +270,8 @@ run "r47-my-pending-0292" "R47-MY-PENDING-0292: ALL PASS \(24/24\)" psql -q -f t
 run "r52-notif-clear-0293" "R52-NOTIF-CLEAR-0293: ALL PASS \(35/35\)" psql -q -f tests/db/r52-notif-clear-0293.sql
 # r54 (0295): studio data export owner / admin only, no secret-like keys at any depth, audited, export_org_data closed; re-applies itself twice (earlier suites re-apply 0033 / 0173), rolled back
 run "r54-export-lockdown-0295" "R54-EXPORT-LOCKDOWN-0295: ALL PASS \(24/24\)" psql -q -f tests/db/r54-export-lockdown-0295.sql
+# r59 (0300): Settings / money / chat audit fixes; re-applies itself twice (after every suite that re-applies 0045 / 0061 / 0157 / 0164 / 0181 / 0256 / 0283 / 0285), rolled back
+run "r59-audit-0300" "R59-AUDIT-0300: ALL PASS \(56/56\)" psql -q -f tests/db/r59-audit-0300.sql
 # r61 (0302): quote "Valid until" Undo (same checks as Extend, logged, exact date + source back) + link_until; re-applies itself twice (the 0262 suite re-applies 0262 over it), rolled back
 run "r61-qv-undo-0302" "R61-QV-UNDO-0302: ALL PASS \(30/30\)" psql -q -f tests/db/r61-quote-validity-undo-0302.sql
 # r57 (0298): HQ masking + hq_reveal, partner codes billing.write, mfa reset role-first, referral oracle, credit cap, trusted caller address, sign-up staff check, team list, invitations token columns; re-applies itself twice (earlier suites re-apply 0271 / 0276 / 0279 / 0280), rolled back

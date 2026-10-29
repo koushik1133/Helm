@@ -64,11 +64,27 @@
   function cleanQuery(q) { return String(q == null ? "" : q).replace(/\s+/g, " ").trim().slice(0, MAX); }
   // only the app's own pages: "<page>.html" plus a simple query / hash
   const LINK_RE = /^[a-z][a-z0-9-]*\.html(?:[?#][A-Za-z0-9_\-=&.#%]*)?$/;
+  // r59 (audit BS-05): a list page has no per-record URL, so the result's name is handed to the page's own search
+  // box. It travels in this tab's sessionStorage under a short random key (?hs_k=...), never in the URL (browser
+  // history / server logs / referrer would otherwise keep client names).
+  const HS_KEY = "helm_ss_hs";
+  function hsStore() { try { const v = JSON.parse(global.sessionStorage.getItem(HS_KEY) || "{}"); return v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch (e) { return {}; } }
+  function hsPut(term) {
+    const k = Math.random().toString(36).slice(2, 10) || "k";
+    try { const m = hsStore(); m[k] = String(term || "").slice(0, MAX); const keys = Object.keys(m); while (keys.length > 30) delete m[keys.shift()];
+      global.sessionStorage.setItem(HS_KEY, JSON.stringify(m)); } catch (e) { return null; }
+    return k;
+  }
+  function hsTake(k) {
+    if (!/^[a-z0-9]{1,12}$/.test(String(k || ""))) return null;
+    try { const m = hsStore(); const v = m[k]; delete m[k]; global.sessionStorage.setItem(HS_KEY, JSON.stringify(m)); return typeof v === "string" ? v : null; } catch (e) { return null; }
+  }
   function safeLink(link, title) {
     const l = String(link || "");
     if (!LINK_RE.test(l)) return null;
-    // list pages have no per-record URL: hand the title to the page's own search box
-    return /[?&]hs=$/.test(l) ? l + encodeURIComponent(String(title || "").slice(0, MAX)) : l;
+    if (!/[?&]hs=$/.test(l)) return l;
+    const k = hsPut(title);
+    return k ? l.replace(/hs=$/, "hs_k=" + k) : l.replace(/[?&]hs=$/, "");
   }
   function normalize(data) {
     const out = [];
@@ -559,9 +575,10 @@
   /* ---- landing helpers: ?hs=<text> fills the page's own search box; ?hs_act=new opens "new" -- */
   function landing() {
     let p; try { p = new URLSearchParams(global.location.search); } catch (e) { return; }
-    const hs = p.get("hs"), act = p.get("hs_act");
-    if (hs == null && act == null) return;
-    try { p.delete("hs"); p.delete("hs_act"); const qs = p.toString();
+    const hk = p.get("hs_k");
+    const hs = hk != null ? hsTake(hk) : p.get("hs"), act = p.get("hs_act");
+    if (hs == null && act == null && hk == null) return;
+    try { p.delete("hs"); p.delete("hs_k"); p.delete("hs_act"); const qs = p.toString();
       global.history.replaceState(global.history.state, "", global.location.pathname + (qs ? "?" + qs : "") + global.location.hash); } catch (e) {}
     let tries = 0;
     (function go() {

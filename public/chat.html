@@ -381,7 +381,7 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=305"></script><script src="event-group-picker.js?v=5"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=306"></script><script src="event-group-picker.js?v=5"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
 (function(){
@@ -494,7 +494,8 @@
 
   /* ---------- attachment cards (quote / layout) ---------- */
   const inr=(n)=>{ const v=Number(n||0); try{ return BPStore.studioMoney(v); }catch(e){ return "₹"+v; } };
-  function cardLabel(m){ const mt=(m&&m.meta)||{}; if(mt.kind==="event") return "📋 Event details"+(mt.code?": "+mt.code:""); if(mt.kind==="layout") return "📐 Layout"+(mt.name?": "+mt.name:""); return "📄 Quote"+(mt.code?": "+mt.code:(mt.title?": "+mt.title:"")); }
+  const qCards={loaded:false,loading:null,map:{}};   // r59 BS-04: the viewer's own quotes (see quoteCardHtml)
+  function cardLabel(m){ const mt=(m&&m.meta)||{}; if(mt.kind==="event") return "📋 Event details"+(mt.code?": "+mt.code:""); if(mt.kind==="layout") return "📐 Layout"+(mt.name?": "+mt.name:""); const q=qCards.loaded?qCards.map[String(mt.ref_id||"")]:null; return "📄 Quote"+(q&&q.code?": "+q.code:""); }
   /* event group card (0035): built by the server from a whitelist (no money); every value escaped here */
   function isEventCard(m){ return !!(m&&m.kind==="card"&&m.sender_id==null&&m.meta&&m.meta.kind==="event"); }
   function fmtEvDate(d){ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(d||""))) return ""; try{ const o=BPStore.fmtStudioDate(String(d),{fmt:{weekday:"short",day:"numeric",month:"short",year:"numeric"}}); if(o) return o; }catch(e){} try{ return new Date(d+"T00:00:00").toLocaleDateString("en-IN", {weekday:"short",day:"numeric",month:"short",year:"numeric"}); }catch(e){ return String(d); } }
@@ -532,9 +533,21 @@
     let out="",i=0,plain="";
     outer: while(i<txt.length){ for(const x of names){ if(txt.startsWith(x.n,i)){ out+=esc(plain)+`<span class="mention${x.id===ME.id?" me":""}">${esc(x.n)}</span>`; plain=""; i+=x.n.length; continue outer; } } plain+=txt[i]; i++; }
     return out+esc(plain); }
+  /* r59 (audit BS-04): a quote card shows only a quote THIS viewer can open (their own Quotes list, from the server),
+     with that quote's real code / title / stage / date - never the total, client or text carried in the message */
+  function loadQuoteCards(){ if(qCards.loaded||qCards.loading) return qCards.loading;
+    qCards.loading=Promise.resolve().then(()=>BPStore.quotes.list()).then(l=>l,()=>[]).then(list=>{
+      (list||[]).forEach(q=>{ if(q&&q.id) qCards.map[String(q.id)]=q; }); qCards.loaded=true; qCards.loading=null;
+      try{ renderMessages(); }catch(e){} });
+    return qCards.loading; }
+  function quoteCardHtml(meta){
+    if(!qCards.loaded){ loadQuoteCards(); return `<div class="card"><span class="cic">📄</span><div class="cmeta"><b>Quote</b><span class="csub">Checking…</span></div></div>`; }
+    const q=qCards.map[String(meta.ref_id||"")];
+    if(!q) return `<div class="card"><span class="cic">📄</span><div class="cmeta"><b>Quote</b><span class="csub">Not available to you</span></div></div>`;
+    const stage=q.lifecycleStage||q.status||""; const sub=[(BPStore.stageLabel&&stage)?BPStore.stageLabel(stage):stage, q.eventDate||""].filter(Boolean).join(" · ");
+    return `<a class="card" href="quotes.html?focus=${encodeURIComponent(q.code||q.title||"")}"><span class="cic">📄</span><div class="cmeta"><b>${esc((q.code?q.code+" · ":"")+(q.title||"Quote"))}</b><span class="csub">${esc(sub||"Quote")}</span><span class="copen">Open quote →</span></div></a>`; }
   function cardHtml(meta){ meta=meta||{};
-    if(meta.kind==="quote"){ const sub=[meta.total?inr(meta.total):null, meta.status, meta.client, meta.event_date].filter(Boolean).join(" · ");
-      return `<a class="card" href="quotes.html?focus=${encodeURIComponent(meta.code||meta.title||"")}"><span class="cic">📄</span><div class="cmeta"><b>${esc((meta.code?meta.code+" · ":"")+(meta.title||"Quote"))}</b><span class="csub">${esc(sub||"Quote")}</span><span class="copen">Open quote →</span></div></a>`; }
+    if(meta.kind==="quote") return quoteCardHtml(meta);
     if(meta.kind==="event") return `<div class="card"><span class="cic">📋</span><div class="cmeta"><b>${esc(cardLabel({meta}))}</b></div></div>`;
     if(meta.kind==="layout"){ const sub=(meta.object_count!=null?meta.object_count+" item"+(meta.object_count===1?"":"s"):"Floor layout");
       return `<a class="card" href="builder.html${meta.quote_id?"?quote="+encodeURIComponent(meta.quote_id):""}"><span class="cic">📐</span><div class="cmeta"><b>${esc(meta.name||"Layout")}</b><span class="csub">${esc(sub)}</span><span class="copen">Open in builder →</span></div></a>`; }
@@ -949,7 +962,7 @@
       // LA-29/28: an untitled quote reads "Untitled event" (not its code twice); the stage reads as its label
       title:(q.code?q.code+" · ":"")+((window.HelmEventName&&HelmEventName.listName)?HelmEventName.listName(q):(q.title&&q.title!==q.code?q.title:"Untitled event")),
       sub:[q.total?inr(q.total):null,(BPStore.stageLabel?BPStore.stageLabel(q.lifecycleStage||q.status):(q.lifecycleStage||q.status)),q.client&&q.client.name].filter(Boolean).join(" · "),
-      meta:{kind:"quote",ref_id:q.id,code:q.code||"",title:q.title||"Untitled",total:q.total||0,status:q.lifecycleStage||q.status||"",client:(q.client&&q.client.name)||"",event_date:q.eventDate||""} })),
+      meta:{kind:"quote",ref_id:q.id,code:q.code||"",title:q.title||"Untitled",status:q.lifecycleStage||q.status||"",event_date:q.eventDate||""} })),   // r59: the server rebuilds the card from the quote
       "No quotes yet. Create one in Quotes, then attach it here."); }
   async function layoutPicker(){ let list=[]; try{ list=await BPStore.list(); }catch(e){ list=[]; }
     pickerModal("Attach a layout","📐",(list||[]).map(l=>({ icon:"📐",

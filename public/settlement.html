@@ -172,7 +172,7 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=305"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=11"></script><script src="trial-test-note.js?v=1"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=306"></script><script src="pick-event.js?v=1"></script><script src="vendor-bills-ui.js?v=11"></script><script src="trial-test-note.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -181,7 +181,7 @@
   const inr=(n)=>evTax?BPStore.quoteMoney(n,evTax):BPStore.studioMoney(n);
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const EXP={pending:"Pending",approved:"Approved",paid:"Paid",rejected:"Rejected"};
-  let canEdit=false, canDelete=false, s=null, summaryFailed=false, evStatus=null;
+  let canEdit=false, canClaims=false, canDelete=false, s=null, summaryFailed=false, evStatus=null;
   // Capability state: when the settlement recorder RPC isn't deployed, we flip to a
   // controlled "unavailable" state (disable submit) instead of ever reporting success.
   let settleUnavailable=false;
@@ -248,7 +248,7 @@
     $("#expBody").innerHTML = s.expenses.length ? s.expenses.map(e=>`<tr>
       <td><b>${esc(e.who)}</b></td><td class="muted">${esc(e.description||"")}</td><td class="num">${inr(e.amount)}</td>
       <td><span class="st ${esc(e.status)}">${esc(EXP[e.status]||e.status)}</span></td>
-      <td>${canEdit?`${e.status==='pending'?`<button type="button" class="rm" data-est="${esc(e.id)}" data-s="approved" aria-label="Approve claim from ${esc(e.who)}">Approve</button> `:""}${e.status==='approved'?`<button type="button" class="rm" data-est="${esc(e.id)}" data-s="paid" data-amt="${esc(inr(e.amount))}" data-who="${esc(e.who)}" aria-label="Mark claim from ${esc(e.who)} paid">Mark paid</button> `:""}${canDelete&&e.status==='pending'?`<button type="button" class="rm" data-edel="${esc(e.id)}" aria-label="Remove claim from ${esc(e.who)}">✕</button>`:""}${e.status!=='pending'?`<span class="muted" title="Approved, paid or rejected claims are locked — add a correcting claim instead." style="font-size:12px">Locked</span>`:""}`:""}</td>
+      <td>${canClaims?`${e.status==='pending'?`<button type="button" class="rm" data-est="${esc(e.id)}" data-s="approved" aria-label="Approve claim from ${esc(e.who)}">Approve</button> `:""}${e.status==='approved'?`<button type="button" class="rm" data-est="${esc(e.id)}" data-s="paid" data-amt="${esc(inr(e.amount))}" data-who="${esc(e.who)}" aria-label="Mark claim from ${esc(e.who)} paid">Mark paid</button> `:""}${canDelete&&e.status==='pending'?`<button type="button" class="rm" data-edel="${esc(e.id)}" aria-label="Remove claim from ${esc(e.who)}">✕</button>`:""}${e.status!=='pending'?`<span class="muted" title="Approved, paid or rejected claims are locked — add a correcting claim instead." style="font-size:12px">Locked</span>`:""}`:""}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No claims.</td></tr>';
     $("#e_tot").textContent=inr(s.expTotal); $("#e_paid").textContent=inr(s.expPaid);
     $("#expBody").querySelectorAll("[data-est]").forEach(b=>b.addEventListener("click",async()=>{
@@ -369,7 +369,7 @@
   $("#r_add").addEventListener("click",addRefund);
 
   async function load(){
-    try{ s=await BPStore.settlement.summary(id); await overlayBills(s); summaryFailed=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit; render(); }
+    try{ s=await BPStore.settlement.summary(id); await overlayBills(s); summaryFailed=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canClaims; render(); }
     catch(e){ summaryFailed=true; $("#payLine").hidden=true; $("#expAdd").hidden=true;
       ["#t_rev","#t_recv","#t_bal","#t_out"].forEach(x=>{ $(x).textContent="—"; });
       BPUI.loadError($("#invBody"),e,load,{what:"the invoice"});
@@ -388,12 +388,14 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("settlement"))) return;
     canEdit=await BPStore.auth.canEditArea("settlement"); canDelete=canEdit && await BPStore.auth.can("delete");
+    // r59 (audit E-07): expense claims are saved under Budget & finance - their buttons need Finance edit too
+    canClaims=canEdit && await BPStore.auth.canEditArea("finance");
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     try{ evTax=BPStore.quoteTax(ev); }catch(_){ evTax=null; }
     if(!ev){ $("#notfound").hidden=false; return; }
     evStatus=ev.status||null;
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
-    $("#app").hidden=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit; $("#refAdd").hidden=!canEdit;
+    $("#app").hidden=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canClaims; $("#refAdd").hidden=!canEdit;
     await load();
   });
 </script>
