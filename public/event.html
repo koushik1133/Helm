@@ -931,10 +931,10 @@
         else if(!dateOk(raw)){ if(fromBlur){ di.value=d; } return; }
         return BPUI.guard(di,async()=>{ try{ const nd=raw||null;
           // merge into the FRESH client JSON (not the page-load copy) so other fields edited elsewhere aren't overwritten
-          let base=ev.client||{}; try{ const fresh=await BPStore.quotes.get(id); if(fresh&&fresh.client) base=fresh.client; }catch(_){}
+          let base=ev.client||{}, lock=ev.updatedAt; try{ const fresh=await BPStore.quotes.get(id); if(fresh&&fresh.client) base=fresh.client; if(fresh&&fresh.updatedAt) lock=fresh.updatedAt; }catch(_){}
           const client=Object.assign({}, base, { eventDate: nd });   // keep client.eventDate in sync (invoice/meta read it)
-          await BPStore.quotes.updateMeta(id,{eventDate:nd, client}); ev.eventDate=nd; ev.client=client; renderDateRow(); BPUI.toast("Event date saved.",{type:"ok"}); }
-        catch(e){ di.value=d; BPUI.toast(BPUI.friendlyError(e,{action:"save the event date"}),{type:"err"}); } });
+          const row=await BPStore.quotes.updateMeta(id,{eventDate:nd, client}, lock); ev.eventDate=nd; ev.client=client; if(row&&row.updated_at) ev.updatedAt=row.updated_at; renderDateRow(); BPUI.toast("Event date saved.",{type:"ok"}); }
+        catch(e){ di.value=d; if(e&&e.code==="CONFLICT"){ await BPUI.alert(e.message,{title:"This quote was changed elsewhere"}); location.reload(); return; } BPUI.toast(BPUI.friendlyError(e,{action:"save the event date"}),{type:"err"}); } });
       };
       di.addEventListener("change",()=>commitDate(false));
       di.addEventListener("blur",()=>commitDate(true));

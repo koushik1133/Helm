@@ -173,7 +173,7 @@ t('flow.html: requirement duplicates blocked inline, note saved', () => {
 });
 t('flow.html: venue save refreshes the lock base and never swallows the client write', () => {
   const sv = flow.slice(flow.indexOf('async function saveVenue(quiet){'), flow.indexOf('async function saveMenuNotes'));
-  assert.match(sv, /const row=await BPStore\.quotes\.updateMeta\(id,\{ client \}\);\s*ev\.client=client; if\(row&&row\.updated_at\) ev\.updatedAt=row\.updated_at;/);
+  assert.match(sv, /row=await BPStore\.quotes\.updateMeta\(id,\{ client \}, ev\.updatedAt\);[^\n]*\n[^\n]*CONFLICT[^\n]*\n\s*ev\.client=client; if\(row&&row\.updated_at\) ev\.updatedAt=row\.updated_at;/);
   assert.doesNotMatch(sv, /catch\{\}/);
 });
 t('flow.html: quotation save - bound engine, inline checks, never silent', () => {

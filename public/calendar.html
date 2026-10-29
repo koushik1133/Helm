@@ -243,10 +243,11 @@
         inp.dataset.busy="1";
         let ok=false; try{ ok=await BPUI.confirm("Set the date of "+label+" to "+fmtDate(v)+" ("+weekday(v)+")? It will move onto the calendar and be checked for clashes.",{title:"Set event date?",okLabel:"Set date",cancelLabel:"Cancel"}); }catch(e){ ok=false; }
         if(!ok){ inp.value=""; delete inp.dataset.busy; try{ inp.focus(); }catch(e){} return; }
-        BPUI.guard(inp, async()=>{ await BPStore.quotes.updateMeta(ev.id,{eventDate:v});
+        BPUI.guard(inp, async()=>{ const row=await BPStore.quotes.updateMeta(ev.id,{eventDate:v}, ev.updatedAt);   // r79: optimistic lock
+            const undoEv=Object.assign({}, ev, { updatedAt: row&&row.updated_at||ev.updatedAt });
             await load();
-            BPUI.toast("Date set to "+fmtDate(v)+".",{type:"ok",timeout:8000,action:{label:"Undo",onClick:()=>undoDate(ev)}}); })
-          .catch((e)=>{ inp.value=""; BPUI.toast(BPUI.friendlyError(e,{action:"set the date"}),{type:"err"}); })
+            BPUI.toast("Date set to "+fmtDate(v)+".",{type:"ok",timeout:8000,action:{label:"Undo",onClick:()=>undoDate(undoEv)}}); })
+          .catch(async(e)=>{ inp.value=""; if(e&&e.code==="CONFLICT"){ await BPUI.alert(e.message,{title:"This quote was changed elsewhere"}); await load(); return; } BPUI.toast(BPUI.friendlyError(e,{action:"set the date"}),{type:"err"}); })
           .finally(()=>{ delete inp.dataset.busy; }); }));
     }
   }
@@ -254,8 +255,8 @@
   // cal-1018: Undo for the inline date set - puts back the date value it had (none) and the title it had (an automatic title may follow the date)
   async function undoDate(ev){
     try{ const patch={eventDate:ev.eventDate||null}; if(ev.title) patch.title=ev.title;
-      await BPStore.quotes.updateMeta(ev.id,patch); BPUI.toast("Date removed again.",{type:"info"}); await load(); }
-    catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"undo the date"}),{type:"err"}); }
+      await BPStore.quotes.updateMeta(ev.id,patch,ev.updatedAt); BPUI.toast("Date removed again.",{type:"info"}); await load(); }
+    catch(e){ if(e&&e.code==="CONFLICT"){ await BPUI.alert(e.message,{title:"This quote was changed elsewhere"}); await load(); return; } BPUI.toast(BPUI.friendlyError(e,{action:"undo the date"}),{type:"err"}); }
   }
 
   // open leads (not lost / won / quoted, no quote yet) that carry a usable event date
